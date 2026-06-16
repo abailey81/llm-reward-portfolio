@@ -1,0 +1,31 @@
+# Deliberate minimum bounds (ADR-002). Exact pins -> requirements.lock via `make lock` on the 4090.
+numpy>=1.26
+scipy>=1.11
+pandas>=2.1
+pyyaml>=6.0
+gymnasium>=0.29
+
+# RL stack (ADR-003: d3rlpy 2.x API verified)
+torch>=2.2
+d3rlpy>=2.8,<3
+stable-baselines3>=2.3
+
+# Regimes & data
+hmmlearn>=0.3.2
+yfinance>=0.2.40
+fredapi>=0.5.1
+pandas-datareader>=0.10
+matplotlib>=3.8
+
+# Data platform (ADR-013): vendor SDKs, storage, calendar, EDA stats, property tests
+refinitiv-data>=1.6          # LSEG Workspace desktop-session SDK (entitlement probes + pulls)
+DatastreamPy>=2.0            # DSWS adapter — useful only once Datastream creds exist
+pyarrow>=15.0                # parquet storage for staged/clean/gold layers
+exchange-calendars>=4.5      # XNYS trading-calendar alignment & holiday classification
+statsmodels>=0.14            # ADF/KPSS/ARCH-LM for the EDA stage
+hypothesis>=6.100            # property-based tests (accounting & PIT invariants)
+
+# Dev
+pytest>=8.0
+ruff>=0.4
+tabulate>=0.9                # pandas .to_markdown backend for EDA/quality reports

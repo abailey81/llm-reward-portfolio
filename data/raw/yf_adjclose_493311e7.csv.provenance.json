@@ -1,0 +1,37 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T16:04:30.292212+00:00",
+  "layer": "raw",
+  "name": "yf_adjclose_493311e7.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "field": "Adj Close",
+      "start": "2005-01-01",
+      "tickers": [
+        "TMO",
+        "MCD",
+        "ORCL",
+        "INTC",
+        "IBM"
+      ]
+    },
+    "query": "download_ohlcv_actions",
+    "received_utc": "2026-06-10T16:04:30.214222+00:00",
+    "requested_utc": "2026-06-10T16:04:29.704199+00:00",
+    "vendor": "yfinance"
+  },
+  "relpath": "data/raw/yf_adjclose_493311e7.csv",
+  "row_hash": "23ee0dff86d61f750a17baf916ff9c504e5b2e022621ae4eca9fc4b37baa7546",
+  "rows": 5282,
+  "run_id": "pull_20260610T160426Z",
+  "sha256": "23ee0dff86d61f750a17baf916ff9c504e5b2e022621ae4eca9fc4b37baa7546",
+  "vendor": "yfinance"
+}

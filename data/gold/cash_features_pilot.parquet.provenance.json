@@ -1,0 +1,18 @@
+{
+  "cols": 3,
+  "format": "parquet",
+  "frozen_utc": "2026-06-10T15:58:19.549819+00:00",
+  "layer": "gold",
+  "name": "cash_features_pilot.parquet",
+  "provenance": {
+    "lag_convention": "shift(1) \u2014 ADR-007",
+    "stage": "panel.build_gold",
+    "vendor": "derived"
+  },
+  "relpath": "data/gold/cash_features_pilot.parquet",
+  "row_hash": "287c9f688af82748d8a1957769ab09cbf4c65fd4c24e9b395189a794bef3a749",
+  "rows": 5282,
+  "run_id": "build_20260610T155818Z",
+  "sha256": "cc43798921b21d32cbc4b20c2cfe89eb636df56b11b0684c74b338e40a7316e4",
+  "vendor": "derived"
+}

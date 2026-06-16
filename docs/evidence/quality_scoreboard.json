@@ -1,0 +1,282 @@
+[
+  {
+    "name": "AAPL",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "TSLA",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "MA",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "META",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "NFLX",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "NVDA",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "PEP",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "PG",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "UNH",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "KO",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "V",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "WMT",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "IBM",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "INTC",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "MCD",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "ORCL",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "LLY",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "JPM",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "C",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "AVGO",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "GE",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "MSFT",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "XOM",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "ABBV",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "AMD",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "AMZN",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "BAC",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "JNJ",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "BRK-B",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "COST",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "CRM",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "CVX",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "GOOGL",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "HD",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  },
+  {
+    "name": "TMO",
+    "coverage": 1.0,
+    "recon_agreement": 0.0,
+    "integrity_flag_rate": 0.0,
+    "freshness": 1.0,
+    "quality_score": 0.7
+  }
+]

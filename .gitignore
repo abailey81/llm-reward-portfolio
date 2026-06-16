@@ -1,0 +1,68 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# --- Tooling ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- OS ---
+.DS_Store
+
+# --- DATA: licensed, NOT redistributable (audit C-3) ---
+# Ship the pipeline + checksums + a SYNTHETIC panel of identical shape, never the gold data.
+data/raw/*
+data/gold/*
+!data/raw/.gitkeep
+!data/gold/.gitkeep
+!data/**/*.sha256          # commit checksums and provenance sidecars
+!data/**/*.provenance.json
+# synthetic panel IS committed (safe, identical shape):
+!data/synthetic/
+
+# --- Campaign artifacts: large; keep the dir, not the runs ---
+outputs/runs/*
+!outputs/runs/.gitkeep
+outputs/figures/*.png
+outputs/figures/*.pdf
+!outputs/figures/.gitkeep
+outputs/tables/*.csv
+outputs/tables/*.tex
+!outputs/tables/.gitkeep
+
+# --- Secrets: NEVER commit the LLM key ---
+*.key
+secrets.yaml
+config/secrets.*
+
+# --- LaTeX build ---
+paper/**/*.aux
+paper/**/*.log
+paper/**/*.out
+paper/**/*.bbl
+paper/**/*.blg
+paper/**/*.synctex.gz
+
+# --- Merged data dirs (repo B): licensed parquets, NOT redistributable (ADR-022) ---
+data/clean/*
+data/staged/*
+!data/clean/.gitkeep
+!data/staged/.gitkeep
+# manifest: track provenance, not the journal payloads
+data/manifest/journal/
+# experiment run logs (B): large; keep dir not contents
+runs/*
+!runs/.gitkeep
+# data_pipeline never holds data payloads
+data_pipeline/data/

@@ -1,0 +1,38 @@
+{
+  "cols": 4,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T13:31:41.235202+00:00",
+  "layer": "raw",
+  "name": "rf_jl_joiners.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "fields": [
+        "TR.IndexJLConstituentRIC",
+        "TR.IndexJLConstituentName",
+        "TR.IndexJLConstituentChangeDate"
+      ],
+      "parameters": {
+        "EDate": "2026-06-12",
+        "IC": "J",
+        "SDate": "2005-01-01"
+      },
+      "universe": ".SPX"
+    },
+    "query": "membership_event_replay",
+    "received_utc": "2026-06-12T13:31:41.230516+00:00",
+    "requested_utc": "2026-06-12T13:31:38.935860+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_jl_joiners.csv",
+  "row_hash": "5e878d1b4895b438a4abc5309af2a5ddb341b45a8f1e4d1e777c439f8e51fc21",
+  "rows": 523,
+  "run_id": "universe_refinitiv",
+  "sha256": "5e878d1b4895b438a4abc5309af2a5ddb341b45a8f1e4d1e777c439f8e51fc21",
+  "vendor": "refinitiv"
+}

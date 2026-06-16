@@ -1,0 +1,37 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T15:20:25.219046+00:00",
+  "layer": "raw",
+  "name": "yf_volume_34c45d1f.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "field": "Volume",
+      "start": "2005-01-01",
+      "tickers": [
+        "AAPL",
+        "MSFT",
+        "XOM",
+        "C",
+        "GE"
+      ]
+    },
+    "query": "download_ohlcv_actions",
+    "received_utc": "2026-06-10T15:20:25.185738+00:00",
+    "requested_utc": "2026-06-10T15:20:23.812341+00:00",
+    "vendor": "yfinance"
+  },
+  "relpath": "data/raw/yf_volume_34c45d1f.csv",
+  "row_hash": "b2e8d64aa4afd8811abb8a305b02367cd9a24da1aeb313ff1dd594f8ed9444d9",
+  "rows": 5282,
+  "run_id": "pull_20260610T152023Z",
+  "sha256": "b2e8d64aa4afd8811abb8a305b02367cd9a24da1aeb313ff1dd594f8ed9444d9",
+  "vendor": "yfinance"
+}

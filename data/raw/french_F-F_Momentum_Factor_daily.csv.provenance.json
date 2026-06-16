@@ -1,0 +1,29 @@
+{
+  "cols": 1,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T15:23:58.850094+00:00",
+  "layer": "raw",
+  "name": "french_F-F_Momentum_Factor_daily.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "dataset": "F-F_Momentum_Factor_daily",
+      "start": "2005-01-01"
+    },
+    "query": "famafrench",
+    "received_utc": "2026-06-10T15:23:58.832102+00:00",
+    "requested_utc": "2026-06-10T15:23:58.832093+00:00",
+    "vendor": "kenfrench"
+  },
+  "relpath": "data/raw/french_F-F_Momentum_Factor_daily.csv",
+  "row_hash": "ddad531318b8e5c9e2cf0a3120b397df23914d370dbef6ce287735a741a637b4",
+  "rows": 5365,
+  "run_id": "pull_20260610T152023Z",
+  "sha256": "ddad531318b8e5c9e2cf0a3120b397df23914d370dbef6ce287735a741a637b4",
+  "vendor": "kenfrench"
+}

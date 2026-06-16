@@ -1,0 +1,183 @@
+[
+  {
+    "probe_id": "P0",
+    "title": "Refinitiv session (platform/desktop)",
+    "status": "PASS",
+    "latency_s": 1.01,
+    "evidence": {
+      "env_file": true,
+      "env_keys_loaded": [
+        "REFINITIV_APP_KEY",
+        "REFINITIV_PASSWORD",
+        "REFINITIV_USERNAME"
+      ],
+      "session": "open (platform grant or desktop proxy)"
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P1",
+    "title": "0#.SPX chain resolves (~503 rows)",
+    "status": "PASS",
+    "latency_s": 2.44,
+    "evidence": {
+      "rows": 503,
+      "cols": 2,
+      "sample": {
+        "Instrument": {
+          "0": "PG.N",
+          "1": "FDS.N",
+          "2": "ODFL.OQ"
+        },
+        "Company Common Name": {
+          "0": "Procter & Gamble Co",
+          "1": "Factset Research Systems Inc",
+          "2": "Old Dominion Freight Line Inc"
+        }
+      },
+      "index_range": [
+        "0",
+        "502"
+      ]
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P2",
+    "title": "TR.IndexConstituentRIC @ 2018-01-02",
+    "status": "PASS",
+    "latency_s": 1.49,
+    "evidence": {
+      "rows": 503,
+      "cols": 2,
+      "sample": {
+        "Instrument": {
+          "0": "PG.N",
+          "1": "FDS.N",
+          "2": "ODFL.OQ"
+        },
+        "Constituent RIC": {
+          "0": "<NA>",
+          "1": "<NA>",
+          "2": "<NA>"
+        }
+      },
+      "index_range": [
+        "0",
+        "502"
+      ]
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P3",
+    "title": "TR.IndexConstituentRIC @ 2010-01-04",
+    "status": "PASS",
+    "latency_s": 1.47,
+    "evidence": {
+      "rows": 503,
+      "cols": 2,
+      "sample": {
+        "Instrument": {
+          "0": "PG.N",
+          "1": "FDS.N",
+          "2": "ODFL.OQ"
+        },
+        "Constituent RIC": {
+          "0": "<NA>",
+          "1": "<NA>",
+          "2": "<NA>"
+        }
+      },
+      "index_range": [
+        "0",
+        "502"
+      ]
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P4",
+    "title": "Datastream list LS&PCOMP0110 (DSWS)",
+    "status": "BLOCKED",
+    "latency_s": 0.43,
+    "evidence": {},
+    "error": "DSWS login failed: DSUserObjectFault: User 'ZLDU178' not entitled to ClientApi service."
+  },
+  {
+    "probe_id": "P5",
+    "title": "GE total-return continuity around 2018-06-26",
+    "status": "PASS",
+    "latency_s": 0.31,
+    "evidence": {
+      "rows": 1,
+      "cols": 1,
+      "sample": {
+        "TR.TOTALRETURN": {
+          "2018-07-13 00:00:00": "<NA>"
+        }
+      },
+      "index_range": [
+        "2018-07-13 00:00:00",
+        "2018-07-13 00:00:00"
+      ]
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P6",
+    "title": "Dead RIC LEH.N^I08 history (delisted coverage)",
+    "status": "PASS",
+    "latency_s": 0.48,
+    "evidence": {
+      "rows": 177,
+      "cols": 1,
+      "sample": {
+        "Price Close": {
+          "2008-01-02 00:00:00": "62.19",
+          "2008-01-03 00:00:00": "61.0",
+          "2008-01-04 00:00:00": "58.35"
+        }
+      },
+      "index_range": [
+        "2008-01-02 00:00:00",
+        "2008-09-12 00:00:00"
+      ]
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P7",
+    "title": "Field definitions: RI day-count & currency",
+    "status": "MANUAL",
+    "latency_s": 0.16,
+    "evidence": {
+      "RI_day_count": {
+        "status": "REQUIRES_MANUAL_CONFIRMATION",
+        "note": "Datastream Navigator > RI definition on the entitled feed; harvest missing-piece #5 (docs/DATA_ENTITLEMENTS.md test 7)"
+      },
+      "currency_check": {
+        "status": "OK",
+        "sample": [
+          {
+            "Instrument": "AAPL.O",
+            "Currency": "USD"
+          }
+        ]
+      }
+    },
+    "error": ""
+  },
+  {
+    "probe_id": "P8",
+    "title": "RDP scope census (search/news/pricing)",
+    "status": "PASS",
+    "latency_s": 3.18,
+    "evidence": {
+      "search": "IN SCOPE",
+      "news": "ScopeError: Error code -1 | Insufficient scope for key=/data/news/v1/headlines, method=GET.\nRequired scopes: {'trapi.data.news.read'",
+      "pricing_snapshot": "IN SCOPE"
+    },
+    "error": ""
+  }
+]

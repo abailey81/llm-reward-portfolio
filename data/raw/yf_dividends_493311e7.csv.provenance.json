@@ -1,0 +1,37 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T16:04:30.421944+00:00",
+  "layer": "raw",
+  "name": "yf_dividends_493311e7.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "field": "Dividends",
+      "start": "2005-01-01",
+      "tickers": [
+        "TMO",
+        "MCD",
+        "ORCL",
+        "INTC",
+        "IBM"
+      ]
+    },
+    "query": "download_ohlcv_actions",
+    "received_utc": "2026-06-10T16:04:30.393322+00:00",
+    "requested_utc": "2026-06-10T16:04:29.704199+00:00",
+    "vendor": "yfinance"
+  },
+  "relpath": "data/raw/yf_dividends_493311e7.csv",
+  "row_hash": "c96f8d2c21e7418dfae91ea3ff94d4cd9b44cf3b0e6e6be4685dd2f7fe55d06f",
+  "rows": 5282,
+  "run_id": "pull_20260610T160426Z",
+  "sha256": "c96f8d2c21e7418dfae91ea3ff94d4cd9b44cf3b0e6e6be4685dd2f7fe55d06f",
+  "vendor": "yfinance"
+}

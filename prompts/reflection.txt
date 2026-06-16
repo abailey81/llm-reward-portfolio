@@ -1,0 +1,15 @@
+# Reflection prompt. {ARM_BLOCK} is rendered by src/feedback/schema.py and is the ONLY thing that
+# differs across the four LLM arms (distributional / scalar / placebo / scalar_cvar5). All blocks
+# share the same structure/length so the comparison isolates information, not token-count.
+
+Your previous reward scored: {SCALAR_METRIC} (validation Deflated Sharpe).
+
+{ARM_BLOCK}
+# distributional -> the realized-return tail-diagnostic lines (CVaR 5/10/25%, CVaR 1% [high-variance],
+#                   left-tail mass, left-tail skew), measured on the TRAINING-period realized returns;
+# scalar_cvar5   -> exactly one extra line: "CVaR 5%: <value>";
+# placebo        -> an inert block matched to the distributional block in line-count and length;
+# scalar         -> nothing extra.
+
+Revise the reward function to improve risk-adjusted out-of-sample performance.
+Return ONLY the function definition.

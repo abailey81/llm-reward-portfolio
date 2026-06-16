@@ -1,0 +1,18 @@
+{
+  "cols": 4,
+  "format": "parquet",
+  "frozen_utc": "2026-06-12T14:58:01.861285+00:00",
+  "layer": "gold",
+  "name": "top30_selection_univ2.parquet",
+  "provenance": {
+    "rule": "PREREG \u00a75 top30_marketcap_at_window_start",
+    "stage": "panel.top30",
+    "vendor": "derived"
+  },
+  "relpath": "data/gold/top30_selection_univ2.parquet",
+  "row_hash": "c303471e593033a8266e2c9087003c4076131ef7c4eac7e0a4edbb82c08aea20",
+  "rows": 9,
+  "run_id": "build_universe",
+  "sha256": "247bdc34e4bc34d1b20c107443aebb1524b925b96b3e8ff947118c3157a90894",
+  "vendor": "derived"
+}

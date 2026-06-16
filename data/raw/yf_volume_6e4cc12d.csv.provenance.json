@@ -1,0 +1,57 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T16:04:29.471344+00:00",
+  "layer": "raw",
+  "name": "yf_volume_6e4cc12d.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "field": "Volume",
+      "start": "2005-01-01",
+      "tickers": [
+        "NVDA",
+        "AMZN",
+        "GOOGL",
+        "META",
+        "BRK-B",
+        "LLY",
+        "AVGO",
+        "JPM",
+        "TSLA",
+        "V",
+        "UNH",
+        "MA",
+        "PG",
+        "JNJ",
+        "COST",
+        "HD",
+        "ABBV",
+        "WMT",
+        "NFLX",
+        "BAC",
+        "CRM",
+        "KO",
+        "CVX",
+        "AMD",
+        "PEP"
+      ]
+    },
+    "query": "download_ohlcv_actions",
+    "received_utc": "2026-06-10T16:04:29.345930+00:00",
+    "requested_utc": "2026-06-10T16:04:26.034444+00:00",
+    "vendor": "yfinance"
+  },
+  "relpath": "data/raw/yf_volume_6e4cc12d.csv",
+  "row_hash": "c7767b33b5b4cdb735c220c5d3d9f367f4f5efb2c0e6baa12093cef65ae15830",
+  "rows": 5282,
+  "run_id": "pull_20260610T160426Z",
+  "sha256": "c7767b33b5b4cdb735c220c5d3d9f367f4f5efb2c0e6baa12093cef65ae15830",
+  "vendor": "yfinance"
+}

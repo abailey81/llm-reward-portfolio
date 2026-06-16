@@ -1,0 +1,59 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T13:31:53.458294+00:00",
+  "layer": "raw",
+  "name": "rf_tr_003.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "fields": [
+        "TR.TotalReturn"
+      ],
+      "start": "2005-01-01",
+      "universe": [
+        "ARES.N",
+        "ARG.N^E16",
+        "ASH.N",
+        "ASN.N^J07",
+        "ASO.N^K06",
+        "AT.N^K07",
+        "ATI.N",
+        "ATO.N",
+        "ATVI.OQ^J23",
+        "AV.N^J07",
+        "AVB.N",
+        "AVGO.OQ",
+        "AVP.N^A20",
+        "AVY.N",
+        "AW.N^L08",
+        "AWK.N",
+        "AXON.OQ",
+        "AXP.N",
+        "AYE.N^B11",
+        "AYI.N",
+        "AZO.N",
+        "BA.N",
+        "BAC.N",
+        "BALL.N",
+        "BAX.N"
+      ]
+    },
+    "query": "get_history.TR.TotalReturn",
+    "received_utc": "2026-06-12T13:31:53.453460+00:00",
+    "requested_utc": "2026-06-12T13:31:51.101149+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_tr_003.csv",
+  "row_hash": "53cd9dde92989e246b2dec8f02695e3fd719a2f04b2b6ce323c3186743427d58",
+  "rows": 10,
+  "run_id": "universe_refinitiv",
+  "sha256": "53cd9dde92989e246b2dec8f02695e3fd719a2f04b2b6ce323c3186743427d58",
+  "vendor": "refinitiv"
+}

@@ -1,0 +1,35 @@
+{
+  "cols": 4,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T15:57:05.628908+00:00",
+  "layer": "raw",
+  "name": "fred_macro.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "series": [
+        "VIXCLS",
+        "DGS3MO",
+        "DGS10",
+        "T10Y2Y"
+      ],
+      "start": "2005-01-01"
+    },
+    "query": "fred_series",
+    "received_utc": "2026-06-10T15:57:05.093040+00:00",
+    "requested_utc": "2026-06-10T15:57:05.093030+00:00",
+    "vendor": "fred"
+  },
+  "relpath": "data/raw/fred_macro.csv",
+  "row_hash": "889f960c8a85c53b633bb185930166ac92b2aebec77ced8e6440171f428adf61",
+  "rows": 5478,
+  "run_id": "pull_20260610T154904Z",
+  "sha256": "889f960c8a85c53b633bb185930166ac92b2aebec77ced8e6440171f428adf61",
+  "vendor": "fred"
+}

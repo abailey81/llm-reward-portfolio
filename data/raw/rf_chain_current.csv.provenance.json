@@ -1,0 +1,32 @@
+{
+  "cols": 2,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T13:31:38.933277+00:00",
+  "layer": "raw",
+  "name": "rf_chain_current.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "fields": [
+        "TR.CommonName"
+      ],
+      "parameters": null,
+      "universe": "0#.SPX"
+    },
+    "query": "membership_event_replay",
+    "received_utc": "2026-06-12T13:31:38.565578+00:00",
+    "requested_utc": "2026-06-12T13:31:36.253813+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_chain_current.csv",
+  "row_hash": "e945765637210ee8b6aa413229bdee4a19335cdab0e711b1a9f1826c380d3938",
+  "rows": 503,
+  "run_id": "universe_refinitiv",
+  "sha256": "e945765637210ee8b6aa413229bdee4a19335cdab0e711b1a9f1826c380d3938",
+  "vendor": "refinitiv"
+}

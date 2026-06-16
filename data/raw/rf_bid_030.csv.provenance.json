@@ -1,0 +1,55 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:48:06.619209+00:00",
+  "layer": "raw",
+  "name": "rf_bid_030.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "field": "BID",
+      "universe": [
+        "SANM.OQ",
+        "SBAC.OQ",
+        "SBL.N^A07",
+        "SBNY.OQ^C23",
+        "SBUX.OQ",
+        "SCG.N^A19",
+        "SCHW.N",
+        "SDS.N^H05",
+        "SE.N^B17",
+        "SEBL.OQ^B06",
+        "SEDG.OQ",
+        "SEE.N^D26",
+        "SFA.N^B06",
+        "SGP.N^K09",
+        "SHLD.OQ^J18",
+        "SHW.N",
+        "SIAL.OQ^K15",
+        "SIG.N",
+        "SII.N^H10",
+        "SITC.N",
+        "SIVB.OQ^C23",
+        "SJM.N",
+        "SLB.N",
+        "SLG.N",
+        "SLM.OQ"
+      ]
+    },
+    "query": "get_history.ohlc",
+    "received_utc": "2026-06-12T14:48:06.398665+00:00",
+    "requested_utc": "2026-06-12T14:44:30.314136+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_bid_030.csv",
+  "row_hash": "453a01c9158f0268a16d205a879af87e834d9a6a0850d7d406b5b71e9ddaedb5",
+  "rows": 5283,
+  "run_id": "universe_refinitiv",
+  "sha256": "453a01c9158f0268a16d205a879af87e834d9a6a0850d7d406b5b71e9ddaedb5",
+  "vendor": "refinitiv"
+}

@@ -1,0 +1,34 @@
+{
+  "cols": 2,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T13:24:20.075197+00:00",
+  "layer": "raw",
+  "name": "rf_members_2009-06-30.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "fields": [
+        "TR.IndexConstituentRIC"
+      ],
+      "parameters": {
+        "SDate": "2009-06-30"
+      },
+      "universe": "0#.SPX"
+    },
+    "query": "TR.IndexConstituentRIC",
+    "received_utc": "2026-06-12T13:24:20.072572+00:00",
+    "requested_utc": "2026-06-12T13:24:18.755484+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_members_2009-06-30.csv",
+  "row_hash": "27d6e64b1b31479aa31c0a11191f3a02ad2ab816c6cfe78c72538f9b4c3f7451",
+  "rows": 503,
+  "run_id": "universe_refinitiv",
+  "sha256": "27d6e64b1b31479aa31c0a11191f3a02ad2ab816c6cfe78c72538f9b4c3f7451",
+  "vendor": "refinitiv"
+}
