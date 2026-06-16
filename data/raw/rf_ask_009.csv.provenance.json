@@ -1,0 +1,55 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:33:53.701277+00:00",
+  "layer": "raw",
+  "name": "rf_ask_009.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "field": "ASK",
+      "universe": [
+        "CTB.N^F21",
+        "CTLT.N^L24",
+        "CTRA.N^E26",
+        "CTSH.OQ",
+        "CTVA.N",
+        "CTX.N^H09",
+        "CTXS.OQ^J22",
+        "CVC.N^F16",
+        "CVG.N^J18",
+        "CVH.N^E13",
+        "CVNA.N",
+        "CVS.N",
+        "CVSA.N",
+        "CVX.N",
+        "CXO.N^A21",
+        "CZR.OQ",
+        "D.N",
+        "DAL.N",
+        "DAL.N^J05",
+        "DASH.OQ",
+        "DAY.N^B26",
+        "DCN.N^C06",
+        "DD.N",
+        "DD.N^I17",
+        "DDOG.OQ"
+      ]
+    },
+    "query": "get_history.ohlc",
+    "received_utc": "2026-06-12T14:33:53.476544+00:00",
+    "requested_utc": "2026-06-12T14:30:47.382004+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_ask_009.csv",
+  "row_hash": "cb9ece851a476d3a2742a66fbc474814c618dcd94c4ab431415128b9a7ece729",
+  "rows": 5283,
+  "run_id": "universe_refinitiv",
+  "sha256": "cb9ece851a476d3a2742a66fbc474814c618dcd94c4ab431415128b9a7ece729",
+  "vendor": "refinitiv"
+}

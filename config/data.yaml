@@ -1,0 +1,19 @@
+# Data (FINAL_PLAN D, B.2; audit B-2, C-3). Splits byte-match PREREGISTRATION.md §7.
+period: {start: 2005-01-01, end: 2025-12-31}   # full 20 years — NOT a scoping lever
+survivorship_free: true
+delisting_returns: retain
+
+splits:
+  train: {start: 2005-01-01, end: 2014-12-31}   # agent learns + feedback MEASURED here (audit B-2)
+  val:   {start: 2015-01-01, end: 2017-12-31}   # selection (held-out Deflated Sharpe)
+  test:  {start: 2018-01-01, end: 2025-12-31}   # UNTOUCHED until final inference
+embargo_days: 10                                # set + freeze in Phase 1 (kills serial-correlation leakage)
+
+vendors: [primary, secondary]                   # two-vendor reconciliation (stage 11)
+sources:
+  prices_returns: CRSP_via_WRDS                 # gold standard, survivorship-free (see ../01_literature/DATASETS.md)
+  risk_factors: kenneth_french_data_library     # factor attribution
+  macro_regime: FRED_ALFRED                      # point-in-time vintages (no revision look-ahead)
+
+freeze: {checksum: sha256}
+licensing: redistribution_prohibited            # ship checksums + pipeline + SYNTHETIC panel, NOT the data (audit C-3)

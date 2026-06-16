@@ -1,0 +1,27 @@
+# RL algorithms (FINAL_PLAN F.7, B.6). Library-default hyperparameters, IDENTICAL across reward
+# arms to preserve identification. Record the exact resolved values here AFTER the Phase-0 smoke
+# test confirms they run, and assert them at runtime (equivalence test).
+
+headline_agent: sac               # SB3 SAC — fixed across ALL feedback arms (audit A-1)
+secondary_critic_agent: tqc       # sb3-contrib TQC — distributional-critic experiment only (A-2)
+robustness_agents: [ppo, td3]     # winners only
+fallback_continuous: d4pg         # ONLY if SAC/TQC fail; NEVER qr_dqn (discrete-only)
+
+train_steps_per_candidate: 50000  # FIXED per-candidate budget (audit B-5); set from Phase-0 timing
+eval_episodes: 1                  # deterministic walk-forward over the eval split
+
+sac:                              # filled from SB3 defaults once Phase 0 confirms; do not tune per arm
+  policy: MlpPolicy
+  learning_rate: null             # SB3 default
+  buffer_size: null
+  batch_size: null
+  gamma: null
+  tau: null
+  ent_coef: auto
+tqc:
+  policy: MlpPolicy
+  top_quantiles_to_drop_per_net: null   # SB3-contrib default
+  n_quantiles: null
+  n_critics: null
+
+equivalence_test: true            # assert identical algo config across feedback arms at runtime

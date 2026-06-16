@@ -1,0 +1,24 @@
+# Portfolio MDP (FINAL_PLAN B.2). Code reads this; never hardcode parameters.
+universe:
+  n_assets: 30
+  selection: top_market_cap_point_in_time   # top-30 by PIT market cap, per date
+  include_cash: true
+
+state:
+  lookback_days: 60                # per-asset daily-return window
+  realized_vol_windows: [20, 60]
+  include_vix: true                # LAGGED so it is knowable at t (tested)
+  include_prev_weights: true       # for turnover / cost
+  dtype: float32
+
+action:
+  type: simplex                    # long-only weights over assets + cash, sum to 1
+  projection: softmax              # FREEZE softmax XOR l1_normalize_of_clipped in Phase 1 (audit C-8)
+
+costs:
+  grid_bps: [0, 5, 10, 25, 50]
+  headline_bps: 10
+  model: proportional_turnover     # cost = c * L1(w_t - w_{t-1}); see Almgren-Chriss for limitation note
+
+horizon: walk_forward              # terminate at the split boundary
+timing: return_realized_after_action   # r_t realized AFTER a_t (audit C-5; tested)

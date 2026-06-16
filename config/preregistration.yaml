@@ -1,0 +1,46 @@
+# Machine-readable mirror of PREREGISTRATION.md. FROZEN at end of Phase 1; scripts/freeze.py hashes
+# it into docs/DECISION_LOG.md and asserts it agrees with the prose record. Changes after freeze
+# require a dated amendment entry.
+frozen: false                         # flips true at the Phase-1 freeze
+freeze_hash: null                     # SHA-256, emitted by scripts/freeze.py
+phase0_smoke_passed_log_id: null      # DECISION_LOG entry id (precondition for freeze)
+
+hypotheses: [H1, H2, H3, H4]          # H2 headline; secondary = SAC-vs-TQC critic
+contribution_axis: feedback_channel   # audit A-1: agent fixed (SAC), feedback varies
+
+arms: [distributional, scalar, placebo, scalar_cvar5, random_search, bayes_opt]
+matched_budget: 30
+seeds: [0, 1, 2, 3, 4]
+
+tail_diagnostic_set:                  # measured on TRAINING returns; empirical body + EVT tails
+  cvar_levels: [0.25, 0.10, 0.05, 0.01]   # cvar_01 retained but FLAGGED high-variance (B-7)
+  evt_levels:  [0.05, 0.01]               # GPD fit for the extremes
+  extras: [left_tail_mass, robust_skew]
+  reliability_diagnostic: dropped_from_headline   # crossing-rate kept only for optional neural instrument
+  moors_kurtosis: excluded
+measurement_split: train              # audit B-2
+estimator: {body: empirical, tails: gpd_evt}      # audit B-1
+
+fitness:
+  metric: validation_deflated_sharpe  # reward-independent (audit B-3)
+  lambda_cvar: 0.0                     # optional -lambda * validation CVaR
+  selection_split: val
+
+loop: {runs: once, cpcv_on: winners, per_candidate_budget: fixed}   # audit B-3, B-5
+
+benchmarks: [spy_buy_and_hold, equal_weight, mean_variance_shrinkage, risk_parity, hrp]
+
+inference:
+  primary_overfitting_guard: pbo_cscv
+  deflated_sharpe: secondary
+  difference_tests: [sharpe_ledoit_wolf, cvar_difference]
+  bootstrap: stationary_politis_romano
+  seed_reporting: rliable_iqm_poi_stratified_ci
+  multiple_testing: romano_wolf_or_bh_fdr     # cross arm x metric family (audit B-8)
+  alpha_hurdle_t: 3.0                          # Harvey-Liu-Zhu
+  trial_count_stated: true
+  claim: comparative_not_beats_market
+
+contamination: {blinding: anonymized_arrays, stratify: training_cutoff, second_model: open_weights_diff_cutoff}
+data_splits: {train: [2005, 2014], val: [2015, 2017], test: [2018, 2025]}
+algorithms: {headline: sac, secondary_critic: tqc, robustness: [ppo, td3]}

@@ -1,0 +1,18 @@
+{
+  "cols": 3,
+  "format": "parquet",
+  "frozen_utc": "2026-06-12T15:01:14.939247+00:00",
+  "layer": "gold",
+  "name": "cash_features_univ3.parquet",
+  "provenance": {
+    "lag_convention": "shift(1) \u2014 ADR-007",
+    "stage": "panel.build_gold",
+    "vendor": "derived"
+  },
+  "relpath": "data/gold/cash_features_univ3.parquet",
+  "row_hash": "c8f6e8a5be69fb932c8aa0611c888bba6fde5cc994f4d931e27fd496b73aecc0",
+  "rows": 5283,
+  "run_id": "build_universe",
+  "sha256": "6aef8fe115b086ef2bd5b95c759ec0b5c2ed709b39801b1879875eddfb203a51",
+  "vendor": "derived"
+}

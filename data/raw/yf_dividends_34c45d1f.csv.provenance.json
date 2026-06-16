@@ -1,0 +1,37 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T15:20:25.254832+00:00",
+  "layer": "raw",
+  "name": "yf_dividends_34c45d1f.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "field": "Dividends",
+      "start": "2005-01-01",
+      "tickers": [
+        "AAPL",
+        "MSFT",
+        "XOM",
+        "C",
+        "GE"
+      ]
+    },
+    "query": "download_ohlcv_actions",
+    "received_utc": "2026-06-10T15:20:25.220438+00:00",
+    "requested_utc": "2026-06-10T15:20:23.812341+00:00",
+    "vendor": "yfinance"
+  },
+  "relpath": "data/raw/yf_dividends_34c45d1f.csv",
+  "row_hash": "eb7a89b4952fd75edbcc794eb0fcbace6c2279506bd84679ebd21bbb7584a723",
+  "rows": 5282,
+  "run_id": "pull_20260610T152023Z",
+  "sha256": "eb7a89b4952fd75edbcc794eb0fcbace6c2279506bd84679ebd21bbb7584a723",
+  "vendor": "yfinance"
+}

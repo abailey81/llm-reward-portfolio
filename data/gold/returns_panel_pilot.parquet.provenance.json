@@ -1,0 +1,17 @@
+{
+  "cols": 5,
+  "format": "parquet",
+  "frozen_utc": "2026-06-10T15:58:19.523882+00:00",
+  "layer": "gold",
+  "name": "returns_panel_pilot.parquet",
+  "provenance": {
+    "stage": "panel.build_gold",
+    "vendor": "derived"
+  },
+  "relpath": "data/gold/returns_panel_pilot.parquet",
+  "row_hash": "20dd4ea995e3f0620af01bd7ab03cfbbf28244dc81593e1f53c3774a8c387528",
+  "rows": 5282,
+  "run_id": "build_20260610T155818Z",
+  "sha256": "39fca60adadd69b4790ad939053e155210e015a7c5e1a2691efe8812b3193ac9",
+  "vendor": "derived"
+}

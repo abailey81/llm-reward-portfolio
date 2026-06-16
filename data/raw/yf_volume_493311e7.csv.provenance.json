@@ -1,0 +1,37 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T16:04:30.392001+00:00",
+  "layer": "raw",
+  "name": "yf_volume_493311e7.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "field": "Volume",
+      "start": "2005-01-01",
+      "tickers": [
+        "TMO",
+        "MCD",
+        "ORCL",
+        "INTC",
+        "IBM"
+      ]
+    },
+    "query": "download_ohlcv_actions",
+    "received_utc": "2026-06-10T16:04:30.364257+00:00",
+    "requested_utc": "2026-06-10T16:04:29.704199+00:00",
+    "vendor": "yfinance"
+  },
+  "relpath": "data/raw/yf_volume_493311e7.csv",
+  "row_hash": "ac289675be1e2568b24a8754730c2c3097145f7e84051db560b314f78b89b922",
+  "rows": 5282,
+  "run_id": "pull_20260610T160426Z",
+  "sha256": "ac289675be1e2568b24a8754730c2c3097145f7e84051db560b314f78b89b922",
+  "vendor": "yfinance"
+}

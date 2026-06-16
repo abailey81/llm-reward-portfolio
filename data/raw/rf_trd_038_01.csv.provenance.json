@@ -1,0 +1,41 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:18:38.582773+00:00",
+  "layer": "raw",
+  "name": "rf_trd_038_01.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "fields": [
+        "TR.TotalReturn.date",
+        "TR.TotalReturn"
+      ],
+      "parameters": {
+        "EDate": "2008-12-30",
+        "Frq": "D",
+        "SDate": "2007-01-01"
+      },
+      "universe": [
+        "ZBRA.OQ",
+        "ZION.OQ",
+        "ZTS.N"
+      ]
+    },
+    "query": "datagrid.TR.TotalReturn.D",
+    "received_utc": "2026-06-12T14:18:38.577190+00:00",
+    "requested_utc": "2026-06-12T14:18:37.921481+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_trd_038_01.csv",
+  "row_hash": "1a0ecfc1474b2b94e40ccbc74db53226477ab851f1617753a75b2b8ab8321a2c",
+  "rows": 1003,
+  "run_id": "universe_refinitiv",
+  "sha256": "1a0ecfc1474b2b94e40ccbc74db53226477ab851f1617753a75b2b8ab8321a2c",
+  "vendor": "refinitiv"
+}

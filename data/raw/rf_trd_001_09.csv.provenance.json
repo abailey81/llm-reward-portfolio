@@ -1,0 +1,63 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T13:40:09.379810+00:00",
+  "layer": "raw",
+  "name": "rf_trd_001_09.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "fields": [
+        "TR.TotalReturn.date",
+        "TR.TotalReturn"
+      ],
+      "parameters": {
+        "EDate": "2024-12-26",
+        "Frq": "D",
+        "SDate": "2022-12-28"
+      },
+      "universe": [
+        "AEE.N",
+        "AEP.OQ",
+        "AES.N",
+        "AET.N^K18",
+        "AFL.N",
+        "AGN.N^C15",
+        "AGN.N^E20",
+        "AIG.N",
+        "AIV.N",
+        "AIZ.N",
+        "AJG.N",
+        "AKAM.OQ",
+        "AKS.N^C20",
+        "ALB.N",
+        "ALGN.OQ",
+        "ALK.N",
+        "ALL.N",
+        "ALLE.N",
+        "ALTR.OQ^L15",
+        "ALXN.OQ^G21",
+        "AMAT.OQ",
+        "AMCC.OQ^A17",
+        "AMCR.N",
+        "AMD.OQ",
+        "AME.N"
+      ]
+    },
+    "query": "datagrid.TR.TotalReturn.D",
+    "received_utc": "2026-06-12T13:40:09.316462+00:00",
+    "requested_utc": "2026-06-12T13:40:03.559357+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_trd_001_09.csv",
+  "row_hash": "cc86a59c1cbc7199afb00934a67d406f0a16a3aa251ba1e0be98a2728fd1a476",
+  "rows": 12550,
+  "run_id": "universe_refinitiv",
+  "sha256": "cc86a59c1cbc7199afb00934a67d406f0a16a3aa251ba1e0be98a2728fd1a476",
+  "vendor": "refinitiv"
+}

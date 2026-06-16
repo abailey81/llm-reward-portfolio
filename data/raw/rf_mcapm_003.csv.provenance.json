@@ -1,0 +1,63 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:19:12.099749+00:00",
+  "layer": "raw",
+  "name": "rf_mcapm_003.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "fields": [
+        "TR.CompanyMarketCap.date",
+        "TR.CompanyMarketCap"
+      ],
+      "parameters": {
+        "EDate": "2025-12-31",
+        "Frq": "M",
+        "SDate": "2005-01-01"
+      },
+      "universe": [
+        "ARES.N",
+        "ARG.N^E16",
+        "ASH.N",
+        "ASN.N^J07",
+        "ASO.N^K06",
+        "AT.N^K07",
+        "ATI.N",
+        "ATO.N",
+        "ATVI.OQ^J23",
+        "AV.N^J07",
+        "AVB.N",
+        "AVGO.OQ",
+        "AVP.N^A20",
+        "AVY.N",
+        "AW.N^L08",
+        "AWK.N",
+        "AXON.OQ",
+        "AXP.N",
+        "AYE.N^B11",
+        "AYI.N",
+        "AZO.N",
+        "BA.N",
+        "BAC.N",
+        "BALL.N",
+        "BAX.N"
+      ]
+    },
+    "query": "datagrid.TR.CompanyMarketCap.M",
+    "received_utc": "2026-06-12T14:19:12.068584+00:00",
+    "requested_utc": "2026-06-12T14:19:08.579677+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_mcapm_003.csv",
+  "row_hash": "9b02ba0bf25ee3da5f002c47c764ed9a88c89bfbf2d1487196c967bfc6ef70e4",
+  "rows": 6094,
+  "run_id": "universe_refinitiv",
+  "sha256": "9b02ba0bf25ee3da5f002c47c764ed9a88c89bfbf2d1487196c967bfc6ef70e4",
+  "vendor": "refinitiv"
+}

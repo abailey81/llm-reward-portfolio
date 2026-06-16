@@ -1,0 +1,33 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:51:21.239663+00:00",
+  "layer": "raw",
+  "name": "rf_spxtr.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "end": "2025-12-31",
+      "fields": null,
+      "start": "2005-01-01",
+      "universe": [
+        ".SPXTR"
+      ]
+    },
+    "query": "get_history.spxtr",
+    "received_utc": "2026-06-12T14:51:21.198399+00:00",
+    "requested_utc": "2026-06-12T14:51:18.832717+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_spxtr.csv",
+  "row_hash": "f02f7452414974a07359131c87f854ddc82050e738e043dd611df10afc90c64e",
+  "rows": 5285,
+  "run_id": "universe_refinitiv",
+  "sha256": "f02f7452414974a07359131c87f854ddc82050e738e043dd611df10afc90c64e",
+  "vendor": "refinitiv"
+}

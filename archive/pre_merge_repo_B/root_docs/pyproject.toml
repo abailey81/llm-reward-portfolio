@@ -1,0 +1,17 @@
+[project]
+name = "llm-reward-portfolio"
+version = "0.1.0"
+description = "LLM-driven agentic reward engineering for risk-sensitive deep RL in portfolio allocation (UCL MSc dissertation)"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

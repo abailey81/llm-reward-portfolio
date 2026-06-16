@@ -1,0 +1,261 @@
+# Lineage map (raw -> gold hash chain)
+
+## data/gold/returns_panel_pilot.parquet
+- `data/gold/returns_panel_pilot.parquet` `39fca60adadd…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_pilot.parquet` `39fca60adadd…`
+- `data/clean/clean_returns_pilot.parquet` `39fca60adadd…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…`
+- `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+
+## data/gold/cash_features_pilot.parquet
+- `data/gold/cash_features_pilot.parquet` `cc43798921b2…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_pilot.parquet` `39fca60adadd…`
+- `data/clean/clean_returns_pilot.parquet` `39fca60adadd…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…`
+- `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+
+## data/gold/market_proxy_pilot.parquet
+- `data/gold/market_proxy_pilot.parquet` `73fdaf9eab48…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_pilot.parquet` `39fca60adadd…`
+- `data/clean/clean_returns_pilot.parquet` `39fca60adadd…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…`
+- `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+
+## data/gold/splits_pilot.parquet
+- `data/gold/splits_pilot.parquet` `421761d98e85…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_pilot.parquet` `39fca60adadd…`
+- `data/clean/clean_returns_pilot.parquet` `39fca60adadd…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…`
+- `data/staged/staged_returns_yfinance_pilot.parquet` `39fca60adadd…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+
+## data/gold/returns_panel_shadow30.parquet
+- `data/gold/returns_panel_shadow30.parquet` `1d07c7aa6363…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/cash_features_shadow30.parquet
+- `data/gold/cash_features_shadow30.parquet` `4013a4c77f4b…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/market_proxy_shadow30.parquet
+- `data/gold/market_proxy_shadow30.parquet` `a471db3081d1…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/splits_shadow30.parquet
+- `data/gold/splits_shadow30.parquet` `421761d98e85…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_shadow30.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_shadow30.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/returns_panel_v2.parquet
+- `data/gold/returns_panel_v2.parquet` `1d07c7aa6363…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/cash_features_v2.parquet
+- `data/gold/cash_features_v2.parquet` `4013a4c77f4b…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/market_proxy_v2.parquet
+- `data/gold/market_proxy_v2.parquet` `a471db3081d1…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`
+
+## data/gold/splits_v2.parquet
+- `data/gold/splits_v2.parquet` `421761d98e85…` ← stage **panel.build_gold** ←
+    - `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…`
+- `data/clean/clean_returns_v2.parquet` `1d07c7aa6363…` ← stage **authority_merge** ←
+    - `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…`
+- `data/staged/staged_returns_yfinance_v2.parquet` `1d07c7aa6363…` ← stage **staging** ←
+    - `data/raw/yf_adjclose_34c45d1f.csv` `914b77281e08…`
+    - `data/raw/yf_close_34c45d1f.csv` `7ffb1c6dd11e…`
+    - `data/raw/yf_volume_34c45d1f.csv` `b2e8d64aa4af…`
+    - `data/raw/yf_dividends_34c45d1f.csv` `eb7a89b4952f…`
+    - `data/raw/yf_splits_34c45d1f.csv` `1a284eddf4af…`
+    - `data/raw/french_F-F_Research_Data_Factors_daily.csv` `450b49fccd82…`
+    - `data/raw/french_F-F_Momentum_Factor_daily.csv` `ddad531318b8…`
+    - `data/raw/fred_macro.csv` `889f960c8a85…`
+    - `data/raw/yf_adjclose_6e4cc12d.csv` `4fcc3f40b3dd…`
+    - `data/raw/yf_close_6e4cc12d.csv` `f62a73063d50…`
+    - `data/raw/yf_volume_6e4cc12d.csv` `c7767b33b5b4…`
+    - `data/raw/yf_dividends_6e4cc12d.csv` `456118079ef3…`
+    - `data/raw/yf_splits_6e4cc12d.csv` `76602ecc960a…`
+    - `data/raw/yf_adjclose_493311e7.csv` `23ee0dff86d6…`
+    - `data/raw/yf_close_493311e7.csv` `83711cbcf280…`
+    - `data/raw/yf_volume_493311e7.csv` `ac289675be1e…`
+    - `data/raw/yf_dividends_493311e7.csv` `c96f8d2c21e7…`
+    - `data/raw/yf_splits_493311e7.csv` `5a069f8b8b1e…`

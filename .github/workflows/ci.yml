@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: lint + deterministic-core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test deps (light, no torch/SB3)
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements-test.txt
+          pip install ruff
+      - name: Ruff lint
+        run: ruff check src tests scripts
+      - name: Ruff format check
+        run: ruff format --check src tests scripts
+      - name: Run deterministic-core tests
+        # Skips 'slow' (agent-training) and the GPU/LLM-gated paths.
+        run: pytest -m "not slow" -q --cov=src --cov-report=term-missing

@@ -1,0 +1,33 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:50:02.855507+00:00",
+  "layer": "raw",
+  "name": "rf_bid_038.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "field": "BID",
+      "universe": [
+        "ZBRA.OQ",
+        "ZION.OQ",
+        "ZTS.N"
+      ]
+    },
+    "query": "get_history.ohlc",
+    "received_utc": "2026-06-12T14:50:02.818830+00:00",
+    "requested_utc": "2026-06-12T14:49:31.806637+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_bid_038.csv",
+  "row_hash": "31755c5b1c4f2724af6a412b5a13b97d4d1831ab255a83eb2810b43ba890e8ca",
+  "rows": 5283,
+  "run_id": "universe_refinitiv",
+  "sha256": "31755c5b1c4f2724af6a412b5a13b97d4d1831ab255a83eb2810b43ba890e8ca",
+  "vendor": "refinitiv"
+}

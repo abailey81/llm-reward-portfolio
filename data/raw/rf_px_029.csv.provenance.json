@@ -1,0 +1,55 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-06-12T14:47:57.332149+00:00",
+  "layer": "raw",
+  "name": "rf_px_029.csv",
+  "provenance": {
+    "library_versions": {
+      "DatastreamPy": "?",
+      "pandas": "2.3.3",
+      "refinitiv": "?",
+      "yfinance": "1.4.1"
+    },
+    "params": {
+      "field": "TRDPRC_1",
+      "universe": [
+        "REG.OQ",
+        "REGN.OQ",
+        "RF.N",
+        "RHI.N",
+        "RHT.N^G19",
+        "RIG.N",
+        "RJF.N",
+        "RL.N",
+        "RMD.N",
+        "ROH.N^D09",
+        "ROK.N",
+        "ROL.N",
+        "ROP.OQ",
+        "ROST.OQ",
+        "RRC.N",
+        "RRD.N^B22",
+        "RSG.N",
+        "RSH.N^B15",
+        "RTN.N^D20",
+        "RTX.N",
+        "RVTY.N",
+        "RX.N^C10",
+        "S.N^C05",
+        "S.N^G13",
+        "SAF.N^I08"
+      ]
+    },
+    "query": "get_history.ohlc",
+    "received_utc": "2026-06-12T14:47:57.129292+00:00",
+    "requested_utc": "2026-06-12T14:43:51.955939+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data/raw/rf_px_029.csv",
+  "row_hash": "5a049523a0322c307b33808e7cb2f50013a1c45e1170b447e98d577edd09b556",
+  "rows": 5283,
+  "run_id": "universe_refinitiv",
+  "sha256": "5a049523a0322c307b33808e7cb2f50013a1c45e1170b447e98d577edd09b556",
+  "vendor": "refinitiv"
+}

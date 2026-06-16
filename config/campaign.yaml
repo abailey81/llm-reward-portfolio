@@ -1,0 +1,18 @@
+# A campaign run (FINAL_PLAN H Phase 3, I). Scope is set via the scoping tree AFTER the Phase-0
+# timing and the pilot. CPCV is applied to WINNERS, not per-candidate (audit B-3).
+arms: [distributional, scalar, placebo, scalar_cvar5, random_search, bayes_opt]
+candidates_per_arm: 30                 # matched across arms; tune via scoping tree (cut candidates before seeds before folds)
+seeds: [0, 1, 2, 3, 4]                       # named, concrete (audit C-6); recorded in every artifact
+cpcv:
+  apply_to: winners                    # CPCV on the fixed winners for inference, NOT inside each candidate
+  n_blocks: 16                         # even S for C(S, S/2) splits (PBO)
+train_steps_per_candidate: 50000       # mirrors algos.yaml; FIXED (audit B-5)
+
+compute:
+  primary: rtx_4090                    # development
+  campaign: ucl_myriad_array_job       # arms x seeds x folds as an array job (audit C-4)
+  overflow: [colab, kaggle]            # only if needed
+  hard_budget_gpu_hours: 200           # cap; auto-shutdown on completion; checkpoint for interruption
+
+resume: true                           # idempotent: skip completed run ids
+auto_shutdown_on_complete: true        # rented GPUs only
