@@ -11,7 +11,11 @@ embargo_days: 10                                # set + freeze in Phase 1 (kills
 
 vendors: [primary, secondary]                   # two-vendor reconciliation (stage 11)
 sources:
-  prices_returns: CRSP_via_WRDS                 # gold standard, survivorship-free (see ../01_literature/DATASETS.md)
+  prices_returns: Refinitiv_LSEG_RDP            # ACTUAL vendor (ADR-013/019–022): survivorship-free PIT panel
+                                                #   data/gold/returns_panel_univ3.parquet, built by data_pipeline/,
+                                                #   loaded via src/data/loaders.py. (CRSP/WRDS was the originally-
+                                                #   planned source; see ../01_literature/DATASETS.md.)
+  vix: FRED_VIXCLS                              # CBOE .VIX not licensed → FRED VIXCLS (cash_features.vix)
   risk_factors: kenneth_french_data_library     # factor attribution
   macro_regime: FRED_ALFRED                      # point-in-time vintages (no revision look-ahead)
 
