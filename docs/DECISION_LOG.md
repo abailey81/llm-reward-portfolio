@@ -1,6 +1,12 @@
-# Decision Log (ADRs + content hashes)
+# Decision Log (engine-line audit record — A)
 
-Append-only record of architdecture decisions, audit corrections, the Phase-0 result, the
+> **Post-merge note (ADR-022, 2026-06-17).** This is the **engine line's** audit/impl/compute record
+> (AUDIT-*, IMPL-*, COMPUTE-*, RESEARCH-*). After the repository unification, the **authoritative**
+> decision log going forward is the root **`../DECISIONS.md`** (ADRs 001–024). This file is retained,
+> append-only, as the A-line audit history; do **not** start new decision threads here — add them to
+> `../DECISIONS.md` and cross-reference an entry here only if it amends an A-line audit decision.
+
+Append-only record of architecture decisions, audit corrections, the Phase-0 result, the
 freeze hash, and any post-freeze amendments. One entry per decision; newest at the bottom.
 
 Format: `### <id> — <title> (<date>)` then **Decision / Why / Status**.

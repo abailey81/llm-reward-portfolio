@@ -53,6 +53,34 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   dev-2005 top-30 and dies in 2009 (NaNs after delisting), while the env's `Panel` requires finite returns.
   That is a preregistration/`environment_spec_v1` design decision, deferred to align with the frozen design.
 
+### Stage 4 — single folder, dedicated git repo (DONE)
+- `.gitignore` extended to protect the merged licensed data (`data/clean|staged`, `manifest/journal`,
+  `runs/`); `.env` brought into the repo and confirmed **untrackable**; redundant `config/*.B.yaml` removed
+  (preserved in `data_pipeline/config/` + backup).
+- **Standalone B removed** after its backup was verified to contain the canonical panel + 526 git objects —
+  truly one folder now; nothing lost (integrated + `archive/` + 416M `.tgz`).
+- **Dedicated git repo** initialised at the repo root (was loose inside the home `parametric-catbond-erc20`
+  repo); initial commit on `main`, 1061 files, **0 secrets/parquets/`.venv` staged** (guard-verified).
+- README updated for the unified layout.
+
+### Gap-closure wave (DONE) — ADR-023, ADR-024
+Audited the unified repo and closed every inconsistency (or flagged it explicitly):
+- **Real-gold loader** `src/data/loaders.py` + 5 tests — the audited env can now train on
+  `returns_panel_univ3` (anonymised ids; delisting policy `liquidate_to_cash`, ⚠ provisional, ADR-024).
+  **Suite: 153 green.**
+- `pyproject` gained `[optional-dependencies] data` (lseg-data, pandas-market-calendars, python-dotenv,
+  pyarrow); the `openai` line annotated (provider OPEN vs ADR-016 Claude — reconcile before freeze).
+- `config/data.yaml` source corrected **CRSP→Refinitiv** (+ `vix: FRED_VIXCLS`); `environment.yaml` VIX
+  source noted; `src/data/pipeline.py` docstring now points to `loaders.py`/`data_pipeline/` (synthetic vs
+  real disambiguated).
+- README counts fixed (10 YAMLs; scripts marked **STUB**; 153 tests); **CLAUDE.md** gained a post-merge
+  section; the **two decision logs cross-linked** (`DECISIONS.md` authoritative; `docs/DECISION_LOG.md` =
+  A-line audit); `prompts/README.md` documents the hardcoded-vs-template state; `PREREGISTRATION §12`
+  carries the compute amendment footnote.
+- **Build-gated remainder (NOT inconsistencies — tracked):** the GPU/credential entry-point STUBS
+  (smoke_test, build_gold, run_campaign, freeze, analyze_results, inspect_rewards, power_analysis =
+  blueprint T1–T6), the concrete SAC trainer, and the LLM key/provider choice.
+
 ## [2026-06-12] — Entitlement landed: PIT membership built; universe pulls running
 
 ### The headline

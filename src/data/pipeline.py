@@ -7,12 +7,17 @@ and evaluates on, in a way that is point-in-time (PIT) and survivorship-free
 (audit B-2, C-3). The pipeline is expressed as a documented 13-stage sequence, one
 method per stage, run end-to-end by :meth:`GoldPipeline.run`.
 
-Because the licensed CRSP gold data is not redistributable (audit C-3), this class
-operates on a **synthetic source** (:func:`src.data.synthetic.make_synthetic_panel`)
-of identical shape, so the entire pipeline runs end-to-end and is testable without
-the gold data. Each stage is deterministic given the config and seed, and its output
-is hashed with :func:`src.utils.provenance.sha256_obj`; the manifest of per-stage
-SHA-256 checksums is returned alongside the frozen panel.
+Because the licensed gold data is not redistributable (audit C-3), this class operates on a
+**synthetic source** (:func:`src.data.synthetic.make_synthetic_panel`) of identical shape, so the entire
+pipeline runs end-to-end and is testable without the gold data. Each stage is deterministic given the
+config and seed, and its output is hashed with :func:`src.utils.provenance.sha256_obj`; the manifest of
+per-stage SHA-256 checksums is returned alongside the frozen panel.
+
+.. note::
+   The **real** survivorship-free gold panel (Refinitiv/LSEG) already exists in ``data/gold/`` — built by
+   the separate, self-contained acquisition stack in ``data_pipeline/`` (ADR-019…022), not by this class.
+   To train on the real data, load it with :func:`src.data.loaders.load_gold_panel`. This ``GoldPipeline``
+   is the SYNTHETIC, shape-identical pipeline used for tests/shipping. Do not confuse the two.
 
 The 13 stages
 -------------

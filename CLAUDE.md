@@ -10,7 +10,23 @@ justifies every choice). This file is the always-on contract; the FINAL_PLAN is 
 > The two `_superseded/` plans (DISSERTATION_MASTER_PLAN, BUILD_SPECIFICATION) predate the audit.
 > Where they conflict with FINAL_PLAN, **FINAL_PLAN wins** (e.g. measurement is empirical+EVT, not a
 > neural IQN; the headline agent is fixed SB3 SAC with TQC as a *secondary* critic experiment, not
-> IQN-SAC; compute is the RTX 4090 + UCL Myriad, not a $50 Colab plan).
+> IQN-SAC; compute is a **rented RTX 4090** + seeds-on-winners — **no UCL Myriad** — see
+> `docs/COMPUTE_AND_TRAINING_TIME.md` / ADR-023, not a $50 Colab plan).
+
+## Post-merge context (ADR-022, 2026-06-17) — read before touching the repo
+This repo is the **unification of two lines**: A = the audited *experimental engine* (canonical), B = the
+*data + acquisition* line. What that means in practice:
+- **Live code is A's audited `src/`** (empirical+EVT measurement, SB3 SAC + TQC, full inference incl. FZ/ES
+  + DSR/PBO, the Eureka loop). B's **pre-audit** science (IQN-SAC, dropped `crossing_rate`) was **NOT**
+  merged — it is preserved in **`archive/pre_merge_repo_B/`** (with a successor map).
+- **The REAL data is here:** `data/gold/returns_panel_univ3.parquet` (5,283×953, survivorship-free, PIT;
+  Refinitiv/LSEG — **not** CRSP). Load it into the env via **`src/data/loaders.py::load_gold_panel`**
+  (anonymised ids; default delisting policy `liquidate_to_cash`, ⚠ provisional — ADR-024).
+- **`data_pipeline/`** is B's self-contained Refinitiv→gold acquisition stack (provenance/reproducibility;
+  needs live Refinitiv creds to re-run; the gold is already frozen).
+- **Two decision logs:** `DECISIONS.md` (root, ADRs 001–024) is **authoritative going forward**;
+  `docs/DECISION_LOG.md` (audit/impl/compute entries) is the A-line audit record — append new decisions to
+  `DECISIONS.md`. Full merge backup: `~/Downloads/_merge_backup_2026-06-17/`.
 
 ## Prime directives (override any task on conflict)
 1. **Reconcile, do not assume.** Run the inventory (below) before any task. This repo's stubs are a

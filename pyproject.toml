@@ -25,7 +25,9 @@ dependencies = [
     "sb3-contrib>=2.3",           # TQC (secondary distributional-critic experiment, audit A-2)
     "d3rlpy==2.8.1",              # IQN-SAC — OPTIONAL verification only; NOT the headline
     "torch>=2.2",                 # pin to a d3rlpy-2.8.1-compatible build in Phase 0
-    "openai>=1.30",               # LLM client (pinned snapshot; archive raw responses)
+    "openai>=1.30",               # LLM client transport (matches src/llm/client.make_openai_transport).
+                                  #   NOTE: provider is OPEN — ADR-016 (B line) pinned a Claude snapshot;
+                                  #   the live client is OpenAI-backed. Reconcile before Phase-1 freeze (ADR-024).
     "matplotlib>=3.8",
     "statsmodels>=0.14",          # bootstrap / inference helpers
 ]
@@ -38,6 +40,12 @@ dev = [
     "mypy>=1.10",
     "ipykernel>=6.29",
     "jupyter>=1.0",
+]
+data = [                          # data_pipeline/ (Refinitiv→gold acquisition) + the real-gold loader
+    "lseg-data>=2.0",             # Refinitiv/LSEG RDP SDK (acquisition; ADR-013)
+    "pandas-market-calendars>=4.5",  # XNYS trading-day alignment
+    "python-dotenv>=1.0",         # reads Refinitiv creds from .env
+    "pyarrow>=15",                # parquet IO for the gold panel
 ]
 
 [tool.setuptools]

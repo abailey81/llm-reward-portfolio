@@ -105,6 +105,12 @@ RTX 4090 for development; **UCL Myriad** for the parallel campaign as an array j
 arms × seeds × folds. Contingency only if both unavailable: one Colab Pro+ GPU + down-rank H3/H4 +
 the CVaR-5% arm.
 
+> **Pre-freeze amendment (2026-06-17, ADR-023).** UCL Myriad is **not available** and
+> Azure-for-Students/GCP GPU quota is blocked. The recorded compute plan is now: Phase-0 on the owned RTX
+> 4050; campaign on a **rented RTX 4090 + seeds-on-winners** (≈$13–16, ~1.5 days), free fallback =
+> Kaggle+Lightning+Colab+laptop. The matched-compute design, arms, seeds, and folds are **unchanged** —
+> only the hardware/venue. Authoritative detail: `docs/COMPUTE_AND_TRAINING_TIME.md`.
+
 ---
 
 ### Freeze record

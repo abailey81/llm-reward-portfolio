@@ -27,8 +27,10 @@ dissertation due **1 Sep 2026** · ICAIF '26 paper target **~2 Aug 2026**.
 
 ## Layout
 ```
-config/        # single source of truth for all parameters (8 YAMLs)
-prompts/       # versioned LLM prompt templates (system / initial / reflection)
+config/        # single source of truth (10 YAMLs: algos, arms, campaign, data, environment, llm,
+               #   preregistration, regimes, eureka_loop, inference)
+prompts/       # LLM prompt templates — see prompts/README.md (live prompts are hardcoded in src/llm/loop.py
+               #   pending T4; A's system/initial/reflection.txt + B's arm-specific v0 variants kept as reference)
 src/
   env/         # the portfolio MDP (reward injected via a callable slot)
   feedback/    # measurement.py (empirical+EVT tail stats, the contribution) + schema.py (the 5 arms' blocks)
@@ -44,10 +46,11 @@ src/
   regimes/     # regime labelling (feeds the power analysis)
   io/          # results schema + the ONLY loader analysis may use
   utils/       # seeding, typed config loader, provenance/hashing, structured logging
-  data/        # panel type + synthetic generator + the 13-stage PIT survivorship-free pipeline
-scripts/       # smoke_test, power_analysis, freeze, build_gold, verify_gold, run_campaign, analyze_results, inspect_rewards
-               #   (GPU/data-gated entry points — documented stubs that fail loudly until the full env is present)
-tests/         # 148 behaviour tests (invariances, calibration, bounds) — `make test`
+  data/        # panel type + synthetic generator + pipeline.py (SYNTHETIC) + loaders.py (loads the REAL gold)
+scripts/       # entry points — smoke_test, power_analysis, freeze, build_gold, verify_gold, run_campaign,
+               #   analyze_results, inspect_rewards are STUBS (fail loudly; GPU/data-gated; blueprint T1–T6).
+               #   verify_inventory.py (data audit) is live.
+tests/         # 153 behaviour tests (148 engine + 5 real-gold loader) — `make test`
 data/          # raw/ clean/ staged/ gold/ synthetic/ + manifest/  — REAL Refinitiv gold panel lives here
                #   (5,283×953 PIT, survivorship-free); licensed & gitignored, manifest/provenance tracked
 data_pipeline/ # the Refinitiv→gold acquisition pipeline (relocated from repo B; self-contained; provenance)

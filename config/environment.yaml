@@ -7,7 +7,8 @@ universe:
 state:
   lookback_days: 60                # per-asset daily-return window
   realized_vol_windows: [20, 60]
-  include_vix: true                # LAGGED so it is knowable at t (tested)
+  include_vix: true                # LAGGED so it is knowable at t (tested). Source: FRED VIXCLS
+                                   #   (CBOE .VIX not licensed) — cash_features.vix in the gold panel.
   include_prev_weights: true       # for turnover / cost
   dtype: float32
 

@@ -3,6 +3,10 @@
 Every locked choice gets ~5 lines: date · decision · alternatives · reason · consequences.
 Claude Code: read this file at session start; append, never rewrite history.
 
+> **Authoritative decision log (post-merge, ADR-022).** This file (ADRs 001–024) is the single
+> authoritative decision record going forward. The engine line's audit/impl/compute history lives in
+> `docs/DECISION_LOG.md` (retained, append-only, A-line). Add new decisions HERE.
+
 ---
 
 ## ADR-001 — Repository structure & config-driven discipline (2026-06-10)
@@ -294,6 +298,8 @@ a **safe, staged, test-verified merge, never a big-bang**, under an absolute **n
   `RELATED_WORK_WATCH.md`, `reports/`, `runs/`, `docs/*`, `scripts/verify_inventory.py`, B-unique configs
   (`eureka_loop.yaml`, `inference.yaml`) and all B prompts folded in; the 3 clashing configs preserved as
   `config/{data,environment,llm}.B.yaml` (never clobbering A's). **A's 148 engine tests remain green.**
+  *(Stage-4 update: these `.B.yaml` were later removed as redundant — the B configs live in
+  `data_pipeline/config/` and the backup; A's configs are canonical. See ADR-024.)*
 - **Stage 2 (REVISED by evidence — convergence decided):** investigation proved **B's flat science
   modules are the PRE-AUDIT line** — B still ships `smoke_iqn_sac.py` (the IQN-SAC the audit *rejected* for
   SB3 SAC+TQC) and a `crossing_rate` reliability diagnostic in `feedback_schema.py` (a neural-IQN artefact
@@ -322,3 +328,38 @@ match SRC=DST. `pytest`: 148 passed, 0 failed across 20 test files after the fol
 provenance. The `.B.yaml`/dual-prompt/duplicate-science-module artifacts are **intentional, documented
 interim state** pending Stages 2–4; the end-state is a single clean package. PREREGISTRATION remains
 A-canonical and untouched; the frozen design is unchanged by the merge. Nothing has been deleted.
+
+## ADR-023 — Compute plan: rented RTX 4090 + seeds-on-winners (no UCL Myriad) (2026-06-17)
+**Decision.** Supersede the frozen-plan "RTX 4090 for development + **UCL Myriad** for the campaign"
+(PREREGISTRATION §12) with: **prototype/Phase-0 on the owned RTX 4050 laptop**, **campaign on a rented
+RTX 4090 (RunPod/Vast) with seeds-on-winners** (≈$13–16, ~1.5 days), free fallback = Kaggle+Lightning+
+Colab+laptop stack. **Alternatives rejected:** UCL Myriad (no access); Azure-for-Students / GCP free
+(GPU quota blocked/denied). **Reason:** factual access constraints established in `docs/DECISION_LOG.md`
+COMPUTE-1 + `docs/COMPUTE_AND_TRAINING_TIME.md` (authoritative). **Consequences:** the matched-compute
+design, seeds, and arms are UNCHANGED — only the hardware/venue. PREREGISTRATION §12 carries a footnote
+pointing here (it is still pre-freeze draft; this becomes the recorded compute plan at freeze).
+
+## ADR-024 — Gap-closure wave: real-gold loader, delisting policy, provider, dep/doc reconciliation (2026-06-17)
+**Decision.** Close the post-merge inconsistencies surfaced by the repo audit:
+- **Real-gold loader** `src/data/loaders.py::load_gold_panel` added (+5 tests) so the audited env can train
+  on `data/gold/returns_panel_univ3.parquet`. It anonymises identities (integer ids only; RIC map kept
+  separately, never to a reward — N3), and enforces finiteness via an explicit **delisting policy**.
+- **Delisting policy = `liquidate_to_cash`** (post-delisting/missing return → 0.0; dead names RETAINED, not
+  survivorship-dropped). ⚠ **PROVISIONAL** — the env does not yet model intra-window delisting explicitly
+  (`environment_spec_v1`); this is a defensible prototype default, NOT a ratified headline choice. **Needs
+  preregistration sign-off** before the headline result; alternatives (`ffill_then_zero`, an explicit
+  cash-absorbing env slot) parameterised.
+- **LLM provider is OPEN:** the live client (`src/llm/client.py`) is OpenAI-backed (so `pyproject` keeps
+  `openai`); ADR-016 (B line) pinned a Claude snapshot. To be reconciled before Phase-1 freeze; the repo
+  `.env` currently has **no** LLM key (Refinitiv+FRED only) — user must add one to run the loop.
+- **Deps declared:** added `[project.optional-dependencies] data` (`lseg-data`, `pandas-market-calendars`,
+  `python-dotenv`, `pyarrow`).
+- **Docs reconciled:** `data.yaml` source corrected CRSP→Refinitiv (+VIX=FRED VIXCLS); README counts
+  (10 YAMLs, scripts marked STUB, 153 tests); CLAUDE.md post-merge section; two decision logs cross-linked
+  (this file authoritative); `prompts/README.md` documents the hardcoded-vs-template state; the `.B.yaml`
+  removal recorded (ADR-022).
+**Reason.** A merge that is "clean, accurate, professional" requires the audit findings closed or explicitly
+flagged — no silent inconsistency. **Consequences.** Engine + loader tests green (153). Remaining items are
+**build-gated, not inconsistencies** (tracked, not hidden): the GPU/credential entry-point STUBS
+(smoke_test, build_gold, run_campaign, freeze, analyze_results, inspect_rewards, power_analysis = blueprint
+T1–T6), the concrete SAC trainer, and the LLM key/provider choice.
