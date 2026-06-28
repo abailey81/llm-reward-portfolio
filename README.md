@@ -93,12 +93,14 @@ PREREGISTRATION.md   The frozen design record and amendment log
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -r requirements.lock && pip install -e .  # exact pinned env (torch==2.6.0+cu124)
 make test                  # 1500+ behaviour tests on the deterministic core (no GPU required)
 make freeze                # cryptographically freeze the design, then run the confirmatory campaign
 ```
 
-The campaign is orchestrated by `scripts/run_campaign.py` (idempotent, `--resume`-safe) and analysed by
+For the exact pinned environment and a stage-by-stage reproduction map (tests → convergence study → freeze →
+campaign → analysis → figures), see **[`REPRODUCIBILITY.md`](REPRODUCIBILITY.md)**. The campaign is
+orchestrated by `scripts/run_campaign.py` (idempotent, `--resume`-safe) and analysed by
 `scripts/analyze_campaign.py`; see [`docs/CAMPAIGN_RUNBOOK.md`](docs/CAMPAIGN_RUNBOOK.md).
 
 > **Licensed data.** The headline results use a licensed Refinitiv/LSEG equity panel that **cannot be
