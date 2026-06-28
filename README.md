@@ -1,96 +1,125 @@
-# llm-reward-portfolio
+<div align="center">
 
-**Agentic reward engineering with LLMs for risk-sensitive deep-RL portfolio allocation.**
-MSc Banking & Digital Finance, UCL Institute of Finance and Technology · supervisor Dr Ramin Okhrati ·
-dissertation due **1 Sep 2026** · ICAIF '26 paper target **~2 Aug 2026**.
+# Agentic Reward Engineering for Risk-Sensitive Portfolio RL
 
-> **One sentence.** An LLM designs the *reward-function code* for a portfolio-allocation RL agent;
-> we test whether feeding its reflection loop the **realized-return distribution** (CVaR at several
-> levels, left-tail mass, robust skew) beats feeding it a **scalar** performance number — at matched
-> compute, against scalar/placebo/single-CVaR controls.
+**Does feeding an LLM reward-designer a *multi-level tail-risk* signal produce better reward code than a scalar one?**
+
+A pre-registered study in which a large language model authors the **reward-function code** for a fixed deep-RL
+portfolio agent, and the *feedback channel* of its reflection loop is the manipulated variable.
+
+[![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-1500%2B%20passing-2ea44f)](#reproducibility)
+[![Pre-registered](https://img.shields.io/badge/design-pre--registered-8957e5)](PREREGISTRATION.md)
+[![Determinism](https://img.shields.io/badge/results-replay--from--archive-0072B2)](#design-principles)
+[![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
+[![License](https://img.shields.io/badge/license-see%20LICENSE-lightgrey)](LICENSE)
+
+MSc Banking & Digital Finance · UCL Institute of Finance & Technology · Supervisor: Dr Ramin Okhrati
+
+</div>
+
+---
+
+## Abstract
+
+An LLM (Claude Opus 4.8) is used as an **automated reward engineer**: through an Eureka-style reflection
+loop it writes the Python reward function that a **fixed** Soft Actor-Critic agent optimizes while allocating
+a long-only equity portfolio. The single manipulated variable is the **feedback channel** returned to the
+designer between iterations — a **distributional** signal (six coherent left-tail risk statistics: CVaR at
+5/10/25/1%, left-tail mass, robust skew) versus a **scalar** performance number — with the agent, data,
+search budget, and evaluation held identical across arms. Four pre-registered controls (placebo,
+shuffled-placebo, single-CVaR, and code/template search baselines) isolate the *information* in the channel
+from its *format* and from search effort alone.
+
+The study is **pre-registered**, **placebo-controlled**, and evaluated on a **survivorship-free,
+point-in-time** equity panel with a sealed test period — and the headline is framed as a **corroborated
+prediction**: it asks not merely *whether* the richer channel wins, but *why or why not*, supported by a
+mechanism analysis (reward-code structural distance, designer responsiveness, and a prompt-leakage
+fingerprint). The contribution is the **method and the evidence**, not a trading product.
 
 ## Contributions
-- **N1 (headline):** first to feed a **return-distribution** signal to an LLM reward designer (H2).
-- **N2:** first Eureka-style reward-**code** synthesis for a **trading/portfolio** RL agent.
-- **N3:** contamination-aware evaluation (adopted method, not claimed novel).
 
-## ⚠ Start here
-1. Read `CLAUDE.md` (operating contract) and `../00_planning/FINAL_PLAN_FOR_CLAUDE_CODE_DETAILED.md`
-   (authoritative spec — design, module specs, configs, prompts, phased tasks).
-2. **Phase 0 is the gate.** Run the smoke test before building anything downstream:
-   ```bash
-   python -m venv .venv && source .venv/bin/activate
-   pip install -e ".[dev]"
-   python scripts/smoke_test.py        # SB3 SAC + TQC on the RTX 4090, online, timed
-   ```
-   GREEN (both train, loss falls, per-run minutes recorded) → proceed to Phase 1. Persistent RED → stop.
+- **N1 — headline.** First to feed a **multi-level tail-risk** signal — a coherent-risk profile of the
+  realized-return *lower tail* — to an LLM reward designer, and to test it against matched scalar and placebo
+  channels under a pre-registered equivalence design.
+- **N2.** First **Eureka-style reward-*code* synthesis** for a **trading / portfolio** RL agent (prior
+  reward-as-code work is robotics/control; the nearest finance work has the LLM emit a *signal*, not author
+  the reward).
+- **N3.** A contamination-aware, multiplicity-honest evaluation protocol for LLM-authored reward code
+  (adopted and adapted, not claimed novel).
 
-## Layout
-```
-config/        # single source of truth (10 YAMLs: algos, arms, campaign, data, environment, llm,
-               #   preregistration, regimes, eureka_loop, inference)
-prompts/       # LLM prompt templates — see prompts/README.md (live prompts are hardcoded in src/llm/loop.py
-               #   pending T4; A's system/initial/reflection.txt + B's arm-specific v0 variants kept as reference)
+> **Construct honesty.** The fed vector is **six left-tail scalars** (`cvar_05/10/25/01`, `left_tail_mass` =
+> P(r < −2σ), `robust_skew`) — a theory-grounded summary of the *lower tail*, **not** the full return
+> distribution (no mode, no right tail, no full quantile grid). "Multi-level tail-risk feedback" is the
+> accurate label; "the return distribution" would overstate what is operationalized.
+
+## Why this is rigorous
+
+| Concern | How it is handled |
+|---|---|
+| **Garden of forking paths** | Design, hypotheses, arms, budgets, splits, and the entire analysis plan are **frozen** (`PREREGISTRATION.md`) and bound by a cryptographic hash before any confirmatory run; every change is a dated amendment. |
+| **Survivorship / look-ahead bias** | A **survivorship-free, point-in-time** Refinitiv panel (delisted names retained); purged-and-embargoed train / validation / sealed-test splits. |
+| **"No effect because it didn't train"** | The per-candidate budget is set at a **measured convergence knee** (not a timing guess), with a learning-curve adequacy diagnostic. |
+| **Reward hacking / spurious wins** | LLM-authored code is AST-gated and sandboxed; selection is on a tail-blind, reward-independent held-out Deflated Sharpe; the sealed test is never used for selection. |
+| **Inference rigor** | rliable IQM with stratified-bootstrap CIs, intersection-union tests, TOST equivalence, Bayes factors, Model Confidence Set, PBO/CSCV, Deflated/Probabilistic Sharpe, FZ0 (VaR, ES) backtests, EVT/GPD tails, factor attribution. |
+| **Reproducibility** | Determinism is load-bearing: results **replay from an on-disk provenance archive** rather than being regenerated; every prompt, authored reward, feedback block, and token count is archived. |
+
+## Repository layout
+
+```text
 src/
-  env/         # the portfolio MDP (reward injected via a callable slot)
-  feedback/    # measurement.py (empirical+EVT tail stats, the contribution) + schema.py (the 5 arms' blocks)
-  selection/   # fitness.py — held-out Deflated Sharpe (reward-independent)
-  reward/      # contract.py — the reward signature/contract
-  sandbox/     # executor.py — AST-gate-once + in-process run of untrusted reward code
-  baselines/   # hand-designed reward canon + benchmark strategies
-  agents/      # SB3 SAC (headline) + TQC (secondary critic)
-  llm/         # the Eureka-style loop + pinned-snapshot client (archives every call)
-  arms/        # builds the six arms from config
-  search/      # H4 baselines: random-search-over-code, BO-over-template
-  inference/   # bootstrap, PBO/CSCV, deflated Sharpe, rliable, multiple-testing
-  regimes/     # regime labelling (feeds the power analysis)
-  io/          # results schema + the ONLY loader analysis may use
-  utils/       # seeding, typed config loader, provenance/hashing, structured logging
-  data/        # panel type + synthetic generator + pipeline.py (SYNTHETIC) + loaders.py (loads the REAL gold)
-scripts/       # entry points — smoke_test, power_analysis, freeze, build_gold, verify_gold, run_campaign,
-               #   analyze_results, inspect_rewards are STUBS (fail loudly; GPU/data-gated; blueprint T1–T6).
-               #   verify_inventory.py (data audit) is live.
-tests/         # 153 behaviour tests (148 engine + 5 real-gold loader) — `make test`
-data/          # raw/ clean/ staged/ gold/ synthetic/ + manifest/  — REAL Refinitiv gold panel lives here
-               #   (5,283×953 PIT, survivorship-free); licensed & gitignored, manifest/provenance tracked
-data_pipeline/ # the Refinitiv→gold acquisition pipeline (relocated from repo B; self-contained; provenance)
-archive/       # pre_merge_repo_B/ — B's pre-audit science + root docs, preserved (nothing lost; ADR-022)
-outputs/       # runs/ figures/ tables/  — campaign artifacts (gitignored)
-runs/          # data-acquisition run logs (from B; gitignored)
-reports/       # data EDA, quality scoreboard, session reports (from B)
-paper/         # dissertation.tex + chapters, icaif/ (≤8pp), refs.bib
-docs/          # engine: DECISION_LOG, POWER_ANALYSIS, COMPUTE_AND_TRAINING_TIME; data: DATASHEET,
-               #   DATA_ENTITLEMENTS, environment_spec_v1, distributional_feedback_schema, REFERENCES
-CHANGELOG.md   # Keep-a-Changelog (continued from B); DECISIONS.md = ADRs 001–022
-PREREGISTRATION.md   # frozen design record (frozen end of Phase 1)
+  env/          Portfolio MDP (the reward is injected through a callable slot)
+  feedback/     Tail-risk measurement (empirical + EVT) and the per-arm feedback schema
+  reward/       The reward contract; sandbox/ AST-gates and runs untrusted reward code
+  selection/    Held-out Deflated-Sharpe fitness (reward-independent)
+  agents/       SB3 SAC (headline) + TQC (secondary critic); PopArt value-scale normalization
+  llm/          The Eureka-style reflection loop + a pinned, fully-archived LLM client
+  arms/         Builds the seven experimental arms from config
+  search/       Search baselines (random-search-over-code, BO-over-template)
+  inference/    Bootstrap, PBO/CSCV, Deflated Sharpe, rliable, Bayes-null, MCS, reward-code distance
+  viz/          Publication-grade figure engine (Okabe-Ito, honest-null discipline)
+  io/ utils/    Results schema + the sole analysis loader; deterministic seeding, config, provenance
+config/         Single source of truth (11 YAMLs) — code reads config, never hardcodes
+prompts/        Versioned LLM prompt templates
+scripts/        Entry points: smoke_test · learning_curve · power_analysis · freeze · run_campaign · analyze_campaign · make_figures · monitor
+tests/          1500+ behaviour tests (invariances, bounds, calibration, parallel == serial replay)
+data/           Synthetic panel + checksums + provenance (the licensed gold panel is git-ignored — see below)
+data_pipeline/  Self-contained Refinitiv -> gold acquisition pipeline (provenance, reproducibility)
+paper/          Dissertation + ICAIF manuscript + bibliography
+PREREGISTRATION.md   The frozen design record and amendment log
 ```
 
-> **Unified repository (2026-06-17, ADR-022).** This repo is the merge of two lines: the audited
-> *experimental engine* (`src/`, the live code) and the *data + acquisition* line (the real gold panel in
-> `data/`, the pipeline in `data_pipeline/`). A's audited science is canonical; B's pre-audit science is
-> preserved in `archive/`. Full backups at `~/Downloads/_merge_backup_2026-06-17/`. See `DECISIONS.md`
-> ADR-022 and the top `CHANGELOG.md` entry for the complete, staged, no-loss merge record.
+## Reproducibility
 
-## Status (as of 16 Jun 2026)
-- ✅ Topic locked; novelty confirmed (8 sweeps + kill-search; N1/N2 hold).
-- ✅ Literature corpus: 196 verified PDFs in `../01_literature/` (13 families + logs + `BIBLIOGRAPHY.md`).
-- ✅ Plans frozen in `../00_planning/`.
-- ✅ **Deterministic core implemented and tested — `148 tests pass`** (`make test`): the full
-  statistical-inference stack, the empirical+EVT measurement, the feedback schema, fitness, the
-  reward contract + AST sandbox, the baselines (reward canon + HRP / risk-parity / MV-shrinkage), the
-  Gymnasium environment (with real no-look-ahead invariance tests), regimes, results IO, the 13-stage
-  pipeline (on synthetic data), the arms factory, and both H4 search baselines.
-- ✅ Agent-training / LLM paths implemented as real, dependency-injected code (SB3 SAC + TQC via lazy
-  import; the Eureka loop tested end-to-end with fakes) — they run once torch/SB3 + an `LLM_API_KEY`
-  are available on the GPU box.
-- ⬜ **Phase 0 smoke test (the gate)** ← next action: confirm SAC + TQC train on the RTX 4090 and record
-  minutes/run. Then design freeze · gold rebuild · campaign · analysis · writing.
-
-### Verify it yourself
 ```bash
-make venv && make test     # 148 passing tests on the light scientific stack (no GPU needed)
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+make test                  # 1500+ behaviour tests on the deterministic core (no GPU required)
+make freeze                # cryptographically freeze the design, then run the confirmatory campaign
 ```
 
-## Non-negotiables (see `CLAUDE.md`)
-Reconcile-don't-assume · no scope creep · respect the freeze · no fabricated citations · test-then-commit ·
-replay-not-regenerate · stop-and-ask on frozen-decision changes.
+The campaign is orchestrated by `scripts/run_campaign.py` (idempotent, `--resume`-safe) and analysed by
+`scripts/analyze_campaign.py`; see [`docs/CAMPAIGN_RUNBOOK.md`](docs/CAMPAIGN_RUNBOOK.md).
+
+> **Licensed data.** The headline results use a licensed Refinitiv/LSEG equity panel that **cannot be
+> redistributed**. This repository therefore ships the **acquisition pipeline, SHA-256 checksums, and a
+> shape-identical synthetic panel** — the entire method is verifiable end-to-end on synthetic data, and the
+> real panel is reconstructible by an entitled user via `data_pipeline/`. The gold panel itself is
+> git-ignored by design.
+
+## Design principles
+
+- **Reconcile, don't assume** — extend the real interfaces; never duplicate under a new name.
+- **Respect the freeze** — after Phase 1 the pre-registration is immutable except by dated amendment.
+- **Replay, not regenerate** — LLM calls are non-deterministic; results are reproduced from the archive.
+- **No fabrication** — no invented data, results, or citations; every recent reference is verified.
+- **Test, then commit** — every module carries behaviour tests, not smoke tests.
+
+## Citation
+
+If you reference this work, please cite via [`CITATION.cff`](CITATION.cff). The frozen experimental design is
+recorded in [`PREREGISTRATION.md`](PREREGISTRATION.md).
+
+## License
+
+See [`LICENSE`](LICENSE). The licensed market data is **not** covered and is not distributed with this code.

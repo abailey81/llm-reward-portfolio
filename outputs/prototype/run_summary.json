@@ -1,0 +1,50 @@
+{
+  "arms": [
+    {
+      "arm": "random_search",
+      "n_candidates": 40,
+      "n_failed": 0,
+      "winner_fitness": 0.05179855526512889,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "scalar_cvar5",
+      "n_candidates": 40,
+      "n_failed": 0,
+      "winner_fitness": 0.09473436667490243,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "distributional",
+      "n_candidates": 39,
+      "n_failed": 1,
+      "winner_fitness": 0.06014744945646495,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "scalar",
+      "n_candidates": 40,
+      "n_failed": 0,
+      "winner_fitness": 0.10998743062247152,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "placebo",
+      "n_candidates": 40,
+      "n_failed": 0,
+      "winner_fitness": 0.025979242488941644,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "bayes_opt",
+      "n_candidates": 40,
+      "n_failed": 0,
+      "winner_fitness": 0.019807629374171527,
+      "matched_budget_ok": true
+    }
+  ],
+  "wall_clock_s": 64581.0,
+  "matched_budget_ok": true,
+  "n_gpu": 2,
+  "n_cpu": 0
+}

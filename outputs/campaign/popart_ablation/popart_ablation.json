@@ -1,0 +1,57 @@
+{
+  "frozen_root": "outputs/campaign/frozen",
+  "seed": 0,
+  "n_winners": 2,
+  "ablation": {
+    "cvar_alpha": 0.05,
+    "metrics": {
+      "distributional": {
+        "sharpe": -1.021458207663075,
+        "cvar": -0.01779342583910917,
+        "n_steps": 180.0
+      },
+      "scalar": {
+        "sharpe": -1.021458207663075,
+        "cvar": -0.01779342583910917,
+        "n_steps": 180.0
+      }
+    },
+    "sharpe_rank": [
+      "distributional",
+      "scalar"
+    ],
+    "cvar_rank": [
+      "distributional",
+      "scalar"
+    ]
+  },
+  "ordering": {
+    "pair": [
+      "distributional",
+      "scalar"
+    ],
+    "sharpe_delta": 0.0,
+    "cvar_delta": 0.0,
+    "sharpe_preserved": false,
+    "cvar_preserved": false,
+    "preserved": false
+  },
+  "sigma_audit": {
+    "distributional": {
+      "popart": 1.0,
+      "sigma_max": 1.0,
+      "sigma_last": 1.0,
+      "count": 200.0
+    },
+    "scalar": {
+      "popart": 1.0,
+      "sigma_max": 1.0,
+      "sigma_last": 1.0,
+      "count": 200.0
+    }
+  },
+  "skipped": {
+    "placebo": "no frozen winner with an executable reward_source",
+    "scalar_cvar5": "no frozen winner with an executable reward_source"
+  }
+}

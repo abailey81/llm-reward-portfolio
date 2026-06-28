@@ -1,0 +1,176 @@
+{
+  "n_blocks": 16,
+  "n_records": 5,
+  "pbo": {
+    "distributional": {
+      "pbo": 0.3902097902097902,
+      "n_candidates": 4,
+      "t_val": 200,
+      "status": "ok"
+    },
+    "scalar": {
+      "pbo": null,
+      "n_candidates": 0,
+      "t_val": 0,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors; got 0"
+    },
+    "placebo": {
+      "pbo": null,
+      "n_candidates": 0,
+      "t_val": 0,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors; got 0"
+    },
+    "scalar_cvar5": {
+      "pbo": null,
+      "n_candidates": 0,
+      "t_val": 0,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors; got 0"
+    },
+    "random_search": {
+      "pbo": null,
+      "n_candidates": 0,
+      "t_val": 0,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors; got 0"
+    },
+    "bayes_opt": {
+      "pbo": null,
+      "n_candidates": 0,
+      "t_val": 0,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors; got 0"
+    }
+  },
+  "winner_dsr": {
+    "distributional": {
+      "dsr_canonical": 0.2470240705839316,
+      "dsr_proxy": 0.04228267309586977,
+      "var_sr": 6.066863377176244e-07,
+      "winner_sharpe": -0.7820704847718205,
+      "n_candidates": 4,
+      "n_trials": 4,
+      "winner_id": "distributional-g0-c1",
+      "status": "ok"
+    },
+    "scalar": {
+      "dsr_canonical": null,
+      "dsr_proxy": null,
+      "var_sr": null,
+      "winner_sharpe": null,
+      "n_candidates": 0,
+      "winner_id": null,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors for a cross-trial variance; got 0"
+    },
+    "placebo": {
+      "dsr_canonical": null,
+      "dsr_proxy": null,
+      "var_sr": null,
+      "winner_sharpe": null,
+      "n_candidates": 0,
+      "winner_id": null,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors for a cross-trial variance; got 0"
+    },
+    "scalar_cvar5": {
+      "dsr_canonical": null,
+      "dsr_proxy": null,
+      "var_sr": null,
+      "winner_sharpe": null,
+      "n_candidates": 0,
+      "winner_id": null,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors for a cross-trial variance; got 0"
+    },
+    "random_search": {
+      "dsr_canonical": null,
+      "dsr_proxy": null,
+      "var_sr": null,
+      "winner_sharpe": null,
+      "n_candidates": 0,
+      "winner_id": null,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors for a cross-trial variance; got 0"
+    },
+    "bayes_opt": {
+      "dsr_canonical": null,
+      "dsr_proxy": null,
+      "var_sr": null,
+      "winner_sharpe": null,
+      "n_candidates": 0,
+      "winner_id": null,
+      "status": "skipped",
+      "reason": "need >= 2 candidates with validation vectors for a cross-trial variance; got 0"
+    }
+  },
+  "h2": {
+    "H2_supported": false,
+    "method": "bh",
+    "alpha": 0.05,
+    "q": 0.05,
+    "legs": [
+      {
+        "contrast": "distributional>scalar",
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false,
+        "leg_supported": false
+      },
+      {
+        "contrast": "distributional>placebo",
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false,
+        "leg_supported": false
+      },
+      {
+        "contrast": "distributional>scalar_cvar5",
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false,
+        "leg_supported": false
+      }
+    ],
+    "family": {
+      "labels": [],
+      "pvals": "[]",
+      "reject_bh": "[]",
+      "tests": [],
+      "q": 0.05,
+      "n_family": 0,
+      "skipped": [
+        {
+          "arm_a": "distributional",
+          "arm_b": "scalar",
+          "reason": "no shared test seeds"
+        },
+        {
+          "arm_a": "distributional",
+          "arm_b": "placebo",
+          "reason": "no shared test seeds"
+        },
+        {
+          "arm_a": "distributional",
+          "arm_b": "scalar_cvar5",
+          "reason": "no shared test seeds"
+        }
+      ]
+    },
+    "missing": [
+      "distributional>scalar",
+      "distributional>placebo",
+      "distributional>scalar_cvar5"
+    ]
+  },
+  "h1_beat_human": {
+    "status": "skipped",
+    "reason": "no test records for the LLM winner arm 'distributional' (baseline stage / records-only?)",
+    "winner_arm": "distributional",
+    "baselines_configured": [
+      "raw_return",
+      "return_minus_variance",
+      "return_minus_cvar",
+      "differential_sharpe"
+    ]
+  }
+}

@@ -1,5 +1,12 @@
 # Session report — 2026-06-10 (close-out) — pre-Friday plan, sections A–E only
 
+> **SUPERSEDED — describes the abandoned IQN-SAC line (§B `make smoke` = "IQN-inside-SAC proof-of-life" /
+> `smoke_iqn_sac.py`; CRSP-via-WRDS data framing), see ADR-022.** The live design measures the return
+> distribution **off-critic** (empirical + EVT, `src/feedback/measurement.py`), trains SB3 SAC (+ TQC
+> secondary), and sources data from Refinitiv/LSEG (not CRSP). The B-line freeze staging referenced in §C is
+> now quarantined under `archive/pre_merge_repo_B/staging/` (use `docs/FREEZE_RUNBOOK.md`). Retained as a
+> dated session record.
+
 Scope honoured: only the remaining 10–12 June items; no week-15 work, no training, no new pipeline
 stages, nothing sent/frozen/signed, no new dependencies. Companion: CHANGELOG.md (close-out section).
 

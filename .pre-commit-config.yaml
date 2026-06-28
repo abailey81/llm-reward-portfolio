@@ -23,3 +23,17 @@ repos:
         additional_dependencies: ["numpy", "types-PyYAML"]
         args: ["--ignore-missing-imports"]
         files: ^src/
+  # Pre-registration freeze drift-guard. Runs ONLY when one of the EIGHT hashed design
+  # artifacts is staged (PREREGISTRATION.md + the five bound configs + the two loaded prompts;
+  # R62 added arms.yaml + prompts/system.txt + prompts/initial_generation.txt — the treatment
+  # text). Read-only (`--check` never writes). Pre-freeze it enforces prose<->yaml consistency;
+  # post-freeze it fails the commit if the recorded design hash drifts (closes the "freeze computed
+  # but never enforced" gap — DEEP_AUDIT 2026-06-25). Definition of the hash: scripts/freeze.py.
+  - repo: local
+    hooks:
+      - id: prereg-freeze-guard
+        name: pre-registration freeze drift-guard (scripts/freeze.py --check)
+        entry: python scripts/freeze.py --check
+        language: system
+        pass_filenames: false
+        files: ^(PREREGISTRATION\.md|config/(preregistration|inference|environment|data|arms)\.yaml|prompts/(system|initial_generation)\.txt)$

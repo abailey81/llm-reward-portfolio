@@ -1,0 +1,29 @@
+{
+  "arms": [
+    {
+      "arm": "distributional",
+      "n_candidates": 2,
+      "n_failed": 0,
+      "winner_fitness": 0.002103906600897327,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "random_search",
+      "n_candidates": 2,
+      "n_failed": 0,
+      "winner_fitness": 0.0022148003925478994,
+      "matched_budget_ok": true
+    },
+    {
+      "arm": "bayes_opt",
+      "n_candidates": 2,
+      "n_failed": 0,
+      "winner_fitness": 0.001864707489177778,
+      "matched_budget_ok": true
+    }
+  ],
+  "wall_clock_s": 13.7,
+  "matched_budget_ok": true,
+  "n_gpu": 4,
+  "n_cpu": 0
+}

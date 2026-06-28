@@ -1,0 +1,2 @@
+Reflect on the previous candidate's results and propose an improved reward function. Feedback from the previous candidate:
+Your previous reward scored: 0.01 (validation Deflated Sharpe).

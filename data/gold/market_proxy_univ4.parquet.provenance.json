@@ -1,0 +1,17 @@
+{
+  "cols": 1,
+  "format": "parquet",
+  "frozen_utc": "2026-06-25T01:54:30.218716+00:00",
+  "layer": "gold",
+  "name": "market_proxy_univ4.parquet",
+  "provenance": {
+    "stage": "panel.build_gold",
+    "vendor": "derived"
+  },
+  "relpath": "data\\gold\\market_proxy_univ4.parquet",
+  "row_hash": "401c5c5bc8b544afd4fa904c3c7a49a0ce2c313ae7177c057bf98fa127ac173a",
+  "rows": 5283,
+  "run_id": "build_universe",
+  "sha256": "ae55d3382b6bb17c4a6961c89bdfc847e8ca0f167d86f0e81d330168554ebd82",
+  "vendor": "derived"
+}

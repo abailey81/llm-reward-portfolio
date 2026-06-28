@@ -1,0 +1,17 @@
+{
+  "arm": "distributional",
+  "candidate_id": "distributional-g0-c1",
+  "env_fingerprint": "campaign:distributional",
+  "feedback_block": "",
+  "fold": 0,
+  "frozen": true,
+  "generation": 0,
+  "metrics": {
+    "val_fitness": 0.11654783070594404
+  },
+  "reward_source": "\ndef reward(weights, returns, prev_weights, port_ret, info):\n    turnover = float(np.sum(np.abs(weights - prev_weights)))\n    total = float(port_ret) - 0.1 * turnover\n    return total, {\"port_ret\": float(port_ret), \"turnover\": turnover}, None\n",
+  "reward_source_hash": "a589942c44865bc3b1a49c284ed97192633ebedeb79dd19e78bf4b92075454bd",
+  "run_id": "distributional-winner",
+  "seed": 0,
+  "wall_clock": 0.0
+}

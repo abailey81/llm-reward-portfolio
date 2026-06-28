@@ -1,0 +1,55 @@
+{
+ "title": "Prototype (parallel)",
+ "model": "claude-opus-4-8",
+ "pid": 13852,
+ "started": "2026-06-24T23:51:05",
+ "updated": "2026-06-24T23:51:13",
+ "elapsed_s": 8.9,
+ "phase": "done",
+ "arms": {
+  "total": 1,
+  "done": 0,
+  "current": null,
+  "current_idx": 0
+ },
+ "candidates": {
+  "in_arm_total": 2,
+  "in_arm_done": 0,
+  "run_total": 2,
+  "run_done": 2,
+  "current": 0,
+  "gen": 0,
+  "errors": 0
+ },
+ "training": {
+  "step": 200,
+  "total": 200,
+  "fps": null,
+  "actor_loss": -42.48912811279297,
+  "critic_loss": 2.2014732360839844,
+  "ent_coef": 0.9706875681877136,
+  "ep_rew_mean": null
+ },
+ "best_fitness": {
+  "distributional": 0.11654783070594404
+ },
+ "anomalies": {
+  "count": 0,
+  "recent": []
+ },
+ "resources": {
+  "gpu_util": 0,
+  "gpu_mem_mib": [
+   220,
+   6141
+  ],
+  "gpu_temp": 44,
+  "cpu_pct": 9.6,
+  "ram_pct": 56.7,
+  "proc_rss_mib": 71
+ },
+ "eta_s": 0.0,
+ "eta": null,
+ "active": [],
+ "parallel": true
+}

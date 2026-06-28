@@ -1,0 +1,32 @@
+Here is the environment interface and the reward contract.
+
+The agent allocates a LONG-ONLY portfolio over 30 risky assets plus cash (31 weights that sum to 1).
+
+OBSERVATION (the agent's input — listed for context; the reward does NOT receive it), dimension 1893: per asset, the last 60 daily returns; per-asset realized volatility over windows [20, 60]; the lagged volatility-index level; a cash marker; and the previous weights.
+
+ACTION: the agent outputs 31 real logits in [-10, 10]; the environment applies softmax to get long-only simplex weights, realizes the next-step asset returns, and charges a proportional turnover cost of 10 bps on the one-way turnover, 0.5 * L1(weights - prev_weights_drifted) (previous weights drifted by the realized returns). port_ret = (weights[:risky] . returns) - cost.
+
+REWARD CONTRACT (what YOU write), called once per step with ANONYMISED numpy arrays only:
+    def reward(weights, returns, prev_weights, port_ret, info):
+        # weights:      np.ndarray (31,)  current simplex weights (assets + cash)
+        # returns:      np.ndarray (30,)  per-asset returns realized THIS step
+        # prev_weights: np.ndarray (31,)  previous weights (for turnover)
+        # port_ret:     float                  realized portfolio return this step (gross - cost)
+        # info:         dict; info["reward_state"] carries YOUR state across steps (None at reset)
+        # return (total: float, components: dict[str, float], reward_state)
+Use numpy (`np`) only — no other imports, no file/network/OS access, no dates. The agent maximizes `total`. Build a STATEFUL reward (via reward_state) for rolling statistics (volatility, drawdown, tail/CVaR) — a single call sees only one step.        # observation/action shapes, the step semantics, the contract signature
+
+Write a reward function for the portfolio-allocation agent. Think about:
+  - risk-adjusted return (not raw return alone),
+  - drawdown and turnover/transaction cost,
+  - TAIL losses (the worst outcomes, not just the average).
+
+A trivial example that satisfies the contract:
+
+    def reward(weights, returns, prev_weights, port_ret, info):
+        return float(port_ret), {"port_ret": float(port_ret)}, None
+
+Return ONLY your reward function definition.
+
+
+[Exploration directive 1/2: propose a reward DISTINCT from the other candidates this generation — vary the risk-aware term (CVaR vs rolling variance vs drawdown vs differential Sharpe), the rolling window, and the functional form. Do not reuse a design you would give a different candidate index.]

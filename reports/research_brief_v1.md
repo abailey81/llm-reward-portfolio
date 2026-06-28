@@ -1,5 +1,10 @@
 # Research brief — one page for the first group meeting  (Tamer Atesyakar, w/c 8 Jun 2026)
 
+> **SUPERSEDED — describes the abandoned IQN-SAC line (RQ/method framed on "distributional (IQN) tail-risk
+> feedback" and Dabney et al. 2018 IQN as the risk channel), see ADR-022.** The live design measures the
+> return distribution **off-critic** (empirical + EVT, `src/feedback/measurement.py`) and trains SB3 SAC
+> (+ TQC secondary), not IQN-SAC. Retained as a dated record of the first-meeting brief.
+
 **Title.** Can Large Language Models Design Reward Functions for Risk-Sensitive Portfolio RL?
 An Eureka-Style Evaluation with Distributional Feedback on US Equities, 2005–2025.
 

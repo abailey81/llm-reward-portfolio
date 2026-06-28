@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "llm-reward-portfolio"
+abstract: >-
+  Agentic reward engineering with LLMs for risk-sensitive deep-RL portfolio
+  allocation: an LLM designs the reward-function code for a fixed Stable-Baselines3
+  SAC portfolio agent, and the experiment tests whether feeding its Eureka-style
+  reflection loop multi-level tail-risk feedback (CVaR at several levels, left-tail
+  mass, robust skew) beats feeding it a scalar performance number, at matched compute,
+  against scalar/placebo/single-CVaR controls. Pre-registered, likely-null framed via
+  Mayoian error-statistical severity, on a single survivorship-free point-in-time
+  LSEG equity panel. MSc dissertation, UCL Institute of Finance and Technology.
+type: software
+authors:
+  - given-names: Tamer
+    family-names: Atesyakar
+    affiliation: "University College London (UCL), Institute of Finance and Technology — MSc Banking & Digital Finance"
+version: "0.1.0"
+date-released: "2026-09-01"
+year: 2026
+license: MIT
+# repository-code: "https://github.com/<owner>/llm-reward-portfolio"   # TODO: set on public release
+# url: "https://github.com/<owner>/llm-reward-portfolio"               # TODO: set on public release
+# doi: "10.5281/zenodo.XXXXXXX"                                        # TODO: populate after Zenodo archival
+keywords:
+  - reinforcement-learning
+  - reward-design
+  - large-language-models
+  - portfolio-optimization
+  - tail-risk
+  - cvar
+  - risk-sensitive-rl
+  - pre-registration

@@ -1,0 +1,3 @@
+Reflect on the previous candidate's results and propose an improved reward function. Feedback from the previous candidate:
+Your previous reward scored: 0.00 (validation Deflated Sharpe).
+  CVaR 5%: -0.031
