@@ -21,6 +21,7 @@ __all__ = [
     "sha256_file",
     "sha256_obj",
     "git_commit",
+    "git_dirty",
     "env_fingerprint",
 ]
 
@@ -72,8 +73,25 @@ def git_commit(short: bool = False) -> str | None:
         return None
 
 
+def git_dirty() -> bool | None:
+    """Whether the git work-tree has uncommitted changes (``git status --porcelain``).
+
+    ``True`` if any tracked-file change is staged/unstaged or any untracked file exists
+    (non-empty porcelain output); ``False`` for a clean tree; ``None`` when not in a git
+    work-tree or git is unavailable. Pins reproducibility honestly: a modified-but-
+    uncommitted run no longer *looks* clean from its recorded ``git_commit`` alone.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+        )
+        return bool(out.stdout.strip())
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
 def env_fingerprint() -> dict[str, Any]:
-    """A reproducibility fingerprint: Python, platform, key package versions, git commit."""
+    """A reproducibility fingerprint: Python, platform, key package versions, git state."""
     versions: dict[str, str] = {}
     for pkg in _TRACKED_PACKAGES:
         try:
@@ -84,5 +102,6 @@ def env_fingerprint() -> dict[str, Any]:
         "python": platform.python_version(),
         "platform": platform.platform(),
         "git_commit": git_commit(),
+        "git_dirty": git_dirty(),
         "packages": versions,
     }

@@ -54,13 +54,18 @@ def _n_assets(returns: Any) -> int:
 
 
 def spy_buy_and_hold(returns: Any, cfg: Any = None) -> np.ndarray:
-    """Documented full-invested equal-weight market proxy.
+    """Equal-weight market proxy — **identical to** :func:`equal_weight` (a fully-invested 1/N basket).
 
-    Algorithm sketch
-    -----------------
-    The anonymized panel carries no explicit SPY column, so the market proxy is
-    a fully-invested equal-weight basket of the available assets — a standard
-    cap-agnostic stand-in for "the market". No forecast, no rebalancing logic.
+    HONEST LABELLING (leakage/rigor audit 2026-06-20, R19). The anonymized survivorship-free PIT panel
+    carries **no index column and no market caps** (the gold parquet is returns-only; caps live in the
+    non-redistributable Refinitiv source and were consumed only for top-N selection). This function is
+    therefore NOT the actual S&P 500 / SPY — it returns the same 1/N weights as :func:`equal_weight`,
+    so it is a DUPLICATE of the DeMiguel floor, not a distinct market benchmark. It is consequently
+    **excluded from the frozen benchmark gate** (``_BENCHMARK_NAMES`` in ``analyze_campaign``) to avoid
+    double-counting 1/N. A genuine market benchmark (SPX total-return, or a cap-weighted index of the
+    PIT universe) is a documented **gated data addition** — it needs a non-anonymized data pull.
+
+    Retained as a back-compatible alias only; prefer :func:`equal_weight`.
 
     FINAL_PLAN F.6 (benchmark allocators).
     """
@@ -102,48 +107,109 @@ def mean_variance(returns: Any, cfg: Any = None) -> np.ndarray:
     if n == 1:
         return np.ones(1, dtype=float)
 
-    mu = arr.mean(axis=0)
-    # Ledoit-Wolf shrinkage of the covariance toward a scaled-identity target;
-    # the resulting estimate is symmetric positive-definite (stable inversion).
-    cov = LedoitWolf().fit(arr).covariance_
-    cov = cov + 1e-12 * np.eye(n)  # numerical floor
-
-    # Max-Sharpe direction w* proportional to Sigma^{-1} mu; if mu has no upside
-    # signal, fall back to the global minimum-variance portfolio Sigma^{-1} 1.
-    inv = np.linalg.inv(cov)
-    raw = inv @ mu
-    if not np.isfinite(raw).all() or raw.sum() <= 0:
-        raw = inv @ np.ones(n)
-
-    # Project onto the long-only simplex.
-    return _project_simplex(raw)
-
-
-def _project_simplex(v: np.ndarray) -> np.ndarray:
-    """Euclidean projection of vector ``v`` onto the probability simplex."""
-    v = np.asarray(v, dtype=float).ravel()
-    n = v.size
-    u = np.sort(v)[::-1]
-    cssv = np.cumsum(u) - 1.0
-    ind = np.arange(1, n + 1)
-    cond = u - cssv / ind > 0
-    if not cond.any():
+    live = _live_mask(arr)
+    nl = int(live.sum())
+    if nl == 0:
         return np.full(n, 1.0 / n)
-    rho = ind[cond][-1]
-    theta = cssv[cond][-1] / rho
-    w = np.maximum(v - theta, 0.0)
-    s = w.sum()
+    if nl == 1:
+        w = np.zeros(n, dtype=float)
+        w[live] = 1.0
+        return w
+
+    al = arr[:, live]
+    mu = al.mean(axis=0)
+    # Ledoit-Wolf shrinkage toward a scaled-identity target (symmetric positive-definite; stable).
+    cov = LedoitWolf().fit(al).covariance_ + 1e-12 * np.eye(nl)
+    # Long-only TANGENCY (max-Sharpe) via the convex QP, NOT a projection of the unconstrained Σ^{-1}μ
+    # (which collapses to one asset; critical-review 2026-06-20). GMV fallback when μ has no upside.
+    w_live = _long_only_max_sharpe(mu, cov)
+    w = np.zeros(n, dtype=float)
+    w[live] = w_live
+    s = float(w.sum())
     return w / s if s > 0 else np.full(n, 1.0 / n)
 
 
-def risk_parity(returns: Any, cfg: Any = None) -> np.ndarray:
-    """Equal-risk-contribution (risk parity) allocation.
+# NB: a Euclidean ``_project_simplex`` helper was REMOVED (2026-06-20). Projecting an UNCONSTRAINED
+# inverse-covariance vector onto the simplex is NOT the long-only optimum — it collapses to a single asset
+# (the exact bug that made minimum_variance / maximum_diversification degenerate). The allocators now solve
+# the long-only QP directly (`_long_only_min_variance` / `_long_only_max_sharpe`); the footgun is gone.
 
-    Algorithm sketch
-    -----------------
-    Estimate Sigma, then solve for weights such that each asset contributes
-    equally to total portfolio risk: w_i * (Sigma w)_i is constant across i.
-    Solved by iterative/convex optimization; result projected to the simplex.
+
+def _live_mask(arr: np.ndarray, eps: float = 1e-10) -> np.ndarray:
+    """Boolean mask of LIVE assets — those with non-degenerate return variation over the window.
+
+    Delisted names (the ``liquidate_to_cash`` zero-fill) have ~0 variance; an inverse-vol or
+    minimum-variance allocator would otherwise hand them ~100% of the weight (``1/σ`` with ``σ→0``).
+    They are excluded here and weighted 0 (critical-review 2026-06-20).
+    """
+    sd = arr.std(axis=0, ddof=1) if arr.shape[0] > 1 else np.zeros(arr.shape[1])
+    return np.asarray(sd > eps, dtype=bool)
+
+
+def _long_only_min_variance(cov: np.ndarray) -> np.ndarray:
+    """Long-only global minimum-variance weights: ``argmin_w wᵀΣw  s.t. w>=0, Σw=1`` (a convex QP).
+
+    Solving the CONSTRAINED QP is essential: Euclidean-projecting the UNCONSTRAINED ``Σ^{-1}1`` onto the
+    simplex collapses to a single asset (it is NOT the long-only GMV — critical-review 2026-06-20).
+    """
+    n = int(cov.shape[0])
+    if n == 1:
+        return np.ones(1, dtype=float)
+    w0 = np.full(n, 1.0 / n)
+    try:
+        from scipy.optimize import minimize
+
+        res = minimize(
+            lambda w: float(w @ cov @ w), w0, jac=lambda w: 2.0 * (cov @ w), method="SLSQP",
+            bounds=[(0.0, 1.0)] * n,
+            constraints=({"type": "eq", "fun": lambda w: float(w.sum() - 1.0), "jac": lambda w: np.ones(n)},),
+            options={"maxiter": 500, "ftol": 1e-12},
+        )
+        w = np.maximum(np.asarray(res.x, dtype=float), 0.0)
+    except Exception:  # noqa: BLE001 - optimiser unavailable -> inverse-variance heuristic (still long-only)
+        w = 1.0 / np.maximum(np.diag(cov), 1e-12)
+    s = float(w.sum())
+    return w / s if s > 1e-300 else np.full(n, 1.0 / n)
+
+
+def _long_only_max_sharpe(mu: np.ndarray, cov: np.ndarray) -> np.ndarray:
+    """Long-only tangency (max-Sharpe) weights via the convex trick ``min wᵀΣw s.t. wᵀμ=1, w>=0``.
+
+    Renormalised to the simplex. Falls back to the long-only GMV when ``μ`` carries no positive signal
+    (the tangency portfolio is then undefined). Estimation error in ``μ`` makes the unconstrained
+    Σ^{-1}μ direction notoriously unstable, so the long-only constraint is the robustifier.
+    """
+    n = int(len(mu))
+    if n == 1:
+        return np.ones(1, dtype=float)
+    if not np.any(np.asarray(mu) > 1e-12):
+        return _long_only_min_variance(cov)
+    try:
+        from scipy.optimize import minimize
+
+        res = minimize(
+            lambda w: float(w @ cov @ w), np.full(n, 1.0 / n), jac=lambda w: 2.0 * (cov @ w),
+            method="SLSQP", bounds=[(0.0, None)] * n,
+            constraints=({"type": "eq", "fun": lambda w: float(w @ mu - 1.0), "jac": lambda w: np.asarray(mu)},),
+            options={"maxiter": 500, "ftol": 1e-12},
+        )
+        w = np.maximum(np.asarray(res.x, dtype=float), 0.0)
+    except Exception:  # noqa: BLE001 - optimiser unavailable -> GMV fallback
+        return _long_only_min_variance(cov)
+    s = float(w.sum())
+    return w / s if s > 1e-300 else _long_only_min_variance(cov)
+
+
+def risk_parity(returns: Any, cfg: Any = None) -> np.ndarray:
+    """Equal-risk-contribution (risk parity) allocation — convex log-barrier formulation.
+
+    Finds weights such that each asset contributes equally to total portfolio risk
+    (``w_i*(Σw)_i`` constant across ``i``). Rather than the fragile multiplicative fixed-point
+    (which on ill-conditioned windows oscillates to a CONCENTRATED, non-risk-parity solution and could
+    divide by zero), this solves the **convex** Spinu (2013) / Maillard-Roncalli-Teiletche (2010)
+    problem ``min_{y>0} ½ yᵀΣy − (1/n) Σ log y_i`` whose unique minimiser has equal risk contributions;
+    the normalised ``y`` is the ERC portfolio. Solved with L-BFGS-B (robust, reliably convergent), with
+    a guarded analytic-Newton fallback. Needs no return forecast.
 
     FINAL_PLAN F.6 (benchmark allocators).
     """
@@ -152,24 +218,49 @@ def risk_parity(returns: Any, cfg: Any = None) -> np.ndarray:
     if n == 1:
         return np.ones(1, dtype=float)
 
-    cov = np.cov(arr, rowvar=False)
-    cov = np.atleast_2d(cov) + 1e-12 * np.eye(n)
+    # Exclude DELISTED / zero-variance names FIRST (like every other cov/vol allocator): the ERC
+    # log-barrier objective puts ~0 risk on a zero-variance name, so equal-risk-contribution is satisfied
+    # DEGENERATELY by dumping weight onto the dead name — run on the LIVE sub-panel (critical-review 2026-06-20).
+    live = _live_mask(arr)
+    nl = int(live.sum())
+    if nl == 0:
+        return np.full(n, 1.0 / n)
+    if nl == 1:
+        w = np.zeros(n, dtype=float)
+        w[live] = 1.0
+        return w
 
-    # Iterative (cyclical) update for equal risk contribution. Starting from the
-    # inverse-volatility seed, repeatedly rescale each weight by the ratio of the
-    # target risk share to its current marginal risk contribution.
-    inv_vol = 1.0 / np.sqrt(np.diag(cov))
-    w = inv_vol / inv_vol.sum()
-    target = 1.0 / n
-    for _ in range(10_000):
-        sigma_w = cov @ w
-        port_var = float(w @ sigma_w)
-        rc = w * sigma_w / port_var  # risk contributions, sum to 1
-        if np.max(np.abs(rc - target)) < 1e-10:
-            break
-        w = w * (target / rc)
-        w = np.maximum(w, 0.0)
-        w = w / w.sum()
+    cov = np.atleast_2d(np.cov(arr[:, live], rowvar=False)) + 1e-8 * np.eye(nl)
+    c = 1.0 / nl
+    inv_vol = 1.0 / np.sqrt(np.maximum(np.diag(cov), 1e-12))
+    y0 = inv_vol / inv_vol.sum()
+
+    def _obj(y: np.ndarray) -> float:
+        return 0.5 * float(y @ cov @ y) - c * float(np.sum(np.log(np.maximum(y, 1e-300))))
+
+    def _grad(y: np.ndarray) -> np.ndarray:
+        return cov @ y - c / np.maximum(y, 1e-300)
+
+    try:
+        from scipy.optimize import minimize
+
+        res = minimize(
+            _obj, y0, jac=_grad, method="L-BFGS-B",
+            bounds=[(1e-12, None)] * nl, options={"maxiter": 1000, "ftol": 1e-15},
+        )
+        y = np.maximum(np.asarray(res.x, dtype=float), 0.0)
+    except Exception:  # noqa: BLE001 - optimiser unavailable -> guarded sqrt-damped Newton fallback
+        y = y0.copy()
+        for _ in range(50_000):
+            g = cov @ y - c / np.maximum(y, 1e-300)
+            if float(np.max(np.abs(g))) < 1e-12:
+                break
+            y = np.maximum(y * np.sqrt(np.maximum(c / np.maximum(y * (cov @ y), 1e-300), 1e-300)), 1e-300)
+
+    s = float(y.sum())
+    y = y / s if s > 1e-300 else np.full(nl, 1.0 / nl)
+    w = np.zeros(n, dtype=float)
+    w[live] = y
     return w
 
 
@@ -195,28 +286,40 @@ def hrp(returns: Any, cfg: Any = None) -> np.ndarray:
     if n == 1:
         return np.ones(1, dtype=float)
 
-    cov = np.cov(arr, rowvar=False)
-    cov = np.atleast_2d(cov)
-    std = np.sqrt(np.diag(cov))
+    # Exclude DELISTED / zero-variance names BEFORE clustering: they make ``corr = cov/outer(std,std)``
+    # NaN (linkage then raises "must contain only finite values") AND give the inverse-variance bisection
+    # a 1/0 weight. Every 2018-2025 test window holds >=1 such name (liquidate_to_cash zero-fill). Run HRP
+    # on the LIVE sub-panel and weight dead names 0 (critical-review 2026-06-20).
+    live = _live_mask(arr)
+    nl = int(live.sum())
+    if nl == 0:
+        return np.full(n, 1.0 / n)
+    if nl == 1:
+        w = np.zeros(n, dtype=float)
+        w[live] = 1.0
+        return w
+
+    cov = np.atleast_2d(np.cov(arr[:, live], rowvar=False))
+    std = np.sqrt(np.maximum(np.diag(cov), 1e-12))
     corr = cov / np.outer(std, std)
+    corr = np.nan_to_num(corr, nan=0.0, posinf=0.0, neginf=0.0)  # defense-in-depth (live names are finite)
     corr = np.clip(corr, -1.0, 1.0)
     np.fill_diagonal(corr, 1.0)
 
-    # 1. Correlation distance d = sqrt(0.5 * (1 - corr)).
-    dist = np.sqrt(0.5 * (1.0 - corr))
+    # 1. Correlation distance d = sqrt(0.5 * (1 - corr)); scrub any residual non-finite to MAX distance 1.
+    dist = np.sqrt(np.clip(0.5 * (1.0 - corr), 0.0, 1.0))
+    dist = np.nan_to_num(dist, nan=1.0, posinf=1.0, neginf=1.0)
     np.fill_diagonal(dist, 0.0)
     dist = (dist + dist.T) / 2.0  # enforce exact symmetry for squareform
 
-    # 2. Hierarchical (single-linkage) clustering.
+    # 2-4. Cluster, quasi-diagonalise, recursive-bisection over the LIVE names.
     link = linkage(squareform(dist, checks=False), method="single")
-
-    # 3. Quasi-diagonalization: recover the leaf order from the dendrogram.
-    sort_ix = _quasi_diag(link, n)
-
-    # 4. Recursive bisection allocating inversely to cluster variance.
-    weights = _recursive_bisection(cov, sort_ix)
-    s = weights.sum()
-    return weights / s if s > 0 else np.full(n, 1.0 / n)
+    sort_ix = _quasi_diag(link, nl)
+    weights_live = _recursive_bisection(cov, sort_ix)
+    w = np.zeros(n, dtype=float)
+    w[live] = weights_live
+    s = float(w.sum())
+    return w / s if s > 0 else np.full(n, 1.0 / n)
 
 
 def _quasi_diag(link: np.ndarray, n_leaves: int) -> list[int]:
@@ -240,7 +343,7 @@ def _quasi_diag(link: np.ndarray, n_leaves: int) -> list[int]:
 def _cluster_var(cov: np.ndarray, items: list[int]) -> float:
     """Inverse-variance-weighted variance of a sub-portfolio (HRP)."""
     sub = cov[np.ix_(items, items)]
-    ivp = 1.0 / np.diag(sub)
+    ivp = 1.0 / np.maximum(np.diag(sub), 1e-12)  # floor: a zero-variance leaf must not give 1/0 (defense)
     ivp = ivp / ivp.sum()
     return float(ivp @ sub @ ivp)
 
@@ -267,3 +370,125 @@ def _recursive_bisection(cov: np.ndarray, sort_ix: list[int]) -> np.ndarray:
             for idx in right:
                 w[idx] *= 1.0 - alpha
     return w
+
+
+# =========================================================================== #
+# Extended allocator canon (block B8): more standard benchmarks so the agent     #
+# competes against a broad, citation-anchored benchmark suite.                   #
+# =========================================================================== #
+def minimum_variance(returns: Any, cfg: Any = None) -> np.ndarray:
+    """Global minimum-variance portfolio ``w ∝ Σ^{-1} 1`` (Markowitz 1952; Clarke, de Silva & Thorley 2011).
+
+    Needs NO return forecast — only the covariance. The unconstrained GMV solution is projected onto the
+    long-only simplex.
+    """
+    arr = _as_window(returns)
+    n = arr.shape[1]
+    if n == 1:
+        return np.ones(1, dtype=float)
+    live = _live_mask(arr)
+    nl = int(live.sum())
+    if nl == 0:
+        return np.full(n, 1.0 / n)
+    if nl == 1:
+        w = np.zeros(n, dtype=float)
+        w[live] = 1.0
+        return w
+    cov = np.atleast_2d(np.cov(arr[:, live], rowvar=False)) + 1e-8 * np.eye(nl)
+    w = np.zeros(n, dtype=float)
+    w[live] = _long_only_min_variance(cov)  # CONSTRAINED long-only GMV over the live names
+    s = float(w.sum())
+    return w / s if s > 0 else np.full(n, 1.0 / n)
+
+
+def inverse_volatility(returns: Any, cfg: Any = None) -> np.ndarray:
+    """Inverse-volatility (naive risk parity): ``w_i ∝ 1/σ_i`` (equal risk under zero correlation).
+
+    The common, robust risk-parity approximation that ignores correlations; needs no forecast.
+    """
+    arr = _as_window(returns)
+    n = arr.shape[1]
+    sd = arr.std(axis=0, ddof=1) if arr.shape[0] > 1 else np.zeros(n)
+    live = sd > 1e-10  # exclude dead (zero-vol) names: 1/σ would otherwise put ~100% on a delisted name
+    if not live.any():
+        return np.full(n, 1.0 / n)
+    w = np.zeros(n, dtype=float)
+    w[live] = 1.0 / sd[live]
+    s = float(w.sum())
+    return w / s if s > 0 else np.full(n, 1.0 / n)
+
+
+def maximum_diversification(returns: Any, cfg: Any = None) -> np.ndarray:
+    """Maximum-diversification portfolio (Choueifaty & Coignard 2008, *J. Portfolio Mgmt*).
+
+    Maximises the diversification ratio ``(w·σ)/sqrt(wᵀΣw)``; the unconstrained solution is
+    ``w ∝ Σ^{-1} σ``, projected onto the long-only simplex. Needs no return forecast.
+    """
+    arr = _as_window(returns)
+    n = arr.shape[1]
+    if n == 1:
+        return np.ones(1, dtype=float)
+    live = _live_mask(arr)
+    nl = int(live.sum())
+    if nl == 0:
+        return np.full(n, 1.0 / n)
+    if nl == 1:
+        w = np.zeros(n, dtype=float)
+        w[live] = 1.0
+        return w
+    cov = np.atleast_2d(np.cov(arr[:, live], rowvar=False))
+    sigma = np.sqrt(np.maximum(np.diag(cov), 1e-12))
+    # Choueifaty-Coignard: the most-diversified portfolio is the long-only GMV of the CORRELATION matrix,
+    # then de-scaled by 1/σ and renormalised (NOT a projection of the unconstrained Σ^{-1}σ, which
+    # collapses to one asset -> diversification ratio 1.0, the WORST; critical-review 2026-06-20).
+    corr = cov / np.outer(sigma, sigma)
+    corr = np.clip(corr, -1.0, 1.0)
+    np.fill_diagonal(corr, 1.0)
+    corr = corr + 1e-8 * np.eye(nl)
+    y = _long_only_min_variance(corr)
+    w_live = np.maximum(y / sigma, 0.0)
+    sl = float(w_live.sum())
+    w_live = w_live / sl if sl > 0 else np.full(nl, 1.0 / nl)
+    w = np.zeros(n, dtype=float)
+    w[live] = w_live
+    s = float(w.sum())
+    return w / s if s > 0 else np.full(n, 1.0 / n)
+
+
+def cross_sectional_momentum(returns: Any, cfg: Any = None) -> np.ndarray:
+    """Cross-sectional momentum: equal-weight the top-tertile past-return assets (Jegadeesh & Titman 1993).
+
+    Long-only (holds the winners, not shorting the losers) over the observation window's cumulative
+    return. A standard active benchmark that the learned reward must beat.
+    """
+    arr = _as_window(returns)
+    n = arr.shape[1]
+    if n == 1:
+        return np.ones(1, dtype=float)
+    cum = np.prod(1.0 + arr, axis=0) - 1.0  # past cumulative return per asset
+    # Rank only LIVE names: a delisted (zero-return -> cum==0) name must not outrank a live name that fell,
+    # and NaN must never sort to the top (np.argsort places NaN last) — critical-review 2026-06-20.
+    live = _live_mask(arr) & np.isfinite(cum)
+    nl = int(live.sum())
+    if nl == 0:
+        return np.full(n, 1.0 / n)
+    cum_ranked = np.where(live, cum, -np.inf)  # dead/NaN names sink to the bottom of the ranking
+    k = max(1, nl // 3)  # top tertile of the LIVE universe
+    top = np.argsort(cum_ranked)[-k:]
+    w = np.zeros(n, dtype=float)
+    w[top] = 1.0 / k
+    return w
+
+
+#: The full allocator canon (name -> callable) for the benchmark suite.
+STRATEGY_CANON: dict[str, Any] = {
+    "spy_buy_and_hold": spy_buy_and_hold,
+    "equal_weight": equal_weight,
+    "mean_variance": mean_variance,
+    "risk_parity": risk_parity,
+    "hrp": hrp,
+    "minimum_variance": minimum_variance,
+    "inverse_volatility": inverse_volatility,
+    "maximum_diversification": maximum_diversification,
+    "cross_sectional_momentum": cross_sectional_momentum,
+}

@@ -40,8 +40,14 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 # ------------------------------------------------------------------ env & provenance
 def load_env(path: Path | None = None) -> dict[str, str]:
     """Minimal .env loader (no extra dependency): KEY=VALUE lines, # comments.
-    Loads into os.environ WITHOUT overriding pre-set variables. Values never logged."""
-    path = path or ROOT / ".env"
+    Loads into os.environ WITHOUT overriding pre-set variables. Values never logged.
+
+    Post-unification (ADR-022) the gitignored .env lives at the UNIFIED repo root
+    (the parent of data_pipeline/), not inside data_pipeline/. Search ROOT then ROOT.parent
+    so the probe/pulls find the creds either way (the desktop-fallback bug, 2026-06-19)."""
+    if path is None:
+        path = next((c for c in (ROOT / ".env", ROOT.parent / ".env") if c.exists()),
+                    ROOT / ".env")
     loaded: dict[str, str] = {}
     if not path.exists():
         return loaded

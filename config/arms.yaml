@@ -1,5 +1,5 @@
-# The six arms (FINAL_PLAN B.5). All feedback arms run the SAME fixed agent and the SAME candidate
-# budget (matched compute). The four LLM arms differ ONLY in the feedback block (src/feedback/schema.py).
+# The seven arms (FINAL_PLAN B.5; R32 added placebo_shuffled). All feedback arms run the SAME fixed agent
+# and the SAME candidate budget (matched compute). The five LLM arms differ ONLY in the feedback block.
 matched_budget: 30                       # mirrors llm.candidate_budget_total; asserted equal across arms
 
 agent_for_all_feedback_arms: sac         # audit A-1: fixed SB3 SAC agent for every feedback arm
@@ -9,5 +9,6 @@ arms:
   scalar:         {feedback: scalar_only}             # scalar performance number only
   placebo:        {feedback: scalar_plus_inert_block} # matched in length/field-count, inert values (info != tokens)
   scalar_cvar5:   {feedback: scalar_plus_cvar5}       # scalar + ONE downside number (tail-shape != any-downside)
+  placebo_shuffled: {feedback: scalar_plus_shuffled_tail}  # R32: distributional's EXACT structure, values DERANGED (shape vs content)
   random_search:  {search: code,     llm: false}      # H4a — isolates search quality
   bayes_opt:      {search: template,  llm: false}      # H4b — isolates form-richness (fixed parametric template)

@@ -1,3 +1,13 @@
+# ⚠ SUPERSEDED / UNBOUND COPY — DO NOT TREAT AS AUTHORITATIVE (banner added 2026-06-26).
+#   This file is a stale data_pipeline-local snapshot that NO live code reads and that is NOT in the
+#   freeze hash (`freeze.py::_BOUND_CONFIGS`). It contradicts the frozen design on two points:
+#     • `evaluation.scheme: walk_forward` here — but the campaign runs ONE contiguous sealed split
+#       (`single_sealed_split`, R43); walk-forward is deferred future work.
+#     • `seeds.headline: [0,1,2,3,4]` and `dsr.trial_count_rule: all_candidates_all_arms` here are the
+#       OLD 5-seed / all-candidates settings; the headline runs 30 winner seeds (D2) under the
+#       per-seed rliable IUT framing (R16/R25).
+#   AUTHORITATIVE inference config = the repo-root `config/inference.yaml` (+ `config/preregistration.yaml`
+#   and PREREGISTRATION.md §6–7). Retained only for data_pipeline provenance; flagged for deletion.
 # Inference machinery — PREREGISTRATION.md §6–7. Formulas implemented in src/stats_inference.py.
 seeds: {headline: [0,1,2,3,4], ablation: [0,1,2]}
 

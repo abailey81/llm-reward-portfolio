@@ -125,7 +125,74 @@ ALL_STRATEGIES = [
     strategies.mean_variance,
     strategies.risk_parity,
     strategies.hrp,
+    strategies.minimum_variance,
+    strategies.maximum_diversification,
+    strategies.inverse_volatility,
+    strategies.cross_sectional_momentum,
 ]
+
+
+def _factor_window(seed: int, n: int = 30, t: int = 60, dead: int = 0) -> np.ndarray:
+    """A realistic N=30, T=60 correlated window; the first ``dead`` columns are zero-variance (delisted)."""
+    r = np.random.default_rng(seed)
+    f = r.standard_normal((t, 3)) * 0.01
+    x = f @ r.standard_normal((3, n)) * 0.5 + r.standard_normal((t, n)) * 0.008
+    if dead:
+        x[:, :dead] = 0.0
+    return x
+
+
+def _port_var(w: np.ndarray, x: np.ndarray) -> float:
+    cov = np.cov(x, rowvar=False)
+    return float(w @ cov @ w)
+
+
+def _div_ratio(w: np.ndarray, x: np.ndarray) -> float:
+    cov = np.cov(x, rowvar=False)
+    sig = np.sqrt(np.diag(cov))
+    return float((w @ sig) / np.sqrt(w @ cov @ w))
+
+
+def test_minimum_variance_beats_1n_variance() -> None:
+    """The long-only GMV must have LOWER variance than 1/N (would FAIL if it collapsed to one asset)."""
+    for seed in range(15):
+        x = _factor_window(seed)
+        n = x.shape[1]
+        assert _port_var(strategies.minimum_variance(x), x) <= _port_var(np.full(n, 1.0 / n), x) + 1e-12
+
+
+def test_maximum_diversification_beats_1n_div_ratio() -> None:
+    """The most-diversified portfolio must have a HIGHER diversification ratio than 1/N (collapse -> 1.0)."""
+    for seed in range(15):
+        x = _factor_window(seed)
+        n = x.shape[1]
+        assert _div_ratio(strategies.maximum_diversification(x), x) >= _div_ratio(np.full(n, 1.0 / n), x) - 1e-9
+
+
+def test_vol_cov_allocators_exclude_delisted_names() -> None:
+    """Zero-variance (delisted) names must get ~0 weight — not ~100% (the 1/sigma, sigma->0 pathology)."""
+    for seed in range(10):
+        x = _factor_window(seed, dead=5)  # first 5 columns delisted (zero variance)
+        for fn in (strategies.minimum_variance, strategies.inverse_volatility,
+                   strategies.maximum_diversification, strategies.hrp, strategies.risk_parity,
+                   strategies.cross_sectional_momentum):
+            w = fn(x)
+            assert float(w[:5].sum()) < 1e-6, f"{fn.__name__} allocated to delisted names"
+            assert np.isclose(w.sum(), 1.0, atol=1e-6) and np.isfinite(w).all()
+
+
+def test_allocators_do_not_collapse_to_single_asset() -> None:
+    """The risk/cov allocators must hold MANY names (the collapse bug held exactly one)."""
+    x = _factor_window(0)
+    for fn in (strategies.minimum_variance, strategies.maximum_diversification,
+               strategies.mean_variance, strategies.risk_parity, strategies.hrp):
+        assert int((fn(x) > 1e-4).sum()) >= 3, f"{fn.__name__} collapsed to <3 names"
+
+
+def test_hrp_robust_to_zero_variance_columns() -> None:
+    """hrp must not raise on a window with delisted zero-variance names (linkage finite-value crash)."""
+    w = strategies.hrp(_factor_window(3, dead=8))
+    assert np.isclose(w.sum(), 1.0, atol=1e-6) and np.isfinite(w).all()
 
 
 def test_strategies_return_simplex(rng: np.random.Generator) -> None:

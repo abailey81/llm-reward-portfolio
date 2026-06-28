@@ -12,6 +12,13 @@ Estimators
 - ``probability_of_improvement`` -- ``P(a > b)`` over all pairs, ties = 0.5.
 - ``stratified_bootstrap_ci`` -- a bootstrap confidence interval whose point
   estimate is the IQM, returning ``(point, low, high)``.
+- ``performance_profile`` -- the run-score distribution (Agarwal et al. 2021
+  §4 "performance profiles"): the fraction of runs scoring above each threshold
+  ``tau``, with an optional stratified-bootstrap uncertainty band. Reporting the
+  whole score distribution (rather than a single aggregate) exposes the
+  run-to-run variability that point estimates hide, and a profile that
+  stochastically dominates another is a qualitatively stronger claim than an
+  IQM gap.
 """
 
 from __future__ import annotations
@@ -19,7 +26,12 @@ from __future__ import annotations
 
 import numpy as np
 
-__all__ = ["iqm", "probability_of_improvement", "stratified_bootstrap_ci"]
+__all__ = [
+    "iqm",
+    "probability_of_improvement",
+    "stratified_bootstrap_ci",
+    "performance_profile",
+]
 
 
 def iqm(scores: np.ndarray) -> float:
@@ -36,15 +48,21 @@ def iqm(scores: np.ndarray) -> float:
         The mean of the values in the ``[25th, 75th]`` percentile band. Values
         are sorted and the lower/upper 25% are trimmed by count.
     """
-    s = np.sort(np.asarray(scores, dtype=float))
+    s = np.asarray(scores, dtype=float)
+    # Strip non-finite values before sorting so they cannot land in the trimmed
+    # band: np.sort pushes NaN/+inf to the end, where they would otherwise be
+    # averaged in and silently corrupt the IQM. Mirrors the documented sibling
+    # oracle src/inference/bootstrap.iqm (bootstrap.py:93) so the two agree.
+    s = s[np.isfinite(s)]
     n = s.size
     if n == 0:
         return float("nan")
+    s = np.sort(s)
     lo = int(np.floor(n * 0.25))
     hi = int(np.ceil(n * 0.75))
+    # For every n >= 1, floor(n*0.25) < ceil(n*0.75), so s[lo:hi] is never empty
+    # (the only empty-band case is n == 0, already returned above).
     middle = s[lo:hi]
-    if middle.size == 0:
-        return float(s.mean())
     return float(middle.mean())
 
 
@@ -114,3 +132,67 @@ def stratified_bootstrap_ci(
     low = float(np.quantile(boot, alpha / 2.0))
     high = float(np.quantile(boot, 1.0 - alpha / 2.0))
     return (point, low, high)
+
+
+def performance_profile(
+    scores: np.ndarray,
+    taus: np.ndarray,
+    n_boot: int = 2000,
+    ci: float = 0.95,
+    rng: np.random.Generator | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Run-score distribution (performance profile) of Agarwal et al. (2021).
+
+    For each threshold ``tau`` returns the fraction of runs whose score exceeds
+    ``tau`` -- the empirical survival function ``hat F_X(tau) = mean_i 1{x_i >
+    tau}``. Plotted against ``tau`` this is rliable's "performance profile": a
+    curve that lies entirely above another indicates (empirical) stochastic
+    dominance, a strictly stronger statement than a gap in any single aggregate.
+
+    Parameters
+    ----------
+    scores:
+        One-dimensional array of run scores (non-finite values are dropped).
+    taus:
+        One-dimensional, increasing array of score thresholds at which to
+        evaluate the profile.
+    n_boot:
+        Bootstrap replications for the pointwise uncertainty band. ``0`` skips
+        the bootstrap and returns ``low == high == point``.
+    ci:
+        Target two-sided pointwise coverage (e.g. ``0.95``).
+    rng:
+        Optional NumPy generator for reproducibility.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray]
+        ``(profile, low, high)`` each shaped like ``taus``. ``profile`` is the
+        survival fraction in ``[0, 1]`` and is monotone non-increasing in
+        ``tau``; ``low``/``high`` are the pointwise percentile-bootstrap band
+        (equal to ``profile`` when ``n_boot == 0``). All-``nan`` if ``scores``
+        is empty.
+    """
+    s = np.asarray(scores, dtype=float)
+    s = s[np.isfinite(s)]
+    t = np.asarray(taus, dtype=float)
+    if s.size == 0:
+        nan = np.full(t.shape, float("nan"))
+        return (nan, nan.copy(), nan.copy())
+
+    # Survival fraction: proportion of runs scoring strictly above each tau.
+    profile = (s[:, None] > t[None, :]).mean(axis=0)
+    if n_boot <= 0:
+        return (profile, profile.copy(), profile.copy())
+
+    if rng is None:
+        rng = np.random.default_rng()
+    n = s.size
+    boot = np.empty((n_boot, t.size), dtype=float)
+    for i in range(n_boot):
+        sample = s[rng.integers(0, n, size=n)]
+        boot[i] = (sample[:, None] > t[None, :]).mean(axis=0)
+    alpha = 1.0 - ci
+    low = np.quantile(boot, alpha / 2.0, axis=0)
+    high = np.quantile(boot, 1.0 - alpha / 2.0, axis=0)
+    return (profile, low, high)

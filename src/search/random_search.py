@@ -1,32 +1,53 @@
-"""Random search over the reward CODE space (LLM-free ablation; H4a).
+"""Random search over the reward CODE space (LLM-free control; H4a).
 
 Purpose
 -------
 A non-LLM control arm (FINAL_PLAN F.10, hypothesis H4a). It samples reward
-functions from the SAME code space the LLM draws from, but uniformly at random
-from a fixed grammar rather than via a model. Compared under the MATCHED budget,
-it isolates how much of the LLM's value comes from *intelligent* proposals
-versus mere search over a rich code space.
+functions uniformly at random from a fixed grammar (no model in the loop) and
+scores them under the MATCHED candidate budget. Its role is to be a *procedure*
+control at COMPARABLE expressive power to the Bayesian-optimisation arm (H4b):
+both H4a and H4b draw from the SAME six-primitive reward family, so the H4a-vs-LLM
+contrast isolates *proposal quality* rather than rewarding the LLM merely for a
+richer reward language.
 
-The code grammar
-----------------
-Every sampled reward is a linear combination of three risk-aware primitives, all
-expressible against the reward contract (src/reward/contract.py):
+What this arm CAN and CANNOT isolate (state this precisely; see docs/DEEP_H4.md §1-2)
+-------------------------------------------------------------------------------------
+- It DOES give a procedure-only comparison against H4b: random-search and BO now
+  search the identical six-term family at the identical fixed discrete dims, so
+  any H4b-vs-H4a difference is surrogate-vs-uniform, not space-vs-space.
+- It does NOT match the LLM's search SPACE: the LLM authors FREE-FORM code (tanh,
+  ratios, regime switches, Sortino-style asymmetries — none reachable by a fixed
+  six-term linear combination). So a positive H4a reflects *proposal quality at
+  comparable-but-not-identical richness*, and the residual richness gap (free-form
+  vs six-term) is part of what H4b measures. Do NOT claim H4a proves the LLM is a
+  better optimiser over an identical space.
+- Random search is a deliberately STRONG baseline (Bergstra & Bengio 2012): a weak
+  control would make a positive H4a trivially true and therefore uninformative.
 
-    total = a * port_ret
-            - b * variance(recent portfolio returns)
-            - c * cvar_5pct(recent portfolio returns)
+The code grammar (the SHARED six-primitive family)
+--------------------------------------------------
+Every sampled reward is the SAME six-term linear family the BO arm searches
+(``src/baselines/reward_family.py``), rendered to executable source via
+:func:`reward_family.params_to_source` so its form is byte-identical to the BO
+arm's materialised winner (same numpy ops, same gate-clean status, same
+``(hist, peak, cum)`` reward_state):
 
-with random non-negative coefficients ``a, b, c`` drawn from a fixed grid. The
-recent-return window is carried in ``reward_state`` so the reward is stateful and
-hidden-global-free (audit B-4), exactly like the hand-designed canon. The
-generated source is a Python ``def reward(...)`` string that passes the sandbox
-AST gate and the reward contract.
+    r = w_return*net_return + w_log*log1p(net_return)
+        - w_turnover*turnover - w_drawdown*drawdown
+        - w_cvar*max(0, -CVaR_alpha) - w_vol*sigma
+
+The six non-negative weights are drawn from a coarse per-primitive grid spanning
+the SAME frozen ``[low, high]`` ranges as the BO box (``family_bounds``); the two
+discrete dims (``cvar_alpha``, ``window``) are FIXED at the same values the BO arm
+freezes (0.05, 20) so the two H4 arms share an identical search space. The grid is
+non-negative-only, so every penalty term acts as a penalty (a *risk-aware* random
+baseline, matching the LLM's and the family's risk-aware intent — disclose this; it
+is favourable to the control, not unfair).
 
 Algorithm (FINAL_PLAN F.10, H4a)
 --------------------------------
-    1. For each of ``candidate_budget`` units, sample a coefficient triple and
-       render the reward source from the grammar.
+    1. For each of ``candidate_budget`` units, sample a six-weight vector from the
+       per-primitive grid and render the family reward source.
     2. Gate + validate the source via ``src.sandbox.executor`` (skip-and-log
        gate failures; they do NOT consume a budget unit — we keep sampling until
        the full matched budget of *valid* candidates has been evaluated).
@@ -35,11 +56,15 @@ Algorithm (FINAL_PLAN F.10, H4a)
     4. Track the best candidate; stop when the matched budget is exhausted.
     5. Return the best reward + an archive of every evaluated candidate.
 
+The search BUDGET is unchanged by the grammar widening (still exactly
+``matched_budget`` valid candidates), so matched compute with the LLM / BO arms
+holds.
+
 Tests (tests/test_search.py)
 ----------------------------
     - returns a valid (gate-passing) best reward and consumes EXACTLY the matched
       budget;
-    - every sampled source passes ``ast_gate``.
+    - every sampled source passes ``ast_gate`` and is six-term family code.
 """
 
 from __future__ import annotations
@@ -49,69 +74,96 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
+from src.baselines.reward_family import WEIGHT_KEYS, family_bounds, params_to_source
 from src.sandbox.executor import SandboxError, ast_gate, validate_once
 from src.utils.config import DotDict
 
 __all__ = ["random_search_over_code", "sample_reward_source", "code_grid"]
 
-#: Coefficient grid the random sampler draws from. Non-negative so the variance
-#: and CVaR terms always act as penalties (matching the LLM's risk-aware space).
-_COEFF_GRID: tuple[float, ...] = (0.0, 0.25, 0.5, 1.0, 2.0)
+#: Fractions of each weight's frozen ``high`` bound that the per-primitive grid
+#: lands on (``low`` is 0.0 for all six family weights). Coarse and non-negative so
+#: each penalty term always acts as a penalty (a risk-aware random baseline) while
+#: still covering the SAME six-dimensional box as the BO arm. Keeping 0.0 lets the
+#: sampler switch any term off (so it can recover sparser canon-like vertices).
+_GRID_FRACTIONS: tuple[float, ...] = (0.0, 0.25, 0.5, 1.0)
+
+#: Fixed discrete dims, IDENTICAL to the values the BO arm freezes
+#: (``reward_family.params_to_reward`` / ``config: reward_family``), so the two H4
+#: arms search the identical space.
+_FIXED_CVAR_ALPHA: float = 0.05
+_FIXED_WINDOW: int = 20
 
 
 def code_grid() -> tuple[float, ...]:
-    """Return the fixed coefficient grid the random search draws from."""
-    return _COEFF_GRID
+    """Return the fixed per-primitive grid fractions the random search draws from.
+
+    Each of the six family weights is sampled as ``fraction * high`` for a fraction
+    drawn uniformly from this tuple, where ``high`` is that weight's frozen upper
+    bound (:func:`reward_family.family_bounds`). The fractions are returned (rather
+    than absolute coefficients) because the absolute grid differs per primitive —
+    the six weights have different ranges (e.g. ``w_turnover`` ∈ [0, 0.02] vs
+    ``w_cvar`` ∈ [0, 5]).
+    """
+    return _GRID_FRACTIONS
 
 
-def sample_reward_source(rng: np.random.Generator) -> str:
-    """Render one reward source string from the fixed code grammar.
+def _weight_grids(cfg: Any = None) -> list[np.ndarray]:
+    """Per-primitive coefficient grids over the frozen ``[low, high]`` family box.
+
+    Returns one 1-D grid per family weight (row order :data:`WEIGHT_KEYS`), each
+    equal to ``low + fraction * (high - low)`` for the fractions in
+    :data:`_GRID_FRACTIONS`. Reads the frozen ranges from ``cfg`` when given
+    (via :func:`reward_family.family_bounds`), else the family defaults.
+    """
+    box = family_bounds(cfg)  # (6, 2) [low, high], row order == WEIGHT_KEYS
+    fr = np.asarray(_GRID_FRACTIONS, dtype=float)
+    grids: list[np.ndarray] = []
+    for lo, hi in box:
+        grids.append(float(lo) + fr * (float(hi) - float(lo)))
+    return grids
+
+
+def sample_reward_source(
+    rng: np.random.Generator, cfg: Any = None
+) -> str:
+    """Render one reward source string from the shared six-primitive family.
+
+    Draws each of the six family weights ``(w_return, w_log, w_turnover,
+    w_drawdown, w_cvar, w_vol)`` uniformly from its per-primitive grid over the
+    frozen ranges, then materialises the family reward at those weights (and the
+    fixed ``cvar_alpha=0.05``, ``window=20``) via
+    :func:`reward_family.params_to_source`.
 
     Parameters
     ----------
     rng : numpy.random.Generator
-        Source of randomness for the coefficient draws.
+        Source of randomness for the weight draws.
+    cfg : DotDict or dict, optional
+        Carries ``reward_family.weights`` ranges; defaults to the frozen family
+        box when omitted. Passed through to :func:`reward_family.family_bounds`.
 
     Returns
     -------
     str
-        A ``def reward(...)`` source string composing
-        ``a*port_ret - b*variance - c*cvar`` with grid-sampled coefficients.
-        The source obeys the reward contract and passes the sandbox AST gate.
+        A ``def reward(...)`` source string for the six-term family with
+        grid-sampled weights. The source obeys the reward contract and passes the
+        sandbox AST gate (it is the SAME source form the BO arm materialises).
     """
-    a = float(rng.choice(_COEFF_GRID))
-    b = float(rng.choice(_COEFF_GRID))
-    c = float(rng.choice(_COEFF_GRID))
-    # Guarantee at least the return term so the reward is never identically zero.
-    if a == 0.0 and b == 0.0 and c == 0.0:
-        a = 1.0
-    return _render_source(a, b, c)
-
-
-def _render_source(a: float, b: float, c: float) -> str:
-    """Render the grammar's reward source for coefficients ``(a, b, c)``."""
-    return (
-        "def reward(weights, returns, prev_weights, port_ret, info):\n"
-        "    state = info.get('reward_state')\n"
-        "    prev = np.asarray(state, dtype=float) if state is not None "
-        "else np.zeros(0, dtype=float)\n"
-        "    history = np.append(prev, float(port_ret))\n"
-        "    window = 50\n"
-        "    if history.size > window:\n"
-        "        history = history[-window:]\n"
-        "    var = float(np.var(history)) if history.size >= 2 else 0.0\n"
-        "    thresh = float(np.quantile(history, 0.05))\n"
-        "    tail = history[history <= thresh]\n"
-        "    cvar = -float(np.mean(tail)) if tail.size > 0 else 0.0\n"
-        "    cvar = cvar if cvar > 0.0 else 0.0\n"
-        f"    total = {a!r} * float(port_ret) - {b!r} * var - {c!r} * cvar\n"
-        "    components = {\n"
-        "        'return': float(port_ret),\n"
-        "        'variance': var,\n"
-        "        'cvar': cvar,\n"
-        "    }\n"
-        "    return float(total), components, history\n"
+    grids = _weight_grids(cfg)
+    coeffs = [float(rng.choice(g)) for g in grids]
+    # Guarantee at least the return term so the reward is never identically zero
+    # (an all-zero weight vector renders a constant-0 reward, which is degenerate).
+    if all(c == 0.0 for c in coeffs):
+        # WEIGHT_KEYS[0] is w_return; set it to its grid max so the reward is alive.
+        coeffs[0] = float(grids[0].max())
+    return params_to_source(
+        coeffs, cvar_alpha=_FIXED_CVAR_ALPHA, window=_FIXED_WINDOW
     )
+
+
+# WEIGHT_KEYS is imported for the docstring's coefficient-order contract and to
+# pin the rendered family's weight ordering; reference it so linters see the use.
+assert WEIGHT_KEYS[0] == "w_return"
 
 
 def _default_fixture() -> tuple:
@@ -161,7 +213,8 @@ def random_search_over_code(
     cfg : DotDict or dict or int
         Carries the matched candidate budget (``matched_budget`` /
         ``candidate_budget`` / ``candidate_budget_total``), or the budget int
-        directly.
+        directly. When a mapping, it may also carry ``reward_family.weights`` to
+        override the frozen family ranges the grammar draws from.
     rng : numpy.random.Generator, optional
         Source of randomness; a fresh default generator is created when ``None``.
 
@@ -175,16 +228,21 @@ def random_search_over_code(
     Notes
     -----
     Gate/validation failures are skipped without consuming a budget unit, so the
-    search always evaluates EXACTLY ``budget`` valid candidates. The grammar is
-    constructed so every sampled source passes ``ast_gate`` (no imports, no
-    dunders, no forbidden calls); the assertion in the loop is a defensive
-    invariant, not an expected branch.
+    search always evaluates EXACTLY ``budget`` valid candidates (matched compute
+    is invariant to the grammar). The grammar renders the six-term reward family
+    via ``reward_family.params_to_source``, which is gate-clean by construction
+    (numpy-only allowlisted ops, no imports, no dunders); the assertion in the
+    loop is a defensive invariant, not an expected branch.
     """
     budget = _budget(cfg)
     if budget <= 0:
         raise ValueError(f"matched budget must be positive; got {budget}")
     if rng is None:
         rng = np.random.default_rng()
+
+    # Resolve the family ranges ONCE (cfg may carry reward_family.weights overrides);
+    # a bare int / None budget falls back to the frozen family defaults.
+    family_cfg = cfg if isinstance(cfg, (DotDict, dict)) else None
 
     fixture = _default_fixture()
 
@@ -200,7 +258,7 @@ def random_search_over_code(
 
     while len(archive) < budget and attempts < max_attempts:
         attempts += 1
-        source = sample_reward_source(rng)
+        source = sample_reward_source(rng, family_cfg)
 
         # Invariant: every sampled source passes the AST gate.
         assert ast_gate(source), "sampled source must pass ast_gate"
@@ -221,7 +279,13 @@ def random_search_over_code(
             best_reward = reward
 
     if len(archive) < budget:
-        raise SandboxError(
+        # Budget-exhaustion is a search-loop failure, NOT a per-candidate
+        # sandbox rejection, so raise RuntimeError rather than SandboxError
+        # (which executor.py documents as "Raised by validate_once when a
+        # candidate reward is rejected"). Using SandboxError here would let a
+        # caller catching it to skip a bad candidate silently swallow this fatal
+        # budget failure and misattribute it in logs/tracebacks.
+        raise RuntimeError(
             f"exhausted {attempts} attempts before reaching the matched budget "
             f"of {budget} valid candidates"
         )

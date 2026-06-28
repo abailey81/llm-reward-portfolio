@@ -1,18 +1,56 @@
 # A campaign run (FINAL_PLAN H Phase 3, I). Scope is set via the scoping tree AFTER the Phase-0
 # timing and the pilot. CPCV is applied to WINNERS, not per-candidate (audit B-3).
-arms: [distributional, scalar, placebo, scalar_cvar5, random_search, bayes_opt]
+arms: [distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt]
 candidates_per_arm: 30                 # matched across arms; tune via scoping tree (cut candidates before seeds before folds)
-seeds: [0, 1, 2, 3, 4]                       # named, concrete (audit C-6); recorded in every artifact
+# Amendment D2 (2026-06-19, user-approved; PREREGISTRATION §6/§12): per-arm WINNER seed count 5 -> 30
+# (>=20; Henderson 2018, Colas et al.). SEARCH budget untouched — each candidate trains at 1 seed during
+# search; only the per-arm winners are re-run at these 30 seeds (seeds-on-winners, ADR-023).
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]   # named, concrete (audit C-6); recorded in every artifact
 cpcv:
   apply_to: winners                    # CPCV on the fixed winners for inference, NOT inside each candidate
   n_blocks: 16                         # even S for C(S, S/2) splits (PBO)
 train_steps_per_candidate: 50000       # mirrors algos.yaml; FIXED (audit B-5)
 
 compute:
-  primary: rtx_4090                    # development
-  campaign: ucl_myriad_array_job       # arms x seeds x folds as an array job (audit C-4)
-  overflow: [colab, kaggle]            # only if needed
-  hard_budget_gpu_hours: 200           # cap; auto-shutdown on completion; checkpoint for interruption
+  primary: rtx_4050                    # development / Phase-0 on the owned RTX 4050 laptop (ADR-023, COMPUTE-1)
+  campaign: rented_rtx_4090            # campaign on a rented RTX 4090 (RunPod/Vast), seeds-on-winners — NO UCL Myriad (ADR-023)
+  overflow: [colab, kaggle]            # free fallback only if needed (Kaggle+Lightning+Colab+laptop)
+  # NO GPU-hour cap (2026-06-28, user directive): there is no hard compute budget. `hard_budget_gpu_hours`
+  # was REMOVED — it was never read/enforced by any code (grep: 0 .py hits) and `auto_shutdown_on_complete`
+  # is a verified no-op. The GPU-hour figures in docs/COMPUTE_AND_TRAINING_TIME.md are INFORMATIONAL
+  # wall-clock/cost ESTIMATES only, NOT a limit; nothing in the design is budget-bounded.
+
+llm:
+  # HEADLINE reward-author = Claude Opus 4.8 (ADR-035, user-selected 2026-06-19) — the current frontier #1.
+  # The campaign OWNS its author: this whole block is threaded into run_arm as `llm_cfg`, so the campaign
+  # uses Opus 4.8 and does NOT inherit the prototype's Gemini. (Was previously hardcoded to the stub, and
+  # earlier read model/key from prototype.yaml — both fixed by the provider-neutral wiring, ADR-035.)
+  pass: B                              # 'B' = real LLM (Claude Opus 4.8); 'A' = the keyless stub control.
+  provider: anthropic                  # frontier reward-author; needs ANTHROPIC_API_KEY in the gitignored .env.
+  model_snapshot: "claude-opus-4-8"    # pinned snapshot (dateless id IS immutable, ADR-016).
+  api_key_env: ANTHROPIC_API_KEY
+  # Opus 4.8 REJECTS the `temperature` parameter, so within-generation diversity comes from prompt
+  # variation, NOT temperature (uniform across arms -> not an H2 confound; src/llm/loop.py).
+  temperature: null
+  diversity_prompt_variation: true
+  generations: 6                       # multi-generation reflection (6 x candidates_per_gen 5 = 30 budget).
+                                       #   The H3 single-shot control spends the same 30-candidate budget at generations:1.
+  h3_singleshot_generations: 1         # H3 single-shot CONTROL generation count (DEEP_H3 §1, canonical contrast):
+                                       #   the distributional arm re-searched at generations:1 spends the WHOLE
+                                       #   candidates_per_arm (30) budget in ONE generation -> best-of-N, no reflection.
+                                       #   Same winner selector (validation DSR) + same 30 winner seeds as the headline
+                                       #   iterative arm; archived to a SEPARATE root (search_h3_singleshot/,
+                                       #   test_h3_singleshot/distributional) for the analyze-H3 difference test.
 
 resume: true                           # idempotent: skip completed run ids
 auto_shutdown_on_complete: true        # rented GPUs only
+
+# H1 "beat-the-human" baselines (PREREGISTRATION §18-19; Eureka, Ma et al. 2024). The LLM-designed
+# winner is compared, POST-FREEZE and REPORT-ONLY, against the BEST of these hand-designed rewards.
+# Each name MUST be a real key in src/baselines/rewards.py::REWARD_CANON; the baseline TEST stage reads
+# THIS list (no hardcoding — CLAUDE.md) and runs each baseline at the same 30 seeds as the winners.
+# These four are the FROZEN H1 family (PREREGISTRATION §18); the 9-name eureka_loop.yaml panel is a
+# documented SECONDARY set. Baselines are UN-SEARCHED, so their Deflated Sharpe is deflated by N=1
+# (like the 8 allocators) while the LLM winner keeps its searched multiplicity — the fair, conservative
+# searched-LLM-vs-fixed-human Eureka comparison (the asymmetry FAVOURS the baselines).
+h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]

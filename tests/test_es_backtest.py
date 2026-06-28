@@ -10,7 +10,14 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from src.inference.es_backtest import comparative_es_backtest, fz0_loss, var_es_estimates
+from src.inference.es_backtest import (
+    comparative_es_backtest,
+    dm_hln_test,
+    dm_size_power_calibration,
+    fz0_loss,
+    hln_factor,
+    var_es_estimates,
+)
 
 ALPHA = 0.05
 # Analytic standard-normal lower-tail (VaR, ES) at alpha=5%.
@@ -62,3 +69,86 @@ def test_comparative_backtest_tie_for_identical_forecasts(rng: np.random.Generat
     res = comparative_es_backtest(realized, f, f, alpha=ALPHA, n_boot=200, rng=rng)
     assert res["mean_score_diff"] == 0.0
     assert res["better"] == "tie"
+
+
+# ---------------------------------------------------------------------------
+# HLN small-sample DM correction + size/power calibration (audit V13)
+# ---------------------------------------------------------------------------
+
+
+def test_hln_factor_matches_closed_form() -> None:
+    """hln_factor(T, h) == sqrt[(T + 1 - 2h + h(h-1)/T) / T] on known inputs (HLN 1997)."""
+    # h = 1: factor reduces to sqrt((T-1)/T).
+    assert hln_factor(10, 1) == pytest.approx(np.sqrt(9.0 / 10.0))
+    assert hln_factor(100, 1) == pytest.approx(np.sqrt(99.0 / 100.0))
+    # h = 2: sqrt[(T + 1 - 4 + 2/T) / T].
+    t = 50
+    expected = np.sqrt((t + 1 - 4 + 2.0 / t) / t)
+    assert hln_factor(t, 2) == pytest.approx(expected)
+    # Always shrinks toward zero in the relevant T >> h regime.
+    assert 0.0 < hln_factor(20, 1) < 1.0
+
+
+def test_hln_factor_rejects_bad_args() -> None:
+    with pytest.raises(ValueError, match="t must be"):
+        hln_factor(0, 1)
+    with pytest.raises(ValueError, match="h must be"):
+        hln_factor(10, 0)
+
+
+def test_dm_hln_corrected_pvalue_is_more_conservative_at_small_t(rng: np.random.Generator) -> None:
+    """At small T the HLN-corrected p-value >= the uncorrected one (factor < 1 AND heavier t tail)."""
+    for t in (15, 30, 60):
+        # A modest-signal differential so neither p-value is pinned at 0 or 1.
+        d = 0.3 + rng.standard_normal(t)
+        res = dm_hln_test(d, h=1)
+        assert res["pvalue_hln"] >= res["pvalue_normal"] - 1e-12
+        assert abs(res["dm_stat_hln"]) <= abs(res["dm_stat"]) + 1e-12  # rescaled toward zero
+
+
+def test_dm_hln_h1_uses_plain_sample_variance(rng: np.random.Generator) -> None:
+    """For h=1 the Newey-West variance has no autocovariance terms: DM == mean/ (s/sqrt(T))."""
+    d = 0.2 + rng.standard_normal(200)
+    res = dm_hln_test(d, h=1)
+    # gamma0 = population variance (1/n); SE of mean = sqrt(gamma0 / n).
+    se = np.sqrt((d - d.mean()).var(ddof=0) / d.size)
+    assert res["dm_stat"] == pytest.approx(d.mean() / se, rel=1e-9)
+
+
+def test_dm_hln_degenerate_inputs_are_safe() -> None:
+    res = dm_hln_test(np.array([0.5]), h=1)  # n < 2
+    assert res["pvalue_normal"] == 1.0 and res["pvalue_hln"] == 1.0
+    res = dm_hln_test(np.full(50, 0.7), h=1)  # zero-variance differential
+    assert res["pvalue_normal"] == 1.0 and res["pvalue_hln"] == 1.0
+
+
+def test_comparative_backtest_exposes_dm_hln_keys(rng: np.random.Generator) -> None:
+    realized = rng.standard_normal(400)
+    good = (TRUE_VAR, TRUE_ES)
+    bad = (TRUE_VAR, TRUE_ES * 0.5)
+    res = comparative_es_backtest(realized, good, bad, alpha=ALPHA, n_boot=200, rng=rng)
+    for key in ("dm_stat", "dm_stat_hln", "pvalue_dm_normal", "pvalue_dm_hln"):
+        assert key in res
+    # Same conservativeness ordering flows through the wrapper.
+    assert res["pvalue_dm_hln"] >= res["pvalue_dm_normal"] - 1e-12
+
+
+def test_dm_calibration_size_near_nominal_under_null() -> None:
+    """MC size of the DM-HLN test under H0 sits near the nominal 5%; HLN is not anti-conservative.
+
+    Cheap rep count for the suite; deterministic seed (no wall-clock RNG).
+    """
+    cal = dm_size_power_calibration(t=120, alpha=0.05, n_reps=600, seed=2024)
+    # Empirical size in a sane band around nominal (MC noise at 600 reps ~ +/-0.018 s.e.).
+    assert 0.02 <= cal["size_hln"] <= 0.11
+    # The HLN correction must not be MORE liberal than the uncorrected normal test.
+    assert cal["size_hln"] <= cal["size_normal"] + 1e-9
+    # The test has real power against a clear alternative.
+    assert cal["power_hln"] > 0.5
+
+
+def test_dm_calibration_is_deterministic() -> None:
+    """Same seed => identical size/power (replay guarantee; no global/time RNG)."""
+    a = dm_size_power_calibration(t=80, n_reps=300, seed=7)
+    b = dm_size_power_calibration(t=80, n_reps=300, seed=7)
+    assert a == b

@@ -77,7 +77,8 @@ def run_probes(skip_live: bool = False) -> list[ProbeResult]:
     (every live probe BLOCKED with the environment reason) — used by tests."""
     results: list[ProbeResult] = []
     env_loaded = load_env()
-    pre = {"env_file": (ROOT / ".env").exists(), "env_keys_loaded": sorted(env_loaded)}
+    pre = {"env_file": (ROOT / ".env").exists() or (ROOT.parent / ".env").exists(),
+           "env_keys_loaded": sorted(env_loaded)}
 
     rd = None
     if skip_live:
@@ -228,7 +229,7 @@ def write_report(results: list[ProbeResult], out_path: Path | None = None) -> Pa
         ]
     else:
         lines += ["Pre-2016 membership path verified — proceed with the full PIT build."]
-    out_path.write_text("\n".join(lines) + "\n")
+    out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     (out_dir / "entitlement_probes.json").write_text(
-        json.dumps([asdict(r) for r in results], indent=2, default=str))
+        json.dumps([asdict(r) for r in results], indent=2, default=str), encoding="utf-8")
     return out_path

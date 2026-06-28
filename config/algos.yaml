@@ -1,6 +1,12 @@
 # RL algorithms (FINAL_PLAN F.7, B.6). Library-default hyperparameters, IDENTICAL across reward
 # arms to preserve identification. Record the exact resolved values here AFTER the Phase-0 smoke
 # test confirms they run, and assert them at runtime (equivalence test).
+#
+# ⚠ DIRECTIONAL / NOT THE LIVE SOURCE (rigor audit 2026-06-20). The values below are a TEMPLATE: the
+# null `sac`/`tqc` entries mean "SB3 default". The LIVE per-run agent hyperparameters are resolved by
+# `src/agents/trainer.py::resolve_agent_kwargs` from the run config (`config/prototype.yaml` for the
+# prototype, the campaign cfg for the campaign) — NOT read from this file. This file documents the
+# algorithm CHOICE + the matched-agent intent; do not treat it as the executed hyperparameter set.
 
 headline_agent: sac               # SB3 SAC — fixed across ALL feedback arms (audit A-1)
 secondary_critic_agent: tqc       # sb3-contrib TQC — distributional-critic experiment only (A-2)
@@ -18,10 +24,19 @@ sac:                              # filled from SB3 defaults once Phase 0 confir
   gamma: null
   tau: null
   ent_coef: auto
+  learning_starts: 1000           # NOT SB3's silent default of 100: the Phase-0 smoke gate validated 1000, so the LIVE
+                                  #   trainer (trainer.resolve_agent_kwargs) resolves+floors it at 1000 to match the gate.
+                                  #   Identical across arms (the agent is fixed; audit A-1). Documented here for
+                                  #   completeness — like the rest of this file it is NOT the executed source.
+  popart: true                    # value-target SCALE normalization (src/agents/popart.py): the critic is invariant to
+                                  #   the reward SCALE (a variance-floored Sharpe can't explode it). Reward unchanged
+                                  #   (norm_reward stays False; info["port_ret"] is the object of study). Uniform across arms.
 tqc:
   policy: MlpPolicy
   top_quantiles_to_drop_per_net: null   # SB3-contrib default
   n_quantiles: null
   n_critics: null
 
-equivalence_test: true            # assert identical algo config across feedback arms at runtime
+equivalence_test: true            # assert identical algo config across feedback arms at runtime —
+                                  # TEST-ONLY check src/arms/factory.py::assert_fixed_agent_across_arms
+                                  # (matched budget + seed-only-dependent SB3 kwargs; tests/test_arms.py)

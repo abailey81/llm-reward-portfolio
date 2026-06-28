@@ -7,7 +7,13 @@ splits:
   train: {start: 2005-01-01, end: 2014-12-31}   # agent learns + feedback MEASURED here (audit B-2)
   val:   {start: 2015-01-01, end: 2017-12-31}   # selection (held-out Deflated Sharpe)
   test:  {start: 2018-01-01, end: 2025-12-31}   # UNTOUCHED until final inference
-embargo_days: 10                                # set + freeze in Phase 1 (kills serial-correlation leakage)
+embargo_days: 21                                # Lopez de Prado purge+embargo FLOOR (serial-correlation margin).
+                                                # Effective inter-split purge = max(embargo_days, lookback_days)
+                                                # = max(21, 60) = 60 sessions (R18): the purge must cover the
+                                                # 60-day feature lookback so no obs window crosses a split.
+                                                #   Reconciled 10->21 (2026-06-19 audit): matches inference.yaml. The
+                                                #   MATERIALIZED gold splits record the +21 embargo boundary (2015-02-03);
+                                                #   R18: the EXECUTED val start applies the larger lookback purge (~2015-03-31).
 
 vendors: [primary, secondary]                   # two-vendor reconciliation (stage 11)
 sources:

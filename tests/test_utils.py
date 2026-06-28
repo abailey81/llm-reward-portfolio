@@ -48,9 +48,11 @@ def test_hashes_are_deterministic_and_order_independent() -> None:
 
 def test_env_fingerprint_shape_and_git() -> None:
     fp = pv.env_fingerprint()
-    assert {"python", "platform", "git_commit", "packages"} <= set(fp)
+    assert {"python", "platform", "git_commit", "git_dirty", "packages"} <= set(fp)
     assert "numpy" in fp["packages"]
     assert pv.git_commit() is None or isinstance(pv.git_commit(), str)
+    assert fp["git_dirty"] is None or isinstance(fp["git_dirty"], bool)
+    assert pv.git_dirty() is None or isinstance(pv.git_dirty(), bool)
 
 
 # --- config ----------------------------------------------------------------------------
@@ -87,7 +89,21 @@ def test_matched_budget_consistent_across_configs() -> None:
 
 # --- logging ---------------------------------------------------------------------------
 def test_logging_configures_idempotently() -> None:
-    configure_logging(logging.INFO)
-    configure_logging(logging.DEBUG)  # second call must not duplicate handlers
-    assert len(logging.getLogger().handlers) == 1
-    assert isinstance(get_logger("x"), logging.Logger)
+    # Isolate from other tests' logging state: configure_logging short-circuits on a module-level
+    # _configured flag, and attach_run_logging adds root file handlers outside it (so a prior test
+    # that ran with run-logging leaks handlers onto root). Snapshot + reset so this asserts
+    # configure_logging's OWN idempotency, then restore (do not pollute later tests).
+    import src.utils.logging as _logmod
+
+    root = logging.getLogger()
+    _saved_handlers, _saved_configured = root.handlers[:], _logmod._configured
+    root.handlers.clear()
+    _logmod._configured = False
+    try:
+        configure_logging(logging.INFO)
+        configure_logging(logging.DEBUG)  # second call must not duplicate handlers
+        assert len(logging.getLogger().handlers) == 1
+        assert isinstance(get_logger("x"), logging.Logger)
+    finally:
+        root.handlers[:] = _saved_handlers
+        _logmod._configured = _saved_configured

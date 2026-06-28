@@ -32,6 +32,8 @@ def held_out_fitness(
     split: str = "val",
     lam: float = 0.0,
     rng: np.random.Generator | None = None,
+    var_sr: float | None = None,
+    cvar_alpha: float | None = None,
 ) -> float:
     """Validation Deflated Sharpe (optionally penalized by validation CVaR).
 
@@ -52,11 +54,22 @@ def held_out_fitness(
     rng:
         Accepted for interface symmetry; the fitness is deterministic given the
         returns and is not used.
+    var_sr:
+        Optional cross-trial Sharpe variance forwarded verbatim to
+        ``deflated_sharpe_ratio`` (Rank 16). ``None`` (the default — so the
+        per-candidate WIRED selection path is unchanged) keeps the within-series
+        sampling-variance PROXY; an explicit empirical cross-candidate Sharpe
+        dispersion ``np.var(per_candidate_val_sharpes, ddof=1)`` selects the
+        canonical Bailey-Lopez de Prado DSR. Threaded at ANALYSIS time (the
+        population variance over ALL an arm's candidates is only knowable once
+        the arm finishes -- see ``scripts/analyze_campaign.py: winner_dsr``),
+        not inside the per-candidate loop.
 
     Returns
     -------
     float
-        ``deflated_sharpe_ratio(returns, n_trials) - lam * |cvar(returns, 0.05)|``.
+        ``deflated_sharpe_ratio(returns, n_trials, var_sr=var_sr)
+        - lam * |cvar(returns, 0.05)|``.
 
     Raises
     ------
@@ -74,8 +87,19 @@ def held_out_fitness(
     from src.inference.deflated_sharpe import deflated_sharpe_ratio
 
     r = np.asarray(returns, dtype=float)
-    dsr = deflated_sharpe_ratio(r, n_trials)
+    dsr = deflated_sharpe_ratio(r, n_trials, var_sr=var_sr)
     if lam == 0.0:
         return float(dsr)
-    penalty = lam * abs(cvar(r, 0.05))
+    # Guard the CVaR penalty against a non-finite tail (Rank 18): an empty or all-non-finite
+    # validation series yields cvar(r) == nan, and lam*abs(nan) would POISON the fitness with NaN
+    # (silently ranking the candidate above finite ones under argmax / breaking sorts). Treat a
+    # non-finite CVaR as a zero penalty -- the (already non-finite) DSR alone then governs selection.
+    # CVaR penalty level from config (inference.yaml: fitness.alpha), NOT a hardcoded 0.05; caller may
+    # override via cvar_alpha. Read here (only when lam != 0, so the lam==0 hot path stays config-free).
+    if cvar_alpha is None:
+        from src.utils.config import load_config
+
+        cvar_alpha = float(load_config("inference").get("fitness", {}).get("alpha", 0.05))
+    c = cvar(r, cvar_alpha)
+    penalty = lam * abs(c) if np.isfinite(c) else 0.0
     return float(dsr - penalty)

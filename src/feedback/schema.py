@@ -13,6 +13,12 @@ Arms (FINAL_PLAN B.5 / F.3) and their block content:
     block in line-count and (approx) length (isolates information from token-count).
   - scalar_cvar5   : scalar metric + EXACTLY ONE downside number, the CVaR-5% line
     (isolates tail-*shape* from *any* downside number).
+  - placebo_shuffled : the distributional block's EXACT structure (header, intro, the six
+    labelled lines, the CVaR-1% high-variance annotation) but with the six real tail VALUES
+    candidate-seeded-PERMUTED (a derangement) across their labels — matches FORMAT and the
+    MARGINAL set of numbers, breaks the coherent tail SHAPE. The structure-vs-content control
+    (R32): distributional > placebo_shuffled isolates "uses the coherent tail shape" from
+    "responds to a plausible-looking numeric table" (the Gupta-Hartford format-vs-content threat).
 
 Worked example (distributional block, from FINAL_PLAN F.3):
     Your previous reward scored: 0.83 (validation Deflated Sharpe).
@@ -29,6 +35,10 @@ B-7 (CVaR-1% flagged high-variance in the rendered text).
 """
 
 from __future__ import annotations
+
+import hashlib
+
+import numpy as np
 
 #: Header line carrying the scalar metric (shared by every arm).
 _HEADER = "Your previous reward scored: {metric:.2f} (validation Deflated Sharpe)."
@@ -67,18 +77,25 @@ def _dist_line(field_id: str, label: str, tail_stats: dict) -> str:
     return line
 
 
-def build_block(arm: str, scalar_metric: float, tail_stats: dict | None) -> str:
+def build_block(
+    arm: str, scalar_metric: float, tail_stats: dict | None, *, shuffle_seed: int | None = None
+) -> str:
     """Render the feedback block for the given arm, deterministically.
 
     Parameters
     ----------
     arm : str
-        One of ``"distributional"``, ``"scalar"``, ``"placebo"``, ``"scalar_cvar5"``.
+        One of ``"distributional"``, ``"scalar"``, ``"placebo"``, ``"scalar_cvar5"``,
+        ``"placebo_shuffled"``.
     scalar_metric : float
         The previous candidate's validation Deflated Sharpe.
     tail_stats : dict or None
         The frozen tail-diagnostic dict (:meth:`ReturnDistribution.tail_stats`), or
         ``None`` for arms that carry no tail content (``scalar``, ``placebo``).
+    shuffle_seed : int or None
+        REQUIRED for ``placebo_shuffled`` (candidate-seeded, replayable): seeds the
+        derangement that permutes the six real tail values across their labels. Ignored by
+        every other arm. Keyword-only, so existing positional calls are unaffected.
 
     Returns
     -------
@@ -117,7 +134,45 @@ def build_block(arm: str, scalar_metric: float, tail_stats: dict | None) -> str:
             lines.append(f"  reference value {i + 1}: {_fmt(0.0)}")
         return "\n".join(lines)
 
+    if arm == "placebo_shuffled":
+        if tail_stats is None:
+            raise ValueError("placebo_shuffled arm requires tail_stats")
+        if shuffle_seed is None:
+            raise ValueError("placebo_shuffled arm requires a (candidate-seeded) shuffle_seed")
+        # Structure-IDENTICAL to the distributional block (same header, _TAIL_INTRO, labels, and the
+        # CVaR-1% high-variance annotation), but the six real tail VALUES are permuted across their
+        # labels by a candidate-seeded DERANGEMENT (no value left in its own label slot). Matches the
+        # FORMAT and the MARGINAL set of numbers; breaks the coherent label->value mapping (the tail
+        # SHAPE). The structure-vs-content control (R32).
+        values = [float(tail_stats[fid]) for fid, _ in _DIST_FIELDS]
+        n = len(values)
+        rng = np.random.default_rng(int(shuffle_seed))
+        order = np.arange(n)
+        perm = np.roll(order, 1)  # guaranteed-derangement fallback (no fixed point)
+        for _ in range(64):
+            cand = rng.permutation(n)
+            if not np.any(cand == order):
+                perm = cand
+                break
+        shuffled = [values[int(i)] for i in perm]
+        lines = [header, _TAIL_INTRO]
+        for (fid, label), val in zip(_DIST_FIELDS, shuffled):
+            line = f"  {label}: {_fmt(val)}"
+            if fid == "cvar_01":
+                line += _HIGH_VARIANCE
+            lines.append(line)
+        return "\n".join(lines)
+
     raise ValueError(f"unknown arm: {arm!r}")
+
+
+def shuffle_seed_from_id(candidate_id: str) -> int:
+    """Deterministic, cross-platform seed for the ``placebo_shuffled`` derangement, derived from the
+    candidate id so the permutation is per-candidate and REPLAYABLE from the archive. Python's salted
+    builtin ``hash()`` is NOT usable (varies per process); ``hashlib.blake2b`` is stable across runs."""
+    return int.from_bytes(
+        hashlib.blake2b(candidate_id.encode("utf-8"), digest_size=8).digest(), "big"
+    )
 
 
 def block_fields(arm: str) -> list[str]:
@@ -152,4 +207,7 @@ def block_fields(arm: str) -> list[str]:
         return ["scalar_metric"] + [
             f"reference_value_{i + 1}" for i in range(len(_DIST_FIELDS))
         ]
+    if arm == "placebo_shuffled":
+        # Same field STRUCTURE as distributional (identical labels; only the VALUES are permuted).
+        return ["scalar_metric"] + [fid for fid, _ in _DIST_FIELDS]
     raise ValueError(f"unknown arm: {arm!r}")

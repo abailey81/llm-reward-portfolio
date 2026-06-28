@@ -19,6 +19,7 @@ Rules:
 - numpy only (available as `np`); no imports beyond numpy; no file/network/OS access; no dates.
 - The agent maximizes `total`. `components` is logged only (for interpretability). `reward_state`
   is round-tripped via `info` so you can write stateful rewards (e.g. an online Sharpe).
-- Optimize RISK-ADJUSTED performance — weigh return against risk, drawdown, and TAIL losses.
+- Optimize RISK-ADJUSTED performance — weigh return against its risk (you are selected on a
+  risk-adjusted score). The feedback after each attempt tells you HOW to weigh it; do not assume.
 - After each attempt you receive feedback; revise the function to improve out-of-sample
   risk-adjusted performance. Return ONLY the function definition.

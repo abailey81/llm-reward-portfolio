@@ -13,7 +13,10 @@ Algorithm sketch (FINAL_PLAN F.1, Part B.2):
     (softmax OR L1-normalization-of-clipped; selected via cfg, audit C-8).
   - Reward-timing (audit C-5): the asset-return vector r_t = panel.returns[t] is
     realized *after* the action is taken. gross = w[:N] @ r_t.
-  - Transaction cost = c * ||w - w_prev||_1, c from the cost grid (headline 10 bps).
+  - Transaction cost = c * turnover with half-L1-DRIFTED turnover (docs/environment_spec_v1.md):
+    turnover = 0.5 * ||w - w_tilde||_1 where w_tilde = w_prev * (1+r_t) / (w_prev @ (1+r_t))
+    is the previous weights DRIFTED by realized returns (cash grows at 1.0); c from the
+    cost grid (headline 10 bps). info["turnover"] is emitted for logging sidecars.
   - Portfolio return port_ret = gross - cost; log-wealth += log1p(port_ret).
   - reward_fn(w, r_t, w_prev, port_ret, info) -> (total, components, reward_state).
     The agent optimizes `total`; `components` are logged; `reward_state` is
@@ -36,6 +39,7 @@ from gymnasium.spaces import Box
 
 from src.data.panel import Panel
 from src.reward.contract import RewardFn
+from src.sandbox.executor import safe_call
 
 __all__ = ["PortfolioEnv", "project_simplex"]
 
@@ -56,6 +60,22 @@ def project_simplex(action: np.ndarray, kind: str = "softmax") -> np.ndarray:
     -------
     np.ndarray, shape (N+1,)
         Non-negative weights summing to 1.
+
+    Limitations
+    -----------
+    The frozen ``"softmax"`` projection maps onto the OPEN interior of the simplex:
+    every weight (including the cash sleeve) is strictly positive, so it can NEVER
+    reach an EXACT corner — in particular it cannot output a true 100%-cash allocation
+    (``w_cash == 1`` with every risky weight exactly 0). It can only approach it
+    asymptotically as the cash logit dominates (bounded further by ``action.bound``,
+    which caps the pre-softmax logit magnitude). This structurally DAMPS the full
+    "flee to cash" response that a tail-risk-averse agent most wants in a crisis. The
+    alternative ``"l1_normalize_of_clipped"`` projection (clip-at-zero then L1-normalise)
+    CAN hit exact zero weights / the cash corner, but ``"softmax"`` is the FROZEN
+    Phase-1 choice (audit C-8) and is NOT changed here. This is a ceiling that applies
+    EQUALLY to every feedback arm (scalar and tail-fed alike), so it is a shared
+    limitation of the action parameterisation, not a confound for the H2 contrast.
+    Disclosed for the write-up's limitations section; behaviour is unchanged.
     """
     a = np.asarray(action, dtype=np.float64).ravel()
     if kind == "softmax":
@@ -90,6 +110,15 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         Half-open trading window ``[start, end)`` into the panel. ``start``
         defaults to the lookback (so the observation window exists) and ``end``
         defaults to ``panel.T``.
+    cost_bps : float | None, default None
+        Optional per-unit-turnover cost OVERRIDE in basis points (the
+        ``costs.grid_bps`` cost-robustness sweep, ``config/environment.yaml``).
+        When ``None`` (the default — preserving every existing caller's
+        behaviour) the headline cost ``costs.headline_bps`` is used. When given,
+        ``self.cost = cost_bps * 1e-4`` replaces it, so the cost-sweep harness
+        (``scripts/cost_sweep.py``) can RE-PRICE a frozen policy at each grid
+        level without retraining. Everything else (timing, turnover, reward) is
+        identical, so a swept env differs from the headline env ONLY in ``self.cost``.
     """
 
     metadata: dict[str, Any] = {"render_modes": []}
@@ -101,6 +130,7 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         reward_fn: RewardFn,
         start: int | None = None,
         end: int | None = None,
+        cost_bps: float | None = None,
     ) -> None:
         self.panel = panel
         self.cfg = cfg
@@ -112,12 +142,32 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         self.vol_windows: list[int] = [int(w) for w in state_cfg["realized_vol_windows"]]
         self.include_vix: bool = bool(state_cfg.get("include_vix", True))
         self.include_prev_weights: bool = bool(state_cfg.get("include_prev_weights", True))
+        # Per-session cash return (decimal). DEFAULT 0.0 preserves every existing caller/test byte-for-byte
+        # and leaves cash growing at 1.0. A non-zero value lets the cash sleeve earn a money-market return
+        # (R20). NB a CONSTANT is only a first-order proxy: the 3-month T-bill ranged 0–5.6%/yr over
+        # 2005–2025, so a per-session DGS3MO SERIES (not a constant) is the correct refinement — a constant
+        # would overpay cash in the ZIRP stress periods (2008/2020) where the tail-aware arm flees to cash.
+        self.cash_daily_rate: float = float(state_cfg.get("cash_daily_rate", 0.0))
 
         action_cfg = cfg["action"] if "action" in cfg else cfg.action
         self.projection: str = str(action_cfg["projection"])
+        # SAC/TQC require a FINITE action space (they rescale the tanh-squashed action to the bounds;
+        # an infinite bound -> inf/NaN actions). The raw action is pre-softmax logits in
+        # [-bound, bound]; softmax then projects to the simplex, so `bound` caps concentration
+        # (bound=10 -> softmax can still reach ~full concentration). Frozen at Phase 1 (ADR-027).
+        self.action_bound: float = float(action_cfg["bound"]) if "bound" in action_cfg else 10.0
 
         costs_cfg = cfg["costs"] if "costs" in cfg else cfg.costs
-        self.cost: float = float(costs_cfg["headline_bps"]) * 1e-4
+        # Per-unit-turnover cost (fraction): bps charged on the half-L1-DRIFTED turnover
+        # computed in step() (docs/environment_spec_v1.md). headline 10 bps -> 1e-3.
+        # The optional `cost_bps` OVERRIDE drives the costs.grid_bps robustness sweep
+        # (scripts/cost_sweep.py): when None (default), fall back to the config headline,
+        # so every existing caller is byte-for-byte unchanged (additive).
+        if cost_bps is None:
+            self.cost: float = float(costs_cfg["headline_bps"]) * 1e-4
+        else:
+            self.cost = float(cost_bps) * 1e-4
+        self.cost_bps: float | None = None if cost_bps is None else float(cost_bps)
 
         self.N: int = panel.N
         self.start: int = self.lookback if start is None else int(start)
@@ -130,10 +180,19 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
             raise ValueError(f"end ({self.end}) must be <= panel.T ({panel.T})")
         if self.start >= self.end:
             raise ValueError(f"start ({self.start}) must be < end ({self.end})")
+        # Every realized-vol window must fit inside the lookback so returns[t-w:t] is fully populated
+        # at the first step (final-audit #28: a window > lookback silently produced a negative-index/
+        # empty slice -> NaN obs + RuntimeWarning, not a raise). The pipeline enforces the same.
+        if self.vol_windows and max(self.vol_windows) > self.lookback:
+            raise ValueError(
+                f"every realized_vol_window must be <= lookback ({self.lookback}); got {self.vol_windows}"
+            )
 
         # --- gym spaces ---
         n_act = self.N + 1
-        self.action_space = Box(low=-np.inf, high=np.inf, shape=(n_act,), dtype=np.float32)
+        self.action_space = Box(
+            low=-self.action_bound, high=self.action_bound, shape=(n_act,), dtype=np.float32
+        )
 
         obs_dim = self._obs_dim()
         self.observation_space = Box(
@@ -198,32 +257,95 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
 
         Implements the audit C-5 timing: the realized return ``r_t`` is read at
         the *current* index ``t`` (after the action), the portfolio return nets
-        the proportional turnover cost, log-wealth is accumulated, and the
-        injected reward is invoked with the stateful ``reward_state`` round-tripped
-        through ``info``.
+        the half-L1-DRIFTED turnover cost (``0.5 * ||w - w_tilde||_1``; see the
+        module docstring and ``docs/environment_spec_v1.md``), log-wealth is
+        accumulated, and the injected reward is invoked with the stateful
+        ``reward_state`` round-tripped through ``info`` (which also carries the
+        realized ``turnover``).
 
         Returns
         -------
         tuple
-            ``(obs, reward, terminated, truncated, info)``. ``terminated`` is True
-            once ``t`` reaches ``end``; ``truncated`` is always False; ``reward``
-            is a Python float.
+            ``(obs, reward, terminated, truncated, info)``. The MDP has no absorbing
+            terminal state — the episode ends ONLY because the fixed ``[start, end)``
+            walk-forward window runs out of timesteps, which is a Gymnasium
+            *truncation*, not a *termination*. So ``terminated`` is always False and
+            ``truncated`` is True once ``t`` reaches ``end`` (final-audit fix: the
+            boundary is a data/time limit, not an absorbing state — reporting it as
+            terminated makes SB3 SAC's ``(1 - dones)`` factor zero the value bootstrap
+            at every window edge, biasing the critic). ``reward`` is a Python float.
         """
         w = project_simplex(action, self.projection)
-        r_t = np.asarray(self.panel.returns[self.t], dtype=np.float64)
+        # `self.panel.returns[self.t]` is a row of the SHARED, frozen gold panel; `np.asarray`
+        # with a matching dtype returns a VIEW that aliases that row's memory. Take a COPY so the
+        # env's own arithmetic (and, below, the untrusted reward) can never write through to the
+        # panel and corrupt the data later candidates/steps replay from (determinism guarantee,
+        # V15a). The copy is cheap (one (N,) row) and leaves all downstream numerics identical.
+        r_t = np.array(self.panel.returns[self.t], dtype=np.float64, copy=True)
 
-        gross = float(w[: self.N] @ r_t)
-        cost = self.cost * float(np.abs(w - self.w_prev).sum())
+        # Half-L1-DRIFTED turnover (docs/environment_spec_v1.md "Dynamics & accounting").
+        # Between the previous trade and this one the held weights DRIFT by realised
+        # returns, so the agent only trades — and only pays cost on — the gap between
+        # the new target w and the *drifted* prior weights w_tilde, not the raw w_prev.
+        # growth[i] = 1 + r_t[i] for the N risky assets; the cash sleeve grows at 1 + cash_daily_rate
+        # (default 0.0 -> grows at 1.0, the legacy behaviour; R20).
+        growth = np.ones(self.N + 1, dtype=np.float64)
+        growth[: self.N] = 1.0 + r_t
+        growth[self.N] = 1.0 + self.cash_daily_rate
+        port_growth = float(self.w_prev @ growth)
+        if port_growth <= 0.0:
+            raise FloatingPointError(
+                f"non-positive portfolio growth {port_growth!r} at t={self.t}: drifted "
+                "weights are undefined (a -100% combined move wiped the portfolio)"
+            )
+        w_tilde = self.w_prev * growth / port_growth
+        turnover = 0.5 * float(np.abs(w - w_tilde).sum())
+
+        # Gross = risky leg (w·r_t) + the cash sleeve's money-market return (w_cash · cash_daily_rate).
+        gross = float(w[: self.N] @ r_t) + float(w[self.N]) * self.cash_daily_rate
+        cost = self.cost * turnover
         port_ret = gross - cost
-        self.log_wealth += float(np.log1p(port_ret))
+        # Clip port_ret > -1 before log1p, mirroring the baseline rewards (src/baselines/rewards.py:305,364):
+        # a <= -100% step (>=100% combined loss after cost) gives log1p(<=-1) = -inf/NaN. This makes the
+        # accumulation consistent with the port_growth <= 0.0 raise above (which already rejects a drifted
+        # wipeout) and with the baselines' max(port_ret, -0.9999) floor (final-audit fix).
+        self.log_wealth += float(np.log1p(max(port_ret, -0.9999)))
 
         info: dict[str, Any] = {
             "weights": w,
             "prev_weights": self.w_prev,
             "reward_state": self.reward_state,
         }
-        total, components, reward_state = self.reward_fn(
-            w, r_t, self.w_prev, port_ret, info
+        # No-cross-contamination / determinism boundary (V15a): the reward is UNTRUSTED LLM code and
+        # received MUTABLE references to env-owned state — `w` (which becomes next step's `self.w_prev`),
+        # `self.w_prev`, the `r_t` panel data, and this very `info` dict. A reward doing an in-place write
+        # (`weights[:] = ...`, `returns[:] = 0`) or injecting/clobbering an `info` key would silently
+        # corrupt the env's state across steps AND across candidates, breaking the "results replay from the
+        # archive" guarantee. So the reward is handed READ-ONLY COPIES and a SHALLOW-COPIED info dict:
+        #   * read-only blocks every in-place ndarray write but preserves all reads / new-array ops, so a
+        #     BENIGN reward sees byte-identical inputs and produces identical outputs (verified by the
+        #     unchanged env/sandbox tests + the V15 regression);
+        #   * the shallow info copy means the reward CANNOT add/remove/clobber keys on the env's dict, yet
+        #     it still READS the same `info["reward_state"]` value, so stateful rewards round-trip exactly
+        #     (the reward persists its OWN next state via the RETURNED `reward_state`, never by mutating info).
+        # r_t is already a fresh copy (above); marking it read-only additionally blocks in-place writes.
+        r_t.setflags(write=False)
+        # Hand the reward DETACHED read-only COPIES (not views): a read-only *view* still exposes a
+        # writable parent via ``.base`` (protection would then lean on the AST gate denying ``.base``);
+        # a copy has ``base is None`` so the array boundary is self-sufficient (``r_t`` is already a copy).
+        w_ro = np.array(w, copy=True)
+        w_ro.setflags(write=False)
+        prev_ro = np.array(self.w_prev, copy=True)
+        prev_ro.setflags(write=False)
+        reward_info: dict[str, Any] = dict(info)
+        reward_info["weights"] = w_ro
+        reward_info["prev_weights"] = prev_ro
+        # Stage-2 sandbox (audit A-5 / P0-2): a reward that passed validate_once on the
+        # tiny fixture can still raise or return non-finite on a real N-asset observation.
+        # safe_call substitutes SAFE_DEFAULT and flags the candidate, so the rollout never
+        # crashes mid-training (the failed candidate then simply scores poorly).
+        total, components, reward_state = safe_call(
+            self.reward_fn, w_ro, r_t, prev_ro, port_ret, reward_info
         )
         self.reward_state = reward_state
         info["reward_state"] = reward_state
@@ -231,24 +353,41 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         info["port_ret"] = port_ret
         info["gross"] = gross
         info["cost"] = cost
+        info["turnover"] = turnover
+        # Emit the accumulated log-wealth as a logging sidecar (final-audit fix): it was previously
+        # init/reset/accumulated but NEVER consumed (pure dead state), while the module docstring
+        # advertises it as a tracked quantity. Surfacing it here makes that contract real.
+        info["log_wealth"] = self.log_wealth
 
         self.w_prev = w
         self.t += 1
-        terminated = self.t >= self.end
-        truncated = False
+        # The window edge is data EXHAUSTION (a time limit), not an absorbing MDP state, so it is a
+        # Gymnasium *truncation* (final-audit fix). The training path wraps the env in DummyVecEnv only
+        # (no TimeLimit/Monitor -> no info['TimeLimit.truncated']), so if this were reported as
+        # `terminated` SB3 SAC would compute reward + gamma*(1 - done)*Q(next) = reward + 0 and NOT
+        # bootstrap the boundary state's value, biasing the critic once per episode at every window edge.
+        terminated = False
+        truncated = self.t >= self.end
 
         obs = self._obs()
         return obs, float(total), terminated, truncated, info
 
     # -- observation ----------------------------------------------------------
     def _obs(self) -> np.ndarray:
-        """Build the observation from data with index <= t only (no look-ahead).
+        """Build the observation from data knowable at decision time ``t`` (no look-ahead).
 
         The window uses ``returns[t-lookback : t]`` (strictly past), realized vol
-        over each configured window on the same strictly-past returns, the LAGGED
-        VIX ``vix[t-1]``, a constant cash-row marker, and the previous weights.
-        It never reads any panel row with index ``>= t`` (note ``returns[t]`` is
-        the *future* realisation consumed only in :meth:`step`).
+        over each configured window on the same strictly-past returns, the VIX value
+        knowable at ``t``, a constant cash-row marker, and the previous weights.
+
+        The *returns* window invariant is strict: it never reads any return row with
+        index ``>= t`` (``returns[t]`` is the *future* realisation consumed only in
+        :meth:`step`). The VIX index is convention-dependent and is corrected here to
+        match the implementation (final-audit fix to a previously false "never index
+        ``>= t``" claim): on the contemporaneous (synthetic) convention the env lags to
+        ``vix[t-1]``; on a prelagged gold panel (``vix_prelagged=True``) row ``t`` already
+        holds the ``t-1`` close, so the env reads ``vix[t]`` (index ``== t``) — still a
+        ``t-1`` close, hence no look-ahead, but it IS a panel row at index ``t``.
 
         Returns
         -------
@@ -268,8 +407,16 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
             parts.append(vol)
 
         if self.include_vix:
-            # Lagged VIX: value at t-1 is knowable at decision time t.
-            parts.append(np.asarray([self.panel.vix[t - 1]], dtype=np.float64))
+            # VIX knowable at decision time t = the t-1 close, exposed EXACTLY ONCE. A gold panel is
+            # ALREADY shift(1)-lagged by the pipeline (vix_prelagged=True) -> read vix[t] directly; the
+            # synthetic/contemporaneous convention -> lag here to vix[t-1] (final-audit #7: this avoids
+            # double-lagging the gold panel to a t-2 close). The index is CLAMPED to the last row so the
+            # (unused) terminal observation — step() advances to t==panel.T, where the prelagged read
+            # vix[t] would be out of bounds — never raises (re-audit regression: would crash the gold
+            # campaign's once-per-arm sealed evaluation on its final step).
+            vix_idx = t if getattr(self.panel, "vix_prelagged", False) else t - 1
+            vix_idx = min(vix_idx, self.panel.vix.shape[0] - 1)
+            parts.append(np.asarray([self.panel.vix[vix_idx]], dtype=np.float64))
 
         # Constant cash-row marker (the cash asset is always available).
         parts.append(np.asarray([1.0], dtype=np.float64))

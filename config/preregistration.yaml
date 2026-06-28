@@ -3,14 +3,17 @@
 # require a dated amendment entry.
 frozen: false                         # flips true at the Phase-1 freeze
 freeze_hash: null                     # SHA-256, emitted by scripts/freeze.py
-phase0_smoke_passed_log_id: null      # DECISION_LOG entry id (precondition for freeze)
+phase0_smoke_passed_log_id: "DECISION_LOG.md#PHASE-0 (GREEN 2026-06-17)"   # precondition MET (P2; CPU m≈18.9/25.9)
 
 hypotheses: [H1, H2, H3, H4]          # H2 headline; secondary = SAC-vs-TQC critic
 contribution_axis: feedback_channel   # audit A-1: agent fixed (SAC), feedback varies
 
-arms: [distributional, scalar, placebo, scalar_cvar5, random_search, bayes_opt]
+arms: [distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt]   # 7 arms; placebo_shuffled = the R32 structure-vs-content control (V1 reconcile 2026-06-26: was silently missing from the frozen roster while the campaign ran 7). DISJOINT from the m=6 testing family.
 matched_budget: 30
-seeds: [0, 1, 2, 3, 4]
+# Amendment D2 (2026-06-19, user-approved; PREREGISTRATION §6/§12 + amendment record): per-arm WINNER seed
+# count raised 5 -> 30 (>=20 target; Henderson 2018, Colas et al.). SEARCH budget untouched (1 seed per
+# candidate during search; only the winners re-run at 30 seeds — the seeds-on-winners lever, ADR-023).
+seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
 
 tail_diagnostic_set:                  # measured on TRAINING returns; empirical body + EVT tails
   cvar_levels: [0.25, 0.10, 0.05, 0.01]   # cvar_01 retained but FLAGGED high-variance (B-7)
@@ -28,19 +31,154 @@ fitness:
 
 loop: {runs: once, cpcv_on: winners, per_candidate_budget: fixed}   # audit B-3, B-5
 
-benchmarks: [spy_buy_and_hold, equal_weight, mean_variance_shrinkage, risk_parity, hrp]
+# R19 (2026-06-20): de-duped the mislabelled spy_buy_and_hold (== 1/N, no index in the anonymised panel)
+# and expanded to 8 DISTINCT published allocators. Names match analyze_campaign._BENCHMARK_NAMES exactly.
+benchmarks: [equal_weight, mean_variance, risk_parity, hrp, minimum_variance, maximum_diversification, inverse_volatility, cross_sectional_momentum]
 
 inference:
   primary_overfitting_guard: pbo_cscv
   deflated_sharpe: secondary
-  difference_tests: [sharpe_ledoit_wolf, cvar_difference]
-  bootstrap: stationary_politis_romano
+  # Amendment 2026-06-19 (R11): relabel "sharpe_ledoit_wolf" -> re-centred basic (empirical) stationary
+  # block-bootstrap; the bootstrap SE cancels in the two-sided p-value (|boot-obs| >= |obs|), so size is
+  # certified by null_calibration (audit C-7), not studentized. Numerics unchanged (label correction only).
+  difference_tests: [sharpe_recentred_bootstrap, cvar_difference]
+  bootstrap: stationary_politis_romano        # single-series tool (sharpe/cvar_difference_test)
+  # Amendment 2026-06-20 (R16): the arm-contrast FAMILY difference tests aggregate ACROSS SEEDS via the
+  # rliable per-seed method — per-seed Sharpe/CVaR -> IQM -> PAIRED stratified bootstrap over the shared
+  # training seeds (paired_seed_difference_test), carrying the across-seed variance. This realizes the
+  # `seed_reporting: rliable_iqm` intent AT the test and supersedes the prior seed-AVERAGED series
+  # bootstrap (anti-conservative ~21% vs the correctly-sized ~5% true-null rejection on 30 seeds). The
+  # re-centred convention (R11), the frozen family (R13, m=6), and the correction are unchanged.
+  difference_test_unit: per_seed_iqm_paired_seed_bootstrap
   seed_reporting: rliable_iqm_poi_stratified_ci
   multiple_testing: romano_wolf_or_bh_fdr     # cross arm x metric family (audit B-8)
-  alpha_hurdle_t: 3.0                          # Harvey-Liu-Zhu
+  multiple_testing_primary: benjamini_hochberg # BH q=0.05 primary; joint Romano-Wolf = FWER alternative (R13)
+  multiple_testing_q: 0.05
+  alpha_hurdle_t: 3.0                          # Harvey-Liu-Zhu — scoped to ABSOLUTE-alpha claims only (R13)
+  alpha_hurdle_scope: absolute_alpha_claims_only
   trial_count_stated: true
   claim: comparative_not_beats_market
+  # Amendment 2026-06-19 (R13): the realized multiple-testing family is ENUMERATED + FROZEN. It is exactly
+  # what scripts/analyze_campaign.collect_family_pvalues enumerates: {arm-contrast x held-out-metric} =
+  # 3 H2 contrasts x {Sharpe, CVaR-0.05} = m=6 (incl. the H2 distributional-vs-{scalar, placebo,
+  # scalar_cvar5} legs). cvar_01 is opt-in (would grow m to 9), NOT in the frozen default family.
+  # analyze_campaign/run_campaign assert the realized contrast set == this family (the `members` union).
+  #
+  # Amendment 2026-06-25 (R25): the HEADLINE decision is now TWO CO-PRIMARY intersection-union tests
+  # (IUTs), NOT one m=6 BH family gated by a conjunction. Berger (1982): a conjunction IS an IUT and is
+  # already the multiplicity correction (joint size <= max leg size = alpha), so the old
+  # (conjunction o BH-over-6) DOUBLE-corrected and was under-powered against H2 (DEEP_H2 §3.2-3.3). The
+  # m=6 enumeration below is UNCHANGED (still the frozen realized-family assert + the BH-over-6 REPORTED
+  # SENSITIVITY); what changes is the GATE: it now partitions the 6 into two declared families, each
+  # decided one-sided at alpha=0.05 with NO further leg correction (the IUT is the correction). `m: 6`
+  # is retained as the union size (the Sidak selection-power multiplicity in scripts/power_analysis.py
+  # ranges over all 6 enumerated tests).
+  testing_family:
+    m: 6                                        # UNION size (BH-over-6 sensitivity + Sidak multiplicity)
+    structure: two_co_primary_iut               # R25: H2-RA (Sharpe) + H2-Tail (CVaR-5%), each its own IUT
+    decision_rule: per_family_iut_one_sided_no_leg_correction   # the conjunction IS the correction (Berger 1982)
+    alpha_one_sided: 0.05                        # each IUT leg decided one-sided in the predicted direction
+    bh_over_6: reported_sensitivity_not_gate     # R25: BH over the m=6 union is REPORTED, never the gate
+    contrasts:                                 # (a, b) read "a predicted better than b"
+      - [distributional, scalar]
+      - [distributional, placebo]
+      - [distributional, scalar_cvar5]
+    metrics: [sharpe, cvar]
+    cvar_levels: [0.05]                         # headline alpha; cvar_01 opt-in (high-variance, EVT)
+    # The TWO co-primary IUTs (R25). Each is supported iff ALL THREE of its legs reject one-sided at
+    # alpha=0.05 in the predicted direction (distributional strictly better). H2-Tail is additionally
+    # CORROBORATED (not gated) by the FZ0/(VaR,ES) comparative ES backtest where available.
+    families:
+      h2_ra:                                    # risk-adjusted-performance IUT (DEEP_H2 §7.1)
+        m: 3
+        metric: sharpe
+        members:
+          - {arm_a: distributional, arm_b: scalar,       metric: sharpe, level: null}
+          - {arm_a: distributional, arm_b: placebo,      metric: sharpe, level: null}
+          - {arm_a: distributional, arm_b: scalar_cvar5, metric: sharpe, level: null}
+      h2_tail:                                  # tail-outcome IUT (DEEP_H2 §7.1)
+        m: 3
+        metric: cvar
+        level: 0.05
+        corroborated_by: fz0_var_es_comparative_backtest   # reported, NOT a gate
+        members:
+          - {arm_a: distributional, arm_b: scalar,       metric: cvar, level: 0.05}
+          - {arm_a: distributional, arm_b: placebo,      metric: cvar, level: 0.05}
+          - {arm_a: distributional, arm_b: scalar_cvar5, metric: cvar, level: 0.05}
+    members:                                    # the m=6 enumerated UNION (frozen realized-family assert)
+      - {arm_a: distributional, arm_b: scalar,       metric: sharpe, level: null}
+      - {arm_a: distributional, arm_b: scalar,       metric: cvar,   level: 0.05}
+      - {arm_a: distributional, arm_b: placebo,      metric: sharpe, level: null}
+      - {arm_a: distributional, arm_b: placebo,      metric: cvar,   level: 0.05}
+      - {arm_a: distributional, arm_b: scalar_cvar5, metric: sharpe, level: null}
+      - {arm_a: distributional, arm_b: scalar_cvar5, metric: cvar,   level: 0.05}
+  # Amendment 2026-06-19 (R12): SESOI + symmetric TOST equivalence margin for the headline H2 contrast.
+  sesoi: 0.05                                   # validation-DSR units
+  equivalence_margin: 0.05                      # symmetric TOST margin (+/- DSR)
+  # Amendment 2026-06-25 (R26/R30/R31): the PRE-REGISTERED report-only SECONDARY families. ALL use keys DISJOINT
+  # from the frozen m=6 above, so analyze_campaign.assert_realized_family_matches_frozen is untouched; each is
+  # computed + reported but NEVER gates H2. Pre-registering them BEFORE the sealed-test freeze is what pre-empts
+  # the "your edge is just BAB/low-vol" recast (R26; LIMITATIONS_REGISTER L15) and makes H3/H4 campaign-grade (R30).
+  secondary_families:
+    factor_attribution:                         # R26 — difference-in-alpha vs the factor ladder (the BAB/low-vol pre-empt)
+      key: attribution
+      ladder: [capm, ff3, carhart4, ff5, ff6, ff6_bab, ff6_bab_qmj]
+      statistic: difference_in_alpha_paired_across_seed   # Newey-West (1994) HAC SE; BH WITHIN this family
+      controls_for: [market, size, value, momentum, profitability, investment, betting_against_beta, quality]
+    h3_iterative_vs_singleshot: {key: h3, statistic: per_seed_iqm_paired, equivalence: tost_0.05}   # R30
+    h4_search_controls: {key: h4, tests: [h4a_vs_random_search, h4b_vs_bayes_opt], correction: bonferroni_2}   # R30
+    h2_tost_equivalence: {key: h2_tost, margin: 0.05, units: test_statistic}   # R29/R30 — the bankable-null bound
+    h2_structure_control:                       # R32 — the format-vs-content structure control (Gupta-Hartford)
+      key: h2_structure
+      arm: placebo_shuffled                     # the 5th LLM arm: distributional's EXACT block, values DERANGED
+      contrast: [distributional, placebo_shuffled]
+      metrics: [sharpe, cvar]
+      cvar_level: 0.05
+      decision: one_sided_both_legs_content_over_format
+      gates_h2: false                           # DISJOINT from the frozen m=6 union — reported, NEVER a gate
+    dsr_effective_n: {key: dsr_effective_n, report_only: true}   # R30 — sequential-reflective correlation sensitivity
+    cross_hypothesis_multiplicity: {key: cross_hypothesis_multiplicity, stance: separate_estimands_bonferroni_4_sensitivity}  # R31
+    delisting_band:                             # R33 — the delisting-return sensitivity band (DATA-level; DISJOINT)
+      key: delisting_band
+      panel: univ4                              # the Shumway panel carrying the 333 delisting cells (NOT the headline — univ3 is, R44); band overwrites them
+      grid: [0.0, -0.30, -0.55, -1.00]          # delisting-return d applied to the 333 test-window cells; univ4=-30/-55 = the structural extreme
+      metrics: [cvar_05, cvar_01]               # pooled tail recomputed per d (DATA-level, NO policy re-run)
+      report_only: true
+      gates_h2: false                           # DISJOINT from the frozen m=6 union — reported, NEVER a gate
 
 contamination: {blinding: anonymized_arrays, stratify: training_cutoff, second_model: open_weights_diff_cutoff}
 data_splits: {train: [2005, 2014], val: [2015, 2017], test: [2018, 2025]}
+# Amendment 2026-06-25 (R33, PREREGISTRATION §7): the HEADLINE data panel is the survivorship-corrected
+# R44 (2026-06-26, supersedes R33's univ4 headline): the headline TRAIN/TEST panel is univ3 (liquidate_to_cash /
+# zero-fill — NO fabricated losses). univ4 (Shumway 1997: -30% NYSE/AMEX, -55% NASDAQ booked (1+r)(1+dl)-1 on each
+# dead name's last valid session; 333 cells of the SAME 953-universe / 5283x953, 0 in the 620 live columns)
+# surcharges 100% of the 333 delistings INCLUDING premium M&A (Refinitiv carries no delisting reason/terminal on
+# disk), so it FABRICATES left-tail mass in a tail-risk study and is only the M&A-CONTAMINATED heavy END of the
+# band (R39). The headline tail INSTRUMENT is the {0,-30,-55,-100%} delisting_band (analyze_campaign.delisting_band):
+# the sweep moves pooled test CVaR-5% only ~2% -> the H2 tail ORDERING is INVARIANT. univ3 is integrity-screened
+# via univ3s (R39); univ4r (reason-gated re-pull, M&A keeps last price / failures surcharged,
+# docs/DATA_REPULL_DELISTING.md) is the CORRECT panel (recommended, OPTIONAL for H2 since the band is invariant).
+# The loader's live default IS univ3; the campaign needs no LLM_RP_GOLD_SUFFIX override.
+data_panel:
+  headline: univ3                       # R44: zero-fill, NO fabricated losses — the conservative, honest headline
+  tail_instrument: delisting_band       # the {0,-30,-55,-100%} sensitivity is the headline tail result (H2 invariant)
+  band_zero_end: univ3                  # liquidate_to_cash / zero-fill = the 0%-delisting end of the band
+  band_heavy_end: univ4                 # Shumway -30/-55 = the M&A-CONTAMINATED heavy end (R39), NOT the tail truth
+  correct_panel_on_repull: univ4r       # reason-gated (M&A keeps last price); the ideal, needs a brief re-pull
+  resolves: ADR-024                     # R33 -> R44: liquidate_to_cash IS the band-bracketed headline, not univ4
 algorithms: {headline: sac, secondary_critic: tqc, robustness: [ppo, td3]}
+
+# Amendment 2026-06-19 (R15, PREREGISTRATION §10): cost-robustness sweep. Re-price the FROZEN winners
+# across the bps grid WITHOUT retraining (net_c = gross - bps*1e-4*turnover; exact because cost is charged
+# after the action), report-only/post-freeze, never re-selecting.
+cost_sweep: {grid_bps: [0, 5, 10, 25, 50], metric: [sharpe, cvar_05], method: analytic_reprice, report_only: true}
+
+# ---- 2026-06-24 pre-freeze amendments (machine-readable mirror of PREREGISTRATION.md §5 / §6 / §11) ----
+# §5 (lambda): fitness.lambda_cvar = 0.0 above (PROPOSED formalization; the INERT lambda_grid/calibration_fold
+#   in config/inference.yaml are deleted at freeze IF lambda=0 is ratified). §6 + §11 mirrored here:
+search:
+  reflect_protocol_default: serial_reflect_on_last    # prototype-de-risked path (run_campaign.py --search-gpu 0)
+  reflect_protocol_parallel: best_of_generation       # --search-gpu>0; Eureka-faithful; buffer==train_steps (50k = TEST)
+  headline_reflect_protocol: parallel_reflect_on_best  # R24 (2026-06-25): headline = parallel best-of-generation; serial (default above) is the de-risked fallback
+agent_numerics:
+  tf32: true                            # config-driven (config/prototype.yaml agent.tf32, threaded to all 3 trainer legs); default-on, §11
