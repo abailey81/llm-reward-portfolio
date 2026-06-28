@@ -1,0 +1,141 @@
+{
+  "evidence": {
+    "lambda_frozen": null,
+    "cash_daily_rate": 0.0
+  },
+  "rows": [
+    {
+      "name": "train_steps_per_candidate",
+      "class": "MEASURE",
+      "method": "eval-return knee (convergence)",
+      "determination": "scripts/learning_curve.recommend_budget",
+      "status": "PENDING"
+    },
+    {
+      "name": "n_seeds",
+      "class": "MEASURE",
+      "method": "paired-CRN power at the SESOI",
+      "determination": "scripts/power_analysis + sigma_seed pilot",
+      "status": "PENDING"
+    },
+    {
+      "name": "candidates_per_arm",
+      "class": "MEASURE",
+      "method": "search saturation (best-fitness plateau)",
+      "determination": "determine_design.recommend_candidates",
+      "status": "PENDING"
+    },
+    {
+      "name": "lambda_frozen",
+      "class": "CALIBRATE",
+      "method": "pre-2015 fitness calibration fold",
+      "determination": "config/inference.yaml fitness.calibration_fold",
+      "status": "PENDING"
+    },
+    {
+      "name": "sesoi",
+      "class": "CALIBRATE",
+      "method": "smallest practically-relevant edge",
+      "determination": "frozen 0.05 DSR (~0.07 ann-Sharpe)",
+      "status": "FIXED"
+    },
+    {
+      "name": "embargo_trading_days",
+      "class": "CALIBRATE",
+      "method": "purge >= feature lookback + horizon",
+      "determination": "verify effective purge >= lookback (60)",
+      "status": "VERIFY"
+    },
+    {
+      "name": "multiplicity",
+      "class": "CALIBRATE",
+      "method": "family-wise / FDR error control",
+      "determination": "IUT within H2 + BH/RW across the union",
+      "status": "FIXED"
+    },
+    {
+      "name": "dsr_trial_count_rule",
+      "class": "CALIBRATE",
+      "method": "selection-aware deflation",
+      "determination": "per_arm_candidates (Bailey-Lopez de Prado)",
+      "status": "FIXED"
+    },
+    {
+      "name": "sac_hyperparameters",
+      "class": "FIX",
+      "method": "SB3 defaults, identical across arms",
+      "determination": "config/algos.yaml (null = SB3 default)",
+      "status": "FIXED"
+    },
+    {
+      "name": "learning_starts",
+      "class": "FIX",
+      "method": "Phase-0 validated stability",
+      "determination": "1000 (not SB3's 100)",
+      "status": "FIXED"
+    },
+    {
+      "name": "popart",
+      "class": "FIX",
+      "method": "critic value-scale normalisation",
+      "determination": "on (explosion fix)",
+      "status": "FIXED"
+    },
+    {
+      "name": "llm_decoding",
+      "class": "FIX",
+      "method": "held identical; only feedback varies",
+      "determination": "Opus 4.8, K=16, max_tokens 4096",
+      "status": "FIXED"
+    },
+    {
+      "name": "n_assets",
+      "class": "REALISTIC",
+      "method": "diversified tradable book",
+      "determination": "30 from 953 PIT pool",
+      "status": "FIXED"
+    },
+    {
+      "name": "lookback_days",
+      "class": "REALISTIC",
+      "method": "feature window",
+      "determination": "60",
+      "status": "FIXED"
+    },
+    {
+      "name": "headline_bps",
+      "class": "REALISTIC",
+      "method": "realistic large-cap cost",
+      "determination": "10 bps proportional",
+      "status": "FIXED"
+    },
+    {
+      "name": "data_splits",
+      "class": "REALISTIC",
+      "method": "sealed temporal holdout",
+      "determination": "10y/3y/8y train/val/test",
+      "status": "FIXED"
+    },
+    {
+      "name": "delisting_returns",
+      "class": "REALISTIC",
+      "method": "survivorship-free",
+      "determination": "retain",
+      "status": "FIXED"
+    },
+    {
+      "name": "cash_daily_rate",
+      "class": "REALISTIC",
+      "method": "risk-free accrual on cash",
+      "determination": "risk-free series (R20)",
+      "status": "FIX_NEEDED"
+    }
+  ],
+  "freeze_ready": false,
+  "blockers": [
+    "train_steps_per_candidate",
+    "n_seeds",
+    "candidates_per_arm",
+    "lambda_frozen"
+  ]
+}
