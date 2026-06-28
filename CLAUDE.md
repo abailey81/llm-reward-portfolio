@@ -54,8 +54,9 @@ This repo is the **unification of two lines**: A = the audited *experimental eng
 
 ## The keystone
 **Phase 0 is the gate.** Every compute/cost/timeline figure is an estimate until
-`scripts/smoke_test.py` trains SB3 SAC **and** sb3-contrib TQC on the online path on the RTX 4090,
-proves the loss falls, and reports minutes-per-run. Do Phase 0 before building anything downstream.
+`scripts/smoke_test.py` trains SB3 SAC **and** sb3-contrib TQC on the online path on the owned RTX 4050
+(dev/Phase-0; the rented RTX 4090 is the campaign GPU — ADR-023), proves the loss falls, and reports
+minutes-per-run. Do Phase 0 before building anything downstream.
 
 ## Run-first inventory (every session)
 ```bash
@@ -68,10 +69,22 @@ pytest -q 2>/dev/null | tail -20
 ```
 
 ## The two distinct "distributional" axes — DO NOT CONFLATE (audit A-1)
-- **THE CONTRIBUTION (H2) = the FEEDBACK CHANNEL.** Does feeding the LLM reward-designer the
-  *realized-return distribution* beat feeding it a scalar? Arms vary **only the feedback block**; the
-  **agent is held fixed (SB3 SAC)**. The distributional feedback is **measured off-critic** from
-  realized returns by a separate estimator (`src/feedback/measurement.py`), so it works on any agent.
+- **THE CONTRIBUTION (H2) = the FEEDBACK CHANNEL.** Does feeding the LLM reward-designer
+  **multi-level tail-risk feedback** — six left-tail scalars (`cvar_05`/`10`/`25`/`01`,
+  `left_tail_mass`, `robust_skew`; a coherent-risk profile of the realized-return *lower tail*, **not**
+  the full distribution — R53) beat feeding it a **scalar** performance number? Arms vary **only the
+  feedback block**; the **agent is held fixed (SB3 SAC)**. The tail-risk feedback is a
+  **critic-agnostic post-hoc estimator** (`src/feedback/measurement.py`): it reads no Q-network and
+  fits only on *realized* returns, so it is architecture-independent (works against the SAC mean critic,
+  the TQC quantile critic, anything).
+  - **Honesty (do not equivocate):** "critic-agnostic" is NOT "agent-independent." The estimator fits
+    the **trained policy's OWN realized returns under the candidate reward**, so the fed tail is
+    **endogenous** to the agent it steers. H2 thus compares two coupled reward -> policy -> measurement
+    loops (scalar-fed vs tail-fed) — the legitimate object of study, not an exogenous risk measurement.
+    The train/val split (fed in-sample, scored out-of-sample) mitigates selection-overfitting but does
+    NOT break this endogeneity. Never write "works on any agent / agent-independent." (See the
+    `measurement.py` module docstring and `README.md` "What is / isn't in the fed vector"; the formal
+    distributional-sufficiency argument in the theory spine is unaffected.)
 - **A SECONDARY, NAMED experiment = the AGENT'S CRITIC** (SAC mean-critic vs TQC quantile-critic).
   Known in the literature (DSAC, Tail-Safe); **not the novelty**; run only if its Phase-0 smoke is green.
 

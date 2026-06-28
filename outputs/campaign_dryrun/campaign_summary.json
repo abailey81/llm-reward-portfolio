@@ -1,0 +1,31 @@
+{
+  "arms": [
+    {
+      "arm": "distributional",
+      "status": "winner_not_testable",
+      "reason": "val_window (599, 600) must start at/after train_window end 599 + max(embargo 21, lookback 60) (disjoint, purged splits, R18)"
+    },
+    {
+      "arm": "h1_baselines",
+      "status": "error",
+      "reason": "val_window (599, 600) must start at/after train_window end 599 + max(embargo 21, lookback 60) (disjoint, purged splits, R18)"
+    }
+  ],
+  "train_window": [
+    60,
+    599
+  ],
+  "val_window": [
+    599,
+    600
+  ],
+  "test_window": [
+    600,
+    601
+  ],
+  "wall_clock_s": 5.8,
+  "freeze": {
+    "enforced": false,
+    "frozen": null
+  }
+}

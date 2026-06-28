@@ -7,8 +7,8 @@ VENV ?= .venv
 VPY := $(VENV)/bin/python
 
 .DEFAULT_GOAL := help
-.PHONY: help venv install install-dev test test-fast lint format typecheck \
-        smoke freeze power campaign analyze clean
+.PHONY: help venv install install-dev test test-fast lint format typecheck audit mutation \
+        smoke freeze freeze-check power campaign analyze lock clean
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -25,11 +25,15 @@ install:  ## Install the package (full deps incl. torch/SB3 — for training)
 install-dev:  ## Install with dev extras
 	$(VPY) -m pip install -e ".[dev]"
 
-test:  ## Run the full test suite
+test:  ## Run the full test suite (engine + data_pipeline)
 	$(VPY) -m pytest
+	$(MAKE) test-pipeline
 
 test-fast:  ## Run tests, skipping agent-training ('slow') tests
 	$(VPY) -m pytest -m "not slow"
+
+test-pipeline:  ## Run the data_pipeline tests (isolated: 'src' = data_pipeline's package, not the engine's)
+	PYTHONPATH=data_pipeline $(VPY) -m pytest data_pipeline/tests --noconftest -o addopts=""
 
 lint:  ## Ruff lint
 	$(VPY) -m ruff check src tests scripts
@@ -40,20 +44,47 @@ format:  ## Ruff format
 typecheck:  ## mypy
 	$(VPY) -m mypy src
 
+audit:  ## Supply-chain CVE scan of the pinned dependencies (pip-audit; install: pip install pip-audit)
+	$(VPY) -m pip_audit || echo "pip-audit not installed: $(VPY) -m pip install pip-audit"
+
+mutation:  ## Mutation-testing exhibit on the core numeric modules (deterministic; see docs/TEST_RIGOR.md)
+	$(VPY) scripts/mutation_probe.py --module src/backtest/metrics.py
+	$(VPY) scripts/mutation_probe.py --module src/feedback/measurement.py
+
 smoke:  ## Phase 0 gate — SB3 SAC + TQC on the RTX 4090, online, timed
 	$(VPY) scripts/smoke_test.py
 
 power:  ## Phase 1.C — power analysis
 	$(VPY) scripts/power_analysis.py
 
-freeze:  ## Phase 1.E — hash + freeze the pre-registration
+freeze:  ## Phase 1.E — hash + freeze the pre-registration (WRITE: user-only, run once)
 	$(VPY) scripts/freeze.py
+
+freeze-check:  ## CI drift guard — verify prose<->yaml + Phase-0 + hash (no writes)
+	$(VPY) scripts/freeze.py --check
 
 campaign:  ## Phase 3 — run the campaign (config/campaign.yaml)
 	$(VPY) scripts/run_campaign.py
 
 analyze:  ## Phase 4 — hypothesis tests + tables
 	$(VPY) scripts/analyze_results.py
+
+# Rank 14 — hash-pinned lockfile for reproducibility. GATED: the lockfile MUST be generated on the
+# Linux GPU box, because the pinned CUDA wheels (torch 2.6.0+cu124 etc., ADR-030/032) only resolve
+# against the cu124 index on Linux — a lock produced on this Windows/dev machine would pin the wrong
+# (CPU / win) wheels. Prefer `uv pip compile ... --generate-hashes` (true hash-pinning); fall back to
+# `pip freeze` if uv is absent. DO NOT commit a lockfile produced off the GPU box.
+LOCKFILE ?= requirements.lock
+lock:  ## [GATED: Linux GPU box] Generate the hash-pinned $(LOCKFILE) (uv compile; pip-freeze fallback)
+	@echo "[lock] GATED — run this ONLY on the Linux RTX-4090 box (cu124 wheels); see ADR-030/032."
+	@if command -v uv >/dev/null 2>&1; then \
+		echo "[lock] uv pip compile pyproject.toml --all-extras --generate-hashes -> $(LOCKFILE)"; \
+		uv pip compile pyproject.toml --all-extras --generate-hashes -o $(LOCKFILE); \
+	else \
+		echo "[lock] uv not found — FALLBACK: $(VPY) -m pip freeze (NOT hash-pinned) -> $(LOCKFILE)"; \
+		$(VPY) -m pip freeze > $(LOCKFILE); \
+	fi
+	@echo "[lock] wrote $(LOCKFILE). Verify the torch build is the cu124 GPU wheel before committing."
 
 clean:  ## Remove caches and build artifacts
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

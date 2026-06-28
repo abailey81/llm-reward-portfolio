@@ -1,0 +1,9 @@
+Reflect on the previous candidate's results and propose an improved reward function. Feedback from the previous candidate:
+Your previous reward scored: 0.00 (validation Deflated Sharpe).
+Reference constants (inert; no diagnostic content):
+  reference value 1: +0.000
+  reference value 2: +0.000
+  reference value 3: +0.000
+  reference value 4: +0.000
+  reference value 5: +0.000
+  reference value 6: +0.000

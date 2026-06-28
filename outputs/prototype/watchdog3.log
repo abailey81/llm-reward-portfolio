@@ -1,0 +1,81 @@
+06:18:59 RAM 64.5%(5.6G) GPU33% done=235/240 err=0 anom=64 | bayes:24000:0.28
+06:19:19 RAM 61.7%(6.0G) GPU25% done=236/240 err=0 anom=64 | 
+06:19:39 RAM 61.9%(6.0G) GPU23% done=236/240 err=0 anom=64 | bayes:1000:3
+06:20:00 RAM 61.9%(6.0G) GPU24% done=236/240 err=0 anom=64 | bayes:2000:5.3
+06:20:20 RAM 62.0%(5.9G) GPU42% done=236/240 err=0 anom=64 | bayes:3000:3.1
+06:20:40 RAM 62.1%(5.9G) GPU33% done=236/240 err=0 anom=64 | bayes:4000:2.3
+06:21:00 RAM 62.2%(5.9G) GPU24% done=236/240 err=0 anom=64 | bayes:5000:1.8
+06:21:20 RAM 62.2%(5.9G) GPU32% done=236/240 err=0 anom=64 | bayes:6000:0.65
+06:21:40 RAM 62.3%(5.9G) GPU34% done=236/240 err=0 anom=64 | bayes:7000:1.4
+06:22:00 RAM 62.5%(5.9G) GPU27% done=236/240 err=0 anom=64 | bayes:8000:2.4
+06:22:20 RAM 62.5%(5.9G) GPU33% done=236/240 err=0 anom=64 | bayes:9000:90
+06:22:40 RAM 62.6%(5.8G) GPU34% done=236/240 err=0 anom=64 | bayes:10000:1.6
+06:23:00 RAM 62.7%(5.8G) GPU27% done=236/240 err=0 anom=64 | bayes:11000:0.98
+06:23:20 RAM 62.8%(5.8G) GPU33% done=236/240 err=0 anom=64 | bayes:12000:7.2
+06:23:40 RAM 62.9%(5.8G) GPU29% done=236/240 err=0 anom=64 | bayes:13000:2.3
+06:24:00 RAM 62.9%(5.8G) GPU24% done=236/240 err=0 anom=64 | bayes:14000:0.71
+06:24:20 RAM 63.5%(5.7G) GPU40% done=236/240 err=0 anom=64 | bayes:15000:1
+06:24:40 RAM 63.6%(5.7G) GPU43% done=236/240 err=0 anom=64 | bayes:16000:0.4
+06:25:00 RAM 63.7%(5.7G) GPU33% done=236/240 err=0 anom=64 | bayes:17000:0.19
+06:25:20 RAM 63.8%(5.7G) GPU25% done=236/240 err=0 anom=64 | bayes:17000:0.19
+06:25:40 RAM 63.8%(5.7G) GPU34% done=236/240 err=0 anom=64 | bayes:18000:0.35
+06:26:00 RAM 64.0%(5.6G) GPU33% done=236/240 err=0 anom=64 | bayes:19000:1
+06:26:20 RAM 64.0%(5.6G) GPU32% done=236/240 err=0 anom=64 | bayes:21000:5
+06:26:40 RAM 64.2%(5.6G) GPU32% done=236/240 err=0 anom=64 | bayes:22000:0.11
+06:27:00 RAM 64.2%(5.6G) GPU33% done=236/240 err=0 anom=64 | bayes:23000:0.045
+06:27:20 RAM 64.4%(5.6G) GPU34% done=236/240 err=0 anom=64 | bayes:24000:0.56
+06:27:40 RAM 64.1%(5.6G) GPU34% done=236/240 err=0 anom=64 | bayes:25000:0.28
+06:28:00 RAM 61.9%(5.9G) GPU24% done=237/240 err=0 anom=64 | 
+06:28:20 RAM 62.0%(5.9G) GPU23% done=237/240 err=0 anom=64 | bayes:1000:3.2
+06:28:40 RAM 61.2%(6.1G) GPU41% done=237/240 err=0 anom=64 | bayes:2000:6.8
+06:29:00 RAM 61.2%(6.1G) GPU24% done=237/240 err=0 anom=64 | bayes:3000:4.6
+06:29:20 RAM 61.3%(6.0G) GPU30% done=237/240 err=0 anom=64 | bayes:4000:2.9
+06:29:40 RAM 61.5%(6.0G) GPU34% done=237/240 err=0 anom=64 | bayes:5000:3.5
+06:30:00 RAM 61.5%(6.0G) GPU36% done=237/240 err=0 anom=64 | bayes:6000:1.2
+06:30:20 RAM 60.5%(6.2G) GPU25% done=237/240 err=0 anom=64 | bayes:7000:1.2
+06:30:40 RAM 60.5%(6.2G) GPU25% done=237/240 err=0 anom=64 | bayes:8000:2.7
+06:31:00 RAM 60.6%(6.2G) GPU32% done=237/240 err=0 anom=64 | bayes:9000:6.2
+06:31:20 RAM 60.8%(6.1G) GPU33% done=237/240 err=0 anom=64 | bayes:10000:0.63
+06:31:40 RAM 60.9%(6.1G) GPU23% done=237/240 err=0 anom=64 | bayes:11000:0.93
+06:32:00 RAM 61.0%(6.1G) GPU25% done=237/240 err=0 anom=64 | bayes:12000:0.61
+06:32:20 RAM 61.1%(6.1G) GPU24% done=237/240 err=0 anom=64 | bayes:13000:1.3
+06:32:40 RAM 61.1%(6.1G) GPU33% done=237/240 err=0 anom=64 | bayes:14000:0.45
+06:33:00 RAM 61.1%(6.1G) GPU28% done=237/240 err=0 anom=64 | bayes:15000:1
+06:33:20 RAM 61.2%(6.1G) GPU41% done=237/240 err=0 anom=64 | bayes:16000:0.66
+06:33:40 RAM 61.3%(6.0G) GPU42% done=237/240 err=0 anom=64 | bayes:17000:0.43
+06:34:00 RAM 61.5%(6.0G) GPU33% done=237/240 err=0 anom=64 | bayes:18000:0.35
+06:34:20 RAM 61.6%(6.0G) GPU26% done=237/240 err=0 anom=64 | bayes:19000:0.64
+06:34:40 RAM 61.7%(6.0G) GPU34% done=237/240 err=0 anom=64 | bayes:20000:0.21
+06:35:00 RAM 61.8%(6.0G) GPU43% done=237/240 err=0 anom=64 | bayes:21000:12
+06:35:20 RAM 61.8%(6.0G) GPU34% done=237/240 err=0 anom=64 | bayes:22000:0.051
+06:35:40 RAM 61.9%(5.9G) GPU41% done=237/240 err=0 anom=64 | bayes:23000:0.094
+06:36:00 RAM 62.0%(5.9G) GPU23% done=237/240 err=0 anom=64 | bayes:24000:0.19
+06:36:20 RAM 59.9%(6.3G) GPU39% done=238/240 err=0 anom=64 | 
+06:36:40 RAM 59.9%(6.3G) GPU28% done=238/240 err=0 anom=64 | bayes:1000:2.7
+06:37:00 RAM 60.1%(6.2G) GPU26% done=238/240 err=0 anom=64 | bayes:2000:2.7
+06:37:20 RAM 60.2%(6.2G) GPU26% done=238/240 err=0 anom=64 | bayes:3000:4
+06:37:40 RAM 60.2%(6.2G) GPU25% done=238/240 err=0 anom=64 | bayes:4000:2.5
+06:38:00 RAM 60.3%(6.2G) GPU25% done=238/240 err=0 anom=64 | bayes:5000:2
+06:38:20 RAM 60.4%(6.2G) GPU26% done=238/240 err=0 anom=64 | bayes:6000:1.7
+06:38:40 RAM 60.6%(6.2G) GPU26% done=238/240 err=0 anom=64 | bayes:7000:1.9
+06:39:00 RAM 60.6%(6.2G) GPU33% done=238/240 err=0 anom=64 | bayes:8000:1.6
+06:39:20 RAM 60.8%(6.1G) GPU24% done=238/240 err=0 anom=64 | bayes:9000:50
+06:39:40 RAM 60.8%(6.1G) GPU41% done=238/240 err=0 anom=64 | bayes:10000:0.54
+06:40:00 RAM 60.9%(6.1G) GPU26% done=238/240 err=0 anom=64 | bayes:11000:1.9
+06:40:20 RAM 61.0%(6.1G) GPU42% done=238/240 err=0 anom=64 | bayes:12000:3.5
+06:40:40 RAM 61.1%(6.1G) GPU23% done=238/240 err=0 anom=64 | bayes:13000:1.1
+06:41:00 RAM 61.2%(6.1G) GPU43% done=238/240 err=0 anom=64 | bayes:14000:1.1
+06:41:20 RAM 61.4%(6.0G) GPU24% done=238/240 err=0 anom=64 | bayes:15000:1.5
+06:41:40 RAM 61.4%(6.0G) GPU27% done=238/240 err=0 anom=64 | bayes:16000:0.63
+06:42:00 RAM 61.6%(6.0G) GPU33% done=238/240 err=0 anom=64 | bayes:17000:0.27
+06:42:20 RAM 61.6%(6.0G) GPU33% done=238/240 err=0 anom=64 | bayes:18000:0.19
+06:42:40 RAM 61.7%(6.0G) GPU45% done=238/240 err=0 anom=64 | bayes:19000:1.4
+06:43:00 RAM 61.5%(6.0G) GPU44% done=238/240 err=0 anom=64 | bayes:20000:0.75
+06:43:20 RAM 61.6%(6.0G) GPU26% done=238/240 err=0 anom=64 | bayes:21000:4
+06:43:40 RAM 61.6%(6.0G) GPU29% done=238/240 err=0 anom=64 | bayes:22000:0.24
+06:44:00 RAM 61.8%(6.0G) GPU40% done=238/240 err=0 anom=64 | bayes:23000:0.069
+06:44:20 RAM 61.8%(6.0G) GPU42% done=238/240 err=0 anom=64 | bayes:24000:0.46
+06:44:40 RAM 56.3%(6.8G) GPU0% done=239/240 err=0 anom=64 | 
+06:45:00 RAM 52.7%(7.4G) GPU?% done=239/240 err=0 anom=64 | 
+06:45:20 RAM 52.3%(7.5G) GPU?% done=239/240 err=0 anom=64 | 
+06:45:40 RAM 52.5%(7.4G) GPU?% done=239/240 err=0 anom=64 | 

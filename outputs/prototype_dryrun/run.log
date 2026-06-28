@@ -1,0 +1,8 @@
+2026-06-23 06:59:10 | INFO    | monitor | run_start title=Prototype (parallel) model=claude-sonnet-4-6 arms=3 candidates_per_arm=2 train_steps=200 run_dir=outputs\prototype_dryrun
+2026-06-23 06:59:17 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c0 fitness=0.00198599 status=ok secs=6.27876 run_done=1 run_total=6
+2026-06-23 06:59:17 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c1 fitness=0.0022148 status=ok secs=6.40361 run_done=2 run_total=6
+2026-06-23 06:59:17 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c0 fitness=0.00192464 status=ok secs=6.53635 run_done=3 run_total=6
+2026-06-23 06:59:17 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c1 fitness=0.00210391 status=ok secs=6.40224 run_done=4 run_total=6
+2026-06-23 06:59:20 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c0 fitness=0.00186471 status=ok secs=2.48472 run_done=5 run_total=6
+2026-06-23 06:59:22 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c1 fitness=0.00181977 status=ok secs=2.41714 run_done=6 run_total=6
+2026-06-23 06:59:23 | INFO    | monitor | run_end status=done elapsed_s=13.4 anomalies=0 best_fitness={'distributional': 0.002103906600897327, 'random_search': 0.00221480039254789...

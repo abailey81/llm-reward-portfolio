@@ -20,6 +20,6 @@
 
 **Gold construction.** Model-ready panels are built exclusively through availability-lagged as-of joins with embargoed splits materialized to explicit session lists (⟨TBD: split session counts⟩), and leakage is asserted by tests.
 
-**EDA.** Profiling confirmed fat tails, volatility clustering and correlation-regime dynamics (median excess kurtosis 11.5), motivating the CVaR-penalised fitness, the 60-day lookback and the 3-state filtered HMM.
+**EDA.** Profiling confirmed fat tails, volatility clustering and correlation-regime dynamics (median per-asset excess kurtosis **11.6** across the 30-name development cohort — equivalently **13.2** across all 953 RICs; recomputed first-hand 2026-06-26 from the frozen `returns_panel_univ3.parquet` with `scipy.stats.kurtosis(fisher=True)`, dropna per name, n≥30; the **49.9** that appears elsewhere is the single-name *maximum* — Citigroup `C.N` through the GFC — not a competing median), motivating the CVaR-penalised fitness, the 60-day lookback and the 3-state filtered HMM.
 
 **Quality.** A per-series scoreboard (⟨TBD: median score⟩) and a raw→gold lineage map close the loop from API call to model input.

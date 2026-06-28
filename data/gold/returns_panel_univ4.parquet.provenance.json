@@ -1,0 +1,17 @@
+{
+  "cols": 953,
+  "format": "parquet",
+  "frozen_utc": "2026-06-25T01:54:30.195323+00:00",
+  "layer": "gold",
+  "name": "returns_panel_univ4.parquet",
+  "provenance": {
+    "stage": "panel.build_gold",
+    "vendor": "derived"
+  },
+  "relpath": "data\\gold\\returns_panel_univ4.parquet",
+  "row_hash": "49d514b573093ca75e3a0f5f31fcee79d0ce20fa874bfec0343f6bf7ebb04e66",
+  "rows": 5283,
+  "run_id": "build_universe",
+  "sha256": "a0fde11fd9582ae7903e21d5e2f33a0020797277a4b246fab0c2035e40a29561",
+  "vendor": "derived"
+}

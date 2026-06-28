@@ -1,0 +1,9 @@
+Reflect on the previous candidate's results and propose an improved reward function. Feedback from the previous candidate:
+Your previous reward scored: 0.00 (validation Deflated Sharpe).
+Realized-return tail diagnostics (training period):
+  CVaR 5%: -0.032
+  CVaR 10%: -0.024
+  CVaR 25%: -0.015
+  CVaR 1%: -0.054  (high-variance estimate)
+  left-tail mass: +0.024
+  left-tail skew: -0.067

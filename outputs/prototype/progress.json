@@ -1,0 +1,91 @@
+{
+ "title": "Prototype (parallel)",
+ "model": "claude-sonnet-4-6",
+ "pid": 4272,
+ "started": "2026-06-20T12:48:18",
+ "updated": "2026-06-21T06:44:40",
+ "elapsed_s": 64582.0,
+ "phase": "done",
+ "arms": {
+  "total": 6,
+  "done": 0,
+  "current": null,
+  "current_idx": 0
+ },
+ "candidates": {
+  "in_arm_total": 40,
+  "in_arm_done": 0,
+  "run_total": 240,
+  "run_done": 239,
+  "current": 0,
+  "gen": 0,
+  "errors": 0
+ },
+ "training": {
+  "step": 25000,
+  "total": 25000,
+  "fps": null,
+  "actor_loss": -88.1028823852539,
+  "critic_loss": 0.06285326182842255,
+  "ent_coef": 0.0008305681985802948,
+  "ep_rew_mean": null
+ },
+ "best_fitness": {
+  "random_search": 0.05179855526512889,
+  "bayes_opt": 0.019807629374171527,
+  "distributional": 0.06014744945646495,
+  "scalar_cvar5": 0.09473436667490243,
+  "scalar": 0.10998743062247152,
+  "placebo": 0.025979242488941644
+ },
+ "anomalies": {
+  "count": 64,
+  "recent": [
+   {
+    "ts": "2026-06-21T01:45:02",
+    "kind": "critic_explosion",
+    "detail": "critic_loss=1.47e+04 >> median 5.53",
+    "step": 22000
+   },
+   {
+    "ts": "2026-06-21T01:45:23",
+    "kind": "critic_explosion",
+    "detail": "critic_loss=8.5e+03 >> median 6.9",
+    "step": 23000
+   },
+   {
+    "ts": "2026-06-21T01:45:44",
+    "kind": "critic_explosion",
+    "detail": "critic_loss=2.55e+05 >> median 9.23",
+    "step": 24000
+   },
+   {
+    "ts": "2026-06-21T01:46:05",
+    "kind": "critic_explosion",
+    "detail": "critic_loss=5.97e+04 >> median 32.6",
+    "step": 25000
+   },
+   {
+    "ts": "2026-06-21T03:11:09",
+    "kind": "critic_explosion",
+    "detail": "critic_loss=87.7 >> median 0.63",
+    "step": 9000
+   }
+  ]
+ },
+ "resources": {
+  "gpu_util": 1,
+  "gpu_mem_mib": [
+   220,
+   6141
+  ],
+  "gpu_temp": 46,
+  "cpu_pct": 10.2,
+  "ram_pct": 56.1,
+  "proc_rss_mib": 260
+ },
+ "eta_s": 526.0,
+ "eta": null,
+ "active": [],
+ "parallel": true
+}

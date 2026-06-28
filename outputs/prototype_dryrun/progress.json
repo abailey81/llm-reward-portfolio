@@ -1,0 +1,57 @@
+{
+ "title": "Prototype (parallel)",
+ "model": "claude-sonnet-4-6",
+ "pid": 10828,
+ "started": "2026-06-23T06:59:10",
+ "updated": "2026-06-23T06:59:23",
+ "elapsed_s": 13.6,
+ "phase": "done",
+ "arms": {
+  "total": 3,
+  "done": 0,
+  "current": null,
+  "current_idx": 0
+ },
+ "candidates": {
+  "in_arm_total": 2,
+  "in_arm_done": 0,
+  "run_total": 6,
+  "run_done": 6,
+  "current": 0,
+  "gen": 0,
+  "errors": 0
+ },
+ "training": {
+  "step": 200,
+  "total": 200,
+  "fps": null,
+  "actor_loss": -42.563316345214844,
+  "critic_loss": 2.211021900177002,
+  "ent_coef": 0.9706876873970032,
+  "ep_rew_mean": null
+ },
+ "best_fitness": {
+  "distributional": 0.002103906600897327,
+  "random_search": 0.0022148003925478994,
+  "bayes_opt": 0.001864707489177778
+ },
+ "anomalies": {
+  "count": 0,
+  "recent": []
+ },
+ "resources": {
+  "gpu_util": 0,
+  "gpu_mem_mib": [
+   220,
+   6141
+  ],
+  "gpu_temp": 46,
+  "cpu_pct": 11.6,
+  "ram_pct": 56.2,
+  "proc_rss_mib": 528
+ },
+ "eta_s": 0.0,
+ "eta": null,
+ "active": [],
+ "parallel": true
+}

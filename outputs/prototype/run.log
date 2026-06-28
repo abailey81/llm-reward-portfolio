@@ -1,0 +1,465 @@
+2026-06-20 12:48:18 | INFO    | monitor | run_start title=Prototype (parallel) model=claude-sonnet-4-6 arms=6 candidates_per_arm=40 train_steps=25000 run_dir=outputs\prototype
+2026-06-20 12:48:37 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 12:48:38 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 12:48:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 12:48:45 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 12:57:07 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c1 fitness=0.0022882 status=ok secs=528.402 run_done=1 run_total=240
+2026-06-20 12:57:11 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c0 fitness=0.000190925 status=ok secs=531.812 run_done=2 run_total=240
+2026-06-20 13:05:53 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c2 fitness=4.78428e-06 status=ok secs=526.062 run_done=3 run_total=240
+2026-06-20 13:05:56 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c0 fitness=0.00870097 status=ok secs=525.422 run_done=4 run_total=240
+2026-06-20 13:06:16 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:06:17 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:14:36 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c0 fitness=0.00115117 status=ok secs=522.813 run_done=5 run_total=240
+2026-06-20 13:14:41 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g0-c0 fitness=0.00337274 status=ok secs=525.334 run_done=6 run_total=240
+2026-06-20 13:14:54 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:15:06 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:23:21 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g0-c0 fitness=0.011015 status=ok secs=525.18 run_done=7 run_total=240
+2026-06-20 13:23:27 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g0-c0 fitness=0.0141565 status=ok secs=525.685 run_done=8 run_total=240
+2026-06-20 13:32:12 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c3 fitness=0.0517986 status=ok secs=530.417 run_done=9 run_total=240
+2026-06-20 13:32:21 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c1 fitness=5.86322e-05 status=ok secs=533.759 run_done=10 run_total=240
+2026-06-20 13:32:33 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:32:40 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:41:06 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c1 fitness=0.000345618 status=ok secs=533.929 run_done=11 run_total=240
+2026-06-20 13:41:18 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g0-c1 fitness=0.0261775 status=ok secs=536.667 run_done=12 run_total=240
+2026-06-20 13:41:27 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:41:45 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:49:49 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g0-c1 fitness=0.0251264 status=ok secs=523.239 run_done=13 run_total=240
+2026-06-20 13:50:08 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g0-c1 fitness=0.00872553 status=ok secs=529.954 run_done=14 run_total=240
+2026-06-20 13:58:34 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c4 fitness=0.00912496 status=ok secs=524.871 run_done=15 run_total=240
+2026-06-20 13:58:54 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c2 fitness=0.0198076 status=ok secs=526.204 run_done=16 run_total=240
+2026-06-20 13:58:59 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:59:13 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.16e+03 >> median 1.14 step=1000
+2026-06-20 13:59:19 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 13:59:34 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.18e+03 >> median 1.14 step=2000
+2026-06-20 13:59:55 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.07e+03 >> median 1.14 step=3000
+2026-06-20 14:00:17 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=278 >> median 1.14 step=4000
+2026-06-20 14:00:38 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=144 >> median 1.14 step=5000
+2026-06-20 14:01:20 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=101 >> median 0.936 step=7000
+2026-06-20 14:01:41 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=132 >> median 0.936 step=8000
+2026-06-20 14:02:02 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=188 >> median 0.965 step=9000
+2026-06-20 14:02:23 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=198 >> median 1.33 step=10000
+2026-06-20 14:03:05 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=384 >> median 1.5 step=12000
+2026-06-20 14:06:14 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=246 >> median 2 step=21000
+2026-06-20 14:07:23 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c2 fitness=0.000889505 status=ok secs=528.633 run_done=17 run_total=240
+2026-06-20 14:07:42 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g0-c2 fitness=0.00262412 status=ok secs=527.682 run_done=18 run_total=240
+2026-06-20 14:07:47 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 14:08:02 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 14:16:14 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g0-c2 fitness=0.000996435 status=ok secs=530.899 run_done=19 run_total=240
+2026-06-20 14:16:30 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g0-c2 fitness=0.0102662 status=ok secs=528.032 run_done=20 run_total=240
+2026-06-20 14:25:02 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c5 fitness=0.000866031 status=ok secs=527.651 run_done=21 run_total=240
+2026-06-20 14:25:17 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c3 fitness=0.00130518 status=ok secs=526.71 run_done=22 run_total=240
+2026-06-20 14:25:27 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 14:25:44 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 14:33:53 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c3 fitness=0.0030477 status=ok secs=531.206 run_done=23 run_total=240
+2026-06-20 14:34:05 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g0-c3 fitness=0.000867874 status=ok secs=528.144 run_done=24 run_total=240
+2026-06-20 14:34:17 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 14:34:28 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 14:42:39 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g0-c3 fitness=0.000530951 status=ok secs=526.004 run_done=25 run_total=240
+2026-06-20 14:42:53 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g0-c3 fitness=1.1074e-05 status=ok secs=527.544 run_done=26 run_total=240
+2026-06-20 14:51:26 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c6 fitness=0.00108149 status=ok secs=526.515 run_done=27 run_total=240
+2026-06-20 14:51:38 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c4 fitness=6.78792e-06 status=ok secs=525.551 run_done=28 run_total=240
+2026-06-20 15:00:11 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g0-c4 fitness=0.00455522 status=ok secs=525.035 run_done=29 run_total=240
+2026-06-20 15:00:27 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g0-c4 fitness=0.0947344 status=ok secs=528.529 run_done=30 run_total=240
+2026-06-20 15:00:30 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:00:46 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:08:57 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g0-c4 fitness=0.00569765 status=ok secs=525.988 run_done=31 run_total=240
+2026-06-20 15:09:13 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g0-c4 fitness=0.0060025 status=ok secs=526.262 run_done=32 run_total=240
+2026-06-20 15:09:14 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:09:30 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:12:20 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=93.3 >> median 0.875 step=9000
+2026-06-20 15:17:44 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c7 fitness=0.00681577 status=ok secs=527.192 run_done=33 run_total=240
+2026-06-20 15:17:57 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c5 fitness=6.30367e-05 status=ok secs=524.126 run_done=34 run_total=240
+2026-06-20 15:18:04 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:18:04 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:26:29 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g1-c0 fitness=0.00815103 status=ok secs=524.975 run_done=35 run_total=240
+2026-06-20 15:26:46 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c8 fitness=0.00144179 status=ok secs=528.09 run_done=36 run_total=240
+2026-06-20 15:26:47 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:27:05 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:35:17 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g1-c0 fitness=0.00450909 status=ok secs=528.059 run_done=37 run_total=240
+2026-06-20 15:35:30 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g1-c0 fitness=0.0166656 status=ok secs=524.252 run_done=38 run_total=240
+2026-06-20 15:44:04 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c9 fitness=0.00125387 status=ok secs=526.542 run_done=39 run_total=240
+2026-06-20 15:44:15 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c6 fitness=9.68672e-05 status=ok secs=524.637 run_done=40 run_total=240
+2026-06-20 15:44:23 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:44:34 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:52:51 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g1-c1 fitness=0.000582538 status=ok secs=527.286 run_done=41 run_total=240
+2026-06-20 15:53:01 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g1-c1 fitness=0.0126816 status=ok secs=526.398 run_done=42 run_total=240
+2026-06-20 15:53:10 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 15:53:19 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:01:36 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g1-c1 fitness=0.00187473 status=ok secs=524.504 run_done=43 run_total=240
+2026-06-20 16:01:48 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g1-c1 fitness=0.00120824 status=ok secs=526.526 run_done=44 run_total=240
+2026-06-20 16:10:23 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c10 fitness=0.00704319 status=ok secs=527.147 run_done=45 run_total=240
+2026-06-20 16:10:32 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c7 fitness=0.000895647 status=ok secs=524.396 run_done=46 run_total=240
+2026-06-20 16:10:39 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:10:50 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:19:08 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g1-c2 fitness=0.000301911 status=ok secs=524.823 run_done=47 run_total=240
+2026-06-20 16:19:22 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g1-c2 fitness=0.00156446 status=ok secs=529.516 run_done=48 run_total=240
+2026-06-20 16:19:25 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:19:40 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:27:52 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g1-c2 fitness=0.00592914 status=ok secs=523.594 run_done=49 run_total=240
+2026-06-20 16:28:11 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g1-c2 fitness=0.000339458 status=ok secs=529.433 run_done=50 run_total=240
+2026-06-20 16:36:39 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c11 fitness=0.00175713 status=ok secs=527.69 run_done=51 run_total=240
+2026-06-20 16:36:57 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:36:57 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c8 fitness=0.000366369 status=ok secs=525.697 run_done=52 run_total=240
+2026-06-20 16:37:21 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:45:25 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g1-c3 fitness=3.80712e-05 status=ok secs=525.357 run_done=53 run_total=240
+2026-06-20 16:45:44 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g1-c3 fitness=0.000137301 status=ok secs=527.074 run_done=54 run_total=240
+2026-06-20 16:45:50 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:46:03 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 16:54:08 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g1-c3 fitness=0.00853039 status=ok secs=523.64 run_done=55 run_total=240
+2026-06-20 16:54:31 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g1-c3 fitness=0.00330415 status=ok secs=526.973 run_done=56 run_total=240
+2026-06-20 17:02:53 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c12 fitness=0.000169814 status=ok secs=524.006 run_done=57 run_total=240
+2026-06-20 17:03:24 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g1-c4 fitness=0.0234029 status=ok secs=532.266 run_done=58 run_total=240
+2026-06-20 17:03:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:11:36 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c9 fitness=0.00375281 status=ok secs=523.285 run_done=59 run_total=240
+2026-06-20 17:12:12 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g1-c4 fitness=0.00565973 status=ok secs=528.699 run_done=60 run_total=240
+2026-06-20 17:12:32 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:20:22 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g1-c4 fitness=0.00166864 status=ok secs=526.467 run_done=61 run_total=240
+2026-06-20 17:20:39 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:20:57 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g1-c4 fitness=0.00193831 status=ok secs=524.812 run_done=62 run_total=240
+2026-06-20 17:21:15 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:21:20 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:29:08 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c13 fitness=0.00274535 status=ok secs=525.605 run_done=63 run_total=240
+2026-06-20 17:29:42 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g2-c0 fitness=0.0314284 status=ok secs=524.792 run_done=64 run_total=240
+2026-06-20 17:30:02 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:37:53 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c10 fitness=0.00558338 status=ok secs=524.768 run_done=65 run_total=240
+2026-06-20 17:38:32 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g2-c0 fitness=0.000169151 status=ok secs=529.61 run_done=66 run_total=240
+2026-06-20 17:38:48 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:46:45 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c14 fitness=4.78428e-06 status=ok secs=532.269 run_done=67 run_total=240
+2026-06-20 17:47:05 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:47:22 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g2-c0 fitness=0.0136875 status=ok secs=530.444 run_done=68 run_total=240
+2026-06-20 17:47:45 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:55:29 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g2-c0 fitness=0.000197997 status=ok secs=523.432 run_done=69 run_total=240
+2026-06-20 17:55:48 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 17:56:19 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g2-c1 fitness=0.00202022 status=ok secs=536.458 run_done=70 run_total=240
+2026-06-20 18:04:20 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g2-c1 fitness=0.00224267 status=ok secs=531.221 run_done=71 run_total=240
+2026-06-20 18:05:09 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c15 fitness=0.0158948 status=ok secs=530.278 run_done=72 run_total=240
+2026-06-20 18:05:27 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:13:06 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c11 fitness=0.00491582 status=ok secs=525.369 run_done=73 run_total=240
+2026-06-20 18:13:24 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:13:56 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g2-c1 fitness=0.00010479 status=ok secs=526.949 run_done=74 run_total=240
+2026-06-20 18:14:14 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:21:55 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g2-c1 fitness=0.00737254 status=ok secs=529.668 run_done=75 run_total=240
+2026-06-20 18:22:15 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:22:45 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g2-c2 fitness=0.000409559 status=ok secs=528.91 run_done=76 run_total=240
+2026-06-20 18:30:56 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g2-c2 fitness=7.85415e-05 status=ok secs=540.823 run_done=77 run_total=240
+2026-06-20 18:31:12 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:31:46 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c16 fitness=0.000121881 status=ok secs=540.708 run_done=78 run_total=240
+2026-06-20 18:39:53 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g2-c2 fitness=0.00220874 status=ok secs=537.169 run_done=79 run_total=240
+2026-06-20 18:40:10 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:40:39 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c12 fitness=0.0158518 status=ok secs=532.854 run_done=80 run_total=240
+2026-06-20 18:40:59 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:49:00 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g2-c2 fitness=0.00221193 status=ok secs=546.16 run_done=81 run_total=240
+2026-06-20 18:49:19 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:49:53 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g2-c3 fitness=0.00613809 status=ok secs=554.117 run_done=82 run_total=240
+2026-06-20 18:58:14 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g2-c3 fitness=0.00203782 status=ok secs=553.969 run_done=83 run_total=240
+2026-06-20 18:58:31 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 18:59:08 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c17 fitness=3.72223e-05 status=ok secs=554.378 run_done=84 run_total=240
+2026-06-20 18:59:24 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:07:07 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g2-c3 fitness=2.40751e-05 status=ok secs=533.367 run_done=85 run_total=240
+2026-06-20 19:08:08 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g2-c3 fitness=0.000593332 status=ok secs=540.624 run_done=86 run_total=240
+2026-06-20 19:16:03 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c13 fitness=0.00310929 status=ok secs=535.581 run_done=87 run_total=240
+2026-06-20 19:17:10 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g2-c4 fitness=0.000713645 status=ok secs=541.858 run_done=88 run_total=240
+2026-06-20 19:17:29 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:24:57 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g2-c4 fitness=0.00193633 status=ok secs=534.435 run_done=89 run_total=240
+2026-06-20 19:25:22 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:26:11 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c18 fitness=0.000136811 status=ok secs=540.449 run_done=90 run_total=240
+2026-06-20 19:26:31 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.05e+05 >> median 0.889 step=1000
+2026-06-20 19:26:53 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=6.37e+05 >> median 0.968 step=2000
+2026-06-20 19:27:15 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.09e+06 >> median 1.1 step=3000
+2026-06-20 19:27:36 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.81e+06 >> median 1.1 step=4000
+2026-06-20 19:27:59 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.37e+06 >> median 1.1 step=5000
+2026-06-20 19:28:20 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.25e+06 >> median 1.37 step=6000
+2026-06-20 19:28:42 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=7.04e+05 >> median 1.63 step=7000
+2026-06-20 19:29:04 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=5.09e+05 >> median 1.63 step=8000
+2026-06-20 19:29:26 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=4.55e+06 >> median 1.63 step=9000
+2026-06-20 19:29:48 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=5.32e+06 >> median 1.71 step=10000
+2026-06-20 19:30:10 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=3.83e+05 >> median 1.8 step=11000
+2026-06-20 19:30:32 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.95e+05 >> median 1.82 step=12000
+2026-06-20 19:30:54 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.86e+05 >> median 1.9 step=13000
+2026-06-20 19:31:15 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.16e+05 >> median 1.99 step=14000
+2026-06-20 19:31:37 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=4.48e+05 >> median 2.48 step=15000
+2026-06-20 19:31:59 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.5e+05 >> median 2.5 step=16000
+2026-06-20 19:32:22 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.42e+05 >> median 2.51 step=17000
+2026-06-20 19:32:44 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.44e+05 >> median 2.62 step=18000
+2026-06-20 19:33:06 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.01e+05 >> median 2.67 step=19000
+2026-06-20 19:33:29 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.29e+05 >> median 2.85 step=20000
+2026-06-20 19:33:51 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.39e+05 >> median 2.85 step=21000
+2026-06-20 19:33:58 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g2-c4 fitness=5.77464e-05 status=ok secs=540.546 run_done=91 run_total=240
+2026-06-20 19:34:13 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.25e+05 >> median 3.64 step=22000
+2026-06-20 19:34:18 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:34:35 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=7.74e+04 >> median 3.64 step=23000
+2026-06-20 19:34:58 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.22e+05 >> median 5.28 step=24000
+2026-06-20 19:35:20 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.66e+06 >> median 5.84 step=25000
+2026-06-20 19:35:23 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g2-c4 fitness=0.00149888 status=ok secs=552.339 run_done=92 run_total=240
+2026-06-20 19:35:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:42:59 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c14 fitness=0.00394615 status=ok secs=541.194 run_done=93 run_total=240
+2026-06-20 19:43:18 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:44:28 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c19 fitness=0.00023965 status=ok secs=544.933 run_done=94 run_total=240
+2026-06-20 19:44:45 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:51:51 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g3-c0 fitness=0.00124465 status=ok secs=531.407 run_done=95 run_total=240
+2026-06-20 19:52:11 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 19:53:19 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g3-c0 fitness=0.0601474 status=ok secs=530.781 run_done=96 run_total=240
+2026-06-20 20:00:40 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g3-c0 fitness=0.000999691 status=ok secs=529.412 run_done=97 run_total=240
+2026-06-20 20:01:04 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:02:14 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c20 fitness=0.0144872 status=ok secs=534.393 run_done=98 run_total=240
+2026-06-20 20:09:31 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g3-c0 fitness=0.000403697 status=ok secs=530.903 run_done=99 run_total=240
+2026-06-20 20:09:50 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:11:03 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c15 fitness=0.000620022 status=ok secs=529.298 run_done=100 run_total=240
+2026-06-20 20:11:24 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:18:27 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g3-c1 fitness=0.000960953 status=ok secs=535.97 run_done=101 run_total=240
+2026-06-20 20:18:46 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:20:03 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g3-c1 fitness=0.00133052 status=ok secs=539.668 run_done=102 run_total=240
+2026-06-20 20:23:13 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=104 >> median 0.854 step=9000
+2026-06-20 20:27:24 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g3-c1 fitness=0.0188872 status=ok secs=536.54 run_done=103 run_total=240
+2026-06-20 20:27:43 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:29:00 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c21 fitness=1.74401e-05 status=ok secs=536.812 run_done=104 run_total=240
+2026-06-20 20:29:20 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:36:16 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g3-c1 fitness=0.00273835 status=ok secs=532.157 run_done=105 run_total=240
+2026-06-20 20:37:53 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g3-c2 fitness=0.000895497 status=ok secs=533.196 run_done=106 run_total=240
+2026-06-20 20:38:11 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:45:32 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c16 fitness=0.00336126 status=ok secs=555.993 run_done=107 run_total=240
+2026-06-20 20:45:51 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:47:10 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g3-c2 fitness=0.031627 status=ok secs=557.113 run_done=108 run_total=240
+2026-06-20 20:54:34 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g3-c2 fitness=0.0079201 status=ok secs=542.039 run_done=109 run_total=240
+2026-06-20 20:54:52 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 20:56:13 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c22 fitness=0.00912496 status=ok secs=543.071 run_done=110 run_total=240
+2026-06-20 20:56:32 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:03:29 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g3-c2 fitness=0.00164456 status=ok secs=534.339 run_done=111 run_total=240
+2026-06-20 21:03:50 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:05:13 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g3-c3 fitness=0.00111968 status=ok secs=539.809 run_done=112 run_total=240
+2026-06-20 21:12:24 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g3-c3 fitness=0.00656815 status=ok secs=535.113 run_done=113 run_total=240
+2026-06-20 21:12:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:14:08 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c17 fitness=0.00591134 status=ok secs=535.093 run_done=114 run_total=240
+2026-06-20 21:21:21 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g3-c3 fitness=0.00519795 status=ok secs=536.768 run_done=115 run_total=240
+2026-06-20 21:21:35 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:23:08 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c23 fitness=0.00686219 status=ok secs=539.234 run_done=116 run_total=240
+2026-06-20 21:30:15 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g3-c3 fitness=0.00216279 status=ok secs=534.01 run_done=117 run_total=240
+2026-06-20 21:32:05 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g3-c4 fitness=0.0016514 status=ok secs=537.011 run_done=118 run_total=240
+2026-06-20 21:32:22 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:39:17 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g3-c4 fitness=0.000297806 status=ok secs=541.567 run_done=119 run_total=240
+2026-06-20 21:39:37 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:40:59 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g3-c4 fitness=0.000115527 status=ok secs=534.37 run_done=120 run_total=240
+2026-06-20 21:41:19 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:48:04 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c24 fitness=0.000236627 status=ok secs=527.555 run_done=121 run_total=240
+2026-06-20 21:49:46 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c18 fitness=0.000218983 status=ok secs=526.984 run_done=122 run_total=240
+2026-06-20 21:50:03 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:56:53 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g3-c4 fitness=0.00095449 status=ok secs=528.778 run_done=123 run_total=240
+2026-06-20 21:57:11 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 21:58:41 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g4-c0 fitness=0.00195242 status=ok secs=534.58 run_done=124 run_total=240
+2026-06-20 21:59:03 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:05:41 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c25 fitness=0.000721899 status=ok secs=527.487 run_done=125 run_total=240
+2026-06-20 22:06:00 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:07:35 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g4-c0 fitness=0.00191021 status=ok secs=533.577 run_done=126 run_total=240
+2026-06-20 22:14:34 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g4-c0 fitness=0.0114437 status=ok secs=533.212 run_done=127 run_total=240
+2026-06-20 22:14:57 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:16:26 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c19 fitness=0.00015985 status=ok secs=531.417 run_done=128 run_total=240
+2026-06-20 22:23:20 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g4-c1 fitness=0.0233178 status=ok secs=525.542 run_done=129 run_total=240
+2026-06-20 22:23:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:25:17 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c26 fitness=0.00173095 status=ok secs=530.401 run_done=130 run_total=240
+2026-06-20 22:25:37 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:32:07 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g4-c0 fitness=0.00108821 status=ok secs=527.124 run_done=131 run_total=240
+2026-06-20 22:32:26 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:34:11 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g4-c1 fitness=0.000253146 status=ok secs=534.545 run_done=132 run_total=240
+2026-06-20 22:34:27 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:40:52 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g4-c1 fitness=0.00992557 status=ok secs=525.449 run_done=133 run_total=240
+2026-06-20 22:43:01 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g4-c2 fitness=0.00690862 status=ok secs=529.298 run_done=134 run_total=240
+2026-06-20 22:49:40 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c27 fitness=0.00686219 status=ok secs=527.262 run_done=135 run_total=240
+2026-06-20 22:49:58 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:51:48 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c20 fitness=0.000114202 status=ok secs=527.727 run_done=136 run_total=240
+2026-06-20 22:52:09 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 22:58:24 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g4-c1 fitness=0.0259792 status=ok secs=524.476 run_done=137 run_total=240
+2026-06-20 22:58:49 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:00:39 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g4-c2 fitness=0.0020685 status=ok secs=530.121 run_done=138 run_total=240
+2026-06-20 23:00:56 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:07:09 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g4-c2 fitness=0.00588449 status=ok secs=524.595 run_done=139 run_total=240
+2026-06-20 23:09:25 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g4-c3 fitness=6.81229e-05 status=ok secs=526.501 run_done=140 run_total=240
+2026-06-20 23:09:39 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:15:58 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c28 fitness=0.00271816 status=ok secs=529.177 run_done=141 run_total=240
+2026-06-20 23:18:12 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g4-c2 fitness=0.00344905 status=ok secs=526.958 run_done=142 run_total=240
+2026-06-20 23:18:34 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:24:43 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c21 fitness=0.00287188 status=ok secs=525.189 run_done=143 run_total=240
+2026-06-20 23:25:02 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:27:00 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g4-c3 fitness=0.000811863 status=ok secs=527.299 run_done=144 run_total=240
+2026-06-20 23:33:29 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g4-c3 fitness=0.00174445 status=ok secs=525.294 run_done=145 run_total=240
+2026-06-20 23:35:49 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g4-c4 fitness=0.000154792 status=ok secs=529.115 run_done=146 run_total=240
+2026-06-20 23:36:10 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:36:11 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:42:15 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c29 fitness=0.00712811 status=ok secs=526.309 run_done=147 run_total=240
+2026-06-20 23:44:36 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g4-c3 fitness=0.00279906 status=ok secs=527.131 run_done=148 run_total=240
+2026-06-20 23:51:05 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g4-c4 fitness=0.0047094 status=ok secs=529.602 run_done=149 run_total=240
+2026-06-20 23:51:27 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-20 23:53:24 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c22 fitness=0.00299544 status=ok secs=528.304 run_done=150 run_total=240
+2026-06-20 23:59:50 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g4-c4 fitness=0.000715477 status=ok secs=524.859 run_done=151 run_total=240
+2026-06-21 00:00:12 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:02:12 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c30 fitness=0.000688763 status=ok secs=527.608 run_done=152 run_total=240
+2026-06-21 00:02:26 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:08:35 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g4-c4 fitness=0.00275929 status=ok secs=525.092 run_done=153 run_total=240
+2026-06-21 00:08:51 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:08:56 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:11:02 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g5-c0 fitness=0.0120412 status=ok secs=530.305 run_done=154 run_total=240
+2026-06-21 00:17:25 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g5-c0 fitness=0.0557404 status=ok secs=530.27 run_done=155 run_total=240
+2026-06-21 00:19:52 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c31 fitness=0.000121881 status=ok secs=529.616 run_done=156 run_total=240
+2026-06-21 00:20:12 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:26:15 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c23 fitness=0.00117797 status=ok secs=529.273 run_done=157 run_total=240
+2026-06-21 00:26:35 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:28:44 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g5-c0 fitness=0.00149829 status=ok secs=532.175 run_done=158 run_total=240
+2026-06-21 00:29:03 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:35:20 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g5-c1 fitness=0.000297559 status=ok secs=545.594 run_done=159 run_total=240
+2026-06-21 00:35:40 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:37:55 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g5-c1 fitness=0.0253699 status=ok secs=550.155 run_done=160 run_total=240
+2026-06-21 00:44:21 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g5-c0 fitness=0.00112433 status=ok secs=541.103 run_done=161 run_total=240
+2026-06-21 00:44:44 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:46:55 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c32 fitness=8.45318e-05 status=ok secs=540.23 run_done=162 run_total=240
+2026-06-21 00:53:16 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g5-c1 fitness=0.00629621 status=ok secs=534.767 run_done=163 run_total=240
+2026-06-21 00:53:35 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 00:55:46 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c24 fitness=0.000565775 status=ok secs=531.068 run_done=164 run_total=240
+2026-06-21 00:56:09 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:02:04 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g5-c2 fitness=0.00101906 status=ok secs=527.966 run_done=165 run_total=240
+2026-06-21 01:02:23 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:04:36 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g5-c2 fitness=0.00156356 status=ok secs=529.99 run_done=166 run_total=240
+2026-06-21 01:10:53 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g5-c1 fitness=0.00139327 status=ok secs=528.706 run_done=167 run_total=240
+2026-06-21 01:11:11 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:13:27 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c33 fitness=0.00465874 status=ok secs=530.585 run_done=168 run_total=240
+2026-06-21 01:13:45 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:19:45 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g5-c2 fitness=0.00718779 status=ok secs=531.524 run_done=169 run_total=240
+2026-06-21 01:22:15 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g5-c3 fitness=0.00650145 status=ok secs=528.27 run_done=170 run_total=240
+2026-06-21 01:22:34 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:28:33 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c25 fitness=0.0112328 status=ok secs=528.091 run_done=171 run_total=240
+2026-06-21 01:28:49 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:31:05 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g5-c3 fitness=0.000706286 status=ok secs=529.957 run_done=172 run_total=240
+2026-06-21 01:37:20 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g5-c2 fitness=0.000866348 status=ok secs=527.401 run_done=173 run_total=240
+2026-06-21 01:37:39 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.12e+07 > 1e+07 step=1000
+2026-06-21 01:37:41 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:38:00 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=8.21e+05 >> median 0.947 step=2000
+2026-06-21 01:38:21 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=3.54e+05 >> median 0.899 step=3000
+2026-06-21 01:38:42 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=3.11e+05 >> median 0.947 step=4000
+2026-06-21 01:39:03 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.02e+05 >> median 0.947 step=5000
+2026-06-21 01:39:24 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=4.01e+05 >> median 0.966 step=6000
+2026-06-21 01:39:45 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.35e+05 >> median 0.966 step=7000
+2026-06-21 01:39:55 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c34 fitness=0.00416886 status=ok secs=529.539 run_done=174 run_total=240
+2026-06-21 01:40:06 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=3.92e+05 >> median 0.947 step=8000
+2026-06-21 01:40:27 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=4.92e+05 >> median 0.947 step=9000
+2026-06-21 01:40:48 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=6.44e+05 >> median 0.966 step=10000
+2026-06-21 01:41:10 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=3.85e+05 >> median 1.32 step=11000
+2026-06-21 01:41:31 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.21e+05 >> median 1.32 step=12000
+2026-06-21 01:41:52 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=3.45e+04 >> median 1.33 step=13000
+2026-06-21 01:42:13 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.42e+04 >> median 1.33 step=14000
+2026-06-21 01:42:34 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=5.22e+04 >> median 1.67 step=15000
+2026-06-21 01:42:55 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.05e+04 >> median 1.67 step=16000
+2026-06-21 01:43:16 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.03e+04 >> median 2.17 step=17000
+2026-06-21 01:43:37 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.96e+04 >> median 2.59 step=18000
+2026-06-21 01:43:58 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.82e+04 >> median 3.2 step=19000
+2026-06-21 01:44:19 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.68e+04 >> median 4.73 step=20000
+2026-06-21 01:44:41 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.45e+05 >> median 4.73 step=21000
+2026-06-21 01:45:02 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=1.47e+04 >> median 5.53 step=22000
+2026-06-21 01:45:23 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=8.5e+03 >> median 6.9 step=23000
+2026-06-21 01:45:44 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=2.55e+05 >> median 9.23 step=24000
+2026-06-21 01:46:05 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=5.97e+04 >> median 32.6 step=25000
+2026-06-21 01:46:09 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g5-c3 fitness=0.0018634 status=ok secs=528.17 run_done=175 run_total=240
+2026-06-21 01:48:45 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g5-c4 fitness=0.00358889 status=ok secs=530.006 run_done=176 run_total=240
+2026-06-21 01:49:06 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:54:57 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g5-c4 fitness=0.0115322 status=ok secs=528.707 run_done=177 run_total=240
+2026-06-21 01:55:16 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:55:18 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 01:57:33 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c26 fitness=0.00211926 status=ok secs=528.051 run_done=178 run_total=240
+2026-06-21 02:03:45 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g5-c3 fitness=0.0014175 status=ok secs=527.387 run_done=179 run_total=240
+2026-06-21 02:06:22 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c35 fitness=0.00704319 status=ok secs=528.683 run_done=180 run_total=240
+2026-06-21 02:06:39 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:12:31 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g5-c4 fitness=0.000913927 status=ok secs=525.617 run_done=181 run_total=240
+2026-06-21 02:12:50 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:15:11 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g6-c0 fitness=0.00322998 status=ok secs=528.848 run_done=182 run_total=240
+2026-06-21 02:15:30 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:21:19 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g5-c4 fitness=0.00195278 status=ok secs=528.161 run_done=183 run_total=240
+2026-06-21 02:21:35 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:24:00 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g6-c0 fitness=2.72356e-05 status=ok secs=529.504 run_done=184 run_total=240
+2026-06-21 02:30:07 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c36 fitness=0.00825638 status=ok secs=528.363 run_done=185 run_total=240
+2026-06-21 02:30:26 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:32:45 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c27 fitness=0.000838596 status=ok secs=524.582 run_done=186 run_total=240
+2026-06-21 02:32:59 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:38:55 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g6-c1 fitness=0.00110689 status=ok secs=527.688 run_done=187 run_total=240
+2026-06-21 02:39:17 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:41:35 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g6-c0 fitness=0.00374795 status=ok secs=529.662 run_done=188 run_total=240
+2026-06-21 02:47:50 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g6-c1 fitness=0.000832316 status=ok secs=534.919 run_done=189 run_total=240
+2026-06-21 02:48:12 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:50:23 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c37 fitness=0.000549862 status=ok secs=528.256 run_done=190 run_total=240
+2026-06-21 02:50:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 02:56:40 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g6-c0 fitness=0.00357297 status=ok secs=529.095 run_done=191 run_total=240
+2026-06-21 02:59:13 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g6-c2 fitness=5.87637e-05 status=ok secs=528.537 run_done=192 run_total=240
+2026-06-21 02:59:39 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:05:28 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c28 fitness=2.33538e-06 status=ok secs=527.591 run_done=193 run_total=240
+2026-06-21 03:05:47 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:08:01 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g6-c1 fitness=6.81084e-06 status=ok secs=528.562 run_done=194 run_total=240
+2026-06-21 03:11:09 | ERROR   | monitor | ANOMALY kind=critic_explosion detail=critic_loss=87.7 >> median 0.63 step=9000
+2026-06-21 03:14:18 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g6-c2 fitness=0.00564909 status=ok secs=530.095 run_done=195 run_total=240
+2026-06-21 03:14:35 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:16:52 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c38 fitness=0.0144872 status=ok secs=530.88 run_done=196 run_total=240
+2026-06-21 03:17:13 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:23:09 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g6-c1 fitness=0.0167636 status=ok secs=530.782 run_done=197 run_total=240
+2026-06-21 03:23:24 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:25:41 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g6-c3 fitness=0.00555102 status=ok secs=528.646 run_done=198 run_total=240
+2026-06-21 03:32:01 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g6-c2 fitness=0.00107679 status=ok secs=531.967 run_done=199 run_total=240
+2026-06-21 03:32:24 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:34:27 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c29 fitness=0.0142005 status=ok secs=525.836 run_done=200 run_total=240
+2026-06-21 03:40:53 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g6-c3 fitness=3.34155e-05 status=ok secs=532.229 run_done=201 run_total=240
+2026-06-21 03:41:10 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:43:15 | INFO    | monitor | candidate_done arm=random_search cand=random_search-c39 fitness=0.0175369 status=ok secs=527.436 run_done=202 run_total=240
+2026-06-21 03:49:41 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g6-c2 fitness=0.000413913 status=ok secs=527.768 run_done=203 run_total=240
+2026-06-21 03:50:00 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:52:03 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g6-c4 fitness=0.00211413 status=ok secs=528.381 run_done=204 run_total=240
+2026-06-21 03:52:22 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 03:58:30 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g6-c3 fitness=0.000322677 status=ok secs=528.861 run_done=205 run_total=240
+2026-06-21 04:00:57 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g6-c4 fitness=0.000804636 status=ok secs=533.992 run_done=206 run_total=240
+2026-06-21 04:01:13 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:01:15 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:07:18 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c30 fitness=0.000133491 status=ok secs=527.38 run_done=207 run_total=240
+2026-06-21 04:09:44 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g6-c3 fitness=0.00271864 status=ok secs=527.034 run_done=208 run_total=240
+2026-06-21 04:10:05 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:16:07 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g6-c4 fitness=0.000160782 status=ok secs=529.119 run_done=209 run_total=240
+2026-06-21 04:16:27 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:18:40 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g7-c0 fitness=0.00025222 status=ok secs=535.478 run_done=210 run_total=240
+2026-06-21 04:18:59 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:24:56 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g6-c4 fitness=0.000437046 status=ok secs=529.058 run_done=211 run_total=240
+2026-06-21 04:25:15 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:27:33 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g7-c0 fitness=0.00739405 status=ok secs=532.737 run_done=212 run_total=240
+2026-06-21 04:27:52 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:33:42 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c31 fitness=0.00356732 status=ok secs=525.614 run_done=213 run_total=240
+2026-06-21 04:33:58 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:36:24 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g7-c1 fitness=0.00398934 status=ok secs=531.829 run_done=214 run_total=240
+2026-06-21 04:36:44 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:42:33 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g7-c0 fitness=0.00036872 status=ok secs=530.82 run_done=215 run_total=240
+2026-06-21 04:42:50 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:45:13 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g7-c1 fitness=0.0093635 status=ok secs=528.272 run_done=216 run_total=240
+2026-06-21 04:45:31 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 04:51:21 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g7-c0 fitness=0.000577298 status=ok secs=527.923 run_done=217 run_total=240
+2026-06-21 04:54:01 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g7-c2 fitness=3.96195e-06 status=ok secs=528.103 run_done=218 run_total=240
+2026-06-21 04:54:20 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:00:10 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c32 fitness=0.000257252 status=ok secs=529.535 run_done=219 run_total=240
+2026-06-21 05:00:30 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:02:49 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g7-c1 fitness=0.000994817 status=ok secs=527.68 run_done=220 run_total=240
+2026-06-21 05:03:04 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:09:01 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g7-c2 fitness=0.000651085 status=ok secs=530.792 run_done=221 run_total=240
+2026-06-21 05:09:19 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:11:39 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g7-c1 fitness=8.99906e-05 status=ok secs=530.425 run_done=222 run_total=240
+2026-06-21 05:11:55 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:18:19 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g7-c3 fitness=0.00874017 status=ok secs=557.82 run_done=223 run_total=240
+2026-06-21 05:20:56 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g7-c2 fitness=0.000576932 status=ok secs=556.656 run_done=224 run_total=240
+2026-06-21 05:21:16 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:27:03 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c33 fitness=0.0065097 status=ok secs=523.745 run_done=225 run_total=240
+2026-06-21 05:27:19 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:29:49 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g7-c3 fitness=0.0160758 status=ok secs=533.158 run_done=226 run_total=240
+2026-06-21 05:35:51 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g7-c2 fitness=0.00115746 status=ok secs=528.102 run_done=227 run_total=240
+2026-06-21 05:36:08 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:38:35 | INFO    | monitor | candidate_done arm=scalar_cvar5 cand=scalar_cvar5-g7-c4 fitness=1.14765e-05 status=ok secs=525.909 run_done=228 run_total=240
+2026-06-21 05:44:38 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g7-c3 fitness=0.109987 status=ok secs=526.567 run_done=229 run_total=240
+2026-06-21 05:47:23 | INFO    | monitor | candidate_done arm=distributional cand=distributional-g7-c4 fitness=0.0127301 status=ok secs=527.147 run_done=230 run_total=240
+2026-06-21 05:47:42 | INFO    | httpx | HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-06-21 05:53:24 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c34 fitness=0.0139101 status=ok secs=526.02 run_done=231 run_total=240
+2026-06-21 05:56:05 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g7-c3 fitness=4.23954e-05 status=ok secs=522.337 run_done=232 run_total=240
+2026-06-21 06:02:14 | INFO    | monitor | candidate_done arm=scalar cand=scalar-g7-c4 fitness=0.00177861 status=ok secs=529.955 run_done=233 run_total=240
+2026-06-21 06:04:51 | INFO    | monitor | candidate_done arm=placebo cand=placebo-g7-c4 fitness=7.0433e-05 status=ok secs=526.21 run_done=234 run_total=240
+2026-06-21 06:10:42 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c35 fitness=0.0132446 status=ok secs=508.53 run_done=235 run_total=240
+2026-06-21 06:19:12 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c36 fitness=7.27684e-05 status=ok secs=509.421 run_done=236 run_total=240
+2026-06-21 06:27:42 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c37 fitness=0.000372027 status=ok secs=509.779 run_done=237 run_total=240
+2026-06-21 06:36:13 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c38 fitness=0.0021786 status=ok secs=510.476 run_done=238 run_total=240
+2026-06-21 06:44:39 | INFO    | monitor | candidate_done arm=bayes_opt cand=bayes_opt-c39 fitness=0.00377141 status=ok secs=506.005 run_done=239 run_total=240
+2026-06-21 06:44:39 | INFO    | monitor | run_end status=done elapsed_s=64581.8 anomalies=64 best_fitness={'random_search': 0.05179855526512889, 'bayes_opt': 0.019807629374171527, 'di...

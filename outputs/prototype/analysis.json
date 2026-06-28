@@ -1,0 +1,141 @@
+{
+  "verdict": "AMBER",
+  "per_arm": {
+    "bayes_opt": {
+      "n_candidates": 40,
+      "winner_fitness": 0.019807629374171527,
+      "winner_id": "bayes_opt-c2",
+      "iqm": 0.0021494039077723168,
+      "iqm_ci": [
+        0.0021494039077723168,
+        0.0011566406847435145,
+        0.0037473823055147234
+      ],
+      "has_val_returns": true
+    },
+    "distributional": {
+      "n_candidates": 39,
+      "winner_fitness": 0.06014744945646495,
+      "winner_id": "distributional-g3-c0",
+      "iqm": 0.0027349131200466383,
+      "iqm_ci": [
+        0.0027349131200466383,
+        0.001338534170321054,
+        0.0054102142138209765
+      ],
+      "has_val_returns": true
+    },
+    "placebo": {
+      "n_candidates": 40,
+      "winner_fitness": 0.025979242488941644,
+      "winner_id": "placebo-g4-c1",
+      "iqm": 0.001776595709937334,
+      "iqm_ci": [
+        0.001776595709937334,
+        0.001185877818737109,
+        0.0029492464485389417
+      ],
+      "has_val_returns": true
+    },
+    "random_search": {
+      "n_candidates": 40,
+      "winner_fitness": 0.05179855526512889,
+      "winner_id": "random_search-c3",
+      "iqm": 0.002736535443855522,
+      "iqm_ci": [
+        0.002736535443855522,
+        0.00112285355786971,
+        0.004807796746384286
+      ],
+      "has_val_returns": true
+    },
+    "scalar": {
+      "n_candidates": 40,
+      "winner_fitness": 0.10998743062247152,
+      "winner_id": "scalar-g7-c3",
+      "iqm": 0.00277982291835445,
+      "iqm_ci": [
+        0.00277982291835445,
+        0.0014426673401705756,
+        0.004696912919710661
+      ],
+      "has_val_returns": true
+    },
+    "scalar_cvar5": {
+      "n_candidates": 40,
+      "winner_fitness": 0.09473436667490243,
+      "winner_id": "scalar_cvar5-g0-c4",
+      "iqm": 0.0022371563632621527,
+      "iqm_ci": [
+        0.0022371563632621527,
+        0.0011575201754536386,
+        0.004167079277214145
+      ],
+      "has_val_returns": true
+    }
+  },
+  "winner_fitness": {
+    "bayes_opt": 0.019807629374171527,
+    "distributional": 0.06014744945646495,
+    "placebo": 0.025979242488941644,
+    "random_search": 0.05179855526512889,
+    "scalar": 0.10998743062247152,
+    "scalar_cvar5": 0.09473436667490243
+  },
+  "interpretability": {
+    "uses_tail": true,
+    "terms": [
+      "cvar",
+      "drawdown",
+      "min(",
+      "sort",
+      "std",
+      "var"
+    ]
+  },
+  "difference_tests": {
+    "distributional_vs_scalar": {
+      "sharpe": {
+        "stat": -0.8211546339506174,
+        "pvalue": 0.4115,
+        "ci_low": -0.6826912321067922,
+        "ci_high": 0.2930344373524846
+      },
+      "cvar": {
+        "stat": 2.9029987800804467,
+        "pvalue": 0.0045,
+        "ci_low": 0.0008437631129704404,
+        "ci_high": 0.003753724978077493
+      }
+    },
+    "distributional_vs_placebo": {
+      "sharpe": {
+        "stat": 1.0523037726925577,
+        "pvalue": 0.2805,
+        "ci_low": -0.18973244583457288,
+        "ci_high": 0.6925617345783116
+      },
+      "cvar": {
+        "stat": -4.277442747707759,
+        "pvalue": 0.0004997501249375312,
+        "ci_low": -0.0025746581812347478,
+        "ci_high": -0.0008674160839200343
+      }
+    },
+    "distributional_vs_scalar_cvar5": {
+      "sharpe": {
+        "stat": -0.6512145820899303,
+        "pvalue": 0.508,
+        "ci_low": -0.5678802870435338,
+        "ci_high": 0.31825550895182503
+      },
+      "cvar": {
+        "stat": 1.4557536735923606,
+        "pvalue": 0.1505,
+        "ci_low": -0.0001889259297361164,
+        "ci_high": 0.0020876079937823277
+      }
+    }
+  },
+  "n_arms": 6
+}

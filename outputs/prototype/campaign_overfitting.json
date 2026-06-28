@@ -1,0 +1,544 @@
+{
+  "n_blocks": 16,
+  "n_records": 239,
+  "pbo": {
+    "distributional": {
+      "pbo": 0.1881895881895882,
+      "n_candidates": 39,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "scalar": {
+      "pbo": 0.07163947163947164,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "placebo": {
+      "pbo": 0.4825174825174825,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "scalar_cvar5": {
+      "pbo": 0.08772338772338772,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "random_search": {
+      "pbo": 0.3436674436674437,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "bayes_opt": {
+      "pbo": 0.5421134421134421,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    }
+  },
+  "pbo_dsr": {
+    "distributional": {
+      "pbo": 0.16371406371406372,
+      "n_candidates": 39,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "scalar": {
+      "pbo": 0.10380730380730381,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "placebo": {
+      "pbo": 0.4375291375291375,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "scalar_cvar5": {
+      "pbo": 0.09098679098679098,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "random_search": {
+      "pbo": 0.32245532245532244,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    },
+    "bayes_opt": {
+      "pbo": 0.5300699300699301,
+      "n_candidates": 40,
+      "t_val": 695,
+      "status": "ok"
+    }
+  },
+  "winner_dsr": {
+    "distributional": {
+      "dsr_canonical": 0.24975225136856405,
+      "dsr_proxy": 0.06135297595819843,
+      "var_sr": 0.0005247378071067704,
+      "winner_sharpe": 0.3846606531670131,
+      "n_candidates": 39,
+      "n_trials": 39,
+      "winner_id": "distributional-g3-c0",
+      "status": "ok"
+    },
+    "scalar": {
+      "dsr_canonical": 0.35467613610841997,
+      "dsr_proxy": 0.10998743062247152,
+      "var_sr": 0.0005398203017556417,
+      "winner_sharpe": 0.5826033665915752,
+      "n_candidates": 40,
+      "n_trials": 40,
+      "winner_id": "scalar-g7-c3",
+      "status": "ok"
+    },
+    "placebo": {
+      "dsr_canonical": 0.20030006568892178,
+      "dsr_proxy": 0.025979242488941644,
+      "var_sr": 0.00035598586169983916,
+      "winner_sharpe": 0.14857968073176783,
+      "n_candidates": 40,
+      "n_trials": 40,
+      "winner_id": "placebo-g4-c1",
+      "status": "ok"
+    },
+    "scalar_cvar5": {
+      "dsr_canonical": 0.285542382691646,
+      "dsr_proxy": 0.09473436667490243,
+      "var_sr": 0.000624485502712091,
+      "winner_sharpe": 0.528171906458458,
+      "n_candidates": 40,
+      "n_trials": 40,
+      "winner_id": "scalar_cvar5-g0-c4",
+      "status": "ok"
+    },
+    "random_search": {
+      "dsr_canonical": 0.183709233131636,
+      "dsr_proxy": 0.05179855526512889,
+      "var_sr": 0.0006450438698379765,
+      "winner_sharpe": 0.3392035655092131,
+      "n_candidates": 40,
+      "n_trials": 40,
+      "winner_id": "random_search-c3",
+      "status": "ok"
+    },
+    "bayes_opt": {
+      "dsr_canonical": 0.10815320722767557,
+      "dsr_proxy": 0.019807629374171527,
+      "var_sr": 0.00056023979691261,
+      "winner_sharpe": 0.07927399055740435,
+      "n_candidates": 40,
+      "n_trials": 40,
+      "winner_id": "bayes_opt-c2",
+      "status": "ok"
+    }
+  },
+  "h2": {
+    "H2_supported": false,
+    "H2_RA": {
+      "supported": false,
+      "metric": "sharpe",
+      "legs": [
+        {
+          "contrast": "distributional>scalar",
+          "reject": false,
+          "direction_ok": false,
+          "leg_supported": false,
+          "sharpe_reject": false,
+          "sharpe_direction_ok": false
+        },
+        {
+          "contrast": "distributional>placebo",
+          "reject": false,
+          "direction_ok": false,
+          "leg_supported": false,
+          "sharpe_reject": false,
+          "sharpe_direction_ok": false
+        },
+        {
+          "contrast": "distributional>scalar_cvar5",
+          "reject": false,
+          "direction_ok": false,
+          "leg_supported": false,
+          "sharpe_reject": false,
+          "sharpe_direction_ok": false
+        }
+      ]
+    },
+    "H2_Tail": {
+      "supported": false,
+      "metric": "cvar",
+      "level": 0.05,
+      "legs": [
+        {
+          "contrast": "distributional>scalar",
+          "reject": false,
+          "direction_ok": false,
+          "leg_supported": false,
+          "sharpe_reject": false,
+          "sharpe_direction_ok": false
+        },
+        {
+          "contrast": "distributional>placebo",
+          "reject": false,
+          "direction_ok": false,
+          "leg_supported": false,
+          "sharpe_reject": false,
+          "sharpe_direction_ok": false
+        },
+        {
+          "contrast": "distributional>scalar_cvar5",
+          "reject": false,
+          "direction_ok": false,
+          "leg_supported": false,
+          "sharpe_reject": false,
+          "sharpe_direction_ok": false
+        }
+      ],
+      "corroborated_by": "fz0_var_es_comparative_backtest"
+    },
+    "verdict": "neither (null)",
+    "method": "bh",
+    "alpha": 0.05,
+    "q": 0.05,
+    "legs": [
+      {
+        "contrast": "distributional>scalar",
+        "reject": false,
+        "direction_ok": false,
+        "leg_supported": false,
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false
+      },
+      {
+        "contrast": "distributional>placebo",
+        "reject": false,
+        "direction_ok": false,
+        "leg_supported": false,
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false
+      },
+      {
+        "contrast": "distributional>scalar_cvar5",
+        "reject": false,
+        "direction_ok": false,
+        "leg_supported": false,
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false
+      }
+    ],
+    "tail_legs": [
+      {
+        "contrast": "distributional>scalar",
+        "reject": false,
+        "direction_ok": false,
+        "leg_supported": false,
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false
+      },
+      {
+        "contrast": "distributional>placebo",
+        "reject": false,
+        "direction_ok": false,
+        "leg_supported": false,
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false
+      },
+      {
+        "contrast": "distributional>scalar_cvar5",
+        "reject": false,
+        "direction_ok": false,
+        "leg_supported": false,
+        "sharpe_reject": false,
+        "sharpe_direction_ok": false
+      }
+    ],
+    "family": {
+      "labels": [],
+      "pvals": "[]",
+      "reject_bh": "[]",
+      "tests": [],
+      "q": 0.05,
+      "alpha_one_sided": 0.05,
+      "n_family": 0,
+      "skipped": [
+        {
+          "arm_a": "distributional",
+          "arm_b": "scalar",
+          "reason": "no shared test seeds"
+        },
+        {
+          "arm_a": "distributional",
+          "arm_b": "placebo",
+          "reason": "no shared test seeds"
+        },
+        {
+          "arm_a": "distributional",
+          "arm_b": "scalar_cvar5",
+          "reason": "no shared test seeds"
+        }
+      ]
+    },
+    "missing": [
+      "distributional>scalar",
+      "distributional>placebo",
+      "distributional>scalar_cvar5"
+    ]
+  },
+  "h4": {
+    "status": "skipped",
+    "reason": "LLM winner arm 'distributional' has < 2 test seeds (test/baseline stage not run?)",
+    "winner_arm": "distributional"
+  },
+  "h3": {
+    "status": "skipped",
+    "reason": "single-shot archive absent (test_h3_singleshot/<arm> not provided \u2014 a separate manually-launched run, DEEP_H3 \u00a72.3/\u00a72.4)",
+    "arm": "distributional"
+  },
+  "h2_tost": {
+    "status": "skipped",
+    "reason": "no H2 contrast has >= 2 shared test seeds",
+    "margin": 0.05,
+    "units": "test-statistic units (per-seed Sharpe / CVaR), NOT validation-DSR",
+    "ra": [],
+    "tail": {
+      "level": 0.05,
+      "legs": []
+    },
+    "skipped": [
+      {
+        "metric": "sharpe",
+        "contrast": "distributional>scalar",
+        "reason": "< 2 shared seeds"
+      },
+      {
+        "metric": "sharpe",
+        "contrast": "distributional>placebo",
+        "reason": "< 2 shared seeds"
+      },
+      {
+        "metric": "sharpe",
+        "contrast": "distributional>scalar_cvar5",
+        "reason": "< 2 shared seeds"
+      },
+      {
+        "metric": "cvar",
+        "level": 0.05,
+        "contrast": "distributional>scalar",
+        "reason": "< 2 shared seeds"
+      },
+      {
+        "metric": "cvar",
+        "level": 0.05,
+        "contrast": "distributional>placebo",
+        "reason": "< 2 shared seeds"
+      },
+      {
+        "metric": "cvar",
+        "level": 0.05,
+        "contrast": "distributional>scalar_cvar5",
+        "reason": "< 2 shared seeds"
+      }
+    ]
+  },
+  "h2_structure": {
+    "status": "skipped",
+    "reason": "placebo_shuffled has no test record sharing >= 2 seeds with distributional"
+  },
+  "delisting_band": {
+    "status": "skipped",
+    "reason": "delisting band needs the univ3 panel + audit log: [Errno 2] No such file or directory: 'C:\\\\Users\\\\User\\\\Desktop\\\\dissertation_papers\\\\llm-reward-portfolio\\\\data\\\\clean\\\\shumway_audit_log_univ3.parquet'",
+    "headline_panel": "univ3"
+  },
+  "dsr_effective_n": {
+    "status": "ok",
+    "arm": "distributional",
+    "n_trials": 39,
+    "rho_bar": 0.797999004579003,
+    "n_eff": 1,
+    "n_eff_raw": 1.2450532210247895,
+    "dsr_raw_n": 0.24975225136856405,
+    "dsr_eff_n": 0.7375932895860986,
+    "var_sr": 0.0005247378071067704,
+    "winner_id": "distributional-g3-c0",
+    "note": "N_eff = N/(1+(N-1)\u00b7rho_bar) is the mean-correlation surrogate for the L\u00f3pez de Prado 2018 ONC effective-trial count; rho_bar>0 => N_eff<N => higher DSR, so na\u00efve N is the conservative (larger-deflation) choice and any N error is benign-direction (DEEP_STATS A1/A8)."
+  },
+  "evt_consistency": {
+    "status": "ok",
+    "levels": [
+      0.05,
+      0.01
+    ],
+    "fed_arms": [
+      "distributional",
+      "scalar_cvar5"
+    ],
+    "per_arm": {
+      "distributional": {
+        "0.05": "evt",
+        "0.01": "evt"
+      },
+      "scalar_cvar5": {
+        "0.05": "evt",
+        "0.01": "evt"
+      }
+    },
+    "consistent": {
+      "0.05": true,
+      "0.01": true
+    },
+    "all_consistent": true,
+    "note": "Per-arm estimator path for the FED CVaR levels, re-derived from each arm winner's validation returns (a proxy for the fed training distribution). 'empirical(fallback)' = _evt_cvar's alpha>fu / degenerate-fit fallback fired. Inconsistency across tail-fed arms is logged + reported (DEEP_H2 \u00a76.3), never raised."
+  },
+  "divergence": {
+    "status": "ok",
+    "n_anomaly_lines": 64,
+    "n_diverged_runs": 6,
+    "divergence_rate": 0.02857142857142857,
+    "n_candidates_budget": 210,
+    "winner_diverged": [],
+    "winner_attribution": "unavailable (anomaly schema carries no candidate_id)",
+    "transient_runs": 3,
+    "files_read": [
+      "outputs\\prototype\\anomalies.jsonl"
+    ],
+    "note": "64 anomaly LINES cluster (by step-reset) into 6 diverged RUN(s); unbounded reward (norm_reward=False, DELIBERATE \u2014 the reward is the object of study) lets a mis-scaled candidate transiently blow the critic up, but a diverged candidate scores poorly on held-out validation and LOSES selection, so divergence biases toward NOISE (the dropped tail), not toward the H2 headline."
+  },
+  "compute_accounting": {
+    "status": "ok",
+    "rows": [
+      {
+        "arm": "distributional",
+        "kind": "llm",
+        "n_llm_calls": 40,
+        "n_accepted": 39,
+        "n_failed": 1,
+        "n_attempted": 40,
+        "prompt_tokens": 23040,
+        "completion_tokens": 51549,
+        "resamples_to_full_slate": false,
+        "tail_fed": true
+      },
+      {
+        "arm": "scalar",
+        "kind": "llm",
+        "n_llm_calls": 40,
+        "n_accepted": 40,
+        "n_failed": 0,
+        "n_attempted": 40,
+        "prompt_tokens": 19750,
+        "completion_tokens": 47008,
+        "resamples_to_full_slate": false,
+        "tail_fed": false
+      },
+      {
+        "arm": "placebo",
+        "kind": "llm",
+        "n_llm_calls": 40,
+        "n_accepted": 40,
+        "n_failed": 0,
+        "n_attempted": 40,
+        "prompt_tokens": 22445,
+        "completion_tokens": 46944,
+        "resamples_to_full_slate": false,
+        "tail_fed": false
+      },
+      {
+        "arm": "scalar_cvar5",
+        "kind": "llm",
+        "n_llm_calls": 40,
+        "n_accepted": 40,
+        "n_failed": 0,
+        "n_attempted": 40,
+        "prompt_tokens": 20205,
+        "completion_tokens": 48875,
+        "resamples_to_full_slate": false,
+        "tail_fed": true
+      },
+      {
+        "arm": "random_search",
+        "kind": "search",
+        "n_llm_calls": 0,
+        "n_accepted": 40,
+        "n_failed": 0,
+        "n_attempted": 40,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "resamples_to_full_slate": true,
+        "tail_fed": false
+      },
+      {
+        "arm": "bayes_opt",
+        "kind": "search",
+        "n_llm_calls": 0,
+        "n_accepted": 40,
+        "n_failed": 0,
+        "n_attempted": 40,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "resamples_to_full_slate": true,
+        "tail_fed": false
+      }
+    ],
+    "totals": {
+      "n_accepted": 239,
+      "n_failed": 1,
+      "prompt_tokens": 85440,
+      "completion_tokens": 194376
+    },
+    "asymmetry_note": "(i) LLM arms BURN a budget slot on a gate failure (src/llm/loop.py ~338,380) while search arms RESAMPLE to a full valid slate (src/search/random_search.py ~259), so search gets strictly MORE valid candidates per matched budget \u2014 a handicap on the LLM arms, conservative for the H2 headline. (ii) Tail-aware blocks send ~8 feedback lines vs scalar's 1; that token-count difference is controlled by the inert placebo leg in the H2 placebo contrast."
+  },
+  "h1_beat_human": {
+    "status": "skipped",
+    "reason": "no test records for the LLM winner arm 'distributional' (baseline stage / records-only?)",
+    "winner_arm": "distributional",
+    "baselines_configured": [
+      "raw_return",
+      "return_minus_variance",
+      "return_minus_cvar",
+      "differential_sharpe"
+    ]
+  },
+  "cross_hypothesis_multiplicity": {
+    "alpha": 0.05,
+    "n_hypotheses": 4,
+    "bonferroni_alpha": 0.0125,
+    "rows": [
+      {
+        "hypothesis": "H1",
+        "headline_p": null,
+        "decision_primary": "(skipped)",
+        "survives_bonferroni": null,
+        "note": "descriptive panel, no inferential p (DEEP_H1 R-REF) \u2014 Bonferroni n/a"
+      },
+      {
+        "hypothesis": "H2",
+        "headline_p": null,
+        "decision_primary": "neither (null)",
+        "survives_bonferroni": null,
+        "note": "max one-sided p over the two co-primary IUT leg sets (the conjunction's binding leg)"
+      },
+      {
+        "hypothesis": "H3",
+        "headline_p": null,
+        "decision_primary": "(skipped)",
+        "survives_bonferroni": null,
+        "note": "one-sided iterative>single-shot difference p (if the single-shot archive was present)"
+      },
+      {
+        "hypothesis": "H4",
+        "headline_p": null,
+        "decision_primary": "(skipped)",
+        "survives_bonferroni": null,
+        "note": "max one-sided p over {H4a, H4b}"
+      }
+    ],
+    "stance": "Per-hypothesis families are PRIMARY (pre-registered separate estimands); this programme-wide Bonferroni-across-4 is a REPORTED sensitivity only (DEEP_STATS A4/C4), not the headline gate."
+  }
+}

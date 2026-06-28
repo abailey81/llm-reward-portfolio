@@ -1,0 +1,17 @@
+{
+  "arm": "distributional",
+  "candidate_id": "distributional-g0-c0",
+  "env_fingerprint": "campaign:distributional_singleshot",
+  "feedback_block": "Your previous reward scored: 0.11 (validation Deflated Sharpe).\nRealized-return tail diagnostics (training period):\n  CVaR 5%: -0.012\n  CVaR 10%: -0.010\n  CVaR 25%: -0.007\n  CVaR 1%: -0.018  (high-variance estimate)\n  left-tail mass: +0.032\n  left-tail skew: +0.009",
+  "fold": 0,
+  "frozen": true,
+  "generation": 0,
+  "metrics": {
+    "val_fitness": 0.11301402977098013
+  },
+  "reward_source": "\ndef reward(weights, returns, prev_weights, port_ret, info):\n    total = float(port_ret)\n    return total, {\"port_ret\": total}, None\n",
+  "reward_source_hash": "8ec003551d28c63a99573348f2a47fccc92366b3bccd3368b7740cc763702efd",
+  "run_id": "distributional-winner",
+  "seed": 0,
+  "wall_clock": 0.0
+}
