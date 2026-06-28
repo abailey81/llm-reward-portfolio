@@ -63,7 +63,7 @@ VERIFY-flagged items must be checked against the primary PDF before citing in pr
   found it unbridged — state as "to our knowledge".
 
 ## Supervisor-adjacent
-- **Khraishi & Okhrati 2022, ICAIF** — offline CQL credit pricing; the harm criterion. CORE PAPER #3.
+- **Khraishi & Okhrati 2022 (arXiv:2203.03003)** — "Offline Deep RL for Dynamic Pricing of Consumer Credit"; the harm criterion. CORE PAPER #3. ⚠ The on-disk PDF prints NO ICAIF / no conference venue — do NOT cite "ICAIF 2022" until the published venue is confirmed externally (matches `paper/refs.bib`; supervisor-authored → citation-integrity critical).
 - **Khraishi & Okhrati 2023 (2305.02882)** — noise augmentation (optional robustness flag).
 - **Hartley, Hamill, Seddon, Batra, Okhrati, Khraishi 2025, ACL Findings** — LLM risk-taking behaviour.
 - **Batra, …, Okhrati, …, Khraishi, Cowan 2025 (SSRN 5381584)** — UCL–NatWest LLM-agents review (positioning).
