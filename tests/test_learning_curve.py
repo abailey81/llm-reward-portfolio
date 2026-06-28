@@ -156,6 +156,45 @@ def test_recommend_budget_wired_into_run_curve(monkeypatch) -> None:
     monkeypatch.setattr(lc, "run_one_budget", lambda b, s, r, **kw: table[(b, s)])
     result = lc.run_curve([50000, 100000, 200000], [0], "differential_sharpe", synthetic=True, end="x", device="cpu")
     assert "convergence" in result and result["convergence"]["converged"] in (True, False)
+    # The turnkey campaign-duration projection is wired in alongside the convergence verdict.
+    assert result["campaign_projection"]["verdict"] in ("GO", "ADAPT", "RECONSIDER")
+
+
+# --------------------------------------------------------------------------- #
+# Campaign-duration projection (project_campaign) — turnkey "how long is enough" #
+# --------------------------------------------------------------------------- #
+def _timed(budget: int, seconds: float) -> dict:
+    return {"ok": True, "budget": budget, "seconds": seconds, "seed": 0}
+
+
+def test_project_campaign_linear_extrapolation_and_breakdown() -> None:
+    """seconds-per-step is fit (robust median) and extrapolated to B*; the run count is the design's 600."""
+    runs = [_timed(1000, 10.0), _timed(2000, 20.0)]  # 0.01 s/step
+    proj = lc.project_campaign(runs, 2000, parallelism=2.0)
+    assert proj["sec_per_step"] == pytest.approx(0.01)
+    assert proj["time_per_run_s"] == pytest.approx(20.0)        # 0.01 * 2000
+    assert proj["n_runs"] == 600 == sum(lc.CAMPAIGN_RUN_BREAKDOWN.values())
+    assert proj["gpu_hours"] == pytest.approx(600 * 20 / 3600, abs=0.1)   # ~3.3 GPU-h
+    assert proj["wall_days"] == pytest.approx((600 * 20 / 3600) / 2 / 24, abs=0.01)
+
+
+def test_project_campaign_verdict_thresholds() -> None:
+    runs = [_timed(1000, 10.0)]  # 0.01 s/step -> wall_days ~0.069 at default n_runs/parallelism
+    assert lc.project_campaign(runs, 2000)["verdict"] == "GO"
+    assert lc.project_campaign(runs, 2000, go_days=0.01, adapt_days=1.0)["verdict"] == "ADAPT"
+    assert lc.project_campaign(runs, 2000, go_days=0.01, adapt_days=0.02)["verdict"] == "RECONSIDER"
+
+
+def test_project_campaign_scales_linearly_with_budget() -> None:
+    runs = [_timed(1000, 10.0)]
+    quick = lc.project_campaign(runs, 50_000)["wall_days"]
+    slow = lc.project_campaign(runs, 200_000)["wall_days"]
+    assert slow == pytest.approx(4 * quick, rel=0.01)  # 4x the budget -> 4x the wall-clock (modulo 2dp rounding)
+
+
+def test_project_campaign_unknown_without_budget_or_timings() -> None:
+    assert lc.project_campaign([_timed(1000, 10.0)], None)["verdict"] == "UNKNOWN"
+    assert lc.project_campaign([{"ok": True, "budget": 1000}], 2000)["verdict"] == "UNKNOWN"  # no seconds
 
 
 # --------------------------------------------------------------------------- #

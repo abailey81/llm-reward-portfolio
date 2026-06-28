@@ -60,7 +60,7 @@ from typing import Any
 
 import numpy as np
 
-__all__ = ["build_parser", "run_one_budget", "run_curve", "recommend_budget", "main"]
+__all__ = ["build_parser", "run_one_budget", "run_curve", "recommend_budget", "project_campaign", "main"]
 
 
 def recommend_budget(
@@ -125,6 +125,75 @@ def recommend_budget(
             "reason": ("no confirmed plateau (eval non-monotone/noisy across seeds, or critic non-finite near "
                        "the ceiling); add --seeds and/or EXTEND --budgets higher"),
             **base}
+
+
+# Exact campaign training-run count, enumerated from the frozen design (config/campaign.yaml). Each of
+# these trains the fixed SAC for `train_steps_per_candidate` (== B*) steps, so the campaign wall-clock is a
+# LINEAR function of B* — the only quantity the convergence study leaves unknown.
+CAMPAIGN_RUN_BREAKDOWN: dict[str, int] = {
+    "search": 30 * 7,        # candidates_per_arm (30) x 7 arms x 1 seed during search
+    "winners": 7 * 30,       # 7 per-arm winners re-run at 30 seeds (Amendment D2, seeds-on-winners)
+    "h1_baselines": 4 * 30,  # ~4 hand-designed comparator rewards x 30 seeds (H1 beat-the-human)
+    "h3_singleshot": 30 + 30,  # distributional re-searched at generations:1 (30 candidates) + 30 winner seeds
+}
+CAMPAIGN_N_RUNS: int = sum(CAMPAIGN_RUN_BREAKDOWN.values())  # = 600
+
+
+def project_campaign(
+    runs: list[dict[str, Any]],
+    recommended_budget: int | None,
+    *,
+    n_runs: int = CAMPAIGN_N_RUNS,
+    parallelism: float = 2.0,
+    go_days: float = 12.0,
+    adapt_days: float = 21.0,
+) -> dict[str, Any]:
+    """Project the FULL campaign wall-clock from the ladder's MEASURED per-training timings, and return a
+    GO / ADAPT / RECONSIDER verdict — this is the turnkey answer to "how long is enough".
+
+    Per-training time is ~linear in the step budget, so we fit seconds-per-step from the timed ladder runs
+    (robust median over (budget, seed) cells) and extrapolate to ``recommended_budget`` (B*). The campaign
+    runs the fixed SAC ``n_runs`` times, each at B* steps (see :data:`CAMPAIGN_RUN_BREAKDOWN`). ``parallelism``
+    is the number of trainings that run concurrently on the box (the prototype proved n_gpu=2 stable; it can
+    fall toward 1 at large B* because the replay buffer is budget-coupled — so treat large-B* projections as
+    optimistic and re-measure). Reports total compute (``gpu_hours``, parallelism-free) and calendar
+    ``wall_days``.
+
+    Verdict (defaults tuned to a 1 Sep submission, ~9 weeks out): GO if it fits with a large writing buffer
+    (<= ``go_days``), ADAPT if it needs headline-first trimming (<= ``adapt_days``), else RECONSIDER (HPC /
+    staged --resume). Returns ``{sec_per_step, time_per_run_s, n_runs, parallelism, gpu_hours, wall_days,
+    verdict, reason, breakdown}``; ``verdict='UNKNOWN'`` when there is nothing to extrapolate from.
+    """
+    timed = [r for r in runs if r.get("ok") and r.get("seconds") and int(r.get("budget", 0)) > 0]
+    rates = [float(r["seconds"]) / float(r["budget"]) for r in timed]
+    base = {"n_runs": int(n_runs), "parallelism": float(parallelism),
+            "breakdown": dict(CAMPAIGN_RUN_BREAKDOWN)}
+    if not rates or recommended_budget is None:
+        return {"verdict": "UNKNOWN", "sec_per_step": None, "time_per_run_s": None,
+                "gpu_hours": None, "wall_days": None,
+                "reason": "no timed ladder runs or no recommended budget to extrapolate from", **base}
+
+    sec_per_step = float(np.median(rates))
+    time_per_run_s = sec_per_step * float(recommended_budget)
+    gpu_hours = n_runs * time_per_run_s / 3600.0           # total single-stream compute
+    wall_days = gpu_hours / max(float(parallelism), 1e-9) / 24.0  # calendar time at the given concurrency
+    verdict = "GO" if wall_days <= go_days else "ADAPT" if wall_days <= adapt_days else "RECONSIDER"
+    advice = {
+        "GO": "fits with a large writing buffer — freeze B* and launch the campaign",
+        "ADAPT": ("tight — trim headline-first (full convergence on the H2 arms; fewer optional H1 seeds) "
+                  "or move to a faster GPU; no validity is lost"),
+        "RECONSIDER": "too long on this box — use UCL HPC or stage it across sessions with --resume",
+    }[verdict]
+    return {
+        "verdict": verdict,
+        "sec_per_step": sec_per_step,
+        "time_per_run_s": round(time_per_run_s, 1),
+        "gpu_hours": round(gpu_hours, 1),
+        "wall_days": round(wall_days, 2),
+        "reason": (f"{n_runs} trainings x {recommended_budget} steps @ {sec_per_step*1000:.3g} ms/step "
+                   f"= {gpu_hours:.0f} GPU-h; at {parallelism:g}x concurrency = {wall_days:.1f} days -> {advice}"),
+        **base,
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -296,12 +365,15 @@ def run_curve(
                 "critic_finite_all": bool(ok) and all(r["critic_loss_finite"] for r in ok),
             }
         )
+    convergence = recommend_budget(summary)
     return {
         "reward": reward_key,
         "device": device,
         "runs": runs,
         "summary": summary,
-        "convergence": recommend_budget(summary),
+        "convergence": convergence,
+        # Turnkey "how long is enough": extrapolate the campaign wall-clock from the measured timings at B*.
+        "campaign_projection": project_campaign(runs, convergence.get("recommended_budget")),
     }
 
 
@@ -341,6 +413,20 @@ def _write_markdown(result: dict[str, Any], path: Path) -> None:
             f"**{conv.get('recommended_budget')}**",
             "",
             f"> {conv.get('reason')}",
+        ]
+    proj = result.get("campaign_projection")
+    if proj and proj.get("verdict") != "UNKNOWN":
+        lines += [
+            "",
+            "## Campaign duration projection (how long is enough)",
+            "",
+            f"**{proj['verdict']}** — projected **{proj['wall_days']} days** wall-clock "
+            f"({proj['gpu_hours']} GPU-h) for the full {proj['n_runs']}-training campaign at B* = "
+            f"`{conv.get('recommended_budget')}` steps, at {proj['parallelism']:g}x concurrency.",
+            "",
+            f"> {proj['reason']}",
+            "",
+            f"Run breakdown: {proj['breakdown']}.",
         ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -438,6 +524,12 @@ def main() -> None:
     print(f"[learning_curve] CONVERGENCE VERDICT: {verdict}")
     print(f"  recommended train_steps_per_candidate = {conv.get('recommended_budget')}")
     print(f"  {conv.get('reason')}")
+    proj = result.get("campaign_projection") or {}
+    if proj.get("verdict") and proj["verdict"] != "UNKNOWN":
+        print("-" * 72)
+        print(f"[learning_curve] CAMPAIGN DURATION: {proj['verdict']} — "
+              f"~{proj['wall_days']} days ({proj['gpu_hours']} GPU-h) for {proj['n_runs']} trainings")
+        print(f"  {proj['reason']}")
     print("=" * 72)
     print(f"\n[learning_curve] wrote json + md to {out_dir}" + (" + png" if plotted else " (no png)"))
     if conv.get("converged") is False:
