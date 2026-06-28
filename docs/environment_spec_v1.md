@@ -1,9 +1,9 @@
 # Portfolio environment specification v1  (plan block F1)
-<!-- Verified as-built 2026-06-10: state/action/accounting/reward-injection sections match
-     src/portfolio_env.py + src/features.py incl. the ADR-007 cash-feature block. -->
 
 Precedents: Sood et al. 2023 (JPM/ICAPS FinPlan) for state/action/reward; Jiang et al. 2017 for
-prev-weight injection; FinRL-Meta conventions met for comparability. Implementation: `src/portfolio_env.py`.
+prev-weight injection; FinRL-Meta conventions met for comparability. Implementation:
+`src/env/portfolio_env.py` (post-merge path; the ADR-007 cash-feature block lives in the gold panel's
+`cash_features`, built by `data_pipeline/src/features.py`).
 
 **State.** Matrix [(n+1) × T], T=60: per-asset log-return lookback rows; row n+1 (cash) carries current
 weights head + {vol20, vol20/vol60, VIX} tail (Sood). Build flattens [prev_weights ‖ lookback ‖ cash_features].
@@ -19,8 +19,10 @@ future-perturbation-invariance (`tests/test_features.py`). The block is optional
 **Dynamics & accounting (implemented + unit-tested).** At step t the agent sets target w_t; one-way
 turnover = ½Σ|w_t − w̃_{t-1}| where w̃ = previous weights DRIFTED by realised returns
 (w̃_i = w_{t-1,i}(1+r_{t-1,i}) / (1+r_p,{t-1})); cost = turnover × bps; gross r_p = w_t·r_t (cash at
-cash_daily_rate); net = gross − cost; wealth compounds on net. Identity test: zero-cost wealth equals
-Π(1+w·r) to 1e-10 (`tests/test_portfolio_env.py`).
+cash_daily_rate, currently 0 — no rate key in `config/environment.yaml`, so cash grows at 1.0); net =
+gross − cost; wealth compounds on net. Turnover is emitted as `info["turnover"]`. Cost identity test:
+`cost == ½·c·Σ|w − w̃|` and the realized `info["turnover"]` on a hand-computed 2-risky-asset + cash
+example, to 1e-12 (`tests/test_env.py::test_cost_is_half_l1_drifted_turnover`).
 
 **Reward injection.** Env calls `reward_fn(ctx) -> (float, components)`; ctx fields are exactly those in
 `reward_contract.RewardContext` — the same fields promised to the LLM in the system prompt. Fitness is

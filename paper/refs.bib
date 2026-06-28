@@ -1,0 +1,1730 @@
+% refs.bib — VERIFIED Tier-1 core bibliography for the dissertation
+% "An LLM designs reward-function code for risk-sensitive deep-RL portfolio allocation."
+%
+% PROVENANCE OF THIS FILE
+% ----------------------------------------------------------------------------
+% Every entry below was checked first-hand against the corpus PDF on disk
+% (extracted text at D:\tmp\littxt\<family>__<stem>.txt, one-to-one with
+% c:\Users\User\Desktop\dissertation_papers\01_literature\<family>\*.pdf) or,
+% where the on-disk copy is a preprint that omits the published coordinates,
+% the published volume/issue/pages are marked `% VERIFY` and must be confirmed
+% against the publisher record before final submission.
+%
+% SCOPE: this is the Tier-1 CORE set (the load-bearing references). Several further refs NAMED in the
+% frozen pre-registration's inference plan are on disk + tracked in `docs/REFERENCES.md` and are to be
+% promoted here, first-hand-verified, before final submission: Ledoit-Wolf 2008 (Sharpe test),
+% Romano-Wolf 2005 (stepwise FWER), Bauer 2025 (tail-test power), Harvey-Liu-Zhu 2016 (t>3 hurdle),
+% Colas et al. 2018 (>=20 seeds). Politis-Romano 1994 (the bootstrap spine) is included above.
+%
+% CONVENTIONS
+%   - `% VERIFY` flags (a) every 2025-2026 sweep-surfaced reference, and
+%     (b) any field NOT printed in the on-disk PDF (e.g. a journal volume that
+%     appears only in the published version while the cache holds the preprint).
+%   - arXiv ids are quoted EXACTLY as printed inside each PDF. Where the PDF is
+%     an arXiv preprint and the journal/conference is not printed on it, the
+%     `note` says so explicitly rather than asserting the venue from the PDF.
+%   - The supervisor co-authored two corpus papers (Khraishi & Okhrati 2022;
+%     Hartley et al. 2025) and there is no viva, so these are triple-checked.
+%
+% Harvard / author-year style (works with natbib `agsm`/`apalike` or biblatex
+% style=authoryear). 2026-06-24.
+% ============================================================================
+
+
+% ====================  METHOD CORE: LLM-designs-reward  =====================
+
+% Eureka. Cache: 00_core_pillars__Eureka__2310.12931.txt
+% PDF prints: "Published as a conference paper at ICLR 2024";
+% "arXiv:2310.12931v2 [cs.RO] 30 Apr 2024". VERIFIED.
+@inproceedings{ma2024eureka,
+  author    = {Ma, Yecheng Jason and Liang, William and Wang, Guanzhi and
+               Huang, De-An and Bastani, Osbert and Jayaraman, Dinesh and
+               Zhu, Yuke and Fan, Linxi and Anandkumar, Anima},
+  title     = {{Eureka}: Human-Level Reward Design via Coding Large Language Models},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  note      = {arXiv:2310.12931},
+}
+
+% Text2Reward. Cache: A_reward_design_lineage__Text2Reward__2309.11489.txt
+% PDF prints: "Published as a conference paper at ICLR 2024". VERIFIED.
+@inproceedings{xie2024text2reward,
+  author    = {Xie, Tianbao and Zhao, Siheng and Wu, Chen Henry and Liu, Yitao and
+               Luo, Qian and Zhong, Victor and Yang, Yanchao and Yu, Tao},
+  title     = {{Text2Reward}: Reward Shaping with Language Models for
+               Reinforcement Learning},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  note      = {arXiv:2309.11489},
+}
+
+% DrEureka. Cache: A_reward_design_lineage__DrEureka__2406.01967.txt
+% PDF prints title "DrEureka: Language Model Guided Sim-To-Real Transfer";
+% "arXiv:2406.01967v1 [cs.RO] 4 Jun 2024"; safety-instruction-in-prompt is a
+% core mechanism (App. "B. Safety Instruction"). VERIFIED.
+@inproceedings{ma2024dreureka,
+  author    = {Ma, Yecheng Jason and Liang, William and Wang, Hung-Ju and
+               Wang, Sam and Zhu, Yuke and Fan, Linxi and Bastani, Osbert and
+               Jayaraman, Dinesh},
+  title     = {{DrEureka}: Language Model Guided Sim-To-Real Transfer},
+  booktitle = {Robotics: Science and Systems (RSS)},
+  year      = {2024},
+  note      = {arXiv:2406.01967. % VERIFY venue (RSS) -- PDF is the arXiv copy; venue not printed on it.},
+}
+
+% AlphaSharpe. Cache: D_evolve_trading_code__AlphaSharpe__2502.00029.txt
+% PDF prints "AlphaSharpe: LLM-Driven Discovery of Robust Risk-Adjusted Metrics";
+% authors Yuksel & Sawaf (aiXplain); "arXiv:2502.00029v2 [q-fin.PM] 4 Feb 2025".
+@misc{yuksel2025alphasharpe,           % VERIFY (2025)
+  author       = {Yuksel, Kamer Ali and Sawaf, Hassan},
+  title        = {{AlphaSharpe}: {LLM}-Driven Discovery of Robust
+                  Risk-Adjusted Metrics},
+  year         = {2025},
+  howpublished = {arXiv preprint arXiv:2502.00029},
+  note         = {% VERIFY -- 2025 sweep-surfaced preprint},
+}
+
+% FinRL-DeepSeek. Cache: C_signals_into_rewards__FinRL-DeepSeek__2502.07393.txt
+% PDF prints "FinRL-DeepSeek: LLM-Infused Risk-Sensitive Reinforcement Learning
+% for Trading Agents"; sole author Benhenda; "arXiv:2502.07393v1 [q-fin.TR]
+% 11 Feb 2025"; extends CPPO (CVaR-PPO) with LLM signals. Closest prior art.
+@misc{benhenda2025finrldeepseek,        % VERIFY (2025)
+  author       = {Benhenda, Mostapha},
+  title        = {{FinRL-DeepSeek}: {LLM}-Infused Risk-Sensitive Reinforcement
+                  Learning for Trading Agents},
+  year         = {2025},
+  howpublished = {arXiv preprint arXiv:2502.07393},
+  note         = {% VERIFY -- 2025 sweep-surfaced preprint},
+}
+
+% Decision-Language Model (DLM) -- THE TRUE NEAREST NEIGHBOUR (cite-and-DISTINGUISH).
+% Read first-hand (docs/LIT_gap_llm_reward_optimizer.md A.5; DEEP_H2.md Sec.7). DLM is the ONLY
+% prior case of an LLM that (1) proposes reward functions AS CODE and (2) iterates on them via
+% SIMULATION feedback *and* (3) is shown a DISTRIBUTION -- for restless multi-armed bandits in
+% public health (ARMMAN maternal care). It touches BOTH of this dissertation's axes at once, so the
+% distinction must be stated precisely, NOT loosely. THE DELTAS (what THIS work does that DLM does NOT):
+%   (i) OBJECT of the distribution: DLM's distribution is the spread of POPULATION GROUPS across
+%       states in a resource-allocation problem; here it is the realized LOWER-TAIL of PORTFOLIO
+%       RETURNS (a multi-level CVaR profile + left-tail mass + robust skew) -- a different kind of
+%       distribution over a different kind of object.
+%   (ii) the off-critic, 3-way DECOUPLING of fed (training-return EVT tail) / selected (tail-blind
+%       validation Deflated Sharpe) / tested (sealed-leg empirical CVaR), which DLM does not isolate.
+%   (iii) DOMAIN: risk-sensitive financial portfolio allocation (forcing a contamination/PIT defence),
+%       not public-health resource allocation.
+%   (iv) a pre-registered, identifiability-clean comparative design (single manipulated variable =
+%       the feedback channel; fixed SAC agent; matched compute) vs DLM's capability demonstration.
+% arXiv:2402.14807; presented at NeurIPS 2024. Coordinates NOT confirmed first-hand against an
+% on-disk PDF in the cache -- treat as % VERIFY.
+@inproceedings{behari2024dlm,            % VERIFY (2024)
+  author    = {Behari, Nikhil and Zhang, Edwin and Zhao, Yunfan and
+               Taneja, Aparna and Nagaraj, Dheeraj and Tambe, Milind},
+  title     = {A Decision-Language Model {(DLM)} for Dynamic Restless
+               Multi-Armed Bandit Tasks in Public Health},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {37},
+  year      = {2024},
+  note      = {arXiv:2402.14807. % VERIFY -- 2024 sweep-surfaced; the nearest-neighbour (LLM authors reward code + shown a distribution), distinguished on object/domain/decoupling/design. Author list + NeurIPS 37 not confirmed against an on-disk PDF.},
+}
+
+% Qu et al. -- the reason N2 is worded "first for a TRADING/PORTFOLIO agent," NOT "first in finance."
+% Read first-hand (docs/LIT_gap_llm_reward_optimizer.md A.5). The only reward-CODE evolution in a
+% finance-ADJACENT domain: LLMs iteratively enhance the reward function of a multi-step
+% PAYMENT-FRAUD-DETECTION MDP (a classification/alerting MDP), refined on detection-accuracy /
+% business metrics -- NO return distribution, NO portfolio allocation. Cite to license the careful
+% N2 wording. arXiv:2509.18719; ACL 2025 Industry track.
+@inproceedings{qu2025selfevolving,       % VERIFY (2025)
+  author    = {Qu, Yu and others},
+  title     = {{LLM}-Enhanced Self-Evolving Reinforcement Learning for
+               {E}-Commerce Payment Fraud Detection},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for
+               Computational Linguistics (ACL): Industry Track},
+  year      = {2025},
+  note      = {arXiv:2509.18719. % VERIFY -- 2025 sweep-surfaced; full author list + exact venue/pages not confirmed against an on-disk PDF. Distinguished: fraud-detection MDP, not portfolio; no return distribution.},
+}
+
+
+% ================  DISTRIBUTIONAL & RISK-SENSITIVE RL  ======================
+
+% IQN. Cache: 00_core_pillars__IQN-Implicit-Quantile-Networks__1806.06923.txt
+% PDF prints "Proceedings of the 35th International Conference on Machine
+% Learning, Stockholm, Sweden, PMLR 80, 2018". VERIFIED.
+@inproceedings{dabney2018iqn,
+  author    = {Dabney, Will and Ostrovski, Georg and Silver, David and Munos, R{\'e}mi},
+  title     = {Implicit Quantile Networks for Distributional Reinforcement Learning},
+  booktitle = {Proceedings of the 35th International Conference on Machine
+               Learning (ICML)},
+  series    = {PMLR},
+  volume    = {80},
+  year      = {2018},
+  note      = {arXiv:1806.06923},
+}
+
+% C51. Cache: H_foundational_canon__C51-Distributional-Perspective__1707.06887.txt
+% PDF prints "Proceedings of the 34th International Conference on Machine
+% Learning"; Bellemare, Dabney, Munos. VERIFIED.
+@inproceedings{bellemare2017c51,
+  author    = {Bellemare, Marc G. and Dabney, Will and Munos, R{\'e}mi},
+  title     = {A Distributional Perspective on Reinforcement Learning},
+  booktitle = {Proceedings of the 34th International Conference on Machine
+               Learning (ICML)},
+  series    = {PMLR},
+  volume    = {70},
+  year      = {2017},
+  note      = {arXiv:1707.06887},
+}
+
+% SAC. Cache: H_foundational_canon__SAC-Soft-Actor-Critic__1801.01290.txt
+% PDF prints title + "Tuomas Haarnoja, Aurick Zhou, Pieter Abbeel, Sergey
+% Levine"; "arXiv:1801.01290". On-disk copy is the arXiv version; ICML 2018
+% (PMLR 80) is the camera-ready venue.
+@inproceedings{haarnoja2018sac,
+  author    = {Haarnoja, Tuomas and Zhou, Aurick and Abbeel, Pieter and Levine, Sergey},
+  title     = {Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement
+               Learning with a Stochastic Actor},
+  booktitle = {Proceedings of the 35th International Conference on Machine
+               Learning (ICML)},
+  series    = {PMLR},
+  volume    = {80},
+  year      = {2018},
+  note      = {arXiv:1801.01290. % VERIFY venue/PMLR -- on-disk PDF is the arXiv copy.},
+}
+
+% TD3. Cache: H_foundational_canon__TD3__1802.09477.txt
+% PDF prints "Addressing Function Approximation Error in Actor-Critic Methods";
+% Fujimoto, van Hoof, Meger; "Proceedings of the 35th ... PMLR 80, 2018". TD3
+% is the algorithm nickname; cite the printed descriptive title. VERIFIED.
+@inproceedings{fujimoto2018td3,
+  author    = {Fujimoto, Scott and van Hoof, Herke and Meger, David},
+  title     = {Addressing Function Approximation Error in Actor-Critic Methods},
+  booktitle = {Proceedings of the 35th International Conference on Machine
+               Learning (ICML)},
+  series    = {PMLR},
+  volume    = {80},
+  year      = {2018},
+  note      = {arXiv:1802.09477},
+}
+
+% CQL. Cache: H_foundational_canon__CQL-Conservative-Q-Learning__2006.04779.txt
+% PDF prints "Conservative Q-Learning for Offline Reinforcement Learning";
+% Kumar, Zhou, Tucker, Levine; "arXiv:2006.04779v3 [cs.LG] 19 Aug 2020".
+% IMPORTANT: the on-disk PDF is the "Preprint. Under review." copy -- it does
+% NOT print "NeurIPS 2020". CQL *was* accepted to NeurIPS 2020 (external
+% record), but this file is not first-hand evidence of the venue.
+@inproceedings{kumar2020cql,
+  author    = {Kumar, Aviral and Zhou, Aurick and Tucker, George and Levine, Sergey},
+  title     = {Conservative Q-Learning for Offline Reinforcement Learning},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {33},
+  year      = {2020},
+  note      = {arXiv:2006.04779. % VERIFY -- on-disk PDF says "Preprint. Under review.", does not print the NeurIPS 2020 venue.},
+}
+
+% Coache & Jaimungal, dynamic convex risk measures.
+% Cache: E_distributional_RL_finance__Coache-Jaimungal-DynamicRisk__2112.13414.txt
+% PDF prints "Reinforcement Learning with Dynamic Convex Risk Measures";
+% Coache & Jaimungal; "arXiv:2112.13414v3 [cs.LG] 30 Nov 2022". The journal
+% name "Mathematical Finance" is NOT printed on this preprint (it appears only
+% in the reference list, citing other papers). Published as Math. Finance
+% 34(2):557-587, 2024 -- confirm from publisher.
+@article{coache2024dynamicrisk,
+  author  = {Coache, Anthony and Jaimungal, Sebastian},
+  title   = {Reinforcement Learning with Dynamic Convex Risk Measures},
+  journal = {Mathematical Finance},
+  volume  = {34},
+  number  = {2},
+  pages   = {557--587},
+  year    = {2024},
+  note    = {arXiv:2112.13414. % VERIFY journal vol/no/pages -- on-disk PDF is the arXiv preprint and does not print the Mathematical Finance coordinates.},
+}
+
+
+% ===============  COHERENT / SPECTRAL RISK MEASURE THEORY  ==================
+
+% Rockafellar & Uryasev, CVaR.
+% Cache: H_manual_journal__RockafellarUryasev-CVaR__2000.txt
+% PDF prints title + "R. Tyrrell Rockafellar and Stanislav Uryasev" and the
+% date "September 5, 1999". It does NOT print the journal/volume/pages (preprint
+% copy). Published as Journal of Risk 2(3):21-41, 2000 -- confirm from publisher.
+@article{rockafellar2000cvar,
+  author  = {Rockafellar, R. Tyrrell and Uryasev, Stanislav},
+  title   = {Optimization of Conditional Value-at-Risk},
+  journal = {Journal of Risk},
+  volume  = {2},
+  number  = {3},
+  pages   = {21--41},
+  year    = {2000},
+  note    = {% VERIFY journal vol/no/pages -- on-disk PDF is a preprint (dated 1999) and does not print the Journal of Risk coordinates.},
+}
+
+% Artzner, Delbaen, Eber, Heath -- Coherent Measures of Risk.
+% Cache: H_manual_journal__Artzner-Coherent__1999.txt
+% PDF prints title + author order Artzner, Delbaen, Eber, Heath; dated
+% "July 22, 1998". Journal/vol/pages NOT printed (preprint). Published as
+% Mathematical Finance 9(3):203-228, 1999.
+@article{artzner1999coherent,
+  author  = {Artzner, Philippe and Delbaen, Freddy and Eber, Jean-Marc and Heath, David},
+  title   = {Coherent Measures of Risk},
+  journal = {Mathematical Finance},
+  volume  = {9},
+  number  = {3},
+  pages   = {203--228},
+  year    = {1999},
+  note    = {% VERIFY vol/no/pages -- on-disk PDF is a preprint (dated 1998); only title and author order are printed.},
+}
+
+% Acerbi & Tasche -- Coherence of Expected Shortfall.
+% Cache: H_manual_journal__AcerbiTasche-ES__2002.txt
+% PDF prints title + "Carlo Acerbi, Dirk Tasche"; "arXiv:cond-mat/0104295v5
+% 2 May 2002"; dated "April 19, 2002". Journal NOT printed on this arXiv copy.
+% Published as Journal of Banking & Finance 26(7):1487-1503, 2002.
+@article{acerbi2002coherence,
+  author  = {Acerbi, Carlo and Tasche, Dirk},
+  title   = {On the Coherence of Expected Shortfall},
+  journal = {Journal of Banking \& Finance},
+  volume  = {26},
+  number  = {7},
+  pages   = {1487--1503},
+  year    = {2002},
+  note    = {arXiv:cond-mat/0104295. % VERIFY journal vol/no/pages -- on-disk PDF is the arXiv copy and does not print the JBF coordinates.},
+}
+
+% Acerbi -- Spectral measures of risk.
+% Cache: H_manual_journal__Acerbi-Spectral__2002.txt
+% PDF prints in full: "Journal of Banking & Finance 26 (2002) 1505-1518";
+% "PII: S0378-4266(02)00281-9". Fully self-contained. VERIFIED.
+@article{acerbi2002spectral,
+  author  = {Acerbi, Carlo},
+  title   = {Spectral Measures of Risk: A Coherent Representation of
+             Subjective Risk Aversion},
+  journal = {Journal of Banking \& Finance},
+  volume  = {26},
+  number  = {7},
+  pages   = {1505--1518},
+  year    = {2002},
+}
+
+% Kusuoka -- law-invariant coherent risk measures.
+% Cache: H_manual_journal__Kusuoka-LawInvariant__2001.txt
+% IMPORTANT: the on-disk PDF is the RIMS Kokyuroku copy: it prints the Japanese
+% journal string for "RIMS Kokyuroku vol. 1215 (2001), pp. 158-168"
+% (Kyoto Univ. Research Institute for Mathematical Sciences). The widely cited
+% "Advances in Mathematical Economics 3:83-95, 2001" is the OTHER venue of the
+% same result and is NOT what this file prints. Cite whichever you relied on.
+@article{kusuoka2001lawinvariant,
+  author  = {Kusuoka, Shigeo},
+  title   = {On Law Invariant Coherent Risk Measures},
+  journal = {Advances in Mathematical Economics},
+  volume  = {3},
+  pages   = {83--95},
+  year    = {2001},
+  note    = {% VERIFY venue -- on-disk PDF is the RIMS Kokyuroku 1215 (2001), pp. 158-168 copy, NOT "Advances in Mathematical Economics". Use the venue you actually relied on.},
+}
+
+
+% ==============  ELICITABILITY / EXPECTED-SHORTFALL BACKTESTING  ============
+
+% Fissler & Ziegel -- higher-order elicitability / Osband's principle.
+% Cache: J_additional_relevant__FisslerZiegel-HigherOrderElicitability__2016.txt
+% PDF prints title + "Tobias Fissler, Johanna F. Ziegel";
+% "arXiv:1503.08123v3 [math.ST] 30 Sep 2015". Journal NOT printed on this arXiv
+% copy. Published as Annals of Statistics 44(4):1680-1707, 2016.
+@article{fissler2016higherorder,
+  author  = {Fissler, Tobias and Ziegel, Johanna F.},
+  title   = {Higher Order Elicitability and {Osband}'s Principle},
+  journal = {The Annals of Statistics},
+  volume  = {44},
+  number  = {4},
+  pages   = {1680--1707},
+  year    = {2016},
+  note    = {arXiv:1503.08123; Annals of Statistics 44(4):1680--1707 (2016) -- coordinates confirmed by independent adversarial source-verification (deep-research, 2026-06-28); not printed on the on-disk arXiv-copy PDF. Distinct from the short Risk note Fissler--Ziegel--Gneiting (arXiv:1507.00244, Risk Jan 2016, pp.58--61) on the joint (VaR,ES) backtest.},
+}
+
+% Nolde & Ziegel -- elicitability and backtesting (banking regulation).
+% Cache: J_additional_relevant__NoldeZiegel-ElicitabilityBacktesting__2017.txt
+% PDF prints title (with subtitle "Perspectives for banking regulation") +
+% "Natalia Nolde, Johanna F. Ziegel"; "arXiv:1608.05498v2 [q-fin.RM]
+% 21 Feb 2017". Journal NOT printed on this arXiv copy. Published as Annals of
+% Applied Statistics 11(4):1833-1874, 2017.
+@article{nolde2017elicitability,
+  author  = {Nolde, Natalia and Ziegel, Johanna F.},
+  title   = {Elicitability and Backtesting: Perspectives for Banking Regulation},
+  journal = {The Annals of Applied Statistics},
+  volume  = {11},
+  number  = {4},
+  pages   = {1833--1874},
+  year    = {2017},
+  note    = {arXiv:1608.05498. % VERIFY journal vol/no/pages -- on-disk PDF is the arXiv copy and does not print the AOAS coordinates.},
+}
+
+% Patton, Ziegel & Chen -- dynamic semiparametric (GAS) models for ES (and VaR); the SOURCE of the
+% FZ0 (0-homogeneous) strictly consistent (VaR, ES) scoring function used in src/inference/es_backtest.py
+% (cited there at line ~28; previously absent from refs.bib). Coordinates below are NOT confirmed
+% first-hand against an on-disk PDF -- do not present as verified.
+@article{patton2019dynamic,              % VERIFY (2019)
+  author  = {Patton, Andrew J. and Ziegel, Johanna F. and Chen, Rui},
+  title   = {Dynamic Semiparametric Models for Expected Shortfall (and {Value-at-Risk})},
+  journal = {Journal of Econometrics},
+  volume  = {211},
+  number  = {2},
+  pages   = {388--413},
+  year    = {2019},
+  note    = {% VERIFY (2019) -- venue/vol/no/pages (Journal of Econometrics 211(2):388-413) not confirmed against an on-disk PDF; source of the FZ0 score in es_backtest.py.},
+}
+
+% Troop, Godin & Yu -- bias-corrected (unbiased) POT estimation of CVaR. Cited as the
+% principled small-sample EVT-tail estimator. NOTE (DEEP_H2 Sec.6.2): the shipped EVT
+% tail in src/feedback/measurement.py is the PLAIN GPD MLE; this bias-corrected POT is
+% FUTURE WORK, not implemented (its 2nd-order regular-variation correction is built for
+% heavy tails xi>0 at large n and is undefined/ill-conditioned at ~750 returns, a<=0.05).
+% Cache: J_additional_relevant__BiasCorrectedPOT-CVaR-Troop__2021.txt
+% PDF prints the title + "Troop, Godin, Yu" (Concordia) + "arXiv:2103.05059v1 [stat.ME] 8 Mar 2021".
+% The conference venue (UAI 2021, PMLR) is NOT printed on the arXiv copy; first names not verbatim-verified.
+@misc{troop2021biascorrected,
+  author        = {Troop, Dylan and Godin, Fr{\'e}d{\'e}ric and Yu, Jia Yuan},
+  title         = {Bias-Corrected Peaks-Over-Threshold Estimation of the Conditional Value at Risk},
+  year          = {2021},
+  eprint        = {2103.05059},
+  archivePrefix = {arXiv},
+  primaryClass  = {stat.ME},
+  howpublished  = {arXiv preprint arXiv:2103.05059},
+  note          = {% VERIFY author first names + venue -- on-disk PDF prints only "arXiv:2103.05059"; published at UAI 2021 (PMLR vol. 161) per external record, not printed on the cached copy.},
+}
+
+
+% =======================  EVALUATION INTEGRITY  ============================
+
+% Politis & Romano -- the Stationary Bootstrap: the resampling method underpinning the difference
+% tests (PREREGISTRATION.md Sec.10 `inference.bootstrap = stationary_politis_romano`; R11 mirror).
+% Cache: H_manual_journal__PolitisRomano-StationaryBootstrap__1994.txt -- the JSTOR copy prints the
+% FULL published coordinates (JASA 89(428):1303-1313, Dec. 1994), so this is fully verified (no flag).
+@article{politis1994stationary,
+  author  = {Politis, Dimitris N. and Romano, Joseph P.},
+  title   = {The Stationary Bootstrap},
+  journal = {Journal of the American Statistical Association},
+  volume  = {89},
+  number  = {428},
+  pages   = {1303--1313},
+  year    = {1994},
+  note    = {JSTOR 2290993. Full published coordinates printed on the on-disk copy (verified first-hand).},
+}
+
+% Bailey & Lopez de Prado -- Deflated Sharpe Ratio.
+% Cache: H_manual_journal__Bailey-DSR__2014.txt
+% PDF prints title + "David H. Bailey, Marcos Lopez de Prado" and the venue
+% line "Journal of Portfolio Management, Forthcoming, 2014". Volume/issue NOT
+% printed (this SSRN copy says "Forthcoming"). Published as JPM 40(5):94-107.
+@article{bailey2014deflated,
+  author  = {Bailey, David H. and L{\'o}pez de Prado, Marcos},
+  title   = {The Deflated {Sharpe} Ratio: Correcting for Selection Bias,
+             Backtest Overfitting and Non-Normality},
+  journal = {The Journal of Portfolio Management},
+  volume  = {40},
+  number  = {5},
+  pages   = {94--107},
+  year    = {2014},
+  note    = {% VERIFY vol/no/pages -- on-disk PDF says "Forthcoming, 2014" and does not print the JPM volume/issue/pages.},
+}
+
+% Bailey, Borwein, Lopez de Prado, Zhu -- Probability of Backtest Overfitting.
+% Cache: H_manual_journal__Bailey-PBO__2017.txt
+% PDF prints title "The Probability of Backtest Overfitting" + author order
+% Bailey, Borwein, Lopez de Prado, Zhu; method "combinatorially symmetric
+% cross-validation (CSCV)"; dated Feb 2015. Own venue NOT printed. Published as
+% Journal of Computational Finance 20(4):39-69, 2017.
+@article{bailey2017pbo,
+  author  = {Bailey, David H. and Borwein, Jonathan M. and
+             L{\'o}pez de Prado, Marcos and Zhu, Qiji Jim},
+  title   = {The Probability of Backtest Overfitting},
+  journal = {Journal of Computational Finance},
+  volume  = {20},
+  number  = {4},
+  pages   = {39--69},
+  year    = {2017},
+  note    = {% VERIFY journal vol/no/pages -- on-disk PDF (dated 2015) does not print its own publication venue. CSCV protocol confirmed in-text.},
+}
+
+% Lopez de Prado -- Advances in Financial Machine Learning (purging/embargo/CPCV).
+% Cache: J_additional_relevant__LopezDePrado_AFML_Chapter1__2018.txt
+% Front matter confirms book title + "(c) 2018 by Marcos Lopez de Prado".
+% Publisher (Wiley) is NOT printed in the on-disk extract (praise pages only).
+@book{lopezdeprado2018afml,
+  author    = {L{\'o}pez de Prado, Marcos},
+  title     = {Advances in Financial Machine Learning},
+  publisher = {Wiley},
+  year      = {2018},
+  note      = {% VERIFY publisher -- on-disk extract (praise pages) confirms title/author/2018 but does not print "Wiley".},
+}
+
+% rliable -- Agarwal et al.
+% Cache: H_foundational_canon__rliable-Statistical-Precipice__2108.13264.txt
+% PDF prints in full: "35th Conference on Neural Information Processing Systems
+% (NeurIPS 2021)."; author order Agarwal, Schwarzer, Castro, Courville,
+% Bellemare; "arXiv:2108.13264v4". VERIFIED (venue printed on the PDF).
+@inproceedings{agarwal2021rliable,
+  author    = {Agarwal, Rishabh and Schwarzer, Max and Castro, Pablo Samuel and
+               Courville, Aaron and Bellemare, Marc G.},
+  title     = {Deep Reinforcement Learning at the Edge of the Statistical Precipice},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {34},
+  year      = {2021},
+  note      = {arXiv:2108.13264},
+}
+
+% Benjamini & Hochberg -- FDR.
+% Cache: K_final_sweep__BenjaminiHochberg-FDR__1995.txt is 0 bytes (scanned PDF,
+% NO TEXT LAYER). Bibliographic data below is canonical (JRSS-B 57(1):289-300)
+% and could NOT be verified first-hand from disk -- flagged.
+@article{benjamini1995fdr,
+  author  = {Benjamini, Yoav and Hochberg, Yosef},
+  title   = {Controlling the False Discovery Rate: A Practical and Powerful
+             Approach to Multiple Testing},
+  journal = {Journal of the Royal Statistical Society: Series B (Methodological)},
+  volume  = {57},
+  number  = {1},
+  pages   = {289--300},
+  year    = {1995},
+  note    = {% VERIFY -- on-disk PDF is a scanned image with no text layer; metadata not verifiable from the corpus.},
+}
+
+
+% Romano & Wolf -- Stepwise multiple testing (the FWER stepdown used in src/inference/multiple_testing.py).
+% VERIFIED first-hand 2026-06-28 from 01_literature/K_final_sweep/RomanoWolf-Stepwise__2005.pdf page 1:
+% "Econometrica, Vol. 73, No. 4 (July, 2005), 1237-1282 / STEPWISE MULTIPLE TESTING AS FORMALIZED DATA
+% SNOOPING / BY JOSEPH P. ROMANO AND MICHAEL WOLF". Abstract frames it as comparing several strategies to a
+% common benchmark -- exactly the arm-vs-benchmark family here. Promotes the keyless bib-header entry.
+@article{romanowolf2005stepwise,
+  author  = {Romano, Joseph P. and Wolf, Michael},
+  title   = {Stepwise Multiple Testing as Formalized Data Snooping},
+  journal = {Econometrica},
+  volume  = {73},
+  number  = {4},
+  pages   = {1237--1282},
+  year    = {2005},
+}
+
+
+% Ledoit & Wolf -- covariance shrinkage (the `mean_variance` allocator uses sklearn.covariance.LedoitWolf;
+% src/baselines/strategies.py:122, test_mean_variance_uses_shrinkage). TITLE + AUTHORS verified first-hand
+% 2026-06-28 from 01_literature/H_manual_journal/LedoitWolf-Shrinkage__2004.pdf p.1 ("Honey, I Shrunk the
+% Sample Covariance Matrix / Olivier Ledoit ... Michael Wolf", dated Nov 2003 working draft, so the published
+% J. Portfolio Management 30(4):110-119 vol/pages are % VERIFY). NB: sklearn's estimator implements the
+% companion Ledoit-Wolf (2004) "A well-conditioned estimator...", J. Multivariate Analysis 88(2):365-411 --
+% same shrinkage-to-identity method; cite the JPM version here (the finance-canonical reference).
+@article{ledoit2004honey,
+  author  = {Ledoit, Olivier and Wolf, Michael},
+  title   = {Honey, {I} Shrunk the Sample Covariance Matrix},
+  journal = {The Journal of Portfolio Management},
+  volume  = {30},
+  number  = {4},
+  pages   = {110--119},
+  year    = {2004},
+  note    = {% VERIFY -- title/authors verified first-hand from the on-disk Nov-2003 draft; published JPM vol/pages and the companion JMVA 2004 estimator coords to be confirmed at the reference round.},
+}
+
+
+% Bergstra & Bengio -- Random Search for Hyper-Parameter Optimization (the H4a strong-baseline rationale).
+% Canonical bibliographic data; NOT in the local PDF cache -- verify against JMLR before the reference-checked draft.
+@article{bergstra2012randomsearch,
+  author  = {Bergstra, James and Bengio, Yoshua},
+  title   = {Random Search for Hyper-Parameter Optimization},
+  journal = {Journal of Machine Learning Research},
+  volume  = {13},
+  pages   = {281--305},
+  year    = {2012},
+  note    = {% VERIFY -- canonical JMLR 13:281--305; not cache-verified first-hand.},
+}
+
+% Snoek, Larochelle & Adams -- Practical Bayesian Optimization (the H4b GP-EI method; corrects the false Optuna/TPE label).
+% Canonical bibliographic data; NOT in the local PDF cache -- verify against NeurIPS before the reference-checked draft.
+@inproceedings{snoek2012bayesopt,
+  author    = {Snoek, Jasper and Larochelle, Hugo and Adams, Ryan P.},
+  title     = {Practical Bayesian Optimization of Machine Learning Algorithms},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {25},
+  year      = {2012},
+  note      = {% VERIFY -- canonical NeurIPS 25; arXiv:1206.2944; not cache-verified first-hand.},
+}
+
+% =================  PORTFOLIO RL ENVIRONMENT & BASELINES  ===================
+
+% Sood, Papasotiriou, Vaiciulis, Balch -- portfolio env template / diff-Sharpe.
+% Cache: H_manual_journal__Sood-DiffSharpe__2023.txt
+% PDF prints title + author order Sood, Papasotiriou, Vaiciulis, Balch
+% (J.P. Morgan AI Research) + "Copyright (c) 2023, Association for the
+% Advancement of Artificial Intelligence". The PDF itself does NOT print
+% "ICAIF" or "ICAPS FinPlan" for its own venue (those strings appear only in
+% its reference list). Widely attributed to the ICAPS 2023 FinPlan workshop.
+@inproceedings{sood2023drl,
+  author    = {Sood, Srijan and Papasotiriou, Kassiani and Vaiciulis, Marius and
+               Balch, Tucker},
+  title     = {Deep Reinforcement Learning for Optimal Portfolio Allocation:
+               A Comparative Study with Mean-Variance Optimization},
+  booktitle = {ICAPS 2023 Workshop on Financial Planning (FinPlan)},
+  year      = {2023},
+  note      = {% VERIFY venue -- on-disk PDF prints only the AAAI 2023 copyright (J.P. Morgan AI Research); it does not name ICAPS/FinPlan or ICAIF for itself.},
+}
+
+% Jiang, Xu, Liang -- EIIE deep portfolio management.
+% Cache: H_foundational_canon__DeepRL-Portfolio-Mgmt-EIIE-Jiang__1706.10059.txt
+% PDF prints "A Deep Reinforcement Learning Framework for the Financial
+% Portfolio Management Problem"; Jiang, Xu, Liang; "arXiv:1706.10059v2
+% [q-fin.CP] 16 Jul 2017". VERIFIED.
+@misc{jiang2017eiie,
+  author       = {Jiang, Zhengyao and Xu, Dixing and Liang, Jinjun},
+  title        = {A Deep Reinforcement Learning Framework for the Financial
+                  Portfolio Management Problem},
+  year         = {2017},
+  howpublished = {arXiv preprint arXiv:1706.10059},
+}
+
+% Moody & Saffell -- Learning to Trade via Direct Reinforcement (diff-Sharpe).
+% Cache: H_manual_journal__MoodySaffell-DirectRL__2001.txt
+% PDF prints in full: "IEEE Transactions on Neural Networks, Vol. 12, No. 4,
+% July 2001", p. 875; index term "Differential Sharpe ratio". VERIFIED.
+@article{moody2001directrl,
+  author  = {Moody, John and Saffell, Matthew},
+  title   = {Learning to Trade via Direct Reinforcement},
+  journal = {IEEE Transactions on Neural Networks},
+  volume  = {12},
+  number  = {4},
+  pages   = {875--889},
+  year    = {2001},
+  note    = {% VERIFY end page -- PDF confirms start page 875; end page from external record.},
+}
+
+% DeMiguel, Garlappi, Uppal -- 1/N (Optimal Versus Naive Diversification).
+% Cache: H_manual_journal__DeMiguel-1overN__2009.txt
+% The on-disk copy is the June 2006 WORKING-PAPER draft: it prints author order
+% DeMiguel, Garlappi, Uppal but NOT the RFS venue and NOT the 50bps cost
+% convention (those are in the 2009 published version). Published as Review of
+% Financial Studies 22(5):1915-1953, 2009.
+@article{demiguel2009naive,
+  author  = {DeMiguel, Victor and Garlappi, Lorenzo and Uppal, Raman},
+  title   = {Optimal Versus Naive Diversification: How Inefficient is the
+             1/N Portfolio Strategy?},
+  journal = {The Review of Financial Studies},
+  volume  = {22},
+  number  = {5},
+  pages   = {1915--1953},
+  year    = {2009},
+  note    = {% VERIFY journal vol/no/pages -- on-disk PDF is the June 2006 working-paper draft (no RFS string, no 50bps convention).},
+}
+
+% Buehler, Gonon, Teichmann, Wood -- Deep Hedging.
+% Cache: H_foundational_canon__Deep-Hedging-Buehler__1802.03042.txt
+% PDF prints title + author order Buehler, Gonon, Teichmann, Wood;
+% "arXiv:1802.03042v1 [q-fin.CP] 8 Feb 2018". VERIFIED.
+@article{buehler2019deephedging,
+  author  = {Buehler, Hans and Gonon, Lukas and Teichmann, Josef and Wood, Ben},
+  title   = {Deep Hedging},
+  journal = {Quantitative Finance},
+  volume  = {19},
+  number  = {8},
+  pages   = {1271--1291},
+  year    = {2019},
+  note    = {arXiv:1802.03042. % VERIFY journal vol/no/pages -- on-disk PDF is the arXiv copy (2018); Quantitative Finance coordinates from external record.},
+}
+
+
+% =====================  REWARD HACKING / FORENSICS  ========================
+
+% Skalse, Howe, Krasheninnikov, Krueger -- Defining and Characterizing
+% Reward Hacking. Cache: J_additional_relevant__RewardHacking-Skalse__2022.txt
+% PDF prints "36th Conference on Neural Information Processing Systems
+% (NeurIPS 2022)."; 4-author order Skalse, Howe, Krasheninnikov, Krueger;
+% base id arXiv:2209.13085 (v2 stamp "5 Mar 2025"). VERIFIED.
+@inproceedings{skalse2022reward,
+  author    = {Skalse, Joar and Howe, Nikolaus H. R. and
+               Krasheninnikov, Dmitrii and Krueger, David},
+  title     = {Defining and Characterizing Reward Hacking},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {35},
+  year      = {2022},
+  note      = {arXiv:2209.13085},
+}
+
+% Abel et al. -- On the Expressivity of Markov Reward (reward expressivity).
+% NOT ON DISK. Appears only as a citation inside other corpus PDFs (Skalse,
+% Motif). Bibliographic data below is canonical (NeurIPS 34, 2021) but could
+% NOT be verified first-hand. MUST-ACQUIRE before citing as a read source.
+% (The alternative "Skalse & Abate, UAI 2023, arXiv:2401.14811" is also NOT on
+% disk and 2401.14811 is unverifiable against the corpus.)
+@inproceedings{abel2021expressivity,
+  author    = {Abel, David and Dabney, Will and Harutyunyan, Anna and
+               Ho, Mark K. and Littman, Michael L. and Precup, Doina and
+               Singh, Satinder},
+  title     = {On the Expressivity of {Markov} Reward},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {34},
+  year      = {2021},
+  note      = {% VERIFY / MUST-ACQUIRE -- not present as a PDF in the corpus; cited only second-hand inside other papers. Do not present as first-hand-read.},
+}
+
+% Henderson et al. -- Deep Reinforcement Learning that Matters.
+% Cache: J_additional_relevant__DeepRLThatMatters-Henderson__2018.txt
+% PDF prints full author list + "Copyright (c) 2018, Association for the
+% Advancement of Artificial Intelligence" (AAAI camera-ready marker). VERIFIED.
+@inproceedings{henderson2018matters,
+  author    = {Henderson, Peter and Islam, Riashat and Bachman, Philip and
+               Pineau, Joelle and Precup, Doina and Meger, David},
+  title     = {Deep Reinforcement Learning that Matters},
+  booktitle = {Proceedings of the Thirty-Second AAAI Conference on Artificial
+               Intelligence (AAAI)},
+  year      = {2018},
+  note      = {Venue confirmed via the AAAI 2018 copyright line printed on the PDF.},
+}
+
+% PPO -- Schulman et al. (algorithm backbone; cited, not the headline agent).
+% Cache: H_foundational_canon__PPO__1707.06347.txt
+% PDF prints title + 5-author list; "arXiv:1707.06347v2 [cs.LG] 28 Aug 2017".
+% NO published venue is printed (PPO remains an arXiv preprint). VERIFIED.
+@misc{schulman2017ppo,
+  author       = {Schulman, John and Wolski, Filip and Dhariwal, Prafulla and
+                  Radford, Alec and Klimov, Oleg},
+  title        = {Proximal Policy Optimization Algorithms},
+  year         = {2017},
+  howpublished = {arXiv preprint arXiv:1707.06347},
+}
+
+
+% ===================  PROGRAM-SEARCH / LLM-FOR-CODE  =======================
+
+% FunSearch -- Romera-Paredes et al.
+% Cache: J_additional_relevant__FunSearch-RomeraParedes__2024.txt
+% PDF page headers print "Nature | Vol 625 | 18 January 2024" with page range
+% 468 (first) through 475 (last); DOI 10.1038/s41586-023-06924-6; first author
+% Romera-Paredes. VERIFIED (journal, volume, year, first author, pp. 468-475).
+@article{romeraparedes2024funsearch,
+  author  = {Romera-Paredes, Bernardino and Barekatain, Mohammadamin and
+             Novikov, Alexander and Balog, Matej and Kumar, M. Pawan and
+             Dupont, Emilien and Ruiz, Francisco J. R. and Ellenberg, Jordan S. and
+             Wang, Pengming and Fawzi, Omar and Kohli, Pushmeet and Fawzi, Alhussein},
+  title   = {Mathematical Discoveries from Program Search with Large Language Models},
+  journal = {Nature},
+  volume  = {625},
+  number  = {7995},
+  pages   = {468--475},
+  year    = {2024},
+  doi     = {10.1038/s41586-023-06924-6},
+}
+
+% OPRO -- "Large Language Models as Optimizers." The canonical "LLM iteratively proposes, sees the
+% SCALAR objective value, proposes again" pattern -- the ancestor of the iterate-on-feedback
+% paradigm the Eureka loop instantiates, and the canonical instance of the SCALAR-feedback
+% convention H2 departs from (the LLM sees a distribution, not a scalar). Read first-hand
+% (docs/LIT_gap_llm_reward_optimizer.md B.1). arXiv:2309.03409; ICLR 2024.
+@inproceedings{yang2024opro,             % VERIFY (2024)
+  author    = {Yang, Chengrun and Wang, Xuezhi and Lu, Yifeng and Liu, Hanxiao and
+               Le, Quoc V. and Zhou, Denny and Chen, Xinyun},
+  title     = {Large Language Models as Optimizers},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2024},
+  note      = {arXiv:2309.03409. % VERIFY -- venue (ICLR 2024) not printed on a cached PDF; near-miss cited as the scalar-feedback LLM-as-optimizer ancestor.},
+}
+
+% GEPA -- "Reflective Prompt Evolution Can Outperform Reinforcement Learning." The strongest
+% external ALLY for H2 (a NEIGHBOUR, not a baseline to beat): a genetic-Pareto optimiser that
+% mutates PROMPTS via natural-language reflection over rollout traces; quotable thesis that the
+% interpretable richness of language is a better learning medium than "sparse, scalar rewards"
+% -- the dissertation's rich-signal-beats-scalar premise at the prompt-optimization level.
+% DISTINCTION: GEPA optimizes PROMPTS with rich TEXT-trace feedback; this work optimizes reward
+% CODE with rich DISTRIBUTIONAL feedback. Read first-hand (docs/LIT_gap_llm_reward_optimizer.md
+% B.7). arXiv:2507.19457; ICLR 2026 (Oral).
+@inproceedings{agrawal2026gepa,          % VERIFY (2026)
+  author    = {Agrawal, Lakshya A. and others},
+  title     = {{GEPA}: Reflective Prompt Evolution Can Outperform
+               Reinforcement Learning},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  note      = {arXiv:2507.19457. % VERIFY -- 2026 sweep-surfaced; reported as ICLR 2026 Oral. Full author list + acceptance not confirmed against an on-disk PDF. Cited as the rich-signal-vs-scalar ally, distinguished prompt/text-trace vs reward-code/distribution.},
+}
+
+% CARD -- LLM reward design with a Coder+Evaluator loop; feedback = Trajectory PREFERENCE Evaluation
+% (preference/ranking, NOT a distribution); robotics/control. A near-miss in the reward-as-code wave,
+% cited to pre-empt the "rich feedback already exists" objection (preferences are a different,
+% non-distributional signal class). Read first-hand (docs/LIT_gap_llm_reward_optimizer.md A.4).
+% arXiv:2410.14660; published Knowledge-Based Systems 2025, Vol. 326, Art. 114065.
+@article{sun2025card,                    % VERIFY (2025)
+  author  = {Sun, Hao and others},
+  title   = {{CARD}: {LLM}-based Reward Design via Coder-Evaluator
+             Trajectory-Preference Refinement},
+  journal = {Knowledge-Based Systems},
+  volume  = {326},
+  pages   = {114065},
+  year    = {2025},
+  doi     = {10.1016/j.knosys.2025.114065},
+  note    = {arXiv:2410.14660. % VERIFY -- 2025 sweep-surfaced; title/author-list/DOI venue (KBS vol.326 art.114065) NOT confirmed against an on-disk PDF. Distinguished: preference feedback, not a return distribution.},
+}
+
+
+% ==============  REWARD-AS-DESIGNED-OBJECT / SPECIFICATION CLASSICS  ========
+
+% Singh, Lewis & Barto -- "Where Do Rewards Come From?" The pre-LLM CONCEPTUAL ROOT that reward is an
+% object to be DESIGNED/SEARCHED relative to a fitness and a distribution of environments, and that a
+% searched reward can confer advantages over a fitness-derived one (the dissertation's premise, two
+% decades earlier and domain-general). Grounds the decoupling of fitness from the candidate reward
+% (src/selection/fitness.py). Read first-hand (docs/LIT_gap_llm_reward_optimizer.md C.2).
+% KEY = singh2009where (the key the chapters \cite; renamed from singh2009rewards 2026-06-28 to resolve a
+% dangling citation). Title + authors VERIFIED first-hand from 01_literature/K_final_sweep/
+% WhereRewardsComeFrom-Singh__2009.pdf p.1 ("Where Do Rewards Come From? / Satinder Singh ... Richard L. Lewis
+% ... Andrew G. Barto"). The CogSci 2009 venue/pages are not printed on the PDF -> % VERIFY.
+@inproceedings{singh2009where,
+  author    = {Singh, Satinder and Lewis, Richard L. and Barto, Andrew G.},
+  title     = {Where Do Rewards Come From?},
+  booktitle = {Proceedings of the 31st Annual Conference of the Cognitive
+               Science Society (CogSci)},
+  year      = {2009},
+  note      = {% VERIFY -- title/authors first-hand; CogSci 2009 venue/pages to confirm at the reference round.},
+}
+
+% Sorg, Singh & Lewis -- the Optimal Reward Problem (ORP): an optimal reward is defined relative to a
+% fitness and an environment distribution and "need not bear a direct relationship to the fitness
+% function" yet can outperform fitness-only rewards. The formal frame for "a searched reward beats a
+% hand-specified one," with the LLM as the search operator. Read first-hand (LIT_gap C.2).
+@inproceedings{sorg2010orp,              % VERIFY
+  author    = {Sorg, Jonathan and Singh, Satinder and Lewis, Richard L.},
+  title     = {Reward Design via Online Gradient Ascent},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {23},
+  year      = {2010},
+  note      = {% VERIFY -- not in the on-disk PDF cache; canonical NeurIPS 2010. The Optimal-Reward-Problem companion to Singh et al. 2009.},
+}
+
+% Sorg -- the Optimal Reward Problem PhD thesis (the chapters \cite sorg2011optimal; was a dangling citation).
+% VERIFIED first-hand from 01_literature/K_final_sweep/OptimalRewardProblem-Sorg__2011.pdf title page:
+% "The Optimal Reward Problem: Designing Effective Reward for Bounded Agents / by Jonathan Daniel Sorg /
+% ... Doctor of Philosophy ... The University of Michigan / 2011 / Co-Chairs Satinder Singh Baveja, Richard L. Lewis".
+@phdthesis{sorg2011optimal,
+  author = {Sorg, Jonathan Daniel},
+  title  = {The Optimal Reward Problem: Designing Effective Reward for Bounded Agents},
+  school = {University of Michigan},
+  year   = {2011},
+}
+
+% Sorg, Singh & Lewis -- Internal Rewards Mitigate Agent Boundedness (the chapters \cite sorg2010internal;
+% was a dangling citation). VERIFIED first-hand from 01_literature/K_final_sweep/InternalRewards-Sorg__2010.pdf
+% p.1 ("Internal Rewards Mitigate Agent Boundedness / Jonathan Sorg ... Satinder Singh ... Richard Lewis").
+@inproceedings{sorg2010internal,
+  author    = {Sorg, Jonathan and Singh, Satinder and Lewis, Richard L.},
+  title     = {Internal Rewards Mitigate Agent Boundedness},
+  booktitle = {Proceedings of the 27th International Conference on Machine Learning (ICML)},
+  year      = {2010},
+  note      = {% VERIFY -- title/authors first-hand; ICML 2010 venue/pages to confirm at the reference round.},
+}
+
+% Ng, Harada & Russell -- policy invariance under reward transformations (the necessary-and-sufficient
+% potential-based-shaping invariance theorem invoked in the theory chapter; the chapters \cite ng1999policy;
+% was a dangling citation). VERIFIED first-hand from 01_literature/J_additional_relevant/RewardShaping-Ng__1999.pdf
+% p.1 ("Policy invariance under reward transformations: Theory and application to reward shaping / Andrew Y. Ng,
+% Daishi Harada, Stuart Russell / Computer Science Division, University of California, Berkeley").
+@inproceedings{ng1999policy,
+  author    = {Ng, Andrew Y. and Harada, Daishi and Russell, Stuart},
+  title     = {Policy Invariance Under Reward Transformations: Theory and Application to Reward Shaping},
+  booktitle = {Proceedings of the 16th International Conference on Machine Learning (ICML)},
+  pages     = {278--287},
+  year      = {1999},
+  note      = {% VERIFY -- title/authors first-hand; ICML 1999 pages to confirm at the reference round.},
+}
+
+% Hadfield-Menell et al. -- Inverse Reward Design (IRD). Treats a designed reward as an imperfect
+% OBSERVATION about designer intent, to be interpreted in its design context, and plans risk-averse
+% behaviour under distribution shift. The "reward-design priors as the object of study" anchor: this
+% work asks what objective the LLM infers about a financial agent and whether a distributional signal
+% changes that inference, and IRD bridges misspecification to risk-aversion under shift (the
+% contamination/PIT concern). Read first-hand (docs/LIT_gap_llm_reward_optimizer.md C.4).
+@inproceedings{hadfieldmenell2017ird,    % VERIFY
+  author    = {Hadfield-Menell, Dylan and Milli, Smitha and Abbeel, Pieter and
+               Russell, Stuart and Dragan, Anca D.},
+  title     = {Inverse Reward Design},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+  note      = {% VERIFY -- not in the on-disk PDF cache; canonical NeurIPS 2017. Cited for the reward-as-noisy-proxy-for-intent framing.},
+}
+
+
+% =====================  SUPERVISOR-ADJACENT (CORE)  ========================
+
+% Khraishi & Okhrati 2022 -- SUPERVISOR PAPER. CORE.
+% Cache: H_manual_journal__Khraishi-Okhrati__2022.txt
+% PDF prints title "Offline Deep Reinforcement Learning for Dynamic Pricing of
+% Consumer Credit"; authors Raad Khraishi (UCL/NatWest), Ramin Okhrati (UCL);
+% "arXiv:2203.03003v1 [cs.LG] 6 Mar 2022". The on-disk arXiv copy does NOT print
+% the venue; the PUBLISHED record is the ACM ICAIF '22 proceedings (3rd ACM
+% International Conference on AI in Finance), DOI 10.1145/3533271.3561682.
+% Converted from a bare-preprint @misc to the @inproceedings of record (T2.3b).
+@inproceedings{khraishi2022offline,
+  author    = {Khraishi, Raad and Okhrati, Ramin},
+  title     = {Offline Deep Reinforcement Learning for Dynamic Pricing of
+               Consumer Credit},
+  booktitle = {Proceedings of the Third ACM International Conference on AI in
+               Finance (ICAIF '22)},
+  publisher = {ACM},
+  year      = {2022},
+  doi       = {10.1145/3533271.3561682},
+  note      = {arXiv:2203.03003. % VERIFY -- on-disk PDF is the arXiv copy (does not print the venue); the ICAIF '22 venue + DOI 10.1145/3533271.3561682 are from the ACM published record, not first-hand on the cached PDF.},
+}
+
+% Hartley et al. 2025 -- SUPERVISOR-ADJACENT. LLM risk-taking behaviour.
+% Cache: H_manual_journal__Hartley-RiskAttitudes__2025.txt
+% PDF prints in full: "Findings of the Association for Computational Linguistics:
+% ACL 2025, pages 21068-21092"; author order Hartley, Hamill, Seddon, Batra,
+% Okhrati, Khraishi. VERIFIED (venue + pages printed on the PDF).
+@inproceedings{hartley2025personality,   % VERIFY (2025)
+  author    = {Hartley, John and Hamill, Conor and Seddon, Dale and
+               Batra, Devesh and Okhrati, Ramin and Khraishi, Raad},
+  title     = {How Personality Traits Shape {LLM} Risk-Taking Behaviour},
+  booktitle = {Findings of the Association for Computational Linguistics: ACL 2025},
+  pages     = {21068--21092},
+  year      = {2025},
+  note      = {% VERIFY -- 2025 entry (venue/pages confirmed first-hand on the PDF)},
+}
+
+% Batra et al. 2025 -- SUPERVISOR-ADJACENT. UCL-NatWest LLM-agents review.
+% Cache: H_manual_journal__Batra-Review__2025.txt
+% PDF prints title "A Review of LLM Agent Applications in Finance and Banking"
+% and full author list Batra, Hamill, Hartley, Okhrati, Seddon, Miller,
+% Khraishi, Cowan (NatWest AI Research / UCL). No formal venue printed (SSRN).
+@misc{batra2025review,                   % VERIFY (2025)
+  author       = {Batra, Devesh and Hamill, Conor B. and Hartley, John and
+                  Okhrati, Ramin and Seddon, Dale and Miller, Harvey and
+                  Khraishi, Raad and Cowan, Greig A.},
+  title        = {A Review of {LLM} Agent Applications in Finance and Banking},
+  year         = {2025},
+  howpublished = {Working paper (SSRN)},
+  note         = {% VERIFY -- 2025 working paper; confirm SSRN id / venue before citing.},
+}
+
+% --------------------------------------------------------------------------- %
+% Added 2026-06-28 (R61 reframe + WS5 tail-uncertainty). Coordinates are as confirmed by the deep-research
+% verification pass (3-vote); each remains % VERIFY until the on-disk PDF / publisher record is checked at the
+% pre-submission reference round (docs/CITATION_VERIFICATION_TODO.md). NONE of the DO-NOT-CITE 2026-ids enter here.
+% --------------------------------------------------------------------------- %
+
+% McNeil & Frey 2000 -- the canonical conditional GARCH-EVT / POT tail-risk reference (VaR + ES via GPD).
+@article{mcneilfrey2000,
+  author  = {McNeil, Alexander J. and Frey, R{\"u}diger},
+  title   = {Estimation of Tail-Related Risk Measures for Heteroscedastic Financial Time Series:
+             An Extreme Value Approach},
+  journal = {Journal of Empirical Finance},
+  volume  = {7},
+  number  = {3--4},
+  pages   = {271--300},
+  year    = {2000},
+  note    = {% VERIFY pages -- deep-research-confirmed venue J. Empirical Finance 7(3-4):271-300; cited for the EVT/POT precedent and the raw-returns-vs-GARCH-residual disclosure (WS5).},
+}
+
+% Belzile & Davison 2022 -- small-sample bias of POT/GPD risk-measure inference (the #1 EVT objection).
+@article{belziledavison2022,
+  author  = {Belzile, L{\'e}o R. and Davison, Anthony C.},
+  title   = {Improved Inference on Risk Measures for Univariate Extremes},
+  journal = {The Annals of Applied Statistics},
+  volume  = {16},
+  number  = {3},
+  year    = {2022},
+  note    = {% VERIFY pages -- AoAS 16(3); cited for the small-sample (~7-37 exceedance) EVT-fragility disclosure.},
+}
+
+% Rubin 2025 -- preregistration does NOT improve Popperian (or deviating-Mayoian) severity (the reframe basis).
+@article{rubin2025preregistration,
+  author  = {Rubin, Mark},
+  title   = {Preregistration and the Transparent Evaluation of Statistical Severity},
+  journal = {Synthese},
+  year    = {2025},
+  note    = {% VERIFY exact title/vol -- arXiv:2408.12347; published in Synthese (2025); basis for the Mayoian-severity reframe (R61).},
+}
+
+% Mayo 2018 -- error-statistical severity (the epistemic basis adopted for the null).
+@book{mayo2018severetesting,
+  author    = {Mayo, Deborah G.},
+  title     = {Statistical Inference as Severe Testing: How to Get Beyond the Statistics Wars},
+  publisher = {Cambridge University Press},
+  year      = {2018},
+  note      = {% VERIFY -- CUP 2018; cited for error-statistical severity.},
+}
+
+% Gelman & Loken 2014 -- the garden of forking paths (the multiplicity-without-p-hacking basis).
+@article{gelman2014forking,
+  author  = {Gelman, Andrew and Loken, Eric},
+  title   = {The Statistical Crisis in Science},
+  journal = {American Scientist},
+  volume  = {102},
+  number  = {6},
+  pages   = {460--465},
+  year    = {2014},
+  note    = {% VERIFY vol/no/pages -- "garden of forking paths"; American Scientist 102(6) (2014). Cited for forking-paths avoidance.},
+}
+
+% Lakens, Scheel & Isager 2018 -- equivalence testing (TOST) tutorial (the null-as-positive-evidence basis).
+@article{lakens2018tost,
+  author  = {Lakens, Dani{\"e}l and Scheel, Anne M. and Isager, Peder M.},
+  title   = {Equivalence Testing for Psychological Research: A Tutorial},
+  journal = {Advances in Methods and Practices in Psychological Science},
+  volume  = {1},
+  number  = {2},
+  pages   = {259--269},
+  year    = {2018},
+  note    = {% VERIFY -- doi:10.1177/2515245918770963; cited for the TOST/SESOI equivalence framing.},
+}
+
+% Campbell & Gustafson 2018 -- Conditional Equivalence Testing (publication-policy variant of TOST).
+@article{campbell2018cet,
+  author  = {Campbell, Harlan and Gustafson, Paul},
+  title   = {Conditional Equivalence Testing: An Alternative Remedy for Publication Bias},
+  journal = {PLOS ONE},
+  year    = {2018},
+  note    = {% VERIFY vol/pages -- PLOS ONE 2018; cited for CET (NHST cannot evidence the null).},
+}
+
+
+% =====================================================================
+% MERGED 2026-06-28 from refs_staging.bib -- resolves dangling chapter
+% citations. CORPUS-VERIFIED = first-hand from 01_literature; others
+% carry % VERIFY (canonical coords, confirm at the reference round).
+% Aliases renamed in chapters (not duplicated): fisslerziegel2016higher->fissler2016higherorder, rockafellar2000optimization->rockafellar2000cvar, skalse2022defining->skalse2022reward, lopezdeprado2018advances->lopezdeprado2018afml, jiang2017deeprl->jiang2017eiie
+% Held for verification (UNCERTAIN referent): harvey1997testing, witzany2021bayesian
+% =====================================================================
+
+% =====================================================================
+% refs_staging.bib  --  PROPOSED entries for DANGLING citation keys
+% (keys cited in paper/*.md but absent from paper/refs.bib)
+%
+% STAGING ONLY -- for human review before merge into refs.bib.
+% Generated 2026-06-28.  DO NOT merge blindly: several keys are
+% alternate spellings of entries that ALREADY EXIST in refs.bib
+% (flagged "ALIAS-CANDIDATE" below -- prefer aliasing/key-rename to
+% avoid duplicate bibliography rows).
+%
+% Status legend (see docs/MISSING_CITATIONS_MANIFEST.md for full table):
+%   CORPUS-VERIFIED  -- page 1 of an on-disk PDF read first-hand;
+%                       title/author/year transcribed EXACTLY as printed.
+%   CLASSIC-%VERIFY  -- famous pre-2024 work NOT in corpus; canonical
+%                       coordinates given but whole entry carries a
+%                       note = {% VERIFY ...} to confirm at reference round.
+% Fields not printed on the source page are marked "% VERIFY" inline.
+% NEEDS-WEB-VERIFY / SUSPICIOUS keys are NOT given entries here
+% (listed in the manifest only).
+% =====================================================================
+
+
+% --------------------------------------------------------------------
+% STEP 2 -- CORPUS-VERIFIED (page 1 read first-hand from ../01_literature)
+% --------------------------------------------------------------------
+
+% CORPUS-VERIFIED -- source: MarketImpact-Almgren__2005.pdf
+@article{almgren2005direct,
+  author  = {Almgren, Robert and Thum, Chee and Hauptmann, Emmanuel and Li, Hong},
+  title   = {Direct Estimation of Equity Market Impact},
+  year    = {2005},
+  note    = {Dated May 10, 2005 on the on-disk PDF; original version Dec 20, 2004. % VERIFY venue/vol/pages -- not printed on p.1 (widely cited as Risk 18(7):58--62, 2005).},
+}
+
+% CORPUS-VERIFIED -- source: ConcreteProblems-Amodei__2016.pdf
+@article{amodei2016concrete,
+  author  = {Amodei, Dario and Olah, Chris and Steinhardt, Jacob and Christiano, Paul and Schulman, John and Man{\'e}, Dan},
+  title   = {Concrete Problems in {AI} Safety},
+  year    = {2016},
+  note    = {arXiv:1606.06565v2 [cs.AI], 25 Jul 2016 (printed on p.1).},
+}
+
+% CORPUS-VERIFIED -- source: PseudoMath-Bailey__2014.pdf
+% NOTE: distinct from the existing bailey2014deflated (Deflated Sharpe Ratio).
+@article{bailey2014pseudomath,
+  author  = {Bailey, David H. and Borwein, Jonathan M. and L{\'o}pez de Prado, Marcos and Zhu, Qiji Jim},
+  title   = {Pseudo-Mathematics and Financial Charlatanism: The Effects of Backtest Overfitting on Out-of-Sample Performance},
+  year    = {2014},
+  note    = {Dated April 1, 2014 (first version September 2013) on the on-disk PDF. % VERIFY venue/vol/pages -- not printed on p.1 (widely cited as Notices of the AMS 61(5):458--471, 2014).},
+}
+
+% CORPUS-VERIFIED -- source: SurvivorshipBias-Brown__1992.pdf
+@article{brown1992survivorship,
+  author  = {Brown, Stephen J. and Goetzmann, William and Ibbotson, Roger G. and Ross, Stephen A.},
+  title   = {Survivorship Bias in Performance Studies},
+  journal = {The Review of Financial Studies},
+  volume  = {5},
+  number  = {4},
+  pages   = {553--580},
+  year    = {1992},
+  note    = {Volume/number/pages printed on p.1 of the on-disk PDF.},
+}
+
+% CORPUS-VERIFIED -- source: CVaR-Robust-Chow__2015.pdf
+% (cited in 02_CHAPTER_theory for the robust-MDP / worst-case-distribution
+%  interpretation of CVaR, eqn (2)/Prop.1 -- matches THIS 2015 paper, NOT
+%  the separate CVaR-MDP-Chow__2014.pdf.)
+@article{chow2015risk,
+  author  = {Chow, Yinlam and Tamar, Aviv and Mannor, Shie and Pavone, Marco},
+  title   = {Risk-Sensitive and Robust Decision-Making: A {CVaR} Optimization Approach},
+  year    = {2015},
+  note    = {arXiv:1506.02188v1 [cs.AI], 6 Jun 2015 (printed on p.1). Appeared in Advances in Neural Information Processing Systems (NeurIPS) 28, 2015. % VERIFY NeurIPS pages.},
+}
+
+% CORPUS-VERIFIED -- source: TradingCosts-Frazzini__2018.pdf
+@article{frazzini2018trading,
+  author  = {Frazzini, Andrea and Israel, Ronen and Moskowitz, Tobias J.},
+  title   = {Trading Costs},
+  year    = {2018},
+  note    = {First draft April 2018; this draft August 2018 (printed on p.1). Working paper; % VERIFY any published venue -- none printed on p.1 (commonly cited as SSRN working paper).},
+}
+
+% CORPUS-VERIFIED -- source: Hansen-SPA__2005.pdf
+@article{hansen2005spa,
+  author  = {Hansen, Peter Reinhard},
+  title   = {A Test for Superior Predictive Ability},
+  journal = {Journal of Business {\&} Economic Statistics},
+  year    = {2005},
+  note    = {Author affiliation (Stanford, Dept. of Economics) printed on p.1. % VERIFY vol/no/pages -- not printed on p.1 (widely cited as JBES 23(4):365--380, 2005).},
+}
+
+% CORPUS-VERIFIED -- source: HarveyLiuZhu-CrossSection__2016.pdf
+@article{harvey2016cross,
+  author  = {Harvey, Campbell R. and Liu, Yan and Zhu, Heqing},
+  title   = {\ldots{} and the Cross-Section of Expected Returns},
+  journal = {The Review of Financial Studies},
+  volume  = {29},
+  number  = {1},
+  pages   = {5--68},
+  year    = {2016},
+  note    = {Received Oct 22, 2014; accepted Jun 15, 2015 (printed on p.1). RFS 2016. % VERIFY vol/no/pages -- not printed on p.1 (canonical: RFS 29(1):5--68).},
+}
+
+% CORPUS-VERIFIED -- source: Kusuoka-LawInvariant__2001.pdf
+@article{kusuoka2001law,
+  author  = {Kusuoka, Shigeo},
+  title   = {On Law Invariant Coherent Risk Measures},
+  journal = {Advances in Mathematical Economics},
+  volume  = {3},
+  pages   = {83--95},
+  year    = {2001},
+  note    = {On-disk PDF footer reads "数理解析研究所講究録 1215巻 2001年 158-168" (RIMS Kokyuroku no.1215, 2001, pp.158--168). % VERIFY -- canonical journal-of-record citation is Advances in Mathematical Economics 3:83--95 (2001); confirm which to cite.},
+}
+
+% CORPUS-VERIFIED -- source: RewardMisspecification-Pan__2022.pdf
+@inproceedings{pan2022effects,
+  author    = {Pan, Alexander and Bhatia, Kush and Steinhardt, Jacob},
+  title     = {The Effects of Reward Misspecification: Mapping and Mitigating Misaligned Models},
+  year      = {2022},
+  note      = {arXiv:2201.03544v2 [cs.LG], 14 Feb 2022 (printed on p.1). Published at ICLR 2022. % VERIFY ICLR proceedings details.},
+}
+
+% CORPUS-VERIFIED -- source: FunSearch-RomeraParedes__2024.pdf
+@article{romera2024funsearch,
+  author  = {Romera-Paredes, Bernardino and Barekatain, Mohammadamin and Novikov, Alexander and Balog, Matej and Kumar, M. Pawan and Dupont, Emilien and Ruiz, Francisco J. R. and Ellenberg, Jordan S. and Wang, Pengming and Fawzi, Omar and Kohli, Pushmeet and Fawzi, Alhussein},
+  title   = {Mathematical Discoveries from Program Search with Large Language Models},
+  journal = {Nature},
+  volume  = {625},
+  pages   = {468--475},
+  year    = {2024},
+  note    = {Nature Vol. 625, 18 January 2024, p.468 printed on p.1. % VERIFY end-page (commonly 468--475).},
+}
+
+% CORPUS-VERIFIED -- source: BayesOpt-Snoek__2012.pdf
+@inproceedings{snoek2012practical,
+  author    = {Snoek, Jasper and Larochelle, Hugo and Adams, Ryan P.},
+  title     = {Practical {Bayesian} Optimization of Machine Learning Algorithms},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {25},
+  year      = {2012},
+  note      = {Title/authors/affiliations verified on p.1 of on-disk PDF. % VERIFY NeurIPS 25 pages (commonly 2951--2959).},
+}
+
+% CORPUS-VERIFIED -- source: Sood-DiffSharpe__2023.pdf
+@inproceedings{sood2023deep,
+  author    = {Sood, Srijan and Papasotiriou, Kassiani and Vaiciulis, Marius and Balch, Tucker},
+  title     = {Deep Reinforcement Learning for Optimal Portfolio Allocation: A Comparative Study with Mean-Variance Optimization},
+  year      = {2023},
+  note      = {Copyright 2023, AAAI (printed on p.1). % VERIFY venue -- AAAI-affiliated workshop / ICAIF; exact proceedings not printed on p.1.},
+}
+
+% CORPUS-VERIFIED -- source: White-RealityCheck__2000.pdf
+@article{white2000reality,
+  author  = {White, Halbert},
+  title   = {A Reality Check for Data Snooping},
+  journal = {Econometrica},
+  volume  = {68},
+  number  = {5},
+  pages   = {1097--1126},
+  year    = {2000},
+  note    = {Econometrica Vol. 68, No. 5 (September 2000), pp.1097--1126 -- all printed on p.1.},
+}
+
+% --------------------------------------------------------------------
+% STEP 3 -- CLASSIC-%VERIFY (famous, NOT in corpus; canonical coords;
+%           confirm every entry at the reference round)
+% --------------------------------------------------------------------
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+% Distinct short Risk note (NOT the Annals Higher-Order-Elicitability paper).
+@article{fisslerziegelgneiting2015,
+  author  = {Fissler, Tobias and Ziegel, Johanna F. and Gneiting, Tilmann},
+  title   = {Expected Shortfall Is Jointly Elicitable with Value at Risk: Implications for Backtesting},
+  journal = {Risk},
+  year    = {2016},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1507.00244 (2015); short note in Risk magazine, January 2016, pp.58--61. Distinct from fissler2016higherorder (Annals of Statistics).},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+% Key cited as 2015; the ON-DISK Harvey file (EvaluatingTradingStrategies-Harvey__2014.pdf)
+% is a DIFFERENT 2014 paper, so this is treated as the 2015 "Backtesting" article.
+@article{harvey2015backtesting,
+  author  = {Harvey, Campbell R. and Liu, Yan},
+  title   = {Backtesting},
+  journal = {The Journal of Portfolio Management},
+  volume  = {42},
+  number  = {1},
+  pages   = {13--28},
+  year    = {2015},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. JPM 42(1):13--28 (Fall 2015). NB: corpus contains the separate Harvey--Liu "Evaluating Trading Strategies" (JPM 40th anniversary, 2014) -- a different paper; confirm which the dissertation intends.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+% Cited for "many rewards induce the same optimal policy" -- the 2023
+% partial-identifiability paper, NOT the 2022 reward-hacking paper on disk.
+@inproceedings{skalse2023invariance,
+  author    = {Skalse, Joar and Farrugia-Roberts, Matthew and Russell, Stuart and Abate, Alessandro and Gleave, Adam},
+  title     = {Invariance in Policy Optimisation and Partial Identifiability in Reward Learning},
+  booktitle = {Proceedings of the International Conference on Machine Learning (ICML)},
+  year      = {2023},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:2203.07475; ICML 2023. Confirm author list and PMLR volume/pages.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+% Cited for "coherence cannot be elicited". On-disk Ziegel files are
+% Fissler-Ziegel (2016) and Nolde-Ziegel (2017) -- both different papers.
+@article{ziegel2016coherence,
+  author  = {Ziegel, Johanna F.},
+  title   = {Coherence and Elicitability},
+  journal = {Mathematical Finance},
+  volume  = {26},
+  number  = {4},
+  pages   = {901--918},
+  year    = {2016},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1303.1690; Mathematical Finance 26(4):901--918 (2016).},
+}
+
+% --- Famous classics (pre-2024), NOT in corpus. Each carries % VERIFY. ---
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{pickands1975statistical,
+  author  = {Pickands, James, III},
+  title   = {Statistical Inference Using Extreme Order Statistics},
+  journal = {The Annals of Statistics},
+  volume  = {3},
+  number  = {1},
+  pages   = {119--131},
+  year    = {1975},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{balkema1974residual,
+  author  = {Balkema, August A. and de Haan, Laurens},
+  title   = {Residual Life Time at Great Age},
+  journal = {The Annals of Probability},
+  volume  = {2},
+  number  = {5},
+  pages   = {792--804},
+  year    = {1974},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{mcneil2000estimation,
+  author  = {McNeil, Alexander J. and Frey, R{\"u}diger},
+  title   = {Estimation of Tail-Related Risk Measures for Heteroscedastic Financial Time Series: An Extreme Value Approach},
+  journal = {Journal of Empirical Finance},
+  volume  = {7},
+  number  = {3--4},
+  pages   = {271--300},
+  year    = {2000},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{bellemare2017distributional,
+  author    = {Bellemare, Marc G. and Dabney, Will and Munos, R{\'e}mi},
+  title     = {A Distributional Perspective on Reinforcement Learning},
+  booktitle = {Proceedings of the International Conference on Machine Learning (ICML)},
+  year      = {2017},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1707.06887; PMLR 70:449--458.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{dabney2018qrdqn,
+  author    = {Dabney, Will and Rowland, Mark and Bellemare, Marc G. and Munos, R{\'e}mi},
+  title     = {Distributional Reinforcement Learning with Quantile Regression},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  year      = {2018},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1710.10044; AAAI 2018.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{vanhasselt2016popart,
+  author    = {van Hasselt, Hado and Guez, Arthur and Hessel, Matteo and Mnih, Volodymyr and Silver, David},
+  title     = {Learning Values across Many Orders of Magnitude},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {29},
+  year      = {2016},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1602.07714 (PopArt).},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{raffin2021sb3,
+  author  = {Raffin, Antonin and Hill, Ashley and Gleave, Adam and Kanervisto, Anssi and Ernestus, Maximilian and Dormann, Noah},
+  title   = {Stable-Baselines3: Reliable Reinforcement Learning Implementations},
+  journal = {Journal of Machine Learning Research},
+  volume  = {22},
+  number  = {268},
+  pages   = {1--8},
+  year    = {2021},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@techreport{gebru2021datasheets,
+  author      = {Gebru, Timnit and Morgenstern, Jamie and Vecchione, Briana and Vaughan, Jennifer Wortman and Wallach, Hanna and Daum{\'e} III, Hal and Crawford, Kate},
+  title       = {Datasheets for Datasets},
+  institution = {Communications of the ACM},
+  year        = {2021},
+  note        = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. CACM 64(12):86--92 (2021); arXiv:1803.09010.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{mitchell2019modelcards,
+  author    = {Mitchell, Margaret and Wu, Simone and Zaldivar, Andrew and Barnes, Parker and Vasserman, Lucy and Hutchinson, Ben and Spitzer, Elena and Raji, Inioluwa Deborah and Gebru, Timnit},
+  title     = {Model Cards for Model Reporting},
+  booktitle = {Proceedings of the Conference on Fairness, Accountability, and Transparency (FAccT/FAT*)},
+  year      = {2019},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1810.03993.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{newey1987simple,
+  author  = {Newey, Whitney K. and West, Kenneth D.},
+  title   = {A Simple, Positive Semi-Definite, Heteroskedasticity and Autocorrelation Consistent Covariance Matrix},
+  journal = {Econometrica},
+  volume  = {55},
+  number  = {3},
+  pages   = {703--708},
+  year    = {1987},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{kothari1995another,
+  author  = {Kothari, S. P. and Shanken, Jay and Sloan, Richard G.},
+  title   = {Another Look at the Cross-Section of Expected Stock Returns},
+  journal = {The Journal of Finance},
+  volume  = {50},
+  number  = {1},
+  pages   = {185--224},
+  year    = {1995},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{moody1998performance,
+  author  = {Moody, John and Wu, Lizhong and Liao, Yuansong and Saffell, Matthew},
+  title   = {Performance Functions and Reinforcement Learning for Trading Systems and Portfolios},
+  journal = {Journal of Forecasting},
+  volume  = {17},
+  number  = {5--6},
+  pages   = {441--470},
+  year    = {1998},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{haarnoja2019applications,
+  author    = {Haarnoja, Tuomas and Zhou, Aurick and Hartikainen, Kristian and Tucker, George and Ha, Sehoon and Tan, Jie and Kumar, Vikash and Zhu, Henry and Gupta, Abhishek and Abbeel, Pieter and Levine, Sergey},
+  title     = {Soft Actor-Critic Algorithms and Applications},
+  booktitle = {arXiv preprint},
+  year      = {2019},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:1812.05905.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{krakovna2020specification,
+  author    = {Krakovna, Victoria and Uesato, Jonathan and Mikulik, Vladimir and Rahtz, Matthew and Everitt, Tom and Kumar, Ramana and Kenton, Zac and Leike, Jan and Legg, Shane},
+  title     = {Specification Gaming: The Flip Side of {AI} Ingenuity},
+  booktitle = {DeepMind Blog},
+  year      = {2020},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. DeepMind blog post, 2020.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{shumway1997delisting,
+  author  = {Shumway, Tyler},
+  title   = {The Delisting Bias in {CRSP} Data},
+  journal = {The Journal of Finance},
+  volume  = {52},
+  number  = {1},
+  pages   = {327--340},
+  year    = {1997},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{shumway1999delisting,
+  author  = {Shumway, Tyler and Warther, Vincent A.},
+  title   = {The Delisting Bias in {CRSP}'s {Nasdaq} Data and Its Implications for the Size Effect},
+  journal = {The Journal of Finance},
+  volume  = {54},
+  number  = {6},
+  pages   = {2361--2379},
+  year    = {1999},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{iyengar2005robust,
+  author  = {Iyengar, Garud N.},
+  title   = {Robust Dynamic Programming},
+  journal = {Mathematics of Operations Research},
+  volume  = {30},
+  number  = {2},
+  pages   = {257--280},
+  year    = {2005},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{nilim2005robust,
+  author  = {Nilim, Arnab and El Ghaoui, Laurent},
+  title   = {Robust Control of {Markov} Decision Processes with Uncertain Transition Matrices},
+  journal = {Operations Research},
+  volume  = {53},
+  number  = {5},
+  pages   = {780--798},
+  year    = {2005},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{frazzini2014bab,
+  author  = {Frazzini, Andrea and Pedersen, Lasse Heje},
+  title   = {Betting against Beta},
+  journal = {Journal of Financial Economics},
+  volume  = {111},
+  number  = {1},
+  pages   = {1--25},
+  year    = {2014},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{asness2019qmj,
+  author  = {Asness, Clifford S. and Frazzini, Andrea and Pedersen, Lasse Heje},
+  title   = {Quality Minus Junk},
+  journal = {Review of Accounting Studies},
+  volume  = {24},
+  number  = {1},
+  pages   = {34--112},
+  year    = {2019},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{lakens2017equivalence,
+  author  = {Lakens, Dani{\"e}l},
+  title   = {Equivalence Tests: A Practical Primer for t-Tests, Correlations, and Meta-Analyses},
+  journal = {Social Psychological and Personality Science},
+  volume  = {8},
+  number  = {4},
+  pages   = {355--362},
+  year    = {2017},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@book{shadish2002experimental,
+  author    = {Shadish, William R. and Cook, Thomas D. and Campbell, Donald T.},
+  title     = {Experimental and Quasi-Experimental Designs for Generalized Causal Inference},
+  publisher = {Houghton Mifflin},
+  year      = {2002},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{kerr1998harking,
+  author  = {Kerr, Norbert L.},
+  title   = {HARKing: Hypothesizing after the Results Are Known},
+  journal = {Personality and Social Psychology Review},
+  volume  = {2},
+  number  = {3},
+  pages   = {196--217},
+  year    = {1998},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{gleave2021epic,
+  author  = {Gleave, Adam and Dennis, Michael and Legg, Shane and Russell, Stuart and Leike, Jan},
+  title   = {Quantifying Differences in Reward Functions},
+  journal = {International Conference on Learning Representations (ICLR)},
+  year    = {2021},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:2006.13900 (EPIC distance).},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{blackwell1951comparison,
+  author  = {Blackwell, David},
+  title   = {Comparison of Experiments},
+  journal = {Proceedings of the Second Berkeley Symposium on Mathematical Statistics and Probability},
+  pages   = {93--102},
+  year    = {1951},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{blackwell1953equivalent,
+  author  = {Blackwell, David},
+  title   = {Equivalent Comparisons of Experiments},
+  journal = {The Annals of Mathematical Statistics},
+  volume  = {24},
+  number  = {2},
+  pages   = {265--272},
+  year    = {1953},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@book{lecam1986asymptotic,
+  author    = {Le Cam, Lucien},
+  title     = {Asymptotic Methods in Statistical Decision Theory},
+  publisher = {Springer},
+  year      = {1986},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{lecam1964sufficiency,
+  author  = {Le Cam, Lucien},
+  title   = {Sufficiency and Approximate Sufficiency},
+  journal = {The Annals of Mathematical Statistics},
+  volume  = {35},
+  number  = {4},
+  pages   = {1419--1455},
+  year    = {1964},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{sherman1951theorem,
+  author  = {Sherman, Seymour},
+  title   = {On a Theorem of Hardy, Littlewood, P{\'o}lya, and Blackwell},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume  = {37},
+  number  = {12},
+  pages   = {826--831},
+  year    = {1951},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@book{torgersen1991comparison,
+  author    = {Torgersen, Erik},
+  title     = {Comparison of Statistical Experiments},
+  publisher = {Cambridge University Press},
+  year      = {1991},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{bellini2015elicitable,
+  author  = {Bellini, Fabio and Bignozzi, Valeria},
+  title   = {On Elicitable Risk Measures},
+  journal = {Quantitative Finance},
+  volume  = {15},
+  number  = {5},
+  pages   = {725--733},
+  year    = {2015},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{bental2013robust,
+  author  = {Ben-Tal, Aharon and den Hertog, Dick and De Waegenaere, Anja and Melenberg, Bertrand and Rennen, Gijs},
+  title   = {Robust Solutions of Optimization Problems Affected by Uncertain Probabilities},
+  journal = {Management Science},
+  volume  = {59},
+  number  = {2},
+  pages   = {341--357},
+  year    = {2013},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{cont2010robustness,
+  author  = {Cont, Rama and Deguest, Romain and Scandolo, Giacomo},
+  title   = {Robustness and Sensitivity Analysis of Risk Measurement Procedures},
+  journal = {Quantitative Finance},
+  volume  = {10},
+  number  = {6},
+  pages   = {593--606},
+  year    = {2010},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{kuznetsov2020tqc,
+  author    = {Kuznetsov, Arsenii and Shvechikov, Pavel and Grishin, Alexander and Vetrov, Dmitry},
+  title     = {Controlling Overestimation Bias with Truncated Mixture of Continuous Distributional Quantile Critics},
+  booktitle = {Proceedings of the International Conference on Machine Learning (ICML)},
+  year      = {2020},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:2005.04269 (TQC).},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@inproceedings{yang2021wcsac,
+  author    = {Yang, Qisong and Sim{\~a}o, Thiago D. and Tindemans, Simon H. and Spaan, Matthijs T. J.},
+  title     = {{WCSAC}: Worst-Case Soft Actor Critic for Safety-Constrained Reinforcement Learning},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  year      = {2021},
+  note      = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{theate2023risksensitive,
+  author  = {Th{\'e}ate, Thibaut and Ernst, Damien},
+  title   = {Risk-Sensitive Policy with Distributional Reinforcement Learning},
+  journal = {Algorithms},
+  year    = {2023},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:2212.14743.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{kapoor2023leakage,
+  author  = {Kapoor, Sayash and Narayanan, Arvind},
+  title   = {Leakage and the Reproducibility Crisis in Machine-Learning-Based Science},
+  journal = {Patterns},
+  volume  = {4},
+  number  = {9},
+  pages   = {100804},
+  year    = {2023},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus.
+@article{liu2022finrlmeta,
+  author  = {Liu, Xiao-Yang and Xia, Ziyi and Rui, Jingyang and Gao, Jiechao and Yang, Hongyang and Zhu, Ming and Wang, Christina Dan and Wang, Zhaoran and Guo, Jian},
+  title   = {{FinRL-Meta}: Market Environments and Benchmarks for Data-Driven Financial Reinforcement Learning},
+  journal = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year    = {2022},
+  note    = {% VERIFY -- not in corpus; canonical coords, confirm at reference round. arXiv:2211.03107.},
+}
+
+
+% =====================================================================
+% MERGED 2026-06-28 (second pass) from refs_staging.bib -- the staging
+% entries still absent from refs.bib by bibkey. The 5 ALIAS-CANDIDATE
+% staging keys (fisslerziegel2016higher, rockafellar2000optimization,
+% skalse2022defining, jiang2017deeprl, lopezdeprado2018advances) are NOT
+% merged: their canonical entries already exist and the chapters cite the
+% canonical keys. The two UNCERTAIN-referent keys (harvey1997testing,
+% witzany2021bayesian) are cited in CH4/CH7 and merged here with their
+% % VERIFY flags intact; confirm the referent at the reference round.
+% =====================================================================
+
+% CLASSIC-%VERIFY -- canonical, not in corpus. UNCERTAIN referent (see note).
+@article{harvey1997testing,
+  author  = {Harvey, Campbell R. and Liu, Yan},
+  title   = {Testing the Quality of Trading Strategies},
+  journal = {Working paper},
+  year    = {1997},
+  note    = {% VERIFY -- not in corpus; UNCERTAIN referent. A 1997 Harvey "testing"-keyed cite is unusual (the multiple-testing line is HarveyLiuZhu 2016 / Harvey-Liu 2015). Confirm exact paper and coordinates at reference round before use.},
+}
+
+% CLASSIC-%VERIFY -- canonical, not in corpus. UNCERTAIN referent (see note).
+@article{witzany2021bayesian,
+  author  = {Witzany, Ji{\v r}{\'i}},
+  title   = {A Bayesian Approach to Backtest Overfitting},
+  journal = {Working paper / arXiv},
+  year    = {2021},
+  note    = {% VERIFY -- not in corpus; canonical coords UNCERTAIN, confirm title/venue at reference round (referent inferred from CSCV/backtest-overfitting usage context).},
+}
+
+
+% === Deep-dive corpus acquisition (2026-06-28) ===
+
+% VERIFY — deep-dive acquisition, verified arXiv 2303.00001 (page-1 read first-hand).
+% LLM-reward-proxy lineage (the direct ancestor: LLM AS the reward function via NL prompt).
+% NOTE: candidate-claimed authors "Boutilier, Finn" were WRONG; correct authors per arXiv +
+% first-hand PDF = Kwon, Sang Michael Xie, Kalesha Bullard, Dorsa Sadigh (ICLR 2023).
+@inproceedings{kwon2023rewarddesignlm,
+  title     = {Reward Design with Language Models},
+  author    = {Kwon, Minae and Xie, Sang Michael and Bullard, Kalesha and Sadigh, Dorsa},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2023},
+  eprint    = {2303.00001},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url       = {https://arxiv.org/abs/2303.00001}
+}
+
+% VERIFY — deep-dive acquisition, verified arXiv 2302.06692 (page-1 read first-hand).
+% LLM-reward-proxy lineage (LLM-shaped exploration reward — ELLM; neighbour to LLM-designs-reward).
+@inproceedings{du2023ellm,
+  title     = {Guiding Pretraining in Reinforcement Learning with Large Language Models},
+  author    = {Du, Yuqing and Watkins, Olivia and Wang, Zihan and Colas, C{\'e}dric and Darrell, Trevor and Abbeel, Pieter and Gupta, Abhishek and Andreas, Jacob},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  year      = {2023},
+  eprint    = {2302.06692},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url       = {https://arxiv.org/abs/2302.06692}
+}
+
+% VERIFY — deep-dive acquisition, verified arXiv 2108.10403 (page-1 read first-hand).
+% Risk-aware RL neighbour (RDEU + Wasserstein-robust risk-aware policy optimisation).
+@article{jaimungal2021robustriskaware,
+  title   = {Robust Risk-Aware Reinforcement Learning},
+  author  = {Jaimungal, Sebastian and Pesenti, Silvana M. and Wang, Ye Sheng and Tatsat, Hariom},
+  journal = {arXiv preprint arXiv:2108.10403},
+  year    = {2021},
+  eprint  = {2108.10403},
+  archivePrefix = {arXiv},
+  primaryClass  = {q-fin.RM},
+  url     = {https://arxiv.org/abs/2108.10403}
+}
+
+% VERIFY — deep-dive acquisition, verified arXiv 1911.03618 (page-1 read first-hand).
+% Risk-aware RL neighbour (CVaR-level actor-critic over return distribution).
+% NOTE: exact title is "Worst Cases Policy Gradients" (candidate wrote "Worst-Cases").
+@article{tang2019worstcases,
+  title   = {Worst Cases Policy Gradients},
+  author  = {Tang, Yichuan Charlie and Zhang, Jian and Salakhutdinov, Ruslan},
+  journal = {arXiv preprint arXiv:1911.03618},
+  year    = {2019},
+  eprint  = {1911.03618},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url     = {https://arxiv.org/abs/1911.03618}
+}
+
+% VERIFY — deep-dive acquisition, verified arXiv 2205.05138 (page-1 read first-hand).
+% Risk-aware RL neighbour (CVaR/soft-risk optimisation; local-optimum barrier + cross-entropy sampler).
+@article{greenberg2022efficientriskaverse,
+  title   = {Efficient Risk-Averse Reinforcement Learning},
+  author  = {Greenberg, Ido and Chow, Yinlam and Ghavamzadeh, Mohammad and Mannor, Shie},
+  journal = {arXiv preprint arXiv:2205.05138},
+  year    = {2022},
+  eprint  = {2205.05138},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url     = {https://arxiv.org/abs/2205.05138}
+}
+
+% VERIFY — deep-dive acquisition, verified arXiv 2112.04553 (page-1 read first-hand).
+% Finance-RL survey (situates the portfolio-RL problem setting; first posted Dec 2021).
+@article{hambly2021rlfinancesurvey,
+  title   = {Recent Advances in Reinforcement Learning in Finance},
+  author  = {Hambly, Ben and Xu, Renyuan and Yang, Huining},
+  journal = {arXiv preprint arXiv:2112.04553},
+  year    = {2021},
+  eprint  = {2112.04553},
+  archivePrefix = {arXiv},
+  primaryClass  = {q-fin.MF},
+  url     = {https://arxiv.org/abs/2112.04553}
+}
+
