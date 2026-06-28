@@ -1,0 +1,374 @@
+"""Tests for the provider transport internals (src/llm/client.py — ADR-033/034 wiring).
+
+These exercise the Anthropic transport WITHOUT installing ``anthropic`` or ``tenacity``: the
+callable ``_AnthropicTransport`` takes its SDK client as a constructor argument, so a fake client
+drives the real request-shaping logic. Covered:
+
+  - prompt-caching: the static system block is sent as a content block with ``cache_control``
+    (the ADR-016 shared-context cache lever), and ``cache_system=False`` sends a plain string;
+  - temperature is passed through only when set (the Eureka loop needs temperature > 0 — ADR-016 —
+    so ``None`` must leave the provider default rather than forcing 0);
+  - per-call token ``usage`` is captured on ``last_usage`` (archived for cost accounting, C-2);
+  - the retry predicate ``_is_transient_api_error`` classifies transient vs terminal failures;
+  - an injected ``retrying`` wrapper is actually used (transparent to the SDK, ``max_retries=0``);
+  - the no-key path raises clearly BEFORE importing the SDK (no network, no dependency needed).
+"""
+from __future__ import annotations
+
+import pytest
+
+from src.llm.client import (
+    _AnthropicTransport,
+    _is_transient_api_error,
+    _make_retrying,
+    _usage_dict,
+    make_anthropic_transport,
+)
+
+
+# --------------------------------------------------------------------------- #
+# Fakes standing in for the anthropic SDK client / message objects            #
+# --------------------------------------------------------------------------- #
+class _Block:
+    def __init__(self, text: str, type_: str = "text") -> None:
+        self.text = text
+        self.type = type_
+
+
+class _Usage:
+    input_tokens = 10
+    output_tokens = 4
+    cache_creation_input_tokens = 0
+    cache_read_input_tokens = 8
+
+
+class _Message:
+    def __init__(self, blocks: list[_Block], usage: object | None) -> None:
+        self.content = blocks
+        self.usage = usage
+
+
+class _Messages:
+    def __init__(self, recorder: list[dict], blocks: list[_Block], usage: object | None) -> None:
+        self._recorder = recorder
+        self._blocks = blocks
+        self._usage = usage
+
+    def create(self, **kwargs: object) -> _Message:
+        self._recorder.append(kwargs)
+        return _Message(self._blocks, self._usage)
+
+
+class _FakeClient:
+    def __init__(self, blocks: list[_Block] | None = None, usage: object | None = _Usage()) -> None:
+        self.calls: list[dict] = []
+        self.messages = _Messages(
+            self.calls, blocks or [_Block("def reward(): return 0.0")], usage
+        )
+
+
+def _transport(client: _FakeClient, **kw: object) -> _AnthropicTransport:
+    defaults: dict = dict(temperature=1.0, max_tokens=4096, cache_system=True, retrying=None)
+    defaults.update(kw)
+    return _AnthropicTransport(client, "claude-sonnet-4-6", **defaults)  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------- #
+# prompt-cache + request shape                                                #
+# --------------------------------------------------------------------------- #
+def test_caches_system_block_and_threads_model_and_messages() -> None:
+    client = _FakeClient()
+    out = _transport(client)("SYS", "USER")
+    assert out == "def reward(): return 0.0"
+    call = client.calls[0]
+    assert call["model"] == "claude-sonnet-4-6"
+    assert call["messages"] == [{"role": "user", "content": "USER"}]
+    # System sent as a cache_control content block (the shared-context cache lever).
+    assert call["system"] == [
+        {"type": "text", "text": "SYS", "cache_control": {"type": "ephemeral"}}
+    ]
+
+
+def test_cache_disabled_sends_plain_system_string() -> None:
+    client = _FakeClient()
+    _transport(client, cache_system=False)("SYS", "USER")
+    assert client.calls[0]["system"] == "SYS"
+
+
+def test_only_text_blocks_are_concatenated() -> None:
+    client = _FakeClient(blocks=[_Block("a"), _Block("IGNORED", type_="thinking"), _Block("b")])
+    assert _transport(client)("S", "U") == "ab"
+
+
+# --------------------------------------------------------------------------- #
+# temperature threading — None leaves the provider default (Eureka needs > 0)  #
+# --------------------------------------------------------------------------- #
+def test_temperature_passed_when_set() -> None:
+    client = _FakeClient()
+    _transport(client, temperature=1.0)("S", "U")
+    assert client.calls[0]["temperature"] == 1.0
+
+
+def test_temperature_omitted_when_none() -> None:
+    client = _FakeClient()
+    _transport(client, temperature=None)("S", "U")
+    assert "temperature" not in client.calls[0]
+
+
+# --------------------------------------------------------------------------- #
+# usage capture                                                               #
+# --------------------------------------------------------------------------- #
+def test_last_usage_captured_after_call() -> None:
+    client = _FakeClient()
+    t = _transport(client)
+    assert t.last_usage is None
+    t("S", "U")
+    assert t.last_usage == {
+        "input_tokens": 10,
+        "output_tokens": 4,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 8,
+    }
+
+
+def test_usage_dict_none_when_message_has_no_usage() -> None:
+    assert _usage_dict(_Message([_Block("x")], None)) is None
+    client = _FakeClient(usage=None)
+    t = _transport(client)
+    t("S", "U")
+    assert t.last_usage is None
+
+
+# --------------------------------------------------------------------------- #
+# retry policy                                                                #
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("name", ["APIConnectionError", "APITimeoutError", "RateLimitError",
+                                  "InternalServerError", "APIError"])
+def test_transient_errors_classified_retryable(name: str) -> None:
+    exc = type(name, (Exception,), {})()
+    assert _is_transient_api_error(exc) is True
+
+
+def test_5xx_status_is_retryable_4xx_is_not() -> None:
+    server = type("BadGateway", (Exception,), {})()
+    server.status_code = 502  # type: ignore[attr-defined]
+    client_err = type("BadRequest", (Exception,), {})()
+    client_err.status_code = 400  # type: ignore[attr-defined]
+    assert _is_transient_api_error(server) is True
+    assert _is_transient_api_error(client_err) is False
+    assert _is_transient_api_error(ValueError("bad source")) is False
+
+
+def test_injected_retrying_is_used() -> None:
+    """The transport defers to the injected ``retrying`` wrapper (tenacity in production)."""
+    attempts = {"n": 0}
+
+    class _Flaky:
+        def create(self, **kwargs: object) -> _Message:
+            attempts["n"] += 1
+            if attempts["n"] == 1:
+                raise RuntimeError("transient boom")
+            return _Message([_Block("ok")], None)
+
+    client = _FakeClient()
+    client.messages = _Flaky()  # type: ignore[assignment]
+
+    def retry_thrice(fn):  # type: ignore[no-untyped-def]
+        last: Exception | None = None
+        for _ in range(3):
+            try:
+                return fn()
+            except Exception as exc:  # noqa: BLE001 - test double mirrors tenacity reraise
+                last = exc
+        raise last  # pragma: no cover - not reached in this test
+
+    out = _AnthropicTransport(
+        client, "m", temperature=None, max_tokens=16, cache_system=True, retrying=retry_thrice
+    )("S", "U")
+    assert out == "ok"
+    assert attempts["n"] == 2  # failed once, retried, succeeded
+
+
+def test_make_retrying_disabled_returns_none() -> None:
+    assert _make_retrying(0) is None
+    assert _make_retrying(-1) is None
+
+
+# --------------------------------------------------------------------------- #
+# no-key path raises before importing the SDK (no network, no dependency)      #
+# --------------------------------------------------------------------------- #
+def test_make_anthropic_transport_without_key_raises(monkeypatch) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(RuntimeError) as excinfo:
+        make_anthropic_transport("claude-sonnet-4-6", "ANTHROPIC_API_KEY")
+    assert "ANTHROPIC_API_KEY" in str(excinfo.value)
+
+
+# --------------------------------------------------------------------------- #
+# OpenAI-compatible transport (OpenAI / Gemini / DeepSeek) — fake SDK client    #
+# --------------------------------------------------------------------------- #
+class _OAIChoice:
+    def __init__(self, content: str) -> None:
+        self.message = type("M", (), {"content": content})()
+
+
+class _OAIUsage:
+    prompt_tokens = 11
+    completion_tokens = 7
+    total_tokens = 18
+
+
+class _OAIResponse:
+    def __init__(self, content: str, usage: object | None) -> None:
+        self.choices = [_OAIChoice(content)]
+        self.usage = usage
+
+
+class _FakeOAIClient:
+    """Stands in for an ``openai.OpenAI`` client: records ``chat.completions.create`` kwargs."""
+
+    def __init__(self, content: str = "def reward(): return 0.0", usage: object | None = None) -> None:
+        self.calls: list[dict] = []
+        usage = _OAIUsage() if usage is None else usage
+        outer = self
+
+        class _Completions:
+            def create(self, **kwargs: object) -> _OAIResponse:
+                outer.calls.append(kwargs)
+                return _OAIResponse(content, None if usage == "NONE" else usage)
+
+        class _Chat:
+            completions = _Completions()
+
+        self.chat = _Chat()
+
+
+def _oai(client: object, **kw: object):  # type: ignore[no-untyped-def]
+    from src.llm.client import _OpenAITransport
+    defaults: dict = dict(temperature=1.0, retrying=None)
+    defaults.update(kw)
+    return _OpenAITransport(client, "gemini-3.5-flash", **defaults)  # type: ignore[arg-type]
+
+
+def test_openai_transport_threads_temperature_and_message_shape() -> None:
+    client = _FakeOAIClient()
+    out = _oai(client)("SYS", "USER")
+    assert out == "def reward(): return 0.0"
+    call = client.calls[0]
+    assert call["model"] == "gemini-3.5-flash"
+    assert call["messages"] == [
+        {"role": "system", "content": "SYS"},
+        {"role": "user", "content": "USER"},
+    ]
+    assert call["temperature"] == 1.0
+
+
+def test_openai_transport_omits_temperature_when_none() -> None:
+    client = _FakeOAIClient()
+    _oai(client, temperature=None)("S", "U")
+    assert "temperature" not in client.calls[0]
+
+
+def test_openai_transport_captures_usage() -> None:
+    client = _FakeOAIClient()
+    t = _oai(client)
+    assert t.last_usage is None
+    t("S", "U")
+    assert t.last_usage == {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18}
+
+
+def test_openai_transport_usage_none_when_response_has_none() -> None:
+    client = _FakeOAIClient(usage="NONE")
+    t = _oai(client)
+    t("S", "U")
+    assert t.last_usage is None
+
+
+def test_openai_transport_uses_injected_retrying() -> None:
+    from src.llm.client import _OpenAITransport
+    attempts = {"n": 0}
+
+    class _Flaky:
+        class chat:  # noqa: N801
+            class completions:  # noqa: N801
+                @staticmethod
+                def create(**kwargs: object) -> _OAIResponse:
+                    attempts["n"] += 1
+                    if attempts["n"] == 1:
+                        raise RuntimeError("transient boom")
+                    return _OAIResponse("ok", None)
+
+    def retry_thrice(fn):  # type: ignore[no-untyped-def]
+        last: Exception | None = None
+        for _ in range(3):
+            try:
+                return fn()
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+        raise last  # pragma: no cover
+
+    out = _OpenAITransport(_Flaky(), "m", temperature=None, retrying=retry_thrice)("S", "U")
+    assert out == "ok"
+    assert attempts["n"] == 2
+
+
+# --------------------------------------------------------------------------- #
+# Provider registry + build_transport (single dispatch point)                  #
+# --------------------------------------------------------------------------- #
+def test_default_key_env_per_provider() -> None:
+    from src.llm.client import default_key_env
+    assert default_key_env("anthropic") == "ANTHROPIC_API_KEY"
+    assert default_key_env("gemini") == "GEMINI_API_KEY"
+    assert default_key_env("openai") == "OPENAI_API_KEY"
+    assert default_key_env("deepseek") == "DEEPSEEK_API_KEY"
+    assert default_key_env("NoNsEnSe") == "OPENAI_API_KEY"  # case-folded fallback
+
+
+def test_build_transport_unknown_provider_raises() -> None:
+    from src.llm.client import build_transport
+    with pytest.raises(RuntimeError) as excinfo:
+        build_transport("bogus", "m")
+    assert "bogus" in str(excinfo.value)
+
+
+def test_build_transport_gemini_routes_to_openai_compat(monkeypatch) -> None:
+    """gemini -> the OpenAI SDK pointed at Gemini's OpenAI-compatible base URL + GEMINI_API_KEY."""
+    import sys
+    import types
+
+    import src.llm.client as client_mod
+
+    monkeypatch.setenv("GEMINI_API_KEY", "k-test")
+    captured: dict = {}
+    monkeypatch.setitem(
+        sys.modules, "openai", types.SimpleNamespace(OpenAI=lambda **kw: captured.update(kw))
+    )
+    client_mod.build_transport("gemini", "gemini-3.5-flash")
+    assert captured["base_url"] == "https://generativelanguage.googleapis.com/v1beta/openai/"
+    assert captured["api_key"] == "k-test"
+    assert captured["max_retries"] == 0
+
+
+def test_build_transport_deepseek_routes_to_deepseek_base(monkeypatch) -> None:
+    import sys
+    import types
+
+    import src.llm.client as client_mod
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k-ds")
+    captured: dict = {}
+    monkeypatch.setitem(
+        sys.modules, "openai", types.SimpleNamespace(OpenAI=lambda **kw: captured.update(kw))
+    )
+    client_mod.build_transport("deepseek", "deepseek-chat")
+    assert captured["base_url"] == "https://api.deepseek.com"
+
+
+def test_build_transport_anthropic_uses_native_no_key(monkeypatch) -> None:
+    """anthropic -> the native Anthropic transport (no-key raises naming ANTHROPIC_API_KEY)."""
+    from src.llm.client import build_transport
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(RuntimeError) as excinfo:
+        build_transport("anthropic", "claude-opus-4-8")
+    assert "ANTHROPIC_API_KEY" in str(excinfo.value)

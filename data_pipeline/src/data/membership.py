@@ -78,17 +78,77 @@ def joiners_leavers(pit: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _last_valid_label(out: pd.DataFrame, name: str, date: pd.Timestamp):
+    """The index label at which to BOOK the delisting return for column `name`.
+
+    A dead RIC's nominal delist `date` row is, by construction, POST the last traded
+    session for that name — that whole column is NaN there (and `date` may not even be
+    a session in the XNYS index). Writing onto it with ``out.loc[date, name] = value``
+    therefore (a) KeyErrors when `date` is off-grid, or (b) plants the crash return on a
+    phantom post-death row that the env's ``liquidate_to_cash`` would then zero-fill — the
+    return never reaches the tail. We instead book it onto the LAST VALID (non-NaN)
+    observation that is <= `date`, which is the real terminal session.
+
+    Returns the label, or ``None`` when the name carries NO valid observation in the
+    panel window (nothing to compound into — the caller logs a skip, never raises)."""
+    col = out[name]
+    valid = col.index[col.notna() & (col.index <= date)]
+    if len(valid):
+        return valid.max()
+    # No observation at/before the delist date: fall back to the column's last valid
+    # session anywhere in the window (the name died entirely before `date`'s grid slot).
+    any_valid = col.index[col.notna()]
+    return any_valid.max() if len(any_valid) else None
+
+
+def classify_delist_reason(reason: str | None) -> str:
+    """Bucket a vendor delisting-reason string into ``mna`` | ``performance`` | ``unknown``
+    via the config keyword lists (``data.series.delisting_reason_classes``). Substring,
+    case-insensitive. ``None``/empty -> ``unknown`` (the conservative default: surcharge,
+    never guess M&A). Pure; used by :func:`apply_shumway_corrections` to gate the surcharge
+    ONCE the reason is re-pulled (docs/DATA_REPULL_DELISTING.md) — it is a no-op on the
+    current vault, which carries no reason (verified)."""
+    if reason is None or not str(reason).strip() or str(reason).strip().lower() == "nan":
+        return "unknown"
+    text = str(reason).lower()
+    classes = get("data.series.delisting_reason_classes", {})
+    for kw in classes.get("mna_keep_terminal", []):
+        if str(kw).lower() in text:
+            return "mna"
+    for kw in classes.get("performance_surcharge", []):
+        if str(kw).lower() in text:
+            return "performance"
+    return "unknown"
+
+
 def apply_shumway_corrections(
     returns: pd.DataFrame,
     delisted: dict[str, dict],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Append the Shumway delisting return where the vendor's terminal return is
-    missing. `delisted` maps column -> {date, exchange ('nyse_amex'|'nasdaq'),
-    vendor_terminal_return (float|None)}.
+    """Compound the Shumway-STYLE delisting return into the terminal session where the
+    vendor's terminal return is missing. `delisted` maps column ->
+    {date, exchange ('nyse_amex'|'nasdaq'), vendor_terminal_return (float|None)}.
+
+    Shumway-STYLE TRANSPLANT (R7): Refinitiv carries no CRSP ``DLSTCD``, so the
+    performance-delisting return is the fixed −30% NYSE/AMEX / −55% Nasdaq surcharge
+    (config data.series.delisting_corrections; Shumway 1997 JF, Shumway & Warther 1999
+    JF). The VENDOR terminal return is PREFERRED where present — those names already
+    carry their last traded return in the frame, so the fixed surcharge is reserved for
+    names with no vendor terminal observation (the identifiable performance
+    terminations). The headline reports a {0% (= ``liquidate_to_cash``), −30%, −55%,
+    −100%} sensitivity band around this choice (the band is the caller's to assemble).
+
+    Booking rule (the FIX): the correction is compounded MULTIPLICATIVELY,
+    ``(1 + r_terminal)(1 + dl) − 1``, onto the LAST VALID session for the name (see
+    :func:`_last_valid_label`) — NEVER additively (additive can breach −100%;
+    OpenSourceAP #49) and NEVER onto the all-NaN nominal-delist row (the old
+    ``out.loc[date, name] = value`` KeyErrored off-grid / planted a phantom row the
+    env then zero-filled).
 
     Returns (corrected_copy, audit_log). The input frame is NEVER mutated; every
-    correction (and every skip-because-vendor-covered) is one audit row — the
-    dissertation reports this log verbatim (R4: explicit, logged, cited)."""
+    correction (and every skip — vendor-covered, or no in-window observation) is one
+    audit row — the dissertation reports this log verbatim (R4: explicit, logged,
+    cited)."""
     corr = get("data.series.delisting_corrections")
     out = returns.copy()
     log = []
@@ -98,18 +158,42 @@ def apply_shumway_corrections(
         date = pd.Timestamp(info["date"])
         vendor_ret = info.get("vendor_terminal_return")
         if vendor_ret is not None and pd.notna(vendor_ret):
+            # Vendor already booked the terminal return in the frame — KEEP it as-is
+            # (the preferred source); do not overwrite, just record the decision.
             log.append({"ric": name, "date": date, "action": "vendor_terminal_kept",
                         "value": float(vendor_ret)})
+            continue
+        # Reason gate (latent until the reason is re-pulled; docs/DATA_REPULL_DELISTING.md):
+        # an M&A / merger / buyout name was cashed out (often at a premium), so the Shumway
+        # performance surcharge MUST NOT apply — keep its real last return untouched. Only
+        # performance / bankruptcy / compliance / liquidation (or an ABSENT reason, the
+        # conservative current default) gets the −30/−55 surcharge. On the current vault
+        # every reason is absent, so this branch never fires (univ4 byte-identical).
+        reason_class = classify_delist_reason(info.get("reason"))
+        if reason_class == "mna":
+            log.append({"ric": name, "date": date, "action": "mna_keep_vendor_terminal",
+                        "reason": str(info.get("reason")),
+                        "citation": "Shumway-style surcharge withheld: M&A, not a performance delisting"})
             continue
         exchange = info["exchange"]
         if exchange not in corr:
             raise KeyError(f"no delisting correction configured for exchange '{exchange}'")
-        value = float(corr[exchange])
-        if date not in out.index:
-            raise KeyError(f"delisting date {date.date()} not in panel index for {name}")
-        out.loc[date, name] = value
-        log.append({"ric": name, "date": date, "action": "shumway_correction_applied",
-                    "exchange": exchange, "value": value,
+        dl = float(corr[exchange])
+        label = _last_valid_label(out, name, date)
+        if label is None:
+            # No observation to compound into anywhere in the window — record the skip
+            # rather than fabricate a row (R4: missing stays missing, never invented).
+            log.append({"ric": name, "date": date, "action": "shumway_skipped_no_obs",
+                        "exchange": exchange, "value": dl,
+                        "citation": "Shumway 1997 JF; Shumway & Warther 1999 JF"})
+            continue
+        prior = float(out.at[label, name])
+        value = (1.0 + prior) * (1.0 + dl) - 1.0   # multiplicative, never additive
+        out.at[label, name] = value
+        log.append({"ric": name, "date": date, "booked_on": pd.Timestamp(label),
+                    "action": "shumway_correction_applied", "exchange": exchange,
+                    "reason_class": reason_class,   # 'performance' (gated) or 'unknown' (reason absent)
+                    "delisting_return": dl, "prior_return": prior, "value": value,
                     "citation": "Shumway 1997 JF; Shumway & Warther 1999 JF"})
     return out, pd.DataFrame(log)
 

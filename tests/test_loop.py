@@ -184,3 +184,44 @@ def test_winner_is_best_fitness_candidate(tmp_path) -> None:
     best = max(c.val_fitness for c in archive.candidates)
     assert winner is not None
     assert winner.val_fitness == best
+
+
+# --------------------------------------------------------------------------- #
+# Prompt-variation diversity (temperature-free within-generation variety)      #
+# --------------------------------------------------------------------------- #
+def test_diversity_prompt_variation_makes_candidate_prompts_distinct(tmp_path) -> None:
+    """With diversity ON the K candidates get DISTINCT prompts (per-candidate directive); with it
+    OFF they're identical. This is the mechanism that lets a temperature-rejecting author
+    (Claude Opus 4.8) still get within-generation variety. Uniform across arms -> no H2 confound."""
+    cfg_off = {"generations": 1, "candidates_per_gen": 3, "budget": 99, "n_trials": 5}
+    _, llm_off = _run("scalar", _VALID_REWARD_SRC, cfg_off, tmp_path / "off")
+    prompts_off = [u for _, u in llm_off.prompts]
+    assert len(prompts_off) == 3
+    assert len(set(prompts_off)) == 1  # identical without diversity
+
+    cfg_on = {**cfg_off, "diversity_prompt_variation": True}
+    _, llm_on = _run("scalar", _VALID_REWARD_SRC, cfg_on, tmp_path / "on")
+    prompts_on = [u for _, u in llm_on.prompts]
+    assert len(prompts_on) == 3
+    assert len(set(prompts_on)) == 3  # all distinct
+    assert all("Exploration directive" in p for p in prompts_on)
+    # Each candidate prompt is the shared base prompt + a distinct per-candidate suffix.
+    base = prompts_off[0]
+    assert all(p.startswith(base) for p in prompts_on)
+
+
+def test_diversity_skipped_for_single_candidate(tmp_path) -> None:
+    """No directive when candidates_per_gen == 1 (nothing to diversify within the generation)."""
+    cfg = {
+        "generations": 1, "candidates_per_gen": 1, "budget": 99, "n_trials": 5,
+        "diversity_prompt_variation": True,
+    }
+    _, llm = _run("scalar", _VALID_REWARD_SRC, cfg, tmp_path)
+    assert "Exploration directive" not in llm.prompts[0][1]
+
+
+def test_diversity_directive_uniform_across_arms() -> None:
+    """The directive depends only on (cidx, n) — identical for every arm, so it cannot bias the
+    distributional-vs-scalar contrast (only the arm feedback block differs)."""
+    assert loop._diversity_directive(0, 5) == loop._diversity_directive(0, 5)
+    assert loop._diversity_directive(0, 5) != loop._diversity_directive(1, 5)

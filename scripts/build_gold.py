@@ -40,10 +40,13 @@ def main() -> None:
     print("  3. Emit immutable artifacts to data/gold/.")
     print("  4. Compute + persist SHA-256 checksum manifest.")
 
+    # final-audit #29: the REAL gold is built by the self-contained data_pipeline/ package
+    # (data_pipeline/src/data/cli.py + panel.build_gold), NOT this deferred stub. Reference the real
+    # symbol so the guard message is accurate (src/data/pipeline.py exposes GoldPipeline, never run_pipeline).
     try:
-        from src.data.pipeline import run_pipeline  # noqa: F401
+        from src.data.pipeline import GoldPipeline  # noqa: F401
     except ImportError as exc:  # pragma: no cover - stub guard
-        print(f"[build_gold] NOTE: src.data.pipeline not yet implemented ({exc}).")
+        print(f"[build_gold] NOTE: deferred stub — build via data_pipeline/ ({exc}).")
 
     # TODO(FINAL_PLAN data build): implement.
     #   - load yaml config; resolve entitled universe.

@@ -12,6 +12,15 @@ universe:
 series:
   total_return_fields: {datastream: RI, refinitiv: TR.TotalReturn}
   delisting_corrections: {nyse_amex: -0.30, nasdaq: -0.55}    # Shumway 1997; Shumway & Warther 1999
+  delisting_reason_classes:                                   # gate the surcharge ONCE a reason is re-pulled
+    # M&A keeps the vendor terminal / last price (NO surcharge — the holder was cashed out, often at a
+    # premium); performance/compliance/bankruptcy terminations get the -30/-55 Shumway surcharge. The
+    # frozen rf_meta_* pull carries NO reason (verified), so EVERY name currently classifies "absent ->
+    # surcharge" and univ4 is byte-identical to the un-gated build; this is latent until docs/DATA_REPULL_DELISTING.md.
+    mna_keep_terminal: [merger, acquisition, acquired, "m&a", buyout, "taken private",
+                        privatization, "going private", takeover, "stock swap", "scheme of arrangement"]
+    performance_surcharge: [bankruptcy, "chapter 11", "chapter 7", liquidation, insolvency, delisted,
+                            "listing standards", compliance, "deficient", default, "regulatory"]
   screens:                                                     # Ince & Porter 2006
     min_prior_price_usd: 1.00
     extreme_return_reversal: {threshold: 3.00, action: set_missing}
@@ -102,7 +111,10 @@ platform:                        # medallion data platform (ADR-012); src/data/*
     extreme_abs_return: 0.20                         # |r| >= 20% one day -> enters context classification
     real_crash_market_threshold: -0.05               # big down day is REAL if market <= -5% same day
     stale_run_min_days: 5                            # consecutive identical prices -> illiquidity flag
-    split_signatures: [-0.50, -0.6667]               # unadjusted 2:1 / 3:1 split artifacts
+    split_signatures: [-0.50, -0.6667]               # unadjusted 2:1 / 3:1 FORWARD-split artifacts (price halves/thirds)
+    forward_split_signatures: [1.00, 2.00, 3.00]     # +100/+200/+300% one-day TR = unadjusted 2:1/3:1/4:1 split in the
+                                                     # total-return series (e.g. JCI 3:1 Oct-2007 = +200.00%); positive
+                                                     # analogue of split_signatures — flag-only, cross-checked vs vendor splits
     split_tolerance: 0.02
     ri_consistency_tol: 1.0e-4                       # |RI ratio - (P_t + D_t)/P_{t-1}| flag threshold
   vendor_authority:                                  # stage-9 per-field authority (clean-layer merge rule)

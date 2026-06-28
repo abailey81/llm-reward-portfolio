@@ -1,9 +1,14 @@
 # LLM reward-designer (FINAL_PLAN E, F.8, K). Pin the snapshot; archive every call (replay, not
 # regenerate — audit C-2). The key is read from the environment, NEVER committed.
 
-model_snapshot: "<pinned-version-string>"   # exact, immutable; record per-call id in artifacts
-api_key_env_var: LLM_API_KEY                # read from env; see config/secrets.* (gitignored)
-temperature: 1.0                            # set + freeze in Phase 1
+provider: anthropic                         # CAMPAIGN reward-author = Claude Opus 4.8 (ADR-038, supersedes the
+                                            #   ADR-035 Gemini pick); the PROTOTYPE uses Claude Sonnet 4.6 (ADR-038,
+                                            #   also native Anthropic SDK / same ANTHROPIC_API_KEY).
+model_snapshot: "claude-opus-4-8"           # ADR-038: campaign reward-author = Claude Opus 4.8 (prototype = Sonnet 4.6)
+api_key_env: ANTHROPIC_API_KEY              # read from the gitignored .env; NEVER committed
+temperature: 1.0                            # Eureka diversity (ADR-016): K candidates/gen share ONE prompt -> temp MUST
+                                            #   be > 0 (0 collapses the within-gen search; per-provider diversity per ADR-038:
+                                            #   prototype Sonnet 4.6 uses temp=1.0, campaign Opus 4.8 uses prompt-variation)
 top_p: 1.0
 max_tokens: 4096
 
@@ -12,7 +17,24 @@ candidate_budget_total: 30                  # total reward candidates per arm (s
 generations: 6                              # multi-generation reflection (H3 single-shot uses 1)
 candidates_per_generation: 5                # = budget / generations
 
-open_weights_check_model: "<different-cutoff open-weights model>"   # contamination second model (N3)
+# N3 contamination control (ADR-033): an open-weights, different-cutoff model whose H2 ORDERING is
+# replicated on a separate corpus. ADR-033 names Llama-4 (official Aug-2024 cutoff, commit-pinned);
+# DeepSeek-V3-0324 (deepseek-ai/DeepSeek-V3-0324, ADR-016) is the recorded fallback. Pin the EXACT HF
+# commit at use time — do NOT fabricate a revision here (CLAUDE.md no-fabrication). Secondary arm, not
+# on the primary Pass-B path.
+#
+# SECOND-MODEL DECIDED (amendment R71, 2026-06-29) — a multi-model SECONDARY robustness panel, NOT co-primary.
+# The single Claude family (Opus 4.8) train-to-convergence run is the CONFIRMATORY headline; a different-family
+# OPEN-WEIGHTS designer is added as a pre-registered SECONDARY/exploratory panel (headline arms only, reduced
+# seeds) that makes "LLMs" genuine + runs the N3 `cross_model_disagreement` contamination cross-check.
+# RECOMMENDED model = the Qwen2.5-Coder family (strong code authorship, Apache-2.0, non-Anthropic vendor +
+# different training cutoff); authoring is cheap API calls (only the SAC training of the winners adds compute).
+# ACTIVATION IS COMPUTE-GATED + EXPLICIT: this value stays a sentinel so the MAIN single-model campaign path
+# keeps degrading `cross_model_disagreement` to {"status": "no_data"} (honest "secondary panel not yet run"),
+# NOT a silent skip; the secondary panel is a SEPARATE run (set this to the pinned model id + provider key
+# then). Until run, the write-up says "the single Claude family (Sonnet -> Opus) for the confirmatory headline;
+# the second-family panel is a pre-registered secondary run, executed when compute (UCL/extended) allows."
+open_weights_check_model: "PIN_ME"          # R71 SECONDARY panel; recommended Qwen2.5-Coder; activate per-run (compute-gated)
 
 archive: true                               # store rendered prompt + raw response + parsed reward per call
 archive_dir: outputs/runs                   # keyed by run id (see src/io/results.py)

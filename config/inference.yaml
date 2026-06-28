@@ -1,11 +1,19 @@
 # Inference machinery — PREREGISTRATION.md §6–7. Formulas implemented in src/stats_inference.py.
-seeds: {headline: [0,1,2,3,4], ablation: [0,1,2]}
+# Amendment D2 (2026-06-19, user-approved; PREREGISTRATION §6/§12): headline per-arm WINNER seed count
+# raised 5 -> 30 (>=20; Henderson 2018, Colas et al.). Search budget untouched (seeds-on-winners, ADR-023);
+# the ablation seed set is unchanged.
+seeds: {headline: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29], ablation: [0,1,2]}
 
 splits:
   development: {train: ["2005-01-01","2014-12-31"], validation: ["2015-01-01","2017-12-31"]}  # search lives here ONLY
-  evaluation:  {scheme: walk_forward, train_years: 5, test_years: 1, step_years: 1,
-                span: ["2018-01-01","2025-12-31"]}                                            # frozen winners only
-  embargo_trading_days: 21          # Lopez de Prado 2018
+  evaluation:  {scheme: single_sealed_split, span: ["2018-01-01","2025-12-31"],   # frozen winners only.
+                deferred_walk_forward: {train_years: 5, test_years: 1, step_years: 1}}
+  # R43 (2026-06-26): the EXECUTED headline is ONE contiguous 2018-2025 sealed split (run_campaign.py);
+  # walk-forward folds are DEFERRED future work. The frozen `scheme` now MATCHES the code + PREREGISTRATION §7
+  # (no walk_forward-vs-single-split contradiction). Walk-forward params retained under deferred_walk_forward.
+  embargo_trading_days: 21          # Lopez de Prado 2018 — FLOOR only; effective inter-split purge is
+                                    # max(embargo, lookback)=max(21,60)=60 sessions (R18: the purge must
+                                    # cover the 60-day feature lookback so no obs window crosses a split).
   cpcv: {n_blocks: 16, purge: true}
 
 fitness:                            # F = SR_val - lambda * max(0, -CVaR_alpha)
@@ -14,14 +22,22 @@ fitness:                            # F = SR_val - lambda * max(0, -CVaR_alpha)
   lambda_frozen: null               # set ONCE by pre-2015 calibration (PREREG §3) + ADR; null = not yet frozen
   calibration_fold: {train: ["2005-01-01","2012-12-31"], validation: ["2013-01-01","2014-12-31"]}
 
-dsr:   {unannualised_inputs: true, trial_count_rule: all_candidates_all_arms}   # Bailey & Lopez de Prado 2014
+dsr:   {unannualised_inputs: true, trial_count_rule: per_arm_candidates}        # Bailey & Lopez de Prado 2014:
+# DSR trial count = each arm-winner is the max over its OWN arm's candidates (winner_dsr uses len(arm_records),
+# = prototype.yaml n_trials=40; review M1/#32). Cross-arm multiplicity is handled SEPARATELY by the m=6 testing
+# family (R13) — counting all_candidates_all_arms here would double-correct. (Was mislabelled; nothing reads it.)
 pbo:   {n_blocks: 16}                                                           # CSCV
-sharpe_test: {method: ledoit_wolf_2008, bootstrap: circular_block, block_size: 5, n_boot: 4999}
+# Re-centred empirical stationary block bootstrap (NOT studentized: the bootstrap SE cancels in the
+# p-value — verified, Rank 11 2026-06-19). Params mirror the code defaults in
+# src/inference/bootstrap.py::sharpe_difference_test / cvar_difference_test (the code is the source of
+# truth for these pure stats fns; this block documents what it runs).
+sharpe_test: {method: recentred_stationary_bootstrap, bootstrap: stationary, block_restart_p: 0.1, n_boot: 2000}
 multiplicity: {method: benjamini_hochberg, q: 0.05}
 
 distributional_feedback:
   alpha_grid: [0.01, 0.05, 0.10, 0.25]    # CVaR profile levels (Kusuoka discretisation — docs/ schema)
-  sort_quantiles_before_stats: true        # IQN crossing fix (NeurIPS 2020); crossing_rate reported pre-sort
+  sort_quantiles_before_stats: true        # IQN crossing fix (NeurIPS 2020); the pre-audit `crossing_rate`
+                                           #   metric was NOT merged (B-line, archive/pre_merge_repo_B/; ADR-022)
 
 regimes:
   hmm: {n_states: 3, covariance_type: full, em_restarts: 10, fit_scope: train_only,

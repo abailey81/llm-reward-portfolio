@@ -63,3 +63,35 @@ def test_fitness_penalty_lowers_when_cvar_worse() -> None:
     pen_term_base = dsr_base - pen_base
     assert pen_term_worse > pen_term_base
     assert abs(cvar(worse, 0.05)) > abs(cvar(returns, 0.05))
+
+
+def test_fitness_penalty_no_nan_on_empty_series() -> None:
+    """lam>0 on an EMPTY validation series must not propagate NaN through the CVaR penalty (Rank 18).
+
+    cvar([]) is non-finite; ``lam*abs(nan)`` would poison fitness with NaN (silently mis-ranking the
+    candidate). The guard treats a non-finite CVaR as a zero penalty, so the result mirrors the
+    DSR-only (lam=0) value exactly (NaN==NaN compared via np.isnan, finite compared directly).
+    """
+    empty = np.array([], dtype=float)
+    pen = held_out_fitness(empty, n_trials=10, split="val", lam=5.0)
+    base = held_out_fitness(empty, n_trials=10, split="val", lam=0.0)
+    # No penalty was applied: penalized == base. Either both finite-equal or both NaN.
+    assert (np.isnan(pen) and np.isnan(base)) or pen == base
+
+
+def test_fitness_penalty_no_nan_on_all_nonfinite_series() -> None:
+    """lam>0 on an all-non-finite series must not turn a finite/-inf DSR into NaN via the penalty."""
+    bad = np.full(64, np.nan)
+    pen = held_out_fitness(bad, n_trials=10, split="val", lam=3.0)
+    base = held_out_fitness(bad, n_trials=10, split="val", lam=0.0)
+    # The penalty contributes 0.0 (CVaR is non-finite), so penalized matches the unpenalized value.
+    assert (np.isnan(pen) and np.isnan(base)) or pen == base
+
+
+def test_fitness_preserves_var_sr_param() -> None:
+    """The recent ``var_sr`` kwarg (Rank 16) is still accepted and forwarded (signature preserved)."""
+    rng = np.random.default_rng(7)
+    returns = 0.0005 + 0.01 * rng.standard_normal(800)
+    # Passing an explicit cross-trial Sharpe variance must not raise and must stay finite.
+    out = held_out_fitness(returns, n_trials=10, split="val", var_sr=0.25)
+    assert np.isfinite(out)

@@ -6,7 +6,7 @@ stylised facts the dissertation's tail premise rests on (Cont 2001): **heavy tai
 **market factor**, and a **VIX-like** index driven by cross-sectional volatility.
 
 It exists so the entire system — environment, pipeline, measurement, the full loop — runs
-end-to-end and is testable **without the licensed CRSP data**, and so the repository can ship a
+end-to-end and is testable **without the licensed Refinitiv/LSEG data**, and so the repository can ship a
 runnable synthetic panel in place of data it may not redistribute (audit C-3).
 """
 from __future__ import annotations
@@ -52,6 +52,11 @@ def make_synthetic_panel(
     """
     if garch_alpha + garch_beta >= 1.0:
         raise ValueError("garch_alpha + garch_beta must be < 1 for a stationary variance process")
+    # df must exceed 2 so the Student-t has finite variance; otherwise the unit-variance rescale
+    # below (sqrt(df / (df - 2))) divides by zero (df==2) or takes sqrt of a negative (df<2),
+    # producing inf/NaN that only surfaces much later as a misleading finiteness error in Panel.
+    if df <= 2.0:
+        raise ValueError(f"df must be > 2 for a finite-variance Student-t (got {df})")
     rng = np.random.default_rng(seed)
 
     def _garch_sigma(base_vol: float) -> tuple[np.ndarray, np.ndarray]:

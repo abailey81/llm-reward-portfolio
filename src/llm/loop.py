@@ -61,17 +61,30 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 
 from src.feedback import schema
-from src.sandbox.executor import SandboxError, validate_once
+from src.sandbox.executor import SandboxError, extract_reward_source, validate_once
+from src.utils.config import cfg_get
 
 __all__ = ["CandidateRecord", "CandidateArchive", "run_loop"]
 
 _LOG = logging.getLogger(__name__)
+
+
+class _NoMon:
+    """No-op monitor: every ``monitor.<m>(...)`` call is a safe no-op when no RunMonitor is injected
+    (unit tests, offline runs), so ``run_loop`` can call the monitor unconditionally."""
+
+    def __getattr__(self, _name: str) -> Any:
+        return lambda *a, **k: None
+
+
+_NULL_MONITOR = _NoMon()
 
 #: System prompt used for every generation (arm-agnostic).
 _SYSTEM_PROMPT = (
@@ -116,6 +129,12 @@ class CandidateRecord:
         The 0-based generation that produced this candidate.
     candidate_id : str
         Unique id within the run (``"{arm}-g{gen}-c{idx}"``).
+    popart_scale : dict or None
+        The realised PopArt scale the SAC critic saw while training THIS candidate (T2.4):
+        ``{"popart": 1.0, "sigma_max", "sigma_last", "count"}`` when PopArt is on, ``{"popart": 0.0}``
+        when off, or ``None`` if the trainer did not surface it (e.g. a fake test trainer). Logged so the
+        CROSS-ARM ``sigma`` distribution is auditable — a unit ``sigma_max`` across arms shows the
+        "fixed-agent" design carries no latent, scale-driven entropy-regularisation difference.
     """
 
     prompt: str
@@ -126,6 +145,7 @@ class CandidateRecord:
     tail_stats: dict
     generation: int
     candidate_id: str
+    popart_scale: dict | None = None
 
 
 @dataclass
@@ -168,18 +188,29 @@ class CandidateArchive:
         return max(self.candidates, key=lambda c: c.val_fitness)
 
 
-def _cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
-    """Read ``key`` from a dict-like or attribute-like config object."""
-    if cfg is None:
-        return default
-    if isinstance(cfg, dict):
-        return cfg.get(key, default)
-    return getattr(cfg, key, default)
-
-
 def _reward_hash(src: str) -> str:
     """Stable SHA-256 hex digest of reward source."""
     return hashlib.sha256(src.encode("utf-8")).hexdigest()
+
+
+def _diversity_directive(cidx: int, n: int) -> str:
+    """A per-candidate exploration directive giving within-generation diversity by PROMPT VARIATION.
+
+    Eureka samples ``n`` candidates per generation from the SAME prompt and relies on sampling
+    ``temperature`` for variety; a reward-author that rejects the ``temperature`` parameter
+    (e.g. Claude Opus 4.8) needs the variety injected another way. Appending a distinct directive
+    per candidate index does that. The directive set is IDENTICAL across arms AND (R38 de-seed)
+    names NO specific risk statistic — it asks the LLM to vary WHICH statistics it tracks, not to use
+    CVaR/drawdown — so it neither differentially favours an arm nor pre-seeds the tail to the
+    non-distributional arms; only the arm's feedback block introduces the tail. Also reused by the
+    parallel scheduler (``src/orchestration/parallel.py``) so both run paths diversify identically.
+    """
+    return (
+        f"[Exploration directive {cidx + 1}/{n}: propose a reward DISTINCT from the other "
+        f"candidates this generation — vary which statistics of the return history you track, the "
+        f"rolling window, and the functional form. Do not reuse a design you would give a different "
+        f"candidate index.]"
+    )
 
 
 def _budget_for_generation(total_budget: int, generations: int, gen: int) -> int:
@@ -244,14 +275,31 @@ def run_loop(
     """
     from src.io.results import write_run
 
-    generations = int(_cfg_get(cfg, "generations", 1))
-    candidates_per_gen = int(_cfg_get(cfg, "candidates_per_gen", 1))
-    total_budget = int(_cfg_get(cfg, "budget", 0))
-    seed = _cfg_get(cfg, "seed", 0)
-    n_trials = int(_cfg_get(cfg, "n_trials", 1))
-    model_id = _cfg_get(cfg, "model", _cfg_get(getattr(llm, "cfg", None), "model", ""))
-    run_prefix = _cfg_get(cfg, "run_prefix", "run")
-    env_fingerprint = _cfg_get(cfg, "env_fingerprint", "injected")
+    generations = int(cfg_get(cfg, "generations", 1))
+    candidates_per_gen = int(cfg_get(cfg, "candidates_per_gen", 1))
+    total_budget = int(cfg_get(cfg, "budget", 0))
+    seed = cfg_get(cfg, "seed", 0)
+    n_trials = int(cfg_get(cfg, "n_trials", 1))
+    model_id = cfg_get(cfg, "model", cfg_get(getattr(llm, "cfg", None), "model", ""))
+    run_prefix = cfg_get(cfg, "run_prefix", "run")
+    env_fingerprint = cfg_get(cfg, "env_fingerprint", "injected")
+    # Within-generation diversity by per-candidate PROMPT VARIATION (uniform across arms) — needed
+    # when the reward-author rejects the ``temperature`` parameter (e.g. Claude Opus 4.8). Off by
+    # default (temperature-honoring models like Gemini get diversity from sampling instead).
+    diversity = bool(cfg_get(cfg, "diversity_prompt_variation", False))
+    monitor = cfg_get(cfg, "monitor", None) or _NULL_MONITOR  # RunMonitor; no-op when absent (tests/offline)
+
+    # C3 (ADR-029): when the orchestrator supplies rendered prompts (system + initial with the
+    # env interface filled, src/llm/prompts.py), use them; else fall back to the built-in minimal
+    # prompts so unit tests need no prompt files. The REFLECTION body is composed from the arm's
+    # feedback block (schema.build_block) either way — that block is the only thing that differs
+    # across the five LLM arms and is what carries the tail diagnostics for the distributional arm.
+    _prompts = cfg_get(cfg, "prompts", None)
+    if _prompts is None:
+        system_prompt, initial_prompt = _SYSTEM_PROMPT, _INITIAL_PROMPT
+    else:
+        system_prompt = _prompts["system"] if isinstance(_prompts, dict) else _prompts.system
+        initial_prompt = _prompts["initial"] if isinstance(_prompts, dict) else _prompts.initial
 
     archive = CandidateArchive(arm=arm)
     archive.meta = {
@@ -263,12 +311,17 @@ def run_loop(
     }
 
     # Fixture passed to validate_once (anonymized arrays + scalar + info dict).
+    # Real-ish per-step shapes (final-audit #12): a realistic asset count so a reward whose
+    # allocation scales with the input surfaces at validate_once (under the Linux child's RLIMIT_AS)
+    # rather than only at training time, where safe_call has no rlimit/timeout. Equal-length arrays
+    # keep the smoke contract-agnostic; the true N+1-vs-N shapes are exercised during training.
+    _n_fix = max(2, int(cfg_get(cfg, "fixture_n_assets", 31)))
     fixture: tuple = (
-        np.array([0.5, 0.5], dtype=float),   # weights
-        np.array([0.01, -0.02], dtype=float),  # returns
-        np.array([0.5, 0.5], dtype=float),   # prev_weights
-        0.0,                                   # port_ret
-        {},                                    # info
+        np.full(_n_fix, 1.0 / _n_fix, dtype=float),   # weights (simplex over ~30 risky + cash)
+        np.full(_n_fix, 0.001, dtype=float),          # returns
+        np.full(_n_fix, 1.0 / _n_fix, dtype=float),   # prev_weights
+        0.0,                                          # port_ret
+        {},                                           # info
     )
 
     # The feedback block fed into the next generation's reflection prompt. None at
@@ -278,28 +331,58 @@ def run_loop(
 
     for gen in range(generations):
         gen_budget = _budget_for_generation(total_budget, generations, gen)
+        # Spend the generation's budget ONCE per generation (M2 fix, ADR-026): gen_budget is the
+        # WHOLE generation's allocation, so accumulate it here — not inside the per-candidate loop,
+        # where with candidates_per_gen>1 it over-counted by a factor of the accepted-candidate count
+        # (and excluded failures). Summed over generations this equals total_budget, the matched
+        # spend, restoring a correct archive.meta['budget_spent'] provenance figure.
+        budget_spent += gen_budget
 
         # 1. Build the prompt: initial at gen 0, else reflection with the arm block.
         if prev_feedback_block is None:
-            user_prompt = _INITIAL_PROMPT
+            user_prompt = initial_prompt
         else:
             user_prompt = f"{_REFLECTION_PREAMBLE}\n{prev_feedback_block}"
 
+        # M5: reflect on the generation's BEST candidate (Eureka-faithful + parity with the parallel
+        # path), not the last. Track the best WITHIN this generation; seed the next prompt at the boundary.
+        gen_best_fitness: float | None = None
+        gen_best_block: str | None = None
+
         for cidx in range(candidates_per_gen):
             candidate_id = f"{arm}-g{gen}-c{cidx}"
+            cand_n = gen * candidates_per_gen + cidx  # 0-based candidate index WITHIN the arm
+            monitor.candidate_start(arm, cand_n, gen)
+            cand_t0 = time.perf_counter()
 
-            # 2. Sample a candidate reward source from the LLM.
-            src = llm.complete(_SYSTEM_PROMPT, user_prompt)
+            # Per-candidate prompt variation -> within-generation diversity without temperature
+            # (see _diversity_directive). cand_prompt is the EXACT prompt sent + archived (C-2).
+            cand_prompt = user_prompt
+            if diversity and candidates_per_gen > 1:
+                cand_prompt = f"{user_prompt}\n\n{_diversity_directive(cidx, candidates_per_gen)}"
+
+            # 2. Sample a candidate reward source from the LLM, salvaging fenced / prose-wrapped
+            #    output so a well-formed reward is never rejected for FORMATTING (final-audit P0).
+            _llm_t0 = time.perf_counter()
+            src = extract_reward_source(llm.complete(system_prompt, cand_prompt))
+            _arch = getattr(llm, "archive", None)  # LLMClient archives a ProvenanceRecord (with token usage)
+            _u = (getattr(_arch[-1], "usage", None) or {}) if _arch else {}
+            monitor.llm_call(arm, cand_n, secs=time.perf_counter() - _llm_t0,
+                             in_tok=_u.get("input_tokens"), out_tok=_u.get("output_tokens"), model=model_id)
 
             # 3. Validate; LOG + SKIP on failure (never crash the loop).
             try:
                 reward_fn = validate_once(src, fixture)
+                monitor.sandbox_result(arm, cand_n, ok=True)
             except SandboxError as exc:
                 _LOG.warning(
                     "candidate %s failed validation and was skipped: %s",
                     candidate_id,
                     exc,
                 )
+                monitor.sandbox_result(arm, cand_n, ok=False, reason=str(exc)[:120])
+                monitor.candidate_done(arm, cand_n, fitness=None, status="sandbox_reject",
+                                       secs=time.perf_counter() - cand_t0)
                 archive.failures.append(
                     {
                         "generation": gen,
@@ -313,7 +396,9 @@ def run_loop(
             # 4. Train the fixed agent on the (reward-bound) train env.
             env = env_builder(reward_fn)
             policy = agent_trainer(env.train_env())
-            budget_spent += gen_budget
+            # T2.4: capture the realised PopArt scale the critic saw for this candidate (None for a
+            # fake/raw trainer that does not surface it) so the cross-arm sigma distribution is auditable.
+            popart_scale = getattr(policy, "popart_scale", None)
 
             # 5. Evaluate on the VALIDATION split (realized val returns).
             val_returns = np.asarray(env.val_returns(policy), dtype=float)
@@ -328,15 +413,27 @@ def run_loop(
             tail_stats = dist.tail_stats()
 
             # 8. Build the next feedback block (carry state forward).
-            #    Tail-carrying arms get tail_stats; scalar/placebo get None.
+            #    Tail-carrying arms get tail_stats; scalar/placebo get None. placebo_shuffled (R32)
+            #    is tail-carrying too, but its values are deranged by a candidate-seeded shuffle.
             tail_for_block = (
-                tail_stats if arm in ("distributional", "scalar_cvar5") else None
+                tail_stats
+                if arm in ("distributional", "scalar_cvar5", "placebo_shuffled")
+                else None
             )
-            feedback_block = schema.build_block(arm, val_fitness, tail_for_block)
+            feedback_block = schema.build_block(
+                arm,
+                val_fitness,
+                tail_for_block,
+                shuffle_seed=(
+                    schema.shuffle_seed_from_id(candidate_id)
+                    if arm == "placebo_shuffled"
+                    else None
+                ),
+            )
 
             reward_h = _reward_hash(src)
             record = CandidateRecord(
-                prompt=user_prompt,
+                prompt=cand_prompt,
                 reward_source=src,
                 reward_hash=reward_h,
                 feedback_block=feedback_block,
@@ -344,6 +441,7 @@ def run_loop(
                 tail_stats=tail_stats,
                 generation=gen,
                 candidate_id=candidate_id,
+                popart_scale=popart_scale,
             )
             archive.candidates.append(record)
 
@@ -355,15 +453,25 @@ def run_loop(
                     "run_id": run_id,
                     "arm": arm,
                     "seed": seed,
-                    "fold": _cfg_get(cfg, "fold", 0),
+                    "fold": cfg_get(cfg, "fold", 0),
                     "candidate_id": candidate_id,
                     "generation": gen,
+                    # Rank 14: persist the rendered prompt so the replay archive doesn't DROP it
+                    # (CLAUDE.md directive 6: "archive every prompt"). results.write_run dumps it to
+                    # a prompt.txt sidecar; OPTIONAL_FIELDS so REQUIRED_FIELDS / round-trips unchanged.
+                    "prompt": cand_prompt,
                     "reward_source": src,
                     "reward_source_hash": reward_h,
                     "feedback_block": feedback_block,
                     "metrics": {
                         "val_fitness": val_fitness,
                         "tail_stats": tail_stats,
+                        # Realized validation returns archived so analyze_results can run the
+                        # Sharpe/CVaR difference tests + FZ ES backtest on the winners (P6).
+                        "val_returns": [float(x) for x in val_returns],
+                        # T2.4: realised PopArt scale (sigma_max/last) the critic saw, for the cross-arm
+                        # sigma audit. Optional/back-compatible (omitted when the trainer doesn't surface it).
+                        **({"popart_scale": popart_scale} if popart_scale is not None else {}),
                     },
                     "wall_clock": 0.0,
                     "env_fingerprint": env_fingerprint,
@@ -371,8 +479,18 @@ def run_loop(
                 archive_root,
             )
 
-            # 10. Reflect: this candidate's feedback block seeds the next prompt.
-            prev_feedback_block = feedback_block
+            # 10. Reflect-on-BEST (M5): track the generation's best candidate; its feedback block
+            #     seeds the NEXT generation's prompt (set at the generation boundary below).
+            if gen_best_fitness is None or val_fitness > gen_best_fitness:
+                gen_best_fitness = val_fitness
+                gen_best_block = feedback_block
+            monitor.candidate_done(arm, cand_n, fitness=val_fitness, status="ok",
+                                   secs=time.perf_counter() - cand_t0)
+
+        # Generation boundary: the generation's BEST candidate seeds the next prompt (M5 reflect-on-
+        # best — Eureka-faithful, and consistent with the parallel reflect-on-best path).
+        if gen_best_block is not None:
+            prev_feedback_block = gen_best_block
 
     archive.meta["budget_spent"] = budget_spent
     archive.meta["accepted"] = len(archive.candidates)

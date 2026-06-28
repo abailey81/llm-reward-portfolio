@@ -4,8 +4,8 @@ Here is the environment interface and the reward contract.
 
 Write a reward function for the portfolio-allocation agent. Think about:
   - risk-adjusted return (not raw return alone),
-  - drawdown and turnover/transaction cost,
-  - TAIL losses (the worst outcomes, not just the average).
+  - turnover/transaction cost.
+The feedback you receive after each attempt is what should steer how you shape risk.
 
 A trivial example that satisfies the contract:
 

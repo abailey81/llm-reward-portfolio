@@ -40,17 +40,20 @@ def test_split_indices_contiguous_nonoverlapping_with_embargo() -> None:
     """Split indices are contiguous, non-overlapping and embargo-separated."""
     _, manifest = _pipeline().run()
     splits = manifest["splits"]
-    embargo = splits["embargo_days"]
+    # The purge moved OUT of the (now homogeneous) splits dict to manifest['embargo_days'] = the APPLIED
+    # gap max(embargo_days, lookback_days) (R18; audit 2026-06-20) — read it from the new location.
+    purge = manifest["embargo_days"]
     train, val, test = splits["train"], splits["val"], splits["test"]
 
     # within each split: start <= end
     for s in (train, val, test):
         assert s["start"] <= s["end"]
 
-    # ordered, non-overlapping, with an embargo gap between successive splits
-    assert val["start"] >= train["end"] + embargo
-    assert test["start"] >= val["end"] + embargo
-    assert embargo > 0
+    # ordered, non-overlapping, separated by the FULL purge — which must cover the 60-day feature lookback,
+    # not just the 21-day embargo (else a later split's first (lookback-embargo) windows read prior returns).
+    assert purge >= 60  # == max(embargo_days=21, lookback_days=60); regression-locks R18 against an embargo-only revert
+    assert val["start"] >= train["end"] + purge
+    assert test["start"] >= val["end"] + purge
 
 
 def test_manifest_has_checksum_per_stage_and_is_deterministic() -> None:

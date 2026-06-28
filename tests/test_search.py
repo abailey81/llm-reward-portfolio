@@ -116,6 +116,69 @@ def test_random_search_budget_from_candidate_budget_key() -> None:
     assert out["n_evaluated"] == 7
 
 
+def test_random_search_grammar_is_the_six_primitive_family() -> None:
+    """H4a now draws from the SAME six-term family as the BO arm (H4b), not the
+    old 3-term return-var-cvar grammar.
+
+    Pins the pre-freeze grammar widening (DEEP_H4 §2 / ADR-010): every sampled
+    source exposes the family's six-primitive component set so the H4a control has
+    comparable expressive power to H4b (turnover / drawdown / log / vol reachable).
+    """
+    rng = np.random.default_rng(11)
+    src = random_search.sample_reward_source(rng)
+    # The family's component dict keys (reward_family.params_to_source) — the
+    # discriminating signal vs the OLD grammar, whose components were only
+    # {return, variance, cvar} (no turnover / drawdown / sigma, no log term).
+    for token in ("turnover", "drawdown", "sigma", "log1p"):
+        assert token in src, f"widened grammar must express {token!r}; got:\n{src}"
+    reward = validate_once(src, _fixture())
+    _total, components, _state = reward(*_fixture())
+    assert set(components) == {"return", "turnover", "drawdown", "cvar", "sigma"}
+
+
+def test_random_search_source_matches_family_closure() -> None:
+    """A sampled source is byte-form-identical to the BO family materialiser, so it
+    reproduces ``params_to_reward`` numerically at the same weights.
+
+    Confirms H4a and H4b share an IDENTICAL reward space (same primitives, same
+    fixed cvar_alpha / window), not merely a similar one.
+    """
+    from src.baselines.reward_family import family_bounds, params_to_reward, params_to_source
+
+    # Recover the weights the sampler drew by matching the rendered source against
+    # the family materialiser over the per-primitive grid the sampler uses.
+    box = family_bounds()
+    fracs = np.asarray(random_search.code_grid(), dtype=float)
+    grids = [lo + fracs * (hi - lo) for lo, hi in box]
+
+    rng = np.random.default_rng(5)
+    src = random_search.sample_reward_source(rng)
+
+    # Find the coefficient vector whose params_to_source equals the sampled source.
+    import itertools
+
+    match = None
+    for combo in itertools.product(*grids):
+        if params_to_source(list(combo), cvar_alpha=0.05, window=20) == src:
+            match = list(combo)
+            break
+    assert match is not None, "sampled source is not a member of the family grid"
+
+    # The materialised source and the in-memory closure must agree on a return path.
+    closure = params_to_reward(match, cvar_alpha=0.05, window=20)
+    rendered = validate_once(src, _fixture())
+    w = np.array([0.4, 0.3, 0.3], dtype=float)
+    r = np.array([0.01, -0.02, 0.005], dtype=float)
+    path = [0.01, -0.03, 0.02, -0.05, 0.015]
+    info_a: dict = {}
+    info_b: dict = {}
+    for x in path:
+        ta, _ca, sa = closure(w, r, w, x, info_a)
+        tb, _cb, sb = rendered(w, r, w, x, info_b)
+        info_a["reward_state"], info_b["reward_state"] = sa, sb
+        assert ta == tb, f"closure {ta} != rendered {tb} at step r={x}"
+
+
 # ----------------------------------------------------------------------------- #
 # Bayesian optimization over a parametric template (H4b)
 # ----------------------------------------------------------------------------- #

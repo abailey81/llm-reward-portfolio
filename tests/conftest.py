@@ -61,3 +61,29 @@ def results_dir(tmp_path):
     d = tmp_path / "runs"
     d.mkdir()
     return d
+
+
+# ----------------------------------------------------------------------------- #
+# Hypothesis profile — DETERMINISTIC property-based testing                       #
+# ----------------------------------------------------------------------------- #
+# The property/metamorphic suite (tests/test_properties.py) must be REPRODUCIBLE:
+# the whole project's credibility rests on determinism, so Hypothesis is
+# derandomised (a fixed, example-derived seed) rather than allowed to explore
+# randomly each run — a property failure is then a stable, replayable counter-
+# example, not a flaky one. This composes cleanly with pytest-randomly (which
+# reseeds the stdlib/NumPy RNGs per test). Guarded so the suite still collects if
+# Hypothesis is absent (the property module itself importorskips it).
+try:  # pragma: no cover - trivial import guard
+    from hypothesis import HealthCheck, settings
+
+    settings.register_profile(
+        "deterministic",
+        derandomize=True,
+        max_examples=200,
+        deadline=None,  # numpy property checks vary in cost; no per-example wall-clock deadline
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.function_scoped_fixture],
+        print_blob=True,
+    )
+    settings.load_profile("deterministic")
+except ImportError:  # Hypothesis not installed (minimal env) — property tests skip.
+    pass

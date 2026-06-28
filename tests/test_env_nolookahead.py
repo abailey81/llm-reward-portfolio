@@ -148,3 +148,144 @@ def test_reward_timing_shifting_action_shifts_reward() -> None:
     _, reward_t1, _, _, _ = env_b.step(raw)
     assert reward_t1 == pytest.approx(float(w[: env_b.N] @ panel.returns[t1]))
     assert reward_t0 != pytest.approx(reward_t1)
+
+
+# --- (4) NO-LOOKAHEAD: strict window bounds + lagged VIX, with POISONED future rows -------------
+
+
+def _poisoned_panel(n_assets: int = 3) -> tuple[Panel, int]:
+    """A deterministic panel whose rows at index >= ``t_poison`` are sentinel-poisoned.
+
+    ``t_poison`` is set to the config lookback so the strictly-past window ``[t-lookback:t]`` (and
+    every realized-vol window, all <= lookback) lies entirely in the benign rows. Returns/vix at and
+    beyond ``t_poison`` carry huge sentinel values; an obs built at ``t == t_poison`` reads strictly
+    the PAST (rows < t for returns, the t-1 close for vix) and so must be unaffected by the poison.
+    """
+    cfg = load_config("environment")
+    lookback = int(cfg["state"]["lookback_days"])
+    t_poison = lookback  # first decision index; window [0:lookback] is benign
+    n_days = lookback + 10
+    returns = np.full((n_days, n_assets), 0.001, dtype=np.float64)
+    vix = np.full(n_days, 20.0, dtype=np.float64)
+    returns[t_poison:] = 1e6  # future poison (index >= t)
+    vix[t_poison:] = -1e9  # future poison
+    dates = np.arange("2010-01-04", n_days, dtype="datetime64[D]")
+    panel = Panel(returns=returns, vix=vix, dates=dates, asset_ids=np.arange(n_assets, dtype=np.int64))
+    return panel, t_poison
+
+
+def test_obs_unaffected_by_poisoned_future_rows_at_decision_index() -> None:
+    """At t == t_poison the obs is finite and ignores the poisoned rows at index >= t (no look-ahead)."""
+    panel, t_poison = _poisoned_panel()
+    env = _make_env(panel)
+    env.t = t_poison
+    obs = env._obs()
+    assert np.isfinite(obs).all()  # no 1e6 / -1e9 poison leaked in
+    # Every value is bounded — the only inputs are the benign 0.001 returns, their vol, the lagged
+    # vix (20.0), the cash marker (1.0) and the uniform w_prev. None approaches the 1e6 sentinel.
+    assert np.max(np.abs(obs)) < 100.0
+
+
+def test_returns_and_vol_windows_read_strictly_before_t() -> None:
+    """The lookback and EVERY realized-vol window read returns[t-w:t] — never index >= t.
+
+    Construct a panel whose row exactly at ``t`` is a huge sentinel; the obs at ``t`` must equal the
+    obs built when that row is benign, proving returns[t] (the future realisation) is never read by
+    _obs (it is consumed only in step()).
+    """
+    cfg = load_config("environment")
+    lookback = int(cfg["state"]["lookback_days"])
+    n_assets = 3
+    n_days = lookback + 20
+    t = lookback + 5  # >= lookback so [t-lookback:t] is a fully-populated, strictly-past window
+    base = np.full((n_days, n_assets), 0.002, dtype=np.float64)
+    vix = np.full(n_days, 18.0, dtype=np.float64)
+    dates = np.arange("2010-01-04", n_days, dtype="datetime64[D]")
+    panel_clean = Panel(returns=base.copy(), vix=vix.copy(), dates=dates, asset_ids=np.arange(n_assets))
+
+    poisoned = base.copy()
+    poisoned[t] = 1e9  # corrupt EXACTLY the current row (the future realisation)
+    panel_dirty = Panel(returns=poisoned, vix=vix.copy(), dates=dates, asset_ids=np.arange(n_assets))
+
+    env_clean = _make_env(panel_clean)
+    env_clean.t = t
+    env_dirty = _make_env(panel_dirty)
+    env_dirty.t = t
+    # Identical obs => returns[t] (and anything >= t) is invisible to _obs; only [t-w:t] is read.
+    np.testing.assert_array_equal(env_clean._obs(), env_dirty._obs())
+
+
+def test_vix_in_obs_is_lagged_t_minus_one_close() -> None:
+    """The VIX exposed in the obs is the t-1 close (lagged), never the contemporaneous/future value.
+
+    On the synthetic (contemporaneous) convention the env lags to vix[t-1]; poisoning vix[t] (and
+    beyond) must not change the obs, and the exposed vix value must equal vix[t-1] exactly.
+    """
+    cfg = load_config("environment")
+    lookback = int(cfg["state"]["lookback_days"])
+    n_assets = 3
+    n_days = lookback + 10
+    returns = np.full((n_days, n_assets), 0.001, dtype=np.float64)
+    # Distinct, identifiable vix levels so we can pin which row the obs read.
+    vix = np.arange(n_days, dtype=np.float64) * 10.0  # vix[t] == 10*t
+    dates = np.arange("2010-01-04", n_days, dtype="datetime64[D]")
+    panel = Panel(returns=returns, vix=vix, dates=dates, asset_ids=np.arange(n_assets))
+    assert panel.vix_prelagged is False  # synthetic convention => env lags to vix[t-1]
+
+    env = _make_env(panel)
+    t = lookback + 3
+    env.t = t
+    obs = env._obs()
+    # Obs layout: [lookback*N returns | vol_windows*N | vix(1) | cash(1) | prev_w(N+1)].
+    n_ret = lookback * n_assets
+    n_vol = len(env.vol_windows) * n_assets
+    vix_value = obs[n_ret + n_vol]
+    assert vix_value == pytest.approx(vix[t - 1])  # the t-1 close, NOT vix[t]
+    assert vix_value != pytest.approx(vix[t])  # explicitly NOT the contemporaneous value
+
+    # Poison vix at and beyond t: obs is unchanged because only the t-1 close is read.
+    poisoned = vix.copy()
+    poisoned[t:] = 1e12
+    panel_p = Panel(returns=returns, vix=poisoned, dates=dates, asset_ids=np.arange(n_assets))
+    env_p = _make_env(panel_p)
+    env_p.t = t
+    np.testing.assert_array_equal(obs, env_p._obs())
+
+
+def test_vix_prelagged_panel_reads_row_t_still_no_lookahead() -> None:
+    """On a PRELAGGED gold panel row t already holds the t-1 close, so the env reads vix[t] (== t index).
+
+    This is the gold convention (vix_prelagged=True): the obs vix equals vix[t] (which IS the t-1
+    close already), and poisoning rows STRICTLY beyond t (index > t) leaves the obs unchanged — the
+    boundary row read is at index t, never the future row t+1.
+    """
+    cfg = load_config("environment")
+    lookback = int(cfg["state"]["lookback_days"])
+    n_assets = 3
+    n_days = lookback + 10
+    returns = np.full((n_days, n_assets), 0.001, dtype=np.float64)
+    vix = np.arange(n_days, dtype=np.float64) * 10.0
+    dates = np.arange("2010-01-04", n_days, dtype="datetime64[D]")
+    panel = Panel(
+        returns=returns, vix=vix, dates=dates,
+        asset_ids=np.arange(n_assets), vix_prelagged=True,
+    )
+
+    env = _make_env(panel)
+    t = lookback + 3
+    env.t = t
+    obs = env._obs()
+    n_ret = lookback * n_assets
+    n_vol = len(env.vol_windows) * n_assets
+    assert obs[n_ret + n_vol] == pytest.approx(vix[t])  # prelagged: read row t directly
+
+    # Poison STRICTLY future rows (> t): the prelagged read at index t must be unaffected.
+    poisoned = vix.copy()
+    poisoned[t + 1 :] = 1e12
+    panel_p = Panel(
+        returns=returns, vix=poisoned, dates=dates,
+        asset_ids=np.arange(n_assets), vix_prelagged=True,
+    )
+    env_p = _make_env(panel_p)
+    env_p.t = t
+    np.testing.assert_array_equal(obs, env_p._obs())

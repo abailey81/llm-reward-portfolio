@@ -40,8 +40,8 @@ Reward canon (FINAL_PLAN F.6)
     raw_return            : the bare portfolio return (myopic baseline).
     return_minus_variance : return penalized by a variance proxy.
     return_minus_cvar     : return penalized by tail risk (CVaR).
-    differential_sharpe   : Moody-Saffell online incremental Sharpe ratio,
-                            STATEFUL via ``reward_state``.
+    differential_sharpe   : differential (online) Sharpe ratio (Moody, Wu, Liao & Saffell 1998;
+                            Moody & Saffell 2001), STATEFUL via ``reward_state``.
 
 Tests (tests/test_baselines.py)
 -------------------------------
@@ -68,6 +68,13 @@ def raw_return(
 ) -> tuple[float, dict[str, float], object]:
     """Bare portfolio return reward (myopic baseline).
 
+    This is the **field-standard FinRL-default reward**: FinRL's portfolio/stock-trading environments
+    reward the (risk-neutral) one-step change in wealth — ``StockPortfolioEnv`` rewards the new portfolio
+    value ``V_{t-1}(1 + Σ wᵢ rᵢ)`` and ``StockTradingEnv`` rewards ``V_t − V_{t-1}`` (Liu et al. 2020,
+    arXiv:2011.09607; 2021, arXiv:2111.09395). Including it names the most-cited DRL-finance reward as the
+    panel FLOOR; it is risk-NEUTRAL, so beating it on a risk-sensitive objective is near-automatic (the
+    binding "human bar" in H1's max-over-panel is ``return_minus_cvar`` / ``differential_sharpe``).
+
     Algorithm sketch
     -----------------
     total = port_ret; components = {"raw_return": port_ret}; state unchanged.
@@ -91,8 +98,8 @@ def return_minus_variance(
 
     Algorithm sketch
     -----------------
-    var = variance estimate from ``info`` (or weights' quadratic form against a
-    covariance supplied in ``info``); total = port_ret - lambda * var.
+    var = population variance over a rolling window of realized portfolio
+    returns carried in ``reward_state``; total = port_ret - lambda * var.
     components = {"return": port_ret, "variance_penalty": -lambda * var}.
 
     The rolling window of realized portfolio returns is carried in
@@ -177,15 +184,22 @@ def differential_sharpe(
     port_ret: float,
     info: dict[str, Any],
 ) -> tuple[float, dict[str, float], object]:
-    """Moody-Saffell online incremental (differential) Sharpe ratio.
+    """Differential (online incremental) Sharpe ratio.
 
-    This reward is STATEFUL: it accumulates exponential moving averages of the
-    first and second moments of the portfolio return in ``reward_state`` and
-    emits the *marginal* contribution of the current return to the Sharpe ratio
-    (audit B-4). It is the canonical example of a reward that legally uses the
-    reward_state carry slot instead of hidden globals.
+    The canonical risk-sensitive direct-RL trading reward. STATEFUL: it accumulates exponential moving
+    averages of the first and second moments of the portfolio return in ``reward_state`` and emits the
+    *marginal* contribution of the current return to the Sharpe ratio (audit B-4). It is the canonical
+    example of a reward that legally uses the reward_state carry slot instead of hidden globals.
 
-    Algorithm sketch (Moody & Saffell, 1998)
+    Citation
+    --------
+    The differential-Sharpe derivation is from **Moody, Wu, Liao & Saffell (1998)**, "Performance
+    functions and reinforcement learning for trading systems and portfolios," *J. Forecasting* 17(5-6):
+    441-470 (FOUR authors). The canonical reference is **Moody & Saffell (2001)**, "Learning to Trade via
+    Direct Reinforcement," *IEEE Trans. Neural Networks* 12(4):875-889 (the two-author paper) — cite 2001
+    as primary. (The earlier "Moody & Saffell 1998" attribution conflated the two and is corrected here.)
+
+    Algorithm sketch (Moody, Wu, Liao & Saffell 1998; Moody & Saffell 2001)
     -----------------------------------------
     State carries A (EMA of return) and B (EMA of squared return), with decay
     eta. On each step with return R_t:
@@ -256,3 +270,125 @@ def differential_sharpe(
     components = {"dsr": total, "A": float(a_new), "B": float(b_new)}
     new_state = {"A": float(a_new), "B": float(b_new), "eta": eta}
     return total, components, new_state
+
+
+# =========================================================================== #
+# Extended canon (block B8): more published / canonical reward designs run as   #
+# HAND-CRAFTED BASELINES so the LLM-discovered rewards are compared not only to  #
+# scalar-feedback LLM rewards but to the standard literature designs. These are  #
+# SECONDARY baselines (additive), NOT part of the frozen H2 family.              #
+# =========================================================================== #
+def mean_variance_utility(
+    weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
+) -> tuple[float, dict[str, float], object]:
+    """Markowitz quadratic utility ``r - 0.5*lambda*var`` (Markowitz 1952, *J. Finance*).
+
+    The canonical mean-variance objective (note the 0.5 coefficient that distinguishes it from the plain
+    ``return_minus_variance``). ``var`` is the population variance over a rolling window of realised
+    portfolio returns carried in ``reward_state``; ``info`` may supply ``lambda`` (risk aversion) and
+    ``window``.
+    """
+    lam = float(info.get("lambda", 1.0))
+    window = int(info.get("window", 20))
+    state = info.get("reward_state")
+    hist: list[float] = list(state) if state is not None else []
+    hist.append(float(port_ret))
+    if len(hist) > window:
+        hist = hist[-window:]
+    var = float(np.var(hist)) if len(hist) >= 2 else 0.0
+    penalty = 0.5 * lam * var
+    total = float(port_ret) - penalty
+    return total, {"return": float(port_ret), "variance": var, "mv_penalty": -penalty}, hist
+
+
+def return_minus_drawdown(
+    weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
+) -> tuple[float, dict[str, float], object]:
+    """Return penalised by the running DRAWDOWN (Chekhlov, Uryasev & Zabarankin 2005, *IJTAF*).
+
+    Drawdown-aware allocation: accumulate log-wealth, track its running peak, and penalise the current
+    shortfall from the peak. STATEFUL via ``reward_state = (cum_log, peak)``. ``info`` may supply
+    ``lambda``.
+    """
+    lam = float(info.get("lambda", 1.0))
+    state = info.get("reward_state")
+    cum = float(state[0]) if state is not None else 0.0
+    peak = float(state[1]) if state is not None else 0.0
+    # Clip port_ret > -1 before log1p: a <= -100% step would give log1p(<=-1) = -inf/NaN -> a non-finite
+    # reward (silently SAFE_DEFAULT-substituted downstream). A full-wipeout step is floored at -99.99%.
+    cum = cum + float(np.log1p(max(float(port_ret), -0.9999)))
+    peak = max(peak, cum)
+    drawdown = peak - cum  # >= 0 (log-wealth shortfall from the peak)
+    total = float(port_ret) - lam * drawdown
+    return total, {"return": float(port_ret), "drawdown": drawdown, "dd_penalty": -lam * drawdown}, (cum, peak)
+
+
+def return_minus_downside(
+    weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
+) -> tuple[float, dict[str, float], object]:
+    """Return penalised by DOWNSIDE semi-deviation (Sortino & van der Meer 1991, *J. Portfolio Mgmt*).
+
+    Penalises only volatility BELOW a target (downside risk), the Sortino philosophy: a rolling
+    downside semi-deviation about ``target`` (default 0) carried in ``reward_state``. ``info`` may supply
+    ``lambda``, ``target``, ``window``.
+    """
+    lam = float(info.get("lambda", 1.0))
+    target = float(info.get("target", 0.0))
+    window = int(info.get("window", 20))
+    state = info.get("reward_state")
+    hist: list[float] = list(state) if state is not None else []
+    hist.append(float(port_ret))
+    if len(hist) > window:
+        hist = hist[-window:]
+    arr = np.asarray(hist, dtype=float)
+    short = np.minimum(arr - target, 0.0)
+    dsd = float(np.sqrt(np.mean(short**2))) if arr.size >= 1 else 0.0
+    total = float(port_ret) - lam * dsd
+    return total, {"return": float(port_ret), "downside_dev": dsd, "downside_penalty": -lam * dsd}, hist
+
+
+def return_minus_turnover(
+    weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
+) -> tuple[float, dict[str, float], object]:
+    """Net return penalised by TURNOVER / transaction cost (Gârleanu & Pedersen 2013, *J. Finance*).
+
+    The transaction-cost-aware objective: ``port_ret - kappa * turnover``, where turnover is the one-way
+    L1 weight change ``0.5*sum|w - w_prev|``. Stateless. ``info`` may supply ``kappa``.
+    """
+    kappa = float(info.get("kappa", 1.0))
+    w = np.asarray(weights, dtype=float)
+    wp = np.asarray(prev_weights, dtype=float)
+    n = min(w.size, wp.size)
+    turnover = 0.5 * float(np.abs(w[:n] - wp[:n]).sum())
+    total = float(port_ret) - kappa * turnover
+    return total, {"return": float(port_ret), "turnover": turnover, "turnover_penalty": -kappa * turnover}, info.get("reward_state")
+
+
+def log_growth(
+    weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
+) -> tuple[float, dict[str, float], object]:
+    """Growth-optimal (Kelly) log return ``log(1 + port_ret)`` (Kelly 1956; Thorp 1971).
+
+    Maximising expected log-wealth is the long-run growth-optimal criterion and is implicitly
+    risk-averse (concavity penalises large drawdowns). Stateless.
+    """
+    # Clip port_ret > -1 before log1p (mirrors return_minus_drawdown): a <= -100% step would give
+    # log1p(<=-1) = -inf/NaN. Unreachable on the finite gold panels (worst single-asset day ~ -0.90, and
+    # the env raises on a drifted wipeout first), but kept consistent + defensive (critical-review 2026-06-20).
+    total = float(np.log1p(max(float(port_ret), -0.9999)))
+    return total, {"log_return": total, "return": float(port_ret)}, info.get("reward_state")
+
+
+#: The full hand-crafted reward canon (name -> callable), for the secondary "did the LLM beat the
+#: standard literature rewards?" baseline comparison. Stateful rewards thread state via ``reward_state``.
+REWARD_CANON: dict[str, Any] = {
+    "raw_return": raw_return,
+    "return_minus_variance": return_minus_variance,
+    "return_minus_cvar": return_minus_cvar,
+    "differential_sharpe": differential_sharpe,
+    "mean_variance_utility": mean_variance_utility,
+    "return_minus_drawdown": return_minus_drawdown,
+    "return_minus_downside": return_minus_downside,
+    "return_minus_turnover": return_minus_turnover,
+    "log_growth": log_growth,
+}

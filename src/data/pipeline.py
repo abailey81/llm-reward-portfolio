@@ -32,7 +32,8 @@ The 13 stages
 9.  ``build_return_panel`` — assemble the aligned return panel.
 10. ``engineer_features`` — feature notes (lookback, vol, LAGGED VIX, cash row).
 11. ``reconcile_vendors`` — two-vendor reconciliation (synthetic: two seeds).
-12. ``split_and_embargo`` — map config split dates to indices with an embargo gap.
+12. ``split_and_embargo`` — map config split dates to indices, purged by
+    ``max(embargo_days, lookback_days)`` sessions (R18).
 13. ``freeze_and_checksum`` — freeze the panel and emit the checksum manifest.
 
 FINAL_PLAN refs
@@ -90,6 +91,14 @@ class GoldPipeline:
         Number of trading days to synthesise.
     seed : int
         Master RNG seed (determinism / provenance).
+    lookback_days : int | None
+        Feature observation window (``config/environment.yaml::state.lookback_days``).
+        Stage 12 purges adjacent splits by ``max(embargo_days, lookback_days)`` so no
+        observation window ``returns[t-lookback:t]`` straddles a split boundary (R18);
+        the bare ``embargo_days`` (21) < ``lookback`` (60) would under-purge. ``None``
+        (the default) resolves it from ``environment.yaml`` so the pre-registered purge
+        holds without an explicit caller; an unreadable config falls back to ``0``
+        (legacy embargo-only).
 
     Notes
     -----
@@ -104,12 +113,20 @@ class GoldPipeline:
         top_n: int = 8,
         n_days: int = 600,
         seed: int = 12345,
+        lookback_days: int | None = None,
     ) -> None:
         self.cfg = cfg
         self.n_assets = int(n_assets)
         self.top_n = int(top_n)
         self.n_days = int(n_days)
         self.seed = int(seed)
+        # R18: the stage-12 inter-split purge must cover the FEATURE LOOKBACK, not just the
+        # embargo (the data cfg holds only ``embargo_days``=21; the lookback=60 lives in
+        # environment.yaml). Resolve it from environment.yaml when unset — mirroring
+        # orchestration/parallel.py — so the pre-registered purge holds by default. An
+        # unreadable config degrades to 0 (legacy embargo-only) rather than hard-failing the
+        # synthetic pipeline.
+        self.lookback_days = int(lookback_days) if lookback_days is not None else self._default_lookback()
         self.manifest: dict[str, str] = {}
         # populated during run()
         self._raw: Panel | None = None
@@ -119,6 +136,22 @@ class GoldPipeline:
         self._selected: np.ndarray | None = None
         self._delisting: dict[str, Any] | None = None
         self._panel: Panel | None = None
+
+    @staticmethod
+    def _default_lookback() -> int:
+        """Resolve the feature lookback from ``environment.yaml`` (R18 purge input).
+
+        Mirrors ``orchestration/parallel.py`` (``load_config('environment')['state']
+        ['lookback_days']``). Returns ``0`` if the config cannot be read, so the synthetic
+        pipeline still runs (degrading stage 12 to the legacy embargo-only gap) rather than
+        raising on a config-less install.
+        """
+        try:
+            from src.utils.config import load_config
+
+            return int(load_config("environment")["state"]["lookback_days"])
+        except Exception:  # noqa: BLE001 — config absent/malformed: degrade to embargo-only.
+            return 0
 
     # -- Stage 1 --------------------------------------------------------------
     def ingest_membership(self) -> np.ndarray:
@@ -269,18 +302,34 @@ class GoldPipeline:
         return report
 
     # -- Stage 12 -------------------------------------------------------------
-    def split_and_embargo(self) -> dict[str, dict[str, int]]:
-        """Stage 12: map config split dates to indices with an embargo gap.
+    def split_and_embargo(self) -> tuple[dict[str, dict[str, int]], int]:
+        """Stage 12: map config split dates to indices with a purge gap.
 
         Maps the ``train`` / ``val`` / ``test`` calendar ranges in
         ``config/data.yaml`` onto contiguous, non-overlapping index ranges, then
-        removes ``embargo_days`` from the *start* of each later split so adjacent
-        splits are separated by an embargo gap (kills serial-correlation leakage).
+        removes ``max(embargo_days, lookback_days)`` sessions from the *start* of each
+        later split so adjacent splits are separated by that gap. The purge must cover
+        the feature lookback, not merely the embargo: every observation reads
+        ``returns[t-lookback:t]``, so a bare ``embargo``(21) < ``lookback``(60) would
+        leave a later split's first ``lookback - embargo`` windows reading the prior
+        split's returns (R18; mirrors :func:`src.data.loaders.embargoed_val_start` and
+        :func:`src.env.runner.make_env_builder`).
+
+        Returns
+        -------
+        tuple
+            ``(splits, purge)`` where ``splits`` maps each of ``train`` / ``val`` /
+            ``test`` to ``{'start': int, 'end': int}`` (homogeneous, subscript-safe for
+            every entry) and ``purge`` is the applied ``max(embargo, lookback)`` gap.
         """
         assert self._panel is not None
         dates = self._panel.dates.astype("datetime64[D]")
         splits_cfg = self.cfg["splits"] if "splits" in self.cfg else self.cfg.splits
         embargo = int(self.cfg["embargo_days"] if "embargo_days" in self.cfg else self.cfg.embargo_days)
+        # R18: the purge that separates splits is max(embargo, lookback), NOT bare embargo,
+        # so no observation window returns[t-lookback:t] straddles a split boundary. This
+        # mirrors loaders.embargoed_val_start (purge = max(emb, lookback)) and runner.
+        purge = max(embargo, int(self.lookback_days))
 
         def _range(name: str) -> tuple[int, int]:
             block = splits_cfg[name]
@@ -301,20 +350,23 @@ class GoldPipeline:
             a, b = int(t * 0.6), int(t * 0.8)
             raw = {"train": (0, a), "val": (a, b), "test": (b, t)}
 
-        # Apply the embargo gap: shrink each later split's start by `embargo`.
+        # Apply the purge gap: shrink each later split's start by `purge` (R18).
         ordered = ["train", "val", "test"]
         splits: dict[str, dict[str, int]] = {}
         prev_end = 0
         for i, name in enumerate(ordered):
             lo, hi = raw[name]
             if i > 0:
-                lo = max(lo, prev_end + embargo)
+                lo = max(lo, prev_end + purge)
             lo = min(lo, hi)
             splits[name] = {"start": int(lo), "end": int(hi)}
             prev_end = hi
-        splits["embargo_days"] = embargo  # type: ignore[assignment]
-        self.manifest["12_split_and_embargo"] = _checksum(splits)
-        return splits
+        # Keep `splits` homogeneous (every value is {'start','end'}); the purge is returned
+        # separately and provenance-tracked via the stage checksum, rather than smuggled into
+        # the splits dict under an 'embargo_days' int (which broke the dict's element type and
+        # would make a generic `block['start']` consumer raise TypeError).
+        self.manifest["12_split_and_embargo"] = _checksum({"splits": splits, "purge_days": purge})
+        return splits, purge
 
     # -- Stage 13 -------------------------------------------------------------
     def freeze_and_checksum(self) -> dict[str, str]:
@@ -331,7 +383,7 @@ class GoldPipeline:
         return dict(self.manifest)
 
     # -- Orchestration --------------------------------------------------------
-    def run(self) -> tuple[Panel, dict[str, str]]:
+    def run(self) -> tuple[Panel, dict[str, Any]]:
         """Execute stages 1-13 in order.
 
         Returns
@@ -339,7 +391,9 @@ class GoldPipeline:
         tuple
             ``(panel, manifest)`` — the frozen :class:`Panel` and a manifest dict
             of per-stage SHA-256 checksums (one entry per stage, deterministic for a
-            fixed seed). The split indices are stored under ``manifest['splits']``.
+            fixed seed). The split indices are stored under ``manifest['splits']`` (a
+            homogeneous ``{name: {'start','end'}}`` map) and the applied purge gap
+            ``max(embargo, lookback)`` under ``manifest['embargo_days']``.
         """
         self.ingest_membership()
         self.ingest_prices_returns()
@@ -352,11 +406,16 @@ class GoldPipeline:
         panel = self.build_return_panel()
         self.engineer_features()
         self.reconcile_vendors()
-        splits = self.split_and_embargo()
-        manifest = self.freeze_and_checksum()
-        manifest = dict(manifest)
-        manifest["splits"] = splits  # type: ignore[assignment]
-        return panel, manifest
+        # Stage 12 now returns the homogeneous splits dict and the purge separately
+        # (the purge is no longer smuggled into `splits` under an int 'embargo_days' key).
+        splits, purge = self.split_and_embargo()
+        # The RETURNED manifest is genuinely heterogeneous (str stage-checksums + the splits dict + the int
+        # purge), so it is typed dict[str, Any]; self.manifest itself stays str-only (checksums). This is the
+        # honest type for the mixed payload — no per-line ``type: ignore`` smuggle (audit 2026-06-20).
+        out_manifest: dict[str, Any] = dict(self.freeze_and_checksum())
+        out_manifest["splits"] = splits
+        out_manifest["embargo_days"] = purge  # applied gap = max(embargo, lookback); kept discoverable
+        return panel, out_manifest
 
 
 #: Backwards-compatible alias for the scaffold name.

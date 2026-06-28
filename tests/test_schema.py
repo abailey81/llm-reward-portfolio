@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from src.feedback.schema import block_fields, build_block
+import pytest
+
+from src.feedback.schema import _DIST_FIELDS, _fmt, block_fields, build_block
 
 ARMS = ["distributional", "scalar", "placebo", "scalar_cvar5"]
 
@@ -89,3 +91,54 @@ def _DIST_CONTENT_LINES(block: str) -> list[str]:
         ln for ln in block.splitlines()
         if "diagnostics" not in ln  # drop the intro line
     ]
+
+
+# --- placebo_shuffled: the structure-vs-content control (R32) -------------------------------
+def _rendered_values(block: str) -> list[str]:
+    """The rendered numeric values, in label order (the lines indented two spaces)."""
+    return [
+        ln.split(":", 1)[1].strip().split()[0]
+        for ln in block.splitlines() if ln.startswith("  ")
+    ]
+
+
+def test_placebo_shuffled_matches_distributional_structure() -> None:
+    """placebo_shuffled shares the distributional block's EXACT structure — same header, intro,
+    labels, line count, and CVaR-1% annotation; only the numeric VALUES differ (R32)."""
+    dist = build_block("distributional", METRIC, TAIL_STATS)
+    shuf = build_block("placebo_shuffled", METRIC, TAIL_STATS, shuffle_seed=7)
+    dl, sl = dist.splitlines(), shuf.splitlines()
+    assert len(dl) == len(sl)
+    assert dl[0] == sl[0] and dl[1] == sl[1]  # header + intro identical
+    assert [ln.split(":")[0] for ln in dl] == [ln.split(":")[0] for ln in sl]  # labels identical
+    assert "high-variance" in shuf.lower()  # the CVaR-1% annotation is preserved
+    assert block_fields("placebo_shuffled") == block_fields("distributional")
+
+
+def test_placebo_shuffled_is_a_derangement_of_the_real_values() -> None:
+    """The six tail values are permuted with NO value left in its own label slot — the coherent
+    label->value mapping (the tail SHAPE) is broken while the MARGINAL multiset is preserved."""
+    shuf = build_block("placebo_shuffled", METRIC, TAIL_STATS, shuffle_seed=3)
+    rendered = _rendered_values(shuf)
+    real = [_fmt(float(TAIL_STATS[fid])) for fid, _ in _DIST_FIELDS]
+    assert sorted(rendered) == sorted(real)  # same marginal multiset of numbers
+    assert all(r != v for r, v in zip(rendered, real))  # derangement: nothing in its own slot
+
+
+def test_placebo_shuffled_is_seeded_and_replayable() -> None:
+    """Same seed -> byte-identical (replayable from the archive); seeds actually vary the block."""
+    a = build_block("placebo_shuffled", METRIC, TAIL_STATS, shuffle_seed=42)
+    b = build_block("placebo_shuffled", METRIC, TAIL_STATS, shuffle_seed=42)
+    assert a == b
+    variants = {
+        build_block("placebo_shuffled", METRIC, TAIL_STATS, shuffle_seed=s) for s in range(8)
+    }
+    assert len(variants) > 1
+
+
+def test_placebo_shuffled_requires_tail_stats_and_seed() -> None:
+    """placebo_shuffled fails loud without tail_stats or without a shuffle_seed."""
+    with pytest.raises(ValueError, match="tail_stats"):
+        build_block("placebo_shuffled", METRIC, None, shuffle_seed=1)
+    with pytest.raises(ValueError, match="shuffle_seed"):
+        build_block("placebo_shuffled", METRIC, TAIL_STATS)

@@ -3,16 +3,28 @@
 Purpose
 -------
 A non-LLM control arm (FINAL_PLAN F.10, hypothesis H4b). Rather than searching
-over arbitrary code, it FIXES a parametric reward template and optimizes its
-continuous coefficients with a real Bayesian-optimization loop. Compared under
-the MATCHED budget, it isolates how much value comes from discovering reward
-*structure* (only the LLM / random-code arms can) versus merely tuning a known
-structure.
+over arbitrary code, it FIXES the six-term parametric reward family
+(``src/baselines/reward_family.py``) and optimizes its continuous weights with a
+Gaussian-process Bayesian-optimization loop (GP + Matern-2.5 surrogate, Expected
+Improvement acquisition; Snoek, Larochelle & Adams 2012 — NOT Optuna/TPE). Under
+the MATCHED candidate budget, H4b compares the LLM's FREE-FORM reward code against
+the best member of this fixed parametric family it could tune, i.e. it isolates
+the value of an *open-ended reward language* against tuning a fixed parametric one.
+
+Scope note (see docs/DEEP_H4.md §1, §3). H4b is NOT a like-for-like
+search-procedure comparison against the LLM: BO is denied the LLM's functional
+freedom (it can only reweight six fixed primitives), so a positive H4b reflects
+the richer language AND procedure, not procedure alone. The procedure-only
+comparison is H4a (random search), which now draws from the SAME six-term family
+at the SAME fixed discrete dims as this arm — so the H4a-vs-H4b contrast is
+purely surrogate (GP-EI) versus uniform sampling at matched budget. The companion
+``random_search_over_template`` below is the budget-matched in-family random
+reference used to certify the GP surrogate is a fair control at this budget.
 
 Algorithm (FINAL_PLAN F.10, H4b)
 --------------------------------
     1. Fix a parametric reward template; its coefficients live in a bounded box.
-    2. Seed with ``n_init`` Latin-hypercube-ish random points (uniform in box).
+    2. Seed with ``n_init`` uniform random points in the box (i.i.d. uniform).
     3. Fit a Gaussian-process surrogate (Matern kernel) to the observed
        (coefficient -> held-out fitness) pairs.
     4. Maximize the Expected-Improvement acquisition over a dense random sample
@@ -111,11 +123,15 @@ def _expected_improvement(
         EI value at each candidate (>= 0).
     """
     mu, sigma = gp.predict(candidates, return_std=True)
+    # Capture the raw posterior std BEFORE clamping so the zero-sigma guard
+    # below can actually fire; clamping first made `sigma < 1e-9` identically
+    # False, defeating the guard (audit fix: dead/unreachable EI mask).
+    zero_sigma = sigma < 1e-9
     sigma = np.maximum(sigma, 1e-9)
     improvement = mu - best_y - xi
     z = improvement / sigma
     ei = improvement * norm.cdf(z) + sigma * norm.pdf(z)
-    ei[sigma < 1e-9] = 0.0
+    ei[zero_sigma] = 0.0
     return np.maximum(ei, 0.0)
 
 

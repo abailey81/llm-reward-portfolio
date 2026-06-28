@@ -22,8 +22,10 @@ per-period performance statistic for each of ``N`` candidates):
    performance); find its relative rank ``omega`` in the OOS ordering, mapped to
    ``(0, 1)``.
 4. Map to the logit ``lambda = ln(omega / (1 - omega))``.
-5. PBO is the fraction of splits with ``lambda <= 0`` -- i.e. the IS-best
-   candidate lands at or below the OOS median.
+5. PBO is the fraction of splits with ``lambda < 0`` -- i.e. the IS-best
+   candidate lands *strictly* below the OOS median. (FINAL_PLAN B.9 and Bailey
+   et al. 2017 use the strict inequality, so an exact OOS-median tie, ``lambda
+   == 0``, does NOT count as overfit.)
 
 PBO lies in ``[0, 1]``; values near ``0.5`` or above indicate that in-sample
 selection carries no OOS information (severe overfitting).
@@ -74,7 +76,7 @@ def pbo(
     -------
     float
         PBO estimate in ``[0, 1]``: the fraction of IS/OOS splits whose
-        in-sample-best candidate has a non-positive OOS rank logit.
+        in-sample-best candidate has a *negative* OOS rank logit (FINAL_PLAN B.9).
     """
     perf = np.asarray(perf_matrix, dtype=float)
     if perf.ndim != 2:
@@ -111,7 +113,7 @@ def pbo(
             seen.add(pick)
         combos = list(seen)
 
-    logits_nonpositive = 0
+    logits_negative = 0
     n_splits = 0
     for is_ids in combos:
         is_set = set(is_ids)
@@ -145,8 +147,11 @@ def pbo(
 
         omega = ranks[best] / (n_cfg + 1.0)  # in (0, 1)
         lam = math.log(omega / (1.0 - omega))
-        if lam <= 0.0:
-            logits_nonpositive += 1
+        # FINAL_PLAN B.9 + Bailey et al. 2017: PBO counts splits whose logit is
+        # STRICTLY < 0 (the IS-best lands strictly below the OOS median); an exact
+        # OOS-median tie (lam == 0) does NOT count as overfit.
+        if lam < 0.0:
+            logits_negative += 1
         n_splits += 1
 
-    return float(logits_nonpositive / n_splits)
+    return float(logits_negative / n_splits)

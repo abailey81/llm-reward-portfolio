@@ -1,0 +1,190 @@
+"""CI-grade environment capture for run reproducibility (Rank 14; audit C-2/C-6).
+
+Every run directory should record *exactly which machine + software stack* produced it so
+results replay rather than regenerate (CLAUDE.md prime directive 6). This module EXTENDS the
+canonical :func:`src.utils.provenance.env_fingerprint` (it imports it; it never re-implements the
+Python / platform / git / tracked-package fields) and enriches it with the fields a reproducibility
+audit on a GPU box actually needs but the lightweight fingerprint deliberately omits:
+
+  - the FULL installed package set (``pip freeze``-equivalent via ``importlib.metadata``), not just
+    the curated ``_TRACKED_PACKAGES``;
+  - the GPU/CUDA stack: the ``nvidia-smi`` driver line (best-effort — skipped cleanly when absent),
+    ``torch.version.cuda``, and the cuDNN version;
+  - the determinism knobs that decide whether a CUDA run is bitwise-stable: the relevant
+    ``os.environ`` snapshot (``CUBLAS_WORKSPACE_CONFIG`` / ``PYTHONHASHSEED`` / ``CUDA_VISIBLE_DEVICES``)
+    and ``torch.are_deterministic_algorithms_enabled()``;
+  - the run ``seed``.
+
+:func:`capture_env` returns the dict; :func:`write_env_json` writes ``<run_dir>/env.json`` and
+returns its path. :func:`env_json_sha256` hashes the serialized dict so a run RECORD can persist a
+single fingerprint string that resolves back to the on-disk ``env.json`` (replacing the old bare
+``env_fingerprint`` literal such as ``"synthetic:steps200"``).
+
+Used as a script it writes ``outputs/<run>/env.json``::
+
+    python scripts/capture_env.py --run-dir outputs/myrun --seed 7
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+from importlib import metadata
+from pathlib import Path
+from typing import Any
+
+from src.utils.provenance import env_fingerprint, sha256_obj
+
+__all__ = ["capture_env", "write_env_json", "env_json_sha256"]
+
+ENV_JSON_NAME = "env.json"
+
+#: ``os.environ`` keys that govern deterministic CUDA / hashing (see src/utils/seeding.py).
+_DETERMINISM_ENV_KEYS = (
+    "CUBLAS_WORKSPACE_CONFIG",
+    "PYTHONHASHSEED",
+    "CUDA_VISIBLE_DEVICES",
+)
+
+
+def _pip_freeze() -> dict[str, str]:
+    """The FULL installed distribution set as ``{name: version}`` (a structured ``pip freeze``).
+
+    Uses :mod:`importlib.metadata` rather than shelling out to ``pip`` so it works in a frozen /
+    network-less environment and needs no subprocess. Names are normalised to lower-case so the
+    map is stable across distributions that vary the casing of their metadata.
+    """
+    out: dict[str, str] = {}
+    for dist in metadata.distributions():
+        try:
+            name = dist.metadata["Name"]
+        except Exception:  # noqa: BLE001 - a malformed dist must not abort the snapshot
+            continue
+        if not name:
+            continue
+        out[str(name).lower()] = dist.version
+    return dict(sorted(out.items()))
+
+
+def _nvidia_smi() -> dict[str, Any]:
+    """Best-effort GPU driver/name via ``nvidia-smi`` — skipped gracefully if absent (CPU box/CI).
+
+    Returns ``{"available": False, "reason": ...}`` when the binary is missing or errors, so the
+    capture never fails on a machine without an NVIDIA GPU.
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=driver_version,name",
+                "--format=csv,noheader",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=15,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        return {"available": False, "reason": f"{type(exc).__name__}"}
+    lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+    drivers = sorted({ln.split(",")[0].strip() for ln in lines})
+    return {
+        "available": True,
+        "driver_version": drivers[0] if len(drivers) == 1 else drivers,
+        "gpus": lines,
+    }
+
+
+def _torch_cuda() -> dict[str, Any]:
+    """The torch-side CUDA/cuDNN stack + the deterministic-algorithm flag (best-effort).
+
+    torch is OPTIONAL in the analysis/test environment, so an ImportError yields
+    ``{"available": False}`` rather than raising.
+    """
+    try:
+        import torch
+    except Exception as exc:  # noqa: BLE001 - torch absent in the light analysis env
+        return {"available": False, "reason": f"{type(exc).__name__}"}
+    try:
+        cudnn_version = torch.backends.cudnn.version()
+    except Exception:  # noqa: BLE001
+        cudnn_version = None
+    try:
+        deterministic = bool(torch.are_deterministic_algorithms_enabled())
+    except Exception:  # noqa: BLE001 - older torch lacks the getter
+        deterministic = None
+    return {
+        "available": True,
+        "torch_version": torch.__version__,
+        "cuda": torch.version.cuda,
+        "cudnn": cudnn_version,
+        "cuda_available": bool(torch.cuda.is_available()),
+        "deterministic_algorithms_enabled": deterministic,
+    }
+
+
+def capture_env(seed: int | None = None) -> dict[str, Any]:
+    """Build the full CI-grade environment fingerprint dict (Rank 14).
+
+    Parameters
+    ----------
+    seed : int | None
+        The run seed to record, if known. ``None`` leaves the field ``null``.
+
+    Returns
+    -------
+    dict
+        ``env_fingerprint()`` (the canonical Python/platform/git/tracked-package core) plus the
+        enrichment keys ``pip_freeze``, ``nvidia_smi``, ``torch_cuda``, ``determinism_env``,
+        ``seed`` and ``schema``.
+    """
+    fp = dict(env_fingerprint())  # canonical core — NOT re-implemented here
+    fp["schema"] = "capture_env/1"
+    fp["seed"] = seed
+    fp["pip_freeze"] = _pip_freeze()
+    fp["nvidia_smi"] = _nvidia_smi()
+    fp["torch_cuda"] = _torch_cuda()
+    fp["determinism_env"] = {k: os.environ.get(k) for k in _DETERMINISM_ENV_KEYS}
+    return fp
+
+
+def env_json_sha256(seed: int | None = None, *, env: dict[str, Any] | None = None) -> str:
+    """SHA-256 of the (order-stable) environment fingerprint — a single replayable provenance id.
+
+    Reuses :func:`src.utils.provenance.sha256_obj` (canonical sorted-key JSON) so the digest is the
+    same string whether computed here or recomputed from a written ``env.json``.
+    """
+    return sha256_obj(env if env is not None else capture_env(seed))
+
+
+def write_env_json(run_dir: str | Path, seed: int | None = None) -> Path:
+    """Write ``<run_dir>/env.json`` and return its path (creating ``run_dir`` if needed).
+
+    Wired into the orchestration archive step (``src/orchestration/parallel.py``) so every run dir
+    gets an ``env.json`` alongside its ``record.json`` / ``reward.py`` / ``prompt.txt``.
+    """
+    target = Path(run_dir)
+    target.mkdir(parents=True, exist_ok=True)
+    env = capture_env(seed)
+    path = target / ENV_JSON_NAME
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump(env, fh, indent=2, sort_keys=True, default=str)
+    return path
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description="Capture a CI-grade env.json for run reproducibility.")
+    p.add_argument("--run-dir", required=True, help="Run directory to write env.json into.")
+    p.add_argument("--seed", type=int, default=None, help="Run seed to record (optional).")
+    return p
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    path = write_env_json(args.run_dir, args.seed)
+    print(f"[capture_env] wrote {path} (sha256={env_json_sha256(args.seed)[:12]}...)")
+
+
+if __name__ == "__main__":
+    main()

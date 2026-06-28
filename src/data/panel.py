@@ -26,8 +26,12 @@ class Panel:
         Simple per-asset daily returns. ``returns[t]`` is realised *after* the action at
         step ``t`` (timing enforced by the environment, audit C-5).
     vix : np.ndarray, shape (T,)
-        A volatility-index level. The environment only ever exposes a **lagged** value so
-        it is knowable at decision time.
+        A volatility-index level. The environment only ever exposes a value knowable at
+        decision time. If ``vix_prelagged`` is False (the synthetic convention) row ``t`` holds
+        the **contemporaneous** close and the env lags it to ``vix[t-1]``; if True (the gold
+        convention — the pipeline already shift(1)-lagged it) row ``t`` already holds the ``t-1``
+        close and the env reads ``vix[t]`` directly, so the agent always sees the ``t-1`` close
+        exactly once (final-audit #7: this flag prevents the gold panel being double-lagged).
     dates : np.ndarray, shape (T,)
         ``datetime64[D]`` (or integer) index. Used by the pipeline/splits/regimes — never
         passed into a reward.
@@ -42,6 +46,10 @@ class Panel:
     dates: np.ndarray
     asset_ids: np.ndarray
     market_caps: np.ndarray | None = None
+    #: True iff `vix` is ALREADY lagged (row t = t-1 close), as the gold pipeline stores it. The
+    #: env then reads vix[t] (no further lag); when False (synthetic) it lags to vix[t-1]. Default
+    #: False keeps every existing constructor/test on the contemporaneous convention (final-audit #7).
+    vix_prelagged: bool = False
 
     def __post_init__(self) -> None:
         if self.returns.ndim != 2:
@@ -76,4 +84,7 @@ class Panel:
             dates=self.dates[start:end],
             asset_ids=self.asset_ids,
             market_caps=None if self.market_caps is None else self.market_caps[start:end],
+            # Propagate the lag convention (re-audit regression: a sliced GOLD panel reverted to the
+            # default False and the env then double-lagged the already-lagged vix to a t-2 close).
+            vix_prelagged=self.vix_prelagged,
         )

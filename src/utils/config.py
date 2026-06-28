@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-__all__ = ["repo_root", "config_dir", "load_config", "load_all", "DotDict"]
+__all__ = ["repo_root", "config_dir", "load_config", "load_all", "DotDict", "cfg_get"]
 
 
 class DotDict(dict):
@@ -68,3 +68,17 @@ def load_config(name: str) -> DotDict:
 def load_all() -> DotDict:
     """Load every ``config/*.yaml`` keyed by stem (``environment``, ``algos``, ...)."""
     return DotDict({p.stem: load_config(p.stem) for p in sorted(config_dir().glob("*.yaml"))})
+
+
+def cfg_get(cfg: Any, key: str, default: Any = None) -> Any:
+    """Read ``key`` from a dict-like or attribute-like config, with a default.
+
+    Centralizes the ``_cfg_get`` / ``_get`` helper that was copy-pasted across 6 modules
+    (audit P1-1, 2026-06-19). Works for plain dicts, :class:`DotDict`, and any object
+    exposing attributes; returns ``default`` for a ``None`` cfg or a missing key.
+    """
+    if cfg is None:
+        return default
+    if isinstance(cfg, dict):
+        return cfg.get(key, default)
+    return getattr(cfg, key, default)

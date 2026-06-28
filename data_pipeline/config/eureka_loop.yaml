@@ -17,8 +17,8 @@ arms:                            # matched total budget = iterations*samples*res
   - llm_distributional           # reflection = prompts/reflection_distributional_v0.md
   - llm_scalar                   # reflection = prompts/reflection_scalar_v0.md   (H2 ablation)
   - llm_single_shot              # 240 one-shot samples, no reflection            (H3)
-  - random_search                # 240 draws from the parameterised reward family (H4)
-  - bayesopt_tpe                 # Optuna TPE, 240 trials over the same family    (H4)
+  - random_search                # H4a: random draws over the six-primitive reward grammar (matched budget)
+  - bayes_opt                    # H4b: GP-EI Bayesian optimisation (Matern-2.5; Snoek et al. 2012) over the same family
 
 baseline_rewards:                # hand-designed canon (citations in src/rewards_baselines.py docstrings)
   - differential_sharpe          # Moody & Saffell — primary baseline
@@ -28,7 +28,7 @@ baseline_rewards:                # hand-designed canon (citations in src/rewards
   - drawdown_penalised
   - turnover_penalised
 
-reward_family:                   # H4 search space — random_search & bayesopt_tpe draw from THIS space only
+reward_family:                   # H4 search space — random_search & bayes_opt draw from THIS space only
   # (ADR-010; PREREGISTRATION §4a). Six-term linear family implemented in src/reward_family.py; its
   # vertices recover the hand-designed canon, making H4 a like-for-like search-procedure comparison.
   # Weights sampled UNIFORM over [low, high]; ranges sized so each term can reach ~ +/-0.02 per step

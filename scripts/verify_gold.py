@@ -44,10 +44,12 @@ def main() -> None:
     print("  5. Env no-look-ahead test passes.")
     print("  6. Reward-timing test passes.")
 
+    # final-audit #29: the real module is src.env.portfolio_env (there is no src.env.portfolio);
+    # verification of the existing gold artifacts is otherwise done by data_pipeline/ + the env tests.
     try:
-        from src.env.portfolio import PortfolioEnv  # noqa: F401
+        from src.env.portfolio_env import PortfolioEnv  # noqa: F401
     except ImportError as exc:  # pragma: no cover - stub guard
-        print(f"[verify_gold] NOTE: src.env.portfolio not yet implemented ({exc}).")
+        print(f"[verify_gold] NOTE: deferred stub ({exc}).")
 
     # TODO(FINAL_PLAN data verification): implement.
     #   - recompute hashes vs data/gold/checksums.json.

@@ -27,21 +27,26 @@ Algorithm (stationary bootstrap, index form)
 
 Difference tests
 ----------------
-``sharpe_difference_test`` implements a *studentized block-bootstrap* test for
-``H0: SR(a) - SR(b) = 0``: the observed difference is divided by a bootstrap
-estimate of its standard error and the two-sided p-value is read off the
-bootstrap distribution of the studentized, null-recentred difference. The
-studentization follows Ledoit & Wolf (2008) in spirit, but note two precise
-distinctions (verified against the source): Ledoit & Wolf (2008) use the
-*circular* block bootstrap of Politis & Romano (**1992**, fixed block size),
-whereas here we use the *stationary* bootstrap of Politis & Romano (**1994**,
-random geometric block lengths) on its own merits for autocorrelated returns —
-we do NOT attribute the stationary bootstrap to Ledoit-Wolf.
+``sharpe_difference_test`` implements a *re-centred basic (empirical) stationary
+block-bootstrap* test for ``H0: SR(a) - SR(b) = 0``: the two-sided p-value is the
+bootstrap probability that the null-recentred difference ``boot - obs`` exceeds the
+observed difference ``obs`` in absolute value. The test does **not** studentize:
+although a bootstrap standard error ``se`` is computed and reported (as a scaled
+``stat = obs / se``), it *cancels exactly* in the decision rule
+``|(boot - obs) / se| >= |obs / se|`` (the ``se`` divides both sides), so the
+p-value is identical to the un-studentized empirical-bootstrap p-value
+``(|boot - obs| >= |obs|).mean()``. This is the *stationary* bootstrap of
+Politis & Romano (**1994**, random geometric block lengths), chosen on its own
+merits for autocorrelated returns. We deliberately do **not** claim the Ledoit &
+Wolf (2008) studentized construction — LW use the *circular* block bootstrap of
+Politis & Romano (**1992**, fixed block size) *and* a studentization that does not
+cancel; our size is certified empirically by ``null_calibration`` (audit C-7)
+rather than by appeal to that result.
 
-``cvar_difference_test`` applies the analogous studentized stationary-bootstrap
+``cvar_difference_test`` applies the analogous re-centred stationary-bootstrap
 construction to the difference in CVaR (expected shortfall) at level ``alpha``.
-No published studentized difference-in-CVaR test was located, so this is a
-*bespoke* extension whose size is certified empirically by ``null_calibration``
+No published difference-in-CVaR test was located, so this is a *bespoke*
+extension whose size is likewise certified empirically by ``null_calibration``
 (audit C-7) rather than by a citation.
 
 ``null_calibration`` repeatedly applies a difference test under a true null and
@@ -66,10 +71,119 @@ __all__ = [
     "stationary_bootstrap_indices",
     "sharpe_ratio",
     "cvar",
+    "iqm",
     "sharpe_difference_test",
     "cvar_difference_test",
+    "paired_seed_difference_test",
     "null_calibration",
 ]
+
+
+def iqm(x: np.ndarray) -> float:
+    """Interquartile mean (rliable; Agarwal et al. 2021, NeurIPS) of per-seed scores.
+
+    The mean of the middle 50% of the values (trim 25% from each tail) — a robust central tendency
+    for an RL evaluation's per-seed scores, insensitive to a few lucky/unlucky training seeds and far
+    more reliable than the raw mean across the small seed counts typical of deep-RL studies. Falls
+    back to the plain mean for fewer than 4 values, where the interquartile trim is ill-defined.
+
+    Returns NaN only for an all-non-finite / empty input.
+    """
+    a = np.asarray(x, dtype=float)
+    a = a[np.isfinite(a)]
+    if a.size == 0:
+        return float("nan")
+    if a.size < 4:
+        return float(a.mean())
+    a = np.sort(a)
+    lo = a.size // 4  # == int(0.25*n) (matches scipy.stats.trim_mean(x, 0.25))
+    return float(a[lo : a.size - lo].mean())
+
+
+def paired_seed_difference_test(
+    a: np.ndarray,
+    b: np.ndarray,
+    *,
+    statistic: Callable[[np.ndarray], float] = iqm,
+    n_boot: int = 2000,
+    rng: np.random.Generator | None = None,
+) -> dict[str, float]:
+    """Re-centred bootstrap test for ``H0: statistic(a) - statistic(b) = 0`` over PAIRED per-seed scores.
+
+    ``a`` and ``b`` are per-seed scores (e.g. each arm's per-seed Sharpe or CVaR) for two arms, PAIRED
+    element-wise by the shared training seed. The bootstrap resamples SEED INDICES i.i.d. with
+    replacement (seeds are independent), applies the SAME draw to both arms (paired, so the seed-level
+    common variance cancels), and recomputes ``statistic(a) - statistic(b)``. This carries the
+    ACROSS-SEED (training-RNG) variance — the dominant, relevant uncertainty in a multi-seed RL
+    evaluation (rliable; Agarwal et al. 2021) — which a per-period mean-over-seeds DESTROYS (averaging
+    N i.i.d.-seed paths shrinks the tested object's variance ~N×, so a per-period bootstrap on the
+    averaged series is anti-conservative by ~√N). The two-sided p-value uses the SAME re-centred basic
+    empirical-bootstrap convention as :func:`sharpe_difference_test` — the bootstrap probability that
+    ``|boot - obs| >= |obs|`` — so :func:`null_calibration` certifies its size identically (audit C-7).
+
+    Parameters
+    ----------
+    a, b : np.ndarray
+        Paired per-seed scores (same length; element i is the same training seed for both arms).
+    statistic : callable, optional
+        Central-tendency functional applied to a score array; default the rliable IQM (:func:`iqm`).
+    n_boot : int
+        Bootstrap replications.
+    rng : numpy.random.Generator, optional
+        Seeded for reproducibility.
+
+    Returns
+    -------
+    dict
+        ``{"stat", "pvalue", "pvalue_one_sided_greater", "effect", "ci_low", "ci_high"}`` where
+        ``effect`` is the raw ``statistic(a) - statistic(b)`` (positive = a better); ``pvalue`` is the
+        two-sided re-centred p; ``pvalue_one_sided_greater`` is the DIRECT upper-tail one-sided p for
+        H1: effect>0 (``P(boot - obs >= obs)``), valid under a skewed bootstrap — use this for a
+        one-sided decision rather than ``pvalue/2`` (R64); ``stat`` is the effect scaled by the bootstrap
+        SE (reported only; cancels in the decision rule); the CI is the 95% percentile interval.
+    """
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    if a.shape != b.shape:
+        raise ValueError("a and b must have the same shape (paired per-seed scores)")
+    n = a.size
+    if n < 2:
+        raise ValueError("paired_seed_difference_test needs >= 2 paired seeds")
+    if rng is None:
+        rng = np.random.default_rng()
+
+    obs = statistic(a) - statistic(b)
+    boot = np.empty(n_boot, dtype=float)
+    for i in range(n_boot):
+        idx = rng.integers(0, n, size=n)
+        boot[i] = statistic(a[idx]) - statistic(b[idx])
+
+    se = boot.std(ddof=1)
+    se = se if (np.isfinite(se) and se > 0.0) else float("nan")
+    stat = obs / se if np.isfinite(se) else 0.0
+    # Re-centred basic empirical bootstrap (se cancels): two-sided p = P(|boot - obs| >= |obs|).
+    pvalue = float((np.abs(boot - obs) >= abs(obs)).mean()) if np.isfinite(se) else 1.0
+    pvalue = min(1.0, max(pvalue, 1.0 / (n_boot + 1)))  # finite-resolution guard
+    # Direct one-sided p for the PRE-SPECIFIED alternative H1: effect > 0 (``a`` better than ``b``) —
+    # the upper-tail null probability P(boot - obs >= obs), read straight off the bootstrap draws. This is
+    # VALID under a SKEWED bootstrap (a CVaR/ES difference is left-skewed and heavy-tailed): halving the
+    # symmetric two-sided p (the old analysis-layer ``p_two/2``) equals this ONLY when ``boot - obs`` is
+    # symmetric, and is anti-conservative otherwise — decision-flipping at alpha on the co-primary
+    # CVaR-5% leg (R64 / DEEP_AUDIT 2026-06-28). The IUT caller still gates on ``effect > 0``, so a
+    # wrong-direction estimate (where this tail is large) cannot reject regardless.
+    if np.isfinite(se):
+        p_one = float(((boot - obs) >= obs).mean())
+        p_one = min(1.0, max(p_one, 1.0 / (n_boot + 1)))  # finite-resolution guard
+    else:
+        p_one = 1.0
+    return {
+        "stat": float(stat),
+        "pvalue": pvalue,
+        "pvalue_one_sided_greater": p_one,
+        "effect": float(obs),
+        "ci_low": float(np.quantile(boot, 0.025)),
+        "ci_high": float(np.quantile(boot, 0.975)),
+    }
 
 
 def stationary_bootstrap_indices(
@@ -134,14 +248,28 @@ def sharpe_ratio(returns: np.ndarray, periods_per_year: int = 252) -> float:
     float
         ``mean / std * sqrt(periods_per_year)`` using the population (ddof=0)
         standard deviation. Returns ``0.0`` if the standard deviation is zero.
+
+    Notes
+    -----
+    The ``sqrt(periods_per_year)`` time-aggregation assumes i.i.d. returns; under serial
+    correlation it biases the annualised POINT estimate (Lo 2002, *FAJ* — the correct factor is
+    ``sqrt(q) / sqrt(q + 2*sum_{k}(q-k)*rho_k)``). This is a known reporting caveat, NOT a flaw in
+    the headline test: the H2 inference is a per-seed paired bootstrap over the actual per-period
+    return series (``paired_seed_difference_test``), which carries the true sampling variance directly
+    and never relies on this annualised scalar. The annualised Sharpe is reported as a descriptive
+    point estimate only; a Lo-2002-corrected variant would change reported numbers (pre-reg-relevant).
     """
     r = np.asarray(returns, dtype=float)
+    r = r[np.isfinite(r)]  # strip non-finite from a pathological reward (P0-1)
     if r.size == 0:
         return 0.0
-    sd = r.std(ddof=0)
-    if sd == 0.0 or not np.isfinite(sd):
+    mu = float(r.mean())
+    sd = float(r.std(ddof=0))
+    # Relative near-zero guard: a (near-)constant series leaves float residue in sd,
+    # so an exact `sd == 0` test silently fails (P0-1, audit 2026-06-19).
+    if not np.isfinite(sd) or sd <= 1e-12 * (abs(mu) + 1e-12) or np.ptp(r) == 0.0:
         return 0.0
-    return float(r.mean() / sd * math.sqrt(periods_per_year))
+    return float(mu / sd * math.sqrt(periods_per_year))
 
 
 def cvar(returns: np.ndarray, alpha: float) -> float:
@@ -164,6 +292,7 @@ def cvar(returns: np.ndarray, alpha: float) -> float:
     if not (0.0 < alpha <= 1.0):
         raise ValueError("alpha must lie in (0, 1]")
     r = np.asarray(returns, dtype=float)
+    r = r[np.isfinite(r)]  # strip non-finite so a NaN can't poison the tail mean (P0-1)
     t = r.size
     if t == 0:
         return float("nan")
@@ -201,7 +330,7 @@ def sharpe_difference_test(
     n_boot: int = 2000,
     rng: np.random.Generator | None = None,
 ) -> dict[str, float]:
-    """Studentized stationary-bootstrap test for ``H0: SR(a) - SR(b) = 0``.
+    """Re-centred stationary-bootstrap test for ``H0: SR(a) - SR(b) = 0``.
 
     Parameters
     ----------
@@ -218,17 +347,22 @@ def sharpe_difference_test(
     -------
     dict
         ``{"stat", "pvalue", "ci_low", "ci_high"}`` where ``stat`` is the
-        studentized observed difference, ``pvalue`` is the two-sided bootstrap
-        p-value, and ``ci_low``/``ci_high`` form a 95% percentile bootstrap CI
-        for the raw Sharpe difference.
+        observed difference scaled by the bootstrap standard error (a reported
+        effect-size summary that does **not** drive the decision — see Notes),
+        ``pvalue`` is the two-sided bootstrap p-value, and ``ci_low``/``ci_high``
+        form a 95% percentile bootstrap CI for the raw Sharpe difference.
 
     Notes
     -----
-    The standard error is estimated from the bootstrap spread of the difference.
-    The two-sided p-value is the bootstrap probability that the studentized,
-    null-recentred statistic exceeds the observed studentized statistic in
-    absolute value (studentized stationary block bootstrap; see the module
-    docstring for the precise Ledoit-Wolf 1992-vs-1994 bootstrap distinction).
+    Despite the reported ``stat = obs / se``, this is **not** a studentized test:
+    the bootstrap standard error ``se`` cancels in the decision rule
+    ``|(boot - obs) / se| >= |obs / se|``, so the two-sided p-value equals the
+    un-studentized empirical-bootstrap p-value — the bootstrap probability that
+    the null-recentred difference ``boot - obs`` exceeds the observed difference
+    ``obs`` in absolute value. It is therefore a re-centred basic (empirical)
+    stationary block bootstrap whose size is certified by ``null_calibration``
+    (audit C-7); see the module docstring for why this is *not* the Ledoit-Wolf
+    (2008) studentized construction.
     """
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
@@ -248,7 +382,9 @@ def sharpe_difference_test(
         se = float("nan")
 
     stat = obs / se if np.isfinite(se) else 0.0
-    # Studentized, null-recentred bootstrap statistics.
+    # Null-recentred bootstrap statistics. NB: `se` cancels here against `stat`
+    # (`|(boot-obs)/se| >= |obs/se|` <=> `|boot-obs| >= |obs|`), so this is the
+    # un-studentized re-centred empirical bootstrap p-value, not a studentized one.
     centred = (boot - obs) / se if np.isfinite(se) else np.zeros_like(boot)
     if np.isfinite(se):
         pvalue = float((np.abs(centred) >= abs(stat)).mean())
@@ -269,13 +405,14 @@ def cvar_difference_test(
     n_boot: int = 2000,
     rng: np.random.Generator | None = None,
 ) -> dict[str, float]:
-    """Two-sample studentized stationary-bootstrap test for ``H0: CVaR(a) - CVaR(b) = 0``.
+    """Two-sample re-centred stationary-bootstrap test for ``H0: CVaR(a) - CVaR(b) = 0``.
 
     This is the appropriate tool when ``a`` and ``b`` are the *realized* return series of two different
     strategies (e.g. the distributional vs scalar arm) and the question is whether their realized tail
-    losses differ — the direct analogue of the Ledoit-Wolf (2008) studentized-bootstrap Sharpe-difference
-    test, applied to the CVaR functional. No *published, named* two-sample difference-in-CVaR test exists
-    (deep-research #2/#3), so this bespoke construction's size is certified empirically by
+    losses differ — the same re-centred stationary block-bootstrap construction as
+    :func:`sharpe_difference_test`, applied to the CVaR functional (the bootstrap SE cancels in the
+    p-value, so it is **not** studentized). No *published, named* two-sample difference-in-CVaR test
+    exists (deep-research #2/#3), so this bespoke construction's size is certified empirically by
     :func:`null_calibration` (audit C-7). CVaR/ES is a well-defined estimable functional because the pair
     (VaR, ES) is *jointly* elicitable (Fissler & Ziegel, 2016), even though ES alone is not.
 

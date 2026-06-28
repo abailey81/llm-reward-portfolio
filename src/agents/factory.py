@@ -42,6 +42,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.utils.config import cfg_get
+
 __all__ = [
     "make_headline_agent",
     "make_distributional_agent",
@@ -78,24 +80,34 @@ def _policy_kwargs(cfg: Any) -> dict[str, Any]:
         Keyword arguments common to SAC and TQC constructors.
     """
 
-    def _get(key: str, default: Any) -> Any:
-        if cfg is None:
-            return default
-        if isinstance(cfg, dict):
-            return cfg.get(key, default)
-        return getattr(cfg, key, default)
-
     kwargs: dict[str, Any] = {
-        "policy": _get("policy", "MlpPolicy"),
-        "learning_rate": _get("learning_rate", 3e-4),
-        "gamma": _get("gamma", 0.99),
-        "ent_coef": _get("ent_coef", "auto"),
-        "buffer_size": _get("buffer_size", 1_000_000),
-        "batch_size": _get("batch_size", 256),
-        "seed": _get("seed", None),
-        "verbose": _get("verbose", 0),
+        "policy": cfg_get(cfg, "policy", "MlpPolicy"),
+        "learning_rate": cfg_get(cfg, "learning_rate", 3e-4),
+        "gamma": cfg_get(cfg, "gamma", 0.99),
+        "ent_coef": cfg_get(cfg, "ent_coef", "auto"),
+        # buffer_size defaults to the train-step budget (ADR-025: full-history replay, no eviction), NOT a
+        # 1M literal that OOMs the 4090 AND diverges from trainer.resolve_agent_kwargs (no-hardcoding audit).
+        "buffer_size": int(
+            cfg_get(
+                cfg,
+                "buffer_size",
+                cfg_get(cfg, "train_steps_per_candidate", cfg_get(cfg, "train_steps", 50000)),
+            )
+        ),
+        "batch_size": cfg_get(cfg, "batch_size", 256),
+        # learning_starts: the warm-up steps collected (random policy) before the critic starts
+        # regressing. SB3's UNSET default is 100, but the Phase-0 smoke gate validated 1000, and the
+        # live trainer (trainer.resolve_agent_kwargs) now resolves it explicitly — so resolve it HERE
+        # too (default 1000) and the factory honours whatever the resolved kwargs carry. Only set when
+        # present-or-default so the SAC/TQC contrast stays identical (both factories read this).
+        "learning_starts": cfg_get(cfg, "learning_starts", 1000),
+        "seed": cfg_get(cfg, "seed", None),
+        "verbose": cfg_get(cfg, "verbose", 0),
+        # Device is explicit so a heterogeneous GPU+CPU worker pool can place each training
+        # on a chosen device ("cpu" / "cuda" / "cuda:0"); "auto" picks CUDA when available.
+        "device": cfg_get(cfg, "device", "auto"),
     }
-    policy_kwargs = _get("policy_kwargs", None)
+    policy_kwargs = cfg_get(cfg, "policy_kwargs", None)
     if policy_kwargs is not None:
         kwargs["policy_kwargs"] = policy_kwargs
     return kwargs
@@ -188,6 +200,23 @@ def make_distributional_agent(env: Any, cfg: Any) -> Any:
         ) from exc
 
     kwargs = _policy_kwargs(cfg)
+    # Pull the TQC-DEFINING hyperparameters through (audit fix 2026-06-20): _policy_kwargs resolves only the
+    # SAC/TQC-common keys, so the TQC-specific knobs were silently dropped — config/algos.yaml advertises
+    # them as configurable, so they MUST take effect when present (a missing key keeps the sb3-contrib
+    # default). CRUCIALLY their homes differ: ``top_quantiles_to_drop_per_net`` (the knob that DEFINES the
+    # truncated-quantile critic, audit A-2) is a TOP-LEVEL ``TQC()`` arg, while ``n_quantiles`` and
+    # ``n_critics`` are ``TQCPolicy`` args — passing those two top-level raises ``TypeError`` (TQC.__init__
+    # has no **kwargs), so they go via ``policy_kwargs`` (merged with any set by _policy_kwargs, not clobbered).
+    tqdn = cfg_get(cfg, "top_quantiles_to_drop_per_net", None)
+    if tqdn is not None:
+        kwargs["top_quantiles_to_drop_per_net"] = tqdn
+    policy_kwargs = dict(kwargs.get("policy_kwargs") or {})
+    for key in ("n_quantiles", "n_critics"):
+        value = cfg_get(cfg, key, None)
+        if value is not None:
+            policy_kwargs[key] = value
+    if policy_kwargs:
+        kwargs["policy_kwargs"] = policy_kwargs
     policy = kwargs.pop("policy")
     return TQC(policy, env, **kwargs)
 

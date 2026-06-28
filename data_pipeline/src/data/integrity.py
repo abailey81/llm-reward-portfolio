@@ -59,6 +59,32 @@ def split_artifact_flags(returns: pd.Series, splits: pd.Series | None = None) ->
     return pd.DataFrame(rows)
 
 
+def forward_split_artifact_flags(returns: pd.Series,
+                                 splits: pd.Series | None = None) -> pd.DataFrame:
+    """Unadjusted FORWARD-split signatures: one-day total returns ≈ +100% (2:1), +200%
+    (3:1) or +300% (4:1) WITHOUT a matching vendor split record the same day ->
+    ERROR-suspect artifact. This is the POSITIVE analogue of :func:`split_artifact_flags`
+    (which catches the price-side −50%/−66.7%): when a split is not back-applied in the
+    *total-return* series, the split-day return spikes to the share-multiplier minus one
+    (a 3:1 split reads exactly +200.00%; Refinitiv research panel, JCI Oct-2007). A genuine
+    +200% one-day move on a live large-cap does not occur, so the signature is the tell.
+    Config: ``data.platform.outliers.forward_split_signatures`` + ``split_tolerance``.
+    Flag-only — like every function here, it never mutates a return (PRIME DIRECTIVE)."""
+    cfg = _cfg()
+    sigs = [float(s) for s in cfg["forward_split_signatures"]]
+    tol = float(cfg["split_tolerance"])
+    r = returns.dropna()
+    hits = r[[any(abs(x - s) <= tol for s in sigs) for x in r]]
+    rows = []
+    for date, x in hits.items():
+        recorded = bool(splits is not None and date in splits.index
+                        and pd.notna(splits.loc[date]) and splits.loc[date] not in (0, 1))
+        rows.append({"date": date, "return": float(x),
+                     "vendor_split_recorded": recorded,
+                     "flag": "split_recorded_ok" if recorded else "unadjusted_fwd_split_suspect"})
+    return pd.DataFrame(rows)
+
+
 def cross_vendor_action_mismatches(div_a: pd.Series, div_b: pd.Series,
                                    amount_tol: float = 1e-4) -> pd.DataFrame:
     """Dividend events present in one vendor and absent (or differing beyond
