@@ -69,3 +69,6 @@ data_pipeline/data/
 
 # mutation-probe / mutmut transient cache
 .mutmut-cache
+
+# --- Internal agent operating brief (kept local; not part of the published artifact) ---
+CLAUDE.md
