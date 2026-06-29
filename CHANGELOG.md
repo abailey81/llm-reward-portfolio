@@ -3,6 +3,32 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-06-29b] — Parameter determination, literature grounding, and the full campaign-design record
+
+Deep determination session (no frozen change; report-only + tooling). Resolved every campaign parameter by
+the correct criterion for its class and grounded each in the literature (196-paper corpus, read first-hand).
+
+### The authoritative determination record — `docs/CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md`
+Captures everything: the **committed spec** (200k training steps / 30 seeds / 30 candidates / 7 arms); the
+**four-class framework** (MEASURE / CALIBRATE / FIX / REALISTIC — and why most parameters must NOT be
+performance-optimised); per-parameter literature justification (training steps = data-limited regime, more
+overfits — FinRL-DeepSeek early-stop, ARM-FM plateau, Sharpe-Regret-Reward; seeds = rliable N≈10 +
+Henderson power-analysis + paired-CRN; candidates = Eureka/ICPL/CARD saturation; arms = DrEureka control
+battery + the **novel `placebo_shuffled`** content-derangement control); the **power analysis** (paired
+one-sided IUT MDE table, σ_seed scenarios, n\* = 25/71/11); **construct-validity verification** (frozen base
+prompts are tail-neutral); the **tiered 14-day 24/7 compute plan** (primary at its scientific optimum +
+secondary panels — padding the primary would overfit); the **framing strategy** (dose-response ladder,
+bank-equivalence, mechanism-central, ceiling-effect, H1-anchor, two-tier arms); the execution priority; and
+the freeze-blocker list. Indexed in `docs/INDEX.md`.
+
+### Tooling
+- `scripts/determine_design.py` — Design Determination Pipeline: per-parameter status + FREEZE-READY verdict;
+  the search-saturation engine `recommend_candidates`. +8 tests.
+- `scripts/learning_curve.py` — `project_campaign`: turnkey campaign wall-clock + GO/ADAPT/RECONSIDER from the
+  measured ladder timings. +5 tests.
+- Reproducibility surface: `requirements.lock` (torch==2.6.0+cu124), `REPRODUCIBILITY.md`, `.gitattributes`.
+  Private repo `github.com/abailey81/llm-reward-portfolio` (clean, user-authored, no Claude attribution).
+
 ## [2026-06-29] — Figure engine + LLM-integration hardening + CI dependency completion (report-only; no frozen change)
 
 Deep-sweep build: all report-only / engineering, **nothing frozen touched** (`freeze.py --check` SHA `7fc686b6`
