@@ -21,8 +21,8 @@ throughput ceiling ⇒ ~28.3 min/training effective; n_gpu=4 is a measured OOM a
 
 ## The levers (all pure scheduling — identical science, byte-equivalent per-unit results)
 
-**L1 — SEARCH-stage 3-way parallelism (the ~5-day lever) — AMENDMENT-GATED (Tamer + a dated
-amendment).** The frozen headline protocol is `serial_reflect_on_best`. The parallel driver
+**L1 — SEARCH-stage 3-way parallelism (the ~5-day lever) — APPROVED by Tamer 2026-07-06 (ADR-052);
+the mechanical label change lands in the batched seed-ratification amendment.** The frozen headline protocol is `serial_reflect_on_best`. The parallel driver
 (`--search-gpu 3`) implements the SAME reflect-on-generation-BEST semantics and, as of today
 (S21/S15 fixes), is fully **resume-safe for all 7 arms** (hash-verified replay; as-completed
 archival; zero re-billing). Within a generation the cpg=5 candidates train concurrently — each
@@ -37,8 +37,8 @@ ratification (one dated amendment covers both).
 control is best-of-30 at generations=1: NO reflection chain exists, so its 30 candidates are
 embarrassingly parallel by construction (the same argument that makes the TEST leg science-neutral).
 Route the H3 search through the device pool (author all 30 prompts up front — authoring is
-minutes — then pool-train). Worth building iff L1 is declined (L1's amendment covers H3 anyway);
-flagged, not built, to avoid two mechanisms for one job.
+minutes — then pool-train). BUILT 2026-07-06 (ADR-052): `--search-gpu N` now routes the H3 single-shot search through the
+parallel driver too.
 
 **L3 — already banked this session (no decision needed):** as-completed streaming keeps all 3
 slots continuously hot across batch boundaries (S15); resume never re-trains completed work on ANY

@@ -15,7 +15,8 @@ returned text, and the token usage. The API key is read from the environment and
 Exit codes
 ----------
     0   live call succeeded
-    2   key not present — actionable message, not an exception (add OPENROUTER_API_KEY=... to .env, rerun)
+    2   key not present
+    3   auth OK but the pinned model is not yet activated/purchased in the workspace — actionable message, not an exception (add OPENROUTER_API_KEY=... to .env, rerun)
 
 Run::
 
@@ -49,10 +50,18 @@ def main() -> int:
 
     print(f"R71 smoke: provider={provider} pinned_model={model} key_env={key_env} (key present, not shown)")
     transport = build_transport(provider, model, key_env, temperature=None, max_tokens=64)
-    text = transport(
-        "You are a connectivity probe. Follow the user instruction exactly.",
-        "Reply with the single word OK",
-    )
+    try:
+        text = transport(
+            "You are a connectivity probe. Follow the user instruction exactly.",
+            "Reply with the single word OK",
+        )
+    except Exception as exc:  # noqa: BLE001 — a paywall state is an actionable status, not a stack trace
+        if "Unpurchased" in str(exc) or getattr(exc, "status_code", None) == 403:
+            print("AUTH OK but the model is NOT ACTIVATED in this workspace (403 AccessDenied.Unpurchased).")
+            print("The wiring is verified to the paywall (2026-07-06: key + endpoint + /models all live).")
+            print(f"Action: activate/top up {model!r} in Alibaba Model Studio, then rerun this smoke.")
+            return 3
+        raise
 
     served = getattr(transport, "last_served_model", None)
     usage = getattr(transport, "last_usage", None)

@@ -1140,6 +1140,8 @@ def run_h3_singleshot(
     n_gpu: int = 0,
     n_cpu: int = 0,
     recycle_every: int = 12,
+    search_n_gpu: int = 0,
+    search_n_cpu: int = 0,
 ) -> dict[str, Any]:
     """H3 SINGLE-SHOT stage: the **distributional** arm re-run at ``generations=1`` (DEEP_H3 §1).
 
@@ -1196,25 +1198,54 @@ def run_h3_singleshot(
             winner = None  # only a MISSING frozen record => not searched yet (corrupt records propagate)
 
     if winner is None:
-        # (1) SINGLE-SHOT SEARCH: the SAME candidate budget at generations=1 (no reflection). Reuses the
-        # serial run_winner_search (== run_arm) so "matched compute" holds with the iterative headline arm;
-        # the ONLY change is generations -> singleshot_generations (1), giving best-of-(candidates).
-        run_winner_search(
-            arm,
-            search_seed=search_seed,
-            archive_root=str(search_root),
-            synthetic=synthetic,
-            candidates=candidates,
-            generations=int(singleshot_generations),
-            train_steps=train_steps,
-            n_trials=n_trials,
-            pass_mode=pass_mode,
-            provider=provider,
-            llm_cfg=llm_cfg,
-            # M4: an interrupted single-shot search replays its archive on --resume too (no re-bill).
-            resume=resume,
-            arm_runner=arm_runner,
-        )
+        # (1) SINGLE-SHOT SEARCH: the SAME candidate budget at generations=1 (no reflection). The
+        # serial path reuses run_winner_search (== run_arm) so "matched compute" holds with the
+        # iterative headline arm; the ONLY change is generations -> singleshot_generations (1),
+        # giving best-of-(candidates).
+        #
+        # L2 (2026-07-06, Tamer-approved throughput lever, docs/MAX_THROUGHPUT_RUN_PLAN.md): at
+        # generations=1 there is NO reflection chain — every candidate authors from the initial
+        # prompt — so the 30 trainings are embarrassingly parallel BY CONSTRUCTION (the same
+        # argument that makes the TEST leg science-neutral; per-candidate results are
+        # seeded-deterministic either way). ``search_n_gpu > 0`` routes through the proven
+        # parallel driver (resume-safe post-S21): ~1.3 d serial -> ~0.4 d at 3 workers. The F8
+        # mode guard still refuses a mid-arm scheme switch on resume.
+        _assert_search_mode_unchanged(arm, arm_search_root, parallel=int(search_n_gpu) > 0)
+        if int(search_n_gpu) > 0:
+            _search_parallel_arm(
+                arm,
+                agent_cfg=agent_cfg,
+                env_cfg=env_cfg,
+                synthetic=synthetic,
+                candidates=candidates,
+                generations=int(singleshot_generations),
+                n_trials=n_trials,
+                pass_mode=pass_mode,
+                provider=provider,
+                llm_cfg=llm_cfg,
+                search_seed=search_seed,
+                search_root=search_root,
+                n_gpu=int(search_n_gpu),
+                n_cpu=int(search_n_cpu),
+                resume=resume,
+            )
+        else:
+            run_winner_search(
+                arm,
+                search_seed=search_seed,
+                archive_root=str(search_root),
+                synthetic=synthetic,
+                candidates=candidates,
+                generations=int(singleshot_generations),
+                train_steps=train_steps,
+                n_trials=n_trials,
+                pass_mode=pass_mode,
+                provider=provider,
+                llm_cfg=llm_cfg,
+                # M4: an interrupted single-shot search replays its archive on --resume too (no re-bill).
+                resume=resume,
+                arm_runner=arm_runner,
+            )
         # (2) SELECT the single-shot winner by validation DSR (identical selector to the iterative arm).
         winner = select_winner(arm_search_root)
         if winner is None:
@@ -1850,6 +1881,10 @@ def run_headline_campaign(
                 n_gpu=int(n_gpu),
                 n_cpu=int(n_cpu),
                 recycle_every=int(recycle_every),
+                # L2 (2026-07-06): --search-gpu N also parallelises the H3 single-shot search
+                # (generations=1 => no reflection chain => embarrassingly parallel by construction).
+                search_n_gpu=int(search_n_gpu),
+                search_n_cpu=int(search_n_cpu),
             )
             summaries.append(h3_summary)
         except Exception as exc:  # noqa: BLE001 - the report-only H3 control must not sink the headline arms

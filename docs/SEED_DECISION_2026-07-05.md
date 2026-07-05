@@ -136,3 +136,16 @@ clock, the defensible move is to ratify now and note to him that the schedule re
 design adjustable on his advice up to the freeze.
 
 8. **Paper prose sweep (2026-07-06 review):** update every hard-coded 'thirty seeds/30-seed' statement in the GRADED chapters to the ratified arm-adaptive design — CH2:68, CH4:215, CH4 Table 4.1 row ('Thirty seeds'), CH5:65, CH5:75, APPENDIX_B:33 (B.2.4), CH6:32 fill-hint — plus the MDE numbers keyed to n=30. The freeze gate asserts prereg prose only; without this item the Methods chapter would describe a design the run ledger contradicts.
+
+## 2026-07-06 UPDATE — 90% vs 95% assurance (Tamer weighing "very respected")
+
+The L1 approval CHANGES the earlier trade. The original 350-seed (~90% assurance) recommendation
+weighed +2.1 days for 403 (95%) against a tight buffer; L1 banks ~-5 days, so the calendar now
+absorbs 403 comfortably: freeze ~Jul 12 -> ~26.5 d at 403 with L1 -> done ~Aug 8 -> 3+ weeks of
+write-up buffer. Marginal cost of 95%: +53 seeds x 2 H2 arms = +106 trainings (~2.1 d at the
+3-worker ceiling); marginal benefit: the sizing sentence a skeptical statistician checks reads at
+the textbook-strong tier, and the band of unlucky sigma_D realizations that would push the study
+onto the bounded-effect branch narrows ~by half. Seeds carry no multiplicity cost (same test, more
+replicates — pure statistical value). RECOMMENDATION (updated): **403 arm-adaptive (95%) WITH L1**;
+fall back to 350 only if L1 is declined. Reported either way: the assurance curve + the
+(now-implemented) Mayo-Spanos severity curves.
