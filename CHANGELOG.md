@@ -3,6 +3,33 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-05c] — Advanced methodologies: CUSUM change-point drift detection + a content-addressed archive-integrity seal; citations closed
+
+Tamer: "close absolutely everything strictly flawless + implement very advanced methodologies." A fresh
+adversarial auditor was put on the session-2 diff (author≠reviewer); two advanced, in-scope (report-only,
+no frozen-design change, no forking paths) methodologies were added, and the last citation gaps closed.
+
+- **ADVANCED METHODOLOGY #1 — statistical process control in the SENTINEL.** Added a one-sided Page (1954)
+  **CUSUM change-point detector** (`scripts/sentinel.py::cusum` + `check_metric_drift`): the `--watch` loop
+  accumulates the streaming gate-failure and NaN rates and alarms on a sustained upward DRIFT *before* any
+  single value crosses a hard threshold — the right tool for "catch anything early". WARN-level (an early
+  investigate signal; the threshold checks escalate on an actual breach). +5 tests (stable→no alarm,
+  upward-drift→alarms mid-stream at the change-point, total on bad input, min-points gate).
+- **ADVANCED METHODOLOGY #2 — content-addressed result-archive integrity seal** (`scripts/archive_integrity.py`).
+  The archive is the one irreplaceable artifact (results replay from it), and nothing sealed it (the freeze
+  hash seals the design; data checksums seal the inputs). Now a flat-Merkle manifest — every `record.json`'s
+  SHA-256 under one verifiable **root** (line-ending invariant, matching the freeze convention). The driver
+  auto-seals at campaign end (root stamped into `campaign_summary.json`); **`analyze()` re-verifies the live
+  archive against the seal BEFORE trusting any number** and reports the verdict under
+  `out["archive_integrity"]` — a modified/dropped/added record between run and analysis is caught loudly,
+  never silently averaged in. Tamper-evident reproducibility. +6 tests (seal→verify OK, detects
+  modify/add/remove, order-independent + deterministic root, line-ending invariance, unreadable-record
+  perturbs the root). Runbook §5 documents both.
+- **Citations closed:** `troop2021biascorrected` (bias-corrected POT-CVaR) is now CITED in CH4 §4.4 as the
+  documented future-work extreme-value estimator (the bib entry existed but was uncited); `duan2021dsac`
+  **web-verified** — published IEEE T-NNLS 33(11):6584-6598 (2021), DOI 10.1109/TNNLS.2021.3082568 — its
+  `% VERIFY` flag discharged and coordinates completed. check_citations: 0 dangling / 0 verify-in-use.
+
 ## [2026-07-05b] — World-class run hardening: search-arm resume, the SENTINEL invariant monitor + precise logging, mechanism-kernel rewire, freeze gate 17→20; ~40 fixes
 
 Second 2026-07-05 session. Tamer asked for (a) precise seed sizing, (b) world-class resume/checkpoint +

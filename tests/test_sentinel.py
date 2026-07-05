@@ -175,3 +175,42 @@ def test_render_report_is_stringable() -> None:
     report = S.evaluate_health({"disk_free_gb": 100.0, "seen_arms": 1, "expected_arms": 1})
     text = S.render_report(report)
     assert "CAMPAIGN SENTINEL" in text and "disk" in text
+
+
+# --------------------------------------------------------------------------- #
+# Statistical process control — CUSUM change-point drift detection             #
+# --------------------------------------------------------------------------- #
+def test_cusum_stable_series_no_alarm() -> None:
+    alarmed, idx, s = S.cusum([0.02, 0.03, 0.02, 0.03, 0.02, 0.03], 0.0, k=0.03, h=0.15)
+    assert alarmed is False and idx == -1 and s == 0.0
+
+
+def test_cusum_upward_drift_alarms_early() -> None:
+    # a slowly-rising rate breaches the CUSUM decision interval BEFORE any single value is extreme
+    alarmed, idx, s = S.cusum([0.02, 0.05, 0.09, 0.13, 0.18, 0.22], 0.0, k=0.03, h=0.15)
+    assert alarmed is True
+    assert idx == 3            # caught mid-stream, not at the last (extreme) point
+    assert s > 0.15
+
+
+def test_cusum_total_on_bad_input() -> None:
+    # non-numeric entries are skipped, never raise
+    alarmed, _, _ = S.cusum([0.0, None, "x", 0.0], 0.0, k=0.01, h=0.05)  # type: ignore[list-item]
+    assert alarmed is False
+
+
+def test_check_metric_drift_needs_min_points_then_warns() -> None:
+    assert S.check_metric_drift("gate_failure", [0.5, 0.5], 0.0, k=0.03, h=0.15).severity == S.INFO
+    drifting = [0.02, 0.05, 0.09, 0.13, 0.18, 0.22]
+    assert S.check_metric_drift("gate_failure", drifting, 0.0, k=0.03, h=0.15).severity == S.WARN
+    stable = [0.02, 0.03, 0.02, 0.03, 0.02, 0.03]
+    assert S.check_metric_drift("gate_failure", stable, 0.0, k=0.03, h=0.15).severity == S.OK
+
+
+def test_evaluate_health_runs_drift_checks_when_history_present() -> None:
+    report = S.evaluate_health({
+        "disk_free_gb": 100.0, "seen_arms": 7, "expected_arms": 7,
+        "gate_failure_history": [0.02, 0.05, 0.09, 0.13, 0.18, 0.22],  # drifting up
+    })
+    drift = next(c for c in report.checks if c.name == "gate_failure_drift")
+    assert drift.severity == S.WARN

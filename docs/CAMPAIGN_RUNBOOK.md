@@ -391,7 +391,20 @@ diverged), **cross-arm reward-scale drift** (the P5 confound made live-auditable
 **API error rate**, exit-code, and archive-mirror freshness. Every check TRANSITION is written
 severity-tagged to `events.jsonl` (the precise, machine-parseable health history — grep it, or replay it
 after the run). A CRITICAL exit code lets you wire it into a cron push. This is the layer that means
-nothing about a bad result waits until analysis time to be seen. **After ANY reboot, restart the
+nothing about a bad result waits until analysis time to be seen. The sentinel also runs a **CUSUM
+change-point detector** (statistical process control) on the streaming gate-failure and NaN rates, so a
+slow upward DRIFT is flagged before it ever crosses a hard threshold.
+
+**Result-archive integrity seal (2026-07-05, `scripts/archive_integrity.py`).** The archive is the one
+irreplaceable artifact (results replay from it). At campaign end the driver auto-writes
+`outputs/campaign/archive_integrity.json` — a content-addressed manifest with a single verifiable **root**
+over every `record.json` (the "results fingerprint", stamped into `campaign_summary.json`). `analyze()`
+**re-verifies the live archive against that seal before trusting any number** and reports the verdict under
+`out["archive_integrity"]` — a MISMATCH (a modified / dropped / added record between the run and analysis)
+is surfaced loudly, never silently averaged in. Check by hand any time:
+```bash
+python scripts/archive_integrity.py verify outputs/campaign    # exit 0 = intact; 1 = tamper/corruption
+``` **After ANY reboot, restart the
 watcher by hand** (the ONSTART task re-enters the supervisor + re-applies the GPU clock lock, but not the
 dashboard): `python scripts/monitor.py outputs/campaign/search --follow-campaign --notify <topic>`.
 
