@@ -12,6 +12,7 @@ has no heavy-dependency requirement.
 from __future__ import annotations
 
 import os
+import time
 
 from src.orchestration.parallel import run_recycling
 
@@ -19,6 +20,12 @@ from src.orchestration.parallel import run_recycling
 def _ping(spec: dict) -> dict:
     """Bare worker (no torch): echo the pid + index + the assigned device token."""
     return {"pid": os.getpid(), "i": spec["i"], "device": spec.get("device")}
+
+
+def _sleepy(spec: dict) -> dict:
+    """Bare worker that sleeps ``spec['sleep']`` seconds (drives the as-completed/stall tests)."""
+    time.sleep(float(spec.get("sleep", 0)))
+    return {"ok": True, "i": spec["i"], "cid": spec.get("cid")}
 
 
 def _raises_on_odd(spec: dict) -> dict:
@@ -61,3 +68,36 @@ def test_run_recycling_captures_raising_worker_without_aborting() -> None:
 def test_run_recycling_empty_specs_returns_empty() -> None:
     """Edge case: no specs -> no pool spawned, returns []."""
     assert run_recycling([], worker=_ping, n_gpu=0, n_cpu=2, recycle_every=4, initializer=None) == []
+
+
+def test_run_recycling_streams_results_as_completed_not_in_submission_order() -> None:
+    """2026-07-06 as-completed collection: ``on_result`` fires at COMPLETION time, so a slow
+    early-submitted training cannot delay the archival of later-submitted completed ones (the old
+    submission-order collection could orphan up to recycle_every-1 COMPLETED trainings on a driver
+    crash) — while the RETURNED list keeps submission order (run_sigma_pilot_train re-attributes
+    results by position)."""
+    specs = [{"i": 0, "sleep": 1.5}] + [{"i": i, "sleep": 0.05} for i in (1, 2, 3)]
+    streamed: list[dict] = []
+    res = run_recycling(
+        specs, worker=_sleepy, n_gpu=0, n_cpu=2, recycle_every=8,
+        initializer=None, on_result=streamed.append,
+    )
+    assert [r["i"] for r in res] == [0, 1, 2, 3]  # returned order = submission order (the contract)
+    assert {r["i"] for r in streamed} == {0, 1, 2, 3}  # every row streamed exactly once
+    assert streamed[-1]["i"] == 0  # ... but the SLOW task streamed LAST (as-completed, not as-submitted)
+
+
+def test_run_recycling_stall_detection_fires_and_run_completes() -> None:
+    """2026-07-06 wedge detection: when NO future completes within ``stall_after_s``, ``on_stall``
+    fires with the pending spec identities — detection only; the run still completes."""
+    specs = [{"i": 0, "cid": "c0", "sleep": 1.2}, {"i": 1, "cid": "c1", "sleep": 0.05}]
+    stalls: list[dict] = []
+    res = run_recycling(
+        specs, worker=_sleepy, n_gpu=0, n_cpu=2, recycle_every=8,
+        initializer=None, stall_after_s=0.25, on_stall=stalls.append,
+    )
+    assert [r["i"] for r in res] == [0, 1]
+    assert stalls, "no stall callback fired for a 1.2s-quiet batch with a 0.25s window"
+    # once only the slow task remains pending, the payload names exactly it
+    assert any(s["pending"] == [{"cid": "c0"}] for s in stalls)
+    assert all(s["since_last_completion_s"] >= 0 for s in stalls)

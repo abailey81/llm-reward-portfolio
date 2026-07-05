@@ -21,14 +21,18 @@ Three pieces, with their responsibilities split so the heavy worker stays out of
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from src.orchestration.parallel import _FIXTURE, run_recycling
+from src.utils.logging import get_logger, log_event
 
 __all__ = ["build_test_record", "evaluate_winners_on_test_parallel"]
+
+_LOG = get_logger(__name__)
 
 
 # --------------------------------------------------------------------------- #
@@ -291,6 +295,7 @@ def evaluate_winners_on_test_parallel(
     runner: Any = None,
     worker: Any = None,
     write: Any = None,
+    stall_after_s: float | None = None,
 ) -> dict[str, Any]:
     """Run the campaign TEST leg for ALL ``winners`` across ``seeds`` in parallel (the 180 re-runs).
 
@@ -304,6 +309,14 @@ def evaluate_winners_on_test_parallel(
     ``runner``/``worker``/``write`` default to the production implementations and are injectable so this
     orchestration is unit-tested with no spawn / no torch; an injected ``runner`` must accept the
     ``on_result`` keyword (see :func:`run_recycling`).
+
+    Journal + wedge detection (2026-07-06): every streamed row emits a ``seed_done`` /
+    ``seed_failed`` event into the run's ``events.jsonl`` (via the root-attached run logging), giving
+    the sentinel a timestamped per-unit completion stream for progress-rate / ETA / stall math. When
+    ``stall_after_s`` is set, the runner's ``on_stall`` hook additionally logs a WARNING
+    ``test_leg_stall`` event naming the pending (arm, seed) identities whenever NO training completes
+    for that long — the wedged-CUDA failure mode a process-liveness check cannot see. The stall
+    kwargs are only passed to the runner when armed, so injected test runners keep their signature.
     """
     import hashlib
 
@@ -374,10 +387,36 @@ def evaluate_winners_on_test_parallel(
             rec = r["record"]
             write(rec, str(test_root / str(rec["arm"])))
             streamed.add(str(rec["run_id"]))
+            # Journal the durable completion (2026-07-06): one timestamped ``seed_done`` per archived
+            # record -> events.jsonl, the sentinel's per-unit completion stream (rate / ETA / stall).
+            log_event(
+                _LOG, "seed_done",
+                run_id=str(rec.get("run_id")), arm=str(rec.get("arm")), seed=rec.get("seed"),
+            )
+        else:
+            # A failed seed is journaled too (WARNING) so the error-taxonomy panel sees it live —
+            # the post-loop `failures` list only exists once the whole leg drains.
+            log_event(
+                _LOG, "seed_failed", level=logging.WARNING,
+                run_id=r.get("run_id"), arm=r.get("arm"), seed=r.get("seed"),
+                error=str(r.get("error"))[:200],
+            )
 
+    def _log_stall(info: dict[str, Any]) -> None:
+        # Wedge detection: NOTHING completed for stall_after_s. WARNING (not CRITICAL) — a thermal
+        # pause can legitimately quiet the pool; the sentinel escalates on repetition/duration.
+        log_event(
+            _LOG, "test_leg_stall", level=logging.WARNING,
+            pending=info.get("pending"),
+            since_last_completion_s=round(float(info.get("since_last_completion_s", 0.0)), 1),
+        )
+
+    stall_kwargs: dict[str, Any] = (
+        {} if stall_after_s is None else {"stall_after_s": float(stall_after_s), "on_stall": _log_stall}
+    )
     results = runner(
         specs, worker=worker, n_gpu=n_gpu, n_cpu=n_cpu, recycle_every=recycle_every,
-        on_result=_archive_now,
+        on_result=_archive_now, **stall_kwargs,
     )
 
     written: list[dict[str, Any]] = []

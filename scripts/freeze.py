@@ -783,9 +783,13 @@ def assert_matched_budget_match(yml: dict[str, Any], root: Path) -> str | None:
 #: the construct-validity premise of the whole H2 contrast. Until 2026-07-05 nothing GUARDED that
 #: property: a pre-freeze wording edit re-adding tail vocabulary would have been frozen unnoticed and
 #: silently collapsed the placebo/scalar contrast (every arm pre-seeded with the tail again).
+#: "tail" is matched as a whole WORD (plural included), NOT a substring — a bare substring would
+#: false-positive on benign prompt wording (detail/retail/entail/curtail/detailed) and block a
+#: legitimate pre-freeze edit (2026-07-06 audit MINOR). The rest are compound-safe as substrings.
 _PROMPT_TAIL_VOCAB: tuple[str, ...] = (
-    "cvar", "tail", "drawdown", "downside", "quantile", "shortfall", "value-at-risk", "value at risk",
+    "cvar", "drawdown", "downside", "quantile", "shortfall", "value-at-risk", "value at risk",
 )
+_PROMPT_TAIL_WORD_RE = re.compile(r"\btails?\b")
 
 
 def assert_prompt_tail_neutrality(root: Path) -> str | None:
@@ -800,14 +804,19 @@ def assert_prompt_tail_neutrality(root: Path) -> str | None:
         return None
     for p in present:
         text = p.read_text(encoding="utf-8").lower()
-        for token in _PROMPT_TAIL_VOCAB:
-            _require(
-                token not in text,
-                f"{p.relative_to(root)} contains the tail token {token!r} — the base prompts must stay "
-                "tail-NEUTRAL (R38 de-seeding: only the distributional arm's FEEDBACK may introduce the "
-                "tail, else the placebo/scalar construct-validity contrast collapses)",
-            )
-    return f"prompt tail-neutrality: {len(present)} base prompt(s) carry none of {len(_PROMPT_TAIL_VOCAB)} tail tokens (R38)"
+        word_hit = _PROMPT_TAIL_WORD_RE.search(text)
+        hit = next(
+            (tok for tok in _PROMPT_TAIL_VOCAB if tok in text),
+            word_hit.group(0) if word_hit else None,
+        )
+        _require(
+            hit is None,
+            f"{p.relative_to(root)} contains the tail token {hit!r} — the base prompts must stay "
+            "tail-NEUTRAL (R38 de-seeding: only the distributional arm's FEEDBACK may introduce the "
+            "tail, else the placebo/scalar construct-validity contrast collapses)",
+        )
+    n_tokens = len(_PROMPT_TAIL_VOCAB) + 1  # + the word-boundary "tail" pattern
+    return f"prompt tail-neutrality: {len(present)} base prompt(s) carry none of {n_tokens} tail tokens (R38)"
 
 
 def assert_search_splits_match(root: Path) -> str | None:

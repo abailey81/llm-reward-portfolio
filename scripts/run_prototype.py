@@ -501,7 +501,6 @@ def run_arm(
         # ordered sink aligns 1:1 by index with `evaluated` below. ADDITIVE: the evaluator's
         # scalar (reward|coeffs)->float contract that the search functions depend on is
         # preserved; the vector is recorded as a side effect into this closure list.
-        val_vectors: list[Any] = []
         _sc = [0]  # search-arm candidate counter (monitor progress; search loops have no run_loop)
 
         # Carry the frozen reward_family ranges so random_search draws the six family
@@ -532,6 +531,11 @@ def run_arm(
         )
         _last_vr: list[Any] = [None]  # val_returns holder: fitness -> checkpoint (synchronous)
         _vr_by_idx: dict[int, Any] = {}
+        # Resume the live-monitor candidate counter PAST the cached prefix (2026-07-06 audit MINOR):
+        # cached candidates report their TRUE idx via _cached_score, so the fresh-candidate counter must
+        # start after them or the monitor sees duplicated indices on --resume (archive is unaffected —
+        # it keys off the search driver's own idx — this is monitor-precision only).
+        _sc[0] = len(_search_cache)
 
         def _cached_score(idx: int, source: str) -> float | None:
             rec = _search_cache.get(idx)
@@ -571,7 +575,6 @@ def run_arm(
                 score, val_returns = evaluate_reward_with_returns(
                     reward_fn, env_builder, agent_trainer, held_out_fitness, n_trials
                 )
-                val_vectors.append(val_returns)
                 _last_vr[0] = val_returns
                 if monitor is not None:
                     monitor.candidate_done(arm, _sc[0], fitness=score, status="ok",
@@ -601,7 +604,6 @@ def run_arm(
                 score, val_returns = evaluate_reward_with_returns(
                     reward_fn, env_builder, agent_trainer, held_out_fitness, n_trials
                 )
-                val_vectors.append(val_returns)
                 _last_vr[0] = val_returns
                 if monitor is not None:
                     monitor.candidate_done(arm, _sc[0], fitness=score, status="ok",

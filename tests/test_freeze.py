@@ -572,6 +572,19 @@ def test_prompt_tail_neutrality_drift_raises(tmp_path):
     )
     with pytest.raises(freeze.FreezeConsistencyError, match="cvar"):
         freeze.assert_prompt_tail_neutrality(tmp_path)
+    # "tail" fires as a whole word (singular and plural) ...
+    for phrase in ("mind the tail of returns", "heavy tails matter"):
+        (tmp_path / "prompts" / "system.txt").write_text(
+            f"You design reward functions. {phrase}.", encoding="utf-8"
+        )
+        with pytest.raises(freeze.FreezeConsistencyError, match="tail"):
+            freeze.assert_prompt_tail_neutrality(tmp_path)
+    # ... but NOT as a substring of benign words (2026-07-06 audit: a wording edit adding
+    # "detailed"/"retail" must not false-block the freeze).
+    (tmp_path / "prompts" / "system.txt").write_text(
+        "Provide detailed reasoning; retail investors entail curtailed budgets.", encoding="utf-8"
+    )
+    assert "tail-neutrality" in freeze.assert_prompt_tail_neutrality(tmp_path)
     # a neutral prompt passes with the summary line
     (tmp_path / "prompts" / "system.txt").write_text(
         "You design reward functions. Weigh return against risk.", encoding="utf-8"

@@ -129,3 +129,52 @@ def test_parallel_driver_counts_worker_failures(tmp_path) -> None:
     )
     assert summary["n_written"] == 0 and summary["n_failed"] == 2
     assert summary["matched_budget_ok"] is False  # full budget but zero successes
+
+
+def test_parallel_driver_journals_seed_done_and_seed_failed(tmp_path, caplog) -> None:
+    """2026-07-06 journal wiring: every streamed row emits a timestamped seed_done / seed_failed
+    event (the sentinel's per-unit completion stream) via the root-attached run logging."""
+    import logging as _logging
+
+    winners = [("scalar", {"reward_source": "s", "reward_source_hash": "", "metrics": {"val_fitness": 0.1}})]
+
+    def _mixed(spec: dict) -> dict:
+        if spec["seed"] == 1:
+            return {"ok": False, "run_id": spec["run_id"], "arm": spec["arm"],
+                    "seed": spec["seed"], "error": "CUDA out of memory"}
+        return _fake_record_worker(spec)
+
+    common = {**_COMMON, "worker": _mixed}
+    with caplog.at_level(_logging.INFO, logger="src.orchestration.test_leg"):
+        evaluate_winners_on_test_parallel(
+            winners=winners, seeds=[0, 1], test_root=tmp_path, write=lambda r, root: None, **common,
+        )
+    events = [(getattr(r, "event", None), getattr(r, "fields", {})) for r in caplog.records]
+    done = [f for e, f in events if e == "seed_done"]
+    failed = [f for e, f in events if e == "seed_failed"]
+    assert len(done) == 1 and done[0]["run_id"] == "scalar-s0"
+    assert len(failed) == 1 and failed[0]["run_id"] == "scalar-s1"
+    assert "memory" in failed[0]["error"]
+
+
+def test_parallel_driver_stall_kwargs_only_when_armed(tmp_path) -> None:
+    """stall_after_s=None (default) must NOT pass stall kwargs (injected runners keep their old
+    signature); when armed, the runner receives stall_after_s + a logging on_stall."""
+    winners = [("scalar", {"reward_source": "s", "reward_source_hash": "", "metrics": {"val_fitness": 0.1}})]
+    seen: dict = {}
+
+    def _spy_runner(specs, *, worker, n_gpu, n_cpu, recycle_every, on_result=None, **kw):  # noqa: ANN001, ARG001
+        seen.update(kw)
+        return _inproc_runner(specs, worker=worker, n_gpu=n_gpu, n_cpu=n_cpu,
+                              recycle_every=recycle_every, on_result=on_result)
+
+    common = {**_COMMON, "runner": _spy_runner}
+    evaluate_winners_on_test_parallel(
+        winners=winners, seeds=[0], test_root=tmp_path, write=lambda r, root: None, **common,
+    )
+    assert seen == {}  # unarmed -> no stall kwargs
+    evaluate_winners_on_test_parallel(
+        winners=winners, seeds=[0], test_root=tmp_path, write=lambda r, root: None,
+        stall_after_s=123.0, **common,
+    )
+    assert seen.get("stall_after_s") == 123.0 and callable(seen.get("on_stall"))
