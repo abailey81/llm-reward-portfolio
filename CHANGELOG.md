@@ -3,6 +3,61 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-06] — Resume + monitoring pushed to the maximum: as-completed archival, the journal, 5 new sentinel checks, verified mirror, and an automated crash-resume certifier that immediately CAUGHT a real bug
+
+Tamer: "very extensively work on the resume mechanisms — lose no progress — and detect ANYTHING;
+push it to the absolute maximum." Blueprint `docs/RESUME_AND_MONITORING_HARDENING_PLAN.md` (now marked
+EXECUTED). Commits `bb01e2e`, `df5a61f`, `43cfb21`. Freeze gate **20/20 @ `1c6b76b6` UNCHANGED**.
+First, the 2026-07-06 adversarial audit of the session-2 diff returned **0 CRITICAL / 0 MAJOR / 4 MINOR**
+— all four fixed + regression-tested (resume-correct monitor indices + dead `val_vectors` removed;
+strictly-consecutive-generation dx/dm deltas per the registered §2a form; word-boundary `tail` matching
+in the freeze prompt-neutrality guard so "detailed/retail" cannot false-block a freeze).
+
+- **A1 — as-completed streaming archival.** `run_recycling` now collects futures the moment they
+  COMPLETE (order-preserving return for the σ_D farm's positional contract): a driver crash mid-batch
+  loses only in-flight work (was: up to `recycle_every−1` ≈ 12 completed trainings ≈ 17 h), and one
+  wedged CUDA training no longer blocks the batch's archival. NEW `stall_after_s`/`on_stall` wedge
+  DETECTION (pending identities surfaced when nothing completes in the window — the hang liveness
+  checks cannot see). The parallel search drivers stop archiving at arm END (whole-arm loss): random
+  archives per completion through a draw-order-preserving sliding window; BO per evaluation.
+- **A2 — the journal.** Write side = the existing root-attached `events.jsonl` (ONE ledger, no drift)
+  extended with `seed_done`/`seed_failed`/`test_leg_stall` events from the TEST leg
+  (`config/campaign.yaml monitoring.test_stall_after_s: 5400`, wired at all 3 run_campaign call
+  sites); read side = NEW `src/utils/journal.py` (torn-line-tolerant reader, completion stream,
+  median/MAD cadence, error taxonomy).
+- **B1–B7 — the detect-everything sentinel layer.** `completion_stall` (PRODUCTIVITY from the run's
+  own cadence — WARN 3×/CRIT 8× median silence; catches the wedged-training-alive-driver hang);
+  `coverage_search`/`coverage_test` (expected-vs-done UNIT ledger from config + ETA;
+  claims-complete-with-missing-units → CRITICAL — the anti-husk guarantee at unit granularity);
+  `error_taxonomy` (failures clustered by kind + affected arms); `disk_forecast` (predictive: "floor
+  in ~N h" at the measured fill rate); fps direction-down CUSUM (thermal creep in hours;
+  cross-candidate critic-CUSUM deliberately rejected — per-candidate scale would false-alarm);
+  `monitor.py` B7 unified sentinel line in the dashboard + B6 `--heartbeat` DEADMAN (unconditional
+  periodic ping; the external service alarms on ABSENCE — the only host-death detector). Live smoke
+  immediately flagged a REAL risk: **C: free disk 18 GB < the 20 GB floor**.
+- **A3 — stage-resume audit.** Verified skip-done on every stage + FIXED a real gap: the `p_arms>1`
+  prototype path dropped `resume` (a partial arm restarted from scratch and re-billed the author).
+  `--dry-run` honors `--p-arms`; new `--out`/`--resume` hooks.
+- **A4 — actionable corruption handling.** A corrupt archive record fails LOUD naming the exact path +
+  recovery routes (mirror restore preferred; delete-to-rerun ONLY for deterministic units — an LLM-arm
+  record is irreplaceable, so auto-quarantine is deliberately rejected). `campaign_summary.json` now
+  writes atomically (tmp + `os.replace`).
+- **A5 — VERIFIED mirror.** `mirror_archive.ps1` re-hashes every mirrored tree against its sealed
+  manifest via the new `verify-mirror` mode (sealed records intact; post-seal ADDS tolerated — a
+  mid-campaign mirror lawfully carries newer work; exit 9 on backup rot).
+- **A6 — the automated crash-resume certifier** (`scripts/crash_rehearsal.py`: reference →
+  determinism control → hard TREE-kill at 1 record → resume → canonical byte-compare). **On its first
+  execution it CAUGHT a genuine resume infidelity**: the Pass-A stub author was stream-positional, so
+  a resume that replayed archived candidates without consuming their draws shifted every later
+  candidate. Fixed with the search-arms' own discipline: the stub is now a pure function of
+  `(seed, call_index)` and BOTH replay paths consume one author-stream position per replayed authored
+  slot via duck-typed `LLMClient.advance_author_stream()` (real-LLM transports no-op — paid
+  non-deterministic calls cannot be replayed by position; Pass-B semantics unchanged). Re-certified:
+  killed at 1/6 records + resume == uninterrupted run, byte-identical.
+- Runbook §3e-bis (one-command rehearsal), §5 (the deep-monitoring layer), §5b(iv) (verified mirror).
+  Tests: +~30 across parallel-recycling/test-leg/journal/sentinel/dashboard/archive-integrity/
+  results-io/crash-rehearsal/stub/llm-deep; ruff clean.
+
 ## [2026-07-05c] — Advanced methodologies: CUSUM change-point drift detection + a content-addressed archive-integrity seal; citations closed
 
 Tamer: "close absolutely everything strictly flawless + implement very advanced methodologies." A fresh
