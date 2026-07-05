@@ -41,10 +41,11 @@ This frames our object of study. We hold the agent fixed (a soft actor–critic 
 the authorship of the behaviour-guiding reward $r$ to a language model, the *reward-designer*. The designer is
 not handed $F$ directly; it is handed *feedback* — a statistic of the return distribution its previous reward
 induced — and asked to revise the reward code. The scientific question is whether the **content** of that
-feedback changes the rewards it writes and, through them, realised performance. Because the agent is demonstrably
-capacity-limited (Chapter 4 documents that the critic is far from its convergence regime at the training budget),
-the optimal-reward-problem premise holds with force: there is, in principle, room for a well-chosen reward to
-compensate for the agent's boundedness, and therefore room for *better information to the designer* to matter.
+feedback changes the rewards it writes and, through them, realised performance. Because the agent is bounded —
+finite representational capacity, a $K{=}5$ per-generation search width, and a fixed, matched optimisation
+budget that Chapter 4 sets from a convergence pilot — the optimal-reward-problem premise applies: there is, in
+principle, room for a well-chosen reward to compensate for the agent's boundedness, and therefore room for
+*better information to the designer* to matter.
 
 Two remarks fix scope. The designed reward is generally **not** a potential-based shaping of $F$, so by the
 necessary-and-sufficient invariance theorem of Ng, Harada and Russell it can change the optimal policy
@@ -90,8 +91,9 @@ part of what it is shown can never be made worse off by being shown more — any
 could also do with the vector, by first discarding the extra coordinates. Blackwell's theorem makes this precise,
 and proves the converse. The foundational result is:
 
-> **Theorem 3.1 (Blackwell–Sherman–Stein).** *Let $E$ and $E'$ be experiments on the same parameter space. The
-> following are equivalent: (i) $E'$ is a garbling of $E$, i.e. $E' = K\circ E$ for some Markov kernel $K$; (ii)
+> **Theorem 3.1 (Blackwell–Sherman–Stein).** *Let $E$ and $E'$ be experiments on the same finite parameter
+> space (the general case holds for dominated experiments; Torgersen 1991 — only the unconditional
+> direction (i) $\Rightarrow$ (ii) is used below). The following are equivalent: (i) $E'$ is a garbling of $E$, i.e. $E' = K\circ E$ for some Markov kernel $K$; (ii)
 > $\mathrm{Risk}_{L}^{\pi}(E) \le \mathrm{Risk}_{L}^{\pi}(E')$ for every bounded loss $L$ and prior $\pi$; (iii)
 > $\int v \, d(E\pi) \ge \int v\, d(E'\pi)$ for every convex $v$ on the posterior simplex.* [`blackwell1953equivalent`;
 > `sherman1951theorem`; the third party to the equivalence, Stein, is unpublished and attributed in
@@ -127,10 +129,10 @@ gives a uniform risk-transfer bound
 The same conclusion admits an information-theoretic restatement that we record because it makes the mechanism
 transparent. Treating the reduction $g$ as a channel, the **data-processing inequality** for $f$-divergences
 guarantees that $g$ cannot increase the statistical separation between any "benign-tail" law $P$ and any
-"adverse-tail" law $Q$: $D_f\!\big(g_\# P \,\Vert\, g_\# Q\big) \le D_f(P\Vert Q)$, with equality — for *strictly convex* $f$ — if and only
-if $g$ is sufficient for the dichotomy $\{P, Q\}$ (equivalently, the likelihood ratio $\mathrm{d}P/\mathrm{d}Q$ admits a
-$\sigma(g)$-measurable version, $Q$-a.s.) [`polyanskiiwu2024it`, Thm 7.4 and Thm 2.17; `liese2006divergences`]. For a two-hypothesis (dichotomy) version of the designer's problem, Blackwell dominance
-is equivalent to domination in **every** $f$-divergence simultaneously (equivalently, in all convex losses)
+"adverse-tail" law $Q$: $D_f\!\big(g_\# P \,\Vert\, g_\# Q\big) \le D_f(P\Vert Q)$, with equality — for *strictly convex* $f$ and provided
+$D_f(P\Vert Q)<\infty$ — if and only if $g$ is sufficient for the dichotomy $\{P, Q\}$ (equivalently, for
+$P \ll Q$, the likelihood ratio $\mathrm{d}P/\mathrm{d}Q$ admits a $\sigma(g)$-measurable version, $Q$-a.s.) [`polyanskiiwu2024it`, Thm 7.4 and Thm 2.17; `liese2006divergences`]. For a two-hypothesis (dichotomy) version of the designer's problem, Blackwell dominance
+is equivalent to domination in **every** $f$-divergence simultaneously (equivalently, in the convex order of the likelihood-ratio laws)
 [`raginsky2011shannon`], so §3.4 is one theorem told in two languages. This bilingual framing is not ornamental: the divergence form is what connects the abstract claim
 to the concrete observation that a single CVaR level discards exactly the cross-level tail shape that a heavy- vs
 light-tailed market would reveal.
@@ -187,15 +189,18 @@ single coherent tail number cannot serve as a clean target, and hence why a *vec
 stylistic. The escape is *higher-order* joint elicitability: the pair $(\mathrm{VaR}_\alpha, \mathrm{CVaR}_\alpha)$
 is jointly elicitable, and a finite multi-level spectral measure *together with its quantiles* is jointly
 elicitable of finite (higher) order, with an essentially unique identification function by Osband's principle
-[`fissler2016higherorder`, Cor. 5.5; with the published correction `fisslerziegel2021correction`;
+[`fissler2016higherorder`, Thm 5.2 and Cor. 5.4 (multi-level spectral case), Cor. 5.5 (the
+$(\mathrm{VaR},\mathrm{ES})$ pair); with the published correction `fisslerziegel2021correction`;
 `frongillokash2021complexity`]. The most recent generalisation extends this to the whole tail-risk class via a
 generator construction [`fissler2025tail`]. We therefore
 state the fed signal's status precisely, keeping **two distinct properties apart** (they are commonly, and wrongly,
 welded). First, the vector is *sufficient relative to the scalar* — this is the garbling fact of §3.4 (the scalar is
 a measurable reduction of the vector), and it is what the value-of-information argument rests on; it is **not** an
 absolute sufficiency claim for the full return law, which six tail scalars do not deliver. Second, and
-*independently* of sufficiency, the vector is a jointly identifiable, jointly (higher-order) elicitable
-finite-dimensional representation of the lower tail of the spectral class — which is what makes the fed quantity a
+*independently* of sufficiency, the vector's CVaR sub-vector — *together with its quantiles* — is a jointly
+identifiable, jointly (higher-order) elicitable representation of the lower tail of the spectral class (the two
+auxiliary coordinates, the $-2\sigma$ tail mass and the Bowley skew, are identifiable summary statistics not
+covered by the cited elicitability theorems) — which is what makes the fed quantity a
 legitimate, calibration-testable learning and forecasting target (it is what licenses the strictly consistent
 FZ0/$(\mathrm{VaR},\mathrm{CVaR})$ tail backtest of Chapter 6), **not** what establishes the dominance. The scalar
 is neither sufficient relative to the vector nor a coherent elicitable target.
@@ -210,7 +215,7 @@ $$ \mathrm{CVaR}_\alpha(Z) \;=\; \min_{\xi \in \mathcal U_\alpha} \mathbb E_\xi[
 where $Z$ is a *return* (the lower tail is the adverse direction), so the CVaR is the worst-case — i.e. the
 **minimum** — expectation of $Z$ over the **CVaR risk envelope** $\mathcal U_\alpha$: the set of re-weightings whose
 likelihood ratio $\xi = \mathrm{d}Q/\mathrm{d}P$ is bounded above by $1/\alpha$. This is a sup-norm ($L^\infty$)
-constraint on the density — *not* a $\phi$-divergence ball: CVaR is precisely the coherent/spectral case whose dual
+constraint on the density — not a ball of any *finite-valued* $\phi$-divergence (KL, $\chi^2$): CVaR is precisely the coherent/spectral case whose dual
 ambiguity set is the likelihood-ratio-bounded simplex, a different geometry from the divergence balls of general
 $\phi$-divergence distributionally-robust optimisation [`rockafellar2000cvar`; `shapiro2013kusuoka`; cf. the
 contrasting $\phi$-divergence ambiguity sets of `bental2013robust`]. (Under the loss convention $\ell = -Z$ the same
@@ -268,14 +273,16 @@ The pre-registered mapping of mechanism conditions to observable signatures is g
 
 **Table 3.1 — Pre-registered mapping of mechanism conditions to observable signatures** (reproduced from `PREREGISTRATION.md` §1a).
 
-| Mechanism condition | $H_2$-RA (Sharpe legs) | $H_2$-Tail (CVaR-5% legs) | Responsiveness | Reward-code differential |
-|---|---|---|---|---|
-| **Strict** ($\lambda>0$ selection **and** responsive designer) | separation possible | **separation** | $>0$ | tail constructs $\uparrow$ in distributional arm |
-| **Weak** (acceleration only; matched compute) | tie | tie at the budget | $\ge 0$ | small/none |
-| **Null** ($\lambda=0$ tail-blind selection **and** non-responsive designer) | **tie** | **tie** | $\le 0$ | none / reversed |
+| Mechanism condition | $H_2$-RA (Sharpe IUT) | $H_2$-Tail (CVaR-5% IUT) | Responsiveness (Spearman) | Reward-program differential | Pre-registered verdict |
+|---|---|---|---|---|---|
+| **Strict** — fed tail distribution shapes the reward code | tie ($\lambda=0$ $\Rightarrow$ no Sharpe edge) | **dist $>$ {scalar, placebo, scalar\_cvar5} reject** | $>0$ | dist code references tail statistics MORE than scalar/placebo | **H2-Tail supported, H2-RA not** |
+| **Weak** — tail information helps but not robustly | tie | partial ($\le 2$ legs reject) | $\approx 0$ | weak/mixed differential | **inconclusive** (TOST-bounded) |
+| **Null** — the LLM is not a Bayes-responsive user of the distribution | tie | tie (placebo not beaten) | $\le 0$ | no cross-arm code signature | **both null (clean, bankable)** |
 
-Under the frozen design, selection is tail-blind ($\lambda = 0$), which places the study on the boundary between
-the Strict and Null branches and makes *designer responsiveness* the pivotal unknown. The directional prototype
+Under the frozen design, selection is tail-blind ($\lambda = 0$) in *every* branch — which is why even the
+Strict branch predicts an $H_2$-RA **tie** (no Sharpe edge is available to a tail-blind selector) and the
+branches separate only on the tail legs and the code-level instruments; *designer responsiveness* is the
+pivotal unknown that separates Strict from Null. The directional prototype
 exhibited *negative* responsiveness and a tail differential that reversed under the zero-information placebo control
 (Chapter 5), which is the **signature of the Null branch**. We therefore pre-register the Null branch as the
 predicted outcome, with the explicit, theory-derived reason: a tail-blind selector combined with a designer that

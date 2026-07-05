@@ -134,3 +134,5 @@ write-up to ~Aug 25 → submit ~Aug 29. Feasible with near-zero slack: **the see
 and delay converts 1:1 into lost write-up days.** Okhrati's advice was requested in the sent email; given the
 clock, the defensible move is to ratify now and note to him that the schedule required proceeding, with the
 design adjustable on his advice up to the freeze.
+
+8. **Paper prose sweep (2026-07-06 review):** update every hard-coded 'thirty seeds/30-seed' statement in the GRADED chapters to the ratified arm-adaptive design — CH2:68, CH4:215, CH4 Table 4.1 row ('Thirty seeds'), CH5:65, CH5:75, APPENDIX_B:33 (B.2.4), CH6:32 fill-hint — plus the MDE numbers keyed to n=30. The freeze gate asserts prereg prose only; without this item the Methods chapter would describe a design the run ledger contradicts.

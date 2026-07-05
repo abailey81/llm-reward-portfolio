@@ -88,8 +88,9 @@ Each defect the pilot exposed maps to a specific correction carried into the fro
   surcharge M&A exits indiscriminately; the headline was reverted to the conservative zero-fill panel, with the
   surcharge retained only as the heavy end of a disclosed sensitivity band (Chapter 4, §4.2).
 - **Critic instability → uniform value-target normalisation.** Late critic-loss explosions in a minority of
-  candidate trainings motivated a PopArt normaliser applied uniformly across arms, with a disabled-ablation
-  confirming the realised-return series and the hypothesis ordering are preserved [`vanhasselt2016popart`].
+  candidate trainings motivated a PopArt normaliser applied uniformly across arms; the normaliser preserves the
+  realised-return series byte-identically (a tested code invariant), and a disabled-ablation of the frozen
+  campaign winners is reported in Chapter 6 [`vanhasselt2016popart`].
 - **Saturated interpretability gate → a quantitative reward-program differential.** The binary tail-usage gate that
   discriminated nothing was replaced by a regret-bounded reward-distance characterisation (EPIC/STARC) and a
   responsiveness measure scored against the *fed* signal, both reported as directional mechanism evidence

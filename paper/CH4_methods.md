@@ -101,8 +101,8 @@ the role of the inverse temperature and thus governs exploration [`haarnoja2018s
 language-model-authored rewards differ in natural magnitude would otherwise receive different *effective* entropy
 regularisation under automatic temperature tuning. We therefore apply a PopArt value-target normaliser uniformly
 across arms [`vanhasselt2016popart`] — which preserves the realised-return series exactly, so the analysed
-quantities are byte-identical with and without it — and log the realised per-candidate normalisation scale, with a
-one-seed `popart`-disabled ablation confirming the hypothesis ordering is preserved. A truncated-quantile critic
+quantities are byte-identical with and without it — and log the realised per-candidate normalisation scale; a
+one-seed `popart`-disabled ablation of the frozen winners is reported in Chapter 6 [FROM CAMPAIGN: ordering verdict]. A truncated-quantile critic
 [`kuznetsov2020tqc`] is run as a *named secondary* experiment (mean critic vs. quantile critic), not as the
 contribution, which lives in the off-critic feedback channel. We set the training budget from a convergence pilot rather than
 asserting it: at 200,000 steps the critic's steep descent is complete — its knee falls near 100,000 steps — and
@@ -206,7 +206,7 @@ random-search and Bayesian-optimisation baselines.
 comparison arms on risk-adjusted return (a Sharpe contrast); *H2-Tail* asks whether it improves the realised left
 tail (a CVaR-5% contrast). Each is an intersection–union test over three legs — distributional versus *scalar*,
 *placebo* and *scalar_cvar5* — one-sided at $\alpha=0.05$. The intersection–union construction *is* the
-multiplicity correction (the conjunction has size $\le\alpha$ by the union–intersection principle), which is why no
+multiplicity correction (the conjunction has size $\le\alpha$ by the intersection–union principle, Berger 1982), which is why no
 further per-leg correction is applied and a Benjamini–Hochberg correction over the six legs is demoted to a
 reported sensitivity rather than the primary rule. The structure-shuffled arm enters as a **disjoint** control,
 never as a fourth leg of the conjunction.

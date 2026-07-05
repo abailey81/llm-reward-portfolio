@@ -1,4 +1,5 @@
-# Appendix B — Limitations Register *(word-excluded)*
+# Appendix B — Limitations Register
+> *Lettering note (2026-07-06): Appendix A is reserved for the planned Chapter-3 proofs appendix (P7); if that appendix is not included at final compile, relabel this one 'Appendix A' (P8 checklist item). Word-count status: appendices are excluded from the 10,000-word body count.*
 
 A complete, structured register of the study's limitations, each with its rationale, its direction of bias where
 known, and its mitigation or disclosure. Grouped by validity type [`shadish2002experimental`].
@@ -23,8 +24,8 @@ known, and its mitigation or disclosure. Grouped by validity type [`shadish2002e
 - **B.2.2 Reward-scale → effective-entropy confound.** In SAC the reward scale acts as inverse temperature
   [`haarnoja2018sac`], and `ent_coef="auto"` re-adapts to the normalised scale, so arms whose authored rewards
   differ in magnitude receive different effective entropy regularisation. *Mitigation:* uniform PopArt normaliser
-  with realised-scale logging and a `popart`-disabled ablation showing the ordering is preserved; residual
-  disclosed.
+  with realised-scale logging; a `popart`-disabled ablation of the frozen winners is reported in Chapter 6
+  [FROM CAMPAIGN: ordering verdict]; residual disclosed.
 - **B.2.3 Critic divergence.** A minority of candidate trainings exhibited critic-loss explosions — the
 value-overestimation/divergence pathology that motivated the clipped double-Q estimator [`fujimoto2018td3`]. *Mitigation:*
   PopArt; a divergence diagnostic; the analysis is robust to excluding diverged candidates, which score poorly and
@@ -139,6 +140,8 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
 ## B.7 Future work (from the disclosed limitations)
 A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a
 corner-reaching action parameterisation (B.4.4); a second, open-weights model family and a second universe/period
-(B.3.1, B.4.1); execution of the buildable mechanism and robustness analyses already specified (reward-distance,
-Quality-Diversity diversity, hierarchical-Bayesian re-analysis, Model-Confidence-Set arm comparison, triangulated
-Bayesian-and-frequentist null, mediation, regime-conditional and synthetic-null exhibits).
+(B.3.1, B.4.1); a reward-distance
+(EPIC/STARC beyond the reported differential) deep-dive, Quality-Diversity search diversity, and a
+hierarchical-Bayesian re-analysis. (The Model-Confidence-Set comparison, the triangulated
+Bayesian-and-frequentist null evidence, mediation, and the regime-conditional and synthetic-null exhibits
+are BUILT instruments reported in Chapter 6 — they are results slots, not future work.)

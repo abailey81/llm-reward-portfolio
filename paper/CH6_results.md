@@ -59,7 +59,7 @@ then tabulates the per-leg statistics.
   `[FROM CAMPAIGN: EQUIVALENT / INCONCLUSIVE / NON-EQUIVALENT]`.
 - One-sided IUT *p* (max over legs): `[FROM CAMPAIGN: p]`; per-leg *p*: scalar `[FROM CAMPAIGN]`,
   placebo `[FROM CAMPAIGN]`, scalar_cvar5 `[FROM CAMPAIGN]`.
-- Corroborating FZ0 / DM-HLN Expected-Shortfall backtest: `[FROM CAMPAIGN: DM stat, p, with size/power caveat]`.
+- Corroborating FZ0 / DM-HLN Expected-Shortfall backtest: `[FROM CAMPAIGN: DM stat, p, with size/power caveat]`; loss-differential Hill tail-index (B.5.2 heavy-tail size check): `[FROM CAMPAIGN: hill_alpha, flag]`.
 
 *Figure 6.1 (rliable IQM headline interval) — manifest F5; Figure 6.2 (TOST equivalence) — manifest F6;
 Table 6.2 (IUT per-leg results) — manifest T2.*
@@ -80,6 +80,12 @@ attribution rules out a low-volatility-beta explanation of any headline.
 - Cost sweep: `[FROM CAMPAIGN: ordering across cost levels]`.
 - PBO (CSCV): `[FROM CAMPAIGN: probability]`; Deflated-Sharpe cross-check: `[FROM CAMPAIGN: value]`.
 - Factor attribution (CAPM→6-factor + BAB/QMJ, Newey–West): `[FROM CAMPAIGN: alphas/loadings]`.
+- Regime-conditional analysis (calm/normal/stress VIX strata on the median-tail-seed realized path,
+  promised in §1.6/§3.7): `[FROM CAMPAIGN: per-regime CVaR-5%/Sharpe by arm; episode-count power bound]`.
+- Synthetic-null falsification (the identical inference stack on shuffled labels must return null):
+  `[FROM CAMPAIGN: null-calibration verdict]`.
+- Model-Confidence-Set membership + the triangulated Bayesian null evidence (JZS BF, ROPE):
+  `[FROM CAMPAIGN: MCS members at 90%; BF01; ROPE mass]` — figures F-D/F-E (manifest).
 
 *Figure 6.3 (controls overlay) — manifest F7; Table 6.3 (robustness) — manifest T3.*
 
@@ -133,6 +139,9 @@ reward code?). Finally it presents the **learning-curve / convergence diagnostic
 at the 200,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
 
 - Responsiveness (fed-tail change → authored-reward change): `[FROM CAMPAIGN: estimate, sign, CI]`.
+- Mediation (fed → code → realized tail; a·b indirect effect): `[FROM CAMPAIGN: a, b, indirect, CI]`.
+- §2a(f) fingerprint rows (per-arm responsiveness incl. the scalar arm's own-scalar row — the A4
+  discriminator — and the placebo_shuffled floor): `[FROM CAMPAIGN: table]`.
 - Reward-program differential (EPIC/STARC distances between arms): `[FROM CAMPAIGN: distances]`;
   prompt-leak fingerprint / tail-construct count by arm: `[FROM CAMPAIGN: counts]`.
 - Learning-curve / convergence diagnostic: `[FROM CAMPAIGN: critic-loss trajectory, convergence verdict]`.

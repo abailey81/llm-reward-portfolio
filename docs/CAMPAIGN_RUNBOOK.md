@@ -394,9 +394,11 @@ It runs, READ-ONLY, a battery of invariant checks every tick and raises the mome
 disk/RAM/GPU-temp, silent-hang, **gate-failure rate**, **NaN rate in the archive** (the "surfaces at the
 end" corruption class), **critic-explosion clustering** (diverged-RUN rate + a CRITICAL if a FROZEN WINNER
 diverged), **cross-arm reward-scale drift** (the P5 confound made live-auditable via PopArt `raw_rms`),
-**API error rate**, exit-code, and archive-mirror freshness. Every check TRANSITION is written
-severity-tagged to `events.jsonl` (the precise, machine-parseable health history — grep it, or replay it
-after the run). A CRITICAL exit code lets you wire it into a cron push. This is the layer that means
+**API error rate**, exit-code, and archive-mirror freshness. Every check TRANSITION is PERSISTED
+severity-tagged to the sentinel-owned sidecar `<run_dir>/sentinel_events.jsonl` (S18, 2026-07-06: the
+sentinel is a separate process, so the run's own events.jsonl handler never sees it; a sidecar also
+avoids concurrent-append interleaving and error-taxonomy self-feedback) — the precise, machine-parseable
+health history: grep it, or replay it after the run. A CRITICAL exit code lets you wire it into a cron push. This is the layer that means
 nothing about a bad result waits until analysis time to be seen. The sentinel also runs a **CUSUM
 change-point detector** (statistical process control) on the streaming gate-failure and NaN rates, so a
 slow upward DRIFT is flagged before it ever crosses a hard threshold.
@@ -478,6 +480,10 @@ script re-hashes every mirrored tree that carries a sealed `archive_integrity.js
 exit 9), while records ADDED after the seal are tolerated (a mid-campaign mirror lawfully carries
 newer work than the last sealed manifest). A silently-rotting backup is caught at mirror time, not at
 the disaster-recovery moment.
+
+**(v) SUBMISSION LINT (P8; 2026-07-06):** before the final upload run
+`python scripts/build_paper.py --final` — it FAILS while any editorial placeholder (`[FROM CAMPAIGN: ...]`, compile notes, fill slots, the scaffold banner) survives in the assembled deliverable; ~59 legitimate fill-at-campaign slots live in the chapters today, so the gate MUST fail until the results are written in.
+
 
 ---
 

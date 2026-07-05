@@ -2,8 +2,27 @@
 
 > **Status: structural scaffold (2026-06-28).** Assembles the submission-required front-matter blocks for the
 > UCL MSc dissertation PDF. Voice is the author's to adapt at compile. No campaign numbers appear here.
-> The Abstract is assembled from `paper/00_FRAMING_title_abstract_contribution.md` §3 at compile (see the
-> placeholder below); the title is the recommended option (1) from `00_FRAMING` §1.
+> The Abstract below IS the ratified v2 (2026-07-01, mechanism-led) text from
+> `paper/00_FRAMING_title_abstract_contribution.md` §3 (embedded 2026-07-06; the RESULT slot fills at
+> campaign). TITLE: the rendered title is an adapted method-forward variant; `00_FRAMING` v2 recommends
+> option (2) ("Does Showing the Model the Downside Change the Reward Code It Writes?").
+> PILLAR-ANCHORED ANALYSIS (2026-07-06, per the author's directive): the study's strict inspiration is
+> Eureka (Ma et al., 2024 — reward DESIGN via coding LLMs), and its pillars are (i) LLM-authored reward
+> CODE, (ii) the FEEDBACK CHANNEL as the sole manipulated variable (multi-level tail vector vs scalar),
+> (iii) a pre-registered controlled comparison, (iv) a fixed risk-sensitive portfolio agent. Option (3)
+> ("Can Tail-Risk Feedback Improve LLM-Designed Reward Functions? An Off-Critic, Pre-Registered Study in
+> Portfolio Reinforcement Learning") carries ALL four pillar terms and the Eureka lineage most explicitly;
+> option (2) is the mechanism-catchy alternative that leads with the headline question but drops the
+> reward-design lineage keywords. RECOMMENDED = option (3), or the fusion "Tail-Risk Feedback in LLM
+> Reward Design: A Pre-Registered, Controlled Study in Risk-Sensitive Portfolio Reinforcement Learning".
+> The FINAL title is the author's compile-time decision [TAMER: pick at compile].
+
+---
+
+## Cover Page
+
+> **[INSERT AT SUBMISSION: the official Moodle cover page template — UCL section 1 of 16. Tracked in
+> the P8 submission checklist.]**
 
 ---
 
@@ -100,28 +119,40 @@ self-certification and data-protection-form requirements on Moodle, and attach t
 
 ## Abstract
 
-Reward design is the central bottleneck in applying reinforcement learning to risk-sensitive financial control:
-a reward that is well specified in the mean can yield a policy that is profitable on average yet ruinous in the
-tail. Large language models can now author reward-function *code* and refine it from feedback, but that feedback
-is typically a scalar score or a per-component point statistic — it conveys little about the *shape* of the
-outcome distribution the reward implicitly selects. We ask whether feeding the language-model reward-designer
-**multi-level tail-risk feedback** — the realized-return lower tail (conditional value-at-risk at several levels,
-left-tail mass and skew), measured *off the critic* from realized returns — leads it to write better risk-sensitive
-reward code than a scalar risk-adjusted summary. We isolate the feedback channel as the sole manipulated variable:
-five language-model arms share one fixed soft actor–critic agent, one matched candidate budget, and identical
-prompts, differing *only* in the feedback block; two non-LLM search baselines bound the search procedure. The
-design is **pre-registered and cryptographically frozen** before a sealed 2020–2026 test leg. The feedback signal
-is *fed* on the training split, candidates are *selected* on a tail-blind validation Deflated Sharpe, and the
-hypothesis is *tested* on empirical conditional value-at-risk over the sealed split — so any tail effect is
-attributable to the feedback channel rather than to a self-grading estimator. Inference uses intersection–union
-tests with placebo and structure-shuffled controls, deflated Sharpe ratios, and combinatorial backtest-overfitting
-probabilities. **[RESULT — campaign slot: report the pre-registered TOST equivalence / bounded-effect verdict and
-the reward-code mechanism finding once the confirmatory campaign is run.]** We contribute an off-critic feedback
-instrument that isolates the feedback content, a pre-registered comparative-inference protocol that yields a
-bankable result of either sign (or a calibrated inconclusive), and a decision-theoretic envelope delimiting when
-distributional feedback can and cannot help a bounded language-model reward-designer.
+Reward design is the central bottleneck in applying reinforcement learning to risk-sensitive financial
+control: a reward well specified in the mean can yield a policy that is profitable on average yet ruinous
+in the tail. Large language models can now author reward-function *code* and refine it from feedback, but
+that feedback is typically a scalar score that conveys little about the *shape* of the outcome distribution
+the reward implicitly selects. We ask a **mechanistic** question: does showing the LLM reward-designer the
+**downside** — the realized-return lower tail (conditional value-at-risk at several levels, left-tail mass
+and skew), measured *off the critic* from realized returns — change the reward *code* it writes, and does
+that change propagate to the trained agent's realized tail behaviour? We cast this as a three-link causal
+chain — **fed tail signal → authored reward code → trained policy → realized tail** — and ask, through
+three pre-specified sub-questions (responsiveness, transmission, specificity), not merely *whether* richer
+feedback helps but *where* the channel acts or breaks.
 
-*(Compile note: use the ~290-word bankable-null variant in `00_FRAMING_title_abstract_contribution.md` §3;
+We isolate the feedback channel as the sole manipulated variable: five LLM arms share one fixed soft
+actor–critic agent, one matched candidate budget and identical prompts, differing *only* in the feedback
+block; two non-LLM search baselines bound the procedure. The design is **pre-registered and
+cryptographically frozen** before a sealed 2020–2026 test leg, with the signal *fed* on the training split,
+candidates *selected* on a tail-blind validation Deflated Sharpe, and the hypothesis *tested* on empirical
+conditional value-at-risk over the sealed split — a three-way decoupling so any effect is attributable to
+the channel rather than to a self-grading estimator. The performance contrast is decided by co-primary
+intersection–union tests against placebo and structure-shuffled controls; the mechanism is read off a
+responsiveness statistic, a fed→code→outcome mediation, and an identifier-invariant test of whether the
+model *uses* the tail content or merely echoes its surface.
+
+**[RESULT — campaign slot.]** *Current honest fill:* in a directional prototype the apparent tail advantage
+did not survive its own zero-information placebo, consistent with the pre-registered null. A null here is
+not an absence of evidence but a **located** one: the chain's break — predicted at the first link, where a
+numeric-legibility bottleneck may stop the model from reading close tail values — is the finding. We report
+the performance contrast as a bounded, pre-registered TOST equivalence against the SESOI, credited on
+error-statistical severity (the frozen, deviation-free protocol; Mayo; Rubin 2025) and forking-paths
+avoidance (Gelman & Loken 2014) rather than a bare *p* > 0.05, and we contribute an off-critic feedback
+instrument, a pre-registered comparative-inference protocol, a decision-theoretic envelope delimiting when
+tail feedback can help, and a mechanism characterization that *locates* where it acts.
+
+*(Compile note: the v2 mechanism-led text is EMBEDDED above (2026-07-06); fill the RESULT slot from the campaign;
 swap to the conditional-positive sentence only if the confirmatory campaign rejects on the tail leg and survives
 both placebo controls, per the rule in §3 and §6 of that file. The `[RESULT — campaign slot]` sentence in the
 abstract must remain a marked placeholder until the campaign is run.)*
@@ -169,6 +200,7 @@ above.]
 
 | # | Title |
 |---|---|
+| Table 4.1 | Rigour ledger — threats to H2 validity and the design element guarding each (in-body, CH4 §4.7) |
 | T1 | Run ledger (arms × seeds × budget, freeze hash, deviations, compute) |
 | T2 | Intersection–union test results (H2-RA, H2-Tail) + ES backtest |
 | T3 | Robustness (delisting band, cost sweep, PBO, DSR, factor attribution) |
@@ -213,7 +245,7 @@ above.]
 
 ## Word-Count Statement
 
-The main text of this dissertation is within the **10,000-word limit** set by the programme. In accordance with
+**[CONFIRM AT COMPILE — word_budget.py must PASS]:** the main text of this dissertation is within the **10,000-word limit** set by the programme. In accordance with
 UCL / Institute of Finance and Technology guidelines, the following are **excluded** from the word count:
 
 - mathematics, equations and displayed code;
