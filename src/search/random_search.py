@@ -167,9 +167,15 @@ assert WEIGHT_KEYS[0] == "w_return"
 
 
 def _default_fixture() -> tuple:
-    """Small anonymized contract fixture for one-shot validation."""
+    """Small anonymized contract fixture for one-shot validation.
+
+    SHAPE PARITY (ultrareview batch 3 #1, 2026-07-03): production calls
+    ``reward(weights(N+1), returns(N), prev(N+1), ...)`` — weights carry the cash slot, returns
+    only the risky leg (portfolio_env.py:347-348). The fixture mirrors that contract so a
+    shape-aware reward is gated on the SAME shapes it will face in training.
+    """
     weights = np.array([0.4, 0.3, 0.3], dtype=float)
-    returns = np.array([0.01, -0.02, 0.005], dtype=float)
+    returns = np.array([0.01, -0.02], dtype=float)  # N = len(weights) - 1 (the risky leg)
     prev_weights = np.array([0.34, 0.33, 0.33], dtype=float)
     port_ret = 0.002
     info: dict[str, Any] = {}

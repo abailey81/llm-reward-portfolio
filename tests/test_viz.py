@@ -1,7 +1,7 @@
 """Behaviour tests for the report-only figure engine (src/viz + scripts/make_figures).
 
 Headless (Agg): every figure function must return a non-empty matplotlib Figure on synthetic data, the
-style helpers must be deterministic + cover all 7 arms, and the demo script must render all five figures
+style helpers must be deterministic + cover all 7 arms, and the demo script must render all eight figures
 (PNG + PDF) to disk. No display, no network; fast (no torch).
 """
 
@@ -104,11 +104,69 @@ def test_reward_code_similarity_handles_tiny_matrix() -> None:
     plt.close(fig)
 
 
+def test_controls_overlay_one_row_per_arm(demo: dict) -> None:
+    fig = F.controls_overlay(demo["controls_cvar"])
+    ax = fig.axes[0]
+    labels = [t.get_text() for t in ax.get_yticklabels()]
+    assert set(labels) == set(demo["controls_cvar"])  # one labelled row per arm
+    plt.close(fig)
+
+
+def test_controls_overlay_is_deterministic(demo: dict) -> None:
+    # the strip jitter is seeded internally -> identical artists across calls
+    fig_a = F.controls_overlay(demo["controls_cvar"])
+    fig_b = F.controls_overlay(demo["controls_cvar"])
+    xa = np.concatenate([c.get_offsets()[:, 0] for c in fig_a.axes[0].collections])
+    xb = np.concatenate([c.get_offsets()[:, 0] for c in fig_b.axes[0].collections])
+    assert np.allclose(xa, xb)
+    plt.close(fig_a)
+    plt.close(fig_b)
+
+
+def test_responsiveness_scatter_renders_with_rho(demo: dict) -> None:
+    fig = F.responsiveness_scatter(demo["fed_delta"], demo["reward_delta"], rho=demo["rho"])
+    ax = fig.axes[0]
+    assert any("ρ" in t.get_text() for t in ax.texts)  # the reported Spearman annotation
+    plt.close(fig)
+    # degenerate input (all-equal x) must not raise (no fit line drawn)
+    fig2 = F.responsiveness_scatter(np.zeros(5), np.arange(5.0))
+    assert fig2 is not None
+    plt.close(fig2)
+
+
+def test_delisting_robustness_renders_band_and_series(demo: dict) -> None:
+    fig = F.delisting_robustness(demo["delisting"], sesoi=0.05)
+    ax = fig.axes[0]
+    assert len(ax.patches) >= 1  # the ±SESOI corridor
+    assert [t.get_text() for t in ax.get_xticklabels()] == ["0%", "-30%", "-55%", "-100%"]
+    leg = {t.get_text() for t in ax.get_legend().get_texts()}
+    assert any("dist - placebo" in t for t in leg)
+    plt.close(fig)
+
+
+def test_delisting_robustness_flags_an_excursion() -> None:
+    out_of_band = {"dist - x": {"0%": {"estimate": 0.0, "ci_lo": -0.02, "ci_hi": 0.02},
+                                "-100%": {"estimate": 0.09, "ci_lo": 0.06, "ci_hi": 0.12}}}
+    fig = F.delisting_robustness(out_of_band, treatments=["0%", "-100%"], sesoi=0.05)
+    leg = {t.get_text() for t in fig.axes[0].get_legend().get_texts()}
+    assert any("excursion" in t for t in leg)  # the out-of-band series is marked
+    plt.close(fig)
+
+
+def test_learning_curves_two_panels_all_arms(demo: dict) -> None:
+    fig = F.learning_curves(demo["curves"])
+    assert len(fig.axes) == 2  # critic-loss + return panels
+    leg = fig.axes[0].get_legend()
+    assert set(t.get_text() for t in leg.get_texts()) == set(demo["curves"])
+    assert fig.axes[0].get_yscale() == "log"  # critic loss on a log axis
+    plt.close(fig)
+
+
 # ---- the demo script end to end --------------------------------------------------------------------- #
 def test_make_figures_demo_writes_png_and_pdf(tmp_path: Path) -> None:
     data = MF.synthesize_null(seed=2, n_seeds=15)
     saved = MF.render_all(data, tmp_path)
-    assert len(saved) == 5
+    assert len(saved) == 9
     for p in saved:
         assert p.exists() and p.stat().st_size > 0
         assert p.with_suffix(".pdf").exists()  # vector sibling
@@ -119,3 +177,74 @@ def test_synthesize_null_is_deterministic() -> None:
     b = MF.synthesize_null(seed=5, n_seeds=12)
     assert np.allclose(a["sharpe"]["distributional"], b["sharpe"]["distributional"])
     assert np.allclose(a["ast_distance"], b["ast_distance"])
+
+
+# ---- advanced 3D + animation suite ------------------------------------------------------------------ #
+from src.viz import advanced as ADV  # noqa: E402
+
+
+def test_classical_mds_recovers_euclidean_geometry() -> None:
+    # points on a known 3D line -> pairwise distances -> MDS should recover collinear coords (1 real axis).
+    pts = np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]], dtype=float)
+    d = np.linalg.norm(pts[:, None, :] - pts[None, :, :], axis=2)
+    coords = ADV.classical_mds(d, 3)
+    assert coords.shape == (4, 3)
+    # the spread should live on the first axis (the others ~ 0)
+    assert coords[:, 0].std() > 1e-6
+    assert coords[:, 1].std() < 1e-6 and coords[:, 2].std() < 1e-6
+
+
+def test_reward_embedding_3d_has_three_axes_and_all_arms(demo: dict) -> None:
+    fig = ADV.reward_embedding_3d(demo["ast_distance"], demo["cand_arms"])
+    ax = fig.axes[0]
+    assert hasattr(ax, "get_zlim")  # a genuine 3D axis
+    labels = {t.get_text() for t in ax.get_legend().get_texts()}
+    assert labels == set(S.ARM_ORDER)
+    plt.close(fig)
+
+
+def test_risk_return_generation_3d_renders(demo: dict) -> None:
+    fig = ADV.risk_return_generation_3d(demo["trajectory"])
+    assert hasattr(fig.axes[0], "get_zlim")
+    plt.close(fig)
+
+
+def test_search_evolution_keyframes_panel_count(demo: dict) -> None:
+    fig = ADV.search_evolution_keyframes(demo["frames"], max_panels=3)
+    assert len(fig.axes) == 3
+    plt.close(fig)
+
+
+def test_render_advanced_writes_png_and_pdf(tmp_path: Path) -> None:
+    data = MF.synthesize_null(seed=3, n_seeds=12)
+    saved = MF.render_advanced(data, tmp_path)
+    assert len(saved) == 3
+    for p in saved:
+        assert p.exists() and p.stat().st_size > 0
+        assert p.with_suffix(".pdf").exists()
+
+
+def test_schematics_render() -> None:
+    from src.viz import schematics as SC
+
+    for fn in (SC.system_diagram, SC.prediction_branch, SC.splits_timeline):
+        fig = fn()
+        assert fig.axes and len(fig.axes[0].texts) >= 3  # labelled boxes/annotations present
+        plt.close(fig)
+
+
+def test_render_schematics_writes_png_and_pdf(tmp_path: Path) -> None:
+    saved = MF.render_schematics(tmp_path)
+    assert len(saved) == 3
+    for p in saved:
+        assert p.exists() and p.stat().st_size > 0
+        assert p.with_suffix(".pdf").exists()
+
+
+def test_render_animations_writes_gifs(tmp_path: Path) -> None:
+    pytest.importorskip("PIL")  # GIF writer needs Pillow
+    data = MF.synthesize_null(seed=3, n_seeds=10)
+    gifs = MF.render_animations(data, tmp_path, n_frames=6)  # few frames -> fast
+    assert len(gifs) == 2
+    for p in gifs:
+        assert p.exists() and p.suffix == ".gif" and p.stat().st_size > 0

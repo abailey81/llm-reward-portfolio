@@ -288,7 +288,7 @@ def hrp(returns: Any, cfg: Any = None) -> np.ndarray:
 
     # Exclude DELISTED / zero-variance names BEFORE clustering: they make ``corr = cov/outer(std,std)``
     # NaN (linkage then raises "must contain only finite values") AND give the inverse-variance bisection
-    # a 1/0 weight. Every 2018-2025 test window holds >=1 such name (liquidate_to_cash zero-fill). Run HRP
+    # a 1/0 weight. Every 2020-2026 test window holds >=1 such name (liquidate_to_cash zero-fill). Run HRP
     # on the LIVE sub-panel and weight dead names 0 (critical-review 2026-06-20).
     live = _live_mask(arr)
     nl = int(live.sum())

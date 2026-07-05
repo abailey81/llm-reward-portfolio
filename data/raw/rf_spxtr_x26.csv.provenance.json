@@ -1,0 +1,31 @@
+{
+  "cols": 5,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:33:23.994614+00:00",
+  "layer": "raw",
+  "name": "rf_spxtr_x26.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "end": "2026-06-30",
+      "fields": null,
+      "start": "2026-01-01",
+      "universe": [
+        ".SPXTR"
+      ]
+    },
+    "query": "get_history.spxtr.x26",
+    "received_utc": "2026-07-01T22:33:23.994614+00:00",
+    "requested_utc": "2026-07-01T22:33:22.796763+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_spxtr_x26.csv",
+  "row_hash": "a3af4852eeb1a6227eb3c3ba1eceb49cbf6eafbeeba52ffa5a5f8813a803f4ee",
+  "rows": 123,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "a3af4852eeb1a6227eb3c3ba1eceb49cbf6eafbeeba52ffa5a5f8813a803f4ee",
+  "vendor": "refinitiv"
+}

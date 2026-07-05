@@ -48,7 +48,7 @@ def test_parallel_test_leg_equals_serial_on_cpu(tmp_path) -> None:
     lookback = int(env_cfg["state"]["lookback_days"])
     # The parallel worker reloads make_synthetic_panel(n_assets=30, n_days=600, seed=0); use the SAME
     # here so the serial path trains on an identical panel. Windows are explicit + FITTING (resolve_windows
-    # would map the 2018-2025 calendar onto a 600-day panel and degenerate — that is a dry-run artefact).
+    # would map the 2020-2026 calendar onto a 600-day panel and degenerate — that is a dry-run artefact).
     panel = make_synthetic_panel(n_assets=30, n_days=600, seed=0)
     train_w = (lookback, 250)
     val_w = (250 + lookback, 360)

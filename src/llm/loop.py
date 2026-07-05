@@ -218,6 +218,11 @@ def _budget_for_generation(total_budget: int, generations: int, gen: int) -> int
 
     Single-shot arms (``generations == 1``) get the WHOLE budget in one
     generation; multi-generation arms split it, with any remainder front-loaded.
+
+    NOTE (F15, ultrareview 2026-07-02): :func:`run_loop` no longer accrues ``budget_spent`` from this
+    PLAN — it accrues the actual draws (``candidates_per_gen`` per generation), which the plan
+    over-stated whenever ``budget % generations != 0``. This helper remains the documented even-split
+    planner (DEEP_H3 §"budget") for callers sizing a generation schedule.
     """
     base = total_budget // generations
     remainder = total_budget % generations
@@ -287,7 +292,40 @@ def run_loop(
     # when the reward-author rejects the ``temperature`` parameter (e.g. Claude Opus 4.8). Off by
     # default (temperature-honoring models like Gemini get diversity from sampling instead).
     diversity = bool(cfg_get(cfg, "diversity_prompt_variation", False))
+    # Report-only mechanism sub-experiments (ADR-039), both DEFAULT-OFF so the frozen campaign path is
+    # byte-identical: ``legible_render`` renders the distributional tail block in basis-points/decile form
+    # (numeracy-bottleneck leg); ``extra_record_fields`` stamps driver-supplied discriminators
+    # (``label``/``condition``) onto each archived record so analyze_campaign can split the named/legible legs.
+    legible_render = bool(cfg_get(cfg, "legible_render", False))
+    extra_record_fields = dict(cfg_get(cfg, "extra_record_fields", {}) or {})
     monitor = cfg_get(cfg, "monitor", None) or _NULL_MONITOR  # RunMonitor; no-op when absent (tests/offline)
+
+    # ── Search-replay cache (resume) ──────────────────────────────────────────────────
+    # On --resume a previously-archived candidate is REPLAYED from disk instead of re-calling
+    # the (paid, non-deterministic) LLM and retraining: a mid-search resume becomes byte-faithful
+    # to the original run (same candidates -> same winner) AND saves the Opus spend + GPU time.
+    # Default OFF -> a fresh run is byte-for-byte unchanged. Successes reload via load_run(run_id);
+    # sandbox FAILURES replay from a sibling failures-ledger, so a previously-rejected candidate is
+    # NOT re-generated (which, against a non-deterministic author, could newly SUCCEED and silently
+    # change the candidate set / winner).
+    import json as _json
+    from pathlib import Path as _Path
+
+    from src.io.results import load_run as _load_run  # local import (mirrors the write_run import)
+
+    resume = bool(cfg_get(cfg, "resume", False))
+    _fail_ledger = _Path(archive_root) / f"{run_prefix}-{arm}.failures.jsonl"
+    _cached_failures: dict[str, dict] = {}
+    if resume and _fail_ledger.is_file():
+        for _ln in _fail_ledger.read_text(encoding="utf-8").splitlines():
+            _ln = _ln.strip()
+            if not _ln:
+                continue
+            try:  # a torn last line just means that one candidate regenerates — never crash resume
+                _f = _json.loads(_ln)
+                _cached_failures[str(_f["candidate_id"])] = _f
+            except Exception:
+                pass
 
     # C3 (ADR-029): when the orchestrator supplies rendered prompts (system + initial with the
     # env interface filled, src/llm/prompts.py), use them; else fall back to the built-in minimal
@@ -313,30 +351,44 @@ def run_loop(
     # Fixture passed to validate_once (anonymized arrays + scalar + info dict).
     # Real-ish per-step shapes (final-audit #12): a realistic asset count so a reward whose
     # allocation scales with the input surfaces at validate_once (under the Linux child's RLIMIT_AS)
-    # rather than only at training time, where safe_call has no rlimit/timeout. Equal-length arrays
-    # keep the smoke contract-agnostic; the true N+1-vs-N shapes are exercised during training.
+    # rather than only at training time, where safe_call has no rlimit/timeout.
+    # SHAPE PARITY (ultrareview batch 3 #1, 2026-07-03): the old equal-length arrays ("contract-
+    # agnostic") INVERTED the gate — production calls reward(weights(N+1), returns(N), prev(N+1))
+    # (portfolio_env.py:347-348) and the FROZEN prompt promises those exact shapes, so the
+    # spec-faithful `weights[:-1] @ returns` was falsely REJECTED here while the sloppy
+    # `weights @ returns` passed and then zero-trained via SAFE_DEFAULT. The fixture now mirrors
+    # the production contract: returns has ONE FEWER element than weights/prev_weights.
     _n_fix = max(2, int(cfg_get(cfg, "fixture_n_assets", 31)))
     fixture: tuple = (
-        np.full(_n_fix, 1.0 / _n_fix, dtype=float),   # weights (simplex over ~30 risky + cash)
-        np.full(_n_fix, 0.001, dtype=float),          # returns
-        np.full(_n_fix, 1.0 / _n_fix, dtype=float),   # prev_weights
-        0.0,                                          # port_ret
-        {},                                           # info
+        np.full(_n_fix, 1.0 / _n_fix, dtype=float),       # weights (simplex over ~30 risky + cash)
+        np.full(_n_fix - 1, 0.001, dtype=float),          # returns (N = n_act - 1, the risky leg)
+        np.full(_n_fix, 1.0 / _n_fix, dtype=float),       # prev_weights
+        0.0,                                              # port_ret
+        {},                                               # info
     )
 
     # The feedback block fed into the next generation's reflection prompt. None at
     # generation 0 -> the initial prompt is used; reflection thereafter.
     prev_feedback_block: str | None = None
     budget_spent = 0
+    # C3c (ops audit 2026-07-02): count the LLM-error SKIPS (API exhaustion / unparseable response,
+    # the `continue` below). These slots are neither archived records nor ledgered sandbox failures,
+    # so the arm's resolved pool is silently SHORT — the campaign's winner-selection floor (C3b,
+    # run_campaign) needs the count surfaced in the run summary to distinguish "search incomplete,
+    # --resume re-attempts these slots" from a genuinely exhausted budget.
+    llm_error_skips = 0
 
     for gen in range(generations):
-        gen_budget = _budget_for_generation(total_budget, generations, gen)
-        # Spend the generation's budget ONCE per generation (M2 fix, ADR-026): gen_budget is the
-        # WHOLE generation's allocation, so accumulate it here — not inside the per-candidate loop,
-        # where with candidates_per_gen>1 it over-counted by a factor of the accepted-candidate count
-        # (and excluded failures). Summed over generations this equals total_budget, the matched
-        # spend, restoring a correct archive.meta['budget_spent'] provenance figure.
-        budget_spent += gen_budget
+        # F15 (ultrareview 2026-07-02): accrue budget_spent from the ACTUAL draws. Every slot of the
+        # cidx loop below consumes exactly one author draw (accepted, sandbox-rejected, llm-error
+        # skipped, or resume-replayed), so the truthful spend is candidates_per_gen per generation —
+        # NOT ``_budget_for_generation``'s even split of the cfg ``budget``, which silently
+        # over-reported whenever budget % generations != 0 (callers floor candidates_per_gen =
+        # budget // generations, so the remainder slots are never drawn). ``archive.meta`` keeps
+        # ``budget`` as the configured plan and ``budget_spent`` as what actually happened. The M2/
+        # ADR-026 once-per-generation accrual (not per-candidate) is preserved; only WHAT is accrued
+        # changed.
+        budget_spent += candidates_per_gen
 
         # 1. Build the prompt: initial at gen 0, else reflection with the arm block.
         if prev_feedback_block is None:
@@ -355,6 +407,50 @@ def run_loop(
             monitor.candidate_start(arm, cand_n, gen)
             cand_t0 = time.perf_counter()
 
+            # Search-replay cache: on resume, REPLAY an already-archived candidate (success or
+            # sandbox-failure) instead of re-calling the LLM + retraining. Reproduces the exact
+            # search (same feedback-block carry -> same winner) at zero API/GPU cost.
+            if resume:
+                _run_id = f"{run_prefix}-{candidate_id}"
+                _hit = None
+                try:
+                    _hit = _load_run(_run_id, archive_root)
+                except FileNotFoundError:
+                    _hit = None  # not yet done -> fall through and generate
+                # A corrupt/integrity-failed record (KeyError/ValueError) PROPAGATES — failing loud
+                # beats silently regenerating (which would re-bill Opus and could desync the search).
+                if _hit is not None:
+                    _m = _hit.get("metrics", {}) or {}
+                    _rec = CandidateRecord(
+                        prompt=_hit.get("prompt", ""),
+                        reward_source=_hit.get("reward_source", ""),
+                        reward_hash=_hit["reward_source_hash"],
+                        feedback_block=_hit["feedback_block"],
+                        val_fitness=float(_m["val_fitness"]),
+                        tail_stats=_m.get("tail_stats"),
+                        generation=int(_hit["generation"]),
+                        candidate_id=candidate_id,
+                        popart_scale=_m.get("popart_scale"),
+                    )
+                    archive.candidates.append(_rec)
+                    if gen_best_fitness is None or _rec.val_fitness > gen_best_fitness:
+                        gen_best_fitness = _rec.val_fitness
+                        gen_best_block = _rec.feedback_block
+                    monitor.candidate_done(arm, cand_n, fitness=_rec.val_fitness, status="ok",
+                                           secs=time.perf_counter() - cand_t0)
+                    continue
+                if candidate_id in _cached_failures:
+                    _cf = _cached_failures[candidate_id]
+                    archive.failures.append({
+                        "generation": gen,
+                        "candidate_id": candidate_id,
+                        "reward_source": _cf.get("reward_source", ""),
+                        "error": _cf.get("error", "cached failure"),
+                    })
+                    monitor.candidate_done(arm, cand_n, fitness=None, status="sandbox_reject",
+                                           secs=time.perf_counter() - cand_t0)
+                    continue
+
             # Per-candidate prompt variation -> within-generation diversity without temperature
             # (see _diversity_directive). cand_prompt is the EXACT prompt sent + archived (C-2).
             cand_prompt = user_prompt
@@ -364,7 +460,30 @@ def run_loop(
             # 2. Sample a candidate reward source from the LLM, salvaging fenced / prose-wrapped
             #    output so a well-formed reward is never rejected for FORMATTING (final-audit P0).
             _llm_t0 = time.perf_counter()
-            src = extract_reward_source(llm.complete(system_prompt, cand_prompt))
+            try:
+                src = extract_reward_source(llm.complete(system_prompt, cand_prompt))
+            except Exception as exc:  # noqa: BLE001 — a 2-week unattended run must not die on one candidate
+                # API exhaustion (rate-limit/outage AFTER the client's bounded retries) or an unparseable
+                # response: LOG loudly + SKIP the candidate, never crash the arm. Deliberately NOT written
+                # to the failures-ledger (unlike a sandbox reject) — an API failure is transient and no
+                # generation happened, so a later --resume RE-ATTEMPTS this slot (the search-replay cache
+                # regenerates only the missing candidate). A whole arm that fails this way reports
+                # "no_candidates" downstream rather than aborting the campaign.
+                _LOG.error("candidate %s: LLM generation failed (%s: %s) — skipped; --resume re-attempts it",
+                           candidate_id, type(exc).__name__, str(exc)[:200])
+                # C3c: count the skip + emit a monitor ANOMALY (kind "llm_error") so a wave of API
+                # failures is loud on the dashboard/anomalies.jsonl instead of living only in a
+                # transient log line. No-op when no RunMonitor is attached (_NULL_MONITOR).
+                llm_error_skips += 1
+                monitor.anomaly(
+                    "llm_error",
+                    f"candidate {candidate_id}: LLM generation failed "
+                    f"({type(exc).__name__}: {str(exc)[:120]}) — slot skipped; --resume re-attempts it",
+                    arm=arm, cand=cand_n,  # FIX B: explicit identity, not just in the free-text detail
+                )
+                monitor.candidate_done(arm, cand_n, fitness=None, status="llm_error",
+                                       secs=time.perf_counter() - cand_t0)
+                continue
             _arch = getattr(llm, "archive", None)  # LLMClient archives a ProvenanceRecord (with token usage)
             _u = (getattr(_arch[-1], "usage", None) or {}) if _arch else {}
             monitor.llm_call(arm, cand_n, secs=time.perf_counter() - _llm_t0,
@@ -391,26 +510,84 @@ def run_loop(
                         "error": str(exc),
                     }
                 )
+                # Persist the failure so --resume REPLAYS it rather than re-generating a
+                # previously-rejected candidate against the non-deterministic author (which could
+                # newly succeed and change the set). Best-effort, append-only; never crash the loop.
+                try:
+                    with _fail_ledger.open("a", encoding="utf-8") as _fh:
+                        _fh.write(_json.dumps({
+                            "candidate_id": candidate_id, "generation": gen,
+                            "reward_source": src, "error": str(exc)[:500],
+                        }) + "\n")
+                        _fh.flush()
+                except Exception:
+                    pass
                 continue
 
-            # 4. Train the fixed agent on the (reward-bound) train env.
-            env = env_builder(reward_fn)
-            policy = agent_trainer(env.train_env())
-            # T2.4: capture the realised PopArt scale the critic saw for this candidate (None for a
-            # fake/raw trainer that does not surface it) so the cross-arm sigma distribution is auditable.
-            popart_scale = getattr(policy, "popart_scale", None)
+            # 4-7. Train + evaluate, wrapped like the SandboxError path above (F10, ultrareview
+            # 2026-07-02): an env/trainer crash on ONE candidate (CUDA OOM, a reward that NaNs the env
+            # mid-rollout) used to kill the whole ARM process — exactly the fuel for an unbounded
+            # supervisor restart loop (each cycle able to re-bill one LLM call; see supervisor
+            # --max-total-restarts). The slot is LEDGERED as a failure — so --resume REPLAYS it instead
+            # of re-billing the author, and the C3b winner-selection floor counts it as RESOLVED — and
+            # the loop CONTINUES to the next candidate slot.
+            try:
+                # 4. Train the fixed agent on the (reward-bound) train env.
+                env = env_builder(reward_fn)
+                policy = agent_trainer(env.train_env())
+                # T2.4: capture the realised PopArt scale the critic saw for this candidate (None for a
+                # fake/raw trainer that does not surface it) so the cross-arm sigma distribution is auditable.
+                popart_scale = getattr(policy, "popart_scale", None)
+                # Training-time SAFE_DEFAULT visibility (R66, 2026-07-03): train_agent attaches the
+                # training-window substitution counts (None for a fake trainer); archived below so a
+                # candidate that part-trained on the 0.0 fallback signal is auditable from the record.
+                train_sd_count = getattr(policy, "train_safe_default_count", None)
+                train_call_count = getattr(policy, "train_safe_call_count", None)
 
-            # 5. Evaluate on the VALIDATION split (realized val returns).
-            val_returns = np.asarray(env.val_returns(policy), dtype=float)
+                # 5. Evaluate on the VALIDATION split (realized val returns).
+                val_returns = np.asarray(env.val_returns(policy), dtype=float)
 
-            # 6. Held-out fitness (validation Deflated Sharpe), reward-independent.
-            val_fitness = float(fitness_fn(val_returns, n_trials))
+                # 6. Held-out fitness (validation Deflated Sharpe), reward-independent.
+                val_fitness = float(fitness_fn(val_returns, n_trials))
 
-            # 7. Measure the TRAINING realized-return distribution -> tail stats.
-            train_returns = np.asarray(env.train_returns(policy), dtype=float)
-            dist = measurement()
-            dist.fit(train_returns)
-            tail_stats = dist.tail_stats()
+                # 7. Measure the TRAINING realized-return distribution -> tail stats.
+                train_returns = np.asarray(env.train_returns(policy), dtype=float)
+                dist = measurement()
+                dist.fit(train_returns)
+                tail_stats = dist.tail_stats()
+            except Exception as exc:  # noqa: BLE001 — a 2-week unattended run must not die on one candidate
+                _err = f"training_error: {type(exc).__name__}: {exc}"
+                _LOG.error("candidate %s: %s — ledgered as a failure; the arm continues",
+                           candidate_id, _err[:300])
+                monitor.anomaly(
+                    "training_error",
+                    f"candidate {candidate_id}: {_err[:120]} — slot ledgered as a failure; "
+                    f"the arm continues",
+                    arm=arm, cand=cand_n,  # FIX B: explicit identity, not just in the free-text detail
+                )
+                monitor.candidate_done(arm, cand_n, fitness=None, status="error",
+                                       secs=time.perf_counter() - cand_t0)
+                archive.failures.append(
+                    {
+                        "generation": gen,
+                        "candidate_id": candidate_id,
+                        "reward_source": src,
+                        "error": _err,
+                    }
+                )
+                # Same crash-robust append ledger the sandbox path writes (best-effort, never crash
+                # the loop) — the SAME jsonl shape, so the resume reader and _search_pool_counts
+                # treat a training-crashed slot exactly like a sandbox-rejected one.
+                try:
+                    with _fail_ledger.open("a", encoding="utf-8") as _fh:
+                        _fh.write(_json.dumps({
+                            "candidate_id": candidate_id, "generation": gen,
+                            "reward_source": src, "error": _err[:500],
+                        }) + "\n")
+                        _fh.flush()
+                except Exception:
+                    pass
+                continue
 
             # 8. Build the next feedback block (carry state forward).
             #    Tail-carrying arms get tail_stats; scalar/placebo get None. placebo_shuffled (R32)
@@ -429,6 +606,7 @@ def run_loop(
                     if arm == "placebo_shuffled"
                     else None
                 ),
+                legible=legible_render,
             )
 
             reward_h = _reward_hash(src)
@@ -450,6 +628,10 @@ def run_loop(
             run_id = f"{run_prefix}-{candidate_id}"
             write_run(
                 {
+                    # Driver-supplied top-level discriminators (e.g. label/condition for the report-only
+                    # named-vs-blinded & legible sub-experiments). Spread FIRST so the canonical keys below
+                    # always win — a driver can never clobber run_id/arm/metrics. Empty by default.
+                    **extra_record_fields,
                     "run_id": run_id,
                     "arm": arm,
                     "seed": seed,
@@ -472,6 +654,16 @@ def run_loop(
                         # T2.4: realised PopArt scale (sigma_max/last) the critic saw, for the cross-arm
                         # sigma audit. Optional/back-compatible (omitted when the trainer doesn't surface it).
                         **({"popart_scale": popart_scale} if popart_scale is not None else {}),
+                        # R66 (2026-07-03): training-window SAFE_DEFAULT substitution counts attached by
+                        # train_agent — additive/optional (omitted for trainers that don't surface them).
+                        **(
+                            {
+                                "train_safe_default_count": int(train_sd_count),
+                                "train_safe_call_count": int(train_call_count),
+                            }
+                            if train_sd_count is not None and train_call_count is not None
+                            else {}
+                        ),
                     },
                     "wall_clock": 0.0,
                     "env_fingerprint": env_fingerprint,
@@ -495,4 +687,8 @@ def run_loop(
     archive.meta["budget_spent"] = budget_spent
     archive.meta["accepted"] = len(archive.candidates)
     archive.meta["failed"] = len(archive.failures)
+    # C3c: LLM-error skips are surfaced in the run meta/summary — accepted + failed + llm_error_skips
+    # should equal the drawn budget; a non-zero count means the pool is resumably SHORT (the
+    # campaign-level select floor, run_campaign C3b, refuses to freeze a winner from it).
+    archive.meta["llm_error_skips"] = llm_error_skips
     return archive

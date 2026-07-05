@@ -300,6 +300,9 @@ def compute_metrics(
     # --- overfitting-aware (Bailey & López de Prado 2014) ---
     # PSR = P(true Sharpe > 0) given the realised skew/kurtosis; uses the PER-PERIOD Sharpe + n (NOT
     # annualised). Computed explicitly (no broad exception swallow — a wrong call must surface, not hide).
+    # NOTE (rf convention, P7 2026-07-04): PSR/DSR are deliberately on the RAW (total-return, rf=0) Sharpe
+    # even when a ``risk_free`` is passed — the Deflated-Sharpe overfitting statistic is the frozen rf=0
+    # selection numeraire (PREREGISTRATION.md §numeraire). Only Sharpe/Sortino/Martin above use excess (r−rf).
     if r.size > 3 and sd > _EPS:
         from src.inference.deflated_sharpe import probabilistic_sharpe_ratio
 

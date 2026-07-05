@@ -4,6 +4,16 @@
 CAMPAIGN "does it work?" comparison defensible. NOT dissertation prose. No code was edited.
 **Date:** 2026-06-24. **Repo:** `llm-reward-portfolio`. **Verifier env:** `.venv\Scripts\python.exe`.
 
+> **Split-C / univ5 update (2026-07-02, ADR-044/051, R73).** The ACTIVE panel is now **univ5**
+> (5,406 × 963, 2005-01-03 → 2026-06-30 settled cutoff) and the sealed test era is **2020–2026H1**
+> (train 2005–2016 / val 2017–2019). The first-hand verification below was executed 2026-06-24 on the
+> then-current panel and a 2018 window; it stands as an allocator-correctness record, and the ladder /
+> band conclusions are unchanged. **The G1 blocker below has since been CLOSED:** the 4-name H1
+> baseline panel is dispatched automatically (`config/campaign.yaml: h1_baselines` = raw_return,
+> return_minus_variance, return_minus_cvar, differential_sharpe; guarded by
+> `freeze.py::assert_h1_baselines_match`; 120 H1 trainings = 4 × 30 seeds — R30/R72), with the 9-name
+> `REWARD_CANON` documented as the secondary panel (`config/eureka_loop.yaml` note).
+
 Scope: the benchmark **ladder** the comparative claim needs —
 
 | Tier | What | Where it lives | Runnable today? |
@@ -24,7 +34,8 @@ computes the Eureka-style success metric. Details + the precise fix in §2 and �
 ## 1. Verification table — the 8 classical allocators (T0)
 
 All eight allocators were instantiated **first-hand on the real gold panel**
-(`data/gold/returns_panel_univ.parquet`, 5283×953), on a 30-asset, 251-day 2018 window (the test era),
+(`data/gold/returns_panel_univ.parquet`, 5283×953), on a 30-asset, 251-day 2018 window (the test era
+at the time; the sealed test era is 2020–2026H1 since Split C, R73),
 30 live-ish columns chosen by finite-fraction > 0.99 and σ > 1e-6. Every allocator returns valid simplex
 weights and the cross-allocator sanity rankings hold.
 
@@ -152,8 +163,8 @@ absent**, and the only config that references baselines is stale. The H1 claim i
 ## 3. The FinRL plausible-Sharpe band (T4) — with citations + overfit flags
 
 Purpose: a **plausibility band**, not a leaderboard. The agent here trades a 30-name PIT US-equity
-sleeve, long-only, fully-invested, costed, OOS 2018–2025 — so the relevant comparator is *honest,
-costed, walk-forward, US-equity* DRL. The literature clusters there around **Sharpe ≈ 0.8–1.6**.
+sleeve, long-only, fully-invested, costed, OOS 2020–2026H1 (2018–2025 pre-Split-C) — so the relevant
+comparator is *honest, costed, walk-forward, US-equity* DRL. The literature clusters there around **Sharpe ≈ 0.8–1.6**.
 Anything materially above ~2.0 on US equity, or any crypto number, should be treated as out-of-band
 (regime-specific or overfit) and **excluded** from the "plausible SOTA" framing.
 

@@ -100,6 +100,24 @@ def iqm(x: np.ndarray) -> float:
     return float(a[lo : a.size - lo].mean())
 
 
+def _iqm_rows(m: np.ndarray) -> np.ndarray:
+    """Row-wise :func:`iqm` for an ALL-FINITE 2-D array (the vectorized bootstrap fast path).
+
+    Mirrors :func:`iqm` exactly for finite rows: ``n < 4`` -> plain row mean; else per-row sort and
+    mean of the central ``[n//4 : n - n//4]`` band (trim 25% each tail). Callers must guarantee
+    finiteness — that makes iqm's per-row finite filter a no-op, which is what keeps this
+    bit-identical to calling ``iqm`` on each row (same values, same contiguous-axis reductions).
+    """
+    n = int(m.shape[1])
+    if n == 0:
+        return np.full(m.shape[0], np.nan)
+    if n < 4:
+        return m.mean(axis=1)
+    s = np.sort(m, axis=1)
+    lo = n // 4
+    return s[:, lo : n - lo].mean(axis=1)
+
+
 def paired_seed_difference_test(
     a: np.ndarray,
     b: np.ndarray,
@@ -107,7 +125,8 @@ def paired_seed_difference_test(
     statistic: Callable[[np.ndarray], float] = iqm,
     n_boot: int = 2000,
     rng: np.random.Generator | None = None,
-) -> dict[str, float]:
+    return_draws: bool = False,
+) -> dict[str, float | np.ndarray]:
     """Re-centred bootstrap test for ``H0: statistic(a) - statistic(b) = 0`` over PAIRED per-seed scores.
 
     ``a`` and ``b`` are per-seed scores (e.g. each arm's per-seed Sharpe or CVaR) for two arms, PAIRED
@@ -131,16 +150,23 @@ def paired_seed_difference_test(
         Bootstrap replications.
     rng : numpy.random.Generator, optional
         Seeded for reproducibility.
+    return_draws : bool
+        Opt-in: also return the raw bootstrap draws of the effect under ``"draws"`` (an
+        ``np.ndarray`` — the ONE non-float value). Default off so every existing consumer's
+        float-only dict shape is unchanged; use it when a NON-95% interval must be derived from the
+        SAME draws (e.g. the TOST-convention 90% equivalence flag in
+        ``src.inference.contamination.named_vs_blinded_oos_gap``) instead of re-running the bootstrap.
 
     Returns
     -------
     dict
-        ``{"stat", "pvalue", "pvalue_one_sided_greater", "effect", "ci_low", "ci_high"}`` where
-        ``effect`` is the raw ``statistic(a) - statistic(b)`` (positive = a better); ``pvalue`` is the
-        two-sided re-centred p; ``pvalue_one_sided_greater`` is the DIRECT upper-tail one-sided p for
-        H1: effect>0 (``P(boot - obs >= obs)``), valid under a skewed bootstrap — use this for a
-        one-sided decision rather than ``pvalue/2`` (R64); ``stat`` is the effect scaled by the bootstrap
-        SE (reported only; cancels in the decision rule); the CI is the 95% percentile interval.
+        ``{"stat", "pvalue", "pvalue_one_sided_greater", "effect", "ci_low", "ci_high"}`` (plus
+        ``"draws"`` iff ``return_draws``) where ``effect`` is the raw ``statistic(a) - statistic(b)``
+        (positive = a better); ``pvalue`` is the two-sided re-centred p; ``pvalue_one_sided_greater``
+        is the DIRECT upper-tail one-sided p for H1: effect>0 (``P(boot - obs >= obs)``), valid under
+        a skewed bootstrap — use this for a one-sided decision rather than ``pvalue/2`` (R64);
+        ``stat`` is the effect scaled by the bootstrap SE (reported only; cancels in the decision
+        rule); the CI is the 95% percentile interval.
     """
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
@@ -150,13 +176,25 @@ def paired_seed_difference_test(
     if n < 2:
         raise ValueError("paired_seed_difference_test needs >= 2 paired seeds")
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
 
     obs = statistic(a) - statistic(b)
-    boot = np.empty(n_boot, dtype=float)
-    for i in range(n_boot):
-        idx = rng.integers(0, n, size=n)
-        boot[i] = statistic(a[idx]) - statistic(b[idx])
+    # One (n_boot, n) index matrix (batch-5 M2, 2026-07-03): numpy fills a C-order array element-by-
+    # element from the bit generator, so row i consumes EXACTLY the words the old per-iteration
+    # ``rng.integers(0, n, size=n)`` drew — the bootstrap draws (hence p-values/CIs) are byte-identical
+    # to the pre-vectorization loop on the same seeded rng.
+    idx = rng.integers(0, n, size=(int(n_boot), n))
+    if statistic is iqm and bool(np.isfinite(a).all() and np.isfinite(b).all()):
+        # Vectorized IQM fast path: the pure-Python resample loop (2 iqm calls x n_boot per test) made
+        # the power simulator's ~900k invocations of this function a multi-DAY run. With all-finite
+        # inputs every resampled row is all-finite, so the row-wise mirror is exact — bit-identical to
+        # per-row iqm() (pinned by test_vectorized_iqm_fast_path_is_bit_identical_to_reference_loop).
+        # Non-iqm statistics and non-finite inputs take the reference loop below (old behavior).
+        boot = _iqm_rows(a[idx]) - _iqm_rows(b[idx])
+    else:
+        boot = np.empty(int(n_boot), dtype=float)
+        for i in range(int(n_boot)):
+            boot[i] = statistic(a[idx[i]]) - statistic(b[idx[i]])
 
     se = boot.std(ddof=1)
     se = se if (np.isfinite(se) and se > 0.0) else float("nan")
@@ -166,17 +204,18 @@ def paired_seed_difference_test(
     pvalue = min(1.0, max(pvalue, 1.0 / (n_boot + 1)))  # finite-resolution guard
     # Direct one-sided p for the PRE-SPECIFIED alternative H1: effect > 0 (``a`` better than ``b``) —
     # the upper-tail null probability P(boot - obs >= obs), read straight off the bootstrap draws. This is
-    # VALID under a SKEWED bootstrap (a CVaR/ES difference is left-skewed and heavy-tailed): halving the
+    # VALID under ANY skew of the bootstrap (a CVaR/ES difference need not be symmetric): halving the
     # symmetric two-sided p (the old analysis-layer ``p_two/2``) equals this ONLY when ``boot - obs`` is
-    # symmetric, and is anti-conservative otherwise — decision-flipping at alpha on the co-primary
-    # CVaR-5% leg (R64 / DEEP_AUDIT 2026-06-28). The IUT caller still gates on ``effect > 0``, so a
-    # wrong-direction estimate (where this tail is large) cannot reject regardless.
+    # symmetric, and otherwise mis-states the one-sided tail — anti-conservative when the UPPER tail (beyond
+    # +obs) is the heavier one, conservative when the lower tail is — decision-flipping at alpha on the
+    # co-primary CVaR-5% leg (R64 / DEEP_AUDIT 2026-06-28). The IUT caller still gates on ``effect > 0``, so
+    # a wrong-direction estimate (where this tail is large) cannot reject regardless.
     if np.isfinite(se):
         p_one = float(((boot - obs) >= obs).mean())
         p_one = min(1.0, max(p_one, 1.0 / (n_boot + 1)))  # finite-resolution guard
     else:
         p_one = 1.0
-    return {
+    out: dict[str, float | np.ndarray] = {
         "stat": float(stat),
         "pvalue": pvalue,
         "pvalue_one_sided_greater": p_one,
@@ -184,6 +223,9 @@ def paired_seed_difference_test(
         "ci_low": float(np.quantile(boot, 0.025)),
         "ci_high": float(np.quantile(boot, 0.975)),
     }
+    if return_draws:
+        out["draws"] = boot
+    return out
 
 
 def stationary_bootstrap_indices(
@@ -215,7 +257,7 @@ def stationary_bootstrap_indices(
     if not (0.0 < p <= 1.0):
         raise ValueError("p must lie in (0, 1]")
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
 
     idx = np.empty(n, dtype=np.intp)
     # Pre-draw the restart decisions and candidate fresh starts for speed.
@@ -369,7 +411,7 @@ def sharpe_difference_test(
     if a.shape != b.shape:
         raise ValueError("a and b must have the same shape")
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
 
     def diff(x: np.ndarray, y: np.ndarray) -> float:
         return sharpe_ratio(x) - sharpe_ratio(y)
@@ -447,7 +489,7 @@ def cvar_difference_test(
     if a.shape != b.shape:
         raise ValueError("a and b must have the same shape")
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
 
     p = 0.1
 
@@ -500,15 +542,34 @@ def null_calibration(
         ``rejection_rate`` is the empirical fraction of p-values below 0.05.
     """
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
     pvalues = np.empty(n_reps, dtype=float)
+    # Also certify the ONE-SIDED decision rule when the test exposes it. The headline H2-Tail leg rejects on
+    # ``pvalue_one_sided_greater`` (R64 — the DIRECT upper-tail p, valid under a skewed/heavy CVaR bootstrap),
+    # NOT the two-sided ``pvalue``. Certifying only the two-sided size would validate a statistic the tail IUT
+    # never uses — precisely the skewed regime where a re-centred-bootstrap one-sided size can drift. We collect
+    # both; under a true (exchangeable) null the effect is symmetric about 0, so each p is ~Uniform(0,1) and
+    # each rejects at ~alpha. (Audit 2026-07-02: close the certificate↔decision-rule misalignment.)
+    pvalues_one = np.full(n_reps, np.nan, dtype=float)
+    have_one = True
     for i in range(n_reps):
         a, b = dist_sampler(rng)
         res = test_fn(a, b)
         pvalues[i] = float(res["pvalue"])
+        p_one = res.get("pvalue_one_sided_greater") if hasattr(res, "get") else None
+        if p_one is None:
+            have_one = False
+        else:
+            pvalues_one[i] = float(p_one)
     rejection_rate = float((pvalues < 0.05).mean())
-    return {
+    out: dict[str, object] = {
         "rejection_rate": rejection_rate,
         "mean_pvalue": float(pvalues.mean()),
         "pvalues": pvalues,
     }
+    if have_one:
+        # Size of the ACTUAL one-sided headline rule (the number to report alongside the two-sided certificate).
+        out["rejection_rate_one_sided"] = float((pvalues_one < 0.05).mean())
+        out["mean_pvalue_one_sided"] = float(np.nanmean(pvalues_one))
+        out["pvalues_one_sided"] = pvalues_one
+    return out

@@ -3,7 +3,8 @@
 **Purpose.** Decide whether the planned design can detect a realistic H2 effect before spending compute,
 and be honest in the dissertation about how much power the test has. A non-rejection of H2 is reported
 as a **bounded effect**, NOT an underpowered failure — see "Pre-committed null framing" below. Committed
-before the Phase-1 freeze; re-run with the clean seeds-on-winners pilot σ to finalise the TBD fields.
+before the Phase-1 freeze; the σ_seed-dependent fields are now finalised from the clean seeds-on-winners
+pilot (σ_seed = 0.244).
 
 ## The test this powers (the realized headline — PREREGISTRATION §10 R16)
 The frozen inference unit is `per_seed_iqm_paired_seed_bootstrap`. Concretely: each per-arm winner is
@@ -22,54 +23,26 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 - [x] Per-test alpha the PRIMARY MDE used: **α = 0.0500**.
 - [x] Conservative BH-over-6 sensitivity (Šidák-m=6, two-sided): **α_eff = 0.0085** *(reported below, never deleted)*.
 
-## Result (computed at the directional σ_seed — pilot field flagged)
+## Result (computed at the measured σ_seed from the clean seeds-on-winners pilot)
 - [x] Realized PAIRED sample size **n_seeds = 30** (per-arm winners; Amendment D2 5→30).
-- [ ] Seed-to-seed σ of the per-seed score (Sharpe units): **σ_seed = 0.360** **(DIRECTIONAL upper-bound proxy — prototype dispersion; replace with the seeds-on-winners pilot σ)**
-- [x] Pairing correlation across the shared seed: **ρ = 0.0** *(default 0.0 = conservative; swept below)*
-- [x] Minimum detectable effect at 80% power: **Δ_MDE@80% = 0.256 Sharpe** (0.71 σ_seed) *(at the directional σ_seed; re-run with the clean pilot σ)* · **Δ_MDE@90% = 0.327 Sharpe** (0.91 σ_seed)
+- [x] Seed-to-seed σ of the per-seed score (Sharpe units): **σ_seed = 0.244**
+- [x] Pairing correlation across the shared seed: **ρ = -0.1** *(default 0.0 = conservative; swept below)*
+- [x] Minimum detectable effect at 80% power: **Δ_MDE@80% = 0.181 Sharpe** (0.74 σ_seed) · **Δ_MDE@90% = 0.213 Sharpe** (0.87 σ_seed)
 - [x] Per-test alpha (PRIMARY rule above): **α = 0.0500** *(one-sided IUT leg at α; multiplicity is the live BH/RW, not a fixed Šidák-α_eff — R37)* 
-- [x] Independent-regime count from `src/regimes/definition.py`: **N = 6** *(design value; auto-detected = 214 is UNRELIABLE — it exceeds the single-digit-regimes premise (> 12 plausible-max). `independent_regime_count` over-segments the noisy vix into many short run-length blocks, not the ~6 macro regimes the design assumes, so the design value is used)* — REPORTED for the SECONDARY regime-stratified analyses; it does **not** enter the headline paired n.
+- [x] Independent-regime count from `src/regimes/definition.py`: **N = 6** *(design value; auto-detected = 289 is UNRELIABLE — it exceeds the single-digit-regimes premise (> 12 plausible-max). `independent_regime_count` over-segments the noisy vix into many short run-length blocks, not the ~6 macro regimes the design assumes, so the design value is used)* — REPORTED for the SECONDARY regime-stratified analyses; it does **not** enter the headline paired n.
 - [x] **Trial count for the campaign, stated explicitly: 210** (candidates generated across all arms)
 - [x] SESOI (smallest effect size of interest): **0.050 validation-DSR** *(FROZEN; PREREGISTRATION §10 R12)*
 - [x] TOST symmetric equivalence margin: **±0.050 validation-DSR**
-- [x] **Δ_MDE in the SESOI's units (T2.5 reconciliation):** **Δ_MDE@80% ≈ 0.177 validation-DSR (conservative ceiling)** — this **EXCEEDS the 0.050 SESOI**, so the Sharpe-MDE and the DSR-SESOI probe DIFFERENT scales: a Sharpe non-rejection alone does NOT establish DSR-equivalence (the INCONCLUSIVE branch below — only the TOST CI *in DSR units* can). *(Sharpe→DSR conservative ceiling, T=756; see "Sharpe ↔ validation-DSR reconciliation")*
-
-## σ_seed sensitivity grid (pre-pilot — added 2026-06-28)
-σ_seed is still a **directional placeholder (0.36)**; the real power is fixed only by the clean
-seeds-on-winners pilot σ. Because the MDE is ~**linear in σ_seed** (MDE ≈ k·σ at fixed n=30, ρ=0), the pilot σ *directly* sets the
-detectable effect. Both decision rules are shown (sim-verified ratios, `power_analysis.py`, 80-pt grid):
-the **HEADLINE one-sided IUT @ α=0.05** (`iut_one_sided=True`) gives **k₈₀ ≈ 0.71**, **k₉₀ ≈ 0.91**; the
-**conservative two-sided Šidák-α_eff** sensitivity (`iut_one_sided=False`) gives **k₈₀ ≈ 1.00** (≈40% higher —
-i.e. Δ_MDE@80% ≈ σ_seed itself). (Normal-approx headline = 0.64σ; the small-n bootstrap inflates it to 0.71σ.)
-
-| σ_seed (Sharpe) | headline Δ_MDE@80% | headline Δ_MDE@90% | conservative 2-sided Δ_MDE@80% |
-|---|---|---|---|
-| 0.20 (optimistic) | 0.142 | 0.182 | 0.200 |
-| 0.25 | 0.178 | 0.228 | 0.250 |
-| 0.30 | 0.213 | 0.273 | 0.300 |
-| **0.36 (current proxy)** | **0.256** | **0.327** | **0.361** |
-| 0.45 | 0.320 | 0.410 | 0.450 |
-| 0.55 | 0.391 | 0.501 | 0.550 |
-| 0.70 (pessimistic) | 0.497 | 0.637 | 0.700 |
-
-*(Headline column matches the recorded working point §"Result" 0.256@σ=0.36; the conservative column is the
-`iut_one_sided=False` Šidák-α_eff variant, sim-verified 0.361@σ=0.36.)*
-
-**Reading (honest):** even at the optimistic σ=0.20, the 80%-power MDE (≈0.14 Sharpe) is a *moderate* effect;
-at the proxy σ=0.36 it is ≈0.26 Sharpe. So the test detects **moderate-to-large** tail-vs-scalar gaps; a
-non-rejection must be reported as a **bounded effect (< Δ_MDE)**, NOT "equivalent to zero" — and since Δ_MDE is
-in Sharpe units while the SESOI is in validation-DSR units (the reconciliation bullet above), DSR-equivalence
-requires the TOST CI *in DSR units*, not a Sharpe non-rejection. Re-run `power_analysis.py --sigma-seed <pilot>`
-once the pilot lands to replace this grid's working point.
+- [x] **Δ_MDE in the SESOI's units (T2.5 reconciliation):** **Δ_MDE@80% ≈ 0.120 validation-DSR (conservative ceiling)** — this **EXCEEDS the 0.050 SESOI**, so the Sharpe-MDE and the DSR-SESOI probe DIFFERENT scales: a Sharpe non-rejection alone does NOT establish DSR-equivalence (the INCONCLUSIVE branch below — only the TOST CI *in DSR units* can). *(Sharpe→DSR conservative ceiling, T=694; see "Sharpe ↔ validation-DSR reconciliation")*
 
 ## MDE definition
 Δ_MDE is the smallest true per-seed-score gap Δ (distributional − scalar, in annualised-Sharpe units)
 at which the realized rliable paired test (`paired_seed_difference_test`, IQM statistic) rejects H0 with
 probability ≥ **target power = 0.80**, at the per-test alpha of the PRIMARY rule (α = 0.0500):
 
-    Δ_MDE = min { Δ ≥ 0 : Power(Δ | n_seeds = 30, σ_seed = 0.360, ρ = 0.0, α = 0.0500) ≥ 0.80 }
+    Δ_MDE = min { Δ ≥ 0 : Power(Δ | n_seeds = 30, σ_seed = 0.244, ρ = -0.1, α = 0.0500) ≥ 0.80 }
 
-estimated by Monte-Carlo (200 sims/grid-point, 399 bootstrap reps/test) over the REAL test.
+estimated by Monte-Carlo (2000 sims/grid-point, 2000 bootstrap reps/test) over the REAL test.
 For the LIVE one-sided IUT rule the bootstrap two-sided p is converted in-direction (p_one = p_two/2 when the
 effect is in the predicted direction; DEEP_H2 stats note A5). The conservative Šidák-over-m figure
 (`alpha_eff = 1 − (1 − 0.05)^(1/6) = 0.0085`) is the BH-over-6 SENSITIVITY below.
@@ -77,7 +50,7 @@ effect is in the predicted direction; DEEP_H2 stats note A5). The conservative �
 ## Conservative BH-over-6 sensitivity (Šidák-m, NOT deleted)
 The pre-R25 design tested the family at a fixed Šidák-over-m α_eff (a conjunction ∘ BH-over-6, which double-corrected — Berger 1982). R25 made H2 two co-primary IUTs decided one-sided at α (the primary above), but the Šidák-m figure is RETAINED here as the conservative sensitivity so a reader sees both:
 
-> **Δ_MDE@80% (Šidák-m=6, two-sided, α_eff = 0.0085) = 0.363 Sharpe** (1.01 σ_seed)
+> **Δ_MDE@80% (Šidák-m=6, two-sided, α_eff = 0.0085) = 0.257 Sharpe** (1.05 σ_seed)
 
 As expected this conservative MDE is **≥** the primary one-sided IUT MDE (a smaller per-test α and a two-sided rule both raise the detectable effect); the design detects at least as small an effect under the live rule.
 
@@ -89,50 +62,44 @@ table uses the PRIMARY decision rule above.
 
 | ρ (pairing corr.) | Δ_MDE @80% (Sharpe) | (σ_seed units) | Δ_MDE @90% (Sharpe) | (σ_seed units) |
 |---|---|---|---|---|
-| 0.0 *(default, conservative)* | 0.256 | 0.71 | 0.327 | 0.91 |
-| 0.3 | 0.234 | 0.65 | 0.280 | 0.78 |
-| 0.5 | 0.213 | 0.59 | 0.242 | 0.67 |
-| 0.7 | 0.185 | 0.51 | 0.221 | 0.61 |
+| 0.0 *(default, conservative)* | 0.175 | 0.72 | 0.208 | 0.85 |
+| 0.3 | 0.149 | 0.61 | 0.178 | 0.73 |
+| 0.5 | 0.130 | 0.53 | 0.154 | 0.63 |
+| 0.7 | 0.107 | 0.44 | 0.126 | 0.52 |
 
-## σ_seed — the noise input (DIRECTIONAL upper bound)
-σ_seed is the seed-to-seed SD of the per-seed score within an arm. The clean pilot (winners re-run at
-30 seeds, reward FIXED) does not exist yet, so σ_seed = **0.360** is anchored on
-the prototype archive's per-candidate within-arm dispersion of the per-seed **annualised Sharpe** ≈ 0.36
-(pooled; headline `distributional`/`scalar` arms 0.36/0.37). This is an **UPPER BOUND** on the campaign
-σ_seed — it folds reward-DESIGN variance (a different reward per candidate) and a 1-seed, shorter window
-into the dispersion — so the MDE here is **pessimistic on the σ axis**; the clean pilot σ should be ≤ it,
-yielding an MDE ≤ what is tabled. Replace via `--sigma-seed <pilot value>` before the freeze.
+## σ_seed — the noise input (MEASURED on the clean seeds-on-winners pilot)
+σ_seed is the seed-to-seed SD of the per-seed score within an arm. It is now **measured** on the clean
+seeds-on-winners pilot (each per-arm winner re-run at 30 seeds with the reward held **FIXED**):
+σ_seed = **0.244** (annualised-Sharpe units). This **supersedes** the earlier prototype directional
+upper bound of ≈ 0.36 (pooled; headline `distributional`/`scalar` arms 0.36/0.37), which folded
+reward-DESIGN variance (a different reward per candidate) and a 1-seed, shorter window into the
+dispersion (that design-plus-seed dispersion is reported separately as σ_D ≈ 0.37). As the
+pre-registered expectation anticipated, the clean seed-only σ (0.244) came in **below** that upper
+bound, so the MDE tabled here is computed at the measured seed noise and is **no longer pessimistic on
+the σ axis**. Regenerate via `scripts/power_analysis.py --sigma-seed 0.244` if the pilot σ is re-measured.
 
 **External cross-check (Colas et al. 2019, arXiv:1904.06979).** For comparing central RL performance
 across seeds at 80% power they report δ=0.5 → N≈100, δ=1 → N≈20, δ=2 → N≈5–10 (δ = |Δμ|/σ_pool; a real
-SAC-vs-TD3 case needed N≈10–15 at δ≈0.93). At our **N=30** the simulated 80%-power MDE is ≈ 0.71 σ_seed
-(δ≈0.71), squarely in that envelope. Colas flag the *two-sample* bootstrap as anti-conservative
+SAC-vs-TD3 case needed N≈10–15 at δ≈0.93). At our **N=30** the simulated 80%-power MDE is ≈ 0.74 σ_seed
+(δ≈0.74), squarely in that envelope. Colas flag the *two-sample* bootstrap as anti-conservative
 below N≈50; ours is the **paired/one-sample** variant (it cancels the common variance) and the simulated
 null rejection is ≤ alpha_eff (conservative), not inflated — see the power curve's effect=0 row.
 
-## Computed power curve (σ_seed = 0.360, ρ = 0.0, n_seeds = 30)
+## Computed power curve (σ_seed = 0.244, ρ = -0.1, n_seeds = 30)
 | effect (Sharpe) | effect (σ_seed units / δ) | power |
 |---|---|---|
-| 0.000 | 0.00 | 0.045 |
-| 0.129 | 0.36 | 0.355 |
-| 0.257 | 0.71 | 0.805 |
-| 0.386 | 1.07 | 0.980 |
-| 0.514 | 1.43 | 1.000 |
-| 0.643 | 1.79 | 1.000 |
-| 0.771 | 2.14 | 1.000 |
-| 0.900 | 2.50 | 1.000 |
-| 1.029 | 2.86 | 1.000 |
-| 1.157 | 3.21 | 1.000 |
-| 1.286 | 3.57 | 1.000 |
-| 1.414 | 3.93 | 1.000 |
-| 1.543 | 4.29 | 1.000 |
-| 1.671 | 4.64 | 1.000 |
-| 1.800 | 5.00 | 1.000 |
+| 0.000 | 0.00 | 0.054 |
+| 0.031 | 0.13 | 0.117 |
+| 0.061 | 0.25 | 0.220 |
+| 0.092 | 0.38 | 0.344 |
+| 0.122 | 0.50 | 0.517 |
+| 0.153 | 0.62 | 0.670 |
+| 0.183 | 0.75 | 0.808 |
 
 ## Sharpe ↔ validation-DSR reconciliation (T2.5)
 The MDE above is in **annualised-Sharpe** units (the difference test's scale), but the FROZEN SESOI / TOST
 margin is **0.050 validation-DSR** units (the selection metric). These were never reconciled — a
-Sharpe-MDE of 0.256 and a DSR-SESOI of 0.050 are not directly comparable. We close that
+Sharpe-MDE of 0.181 and a DSR-SESOI of 0.050 are not directly comparable. We close that
 gap with a **documented, conservative (upper-bound) Sharpe→DSR map** (`sharpe_mde_to_dsr`).
 
 The validation DSR is a Probabilistic Sharpe Ratio `DSR = Φ(z)`, `z = SR_pp·√(T−1)/√D`, with `SR_pp` the
@@ -142,14 +109,14 @@ per period and, by the delta method, shifts the DSR by `ΔDSR ≈ φ(z)·√(T�
 `φ(z)/√D` is **maximised** at the benchmark (`z=0 ⇒ φ(0)=0.3989`, DSR≈0.5) and under normal returns
 (`D=1`), giving the conservative **ceiling**
 
-    ΔDSR_max = 0.3989 · √(T−1) / √252 · ΔSR_ann      (T = 756 sessions, val split [2015,2017]).
+    ΔDSR_max = 0.3989 · √(T−1) / √252 · ΔSR_ann      (T = 694 sessions, val split [2015,2017]).
 
-Plugging the headline MDE: **Δ_MDE@80% ≈ 0.177 validation-DSR (conservative ceiling)** — this **EXCEEDS the 0.050 SESOI**, so the Sharpe-MDE and the DSR-SESOI probe DIFFERENT scales: a Sharpe non-rejection alone does NOT establish DSR-equivalence (the INCONCLUSIVE branch below — only the TOST CI *in DSR units* can). The 90%-power Sharpe MDE maps to ≈ 0.226 validation-DSR (ceiling).
+Plugging the headline MDE: **Δ_MDE@80% ≈ 0.120 validation-DSR (conservative ceiling)** — this **EXCEEDS the 0.050 SESOI**, so the Sharpe-MDE and the DSR-SESOI probe DIFFERENT scales: a Sharpe non-rejection alone does NOT establish DSR-equivalence (the INCONCLUSIVE branch below — only the TOST CI *in DSR units* can). The 90%-power Sharpe MDE maps to ≈ 0.141 validation-DSR (ceiling).
 
 This ceiling is an UPPER bound (exact at-the-money/normal, smaller elsewhere: off-benchmark `z≠0` or fat
 tails both reduce it). It is the honest direction for a null: if even the *largest* DSR shift the Sharpe-MDE
 could cause is ≤ the 0.050 SESOI, the Sharpe-MDE is unambiguously sub-SESOI in DSR units. At the
-campaign's T≈756 that ceiling **exceeds** the SESOI, so the Sharpe difference test and the
+campaign's T≈694 that ceiling **exceeds** the SESOI, so the Sharpe difference test and the
 DSR SESOI **probe different scales** — which is exactly why the INCONCLUSIVE branch below is load-bearing and
 the TOST equivalence must be evaluated **in DSR units** to license a bounded-effect (equivalence) claim.
 
@@ -187,8 +154,8 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 
 ## Method
 1. Label regimes; count independent blocks (`independent_regime_count`). → N (reported; secondary only).
-2. From the **seeds-on-winners pilot** (TBD), estimate σ_seed = seed-to-seed SD of the per-seed score
-   within an arm. Until then use the prototype directional upper bound. → σ_seed.
+2. From the **seeds-on-winners pilot**, estimate σ_seed = seed-to-seed SD of the per-seed score
+   within an arm (measured: **0.244**; the prototype directional upper bound ≈0.36 is superseded). → σ_seed.
 3. Monte-Carlo: under a grid of true effects, draw n_seeds correlated per-seed score pairs (per-arm SD
    σ_seed, pairing ρ) and reject via the REAL `paired_seed_difference_test` at alpha_eff. → power curve.
 4. Report Δ_MDE at 80% (and 90%) power across ρ∈{0,0.3,0.5,0.7}; if the budget does not
@@ -199,9 +166,9 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 - [x] A committed analysis re-derived against the REAL paired test, with MDE@80%/90% + an explicit trial count (this file).
 - [x] PRIMARY decision rule = one-sided IUT leg at α = 0.05 (multiplicity = live BH/RW, R37); conservative Šidák-m=6 sensitivity reported (α_eff = 0.0085).
 - [x] Pairing correlation ρ swept {0, 0.3, 0.5, 0.7}; default ρ=0 conservative.
-- [ ] σ_seed filled from the clean pilot (currently the **directional upper-bound proxy**).
-- [x] Target power 80% reached at Δ_MDE (currently at the directional σ_seed).
+- [x] σ_seed filled from the clean pilot (**measured 0.244**, superseding the directional upper-bound proxy).
+- [x] Target power 80% reached at Δ_MDE (at the measured σ_seed = 0.244).
 - [x] SESOI + TOST margin recorded (FROZEN; PREREGISTRATION §10 R12); pre-committed null framing stated.
 
-> Pilot-dependent fields (σ_seed and therefore Δ_MDE) are **directional** until the seeds-on-winners pilot
-> runs; re-run `scripts/power_analysis.py --sigma-seed <pilot value>` to finalise this file before the freeze.
+> The σ_seed and Δ_MDE fields are **finalised** on the clean seeds-on-winners pilot (σ_seed = 0.244);
+> re-run `scripts/power_analysis.py --sigma-seed <value>` only if the pilot σ is ever re-measured.

@@ -31,22 +31,34 @@ run"**, since the campaign has not yet been executed (the pre-registration is no
 ## 3. Datasets
 
 - **The data used.** A single survivorship-free **point-in-time Refinitiv/LSEG** US large-cap equity
-  panel, `data/gold/returns_panel_univ3.parquet` (**5,283 × 953**), 2005–2025; headline panel **univ3**
-  (zero-fill, no fabricated delisting losses; R44). VIX from FRED VIXCLS; factors from the Kenneth
-  French data library. See `config/data.yaml`, `PREREGISTRATION.md` §7, and the datasheet
-  `docs/DATASHEET_v1.md` (Gebru et al. 2021 — % VERIFY).
-- **Train / val / test splits.** **train 2005–2014** (agent learns + tail feedback measured), **val
-  2015–2017** (winner selection via reward-independent validation Deflated Sharpe), **test 2018–2025**
-  (sealed until final inference). Inter-split purge = max(embargo 21, lookback 60) = **60 sessions**
-  (López de Prado 2018; `config/data.yaml`, R18). Splits are disjoint + embargoed.
+  panel, `data/gold/returns_panel_univ5.parquet` (**5,406 × 963**), 2005-01-03 → 2026-06-30 (settled
+  cutoff; ADR-051, R73); headline panel **univ5** (zero-fill, no fabricated delisting losses; the R44
+  semantics carried forward), selected by the hash-bound `config/data.yaml: gold.suffix: univ5`.
+  **univ3** (5,283 × 953, 2005–2025) is the frozen pre-Split-C reference — byte-diff verified: 0
+  changed cells on the full overlap, +123 sessions, +10 new-member columns. VIX from FRED VIXCLS
+  (refreshed to the cutoff); factors from the Kenneth French data library. See `config/data.yaml`,
+  `PREREGISTRATION.md` §7, and the datasheet `docs/DATASHEET_v1.md` (Gebru et al. 2021 — % VERIFY).
+- **Train / val / test splits (SPLIT C, ADR-044/R73).** **train 2005–2016** (agent learns + tail
+  feedback measured), **val 2017–2019** (winner selection via reward-independent validation Deflated
+  Sharpe; executed start 2017-03-30), **test 2020–2026H1** (sealed until final inference; executed
+  start 2020-03-30). Inter-split purge = max(embargo 21, lookback 60) = **60 sessions** (López de
+  Prado 2018; `config/data.yaml`, R18). Splits are disjoint + embargoed; the resolved integer windows
+  are fail-loud asserted against `expected_windows.univ5 = [60,3021]/[3081,3775]/[3835,5406]`
+  (`config/inference.yaml`, `run_campaign._assert_expected_windows`).
 - **Data availability.** **Licensed and NOT redistributable** (Refinitiv/LSEG; `config/data.yaml:
   licensing: redistribution_prohibited`, `docs/DATA_ENTITLEMENTS`). The repo ships **SHA-256
   checksums + the acquisition pipeline (`data_pipeline/`) + a synthetic panel of identical shape**
   (`src/data/`), so an entitled party can reproduce byte-exact artifacts; others can run the full
-  machinery on synthetic data.
+  machinery on synthetic data. The 2026 extension is itself reproducible: journaled drivers
+  `data_pipeline/scripts/{extend_universe_2026.py` (splice pull with a hard-fail overlap gate +
+  enumerated allowlist), `refresh_fred_2026.py`, `build_univ5.py`, `purge_suffix.py}` (guarded vault
+  cleanup); the vendor-drift incident + SPLICE rule are documented in `docs/DATASHEET_v1.md`
+  §2026-07-02 and ADR-051.
 - **Preprocessing.** Medallion pipeline with raw-layer immutability + lineage; Ince–Porter +
   split-artifact integrity screens (flag-only) on the research panel via
-  `build_universe(screen=True)` → `univ3s` (byte-identical returns); delisting handling disclosed
+  `build_universe(screen=True)` → `univ3s` (byte-identical returns; screening evidence for the
+  overlapping span — not re-materialised for univ5); delisting terminals recovered observed-terminal
+  for all 333 dead names (`univ5s`, zero surcharges; ADR-051); delisting handling disclosed
   (`docs/DATASHEET_v1.md`). Analysis reads results **only** through `src/io/results.py`.
 
 ## 4. Code
@@ -89,9 +101,9 @@ run"**, since the campaign has not yet been executed (the pre-registration is no
 - **Frozen config + freeze hash.** The design is pinned by `scripts/freeze.py`, which SHA-256-hashes
   `config/preregistration.yaml`, asserts it agrees with `PREREGISTRATION.md`, and is wired into CI +
   pre-commit (`make freeze-check`). **Status: not yet frozen** (`frozen: false`, `freeze_hash: null`);
-  the latest computed pre-freeze canonical hash is `aa677bad…` per
-  `docs/DEEP_AUDIT_2026-06-26_round6_freeze_ready.md`. Freezing is a user-gated step
-  (`docs/CAMPAIGN_RUNBOOK.md`).
+  the latest computed pre-freeze canonical hash is `d9204087…` (moved intentionally with the
+  Split-C/univ5 rebuild — 3 bound configs + prereg changed; CHANGELOG `[2026-07-02c]`). Freezing is a
+  user-gated step (`docs/CAMPAIGN_RUNBOOK.md`).
 - **Statistical significance / multiple-comparison handling.** Headline H2 = two co-primary
   intersection–union tests (H2-RA Sharpe IUT + H2-Tail CVaR-5% IUT), each one-sided α=0.05, the
   conjunction being the correction (Berger 1982); PBO/CSCV primary overfitting guard; Deflated Sharpe
@@ -102,9 +114,9 @@ run"**, since the campaign has not yet been executed (the pre-registration is no
 
 ## 6. Compute
 
-- **Description of compute infrastructure.** Development / Phase-0 gate on the owned **RTX 4050**
-  laptop; campaign on a **single rented RTX 4090** (RunPod/Vast), seeds-on-winners — **no UCL Myriad**
-  (ADR-023; `config/campaign.yaml: compute`). Validated build: **torch 2.6.0+cu124** (ADR-030/032).
+- **Description of compute infrastructure.** Development, Phase-0 gate, **and** the confirmatory campaign all run
+  on the owned **RTX 4050** laptop (6 GB; n_gpu 2–3, TF32) — **laptop-only, no rented cloud / UCL Myriad** (**no
+  cloud-compute budget**; a WSL2/GPU speed path was probed and rejected — ADR-040), seeds-on-winners, ~2–3 weeks. Validated build: **torch 2.6.0+cu124** (ADR-030/032).
 - **Compute budget.** **No GPU-hour cap** (removed 2026-06-28 — it was never enforced by any code, and
   `auto_shutdown_on_complete` is a verified no-op). The GPU-hour figures in
   `docs/COMPUTE_AND_TRAINING_TIME.md` are **informational wall-clock/cost estimates only, not a limit**.

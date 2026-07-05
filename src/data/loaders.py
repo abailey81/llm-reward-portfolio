@@ -1,9 +1,10 @@
 """Load the frozen REAL gold panel (Refinitiv) into the engine's :class:`Panel`.
 
 The gold panel in ``data/gold/`` is the survivorship-free, point-in-time research data built by
-``data_pipeline/`` (ADR-019…022): ``returns_panel_univ3.parquet`` (5,283 sessions × 953 RICs,
-2005–2025), ``cash_features_univ3.parquet`` (``vol20``, ``vol20_over_vol60``, ``vix`` = FRED VIXCLS —
-CBOE ``.VIX`` is not licensed), and ``top30_selection_univ3.parquet`` (the point-in-time top-30 RICs at
+``data_pipeline/`` (ADR-019…022): ``returns_panel_univ5.parquet`` (5,406 sessions × 963 RICs,
+2005–2026H1; ADR-044/051 — ``univ3``, 5,283 × 953 to 2025, is the frozen pre-Split-C reference),
+``cash_features_univ5.parquet`` (``vol20``, ``vol20_over_vol60``, ``vix`` = FRED VIXCLS —
+CBOE ``.VIX`` is not licensed), and ``top30_selection_univ5.parquet`` (the point-in-time top-30 RICs at
 each window start). This module slices a single window's top-30 into a finite, **anonymised** ``Panel``
 the environment can train on.
 
@@ -21,9 +22,10 @@ finiteness contract hold:
    to ``0.0`` (proceeds held flat ≈ cash) — the standard survivorship-correct treatment that preserves
    the dead names rather than dropping them (dropping would silently re-introduce survivorship bias).
 
-   ⚠ **PROVISIONAL — needs preregistration sign-off (see DECISIONS.md ADR-024).** The intra-window
-   delisting mechanic is a frozen-design decision the env does not yet model explicitly; ``liquidate_to_cash``
-   is a defensible default for the prototype, not a ratified choice for the headline result.
+   ✔ **RATIFIED (PREREGISTRATION.md R44/R73; ``config/preregistration.yaml`` resolves ADR-024).** The
+   intra-window delisting mechanic is the frozen-design headline choice: ``liquidate_to_cash`` (d=0 zero-fill,
+   preserving the delisting-day return) is the headline treatment, with the recovery band {0,−30,−55,−100}
+   carried as a report-only post-hoc sensitivity that is disjoint from training.
 """
 from __future__ import annotations
 
@@ -47,10 +49,11 @@ _LOG = logging.getLogger(__name__)
 # Repo-root-relative default location of the frozen gold artifacts.
 _GOLD_DIR = Path(__file__).resolve().parents[2] / "data" / "gold"
 
-# Gold-panel suffix selector. ``univ3`` is the LIVE default **and the FROZEN headline panel**
-# (R44, 2026-06-26; ADR-021 canonical research panel; ``_univ``/``_univ2`` are superseded). The
-# headline campaign runs on this default with **NO** ``LLM_RP_GOLD_SUFFIX`` override — leaving the
-# env var unset keeps every loader (headline, dev, suite) on ``univ3``. The selector is still
+# Gold-panel suffix selector. ``univ5`` is the LIVE default **and the ACTIVE headline panel**
+# (SPLIT C, ADR-044/051, executed 2026-07-02; supersedes the R44 ``univ3`` headline, which stays the
+# FROZEN pre-Split-C reference; ``_univ``/``_univ2`` are superseded). The headline campaign runs on
+# this default with **NO** ``LLM_RP_GOLD_SUFFIX`` override — leaving the
+# env var unset keeps every loader (headline, dev, suite) on ``univ5``. The selector is still
 # SWITCHABLE for the sensitivity band only: setting ``LLM_RP_GOLD_SUFFIX=univ4`` points a loader at
 # the Shumway-STYLE delisting panel (BUILT: data_pipeline build_universe(suffix="_univ4",
 # apply_delisting=True); R33), and a switch to a missing suffix fails loudly in ``_read``.
@@ -64,19 +67,63 @@ _GOLD_DIR = Path(__file__).resolve().parents[2] / "data" / "gold"
 #   CVaR-5% only ~2%, so the H2 ordering is invariant across the band. The correct-on-re-pull ideal
 #   is the reason-gated ``univ4r`` (docs/DATA_REPULL_DELISTING.md). Screened research panel (integrity
 #   flags wired into build_universe): ``univ3s`` (returns byte-identical to univ3; flag-report sidecar).
-_DEFAULT_SUFFIX = "univ3"
+_DEFAULT_SUFFIX = "univ5"  # SPLIT-C panel (ADR-044/051); univ3 = the frozen pre-Split-C reference
+
+# Repo-root-relative location of the data config whose ``gold.suffix`` is the PRIMARY suffix source
+# (C1). Binding this panel identity into ``config/data.yaml`` — already a freeze-bound config
+# (scripts/freeze.py) — makes the headline panel enter the frozen design hash.
+_DATA_YAML = Path(__file__).resolve().parents[2] / "config" / "data.yaml"
+
+
+def _config_gold_suffix(data_yaml: Path | None = None) -> str | None:
+    """Return ``config/data.yaml``'s ``gold.suffix`` (stripped of a leading ``_``), or ``None``.
+
+    Read at call time (no import of ``src.utils.config`` — this is a low-level loader) so the
+    panel identity is sourced from the freeze-bound config. ``data_yaml=None`` resolves the
+    module's ``_DATA_YAML`` at CALL time (not def-time), so a test monkeypatching
+    ``loaders._DATA_YAML`` genuinely redirects the read — the def-time default silently ignored
+    the patch and the config-primacy test only passed by coincidence (caught by the Split-C
+    suffix flip, 2026-07-02). Returns ``None`` when the file, the ``gold`` block, or the
+    ``suffix`` key is absent/blank, so callers fall back to the default — a minimal /
+    synthetic-only install without the config still loads.
+    """
+    if data_yaml is None:
+        data_yaml = _DATA_YAML
+    try:
+        import yaml
+
+        with data_yaml.open(encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+    except (OSError, ValueError):  # missing file / malformed YAML -> fall back
+        return None
+    gold = data.get("gold") if isinstance(data, dict) else None
+    suffix = gold.get("suffix") if isinstance(gold, dict) else None
+    if not isinstance(suffix, str) or not suffix.strip():
+        return None
+    return suffix.strip().lstrip("_")
 
 
 def gold_suffix() -> str:
-    """The active gold suffix: ``$LLM_RP_GOLD_SUFFIX`` if set (stripped of a leading
-    ``_``), else ``univ3``. Read at call time so a sensitivity-band sweep can switch panels via the
-    environment without a code edit — the live default ``univ3`` is **the frozen headline panel**
-    (R44), so the headline campaign runs with **NO** ``LLM_RP_GOLD_SUFFIX`` set. The override exists
-    only for the band: ``LLM_RP_GOLD_SUFFIX=univ4`` selects the M&A-contaminated heavy END of the
-    delisting band (R39/R44 supersede R33's earlier univ4-headline choice — see the suffix selector
-    note above and ``analyze_campaign.delisting_band``)."""
+    """The active gold suffix — **PRIMARY source ``config/data.yaml``'s ``gold.suffix``** (C1),
+    with ``$LLM_RP_GOLD_SUFFIX`` as an EXPLICIT override only, falling back to ``univ5`` if neither
+    is set.
+
+    Precedence (read at call time):
+      1. ``LLM_RP_GOLD_SUFFIX`` env var, if set (stripped of a leading ``_``) — the explicit
+         sensitivity-band override (``LLM_RP_GOLD_SUFFIX=univ4`` selects the M&A-contaminated heavy
+         END of the delisting band; R39/R44 supersede R33's earlier univ4-headline choice — see the
+         suffix selector note above and ``analyze_campaign.delisting_band``);
+      2. ``config/data.yaml: gold.suffix`` — the FROZEN headline panel identity (bound into the
+         freeze hash so the panel cannot silently change; the new-suffix rebuild SETS this key);
+      3. ``univ5`` — the last-resort default for a minimal/synthetic install without the config
+         (``_DEFAULT_SUFFIX``; ``univ3`` = the frozen pre-Split-C reference).
+
+    The headline campaign runs with **NO** ``LLM_RP_GOLD_SUFFIX`` set, so the config value governs
+    and enters the design hash."""
     override = os.environ.get("LLM_RP_GOLD_SUFFIX", "").strip().lstrip("_")
-    return override or _DEFAULT_SUFFIX
+    if override:
+        return override
+    return _config_gold_suffix() or _DEFAULT_SUFFIX
 
 
 _SUFFIX = gold_suffix()  # module-level snapshot for back-compat; prefer gold_suffix() live
@@ -87,15 +134,17 @@ _HASH_CHUNK = 1 << 20  # 1 MiB read blocks for streaming the SHA-256
 
 # Split ends (inclusive) from the frozen preregistration §data_splits. Used only to bound a window when
 # an explicit ``end`` is not given; kept here as a documented default, not a source of truth.
-_DEV_END = "2014-12-31"  # train split end (val begins 2015)
+_DEV_END = "2016-12-31"  # SPLIT C train end (val begins 2017) — ADR-044, executed 2026-07-02 (univ5)
 
-# The materialized split table (``data/gold/splits_univ3.parquet``) carries a single ``splits_json``
-# cell whose ``development.validation_post_embargo`` boundary records the 21-session EMBARGO floor
-# (val begins 2015-02-03 = train_end + 21 trading days). R18 NOTE: the EXECUTED val start is
-# ``max(boundary, train_end + max(embargo, lookback))``; with the production lookback=60 the lookback
-# purge dominates, so execution begins ~2015-03-31 (boundary + 39) — the parquet records the embargo,
-# not the executed start. ``embargo_trading_days`` (=21) is exposed alongside as the fallback knob.
-_SPLITS_NAME = "splits"  # -> splits_univ3.parquet via the _SUFFIX convention
+# The materialized split table (``data/gold/splits_<suffix>.parquet``) carries a single ``splits_json``
+# cell whose ``development.validation_post_embargo`` boundary records the 21-session EMBARGO floor.
+# SPLIT-C NOTE (ADR-044): the frozen tables (incl. ``splits_univ5``) still record the PRE-Split-C dev
+# boundary (2015-02-03 = the old 2014-12-31 train_end + 21 sessions); under the Split-C train_end
+# (2016-12-31) that stale floor predates the train end, so ``embargoed_val_start`` ignores it and the
+# fallback purge governs: the +21 embargo floor would be ~2017-02-02, but the production lookback=60
+# dominates (R18), so execution begins 2017-03-30 (train_end + 60 sessions). ``embargo_trading_days``
+# (=21) is still read from the table as the fallback embargo knob.
+_SPLITS_NAME = "splits"  # -> splits_univ5.parquet via the _SUFFIX convention
 
 OnMissing = Literal["liquidate_to_cash", "ffill_then_zero", "error"]
 
@@ -136,7 +185,7 @@ def _expected_sha256(path: Path, manifest_path: Path = _MANIFEST) -> str | None:
     target_name = path.name
     target_rel = None
     try:
-        # Repo-root-relative POSIX path (manifest convention), e.g. "data/gold/returns_panel_univ3.parquet".
+        # Repo-root-relative POSIX path (manifest convention), e.g. "data/gold/returns_panel_univ5.parquet".
         # The manifest lives at <repo>/data/manifest/manifest.jsonl, so the repo root is parents[2]
         # (parents[0]=data/manifest, parents[1]=data, parents[2]=<repo>) — parents[1] yielded a
         # data/-relative path ("gold/…") that never matched the data/-prefixed relpaths, so only the
@@ -168,14 +217,24 @@ def _expected_sha256(path: Path, manifest_path: Path = _MANIFEST) -> str | None:
 def _verify_checksum(path: Path) -> None:
     """Verify ``path`` against its frozen manifest SHA-256 (opt-in; ``freeze.checksum: sha256``).
 
-    Raises :class:`ValueError` on mismatch (tamper / wrong build). If no expected checksum is
-    configured for the file (no manifest, or the file is absent from it), logs at INFO and returns —
-    so callers/tests without the manifest are never broken (graceful skip).
+    Raises :class:`ValueError` on mismatch (tamper / wrong build). This function is only reached
+    when verification is REQUESTED (``verify_checksum=True``), so a MISSING manifest entry for the
+    file is itself a failure, NOT a silent skip: the caller asked us to prove the headline panel's
+    integrity and we cannot — the frozen manifest must carry every production gold artifact
+    (data_pipeline writes the new-suffix entries at rebuild time). We therefore FAIL LOUD (C2)
+    rather than INFO-and-return, which would let an un-manifested panel slip into the headline run
+    unverified. (Tests/callers that legitimately have no manifest simply do not pass
+    ``verify_checksum=True``.)
     """
     expected = _expected_sha256(path, _MANIFEST)
     if expected is None:
-        _LOG.info("checksum verification skipped for %s (no manifest entry / no manifest)", path.name)
-        return
+        raise ValueError(
+            f"checksum verification REQUESTED for {path.name} but no manifest entry was found "
+            f"(searched {_MANIFEST}). The frozen manifest must carry every production gold artifact; "
+            f"a missing entry on the headline panel means its integrity cannot be verified. Re-run "
+            f"data_pipeline/ to (re)write the manifest for the active suffix, or restore "
+            f"data/manifest/manifest.jsonl."
+        )
     actual = _file_sha256(path)
     if actual != expected:
         raise ValueError(
@@ -258,10 +317,10 @@ def load_gold_panel(
     Parameters
     ----------
     phase
-        A window label in ``top30_selection_univ3`` (``"development"`` or a ``"walk_forward"`` start).
+        A window label in ``top30_selection_<suffix>`` (``"development"`` or a ``"walk_forward"`` start).
         For ``"walk_forward"`` there are several rows; pass an explicit ``end`` to disambiguate the span.
     end
-        Inclusive last session. Defaults to the train-split end (``2014-12-31``) for ``"development"``;
+        Inclusive last session. Defaults to the train-split end (``2016-12-31``, SPLIT C) for ``"development"``;
         for walk-forward windows an explicit ``end`` is required (no silent guess).
     on_missing
         Delisting / missing-return policy (see module docstring). ``"liquidate_to_cash"`` (default) →
@@ -271,9 +330,11 @@ def load_gold_panel(
     verify_checksum
         Opt-in freeze check (``config/data.yaml: freeze.checksum: sha256``). When ``True``, each gold
         parquet's SHA-256 is verified against the frozen value in ``data/manifest/manifest.jsonl`` before
-        it is read; a mismatch raises :class:`ValueError`. If no manifest entry exists for a file (e.g. a
-        synthetic-only install) the check is SKIPPED with an INFO log, so existing callers are unaffected.
-        Defaults to ``False`` to preserve the prior load behaviour.
+        it is read; a mismatch raises :class:`ValueError`. **A missing manifest entry also raises (C2):**
+        requesting verification while the manifest lacks the panel means its integrity cannot be proven,
+        so we fail loud rather than silently skip — every production gold artifact must be manifested
+        (data_pipeline writes the new-suffix entries at rebuild time). Defaults to ``False`` to preserve
+        the prior load behaviour; callers with no manifest simply leave it ``False``.
     validate
         Opt-in data-contract (``src.data.validation.validate_panel``): assert the semantic + leakage
         invariants of the built panel (strictly-increasing dates, returns ``>= -1.0`` and not implausibly
@@ -330,7 +391,7 @@ def load_gold_panel(
     returns_arr = sub.to_numpy(dtype=float)
     vix_arr = vix_s.to_numpy(dtype=float)
     # Normalize VIX to conventional POINTS (~9..83). The gold cash_features currently store VIX as a
-    # FRACTION (FRED VIXCLS / 100 — e.g. 0.0914..0.8269 over 2005-2025); a future rebuild may store
+    # FRACTION (FRED VIXCLS / 100 — e.g. 0.0914..0.8269 over 2005-2026); a future rebuild may store
     # points. Detect by magnitude (a real VIX is never < ~5 points; a fraction is never > ~2) and
     # rescale the fractional convention up by 100 so the WHOLE system speaks one unit: the regime
     # thresholds (config/regimes.yaml calm<15 / stress>25), the synthetic panel (~10-50), and the
@@ -343,7 +404,7 @@ def load_gold_panel(
     # FRACTION is its internal storage convention, deliberately reconciled here on read (NOT a silent
     # revert). The env feeds BOTH the obs (scale-agnostic under VecNormalize) and regime labelling from
     # this one array, so a single canonical unit is the correct design, not a conflation.
-    # Detect the unit (fraction vs points) from the FIRST ~2 years only — always inside TRAIN (2005-2014).
+    # Detect the unit (fraction vs points) from the FIRST ~2 years only — always inside TRAIN (2005-2016).
     # The unit is a GLOBAL data-format property of the frozen parquet, so the head detects it identically
     # to a panel-wide median while never reading the sealed test span (leakage audit 2026-06-20, #11).
     if vix_arr.size:
@@ -418,15 +479,17 @@ def embargoed_val_start(
 ) -> int:
     """Index into ``dates`` of the FIRST validation session that respects the purge (R18).
 
-    Resolves ``val_start = max(materialized_boundary, train_end + 1 + max(embargo_days, lookback))``:
+    Resolves ``val_start = max(materialized_boundary, first_post_train + max(embargo_days, lookback))``:
 
     1. **Materialized embargo boundary (a FLOOR).** ``development.validation_post_embargo[0]`` from
-       ``data/gold/splits_<suffix>.parquet`` (= ``2015-02-03`` = train_end + 21 sessions for the dev
-       split) is read as the embargo floor. **R18 NOTE:** with a feature ``lookback`` (production = 60),
-       the lookback purge ``train_end + 1 + max(embargo, lookback)`` DOMINATES this +21 boundary, so the
-       EXECUTED val starts ~2015-03-31 (boundary + 39), NOT 2015-02-03 — the materialized parquet records
-       only the 21-session EMBARGO, while execution applies the larger feature-lookback purge. (With
-       ``lookback=0`` the boundary is honoured exactly, e.g. in the legacy embargo-only unit tests.)
+       ``data/gold/splits_<suffix>.parquet`` is read as the embargo floor — honoured only when it sits
+       AFTER the train end (a real embargo). **SPLIT-C NOTE (ADR-044):** the frozen tables still record
+       the PRE-Split-C dev boundary (2015-02-03), which predates the Split-C train_end (2016-12-31) and
+       is therefore inert; the fallback purge below governs. **R18 NOTE:** with a feature ``lookback``
+       (production = 60) the lookback purge DOMINATES the +21 embargo floor (~2017-02-02), so the
+       EXECUTED val starts 2017-03-30 (train_end + 60 sessions) — the materialized parquet records only
+       the EMBARGO, while execution applies the larger feature-lookback purge. (With ``lookback=0`` and
+       a post-train boundary, the boundary is honoured exactly, e.g. in the legacy embargo-only unit tests.)
     2. **Fallback (no split table).** Purge ``max(embargo_days, lookback)`` TRADING sessions after
        ``train_end`` — used on a synthetic-only install. ``lookback=0`` reduces this to the embargo.
 
@@ -442,12 +505,15 @@ def embargoed_val_start(
     Returns
     -------
     int
-        The val-start index. Always ``> searchsorted(dates, train_end)`` (a non-empty embargo gap),
-        clamped to ``len(dates)``.
+        The val-start index. Always strictly past the first post-train session (a non-empty purge
+        gap), clamped to ``len(dates)``.
     """
     d = np.asarray(dates)
-    train_idx = int(np.searchsorted(d, np.datetime64(pd.Timestamp(train_end))))  # last-train position
-    abut = train_idx + 1  # the OLD (no-embargo) val start, kept as the floor
+    # First post-train session via side='right': identical to the old ``searchsorted(left) + 1`` when
+    # ``train_end`` IS a session (every pre-Split-C use, e.g. univ3's 2014-12-31), and — unlike it —
+    # correct when ``train_end`` is a NON-session calendar date (SPLIT C's 2016-12-31 is a Saturday:
+    # ``left + 1`` overshot one session, executing val at 2017-03-31 instead of the ratified 2017-03-30).
+    abut = int(np.searchsorted(d, np.datetime64(pd.Timestamp(train_end)), side="right"))  # the OLD (no-embargo) val start
 
     boundary, materialized_embargo = _materialized_val_post_embargo(phase, Path(gold_dir))
     # The purge must cover the FEATURE LOOKBACK, not merely the embargo: every observation reads

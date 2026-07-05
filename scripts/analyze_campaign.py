@@ -38,7 +38,7 @@ Campaign-inference additions (Rank 8 — operate on the TEST leg)
 --------------------------------------------------------------
 The functions below consume the per-(arm, seed) **frozen-winner TEST records** that
 ``scripts/run_campaign.py`` writes (each carrying ``metrics['test_returns']`` — the
-realized per-step held-out 2018-2025 portfolio returns). They wire the FROZEN
+realized per-step held-out 2020-2026 portfolio returns). They wire the FROZEN
 pre-registration's selection-aware machinery into the campaign:
 
 - :func:`collect_family_pvalues` — enumerate the pre-registered **arm-contrast × held-out
@@ -123,10 +123,17 @@ __all__ = [
     "h3_markdown",
     "h4_markdown",
     "h4_search_controls",
+    "information_gap_markdown",
+    "legible_format_responsiveness_markdown",
     "load_campaign_records",
+    "mediation_markdown",
+    "named_vs_blinded_structural_markdown",
     "pbo_dsr_markdown",
     "pbo_markdown",
+    "responsiveness_markdown",
+    "reward_taxonomy_markdown",
     "romano_wolf_joint",
+    "validation_headroom_markdown",
     "winner_dsr",
     "winner_dsr_markdown",
 ]
@@ -543,13 +550,24 @@ def winner_dsr(
     dict[str, dict]
         ``{arm: {"dsr_canonical": float | None, "dsr_proxy": float | None,
         "var_sr": float | None, "winner_sharpe": float | None, "n_candidates": int,
-        "winner_id": str | None, "status": str, ["reason": str]}}``. ``dsr_canonical`` is the
-        winner DSR deflated by the empirical cross-trial ``var_sr``; ``dsr_proxy`` is the
-        legacy ``var_sr=None`` value the search path recorded. Never fabricated for an arm
+        "winner_id": str | None, "status": str, ["reason": str],
+        ["winner_scan_note": str]}}``. ``dsr_canonical`` is the winner DSR deflated by the
+        empirical cross-trial ``var_sr``; ``dsr_proxy`` is the legacy ``var_sr=None`` value the
+        search path recorded. ``winner_scan_note`` appears only when the arm's TRUE max-fitness
+        candidate carries no usable ``val_returns`` (the DSR winner is then a disclosed
+        substitute). Ties in ``val_fitness`` break deterministically by (generation,
+        candidate_id) — the ``src.inference.headroom`` convention. Never fabricated for an arm
         that cannot support the cross-trial dispersion -- reported as skipped.
     """
     from src.inference.bootstrap import sharpe_ratio
     from src.inference.deflated_sharpe import _sample_moments, deflated_sharpe_ratio
+
+    def _fitness(r: dict[str, Any]) -> float:
+        """The selection statistic as a float; missing/non-numeric -> -inf (never a comparison TypeError)."""
+        try:
+            return float(r.get("metrics", {}).get("val_fitness", float("-inf")))
+        except (TypeError, ValueError):
+            return float("-inf")
 
     out: dict[str, dict[str, Any]] = {}
     for arm in arms:
@@ -557,7 +575,13 @@ def winner_dsr(
         # frozen-winner TEST records + the frozen marker for this arm, which are NOT search candidates and
         # must not enter the dispersion or inflate the expected-max multiplicity (#32). _is_search_candidate
         # excludes them so n_trials = the true searched-candidate count, exactly as before the loader change.
-        arm_records = [r for r in records if r.get("arm") == arm and _is_search_candidate(r)]
+        # SORTED by (generation, candidate_id) — the deterministic order src.inference.headroom._candidates
+        # uses — so the max-fitness winner scan below breaks a val_fitness TIE by that key (max() keeps the
+        # FIRST maximum), not by archive load order; the two winner scans must name the same candidate.
+        arm_records = sorted(
+            [r for r in records if r.get("arm") == arm and _is_search_candidate(r)],
+            key=lambda r: (int(r.get("generation", 0) or 0), str(r.get("candidate_id", r.get("run_id", "")))),
+        )
         cands = [(r, vec) for r in arm_records if (vec := _val_returns(r)) is not None]
         n_cfg = len(cands)
         entry: dict[str, Any] = {
@@ -592,10 +616,24 @@ def winner_dsr(
         var_sr = float(np.var(sharpes, ddof=1))
 
         # WINNER = the candidate selected during search (max validation fitness), matching
-        # run_campaign.select_winner / analyze_results._winner.
+        # run_campaign.select_winner / analyze_results._winner. NaN-safe key: a NaN val_fitness
+        # compares False both ways, so a NaN FIRST element could poison python's max() (it would
+        # never be displaced) — map non-finite fitness to -inf so it can never win the scan.
         winner_rec, winner_vec = max(
-            cands, key=lambda rv: rv[0].get("metrics", {}).get("val_fitness", float("-inf"))
+            cands, key=lambda rv: (f if np.isfinite(f := _fitness(rv[0])) else float("-inf"))
         )
+        # DISCLOSE a vectorless true winner: the scan above ranks only candidates CARRYING val_returns
+        # (the DSR needs the vector). If the arm's TRUE max-val_fitness candidate archived no usable
+        # vector, the reported DSR belongs to a SUBSTITUTE winner — flag it rather than silently re-rank.
+        finite_fit = [r for r in arm_records if np.isfinite(_fitness(r))]
+        true_best = max(finite_fit, key=_fitness) if finite_fit else None
+        winner_scan_note = None
+        if true_best is not None and true_best is not winner_rec and _val_returns(true_best) is None:
+            winner_scan_note = (
+                "true max-val_fitness candidate "
+                f"{true_best.get('candidate_id', true_best.get('run_id', '?'))!s} carries no usable "
+                "val_returns; winner DSR is reported for the best VECTOR-CARRYING candidate instead"
+            )
         # Expected-max trial count = the FULL per-arm candidate count the search actually faced, NOT
         # just the candidates that happen to carry a usable validation vector (final-audit #32: using
         # n_cfg deflated by a SMALLER N than selection used, biasing the canonical DSR UP). var_sr
@@ -621,6 +659,8 @@ def winner_dsr(
             "winner_id": str(winner_rec.get("candidate_id", winner_rec.get("run_id", "?"))),
             "status": "ok",
         }
+        if winner_scan_note:
+            out[arm]["winner_scan_note"] = winner_scan_note
     return out
 
 
@@ -1075,10 +1115,10 @@ def assert_realized_family_matches_frozen(
     (Amendment 2026-06-19, R13). This guard re-derives the realized family from the campaign's own
     ``collect_family_pvalues`` output and asserts it is byte-for-byte the frozen one — so the campaign
     can NEVER silently test a family that drifts from the pre-registered, hashed design. It is a no-op
-    when the realized ``cvar_levels`` deliberately extend the frozen level set (e.g. the opt-in
-    high-variance ``cvar_01`` leg, which the prose flags grows ``m`` to 9): the assert only fires when
-    the realized family DIVERGES at the FROZEN level set, not when an explicitly-flagged extra level is
-    requested.
+    ONLY when the realized ``cvar_levels`` are a STRICT SUPERSET of the frozen level set — the one
+    sanctioned, prose-flagged expansion (the opt-in high-variance ``cvar_01`` leg, which grows ``m`` to
+    9). A realized level set MISSING any frozen level is drift, never an extension, and falls through
+    to the assert (fail-loud).
 
     Raises ``AssertionError`` (fail-loud) on any drift in the contrast set, the metric set, the CVaR
     levels, or the integer ``m``; raises nothing and asserts nothing if the frozen YAML lacks a
@@ -1092,10 +1132,13 @@ def assert_realized_family_matches_frozen(
     if not fam:
         return  # no frozen mirror to check against (pre-amendment config) — freeze.py is the backstop
 
-    # Only enforce when the realized run uses EXACTLY the frozen CVaR level set; an explicit superset
-    # (the flagged opt-in cvar_01) is a deliberate, prose-sanctioned extension, not drift.
-    frozen_levels = tuple(float(x) for x in fam.get("cvar_levels", [0.05]))
-    if tuple(float(x) for x in cvar_levels) != frozen_levels:
+    # A STRICT SUPERSET of the frozen levels is the one sanctioned, prose-flagged expansion (the opt-in
+    # cvar_01 leg grows m to 9) -> no-op. ANYTHING else — in particular a realized set MISSING a frozen
+    # level — must fall through to the assert below and fail LOUD: dropping a frozen level is family
+    # drift, and the old any-difference early-return silently waved it past the guard.
+    frozen_levels = {float(x) for x in fam.get("cvar_levels", [0.05])}
+    realized_levels = {float(x) for x in cvar_levels}
+    if realized_levels > frozen_levels:
         return
 
     # Realized family, as the campaign actually built it.
@@ -1261,7 +1304,7 @@ def collect_family_pvalues(
     upper-tail one-sided p (``res["pvalue_one_sided_greater"]`` = ``P(boot - obs >= obs)``), used when
     ``direction_ok`` (the effect is in-direction), else the one-sided test does NOT reject. This replaces
     the earlier ``p_two / 2`` (DEEP_H2 A5), which equals the true one-sided tail only under a symmetric
-    bootstrap and is anti-conservative on the skewed CVaR-5% difference. Each test therefore carries a
+    bootstrap and mis-states it under any skew of the CVaR-5% difference. Each test therefore carries a
     ``pvalue_one_sided`` and a ``reject_one_sided`` (``direction_ok AND p_one <= alpha_one_sided``);
     :func:`h2_conjunction` partitions these into the two co-primary intersection-union tests (H2-RA
     on the 3 Sharpe legs, H2-Tail on the 3 CVaR-5% legs), each gated by its own 3-leg IUT with NO
@@ -1371,7 +1414,7 @@ def collect_family_pvalues(
         The DIRECT one-sided p in the predicted direction: ``p_one = res["pvalue_one_sided_greater"]``,
         the upper-tail bootstrap probability ``P(boot - obs >= obs)`` for H1: effect>0 (``a`` better).
         This REPLACES the old ``p_two / 2`` (DEEP_H2 A5), which equals the true tail only under a
-        symmetric bootstrap and is anti-conservative on the skewed/heavy CVaR-5% difference — it could
+        symmetric bootstrap and mis-states it under any skew of the CVaR-5% difference — it could
         flip the co-primary tail leg at alpha (R64 / DEEP_AUDIT 2026-06-28). The leg still REQUIRES the
         effect in-direction; ``reject_one`` is the genuinely one-sided leg decision at ``alpha_one_sided``
         — the unit the two co-primary IUTs gate on (NO BH on the legs).
@@ -1876,7 +1919,7 @@ def _one_sided_from_two(
     The SAME one-sided convention the headline H2 leg uses (``collect_family_pvalues._one_sided``; R25/R64):
     prefer the DIRECT upper-tail one-sided p (``pvalue_one_sided`` = ``res["pvalue_one_sided_greater"]``),
     which is valid under a skewed bootstrap; fall back to the symmetric ``p_two / 2`` ONLY when a direct
-    one-sided p is unavailable (the /2 is anti-conservative on a skewed CVaR difference and can flip a leg
+    one-sided p is unavailable (the /2 mis-states the one-sided tail under any skew of the CVaR difference and can flip a leg
     at alpha — R64 / DEEP_AUDIT 2026-06-28). ``reject_one`` requires the effect in the predicted direction
     (``effect > 0`` = ``a`` better). Factored out so H3/H4 reuse the EXACT headline convention.
     """
@@ -1950,7 +1993,7 @@ def h4_search_controls(
     contrasts: tuple[tuple[str, str, str], ...] = H4_CONTRASTS,
     n_boot: int = 2000,
     alpha: float = 0.05,
-    equiv_margin: float = 0.05,
+    equiv_margin: float = _frozen_equiv_margin(),  # P14-F2: read the frozen SESOI from config, not a literal 0.05
     rng: np.random.Generator | None = None,
 ) -> dict[str, Any]:
     """H4 — the LLM winner vs the non-LLM search controls (DEEP_H4; PREREGISTRATION §1/§3).
@@ -2093,6 +2136,7 @@ def _h3_placebo_relative_uplift(
     placebo_arm: str,
     n_boot: int,
     rng: np.random.Generator,
+    alpha: float = 0.05,
 ) -> dict[str, Any]:
     """The PAIRED placebo-relative uplift-difference (T3.4 c) — does reflection leave an INFORMATION signature?
 
@@ -2138,7 +2182,8 @@ def _h3_placebo_relative_uplift(
     # delta, so the mean is the natural statistic — no second IQM is layered on).
     res = paired_seed_difference_test(uplift_dist, uplift_plac, statistic=np.mean, n_boot=n_boot, rng=rng)
     p_two = float(res["pvalue"])
-    reject = bool(p_two <= 0.05)
+    # The caller's alpha (the H3 level), not a hardcoded 0.05 — so an alpha override propagates here too.
+    reject = bool(p_two <= alpha)
     return {
         "status": "ok",
         "placebo_arm": placebo_arm,
@@ -2166,7 +2211,7 @@ def h3_iterative_vs_singleshot(
     placebo_arm: str = "placebo",
     n_boot: int = 2000,
     alpha: float = 0.05,
-    equiv_margin: float = 0.05,
+    equiv_margin: float = _frozen_equiv_margin(),  # P14-F2: read the frozen SESOI from config, not a literal 0.05
     rng: np.random.Generator | None = None,
 ) -> dict[str, Any]:
     """H3 — iterative reflection vs single-shot best-of-N, at matched budget (DEEP_H3; PREREGISTRATION §1/§6).
@@ -2246,7 +2291,7 @@ def h3_iterative_vs_singleshot(
     # T3.4 (c): the paired placebo-relative uplift difference (its own seeded rng so it is order-independent).
     placebo_uplift = _h3_placebo_relative_uplift(
         iterative_records, single_shot_records, arm=arm, placebo_arm=placebo_arm,
-        n_boot=n_boot, rng=np.random.default_rng(rng.integers(0, 2**32 - 1)),
+        n_boot=n_boot, rng=np.random.default_rng(rng.integers(0, 2**32 - 1)), alpha=alpha,
     )
 
     if rej1:
@@ -2279,7 +2324,8 @@ def h2_tost(
     *,
     contrasts: tuple[tuple[str, str], ...] = H2_CONTRASTS,
     cvar_level: float = 0.05,
-    equiv_margin: float = 0.05,
+    equiv_margin: float = _frozen_equiv_margin(),  # P14-F2: read the frozen SESOI from config, not a literal 0.05
+    tail_margin_fraction: float = 0.25,
     n_boot: int = 2000,
     rng: np.random.Generator | None = None,
 ) -> dict[str, Any]:
@@ -2296,21 +2342,34 @@ def h2_tost(
     PREREGISTRATION §10 R12 frames the SESOI in validation-DSR units — this is the test-statistic-units
     companion the prompt specifies, reported alongside).
 
+    P6-code (2026-07-01). The raw ±0.05 CVaR-Tail band is LARGE relative to the CVaR magnitude (a daily
+    CVaR-5% is O(0.01–0.06)), so a ±0.05 band can trivially contain the CI and over-claim equivalence.
+    ALONGSIDE the raw band, each tail leg therefore ALSO reports a RELATIVE band expressed as a FRACTION
+    (``tail_margin_fraction``, default 25%) of the |baseline CVaR| — the comparator arm's IQM CVaR — so the
+    equivalence is stated in a scale-appropriate, interpretable unit ("within 25% of the baseline tail
+    loss"). Both verdicts are reported; NEITHER gates. The RA (Sharpe) leg is unchanged (Sharpe is unitless,
+    so a fractional restatement is not meaningful there).
+
     DISJOINT KEY: ``out["h2_tost"]`` carries NO family-tuple keys, so the frozen m=6 assert is untouched.
 
     Returns
     -------
     dict
-        ``{"status", "margin", "ra": [ {contrast, ...tost...}, ... ], "tail": {...level, legs:[...]},
-        "skipped": [...]}``; ``status="skipped"`` only if NO contrast had >= 2 shared seeds on either leg.
+        ``{"status", "margin", "tail_margin_fraction", "ra": [ {contrast, ...tost...}, ... ],
+        "tail": {level, legs:[ {..., baseline_cvar, margin_fraction, equivalent_fraction,
+        margin_fraction_abs}, ...]}, "skipped": [...]}``; ``status="skipped"`` only if NO contrast had >= 2
+        shared seeds on either leg.
     """
-    from src.inference.bootstrap import cvar, sharpe_ratio
+    from src.inference.bootstrap import cvar, iqm, sharpe_ratio
 
     if rng is None:
         rng = np.random.default_rng(0)
     margin = float(equiv_margin)
+    frac = float(tail_margin_fraction)
 
-    def _legs(score_fn: Callable[[np.ndarray], float]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _legs(
+        score_fn: Callable[[np.ndarray], float], *, relative: bool = False
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         scores = {arm: _seed_scores(records, arm, score_fn) for arm in {a for pair in contrasts for a in pair}}
         legs: list[dict[str, Any]] = []
         skipped_legs: list[dict[str, Any]] = []
@@ -2324,11 +2383,24 @@ def h2_tost(
             b = np.array([sb[s] for s in common], dtype=float)
             t = _iqm_tost(a, b, margin, n_boot=n_boot, rng=rng)
             t["contrast"] = f"{arm_a}>{arm_b}"
+            if relative:
+                # RELATIVE band: margin = fraction · |baseline CVaR| (the comparator arm_b's IQM CVaR). Report
+                # BOTH bands. Only the THRESHOLD changes (not the estimate or CI), so we re-derive equivalence
+                # from the ALREADY-computed absolute-CVaR-unit CI against the fractional band — no second
+                # bootstrap needed (the CI is unchanged; we just compare it to a different, scale-relative margin).
+                baseline_cvar = float(iqm(b))
+                frac_margin = frac * abs(baseline_cvar)
+                t["baseline_cvar"] = baseline_cvar
+                t["margin_fraction"] = frac
+                t["margin_fraction_abs"] = frac_margin
+                t["equivalent_fraction"] = bool(
+                    frac_margin > 0.0 and t["ci_low"] > -frac_margin and t["ci_high"] < frac_margin
+                )
             legs.append(t)
         return legs, skipped_legs
 
     ra_legs, ra_skip = _legs(sharpe_ratio)
-    tail_legs, tail_skip = _legs(lambda v: cvar(v, float(cvar_level)))
+    tail_legs, tail_skip = _legs(lambda v: cvar(v, float(cvar_level)), relative=True)
     skipped = [{"metric": "sharpe", **s} for s in ra_skip] + [
         {"metric": "cvar", "level": float(cvar_level), **s} for s in tail_skip
     ]
@@ -2336,6 +2408,7 @@ def h2_tost(
         "status": "ok" if (ra_legs or tail_legs) else "skipped",
         "reason": None if (ra_legs or tail_legs) else "no H2 contrast has >= 2 shared test seeds",
         "margin": margin,
+        "tail_margin_fraction": frac,
         "units": "test-statistic units (per-seed Sharpe / CVaR), NOT validation-DSR",
         "ra": ra_legs,
         "tail": {"level": float(cvar_level), "legs": tail_legs},
@@ -2368,9 +2441,10 @@ def h2_tost_dsr(
     each into a CONSERVATIVE (upper-bound) validation-DSR shift via
     ``power_analysis.sharpe_mde_to_dsr`` — the documented linear ceiling
     ``ΔDSR_max = φ(0)·√(T−1)/√252 · ΔSR_ann`` (T2.5). Because the map is linear and positive, the per-seed
-    DSR-unit scores are an order-preserving rescaling of the Sharpe scores, so the paired bootstrap CI for
+    DSR-unit scores are an order-preserving rescaling of the Sharpe scores, so the PAIRED bootstrap CI for
     ``mean(a) − mean(b)`` is computed honestly in DSR units; equivalence holds iff that 90% CI lies inside
-    ``±sesoi_dsr`` (``power_analysis.tost_equivalence``, Lakens 2017). The ceiling is the HONEST direction:
+    ``±sesoi_dsr`` (``power_analysis.tost_equivalence`` with ``paired=True`` — CRN seed pairing, matching the
+    headline difference test's across-seed covariance; Lakens 2017). The ceiling is the HONEST direction:
     it OVER-states ΔDSR (φ(z)≤φ(0), D≥1 off-the-money / fat-tailed), so a DSR-equivalence verdict here is a
     fortiori true under the exact map; a NON-equivalent verdict is reported as INCONCLUSIVE (the conservative
     map could not certify a bound that small), never as evidence of a difference.
@@ -2420,8 +2494,11 @@ def h2_tost_dsr(
             continue
         a_dsr = np.array([sa[s] for s in common], dtype=float) * k  # per-seed Sharpe -> per-seed DSR shift
         b_dsr = np.array([sb[s] for s in common], dtype=float) * k
+        # PAIRED (CRN seed pairing) to match the headline paired difference test — a_dsr[i] and b_dsr[i] are
+        # the SAME training seed (P2 reconciliation, 2026-07-01); an independent resample here would discard
+        # the across-seed covariance the headline carries and mis-state the equivalence CI width.
         res = tost_equivalence(
-            a_dsr, b_dsr, margin, n_boot=n_boot,
+            a_dsr, b_dsr, margin, n_boot=n_boot, paired=True,
             rng=np.random.default_rng(rng.integers(0, 2**32 - 1)),
         )
         ra_legs.append({
@@ -2444,6 +2521,315 @@ def h2_tost_dsr(
         "track_length": int(track_length),
         "ra": ra_legs,
         "skipped": skipped,
+    }
+
+
+def _arm_pooled_val_returns(records: list[dict[str, Any]], arm: str) -> np.ndarray | None:
+    """Pool one arm's per-candidate VALIDATION return vectors into a single concatenated series, or ``None``.
+
+    The (VaR, ES) tail forecast a comparative ES backtest scores is estimated on an arm's realized VALIDATION
+    returns (fully archived for every search candidate). Concatenating them gives a larger, more stable tail
+    sample than any single candidate. Returns ``None`` when the arm has no usable validation record.
+    """
+    vecs = [v for r in records if r.get("arm") == arm and (v := _val_returns(r)) is not None]
+    if not vecs:
+        return None
+    return np.concatenate(vecs)
+
+
+def _arm_median_tail_seed_test_returns(
+    records: list[dict[str, Any]], arm: str, alpha: float
+) -> tuple[np.ndarray | None, int | None]:
+    """One arm's SINGLE realized TEST path whose empirical CVaR_alpha is the MEDIAN across seed paths.
+
+    WHY a single genuine path and not the seed-average: a genuine single realized path preserves the
+    tail structure that seed-averaging destroys — averaging ~30 seed paths shrinks the tail, and
+    :func:`_arm_test_returns`'s own docstring forbids the averaged series driving a significance test
+    (on it an ES backtest's VaR hit indicator rarely fires). The MEDIAN-tail seed is the representative
+    path: each per-(record) test vector is kept WHOLE (one vector per record, with its ``seed``), its
+    empirical ``cvar(v, alpha)`` is computed (:func:`src.inference.bootstrap.cvar`), and the path whose
+    CVaR sits at the median across paths is returned — even count -> the LOWER of the two middle
+    values; CVaR ties -> the smallest seed id (records lacking a seed id order last) — fully
+    deterministic. Returns ``(path, seed)``, or ``(None, None)`` when the arm has no usable test record.
+    """
+    from src.inference.bootstrap import cvar
+
+    pairs: list[tuple[int | None, np.ndarray]] = []
+    for r in records:
+        if r.get("arm") != arm:
+            continue
+        v = _test_returns(r)
+        if v is None:
+            continue
+        try:
+            seed = int(r["seed"]) if r.get("seed") is not None else None  # the _seed_scores coercion
+        except (TypeError, ValueError):
+            seed = None
+        pairs.append((seed, v))
+    if not pairs:
+        return None, None
+
+    def _seed_key(seed: int | None) -> tuple[int, int]:
+        # None-last total order, so a record lacking a seed id still breaks a CVaR tie deterministically.
+        return (1, 0) if seed is None else (0, int(seed))
+
+    # Explicit sort key ONLY (never compare the raw triples — the ndarray member has no total order).
+    scored = sorted(
+        ((float(cvar(v, float(alpha))), seed, v) for seed, v in pairs),
+        key=lambda t: (t[0], _seed_key(t[1])),
+    )
+    median_cv = scored[(len(scored) - 1) // 2][0]  # even count -> the LOWER of the two middle CVaRs
+    _, seed, path = min((t for t in scored if t[0] == median_cv), key=lambda t: _seed_key(t[1]))
+    return path, seed
+
+
+def comparative_es_backtest_report(
+    records: list[dict[str, Any]],
+    *,
+    contrasts: tuple[tuple[str, str], ...] = H2_CONTRASTS,
+    cvar_level: float = 0.05,
+    n_boot: int = 2000,
+    rng: np.random.Generator | None = None,
+) -> dict[str, Any]:
+    """Report-only FZ0 + two-sided Diebold-Mariano equal-accuracy ES backtest CORROBORATING H2-Tail (DEEP_H2; CH4 §4.7).
+
+    CH4 §4.7 CLAIMS a (VaR, ES) Expected-Shortfall scoring comparison corroborates the H2-Tail CVaR result, but
+    the analysis never invoked it — this wires it. For each H2 contrast (distributional vs {scalar, placebo,
+    scalar_cvar5}) it runs the two-sided Diebold-Mariano equal-accuracy test on the FZ0 score differential
+    (``src.inference.es_backtest.comparative_es_backtest``) — the Fissler-Ziegel jointly-consistent scoring with
+    the Nolde-Ziegel (2017) DM apparatus, run TWO-SIDED, NOT their one-sided comparative/dominance form (matching
+    CH4 §4.7):
+    on a COMMON realized series — the distributional arm's MEDIAN-TAIL-SEED single realized TEST path
+    (:func:`_arm_median_tail_seed_test_returns`; a genuine single path preserves the tail structure that
+    seed-averaging destroys, and :func:`_arm_test_returns`'s docstring forbids the averaged series driving a
+    significance test) — it scores two tail forecasts under the jointly-elicitable FZ0 loss
+    (Fissler-Ziegel 2016) —
+
+      * ``forecast1`` = the (VaR_alpha, ES_alpha) estimated from the DISTRIBUTIONAL arm's pooled validation
+        returns (the tail-fed arm's own forecast);
+      * ``forecast2`` = the (VaR_alpha, ES_alpha) estimated from the COMPARATOR arm's pooled validation returns.
+
+    ``mean_score_diff < 0`` (``better == "model1"``) means the distributional arm's tail forecast scores
+    strictly better on the realized tail — the direction that CORROBORATES H2-Tail. This is a forecast-scoring
+    backtest on ONE realized series (the use the module supports), NOT a two-sample CVaR comparison
+    of two different realizations (which stays in ``h2_conjunction``'s ``cvar_difference`` legs). Report-only,
+    NEVER gates: it writes a DISJOINT block with NO ``arm_a/arm_b/metric/level`` family-tuple keys.
+
+    Returns ``{"status", "level", "realized_series": {kind, seed, alpha}, "legs": [{contrast,
+    mean_score_diff, pvalue, pvalue_dm_hln, better, corroborates_h2_tail}, ...], "skipped": [...]}``;
+    ``status="skipped"`` when NO contrast had a usable common realized series + two forecasts.
+    """
+    from src.inference.es_backtest import comparative_es_backtest, var_es_estimates
+
+    if rng is None:
+        rng = np.random.default_rng(0)
+    alpha = float(cvar_level)
+    # ONE genuine realized path, NOT the seed-average: the FZ0/DM scoring reads realized tail HITS, and
+    # averaging the seed paths shrinks the tail until the hit indicator rarely fires (the seed-average is
+    # display-only by its own docstring). The median-tail seed is the representative single realization.
+    realized, realized_seed = _arm_median_tail_seed_test_returns(records, "distributional", alpha)
+    legs: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    if realized is None or realized.size < 5:
+        return {
+            "status": "skipped",
+            "level": alpha,
+            "reason": "distributional arm has no usable TEST realized series",
+            "legs": [],
+            "skipped": [],
+        }
+
+    dist_val = _arm_pooled_val_returns(records, "distributional")
+    f1 = var_es_estimates(dist_val, alpha) if dist_val is not None else (float("nan"), float("nan"))
+    for arm_a, arm_b in contrasts:
+        comp_val = _arm_pooled_val_returns(records, arm_b)
+        f2 = var_es_estimates(comp_val, alpha) if comp_val is not None else (float("nan"), float("nan"))
+        # need finite, strictly-negative ES for both forecasts (fz0 requires es < 0)
+        if not (np.isfinite(f1[1]) and np.isfinite(f2[1]) and f1[1] < 0.0 and f2[1] < 0.0):
+            skipped.append({"contrast": f"{arm_a}>{arm_b}", "reason": "missing / non-negative-ES forecast"})
+            continue
+        res = comparative_es_backtest(
+            realized, f1, f2, alpha=alpha, n_boot=n_boot,
+            rng=np.random.default_rng(rng.integers(0, 2**32 - 1)),
+        )
+        legs.append({
+            "contrast": f"{arm_a}>{arm_b}",
+            "mean_score_diff": float(res["mean_score_diff"]),
+            "pvalue": float(res["pvalue"]),
+            "pvalue_dm_hln": float(res["pvalue_dm_hln"]),
+            "better": str(res["better"]),
+            # corroborates H2-Tail iff the distributional (model1) tail forecast scores strictly better.
+            "corroborates_h2_tail": bool(res["better"] == "model1"),
+        })
+    return {
+        "status": "ok" if legs else "skipped",
+        "level": alpha,
+        "reason": None if legs else "no contrast had a usable common realized series + two (VaR,ES) forecasts",
+        # Which single realized path was scored (median-tail seed) — auditable, never silent.
+        "realized_series": {"kind": "median_tail_seed", "seed": realized_seed, "alpha": alpha},
+        "note": (
+            "Two-sided equal-accuracy FZ0 forecast-scoring backtest on ONE realized series (the distributional "
+            "arm's median-tail-seed TEST path); report-only corroboration of H2-Tail, DISJOINT from the frozen "
+            "m=6 family."
+        ),
+        "legs": legs,
+        "skipped": skipped,
+    }
+
+
+def bayesian_null_report_block(
+    records: list[dict[str, Any]],
+    *,
+    contrasts: tuple[tuple[str, str], ...] = H2_CONTRASTS,
+    cvar_level: float = 0.05,
+    sesoi: float | None = None,
+    tail_margin_fraction: float = 0.25,
+    n_boot: int = 2000,
+    rng: np.random.Generator | None = None,
+) -> dict[str, Any]:
+    """Report-only Bayesian evidence-for-the-null complement to the frozen TOST (R67; DEEP_H2 §5.4).
+
+    For each H2 contrast and each co-primary metric (Sharpe = H2-RA, CVaR-5% = H2-Tail), reduces the two
+    arms' per-seed scores over the shared training seeds to PAIRED per-seed difference scores (the SAME
+    object the headline paired IUT consumes) and runs ``src.inference.bayes_null.bayesian_null_report`` with
+    the ROPE half-width = the frozen SESOI. This adds a Bayes-factor + posterior-in-ROPE lens on the null
+    ALONGSIDE the frequentist TOST — a mature evidence-FOR-equivalence statement, never a gate.
+
+    ROPE UNITS (mirrors :func:`h2_tost`'s P6 band): the raw ±SESOI (0.05) ROPE is in RAW CVaR units and is
+    LARGE relative to a daily CVaR magnitude O(0.01–0.06), so on the TAIL legs it can near-trivially
+    contain the posterior and over-claim null evidence. Each tail leg therefore ALSO reports a RELATIVE
+    ROPE = ``tail_margin_fraction`` (default 25%) × |baseline CVaR| (the comparator arm's IQM CVaR), i.e.
+    the SAME scale-appropriate band the TOST reports. BOTH ROPEs are reported; NEITHER gates. Only the
+    ROPE-dependent fields (``rope_mass`` / ``hdi_in_rope`` / ``verdict``) move — the BF01 is ROPE-free.
+
+    DISJOINT KEY: writes NO ``arm_a/arm_b/metric/level`` family-tuple keys; a declared secondary. Gracefully
+    degrades to ``status="skipped"`` when no contrast has >= 2 shared seeds.
+
+    Returns ``{"status", "sesoi", "tail_margin_fraction", "level", "ra": [...], "tail": {level,
+    legs:[...]}, "skipped": [...]}`` where each leg is ``{contrast, verdict, bf01, effect, hdi_in_rope,
+    robust_for_null, n}``; tail legs additionally carry ``{baseline_cvar, margin_fraction,
+    relative: {rope_mass, hdi_in_rope, verdict} | {status}}``.
+    """
+    from src.inference.bayes_null import bayesian_null_report
+    from src.inference.bootstrap import cvar, iqm, sharpe_ratio
+
+    if rng is None:
+        rng = np.random.default_rng(0)
+    margin = float(sesoi) if sesoi is not None else _frozen_equiv_margin()
+    frac = float(tail_margin_fraction)
+
+    def _legs(
+        score_fn: Callable[[np.ndarray], float], *, relative: bool = False
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        scores = {arm: _seed_scores(records, arm, score_fn) for arm in {a for pair in contrasts for a in pair}}
+        legs: list[dict[str, Any]] = []
+        skipped_legs: list[dict[str, Any]] = []
+        for arm_a, arm_b in contrasts:
+            sa, sb = scores.get(arm_a, {}), scores.get(arm_b, {})
+            common = sorted(set(sa) & set(sb))
+            if len(common) < 2:
+                skipped_legs.append({"contrast": f"{arm_a}>{arm_b}", "reason": "< 2 shared seeds"})
+                continue
+            diffs = np.array([sa[s] - sb[s] for s in common], dtype=float)  # PAIRED per-seed differences
+            res = bayesian_null_report(diffs, margin)
+            if res.get("status") != "ok":
+                skipped_legs.append({"contrast": f"{arm_a}>{arm_b}", "reason": res.get("status", "insufficient")})
+                continue
+            leg = {
+                "contrast": f"{arm_a}>{arm_b}",
+                "verdict": str(res["verdict"]),
+                "bf01": float(res["bf01"]),
+                "effect": float(res["effect"]),
+                "hdi_in_rope": bool(res["hdi_in_rope"]),
+                "robust_for_null": bool(res["robust_for_null"]),
+                "n": int(res["n"]),
+            }
+            if relative:
+                # RELATIVE ROPE for the TAIL legs (the h2_tost P6 pattern): re-run the SAME report at
+                # ROPE = fraction · |comparator arm_b's IQM CVaR|. Same diffs, same prior — only the
+                # ROPE-dependent fields differ, so just those three are pulled out. Neither band gates.
+                baseline = float(iqm(np.array([sb[s] for s in common], dtype=float)))
+                rel_margin = frac * abs(baseline)
+                leg["baseline_cvar"] = baseline
+                leg["margin_fraction"] = frac
+                if np.isfinite(rel_margin) and rel_margin > 0.0:
+                    rel = bayesian_null_report(diffs, rel_margin)
+                    if rel.get("status") == "ok":
+                        leg["relative"] = {
+                            "rope_mass": float(rel["posterior"]["rope_mass"]),
+                            "hdi_in_rope": bool(rel["hdi_in_rope"]),
+                            "verdict": str(rel["verdict"]),
+                        }
+                    else:
+                        leg["relative"] = {"status": str(rel.get("status", "insufficient"))}
+                else:
+                    leg["relative"] = {"status": "degenerate baseline CVaR (relative margin not positive/finite)"}
+            legs.append(leg)
+        return legs, skipped_legs
+
+    ra_legs, ra_skip = _legs(sharpe_ratio)
+    tail_legs, tail_skip = _legs(lambda v: cvar(v, float(cvar_level)), relative=True)
+    skipped = [{"metric": "sharpe", **s} for s in ra_skip] + [
+        {"metric": "cvar", "level": float(cvar_level), **s} for s in tail_skip
+    ]
+    return {
+        "status": "ok" if (ra_legs or tail_legs) else "skipped",
+        "reason": None if (ra_legs or tail_legs) else "no H2 contrast has >= 2 shared test seeds",
+        "sesoi": margin,
+        "tail_margin_fraction": frac,
+        "level": float(cvar_level),
+        "ra": ra_legs,
+        "tail": {"level": float(cvar_level), "legs": tail_legs},
+        "skipped": skipped,
+    }
+
+
+def model_confidence_set_report(
+    records: list[dict[str, Any]],
+    *,
+    arms: tuple[str, ...] = ARMS,
+    cvar_level: float = 0.05,
+    size: float = 0.10,
+    rng: np.random.Generator | None = None,
+) -> dict[str, Any]:
+    """Report-only Model Confidence Set over the arms on their per-seed Sharpe + CVaR (Hansen et al. 2011).
+
+    The multiplicity-honest "which arms are statistically INDISTINGUISHABLE" statement: over the arms that
+    share a common set of training seeds, build ``{arm: per-seed score}`` and pass it to
+    ``src.inference.model_confidence_set.model_confidence_set``. Under the predicted null the set contains
+    (almost) all arms — the honest counterpart to the pairwise IUTs. Computed for BOTH co-primary metrics.
+
+    Requires the optional ``arch`` dependency (MCS lives in ``arch.bootstrap``); when it is absent the block
+    degrades to ``status="error"`` (via the caller's guard) rather than breaking the headline. DISJOINT block
+    (no family-tuple keys). ``status="skipped"`` when < 2 arms share >= 2 common seeds.
+
+    Returns ``{"status", "sharpe": {...mcs...}, "tail": {level, ...mcs...}}``.
+    """
+    from src.inference.bootstrap import cvar, sharpe_ratio
+    from src.inference.model_confidence_set import model_confidence_set
+
+    if rng is None:
+        rng = np.random.default_rng(0)
+
+    def _mcs(score_fn: Callable[[np.ndarray], float]) -> dict[str, Any]:
+        per_arm = {arm: _seed_scores(records, arm, score_fn) for arm in arms}
+        per_arm = {arm: d for arm, d in per_arm.items() if d}  # keep only arms with >= 1 seed
+        if len(per_arm) < 2:
+            return {"status": "skipped", "reason": "< 2 arms with test records"}
+        common = sorted(set.intersection(*[set(d) for d in per_arm.values()]))
+        if len(common) < 2:
+            return {"status": "skipped", "reason": "< 2 shared seeds across the arms"}
+        arm_scores = {arm: np.array([per_arm[arm][s] for s in common], dtype=float) for arm in per_arm}
+        return model_confidence_set(arm_scores, size=size, seed=0)
+
+    sharpe_mcs = _mcs(sharpe_ratio)
+    tail_mcs = _mcs(lambda v: cvar(v, float(cvar_level)))
+    status = "ok" if (sharpe_mcs.get("status") == "ok" or tail_mcs.get("status") == "ok") else "skipped"
+    return {
+        "status": status,
+        "size": float(size),
+        "sharpe": sharpe_mcs,
+        "tail": {"level": float(cvar_level), **tail_mcs},
     }
 
 
@@ -2718,6 +3104,117 @@ def cross_hypothesis_multiplicity(
     }
 
 
+def mechanism_multiplicity(
+    *,
+    responsiveness: dict[str, Any] | None = None,
+    mediation: dict[str, Any] | None = None,
+    named_vs_blinded_structural: dict[str, Any] | None = None,
+    legible_format_responsiveness: dict[str, Any] | None = None,
+    regime_stratified: dict[str, Any] | None = None,
+    alpha: float = 0.05,
+    q: float = 0.05,
+) -> dict[str, Any]:
+    """Report-only Bonferroni / BH SENSITIVITY across the report-only mechanism (SQ1/SQ2/SQ3) legs.
+
+    Forking-paths insurance for the mechanism kernel, mirroring :func:`cross_hypothesis_multiplicity` (the
+    cross-HYPOTHESIS Bonferroni-across-4) but ACROSS the report-only mechanism legs: SQ1 responsiveness,
+    SQ2 mediation, the AST label-permutation, the structural McNemar, the coefficient Mahalanobis-permutation,
+    the legible-format differential, and the regime split. A reader worried that surveying several mechanism
+    diagnostics inflates the family-wise error can read the STRICTER hurdle here. It is REPORT-ONLY, DISJOINT
+    from the frozen m=6 family, and NEVER changes any mechanism leg's own reported decision (each mechanism
+    leg stays a descriptive report-only object). It writes NO ``arm_a/arm_b/metric/level`` family-tuple keys.
+
+    Each leg contributes a row. Legs that emit a genuine p-value (the AST permutation ``p_value``, the
+    McNemar ``pvalue``, the Mahalanobis ``pvalue``, the named-vs-blinded random-pairing ``p_random_pairing_
+    matches``) enter the Bonferroni (level ``alpha / n_p``) and BH (level ``q``) correction over the p-bearing
+    set. CI-based legs (responsiveness, mediation, legible-format — decided by a bootstrap CI, no p) and the
+    descriptive regime split are LISTED with their own decision but marked ``has_p=False`` (Bonferroni/BH
+    n/a), exactly as :func:`cross_hypothesis_multiplicity` lists H1 as "descriptive, no p".
+
+    Returns
+    -------
+    dict
+        ``{"alpha", "q", "n_p_tests", "bonferroni_alpha", "rows": [ {leg, p, has_p, decision,
+        survives_bonferroni, reject_bh, note}, ... ], "stance"}``.
+    """
+    from src.inference.multiple_testing import benjamini_hochberg
+
+    rows: list[dict[str, Any]] = []
+
+    def _ci_row(leg: str, d: dict[str, Any] | None, decides: str, note: str) -> None:
+        d = d or {}
+        status = d.get("status")
+        decision = str(d.get(decides)) if status == "ok" else f"({status or 'not run'})"
+        rows.append({
+            "leg": leg, "p": None, "has_p": False,
+            "decision": decision, "survives_bonferroni": None, "reject_bh": None, "note": note,
+        })
+
+    def _p_row(leg: str, d: dict[str, Any] | None, p_key: str, note: str) -> None:
+        d = d or {}
+        p = d.get(p_key)
+        rows.append({
+            "leg": leg,
+            "p": (float(p) if isinstance(p, (int, float)) else None),
+            "has_p": isinstance(p, (int, float)),
+            "decision": (str(d.get("status")) if d.get("status") not in (None, "ok") else None),
+            "survives_bonferroni": None, "reject_bh": None, "note": note,
+        })
+
+    # SQ1 responsiveness (CI-based).
+    _ci_row("SQ1 responsiveness", responsiveness, "responsive",
+            "Spearman fed→construct-count; decided by bootstrap CI-excludes-0 (no p)")
+    # SQ2 mediation (CI-based on the indirect effect).
+    _ci_row("SQ2 mediation (a·b)", mediation, "mediated",
+            "indirect effect a·b; decided by bootstrap CI-excludes-0 (no p)")
+    # SQ3 legible-format differential (CI-based).
+    _ci_row("SQ3 legible-format differential", legible_format_responsiveness, "legibility_helps",
+            "legible−raw responsiveness; decided by bootstrap CI (no p); often executed=False")
+    # Regime split (descriptive).
+    _ci_row("Regime split (T3′)", regime_stratified, "status",
+            "descriptive per-regime tail/return metrics (no inferential p)")
+    # The structural legs need the NAMED authoring pass. TODAY only ``named_vs_blinded_structural`` itself is
+    # wired into analyze(), and it returns a FLAT dict whose sole p is ``p_random_pairing_matches`` (the
+    # AST-permutation / McNemar / Mahalanobis p-values come from SEPARATE contamination.py functions that a
+    # NAMED-pass aggregator would nest under ``structural_ast`` / ``mcnemar`` / ``mahalanobis`` — absent that
+    # pass, those rows degrade to has_p=False, never a phantom key). The extraction is written to read the
+    # nested layout IF a future aggregator supplies it, and to degrade honestly when it does not.
+    nvb = named_vs_blinded_structural or {}
+    _p_row("AST label-permutation", nvb.get("structural_ast"), "p_value",
+           "within-vs-across structural clustering; label-permutation p (needs the NAMED pass; else n/a)")
+    _p_row("Structural McNemar", nvb.get("mcnemar"), "pvalue",
+           "per-motif discordant-pair McNemar p (needs the NAMED pass; else n/a)")
+    _p_row("Coefficient Mahalanobis-perm", nvb.get("mahalanobis"), "pvalue",
+           "centroid Mahalanobis-distance permutation p (needs the NAMED pass; else n/a)")
+    _p_row("Named-vs-blinded random-pairing", nvb if nvb.get("status") == "ok" else None,
+           "p_random_pairing_matches", "random named→blinded bijection null p (the wired structural leg)")
+
+    # Apply Bonferroni + BH over the p-BEARING legs only.
+    p_rows = [r for r in rows if r["has_p"] and r["p"] is not None]
+    n_p = len(p_rows)
+    bonf = float(alpha) / n_p if n_p else float(alpha)
+    if n_p:
+        pvals = np.array([r["p"] for r in p_rows], dtype=float)
+        bh = benjamini_hochberg(pvals, q=float(q))
+        for r, pv, rej in zip(p_rows, pvals, bh):
+            r["survives_bonferroni"] = bool(pv <= bonf)
+            r["reject_bh"] = bool(rej)
+
+    return {
+        "alpha": float(alpha),
+        "q": float(q),
+        "n_p_tests": int(n_p),
+        "bonferroni_alpha": bonf,
+        "rows": rows,
+        "stance": (
+            "Mechanism legs are REPORT-ONLY and DISJOINT from the frozen m=6 family; this Bonferroni/BH-across-"
+            "mechanism-legs pass is a forking-paths SENSITIVITY only (mirrors the cross-hypothesis Bonferroni-"
+            "across-4), never a gate. CI-based legs (responsiveness, mediation, legible-format) and the "
+            "descriptive regime split carry no p and are listed for completeness."
+        ),
+    }
+
+
 def evt_consistency_guard(records: list[dict[str, Any]], *, levels: tuple[float, ...] = (0.05, 0.01)) -> dict[str, Any]:
     """Assert/log the fed CVaR-5%/1% used a CONSISTENT EVT estimator across arms (DEEP_H2 §6.3).
 
@@ -2971,9 +3468,10 @@ def _pooled_cvar(panel_test: "pd.DataFrame", level: float) -> float:
 
 
 #: The panel+audit suffix the band ALWAYS reads — the delisting CELLS live in ``univ4`` (the surcharged
-#: build), regardless of the headline default. Post-R44 the headline panel is ``univ3``; if the band
-#: deferred to ``gold_suffix()`` it would look for ``shumway_audit_log_univ3.parquet`` (which does NOT
-#: exist on disk — only the ``_univ4`` audit + the finite ``returns_panel_univ4`` cells the surcharge
+#: build), regardless of the headline default. The headline panel is a ZERO-FILL build (post-R44
+#: ``univ3``; ``univ5`` post-Split-C) that carries NO Shumway audit log; if the band deferred to
+#: ``gold_suffix()`` it would look for ``shumway_audit_log_univ5.parquet`` (which does NOT exist on
+#: disk — only the ``_univ4`` audit + the finite ``returns_panel_univ4`` cells the surcharge
 #: writes), so the LOAD-BEARING band would silently ``skip`` under a default analyze run. Pinning to
 #: ``univ4`` lets the band LOCATE the 333 cells and BRACKET back to univ3 at ``d=0`` (the zero-fill end),
 #: which is exactly the data-integrity claim it instruments (R44/R33; verified 2026-06-26). Override for
@@ -2999,25 +3497,28 @@ def delisting_band(
     are untouched; this maps how sensitive the realized left tail is to the (unobservable) delisting
     recovery assumption.
 
-    The band BRACKETS the tail — NEITHER endpoint is "the truth" (data-integrity audit 2026-06-25)
-    -----------------------------------------------------------------------------------------------
-    ``d = 0.0`` is the ``univ3``/``liquidate_to_cash`` zero-fill end — TOO LIGHT: a dead name's crash is
-    zero-filled, so genuine performance-delisting losses never reach the tail. ``univ4`` (−30/−55) is the
-    other end — but it is NOT a clean "most-adverse recovery" floor: Refinitiv's frozen ``rf_meta_*`` pull
-    carries NO delisting REASON and NO terminal return (only ``TR.InstrumentDelistedDate`` — empty for all
-    333 — ``TR.ExchangeName``, ``TR.TRBCEconomicSector``), so the surcharge is applied UNCONDITIONALLY to
+    The band BRACKETS the tail — and ADR-051 located the truth AT the 0% end (2026-07-02)
+    --------------------------------------------------------------------------------------
+    ``d = 0.0`` is the ``univ3``/``liquidate_to_cash`` zero-fill end — and the EXECUTED observed-terminal
+    recovery (ADR-051, superseding the planned ``univ4r`` re-pull) showed the corrected panel EQUALS it:
+    all 333 dead names' realised terminal returns are already booked by the vendor series
+    (``vendor_terminal_kept: 333``, ZERO surcharges), so the corrected Shumway panel (``univ5s``) is
+    byte-identical to the zero-fill headline and the truth sits AT the band's 0% pole, not inside it.
+    ``univ4`` (−30/−55) is the heavy end and is DOUBLY wrong: Refinitiv's frozen ``rf_meta_*`` pull
+    carries NO delisting REASON (only ``TR.InstrumentDelistedDate`` — empty for all
+    333 — ``TR.ExchangeName``, ``TR.TRBCEconomicSector``), so the surcharge was applied UNCONDITIONALLY to
     100% of delistings, INCLUDING premium M&A/mergers whose true terminal return was POSITIVE or neutral
     (verified test-window examples booked at a fabricated loss: ABMD→J&J, ALTR→Intel, CELG→BMS, RHT→IBM,
-    TWX→AT&T, ATVI→Microsoft, XLNX→AMD, ALXN→AstraZeneca, ...). So ``univ4`` is simultaneously TOO HEAVY
-    for the M&A majority (mis-signed) and a defensible surcharge only for the genuine-failure minority
-    (SHLD, FTR, JCP, SIVB, SBNY, ...). The TRUTH therefore lies strictly INSIDE the band, not at either
-    pole; the band is reported precisely so no single mis-specified panel is presented as the tail.
-    Empirically the whole ``d∈{0,−1}`` sweep moves the pooled test CVaR-5% by only ~2% (the 105
-    test-window delisting cells are a tiny fraction of the pooled return population), so the headline tail
+    TWX→AT&T, ATVI→Microsoft, XLNX→AMD, ALXN→AstraZeneca, ...) — and it DOUBLE-COUNTS terminals the
+    vendor series already carries (ADR-051), so even for the genuine-failure minority (SHLD, FTR, JCP,
+    SIVB, SBNY, ...) the flat −30/−55% lands ON TOP of the realised crash. The band is retained as the
+    disclosed sensitivity BRACKET around that measured answer.
+    Empirically the whole ``d∈{0,−1}`` sweep moves the pooled test CVaR-5% by only ~2% (105 test-window
+    delisting cells — measured pre-Split-C on the 2018–2025 window; re-derived at analyze time on the
+    executed window), a tiny fraction of the pooled return population, so the headline tail
     ORDERING is shown INVARIANT across the band — the M&A contamination is bounded and immaterial to the
-    H2 conclusion, even though it would badly bias a per-name delisting study. The reason-gated surcharge
-    is NOT recoverable from the on-disk vault (the reason was never pulled); re-pulling it is documented as
-    a gated procedure (``docs/DATA_REPULL_DELISTING.md``), NOT fabricated here (R4).
+    H2 conclusion, even though it would badly bias a per-name delisting study. The superseded reason-gated
+    re-pull procedure remains documented (``docs/DATA_REPULL_DELISTING.md``), NOT fabricated here (R4).
 
     Cell location (verified, not the audit ``date``)
     ------------------------------------------------
@@ -3032,14 +3533,17 @@ def delisting_band(
     panel_df : pandas.DataFrame, optional
         The returns panel (sessions × RICs). Defaults to the band's PINNED panel
         (``returns_panel_{DELISTING_BAND_AUDIT_SUFFIX}`` = ``univ4``), independent of ``gold_suffix()`` —
-        post-R44 the headline default is ``univ3``, which carries no Shumway audit log. Injectable for the
-        unit test.
+        the headline default (post-R44 ``univ3``; ``univ5`` post-Split-C) carries no Shumway audit log.
+        Injectable for the unit test.
     audit_df : pandas.DataFrame, optional
         The Shumway audit log (columns ``ric``, ``delisting_return``, ``value``; 333 rows for univ4).
         Defaults to ``data/clean/shumway_audit_log_<DELISTING_BAND_AUDIT_SUFFIX>.parquet`` (= ``univ4``). Injectable.
     test_window_dates : (start, end), optional
         Inclusive session bounds. Defaults to the frozen evaluation span
-        (``config/inference.yaml: splits.evaluation.span`` = 2018-01-01 … 2025-12-31).
+        (``config/inference.yaml: splits.evaluation.span`` = 2020-01-01 … 2026-06-30, SPLIT C).
+        The window is CLAMPED to the band panel's available span (the univ4-era panel ends 2025-12,
+        so the Split-C 2026H1 overhang is outside the band audit) and any clamp is RECORDED in the
+        output (``window_requested`` / ``window_clamped_to`` / ``window_clamp_note``).
     grid, levels : tuple of float
         The delisting-return grid and the CVaR tail levels (default the co-primary 0.05 + the 0.01 EVT).
     gold_dir : Path or str, optional
@@ -3058,8 +3562,8 @@ def delisting_band(
     import pandas as pd
 
     # --- resolve the panel + audit log. The band is PINNED to the suffix that carries the delisting cells
-    # (``univ4`` — DELISTING_BAND_AUDIT_SUFFIX), NOT gold_suffix(): post-R44 the headline default is univ3,
-    # whose shumway_audit_log_univ3.parquet does NOT exist on disk (only the _univ4 audit + the finite
+    # (``univ4`` — DELISTING_BAND_AUDIT_SUFFIX), NOT gold_suffix(): the headline default (post-R44 univ3;
+    # univ5 post-Split-C) carries no shumway_audit_log on disk (only the _univ4 audit + the finite
     # returns_panel_univ4 cells the surcharge writes). The univ4 panel's last-valid cells are EXACTLY the
     # 333 the surcharge filled; overwriting them with each ``d`` gives d=0 ≈ the univ3 (liquidate_to_cash)
     # end (≈ to ~0.04%, NOT byte-identical: the band zeroes the final-session return that univ3 RETAINS)
@@ -3090,16 +3594,29 @@ def delisting_band(
         from src.utils.config import load_config
 
         span = load_config("inference").get("splits", {}).get("evaluation", {}).get(
-            "span", ["2018-01-01", "2025-12-31"]
+            "span", ["2020-01-01", "2026-06-30"]
         )
         test_window_dates = (span[0], span[1])
     t0, t1 = pd.Timestamp(test_window_dates[0]), pd.Timestamp(test_window_dates[1])
     idx = pd.to_datetime(panel_df.index)
+    # --- CLAMP the window to the band panel's available span: the band is PINNED to the univ4-era panel
+    # (5,283 sessions, ending 2025-12) while the Split-C default span runs to 2026-06-30 — the overhang is
+    # OUTSIDE the band audit, so it is clamped and RECORDED (never silently truncated); an EMPTY overlap
+    # fails loud below via the skip reason naming both spans. univ5 ≡ univ3 byte-identically on the
+    # band-panel overlap (ADR-044/051), so the clamp costs the audit nothing. --- #
+    panel_start, panel_end = pd.Timestamp(idx.min()), pd.Timestamp(idx.max())
+    requested_window = (t0, t1)
+    t0, t1 = max(t0, panel_start), min(t1, panel_end)
+    window_clamped = (t0, t1) != requested_window
     panel_test = panel_df.loc[(idx >= t0) & (idx <= t1)].copy()
     if panel_test.empty:
         return {
             "status": "skipped",
-            "reason": f"no panel sessions in the test window {t0.date()}..{t1.date()}",
+            "reason": (
+                f"no panel sessions in the test window {requested_window[0].date()}.."
+                f"{requested_window[1].date()} (the {suffix} band panel spans "
+                f"{panel_start.date()}..{panel_end.date()}; empty overlap)"
+            ),
             "headline_panel": suffix,
         }
 
@@ -3140,7 +3657,22 @@ def delisting_band(
         "headline_panel": suffix,
         "cells_source": suffix,  # the panel/audit the 333 delisting CELLS are read from (always univ4)
         "brackets_to": "≈univ3 at d=0 (liquidation; ≈ not byte-identical) … univ4 at d∈{−0.30,−0.55}",
-        "test_window": [str(t0.date()), str(t1.date())],
+        "test_window": [str(t0.date()), str(t1.date())],  # the EFFECTIVE (clamped) window
+        "window_requested": [str(requested_window[0].date()), str(requested_window[1].date())],
+        "window_clamped": bool(window_clamped),
+        **(
+            {
+                "window_clamped_to": [str(t0.date()), str(t1.date())],
+                "window_clamp_note": (
+                    f"the {suffix}-era band panel spans {panel_start.date()}..{panel_end.date()} "
+                    "(univ4 ends 2025-12), so the requested span's overhang (2026H1 under Split C) is "
+                    "outside the band audit — immaterial: univ5 ≡ univ3 byte-identically on the "
+                    "band-panel overlap (ADR-044/051)"
+                ),
+            }
+            if window_clamped
+            else {}
+        ),
         "n_delisting_cells_in_test": len(cells),
         "grid": [float(d) for d in grid],
         "levels": [float(lvl) for lvl in levels],
@@ -3149,23 +3681,26 @@ def delisting_band(
         "note": (
             "DATA-level sensitivity (no policy re-run): the 333 Shumway delisting cells that fall in the "
             "test window are overwritten with each d and the POOLED test-window CVaR recomputed. The band "
-            "BRACKETS the tail — NEITHER endpoint is the truth: d=0.0 ≈ the univ3 / liquidate_to_cash (≈, "
-            "NOT byte-identical — the band zeroes the final-session return univ3 retains) "
-            "end (TOO LIGHT — genuine delisting losses are zero-filled out of the tail); univ4 "
-            "(−30/−55) is the heavy end but is M&A-CONTAMINATED, not a clean recovery floor — Refinitiv's "
-            "vault carries no delisting reason/terminal, so the surcharge hits 100% of delistings including "
-            "premium M&A (ABMD→J&J, ALTR→Intel, CELG→BMS, RHT→IBM, ...) whose true terminal was positive. "
-            "The truth lies INSIDE the band; the whole sweep moves the pooled CVaR-5% ~2%, so the headline "
-            "tail ordering is INVARIANT across it. The reason-gated surcharge is not recoverable on-disk "
-            "(re-pull documented in docs/DATA_REPULL_DELISTING.md, not fabricated). Reported, DISJOINT from "
-            "the frozen m=6 union, never a gate."
+            "BRACKETS the tail, and ADR-051 (2026-07-02) located the truth AT the 0% end: the executed "
+            "observed-terminal recovery (univ5s) kept the vendor terminal for all 333 dead names with ZERO "
+            "surcharges booked, so the corrected panel is byte-identical to the zero-fill headline — d=0.0 "
+            "≈ the univ3 / liquidate_to_cash end (≈, NOT byte-identical — the band zeroes the "
+            "final-session return univ3 retains). univ4 (−30/−55) is the heavy end and is doubly wrong: "
+            "M&A-CONTAMINATED (Refinitiv's vault carries no delisting reason, so the surcharge hits 100% "
+            "of delistings including premium M&A — ABMD→J&J, ALTR→Intel, CELG→BMS, RHT→IBM, ... — whose "
+            "true terminal was positive) AND a terminal DOUBLE-COUNT on top of returns the vendor series "
+            "already books. The whole sweep moves the pooled CVaR-5% ~2% (measured pre-Split-C on the "
+            "2018–2025 window; re-derived here on the executed window), so the headline tail ordering is "
+            "INVARIANT across it. The superseded reason-gated re-pull is documented in "
+            "docs/DATA_REPULL_DELISTING.md. Reported, DISJOINT from the frozen m=6 union, never a gate."
         ),
         "ma_contamination": (
-            "univ4 surcharges 100% of the 333 delistings unconditionally (no vendor reason/terminal in the "
-            "frozen rf_meta_* pull); a large share of the test-window cells are premium M&A booked at a "
-            "fabricated −30/−55% loss. The band's heavy end therefore OVER-states the tail for the M&A "
-            "majority and is defensible only for the genuine-failure minority — it is an upper bracket, not "
-            "the tail."
+            "univ4 surcharges 100% of the 333 delistings unconditionally (no vendor reason in the frozen "
+            "rf_meta_* pull); a large share of the test-window cells are premium M&A booked at a "
+            "fabricated −30/−55% loss, and ADR-051's observed-terminal recovery showed the flat surcharge "
+            "also DOUBLE-COUNTS terminals the vendor series already books (333/333 vendor_terminal_kept, "
+            "zero surcharges). The band's heavy end therefore OVER-states the tail and is an upper "
+            "bracket only, not the tail — the corrected panel (univ5s ≡ univ5) sits at the 0% end."
         ),
     }
 
@@ -3201,7 +3736,7 @@ def benchmark_floor(
         The environment config (``config/environment.yaml``) — the same object the campaign
         builds the env from, so lookback / projection / cost match exactly.
     test_window : (int, int)
-        Half-open ``[start, end)`` test window (the campaign's resolved 2018-2025 leg).
+        Half-open ``[start, end)`` test window (the campaign's resolved 2020-2026 leg).
     strategies : dict[str, callable], optional
         ``{name: strategy_fn}`` override (default: the eight frozen benchmarks from
         ``src.baselines.strategies``).
@@ -3554,6 +4089,276 @@ def compute_accounting_markdown(c: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
+# --------------------------------------------------------------------------- #
+# Report-only mechanism kernel (ADR-039) — responsiveness / mediation / regime / named-vs-blinded
+# (DISJOINT from the frozen m=6 family; each degrades gracefully and NEVER gates the headline).
+# --------------------------------------------------------------------------- #
+def _inspect_rewards():  # type: ignore[no-untyped-def]
+    """Import the qualitative-inspection helpers (path-insert plumbing, mirroring inspect_rewards itself)."""
+    try:  # pragma: no cover - import plumbing
+        import inspect_rewards as _ir
+    except ImportError:  # pragma: no cover - standalone invocation
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import inspect_rewards as _ir
+    return _ir
+
+
+def _mechanism_pairs(
+    records: list[dict[str, Any]],
+) -> dict[str, np.ndarray]:
+    """Per-candidate paired (x, m, y) arrays over the TAIL-FED candidates, in (generation, candidate_id) order.
+
+    Reductions (chosen to mirror the mechanism story, see :mod:`src.inference.mediation` /
+    :mod:`src.inference.responsiveness`):
+
+    * ``x`` — the fed-signal summary: the candidate's measured **CVaR-5%** tail stat (``_tail_vector[0]``,
+      the ``cvar_05`` field) — the headline fed level.
+    * ``m`` — an authored-code feature: the count of **tail-shaped constructs** the program references
+      (``_construct_prevalence`` restricted to ``_TAIL_CONSTRUCTS`` — cvar/quantile/drawdown/…), the
+      theory->code instrument the contamination / reward-code-distance modules also use.
+    * ``y`` — the realised tail OUTCOME: empirical ``cvar(metrics['val_returns'], 0.05)`` per candidate
+      (the VAL-RETURNS proxy path — fully archived for every candidate and better powered than the
+      sparse test-winner path).
+
+    Gates with ``_was_fed_tail`` so only candidates whose designer actually SAW tail diagnostics enter
+    (scalar / placebo / search arms carry no tail in their prompt, so a spurious x↔m link can't form).
+    Returns ``{"x", "y": <val-returns cvar>, "m"}`` as equal-length float arrays (possibly empty).
+    """
+    from src.inference.bootstrap import cvar
+
+    ir = _inspect_rewards()
+    fed = [r for r in records if ir._was_fed_tail(r)]
+    fed = ir._by_generation(fed)
+    xs: list[float] = []
+    ms: list[float] = []
+    ys: list[float] = []
+    for r in fed:
+        vec = ir._tail_vector(r)
+        if vec is None or vec.size == 0 or not np.isfinite(vec[0]):
+            continue
+        prevalence = ir._construct_prevalence(ir._reward_source(r))
+        m_count = float(sum(1 for name in ir._TAIL_CONSTRUCTS if prevalence.get(name)))
+        vr = _val_returns(r)
+        y = float(cvar(vr, 0.05)) if vr is not None else float("nan")
+        if not np.isfinite(y):
+            continue
+        xs.append(float(vec[0]))  # cvar_05 (the headline fed tail level)
+        ms.append(m_count)
+        ys.append(y)
+    return {
+        "x": np.asarray(xs, dtype=float),
+        "m": np.asarray(ms, dtype=float),
+        "y": np.asarray(ys, dtype=float),
+    }
+
+
+def responsiveness_markdown(d: dict[str, Any]) -> str:
+    """Render the SQ1 responsiveness coefficient (fed tail -> authored tail-construct count); report-only."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return f"## Responsiveness (SQ1; ADR-039) — n/a\n\n{reason}\n"
+    verdict = "RESPONSIVE (CI excludes 0)" if d.get("responsive") else "NOT responsive (CI spans 0)"
+    out = [
+        f"## Responsiveness — does the fed tail move the authored CODE? (SQ1; ADR-039, report-only) — {verdict}",
+        "",
+        "Over the tail-FED candidates (gated by `_was_fed_tail`), the association between the fed CVaR-5% "
+        "summary (X) and the count of tail-shaped constructs the program writes (M = cvar/quantile/drawdown/"
+        "…), with a seeded bootstrap CI. Spearman rank (scale-robust). DISJOINT from the frozen m=6 family — "
+        "never gates the headline.",
+        "",
+        f"- n candidates: **{d.get('n', 0)}** ({d.get('method', '?')}; {d.get('n_boot_valid', 0)} valid boots)",
+        f"- coefficient: **{d.get('coef', float('nan')):+.4f}**  "
+        f"(95% CI [{d.get('ci_low', float('nan')):+.4f}, {d.get('ci_high', float('nan')):+.4f}])",
+        "",
+    ]
+    return "\n".join(out)
+
+
+def mediation_markdown(d: dict[str, Any]) -> str:
+    """Render the fed -> code -> outcome mediation decomposition (report-only; states the endogeneity caveat)."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return f"## Mediation (fed -> code -> outcome; ADR-039) — n/a\n\n{reason}\n"
+    verdict = "indirect effect a·b CI excludes 0" if d.get("mediated") else "indirect effect a·b CI spans 0"
+    out = [
+        f"## Mediation — fed tail -> authored CODE -> realised tail (ADR-039, report-only) — {verdict}",
+        "",
+        "Single-mediator linear mediation per candidate: X = fed CVaR-5% summary, M = authored tail-construct "
+        "count, Y = realised `cvar(val_returns, 0.05)`. Path **a** (X->M, responsiveness), path **b** (M->Y "
+        "given X, transmission), and the bootstrap-CI'd **indirect effect a·b** (Preacher–Hayes). A severed "
+        "FIRST link (a≈0 -> a·b≈0) would LOCATE the equivalence at responsiveness. DISJOINT from the frozen "
+        "m=6 family.",
+        "",
+        f"- n candidates: **{d.get('n', 0)}** (standardised={d.get('standardized')}; "
+        f"{d.get('n_boot_valid', 0)} valid boots)",
+        f"- path a (X->M): **{d.get('a', float('nan')):+.4f}** | path b (M->Y|X): **{d.get('b', float('nan')):+.4f}**",
+        f"- total c: **{d.get('c_total', float('nan')):+.4f}** | direct c': **{d.get('c_direct', float('nan')):+.4f}** "
+        f"| indirect a·b: **{d.get('indirect', float('nan')):+.4f}** "
+        f"(95% CI [{d.get('ci_low', float('nan')):+.4f}, {d.get('ci_high', float('nan')):+.4f}])",
+        "",
+        "**Honesty (caveat).** Observational mediation is ASSOCIATIONAL: X, M, Y are all read off the SAME "
+        "trained candidate, so M is endogenous to the agent it steers (the fed tail is the trained policy's "
+        "own realised returns). This is a DESCRIPTIVE decomposition of the mechanism under sequential "
+        "ignorability — it never gates a hypothesis (see `src.inference.mediation` docstring).",
+        "",
+    ]
+    return "\n".join(out)
+
+
+def named_vs_blinded_structural_markdown(d: dict[str, Any]) -> str:
+    """One-line disclosure for the named-vs-blinded structural A/B (honest degrade when not run)."""
+    if d and d.get("status") == "ok":
+        verdict = "data-locked (structure driven by shared data)" if d.get("data_locked") else "identity-driven structure FLAGGED"
+        return (
+            "## Named-vs-blinded structural A/B (ADR-039; report-only) — ran\n\n"
+            f"paired structural sim **{d.get('paired_mean', float('nan')):+.4f}** vs noise floor "
+            f"**{d.get('within_blinded_mean', float('nan')):+.4f}** (p_random_pairing="
+            f"{d.get('p_random_pairing_matches', float('nan')):.4f}) — {verdict}.\n"
+        )
+    reason = (d or {}).get("reason", "not run")
+    return (
+        "## Named-vs-blinded structural A/B (ADR-039; report-only) — NOT RUN\n\n"
+        f"_executed={bool((d or {}).get('executed'))}_: {reason}\n"
+    )
+
+
+def legible_format_responsiveness_markdown(d: dict[str, Any]) -> str:
+    """One-line disclosure for the legible-format responsiveness differential (honest degrade when not run)."""
+    if d and d.get("status") == "ok":
+        verdict = "legibility RAISES responsiveness" if d.get("legibility_helps") else "no legibility gain"
+        return (
+            "## Legible-format responsiveness differential (numeracy bottleneck; ADR-039; report-only) — ran\n\n"
+            f"differential (legible − raw) **{d.get('differential', float('nan')):+.4f}** "
+            f"(95% CI [{d.get('ci_low', float('nan')):+.4f}, {d.get('ci_high', float('nan')):+.4f}]) — {verdict}.\n"
+        )
+    reason = (d or {}).get("reason", "not run")
+    return (
+        "## Legible-format responsiveness differential (numeracy bottleneck; ADR-039; report-only) — NOT RUN\n\n"
+        f"_executed={bool((d or {}).get('executed'))}_: {reason}\n"
+    )
+
+
+def information_gap_markdown(d: dict[str, Any]) -> str:
+    """Render the information-utilization gap (§2a micro-anchor (d); report-only; honest degrade)."""
+    if not d or d.get("status") not in {"ok"}:
+        reason = (d or {}).get("reason", "not computed")
+        return (
+            "## Information-utilization gap (§2a micro-anchor (d); report-only) — n/a\n\n"
+            f"_executed={bool((d or {}).get('executed'))}_: {reason}\n"
+        )
+    out = [
+        "## Information-utilization gap (§2a micro-anchor (d); report-only)",
+        "",
+        "Redundancy of the fed six-component tail vector given the concurrently fed scalar summary, on "
+        "the ACTUAL archived fed feedback sequences (one observation per distinct per-generation block). "
+        "`fed_rendered` = the values exactly as the LLM saw them (render-precision quantization is part "
+        "of the estimand); `fed_underlying` = the same fed observations at full archived precision "
+        "(parent-matched). The complement 1 − redundancy is the fed-but-unusable-by-a-scalar "
+        "information. DISJOINT from the frozen m=6 family — never gates the headline.",
+        "",
+        "| arm | channel | n | mean R² [95% CI] | mean rank ρ² [95% CI] | non-redundant (1−ρ²) |",
+        "|---|---|---|---|---|---|",
+    ]
+    for arm, entry in d.get("arms", {}).items():
+        for channel, ch in entry.get("channels", {}).items():
+            if ch.get("status") != "ok":
+                out.append(f"| {arm} | {channel} | — | {ch.get('reason', 'n/a')} | — | — |")
+                continue
+            p = ch["pooled"]
+            flag = " ⚠ scalar degenerate at render precision" if ch.get("scalar_degenerate") else ""
+            out.append(
+                f"| {arm} | {channel} | {ch['n']} | "
+                f"{p['mean_r2']:.3f} [{p['mean_r2_ci_low']:.3f}, {p['mean_r2_ci_high']:.3f}] | "
+                f"{p['mean_rank_rho2']:.3f} [{p['mean_rank_ci_low']:.3f}, {p['mean_rank_ci_high']:.3f}] | "
+                f"**{p['non_redundant_rank']:.3f}**{flag} |"
+            )
+    out.append("")
+    floor = d.get("floor", {})
+    if floor.get("executed"):
+        fp = floor["fed_rendered"]["pooled"]
+        out.append(
+            f"Calibration floor (`{floor.get('arm')}`, destroyed linkage by construction): "
+            f"mean R² **{fp['mean_r2']:.3f}**, mean rank ρ² **{fp['mean_rank_rho2']:.3f}** "
+            f"(n={floor['fed_rendered']['n']})."
+        )
+        fc = d.get("floor_comparison", {})
+        if fc.get("executed"):
+            out.append(
+                f"Linkage-attributable redundancy (arm − floor, R²): "
+                f"**{fc['linkage_attributable_r2']:+.3f}**."
+            )
+    else:
+        out.append(
+            f"Calibration floor — NOT AVAILABLE (_executed=False_): {floor.get('reason', 'n/a')}."
+        )
+    out.append("")
+    ug = d.get("utilization_gap", {})
+    if ug.get("executed"):
+        ci = ug.get("responsiveness_ci") or [float("nan"), float("nan")]
+        out += [
+            f"**Utilization gap** ({ug.get('arm')}, `{ug.get('channel')}` channel): GIVEN "
+            f"(non-redundant fed fraction) **{ug['non_redundant_fed']:.3f}** vs USED "
+            f"(|SQ1 responsiveness|) **{ug['responsiveness_abs_coef']:.3f}** "
+            f"(SQ1 95% CI [{ci[0]:+.3f}, {ci[1]:+.3f}]) → gap **{ug['gap']:+.3f}**. "
+            "Descriptive index (two different [0,1]-bounded estimands), never a parameter estimate.",
+        ]
+    else:
+        out.append(f"Utilization gap — NOT COMPUTED (_executed=False_): {ug.get('reason', 'n/a')}.")
+    out.append("")
+    return "\n".join(out)
+
+
+def validation_headroom_markdown(d: dict[str, Any]) -> str:
+    """Render the validation-headroom (oracle-selection) bound (§2a micro-anchor (e); report-only)."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return (
+            "## Validation-headroom (oracle-selection) bound (§2a micro-anchor (e); report-only) — n/a\n\n"
+            f"_executed={bool((d or {}).get('executed'))}_: {reason}\n"
+        )
+
+    def _leg(leg: dict[str, Any] | None) -> str:
+        if not leg or "gap" not in leg:
+            return "— | — | —"
+        return (
+            f"{leg['frontier']:+.4f} | {leg['achieved']:+.4f} | "
+            f"{leg['gap']:+.4f} [{leg['gap_ci_low']:+.4f}, {leg['gap_ci_high']:+.4f}]"
+        )
+
+    out = [
+        "## Validation-headroom (oracle-selection) bound (§2a micro-anchor (e); report-only)",
+        "",
+        f"Oracle frontier = best achievable validation CVaR-{d.get('cvar_level', 0.05):g} / DSR over ALL "
+        f"archived candidates vs what the frozen selection — {d.get('selection_rule')} — achieved; a "
+        "material gap establishes headroom EXISTED in the authored search space. Bootstrap CI resamples "
+        "candidates and re-applies the selection rule. VALIDATION data only — the sealed test leg is "
+        "never touched. DISJOINT from the frozen m=6 family — never gates the headline.",
+        "",
+        "CI is one-sided by construction (gap >= 0 in every resample — a frontier max cannot fall below "
+        "the selected candidate); a low bound near 0 means NO headroom, not significance.",
+        "",
+        "| arm | n | CVaR frontier | achieved | gap [95% CI] | DSR frontier | achieved | gap [95% CI] |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for arm, e in d.get("per_arm", {}).items():
+        if e.get("status") != "ok":
+            out.append(
+                f"| {arm} | {e.get('n_candidates', 0)} | skipped: {e.get('reason', 'n/a')} |  |  |  |  |  |"
+            )
+            continue
+        out.append(f"| {arm} | {e['n_candidates']} | {_leg(e.get('cvar'))} | {_leg(e.get('dsr'))} |")
+    pooled = d.get("pooled")
+    if pooled:
+        out.append(
+            f"| **pooled** | {pooled['n_candidates']} | {_leg(pooled.get('cvar'))} | "
+            f"{_leg(pooled.get('dsr'))} |"
+        )
+    out.append("")
+    return "\n".join(out)
+
+
 def analyze(
     root: str | Path,
     *,
@@ -3564,6 +4369,8 @@ def analyze(
     winner_n_trials: int | None = None,
     variance_run_roots: list[str] | None = None,
     single_shot_root: str | Path | None = None,
+    named_blinded_root: str | Path | None = None,
+    legible_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Load a campaign archive and compute the per-arm PBO table + headline winner DSR + H2.
 
@@ -3575,9 +4382,15 @@ def analyze(
     ADDITIVE report-only secondaries (DISJOINT ``out[...]`` keys; NEVER the frozen m=6 H2 family): ``h4``
     (DEEP_H4 LLM-vs-search difference tests), ``h3`` (DEEP_H3 iterative-vs-single-shot — needs
     ``single_shot_root``, gracefully skipped when absent), ``h2_tost`` (DEEP_H2 §5.3 equivalence bounds),
-    ``dsr_effective_n`` (DEEP_STATS A1), ``evt_consistency`` (DEEP_H2 §6.3), and
-    ``cross_hypothesis_multiplicity`` (DEEP_STATS A4 Bonferroni-across-4 sensitivity). All panel-independent
-    except where noted; each degrades to a ``status="skipped"`` block when its data is absent.
+    ``comparative_es_backtest`` (FZ0 + Diebold-Mariano; corroborates H2-Tail, CH4 §4.7),
+    ``bayesian_null_report`` (BF01 + posterior-in-ROPE complement to the TOST, R67),
+    ``model_confidence_set`` (Hansen et al. 2011 indistinguishable-arm set; needs the optional ``arch`` dep,
+    degrades to ``status="error"`` when absent), ``dsr_effective_n`` (DEEP_STATS A1), ``evt_consistency``
+    (DEEP_H2 §6.3), ``mechanism_multiplicity`` (Bonferroni/BH-across-mechanism-legs sensitivity),
+    ``reward_taxonomy`` (program KINDS induced from the pooled authored sources + per-arm composition;
+    ``src.inference.reward_taxonomy``), and ``cross_hypothesis_multiplicity`` (DEEP_STATS A4
+    Bonferroni-across-4 sensitivity). All panel-independent except where noted; each degrades to a
+    ``status="skipped"`` block when its data is absent.
     """
     from src.utils.config import load_config
 
@@ -3678,6 +4491,38 @@ def analyze(
     except Exception as exc:  # noqa: BLE001
         out["h2_tost_dsr"] = {"status": "error", "reason": str(exc)[:200]}
 
+    # Comparative ES backtest (FZ0 + Diebold-Mariano; DEEP_H2; CH4 §4.7) — CORROBORATES H2-Tail. Built +
+    # unit-tested (src.inference.es_backtest.comparative_es_backtest) but previously invoked by NO entry
+    # point, though CH4 §4.7 CLAIMS it corroborates the tail result. Panel-INDEPENDENT (distributional TEST
+    # realized series + pooled per-arm val (VaR,ES) forecasts). Report-only, DISJOINT; graceful skip absent data.
+    try:
+        out["comparative_es_backtest"] = comparative_es_backtest_report(
+            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05, rng=np.random.default_rng(0)
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only corroboration must never break the headline
+        out["comparative_es_backtest"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Bayesian evidence-for-the-null (R67; DEEP_H2 §5.4) — BF01 + posterior-in-ROPE on the PAIRED per-seed
+    # differences (ROPE = frozen SESOI), for BOTH co-primary metrics. The Bayes complement to the frozen TOST.
+    # Built + unit-tested (src.inference.bayes_null) but never wired. Report-only, DISJOINT; graceful skip.
+    try:
+        out["bayesian_null_report"] = bayesian_null_report_block(
+            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05, rng=np.random.default_rng(0)
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only Bayesian lens must never break the headline
+        out["bayesian_null_report"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Model Confidence Set (Hansen et al. 2011; DEEP_STATS) — the multiplicity-honest "which arms are
+    # INDISTINGUISHABLE" set over the arms, for both co-primary metrics. Built + unit-tested
+    # (src.inference.model_confidence_set) but never wired; needs the optional `arch` dependency, so it
+    # degrades to status="error" (this guard) when absent. Report-only, DISJOINT; never gates.
+    try:
+        out["model_confidence_set"] = model_confidence_set_report(
+            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05, rng=np.random.default_rng(0)
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only MCS (arch-optional) must never break the headline
+        out["model_confidence_set"] = {"status": "error", "reason": str(exc)[:200], "executed": False}
+
     # Structure-vs-content control (R32) — distributional vs placebo_shuffled (FORMAT + MARGINALS matched,
     # the coherent tail SHAPE deranged). Directly answers the Gupta-Hartford format-vs-content threat.
     # Reported, DISJOINT from the frozen m=6 union, NEVER a gate.
@@ -3691,7 +4536,7 @@ def analyze(
 
     # Delisting-return sensitivity band (R33; PREREGISTRATION §7) — DATA-level (loads the panel + the Shumway
     # audit log directly; pinned to DELISTING_BAND_AUDIT_SUFFIX=univ4, independent of gold_suffix() —
-    # post-R44 the headline is univ3), reprices
+    # the headline is a zero-fill build: post-R44 univ3, univ5 post-Split-C), reprices
     # ONLY the 333 test-window delisting cells across d∈{0,−0.30,−0.55,−1.00} and recomputes the POOLED
     # CVaR-5%/1%. No policy re-run; report-only; DISJOINT (no family-tuple keys). Gracefully skips when the
     # gold/clean parquets are absent (records-only / synthetic install).
@@ -3735,6 +4580,168 @@ def analyze(
         out["compute_accounting"] = compute_accounting(records, root)
     except Exception as exc:  # noqa: BLE001 - a report-only accounting read must never break the headline
         out["compute_accounting"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # MECHANISM kernel (ADR-039) — report-only, DISJOINT from the frozen m=6 family; NEVER gates the
+    # headline. Panel-INDEPENDENT (reads the archived per-candidate tail_stats + reward_source + val_returns
+    # of the TAIL-FED arms). Each wrapped so a failure degrades to status="error" and never breaks analyze().
+    #
+    # SQ1 responsiveness — does the fed CVaR-5% summary (X) move the count of tail-shaped constructs the
+    # program writes (M)? Per-candidate paired, (generation, candidate_id)-ordered, gated by _was_fed_tail.
+    try:
+        from src.inference.responsiveness import responsiveness
+
+        _pairs = _mechanism_pairs(records)
+        out["responsiveness"] = responsiveness(
+            _pairs["x"], _pairs["m"], rng=np.random.default_rng(0)
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline
+        out["responsiveness"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Mediation — fed tail (X) -> authored CODE (M) -> realised tail outcome Y = cvar(val_returns, 0.05).
+    # The VAL-RETURNS proxy path (fully archived, better powered than the sparse test-winner path). A severed
+    # FIRST link (a≈0 -> a·b≈0) LOCATES the equivalence at responsiveness. Endogeneity caveat in the markdown.
+    try:
+        from src.inference.mediation import mediation_analysis
+
+        _pairs = _mechanism_pairs(records)
+        out["mediation"] = mediation_analysis(
+            _pairs["x"], _pairs["m"], _pairs["y"], rng=np.random.default_rng(0)
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline
+        out["mediation"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Named-vs-blinded structural A/B + legible-format responsiveness differential (ADR-039; PREREGISTRATION
+    # §2a). These require a SEPARATE re-authoring pass (NAMED labelling / legible rendering) that produces
+    # PAIRED reward sources — code that DOES NOT EXIST in the confirmatory run. We DISCLOSE the omission
+    # honestly (mirroring contamination.cross_model_disagreement's executed=False pattern); we NEVER fabricate
+    # by pairing blinded-vs-blinded. If a caller supplies a re-authoring archive root, it would feed the real
+    # function; absent it (the default), the leg degrades.
+    out["named_vs_blinded_structural"] = {
+        "status": "no_data",
+        "executed": False,
+        "reason": (
+            "named-vs-blinded A/B not run (no NAMED authoring pass produces paired sources); registered in "
+            "PREREGISTRATION §2a as a planned sub-experiment"
+        ),
+    }
+    if named_blinded_root is not None and Path(named_blinded_root).is_dir():
+        try:
+            from src.inference.contamination import named_vs_blinded_structural
+
+            ir = _inspect_rewards()
+            ab = load_campaign_records(named_blinded_root)
+            named = [ir._reward_source(r) for r in ir._by_generation(ab) if r.get("label") == "named"]
+            blinded = [ir._reward_source(r) for r in ir._by_generation(ab) if r.get("label") == "blinded"]
+            if named and blinded and len(named) == len(blinded):
+                out["named_vs_blinded_structural"] = named_vs_blinded_structural(
+                    named, blinded, rng=np.random.default_rng(0)
+                )
+        except Exception as exc:  # noqa: BLE001 - never break the headline; degrade to the disclosure above
+            out["named_vs_blinded_structural"] = {
+                "status": "error", "executed": False, "reason": str(exc)[:200]
+            }
+
+    out["legible_format_responsiveness"] = {
+        "status": "no_data",
+        "executed": False,
+        "reason": (
+            "legible-format responsiveness differential not run (no legible re-rendering authoring pass "
+            "produces paired sources); registered in PREREGISTRATION §2a as a planned sub-experiment"
+        ),
+    }
+    if legible_root is not None and Path(legible_root).is_dir():
+        try:
+            from src.inference.responsiveness import legible_format_responsiveness_differential
+
+            ir = _inspect_rewards()
+            leg = load_campaign_records(legible_root)
+            lpairs = _mechanism_pairs([r for r in leg if r.get("condition") == "legible"])
+            rpairs = _mechanism_pairs([r for r in leg if r.get("condition") == "raw"])
+            if lpairs["x"].size and rpairs["x"].size:
+                out["legible_format_responsiveness"] = legible_format_responsiveness_differential(
+                    lpairs["x"], lpairs["m"], rpairs["x"], rpairs["m"], rng=np.random.default_rng(0)
+                )
+        except Exception as exc:  # noqa: BLE001 - never break the headline; degrade to the disclosure above
+            out["legible_format_responsiveness"] = {
+                "status": "error", "executed": False, "reason": str(exc)[:200]
+            }
+
+    # Reward-program TAXONOMY (the CH7 "left to future work" instrument, delivered) — induce program
+    # KINDS over the pooled authored reward sources (identifier-invariant AST shape-sets -> Jaccard graph
+    # -> connected components; src.inference.reward_taxonomy), then the per-arm KIND composition: do
+    # different feedback arms author different KINDS of programs, or the same kinds reshaped? Report-only,
+    # DISJOINT from the frozen m=6 family (no arm_a/arm_b/metric/level keys); NEVER gates H1-H4. Sources
+    # are deduped per (arm, candidate_id) in (generation, candidate_id) order, so a frozen winner whose
+    # source is re-archived by per-seed TEST records cannot inflate its kind. Unparseable/empty sources
+    # are excluded + counted inside the module (P7c); records with NO archived source (e.g. the per-seed
+    # test re-runs) are counted here as n_missing_source. Graceful no_data on a source-free archive.
+    try:
+        from src.inference.reward_taxonomy import (
+            pool_sources,
+            taxonomy_by_arm,
+            taxonomy_threshold_sensitivity,
+        )
+
+        ir = _inspect_rewards()
+        sources_by_arm: dict[str, dict[str, str]] = {}
+        n_missing_source = 0
+        for arm in ARMS:
+            per_arm: dict[str, str] = {}
+            for r in ir._by_generation([r for r in records if r.get("arm") == arm]):
+                cid = str(r.get("candidate_id") or r.get("run_id") or "")
+                src_text = ir._reward_source(r)
+                if not cid or not src_text.strip():
+                    n_missing_source += 1
+                    continue
+                per_arm.setdefault(cid, src_text)  # first occurrence wins (search leg precedes re-tests)
+            if per_arm:
+                sources_by_arm[arm] = per_arm
+        if not sources_by_arm:
+            out["reward_taxonomy"] = {
+                "status": "no_data",
+                "reason": "no record carries a non-empty reward_source (records-only archive)",
+                "n_missing_source": n_missing_source,
+            }
+        else:
+            tax = taxonomy_by_arm(sources_by_arm)
+            tax["sensitivity"] = taxonomy_threshold_sensitivity(pool_sources(sources_by_arm))
+            tax["n_missing_source"] = n_missing_source
+            out["reward_taxonomy"] = tax
+    except Exception as exc:  # noqa: BLE001 - a report-only taxonomy must never break the headline
+        out["reward_taxonomy"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Information-utilization gap (PREREGISTRATION §2a micro-anchor (d)) — the redundancy of the fed
+    # six-component tail vector given the concurrently fed scalar summary, on the ACTUAL archived fed
+    # feedback sequences (deduped per generation; placebo_shuffled = the destroyed-linkage calibration
+    # floor), plus the GIVEN-vs-USED gap against the SQ1 responsiveness estimate computed above (never
+    # recomputed inside the module). Report-only, DISJOINT (no family-tuple keys); NEVER gates H1-H4.
+    try:
+        from src.inference.information_gap import information_gap
+
+        out["information_gap"] = information_gap(
+            records,
+            responsiveness=out.get("responsiveness"),
+            rng=np.random.default_rng(0),
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline
+        out["information_gap"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Validation-headroom (oracle-selection) bound (PREREGISTRATION §2a micro-anchor (e)) — the oracle
+    # frontier (best achievable validation CVaR-5% + DSR over ALL archived candidates, reusing the
+    # canonical winner_dsr conventions) vs what each arm's frozen lambda=0 selection achieved, with a
+    # candidate-resampling bootstrap CI on the gap. VALIDATION data only (test-leg records are excluded
+    # by the module's fail-safe). Report-only, DISJOINT; NEVER gates H1-H4.
+    try:
+        from src.inference.headroom import validation_headroom
+
+        out["validation_headroom"] = validation_headroom(
+            [r for r in records if _is_search_candidate(r)],
+            arms=ARMS,
+            cvar_level=cvar_levels[0] if cvar_levels else 0.05,
+            rng=np.random.default_rng(0),
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline
+        out["validation_headroom"] = {"status": "error", "reason": str(exc)[:200]}
 
     # H1 — the Eureka-style "beat-the-human" metric (PREREGISTRATION §1 H1 / §9 hand-reward panel; Ma et al.
     # 2024). The "§18-19" cite was WRONG ("18-19" were line numbers given in error; the prereg has only 12
@@ -3824,6 +4831,45 @@ def analyze(
         except Exception as exc:  # noqa: BLE001 - a reporting secondary must never break the analysis
             out["attribution"] = {"status": "error", "error": str(exc)}
 
+        # Regime-stratified tail/return metrics (T3'; ADR-039) — per-arm seed-averaged TEST returns
+        # conditioned on VIX-threshold regime (calm/normal/stress). Report-only, DISJOINT; descriptive
+        # (the independent-EPISODE count, not the per-date count, bounds regime-conditional power). The test
+        # series is an UNINDEXED contiguous-from-test_start vector, so we slice the regime labels to the same
+        # [test_window[0]:test_window[1]] window and ASSERT length alignment; on mismatch we SKIP (never
+        # stratify a misaligned series). DISJOINT out["regime_stratified"].
+        try:
+            from src.inference.regime_analysis import regime_stratified_metrics
+            from src.regimes.definition import label_regimes
+
+            returns_by_arm: dict[str, np.ndarray] = {}
+            for arm in ARMS:
+                seed_avg = _arm_test_returns(records, arm)
+                if seed_avg is not None and seed_avg.size:
+                    returns_by_arm[arm] = seed_avg
+            if not returns_by_arm:
+                out["regime_stratified"] = {
+                    "status": "skipped", "reason": "no arm has usable TEST returns"
+                }
+            else:
+                t_common = min(int(v.size) for v in returns_by_arm.values())
+                returns_by_arm = {a: v[:t_common] for a, v in returns_by_arm.items()}
+                labels = label_regimes(panel, load_config("regimes"))[
+                    int(test_window[0]):int(test_window[1])
+                ]
+                # CRITICAL: the test series is a contiguous-from-test_start vector; its regime labels MUST be
+                # the same window. A mismatch (e.g. an embargo offset) would silently misalign the strata.
+                if int(np.asarray(labels).size) != int(t_common):
+                    out["regime_stratified"] = {
+                        "status": "skipped",
+                        "reason": "length/embargo misalignment",
+                        "n_labels": int(np.asarray(labels).size),
+                        "t_common": int(t_common),
+                    }
+                else:
+                    out["regime_stratified"] = regime_stratified_metrics(returns_by_arm, labels)
+        except Exception as exc:  # noqa: BLE001 - a report-only regime split must never break the analysis
+            out["regime_stratified"] = {"status": "error", "reason": str(exc)[:200]}
+
     # Variance decomposition (reviewer attack #10) -- the one-lucky-reward defence. ADDITIVE + report-only:
     # runs ONLY when >= 2 independent search re-run roots are supplied (else omitted), writing a DISJOINT
     # `variance` key (component family) so the frozen arm x metric family assert is untouched.
@@ -3851,6 +4897,22 @@ def analyze(
         )
     except Exception as exc:  # noqa: BLE001 - a report-only sensitivity must never break the headline
         out["cross_hypothesis_multiplicity"] = {"status": "error", "reason": str(exc)[:200]}
+
+    # Mechanism multiplicity (forking-paths) — a Bonferroni/BH-across-mechanism-legs SENSITIVITY over the
+    # report-only SQ1/SQ2/SQ3 diagnostics (responsiveness, mediation, AST permutation, McNemar, Mahalanobis,
+    # legible-format, regime), mirroring the cross-hypothesis Bonferroni-across-4. Report-only, DISJOINT;
+    # computed LAST so it sees the final mechanism blocks. Never changes any mechanism leg's own decision.
+    try:
+        out["mechanism_multiplicity"] = mechanism_multiplicity(
+            responsiveness=out.get("responsiveness"),
+            mediation=out.get("mediation"),
+            named_vs_blinded_structural=out.get("named_vs_blinded_structural"),
+            legible_format_responsiveness=out.get("legible_format_responsiveness"),
+            regime_stratified=out.get("regime_stratified"),
+            alpha=alpha_one_sided, q=q_level,
+        )
+    except Exception as exc:  # noqa: BLE001 - a report-only sensitivity must never break the headline
+        out["mechanism_multiplicity"] = {"status": "error", "reason": str(exc)[:200]}
     return out
 
 
@@ -4037,10 +5099,12 @@ def beat_human_baseline(
 
     Best-baseline IDENTITY selected on VALIDATION (DEEP_H1 T-REF data-snoop fix): the "best of the four"
     is an order statistic, so choosing it on the SAME sealed-test data the win is reported on data-snoops
-    the comparator's identity (White 2000). When the baseline records carry a validation signal
-    (``metrics['val_returns']`` — the per-period validation returns, or ``val_fitness``), the best baseline
-    is picked by its VALIDATION Sharpe and the LLM-vs-that-FIXED-baseline gap is then reported on the
-    sealed test leg (a pre-committed, Dunnett-valid comparator). If NO baseline archives a validation
+    the comparator's identity (White 2000). When the baseline records carry a validation signal, the best
+    baseline is picked by its VALIDATION score — in ONE unit chosen all-or-nothing for the whole baseline
+    set (``selection_metric``: the annualized ``val_returns`` Sharpe if ANY baseline archives it, else the
+    ``val_fitness`` DSR-like scalar; the two are incommensurate units and are never mixed per-record) —
+    and the LLM-vs-that-FIXED-baseline gap is then reported on the sealed test leg (a pre-committed,
+    Dunnett-valid comparator). If NO baseline archives a validation
     signal (the campaign's baseline TEST stage writes ``val_fitness=NaN`` and no ``val_returns`` — DEEP_H1
     §3.1), this FALLS BACK to test-median selection and FLAGS it (``best_selected_on`` records which, and
     ``val_snoop_caveat`` is set) so the data-snoop is disclosed, never hidden.
@@ -4085,13 +5149,38 @@ def beat_human_baseline(
 
     from src.inference.bootstrap import sharpe_ratio as _sr
 
-    def _baseline_val_sharpe(name: str) -> float | None:
-        """A baseline's VALIDATION Sharpe (median over its records), or None when no val signal is archived.
+    baseline_arms = {f"baseline_{n}" for n in names}
 
-        Reads each ``baseline_<name>`` record's ``metrics['val_returns']`` (per-period validation returns ->
-        Sharpe) when present, else ``metrics['val_fitness']`` (already a validation-DSR/Sharpe-like scalar)
-        when finite. The campaign's baseline TEST stage writes ``val_fitness=NaN`` and no ``val_returns``
-        (DEEP_H1 §3.1), so this returns None there -> the caller falls back to test-selection WITH a flag.
+    def _usable_val_returns(m: dict[str, Any]) -> np.ndarray | None:
+        """The record's usable per-period validation vector (finite, length > 1), or None."""
+        vr = m.get("val_returns")
+        if vr is None:
+            return None
+        arr = np.asarray(vr, dtype=float).ravel()
+        return arr if arr.size > 1 and np.all(np.isfinite(arr)) else None
+
+    # ALL-OR-NOTHING selection-metric choice (unit-pooling fix): an annualized val_returns Sharpe is O(1)
+    # while val_fitness is a DSR probability in [0, 1] — pooling the two into one median (or comparing
+    # baselines scored on different ones) mixes incommensurate units and can flip the best-baseline
+    # argmax. The metric is therefore chosen ONCE for the WHOLE baseline set: val_returns-derived Sharpe
+    # if ANY baseline record archives a usable val_returns; val_fitness ONLY when NONE does. The choice
+    # is disclosed as ``selection_metric`` in the output.
+    any_val_returns = any(
+        r.get("arm") in baseline_arms and _usable_val_returns(r.get("metrics") or {}) is not None
+        for r in records
+    )
+    selection_metric = "val_sharpe" if any_val_returns else "val_fitness"
+
+    def _baseline_val_sharpe(name: str) -> float | None:
+        """A baseline's VALIDATION selection score (median over its records), or None when not archived.
+
+        Scores are taken ONLY in the set-wide ``selection_metric`` unit (never a per-record mix): under
+        ``val_sharpe``, the median annualized Sharpe of this baseline's records carrying a usable
+        ``metrics['val_returns']`` (a baseline with none returns None and drops out of the validation
+        scan); under ``val_fitness`` (NO baseline archived val_returns), the median finite
+        ``metrics['val_fitness']``. The campaign's baseline TEST stage writes ``val_fitness=NaN`` and no
+        ``val_returns`` (DEEP_H1 §3.1), so this returns None there -> the caller falls back to
+        test-selection WITH a flag.
         """
         arm = f"baseline_{name}"
         vals: list[float] = []
@@ -4099,15 +5188,14 @@ def beat_human_baseline(
             if r.get("arm") != arm:
                 continue
             m = r.get("metrics") or {}
-            vr = m.get("val_returns")
-            if vr is not None:
-                arr = np.asarray(vr, dtype=float).ravel()
-                if arr.size > 1 and np.all(np.isfinite(arr)):
+            if selection_metric == "val_sharpe":
+                arr = _usable_val_returns(m)
+                if arr is not None:
                     vals.append(float(_sr(arr)))
-                    continue
-            vf = m.get("val_fitness")
-            if vf is not None and np.isfinite(float(vf)):
-                vals.append(float(vf))
+            else:
+                vf = m.get("val_fitness")
+                if vf is not None and np.isfinite(float(vf)):
+                    vals.append(float(vf))
         return float(np.median(vals)) if vals else None
 
     # Per-baseline per-seed test Sharpes; a baseline with no test records is recorded as absent. Also capture
@@ -4230,6 +5318,10 @@ def beat_human_baseline(
         # fallback = flagged). `val_snoop_caveat` True => identity chosen on the same test data the gap is
         # reported on (the data-snoop the write-up must disclose).
         "best_selected_on": best_selected_on,
+        # The UNIT of the validation selection score (chosen all-or-nothing across the whole baseline
+        # set): "val_sharpe" = annualized Sharpe from val_returns; "val_fitness" = the DSR-like scalar,
+        # used ONLY when no baseline archived val_returns — never a per-record mix of the two.
+        "selection_metric": selection_metric,
         "val_snoop_caveat": val_snoop_caveat,
         # T2.2: a STRUCTURED inference status downstream can key on ("val_selected" = defensible bar;
         # "test_snooped_descriptive_only" = the data-snoop fallback, H1 is descriptive-only) + the unmissable
@@ -4292,7 +5384,8 @@ def h1_beat_human_markdown(h1: dict[str, Any]) -> str:
         "(Method−Sparse)/|Human−Sparse| HNS, which needs a sparse ground-truth anchor finance lacks — "
         "the Eureka bars below are CONTEXT, not a target).",
         "",
-        f"- **Best-baseline identity selected on:** {selected_on}"
+        f"- **Best-baseline identity selected on:** {selected_on} "
+        f"(selection metric: `{h1.get('selection_metric', 'val_sharpe')}`)"
         + ("  *(⚠ data-snoop: identity chosen on the same test data the gap is reported on — DEEP_H1 T-REF)*"
            if snoop else "  *(validation — data-snoop-free comparator, DEEP_H1 T-REF)*"),
         f"- **Best hand reward (human bar):** `{h1.get('best_baseline')}` "
@@ -4502,17 +5595,29 @@ def h2_tost_markdown(tost: dict[str, Any]) -> str:
             f"{leg['ci_high']:+.4f} | {leg['equivalent']} | {leg['n_seeds']} |"
         )
     tail = tost.get("tail", {})
+    frac = tost.get("tail_margin_fraction", 0.25)
     out += [
         "",
         f"### H2-Tail (CVaR-{float(tail.get('level', 0.05)):g} IQM) equivalence legs",
         "",
-        "| contrast | estimate | 90% CI low | 90% CI high | equivalent | n_seeds |",
-        "|---|---|---|---|---|---|",
+        f"The raw ±{margin:g} band is LARGE vs a daily CVaR magnitude, so a RELATIVE band = {frac:.0%} of the "
+        "|baseline (comparator) CVaR| is reported ALONGSIDE it (P6-code) — a scale-appropriate "
+        "'within X% of the baseline tail loss' statement. BOTH verdicts shown; neither gates.",
+        "",
+        "| contrast | estimate | 90% CI low | 90% CI high | equiv (±raw) | baseline CVaR | "
+        f"±{frac:.0%}·|base| | equiv (frac) | n_seeds |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for leg in tail.get("legs", []):
+        bc = leg.get("baseline_cvar")
+        fm = leg.get("margin_fraction_abs")
         out.append(
             f"| {leg['contrast']} | {leg['estimate']:+.4f} | {leg['ci_low']:+.4f} | "
-            f"{leg['ci_high']:+.4f} | {leg['equivalent']} | {leg['n_seeds']} |"
+            f"{leg['ci_high']:+.4f} | {leg['equivalent']} | "
+            f"{bc:+.4f} | {fm:.4f} | {leg.get('equivalent_fraction')} | {leg['n_seeds']} |"
+            if bc is not None and fm is not None else
+            f"| {leg['contrast']} | {leg['estimate']:+.4f} | {leg['ci_low']:+.4f} | "
+            f"{leg['ci_high']:+.4f} | {leg['equivalent']} | n/a | n/a | n/a | {leg['n_seeds']} |"
         )
     out.append("")
     return "\n".join(out)
@@ -4546,6 +5651,118 @@ def h2_tost_dsr_markdown(t: dict[str, Any]) -> str:
             f"{leg['ci_high']:+.4f} | {leg['equivalent']} | {leg['inconclusive']} | {leg['n_seeds']} | "
             f"{leg['estimate_sharpe']:+.4f} |"
         )
+    out.append("")
+    return "\n".join(out)
+
+
+def comparative_es_backtest_markdown(d: dict[str, Any]) -> str:
+    """Render the FZ0/(VaR,ES) comparative ES backtest corroborating H2-Tail (DEEP_H2; CH4 §4.7)."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return f"## Comparative ES backtest (FZ0 + DM; corroborates H2-Tail) — n/a\n\n{reason}\n"
+    rs_seed = (d.get("realized_series") or {}).get("seed")
+    out = [
+        f"## Comparative ES backtest — FZ0 + Diebold-Mariano (level {d.get('level', 0.05):g}; corroborates H2-Tail)",
+        "",
+        "Nolde-Ziegel (2017) comparative backtest on the jointly-elicitable (VaR, ES) pair (Fissler-Ziegel "
+        "2016) over the distributional arm's realized TEST series: model 1 = the distributional arm's own "
+        "(VaR, ES) tail forecast, model 2 = the comparator's. `mean_score_diff < 0` (better=model1) = the "
+        "distributional tail forecast scores strictly better — the direction that CORROBORATES H2-Tail. "
+        "`pvalue_dm_hln` is the conservative small-sample DM p (report-only; DISJOINT, never a gate).",
+        "",
+        f"Realized series = the MEDIAN-tail seed path (seed {'?' if rs_seed is None else rs_seed}; the seed "
+        f"whose empirical CVaR-{d.get('level', 0.05):g} is the median across seeds) — a genuine single "
+        "realization, NOT the seed-average (averaging shrinks the tail); forecasts are VALIDATION-estimated "
+        "ex-ante (by design).",
+        "",
+        "| contrast | mean score diff | boot p | DM-HLN p | better | corroborates H2-Tail |",
+        "|---|---|---|---|---|---|",
+    ]
+    for leg in d.get("legs", []):
+        out.append(
+            f"| {leg['contrast']} | {leg['mean_score_diff']:+.4f} | {leg['pvalue']:.4f} | "
+            f"{leg['pvalue_dm_hln']:.4f} | {leg['better']} | {leg['corroborates_h2_tail']} |"
+        )
+    if d.get("skipped"):
+        out += ["", f"Skipped: {', '.join(s['contrast'] for s in d['skipped'])} (missing/degenerate forecast)."]
+    out.append("")
+    return "\n".join(out)
+
+
+def bayesian_null_markdown(d: dict[str, Any]) -> str:
+    """Render the Bayesian evidence-for-the-null complement to the TOST (R67; DEEP_H2 §5.4)."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return f"## Bayesian evidence-for-the-null (BF01 + ROPE) — n/a\n\n{reason}\n"
+    sesoi = d.get("sesoi", 0.05)
+    frac = float(d.get("tail_margin_fraction", 0.25))
+    out = [
+        f"## Bayesian evidence-for-the-null — BF01 + posterior-in-ROPE (SESOI ±{sesoi:g})",
+        "",
+        "The Bayesian complement to the frozen TOST (R67): a JZS Bayes factor (BF01 = evidence FOR practical "
+        "equivalence) + the 90% HDI-in-ROPE check on the PAIRED per-seed difference scores (ROPE = ±SESOI). "
+        "`robust_for_null` requires BF01 ≥ 3 across the whole prior grid. Report-only, DISJOINT — never gates.",
+        "",
+        "### H2-RA (Sharpe)",
+        "",
+        "| contrast | verdict | BF01 | effect | HDI⊂ROPE | robust_for_null | n |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for leg in d.get("ra", []):
+        out.append(
+            f"| {leg['contrast']} | {leg['verdict']} | {leg['bf01']:.2f} | {leg['effect']:+.4f} | "
+            f"{leg['hdi_in_rope']} | {leg['robust_for_null']} | {leg['n']} |"
+        )
+    out += [
+        "",
+        f"### H2-Tail (CVaR-{d.get('level', 0.05):g})",
+        "",
+        f"The raw ±{sesoi:g} ROPE is in RAW CVaR units — LARGE vs a daily CVaR magnitude O(0.01–0.06), so it "
+        f"can near-trivially contain the posterior (the h2_tost P6 concern). A RELATIVE ROPE = "
+        f"{frac:.0%}·|baseline (comparator) CVaR| is therefore reported ALONGSIDE — only the ROPE-dependent "
+        "fields move (the BF01 is ROPE-free). BOTH shown; neither gates.",
+        "",
+        "| contrast | verdict (raw ROPE) | BF01 | effect | HDI⊂ROPE (raw) | robust_for_null | baseline CVaR "
+        "| rel ROPE mass | HDI⊂rel-ROPE | verdict (rel ROPE) | n |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for leg in d.get("tail", {}).get("legs", []):
+        rel = leg.get("relative") or {}
+        bc = leg.get("baseline_cvar")
+        bc_s = "n/a" if bc is None else f"{bc:+.4f}"
+        if "verdict" in rel:
+            rel_cells = f"{bc_s} | {rel['rope_mass']:.3f} | {rel['hdi_in_rope']} | {rel['verdict']}"
+        else:
+            rel_cells = f"{bc_s} | n/a | n/a | {rel.get('status', 'n/a')}"
+        out.append(
+            f"| {leg['contrast']} | {leg['verdict']} | {leg['bf01']:.2f} | {leg['effect']:+.4f} | "
+            f"{leg['hdi_in_rope']} | {leg['robust_for_null']} | {rel_cells} | {leg['n']} |"
+        )
+    out.append("")
+    return "\n".join(out)
+
+
+def model_confidence_set_markdown(d: dict[str, Any]) -> str:
+    """Render the Model Confidence Set over the arms (Hansen et al. 2011; report-only)."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return f"## Model Confidence Set (Hansen et al. 2011) — n/a\n\n{reason}\n"
+    out = [
+        "## Model Confidence Set — which arms are statistically INDISTINGUISHABLE (Hansen et al. 2011)",
+        "",
+        f"The multiplicity-honest complement to the pairwise IUTs (MCS level {d.get('size', 0.1):g}): the set of "
+        "arms not eliminated at the level. Under the predicted null the set contains (almost) all arms. "
+        "Report-only, DISJOINT — never gates the frozen m=6.",
+        "",
+    ]
+    for title, mcs in (("Sharpe", d.get("sharpe", {})), (f"CVaR-{d.get('tail', {}).get('level', 0.05):g}", d.get("tail", {}))):
+        if mcs.get("status") == "ok":
+            out += [
+                f"- **{title}:** included = {{{', '.join(mcs.get('included', []))}}}; "
+                f"best = `{mcs.get('best_arm')}` (in set: {mcs.get('best_in_set')}); n_seeds = {mcs.get('n_seeds')}",
+            ]
+        else:
+            out += [f"- **{title}:** {mcs.get('status', 'n/a')} ({mcs.get('reason', '')})"]
     out.append("")
     return "\n".join(out)
 
@@ -4586,18 +5803,25 @@ def delisting_band_markdown(b: dict[str, Any]) -> str:
         f"Panel `{b.get('headline_panel', '?')}`; test window {tw[0]}..{tw[1]}; "
         f"{b.get('n_delisting_cells_in_test', 0)} delisting cells fall in the test window. The POOLED "
         "test-window CVaR is recomputed with those cells set to each delisting return `d` (DATA-level; no "
-        "policy re-run). The band **BRACKETS** the tail — NEITHER endpoint is the truth: `d=0.0` is the "
-        "univ3 / liquidate_to_cash zero-fill end (**too light** — genuine delisting losses are zero-filled "
-        "out of the tail); `univ4` (−30/−55) is the **heavy end but M&A-contaminated**, not a clean recovery "
-        "floor (Refinitiv's vault carries no delisting reason/terminal → the surcharge hits 100% of "
+        "policy re-run). The band **BRACKETS** the tail, and ADR-051 located the truth AT the 0% end: the "
+        "executed observed-terminal recovery (univ5s) kept the vendor terminal for all 333 dead names with "
+        "ZERO surcharges, so the corrected panel is byte-identical to the zero-fill headline (`d=0.0` ≈ the "
+        "univ3 / liquidate_to_cash end); `univ4` (−30/−55) is the **heavy end and doubly wrong** — "
+        "M&A-contaminated (Refinitiv's vault carries no delisting reason → the surcharge hits 100% of "
         "delistings, INCLUDING premium M&A — ABMD→J&J, ALTR→Intel, CELG→BMS, RHT→IBM — booked at a "
-        "fabricated −30/−55% loss). The truth lies INSIDE the band; the whole sweep typically moves the "
-        "pooled CVaR-5% by only ~2%, so the headline tail **ordering is invariant** across it. DISJOINT "
+        "fabricated −30/−55% loss) AND a terminal double-count on top of returns the vendor series already "
+        "books. The whole sweep typically moves the "
+        "pooled CVaR-5% by only ~2% (measured pre-Split-C; re-derived on the executed window), so the "
+        "headline tail **ordering is invariant** across it. DISJOINT "
         "from the frozen m=6 union; never a gate.",
         "",
         "| delisting return d | pooled CVaR-5% | pooled CVaR-1% | note |",
         "|---|---|---|---|",
     ]
+    if b.get("window_clamped"):
+        wr = b.get("window_requested", ["?", "?"])
+        out.insert(3, f"⚠ window clamped from the requested {wr[0]}..{wr[1]}: {b.get('window_clamp_note', '')}")
+        out.insert(4, "")
     for row in b.get("rows", []):
         d = float(row.get("d", 0.0))
         c5 = row.get("cvar_05")
@@ -4606,7 +5830,7 @@ def delisting_band_markdown(b: dict[str, Any]) -> str:
         c1_s = "n/a" if c1 is None else f"{float(c1):.4f}"
         note = "univ4 (−30/−55; heavy END, M&A-contaminated upper bracket — NOT the tail)" \
             if row.get("is_headline_extreme") else (
-            "univ3 / liquidate_to_cash (0% zero-fill END — too light)" if d == 0.0
+            "univ3 / liquidate_to_cash (0% zero-fill END — ≡ the ADR-051 corrected panel univ5s)" if d == 0.0
             else ("total-loss floor (d=−100%)" if d == -1.0 else "")
         )
         out.append(f"| {d:+.2f} | {c5_s} | {c1_s} | {note} |")
@@ -4638,6 +5862,114 @@ def cross_hypothesis_multiplicity_markdown(m: dict[str, Any]) -> str:
             f"| {r['hypothesis']} | {hp_s} | {r.get('decision_primary', '?')} | {sb_s} | {r.get('note', '')} |"
         )
     out.append("")
+    return "\n".join(out)
+
+
+def mechanism_multiplicity_markdown(m: dict[str, Any]) -> str:
+    """Render the Bonferroni/BH-across-mechanism-legs forking-paths sensitivity (report-only)."""
+    if not m or not m.get("rows"):
+        return ""
+    n_p = m.get("n_p_tests", 0)
+    out = [
+        "## Mechanism multiplicity — Bonferroni/BH-across-mechanism-legs SENSITIVITY (forking-paths; report-only)",
+        "",
+        m.get("stance", ""),
+        "",
+        (
+            f"Over the {n_p} p-bearing mechanism leg(s): Bonferroni level α/{n_p} = "
+            f"{m.get('bonferroni_alpha', m.get('alpha', 0.05)):.4f} (per-leg α = {m.get('alpha', 0.05):.2f}); "
+            f"BH at q = {m.get('q', 0.05):.2f}."
+            if n_p else
+            "No mechanism leg emitted an inferential p in this run (the CI-based legs are decided by "
+            "bootstrap CIs; the p-bearing structural legs need the NAMED authoring pass, executed=False here)."
+        ),
+        "",
+        "| mechanism leg | p | has_p | decision | survives Bonferroni | reject BH | note |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for r in m.get("rows", []):
+        p = r.get("p")
+        p_s = "—" if p is None else f"{float(p):.4f}"
+        sb = r.get("survives_bonferroni")
+        rb = r.get("reject_bh")
+        out.append(
+            f"| {r['leg']} | {p_s} | {r.get('has_p')} | {r.get('decision') or '—'} | "
+            f"{'n/a' if sb is None else sb} | {'n/a' if rb is None else rb} | {r.get('note', '')} |"
+        )
+    out.append("")
+    return "\n".join(out)
+
+
+def reward_taxonomy_markdown(d: dict[str, Any]) -> str:
+    """Render the induced reward-program taxonomy + per-arm kind composition (report-only, DISJOINT)."""
+    if not d or d.get("status") != "ok":
+        reason = (d or {}).get("reason", "not computed")
+        return f"## Reward-program taxonomy (induced kinds; report-only) — n/a\n\n{reason}\n"
+    pooled = d.get("pooled", {})
+    kind_arms = d.get("kind_arms", {})
+    out = [
+        f"## Reward-program taxonomy — {pooled.get('n_kinds', 0)} kind(s) over "
+        f"{pooled.get('n_programs', 0)} authored program(s) (report-only, DISJOINT)",
+        "",
+        "The CH7 'left to future work' instrument, delivered: kinds are connected components of the "
+        "identifier-invariant AST shape-set Jaccard graph at similarity ≥ "
+        f"{pooled.get('sim_threshold', 0.6):g} (depth-{pooled.get('depth', 4)} canonical subtree shapes, "
+        "the reward-code-distance signature; unparseable/empty sources EXCLUDED and counted, never "
+        "clustered). Labels = the majority construct combination within the kind; 'unlabelled' is the "
+        "honest fallback. DISJOINT from the frozen m=6 family — never gates H1-H4.",
+        "",
+        "| kind | size | label | medoid exemplar | mean within-sim | arms |",
+        "|---|---|---|---|---|---|",
+    ]
+    for k in pooled.get("kinds", []):
+        mw = k.get("mean_within_similarity")
+        out.append(
+            f"| {k['kind_id']} | {k['size']} | {k['label']} | `{k['medoid']}` | "
+            f"{'—' if mw is None else f'{mw:.3f}'} | {', '.join(kind_arms.get(k['kind_id'], [])) or '—'} |"
+        )
+    out += [
+        "",
+        f"Unparseable/empty sources excluded: **{pooled.get('n_unparseable', 0)}** "
+        f"(records with no archived source: {d.get('n_missing_source', 0)}); "
+        f"singleton kinds: {pooled.get('n_singletons', 0)}.",
+        "",
+        "### Per-arm kind composition (do arms author different KINDS, or the same kinds reshaped?)",
+        "",
+        "| arm | programs | unparseable | kinds present | entropy (bits) | composition |",
+        "|---|---|---|---|---|---|",
+    ]
+    for arm, e in (d.get("per_arm") or {}).items():
+        comp = ", ".join(
+            f"{kid}×{cnt}" for kid, cnt in
+            sorted(e.get("kind_counts", {}).items(), key=lambda kv: (-kv[1], kv[0]))
+        ) or "—"
+        ent = e.get("entropy_bits")
+        out.append(
+            f"| {arm} | {e.get('n_programs', 0)} | {e.get('n_unparseable', 0)} | "
+            f"{e.get('n_kinds_present', 0)} | {'—' if ent is None else f'{ent:.3f}'} | {comp} |"
+        )
+    overlap = d.get("kind_overlap") or {}
+    if overlap:
+        out += ["", "Kind-set overlap between arm pairs (Jaccard over each arm's set of kinds):", ""]
+        out += ["| arm pair | overlap |", "|---|---|"]
+        out += [f"| {pair} | {val:.3f} |" for pair, val in overlap.items()]
+    sens = d.get("sensitivity") or {}
+    if sens.get("status") == "ok":
+        n_kinds_s = ", ".join(
+            f"τ={row['threshold']:g}: {row['n_kinds']}" for row in sens.get("by_threshold", [])
+        )
+        stab_parts = []
+        for row in sens.get("adjacent_stability", []):
+            ri = row.get("rand_index")
+            stab_parts.append(f"{row['pair']}: {'—' if ri is None else f'{ri:.3f}'}")
+        out += [
+            "",
+            f"Threshold sensitivity — n_kinds by threshold: {n_kinds_s}; adjacent-threshold stability "
+            f"(pair-counting Rand index): {', '.join(stab_parts) or '—'}.",
+            "",
+        ]
+    else:
+        out.append("")
     return "\n".join(out)
 
 
@@ -4685,6 +6017,12 @@ def write_report(result: dict[str, Any], root: str | Path) -> Path:
         md = md + "\n" + h2_tost_markdown(result["h2_tost"])
     if result.get("h2_tost_dsr"):
         md = md + "\n" + h2_tost_dsr_markdown(result["h2_tost_dsr"])
+    if result.get("comparative_es_backtest"):
+        md = md + "\n" + comparative_es_backtest_markdown(result["comparative_es_backtest"])
+    if result.get("bayesian_null_report"):
+        md = md + "\n" + bayesian_null_markdown(result["bayesian_null_report"])
+    if result.get("model_confidence_set"):
+        md = md + "\n" + model_confidence_set_markdown(result["model_confidence_set"])
     if result.get("h2_structure"):
         md = md + "\n" + h2_structure_markdown(result["h2_structure"])
     if result.get("h2_rf_robustness"):
@@ -4703,8 +6041,29 @@ def write_report(result: dict[str, Any], root: str | Path) -> Path:
         md = md + "\n" + divergence_markdown(result["divergence"])
     if result.get("compute_accounting"):
         md = md + "\n" + compute_accounting_markdown(result["compute_accounting"])
+    if result.get("responsiveness"):
+        md = md + "\n" + responsiveness_markdown(result["responsiveness"])
+    if result.get("mediation"):
+        md = md + "\n" + mediation_markdown(result["mediation"])
+    if result.get("regime_stratified"):
+        from src.inference.regime_analysis import render_regime_table
+
+        md = md + "\n## Regime-stratified tail/return metrics (T3'; ADR-039; report-only, DISJOINT)\n\n" \
+            + render_regime_table(result["regime_stratified"]) + "\n"
+    if result.get("named_vs_blinded_structural"):
+        md = md + "\n" + named_vs_blinded_structural_markdown(result["named_vs_blinded_structural"])
+    if result.get("legible_format_responsiveness"):
+        md = md + "\n" + legible_format_responsiveness_markdown(result["legible_format_responsiveness"])
+    if result.get("reward_taxonomy"):
+        md = md + "\n" + reward_taxonomy_markdown(result["reward_taxonomy"])
+    if result.get("information_gap"):
+        md = md + "\n" + information_gap_markdown(result["information_gap"])
+    if result.get("validation_headroom"):
+        md = md + "\n" + validation_headroom_markdown(result["validation_headroom"])
     if result.get("cross_hypothesis_multiplicity"):
         md = md + "\n" + cross_hypothesis_multiplicity_markdown(result["cross_hypothesis_multiplicity"])
+    if result.get("mechanism_multiplicity"):
+        md = md + "\n" + mechanism_multiplicity_markdown(result["mechanism_multiplicity"])
     if result.get("benchmark_floor"):
         md = md + "\n" + benchmark_floor_markdown(result["benchmark_floor"])
     if result.get("h1_beat_human"):
@@ -4792,7 +6151,7 @@ def main() -> None:
         # prototype's n_trials (40); using the latter mis-deflated the campaign gate (#3, 2026-06-20).
         winner_n_trials = int(load_config("campaign").get("candidates_per_arm", 1) or 1)
         # Eval-span END from config (the frozen single source), NOT a hardcoded date (no-hardcoding audit).
-        _span = load_config("inference").get("splits", {}).get("evaluation", {}).get("span", [None, "2025-12-31"])
+        _span = load_config("inference").get("splits", {}).get("evaluation", {}).get("span", [None, "2026-06-30"])
         panel = load_gold_panel(phase="development", end=str(_span[1])).panel
     except Exception:  # noqa: BLE001 - floor is best-effort; records-only analysis always runs
         panel = cfg = test_window = winner_n_trials = None

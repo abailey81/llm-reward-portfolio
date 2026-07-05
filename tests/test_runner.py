@@ -134,7 +134,7 @@ def test_rollout_port_returns_accepts_bare_env(synthetic_panel: Panel, env_cfg) 
 def test_test_leg_sealed_until_test_window_provided(synthetic_panel: Panel, env_cfg) -> None:
     """A selection bundle (no test_window) REFUSES test_returns; a campaign bundle allows it.
 
-    This is the structural seal that makes it impossible to read the 2018-2025 test leg
+    This is the structural seal that makes it impossible to read the 2020-2026 test leg
     during selection (PREREGISTRATION.md §10): every search/selection bundle is 2-window,
     so ``test_returns`` raises; only the campaign's frozen-winner bundle is 3-window.
     """

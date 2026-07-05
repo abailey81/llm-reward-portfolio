@@ -82,6 +82,7 @@ __all__ = [
     "named_vs_blinded_tost",
     "coefficient_mahalanobis_permutation",
     "structural_mcnemar",
+    "named_vs_blinded_structural",
     "named_vs_blinded_oos_gap",
     "post_cutoff_persistence",
     "cross_model_disagreement",
@@ -458,6 +459,108 @@ def structural_mcnemar(
     }
 
 
+def named_vs_blinded_structural(
+    named_sources: Sequence[str],
+    blinded_sources: Sequence[str],
+    *,
+    depth: int = 4,
+    n_perm: int = 2000,
+    rng: np.random.Generator | None = None,
+) -> dict[str, Any]:
+    """AST-STRUCTURAL arm of the named-vs-blinded A/B: does identity revelation change the reward CODE STRUCTURE?
+
+    The coefficient TOST and per-motif McNemar above test *what coefficients / which motifs* the reward
+    carries; this tests the **whole-program structure**, identifier- and literal-invariantly, by reusing the
+    canonical AST-shape similarity (:mod:`src.inference.reward_code_distance` — variable names and constant
+    values are discarded, so cosmetic renaming is invisible). It is the structural complement that closes the
+    gap the audits flagged: a placebo can echo the tail *tokens* yet still write a different *program*.
+
+    Paired by seed: ``named_sources[i]`` and ``blinded_sources[i]`` are the rewards authored for the SAME seed
+    on the SAME numerical arrays under the NAMED vs BLINDED labelling. Two quantities are contrasted:
+
+    * ``paired_mean`` — mean same-seed ``sim(named_i, blinded_i)``: the structural agreement that survives
+      revealing identity, holding the data fixed;
+    * ``within_blinded_mean`` — mean cross-seed ``sim(blinded_i, blinded_j)`` (``i<j``): the natural
+      seed-to-seed structural variation under a FIXED labelling — the noise floor.
+
+    If the label is irrelevant to program structure, revealing identity perturbs structure NO MORE than
+    reseeding does, so ``paired_mean >= within_blinded_mean`` (``data_locked``). A re-pairing permutation test
+    (random named→blinded bijections) reports ``p_random_pairing_matches`` — the probability a random pairing
+    is as structurally tight as the true same-seed pairing; a SMALL value means the same-data programs are
+    distinctly tighter than chance, i.e. structure is driven by the shared data, **evidence AGAINST structural
+    contamination**. A ``paired_mean`` that collapses to the noise floor (large p) would instead flag
+    identity-driven structure. Report-only, DISJOINT from the frozen m=6 family; deterministic (no model/GPU).
+
+    Returns ``{"status": "ok", "n_seeds", "paired_mean", "within_blinded_mean", "structural_gap",
+    "data_locked", "p_random_pairing_matches", "depth"}`` or ``{"status": "no_data", ...}``.
+    """
+    from itertools import combinations
+
+    from src.inference.reward_code_distance import canonical_shapes, jaccard
+
+    named = [str(s) for s in named_sources]
+    blinded = [str(s) for s in blinded_sources]
+    if len(named) != len(blinded):
+        return {"status": "no_data", "reason": "named and blinded sources must be paired (same length)"}
+    n = len(named)
+    if n < 2:
+        return {"status": "no_data", "reason": "need >= 2 paired seeds for the structural A/B"}
+    if rng is None:
+        rng = np.random.default_rng(0)
+
+    nshapes = [canonical_shapes(s, depth) for s in named]
+    bshapes = [canonical_shapes(s, depth) for s in blinded]
+    # Exclude unparseable (empty-AST) sources BEFORE any similarity: jaccard(empty, empty) == 1.0, so a
+    # pair of unparseable rewards would score as "perfectly structurally locked", inflating paired_mean and
+    # corrupting the re-pairing permutation null (mirrors the P7c fix in
+    # reward_code_distance.reward_code_structure_report; audit 2026-07-02). A seed is usable only when BOTH
+    # its named and blinded programs parse to a non-empty shape set.
+    usable = [i for i in range(n) if nshapes[i] and bshapes[i]]
+    n_unparseable = n - len(usable)
+    if len(usable) < 2:
+        return {
+            "status": "no_data",
+            "reason": (
+                f"fewer than 2 usable paired seeds after excluding unparseable sources "
+                f"({n_unparseable} of {n} pairs unparseable)"
+            ),
+            "n_unparseable_pairs": int(n_unparseable),
+        }
+    nshapes = [nshapes[i] for i in usable]
+    bshapes = [bshapes[i] for i in usable]
+    n = len(usable)
+
+    paired = np.array([jaccard(nshapes[i], bshapes[i]) for i in range(n)], dtype=float)
+    paired_mean = float(paired.mean())
+    within = np.array(
+        [jaccard(bshapes[i], bshapes[j]) for i, j in combinations(range(n), 2)], dtype=float
+    )
+    within_mean = float(within.mean()) if within.size else float("nan")
+    gap = paired_mean - within_mean
+
+    # Re-pairing permutation: random bijection named->blinded; how often is it as tight as the true pairing?
+    ge = 1  # +1 includes the observed (standard permutation-test convention)
+    idx = np.arange(n)
+    for _ in range(n_perm):
+        perm = rng.permutation(idx)
+        pm = float(np.mean([jaccard(nshapes[i], bshapes[perm[i]]) for i in range(n)]))
+        if pm >= paired_mean - 1e-12:
+            ge += 1
+    p_random = ge / (n_perm + 1)
+
+    return {
+        "status": "ok",
+        "n_seeds": int(n),
+        "n_unparseable_pairs": int(n_unparseable),
+        "paired_mean": paired_mean,
+        "within_blinded_mean": within_mean,
+        "structural_gap": float(gap),
+        "data_locked": bool(paired_mean >= within_mean),
+        "p_random_pairing_matches": float(p_random),
+        "depth": int(depth),
+    }
+
+
 def named_vs_blinded_oos_gap(
     named_seed_sharpe: Mapping[int, float],
     blinded_seed_sharpe: Mapping[int, float],
@@ -472,11 +575,15 @@ def named_vs_blinded_oos_gap(
     then compare the per-seed out-of-sample Sharpe. ``*_seed_sharpe`` are ``{seed: sharpe}`` maps
     (paired by shared seed). Reuses :func:`src.inference.bootstrap.paired_seed_difference_test`
     (rliable IQM + paired seed bootstrap), so the across-seed variance is carried. ``equivalent``
-    flags whether the 95% bootstrap CI for the IQM gap lies inside ``[-sesoi, +sesoi]`` (a
-    bounded-gap positive claim at the pre-registered SESOI = 0.05 DSR/Sharpe units).
+    flags whether the TOST-convention 90% bootstrap CI (the 5/95 quantiles of the SAME paired
+    draws; two one-sided 5% tests — Lakens 2017, matching every other equivalence flag in the
+    stack) lies inside ``[-sesoi, +sesoi]`` (a bounded-gap positive claim at the pre-registered
+    SESOI = 0.05 DSR/Sharpe units). The reported ``ci_low``/``ci_high`` remain the 95% interval;
+    ``ci90_low``/``ci90_high`` are also reported so the flag is auditable.
 
-    Returns the bootstrap dict augmented with ``{"status", "n_seeds", "sesoi", "equivalent"}`` or
-    ``{"status": "no_data", ...}`` when fewer than two seeds are shared.
+    Returns the bootstrap dict augmented with ``{"status", "n_seeds", "sesoi", "ci90_low",
+    "ci90_high", "equivalent"}`` or ``{"status": "no_data", ...}`` when fewer than two seeds are
+    shared.
     """
     from src.inference.bootstrap import iqm, paired_seed_difference_test
 
@@ -491,10 +598,18 @@ def named_vs_blinded_oos_gap(
     b = np.array([blinded_seed_sharpe[s] for s in common], dtype=float)
     if rng is None:
         rng = np.random.default_rng(0)
-    res = paired_seed_difference_test(a, b, statistic=iqm, n_boot=n_boot, rng=rng)
-    equivalent = bool(res["ci_low"] > -sesoi and res["ci_high"] < sesoi)
+    res = paired_seed_difference_test(a, b, statistic=iqm, n_boot=n_boot, rng=rng, return_draws=True)
+    draws = np.asarray(res.pop("draws"), dtype=float)
+    # Equivalence FLAG on the TOST 90% convention (two one-sided 5% tests <=> the 90% CI inside the
+    # margin; Lakens 2017): every other equivalence flag in the stack uses 90%, so gating this one on
+    # the REPORTED 95% CI was stricter than the shared convention and inconsistent with it. The 90%
+    # interval comes from the SAME bootstrap draws (no second bootstrap); ci_low/ci_high stay 95%.
+    ci90_low, ci90_high = (float(q) for q in np.quantile(draws, [0.05, 0.95]))
+    equivalent = bool(ci90_low > -sesoi and ci90_high < sesoi)
     out: dict[str, Any] = {"status": "ok", "n_seeds": len(common), "sesoi": float(sesoi)}
     out.update({k: float(v) for k, v in res.items()})
+    out["ci90_low"] = ci90_low
+    out["ci90_high"] = ci90_high
     out["equivalent"] = equivalent
     return out
 
@@ -576,10 +691,11 @@ def cross_model_disagreement(
     one model's memorised priors. Returns ``{"status": "ok", "centroid_l2", "per_coefficient":
     [...], "max_abs_d", "mean_abs_d"}`` or ``no_data``.
 
-    SCOPE / HONESTY (V10): the campaign runs only the single Claude model family (Sonnet -> Opus,
-    same vendor), so unless a second open-weights model is pinned (config/llm.yaml
-    ``open_weights_check_model``, currently ``"PIN_ME"`` — decision deferred to the user) this function
-    has no ``model_b`` to compare and the leg degrades to ``{"status": "no_data", "executed": False}``.
+    SCOPE / HONESTY (V10): the confirmatory campaign runs only the single Claude model family
+    (Sonnet -> Opus, same vendor). A second open-weights model IS pinned (config/llm.yaml
+    ``open_weights_check_model`` = Qwen3-Coder via OpenRouter — R71, pinned 2026-07-02) but the
+    secondary panel is a SEPARATE, key- and compute-gated run; until it is RUN this function has no
+    ``model_b`` to compare and the leg degrades to ``{"status": "no_data", "executed": False}``.
     Plural "models" here therefore describes the SPECIFIED (PENDING/UNEXECUTED) check, not two model
     families that were actually run.
     """
@@ -587,14 +703,15 @@ def cross_model_disagreement(
     B = np.atleast_2d(np.asarray(model_b_coeffs, dtype=float))
     if A.size == 0 or B.size == 0:
         # HONEST DISCLOSURE (V10): an empty second-model matrix means the cutoff-dated second model was
-        # NOT run (no open-weights model pinned; config/llm.yaml open_weights_check_model='PIN_ME'). Report
-        # the omission explicitly rather than as a bare "empty matrix" so it is not misread as a pass.
+        # NOT run (the R71 secondary panel — config/llm.yaml open_weights_check_model, pinned to
+        # Qwen3-Coder via OpenRouter — has not been executed). Report the omission explicitly rather
+        # than as a bare "empty matrix" so it is not misread as a pass.
         return {
             "status": "no_data",
             "executed": False,
             "reason": (
-                "cross-model check NOT EXECUTED: a model's coefficient matrix is empty (no second model "
-                "was pinned/run; config/llm.yaml open_weights_check_model='PIN_ME')."
+                "cross-model check NOT EXECUTED: a model's coefficient matrix is empty (the R71 "
+                "second-model panel — config/llm.yaml open_weights_check_model — was not run)."
             ),
         }
     if A.shape[1] != B.shape[1]:
@@ -653,6 +770,8 @@ def contamination_report(
     coefficient_names: Sequence[str] | None = None,
     named_struct: np.ndarray | None = None,
     blinded_struct: np.ndarray | None = None,
+    named_sources: Sequence[str] | None = None,
+    blinded_sources: Sequence[str] | None = None,
     named_seed_sharpe: Mapping[int, float] | None = None,
     blinded_seed_sharpe: Mapping[int, float] | None = None,
     pre_cutoff_gap: Mapping[int, float] | None = None,
@@ -664,7 +783,7 @@ def contamination_report(
 ) -> dict[str, Any]:
     """Run every available N3 leg; each block degrades to ``{"status": "no_data"}`` if unfed.
 
-    Returns a dict with keys ``{"tost", "mahalanobis", "structural_mcnemar", "oos_gap",
+    Returns a dict with keys ``{"tost", "mahalanobis", "structural_mcnemar", "structural_ast", "oos_gap",
     "post_cutoff_persistence", "cross_model"}`` plus a top-level ``"load_bearing_note"`` that
     re-states the load-bearing-vs-theatre distinction. NEVER fabricates: a leg whose inputs are
     absent is reported as ``no_data`` with the reason. This is the single entry point the campaign
@@ -699,6 +818,11 @@ def contamination_report(
     else:
         out["structural_mcnemar"] = {"status": "no_data", "reason": "structural vectors not provided"}
 
+    if named_sources is not None and blinded_sources is not None:
+        out["structural_ast"] = named_vs_blinded_structural(named_sources, blinded_sources, rng=rng)
+    else:
+        out["structural_ast"] = {"status": "no_data", "reason": "named/blinded reward sources not provided"}
+
     if named_seed_sharpe is not None and blinded_seed_sharpe is not None:
         out["oos_gap"] = named_vs_blinded_oos_gap(
             named_seed_sharpe, blinded_seed_sharpe, sesoi=sesoi, rng=rng
@@ -721,18 +845,19 @@ def contamination_report(
         )
     else:
         # HONEST DISCLOSURE (V10), not a silent skip: the cutoff-dated second-model check is a frozen
-        # PREREGISTRATION §8 protocol item that was NOT executed because no open-weights second model was
-        # pinned (config/llm.yaml ``open_weights_check_model: "PIN_ME"``, decision deferred to the user).
-        # Only the single Claude model family (Sonnet -> Opus) was ever run, so this leg has no second
-        # designer to compare against. ``status`` stays "no_data" (it carries no result), but the reason
-        # states the omission explicitly so an analyst cannot misread the absence as a passed check.
+        # PREREGISTRATION §8 protocol item whose secondary panel (R71 — config/llm.yaml
+        # ``open_weights_check_model``, pinned to Qwen3-Coder via OpenRouter, 2026-07-02) has NOT been
+        # executed. Only the single Claude model family (Sonnet -> Opus) was run, so this leg has no
+        # second designer to compare against. ``status`` stays "no_data" (it carries no result), but the
+        # reason states the omission explicitly so an analyst cannot misread the absence as a passed check.
         out["cross_model"] = {
             "status": "no_data",
             "executed": False,
             "reason": (
-                "cross-model check NOT EXECUTED: no open-weights second model was pinned "
-                "(config/llm.yaml open_weights_check_model='PIN_ME'); only the single Claude family "
-                "(Sonnet -> Opus) was run. Frozen PREREGISTRATION §8 item; decision deferred to the user."
+                "cross-model check NOT EXECUTED: the R71 open-weights second-model panel "
+                "(config/llm.yaml open_weights_check_model, pinned to Qwen3-Coder via OpenRouter) has "
+                "not been run; only the single Claude family (Sonnet -> Opus) was run. Frozen "
+                "PREREGISTRATION §8 item; the secondary panel is a separate, key- and compute-gated run."
             ),
         }
 

@@ -49,8 +49,8 @@ Flags
   --arms          Comma list overriding the configured arms.
   --search-seed   Override the development-split search seed (default seeds[0]).
   --synthetic     Use the synthetic panel (no gold load) — for smoke/dev only.
-  --dry-run       Tiny synthetic grid (1 LLM arm, 2 candidates, 1 seed) — gated smoke.
-  --no-shutdown   Do not auto-shutdown the host on completion.
+  --dry-run       Tiny synthetic grid (1 LLM arm, 2 candidates, 1 seed) — gated smoke; never resumes.
+  --no-shutdown   Accepted no-op (the auto-shutdown consumer was removed; the host is never powered off).
 """
 
 from __future__ import annotations
@@ -197,6 +197,180 @@ def _install_signal_handlers() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Campaign exit status + winner-selection floor (ops audit C3, 2026-07-02).    #
+# A campaign whose arms silently failed (no_candidates / test_failure_wave /   #
+# winner_not_testable / an arm never reached) previously EXITED 0 — the        #
+# supervisor banked the husk as success and nobody relaunched. The gate below  #
+# turns any non-tested arm into a LOUD table + a non-zero exit (code 3) so the #
+# supervisor treats it as a resumable failure. Operator-initiated interrupts    #
+# (skipped_shutdown / frozen_test_deferred) stay exit 0 — the supervisor's     #
+# graceful-shutdown contract (GRACEFUL_SHUTDOWN_CODE == 0) must not be fought. #
+# --------------------------------------------------------------------------- #
+#: Exit code for "at least one arm is NOT a tested success" — non-zero so the supervisor
+#: relaunches with --resume (resumable), distinct from 1 (generic crash) and 2 (argparse).
+EXIT_INCOMPLETE = 3
+
+#: Statuses that mean the arm FAILED (not operator-initiated): the campaign must exit non-zero.
+#: "search_incomplete" is the C3b winner-selection floor; "error" covers the report-only stages.
+_FAILURE_STATUSES = frozenset(
+    {"no_candidates", "test_failure_wave", "winner_not_testable", "search_incomplete", "error"}
+)
+
+#: Statuses produced ONLY by the cooperative SIGINT/SIGTERM drain (§A) — deliberate operator
+#: stops. They are still "not tested" (all_arms_tested=False + printed in the table) but do NOT
+#: flip the exit code: the supervisor must not relaunch against the operator's own Ctrl-C.
+_INTERRUPTED_STATUSES = frozenset({"skipped_shutdown", "frozen_test_deferred"})
+
+
+def incomplete_arms(
+    summaries: list[dict[str, Any]], expected_arms: list[str] | None = None
+) -> list[tuple[str, str]]:
+    """Every ``(arm, status)`` that is NOT a tested success, in a stable print order.
+
+    Includes the operator-interrupted statuses (they are incomplete, just not failures) and any
+    ``expected_arms`` entry with NO summary row at all (reported as ``"missing"`` — the silent-drop
+    husk C3 exists to catch). Pure (unit-tested); drives both the loud end-of-run table and the
+    ``all_arms_tested`` summary flag (spec docs/CAMPAIGN_SPEC_run_robustness.md §J).
+    """
+    by_arm = {str(s.get("arm")): str(s.get("status")) for s in summaries}
+    bad: list[tuple[str, str]] = []
+    for arm in expected_arms or []:
+        if arm not in by_arm:
+            bad.append((arm, "missing"))
+    for s in summaries:
+        status = str(s.get("status"))
+        if status != "tested":
+            bad.append((str(s.get("arm")), status))
+    return bad
+
+
+def campaign_exit_status(
+    summaries: list[dict[str, Any]], expected_arms: list[str] | None = None
+) -> int:
+    """Process exit code for the campaign: 0 = clean, ``EXIT_INCOMPLETE`` (3) = resumable failure.
+
+    Rules (C3a, spec §J):
+      * any summary status in ``_FAILURE_STATUSES`` (or an unknown, non-tested status — fail-loud
+        default for a future status this gate has never seen) -> 3;
+      * an ``expected_arms`` entry with no summary row -> 3, UNLESS the run was operator-interrupted
+        (an interrupted status is present), in which case the un-reached arms are the interrupt's
+        expected remainder, not a silent drop;
+      * interrupted statuses alone -> 0 (deliberate stop; the supervisor's graceful-shutdown
+        contract — exit 0 = do not fight — is preserved).
+    """
+    statuses = [str(s.get("status")) for s in summaries]
+    interrupted = any(st in _INTERRUPTED_STATUSES for st in statuses)
+    for st in statuses:
+        if st != "tested" and st not in _INTERRUPTED_STATUSES:
+            return EXIT_INCOMPLETE
+    if not interrupted and expected_arms:
+        seen = {str(s.get("arm")) for s in summaries}
+        if any(arm not in seen for arm in expected_arms):
+            return EXIT_INCOMPLETE
+    return 0
+
+
+def select_floor_ok(n_accepted: int, n_failed: int, required: int) -> bool:
+    """C3b winner-selection floor: is the arm's SEARCH pool complete enough to SELECT from?
+
+    A slot is RESOLVED when it is either an archived accepted record (``n_accepted``) or a
+    LEDGERED sandbox failure (``n_failed`` — deliberately counted: the failures ledger REPLAYS on
+    --resume, so a rejected slot can never be re-filled and must not brick the arm; this mirrors
+    the parallel path's ``matched_budget_ok = (accepted + failed) == expected``). UNRESOLVED slots
+    (LLM-error skips, a mid-search crash) leave the pool short — selecting from it would freeze a
+    winner of a PARTIAL search, which --resume could then never legitimately re-run. Requires at
+    least one accepted candidate (an all-failures pool has nothing to select).
+    """
+    return (int(n_accepted) + int(n_failed)) >= int(required) and int(n_accepted) > 0
+
+
+def stage_completion_status(*, shutting_down: bool, n_done: int, n_expected: int) -> str:
+    """Post-leg status for a TEST stage: ``"tested"`` if it ran every seed, else ``"frozen_test_deferred"``.
+
+    The serial TEST legs drain at a SEED boundary on a mid-leg shutdown (``evaluate_winner_on_test`` /
+    ``evaluate_baselines_on_test`` break BEFORE the next unit — spec §A / F18), so a leg that finished
+    every seed and one that was cut short BOTH return with ``SHUTDOWN`` set: only the RECORD COUNT tells
+    them apart. A stage is ``frozen_test_deferred`` (an ``_INTERRUPTED_STATUS``: exit 0, ``all_arms_tested``
+    False, resumable) ONLY when a shutdown left work UN-DONE (``n_done < n_expected``). A stage whose leg
+    ran to completion is ``"tested"`` even if the flag was set as the LAST seed finished — the signal then
+    stops the NEXT arm at the A.2 boundary (-> ``skipped_shutdown``), and must NOT re-label this finished
+    stage. Absent a shutdown a stage is always ``"tested"`` (the A.3 pre-test branch is the other, pre-run
+    producer of ``frozen_test_deferred``). Pure + unit-tested; the single source of truth that keeps the
+    three post-leg status sites (arms / H1 baselines / H3 single-shot) in lockstep (spec §J).
+    """
+    return "frozen_test_deferred" if (shutting_down and int(n_done) < int(n_expected)) else "tested"
+
+
+def _search_pool_counts(arm_search_root: str | Path) -> tuple[int, int]:
+    """Measured ``(n_accepted, n_failed)`` for one arm's search archive (C3b gather, patchable in tests).
+
+    ``n_accepted`` = archived candidate records (what ``select_winner`` reads). ``n_failed`` = unique
+    ledgered sandbox failures across BOTH ledger layouts: the end-of-arm ``failures.jsonl`` (serial
+    ``run_arm`` + parallel ``_drive_llm_arm``) and the crash-robust per-prefix append ledger
+    ``*-<arm>.failures.jsonl`` the serial loop writes DURING the run (present even if the arm died
+    before the end-of-arm write). De-duplicated by ``candidate_id`` so a completed arm (where both
+    files exist and agree) is not double-counted.
+    """
+    root = Path(arm_search_root)
+    n_accepted = len(load_all_safe(root))
+    failed_ids: set[str] = set()
+    if root.is_dir():
+        for ledger in sorted(root.glob("*failures.jsonl")):
+            try:
+                lines = ledger.read_text(encoding="utf-8").splitlines()
+            except OSError:
+                continue
+            for i, line in enumerate(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:  # a torn last line means at most one miscounted failure — never crash the gate
+                    rec = json.loads(line)
+                    failed_ids.add(str(rec.get("candidate_id") or f"{ledger.name}:{i}"))
+                except Exception:  # noqa: BLE001
+                    failed_ids.add(f"{ledger.name}:{i}")
+    return n_accepted, len(failed_ids)
+
+
+def _assert_search_mode_unchanged(arm: str, arm_search_root: str | Path, *, parallel: bool) -> None:
+    """F8 (ultrareview 2026-07-02): fail LOUD when an arm's existing search records came from the
+    OTHER search mode — switching ``--search-gpu`` mid-arm is a poisoned resume, not a speed knob.
+
+    The two search paths use DISJOINT run_id schemes: the SERIAL path prefixes every id with the
+    run_prefix (``f"{arm}-s{seed}-..."`` — LLM and search arms alike), while the PARALLEL scheduler
+    archives bare candidate ids (``f"{arm}-g{g}-c{c}"`` for the LLM arms, ``f"{arm}-c{i}"`` for the
+    search arms). Mixing them in one arm dir DOUBLE-POOLS candidates under two id schemes: the
+    matched-budget property is violated (the resolved pool exceeds ``candidates_per_arm``), the DSR
+    ``n_trials`` deflation no longer matches the true trial count, and each mode's resume cache
+    misses every other-scheme record — re-billing the paid author for work already archived. Cheap by
+    design: a prefix check on the run-DIR names (each record dir IS its run_id); no JSON is loaded.
+    """
+    root = Path(arm_search_root)
+    if not root.is_dir():
+        return
+    serial_prefix = f"{arm}-s"
+    parallel_prefixes = (f"{arm}-g", f"{arm}-c")
+    for run_dir in root.iterdir():
+        if not run_dir.is_dir() or not (run_dir / "record.json").is_file():
+            continue
+        rid = run_dir.name
+        if parallel and rid.startswith(serial_prefix):
+            other = "SERIAL"
+        elif not parallel and rid.startswith(parallel_prefixes):
+            other = "PARALLEL"
+        else:
+            continue
+        raise SystemExit(
+            f"[run_campaign] {arm}: existing search record {rid!r} under {root} was written by the "
+            f"{other} search mode, but this launch would run the "
+            f"{'PARALLEL' if parallel else 'SERIAL'} mode. Switching --search-gpu mid-arm "
+            f"double-pools candidates (budget-matching violation + wrong n_trials deflation + "
+            f"resume-cache misses that re-bill the author). Relaunch with the SAME --search-gpu "
+            f"setting the arm started under, or deliberately archive the old search dir away first."
+        )
+
+
+# --------------------------------------------------------------------------- #
 # Panel + the three integer windows (development train/val + evaluation test)  #
 # --------------------------------------------------------------------------- #
 def _index_for_date(dates: np.ndarray, when: str, *, inclusive: bool) -> int:
@@ -232,23 +406,23 @@ def resolve_windows(
     the SAME window-construction approach ``run_prototype``/``parallel`` use for the dev
     windows, extended additively to the evaluation (test) span:
 
-      - development.train       [2005-01-01, 2014-12-31] -> train ``[lookback, train_end)``
-      - development.validation  [2015-01-01, 2017-12-31] -> val   ``[train_end, val_end)``
-      - evaluation.span         [2018-01-01, 2025-12-31] -> test  ``[val_end+embargo?, test_end)``
+      - development.train       [2005-01-01, 2016-12-31] -> train ``[lookback, train_end)``   (SPLIT C)
+      - development.validation  [2017-01-01, 2019-12-31] -> val   ``[train_end, val_end)``
+      - evaluation.span         [2020-01-01, 2026-06-30] -> test  ``[val_end+embargo?, test_end)``
 
     Indices are clamped into ``[lookback+1, T]`` (and the test start is pushed past the
-    val end + embargo) so a SHORT panel (e.g. the 600-day synthetic panel used in tests)
+    val end + embargo) so a SHORT panel (e.g. the synthetic panel used in tests)
     degrades gracefully instead of producing an empty or look-ahead window. On the real
-    5,283-session gold panel the clamps are inert.
+    5,406-session gold panel (univ5, ADR-051) the clamps are inert.
     """
     dates = np.asarray(panel.dates)
     T = int(panel.T)
 
     dev = cfg_get(splits, "development", {})
     ev = cfg_get(splits, "evaluation", {})
-    train_span = cfg_get(dev, "train", ["2005-01-01", "2014-12-31"])
-    val_span = cfg_get(dev, "validation", ["2015-01-01", "2017-12-31"])
-    test_span = cfg_get(ev, "span", ["2018-01-01", "2025-12-31"])
+    train_span = cfg_get(dev, "train", ["2005-01-01", "2016-12-31"])
+    val_span = cfg_get(dev, "validation", ["2017-01-01", "2019-12-31"])
+    test_span = cfg_get(ev, "span", ["2020-01-01", "2026-06-30"])
 
     emb = max(0, int(embargo))
     # The inter-split PURGE must cover the FEATURE LOOKBACK, not merely the embargo. Each observation
@@ -262,7 +436,7 @@ def resolve_windows(
     val_end = _index_for_date(dates, str(val_span[1]), inclusive=True)
     test_end = _index_for_date(dates, str(test_span[1]), inclusive=True)
 
-    # The FROZEN calendar splits are CONTIGUOUS (train ends 2014-12-31, val begins 2015-01-01), so the
+    # The FROZEN calendar splits are CONTIGUOUS (SPLIT C: train ends 2016-12-31, val begins 2017-01-01), so the
     # date axis gives val_start == train_end. The purge is carved out at EACH split boundary by pushing
     # the later window's START forward ``purge`` sessions, so the builder's lookback-aware guard holds.
     lo = lookback + 1
@@ -273,6 +447,56 @@ def resolve_windows(
     test_end = max(test_start + 1, min(test_end, T))
 
     return (lookback, train_end), (val_start, val_end), (test_start, test_end)
+
+
+class WindowDriftError(RuntimeError):
+    """The resolved integer windows disagree with the recorded expected set (M1)."""
+
+
+def _assert_expected_windows(
+    suffix: str,
+    train_window: tuple[int, int],
+    val_window: tuple[int, int],
+    test_window: tuple[int, int],
+    splits: Any,
+) -> None:
+    """Fail loud if the resolved windows drift from the recorded set for ``suffix`` (M1).
+
+    ``resolve_windows`` maps the frozen calendar splits onto the panel's date axis via
+    ``np.searchsorted`` with clamps; a NEW panel whose calendar shifts could silently move the
+    integer ``[start, end)`` windows through those clamps. ``config/inference.yaml:
+    splits.expected_windows.<suffix>`` records the intended tuples; here we assert the resolved
+    tuples equal them BEFORE the headline run (and thus before the freeze), raising
+    :class:`WindowDriftError` on any mismatch. If no expectation is recorded for ``suffix`` (a new
+    rebuild that has not yet recorded its windows), we RAISE too — the operator must record + review
+    the new panel's windows rather than run unverified.
+    """
+    expected_all = cfg_get(splits, "expected_windows", {}) or {}
+    expected = cfg_get(expected_all, suffix, None)
+    if expected is None:
+        raise WindowDriftError(
+            f"no expected windows recorded for gold suffix {suffix!r} in "
+            f"config/inference.yaml: splits.expected_windows. Record the resolved "
+            f"train/val/test tuples for this panel (and re-freeze) before the headline run — "
+            f"resolved was train={list(train_window)} val={list(val_window)} test={list(test_window)}."
+        )
+    want = {
+        "train": [int(x) for x in cfg_get(expected, "train", [])],
+        "val": [int(x) for x in cfg_get(expected, "val", [])],
+        "test": [int(x) for x in cfg_get(expected, "test", [])],
+    }
+    got = {
+        "train": [int(x) for x in train_window],
+        "val": [int(x) for x in val_window],
+        "test": [int(x) for x in test_window],
+    }
+    if want != got:
+        raise WindowDriftError(
+            f"resolved windows drift from the recorded set for suffix {suffix!r}: "
+            f"expected {want} but resolved {got}. A shifted panel calendar moved the searchsorted "
+            f"windows through the clamps — reconcile config/inference.yaml: splits.expected_windows."
+            f"{suffix} with the new panel (and re-freeze) before running."
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -291,7 +515,9 @@ def run_winner_search(
     pass_mode: str = "A",
     provider: str = "stub",
     llm_cfg: dict[str, Any] | None = None,
+    resume: bool = False,
     arm_runner: Callable[..., dict[str, Any]] | None = None,
+    monitor: Any = None,
 ) -> dict[str, Any]:
     """SEARCH stage: run ONE arm end-to-end on the DEVELOPMENT split at ``search_seed``.
 
@@ -299,7 +525,14 @@ def run_winner_search(
     de-risked) so "matched compute" holds across arms. ``arm_runner`` is injectable so the
     stage is unit-testable without real SAC training; it defaults to the real
     ``run_prototype.run_arm``. ``llm_cfg`` carries the campaign's OWN reward-author block
-    (Opus 4.8) so the campaign does NOT inherit the prototype's Gemini config.
+    (Opus 4.8) so the campaign does NOT inherit the prototype's Gemini config. ``resume``
+    (M4, ops audit 2026-07-02) threads the campaign's --resume down to ``run_arm``'s
+    search-replay cache, so the SERIAL search fallback replays already-archived candidates
+    instead of re-billing the paid author + retraining — parity with the parallel search
+    path, which already threads it (``_search_parallel_arm(resume=...)``). ``monitor`` (M5,
+    ops audit 2026-07-03) is the campaign's live :class:`RunMonitor` for the SERIAL search:
+    ``run_arm`` streams per-candidate progress, LLM/sandbox verdicts, per-step SAC metrics,
+    and anomalies into it (``None`` -> ``run_arm``'s no-op default, unchanged for tests).
     """
     if arm_runner is None:
         import sys
@@ -320,6 +553,8 @@ def run_winner_search(
         provider=provider,
         archive_root=archive_root,
         llm_cfg=llm_cfg,
+        resume=resume,
+        monitor=monitor,
     )
 
 
@@ -339,6 +574,7 @@ def _search_parallel_arm(
     search_root: Path,
     n_gpu: int,
     n_cpu: int,
+    resume: bool = False,
     opts_builder: Callable[..., dict[str, Any]] | None = None,
     runner: Callable[..., list[dict[str, Any]]] | None = None,
 ) -> None:
@@ -387,6 +623,7 @@ def _search_parallel_arm(
         generations=generations,
         pass_mode=pass_mode,
         provider=provider,
+        resume=resume,
     )
     runner([arm], opts, int(n_gpu), int(n_cpu), str(search_root))
 
@@ -423,19 +660,19 @@ def _reinstantiate_frozen_winner(reward_source: str | None) -> Any:
     absent or not an EXECUTABLE reward (e.g. a ``# bayes_opt coeffs=...`` comment stub) —
     see the FLAG in the module note.
     """
+    from src.orchestration.parallel import _FIXTURE  # the SHARED 31-asset search/TEST-worker fixture
     from src.sandbox.executor import SandboxError, validate_once
 
     if not reward_source or not reward_source.strip():
         raise ValueError("winner record carries no reward_source to re-instantiate")
-    fixture: tuple = (
-        np.array([0.5, 0.5], dtype=float),
-        np.array([0.01, -0.02], dtype=float),
-        np.array([0.5, 0.5], dtype=float),
-        0.0,
-        {},
-    )
+    # F6 (ultrareview 2026-07-02): validate on the SAME 31-asset fixture the SEARCH gate and the
+    # parallel TEST worker use (``parallel._FIXTURE`` — ``test_leg._test_seed_worker`` already imports
+    # it), NOT a local 2-asset negative-return probe. A winner that legitimately passed search on 31
+    # assets could fail a 2-asset probe it never saw (empty-slice NaN, log of a negative aggregate) ->
+    # a spurious ``winner_not_testable`` husk and a deterministic exit-3 on EVERY resume. Fixture
+    # parity makes this re-validation a pure replay of the gate the candidate already passed.
     try:
-        return validate_once(reward_source, fixture)
+        return validate_once(reward_source, _FIXTURE)
     except SandboxError as exc:
         raise ValueError(
             f"frozen winner reward_source did not re-instantiate as an executable reward "
@@ -551,8 +788,6 @@ def evaluate_winner_on_test(
     reward_hash = winner.get("reward_source_hash", "")
     env_fp = f"campaign:{arm}:test[{test_window[0]},{test_window[1]})"
 
-    # Re-instantiate the frozen winner ONCE (same reward across seeds — only the seed varies).
-    reward_fn = reward_builder(winner.get("reward_source"))
     # Guard the select->freeze->test chain (final-audit #10): the frozen source MUST hash to the
     # recorded hash, so a winner swap (e.g. a re-searched resume) can never silently desync the
     # frozen and test legs into describing two different rewards. Scoped to a real content hash
@@ -567,6 +802,12 @@ def evaluate_winner_on_test(
 
     written: list[dict[str, Any]] = []
     for seed in seeds:
+        if SHUTDOWN.is_set():
+            # F18 (ultrareview 2026-07-02): drain at the SEED boundary (§A) — a first Ctrl-C during a
+            # multi-hour serial TEST leg must not have to wait for the whole ARM to finish. Nothing is
+            # lost: each completed seed is already archived below, and the remaining seeds resume from
+            # done_ids on the next --resume launch.
+            break
         run_id = f"{arm}-s{int(seed)}"
         if run_id in done_ids:
             continue
@@ -576,6 +817,14 @@ def evaluate_winner_on_test(
         # VecNormalize/DummyVecEnv) to advance cumulatively across seeds — so the 30 "independent"
         # test seeds were not independently/reproducibly seeded the way the search candidates are.
         set_global_seed(int(seed), deterministic_torch=True)
+
+        # F7 (ultrareview 2026-07-02): compile a FRESH reward_fn per seed — seed first (B2), THEN the
+        # reward (B3), EXACTLY the parallel worker's order (test_leg._test_seed_worker). Sharing ONE
+        # compiled callable across the 30 seeds lets module-level mutable state in an authored reward
+        # (the AST gate allows plain assignments) accumulate ACROSS seeds — coupling the "independent"
+        # seeds and diverging serial-vs-parallel test numerics (the parallel worker re-validates per
+        # seed by construction).
+        reward_fn = reward_builder(winner.get("reward_source"))
 
         # 3-window bundle: the ONLY place a test_window is constructed (seal stays intact). Pass the
         # feature ``lookback`` so the builder guard enforces the R18 purge max(embargo, lookback) — the
@@ -595,6 +844,9 @@ def evaluate_winner_on_test(
         train_fn = trainer(agent_cfg, int(seed))
         policy = train_fn(bundle.train_env())
         popart_scale = getattr(policy, "popart_scale", None)  # T2.4 realised scale at this seed
+        # R66: training-window SAFE_DEFAULT counts (train_agent attach) — policy attrs, frozen at train end.
+        train_sd_count = getattr(policy, "train_safe_default_count", None)
+        train_call_count = getattr(policy, "train_safe_call_count", None)
         # Prefer the gross/turnover/net superset (Rank 15: persist the decomposition so the
         # cost sweep re-prices analytically). A bundle/fake without `test_series` (e.g. the
         # counting wrapper in tests) falls back to the NET-only `test_returns` — the test leg
@@ -623,6 +875,8 @@ def evaluate_winner_on_test(
             test_gross=test_gross,
             test_turnover=test_turnover,
             popart_scale=popart_scale,  # T2.4 cross-arm sigma audit (serial path; parity with the parallel worker)
+            train_safe_default_count=train_sd_count,  # R66 per-seed training-substitution audit
+            train_safe_call_count=train_call_count,
         )
         write(record, archive_root)
         written.append(record)
@@ -759,6 +1013,10 @@ def evaluate_baselines_on_test(
     # SERIAL: each baseline re-runs at the 30 seeds via evaluate_winner_on_test, with a reward_builder that
     # resolves the canonical callable by name (the stub reward_source is ignored). Mirrors the winner path.
     for name in baseline_names:
+        if SHUTDOWN.is_set():
+            # F18: drain at the baseline boundary (the inner seed loop drains per seed too) —
+            # --resume re-runs only the un-done (baseline, seed) cells.
+            break
         arm = f"baseline_{name}"
         archive_root = test_root / arm
         done = {r["run_id"] for r in load_all_safe(str(archive_root))} if resume else set()
@@ -895,6 +1153,8 @@ def run_h3_singleshot(
             pass_mode=pass_mode,
             provider=provider,
             llm_cfg=llm_cfg,
+            # M4: an interrupted single-shot search replays its archive on --resume too (no re-bill).
+            resume=resume,
             arm_runner=arm_runner,
         )
         # (2) SELECT the single-shot winner by validation DSR (identical selector to the iterative arm).
@@ -955,7 +1215,13 @@ def run_h3_singleshot(
             done_ids=done,
         )
     return {
-        "arm": "distributional_singleshot", "status": "tested",
+        # F18: a shutdown drains the H3 test leg at a SEED boundary; bank "frozen_test_deferred" ONLY if
+        # seeds were left un-run (fewer records than requested), else "tested" even if the flag was set as
+        # the last seed finished (see stage_completion_status). --resume completes any remaining seeds.
+        "arm": "distributional_singleshot",
+        "status": stage_completion_status(
+            shutting_down=SHUTDOWN.is_set(), n_done=len(done) + len(written), n_expected=len(seeds)
+        ),
         "n_seeds_written": len(written), "winner_id": winner.get("candidate_id"),
         "singleshot_generations": int(singleshot_generations),
     }
@@ -990,6 +1256,7 @@ def run_headline_campaign(
     run_h3_singleshot: bool = False,
     h3_singleshot_generations: int = 1,
     freeze_stamp: dict[str, Any] | None = None,
+    min_candidates: int | None = None,
 ) -> dict[str, Any]:
     """Run the headline single-split campaign for ``arms`` and return a summary dict.
 
@@ -1002,6 +1269,13 @@ def run_headline_campaign(
     the distributional arm re-searched at ``h3_singleshot_generations`` (=1) on the same candidate budget,
     selected/frozen/tested at the same seeds, archived to DISJOINT ``*_h3_singleshot/`` roots. It is
     report-only and wrapped in try/except so it can never sink the headline arms.
+
+    ``min_candidates`` (C3b, ops audit 2026-07-02) overrides the winner-selection floor: by default
+    (``None``) an arm may only SELECT/FREEZE once its search pool has resolved the FULL configured
+    ``candidates`` budget (accepted records + ledgered sandbox failures — see :func:`select_floor_ok`);
+    a positive value lowers the required pool for operator emergencies, and ``0`` disables the floor
+    (dev/test only). The returned summary additionally carries ``all_arms_tested`` and ``exit_code``
+    (C3a — 0 clean / 3 resumable-incomplete; :func:`campaign_exit_status`).
 
     This is the production path (real SAC training); it is GATED on the user and is not
     exercised by the fast suite. The unit tests drive the four stages directly with fakes.
@@ -1017,8 +1291,20 @@ def run_headline_campaign(
     if synthetic:
         from src.data.synthetic import make_synthetic_panel
 
-        panel = make_synthetic_panel(n_assets=30, n_days=600, seed=0)
-        panel_descriptor: dict[str, Any] = {"synthetic": True}
+        # 7800 sessions (~2005-01-03 .. 2026-05, matching the test suite's resolve_windows fixture) so
+        # the synthetic date axis ACTUALLY SPANS the frozen calendar splits. The previous 600-day panel
+        # ended in 2006: resolve_windows' clamps degenerated val to [599,600) and the builder's R18
+        # purge guard (val_start >= train_end + max(embargo, lookback)) then REJECTED every TEST-stage
+        # bundle — the keyless dry-run's TEST leg had been silently failing (`winner_not_testable` /
+        # baseline `error`) while still exiting 0. Found by the C3a integrity gate (ops audit
+        # 2026-07-02); the SEARCH stages are untouched (run_arm builds its own dev panel internally).
+        panel = make_synthetic_panel(n_assets=30, n_days=7800, seed=0)
+        # The descriptor must carry the SHAPE: the parallel TEST worker REBUILDS the synthetic panel
+        # from it (test_leg._load_test_panel), and a worker panel shorter than the driver's would make
+        # the resolved windows point past its end. Bare {"synthetic": True} descriptors elsewhere keep
+        # the worker's back-compatible (30, 600) defaults.
+        panel_descriptor: dict[str, Any] = {"synthetic": True, "n_assets": 30, "n_days": 7800}
+        panel_provenance: dict[str, Any] = {"synthetic": True}
     else:
         from src.data.loaders import load_gold_panel
 
@@ -1037,19 +1323,45 @@ def run_headline_campaign(
         # prototype prose calls this cohort bias disqualifying FOR THE PROTOTYPE; the campaign reports
         # it as a headline limitation rather than silently inheriting it.
         ev = cfg_get(cfg_get(inf_cfg, "splits", {}), "evaluation", {})
-        span = cfg_get(ev, "span", ["2018-01-01", "2025-12-31"])
-        panel = load_gold_panel(phase="development", end=str(span[1])).panel
+        span = cfg_get(ev, "span", ["2020-01-01", "2026-06-30"])
+        # verify_checksum=True (C2): the HEADLINE panel is checksum-verified against the frozen
+        # manifest before it is read; a mismatch OR a missing manifest entry fails loud (a silent
+        # skip on the headline panel is the bug this closes). validate=True (batch-4 audit #7,
+        # 2026-07-03): ALSO run the semantic data contract (strictly-increasing dates = the leakage
+        # invariant, returns sanity, VIX/id contracts) on the headline hot path — belt-and-suspenders
+        # over the byte checksum (validated at build time; costs milliseconds once per process).
+        gold_res = load_gold_panel(
+            phase="development", end=str(span[1]), verify_checksum=True, validate=True
+        )
+        panel = gold_res.panel
         # Picklable descriptor so the parallel TEST worker reloads the SAME frozen panel (rather than
         # pickling the ~40 MB object per task); must mirror this load (phase / end / default on_missing).
         panel_descriptor = {
             "synthetic": False, "phase": "development", "end": str(span[1]),
             "on_missing": "liquidate_to_cash",
         }
+        # Panel IDENTITY + integrity stamp (C1): the active gold suffix + the frozen manifest
+        # SHA-256 of each production gold artifact, so the campaign summary names EXACTLY which
+        # panel produced the headline numbers (reuses capture_env._gold_panel_provenance — the
+        # single source of that block; also written into every run's env.json).
+        import sys as _sys
+
+        _sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from capture_env import _gold_panel_provenance  # type: ignore[import-not-found]
+
+        panel_provenance = _gold_panel_provenance()
 
     splits = cfg_get(inf_cfg, "splits", {})
     train_window, val_window, test_window = resolve_windows(
         panel, lookback, splits, embargo=embargo
     )
+    # M1: on the REAL gold panel, assert the resolved integer windows match the recorded set for the
+    # active suffix — a shifted panel calendar must not silently move them via the searchsorted clamps.
+    # (Synthetic panels use proportional in-panel windows and are exempt.)
+    if not synthetic:
+        from src.data.loaders import gold_suffix
+
+        _assert_expected_windows(gold_suffix(), train_window, val_window, test_window, splits)
 
     output_dir = Path(output_dir)
     search_root = output_dir / "search"
@@ -1065,12 +1377,15 @@ def run_headline_campaign(
     # under another. The campaign train_steps (50k) is threaded into BOTH stages — TEST via `agent_cfg`
     # here; SEARCH via run_arm building its config from the SAME train_steps. (Previously SEARCH fell back
     # to prototype.yaml's 25k while TEST used the resolve_agent_kwargs 50k default — a training-budget skew.)
-    # NOTE (buffer/steps audit fix): the TEST agent's ``buffer_size`` is here re-coupled to the 50k
-    # train_steps (the documented ``buffer_size == train_steps`` invariant). The SEARCH leg builds its
-    # config independently in run_prototype.run_arm via ``_agent_cfg(proto_cfg, ...)``, which still reads
-    # prototype.yaml's pinned 25k buffer; matching SEARCH's buffer to 50k requires a campaign ``agent:``
-    # block read by run_arm OR buffer/steps coupling inside ``_agent_cfg`` (out of this file's scope —
-    # see this finding's test_impact). train_steps remains matched across both legs.
+    # NOTE (buffer invariant, ADR-042 — comment reconciled 2026-07-02; the "buffer_size == train_steps"
+    # narrative below it superseded): the replay buffer is NO LONGER coupled to train_steps. The single
+    # invariant, enforced at the FINAL gate (src/agents/trainer.py::resolve_agent_kwargs, verified L120), is
+    #     buffer_size = min(requested_or_train_steps, campaign_replay_cap() == 50k)
+    # on EVERY leg: TEST (this file — campaign.yaml pins ``agent.buffer_size: 50000``, so the overlay below
+    # wins and the legacy re-couple branch is dormant), SEARCH (run_prototype._agent_cfg caps at the same
+    # campaign_replay_cap()), and the parallel worker (parallel.train_candidate min()s spec buffer/steps).
+    # Whatever an upstream site passes, resolve_agent_kwargs re-clamps — no path can OOM at B* > 50k.
+    # train_steps itself remains matched across both legs (the matched-compute invariant above).
     if agent_cfg is None:
         import sys as _sys
 
@@ -1084,18 +1399,27 @@ def run_headline_campaign(
         camp_agent = cfg_get(load_config("campaign"), "agent", {})
         for _k, _v in dict(camp_agent or {}).items():
             agent_cfg[_k] = _v
-        # audit fix (buffer/steps invariant): prototype.yaml pins ``buffer_size: 25000`` ("== train_steps"
-        # for the 25k laptop budget), so without an override the 50k-step HEADLINE agent would train with a
-        # 25k replay buffer — the first half of training is evicted before training ends and prototype.yaml's
-        # own ``buffer_size == train_steps`` invariant is violated for the campaign. Re-couple the buffer to
-        # the campaign train_steps UNLESS the campaign config explicitly pins ``buffer_size`` itself, so the
-        # headline replay buffer matches its 50k step budget per the documented invariant.
+        # Legacy fallback (DORMANT since ADR-042): campaign.yaml pins ``agent.buffer_size: 50000``, so this
+        # branch is skipped. If a future config ever dropped the pin, buffer_size would be set to
+        # train_steps here and then RE-CLAMPED to campaign_replay_cap() by resolve_agent_kwargs (the final
+        # authority, trainer.py L120) — so a B* > 50k budget cannot resurrect the buffer-OOM trap either way.
         if train_steps is not None and "buffer_size" not in (camp_agent or {}):
             agent_cfg["buffer_size"] = int(agent_cfg["train_steps_per_candidate"])
 
     summaries: list[dict[str, Any]] = []
     t0 = time.perf_counter()
-    for arm in arms:
+    # M5 (ops audit 2026-07-03): the ratified SERIAL headline search previously ran with NO monitor —
+    # no progress.json / events.jsonl / anomalies.jsonl under <output_dir>/search, so scripts/monitor.py
+    # (which watches that dir) waited forever and stall/anomaly detection was dead. Attach ONE RunMonitor,
+    # built LAZILY on the first SERIAL search below (the PARALLEL search path has its own ParallelMonitor,
+    # so it is left untouched; the TEST leg stays unmonitored by design, ADR-050). Gated to the REAL (gold)
+    # run — the run this observability targets: the synthetic wiring tests + keyless dry-run smoke never
+    # need the watcher, and a RunMonitor attaches root-logger file handlers (the manual RunMonitor tests
+    # snapshot/restore around that; these paths do not), so building one into a synthetic run is avoided.
+    # A --resume rerun re-opens the same search_root and RunMonitor overwrites progress.json each flush +
+    # appends to the logs.
+    search_monitor: Any = None
+    for idx, arm in enumerate(arms):
         if SHUTDOWN.is_set():
             # Graceful-shutdown §A.2: stop at the cheapest, safest cut point — BETWEEN arms, never
             # mid-candidate. Completed arms are archived; the operator re-runs with --resume to continue.
@@ -1125,6 +1449,9 @@ def run_headline_campaign(
                 # overwriting it (re-audit hardening of final-audit #10/17).
                 winner = None
         if winner is None:
+            # F8: refuse a mid-arm SEARCH-MODE switch BEFORE anything runs — existing records written
+            # under the other mode's run_id scheme would double-pool the arm (see the guard's docstring).
+            _assert_search_mode_unchanged(arm, arm_search_root, parallel=int(search_n_gpu) > 0)
             # (1) SEARCH on the development split.
             if int(search_n_gpu) > 0:
                 # Reflect-on-BEST PARALLEL search (~4x the serial search on the dev split). Trains each
@@ -1146,21 +1473,90 @@ def run_headline_campaign(
                     search_root=search_root,
                     n_gpu=int(search_n_gpu),
                     n_cpu=int(search_n_cpu),
+                    # Thread the campaign's --resume flag so the parallel search REPLAYS already-archived
+                    # candidates instead of re-burning the paid LLM author + retraining (parity with the
+                    # serial run_winner_search resume cache).
+                    resume=resume,
                 )
             else:
-                run_winner_search(
-                    arm,
-                    search_seed=search_seed,
-                    archive_root=str(search_root),
-                    synthetic=synthetic,
-                    candidates=candidates,
-                    generations=generations,
-                    train_steps=train_steps,
-                    n_trials=n_trials,
-                    pass_mode=pass_mode,
-                    provider=provider,
-                    llm_cfg=llm_cfg,
+                # M5: attach the live search monitor (built once, on the first REAL serial search) and
+                # stream this arm's search into it. arm_start/arm_done bracket the search compute EXACTLY
+                # as the prototype's sequential path does (run_prototype.py:~730); run_winner_search returns
+                # run_arm's summary, whose winner_fitness feeds arm_done. On a search crash the monitor is
+                # closed (status=error) before the exception propagates, mirroring the prototype teardown.
+                # ``search_monitor`` stays None on a synthetic run (see the gate note above); run_arm then
+                # falls back to its no-op monitor, so the calls below are guarded.
+                if search_monitor is None and not synthetic:
+                    from src.utils.monitoring import RunMonitor
+
+                    search_monitor = RunMonitor(
+                        search_root,
+                        title="Campaign search",
+                        total_arms=len(arms),
+                        candidates_per_arm=candidates,
+                        train_steps=int(train_steps or cfg_get(agent_cfg, "train_steps_per_candidate", 0)),
+                        model=str(cfg_get(llm_cfg or {}, "model", provider)),
+                    )
+                if search_monitor is not None:
+                    search_monitor.arm_start(arm, idx)
+                _search_t0 = time.perf_counter()
+                try:
+                    _search_summary = run_winner_search(
+                        arm,
+                        search_seed=search_seed,
+                        archive_root=str(search_root),
+                        synthetic=synthetic,
+                        candidates=candidates,
+                        generations=generations,
+                        train_steps=train_steps,
+                        n_trials=n_trials,
+                        pass_mode=pass_mode,
+                        provider=provider,
+                        llm_cfg=llm_cfg,
+                        # M4: thread --resume into the serial search fallback (parity with the parallel
+                        # path above) so an interrupted serial search REPLAYS its archived candidates
+                        # instead of re-billing the paid author + retraining on relaunch.
+                        resume=resume,
+                        monitor=search_monitor,  # M5: live progress/logs/anomalies (None on a synthetic run)
+                    )
+                except BaseException:
+                    # Mirror run_prototype's teardown: stop the live display + log run_end on a crash.
+                    if search_monitor is not None:
+                        search_monitor.close(status="error")
+                    raise
+                if search_monitor is not None:
+                    search_monitor.arm_done(
+                        arm,
+                        winner_fitness=(_search_summary or {}).get("winner_fitness"),
+                        secs=time.perf_counter() - _search_t0,
+                    )
+            # (C3b) Winner-selection FLOOR — refuse to SELECT/FREEZE from a PARTIAL search pool.
+            # Every budgeted slot must be RESOLVED (an archived record or a ledgered sandbox
+            # failure); unresolved slots (llm_error skips, a mid-search crash) mean the search is
+            # merely INCOMPLETE and --resume will finish it — freezing a winner now would lock in a
+            # smaller-than-matched budget AND block the resume from ever re-searching (the frozen
+            # record short-circuits the search on every later resume). The arm is reported with the
+            # resumable status "search_incomplete" (never winner-frozen). The single gate here sits
+            # on the COMMON path after BOTH search modes; the parallel search needs no separate
+            # mirror because its LLM driver has no llm-error skip — an exhausted-retry API error
+            # RAISES out of _drive_llm_arm and crashes the arm (verified 2026-07-02), which the
+            # supervisor already treats as a resumable failure.
+            required = int(candidates) if min_candidates is None else int(min_candidates)
+            n_accepted, n_failed = _search_pool_counts(arm_search_root)
+            if required > 0 and not select_floor_ok(n_accepted, n_failed, required):
+                print(
+                    f"[run_campaign] ERROR: {arm} SEARCH pool incomplete — "
+                    f"{n_accepted} accepted + {n_failed} ledgered failures < required {required} "
+                    f"(configured candidates_per_arm; override with --min-candidates). "
+                    f"NOT selecting/freezing a winner from a partial pool; re-run with --resume "
+                    f"to finish the search.",
+                    flush=True,
                 )
+                summaries.append(
+                    {"arm": arm, "status": "search_incomplete",
+                     "n_accepted": n_accepted, "n_failed": n_failed, "required": required}
+                )
+                continue
             # (2) SELECT the winner by validation DSR.
             winner = select_winner(arm_search_root)
             if winner is None:
@@ -1263,12 +1659,31 @@ def run_headline_campaign(
                     agent_cfg=agent_cfg,
                     done_ids=done,
                 )
+            # F18: a shutdown during the SERIAL TEST leg drains at a SEED boundary (evaluate_winner_on_test
+            # breaks before the next seed). The arm is "frozen_test_deferred" ONLY if that drain left seeds
+            # UN-RUN (fewer records on disk than requested) — NOT merely because the flag was set as the
+            # LAST seed finished: a fully-tested arm stays "tested" and the shutdown instead stops the NEXT
+            # arm at the A.2 boundary (-> "skipped_shutdown"); a genuine partial resumes its remaining seeds.
+            # The PARALLEL leg never shutdown-drains (a short count there is a seed FAILURE, handled above),
+            # so len(done)+len(written)==len(seeds) keeps it "tested".
+            _status = stage_completion_status(
+                shutting_down=SHUTDOWN.is_set(),
+                n_done=len(done) + len(written),
+                n_expected=len(seeds),
+            )
             summaries.append(
-                {"arm": arm, "status": "tested", "n_seeds_written": len(written),
+                {"arm": arm, "status": _status, "n_seeds_written": len(written),
                  "winner_id": winner.get("candidate_id")}
             )
         except ValueError as exc:  # non-executable winner source (search-arm stub) — FLAGGED
             summaries.append({"arm": arm, "status": "winner_not_testable", "reason": str(exc)})
+
+    # M5: close the serial-search monitor once the arm loop is done — flush the final progress.json and
+    # log run_end so scripts/monitor.py sees the search stage finish. Built only if a serial search
+    # actually ran (None otherwise); a graceful-shutdown break lands here too, recorded as interrupted.
+    # The report-only H1/H3 stages + the TEST leg below are deliberately unmonitored (ADR-050).
+    if search_monitor is not None:
+        search_monitor.close(status="interrupted" if SHUTDOWN.is_set() else "done")
 
     # (H1) BASELINE stage — the pre-registered "beat-the-human" hand rewards (PREREGISTRATION §1).
     # POST-arms, additive: each REWARD_CANON baseline is run at the SAME 30 seeds + matched 50k budget as
@@ -1297,8 +1712,20 @@ def run_headline_campaign(
                 n_cpu=int(n_cpu),
                 recycle_every=int(recycle_every),
             )
+            # F18: a shutdown drains the H1 stage at a baseline/seed boundary; bank "frozen_test_deferred"
+            # ONLY if cells were left un-run (fewer records on disk than the len(names)*len(seeds) budget),
+            # else "tested" even if the flag was set as the last cell finished. The on-disk count is read
+            # only under shutdown (the normal path short-circuits it away); --resume re-runs un-done cells.
+            _sd = SHUTDOWN.is_set()
+            _base_on_disk = (
+                sum(len(load_all_safe(test_root / f"baseline_{n}")) for n in baseline_names)
+                if _sd else 0
+            )
             summaries.append(
-                {"arm": "h1_baselines", "status": "tested",
+                {"arm": "h1_baselines",
+                 "status": stage_completion_status(
+                     shutting_down=_sd, n_done=_base_on_disk,
+                     n_expected=len(baseline_names) * len(seeds)),
                  "baselines": list(baseline_names), "n_records_written": len(base_written)}
             )
         except Exception as exc:  # noqa: BLE001 - the report-only H1 stage must not sink the headline arms
@@ -1348,8 +1775,27 @@ def run_headline_campaign(
                 {"arm": "distributional_singleshot", "status": "error", "reason": str(exc)[:200]}
             )
 
+    # (C3a) End-of-run integrity gate (spec docs/CAMPAIGN_SPEC_run_robustness.md §J): the final
+    # summary must REFUSE a clean bill of health when any arm is not a tested success. Print a loud
+    # per-arm failure table and record ``exit_code`` (0 clean / EXIT_INCOMPLETE=3 resumable failure)
+    # so ``main`` exits non-zero and the supervisor relaunches with --resume instead of banking an
+    # exit-0 husk. Operator interrupts stay exit 0 (see campaign_exit_status) but still print here.
+    bad = incomplete_arms(summaries, arms)
+    exit_code = campaign_exit_status(summaries, arms)
+    if bad:
+        print("=" * 72)
+        print("[run_campaign] INCOMPLETE: arms not fully tested (re-run with --resume):")
+        for bad_arm, bad_status in bad:
+            print(f"  {bad_arm:>28}: {bad_status}")
+        print(f"[run_campaign] exit_code={exit_code} "
+              f"({'operator interrupt — deliberate stop' if exit_code == 0 else 'RESUMABLE FAILURE'})")
+        print("=" * 72)
     summary = {
         "arms": summaries,
+        # C3a: machine-detectable roll-up — analysis/ops must never trust a summary whose
+        # all_arms_tested is False (spec §J), and the supervisor keys off the process exit code.
+        "all_arms_tested": not bad,
+        "exit_code": exit_code,
         "train_window": list(train_window),
         "val_window": list(val_window),
         "test_window": list(test_window),
@@ -1358,6 +1804,9 @@ def run_headline_campaign(
         # campaign summary so every headline artifact carries the pre-registration it was run under
         # (verify-or-refuse converts the by-hand `--check` into a recorded, mechanical guarantee).
         "freeze": freeze_stamp if freeze_stamp is not None else {"enforced": False, "frozen": None},
+        # Panel IDENTITY + integrity (C1): the active gold suffix + per-artifact manifest SHA-256s
+        # (or {"synthetic": True}). Binds the headline number to EXACTLY the panel it ran on.
+        "gold_panel": panel_provenance,
     }
     (output_dir / "campaign_summary.json").write_text(
         json.dumps(summary, indent=2, default=str), encoding="utf-8"
@@ -1393,6 +1842,22 @@ def make_agent_trainer_factory() -> Callable[[Any, int], Callable[[Any], Any]]:
 # --------------------------------------------------------------------------- #
 # CLI                                                                          #
 # --------------------------------------------------------------------------- #
+def resolve_resume(cli_resume: bool, cli_no_resume: bool, cfg_resume: Any) -> bool:
+    """Resolve the effective resume flag: CLI wins, else config/campaign.yaml ``resume:`` (m10).
+
+    config-as-truth (repo law): the long-documented ``resume: true`` key in config/campaign.yaml was
+    authored but never read — an operator trusting the config would launch WITHOUT resume and
+    re-bill the paid search. Now the config supplies the DEFAULT; an explicit ``--no-resume`` beats
+    an explicit ``--resume`` beats the config (the only way to force a fresh run over a true config).
+    Pure (unit-tested).
+    """
+    if cli_no_resume:
+        return False
+    if cli_resume:
+        return True
+    return bool(cfg_resume)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run the HEADLINE single-split campaign (FINAL_PLAN 3.A).",
@@ -1404,7 +1869,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--resume",
         action="store_true",
-        help="Skip (arm, seed) test records already archived (idempotent).",
+        help="Skip (arm, seed) test records already archived (idempotent). DEFAULT now comes from "
+             "config/campaign.yaml `resume:` (config-as-truth, m10); this flag forces it ON.",
+    )
+    parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="Force a FRESH run even when config/campaign.yaml sets `resume: true` (CLI wins over "
+             "config). A fresh run re-searches arms without a frozen winner — it can RE-BILL the "
+             "paid author; use only when you deliberately want to discard the resume cache.",
+    )
+    parser.add_argument(
+        "--min-candidates", type=int, default=None,
+        help="C3b winner-selection floor override: required RESOLVED search slots (accepted records "
+             "+ ledgered sandbox failures) before an arm may SELECT/FREEZE. Default = the configured "
+             "candidates_per_arm (full budget); 0 disables the floor (dev/emergency only).",
     )
     parser.add_argument("--arms", default=None, help="Comma list overriding the configured arms.")
     parser.add_argument(
@@ -1418,7 +1897,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--no-shutdown", action="store_true",
-        help="Do not auto-shutdown the host on completion.",
+        help="Accepted NO-OP (F14): the auto-shutdown consumer was removed — it was a print-only stub "
+             "claiming a power-off that never existed. The host is never powered off. The flag is kept "
+             "so existing launch commands (the ONSTART task, the runbook) keep parsing.",
     )
     parser.add_argument(
         "--gpu", type=int, default=None,
@@ -1427,9 +1908,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cpu", type=int, default=0, help="CPU worker slots for the parallel test leg.")
     parser.add_argument(
         "--search-gpu", type=int, default=None,
-        help="GPU worker slots for the reflect-on-BEST PARALLEL search (default: serial reflect-on-last). "
-             "AMENDMENT-GATED: parallel search reflects on the generation's BEST candidate (a frozen-decision "
-             "change vs the serial loop's LAST) and trains at the matched 50k buffer; keep 0 until ratified.",
+        help="GPU worker slots for the PARALLEL best-of-generation search (default 0 = the SERIAL "
+             "reflect-on-best HEADLINE, ratified 2026-07-01 / label corrected 2026-07-02: the serial "
+             "loop's M5 reflection seed IS the generation's best, so both paths are Eureka-faithful). "
+             "Parallel (--search-gpu 2) is the documented resume-safe robustness variant, NOT the headline.",
     )
     parser.add_argument("--search-cpu", type=int, default=0, help="CPU worker slots for the parallel search.")
     parser.add_argument(
@@ -1455,7 +1937,7 @@ def main() -> None:
     from src.utils.env import load_env
     from src.utils.preload import preload
 
-    preload()  # pyarrow before torch (gold-parquet ABI segfault guard) -- BEFORE any torch import
+    preload(strict=True)  # pyarrow before torch (gold-parquet ABI segfault guard) -- BEFORE any torch import; H2 fail-loud
     load_env()  # .env -> os.environ so the LLM key is available (ADR-038); workers inherit it
     _install_signal_handlers()  # cooperative graceful shutdown (a 27 h run WILL be interrupted)
 
@@ -1467,6 +1949,9 @@ def main() -> None:
     camp_stem = Path(args.config).stem
     camp = load_config(camp_stem)
     inf = load_config("inference")
+    # m10 (config-as-truth): campaign.yaml `resume: true` is the DEFAULT; --resume forces on,
+    # --no-resume forces a fresh (possibly re-billing) run. Previously the key was never read.
+    resume = resolve_resume(bool(args.resume), bool(args.no_resume), cfg_get(camp, "resume", False))
     arms = args.arms.split(",") if args.arms else list(camp["arms"])
     seeds = [int(s) for s in camp["seeds"]]
     search_seed = int(args.search_seed if args.search_seed is not None else seeds[0])
@@ -1502,6 +1987,12 @@ def main() -> None:
         h3_singleshot_generations = 1  # single-shot control is generations=1 by definition; 1 candidate in dry-run
         output_dir = "outputs/campaign_dryrun"
         baseline_names = ["raw_return"]  # exercise the H1 baseline stage too (1 baseline x 1 seed)
+        # F20 (ultrareview 2026-07-02): a dry-run NEVER resumes — campaign.yaml's `resume: true`
+        # default (m10) would make a SECOND dry-run replay the previous dry archive (search cache +
+        # done test seeds) and report "tested" without exercising the pipeline afresh: an ambiguous
+        # smoke signal that can mask a freshly-introduced breakage. Free + keyless, so re-running
+        # everything is the point.
+        resume = False
         if run_h3_singleshot:
             # Dry-run = 1 candidate single-shot (best-of-1): the cheapest exercise of the H3 wiring.
             candidates = 1
@@ -1550,12 +2041,20 @@ def main() -> None:
             f"laptop at the 50k buffer (gen-transition-wave OOM + VRAM ceiling; n_gpu=4 is the measured "
             f"search OOM). Use --search-gpu 2 (proven) or 3 (thermal/RAM watchdog armed)."
         )
+    # H3: symmetric refusal for the TEST-leg --gpu. n_gpu=4 saturates the 6 GiB RTX-4050 VRAM ceiling
+    # (preflight.check_vram FAILs it) — refuse it loudly at the CLI boundary too, so neither leg can be
+    # launched at an OOMing width. Use --gpu 2 (proven-flat) or 3 (watchdog-armed).
+    if args.gpu is not None and int(args.gpu) >= 4:
+        raise SystemExit(
+            f"[run_campaign] --gpu {args.gpu} OOMs the 6 GiB RTX-4050 VRAM ceiling (measured; "
+            f"preflight caps at 3). Use --gpu 2 (proven) or 3 (thermal/RAM watchdog armed)."
+        )
 
     print(
         f"[run_campaign] HEADLINE single-split: arms={arms} seeds={seeds} "
         f"search_seed={search_seed} candidates={candidates} steps={train_steps} "
         f"gens={generations} pass={pass_mode} provider={provider} "
-        f"embargo={embargo} resume={args.resume} h1_baselines={baseline_names} "
+        f"embargo={embargo} resume={resume} h1_baselines={baseline_names} "
         f"h3_singleshot={run_h3_singleshot}(gens={h3_singleshot_generations}) -> {output_dir}"
     )
     summary = run_headline_campaign(
@@ -1576,7 +2075,8 @@ def main() -> None:
         provider=provider,
         generations=generations,
         llm_cfg=camp_llm,
-        resume=args.resume,
+        resume=resume,  # m10: config default + CLI override (resolve_resume)
+        min_candidates=args.min_candidates,  # C3b: winner-selection floor (None -> full budget)
         n_gpu=int(args.gpu) if args.gpu is not None else 0,
         n_cpu=int(args.cpu),
         search_n_gpu=int(args.search_gpu) if args.search_gpu is not None else 0,
@@ -1593,8 +2093,16 @@ def main() -> None:
               f"({s.get('n_seeds_written', s.get('reason', ''))})")
     print(f"[run_campaign] done in {summary['wall_clock_s']}s -> {output_dir}/campaign_summary.json")
 
-    if not args.no_shutdown and cfg_get(camp, "auto_shutdown_on_complete", False):
-        print("[run_campaign] auto-shutdown ENABLED by config (rented GPU); host would power off now.")
+    # C3a: propagate the integrity gate as the PROCESS exit code. exit_code==EXIT_INCOMPLETE (3)
+    # means at least one arm failed (not operator-interrupted) — the supervisor sees non-zero and
+    # relaunches with --resume instead of banking an exit-0 husk.
+    # F14 (ultrareview 2026-07-02): the old auto-shutdown consumer here was a print-only stub claiming
+    # "host would power off now" — an action that never existed (config pins
+    # auto_shutdown_on_complete: false; laptop-only, ADR-040). Deleted rather than left lying;
+    # --no-shutdown stays accepted as a no-op so existing launch commands keep parsing.
+    exit_code = int(summary.get("exit_code", 0) or 0)
+    if exit_code != 0:
+        raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":

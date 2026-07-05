@@ -42,7 +42,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.utils.config import cfg_get
+from src.utils.config import cfg_get, load_config
 
 __all__ = [
     "make_headline_agent",
@@ -50,6 +50,8 @@ __all__ = [
     "make_agent",
     "HEADLINE_ALGO",
     "DISTRIBUTIONAL_ALGO",
+    "DEFAULT_REPLAY_CAP",
+    "campaign_replay_cap",
 ]
 
 #: The fixed headline algorithm (audit A-1): Stable-Baselines3 SAC.
@@ -57,6 +59,30 @@ HEADLINE_ALGO = "SAC"
 
 #: The secondary distributional-critic algorithm (audit A-2): sb3-contrib TQC.
 DISTRIBUTIONAL_ALGO = "TQC"
+
+#: Fallback HARD replay-buffer cap when config/campaign.yaml is unreadable (ADR-025 EXTENDED,
+#: CLAUDE.md 2026-06-30 laptop design). At the 1,893-dim obs a full-history buffer needs ~2.8 GB
+#: at 200k / ~5 GB at 350k and OOMs the 15.6 GB laptop; capped at 50k the replay is a bounded
+#: ~0.76 GB sliding window (50000 x 1893 x 4 B x 2, obs + next_obs float32).
+DEFAULT_REPLAY_CAP = 50000
+
+
+def campaign_replay_cap() -> int:
+    """Resolve the HARD replay-buffer cap (config/campaign.yaml ``agent.buffer_size``, default 50k).
+
+    This is the single source of truth for the memory-safety cap enforced at BOTH agent-construction
+    sites (this factory and :func:`src.agents.trainer.resolve_agent_kwargs`). It decouples the replay
+    buffer from ``train_steps`` so the per-candidate step budget can rise to 200k+ without OOM: every
+    construction path clamps ``buffer_size = min(requested_or_train_steps, cap)``. Config is read once
+    per call (small YAML, no hot path); an unreadable config falls back to :data:`DEFAULT_REPLAY_CAP`
+    so the cap is never silently lost.
+    """
+    try:
+        agent = load_config("campaign").get("agent") or {}
+        cap = agent.get("buffer_size")
+        return int(cap) if cap is not None else DEFAULT_REPLAY_CAP
+    except Exception:  # noqa: BLE001 -- config absent/malformed -> fall back to the safe default cap
+        return DEFAULT_REPLAY_CAP
 
 
 def _policy_kwargs(cfg: Any) -> dict[str, Any]:
@@ -85,14 +111,20 @@ def _policy_kwargs(cfg: Any) -> dict[str, Any]:
         "learning_rate": cfg_get(cfg, "learning_rate", 3e-4),
         "gamma": cfg_get(cfg, "gamma", 0.99),
         "ent_coef": cfg_get(cfg, "ent_coef", "auto"),
-        # buffer_size defaults to the train-step budget (ADR-025: full-history replay, no eviction), NOT a
-        # 1M literal that OOMs the 4090 AND diverges from trainer.resolve_agent_kwargs (no-hardcoding audit).
-        "buffer_size": int(
-            cfg_get(
-                cfg,
-                "buffer_size",
-                cfg_get(cfg, "train_steps_per_candidate", cfg_get(cfg, "train_steps", 50000)),
-            )
+        # buffer_size defaults to the train-step budget, then HARD-CAPPED at the campaign replay cap
+        # (ADR-025 EXTENDED; campaign_replay_cap, default 50k) so no path OOMs at B* >= 200k. For any
+        # budget < cap the min() is a no-op (buffer == budget, the prototype's 25k is unchanged); at
+        # 200k with no explicit buffer_size it clamps to 50k. Not a 1M literal (OOMs the 4090) and not
+        # a value diverging from trainer.resolve_agent_kwargs (both clamp via the same helper).
+        "buffer_size": min(
+            int(
+                cfg_get(
+                    cfg,
+                    "buffer_size",
+                    cfg_get(cfg, "train_steps_per_candidate", cfg_get(cfg, "train_steps", 50000)),
+                )
+            ),
+            campaign_replay_cap(),
         ),
         "batch_size": cfg_get(cfg, "batch_size", 256),
         # learning_starts: the warm-up steps collected (random policy) before the critic starts

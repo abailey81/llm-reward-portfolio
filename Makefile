@@ -8,7 +8,7 @@ VPY := $(VENV)/bin/python
 
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-dev test test-fast lint format typecheck audit mutation \
-        smoke freeze freeze-check power campaign analyze lock clean
+        smoke freeze freeze-check power campaign analyze lock clean paper wordcount prereg-bundle
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -65,6 +65,15 @@ freeze-check:  ## CI drift guard — verify prose<->yaml + Phase-0 + hash (no wr
 
 campaign:  ## Phase 3 — run the campaign (config/campaign.yaml)
 	$(VPY) scripts/run_campaign.py
+
+paper:  ## Build the dissertation PDF (pandoc 3.10 + Tectonic, pinned portable copies in tools/)
+	$(VPY) scripts/build_paper.py
+
+wordcount:  ## UCL 10k main-body word-budget check (per-chapter + total; exit 1 over the limit)
+	$(VPY) scripts/word_budget.py
+
+prereg-bundle:  ## Package the frozen pre-registration for external (OSF) deposit
+	$(VPY) scripts/make_prereg_bundle.py
 
 analyze:  ## Phase 4 — hypothesis tests + tables
 	$(VPY) scripts/analyze_results.py

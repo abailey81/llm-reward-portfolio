@@ -357,11 +357,13 @@ def test_rf_missing_source_column_degrades() -> None:
 def test_market_proxy_forward_fills_interior_gap_not_future() -> None:
     """A bond-holiday interior gap reads the LAST KNOWN market return (ffill), never a future one.
     We omit a session from the parquet but request it: it must inherit the prior value."""
+    from src.data.loaders import gold_suffix
+
     tmp = Path(pytest.importorskip("tempfile").mkdtemp())
     full = pd.bdate_range("2021-02-01", periods=6)
     kept = full.delete(3)  # drop the 4th session from the stored parquet
     pd.DataFrame({"market_ew": [0.01, -0.02, 0.03, -0.04, 0.05]}, index=kept).to_parquet(
-        tmp / "market_proxy_univ3.parquet"
+        tmp / f"market_proxy_{gold_suffix()}.parquet"
     )
     mp = load_market_proxy_returns(full.to_numpy(), gold_dir=tmp)
     assert mp.available is True
@@ -375,8 +377,10 @@ def test_market_proxy_unnamed_index_column0_heuristic() -> None:
     index (not misread column 0 as values, the documented _aligned_series pitfall it sidesteps)."""
     tmp = Path(pytest.importorskip("tempfile").mkdtemp())
     idx = pd.bdate_range("2021-02-01", periods=4)
+    from src.data.loaders import gold_suffix
+
     pd.DataFrame({"market_ew": [0.1, 0.2, 0.3, 0.4]}, index=idx).to_parquet(
-        tmp / "market_proxy_univ3.parquet"
+        tmp / f"market_proxy_{gold_suffix()}.parquet"
     )
     mp = load_market_proxy_returns(idx.to_numpy(), gold_dir=tmp)
     assert mp.returns == pytest.approx([0.1, 0.2, 0.3, 0.4])
@@ -423,11 +427,12 @@ def test_ff_factors_alignment_and_shape(tmp_path: Path) -> None:
 # loaders.py — gold_suffix env contract + clear-error on a missing panel
 # ===========================================================================
 def test_gold_suffix_unset_defaults_to_univ3(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No LLM_RP_GOLD_SUFFIX => the frozen headline panel univ3 (the campaign runs with it UNSET)."""
+    """No LLM_RP_GOLD_SUFFIX => the ACTIVE headline panel univ5 (SPLIT C, ADR-044/051; the campaign
+    runs with the env var UNSET, so config/data.yaml's gold.suffix governs)."""
     from src.data.loaders import gold_suffix
 
     monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
-    assert gold_suffix() == "univ3"
+    assert gold_suffix() == "univ5"
 
 
 def test_gold_suffix_strips_leading_underscore_and_whitespace(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -441,7 +446,7 @@ def test_gold_suffix_strips_leading_underscore_and_whitespace(monkeypatch: pytes
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "__univ3")
     assert gold_suffix() == "univ3"  # only ONE leading underscore is stripped... but '_univ3'->'univ3'
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "   ")
-    assert gold_suffix() == "univ3"
+    assert gold_suffix() == "univ5"  # blank override falls back to the ACTIVE config suffix (Split C)
 
 
 def test_gold_suffix_read_live_at_call_time(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -452,7 +457,7 @@ def test_gold_suffix_read_live_at_call_time(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "univ4")
     assert gold_suffix() == "univ4"
     monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
-    assert gold_suffix() == "univ3"  # the very next call reflects the change
+    assert gold_suffix() == "univ5"  # the very next call reflects the change (ACTIVE = univ5, Split C)
 
 
 def test_load_gold_panel_missing_artifact_raises_clear_error(
@@ -495,7 +500,12 @@ def test_seed_leading_vix_never_pulls_future_in_window() -> None:
 # ===========================================================================
 # loaders.py against the REAL frozen gold panel — guarded (licensed data)
 # ===========================================================================
-_GOLD = _REPO / "data" / "gold" / "returns_panel_univ3.parquet"
+# Gate on the ACTIVE panel (batch-6 M7, 2026-07-03): was hardcoded to univ3 while the live suffix is
+# univ5 (ADR-051) — if univ3 were pruned these tests would wrongly SKIP though the active panel is present.
+# Track gold_suffix() like the sibling gold-gated test files (test_loaders/test_embargo_splits/test_viz_eda).
+from src.data.loaders import gold_suffix as _gold_suffix  # noqa: E402
+
+_GOLD = _REPO / "data" / "gold" / f"returns_panel_{_gold_suffix()}.parquet"
 gold_only = pytest.mark.skipif(not _GOLD.exists(), reason="frozen gold panel not present (licensed data)")
 
 

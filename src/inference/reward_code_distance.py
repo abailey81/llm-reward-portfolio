@@ -97,21 +97,33 @@ def reward_code_structure_report(
     Returns
     -------
     dict
-        ``{within_mean, across_mean, difference, p_value, n_within_pairs, n_across_pairs, per_condition}``.
+        ``{within_mean, across_mean, difference, p_value, n_within_pairs, n_across_pairs, n_unparseable,
+        per_condition}``. ``n_unparseable`` counts sources EXCLUDED because they yielded an empty AST
+        signature (unparseable) — they are dropped, not scored as similarity-1.0, so two malformed rewards
+        cannot inflate the within-condition mean (P7c).
         ``difference = within_mean - across_mean`` (> 0 = the LLM clusters code structure by condition);
         ``p_value`` is the one-sided permutation probability that a random re-labelling reaches the observed
         difference. Report-only and directional — it never enters the inferential result.
     """
-    # Precompute shape sets once per source; flatten with a condition label.
+    # Precompute shape sets once per source; flatten with a condition label. EXCLUDE unparseable sources
+    # (empty shape signature): a pair of two EMPTY sets has Jaccard 1.0 by the trivial-set convention, so two
+    # malformed rewards under the SAME condition would spuriously read as maximally similar and INFLATE the
+    # within-condition mean — a false "structural clustering by condition". Dropping them (with a logged
+    # count) is the honest handling: an unparseable reward carries NO structure to cluster on (P7c).
     labels: list[str] = []
     shapes: list[frozenset[str]] = []
+    n_unparseable = 0
     for cond, srcs in arm_sources.items():
         for s in srcs:
+            sh = canonical_shapes(s, depth)
+            if not sh:  # unparseable / empty signature -> exclude (would inflate within-similarity)
+                n_unparseable += 1
+                continue
             labels.append(cond)
-            shapes.append(canonical_shapes(s, depth))
+            shapes.append(sh)
     m = len(shapes)
     if m < 2:
-        return {"status": "insufficient", "n_sources": m}
+        return {"status": "insufficient", "n_sources": m, "n_unparseable": n_unparseable}
 
     # Full pairwise similarity matrix (deterministic, symmetric).
     sim = np.ones((m, m), dtype=float)
@@ -142,6 +154,7 @@ def reward_code_structure_report(
             "across_mean": a_mean,
             "n_within_pairs": n_w,
             "n_across_pairs": n_a,
+            "n_unparseable": n_unparseable,
         }
     obs = w_mean - a_mean
 
@@ -166,6 +179,7 @@ def reward_code_structure_report(
         "p_value": float(p_value),
         "n_within_pairs": n_w,
         "n_across_pairs": n_a,
+        "n_unparseable": n_unparseable,
         "per_condition": per_cond,
         "depth": depth,
         "seed": seed,

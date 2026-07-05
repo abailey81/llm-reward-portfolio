@@ -45,6 +45,10 @@ def _mini_repo(tmp_path: Path) -> Path:
     shutil.copyfile(REPO / freeze.PREREG_MD, tmp_path / freeze.PREREG_MD)
     shutil.copyfile(REPO / freeze.PREREG_YAML, tmp_path / freeze.PREREG_YAML)
     shutil.copyfile(REPO / freeze.DECISION_LOG, tmp_path / freeze.DECISION_LOG)
+    # config/data.yaml carries the gold.suffix the data_panel cross-check binds (batch-6 M2, 2026-07-03:
+    # the check now reads root/config/data.yaml, so the mini-repo must supply it — copied from the real
+    # one so it mirrors the prereg's frozen headline, which lets the drift test below edit it hermetically).
+    shutil.copyfile(REPO / "config" / "data.yaml", tmp_path / "config" / "data.yaml")
     return tmp_path
 
 
@@ -75,11 +79,25 @@ def test_verify_live_returns_full_status():
     assert status.phase0_marker.strip()
     assert not status.already_frozen
     assert status.recorded_hash is None  # freeze_hash: null pre-freeze
-    # ELEVEN frozen checks on the LIVE repo: the 6 original + the 3 2026-06-24 amendments
+    # FIFTEEN frozen checks on the LIVE repo: the 6 original + the 3 2026-06-24 amendments
     # (lambda/tf32/reflect) + the §3 arm-roster prose guard + the V1 cross-file executed-arms guard
-    # (campaign.yaml/arms.yaml rosters == frozen prereg arms; both configs present on the live root).
-    assert len(status.checks) == 11
+    # (campaign.yaml/arms.yaml rosters == frozen prereg arms) + the §18 h1_baselines cross-file guard
+    # (audit H-L2, 2026-07-02) + the data_panel.headline == config/data.yaml gold.suffix cross-check
+    # (pre-freeze audit H1, 2026-07-02: R73's univ3->univ5 flip had left the yaml mirror stale) + the
+    # train_steps_per_candidate executed<->frozen B* guard (batch-6 M1, 2026-07-03: B* was the one
+    # headline number with no executed<->frozen check — budget_mirror pairs campaign<->algos only) + the
+    # tail_diagnostic_set §4 prose<->yaml guard (batch-6 M5, 2026-07-03: the frozen tail set had no
+    # pre-freeze prose<->yaml contradiction guard, unlike sesoi/m/grid) + the seeds + matched_budget
+    # executed<->frozen guards (DEEP_SWEEP E-F1, 2026-07-04: campaign.yaml seeds/candidates_per_arm bound to
+    # the frozen prereg — the seed count is the power/equivalence knob, previously unguarded exactly like B* was).
+    assert len(status.checks) == 17
     assert any("executed arms:" in c for c in status.checks)
+    assert any("h1_baselines" in c for c in status.checks)
+    assert any("data_panel.headline" in c for c in status.checks)
+    assert any("train_steps_per_candidate" in c for c in status.checks)
+    assert any("tail_diagnostic_set" in c for c in status.checks)
+    assert any("frozen prereg seeds" in c for c in status.checks)
+    assert any("matched_budget:" in c for c in status.checks)
 
 
 def test_all_frozen_fields_are_checked():
@@ -101,8 +119,13 @@ _FROZEN_ARMS = [
 
 
 def _write_campaign_yaml(root: Path, arms: list[str]) -> None:
+    # Mini campaign.yaml carries the frozen §18 h1_baselines family too (the H1 guard fail-louds on a
+    # campaign.yaml that OMITS the family once the prereg yaml declares it — audit H-L2, 2026-07-02).
     (root / "config" / "campaign.yaml").write_text(
-        "arms: [" + ", ".join(arms) + "]\ncandidates_per_arm: 30\n",
+        "arms: [" + ", ".join(arms) + "]\ncandidates_per_arm: 30\n"
+        "train_steps_per_candidate: 200000\n"
+        "h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]\n"
+        "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]\n",
         encoding="utf-8",
     )
 
@@ -126,6 +149,81 @@ def test_executed_arms_guard_skips_when_configs_absent(mini: Path):
     assert freeze.assert_executed_arms_match(freeze.load_yaml(mini), mini) is None
     # verify() still passes end-to-end on the minimal root (the guard is a no-op there).
     assert freeze.verify(mini).hash
+
+
+def test_h1_baselines_guard_present_on_live():
+    """The live repo carries the frozen §18 family in BOTH prereg yaml and campaign.yaml; the guard AGREES."""
+    line = freeze.assert_h1_baselines_match(freeze.load_yaml(REPO), REPO)
+    assert line is not None and "h1_baselines" in line
+    for name in ("raw_return", "return_minus_variance", "return_minus_cvar", "differential_sharpe"):
+        assert name in line
+
+
+def test_h1_baselines_guard_skips_when_campaign_absent(mini: Path):
+    """The minimal prereg-only root has no campaign.yaml -> the H1 guard is a no-op (returns None)."""
+    assert freeze.assert_h1_baselines_match(freeze.load_yaml(mini), mini) is None
+
+
+def test_h1_baselines_drift_raises(mini: Path):
+    """A campaign.yaml whose h1_baselines drifts from the frozen §18 family must fail loud."""
+    (mini / "config" / "campaign.yaml").write_text(
+        "arms: [a]\nh1_baselines: [raw_return, differential_sharpe]\n", encoding="utf-8"
+    )
+    import pytest
+
+    with pytest.raises(freeze.FreezeConsistencyError, match="h1_baselines"):
+        freeze.assert_h1_baselines_match(freeze.load_yaml(mini), mini)
+
+
+def test_data_panel_drift_raises(mini: Path):
+    """config/data.yaml gold.suffix diverging from the frozen prereg headline -> raises (batch-6 M2).
+
+    Hermetic now that the check reads root/config/data.yaml (was a CWD-relative read that no mini-repo
+    could exercise): rewrite the mini's gold.suffix away from the prereg's frozen headline and assert
+    the data_panel cross-check fails loud rather than freezing a record<->execution contradiction.
+    """
+    # Minimal known-drifted data.yaml (avoids _edit's first-occurrence ambiguity — the real file names
+    # the suffix in several places): gold.suffix is unambiguously the drifted value here.
+    (mini / "config" / "data.yaml").write_text("gold:\n  suffix: univ5_DRIFTED\n", encoding="utf-8")
+    with pytest.raises(freeze.FreezeConsistencyError, match="data_panel.headline mismatch"):
+        freeze.verify(mini)
+
+
+def test_train_steps_drift_raises(mini: Path):
+    """campaign.yaml + algos.yaml B* diverging from the frozen prereg B* -> raises (batch-6 M1).
+
+    The one headline number that previously had no executed<->frozen guard. A coordinated edit of BOTH
+    executed mirrors (which passes preflight's campaign<->algos budget-mirror) must still fail the freeze
+    because it leaves the hashed prereg behind.
+    """
+    (mini / "config" / "campaign.yaml").write_text(
+        "arms: [a]\ntrain_steps_per_candidate: 250000\n", encoding="utf-8"
+    )
+    (mini / "config" / "algos.yaml").write_text("train_steps_per_candidate: 250000\n", encoding="utf-8")
+    with pytest.raises(freeze.FreezeConsistencyError, match="train_steps_per_candidate"):
+        freeze.assert_train_steps_match(freeze.load_yaml(mini), mini)
+
+
+def test_seeds_drift_raises(mini: Path):
+    """campaign.yaml seeds diverging from the frozen prereg seed set -> raises (DEEP_SWEEP E-F1).
+
+    The seed count is the knob the power/equivalence headline hinges on; a post-freeze seed edit
+    (30 -> a cherry-picked block) must fail the freeze because it leaves the hashed prereg behind.
+    """
+    (mini / "config" / "campaign.yaml").write_text(
+        "seeds: [0, 1, 2, 3, 4]\ncandidates_per_arm: 30\n", encoding="utf-8"
+    )
+    with pytest.raises(freeze.FreezeConsistencyError, match="frozen prereg seeds"):
+        freeze.assert_seeds_match(freeze.load_yaml(mini), mini)
+
+
+def test_matched_budget_drift_raises(mini: Path):
+    """campaign.yaml candidates_per_arm diverging from the frozen prereg matched_budget -> raises (E-F1)."""
+    (mini / "config" / "campaign.yaml").write_text(
+        "candidates_per_arm: 60\n", encoding="utf-8"
+    )
+    with pytest.raises(freeze.FreezeConsistencyError, match="matched_budget"):
+        freeze.assert_matched_budget_match(freeze.load_yaml(mini), mini)
 
 
 def test_campaign_arms_drop_raises(mini: Path):
@@ -291,8 +389,12 @@ def test_hash_order_sensitive(mini: Path):
     yml = freeze._strip_freeze_state(
         freeze._normalize_bytes((mini / freeze.PREREG_YAML).read_bytes()).decode("utf-8")
     ).encode("utf-8")
-    forward = freeze.sha256_bytes(md + b"\n" + yml)
-    reversed_ = freeze.sha256_bytes(yml + b"\n" + md)
+    # canonical_bytes also appends each present _BOUND_CONFIG after the prereg pair; in the mini fixture
+    # that is config/data.yaml (added to _mini_repo for the data_panel check, 2026-07-03), so the manual
+    # reconstruction must include it to equal canonical_hash(mini).
+    data = freeze._normalize_bytes((mini / "config" / "data.yaml").read_bytes())
+    forward = freeze.sha256_bytes(md + b"\n" + yml + b"\n" + data)
+    reversed_ = freeze.sha256_bytes(yml + b"\n" + md + b"\n" + data)
     assert forward == freeze.canonical_hash(mini)
     assert forward != reversed_
 

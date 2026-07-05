@@ -37,6 +37,14 @@ _ENT_COEF_COLLAPSE = 1e-4  # auto entropy coef collapsing to ~0 (premature deter
 _ENT_COEF_EXPLODE = 1e3
 _FPS_COLLAPSE = 3.0  # steps/sec below this => training effectively stalled
 
+# Anomaly kinds that describe a persistent STATE rather than a discrete EVENT (m9). Once SAC's
+# auto-tuned entropy coef legitimately decays below the collapse floor (or a candidate genuinely
+# stalls) the condition holds for the rest of the candidate, so the per-(kind, step) dedup — which
+# only blocks IDENTICAL steps — lets it re-alarm every ``log_every`` steps. These fire AT MOST ONCE
+# per (arm, candidate) instead (tracked in ``RunMonitor._fired_kinds``). Genuine EVENT kinds
+# (nonfinite_metric, critic_explosion) stay re-fireable — each occurrence is fresh news.
+_ONCE_PER_CANDIDATE_KINDS = frozenset({"entropy_collapse", "entropy_explosion", "fps_collapse"})
+
 # Long-run laptop resource guards (campaign-robustness §E / ram_thermal §4). The resource sampler
 # already records ``gpu_temp`` + ``ram_pct`` every flush but nothing thresholds them, so a 27 h run on
 # the RTX-4050 laptop can silently thermal-throttle or creep into the OOM band. These fire WARN/ABORT
@@ -125,6 +133,15 @@ class RunMonitor:
         self._critic_hist: deque[float] = deque(maxlen=50)
         self._best: dict[str, float] = {}
         self._anomalies: list[dict[str, Any]] = []
+        # Identity context (M6/FIX B): the (arm, candidate) currently in flight, stamped onto every
+        # anomaly row that does not carry its own ids so a diverged-run alarm is traceable to the exact
+        # candidate that emitted it. Set in arm_start/candidate_start, cleared in candidate_done/arm_done.
+        self._cur_arm: str | None = None
+        self._cur_cand: Any = None
+        # STATE-like anomaly kinds already fired this candidate (m9): keyed by (kind, arm, cand) so the
+        # once-per-candidate suppression is correct on BOTH the serial path (cleared each candidate_start)
+        # AND the parallel path (concurrent candidates never share a key; see ParallelMonitor).
+        self._fired_kinds: set[Any] = set()
         self.state: dict[str, Any] = {
             "title": title,
             "model": model,
@@ -241,6 +258,7 @@ class RunMonitor:
     # ----- lifecycle events -------------------------------------------------------------------------- #
     def arm_start(self, arm: str, idx: int) -> None:
         self.state["phase"] = "arm"
+        self._cur_arm, self._cur_cand = arm, None  # identity context for anomaly rows (FIX B)
         self.state["arms"].update(current=arm, current_idx=idx)
         self.state["candidates"].update(in_arm_done=0, current=0, gen=0)
         if self._progress is not None:
@@ -256,10 +274,13 @@ class RunMonitor:
         if self._progress is not None:
             self._progress.update(self._tasks["arms"], completed=self.state["arms"]["done"])
         log_event(_LOG, "arm_done", arm=arm, winner_fitness=winner_fitness, secs=round(secs, 1))
+        self._cur_arm, self._cur_cand = None, None  # arm finished: clear identity context (FIX B)
         self._flush()
 
     def candidate_start(self, arm: str, cand_idx: int, gen: int = 0) -> None:
         self.state["phase"] = "candidate"
+        self._cur_arm, self._cur_cand = arm, cand_idx  # identity context for anomaly rows (FIX B)
+        self._fired_kinds.clear()  # reset once-per-candidate STATE-anomaly suppression (m9) for the serial path
         self.state["candidates"].update(current=cand_idx, gen=gen)
         self.state["training"] = {}
         self._cand_t0 = time.time()
@@ -294,6 +315,7 @@ class RunMonitor:
             secs=round(secs, 1), run_done=self.state["candidates"]["run_done"],
             run_total=self.state["candidates"]["run_total"],
         )
+        self._cur_cand = None  # candidate finished: a between-candidates anomaly carries no cand id (FIX B)
         self._flush()
 
     def llm_call(self, arm: str, cand: int, *, secs: float, in_tok: int | None = None,
@@ -330,29 +352,39 @@ class RunMonitor:
         self._check_training_anomalies(step, tr)
         self._flush()
 
-    def _check_training_anomalies(self, step: int, tr: dict[str, Any]) -> None:
+    def _check_training_anomalies(
+        self, step: int, tr: dict[str, Any], *, arm: str | None = None, cand: Any = None
+    ) -> None:
+        # FIX B: the PARALLEL pump passes the (arm, candidate) EXPLICITLY (it has no per-candidate identity
+        # context, and several candidates train at once), while the serial path omits them and lets
+        # ``anomaly`` stamp the in-flight ``_cur_arm``/``_cur_cand``. ``ident`` rides on EVERY row below.
+        ident: dict[str, Any] = {}
+        if arm is not None:
+            ident["arm"] = arm
+        if cand is not None:
+            ident["cand"] = cand
         for k in ("actor_loss", "critic_loss", "ent_coef", "ep_rew_mean"):
             v = tr.get(k)
             if v is not None and (math.isnan(v) or math.isinf(v)):
-                self.anomaly("nonfinite_metric", f"{k}={v} at step {step}", metric=k, step=step)
+                self.anomaly("nonfinite_metric", f"{k}={v} at step {step}", metric=k, step=step, **ident)
         cl = tr.get("critic_loss")
         if cl is not None and math.isfinite(cl):
             if cl > _CRITIC_EXPLOSION_ABS:
-                self.anomaly("critic_explosion", f"critic_loss={cl:.3g} > {_CRITIC_EXPLOSION_ABS:.0g}", step=step)
+                self.anomaly("critic_explosion", f"critic_loss={cl:.3g} > {_CRITIC_EXPLOSION_ABS:.0g}", step=step, **ident)
             elif len(self._critic_hist) >= 10:
                 med = sorted(self._critic_hist)[len(self._critic_hist) // 2]
                 if med > 0 and cl > _CRITIC_EXPLOSION_REL * med:
-                    self.anomaly("critic_explosion", f"critic_loss={cl:.3g} >> median {med:.3g}", step=step)
+                    self.anomaly("critic_explosion", f"critic_loss={cl:.3g} >> median {med:.3g}", step=step, **ident)
             self._critic_hist.append(cl)
         ec = tr.get("ent_coef")
         if ec is not None and math.isfinite(ec):
             if ec < _ENT_COEF_COLLAPSE:
-                self.anomaly("entropy_collapse", f"ent_coef={ec:.3g} (premature determinism)", step=step, level=30)
+                self.anomaly("entropy_collapse", f"ent_coef={ec:.3g} (premature determinism)", step=step, level=30, **ident)
             elif ec > _ENT_COEF_EXPLODE:
-                self.anomaly("entropy_explosion", f"ent_coef={ec:.3g}", step=step, level=30)
+                self.anomaly("entropy_explosion", f"ent_coef={ec:.3g}", step=step, level=30, **ident)
         fps = tr.get("fps")
         if fps is not None and 0 < fps < _FPS_COLLAPSE:
-            self.anomaly("fps_collapse", f"fps={fps:.2f} (training stalled?)", step=step, level=30)
+            self.anomaly("fps_collapse", f"fps={fps:.2f} (training stalled?)", step=step, level=30, **ident)
 
     def _check_resource_anomalies(self, res: dict[str, Any]) -> None:
         """Flag GPU thermal-throttle + RAM-pressure on a long laptop run (deduped via a ~60 s cooldown).
@@ -383,9 +415,37 @@ class RunMonitor:
                 self.anomaly("ram_pressure_warn", f"ram_pct={r:.1f}% >= {_RAM_PCT_WARN}%", level=30)
 
     def anomaly(self, kind: str, detail: str, *, level: int = 40, **fields: Any) -> None:
-        """Record + loudly log an anomaly (default ERROR). Deduped per (kind, step) to avoid spam."""
+        """Record + loudly log an anomaly (default ERROR).
+
+        Every row is stamped with the in-flight (arm, candidate) identity unless the caller passed its
+        own ids (FIX B), so a diverged-run alarm is traceable to the exact candidate that emitted it.
+        Consecutive-duplicate rows are deduped per (kind, step, cand) — the candidate id is IN the key so
+        a second candidate's same-kind/same-step row is never swallowed by the first's. STATE-like kinds
+        (``_ONCE_PER_CANDIDATE_KINDS``) additionally fire at most once per (arm, candidate), so a
+        legitimately-decayed entropy coef cannot re-alarm every log step for the rest of the run (m9).
+        """
+        # Stamp the identity context onto rows without their own ids (the serial training + resource
+        # checks call anomaly() bare; the parallel pump passes arm/cand explicitly, which win here).
+        if "arm" not in fields and self._cur_arm is not None:
+            fields["arm"] = self._cur_arm
+        if "cand" not in fields and self._cur_cand is not None:
+            fields["cand"] = self._cur_cand
+        cand_key = fields.get("cand")
+        # Once-per-candidate STATE-anomaly suppression (m9): keyed by (kind, arm, cand) so it holds on the
+        # serial path (cand id resets per arm -> arm disambiguates) AND the parallel path (candidate_start
+        # never clears the set there, but each concurrent candidate carries a DISTINCT key).
+        if kind in _ONCE_PER_CANDIDATE_KINDS:
+            fired_key = (kind, fields.get("arm"), cand_key)
+            if fired_key in self._fired_kinds:
+                return
+            self._fired_kinds.add(fired_key)
         rec = {"ts": _now_iso(), "kind": kind, "detail": detail, **fields}
-        if self._anomalies and self._anomalies[-1].get("kind") == kind and self._anomalies[-1].get("step") == fields.get("step"):
+        if (
+            self._anomalies
+            and self._anomalies[-1].get("kind") == kind
+            and self._anomalies[-1].get("step") == fields.get("step")
+            and self._anomalies[-1].get("cand") == cand_key
+        ):
             return
         self._anomalies.append(rec)
         log_event(_LOG, "ANOMALY", level=level, kind=kind, detail=detail, **fields)
@@ -415,8 +475,13 @@ def _g(v: Any) -> str:
     return f"{v:.3g}" if isinstance(v, (int, float)) and v == v else "?"
 
 
-def make_training_callback(monitor: RunMonitor | None, *, log_every: int = 1000) -> Any:
-    """Build a real SB3 ``BaseCallback`` bound to ``monitor`` (or a no-op stand-in if SB3 absent/monitor None)."""
+def make_training_callback(monitor: RunMonitor | None, *, log_every: int = 1000, governor: Any = None) -> Any:
+    """Build a real SB3 ``BaseCallback`` bound to ``monitor`` (or a no-op stand-in if SB3 absent/monitor None).
+
+    When a ``governor`` (``src.utils.guardian.ThermalGovernor``) is supplied it is *ticked* every ``log_every``
+    steps: on overheat it cooperatively PAUSES training until the GPU cools (result-neutral — only wall-clock is
+    spent, no weight changes), protecting a 24/7 laptop run from thermal throttling/shutdown. ``None`` = off.
+    """
     try:
         from stable_baselines3.common.callbacks import BaseCallback
     except Exception:  # pragma: no cover
@@ -426,8 +491,12 @@ def make_training_callback(monitor: RunMonitor | None, *, log_every: int = 1000)
         def __init__(self) -> None:
             super().__init__()
             self._next = log_every
+            self._gov_next = log_every
 
         def _on_step(self) -> bool:
+            if governor is not None and self.num_timesteps >= self._gov_next:
+                self._gov_next += log_every
+                governor.govern()  # thermal pause on overheat (result-neutral); no-op when cool
             if monitor is not None and self.num_timesteps >= self._next:
                 self._next += log_every
                 vals = dict(self.model.logger.name_to_value)
@@ -520,7 +589,9 @@ class ParallelMonitor(RunMonitor):
                 step=ev.get("step"), fps=tr["fps"], critic_loss=tr["critic_loss"]
             )
             self.state["training"] = tr
-            self._check_training_anomalies(int(ev.get("step") or 0), tr)
+            # FIX B: pass the (arm, candidate) explicitly — the central pump has no per-candidate identity
+            # context, and several candidates train at once, so every anomaly row must carry its own ids.
+            self._check_training_anomalies(int(ev.get("step") or 0), tr, arm=arm, cand=cid)
         elif m == "candidate_done":
             self.active.pop(cid, None)
             c = self.state["candidates"]
@@ -533,8 +604,13 @@ class ParallelMonitor(RunMonitor):
                 # Flag a FAILURE WAVE loudly (e.g. a CUDA-OOM cascade): >=3 errors AND >50% of completed.
                 if self._errors >= 3 and self._errors > 0.5 * c["run_done"]:
                     self.anomaly("failure_wave",
-                                 f"{self._errors}/{c['run_done']} candidates FAILED; last: {ev.get('error')}")
+                                 f"{self._errors}/{c['run_done']} candidates FAILED; last: {ev.get('error')}",
+                                 arm=arm, cand=cid)  # FIX B: identify the candidate whose failure tipped the wave
             fit = ev.get("fitness")
+            # FIX D: parity with the serial candidate_done — a NaN winner-fitness must be FLAGGED, not
+            # silently dropped by the ``fit == fit`` best-update guard below (NaN fails that guard).
+            if fit is not None and math.isnan(float(fit)):
+                self.anomaly("fitness_nan", f"{arm} cand {cid} fitness=NaN", arm=arm, cand=cid)
             if fit is not None and fit == fit and fit > self._best.get(arm, -math.inf):
                 self._best[arm] = float(fit)
             secs = ev.get("secs")

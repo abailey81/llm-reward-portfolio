@@ -1,11 +1,5 @@
 # Chapter 6 — Results
 
-> **Status: structural scaffold (2026-06-28).** Every quantity below is a marked placeholder of the form
-> `[FROM CAMPAIGN: ...]` and must be filled from the frozen confirmatory campaign archive. **No number in this
-> chapter exists yet.** The directional prototype (Chapter 5) is *not* a source for any number here; this chapter
-> reports only the pre-registered, frozen, full-power campaign. Section/cross-references: arms and inference plan
-> from Chapter 4; theory and the §3.7 prediction table from Chapter 3.
-
 ## Reporting rules (apply throughout this chapter)
 
 These rules are pre-committed and govern every result statement below:
@@ -36,7 +30,7 @@ interpreting effects.
 - Frozen design hash (must match `PREREGISTRATION.md`): `[FROM CAMPAIGN: freeze SHA-256]`.
 - Arms run: **7** (distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt);
   seeds per arm: `[FROM CAMPAIGN: n_seeds, target 30]`; candidate budget per arm: `[FROM CAMPAIGN: 30 = 6 gen × 5]`.
-- Total candidates evaluated: `[FROM CAMPAIGN: N]`; total environment steps: `[FROM CAMPAIGN: N × 50,000]`.
+- Total candidates evaluated: `[FROM CAMPAIGN: N]`; total environment steps: `[FROM CAMPAIGN: N × 200,000]`.
 - Logged deviations (append-only log): `[FROM CAMPAIGN: count]`; disposition: `[FROM CAMPAIGN: summary]`.
 - Realised wall-clock / cost: `[FROM CAMPAIGN: hours / $]`; serial-parallel byte-equivalence: `[FROM CAMPAIGN: confirmed?]`.
 - Untrusted-code screen rejections: `[FROM CAMPAIGN: count]`; critic-divergence events: `[FROM CAMPAIGN: count]`.
@@ -94,11 +88,27 @@ attribution rules out a low-volatility-beta explanation of any headline.
 This section reports H1, H3 and H4, each scoped exactly as pre-registered.
 
 **H1 — beat-the-human (descriptive only).** Whether the best LLM reward beats the maximum over four hand-designed
-rewards on the sealed leg. Reported **descriptively, not inferentially**, with both caveats stated in full: (i)
-the comparator baselines are selected on the same sealed leg they are reported on (a **comparator data-snoop**),
-and (ii) the hand-designed baselines are **un-tuned**, so any gap is not a like-for-like optimisation comparison.
+rewards on the sealed leg. We report this in the Eureka "beat-the-human-baseline" tradition, but it carries a
+**data-snooping bias that we make explicit and refuse to launder into an inferential claim**, for two reasons
+that push in *opposite* directions:
 
-- `[FROM CAMPAIGN: best-LLM vs max-baseline on sealed leg, descriptive]`.
+- *(i) Comparator selection on the sealed leg (anti-conservative for the baseline).* The comparator is the
+  **maximum** over four hand-designed rewards evaluated on the very leg it is then reported on. Taking a maximum
+  over several candidates on the test sample inflates the comparator's apparent performance by the usual
+  selection (multiple-comparisons) mechanism — it borrows the most favourable test-set noise. This biases the
+  comparison **against** our H1 claim (it makes the human baseline look better than a held-out estimate would),
+  so it is *conservative* for "the LLM beats the human" and *anti-conservative* for the baseline itself.
+- *(ii) Un-tuned baselines (favourable to our claim).* The hand-designed rewards are fixed, un-tuned reference
+  specifications, not the output of a matched hyper-parameter search; any gap is therefore **not** a like-for-like
+  optimisation comparison, and this bias runs the *other* way — it flatters the LLM.
+
+Because these two biases are of unknown relative magnitude, the **net sign is unidentified**, and H1 is therefore
+reported as a **descriptive observation only**: it is excluded from the frozen `m=6` multiplicity family, never
+enters any TOST/IUT decision, and no *p*-value is attached to it. It is context for the headline mechanism result,
+not evidence for it. (The clean, pre-registered, inference-bearing comparisons are H2/H3/H4, which select on the
+validation leg and are scored once on the sealed leg.)
+
+- `[FROM CAMPAIGN: best-LLM vs max-baseline on sealed leg, descriptive — gap and direction only, no test]`.
 
 **H3 — reflection vs single-shot (TOST-bounded equivalence).** Whether iterative reflection beats single-shot
 best-of-N at matched budget; reported as a TOST-bounded equivalence against the SESOI, not as a bare *p*.
@@ -116,10 +126,11 @@ Gaussian-process expected-improvement baselines at the matched 30-candidate budg
 
 This section supplies the mechanism that turns a null into a finding (reporting rule 4). It estimates
 **responsiveness** — the change in the authored reward code as a function of the change in the fed tail signal
-(the mediation/indirect-effect quantity of §3.7) — and reports its sign. It quantifies the **reward-program
+(the mediation/indirect-effect quantity of §3.7 [`imai2010identification`; `mackinnon2000equivalence`]) — and
+reports its sign. It quantifies the **reward-program
 differential** across arms with the EPIC/STARC reward pseudometrics (do tail-fed arms author measurably different
 reward code?). Finally it presents the **learning-curve / convergence diagnostic**, disclosing training adequacy
-at the 50,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
+at the 200,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
 
 - Responsiveness (fed-tail change → authored-reward change): `[FROM CAMPAIGN: estimate, sign, CI]`.
 - Reward-program differential (EPIC/STARC distances between arms): `[FROM CAMPAIGN: distances]`;

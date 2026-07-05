@@ -270,8 +270,12 @@ def _require(condition: object, message: str) -> None:
         raise FreezeConsistencyError(message)
 
 
-def assert_prose_matches_yaml(yml: dict[str, Any], prose: str) -> list[str]:
+def assert_prose_matches_yaml(yml: dict[str, Any], prose: str, root: Path) -> list[str]:
     """Assert the PROSE record agrees with the YAML mirror on every frozen field.
+
+    ``root`` anchors the cross-config reads (the data_panel check reads ``root/config/data.yaml``, batch-6
+    M2, 2026-07-03 — the old bare ``Path("config/data.yaml")`` resolved against the CWD, so the guard was
+    correct only when run from the repo root and could not be tested hermetically from a mini-repo root).
 
     Returns a list of human-readable "checked + agreed" lines (for the report); raises
     :class:`FreezeConsistencyError` naming the first field that disagrees.
@@ -490,6 +494,62 @@ def assert_prose_matches_yaml(yml: dict[str, Any], prose: str) -> list[str]:
     )
     checked.append(f"search.reflect_protocol_default: yaml {reflect!r} present (R21)")
 
+    # 8) 2026-07-02 (pre-freeze audit): data_panel.headline must equal the EXECUTED panel ------- #
+    # The gate previously never looked at data_panel — R73's univ3->univ5 flip left the yaml mirror
+    # stale (headline: univ3) and would have FROZEN silently. Bind the yaml record to the engine
+    # config (config/data.yaml gold.suffix, itself hash-bound) so record and execution cannot drift.
+    panel_yaml = (yml.get("data_panel") or {}).get("headline")
+    _require(
+        bool(panel_yaml),
+        "data_panel.headline must be set (the frozen headline-panel record, R44/R73)",
+    )
+    try:
+        data_cfg_suffix = (
+            (yaml.safe_load((root / "config" / "data.yaml").read_text(encoding="utf-8")) or {})
+            .get("gold", {})
+            .get("suffix")
+        )
+    except OSError as exc:
+        raise FreezeConsistencyError(f"cannot read config/data.yaml for the panel cross-check: {exc}") from exc
+    _require(
+        panel_yaml == data_cfg_suffix,
+        f"data_panel.headline mismatch: preregistration.yaml says {panel_yaml!r} but the executed "
+        f"config/data.yaml gold.suffix is {data_cfg_suffix!r} (R73 drift — fix the mirror before freezing)",
+    )
+    _require(
+        str(panel_yaml) in prose,
+        f"prose never names the frozen headline panel {panel_yaml!r}",
+    )
+    checked.append(f"data_panel.headline: yaml {panel_yaml!r} == config/data.yaml gold.suffix == prose (R73)")
+
+    # 9) 2026-07-03 (batch-6 M5): the frozen tail-diagnostic set (§4) must be named in the prose ------ #
+    # The tail set is hash-bound (in preregistration.yaml), so POST-freeze drift is caught by the hash,
+    # but a PRE-freeze yaml<->prose §4 contradiction had no guard (unlike sesoi/m/grid). Bind each frozen
+    # CVaR level + extra to a prose mention so the yaml mirror and §4 cannot freeze a contradiction.
+    tail = yml.get("tail_diagnostic_set") or {}
+    cvar_levels = tail.get("cvar_levels") or []
+    extras = tail.get("extras") or []
+    _require(
+        bool(cvar_levels),
+        "tail_diagnostic_set.cvar_levels must be a non-empty list (the frozen tail set, §4)",
+    )
+    for lv in cvar_levels:
+        # yaml stores the level (0.25); prose §4 names the component by token (cvar_25). round() avoids the
+        # 0.10*100 == 10.000...2 float artifact that int() would truncate to 9.
+        tok = f"cvar_{round(float(lv) * 100):02d}"
+        _require(
+            tok in prose,
+            f"prose §4 never names the frozen tail component {tok!r} (yaml cvar level {lv})",
+        )
+    for ex in extras:
+        _require(
+            str(ex) in prose,
+            f"prose §4 never names the frozen tail extra {str(ex)!r}",
+        )
+    checked.append(
+        f"tail_diagnostic_set: cvar_levels {cvar_levels} + extras {list(extras)} all named in prose §4"
+    )
+
     return checked
 
 
@@ -562,6 +622,162 @@ def assert_executed_arms_match(yml: dict[str, Any], root: Path) -> str | None:
     return f"executed arms: {checked} rosters == frozen prereg arms (n={len(frozen)}: {sorted(frozen)})"
 
 
+def assert_h1_baselines_match(yml: dict[str, Any], root: Path) -> str | None:
+    """Cross-file guard (audit H-L2, 2026-07-02): the executed H1 family must equal the FROZEN prereg family.
+
+    The H1 "beat-the-human" baseline family (PREREGISTRATION.md §1 (H1) + the amendment register) is frozen as the machine-readable
+    ``h1_baselines`` list in ``config/preregistration.yaml`` (hash-bound). ``config/campaign.yaml`` — which
+    the baseline TEST stage actually reads — is NOT hash-bound (its compute knobs must stay amendable), so,
+    exactly like the arm-roster guard above, THIS assertion (not the hash) is what binds the executed
+    family. Returns the checked-summary line, or ``None`` when the prereg yaml carries no ``h1_baselines``
+    key (pre-migration checkouts) or campaign.yaml is absent (minimal test roots).
+    """
+    frozen_field = yml.get("h1_baselines")
+    if frozen_field is None:
+        return None
+    frozen = {str(x) for x in frozen_field}
+    camp_path = root / "config" / "campaign.yaml"
+    if not camp_path.exists():
+        return None
+    camp = yaml.safe_load(camp_path.read_text(encoding="utf-8")) or {}
+    executed_field = camp.get("h1_baselines")
+    _require(
+        isinstance(executed_field, list) and executed_field,
+        "config/campaign.yaml declares no usable 'h1_baselines' list (the frozen H1 family, PREREGISTRATION §1 + the amendment register)",
+    )
+    executed = {str(x) for x in executed_field}
+    _require(
+        executed == frozen,
+        f"executed h1_baselines in config/campaign.yaml {sorted(executed)} != frozen prereg family "
+        f"{sorted(frozen)} (missing {sorted(frozen - executed)}, extra {sorted(executed - frozen)}); "
+        "the H1 beat-the-human family (PREREGISTRATION §1 + register) may only change by dated amendment",
+    )
+    return f"h1_baselines: campaign.yaml == frozen prereg family (n={len(frozen)}: {sorted(frozen)})"
+
+
+#: Executed configs that carry the per-candidate step budget B* at the TOP LEVEL (the value
+#: run_campaign.py actually reads). ``config/preregistration.yaml`` is the FROZEN source of truth (in the
+#: hash); these two are compute knobs kept OUT of the hash, so — exactly like the arm roster + H1 family —
+#: an assertion (not the hash) is what binds them to the frozen B*.
+_TRAIN_STEPS_CONFIGS: tuple[str, ...] = (
+    "config/campaign.yaml",    # what the campaign EXECUTES (run_campaign.py reads camp["train_steps_per_candidate"])
+    "config/algos.yaml",       # the mirror the preflight budget-mirror guard pairs with campaign.yaml
+)
+
+
+def assert_train_steps_match(yml: dict[str, Any], root: Path) -> str | None:
+    """Cross-file guard (batch-6 M1, 2026-07-03): the EXECUTED B* must equal the FROZEN prereg B*.
+
+    ``train_steps_per_candidate`` (B* = 200,000, R74) is the single most important executed number, yet it
+    was the ONLY headline frozen quantity with no freeze-time executed<->frozen check: the frozen copy in
+    ``config/preregistration.yaml`` is hash-bound, but ``campaign.yaml``/``algos.yaml`` (which the run reads)
+    are deliberately un-hashed compute knobs, and ``preflight.check_budget_mirror`` compares only
+    campaign<->algos — never the prereg. A coordinated post-freeze edit of BOTH campaign+algos (e.g. to 250k)
+    would pass budget_mirror, leave the hashed prereg at 200k, and run undetected. This ties the executed
+    top-level budget back to the frozen prereg (the same not-in-the-hash-so-assert pattern as
+    :func:`assert_executed_arms_match` / :func:`assert_h1_baselines_match`).
+
+    Returns the checked-summary line, or ``None`` when the prereg yaml carries no ``train_steps_per_candidate``
+    (pre-migration checkouts) or none of the executed configs is present (a minimal prereg-only test root).
+    Raises :class:`FreezeConsistencyError` naming the first config that disagrees.
+    """
+    frozen_field = yml.get("train_steps_per_candidate")
+    if frozen_field is None:
+        return None
+    frozen = int(frozen_field)
+    checked: list[str] = []
+    for rel in _TRAIN_STEPS_CONFIGS:
+        p = root / rel
+        if not p.exists():
+            continue
+        cfg = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        executed_field = cfg.get("train_steps_per_candidate")
+        _require(
+            executed_field is not None,
+            f"{rel} declares no top-level 'train_steps_per_candidate' (the executed B*, R74)",
+        )
+        _require(
+            int(executed_field) == frozen,
+            f"executed train_steps_per_candidate in {rel} ({int(executed_field)}) != frozen prereg B* "
+            f"({frozen}); the per-candidate budget B* (R74) may only change by dated amendment that also "
+            "updates config/preregistration.yaml (the budget-mirror guard alone does NOT bind the prereg)",
+        )
+        checked.append(rel)
+    if not checked:
+        return None
+    return f"train_steps_per_candidate: {checked} == frozen prereg B* ({frozen})"
+
+
+def assert_seeds_match(yml: dict[str, Any], root: Path) -> str | None:
+    """Cross-file guard (2026-07-04, DEEP_SWEEP E-F1): the EXECUTED seed list must equal the FROZEN prereg seeds.
+
+    The seed set is the knob the power / equivalence headline hinges on, and a post-freeze edit of
+    ``config/campaign.yaml`` ``seeds`` (30 -> 50, or a shift to a cherry-picked non-contiguous block) is the
+    textbook forking path. The frozen copy in ``config/preregistration.yaml`` is hash-bound, but
+    ``campaign.yaml`` (which run_campaign.py reads) is a deliberately un-hashed compute knob that nothing else
+    tied to the prereg — the same not-in-the-hash-so-assert gap the arm-roster / H1 / B* guards close. Any
+    change to the seed set may only land by a dated amendment that also updates the prereg.
+
+    Returns the checked-summary line, or ``None`` when the prereg carries no ``seeds`` or ``campaign.yaml`` is
+    absent (a minimal prereg-only test root). Raises :class:`FreezeConsistencyError` on disagreement.
+    """
+    frozen_field = yml.get("seeds")
+    if frozen_field is None:
+        return None
+    frozen = [int(s) for s in frozen_field]
+    camp_path = root / "config" / "campaign.yaml"
+    if not camp_path.exists():
+        return None
+    camp = yaml.safe_load(camp_path.read_text(encoding="utf-8")) or {}
+    executed_field = camp.get("seeds")
+    _require(
+        isinstance(executed_field, list) and executed_field,
+        "config/campaign.yaml declares no usable 'seeds' list (the frozen seed set the campaign executes)",
+    )
+    executed = [int(s) for s in executed_field]
+    _require(
+        executed == frozen,
+        f"executed seeds in config/campaign.yaml (n={len(executed)}) != frozen prereg seeds "
+        f"(n={len(frozen)}); the seed set (PREREGISTRATION §6) may only change by a dated amendment that "
+        "also updates config/preregistration.yaml — a post-freeze seed edit is a forking path",
+    )
+    return f"seeds: config/campaign.yaml == frozen prereg seeds (n={len(frozen)})"
+
+
+def assert_matched_budget_match(yml: dict[str, Any], root: Path) -> str | None:
+    """Cross-file guard (2026-07-04, DEEP_SWEEP E-F1): executed candidates-per-arm == FROZEN matched budget.
+
+    The frozen ``matched_budget`` (``config/preregistration.yaml``, hash-bound) is the number of candidates
+    each arm may author — the search multiplicity the DSR / PBO machinery corrects for. ``config/campaign.yaml``
+    executes it as ``candidates_per_arm`` and is an un-hashed compute knob, so this assertion (not the hash)
+    binds it, in the same pattern as the arm-roster / H1 / B* / seeds guards. A post-freeze change to the
+    per-arm budget may only land by a dated amendment that also updates the prereg.
+
+    Returns the checked-summary line, or ``None`` when the prereg carries no ``matched_budget`` or
+    ``campaign.yaml`` is absent. Raises :class:`FreezeConsistencyError` on disagreement.
+    """
+    frozen_field = yml.get("matched_budget")
+    if frozen_field is None:
+        return None
+    frozen = int(frozen_field)
+    camp_path = root / "config" / "campaign.yaml"
+    if not camp_path.exists():
+        return None
+    camp = yaml.safe_load(camp_path.read_text(encoding="utf-8")) or {}
+    executed_field = camp.get("candidates_per_arm")
+    _require(
+        executed_field is not None,
+        "config/campaign.yaml declares no top-level 'candidates_per_arm' (the executed matched budget)",
+    )
+    _require(
+        int(executed_field) == frozen,
+        f"executed candidates_per_arm in config/campaign.yaml ({int(executed_field)}) != frozen prereg "
+        f"matched_budget ({frozen}); the per-arm candidate budget (PREREGISTRATION §6) may only change by a "
+        "dated amendment that also updates config/preregistration.yaml",
+    )
+    return f"matched_budget: config/campaign.yaml candidates_per_arm == frozen prereg matched_budget ({frozen})"
+
+
 # --------------------------------------------------------------------------- #
 # Verification (shared by --check and the real freeze)                         #
 # --------------------------------------------------------------------------- #
@@ -586,12 +802,30 @@ def verify(root: Path | None = None) -> FreezeStatus:
     prose = load_prose(root)
 
     phase0_marker = assert_phase0_recorded(yml)
-    checks = assert_prose_matches_yaml(yml, prose)
+    checks = assert_prose_matches_yaml(yml, prose, root)
     # V1 cross-file guard: the EXECUTED configs (campaign.yaml/arms.yaml) must declare exactly the frozen
     # roster. Not part of the hash (compute knobs stay amendable); this assertion is what binds their roster.
     arms_check = assert_executed_arms_match(yml, root)
     if arms_check is not None:
         checks.append(arms_check)
+    # H1-family guard (audit H-L2): same not-in-the-hash-so-assert pattern as the roster guard.
+    h1_check = assert_h1_baselines_match(yml, root)
+    if h1_check is not None:
+        checks.append(h1_check)
+    # B* guard (batch-6 M1): the executed per-candidate budget must equal the frozen prereg B*; same
+    # not-in-the-hash-so-assert pattern (campaign.yaml/algos.yaml are un-hashed compute knobs).
+    steps_check = assert_train_steps_match(yml, root)
+    if steps_check is not None:
+        checks.append(steps_check)
+    # Seed-set + matched-budget guards (2026-07-04, DEEP_SWEEP E-F1): same not-in-the-hash-so-assert pattern.
+    # The seed count is the knob the power/equivalence headline hinges on; bind the executed campaign.yaml
+    # seeds + candidates_per_arm back to the frozen prereg so a post-freeze edit cannot drift undetected.
+    seeds_check = assert_seeds_match(yml, root)
+    if seeds_check is not None:
+        checks.append(seeds_check)
+    budget_check = assert_matched_budget_match(yml, root)
+    if budget_check is not None:
+        checks.append(budget_check)
     digest = canonical_hash(root)
 
     return FreezeStatus(

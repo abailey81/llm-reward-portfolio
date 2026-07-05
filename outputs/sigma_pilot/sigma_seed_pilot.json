@@ -1,0 +1,155 @@
+{
+  "contrast": "differential_sharpe|return_minus_cvar",
+  "arm_a": "differential_sharpe",
+  "arm_b": "return_minus_cvar",
+  "per_statistic": {
+    "sharpe": {
+      "stats": {
+        "n_shared": 15,
+        "shared_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "sigma_a": 0.2579011612525369,
+        "sigma_b": 0.22972740167966343,
+        "sigma_seed": 0.24422089187649007,
+        "sigma_d": 0.3687582940713967,
+        "rho": -0.14089322351630945,
+        "mean_diff": 0.0715506969611192,
+        "crn_identity_ok": true,
+        "status": "ok"
+      },
+      "decision": {
+        "k80_rho": 0.71,
+        "rho_used": -0.14089322351630945,
+        "rho_negative_warning": true,
+        "sesoi_dsr": 0.05,
+        "track_length": 694,
+        "ladder": [
+          {
+            "n": 30,
+            "mde_sharpe": 0.17339683323230795,
+            "mde_dsr": 0.11471430396915407,
+            "meets_sesoi": false
+          },
+          {
+            "n": 35,
+            "mde_sharpe": 0.1605342734433798,
+            "mde_dsr": 0.10620480834606101,
+            "meets_sesoi": false
+          },
+          {
+            "n": 40,
+            "mde_sharpe": 0.15016606251495246,
+            "mde_dsr": 0.09934550141473748,
+            "meets_sesoi": false
+          },
+          {
+            "n": 45,
+            "mde_sharpe": 0.14157792147787454,
+            "mde_dsr": 0.09366383697431817,
+            "meets_sesoi": false
+          },
+          {
+            "n": 50,
+            "mde_sharpe": 0.1343126094787667,
+            "mde_dsr": 0.08885731776886181,
+            "meets_sesoi": false
+          }
+        ],
+        "recommended_n": null,
+        "achievable_equivalence": false,
+        "headline_framing": "bounded_effect_inconclusive"
+      }
+    },
+    "cvar_05": {
+      "stats": {
+        "n_shared": 15,
+        "shared_seeds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "sigma_a": 0.0015986566541152658,
+        "sigma_b": 0.001183656636929592,
+        "sigma_seed": 0.0014065465033006354,
+        "sigma_d": 0.0014793864881667497,
+        "rho": 0.46720884771578364,
+        "mean_diff": -0.0015332539950343098,
+        "crn_identity_ok": true,
+        "status": "ok"
+      },
+      "decision": {
+        "k80_rho": 0.5998373456852649,
+        "rho_used": 0.46720884771578364,
+        "rho_negative_warning": false,
+        "sesoi_dsr": 0.05,
+        "track_length": 694,
+        "ladder": [
+          {
+            "n": 30,
+            "mde_sharpe": 0.0008436991211227438,
+            "mde_dsr": 0.000558166810978122,
+            "meets_sesoi": true
+          },
+          {
+            "n": 35,
+            "mde_sharpe": 0.0007811136044958727,
+            "mde_dsr": 0.0005167620526294918,
+            "meets_sesoi": true
+          },
+          {
+            "n": 40,
+            "mde_sharpe": 0.0007306648720429002,
+            "mde_dsr": 0.00048338663785640055,
+            "meets_sesoi": true
+          },
+          {
+            "n": 45,
+            "mde_sharpe": 0.0006888774477284477,
+            "mde_dsr": 0.00045574129275096893,
+            "meets_sesoi": true
+          },
+          {
+            "n": 50,
+            "mde_sharpe": 0.0006535265290636442,
+            "mde_dsr": 0.0004323541526647939,
+            "meets_sesoi": true
+          }
+        ],
+        "recommended_n": 30,
+        "achievable_equivalence": true,
+        "headline_framing": "practical_equivalence"
+      }
+    }
+  },
+  "recommended_n": null,
+  "achievable_equivalence": false,
+  "headline_framing": "bounded_effect_inconclusive",
+  "sigma_seed_pilot": true
+}

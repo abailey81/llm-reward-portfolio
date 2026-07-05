@@ -65,9 +65,15 @@ def _fake_record_worker(spec: dict) -> dict:
     return {"ok": True, "run_id": spec["run_id"], "arm": spec["arm"], "record": rec}
 
 
-def _inproc_runner(specs, *, worker, n_gpu, n_cpu, recycle_every):  # noqa: ANN001, ARG001
-    """In-process runner (no spawn): map the worker over specs in order, like run_recycling does."""
-    return [worker(s) for s in specs]
+def _inproc_runner(specs, *, worker, n_gpu, n_cpu, recycle_every, on_result=None):  # noqa: ANN001, ARG001
+    """In-process runner (no spawn): map the worker over specs in order, like run_recycling does —
+    including the F1 streaming contract (each row is handed to ``on_result`` as it completes)."""
+    out = []
+    for s in specs:
+        out.append(worker(s))
+        if on_result is not None:
+            on_result(out[-1])
+    return out
 
 
 _COMMON = dict(

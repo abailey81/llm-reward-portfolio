@@ -13,7 +13,12 @@ import pytest
 
 from src.data.panel import Panel
 from src.data.synthetic import make_synthetic_panel
-from src.data.validation import PanelContractError, validate_panel
+from src.data.validation import (
+    PanelContractError,
+    PanelOverlapDiff,
+    panel_overlap_diff,
+    validate_panel,
+)
 
 
 def _clean(t: int = 20, n: int = 4) -> Panel:
@@ -124,3 +129,82 @@ def test_strict_aggregates_all_violations_in_message() -> None:
         validate_panel(bad, strict=True)
     msg = str(ei.value)
     assert "< -1.0" in msg and "negative" in msg  # both violations reported together
+
+
+# --------------------------------------------------------------------------- #
+# C4 — panel_overlap_diff: byte-diff a candidate returns panel vs the frozen   #
+# --------------------------------------------------------------------------- #
+def _returns_frame(seed: int = 0, *, cols=("A.N", "B.N", "C.N"), n: int = 8):
+    import pandas as pd
+
+    rng = np.random.default_rng(seed)
+    idx = pd.date_range("2005-01-03", periods=n, freq="D")
+    data = {c: rng.standard_normal(n) * 0.01 for c in cols}
+    return pd.DataFrame(data, index=idx)
+
+
+def test_overlap_diff_identical_frames() -> None:
+    """An identical candidate reports zero changed cells over the full overlap."""
+    ref = _returns_frame(0)
+    diff = panel_overlap_diff(ref.copy(), ref)
+    assert isinstance(diff, PanelOverlapDiff)
+    assert diff.identical_over_overlap
+    assert diff.n_changed_cells == 0
+    assert diff.max_abs_delta == 0.0
+    assert diff.n_overlap_rows == len(ref) and diff.n_overlap_cols == ref.shape[1]
+
+
+def test_overlap_diff_detects_changed_cells() -> None:
+    """A perturbed cell is counted, with the (date, ric, ref->cand) example + max |delta| reported."""
+    ref = _returns_frame(0)
+    cand = ref.copy()
+    cand.iloc[2, 1] = ref.iloc[2, 1] + 0.5  # one changed cell, delta 0.5
+    diff = panel_overlap_diff(cand, ref)
+    assert diff.n_changed_cells == 1
+    assert not diff.identical_over_overlap
+    assert abs(diff.max_abs_delta - 0.5) < 1e-9
+    dt, ric, a, b = diff.changed_examples[0]
+    assert ric == ref.columns[1]
+    assert abs(b - a - 0.5) < 1e-9
+
+
+def test_overlap_diff_nan_aware() -> None:
+    """Two ALIGNED NaNs are EQUAL; a NaN-vs-number cell IS a change."""
+    ref = _returns_frame(0)
+    cand = ref.copy()
+    ref.iloc[0, 0] = np.nan
+    cand.iloc[0, 0] = np.nan  # aligned NaN -> not a change
+    cand.iloc[1, 0] = np.nan  # NaN vs a real number -> a change
+    diff = panel_overlap_diff(cand, ref)
+    assert diff.n_changed_cells == 1
+    dt, ric, a, b = diff.changed_examples[0]
+    assert ric == ref.columns[0] and np.isnan(b) and not np.isnan(a)
+
+
+def test_overlap_diff_reports_schema_drift_without_counting_it() -> None:
+    """Added/retired names + calendar drift are reported separately, not as changed overlap cells."""
+    ref = _returns_frame(0, cols=("A.N", "B.N", "C.N"), n=8)
+    # Candidate drops C.N, adds D.N (schema drift), and adds one extra trailing session (calendar drift).
+    cand = _returns_frame(0, cols=("A.N", "B.N", "D.N"), n=9)
+    # Make the SHARED A.N/B.N over the shared 8 rows identical to ref so overlap is clean.
+    cand.iloc[:8, cand.columns.get_loc("A.N")] = ref["A.N"].to_numpy()
+    cand.iloc[:8, cand.columns.get_loc("B.N")] = ref["B.N"].to_numpy()
+    diff = panel_overlap_diff(cand, ref)
+    assert diff.identical_over_overlap  # shared A.N/B.N over shared rows unchanged
+    assert diff.ref_only_cols == ["C.N"]
+    assert diff.cand_only_cols == ["D.N"]
+    assert diff.cand_only_rows == 1 and diff.ref_only_rows == 0
+    assert "changed cells: 0" in diff.summary()
+
+
+def test_overlap_diff_reads_parquet_paths(tmp_path) -> None:
+    """Accepts parquet PATHS (the verify_gold CLI path), not just in-memory frames."""
+    ref = _returns_frame(0)
+    cand = ref.copy()
+    cand.iloc[0, 0] = ref.iloc[0, 0] + 1.0
+    rp = tmp_path / "returns_panel_ref.parquet"
+    cp = tmp_path / "returns_panel_cand.parquet"
+    ref.to_parquet(rp)
+    cand.to_parquet(cp)
+    diff = panel_overlap_diff(cp, rp)
+    assert diff.n_changed_cells == 1 and abs(diff.max_abs_delta - 1.0) < 1e-9

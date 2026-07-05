@@ -204,7 +204,7 @@ def test_project_campaign_unknown_without_budget_or_timings() -> None:
 def test_smoke_ladder_trains_and_writes_outputs(tmp_path) -> None:
     """The smoke ladder trains the FIXED agent at tiny budgets and emits a finite-critic curve + files."""
     budgets, seeds = [1100, 1300], [0]
-    result = lc.run_curve(budgets, seeds, "differential_sharpe", synthetic=True, end="2014-12-31", device="cpu")
+    result = lc.run_curve(budgets, seeds, "differential_sharpe", synthetic=True, end="2016-12-31", device="cpu")
 
     assert len(result["runs"]) == 2
     assert all(r["ok"] for r in result["runs"]), [r.get("error") for r in result["runs"]]

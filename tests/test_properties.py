@@ -249,7 +249,7 @@ class TestDifferenceTestInvariants:
 
     def test_one_sided_p_is_direct_and_directional(self) -> None:
         """R64: the paired test returns a DIRECT upper-tail one-sided p (``P(boot - obs >= obs)``), not
-        the anti-conservative ``p_two / 2``. Properties: it is a probability; a strong positive effect
+        the symmetry-assuming ``p_two / 2``. Properties: it is a probability; a strong positive effect
         drives it small and at/below the two-sided p; a strong negative effect drives it above 0.5 (so a
         wrong-direction estimate cannot reject H1: a>b); and on a ~symmetric (mean) bootstrap it reduces
         to ~ ``p_two / 2`` — the fix only DIFFERS where the bootstrap is skewed (the CVaR leg)."""

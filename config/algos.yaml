@@ -13,7 +13,7 @@ secondary_critic_agent: tqc       # sb3-contrib TQC — distributional-critic ex
 robustness_agents: [ppo, td3]     # winners only
 fallback_continuous: d4pg         # ONLY if SAC/TQC fail; NEVER qr_dqn (discrete-only)
 
-train_steps_per_candidate: 50000  # FIXED per-candidate budget (audit B-5); set from Phase-0 timing
+train_steps_per_candidate: 200000 # FIXED per-candidate budget (audit B-5); B* set 2026-07-02 from the Split-C convergence pilot (R74; mirrors campaign.yaml — the preflight budget-mirror guard asserts the pair)
 eval_episodes: 1                  # deterministic walk-forward over the eval split
 
 sac:                              # filled from SB3 defaults once Phase 0 confirms; do not tune per arm

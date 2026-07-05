@@ -276,6 +276,15 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
             at every window edge, biasing the critic). ``reward`` is a Python float.
         """
         w = project_simplex(action, self.projection)
+        # V15a extension (2026-07-03): freeze the projected weights. This SAME array is emitted below as
+        # info["weights"], becomes `self.w_prev` at the end of this step, and is re-emitted NEXT step as
+        # info["prev_weights"] — one live array aliased across the env boundary, so a trusted info
+        # consumer writing in place (`info["weights"][:] = ...`) would silently corrupt the next step's
+        # drift/cost arithmetic. `project_simplex` always returns a fresh env-owned array and the env
+        # itself only READS it, so the zero-copy read-only flag (the V15a setflags pattern) closes the
+        # write path outright — cheaper than emitting per-step copies. The UNTRUSTED reward still gets
+        # its own DETACHED read-only copies (w_ro / prev_ro below), unchanged.
+        w.setflags(write=False)
         # `self.panel.returns[self.t]` is a row of the SHARED, frozen gold panel; `np.asarray`
         # with a matching dtype returns a VIEW that aliases that row's memory. Take a COPY so the
         # env's own arithmetic (and, below, the untrusted reward) can never write through to the
@@ -362,10 +371,15 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         self.w_prev = w
         self.t += 1
         # The window edge is data EXHAUSTION (a time limit), not an absorbing MDP state, so it is a
-        # Gymnasium *truncation* (final-audit fix). The training path wraps the env in DummyVecEnv only
-        # (no TimeLimit/Monitor -> no info['TimeLimit.truncated']), so if this were reported as
-        # `terminated` SB3 SAC would compute reward + gamma*(1 - done)*Q(next) = reward + 0 and NOT
-        # bootstrap the boundary state's value, biasing the critic once per episode at every window edge.
+        # Gymnasium *truncation* (final-audit fix). Mechanism (corrected 2026-07-03, verified against the
+        # installed SB3 2.8.0): DummyVecEnv itself SYNTHESIZES info['TimeLimit.truncated'] = truncated and
+        # not terminated on every step (dummy_vec_env.py:66 — no TimeLimit/Monitor wrapper needed; the
+        # earlier claim that the key is never set without one was wrong), and SAC's ReplayBuffer
+        # (handle_timeout_termination=True, the default) stores it as `timeouts`, sampling with
+        # dones * (1 - timeouts) (buffers.py:278/320-322). So reporting the edge as TRUNCATED keeps the
+        # value bootstrap reward + gamma*Q(next) alive, while reporting it as `terminated` would zero it
+        # (dones=1, timeouts=0) once per episode at every window edge, biasing the critic — the outcome
+        # the original comment described, now with the true mechanism.
         terminated = False
         truncated = self.t >= self.end
 

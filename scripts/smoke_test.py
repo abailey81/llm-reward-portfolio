@@ -11,7 +11,7 @@ What it verifies (acceptance criteria):
   1. The compute device (CPU / CUDA) and torch build are reported (NOT asserted == 4090:
      the prototype runs on this RTX-4050 laptop, and per the deep-research the SB3 [256,256]
      nets are CPU-bound, so the prototype uses CPU torch — the rented-4090 campaign uses CUDA).
-  2. A REAL ``_univ3`` slice (or a SYNTHETIC slice of identical shape) loads.
+  2. A REAL active-suffix slice (univ5, Split C; or a SYNTHETIC slice of identical shape) loads.
   3. ``PortfolioEnv`` instantiates with a trivial reward and steps cleanly.
   4. SB3 ``SAC`` builds and trains (ONLINE path) with a MEMORY-SAFE buffer
      (``buffer_size == steps`` — the 1e6 default would need ~15 GB RAM at the 1893-dim obs).
@@ -68,15 +68,15 @@ def _resolve_device(choice: str) -> str:
 
 
 def _load_panel(synthetic: bool, end: str):
-    """Return a small ``Panel`` (real ``_univ3`` dev slice, or a synthetic slice)."""
+    """Return a small ``Panel`` (the real ACTIVE-suffix dev slice, or a synthetic slice)."""
     if synthetic:
         from src.data.synthetic import make_synthetic_panel
 
         return make_synthetic_panel(n_assets=30, n_days=600, seed=0), "synthetic(30x600)"
-    from src.data.loaders import load_gold_panel
+    from src.data.loaders import gold_suffix, load_gold_panel
 
     res = load_gold_panel(phase="development", end=end)
-    return res.panel, f"real _univ3 development -> {end} ({res.panel.T}x{res.panel.N})"
+    return res.panel, f"real _{gold_suffix()} development -> {end} ({res.panel.T}x{res.panel.N})"
 
 
 class _CriticLossRecorder:
@@ -160,7 +160,7 @@ def main() -> None:
     from src.utils.config import load_config
     from src.utils.preload import preload
 
-    preload()  # pyarrow before torch (else loading the real gold parquet after torch SIGSEGVs) -- ADR/audit
+    preload(strict=True)  # pyarrow before torch (else loading the real gold parquet after torch SIGSEGVs) -- ADR/audit; H2 fail-loud
     import torch
 
     device = _resolve_device(args.device)

@@ -2,30 +2,39 @@
   "arms": [
     {
       "arm": "distributional",
-      "status": "winner_not_testable",
-      "reason": "val_window (599, 600) must start at/after train_window end 599 + max(embargo 21, lookback 60) (disjoint, purged splits, R18)"
+      "status": "tested",
+      "n_seeds_written": 0,
+      "winner_id": "distributional-g0-c1"
     },
     {
       "arm": "h1_baselines",
-      "status": "error",
-      "reason": "val_window (599, 600) must start at/after train_window end 599 + max(embargo 21, lookback 60) (disjoint, purged splits, R18)"
+      "status": "tested",
+      "baselines": [
+        "raw_return"
+      ],
+      "n_records_written": 0
     }
   ],
+  "all_arms_tested": true,
+  "exit_code": 0,
   "train_window": [
     60,
-    599
+    4381
   ],
   "val_window": [
-    599,
-    600
+    4441,
+    5476
   ],
   "test_window": [
-    600,
-    601
+    5536,
+    7800
   ],
-  "wall_clock_s": 5.8,
+  "wall_clock_s": 0.1,
   "freeze": {
     "enforced": false,
     "frozen": null
+  },
+  "gold_panel": {
+    "synthetic": true
   }
 }

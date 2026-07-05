@@ -96,9 +96,14 @@ def var_es_estimates(returns: np.ndarray, alpha: float) -> tuple[float, float]:
     r = r[np.isfinite(r)]  # strip non-finite so a NaN can't poison VaR (matches bootstrap.cvar, P0-1)
     if r.size == 0:
         return float("nan"), float("nan")
-    r = np.sort(r)
-    k = max(1, int(np.ceil(alpha * r.size)))
-    return float(np.quantile(r, alpha)), float(r[:k].mean())
+    # Coherent (VaR, ES) on ONE convention: VaR is the empirical alpha-quantile and ES the mean of the returns
+    # AT OR BELOW it, so ES <= VaR by construction (A-L1, 2026-07-02). Mixing an interpolated-quantile VaR with a
+    # count-based mean-of-worst-k ES could invert on tiny samples; on the large validation windows this touches,
+    # the two conventions agree to within sampling noise.
+    var = float(np.quantile(r, alpha))
+    tail = r[r <= var]  # returns at or below VaR
+    es = float(tail.mean()) if tail.size else var
+    return var, es
 
 
 def hln_factor(t: int, h: int = 1) -> float:
@@ -328,10 +333,15 @@ def comparative_es_backtest(
     rng: np.random.Generator | None = None,
     h: int = 1,
 ) -> dict[str, object]:
-    """Diebold-Mariano comparative ES backtest (Nolde & Ziegel, 2017) on a common realized series.
+    """Two-sided Diebold-Mariano *equal-accuracy* ES backtest on the FZ0 score differential, on a common series.
 
     Tests H0: the two (VaR, ES) forecasts have equal predictive accuracy for the tail, via the mean of
-    the per-period FZ0 score differential ``d_t = S(f1) - S(f2)``. The standard error of ``mean(d)`` is
+    the per-period FZ0 score differential ``d_t = S(f1) - S(f2)`` (Fissler-Ziegel jointly-consistent scoring;
+    the Diebold-Mariano score-difference apparatus of Nolde & Ziegel 2017). We run it TWO-SIDED (equal
+    predictive accuracy), NOT in Nolde & Ziegel's *one-sided* comparative / three-zone form (their H0:
+    "forecast 1 predicts at least as well as forecast 2"): the two-sided null is the conservative choice —
+    it never credits a forecast for a directional tail advantage (the sign of ``mean_score_diff`` carries the
+    direction; the two-sided p-value is the significance). The standard error of ``mean(d)`` is
     estimated by the stationary bootstrap (Politis-Romano 1994), a valid HAC-robust choice for the
     autocorrelated score differential.
 
@@ -367,7 +377,7 @@ def comparative_es_backtest(
     d = s1 - s2
     obs = float(d.mean())
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
 
     n = d.size
     boot = np.empty(n_boot, dtype=float)

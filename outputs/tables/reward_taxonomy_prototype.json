@@ -1,0 +1,4471 @@
+{
+  "kind_arms": {
+    "kind_001": [
+      "bayes_opt"
+    ],
+    "kind_002": [
+      "random_search"
+    ],
+    "kind_003": [
+      "distributional",
+      "scalar_cvar5"
+    ],
+    "kind_004": [
+      "distributional",
+      "placebo"
+    ],
+    "kind_005": [
+      "scalar",
+      "scalar_cvar5"
+    ],
+    "kind_006": [
+      "distributional"
+    ],
+    "kind_007": [
+      "distributional"
+    ],
+    "kind_008": [
+      "distributional"
+    ],
+    "kind_009": [
+      "distributional"
+    ],
+    "kind_010": [
+      "distributional"
+    ],
+    "kind_011": [
+      "distributional"
+    ],
+    "kind_012": [
+      "distributional"
+    ],
+    "kind_013": [
+      "distributional"
+    ],
+    "kind_014": [
+      "distributional"
+    ],
+    "kind_015": [
+      "distributional"
+    ],
+    "kind_016": [
+      "distributional"
+    ],
+    "kind_017": [
+      "distributional"
+    ],
+    "kind_018": [
+      "distributional"
+    ],
+    "kind_019": [
+      "distributional"
+    ],
+    "kind_020": [
+      "distributional"
+    ],
+    "kind_021": [
+      "distributional"
+    ],
+    "kind_022": [
+      "distributional"
+    ],
+    "kind_023": [
+      "distributional"
+    ],
+    "kind_024": [
+      "distributional"
+    ],
+    "kind_025": [
+      "distributional"
+    ],
+    "kind_026": [
+      "distributional"
+    ],
+    "kind_027": [
+      "distributional"
+    ],
+    "kind_028": [
+      "distributional"
+    ],
+    "kind_029": [
+      "distributional"
+    ],
+    "kind_030": [
+      "distributional"
+    ],
+    "kind_031": [
+      "distributional"
+    ],
+    "kind_032": [
+      "distributional"
+    ],
+    "kind_033": [
+      "distributional"
+    ],
+    "kind_034": [
+      "distributional"
+    ],
+    "kind_035": [
+      "distributional"
+    ],
+    "kind_036": [
+      "distributional"
+    ],
+    "kind_037": [
+      "distributional"
+    ],
+    "kind_038": [
+      "distributional"
+    ],
+    "kind_039": [
+      "distributional"
+    ],
+    "kind_040": [
+      "distributional"
+    ],
+    "kind_041": [
+      "distributional"
+    ],
+    "kind_042": [
+      "distributional"
+    ],
+    "kind_043": [
+      "placebo"
+    ],
+    "kind_044": [
+      "placebo"
+    ],
+    "kind_045": [
+      "placebo"
+    ],
+    "kind_046": [
+      "placebo"
+    ],
+    "kind_047": [
+      "placebo"
+    ],
+    "kind_048": [
+      "placebo"
+    ],
+    "kind_049": [
+      "placebo"
+    ],
+    "kind_050": [
+      "placebo"
+    ],
+    "kind_051": [
+      "placebo"
+    ],
+    "kind_052": [
+      "placebo"
+    ],
+    "kind_053": [
+      "placebo"
+    ],
+    "kind_054": [
+      "placebo"
+    ],
+    "kind_055": [
+      "placebo"
+    ],
+    "kind_056": [
+      "placebo"
+    ],
+    "kind_057": [
+      "placebo"
+    ],
+    "kind_058": [
+      "placebo"
+    ],
+    "kind_059": [
+      "placebo"
+    ],
+    "kind_060": [
+      "placebo"
+    ],
+    "kind_061": [
+      "placebo"
+    ],
+    "kind_062": [
+      "placebo"
+    ],
+    "kind_063": [
+      "placebo"
+    ],
+    "kind_064": [
+      "placebo"
+    ],
+    "kind_065": [
+      "placebo"
+    ],
+    "kind_066": [
+      "placebo"
+    ],
+    "kind_067": [
+      "placebo"
+    ],
+    "kind_068": [
+      "placebo"
+    ],
+    "kind_069": [
+      "placebo"
+    ],
+    "kind_070": [
+      "placebo"
+    ],
+    "kind_071": [
+      "placebo"
+    ],
+    "kind_072": [
+      "placebo"
+    ],
+    "kind_073": [
+      "placebo"
+    ],
+    "kind_074": [
+      "placebo"
+    ],
+    "kind_075": [
+      "placebo"
+    ],
+    "kind_076": [
+      "placebo"
+    ],
+    "kind_077": [
+      "placebo"
+    ],
+    "kind_078": [
+      "placebo"
+    ],
+    "kind_079": [
+      "placebo"
+    ],
+    "kind_080": [
+      "placebo"
+    ],
+    "kind_081": [
+      "placebo"
+    ],
+    "kind_082": [
+      "scalar"
+    ],
+    "kind_083": [
+      "scalar"
+    ],
+    "kind_084": [
+      "scalar"
+    ],
+    "kind_085": [
+      "scalar"
+    ],
+    "kind_086": [
+      "scalar"
+    ],
+    "kind_087": [
+      "scalar"
+    ],
+    "kind_088": [
+      "scalar"
+    ],
+    "kind_089": [
+      "scalar"
+    ],
+    "kind_090": [
+      "scalar"
+    ],
+    "kind_091": [
+      "scalar"
+    ],
+    "kind_092": [
+      "scalar"
+    ],
+    "kind_093": [
+      "scalar"
+    ],
+    "kind_094": [
+      "scalar"
+    ],
+    "kind_095": [
+      "scalar"
+    ],
+    "kind_096": [
+      "scalar"
+    ],
+    "kind_097": [
+      "scalar"
+    ],
+    "kind_098": [
+      "scalar"
+    ],
+    "kind_099": [
+      "scalar"
+    ],
+    "kind_100": [
+      "scalar"
+    ],
+    "kind_101": [
+      "scalar"
+    ],
+    "kind_102": [
+      "scalar"
+    ],
+    "kind_103": [
+      "scalar"
+    ],
+    "kind_104": [
+      "scalar"
+    ],
+    "kind_105": [
+      "scalar"
+    ],
+    "kind_106": [
+      "scalar"
+    ],
+    "kind_107": [
+      "scalar"
+    ],
+    "kind_108": [
+      "scalar"
+    ],
+    "kind_109": [
+      "scalar"
+    ],
+    "kind_110": [
+      "scalar"
+    ],
+    "kind_111": [
+      "scalar"
+    ],
+    "kind_112": [
+      "scalar"
+    ],
+    "kind_113": [
+      "scalar"
+    ],
+    "kind_114": [
+      "scalar"
+    ],
+    "kind_115": [
+      "scalar"
+    ],
+    "kind_116": [
+      "scalar"
+    ],
+    "kind_117": [
+      "scalar"
+    ],
+    "kind_118": [
+      "scalar"
+    ],
+    "kind_119": [
+      "scalar"
+    ],
+    "kind_120": [
+      "scalar"
+    ],
+    "kind_121": [
+      "scalar_cvar5"
+    ],
+    "kind_122": [
+      "scalar_cvar5"
+    ],
+    "kind_123": [
+      "scalar_cvar5"
+    ],
+    "kind_124": [
+      "scalar_cvar5"
+    ],
+    "kind_125": [
+      "scalar_cvar5"
+    ],
+    "kind_126": [
+      "scalar_cvar5"
+    ],
+    "kind_127": [
+      "scalar_cvar5"
+    ],
+    "kind_128": [
+      "scalar_cvar5"
+    ],
+    "kind_129": [
+      "scalar_cvar5"
+    ],
+    "kind_130": [
+      "scalar_cvar5"
+    ],
+    "kind_131": [
+      "scalar_cvar5"
+    ],
+    "kind_132": [
+      "scalar_cvar5"
+    ],
+    "kind_133": [
+      "scalar_cvar5"
+    ],
+    "kind_134": [
+      "scalar_cvar5"
+    ],
+    "kind_135": [
+      "scalar_cvar5"
+    ],
+    "kind_136": [
+      "scalar_cvar5"
+    ],
+    "kind_137": [
+      "scalar_cvar5"
+    ],
+    "kind_138": [
+      "scalar_cvar5"
+    ],
+    "kind_139": [
+      "scalar_cvar5"
+    ],
+    "kind_140": [
+      "scalar_cvar5"
+    ],
+    "kind_141": [
+      "scalar_cvar5"
+    ],
+    "kind_142": [
+      "scalar_cvar5"
+    ],
+    "kind_143": [
+      "scalar_cvar5"
+    ],
+    "kind_144": [
+      "scalar_cvar5"
+    ],
+    "kind_145": [
+      "scalar_cvar5"
+    ],
+    "kind_146": [
+      "scalar_cvar5"
+    ],
+    "kind_147": [
+      "scalar_cvar5"
+    ],
+    "kind_148": [
+      "scalar_cvar5"
+    ],
+    "kind_149": [
+      "scalar_cvar5"
+    ],
+    "kind_150": [
+      "scalar_cvar5"
+    ],
+    "kind_151": [
+      "scalar_cvar5"
+    ],
+    "kind_152": [
+      "scalar_cvar5"
+    ],
+    "kind_153": [
+      "scalar_cvar5"
+    ],
+    "kind_154": [
+      "scalar_cvar5"
+    ],
+    "kind_155": [
+      "scalar_cvar5"
+    ],
+    "kind_156": [
+      "scalar_cvar5"
+    ],
+    "kind_157": [
+      "scalar_cvar5"
+    ]
+  },
+  "kind_overlap": {
+    "bayes_opt|distributional": 0.0,
+    "bayes_opt|placebo": 0.0,
+    "bayes_opt|random_search": 0.0,
+    "bayes_opt|scalar": 0.0,
+    "bayes_opt|scalar_cvar5": 0.0,
+    "distributional|placebo": 0.01282051282051282,
+    "distributional|random_search": 0.0,
+    "distributional|scalar": 0.0,
+    "distributional|scalar_cvar5": 0.012987012987012988,
+    "placebo|random_search": 0.0,
+    "placebo|scalar": 0.0,
+    "placebo|scalar_cvar5": 0.0,
+    "random_search|scalar": 0.0,
+    "random_search|scalar_cvar5": 0.0,
+    "scalar|scalar_cvar5": 0.01282051282051282
+  },
+  "per_arm": {
+    "bayes_opt": {
+      "entropy_bits": 0.0,
+      "kind_counts": {
+        "kind_001": 40
+      },
+      "kind_fractions": {
+        "kind_001": 1.0
+      },
+      "n_kinds_present": 1,
+      "n_programs": 40,
+      "n_sources": 40,
+      "n_unparseable": 0
+    },
+    "distributional": {
+      "entropy_bits": 5.285402218862247,
+      "kind_counts": {
+        "kind_003": 1,
+        "kind_004": 1,
+        "kind_006": 1,
+        "kind_007": 1,
+        "kind_008": 1,
+        "kind_009": 1,
+        "kind_010": 1,
+        "kind_011": 1,
+        "kind_012": 1,
+        "kind_013": 1,
+        "kind_014": 1,
+        "kind_015": 1,
+        "kind_016": 1,
+        "kind_017": 1,
+        "kind_018": 1,
+        "kind_019": 1,
+        "kind_020": 1,
+        "kind_021": 1,
+        "kind_022": 1,
+        "kind_023": 1,
+        "kind_024": 1,
+        "kind_025": 1,
+        "kind_026": 1,
+        "kind_027": 1,
+        "kind_028": 1,
+        "kind_029": 1,
+        "kind_030": 1,
+        "kind_031": 1,
+        "kind_032": 1,
+        "kind_033": 1,
+        "kind_034": 1,
+        "kind_035": 1,
+        "kind_036": 1,
+        "kind_037": 1,
+        "kind_038": 1,
+        "kind_039": 1,
+        "kind_040": 1,
+        "kind_041": 1,
+        "kind_042": 1
+      },
+      "kind_fractions": {
+        "kind_003": 0.02564102564102564,
+        "kind_004": 0.02564102564102564,
+        "kind_006": 0.02564102564102564,
+        "kind_007": 0.02564102564102564,
+        "kind_008": 0.02564102564102564,
+        "kind_009": 0.02564102564102564,
+        "kind_010": 0.02564102564102564,
+        "kind_011": 0.02564102564102564,
+        "kind_012": 0.02564102564102564,
+        "kind_013": 0.02564102564102564,
+        "kind_014": 0.02564102564102564,
+        "kind_015": 0.02564102564102564,
+        "kind_016": 0.02564102564102564,
+        "kind_017": 0.02564102564102564,
+        "kind_018": 0.02564102564102564,
+        "kind_019": 0.02564102564102564,
+        "kind_020": 0.02564102564102564,
+        "kind_021": 0.02564102564102564,
+        "kind_022": 0.02564102564102564,
+        "kind_023": 0.02564102564102564,
+        "kind_024": 0.02564102564102564,
+        "kind_025": 0.02564102564102564,
+        "kind_026": 0.02564102564102564,
+        "kind_027": 0.02564102564102564,
+        "kind_028": 0.02564102564102564,
+        "kind_029": 0.02564102564102564,
+        "kind_030": 0.02564102564102564,
+        "kind_031": 0.02564102564102564,
+        "kind_032": 0.02564102564102564,
+        "kind_033": 0.02564102564102564,
+        "kind_034": 0.02564102564102564,
+        "kind_035": 0.02564102564102564,
+        "kind_036": 0.02564102564102564,
+        "kind_037": 0.02564102564102564,
+        "kind_038": 0.02564102564102564,
+        "kind_039": 0.02564102564102564,
+        "kind_040": 0.02564102564102564,
+        "kind_041": 0.02564102564102564,
+        "kind_042": 0.02564102564102564
+      },
+      "n_kinds_present": 39,
+      "n_programs": 39,
+      "n_sources": 39,
+      "n_unparseable": 0
+    },
+    "placebo": {
+      "entropy_bits": 5.3219280948873635,
+      "kind_counts": {
+        "kind_004": 1,
+        "kind_043": 1,
+        "kind_044": 1,
+        "kind_045": 1,
+        "kind_046": 1,
+        "kind_047": 1,
+        "kind_048": 1,
+        "kind_049": 1,
+        "kind_050": 1,
+        "kind_051": 1,
+        "kind_052": 1,
+        "kind_053": 1,
+        "kind_054": 1,
+        "kind_055": 1,
+        "kind_056": 1,
+        "kind_057": 1,
+        "kind_058": 1,
+        "kind_059": 1,
+        "kind_060": 1,
+        "kind_061": 1,
+        "kind_062": 1,
+        "kind_063": 1,
+        "kind_064": 1,
+        "kind_065": 1,
+        "kind_066": 1,
+        "kind_067": 1,
+        "kind_068": 1,
+        "kind_069": 1,
+        "kind_070": 1,
+        "kind_071": 1,
+        "kind_072": 1,
+        "kind_073": 1,
+        "kind_074": 1,
+        "kind_075": 1,
+        "kind_076": 1,
+        "kind_077": 1,
+        "kind_078": 1,
+        "kind_079": 1,
+        "kind_080": 1,
+        "kind_081": 1
+      },
+      "kind_fractions": {
+        "kind_004": 0.025,
+        "kind_043": 0.025,
+        "kind_044": 0.025,
+        "kind_045": 0.025,
+        "kind_046": 0.025,
+        "kind_047": 0.025,
+        "kind_048": 0.025,
+        "kind_049": 0.025,
+        "kind_050": 0.025,
+        "kind_051": 0.025,
+        "kind_052": 0.025,
+        "kind_053": 0.025,
+        "kind_054": 0.025,
+        "kind_055": 0.025,
+        "kind_056": 0.025,
+        "kind_057": 0.025,
+        "kind_058": 0.025,
+        "kind_059": 0.025,
+        "kind_060": 0.025,
+        "kind_061": 0.025,
+        "kind_062": 0.025,
+        "kind_063": 0.025,
+        "kind_064": 0.025,
+        "kind_065": 0.025,
+        "kind_066": 0.025,
+        "kind_067": 0.025,
+        "kind_068": 0.025,
+        "kind_069": 0.025,
+        "kind_070": 0.025,
+        "kind_071": 0.025,
+        "kind_072": 0.025,
+        "kind_073": 0.025,
+        "kind_074": 0.025,
+        "kind_075": 0.025,
+        "kind_076": 0.025,
+        "kind_077": 0.025,
+        "kind_078": 0.025,
+        "kind_079": 0.025,
+        "kind_080": 0.025,
+        "kind_081": 0.025
+      },
+      "n_kinds_present": 40,
+      "n_programs": 40,
+      "n_sources": 40,
+      "n_unparseable": 0
+    },
+    "random_search": {
+      "entropy_bits": 0.0,
+      "kind_counts": {
+        "kind_002": 40
+      },
+      "kind_fractions": {
+        "kind_002": 1.0
+      },
+      "n_kinds_present": 1,
+      "n_programs": 40,
+      "n_sources": 40,
+      "n_unparseable": 0
+    },
+    "scalar": {
+      "entropy_bits": 5.3219280948873635,
+      "kind_counts": {
+        "kind_005": 1,
+        "kind_082": 1,
+        "kind_083": 1,
+        "kind_084": 1,
+        "kind_085": 1,
+        "kind_086": 1,
+        "kind_087": 1,
+        "kind_088": 1,
+        "kind_089": 1,
+        "kind_090": 1,
+        "kind_091": 1,
+        "kind_092": 1,
+        "kind_093": 1,
+        "kind_094": 1,
+        "kind_095": 1,
+        "kind_096": 1,
+        "kind_097": 1,
+        "kind_098": 1,
+        "kind_099": 1,
+        "kind_100": 1,
+        "kind_101": 1,
+        "kind_102": 1,
+        "kind_103": 1,
+        "kind_104": 1,
+        "kind_105": 1,
+        "kind_106": 1,
+        "kind_107": 1,
+        "kind_108": 1,
+        "kind_109": 1,
+        "kind_110": 1,
+        "kind_111": 1,
+        "kind_112": 1,
+        "kind_113": 1,
+        "kind_114": 1,
+        "kind_115": 1,
+        "kind_116": 1,
+        "kind_117": 1,
+        "kind_118": 1,
+        "kind_119": 1,
+        "kind_120": 1
+      },
+      "kind_fractions": {
+        "kind_005": 0.025,
+        "kind_082": 0.025,
+        "kind_083": 0.025,
+        "kind_084": 0.025,
+        "kind_085": 0.025,
+        "kind_086": 0.025,
+        "kind_087": 0.025,
+        "kind_088": 0.025,
+        "kind_089": 0.025,
+        "kind_090": 0.025,
+        "kind_091": 0.025,
+        "kind_092": 0.025,
+        "kind_093": 0.025,
+        "kind_094": 0.025,
+        "kind_095": 0.025,
+        "kind_096": 0.025,
+        "kind_097": 0.025,
+        "kind_098": 0.025,
+        "kind_099": 0.025,
+        "kind_100": 0.025,
+        "kind_101": 0.025,
+        "kind_102": 0.025,
+        "kind_103": 0.025,
+        "kind_104": 0.025,
+        "kind_105": 0.025,
+        "kind_106": 0.025,
+        "kind_107": 0.025,
+        "kind_108": 0.025,
+        "kind_109": 0.025,
+        "kind_110": 0.025,
+        "kind_111": 0.025,
+        "kind_112": 0.025,
+        "kind_113": 0.025,
+        "kind_114": 0.025,
+        "kind_115": 0.025,
+        "kind_116": 0.025,
+        "kind_117": 0.025,
+        "kind_118": 0.025,
+        "kind_119": 0.025,
+        "kind_120": 0.025
+      },
+      "n_kinds_present": 40,
+      "n_programs": 40,
+      "n_sources": 40,
+      "n_unparseable": 0
+    },
+    "scalar_cvar5": {
+      "entropy_bits": 5.271928094887364,
+      "kind_counts": {
+        "kind_003": 2,
+        "kind_005": 1,
+        "kind_121": 1,
+        "kind_122": 1,
+        "kind_123": 1,
+        "kind_124": 1,
+        "kind_125": 1,
+        "kind_126": 1,
+        "kind_127": 1,
+        "kind_128": 1,
+        "kind_129": 1,
+        "kind_130": 1,
+        "kind_131": 1,
+        "kind_132": 1,
+        "kind_133": 1,
+        "kind_134": 1,
+        "kind_135": 1,
+        "kind_136": 1,
+        "kind_137": 1,
+        "kind_138": 1,
+        "kind_139": 1,
+        "kind_140": 1,
+        "kind_141": 1,
+        "kind_142": 1,
+        "kind_143": 1,
+        "kind_144": 1,
+        "kind_145": 1,
+        "kind_146": 1,
+        "kind_147": 1,
+        "kind_148": 1,
+        "kind_149": 1,
+        "kind_150": 1,
+        "kind_151": 1,
+        "kind_152": 1,
+        "kind_153": 1,
+        "kind_154": 1,
+        "kind_155": 1,
+        "kind_156": 1,
+        "kind_157": 1
+      },
+      "kind_fractions": {
+        "kind_003": 0.05,
+        "kind_005": 0.025,
+        "kind_121": 0.025,
+        "kind_122": 0.025,
+        "kind_123": 0.025,
+        "kind_124": 0.025,
+        "kind_125": 0.025,
+        "kind_126": 0.025,
+        "kind_127": 0.025,
+        "kind_128": 0.025,
+        "kind_129": 0.025,
+        "kind_130": 0.025,
+        "kind_131": 0.025,
+        "kind_132": 0.025,
+        "kind_133": 0.025,
+        "kind_134": 0.025,
+        "kind_135": 0.025,
+        "kind_136": 0.025,
+        "kind_137": 0.025,
+        "kind_138": 0.025,
+        "kind_139": 0.025,
+        "kind_140": 0.025,
+        "kind_141": 0.025,
+        "kind_142": 0.025,
+        "kind_143": 0.025,
+        "kind_144": 0.025,
+        "kind_145": 0.025,
+        "kind_146": 0.025,
+        "kind_147": 0.025,
+        "kind_148": 0.025,
+        "kind_149": 0.025,
+        "kind_150": 0.025,
+        "kind_151": 0.025,
+        "kind_152": 0.025,
+        "kind_153": 0.025,
+        "kind_154": 0.025,
+        "kind_155": 0.025,
+        "kind_156": 0.025,
+        "kind_157": 0.025
+      },
+      "n_kinds_present": 39,
+      "n_programs": 40,
+      "n_sources": 40,
+      "n_unparseable": 0
+    }
+  },
+  "pooled": {
+    "depth": 4,
+    "kinds": [
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_001",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": 1.0,
+        "medoid": "bayes_opt/bayes_opt-c0",
+        "medoid_mean_similarity": 1.0,
+        "members": [
+          "bayes_opt/bayes_opt-c0",
+          "bayes_opt/bayes_opt-c1",
+          "bayes_opt/bayes_opt-c10",
+          "bayes_opt/bayes_opt-c11",
+          "bayes_opt/bayes_opt-c12",
+          "bayes_opt/bayes_opt-c13",
+          "bayes_opt/bayes_opt-c14",
+          "bayes_opt/bayes_opt-c15",
+          "bayes_opt/bayes_opt-c16",
+          "bayes_opt/bayes_opt-c17",
+          "bayes_opt/bayes_opt-c18",
+          "bayes_opt/bayes_opt-c19",
+          "bayes_opt/bayes_opt-c2",
+          "bayes_opt/bayes_opt-c20",
+          "bayes_opt/bayes_opt-c21",
+          "bayes_opt/bayes_opt-c22",
+          "bayes_opt/bayes_opt-c23",
+          "bayes_opt/bayes_opt-c24",
+          "bayes_opt/bayes_opt-c25",
+          "bayes_opt/bayes_opt-c26",
+          "bayes_opt/bayes_opt-c27",
+          "bayes_opt/bayes_opt-c28",
+          "bayes_opt/bayes_opt-c29",
+          "bayes_opt/bayes_opt-c3",
+          "bayes_opt/bayes_opt-c30",
+          "bayes_opt/bayes_opt-c31",
+          "bayes_opt/bayes_opt-c32",
+          "bayes_opt/bayes_opt-c33",
+          "bayes_opt/bayes_opt-c34",
+          "bayes_opt/bayes_opt-c35",
+          "bayes_opt/bayes_opt-c36",
+          "bayes_opt/bayes_opt-c37",
+          "bayes_opt/bayes_opt-c38",
+          "bayes_opt/bayes_opt-c39",
+          "bayes_opt/bayes_opt-c4",
+          "bayes_opt/bayes_opt-c5",
+          "bayes_opt/bayes_opt-c6",
+          "bayes_opt/bayes_opt-c7",
+          "bayes_opt/bayes_opt-c8",
+          "bayes_opt/bayes_opt-c9"
+        ],
+        "size": 40
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 0.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_002",
+        "label": "cvar-penalized + quantile-tail-shaped + volatility-penalized",
+        "mean_within_similarity": 1.0,
+        "medoid": "random_search/random_search-c0",
+        "medoid_mean_similarity": 1.0,
+        "members": [
+          "random_search/random_search-c0",
+          "random_search/random_search-c1",
+          "random_search/random_search-c10",
+          "random_search/random_search-c11",
+          "random_search/random_search-c12",
+          "random_search/random_search-c13",
+          "random_search/random_search-c14",
+          "random_search/random_search-c15",
+          "random_search/random_search-c16",
+          "random_search/random_search-c17",
+          "random_search/random_search-c18",
+          "random_search/random_search-c19",
+          "random_search/random_search-c2",
+          "random_search/random_search-c20",
+          "random_search/random_search-c21",
+          "random_search/random_search-c22",
+          "random_search/random_search-c23",
+          "random_search/random_search-c24",
+          "random_search/random_search-c25",
+          "random_search/random_search-c26",
+          "random_search/random_search-c27",
+          "random_search/random_search-c28",
+          "random_search/random_search-c29",
+          "random_search/random_search-c3",
+          "random_search/random_search-c30",
+          "random_search/random_search-c31",
+          "random_search/random_search-c32",
+          "random_search/random_search-c33",
+          "random_search/random_search-c34",
+          "random_search/random_search-c35",
+          "random_search/random_search-c36",
+          "random_search/random_search-c37",
+          "random_search/random_search-c38",
+          "random_search/random_search-c39",
+          "random_search/random_search-c4",
+          "random_search/random_search-c5",
+          "random_search/random_search-c6",
+          "random_search/random_search-c7",
+          "random_search/random_search-c8",
+          "random_search/random_search-c9"
+        ],
+        "size": 40
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.6666666666666666,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_003",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+3 more)",
+        "mean_within_similarity": 0.5907051247816941,
+        "medoid": "scalar_cvar5/scalar_cvar5-g6-c1",
+        "medoid_mean_similarity": 0.6305832346177966,
+        "members": [
+          "distributional/distributional-g4-c3",
+          "scalar_cvar5/scalar_cvar5-g1-c0",
+          "scalar_cvar5/scalar_cvar5-g6-c1"
+        ],
+        "size": 3
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.5,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.5,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_004",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": 0.6015625,
+        "medoid": "distributional/distributional-g7-c1",
+        "medoid_mean_similarity": 0.6015625,
+        "members": [
+          "distributional/distributional-g7-c1",
+          "placebo/placebo-g5-c4"
+        ],
+        "size": 2
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.5,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_005",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+2 more)",
+        "mean_within_similarity": 0.6165413533834586,
+        "medoid": "scalar/scalar-g7-c2",
+        "medoid_mean_similarity": 0.6165413533834586,
+        "members": [
+          "scalar/scalar-g7-c2",
+          "scalar_cvar5/scalar_cvar5-g6-c4"
+        ],
+        "size": 2
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_006",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g0-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g0-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_007",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g0-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g0-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_008",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+6 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g0-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g0-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_009",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g0-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g0-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_010",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g0-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g0-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_011",
+        "label": "volatility-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g1-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g1-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_012",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g1-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g1-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_013",
+        "label": "quantile-tail-shaped + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g1-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g1-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_014",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g1-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g1-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_015",
+        "label": "quantile-tail-shaped + drawdown-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g2-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g2-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_016",
+        "label": "quantile-tail-shaped + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g2-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g2-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_017",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g2-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g2-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_018",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g2-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g2-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_019",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g2-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g2-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_020",
+        "label": "drawdown-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g3-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g3-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_021",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g3-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g3-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_022",
+        "label": "drawdown-penalized + turnover-regularized + sharpe-ratio",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g3-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g3-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_023",
+        "label": "quantile-tail-shaped + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g3-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g3-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_024",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g3-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g3-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_025",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g4-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g4-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_026",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g4-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g4-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_027",
+        "label": "quantile-tail-shaped + drawdown-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g4-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g4-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_028",
+        "label": "quantile-tail-shaped + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g4-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g4-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_029",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g5-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g5-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_030",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g5-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g5-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_031",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g5-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g5-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_032",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g5-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g5-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_033",
+        "label": "volatility-penalized + sharpe-ratio + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g5-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g5-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_034",
+        "label": "quantile-tail-shaped + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g6-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g6-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_035",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g6-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g6-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_036",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g6-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g6-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_037",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g6-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g6-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_038",
+        "label": "quantile-tail-shaped + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g6-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g6-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_039",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g7-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g7-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_040",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g7-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g7-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_041",
+        "label": "quantile-tail-shaped + drawdown-penalized + tail-mass-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g7-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g7-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_042",
+        "label": "volatility-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "distributional/distributional-g7-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "distributional/distributional-g7-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_043",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g0-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g0-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_044",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g0-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g0-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_045",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g0-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g0-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_046",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g0-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g0-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_047",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g0-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g0-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_048",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g1-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g1-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_049",
+        "label": "cvar-penalized + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g1-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g1-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_050",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g1-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g1-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_051",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g1-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g1-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_052",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g1-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g1-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_053",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g2-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g2-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_054",
+        "label": "drawdown-penalized + tail-mass-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g2-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g2-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_055",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g2-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g2-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_056",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g2-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g2-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_057",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g2-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g2-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_058",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g3-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g3-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_059",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g3-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g3-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_060",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g3-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g3-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_061",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g3-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g3-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_062",
+        "label": "quantile-tail-shaped + drawdown-penalized + tail-mass-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g3-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g3-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_063",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g4-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g4-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_064",
+        "label": "drawdown-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g4-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g4-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_065",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g4-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g4-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_066",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g4-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g4-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_067",
+        "label": "drawdown-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g4-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g4-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_068",
+        "label": "cvar-penalized + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g5-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g5-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_069",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g5-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g5-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_070",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g5-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g5-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_071",
+        "label": "drawdown-penalized + tail-mass-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g5-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g5-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_072",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g6-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g6-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_073",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g6-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g6-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_074",
+        "label": "volatility-penalized + turnover-regularized + sharpe-ratio (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g6-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g6-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_075",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g6-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g6-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_076",
+        "label": "cvar-penalized + drawdown-penalized + downside-semidev-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g6-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g6-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_077",
+        "label": "drawdown-penalized + volatility-penalized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g7-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g7-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_078",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g7-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g7-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_079",
+        "label": "quantile-tail-shaped + drawdown-penalized + tail-mass-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g7-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g7-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_080",
+        "label": "drawdown-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g7-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g7-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_081",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "placebo/placebo-g7-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "placebo/placebo-g7-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_082",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g0-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g0-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_083",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g0-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g0-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_084",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g0-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g0-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_085",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g0-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g0-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_086",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g0-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g0-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_087",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g1-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g1-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_088",
+        "label": "drawdown-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g1-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g1-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_089",
+        "label": "tail-mass-penalized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g1-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g1-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_090",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g1-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g1-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_091",
+        "label": "quantile-tail-shaped + drawdown-penalized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g1-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g1-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_092",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g2-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g2-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_093",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g2-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g2-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_094",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g2-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g2-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_095",
+        "label": "drawdown-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g2-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g2-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_096",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g2-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g2-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_097",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g3-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g3-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_098",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g3-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g3-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_099",
+        "label": "drawdown-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g3-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g3-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_100",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g3-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g3-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_101",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g3-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g3-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_102",
+        "label": "drawdown-penalized + downside-semidev-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g4-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g4-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_103",
+        "label": "cvar-penalized + drawdown-penalized + tail-mass-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g4-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g4-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_104",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g4-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g4-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_105",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g4-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g4-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_106",
+        "label": "cvar-penalized + drawdown-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g4-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g4-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_107",
+        "label": "drawdown-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g5-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g5-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_108",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+5 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g5-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g5-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_109",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g5-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g5-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_110",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g5-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g5-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_111",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g5-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g5-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_112",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g6-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g6-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 1.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_113",
+        "label": "quantile-tail-shaped + drawdown-penalized + tail-mass-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g6-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g6-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_114",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g6-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g6-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_115",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g6-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g6-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_116",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g6-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g6-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_117",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g7-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g7-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_118",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g7-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g7-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_119",
+        "label": "drawdown-penalized + turnover-regularized + sharpe-ratio",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g7-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g7-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_120",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar/scalar-g7-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar/scalar-g7-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_121",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g0-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g0-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_122",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g0-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g0-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_123",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g0-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g0-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_124",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g0-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g0-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_125",
+        "label": "quantile-tail-shaped + drawdown-penalized + downside-semidev-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g0-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g0-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_126",
+        "label": "quantile-tail-shaped + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g1-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g1-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_127",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g1-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g1-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_128",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g1-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g1-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_129",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g1-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g1-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_130",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g2-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g2-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_131",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g2-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g2-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_132",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g2-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g2-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_133",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g2-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g2-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_134",
+        "label": "drawdown-penalized + turnover-regularized + concentration-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g2-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g2-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_135",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g3-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g3-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_136",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g3-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g3-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_137",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g3-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g3-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_138",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g3-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g3-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_139",
+        "label": "quantile-tail-shaped + drawdown-penalized + turnover-regularized (+1 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g3-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g3-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_140",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g4-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g4-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_141",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g4-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g4-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_142",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g4-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g4-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_143",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g4-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g4-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_144",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g4-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g4-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_145",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g5-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g5-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_146",
+        "label": "cvar-penalized + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g5-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g5-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 0.0
+        },
+        "kind_id": "kind_147",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g5-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g5-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_148",
+        "label": "cvar-penalized + drawdown-penalized + downside-semidev-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g5-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g5-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 0.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_149",
+        "label": "cvar-penalized + drawdown-penalized + turnover-regularized",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g5-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g5-c4"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_150",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g6-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g6-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_151",
+        "label": "cvar-penalized + quantile-tail-shaped + drawdown-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g6-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g6-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 0.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_152",
+        "label": "cvar-penalized + quantile-tail-shaped + volatility-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g6-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g6-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_153",
+        "label": "cvar-penalized + drawdown-penalized + downside-semidev-penalized (+4 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g7-c0",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g7-c0"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 1.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_154",
+        "label": "cvar-penalized + drawdown-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g7-c1",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g7-c1"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 0.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 0.0,
+          "quantile_tail": 1.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_155",
+        "label": "quantile-tail-shaped + drawdown-penalized + downside-semidev-penalized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g7-c2",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g7-c2"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 1.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_156",
+        "label": "drawdown-penalized + downside-semidev-penalized + volatility-penalized (+3 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g7-c3",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g7-c3"
+        ],
+        "size": 1
+      },
+      {
+        "construct_prevalence": {
+          "cvar": 0.0,
+          "drawdown": 1.0,
+          "herfindahl": 1.0,
+          "left_tail_mass": 0.0,
+          "online_sharpe": 1.0,
+          "quantile_tail": 0.0,
+          "rolling_vol": 1.0,
+          "sortino_downside": 0.0,
+          "turnover": 1.0
+        },
+        "kind_id": "kind_157",
+        "label": "drawdown-penalized + volatility-penalized + turnover-regularized (+2 more)",
+        "mean_within_similarity": null,
+        "medoid": "scalar_cvar5/scalar_cvar5-g7-c4",
+        "medoid_mean_similarity": null,
+        "members": [
+          "scalar_cvar5/scalar_cvar5-g7-c4"
+        ],
+        "size": 1
+      }
+    ],
+    "n_kinds": 157,
+    "n_programs": 239,
+    "n_singletons": 152,
+    "n_sources": 239,
+    "n_unparseable": 0,
+    "sim_threshold": 0.6,
+    "status": "ok",
+    "unparseable_ids": []
+  },
+  "sensitivity": {
+    "adjacent_stability": [
+      {
+        "pair": "0.5->0.6",
+        "rand_index": 0.9790091768925143
+      },
+      {
+        "pair": "0.6->0.7",
+        "rand_index": 0.9998241974614114
+      }
+    ],
+    "by_threshold": [
+      {
+        "n_kinds": 93,
+        "n_singletons": 82,
+        "threshold": 0.5
+      },
+      {
+        "n_kinds": 157,
+        "n_singletons": 152,
+        "threshold": 0.6
+      },
+      {
+        "n_kinds": 161,
+        "n_singletons": 159,
+        "threshold": 0.7
+      }
+    ],
+    "depth": 4,
+    "n_programs": 239,
+    "n_unparseable": 0,
+    "status": "ok",
+    "thresholds": [
+      0.5,
+      0.6,
+      0.7
+    ]
+  },
+  "status": "ok"
+}

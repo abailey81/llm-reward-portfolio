@@ -7,6 +7,10 @@ Designed for a corroborated NULL — every figure visualises equivalence/overlap
 * :func:`risk_return_clouds`     — the collapsed (CVaR, Sharpe) frontier: the 7 arms pile into one blob.
 * :func:`evidence_for_null`      — Bayes-factor gauge + Model-Confidence-Set strip (evidence FOR H0).
 * :func:`reward_code_similarity` — AST-distance clustered heatmap: the placebo writes the same code.
+* :func:`controls_overlay`       — treatment-vs-controls per-seed rainclouds piling onto one band (F7).
+* :func:`responsiveness_scatter` — fed-tail-Δ vs authored-reward-Δ with a Spearman fit: responsiveness≈0 (F8b).
+* :func:`learning_curves`        — per-arm critic-loss + return trajectories: training adequacy (F9).
+* :func:`delisting_robustness`   — headline contrasts vs ±SESOI across the {0,-30,-55,-100}% delisting band.
 
 The functions take ALREADY-COMPUTED arrays/dicts (per-seed scores, TOST bounds, BF01, MCS result, an
 AST-distance matrix) so they are decoupled from the inference layer and trivially testable. Captions and
@@ -32,13 +36,20 @@ __all__ = [
     "risk_return_clouds",
     "evidence_for_null",
     "reward_code_similarity",
+    "controls_overlay",
+    "responsiveness_scatter",
+    "learning_curves",
+    "delisting_robustness",
 ]
 
 _LEG_LABEL = {"sharpe": "H2-RA: Sharpe", "cvar": "H2-Tail: CVaR-5%"}
 
 
 def _is_equivalent(tost_lo: float, tost_hi: float, sesoi: float) -> bool:
-    return bool(tost_lo >= -sesoi and tost_hi <= sesoi)
+    # STRICT ``>``/``<`` to match the inferential decision rule (``_iqm_tost``/``tost_equivalence``/
+    # ``paired_tost`` all require the CI STRICTLY inside (-sesoi, +sesoi)) — a boundary CI at exactly
+    # ±sesoi is NOT equivalent, so the figure must not colour it green when the test calls it not-equivalent (P14-F4).
+    return bool(tost_lo > -sesoi and tost_hi < sesoi)
 
 
 def equivalence_forest(
@@ -277,6 +288,170 @@ def reward_code_similarity(
             seen[a] = plt.Line2D([], [], marker="s", ls="", color=arm_style(a)["color"], label=a)
     ax_heat.legend(handles=list(seen.values()), loc="upper left", bbox_to_anchor=(1.18, 1.0), fontsize=7)
     fig.suptitle(title, fontsize=10)
+    return fig
+
+
+def controls_overlay(
+    scores_by_arm: Mapping[str, np.ndarray],
+    *,
+    leg_label: str = "H2-Tail: CVaR-5%",
+    title: str = "Treatment vs controls overlap: per-seed rainclouds pile onto one band",
+) -> Any:
+    """Raincloud overlay of the treatment arm against its placebo / structure-shuffled controls (F7).
+
+    ``scores_by_arm``: ``{arm: per-seed score array}`` — intended to be the distributional arm beside its
+    direct controls (``placebo``, ``placebo_shuffled``, ``scalar``). Each arm is drawn as a deterministically
+    jittered per-seed strip + an IQR bar + median tick + IQM marker on a shared axis, so the null is read as
+    *overlapping distributions*, never off a p-value. Controls are ringed (hatch style) to set them apart.
+    """
+    import matplotlib.pyplot as plt
+
+    from src.viz.style import iqm
+
+    arms = list(scores_by_arm)
+    fig, ax = plt.subplots(figsize=(6.2, 0.8 + 0.6 * len(arms)))
+    jitter_rng = np.random.default_rng(0)  # fixed seed → deterministic strip jitter
+    for y, arm in enumerate(arms):
+        st = arm_style(arm)
+        v = np.asarray(scores_by_arm[arm], dtype=float).ravel()
+        jit = (jitter_rng.random(v.size) - 0.5) * 0.30
+        ax.scatter(v, np.full(v.size, y) + jit, s=16, color=st["color"], alpha=0.32,
+                   marker=st["marker"], edgecolors="none", zorder=2)
+        if v.size:
+            q1, med, q3 = np.percentile(v, [25, 50, 75])
+            ax.plot([q1, q3], [y, y], color=st["color"], lw=3.0, solid_capstyle="round", zorder=3)
+            ax.plot([med], [y], marker="|", ms=15, color="black", markeredgewidth=1.4, zorder=4)
+            ax.plot([iqm(v)], [y], marker=st["marker"], ms=9, color=st["color"],
+                    markeredgecolor="black", markeredgewidth=0.5, zorder=5)
+            if st["hatch"]:
+                ax.plot([iqm(v)], [y], marker="o", ms=15, markerfacecolor="none",
+                        markeredgecolor=st["color"], markeredgewidth=0.9, alpha=0.6, zorder=2)
+    ax.set_yticks(range(len(arms)))
+    ax.set_yticklabels(arms)
+    ax.set_ylim(-0.6, len(arms) - 0.4)
+    ax.invert_yaxis()
+    ax.set_xlabel(leg_label)
+    ax.set_title(title, fontsize=10, loc="left")
+    return fig
+
+
+def responsiveness_scatter(
+    fed_delta: np.ndarray,
+    reward_delta: np.ndarray,
+    *,
+    rho: float | None = None,
+    arm: str = "distributional",
+    title: str = "Reward edits do not track the fed tail signal (responsiveness ≈ 0)",
+) -> Any:
+    """Per-generation scatter of (Δ fed tail-statistic, Δ authored-reward) with a least-squares guide (F8b).
+
+    ``fed_delta`` / ``reward_delta``: paired 1-D arrays, one point per gen-N→N+1 transition. A flat / near-zero
+    slope is the responsiveness signature of the null — the LLM does not condition its code edits on the
+    magnitude of the tail feedback it was shown. ``rho`` (Spearman) is the reported statistic; the dashed line
+    is a visual OLS aid only.
+    """
+    import matplotlib.pyplot as plt
+
+    x = np.asarray(fed_delta, dtype=float).ravel()
+    y = np.asarray(reward_delta, dtype=float).ravel()
+    st = arm_style(arm)
+    fig, ax = plt.subplots(figsize=(5.4, 4.3))
+    ax.axhline(0.0, color="0.75", lw=0.8, zorder=0)
+    ax.axvline(0.0, color="0.75", lw=0.8, zorder=0)
+    ax.scatter(x, y, s=42, color=st["color"], alpha=0.75, marker=st["marker"],
+               edgecolors="black", linewidths=0.4, zorder=3)
+    if x.size >= 2 and float(np.ptp(x)) > 0.0:
+        slope, intercept = np.polyfit(x, y, 1)
+        xs = np.array([x.min(), x.max()])
+        ax.plot(xs, intercept + slope * xs, color=st["color"], lw=1.6, ls="--", zorder=4)
+    if rho is not None:
+        ax.text(0.04, 0.96, f"Spearman ρ = {float(rho):+.2f}", transform=ax.transAxes, va="top",
+                fontsize=9, bbox=dict(boxstyle="round", fc="white", ec="0.6"))
+    ax.set_xlabel("Δ fed tail statistic  (generation N → N+1)")
+    ax.set_ylabel("Δ authored-reward  (code-edit magnitude)")
+    ax.set_title(title, fontsize=10, loc="left")
+    return fig
+
+
+def learning_curves(
+    curves_by_arm: Mapping[str, Mapping[str, np.ndarray]],
+    *,
+    title: str = "Training adequacy: critic loss settles and returns plateau across arms",
+) -> Any:
+    """Per-arm training trajectories — critic loss (log) + eval return vs environment steps (F9).
+
+    ``curves_by_arm``: ``{arm: {"steps": arr, "critic_loss": arr, "return": arr}}``. Two stacked panels with all
+    arms overlaid: the convergence / training-adequacy diagnostic that answers the standing under-training
+    concern (is the critic still diverging at the final step?) and shows the arms reaching the same plateau —
+    consistent with a fair, saturated comparison rather than a budget artefact.
+    """
+    import matplotlib.pyplot as plt
+
+    fig, (ax_loss, ax_ret) = plt.subplots(2, 1, figsize=(6.2, 5.4), sharex=True)
+    for arm, c in curves_by_arm.items():
+        st = arm_style(arm)
+        steps = np.asarray(c["steps"], dtype=float).ravel()
+        ax_loss.plot(steps, np.asarray(c["critic_loss"], dtype=float).ravel(), color=st["color"],
+                     marker=st["marker"], ms=4, lw=1.5, label=arm, zorder=3)
+        ax_ret.plot(steps, np.asarray(c["return"], dtype=float).ravel(), color=st["color"],
+                    marker=st["marker"], ms=4, lw=1.5, zorder=3)
+    ax_loss.set_ylabel("critic loss")
+    ax_loss.set_yscale("log")
+    ax_loss.set_title(title, fontsize=10, loc="left")
+    ax_loss.legend(loc="best", ncol=2, fontsize=7)
+    ax_ret.set_ylabel("eval return")
+    ax_ret.set_xlabel("environment steps")
+    return fig
+
+
+def delisting_robustness(
+    contrasts_by_treatment: Mapping[str, Mapping[str, Mapping[str, float]]],
+    *,
+    treatments: Sequence[str] | None = None,
+    sesoi: float = 0.05,
+    title: str = "Headline equivalence is robust across the delisting-treatment band",
+) -> Any:
+    """The delisting-band sensitivity surface: each headline contrast vs the ±SESOI corridor across treatments.
+
+    ``contrasts_by_treatment``: ``{contrast_label: {treatment_label: {"estimate", "ci_lo", "ci_hi"}}}`` — e.g.
+    ``{"dist − placebo": {"0%": {...}, "-30%": {...}, "-55%": {...}, "-100%": {...}}}``. The delisting return
+    applied to delisted names is a modelling CHOICE, not a fact; pre-registering the whole band
+    ``{0, -30, -55, -100}%`` and showing the contrast stays inside ``[-sesoi, +sesoi]`` across ALL of it turns
+    "we picked a delisting rule" into "the conclusion does not depend on the delisting rule". A series whose
+    every CI sits in the band is drawn solid; any excursion is drawn open + annotated.
+    """
+    import matplotlib.pyplot as plt
+
+    order = list(treatments) if treatments is not None else list(
+        dict.fromkeys(t for series in contrasts_by_treatment.values() for t in series)
+    )
+    x = np.arange(len(order))
+    labels = list(contrasts_by_treatment)
+    palette = [OKABE_ITO[c] for c in ("blue", "vermillion", "orange", "purple", "skyblue")]
+    fig, ax = plt.subplots(figsize=(1.6 + 1.3 * len(order), 4.2))
+    ax.axhspan(-sesoi, sesoi, color=OKABE_ITO["green"], alpha=0.12, zorder=0, label=f"±SESOI {sesoi:g}")
+    ax.axhline(0.0, color="0.4", lw=0.8, ls="--", zorder=1)
+    ax.axhline(sesoi, color=OKABE_ITO["green"], lw=0.8, zorder=1)
+    ax.axhline(-sesoi, color=OKABE_ITO["green"], lw=0.8, zorder=1)
+    n_series = max(1, len(labels))
+    for s, label in enumerate(labels):
+        col = palette[s % len(palette)]
+        dx = (s - (n_series - 1) / 2) * 0.12  # dodge series so error bars do not overlap
+        series = contrasts_by_treatment[label]
+        est = np.array([float(series[t]["estimate"]) for t in order])
+        lo = np.array([float(series[t]["ci_lo"]) for t in order])
+        hi = np.array([float(series[t]["ci_hi"]) for t in order])
+        inside = bool(np.all(lo >= -sesoi) and np.all(hi <= sesoi))
+        ax.errorbar(x + dx, est, yerr=[est - lo, hi - est], fmt="o-", color=col, lw=1.4, ms=6,
+                    markerfacecolor=col if inside else "white", markeredgecolor=col, capsize=3,
+                    label=label + ("" if inside else "  (excursion)"), zorder=3)
+    ax.set_xticks(x)
+    ax.set_xticklabels(order)
+    ax.set_xlabel("delisting return applied to delisted names")
+    ax.set_ylabel("contrast effect size (deflated-Sharpe units)")
+    ax.set_xlim(-0.5, len(order) - 0.5)
+    ax.set_title(title, fontsize=10, loc="left")
+    ax.legend(loc="best", fontsize=7)
     return fig
 
 

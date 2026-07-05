@@ -44,7 +44,7 @@ Flags
   --seeds         Comma list of seeds to average per budget (default ``0``; the campaign uses more).
   --reward        REWARD_CANON key for the representative reward (default ``differential_sharpe``).
   --synthetic     Use a synthetic panel instead of the real gold dev slice (default real).
-  --end           Real-data slice end date (default ``2014-12-31`` — the dev TRAIN end).
+  --end           Real-data slice end date (default ``2016-12-31`` — the dev TRAIN end, SPLIT C).
   --device        ``cpu`` | ``cuda`` | ``auto`` (default ``auto``).
   --out-dir       Output directory (default ``outputs/tables``).
   --no-plot       Skip the PNG (still writes json + md).
@@ -204,7 +204,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seeds", default="0", help="Comma list of seeds to average per budget.")
     p.add_argument("--reward", default="differential_sharpe", help="REWARD_CANON key (representative reward).")
     p.add_argument("--synthetic", action="store_true", help="Use a synthetic panel instead of real gold.")
-    p.add_argument("--end", default="2014-12-31", help="Real-data slice end date (dev TRAIN end).")
+    p.add_argument("--end", default="2016-12-31", help="Real-data slice end date (dev TRAIN end, SPLIT C).")
     p.add_argument("--device", default="auto", choices=["cpu", "cuda", "auto"], help="Compute device.")
     p.add_argument("--out-dir", default="outputs/tables", help="Output directory.")
     p.add_argument("--no-plot", action="store_true", help="Skip the PNG (still writes json + md).")
@@ -248,10 +248,12 @@ def _resolve_panel_and_windows(synthetic: bool, end: str, lookback: int) -> tupl
         return panel, (lookback, 400), (400, panel.T)
     from src.data.loaders import load_gold_panel
 
-    res = load_gold_panel(phase="development", end=end)
+    # verify_checksum=True (C2): the convergence probe trains on the production gold panel; checksum-
+    # verify it against the frozen manifest (mismatch or missing entry fails loud).
+    res = load_gold_panel(phase="development", end=end, verify_checksum=True)
     panel = res.panel
     # Hold out the last ~20% of the slice as an in-slice eval window (a convergence probe, NOT the sealed
-    # campaign val split — this tool never touches the 2018-2025 test leg). Keep a lookback-sized purge.
+    # campaign val split — this tool never touches the 2020-2026 test leg). Keep a lookback-sized purge.
     split = max(lookback + 1, int(panel.T * 0.8))
     split = min(split, panel.T - 1)
     return panel, (lookback, split), (min(split + lookback, panel.T - 1), panel.T)
@@ -299,11 +301,15 @@ def run_one_budget(
         builder = make_env_builder(panel, env_cfg, train_w, val_w)
         bundle = builder(reward_fn)
 
-        # The FIXED agent under the campaign numerics: PopArt on + the gated learning_starts. Buffer is
-        # coupled to the budget (ADR-025 memory-safe full-history replay).
+        # The FIXED agent under the CAMPAIGN numerics: PopArt on + the gated learning_starts + the HARD
+        # replay-buffer cap. The campaign caps the replay buffer (config/campaign.yaml agent.buffer_size,
+        # default 50k) so the buffer RAM stays a bounded ~0.76 GB at the 1,893-dim obs as the step budget
+        # rises — WITHOUT the cap, buffer_size == budget OOMs the 15.6 GB laptop at >=200k (ADR-025 extended;
+        # CLAUDE.md 2026-06-30). The pilot MUST mirror the cap or its convergence curve is unrepresentative.
+        buffer_cap = int((load_config("campaign").get("agent") or {}).get("buffer_size") or 50000)
         agent_cfg = {
             "train_steps_per_candidate": int(budget),
-            "buffer_size": int(budget),
+            "buffer_size": min(int(budget), buffer_cap),
             "normalize_obs": True,
             "popart": True,
             "device": device,
@@ -477,7 +483,7 @@ def main() -> None:
     args = build_parser().parse_args()
     from src.utils.preload import preload
 
-    preload()  # pyarrow before torch (real gold parquet) — ADR/audit
+    preload(strict=True)  # pyarrow before torch (real gold parquet) — ADR/audit; H2 fail-loud
 
     if args.smoke:
         # Budgets > the 1000-step learning_starts floor so the critic actually regresses (exercises the

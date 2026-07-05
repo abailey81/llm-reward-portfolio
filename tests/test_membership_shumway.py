@@ -248,18 +248,18 @@ def test_correction_makes_cvar_strictly_more_negative_than_liquidate_to_cash() -
 
 # --------------------------------------------------------------- loaders suffix switch
 def test_gold_suffix_defaults_to_univ3_and_switches(monkeypatch) -> None:
-    """The live default stays ``univ3`` (the univ4 parquet does not exist yet, ADR-024);
-    ``LLM_RP_GOLD_SUFFIX`` switches it (leading ``_`` stripped) WITHOUT a code edit."""
+    """The live default is ``univ5`` (the ACTIVE Split-C panel, ADR-044/051; config gold.suffix
+    governs); ``LLM_RP_GOLD_SUFFIX`` switches it (leading ``_`` stripped) WITHOUT a code edit."""
     from src.data import loaders
 
     monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
-    assert loaders.gold_suffix() == "univ3"
+    assert loaders.gold_suffix() == "univ5"
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "univ4")
     assert loaders.gold_suffix() == "univ4"
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "_univ4")     # tolerant of a leading underscore
     assert loaders.gold_suffix() == "univ4"
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "  ")          # blank -> default
-    assert loaders.gold_suffix() == "univ3"
+    assert loaders.gold_suffix() == "univ5"
 
 
 def test_read_path_follows_active_suffix(monkeypatch, tmp_path) -> None:

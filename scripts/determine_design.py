@@ -12,14 +12,14 @@ one of four classes and determines it by that class's CORRECT criterion:
   * MEASURE   — optimise for ADEQUACY (a diagnostic plateau), not performance: B* (convergence), n_seeds
                 (power), candidates (search saturation). These are the ONLY "tuned" parameters.
   * CALIBRATE — set ONCE, identically across arms, by a principled procedure on PRE-TEST data only:
-                λ (pre-2015 fitness calibration), SESOI, embargo, multiplicity, the DSR trial count.
+                SESOI, embargo, multiplicity, the DSR trial count (λ was reclassified FIX — see its row).
   * FIX       — hold at sensible literature defaults, IDENTICAL across arms; tuning would CONFOUND the
                 channel contrast: all SAC/LLM hyperparameters, learning_starts, PopArt.
   * REALISTIC — credible real-world values, not result-maximising: universe, lookback, costs, splits,
                 delisting, the cash rate.
 
-INVARIANT: nothing here touches the sealed test split (2018-2025). Determination uses train+val (or
-pre-2015 sub-folds) only; the test is opened ONCE, post-freeze, for the confirmatory inference.
+INVARIANT: nothing here touches the sealed test split (2020-2026). Determination uses train+val (or
+pre-2017 sub-folds) only; the test is opened ONCE, post-freeze, for the confirmatory inference.
 
 What it produces
 ----------------
@@ -62,6 +62,7 @@ class ParamClass(str, Enum):
 
 class Status(str, Enum):
     DETERMINED = "DETERMINED"  # value resolved with evidence
+    DECIDED = "DECIDED"        # value fixed by a RATIFIED user decision (diagnostic evidence disclosed)
     PENDING = "PENDING"        # awaits a pilot/calibration before freeze
     FIX_NEEDED = "FIX_NEEDED"  # current value is wrong and must change
     VERIFY = "VERIFY"          # plausibly fine; confirm with an existing test
@@ -88,8 +89,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
     ParamSpec("candidates_per_arm", ParamClass.MEASURE,
               "search saturation (best-fitness plateau)", "determine_design.recommend_candidates", True),
     # ---- CALIBRATE (set once, identically across arms, on pre-test data) ----
-    ParamSpec("lambda_frozen", ParamClass.CALIBRATE,
-              "pre-2015 fitness calibration fold", "config/inference.yaml fitness.calibration_fold", True),
     ParamSpec("sesoi", ParamClass.CALIBRATE,
               "smallest practically-relevant edge", "frozen 0.05 DSR (~0.07 ann-Sharpe)", False),
     ParamSpec("embargo_trading_days", ParamClass.CALIBRATE,
@@ -99,6 +98,14 @@ REGISTRY: tuple[ParamSpec, ...] = (
     ParamSpec("dsr_trial_count_rule", ParamClass.CALIBRATE,
               "selection-aware deflation", "per_arm_candidates (Bailey-Lopez de Prado)", False),
     # ---- FIX (held constant for control; tuning confounds the channel) ----
+    # lambda_cvar was reclassified CALIBRATE -> FIX (2026-07-02): the ratified design pins it at 0 BY DESIGN
+    # (tail-blind selector; preregistration.yaml fitness.lambda_cvar = 0.0, freeze-gate check #7). A tail-aware
+    # selector would confound the H2 feedback channel, so lambda is exactly what this class is for — "tuning
+    # confounds the channel" — NOT a pre-2015 calibration target. The legacy calibration apparatus
+    # (lambda_grid/lambda_frozen/calibration_fold in config/inference.yaml) was deleted per the prereg §5 note.
+    ParamSpec("lambda_cvar", ParamClass.FIX,
+              "0 BY DESIGN: tail-blind selector (tuning would confound the H2 channel)",
+              "preregistration.yaml fitness.lambda_cvar = 0.0 (RATIFIED 2026-07-01; freeze gate #7)", False),
     ParamSpec("sac_hyperparameters", ParamClass.FIX,
               "SB3 defaults, identical across arms", "config/algos.yaml (null = SB3 default)", False),
     ParamSpec("learning_starts", ParamClass.FIX,
@@ -108,12 +115,13 @@ REGISTRY: tuple[ParamSpec, ...] = (
     ParamSpec("llm_decoding", ParamClass.FIX,
               "held identical; only feedback varies", "Opus 4.8, K=16, max_tokens 4096", False),
     # ---- REALISTIC (credible, not result-maximising) ----
-    ParamSpec("n_assets", ParamClass.REALISTIC, "diversified tradable book", "30 from 953 PIT pool", False),
+    ParamSpec("n_assets", ParamClass.REALISTIC, "diversified tradable book", "30 from 963 PIT pool (univ5)", False),
     ParamSpec("lookback_days", ParamClass.REALISTIC, "feature window", "60", False),
     ParamSpec("headline_bps", ParamClass.REALISTIC, "realistic large-cap cost", "10 bps proportional", False),
-    ParamSpec("data_splits", ParamClass.REALISTIC, "sealed temporal holdout", "10y/3y/8y train/val/test", False),
+    ParamSpec("data_splits", ParamClass.REALISTIC, "sealed temporal holdout", "12y/3y/6.5y train/val/test (Split C)", False),
     ParamSpec("delisting_returns", ParamClass.REALISTIC, "survivorship-free", "retain", False),
-    ParamSpec("cash_daily_rate", ParamClass.REALISTIC, "risk-free accrual on cash", "risk-free series (R20)", False),
+    ParamSpec("cash_daily_rate", ParamClass.REALISTIC, "risk-free accrual on cash",
+              "cash=0 numeraire (§10 RATIFIED 2026-07-01; DGS3MO rf-excess robustness leg)", False),
 )
 
 
@@ -208,7 +216,6 @@ def determine(evidence: dict[str, Any]) -> dict[str, Any]:
     ``evidence`` keys (all optional; missing -> the parameter reports its default status):
       ``recommended_budget``  -> B* resolved (DETERMINED) else PENDING.
       ``candidates_saturated``-> True/False/None from :func:`recommend_candidates`.
-      ``lambda_frozen``       -> None/null -> PENDING (calibration not run) else DETERMINED.
       ``cash_daily_rate``     -> 0.0 -> FIX_NEEDED (silently compounds cash) else DETERMINED/FIXED.
       ``sigma_seed_pilot``    -> True if the seed-variance pilot has run (n_seeds DETERMINED) else PENDING.
 
@@ -218,17 +225,39 @@ def determine(evidence: dict[str, Any]) -> dict[str, Any]:
     def status_for(spec: ParamSpec) -> Status:
         n = spec.name
         if n == "train_steps_per_candidate":
-            return Status.DETERMINED if evidence.get("recommended_budget") else Status.PENDING
+            if evidence.get("recommended_budget"):
+                return Status.DETERMINED
+            # R74 (2026-07-02): the R70 knee detector is structurally unsatisfiable on a flat-noise
+            # eval curve (its tolerance scales with the curve's own range), so B* was set by the
+            # evidence dossier and RATIFIED (prereg R74 + the campaign/algos/prereg-yaml mirror).
+            # A converged knee still wins (DETERMINED); the ratified dossier decision reports DECIDED.
+            return Status.DECIDED if evidence.get("train_steps_ratified") else Status.PENDING
         if n == "candidates_per_arm":
             sat = evidence.get("candidates_saturated")
-            return Status.DETERMINED if sat is True else (Status.PENDING if sat in (False, None) else Status.PENDING)
+            if sat is True:
+                return Status.DETERMINED
+            # Saturation is DIAGNOSTIC-ONLY for this parameter (see recommend_candidates: "it INFORMS
+            # the (amendment-gated) candidates_per_arm"): the budget itself was RATIFIED 2026-07-01 at
+            # a hard cap (30 — multiplicity control; "more candidates" explicitly rejected), with the
+            # search-width limitation disclosed in CH7. A False/None diagnostic therefore feeds the
+            # disclosure, not the freeze gate — requiring saturated=True here made freeze-readiness
+            # UNSATISFIABLE pre-campaign (found 2026-07-02 when the engine first ran on the real
+            # prototype archive: 3/4 judgeable arms saturated by gen 3-4, scalar jumped at gen 7).
+            return Status.DECIDED if evidence.get("candidates_ratified") else Status.PENDING
         if n == "n_seeds":
             return Status.DETERMINED if evidence.get("sigma_seed_pilot") else Status.PENDING
-        if n == "lambda_frozen":
-            return Status.DETERMINED if evidence.get("lambda_frozen") is not None else Status.PENDING
         if n == "cash_daily_rate":
             cdr = evidence.get("cash_daily_rate")
-            return Status.FIX_NEEDED if (cdr is not None and float(cdr) == 0.0) else Status.DETERMINED
+            if cdr is not None and float(cdr) == 0.0:
+                # cash=0 was RATIFIED 2026-07-01 (prereg §10 numeraire: rf=0 headline, common-mode in
+                # the arm contrast, + DGS3MO rf-excess robustness leg) — when the env value MATCHES the
+                # ratified numeraire, report the decision; FIX_NEEDED was pre-ratification semantics
+                # ("silently compounds cash"), stale once §10 landed (found 2026-07-02).
+                ratified = evidence.get("numeraire_ratified_cash")
+                if ratified is not None and float(ratified) == 0.0:
+                    return Status.DECIDED
+                return Status.FIX_NEEDED
+            return Status.DETERMINED
         if n == "embargo_trading_days":
             return Status.VERIFY
         if spec.klass in (ParamClass.FIX, ParamClass.REALISTIC) or spec.klass is ParamClass.CALIBRATE:
@@ -256,7 +285,7 @@ def _write_markdown(result: dict[str, Any], evidence: dict[str, Any], path: Path
         "",
         "Generated by `scripts/determine_design.py`. \"Best\" means *methodologically-correct and frozen with "
         "evidence*, **not** performance-maximal — optimising parameters to maximise the result would be the "
-        "garden of forking paths and is never done here. The sealed test (2018-2025) is touched by nothing in "
+        "garden of forking paths and is never done here. The sealed test (2020-2026) is touched by nothing in "
         "this determination.",
         "",
         f"**Status: {verdict}**",
@@ -269,6 +298,15 @@ def _write_markdown(result: dict[str, Any], evidence: dict[str, Any], path: Path
     if not result["freeze_ready"]:
         lines += ["", "## Blocking actions before freeze", ""]
         lines += [f"- `{b}`" for b in result["blockers"]]
+    if evidence.get("candidates_diagnostic"):
+        lines += [
+            "", "## Evidence notes", "",
+            (f"- `candidates_per_arm` saturation diagnostic (prototype archive; DIRECTIONAL — Sonnet "
+             f"author, pre-Split-C window): {evidence['candidates_diagnostic']} The budget itself is "
+             f"the ratified 2026-07-01 cap ({evidence.get('candidates_ratified')}; multiplicity "
+             "control — 'more candidates' explicitly rejected); the diagnostic feeds the CH7 "
+             "search-width disclosure, not the freeze gate."),
+        ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -278,8 +316,6 @@ def _gather_evidence() -> dict[str, Any]:
     try:
         from src.utils.config import load_config
 
-        inf = load_config("inference")
-        ev["lambda_frozen"] = (inf.get("fitness") or {}).get("lambda_frozen")
         env = load_config("environment")
         ev["cash_daily_rate"] = (env.get("state") or {}).get("cash_daily_rate")
     except Exception:  # noqa: BLE001 - the reporter must run even if config import is unavailable
@@ -288,9 +324,80 @@ def _gather_evidence() -> dict[str, Any]:
     if lc.exists():
         try:
             data = json.loads(lc.read_text(encoding="utf-8"))
-            ev["recommended_budget"] = (data.get("convergence") or {}).get("recommended_budget")
+            conv = data.get("convergence") or {}
+            # A NOT-converged ladder reports its CEILING as recommended_budget (the extend-the-ladder
+            # sentinel) — reading it unconditionally stamped train_steps DETERMINED off an unconverged
+            # run (latent bug, found 2026-07-02). Only a converged=True knee counts as evidence.
+            ev["recommended_budget"] = (
+                conv.get("recommended_budget") if conv.get("converged") is True else None
+            )
         except Exception:  # noqa: BLE001
             pass
+    # n_seeds: the σ_D pilot evidence must be a SUCCESSFUL analyzer run on ENOUGH shared seeds — NOT
+    # the artifact's mere existence (batch-5 M1, 2026-07-03): sigma_seed_pilot.py writes its JSON
+    # unconditionally (even status="skipped" on an empty/partial archive), so existence alone could
+    # flip n_seeds DETERMINED — and the chain FREEZE-READY — off a failed/husked farm. Gate on the
+    # in-JSON success flag (the sharpe-leg status=="ok" bool the analyzer computes exactly for this
+    # purpose) AND an n_shared floor: >= 12 of the 15 planned CRN seeds (>= 80%; below that the σ_D/ρ
+    # estimate is too noisy to anchor the 30-vs-50 seeds decision). recommended_n is surfaced into the
+    # evidence notes so the report shows the actual verdict, not just the flag.
+    sp = Path("outputs/sigma_pilot/sigma_seed_pilot.json")
+    if sp.exists():
+        try:
+            spd = json.loads(sp.read_text(encoding="utf-8"))
+            sharpe_stats = ((spd.get("per_statistic") or {}).get("sharpe") or {}).get("stats") or {}
+            n_shared = sharpe_stats.get("n_shared")
+            ev["sigma_pilot_n_shared"] = n_shared
+            ev["sigma_pilot_recommended_n"] = spd.get("recommended_n")
+            if spd.get("sigma_seed_pilot") is True and int(n_shared or 0) >= 12:
+                ev["sigma_seed_pilot"] = True
+        except Exception:  # noqa: BLE001 — an unreadable evidence artifact is NO evidence
+            pass
+    # candidates_per_arm: (a) the saturation DIAGNOSTIC from the prototype archive (directional —
+    # Sonnet author + pre-Split-C window; the only pre-campaign search archive that exists), and
+    # (b) the ratified budget from campaign.yaml (the decision-class anchor; see status_for).
+    proto = Path("outputs/prototype")
+    if proto.is_dir():
+        try:
+            from src.io.results import load_all
+
+            records: list[dict[str, Any]] = []
+            for d in sorted(p for p in proto.iterdir() if p.is_dir()):
+                records.extend(load_all(d))
+            curves = best_so_far_curves(records)
+            if curves:
+                rec = recommend_candidates(curves, candidates_per_gen=5)  # the prototype ran 5/gen
+                ev["candidates_saturated"] = rec.get("saturated")
+                ev["candidates_diagnostic"] = rec.get("reason")
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        from src.utils.config import load_config
+
+        ev["candidates_ratified"] = load_config("campaign").get("candidates_per_arm")
+    except Exception:  # noqa: BLE001
+        pass
+    # train_steps: the R74 ratified B* — anchored on the PREREG machine mirror AND its equality with
+    # the executed campaign value (a mirror mismatch must NOT count as ratified; preflight's
+    # budget-mirror guard separately asserts campaign == algos).
+    try:
+        from src.utils.config import load_config
+
+        prereg_bstar = load_config("preregistration").get("train_steps_per_candidate")
+        campaign_bstar = load_config("campaign").get("train_steps_per_candidate")
+        if prereg_bstar is not None and prereg_bstar == campaign_bstar:
+            ev["train_steps_ratified"] = prereg_bstar
+    except Exception:  # noqa: BLE001
+        pass
+    # cash: the §10 numeraire ratification (2026-07-01) anchors idle cash at 0 — status_for clears
+    # FIX_NEEDED only when the env value MATCHES this ratified value.
+    try:
+        from src.utils.config import load_config
+
+        numeraire = load_config("preregistration").get("numeraire") or {}
+        ev["numeraire_ratified_cash"] = numeraire.get("idle_cash_daily_rate")
+    except Exception:  # noqa: BLE001
+        pass
     return ev
 
 

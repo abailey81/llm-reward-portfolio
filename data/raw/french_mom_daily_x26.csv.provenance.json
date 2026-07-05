@@ -1,0 +1,23 @@
+{
+  "cols": 2,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T23:46:45.707850+00:00",
+  "layer": "raw",
+  "name": "french_mom_daily_x26.csv",
+  "provenance": {
+    "achieved_end": "2026-05-29",
+    "params": {
+      "start": "2005-01-01"
+    },
+    "query": "famafrench:F-F_Momentum_Factor_daily",
+    "reason": "ADR-051 Split-C test end 2026-06-30; prior CSVs end 2026-04-30",
+    "stage": "refresh_french_2026",
+    "vendor": "KenFrench"
+  },
+  "relpath": "data\\raw\\french_mom_daily_x26.csv",
+  "row_hash": "b5b448e00f87028b61a4dbd1a50642b60cbba8c0a22cdef903ed7d0b911ad96c",
+  "rows": 5385,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "b5b448e00f87028b61a4dbd1a50642b60cbba8c0a22cdef903ed7d0b911ad96c",
+  "vendor": "KenFrench"
+}

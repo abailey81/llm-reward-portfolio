@@ -1,0 +1,53 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:32:12.610829+00:00",
+  "layer": "raw",
+  "name": "rf_px_x26_011.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "field": "TRDPRC_1",
+      "universe": [
+        "DOV.N",
+        "DOW.N",
+        "DOW.N^I17",
+        "DPH.N^J05",
+        "DPZ.OQ",
+        "DRE.N^J22",
+        "DRI.N",
+        "DTE.N",
+        "DTV.OQ^G15",
+        "DUK.N",
+        "DVA.N",
+        "DVN.N",
+        "DXC.N",
+        "DXCM.OQ",
+        "DYN.N^G12",
+        "EA.OQ",
+        "EBAY.OQ",
+        "EC.N^F06",
+        "ECHO.OQ",
+        "ECL.N",
+        "ED.N",
+        "EDS.N^H08",
+        "EFX.N",
+        "EG.N",
+        "EIX.N"
+      ]
+    },
+    "query": "get_history.ohlc.x26",
+    "received_utc": "2026-07-01T22:32:12.601322+00:00",
+    "requested_utc": "2026-07-01T22:32:09.960569+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_px_x26_011.csv",
+  "row_hash": "824699563b63280deca7e5283ea6f3d7c3ce62024c5b127e107cab7dc626c826",
+  "rows": 123,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "824699563b63280deca7e5283ea6f3d7c3ce62024c5b127e107cab7dc626c826",
+  "vendor": "refinitiv"
+}

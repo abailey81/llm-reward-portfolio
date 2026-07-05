@@ -449,6 +449,25 @@ class TestEnvAndPreload:
         preload()
         preload()
 
+    def test_preload_strict_raises_when_pyarrow_absent(self, monkeypatch) -> None:
+        """H2: strict=True FAILS LOUD on an ImportError (production precondition), while the default
+        tolerant path swallows it (test/conftest env)."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def _no_pyarrow(name, *args, **kwargs):
+            if name == "pyarrow" or name.startswith("pyarrow."):
+                raise ImportError("simulated: pyarrow unavailable")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", _no_pyarrow)
+        # tolerant default: swallows the failure (keeps the suite collectable in a minimal env)
+        preload()
+        # production contract: raises so a real run cannot proceed to a torch-first SIGSEGV
+        with pytest.raises(ImportError, match="pyarrow"):
+            preload(strict=True)
+
 
 # ============================================================================ #
 # regimes/definition.py — labels must PARTITION the timeline                   #

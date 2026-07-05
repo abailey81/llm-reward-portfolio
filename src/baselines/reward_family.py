@@ -126,7 +126,7 @@ def params_to_reward(
         cum = cum + float(np.log1p(max(r, -0.9999)))
         peak = max(peak, cum)
         drawdown = peak - cum
-        sigma = float(np.std(arr)) if arr.size > 1 else 0.0
+        sigma = float(np.std(arr)) if arr.size > 1 else 0.0  # ddof=0: penalty SCALE, not an estimator (see rewards.py return_minus_variance note)
         k = max(1, int(np.ceil(alpha * arr.size)))
         cvar = float(np.mean(np.sort(arr)[:k]))
         total = (

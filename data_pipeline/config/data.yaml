@@ -1,5 +1,5 @@
 # Data design — PREREGISTRATION.md §5; entitlement checklist: docs/DATA_ENTITLEMENTS.md.
-window: {start: "2005-01-01", end: "2025-12-31"}
+window: {start: "2005-01-01", end: "2026-06-30"}   # extended to the SETTLED 2026-06-30 cutoff (ADR-051)
 
 universe:
   index: SP500

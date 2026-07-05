@@ -1,64 +1,93 @@
-"""Verify the GOLD data panel (FINAL_PLAN data verification).
+#!/usr/bin/env python3
+"""Validate a REBUILT gold returns panel against the frozen reference (C4 lean validator).
 
 Purpose
 -------
-Independent verification that the built gold panel is sound and matches the
-pre-registration before it is used in any campaign run.
+The Phase-1 data rebuild produces a new-suffix returns panel. Before it can replace the frozen
+``univ3`` headline panel we need a REAL, executable check that it does not silently perturb the shared
+2005-2025 history — a rebuild that changed historical returns would move the headline tail. This tool
+runs the lean cell-level byte-diff (``src.data.validation.panel_overlap_diff``) over the (date × RIC)
+OVERLAP of the candidate vs the frozen reference panel and reports every changed cell + a summary.
 
-What it WILL check (acceptance criteria — all must pass):
-  1. Checksums: every artifact matches the recorded SHA-256 manifest.
-  2. Split boundaries byte-match the pre-registered split definition.
-  3. Membership reconciliation: index membership ties out over time.
-  4. Delisting returns are present (no survivorship gaps).
-  5. Environment no-look-ahead test passes on the built panel.
-  6. Reward-timing test passes on the built panel.
+It compares the RAW ``returns_panel_<suffix>.parquet`` frames (date-indexed, RIC-columned) — NOT the
+anonymised, window-sliced :class:`~src.data.panel.Panel` — so the comparison is on the source history.
+
+Exit code is 0 when the overlap is byte-identical (schema/calendar drift — added/retired names or
+sessions — is reported but does NOT fail, since a rebuild legitimately changes the universe over time),
+non-zero when any SHARED historical cell changed (unless ``--allow-changes``).
 
 Flags
 -----
-  --config   Path to the data config (default config/data.yaml).
+  --candidate    Candidate returns-panel parquet (default: the ACTIVE gold_suffix() panel).
+  --reference    Frozen reference returns-panel parquet (default: data/gold/returns_panel_univ3.parquet).
+  --gold-dir     Gold directory (default: data/gold under the repo root).
+  --max-examples Max changed cells to print (default 20).
+  --allow-changes  Exit 0 even if shared cells changed (report-only mode).
 """
-
 from __future__ import annotations
 
-
 import argparse
+import sys
+from pathlib import Path
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Verify the gold data panel (FINAL_PLAN data verification).",
+        description="Validate a rebuilt gold returns panel vs the frozen reference (C4 byte-diff).",
     )
-    parser.add_argument("--config", default="config/data.yaml")
+    parser.add_argument("--candidate", default=None, help="Candidate returns-panel parquet (default: active suffix).")
+    parser.add_argument("--reference", default=None, help="Frozen reference parquet (default: returns_panel_univ3.parquet).")
+    parser.add_argument("--gold-dir", default=None, help="Gold directory (default: <repo>/data/gold).")
+    parser.add_argument("--max-examples", type=int, default=20, help="Max changed cells to print.")
+    parser.add_argument("--allow-changes", action="store_true", help="Exit 0 even if shared cells changed (report-only).")
     return parser
 
 
-def main() -> None:
-    args = build_parser().parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    root = _repo_root()
+    sys.path.insert(0, str(root))
 
-    print("[verify_gold] planned checks:")
-    print(f"  (config: {args.config})")
-    print("  1. Checksums match recorded manifest.")
-    print("  2. Split boundaries byte-match pre-registration.")
-    print("  3. Membership reconciliation ties out.")
-    print("  4. Delisting returns present.")
-    print("  5. Env no-look-ahead test passes.")
-    print("  6. Reward-timing test passes.")
+    from src.data.loaders import gold_suffix
+    from src.data.validation import panel_overlap_diff
 
-    # final-audit #29: the real module is src.env.portfolio_env (there is no src.env.portfolio);
-    # verification of the existing gold artifacts is otherwise done by data_pipeline/ + the env tests.
-    try:
-        from src.env.portfolio_env import PortfolioEnv  # noqa: F401
-    except ImportError as exc:  # pragma: no cover - stub guard
-        print(f"[verify_gold] NOTE: deferred stub ({exc}).")
+    gold_dir = Path(args.gold_dir) if args.gold_dir else root / "data" / "gold"
+    reference = Path(args.reference) if args.reference else gold_dir / "returns_panel_univ3.parquet"
+    candidate = (
+        Path(args.candidate)
+        if args.candidate
+        else gold_dir / f"returns_panel_{gold_suffix()}.parquet"
+    )
 
-    # TODO(FINAL_PLAN data verification): implement.
-    #   - recompute hashes vs data/gold/checksums.json.
-    #   - load preregistration.yaml splits; assert byte-identical boundaries.
-    #   - reconcile membership table; assert delisting returns non-null.
-    #   - run env look-ahead + reward-timing assertions on the panel.
-    #   - aggregate pass/fail; exit non-zero on any failure.
-    raise SystemExit("STUB — implement per FINAL_PLAN data verification")
+    print("=" * 72)
+    print("VERIFY GOLD — candidate vs frozen reference (byte-diff over the shared overlap)")
+    print("=" * 72)
+    print(f"  candidate: {candidate}")
+    print(f"  reference: {reference}")
+    for p in (candidate, reference):
+        if not p.is_file():
+            print(f"[verify_gold] FAIL: not found: {p}", file=sys.stderr)
+            return 2
+
+    diff = panel_overlap_diff(candidate, reference, max_examples=int(args.max_examples))
+    print("-" * 72)
+    print("  " + diff.summary())
+    print("-" * 72)
+
+    if diff.identical_over_overlap:
+        print("[verify_gold] PASS: the shared 2005-2025 overlap is byte-identical to the reference.")
+        return 0
+    msg = f"[verify_gold] {diff.n_changed_cells} shared cell(s) CHANGED vs the frozen reference."
+    if args.allow_changes:
+        print(msg + " (--allow-changes: exit 0, report-only.)")
+        return 0
+    print(msg + " Re-run the rebuild or bless the new panel explicitly.", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

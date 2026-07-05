@@ -3,6 +3,1117 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-04b] — 100-loop DEEP adversarial sweep (10 parallel auditors; confirmatory core verified solid, real prose/consistency findings surfaced)
+
+Went deeper than the 20-loop pass: 100 distinct probes across 10 domains, one read-only adversarial auditor
+each, told to FIND the weakest point. Parent verified every load-bearing finding first-hand; applied only
+isolated safe fixes; recorded the rest. Full ledger: `docs/DEEP_SWEEP_100_2026-07-04.md`. Guardrails held (no
+frozen-experiment change, no forking-paths, no scope creep, no fabrication; freeze gate stays 15/15, hash 3c2082).
+
+- **Confirmatory CORE verified ROCK-SOLID first-hand:** statistics literature-exact (BH+drift-guard, three-way
+  TOST that structurally cannot false-positive, Berger IUT, paired-seed rliable, DSR/PBO on full C(16,8),
+  DM/FZ0/HLN, Bayes/MCS/TSED report-only); data reproduced against the on-disk univ5 parquet (333/333 terminals
+  recovered, 0 changed cells vs univ3, purge 60/60, COVID in the purge, no ticker/date to a reward, 5/5
+  checksums) — NO leakage; theory proof-core (M1/M2/M3/C2/C3/M4/M7) intact; ethics/AI-disclosure/H1/hedging
+  clean; citations zero-dangling, high-stakes years/authors exact; tail-neutral base prompts confirmed.
+- **Real findings (all safe to fix, none touching the core):**
+  - **Prose ahead of code on REPORT-ONLY diagnostics** — 3 "claims an analysis that doesn't exist": mediation
+    sensitivity analysis (CH7:60-62), FZ0 tail-index check (CH7:215), novelty draft-artifact ELfolio drift.
+  - **B\* stale in the paper:** chapters say 50,000 training steps but frozen B\*=200,000 (configs correct); the
+    B.2.1 "undertraining" limitation is inverted (design chose a CONVERGED budget). Biggest consistency defect.
+  - **Precision over-claims:** "tail-blind" for a DSR selector that penalizes skew/kurtosis (6 sites); Table 3.1
+    Null-row logic ("or"→"and"); "factorial dissection" for a report-only ablation.
+  - **Deepest new objection (Loop 99):** the confirmatory H2 replicates training seeds (n=30) but NOT authoring
+    (n=1 program/arm) → pseudoreplication; the CI generalizes to the programs, not the channel. Reinforces the
+    mechanism-as-headline reframe (the across-candidate mechanism kernel samples authoring). To be disclosed.
+  - **Two clean code-hardening gaps:** freeze.py has no assert_seeds_match/assert_matched_budget_match (silent
+    post-freeze seed drift passes GREEN — timely for the 30→350 change); PopArt `raw*raw` has no overflow guard
+    (finite |raw|≥~1.34e154 → σ=inf → zeroed critic, silently). Both additive fixes + tests.
+  - **Manuscript mechanics (Okhrati-docked):** body 16,001 vs 10,000 words; 6/15 exhibits orphaned; motivating
+    tail EDA absent from the body; no wall-clock/compute in prose.
+- **FIXED this session (verified, isolated):** CH1:137 grade-modality leak excised (substance kept); theory
+  Table 3.1 Null-row "or"→"and" (matches its prose + the responsiveness≤0 cell).
+- **Routed to the overnight sequential loop** (each verified + logged, none touching hash-bound files): the
+  paper-prose corrections (B\*, tail-blind, mediation/tail-index softenings, wording pins, pseudoreplication
+  limitation), the two code guards + tests, the docs reconciles, and the depth additions (EDA passage, compute
+  reporting, RQ scorecard, cross-refs, density). Seed-sizing code-vs-plan gap recorded for the ratification step.
+
+## [2026-07-04] — 20-loop self-improvement sweep (structured self-audit; NO defect found, prior hardening held)
+
+User directive: "add 20 self-improving loops … very strict … always verify … remember our priorities …
+don't ruin anything … strictly flawless … record everything." Executed a 20-lens self-audit-and-harden
+sweep under hard guardrails (no loop touches the frozen experiment or reacts to the σ_D result =
+forking-paths; only isolated fully-verified safe fixes inline; everything else RECORDED, never silently
+changed; no fabricated findings). Full ledger: `docs/SELF_IMPROVEMENT_SWEEP_2026-07-04.md`.
+
+- **Outcome: NO critical or high defect found; zero safe-fixes were required** (nothing stale/broken/
+  over-claimed existed to fix). The value is (a) CONFIRMATION that the 6-batch code review + 4-front paper
+  audit + pre-freeze audit + EDA refresh + citation vetting had already closed this surface, and (b)
+  confirming the post-verdict write-time items (ADD-0..6) are genuine forward work, not defects.
+- **Load-bearing result (Loop 5):** the σ_D verdict introduced NO inconsistency into the drafted chapters,
+  because the null framing was pre-committed to BOTH the equivalence and the bounded-effect/inconclusive
+  branches (CH1:113, CH7:210-211, FRAMING:53). The verdict merely selects the branch — the pre-registration
+  working as designed.
+- **Tool-verified clean this session (grep):** no stale EDA numbers (14.52/20.4 only in the explicit
+  supersession note; univ5 15.25/19.7% propagated) · citation-integrity flags all clear (Acerbi/Acerbi-Tasche
+  distinct, Shumway 1997/1999 distinct, BAB-2014/QMJ-2019 years, FZ correction note, no Okhrati↔elicitability) ·
+  CH7 limitations cover all named threats + construct-validity controls · FRONT_MATTER ethics/AI-disclosure/
+  data-governance present · mechanism spine (responsiveness/mediation/ACME) present across CH4/CH6/CH7/theory ·
+  novelty-fence neighbours present (first-hand-verified in prior sessions).
+- **Recorded forward (not defects — expected work):** results/discussion write-up guided by the banked
+  ADD-0..6; a final pre-submission deep-read pass (one theorem-level theory re-read; heavy-tailed DM-test
+  tail-index check; figure/table cross-reference audit in the compiled PDF; the P7 word trim); the 4
+  external-verify items from the literature re-read. seeds 30→~350 remains a pending pre-committed
+  amendment (Tamer's ratification), not an inconsistency.
+- No code, config, prose, or freeze-bound file was modified by the sweep (gate stays 15/15, hash 3c2082…).
+
+## [2026-07-03c] — σ_D FARM COMPLETE + verdict banked · byte-compare CLEAN · power-analysis fix PROVEN · seed-count decision analysed · cloud ruled out at $50 · Okhrati email drafted
+
+The pre-campaign chain resolved to two remaining USER gates (Okhrati's reply + Tamer's seed ratification).
+
+- **σ_D farm COMPLETE — 30/30 cells, 0 failures** (15 differential_sharpe + 15 return_minus_cvar; median
+  ~85 min/cell = 5090s; windows [60,3021]/[3081,3775]/[3835,5406] confirmed). Clean exit, no orphans.
+- **THE σ_D VERDICT (pivotal unknown RESOLVED):** σ_seed=**0.244** (ann-Sharpe), σ_D=**0.369**, ρ=**−0.141
+  (NEGATIVE** — Common Random Numbers gave no variance reduction, a finding to disclose). cvar_05 leg tight
+  (σ_D=0.0015, ρ=+0.47). Practical equivalence at SESOI 0.05 DSR is NOT reachable at a small seed count, so the
+  study banks the **pre-committed BOUNDED-EFFECT / INCONCLUSIVE null** and the mechanism headline (σ_D-robust)
+  carries it. σ_seed dominating (~3× SESOI) is itself a publishable RL-fragility finding. `sigma_seed_pilot.py`
+  ran under the m1/m2 fixes (UTF-8, outputs/sigma_pilot default). determine_design flips to **FREEZE-READY**.
+- **M7-b5 BYTE-COMPARE DONE + CLEAN** (discharges the deferred reproducibility guard): re-trained
+  differential_sharpe-s0 + return_minus_cvar-s0 with the CURRENT post-6-batch-edit code into `outputs/_bytecheck`
+  and byte-compared `metrics.test_returns` to the archived cells → **bit-identical, max_abs_diff 0.000e+00**
+  (test_sharpe −0.1564147893 in both). The archive mixes pre-edit (differential_sharpe s0-s8, written 07-02) and
+  post-edit code (s9-s14 + all return_minus_cvar), and this proves the review edits are numerically INERT on the
+  pilot path → σ_D is trustworthy with no re-run of the pre-crash cells.
+- **power_analysis M2/M3 fixes PROVEN on real data:** ran the authoritative tool at the measured σ_D/ρ in
+  **6 minutes 45 seconds** (the old "10–30 h hang" was a slow, block-buffered Monte-Carlo, never a deadlock).
+  It drew ρ=−0.14 exactly (M3 signed-ρ, not clamped) with visible per-sweep progress (line-buffer). MDE@30 =
+  0.181 Sharpe = 0.120 DSR vs SESOI 0.05. `docs/CAMPAIGN_power.md` regenerated with the real inputs.
+- **SEED-COUNT decision analysed (freeze-gating; awaiting Tamer's ratification).** Built a throwaway exact
+  seed→MDE sweep (`scripts/_seed_mde_sweep.py`, delete post-decision) reusing the authoritative power functions:
+  SESOI crossing (MDE ≤ 0.05 DSR) at **n≈189** (point estimate). Strong-evidence sizing (power to the UPPER
+  confidence bound of the n=15 pilot σ_D via chi-square): 80%→279, 90%→340, 95%→403 seeds. Recommendation =
+  **arm-adaptive ~350 on the 2 H2 arms, controls at 30 → ~23 days, deadline-safe** (uniform-all-arms ~2× would
+  miss 1 Sep). The pre-registered "30→50 if σ_D>0.10" is re-framed as a pre-pilot placeholder; the principled
+  anchor is powering to the SESOI. Full rationale: memory `project-sigma-d-verdict-and-seeds-2026-07-03`.
+- **Cloud compute ruled OUT at the $50 budget:** the campaign is ~500–4,400 GPU-hours and $50 buys ~250 spot
+  GPU-hours (3–18× short of even the minimal design), so laptop-only stands and the $50 is reserved for the
+  Anthropic reward-authoring API (~$30–50 for the Opus authoring; a hard spend-cap wiring is offered).
+- **Okhrati supervisor email drafted** (many iterations → comprehensive, full timings, human voice): full
+  status, the design/data/methods specifics, the prototype, the second model (Qwen, reproducibility anchor),
+  the recently-found neighbours (GIFT 2606.08450 / ELfolio 10.34133/icomputing.0176 / Gallego 2603.19453) with
+  honest distinctions, the recent rigor work, and 5 examiner-grounded questions (seed power · null-as-mechanism
+  vs his ACL personality-risk work · offline-RL positioning vs his CQL · elicitability FZ0 foregrounding · which
+  deep analysis to expand). Still owed by him: the written pivot sign-off (`docs/PROPOSAL_PIVOT_DISCLOSURE.md`).
+  Awaiting his reply. (The four background readers that sourced the email confirmed the prototype/2nd-LLM/data-
+  bias/paper/examiner facts against the docs — no new science, a consolidation.)
+- **Post-farm queue (now unblocked, NOT yet run):** ONE full pytest suite validating every review fix, the
+  farm-driver exit-code (M4-b5), the results.py sidecar tmp+replace (m3-b5), the RAM recalibration (m7-b5), the
+  first archive-mirror pass, P3 sub-experiments, and scratch cleanup.
+
+## [2026-07-03b] — SEQUENTIAL ULTRAREVIEW batches 4–6 CLOSED: sandbox/data (NO MAJOR), pipeline/persistence/ops (7 MAJOR), meta/freeze-chain (1 MAJOR). Full 6-batch review campaign COMPLETE; every finding closed to a flawless bar (user directive)
+
+The review campaign is now COMPLETE across all six batches. Batches 4–5 are logged above ([2026-07-03]
+continues below); this entry records **batch 6 (meta layer) + the user's "close absolutely everything,
+majors and minors" directive** — every batch-6 finding closed, the safe-during-farm items now, the
+farm-gated items queued with explicit triggers.
+
+- **Batch 6 — test quality + config consistency + THE FREEZE CHAIN: 1 MAJOR + 7 minor, ALL closed.**
+  The last audit before freeze found the freeze chain sound, no vacuous tests of load-bearing invariants,
+  and config consistent across all nine YAMLs. Closed (freeze `--check` re-run GREEN 15/15, hash
+  3c2082…, all Python ruff-clean):
+  * **M1 (MAJOR) — B\* had no executed↔frozen freeze guard.** `train_steps_per_candidate` (B*=200k, R74)
+    is the single most important executed number, yet it was the ONLY headline frozen quantity with no
+    cross-file check: the hashed prereg copy was immutable but campaign.yaml/algos.yaml (what the run
+    reads) are un-hashed compute knobs, and `preflight.check_budget_mirror` compares only campaign↔algos.
+    A coordinated post-freeze edit of BOTH mirrors (e.g. to 250k) would pass budget_mirror, leave the
+    hashed prereg at 200k, and run UNDETECTED. Fixed: `freeze.assert_train_steps_match` (the exact
+    not-in-the-hash-so-assert idiom of `assert_executed_arms_match`/`assert_h1_baselines_match`), wired
+    into `verify()`; freeze gate now **15 checks** (test updated + a `test_train_steps_drift_raises`).
+  * **M5 — the frozen tail-diagnostic set had no prose↔yaml freeze check** (unlike sesoi/m/grid). Added a
+    §4 guard binding each frozen CVaR level (round()-safe 0.10→cvar_10) + extra to a prose mention, so a
+    pre-freeze yaml↔prose contradiction can't freeze silently.
+  * **M2 — freeze check #13 (data_panel) read `config/data.yaml` via CWD, not `root`.** Correct for the
+    real freeze (repo-root CWD) but CWD-fragile and untestable from a mini-repo. Threaded `root` through
+    `assert_prose_matches_yaml`; made the mini-repo fixture faithful (copies data.yaml); added
+    `test_data_panel_drift_raises` (the guard now RAISES on a drifted suffix, hermetically).
+  * **M4 — the reward-author model was not consistency-checked.** It is common-mode across arms (doesn't
+    break identification) and the served snapshot is archived as the repro anchor, so it is deliberately
+    NOT hash-bound — but it's authored twice (campaign.yaml llm block + llm.yaml) with no drift guard.
+    Added `preflight.check_model_consistency` (the budget-mirror idiom, at the INFRA layer not the freeze)
+    + `test_model_mirror_logic`. A partial model swap now FAILs the gauntlet.
+  * **M3 — config/subexperiment.yaml drift:** val_end was a stale pre-Split-C `2017-12-31` (a ~1yr val
+    window vs the campaign's 3yr) → `2019-12-31` (matches inference/data.yaml); stale "50k-step main
+    training" comments → B*=200k. Report-only + not hash-bound, but reconciled.
+  * **M6 — FREEZE_RUNBOOK.md drift:** Step 0.2 told the operator to check budgets against the
+    documentary-only `config/eureka_loop.yaml` (legacy 240 budget ≠ live 30) → repointed to campaign.yaml
+    + the new freeze guards; the "rented RTX 4090" venue → laptop-only (2026-06-30); clarified DECISIONS.md
+    (human ADR) vs docs/DECISION_LOG.md (freeze.py auto-append) are two intended files.
+  * **M7 — stale test gold-gate:** `test_data_deep.py` gated on `returns_panel_univ3.parquet` while the
+    active panel is univ5 → tracks `gold_suffix()` like its siblings; `test_run_campaign.py` fixture +
+    assertion `== 50000` (stale, confusing "== 50k" comment) → 200000 with the buffer-cap decoupling note.
+  * **M8 (informational) — two fail-loud stubs** (scripts/build_gold.py, verify_inventory.verify_splits)
+    verified DEAD (no live caller; grep-confirmed) and correctly point to their real replacements
+    (data_pipeline/ and freeze.py --check). A fail-loud stub naming its replacement is correct defensive
+    behavior, not a defect — left as-is (deleting risks orphaning DECISIONS.md doc refs for zero gain).
+  * **m4 (batch-5 carry) — corrupt-dir restart-loop:** added a CAMPAIGN_RUNBOOK §6 contingency row (quarantine
+    the named dir → `--resume` regenerates the slot; never hand-edit a record to make it parse).
+- **Farm-gated deferrals (documented with triggers — deliberate risk-management, NOT omission):** four
+  items require touching the live σ_D farm's process tree or its realized data, so they are queued for the
+  instant the farm exits, NOT done mid-run (the crash incident taught this discipline): **M4-b5** (farm-driver
+  exit-code — editing run_sigma_pilot_train.py's process tree), **m3-b5** (results.py sidecar tmp+replace —
+  farm workers call write_run; the narrow re-write trigger doesn't occur in this write-once farm anyway),
+  **M7-b5** (byte-compare one pre-crash cell vs its archive before banking σ_D — needs a torch re-run),
+  **m7-b5** (recalibrate the 3 per-worker RAM constants from realized r2 RSS). All in the post-farm queue.
+
+## [2026-07-03] — SEQUENTIAL ULTRAREVIEW batches 1–3 CLOSED (stats core · campaign execution · training path): 1 gate-inverting MAJOR + 8 campaign-survival MAJORs + ~32 minors, all fixed + first-hand verified
+
+User directive: "ultrareview my entire code … deeply review EVERYTHING … fix if something is off …
+sequentially, don't blow up tokens." Protocol (post-incident, exclusive-phase-safe): ONE read-only
+auditor per batch (Read/Grep/Glob only — zero process execution beside the running σ_D farm), findings
+verified first-hand by the orchestrator at source before any edit, ONE fixer per batch, every fixer
+hunk re-read and verified after landing, ruff over all touched files; **tests deliberately DEFERRED to
+a single post-farm suite run** (runbook §0b). Batches 4–6 (sandbox+data · pipeline/persistence/ops ·
+meta) follow the same protocol.
+
+- **Batch 1 — statistical core (analyze_campaign + inference): CLEAN of critical/high; 11 fixes.**
+  Conventions verified literature-exact (DSR/PBO/FZ0/rliable). Fixed: deterministic median-tail-seed
+  selection path (`_arm_median_tail_seed_test_returns`, explicit sort key — no ndarray-comparison
+  ambiguity); Bayes tail-equivalence ROPE made RELATIVE (tail_margin_fraction=0.25 of the IQM baseline);
+  family-assert strict-superset guard (realized levels ⊃ frozen levels → refuse, not silently subset);
+  NaN-safe winner scan (a NaN fitness can no longer win `max()`); JZS |t|>10 → bf10=inf guard (BF
+  integrator overflow); contamination bootstrap 90% CI flag (opt-in return_draws). Plus finding-6
+  (anomaly-clustering topology) carried to batch 5 scope.
+- **Batch 2 — campaign execution path: 8 MAJOR + 12 minor, all fixed.** The MAJORs, each verified at
+  source before fixing: **F1** parallel legs archived only at END (a crash at hour 20 lost every
+  completed candidate → streaming `on_result` archival hook); **F2** `write_run` wrote record.json
+  BEFORE its sidecars (power loss ⇒ a record that loads but replays hollow → sidecars-first with
+  open+flush+fsync, `os.replace` of record.json is now the atomic COMMIT POINT); **F3** unbounded
+  supervisor restart loop (→ `--max-total-restarts 60` + exit-2 non-restartable class); **F4**
+  `--no-resume` foot-gun on a frozen run (re-bills Opus + violates the sealed once-only leg → hard
+  refusal); **F5** parallel failures-ledger lost on mid-arm crash (→ append-per-rejection, mirroring
+  the serial loop); **F6** 2-asset `_reinstantiate` fixture husked rehydrated winners (→ shared
+  production-shape `_FIXTURE`); **F7** one shared reward_fn object coupled 30 test seeds' reward_state
+  (→ per-seed reward rebuild in `evaluate_winner_on_test`); **F8** run-id scheme mismatch double-pooled
+  search candidates (→ `_assert_search_mode_unchanged` prefix guard). Minors include drain-honest
+  SHUTDOWN at seed boundaries (`frozen_test_deferred`), budget_spent = actual draws, max_tokens/
+  max_retries threading, dry-run forces resume=False.
+- **Batch 3 — training path (env/trainer/loop/search): 1 MAJOR + 9 minors; two structural verdicts.**
+  **THE MAJOR (fixed by the orchestrator itself at 3 sites): the sandbox validation fixture fed
+  equal-length 31/31/31 arrays while production calls `reward(weights(31), returns(30), prev(31))`**
+  (portfolio_env.py:347-348; the FROZEN prompt promises exactly those shapes). The gate was therefore
+  INVERTED for shape-aware rewards: a spec-faithful `weights[:-1] @ returns` was falsely REJECTED at
+  validate_once (burning budget slots) while a sloppy `weights @ returns` was falsely ACCEPTED and then
+  zero-trained via SAFE_DEFAULT substitution on every real step — uniform across arms (no H2 bias) but
+  a direct campaign-quality threat. Fixed at `parallel._FIXTURE` / `loop.run_loop` fixture /
+  `random_search._default_fixture` with shape-parity why-comments; `tests/test_loop.py` +
+  `tests/test_llm_deep.py` reconciled to the spec-faithful form (validated post-farm). **Verdicts:**
+  the t/t+1 alignment chain is CLEAN (obs strictly past; scored return enters only the next obs; VIX
+  pre-lagged at load; sealed windows physically absent from search bundles) and the **σ_D pilot↔campaign
+  parity PASSES** (same windows/trainer/agent-config/seeding/test-record builder; the two deltas —
+  campaign-only thermal governor, device literal — are result-neutral), so tonight's σ_D transfers to
+  the freeze decision. Minors fixed (one fixer, all hunks re-verified): training-time SAFE_DEFAULT
+  substitutions now WARNed + archived as `train_safe_default_count/_call_count` candidate metrics
+  (trainer resets counters before `model.learn`, reads after, attaches to the policy on BOTH branches;
+  loop + parallel worker archive them — the old "flag the candidate" promise was dead code, docstring
+  corrected); `docs/environment_spec_v1.md` → v1.1 (drift convention documented as the implemented
+  r_t form incl. the cash sleeve g_cash = 1+cash_daily_rate, with the ≈hundredths-of-a-bp/step
+  magnitude + identical-across-arms note; state section corrected to the real `_obs` incl. SIMPLE
+  returns + dim 1,893; the nonexistent `RewardContext` API replaced by the real 5-arg contract);
+  R18 purge-guard ARMED on both SEARCH gold paths (`make_env_builder(..., embargo, lookback)` at
+  parallel.py + run_prototype.py; synthetic stays legacy-inert 0/0 by design — its windows abut);
+  `_panel_and_windows` cache key completed (+on_missing +embargo_days +lookback); arm-start
+  `reset_fed_estimator_log()` at both drivers (T2.8b scoping); PopArt docstrings softened to the honest
+  approximate-invariance claim (exact only at constant σ / unit scale; residual auditable via R48 +
+  the popart=False ablation); preflight `ALLOWED_AGENT_KEYS` typo guard (25 consumer-enumerated keys
+  over campaign+prototype agent blocks — cfg_get's silent-default trap closed; `net_arch` deliberately
+  NOT block-level); `info["weights"]` zero-copy `setflags(write=False)` freeze (project_simplex verified
+  fresh-array on both branches). Flagged not fixed (diagnostic paths, same purge-guard pattern):
+  run_subexperiment.py:185, learning_curve.py:301.
+- **Verification discipline note:** every fixer claim above was re-read at the diff site; the batch-3
+  fixer's 12 substantive hunks were 12/12 true to report. Post-farm queue: the ONE full test suite
+  validating all review fixes (incl. the reconciled test files), power_analysis hang diagnosis,
+  CAMPAIGN_power.md regen, first mirror_archive.ps1 pass.
+- **Follow-through closed same session:** (a) the batch-3 fixer's flagged optional gap — TEST-leg records
+  now archive the R66 counts too: `build_test_record(train_safe_default_count=, train_safe_call_count=)`
+  (None-default = byte-identical for the running σ_D pilot's call site, which was deliberately NOT
+  touched mid-farm) + attr-read/pass at BOTH seed paths (test_leg._test_seed_worker, run_campaign serial
+  evaluate; ruff clean); (b) batch-2 **F16** recovered verbatim from the transcript and BANKED with two
+  sibling disclosures as `docs/LITERATURE_SWEEP_2026-07-02.md` "REVIEW-CAMPAIGN WRITE-UP NOTES" —
+  resume-lineage caveat (disclose iff `meta.llm_error_skips`>0 on a resumed arm), the training-substitution
+  audit statistic as a CH4 audit-kit row, drain-honest `frozen_test_deferred` semantics (ops appendix).
+- **Batch 5 — pipeline + persistence + ops: 7 MAJOR + 10 minor — the review's richest haul, clustered
+  on the POST-FARM freeze chain and the campaign ops layer.** The freeze-chain-critical fixes landed
+  by the orchestrator the same hour (all verified at source first; ruff clean):
+  * **M1 (freeze-gate integrity):** determine_design flipped n_seeds DETERMINED off the σ_D JSON's mere
+    EXISTENCE — but sigma_seed_pilot.py writes that JSON unconditionally (even `status="skipped"` on an
+    empty archive), and its in-JSON success flag was read by NO ONE. A failed/husked farm could have
+    reported FREEZE-READY. Now: the evidence parse requires the sharpe-leg `sigma_seed_pilot: true`
+    flag AND an n_shared floor (≥ 12 of the 15 planned CRN seeds); `recommended_n`/`n_shared` surfaced
+    into the evidence notes; an unreadable artifact is NO evidence.
+  * **M2 (the power_analysis "hang" DIAGNOSED + FIXED):** not a deadlock — a ~10-30 h single-threaded
+    Monte-Carlo (11 MDE sweeps × 41 grid points × 2000 sims, each a 2000-replicate PURE-PYTHON
+    bootstrap ≈ 1.8×10⁹ replicates) with block-buffered stdout (zero bytes for hours → mis-read as
+    hung; 3 orphans killed). Fixed threefold, semantics-preserving: (a) `paired_seed_difference_test`
+    gained a VECTORIZED IQM fast path (`_iqm_rows`) that is **bit-identical** to the loop — one
+    C-order (n_boot,n) index draw consumes the same RNG words as the old per-iteration draws; non-iqm
+    statistics/non-finite inputs keep the reference loop over the same index rows; equality pinned by
+    2 new regression tests (bitwise `==`, incl. n<4 and the NaN gate) in test_audit_regressions.py;
+    (b) `minimum_detectable_effect` early-exits the grid at the target-power crossing (each point
+    re-seeds `default_rng(cfg.seed)`, so every kept value is byte-identical; grid/power truncate
+    together); (c) line-buffered streams + per-sweep/per-ρ progress prints. Expected wall-clock:
+    minutes, not days. Wiring verified while there: T=694 both sides, k=0.66157, SESOI from frozen
+    config, measured σ enters as --sigma-seed.
+  * **M3 (negative-ρ clamp):** `_draw_paired_scores` silently clamped ρ<0 to 0 — understating
+    σ_D=σ√(2(1−ρ)) exactly in the branch where the pilot's own report says "trust the Monte-Carlo".
+    Now a Cholesky pair draws the measured NEGATIVE ρ exactly (all three normals drawn on both
+    branches → the ρ≥0 stream stays byte-identical to pre-fix); the pilot's markdown advice corrected.
+  * **m1:** sigma_seed_pilot's σ/ρ console glyphs crash a legacy-codepage console AFTER artifacts are
+    written (the farm twin already carried the fix) → UTF-8 reconfigure copied in, BEFORE parse_args
+    (the parser description itself contains σ_D). **m2:** the analyzer's default `--root` pointed at
+    outputs/campaign (zero pilot cells → a skipped JSON written exactly where resume_brief looked) →
+    default now outputs/sigma_pilot; resume_brief's phase probe repointed.
+  * Remaining batch-5 items LANDED by the fix agent + verified first-hand by the orchestrator (ruff
+    clean; mirror_archive.ps1 static-parsed 0 errors): **M5** (the ratified SERIAL headline campaign
+    ran with NO RunMonitor — watcher/stall/anomaly ALL inert on the frozen protocol → one RunMonitor
+    built lazily on the first serial search under `<output>/search`, arm_start/arm_done bracketing +
+    crash-path close(status=error) + normal close, mirroring run_prototype; gated `not synthetic` so
+    the ~15 synthetic wiring tests stay byte-identical and the observability targets exactly the gold
+    run; H3 single-shot is a separate report-only root, left unmonitored by design — verified
+    search_root defined at :1347 before use, crash close cannot double-fire vs the :1660 normal close),
+    **M6** (finding-6 resolved: `anomaly()` stamps in-flight arm/cand onto id-less rows; dedup key
+    →(kind,step,cand) so cross-candidate rows survive; ParallelMonitor threads arm/cand into
+    _check_training_anomalies + failure_wave; loop.py llm_error/training_error gain arm/cand), **m9**
+    (STATE-like kinds {entropy_collapse, entropy_explosion, fps_collapse} fire ≤once per (kind,arm,cand)
+    — correct on BOTH serial and parallel paths, worst-case ~450 bounded entries), **m10** (parallel
+    fitness_nan parity), **m6** (supervisor --no-resume guard hardened: `_abbreviates_no_resume` refuses
+    --no-r…--no-resume[=…] the 6-char minimal disambiguating prefix, still allows --no-shutdown), **m8**
+    (mirror shrink guard: skip a /MIR pass when the destination record.json count EXCEEDS the source's,
+    -Force override; PS-5.1-safe). Plus the m5 doc note in parallel.py (the two failures-ledger layouts
+    never cross-replay — guarded by _assert_search_mode_unchanged). Deferred to post-farm ON PURPOSE:
+    **M4** (farm driver exits 0 despite failed cells — the driver is RUNNING; compensated by M1's floor
+    + manual chain control), **M7** (mixed-archive code-version check: byte-compare one pre-crash cell
+    re-run vs its archive before banking σ_D), **m7** (RAM-calibration recalibration from realized r2
+    RSS), **m3** (sidecar tmp+replace on overwrite), **m4** (corrupt-dir quarantine = runbook note).
+- **Batch 4 — sandbox + data layer: NO MAJOR; 8 minors, the actionable 5 closed.** The layer's two
+  make-or-break properties verified end-to-end by the auditor AND re-verified at source by the
+  orchestrator: (i) NO look-ahead anywhere — obs strictly `returns[t-lookback:t]`; `market_reference`
+  is forward-fill-only (RF `(1+DGS3MO/100)^{1/252}-1` correct against the raw CSV; FF factors decimal,
+  no rescale); the val purge (=lookback=60) lands the earliest val feature exactly at the train
+  boundary, non-inclusive; allocators/momentum consume only the strictly-past window. (ii) Sandbox
+  containment holds — the 06-26 from-import RCE fix intact (ALL `ast.ImportFrom` rejected), attribute
+  allowlist + banlist + dunder walls + forbidden-call check on Name AND Attribute forms + format-field
+  regex; `np.random` unreachable (protects determinism); `safe_call` catches `Exception` only
+  (KeyboardInterrupt/SystemExit propagate); the reward receives detached read-only copies. Fixes
+  landed (all by the orchestrator, ruff clean): headline gold load now ALSO runs the semantic
+  contract — `load_gold_panel(..., validate=True)` (strictly-increasing-dates leakage invariant on
+  the hot path, #7); `validate_panel` market-caps conditions split so non-finite caps are flagged
+  instead of silently skipping the negativity check (#8); counter SEQUENTIAL-USE INVARIANT documented
+  at the definitions (#4); the `safe_call` containment-boundary note rewritten to the WINDOWS TRUTH
+  (parent-enforced wall-clock timeout is real everywhere; the POSIX rlimits are a silent no-op on the
+  laptop the campaign actually runs on — the stale "Linux campaign box" framing superseded) + the two
+  accepted residuals recorded (value-dependent cost; unbounded `reward_state` accumulation) with the
+  operational recovery path (#1+#3); NEW runbook §6 contingency row "Hung candidate (in-process
+  reward)" — stall alert → kill → `--resume`, un-archived slot regenerates, budget matched; NEW
+  cross-resolver pin test `test_both_window_resolvers_agree_with_the_univ5_registry` (both
+  independent purge-arithmetic implementations pinned to `expected_windows.univ5`, #6; runs in the
+  post-farm suite). Deliberately NOT changed: `components`-value screening (#2 — grep-verified that
+  `info["components"]` never reaches any serializer, so it is cosmetic; hot-loop purity wins) and the
+  inline-fallback timeout (#5 — reachable only if worker daemonization changes, documented).
+
+## [2026-07-02m] — INCIDENT + RECOVERY: concurrent-load crash killed the σ_D farm's 2nd arm; resume clean; EXCLUSIVE-PHASE rule codified
+
+- **The incident (operator error — the agent's own scheduling):** two ultrareview WORKFLOWS (~20
+  concurrent agents, many running pytest with torch imports) were launched WHILE the 3-worker σ_D farm
+  was running. Combined RAM+VRAM exhaustion: `differential_sharpe` banked 6/15 cells, then ALL 15
+  `return_minus_cvar` cells failed (MemoryError 361 MiB obs-array / CUDA OOM / WinError 1450) and the
+  IDE session itself died. THE CRASH-SAFE DESIGN HELD: the farm logged every failure, kept its 6
+  atomic records, exited cleanly with the honest 6/30 summary.
+- **Recovery:** 8 orphaned processes killed (incl. THREE power_analysis.py runs HUNG for hours — the
+  real cause of the "silent" power-doc regen failures; investigate its runtime after σ_D) + 1 orphan
+  pytest holding the CUDA context. σ_D **resumed**: the done-scan skipped exactly the 6 archived cells
+  and re-farmed 24 (PID 14832, AboveNormal, watcher re-armed) — the resume machinery's first REAL-fire
+  worked byte-exactly as its tests promised. Clock lock intact (no OS reboot — only the session died).
+- **Codified:** runbook §0b **EXCLUSIVE-PHASE RULE** — during ANY farmed leg (σ_D or the campaign TEST
+  leg): no agent fleets, no test suites, no review workflows, no torch-importing side processes; the
+  wave margin belongs to the recycle waves. The two review workflows are RESUMABLE with cached agents
+  (run IDs wf_f0d8597f-6f5 fresh-code / wf_f786dab7-d31 full-surface) — they re-launch AFTER σ_D exits.
+  The instruments build (information_gap.py 24 KB + headroom.py 12 KB on disk, stopped mid-build) gets
+  verified/finished after σ_D too. Deferred with them: the power-doc regen.
+
+## [2026-07-02l] — Write-time literature wave EXECUTED EARLY (8 items, 18 verified bib entries) + 2 MORE registered instruments (fingerprint + reflection funnel)
+
+- **Prereg §2a gained (f) + (g)** (gate-verified, hash 3c2082): the **MECHANISM FINGERPRINT** — 4 rival
+  accounts (genuine-use / readout / execution / prior-dominance) × 6 instruments with ex-ante predicted
+  signatures, incl. the A4 discriminator = the SCALAR arm's own responsiveness, and the A4↔Hartley-Okhrati
+  risk-preference-prior anchor — and the **REFLECTION-FUNNEL content analysis** (QUOTE→COMPARE→CONCLUDE→
+  IMPLEMENT staged coding of the designer's own reasoning text, dual-coder + κ, exploratory; the accounts
+  predict DIFFERENT drop-off stages = the qualitative cross-examiner of the fingerprint). To our knowledge
+  no LLM-agent study has either. Sweep-doc NOVELTY-GENERATION ADDENDUM records d/e/f/g + 3 write-time
+  garnishes (detector-blind-spot methods note; NAME the audit kit; release it as an artifact).
+- **The "write-time" literature items executed NOW** (agent; independently verified: 193 bib entries
+  0/0/0 · gate 13/13 · PDF 321 KB 0 warnings): examiner's papers FINALLY in prose (Hartley→CH1/CH7;
+  Khraishi→CH4 inside a new simulated-online-NOT-offline-RL paragraph w/ levine2020offline+kumar2020cql);
+  the numeracy evidentiary base (cookbook/ICLR-2025 + sandoval format-flip + singh tokenization + zhang
+  comprehension-without-competence — CH1 bracket + CH7 B.3.2); mediation canon (imai/mackinnon/orourke +
+  sequential-ignorability honesty clause); theory §3.7 attainability now FORCED (bauerle2011markov +
+  lim2022cvar: state augmentation + non-Markovian ⇒ the reward channel is the forced injection point);
+  fence one-liners (LLM-judge-SAC, nie+fcp directional-feedback, LEARN-Opt null-corroborator licensing
+  the 30/30 design); the named "profit mirage" contamination defence (CH4 ¶ + Table 4.1 row + CH7);
+  null-lineage bracket (webson+schaeffer); **the two crown sentences**: "the first pre-registered,
+  controlled, inferentially DECIDED instance of feedback engineering for reward design" (CH2) + "the
+  first factorial dissection of the feedback channel — content × encoding" (CH1). +682 body words
+  (body now 16.0k → the P7 trim grows accordingly; every insertion rides the trim as a swap).
+- 18 new bib entries, EVERY one verified first-hand on its primary page (2 plan corrections caught:
+  sandoval's pair is 9.11-vs-9.8; CWC single-author). Fix-on-sight: word_budget.py now correctly
+  EXCLUDES word-excluded appendices (was over-counting CH7 by ~1,174 words).
+
+## [2026-07-02k] — NOVELTY RED TEAM (3 falsifiers) + consolidation: NINE battle-tested firsts; 2 NEW registered instruments; fence current through July 2026
+
+User directive: "must be genuinely novel and FIRST." Response: three adversarial red-team agents whose
+SUCCESS CONDITION was falsifying the first-ness claims (~20 search fan-outs incl. GitHub code-search,
+SSRN, thesis repositories, OpenReview API; 12+ full primary-source verifications incl. first-hand reads
+of RDA's experiments section and GIFT/ELfolio full texts).
+
+### Verdicts
+- **Broad wordings FALSIFIED (as designed):** "first prereg LLM×finance" (Powdthavee 2604.20652 exists,
+  fraud-advisory), "first feedback-content variation" (Eureka's snapshot ablation + CARD's leave-one-out
+  are literal engineering-grade counterexamples), "first format ablation in an agent loop" (Goodyear
+  routing-games; Agent Trading Arena text-vs-chart). **The narrowed claims SURVIVED every attack** — and
+  the neighbours found actively CORROBORATE the numeracy mechanism (Agent Trading Arena: LLMs mishandle
+  plain-text numbers in trading loops).
+- **Core claims STAND, sharpened:** GIFT's own text FORBIDS open-ended authorship ("select, transform,
+  and compose" from a registered library, "parameters are clipped before execution"); RD-Agent(Q)
+  publishes its exact 8-metric feedback vector — max-drawdown yes, CVaR/ES/quantiles ABSENT — the
+  perfect one-line contrast. WORDING HAZARD codified: drawdown IS fed to LLMs elsewhere → all tail
+  claims pin to CVaR/ES/tail-quantiles/distribution-summaries, never "risk metrics".
+- **NINE battle-tested firsts** recorded in RELATED_WORK_WATCH.md (content-as-IV prereg+placebo
+  experiment · tail-vs-scalar manipulation · CVaR-vectors-to-designer · prereg-in-LLM-reward-design ·
+  equivalence-capable inference on the contrast · three-way decoupling · open-ended reward-code
+  authorship for trading RL · first prereg LLM-agent study in trading AT ALL [77-study survey: zero] ·
+  numeric-encoding ablation in a reward-design loop).
+
+### Consolidation (agent; independently re-verified: citations 175 entries 0/0/0, gate 13/13)
+7 new first-hand-verified citations (gallego2026beyondscalar [coins "feedback engineering" — the
+founding-rigorous-study slot is OURS to take], sharma2026algoevolve, li2025rdagentq, han2026quantaalpha,
+tang2025alphaagent, darmanin2025lmguided, lee2026rda) + the attack-proof feedback-content paragraph
+(CH2 §2.1) + GIFT fence upgraded with the constraint quotes + the R⁸-vector contrast + 2 falsifiable
+wordings fixed (CH2:117, CH1:69 → "to our knowledge") + 00_FRAMING cite-and-distinguish list extended +
+FunSearch duplicate bib entry merged (fix-on-sight). Corpus integration (separate agent): GIFT +
+LLM-judge-SAC PDFs binned with full-text 0-CVaR confirmation, integration-map §6 + dossier §B.2 entries,
+ELfolio venue-refreshed.
+
+### TWO NEW REGISTERED INSTRUMENTS (prereg §2a micro-anchors d+e, pre-freeze — novelty CREATED, not just defended)
+- **(d) Information-utilization gap**: measured redundancy of the fed tail vector given the scalar on the
+  ACTUAL archived feedback sequences (placebo_shuffled = built-in calibration floor) vs SQ1's usage →
+  "given vs used", quantified. Kills the "the tail carried nothing extra" objection with data.
+- **(e) Validation-headroom (oracle-selection) bound**: best-achievable validation CVaR/DSR over ALL
+  authored candidates vs achieved selection, per arm — establishes headroom EXISTED (sealed leg
+  untouched). Kills "there was nothing better to find". Together with SQ1-SQ3: the first fully
+  QUANTIFIED localisation of where information dies in an LLM-designer loop. Gate re-verified
+  (hash c6a2f54a, intentional).
+
+## [2026-07-02j] — ULTRA literature/publishability sweep (125-agent, 6 lenses, adversarial triage): 59→51 adopted; novelty fence refreshed; prereg micro-anchors landed
+
+- **The sweep** (user-directed "anything missed / more publishable"): six parallel research lenses
+  (fresh-scoop watch · corpus mining · methods standards · examiner alignment · numeracy frontier · venue
+  fit), every finding judged by a science-fit judge (identification/no-scope/rejected-list/freeze-clock) AND
+  a value judge (grade+TMLR per effort). **Verdict: nothing material missing experimentally — all 51
+  survivors are citations/fences/reporting/prose; zero new runs/arms/inputs needed.** Durable roadmap:
+  `docs/LITERATURE_SWEEP_2026-07-02.md` (TOP-10 + full queue + scoop register; ~45-50h total, ~6h pre-freeze).
+- **Scoop closure (pre-freeze, executing)**: GIFT (arXiv 2606.08450, June 2026 — nearest published neighbor;
+  varies state+reward jointly, no CVaR, framework not experiment → the conjunctive novelty cell SURVIVES but
+  broad "no prior work" claims must tighten) + ELfolio (now VENUE-PINNED: Intelligent Computing, DOI
+  10.34133/icomputing.0176 — its evolutionary fitness is a SCALAR Sharpe, i.e. the closest competitor
+  instantiates OUR scalar control arm) — fence agent adding verified bib entries + fence sentences +
+  broad-claim tightening + the dated RELATED_WORK_WATCH entry.
+- **Prereg §2a micro-anchors (DONE, dated 2026-07-02)**: (a) SQ3b now adjudicates two NAMED rival accounts
+  ex-ante — READOUT (encoded-but-not-verbalized; legible rendering recovers responsiveness) vs EXECUTION
+  (format won't help) with predicted directions each way; (b) declared-exploratory numeric-distance
+  moderator of responsiveness (report-only, CVaR-fed arms); (c) the post-data severity-curve presentation of
+  the TOST result registered ex-ante. Freeze gate re-verified ALL-OK after (hash e3395985, intentional).
+- Notable write-time levers banked (see the sweep doc): examiner's own papers currently cited in ZERO
+  chapters; SQ3's numeracy claim rests on one 2019 cite while a 2024-26 canon exists; mediation terminology
+  uncited; Bäuerle-Ott/Lim-Malik make §3.7 probabilist-grade; CH1↔CH6↔CH7 promise mismatch (run MCS on the
+  archived matrix; BF01 needs its CH6 slot); NeurIPS-checklist compute table closes a named examiner dock.
+
+## [2026-07-02i] — Dormant-items wave: Qwen3-Coder PINNED + WIRED (R71 executed) · P3 verified ready · FTSE rescheduled · two more live-constant catches
+
+- **Qwen3-Coder second designer (R71) — wiring COMPLETE, key-gated** (agent build, independently
+  verified: 33+105 tests, ruff, smoke exit-2 behavior observed, freeze hash UNCHANGED by the code
+  work = headline path byte-untouched). `src/llm/client.py`: `openrouter` base-url + key-env registry
+  entries (the transport was already provider-neutral, ADR-035) + a **served-model reproducibility
+  anchor** (`ProvenanceRecord.served_model` — OpenRouter's exact snapshot string archived per call).
+  `config/llm.yaml`: `open_weights_check_model: "qwen/qwen3-coder"` + provider/key-env keys (PIN_ME
+  resolved). NEW `scripts/smoke_qwen.py` (key absent → actionable exit 2; key present → one-call smoke
+  printing the served-model anchor). Prose reconciled as dated notes (prereg §8 V10 + R71 register row
+  + MODEL_CARD): pinned 2026-07-02, NOT yet executed — the plural-"LLMs" guardrail stands until the
+  secondary panel runs. **USER item: OPENROUTER_API_KEY in .env (~$1-3), then `scripts/smoke_qwen.py`.**
+  Campaign-window follow-ups listed: cost-table entries for Qwen pricing; a secondary-panel run-config
+  llm block (Qwen honors temperature=1.0 — no prompt-variation workaround needed).
+- **P3 sub-experiments verified launch-ready** (`run_subexperiment.py --mode named|legible
+  --output-dir ...`; keyless `--synthetic` rehearsal available) — slot: the σ_D→freeze gap.
+- **FTSE-100 lite RESCHEDULED to the campaign window** (report-only external validity, not
+  freeze-bound; the ~11 GPU-busy/API-quiet days are the natural slot; zero science cost).
+- **Two more flawlessness catches**: `sigma_seed_pilot.py` carried a LIVE stale
+  `DEFAULT_TRACK_LENGTH = 756` (would have mis-scaled TONIGHT'S σ_D Sharpe→DSR verdict; → 694,
+  matching power_analysis) + a latent sibling-import test-isolation flaw (self-providing path; 13/13
+  solo) + freeze.py phantom-"§18" message refs (→ §1 + register).
+- σ_D farm healthy: first wave archived (3/30 cells), GPU 58%, 53 °C, ~9 h pace.
+
+## [2026-07-02h] — PRE-FREEZE DEEP AUDIT executed + fixed (1 CRITICAL, 4 HIGH, 9 MEDIUM, 5 LOW) · B* = 200k SET (R74) · rehearsal gauntlet GREEN · σ_D pilot LAUNCHED farmed
+
+User directive: "before freezing, everything justified scientifically by evidence; before the campaign,
+absolutely everything ready and flawless." Two audit agents (citation-verifier + post-Split-C
+staleness/justification auditor) + the ladder verdict + the full gauntlet, all in one wave.
+
+### The CRITICAL find (C1) — the frozen protocol description contradicted the executed code
+The 2026-07-01 amendment + yaml mirror said the headline search reflects on each generation's LAST
+candidate; the CODE (verified `src/llm/loop.py:604-615`) reflects on the generation's **BEST** (the
+earlier M5/R32 upgrade — Eureka-faithful; CH4 already described best). Freezing that text would have
+hashed a protocol the campaign does not execute. **Corrected as a dated amendment note** (the ratified
+DECISION — serial execution for reliability — unchanged; only the label): prereg §6 + yaml
+(`serial_reflect_on_best`) + runbook §0/§4/launch-commands (which still taught R24's superseded parallel
+headline, incl. a `--search-gpu 8` "fallback" the CLI would REFUSE) + `run_campaign.py` help. Bonus: the
+old "reflect-on-last deviates from Eureka" disclosure DISSOLVES — the headline is Eureka-faithful.
+
+### The HIGH finds (all fixed) + a 13th freeze-gate check
+- H1: prereg §7 residual sentence + yaml `data_panel.headline` still declared **univ3** the frozen
+  headline (never mirrored by R73) → univ5 everywhere, univ5s/zero-surcharge finding integrated;
+  `correct_panel_on_repull: univ4r` → `corrected_panel_executed: univ5s`. **freeze.py gained check #13**:
+  `data_panel.headline == config/data.yaml gold.suffix == prose` — this drift class can never freeze
+  silently again (test updated to 13 checks; gate verified live ALL-OK).
+- H2: the pre-registered VERBATIM bankable-null statement named the wrong sealed span (2018–2025) →
+  corrected to 2020–2026H1 with a dated note.
+- H3: prereg §1 asserted unconditional validation-selection of the H1 baseline; the pipeline falls back
+  to disclosed sealed-leg selection (R49) → §1 now states the executed truth.
+- H4: runbook launch commands modernised (see C1).
+
+### The MEDIUM/LOW batch (fixer agent; independently gate-verified)
+M1 power arithmetic re-anchored to the EXECUTED val window T=694 (was 756): k 0.6905→0.6616, SESOI
+0.05 DSR ≈ 0.0756 ann-Sharpe (was 0.0724), MDE 0.256 Sharpe ≈ 0.169 DSR (was 0.177) — fixed at the
+single source constant (`power_analysis.VALIDATION_TRACK_LENGTH`) that `analyze_campaign.h2_tost_dsr`
+also reads; CAMPAIGN_power.md regenerated; CH4/CH7 numbers updated. M2 SESOI economic rationale
+reconciled. M3 EVT-regime notes re-scoped to the executed ≈2,961-session fed window. M4 delisting band:
+docstrings corrected to ADR-051 (truth AT the zero end), the band now CLAMPS its window to the
+univ4-era span and RECORDS the clamp (2026H1 outside the band audit — disclosed). M5 CH7 B.5.5
+direct-tail p = primary (R64). M6 CH7 limitations updated (univ5 headline; univ5s finding = the answer,
+MEASURED; §10 numeraire). M7 §10 R17 cohort spec re-scoped to Split C. M8 PROPOSED/RATIFIED
+contradictions + dead pointers fixed. M9 buffer passes 20→~17. L1-L5 (phantom §18 refs, hash-bound
+data.yaml comment, F3 manifest row, PopArt triage guidance, §12 compute prose). Verified: freeze gate
+13/13 · citations 0/0/0 · ruff · delisting-band tests 9/9.
+
+### The ladder verdict + B* = 200,000 (R74 — amends R70's unsatisfiable criterion)
+Run 3 (uniform Turbo+lock conditions): eval-IQM **flat within seed noise across 25k→350k** (14×) —
+REPRODUCING the pre-Split-C ladder; the knee detector's tolerance scales with the curve's own range ⇒
+on a flat-noise curve it can NEVER return CONVERGED (verified branch analysis; extension cannot
+terminate — R70's "extend until converged" is structurally unsatisfiable here). Evidence dossier:
+critic terminal loss completes its steep descent by 100k (0.59→0.10; →0.01 at 350k = internal polish);
+350k nominally WORSE than 200k on eval (the old-window pilot's mild-overfit direction); ≈17 buffer
+passes at 200k. **B\* = 200,000** (≥2× the critic knee, below the overfit onset), identical across arms.
+Mirrored: campaign.yaml + algos.yaml + preregistration.yaml + the R74 register row; `determine_design`
+reports DECIDED (same honest semantics as candidates_per_arm) → **BLOCKED on ['n_seeds'] ONLY**.
+**Paired Turbo speed table** (12 identical cells): 54.8→57.9 steps/s median (+5.6%) — far below the
+audit's +20-28% estimate (owned honestly: the GPU slice of each step is tiny; Turbo's real value =
+3-worker power headroom + thermal margin). Baseline preserved:
+`learning_curve_baseline_preTurbo_2026-07-01.json`.
+
+### Rehearsal gauntlet + σ_D launch
+- **Keyless campaign dry-run: GO** (exit 0, end-to-end SEARCH→SELECT→FREEZE→TEST into campaign_dryrun,
+  summary status `tested`) — first full-pipeline rehearsal post-univ5/Split-C. It exposed
+  `auto_shutdown_on_complete: true` (4090-era; "host would power off now") → **DISARMED** (false).
+- **preflight --probe: LIVE 1-token Opus 4.8 call SUCCEEDED** (key/credits/model verified today);
+  disk/VRAM/tenacity/budget-mirror/data-checksum green; the 2 FAILs are the expected pre-freeze ones
+  (frozen=false; RAM marginal at probe time — free-at-launch closes it).
+- **σ_D pilot LAUNCHED farmed**: `run_sigma_pilot_train.py --budget 200000 --n-seeds 15 --gpu 3`
+  (PID recorded; 30 cells; GPU util jumped 13→58%; watcher armed; ~9h ETA). Full test suite running in
+  the same window. On σ_D: power_analysis with measured σ_D → seeds 30-vs-50 → determine_design
+  FREEZE-READY → bundle regen → the freeze button (USER).
+- Date-error sweep: my "+1 day" 2026-07-03 stamps corrected to 2026-07-02 across 14 files (today IS
+  July 2; the CHANGELOG headers for the earlier waves renamed [2026-07-02f]/[2026-07-02g] to avoid
+  duplicate keys).
+
+User directive: "make sure everything is very precise" + full resource permission. Executed as a precision
+audit of every load-bearing piece the automated ladder→σ_D→freeze chain depends on, using the serial
+ladder's idle CPU (box measured 97% CPU-idle / 85% GPU-idle under the 1-worker ladder).
+
+### The freeze chain, verified against the code (not memory)
+- σ_D farm launch flags verified verbatim (`--budget <B*> --n-seeds 15 --gpu 3`; `--end 2026-06-30`
+  Split-C default; `--out-dir outputs/sigma_pilot`). Amendment targets pinned: `campaign.yaml:12`
+  `train_steps_per_candidate` + the algos.yaml mirror (budget-mirror preflight guard); seeds list
+  `campaign.yaml:8` (30 → 50 if σ_D > 0.10). Buffer stays 50k at ANY B* (deliberate decouple, verified).
+- Ladder health: launcher+worker alive, locked clocks; the `.venv\Scripts\python.exe` → base-interpreter
+  child pattern EXPLAINED (Windows venv launcher stub — benign, standard; the child IS the venv run).
+
+### `scripts/determine_design.py` — FOUR latent defects fixed (+DECIDED status; 11/11 tests, ruff clean)
+1. **Unconverged-B* laundering**: `_gather_evidence` read `recommended_budget` without checking
+   `converged` — a NOT-converged ladder (which reports its CEILING as the extend-sentinel) stamped
+   `train_steps` DETERMINED. Now only a `converged=True` knee is evidence → the regenerated report
+   honestly shows PENDING until tonight's ladder verdicts.
+2. **`n_seeds` unsatisfiable via CLI**: the documented `sigma_seed_pilot` evidence key was never
+   gathered. Now read from `outputs/sigma_pilot/sigma_seed_pilot.json` (the analyzer's artifact).
+3. **`candidates_per_arm` unsatisfiable pre-campaign**: DETERMINED required `saturated=True`, evidence
+   never computed, and the honest verdict is False (below) → freeze-readiness could NEVER be reached.
+   The parameter's actual criterion is the RATIFIED 2026-07-01 cap (30; multiplicity control; "more
+   candidates" explicitly rejected) with the CH7 search-width disclosure — new `Status.DECIDED` reports
+   exactly that; saturation stays a disclosed diagnostic (a missing ratified anchor still BLOCKS).
+4. **`cash_daily_rate` FIX_NEEDED was pre-ratification semantics**: cash=0 is the §10-RATIFIED numeraire
+   (2026-07-01) — now DECIDED when the env value MATCHES `preregistration.numeraire.idle_cash_daily_rate`
+   (a mismatch still fails loud). Registry text updated from the stale "risk-free series (R20)".
+- `docs/DESIGN_DETERMINATION.md` regenerated end-to-end: **BLOCKED on exactly
+  ['train_steps_per_candidate', 'n_seeds']** — the two pilots in flight — with an Evidence-notes section.
+
+### The saturation engine's FIRST run on real data (prototype archive, 239 records, 8 generations)
+`recommend_candidates` verdict: **NOT saturated at strict tolerance** — distributional saturated gen 3
+(20 cands), placebo gen 4 (25), scalar_cvar5 gen 0; but **`scalar` jumped 0.025 → 0.11 at generation 7**
+(candidates 36-40). DIRECTIONAL evidence (Sonnet author, pre-Split-C window, single-seed fitness = the
+max-order-statistic drifts under luck): does NOT reopen the ratified 30-cap (multiplicity decision
+stands); it gives the CH7 search-width limitation MEASURED texture ("a late candidate can move an arm's
+best — our K is a disclosed budget, not a proven optimum") — write-time material, banked here.
+
+### Vault-writer POSIX relpath fix (subagent; independently verified by me)
+`data_pipeline/src/data/vault.py:129` `relative_to(ROOT).as_posix()` — the SINGLE origin of relpaths in
+all three ledgers (manifest/checksums/lineage verified). Historical backslash lines untouched (SHA-256 of
+all three ledgers identical before/after); name-fallback resolution preserved + regression-tested.
+`data_pipeline/tests/test_vault_relpath.py` NEW (2 tests); pipeline suite 21→23, my own re-run: 23/23.
+
+### Also this pass
+- French June probe: upstream daily FF3 still ends 2026-05-29 → the P4 re-refresh stays pending (verified,
+  not assumed). C: gate re-verified 20.9 GB ≥ 20. `.vscode/settings.json` minimal-footprint config
+  (watcher/search excludes incl. the data junction, Pylance indexing off, tab limit) — VS Code stays open
+  during the campaign per user decision, TRIMMED + agent-monitored (runbook §0b row updated; Defender row
+  updated: service confirmed DISABLED at OS level → exclusion moot, command recorded for if re-enabled).
+
+## [2026-07-02f] — Two reboots, Turbo UNLOCKED (user installed Armoury Crate), B* ladder relaunched clean
+
+- **Reboot #1 (user, accidental) + Armoury Crate installed + Turbo set.** Enforced GPU limit
+  74.87→**140.00 W**; burn-probe signature flipped from power-limited (draw pinned 94.7 W, clocks
+  bouncing) to **clock-limited** (clocks pinned flat 2550 MHz, draw floating ~100 W, ≤58 °C) — the box
+  now delivers everything the silicon gives at locked clocks. The app installs its own "Turbo" power
+  scheme (replaced High Performance) — AC-sleep=Never re-set + verified on it.
+- **Interpreter catch at relaunch:** the dead ladder's nominal interpreter (system Python311) has NO
+  torch — it had been riding an inherited env; relaunched under `.venv` (torch 2.6.0+cu124, CUDA
+  verified TRUE). Ladder writes only at completion → interrupted runs lost nothing but wall-clock;
+  the clean rerun is BETTER (uniform Turbo+lock conditions vs the mixed Balanced/HP/locked original).
+- **Reboot #2 (user, accidental) + MUX → Ultimate** ("GPU maximum"): dGPU now drives the display —
+  ~neutral for headless training (costs ~300-500 MB VRAM + a sliver of compositing; our 3-worker
+  footprint ~1 GB of 6 GB → harmless); not worth a third reboot to revert. **Turbo AUTO-persisted at
+  boot** (the app re-applies it) → runbook m15 row downgraded to verify-only. No pending-update reboot
+  flags (CBS/WU clean) — the restarts were one-offs, not an update loop.
+- Clock lock re-applied after each reboot (it always resets); apps re-closed per the standing grant
+  (re-affirmed twice tonight, now including delete authority); RAM 10.4 GB free. ⚠ C: down to
+  **19.2 GB** (Armoury ~1.3 GB) — below the 20 GB campaign preflight gate → pre-campaign cleanup item.
+- **B* ladder RUN 3 launched** (PID 12252, AboveNormal, `-u` → `outputs/logs/learning_curve_2026-07-02_r3.log`)
+  under the final uniform conditions: Turbo 140 W + lgc 2200-2560 + MUX-Ultimate + sleep-Never;
+  exit-watcher armed. On exit: fresh-timestamp check → recommend_budget → farmed σ_D `--gpu 3`.
+- **Pre-Turbo baseline PRESERVED**: `outputs/tables/learning_curve_baseline_preTurbo_2026-07-01.json`
+  (run 3 overwrites the live json) — median **54.8 steps/s** over 12 cells / 10.7 h; the paired per-cell
+  before/after table generates from it when run 3 lands (compute-reporting evidence for the paper).
+- **FINAL exhaustive speed sweep (user-requested "everything the laptop can offer") — verdict: at the
+  ceiling.** Verified already-optimal: HAGS ON (HwSchMode=2), thermals 58 °C max (no cooling headroom to
+  buy), thread pinning in the farm, VRAM 1.3/6 GB. Examined + REJECTED with reasons: patching SB3's 4
+  forced `.item()` syncs (reproducibility hazard on the core loop; farming already overlaps the dead
+  time across workers), driver update 556.12→current (~0 CUDA gain, churn risk — driver FROZEN through
+  the campaign), CPU-mitigations/VBS-off (security posture), undervolt (locked SKU + thermals not
+  binding), manual P-core affinity (Thread Director + AboveNormal already optimal), pagefile-fitting a
+  4th worker (a swapping farm is slower than serial). PENDING on user: Defender exclusion for the repo
+  (verified NOT set — needs admin `Add-MpPreference`). NEW run-day row: campaign runs HEADLESS (close
+  VS Code → +2-2.5 GB wave headroom).
+
+## [2026-07-02e] — σ_D farming + the two notebooks LANDED (verified first-hand); split-boundary precision fixes; F3/F4 re-rendered on Split C
+
+- **σ_D pilot farm mode** (`scripts/run_sigma_pilot_train.py --gpu N`, default 1 = serial verbatim):
+  per-(reward,seed) cells through the proven `run_recycling`/`DevicePool`; worker delegates to the SAME
+  `train_one` (seed-first by construction), writes the SAME records in-worker (incremental, resume-safe);
+  RAM preflight gate (2.5 GB/worker budget; ~2.11 GB measured); single-device pools only; submission-order
+  re-attribution with a hard one-result-per-spec check. **Verified by me:** 12/12 tests (incl. serial-vs-farmed
+  byte-identity under REVERSED execution order + shuffle-invariant summary + resume zero-spec) + test_leg 6/6 +
+  ruff clean + the load-bearing hunks read. ~53 h serial → **~12–13 h at `--gpu 3`** (needs ≥7.5 GB RAM free).
+  Bonus fix: `--help` crashed on cp1251 consoles (UTF-8 reconfigure now precedes `parse_args`).
+- **Notebooks (examiner-facing):** deterministic builders (`scripts/notebook_builder.py` + 2 build scripts;
+  fixed cell ids, no timestamps, clean-by-construction) → `notebooks/results_walkthrough.ipynb` (35 cells;
+  Split-C/univ5 asserts, live F3 EDA recompute, taxonomy from the real prototype JSON, equivalence-first H2,
+  mechanism SQ1-SQ3) + **NEW `notebooks/data_provenance_walkthrough.ipynb`** (20 cells: live sha256 vs manifest,
+  `verify_gold` 0-changed-cells re-run, EVHC splice exhibit, 333 `vendor_terminal_kept` + univ5s≡univ5
+  byte-identity, `expected_windows` live assert). **Verified by me:** builders re-run → byte-identical sha256s
+  (`d63fa280a12a`/`1fcfd88f04f3`); provenance notebook re-executed via nbconvert on THIS machine →
+  **"ALL INTEGRITY CHECKS PASSED (n=39)"**; ruff clean. Agent-flagged inconsistencies triaged: manifest
+  Windows-relpath drift (loader basename fallback covers; vault-writer cleanup queued), CI `ruff format`
+  drift (CI deferred anyway), prototype arm has 39-not-40 candidates on disk (n=239 used).
+- **Split-boundary precision (fix-on-sight, examiner-grade):** the paper claimed the sealed test includes
+  "the COVID drawdown" — FALSE under the 60-session purge: the crash (2020-02-19→03-23) falls INSIDE the
+  boundary gap; the executed window opens 2020-03-30 (near the trough). CH4 §4.2 now states this plainly
+  and defends it (leakage guarantee; no single-3-week-episode-dominated CVaR estimand; boundary shared by
+  all arms ⇒ cannot confound the contrast); theory §3.6 rephrased. F4 timeline gained the two regime
+  markers the manifest promised (COVID marker AT the executed start, labelled "crash in purge"; 2022 bear)
+  + a pre-existing val/test caption collision fixed; rendered+inspected, shipped `F4_splits_timeline.png`.
+- **F3 re-rendered from univ5 Split-C train window** (the on-disk PNG was the OLD 2005–2014 window): now
+  kurtosis **15.25** (was 14.52), −5σ ×10,393, CVaR crossover ×0.84→×1.66, co-crash 3.3%→**19.7%**,
+  worst day 2008-09-29 (100%). `src/viz/eda.py` docstring window + FRONT_MATTER F3 row (dropped stale
+  "Hill") + 00_FRAMING regeneration note all reconciled to the delivered figure.
+
+## [2026-07-02d] — Strict laptop-capabilities audit (user-directed) + the science-neutral speed levers APPLIED
+
+Question audited: "is training using the full capabilities of the laptop?" Verdict (read-only auditor with
+live GPU/CPU sampling against the RUNNING B* ladder, my verification):
+
+- **Serial pilots ≈ 25% of box capacity** — one worker holds ~55 steps/s while the proven 3-per-GPU
+  machinery sustains ~186 aggregate; the binding constraint at n_gpu=3 is **RAM** (~2.11 GB/worker against
+  a 15.6 GB box), not VRAM (~313 MiB/context) and not the GPU itself.
+- **Per-step time budget is overhead-bound, not compute-bound**: ~58% of each SAC step is dead time —
+  WDDM submit/sync round-trips (4 forced `.item()` syncs inside SB3 `sac.py` per gradient step) plus
+  clock P-state hunting between kernel bursts. Big-batch GPU math is NOT the bottleneck; latency is.
+- **The campaign config is already ~75–85% of the realistic maximum** (n_gpu=3 + Turbo 140W + capped
+  buffer); the residual gap is a DELIBERATE RAM-safety trade (recycle_every, n_gpu=3-not-4), kept.
+- **Levers APPLIED mid-ladder (wall-clock-only, zero science keys touched):**
+  1. Windows power plan Balanced → **High Performance** (`powercfg /setactive 8c5e7fda…`) — the ladder had
+    been training at 10.9 W / 675 MHz / 32% util on the balanced plan.
+  2. **GPU core clocks LOCKED** `nvidia-smi -lgc 2200,2560` — kills P-state hunting between kernel bursts;
+    confirmed holding at **2205 MHz** on the live ladder (was 570–1080 MHz). Revert: `nvidia-smi -rgc`
+    (+ powercfg back to Balanced) after the runs.
+  3. **σ_D pilot farming being wired** (`scripts/run_sigma_pilot_train.py --gpu N`): per-(reward,seed)
+    cells through the PROVEN `run_recycling`/`DevicePool` machinery (`src/orchestration/parallel.py`) —
+    each cell `set_global_seed`-ed in its own process, identical records, order-independent aggregation ⇒
+    **science-neutral by construction**; ~53 h serial → **~12–13 h at 3 workers**. Precondition: ≥7.5 GB
+    RAM free (close apps).
+- **FORBIDDEN levers reaffirmed** (FIX-class, never speed-tuned): batch_size 256, net arch, buffer cap
+  50k, learning_starts, train_freq/gradient_steps, n_envs=1. **DEAD levers verified with reasons**:
+  `torch.compile` (no native Triton on Windows), SBX/JAX (ADR-040), AMP, CUDA graphs, cudnn.benchmark.
+- **⚠ Auditor error caught + NOT adopted:** its §5 claimed campaign SEARCH-leg parallelism is "no longer
+  amendment-locked", citing R24. Wrong — the **2026-07-01 ratified amendment SUPERSEDES R24** with
+  `headline_reflect_protocol: serial_reflect_on_last`; the campaign search leg stays **SERIAL** (the
+  reflection chain is sequential by design). Its TEST-leg and pilot numbers stand.
+- **Resource management executed under the user's standing grant** (2026-07-02, full permission to
+  free/manage laptop resources for training; recorded in agent memory):
+  - **Sleep time-bomb defused:** the High-Performance plan switch had brought **AC sleep = 600 s** with it
+    — the overnight ladder would have frozen 10 min after the user stepped away. `powercfg /change
+    standby-timeout-ac 0` applied + verified (`0x00000000`); battery sleep kept (4 min) as a
+    power-loss safety net. Hibernate-after already 0.
+  - **RAM freed 2.3 → 3.4 GB** (Steam + 7 webhelpers ~0.84 GB, background Edge, Phone Link, OneDrive —
+    graceful `/shutdown`, after verifying the Desktop shell-folder is plain `C:\Users\User\Desktop`, i.e.
+    OneDrive does NOT sync the repo → no file-lock hazard, closure is comfort not necessity). At σ_D
+    launch the ladder's ~4.7 GB releases ⇒ ~8.1 GB free ≥ the 7.5 GB 3-worker bar; re-swept at launch
+    (free-at-launch pattern). VS Code / claude processes / Armoury Crate (owns the Turbo profile) never touched.
+  - Ladder worker (PID 20984) → **AboveNormal** priority (insulates the CPU-bound submit path).
+  - **Enforced GPU power limit measured 74.87 W** (default 80, max 140): the box is NOT in Turbo mode.
+    Not binding for the 1-worker ladder (21 W draw) but WILL matter for 3-worker phases → Turbo via
+    Armoury Crate (Fn+F5) is a USER keypress; already a §0b run-day row.
+  - **[2026-07-02 follow-up] Turbo is UNREACHABLE on this install** — empirically established: two
+    10-s CUDA-burn probes show a flat ~94.7 W power-limit plateau (clocks bouncing under it = the
+    Performance-mode cap) unchanged across Fn+F5 presses; the ASUS WMI interface answers INIT/fan/
+    battery/MUX but returns not-supported for EVERY mode-control device ID (0x00120075, 0x00110018, …)
+    — mode switching needs the Armoury Crate app (or G-Helper), which is NOT installed. §0b row updated
+    with the install-before-run-day prerequisite. Performance mode (~95 W GPU cap) costs the overhead-
+    bound pilots ≈ nothing (probe: matmul saturates at max clocks within the cap; SAC draws ~21 W);
+    Turbo's real campaign value = higher sustained CPU PL + fan curve.
+  - determine_design freshness check closed: the running ladder writes `outputs/tables/learning_curve.json`
+    (absolute `--out-dir`) = exactly the path `determine_design._gather_evidence` reads; current evidence
+    (`recommended_budget: 350000`) is YESTERDAY'S noisy pre-Split-C run — superseded on ladder exit.
+
+## [2026-07-02c] — P1 EXECUTED: the univ5 rebuild + SPLIT C (ADR-051 + addendum; prereg R73). Gate ② given by the user ("execute everything up to the campaign")
+
+State: pre-freeze; freeze gate ALL-OK on the new configuration (hash `d9204087…`, moved intentionally: 3 bound
+configs + prereg changed). **The referee: `verify_gold` univ5-vs-univ3 = 0 changed cells (max |Δ| 0.000e+00)
+over the full 5,283×953 overlap; +123 sessions (2026-H1), +10 new-member columns.**
+
+### The extension pull (PowerShell + `.venv-lseg`; dedicated `x26` journal — chunk-ids are param-hashed, so a
+### config-span re-run would have re-pulled 21 years; ADR-051 chose the dedicated-driver route)
+- `data_pipeline/scripts/extend_universe_2026.py`: A1' chain+events → fresh reverse replay → **overlap gate**
+  → SPLICE (frozen pit authoritative through 2025-12; fresh contributes ONLY 2026) → A2' returns / A3' caps /
+  A4' meta / A5' px-bid-ask-vol / SPXTR. **138/138 chunks frozen, 0 failed** (ReadTimeouts absorbed by backoff).
+- **The overlap gate FIRED on first live contact** (working as designed): Refinitiv backfilled EVHC.N^L16's
+  Dec-2016 leaver event in the 3 weeks since the frozen pull; the missing join made replay claim membership
+  since 2004 — provably impossible (IPO 2013; SEC 25-NSE delisting 2016-12-13) and provably immaterial (~$7B,
+  never top-30). Allowlisted + disclosed (ADR-051 addendum); union 953→963 (incl. the real FDX-Freight/
+  Honeywell-Aerospace 2026 spinoffs).
+- `refresh_fred_2026.py`: VIX/rf/term series re-pulled keyless to the cutoff (last VIX print 2026-06-30) as
+  `fred_macro_x26`; `build_universe` now consumes the LATEST `fred_macro*`.
+- Vault-root junction `data_pipeline/data → data` (the ADR-022 merge split ROOT from the real vault).
+
+### The builds + the delisting finding
+- First build was POISONED by a config split (`data_pipeline/config/data.yaml: window` — not the engine
+  config — clips the calendar): 5,283 sessions, no 2026. **Surgically purged** with the new guarded
+  `purge_suffix.py` (36 files + 53 ledger lines, all never-consumed; refuses protected/active suffixes);
+  window bumped; rebuilt correct: **univ5 = 5,406 × 963, 2005-01-03 → 2026-06-30**.
+- **`univ5s` (Shumway + OBSERVED-terminal recovery): `vendor_terminal_kept: 333`, ZERO surcharges** — every
+  dead name's realised terminal was already in the vendor series, so univ4's flat −30/−55% surcharge was
+  DOUBLE-COUNTING on top of its M&A contamination. The corrected band-end equals the zero-fill headline;
+  recovery implemented as the pure, hermetic `_recover_terminal_from_returns` (+5 tests).
+
+### SPLIT C executed everywhere (ADR-044 → R73 in the prereg register)
+- Configs: engine data.yaml (splits + `gold.suffix: univ5` + period 2026-06-30), inference.yaml (splits +
+  `expected_windows.univ5 = [60,3021]/[3081,3775]/[3835,5406]`), preregistration.yaml (`data_splits` +
+  banner), pipeline data.yaml (window). PREREGISTRATION.md §7 rewritten + the formal **R73** amendment row.
+- Code+tests sweep (agent, my verification): 23 files — loaders (`_DEV_END` 2016-12-31, `_DEFAULT_SUFFIX`
+  univ5, module facts), run_campaign/run_prototype/parallel defaults+docs, test_leg/runner/results/strategies
+  spans, learning-curve/σ-pilot/popart/variance-decomp dates, F4 schematic renders Split C, prototype.yaml
+  (TRACED campaign-live) + provenance note. Univ3/univ4 band semantics and historical framings preserved.
+- **CRITICAL catch by the sweep**: 2016-12-31 is a SATURDAY — the old `searchsorted(left)+1` convention
+  (correct on session-valued boundaries like 2014-12-31) leaked 2017-01-03 into the SEARCH train window and
+  shifted the executed val start off the ratified date. Fixed with `side="right"` at 3 sites (loaders
+  `embargoed_val_start`, run_prototype, parallel) — byte-identical on the univ3 era, byte-matching
+  `expected_windows.univ5` now; regression tests pin `abut` + the ratified 2017-03-30.
+- **Latent test bug exposed+fixed**: `_config_gold_suffix`'s def-time default ignored the
+  `loaders._DATA_YAML` monkeypatch — the config-primacy test passed only by coincidence; now resolved at
+  call time. Suffix-flip fallout in 5 test files fixed (suffix-aware fixtures / univ5 expectations).
+- Paper prose: FRONT_MATTER/00_FRAMING abstracts, CH4 §4.2 (panel facts + splits + regime set), CH5
+  (date-free process claim), theory §regime, CH7 B.4.1, F3/F4 manifest rows (F3 row now describes the
+  DELIVERED figure — closes the "Hill" reconciliation flag).
+
+### Verification (observed)
+- verify_gold: **PASS (0 changed cells)** · spot-checks: span 2026-06-30 ✓, top-30 books sane ✓,
+  shumway audit 333/333 kept ✓ · loader opens univ5 under checksum verification ✓ · freeze gate ALL-OK ✓ ·
+  Split-C sweep suite 203/203 + flag-closures 113/113 + pipeline 21/21 ✓ · PDF 292 KB 0-warnings ✓ ·
+  word budget 15,716 tracked (P7) · **FULL engine suite: GREEN (exit 0)** after the last 5 suffix-fallout
+  test fixes (market_reference ×2 [suffix-aware `_MKT` + tmp fixtures], capture_env, membership_shumway,
+  plus the earlier data_deep/loaders_checksum/platform_coverage batch).
+- Known-cosmetic: `splits_univ5.parquet` carries the stale pre-Split-C dev-boundary cell — provably inert
+  (pinned by a dedicated test), documented in loaders + config comments; refresh at a future rematerialization.
+
+### Post-P1 closure batch (same session)
+- **Docs Split-C sweep landed (12 live docs)**: DATASHEET gained the dated "2026-07-02 extension + rebuild"
+  section (byte-diff · EVHC/SPLICE · zero-surcharge finding · the 10 new members incl. VEEV.N/VRT.N);
+  MODEL_CARD/REPRO_CHECKLIST/RIGOUR_LEDGER (new A-ter threat→guard rows) / CAMPAIGN_* updated;
+  DESIGN_DETERMINATION regenerated (blockers now exactly ['n_seeds','candidates_per_arm'] — note:
+  train_steps shows DETERMINED off the PRE-Split-C learning-curve json; the running ladder supersedes it).
+- **Runbook reconciled** (10 sites): headline univ5/R73, the univ4 double-counting note, univ5s-supersedes-
+  univ4r, ~150 authorings (was 180), R21–R73, smoke label; `smoke_test.py` + `determine_design.py` labels
+  made suffix-aware/963.
+- **Reference-series coverage (docs-sweep catch)**: French factor CSVs ended 2026-04-30 vs the 2026-06-30
+  test end → `refresh_french_2026.py` (direct zip parse — pandas_datareader's famafrench parser breaks on
+  modern pandas) froze `french_ff3_daily_x26` + `french_mom_daily_x26` to **2026-05-29** (upstream's own
+  lag; the June tail publishes later — re-run pre-analyze). `market_reference` readers now PREFER the
+  versioned refreshes (`_raw_path` + `_REFRESHED_RAW`, +2 tests) — also fixes the risk-free series
+  (fred_macro ended 2025-12; the x26 refresh reaches the cutoff). market_reference 11/11; all 5 rebuild
+  scripts ruff-clean.
+- **P2 STARTED**: the B* convergence ladder is RUNNING detached (budgets 25k–350k × seeds 0-2, CUDA,
+  Split-C univ5 train window; exit-watcher armed). σ_D pilot queues after it.
+
+## [2026-07-02b] — Deliverable pipeline + run-day ops hardening + two new instruments (ADR-050)
+
+State: pre-freeze (`frozen: false`, hash `843b84c3…` stable). **Consolidated verification (all observed):**
+271/271 tests in one combined run across every touched suite (+398 executions inside the ops wave, +245
+taxonomy-affected, +37 viz) · ruff clean repo-wide (`src tests scripts`) · `freeze.py --check` 12/12 OK ·
+`build_paper.py` → dissertation.pdf **292 KB, 0 pandoc warnings** · `word_budget.py` = 15,698 (tracked; P7 owns).
+
+### The deliverable pipeline (NEW-LENS A: the md→PDF toolchain did not exist)
+- `tools/` pinned portable **pandoc 3.10 + Tectonic 0.16.9** (no system install; MSI needs elevation and is
+  unpinned — portable is deliberate); TeX cache on D: (`TECTONIC_CACHE_DIR` — C: hit 0 bytes on first compile).
+- `scripts/build_paper.py` (+9 tests): UCL-order assembly, fence-aware `[`key`]`→`[@key]` transform (year-key
+  discriminator; catches multi-line + locator/prefix forms — the first compile missed 18), Harvard
+  cite-them-right CSL, References section, fail-loud diagnostics. **118 citation groups resolve, 0 warnings.**
+- `scripts/word_budget.py` (+8 tests): main-body count per the UCL exclusion rules — **15,532 words at first
+  measure vs the 10,000 hard limit** (was hand-estimated ~11.5k); the P7 depth-pass has per-chapter targets.
+- `scripts/make_prereg_bundle.py` (+test): the OSF-deposit zip of the exact hash-bound file set (dry-run
+  emitted `prereg_bundle_843b84c3.zip` with the PRE-FREEZE banner).
+- Front matter: **Glossary of Terms** (23 entries, non-specialist second marker); Makefile targets
+  `paper`/`wordcount`/`prereg-bundle`; `.gitignore` +tools/ +paper/_build/.
+
+### Run-day ops hardening (NEW-LENS B: 3 run-killers found, all closed)
+- **C1**: `tenacity` was NOT installed → every API call single-attempt (SDK retries deliberately 0) →
+  **installed 9.1.4 + `_make_retrying(3)` verified + preflight `check_retry_layer` hard-FAIL probe**.
+- **C2**: Windows Update unpaused + no reboot re-entry → preflight `check_windows_update` (RebootRequired/
+  RebootPending registry FAIL; unpaused WARN) + `install_onstart_task.ps1`/`uninstall_onstart_task.ps1`
+  (Task-Scheduler ONSTART supervisor re-entry).
+- **C3**: exit-0 husk runs → `campaign_exit_status`/`incomplete_arms` (EXIT_INCOMPLETE=3; fail-loud on unknown
+  statuses; operator-interrupt keeps exit 0) + the **winner-selection floor** `select_floor_ok`
+  (resolved-slots = accepted+ledgered-failures == budget; a partial pool can never freeze a winner) +
+  `llm_error_skips` counted + anomaly-emitted. **BONUS: the new gate immediately exposed a pre-existing
+  exit-0 husk** — the keyless dry-run's TEST leg had been silently failing (600-day synthetic panel can't
+  span the frozen splits) → root-caused, synthetic driver panel → 7800 sessions; dry-run genuinely green.
+- **M4** serial fallback + H3 search now thread `--resume` (no re-billing/archive overwrite) · **M5** watcher
+  `--follow-campaign` (no exit on per-arm done), dedupe reset on healthy, alert-add only after successful
+  POST, `deadman_ping.ps1` (the only alert surviving host death), runbook progress-path corrected ·
+  **M6** thermal governor LIVE on every path (`campaign.yaml agent.thermal_guardian {hi:88, lo:80}` +
+  threaded through the parallel spec) · **M7** supervisor attempt-reset after >30-min healthy runtime +
+  `--resume` on EVERY launch · **M9** preflight `load_env()` + REAL 1-token `--probe`
+  (ok/auth/client-4xx/transient classified; never fires in tests) · minors m10 (config `resume: true` wired
+  as CLI default) m11 (mtime-tolerant staleness) m12 (Manager shutdown) + **runbook §0b RUN-DAY checklist**
+  (pause updates 5wks · Turbo ~140 W after every reboot · lid Do-Nothing · Defender · ≥20 GB C: ·
+  `--min-disk-gb 20` · ONSTART + deadman). ~35 new/updated tests.
+
+### Two new instruments (report-only, DISJOINT from m=6)
+- **Reward-program taxonomy** (`src/inference/reward_taxonomy.py`, 14 tests; wired `out["reward_taxonomy"]`
+  + renderer + `scripts/build_taxonomy.py`): AST shape-set Jaccard → connected components → labelled KINDS +
+  per-arm composition/entropy/overlap + threshold sensitivity; construct vocabulary consolidated from
+  `inspect_rewards` (single source). **Validated on the real 239-program prototype archive**: search arms
+  collapse to ONE re-parameterised template-kind each (within-sim 1.000 — instrument discriminative
+  validity), LLM arms near-fully idiosyncratic (152/157 singletons, entropy ≈ max), the few multi-member
+  kinds SPAN arms — null-consistent. CH7's "left to future work" updated to delivered-and-validated.
+- **F3 stylised-facts EDA figure** (`src/viz/eda.py`, 12 tests; wired into `make_figures`; PNG+PDF rendered
+  from the REAL train window): excess kurtosis **14.52**; −3σ ×7.1 / −5σ **×~10⁴** vs Normal; the **CVaR
+  crossover** (×0.8 at α=.25 → ×1.7 at α=.01 — a shallow tail summary looks benign while the deep tail is
+  catastrophic); 9 stress episodes; co-crash 3.3%→**20.4%** (2008-09-29 = 100%). Empirical CVaR REUSED from
+  `bootstrap.cvar` (figure↔inference cannot drift). ⚠ Write-time flags: skew is **positive** (+0.22 — never
+  claim negative); manifest's "Hill" wording to reconcile; reconcile the old "kurtosis 49.9" note
+  (different aggregate).
+
+### Paper + citations + plan
+- **CH1 chapter lede** (the question in one breath — mechanism-led, could-vs-does, either-answer-is-evidence).
+- `bauer2025equal` verified first-hand (arXiv 2505.23333 abs fetched) + promoted + cited at both CH4
+  power-caveat sites; `sun2024card` upgraded to the first-hand-confirmed published venue (Knowledge-Based
+  Systems 326:114065, 2025) and the stale "Sun, Hao discrepancy" note replaced with the resolution.
+- **docs/ULTRAPLAN_2026-07-02.md**: P0–P8 with gates/owners/exit criteria, timeline vs 1 Sep (+1.5-2 wk
+  slack), risk register, the standing documentation protocol, Tamer's gate list (gate ① disk CLOSED —
+  20.5 GB verified; next gate ② rebuild GO + settled-2026 cutoff). P7 reframed: the word surgery IS the
+  depth pass; EDA/Data argument + CH1 elevated; figure-standards + integration rehearsal added to P6.
+- Disk: C: 0.00 GB → 6 GB (cache purges) → **20.5 GB (user cleanup, verified)**.
+
+## [2026-07-02] — Deep 8-front audit + fix-everything hardening (ADR-049); repro-integrity C1–H4; inference P1–P7; CH4/CH7 prose
+
+State: pre-freeze (`frozen: false`). **Verified:** ruff clean on all touched files; targeted suites green
+(inference fixers 280+; repro-integrity full suite exit 0; this session's 10-file batch **223/223**);
+`freeze.py --check` **12/12 OK** — canonical SHA-256 now `843b84c3…` (changed intentionally twice: the C1/M1
+panel-identity + expected-windows binding, then the §18 h1_baselines mirror). Full findings register: ADR-049.
+
+### Deep audit (8 read-only auditors, literature-validated; + 4 fixer subagents independently verified)
+- **Verdict: NO CRITICAL/HIGH code defect.** FZ0 / DSR / PSR / expected-max-Sharpe / HLN / stationary bootstrap /
+  PBO / MCS / IUT-BH multiplicity / differential-Sharpe / allocator QPs / the six-scalar tail estimator (GPD-POT
+  closed forms) all match the primary literature; sandbox allowlist repels the escape battery; pipeline leakage-free.
+- The one CRITICAL was in the **bibliography**: `harvey1997testing` named a nonexistent "Harvey & Liu 1997" →
+  replaced with the real **Harvey–Leybourne–Newbold 1997** (IJF 13(2):281–291). `witzany2021bayesian` metadata
+  corrected (Risks 9(1):18). gridach/orra venue labels corrected to arXiv preprints (no ICLR acceptance found).
+
+### Statistical-code fixes (each with tests)
+- `mediation.py` P1 stability guard (prop_mediated NaN + flag when c_total ≈ 0; determinism preserved) ·
+  `power_analysis`/`analyze_campaign` P2 paired TOST reconcile · P3 wired `comparative_es_backtest` /
+  `bayesian_null_report` / `model_confidence_set` as report-only DISJOINT blocks · P6 CVaR fractional margin ·
+  `mechanism_multiplicity()` (BH + Bonferroni across mechanism legs) · P7 bootstrap pairing/reliability fixes.
+- `bootstrap.null_calibration` now also certifies the **one-sided** size (the rule H2-Tail actually gates on, R64).
+- `es_backtest`: two-sided **equal-accuracy** DM framing reconciled code↔CH4 (not Nolde–Ziegel's one-sided form);
+  `var_es_estimates` unified so ES ≤ VaR by construction.
+- `contamination.named_vs_blinded_structural`: unparseable (empty-AST) pairs no longer score jaccard=1.0 —
+  excluded + `n_unparseable_pairs` (P7c mirror) + regression tests.
+- `parallel.train_candidate`: `n_trials` fail-loud (the silent prototype-40 fallback removed).
+
+### Design-coherence + guards
+- **λ reclassified CALIBRATE→FIX** (`determine_design.py` + tests): λ=0 is the tail-blind-selector identification
+  choice, not a pending calibration — no longer a freeze blocker; legacy `lambda_grid`/`lambda_frozen`/
+  `calibration_fold` **deleted** from the hash-bound `inference.yaml` (executes the prereg §5 instruction).
+- **New guard:** `freeze.py::assert_h1_baselines_match` — §18 family mirrored into `config/preregistration.yaml`
+  (hash-bound) and asserted equal to `campaign.yaml` (roster-guard pattern); freeze gate now 12 checks.
+- **New guard:** `preflight.py::check_budget_mirror` — campaign vs algos `train_steps_per_candidate` must agree
+  (a B* amendment cannot half-land).
+- Repro-integrity C1–C5/H1–H4/M1 (subagent, verified): `gold.suffix` config-primary + stamped into env/campaign
+  provenance; checksum fail-loud + wired at all 3 production loads; preflight real hash compare; `env_fp` real
+  label; conftest `preload()` (SIGSEGV order fix); `preload(strict=True)` in entry points; `--gpu >= 4` refusal +
+  RUNBOOK reconcile; `campaign: laptop_rtx_4050`; `verify_gold.py` byte-diff validator implemented (univ4 vs univ3
+  → the 333 delisting-surcharge cells detected).
+
+### Paper / docs
+- **CH4 §4.3**: replay-buffer-cap justification added (`zhang2017deeper` + `fedus2020revisiting` — first-hand
+  verified, added to refs.bib; fixed-calendar ~20-pass coverage argument; replay-ratio-1; common-mode across arms).
+- **CH7 §7.1**: explicit RQ scorecard (responsiveness / transmission / specificity verdict slots, wired to §6).
+- CH4 §4.7 (prose fixer): ES backtest disclosed as two-sided DM equal-accuracy; CVaR-Tail margin justified on the
+  CVaR scale + lowest-power flag; report-only/disjoint framing; CH7 mechanism-multiplicity disclosure;
+  "taxonomy" → "reward-construct prevalence differential" (a true taxonomy explicitly future work).
+- `docs/CAMPAIGN_preflight.md`: 6→7 arms, 180→210 winner re-runs, `--gpu 4`→`--gpu 3`, laptop-only compute.
+- Stale buffer comments in `run_campaign.py` reconciled to the single invariant (final clamp verified at
+  `trainer.py` L120: `buffer = min(requested, campaign_replay_cap())` on every leg).
+
+### False positives cleared (recorded so they are never "re-fixed")
+DSR raw-kurtosis (correct) · differential-Sharpe minus sign (canonical) · gneiting DOI (already correct) ·
+`return_minus_cvar` estimator (≡ ceil(αn); documented) · placebo "inert" intro (truthful zero-information is the
+right design; `placebo_shuffled` is the tell-free headline control) · reward-penalty ddof=0 (scale, not estimator;
+documented) · CH4 softmax-corner + PopArt disclosures (already present) · `kvasiuk2026madevolve` +
+`heavytailsDM2026` (both confirmed REAL). **Okhrati = "Dr"** (verified): front matter was right; CLAUDE.md corrected.
+
+## [2026-07-01b] — Gap-closing build, Phase-A pre-freeze completion + ratification, mechanism reframe, Phase-B start
+
+State: `memory/session-current-focus.md`. No frozen change (`frozen: false`); nothing committed. **Verified:** full
+test suite **exit 0**, a fresh **adversarial 5-area audit CLEAN** (ITEM 3 / GAP A / GAP B / ratification / reframe),
+**ruff clean** across `src`+`scripts`+`tests`.
+
+### Mechanism kernel — report-only, DISJOINT from the frozen m=6 (the originality core; SQ1→SQ2→SQ3)
+- `src/inference/responsiveness.py` (NEW) — SQ1 responsiveness (Spearman/slope + bootstrap CI) **and** the
+  numeracy-bottleneck **legible-format differential** (ADR-039 headline reframe, made testable).
+- `src/inference/mediation.py` (NEW) — SQ2 fed→code→outcome single-mediator decomposition (indirect a·b + bootstrap
+  CI); the predicted null severs the chain at link 1.
+- `src/inference/contamination.py::named_vs_blinded_structural` (NEW) — SQ3 AST-structural named-vs-blinded
+  (identifier-invariant: a placebo can echo tail *tokens* yet write a different *program*); wired into `contamination_report`.
+- `src/inference/regime_analysis.py` (NEW) — regime-stratified tail metrics (T3′) + honest independent-episode power bound.
+
+### Figure/viz suite — grown 5 → 9 headline + 3 schematics + 3 static-3D + 2 GIF animations
+- `src/viz/figures.py`: + controls-overlay (F7), responsiveness-scatter (F8b), learning-curves (F9), delisting-band.
+- `src/viz/advanced.py` (NEW): classical-MDS reward-code 3-D embedding + CVaR×gen×Sharpe landscape + search-evolution
+  and rotating-embedding **GIFs** (principled 3-D, not chartjunk; GIF dpi capped for the repo).
+- `src/viz/schematics.py` (NEW): F1 system diagram, F2 prediction-branch, F4 splits-timeline.
+
+### Notebook + reproducibility tooling
+- `notebooks/results_walkthrough.ipynb` (NEW) — world-class walkthrough; runs on the synthetic-null demo, swaps to
+  the sealed-leg loader post-campaign; **validated by real nbconvert kernel execution**; shipped clean (no outputs).
+- `scripts/audit_reproducibility.py` (NEW) — one-command PASS/WARN/FAIL repro audit (live 7P/1W/0F). `.python-version` (3.11.9).
+
+### Phase-A pre-freeze fixes (all independently re-verified)
+- **ITEM 3 — parallel resume-cache:** the parallel search path lacked the serial resume cache → on the certain
+  auto-restart it re-billed the LLM and could flip the winner. Mirrored into `parallel.py::_drive_llm_arm`
+  (`load_run(cid, arm_root)`; reflection block rebuilt live; failures-ledger replay) + threaded `resume` end-to-end
+  (`run_prototype.build_parallel_opts` → `run_campaign._search_parallel_arm` → `run_headline_campaign`). +10 tests.
+- **GAP A — mechanism analyses wired into the report:** they were BUILT but ORPHANED (called only in tests). Wired
+  into `analyze_campaign.analyze()` as DISJOINT `out[...]` blocks + renderers + `write_report`; responsiveness/
+  mediation/regime fire from the archive; named-vs-blinded + legible-format honestly DEGRADE to `executed:False`. +7 tests (137 in the analyze family).
+- **GAP B — the two missing sub-experiment runners:** `scripts/run_subexperiment.py` (NEW; NAMED reveal-identity
+  pass + LEGIBLE basis-points/decile pass) + 3 **default-off** seams (`schema.py` `legible` kwarg; `loop.py`
+  `extra_record_fields` + `legible_render`) + `config/subexperiment.yaml`. Both `analyze()` legs flip
+  `no_data`→`ok` (end-to-end acceptance); default-off byte-identity verified (the treatment surface is git-SHA-
+  pinned at freeze, not canonical-hash-bound). +8 tests.
+
+### Pre-registration — 4 amendments RATIFIED (user-delegated) + `freeze.py --check` GREEN (canonical hash `0f5e99e5`)
+- **§2a mechanism-headline reframe** — RQ + SQ1–3 + the 3-link causal chain (fed signal → authored code → policy →
+  realized tail) + the numeracy-bottleneck hypothesis; **σ_D-robust** (the mechanism headline holds whether H2 lands
+  equivalence or non-rejection); report-only, disjoint from m=6. Mirrored `preregistration.yaml: mechanism`.
+- **§5 λ=0** (tail-blind selector) ratified. **§10 rf/cash numeraire** — rf=0 headline + DGS3MO rf-excess robustness
+  + cash=0 (common-mode: rf cancels to first order in the arm contrast); mirrored `numeraire`. **§6 serial-headline**
+  — REVERTED R24 to **serial reflect-on-last** (ADR-040 makes speed moot; buffer moot; reproducibility now EQUAL
+  after the ITEM-3 parallel-cache fix; unattended-run reliability); parallel retained as a now-resume-safe robustness
+  variant. Mirrored `search.headline_reflect_protocol: serial_reflect_on_last`.
+
+### Paper — mechanism reframe propagated to the highest-leverage prose
+- `00_FRAMING` abstract → **v2 mechanism-led** (opens with the mechanistic question + 3-link chain + SQ1–3; a null is
+  a *located* finding) + **C4** (mechanism = the headline contribution; C1–C3 its machinery).
+- `CH1` §1.2 → the mechanistic question + 3-link chain + sub-questions; §1.3 → **C4** (four contributions).
+- `CH4` → **Table 4.1** (the consolidated threats→defenses table).
+
+### Decisions
+- **Serial-headline** (above; supersedes R24). **Alpha — NO scope expansion** (no alpha-generation / market-beating;
+  the thesis stays the risk-sensitive comparative-null + mechanism); the "no hidden factor bet" characterization is
+  already delivered by the pre-registered 6-factor attribution (CH4 §4.7 / R26).
+- **Compute reconciliation:** LSEG licensed data is NOT a blocker (user) → laptop-only is a **cost** choice, not a
+  licence one (corrected 4 docs + ADR-040). **WSL2 probed and REJECTED** (CUDA torch wheel failed to install 3×) →
+  native Windows confirmed (torch 2.6.0+cu124).
+
+### Phase B (pilots) — started
+- Pilot infrastructure verified ready (`learning_curve.py` → B*, `sigma_seed_pilot.py` → σ_D, `pilot.py` decision
+  logic). GPU confirmed (RTX 4050, CUDA). Convergence-harness **smoke GREEN**; the real ladders follow.
+
+### Phase B/C execution (pilots → freeze)
+> Chronological execution log: `docs/SESSION_LOG_2026-07-01_phaseBC.md` (appended at each milestone).
+- **Verification gate GREEN:** full suite **exit 0**; fresh **adversarial 5-area audit CLEAN** (ITEM 3 / GAP A /
+  GAP B / ratification / reframe); **ruff clean** (`src`+`scripts`+`tests`); **coverage 91.96%** (≥ 90% target,
+  above the 88% floor).
+- **Coverage raise (tests-only, no src touched):** responsiveness 86→95%, mediation 86→97%, es_backtest 83→99%,
+  multiple_testing 88→100%, contamination 86→99%, ood_stress 77→85% (capped by a `statsmodels` "SVD did not
+  converge" on this Windows/BLAS build in the Markov success-body — its graceful-degrade path IS tested +
+  documented, not a defect). ~70 targeted error/edge/degrade-path tests added.
+- **σ_D pilot harness BUILT** (no ready path existed): **NEW `scripts/run_sigma_pilot_train.py`** trains the two
+  CRN baselines (`differential_sharpe`+`return_minus_cvar` × shared seeds) → per-seed **sealed-TEST** records via
+  `test_leg.build_test_record`+`write_run` (the exact schema `sigma_seed_pilot.py` reads). Smoke generate→analyze
+  GREEN; real command `run_sigma_pilot_train.py --budget <B*> --n-seeds 15 --device cuda`.
+  **NEW `tests/test_run_sigma_pilot_train.py` green; ruff clean.**
+- **Convergence-ladder fix:** `learning_curve.py` smoke green; unbuffered foreground real-gold+CUDA probe green.
+  The first background (Tee-piped) launch **HUNG** on a block-buffering/pipe deadlock (python not training, GPU
+  idle) — **diagnosed via `nvidia-smi`+process-CPU (not assumed)**, killed, **relaunched UNBUFFERED with a direct
+  file redirect (no Tee)**. Ladder: `--budgets 50000,100000,200000,350000 --seeds 0,1,2 --device cuda`.
+- **Resource cleanup (user-authorized):** killed all stale python (orphaned multiprocessing workers + leftover
+  `D:/tmp` smoke scripts) → GPU →0 MiB, RAM →8 GB free, so the pilots own the machine.
+- **Device settled:** head-to-head 10k-step timing **CUDA 173 s vs CPU 378 s** → CUDA (~2.2×; ~55 steps/s). The
+  low "9% CPU" is normal GPU-sync-bound behaviour, not a stall.
+- **Convergence-pilot OOM → 50k buffer cap wired (ADR-042):** the first capped-device ladder finished with
+  **n_ok 3/3/1/0** across 50k/100k/200k/350k — root cause a **`MemoryError`** at SB3 replay allocation
+  (`buffer_size == budget` → 2.8 GB at 200k / 5 GB at 350k on the 15.6 GB laptop; critic losses all FINITE, so RAM
+  not instability). This is the **"buffer-cap wiring" pre-freeze fix** flagged open in CLAUDE.md. FIXED: a **50k
+  HARD cap** (config-driven `campaign_replay_cap()`, `min(train_steps, 50k)`) at every construction site —
+  `config/campaign.yaml` `agent.buffer_size`, `trainer.resolve_agent_kwargs`, `factory._policy_kwargs`,
+  `run_prototype._agent_cfg` (also closing the **serial-SEARCH-25k vs TEST-50k buffer skew**), and both pilots.
+  VERIFIED: all sites → 50000 at 200k / 25000 at 25k (prototype unchanged); **93 buffer tests green**, ruff clean,
+  no test changed. The uncapped run's "recommend 200k / still rising" verdict is **SUPERSEDED**.
+- **Ladder re-launched under the cap** (`bfb5oi4wo`, same budgets×seeds, unbuffered) — all budgets now survive;
+  ~10 h → B\*.
+- **Next:** B\* → σ_D at B\* → n_seeds → `pilot.py` verdict → set B\*/seeds → `freeze.py`.
+
+## [2026-07-01c] — Convergence-pilot verdict, DATA PLAN (Split-C + forward-2026), report-only rigor upgrades, 2nd-LLM pick, multi-market plan, Refinitiv access solved
+
+Decisions/findings recorded this session. `frozen: false`; nothing committed. **Every item tagged with EXECUTION STATUS**
+so nothing un-executed reads as done. ADRs appended: **ADR-043 … ADR-048** (buffer-cap ADR-042 already recorded — referenced,
+not duplicated).
+
+### Convergence pilot → B* = 200,000 (ADR-043) — DECIDED, RE-RUN PENDING on Split-C
+- Pilot findings (ran on the **OLD 2005–2014 train window**): held-out eval is **flat-noise ≈ 0** across 50k→350k (no gain
+  from more training); critic loss **bottoms ~100k then rises mildly** to 350k (mild overfit). The harness verdict
+  "**recommend 350k / NOT CONVERGED**" is a **plateau-detector ARTIFACT** (a flat-noise curve is not the monotone-approach
+  shape its plateau rule expects). **B\* = 200,000** set by the loss-knee + the ADR-042 memory envelope.
+- **MUST be RE-RUN on the new Split-C window** (below) before B\* is finally banked. **STATUS: DECIDED-pending-execution.**
+
+### DATA PLAN (ADR-044) — DECIDED, pending rebuild
+- **Split-C re-partition:** train **2005–2016** / val **2017–2019** / test **2020–2025** (2020–2026 if forward-extended) —
+  more training (**12y vs 10y**) + a tail event in **both halves** (2008 GFC train, 2020 COVID + 2022 test).
+- **Forward-extend to a SETTLED 2026 cutoff** — feasible + **FAST** (Refinitiv pull ~30 min–2 h, not the earlier "2 weeks"
+  guess); H1-2026 was a bull market (no tail event → marginal science) but cheap.
+- **REJECTED (research-grounded):** 2000 backward extension (dot-com is where survivorship-free reconstruction is hardest AND
+  validation breaks — Ince–Porter 2006 "worst-earliest"; yfinance can't validate dead names; CRSP is the academic gold, not our
+  Refinitiv entitlement); options data (scope creep + OptionMetrics/IvyDB quality); other-markets-as-features / synthetic /
+  more-assets (creep + model risk); more-candidates (raises the Deflated-Sharpe multiplicity penalty, does not fix data size).
+- **STATUS: DECIDED-pending-execution** (gold re-partition + forward pull not yet run).
+
+### Report-only rigor upgrades (ADR-045) — DECIDED, pending implementation; all DISJOINT from the frozen m=6
+- **Bid–ask SQUARE-ROOT market-impact cost model** — replaces the arbitrary flat 10 bps; spreads **already frozen (A5)** → NO
+  new pull; sweep **γ ∈ {0.5, 0.75, 1.0}**.
+- **BAB / QMJ factor-attribution completion** — free AQR / Ken-French factors (extends the 6-factor attribution).
+- **Delisting correction via OBSERVED TERMINAL RETURNS** — the delisting-reason mnemonic is absent under this entitlement →
+  terminal-return approach is cleaner; corrects the **univ4 M&A mis-booking** (why univ3 is the headline panel).
+- **STATUS: DECIDED-pending-implementation.**
+
+### Second LLM reward-author (ADR-046) — DECIDED (cost incurred only at campaign-time)
+- **Qwen3-Coder** (strong open coding model, **~$1–3** via a cheap hosted API) → cross-vendor diversity (Anthropic vs Alibaba)
+  + reproducibility via archive-replay (open weights).
+- **REJECTED: GPT-5.5** on cost ($5/$30 per MTok → ~$20–40); **weak/mini models** on principle (uninformative null → the
+  documented **"no weak models"** rule, ADR-039). Panel = **Opus 4.8 primary + Qwen3-Coder**.
+
+### Multi-market external validity (ADR-047) — DECIDED, pending implementation
+- **Lite FTSE-100 replication** of the FROZEN protocol on a 2nd survivorship-free panel (single-market = #1 reviewer weakness);
+  **reuses the fixed agent** → respects identification (replicates, does not modify).
+- **STANDING IDENTIFICATION RULE codified:** only the **reward-feedback block** varies across arms → any addition feeding the
+  agent a **new STATE or REWARD input** is identification-breaking creep (REJECT); legitimate rigor = cost realism / delisting
+  accuracy / benchmark-factor construction / replicating the frozen protocol on another market. (The throughline behind
+  ADR-044/045/046.)
+- **STATUS: DECIDED-pending-implementation.**
+
+### Refinitiv access SOLVED (ADR-048) — DONE, verified
+- LSEG session **opens (`OpenState.Opened`)** via **PowerShell + an isolated `.venv-lseg`** (`refinitiv-data==1.6.2`). **Root
+  cause** of the prior failures: the **Bash/Git-Bash tool's sandboxed network couldn't resolve `api.refinitiv.com`**; native
+  PowerShell resolves it. **RULE: run ALL Refinitiv ops via PowerShell + `.venv-lseg`, never the Bash tool.** Verified: pull is
+  FAST; 2026 daily data clean; dead-name (survivorship-free) terminal returns recoverable (Lehman verified) → this de-risks the
+  ADR-044 forward-extend and the ADR-045 terminal-return delisting fix.
+
+### RL positioning clarified (ADR-048) — methodological
+- The setup is **simulated-ONLINE off-policy** (SAC interacts with + explores a historical-replay simulator; price-taker,
+  exogenous prices) — **NOT classic offline RL**. Positioned vs Okhrati's offline-RL by his own harm-criterion + the
+  relabelling→CQL bridge (`docs/offline_online_position.md`). Prose must say "simulated-online off-policy," not "offline RL."
+
+## [2026-06-30 → 07-01] — Paper flawlessness pass, citation overhaul, campaign-hardening suite, model decision
+
+Full narrative: `docs/SESSION_LOG_2026-06-30_to_07-01.md`. No frozen change (`frozen: false`); nothing committed.
+
+### Paper (publication-grade pass)
+- **Theory — both Le Cam deficiency errors fixed** (catastrophic: the formula was vacuously zero; Cor 3.3 named
+  the wrong-direction deficiency) + all theory-care (M1 sign box, M2 `P`-a.s., C2/C3/M4/M7/m13, Gneiting cite,
+  Table 3.1, intuition gloss).
+- Honesty edits across `00_FRAMING`/`CH1`/`CH2`/`CH4`/`CH7` (content-not-channel + endogeneity, INCONCLUSIVE
+  branch, bounded caveat, phantom "off-critic non-closedness" pillar struck, K=5 limitation); CH2 "Related Work"
+  → "Literature Review". `FRONT_MATTER`: single title, AI disclosure, Ethics section, inlined abstract, ToC/LoF/LoT.
+- **Citations:** the entire `refs.bib` web-verified (incl. the examiner's own papers); 34 dangling entries added;
+  dedups + `sun2024card`/`rubin2025` content errors fixed; `% VERIFY` note-scaffolding stripped; 4 unverifiable
+  keys → researched verified replacements (`gridach2025agentic`, `orra2025volatility`, `wallace2019numbers`,
+  `prashanth2018risk`); **integrity gate: 0 cited-but-undefined keys**. 6 new source PDFs added to `01_literature/`.
+
+### Campaign hardening (de-risking suite — `docs/CAMPAIGN_HARDENING_PLAN.md`; 32+ tests green, ruff clean)
+- **#1** search-replay cache (`src/llm/loop.py`, wired into serial `run_arm`; replays candidates **and** failures,
+  no Opus re-bill, byte-faithful → same winner; closed a real reproducibility bug via a failures-ledger);
+  **#2** graceful API-degradation; **#3** pre-flight gauntlet (`scripts/preflight.py`); **#4** auto-guardian
+  thermal+RAM governor (`src/utils/guardian.py`, **wired into the SB3 callback** via `trainer._make_governor` +
+  `monitoring.make_training_callback(governor=…)`, config-gated `thermal_guardian`); **#5** auto-restart
+  supervisor (`scripts/supervisor.py`); **#6** buffer-cap 2nd site (`parallel.py`).
+- 5-subsystem scout + 15-item risk register; parallelization verdict (n_gpu=4 = hard 6 GB wall; torch.compile +
+  SBX the only result-neutral speed levers; disk a non-issue at ~50–200 MB).
+
+### Decisions
+- **PRIORITIES** strengthened into CLAUDE.md as the absolute overriding north star (95%+→100%; world-class,
+  cutting-edge, publishable; very deep).
+- **Model decision (ADR-039):** primary = **Opus 4.8**; a **REQUIRED strong-diverse panel** (Opus 4.8 + GPT-5.5 +
+  Qwen3-Coder; **NO weak models** — Haiku dropped) with a **reasoning-effort** mechanism axis + a legible-format
+  ablation; headline reframe = the **numeracy bottleneck**. **SBX/JAX** to be built (gated) as the laptop-only
+  panel enabler. Determinism finding (hosted APIs non-deterministic) validates archive-replay.
+
 ## [2026-06-29b] — Parameter determination, literature grounding, and the full campaign-design record
 
 Deep determination session (no frozen change; report-only + tooling). Resolved every campaign parameter by

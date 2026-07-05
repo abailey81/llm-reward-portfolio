@@ -1,5 +1,10 @@
 # Compute & Training-Time Plan
 
+> **⚠ SUPERSEDED 2026-07-01 (ADR-040).** The "rent the RTX 4090" recommendation below is **superseded**: the
+> campaign runs **laptop-only on the owned RTX 4050** (~2–3 weeks; no rented cloud — **no cloud-compute budget**;
+> a WSL2/GPU speed path was probed and rejected). The per-arm / per-seed accounting below is still useful for sizing; ignore
+> the rental-venue recommendation. Current plan: `docs/CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md` + ADR-040.
+
 **Authoritative compute reference** for the campaign. Supersedes the earlier "$50 Colab" (MASTER_PLAN
 Part VI) and "RTX 4090 + UCL Myriad" (FINAL_PLAN Part I) assumptions, because: (a) the student has **no
 UCL Myriad access**, (b) the owned machine is an **RTX 4050 laptop**, and (c) **Azure-for-Students GPU is

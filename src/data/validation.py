@@ -14,11 +14,18 @@ returns panel (see ``docs/DATA_PIPELINE_LIFECYCLE_ASSESSMENT.md`` for the strict
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from .panel import Panel
 
-__all__ = ["PanelContractError", "validate_panel"]
+if TYPE_CHECKING:  # pragma: no cover - typing only (pandas is a heavy import kept lazy)
+    import pandas as pd
+
+__all__ = ["PanelContractError", "validate_panel", "PanelOverlapDiff", "panel_overlap_diff"]
 
 #: A long simple return can lose AT MOST 100%, i.e. ``r >= -1.0``; exactly ``-1.0`` is a legitimate total
 #: loss (delisting / bankruptcy — and this project's delisting band includes -100%). Only ``r < -1.0``
@@ -130,7 +137,13 @@ def validate_panel(
     # --- market caps ---
     if panel.market_caps is not None:
         mc = np.asarray(panel.market_caps, dtype=float)
-        if np.isfinite(mc).all() and (mc < 0.0).any():
+        # Batch-4 audit #8 (2026-07-03): the two conditions are independent — the old combined
+        # `isfinite(mc).all() and (mc < 0).any()` silently SKIPPED the negativity check whenever any
+        # cap was NaN/inf (and never flagged the non-finite caps themselves).
+        if not np.isfinite(mc).all():
+            issues.append("market_caps contain non-finite values")
+        finite = mc[np.isfinite(mc)]
+        if (finite < 0.0).any():
             issues.append("market_caps < 0 -- a market capitalisation cannot be negative")
 
     return _finish(issues, strict)
@@ -142,3 +155,147 @@ def _finish(issues: list[str], strict: bool) -> list[str]:
             "Panel data-contract violated:\n  - " + "\n  - ".join(issues)
         )
     return issues
+
+
+# --------------------------------------------------------------------------- #
+# Rebuild validator: byte-diff a candidate returns panel vs the frozen one     #
+# --------------------------------------------------------------------------- #
+@dataclass
+class PanelOverlapDiff:
+    """Cell-level diff of a CANDIDATE returns panel against a FROZEN reference over their overlap.
+
+    The Phase-1 data rebuild produces a new-suffix panel; before it can replace the frozen ``univ3``
+    headline panel we must know EXACTLY which cells it changes over the shared 2005-2025 (date × RIC)
+    overlap — a rebuild that silently perturbs historical returns would move the headline tail. This
+    is a *report-only* comparison; it never mutates either panel.
+
+    Attributes
+    ----------
+    n_overlap_rows, n_overlap_cols:
+        Size of the shared (date × RIC) overlap actually compared.
+    n_changed_cells:
+        Count of overlap cells whose values differ (NaN-aware: NaN==NaN is treated as EQUAL, so
+        aligned missing data does not register as a change; NaN-vs-value DOES).
+    max_abs_delta:
+        Largest absolute value change over the overlap (``0.0`` if identical / no numeric overlap).
+    changed_examples:
+        Up to ``max_examples`` ``(date, ric, ref_value, cand_value)`` tuples for the first changed
+        cells (for a human-readable report / test assertion).
+    ref_only_cols, cand_only_cols:
+        RICs present in only one panel (schema drift — reported, not counted as changed cells).
+    ref_only_rows, cand_only_rows:
+        Session counts present in only one panel's date index (calendar drift).
+    """
+
+    n_overlap_rows: int
+    n_overlap_cols: int
+    n_changed_cells: int
+    max_abs_delta: float
+    changed_examples: list[tuple[str, str, float, float]] = field(default_factory=list)
+    ref_only_cols: list[str] = field(default_factory=list)
+    cand_only_cols: list[str] = field(default_factory=list)
+    ref_only_rows: int = 0
+    cand_only_rows: int = 0
+
+    @property
+    def identical_over_overlap(self) -> bool:
+        """True iff no overlap cell changed (schema/calendar drift is reported separately)."""
+        return self.n_changed_cells == 0
+
+    def summary(self) -> str:
+        """One-block human-readable summary (for the ``verify_gold`` CLI + logs)."""
+        head = (
+            f"overlap {self.n_overlap_rows} rows x {self.n_overlap_cols} cols; "
+            f"changed cells: {self.n_changed_cells}; max |delta|: {self.max_abs_delta:.3e}"
+        )
+        schema = (
+            f"ref-only cols: {len(self.ref_only_cols)} {self.ref_only_cols[:5]}; "
+            f"cand-only cols: {len(self.cand_only_cols)} {self.cand_only_cols[:5]}; "
+            f"ref-only rows: {self.ref_only_rows}; cand-only rows: {self.cand_only_rows}"
+        )
+        lines = [head, schema]
+        if self.changed_examples:
+            lines.append("first changed cells (date, ric, ref -> cand):")
+            for dt, ric, a, b in self.changed_examples:
+                lines.append(f"    {dt}  {ric}  {a!r} -> {b!r}")
+        return "\n  ".join(lines)
+
+
+def _read_returns_frame(source: "str | Path | pd.DataFrame") -> "pd.DataFrame":
+    """Load a returns panel (date-indexed, RIC-columned) from a parquet path or accept a DataFrame."""
+    import pandas as pd
+
+    if isinstance(source, pd.DataFrame):
+        return source
+    return pd.read_parquet(Path(source))
+
+
+def panel_overlap_diff(
+    candidate: "str | Path | pd.DataFrame",
+    reference: "str | Path | pd.DataFrame",
+    *,
+    max_examples: int = 20,
+) -> PanelOverlapDiff:
+    """Byte-diff a CANDIDATE returns panel against a FROZEN ``reference`` over their (date × RIC) overlap.
+
+    Both inputs are date-indexed, RIC-columned returns frames (the ``returns_panel_<suffix>.parquet``
+    shape) OR a parquet path to one. The comparison aligns on the INTERSECTION of dates and columns and
+    reports every differing cell (NaN-aware: two aligned NaNs are EQUAL; NaN-vs-number is a change).
+    Schema drift (columns/rows present in only one panel) is reported separately, not counted as a
+    changed cell — a rebuild legitimately adds/retires names, but must NOT alter shared historical cells.
+
+    This is the lean, working validator the Phase-1 rebuild runs to prove a new-suffix panel does not
+    perturb the frozen 2005-2025 history (``scripts/verify_gold.py`` wires it against frozen ``univ3``).
+    """
+    ref = _read_returns_frame(reference)
+    cand = _read_returns_frame(candidate)
+
+    ref_cols = [str(c) for c in ref.columns]
+    cand_cols = [str(c) for c in cand.columns]
+    ref_col_set, cand_col_set = set(ref_cols), set(cand_cols)
+    shared_cols = [c for c in ref_cols if c in cand_col_set]  # ref order, stable
+    ref_only_cols = [c for c in ref_cols if c not in cand_col_set]
+    cand_only_cols = [c for c in cand_cols if c not in ref_col_set]
+
+    ref_idx, cand_idx = ref.index, cand.index
+    shared_idx = ref_idx.intersection(cand_idx)
+    ref_only_rows = int(len(ref_idx) - len(shared_idx))
+    cand_only_rows = int(len(cand_idx) - len(shared_idx))
+
+    if len(shared_idx) == 0 or not shared_cols:
+        return PanelOverlapDiff(
+            n_overlap_rows=int(len(shared_idx)), n_overlap_cols=len(shared_cols),
+            n_changed_cells=0, max_abs_delta=0.0,
+            ref_only_cols=ref_only_cols, cand_only_cols=cand_only_cols,
+            ref_only_rows=ref_only_rows, cand_only_rows=cand_only_rows,
+        )
+
+    a = ref.loc[shared_idx, shared_cols]
+    b = cand.loc[shared_idx, shared_cols]
+    av = a.to_numpy(dtype=float)
+    bv = b.to_numpy(dtype=float)
+
+    # NaN-aware inequality: differ where values are unequal AND not both-NaN.
+    both_nan = np.isnan(av) & np.isnan(bv)
+    differ = (av != bv) & ~both_nan
+    n_changed = int(differ.sum())
+
+    delta = np.abs(av - bv)
+    delta[~np.isfinite(delta)] = 0.0  # NaN-vs-number deltas are non-finite; counted via `differ`, not size
+    max_abs_delta = float(delta[differ].max()) if n_changed and np.isfinite(delta[differ]).any() else 0.0
+
+    examples: list[tuple[str, str, float, float]] = []
+    if n_changed:
+        rows, cols = np.nonzero(differ)
+        for r_i, c_i in zip(rows[:max_examples], cols[:max_examples]):
+            examples.append(
+                (str(shared_idx[r_i]), shared_cols[c_i], float(av[r_i, c_i]), float(bv[r_i, c_i]))
+            )
+
+    return PanelOverlapDiff(
+        n_overlap_rows=int(len(shared_idx)), n_overlap_cols=len(shared_cols),
+        n_changed_cells=n_changed, max_abs_delta=max_abs_delta,
+        changed_examples=examples,
+        ref_only_cols=ref_only_cols, cand_only_cols=cand_only_cols,
+        ref_only_rows=ref_only_rows, cand_only_rows=cand_only_rows,
+    )

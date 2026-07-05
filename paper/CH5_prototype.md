@@ -1,11 +1,5 @@
 # Chapter 5 — The Prototype: Machinery Validation and Design Hardening
 
-> **Status: DRAFT v1 (2026-06-27), publication-standard.** Reports the directional pilot that preceded and shaped
-> the frozen confirmatory design of Chapter 4. Its purpose in the dissertation is twofold and explicitly *not
-> inferential*: it demonstrates the end-to-end machinery runs, and it documents — for pre-registration integrity —
-> exactly which methodological defects it exposed and how each was corrected before the design was frozen. Numbers
-> are the pilot's actual outputs; the inferential weight rests entirely on the confirmatory campaign (Chapter 6).
-
 ## 5.1 Purpose and status
 
 Before the confirmatory campaign was frozen, a full prototype was run end to end. Its role is that of a *pilot* in
@@ -20,14 +14,18 @@ hardening it produced.
 
 ## 5.2 Configuration and what ran
 
-The prototype instantiated the full pipeline of Chapter 4 at reduced scale: six arms (the five language-model arms
-without the later structure-shuffled control, plus the two search baselines), the Claude Sonnet 4.6 reward-designer,
+The prototype instantiated the full pipeline of Chapter 4 at reduced scale: six arms (four language-model arms —
+*distributional*, *scalar*, *placebo*, *scalar_cvar5* — plus the two search baselines *random_search* and
+*bayes_opt*; the confirmatory study's seventh arm, the structure-shuffled *placebo_shuffled* control, was added
+only later in hardening and so did not run in the prototype), the Claude Sonnet 4.6 reward-designer,
 a 25,000-step training budget, a single training seed, and the development splits. It ran to completion across all
 arms at a matched candidate budget, archived every prompt, authored reward and feedback block, and produced the
 full analysis stack (per-arm fitness, reward-program forensics, and the overfitting diagnostics). The headline
 engineering outcome is that the apparatus works end to end — the language model authors valid reward code, the
 sandbox gates it, the agent trains, the off-critic estimator produces the fed vectors, and the analysis replays
-deterministically from the archive. This alone discharged the principal execution risk of the project.
+deterministically from the archive. This alone discharged the principal execution risk of the project. The run completed in approximately 17.9 hours
+of wall-clock on a single consumer GPU, evaluating some 240 authored candidates across the six arms over eight
+reflective generations, at an API cost of about \$3.17.
 
 ## 5.3 What the pilot actually showed — and why it is a (weak) null, not a signal
 
@@ -56,7 +54,19 @@ branch**: under a tail-blind selector and a non-responsive designer, the dominan
 prototype is therefore a *weak null leaning against the hypothesis*, not a promising directional positive — and the
 honest consequence is that there was no real signal for the subsequent design to be reverse-engineered toward. This
 is the crux of the pre-registration-integrity argument: the confirmatory design was hardened by the *defects* the
-pilot exposed, and the sealed 2018–2025 leg was never touched in the process.
+pilot exposed, and the sealed test leg was never touched in the process.
+
+Honesty requires going one step further. The *negative* responsiveness is not only an instrument reading to be
+discounted for its single-seed, saturated-gate limitations; taken at face value it is a genuine prior *against* the
+study's own now-headline mechanism claim — that showing the designer the downside changes the reward code it writes
+in a tail-improving direction. A designer whose authored code moves *opposite* the fed tail is, on its face,
+evidence that the feedback→code link this dissertation is built to detect may be weak or absent, and we do not
+explain it away. Instead the confirmatory design confronts it on its own terms: responsiveness is carried as a
+pre-registered, **report-only** mechanism measure on the real 30-seed campaign — never as a directional result read
+off the pilot — scored against the fed signal across seeds, with the saturated binary gate replaced by the
+quantitative reward-program differential (§5.4). Whether the negative sign is a single-seed artefact or a real
+boundary condition on the mechanism is thus left to the powered, sealed-leg analysis of Chapter 6, prejudged in
+neither direction.
 
 ## 5.4 The hardening: from pilot defects to the frozen design
 
@@ -98,8 +108,3 @@ pattern is a single-seed, wrong-unit, control-reversed null, and the dissertatio
 on the per-seed, sealed-leg, pre-registered confirmatory analysis of Chapter 6. That the directional pattern is a
 null *consistent with the theory's prediction* is noted as corroboration of the mechanism account, not as evidence;
 the confirmatory campaign is what tests it at power.
-
----
-
-### Citation keys introduced in this chapter (add to `refs.bib` from the verified backbone)
-`agarwal2021rliable`, `vanhasselt2016popart`, `gleave2021epic`, `skalse2024starc`.

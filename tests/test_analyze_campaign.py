@@ -1012,13 +1012,14 @@ def test_delisting_band_skips_when_audit_ric_absent_from_panel() -> None:
 
 def test_delisting_band_default_is_pinned_to_univ4_not_gold_suffix(monkeypatch) -> None:
     """V3 (2026-06-26): the band must LOCATE its cells from the suffix that carries them (univ4),
-    INDEPENDENT of the headline ``gold_suffix()``. Post-R44 the default panel is univ3, whose audit log
-    ``shumway_audit_log_univ3.parquet`` does NOT exist — so deferring to gold_suffix() silently skipped
-    the LOAD-BEARING band. Here gold_suffix() is forced to univ3 yet the arg-less band still reads univ4
-    and produces numbers (when the real univ4 parquets are on disk)."""
+    INDEPENDENT of the headline ``gold_suffix()``. The headline default (post-R44 univ3; univ5
+    post-Split-C) carries NO audit log — ``shumway_audit_log_univ5.parquet`` does NOT exist — so
+    deferring to gold_suffix() silently skipped the LOAD-BEARING band. Here gold_suffix() is forced to
+    the ACTIVE univ5 yet the arg-less band still reads univ4 and produces numbers (when the real univ4
+    parquets are on disk)."""
     import src.data.loaders as _loaders
 
-    monkeypatch.setattr(_loaders, "gold_suffix", lambda: "univ3")  # force the post-R44 headline default
+    monkeypatch.setattr(_loaders, "gold_suffix", lambda: "univ5")  # force the ACTIVE headline default
     monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
     repo_root = Path(__file__).resolve().parents[1]
     if not (repo_root / "data" / "gold" / "returns_panel_univ4.parquet").exists():
@@ -1062,16 +1063,17 @@ def test_delisting_band_runs_disk_free_via_injection(monkeypatch) -> None:
     pytest.skips when ``returns_panel_univ4.parquet`` is absent — a SILENT skip is exactly the
     V3 failure mode it is supposed to catch. This twin feeds a SYNTHETIC panel + audit through the
     injectable params so the band runs to ``status="ok"`` regardless of disk, and asserts the load
-    is pinned to univ4 (``cells_source``). gold_suffix() is forced to univ3 to prove the band does
-    NOT defer to the headline default."""
+    is pinned to univ4 (``cells_source``). gold_suffix() is forced to univ5 (the ACTIVE headline
+    default, which carries no audit log) to prove the band does NOT defer to it."""
     import src.data.loaders as _loaders
 
-    monkeypatch.setattr(_loaders, "gold_suffix", lambda: "univ3")  # the post-R44 headline default
+    monkeypatch.setattr(_loaders, "gold_suffix", lambda: "univ5")  # the ACTIVE headline default
     monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
 
-    # A synthetic panel inside the frozen 2018-2025 window; two names die WITH a last-valid session
-    # that lands in the test window (rows 150 / 120), mirroring the verified univ4 last-valid mapping.
-    dates = pd.bdate_range("2018-01-02", periods=200)
+    # A synthetic panel inside the frozen 2020-2026 evaluation window (SPLIT C); two names die WITH a
+    # last-valid session that lands in the test window (rows 150 / 120), mirroring the verified univ4
+    # last-valid mapping.
+    dates = pd.bdate_range("2020-01-02", periods=200)
     rng = np.random.default_rng(7)
     panel = pd.DataFrame(
         rng.standard_normal((200, 4)) * 0.01, index=dates, columns=["A", "B", "C", "D"]
@@ -1082,13 +1084,13 @@ def test_delisting_band_runs_disk_free_via_injection(monkeypatch) -> None:
     audit = pd.DataFrame(
         {"ric": ["A", "B"], "delisting_return": [-0.30, -0.55], "value": [-0.30, -0.55]}
     )
-    tw = ("2018-01-02", "2025-12-31")  # inside the frozen evaluation span
+    tw = ("2020-01-02", "2026-06-30")  # inside the frozen evaluation span (SPLIT C)
 
     b = AC.delisting_band(panel_df=panel, audit_df=audit, test_window_dates=tw)
 
     assert b["status"] == "ok"  # NOT "skipped" — the V3 silent-skip regression
     assert b["n_delisting_cells_in_test"] >= 1
-    assert b["cells_source"] == "univ4"  # pinned to DELISTING_BAND_AUDIT_SUFFIX, not gold_suffix()=univ3
+    assert b["cells_source"] == "univ4"  # pinned to DELISTING_BAND_AUDIT_SUFFIX, not gold_suffix()=univ5
     # The band is monotone in d: a more-negative delisting return gives a CVaR no LESS negative.
     c5 = [b["cvar"]["0.05"][f"{d:g}"] for d in (0.0, -0.30, -0.55, -1.00)]
     assert all(v == v for v in c5)  # all finite

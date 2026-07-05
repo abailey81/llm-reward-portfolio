@@ -105,7 +105,7 @@ def pbo(
         combos = list(itertools.combinations(all_block_ids, half))
     else:
         if rng is None:
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
         seen: set[tuple[int, ...]] = set()
         block_arr = np.arange(s)
         while len(seen) < max_combinations:

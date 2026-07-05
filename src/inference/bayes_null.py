@@ -79,6 +79,14 @@ def jzs_bf10(t: float, n: int, r: float = DEFAULT_R) -> float:
     1-D integral over the variance hyperparameter ``g`` (computed with :func:`scipy.integrate.quad`)."""
     if not math.isfinite(t):
         return float("inf")  # an unbounded observed effect -> decisive evidence for H1
+    if abs(t) > 10.0:
+        # Far outside the null regime the JZS BF10 is monotone increasing in |t| (already decisive,
+        # BF10 >> 100 at |t| = 10 for any r in R_GRID), but the quad integrand UNDERFLOWS at extreme
+        # |t|: num -> 0 => bf10 = 0 => bf01 = inf => the downstream verdict degrades to 'inconclusive'
+        # (or 1/bf10 raises ZeroDivisionError in bf01_robustness_curve) for a decisively NON-null
+        # effect — the WRONG direction. Short-circuit to decisive evidence AGAINST the null instead
+        # (bf01 = 1/inf = 0.0 -> the evidence_against_null branch in bayesian_null_report).
+        return float("inf")
     nu = n - 1
     r2 = r * r
 

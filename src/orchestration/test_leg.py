@@ -1,7 +1,7 @@
 """Shared + PARALLEL campaign TEST leg (the 180 winner re-runs).
 
 The campaign's TEST stage trains the FROZEN winner at each of 30 seeds and touches the sealed
-2018-2025 test leg EXACTLY ONCE per seed (``scripts/run_campaign.py::evaluate_winner_on_test``). Those
+2020-2026 test leg EXACTLY ONCE per seed (``scripts/run_campaign.py::evaluate_winner_on_test``). Those
 180 ``(winner × seed)`` runs are embarrassingly parallel — each reseeds the full stack, trains from
 scratch, and rolls the test leg once, with NO reflection coupling — so they run across the device pool
 via :func:`src.orchestration.parallel.run_recycling` for the max-throughput laptop campaign.
@@ -45,6 +45,8 @@ def build_test_record(
     test_gross: Any = None,
     test_turnover: Any = None,
     popart_scale: dict[str, Any] | None = None,
+    train_safe_default_count: int | None = None,
+    train_safe_call_count: int | None = None,
 ) -> dict[str, Any]:
     """Assemble the ONE archive record for a ``(winner, seed)`` TEST run.
 
@@ -75,6 +77,12 @@ def build_test_record(
         # T2.4: the realised PopArt scale (sigma_max/last) the FROZEN-winner critic saw at THIS seed, so
         # the per-seed cross-arm sigma distribution is auditable at the test leg too (mirrors the search leg).
         metrics["popart_scale"] = popart_scale
+    if train_safe_default_count is not None and train_safe_call_count is not None:
+        # R66 (2026-07-03): training-window SAFE_DEFAULT substitution counts for THIS seed's re-training
+        # of the frozen winner (train_agent attach) — the per-seed audit that no test-leg policy
+        # part-trained on the 0.0 fallback signal. Additive/optional, mirrors popart_scale above.
+        metrics["train_safe_default_count"] = int(train_safe_default_count)
+        metrics["train_safe_call_count"] = int(train_safe_call_count)
 
     return {
         "run_id": f"{arm}-s{int(seed)}",
@@ -112,7 +120,12 @@ def _load_test_panel(descriptor: dict[str, Any]) -> Any:
     (``make_synthetic_panel(seed=0)``) — both identical to the panel the main process resolved windows on.
     """
     if descriptor.get("synthetic"):
-        key = "syn"
+        # Honour a descriptor-supplied SHAPE (ops audit 2026-07-02): the campaign driver's synthetic
+        # panel is 7800 sessions (it must span the frozen calendar splits for resolve_windows), so a
+        # worker hardcoded to 600 days would rebuild a DIFFERENT panel than the one the driver resolved
+        # its windows on. Bare {"synthetic": True} descriptors (tests, the sigma pilot) keep the
+        # historical (30, 600) defaults — fully back-compatible. The shape is part of the cache key.
+        key = f"syn:{descriptor.get('n_assets', 30)}:{descriptor.get('n_days', 600)}"
     else:
         key = f"gold:{descriptor.get('phase')}:{descriptor.get('end')}:{descriptor.get('on_missing')}"
     if key in _TEST_PANEL_CACHE:
@@ -120,7 +133,11 @@ def _load_test_panel(descriptor: dict[str, Any]) -> Any:
     if descriptor.get("synthetic"):
         from src.data.synthetic import make_synthetic_panel
 
-        panel = make_synthetic_panel(n_assets=30, n_days=600, seed=0)
+        panel = make_synthetic_panel(
+            n_assets=int(descriptor.get("n_assets", 30)),
+            n_days=int(descriptor.get("n_days", 600)),
+            seed=0,
+        )
     else:
         from src.data.loaders import load_gold_panel
 
@@ -205,6 +222,10 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
         trainer = make_agent_trainer(agent_cfg, seed)
         policy = trainer(bundle.train_env())
         popart_scale = getattr(policy, "popart_scale", None)  # T2.4 realised scale at this seed
+        # R66: training-window SAFE_DEFAULT counts (train_agent attach) — read from the policy ATTRS
+        # (frozen at train end); the test rollout below re-zeroes the live executor counters.
+        train_sd_count = getattr(policy, "train_safe_default_count", None)
+        train_call_count = getattr(policy, "train_safe_call_count", None)
 
         if hasattr(bundle, "test_series"):  # B4 once-only; prefer the gross/turnover superset
             series = bundle.test_series(policy)
@@ -226,6 +247,8 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
             test_gross=test_gross,
             test_turnover=test_turnover,
             popart_scale=popart_scale,  # T2.4 cross-arm sigma audit at the test leg
+            train_safe_default_count=train_sd_count,  # R66 per-seed training-substitution audit
+            train_safe_call_count=train_call_count,
         )
         if str(device).startswith("cuda"):
             torch.cuda.empty_cache()
@@ -273,11 +296,14 @@ def evaluate_winners_on_test_parallel(
 
     Builds one spec per ``(arm, seed)`` (skipping ``done_ids`` for ``--resume``), runs them through the
     device pool with manual recycling (``run_recycling``), and writes each ok record under
-    ``test_root/<arm>/``. Science-neutral with the serial path: the same records via
-    :func:`build_test_record`, the same once-only test touch (in the worker), and the SAME frozen/test
-    **desync guard** applied here once per winner (so a re-searched-resume winner swap can never silently
-    test a different reward — audit final-#10). ``runner``/``worker``/``write`` default to the production
-    implementations and are injectable so this orchestration is unit-tested with no spawn / no torch.
+    ``test_root/<arm>/`` — STREAMED per completed future via the runner's ``on_result`` hook (F1), with
+    the post-loop writer as the idempotent retry for rows whose streaming write failed. Science-neutral
+    with the serial path: the same records via :func:`build_test_record`, the same once-only test touch
+    (in the worker), and the SAME frozen/test **desync guard** applied here once per winner (so a
+    re-searched-resume winner swap can never silently test a different reward — audit final-#10).
+    ``runner``/``worker``/``write`` default to the production implementations and are injectable so this
+    orchestration is unit-tested with no spawn / no torch; an injected ``runner`` must accept the
+    ``on_result`` keyword (see :func:`run_recycling`).
     """
     import hashlib
 
@@ -334,14 +360,35 @@ def evaluate_winners_on_test_parallel(
                 }
             )
 
-    results = runner(specs, worker=worker, n_gpu=n_gpu, n_cpu=n_cpu, recycle_every=recycle_every)
+    # F1 (streaming archival, ultrareview 2026-07-02): archive each ok record THE MOMENT its future
+    # completes, not after the whole leg — a crash at hour N of the multi-day TEST leg must lose only
+    # the in-flight work (the 2026-07-02 σ_D incident's farm survived precisely because its workers
+    # wrote incrementally). ``streamed`` holds the run_ids durably written here; the post-loop writer
+    # below skips them and RETRIES only rows whose streaming write failed (run_recycling stamps those
+    # with ``archive_error`` instead of aborting the batch — a transient disk error costs a retry, not
+    # the leg).
+    streamed: set[str] = set()
+
+    def _archive_now(r: dict[str, Any]) -> None:
+        if r.get("ok") and r.get("record") is not None:
+            rec = r["record"]
+            write(rec, str(test_root / str(rec["arm"])))
+            streamed.add(str(rec["run_id"]))
+
+    results = runner(
+        specs, worker=worker, n_gpu=n_gpu, n_cpu=n_cpu, recycle_every=recycle_every,
+        on_result=_archive_now,
+    )
 
     written: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     for r in results:
         if r.get("ok") and r.get("record") is not None:
             rec = r["record"]
-            write(rec, str(test_root / str(rec["arm"])))
+            if str(rec["run_id"]) not in streamed:
+                # Idempotent safety net: this row's streaming write failed (archive_error) — retry now
+                # that the pool is drained (write_run's atomic tmp+replace makes a re-write safe).
+                write(rec, str(test_root / str(rec["arm"])))
             written.append(rec)
         else:
             failures.append({"run_id": r.get("run_id"), "arm": r.get("arm"), "error": r.get("error")})

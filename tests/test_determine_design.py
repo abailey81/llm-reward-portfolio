@@ -58,10 +58,16 @@ def test_best_so_far_curves_is_monotone_and_per_arm() -> None:
 # Determination-status overlay + freeze readiness                              #
 # --------------------------------------------------------------------------- #
 def test_determine_blocks_freeze_when_measure_params_pending() -> None:
-    res = dd.determine({})  # no evidence: B*, candidates, seeds, lambda all unresolved
+    res = dd.determine({})  # no evidence: B*, candidates, seeds unresolved (lambda is FIX-class, never blocks)
     assert res["freeze_ready"] is False
-    for blocker in ("train_steps_per_candidate", "n_seeds", "candidates_per_arm", "lambda_frozen"):
+    for blocker in ("train_steps_per_candidate", "n_seeds", "candidates_per_arm"):
         assert blocker in res["blockers"]
+    # lambda_cvar is 0 BY DESIGN (tail-blind selector; prereg fitness.lambda_cvar, freeze gate #7) — it was
+    # reclassified CALIBRATE -> FIX (2026-07-02) and must never appear as a freeze blocker.
+    assert "lambda_cvar" not in res["blockers"] and "lambda_frozen" not in res["blockers"]
+    rows = {r["name"]: r for r in res["rows"]}
+    assert rows["lambda_cvar"]["class"] == dd.ParamClass.FIX.value
+    assert rows["lambda_cvar"]["status"] == dd.Status.FIXED.value
 
 
 def test_determine_cash_rate_zero_is_fix_needed() -> None:
@@ -72,16 +78,53 @@ def test_determine_cash_rate_zero_is_fix_needed() -> None:
     assert rows2["cash_daily_rate"] == dd.Status.DETERMINED.value
 
 
+def test_determine_cash_zero_decided_when_numeraire_ratified() -> None:
+    """cash=0 MATCHING the §10-ratified numeraire (2026-07-01) is a DECISION, not a defect:
+    FIX_NEEDED encoded pre-ratification semantics. A mismatching anchor must NOT clear it."""
+    rows = {r["name"]: r["status"] for r in dd.determine(
+        {"cash_daily_rate": 0.0, "numeraire_ratified_cash": 0.0})["rows"]}
+    assert rows["cash_daily_rate"] == dd.Status.DECIDED.value
+    # anchor present but MISMATCHED -> still FIX_NEEDED (the env drifted from the ratified value)
+    rows2 = {r["name"]: r["status"] for r in dd.determine(
+        {"cash_daily_rate": 0.0, "numeraire_ratified_cash": 0.0001})["rows"]}
+    assert rows2["cash_daily_rate"] == dd.Status.FIX_NEEDED.value
+
+
 def test_determine_freeze_ready_when_all_blockers_resolved() -> None:
     ev = {
         "recommended_budget": 150_000,
         "candidates_saturated": True,
         "sigma_seed_pilot": True,
-        "lambda_frozen": 2.0,
         "cash_daily_rate": 0.00012,
     }
     res = dd.determine(ev)
     assert res["freeze_ready"] is True and res["blockers"] == []
+
+
+def test_determine_candidates_decided_by_ratified_cap_when_not_saturated() -> None:
+    """Saturation is diagnostic-only: a False verdict + the ratified 30-cap (2026-07-01, multiplicity)
+    must yield DECIDED and NOT block the freeze — requiring saturated=True made freeze-readiness
+    unsatisfiable pre-campaign (the real prototype archive judges NOT-saturated: scalar's gen-7 jump)."""
+    ev = {
+        "recommended_budget": 150_000,
+        "candidates_saturated": False,   # the honest prototype verdict
+        "candidates_ratified": 30,       # the ratified decision anchor (campaign.yaml)
+        "sigma_seed_pilot": True,
+        "cash_daily_rate": 0.00012,
+    }
+    res = dd.determine(ev)
+    rows = {r["name"]: r["status"] for r in res["rows"]}
+    assert rows["candidates_per_arm"] == dd.Status.DECIDED.value
+    assert "candidates_per_arm" not in res["blockers"]
+    assert res["freeze_ready"] is True
+
+
+def test_determine_candidates_pending_without_ratified_anchor() -> None:
+    """No saturation AND no ratified value -> the parameter genuinely blocks (no silent unblocking)."""
+    res = dd.determine({"candidates_saturated": False})
+    rows = {r["name"]: r["status"] for r in res["rows"]}
+    assert rows["candidates_per_arm"] == dd.Status.PENDING.value
+    assert "candidates_per_arm" in res["blockers"]
 
 
 def test_registry_blockers_are_only_measure_or_calibrate() -> None:

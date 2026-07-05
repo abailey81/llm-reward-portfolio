@@ -59,7 +59,10 @@ from the hashed content and `make freeze-check` re-derives the same digest on th
 difference_tests, sesoi, equivalence_margin, cost_sweep.grid_bps). Current pre-freeze gate hash (informational; becomes
 the recorded value if no further amendments): `7e6da01f73811e4e92f8b05643b0222170743badcbf7976b1d6879a3193e41d6`. Run
 `make freeze` (signed tag `prereg-v1.0`, best-effort `ots stamp`) to complete the freeze and paste the printed hash here.
-**λ frozen value.** ⟨after §3 calibration procedure; new ADR⟩
+**λ frozen value.** **λ = 0** (a deliberately tail-blind selector; `config/preregistration.yaml`
+`fitness.lambda_cvar: 0.0`) — NOT a calibrated value: a tail-blind selector is the pre-registered design choice,
+so any tail effect is attributable to the feedback channel, not the selector. (Supersedes the original
+"after §3 calibration procedure" placeholder.)
 
 ## ADR-006 — Initial build verified (2026-06-10)
 **Decision.** Ship the scaffold with the test suite as the commit gate.
@@ -730,3 +733,336 @@ campaign. (d) `anthropic` SDK confirmed installed (0.111.0; already a pyproject 
 `usage` was archived — the full path (load_dotenv → key → SDK → model → transport → archive) verified
 end-to-end. **Scope:** prototype-author change only; the pre-registered campaign design (Opus 4.8, frozen H2
 family, seeds, splits) is untouched.
+
+## ADR-039 — Reward-designer: Opus 4.8 primary + a REQUIRED strong-diverse panel; the numeracy-bottleneck reframe; SBX as the panel enabler (2026-07-01; user-directed)
+**Decision.** (1) The confirmatory **primary** reward-designer stays **Claude Opus 4.8** — the most capable,
+stable, generally-available frontier model, so a null on it is unassailable ("even the best does not exploit the
+channel"). (2) A **multi-model PANEL is now REQUIRED** (not optional) to earn the world-class / publishable
+generality the strengthened priorities demand; composed of **strong, diverse models ONLY — no weak models**:
+**Opus 4.8 + GPT-5.5 + Qwen3-Coder** (open-weights, the reproducibility anchor) [+ optional Gemini 3.1 Pro /
+DeepSeek V4]. (3) The mechanism / responsiveness axis is a **reasoning-effort sweep** (GPT-5.5 `none→xhigh`;
+DeepSeek think vs non-think) **+ a legible-format ablation** — explicitly **NOT** a weak-model capability ladder.
+(4) The **headline reframe is the numeracy bottleneck**.
+**Rationale.** (a) *Determinism is dead* for hosted frontier APIs — Opus 4.8 removed `temperature`/`top_p`/`seed`;
+the cause is batch-invariance under dynamic server batching (Thinking Machines, 2025) → this **validates the
+archive-replay design** as the only reproducibility path, and means only a **self-hosted open model** (Qwen3-Coder)
+gives true independent reproducibility. (b) *The numeracy bottleneck* — frontier LLMs cannot reliably
+verbalize/compare close small floats (50–70%; arXiv 2602.07812, NUMCoT 2406.02864); our fed CVaR values
+(−0.0577 vs −0.0582) sit in the failure regime → a **citable mechanism for the predicted null** + a scaling
+hypothesis. (c) *No weak models* (user-directed): a weak model failing is uninformative and invites the "you used
+a weak model" dismissal, and is redundant with a bottleneck that predicts even strong models fail; the
+**reasoning-effort axis** tests scaling with strong models only — sharper and more novel. (d) *Sonnet 5* (released
+2026-06-30; near-Opus at ~40% cost) belongs **in the panel**, not as sole primary (1-day-old → stability risk for
+a frozen, months-later-examined run). (e) Licences verified clean: Qwen3 = Apache-2.0, DeepSeek = MIT,
+Kimi K2 = Modified-MIT.
+**SBX.** The panel multiplies the laptop SEARCH compute (~N×); cloud is LSEG-licence-blocked → an **SBX/JAX SAC
+backend (~5–10×) is the only laptop-only enabler** and will be **built (gated)**: developed on synthetic data,
+adopted **iff** Phase-0-valid **and** ≥3–5× faster; SBX-SAC need only be a sound SAC used identically across arms
+(not byte-match SB3). Fallback if it fails the bar: SB3 + a reduced panel.
+**Scope.** Pre-freeze (`frozen: false`) — to be **ratified into `PREREGISTRATION.md` at Phase 4 before `freeze`**
+(USER ratifies). Supersedes the single-Claude-family framing in prior notes. The prototype (ADR-038, Sonnet 4.6,
+directional-only) is unchanged. Full session context: `docs/SESSION_LOG_2026-06-30_to_07-01.md`.
+**↑ SBX clause SUPERSEDED by ADR-040 (2026-07-01) — both software speed levers are infeasible on native Windows;
+the panel is achieved via a longer run, not a speedup.**
+
+## ADR-040 — No software speedup on native Windows: drop SBX; achieve the panel via a longer run, not a backend rewrite (2026-07-01; empirical)
+**Finding (empirically probed, not assumed).** This is a **native-Windows** laptop (win32, torch 2.6.0+cu124, RTX
+4050). BOTH result-neutral speed levers are **blocked here**: (a) **`torch.compile` FAILS** — `Cannot find a
+working triton installation` (Triton, the GPU-kernel compiler the inductor backend needs, has no native-Windows
+support); (b) **SBX/JAX-GPU is unavailable** — JAX has no native-Windows CUDA, so it would require a **WSL2
+platform migration** (move the whole pipeline — env, gold data, sandbox, orchestration — into Linux + re-validate),
+**not** a clean spike. So the laptop speed ceiling is essentially **fixed at ~178–235 steps/s** (n_gpu 2–3, TF32 on).
+**Decision.** **DROP the SBX spike** (the ADR-039 SBX clause is superseded). The multi-model panel needs *time*,
+not a speedup — and the **1 Sep 2026 deadline (~2 months out) supplies it**: at ~200 steps/s a 3-model strong
+panel (Opus 4.8 full 7-arm + GPT-5.5 + Qwen3-Coder on the reduced headline contrast / fewer seeds) is **~2–3 weeks
+laptop-only**, comfortably inside the deadline. The exact panel-size-vs-time is confirmed by the pilot's wall-clock
+projection (`scripts/pilot.py`) at Phase 3.
+**Why this is better.** It (i) keeps the world-class 3-model generality + reproducibility-anchor panel; (ii)
+**removes the SBX backend-rewrite risk** right before freeze (serves the "minimise risk" priority); (iii) requires
+no migration. The model panel from ADR-039 is unchanged (Opus 4.8 primary + GPT-5.5 + Qwen3-Coder; reasoning-effort
+axis; numeracy-bottleneck reframe) — only the *enablement* changes (longer run, not SBX).
+**WSL2 path — PROBED AND REJECTED (empirical, 2026-07-01).** WSL2 is installed and in principle would unlock
+*both* `torch.compile` (~1.6×) and SBX (~5–10×) via Linux (CUDA passthrough verified working). It was actually
+attempted, and **the CUDA `torch` wheel failed to install three times** — first "No module named torch" (deps
+installed, the torch wheel did not), then truncated CUDA libs (`libcudart.so.12 / libnvrtc.so.12: file too
+short`), then the same on a clean reinstall — a systematic large-wheel truncation (most likely the Windows
+Defender scan of the WSL vhd). With the deadline already comfortably met by the native run, this was **not worth
+further debugging**. **Decision: stay native Windows** (torch 2.6.0+cu124 already validated + reproducible).
+Default = laptop-only, native-Windows, longer run, no migration.
+**Compute venue (2026-07-01, user-confirmed).** The campaign stays **laptop-only** — the decisive reason is
+**cost: there is no budget for rented cloud GPU right now**. (The data-licence cloud-egress question, raised in
+older notes, is *not* the blocker — the user confirmed the licensed data is "not an issue"; it is moot given the
+cost decision.) Cloud remains a future option if a budget appears, but is not pursued.
+**Scope.** Pre-freeze. `frozen: false`. Empirical basis recorded in `docs/SESSION_LOG_2026-06-30_to_07-01.md`.
+
+## ADR-041 — Four pre-freeze amendments RATIFIED; alpha scope-expansion REJECTED (2026-07-01; user-delegated)
+**Ratified** (user-delegated authority; `freeze.py --check` GREEN, canonical hash `0f5e99e5`). Four amendments flipped
+PROPOSED→RATIFIED in `PREREGISTRATION.md` + mirrored in `config/preregistration.yaml`: (1) **§2a mechanism-headline
+reframe** — the foregrounded RQ is the MECHANISM (does showing the LLM the downside change the reward CODE, and does
+it propagate?), a 3-link causal chain with SQ1 responsiveness / SQ2 transmission / SQ3 specificity; report-only,
+DISJOINT from the frozen m=6; **σ_D-robust** (the headline holds whether H2 lands equivalence or non-rejection).
+(2) **§5 λ=0** (tail-blind selector). (3) **§10 rf/cash numeraire** — rf=0 headline + DGS3MO rf-excess robustness +
+cash=0; the risk-free term cancels to first order in the arm contrast, so it cannot move the H2 ordering. (4) **§6
+serial-headline** — reverts R24 to **serial reflect-on-last** (ADR-040 makes parallel's speed edge moot; the buffer
+skew was a prototype-config artefact; the ITEM-3 parallel-cache fix made reproducibility EQUAL across paths → the
+prototype-validated serial path's unattended-run reliability decides it); parallel reflect-on-best retained as a
+now-resume-safe robustness variant.
+**ALPHA scope expansion — REJECTED.** Rejected in both readings: (A) an alpha-*generation* / market-beating
+objective would breach the frozen contribution axis (feedback channel, fixed agent), re-introduce the dropped
+forecasting scope, weaken the bankable comparative-null + mechanism headline, trade depth for breadth (against
+Okhrati's grading function), and be un-implementable cleanly on the anonymised PIT panel (no market index);
+(B) reporting factor-alpha as a *headline metric* shifts to an absolute-performance framing the design deliberately
+avoids — and the "no hidden factor bet" characterization is ALREADY delivered by the pre-registered six-factor
+attribution (CAPM+BAB+QMJ, Newey–West; CH4 §4.7 / R26). The thesis stays: risk-sensitive reward-design, comparative
+null, mechanism headline.
+**Scope.** Pre-freeze. `frozen: false`. Full record: `CHANGELOG.md` [2026-07-01b] + `memory/session-current-focus.md`.
+
+## ADR-042 — Replay buffer HARD-capped at 50k across ALL legs (convergence-pilot-surfaced OOM; 2026-07-01)
+**Decision.** HARD-cap the SB3 replay buffer at **50,000** transitions, **decoupled from `train_steps`**, applied at
+EVERY agent-construction site so all campaign legs AND the pilots resolve `buffer_size = min(train_steps, 50k)`.
+The cap is config-driven — `config/campaign.yaml` `agent.buffer_size: 50000`, read by the single helper
+`src/agents/factory.py::campaign_replay_cap()` (fallback `DEFAULT_REPLAY_CAP = 50000`). Sites:
+- `src/agents/trainer.py::resolve_agent_kwargs` (TEST + serial trainer) and `src/agents/factory.py::_policy_kwargs`
+  (GPU-parallel workers) — `buffer_size = min(requested_or_train_steps, campaign_replay_cap())`.
+- `scripts/run_prototype.py::_agent_cfg` (serial SEARCH worker) — `min(steps, campaign_replay_cap())`, replacing the
+  prototype's explicit `buffer_size=25000` read. This ALSO eliminates the **serial-SEARCH-25k vs TEST-50k buffer
+  skew**: the winner is now SELECTED under the same replay dynamics it is EVALUATED under (the same matched-compute
+  rationale as train_steps matching, run_campaign ~L1065-1096).
+- `config/campaign.yaml` — new `agent: { buffer_size: 50000 }` block (TEST leg reads it → the train_steps re-couple
+  at run_campaign ~L1095 is skipped, buffer stays 50k even at B*≥200k).
+- both pilots (`scripts/learning_curve.py`, `scripts/run_sigma_pilot_train.py`) — `min(budget, campaign cap)`.
+**Why.** The convergence pilot (2026-07-01) empirically **OOM'd**: `buffer_size == budget` allocates
+`np.zeros((budget, 1, 1893) float32)` ≈ **2.8 GB at 200k / 5 GB at 350k** → `MemoryError` on the 15.6 GB laptop
+(n_ok 3→3→1→0 across 50k→100k→200k→350k; critic losses were all FINITE — the failure was purely RAM, NOT
+instability). This is the "buffer-cap wiring" pre-freeze fix flagged open in CLAUDE.md CURRENT STATE. It EXTENDS
+ADR-025 (`buffer_size = train_steps`, memory-safe only ≤~100k) so B* can rise to 200k+ without OOM; the replay is
+a bounded ~0.76 GB 50k sliding window.
+**Alternatives.** `optimize_memory_usage=True` (halves RAM but the known SB3 next-obs footgun; rejected);
+`buffer_size = train_steps` (ADR-025 — re-OOMs at B*≥200k, which the pilot proved); threading the campaign agent_cfg
+through the pickled serial `run_arm` worker (rejected — invasive across the ProcessPool spawn boundary; the one-line
+`min(steps, cap)` in `_agent_cfg` reuses the single source of truth).
+**Consequences.** NO training path can OOM at any B*; SEARCH/TEST replay dynamics matched. Prototype UNCHANGED
+(25k steps → 25k buffer; `min` is a no-op below the cap). VERIFIED (2026-07-01, CPU): every construction site yields
+`buffer_size=50000` at `train_steps=200000` and `25000` at `25000`; an explicit oversize buffer is clamped to 50k;
+**93 buffer-touching tests green**, ruff clean, **no test changed** (no test encoded the old >50k semantics). The
+first (uncapped) convergence ladder's "recommend 200k / still rising" verdict is SUPERSEDED — it rested on 1 surviving
+seed at 200k + an unrepresentative full-history buffer; re-run under the cap is in flight.
+**Scope.** Pre-freeze. `frozen: false`. Full record: `CHANGELOG.md` + `docs/SESSION_LOG_2026-07-01_phaseBC.md`.
+
+## ADR-043 — Convergence pilot: B* = 200,000 steps; the tool's "350k / NOT CONVERGED" is a plateau-detector artefact (2026-07-01; empirical, RE-RUN PENDING on Split-C)
+**Decision.** Set the confirmatory training budget **B\* = 200,000 steps**. **EXECUTION STATUS: DECIDED-pending-execution** —
+the pilot that produced this number ran on the **OLD 2005–2014 train window** and **MUST be RE-RUN on the new Split-C window**
+(ADR-044) before B\* is finally banked; the value is not yet confirmed on the campaign data.
+**Findings (old window).** (a) Held-out eval is **flat-noise ≈ 0** across 50k→350k — no measurable generalization gain from
+more training. (b) Critic loss **bottoms ~100k then rises mildly** to 350k — mild overfitting past the knee. (c) The harness's
+automated verdict ("recommend 350k / NOT CONVERGED") is a **plateau-detector ARTIFACT**: its plateau rule expects a *monotone*
+approach to an asymptote, and flat-noise (no trend) is not that shape → it never fires "converged" even though the curve is
+already flat. The number is therefore set by the loss-knee + the buffer-cap memory envelope (ADR-042), not by the tool's verdict.
+**Alternatives.** Trust the tool's 350k (rejected — artefact + mild overfit + more RAM under the 50k cap gives no held-out gain);
+50k–100k (rejected — below the loss knee; matched-compute headroom favours 200k). 
+**Consequences.** B\* = 200k is the working budget for wall-clock projection and the Phase-3 panel-size decision; the Split-C
+re-run is the gate that finalizes it. Supersedes the first (uncapped) ladder's "200k / still rising" read (already noted
+superseded in ADR-042). `frozen: false`.
+
+## ADR-044 — DATA PLAN: Split-C re-partition (train 2005–2016 / val 2017–2019 / test 2020–2025) + forward-extend to a settled 2026 cutoff; backward-extension / options / synthetic / more-assets REJECTED (2026-07-01; research-grounded)
+**Decision. EXECUTION STATUS: DECIDED, pending rebuild** (the gold panel re-partition + the forward pull are not yet executed).
+(a) **Split-C re-partition:** **train 2005–2016 / val 2017–2019 / test 2020–2025** (2020–2026 if forward-extended). Rationale:
+more training (**12y vs 10y**) AND a **tail event in BOTH halves** — 2008 GFC in train, 2020 COVID + 2022 in test — so the
+out-of-sample tail is not a single lucky/unlucky regime. (b) **Forward-extend to a SETTLED 2026 cutoff:** feasible and **FAST**
+(Refinitiv pull ~30 min–2 h — NOT the earlier "2 weeks" guess; see ADR-048). Marginal science (H1-2026 was a bull market, no
+tail event) but cheap → do it.
+**REJECTED (all research-grounded, not convenience):** (1) **2000 backward extension** — the dot-com era is exactly where
+survivorship-free reconstruction is HARDEST *and* where validation breaks down (Ince–Porter 2006 "worst-earliest"; yfinance
+cannot validate dead names; CRSP is the academic gold standard, not our Refinitiv entitlement). (2) **Options data** — scope
+creep + messier quality (OptionMetrics/IvyDB known issues). (3) **Other-markets-as-features / synthetic data / more-assets** —
+scope creep + model risk. (4) **More candidates** — raises the Deflated-Sharpe **multiplicity penalty** without fixing data size.
+**Reason.** Split-C maximizes training data and puts a tail event on each side of the split (Okhrati "motivate with the data")
+while every rejected option either breaks identification, adds unvalidatable data, or worsens the multiplicity correction.
+**Consequences.** The `univ3` gold panel is re-partitioned (PREREG §6 splits change — a pre-freeze design edit, `frozen: false`);
+B\* (ADR-043) re-runs on this window; the forward pull runs via PowerShell + `.venv-lseg` (ADR-048). Respects prime-directive-2:
+no new asset classes, no new state/reward inputs.
+
+## ADR-045 — Three REPORT-ONLY rigor upgrades, all DISJOINT from the frozen confirmatory m=6 (2026-07-01)
+**Decision. EXECUTION STATUS: DECIDED, pending implementation.** Three additions that improve realism/attribution/accuracy
+WITHOUT touching the frozen arms/env/hypotheses (report-only, disjoint from m=6):
+(a) **Bid–ask SQUARE-ROOT market-impact cost model** — replaces the arbitrary flat 10 bps. Spreads are **ALREADY frozen (A5)**
+→ **NO new pull**; sweep the impact coefficient **γ ∈ {0.5, 0.75, 1.0}**. (b) **BAB / QMJ factor-attribution completion** —
+free AQR / Ken-French factors (extends the existing 6-factor attribution). (c) **Delisting correction via OBSERVED TERMINAL
+RETURNS** — the delisting-reason field mnemonic is **absent under this entitlement**, so the terminal-return approach is both
+necessary and cleaner; it corrects the univ4 **M&A mis-booking** (the reason `univ3` — not `univ4` — is the headline panel).
+**Alternatives.** Keep flat 10 bps (rejected — arbitrary, un-motivated); delisting-reason field (rejected — not entitled);
+skip BAB/QMJ (rejected — free rigor for the "no hidden factor bet" claim, CH4 §4.7 / R26).
+**Reason.** Each is cost-realism / delisting-accuracy / benchmark-factor construction — legitimate rigor under the ADR-047
+identification rule (does NOT feed the agent a new state/reward input). All report-only → cannot move the frozen H2 ordering.
+**Consequences.** New report-only analysis code + config knobs (γ sweep, terminal-return delisting policy, BAB/QMJ factors);
+disjoint from the freeze hash. `frozen: false`.
+
+## ADR-046 — Second LLM reward-author = Qwen3-Coder; GPT-5.5 REJECTED on cost; weak/mini models REJECTED on principle (2026-07-01)
+**Decision. EXECUTION STATUS: DECIDED** (LLM cost is incurred only at campaign-time; no run yet). The panel's second author is
+**Qwen3-Coder** — a strong open coding model, **~$1–3 via a cheap hosted API**, giving frontier **cross-vendor diversity
+(Anthropic vs Alibaba)** and true **reproducibility via archive-replay** (open weights). This refines the ADR-039 panel
+(Opus 4.8 primary + a strong-diverse second author).
+**REJECTED.** (1) **GPT-5.5** — cost ($5 / $30 per MTok → ~$20–40 for the panel leg); the diversity/reproducibility value does
+not justify ~10× the Qwen cost. (2) **Weak / mini models** — an **uninformative null** (a weak model failing the channel proves
+nothing and invites the "you used a weak model" dismissal); this codifies the standing **"no weak models" principle** (ADR-039).
+**Reason.** Grade/publishability wants *strong-diverse* generality + a reproducibility anchor at minimum cost; Qwen3-Coder is
+the Pareto pick. **Consequences.** Panel = **Opus 4.8 (primary) + Qwen3-Coder (second author)**; reasoning-effort axis and the
+numeracy-bottleneck reframe (ADR-039) unchanged; panel enabled by the longer laptop run (ADR-040), not a speedup. `frozen: false`.
+
+## ADR-047 — Multi-market external validity: a LITE FTSE-100 replication of the FROZEN protocol; and the standing IDENTIFICATION rule for all scope calls (2026-07-01)
+**Decision. EXECUTION STATUS: DECIDED, pending implementation.** Add a **lite FTSE-100 replication** — single-market is the #1
+reviewer weakness, so **report-only** re-run the **FROZEN protocol** on a 2nd survivorship-free panel. It respects identification
+because it **reuses the fixed agent** (no state/reward change) — it replicates, it does not modify.
+**STANDING IDENTIFICATION RULE (principle, governs every future scope call).** *Only the **reward-feedback block** varies across
+arms.* Therefore: **any addition that feeds the agent a NEW STATE or REWARD input** (fundamentals, sentiment, options, extra
+features) is **identification-breaking creep — REJECT**. **Legitimate rigor** = **cost realism / delisting accuracy /
+benchmark-factor construction / replicating the frozen protocol on another market** — these do not alter the agent's
+observation or reward, so they are additive, not confounding. (This rule is the throughline behind ADR-044/045/046 and the
+prime-directive-2 scope ban.)
+**Alternatives.** Multi-asset-class or feature-rich extensions (rejected by the rule above — they break the single-varying-factor
+identification). **Reason.** External validity is the highest-value *rigor* addition that the identification rule permits.
+**Consequences.** A second survivorship-free FTSE-100 panel + a report-only replication leg (fixed agent, frozen protocol);
+disjoint from the confirmatory freeze. `frozen: false`.
+
+## ADR-048 — Refinitiv access SOLVED (PowerShell + isolated `.venv-lseg`, never the Bash tool); and RL positioning = simulated-ONLINE off-policy, not classic offline RL (2026-07-01; empirical + methodological)
+**Refinitiv access — SOLVED (EXECUTION STATUS: DONE, verified).** The LSEG session **opens (`OpenState.Opened`)** via
+**PowerShell** + an **ISOLATED `.venv-lseg`** (`refinitiv-data==1.6.2`). **Root cause of the prior failures:** the **Bash /
+Git-Bash tool's sandboxed network could not resolve `api.refinitiv.com`**; **native PowerShell resolves it fine.** **STANDING
+RULE:** run **ALL Refinitiv ops via PowerShell + `.venv-lseg`, NEVER the Bash tool.** Verified: the pull is **FAST**; 2026 daily
+data is clean; **dead-name (survivorship-free) terminal returns are recoverable** (Lehman verified) → this is what makes the
+ADR-044 forward-extend fast and the ADR-045 terminal-return delisting correction feasible.
+**RL positioning — CLARIFICATION (methodological).** The setup is **simulated-ONLINE off-policy** RL: **SAC interacts with and
+explores a historical-replay simulator** (price-taker, exogenous prices) — it is **NOT classic offline RL** (no fixed logged
+dataset with no interaction). It is positioned **vs Okhrati's offline-RL** by **his own harm-criterion** + the
+**relabelling → CQL bridge** (`docs/offline_online_position.md`), so the examiner-tailoring cite (Khraishi & Okhrati 2022 CQL)
+still lands without mislabelling the method. **Consequences.** The prose must say "simulated-online off-policy," not "offline RL";
+the Refinitiv runbook (PowerShell + `.venv-lseg`) is the sanctioned path for every future pull. `frozen: false`.
+
+## ADR-049 — 2026-07-02 deep-audit hardening: 8-auditor sweep finds NO critical code defect; lambda reclassified CALIBRATE→FIX; citation/Le-Cam/certification fixes; two new drift guards
+**Decision + findings (EXECUTION STATUS: DONE, verified green).** An 8-front READ-ONLY audit (inference/backtests ·
+benchmarks/baselines · data/leakage · RL-env/agent/convergence · LLM-loop/sandbox/prompts · theory-CH3 ·
+writing/citations/honesty · repro/cross-artifact consistency), each validated against the primary literature by web
+research, found **no CRITICAL or HIGH code defect**: the load-bearing statistics (FZ0, DSR/PSR, expected-max-Sharpe,
+HLN, stationary bootstrap, PBO/CSCV, MCS, IUT/BH multiplicity, differential-Sharpe recursion, allocator QPs, the
+six-scalar tail MEASUREMENT estimator incl. the GPD/POT closed forms) match their sources exactly; the sandbox
+default-deny allowlist repels the standard escape battery; the pipeline is leakage-free.
+**Fixed on sight (all verified):** (1) CRITICAL — `harvey1997testing` bib entry was fabricated-as-written (a
+nonexistent "Harvey & Liu 1997") → replaced with the REAL Harvey–Leybourne–Newbold 1997, IJF 13(2):281–291 (the HLN
+DM correction the prose actually cites); Witzany metadata corrected (Risks 9(1):18). (2) HIGH — theory §3.3 Le Cam
+deficiency used a silently NON-standard argument order (reads as the vacuous zero under the Le Cam/Torgersen
+convention) → switched to the standard order δ(E_scalar, E_vec) with the strictly-positive reading intact.
+(3) `null_calibration` certified only the two-sided p while the H2-Tail leg gates on the ONE-SIDED p (R64) → now
+certifies both. (4) ES-backtest docstrings called the two-sided equal-accuracy DM test "the Nolde–Ziegel comparative
+backtest" (their ONE-SIDED dominance form) → reconciled to the (correct) CH4 §4.7 disclosure. (5) `var_es_estimates`
+VaR/ES conventions unified (ES ≤ VaR by construction). (6) `contamination.named_vs_blinded_structural`: unparseable
+(empty-AST) pairs scored jaccard=1.0 ("perfectly locked") → excluded + counted (`n_unparseable_pairs`; P7c mirror)
++ regression tests. (7) `parallel.train_candidate` n_trials prototype fallback (40) → fail-loud mandatory key.
+(8) **lambda reclassified CALIBRATE→FIX** (`determine_design.py`): λ=0 is a DESIGN identification choice — the
+tail-blind selector; tuning it confounds the H2 channel — not a pending calibration, so it no longer blocks freeze;
+the legacy `lambda_grid`/`lambda_frozen`/`calibration_fold` DELETED from the hash-bound `inference.yaml`, executing
+the prereg §5 note's own instruction. (9) **Two new drift guards:** `freeze.py::assert_h1_baselines_match` (the
+PREREG §18 beat-the-human family mirrored machine-readably into `config/preregistration.yaml`; `campaign.yaml`
+asserted equal — the roster-guard pattern) and `preflight.py::check_budget_mirror` (campaign vs algos
+`train_steps_per_candidate` must agree, so a B* amendment cannot half-land). (10) Paper: CH4 §4.3 replay-buffer-cap
+justification added (Zhang–Sutton 2017 + Fedus et al. 2020 — verified first-hand and added to refs.bib; the
+fixed-calendar ~20-pass coverage argument; replay-ratio-1; identical-across-arms ⇒ common-mode); CH7 §7.1 explicit
+RQ scorecard (responsiveness / transmission / specificity verdict slots); `CAMPAIGN_preflight.md` 6→7 arms,
+180→210 re-runs, `--gpu 4`→`--gpu 3` (4 is now refused); stale buffer comments reconciled to the single
+`resolve_agent_kwargs` invariant (verified at trainer.py L120); gridach/orra bib venues corrected to arXiv preprints.
+**False positives CLEARED (do not re-"fix"):** DSR raw-kurtosis convention (correct as written), differential-Sharpe
+minus sign (canonical, verified vs NeurIPS 1998), gneiting DOI (already correct), `return_minus_cvar` estimator
+(≡ the ceil(αn) convention — floor((n−1)α)+1 = ceil(nα) at essentially every n), the placebo "inert" intro
+(truthful zero-information is the RIGHT design — neutralizing it would create active MISinformation;
+`placebo_shuffled` is the tell-free structure control and takes the write-up headline), reward-penalty ddof=0
+(a penalty SCALE, not an estimator — now documented at each site).
+**Okhrati title verified = "Dr"** (Lecturer/Assistant Professor, UCL IFT; web-verified): the paper front matter was
+already correct; CLAUDE.md + memory corrected (the audit's suggested "fix" ran the wrong way and was rejected).
+**Verification:** ruff clean (16 touched files); 223/223 targeted tests green (incl. new guard + filter tests);
+`freeze.py --check` 12/12 OK with the new h1 guard live; canonical SHA-256 → `843b84c3…` (prereg gained the §18
+mirror — expected, pre-freeze). `frozen: false`.
+
+## ADR-050 — 2026-07-02b: the deliverable pipeline exists; run-day ops hardened (3 run-killers closed); two mechanism/EDA instruments delivered; the ULTRAPLAN is the master plan
+**Context.** Two NEW audit lenses (neither correctness-focused — the 8-front sweep was clean) found the two
+biggest unmitigated risks in the project: (A) the md→PDF DELIVERABLE toolchain did not exist at all (no
+pandoc/LaTeX anywhere; the graded artifact was un-producible), and (B) the unattended 2-3-week Windows-laptop
+campaign had three run-killers (tenacity absent → EVERY API call single-attempt; Windows Update live-unmitigated
+with no reboot re-entry; exit-0 "husk runs" where a winner could freeze from a partial candidate pool).
+**Decisions + what now exists (all verified green — 271/271 consolidated tests, ruff repo-wide, freeze 12/12,
+PDF 0-warnings; details CHANGELOG [2026-07-02b]).**
+1. **PDF pipeline:** pinned PORTABLE pandoc 3.10 + Tectonic 0.16.9 in tools/ (deliberate over a system install:
+   reproducible, no elevation, version-pinned), `build_paper.py` (UCL order, fence-aware citation transform with
+   a year-key discriminator, Harvard cite-them-right CSL, References, fail-loud), TeX cache on D:. The
+   dissertation COMPILES from day one; compile-time surprises are dead as a submission-week risk class.
+2. **Word budget is now measured, not guessed:** `word_budget.py` per the UCL exclusion rules — 15.5k vs the
+   10k hard limit → the P7 "word surgery IS the depth pass" workstream with per-chapter targets (ULTRAPLAN).
+3. **External timestamp:** `make_prereg_bundle.py` packages the exact hash-bound file set for OSF deposit at
+   freeze — "the null was predicted in advance" becomes third-party verifiable.
+4. **Ops hardening:** tenacity installed+probed (C1); Windows-Update preflight probes + ONSTART re-entry task
+   (C2); campaign exit gate + winner-selection floor + llm-error accounting (C3 — the gate instantly exposed
+   and fixed a PRE-EXISTING silent dry-run husk: the 600-day synthetic panel never spanned the frozen splits);
+   resume threaded through the serial fallback + H3 (M4); watcher follow-campaign/dedupe-reset/post-then-mark +
+   deadman ping (M5); thermal governor live on every path (M6); supervisor healthy-runtime reset + always-resume
+   (M7); preflight load_env + REAL guarded 1-token probe (M9); minors m10-m12 + the runbook §0b run-day
+   checklist. Judgment calls recorded: TEST-leg RunMonitor documented as a limitation (not a clean reuse);
+   H3 floor not mirrored (its statuses feed the exit gate).
+5. **Instruments:** the reward-program TAXONOMY (CH7's "future work" delivered; prototype-validated — search
+   arms collapse to one template-kind each, LLM arms near-fully idiosyncratic, multi-member kinds span arms =
+   null-consistent) and the F3 stylised-facts EDA figure from the REAL train window (kurtosis 14.5, −5σ ×~10⁴,
+   the CVaR crossover ×0.8→×1.7, co-crash 3.3→20.4% — the motivate-with-data centrepiece). Both report-only,
+   DISJOINT from m=6. ⚠ Write-time: skew is POSITIVE (+0.22) — never claim negative; reconcile the manifest's
+   "Hill" wording and the old "kurtosis 49.9" note (different aggregate).
+6. **Citations:** bauer2025equal verified first-hand + promoted + cited; sun2024card upgraded to the confirmed
+   published venue (KBS 326:114065, 2025); the stale discrepancy note replaced.
+7. **Planning:** docs/ULTRAPLAN_2026-07-02.md is THE master plan (P0-P8, owners/gates/exit criteria, timeline
+   with 1.5-2 weeks of slack to 1 Sep, risk register, the standing document-everything protocol). Gate ① (disk)
+   CLOSED — 20.5 GB verified; the next gate is ② rebuild GO + settled-2026 cutoff (user).
+`frozen: false`.
+
+## ADR-051 — P1 rebuild execution parameters: cutoff 2026-06-30, suffix univ5(+univ5s), dedicated extension pull (2026-07-02; user GO "execute everything up to the campaign")
+**Decision (recorded BEFORE any data is touched — the cutoff is a data-availability choice, never results-contingent).**
+* **Cutoff = 2026-06-30** (user delegated; the latest SETTLED month-end: clean quarter boundary, T+1-settled days
+  before the pull, no partial-period ambiguity). **Suffixes: `univ5`** = the extended headline panel (univ3
+  conventions: zero-fill delisting, no surcharge) and **`univ5s`** = the corrected Shumway band-end (surcharge
+  gated by the OBSERVED-terminal-return recovery, DATA_REPULL_DELISTING.md route — the reason mnemonics are
+  confirmed non-resolving).
+* **Route = a DEDICATED extension pull, NOT a config-span re-run.** Verified first-hand: `chunk_id =
+  sha256(vendor, query, params)`, so changing `period.end` re-keys EVERY chunk (a full 21-year re-pull), while
+  the journal skips nothing useful. The driver (`data_pipeline/scripts/extend_universe_2026.py`) therefore pulls
+  ONLY the extension: A1' chain+joiner/leaver events to today under `_x26` artifact names (the vault is
+  write-once; same-name refreezes are not attempted) -> `reconstruct_membership` over the month grid extended to
+  2026-06 -> **HARD-FAIL overlap check against the frozen pit_membership on every 2005-2025 month** (vendor
+  event-history revisions must stop the rebuild, never silently land) -> freeze the new span-stamped
+  `pit_membership_*_202606.parquet` (build_universe consumes the LATEST). A2'/A3'/A5' pull returns/monthly-caps/
+  px-bid-ask-vol for the extension window under `rf_trd_x26_*` / `rf_mcapm_x26_*` / A5-x26 names (prefix-collected
+  by build_universe automatically); brand-new 2026 joiners (new union minus old union) get FULL-window pulls
+  (pre-listing emptiness journals as skipped_empty).
+* **Delisting-terminal**: implement the observed-terminal recovery in `build_universe._derive_delisting_map`
+  (vendor_terminal_return := the name's last valid in-window return at/near its delist month; flag-gated +
+  unit-tested); `apply_shumway_corrections` already PREFERS a present vendor terminal ("vendor_terminal_kept"),
+  so univ5s books true terminals and surcharges only genuinely terminal-less names.
+* **Acceptance gates (in order, each fail-loud):** (1) pit overlap identical on 2005-2025 months; (2)
+  `verify_gold` univ5-vs-univ3 = ZERO changed cells on the (date x RIC) overlap, ~124 appended 2026 sessions,
+  added columns only for 2026 joiners; (3) the pipeline validation suite; (4) spot-checks (Lehman rows unchanged;
+  last session 2026-06-30; NYSE session count); (5) THEN Split C + expected_windows[univ5] + checksum manifest +
+  `gold.suffix` flip + the 12-file punchlist + full test suite + freeze-check. All Refinitiv ops via PowerShell +
+  `.venv-lseg` (ADR-048), never Bash. `frozen: false`.
+
+## ADR-051 addendum — the overlap gate FIRED on first live contact: vendor event-history revision (EVHC.N^L16) detected; resolution = the SPLICE rule (2026-07-02)
+**Observed (the gate working, first try).** The fresh A1 reverse event replay (2026-07-02) reproduced the frozen
+membership EXACTLY except ONE ric: `EVHC.N^L16` appears as a member on 145/254 overlap months (2004-11..2016-11)
+where the frozen pit (pulled 2026-06-12) never had it; nothing else differs (-0 everywhere), and all known-truth
+checks (Lehman 2008, Tesla 2019/2021, counts 500-507) pass on the fresh replay.
+**Root cause (verified externally).** The vendor BACKFILLED the Dec-2016 leaver event in the intervening 3 weeks;
+its join counterpart is missing/re-keyed, so reverse replay over-extends the name's membership back to the grid
+start. Provably an artifact: old-EVHC (Envision Healthcare Holdings) IPO'd Aug-2013 and merged into AMSURG
+2016-12-01 (NYSE delisting 2016-12-13 = the ^L16 suffix; SEC Form 25-NSE) — it cannot have been a member in 2004.
+**Materiality: NONE for this design.** Peak cap ~$7B — never remotely a top-30 mega-cap under the strictly-prior
+selection rule, so the top-30 book is invariant either way; univ3's 953 columns are unaffected.
+**Resolution — the SPLICE rule (now in the driver).** The FROZEN pit is the pre-registered membership record and
+stays AUTHORITATIVE through its own last month (2025-12); the fresh replay contributes ONLY the 2026 month-ends
+(where replay-from-today's-chain is most reliable). Overlap differences are diagnosed and must fall inside an
+ENUMERATED, externally-verified allowlist ({EVHC.N^L16}); anything else still hard-fails. Extension counts and
+month-ends are themselves gated (6 months ending 2026-06-30; 495-510 members). This makes frozen history
+immune to silent vendor revisions while keeping the gate's teeth — and the incident itself is disclosed in the
+data chapter/datasheet as first-hand evidence of vendor-history instability (why the pre-registered frozen
+record + hash discipline exists). `frozen: false`.

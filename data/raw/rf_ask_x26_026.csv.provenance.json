@@ -1,0 +1,53 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:32:51.178085+00:00",
+  "layer": "raw",
+  "name": "rf_ask_x26_026.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "field": "ASK",
+      "universe": [
+        "NWSA.OQ",
+        "NXPI.OQ",
+        "NXTL.OQ^H05",
+        "NYT.N",
+        "NYX.N^K13",
+        "O.N",
+        "ODFL.OQ",
+        "ODP.OQ^L25",
+        "OGN.N",
+        "OI.N",
+        "OKE.N",
+        "OMC.N",
+        "OMX.N^K13",
+        "ON.OQ",
+        "ORCL.N",
+        "ORLY.OQ",
+        "OTIS.N",
+        "OXY.N",
+        "PANW.OQ",
+        "PAYC.N",
+        "PAYX.OQ",
+        "PBCT.OQ^D22",
+        "PBG.N^C10",
+        "PBI.N",
+        "PCAR.OQ"
+      ]
+    },
+    "query": "get_history.ohlc.x26",
+    "received_utc": "2026-07-01T22:32:51.178085+00:00",
+    "requested_utc": "2026-07-01T22:32:48.409992+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_ask_x26_026.csv",
+  "row_hash": "1e4a45680be976d303a2e3216ebfeed9711ee29c905f18ea5f0b60e9e414f24b",
+  "rows": 123,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "1e4a45680be976d303a2e3216ebfeed9711ee29c905f18ea5f0b60e9e414f24b",
+  "vendor": "refinitiv"
+}

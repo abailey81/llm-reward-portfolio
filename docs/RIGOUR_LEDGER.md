@@ -1,7 +1,8 @@
 # RIGOUR LEDGER — defended threats → one-line resolutions → pointers
 
 **Status.** Reference table (no code / config / pre-registration edited). **Date:** 2026-06-26
-(extended through R60 on 2026-06-26).
+(extended through R60 on 2026-06-26; A-bis addendum 2026-07-01; A-ter addendum 2026-07-02 — the
+executed Split-C/univ5 rebuild, ADR-044/051, R73).
 **Repo:** `llm-reward-portfolio`. **Purpose.** Make the in-code rigour *legible*: one row per
 methodological / security / statistical threat that the design defends against, its one-line
 resolution as actually implemented or decided, and the canonical pointer (amendment R-number, ADR,
@@ -26,7 +27,11 @@ same file. ADRs live in `DECISIONS.md`. The adversarial audits that surfaced sev
 >    headline to `univ3` (zero-fill / `liquidate_to_cash`, no fabrication), with `univ4` re-cast as the
 >    M&A-contaminated *heavy end* of the `delisting_band` tail instrument. The loader default is already
 >    `univ3` ⇒ the campaign runs with **no** `LLM_RP_GOLD_SUFFIX` override. Wherever an older row or doc
->    says "univ4 = headline," prefer R44.
+>    says "univ4 = headline," prefer R44. **[Updated 2026-07-02, R73: the ACTIVE headline panel is now
+>    `univ5` (the settled-2026 extension of univ3; same zero-fill semantics; byte-identical on the
+>    overlap), selected by the hash-bound `config/data.yaml: gold.suffix: univ5` — still no env-var
+>    override; `univ3` is the frozen pre-Split-C reference. The observed-terminal audit (A-ter row T3)
+>    additionally showed univ4's surcharge DOUBLE-COUNTS vendor-present terminals.]**
 > 2. **Some strengths have NO amendment id.** The off-critic 3-way decoupling, the per-seed IUT
 >    construction, and the H1 conservatism-vs-Eureka argument are *design properties*, banked in
 >    `PREREGISTRATION §2` / the audit's "GENUINELY STRONG" section, not R-numbers. Their rows point at
@@ -54,9 +59,43 @@ same file. ADRs live in `DECISIONS.md`. The adversarial audits that surfaced sev
 | 10 | **TPE→GP-EI mislabel**: the `eureka_loop.yaml` label `bayesopt_tpe` / "Optuna TPE, 240 trials" was factually false (Optuna is not a dependency; budget is 30/40). | Relabel H4b to its true method — **scikit-learn GP + Matérn-2.5 Expected-Improvement** (n_init=5, matched budget 30); cite **Snoek, Larochelle & Adams 2012**, not Bergstra-2011 TPE. Integrity-only, no science change; frozen arm name `bayes_opt` unchanged. | **R29** · `PREREGISTRATION.md` §3 · `docs/DEEP_H4.md` §0.1 |
 | 11 | **H4 grammar richness artefact**: the H4a random-search control sampled a 3-term grammar (return−var−cvar), strictly poorer than the BO family / the LLM, so a positive H4a was partly a richness artefact. | H4a now samples the **same six-primitive family as H4b** (`reward_family.params_to_source`: return/log/turnover/drawdown/cvar/vol) from a coarse grid at fixed α=0.05/window=20 — a genuine procedure-only control at comparable richness; budget unchanged. | **R28** · `PREREGISTRATION.md` §3 · `src/search/random_search.py` |
 | 12 | **Troop docstring over-claim (honest-disclosure)**: the prior §4 text promised a "frozen Phase-1 enhancement" (Troop bias-corrected POT) the code never performed — a docstring promising a fix the code does not do. | Same amendment as #2: **demote Troop bias-corrected POT to disclosed FUTURE WORK** (its 2nd-order regular-variation correction is ill-conditioned at n≈750, α≤0.05, ξ≤0 for ~94% of samples ⇒ would not reduce RMSE); docstring no longer promises an unimplemented fix. | **R27** · `PREREGISTRATION.md` §4 · `docs/DEEP_H2.md` §6.2 |
-| 13 | **H1 over-bar / data-snoop**: presenting H1 as an inferential claim it cannot support (no MCB for the max-of-4; baseline identity data-snooped on test); Eureka itself compared vs *one* human reward, uncorrected. | H1 requires the LLM winner to beat the **max over four** hand rewards (return; return−var; return−CVaR; differential Sharpe) on the **sealed 2018–2025 test leg** (a strictly higher bar than Eureka's single-human), with a 30-trial DSR deflation; baseline identity **selected on validation**, metric relabelled **Eureka-STYLE**, claim made **descriptive/report-only**. | **R30** · `PREREGISTRATION.md` §1 · `docs/DEEP_H1.md` §2.1, closing statement |
+| 13 | **H1 over-bar / data-snoop**: presenting H1 as an inferential claim it cannot support (no MCB for the max-of-4; baseline identity data-snooped on test); Eureka itself compared vs *one* human reward, uncorrected. | H1 requires the LLM winner to beat the **max over four** hand rewards (return; return−var; return−CVaR; differential Sharpe) on the **sealed test leg** (2018–2025 at R30; **2020–2026H1 since Split C, R73** — a strictly higher bar than Eureka's single-human), with a 30-trial DSR deflation; baseline identity **selected on validation**, metric relabelled **Eureka-STYLE**, claim made **descriptive/report-only**. | **R30** · `PREREGISTRATION.md` §1 · `docs/DEEP_H1.md` §2.1, closing statement |
 | 14 | **Anomaly-harvest recast (BAB)**: a long-only vol-lowering agent structurally loads on Betting-Against-Beta / low-vol, so the headline could be recast as "just a low-vol/BAB beta," not the reward channel. | **Pre-registered secondary declared family** (`src/inference/attribution.py`): difference-in-alpha (distributional − comparator) across a CAPM/FF3/Carhart-4/FF5/FF6(+BAB,QMJ) ladder with **Newey-West HAC SEs**, fit **per-seed and paired across-seed** into the same per-seed bootstrap as the headline. Disjoint from the frozen m=6; never a gate. | **R26** · `PREREGISTRATION.md` §9 · `docs/CAMPAIGN_attribution.md` · LIMITATION L15 |
 | 15 | **Anti-conservative seed-averaging**: the prior test averaged each arm's per-seed return series before one block-bootstrap, shrinking the tested object's variance ~N× (a 30-seed calibration measured true-null rejection ≈21% vs the correct ≈5%). | Difference tests now **aggregate ACROSS SEEDS**: each arm's per-seed Sharpe/CVaR scores reduce to an **IQM**, tested by a **paired stratified bootstrap over shared training seeds** (`src/inference/bootstrap.paired_seed_difference_test`), carrying the across-seed variance at n=30 (rliable). Also wired `h2_conjunction` into the analysis entry point (previously implemented + tested but unwired). | **R16** · `PREREGISTRATION.md` §10 · `docs/DEEP_STATS_backbone.md` (pt. 4); audit confirms ≈21%→≈5% |
+
+---
+
+## A-bis. 2026-07-01 resolution addendum (three limitations UPDATED this session)
+
+Appended (not rewritten) after the exhaustive upgrade-research pass of 2026-07-01. These update the *status*
+of three previously-open limitations; the table above is unchanged. Each is marked **DECIDED** (settled plan)
+vs **EXECUTED** (already done and verified).
+
+| # | Limitation (one line) | 2026-07-01 status | Pointer |
+|---|---|---|---|
+| A1 | **Training-adequacy / convergence** — was the SAC agent trained to convergence, or is the null a mere under-training artefact? | **EXECUTED — convergence diagnostic DONE.** The learning-curve ladder gives **B\*=200k** with **eval curves flat within noise** at the knee (plateau reached, not still-rising) → training adequacy demonstrated, not assumed. (Buffer capped 50k, ADR-042, so all budgets survive on the laptop.) | `docs/SESSION_LOG_2026-07-01_phaseBC.md` (Milestones 1–2) · `scripts/learning_curve.py` · ADR-042 |
+| A2 | **Cost realism** — a flat per-bps cost sweep (R15) ignores price impact; a reviewer can call the frictions unrealistic. | **DECIDED — implementation plan now exists (report-only, disjoint from frozen m=6).** Add a **bid-ask SQUARE-ROOT impact cost model** driven by the **already-frozen bid-ask spreads** (A5 — no new pull needed). Upgrades R15's flat sweep to a realistic sqrt-impact frictions exhibit. DECIDED, not yet EXECUTED. | R15 (this ledger) · `docs/RIGOUR_LEDGER.md` A-bis · frozen A5 bid-ask |
+| A3 | **Single-market generalisation** — US large-cap only; external-validity weakness. | **DECIDED — FTSE-lite replication planned (report-only external-validity leg).** A multi-market "lite" **FTSE 100** replication over the same protocol; needs the entitled pull (now SOLVED + fast: PowerShell + `.venv-lseg`, ~30 min–2 h). Register as a pre-freeze external-validity amendment. DECIDED, not yet EXECUTED. | `docs/LSEG_DATA_STRATEGY.md` §2B (FTSE-lite DECIDED) |
+
+Also settled this session (context, not new rows): the **BAB/QMJ factor attribution** (R26/R14-row) is
+confirmed runnable on **free factors** (no pull); the **2nd LLM is Qwen3-Coder** (GPT-5.5 rejected on cost);
+**Refinitiv access is SOLVED** (PowerShell + `.venv-lseg`, verified 2026-07-01) and the pull is FAST.
+
+---
+
+## A-ter. 2026-07-02 addendum — the executed Split-C/univ5 rebuild (ADR-044/051, R73)
+
+Appended after the rebuild EXECUTED (2026-07-02). The active panel is now **univ5** (5,406 × 963,
+2005-01-03 → 2026-06-30 settled cutoff) under **SPLIT C** (train 2005–2016 / val 2017–2019 / test
+2020–2026H1; purge 60 sessions; executed starts 2017-03-30 / 2020-03-30); `univ3` = the frozen
+pre-Split-C reference. New defended threats → guards, same format as table A:
+
+| # | Threat (one line) | Resolution (one line) | Pointer |
+|---|---|---|---|
+| T1 | **Vendor event-history drift**: Refinitiv silently revises past membership events between pulls (observed live: the `EVHC.N^L16` Dec-2016 leaver event was backfilled between 2026-06-12 and 2026-07-02, making reverse replay claim membership back to 2004 — externally verified impossible AND immaterial, never top-30). | Extension pull runs a **hard-fail overlap gate** + the **SPLICE rule**: the frozen membership record stays authoritative through its own last month (2025-12); the fresh replay contributes ONLY the 2026 month-ends; overlap differences must fall in an **enumerated, externally-verified allowlist** ({EVHC.N^L16}) else the rebuild aborts; extension month-ends + member counts themselves gated. Fired + resolved on first live contact. | **ADR-051 addendum** · `data_pipeline/scripts/extend_universe_2026.py` · `docs/DATASHEET_v1.md` §2026-07-02 |
+| T2 | **Extension masquerading as revision**: a "forward extension" that silently changes frozen history (different cells on the overlap) would corrupt every pre-registered development-era result. | **Byte-diff gate**: `verify_gold` univ5-vs-univ3 = **0 changed cells** (max \|Δ\| = 0.000e+00) over the full 5,283 × 953 overlap; only +123 appended 2026-H1 sessions and +10 new-member (2026-joiner) columns; re-verified first-hand for the doc sweep. | ADR-051 acceptance gate (2) · CHANGELOG `[2026-07-02c]` · `verify_gold` |
+| T3 | **Delisting-surcharge double-counting**: univ4's unconditional −30/−55 % Shumway surcharge books a second terminal loss on names whose realised terminal ALREADY sits in the vendor daily series (on top of the known M&A contamination, row R39/R44). | **Observed-terminal recovery** (`_recover_terminal_from_returns`): the realised terminal recovered for **all 333 dead names** (audit: `vendor_terminal_kept=333`, **zero surcharges**) → corrected Shumway panel `univ5s` **equals the zero-fill headline on returns**; the band d∈{0,−30,−55,−100 %} stays reported with univ4 as its **disclosed contaminated heavy end**. | **ADR-051** · `docs/DATA_REPULL_DELISTING.md` (EXECUTED note) · CHANGELOG `[2026-07-02c]` |
+| T4 | **Silent panel swap / resolved-window drift**: a rebuilt panel whose calendar shifts could move the integer train/val/test windows through the `searchsorted` clamps unnoticed (and an env-var could silently swap the panel identity). | Panel identity is **config-primary + hash-bound** (`config/data.yaml: gold.suffix: univ5`; `LLM_RP_GOLD_SUFFIX` demoted to an explicit sensitivity override), and the resolved windows are **fail-loud asserted** per suffix: `expected_windows.univ5 = [60,3021]/[3081,3775]/[3835,5406]`. The sweep also caught + fixed the Saturday-boundary `searchsorted(side)` leak (2016-12-31) with regression tests pinning the ratified 2017-03-30 start. | `config/inference.yaml: expected_windows` · `run_campaign._assert_expected_windows` · CHANGELOG `[2026-07-02c]` |
 
 ---
 

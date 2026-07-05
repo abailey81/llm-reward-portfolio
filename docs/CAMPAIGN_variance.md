@@ -32,7 +32,7 @@ winner is re-trained at.
 |---|---|---|---|
 | **σ²_seed** | Variance across the 30 training seeds for a *fixed* winner reward (training-RNG noise). | The within-search across-seed dispersion already in the 30 frozen-winner TEST records. | **Free** (the campaign already writes them). |
 | **σ²_search** | Variance across *independent search re-runs* — the **reward-draw** variance (= the "one lucky reward" quantity). | The between-run dispersion of the `K` winners' per-seed score means. | **K≥2 re-run searches** (§5.8; see §4). |
-| **σ²_market** | Sampling noise of the *single realized 2018-2025 test path itself* (independent of reward/seed). | Stationary block bootstrap of one representative winner's per-step test return series. | Free (re-uses an existing test path). |
+| **σ²_market** | Sampling noise of the *single realized test path itself* (2020–2026H1 under Split C, R73; 2018–2025 pre-Split-C), independent of reward/seed. | Stationary block bootstrap of one representative winner's per-step test return series. | Free (re-uses an existing test path). |
 
 σ²_seed and σ²_search are estimated **jointly** by a one-way random-effects ANOVA on the `(K, S)` table;
 σ²_market is an orthogonal block-bootstrap of the realized path.

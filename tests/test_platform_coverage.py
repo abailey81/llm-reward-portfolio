@@ -661,17 +661,22 @@ def test_expected_sha256_basename_and_relpath_match(tmp_path):
     assert _expected_sha256(target, manifest) == "bb"
 
 
-def test_verify_checksum_skips_without_manifest_entry(tmp_path):
+def test_verify_checksum_raises_without_manifest_entry(tmp_path):
+    """C2: verification requested but no manifest entry -> FAIL LOUD (was a silent skip)."""
+    import pytest
+
     from src.data import loaders as Ld
 
     f = tmp_path / "returns_panel_xyz.parquet"
     f.write_bytes(b"data")
-    # Point the module manifest at a nonexistent file → graceful skip (no raise).
+    # Point the module manifest at a nonexistent file → the requested verification cannot be proven,
+    # so it now RAISES rather than silently skipping (silent-skip on the headline panel is the bug C2 fixes).
     empty_manifest = tmp_path / "none.jsonl"
     monkey = Ld._MANIFEST
     try:
         Ld._MANIFEST = empty_manifest
-        Ld._verify_checksum(f)  # must not raise
+        with pytest.raises(ValueError, match="no manifest entry"):
+            Ld._verify_checksum(f)
     finally:
         Ld._MANIFEST = monkey
 
@@ -680,7 +685,7 @@ def test_gold_suffix_respects_env(monkeypatch):
     from src.data import loaders as Ld
 
     monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
-    assert Ld.gold_suffix() == "univ3"
+    assert Ld.gold_suffix() == "univ5"  # ACTIVE Split-C panel (ADR-044/051; config gold.suffix governs)
     monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "_univ4")
     assert Ld.gold_suffix() == "univ4"  # leading underscore stripped
 

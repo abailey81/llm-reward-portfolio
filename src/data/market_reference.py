@@ -48,6 +48,25 @@ _GOLD_DIR = Path(__file__).resolve().parents[2] / "data" / "gold"
 _FRED_CSV = "fred_macro.csv"
 _FF_CSV = "french_F-F_Research_Data_Factors_daily.csv"
 
+#: ADR-051 (Split C to 2026-06-30): the ORIGINAL raw reference files end before the cutoff
+#: (fred_macro 2025-12-31; the French dailies 2026-04-30), so extension refreshes land as
+#: VERSIONED write-once artifacts. Readers prefer the newest refresh WHEN PRESENT and fall back
+#: to the canonical name — same layout/units (verified 2026-07-02: fred keeps observation_date +
+#: percent yields; the ff3 refresh keeps Date + Mkt-RF/SMB/HML/RF decimals). Newest-first tuples.
+_REFRESHED_RAW: dict[str, tuple[str, ...]] = {
+    _FRED_CSV: ("fred_macro_x26.csv",),
+    _FF_CSV: ("french_ff3_daily_x26.csv",),
+}
+
+
+def _raw_path(raw_dir: Path | str, canonical: str) -> Path:
+    """The freshest available raw artifact for ``canonical`` (refresh preferred, else canonical)."""
+    for cand in _REFRESHED_RAW.get(canonical, ()):
+        p = Path(raw_dir) / cand
+        if p.exists():
+            return p
+    return Path(raw_dir) / canonical
+
 
 class RiskFreeResult:
     """Per-session risk-free decimal returns aligned to a date axis, + provenance."""
@@ -96,7 +115,7 @@ def load_risk_free_daily(
     DGS3MO is an ANNUALISED yield in PERCENT; the per-session decimal is ``(1 + y/100)**(1/252) - 1``.
     Falls back to an all-zero series with ``available=False`` if the FRED file is absent.
     """
-    path = Path(raw_dir) / _FRED_CSV
+    path = _raw_path(raw_dir, _FRED_CSV)
     n = int(np.asarray(dates).size)
     if not path.exists():
         return RiskFreeResult(np.zeros(n), available=False, source=source, annual_pct_mean=0.0)
@@ -149,7 +168,7 @@ def load_market_proxy_returns(
 
 def load_ff_factors(dates: np.ndarray, *, raw_dir: Path | str = _RAW_DIR) -> FactorResult:
     """Per-session Fama-French factor DECIMALS (Mkt-RF/SMB/HML) aligned to ``dates`` for attribution."""
-    path = Path(raw_dir) / _FF_CSV
+    path = _raw_path(raw_dir, _FF_CSV)
     if not path.exists():
         return FactorResult({}, available=False)
     ff = pd.read_csv(path)

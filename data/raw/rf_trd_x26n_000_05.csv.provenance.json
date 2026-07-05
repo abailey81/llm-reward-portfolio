@@ -1,0 +1,46 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:29:55.166025+00:00",
+  "layer": "raw",
+  "name": "rf_trd_x26n_000_05.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "fields": [
+        "TR.TotalReturn.date",
+        "TR.TotalReturn"
+      ],
+      "parameters": {
+        "EDate": "2016-12-28",
+        "Frq": "D",
+        "SDate": "2014-12-30"
+      },
+      "universe": [
+        "CASY.OQ",
+        "COHR.N",
+        "ECHO.OQ",
+        "FDXF.N",
+        "FLEX.OQ",
+        "HONA.OQ",
+        "LITE.OQ",
+        "MRVL.OQ",
+        "VEEV.N",
+        "VRT.N"
+      ]
+    },
+    "query": "datagrid.TR.TotalReturn.D.x26",
+    "received_utc": "2026-07-01T22:29:55.166025+00:00",
+    "requested_utc": "2026-07-01T22:29:54.182834+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_trd_x26n_000_05.csv",
+  "row_hash": "21810ceb2f65b751920f375e3b9c3fed9c710749d8fb6991704037054b5132d1",
+  "rows": 3390,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "21810ceb2f65b751920f375e3b9c3fed9c710749d8fb6991704037054b5132d1",
+  "vendor": "refinitiv"
+}

@@ -54,8 +54,9 @@ form is only used inside the **regular MLE region** ``-0.5 < xi < 1``: for ``xi 
 the tail has infinite mean (CVaR undefined) and for ``xi <= -0.5`` the GPD MLE is
 non-regular (Smith 1985, Biometrika 72(1): the likelihood loses its standard root-n /
 asymptotic-normal behaviour), so OUTSIDE that open interval ``_evt_cvar`` falls back to
-the empirical CVaR (see :data:`EVT_NONREGULAR_XI_NOTE`). On realistic near-light-tailed
-portfolio losses both guards fire essentially never; they are defensive.
+the empirical CVaR (see :data:`EVT_NONREGULAR_XI_NOTE`). On the small-sample shapes fitted here (the
+downward-biased MLE sits inside the regular interval, not the true loss tail) both
+guards fire essentially never; they are defensive.
 
 GPD parameter estimation — PLAIN MAXIMUM LIKELIHOOD (no bias correction).
 ``(xi, beta)`` are fitted by **plain maximum likelihood** via
@@ -73,12 +74,16 @@ following first-hand-measured reasons (do not over-read this estimator as bias-c
     underlying rho-hat / A-hat is only consistent for xi > 0) and is validated by the
     authors only at **n in [5e3, 5e4] and alpha in {0.998, 0.999}** with threshold
     percentiles 0.79-0.98 (their Tables 1-2).
-  * This estimator's regime is the OPPOSITE corner: ~750 training returns, alpha in
-    {0.05, 0.01}, threshold_q=0.10 (~75 exceedances). Measured here (replayable):
+  * This estimator's regime is the OPPOSITE corner: measured at n~750 training returns
+    (the pre-Split-C fed window), alpha in {0.05, 0.01}, threshold_q=0.10 (~75
+    exceedances). The EXECUTED Split-C fed window is the full train rollout ~2,961
+    sessions => ~296 exceedances at threshold_q=0.10 and ~30 cvar_01 tail points —
+    direction unchanged, the estimator strictly better-fed. Measured here (replayable):
     (a) the plain-MLE CVaR error at n=750 is ~98% VARIANCE, ~2-6% bias (CVaR-5% bias
     ~ -0.1%, CVaR-1% bias ~ +0.9% of the true value) — UPOT corrects bias, not
-    variance, so it cannot help the dominant error term; and (b) on realistic near-
-    light-tailed portfolio losses the GPD MLE returns xi <= 0 in ~94% of n=750 draws,
+    variance, so it cannot help the dominant error term; and (b) on these portfolio
+    losses the small-sample GPD MLE returns xi <= 0 in ~94% of n=750 draws (a downward-bias
+    artefact at ~75 exceedances, NOT a genuinely light tail),
     where the rho-hat / A-hat correction is UNDEFINED (A-hat's denominator
     2*xi_MLE*rho_hat*M1 -> 0) and ill-conditioned (|A-hat| > 5 or NaN otherwise).
     A faithful UPOT would therefore NO-OP (fall back to MLE/empirical) in the vast
@@ -126,9 +131,9 @@ EVT_ESTIMATOR_NOTE = (
 #: parameter, ``-0.5 < xi < 1``: for ``xi >= 1`` the tail has infinite mean (CVaR
 #: undefined) and for ``xi <= -0.5`` the GPD MLE is non-regular (Smith 1985: the
 #: likelihood loses its standard root-n / asymptotic-normal behaviour). Outside this
-#: open interval ``_evt_cvar`` falls back to the empirical CVaR. On realistic
-#: portfolio-loss tails the fit is near-light-tailed (xi typically in (-0.5, 0.3)), so
-#: this guard fires essentially never; it is defensive, documented for auditability.
+#: open interval ``_evt_cvar`` falls back to the empirical CVaR. On the actual
+#: portfolio-loss tails the small-sample MLE shape sits in (-0.5, 0.3) (a downward-biased
+#: ESTIMATE, not the true tail), so this guard fires essentially never; it is defensive.
 EVT_NONREGULAR_XI_NOTE = (
     "EVT/GPD CVaR is used only for -0.5 < xi < 1 (the regular MLE region); for "
     "xi <= -0.5 (non-regular GPD MLE, Smith 1985) or xi >= 1 (infinite-mean tail) "
@@ -254,9 +259,20 @@ class ReturnDistribution:
             # carries NO small-sample bias correction). The Troop et al. (2021)
             # bias-corrected POT is future work — see the module docstring and
             # EVT_ESTIMATOR_NOTE for why it is undefined/ill-conditioned here.
-            xi, _loc, beta = stats.genpareto.fit(exceedances, floc=0.0)
-            self.xi = float(xi)
-            self.beta = float(beta)
+            try:
+                xi, _loc, beta = stats.genpareto.fit(exceedances, floc=0.0)
+            except Exception:  # P20/P19: a rare optimizer failure on a pathological tail must NOT
+                xi, beta = float("nan"), float("nan")  # crash a campaign candidate — degrade to exp-tail below.
+            # P20/P19 (fed-path robustness, mirroring the diagnostic path in ood_stress.py): a NON-finite
+            # xi/beta would otherwise bypass the downstream ``abs(xi) >= 1e-8`` degenerate guard (since
+            # ``abs(nan) >= 1e-8`` is False) and yield a NaN fed CVaR on the science-bearing feed. Fall back
+            # to the same exponential-tail (xi -> 0) the <2-exceedance branch uses.
+            if np.isfinite(xi) and np.isfinite(beta):
+                self.xi = float(xi)
+                self.beta = float(beta)
+            else:
+                self.xi = 0.0
+                self.beta = float(exceedances.mean())
         else:
             # Too few exceedances to fit; fall back to exponential-tail (xi -> 0).
             self.xi = 0.0
@@ -455,8 +471,10 @@ class ReturnDistribution:
     def exceedance_count(self, alpha: float) -> int:
         """Effective tail sample size behind CVaR-``alpha`` = ``ceil(alpha*T)`` (the worst-``alpha`` block).
 
-        At ``T~750`` this is ~37 (alpha=0.05) / ~7 (alpha=0.01) — BELOW the ~50-100-exceedance reliability
-        standard, so the deep-tail CVaR is high-variance (Belzile & Davison 2022). Surfaced via
+        At the executed Split-C fed window (``T~2,961``, the full train rollout) this is ~149
+        (alpha=0.05) / ~30 (alpha=0.01) — the deep tail still BELOW the ~50-100-exceedance reliability
+        standard (the pre-Split-C ``T~750`` window gave ~37 / ~7), so the deep-tail CVaR remains
+        high-variance (Belzile & Davison 2022). Surfaced via
         :meth:`reliability` and the uncertainty report so a consumer can weight the estimate by its evidence.
         """
         self._check_fitted()
@@ -585,8 +603,9 @@ class ReturnDistribution:
         """Diagnostic for the POT bias-variance trade-off (deep-research #2, audit B-7).
 
         Re-estimates the EVT CVaR at level ``alpha`` across several peaks-over-threshold
-        choices and reports the spread. The extreme-tail CVaR (esp. CVaR-1% on ~750
-        returns, ~7-8 exceedances) is sensitive to the threshold; a large spread flags an
+        choices and reports the spread. The extreme-tail CVaR (esp. CVaR-1%: ~30 tail
+        points on the executed Split-C fed window of ~2,961 train-rollout sessions; ~7-8
+        on the pre-Split-C ~750) is sensitive to the threshold; a large spread flags an
         unstable estimate to treat with caution. Side-effect-free (uses fresh fits, does
         not mutate ``self``).
 
@@ -594,8 +613,9 @@ class ReturnDistribution:
         estimator (no bias correction). A *bias-corrected* POT estimator (Troop et al.
         2021, arXiv:2103.05059) is **future work, NOT implemented** — its second-order
         regular-variation correction is built for heavy tails (xi > 0) at large samples
-        and is undefined/ill-conditioned in this regime (~750 returns, alpha <= 0.05;
-        see :data:`EVT_ESTIMATOR_NOTE` and the module docstring). This method is the
+        and is undefined/ill-conditioned in this regime (measured at the pre-Split-C
+        n~750; the executed ~2,961-session Split-C fed window is strictly better-fed,
+        direction unchanged — see :data:`EVT_ESTIMATOR_NOTE` and the module docstring). This method is the
         honest stability diagnostic shipped in its place: report the cross-threshold
         spread as the bounding exhibit for the fed CVaR levels.
 
@@ -609,18 +629,29 @@ class ReturnDistribution:
         Returns
         -------
         dict
-            ``{"<q>": cvar, ..., "spread": max-min, "cv": spread/|mean|}``.
+            ``{"<q>": cvar, ..., "spread": max-min, "cv": spread/|mean|, "n_empirical_fallback": count}``.
+            ``n_empirical_fallback`` counts the probed thresholds whose EVT CVaR routed to the empirical
+            fallback (``_evt_falls_back``); if > 0 the spread mixes GPD and empirical estimates and bounds
+            instability only loosely.
         """
         arr = self._check_fitted()
         per_threshold: dict[str, float] = {}
         vals: list[float] = []
+        n_empirical_fallback = 0
         for q in threshold_qs:
-            cv = ReturnDistribution(threshold_q=q).fit(arr)._evt_cvar(alpha)
+            rd_q = ReturnDistribution(threshold_q=q).fit(arr)
+            cv = rd_q._evt_cvar(alpha)
             per_threshold[f"{q:.2f}"] = cv
             vals.append(cv)
+            if rd_q._evt_falls_back(alpha) is not None:
+                n_empirical_fallback += 1
         v = np.asarray(vals, dtype=float)
         spread = float(np.nanmax(v) - np.nanmin(v))
         mean = float(np.nanmean(v))
         per_threshold["spread"] = spread
         per_threshold["cv"] = float(spread / (abs(mean) + 1e-12))
+        # How many of the probed thresholds routed to the EMPIRICAL fallback (not the GPD closed form,
+        # per ``_evt_falls_back``): a nonzero count means the cross-threshold spread mixes two estimators,
+        # so read it as a loose upper bound on EVT instability, not a like-for-like GPD sensitivity.
+        per_threshold["n_empirical_fallback"] = float(n_empirical_fallback)
         return per_threshold

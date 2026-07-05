@@ -3,6 +3,10 @@
 **For:** Tamer Atesyakar · **Compiled:** 2026-06-24 · **Status:** decision brief — NOT dissertation prose.
 **Repo:** `c:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio`
 
+> **⚠ SUPERSEDED 2026-07-01 (ADR-040):** "DECISION 3 — rent the RTX 4090" below is **reversed**. The campaign runs
+> **laptop-only on the owned RTX 4050** (~2–3 weeks; no cloud — LSEG licence; WSL2/GPU probed + rejected). Decisions
+> 1–2 in this brief stand; Decision 3's recommendation does not. Current plan: ADR-040 + `CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md`.
+
 > **Where we are.** The pre-registration is freeze-ready: `python scripts/freeze.py --check` is GREEN
 > (prose↔YAML consistency on seeds, the m=6 family, SESOI/TOST, cost grid, **and** the three 2026-06-24
 > amendments R21/R22/R23). The `--check` gate already *asserts the conservative value of all three decisions

@@ -1,9 +1,15 @@
 # PRE-REGISTRATION — frozen design record
 
-**Status:** 🟡 DRAFT — to be FROZEN at the end of Phase 1 (target Mon 23 Jun 2026), then hashed into
-`docs/DECISION_LOG.md` via `scripts/freeze.py`. Until frozen, editable; after freeze, changes require
-an explicit, dated **amendment** entry approved by the user. The machine-readable mirror is
-`config/preregistration.yaml` (the two must agree; `freeze.py` checks).
+**Status:** 🟡 PRE-FREEZE (as of 2026-07-01) — design content RATIFIED; awaiting pilots. The 2026-07-01 design
+amendments — the **mechanism-headline + numeracy reframe (§2a)**, **λ=0 (§5)**, the **rf/cash numeraire (§10)**,
+and the **serial-headline protocol (§6)** — are **RATIFIED** (user-delegated authority 2026-07-01) and mirrored in
+`config/preregistration.yaml`. The freeze (`scripts/freeze.py`, which hashes this into `docs/DECISION_LOG.md`) is
+now gated on only **one remaining item**: the **σ_D pilot** (seed-variance → the winner seed count 30 vs 50).
+**B\* is SET: 200,000 (R74, 2026-07-02 — the Split-C convergence pilot; R70's extend-until-converged criterion
+amended with its measured structural blind spot on flat-noise curves).** An **OPTIONAL** model-panel (ADR-039)
+amendment remains (a secondary, budget-dependent generality probe — the headline is Opus-single). The freeze runs only on the user's explicit go. Until frozen, editable; after freeze, changes require an explicit,
+dated **amendment** approved by the user. The machine-readable mirror is `config/preregistration.yaml` (the two
+must agree; `freeze.py` checks).
 
 **Why pre-register.** The headline H2 can return a null. Fixing the hypotheses, budgets, metrics, and
 analysis plan *before* the campaign makes a null a credible finding about the question as posed, not a
@@ -18,9 +24,14 @@ test span, across seeds and the candidate population — NOT the cross-section o
 - **H1 — LLM vs hand-designed.** H0: median OOS risk-adjusted performance of LLM-designed rewards ≤
   the best hand-designed baseline (raw return; return−variance; return−CVaR; differential Sharpe).
   Reported **descriptive / report-only** (subordinate to the H2 headline): the best-of-4 baseline
-  identity is selected on **validation** (not the test leg it is reported on), the baselines are
+  identity is selected on **validation where a validation fitness is archived; where it is not, the
+  executed pipeline falls back to selection on the sealed leg and this is DISCLOSED as
+  snooped-descriptive** (R49; the executed reality — `run_campaign._baseline_winner_record` archives
+  baselines without a validation fitness, and CH4/CH7 carry the disclosure), the baselines are
   disclosed as un-tuned (L16; DEEP_H1), and "is the search worth it?" is routed to H4 — so the bare
-  max-of-4 comparison carries no inferential multiple-comparison claim (R30).
+  max-of-4 comparison carries no inferential multiple-comparison claim (R30). *(Sentence corrected
+  2026-07-02: the previous text asserted unconditional validation-selection, which the pipeline does
+  not deliver — the freeze must not hash a claim the code contradicts.)*
 - **H2 — distributional vs scalar (HEADLINE).** Decided as **two co-primary intersection–union tests**
   (R25, 2026-06-25; DEEP_H2 §7.1), each over the distributional arm vs the three comparators, each
   supported iff **all three** of its legs reject **one-sided at α = 0.05** in the predicted direction
@@ -80,6 +91,150 @@ The headline is the **feedback channel**. All feedback arms run the **same fixed
 The distributional feedback is **measured off-critic** from realized returns, so it does not depend on
 the agent's critic.
 
+## 2a. Mechanism-headline reframe (RATIFIED 2026-07-01 — the foregrounded research question)
+
+> **Pre-freeze amendment (2026-07-01, RATIFIED — mechanism-headline reframe + report-only mechanism
+> instruments; user-delegated authority, mirrored in `config/preregistration.yaml: mechanism`).** This amendment changes the **write-up headline and the
+> foregrounded research question**, NOT the confirmatory test. The confirmatory hypotheses (§1, H1–H4), the
+> seven arms (§3), the frozen tail-diagnostic set (§4), the λ = 0 selection (§5), the splits (§7), the
+> **m = 6** testing family, the two co-primary IUTs (R25), and the SESOI/TOST (R12) are **ALL UNCHANGED**, as
+> is the freeze hash's testing-family partition. What changes is the narrative spine: the dissertation is led
+> by the **mechanism**, with the H2 performance result as its rigorous backdrop. Motivation: depth over
+> breadth and an original, mechanism-level question are the dominant grade levers (Grade & examiner strategy),
+> and the predicted H2 null is far more informative as *"where does the feedback channel break?"* than as a
+> bare non-result.
+>
+> **Primary research question (RQ).** *Does showing an LLM reward-designer the **downside** — the
+> realized-return left-tail distribution, rather than a scalar — change the reward-function **code** it
+> writes, and does that change propagate to the trained agent's realized tail behaviour?* The object of study
+> is the **three-link causal chain**
+>
+> > fed tail signal  —(SQ1)→  authored reward CODE  —(SQ2)→  trained policy  →  realized tail outcome
+>
+> (with surface-echo-vs-genuine-use and numeric legibility adjudicated by **SQ3**), and a null is reported as
+> a result that **LOCATES where the chain breaks**, not an absence of evidence.
+>
+> **Sub-questions + pre-registered instruments (all report-only, DISJOINT from the m = 6 family).**
+> - **SQ1 — responsiveness.** *Does the fed tail signal change the authored reward code?* Instruments: the
+>   per-generation responsiveness statistic (Spearman of Δ(fed tail) vs Δ(authored-reward feature), bootstrap
+>   CI; `src/inference/responsiveness.py`) **and** the reward-program differential (§1a; `inspect_rewards`).
+>   Pre-registered direction: responsiveness **> 0** if the channel acts; the Sonnet prototype's *negative*
+>   responsiveness predicts the break is **here**.
+> - **SQ2 — transmission.** *Does the change in code propagate to the realized tail outcome?* Instrument: a
+>   single-mediator decomposition of fed → code → outcome (indirect effect a·b with a percentile bootstrap CI;
+>   `src/inference/mediation.py`). Registered consequence: if SQ1 is null (path a ≈ 0) then a·b ≈ 0 for **any**
+>   downstream link — the chain is severed at the first hop, the predicted outcome.
+> - **SQ3 — specificity / genuine use.** *Is any effect genuine use of the tail **content** or a surface echo,
+>   and is a failure a **numeric-legibility** bottleneck?* Instruments: the AST-structural named-vs-blinded test
+>   (`src/inference/contamination.named_vs_blinded_structural` — identifier-invariant program structure, so a
+>   placebo that echoes tail *tokens* yet writes a different *program* is caught) **and** the legible-format
+>   responsiveness differential (`responsiveness.legible_format_responsiveness_differential`).
+>
+> **Registered numeracy-bottleneck hypothesis (falsifiable).** We pre-register, before the sealed leg, that
+> any SQ1 failure is **in part a numeric-legibility bottleneck** — frontier LLMs compare close small floats at
+> ~50–70% accuracy (arXiv:2602.07812; NUMCoT, arXiv:2406.02864), and the fed CVaR values (e.g. −0.0577 vs a
+> sibling reward's −0.0582) sit in that failure regime — **not** evidence that tail information is useless. The
+> **legible-format ablation** (the identical tail content re-rendered legibly — basis points / rank framing)
+> tests it: a positive, CI-separated legible-minus-raw responsiveness differential **confirms** the bottleneck
+> (a concrete scaling/legibility lever and a contribution in its own right); a null **refutes** it. This is a
+> falsifiable hypothesis with a registered decision rule, not a post-hoc rationalisation.
+>
+> **Micro-anchors (pre-freeze addendum, 2026-07-02 — declared ex-ante so the write-up's sharpened analyses
+> are REGISTERED, not post-hoc).**
+> - **(a) SQ3b adjudicates two named rival accounts.** The legible-format ablation discriminates between the
+>   **READOUT account** — the numeric content is *encoded but not reliably verbalized/used* (probing studies
+>   find >90% internal discriminability against 50–70% verbal comparison accuracy; arXiv:2602.07812), which
+>   predicts the legible re-rendering **recovers** responsiveness (positive differential) — and the
+>   **EXECUTION account** — the failure is in *executing* multi-step numeric comparison regardless of format
+>   (arXiv:2507.10624), which predicts the re-rendering does **not** help (null differential). Either outcome
+>   is informative and names its winner ex-ante.
+> - **(b) Declared-exploratory distance moderator (report-only, outside every confirmatory family).** Within
+>   the CVaR-fed arms only: per-generation designer responsiveness regressed on the **numeric distance**
+>   between consecutively fed CVaR values (controlling magnitude, iteration index, and fitness-plateau state).
+>   The numeracy account predicts responsiveness rises with numeric distance (a psychophysics-style distance
+>   effect); declared EXPLORATORY — no confirmatory weight, reported with CIs.
+> - **(c) Severity summary.** The write-up's summary of the headline TOST result will include a **post-data
+>   severity assessment** (severity curve at the SESOI per co-primary leg, Mayo–Spanos) as the planned
+>   presentation of how severely the null passed — registered here so the presentation choice is ex-ante.
+> - **(d) Information-utilization gap (report-only, archive-computed; NEW instrument).** A null invites the
+>   objection *"the fed tail carried no information beyond the scalar anyway."* We pre-register its direct
+>   measurement: on the ACTUAL fed feedback sequences archived per generation, the **redundancy of the
+>   multi-level tail vector given the scalar** (per-component R²/rank-correlation of the six tail components
+>   on the concurrently fed scalar summary, pooled over generations; the `placebo_shuffled` arm — whose
+>   vector's information is destroyed by construction — serves as the calibration floor). The complement
+>   (1 − redundancy) is the **fed-but-unusable-by-a-scalar information**; contrasted with the SQ1
+>   responsiveness estimate it yields the **information-utilization gap**: how much extra signal the
+>   designer was GIVEN vs how much its code USED. Registered direction under the numeracy hypothesis:
+>   substantial non-redundant information, near-zero utilization.
+> - **(e) Validation-headroom (oracle-selection) bound (report-only, archive-computed; NEW instrument).** A
+>   null equally invites *"perhaps no better reward existed to find."* We pre-register the direct check: from
+>   the archived per-candidate validation returns (every candidate, every arm), the **oracle-selection
+>   frontier** — the best achievable validation CVaR-5% (and DSR) over ALL authored candidates, per arm and
+>   pooled — against what each arm's frozen selection achieved. A material frontier-minus-achieved gap
+>   establishes that headroom EXISTED in the authored search space; combined with (d) and SQ1 this completes
+>   the quantitative localisation of the break (information present → headroom present → designer
+>   unresponsive). VALIDATION data only (the sealed test leg is never used for this bound; a winners-only
+>   test-leg analogue may be reported as an appendix caveat since only winners have test scores).
+> - **(f) The MECHANISM FINGERPRINT — four rival accounts × the instrument suite, signatures registered
+>   ex-ante (report-only interpretation scaffolding; no gate, no multiplicity claim).** A SQ1-null admits
+>   four nameable rival explanations. We register each account's PREDICTED SIGNATURE across the instruments,
+>   so the observed pattern SCORES the accounts against one another rather than testing them piecemeal:
+>
+> | Instrument | A1 GENUINE-USE (channel works) | A2 READOUT / numeric illegibility (arXiv:2602.07812) | A3 EXECUTION failure (arXiv:2507.10624) | A4 PRIOR-DOMINANCE (objective prior overrides all feedback) |
+> |---|---|---|---|---|
+> | SQ1 responsiveness (tail arms) | **> 0** | ≈ 0 (raw) | ≈ 0 | ≈ 0 |
+> | Scalar-arm responsiveness (same statistic, its own fed scalar) | > 0 | **> 0** (scalar is legible) | ≈ 0 | **≈ 0** (ignores ALL feedback) |
+> | SQ3b legible-format differential | ≈ 0 (already used) | **> 0** (the key discriminator) | **≈ 0** (format cannot fix execution) | ≈ 0 |
+> | Distance moderator (b) | ≈ 0 | **> 0** (psychophysics distance effect) | weak/≈ 0 | ≈ 0 |
+> | Information-utilization gap (d) | small | large | large | large |
+> | Reward-program diversity (taxonomy concentration) | responsive/diverse | moderate | moderate | **templated/concentrated** |
+>
+>   The discriminating cells are bolded: A2-vs-A3 is decided by the legible-format differential; A4 is
+>   uniquely identified by the SCALAR arm's own responsiveness (computable from the same archived records
+>   with the same SQ1 statistic — registered here as an instrument application, not a new hypothesis) joint
+>   with taxonomy concentration; A1 is identified by SQ1 itself. Mixtures are expected and will be reported
+>   as the observed pattern's distance to each registered signature — never forced into a single account.
+>   To our knowledge no prior study of LLM agents registers a multi-account × multi-instrument fingerprint
+>   ex-ante; this converts the instrument suite into a theory-adjudication matrix and is registered
+>   PRE-FREEZE so the adjudication is a design property, not a post-hoc narrative. (A4 has an independent
+>   empirical anchor: LLMs carry measurable risk-preference profiles (Hartley et al., ACL 2025) — a
+>   designer whose prior risk attitude dominates fed evidence is a live, literature-grounded account, not a
+>   straw man.)
+> - **(g) Reflection-funnel content analysis (report-only, archive-only; declared exploratory).** The
+>   archive stores every reflection the designer writes. We register a staged FUNNEL coding of the tail-fed
+>   arms' reflections — for each generation: (i) **QUOTE** — does the text reference the fed tail values at
+>   all; (ii) **COMPARE** — does it compare them across candidates/levels (the numeracy-critical step);
+>   (iii) **CONCLUDE** — does it draw an explicit design implication from the comparison; (iv) **IMPLEMENT**
+>   — does the authored code change realise that implication (cross-checked against the SQ1 code-feature
+>   deltas). Reported as per-stage pass rates with the funnel's drop-off location — the qualitative twin of
+>   the fingerprint (f): the accounts predict DIFFERENT drop-off stages (A2 readout → falls at COMPARE;
+>   A3 execution → falls at COMPARE/CONCLUDE despite quoting; A4 prior-dominance → often falls at QUOTE, or
+>   CONCLUDEs generically without using the numbers; A1 genuine-use → survives to IMPLEMENT). Coding
+>   protocol: two independent coders (one LLM-assisted with a frozen rubric prompt + one human-checked
+>   sample ≥ 20%), inter-coder agreement reported (Cohen's κ); all reflections of the tail-fed arms coded
+>   (≈ generations × candidates, bounded); declared EXPLORATORY, outside every confirmatory family. To our
+>   knowledge the first staged content analysis of an LLM reward-designer's verbalized reasoning.
+>
+> **Robustness to the σ_D pilot (a deliberate design property).** The mechanism headline is **independent of
+> whether H2 lands as equivalence (σ_D small) or non-rejection (σ_D larger)**: in both cases the SQ1–SQ3
+> instruments locate the break in the chain. The performance result (§1/§10) sets only HOW TIGHT the
+> equivalence statement can be (the TOST CI against the ±0.05 SESOI); it does not determine the thesis. This
+> intentionally decouples the dissertation's headline from the one genuinely uncertain pilot outcome.
+>
+> **Honesty (registered limitations).** (i) The decomposition is **observational/associational**: the fed tail
+> is **endogenous** (the trained policy's own realized returns; §2), so SQ2's mediation has a causal reading
+> only under sequential ignorability (Imai, Keele & Tingley 2010) — reported as a descriptive mechanism
+> decomposition, never a causal proof. (ii) At 30 main-experiment seeds some sub-tests (e.g. the
+> named-vs-blinded equivalence) are underpowered; the dedicated, cheap A/B sub-experiments run more seeds, and
+> effect sizes + CIs + achieved power are reported, never a bare non-rejection. (iii) Search width K = 5 and
+> the single Claude model family bound the generality of any mechanism claim; the multi-model panel (ADR-039)
+> is the registered generality probe.
+>
+> **Machine-readable mirror.** A report-only `mechanism:` block (RQ; `sub_questions.{sq1,sq2,sq3}` with their
+> instruments + pre-registered directions; the `numeracy_bottleneck` hypothesis + its ablation decision rule;
+> `report_only: true`; `disjoint_from_m6: true`) is added to `config/preregistration.yaml` **at ratification**;
+> it carries no member of the frozen testing family. **No other frozen quantity changes.**
+
 ## 3. The seven arms (matched compute)
 `distributional` · `scalar` · `placebo` · `scalar_cvar5` · `placebo_shuffled` (R32, the
 structure-vs-content control — the distributional block with its six tail values candidate-seeded-
@@ -100,10 +255,13 @@ body (CVaR/quantiles/left-tail-mass/robust-skew); **GPD/EVT tail fit** for the e
   reported as the fed-signal stability exhibit. The **bias-corrected POT of Troop, Godin & Yu (2021,
   arXiv:2103.05059) is NOT implemented — documented as FUTURE WORK** (R27): its second-order
   regular-variation correction is built for heavy tails (ξ > 0) at large samples (n ∈ [5e3, 5e4],
-  α ∈ {0.998, 0.999}); in this regime (~750 returns, α ∈ {0.05, 0.01}, ~75 exceedances) the GPD-MLE
+  α ∈ {0.998, 0.999}); in the measured regime (n ≈ 750, α ∈ {0.05, 0.01}, ~75 exceedances) the GPD-MLE
   error is variance-dominated (measured CVaR bias ≈ −0.1% at 5%, +0.9% at 1%) and the correction is
-  ill-conditioned (ξ ≤ 0 for ~94% of realistic samples), so it would not reduce RMSE here. CVaR-1%
-  **retained but flagged high-variance** (~7–8 exceedances on ~750 returns). See `docs/DEEP_H2.md` §6.2/§6.4.
+  ill-conditioned at this sample size — Troop's second-order ρ and A(n/k) estimators carry the GPD shape estimate in the denominator and are consistent only in the heavy-tail, large-sample regime the authors validate. (The GPD-MLE shape estimate landing ≤ 0 in ~94% of n ≈ 750 draws is a SMALL-SAMPLE NEGATIVE-BIAS fact — the GPD-MLE systematically UNDER-estimates the shape at n ≈ 750 with ~75 exceedances (DEEP_H2 §6.2), so the shape estimate is CENTERED ≤ 0 by that bias, and with an asymptotic shape SE ≈ (1+ξ)/√k ≈ 0.14 at ~75 exceedances it lands ≤ 0 in the great majority of draws even for a genuinely heavy tail — NOT a claim that portfolio losses are light-tailed: diversifying regularly-varying constituents preserves the tail INDEX, so the underlying loss tail stays genuinely heavy (only its scale shrinks).) So the correction would not reduce RMSE here, regardless of the true tail-index sign. CVaR-1%
+  **retained but flagged high-variance** — measured at n ≈ 750 (the pre-Split-C fed window, ~7–8
+  exceedances); the executed Split-C fed window is the full train rollout ≈ 2,961 sessions ⇒ ~296
+  exceedances at threshold_q=0.10 and ~30 cvar_01 tail points — direction unchanged, the estimator
+  strictly better-fed. See `docs/DEEP_H2.md` §6.2/§6.4.
 - `left_tail_mass` — fraction below `−k·σ`, **k = 2.0** (frozen).
 - `robust_skew` — quantile-based (Bowley) skewness `((Q95−Q50)−(Q50−Q05))/(Q95−Q05)`, **frozen sign
   convention: NEGATIVE when the left tail is longer** (resolves decision-log IMPL-2; matches
@@ -118,18 +276,18 @@ candidate reward's own units, so selection cannot be reward-hacked). Optional `�
 (λ pre-registered). Fed-back signal (train returns) and selection signal (val returns) are on
 **different splits**.
 
-> **Pre-freeze amendment (2026-06-24, PROPOSED — λ formalization).** The frozen `lambda_cvar` is set to
+> **Pre-freeze amendment (2026-06-24, RATIFIED 2026-07-01 — λ formalization).** The frozen `lambda_cvar` is set to
 > **0.0** (`config/preregistration.yaml: fitness.lambda_cvar`; executed via the `held_out_fitness` default
 > `lam=0.0` — no config term is threaded into the selection hot path): selection is **pure validation Deflated
-> Sharpe** with NO CVaR penalty, and the planned `lambda_grid` / `calibration_fold` scaffolding is left
-> INERT (read by NO live code — `config/inference.yaml:16-20`; to be DELETED at freeze if λ=0 is ratified;
-> it was specified but never calibrated — `lambda_frozen: null`). RATIONALE: the H2 contribution is the
+> Sharpe** with NO CVaR penalty, and the planned `lambda_grid` / `calibration_fold` scaffolding — INERT,
+> read by NO live code, specified but never calibrated (`lambda_frozen: null`) — was DELETED 2026-07-02,
+> executing this instruction (`config/inference.yaml:43-45` records the deletion). RATIONALE: the H2 contribution is the
 > FEEDBACK CHANNEL — multi-level tail-risk feedback (six left-tail scalars — the lower tail, NOT the full distribution; R53) is fed to the reward-DESIGNER (shaping the authored
 > reward code the agent then optimizes), NOT a tail term bolted onto the selection criterion. A
 > reward-independent, tail-blind DSR selection keeps the arms' selection identical and un-reward-hackable;
 > the tail OUTCOME is measured downstream on the sealed test leg (the CVaR-difference test + the
-> FZ0/(VaR,ES) elicitable backtest, §10). This formalizes the existing default; it is flagged **PROPOSED**
-> pending the user's freeze-time ratification (the rejected alternative — a pre-2015-calibrated λ>0 that
+> FZ0/(VaR,ES) elicitable backtest, §10). This formalizes the existing default; it was **RATIFIED 2026-07-01**
+> (user-delegated authority; the rejected alternative — a pre-2015-calibrated λ>0 that
 > rewards tail-aware winners at selection — is recorded here). No other frozen quantity changes.
 
 ## 6. Loop protocol (frozen; audit B-3, B-5)
@@ -168,10 +326,60 @@ CPCV is applied to the **fixed winners afterward** for inference — NOT inside 
 > de-risked fallback (`--search-gpu 0`); the parallel run is GATED on a GREEN single-arm 50k GPU-smoke
 > (RAM/thermal). `config/preregistration.yaml: search.headline_reflect_protocol = parallel_reflect_on_best`.
 
+> **Pre-freeze amendment (2026-07-01, RATIFIED — headline search protocol REVERTED to SERIAL reflect-on-last;
+> supersedes R24; user-delegated authority, mirrored in `config/preregistration.yaml: search.headline_reflect_protocol`).** The headline search protocol is set to the **SERIAL
+> reflect-on-LAST** path (`--search-gpu 0`, the default), superseding R24's parallel reflect-on-best. RATIONALE
+> — two of R24's three rationales have dissolved, and a reliability argument decides it: **(i) Speed is moot** —
+> ADR-040 established that the 1-Sep deadline comfortably accommodates the longer serial laptop run, so R24's
+> "~halves the run" benefit is no longer needed. **(ii) The buffer asymmetry is resolved on BOTH paths** — the
+> campaign config pins `buffer_size = 50k` and the serial trainer and the parallel worker both clamp to it
+> (verified 2026-07-01), so R24's "serial ships a 25k/50k skew" was a prototype-config artefact, not a campaign
+> one. **(iii) Reliability of the unattended run** — the serial path is the one the Sonnet prototype validated
+> END-TO-END; for a ~2–3 week UNATTENDED, auto-restarting laptop campaign its far smaller concurrency surface
+> (no `DevicePool`/thread/future orchestration) is the lower-risk choice, and **reproducibility is now EQUAL on
+> both paths** because the parallel resume cache was added 2026-07-01 (so parallel is no longer the only
+> resume-safe path — that advantage is gone). The ONE cost — reflect-on-LAST is a minor deviation from Eureka's
+> reflect-on-best — is handled by **honest disclosure in METHODS** (the reflection seed is the generation's last
+> accepted candidate, not its best) and by RETAINING the **parallel reflect-on-best path as a documented,
+> now-resume-safe robustness variant** (`--search-gpu 2`). Everything else is matched (panel / windows /
+> candidate budget / fixed agent / Opus author / fitness / λ / splits). Mirror at ratification:
+> `config/preregistration.yaml: search.headline_reflect_protocol = serial_reflect_on_last`. No other frozen
+> quantity changes. (The code comment `parallel.py:632` "the headline campaign uses the SERIAL path" is now the
+> ratified intent, resolving the R24-vs-code inconsistency.)
+>
+> **CORRECTION (2026-07-02, pre-freeze; code-verified).** The paragraph above rests on a STALE premise: the
+> serial path no longer reflects on the LAST candidate — the earlier **R32/M5 amendment had already upgraded
+> the serial loop to reflect on the generation's BEST** (verified at `src/llm/loop.py:604-615`: "the
+> generation's BEST candidate seeds the next prompt (M5 reflect-on-best — Eureka-faithful)"), and CH4 §4.5
+> already describes reflect-on-best. The RATIFIED DECISION — **SERIAL execution** for unattended-run
+> reliability, with parallel retained as robustness variant — is UNCHANGED. What is corrected is the protocol
+> LABEL: the headline is **serial reflect-on-BEST**, i.e. Eureka-faithful, and the "one cost / reflect-on-last
+> deviation" disclosure above is hereby DISSOLVED (there is no deviation to disclose). Mirror updated:
+> `config/preregistration.yaml: search.{reflect_protocol_default, headline_reflect_protocol} =
+> serial_reflect_on_best`. Found by the 2026-07-02 pre-freeze audit; freezing the uncorrected text would have
+> hashed a protocol description the campaign does not execute.
+
 ## 7. Data (frozen; audit B-2, C-3)
-Point-in-time, survivorship-free US large-cap equities, **2005–2025 (full 20 years — not a scoping
+
+> **★ SPLIT-C + univ5 AMENDMENT (ADR-044 ratified 2026-07-01; EXECUTED 2026-07-02 with ADR-051 — a
+> PRE-FREEZE design choice, never results-contingent).** The panel is extended to the **settled
+> 2026-06-30 cutoff** and rebuilt as **`univ5` (5,406 sessions × 963 names, 2005-01-03→2026-06-30)**,
+> the new **frozen headline panel**. Integrity: the 2005–2025 overlap of `univ5` vs the frozen `univ3`
+> is **byte-identical (0 changed cells, verified `scripts/verify_gold.py` 2026-07-02)** — only 123
+> 2026-H1 sessions and 10 new-member columns are appended; the frozen membership record remains
+> authoritative for its own span (a vendor event-history revision detected on first re-contact —
+> `EVHC.N^L16`, externally verified immaterial: never top-30 — is allowlisted and disclosed, ADR-051
+> addendum). **Delisting upgrade:** the OBSERVED-terminal recovery (DATA_REPULL_DELISTING.md decided
+> route) recovered the realised terminal return for **all 333 dead names** (`vendor_terminal_kept: 333`,
+> **zero surcharges booked**) — the corrected Shumway panel (`univ5s`) is therefore byte-identical to
+> the zero-fill headline on returns, demonstrating that `univ4`'s un-gated −30/−55% surcharge was
+> **double-counting terminals already present in the vendor series** on top of its M&A contamination.
+> The R39/R44 narrative below is retained as the amendment trail; the delisting sensitivity band remains
+> reported, with `univ4` as its disclosed contaminated heavy end.
+
+Point-in-time, survivorship-free US large-cap equities, **2005–2026-06-30 (21.5 years — not a scoping
 lever)**; top-30 by PIT market cap; delisting returns retained; two-vendor reconciled; SHA-256 frozen.
-The **headline data panel is `univ3`** (R44, superseding R33's `univ4` choice): the **zero-fill**
+The **headline data panel is `univ5`** (ADR-044/051, extending R44's `univ3` conventions): the **zero-fill**
 (`liquidate_to_cash`) build — a dead name's post-event return booked 0.0 — which **understates** rather
 than **invents** the delisting tail, the honest conservative choice on the data-fabrication axis. `univ4`
 is the survivorship-corrected alternative that books **Shumway** delisting returns (−30% NYSE/AMEX, −55%
@@ -182,13 +390,23 @@ sensitivity band (`analyze_campaign.delisting_band`), not the headline; `univ3` 
 end**. **R39
 correction:** `univ4`'s −30/−55% surcharge hits **all** 333 delistings incl. premium M&A (no reason field
 on disk), so it is the band's **M&A-contaminated heavy end**, NOT the true tail — the **delisting band is
-the headline tail instrument** (the d∈{0,−30,−55,−100%} sweep moves CVaR-5% only ~2%, so the H2 tail
+the headline tail instrument** (the d∈{0,−30,−55,−100%} sweep moves CVaR-5% only ~2% — measured
+pre-Split-C on the 2018–2025 window, re-derived at analyze time on the executed window — so the H2 tail
 ordering is invariant), and the **reason-gated `univ4r` (a brief documented re-pull) is the correct panel**
-(`docs/DATA_REPULL_DELISTING.md`; recommended, optional for H2). The loader's live default `univ3` is now ALSO the **FROZEN headline panel (R44, 2026-06-26)** — zero-fill,
-NO fabricated losses — so the campaign runs on it with NO `LLM_RP_GOLD_SUFFIX` override; `univ4` (which
-fabricates M&A losses on 100% of delistings, R39) is the band's heavy END, not the headline.
-Splits: **train 2005–2014** (agent learns + feedback measured), **val 2015–2017** (selection),
-**test 2018–2025** (untouched until final inference); an inter-split **purge of
+(`docs/DATA_REPULL_DELISTING.md`; recommended, optional for H2 — SUPERSEDED 2026-07-02: the correction was
+EXECUTED as `univ5s` via observed-terminal recovery, ADR-051, which found the vendor series already books
+every dead name's realised terminal — 333/333 `vendor_terminal_kept`, ZERO surcharges — so `univ5s ≡ univ5`
+byte-identically and `univ4`'s flat surcharge was terminal DOUBLE-COUNTING on top of its M&A contamination).
+The loader's live default is **`univ5`**, which is ALSO the **FROZEN headline panel (R73, 2026-07-02,
+extending R44's zero-fill conventions)** — zero-fill, NO fabricated losses — so the campaign runs on it with
+NO `LLM_RP_GOLD_SUFFIX` override; `univ4` (which fabricates M&A losses on 100% of delistings, R39) is the
+band's heavy END, not the headline (the band is computed on the univ3/univ4-era overlap through 2025-12,
+where `univ5` and `univ3` are byte-identical).
+Splits (**SPLIT C**, ADR-044): **train 2005–2016** (agent learns + feedback measured), **val 2017–2019**
+(selection), **test 2020–2026-06-30** (untouched until final inference — the post-COVID-crash recovery and
+elevated-vol regime [the 19 Feb–23 Mar 2020 crash itself falls INSIDE the test-boundary purge, so the
+scored sealed-test outcomes begin post-crash, ~2020-03-30; §4.2], the 2022 hiking cycle,
+the 2023–25 AI rally, and settled H1-2026); an inter-split **purge of
 max(embargo=21, lookback=60) = 60 trading sessions** at each boundary (R18 — the purge must cover the
 60-day feature lookback, not merely the 21-day embargo, so no observation's feature window crosses a
 split; López de Prado 2018). Data is licensed and **not redistributable** — ship checksums + pipeline
@@ -200,12 +418,15 @@ model's training cutoff · one open-weights second model with a different cutoff
 that reward-design contamination ≠ forecasting contamination; reward-design priors are the **object of
 study** (H4), not a defended weakness.
 
-> **Open-weights second-model status (V10, 2026-06-26 — disclosure).** The open-weights cross-model leg
-> specifies a commit-pinned, different-cutoff second model (`open_weights_check_model`); as of freeze it
-> remains **unpinned** (`PIN_ME`), so `cross_model_disagreement` returns `no_data` (`executed: False`).
-> The study runs only the **single Claude model family** (Sonnet 4.6 → Opus 4.8, same vendor + API key) —
-> any plural "LLMs"/"models" reference to the authored rewards denotes that single family — and whether to
-> execute a second-model run is a **deferred protocol decision**, NOT a completed contamination control.
+> **Open-weights second-model status (V10, 2026-06-26 — disclosure; PIN EXECUTED 2026-07-02).** The
+> open-weights cross-model leg specifies a commit-pinned, different-cutoff second model
+> (`open_weights_check_model`). **As of 2026-07-02 the pin is set: `qwen/qwen3-coder` via OpenRouter**
+> (R71 follow-through; provider wiring + key-gated smoke test built and verified; the exact SERVED
+> snapshot string is recorded in the archive at first live call — the reproducibility anchor). Until the
+> secondary panel RUNS, `cross_model_disagreement` still returns `no_data` (`executed: False`) and the
+> HEADLINE remains the **single Claude model family** (Sonnet 4.6 → Opus 4.8, same vendor + API key) —
+> any plural "LLMs"/"models" reference to the authored rewards denotes that single family until the
+> secondary Qwen panel is executed (report-only, never confirmatory; scheduled at/after the campaign).
 
 ## 9. Benchmark suite (frozen; R19)
 equal-weight (1/N, DeMiguel floor) · mean-variance (Ledoit-Wolf shrinkage) · risk parity (equal-risk-
@@ -259,16 +480,19 @@ claim is **comparative**
 > `frozen: false`); `config/preregistration.yaml: inference.seed_reporting` already specified
 > `rliable_iqm_poi_stratified_ci`, so this aligns the implementation with the frozen intent.
 
-> **Note 2026-06-20 (R17) -- headline test-universe construction + the point-in-time robustness check.**
+> **Note 2026-06-20 (R17; R73 follow-up correction 2026-07-02 — re-scoped to the executed Split C) --
+> headline test-universe construction + the point-in-time robustness check.**
 > The fixed SB3-SAC agent allocates over a FIXED 30-asset action space, so SEARCH/SELECT and the sealed
 > TEST share ONE universe: the development-phase **point-in-time top-30** (selected 2005-01-03;
-> survivorship-free PIT). The sealed test leg (2018-2025) therefore trades the **2005 cohort** -- a known
-> COMPOSITION limitation (names delisted by 2018 are held at 0% under `liquidate_to_cash`; later
+> survivorship-free PIT). The sealed test leg (2020--2026-06-30, Split C) therefore trades the **2005
+> cohort** -- a known
+> COMPOSITION limitation (names delisted by 2020 are held at 0% under `liquidate_to_cash`; later
 > large-caps never enter), **NOT** dev->test leakage (the splits are disjoint + embargoed). It is
 > accepted for train/test universe consistency and is **reported as a headline limitation**, not silently
-> inherited. **ROBUSTNESS:** the gold ships point-in-time walk-forward selections (incl. a 2018-01-02
-> top-30, which differs from the 2005 cohort in **11/30** names);
-> `load_gold_panel(phase="walk_forward", window_start="2018-01-02", end="2025-12-31")` loads that PIT
+> inherited. **ROBUSTNESS:** the gold ships point-in-time walk-forward selections (incl. a **2020 PIT
+> top-30 cohort** at the Split-C test boundary; its overlap with the 2005 cohort is recomputed at run --
+> the previously quoted **11/30** differing names was the pre-Split-C 2018-cohort measurement);
+> `load_gold_panel(phase="walk_forward", window_start="2020-01-02", end="2026-06-30")` loads that PIT
 > universe, enabling a re-evaluation of the frozen winners on the point-in-time universe as a robustness
 > check on the H2 conclusion (gated compute). Whether to elevate the PIT universe to the headline or keep
 > the consistent fixed cohort with this robustness check is a methodological design choice for the
@@ -319,7 +543,7 @@ claim is **comparative**
 >
 > **Leg decision (one-sided).** Each leg's per-seed rliable paired bootstrap (R16) returns a two-sided p;
 > the genuinely one-sided in-direction decision is `p_one = p_two / 2` when the effect is in the predicted
-> direction (`distributional` strictly better), else the leg does not reject (DEEP_H2 stats note A5). No
+> direction (`distributional` strictly better), else the leg does not reject (DEEP_H2 stats note A5). **(Superseded by R64, 2026-06-28: the leg p is now the DIRECT upper-tail bootstrap probability `pvalue_one_sided_greater = P(boot − obs ≥ obs)`, NOT `p_two/2` — halving the symmetric two-sided p is exactly valid ONLY under a symmetric bootstrap, whereas the direct upper-tail probability is exactly valid under ANY skew of the CVaR-difference bootstrap; the one-sided intersection-union METHOD is unchanged. See the amendment table, R64.)** No
 > change to the resampling unit, the IQM, the 30 seeds, the arms, the budget, λ, or the splits.
 >
 > **Rationale (a design CORRECTION justified a priori by the theory spine, NOT a post-hoc data switch).**
@@ -338,8 +562,9 @@ claim is **comparative**
 > `alpha_one_sided: 0.05`, `bh_over_6: reported_sensitivity_not_gate`); the m = 6 union, its `members`,
 > and the fail-loud realized-family assert are unchanged.
 >
-> **Pre-registered bankable-null statement (verbatim; DEEP_H2 §7.2).**
-> > *"We pre-registered, before observing the sealed 2018–2025 test leg, the hypotheses H2-RA and H2-Tail
+> **Pre-registered bankable-null statement (verbatim; DEEP_H2 §7.2; sealed-leg span corrected to the
+> R73 window 2026-07-02 — the statement must name the leg it actually protects).**
+> > *"We pre-registered, before observing the sealed 2020–2026H1 test leg, the hypotheses H2-RA and H2-Tail
 > > above, their three-leg intersection–union decision rules at α = 0.05, the directional predictions, the
 > > per-seed rliable IQM paired-bootstrap test over 30 winner seeds (Agarwal et al. 2021), the SESOI of
 > > 0.05 DSR, and a symmetric TOST equivalence margin of ±0.05 (in the test-statistic's units). If neither
@@ -369,6 +594,26 @@ claim is **comparative**
 > SESOI; the seed-to-seed σ is filled from the pilot pre-freeze; hypotheses/arms/seeds/budget/splits
 > unchanged. Mirrored in `config/preregistration.yaml: inference.{sesoi, equivalence_margin}`.
 
+> **Pre-freeze amendment (2026-07-01, RATIFIED — risk-free numeraire (R20): headline rf = 0 + a reported
+> rf-excess robustness; idle cash = 0; user-delegated authority, mirrored in `config/preregistration.yaml: numeraire`).** The headline H2 Sharpe uses
+> **rf = 0** (excess ≡ total return; `analyze_campaign._sharpe_score` with `risk_free=None`, byte-identical to
+> a frozen rf = 0; `src/inference/bootstrap.sharpe_ratio` carries no rf term), and the portfolio environment
+> books **0 % on idle cash** (`config/environment.yaml: cash_daily_rate = 0.0`; the env *prices* cash when the
+> rate is set — `portfolio_env.py:294,305` — but the frozen value is zero). **Rationale (why rf = 0 cannot
+> change the headline):** H2 is a **comparative, common-mode** test (distributional vs scalar, every confound
+> applied byte-identically to all seven arms). In a Sharpe *difference* `(μ_a−rf)/σ_a − (μ_b−rf)/σ_b`, the
+> risk-free term is `rf·(1/σ_b − 1/σ_a)`, which **cancels to first order** when the arms share volatility (same
+> fixed SB3-SAC agent, same universe) — so rf moves only the *absolute* Sharpe level, never the arm ordering.
+> To **demonstrate** this rather than assert it, the FRED **`DGS3MO`** daily rate **is** wired into a reported
+> **risk-free-excess robustness sensitivity** (`analyze_campaign.h2_sharpe_rf_robustness`, sourced from
+> `market_reference.load_risk_free_daily(...).daily`), which re-runs the family on excess returns and confirms
+> the headline ordering is rf-invariant. This **ratifies the existing default as the deliberate frozen choice**
+> (closing the open "ratify λ/cash" pre-freeze item and the R20 rf-threading note). The rejected alternative —
+> rf-excess as the *headline* numeraire + a per-session `DGS3MO` series threaded into the env idle-cash leg
+> (which would require `PortfolioEnv` to accept a rate *series*, not just the scalar knob) — is recorded as
+> available but NOT adopted, because it changes no comparative conclusion while enlarging the frozen-decision
+> surface. No other frozen quantity changes.
+
 ## 11. Algorithms (frozen)
 Headline: **SB3 SAC** (fixed across all feedback arms). Secondary critic: **TQC** (sb3-contrib).
 Robustness on winners only: PPO, TD3. Continuous-only fallback: D4PG (never QR-DQN — discrete-only).
@@ -397,6 +642,14 @@ the CVaR-5% arm.
 > Kaggle+Lightning+Colab+laptop. The matched-compute design, arms, and folds are **unchanged** — only the
 > hardware/venue (seeds: see amendment D2 (winners 5→30), §6/§12 and the amendment record).
 > Authoritative detail: `docs/COMPUTE_AND_TRAINING_TIME.md`.
+
+> **Pre-freeze amendment (2026-07-01, ADR-040 — LAPTOP-ONLY; supersedes ADR-023's rented-4090 venue;
+> dated note added 2026-07-02).** The EXECUTED compute plan is **laptop-only on the owned RTX 4050**: the
+> TEST leg runs the parallel scheduler at **3 workers** on the **Turbo** power profile; the SEARCH leg runs
+> **SERIAL** (§6, reflect-on-best). The longer wall-clock is ACCEPTED — the deadline math (ADR-040) absorbs
+> the multi-week unattended run, and renting reintroduces venue/ops risk for no design gain. The
+> matched-compute design, arms, seeds, and folds are unchanged — venue only; the Myriad → rented-4090 trail
+> above is retained as the amendment history.
 
 > **Amendment D2 (2026-06-19, user-approved) — winner seed count 5→30 (re-affirmed at §12).** The per-arm
 > WINNER seed count is raised from 5 to ≥20 (target **30**); the SEARCH budget is untouched (1 seed per
@@ -480,12 +733,15 @@ prose). Newest at the bottom.
 | 2026-06-28 | R61 | §1a, §4, §10 | **Pre-freeze methodology upgrade: tail-uncertainty propagation + epistemic re-basing (deep-research-verified).** (a) EPISTEMIC: the null's basis is re-named from "corroborated Popperian prediction" to **Mayoian error-statistical severity** (licensed by the frozen deviation-free protocol; pre-registration does NOT improve *Popperian* severity — Rubin 2025, Synthese arXiv:2408.12347) **+ garden-of-forking-paths avoidance** (Gelman & Loken 2014), reported via the existing TOST/SESOI equivalence (Lakens et al. 2018; Campbell & Gustafson 2018) — the commitment in §1a is unchanged, only correctly named. (b) METHODOLOGY (added pre-results, so part of the confirmatory apparatus, not post-hoc): the CVaR point estimate is now accompanied by an honest uncertainty report — **stationary-block-bootstrap CVaR confidence intervals** (`ReturnDistribution.cvar_ci`), a **bootstrap bias estimate** (`cvar_bias`; verified verdict: analytic≈bootstrap, neither superior — error is variance-dominated at n≈750, so report not correct), an **exceedance-count reliability tier** (`reliability`; Belzile-Davison 2022 small-sample), and the combined `cvar_uncertainty_report`. ALL additive + DETERMINISTIC (seeded block bootstrap; numpy PCG64) and report-only: the **fed feedback block values + all m=6 inference are byte-identical** (the fed block is NOT enriched with the CI by default — that is an arms-parity-gated option). (c) GARCH-EVT (conditional McNeil-Frey two-stage) was INVESTIGATED and **REJECTED**: validated on single-asset not aggregated-portfolio returns, adds model-risk at n≈750/few exceedances, and `arch` GARCH MLE is not byte-identical cross-platform (optimizer convergence) ⇒ breaks the determinism guarantee — retained only as a Future-Work A/B. Pre-freeze design improvement ⇒ the canonical freeze hash recomputes (still `frozen:false`; USER flips). | `measurement.py` (`cvar_ci`, `cvar_bias`, `reliability`, `cvar_uncertainty_report`); `docs/{ANALYSIS_METHODS_AND_FUTURE_WORK,EXAMINER_OBJECTIONS_AND_DEFENCES}.md`; `tests/test_measurement_uncertainty.py` |
 | 2026-06-28 | R62 | §12 | **Treatment text bound into the freeze hash (closes the unhashed-manipulated-variable gap; deep-audit 2026-06-28).** The canonical SHA-256 covered the prose + prereg-yaml + the three executed configs (inference/environment/data) but NOT the files that DEFINE the manipulated variable: `config/arms.yaml` (the per-arm feedback spec) and the two LOADED prompts `prompts/system.txt` + `prompts/initial_generation.txt` — so the treatment could change post-freeze without tripping `freeze.py --check`. A new `_BOUND_TREATMENT` tuple binds their CONTENT into the hash (after the bound configs, in a fixed documented order); the pre-commit + CI drift-guard globs and the docstrings are updated; `arms.yaml` remains additionally roster-checked. `prompts/reflection.txt` is excluded (dead — no runtime path loads it). The canonical hash recomputes (still `frozen:false`; USER flips). | `freeze.py::_BOUND_TREATMENT`; `.pre-commit-config.yaml`/`ci.yml` globs; `tests/test_freeze.py` |
 | 2026-06-28 | R63 | §2 | **Dead `prompts/reflection.txt` banner-marked (examiner grep-trap; cosmetic).** The file is not loaded at runtime (the reflection turn is built in-code from `_REFLECTION_PREAMBLE` + `schema.build_block`) yet is tail-saturated, so a reviewer greps `prompts/` and may wrongly infer all arms are tail-primed. A prominent ARCHIVED/DEAD banner now caps it, stating it is illustrative-only and excluded from the freeze hash. No code path changes. | `prompts/reflection.txt` banner |
-| 2026-06-28 | R64 | §10 | **Headline one-sided leg p computed DIRECTLY from the bootstrap tail (corrects the anti-conservative half-of-two-sided on the skewed CVaR leg).** The two co-primary IUT legs are decided ONE-SIDED in the predicted direction; the analysis layer derived the one-sided p by halving the symmetric two-sided p, which equals the true upper-tail probability ONLY under a symmetric bootstrap and is anti-conservative on the left-skewed/heavy CVaR-difference bootstrap — potentially flipping the bankable tail leg at the decision threshold. `paired_seed_difference_test` now returns `pvalue_one_sided_greater` = the direct upper-tail probability `P(boot − obs ≥ obs)`; `collect_family_pvalues._one_sided` and the H3/H4 helpers use it (the in-direction gate unchanged). Pre-freeze inference-implementation correction; the METHOD (one-sided intersection-union test) is unchanged. | `bootstrap.paired_seed_difference_test["pvalue_one_sided_greater"]`; `analyze_campaign._one_sided`/`_one_sided_from_two` |
+| 2026-06-28 | R64 | §10 | **Headline one-sided leg p computed DIRECTLY from the bootstrap tail (corrects the symmetry-assuming half-of-two-sided on the skewed CVaR leg).** The two co-primary IUT legs are decided ONE-SIDED in the predicted direction; the analysis layer derived the one-sided p by halving the symmetric two-sided p, which equals the true upper-tail probability ONLY under a symmetric bootstrap and departs from it under ANY skew of the CVaR-difference bootstrap — potentially flipping the bankable tail leg at the decision threshold. `paired_seed_difference_test` now returns `pvalue_one_sided_greater` = the direct upper-tail probability `P(boot − obs ≥ obs)`; `collect_family_pvalues._one_sided` and the H3/H4 helpers use it (the in-direction gate unchanged). Pre-freeze inference-implementation correction; the METHOD (one-sided intersection-union test) is unchanged. | `bootstrap.paired_seed_difference_test["pvalue_one_sided_greater"]`; `analyze_campaign._one_sided`/`_one_sided_from_two` |
 | 2026-06-28 | R65 | §9, §10 | **DSR saturation bug fixed — `expected_max_sharpe` returned −∞ for a single un-searched trial, pinning every benchmark/winner DSR at 1.0.** The guard read `n_trials <= 0` but the documented contract (and the maths) require `n_trials <= 1` to return the no-multiplicity benchmark 0.0: with one trial `norm.ppf(1 − 1/1) = ppf(0) = −∞`, so `sr_star = −∞` and `deflated_sharpe_ratio(x, n_trials=1) == 1.0` for ANY series — even a strongly NEGATIVE-Sharpe one. This silently broke the H1/T0 benchmark-FLOOR gate (every un-searched benchmark DSR saturated to 1.0, so the frozen winner could never strictly clear the floor) and the report-only `winner_dsr_undeflated_n1` value. Fixed to `n_trials <= 1`; a negative-Sharpe series now correctly scores DSR≈0. No frozen-design quantity changes — a correctness fix to a pre-registered diagnostic; the previously-red floor-gate test is now green. | `deflated_sharpe.expected_max_sharpe` (`n<=1`); `test_campaign_inference` floor gate |
 | 2026-06-28 | R66 | §5, §11 | **Two correctness/disclosure hardenings (report-only).** (i) SAFE_DEFAULT accounting: the sandbox `candidate_failed()` boolean is LAST-call only (a later success clears it, by design), so an intermittently-failing reward that recovers on the final rollout step was invisible; new accumulating counters (`safe_default_count`/`safe_call_count`, reset per rollout) surface + quantify every substitution, and `src/env/runner.py` now warns on the COUNT (with the substitution fraction) instead of the last-call flag. (ii) Determinism: `set_global_seed` sets `CUBLAS_WORKSPACE_CONFIG` EXPLICITLY (a pre-existing NON-deterministic value formerly survived via `setdefault`, silently defeating reproducible cuBLAS on the campaign GPU), preserving an already-deterministic ":16:8"; and the `PYTHONHASHSEED` comment is corrected (it governs spawned-child workers, not the current interpreter). Byte-identical benign-reward numerics; not in the freeze hash. | `executor.{safe_default_count,safe_call_count}`; `runner.py` warning; `utils/seeding.py` |
 | 2026-06-28 | R67 | §1, §10 | **(RATIFIED 2026-06-28, user-delegated: prior `r = sqrt(2)/2`, ROPE = the frozen equivalence margin, robustness curve over `r ∈ {0.5, sqrt(2)/2, 1, sqrt(2)}` — a confirmatory complement to TOST.) Bayesian evidence-FOR-the-null complement to TOST (report-only, DISJOINT from the m=6 family).** A pre-registered METHODOLOGY upgrade, not a new hypothesis: the SAME paired per-seed difference the headline IUT already consumes is additionally expressed in a Bayesian frame to give POSITIVE evidence for practical equivalence — a JZS default Bayes factor `BF01` (Rouder et al. 2009) with a prior-free BIC cross-check (Wagenmakers 2007), a conjugate-Student-t posterior + ROPE mass, and a 90% HDI⊂ROPE decision (Kruschke 2018) that mirrors the existing 90% TOST interval — directly answering the "informative or merely underpowered?" attack TOST alone cannot (Lakens et al. 2020; Campbell & Gustafson 2024 show TOST/HDI-ROPE/interval-null-BF reverse-engineer one another at matched error, so agreement across the two machineries severely tests the null). Report-only; never gates the frozen testing family; pure scipy/numpy, deterministic, NO new dependency. The single researcher degree of freedom — the Cauchy prior scale — is PINNED to `r = sqrt(2)/2` (BayesFactor "medium") with a MANDATORY robustness curve over `r ∈ {0.5, sqrt(2)/2, 1, sqrt(2)}` (the null is "supported" only across the whole band; an un-pinned prior would manufacture null evidence by Bartlett's / the Jeffreys–Lindley paradox, `BF01 → ∞` as `r → ∞`), and the ROPE reuses the already-frozen equivalence margin. **USER must ratify the pinned prior `r` (and that the ROPE = the frozen equivalence margin) BEFORE the freeze for this to be confirmatory; otherwise it is reported as a disclosed exploratory appendix.** | `src/inference/bayes_null.py` (`bayesian_null_report`); `tests/test_bayes_null.py` |
 | 2026-06-28 | R68 | §10 | **Reward-code STRUCTURAL similarity — report-only mechanism enrichment (DISJOINT from the m=6 family).** An identifier- and literal-invariant test of whether the LLM routes the fed tail signal into the *structure* of the reward code it writes (not merely cosmetic tokens, which the `placebo`/`placebo_shuffled` controls already neutralise): each reward's AST is canonicalised (variable/argument names AND constant VALUES discarded — only the node-type structure survives), its depth-bounded canonicalised subtree shapes are enumerated (the AST Distinct-N / TSED family), and pairwise Jaccard similarity is computed, with the headline statistic the mean WITHIN-condition vs ACROSS-condition structural similarity and a DETERMINISTIC seeded label-permutation p-value. A stronger, identifier-invariant companion to the reward-program differential (R51) that closes the placebo construct-validity gap the deep audits flagged. Pure standard-library `ast` (+ numpy, present), deterministic, NO new dependency; report-only, never gates the frozen testing family. | `src/inference/reward_code_distance.py` (`reward_code_structure_report`); `tests/test_reward_code_distance.py` |
 | 2026-06-28 | R69 | §10 | **Model Confidence Set over the arms — report-only multiplicity-honest ranking (DISJOINT).** The Hansen–Lunde–Nason (2011) MCS returns the set of arms statistically indistinguishable from the best at level `size`, correcting for ALL pairwise comparisons at once — a multiplicity-aware companion to the H2 IUTs whose shape exactly fits the predicted null (no dominant arm → the set contains nearly all arms, the honest corrected "indistinguishable" statement). Computed on the PER-SEED scores (the same per-seed Sharpe / CVaR values the rliable IQM and the headline IUT consume, so the inferential unit matches the stack), loss = negated metric, `method='R'`, with the level and seed PINNED. Built on `arch` (an EXISTING dependency — already the StationaryBootstrap / optimal_block_length oracle in `tests/test_inference_crosscheck.py`), DETERMINISTIC via the pinned seed, `block_size=1` (i.i.d. seeds), no model fit (none of the McNeil–Frey optimiser non-determinism the team rejected). Report-only; never gates the frozen family; pre-registered as a secondary descriptive ranking with its per-seed-Sharpe (risk-adjusted) and per-seed-CVaR (tail) losses pinned. (The Andrews–Kitagawa–McCloskey winner's-curse CI was CONSIDERED and is not adopted: the fed→select→test decoupling selects on validation and reports on the SEALED test, so the headline estimate carries no winner's curse — a strength to state, not a gap to patch.) | `src/inference/model_confidence_set.py`; `tests/test_model_confidence_set.py` |
 | 2026-06-29 | R70 | §5, §6 | **Train-to-convergence: `train_steps_per_candidate` set at the OBJECTIVE convergence knee (activates the R42-anticipated amendment; user-approved).** The per-candidate budget (was 50k, set from Phase-0 TIMING not convergence) is replaced by the budget at the held-out eval-return PLATEAU, chosen by a pre-registered, eyeball-free criterion (`scripts/learning_curve.py::recommend_budget`): the smallest budget past which the seed-median held-out eval-IQM is flat within 3% of the curve's range AND the critic loss is finite, all the way to the ladder ceiling — with the ladder EXTENDED (default 50k→800k, higher on demand) until the detector reports CONVERGED (it loudly flags "still rising at the ceiling" = under-trained, demanding a higher ceiling). This neutralises the single biggest threat to the corroborated null — that the H2 contrast measures under-training noise rather than the reward (audit B-5) — which is also the dominant publishability risk. SAME fixed budget across all arms (not an H2 confound); the explosion-fixed agent (R42 PopArt + gated `learning_starts`) means longer training CONVERGES rather than re-diverges. The chosen number is RECORDED here once the operator runs the ladder on the campaign GPU; the laptop is run 24/7 to afford it, scaling to UCL if the knee sits very high. | `scripts/learning_curve.py` (`recommend_budget`, +5 tests); `agent.train_steps_per_candidate`; `tests/test_learning_curve.py` |
-| 2026-06-29 | R71 | §8 | **Multi-model SECONDARY robustness panel — activates the R56-deferred open-weights second model (user-delegated decision; grade-first scoping).** The single Claude family (Opus 4.8) train-to-convergence run REMAINS the confirmatory headline; a second, different-family LLM designer is added as a PRE-REGISTERED SECONDARY (exploratory, NOT co-primary) panel that (a) makes the plural "LLMs" genuine and (b) executes the N3 contamination cross-check (`cross_model_disagreement`). Compute-bounded scope: the second family authors rewards on the HEADLINE arms only (distributional, scalar, +placebo) at REDUCED seeds, reported as a robustness/generalisation panel — NEVER folded into the m=6 confirmatory family or the H2 IUTs. Rationale: a FULL second *confirmatory* family on the laptop would force the agents back into UNDER-training (sabotaging the R70 convergence lever, the #1 grade move); the headline stays clean + laptop-feasible while the secondary panel scales to the full design on UCL. Authoring is cheap API calls (only the SAC training of the winners adds compute, scoped down), so the second model is a commit-pinned, different-training-cutoff OPEN-WEIGHTS model (`open_weights_check_model`, set from `'PIN_ME'`; recommended Qwen2.5-Coder family — strong code authorship, Apache-2.0, non-Anthropic vendor/cutoff). Conditional on compute; run when UCL/extended time allows. | `config/llm.yaml` (`open_weights_check_model`); `src/inference/contamination.py`; §8 |
+| 2026-06-29 | R71 | §8 | **Multi-model SECONDARY robustness panel — activates the R56-deferred open-weights second model (user-delegated decision; grade-first scoping).** The single Claude family (Opus 4.8) train-to-convergence run REMAINS the confirmatory headline; a second, different-family LLM designer is added as a PRE-REGISTERED SECONDARY (exploratory, NOT co-primary) panel that (a) makes the plural "LLMs" genuine and (b) executes the N3 contamination cross-check (`cross_model_disagreement`). Compute-bounded scope: the second family authors rewards on the HEADLINE arms only (distributional, scalar, +placebo) at REDUCED seeds, reported as a robustness/generalisation panel — NEVER folded into the m=6 confirmatory family or the H2 IUTs. Rationale: a FULL second *confirmatory* family on the laptop would force the agents back into UNDER-training (sabotaging the R70 convergence lever, the #1 grade move); the headline stays clean + laptop-feasible while the secondary panel scales to the full design on UCL. Authoring is cheap API calls (only the SAC training of the winners adds compute, scoped down), so the second model is a commit-pinned, different-training-cutoff OPEN-WEIGHTS model (`open_weights_check_model`, set from `'PIN_ME'`; recommended Qwen2.5-Coder family — strong code authorship, Apache-2.0, non-Anthropic vendor/cutoff). **PIN EXECUTED 2026-07-02: `qwen/qwen3-coder` via OpenRouter** (provider wiring + key-gated smoke built + tested; served-snapshot anchor archived at first live call; see the §8 V10 note). Conditional on compute; run when UCL/extended time allows. | `config/llm.yaml` (`open_weights_check_model`); `src/inference/contamination.py`; §8 |
 | 2026-06-29 | R72 | H1; related work | **H1 "beat-the-human" baseline integrity + the related-work novelty fence (pre-freeze, from the deep resource sweep).** (a) `raw_return` is NAMED as the field-standard FinRL-default net-wealth reward and cited (Liu et al. 2020 arXiv:2011.09607; 2021 arXiv:2111.09395) so the human panel visibly contains the most-cited DRL-finance reward as the FLOOR (the binding "human bar" in H1's max-over-panel stays `return_minus_cvar`/`differential_sharpe`). (b) The `differential_sharpe` CITATION is CORRECTED: canonical = Moody & Saffell (2001) IEEE TNN 12(4):875-889 (primary) + Moody, Wu, Liao & Saffell (1998) J. Forecasting 17(5-6):441-470 (the four-author derivation); the prior "Moody & Saffell 1998" conflated them. (c) Disclosure (DEEP_H1 T-UNTUNED): the canon trains at canonical defaults (λ=1.0/η=0.1/α=0.05) because the env injects no per-reward params — stated as "evaluated at canonical defaults, not re-tuned" (a budget-matched validation tune remains an open option). (d) The novelty cell is TRIPLE-confirmed EMPTY (exhaustive 2023-26 scoop sweep); the nearest-neighbor fence — FinRL-DeepSeek (2502.07393, LLM-as-signal not reward-author), Eureka (2310.12931), Behari Decision-Language-Model (2402.14807, reward-code + a distribution but public-health RMAB not finance), LEARN-Opt (2511.19355, a methodological ally), Qu et al. (2509.18719, fraud not portfolio) — is added to related work, with the wording guardrails "first reward-CODE synthesis for a TRADING/PORTFOLIO agent" and "distribution of realized OUTCOMES vs Eureka's reward-COMPONENT point statistics". | `src/baselines/rewards.py`; `docs/CAMPAIGN_benchmarks.md`; `docs/LIT_gap_llm_reward_optimizer.md`; `refs.bib` |
+| 2026-07-02 | R74 | §5, §6 | **B\* = 200,000 set from the Split-C convergence pilot — amends R70's termination criterion, which is structurally unsatisfiable on this workload (pre-freeze; evidence-cited).** R70 committed to "extend the ladder until the knee detector reports CONVERGED". The executed pilots reveal that commitment cannot terminate: the held-out eval-IQM is **flat within seed noise across the full 25k→350k ladder** (14× budget range) on BOTH the pre-Split-C ladder and the clean Split-C rerun (3 seeds, uniform max-power conditions), and the detector's plateau tolerance is *relative to the curve's own range* — on a flat-noise curve the range IS the noise, the tolerance collapses, and every run returns "no confirmed plateau" regardless of extension (verified branch-analysis of `recommend_budget`; two independent ladders reproduce it). The under-training threat R70 exists to neutralise (audit B-5) is therefore answered by the totality of evidence rather than the single blind criterion: (i) eval outcome flat/noise across all budgets — no signal improves past the small-budget region; (ii) the critic's terminal loss completes its steep descent **by 100k** (seed-median ≈0.59→0.10; only internal polish thereafter, →0.01 at 350k); (iii) 350k evals are nominally WORSE than 200k (the mild-overfit direction the old-window pilot measured independently); (iv) finite-data regime: ≈17 full passes over the train window at 200k with the 50k buffer — past-knee steps memorise the single realised path. **Decision: B\* = 200,000** — ≥2× the critic-descent knee, eval-indistinguishable-from-or-better-than the 350k ceiling, below the measured overfit onset — IDENTICAL across all arms (identification preserved; matched compute). Mirrors: `config/campaign.yaml` + `config/algos.yaml` (the preflight budget-mirror guard asserts the pair) + the machine mirror below. Dossier archived: `outputs/tables/learning_curve.json` (Split-C, Turbo-uniform) + `learning_curve_baseline_preTurbo_2026-07-01.json`. `determine_design` reports the parameter **DECIDED** (diagnostic disclosed — the same honest semantics as `candidates_per_arm`); the σ_D pilot (2 rewards × 15 seeds at B\*) adds 30 further stability observations at 200k before the freeze. | `config/campaign.yaml`; `config/algos.yaml`; `config/preregistration.yaml`; `scripts/determine_design.py`; `outputs/tables/learning_curve.json` |
+| 2026-07-02 | R73 | §7 | **SPLIT C EXECUTED + the univ5 panel (ADR-044 ratified 2026-07-01; ADR-051 execution — pre-freeze, never results-contingent).** The panel extends to the SETTLED 2026-06-30 cutoff and rebuilds as `univ5` (5,406×963): splits move to **train 2005–2016 / val 2017–2019 / test 2020–2026H1**. Integrity gates all PASSED: (a) the 2005–2025 overlap vs frozen `univ3` is **byte-identical (0 changed cells)**; (b) the frozen membership record stays authoritative for its span (SPLICE rule; the `EVHC.N^L16` vendor event-revision was caught by the overlap gate, externally verified immaterial — never top-30 — and allowlisted); (c) the OBSERVED-terminal recovery booked the realised terminal for **all 333 dead names (zero surcharges)** → the corrected Shumway `univ5s` equals the zero-fill headline on returns, exposing `univ4`'s surcharge as terminal double-counting + M&A contamination (the band keeps `univ4` as its disclosed contaminated heavy end). `expected_windows.univ5 = [60,3021]/[3081,3775]/[3835,5406]` recorded; `gold.suffix: univ5`; FRED macro refreshed to the cutoff (`fred_macro_x26`). | `config/{data,inference,preregistration}.yaml`; `src/data/loaders.py`; `scripts/run_campaign.py`; `data_pipeline/scripts/{extend_universe_2026,refresh_fred_2026,build_univ5,purge_suffix}.py`; DECISIONS ADR-051(+addendum) |
+| 2026-07-04 | R75 | §4, §7, §10 | **Pre-freeze WORDING corrections (NO decision changed).** Three claims in the frozen-design text were tightened to be factually exact before the freeze; no hypothesis, split, SESOI, seed, arm, budget, λ, or the Troop-deferral DECISION is altered — only accuracy. (a) §10 leg-decision: the `p_one = p_two/2` line is annotated **(superseded by R64)** — the leg p is the direct upper-tail bootstrap probability `pvalue_one_sided_greater`, not half the two-sided p (R64 already made the code change; this supplies the missing cross-reference). (b) §4 EVT: the "GPD ξ ≤ 0 for ~94% of samples" rationale for deferring Troop et al. (2021) is reworded as a SMALL-SAMPLE NEGATIVE-BIAS fact at n ≈ 750 (the GPD-MLE systematically UNDER-estimates the shape ⇒ the estimate is centred ≤ 0 even for a genuinely heavy tail; the ≈ 0.14 asymptotic shape SE at ~75 exceedances does not overcome the bias), NOT a claim that portfolio losses are light-tailed — diversifying regularly-varying constituents preserves the tail INDEX, so the underlying loss tail stays genuinely heavy; the deferral now rests on small-sample bias + Troop's heavy-tail/large-sample validated scope, holding regardless of the true tail-index sign (matches DEEP_H2 §6.2). (c) §7 test-regime: "COVID" is tightened to "post-COVID-crash recovery + elevated-vol regime" in `config/inference.yaml` + this file — the 19 Feb–23 Mar 2020 crash falls INSIDE the val→test purge, so the SCORED sealed-test outcomes begin post-crash (~2020-03-30), mirroring the already-correct CH4 §4.2 disclosure. Pre-freeze wording ⇒ the canonical freeze hash recomputes (still `frozen:false`; USER flips). | `config/inference.yaml`; `PREREGISTRATION.md` §4/§7/§10; §7 mirrors CH4 §4.2, §4 EVT mirrors DEEP_H2 §6.2 |

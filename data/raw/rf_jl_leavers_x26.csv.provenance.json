@@ -1,0 +1,36 @@
+{
+  "cols": 4,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:23:22.075236+00:00",
+  "layer": "raw",
+  "name": "rf_jl_leavers_x26.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "fields": [
+        "TR.IndexJLConstituentRIC",
+        "TR.IndexJLConstituentName",
+        "TR.IndexJLConstituentChangeDate"
+      ],
+      "parameters": {
+        "EDate": "2026-07-02",
+        "IC": "L",
+        "SDate": "2005-01-01"
+      },
+      "universe": ".SPX"
+    },
+    "query": "membership_event_replay_x26",
+    "received_utc": "2026-07-01T22:23:22.075236+00:00",
+    "requested_utc": "2026-07-01T22:23:20.005043+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_jl_leavers_x26.csv",
+  "row_hash": "e5b217c2ddfc14c2cd2ce07646dea8855736524affad55e68473f3715a4d58fc",
+  "rows": 523,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "e5b217c2ddfc14c2cd2ce07646dea8855736524affad55e68473f3715a4d58fc",
+  "vendor": "refinitiv"
+}

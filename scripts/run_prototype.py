@@ -42,6 +42,23 @@ _LLM_ARMS = ("distributional", "scalar", "placebo", "scalar_cvar5", "placebo_shu
 _SEARCH_ARMS = ("random_search", "bayes_opt")
 
 
+def _env_fp_label(synthetic: bool, steps: Any, *, n_assets: int | None = None) -> str:
+    """Provenance label for a run's ``env_fp`` naming the REAL active panel (C5).
+
+    For a real-gold run the panel token is ``gold_suffix()`` (reads the freeze-bound
+    ``config/data.yaml: gold.suffix``), NOT a hardcoded ``'univ3'`` — so a new-suffix rebuild is
+    reflected in archived records. ``n_assets`` adds the ``:N<k>`` universe token when known.
+    """
+    if synthetic:
+        panel = "synthetic"
+    else:
+        from src.data.loaders import gold_suffix
+
+        panel = gold_suffix()
+    n_token = f":N{n_assets}" if n_assets is not None else ""
+    return f"{panel}{n_token}:steps{steps}"
+
+
 # --------------------------------------------------------------------------- #
 # Panel + windows                                                             #
 # --------------------------------------------------------------------------- #
@@ -59,8 +76,8 @@ def _load_panel_and_windows(synthetic: bool, data_cfg: Any, lookback: int):
     from src.data.loaders import embargoed_val_start, load_gold_panel
 
     phase = str(cfg_get(data_cfg, "phase", "development"))
-    val_end = str(cfg_get(data_cfg, "val_end", "2017-12-31"))
-    train_end = str(cfg_get(data_cfg, "train_end", "2014-12-31"))
+    val_end = str(cfg_get(data_cfg, "val_end", "2019-12-31"))
+    train_end = str(cfg_get(data_cfg, "train_end", "2016-12-31"))
     # Embargo fallback = the canonical config/data.yaml floor, NOT a bare literal 21 (no-hardcoding audit).
     _emb_floor = int(load_config("data").get("embargo_days", 21))
     embargo_days = int(cfg_get(data_cfg, "embargo_days", _emb_floor))
@@ -69,10 +86,13 @@ def _load_panel_and_windows(synthetic: bool, data_cfg: Any, lookback: int):
     panel = res.panel
     dates = np.asarray(panel.dates)
     # Train ends at ``train_end``; validation begins at the PURGED boundary (PREREGISTRATION §7, R18).
-    # ``embargoed_val_start(lookback=lookback)`` returns max(materialized embargo boundary 2015-02-03,
-    # train_end + max(embargo, lookback)); with lookback=60 the lookback purge dominates so val starts
-    # ~2015-03-31 (boundary + 39). The purged [train_end+1, val_start) gap is dropped.
-    train_split = int(np.searchsorted(dates, np.datetime64(train_end)) + 1)
+    # ``embargoed_val_start(lookback=lookback)`` returns max(materialized boundary — stale pre-Split-C
+    # 2015-02-03, inert under the Split-C train_end — first_post_train + max(embargo, lookback)); with
+    # lookback=60 the lookback purge dominates so val starts 2017-03-30 (train_end + 60 sessions). The
+    # purged (train_end, val_start) gap is dropped.
+    # side='right': half-open train end — identical to the old searchsorted+1 when train_end IS a
+    # session; correct when it is not (SPLIT C's 2016-12-31 is a Saturday — +1 leaked 2017-01-03).
+    train_split = int(np.searchsorted(dates, np.datetime64(train_end), side="right"))
     train_split = max(lookback + 1, min(train_split, panel.T - 1))
     val_split = embargoed_val_start(
         dates, train_end, phase=phase, embargo_days=embargo_days, lookback=lookback
@@ -85,11 +105,18 @@ def _load_panel_and_windows(synthetic: bool, data_cfg: Any, lookback: int):
 # Builders                                                                    #
 # --------------------------------------------------------------------------- #
 def _agent_cfg(proto_cfg: Any, train_steps: int | None) -> dict[str, Any]:
+    from src.agents.factory import campaign_replay_cap  # local: factory lazy-imports torch (keep top-level torch-free)
+
     a = cfg_get(proto_cfg, "agent", {})
     steps = int(train_steps if train_steps is not None else cfg_get(a, "train_steps_per_candidate", 25000))
     return {
         "train_steps_per_candidate": steps,
-        "buffer_size": int(cfg_get(a, "buffer_size", steps)),
+        # buffer = min(train_steps, HARD cap) — the SAME rule as the TEST leg / resolve_agent_kwargs, so the
+        # winner is SELECTED under the replay dynamics it is EVALUATED under. At the prototype's 25k steps this
+        # is min(25000, 50000)=25000 (== train_steps, prototype.yaml's intent preserved); at the campaign's 50k/
+        # 200k budget it yields 50000, eliminating the serial-SEARCH-25k vs TEST-50k skew (prototype.yaml pins
+        # buffer_size=25000, which we intentionally ignore in favour of the step-coupled+capped value).
+        "buffer_size": min(int(steps), campaign_replay_cap()),
         "batch_size": int(cfg_get(a, "batch_size", 256)),
         "learning_rate": float(cfg_get(a, "learning_rate", 3e-4)),
         "gamma": float(cfg_get(a, "gamma", 0.99)),
@@ -125,6 +152,7 @@ def build_parallel_opts(
     generations: int,
     pass_mode: str,
     provider: str,
+    resume: bool = False,
     max_tasks_per_child: Any = None,
 ) -> dict[str, Any]:
     """Assemble the ``opts`` dict consumed by ``run_parallel`` / ``train_candidate`` / ``_drive_llm_arm``.
@@ -160,6 +188,11 @@ def build_parallel_opts(
         "popart_min_scale": float(cfg_get(agent, "popart_min_scale", 1.0)),
         "popart_warmup": int(cfg_get(agent, "popart_warmup", 0)),
         "tf32": bool(cfg_get(agent, "tf32", True)),  # threaded so the parallel SEARCH worker shares the precision setting
+        # M6 (ops audit 2026-07-02): thread the agent block's thermal_guardian ({hi, lo, poll_secs} —
+        # src/utils/guardian.ThermalGovernor's schema) into the parallel SEARCH worker, so SEARCH
+        # trainings cooperatively pause-and-cool like the serial/TEST paths. Result-neutral: the
+        # governor spends only wall-clock, never a weight. None/absent -> off (unchanged behaviour).
+        "thermal_guardian": cfg_get(agent, "thermal_guardian", None),
         "n_trials": n_trials,
         "synthetic": synthetic,
         "data": dict(cfg_get(structural_cfg, "data", {})),
@@ -170,15 +203,28 @@ def build_parallel_opts(
         "generations": generations,
         "pass_mode": pass_mode,
         "provider": provider,
+        # Search-replay (resume): when True, ``_drive_llm_arm`` REPLAYS already-archived candidates
+        # (success or sandbox-failure) from disk instead of re-calling the (paid, non-deterministic)
+        # LLM + retraining — mirroring the serial loop's resume cache. Default False -> a fresh run is
+        # byte-for-byte unchanged.
+        "resume": bool(resume),
         "model": str(cfg_get(llm_block, "model_snapshot", "<unset>")),
         "api_key_env": str(cfg_get(llm_block, "api_key_env", default_key_env(provider))),
         "temperature": cfg_get(llm_block, "temperature", None),
+        # F17 (ultrareview 2026-07-02): thread the author block's max_tokens/max_retries into the
+        # parallel driver's transport (defaults = the historical hardcodes 4096/6) — raising the
+        # config value must not silently no-op into a truncated reward misread as a 'bad candidate'.
+        "max_tokens": int(cfg_get(llm_block, "max_tokens", 4096)),
+        "max_retries": int(cfg_get(llm_block, "max_retries", 6)),
         "diversity_prompt_variation": bool(cfg_get(llm_block, "diversity_prompt_variation", False)),
         "env_cfg": env_cfg,
         # Universe size from config (environment.yaml: universe.n_assets) — NOT a hardcoded 30 on the
         # parallel LLM-prompt path (no-hardcoding audit), mirroring the sequential path's panel.N.
         "n_assets": int(cfg_get(cfg_get(env_cfg, "universe", {}), "n_assets", 30)),
-        "env_fp": f"{'synthetic' if synthetic else 'univ3'}:steps{steps}",
+        # env_fp provenance label: name the REAL active panel (C5) — gold_suffix() reads the
+        # freeze-bound config/data.yaml, not the hardcoded 'univ3', so a new-suffix rebuild is
+        # reflected in archived records.
+        "env_fp": _env_fp_label(synthetic, steps),
         # Recycle pool workers every N candidates to reclaim fragmented heap (RAM-creep fix, 2026-06-20).
         "max_tasks_per_child": max_tasks_per_child,
         "proto_cfg": structural_cfg,
@@ -192,14 +238,27 @@ def _run_env_fp(arm_root: str, run_id: str, label: str, seed: int) -> Any:
     the parallel scheduler) archive a full, content-hashed env.json and persist {label, sha256}
     instead of a bare label string (audit C-2/C-6). Best-effort: falls back to the bare label on any
     capture failure so archiving never breaks.
+
+    F12 (ultrareview 2026-07-02): when the snapshot ALREADY exists (a --resume of a partially-run
+    arm) it is REUSED — read back and re-hashed — never recaptured. A fresh capture hashes
+    differently (timestamps, nvidia-smi, pip state can all drift), so rewriting the file would
+    ORPHAN the ``env_json_sha256`` already embedded in the arm's previously-archived records: resume
+    must not orphan recorded shas. ``env_json_sha256(env=<loaded>)`` equals the recorded digest by
+    construction (sha256_obj canonical JSON — "the same string whether computed here or recomputed
+    from a written env.json", capture_env docstring).
     """
     try:
         from scripts.capture_env import capture_env, env_json_sha256
 
-        env = capture_env(seed=int(seed))
         run_dir = Path(arm_root) / str(run_id)
+        env_path = run_dir / "env.json"
+        if env_path.is_file():
+            with env_path.open(encoding="utf-8") as fh:
+                env = json.load(fh)
+            return {"label": label, "env_json_sha256": env_json_sha256(env=env)}
+        env = capture_env(seed=int(seed))
         run_dir.mkdir(parents=True, exist_ok=True)
-        with (run_dir / "env.json").open("w", encoding="utf-8") as fh:
+        with env_path.open("w", encoding="utf-8") as fh:
             json.dump(env, fh, indent=2, sort_keys=True, default=str)
         return {"label": label, "env_json_sha256": env_json_sha256(env=env)}
     except Exception:  # noqa: BLE001 - provenance capture must never crash a candidate's archive
@@ -252,6 +311,7 @@ def run_arm(
     archive_root: str,
     llm_cfg: dict[str, Any] | None = None,
     monitor: Any = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
     """Run ONE arm end-to-end and return a summary. Loads config/panel/builders INSIDE so it is
     picklable for the process pool (no closures crossing the spawn boundary).
@@ -278,12 +338,38 @@ def run_arm(
     env_cfg = load_config("environment")
     proto_cfg = load_config("prototype")
     lookback = int(env_cfg["state"]["lookback_days"])
-    panel, train_window, val_window = _load_panel_and_windows(synthetic, cfg_get(proto_cfg, "data", {}), lookback)
-    env_builder = make_env_builder(panel, env_cfg, train_window, val_window)
+    data_cfg = cfg_get(proto_cfg, "data", {})
+    panel, train_window, val_window = _load_panel_and_windows(synthetic, data_cfg, lookback)
+    # R18 purge-guard args (fix 2026-07-03, mirroring run_campaign's builder call): pass the REAL
+    # embargo + lookback so make_env_builder's max(embargo, lookback) leakage guard is ARMED on the
+    # gold SEARCH path — the bare 4-arg call left purge=0, i.e. the guard could never catch a future
+    # windows regression. Gold windows already satisfy the purge (embargoed_val_start builds them), so
+    # this only fails loud on a violation. The SYNTHETIC dev/dry-run windows deliberately ABUT
+    # ((lookback, 400)/(400, T), no purge gap), so the guard stays legacy-inert (0/0) there.
+    if synthetic:
+        _embargo = _lookback_guard = 0
+    else:
+        # Same resolution as _load_panel_and_windows: the data block, else the config/data.yaml floor.
+        _emb_floor = int(load_config("data").get("embargo_days", 21))
+        _embargo = int(cfg_get(data_cfg, "embargo_days", _emb_floor))
+        _lookback_guard = lookback
+    env_builder = make_env_builder(
+        panel, env_cfg, train_window, val_window, embargo=_embargo, lookback=_lookback_guard
+    )
     agent_cfg = _agent_cfg(proto_cfg, train_steps)
     agent_trainer = make_agent_trainer(agent_cfg, seed, monitor=monitor)
     arm_root = str(Path(archive_root) / arm)
-    env_fp = f"{'synthetic' if synthetic else 'univ3'}:N{panel.N}:steps{agent_cfg['train_steps_per_candidate']}"
+    # T2.8b arm-scoped FED-estimator audit (fix 2026-07-03): clear the process-level EVT<->empirical
+    # switch registry at ARM START — arms run sequentially/reused within one process (the campaign's
+    # serial SEARCH loop; p_arms worker reuse), so without this reset the "estimator switched across
+    # candidates" warning mis-scopes ACROSS arms (a legitimate cross-arm difference would fire the
+    # within-arm consistency alarm).
+    from src.feedback.measurement import reset_fed_estimator_log
+
+    reset_fed_estimator_log()
+    env_fp = _env_fp_label(
+        synthetic, agent_cfg["train_steps_per_candidate"], n_assets=panel.N
+    )  # C5: name the REAL active panel via gold_suffix(), not a hardcoded 'univ3'
     # Rank 14: the REAL provenance fingerprint (full CI-grade env.json captured once per arm under
     # <arm_root>/env.json) + its sha256, threaded into every candidate record so env_fingerprint is a
     # replayable, content-hashed snapshot rather than the bare label (audit C-2/C-6). Falls back to
@@ -293,7 +379,7 @@ def run_arm(
 
     if arm in _LLM_ARMS:
         from src.feedback.measurement import ReturnDistribution
-        from src.llm.client import LLMClient
+        from src.llm.client import JsonlArchiveSink, LLMClient
         from src.llm.loop import run_loop
         from src.llm.prompts import build_prompt_set
 
@@ -314,10 +400,21 @@ def run_arm(
             key_env = str(cfg_get(_llm, "api_key_env", default_key_env(provider)))
             temp_raw = cfg_get(_llm, "temperature", None)
             temperature = float(temp_raw) if temp_raw is not None else None
-            transport = build_transport(provider, model_id, key_env, temperature=temperature)
+            # F17: honor the author block's max_tokens/max_retries (defaults = the historical
+            # hardcodes 4096/6) — a raised config value must not silently no-op into truncation.
+            transport = build_transport(
+                provider, model_id, key_env, temperature=temperature,
+                max_tokens=int(cfg_get(_llm, "max_tokens", 4096)),
+                max_retries=int(cfg_get(_llm, "max_retries", 6)),
+            )
 
         prompts = build_prompt_set(env_cfg, panel.N)
-        llm = LLMClient({"model": model_id}, transport=transport)
+        # F11: llm_calls.jsonl is appended PER CALL at call time via the archive sink — the old
+        # end-of-arm "w" dump lost the whole arm's call provenance (incl. the R71 served_model
+        # reproducibility anchor, recorded at the FIRST live call per config/llm.yaml) on a mid-arm
+        # crash, and on --resume it TRUNCATED the first run's calls down to just the new ones.
+        llm = LLMClient({"model": model_id}, transport=transport,
+                        archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"))
         loop_cfg = {
             "generations": generations,
             "candidates_per_gen": max(1, candidates // max(1, generations)),
@@ -335,6 +432,9 @@ def run_arm(
             # required for temperature-rejecting reward-authors (Opus 4.8). Off by default.
             "diversity_prompt_variation": bool(cfg_get(_llm, "diversity_prompt_variation", False)),
             "monitor": monitor,  # RunMonitor for live progress/logs/anomalies (sequential path; no-op if None)
+            # Search-replay cache: on --resume the loop REPLAYS the archived candidates/failures of an
+            # interrupted arm instead of re-billing Opus + retraining (byte-faithful; src/llm/loop.py).
+            "resume": resume,
         }
         archive = run_loop(
             arm, env_builder, llm, agent_trainer, ReturnDistribution, held_out_fitness, loop_cfg, arm_root
@@ -345,6 +445,10 @@ def run_arm(
             "arm": arm,
             "n_candidates": len(archive.candidates),
             "n_failed": len(archive.failures),
+            # C3c (ops audit 2026-07-02): LLM-error skips (API exhaustion after retries / unparseable
+            # response) leave slots that are neither archived nor ledgered — surface the count so the
+            # campaign's winner-selection floor (run_campaign C3b) can see a resumably-short pool.
+            "n_llm_error_skips": int(archive.meta.get("llm_error_skips", 0)),
             "winner_fitness": None if winner is None else float(winner.val_fitness),
             "winner_id": None if winner is None else winner.candidate_id,
         }
@@ -355,22 +459,10 @@ def run_arm(
             with (Path(arm_root) / "failures.jsonl").open("w", encoding="utf-8") as _fh:
                 for _fail in archive.failures:
                     _fh.write(json.dumps(_fail) + "\n")
-        # Persist the raw LLM provenance — system+user+response + per-call token usage — for cost
-        # accounting (ADR-016) and replay (final-audit #16: the archive was built by LLMClient on
-        # every call then DISCARDED on the production path). Stub transports archive nothing.
-        _llm_archive = getattr(llm, "archive", None)
-        if _llm_archive:
-            import dataclasses
-
-            Path(arm_root).mkdir(parents=True, exist_ok=True)
-            with (Path(arm_root) / "llm_calls.jsonl").open("w", encoding="utf-8") as _fh:
-                for _rec in _llm_archive:
-                    _row = (
-                        dataclasses.asdict(_rec)
-                        if dataclasses.is_dataclass(_rec) and not isinstance(_rec, type)
-                        else dict(_rec)
-                    )
-                    _fh.write(json.dumps(_row, default=str) + "\n")
+        # NB (F11, ultrareview 2026-07-02): NO end-of-arm llm_calls.jsonl dump here any more — the
+        # raw LLM provenance (system+user+response + per-call token usage, ADR-016 / final-audit #16)
+        # is appended PER CALL by the JsonlArchiveSink the LLMClient above was constructed with, so a
+        # mid-arm crash loses at most the in-flight call (and a resume APPENDS instead of truncating).
     else:
         # Search arms — wired to matched compute via the C1 evaluator.
         from src.agents.evaluator import evaluate_reward_with_returns
@@ -498,7 +590,7 @@ def main() -> None:
     from src.utils.env import load_env
     from src.utils.preload import preload
 
-    preload()  # pyarrow before torch (gold-parquet ABI segfault guard) -- BEFORE any torch import
+    preload(strict=True)  # pyarrow before torch (gold-parquet ABI segfault guard) -- BEFORE any torch import; H2 fail-loud
     load_env()  # .env -> os.environ so the LLM key is available (ADR-038); workers inherit it
     proto = load_config("prototype")
     arms = (args.arms.split(",") if args.arms else list(proto["arms"]))
@@ -638,7 +730,7 @@ def main() -> None:
             for i, arm in enumerate(todo):
                 monitor.arm_start(arm, i)
                 a_t0 = time.perf_counter()
-                s = run_arm(arm, monitor=monitor, **opts)
+                s = run_arm(arm, monitor=monitor, resume=resume, **opts)
                 monitor.arm_done(arm, winner_fitness=s.get("winner_fitness"),
                                  secs=time.perf_counter() - a_t0)
                 summaries.append(s)

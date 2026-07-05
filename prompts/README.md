@@ -1,8 +1,10 @@
 # `prompts/` — LLM reward-designer prompt templates
 
 **Status (post-merge, ADR-022/ADR-030).** Only the **A-set** templates live here, and they are the single
-source of truth for the live loop. `src/llm/prompts.py::build_prompt_set` loads exactly `system.txt`,
-`initial_generation.txt`, and `reflection.txt`; the orchestrator passes the rendered `PromptSet` to
+source of truth for the live loop. `src/llm/prompts.py::build_prompt_set` loads exactly `system.txt` and
+`initial_generation.txt` (the reflection turn is composed in-code from `_REFLECTION_PREAMBLE` +
+`schema.build_block`, so `reflection.txt` is retained for reference but **no longer loaded** — audit
+medium-finding); the orchestrator passes the rendered `PromptSet` to
 `src/llm/loop.py` via `cfg["prompts"]` (the loop falls back to equivalent built-in minimal prompts —
 `_SYSTEM_PROMPT`/`_INITIAL_PROMPT`/`_REFLECTION_PREAMBLE` — only when no prompts are supplied, e.g. unit
 tests). No live code path loads any `*_v0.md` file.

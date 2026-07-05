@@ -100,33 +100,52 @@ def tail_jsonl(path: Path, n: int) -> list[dict[str, Any]]:
 
 
 # ---- liveness / silent-hang detection ------------------------------------------------------------------ #
-def state_age_seconds(st: dict[str, Any] | None, now_epoch: float) -> float | None:
+def state_age_seconds(
+    st: dict[str, Any] | None, now_epoch: float, *, mtime_epoch: float | None = None
+) -> float | None:
     """Seconds since ``progress.json`` was last rewritten, or None if unknown/unparseable.
 
     Uses the monitor's own ``updated`` wall-clock stamp (``%Y-%m-%dT%H:%M:%S``, local time), so it measures
-    *writer* liveness independent of this watcher's clock drift within the same host.
+    *writer* liveness independent of this watcher's clock drift within the same host. m11 (ops audit
+    2026-07-02): when the file's ``mtime_epoch`` is supplied, the freshest of the two evidences of a
+    write — ``max(parsed stamp, mtime)`` — is used, so a skewed/garbled writer clock (DST shift, a stamp
+    the parser rejects) cannot fabricate a false STALE banner while the file is demonstrably being
+    rewritten (and vice versa a weird filesystem mtime cannot mask a genuinely old stamp).
     """
     if not st:
         return None
+    wrote: float | None = None
     ts = st.get("updated")
-    if not isinstance(ts, str):
+    if isinstance(ts, str):
+        try:
+            wrote = time.mktime(time.strptime(ts, "%Y-%m-%dT%H:%M:%S"))
+        except Exception:
+            wrote = None
+    candidates = [t for t in (wrote, mtime_epoch) if t is not None]
+    if not candidates:
         return None
-    try:
-        wrote = time.mktime(time.strptime(ts, "%Y-%m-%dT%H:%M:%S"))
-    except Exception:
-        return None
-    return max(0.0, now_epoch - wrote)
+    return max(0.0, now_epoch - max(candidates))
 
 
-def is_stale(st: dict[str, Any] | None, now_epoch: float, threshold: float) -> bool:
+def is_stale(
+    st: dict[str, Any] | None, now_epoch: float, threshold: float, *, mtime_epoch: float | None = None
+) -> bool:
     """True when the run *should* be advancing but ``progress.json`` has gone silent past ``threshold``.
 
     A terminal phase (``done``/``error``) is never stale — the writer has intentionally stopped.
     """
     if not st or st.get("phase") in ("done", "error", "starting"):
         return False
-    age = state_age_seconds(st, now_epoch)
+    age = state_age_seconds(st, now_epoch, mtime_epoch=mtime_epoch)
     return age is not None and age > threshold
+
+
+def _progress_mtime(run_dir: Path) -> float | None:
+    """mtime of ``<run_dir>/progress.json`` (None when absent) — the m11 clock-skew fallback input."""
+    try:
+        return (run_dir / "progress.json").stat().st_mtime
+    except OSError:
+        return None
 
 
 # ---- error tracker + token/cost accounting (read-only over the structured logs) ------------------------- #
@@ -201,6 +220,72 @@ def post_alert(url: str, message: str, *, timeout: float = 10.0) -> bool:
         return False
 
 
+# ---- notification lifecycle + campaign-follow (pure logic, unit-tested; M5a ops audit 2026-07-02) ------- #
+def alert_reason(
+    st: dict[str, Any] | None, now_epoch: float, stale_secs: float, *, mtime_epoch: float | None = None
+) -> str | None:
+    """The alert-worthy condition right now: ``"done"`` / ``"error"`` / ``"stall"`` / None (healthy)."""
+    if st is None:
+        return None
+    phase = st.get("phase")
+    if phase == "done":
+        return "done"
+    if phase == "error":
+        return "error"
+    if is_stale(st, now_epoch, stale_secs, mtime_epoch=mtime_epoch):
+        return "stall"
+    return None
+
+
+def process_notification(reason: str | None, sent: set[str], send: Any) -> bool:
+    """Drive the alert dedupe set for one poll tick; returns True iff an alert was posted.
+
+    Fixes two silent-alert-loss bugs (M5a ii/iii): (ii) the ``sent`` set is RESET when the run is
+    healthy again (``reason is None``), so after a campaign phase transition (arm N ``done`` -> arm
+    N+1 running) or a recovered stall, the NEXT done/error/stall alerts fire instead of being deduped
+    forever by the first arm's; (iii) a reason enters ``sent`` only AFTER ``send`` succeeded — a
+    failed POST (network blip at exactly the wrong moment) is retried on the next poll rather than
+    being permanently swallowed by an optimistic ``sent.add``.
+    """
+    if reason is None:
+        if sent:
+            sent.clear()
+        return False
+    if reason in sent:
+        return False
+    if send(reason):
+        sent.add(reason)
+        return True
+    return False
+
+
+def campaign_done(sentinel_mtime: float | None, started_epoch: float) -> bool:
+    """--follow-campaign exit test: the campaign-level sentinel was (re)written AFTER this watcher started.
+
+    ``run_campaign`` writes ``campaign_summary.json`` exactly once, at the END of the whole campaign —
+    that file (not any single arm's ``progress.json`` phase) is the overall-campaign terminal signal.
+    The ``>= started_epoch`` guard keeps a STALE summary from a previous interrupted run (present on
+    disk at watcher start, e.g. under --resume) from terminating the watcher immediately.
+    """
+    return sentinel_mtime is not None and sentinel_mtime >= started_epoch
+
+
+def _sentinel_mtime(run_dir: Path) -> float | None:
+    """mtime of the campaign summary sentinel, checking ``run_dir`` then its parent.
+
+    The campaign's per-arm search progress lives under ``<output>/search/progress.json`` while the
+    summary is written to ``<output>/campaign_summary.json`` — so when the watcher is pointed at the
+    search dir (the documented usage) the sentinel is one level up; checking both keeps a watcher
+    pointed at ``<output>`` itself working too.
+    """
+    for p in (run_dir / "campaign_summary.json", run_dir.parent / "campaign_summary.json"):
+        try:
+            return p.stat().st_mtime
+        except OSError:
+            continue
+    return None
+
+
 def _bar(done: int, total: int, width: int = 30) -> str:
     # ASCII fill so the plain-text snapshot prints on ANY console codepage (e.g. Windows cp1251);
     # rich renders these fine too.
@@ -223,9 +308,10 @@ def snapshot_text(st: dict[str, Any], run_dir: Path | None = None, *, stale_secs
     a, c, tr, r = st["arms"], st["candidates"], st.get("training", {}), st.get("resources", {})
     an = st.get("anomalies", {})
     gpu = f"GPU {r.get('gpu_util', '?')}% {r.get('gpu_mem_mib', ['?', '?'])[0]}/{r.get('gpu_mem_mib', ['?', '?'])[1]}MiB {r.get('gpu_temp', '?')}C"
-    age = state_age_seconds(st, time.time())
+    mt = _progress_mtime(run_dir) if run_dir is not None else None  # m11 clock-skew tolerance
+    age = state_age_seconds(st, time.time(), mtime_epoch=mt)
     lines = []
-    if is_stale(st, time.time(), stale_secs):
+    if is_stale(st, time.time(), stale_secs, mtime_epoch=mt):
         lines.append(f"  !!! STALE — no progress.json update for {_fmt_secs(age)} (silent hang? check the run)")
     lines += [
         f"{st.get('title')} [{st.get('model')}]  phase={st.get('phase')}  elapsed={_fmt_secs(st.get('elapsed_s'))}  ETA={_fmt_secs(st.get('eta_s'))}  age={_fmt_secs(age)}",
@@ -265,8 +351,9 @@ def render(st: dict[str, Any] | None, run_dir: Path, *, stale_secs: float = _DEF
         return Panel(Text("waiting for progress.json …", style="yellow"), title=str(run_dir))
 
     now = time.time()
-    stale = is_stale(st, now, stale_secs)
-    age = state_age_seconds(st, now)
+    mt = _progress_mtime(run_dir)  # m11 clock-skew tolerance: freshest of parsed stamp vs file mtime
+    stale = is_stale(st, now, stale_secs, mtime_epoch=mt)
+    age = state_age_seconds(st, now, mtime_epoch=mt)
     a, c, tr, r = st["arms"], st["candidates"], st.get("training", {}), st.get("resources", {})
     an = st.get("anomalies", {})
     t = Table.grid(padding=(0, 1))
@@ -327,6 +414,12 @@ def main() -> None:
     ap.add_argument("--notify", metavar="URL", default=None,
                     help="opt-in push URL (e.g. https://ntfy.sh/<topic>): POST a STATUS line on done/error/stall. "
                          "OFF by default; stdlib only; a read-only side-channel that never touches the run.")
+    ap.add_argument("--follow-campaign", action="store_true",
+                    help="do NOT exit when one phase reports done/error — the campaign rewrites the SAME "
+                         "progress.json once per arm, so a plain watch dies after the FIRST arm. Keeps "
+                         "polling (re-arming alerts between arms) until <run_dir>/../campaign_summary.json "
+                         "is (re)written — the overall-campaign sentinel — or Ctrl-C. Point run_dir at "
+                         "outputs/campaign/search for the headline run (M5a, ops audit 2026-07-02).")
     args = ap.parse_args()
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]  # safe unicode on any console codepage
@@ -350,18 +443,19 @@ def main() -> None:
     from rich.live import Live
 
     console = Console()
-    sent: set[str] = set()  # dedupe push notifications: one per (done|error|stall)
+    # Dedupe push notifications: one per (done|error|stall) PER unhealthy episode — the set is reset
+    # by process_notification when the run turns healthy again (M5a ii), so a multi-arm campaign's
+    # later transitions still alert; entries are added only AFTER a successful POST (M5a iii).
+    sent: set[str] = set()
+    started_epoch = time.time()  # --follow-campaign: only a sentinel written AFTER this counts
 
     def _maybe_notify(st: dict[str, Any] | None) -> None:
-        if not args.notify or st is None:
+        if not args.notify:
             return
-        phase = st.get("phase")
-        reason = "done" if phase == "done" else "error" if phase == "error" else (
-            "stall" if is_stale(st, time.time(), args.stale_secs) else None
+        reason = alert_reason(st, time.time(), args.stale_secs, mtime_epoch=_progress_mtime(run_dir))
+        process_notification(
+            reason, sent, lambda r: post_alert(args.notify, build_alert(st, r, run_dir))
         )
-        if reason and reason not in sent:
-            sent.add(reason)
-            post_alert(args.notify, build_alert(st, reason, run_dir))
 
     tick = 0
     with Live(render(read_state(run_dir), run_dir, stale_secs=args.stale_secs), console=console,
@@ -372,7 +466,13 @@ def main() -> None:
                 st = read_state(run_dir)
                 live.update(render(st, run_dir, stale_secs=args.stale_secs, tick=tick))
                 _maybe_notify(st)
-                if st is not None and st.get("phase") in ("done", "error"):
+                if args.follow_campaign:
+                    # M5a(i): a per-arm 'done'/'error' is NOT the end of the campaign — the next arm
+                    # rewrites the same progress.json. Exit only on the overall-campaign sentinel.
+                    if campaign_done(_sentinel_mtime(run_dir), started_epoch):
+                        live.update(render(read_state(run_dir), run_dir, stale_secs=args.stale_secs, tick=tick))
+                        break
+                elif st is not None and st.get("phase") in ("done", "error"):
                     time.sleep(args.interval)
                     live.update(render(read_state(run_dir), run_dir, stale_secs=args.stale_secs, tick=tick))
                     break

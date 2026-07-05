@@ -176,11 +176,14 @@ PLACEHOLDER_SIGMA_DSR: float = DIRECTIONAL_SIGMA_SEED
 #: annualised Sharpe difference by ``sqrt(PERIODS_PER_YEAR)`` to recover the per-period shift.
 PERIODS_PER_YEAR: int = 252
 
-#: Nominal validation track length T (the ``n`` in the DSR's ``sqrt(n-1)`` factor) — the validation split is
-#: ``[2015, 2017]`` (config/preregistration.yaml: data_splits.val), i.e. 3 calendar years ≈ 3 × 252 = 756
-#: trading sessions. A DESIGN constant of the Sharpe->DSR mapping (NOT a frozen prereg field); overridable via
+#: EXECUTED validation track length T (the ``n`` in the DSR's ``sqrt(n-1)`` factor). Split C (R73): the
+#: executed, purged validation window is ``expected_windows.univ5.val = [3081, 3775)`` in
+#: config/inference.yaml — 2017-03-30..2019-12-31 — i.e. **694** sessions (3775−3081), NOT the nominal
+#: 3×252=756 the pre-Split-C ``[2015, 2017]`` docstring assumed (corrected 2026-07-02: the stale 756
+#: inflated k=0.3989·sqrt(T−1)/sqrt(252) to 0.6905 vs the executed 0.6616 and shifted every DSR↔Sharpe
+#: equivalent). A DESIGN constant of the Sharpe->DSR mapping (NOT a frozen prereg field); overridable via
 #: ``--val-track-length`` so the reconciliation can be re-stated against the realized session count.
-VALIDATION_TRACK_LENGTH: int = 3 * PERIODS_PER_YEAR
+VALIDATION_TRACK_LENGTH: int = 694
 
 
 def sharpe_mde_to_dsr(
@@ -421,20 +424,34 @@ def _draw_paired_scores(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Draw ``n`` per-seed score PAIRS ``(a_i, b_i)`` for the two arms under a true ``effect``.
 
-    Gaussian per-seed scores with per-arm SD ``sigma`` and a shared-seed (pairing) correlation ``rho``:
-    a common per-seed component ``sqrt(rho)*z_common`` (a "lucky/unlucky" seed lifting BOTH arms — the
-    variance the paired test cancels) plus an arm-private ``sqrt(1-rho)*z_arm``. The distributional arm's
-    mean is shifted up by ``effect`` (a one-sided H2 alternative; ``effect == 0`` recovers the null).
+    Gaussian per-seed scores with per-arm SD ``sigma`` and a shared-seed (pairing) correlation ``rho``.
+    For ``rho >= 0``: a common per-seed component ``sqrt(rho)*z_common`` (a "lucky/unlucky" seed lifting
+    BOTH arms — the variance the paired test cancels) plus an arm-private ``sqrt(1-rho)*z_arm``. For
+    ``rho < 0`` (batch-5 M3, 2026-07-03): the shared-component trick cannot represent anti-correlation
+    (``sqrt`` of a negative), and the old code silently CLAMPED to 0 — understating σ_D = σ√(2(1−ρ)) > σ√2
+    exactly in the branch where the pilot's own report tells the operator to trust this Monte-Carlo. Now a
+    Cholesky pair on ``(z_common, za)`` draws the measured negative ρ exactly; all three normals are drawn
+    on BOTH branches so the ρ >= 0 stream stays byte-identical to the pre-fix code. The distributional
+    arm's mean is shifted up by ``effect`` (a one-sided H2 alternative; ``effect == 0`` recovers the null).
     Element ``i`` is the SAME training seed for both arms, matching the paired test's by-seed alignment.
     """
-    rho = float(min(max(rho, 0.0), 0.999))  # keep the covariance PSD; rho=1 would degenerate the pair
+    rho = float(min(max(rho, -0.999), 0.999))  # keep the 2x2 covariance PSD; |rho|=1 degenerates the pair
     z_common = rng.standard_normal(n)
     za = rng.standard_normal(n)
     zb = rng.standard_normal(n)
-    root_shared = np.sqrt(rho)
-    root_priv = np.sqrt(1.0 - rho)
-    a = effect + sigma * (root_shared * z_common + root_priv * za)  # distributional arm
-    b = 0.0 + sigma * (root_shared * z_common + root_priv * zb)  # scalar arm
+    if rho >= 0.0:
+        root_shared = np.sqrt(rho)
+        root_priv = np.sqrt(1.0 - rho)
+        a_noise = root_shared * z_common + root_priv * za  # distributional arm
+        b_noise = root_shared * z_common + root_priv * zb  # scalar arm
+    else:
+        # corr(a_noise, b_noise) = rho exactly for rho in (-1, 0); both marginals stay unit-SD:
+        # Var(b_noise) = rho² + (1 − rho²) = 1. zb is drawn (above) but unused on this branch, keeping
+        # the RNG stream aligned across branches.
+        a_noise = z_common
+        b_noise = rho * z_common + np.sqrt(1.0 - rho * rho) * za
+    a = effect + sigma * a_noise
+    b = 0.0 + sigma * b_noise
     return a, b
 
 
@@ -473,7 +490,9 @@ def simulate_power(effect: float, cfg: PowerConfig) -> float:
     # Two decision rules, both on the REAL paired bootstrap (no re-implemented stat):
     #  - iut_one_sided=True  (R37/M4, the LIVE rule): a per-leg ONE-SIDED test at `alpha` in the predicted
     #    direction. The two-sided bootstrap p is converted in-direction (p_one = p_two/2 when the observed
-    #    effect > 0, else the one-sided leg does NOT reject) — exactly `collect_family_pvalues._one_sided`.
+    #    effect > 0, else the one-sided leg does NOT reject) — a SYMMETRIC-DGP approximation to
+    #    `collect_family_pvalues._one_sided`, which post-R64 uses the direct upper-tail `pvalue_one_sided_greater`;
+    #    the two coincide here because the power DGP draws symmetric (normal) pairs.
     #    The IUT/conjunction IS the within-H2 correction; the across-union multiplicity is the LIVE BH/RW, so
     #    NO fixed Šidák-α_eff is applied here. This is the PRIMARY MDE.
     #  - iut_one_sided=False (back-compat): the TWO-SIDED test at the Šidák-over-m α_eff — the conservative
@@ -523,7 +542,20 @@ def minimum_detectable_effect(
         (``reached`` False) if ``target_power`` is not hit anywhere on the grid.
     """
     grid = np.linspace(0.0, effect_max * cfg.sigma_dsr, int(effect_points))
-    powers = np.array([simulate_power(float(e), cfg) for e in grid], dtype=float)
+    # Sequential sweep with EARLY EXIT at the target-power crossing (batch-5 M2, 2026-07-03): the
+    # crossing + interpolation only need points up to the first i >= 1 with power >= target, but the
+    # old full-grid comprehension burned ~80% of every sweep past it (power ~= 1 out to 5σ; 11 sweeps
+    # per doc build). simulate_power re-seeds default_rng(cfg.seed) per call, so every KEPT point is
+    # byte-identical to the full sweep; grid/power are truncated TOGETHER (shape parity holds; the doc
+    # table samples whatever length it gets, and a NOT-reached curve still computes the full grid so
+    # its "up to grid.max()" message is unchanged).
+    powers_list: list[float] = []
+    for j, e in enumerate(grid):
+        powers_list.append(simulate_power(float(e), cfg))
+        if j >= 1 and powers_list[-1] >= cfg.target_power:
+            break
+    powers = np.array(powers_list, dtype=float)
+    grid = grid[: powers.size]
 
     mde: float | None = None
     reached = False
@@ -569,15 +601,33 @@ def tost_equivalence(
     margin: float,
     n_boot: int = 2000,
     rng: np.random.Generator | None = None,
+    *,
+    paired: bool = False,
 ) -> TostResult:
-    """Symmetric-margin TOST equivalence test for two arms' per-seed scores (Lakens 2017 primer).
+    """Symmetric-margin **MEAN** TOST equivalence test for two arms' per-seed scores (Lakens 2017 primer).
+
+    ⚠ STATISTIC / PAIRING (P2 reconciliation, 2026-07-01). This is the MEAN-difference TOST. The HEADLINE
+    campaign equivalence is a DIFFERENT statistic: it is PAIRED (common-random-number seed pairing) on the
+    **IQM** difference — ``scripts/analyze_campaign._iqm_tost`` — matching the headline difference test
+    (``paired_seed_difference_test`` with ``statistic=iqm``). The two must not be silently swapped, so:
+
+      * ``paired=False`` (DEFAULT) resamples ``a`` and ``b`` INDEPENDENTLY. Because it discards the
+        across-arm seed pairing, its difference CI is (for positively CRN-correlated arms) WIDER than the
+        paired CI, so it is a **CONSERVATIVE, POWER-ANALYSIS-ONLY helper** (the sensitivity/planning TOST in
+        this module's power tables) — it should NOT decide the headline equivalence.
+      * ``paired=True`` resamples a SHARED seed index for both arms (CRN pairing), so the mean-difference CI
+        carries the across-seed covariance exactly like the headline. Use this whenever ``a``/``b`` are
+        genuinely paired per-seed scores (e.g. the order-preserving Sharpe→DSR rescale in
+        ``analyze_campaign.h2_tost_dsr``). Requires ``a.shape == b.shape``.
+
+    The headline equivalence VERDICT always routes through the paired+IQM ``_iqm_tost``; this MEAN TOST is
+    the conservative complement (mean vs IQM) and the power-analysis planning tool.
 
     Declares the two arms *practically equivalent* when a two-sided ``1 - 2*alpha`` (90%) percentile
-    bootstrap CI for the IQM/mean difference falls **entirely within** ``(-margin, +margin)`` — the TOST
-    rule (the 90% CI inside ±SESOI ⇔ both one-sided tests reject; Lakens 2017). This is the equivalence
-    complement to the difference test: a non-rejection of H2 *plus* a TOST equivalence verdict lets the
-    dissertation report "distributional and scalar are equivalent within ±``margin``" — a bounded effect,
-    not "we found nothing" (the pre-committed null framing, PREREGISTRATION §10 R12; viva Q21).
+    bootstrap CI for the mean difference falls **entirely within** ``(-margin, +margin)`` — the TOST rule
+    (the 90% CI inside ±SESOI ⇔ both one-sided tests reject; Lakens 2017). A non-rejection of H2 *plus* a
+    TOST equivalence verdict lets the dissertation report "distributional and scalar are equivalent within
+    ±``margin``" — a bounded effect, not "we found nothing" (PREREGISTRATION §10 R12; viva Q21).
 
     UNITS. ``margin`` is applied in the SAME units as ``a``/``b``. The FROZEN SESOI/TOST margin ±0.05 is
     specified in *validation-DSR* units (the selection metric), so for a DSR-space equivalence claim feed
@@ -595,6 +645,9 @@ def tost_equivalence(
         Bootstrap replications for the CI.
     rng:
         Optional NumPy generator.
+    paired:
+        If True, resample a SHARED seed index for both arms (CRN pairing; requires equal shapes). If False
+        (default), resample independently — the conservative, power-analysis-only mode.
 
     Returns
     -------
@@ -613,9 +666,15 @@ def tost_equivalence(
 
     estimate = float(a.mean() - b.mean())
     nb_boot = int(n_boot)
-    ia = rng.integers(0, na, size=(nb_boot, na))
-    ib = rng.integers(0, nb, size=(nb_boot, nb))
-    boot = a[ia].mean(axis=1) - b[ib].mean(axis=1)
+    if paired:
+        if a.shape != b.shape:
+            raise ValueError("paired=True requires a and b to be the same shape (paired per-seed scores)")
+        idx = rng.integers(0, na, size=(nb_boot, na))  # SAME seed-index draw for both arms (CRN pairing)
+        boot = a[idx].mean(axis=1) - b[idx].mean(axis=1)
+    else:
+        ia = rng.integers(0, na, size=(nb_boot, na))
+        ib = rng.integers(0, nb, size=(nb_boot, nb))
+        boot = a[ia].mean(axis=1) - b[ib].mean(axis=1)
     # 90% CI (alpha = 0.05 each side) is the standard TOST equivalence CI (1 - 2*alpha).
     ci_low = float(np.quantile(boot, 0.05))
     ci_high = float(np.quantile(boot, 0.95))
@@ -659,6 +718,7 @@ def _rho_sweep_table(
         "|---|---|---|---|---|",
     ]
     for rho in rhos:
+        print(f"    rho = {rho:.1f} ...")
         c = replace(cfg, rho=float(rho))
         m80 = minimum_detectable_effect(replace(c, target_power=0.80), effect_max=effect_max, effect_points=effect_points)
         m90 = minimum_detectable_effect(replace(c, target_power=0.90), effect_max=effect_max, effect_points=effect_points)
@@ -854,8 +914,9 @@ probability ≥ **target power = {cfg.target_power:.2f}**, at the per-test alpha
     Δ_MDE = min {{ Δ ≥ 0 : Power(Δ | n_seeds = {cfg.seeds}, σ_seed = {_fmt(cfg.sigma_dsr)}, ρ = {cfg.rho:.1f}, α = {a_eff:.4f}) ≥ {cfg.target_power:.2f} }}
 
 estimated by Monte-Carlo ({cfg.n_sims} sims/grid-point, {cfg.n_boot} bootstrap reps/test) over the REAL test.
-For the LIVE one-sided IUT rule the bootstrap two-sided p is converted in-direction (p_one = p_two/2 when the
-effect is in the predicted direction; DEEP_H2 stats note A5). The conservative Šidák-over-m figure
+For the power simulation the bootstrap two-sided p is converted in-direction (p_one = p_two/2 when the
+effect is in the predicted direction) — a symmetric-DGP approximation to the headline R64 direct upper-tail
+rule (`pvalue_one_sided_greater`), exact here because the simulation draws symmetric (normal) pairs. The conservative Šidák-over-m figure
 (`alpha_eff = 1 − (1 − {cfg.alpha:.2f})^(1/{cfg.n_comparisons}) = {sidak_a:.4f}`) is the BH-over-6 SENSITIVITY below.
 {sidak_section}
 ## Pairing-correlation (ρ) sensitivity — headline MDE table
@@ -992,7 +1053,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=VALIDATION_TRACK_LENGTH,
         help="Validation track length T (the sqrt(T-1) factor in the Sharpe->validation-DSR MDE mapping; "
-        f"T2.5). Default {VALIDATION_TRACK_LENGTH} = 3y x {PERIODS_PER_YEAR} sessions (val split [2015,2017]).",
+        f"T2.5). Default {VALIDATION_TRACK_LENGTH} = the executed Split-C validation window [3081,3775) "
+        "(2017-03-30..2019-12-31).",
     )
     parser.add_argument(
         "--n-seeds",
@@ -1088,8 +1150,21 @@ def _load_design_from_config() -> _DesignInfo:
 
 
 def main() -> None:
+    # Line-buffer the streams FIRST (batch-5 M2, 2026-07-03): a redirected/scheduled run block-buffers
+    # stdout, so the old multi-hour sweep emitted ZERO bytes and was mis-diagnosed as a hang (three
+    # orphaned runs killed). Line-buffering + the per-sweep progress prints below make a long run
+    # observably alive from its first line. (Prints stay ASCII-only per the console note below.)
+    import sys as _sys
+
+    for _stream in (_sys.stdout, _sys.stderr):
+        try:
+            _stream.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+        except (AttributeError, ValueError):
+            pass
+
     args = build_parser().parse_args()
 
+    print("[power_analysis] loading design/config + panel (regime count) ...")
     design = _load_design_from_config()
     # --sigma-seed is the canonical flag; --sigma-dsr is the deprecated alias.
     sigma_arg = args.sigma_seed if args.sigma_seed is not None else args.sigma_dsr
@@ -1165,7 +1240,9 @@ def main() -> None:
     else:
         print(f"  alpha={cfg.alpha}, selection-aware alpha_eff={a_eff:.4f} (m={cfg.n_comparisons})")
 
+    print(f"  [sweep 1/4] primary MDE @ {cfg.target_power:.2f} (up to {args.effect_points} grid points x {cfg.n_sims} sims) ...")
     mde = minimum_detectable_effect(cfg, effect_max=float(args.effect_max), effect_points=int(args.effect_points))
+    print("  [sweep 2/4] MDE @ 0.90 ...")
     mde90 = _mde_at(cfg, 0.90, float(args.effect_max), int(args.effect_points))
     if mde["reached"]:
         print(f"  MDE @ power {cfg.target_power:.2f}: {_fmt(mde['mde'], 4)} Sharpe ({_fmt(mde['mde_sigma_units'], 2)} sigma_seed)")
@@ -1181,6 +1258,7 @@ def main() -> None:
     # the Šidák rule, the sensitivity is the same record (no second pass).
     mde_sidak: dict[str, object] | None = None
     if iut_one_sided:
+        print("  [sweep 3/4] Sidak-m sensitivity MDE ...")
         mde_sidak = minimum_detectable_effect(
             replace(cfg, iut_one_sided=False), effect_max=float(args.effect_max), effect_points=int(args.effect_points)
         )
@@ -1188,6 +1266,7 @@ def main() -> None:
             print(f"  SENSITIVITY MDE @ {cfg.target_power:.2f} (Sidak-m={cfg.n_comparisons}): "
                   f"{_fmt(mde_sidak['mde'], 4)} Sharpe ({_fmt(mde_sidak['mde_sigma_units'], 2)} sigma_seed)")
 
+    print("  [sweep 4/4] rho sensitivity table (4 rho x 2 target powers) ...")
     rho_table = _rho_sweep_table(cfg, (0.0, 0.3, 0.5, 0.7), float(args.effect_max), int(args.effect_points))
     n_trials = int(design["n_trials"])
     print(f"  trial count = {n_trials}")
