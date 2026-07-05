@@ -675,6 +675,21 @@ class LLMClient:
             )
         return self._transport
 
+    def advance_author_stream(self, k: int = 1) -> None:
+        """Consume ``k`` author-stream positions WITHOUT a call — resume replay of AUTHORED slots.
+
+        A resume replays archived candidates (and ledgered sandbox failures) instead of re-calling
+        the author; each such slot consumed one authoring call in the original run. POSITIONAL
+        transports (the keyless Pass-A stub, whose call ``n`` is a pure function of ``(seed, n)``)
+        expose ``advance`` so the post-resume fresh candidates keep the indices — hence the exact
+        outputs — they would have had uninterrupted (2026-07-06, crash-rehearsal catch). Real LLM
+        transports have no ``advance`` (a paid, non-deterministic call cannot be replayed by
+        position) -> silently a no-op, leaving Pass-B replay semantics exactly as before. Reads the
+        injected transport directly: never lazily builds a real one just to no-op it."""
+        adv = getattr(self._transport, "advance", None)
+        if adv is not None:
+            adv(int(k))
+
     def complete(self, system: str, user: str) -> str:
         """Run one chat completion and archive it for replay (audit C-2).
 

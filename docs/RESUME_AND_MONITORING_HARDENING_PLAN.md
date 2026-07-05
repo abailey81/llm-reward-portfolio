@@ -1,4 +1,23 @@
-# Resume + monitoring deep-hardening plan (2026-07-05, queued after the flawlessness review)
+# Resume + monitoring deep-hardening plan (2026-07-05) — **EXECUTED 2026-07-06, all items**
+
+> **STATUS.** Every item below is BUILT, TESTED, and LIVE-VERIFIED (commits bb01e2e, df5a61f, + the
+> A3-A6 slice). Highlights: **A1** as-completed streaming archival + wedge detection (order-preserving;
+> σ_D-farm positional contract kept); **A2** = the journal READ-side over events.jsonl (one ledger, no
+> drift) + `seed_done`/`seed_failed`/`test_leg_stall` write-side events; **A3** verified — every stage
+> (H1 both paths, H3 search+freeze+test, sub-experiments, serial+parallel test, search arms) resumes
+> skip-done, plus a FIXED real gap (the p_arms>1 prototype path dropped `resume` → re-billed partial
+> arms); **A4** corrupt-record failures now name the path + the mirror recovery route (deliberately NOT
+> auto-quarantined: an LLM-arm record is irreplaceable) + `campaign_summary.json` writes atomically;
+> **A5** the mirror is VERIFIED after every pass (`verify-mirror`: sealed records intact, post-seal adds
+> tolerated; exit 9 on backup rot); **A6** `scripts/crash_rehearsal.py` — reference → determinism
+> control → hard TREE-kill at 1 record → resume → canonical byte-compare — which on its FIRST run
+> **caught a real resume infidelity** (the Pass-A stub author was stream-positional; fixed to a pure
+> f(seed, call_index) + stream-faithful `advance()` on replay; real-LLM transports no-op by design)
+> and now certifies PASS. **B1-B7** all live in `scripts/sentinel.py` + `scripts/monitor.py` (17+
+> checks; completion-stall cadence, coverage/ETA anti-husk ledger, error taxonomy, disk forecast, fps
+> CUSUM, unified dashboard line, deadman heartbeat) — and the sentinel's first live run against
+> `outputs/campaign` immediately flagged a REAL pre-campaign risk (C: free disk 18.0 GB < the 20 GB
+> floor). Runbook §3e-bis + §5 + §5b(iv) updated. Original plan text below for the record.
 
 **Goal (Tamer).** The unattended ~23-day laptop campaign must (a) NEVER lose meaningful progress on any
 crash/reboot/power-loss, with an extremely advanced + sophisticated resume system, and (b) very closely

@@ -144,8 +144,12 @@ def verify_manifest(root: Path | str, manifest_path: Path | str | None = None) -
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Content-addressed integrity seal for the result archive.")
-    ap.add_argument("mode", choices=["write", "verify"], help="write the seal, or verify against it.")
-    ap.add_argument("root", help="Archive root (e.g. outputs/campaign).")
+    ap.add_argument("mode", choices=["write", "verify", "verify-mirror"],
+                    help="write the seal; verify against it (strict); or verify-mirror (a BACKUP "
+                         "copy: sealed records must be intact — removed/changed fail — but records "
+                         "ADDED after the seal are tolerated, since a mid-campaign mirror lawfully "
+                         "carries newer work than the last sealed manifest).")
+    ap.add_argument("root", help="Archive root (e.g. outputs/campaign, or the mirror copy).")
     ap.add_argument("--manifest", default=None, help="Manifest path (default <root>/archive_integrity.json).")
     args = ap.parse_args(argv)
     if args.mode == "write":
@@ -155,6 +159,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[archive_integrity] root = {manifest['root']}")
         return 0
     result = verify_manifest(args.root, args.manifest)
+    if args.mode == "verify-mirror":
+        ok = not (result.removed or result.changed)
+        note = f" ({len(result.added)} newer-than-seal record(s) tolerated)" if result.added else ""
+        print(f"[archive_integrity] mirror {'OK' if ok else 'CORRUPT'}: "
+              f"{result.n_verified} sealed record(s) intact{note}"
+              + ("" if ok else f" | removed={result.removed[:5]} changed={result.changed[:5]}"))
+        return 0 if ok else 1
     print(f"[archive_integrity] {result.summary()}")
     return 0 if result.ok else 1
 

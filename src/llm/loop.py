@@ -438,6 +438,14 @@ def run_loop(
                         gen_best_block = _rec.feedback_block
                     monitor.candidate_done(arm, cand_n, fitness=_rec.val_fitness, status="ok",
                                            secs=time.perf_counter() - cand_t0)
+                    # Stream-faithful replay (2026-07-06): this slot was AUTHORED in the original
+                    # run, so consume its author-stream position — a POSITIONAL (stub) transport
+                    # keeps later fresh candidates byte-identical to an uninterrupted run; a real
+                    # LLM transport no-ops (its calls cannot be replayed by position). Duck-typed:
+                    # injected test fakes need not implement it.
+                    _adv = getattr(llm, "advance_author_stream", None)
+                    if _adv is not None:
+                        _adv()
                     continue
                 if candidate_id in _cached_failures:
                     _cf = _cached_failures[candidate_id]
@@ -449,6 +457,9 @@ def run_loop(
                     })
                     monitor.candidate_done(arm, cand_n, fitness=None, status="sandbox_reject",
                                            secs=time.perf_counter() - cand_t0)
+                    _adv = getattr(llm, "advance_author_stream", None)
+                    if _adv is not None:
+                        _adv()  # a ledgered failure was authored too (one position)
                     continue
 
             # Per-candidate prompt variation -> within-generation diversity without temperature

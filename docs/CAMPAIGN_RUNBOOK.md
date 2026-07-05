@@ -199,25 +199,26 @@ batches; monitor RSS for ~20 min.
 is the cross-batch backstop (`max_tasks_per_child` is **disabled** — it DEADLOCKS on Windows spawn
 across all Pythons 3.11–3.14).
 
-### 3e-bis. V4b — CRASH-INJECTION rehearsal (certify resume before the real run, 2026-07-05)
+### 3e-bis. V4b — CRASH-INJECTION rehearsal (certify resume before the real run; AUTOMATED 2026-07-06)
 
-The search-arm resume byte-identity is unit-certified (`tests/test_search.py`
-::`test_random_search_resume_reproduces_trajectory_and_skips_training` +
-`::test_bayes_opt_resume_reproduces_gp_trajectory` — a mid-arm crash re-draws the SAME candidate
-sequence, skips the training of archived candidates, and fails LOUD on any source-hash drift). Before
-the real campaign, also do the END-TO-END kill-storm on the keyless dry-run so the whole
-supervisor→driver→archive loop is proven, not just the unit:
+The rehearsal is now ONE COMMAND (`scripts/crash_rehearsal.py`): reference run → determinism-control
+run → hard TREE-kill (`taskkill /T`, pool workers included, like a real power event) at the first
+archived record → `--resume` → canonical byte-compare of the resumed tree against the uninterrupted
+reference (volatile fields only — wall_clock/env_fingerprint — excluded):
 ```bash
-# launch the dry-run under the supervisor, then hard-kill at the nastiest points and confirm --resume
-# lands a COMPLETE, non-duplicated archive each time (kill mid-search-arm, mid-generation, mid-test-batch):
-python scripts/supervisor.py --gpu 3 -- --allow-unfrozen --synthetic --candidates 6 --seeds 0,1 &
-#   ... let it reach a search arm, then: taskkill /F /PID <driver>   (repeat at 3-4 distinct points)
-#   after each kill the supervisor relaunches with --resume; verify no arm re-trains from candidate 0
-#   and the final archive record-count == the uninterrupted baseline (search arms now checkpoint each
-#   candidate + skip on resume — 2026-07-05).
+.venv/Scripts/python.exe scripts/crash_rehearsal.py          # exit 0 = crash-resume CERTIFIED
 ```
-Expected: every kill resumes cleanly; the search arms re-pay only the un-finished tail (not the whole
-arm); the sentinel stays GREEN through the relaunches.
+**Proof it earns its keep:** on its first real execution (2026-07-06) the rehearsal CAUGHT a genuine
+resume infidelity — the Pass-A stub author drew from one sequential RNG stream, so a resume that
+replayed archived candidates without consuming their draws shifted every later candidate — fixed by
+making the stub a pure function of ``(seed, call_index)`` + stream-faithful ``advance()`` on replay
+(real-LLM transports no-op: paid non-deterministic calls cannot be replayed by position; their
+resume contract stays "archived work replays identically, un-run slots are fresh draws").
+Re-certified PASS: killed at 1/6 records → resume → byte-identical archive. Also still unit-certified:
+`tests/test_search.py::test_random_search_resume_reproduces_trajectory_and_skips_training` +
+`::test_bayes_opt_resume_reproduces_gp_trajectory`. For extra confidence before the freeze, the
+manual multi-point kill-storm under the supervisor (kill mid-search-arm / mid-generation /
+mid-test-batch, verify the sentinel stays GREEN through relaunches) remains a worthwhile V4b-plus.
 
 ### 3f. V5 — resume / idempotency
 Kill a `--synthetic` run mid-way, then re-launch with `--resume`.
@@ -395,6 +396,31 @@ nothing about a bad result waits until analysis time to be seen. The sentinel al
 change-point detector** (statistical process control) on the streaming gate-failure and NaN rates, so a
 slow upward DRIFT is flagged before it ever crosses a hard threshold.
 
+**The 2026-07-06 deep-monitoring layer (detect-EVERYTHING):**
+- **completion_stall** — PRODUCTIVITY, not just liveness: the journal's per-unit completion stream
+  (`seed_done`/`candidate_done` events) yields the run's OWN median cadence; silence > 3x it = WARN,
+  > 8x = CRITICAL. Catches the wedged-CUDA-training-with-a-happily-alive-driver hang that mtime checks
+  cannot see. Corroborated in-driver: `run_recycling` itself fires a WARNING `test_leg_stall` event
+  (naming the pending arm/seed identities) when NO training completes for
+  `config/campaign.yaml monitoring.test_stall_after_s` (default 5400 s ≈ 3x the expected ~28-min
+  inter-completion cadence at n_gpu=3).
+- **coverage_search / coverage_test** — the expected-vs-done UNIT ledger (config is the frozen truth:
+  7x30 search, 11x30 test) with a data-driven ETA; a summary that claims completeness while units are
+  missing = CRITICAL (the anti-husk guarantee at unit granularity); MORE units than the design = WARN
+  (duplicates / config drift).
+- **error_taxonomy** — failures clustered by kind (oom / cuda / sandbox / api / timeout / divergence /
+  nan / stall) with counts + affected arms; a single kind reaching ~10 = WARN (a systematic wave).
+- **disk_forecast** — PREDICTIVE exhaustion: the fill rate over the watch history → "hits the 20 GB
+  floor in ~N h" (WARN ≤ 48 h, CRITICAL ≤ 12 h) — lead time instead of a surprise.
+- **fps drift** — a direction-down CUSUM against the run's own early-baseline median fps: thermal
+  creep / swap degradation surfaces in hours.
+- **B7 unified view** — `scripts/monitor.py` now renders the sentinel's one-line verdict inside the
+  dashboard (and `--once` snapshots), refreshed every ~15 ticks.
+- **B6 DEADMAN heartbeat** — `monitor.py --heartbeat <url> [--heartbeat-every 600]` POSTs a compact
+  health snapshot UNCONDITIONALLY on the interval; point it at a healthchecks.io-style service whose
+  alarm fires on the ABSENCE of pings — the only way to detect host death (power loss, kernel panic)
+  that no on-host monitor can report. Set the service's grace period to ~2-3x the interval.
+
 **Result-archive integrity seal (2026-07-05, `scripts/archive_integrity.py`).** The archive is the one
 irreplaceable artifact (results replay from it). At campaign end the driver auto-writes
 `outputs/campaign/archive_integrity.json` — a content-addressed manifest with a single verifiable **root**
@@ -440,7 +466,13 @@ forking-paths sin the whole pre-registration exists to prevent.
 
 **(iv) ARCHIVE MIRROR task** (register at launch, run-day checklist): every 6 h,
 `schtasks /Create /SC HOURLY /MO 6 /TN LLMRewardArchiveMirror /TR "powershell -ExecutionPolicy Bypass -File <repo>\scripts\mirror_archive.ps1"`
-(the script exits 0 on success since 2026-07-05; ≥8 = a real failure worth an alert).
+(the script exits 0 on success since 2026-07-05; 8 = a real robocopy failure; 9 = the 2026-07-06
+**backup-integrity verify** failed). The mirror is now VERIFIED, not just copied: after each pass the
+script re-hashes every mirrored tree that carries a sealed `archive_integrity.json` via
+`scripts/archive_integrity.py verify-mirror` — sealed records must be byte-intact (removed/changed →
+exit 9), while records ADDED after the seal are tolerated (a mid-campaign mirror lawfully carries
+newer work than the last sealed manifest). A silently-rotting backup is caught at mirror time, not at
+the disaster-recovery moment.
 
 ---
 

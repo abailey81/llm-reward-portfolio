@@ -401,17 +401,21 @@ def test_stub_varies_with_seed() -> None:
     assert any(x != y for x, y in zip(seq0, seq1))
 
 
-def test_stub_reset_replays_archetype_cycle_but_not_rng() -> None:
-    """reset() rewinds the archetype counter (same templates) while the RNG keeps advancing — so
-    the SECOND cycle reuses archetypes with FRESH coefficients (documented behavior)."""
+def test_stub_is_a_pure_function_of_seed_and_call_index() -> None:
+    """2026-07-06 (crash-rehearsal catch): call ``n`` depends ONLY on ``(seed, n)`` — reset()
+    therefore replays the cycle IDENTICALLY, and advance(k) skips positions so a resume that
+    replays k archived candidates leaves the next fresh candidate byte-identical to the one an
+    uninterrupted run would have authored at that index."""
     stub = StubDesignerTransport(seed=5)
     first = [stub("s", "u") for _ in range(len(ARCHETYPES))]
     stub.reset()
     second = [stub("s", "u") for _ in range(len(ARCHETYPES))]
-    # Same archetype skeletons (return-only at index 0 is coefficient-free -> identical).
-    assert first[0] == second[0]
-    # The whole cycle is not byte-identical (RNG advanced -> coefficients changed somewhere).
-    assert first != second
+    assert first == second  # pure f(seed, index): the replayed cycle is byte-identical
+    # advance(k) == "the first k slots were replayed from the archive": the next call must equal
+    # the uninterrupted run's candidate at index k.
+    stub.reset()
+    stub.advance(2)
+    assert stub("s", "u") == first[2]
 
 
 # =========================================================================== #

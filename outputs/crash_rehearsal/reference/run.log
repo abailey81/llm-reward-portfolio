@@ -1,0 +1,18 @@
+2026-07-06 01:00:25 | INFO    | monitor | run_start title=Prototype model=claude-sonnet-4-6 arms=3 candidates_per_arm=2 train_steps=200 run_dir=C:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio\outputs\crash_...
+2026-07-06 01:00:25 | INFO    | monitor | arm_start arm=distributional idx=0 total=3
+2026-07-06 01:00:27 | INFO    | monitor | llm_call arm=distributional cand=0 secs=0 in_tok=None out_tok=None model=stub-designer/seed0
+2026-07-06 01:00:27 | INFO    | monitor | sandbox_ok arm=distributional cand=0 reason=
+2026-07-06 01:00:28 | INFO    | monitor | candidate_done arm=distributional cand=0 fitness=0.00122233 status=ok secs=1.9 run_done=1 run_total=6
+2026-07-06 01:00:28 | INFO    | monitor | llm_call arm=distributional cand=1 secs=0 in_tok=None out_tok=None model=stub-designer/seed0
+2026-07-06 01:00:29 | INFO    | monitor | sandbox_ok arm=distributional cand=1 reason=
+2026-07-06 01:00:29 | INFO    | monitor | candidate_done arm=distributional cand=1 fitness=0.00122233 status=ok secs=0.6 run_done=2 run_total=6
+2026-07-06 01:00:29 | INFO    | monitor | arm_done arm=distributional winner_fitness=0.00122233 secs=4.1
+2026-07-06 01:00:29 | INFO    | monitor | arm_start arm=random_search idx=1 total=3
+2026-07-06 01:00:30 | INFO    | monitor | candidate_done arm=random_search cand=0 fitness=0.00122233 status=ok secs=0.2 run_done=3 run_total=6
+2026-07-06 01:00:30 | INFO    | monitor | candidate_done arm=random_search cand=1 fitness=0.00122233 status=ok secs=0.2 run_done=4 run_total=6
+2026-07-06 01:00:30 | INFO    | monitor | arm_done arm=random_search winner_fitness=0.00122233 secs=0.8
+2026-07-06 01:00:30 | INFO    | monitor | arm_start arm=bayes_opt idx=2 total=3
+2026-07-06 01:00:30 | INFO    | monitor | candidate_done arm=bayes_opt cand=0 fitness=0.00122233 status=ok secs=0.2 run_done=5 run_total=6
+2026-07-06 01:00:31 | INFO    | monitor | candidate_done arm=bayes_opt cand=1 fitness=0.00122233 status=ok secs=0.3 run_done=6 run_total=6
+2026-07-06 01:00:31 | INFO    | monitor | arm_done arm=bayes_opt winner_fitness=0.00122233 secs=0.6
+2026-07-06 01:00:31 | INFO    | monitor | run_end status=done elapsed_s=5.6 anomalies=0 best_fitness={'distributional': 0.0012223318506180468, 'random_search': 0.0012223318506180...

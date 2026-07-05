@@ -111,30 +111,37 @@ _ETA_GRID = (0.01, 0.05, 0.1)
 class StubDesignerTransport:
     """A deterministic ``(system, user) -> reward_source`` transport for keyless Pass A.
 
-    Cycles through :data:`ARCHETYPES`, filling each with coefficients drawn from a
-    ``numpy`` Generator seeded by ``seed`` — so the same ``seed`` reproduces the same
-    sequence of candidates (replay, audit C-2). It records every call like
-    ``FakeTransport`` so tests can assert on what was sent.
+    Cycles through :data:`ARCHETYPES`, filling each with coefficients from a PER-CALL-INDEX
+    child generator ``default_rng((seed, n))`` — call ``n`` depends ONLY on ``(seed, n)``, never
+    on the draw history (2026-07-06, crash-rehearsal catch: the old single sequential stream
+    meant a resume that REPLAYED archived candidates without consuming their draws shifted every
+    later candidate's coefficients, so a killed+resumed Pass-A run was not byte-faithful to an
+    uninterrupted one). Replay paths keep the index aligned via :meth:`advance` — one position
+    per replayed (authored) candidate, mirroring the search arms' draw-unconditionally rule.
+    It records every call like ``FakeTransport`` so tests can assert on what was sent.
 
     Parameters
     ----------
     seed : int
-        Seeds the coefficient RNG (the candidate *sequence* is deterministic given seed).
+        Seeds every per-index child generator (the candidate at index ``n`` is a pure function
+        of ``(seed, n)``).
     """
 
     def __init__(self, seed: int = 0) -> None:
-        self._rng = np.random.default_rng(int(seed))
+        self._seed = int(seed)
         self._n = 0
         self.calls: list[tuple[str, str]] = []
 
     def __call__(self, system: str, user: str) -> str:
         self.calls.append((system, user))
-        template = ARCHETYPES[self._n % len(ARCHETYPES)]
+        n = self._n
         self._n += 1
-        c1 = float(self._rng.choice(_C1_GRID))
-        window = int(self._rng.choice(_WINDOW_GRID))
-        alpha = float(self._rng.choice(_ALPHA_GRID))
-        eta = float(self._rng.choice(_ETA_GRID))
+        template = ARCHETYPES[n % len(ARCHETYPES)]
+        rng = np.random.default_rng((self._seed, n))  # pure f(seed, index): any-subset replay-safe
+        c1 = float(rng.choice(_C1_GRID))
+        window = int(rng.choice(_WINDOW_GRID))
+        alpha = float(rng.choice(_ALPHA_GRID))
+        eta = float(rng.choice(_ETA_GRID))
         return (
             template.replace("__C1__", repr(c1))
             .replace("__WINDOW__", str(window))
@@ -142,6 +149,16 @@ class StubDesignerTransport:
             .replace("__ETA__", repr(eta))
         )
 
+    def advance(self, k: int = 1) -> None:
+        """Consume ``k`` author-stream positions WITHOUT generating (resume replay).
+
+        A replayed candidate — archived success or ledgered sandbox failure — was AUTHORED in the
+        original run, so it owns one stream position; skipping it here keeps every post-resume
+        fresh candidate at the same index (hence the same output) it would have had uninterrupted.
+        Real LLM transports deliberately have no ``advance`` (a paid, non-deterministic call
+        cannot be replayed-by-position); callers duck-type on the attribute."""
+        self._n += max(0, int(k))
+
     def reset(self) -> None:
-        """Reset the archetype counter (the RNG is not reset)."""
+        """Reset the call-index counter to 0."""
         self._n = 0

@@ -131,3 +131,27 @@ def test_no_truncated_record_is_ever_read_after_midwrite(results_dir, monkeypatc
     assert load_all(results_dir) == []
     with pytest.raises(FileNotFoundError):
         load_run("newdir", results_dir)
+
+
+def test_load_all_corrupt_record_fails_loud_with_recovery_guidance(tmp_path) -> None:
+    """2026-07-06 A4: a corrupt record.json must fail LOUD (never silently regenerate — an LLM-arm
+    record is irreplaceable) with an ACTIONABLE message naming the path + the mirror recovery route."""
+    import json as _json
+
+    import pytest as _pytest
+
+    from src.io.results import load_all, write_run
+
+    rec = {
+        "run_id": "a-s0", "arm": "a", "seed": 0, "fold": 0, "candidate_id": "c0",
+        "generation": 0, "reward_source_hash": "h", "feedback_block": "",
+        "metrics": {"val_fitness": 0.1}, "wall_clock": 1.0, "env_fingerprint": "t",
+    }
+    write_run(rec, tmp_path)
+    # corrupt it: drop a REQUIRED field (arm) so load_run's schema validation raises
+    p = tmp_path / "a-s0" / "record.json"
+    broken = _json.loads(p.read_text(encoding="utf-8"))
+    broken.pop("arm")
+    p.write_text(_json.dumps(broken), encoding="utf-8")
+    with _pytest.raises(ValueError, match="CORRUPT archive record.*mirror"):
+        load_all(tmp_path)
