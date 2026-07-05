@@ -1,5 +1,41 @@
 # LSEG data strategy — what the full licence unlocks for THIS project (deep, unfrozen re-assessment)
 
+> **★★ EXECUTED 2026-07-02 — the forward-2026 extension + Split C this document planned HAS NOW RUN.**
+> The dedicated journaled extension pull (`data_pipeline/scripts/extend_universe_2026.py`, PowerShell +
+> `.venv-lseg`, 138/138 chunks) + `build_univ5.py` produced the ACTIVE panel **univ5 = 5,406 × 963,
+> 2005-01-03 → 2026-06-30** (settled cutoff), byte-diff-verified vs univ3 (**0 changed overlap cells**;
+> +123 sessions, +10 new 2026-joiner columns), and **Split C is executed + hash-bound**: train 2005–2016 /
+> val 2017–2019 / test 2020–2026H1 (`gold.suffix: univ5`; `expected_windows.univ5`). The overlap gate
+> caught a live vendor event-history revision (`EVHC.N^L16`) → resolved by the SPLICE rule + enumerated
+> allowlist. See **ADR-051 (+ addendum)**, **CHANGELOG `[2026-07-02c]`**, prereg **R73**, and
+> `docs/DATASHEET_v1.md` §2026-07-02. Still DECIDED-not-executed from this doc: the **FTSE-lite
+> replication** (§2B). The body below is the reasoning trail and is left as written.
+
+> **★ RECONCILED 2026-07-01 (decisions settled this session — read FIRST; DECIDED vs EXECUTED marked).**
+> The exhaustive upgrade-research pass closed several questions this doc had left open. Net changes vs the
+> 2026-06-28 body below:
+> - **Refinitiv access is SOLVED (verified 2026-07-01), not blocked/uncertain.** A live session opens via
+>   **PowerShell + an isolated `.venv-lseg` (`refinitiv-data` 1.6.2)**. The earlier friction was the **Bash
+>   tool's sandboxed network**, not an entitlement or licence gap — run every pull via **PowerShell +
+>   `.venv-lseg`**. **The pull is FAST**: a full/forward Refinitiv pull is ~**30 min – 2 h**, **NOT "~2 weeks"**
+>   (any "~2 weeks" figure elsewhere refers to the *laptop training campaign*, not a data re-pull — do not
+>   conflate). This retires the §7 🟡 "probe access before relying" hedge for the entitlement itself.
+> - **Data plan DECIDED (pending rebuild) = Split C:** train **2005–2016** / val **2017–2019** / test
+>   **2020–2025 (or 2020–2026)**. The **forward-2026 settled extension is FEASIBLE + FAST** (same ~30 min–2 h
+>   pull) → it becomes the concrete, preferred history move, *replacing* extend-history-backward as the live
+>   lever. **DECIDED, pending the rebuild pull (not yet EXECUTED).**
+> - **Backward extension to ~2000 (dot-com) is REJECTED on DATA-QUALITY grounds** (not deadline): a
+>   survivorship-free dot-com reconstruction is the hardest + least validatable era — Ince–Porter (2006) shows
+>   the earliest Datastream years are worst-quality; yfinance cannot cover dead names; **CRSP is the gold
+>   standard there and Refinitiv is not**. This SUPERSEDES §2A's "extend to ~1989" as a candidate: the
+>   forward-2026 extension is the accepted direction; deeper backward history is off the table on quality, not
+>   just non-stationarity. (§2A's non-stationarity + pre-2016-membership cautions still stand and reinforce it.)
+> - **Multi-market "lite" FTSE replication is now DECIDED (report-only external-validity leg)** — §2B's
+>   FTSE 100 path is adopted as the single external-validity replication, not left as an option among UK/EU/JP.
+> - **The 2nd LLM is Qwen3-Coder** (open, the reproducibility anchor); **GPT-5.5 was REJECTED on cost.**
+>   Wherever a panel below lists "GPT-5.5" as a live 2nd model, prefer **Qwen3-Coder** (the panel framing in
+>   MODEL_CARD.md §"panel" is the stale one — flagged for the owning agent, not edited here).
+>
 > **REASSESSED 2026-06-28 (nothing frozen).** An earlier version of this doc rejected most LSEG categories on a
 > "frozen scope" gate. That was wrong: the campaign has not run and the design is malleable, so the question is
 > **not** "does this fit the frozen design" but **"with a full LSEG licence, what data most strengthens the
@@ -32,7 +68,15 @@ contribution and the generalisation claim**, with feasibility as the tie-breaker
 
 ## 2. TIER 1 — highest contribution/grade impact, feasible
 
-### 2A. EXTEND HISTORY to ~1989 — RECONSIDERED + DOWNGRADED (⚠ not the slam-dunk first claimed)
+### 2A. EXTEND HISTORY to ~1989 — SUPERSEDED 2026-07-01 (backward extension REJECTED; forward-2026 chosen instead)
+> **RESOLUTION (2026-07-01).** This whole "extend backward" lever is now **closed**. The decided history move is
+> the **forward-2026 settled extension** (fast, quality-safe — see the top banner + §2B / Split C), and deep
+> **backward** extension (to ~2000 dot-com, a fortiori ~1989) is **REJECTED on DATA-QUALITY grounds**:
+> survivorship-free reconstruction is worst-and-un-validatable in the earliest years (Ince–Porter 2006),
+> yfinance can't cover dead names, and CRSP — not Refinitiv — is the gold standard there. The analysis below is
+> retained as the (still-valid) non-stationarity/quality reasoning that led here; treat it as historical.
+
+### 2A (historical). EXTEND HISTORY to ~1989 — RECONSIDERED + DOWNGRADED (⚠ not the slam-dunk first claimed)
 A first pass crowned this the "#1 lever" on the surface logic *more history → more exceedances → robust EVT*.
 On scrutiny that is **half-true and over-sold**. Genuine mechanism: a longer per-candidate window does yield more
 left-tail exceedances toward the ~50–100 EVT-reliability standard. **But the costs I under-weighted are serious:**
@@ -66,7 +110,12 @@ N means a bigger network, more training, and a re-pre-registration + re-run (com
 `TR.IndexConstituentRIC` / Datastream lists exactly as now, just a larger `top-N` selection. Net: **preferable to
 extend-history** (same period → stationary), still re-run-level → weigh vs deadline.
 
-### 2B. MULTI-MARKET (FTSE 100, STOXX 600) — fixes the external-validity weakness; cheapest lever
+### 2B. MULTI-MARKET (FTSE 100, STOXX 600) — fixes external validity; **FTSE-lite DECIDED 2026-07-01**
+> **RESOLUTION (2026-07-01).** A **multi-market "lite" FTSE 100 replication** is **DECIDED** as the single
+> report-only external-validity leg (DECIDED, not yet EXECUTED — needs the entitled pull via PowerShell +
+> `.venv-lseg`). FTSE is chosen over STOXX/Japan (the high-confidence, same-currency-clean case). The
+> implementation path below is the accepted plan; register it as a pre-freeze external-validity amendment.
+
 The other top reviewer weakness is **single-market generalisation**. The pipeline is **already index-parameterised**
 (`config/data.yaml: universe.index: SP500`, membership via `TR.IndexConstituentRIC`/Datastream lists), so
 re-pointing it reuses the identical, deterministic A1/A2/A3 machinery:
@@ -144,8 +193,12 @@ The S&P 500 univ3 panel is the headline data.
 - **Japan (TOPIX/Nikkei)**: chain RICs `0#.TOPX` / `0#.N225` + PIT history depth — mechanism identical to UK/EU
   but no LSEG-primary confirmation; probe before use. (UK FTSE 100 + Europe STOXX 600 / EURO STOXX 50 are
   HIGH-confidence — the cases LSEG documents.)
-- **Non-US delisting *reason* field** — could not confirm a populated reason/cause field (consistent with the
-  repo's note that the frozen pull carries no reason). `TR.InstrumentDelistedDate` LIKELY (resolves, often null).
+- **Delisting *reason* field (US and non-US)** — **RESOLVED 2026-07-01 (negative):** the delisting-REASON
+  mnemonics (`TR.DelistingReason` / `TR.DelistingType` / `TR.DelistingReasonDescription`) do **NOT resolve
+  under this entitlement** (probed 2026-07-01). The fix therefore uses the **observed-terminal-return
+  fallback** (dead-name daily returns ARE recoverable — Lehman `LEH.N^I08` returned 2042 daily rows). See
+  `docs/DATA_REPULL_DELISTING.md` for the recorded probe result + procedure. `TR.InstrumentDelistedDate`
+  resolves (often null).
 - STOXX 600 / TOPIX / Nikkei **Datastream earliest `MMYY`**; the exact cloud clause in UCL's specific agreement.
 
 ⚠ **Two pre-pull caveats for every non-US leg** (belong in the pre-freeze amendment + entitled probe):
@@ -172,7 +225,13 @@ A 103-agent adversarially-verified deep sweep CONFIRMED and sharpened the above:
 - **Methodology**: prefer **CVaR/ES** over VaR as the tail-feedback target (coherent; Basel III/FRTB standard) —
   which the design already does.
 
-## Bottom line (reassessed twice — nothing frozen; extend-history DOWNGRADED on scrutiny)
+## Bottom line (reconciled 2026-07-01 — forward-2026 + FTSE-lite DECIDED; backward-extend REJECTED)
+**Settled this session (see top banner):** the live data moves are **(a) the forward-2026 settled extension**
+under **Split C** (fast pull, quality-safe) and **(b) the FTSE-lite external-validity replication** (report-only).
+**Backward extension is REJECTED on data quality.** Refinitiv access is **solved + fast** (PowerShell +
+`.venv-lseg`). The feasibility ranking below is retained as the reasoning trail; items 1–2 remain valid, item 3
+(extend-history-backward) is now CLOSED.
+
 Feasibility-ranked, after stress-testing the extend-history claim:
 0. **DEFAULT (cheapest, lowest-risk, do regardless): disclose + quantify the small-sample tail** (WS5 bootstrap
    CIs + reliability tiers + CVaR-1% exploratory). This handles the #1 limitation *without* new data or a re-run,

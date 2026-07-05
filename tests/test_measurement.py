@@ -227,9 +227,10 @@ def test_threshold_sensitivity_diagnostic(heavy_tail_returns: np.ndarray) -> Non
     rd = ReturnDistribution(threshold_q=0.10).fit(heavy_tail_returns)
     before = rd.tail_stats()
     sens = rd.threshold_sensitivity(alpha=0.01, threshold_qs=(0.05, 0.10, 0.20))
-    assert {"0.05", "0.10", "0.20", "spread", "cv"} <= set(sens)
+    assert {"0.05", "0.10", "0.20", "spread", "cv", "n_empirical_fallback"} <= set(sens)
     assert np.isfinite(sens["spread"]) and sens["spread"] >= 0.0
-    assert all(v <= 0.0 for k, v in sens.items() if k not in {"spread", "cv"})  # signed losses
+    assert 0.0 <= sens["n_empirical_fallback"] <= 3.0  # 0..len(threshold_qs) routed to empirical fallback
+    assert all(v <= 0.0 for k, v in sens.items() if k not in {"spread", "cv", "n_empirical_fallback"})  # signed losses
     # estimator state unchanged by the diagnostic
     assert rd.threshold_q == 0.10
     assert rd.tail_stats() == before

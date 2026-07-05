@@ -57,7 +57,9 @@ but it is listed under Integrity Flags. Anything I could not confirm is marked *
 | ConcreteProblems-Amodei (2016) | NO | Canonical reward-hacking-from-misspecified-objectives motivation for placebo/differential analyses. |
 | FINCON / FinAgent / FinMem / TradingAgents / QuantAgent / AlphaGPT / RD-Agent / Stock-Evol-Instruct (2023-25) | NO | LLM-financial-agent landscape; risk is verbal/prompt-level, the tail-reward-CODE cell is unoccupied. |
 | Motif / ONI (2023-24) | NO | LLM-derives-reward-VALUE neighbours; ONI's 2-family taxonomy locates us in the "reward CODE" family. |
-| ELfolio (2025) | NO | **possible-scoop** — closest LLM+portfolio+risk-metric+RL; see Scoop section. |
+| ELfolio (2025) | YES (`zeng2025elfolio`) | Scoop MANAGED 2026-07-02: venue pinned (Intelligent Computing 4:0176), scalar-Sharpe fitness = our CONTROL condition; see §5 + §6. |
+| GIFT (2026) | YES (`wu2026gift`) | Freshest finance neighbour: LLM designs STATE+REWARD jointly (FSE+RRS) for PPO from a FIXED risk-rule library; diagnostics feedback, NO tail vector; fenced in CH1/CH2. See §6. |
+| LLM-Judge-SAC / Al Ridhawi (2026) | PENDING (verified-pending-cite, write-time fence) | LLM-judge ensemble scores behaviour -> credit-assigned penalty ADDED to a fixed hand-written SAC reward; score-emitter, not reward-code author. See §6. |
 
 ### Methods
 
@@ -237,7 +239,7 @@ Corpus papers with `dissertation_section != NotRelevant` whose author-surname+ye
 33. Distributional-reward-for-LLMs breadth: DAR, DFPO, DPRM, DVPO, Distributional-Reasoning, Q-Sharp, RA-Finetuning, RiskPO, RARL-survey. **Gaps.**
 34. Contamination breadth: Explicit-Bias-Consideration, Look-Ahead-Bench, Look-Ahead-Bias-Fixes, Look-Ahead-Test, MemGuard-Alpha, ProfitMirage, Temporal-Contamination-Detector, DatedGPT. **Gaps.**
 35. RL/program-search canon: PPO (`schulman2017ppo` present), Skalse (present), FunSearch (present), OPRO (present), ELM, AutoML-Zero, EvolvingRLAlgorithms, EPG, MetaGenRL, LPG, MetaGradientRL, GLO, AI-Feynman, SchmidtLipson, PySR, DeepSymbolicRegression, IRL trio (Abbeel-Ng, Ng-Russell, MaxEnt-Ziebart), GP-RewardSearch-Niekum, ConcreteProblems-Amodei, RewardMisspecification-Pan, DeepRLHumanPreferences-Christiano. **Gaps.**
-36. Finance-LLM landscape: BloombergGPT, FinGPT, PIXIU, FinBERT, FINCON, FinAgent, FinMem, TradingAgents, QuantAgent, AlphaGPT, RD-Agent, Stock-Evol-Instruct, Motif, ONI, LopezLira-ChatGPT, ELfolio (scoop — see §5). **Gaps.**
+36. Finance-LLM landscape: BloombergGPT, FinGPT, PIXIU, FinBERT, FINCON, FinAgent, FinMem, TradingAgents, QuantAgent, AlphaGPT, RD-Agent, Stock-Evol-Instruct, Motif, ONI, LopezLira-ChatGPT. **Gaps.** (ELfolio REMOVED from this gap list 2026-07-02 — now cited as `zeng2025elfolio`; see §5/§6.)
 37. FinRL (2020) / FinRL-Meta (2022), RAMAC, NatGas-Distributional-RL, EX-DRL, Sharpe-Regret-Reward, RA-Finetuning, RiskSensitiveRL-Prashanth, FQF, CategoricalDRL-Rowland, StatisticsSamples-Rowland, BlackLitterman, LedoitWolf-Shrinkage, LopezDePrado-HRP. **Gaps.**
 
 **Owned-but-uncited count (section != NotRelevant, no surname+year match in refs.bib): ~150 of 196.**
@@ -259,7 +261,7 @@ multiplicity family (White/Hansen/Romano-Wolf/Ledoit-Wolf-Sharpe/Harvey-Liu-Zhu)
 - **Follmer-Schied Convex (2002):** `unparseable` — PDF body is custom-font-garbled; do NOT quote formulas/pages; verify against the published Finance & Stochastics version.
 
 ### possible-scoop
-- **ELfolio (2025):** `possible-scoop` — see §5.
+- **ELfolio (2025):** `possible-scoop` — **MANAGED 2026-07-02**: venue pinned (Intelligent Computing vol. 4 art. 0176, DOI 10.34133/icomputing.0176, 2025-11-17), added to refs.bib as `zeng2025elfolio`, cite-and-distinguish sentences live in CH1/CH2. Residual status: nearest neighbour, no longer un-managed. See §5/§6.
 
 ### preprint-only-coords (corpus-flagged) — cite as preprint, never assert a published venue/DOI
 CoopMARL-Incentive (2026); DrEureka (2024); Language-to-Rewards (2023); Qu-Fraud (2025); FinRL-DeepSeek (2025); FinRL-DAPO (2025); News-Driven-LLM-RL-Portfolio (2024); Adaptive-Alpha-Weighting (2026); Darmanin-Vella (2025); FinRLlama (2025); AlphaSharpe (2025); MadEvolve (2026); QuantEvolve (2025); QuantaAlpha (2026); CogAlpha (2025); Alpha-Mining-MCTS (2025); Trade-R1 (2026); Trading-R1 (2025); Alpha-R1 (2025); AlphaQuanter (2025); Janus-Q (2026, +placeholder ACM DOI); SHARP (2026); ATLAS (2025); TradingGroup (2025); Expert-Investment-Team (2026); Macro-Economist-Agent (2026); Agentic-Trading-Survey (2026); Coache-Jaimungal DynamicRisk (2022); Coache-Jaimungal Robust Distortion (2025, +filename/year mismatch 2024 vs v3 2025); Composite-Risk-Reward (2025); NatGas-Distributional-RL (2025); Quantile-Targeted-Portfolio (2025); RAMAC (2025); Sharpe-Regret-Reward (2025); Tail-Safe (2025); DAR (2026); DFPO (2026); DVPO (2026); Distributional-Reasoning (2026); RAPO (2026); RARL-survey (2026); Retrospective-ICL-Credit (2026); MemGuard-Alpha (2026, +no self-printed arXiv id); SAC (2018); CQL (2020); DeMiguel-1/N (2009); LedoitWolf-Shrinkage (2004); LopezDePrado-HRP (2016); AVaR-MDP-Bauerle (2011); LopezDePrado 10 Reasons (2018); RewardShaping-Ng (1999); BloombergGPT (2023); FinGPT (2023); PIXIU (2023); DeepSymbolicRegression (2021); DeepRLHumanPreferences-Christiano (2017); EvolvedPolicyGradients (2018); EvolvingRLAlgorithms (2021); InverseRewardDesign (2017); LPG-Oh (2020); LossFunctionSearch-GLO (2019); MarketImpact-Almgren (2005); MetaGenRL (2020); MetaGradientRL (2018); OptimalExecution-AlmgrenChriss (2000); OptimalRewardProblem-Sorg (2011); ProbabilisticSharpe-Bailey (2012); PseudoMath-Bailey (2014, note: published AMS coords exist); PySR (2023); RewardDesign-OGA-Sorg (2010); SquareRootLaw-Toth (2011); TradingCosts-Frazzini (2018); Stock-Evol-Instruct (2024, anonymous OpenReview).
@@ -311,16 +313,90 @@ agent, (c) distributional/tail FEEDBACK channel, (d) portfolio/return-distributi
 closest threats and exactly which conjunct each one breaks:
 
 - **DLM / Behari 2024 (`behari2024dlm`)** — has (a)+(b)+(reflection-on-a-distribution) but the distribution is the spread of POPULATION GROUPS in a public-health RMAB, not a return lower-tail, and the domain is not portfolio. **Breaks (c-as-return-tail) and (d).** Cite-and-distinguish; already in bib.
-- **ELfolio 2025 (`possible-scoop`)** — LLM evolves STRATEGY/heuristic code across RL/evolutionary/DL paradigms and reports CVaR/Sortino/MDD. But CVaR is a classical eval/constraint metric, NOT an LLM-authored tail-REWARD term shaping a fixed SAC policy; the artifact is the strategy, not the reward; RL is one downstream emitter. **Breaks (a-as-reward-code) and (c).** Genuinely the nearest portfolio+risk+LLM+RL combination — MUST be cited and distinguished on (i) reward-code-as-the-artifact, (ii) multi-level EVT/CVaR feedback, (iii) pre-registered severity vs outperformance framing. **Not currently in refs.bib — this is the single highest scoop-management gap.**
+- **ELfolio 2025 (`zeng2025elfolio`) — MANAGED 2026-07-02** — LLM evolves STRATEGY/heuristic code across RL/evolutionary/DL paradigms; first-hand read (venue pinned: Intelligent Computing 4:0176) confirms the killer verbatim: selection uses "the Sharpe ratio serving as the fitness function" — a SCALAR. Its RL-path template CAN rewrite reward functions, but selection stays scalar-Sharpe; CVaR appears only in formulation background, baseline names (MinCVaR) and eval tables, NEVER as feedback to the LLM. It therefore instantiates our CONTROL condition. **Breaks (c) outright and (a-as-reward-code-under-tail-selection).** Now cited + distinguished in CH1/CH2 (fence: "selection is driven by a scalar Sharpe-ratio fitness function ... it thereby instantiates precisely the scalar-feedback control condition of our design, not its treatment").
+- **GIFT 2026 (`wu2026gift`) — the freshest finance neighbour, VERIFIED + FENCED 2026-07-02** — arXiv:2606.08450 (v1 2026-06-07), LLM-guided state-reward interface for PPO portfolio RL. It DOES put the LLM in the reward channel (RRS: LLM intrinsic term + subset of a FIXED risk-rule library) but co-varies the STATE (FSE) — breaking reward-only identification — and its DGR refinement loop feeds generic rollout diagnostics (ICs, reward trend/variability, drawdown), NO CVaR/quantile/tail vector; framework-vs-baselines, no feedback-content ablation, no pre-registration; PPO not SAC. **Breaks (b), (c) and the pre-registration limb of the conjunction; (a) only partially (library-constrained, state co-varied).** Fenced in CH1 + CH2.
+- **LLM-Judge-SAC / Al Ridhawi 2026 (pending cite, write-time fence)** — arXiv:2605.05739: LLM-judge ensemble scores agent BEHAVIOUR on six dimensions; deficient scores become a credit-assigned penalty ADDED to a fixed, hand-written SAC reward. The LLM is a score-EMITTER, never a reward-code author; SAC controls two hyperparameters of a stock-FORECASTING system (not portfolio allocation); no tail/CVaR anywhere. **Breaks (a), (c) and (d).**
 - **FinRL-DeepSeek / Benhenda 2025 (`benhenda2025finrldeepseek`)** — risk-sensitive RL trading with LLM signals, but the CVaR-PPO reward is HAND-WRITTEN and the LLM only supplies a 0.9-1.1 scalar. **Breaks (a).** The primary novelty fence; in bib.
 - **FinRL-DAPO / Qu Fraud / Composite-Risk-Reward / AlphaSharpe** — each breaks at least one conjunct: DAPO has a human-set parametric risk reward (breaks a); Qu is fraud-detection classification not portfolio (breaks c+d); AlphaSharpe outputs a static ranking metric with no RL loop (breaks a+b); Composite-Risk-Reward is hand-designed not LLM-generated (breaks a).
 - **FINCON** — CVaR via VERBAL reinforcement over beliefs, no numeric reward function trained into a policy. **Breaks (a).**
 - **CARD / Auto-MC-Reward / ERFSL / Eureka-family** — LLM-writes-reward-CODE (a) but in robotics/control with SCALAR or preference feedback and no tail/portfolio. **Break (c)+(d).**
 
-**Net:** 1 genuine scoop-management item to action immediately (**ELfolio — add + distinguish**), and 1
-nearest-neighbour already handled in bib (DLM). No paper threatens the full conjunction. Strength of the
-fence is high, but the dissertation MUST explicitly cite-and-distinguish ELfolio, DLM, FinRL-DeepSeek and
-FINCON in one tight Related-Work paragraph or the "isn't this already done?" examiner question is exposed.
+**Net (updated 2026-07-02):** the ELfolio scoop item is CLOSED (cited `zeng2025elfolio` + distinguished in
+CH1/CH2), GIFT — the freshest and sharpest finance neighbour — is cited (`wu2026gift`) + fenced, and
+LLM-Judge-SAC is verified-pending-cite (write-time fence). No paper threatens the full conjunction; the
+Related-Work fence paragraph (CH2) now cite-and-distinguishes DLM, FinRL-DeepSeek, GIFT, ELfolio, CARD/Eureka
+and MadEvolve explicitly.
+
+---
+
+## 6. ADDED 2026-07-02 — nearest-neighbour verification sweep (3 papers, first-hand)
+
+Three papers verified first-hand on 2026-07-02 (coordinates fence-checked); the two arXiv PDFs were
+downloaded into the corpus the same day and re-read via PyMuPDF (page count + first-page title confirmed).
+
+### 6.1 GIFT (Wu et al. 2026) — `wu2026gift`
+- **Where it lives:** `01_literature/B_closest_neighbours/GIFT__2606.08450.pdf` (arXiv:2606.08450 v1,
+  2026-06-07, 25 pp, 13 authors, cs.AI; code at github.com/KAG778/GIFT). Title verified on p.1:
+  "GIFT: LLM-Guided State-Reward Interface for Financial Reinforcement Learning".
+- **Honest summary:** GIFT uses an LLM to design the *learning interface* of a PPO portfolio-trading
+  agent, jointly on BOTH channels: Factor-guided State Enhancement (FSE) generates state features from
+  financial-factor primitives, and Risk-rule-guided Reward Shaping (RRS) generates auxiliary rewards as
+  an LLM intrinsic term plus a selected subset of a FIXED library of portfolio-risk rules
+  (concentration/turnover/drawdown/vol/regime/momentum). A Diagnostic-guided Refinement (DGR) loop
+  revises candidate interfaces using generic PPO rollout diagnostics — information coefficients, reward
+  trend/variability, drawdown and risk-adjusted performance — then FREEZES the selected interface before
+  evaluation. Full-text scan confirms: zero occurrences of "CVaR"/"conditional value"; no quantile/tail
+  vector is ever fed back; evaluation is framework-vs-baselines on rolling windows with no controlled
+  feedback-content manipulation and no pre-registration; backbone is PPO (A2C transfer check), not SAC.
+- **How it integrates:** cited + fenced in CH1 (intro fence: "GIFT lets it select reward terms from a
+  fixed risk-rule library ... "), and CH2 Related Work ("The freshest finance neighbour, GIFT, does move
+  the language model into the reward channel ... but it redesigns the state jointly with the reward ...
+  its refinement loop feeds generic rollout diagnostics ... rather than any multi-level realised-return
+  tail vector, and it is a framework demonstrated against baselines, not a controlled manipulation of
+  feedback content"). Distinguishers: state co-varied (breaks our reward-only identification), fixed
+  rule library (not free-form reward code under tail selection), diagnostics-not-tail feedback, no
+  ablation of feedback content, no pre-registration, PPO not SAC.
+
+### 6.2 ELfolio (Zeng, Chen, Wang & Liang 2025) — `zeng2025elfolio`
+- **Where it lives:** `01_literature/I_also_mentioned/ELfolio__2025.pdf`. Venue now PINNED:
+  Intelligent Computing (Science Partner Journal), vol. 4, article 0176, published 2025-11-17,
+  DOI 10.34133/icomputing.0176 (supersedes the earlier "manual, venue unconfirmed" status in
+  `also_mentioned_log.md`).
+- **Honest summary:** ELfolio evolves LLM-written portfolio-STRATEGY code across RL, evolutionary and
+  DL path templates. The killer verbatim, confirmed first-hand: candidates are selected "with the
+  Sharpe ratio serving as the fitness function" — a SCALAR fitness, i.e. exactly this project's CONTROL
+  condition. Its RL-path template CAN rewrite state-action rules and reward functions, but selection
+  never sees anything but scalar Sharpe; CVaR appears only in the formulation background, in baseline
+  names (MinCVaR) and as an evaluation-table metric — never as feedback to the LLM. No fixed RL agent,
+  no pre-registration.
+- **How it integrates:** cited + fenced in CH1 ("ELfolio evolves whole strategy code under a *scalar
+  Sharpe fitness*") and CH2 ("The closest portfolio system, ELfolio ... selection is driven by a scalar
+  Sharpe-ratio fitness function, with tail measures appearing only in its evaluation tables and never in
+  the feedback to the model; it thereby instantiates precisely the scalar-feedback *control* condition
+  of our design, not its treatment"). This converts the former possible-scoop into corroboration: the
+  nearest portfolio+risk+LLM+RL system operationalizes our control arm, not our treatment.
+
+### 6.3 LLM-Judge-SAC (Al Ridhawi, Haj Ali & Al Osman 2026) — cite key PENDING (verified-pending-cite, write-time fence)
+- **Where it lives:** `01_literature/B_closest_neighbours/LLM-Judge-SAC__2605.05739.pdf`
+  (arXiv:2605.05739, 2026-05-07, 17 pp; submitted to Taylor & Francis Applied Artificial Intelligence).
+  Title verified on p.1: "Multi-Dimensional Behavioral Evaluation of Agentic Stock Prediction Systems
+  Using Large Language Model Judges with Closed-Loop Reinforcement Learning Feedback".
+- **Honest summary:** An ensemble of three LLM judges scores logged behavioural traces of an agentic
+  stock-FORECASTING system along six dimensions (regime detection, routing, adaptation, risk
+  calibration, strategy coherence, error recovery); cross-judge agreement Krippendorff alpha = 0.85,
+  composite score correlates Spearman rho = 0.72 with realized 20-day Sharpe. Closing the loop,
+  deficient per-dimension scores become a credit-assigned penalty ADDED (strength lambda, stable at
+  <=0.20, best 0.15) to the FIXED hand-written reward of a SAC controller whose 2-D action adjusts a
+  regime threshold and a blending weight; dimension weights are validation-frozen Spearman correlations
+  with Sharpe. Result: one-day MAPE 0.61% -> 0.54% on a held-out 2017-2025 test, Diebold-Mariano
+  significant, Giacomini-White-localized to the high-vol regime. Full-text scan: zero "CVaR", zero
+  "portfolio" — forecasting accuracy, not allocation.
+- **How it integrates:** verified-pending-cite — a write-time fence for the Related-Work neighbour
+  paragraph when CH2 is next touched (do NOT add to refs.bib until then). Distinguishers: the LLM is a
+  score-EMITTER (judge), never a reward-code author; the penalty modulates a fixed human-written SAC
+  reward (structurally the FinRL-DeepSeek pattern, on the reward instead of the action); domain is
+  single-name forecasting MAPE, not portfolio allocation; no return-tail vector is fed anywhere.
+  Breaks conjunction limbs (a), (c), (d).
 
 ---
 
@@ -332,14 +408,16 @@ FINCON in one tight Related-Work paragraph or the "isn't this already done?" exa
   multiplicity family** (White, Hansen, Romano-Wolf, Ledoit-Wolf-Sharpe, Harvey-Liu-Zhu — all named in the
   bib header as "to-be-promoted" but with NO key yet).
 - **Integrity flags:** 3 mislabeled-file (FinRLlama, Cheridito-Stadje, Maillard/Cagna-Casuccio) + 1
-  unparseable (Follmer-Schied) + 1 possible-scoop (ELfolio) + ~70 preprint-only-coords (corpus) + ~40
-  `% VERIFY` coordinate flags inside refs.bib + 1 MUST-ACQUIRE (abel2021expressivity, second-hand only).
-- **Scoop risks:** 1 actionable (ELfolio — add and distinguish), 0 that breach the full novelty
-  conjunction (intact).
+  unparseable (Follmer-Schied) + 1 possible-scoop (ELfolio — **MANAGED 2026-07-02**) + ~70
+  preprint-only-coords (corpus) + ~40 `% VERIFY` coordinate flags inside refs.bib + 1 MUST-ACQUIRE
+  (abel2021expressivity, second-hand only).
+- **Scoop risks (updated 2026-07-02):** 0 actionable — ELfolio closed (cited + distinguished as the
+  CONTROL condition), GIFT cited + fenced, LLM-Judge-SAC verified-pending-cite; 0 breach the full
+  novelty conjunction (intact). See §6.
 
 ### Top 5 highest-value leverage actions
-1. **Add ELfolio (2025) to refs.bib and write the cite-and-distinguish sentence** — the only un-managed
-   nearest-neighbour in the portfolio+risk+LLM+RL cell; close the scoop exposure.
+1. ~~**Add ELfolio (2025) to refs.bib and write the cite-and-distinguish sentence**~~ — **DONE
+   2026-07-02** (`zeng2025elfolio` in refs.bib; CH1/CH2 fences live; venue pinned — see §6.2).
 2. **Promote the reporting multiplicity family** (White 2000, Hansen 2005, Romano-Wolf 2005,
    Ledoit-Wolf-Sharpe 2008, Harvey-Liu-Zhu 2016) — these are load-bearing for the severity/null headline
    and are currently keyless despite being flagged "to-be-promoted" in the bib header.

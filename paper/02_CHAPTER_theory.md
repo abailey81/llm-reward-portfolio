@@ -1,15 +1,5 @@
 # Chapter 3 — The Information Value of Tail-Risk Feedback (Theory)
 
-> **Status: DRAFT v1 (2026-06-26), publication-standard.** Written to be transcribed to LaTeX (math is in
-> `$...$`). Voice is the author's to adapt. Every citation key below is in the verified backbone
-> (`paper/01_LITERATURE_DOSSIER.md`); add the corresponding `refs.bib` entries with the venues/DOIs recorded
-> there, and keep the `% VERIFY` discipline for the two items flagged inline. The chapter deliberately proves an
-> **upper envelope** and then explains, honestly, why a *bounded* realisation may not attain it — the gap is the
-> object the empirical chapters measure, and it is what makes a null result a *confirmed prediction* rather than
-> an absence of evidence.
-
----
-
 ## 3.1 Overview
 
 This chapter develops the theory that motivates and disciplines the central experiment. The empirical question —
@@ -83,8 +73,9 @@ The two experiments differ in exactly one respect, which is the entire manipulat
 measurable function of the vector. Writing $g$ for that reduction (a degenerate Markov kernel),
 $$ E_{\mathrm{scalar}} \;=\; g \circ E_{\mathrm{vec}}. $$
 In the vocabulary of comparison of experiments, $E_{\mathrm{scalar}}$ is a **garbling** of $E_{\mathrm{vec}}$ —
-the less informative experiment "is the more informative experiment with added noise", and here the noise is the
-deterministic collapse of $k$ tail coordinates onto one [`blackwell1953equivalent`]. This single structural fact —
+a post-processing of the more informative experiment by a Markov kernel. Here that kernel is *deterministic*: a
+noiseless coarsening that collapses the $k$ tail coordinates onto one — the degenerate, noise-free limit of
+Blackwell post-processing, not the addition of stochastic noise [`blackwell1953equivalent`]. This single structural fact —
 that the scalar carries no information about $\theta$ beyond what the vector already carries — is what the next
 section converts into a dominance theorem.
 
@@ -92,7 +83,12 @@ section converts into a dominance theorem.
 
 A decision problem for the reward-designer is a pair $(L, \pi)$ of a (bounded) loss $L$ and a prior $\pi$ over
 $\theta$; the designer chooses an action — a reward to author — as a function of the observation, and incurs
-Bayes risk $\mathrm{Risk}_{L}^{\pi}(E)$. The foundational result is:
+Bayes risk $\mathrm{Risk}_{L}^{\pi}(E)$ — equivalently, the designer maximises the expected *objective* $U = -L$,
+and we take $L$ bounded with $\lVert L\rVert_\infty \le 1$ throughout, so that "lower Bayes risk" and "higher
+expected objective" are one statement. The intuition behind what follows is elementary: a designer free to *ignore*
+part of what it is shown can never be made worse off by being shown more — anything it could do with the scalar it
+could also do with the vector, by first discarding the extra coordinates. Blackwell's theorem makes this precise,
+and proves the converse. The foundational result is:
 
 > **Theorem 3.1 (Blackwell–Sherman–Stein).** *Let $E$ and $E'$ be experiments on the same parameter space. The
 > following are equivalent: (i) $E'$ is a garbling of $E$, i.e. $E' = K\circ E$ for some Markov kernel $K$; (ii)
@@ -112,24 +108,30 @@ applies immediately:
 Proposition 3.2 is the theoretical core of the dissertation's hypothesis: *if the designer uses its information
 optimally*, tail feedback can only help. The qualitative statement can be sharpened into a *quantitative* one using
 Le Cam's notion of **deficiency**, which measures how much worse one experiment can be made to perform than
-another. With $\delta(E', E) = \inf_K \sup_\theta \tfrac12\,\lVert E_\theta - (K\circ E)_\theta\rVert_{\mathrm{TV}}$
-the deficiency of $E'$ relative to $E$, Le Cam's randomisation criterion gives a uniform risk-transfer bound
+another. With $\delta(E', E) = \inf_K \sup_\theta \lVert (K\circ E')_\theta - E_\theta\rVert_{\mathrm{TV}}$, where
+$\lVert\cdot\rVert_{\mathrm{TV}}$ denotes the $L^1$ total variation $\int\lvert\mathrm{d}\mu-\mathrm{d}\nu\rvert\in[0,2]$
+(so that, with $\lVert L\rVert_\infty\le 1$ and hence oscillation $\le 2$, the risk-transfer bound below holds with
+constant exactly $1$), the deficiency of $E'$ relative to $E$ — how closely $E'$ can be post-processed by a kernel $K$ to reproduce $E$,
+and hence $0$ exactly when $E'$ is Blackwell at-least-as-informative as $E$ (the standard Le Cam/Torgersen
+orientation, in which the *first* argument is the experiment that is garbled) — Le Cam's randomisation criterion
+gives a uniform risk-transfer bound
 [`lecam1964sufficiency`; `lecam1986asymptotic`; `torgersen1991comparison`]:
 
 > **Corollary 3.3 (Worst-case price of the scalar).** *For every loss $L$ with $\lVert L\rVert_\infty \le 1$ and
 > every prior, the excess Bayes risk incurred by the scalar over the vector is at most the deficiency*
-> $\delta\big(E_{\mathrm{scalar}}, E_{\mathrm{vec}}\big)$, *which is strictly positive whenever the tail levels carry
-> information about $\theta$ that the scalar does not — i.e. whenever $E_{\mathrm{vec}}$ is not itself a garbling of
-> $E_{\mathrm{scalar}}$.*
+> $\delta\big(E_{\mathrm{scalar}}, E_{\mathrm{vec}}\big)$ *— the deficiency of the scalar relative to the vector,
+> i.e. how closely the scalar can be post-processed to reproduce the vector — which is strictly positive whenever
+> the tail levels carry information about $\theta$ that the scalar does not, i.e. whenever $E_{\mathrm{vec}}$ is
+> not itself a garbling of $E_{\mathrm{scalar}}$.*
 
 The same conclusion admits an information-theoretic restatement that we record because it makes the mechanism
 transparent. Treating the reduction $g$ as a channel, the **data-processing inequality** for $f$-divergences
 guarantees that $g$ cannot increase the statistical separation between any "benign-tail" law $P$ and any
-"adverse-tail" law $Q$: $D_f\!\big(g_\# P \,\Vert\, g_\# Q\big) \le D_f(P\Vert Q)$, with equality if and only if
-$g$ is a sufficient statistic for discriminating $P$ from $Q$ [`polyanskiiwu2024it`, Thm 7.4 and Thm 2.17;
-`liese2006divergences`]. For a two-hypothesis (dichotomy) version of the designer's problem, Blackwell dominance
-and uniform divergence-domination are the *same* statement [`raginsky2011shannon`], so §3.4 is one theorem told in
-two languages. This bilingual framing is not ornamental: the divergence form is what connects the abstract claim
+"adverse-tail" law $Q$: $D_f\!\big(g_\# P \,\Vert\, g_\# Q\big) \le D_f(P\Vert Q)$, with equality — for *strictly convex* $f$ — if and only
+if $g$ is sufficient for the dichotomy $\{P, Q\}$ (equivalently, the likelihood ratio $\mathrm{d}P/\mathrm{d}Q$ admits a
+$\sigma(g)$-measurable version, $Q$-a.s.) [`polyanskiiwu2024it`, Thm 7.4 and Thm 2.17; `liese2006divergences`]. For a two-hypothesis (dichotomy) version of the designer's problem, Blackwell dominance
+is equivalent to domination in **every** $f$-divergence simultaneously (equivalently, in all convex losses)
+[`raginsky2011shannon`], so §3.4 is one theorem told in two languages. This bilingual framing is not ornamental: the divergence form is what connects the abstract claim
 to the concrete observation that a single CVaR level discards exactly the cross-level tail shape that a heavy- vs
 light-tailed market would reveal.
 
@@ -143,20 +145,35 @@ observation, whereas the realised comparator scalar is a held-out-split risk-adj
 *different* sample than the training-split tail vector (§3.3; Chapter 4); the garbling diagram thus commutes
 *exactly* for the idealised information structure but only *approximately* for the realised, split-mismatched
 implementation (the scalar and vector are correlated but distinct statistics) — one further reason the realised
-pipeline can fall short of the envelope. Stating the theorem honestly as an envelope — and then measuring the
+pipeline can fall short of the envelope. The realised comparator is, moreover, a *Deflated Sharpe ratio*
+(Chapter 4), which embeds skewness and excess kurtosis and is therefore **not perfectly tail-blind**: the idealised
+$E_{\mathrm{scalar}}$ as a plain risk-adjusted number is an approximation, and the realised scalar already carries
+*part* of the tail information the vector supplies — which *narrows* rather than widens the contrast under test,
+biasing against (not towards) a measured distributional advantage. Finally, the experiment is not exogenous: the
+state of nature $\theta$ indexes features of the realised-return law $P_\theta$, yet that law is generated by the
+policy trained under the very reward being designed, so $E_{\mathrm{vec}}$ is re-measured on the trained policy's
+own returns each generation rather than being a fixed, exogenous Blackwell experiment — the endogeneity Chapter 1
+makes explicit (coupled reward→policy→measurement loops); the conditional-on-$\theta$ dominance survives, and only
+the closedness idealisation is relaxed. Stating the theorem honestly as an envelope — and then measuring the
 gap — is the methodological posture of the chapter and the thesis. We make the conditions under which the envelope
 is (and is not) attained explicit in §3.7.
 
 ## 3.5 Why a vector? Sufficiency and elicitability of the fed statistics
 
+> **Sign convention (used throughout this chapter).** Returns $Z$ are signed — gains positive, losses negative —
+> so the lower tail is the *adverse* direction and $\mathrm{CVaR}_\alpha(Z)=\min_{\xi\in\mathcal U_\alpha} \mathbb E_\xi[Z]$ (with $\mathcal U_\alpha$ the risk envelope of §3.6) is a (low,
+> typically negative) *return*: a **more negative CVaR is worse**. The mirror loss convention $\ell=-Z$ (under
+> which CVaR is a positive loss and the Rockafellar–Uryasev dual is a $\max$) is noted once in §3.6;
+> `NOMENCLATURE.md` keys to this orientation.
+
 Proposition 3.2 shows a richer signal cannot hurt an optimal user, but it does not by itself justify *this* signal.
 Two results establish that the multi-level CVaR vector is a principled — indeed, in a precise sense canonical —
 representation of the lower tail, rather than an arbitrary collection of numbers.
 
-**It spans the coherent-risk class.** By the Kusuoka representation, every law-invariant *coherent* risk measure is
-a supremum over mixtures of CVaR (average value-at-risk) across confidence levels, and every *comonotonic*
+**It spans the coherent-risk class.** By the Kusuoka representation (on an atomless probability space; stated in the mirror loss orientation $\ell=-Z$ of §3.6), every law-invariant
+*coherent* risk measure is a supremum over mixtures of CVaR (average value-at-risk) across confidence levels, and every *comonotonic*
 law-invariant coherent risk measure is a single, unique such mixture — a spectral risk measure
-[`kusuoka2001law`; `shapiro2013kusuoka`, eqns (10),(30),(42), verified verbatim]. A finite vector of CVaR levels is
+[`kusuoka2001law`; `shapiro2013kusuoka`, eqns (10),(30),(42)]. The atomless idealisation is not load-bearing for the fed quantity: on the *atomic* empirical return measure the finite-support discrete spectral estimator we actually compute is coherent at every sample size $N$ [`acerbi2002spectral`, Thm 5.3]. A finite vector of CVaR levels is
 therefore the finite-support basis from which this entire class is assembled: the scalar summary collapses the
 mixing measure to a point mass, while the vector retains the spectrum. Adding levels strictly increases the
 spectral resolution of the tail the designer can "see".
@@ -164,7 +181,7 @@ spectral resolution of the tail the designer can "see".
 **It is a well-defined, jointly elicitable learning target — and a scalar is not.** A statistic is *elicitable* if
 it minimises the expectation of some strictly consistent scoring function (it is a legitimate forecasting/learning
 target) and *identifiable* if it admits a strict identification function (its calibration is testable). CVaR alone
-is **not** elicitable; indeed expectiles are the *only* law-invariant coherent risk measures that are elicitable as
+is **not** elicitable [`gneiting2011making`]; indeed expectiles are the *only* law-invariant coherent risk measures that are elicitable as
 scalars [`ziegel2016coherence`; `bellini2015elicitable`]. This is not a technicality — it is the formal reason a
 single coherent tail number cannot serve as a clean target, and hence why a *vector* is necessary rather than
 stylistic. The escape is *higher-order* joint elicitability: the pair $(\mathrm{VaR}_\alpha, \mathrm{CVaR}_\alpha)$
@@ -172,7 +189,7 @@ is jointly elicitable, and a finite multi-level spectral measure *together with 
 elicitable of finite (higher) order, with an essentially unique identification function by Osband's principle
 [`fissler2016higherorder`, Cor. 5.5; with the published correction `fisslerziegel2021correction`;
 `frongillokash2021complexity`]. The most recent generalisation extends this to the whole tail-risk class via a
-generator construction [`fissler2025tail` `% VERIFY` — Math. Finance 2025, DOI 10.1111/mafi.70016]. We therefore
+generator construction [`fissler2025tail`]. We therefore
 state the fed signal's status precisely, keeping **two distinct properties apart** (they are commonly, and wrongly,
 welded). First, the vector is *sufficient relative to the scalar* — this is the garbling fact of §3.4 (the scalar is
 a measurable reduction of the vector), and it is what the value-of-information argument rests on; it is **not** an
@@ -186,9 +203,10 @@ is neither sufficient relative to the vector nor a coherent elicitable target.
 ## 3.6 CVaR feedback as a distributional-robustness signal
 
 A second, independent pillar answers a question Proposition 3.2 leaves open: *why should tail information help
-specifically out of sample?* The answer is a duality. The CVaR admits the dual representation
+specifically out of sample?* The answer is a duality. For an integrable return $Z\in L^1$ (i.e. $\mathbb E\lvert Z\rvert<\infty$;
+the minimum is then attained on the weak\*-compact envelope $\mathcal U_\alpha\subset L^\infty$), the CVaR admits the dual representation
 $$ \mathrm{CVaR}_\alpha(Z) \;=\; \min_{\xi \in \mathcal U_\alpha} \mathbb E_\xi[Z], \qquad
-   \mathcal U_\alpha = \Big\{ \xi \ge 0 : \xi \le \tfrac1\alpha,\; \mathbb E_P[\xi] = 1 \Big\}, $$
+   \mathcal U_\alpha = \Big\{ \xi = \mathrm{d}Q/\mathrm{d}P \ge 0 : \xi \le \tfrac1\alpha\ P\text{-a.s.},\; \mathbb E_P[\xi] = 1 \Big\}, $$
 where $Z$ is a *return* (the lower tail is the adverse direction), so the CVaR is the worst-case — i.e. the
 **minimum** — expectation of $Z$ over the **CVaR risk envelope** $\mathcal U_\alpha$: the set of re-weightings whose
 likelihood ratio $\xi = \mathrm{d}Q/\mathrm{d}P$ is bounded above by $1/\alpha$. This is a sup-norm ($L^\infty$)
@@ -201,8 +219,9 @@ optimising CVaR equals guaranteeing the best worst-case expected return under a 
 data-generating process* [`chow2015risk`, Prop. 1; cf. robust MDPs `iyengar2005robust`; `nilim2005robust`].
 Feeding the designer the realised lower tail is therefore feeding it a **distributional-robustness** signal: it
 informs the reward about performance under adverse re-weightings of the return law. Our evaluation is a sealed
-out-of-sample test spanning a regime shift (2018–2025, including the COVID drawdown and the 2022 bear market;
-Chapter 4) — i.e. precisely a distribution-shift evaluation. The robustness duality thus yields a sharper,
+out-of-sample test spanning a regime shift (2020–2026, spanning the post-COVID-crash volatility regime, the 2022
+bear market, and the 2023–25 rally; the crash itself falls in the boundary purge — Chapter 4) — i.e. precisely a
+distribution-shift evaluation. The robustness duality thus yields a sharper,
 testable corollary than Proposition 3.2 alone: if tail feedback helps at all, its benefit should be **concentrated
 where the distribution shifts**, motivating the regime-conditional analysis of Chapter 6. This is the deepest
 answer to "why CVaR, and why might it matter precisely on the held-out leg".
@@ -220,8 +239,9 @@ sharpen a *Popperian* test — the basis is severity plus forking-paths avoidanc
 
 1. **Selection sensitivity.** Candidate rewards are selected on a fitness $F$. If $F$ is tail-blind — as it is
    here by deliberate pre-registration (the selection metric is a validation Deflated Sharpe with risk-aversion
-   weight $\lambda = 0$; Chapter 4) — then the *selector* gives no advantage to tail-aware rewards, and any tail
-   benefit must arise endogenously from the designer's *use* of the fed signal, not from the selection pressure.
+   weight $\lambda = 0$; Chapter 4) — then the *selector* — the same for every arm — gives no *between-arm* advantage to tail-aware rewards (its only
+   tail sensitivity, the Deflated Sharpe's second-order term, is common-mode; §3.4), and any tail benefit must
+   arise endogenously from the designer's *use* of the fed signal, not from the selection pressure.
    This is a conservative design choice: it makes a tail result, if observed, attributable to the feedback channel
    rather than to a tail-favouring selector.
 2. **Designer responsiveness.** The benefit requires the language model to *condition* the reward code it writes
@@ -233,17 +253,26 @@ sharpen a *Popperian* test — the basis is severity plus forking-paths avoidanc
    penalty embedded in a per-step reward is *time-inconsistent* — the expectation of a CVaR-penalised reward is not
    the CVaR of the policy's return distribution, so expectation-maximising SAC is not guaranteed to recover a
    CVaR-optimal policy even from a perfectly tail-aware reward (the static-vs-dynamic CVaR distinction;
-   `bodafilar2006time` `% VERIFY`). The principled remedy — a distributional/quantile critic — is exactly the
+   `bodafilar2006time`). The obstruction is sharper than time-inconsistency alone: optimising a *static* CVaR
+   objective in an MDP requires augmenting the state with a running VaR-level component [`bauerle2011markov`],
+   and the optimal static-CVaR policy is in general *non-Markovian* — history-dependent — so no per-step reward
+   on a fixed state interface can encode it exactly [`lim2022cvar`]. Two consequences follow. Under the frozen
+   agent and interface of this design — where state augmentation is deliberately excluded so that only the
+   reward may vary across arms — the reward channel is the *forced* injection point for tail-risk information,
+   a design necessity rather than a convenience; and, by the same results, that channel is structurally unable
+   to guarantee CVaR-optimality. The principled remedy — a distributional/quantile critic — is exactly the
    secondary TQC experiment of Chapter 4. The Null branch is therefore *over-determined*: the envelope can fail to
    be realised at the *agent* stage for this structural reason, independent of the designer's responsiveness.
 
-The pre-registered mapping of mechanism conditions to observable signatures is:
+The pre-registered mapping of mechanism conditions to observable signatures is given in **Table 3.1**.
+
+**Table 3.1 — Pre-registered mapping of mechanism conditions to observable signatures** (reproduced from `PREREGISTRATION.md` §1a).
 
 | Mechanism condition | $H_2$-RA (Sharpe legs) | $H_2$-Tail (CVaR-5% legs) | Responsiveness | Reward-code differential |
 |---|---|---|---|---|
 | **Strict** ($\lambda>0$ selection **and** responsive designer) | separation possible | **separation** | $>0$ | tail constructs $\uparrow$ in distributional arm |
 | **Weak** (acceleration only; matched compute) | tie | tie at the budget | $\ge 0$ | small/none |
-| **Null** ($\lambda=0$ tail-blind selection **or** non-responsive designer) | **tie** | **tie** | $\le 0$ | none / reversed |
+| **Null** ($\lambda=0$ tail-blind selection **and** non-responsive designer) | **tie** | **tie** | $\le 0$ | none / reversed |
 
 Under the frozen design, selection is tail-blind ($\lambda = 0$), which places the study on the boundary between
 the Strict and Null branches and makes *designer responsiveness* the pivotal unknown. The directional prototype
@@ -273,14 +302,3 @@ decided prediction (§3.7). Together these convert "richer feedback ought to hel
 honest, and testable theory — one that frames the empirical chapters not as a search for a win but as a measurement
 of the distance between what an optimal user of the lower tail could achieve and what a bounded language-model
 reward-designer, coupled to a fixed agent under tail-blind selection, actually does.
-
----
-
-### Citation keys introduced in this chapter (add to `refs.bib` from the verified backbone)
-`singh2009where`, `sorg2011optimal`, `sorg2010internal`, `ng1999policy`, `skalse2023invariance`, `gleave2021epic`,
-`skalse2024starc`, `blackwell1951comparison`, `blackwell1953equivalent`, `sherman1951theorem`,
-`lecam1964sufficiency`, `lecam1986asymptotic`, `torgersen1991comparison`, `polyanskiiwu2024it`,
-`liese2006divergences`, `raginsky2011shannon`, `kusuoka2001law`, `shapiro2013kusuoka`, `ziegel2016coherence`,
-`bellini2015elicitable`, `fissler2016higherorder`, `fisslerziegel2021correction`, `frongillokash2021complexity`,
-`fissler2025tail` (`% VERIFY`), `rockafellar2000cvar`, `chow2015risk`, `bental2013robust`,
-`iyengar2005robust`, `nilim2005robust`, `bodafilar2006time` (`% VERIFY`).

@@ -1,0 +1,39 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:29:42.396265+00:00",
+  "layer": "raw",
+  "name": "rf_trd_x26_038_00.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "fields": [
+        "TR.TotalReturn.date",
+        "TR.TotalReturn"
+      ],
+      "parameters": {
+        "EDate": "2026-06-30",
+        "Frq": "D",
+        "SDate": "2026-01-01"
+      },
+      "universe": [
+        "ZBRA.OQ",
+        "ZION.OQ",
+        "ZTS.N"
+      ]
+    },
+    "query": "datagrid.TR.TotalReturn.D.x26",
+    "received_utc": "2026-07-01T22:29:42.380575+00:00",
+    "requested_utc": "2026-07-01T22:29:42.161739+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_trd_x26_038_00.csv",
+  "row_hash": "ebe957e31e840912b17d0dd4f0d44f272c6a46366ec164518cbab45d73882ea5",
+  "rows": 369,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "ebe957e31e840912b17d0dd4f0d44f272c6a46366ec164518cbab45d73882ea5",
+  "vendor": "refinitiv"
+}

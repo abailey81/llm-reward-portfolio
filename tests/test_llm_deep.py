@@ -54,9 +54,12 @@ TAIL_STATS = {
     "robust_skew": -0.38,
 }
 
+# Shape-faithful to the production call (fixture-parity fix 2026-07-03): weights carries the cash
+# slot (N+1) while returns is the risky leg (N) — run_loop's validation fixture now mirrors that, so
+# the old `np.dot(weights, returns)` (equal-length assumption) would be REJECTED at validate_once.
 _VALID_REWARD_SRC = (
     "def reward(weights, returns, prev_weights, port_ret, info):\n"
-    "    total = float(np.dot(weights, returns))\n"
+    "    total = float(np.dot(weights[:-1], returns))\n"
     "    return total, {'pnl': total}, None\n"
 )
 
@@ -373,8 +376,10 @@ def test_stub_same_seed_same_first_source_gate_valid() -> None:
     b = StubDesignerTransport(seed=123)("sys", "usr")
     assert a == b
     assert ast_gate(a) is True
+    # Production shape parity (2026-07-03): returns has ONE FEWER element than weights/prev_weights
+    # (weights carries the cash slot) — the same contract shapes run_loop's validation fixture uses.
     fixture = (
-        np.full(31, 1.0 / 31), np.full(31, 0.001), np.full(31, 1.0 / 31), 0.0, {},
+        np.full(31, 1.0 / 31), np.full(30, 0.001), np.full(31, 1.0 / 31), 0.0, {},
     )
     fn = validate_once(a, fixture, timeout_s=4.0)  # raises SandboxError on failure
     total, components, _state = fn(*fixture)
@@ -416,7 +421,7 @@ def test_stub_reset_replays_archetype_cycle_but_not_rng() -> None:
 def test_one_step_archives_prompt_source_and_feedback(tmp_path) -> None:
     """A single accepted candidate records the exact sent prompt, raw source, its hash, and the
     feedback block built from THIS candidate's results — the replay payload (C-2)."""
-    cfg = {"generations": 1, "candidates_per_gen": 1, "budget": 50, "n_trials": 5}
+    cfg = {"generations": 1, "candidates_per_gen": 1, "budget": 1, "n_trials": 5}
     archive, llm = _run("distributional", cfg, tmp_path)
     assert len(archive.candidates) == 1
     rec = archive.candidates[0]
@@ -426,7 +431,8 @@ def test_one_step_archives_prompt_source_and_feedback(tmp_path) -> None:
     assert rec.reward_hash and len(rec.reward_hash) == 64  # sha256 hex
     assert "Deflated Sharpe" in rec.feedback_block        # block built from this candidate
     assert set(rec.tail_stats.keys()) == set(FROZEN_TAIL_KEYS)
-    assert archive.meta["budget_spent"] == 50
+    # F15: budget_spent records the ACTUAL draws (1 here), not the cfg 'budget' plan.
+    assert archive.meta["budget_spent"] == 1
 
 
 def test_reflect_on_best_not_last_seeds_next_generation(tmp_path) -> None:

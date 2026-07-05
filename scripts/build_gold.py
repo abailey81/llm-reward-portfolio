@@ -53,7 +53,11 @@ def main() -> None:
     #   - run_pipeline(config) -> 13 stages, returning artifact paths.
     #   - hash each artifact; write data/gold/checksums.json (or .sha256).
     #   - guard against clobbering an existing immutable build.
-    raise SystemExit("STUB — implement per FINAL_PLAN data build")
+    # C4 NOTE: this BUILD is a stub — the REAL gold is built by the self-contained data_pipeline/
+    # package (data_pipeline/build_universe). VALIDATION of a rebuilt panel is a WORKING executable:
+    # `python scripts/verify_gold.py` byte-diffs the candidate vs frozen univ3 over the 2005-2025
+    # overlap (src.data.validation.panel_overlap_diff). Do NOT rely on this build stub for validation.
+    raise SystemExit("STUB — build via data_pipeline/build_universe; validate via scripts/verify_gold.py")
 
 
 if __name__ == "__main__":

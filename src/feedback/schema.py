@@ -46,7 +46,15 @@ _HEADER = "Your previous reward scored: {metric:.2f} (validation Deflated Sharpe
 #: Intro line preceding the tail block in the distributional arm.
 _TAIL_INTRO = "Realized-return tail diagnostics (training period):"
 
-#: Intro line for the placebo's inert block (matched in role to _TAIL_INTRO).
+#: Intro line for the placebo's inert block (matched in role to _TAIL_INTRO). DELIBERATE design choice,
+#: KEPT after the 2026-07-02 audit flagged the "inert" wording as an instruction tell: the tell is
+#: TRUTHFUL zero-information — without it, six 0.000-valued lines would read as REAL diagnostics
+#: reporting a degenerate (riskless) return distribution, i.e. active MISinformation, a strictly worse
+#: confound than the disclosed "ignore this" instruction. The tell-free structure control is
+#: placebo_shuffled (same _TAIL_INTRO, real deranged values, byte-length-matched to the distributional
+#: block); plain placebo is the coarse block-presence control. Both roles + this intro-text confound are
+#: disclosed in the write-up, and both caveats are CONSERVATIVE for a null (they make controls easier to
+#: beat, so they cannot manufacture the predicted equivalence).
 _PLACEBO_INTRO = "Reference constants (inert; no diagnostic content):"
 
 #: Ordered (field-id, label) pairs composing the distributional tail block. The
@@ -65,20 +73,66 @@ _HIGH_VARIANCE = "  (high-variance estimate)"
 
 
 def _fmt(value: float) -> str:
-    """Deterministic fixed-precision number formatting."""
+    """Deterministic fixed-precision number formatting (RAW renderer — the close-small-float vector)."""
     return f"{value:+.3f}"
 
 
-def _dist_line(field_id: str, label: str, tail_stats: dict) -> str:
-    """Render one distributional tail line."""
-    line = f"  {label}: {_fmt(float(tail_stats[field_id]))}"
+#: Decile-rank reference grid (legible rendering only). A line's value is bucketed into a 1..10 decile by
+#: its position in [_RANK_LO, _RANK_HI] and tagged "(decile d/10)" — a coarse, legible ORDINAL framing of
+#: the small-float magnitude (the numeracy-bottleneck mechanism: rank/bps framing is easier for an LLM to
+#: compare than -0.0577 vs -0.0582). Skew, being dimensionless and signed, uses a symmetric reference span.
+_RANK_LO, _RANK_HI = -0.12, 0.0  # CVaR / tail-mass values live in this (mostly-negative) band
+_SKEW_LO, _SKEW_HI = -1.0, 1.0
+
+
+def _decile(value: float, lo: float, hi: float) -> int:
+    """Bucket ``value`` into a 1..10 decile of [lo, hi] (clamped); deterministic ordinal legibility tag."""
+    if hi <= lo:
+        return 1
+    frac = (float(value) - lo) / (hi - lo)
+    frac = min(max(frac, 0.0), 1.0 - 1e-12)
+    return int(frac * 10) + 1
+
+
+def _legible_value(field_id: str, value: float) -> str:
+    """The LEGIBLE rendering of one tail value: integer basis points for CVaR / left-tail-mass, a 2-dp
+    dimensionless number for ``robust_skew``. Basis points (value*1e4, rounded to int) lift the close
+    small floats (e.g. -0.0410 -> -410 bps) out of the LLM's float-comparison failure regime."""
+    if field_id == "robust_skew":
+        return f"{float(value):+.2f}"
+    return f"{int(round(float(value) * 1e4)):+d} bps"
+
+
+def _legible_line(field_id: str, label: str, value: float) -> str:
+    """Render one tail line in the legible format: the EXACT label substring (so ``_was_fed_tail`` still
+    matches), the bps/dimensionless value, and an appended decile-rank tag. The CVaR-1% high-variance
+    annotation is preserved (matched-structure across the raw/legible renderings)."""
+    lo, hi = (_SKEW_LO, _SKEW_HI) if field_id == "robust_skew" else (_RANK_LO, _RANK_HI)
+    line = f"  {label}: {_legible_value(field_id, value)}  (decile {_decile(value, lo, hi)}/10)"
+    if field_id == "cvar_01":
+        line += _HIGH_VARIANCE
+    return line
+
+
+def _dist_line(field_id: str, label: str, tail_stats: dict, *, legible: bool = False) -> str:
+    """Render one distributional tail line — RAW (close-small-float) by default, LEGIBLE (bps + decile) when
+    ``legible`` is set. The label substring is identical in both renderings."""
+    value = float(tail_stats[field_id])
+    if legible:
+        return _legible_line(field_id, label, value)
+    line = f"  {label}: {_fmt(value)}"
     if field_id == "cvar_01":
         line += _HIGH_VARIANCE
     return line
 
 
 def build_block(
-    arm: str, scalar_metric: float, tail_stats: dict | None, *, shuffle_seed: int | None = None
+    arm: str,
+    scalar_metric: float,
+    tail_stats: dict | None,
+    *,
+    shuffle_seed: int | None = None,
+    legible: bool = False,
 ) -> str:
     """Render the feedback block for the given arm, deterministically.
 
@@ -96,6 +150,13 @@ def build_block(
         REQUIRED for ``placebo_shuffled`` (candidate-seeded, replayable): seeds the
         derangement that permutes the six real tail values across their labels. Ignored by
         every other arm. Keyword-only, so existing positional calls are unaffected.
+    legible : bool
+        Report-only LEGIBLE rendering of the ``distributional`` tail block (the numeracy-bottleneck
+        sub-experiment, ADR-039): the six tail lines render CVaR / left-tail-mass values as integer
+        BASIS POINTS and ``robust_skew`` as a 2-dp dimensionless value, each with an appended
+        ``(decile d/10)`` rank tag — keeping the EXACT label substrings so ``_was_fed_tail`` still
+        matches. Default ``False`` reproduces the raw close-small-float bytes exactly. Only the
+        ``distributional`` arm (the six-line block) is affected; ignored by every other arm.
 
     Returns
     -------
@@ -116,7 +177,7 @@ def build_block(
         if tail_stats is None:
             raise ValueError("distributional arm requires tail_stats")
         lines = [header, _TAIL_INTRO]
-        lines += [_dist_line(fid, label, tail_stats) for fid, label in _DIST_FIELDS]
+        lines += [_dist_line(fid, label, tail_stats, legible=legible) for fid, label in _DIST_FIELDS]
         return "\n".join(lines)
 
     if arm == "scalar_cvar5":

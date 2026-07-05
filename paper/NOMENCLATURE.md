@@ -1,11 +1,9 @@
 # Nomenclature
 
-> **Status: structural scaffold (2026-06-28).** Notation and abbreviations used across the Theory (Ch. 3),
-> Methods (Ch. 4), Prototype (Ch. 5), Results (Ch. 6) and Discussion (Ch. 7) chapters.
-> **To be reconciled against the theory chapter's exact sign conventions at compile** — in particular the sign of
-> CVaR / left-tail quantities (this document follows the convention in which a *more negative* CVaR_α denotes a
-> *worse* left tail, consistent with realised-return losses), the orientation of robust skew, and the exact
-> definition of the SESOI units. Where Chapter 3 or Chapter 4 fixes a convention, that chapter governs.
+> Notation and abbreviations used across the Theory (Ch. 3), Methods (Ch. 4), Prototype (Ch. 5), Results (Ch. 6)
+> and Discussion (Ch. 7) chapters. **Sign convention:** returns are signed (gains positive, losses negative), so a
+> *more negative* $\mathrm{CVaR}_\alpha$ denotes a *worse* left tail — the return convention fixed in §3.5; the
+> mirror loss convention $\ell=-Z$ is noted in §3.6. Where Chapter 3 or 4 states a convention, that chapter governs.
 
 ---
 
@@ -13,10 +11,10 @@
 
 | Symbol | Definition | First use |
 |---|---|---|
-| $\lambda$ | Risk-aversion weight in the candidate-selection fitness; **$\lambda=0$ = tail-blind selector** (the pre-registered choice, so any tail effect must arise from the feedback channel, not the selector). | Ch. 3 (§3.7), Ch. 4 (§4.6) |
+| $\lambda$ | Risk-aversion weight in the candidate-selection fitness; **$\lambda=0$ = tail-blind selector** (the pre-registered choice, identical across arms, so any *between-arm* tail effect must arise from the feedback channel, not the selector). | Ch. 3 (§3.7), Ch. 4 (§4.6) |
 | $\mathrm{CVaR}_\alpha$ | Conditional value-at-risk (expected shortfall) at level $\alpha$ of the realised-return **lower tail**; fed at $\alpha\in\{5\%,10\%,25\%,1\%\}$; tested headline at $\alpha=5\%$. | Ch. 3 (§3.3), Ch. 4 (§4.4) |
-| $\mathrm{VaR}_\alpha$ | Value-at-risk at level $\alpha$ (the $\alpha$-quantile of the loss); appears jointly with $\mathrm{CVaR}_\alpha$ in the elicitability argument. | Ch. 3 (§3.5) |
-| $\xi$ | Extreme-value (generalised-Pareto, GPD) **shape** parameter of the peaks-over-threshold tail fit; empirical fallback used in the non-regular region $\xi \le -0.5$. | Ch. 4 (§4.4) |
+| $\mathrm{VaR}_\alpha$ | Value-at-risk at level $\alpha$ (the $\alpha$-quantile of the realised-return lower tail; equivalently the quantile of the loss $\ell=-Z$); appears jointly with $\mathrm{CVaR}_\alpha$ in the elicitability argument. | Ch. 3 (§3.5) |
+| $\xi$ | Overloaded across chapters (locally defined; no ambiguity within a section): **(i)** Ch. 3 §3.6 — the CVaR **risk-envelope density** / likelihood ratio $\xi=\mathrm{d}Q/\mathrm{d}P$, bounded $0\le\xi\le 1/\alpha$ $P$-a.s.; **(ii)** Ch. 4 §4.4 — the extreme-value (generalised-Pareto, GPD) **shape** parameter of the peaks-over-threshold tail fit, with empirical fallback in the non-regular region $\xi \le -0.5$. | Ch. 3 §3.6 / Ch. 4 §4.4 |
 | $E$ | **Embargo** length at split boundaries = **21** trading sessions. | Ch. 4 (§4.2) |
 | $L$ | Feature **lookback** window = **60** trading sessions (also the loss in the Blackwell argument; disambiguated by context — Ch. 3 uses $L$ for loss, Ch. 4 for lookback). | Ch. 4 (§4.2) |
 | purge | Boundary purge $=\max(\text{embargo}=21,\ \text{lookback}=60)=\mathbf{60}$ sessions; must cover the feature lookback, not merely the embargo. | Ch. 4 (§4.2) |

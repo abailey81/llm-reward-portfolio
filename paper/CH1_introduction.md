@@ -1,12 +1,13 @@
 # Chapter 1 — Introduction
 
-> **Status: DRAFT v1 (2026-06-26), publication-standard.** Companion to the front matter
-> (`00_FRAMING_title_abstract_contribution.md`) and the Theory chapter (`02_CHAPTER_theory.md`, content
-> Chapter 3). Citation keys are in the verified backbone (`01_LITERATURE_DOSSIER.md`). The result is framed
-> throughout as a *pre-registered boundary condition*, robust to the campaign outcome; swap the one bracketed
-> result sentence in §1.4 once the confirmatory campaign reports.
-
----
+This dissertation asks a mechanism question at the intersection of language models and risk-sensitive control:
+**when a language model writes the reward *code* for a trading agent, does showing it the *tail* of the realised
+outcome distribution — rather than a single score — change the code it writes, and does any change reach the
+agent's realised risk?** We answer on a fixed deep-reinforcement-learning portfolio agent over two decades of
+survivorship-free equity data, under a pre-registered, sealed-test design built so that either answer — an
+improvement or its calibrated absence — is evidence. The theory of Chapter 3 establishes that an optimal designer
+*could* exploit the tail; the experiment measures whether a bounded, real one *does*, and, when it does not,
+locates where along the chain from fed signal to authored code to realised behaviour the information is lost.
 
 ## 1.1 Reward design is the bottleneck in risk-sensitive financial reinforcement learning
 
@@ -26,7 +27,10 @@ setting it is also its central hazard.
 Designing a good risk-sensitive reward is hard precisely because the relevant information lives in the *shape* of
 the outcome distribution. A practitioner hand-crafting a trading reward weighs realised return against downside
 measures — drawdown, semi-deviation, conditional value-at-risk (CVaR), turnover cost — and tunes the weights by
-judgement and trial [`moody1998performance`; `sood2023deep`; `choudhary2025risk`]. The process is laborious,
+judgement and trial [`moody1998performance`; `sood2023deep`; `orra2025volatility`]. In practice, most
+reinforcement-learning trading agents are nonetheless trained on a *scalar* reward — cumulative return, a Sharpe or
+Sortino ratio, or profit-and-loss — with the field's own surveys flagging the incorporation of explicit risk
+measures as open future work [`hambly2021rlfinancesurvey`]. The process is laborious,
 idiosyncratic, and difficult to audit, and it embeds the designer's preferences and the agent's learning dynamics
 into a single opaque object. The question this dissertation asks is whether that process can be *automated* and, in
 automating it, made *legible* — and, more sharply, whether the **information** supplied to the automating system
@@ -42,28 +46,42 @@ agenda in which language models conduct **automated discovery of objective funct
 code against an evaluator in a closed loop — exemplified by FunSearch's mathematical discoveries, AlphaEvolve's
 algorithmic improvements, and Sakana's "AI Scientist" [`romera2024funsearch`; `deepmind2025alphaevolve`;
 `lu2024aiscientist`]. A recent survey of this line is explicit that its systems are, almost without exception,
-evaluated by *demonstration* rather than by controlled, pre-registered inference [`zheng2025survey`]: they show
+evaluated by *demonstration* rather than by controlled, pre-registered inference [`gridach2025agentic`]: they show
 that discovery is *possible*, not that a particular design choice *causes* an improvement.
 
 Within that loop, a question has been largely overlooked: *what feedback should the reward-designer be shown?* The
 canonical answer is a scalar — a fitness score — or, at most, per-component scalar time-series. Eureka's own
 "reward reflection" feeds back "the scalar values of all reward components and the task fitness function at
-intermediate policy checkpoints" [`ma2024eureka`, §3.3, verified], and an ablation shows that removing this
+intermediate policy checkpoints" [`ma2024eureka`, §3.3], and an ablation shows that removing this
 structured feedback degrades performance by roughly a third — direct evidence that feedback *content* matters. A
 parallel line on language-model optimisers reaches the same conclusion from the other direction: scalar reward
 alone is a weak signal, and richer, more *directional* feedback substantially improves an optimiser's search
-[`nie2024directional`; `agrawal2026gepa`]. Yet whether the *distributional shape of realised outcomes* — and in a
-risk-sensitive domain, the *lower tail* specifically — is a feedback content that changes the rewards a language
-model writes has not, to our knowledge, been tested.
+[`agrawal2026gepa`]. A concurrent workshop study has now given the axis a name — "feedback engineering" — comparing
+sparse against dense feedback for language-model-synthesised *policy* code, though without reward authorship,
+placebo controls, inferential statistics, or a tail axis [`gallego2026beyondscalar`]. This crystallises the
+**mechanistic question at the centre of this
+dissertation**: does showing the reward-designer the *downside* — the lower-tail distribution of realised
+outcomes, rather than a scalar — change the reward *code* it writes, and does that change propagate to the trained
+agent's realised tail behaviour? We cast this as a **three-link causal chain** — fed tail signal → authored reward
+code → trained policy → realised tail — and ask, through three sub-questions (does the signal move the code? does
+the code move the outcome? is any effect genuine *use* of the tail content or a surface echo?), not merely
+*whether* richer feedback helps but *where* the channel acts or breaks. To our knowledge this has not been tested.
+Nor is the answer obvious ex ante: language models' risk-taking behaviour is documented to be systematic yet
+steered by surface conditioning such as an assigned persona [`hartley2025personality`], so whether a
+reward-authoring model genuinely absorbs fed tail information cannot be presumed in either direction.
 
 ## 1.3 The gap, and the contribution
 
 We can locate the precise gap by triangulating the nearest prior work. The structural twin of our design — a
 language model that proposes reward *code* and iterates on it using a *distribution* surfaced from simulation — is
 the Decision-Language Model [`behari2024dlm`], but it operates in public-health resource allocation with no
-risk/tail sensitivity, no fixed-agent isolation, and no pre-registration. The nearest finance work, FinRL-DeepSeek,
-uses a language model as a *sentiment-and-risk signal encoder* feeding a *fixed, human-written* CVaR-sensitive
-objective; the model never authors the reward [`benhenda2025finrldeepseek`]. The reward-code designers closest in
+risk/tail sensitivity, no fixed-agent isolation, and no pre-registration. In finance, to our knowledge, no system
+yet gives the language model open-ended reward authorship with tail-distributional feedback: FinRL-DeepSeek uses it as a
+*sentiment-and-risk signal encoder* feeding a *fixed, human-written* CVaR-sensitive objective — the model never
+authors the reward [`benhenda2025finrldeepseek`]; GIFT lets it select reward terms from a *fixed risk-rule
+library*, but jointly with the state and refined on generic scalar diagnostics rather than any return-tail
+distribution [`wu2026gift`]; and ELfolio evolves whole strategy code under a *scalar Sharpe fitness*
+[`zeng2025elfolio`]. The reward-code designers closest in
 *mechanism* — Eureka, and the dynamic-feedback framework CARD — operate in robotics with scalar or
 order-preservation feedback, not a multi-level financial tail [`ma2024eureka`; `sun2024card`]. None occupies the
 conjunction at which this dissertation sits:
@@ -77,12 +95,16 @@ literature, and it is the element the automated-discovery agenda most conspicuou
 contribution not as "reward engineering" but as a *controlled, pre-registered evaluation of automated
 objective-function discovery* — supplying the rigour the discovery line omits.
 
-Concretely, the dissertation makes three contributions, none contingent on a positive empirical result:
+Concretely, the dissertation makes four contributions, none contingent on a positive empirical result; the fourth
+— a mechanism characterisation — is the foregrounded headline, and the first three are the machinery that makes it
+credible:
 
-- **C1 — An off-critic feedback instrument that isolates the channel.** A method for feeding a language-model
+- **C1 — An off-critic feedback instrument that isolates the feedback content.** A method for feeding a language-model
   reward-designer the realised-return lower tail (CVaR at multiple levels, left-tail mass, robust skew), measured
   *off the critic* from realised returns, while the reinforcement-learning agent is held byte-identically fixed
-  across experimental arms. The instrument is *three-way decoupled* — the tail is **fed** on the training split,
+  across experimental arms. It isolates the feedback *content* as the manipulated variable — not an exogenous
+  measurement: the fed tail is *endogenous* to the policy it steers (coupled reward→policy→measurement loops), so
+  the comparison is honestly one between two coupled loops. The instrument is *three-way decoupled* — the tail is **fed** on the training split,
   candidates are **selected** on a tail-blind validation criterion, and the hypothesis is **tested** on empirical
   CVaR over a sealed test split — so that any tail effect is attributable to the feedback channel rather than to a
   self-grading estimator. To our knowledge this separation is novel in both LLM-reward-design and
@@ -91,21 +113,36 @@ Concretely, the dissertation makes three contributions, none contingent on a pos
   frozen design — hypotheses, arms, budget, seeds, splits, embargo, tail-diagnostic set and analysis plan fixed
   before the sealed leg — with intersection–union testing, placebo and structure-shuffled controls, deflated
   Sharpe ratios and combinatorial backtest-overfitting probabilities. A non-rejection is reported as a bounded,
-  pre-registered equivalence, not an underpowered failure.
+  pre-registered equivalence — or, when the minimum detectable effect exceeds the pre-registered SESOI, as a
+  calibrated *inconclusive* verdict — never as an underpowered failure.
 - **C3 — A decision-theoretic envelope delimiting when richer feedback can help.** A theory (Chapter 3)
   establishing that an optimal user of the tail vector weakly dominates an optimal user of a scalar summary
   (Blackwell sufficiency, with a Le Cam-deficiency bound), that the fed vector is a sufficient and jointly
   elicitable representation of the coherent-risk class, and that feeding the tail is — by a duality — feeding a
   distributional-robustness signal; together with the conditions under which a *bounded* realisation attains the
   envelope, this turns the empirical question into a falsifiable prediction.
+- **C4 — A mechanism characterisation that *locates* where the feedback channel acts (the headline finding).** A
+  pre-specified, report-only decomposition of the causal chain *fed tail signal → authored reward code → trained
+  policy → realised tail* into three sub-questions — **responsiveness** (does the signal move the code?),
+  **transmission** (does the code move the outcome?), and **specificity** (is the effect genuine use of the tail
+  *content* or a surface echo, and is any failure a numeric-legibility bottleneck
+  [`wallace2019numbers`; `yang2025cookbook`; `singh2024tokenization`]?) — instrumented by a
+  responsiveness statistic, a fed→code→outcome mediation, an identifier-invariant structural comparison of the
+  authored code, and a legible-format ablation, all disjoint from the confirmatory testing family. This turns a
+  null from an absence of evidence into a *located* finding about *where* the chain breaks; with the pre-registered
+  performance comparison (C2) as its rigorous backdrop, it is the dissertation's headline. Jointly, the design is
+  factorial in kind: the main arms manipulate the feedback's *content*, while the pre-registered legible-format
+  ablation manipulates its *encoding* — together, to our knowledge, the first factorial dissection of the
+  feedback channel in automated reward design.
 
 ## 1.4 An honest result, framed as a boundary condition
 
-This dissertation is graded on the submitted document alone, without a viva, and it commits in advance to a
-hypothesis it may not confirm. Both facts shape how the result is reported. We follow the discipline of the
+This dissertation commits in advance to a hypothesis it may not confirm, which shapes how the result is
+reported. We follow the discipline of the
 strongest empirical "re-examination" papers — which establish that a rigorously demonstrated null or
 boundary-condition is a contribution, not a disappointment — by leading with the *instrument* and reporting the
-*finding* as its output [`henderson2018matters`; `lucic2018gans`; `dacrema2019progress`; `kerr1998harking`].
+*finding* as its output [`henderson2018matters`; `lucic2018gans`; `dacrema2019progress`; `webson2022prompt`;
+`schaeffer2023mirage`; `kerr1998harking`].
 
 **[Result — to be finalised from the confirmatory campaign.]** A directional prototype (Chapter 5) provides the
 honest interim statement: the apparent tail advantage did **not** survive its own zero-information placebo control,
@@ -155,12 +192,3 @@ Chapter 6 reports the confirmatory campaign and its mechanism analyses — the r
 mediation of responsiveness, the model-confidence-set comparison of arms, the synthetic-null falsification, and the
 regime-conditional and transaction-cost robustness checks. Chapter 7 discusses what the boundary condition means
 for automated reward design, states the limitations in full, and concludes.
-
----
-
-### Citation keys introduced in this chapter (add to `refs.bib` from the verified backbone)
-`amodei2016concrete`, `krakovna2020specification`, `skalse2022reward`, `pan2022effects`, `moody1998performance`,
-`sood2023deep`, `choudhary2025risk`, `ma2024eureka`, `xie2024text2reward`, `ma2024dreureka`, `romera2024funsearch`,
-`deepmind2025alphaevolve`, `lu2024aiscientist`, `zheng2025survey`, `nie2024directional`, `agrawal2026gepa`,
-`behari2024dlm`, `benhenda2025finrldeepseek`, `sun2024card`, `henderson2018matters`, `lucic2018gans`,
-`dacrema2019progress`, `kerr1998harking`.

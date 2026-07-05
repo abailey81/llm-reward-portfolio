@@ -59,7 +59,7 @@ REQUIRED_FIELDS: tuple[str, ...] = (
 #: ``metrics['val_returns']``) so Rank 3's PBO can consume them back-compatibly.
 #:
 #:  - ``frozen``            : ``True`` on a sealed frozen-winner record.
-#:  - ``test_returns``      : realized per-step held-out (2018-2025) NET return vector.
+#:  - ``test_returns``      : realized per-step held-out (2020-2026) NET return vector.
 #:  - ``per_period_pnl``    : per-period P&L vector aligned to ``test_returns``.
 #:  - ``reward_source``     : the winner's reward source (already archived as reward.py).
 #:  - ``prompt``            : (Rank 14) the rendered LLM user prompt that produced the candidate.
@@ -134,6 +134,34 @@ def write_run(record: dict[str, Any], root: str | Path) -> Path:
     run_dir = Path(root) / str(record["run_id"])
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    # SIDECARS FIRST, each durably flushed+fsynced (F2, ultrareview 2026-07-02): the record.json
+    # atomic replace below is the COMMIT POINT of the run dir — once a record is present, ``load_run``
+    # VERIFIES the reward.py / prompt.txt sidecars byte-for-byte against it, and the sidecar-mismatch
+    # ``ValueError`` PROPAGATES by design (provenance integrity). Writing the sidecars AFTER the commit
+    # left a window where a crash produced a committed record with a MISSING/TRUNCATED sidecar — which
+    # bricked EVERY subsequent ``--resume`` (``load_all`` -> ``load_run`` raises on that one dir).
+    # Sidecars-first means a crash leaves either NO new record (the old state stands; a fresh dir with
+    # orphan sidecars has no record.json and is skipped by ``load_all``) or a COMPLETE, verifiable set.
+    # ``open("w")+flush+os.fsync`` (not ``write_text``) so the sidecar bytes are durable BEFORE the
+    # record commits — an fsynced record must never point at un-fsynced sidecars.
+    reward_source = record.get("reward_source")
+    if reward_source is not None:
+        with (run_dir / _REWARD_NAME).open("w", encoding="utf-8") as fh:
+            fh.write(str(reward_source))
+            fh.flush()
+            os.fsync(fh.fileno())
+
+    # Rank 14: if the record carries the rendered prompt, archive it next to reward.py as a
+    # prompt.txt sidecar so results *replay from the archive* — the LLM that produced the reward is
+    # non-deterministic and "archive every prompt" is a prime directive (CLAUDE.md §6, audit C-2).
+    # OPTIONAL: a record without ``prompt`` (the search arms, sealed test records) writes no sidecar.
+    prompt = record.get("prompt")
+    if prompt is not None and str(prompt) != "":
+        with (run_dir / _PROMPT_NAME).open("w", encoding="utf-8") as fh:
+            fh.write(str(prompt))
+            fh.flush()
+            os.fsync(fh.fileno())
+
     # ATOMIC write (campaign-robustness §F): a long campaign WILL be interrupted (Ctrl-C, OS sleep,
     # thermal trip, power loss). A plain ``open("w") + json.dump`` killed mid-write leaves a TRUNCATED
     # ``record.json`` that ``load_run`` (``json.load``) then fails to parse — and because ``load_all``
@@ -148,19 +176,7 @@ def write_run(record: dict[str, Any], root: str | Path) -> Path:
         json.dump(record, fh, indent=2, sort_keys=True, default=str)
         fh.flush()
         os.fsync(fh.fileno())  # durability: the bytes hit disk before the rename
-    os.replace(tmp_path, record_path)  # atomic on Windows + POSIX (same directory)
-
-    reward_source = record.get("reward_source")
-    if reward_source is not None:
-        (run_dir / _REWARD_NAME).write_text(str(reward_source), encoding="utf-8")
-
-    # Rank 14: if the record carries the rendered prompt, archive it next to reward.py as a
-    # prompt.txt sidecar so results *replay from the archive* — the LLM that produced the reward is
-    # non-deterministic and "archive every prompt" is a prime directive (CLAUDE.md §6, audit C-2).
-    # OPTIONAL: a record without ``prompt`` (the search arms, sealed test records) writes no sidecar.
-    prompt = record.get("prompt")
-    if prompt is not None and str(prompt) != "":
-        (run_dir / _PROMPT_NAME).write_text(str(prompt), encoding="utf-8")
+    os.replace(tmp_path, record_path)  # atomic on Windows + POSIX (same directory) — the COMMIT POINT
 
     return record_path
 

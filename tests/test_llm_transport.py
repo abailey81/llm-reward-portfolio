@@ -219,6 +219,10 @@ class _OAIUsage:
 
 
 class _OAIResponse:
+    #: The model id the provider REPORTS it served (``response.model``) — for OpenRouter this is the
+    #: exact snapshot behind the requested slug (the R71 reproducibility anchor).
+    model = "qwen/qwen3-coder-served-snapshot"
+
     def __init__(self, content: str, usage: object | None) -> None:
         self.choices = [_OAIChoice(content)]
         self.usage = usage
@@ -321,6 +325,7 @@ def test_default_key_env_per_provider() -> None:
     assert default_key_env("gemini") == "GEMINI_API_KEY"
     assert default_key_env("openai") == "OPENAI_API_KEY"
     assert default_key_env("deepseek") == "DEEPSEEK_API_KEY"
+    assert default_key_env("openrouter") == "OPENROUTER_API_KEY"
     assert default_key_env("NoNsEnSe") == "OPENAI_API_KEY"  # case-folded fallback
 
 
@@ -372,3 +377,103 @@ def test_build_transport_anthropic_uses_native_no_key(monkeypatch) -> None:
     with pytest.raises(RuntimeError) as excinfo:
         build_transport("anthropic", "claude-opus-4-8")
     assert "ANTHROPIC_API_KEY" in str(excinfo.value)
+
+
+# --------------------------------------------------------------------------- #
+# OpenRouter — the R71 secondary open-weights designer (Qwen3-Coder) wiring     #
+# --------------------------------------------------------------------------- #
+def test_build_transport_openrouter_routes_to_openrouter_base(monkeypatch) -> None:
+    """openrouter -> the OpenAI SDK pointed at OpenRouter's base URL + OPENROUTER_API_KEY (R71)."""
+    import sys
+    import types
+
+    import src.llm.client as client_mod
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k-or")
+    captured: dict = {}
+    monkeypatch.setitem(
+        sys.modules, "openai", types.SimpleNamespace(OpenAI=lambda **kw: captured.update(kw))
+    )
+    client_mod.build_transport("openrouter", "qwen/qwen3-coder")
+    assert captured["base_url"] == "https://openrouter.ai/api/v1"
+    assert captured["api_key"] == "k-or"
+    assert captured["max_retries"] == 0  # ADR-034: tenacity is the single backoff policy
+
+
+def test_build_transport_openrouter_without_key_raises(monkeypatch) -> None:
+    """Key-gated (R71): no OPENROUTER_API_KEY -> a clear RuntimeError naming the env var, no network."""
+    from src.llm.client import build_transport
+
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    with pytest.raises(RuntimeError) as excinfo:
+        build_transport("openrouter", "qwen/qwen3-coder")
+    assert "OPENROUTER_API_KEY" in str(excinfo.value)
+
+
+def test_openrouter_request_body_and_served_model_anchor() -> None:
+    """The request carries the pinned slug/messages/max_tokens; the response's ``model`` (the exact
+    snapshot OpenRouter served) is captured on ``last_served_model`` — the R71 reproducibility anchor."""
+    from src.llm.client import _OpenAITransport
+
+    client = _FakeOAIClient(content="OK")
+    t = _OpenAITransport(client, "qwen/qwen3-coder", temperature=None, retrying=None, max_tokens=64)  # type: ignore[arg-type]
+    assert t.last_served_model is None
+    out = t("SYS", "USER")
+    assert out == "OK"
+    call = client.calls[0]
+    assert call["model"] == "qwen/qwen3-coder"
+    assert call["messages"] == [
+        {"role": "system", "content": "SYS"},
+        {"role": "user", "content": "USER"},
+    ]
+    assert call["max_tokens"] == 64
+    assert t.last_served_model == "qwen/qwen3-coder-served-snapshot"
+
+
+def test_llmclient_pinned_openrouter_cfg_routes_to_registry(monkeypatch) -> None:
+    """The R71 pinned config (provider=openrouter) defaults the key env and lazily routes through
+    ``build_transport`` — the single dispatch point the campaign path uses."""
+    import src.llm.client as client_mod
+    from src.llm.client import FakeTransport, LLMClient
+
+    cfg = {"provider": "openrouter", "model": "qwen/qwen3-coder"}
+    client = LLMClient(cfg)
+    assert client.api_key_env == "OPENROUTER_API_KEY"
+
+    routed: dict = {}
+
+    def _fake_build(provider, model, key_env, **kw):  # type: ignore[no-untyped-def]
+        routed.update(provider=provider, model=model, key_env=key_env)
+        return FakeTransport(response="OK")
+
+    monkeypatch.setattr(client_mod, "build_transport", _fake_build)
+    assert client.complete("S", "U") == "OK"
+    assert routed == {
+        "provider": "openrouter", "model": "qwen/qwen3-coder", "key_env": "OPENROUTER_API_KEY",
+    }
+
+
+def test_openrouter_429_is_retried_by_tenacity() -> None:
+    """A mocked 429 (RateLimitError) is retried by the REAL tenacity policy from ``_make_retrying``
+    and the call succeeds on the second attempt (ADR-034 backoff wiring)."""
+    from src.llm.client import _OpenAITransport
+
+    rate_limit_cls = type("RateLimitError", (Exception,), {"status_code": 429})
+    attempts = {"n": 0}
+
+    class _RateLimited:
+        class chat:  # noqa: N801 - mirrors the SDK surface
+            class completions:  # noqa: N801
+                @staticmethod
+                def create(**kwargs: object) -> _OAIResponse:
+                    attempts["n"] += 1
+                    if attempts["n"] == 1:
+                        raise rate_limit_cls("429 too many requests")
+                    return _OAIResponse("OK", None)
+
+    t = _OpenAITransport(
+        _RateLimited(), "qwen/qwen3-coder",  # type: ignore[arg-type]
+        temperature=None, retrying=_make_retrying(3), max_tokens=64,
+    )
+    assert t("S", "U") == "OK"
+    assert attempts["n"] == 2  # 429 once, retried, succeeded

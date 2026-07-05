@@ -7,10 +7,13 @@ rendered into the reflection prompt at runtime by the Eureka loop (`src/llm/loop
 template is `prompts/reflection.txt` (it carries the `{ARM_BLOCK}` marker that `build_block` fills).
 
 **Source of the distribution (off-critic — audit A-1).** The statistics are measured **directly from the
-realized portfolio log-returns**, NOT read off any agent critic. They are computed on the **training-period**
+realized portfolio simple (arithmetic, per-step) returns**, NOT read off any agent critic. They are computed on the **training-period**
 realized returns (audit B-2: measuring on validation and then selecting on validation would re-introduce
-overfitting), by a separate estimator that is **decoupled from the agent** — so the same feedback channel
-works for any agent (SB3 SAC headline; TQC secondary). There is **no IQN critic** in the live design and no
+overfitting), by a separate post-hoc estimator that reads no Q-network, so it is **critic-agnostic** (it works regardless of
+the critic architecture — SB3 SAC mean-critic headline, TQC quantile-critic secondary) but is **NOT
+agent-independent**: the tail is fit on the trained policy's OWN realized returns under the candidate reward,
+so the fed signal is endogenous to the agent it steers (H2 compares two coupled reward→policy→measurement
+loops, not an exogenous measurement). There is **no IQN critic** in the live design and no
 `Z(s,a)` object: the audit rejected the neural-IQN line in favour of this empirical+EVT estimator
 (`DECISIONS.md` ADR-022).
 

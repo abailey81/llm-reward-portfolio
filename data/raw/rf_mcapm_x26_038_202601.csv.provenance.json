@@ -1,0 +1,39 @@
+{
+  "cols": 3,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:31:22.490491+00:00",
+  "layer": "raw",
+  "name": "rf_mcapm_x26_038_202601.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "fields": [
+        "TR.CompanyMarketCap.date",
+        "TR.CompanyMarketCap"
+      ],
+      "parameters": {
+        "EDate": "2026-06-30",
+        "Frq": "M",
+        "SDate": "2026-01-01"
+      },
+      "universe": [
+        "ZBRA.OQ",
+        "ZION.OQ",
+        "ZTS.N"
+      ]
+    },
+    "query": "datagrid.TR.CompanyMarketCap.M.x26",
+    "received_utc": "2026-07-01T22:31:22.475044+00:00",
+    "requested_utc": "2026-07-01T22:31:22.327403+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_mcapm_x26_038_202601.csv",
+  "row_hash": "c42f2a10132407ea51200409536ca2be0d7dd6ee94b81cfc335a7be6fb908b33",
+  "rows": 18,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "c42f2a10132407ea51200409536ca2be0d7dd6ee94b81cfc335a7be6fb908b33",
+  "vendor": "refinitiv"
+}

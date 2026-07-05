@@ -104,3 +104,87 @@ def test_jsonl_cache_reparses_on_change(tmp_path: Path) -> None:
     time.sleep(0.01)
     p.write_text(p.read_text() + json.dumps({"event": "llm_call", "in_tok": 10, "out_tok": 1, "model": "claude-opus-4-8"}) + "\n", encoding="utf-8")
     assert monitor.token_spend(tmp_path)["calls"] == 2  # cache invalidated on (mtime,size) change
+
+
+# ---- m11: clock-skew-tolerant staleness (freshest of parsed stamp vs file mtime) ------------------------ #
+def test_state_age_uses_freshest_of_stamp_and_mtime() -> None:
+    """m11: a skewed/old writer stamp must not fabricate STALE while the file mtime proves fresh writes,
+    and a fresh stamp still wins over a weird old mtime (max of the two evidences)."""
+    now = time.time()
+    old_stamp = _state("training", updated=time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - 7200)))
+    # File rewritten 5 s ago (mtime) but the stamp is 2 h old (e.g. a DST/clock jump on the writer):
+    assert monitor.state_age_seconds(old_stamp, now, mtime_epoch=now - 5) < 60
+    assert monitor.is_stale(old_stamp, now, threshold=300.0, mtime_epoch=now - 5) is False
+    # Without the mtime evidence the same state IS stale (the pre-m11 behaviour, still correct alone):
+    assert monitor.is_stale(old_stamp, now, threshold=300.0) is True
+    # A fresh stamp with an ancient mtime stays fresh (max, not min):
+    fresh_stamp = _state("training", updated=time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - 5)))
+    assert monitor.state_age_seconds(fresh_stamp, now, mtime_epoch=now - 7200) < 60
+
+
+def test_state_age_falls_back_to_mtime_when_stamp_unparseable() -> None:
+    """m11: a garbled `updated` no longer means 'unknown age' when the file mtime is available."""
+    now = time.time()
+    st = {"phase": "training", "updated": "not-a-timestamp"}
+    assert monitor.state_age_seconds(st, now) is None                       # both evidences missing
+    assert monitor.state_age_seconds(st, now, mtime_epoch=now - 10) < 60    # mtime rescues the probe
+    assert monitor.is_stale(st, now, threshold=300.0, mtime_epoch=now - 1200) is True
+
+
+# ---- M5a: alert lifecycle (reason -> dedupe reset on healthy -> add only after a successful post) -------- #
+def test_alert_reason_maps_phase_and_stall() -> None:
+    now = time.time()
+    fresh = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - 5))
+    old = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now - 1200))
+    assert monitor.alert_reason(_state("done", updated=fresh), now, 300.0) == "done"
+    assert monitor.alert_reason(_state("error", updated=fresh), now, 300.0) == "error"
+    assert monitor.alert_reason(_state("training", updated=old), now, 300.0) == "stall"
+    assert monitor.alert_reason(_state("training", updated=fresh), now, 300.0) is None
+    assert monitor.alert_reason(None, now, 300.0) is None
+
+
+def test_process_notification_adds_only_after_successful_post() -> None:
+    """M5a(iii): a failed POST must be retried on the next poll — never optimistically deduped away."""
+    sent: set[str] = set()
+    outcomes = iter([False, True])  # first POST fails (network blip), second succeeds
+    posted: list[str] = []
+
+    def _send(reason: str) -> bool:
+        posted.append(reason)
+        return next(outcomes)
+
+    assert monitor.process_notification("error", sent, _send) is False  # post failed -> NOT recorded
+    assert sent == set()
+    assert monitor.process_notification("error", sent, _send) is True   # retried next poll -> recorded
+    assert sent == {"error"}
+    assert monitor.process_notification("error", sent, _send) is False  # now deduped
+    assert posted == ["error", "error"]
+
+
+def test_process_notification_resets_dedupe_when_healthy_again() -> None:
+    """M5a(ii): a healthy tick clears the dedupe set, so the NEXT arm's done/stall alerts fire —
+    previously the first arm's 'done' suppressed every later alert for the whole campaign."""
+    sent: set[str] = set()
+    ok = lambda _r: True  # noqa: E731
+    assert monitor.process_notification("done", sent, ok) is True   # arm 1 finishes -> alert
+    assert monitor.process_notification("done", sent, ok) is False  # deduped while still 'done'
+    assert monitor.process_notification(None, sent, ok) is False    # arm 2 starts (healthy) -> reset
+    assert sent == set()
+    assert monitor.process_notification("done", sent, ok) is True   # arm 2 finishing alerts again
+
+
+# ---- M5a: --follow-campaign terminal sentinel -------------------------------------------------------- #
+def test_campaign_done_requires_sentinel_written_after_watcher_start(tmp_path: Path) -> None:
+    """A STALE campaign_summary.json from a previous interrupted run (mtime < watcher start) must not
+    terminate the watcher; only a summary (re)written AFTER the watcher started counts."""
+    assert monitor.campaign_done(None, started_epoch=100.0) is False          # no sentinel yet
+    assert monitor.campaign_done(50.0, started_epoch=100.0) is False          # stale leftover
+    assert monitor.campaign_done(150.0, started_epoch=100.0) is True          # written after start
+
+    # _sentinel_mtime resolves run_dir/ then run_dir.parent/ (search dir is the documented usage).
+    search = tmp_path / "search"
+    search.mkdir()
+    assert monitor._sentinel_mtime(search) is None
+    (tmp_path / "campaign_summary.json").write_text("{}", encoding="utf-8")
+    mt = monitor._sentinel_mtime(search)
+    assert mt is not None and mt > 0

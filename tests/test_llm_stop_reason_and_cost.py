@@ -26,6 +26,7 @@ def test_complete_archives_stop_reason_and_request_id() -> None:
         last_usage = {"input_tokens": 10, "output_tokens": 4}
         last_stop_reason = "max_tokens"
         last_request_id = "req_abc123"
+        last_served_model = "qwen/qwen3-coder-served-snapshot"  # R71 reproducibility anchor
 
         def __call__(self, system: str, user: str) -> str:
             return "def reward(...): ...  # truncated"
@@ -34,6 +35,7 @@ def test_complete_archives_stop_reason_and_request_id() -> None:
     LLMClient({"model": "claude-opus-4-8"}, transport=_MetaTransport(), archive=archive).complete("S", "U")
     assert archive[0].stop_reason == "max_tokens"
     assert archive[0].request_id == "req_abc123"
+    assert archive[0].served_model == "qwen/qwen3-coder-served-snapshot"
 
 
 def test_complete_meta_defaults_none_for_plain_transport() -> None:
@@ -42,6 +44,7 @@ def test_complete_meta_defaults_none_for_plain_transport() -> None:
     archive: list[ProvenanceRecord] = []
     LLMClient({"model": "m"}, transport=FakeTransport(response="x"), archive=archive).complete("S", "U")
     assert archive[0].stop_reason is None and archive[0].request_id is None
+    assert archive[0].served_model is None
 
 
 # ---- (2) real transports capture provider metadata + warn on incomplete ----------------------------- #

@@ -19,10 +19,15 @@ locks (the search/compute budgets in §4 are the Deflated-Sharpe trial count). I
 1. **Per-algorithm hyperparameters.** If §4 cites "hyperparameters from `config/`", confirm the referenced
    file exists (`config/algos.yaml`); otherwise re-word to "library-default hyperparameters at the pinned
    package versions, echoed into every run sidecar". Do not freeze a pointer to a file that does not exist.
-2. **Arm budgets.** Confirm the single-shot / random-search / BayesOpt arm counts in §4 equal the matched
-   total budget in `config/eureka_loop.yaml` (and `config/campaign.yaml`).
-3. **Compute venue.** Confirm §12 / compute references match ADR-023 (Phase-0 on the owned RTX 4050 laptop;
-   campaign on a rented RTX 4090; **no UCL Myriad**).
+2. **Arm budgets.** Confirm the arm roster + per-candidate budget in §3/§4 equal the EXECUTED
+   `config/campaign.yaml` (roster) + `config/campaign.yaml`/`config/algos.yaml` (`train_steps_per_candidate`
+   = B* = 200,000, R74). Do NOT consult `config/eureka_loop.yaml` — it is documentary only ("NOT loaded by
+   the live run"; it still carries the legacy 240 budget). The freeze gate now binds all three cross-file:
+   `assert_executed_arms_match` (roster), `assert_train_steps_match` (B*, batch-6 M1), and the
+   preflight budget-/model-mirror checks — so a drift here fails `make freeze-check` rather than freezing.
+3. **Compute venue.** Confirm §12 / compute references match the CURRENT decision (2026-06-30): the campaign
+   runs **LAPTOP-ONLY on the owned RTX 4050** (Turbo + n_gpu=3 + buffer capped 50k). The older "rented RTX
+   4090" framing (ADR-023) is **superseded**; **no UCL Myriad**.
 
 Edit `PREREGISTRATION.md` (and config, if a number moves) directly to resolve any mismatch — there is no
 staging copy to apply.
@@ -44,12 +49,16 @@ git commit -m "Freeze pre-registration v1.0"
 
 # 5. Capture the freeze hash.
 make freeze                              # prints the freeze hash + date (scripts/freeze.py)
+#    NOTE: `make freeze` (scripts/freeze.py) ALSO auto-appends a dated "FREEZE-DONE — content hash" entry
+#    to docs/DECISION_LOG.md (the ADR-005 audit slot) — so the machine record is written for you.
 
-# 6. Record it in DECISIONS.md — open the freeze ADR, replace the placeholder line with the printed
-#    "Freeze hash: …" line, and change its heading from (PENDING…) to (FROZEN <date>).
+# 6. Record it in DECISIONS.md (the root, forward-authoritative log) — open the freeze ADR, replace the
+#    placeholder line with the printed "Freeze hash: …" line, and change its heading from (PENDING…) to
+#    (FROZEN <date>). This is the HUMAN-curated ADR; docs/DECISION_LOG.md (step 5) is the auto-appended
+#    audit trail — they are two DIFFERENT files, both intended (do not try to merge them).
 
 # 7. Commit the record.
-git add DECISIONS.md && git commit -m "Record pre-registration freeze hash"
+git add DECISIONS.md docs/DECISION_LOG.md && git commit -m "Record pre-registration freeze hash"
 
 # 8. Notify the supervisor (paste into the meeting email / message):
 #    "Design pre-registration frozen today (commit <hash>); hypotheses, budgets, splits and inference

@@ -253,7 +253,7 @@ def test_popart_realized_scale_stats_contract() -> None:
     for _ in range(30):
         env.step(0)
     stats = env.realized_scale_stats()
-    assert set(stats) == {"popart", "sigma_max", "sigma_last", "count"}
+    assert set(stats) == {"popart", "sigma_max", "sigma_last", "raw_rms_max", "raw_rms_last", "count"}
     assert all(isinstance(v, float) for v in stats.values())  # JSON round-trip safe
     assert stats["popart"] == 1.0
     assert stats["count"] == 30.0

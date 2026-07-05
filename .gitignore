@@ -72,3 +72,20 @@ data_pipeline/data/
 
 # --- Internal agent operating brief (kept local; not part of the published artifact) ---
 CLAUDE.md
+
+# paper-build toolchain (portable pandoc/tectonic, 2026-07-02) + compiled artifacts
+tools/
+paper/_build/
+
+# --- session hygiene (2026-07-05) ---
+# Refinitiv pull venv (PowerShell-only; never commit an environment)
+.venv-lseg/
+# editor config: track only the deliberate settings trim
+.vscode/*
+!.vscode/settings.json
+# run logs + transient scratch (regenerable; pilot VERDICT artifacts stay tracked)
+outputs/logs/
+outputs/*.log
+outputs/*.err
+outputs/_bytecheck/
+outputs/campaign_dryrun/

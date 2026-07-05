@@ -80,21 +80,24 @@ def test_verify_raises_on_tamper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         loaders._verify_checksum(p)
 
 
-def test_verify_skips_when_absent_from_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No manifest entry for the file -> graceful skip (no raise), so callers stay unbroken."""
+def test_verify_raises_when_absent_from_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No manifest entry for the file -> FAIL LOUD (C2): verification was requested but cannot be proven."""
     p = tmp_path / "returns_panel_univ3.parquet"
     _write_parquet(p)
     manifest = tmp_path / "manifest.jsonl"
     _write_manifest(manifest, "data/gold/some_other_artifact.parquet", "deadbeef")
     monkeypatch.setattr(loaders, "_MANIFEST", manifest)
-    loaders._verify_checksum(p)  # absent -> skip, must not raise
+    with pytest.raises(ValueError, match="no manifest entry"):
+        loaders._verify_checksum(p)  # absent -> raise (C2: silent-skip on the headline panel is the bug)
 
 
-def test_verify_skips_when_no_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_verify_raises_when_no_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No manifest at all -> FAIL LOUD (C2), not a silent skip."""
     p = tmp_path / "returns_panel_univ3.parquet"
     _write_parquet(p)
     monkeypatch.setattr(loaders, "_MANIFEST", tmp_path / "nope.jsonl")
-    loaders._verify_checksum(p)  # no manifest -> skip, must not raise
+    with pytest.raises(ValueError, match="no manifest entry"):
+        loaders._verify_checksum(p)  # no manifest -> raise (C2)
 
 
 def test_expected_sha256_exact_relpath_branch_fires(tmp_path: Path) -> None:
@@ -133,6 +136,58 @@ def test_expected_sha256_basename_fallback_when_outside_root(tmp_path: Path) -> 
     manifest.parent.mkdir(parents=True)
     _write_manifest(manifest, "data/gold/returns_panel_univ3.parquet", digest)  # relpath won't match
     assert loaders._expected_sha256(p, manifest_path=manifest) == digest  # basename match
+
+
+# --------------------------------------------------------------------------- #
+# C1 — gold_suffix() precedence: config PRIMARY, env var EXPLICIT override      #
+# --------------------------------------------------------------------------- #
+def _write_data_yaml(path: Path, suffix: str | None) -> None:
+    body = "period: {start: 2005-01-01, end: 2025-12-31}\n"
+    if suffix is not None:
+        body += f"gold:\n  suffix: {suffix}\n"
+    path.write_text(body, encoding="utf-8")
+
+
+def test_config_gold_suffix_reads_data_yaml(tmp_path: Path) -> None:
+    """``_config_gold_suffix`` returns config/data.yaml's ``gold.suffix`` (stripped of a leading _)."""
+    y = tmp_path / "data.yaml"
+    _write_data_yaml(y, "_univ9")
+    assert loaders._config_gold_suffix(y) == "univ9"
+
+
+def test_config_gold_suffix_none_when_absent(tmp_path: Path) -> None:
+    """No ``gold.suffix`` key -> None (caller falls back to the default)."""
+    y = tmp_path / "data.yaml"
+    _write_data_yaml(y, None)
+    assert loaders._config_gold_suffix(y) is None
+    assert loaders._config_gold_suffix(tmp_path / "missing.yaml") is None
+
+
+def test_gold_suffix_config_is_primary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no env var set, gold_suffix() uses config/data.yaml's ``gold.suffix`` (C1 PRIMARY source)."""
+    y = tmp_path / "data.yaml"
+    _write_data_yaml(y, "univ3")
+    monkeypatch.setattr(loaders, "_DATA_YAML", y)
+    monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
+    assert loaders.gold_suffix() == "univ3"
+
+
+def test_gold_suffix_env_overrides_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``LLM_RP_GOLD_SUFFIX`` is an EXPLICIT override that wins over the config value (C1)."""
+    y = tmp_path / "data.yaml"
+    _write_data_yaml(y, "univ3")
+    monkeypatch.setattr(loaders, "_DATA_YAML", y)
+    monkeypatch.setenv("LLM_RP_GOLD_SUFFIX", "univ4")
+    assert loaders.gold_suffix() == "univ4"
+
+
+def test_gold_suffix_falls_back_to_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No env var AND no config key -> the univ5 default (minimal/synthetic install; Split C, ADR-044/051)."""
+    y = tmp_path / "data.yaml"
+    _write_data_yaml(y, None)
+    monkeypatch.setattr(loaders, "_DATA_YAML", y)
+    monkeypatch.delenv("LLM_RP_GOLD_SUFFIX", raising=False)
+    assert loaders.gold_suffix() == loaders._DEFAULT_SUFFIX == "univ5"
 
 
 def test_read_verify_checksum_tamper_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

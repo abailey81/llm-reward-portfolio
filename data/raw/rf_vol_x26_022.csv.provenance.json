@@ -1,0 +1,53 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:32:39.332629+00:00",
+  "layer": "raw",
+  "name": "rf_vol_x26_022.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "field": "ACVOL_UNS",
+      "universe": [
+        "LYV.N",
+        "M.N",
+        "MA.N",
+        "MAA.N",
+        "MAC.N",
+        "MAR.OQ",
+        "MAS.N",
+        "MAT.OQ",
+        "MAY.N^H05",
+        "MBI.N",
+        "MCD.N",
+        "MCHP.OQ",
+        "MCK.N",
+        "MCO.N",
+        "MDLZ.OQ",
+        "MDP.N^L21",
+        "MDT.N",
+        "MEDI.OQ^F07",
+        "MEE.N^F11",
+        "MEL.N^G07",
+        "MER.N^A09",
+        "MERQE.OQ^A06",
+        "MET.N",
+        "META.OQ",
+        "MFE.N^C11"
+      ]
+    },
+    "query": "get_history.ohlc.x26",
+    "received_utc": "2026-07-01T22:32:39.332629+00:00",
+    "requested_utc": "2026-07-01T22:32:37.075294+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_vol_x26_022.csv",
+  "row_hash": "cd5695bc4678c909e83eb08f6f3077f1eca7a50b7918036e71b7cc89a0728a8f",
+  "rows": 123,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "cd5695bc4678c909e83eb08f6f3077f1eca7a50b7918036e71b7cc89a0728a8f",
+  "vendor": "refinitiv"
+}

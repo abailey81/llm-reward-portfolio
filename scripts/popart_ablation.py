@@ -476,7 +476,7 @@ def _resolve_inputs(*, synthetic: bool, train_steps: int) -> dict[str, Any]:
     if synthetic:
         from src.data.synthetic import make_synthetic_panel
 
-        # The 600-day synthetic panel ends in 2006, so it cannot host the real 2005-2025 calendar splits
+        # The 600-day synthetic panel ends in 2006, so it cannot host the real 2005-2026 calendar splits
         # resolve_windows derives (they would clamp to a degenerate end-of-panel window). The SMOKE run
         # only needs three short, PURGE-respecting windows that prove the harness wires up — use the same
         # layout tests/test_run_campaign.py uses: train [lb,250) | gap>=lookback | val [310,360) | test [420,T).
@@ -488,7 +488,7 @@ def _resolve_inputs(*, synthetic: bool, train_steps: int) -> dict[str, Any]:
         from src.data.loaders import load_gold_panel
 
         ev = cfg_get(cfg_get(inf_cfg, "splits", {}), "evaluation", {})
-        span = cfg_get(ev, "span", ["2018-01-01", "2025-12-31"])
+        span = cfg_get(ev, "span", ["2020-01-01", "2026-06-30"])
         panel = load_gold_panel(phase="development", end=str(span[1])).panel
         splits = cfg_get(inf_cfg, "splits", {})
         train_window, val_window, test_window = resolve_windows(

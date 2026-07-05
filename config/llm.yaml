@@ -23,18 +23,29 @@ candidates_per_generation: 5                # = budget / generations
 # commit at use time — do NOT fabricate a revision here (CLAUDE.md no-fabrication). Secondary arm, not
 # on the primary Pass-B path.
 #
-# SECOND-MODEL DECIDED (amendment R71, 2026-06-29) — a multi-model SECONDARY robustness panel, NOT co-primary.
-# The single Claude family (Opus 4.8) train-to-convergence run is the CONFIRMATORY headline; a different-family
-# OPEN-WEIGHTS designer is added as a pre-registered SECONDARY/exploratory panel (headline arms only, reduced
-# seeds) that makes "LLMs" genuine + runs the N3 `cross_model_disagreement` contamination cross-check.
-# RECOMMENDED model = the Qwen2.5-Coder family (strong code authorship, Apache-2.0, non-Anthropic vendor +
-# different training cutoff); authoring is cheap API calls (only the SAC training of the winners adds compute).
-# ACTIVATION IS COMPUTE-GATED + EXPLICIT: this value stays a sentinel so the MAIN single-model campaign path
-# keeps degrading `cross_model_disagreement` to {"status": "no_data"} (honest "secondary panel not yet run"),
-# NOT a silent skip; the secondary panel is a SEPARATE run (set this to the pinned model id + provider key
-# then). Until run, the write-up says "the single Claude family (Sonnet -> Opus) for the confirmatory headline;
-# the second-family panel is a pre-registered secondary run, executed when compute (UCL/extended) allows."
-open_weights_check_model: "PIN_ME"          # R71 SECONDARY panel; recommended Qwen2.5-Coder; activate per-run (compute-gated)
+# SECOND-MODEL DECIDED (amendment R71, 2026-06-29; model PINNED 2026-07-02) — a multi-model SECONDARY
+# robustness panel, NOT co-primary. The single Claude family (Opus 4.8) train-to-convergence run is the
+# CONFIRMATORY headline (the `provider`/`model_snapshot`/`api_key_env` block above is that path and stays
+# BYTE-UNTOUCHED); a different-family OPEN-WEIGHTS designer is added as a pre-registered SECONDARY,
+# REPORT-ONLY panel (headline arms only, reduced seeds) that makes "LLMs" genuine + runs the N3
+# `cross_model_disagreement` contamination cross-check. It is NEVER part of the confirmatory family.
+#
+# PINNED MODEL (decision 2026-07-01, supersedes the Qwen2.5-Coder recommendation): the Qwen3-Coder family
+# — strong code authorship, Apache-2.0 open weights, non-Anthropic vendor + different training cutoff —
+# served via OPENROUTER (OpenAI-compatible chat-completions at https://openrouter.ai/api/v1; slug below).
+#   * key env  = OPENROUTER_API_KEY (gitignored .env; NEVER committed).
+#   * REPRODUCIBILITY ANCHOR: OpenRouter routes a slug to a concrete snapshot — the EXACT model/version
+#     string the response reports (`response.model`, archived as ProvenanceRecord.served_model) MUST be
+#     recorded in the archive at the FIRST live call and quoted in the write-up.
+#   * smoke/activation: add OPENROUTER_API_KEY=... to .env, then `python scripts/smoke_qwen.py`.
+# ACTIVATION IS KEY- + COMPUTE-GATED + EXPLICIT: until the secondary panel is actually RUN, the MAIN
+# single-model campaign path keeps degrading `cross_model_disagreement` to {"status": "no_data"} (honest
+# "secondary panel not yet run" — it gates on second-model DATA, not on this pin), NOT a silent skip; the
+# secondary panel is a SEPARATE run. Until run, the write-up says "the single Claude family (Sonnet ->
+# Opus) for the confirmatory headline; the second-family panel is a pre-registered secondary run."
+open_weights_check_model: "qwen/qwen3-coder"  # R71 SECONDARY panel; OpenRouter slug (Qwen3-Coder, 2026-07-01 decision)
+open_weights_provider: openrouter             # OpenAI-compatible transport (src/llm/client.py provider registry)
+open_weights_api_key_env: OPENROUTER_API_KEY  # read from the gitignored .env; NEVER committed
 
 archive: true                               # store rendered prompt + raw response + parsed reward per call
 archive_dir: outputs/runs                   # keyed by run id (see src/io/results.py)

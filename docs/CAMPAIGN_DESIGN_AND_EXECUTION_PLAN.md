@@ -6,13 +6,25 @@ steps, seeds, candidates, arms), the power analysis, the compute/time plan, the 
 verification, the framing strategy, and the execution priority. This is the single source of truth for the
 methods chapter and the pre-registration freeze.
 
+> **⚠ SPLIT-C / univ5 SUPERSESSION (2026-07-02, ADR-044/051, prereg R73).** The data panel and splits this
+> record reasoned over were re-partitioned and extended AFTER it was written (still pre-freeze, never
+> results-contingent): the ACTIVE panel is **univ5** (5,406 × 963, 2005-01-03 → 2026-06-30 settled cutoff;
+> byte-identical to univ3 on the overlap, 0 changed cells) under **SPLIT C** — train 2005–2016 / val
+> 2017–2019 / **test 2020–2026H1** (sealed; purge 60 sessions; executed starts 2017-03-30 / 2020-03-30).
+> Wherever the trail below says "test 2018–2025", "10y-3y-8y", "~2,520 train days", or "T≈756", read the
+> Split-C values (marked inline); the determination framework, the per-parameter verdicts, and the
+> literature grounding are otherwise unchanged. Track-length-dependent numbers (§4 power/K) are to be
+> regenerated at the executed Split-C windows (`make power`). Statuses in §2/§11 are as of 2026-06-29 —
+> `docs/DESIGN_DETERMINATION.md` (regenerated) is the live status table.
+
 > **Determination principle (read first).** This is a CONTROLLED experiment: the agent is a fixed instrument
 > and the *feedback channel* is the only manipulated variable. A system that searched parameters to MAXIMISE
 > the headline result would be the garden of forking paths industrialised — it manufactures false positives,
 > is unpublishable, and cannot even help a corroborated-NULL headline (a tuned-to-win agent *weakens* an
 > equivalence claim). Therefore parameters are **not** optimised for performance. Each is resolved by the
 > correct criterion for its class (see §1), and **nothing in this determination touches the sealed test
-> split (2018–2025)** — the test is opened ONCE, post-freeze, for the confirmatory inference only.
+> split (2018–2025 as written; 2020–2026H1 since Split C, R73)** — the test is opened ONCE, post-freeze,
+> for the confirmatory inference only.
 
 ---
 
@@ -48,7 +60,7 @@ per-parameter status table and a FREEZE-READY verdict (`docs/DESIGN_DETERMINATIO
 | `embargo` | ≥ feature lookback (60) — verify effective purge | CALIBRATE | VERIFY |
 | SAC hyperparameters | SB3 defaults; `learning_starts=1000`; PopArt on | FIX | settled |
 | LLM decoding | Opus 4.8; K=16 internal; max_tokens 4096; held identical | FIX | settled |
-| universe / lookback / cost / splits / delisting | 30 assets / 60d / 10 bps / 10y-3y-8y / retain | REALISTIC | settled |
+| universe / lookback / cost / splits / delisting | 30 assets / 60d / 10 bps / 10y-3y-8y / retain *(splits superseded 2026-07-02 → Split C 12y-3y-6.5y on univ5: 2005-16 / 17-19 / 20-26H1; ADR-044, R73)* | REALISTIC | settled |
 
 ---
 
@@ -62,6 +74,8 @@ gaps (not in corpus, to fetch when writing) are flagged in §9.
 **The decisive finding: this is a DATA-LIMITED task, so more steps OVERFIT rather than help.** There are only
 ~2,520 distinct trading days in the train window; off-policy SAC with replay simply re-passes the *same price
 path*, so extra steps add overfitting risk, not information. 200k ≈ ~80 passes; 50k ≈ ~20 passes.
+*(Split C, 2026-07-02: the executed train window is ~2,961 sessions → 200k ≈ ~68 passes, 50k ≈ ~17 — the
+data-limited argument is unchanged.)*
 
 - **Sharpe-Regret-Reward (2502.02619)**, quoted: *"the agent iterates through the same data repeatedly,
   encountering nearly identical trajectories… this significantly increases the risk of overfitting to the
@@ -177,7 +191,8 @@ forced to cut, bayes_opt is the most expendable — but don't.
 
 Computed with the real simulator (`scripts/power_analysis.simulate_power`, the actual paired one-sided IUT
 Monte-Carlo'd). Sharpe→DSR conversion at the validation track length T≈756: **K = 0.6905 DSR per ann-Sharpe**,
-so SESOI 0.05 DSR = **0.0724 annualised Sharpe**.
+so SESOI 0.05 DSR = **0.0724 annualised Sharpe**. *(Split C, 2026-07-02: the executed validation track is
+T≈694 sessions — regenerate `make power` at the executed windows before quoting K/MDE in the write-up.)*
 
 | Scenario (σ_seed, ρ) | MDE at n=30 (DSR) | Power @ SESOI, n=30 | Seeds for SESOI |
 |---|---|---|---|

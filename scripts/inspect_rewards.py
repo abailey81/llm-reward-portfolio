@@ -57,6 +57,17 @@ except ImportError:  # pragma: no cover - standalone invocation
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from analyze_results import _TAIL_TERMS, interpretability, load_arms
 
+# The theory->code construct vocabulary MOVED to src/inference/reward_taxonomy.py (the taxonomy labels
+# need it and a src module must not import from scripts/); re-imported here under the original private
+# names so every existing call site (this module, ``ir._construct_prevalence`` in analyze_campaign.py,
+# the tests) keeps reading the ONE shared table. ``analyze_results`` already imports ``src.*``, so this
+# adds no new import constraint.
+from src.inference.reward_taxonomy import (  # noqa: E402  (after the sys.path plumbing above)
+    CONSTRUCTS as _CONSTRUCTS,
+    TAIL_CONSTRUCTS as _TAIL_CONSTRUCTS,
+    construct_prevalence as _construct_prevalence,
+)
+
 __all__ = [
     "per_generation_summary",
     "feedback_responsiveness",
@@ -197,30 +208,9 @@ _TAIL_FIELDS: tuple[tuple[str, str], ...] = (
 # --------------------------------------------------------------------------- #
 # reward-program differential: theory -> code construct vocabulary (T3.1)      #
 # --------------------------------------------------------------------------- #
-#: The risk-shaping CONSTRUCTS a reward program can encode, each a (name, regex) probe applied to the
-#: comment-stripped source. These are the theory->code primitives the dissertation's mechanism story turns
-#: on (cf. the six-term shared family ADR-010 + the prototype rewards' own vocabulary): does a distributional
-#: arm's CODE reference tail/risk structure MORE than scalar/placebo? Patterns are deliberately
-#: word-boundaried + permissive on the maths around them so a construct counts whether the LLM wrote
-#: ``cvar``, ``CVaR``, ``np.percentile(..., 5)`` or ``np.quantile(..., 0.05)``. A construct is TAIL-shaped
-#: (``tail=True``) when it touches the left tail specifically (CVaR / drawdown / Sortino-downside / a low
-#: percentile) vs a generic risk control (rolling-vol / turnover / concentration) — the tail set is what
-#: H2 predicts the distributional feedback should grow.
-_CONSTRUCTS: tuple[tuple[str, str, bool], ...] = (
-    # name                pattern (applied to comment-stripped, lower-cased source)         tail?
-    ("cvar", r"\bcvar\b|conditional[_ ]?value[_ ]?at[_ ]?risk", True),
-    ("quantile_tail", r"\b(?:np\.)?(?:percentile|quantile)\b", True),
-    ("drawdown", r"\bdraw[_ ]?down\b|\bpeak\b|\bunderwater\b", True),
-    ("sortino_downside", r"\bsortino\b|\bdownside\b|\bsemi[_ ]?dev|\bsemivariance\b", True),
-    ("left_tail_mass", r"left[_ ]?tail|tail[_ ]?mass|tail[_ ]?loss", True),
-    ("rolling_vol", r"\bstd\b|\bvol\b|\bvolatilit|\bvariance\b|\bsigma\b|\bewm|\bema_std\b|welford|m2\b", False),
-    ("turnover", r"\bturnover\b|abs\(\s*weights\s*-\s*prev_weights|trade[_ ]?cost|transaction[_ ]?cost", False),
-    ("online_sharpe", r"\bsharpe\b|risk[_ ]?adj|mean\s*/\s*std|\bmu\s*/\s*", False),
-    ("herfindahl", r"\bherfindahl\b|\bhhi\b|concentration|sum\(\s*\w*\s*\*\*\s*2|diversif", False),
-)
-
-#: The TAIL-shaped subset (names) — the constructs H2 predicts distributional feedback should grow.
-_TAIL_CONSTRUCTS: tuple[str, ...] = tuple(name for name, _pat, is_tail in _CONSTRUCTS if is_tail)
+# ``_CONSTRUCTS`` / ``_TAIL_CONSTRUCTS`` / ``_construct_prevalence`` now live in
+# src/inference/reward_taxonomy.py (imported at the top of this module) — the taxonomy's kind labels and
+# this forensics report must count constructs against the SAME vocabulary, and only one copy may exist.
 
 #: A CVaR/quantile LEVEL the code references (the LLM hard-codes the tail probability it shapes): matches a
 #: percentile like ``percentile(arr, 5)`` / ``quantile(arr, 0.05)`` and a named ``cvar_05`` / ``cvar5`` /
@@ -242,18 +232,6 @@ _NUM_LITERAL = re.compile(r"(?<![\w.])(\d+\.\d+|\d+e[+-]?\d+|\d+)(?![\w.])", re.
 _NON_COEF_LITERALS: frozenset[float] = frozenset(
     {0.0, 1.0, 2.0, 252.0, 100.0, 12.0, 5.0, 10.0, 20.0, 50.0, 1000.0}
 )
-
-
-def _construct_prevalence(source: str) -> dict[str, bool]:
-    """Which risk-shaping constructs does this reward SOURCE reference? (comment-stripped, case-folded).
-
-    Returns ``{construct_name: present}`` over :data:`_CONSTRUCTS`. Comments are stripped first (a construct
-    named only in a ``# …`` note does not count as shaped code) and the source is lower-cased so ``CVaR`` and
-    ``cvar`` match the same probe. This is the theory->code half of the mechanism loop: the named constructs
-    the LLM actually WROTE, per program.
-    """
-    code = "\n".join(ln.split("#", 1)[0] for ln in source.splitlines()).lower()
-    return {name: bool(re.search(pat, code)) for name, pat, _is_tail in _CONSTRUCTS}
 
 
 def _declared_components(source: str) -> list[str]:

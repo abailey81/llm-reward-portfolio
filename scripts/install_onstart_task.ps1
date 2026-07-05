@@ -1,0 +1,85 @@
+<#
+.SYNOPSIS
+    Register a Task Scheduler ONSTART task that re-enters the campaign after ANY reboot (ops audit C2).
+
+.DESCRIPTION
+    A 2-3-week unattended laptop run WILL see a reboot the operator did not schedule (Windows Update,
+    power loss, a driver bluescreen). Without re-entry, the run silently stays down until a human
+    notices — potentially days of lost wall-clock. This script registers a scheduled task that fires
+    AT SYSTEM STARTUP and relaunches `scripts\supervisor.py -- <campaign args> --resume`:
+
+      * the supervisor runs preflight, then keeps the campaign alive (bounded restarts + backoff);
+      * `--resume` (also auto-appended by the supervisor itself, M7) makes re-entry idempotent —
+        archived candidates/seeds replay from disk, so a reboot never re-bills the paid author;
+      * stdout/stderr are appended to outputs\campaign\onstart_task.log for post-hoc forensics.
+
+    OPERATOR-RUN ONLY — nothing in the campaign invokes this. Run it ONCE from an elevated PowerShell
+    on run day (see docs/CAMPAIGN_RUNBOOK.md §0), and remove it with scripts\uninstall_onstart_task.ps1
+    when the campaign completes (otherwise every future boot relaunches the supervisor; that relaunch
+    is harmless — a finished campaign resumes to a no-op and exits 0 — but it is noise you don't want).
+
+    The task runs as the CURRENT user (the .env key + the venv live in this profile) with highest
+    privileges, whether or not the user is logged on (S4U logon: no password stored), with a 2-minute
+    startup delay so CUDA/network services are up before training starts.
+
+.PARAMETER TaskName
+    Scheduled-task name (default: LLMRewardCampaignResume).
+
+.PARAMETER CampaignArgs
+    Argument string passed to run_campaign.py AFTER the supervisor's `--` separator. Default is the
+    runbook's laptop headline invocation. `--resume` is appended by the supervisor regardless.
+
+.PARAMETER SupervisorGpu
+    n_gpu handed to the supervisor's preflight gate (default 2).
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File scripts\install_onstart_task.ps1
+    powershell -ExecutionPolicy Bypass -File scripts\uninstall_onstart_task.ps1   # after the run
+#>
+param(
+    [string]$TaskName = "LLMRewardCampaignResume",
+    # SERIAL reflect-on-best headline (ratified 2026-07-01, corrected 2026-07-02): --search-gpu 0 is the
+    # default, so the flag is simply OMITTED. (The previous default here still said "--search-gpu 2" —
+    # the SUPERSEDED R24 parallel protocol; a reboot would have resumed the campaign on the WRONG
+    # protocol. Found + fixed in the 2026-07-02 engineering review.)
+    [string]$CampaignArgs = "--gpu 3 --h3-singleshot --no-shutdown",
+    [int]$SupervisorGpu = 3
+)
+
+$ErrorActionPreference = "Stop"
+
+# Resolve everything to ABSOLUTE paths (an ONSTART task has no useful working directory).
+$repoRoot   = Split-Path -Parent $PSScriptRoot
+$pythonExe  = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$supervisor = Join-Path $repoRoot "scripts\supervisor.py"
+$logDir     = Join-Path $repoRoot "outputs\campaign"
+$logFile    = Join-Path $logDir "onstart_task.log"
+
+if (-not (Test-Path $pythonExe))  { throw "venv python not found at $pythonExe - create the venv first." }
+if (-not (Test-Path $supervisor)) { throw "supervisor not found at $supervisor" }
+New-Item -ItemType Directory -Force $logDir | Out-Null
+
+# cmd.exe /c wrapper so stdout+stderr append to the log (Task Scheduler actions cannot redirect).
+# The GPU clock lock (nvidia-smi -lgc) RESETS on every reboot — re-apply it BEFORE re-entering the
+# campaign so a crash-reboot resumes under the SAME uniform conditions the pilots calibrated
+# (2026-07-02 engineering review; Turbo self-heals via Armoury Crate, the lock does not). The `&`
+# chain means a lock failure logs but never blocks the resume itself.
+$inner  = "nvidia-smi -lgc 2200,2560 & `"$pythonExe`" `"$supervisor`" --gpu $SupervisorGpu -- $CampaignArgs --resume"
+$cmdArg = "/c `"$inner >> `"$logFile`" 2>&1`""
+
+$action    = New-ScheduledTaskAction -Execute "cmd.exe" -Argument $cmdArg -WorkingDirectory $repoRoot
+$trigger   = New-ScheduledTaskTrigger -AtStartup
+$trigger.Delay = "PT2M"   # let CUDA/network services settle before training re-enters
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType S4U -RunLevel Highest
+# Long-running unattended compute: no execution time limit, keep going on battery, never park it.
+$settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+    -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable
+
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+    -Principal $principal -Settings $settings -Force | Out-Null
+
+Write-Host "Registered ONSTART task '$TaskName':"
+Write-Host "  cmd.exe $cmdArg"
+Write-Host "  log -> $logFile"
+Write-Host "Verify with:  Get-ScheduledTask -TaskName $TaskName | Get-ScheduledTaskInfo"
+Write-Host "Remove after the campaign with:  scripts\uninstall_onstart_task.ps1"

@@ -125,7 +125,11 @@ def freeze(
         path.write_bytes(payload)
 
         record = {
-            "relpath": str(path.relative_to(ROOT)),
+            # POSIX separators ALWAYS: str() on Windows yields backslashes, which broke
+            # exact-relpath matching for univ5/univ4-era entries (consumers survived only
+            # via the name fallback in find_entry). Historical lines stay as written
+            # (write-once ledger); this fixes forward-going freezes only.
+            "relpath": path.relative_to(ROOT).as_posix(),
             "layer": layer,
             "name": name,
             "format": fmt,

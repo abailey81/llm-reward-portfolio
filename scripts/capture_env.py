@@ -124,6 +124,31 @@ def _torch_cuda() -> dict[str, Any]:
     }
 
 
+def _gold_panel_provenance() -> dict[str, Any]:
+    """The ACTIVE gold panel's identity + integrity (C1): its suffix + per-artifact SHA-256s.
+
+    Records ``gold_suffix()`` (the freeze-bound panel selector) and the frozen manifest SHA-256 of
+    each production gold parquet (``returns_panel`` / ``cash_features`` / ``top30_selection`` /
+    ``splits`` under the active suffix) so every run RECORD names EXACTLY which panel produced it.
+    Best-effort: any import/lookup failure yields ``{"available": False, ...}`` so env capture never
+    fails on a synthetic-only / minimal install without the gold or manifest.
+    """
+    try:
+        from src.data import loaders
+    except Exception as exc:  # noqa: BLE001 - loaders/pandas absent in a minimal env
+        return {"available": False, "reason": f"{type(exc).__name__}"}
+    suffix = loaders.gold_suffix()
+    gold_dir = loaders._GOLD_DIR
+    shas: dict[str, str | None] = {}
+    for stem in ("returns_panel", "cash_features", "top30_selection", "splits"):
+        path = gold_dir / f"{stem}_{suffix}.parquet"
+        try:
+            shas[stem] = loaders._expected_sha256(path, loaders._MANIFEST)
+        except Exception:  # noqa: BLE001 - a manifest read hiccup must not abort capture
+            shas[stem] = None
+    return {"available": True, "suffix": suffix, "manifest_sha256": shas}
+
+
 def capture_env(seed: int | None = None) -> dict[str, Any]:
     """Build the full CI-grade environment fingerprint dict (Rank 14).
 
@@ -137,15 +162,16 @@ def capture_env(seed: int | None = None) -> dict[str, Any]:
     dict
         ``env_fingerprint()`` (the canonical Python/platform/git/tracked-package core) plus the
         enrichment keys ``pip_freeze``, ``nvidia_smi``, ``torch_cuda``, ``determinism_env``,
-        ``seed`` and ``schema``.
+        ``gold_panel`` (the active suffix + panel SHA-256s, C1), ``seed`` and ``schema``.
     """
     fp = dict(env_fingerprint())  # canonical core — NOT re-implemented here
-    fp["schema"] = "capture_env/1"
+    fp["schema"] = "capture_env/2"  # +gold_panel provenance (C1)
     fp["seed"] = seed
     fp["pip_freeze"] = _pip_freeze()
     fp["nvidia_smi"] = _nvidia_smi()
     fp["torch_cuda"] = _torch_cuda()
     fp["determinism_env"] = {k: os.environ.get(k) for k in _DETERMINISM_ENV_KEYS}
+    fp["gold_panel"] = _gold_panel_provenance()
     return fp
 
 

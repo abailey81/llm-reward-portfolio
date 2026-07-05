@@ -1,0 +1,30 @@
+{
+  "cols": 2,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:23:18.621368+00:00",
+  "layer": "raw",
+  "name": "rf_chain_current_x26.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "fields": [
+        "TR.CommonName"
+      ],
+      "parameters": null,
+      "universe": "0#.SPX"
+    },
+    "query": "membership_event_replay_x26",
+    "received_utc": "2026-07-01T22:23:18.621368+00:00",
+    "requested_utc": "2026-07-01T22:23:16.001216+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_chain_current_x26.csv",
+  "row_hash": "00088c3b91bcd31f19aadd72ea3f112d77ac878710a113fc1d4637512bc8f4f3",
+  "rows": 503,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "00088c3b91bcd31f19aadd72ea3f112d77ac878710a113fc1d4637512bc8f4f3",
+  "vendor": "refinitiv"
+}

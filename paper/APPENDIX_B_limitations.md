@@ -1,0 +1,144 @@
+# Appendix B — Limitations Register *(word-excluded)*
+
+A complete, structured register of the study's limitations, each with its rationale, its direction of bias where
+known, and its mitigation or disclosure. Grouped by validity type [`shadish2002experimental`].
+
+## B.1 Construct validity (what the manipulation measures)
+- **B.1.1 Tail vector, not the distribution.** Six left-tail scalars; named "multi-level tail-risk feedback".
+  *Mitigation:* Chapter 3 shows the vector spans the coherent-risk class; no upside/non-coherent claim is made.
+- **B.1.2 Tail-blind selection ($\lambda=0$).** The selector rewards no tail dimension. *Direction:* biases
+  *against* a tail effect (conservative). *Rationale:* makes any tail effect channel-attributable, not
+  selector-induced. *Future work:* a pre-registered $\lambda>0$ selection variant (B.4).
+- **B.1.3 Single-estimator fed CVaR.** The fed 5%/1% CVaR is a generalised-Pareto extreme-value estimate on a few
+  hundred training observations, with documented finite-sample bias [`belzile2020improved`; `cont2010robustness`;
+  `giles2016biascorrected`]. *Direction:* estimation noise biases *against* detecting a channel effect. *Mitigation:*
+  the $\xi\le-0.5$ guard; a bootstrap error bound on the fitted tail is reported.
+
+## B.2 Internal validity (whether the comparison is clean)
+- **B.2.1 Training adequacy.** The per-candidate budget is 200,000 steps, set from a Split-C convergence pilot:
+  the critic's steep descent completes by ~100,000 steps and out-of-sample performance is flat within noise from
+  25,000 to 350,000 (350,000 nominally worse — a mild-overfit direction), so 200,000 sits at roughly twice the
+  critic knee and below the overfit onset. *Residual:* a single fixed budget, applied identically across arms,
+  with a learning-curve diagnostic reported.
+- **B.2.2 Reward-scale → effective-entropy confound.** In SAC the reward scale acts as inverse temperature
+  [`haarnoja2018sac`], and `ent_coef="auto"` re-adapts to the normalised scale, so arms whose authored rewards
+  differ in magnitude receive different effective entropy regularisation. *Mitigation:* uniform PopArt normaliser
+  with realised-scale logging and a `popart`-disabled ablation showing the ordering is preserved; residual
+  disclosed.
+- **B.2.3 Critic divergence.** A minority of candidate trainings exhibited critic-loss explosions — the
+value-overestimation/divergence pathology that motivated the clipped double-Q estimator [`fujimoto2018td3`]. *Mitigation:*
+  PopArt; a divergence diagnostic; the analysis is robust to excluding diverged candidates, which score poorly and
+  lose selection regardless.
+- **B.2.4 Single deterministic validation path.** Selection rests on one deterministic walk-forward path per
+  (candidate, seed). *Mitigation:* the 30-seed winner re-evaluation and PBO/DSR machinery; selection-stability
+  reported.
+- **B.2.5 Pretraining contamination ("profit mirage").** The designer has memorised financial history that
+  includes the sealed era [`li2025profitmirage`]. *Mitigation:* date-blind anonymised integer-index arrays, the
+  AST gate and train-split-only feedback make test-era knowledge structurally unreachable from the reward
+  channel (§4.5). *Direction:* the residual era-nonspecific reward-shape prior is arm-identical and cancels in
+  the between-arm contrast; it affects absolute levels only, which carry no inferential claim.
+- **B.2.6 Authoring variance / unit of analysis.** The confirmatory contrast re-runs *one* selected reward
+  program per arm across the seed set, so the paired-seed bootstrap carries training-seed variance only and
+  estimates the difference between two *fixed* programs; strictly, its interval generalises to the selected
+  programs rather than to the feedback condition as a whole. A different search draw could author different
+  winners, and this authoring step is not resampled at the confirmatory stage, so the variance it contributes is
+  not captured by the seed bootstrap. *Direction:* the channel-level claim is therefore carried not by $H_2$ — a
+  program-level contrast — but by the report-only mechanism kernel (responsiveness, mediation and the program
+  taxonomy, §6.5), which is computed across *all* authored candidates and so does sample the authoring step; the
+  two are reported as such.
+
+## B.3 The manipulation and the designer
+- **B.3.1 Single model family.** One Claude family (Sonnet 4.6 → Opus 4.8); the pre-registered open-weights
+  second-model cross-check is *specified but unexecuted*. *Direction:* no plural "language models" claim is earned;
+  scoped to the tested family. *Disclosure:* logged as a deviation.
+- **B.3.2 Designer numeracy / responsiveness.** A negative responsiveness may reflect the documented weakness of
+  language models on raw numerical magnitudes — a lineage running from embedding-era numeracy probes
+  [`wallace2019numbers`] to benchmark-wide number-understanding failures in current frontier models
+  [`yang2025cookbook`]. Three facts sharpen the interpretation: the failures are *format-dependent* —
+  reformatting the same query alone switches the canonical 9.11 > 9.8 decimal-comparison bug on and off within
+  a single model [`sandoval2025evenheads`]; they are mechanistically tied to *number tokenization*, which is why
+  a close pair like −0.0577 vs −0.0582 is a worst case and basis-point integers repair it
+  [`singh2024tokenization`]; and they dissociate from stated comprehension — models articulate the correct
+  comparison rule yet fail to execute it [`zhang2025comprehension`]. Comparison failures that are real,
+  format-dependent, and tokenization-rooted are exactly the hypothesis the pre-registered legible-format
+  ablation tests. The negative sign is interpreted as the model editing on semantic/format cues rather than fed
+  magnitudes, scoped to a frontier model so the null is not a small-model artefact.
+- **B.3.3 Within-generation diversity and search width.** The campaign explores a deliberately *narrow* search —
+  K=5 candidates per reflective generation across 6 generations (30 total) — and within-generation diversity rests
+  on prompt-variation (temperature rejected for the campaign provider); if K-sampling collapses, the matched
+  30-candidate budget overstates effective search. A wider K is identified as future work; the narrow width is a
+  scope choice, disclosed, not a power claim.
+  *Mitigation:* a pairwise reward-source diversity / Quality-Diversity coverage report.
+
+## B.4 External validity and data realism
+- **B.4.1 Single universe / period / cohort.** US large-cap equities, 2020–2026H1 sealed leg, fixed 2005-cohort
+  top-30 (a composition bias on the sealed leg). *Mitigation:* point-in-time walk-forward universe selections ship
+  for a robustness re-evaluation; the bias is reported, not inherited.
+- **B.4.2 Delisting surcharge (univ4).** The surcharged panel books a flat loss on all delistings including M&A
+  exits, contrary to the source authors [`shumway1999delisting`]. *Mitigation — now MEASURED (ADR-051):* the
+  headline panel is the conservative zero-fill (univ5); the executed observed-terminal recovery (univ5s,
+  superseding the planned reason-gated re-pull) recovered the realised terminal return for all 333 dead names
+  with zero surcharges booked, so the corrected panel is byte-identical to the zero-fill headline — the vendor
+  series already carries each terminal, and univ4's flat surcharge was double-counting it on top of the M&A
+  contamination. univ4 remains only the disclosed contaminated heavy end of the sensitivity band.
+- **B.4.3 Transaction-cost realism.** A flat per-turnover cost understates the concave (square-root) market impact
+  a daily-rebalancing agent incurs and ignores the rebalancing-frequency tax relative to monthly baselines
+  [`almgren2005direct`; `frazzini2018trading`]. *Mitigation:* a square-root-impact cost-robustness sweep
+  ($Y\in\{0.5,0.75,1.0\}$) and a per-benchmark turnover table; if the result survives $Y=1.0$ it is robust on cost
+  grounds.
+- **B.4.4 Action-space corner.** The softmax simplex cannot reach an exact cash position [`gaopavel2017softmax`].
+  *Mitigation:* a diagnostic of how close the trained policy approaches cash in stress states; if it drives risky
+  weight toward zero, the limitation is empirically non-binding. *Future work:* Dirichlet / simplex-decomposition
+  parameterisations.
+- **B.4.5 Risk-free rate.** Cash accrues at a zero rate in the headline — the ratified §10 numeraire (rf = 0 is
+  common-mode across the arms and cancels to first order in the Sharpe difference); a DGS3MO rf-excess robustness
+  re-run of the family is reported to demonstrate, not assert, rf-invariance. *Direction:* under-
+  rewards the cash-fleeing tail-aware arm in ZIRP periods — conservative against the hypothesis.
+
+## B.5 Statistical inference
+- **B.5.1 Power vs. SESOI.** Under the primary one-sided intersection–union rule the minimum detectable effect is
+  ≈0.181 Sharpe ≈ 0.120 DSR at 80% power (≈0.141 DSR at 90%); the conservative Šidák ($m=6$, two-sided) sensitivity
+  this rule superseded as the gate is higher, ≈0.257 Sharpe. Either way the detectable effect exceeds the smallest
+  effect of interest (0.05 DSR); a non-rejection licenses "equivalent" only if the TOST interval lies inside ±0.05,
+  otherwise "inconclusive" [`lakens2017equivalence`]. Disclosed; the calibrated statement is reported.
+- **B.5.2 ES-backtest power and heavy tails.** Comparative Expected-Shortfall backtests are low-powered on
+  multi-year windows [`du2017backtesting`], and the Diebold–Mariano statistic is oversized under heavy-tailed loss
+  differentials irrespective of sample size [`heavytailsDM2026`], which the Harvey–Leybourne–Newbold
+  small-sample correction does not fix. *Mitigation:* the autocorrelation-robust headline is the stationary-bootstrap p-value, which does not invoke the
+  Diebold–Mariano asymptotics; the DM-HLN test is reported only as a companion with a size/power calibration, and
+  the tail-index of the FZ0 loss differential is examined at the results stage to flag any heavy-tailed size
+  distortion of that companion.
+- **B.5.3 CSCV/PBO bias regimes.** Combinatorially symmetric cross-validation is negatively biased when mean
+  returns are near zero [`witzany2021bayesian`] — the regime a near-null channel occupies. *Mitigation:* PBO is
+  cross-checked against the Deflated-Sharpe ratio; the regime is disclosed.
+- **B.5.4 Deflated-Sharpe effective trials.** The Deflated-Sharpe trial count assumes independent trials; guided
+  reflective search produces correlated candidates, so the effective count is smaller and is reported alongside the
+  nominal one.
+- **B.5.5 One-sided p construction.** The one-sided headline p is the directly-computed upper-tail bootstrap
+  probability (R64). The earlier construction — halving a two-sided re-centred bootstrap p — assumed
+  bootstrap-null symmetry and departs from the true one-sided tail whenever the CVaR-difference bootstrap is
+  asymmetric (over- or under-stating it according to the skew direction, which is unmeasured), so it is
+  superseded by the direct upper-tail probability, which is valid under any skew, and retained at most as a
+  sensitivity note.
+
+## B.6 Reproducibility and process
+- **B.6.1 Language-model non-determinism.** Generation is non-reproducible (version drift; floating-point
+  non-determinism) [`yuan2025nondeterminism`]. *Mitigation:* the replay-from-archive contract;
+  the analysis (not the generation) is the reproducible object.
+- **B.6.2 Fixed-device byte-identity.** The parallel==serial byte-identity holds on a fixed device, not across
+  hardware. Disclosed.
+- **B.6.3 Proposal re-scoping.** The submitted research question is a supervisor-approved *change of research
+  question* from the approved proposal, not a narrowing; disclosed in full with the proposal's original components
+  named as future work, pending the supervisor's written sign-off.
+- **B.6.4 Pre-registration provenance.** The frozen design was refined in light of a *directional, non-confirmatory*
+  prototype; the sealed leg was never touched in that process. The freeze is timestamped before the confirmatory
+  run, and the directional pilot is disclosed as corroborating, not causal, to the design.
+- **B.6.5 H1 descriptive-only.** The beat-the-human comparator is selected on the same sealed leg it is reported on
+  (a data-snoop); H1 carries no inferential claim and is marked descriptive throughout.
+
+## B.7 Future work (from the disclosed limitations)
+A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a
+corner-reaching action parameterisation (B.4.4); a second, open-weights model family and a second universe/period
+(B.3.1, B.4.1); execution of the buildable mechanism and robustness analyses already specified (reward-distance,
+Quality-Diversity diversity, hierarchical-Bayesian re-analysis, Model-Confidence-Set arm comparison, triangulated
+Bayesian-and-frequentist null, mediation, regime-conditional and synthetic-null exhibits).

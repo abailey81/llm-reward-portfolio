@@ -126,7 +126,7 @@ pre-ticked `[x]`; manual/decision items are `[ ]`.
 ### V1–V6 verification gates (toasty run-plan §5 — clear before the real Opus run)
 - [x] **V1 — Unit tests:** full fast suite green (466 passed). *(done this session)*
 - [x] **V2 — Dry-run:** keyless `--dry-run` end-to-end, 4 stages, no crash, guard fires correctly. *(done §1)*
-- [ ] **V3 — Live parallel smoke (load test):** `run_prototype.py --parallel --synthetic --gpu 4` (stub, tiny
+- [ ] **V3 — Live parallel smoke (load test):** `run_prototype.py --parallel --synthetic --gpu 3` (stub, tiny
       steps) → confirm 4 workers spawn + train + archive, **no OOM/CUDA error**, measure peak RAM/VRAM. Then
       the same for the winner-re-run parallelization on synthetic.
 - [ ] **V4 — Manual-recycle soak:** ~24 synthetic candidates at n_gpu=4, pool-recycle every 12, RSS flat across
@@ -148,29 +148,29 @@ degrades gracefully and never crashes.
 
 ## 5. EXACT run command(s) for the real campaign
 
-The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml` (6 arms · 30 candidates ·
+The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml` (7 arms · 30 candidates ·
 30 seeds · 50k steps · Opus 4.8 · `pass: B`). Pick ONE launch line by the search-parallelism decision.
 
-### Recommended n_gpu = 4 (the measured laptop ceiling)
+### Recommended n_gpu = 3 (the laptop ceiling; `--gpu >= 4` is refused by run_campaign)
 
 **(A) DEFAULT — serial search + PARALLEL test leg** *(no amendment needed; the prototype-de-risked search path)*
 ```
-.venv\Scripts\python.exe scripts\run_campaign.py --gpu 4 --resume
+.venv\Scripts\python.exe scripts\run_campaign.py --gpu 3 --resume
 ```
-- `--gpu 4` parallelizes only the **TEST leg** (the 180 winner re-runs = 6 winners × 30 seeds), which is
+- `--gpu 3` parallelizes only the **TEST leg** (the 210 winner re-runs = 7 winners × 30 seeds), which is
   science-neutral (embarrassingly parallel, zero reflection coupling). SEARCH stays serial reflect-on-last.
 - `--resume` makes it idempotent (skips archived (arm,seed) records after any interruption).
 - Auto-shutdown is config-gated (`auto_shutdown_on_complete: true`) — on a **rented** GPU it powers off on
   completion. **On the laptop add `--no-shutdown`** to keep the host alive:
   ```
-  .venv\Scripts\python.exe scripts\run_campaign.py --gpu 4 --resume --no-shutdown
+  .venv\Scripts\python.exe scripts\run_campaign.py --gpu 3 --resume --no-shutdown
   ```
 
 **(B) MAX-SPEED — PARALLEL search + PARALLEL test leg** *(ONLY after the R21 reflect-on-best amendment is ratified + frozen)*
 ```
-.venv\Scripts\python.exe scripts\run_campaign.py --gpu 4 --search-gpu 4 --resume
+.venv\Scripts\python.exe scripts\run_campaign.py --gpu 3 --search-gpu 3 --resume
 ```
-- `--search-gpu 4` additionally parallelizes SEARCH with **reflect-on-best** + matched 50k buffer (~4× on the
+- `--search-gpu 3` additionally parallelizes SEARCH with **reflect-on-best** + matched 50k buffer (~4× on the
   search half). This **changes the reflection prompt sequence** (frozen-decision) — do not use until the
   `headline_reflect_protocol` choice is recorded at freeze.
 
@@ -178,11 +178,12 @@ The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml
 - **Per the frozen YAML the headline choice is unresolved** (`headline_reflect_protocol: record_at_freeze`;
   default `serial_reflect_on_last`). **Until the user ratifies reflect-on-best, command (A) is the correct,
   in-spec launch.** Command (B) is faster and more Eureka-faithful but is amendment-gated.
-- **Recommended n_gpu = 4** on this laptop (VRAM ceiling; `auto_n_gpu(50000)=4`). Fallback **`--gpu 3`** if any
-  OOM. Optional `--cpu 1` only after freeing the ~8 GB other apps (marginal +10–15%; don't exceed 5 total).
-- **Throughput estimate (run-plan §3d):** laptop n_gpu=4 ≈ **~27 h**; rented RTX 4090 (8 workers) ≈ **~5 h /
-  ~$15** and is the frozen-plan target (recycling works on Linux). If using the 4090, keep the same flags;
-  the config's `auto_shutdown_on_complete` will power it off on completion (drop `--no-shutdown`).
+- **Recommended n_gpu = 3** on this laptop (VRAM ceiling; `--gpu >= 4` is refused by run_campaign). Fallback
+  **`--gpu 2`** if any OOM. Optional `--cpu 1` only after freeing the ~8 GB other apps (marginal +10–15%).
+- **Throughput:** the campaign is **LAPTOP-ONLY** (ADR-040, RTX 4050 n_gpu 2–3); wall-clock depends on the
+  frozen per-candidate budget B\* (convergence pilot pending) — see `docs/COMPUTE_AND_TRAINING_TIME.md` for the
+  laptop estimate. The earlier rented-RTX-4090 target is **superseded** (a cost choice, not a data/licence
+  blocker). `auto_shutdown_on_complete` is a verified no-op on the laptop; operators pass `--no-shutdown`.
 
 ### Useful variants
 - Resume after interruption: append `--resume` (already in the recommended lines).

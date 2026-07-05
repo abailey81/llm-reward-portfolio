@@ -1,0 +1,23 @@
+{
+  "cols": 4,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T23:46:14.682577+00:00",
+  "layer": "raw",
+  "name": "french_ff3_daily_x26.csv",
+  "provenance": {
+    "achieved_end": "2026-05-29",
+    "params": {
+      "start": "2005-01-01"
+    },
+    "query": "famafrench:F-F_Research_Data_Factors_daily",
+    "reason": "ADR-051 Split-C test end 2026-06-30; prior CSVs end 2026-04-30",
+    "stage": "refresh_french_2026",
+    "vendor": "KenFrench"
+  },
+  "relpath": "data\\raw\\french_ff3_daily_x26.csv",
+  "row_hash": "d65cdf96debb65dfb4f70808ca798a0a214542406229dcf5944f5f9058d7fde4",
+  "rows": 5385,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "d65cdf96debb65dfb4f70808ca798a0a214542406229dcf5944f5f9058d7fde4",
+  "vendor": "KenFrench"
+}

@@ -242,14 +242,24 @@ SAFE_BUILTINS: dict[str, Any] = {
     "None": None,
 }
 
-# Module-level flag mechanism: set True when safe_call substitutes SAFE_DEFAULT so
-# the orchestrating loop can mark the current candidate as failed and move on.
+# Module-level failure telemetry. The boolean is a LAST-call diagnostic (set on a substitution,
+# cleared by the next success) consumed by tests via candidate_failed(); it has NO production caller —
+# the loop does NOT gate candidates on it (docstring corrected 2026-07-03; the old text promised a
+# mark-failed-and-move-on mechanism that never existed).
 _LAST_CALL_FAILED: bool = False
-# Accumulating counters across one rollout window (reset by reset_failure_flag). The boolean above is
+# Accumulating counters across one WINDOW (reset by reset_failure_flag). The boolean above is
 # LAST-call only (a later success "clears" it, by design — test_sandbox); these COUNT every substitution
 # so a reward that fails on SOME steps but succeeds on the final one is still surfaced and QUANTIFIED
-# (the silent partial-degradation gap — R66, audit 2026-06-28). Read via safe_default_count()/
-# safe_call_count(); the rollout (src/env/runner.py) warns on the COUNT, not the last-call flag.
+# (the silent partial-degradation gap — R66, audit 2026-06-28). The ACTUAL visibility mechanism
+# (2026-07-03): each consumer resets the counters at its window start and reads them at its window end —
+# * TRAINING: src/agents/trainer.py::train_agent resets before model.learn, then WARNs with the
+#   substitution fraction and attaches train_safe_default_count/train_safe_call_count to the returned
+#   policy, which the loop / parallel worker archive into the candidate record's metrics;
+# * EVALUATION ROLLOUTS: src/env/runner.py resets before each rollout and WARNs on the count after it.
+# SEQUENTIAL-USE INVARIANT (batch-4 audit, 2026-07-03): reset-at-window-start / read-at-window-end is
+# sound ONLY because each process runs ONE reward window at a time (train, then rollouts, serially;
+# parallel workers are separate processes with their own module globals). Concurrent rollouts inside
+# one process would interleave the counts — scope these per-thread/per-env before ever doing that.
 _SAFE_DEFAULT_COUNT: int = 0
 _CALL_COUNT: int = 0
 
@@ -613,12 +623,21 @@ def safe_call(fn: RewardFn, *args: Any) -> tuple[float, dict[str, float], object
         except (or non-finite total): return (SAFE_DEFAULT, {}, None) and flag the
              candidate. No subprocess, no per-step timeout.
 
-    CONTAINMENT BOUNDARY (final-audit #12): this in-process training path is deliberately fast and is
-    NOT a security boundary — it applies no rlimits and no timeout. The boundary is (a) the static
-    ``ast_gate`` ALLOWLIST, which denies the reward any reach to os/subprocess/socket/FFI, and (b)
-    ``validate_once``, which runs the reward once in a killable child under POSIX RLIMIT_AS/CPU on the
-    Linux campaign box (the validation fixture is sized realistically so allocation-proportional bombs
-    surface there). A reward that is gate-clean and finite on the fixture is trusted to run in-process.
+    CONTAINMENT BOUNDARY (final-audit #12; Windows truth + residuals recorded 2026-07-03, batch-4
+    audit): this in-process training path is deliberately fast and is NOT a security boundary — it
+    applies no rlimits and no timeout. The boundary is (a) the static ``ast_gate`` ALLOWLIST, which
+    denies the reward any reach to os/subprocess/socket/FFI, and (b) ``validate_once``, which runs the
+    reward once in a killable child under a PARENT-ENFORCED wall-clock timeout (real on every platform
+    incl. the Windows laptop the campaign actually runs on — ADR-028/ADR-040; the POSIX RLIMIT_AS/CPU
+    caps are a silent no-op there, superseding the old "Linux campaign box" framing) on a
+    PRODUCTION-SHAPE fixture, so shape-proportional allocation bombs and single-step crashes surface
+    at validation. Accepted residuals under the non-adversarial threat model (the authors are
+    Opus/Qwen writing genuine reward code): a reward whose COST DEPENDS ON INPUT VALUES (cheap on the
+    fixture, explosive on a real return) or whose ``reward_state`` accumulates unboundedly across
+    ~200k in-process steps can still hang/OOM its training worker. Recovery is OPERATIONAL, not
+    in-process: watcher stall alert -> kill -> supervisor ``--resume`` (the un-archived slot
+    regenerates and the matched budget holds; CAMPAIGN_RUNBOOK §6). A reward that is gate-clean and
+    finite on the fixture is trusted to run in-process.
 
     Args:
         fn: A reward callable already cleared by `validate_once`.

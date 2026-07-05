@@ -117,7 +117,10 @@ def return_minus_variance(
     if len(history) > window:
         history = history[-window:]
 
-    # Population variance over the rolling window (0.0 until we have >= 2 obs).
+    # Population variance (ddof=0) over the rolling window (0.0 until we have >= 2 obs). DELIBERATE
+    # convention, not drift (audit 2026-07-02): a reward PENALTY needs a scale — lambda absorbs the
+    # ~(n-1)/n factor — while the INFERENTIAL machinery (deflated_sharpe._sample_moments, the allocators)
+    # uses ddof=1 where the statistics demand an unbiased estimator. The two are intentionally different.
     var = float(np.var(history)) if len(history) >= 2 else 0.0
     penalty = lam * var
     total = float(port_ret) - penalty
@@ -162,7 +165,12 @@ def return_minus_cvar(
         history = history[-window:]
 
     arr = np.asarray(history, dtype=float)
-    # Lower-tail Value-at-Risk threshold; CVaR = mean of returns at or below it.
+    # Lower-tail Value-at-Risk threshold; CVaR = mean of returns at or below it. Estimator note (audit
+    # 2026-07-02, closes a recurring false-positive): for the type-7 quantile, #{r <= Q(alpha)} =
+    # floor((n-1)*alpha)+1 == ceil(n*alpha) at essentially every n, so this IS the standard
+    # mean-of-worst-ceil(alpha*n) empirical CVaR used by the rest of the stack (reward_family,
+    # measurement._empirical_cvar) — ~3 points at window=50/alpha=0.05 (1 during early warm-up), a
+    # noisy few-point tail mean inherent to the window/alpha, not to the estimator choice.
     var_threshold = float(np.quantile(arr, alpha))
     tail = arr[arr <= var_threshold]
     cvar_loss = -float(tail.mean()) if tail.size > 0 else 0.0
@@ -258,6 +266,9 @@ def differential_sharpe(
     denom_base = b_prev - a_prev * a_prev
     # Warm-up guard: with A_0 = B_0 = 0 (or any degenerate variance) the
     # differential Sharpe is undefined; emit 0.0 until variance is positive.
+    # Disclosure (audit 2026-07-02): this warm-up 0.0 IS the live reward SAC receives on the first
+    # step(s) — one step in thousands for the frozen H1 `differential_sharpe` baseline (benign, but
+    # stated rather than silent; standard practice for the online DSR, whose D_1 is undefined).
     if denom_base > 0.0:
         dsr = (b_prev * d_a - 0.5 * a_prev * d_b) / (denom_base**1.5)
     else:

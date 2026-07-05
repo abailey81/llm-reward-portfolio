@@ -1,0 +1,51 @@
+{
+  // ============================================================================
+  // Minimal-footprint workspace (2026-07-02): VS Code stays OPEN during long GPU
+  // runs (pilots + the campaign) with the agent monitoring — so the editor must
+  // not compete with the 3 training workers for RAM/CPU. Two goals:
+  //   1. never track run artifacts (outputs/ churns thousands of files per run);
+  //   2. suppress background indexing/refresh work that grows memory over weeks.
+  // ============================================================================
+  "files.watcherExclude": {
+    "**/outputs/**": true,
+    "**/data/gold/**": true,
+    "**/data/raw/**": true,
+    "**/archive/**": true,
+    "**/.venv/**": true,
+    "**/.venv-lseg/**": true,
+    "**/tools/**": true,
+    "**/__pycache__/**": true
+  },
+  "search.exclude": {
+    "**/outputs/**": true,
+    "**/archive/**": true,
+    "**/.venv/**": true,
+    "**/.venv-lseg/**": true,
+    "**/tools/**": true
+  },
+  "files.exclude": {
+    "**/__pycache__": true
+  },
+  // data_pipeline/data -> data is a junction; never let search/watcher walk it twice
+  "search.followSymlinks": false,
+
+  // ---- background-work suppression (the RAM-growth killers over a 2-3 week run) ----
+  // Pylance: no whole-repo index (~1,500-test repo); analyse only files actually open
+  "python.analysis.indexing": false,
+  "python.analysis.diagnosticMode": "openFilesOnly",
+  // no periodic git status rescans of a large working tree (refresh manually via the SCM view)
+  "git.autorefresh": false,
+  "git.autofetch": false,
+  // no background extension/product update churn mid-run
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "update.mode": "manual",
+
+  // ---- renderer memory ----
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.value": 5,
+  "editor.minimap.enabled": false,
+  "terminal.integrated.scrollback": 200,
+  "workbench.enableExperiments": false,
+  "telemetry.telemetryLevel": "off"
+}

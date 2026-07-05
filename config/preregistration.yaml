@@ -30,6 +30,12 @@ fitness:
   selection_split: val
 
 loop: {runs: once, cpcv_on: winners, per_candidate_budget: fixed}   # audit B-3, B-5
+# R74 (2026-07-02): B* from the Split-C convergence pilot — R70's extend-until-converged criterion is
+# structurally unsatisfiable on this workload (eval flat-within-noise 25k..350k on BOTH ladders; the
+# detector's tolerance scales with the curve's own range -> collapses on a flat curve). Totality of
+# evidence: critic steep descent done by 100k (0.59->0.10), 350k nominally WORSE than 200k (overfit
+# direction), ~17 buffer passes at 200k. Mirrors campaign.yaml + algos.yaml (budget-mirror guard).
+train_steps_per_candidate: 200000
 
 # R19 (2026-06-20): de-duped the mislabelled spy_buy_and_hold (== 1/N, no index in the anonymised panel)
 # and expanded to 8 DISTINCT published allocators. Names match analyze_campaign._BENCHMARK_NAMES exactly.
@@ -140,14 +146,20 @@ inference:
     cross_hypothesis_multiplicity: {key: cross_hypothesis_multiplicity, stance: separate_estimands_bonferroni_4_sensitivity}  # R31
     delisting_band:                             # R33 — the delisting-return sensitivity band (DATA-level; DISJOINT)
       key: delisting_band
-      panel: univ4                              # the Shumway panel carrying the 333 delisting cells (NOT the headline — univ3 is, R44); band overwrites them
+      panel: univ4                              # the Shumway panel carrying the 333 delisting cells (NOT the headline — univ5 is, R73); band overwrites
+                                                #   them. The univ4-era panel ends 2025-12, so under Split C the band CLAMPS its window to the overlap
+                                                #   and records the clamp (analyze_campaign.delisting_band); ADR-051 located the truth AT the 0% end
+                                                #   (univ5s == univ5: 333/333 vendor terminals kept, zero surcharges; univ4 = M&A contamination +
+                                                #   terminal double-count).
       grid: [0.0, -0.30, -0.55, -1.00]          # delisting-return d applied to the 333 test-window cells; univ4=-30/-55 = the structural extreme
       metrics: [cvar_05, cvar_01]               # pooled tail recomputed per d (DATA-level, NO policy re-run)
       report_only: true
       gates_h2: false                           # DISJOINT from the frozen m=6 union — reported, NEVER a gate
 
 contamination: {blinding: anonymized_arrays, stratify: training_cutoff, second_model: open_weights_diff_cutoff}
-data_splits: {train: [2005, 2014], val: [2015, 2017], test: [2018, 2025]}
+# SPLIT C (ADR-044 RATIFIED 2026-07-01; EXECUTED 2026-07-02 with the univ5 rebuild + the settled
+# 2026-06-30 cutoff, ADR-051 — a PRE-FREEZE design choice, never results-contingent):
+data_splits: {train: [2005, 2016], val: [2017, 2019], test: [2020, 2026]}
 # Amendment 2026-06-25 (R33, PREREGISTRATION §7): the HEADLINE data panel is the survivorship-corrected
 # R44 (2026-06-26, supersedes R33's univ4 headline): the headline TRAIN/TEST panel is univ3 (liquidate_to_cash /
 # zero-fill — NO fabricated losses). univ4 (Shumway 1997: -30% NYSE/AMEX, -55% NASDAQ booked (1+r)(1+dl)-1 on each
@@ -155,17 +167,18 @@ data_splits: {train: [2005, 2014], val: [2015, 2017], test: [2018, 2025]}
 # surcharges 100% of the 333 delistings INCLUDING premium M&A (Refinitiv carries no delisting reason/terminal on
 # disk), so it FABRICATES left-tail mass in a tail-risk study and is only the M&A-CONTAMINATED heavy END of the
 # band (R39). The headline tail INSTRUMENT is the {0,-30,-55,-100%} delisting_band (analyze_campaign.delisting_band):
-# the sweep moves pooled test CVaR-5% only ~2% -> the H2 tail ORDERING is INVARIANT. univ3 is integrity-screened
+# the sweep moves pooled test CVaR-5% only ~2% (measured pre-Split-C, 2018-2025 window; re-derived at analyze
+# time on the executed window) -> the H2 tail ORDERING is INVARIANT. univ3 is integrity-screened
 # via univ3s (R39); univ4r (reason-gated re-pull, M&A keeps last price / failures surcharged,
 # docs/DATA_REPULL_DELISTING.md) is the CORRECT panel (recommended, OPTIONAL for H2 since the band is invariant).
-# The loader's live default IS univ3; the campaign needs no LLM_RP_GOLD_SUFFIX override.
+# The loader's live default IS univ5 (R73, 2026-07-02); the campaign needs no LLM_RP_GOLD_SUFFIX override.
 data_panel:
-  headline: univ3                       # R44: zero-fill, NO fabricated losses — the conservative, honest headline
+  headline: univ5                       # R73 (extends R44): zero-fill, NO fabricated losses; Split C, 5406x963 to 2026-06-30
   tail_instrument: delisting_band       # the {0,-30,-55,-100%} sensitivity is the headline tail result (H2 invariant)
-  band_zero_end: univ3                  # liquidate_to_cash / zero-fill = the 0%-delisting end of the band
-  band_heavy_end: univ4                 # Shumway -30/-55 = the M&A-CONTAMINATED heavy end (R39), NOT the tail truth
-  correct_panel_on_repull: univ4r       # reason-gated (M&A keeps last price); the ideal, needs a brief re-pull
-  resolves: ADR-024                     # R33 -> R44: liquidate_to_cash IS the band-bracketed headline, not univ4
+  band_zero_end: univ3                  # zero-fill 0% anchor; band computed on the univ3/univ4-era overlap (univ5 == univ3 byte-identically there)
+  band_heavy_end: univ4                 # Shumway -30/-55 = the M&A-CONTAMINATED heavy end (R39) + terminal DOUBLE-COUNT (ADR-051), NOT the tail truth
+  corrected_panel_executed: univ5s      # ADR-051 (2026-07-02) SUPERSEDES the planned univ4r: observed-terminal recovery, 333/333 vendor_terminal_kept, ZERO surcharges -> univ5s == univ5 byte-identically
+  resolves: ADR-024                     # R33 -> R44 -> R73: liquidate_to_cash IS the band-bracketed headline; the corrected panel EQUALS it
 algorithms: {headline: sac, secondary_critic: tqc, robustness: [ppo, td3]}
 
 # Amendment 2026-06-19 (R15, PREREGISTRATION §10): cost-robustness sweep. Re-price the FROZEN winners
@@ -173,12 +186,55 @@ algorithms: {headline: sac, secondary_critic: tqc, robustness: [ppo, td3]}
 # after the action), report-only/post-freeze, never re-selecting.
 cost_sweep: {grid_bps: [0, 5, 10, 25, 50], metric: [sharpe, cvar_05], method: analytic_reprice, report_only: true}
 
+# ---- 2026-07-02 machine-readable mirror of PREREGISTRATION.md §1 H1 (the four baselines named there;
+# hand-reward panel context in §9 — the old "§18" cite was a line-number error, DEEP_H1 C-1) (audit H-L2): the FROZEN H1
+# "beat-the-human" baseline family. config/campaign.yaml (NOT hash-bound; its compute knobs stay amendable)
+# is what the baseline TEST stage actually reads, so scripts/freeze.py::assert_h1_baselines_match asserts
+# campaign.yaml's list equals THIS one — exactly like the arm-roster guard — and the executed family cannot
+# silently drift from the frozen §1-H1 family. Post-freeze changes require a dated amendment.
+h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]
+
 # ---- 2026-06-24 pre-freeze amendments (machine-readable mirror of PREREGISTRATION.md §5 / §6 / §11) ----
-# §5 (lambda): fitness.lambda_cvar = 0.0 above (PROPOSED formalization; the INERT lambda_grid/calibration_fold
-#   in config/inference.yaml are deleted at freeze IF lambda=0 is ratified). §6 + §11 mirrored here:
+# §5 (lambda): fitness.lambda_cvar = 0.0 above (RATIFIED 2026-07-01; the INERT lambda_grid/calibration_fold
+#   in config/inference.yaml are to be DELETED at the Phase-1 freeze). §6 + §11 mirrored here:
 search:
-  reflect_protocol_default: serial_reflect_on_last    # prototype-de-risked path (run_campaign.py --search-gpu 0)
+  reflect_protocol_default: serial_reflect_on_best    # prototype-de-risked SERIAL path (run_campaign.py --search-gpu 0); M5/R32 upgraded its reflection seed to the generation's BEST (src/llm/loop.py:604-615, Eureka-faithful)
   reflect_protocol_parallel: best_of_generation       # --search-gpu>0; Eureka-faithful; buffer==train_steps (50k = TEST)
-  headline_reflect_protocol: parallel_reflect_on_best  # R24 (2026-06-25): headline = parallel best-of-generation; serial (default above) is the de-risked fallback
+  headline_reflect_protocol: serial_reflect_on_best   # RATIFIED 2026-07-01 (supersedes R24) + CORRECTED 2026-07-02: headline = SERIAL execution (prototype-de-risked, reproducible; ADR-040 deadline allows the longer run; parallel cache now also resume-safe so reproducibility is EQUAL). The 07-01 text said "reflect-on-last" on a STALE premise — R32/M5 had already made the serial path reflect on the generation's BEST (code-verified 2026-07-02 at src/llm/loop.py:604-615), so the headline is Eureka-faithful and the amendment's "reflect-on-last deviation" disclosure is DISSOLVED. Parallel best-of-generation retained as a now-resume-safe robustness variant.
 agent_numerics:
   tf32: true                            # config-driven (config/prototype.yaml agent.tf32, threaded to all 3 trainer legs); default-on, §11
+
+# ---- 2026-07-01 RATIFIED amendment: mechanism-headline reframe (PREREGISTRATION.md §2a) ----
+# Report-only, DISJOINT from the frozen m=6 testing family (does NOT gate H1-H4; keys disjoint from the
+# inference family). Foregrounds the MECHANISM as the dissertation's headline: does showing the LLM the
+# downside change the reward CODE it writes, and does it propagate to the realized tail? A null LOCATES
+# where the chain breaks. Robust to the sigma_D pilot: the mechanism headline holds whether H2 lands as
+# equivalence OR non-rejection.
+mechanism:
+  report_only: true
+  disjoint_from_m6: true
+  research_question: does_fed_tail_change_authored_code_and_propagate_to_realized_tail
+  causal_chain: [fed_tail_signal, authored_reward_code, trained_policy, realized_tail_outcome]
+  sub_questions:
+    sq1_responsiveness:
+      question: does_the_fed_signal_move_the_code
+      instrument: [responsiveness_spearman_bootstrap, reward_program_differential]
+      predicted_direction: positive_if_channel_acts     # prototype responsiveness was negative -> predicted break HERE
+    sq2_transmission:
+      question: does_the_code_move_the_outcome
+      instrument: mediation_fed_to_code_to_outcome_indirect_bootstrap
+      note: if_sq1_null_then_indirect_zero_for_any_b     # the chain severs at link 1
+    sq3_specificity:
+      question: genuine_use_of_tail_content_vs_surface_echo
+      instrument: [named_vs_blinded_structural_ast, legible_format_responsiveness_differential]
+  numeracy_bottleneck:                  # the headline reframe (ADR-039)
+    hypothesis: sq1_failure_is_partly_a_numeric_legibility_bottleneck   # close small floats ~50-70% (arXiv 2602.07812; NUMCoT 2406.02864)
+    ablation: legible_format_differential   # positive CI-separated legible-minus-raw gap CONFIRMS; null REFUTES
+  robust_to_sigma_d: true               # the mechanism headline does NOT depend on the equivalence-vs-non-rejection pilot outcome
+
+# ---- 2026-07-01 RATIFIED amendment: risk-free numeraire (PREREGISTRATION.md §10) ----
+numeraire:
+  report_only: true
+  headline_risk_free: 0.0               # rf=0 headline (excess == total); cancels to FIRST ORDER in the arm contrast (common-mode)
+  idle_cash_daily_rate: 0.0             # config/environment.yaml cash_daily_rate (env prices cash when set; frozen value 0)
+  rf_excess_robustness: reported        # DGS3MO-excess sensitivity (analyze_campaign.h2_sharpe_rf_robustness) demonstrates rf-invariance of the H2 ordering

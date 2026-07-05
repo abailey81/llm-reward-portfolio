@@ -1,0 +1,53 @@
+{
+  "cols": 25,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:32:59.305641+00:00",
+  "layer": "raw",
+  "name": "rf_bid_x26_029.csv",
+  "provenance": {
+    "library_versions": {
+      "pandas": "2.3.3",
+      "refinitiv": "?"
+    },
+    "params": {
+      "field": "BID",
+      "universe": [
+        "QLGC.OQ^H16",
+        "QRVO.OQ",
+        "R.N",
+        "RAI.N^G17",
+        "RAL.N",
+        "RBK.N^B06",
+        "RCL.N",
+        "RDC.N^D19",
+        "REG.OQ",
+        "REGN.OQ",
+        "RF.N",
+        "RHI.N",
+        "RHT.N^G19",
+        "RIG.N",
+        "RJF.N",
+        "RL.N",
+        "RMD.N",
+        "ROH.N^D09",
+        "ROK.N",
+        "ROL.N",
+        "ROP.OQ",
+        "ROST.OQ",
+        "RRC.N",
+        "RRD.N^B22",
+        "RSG.N"
+      ]
+    },
+    "query": "get_history.ohlc.x26",
+    "received_utc": "2026-07-01T22:32:59.290016+00:00",
+    "requested_utc": "2026-07-01T22:32:56.482827+00:00",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\raw\\rf_bid_x26_029.csv",
+  "row_hash": "31697984ec0e32529734b239f13b59e0fe6f672a79cbb77cebe3a3dd2d603554",
+  "rows": 123,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "31697984ec0e32529734b239f13b59e0fe6f672a79cbb77cebe3a3dd2d603554",
+  "vendor": "refinitiv"
+}

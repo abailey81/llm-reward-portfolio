@@ -121,7 +121,7 @@ def stratified_bootstrap_ci(
     if n == 0:
         return (float("nan"), float("nan"), float("nan"))
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
 
     point = iqm(s)
     boot = np.empty(n_boot, dtype=float)
@@ -186,7 +186,7 @@ def performance_profile(
         return (profile, profile.copy(), profile.copy())
 
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(0)  # P24: deterministic fallback (reported paths pass an explicit rng)
     n = s.size
     boot = np.empty((n_boot, t.size), dtype=float)
     for i in range(n_boot):

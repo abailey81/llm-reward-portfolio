@@ -5,6 +5,10 @@
 **Author:** SRE audit, 2026-06-24. **Mode:** read-only audit → apply-ready spec. I did **not** edit code.
 
 > **NOTE:** Phase-1 prototype used 6 arms; the campaign uses 7 arms incl. `placebo_shuffled` (R54). See PREREGISTRATION §3.
+> **NOTE (2026-07-02, Split C / univ5 — ADR-044/051, R73):** the sealed leg is now **2020–2026H1 on univ5**
+> (train 2005–2016 / val 2017–2019); the "sealed 2018-2025 leg" in the quoted code comments below reflects
+> `run_campaign.py` as read on 2026-06-24 and is kept verbatim as audit evidence. Also since applied:
+> `--gpu`/`--search-gpu` ≥ 4 are now **refused by the CLI** (the §C/§D OOM concern is enforced at launch).
 
 **Run under audit:** 6 arms × 30 candidates (1 search seed) → SELECT/FREEZE → 6 winners × 30 test seeds × 50k SAC steps.
 Real **Claude Opus 4.8** reward-author (Pass B, `ANTHROPIC_API_KEY`). Target host = **maxed RTX-4050-Laptop (6141 MiB VRAM) / 15.6 GB RAM**,

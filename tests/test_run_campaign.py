@@ -92,11 +92,12 @@ def test_resolve_windows_are_ordered_embargoed_and_nonempty(env_cfg):
     """The derived (train, val, test) windows are ordered, embargoed, and non-empty.
 
     Uses a synthetic panel whose date axis ACTUALLY SPANS the frozen calendar splits
-    (2005-2026, like the real 5,283-session gold panel) so ``np.searchsorted`` resolves
-    the dev train/val ends AND the 2018-2025 evaluation span — the clamps stay inert and
-    the full 21-day embargo is honoured. (The short 600-day fixture ends in 2006, before
-    the test span, so it cannot manufacture a 2018-2025 leg — that is a panel limitation,
-    not a campaign-logic one, and is exercised by the short-window TEST-stage tests below.)
+    (2005-2026, like the real 5,406-session univ5 gold panel) so ``np.searchsorted`` resolves
+    the Split-C dev train/val ends AND the 2020-2026 evaluation span — the clamps stay inert
+    (the eval END clamps benignly to the panel end) and the full 21-day embargo is honoured.
+    (The short 600-day fixture ends in 2006, before the test span, so it cannot manufacture a
+    2020-2026 leg — that is a panel limitation, not a campaign-logic one, and is exercised by
+    the short-window TEST-stage tests below.)
     """
     from src.data.synthetic import make_synthetic_panel
 
@@ -116,8 +117,8 @@ def test_resolve_windows_are_ordered_embargoed_and_nonempty(env_cfg):
     # the first downstream observation's lookback window does NOT reach back across the split boundary
     assert val_w[0] - lookback >= train_w[1] and test_w[0] - lookback >= val_w[1]
     assert test_w[1] <= panel.T
-    # The dev train end lands on the 2014-12-31 boundary (searchsorted side='right').
-    assert train_w[1] == int(np.searchsorted(np.asarray(panel.dates), np.datetime64("2014-12-31"), side="right"))
+    # The dev train end lands on the 2016-12-31 boundary (SPLIT C; searchsorted side='right').
+    assert train_w[1] == int(np.searchsorted(np.asarray(panel.dates), np.datetime64("2016-12-31"), side="right"))
     # A 3-window builder must ACCEPT these (the embargo guard passes).
     make_env_builder(panel, env_cfg, train_w, val_w, test_window=test_w, embargo=21)
 
@@ -334,7 +335,7 @@ def test_search_parallel_arm_builds_campaign_opts_and_calls_runner():
         return [{"arm": arms[0], "matched_budget_ok": True}]
 
     agent_cfg = {
-        "train_steps_per_candidate": 50000, "buffer_size": 50000, "batch_size": 256,
+        "train_steps_per_candidate": 200000, "buffer_size": 50000, "batch_size": 256,
         "normalize_obs": True, "device": "cpu",
     }
     run_campaign._search_parallel_arm(
@@ -357,9 +358,9 @@ def test_search_parallel_arm_builds_campaign_opts_and_calls_runner():
     assert captured["arms"] == ["distributional"]
     assert captured["n_gpu"] == 4 and captured["n_cpu"] == 0
     opts = captured["opts"]
-    # campaign budget threaded straight in (parallel.train_candidate couples buffer == train_steps == 50k,
-    # so SEARCH matches the TEST leg and the serial 25k-buffer skew is resolved)
-    assert opts["train_steps"] == 50000
+    # campaign budget B*=200k threaded straight in; parallel.train_candidate CAPS buffer at 50k
+    # (ADR-025 decoupling), so the replay RAM stays bounded while the step budget is the full B*.
+    assert opts["train_steps"] == 200000
     # the campaign's OWN reward-author (Opus), mapped into the flat key the parallel driver reads
     assert opts["model"] == "claude-opus-4-8"
     assert opts["api_key_env"] == "ANTHROPIC_API_KEY"
@@ -389,7 +390,13 @@ def _clear_shutdown():
 
 
 def _campaign_kwargs(tmp_path, arms):
-    """Minimal synthetic-panel kwargs for run_headline_campaign (no gold, no torch)."""
+    """Minimal synthetic-panel kwargs for run_headline_campaign (no gold, no torch).
+
+    ``min_candidates=0`` DISABLES the C3b winner-selection floor: these wiring tests inject fake
+    searches that archive no records, so with the production default (full budget) every arm would
+    stop at ``search_incomplete`` before the stage under test. The floor itself has dedicated tests
+    (``test_select_floor_*`` below) that run with it ENABLED.
+    """
     return dict(
         arms=list(arms),
         seeds=[0],
@@ -404,6 +411,7 @@ def _campaign_kwargs(tmp_path, arms):
         provider="stub",
         generations=1,
         agent_cfg={"train_steps_per_candidate": 10, "buffer_size": 10, "device": "cpu"},
+        min_candidates=0,
     )
 
 
@@ -1057,3 +1065,335 @@ def test_run_headline_campaign_skips_h3_singleshot_when_disabled(tmp_path, monke
     summary = run_campaign.run_headline_campaign(**_campaign_kwargs(tmp_path, ["distributional"]))
     assert called == []
     assert not any(s["arm"] == "distributional_singleshot" for s in summary["arms"])
+
+
+# --------------------------------------------------------------------------- #
+# M1 — window-drift guard: resolved windows must match the recorded set        #
+# --------------------------------------------------------------------------- #
+# The three unit tests below deliberately pin the FROZEN pre-Split-C univ3 reference windows
+# ([60,2517]/[2577,3272]/[3332,5283]) as a stable test vector — the guard is suffix-keyed, so the
+# univ3 row stays valid alongside the ACTIVE univ5 row (asserted against config + real gold below).
+def _expected_splits(tw, vw, te, suffix="univ3"):
+    return {"expected_windows": {suffix: {"train": list(tw), "val": list(vw), "test": list(te)}}}
+
+
+def test_assert_expected_windows_passes_on_match() -> None:
+    """Resolved windows equal to the recorded set for the suffix -> no raise (M1)."""
+    tw, vw, te = (60, 2517), (2577, 3272), (3332, 5283)
+    run_campaign._assert_expected_windows("univ3", tw, vw, te, _expected_splits(tw, vw, te))
+
+
+def test_assert_expected_windows_raises_on_drift() -> None:
+    """A shifted window (searchsorted-clamp drift) fails loud with a naming message (M1)."""
+    tw, vw, te = (60, 2517), (2577, 3272), (3332, 5283)
+    splits = _expected_splits(tw, vw, te)
+    drifted = (60, 2500)  # train end moved -> a new panel calendar
+    with pytest.raises(run_campaign.WindowDriftError, match="drift"):
+        run_campaign._assert_expected_windows("univ3", drifted, vw, te, splits)
+
+
+def test_assert_expected_windows_raises_when_suffix_unrecorded() -> None:
+    """A new suffix with no recorded windows must RAISE (record + review before running; M1)."""
+    tw, vw, te = (60, 2517), (2577, 3272), (3332, 5283)
+    splits = _expected_splits(tw, vw, te, suffix="univ3")
+    with pytest.raises(run_campaign.WindowDriftError, match="no expected windows recorded"):
+        run_campaign._assert_expected_windows("univ9", tw, vw, te, splits)
+
+
+def test_expected_windows_config_records_ratified_split_c() -> None:
+    """The freeze-bound config records the RATIFIED windows for BOTH suffixes (M1, ADR-044/051).
+
+    univ5 (ACTIVE, Split C) = train [60,3021] / val [3081,3775] / test [3835,5406] and univ3
+    (the FROZEN pre-Split-C reference) = [60,2517]/[2577,3272]/[3332,5283]. An accidental edit
+    to config/inference.yaml: splits.expected_windows fails HERE, before it can reach the guard.
+    """
+    expected = load_config("inference")["splits"]["expected_windows"]
+    assert expected["univ5"] == {"train": [60, 3021], "val": [3081, 3775], "test": [3835, 5406]}
+    assert expected["univ3"] == {"train": [60, 2517], "val": [2577, 3272], "test": [3332, 5283]}
+
+
+_GOLD_UNIV5 = Path(__file__).resolve().parents[1] / "data" / "gold" / "returns_panel_univ5.parquet"
+
+
+@pytest.mark.skipif(not _GOLD_UNIV5.exists(), reason="frozen univ5 gold panel not present (licensed data)")
+def test_resolve_windows_on_real_gold_match_recorded_univ5() -> None:
+    """ACTIVE path end-to-end: resolve_windows on the REAL univ5 panel equals the recorded set (M1).
+
+    Loads the dev top-30 to the settled 2026-06-30 cutoff (ADR-051), resolves the Split-C calendar
+    splits, and asserts the integer windows equal config/inference.yaml: splits.expected_windows.univ5
+    — the drift guard itself must pass on them (the exact pre-run check the headline campaign makes).
+    """
+    from src.data.loaders import load_gold_panel
+
+    splits = load_config("inference")["splits"]
+    panel = load_gold_panel("development", end="2026-06-30").panel
+    train_w, val_w, test_w = run_campaign.resolve_windows(panel, 60, splits, embargo=21)
+    assert (list(train_w), list(val_w), list(test_w)) == ([60, 3021], [3081, 3775], [3835, 5406])
+    run_campaign._assert_expected_windows("univ5", train_w, val_w, test_w, splits)  # no raise
+
+
+# --------------------------------------------------------------------------- #
+# C3a — no exit-0 husk runs: campaign_exit_status / incomplete_arms            #
+# --------------------------------------------------------------------------- #
+def _summ(arm, status, **extra):
+    return {"arm": arm, "status": status, **extra}
+
+
+def test_campaign_exit_status_clean_run_is_zero() -> None:
+    """Every arm tested (+ tested report-only stages) -> exit 0, nothing incomplete."""
+    summaries = [_summ("distributional", "tested"), _summ("scalar", "tested"),
+                 _summ("h1_baselines", "tested")]
+    assert run_campaign.campaign_exit_status(summaries, ["distributional", "scalar"]) == 0
+    assert run_campaign.incomplete_arms(summaries, ["distributional", "scalar"]) == []
+
+
+@pytest.mark.parametrize("bad_status", [
+    "no_candidates", "test_failure_wave", "winner_not_testable", "search_incomplete", "error",
+    "some_future_status",  # fail-loud default: an unknown non-tested status must gate too
+])
+def test_campaign_exit_status_failure_statuses_exit_3(bad_status) -> None:
+    """Any FAILURE status (or an unknown status) -> EXIT_INCOMPLETE (3): the supervisor relaunches."""
+    summaries = [_summ("distributional", "tested"), _summ("scalar", bad_status)]
+    code = run_campaign.campaign_exit_status(summaries, ["distributional", "scalar"])
+    assert code == run_campaign.EXIT_INCOMPLETE == 3
+    assert ("scalar", bad_status) in run_campaign.incomplete_arms(summaries, ["distributional", "scalar"])
+
+
+def test_campaign_exit_status_missing_arm_is_a_husk() -> None:
+    """An expected arm with NO summary row on a NON-interrupted run is the silent-drop husk -> exit 3."""
+    summaries = [_summ("distributional", "tested")]
+    assert run_campaign.campaign_exit_status(summaries, ["distributional", "scalar"]) == 3
+    assert ("scalar", "missing") in run_campaign.incomplete_arms(summaries, ["distributional", "scalar"])
+
+
+def test_campaign_exit_status_operator_interrupt_stays_zero() -> None:
+    """skipped_shutdown / frozen_test_deferred are DELIBERATE stops: incomplete (table + flag) but exit 0,
+    so the supervisor's graceful-shutdown contract (exit 0 = do not fight the operator) is preserved —
+    including for the arms the interrupt never reached (no summary row)."""
+    summaries = [_summ("distributional", "tested"), _summ("scalar", "frozen_test_deferred"),
+                 _summ("placebo", "skipped_shutdown")]
+    expected = ["distributional", "scalar", "placebo", "scalar_cvar5"]  # scalar_cvar5 never reached
+    assert run_campaign.campaign_exit_status(summaries, expected) == 0
+    bad = dict(run_campaign.incomplete_arms(summaries, expected))
+    assert bad["scalar"] == "frozen_test_deferred" and bad["placebo"] == "skipped_shutdown"
+    assert bad["scalar_cvar5"] == "missing"  # still PRINTED/flagged, just not a failure exit
+
+
+def test_campaign_exit_status_failure_beats_interrupt() -> None:
+    """A failed arm on an interrupted run is still a failure: the interrupt excuses MISSING arms only."""
+    summaries = [_summ("distributional", "test_failure_wave"), _summ("scalar", "skipped_shutdown")]
+    assert run_campaign.campaign_exit_status(summaries, ["distributional", "scalar"]) == 3
+
+
+@pytest.mark.parametrize("shutting_down,n_done,n_expected,expected", [
+    (False, 0, 3, "tested"),                 # no shutdown -> always tested (even with 0 done, per §J)
+    (False, 3, 3, "tested"),
+    (True, 3, 3, "tested"),                  # shutdown but every seed finished -> tested (flag set at end)
+    (True, 4, 3, "tested"),                  # more on disk than requested (stale/resume) -> tested
+    (True, 2, 3, "frozen_test_deferred"),    # genuine mid-leg drain left a seed un-run
+    (True, 0, 3, "frozen_test_deferred"),
+])
+def test_stage_completion_status(shutting_down, n_done, n_expected, expected) -> None:
+    """A completed TEST stage is 'tested'; only a shutdown that left seeds UN-RUN is 'frozen_test_deferred'.
+
+    This pins the distinction the three post-leg sites (arms / H1 baselines / H3 single-shot) share via
+    ``stage_completion_status``: the interrupted status is reserved for a REAL partial drain, so a leg
+    that returned complete results is never re-labelled just because the flag was set as it finished
+    (spec §J / §A.3; regression guard for test_shutdown_after_arm1_completes_stops_arm2_at_boundary).
+    """
+    assert run_campaign.stage_completion_status(
+        shutting_down=shutting_down, n_done=n_done, n_expected=n_expected) == expected
+
+
+def test_run_headline_campaign_summary_carries_gate_and_main_would_exit_3(
+    tmp_path, monkeypatch, _clear_shutdown
+):
+    """End-to-end through run_headline_campaign: a no_candidates arm lands in the summary as
+    all_arms_tested=False + exit_code=3 (what main() raises as SystemExit)."""
+    monkeypatch.setattr(run_campaign, "run_winner_search", lambda arm, **k: {"arm": arm})
+    monkeypatch.setattr(run_campaign, "select_winner", lambda _r: None)  # -> no_candidates
+    monkeypatch.setattr(run_campaign, "make_agent_trainer_factory", lambda: (lambda *a, **k: None))
+
+    summary = run_campaign.run_headline_campaign(**_campaign_kwargs(tmp_path, ["distributional"]))
+    assert summary["all_arms_tested"] is False
+    assert summary["exit_code"] == run_campaign.EXIT_INCOMPLETE
+    assert [s["status"] for s in summary["arms"]] == ["no_candidates"]
+
+
+def test_run_headline_campaign_clean_summary_flags_complete(tmp_path, monkeypatch, _clear_shutdown):
+    """A fully-tested run reports all_arms_tested=True and exit_code=0."""
+    monkeypatch.setattr(run_campaign, "run_winner_search", lambda arm, **k: {"arm": arm})
+    monkeypatch.setattr(run_campaign, "select_winner",
+                        lambda _r: {"candidate_id": "c", "generation": 0, "reward_source": _WINNER_SOURCE,
+                                    "reward_source_hash": "h", "feedback_block": "", "metrics": {"val_fitness": 0.5}})
+    monkeypatch.setattr(run_campaign, "freeze_winner", lambda *a, **k: None)
+    monkeypatch.setattr(run_campaign, "evaluate_winner_on_test", lambda *a, **k: [{"run_id": "x"}])
+    monkeypatch.setattr(run_campaign, "make_agent_trainer_factory", lambda: (lambda *a, **k: None))
+
+    summary = run_campaign.run_headline_campaign(**_campaign_kwargs(tmp_path, ["distributional"]))
+    assert summary["all_arms_tested"] is True and summary["exit_code"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# C3b — winner-selection floor: a PARTIAL search pool can never freeze a winner #
+# --------------------------------------------------------------------------- #
+def test_select_floor_ok_pure_logic() -> None:
+    """Resolved slots = accepted + LEDGERED failures; unresolved slots (llm_error skips) leave it short."""
+    assert run_campaign.select_floor_ok(30, 0, 30) is True    # full pool, no failures
+    assert run_campaign.select_floor_ok(27, 3, 30) is True    # sandbox rejects RESOLVE their slots
+    assert run_campaign.select_floor_ok(27, 0, 30) is False   # 3 unresolved (llm_error / crash) -> short
+    assert run_campaign.select_floor_ok(0, 30, 30) is False   # all-failures pool: nothing to select
+    assert run_campaign.select_floor_ok(5, 0, 3) is True      # over-resolved (resumed re-run) never blocks
+
+
+def test_select_floor_blocks_partial_pool_and_reports_resumable_status(
+    tmp_path, monkeypatch, _clear_shutdown
+):
+    """A search that archived FEWER records than the budget (e.g. llm_error skips) must NOT select or
+    freeze: the arm is reported ``search_incomplete`` (resumable) and neither select_winner nor
+    freeze_winner nor the test leg run. The fake search archives 1 accepted record of a 2-budget."""
+    from src.io.results import write_run as _wr
+
+    selected: list = []
+    frozen: list = []
+    tested: list = []
+
+    def _short_search(arm, *, archive_root, **_kw):  # noqa: ANN001 - archives 1 < candidates=2
+        _wr({"run_id": f"{arm}-g0-c0", "arm": arm, "seed": 0, "fold": 0,
+             "candidate_id": f"{arm}-g0-c0", "generation": 0, "reward_source": _WINNER_SOURCE,
+             "reward_source_hash": "h", "feedback_block": "", "metrics": {"val_fitness": 0.5},
+             "wall_clock": 0.0, "env_fingerprint": "x"}, str(Path(archive_root) / arm))
+        return {"arm": arm}
+
+    monkeypatch.setattr(run_campaign, "run_winner_search", _short_search)
+    monkeypatch.setattr(run_campaign, "select_winner", lambda _r: selected.append(1) or None)
+    monkeypatch.setattr(run_campaign, "freeze_winner", lambda *a, **k: frozen.append(1))
+    monkeypatch.setattr(run_campaign, "evaluate_winner_on_test", lambda *a, **k: tested.append(1) or [])
+    monkeypatch.setattr(run_campaign, "make_agent_trainer_factory", lambda: (lambda *a, **k: None))
+
+    kwargs = _campaign_kwargs(tmp_path, ["distributional"])
+    kwargs["min_candidates"] = None  # production default: floor = the FULL candidates budget (2)
+    summary = run_campaign.run_headline_campaign(**kwargs)
+
+    assert selected == [] and frozen == [] and tested == []  # nothing selected/frozen/tested
+    s = summary["arms"][0]
+    assert s["status"] == "search_incomplete" and s["n_accepted"] == 1 and s["required"] == 2
+    assert summary["exit_code"] == run_campaign.EXIT_INCOMPLETE  # resumable failure, not a husk
+
+
+def test_select_floor_counts_ledgered_failures_as_resolved(tmp_path, monkeypatch, _clear_shutdown):
+    """A pool of (budget-1) accepted + 1 LEDGERED sandbox failure is COMPLETE: failures replay on
+    --resume and can never be re-filled, so they must not brick the arm (mirrors the parallel
+    matched_budget_ok semantics)."""
+    import json as _json
+
+    from src.io.results import write_run as _wr
+
+    def _search_with_ledgered_failure(arm, *, archive_root, **_kw):  # noqa: ANN001
+        arm_root = Path(archive_root) / arm
+        _wr({"run_id": f"{arm}-g0-c0", "arm": arm, "seed": 0, "fold": 0,
+             "candidate_id": f"{arm}-g0-c0", "generation": 0, "reward_source": _WINNER_SOURCE,
+             "reward_source_hash": "h", "feedback_block": "", "metrics": {"val_fitness": 0.5},
+             "wall_clock": 0.0, "env_fingerprint": "x"}, str(arm_root))
+        (arm_root / "failures.jsonl").write_text(
+            _json.dumps({"candidate_id": f"{arm}-g0-c1", "error": "sandbox: forbidden import"}) + "\n",
+            encoding="utf-8",
+        )
+        return {"arm": arm}
+
+    monkeypatch.setattr(run_campaign, "run_winner_search", _search_with_ledgered_failure)
+    monkeypatch.setattr(run_campaign, "freeze_winner", lambda *a, **k: None)
+    monkeypatch.setattr(run_campaign, "evaluate_winner_on_test", lambda *a, **k: [{"run_id": "x"}])
+    monkeypatch.setattr(run_campaign, "make_agent_trainer_factory", lambda: (lambda *a, **k: None))
+
+    kwargs = _campaign_kwargs(tmp_path, ["distributional"])
+    kwargs["min_candidates"] = None  # floor = full budget (2): 1 accepted + 1 ledgered failure passes
+    summary = run_campaign.run_headline_campaign(**kwargs)
+    assert summary["arms"][0]["status"] == "tested"
+    assert summary["exit_code"] == 0
+
+
+def test_search_pool_counts_dedupes_across_ledgers(tmp_path) -> None:
+    """_search_pool_counts unions failures across BOTH ledger layouts, de-duplicated by candidate_id
+    (a completed arm writes the same failure to the crash-robust per-prefix ledger AND failures.jsonl)."""
+    import json as _json
+
+    from src.io.results import write_run as _wr
+
+    root = tmp_path / "arm"
+    _wr({"run_id": "a-g0-c0", "arm": "a", "seed": 0, "fold": 0, "candidate_id": "a-g0-c0",
+         "generation": 0, "reward_source": _WINNER_SOURCE, "reward_source_hash": "h",
+         "feedback_block": "", "metrics": {"val_fitness": 0.1}, "wall_clock": 0.0,
+         "env_fingerprint": "x"}, str(root))
+    row = _json.dumps({"candidate_id": "a-g0-c1", "error": "sandbox"}) + "\n"
+    (root / "failures.jsonl").write_text(row, encoding="utf-8")           # end-of-arm ledger
+    (root / "a-s0-a.failures.jsonl").write_text(row, encoding="utf-8")    # per-prefix append ledger
+    n_accepted, n_failed = run_campaign._search_pool_counts(root)
+    assert n_accepted == 1
+    assert n_failed == 1  # the SAME candidate_id in both files counts once
+
+
+# --------------------------------------------------------------------------- #
+# M4 — resume threads through the SERIAL search fallback down to run_arm       #
+# --------------------------------------------------------------------------- #
+def test_run_winner_search_threads_resume_to_arm_runner() -> None:
+    """run_winner_search(resume=...) reaches the injected arm_runner as run_arm's resume kwarg."""
+    captured: dict = {}
+
+    def _capture_runner(arm, **kw):  # noqa: ANN001
+        captured["arm"] = arm
+        captured.update(kw)
+        return {"arm": arm}
+
+    run_campaign.run_winner_search(
+        "distributional", search_seed=3, archive_root="ignored", synthetic=True,
+        candidates=2, generations=1, train_steps=10, n_trials=2,
+        resume=True, arm_runner=_capture_runner,
+    )
+    assert captured["arm"] == "distributional"
+    assert captured["resume"] is True and captured["seed"] == 3
+
+    run_campaign.run_winner_search(
+        "distributional", search_seed=3, archive_root="ignored", synthetic=True,
+        candidates=2, generations=1, train_steps=10, n_trials=2,
+        arm_runner=_capture_runner,
+    )
+    assert captured["resume"] is False  # default stays a fresh search (back-compatible)
+
+
+def test_headline_serial_search_receives_campaign_resume(tmp_path, monkeypatch, _clear_shutdown):
+    """run_headline_campaign(resume=True) threads resume into the serial run_winner_search call."""
+    seen: dict = {}
+
+    def _spy_search(arm, **kw):  # noqa: ANN001
+        seen["resume"] = kw.get("resume")
+        return {"arm": arm}
+
+    monkeypatch.setattr(run_campaign, "run_winner_search", _spy_search)
+    monkeypatch.setattr(run_campaign, "select_winner", lambda _r: None)
+    monkeypatch.setattr(run_campaign, "make_agent_trainer_factory", lambda: (lambda *a, **k: None))
+
+    kwargs = _campaign_kwargs(tmp_path, ["distributional"])
+    kwargs["resume"] = True
+    run_campaign.run_headline_campaign(**kwargs)
+    assert seen["resume"] is True
+
+
+# --------------------------------------------------------------------------- #
+# m10 — config-as-truth resume default + the C3b/M7-adjacent CLI surface        #
+# --------------------------------------------------------------------------- #
+def test_resolve_resume_config_default_and_cli_overrides() -> None:
+    """config/campaign.yaml `resume:` is the default; --resume forces on; --no-resume beats everything."""
+    assert run_campaign.resolve_resume(False, False, True) is True     # config-as-truth default
+    assert run_campaign.resolve_resume(False, False, False) is False
+    assert run_campaign.resolve_resume(True, False, False) is True     # explicit --resume wins over cfg
+    assert run_campaign.resolve_resume(False, True, True) is False     # --no-resume forces fresh
+    assert run_campaign.resolve_resume(True, True, True) is False      # --no-resume beats --resume too
+
+
+def test_build_parser_exposes_min_candidates_and_no_resume() -> None:
+    """--min-candidates defaults to None (=> full-budget floor) and --no-resume defaults off."""
+    parser = run_campaign.build_parser()
+    actions = {a.dest: a for a in parser._actions}
+    assert "min_candidates" in actions and actions["min_candidates"].default is None
+    assert "no_resume" in actions and actions["no_resume"].default is False

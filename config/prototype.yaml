@@ -16,10 +16,17 @@ seeds: [0]                        # 1 seed -> DIRECTIONAL only (Henderson 2018);
 n_trials: 40                      # Deflated-Sharpe expected-max correction = per-arm candidate count (review M1)
 
 data:
-  universe: univ3                 # the frozen survivorship-free PIT panel (returns_panel_univ3, sha256 f4edc86)
+  # CAMPAIGN-LIVE block (SPLIT C, ADR-044 — executed 2026-07-02): run_campaign's SEARCH stage threads
+  # this block into the panel/window builders (run_winner_search -> build_parallel_opts -> parallel.
+  # _panel_and_windows; the serial run_arm path reads it too), so it carries the ACTIVE Split-C dev
+  # splits. The EXECUTED 2026-06-21 directional prototype ran the pre-Split-C splits (2005-14/15-17
+  # on univ3) — its archived records are unaffected.
+  universe: univ5                 # documentation only — the ACTIVE panel selector is config/data.yaml:
+                                  #   gold.suffix (read by loaders.gold_suffix()); this key is not read
+                                  #   by code. univ5 = returns_panel_univ5, sha256 7cf5d98 (ADR-051).
   phase: development              # dev top-30 (2005 selection); see the PIT-simplification caveat above
-  val_end: "2017-12-31"           # load train(2005-2014)+val(2015-2017); split at the train/val boundary
-  train_end: "2014-12-31"
+  val_end: "2019-12-31"           # load train(2005-2016)+val(2017-2019); split at the train/val boundary
+  train_end: "2016-12-31"
   on_missing: liquidate_to_cash   # PROVISIONAL (ADR-024) — directional prototype only
 
 agent:
@@ -73,7 +80,7 @@ llm:
   # threads its OWN — config/campaign.yaml: llm = Opus 4.8). Sonnet uses the NATIVE Anthropic transport
   # (prompt-cache + token-usage archival, ADR-016/033), same ANTHROPIC_API_KEY as the campaign.
   pass: B                         # 'B' = real LLM (Sonnet 4.6); 'A' = keyless StubDesignerTransport (free machinery test)
-  provider: anthropic             # stub | anthropic | gemini | openai | deepseek  (provider-neutral transport, ADR-035)
+  provider: anthropic             # stub | anthropic | gemini | openai | deepseek | openrouter  (provider-neutral transport, ADR-035; openrouter added 2026-07-02 for the R71 Qwen secondary)
   model_snapshot: "claude-sonnet-4-6"   # pinned dateless id (immutable, ADR-016); native Anthropic SDK transport
   api_key_env: ANTHROPIC_API_KEY        # key in gitignored .env (loaded by build_transport); read from env, NEVER committed
   temperature: 1.0                      # Eureka K-sample diversity — Sonnet 4.6 HONORS temperature (Anthropic max=1.0),

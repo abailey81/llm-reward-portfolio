@@ -265,3 +265,58 @@ def test_per_seed_test_correctly_sized_vs_seed_averaged_overrejection() -> None:
     new_rate, old_rate = new_rej / n_rep, old_rej / n_rep
     assert new_rate < 0.13, f"per-seed test should be ~5% under the null; got {new_rate:.3f}"
     assert old_rate > new_rate + 0.05, f"seed-averaged should over-reject; new={new_rate:.3f} old={old_rate:.3f}"
+
+
+# --------------------------------------------------------------------------- #
+# Batch-5 M2 (2026-07-03) — vectorized IQM bootstrap fast path is bit-identical #
+# --------------------------------------------------------------------------- #
+def test_vectorized_iqm_fast_path_is_bit_identical_to_reference_loop() -> None:
+    """The ``statistic is iqm`` fast path must EQUAL the reference per-row loop bitwise, not approx.
+
+    Same seed -> the same pre-drawn (n_boot, n) index matrix; ``statistic=iqm`` takes the vectorized
+    row-wise path while a distinct-but-equivalent callable (``lambda x: iqm(x)`` fails the ``is``
+    check) takes the reference loop over the SAME index rows. The fast path is a pure re-expression
+    of the loop — every returned float must be identical. Guards the power simulator's speed fix
+    from ever drifting the campaign's REAL paired test.
+    """
+    from src.inference.bootstrap import iqm, paired_seed_difference_test
+
+    gen = np.random.default_rng(7)
+    a = gen.normal(0.5, 1.0, size=30)
+    b = gen.normal(0.4, 1.0, size=30)
+    fast = paired_seed_difference_test(a, b, statistic=iqm, n_boot=257, rng=np.random.default_rng(123))
+    ref = paired_seed_difference_test(
+        a, b, statistic=lambda x: iqm(x), n_boot=257, rng=np.random.default_rng(123)
+    )
+    for key in ("stat", "pvalue", "pvalue_one_sided_greater", "effect", "ci_low", "ci_high"):
+        assert fast[key] == ref[key], f"{key}: fast={fast[key]!r} != ref={ref[key]!r}"
+
+
+def test_vectorized_fast_path_small_n_and_nonfinite_gate() -> None:
+    """Fast-path edges: n < 4 rows use the plain row mean (iqm parity); non-finite input falls back.
+
+    n=3 exercises the ``n < 4`` branch of ``_iqm_rows`` against the loop. A NaN in one arm must
+    route BOTH calls through the reference loop (the finite gate), where iqm's per-resample finite
+    filter applies — the two paths again agree exactly because they are the same code.
+    """
+    from src.inference.bootstrap import iqm, paired_seed_difference_test
+
+    gen = np.random.default_rng(11)
+    a3 = gen.normal(size=3)
+    b3 = gen.normal(size=3)
+    fast = paired_seed_difference_test(a3, b3, statistic=iqm, n_boot=64, rng=np.random.default_rng(5))
+    ref = paired_seed_difference_test(
+        a3, b3, statistic=lambda x: iqm(x), n_boot=64, rng=np.random.default_rng(5)
+    )
+    for key in ("pvalue", "effect", "ci_low", "ci_high"):
+        assert fast[key] == ref[key]
+
+    a_nan = gen.normal(size=8)
+    a_nan[2] = float("nan")
+    b8 = gen.normal(size=8)
+    gated = paired_seed_difference_test(a_nan, b8, statistic=iqm, n_boot=64, rng=np.random.default_rng(9))
+    loop = paired_seed_difference_test(
+        a_nan, b8, statistic=lambda x: iqm(x), n_boot=64, rng=np.random.default_rng(9)
+    )
+    for key in ("pvalue", "effect", "ci_low", "ci_high"):
+        assert gated[key] == loop[key]

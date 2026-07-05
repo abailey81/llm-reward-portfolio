@@ -1,0 +1,29 @@
+{
+  "cols": 4,
+  "format": "csv",
+  "frozen_utc": "2026-07-01T22:36:33.194110+00:00",
+  "layer": "raw",
+  "name": "fred_macro_x26.csv",
+  "provenance": {
+    "params": {
+      "end": "2026-06-30",
+      "start": "2005-01-01"
+    },
+    "query": "fredgraph.csv keyless",
+    "reason": "ADR-051 extension: frozen fred_macro.csv ends 2025-12-31",
+    "series": [
+      "VIXCLS",
+      "DGS3MO",
+      "DGS10",
+      "T10Y2Y"
+    ],
+    "stage": "refresh_fred_2026",
+    "vendor": "FRED"
+  },
+  "relpath": "data\\raw\\fred_macro_x26.csv",
+  "row_hash": "3f8702f7b07e32fa8343699464760cb5af55742188fd4174adb2c45e04940f3e",
+  "rows": 5607,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "3f8702f7b07e32fa8343699464760cb5af55742188fd4174adb2c45e04940f3e",
+  "vendor": "FRED"
+}

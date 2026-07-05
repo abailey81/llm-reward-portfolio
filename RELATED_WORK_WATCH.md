@@ -140,8 +140,9 @@ adversarial verification; run wf_3e5ea496-4d7). Verdict + fences are now source-
   refs.bib `% VERIFY` on that entry is CLEARED). DISTINCT from the short Risk note arXiv:1507.00244
   (Fissler-Ziegel-Gneiting, Risk Jan 2016 pp.58-61) on the joint (VaR,ES) backtest. (1507.00244 is not in
   refs.bib; no conflation present.)
-- **STILL UNVERIFIED (do NOT cite):** the 8 flagged IDs (2602.09305, 2605.08061, 2409.10164, 2512.23139,
-  2605.23007, SSRN 5950754, Wang-Liu JRFM 2025, Grant et al. J.Forecasting 2026) were NOT resolved — several
+- **STILL UNVERIFIED (do NOT cite):** the flagged IDs (2605.08061, 2512.23139,
+  2605.23007, SSRN 5950754, Wang-Liu JRFM 2025, Grant et al. J.Forecasting 2026 — 2602.09305 and 2409.10164 STRUCK
+  2026-07-04: verified first-hand, cite as preprint with no asserted venue; see the flag-clearance entry below) were NOT resolved — several
   imply 2026 dates beyond the verification horizon. Confirmed ABSENT from refs.bib (hygiene held). Also
   unverified in this run (fetched but below the verify-budget): HLN 1997, Coroneo-Iacone 2409.12662,
   Bailey-LdP DSR/PBO, rliable 2108.13264, Text2Reward 2309.11489, OPRO 2309.03409 — resolve before relying.
@@ -167,8 +168,9 @@ cluster (Kyle, Almgren-Chriss, Toth, Cont) — currently 0 disk-read cites; spli
 shaping, Singh 2010 IMRL). 3 mislabeled corpus files (FinRLlama DOI, Cheridito-Stadje Time-INconsistency,
 Maillard=Cagna-Casuccio), 1 unparseable (Follmer-Schied — do not quote).
 **CITE-INTEGRITY:** suspicious 26xx ids (incl. RF-Agent 2602.23876) -> cite VENUE (NeurIPS 2025) + % VERIFY until
-first-hand checked. DO-NOT-CITE re-confirmed: 2602.09305, 2604.23505, 2602.18053, 2605.08061, 2512.23139,
-2605.23007, 2605.28918, SSRN 5950754 — none enter refs.bib unverified.
+first-hand checked. DO-NOT-CITE re-confirmed: 2604.23505, 2602.18053, 2605.08061, 2512.23139,
+2605.23007, 2605.28918, SSRN 5950754 — none enter refs.bib unverified. (2602.09305 STRUCK 2026-07-04: verified
+first-hand, cite as preprint with no asserted venue; see the flag-clearance entry below.)
 **Next sweep due:** week before ICAIF submission.
 
 ## 2026-06-28 — Deep-dive corpus additions (verified, staged in paper/refs_staging.bib)
@@ -195,3 +197,140 @@ All six below were arXiv-id-VERIFIED (abs page + cross-check) and page-1-read fi
 - RL-evaluation authority alongside rliable (Agarwal 2021): **Patterson, Neumann, White & White 2024, "Empirical Design in RL", JMLR (arXiv:2304.01315 % VERIFY)** + Jordan et al. ICML 2024 (arXiv:2406.16241 % VERIFY).
 **Action before freeze:** add URDP to the cite-and-distinguish fence and the dossier (an examiner on the IV axis will look for it). The rest are write-up citations, not design changes; all arXiv ids stay % VERIFY until checked first-hand.
 **Next sweep due:** the week before the 2 Aug ICAIF deadline.
+
+## Entry — 2026-07-02 (pre-freeze fence closure: GIFT + ELfolio landed, cited + fenced)
+**Result: conjunctive novelty cell INTACT; two nearest neighbours cited and fenced first-hand.** Broad claims
+("every finance system uses the LLM as a signal", "nearest finance work = FinRL-DeepSeek") are NO LONGER safe and
+were tightened to the conjunctive cell in CH1 §1.3, CH2 §2.2 and 00_FRAMING §4.
+- **GIFT (arXiv:2606.08450, Wu et al., v1 2026-06-07, 25pp, cs.AI, code github.com/KAG778/GIFT) — VERIFIED
+  first-hand (abs page + HTML full text) and added as `wu2026gift`.** LLM-guided state-reward interface for
+  PPO-based portfolio RL. All three distinguishers CONFIRMED from the paper body: (a) varies STATE and REWARD
+  jointly (FSE + RRS modules) vs our reward-only identification; (b) reward = intrinsic term + subset of a FIXED
+  risk-rule library, refined on generic rollout diagnostics (IC, critic attribution, reward trend/variability,
+  return/drawdown/risk-adjusted perf) — NO CVaR/quantile/tail-vector feedback anywhere; (c) framework-vs-baselines
+  demo, no feedback-content manipulation, no pre-registration; PPO not SAC. Fails every prong of the cell except
+  "finance + LLM near the reward channel" — the tightest finance neighbour to date and now the lead fence in CH2 §2.2.
+- **ELfolio (Intelligent Computing vol. 4, art. 0176, DOI 10.34133/icomputing.0176, Zeng-Chen-Wang-Liang,
+  published 2025-11-17) — VERIFIED first-hand (Crossref + Semantic Scholar + corpus-PDF full-text read) and added
+  as `zeng2025elfolio`.** Killer distinguisher CONFIRMED verbatim from the PDF: "the Sharpe ratio serving as the
+  fitness function" — its evolutionary fitness is a SCALAR Sharpe, i.e. the closest competitor instantiates OUR
+  scalar CONTROL arm. Nuance to keep stated honestly: its "RL path" template DOES let the LLM rewrite state-action
+  rules and reward functions, but selection stays scalar-Sharpe; CVaR appears only as formulation background,
+  baseline names (MinCVaR) and evaluation-table metric — never as feedback to the LLM. Scoop exposure from the
+  2026-06-28 corpus read is now CLOSED.
+- **LLM-judge-SAC (arXiv:2605.05739, Al Ridhawi-Haj Ali-Al Osman, v1 2026-05-07/v3 2026-05-16) — VERIFIED
+  first-hand (abs page), logged as verified-PENDING-CITE.** LLM-judge ensemble scores six behavioural dimensions
+  of an agentic stock-prediction system and converts deficient scores into credit-assigned penalties ADDED to a
+  SAC reward. LLM shapes reward VALUES via judge scores, does not author reward CODE; no tail/CVaR feedback; no
+  controlled comparison. Write-time fence pending (CH2, one sentence) — cite at the next CH2 pass.
+- **MadEvolve (arXiv:2605.23007) — status UPGRADED: was DO-NOT-CITE/unverified; NOW VERIFIED first-hand
+  2026-07-02** (abs page: id/title/authors Kvasiuk-Li-Colegrove-Münchmeyer/v1 2026-05-21/q-fin.TR all match the
+  existing `kvasiuk2026madevolve` entry, which was already cited in CH2 — discrepancy resolved by verification,
+  not removal; bib comment added).
+**Next sweep due:** ~2026-07-19, plus a MANDATORY pre-submission sweep in the week before the 2 Aug ICAIF
+deadline (standing queries + GIFT's citing papers + QuantEvolve/pwb-alphaevolve CVaR-feedback commits).
+
+## Entry — 2026-07-02 (three adversarial red-team falsifier sweeps; same day, after the fence closure)
+**Result: the NARROWED first-ness claims SURVIVED all three falsifiers; what broke was BROAD WORDING.** Three
+independent red teams attacked the dissertation's first-ness claims; every kill they scored was against a
+broadly-phrased sentence, none against the conjunctive cell. Verdicts implemented in the paper 2026-07-02
+(CH1 §1.2/§1.3, CH2 §2.1/§2.2, 00_FRAMING §4; all new ids re-verified on their arXiv abs pages before entry).
+
+**Seven new verified papers (all in refs.bib with "VERIFIED first-hand 2026-07-02 (red-team sweep)" comments; no
+% VERIFY markers):**
+1. **Gallego, "Beyond Scalar Rewards" (arXiv:2603.19453, ICML 2026 NExT-Game wkshp, camera-ready v3
+   2026-06-30) — MUST-CITE, CITED** (`gallego2026beyondscalar`; CH1 §1.2 + CH2 §2.1 + 00_FRAMING §4). Coins
+   "feedback engineering"; controlled sparse-vs-dense feedback for LLM-synthesised POLICY code (matched K=3,
+   identical prompts except the feedback block, 2 LLMs). δ: policy code not reward code; social dilemmas not
+   finance; NO placebo/structure controls; NO inferential statistics; NO tail axis. The concurrent neighbour on
+   the feedback-content axis — never omit.
+2. **AlgoEvolve (arXiv:2606.26173, Sharma & Shroff, v1 2026-06-24) — MUST-CITE, CITED**
+   (`sharma2026algoevolve`; CH2 §2.2 strategy-code sentence + 00_FRAMING §4). LLM meta-evolution of intraday
+   trading-strategy programs; fitness fed to the LLM = alpha·TotalReturn+(1−alpha)·Consistency + top-2
+   best/worst programs w/ scores. δ: NO RL agent, NO reward function; zero CVaR/ES/quantile/Sortino hits in the
+   full PDF.
+3. **RD-Agent(Q) (arXiv:2505.15155, Li et al., Microsoft, NeurIPS 2025) — STRONG-CONTRAST, CITED**
+   (`li2025rdagentq`; CH2 §2.2). Its LLM feedback vector is EXPLICIT: x_t=[IC, ICIR, Rank(IC), Rank(ICIR), ARR,
+   IR, −MDD, SR] ∈ R^8 — max-drawdown yes, CVaR/ES/quantiles NO. The single best one-line contrast for "what
+   the field feeds its designers".
+4. **QuantaAlpha (arXiv:2602.07085, Han et al.) — genre one-liner, CITED** (`han2026quantaalpha`; CH2 §2.2).
+   Alpha-expression evolution loop, IC/ARR/MDD-family feedback. (Upgrades the Entry-3 % VERIFY listing to
+   verified-and-cited.)
+5. **AlphaAgent (arXiv:2502.16789, Tang et al.) — genre one-liner, CITED** (`tang2025alphaagent`; CH2 §2.2).
+   Alpha mining w/ regularised exploration against alpha decay; same IC-family feedback, no reward authorship.
+6. **Darmanin & Vella (arXiv:2508.02366, FLLM 2025 Vienna) — genre one-liner, CITED** (`darmanin2025lmguided`;
+   CH2 §2.2). LLM strategies GUIDING an RL agent — guidance, not reward authorship.
+7. **RDA (arXiv:2606.01672, Lee et al., RLC'26) — supporting cite required by the new ablation-taxonomy
+   paragraph, CITED** (`lee2026rda`; CH2 §2.1). VLM-based reward-design agent; its progressive-VLM ablation is
+   the third example (beside Eureka's and CARD's) of "systems vary their reflection signal only to justify
+   their own components".
+
+**Write-time cite queue (red-team C — verify first-hand at write-time before citing; NOT yet in refs.bib):**
+- **Powdthavee (arXiv:2604.20652)** — adjacent PRE-REGISTRATION in finance-advisory (LLM financial advice);
+  nearest prereg precedent to sit beside CH2 §2.4's "absent in this domain" sentence.
+- **Goodyear (arXiv:2506.15624)** — state-representation ablation for LLM trading agents; the nearest neighbour
+  that DATES the SQ3b/state-axis novelty claim (already flagged in the 07-02 adoption plan item 7).
+- **Agent Trading Arena (arXiv:2502.17967)** — numeracy-in-trading-loop corroborator (LLMs misread numeric
+  market data inside a live trading loop); sits beside the SQ3 numeracy-bottleneck evidentiary base.
+- **An (arXiv:2602.18891)** — TOST-SESOI equivalence-testing pilot on LLM agents; precedent for
+  equivalence-capable inference in the LLM-agent literature (CH4/CH6 equivalence reporting).
+- **MoE-TOST (arXiv:2604.14419)** — TOST equivalence machinery for ML model comparison; methodological support
+  for the SESOI/TOST reporting template.
+
+**WORDING-HAZARD RULE (standing, from the red team).** Drawdown IS already fed to LLM designers (GIFT,
+RD-Agent(Q), QuantaAlpha) — so any sentence of the form "no prior work feeds risk metrics / tail-risk / risk
+statistics to an LLM" is FALSE as phrased and must (a) pin the object to **CVaR / expected shortfall /
+tail-quantile vectors / realised-return distribution summaries**, and (b) carry "to our knowledge". The
+known-good template is CH2's "the realised-return lower-tail distribution". Swept 2026-07-02 across paper/*.md +
+PREREGISTRATION.md: the two residual hazards (CH2 §2.2 "the only design that … frozen, controlled test"; CH1
+§1.3 "no system yet …") were tightened; everything else was already pinned.
+
+**Surviving first-ness statements (all six, as now worded in the paper — every one hedged "to our knowledge"):**
+1. First to treat the informational content of the reflection signal shown to a **reward-code-authoring** LLM as
+   the manipulated variable of a **pre-registered, placebo-controlled experiment** (agent, environment, prompts,
+   search budget fixed across arms).
+2. First to manipulate **distributional (tail-risk) versus scalar** feedback content to an LLM reward designer.
+3. First to feed **CVaR / expected-shortfall / tail-quantile vectors** (realised-return lower-tail summaries) to
+   an LLM reward-code designer in any domain — the field's deepest fed risk statistic remains max-drawdown.
+4. First **explicit pre-registration** (cryptographically frozen) in the LLM-reward-design literature.
+5. First to apply **equivalence-capable (TOST/SESOI) inference** to a feedback-content contrast on an LLM
+   designer.
+6. First **three-way decoupled off-critic instrument** (tail fed on train, candidates selected tail-blind on
+   validation, hypothesis tested on a sealed split) in LLM reward design and RL-for-finance.
+
+*(Completion note, 2026-07-02 — three additional survivors from the red-team verdicts, same hedging:)*
+7. First to **isolate reward-function-code authorship as the manipulated feedback variable, under
+   pre-registration**, for a trading/portfolio RL agent — GIFT constrains its LLM to select/transform/compose
+   from a registered risk-rule library with clipped parameters; ELfolio's RL-path template *does* let the model
+   rewrite reward functions, but selects on a scalar Sharpe fitness and never varies the reward-feedback content
+   as a controlled variable (MadEvolve/AlgoEvolve evolve whole-strategy code). The claim is the
+   isolation-under-pre-registration, never authorship per se.
+8. First **pre-registered study of LLM agents in trading/portfolio-RL at all** — quantified by the field's
+   own 77-study systematic survey (arXiv 2605.19337): zero pre-registrations, 15/19 primaries at the lowest
+   reproducibility tier. (Adjacent-but-out: Powdthavee 2604.20652 = pre-registered LLM fraud-advisory
+   experiment, not trading/RL/reward-design.)
+9. First **numeric-ENCODING ablation** (identical scalars re-rendered: raw small floats vs basis
+   points/ranks; information content + modality held fixed) inside an LLM reward-design loop, traced to
+   trained-policy behaviour. (Nearest neighbours — Goodyear 2506.15624 state-representation in routing
+   games; Agent Trading Arena 2502.17967 text-vs-chart modality — are format studies in OTHER loops, and
+   both CORROBORATE the numeracy mechanism.)
+
+**Next sweep due:** unchanged — ~2026-07-19 + the MANDATORY pre-submission sweep (add Gallego's and
+AlgoEvolve's citing papers to the standing queries).
+
+## Entry — 2026-07-04 (flag clearance: 3 IDs verified first-hand, moved off DO-NOT-CITE)
+**Result: three previously-flagged IDs are CLEARED** — verified real first-hand by the 2026-07-04 corpus
+deep-mining sweep (`docs/CORPUS_MINING_2026-07-04*`). They are no longer DO-NOT-CITE; **cite each as a preprint
+with NO asserted venue** (arXiv only) until a published venue is confirmed first-hand. Clearance changes the
+*verification* status ONLY — every novelty verdict and fence below is UNCHANGED; each remains a
+cite-and-distinguish neighbour on the axis noted.
+- **QRM / Dorka — arXiv:2409.10164** (quantile regression INSIDE an RLHF reward model). Struck from the
+  2026-06-28 STILL-UNVERIFIED (do-NOT-cite) list. Novelty-distinction unchanged: distribution inside the reward
+  model that trains an LLM = the WRONG object vs feedback to a reward-code DESIGNER (Entry 2026-06-19, lines 24/42).
+- **RiskPO — arXiv:2510.00911** (MVaR multi-region risk objective for RLHF). Verified real; cite as preprint.
+  Never a hard DO-NOT-CITE flag (only the boundary-hazard cluster, line 43); distinction unchanged — risk in the
+  LLM's OBJECTIVE, not a tail vector fed to a reward-code designer; corroborates the "multi-level tail" framing.
+- **RARL — arXiv:2602.09305** (risk-averse RL). Struck from BOTH the 2026-06-28 STILL-UNVERIFIED list and the
+  2026-06-28 DO-NOT-CITE-re-confirmed list; the 2602 id implied a 2026 date beyond earlier horizons — now checked
+  first-hand. Cite as preprint with no asserted venue.
+**Next sweep due:** unchanged — the MANDATORY pre-submission sweep in the week before the 2 Aug ICAIF deadline.

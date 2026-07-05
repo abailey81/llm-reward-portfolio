@@ -48,6 +48,32 @@ this space). Flags at the end are load-bearing.
   **score encoder** scaling actions; the **reward is the fixed hand-written CPPO/CVaR-PPO objective**; no
   reward code authored; no tail fed to the LLM. (PDF fetch was corrupt across 2 scouts — re-verify the
   "human-written reward" claim from the HTML before citing it as the key distinction.)
+- **GIFT (Wu et al., arXiv:2606.08450, v1 2026-06-07)** — [VERIFIED first-hand 2026-07-02; cited
+  `wu2026gift`, fenced in CH1+CH2; PDF in B_closest_neighbours] the **freshest finance neighbour**: LLM
+  designs the PPO state-reward interface — FSE generates state features from factor primitives, RRS
+  generates an LLM intrinsic reward term + a subset of a **fixed risk-rule library**, DGR refines on
+  **generic rollout diagnostics** (ICs, reward trend/variability, drawdown). Distinct: co-varies **state
+  AND reward** (breaks our reward-only identification); library-constrained not free-form reward code;
+  **no CVaR/quantile/tail vector anywhere** (full-text scan: 0 hits); framework-vs-baselines with no
+  feedback-content ablation; no pre-registration; PPO not SAC.
+- **ELfolio (Zeng, Chen, Wang & Liang, Intelligent Computing 4:0176, 2025-11-17, DOI
+  10.34133/icomputing.0176)** — [VERIFIED first-hand 2026-07-02; cited `zeng2025elfolio`, fenced in
+  CH1+CH2; PDF in I_also_mentioned] the **closest portfolio system**: evolves LLM-written trading-STRATEGY
+  code across RL/evolutionary/DL path templates. Killer verbatim: candidates selected "with the Sharpe
+  ratio serving as the fitness function" — **scalar-Sharpe fitness = precisely our CONTROL condition**.
+  Its RL-path template CAN rewrite reward functions, but selection never sees anything but scalar Sharpe;
+  CVaR appears only in formulation background, baseline names (MinCVaR) and eval tables — never as
+  feedback to the LLM. No fixed RL agent; no pre-registration. Former possible-scoop, now managed:
+  the nearest portfolio+risk+LLM+RL system operationalizes our control arm, not our treatment.
+- **LLM-Judge-SAC (Al Ridhawi, Haj Ali & Al Osman, arXiv:2605.05739, 2026-05-07)** — [VERIFIED first-hand
+  2026-07-02; **verified-pending-cite** (write-time fence — key to be added when CH2 is next touched);
+  PDF in B_closest_neighbours] ensemble of 3 LLM judges scores behavioural traces of an agentic
+  stock-forecasting system on six dimensions; deficient scores become a **credit-assigned penalty ADDED
+  to a fixed hand-written SAC reward** (strength λ ≤ 0.20 stable). Distinct: LLM = score-**emitter**
+  (judge), never a reward-code author; SAC only tunes two hyperparameters (regime threshold + blending
+  weight) of a forecasting pipeline — single-name MAPE, **not portfolio allocation**; zero CVaR/tail
+  content (full-text scan: 0 "CVaR", 0 "portfolio"). Structurally the FinRL-DeepSeek pattern moved from
+  the action channel onto the reward.
 - **CARD (arXiv:2410.14660; KBS 2025/26)** — LLM writes reward code + dynamic feedback, *beats a human
   oracle on 3/12 tasks*. Distinct: robotics/control; feedback is process/trajectory/binary-preference, not
   a multi-level tail; no finance, no pre-registration. Cite for the "beat-the-human precedent" (so H1 is

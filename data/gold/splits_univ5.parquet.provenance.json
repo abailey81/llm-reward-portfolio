@@ -1,0 +1,18 @@
+{
+  "cols": 1,
+  "format": "parquet",
+  "frozen_utc": "2026-07-01T22:40:46.755924+00:00",
+  "layer": "gold",
+  "name": "splits_univ5.parquet",
+  "provenance": {
+    "prereg": "\u00a76",
+    "stage": "panel.materialize_splits",
+    "vendor": "derived"
+  },
+  "relpath": "data\\gold\\splits_univ5.parquet",
+  "row_hash": "750579c533f0a3982418930dacc5e876a4922b2867b33ab52372c43a629a3ba3",
+  "rows": 1,
+  "run_id": "build_univ5",
+  "sha256": "fe8cb27b987628fe4effbb97418d2b113cf8fcd5a299fda1faff793ba14f7790",
+  "vendor": "derived"
+}

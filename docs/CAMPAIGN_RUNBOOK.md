@@ -1,5 +1,12 @@
 # CAMPAIGN RUNBOOK — the single operational document for run day
 
+> **⚠ SUPERSEDED COMPUTE FRAMING (2026-07-01, ADR-040).** The campaign runs **LAPTOP-ONLY on the owned RTX 4050**
+> — no rented RTX 4090 / cloud (**no cloud-compute budget**; a WSL2/GPU speed path was also probed and rejected
+> after systematic install failure). Wherever this runbook says "rented 4090", "`--gpu 8`",
+> "n_gpu=4", or `auto_shutdown_on_complete`, use the **laptop path: n_gpu 2–3, capped buffer, ~2–3 weeks**
+> (see `docs/CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md` + ADR-040). The ordered freeze→search→test→analyze sequence
+> below is otherwise current.
+
 **Scope.** This is the *operations* runbook for the HEADLINE single-split campaign: the exact,
 ordered sequence from **freeze → keyless dry-run/V-gates → set workers → SEARCH → monitor →
 SELECT/FREEZE → TEST → analyze → secondary analyses**, with the exact command, the expected
@@ -17,10 +24,12 @@ dissertation prose.
 - **Power / MDE** → `docs/CAMPAIGN_power.md` (regenerate with `make power`).
 
 **Authoritative numbers carried here for run-day convenience (verified against the code):**
-the laptop ceiling is **n_gpu = 4** GPU workers (VRAM-bound) + at most 1 CPU worker (RAM-bound);
-`auto_n_gpu(50000)` returns **4**. **Compute — authoritative source `docs/COMPUTE_AND_TRAINING_TIME.md`
+the laptop TEST-leg ceiling is **n_gpu = 3** GPU workers (proven-safe 2–3; VRAM-bound) + at most 1 CPU
+worker (RAM-bound); **`--gpu` and `--search-gpu` ≥ 4 are REFUSED by the CLI** (`run_campaign.py` raises
+`SystemExit`; `preflight.check_vram` FAILs it) because n_gpu=4 OOMs the 6 GiB RTX-4050 VRAM ceiling.
+**Compute — authoritative source `docs/COMPUTE_AND_TRAINING_TIME.md`
 (post-amendment D2, winner seeds 5→30; 7 arms after R32 added `placebo_shuffled`):** the **7-arm core
-≈ 600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3) ≈ **2.6 days on the laptop at n_gpu=4**
+≈ 600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3) ≈ **2.6 days on the laptop at n_gpu=3**
 (free) / **~13 h on a rented 4090; ~180 GPU-hr** — consistent with the "Estimated wall-clock — core
 ~600 runs" callout in §4 below. The optional PPO/TD3 algorithm-robustness (~+120 runs) is OPTIONAL on
 scope/time grounds (there is **no GPU-hour cap** — `hard_budget_gpu_hours` was removed 2026-06-28; the
@@ -48,13 +57,33 @@ round number. `run_campaign.py` writes to `outputs/campaign/{search,frozen,test}
 | ☐ | Full suite green | `make test` | all green (skip heavy-dep import-error tests = env, not code) |
 | ☐ | Free ~8 GB RAM | close other apps (browsers, IDE extras) | ≥ ~12 GB free → the single biggest practical RAM lever |
 | ☐ | Phase-0 `m` measured | `make smoke` (≈30 min; see Step 3a) | GREEN; `m` (min/50k) recorded in `docs/DECISION_LOG.md` |
-| ☐ | Amendments ratified | R21–R45 (incl. R21 reflect-on-best, R22 λ=0, R23 TF32, R24 parallel headline, R32 `placebo_shuffled` 5th LLM arm, R44 univ3 panel, R43 single-split, R45 prediction table), + D2/R16–R20 in `PREREGISTRATION.md` + `config/preregistration.yaml`, dated **before** freeze | `make freeze-check` green |
-| ☐ | Platform decided | laptop (free; ~2.6 d core, ~180 GPU-hr) **or** rented 4090 (~13 h core, ~$18–35 Opus API) | recorded |
-| ☐ | Reflect protocol RECORDED | **parallel reflect-on-best** (`--search-gpu 2`, R24); serial (`--search-gpu 0`) = de-risked fallback | `headline_reflect_protocol: parallel_reflect_on_best` |
+| ☐ | Amendments ratified | R21–**R73** (incl. R21 reflect-on-best, R22 λ=0, R23 TF32, R24 parallel headline, R32 `placebo_shuffled` 5th LLM arm, R43 single-split, R44 univ3 panel — superseded by **R73 Split C + univ5**, 2026-07-02 — R45 prediction table), + D2/R16–R20 in `PREREGISTRATION.md` + `config/preregistration.yaml`, dated **before** freeze | `make freeze-check` green |
+| ☐ | Platform decided | **laptop-only (ADR-040, 2026-06-30/07-01)** — the "rented 4090" option is SUPERSEDED | recorded |
+| ☐ | Reflect protocol RECORDED | **SERIAL reflect-on-best** (`--search-gpu 0`, the default; ratified 2026-07-01 superseding R24, label corrected 2026-07-02 — the serial loop's M5 reflection seed IS the generation's best) ; parallel best-of-generation (`--search-gpu 2`) = robustness variant | `headline_reflect_protocol: serial_reflect_on_best` |
 
 > On the **rented 4090**, set `auto_shutdown_on_complete: true` (already in `config/campaign.yaml`)
 > and use a spot/interruptible instance; the campaign is `--resume`-safe so an interruption is
 > harmless and you never pay for idle time. On the **laptop**, pass `--no-shutdown`.
+
+### 0b. RUN-DAY machine checklist (ops audit 2026-07-02 — the unattended-Windows-laptop hardening)
+
+Do these **on run day, in order**, before Step 1. They close the operational gaps that kill a 2-3-week
+unattended run from OUTSIDE the code (OS reboots, thermals, power policy, disk, dead alerting).
+
+| ☐ | Item | Command / where | Why / pass condition |
+|---|---|---|---|
+| ☐ | **Pause Windows Updates ~5 weeks** (m13/C2) | Settings → Windows Update → Pause updates → pick the max horizon covering the whole run + analysis buffer | a forced patch reboot is the single most likely exogenous interrupt; `preflight` WARNs if not paused and **FAILs on a pending reboot** (reboot first, then re-run preflight) |
+| ☐ | **Register the ONSTART re-entry task** (C2) | `powershell -ExecutionPolicy Bypass -File scripts\install_onstart_task.ps1` (elevated, once; remove post-run with `scripts\uninstall_onstart_task.ps1`) | any reboot that DOES happen re-enters `supervisor.py → run_campaign --resume` automatically instead of staying down until a human notices; log at `outputs\campaign\onstart_task.log` |
+| ☐ | **Verify the Turbo power limit after EVERY reboot** (m15) | `nvidia-smi -q -d POWER` → check the enforced limit is the Turbo ~140 W (not the ~95 W Performance-mode cap) | **Armoury Crate INSTALLED 2026-07-02** (was missing — Fn+F5 did nothing and the firmware exposes no public WMI path for modes; two burn probes proved the ~95 W Performance cap). Observed 2026-07-02: the app **re-applies Turbo automatically at boot** (survived a reboot at 140 W) — so this row is now VERIFY-only; if it ever reads ~95 W, open Armoury Crate → Turbo. Note the app also installs its own "Turbo" power scheme — re-check AC-sleep=Never on it (§K) after ASUS updates |
+| ☐ | **High-Performance power plan + GPU clock lock after EVERY reboot** (perf audit 2026-07-02) | `powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c` then `nvidia-smi -lgc 2200,2560`; verify with `nvidia-smi --query-gpu=clocks.sm --format=csv` (~2205 MHz under load) | the SAC step is overhead-bound (~58% dead time between kernel bursts) so the GPU P-state hunts down between bursts — the Balanced plan was observed training at 675 MHz/10.9 W. The lock kills P-state hunting (+20-28% single-stream); **resets on reboot** like Turbo. Post-run revert: `nvidia-smi -rgc` + Balanced plan |
+| ☐ | **Lid-close action = Do Nothing (plugged in)** (M8) | `powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0 ; powercfg /SetActive SCHEME_CURRENT` (or Control Panel → Power Options → lid settings) | closing the lid must not sleep the host; pair with the §K sleep/hibernate disables (`powercfg /change standby-timeout-ac 0` etc.) and keep it on AC |
+| ☐ | **Defender stays off / excluded for the repo** (m14) | verified 2026-07-02: the WinDefend service is **Stopped (Disabled)** on this box (real-time protection off, no other AV registered) → no scan tax, nothing to do. `Get-Service WinDefend` to re-check | IF Defender is ever re-enabled (a major Windows upgrade can do this): `Add-MpPreference -ExclusionPath "c:\Users\User\Desktop\dissertation_papers","D:\tmp"` from an ADMIN shell — real-time scanning taxes the thousands of archive writes and can transiently lock files mid-rename (the `0x800106ba` error from Add-MpPreference just means the service is down = nothing to exclude) |
+| ☐ | **Free ≥ 20 GB on C: and gate on it** (m14) | free the space, then `python scripts/preflight.py --gpu 2 --min-disk-gb 20 --probe` | C: also hosts the pagefile — a nearly-full system drive stalls/OOMs the whole host, not just the archive; 20 GB covers archive growth + pagefile headroom. `--probe` makes the REAL 1-token key/credit check (M9) |
+| ☐ | **tenacity present** (C1) | covered by the same preflight run — the `retry_layer` line must be `[ OK ]` | without tenacity every Anthropic call is single-attempt (no 429/5xx backoff): the #1 run-killer; the gauntlet hard-FAILs it |
+| ☐ | **Register the dead-man heartbeat** (M5b) | create a free check (period 15 min) at a healthchecks-style service, then run `powershell -ExecutionPolicy Bypass -File scripts\deadman_ping.ps1 -Url https://hc-ping.com/<uuid>` alongside the run (or schedule `-Once` every 15 min) | the ONLY alert that survives host death: `--notify` and the console die WITH the laptop; the external service pages when pings STOP (power/network/hard-hang) |
+| ☐ | **Know the real progress path** (M5c) | live search telemetry = `outputs/campaign/search/progress.json` — watch with `python scripts/monitor.py outputs/campaign/search --follow-campaign` | `progress.json` is written by the SEARCH leg's monitor under `search/`, NOT at `outputs/campaign` (§5); `--follow-campaign` keeps watching across arms until `campaign_summary.json` is written |
+| ☐ | **VS Code during the run: TRIMMED + agent-monitored** (2026-07-02; user decision — stays OPEN) | `.vscode/settings.json` carries the minimal-footprint config (watcher/search excludes on `outputs\`+data+venvs, Pylance indexing OFF, git autorefresh OFF, editor-tab limit 5, update churn OFF). On run day: ONE VS Code window, run "Developer: Reload Window" once so all trims take effect, keep only the agent session open | trimmed VS Code + one agent session ≈ ~2 GB — the RAM budget then reads: 15.6 total − OS ~4.2 − VS Code+agent ~2 − 3 workers ~6.3-7.5 steady ⇒ ~2-3 GB wave margin (preflight still gates ≥7.5 GB free BEFORE launch). The agent watches `search/progress.json` + supervisor log + GPU/RAM/disk and intervenes; the machine-level stack (supervisor auto-restart, ONSTART, deadman/ntfy) covers 24/7 with no session open |
+| ☐ | **⚠ EXCLUSIVE-PHASE RULE during ANY farmed leg** (incident 2026-07-02: MANDATORY) | while a 3-worker farm (σ_D pilot or the campaign TEST leg) runs: **NO concurrent agent fleets, NO test-suite runs, NO parallel review workflows, NO torch-importing side processes** on this box — light reads/greps only | the 2026-07-02 σ_D crash: two review workflows (~20 concurrent agents running pytest) alongside the 3-worker farm exhausted RAM+VRAM → all 15 cells of one arm OOM-failed (MemoryError / CUDA-OOM / WinError 1450) and the IDE session died with them. The launch-time RAM gate protects LAUNCH only — nothing polices resources DURING the run; the ~2-3 GB margin belongs to the recycle waves, not to side work. `--resume` made it recoverable (6 done cells skipped, 24 re-farmed); the rule makes it not happen again |
 
 ---
 
@@ -116,7 +145,7 @@ sequence. **All of V1–V6 must be green before the real Opus run.**
 
 ### 3a. Phase-0 smoke (V1 prerequisite — measures `m`, proves training)
 ```bash
-make smoke                         # python scripts/smoke_test.py  (real _univ3 slice, SAC+TQC)
+make smoke                         # python scripts/smoke_test.py  (real active-suffix slice — univ5, SAC+TQC)
 # laptop fast variant if the real slice is slow:  python scripts/smoke_test.py --synthetic
 ```
 **Expected:** `STATUS: GREEN`; `measured m (min/50k-run): <lo>–<hi>` printed; per-algo
@@ -139,24 +168,28 @@ python scripts/run_campaign.py --dry-run
 the SEARCH→SELECT→FREEZE→TEST pipeline runs end-to-end into `outputs/campaign_dryrun/`; prints
 `windows train=… val=… test=…` and `distributional: tested (1)`. **The frozen/test desync guard and
 the once-only test touch execute on real (fake-trainer-free here is fine) plumbing.**
-**GO/NO-GO:** exits 0, `outputs/campaign_dryrun/campaign_summary.json` written, status `tested`.
-A `winner_not_testable` here = a stub producing a comment-only reward (expected for some stubs) is
-acceptable for the dry-run; a crash/traceback is **NO-GO**.
+**GO/NO-GO:** exits 0, `outputs/campaign_dryrun/campaign_summary.json` written, status `tested`
+(the summary now also carries `all_arms_tested: true` / `exit_code: 0` — the C3a integrity gate).
+A `winner_not_testable` here = a stub producing a comment-only reward (expected for some stubs): the
+gate then exits **3** with a loud INCOMPLETE table — for the DRY-RUN that specific status is
+acceptable (investigate the stub, not the pipeline); a crash/traceback, or exit 3 on the REAL run,
+is **NO-GO** (the supervisor treats exit 3 as a resumable failure and relaunches with `--resume`).
 
-### 3d. V3 — live parallel smoke / load test (the "4 workers is safe" proof)
+### 3d. V3 — live parallel smoke / load test (the "3 workers is safe" proof)
 ```bash
-python scripts/run_prototype.py --parallel --synthetic --gpu 4 --pass A --arms distributional
+python scripts/run_prototype.py --parallel --synthetic --gpu 3 --pass A --arms distributional
 ```
-**Expected:** 4 workers spawn, train, and archive on the synthetic panel with **no OOM / no CUDA
+**Expected:** 3 workers spawn, train, and archive on the synthetic panel with **no OOM / no CUDA
 error**; the `--parallel` scheduler's `ParallelMonitor` streams per-step events. Watch peak RAM/VRAM
 in a second terminal (Step 5).
 **GO/NO-GO:** all candidates complete, **no `failure_wave` anomaly**, peak RAM well under 100%. If
-n_gpu=4 OOMs here it will OOM the real run → drop to `--gpu 3` (the measured-safe count) or free more
-RAM. (Reference: a prior n_gpu=4 GPU smoke ran 8/8 seeds, 0 failed, peak RAM 51.7%, VRAM reclaimed to
-220 MiB.)
+n_gpu=3 OOMs here it will OOM the real run → drop to `--gpu 2` (the proven-flat count) or free more
+RAM. (`--gpu 4` is not a smoke option — it OOMs the 6 GiB RTX-4050 VRAM ceiling and `run_campaign.py`
+refuses it; historical note: a pre-ceiling-decision n_gpu=4 GPU smoke ran 8/8 seeds, 0 failed, peak
+RAM 51.7%, VRAM reclaimed to 220 MiB, but the measured VRAM ceiling since caps the run at n_gpu 3.)
 
 ### 3e. V4 — manual-recycle soak (proves no RSS creep across batches)
-Run ~24 synthetic candidates at n_gpu=4 and watch RSS stay flat across pool batches (the manual
+Run ~24 synthetic candidates at n_gpu=3 and watch RSS stay flat across pool batches (the manual
 `run_recycling` tears down + recreates the `DevicePool` every `recycle_every` tasks so the OS
 reclaims fragmented heap). Use the `--parallel --synthetic` path with enough candidates to cross ≥2
 batches; monitor RSS for ~20 min.
@@ -178,8 +211,8 @@ Re-run the same seed on the synthetic path twice.
 now a single config-driven setting applied identically to serial/SEARCH/TEST per R23).
 **GO/NO-GO:** per-seed records match within determinism tolerance.
 
-**V-GATE SUMMARY — proceed to Step 4 only when V1–V6 are all green.** Any OOM at n_gpu=4 → the plan
-degrades gracefully to n_gpu=3; it never crashes.
+**V-GATE SUMMARY — proceed to Step 4 only when V1–V6 are all green.** Any OOM at n_gpu=3 → the plan
+degrades gracefully to n_gpu=2; it never crashes. (n_gpu=4 is not on the table — the CLI refuses it.)
 
 ---
 
@@ -187,51 +220,60 @@ degrades gracefully to n_gpu=3; it never crashes.
 
 ### 4a. Decide the worker counts (the resource knobs)
 - **TEST leg parallelism — `--gpu N` (science-neutral, the clean win).** The 7×30 = 210 winner
-  re-runs are embarrassingly parallel with zero reflection coupling. Laptop: `--gpu 4`. Add `--cpu 1`
-  **only if** you freed the ~8 GB of other apps. **Never exceed 5 total workers** (a 5th GPU worker
-  OOMs VRAM; a 6th worker OOMs RAM — this is physics, not a config knob).
-- **SEARCH leg parallelism — `--search-gpu N` (HEADLINE = parallel reflect-on-best, R24).** The recorded
-  headline (`headline_reflect_protocol: parallel_reflect_on_best`) routes SEARCH through the
-  within-generation/cross-arm scheduler with **reflect-on-best** (Eureka-faithful) + the matched 50k
-  buffer. **Use `--search-gpu 2`** — n_gpu≥4 is the measured search OOM (the CLI now refuses ≥4); 2 is the
-  VRAM-safe count on the 6 GB 4050, and the per-arm pool teardown bounds RAM. Serial reflect-on-last
-  (`--search-gpu 0`) is the documented de-risked **fallback** if the GPU-smoke (Step 3d) shows
-  RAM/thermal trouble.
+  re-runs are embarrassingly parallel with zero reflection coupling. Laptop: `--gpu 3` (proven-safe
+  2–3; **`--gpu 4` is REFUSED by the CLI** — it OOMs the 6 GiB RTX-4050 VRAM ceiling). Add `--cpu 1`
+  **only if** you freed the ~8 GB of other apps. **Never exceed 4 total workers** (a 4th GPU worker
+  OOMs VRAM; a further CPU worker OOMs RAM — this is physics, not a config knob).
+- **SEARCH leg — SERIAL is the ratified HEADLINE (`--search-gpu 0`, the default; 2026-07-01 amendment
+  supersedes R24, label corrected 2026-07-02).** The recorded headline
+  (`headline_reflect_protocol: serial_reflect_on_best`) runs arms one candidate at a time through the
+  prototype-validated serial loop, whose reflection seed is the generation's **BEST** candidate
+  (M5/R32 — Eureka-faithful; the old "serial = reflect-on-last" wording was a stale premise, corrected
+  2026-07-02 against `src/llm/loop.py:604-615`). Rationale: smallest concurrency surface for a 2–3-week
+  unattended run; ADR-040's deadline math absorbs the longer wall-clock; reproducibility now EQUAL on
+  both paths. The **parallel best-of-generation** path (`--search-gpu 2`) is the documented,
+  now-resume-safe ROBUSTNESS VARIANT — not the headline.
 
 ### 4b. Launch (one authoritative command)
 ```bash
-# HEADLINE DATA PANEL (R44): the headline is univ3 (zero-fill / liquidate_to_cash, NO fabricated losses).
-# univ3 is the loader's LIVE DEFAULT (src/data/loaders.gold_suffix), so SEARCH, SELECT, FREEZE, and TEST
+# HEADLINE DATA PANEL (R73, 2026-07-02, supersedes R44's univ3): the headline is **univ5** (Split C,
+# 5,406×963 to the settled 2026-06-30 cutoff; zero-fill / liquidate_to_cash, NO fabricated losses;
+# byte-diff vs frozen univ3 = 0 changed overlap cells). univ5 is the loader's LIVE DEFAULT
+# (config/data.yaml gold.suffix, hash-bound), so SEARCH, SELECT, FREEZE, and TEST
 # all train/evaluate on the same frozen headline panel with NO env-var override — leave the bare command.
 #
 # ⚠ univ4 is NOT "the tail": it is the M&A-CONTAMINATED HEAVY END of the delisting band (data-integrity
-# audit 2026-06-25, ratified R44). Its frozen rf_meta_* pull carries no delisting reason/terminal, so the
-# −30/−55% Shumway surcharge is applied to 100% of delistings — including premium M&A booked at a
-# fabricated loss (DELL buyout, TWX→AT&T, ABMD→J&J; 3 of the 30 headline-cohort names). The HONEST tail
-# instrument is the pre-registered delisting-return sensitivity BAND d∈{0,−30,−55,−100%}
-# (analyze_campaign.delisting_band): univ3 (zero-fill) is the 0% end, univ4 the contaminated heavy end,
-# and the truth lies INSIDE — the full sweep moves pooled test CVaR-5% only ~2% (−0.0493→−0.0504), so the
-# H2 tail ORDERING is invariant across it. Report the band; do NOT present univ4 alone as the tail. The
-# CORRECT panel is univ4r (reason-gated re-pull, docs/DATA_REPULL_DELISTING.md) — recommended/optional.
-# univ3 is integrity-screened via univ3s.
+# audit 2026-06-25, ratified R44) — and, per ADR-051 (2026-07-02), ALSO a TERMINAL DOUBLE-COUNT: the
+# OBSERVED-terminal recovery found the realised terminal already present in the vendor daily series for
+# ALL 333 dead names (univ5s shumway audit: vendor_terminal_kept=333, ZERO surcharges), so univ4's flat
+# −30/−55% surcharge stacked a fabricated loss on top of an already-booked real one (DELL buyout,
+# TWX→AT&T, ABMD→J&J; 3 of the 30 headline-cohort names). The HONEST tail instrument stays the
+# pre-registered delisting-return sensitivity BAND d∈{0,−30,−55,−100%}
+# (analyze_campaign.delisting_band): univ5/univ3 (zero-fill) anchor the 0% end, univ4 the contaminated
+# heavy end, and the truth sits AT the zero-fill end (the corrected univ5s equals it) — the full sweep
+# moves pooled test CVaR-5% only ~2%, so the H2 tail ORDERING is invariant across it. Report the band;
+# do NOT present univ4 alone as the tail. The CORRECT panel was EXECUTED 2026-07-02 as **univ5s**
+# (observed-terminal route; supersedes the planned univ4r — the reason mnemonics do not resolve).
+# univ3 is integrity-screened via univ3s (a screening SIDECAR — different artifact class from univ5s).
 #
-# LAPTOP HEADLINE (R24: parallel reflect-on-best search @ n_gpu=2 + 4-way recycled TEST leg).
+# LAPTOP HEADLINE (RATIFIED 2026-07-01, corrected 2026-07-02: SERIAL reflect-on-best search
+# [--search-gpu 0 = the default] + 3-way recycled TEST leg).
 # PREREQUISITE: the single-arm 50k GPU-smoke (Step 3d) is GREEN. --resume makes it crash-safe.
-python scripts/run_campaign.py --search-gpu 2 --gpu 4 --h3-singleshot --resume --no-shutdown
-#   add --cpu 1 only if other apps are closed (never exceed 5 total workers).
+python scripts/run_campaign.py --gpu 3 --h3-singleshot --resume --no-shutdown
 #   --h3-singleshot appends the H3 single-shot control (R30); H1 baselines run automatically (config h1_baselines).
+#   add --cpu 1 only if other apps are closed (never exceed 4 total workers).
 
-# LAPTOP FALLBACK (serial reflect-on-last search; if the GPU-smoke shows RAM/thermal trouble):
-python scripts/run_campaign.py --gpu 4 --resume --no-shutdown
+# ROBUSTNESS VARIANT (parallel best-of-generation search; documented, resume-safe; NOT the headline):
+python scripts/run_campaign.py --search-gpu 2 --gpu 3 --h3-singleshot --resume --no-shutdown
 
-# RENTED 4090 (24 GB VRAM has headroom; auto-shutdown ON via config; spot + checkpoint):
-python scripts/run_campaign.py --search-gpu 8 --gpu 8 --h3-singleshot --resume
+# (The old "rented 4090" block is SUPERSEDED: laptop-only per ADR-040, and its --search-gpu 8 would be
+# refused by the ≥4 CLI guard anyway.)
 ```
 
 **Estimated wall-clock — core ~600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3 — the 7th arm `placebo_shuffled` (R32) adds +60 over the prior 540; per-run `m`≈**18 min**/50k on the 4050, **11 min** on a 4090 — the Step-3d GPU-smoke confirms `m`):
-- **Laptop** (search n_gpu=2 / test n_gpu=4): ~31.5 h search + ~25 h test + ~6.75 h H3 = **≈ 2.6 days** (≈ 3–3.5 d under thermal throttle); **~180 GPU-hr**.
+- **Laptop** (search n_gpu=2 / test n_gpu=3): ~31.5 h search + ~25 h test + ~6.75 h H3 = **≈ 2.6 days** (≈ 3–3.5 d under thermal throttle) — *estimate*, the test hours were originally figured at n_gpu=4 so treat them as an upper-bound-favourable estimate; **~180 GPU-hr**.
 - **Rented 4090** (n_gpu=8): **≈ 13 h (½ day)**; **~110 GPU-hr**.
-- **No GPU-hour cap** (the `hard_budget_gpu_hours` limit was removed 2026-06-28 — never code-enforced). The ~110–180 GPU-hr above are *estimates*, not a budget. The optional PPO/TD3 algo-robustness (~+120 runs) can be INCLUDED if wanted — it is now a scope/time choice, not a budget constraint. Opus API ≈ **$18–35** (240 reward-design calls). The campaign runs on the loader default **univ3** (the headline panel, R44 — zero-fill, no fabricated losses; no env override needed).
+- **No GPU-hour cap** (the `hard_budget_gpu_hours` limit was removed 2026-06-28 — never code-enforced). The ~110–180 GPU-hr above are *estimates*, not a budget. The optional PPO/TD3 algo-robustness (~+120 runs) can be INCLUDED if wanted — it is now a scope/time choice, not a budget constraint. Opus API ≈ **$18–35** (~150 reward-design authorings: 5 LLM arms × 30, plus reflection turns). The campaign runs on the loader default **univ5** (the headline panel, R73/Split C — zero-fill, no fabricated losses; no env override needed).
 Run it **backgrounded** (e.g. detached / `nohup`-style) so you can monitor in another terminal. The
 driver `preload()`s pyarrow before torch (gold-parquet ABI guard) and `load_env()`s the key.
 
@@ -252,15 +294,31 @@ proceed.
 
 ## 5. MONITOR the run (continuous, through transitions)
 
-In a second terminal:
+In a second terminal — **NB the campaign's `progress.json` lives under `outputs/campaign/search/`**
+(the SEARCH leg's `ParallelMonitor` writes it there, one file rewritten per arm), NOT at
+`outputs/campaign` (M5c correction, ops audit 2026-07-02):
 ```bash
-python scripts/monitor.py outputs/campaign                 # live dashboard (~2 Hz)
-python scripts/monitor.py outputs/campaign --once          # one scriptable text snapshot
-python scripts/monitor.py outputs/campaign --stale-secs 600 # tune the silent-hang threshold (default 300 s)
-# Remote/unattended (rented GPU over SSH): push a phone alert on done/error/stall. OFF by default,
-# stdlib-only, READ-ONLY side-channel (sends run STATUS, never data). Use a PRIVATE ntfy topic.
-python scripts/monitor.py outputs/campaign --notify https://ntfy.sh/<your-private-topic>
+python scripts/monitor.py outputs/campaign/search --follow-campaign   # live dashboard across ALL arms
+python scripts/monitor.py outputs/campaign/search --once              # one scriptable text snapshot
+python scripts/monitor.py outputs/campaign/search --stale-secs 600    # tune the silent-hang threshold (default 300 s)
+# Remote/unattended: push a phone alert on done/error/stall. OFF by default, stdlib-only, READ-ONLY
+# side-channel (sends run STATUS, never data). Use a PRIVATE ntfy topic.
+python scripts/monitor.py outputs/campaign/search --follow-campaign --notify https://ntfy.sh/<your-private-topic>
 ```
+`--follow-campaign` (M5a) keeps the watcher alive across per-arm `done` transitions (each arm rewrites
+the SAME `progress.json`, so a plain watch exits after the FIRST arm) and re-arms the done/error/stall
+alerts between arms; it exits when `outputs/campaign/campaign_summary.json` is (re)written — the
+overall-campaign sentinel — or on Ctrl-C.
+
+> **Known limitation (M5, deliberate):** the **TEST leg** (winner re-runs via
+> `evaluate_winners_on_test_parallel`) writes **no `progress.json`** — it has no RunMonitor, and wiring
+> one requires threading a Manager queue through the tested test-leg driver (not the clean ~30-line
+> reuse the audit budgeted; destabilizing the tested driver for telemetry was rejected). During the TEST
+> leg, watch the driver's console/log (per-arm `WARNING: … failed seed(s)` lines) and the growth of
+> `outputs/campaign/test/<arm>/` record dirs; the dead-man ping (§0b) still covers host death. The
+> serial-search fallback (`--search-gpu 0`) also runs monitor-less unless `run_arm` is given one — the
+> parallel search is the recorded headline path. (If you use the serial fallback, note its trainer reads
+> `config/prototype.yaml`'s agent block, so add the same `thermal_guardian:` key there for M6 coverage.)
 **Expected:** multi-level progress (Arms ▸ Candidates ▸ Training steps), latest train metrics (fps,
 critic/actor loss, ent_coef, ep_rew_mean), GPU%/VRAM/temp, CPU%/RAM%/RSS, ETA, an **ANOMALIES**
 count grouped by kind (red border if non-zero), and a live **LLM** token-spend + estimated-USD line.
@@ -274,14 +332,14 @@ as healthy. Run the campaign inside `tmux`/`screen` so an SSH drop doesn't kill 
 |---|---|---|
 | **RAM %** | flat, < ~90% (laptop) | climbing toward ~92% → **transition-wave OOM risk**; if it crosses, the run will degrade — drop n_gpu next launch (see §6 OOM) |
 | **VRAM** | reclaims between batches (recycling holds) | monotonic climb → recycling not firing → restart, drop n_gpu |
-| **ANOMALIES** | 0 | `failure_wave` / `critic_explosion` → note it (PopArt is absent; critic explosions are a known prototype phenomenon — record, they do not abort the run); a parallel TEST `WARNING: … failed seed(s)` is surfaced in the driver log |
+| **ANOMALIES** | 0 | `failure_wave` / `critic_explosion` → investigate (PopArt value-target normalisation is ON since R42 — config-gated `agent.popart: true` in prototype.yaml/algos.yaml — so the prototype-era critic explosions should now be RARE; a recurring `critic_explosion` under PopArt points at a genuinely mis-scaled candidate reward — record it, the run is not aborted, and `analyze_campaign.divergence_report` clusters + reports it; a diverged candidate loses selection); a parallel TEST `WARNING: … failed seed(s)` is surfaced in the driver log |
 | **GPU temp** | within thermal limits | sustained throttling over the ~2.6-day laptop core → §6 thermal |
 | **fps / ETA** | stable | collapsing fps → thermal throttle or swapping (RAM) |
 
 Anomaly/event detail is also in `outputs/campaign/{events.jsonl,anomalies.jsonl}` (tailed by the
-dashboard). **Monitor THROUGH candidate transitions**, not just the clean start — the n_gpu=4 OOM
-risk is the simultaneous fresh-buffer allocation when a generation's candidates finish together
-(steady-state probes miss it).
+dashboard). **Monitor THROUGH candidate transitions**, not just the clean start — the transition-wave OOM
+risk (the reason n_gpu is capped at 3 and n_gpu=4 is refused) is the simultaneous fresh-buffer allocation
+when a generation's candidates finish together (steady-state probes miss it).
 
 ---
 
@@ -293,15 +351,17 @@ test ids + frozen winners are skipped, so no work is redone and no paid SEARCH b
 | Failure | Symptom | Recovery |
 |---|---|---|
 | **OOM (RAM) at n_gpu=4** | RAM → ~92%, `MemoryError` cascade / `failure_wave` anomaly | Kill; re-launch with **`--gpu 3`** (the measured-safe count) `--resume`; close more apps; drop `--cpu 1` if set. Root cause is the transition wave, not steady state. |
-| **OOM (VRAM)** | CUDA out-of-memory on a 5th worker | You exceeded the VRAM ceiling — n_gpu **must be ≤ 4** on the 4050. Re-launch `--gpu 4 --resume`. |
+| **OOM (VRAM)** | CUDA out-of-memory on a 4th worker | You exceeded the VRAM ceiling — n_gpu **must be ≤ 3** on the 4050 (n_gpu=4 is refused by the CLI). Re-launch `--gpu 3 --resume`. |
 | **Thermal throttle** | GPU temp pinned, fps collapses over hours | Run on a cooling stand / cooler ambient; or move the campaign to the **rented 4090** (much faster + avoids the laptop thermal soak) — same frozen config, `--resume` from the partial archive. |
 | **Crash / interruption / spot reclaim** | process dies, machine reboots | Re-launch the **identical** command `+ --resume`. Idempotent: skips done test ids, loads existing frozen winners (never re-searches them), preserves the select→freeze→test chain. |
 | **A single worker dies mid-run** | one candidate/seed errors | `train_candidate` catches per-candidate exceptions (the pool survives); the parallel TEST driver surfaces `n_failed` + the first error in the log. The desync guard prevents a silent winner swap. Finish the run, then `--resume` to fill the failed seeds. |
 | **Slow RSS creep** | RSS climbs over tens of minutes at any n_gpu | The in-process `del+gc` fix should hold it flat; if it still creeps, the manual pool-recycling (`recycle_every`) is the backstop. Do **not** enable `max_tasks_per_child` (deadlocks on Windows spawn). |
-| **Opus rate-limit / 429** | SEARCH stalls on LLM calls; events log shows API errors | The author calls are in the SEARCH stage only (180 candidate authorings); transient 429s back off. If sustained, pause and resume later (SEARCH archives per candidate; `--resume` continues). The TEST leg uses no API. |
+| **Opus rate-limit / 429** | SEARCH stalls on LLM calls; events log shows API errors | The author calls are in the SEARCH stage only (~150 LLM candidate authorings: 5 LLM arms × 30); transient 429s back off. If sustained, pause and resume later (SEARCH archives per candidate; `--resume` continues). The TEST leg uses no API. |
 | **Cost / GPU-hour** | informational only — **NO cap** | There is **no GPU-hour budget** (`hard_budget_gpu_hours` removed 2026-06-28; never code-enforced, and `auto_shutdown_on_complete` is a verified no-op — it does NOT power off). The ≈110 GPU-hr (4090) figure is an *estimate*. To stop early, kill + `--resume` later — no idle spend. |
 | **`winner_not_testable` for an arm** | summary status, not a crash | The SELECTED winner's `reward_source` was a non-executable comment stub (e.g. a `random_search`/`bayes_opt` coeff-comment). It is FLAGGED, not fabricated; the other arms still test. Investigate that arm's archive; it does not block the headline H2 family if the H2 arms tested. |
 | **Frozen/test desync error** | `ValueError: frozen winner hash mismatch … (frozen/test desync guard)` | A re-searched resume swapped the winner. **STOP** — do not bypass. Restore the frozen record or re-run that arm cleanly so frozen and test describe the same reward. This guard is protecting headline integrity. |
+| **Hung candidate (in-process reward)** | one worker's steps/s → 0 with NO crash; watcher STALL alert; GPU util sags; the arm stops advancing | The in-process reward path has NO per-step timeout by design (containment boundary, `src/sandbox/executor.py::safe_call`): a reward whose cost depends on input VALUES (cheap on the validation fixture, explosive on a real return) can hang its worker mid-training. Kill the campaign process, re-launch the identical command `+ --resume`. The hung candidate has NO archived record, so its slot regenerates against the author (fresh call) while every archived candidate replays — the matched budget still holds. The stall alert is the watcher's job; the supervisor only restarts on process EXIT, so the operator (or a deadman-page) closes this loop. |
+| **Corrupt archive dir → restart loop** | `load_all`/`load_run` raises (`ValueError`/`KeyError` — bad JSON, truncated record, env.json hash guard) at analysis or on resume; under the supervisor the same failure re-fires every restart until `--max-total-restarts` trips | `src/io/results.py::load_all` fails LOUD on ANY unreadable run dir BY DESIGN (never silently drops a record from the analysed set — batch-5 m4). The offending dir is named in the traceback. **Triage, do not bypass:** inspect that one dir under `outputs/campaign/…`; a torn write (record.json present but a sidecar missing, or vice-versa — should be impossible after the sidecars-first+`os.replace` commit fix, but a disk fault can still do it) is quarantined by MOVING the dir out of the archive tree (e.g. to `outputs/quarantine/`) and re-launching `+ --resume` — the slot then regenerates like any un-archived candidate, matched budget preserved. Do NOT hand-edit a record to make it parse (that fabricates data). If many dirs are corrupt, suspect the disk, not the code. |
 
 ---
 
@@ -325,8 +385,8 @@ operator's mental model + the verification.
 
 **Verification after the run completes:**
 ```bash
-python scripts/monitor.py outputs/campaign --once          # phase=done, anomalies summary
-cat outputs/campaign/campaign_summary.json                 # per-arm status + windows
+python scripts/monitor.py outputs/campaign/search --once   # phase=done, anomalies summary (M5c path)
+cat outputs/campaign/campaign_summary.json                 # per-arm status + windows + all_arms_tested/exit_code
 ```
 **Expected:** `campaign_summary.json` lists every arm as `tested` with `n_seeds_written: 30` (or the
 resumed remainder), plus the resolved `train_window`/`val_window`/`test_window`. The leakage-safe
@@ -338,9 +398,9 @@ arms (`distributional`, `scalar`, `placebo`, `scalar_cvar5`) `tested` with the f
 ## 8. ANALYZE — the headline report
 
 ```bash
-# R44: analyze on the SAME headline panel the campaign trained on — univ3, the loader default (zero-fill,
-# no fabricated losses). The panel-dependent floor + the delisting-return band both load via gold_suffix(),
-# which already defaults to univ3, so NO env override is needed here.
+# R73: analyze on the SAME headline panel the campaign trained on — univ5, the loader default (Split C,
+# zero-fill, no fabricated losses). The panel-dependent floor + the delisting-return band both load via
+# gold_suffix(), which already defaults to univ5, so NO env override is needed here.
 python scripts/analyze_campaign.py --root outputs/campaign --single-shot-root outputs/campaign/test_h3_singleshot/distributional
 #   (--root defaults to outputs/campaign; --single-shot-root feeds the H3 single-shot test leg into the H3 difference test.
 #    Emits: PBO/DSR, the H2-RA + H2-Tail two-tier verdict, H1/H3/H4, the secondaries, the floor + R20 rf-robustness,
@@ -452,11 +512,11 @@ python scripts/capture_env.py --run-dir outputs/campaign --seed 0   # 2
 make smoke                                          # 3a  (GREEN; record m)
 make test                                           # 3b
 python scripts/run_campaign.py --dry-run            # 3c  (V2, keyless)
-python scripts/run_prototype.py --parallel --synthetic --gpu 4 --pass A --arms distributional  # 3d (V3)
+python scripts/run_prototype.py --parallel --synthetic --gpu 3 --pass A --arms distributional  # 3d (V3)
 # ... V4 soak / V5 resume / V6 determinism on the synthetic path ...
-# R44: headline = univ3 (loader DEFAULT — zero-fill, no fabricated losses); NO env override (search+test+analyze).
-python scripts/run_campaign.py --search-gpu 2 --gpu 4 --h3-singleshot --resume --no-shutdown  # 4  (REAL run, R24 parallel headline + H3; +--cpu 1 if apps closed)
-python scripts/monitor.py outputs/campaign              # 5  (second terminal; watch RAM through transitions)
+# R73: headline = univ5 (loader DEFAULT — Split C, zero-fill, no fabricated losses); NO env override (search+test+analyze).
+python scripts/run_campaign.py --gpu 3 --h3-singleshot --resume --no-shutdown  # 4  (REAL run — SERIAL reflect-on-best headline [--search-gpu 0 default, ratified 07-01/corrected 07-03] + H3; +--cpu 1 if apps closed)
+python scripts/monitor.py outputs/campaign/search --follow-campaign  # 5  (second terminal; progress.json lives under search/ — M5c)
 python scripts/analyze_campaign.py --root outputs/campaign --single-shot-root outputs/campaign/test_h3_singleshot/distributional  # 8  (PBO + DSR + H2-RA/Tail + H1/H3/H4 + floor + rf + R44 delisting band) — NOT `make analyze`
 python scripts/cost_sweep.py --root outputs/campaign/test   # 9a
 make power                                               # 9b

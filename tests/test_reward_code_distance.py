@@ -83,3 +83,38 @@ def test_report_is_deterministic() -> None:
 
 def test_insufficient_input() -> None:
     assert reward_code_structure_report({"a": [_HDR + "    return float(0), {}, None"]})["status"] == "insufficient"
+
+
+def test_unparseable_sources_excluded_not_scored_as_similar() -> None:
+    """P7c: two UNPARSEABLE rewards under the SAME condition must NOT inflate the within-condition mean via
+    the empty-vs-empty Jaccard=1.0 convention. They are DROPPED with an n_unparseable count, leaving only the
+    parseable sources to be scored."""
+    good_tail = [
+        _HDR + "    q = quantile(r, 0.05)\n    return float(q), {}, None",
+        _HDR + "    z = quantile(r, 0.10)\n    return float(z), {}, None",
+    ]
+    # 'mean' condition mixes two malformed rewards (empty AST) with one valid one.
+    mixed_mean = [
+        "def reward(:::",                                    # unparseable
+        "def reward(@@@",                                    # unparseable
+        _HDR + "    return float(r.mean()), {}, None",       # valid
+    ]
+    rep = reward_code_structure_report({"tail": good_tail, "mean": mixed_mean}, n_perm=300, seed=0)
+    assert rep["status"] == "ok"
+    assert rep["n_unparseable"] == 2                          # both malformed 'mean' rewards excluded
+    # only the 3 parseable sources survive: 2 tail (1 within pair) + 1 mean (0 within pairs) -> 1 within pair.
+    assert rep["n_within_pairs"] == 1
+    assert rep["per_condition"] == {"tail": 2, "mean": 1}     # the excluded pair does not appear
+
+
+def test_all_unparseable_under_one_condition_does_not_fabricate_similarity() -> None:
+    """If a whole condition is unparseable it contributes NO sources (n_unparseable counted); the report must
+    fall through to insufficient/degenerate rather than reporting a spurious within-mean of 1.0."""
+    rep = reward_code_structure_report(
+        {"a": ["def reward(:::", "def reward(@@@"], "b": [_HDR + "    return float(r.mean()), {}, None"]},
+        n_perm=100, seed=0,
+    )
+    # only 1 parseable source survives -> insufficient (< 2), with the 2 unparseable ones logged.
+    assert rep["status"] == "insufficient"
+    assert rep["n_unparseable"] == 2
+    assert rep["n_sources"] == 1

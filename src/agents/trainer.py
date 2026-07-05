@@ -39,9 +39,12 @@ Two engineering facts, each load-bearing (MASTER_EXECUTION_PLAN §5, deep-resear
    ``scalar-g5-c3``). SAC's Bellman backup turns a target of magnitude ``R`` into a Q-target near
    ``R/(1-gamma) ~ 1e6`` (``gamma=0.99``) and the MSE critic loss explodes to ``~5e6`` at the LAST
    training step (``outputs/prototype/anomalies.jsonl``). We make the critic invariant to reward
-   *scale* by dividing ONLY the learning signal by a running scale ``sqrt(EMA[r^2])`` — a positive
-   affine map of the value function, so the optimal policy is unchanged (van Hasselt et al. 2016),
-   while the regression target is held at unit scale. ``info["port_ret"]`` (the object of study) is
+   *scale* by dividing ONLY the learning signal by a running scale ``sqrt(EMA[r^2])`` — at constant
+   scale a positive affine map of the value function, leaving the optimal policy unchanged (van
+   Hasselt et al. 2016); the implemented EMA scale drifts (buffered rewards keep their
+   collection-time scaling), so it is approximately policy-preserving — see ``src/agents/popart.py``'s
+   honest-scope note + the ``popart=False`` ablation — while the regression target is held at unit
+   scale. ``info["port_ret"]`` (the object of study) is
    forwarded UNCHANGED, so ``norm_reward`` stays False and every realized-return number we analyse is
    identical. Config-gated by ``popart`` (default on); applied identically across arms.
 
@@ -51,11 +54,12 @@ unset would run a DIFFERENT warmup than the gate proved).
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 import numpy as np
 
-from src.agents.factory import make_headline_agent
+from src.agents.factory import campaign_replay_cap, make_headline_agent
 from src.utils.config import cfg_get
 
 __all__ = [
@@ -64,6 +68,8 @@ __all__ = [
     "train_agent",
     "make_agent_trainer",
 ]
+
+_LOG = logging.getLogger(__name__)
 
 
 class NormalizedPolicy:
@@ -105,14 +111,19 @@ class NormalizedPolicy:
 def resolve_agent_kwargs(cfg: Any, seed: int) -> tuple[dict[str, Any], int]:
     """Resolve the SAC kwargs (factory-supported keys) + the training-step budget.
 
-    The buffer is sized to ``train_steps`` (memory-safe, ADR-025). Hyperparameters are
-    SB3 defaults unless overridden in ``cfg`` (kept IDENTICAL across feedback arms so
-    only the reward differs — audit A-1 / the runtime equivalence test).
+    The buffer is sized to ``train_steps`` then HARD-CAPPED at the campaign replay cap
+    (memory-safe, ADR-025 EXTENDED): ``buffer_size = min(requested_or_train_steps, cap)``.
+    For any budget below the cap this is a no-op (buffer == budget); at B* >= 200k it clamps
+    to the cap (default 50k) so no path OOMs the laptop. Hyperparameters are SB3 defaults
+    unless overridden in ``cfg`` (kept IDENTICAL across feedback arms so only the reward
+    differs — audit A-1 / the runtime equivalence test).
     """
     train_steps = int(
         cfg_get(cfg, "train_steps_per_candidate", cfg_get(cfg, "train_steps", 50000))
     )
-    buffer_size = int(cfg_get(cfg, "buffer_size", train_steps))  # <= train_steps (ADR-025)
+    # min(requested-or-train_steps, cap): decouples the replay RAM from the step budget (ADR-025
+    # EXTENDED, CLAUDE.md 2026-06-30). No-op for budgets < cap; clamps to 50k at B* >= 200k.
+    buffer_size = min(int(cfg_get(cfg, "buffer_size", train_steps)), campaign_replay_cap())
     # SB3-SAC's UNSET default is learning_starts=100, but the Phase-0 GATE (scripts/smoke_test.py)
     # validated the agent with learning_starts=1000 — so the gate proved a DIFFERENT warmup than the
     # study ran (the gate validity bug). We resolve it here (config-driven, default 1000) so EVERY
@@ -134,6 +145,32 @@ def resolve_agent_kwargs(cfg: Any, seed: int) -> tuple[dict[str, Any], int]:
         "device": cfg_get(cfg, "device", "auto"),  # "cpu" | "cuda" | "auto" (heterogeneous pool)
     }
     return kwargs, train_steps
+
+
+def _training_substitution_counts() -> tuple[int, int]:
+    """Read (and loudly surface) the sandbox SAFE_DEFAULT substitution counters after ``model.learn``.
+
+    WHY (training-time SAFE_DEFAULT visibility, 2026-07-03): during training the env invokes the
+    reward via ``safe_call`` on EVERY step, so the executor's counters accumulate exactly this
+    candidate's training-window substitutions (``train_agent`` resets them just before ``learn``).
+    They used to be zeroed UNREAD by the first evaluation rollout's ``reset_failure_flag()`` — a
+    reward that failed on a fraction of TRAINING steps (the agent then part-trains on the 0.0
+    fallback signal) was invisible. Returns ``(n_substituted, n_calls)``; the caller attaches them
+    to the returned policy so the loop / parallel worker can archive them (R66).
+    """
+    from src.sandbox.executor import safe_call_count, safe_default_count
+
+    n_sd = safe_default_count()
+    n_call = safe_call_count()
+    if n_sd:
+        _LOG.warning(
+            "reward substituted SAFE_DEFAULT on %d/%d TRAINING steps (%.1f%%) — the candidate "
+            "part-trained on the 0.0 fallback signal; archived as train_safe_default_count (R66)",
+            n_sd,
+            n_call,
+            100.0 * n_sd / max(n_call, 1),
+        )
+    return n_sd, n_call
 
 
 def _apply_tf32(enabled: bool) -> None:
@@ -192,14 +229,25 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
     # normalizes observations on top), and is applied identically across arms (not an H2 confound).
     from src.agents.popart import realized_scale_stats, wrap_popart
 
+    # Training-time SAFE_DEFAULT visibility (2026-07-03): zero the executor's substitution counters so
+    # the post-learn read below spans exactly THIS candidate's training window (the previous window's
+    # counts were already consumed by its own end-of-window reader — runner rollout / prior train).
+    from src.sandbox.executor import reset_failure_flag
+
+    reset_failure_flag()
+
     if not normalize_obs:
         popart_env = wrap_popart(env, cfg)
         model = make_headline_agent(popart_env, kwargs)
         model.learn(total_timesteps=train_steps, callback=callback)
+        n_sd, n_call = _training_substitution_counts()  # read BEFORE the eval rollouts re-zero them
         # T2.4: surface the realised PopArt scale (sigma_max/last) the critic actually used so the
         # cross-arm sigma distribution is auditable. Attached to the returned policy; the loop / TEST
         # worker copy it into the candidate + test record. No effect on training or on info["port_ret"].
         model.popart_scale = realized_scale_stats(popart_env)  # type: ignore[attr-defined]
+        # Training-window SAFE_DEFAULT counts (R66): attached so the caller can archive them.
+        model.train_safe_default_count = n_sd  # type: ignore[attr-defined]
+        model.train_safe_call_count = n_call  # type: ignore[attr-defined]
         return model
 
     # Train-only observation normalization (deep-research §2). norm_reward=False: the
@@ -217,9 +265,10 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
     )
     model = make_headline_agent(venv, kwargs)
     model.learn(total_timesteps=train_steps, callback=callback)
+    n_sd, n_call = _training_substitution_counts()  # read BEFORE the eval rollouts re-zero them
 
     rms: Any = venv.obs_rms  # frozen train-period running mean/var (single-obs RunningMeanStd at runtime)
-    return NormalizedPolicy(
+    policy = NormalizedPolicy(
         model=model,
         mean=rms.mean,
         var=rms.var,
@@ -229,6 +278,33 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
         # scale it logged during training so the candidate/test record can carry the cross-arm sigma audit.
         popart_scale=realized_scale_stats(wrapped),
     )
+    # Training-window SAFE_DEFAULT counts (R66, 2026-07-03): attached (same style as the popart attach on
+    # the raw-model branch) so the loop / parallel worker can archive them with the candidate record.
+    policy.train_safe_default_count = n_sd  # type: ignore[attr-defined]
+    policy.train_safe_call_count = n_call  # type: ignore[attr-defined]
+    return policy
+
+
+def _make_governor(cfg: Any) -> Any:
+    """Build a thermal governor from ``cfg['thermal_guardian'] = {hi, lo, poll_secs}``; ``None`` when absent.
+
+    Default OFF -> result-neutral (no behaviour change). On a 24/7 laptop campaign, enable it so training
+    cooperatively pauses-and-cools on GPU overheat instead of throttling/aborting (the pause changes only
+    wall-clock, never a weight, so determinism and every reported number are untouched)."""
+    spec = cfg_get(cfg, "thermal_guardian", None)
+    if not spec:
+        return None
+    try:
+        from src.utils.guardian import ThermalGovernor
+
+        kw = spec if isinstance(spec, dict) else {}
+        return ThermalGovernor(
+            hi=float(kw.get("hi", 88.0)),
+            lo=float(kw.get("lo", 80.0)),
+            poll_secs=float(kw.get("poll_secs", 5.0)),
+        )
+    except Exception:  # pragma: no cover - guardian/NVML absent -> silently disabled
+        return None
 
 
 def make_agent_trainer(cfg: Any, seed: int, monitor: Any = None) -> Callable[[Any], Any]:
@@ -239,12 +315,14 @@ def make_agent_trainer(cfg: Any, seed: int, monitor: Any = None) -> Callable[[An
     candidate's training and streamed to the live :class:`src.utils.monitoring.RunMonitor`.
     """
 
+    governor = _make_governor(cfg)  # config-gated thermal pause (None = off, result-neutral)
+
     def _trainer(train_env: Any) -> Any:
         callback = None
-        if monitor is not None:
+        if monitor is not None or governor is not None:
             from src.utils.monitoring import make_training_callback
 
-            callback = make_training_callback(monitor)
+            callback = make_training_callback(monitor, governor=governor)
         return train_agent(train_env, cfg, seed, callback=callback)
 
     return _trainer

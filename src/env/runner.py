@@ -161,7 +161,7 @@ class EnvBundle:
     a fresh env guarantees a clean reset and avoids cross-rollout state leakage).
 
     The ``test_window`` is **optional and defaults to ``None``**: every search/selection
-    bundle is built without it, so the held-out 2018-2025 test leg is *physically*
+    bundle is built without it, so the held-out 2020-2026 test leg is *physically*
     unreachable during selection (``test_returns`` raises ``RuntimeError``). Only the
     campaign's final inference (the frozen winner, touched exactly once) constructs a
     bundle *with* a test window (PREREGISTRATION.md §10: select-on-val -> freeze -> test).
@@ -213,7 +213,7 @@ class EnvBundle:
     def test_returns(self, policy: Any) -> np.ndarray:
         """Realized held-out TEST portfolio returns for ``policy`` — FINAL INFERENCE ONLY.
 
-        The test split (2018-2025) is **sealed**: it is touched exactly once, on the
+        The test split (2020-2026) is **sealed**: it is touched exactly once, on the
         frozen winner, at final inference (select-on-validation -> freeze -> test-once;
         PREREGISTRATION.md §10). A bundle built without a ``test_window`` — i.e. every
         bundle the discovery loop and the search arms ever see — raises, so selection
@@ -227,7 +227,7 @@ class EnvBundle:
         if self.test_window is None:
             raise RuntimeError(
                 "test split sealed until final inference: this EnvBundle has no "
-                "test_window (selection must never touch the 2018-2025 test leg; only "
+                "test_window (selection must never touch the 2020-2026 test leg; only "
                 "run_campaign's frozen-winner evaluation builds a test bundle)"
             )
         return rollout_port_returns(self._env(self.test_window), policy)
@@ -254,7 +254,7 @@ class EnvBundle:
         if self.test_window is None:
             raise RuntimeError(
                 "test split sealed until final inference: this EnvBundle has no "
-                "test_window (selection must never touch the 2018-2025 test leg; only "
+                "test_window (selection must never touch the 2020-2026 test leg; only "
                 "run_campaign's frozen-winner evaluation builds a test bundle)"
             )
         return rollout_port_series(self._env(self.test_window), policy)

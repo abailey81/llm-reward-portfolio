@@ -14,6 +14,7 @@ Two layers:
 """
 from __future__ import annotations
 
+import gymnasium as gym
 import numpy as np
 import pytest
 
@@ -59,6 +60,58 @@ def _exploding_reward(weights, returns, prev_weights, port_ret, info):  # noqa: 
         mu = float(np.mean(arr)) if n > 0 else 0.0
         sharpe = mu / 1e-8 * 0.1
     return float(sharpe), {"sharpe": float(sharpe)}, {"hist": hist}
+
+
+class _ScriptedRewardEnv(gym.Env):  # type: ignore[misc]
+    """Minimal env that returns a scripted reward each step — for unit-testing the PopArt scale only."""
+
+    metadata: dict = {}
+
+    def __init__(self, rewards: list[float]) -> None:
+        self._rewards = [float(r) for r in rewards]
+        self._i = 0
+        self.observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+        self.action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+
+    def reset(self, *, seed=None, options=None):  # noqa: ANN001, ANN201, ARG002
+        self._i = 0
+        return np.zeros(1, dtype=np.float32), {}
+
+    def step(self, action):  # noqa: ANN001, ANN201, ARG002
+        r = self._rewards[self._i]
+        self._i += 1
+        return np.zeros(1, dtype=np.float32), r, False, False, {"port_ret": 0.0}
+
+
+def test_popart_clamps_overflow_reward_and_stays_finite() -> None:
+    """A finite but astronomically large reward must not overflow the EMA to inf (fail-loud, counted).
+
+    Without the guard, ``raw*raw`` for ``|raw| >= ~9.5e153`` overflows to ``inf``, pinning ``sigma`` at
+    ``inf`` so ``raw/sigma == 0`` — the critic then trains silently on a zeroed reward for the rest of the run.
+    """
+    w = PopArtRewardScaler(_ScriptedRewardEnv([1e160, 1e160, 1e160]))
+    w.reset()
+    with pytest.warns(RuntimeWarning, match="overflow-safe cap"):
+        _, scaled, *_ = w.step(np.zeros(1, dtype=np.float32))
+    assert np.isfinite(scaled)  # NOT silently zeroed by an inf sigma
+    for _ in range(2):
+        _, scaled, *_ = w.step(np.zeros(1, dtype=np.float32))
+        assert np.isfinite(scaled)
+    assert np.isfinite(w.sigma_last) and np.isfinite(w.sq_ema)
+    assert w.raw_clamp_count == 3  # every overflow clamp was counted (fail-loud)
+
+
+def test_popart_overflow_guard_is_inert_on_normal_rewards() -> None:
+    """The guard is a no-op for ordinary rewards: it never fires and the scale is the pre-guard value.
+
+    After one reward ``v`` the bias-corrected ``sigma`` is ``|v|`` (clamped ``>= min_scale=1``), so a
+    ``1e4`` reward normalises to exactly ``1.0`` — the behaviour before the guard was added.
+    """
+    w = PopArtRewardScaler(_ScriptedRewardEnv([1e4]))
+    w.reset()
+    _, scaled, *_ = w.step(np.zeros(1, dtype=np.float32))
+    assert scaled == pytest.approx(1.0, rel=1e-9)
+    assert w.raw_clamp_count == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -114,10 +167,11 @@ def test_wrap_popart_off_is_identity(synthetic_panel: Panel) -> None:
 
 
 def test_realized_scale_tracks_unit_vs_large_reward() -> None:
-    """T2.4: sigma_max == 1.0 for a unit-scale reward (identity) and > 1 for a large-magnitude one.
+    """T2.4: sigma_max == 1.0 for any sub-unit reward and > 1 for a large-magnitude one.
 
-    This is the cross-arm audit signal: a unit ``sigma_max`` across arms proves the wrapper was the
-    identity everywhere, so there is no scale-driven entropy-regularisation difference between arms.
+    ``sigma_max`` audits only SUPRA-unit rescaling: it is pinned at the ``min_scale`` floor for any
+    sub-unit reward, so ``sigma_max == 1.0`` across arms means no arm was *shrunk* — NOT that the arms are
+    scale-matched (P5). The sub-unit cross-arm scale is carried by ``raw_rms_max`` instead (next test).
     """
     unit = PopArtRewardScaler(_DummyEnv(reward=0.5), warmup=0)
     unit.reset()
@@ -127,6 +181,9 @@ def test_realized_scale_tracks_unit_vs_large_reward() -> None:
     assert su["popart"] == 1.0
     assert su["sigma_max"] == pytest.approx(1.0)  # min_scale floor -> identity for a sub-unit reward
     assert su["sigma_last"] == pytest.approx(1.0)
+    # ...but the UNCLAMPED raw RMS still records the true sub-unit magnitude the critic regresses on.
+    assert su["raw_rms_max"] == pytest.approx(0.5, rel=1e-3)
+    assert su["raw_rms_last"] == pytest.approx(0.5, rel=1e-3)
     assert su["count"] == 50.0
 
     big = PopArtRewardScaler(_DummyEnv(reward=1.0e4), warmup=0, beta=0.5)
@@ -137,6 +194,31 @@ def test_realized_scale_tracks_unit_vs_large_reward() -> None:
     assert sb["sigma_max"] > 100.0, f"large reward must drive sigma_max well above 1: {sb['sigma_max']}"
     # sigma_max is the running MAX, so it is >= the last scale.
     assert sb["sigma_max"] >= sb["sigma_last"]
+    assert sb["raw_rms_max"] == pytest.approx(1.0e4, rel=1e-3)
+
+
+def test_raw_rms_distinguishes_subunit_arms() -> None:
+    """P5: two sub-unit rewards of different magnitude share sigma_max==1.0 but differ in raw_rms_max.
+
+    ``sigma_max`` (clamped at ``min_scale=1.0``) cannot see a scale difference BELOW unit scale, so it
+    would wrongly certify "no scale confound" for two arms the critic actually regresses on at different
+    scales (and that ``ent_coef="auto"`` regularises differently). ``raw_rms_max`` — the UNCLAMPED
+    bias-corrected RMS — is the honest cross-arm scale-confound audit signal in that sub-unit regime.
+    """
+    a = PopArtRewardScaler(_DummyEnv(reward=1.0e-2), warmup=0)
+    b = PopArtRewardScaler(_DummyEnv(reward=5.0e-4), warmup=0)
+    for env in (a, b):
+        env.reset()
+        for _ in range(100):
+            env.step(0)
+    sa, sb = a.realized_scale_stats(), b.realized_scale_stats()
+    # sigma_max is BLIND here: both pinned at the min_scale floor.
+    assert sa["sigma_max"] == pytest.approx(1.0)
+    assert sb["sigma_max"] == pytest.approx(1.0)
+    # raw_rms_max recovers the ~20x scale gap the critic + entropy temperature actually saw.
+    assert sa["raw_rms_max"] == pytest.approx(1.0e-2, rel=1e-3)
+    assert sb["raw_rms_max"] == pytest.approx(5.0e-4, rel=1e-3)
+    assert sa["raw_rms_max"] > 10.0 * sb["raw_rms_max"]
 
 
 def test_realized_scale_stats_helper_handles_on_and_off() -> None:

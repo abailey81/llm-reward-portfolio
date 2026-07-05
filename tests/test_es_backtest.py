@@ -152,3 +152,77 @@ def test_dm_calibration_is_deterministic() -> None:
     a = dm_size_power_calibration(t=80, n_reps=300, seed=7)
     b = dm_size_power_calibration(t=80, n_reps=300, seed=7)
     assert a == b
+
+
+# ---------------------------------------------------------------------------
+# Edge / degrade / validation paths (coverage completion)
+# ---------------------------------------------------------------------------
+
+
+def test_var_es_estimates_rejects_bad_alpha() -> None:
+    # alpha out of (0,1) -> ValueError (line 94)
+    with pytest.raises(ValueError, match="alpha"):
+        var_es_estimates(np.array([-1.0, 0.0, 1.0]), 0.0)
+    with pytest.raises(ValueError, match="alpha"):
+        var_es_estimates(np.array([-1.0, 0.0, 1.0]), 1.0)
+
+
+def test_var_es_estimates_all_nonfinite_returns_nan() -> None:
+    # every value non-finite -> stripped to empty -> (nan, nan) (line 97-98)
+    v, e = var_es_estimates(np.array([np.nan, np.inf, -np.inf]), ALPHA)
+    assert np.isnan(v) and np.isnan(e)
+
+
+def test_var_es_estimates_strips_nan_before_quantile(rng: np.random.Generator) -> None:
+    # A single NaN must not poison the VaR/ES; result matches the finite-only series.
+    clean = rng.standard_normal(2_000)
+    poisoned = np.concatenate([clean, [np.nan, np.nan]])
+    vc, ec = var_es_estimates(clean, ALPHA)
+    vp, ep = var_es_estimates(poisoned, ALPHA)
+    assert vp == pytest.approx(vc) and ep == pytest.approx(ec)
+
+
+def test_hac_variance_multistep_includes_autocovariance(rng: np.random.Generator) -> None:
+    """For h>1 the Newey-West variance adds Bartlett-weighted autocovariance terms (lines 150-154).
+
+    On a strongly positively autocorrelated differential the h>1 long-run variance must EXCEED the
+    plain h=1 sample variance of the mean (positive autocovariances inflate the LRV).
+    """
+    # AR(1) with rho ~ 0.7 so gamma_1 > 0.
+    t = 400
+    eps = rng.standard_normal(t)
+    d = np.empty(t)
+    d[0] = eps[0]
+    for k in range(1, t):
+        d[k] = 0.7 * d[k - 1] + eps[k]
+    r1 = dm_hln_test(d, h=1)
+    r5 = dm_hln_test(d, h=5)
+    # Same mean(d); larger LRV under h=5 -> |DM| statistic SHRINKS relative to h=1.
+    assert abs(r5["dm_stat"]) < abs(r1["dm_stat"])
+
+
+def test_calibration_rejects_bad_args() -> None:
+    with pytest.raises(ValueError, match="t must be"):
+        dm_size_power_calibration(t=1)               # line 279
+    with pytest.raises(ValueError, match="alpha"):
+        dm_size_power_calibration(t=50, alpha=1.5)   # line 281
+    with pytest.raises(ValueError, match="ar1"):
+        dm_size_power_calibration(t=50, ar1=1.0)     # line 283
+
+
+def test_calibration_ar1_branch_runs_and_is_deterministic() -> None:
+    # ar1 != 0 exercises the AR(1) simulation branch (lines 296-299); still deterministic + sane.
+    a = dm_size_power_calibration(t=60, ar1=0.5, n_reps=200, seed=11)
+    b = dm_size_power_calibration(t=60, ar1=0.5, n_reps=200, seed=11)
+    assert a == b
+    assert 0.0 <= a["size_hln"] <= 1.0 and a["power_hln"] >= a["size_hln"] - 0.2
+
+
+def test_comparative_backtest_default_rng_when_none() -> None:
+    # rng=None takes the default_rng() branch (line 370); still returns a well-formed result.
+    realized = np.linspace(-3.0, 3.0, 300)
+    good = (TRUE_VAR, TRUE_ES)
+    bad = (TRUE_VAR, TRUE_ES * 0.5)
+    res = comparative_es_backtest(realized, good, bad, alpha=ALPHA, n_boot=100)
+    assert set(res) >= {"mean_score_diff", "stat", "pvalue", "better"}
+    assert 0.0 <= res["pvalue"] <= 1.0

@@ -28,8 +28,10 @@ alone. This is why PBO/CSCV is the *primary* guard and why the claim is comparat
 - [x] PBO/CSCV confirmed PRIMARY guard; DSR secondary (trial count ill-defined under guided search)
 - [x] **Trial count for the campaign, stated explicitly: 180** (candidates generated across all arms) *(retired model; the live count is 210 across the 7 arms — see docs/CAMPAIGN_power.md)*
 - [x] SESOI (smallest effect size of interest): **0.05 DSR** *(FROZEN-design value; PREREGISTRATION §10 +
-  config/preregistration.yaml `inference.sesoi`; Amendment 2026-06-19 R12 — ≈0.10-0.15 annualised test-Sharpe, the
-  smallest gap surviving the Harvey-Liu t>3 hurdle net of costs. Re-run `power_analysis.py --sesoi 0.05` once the pilot σ lands.)*
+  config/preregistration.yaml `inference.sesoi`; Amendment 2026-06-19 R12 — ≈0.0756 annualised Sharpe at the
+  executed Split-C validation track (T=694; k=0.6616 DSR per ann-Sharpe), i.e. the ~0.07-Sharpe order of the
+  smallest gap surviving the Harvey-Liu t>3 hurdle net of costs (CAMPAIGN_DESIGN_AND_EXECUTION_PLAN §4 carries
+  the same conversion). Re-run `power_analysis.py --sesoi 0.05` once the pilot σ lands.)*
 - [x] TOST symmetric equivalence margin: **±0.05 DSR**
 
 ## MDE formula

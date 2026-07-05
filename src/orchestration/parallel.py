@@ -122,9 +122,15 @@ _PANEL_CACHE: dict[str, Any] = {}
 
 #: Anonymised validation fixture for the sandbox (no tickers/dates). Real-ish length (~30 risky +
 #: cash) so an allocation that scales with the input surfaces at validate_once (final-audit #12).
+#: SHAPE PARITY (ultrareview batch 3 #1, 2026-07-03): production calls reward(weights(N+1),
+#: returns(N), prev(N+1), ...) — portfolio_env.py:347-348 — and the FROZEN prompt promises exactly
+#: that (weights (31,), returns (30,)). A 31/31/31 fixture INVERTED the gate for shape-aware rewards:
+#: the spec-faithful `weights[:-1] @ returns` was falsely REJECTED (fixture shape mismatch) while the
+#: sloppy `weights @ returns` was falsely ACCEPTED and then zero-trained via SAFE_DEFAULT on every
+#: real step. The fixture must mirror the production shape contract: returns has ONE FEWER element.
 _FIXTURE: tuple[Any, ...] = (
     np.full(31, 1.0 / 31),
-    np.full(31, 0.001),
+    np.full(30, 0.001),
     np.full(31, 1.0 / 31),
     0.0,
     {},
@@ -156,7 +162,23 @@ def _worker_init() -> None:
 
 
 def _panel_and_windows(synthetic: bool, data: dict, lookback: int):
-    key = "syn" if synthetic else f"gold:{data.get('phase')}:{data.get('train_end')}:{data.get('val_end')}"
+    # Cache key = EVERY input that shapes the result (fix 2026-07-03; mirrors test_leg._load_test_panel's
+    # keying): the old key omitted on_missing (changes the PANEL content — the delisting fill) and
+    # embargo_days (changes the VAL window via embargoed_val_start), so two specs differing only there
+    # silently shared one cached (panel, windows). lookback (shapes both windows) is keyed too; it is
+    # process-constant today (read from config/environment.yaml) so that part is purely defensive.
+    key = (
+        f"syn:{lookback}"
+        if synthetic
+        else "gold:{}:{}:{}:{}:{}:{}".format(
+            data.get("phase"),
+            data.get("train_end"),
+            data.get("val_end"),
+            data.get("on_missing"),
+            data.get("embargo_days"),
+            lookback,
+        )
+    )
     if key in _PANEL_CACHE:
         return _PANEL_CACHE[key]
     if synthetic:
@@ -168,7 +190,7 @@ def _panel_and_windows(synthetic: bool, data: dict, lookback: int):
         from src.data.loaders import OnMissing, embargoed_val_start, load_gold_panel
 
         phase = str(data.get("phase", "development"))
-        train_end = str(data.get("train_end", "2014-12-31"))
+        train_end = str(data.get("train_end", "2016-12-31"))
         from src.utils.config import load_config
 
         # Embargo fallback = the canonical config/data.yaml floor, NOT a bare literal 21 (no-hardcoding audit).
@@ -176,16 +198,19 @@ def _panel_and_windows(synthetic: bool, data: dict, lookback: int):
         embargo_days = int(data.get("embargo_days", _emb_floor))
         r = load_gold_panel(
             phase=phase,
-            end=str(data.get("val_end", "2017-12-31")),
+            end=str(data.get("val_end", "2019-12-31")),
             on_missing=cast(OnMissing, data.get("on_missing", "liquidate_to_cash")),
         )
         panel = r.panel
         dates = np.asarray(panel.dates)
         # Train ends at ``train_end``; validation begins at the PURGED boundary (PREREGISTRATION §7, R18):
-        # embargoed_val_start(lookback=lookback) = max(materialized embargo boundary 2015-02-03,
-        # train_end + max(embargo, lookback)). With lookback=60 the lookback purge dominates (val ~2015-03-31).
+        # embargoed_val_start(lookback=lookback) = max(materialized boundary — stale pre-Split-C
+        # 2015-02-03, inert under the Split-C train_end — first_post_train + max(embargo, lookback)).
+        # With lookback=60 the lookback purge dominates (val 2017-03-30 = train_end + 60 sessions).
         # Matches run_prototype._load_panel_and_windows so BOTH executed paths drop the same gap (R18).
-        train_split = int(np.searchsorted(dates, np.datetime64(train_end)) + 1)
+        # side='right': half-open train end — identical to the old searchsorted+1 when train_end IS a
+        # session; correct when it is not (SPLIT C's 2016-12-31 is a Saturday — +1 leaked 2017-01-03).
+        train_split = int(np.searchsorted(dates, np.datetime64(train_end), side="right"))
         train_split = max(lookback + 1, min(train_split, panel.T - 1))
         val_split = embargoed_val_start(
             dates, train_end, phase=phase, embargo_days=embargo_days, lookback=lookback
@@ -268,13 +293,31 @@ def train_candidate(spec: dict) -> dict:
             out["reward_source"] = f"# baseline:{spec['reward']}\n"
             out["reward_hash"] = hashlib.sha256(out["reward_source"].encode("utf-8")).hexdigest()
 
-        env_builder = make_env_builder(panel, env_cfg, tw, vw)
+        # R18 purge-guard args (fix 2026-07-03, mirroring run_campaign's builder call): pass the REAL
+        # embargo + lookback so make_env_builder's max(embargo, lookback) leakage guard is ARMED on the
+        # gold SEARCH path — the bare 4-arg call left purge=0, i.e. the guard could never catch a future
+        # windows regression. Gold windows already satisfy the purge (embargoed_val_start builds them),
+        # so this only fails loud on a violation. The SYNTHETIC dev/dry-run windows deliberately ABUT
+        # ((lookback, 400)/(400, T), no purge gap), so the guard stays legacy-inert (0/0) there — arming
+        # it would reject every --synthetic run, which run_campaign avoids via purged resolve_windows.
+        if bool(spec["synthetic"]):
+            _embargo = _lookback_guard = 0
+        else:
+            # Same resolution as _panel_and_windows above: spec data block, else the config/data.yaml floor.
+            _emb_floor = int(load_config("data").get("embargo_days", 21))
+            _embargo = int(spec.get("data", {}).get("embargo_days", _emb_floor))
+            _lookback_guard = lookback
+        env_builder = make_env_builder(panel, env_cfg, tw, vw, embargo=_embargo, lookback=_lookback_guard)
         if sink is not None:
             sink.candidate_start()
         trainer = make_agent_trainer(
             {
                 "train_steps_per_candidate": int(spec["train_steps"]),
-                "buffer_size": int(spec["train_steps"]),
+                # Buffer-cap (ADR-025): honor a spec-supplied cap, else fall back to train_steps, never
+                # exceeding it. When B* rises (250-350k) the campaign pins buffer_size=50000 so the replay
+                # buffer does NOT scale with the step budget (the silent OOM trap on 6 GB / 16 GB). Result-
+                # neutral when the spec omits buffer_size (== prior behavior of buffer_size == train_steps).
+                "buffer_size": min(int(spec.get("buffer_size", spec["train_steps"])), int(spec["train_steps"])),
                 "batch_size": int(spec.get("batch_size", 256)),  # ONE canonical default (SB3); was 512 -> 256/512 drift
                 "normalize_obs": bool(spec.get("normalize_obs", True)),
                 "learning_rate": float(spec.get("learning_rate", 3e-4)),  # honor the full agent block (parity)
@@ -289,6 +332,11 @@ def train_candidate(spec: dict) -> dict:
                 "popart_min_scale": float(spec.get("popart_min_scale", 1.0)),
                 "popart_warmup": int(spec.get("popart_warmup", 0)),
                 "tf32": bool(spec.get("tf32", True)),
+                # M6 (ops audit 2026-07-02): thermal governor for the SEARCH worker too. The trainer's
+                # _make_governor reads cfg['thermal_guardian'] ({hi, lo, poll_secs}); absent/None -> off.
+                # Result-neutral (pause-and-cool spends wall-clock only), so a 24/7 laptop SEARCH leg is
+                # protected from thermal shutdown exactly like the serial/TEST paths.
+                "thermal_guardian": spec.get("thermal_guardian"),
                 "device": device,
             },
             int(spec["seed"]),
@@ -297,14 +345,24 @@ def train_candidate(spec: dict) -> dict:
         bundle = env_builder(reward_fn)
         policy = trainer(bundle.train_env())
         popart_scale = getattr(policy, "popart_scale", None)  # T2.4 realised scale (read before the del below)
+        # R66 (2026-07-03): training-window SAFE_DEFAULT substitution counts attached by train_agent —
+        # read from the policy ATTRS (frozen at train end), not the live executor counters, which the
+        # val/train rollouts below re-zero. None when a trainer doesn't surface them (back-compat).
+        train_sd_count = getattr(policy, "train_safe_default_count", None)
+        train_call_count = getattr(policy, "train_safe_call_count", None)
         val = np.asarray(bundle.val_returns(policy), dtype=float)
         train = np.asarray(bundle.train_returns(policy), dtype=float)
-        fitness = float(held_out_fitness(val, int(spec.get("n_trials", 40))))
+        # n_trials is MANDATORY in the spec (built as opts["n_trials"], ~L494) — fail loud rather than fall
+        # back: the old `.get("n_trials", 40)` default was the PROTOTYPE candidate count and would silently
+        # over-deflate a 30-candidate campaign arm's DSR if a hand-built spec ever omitted the key.
+        fitness = float(held_out_fitness(val, int(spec["n_trials"])))
         tail = ReturnDistribution().fit(train).tail_stats()
         if str(device).startswith("cuda"):
             torch.cuda.empty_cache()
         out.update(ok=True, fitness=fitness, val_returns=[float(x) for x in val], tail_stats=tail,
-                   popart_scale=popart_scale)
+                   popart_scale=popart_scale,
+                   # R66: training-window SAFE_DEFAULT counts -> archived by _archive (additive/optional).
+                   train_safe_default_count=train_sd_count, train_safe_call_count=train_call_count)
         if sink is not None:
             sink.candidate_done(fitness=fitness, status="ok", secs=time.perf_counter() - _cand_t0)
         # Reclaim this candidate's heavy objects in the PERSISTENT pool worker BEFORE the next candidate.
@@ -422,6 +480,7 @@ def run_recycling(
     n_cpu: int,
     recycle_every: int,
     initializer: Any = _DEFAULT_INIT,
+    on_result: Callable[[dict], None] | None = None,
 ) -> list:
     """Run ``specs`` through a SEQUENCE of fresh :class:`DevicePool`s of ``recycle_every`` tasks each.
 
@@ -431,6 +490,12 @@ def run_recycling(
     This is the deadlock-free substitute for ``max_tasks_per_child`` worker recycling, which HANGS on
     Windows + spawn across CPython 3.11-3.14 (measured 2026-06-24). The pool re-spawn (~15 s) is
     amortized over ``recycle_every`` trainings. Results are returned in submission order.
+
+    Streaming archival (F1, ultrareview 2026-07-02): ``on_result`` (when given) receives each result
+    the moment its future completes — the success row AND the captured-exception row alike — so the
+    caller can persist finished work IMMEDIATELY. A crash at hour N of a multi-day leg must lose only
+    the in-flight work: the 2026-07-02 σ_D incident's farm survived precisely because its workers
+    wrote incrementally, whereas archiving only after the loop loses the WHOLE batch on a crash.
 
     Parameters
     ----------
@@ -448,6 +513,11 @@ def run_recycling(
     initializer:
         Worker initializer; defaults to the production ``_worker_init`` (thread pinning +
         pyarrow-before-torch). Tests pass ``None`` for bare workers.
+    on_result:
+        Optional per-result callback ``on_result(row)`` invoked as each future completes (success and
+        captured-exception rows both). An exception it raises is swallowed after stamping
+        ``row['archive_error'] = "<Type>: <msg>"`` — a transient disk error must not abort the batch;
+        the caller's post-loop writer retries the stamped rows.
     """
     out: list = []
     specs = list(specs)
@@ -456,14 +526,29 @@ def run_recycling(
         batch = specs[i : i + step]
         with DevicePool(n_gpu, n_cpu, initializer=initializer) as pool:
             futs = [pool.submit_with(worker, s) for s in batch]
-            for f in futs:
+            for f, s in zip(futs, batch):
                 try:
                     out.append(f.result())
                 except Exception as exc:  # noqa: BLE001 — a worker that RAISES (rather than returning
                     # an error result like ``train_candidate``) must NOT abort the batch or the remaining
                     # batches; capture it so every spec is still attempted (the caller checks ``ok`` and
                     # the matched-budget guard surfaces a failure wave). Order is preserved (futs order).
-                    out.append({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+                    row: dict = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+                    # F19: stamp the spec's identity keys onto the captured-exception row — a pool-level
+                    # crash (worker killed by the OS, unpicklable result) otherwise yields an ANONYMOUS
+                    # failure the caller cannot attribute to a (run_id, arm, seed) cell for resume/triage.
+                    if isinstance(s, dict):
+                        row.update({k: s[k] for k in ("run_id", "arm", "cid", "seed") if s.get(k) is not None})
+                    out.append(row)
+                if on_result is not None:
+                    # Stream the row to the caller's archiver NOW (success + failure alike). Never let
+                    # an archive error abort the batch: stamp it and continue — the post-loop writer is
+                    # the retry (it skips only rows it knows were durably written).
+                    try:
+                        on_result(out[-1])
+                    except Exception as exc:  # noqa: BLE001 — archiving must not kill the training batch
+                        if isinstance(out[-1], dict):
+                            out[-1]["archive_error"] = f"{type(exc).__name__}: {exc}"
     return out
 
 
@@ -487,6 +572,9 @@ def _spec(arm: str, kind: str, reward: Any, cid: str, opts: dict) -> dict:
         "popart_min_scale": opts.get("popart_min_scale", 1.0),
         "popart_warmup": opts.get("popart_warmup", 0),
         "tf32": opts.get("tf32", True),
+        # M6: thermal_guardian threaded from the campaign agent block (build_parallel_opts) into every
+        # worker spec so SEARCH trainings are governed too (None -> off; result-neutral wall-clock pause).
+        "thermal_guardian": opts.get("thermal_guardian"),
         "n_trials": opts["n_trials"],
         "synthetic": opts["synthetic"],
         "data": opts["data"],
@@ -564,6 +652,17 @@ def _archive(result: dict, arm: str, opts: dict, archive_root: str, generation: 
                     if result.get("popart_scale") is not None
                     else {}
                 ),
+                # R66 (2026-07-03): training-window SAFE_DEFAULT substitution counts (train_agent attach)
+                # — additive/optional, mirroring the popart_scale pattern above.
+                **(
+                    {
+                        "train_safe_default_count": int(result["train_safe_default_count"]),
+                        "train_safe_call_count": int(result["train_safe_call_count"]),
+                    }
+                    if result.get("train_safe_default_count") is not None
+                    and result.get("train_safe_call_count") is not None
+                    else {}
+                ),
             },
             "wall_clock": 0.0,
             # Rank 14: the env_fingerprint is the REAL provenance now, not a bare label. ``_run_env_fp``
@@ -590,11 +689,69 @@ def _summary(arm: str, accepted: list, failed: int, expected: int) -> dict:
 
 
 def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) -> dict:
+    import json as _json
+
     from src.feedback import schema
-    from src.llm.client import LLMClient
+    from src.io.results import load_run
+    from src.llm.client import JsonlArchiveSink, LLMClient
     from src.llm.loop import _REFLECTION_PREAMBLE, _diversity_directive
     from src.llm.prompts import build_prompt_set
     from src.sandbox.executor import extract_reward_source
+
+    # ── Search-replay cache (resume) ──────────────────────────────────────────────────
+    # On resume a previously-archived candidate is REPLAYED from disk instead of re-calling the
+    # (paid, non-deterministic) LLM and re-training: a mid-search resume becomes byte-faithful to the
+    # original run (same candidates -> same generation-best -> same reflection seed -> same winner) AND
+    # saves the Opus spend + GPU time. Mirrors src/llm/loop.py's serial cache, adapted to the parallel
+    # archive scheme: successes reload via ``load_run(cid, arm_root)`` (parallel ids are bare ``cid``,
+    # NOT ``<prefix>-<cid>``); the EMPTY stored feedback_block is irrelevant because this path rebuilds
+    # the reflection block LIVE from the generation's BEST candidate; sandbox FAILURES replay from the
+    # arm's failures.jsonl ledger so a previously-rejected candidate is NOT re-generated (which, against
+    # a non-deterministic author, could newly SUCCEED and silently change the candidate set / winner).
+    # Default OFF -> a fresh run is byte-for-byte unchanged.
+    resume = bool(opts.get("resume", False))
+    arm_root = str(Path(archive_root) / arm)
+    # T2.8b arm-scoped FED-estimator audit (fix 2026-07-03): clear the process-level EVT<->empirical
+    # switch registry at ARM START so the "estimator switched across candidates" warning scopes to THIS
+    # arm's in-process measurements, not across previously-driven arms (the registry was never reset in
+    # production). NB the parallel workers measure tail stats in their OWN processes, whose registries
+    # this cannot reach — the reset here covers the driver process (parity with run_prototype.run_arm).
+    from src.feedback.measurement import reset_fed_estimator_log
+
+    reset_fed_estimator_log()
+    # F5 (ultrareview 2026-07-02): the failures ledger is APPENDED per rejection AT THE MOMENT it
+    # happens, mirroring the serial loop's crash-robust append ledger (src/llm/loop.py) — the old
+    # end-of-arm "w" write meant a mid-arm crash lost EVERY ledgered failure, so --resume re-generated
+    # previously-rejected candidates against the non-deterministic author (which could newly succeed
+    # and silently change the candidate set / winner).
+    fail_ledger = Path(arm_root) / "failures.jsonl"
+    # (batch-5 m5) The SERIAL loop writes a DIFFERENTLY-named ledger — <root>/<prefix>-<arm>.failures.jsonl
+    # (src/llm/loop.py ~317) — but a mid-campaign SERIAL<->PARALLEL search-mode switch is refused up front
+    # by run_campaign._assert_search_mode_unchanged, so any one arm is only ever driven by a SINGLE mode and
+    # the two ledger layouts never need cross-replay (each mode's resume reads only its own ledger).
+
+    def _ledger_failure(row: dict) -> None:
+        # Best-effort append+flush (a ledger write must never crash the arm) — the serial loop's exact
+        # contract; the resume reader below and _search_pool_counts both key on ``candidate_id``.
+        try:
+            fail_ledger.parent.mkdir(parents=True, exist_ok=True)
+            with fail_ledger.open("a", encoding="utf-8") as _fh:
+                _fh.write(_json.dumps(row, default=str) + "\n")
+                _fh.flush()
+        except Exception:  # noqa: BLE001
+            pass
+
+    cached_failures: dict[str, dict] = {}
+    if resume and fail_ledger.is_file():
+        for _ln in fail_ledger.read_text(encoding="utf-8").splitlines():
+            _ln = _ln.strip()
+            if not _ln:
+                continue
+            try:  # a torn last line just means that one candidate regenerates — never crash resume
+                _f = _json.loads(_ln)
+                cached_failures[str(_f["candidate_id"])] = _f
+            except Exception:  # noqa: BLE001
+                pass
 
     if opts["pass_mode"].upper() == "A" or opts["provider"] == "stub":
         from src.llm.stub_designer import StubDesignerTransport
@@ -608,16 +765,28 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
         temp_raw = opts.get("temperature")
         temperature = float(temp_raw) if temp_raw is not None else None
         key_env = opts.get("api_key_env") or default_key_env(opts["provider"])
-        transport = build_transport(opts["provider"], model, key_env, temperature=temperature)
+        # F17: thread the author block's max_tokens/max_retries through (defaults = the historical
+        # hardcodes 4096/6) — raising the config value must not silently no-op into a truncated reward.
+        transport = build_transport(
+            opts["provider"], model, key_env, temperature=temperature,
+            max_tokens=int(opts.get("max_tokens") or 4096),
+            max_retries=int(opts.get("max_retries") or 6),
+        )
 
     diversity = bool(opts.get("diversity_prompt_variation", False))
 
     prompts = build_prompt_set(opts["env_cfg"], opts["n_assets"])
-    llm = LLMClient({"model": model}, transport=transport)
+    # F11: llm_calls.jsonl is appended PER CALL at call time via the archive sink — the old end-of-arm
+    # "w" dump lost the whole arm's call provenance (incl. the R71 served_model reproducibility anchor,
+    # which config/llm.yaml requires recorded at the FIRST live call) on any mid-arm crash.
+    llm = LLMClient(
+        {"model": model},
+        transport=transport,
+        archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"),
+    )
     gens = max(1, int(opts["generations"]))
     cpg = max(1, int(opts["candidates"]) // gens)
     accepted: list = []
-    failures: list = []
     failed = 0
     prev_block: str | None = None
     for gen in range(gens):
@@ -627,8 +796,43 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
         # this scheduler from the generation's BEST — so the full reflection prompt is not byte-identical
         # across paths for multi-candidate generations; the headline campaign uses the SERIAL path.
         user = prompts.initial if prev_block is None else f"{_REFLECTION_PREAMBLE}\n{prev_block}"
-        futs = []
+        # Each item is ("replay", result_dict) — an already-archived candidate replayed from disk —,
+        # ("fail", cid) — a previously-archived sandbox failure replayed from the ledger —, or
+        # ("live", cand_user, future) — a freshly generated candidate trained in the pool. Built in `k`
+        # order so the best-selection + archive ordering below is IDENTICAL whether a candidate is
+        # replayed or freshly generated (parity with a non-resume run).
+        items: list[tuple] = []
         for k in range(cpg):
+            cid = f"{arm}-g{gen}-c{k}"
+            if resume:
+                hit = None
+                try:
+                    hit = load_run(cid, arm_root)
+                except FileNotFoundError:
+                    hit = None  # not yet done -> fall through and generate
+                # A corrupt/integrity-failed record (KeyError/ValueError from load_run) PROPAGATES —
+                # failing loud beats silently regenerating (which would re-bill Opus + could desync the
+                # search), matching the serial path's rationale.
+                if hit is not None:
+                    _m = hit.get("metrics", {}) or {}
+                    r: dict[str, Any] = {
+                        "ok": True,
+                        "candidate_id": cid,
+                        "arm": arm,
+                        "fitness": float(_m["val_fitness"]),
+                        "val_returns": _m.get("val_returns"),
+                        "tail_stats": _m.get("tail_stats"),
+                        "reward_source": hit.get("reward_source", ""),
+                        "reward_hash": hit.get("reward_source_hash", ""),
+                        "prompt": hit.get("prompt", ""),
+                    }
+                    if _m.get("popart_scale") is not None:
+                        r["popart_scale"] = _m["popart_scale"]
+                    items.append(("replay", r))
+                    continue
+                if cid in cached_failures:
+                    items.append(("fail", cid))
+                    continue
             # Per-candidate prompt variation -> within-generation diversity without temperature
             # (mirrors src/llm/loop.py; uniform across arms, not a feedback confound).
             cand_user = user
@@ -640,23 +844,43 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
             # the EXACT prompt sent (the worker result dict has no prompt; directive 6). candidate_id
             # uses the per-generation index `k` (final-audit #22/#33: matches src/llm/loop.py and keeps
             # the archived directive index consistent with the id, instead of a global counter).
-            futs.append((cand_user, pool.submit(_spec(arm, "source", src, f"{arm}-g{gen}-c{k}", opts))))
+            items.append(("live", cand_user, pool.submit(_spec(arm, "source", src, cid, opts))))
         best = None
-        for user_prompt, f in futs:
-            r = f.result()
-            if not r.get("ok"):
+        for item in items:
+            if item[0] == "fail":
+                # A previously-LEDGERED sandbox failure: count it and do NOT regenerate (a
+                # non-deterministic re-author could newly succeed and change the set). Its row is
+                # ALREADY on disk (F5 appends at rejection time), so it is NOT re-appended here —
+                # re-appending would duplicate ledger lines on every resume (readers dedupe by
+                # candidate_id, so duplicates are harmless, but we do not create them).
                 failed += 1
-                # Capture the failed source + error (re-audit / final-audit #21 parity: the parallel
-                # path discarded failures, so a total-failure arm was undiagnosable from the archive).
-                failures.append({
-                    "candidate_id": r.get("candidate_id"),
-                    "prompt": user_prompt,
-                    "reward_source": r.get("reward_source"),
-                    "error": r.get("error"),
-                })
                 continue
-            r["prompt"] = user_prompt
-            _archive(r, arm, opts, archive_root, generation=gen)
+            if item[0] == "replay":
+                # An already-archived accepted candidate, treated EXACTLY like a live-accepted result
+                # (feeds `accepted` + `best`) — but NOT re-archived (it is already on disk) and NOT
+                # submitted for training.
+                r = item[1]
+            else:  # "live"
+                user_prompt, f = item[1], item[2]
+                r = f.result()
+                if not r.get("ok"):
+                    failed += 1
+                    # Capture the failed source + error (re-audit / final-audit #21 parity: the parallel
+                    # path discarded failures, so a total-failure arm was undiagnosable from the archive).
+                    # F5: appended to the on-disk ledger IMMEDIATELY (_ledger_failure) in the serial
+                    # loop's shape (candidate_id/generation/reward_source/error[:500]) PLUS the prompt
+                    # the parallel ledger has always carried (the #21 diagnosability payload; every
+                    # reader keys on candidate_id and ignores extra fields).
+                    _ledger_failure({
+                        "candidate_id": r.get("candidate_id"),
+                        "generation": gen,
+                        "prompt": user_prompt,
+                        "reward_source": r.get("reward_source"),
+                        "error": str(r.get("error"))[:500],
+                    })
+                    continue
+                r["prompt"] = user_prompt
+                _archive(r, arm, opts, archive_root, generation=gen)
             accepted.append(r)
             if best is None or r["fitness"] > best["fitness"]:
                 best = r
@@ -676,32 +900,11 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
                     else None
                 ),
             )
-    # Persist the raw LLM provenance + token usage (final-audit #36: the parallel path built the
-    # LLMClient archive then discarded it, like the serial path before #16). Stubs archive nothing.
-    _llm_archive = getattr(llm, "archive", None)
-    if _llm_archive:
-        import dataclasses
-        import json
-
-        _arm_dir = Path(archive_root) / arm
-        _arm_dir.mkdir(parents=True, exist_ok=True)
-        with (_arm_dir / "llm_calls.jsonl").open("w", encoding="utf-8") as _fh:
-            for _rec in _llm_archive:
-                _row = (
-                    dataclasses.asdict(_rec)
-                    if dataclasses.is_dataclass(_rec) and not isinstance(_rec, type)
-                    else dict(_rec)
-                )
-                _fh.write(json.dumps(_row, default=str) + "\n")
-    # Persist failed candidate sources (re-audit / final-audit #21 parity with run_arm).
-    if failures:
-        import json as _failjson
-
-        _fdir = Path(archive_root) / arm
-        _fdir.mkdir(parents=True, exist_ok=True)
-        with (_fdir / "failures.jsonl").open("w", encoding="utf-8") as _ff:
-            for _fl in failures:
-                _ff.write(_failjson.dumps(_fl, default=str) + "\n")
+    # NB (F5 + F11, ultrareview 2026-07-02): NO end-of-arm ledger writes here any more. The raw LLM
+    # provenance (llm_calls.jsonl, final-audit #36) is appended PER CALL by the JsonlArchiveSink the
+    # LLMClient above was constructed with, and each failure row (final-audit #21) is appended at
+    # rejection time by _ledger_failure — so a mid-arm crash loses at most the in-flight call/row,
+    # never the arm's whole provenance (the old "w"-mode dumps did exactly that).
     return _summary(arm, accepted, failed, gens * cpg)
 
 
@@ -797,4 +1000,13 @@ def run_parallel(arms: list[str], opts: dict, n_gpu: int, n_cpu: int, archive_ro
     finally:
         stop.set()
         pump.join(timeout=3)
+        # m12 (ops audit 2026-07-02): shut the per-call mp.Manager down explicitly. run_parallel is
+        # invoked ONCE PER ARM by the campaign's parallel search, and each Manager is a live helper
+        # PROCESS + socket; without shutdown they only die at interpreter exit, so a 7-arm campaign
+        # accumulates orphaned manager processes for the whole multi-week run. Best-effort: a manager
+        # that already died must not mask a real exception from the try block above.
+        try:
+            mgr.shutdown()
+        except Exception:  # noqa: BLE001 - cleanup must never raise over the run's real outcome
+            pass
     return summaries

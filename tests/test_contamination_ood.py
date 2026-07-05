@@ -25,12 +25,14 @@ from src.inference.contamination import (
     contamination_report,
     cross_model_disagreement,
     named_vs_blinded_oos_gap,
+    named_vs_blinded_structural,
     named_vs_blinded_tost,
     paired_tost,
     post_cutoff_persistence,
     structural_mcnemar,
 )
 from src.inference.ood_stress import (
+    _gpd_tail_sampler,
     block_bootstrap_paths,
     claims,
     garch_evt_fhs,
@@ -220,6 +222,68 @@ def test_structural_mcnemar_rejects_non_binary() -> None:
     assert structural_mcnemar(np.array([], dtype=int), np.array([], dtype=int))["status"] == "no_data"
 
 
+def test_named_vs_blinded_structural_data_locked_when_labels_irrelevant() -> None:
+    # Same program per seed under both labellings (identity ignored) -> paired sim = 1.0, data_locked.
+    progs = [
+        "def reward(r):\n    return r.mean() - 0.5 * cvar(r)",
+        "def reward(r):\n    return r.mean() / (r.std() + 1e-8)",
+        "def reward(r):\n    return r.mean() - drawdown(r)",
+        "def reward(r):\n    return r.mean() - 0.5 * cvar(r)",
+    ]
+    res = named_vs_blinded_structural(progs, list(progs), rng=np.random.default_rng(SEED))
+    assert res["status"] == "ok"
+    assert res["n_seeds"] == 4
+    assert res["paired_mean"] == pytest.approx(1.0)  # same-seed programs identical in structure
+    assert res["data_locked"] is True  # paired >= the cross-seed noise floor
+    assert 0.0 <= res["p_random_pairing_matches"] <= 1.0
+
+
+def test_named_vs_blinded_structural_is_identifier_invariant() -> None:
+    # Blinded renames variables + changes constants but keeps the program SHAPE -> still structurally identical.
+    named = ["def reward(returns):\n    return returns.mean() - 0.5 * cvar(returns)"]
+    blinded = ["def reward(x):\n    return x.mean() - 0.9 * cvar(x)"]
+    # n=1 is rejected (need >=2 paired seeds); duplicate to exercise the invariance on a 2-seed pair.
+    res = named_vs_blinded_structural(named * 2, blinded * 2, rng=np.random.default_rng(SEED))
+    assert res["status"] == "ok"
+    assert res["paired_mean"] == pytest.approx(1.0)  # renaming + reconstant-ing is invisible to the AST shape
+
+
+def test_named_vs_blinded_structural_no_data_paths() -> None:
+    assert named_vs_blinded_structural(["x"], ["x", "y"])["status"] == "no_data"  # length mismatch
+    assert named_vs_blinded_structural(["x"], ["x"])["status"] == "no_data"       # < 2 paired seeds
+
+
+def test_named_vs_blinded_structural_excludes_unparseable_pairs() -> None:
+    # jaccard(empty, empty) == 1.0, so an unparseable pair would read as "perfectly structurally locked";
+    # the filter (mirror of the P7c empty-AST fix in reward_code_distance) must EXCLUDE it and count it
+    # in n_unparseable_pairs instead of letting it inflate paired_mean / corrupt the permutation null.
+    good = [
+        "def reward(r):\n    return r.mean() - 0.5 * cvar(r)",
+        "def reward(r):\n    return r.mean() / (r.std() + 1e-8)",
+    ]
+    bad = "def reward(r:\n    return"  # SyntaxError -> canonical_shapes() == frozenset()
+    res = named_vs_blinded_structural(good + [bad], good + [bad], rng=np.random.default_rng(SEED))
+    assert res["status"] == "ok"
+    assert res["n_seeds"] == 2
+    assert res["n_unparseable_pairs"] == 1
+    assert res["paired_mean"] == pytest.approx(1.0)  # the two parseable identical pairs, unpolluted
+
+    # ALL pairs unparseable -> honest no_data, never a spuriously "locked" ok result.
+    res2 = named_vs_blinded_structural([bad, bad], [bad, bad], rng=np.random.default_rng(SEED))
+    assert res2["status"] == "no_data"
+    assert res2["n_unparseable_pairs"] == 2
+
+
+def test_named_vs_blinded_structural_wired_into_report() -> None:
+    progs = ["def reward(r):\n    return r.mean() - cvar(r)",
+             "def reward(r):\n    return r.mean() / r.std()"]
+    rep = contamination_report(named_sources=progs, blinded_sources=list(progs),
+                               rng=np.random.default_rng(SEED))
+    assert rep["structural_ast"]["status"] == "ok"
+    # legs without inputs still degrade honestly
+    assert rep["tost"]["status"] == "no_data"
+
+
 def test_named_vs_blinded_oos_gap_equivalence_within_sesoi() -> None:
     rng = np.random.default_rng(SEED)
     seeds = range(30)
@@ -259,7 +323,7 @@ def test_cross_model_disagreement_small_when_models_agree() -> None:
 def test_contamination_report_degrades_on_empty_inputs() -> None:
     rep = contamination_report()
     assert "load_bearing_note" in rep
-    for key in ("tost", "mahalanobis", "structural_mcnemar", "oos_gap",
+    for key in ("tost", "mahalanobis", "structural_mcnemar", "structural_ast", "oos_gap",
                 "post_cutoff_persistence", "cross_model"):
         assert rep[key]["status"] == "no_data"
     # "Min-K" / theatre must NOT silently masquerade as a result.
@@ -274,6 +338,180 @@ def test_contamination_report_runs_available_legs() -> None:
     assert rep["tost"]["status"] == "ok"
     assert rep["mahalanobis"]["status"] == "ok"
     assert rep["structural_mcnemar"]["status"] == "no_data"  # not provided
+
+
+# ===========================================================================
+# contamination.py — additional edge / degrade / branch coverage
+# ===========================================================================
+def test_named_vs_blinded_tost_absolute_bounds_override() -> None:
+    # equivalence_abs supplied -> data-driven Delta overridden (line 288); wrong length -> raise (277).
+    rng = np.random.default_rng(SEED)
+    named = np.array([1.0, -0.5])[None, :] + 0.05 * rng.standard_normal((50, 2))
+    blinded = np.array([1.0, -0.5])[None, :] + 0.05 * rng.standard_normal((50, 2))
+    out = named_vs_blinded_tost(named, blinded, equivalence_abs=[1.0, 1.0])
+    assert out["status"] == "ok"
+    # Wide absolute bounds -> everything equivalent, and delta echoes the supplied value.
+    assert out["all_equivalent"] is True
+    assert out["per_coefficient"][0]["delta"] == 1.0
+    with pytest.raises(ValueError, match="equivalence_abs"):
+        named_vs_blinded_tost(named, blinded, equivalence_abs=[1.0])  # wrong length (line 277)
+
+
+def test_named_vs_blinded_tost_bad_coefficient_names_raise() -> None:
+    # coefficient_names length mismatch -> ValueError (line 275).
+    named = np.zeros((4, 3))
+    blinded = np.zeros((4, 3))
+    with pytest.raises(ValueError, match="coefficient_names"):
+        named_vs_blinded_tost(named, blinded, coefficient_names=["a", "b"])
+
+
+def test_named_vs_blinded_tost_zero_width_degenerate_column() -> None:
+    # A zero-within-SD column with a zero pre-registered bound -> degenerate-zero-width branch (293-309).
+    named = np.array([[1.0, 5.0], [1.0, 5.0], [1.0, 5.0], [1.0, 5.0]])   # col 0 identical across seeds
+    blinded = np.array([[1.0, 6.0], [1.0, 7.0], [1.0, 8.0], [1.0, 9.0]])  # col 0 identical; col 1 varies
+    # Zero absolute bound on col 0 (delta<=0), nonzero on col 1.
+    out = named_vs_blinded_tost(named, blinded, equivalence_abs=[0.0, 100.0])
+    assert out["status"] == "ok"
+    c0 = out["per_coefficient"][0]
+    assert c0["delta"] == 0.0
+    assert c0.get("degenerate_zero_width") is True
+    assert c0["equivalent"] is True          # named col0 == blinded col0 exactly
+    assert c0["mean_diff"] == 0.0
+
+
+def test_named_vs_blinded_tost_zero_width_flags_nonidentical() -> None:
+    # Zero-width bound but the near-constant columns differ between arms -> NOT equivalent.
+    named = np.array([[1.0], [1.0], [1.0], [1.0]])
+    blinded = np.array([[2.0], [2.0], [2.0], [2.0]])
+    out = named_vs_blinded_tost(named, blinded, equivalence_abs=[0.0])
+    c0 = out["per_coefficient"][0]
+    assert c0["degenerate_zero_width"] is True
+    assert c0["equivalent"] is False
+    assert c0["mean_diff"] == pytest.approx(-1.0)
+
+
+def test_mahalanobis_no_data_and_default_rng() -> None:
+    # empty / mismatched -> no_data (line 363); < 2 seeds -> no_data (366).
+    assert coefficient_mahalanobis_permutation(np.zeros((0, 3)), np.zeros((0, 3)))["status"] == "no_data"
+    assert coefficient_mahalanobis_permutation(np.zeros((5, 3)), np.zeros((5, 2)))["status"] == "no_data"
+    assert coefficient_mahalanobis_permutation(np.zeros((1, 3)), np.zeros((1, 3)))["status"] == "no_data"
+    # rng=None default branch (line 368); deterministic p across two default calls.
+    named = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 0.5], [0.5, 2.0]])
+    blinded = named + 0.01
+    r1 = coefficient_mahalanobis_permutation(named, blinded, n_perm=200)
+    r2 = coefficient_mahalanobis_permutation(named, blinded, n_perm=200)
+    assert r1["status"] == "ok" and r1["pvalue"] == r2["pvalue"]
+
+
+def test_structural_mcnemar_chi_square_branch_for_large_discord() -> None:
+    # >= 25 discordant pairs -> chi-square with continuity correction (lines 449-451).
+    named = np.concatenate([np.ones(30, dtype=int), np.zeros(10, dtype=int)])
+    blinded = np.concatenate([np.zeros(30, dtype=int), np.zeros(10, dtype=int)])
+    res = structural_mcnemar(named, blinded)  # 30 discordant (named-only) -> chi-square regime
+    assert res["status"] == "ok"
+    assert res["n10"] == 30 and res["n01"] == 0
+    # chi2 = (|30-0| - 1)^2 / 30 with continuity correction.
+    assert res["statistic"] == pytest.approx((abs(30 - 0) - 1.0) ** 2 / 30)
+    assert res["pvalue"] < 1e-6
+    # continuity=False drops the -1 correction.
+    res_nc = structural_mcnemar(named, blinded, continuity=False)
+    assert res_nc["statistic"] == pytest.approx((30 ** 2) / 30)
+
+
+def test_structural_ast_default_rng_deterministic() -> None:
+    # rng=None default branch (line 509); deterministic permutation p across two default calls.
+    progs = ["def reward(r):\n    return r.mean() - cvar(r)",
+             "def reward(r):\n    return r.mean() / r.std()",
+             "def reward(r):\n    return r.mean() - drawdown(r)"]
+    a = named_vs_blinded_structural(progs, list(progs))
+    b = named_vs_blinded_structural(progs, list(progs))
+    assert a["status"] == "ok"
+    assert a["p_random_pairing_matches"] == b["p_random_pairing_matches"]
+
+
+def test_oos_gap_default_rng_deterministic() -> None:
+    # rng=None default branch (line 576).
+    named = {s: 0.5 + 0.01 * s for s in range(10)}
+    blinded = {s: 0.5 + 0.01 * s for s in range(10)}
+    a = named_vs_blinded_oos_gap(named, blinded)
+    b = named_vs_blinded_oos_gap(named, blinded)
+    assert a["status"] == "ok" and a["ci_low"] == b["ci_low"]
+
+
+def test_post_cutoff_default_rng_deterministic() -> None:
+    # rng=None default branch (line 623).
+    pre = {s: 0.3 + 0.01 * s for s in range(10)}
+    post = {s: 0.28 + 0.01 * s for s in range(10)}
+    a = post_cutoff_persistence(pre, post)
+    b = post_cutoff_persistence(pre, post)
+    assert a["status"] == "ok" and a["ci_low"] == b["ci_low"]
+
+
+def test_cross_model_disagreement_empty_reports_not_executed() -> None:
+    # Empty second-model matrix -> honest executed=False disclosure (lines 671-682).
+    a = np.array([[1.0, -0.5], [1.1, -0.4], [0.9, -0.6]])
+    res = cross_model_disagreement(a, np.zeros((0, 2)))
+    assert res["status"] == "no_data"
+    assert res["executed"] is False
+    assert "NOT EXECUTED" in res["reason"]
+
+
+def test_cross_model_disagreement_too_few_seeds_and_bad_names() -> None:
+    a = np.array([[1.0, -0.5], [1.1, -0.4], [0.9, -0.6]])
+    # < 2 seeds in one model -> no_data (line 689).
+    assert cross_model_disagreement(a, np.array([[1.0, -0.5]]))["status"] == "no_data"
+    # coefficient_names mismatch -> ValueError (line 697).
+    b = a + 0.05
+    with pytest.raises(ValueError, match="coefficient_names"):
+        cross_model_disagreement(a, b, coefficient_names=["only_one"])
+
+
+def test_cross_model_disagreement_infinite_d_when_pooled_sd_zero() -> None:
+    # A column with zero within-model variance in BOTH arms but a nonzero mean gap ->
+    # pooled_sd == 0, md != 0 -> cohens_d = inf, excluded from the finite aggregates (branch 715->704).
+    a = np.array([[3.0, 1.0], [3.0, 2.0], [3.0, 3.0]])   # col 0 constant at 3.0
+    b = np.array([[5.0, 1.0], [5.0, 2.0], [5.0, 3.0]])   # col 0 constant at 5.0 -> gap 2, sd 0
+    res = cross_model_disagreement(a, b)
+    assert res["status"] == "ok"
+    assert res["per_coefficient"][0]["cohens_d"] == float("inf")
+    assert res["per_coefficient"][0]["pooled_sd"] == 0.0
+    # The infinite d is excluded from max/mean (only the finite col-1 d contributes).
+    assert np.isfinite(res["max_abs_d"])
+
+
+def test_cross_model_disagreement_all_infinite_yields_nan_aggregates() -> None:
+    # Every column has zero pooled SD but a nonzero gap -> all d infinite -> nan aggregates (722-723 else).
+    a = np.array([[3.0], [3.0], [3.0]])
+    b = np.array([[5.0], [5.0], [5.0]])
+    res = cross_model_disagreement(a, b)
+    assert res["status"] == "ok"
+    assert np.isnan(res["max_abs_d"]) and np.isnan(res["mean_abs_d"])
+
+
+def test_contamination_report_runs_all_provided_legs() -> None:
+    # Exercise the report branches for structural_mcnemar / oos_gap / post_cutoff / cross_model
+    # when their inputs ARE provided (lines 783, 793, 800, 809).
+    rng = np.random.default_rng(SEED)
+    named = np.array([1.0, -0.5])[None, :] + 0.1 * rng.standard_normal((20, 2))
+    blinded = np.array([1.0, -0.5])[None, :] + 0.1 * rng.standard_normal((20, 2))
+    model_b = np.array([1.0, -0.5])[None, :] + 0.1 * rng.standard_normal((15, 2))
+    seeds = range(20)
+    rep = contamination_report(
+        named_coeffs=named,
+        blinded_coeffs=blinded,
+        named_struct=np.ones(20, dtype=int),
+        blinded_struct=np.ones(20, dtype=int),
+        named_seed_sharpe={s: 0.5 + 0.01 * s for s in seeds},
+        blinded_seed_sharpe={s: 0.5 + 0.01 * s for s in seeds},
+        pre_cutoff_gap={s: 0.3 + 0.01 * s for s in seeds},
+        post_cutoff_gap={s: 0.28 + 0.01 * s for s in seeds},
+        model_b_coeffs=model_b,
+        rng=rng,
+    )
+    assert rep["structural_mcnemar"]["status"] == "ok"
+    assert rep["oos_gap"]["status"] == "ok"
+    assert rep["post_cutoff_persistence"]["status"] == "ok"
+    assert rep["cross_model"]["status"] == "ok"
 
 
 # ===========================================================================
@@ -404,3 +642,147 @@ def test_claims_states_load_bearing_distinction() -> None:
     assert "falsification" in c["can_claim"].lower() or "stress-probe" in c["can_claim"].lower()
     assert "generalisation" in c["cannot_claim"].lower()
     assert "Bauer" in c["power_caveat"]
+
+
+# ===========================================================================
+# ood_stress.py — additional edge / degrade / branch coverage
+# ===========================================================================
+def test_validate_panel_promotes_1d_and_rejects_3d() -> None:
+    # 1-D input is promoted to a single-asset column (line 104): a 1-D panel runs.
+    r1d = _garch_like_panel(n=200, k=1).ravel()
+    paths = block_bootstrap_paths(r1d, n_paths=2, rng=np.random.default_rng(1))
+    assert paths.shape == (2, 200, 1)
+    # 3-D input is malformed -> ValueError (line 106).
+    with pytest.raises(ValueError, match=r"\(T, n_assets\)"):
+        block_bootstrap_paths(np.zeros((3, 4, 5)))
+
+
+def test_garch_evt_fhs_bad_horizon_and_default_rng() -> None:
+    panel = _garch_like_panel(n=200, k=2)
+    # horizon < 1 -> ValueError (line 271).
+    with pytest.raises(ValueError, match="horizon"):
+        garch_evt_fhs(panel, horizon=0)
+    # rng=None default branch (line 273): runs and is finite.
+    out = garch_evt_fhs(panel, n_paths=2, horizon=50)
+    assert out.shape == (2, 50, 2) and np.all(np.isfinite(out))
+
+
+def test_block_bootstrap_default_rng() -> None:
+    # rng=None default branch (line 391).
+    panel = _garch_like_panel(n=200, k=2)
+    out = block_bootstrap_paths(panel, n_paths=3)
+    assert out.shape == (3, 200, 2)
+
+
+def test_markov_default_rng_and_success_body() -> None:
+    # rng=None default (line 442). A clearly two-regime market makes the MS-AR fit succeed,
+    # exercising the whole simulation body (lines 461-511).
+    rng = np.random.default_rng(7)
+    n = 800
+    # Build a market with two persistent variance regimes so MarkovAutoregression converges.
+    state = np.zeros(n, dtype=int)
+    for t in range(1, n):
+        # sticky regimes
+        flip = rng.random() < (0.02 if state[t - 1] == 0 else 0.05)
+        state[t] = 1 - state[t - 1] if flip else state[t - 1]
+    calm = 0.005 * rng.standard_normal(n)
+    crash = -0.002 + 0.03 * rng.standard_normal(n)
+    market = np.where(state == 0, calm, crash)
+    betas = np.array([0.9, 1.0, 1.1])
+    panel = market[:, None] * betas[None, :] + 0.003 * rng.standard_normal((n, 3))
+    res = markov_crash_paths(panel, n_paths=5, horizon=100, k_regimes=2)
+    assert res["status"] in {"ok", "fit_failed"}
+    if res["status"] == "ok":
+        assert res["paths"].shape == (5, 100, 3)
+        assert np.all(np.isfinite(res["paths"]))
+        np.testing.assert_allclose(res["transition"].sum(axis=0), 1.0, atol=1e-6)
+        assert "start_state" in res
+
+
+def test_vol_spike_multipath_branch_and_default_rng() -> None:
+    # n_paths > 1 takes the block-resample-then-inflate branch (lines 552-553) and the
+    # rng=None default (line 547). Variance is still scaled by the multiplier.
+    panel = _garch_like_panel(n=300, k=3)
+    out = vol_spike_paths(panel, multiplier=4.0, n_paths=5)
+    assert out.shape == (5, panel.shape[0], 3)
+    assert np.all(np.isfinite(out))
+
+
+def test_tail_metrics_all_nonfinite_yields_nan_aggregate() -> None:
+    # A path whose returns are all non-finite -> the per-path CVaR is non-finite, so the across-path
+    # _agg receives an empty finite set and returns nan (line 592). (sharpe_ratio maps a degenerate
+    # path to 0.0, so the CVaR aggregate is the one that exercises the empty branch.)
+    port = np.full((3, 50), np.nan)
+    m = tail_metrics(port)
+    assert np.isnan(m["cvar"][0.05]["iqm"])
+    assert np.isnan(m["cvar"][0.05]["p05"])
+    assert np.isnan(m["cvar"][0.01]["mean"])
+
+
+def test_score_paths_2d_input_and_bad_ndim() -> None:
+    # 2-D (n_paths, H) input is promoted to single-asset (line 634).
+    two_d = 0.01 * np.random.default_rng(0).standard_normal((6, 100))
+    out = score_paths(two_d)
+    assert out["n_paths"] == 6
+    # 4-D input is malformed -> ValueError (line 636).
+    with pytest.raises(ValueError, match=r"\(n_paths, H, n_assets\)"):
+        score_paths(np.zeros((2, 3, 4, 5)))
+
+
+def test_validate_stylized_facts_single_column_and_short_series() -> None:
+    # A single-column 2-D historical panel exercises the ndim==2/shape[1]==1 ravel branch (line 671).
+    hist_1col = _garch_like_panel(n=300, k=1)          # (300, 1)
+    syn = _garch_like_panel(n=300, k=1)[None, :, :]     # (1, 300, 1)
+    battery = validate_stylized_facts(syn, hist_1col)
+    assert "checks" in battery and "passed" in battery
+    # A too-short series (< max_lag + 2) -> nan facts (line 676), no crash.
+    short = np.array([[0.01], [0.02], [0.03]])          # 3 rows < 10 + 2
+    b2 = validate_stylized_facts(short[None, :, :], short, max_lag=10)
+    assert np.isnan(b2["synthetic"]["excess_kurtosis"])
+    assert b2["passed"] is False
+
+
+def test_validate_stylized_facts_accepts_1d_series() -> None:
+    # 1-D historical + 1-D synthetic exercise the _to_port ndim<2 ravel branch (line 671).
+    rng = np.random.default_rng(SEED)
+    hist_1d = 0.01 * rng.standard_t(5, size=400)
+    syn_1d = 0.01 * rng.standard_t(5, size=400)
+    battery = validate_stylized_facts(syn_1d, hist_1d)
+    assert "checks" in battery
+    assert np.isfinite(battery["synthetic"]["excess_kurtosis"])
+
+
+def test_gpd_tail_sampler_synthesises_continuous_tail_exceedances() -> None:
+    # Heavy-tailed residuals -> both GPD sides fit; tail-mass draws are replaced by GPD-extrapolated
+    # continuous exceedances (both-tail branches). The EVT contribution is that some draws are NOT
+    # members of the (discrete) empirical residual set -> genuinely synthesised extremes, and the
+    # sampler can reach beyond the empirical support on at least one tail.
+    rng = np.random.default_rng(SEED)
+    e = rng.standard_t(4, size=3000)  # heavy-tailed -> lower_par and upper_par both fit
+    sample = _gpd_tail_sampler(e, threshold_q=0.10, rng=rng)
+    draws = sample(6000)
+    assert draws.shape == (6000,) and np.all(np.isfinite(draws))
+    members = set(np.round(e, 12))
+    synthesised = sum(1 for v in draws if round(float(v), 12) not in members)
+    # Many draws are GPD-drawn continuous exceedances, i.e. NOT members of the discrete empirical
+    # residual set -> the semi-parametric EVT tail extension is genuinely active (both tails fired).
+    assert synthesised > 100
+
+
+def test_gpd_tail_sampler_falls_back_to_empirical_when_tail_degenerate() -> None:
+    # A tiny residual vector: each side has < 5 exceedances -> _fit_side returns None (line 164),
+    # so BOTH GPD blocks are skipped (branches 184->191, 191->198) and the sampler is a pure
+    # empirical bootstrap: every draw is a verbatim member of the input.
+    e = np.array([1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 0.0, 0.0, 0.5, -0.5])
+    sample = _gpd_tail_sampler(e, threshold_q=0.10, rng=np.random.default_rng(1))
+    draws = sample(200)
+    members = set(np.round(e, 9))
+    assert all(round(float(v), 9) in members for v in draws)
+
+
+def test_garch_evt_fhs_independent_marginals_runs_the_gpd_samplers() -> None:
+    # preserve_cross_section=False routes the whole generator through the per-asset GPD samplers.
+    panel = _garch_like_panel(n=800, k=2)
+    rng = np.random.default_rng(SEED)
+    out = garch_evt_fhs(panel, n_paths=6, horizon=200, preserve_cross_section=False, rng=rng)
+    assert out.shape == (6, 200, 2) and np.all(np.isfinite(out))

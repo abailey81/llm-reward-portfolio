@@ -6,11 +6,21 @@ for null-calibration tests, and an isolated results directory.
 """
 from __future__ import annotations
 
-import numpy as np
-import pytest
+# H1: import pyarrow BEFORE torch (order-independent SIGSEGV fix). pytest-randomly shuffles test /
+# module order, so a test that imports torch before any pyarrow-backed gold load can trigger the
+# torch/pyarrow first-loader-wins ABI segfault (src/utils/preload). Preloading here — at the very top
+# of conftest, which pytest imports before any test module — pins pyarrow first regardless of order.
+from src.utils.preload import preload
 
-from src.data.panel import Panel
-from src.data.synthetic import make_synthetic_panel
+preload()
+
+# E402 is intentional here: pyarrow MUST be imported (via preload above) BEFORE any module that pulls
+# in torch, so these imports deliberately follow the preload call.
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+
+from src.data.panel import Panel  # noqa: E402
+from src.data.synthetic import make_synthetic_panel  # noqa: E402
 
 SEED = 12345
 

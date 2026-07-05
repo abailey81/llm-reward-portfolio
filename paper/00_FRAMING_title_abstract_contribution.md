@@ -1,4 +1,4 @@
-# Dissertation front matter — title, abstract, contribution, framing (DRAFT v1, 2026-06-26)
+# Dissertation front matter — title, abstract, contribution, framing (DRAFT v2 — mechanism-led, 2026-07-01)
 
 **Status.** Bankable draft — written to be robust to the campaign outcome (null / mixed / positive).
 Uses the *retitled* construct ("multi-level tail-risk feedback", NOT "the distribution"), the
@@ -18,20 +18,27 @@ drift to an unqualified "distribution" or "the LLM is a better optimiser."
 3. **Can Tail-Risk Feedback Improve LLM-Designed Reward Functions? An Off-Critic, Pre-Registered Study
    in Portfolio Reinforcement Learning**
 
-*Recommendation:* (1) for the submitted title (precise, method-forward, no overclaim); (2) as the
-intro hook. Avoid "distributional feedback" in the title — it is the construct overclaim the framing
-discipline forbids.
+*Recommendation (v2, mechanism-led):* with the mechanism now the headline, **title (2) — the
+"does showing the model the downside change the reward code it writes?" question — is the recommended
+submitted title**, since it leads with the mechanism the dissertation is built around; (1) is the precise,
+more conventional method-forward alternative. Avoid "distributional feedback" in the title — it is the
+construct overclaim the framing discipline forbids.
 
 ---
 
-## 2. Contribution statement (the three things you actually contribute)
+## 2. Contribution statement (the four things you actually contribute)
 
-This dissertation makes three contributions, none of which is contingent on a positive result:
+This dissertation makes four contributions, none of which is contingent on a positive result; the mechanism
+characterization (C4) is the foregrounded headline, with the comparative-performance machinery (C1–C3) as
+the rigorous backdrop that makes it credible:
 
-- **C1 — An off-critic feedback instrument that isolates the channel.** A method for feeding an LLM
+- **C1 — An off-critic feedback instrument that isolates the feedback content.** A method for feeding an LLM
   reward-designer the *realized-return lower tail* (CVaR at 5/10/25%, a high-variance 1% level, left-
   tail mass and robust skew) measured **off the critic** from realized returns, while the RL agent is
-  held byte-identically fixed across arms. The instrument is **three-way decoupled**: the tail is
+  held byte-identically fixed across arms. It isolates the feedback *content* as the manipulated variable,
+  **not** an exogenous measurement: the fed tail is *endogenous* to the policy it steers (two coupled
+  reward→policy→measurement loops), so the comparison is between coupled loops — the legitimate object of
+  study, honestly disclosed. The instrument is **three-way decoupled**: the tail is
   *fed* on the training split, candidates are *selected* on a tail-blind validation Deflated Sharpe
   (λ=0), and the hypothesis is *tested* on empirical CVaR over a sealed test split — three different
   estimators on three different data partitions, so a tail effect is attributable to the feedback
@@ -43,49 +50,64 @@ This dissertation makes three contributions, none of which is contingent on a po
   tail-diagnostic set, and analysis plan fixed before the sealed test leg) with intersection–union
   tests, a placebo and a structure-shuffled ("deranged-tail") control, deflated Sharpe ratios, and
   combinatorial probability-of-backtest-overfitting. A non-rejection is reported as a bounded,
-  pre-registered equivalence, not an underpowered failure.
+  pre-registered equivalence — or, when the minimum detectable effect exceeds the pre-registered SESOI,
+  as a calibrated **INCONCLUSIVE** verdict (Lakens) — never as an underpowered failure.
 
 - **C3 — A decision-theoretic envelope delimiting when distributional feedback can help.** A short
-  theory (Blackwell sufficiency / garbling; Kusuoka–Acerbi coherent-risk spanning; off-critic
-  non-closedness) establishing that an *optimal* user of the lower-tail statistics weakly dominates an
-  optimal user of a scalar risk summary, and the conditions (λ>0 selection, responsive designer) under
-  which the bound is strict vs vacuous — turning the empirical question into a falsifiable prediction
+  theory (Blackwell sufficiency / garbling; Kusuoka coherent-risk spanning; CVaR distributional-robustness
+  duality) establishing that an *optimal* user of the lower-tail statistics weakly dominates an
+  optimal user of a scalar risk summary — an *envelope* an optimal user attains, which a bounded language
+  model coupled to a fixed agent may not realise — and the conditions (λ>0 selection, responsive designer)
+  under which the bound is strict vs vacuous — turning the empirical question into a falsifiable prediction
   (the §1a prediction table), so a result of either sign is a *confirmed or refuted prediction* rather
   than a bare measurement.
 
+- **C4 — A mechanism characterization that *locates* where the feedback channel acts (the headline).** A
+  pre-specified, report-only causal decomposition of the chain *fed tail signal → authored reward code →
+  trained policy → realized tail* into three sub-questions — **responsiveness** (does the signal move the
+  code?), **transmission** (does the code move the outcome?), and **specificity** (is it genuine use of the
+  tail content or a surface echo, and is any failure a numeric-legibility bottleneck?) — instrumented by a
+  responsiveness statistic, a fed→code→outcome mediation, an identifier-invariant structural test, and a
+  legible-format ablation, all disjoint from the confirmatory testing family. This turns a null from an
+  absence of evidence into a *located* finding about *where* the channel breaks, which — with the
+  performance equivalence as its rigorous backdrop — is the dissertation's headline and originality kernel.
+
 ---
 
-## 3. Abstract (DRAFT, ~290 words; bankable-null variant)
+## 3. Abstract (DRAFT v2 — mechanism-led, 2026-07-01; ~300 words; bankable-null variant)
 
-Reward design is the central bottleneck in applying reinforcement learning to risk-sensitive
-financial control: a reward that is well specified in the mean can yield a policy that is profitable
-on average yet ruinous in the tail. Large language models can now author reward-function *code* and
-refine it from feedback, but that feedback is typically a scalar score or a per-component point
-statistic — it conveys little about the *shape* of the outcome distribution the reward implicitly
-selects. We ask whether feeding the LLM reward-designer **multi-level tail-risk feedback** — the
-realized-return lower tail (conditional value-at-risk at several levels, left-tail mass and skew),
-measured *off the critic* from realized returns — leads it to write better risk-sensitive reward code
-than a scalar risk-adjusted summary.
+Reward design is the central bottleneck in applying reinforcement learning to risk-sensitive financial
+control: a reward well specified in the mean can yield a policy that is profitable on average yet ruinous
+in the tail. Large language models can now author reward-function *code* and refine it from feedback, but
+that feedback is typically a scalar score that conveys little about the *shape* of the outcome distribution
+the reward implicitly selects. We ask a **mechanistic** question: does showing the LLM reward-designer the
+**downside** — the realized-return lower tail (conditional value-at-risk at several levels, left-tail mass
+and skew), measured *off the critic* from realized returns — change the reward *code* it writes, and does
+that change propagate to the trained agent's realized tail behaviour? We cast this as a three-link causal
+chain — **fed tail signal → authored reward code → trained policy → realized tail** — and ask, through
+three pre-specified sub-questions (responsiveness, transmission, specificity), not merely *whether* richer
+feedback helps but *where* the channel acts or breaks.
 
-We isolate the feedback channel as the sole manipulated variable: five LLM arms share one fixed
-soft actor–critic agent, one matched candidate budget, and identical prompts, differing *only* in the
-feedback block; two non-LLM search baselines bound the search procedure. The design is **pre-registered
-and cryptographically frozen** before a sealed 2018–2025 test leg. The feedback signal is *fed* on the
-training split, candidates are *selected* on a tail-blind validation Deflated Sharpe, and the
-hypothesis is *tested* on empirical conditional value-at-risk over the sealed split — so any tail
-effect is attributable to the feedback channel rather than to a self-grading estimator. Inference uses
-intersection–union tests with placebo and structure-shuffled controls, deflated Sharpe ratios, and
-combinatorial backtest-overfitting probabilities.
+We isolate the feedback channel as the sole manipulated variable: five LLM arms share one fixed soft
+actor–critic agent, one matched candidate budget and identical prompts, differing *only* in the feedback
+block; two non-LLM search baselines bound the procedure. The design is **pre-registered and
+cryptographically frozen** before a sealed 2020–2026 test leg, with the signal *fed* on the training split,
+candidates *selected* on a tail-blind validation Deflated Sharpe, and the hypothesis *tested* on empirical
+conditional value-at-risk over the sealed split — a three-way decoupling so any effect is attributable to
+the channel rather than to a self-grading estimator. The performance contrast is decided by co-primary
+intersection–union tests against placebo and structure-shuffled controls; the mechanism is read off a
+responsiveness statistic, a fed→code→outcome mediation, and an identifier-invariant test of whether the
+model *uses* the tail content or merely echoes its surface.
 
-**[RESULT — campaign slot.]** *Current honest fill:* in a directional single-seed prototype the
-apparent tail advantage did not survive its own zero-information placebo control, consistent with the
-pre-registered null; the confirmatory campaign tests whether this holds at full power. We therefore
-report a bounded, pre-registered comparison rather than a performance claim, and contribute an
-off-critic feedback instrument, a pre-registered inference protocol, and a decision-theoretic envelope
-delimiting when distributional feedback can and cannot help an LLM reward-designer. The null is credited
-on error-statistical severity (the frozen, deviation-free protocol; Mayo; Rubin 2025) and forking-paths
-avoidance (Gelman & Loken 2014), and is reported as a TOST equivalence against the pre-registered SESOI
-rather than as a bare *p* > 0.05.
+**[RESULT — campaign slot.]** *Current honest fill:* in a directional prototype the apparent tail advantage
+did not survive its own zero-information placebo, consistent with the pre-registered null. A null here is
+not an absence of evidence but a **located** one: the chain's break — predicted at the first link, where a
+numeric-legibility bottleneck may stop the model from reading close tail values — is the finding. We report
+the performance contrast as a bounded, pre-registered TOST equivalence against the SESOI, credited on
+error-statistical severity (the frozen, deviation-free protocol; Mayo; Rubin 2025) and forking-paths
+avoidance (Gelman & Loken 2014) rather than a bare *p* > 0.05, and we contribute an off-critic feedback
+instrument, a pre-registered comparative-inference protocol, a decision-theoretic envelope delimiting when
+tail feedback can help, and a mechanism characterization that *locates* where it acts.
 
 > **Conditional-positive result sentence** (swap in iff the campaign IUT rejects on the tail leg and
 > survives placebo + shuffled-placebo): "In the confirmatory campaign, multi-level tail-risk feedback
@@ -99,7 +121,7 @@ rather than as a bare *p* > 0.05.
 
 The contribution is *not* "an LLM can design reward code" (Eureka, Text2Reward, DrEureka) nor
 "distribution beats scalar" stated loosely — Eureka already feeds per-component scalar *trajectories*,
-and CARD (2026) reports beating a human reward oracle without any distribution. The empty cell this
+and CARD (2025) reports beating a human reward oracle without any distribution. The empty cell this
 work occupies is the *conjunction*: (i) the LLM authors reward **code**, (ii) the iteration signal is
 the realized-return **lower-tail distribution of outcomes** (not point statistics of reward
 components), (iii) in a **risk-sensitive financial, no-oracle** domain, (iv) under **pre-registered
@@ -107,7 +129,16 @@ comparative inference** with the off-critic three-way decoupling. The nearest ne
 Decision-Language Model (Behari et al., NeurIPS 2024), which also proposes reward code and iterates on
 a simulated *distribution* — but its distribution is a population-across-states spread in public-health
 resource allocation, the agent is not held fixed off-critic, and there is no pre-registered tail
-inference. State the delta in one sentence and cite-and-distinguish DLM, Eureka, and CARD explicitly;
+inference. In finance the cell stays empty too: GIFT (2026) may only select/transform/compose rewards from
+a registered risk-rule library (parameters clipped before execution — constrained, not open-ended,
+authorship), jointly with the state, on generic scalar diagnostics; ELfolio (2025) evolves strategy code on
+a scalar Sharpe fitness — our control condition; AlgoEvolve (June 2026) meta-evolves trading-strategy
+programs on a return-plus-consistency fitness with no RL agent and no reward function; and the field's most
+explicit feedback vector — RD-Agent(Q)'s eight scalars — tops out at max-drawdown, with no CVaR/ES/quantile
+anywhere. The concurrent "feedback engineering" workshop study (Gallego 2026, ICML NExT-Game) compares
+sparse-vs-dense feedback for LLM-synthesised *policy* code — no reward authorship, no placebo/structure
+controls, no inferential statistics, no tail axis. State the delta in one sentence and cite-and-distinguish
+DLM, Eureka, CARD, GIFT, ELfolio, AlgoEvolve, RD-Agent(Q), and Gallego explicitly;
 never let the abstract elevate the (descriptive, comparator-snooped) "beat-the-human" H1 to the
 novelty axis.
 
@@ -154,18 +185,20 @@ grade-weight; everything marked **[NOW]** is bankable regardless of the campaign
 |---|---|---|---|
 | Title + Abstract + Contribution | 350 | **[NOW]** | this file; highest-leverage paragraph |
 | Introduction + the empty-cell positioning | 1,200 | **[NOW]** | §4 here; cite-and-distinguish DLM/Eureka/CARD |
-| Related work | 1,200 | **[NOW]** | refs.bib is clean + %VERIFY-disciplined; DLM in core bib |
+| Related work | 1,200 | **[NOW]** | refs.bib is clean + verification-disciplined; DLM in core bib |
 | Theory (Blackwell/Kusuoka envelope + §1a prediction table) | 1,400 | **[NOW]** | C3; the rigour that is currently invisible — surface it |
-| Data + EDA | 1,000 | **[NOW]*** | regenerate stylised facts from the frozen univ3 panel |
+| Data + EDA | 1,000 | **[NOW]*** | stylised facts regenerated from the ACTIVE univ5 Split-C train window (2026-07-02) |
 | Methods (instrument, arms, off-critic decoupling, freeze, inference) | 2,600 | **[NOW]** | add the system diagram + the rigour ledger as a table |
 | Results | 1,500 | **[CAMPAIGN]** | structure now (tables/figs as placeholders); fill on the run |
 | Discussion | 1,000 | **[NOW]** | lift from 700; lead with the bankable-null + mechanism |
 | Conclusion | 250 | **[NOW]** | |
-| Limitations appendix (word-excluded) | — | **[NOW]** | L1–L19 + endogeneity (V6), single-Claude (V10), softmax-cash (V14), undertraining |
-| Rigour-ledger appendix (word-excluded) | — | **[NOW]** | docs/RIGOUR_LEDGER.md → examiner-facing table |
+| Limitations appendix (word-excluded) | — | **[NOW]** | L1–L19 + endogeneity (V6), single-Claude (V10), softmax-cash (V14), training adequacy |
+| Rigour-ledger table (in-body, CH4 Table 4.1) | — | **[built]** | docs/RIGOUR_LEDGER.md → examiner-facing in-body table (consolidated from the former appendix plan, 2026-07-04) |
 
-\* Data chapter: regenerate the kurtosis/Hill figures from the frozen univ3 panel (the old EDA numbers
-are from a superseded IQN brief).
+\* Data chapter: F3 (stylised facts) regenerates from the ACTIVE univ5 panel's Split-C train window
+(2005–2016) via `scripts/make_figures.py` — the Split-C numbers (excess kurtosis 15.25, −5σ ×~10⁴,
+CVaR crossover ×0.84→×1.66, co-crash 3.3%→19.7%) supersede any pre-Split-C EDA figures (14.52/20.4%
+were the old 2005–2014 window; a superseded IQN brief is older still).
 
 **Gated on you (cannot be done from here):** run `freeze.py` (1 command → makes the pre-registered-null
 claim literally true; the freeze hash recorded by `scripts/freeze.py` at freeze time); run the confirmatory campaign on the GPU (with the 7 arms

@@ -47,7 +47,8 @@ L = floor( 4 · (T/100) ^ (2/9) )          # newey_west_hac_lag(T)
   (Bartlett, `use_correction=False`) are unit-tested to **equal** statsmodels bit-for-bit
   (`test_statsmodels_hac_equals_hand_rolled_newey_west`). The hand-rolled estimator is also the
   statsmodels-free fallback, so the module never hard-depends on a statsmodels internal.
-* For `T ≈ 2087` (the real 2018–2025 daily test leg) the Newey-West (1994) lag is **7**.
+* For `T ≈ 1571` (the real 2020–2026H1 daily test leg under Split C, R73) the Newey-West (1994) lag
+  is **7** — unchanged from the pre-Split-C 2018–2025 leg (`T ≈ 2087`), which also floored to 7.
 
 **Graceful degradation (never raises):** `status="skipped"` with a `reason` — and `alpha=None`,
 never a fabricated number — when the series is too short for the parameter count, non-finite, or the
@@ -125,6 +126,13 @@ into the headline conjunction.
 
 ### 2.1 On disk today (`data/raw/`, daily decimals, 2005-01-03 → 2026-04-30)
 
+> **⚠ Split-C coverage gap (2026-07-02).** The sealed test leg now ends **2026-06-30** (Split C, R73)
+> but the two on-disk French CSVs end **2026-04-30** (verified first-hand) — May–Jun 2026 is uncovered.
+> The 2026-07-02 rebuild refreshed the FRED series to the cutoff (`refresh_fred_2026.py`) but **not**
+> the French factors: refresh both French files to ≥ 2026-06-30 (percent→decimal `/100` on the fresh
+> pull) before running the ladder on the full Split-C test leg, else the tail of the window is
+> forward-filled/misaligned rather than priced.
+
 | column(s) | file | loaded by |
 |---|---|---|
 | `Mkt-RF, SMB, HML, RF` | `french_F-F_Research_Data_Factors_daily.csv` | `market_reference.load_ff_factors` (FF3) + `attribution.load_factor_panel` (RF) |
@@ -133,8 +141,9 @@ into the headline conjunction.
 `load_factor_panel(dates)` aligns every column to the panel's own session axis via the existing
 no-future-leak forward-fill (`market_reference._aligned_series`), returning
 `{"factors": {...}, "available": bool, "present": [...], "needs_pull": [...], "rf": ndarray|None}`.
-**Verified on the real 2018–2025 window:** `present = [HML, Mkt-RF, Mom, SMB]`, `rf` present →
-**CAPM, FF3, Carhart-4 estimable today**; `needs_pull = [RMW, CMA, BAB, QMJ]`.
+**Verified on the real 2018–2025 (pre-Split-C) window:** `present = [HML, Mkt-RF, Mom, SMB]`, `rf`
+present → **CAPM, FF3, Carhart-4 estimable today**; `needs_pull = [RMW, CMA, BAB, QMJ]`. (Re-verify on
+the 2020–2026H1 Split-C leg after the French refresh above.)
 
 * **Source / format (Ken-French Data Library):**
   <https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html> — daily CSV inside a

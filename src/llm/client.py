@@ -39,9 +39,11 @@ Tests (tests/test_agents.py)
 from __future__ import annotations
 
 
+import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
+from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from src.utils.config import cfg_get
@@ -72,6 +74,7 @@ __all__ = [
     "ProvenanceRecord",
     "LLMClient",
     "FakeTransport",
+    "JsonlArchiveSink",
     "make_openai_transport",
     "make_anthropic_transport",
     "build_transport",
@@ -127,6 +130,11 @@ class ProvenanceRecord:
     request_id : str or None
         The provider request id (Anthropic ``response._request_id``; OpenAI ``response.id``) when
         exposed — provenance for replay + for reporting a failed call to the provider.
+    served_model : str or None
+        The model id string the PROVIDER's response reports it actually served (``response.model``)
+        when the transport exposes it. For an aggregator like OpenRouter (the R71 secondary
+        open-weights designer) this is the exact snapshot/version behind the requested slug — the
+        REPRODUCIBILITY ANCHOR that must be recorded at the first live call (config/llm.yaml).
     """
 
     model: str
@@ -136,6 +144,7 @@ class ProvenanceRecord:
     usage: dict[str, Any] | None = None
     stop_reason: str | None = None
     request_id: str | None = None
+    served_model: str | None = None
 
 
 def _warn_if_incomplete(stop_reason: str | None, model: str) -> None:
@@ -195,6 +204,7 @@ class _OpenAITransport:
         self.last_usage: dict[str, Any] | None = None
         self.last_stop_reason: str | None = None
         self.last_request_id: str | None = None
+        self.last_served_model: str | None = None
 
     def __call__(self, system: str, user: str) -> str:
         kwargs: dict[str, Any] = {
@@ -219,6 +229,9 @@ class _OpenAITransport:
         choice = response.choices[0]
         self.last_stop_reason = getattr(choice, "finish_reason", None)
         self.last_request_id = getattr(response, "id", None)
+        # The model the provider REPORTS it served (``response.model``). For OpenRouter (R71) this is
+        # the exact snapshot behind the requested slug — archived as the reproducibility anchor.
+        self.last_served_model = getattr(response, "model", None)
         _warn_if_incomplete(self.last_stop_reason, self._model)
         return choice.message.content or ""
 
@@ -235,8 +248,9 @@ def make_openai_transport(
     """Create a real OpenAI-SDK transport, lazily importing ``openai``.
 
     Serves every OpenAI-COMPATIBLE provider from one code path — OpenAI itself
-    (``base_url=None``), Google **Gemini** (its ``/v1beta/openai/`` surface) and **DeepSeek** —
-    because all three expose the same ``chat.completions`` API. The provider is therefore just a
+    (``base_url=None``), Google **Gemini** (its ``/v1beta/openai/`` surface), **DeepSeek** and
+    **OpenRouter** (the R71 secondary open-weights designer's aggregator) — because all four
+    expose the same ``chat.completions`` API. The provider is therefore just a
     ``(base_url, key-env)`` choice and needs no extra SDK beyond ``openai`` (see
     :func:`build_transport`).
 
@@ -368,6 +382,7 @@ class _AnthropicTransport:
         self.last_usage: dict[str, Any] | None = None
         self.last_stop_reason: str | None = None
         self.last_request_id: str | None = None
+        self.last_served_model: str | None = None
 
     def __call__(self, system: str, user: str) -> str:
         # Prompt-cache the static system block (ADR-016: the K=16 shared-context lever — a 5-min
@@ -393,6 +408,7 @@ class _AnthropicTransport:
         self.last_usage = _usage_dict(message)
         self.last_stop_reason = getattr(message, "stop_reason", None)
         self.last_request_id = getattr(message, "_request_id", None)
+        self.last_served_model = getattr(message, "model", None)
         _warn_if_incomplete(self.last_stop_reason, self._model)
         parts = [blk.text for blk in message.content if getattr(blk, "type", None) == "text"]
         return "".join(parts)
@@ -474,12 +490,15 @@ def make_anthropic_transport(
 # Provider registry + single transport factory (provider dispatch lives HERE). #
 # --------------------------------------------------------------------------- #
 #: OpenAI-compatible providers -> API base URL (None = the default OpenAI endpoint). Google
-#: Gemini and DeepSeek both expose an OpenAI ``chat.completions`` surface, so one transport
-#: serves all three; adding a provider is one registry entry, not a new SDK.
+#: Gemini, DeepSeek and OpenRouter all expose an OpenAI ``chat.completions`` surface, so one
+#: transport serves them all; adding a provider is one registry entry, not a new SDK.
 _OPENAI_COMPAT_BASE_URL: dict[str, str | None] = {
     "openai": None,
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
     "deepseek": "https://api.deepseek.com",
+    # R71 (pinned 2026-07-02): OpenRouter serves the SECONDARY open-weights designer
+    # (Qwen3-Coder — config/llm.yaml ``open_weights_*``; report-only, NEVER confirmatory).
+    "openrouter": "https://openrouter.ai/api/v1",
 }
 
 #: Default env-var holding each provider's API key (overridable via ``cfg.api_key_env``).
@@ -488,10 +507,11 @@ _DEFAULT_KEY_ENV: dict[str, str] = {
     "openai": "OPENAI_API_KEY",
     "gemini": "GEMINI_API_KEY",
     "deepseek": "DEEPSEEK_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
 }
 
 #: Providers the registry can build a real transport for (Pass A uses the keyless stub instead).
-PROVIDERS: tuple[str, ...] = ("anthropic", "openai", "gemini", "deepseek")
+PROVIDERS: tuple[str, ...] = ("anthropic", "openai", "gemini", "deepseek", "openrouter")
 
 
 def default_key_env(provider: str) -> str:
@@ -513,8 +533,8 @@ def build_transport(
     Used by :class:`LLMClient` AND every orchestrator (``run_prototype``/``parallel``/
     ``run_campaign``), so a new provider is one registry entry rather than a four-file edit
     (provider-neutral architecture, 2026-06-19). Routes ``anthropic`` to the native Anthropic
-    transport (prompt-cache + usage + retry) and ``openai``/``gemini``/``deepseek`` to the
-    OpenAI-SDK transport pointed at the provider's OpenAI-compatible base URL.
+    transport (prompt-cache + usage + retry) and ``openai``/``gemini``/``deepseek``/``openrouter``
+    to the OpenAI-SDK transport pointed at the provider's OpenAI-compatible base URL.
 
     Raises
     ------
@@ -565,6 +585,40 @@ class FakeTransport:
         return self.response
 
 
+class JsonlArchiveSink(list):
+    """A list-compatible archive sink that ALSO appends each record to a jsonl ledger AT CALL TIME.
+
+    F11 (ultrareview 2026-07-02): :class:`LLMClient` archives one :class:`ProvenanceRecord` per call
+    into its sink, and the orchestrators used to dump that in-memory list to ``llm_calls.jsonl`` at END
+    OF ARM in ``"w"`` mode — so a mid-arm crash lost the arm's ENTIRE call provenance, including the R71
+    ``served_model`` reproducibility anchor that config/llm.yaml requires recorded at the FIRST live
+    call. This sink keeps the in-memory list contract (``src/llm/loop.py`` reads ``archive[-1].usage``
+    after each call) and ADDITIONALLY appends the row to disk with a flush the moment it is archived,
+    so a crash loses at most the in-flight call. The disk write is best-effort (a provenance-ledger
+    hiccup must never crash a paid call): on failure the in-memory record is kept and the next append
+    retries the file.
+    """
+
+    def __init__(self, path: str | Path) -> None:
+        super().__init__()
+        self._path = Path(path)
+
+    def append(self, record: Any) -> None:  # type: ignore[override]
+        super().append(record)
+        try:
+            row = (
+                asdict(record)
+                if is_dataclass(record) and not isinstance(record, type)
+                else dict(record)
+            )
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with self._path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row, default=str) + "\n")
+                fh.flush()
+        except Exception:  # noqa: BLE001 — best-effort ledger; the in-memory archive is already updated
+            pass
+
+
 class LLMClient:
     """Pinned, archival client for reward-proposing LLM calls (audit C-2).
 
@@ -599,6 +653,11 @@ class LLMClient:
         self.provider: str = str(cfg_get(cfg, "provider", "anthropic")).lower()
         self.api_key_env: str = cfg_get(cfg, "api_key_env", default_key_env(self.provider))
         self.temperature: float | None = cfg_get(cfg, "temperature", None)
+        # F17 (ultrareview 2026-07-02): honor cfg ``max_tokens``/``max_retries`` when lazily building
+        # the real transport (defaults = the historical hardcodes 4096/6) — raising the value in the
+        # author config (e.g. config/llm.yaml: max_tokens) must not silently no-op into truncation.
+        self.max_tokens: int = int(cfg_get(cfg, "max_tokens", 4096))
+        self.max_retries: int = int(cfg_get(cfg, "max_retries", 6))
         self._transport = transport
         self.archive: ArchiveSink = archive if archive is not None else []
 
@@ -611,7 +670,8 @@ class LLMClient:
                     f"{self.provider} transport; or inject a transport (e.g. FakeTransport)."
                 )
             self._transport = build_transport(
-                self.provider, self.model, self.api_key_env, temperature=self.temperature
+                self.provider, self.model, self.api_key_env, temperature=self.temperature,
+                max_tokens=self.max_tokens, max_retries=self.max_retries,  # F17: cfg-driven caps
             )
         return self._transport
 
@@ -637,11 +697,13 @@ class LLMClient:
         transport = self._ensure_transport()
         response = transport(system, user)
         # Transports that surface per-call metadata (the real provider transports) expose it via
-        # ``last_usage`` / ``last_stop_reason`` / ``last_request_id``; closures/FakeTransport that do
-        # not -> None (audit C-2 / cost accounting + truncation-attribution + provenance).
+        # ``last_usage`` / ``last_stop_reason`` / ``last_request_id`` / ``last_served_model``;
+        # closures/FakeTransport that do not -> None (audit C-2 / cost accounting +
+        # truncation-attribution + provenance + the R71 served-snapshot reproducibility anchor).
         usage = getattr(transport, "last_usage", None)
         stop_reason = getattr(transport, "last_stop_reason", None)
         request_id = getattr(transport, "last_request_id", None)
+        served_model = getattr(transport, "last_served_model", None)
         self.archive.append(
             ProvenanceRecord(
                 model=self.model,
@@ -651,6 +713,7 @@ class LLMClient:
                 usage=usage,
                 stop_reason=stop_reason,
                 request_id=request_id,
+                served_model=served_model,
             )
         )
         return response

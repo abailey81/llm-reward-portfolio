@@ -19,8 +19,10 @@ from src.data.market_reference import (
     load_risk_free_daily,
 )
 
+from src.data.loaders import gold_suffix
+
 _FRED = Path("data/raw/fred_macro.csv")
-_MKT = Path("data/gold/market_proxy_univ3.parquet")
+_MKT = Path(f"data/gold/market_proxy_{gold_suffix()}.parquet")  # ACTIVE suffix (Split C: univ5)
 _FF = Path("data/raw/french_F-F_Research_Data_Factors_daily.csv")
 
 
@@ -75,10 +77,33 @@ def test_risk_free_forward_fills_gaps_never_future(tmp_path: Path) -> None:
     assert rf.daily[3] == pytest.approx(d1, rel=1e-9)
 
 
+def test_raw_path_prefers_refreshed_artifact(tmp_path: Path) -> None:
+    """ADR-051: readers prefer the versioned extension refresh (x26) when present, else canonical."""
+    from src.data.market_reference import _FF_CSV, _FRED_CSV, _raw_path
+
+    # neither present -> canonical path returned (caller handles absence)
+    assert _raw_path(tmp_path, _FRED_CSV).name == _FRED_CSV
+    # refresh present -> preferred
+    (tmp_path / "fred_macro_x26.csv").write_text("observation_date,DGS3MO\n2026-06-30,4.0\n")
+    assert _raw_path(tmp_path, _FRED_CSV).name == "fred_macro_x26.csv"
+    (tmp_path / "french_ff3_daily_x26.csv").write_text("Date,Mkt-RF,SMB,HML,RF\n2026-05-29,0.001,0.0,0.0,0.0\n")
+    assert _raw_path(tmp_path, _FF_CSV).name == "french_ff3_daily_x26.csv"
+
+
+def test_ff_factors_load_from_refreshed_file(tmp_path: Path) -> None:
+    """The x26 ff3 layout (Date-indexed, decimal factors) loads through load_ff_factors unchanged."""
+    idx = pd.bdate_range("2026-05-26", periods=4)
+    rows = "\n".join(f"{d.date()},0.001,0.0002,-0.0003,0.0001" for d in idx)
+    (tmp_path / "french_ff3_daily_x26.csv").write_text("Date,Mkt-RF,SMB,HML,RF\n" + rows + "\n")
+    res = load_ff_factors(idx.to_numpy(), raw_dir=tmp_path)
+    assert res.available is True
+    assert res.factors["Mkt-RF"] == pytest.approx([0.001] * 4)
+
+
 def test_market_proxy_aligns_and_zero_fills_outside(tmp_path: Path) -> None:
     idx = pd.bdate_range("2021-01-04", periods=5)
     pd.DataFrame({"market_ew": [0.01, -0.02, 0.0, 0.005, -0.001]}, index=idx).to_parquet(
-        tmp_path / "market_proxy_univ3.parquet"
+        tmp_path / f"market_proxy_{gold_suffix()}.parquet"
     )
     mp = load_market_proxy_returns(idx.to_numpy(), gold_dir=tmp_path)
     assert mp.available is True

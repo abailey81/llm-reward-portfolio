@@ -12,10 +12,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.data.loaders import load_gold_panel
+from src.data.loaders import gold_suffix, load_gold_panel
 from src.data.panel import Panel
 
-_GOLD = Path(__file__).resolve().parents[1] / "data" / "gold" / "returns_panel_univ3.parquet"
+# Suffix-aware skip guard: point at the ACTIVE panel the loader actually reads (univ5 post-Split-C),
+# so the suite neither runs against a missing panel nor skips when the active one is present.
+_GOLD = Path(__file__).resolve().parents[1] / "data" / "gold" / f"returns_panel_{gold_suffix()}.parquet"
 pytestmark = pytest.mark.skipif(not _GOLD.exists(), reason="frozen gold panel not present (licensed data)")
 
 
@@ -54,9 +56,9 @@ def test_error_policy_flags_delisting_nans() -> None:
 
 def test_ffill_then_zero_zeros_dead_tail_not_fabricates() -> None:
     """ffill_then_zero must ZERO a delisted name's post-delisting tail, NOT repeat its last return
-    (final-audit #20). Wachovia (WB.N^A09) delists 2009 but the dev window runs to 2014, so its final
-    sessions are dead: under the FIXED policy that tail is 0.0; a bare .ffill() would have carried its
-    last traded return forward, fabricating compounding wealth on a dead name."""
+    (final-audit #20). Wachovia (WB.N^A09) delists 2009 but the dev window runs to 2016 (SPLIT C), so
+    its final sessions are dead: under the FIXED policy that tail is 0.0; a bare .ffill() would have
+    carried its last traded return forward, fabricating compounding wealth on a dead name."""
     res = load_gold_panel("development", on_missing="ffill_then_zero")
     assert np.isfinite(res.panel.returns).all()
     wb_id = [i for i, ric in res.ric_by_id.items() if ric == "WB.N^A09"]
@@ -67,19 +69,19 @@ def test_ffill_then_zero_zeros_dead_tail_not_fabricates() -> None:
 
 def test_walk_forward_window_start_selects_pit_universe() -> None:
     """The loader can select a POINT-IN-TIME walk-forward top-30 by window_start — the #13 building
-    block for a PIT-universe robustness re-evaluation of the sealed test leg. The 2018 PIT cohort
-    differs from the held 2005 development cohort (the composition bias the robustness check addresses),
-    and the PIT panel loads finite + prelagged over the 2018-2025 span."""
+    block for a PIT-universe robustness re-evaluation of the sealed test leg. The 2020 PIT cohort
+    (the Split-C test start) differs from the held 2005 development cohort (the composition bias the
+    robustness check addresses), and the PIT panel loads finite + prelagged over the 2020-2026 span."""
     from pathlib import Path
 
     from src.data.loaders import _GOLD_DIR, _read, _window_rics
 
     top30 = _read("top30_selection", Path(_GOLD_DIR))
     dev, _ = _window_rics(top30, "development")
-    pit, start = _window_rics(top30, "walk_forward", "2018-01-02")
-    assert str(start)[:10] == "2018-01-02"
-    assert set(dev) != set(pit)  # the 2005 cohort and the 2018 PIT universe are NOT identical
-    res = load_gold_panel(phase="walk_forward", window_start="2018-01-02", end="2025-12-31")
+    pit, start = _window_rics(top30, "walk_forward", "2020-01-02")
+    assert str(start)[:10] == "2020-01-02"
+    assert set(dev) != set(pit)  # the 2005 cohort and the 2020 PIT universe are NOT identical
+    res = load_gold_panel(phase="walk_forward", window_start="2020-01-02", end="2026-06-30")
     assert np.isfinite(res.panel.returns).all()
     assert res.panel.vix_prelagged is True
     with pytest.raises(KeyError, match="window_start"):
@@ -98,7 +100,7 @@ def test_gold_vix_is_in_points_and_regimes_do_not_collapse() -> None:
     VIX-threshold regime rule (config/regimes.yaml calm<15 / stress>25) then labelled EVERY date
     calm, collapsing the independent-regime count to 1 and silently zeroing the regime-stratified
     analysis that bounds H2 power (audit B-6). The loader now rescales to points (~9..83), so all
-    three regimes appear and there are MANY independent episodes over 2005-2025.
+    three regimes appear and there are MANY independent episodes over the 2005-2016 train window.
     """
     from src.regimes.definition import independent_regime_count, label_regimes
     from src.utils.config import load_config

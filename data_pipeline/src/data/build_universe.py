@@ -46,7 +46,44 @@ def _bucket_from_ric(ric: str) -> str | None:
     return _EXCHANGE_BUCKET.get(suffix)
 
 
-def _derive_delisting_map(columns, sessions: pd.DatetimeIndex) -> dict[str, dict]:
+def _recover_terminal_from_returns(
+    ric: str,
+    delist_date: pd.Timestamp,
+    returns: pd.DataFrame,
+    *,
+    max_gap_sessions: int = 45,
+) -> tuple[float, pd.Timestamp] | None:
+    """OBSERVED-terminal recovery (ADR-051; DATA_REPULL_DELISTING.md decided route).
+
+    The reason mnemonics do not resolve under this entitlement (probed 2026-07-01), but the
+    vendor's daily series DOES carry the realised terminal return for dead names (Lehman:
+    2,042 daily rows through 2008-09). This PURE helper returns the ric's last valid
+    (non-NaN, non-null) return and its date, ACCEPTED only when that last print falls within
+    ``max_gap_sessions`` sessions of the derived delist date — a name whose prints stop long
+    before its delist month has NO recoverable terminal (stale series) and must stay ``None``
+    so the conservative surcharge applies downstream. Never guesses (R4).
+    """
+    if ric not in returns.columns:
+        return None
+    col = returns[ric].dropna()
+    if col.empty:
+        return None
+    last_date = col.index[-1]
+    if last_date > delist_date:
+        # prints AFTER the derived delist date: the date derivation is suspect — do not recover.
+        return None
+    idx = returns.index
+    gap = int(idx.get_indexer([delist_date])[0] - idx.get_indexer([last_date])[0])
+    if gap < 0 or gap > int(max_gap_sessions):
+        return None
+    return float(col.iloc[-1]), pd.Timestamp(last_date)
+
+
+def _derive_delisting_map(
+    columns,
+    sessions: pd.DatetimeIndex,
+    returns: pd.DataFrame | None = None,
+) -> dict[str, dict]:
     """Build the ``{ric: {date, exchange, vendor_terminal_return}}`` map that
     :func:`membership.apply_shumway_corrections` consumes, for the dead ^RICs in the
     panel (stage 7). Order of evidence, all from already-frozen RAW artifacts (no new
@@ -59,6 +96,12 @@ def _derive_delisting_map(columns, sessions: pd.DatetimeIndex) -> dict[str, dict
       2. **^RIC-suffix fallback.** For a dead ^RIC the metadata pull missed, the delist
          date derives from the ``^MYY`` month-letter suffix (security_master.parse_dead_ric)
          and the exchange bucket from the RIC's exchange code (:func:`_bucket_from_ric`).
+      3. **OBSERVED-terminal recovery (ADR-051).** When metadata carries no terminal and a
+         ``returns`` frame is supplied, the name's last valid in-window return is recovered
+         (:func:`_recover_terminal_from_returns`) — the corrector then KEEPS the realised
+         terminal ("vendor_terminal_kept") and the −30/−55% surcharge applies ONLY to names
+         with no recoverable terminal. This is what upgrades the surcharge band-end from
+         M&A-contaminated (univ4) to a correct Shumway panel (univ5s).
 
     The delist date is snapped to the last session ``<= date`` so the corrector books
     onto a real grid label; names with no resolvable exchange are omitted (skipped, not
@@ -90,8 +133,16 @@ def _derive_delisting_map(columns, sessions: pd.DatetimeIndex) -> dict[str, dict
         exchange = info.get("exchange") or _bucket_from_ric(str(ric))
         if date is None or exchange is None:
             continue                                   # unresolved — skipped, never guessed
+        terminal = info.get("vendor_terminal_return")
+        terminal_source = "vendor_meta" if terminal is not None else None
+        if terminal is None and returns is not None:
+            recovered = _recover_terminal_from_returns(str(ric), date, returns)
+            if recovered is not None:
+                terminal, term_date = recovered
+                terminal_source = f"observed_returns@{term_date.date()}"
         out[str(ric)] = {"date": date, "exchange": exchange,
-                         "vendor_terminal_return": info.get("vendor_terminal_return"),
+                         "vendor_terminal_return": terminal,
+                         "terminal_source": terminal_source,
                          "reason": info.get("reason")}   # None until the reason is re-pulled (R4)
     return out
 
@@ -313,12 +364,17 @@ def build_universe(suffix: str = "_univ", run_id: str = "build_universe",
     # zero-filled by the env's liquidate_to_cash (ADR-024 / M3-M4 adversarial review).
     gold_returns = returns_aligned
     if apply_delisting:
-        delisted = _derive_delisting_map(returns_aligned.columns, sessions)
+        # ADR-051: thread the returns so the OBSERVED-terminal recovery runs — names whose
+        # realised terminal is in the daily series keep it (vendor_terminal_kept) and only
+        # genuinely terminal-less names receive the -30/-55% surcharge.
+        delisted = _derive_delisting_map(returns_aligned.columns, sessions,
+                                         returns=returns_aligned)
         gold_returns, shumway_log = apply_shumway_corrections(returns_aligned, delisted)
         art_corr = freeze(gold_returns, "clean", f"clean_returns_shumway{suffix}.parquet",
                           {"vendor": "refinitiv", "stage": "build_universe.shumway_correction",
-                           "policy": "Shumway-STYLE: vendor terminal kept; else -30% NYSE/AMEX "
-                                     "/ -55% Nasdaq; multiplicative (1+r)(1+dl)-1",
+                           "policy": "Shumway-STYLE: OBSERVED terminal recovered from the daily "
+                                     "series and kept (ADR-051); vendor terminal kept; else "
+                                     "-30% NYSE/AMEX / -55% Nasdaq; multiplicative (1+r)(1+dl)-1",
                            "n_corrections": int(len(shumway_log)),
                            "citation": "Shumway 1997 JF; Shumway & Warther 1999 JF"},
                           fmt="parquet", run_id=run_id)
@@ -331,10 +387,15 @@ def build_universe(suffix: str = "_univ", run_id: str = "build_universe",
                               "prior_return,value,citation"},
                    fmt="parquet", run_id=run_id)
 
-    fred = next((e for e in manifest_entries() if e["name"] == "fred_macro.csv"), None)
-    if fred is None:
-        raise FileNotFoundError("fred_macro.csv missing — VIX required for gold features")
-    vix = read_verified("fred_macro.csv")["VIXCLS"].astype(float)
+    # LATEST fred_macro* (ADR-051): the original fred_macro.csv ends 2025-12-31; the extension
+    # refresh lands as fred_macro_x26.csv (write-once vault versioning, same pattern as the
+    # span-stamped pit). Latest-by-frozen_utc so a future refresh supersedes cleanly.
+    fred_entries = [e for e in manifest_entries()
+                    if str(e.get("name", "")).startswith("fred_macro")]
+    if not fred_entries:
+        raise FileNotFoundError("fred_macro*.csv missing — VIX required for gold features")
+    fred_name = max(fred_entries, key=lambda e: str(e.get("frozen_utc", "")))["name"]
+    vix = read_verified(fred_name)["VIXCLS"].astype(float)
     vix.index = pd.to_datetime(vix.index)
 
     gold = build_gold(gold_returns, vix, sessions,

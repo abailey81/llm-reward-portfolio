@@ -30,7 +30,7 @@ training **seeds** the frozen winner is re-trained at. Then:
   ``σ̂²_search = (MS_between − MS_within) / n₀`` of the one-way random-effects ANOVA (groups =
   the K search runs). With ``K = 1`` it is **not identified** (zero between-group d.f.) and is
   reported ``status="skipped"`` — σ²_seed and σ²_market are still produced.
-* **σ²_market** — sampling noise of the *single realized 2018-2025 test path itself*
+* **σ²_market** — sampling noise of the *single realized 2020-2026 test path itself*
   (independent of which reward / seed produced it). Estimated by a **stationary block bootstrap**
   of one representative winner's per-step test return series (``src.inference.bootstrap``,
   Politis-Romano 1994): the variance of the per-path score across bootstrap replications.

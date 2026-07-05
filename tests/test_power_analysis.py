@@ -209,6 +209,35 @@ def test_tost_margin_must_be_positive() -> None:
         tost_equivalence(np.zeros(5), np.zeros(5), margin=0.0)
 
 
+def test_tost_paired_mode_uses_shared_seed_index_and_narrows_ci() -> None:
+    """P2: paired=True must resample a SHARED index (CRN pairing). For strongly positively-correlated arms
+    (the common-random-number regime) the PAIRED difference CI is NARROWER than the INDEPENDENT one, because
+    the shared-seed covariance cancels. The estimate (a difference of full-sample means) is identical."""
+    from scripts.power_analysis import tost_equivalence
+
+    rng = np.random.default_rng(7)
+    base = rng.normal(0.0, 0.5, size=40)          # shared per-seed signal (CRN)
+    a = base + rng.normal(0.0, 0.02, size=40)
+    b = base + rng.normal(0.0, 0.02, size=40) + 0.01  # tiny offset, highly correlated with a
+
+    paired = tost_equivalence(a, b, margin=0.30, n_boot=4000, rng=np.random.default_rng(1), paired=True)
+    indep = tost_equivalence(a, b, margin=0.30, n_boot=4000, rng=np.random.default_rng(1), paired=False)
+
+    # same point estimate (full-sample means), different CI construction
+    assert abs(paired.estimate - indep.estimate) < 1e-12
+    paired_width = paired.ci_high - paired.ci_low
+    indep_width = indep.ci_high - indep.ci_low
+    assert paired_width < indep_width  # pairing removes the shared-seed variance -> tighter CI
+    assert paired.equivalent is True
+
+
+def test_tost_paired_requires_equal_shapes() -> None:
+    from scripts.power_analysis import tost_equivalence
+
+    with pytest.raises(ValueError, match="same shape"):
+        tost_equivalence(np.zeros(5), np.zeros(6), margin=0.1, paired=True)
+
+
 # --------------------------------------------------------------------------- #
 # MDE record shape
 # --------------------------------------------------------------------------- #

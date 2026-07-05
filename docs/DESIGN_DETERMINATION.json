@@ -1,7 +1,15 @@
 {
   "evidence": {
-    "lambda_frozen": null,
-    "cash_daily_rate": 0.0
+    "cash_daily_rate": 0.0,
+    "recommended_budget": null,
+    "sigma_pilot_n_shared": 15,
+    "sigma_pilot_recommended_n": null,
+    "sigma_seed_pilot": true,
+    "candidates_saturated": false,
+    "candidates_diagnostic": "arms still improving at the last generation: ['scalar'] \u2014 the search budget is too small (their best is budget-limited); EXTEND candidates_per_arm",
+    "candidates_ratified": 30,
+    "train_steps_ratified": 200000,
+    "numeraire_ratified_cash": 0.0
   },
   "rows": [
     {
@@ -9,28 +17,21 @@
       "class": "MEASURE",
       "method": "eval-return knee (convergence)",
       "determination": "scripts/learning_curve.recommend_budget",
-      "status": "PENDING"
+      "status": "DECIDED"
     },
     {
       "name": "n_seeds",
       "class": "MEASURE",
       "method": "paired-CRN power at the SESOI",
       "determination": "scripts/power_analysis + sigma_seed pilot",
-      "status": "PENDING"
+      "status": "DETERMINED"
     },
     {
       "name": "candidates_per_arm",
       "class": "MEASURE",
       "method": "search saturation (best-fitness plateau)",
       "determination": "determine_design.recommend_candidates",
-      "status": "PENDING"
-    },
-    {
-      "name": "lambda_frozen",
-      "class": "CALIBRATE",
-      "method": "pre-2015 fitness calibration fold",
-      "determination": "config/inference.yaml fitness.calibration_fold",
-      "status": "PENDING"
+      "status": "DECIDED"
     },
     {
       "name": "sesoi",
@@ -58,6 +59,13 @@
       "class": "CALIBRATE",
       "method": "selection-aware deflation",
       "determination": "per_arm_candidates (Bailey-Lopez de Prado)",
+      "status": "FIXED"
+    },
+    {
+      "name": "lambda_cvar",
+      "class": "FIX",
+      "method": "0 BY DESIGN: tail-blind selector (tuning would confound the H2 channel)",
+      "determination": "preregistration.yaml fitness.lambda_cvar = 0.0 (RATIFIED 2026-07-01; freeze gate #7)",
       "status": "FIXED"
     },
     {
@@ -92,7 +100,7 @@
       "name": "n_assets",
       "class": "REALISTIC",
       "method": "diversified tradable book",
-      "determination": "30 from 953 PIT pool",
+      "determination": "30 from 963 PIT pool (univ5)",
       "status": "FIXED"
     },
     {
@@ -113,7 +121,7 @@
       "name": "data_splits",
       "class": "REALISTIC",
       "method": "sealed temporal holdout",
-      "determination": "10y/3y/8y train/val/test",
+      "determination": "12y/3y/6.5y train/val/test (Split C)",
       "status": "FIXED"
     },
     {
@@ -127,15 +135,10 @@
       "name": "cash_daily_rate",
       "class": "REALISTIC",
       "method": "risk-free accrual on cash",
-      "determination": "risk-free series (R20)",
-      "status": "FIX_NEEDED"
+      "determination": "cash=0 numeraire (\u00a710 RATIFIED 2026-07-01; DGS3MO rf-excess robustness leg)",
+      "status": "DECIDED"
     }
   ],
-  "freeze_ready": false,
-  "blockers": [
-    "train_steps_per_candidate",
-    "n_seeds",
-    "candidates_per_arm",
-    "lambda_frozen"
-  ]
+  "freeze_ready": true,
+  "blockers": []
 }
