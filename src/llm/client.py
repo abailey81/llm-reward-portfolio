@@ -496,9 +496,15 @@ _OPENAI_COMPAT_BASE_URL: dict[str, str | None] = {
     "openai": None,
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
     "deepseek": "https://api.deepseek.com",
-    # R71 (pinned 2026-07-02): OpenRouter serves the SECONDARY open-weights designer
+    # R71 (pinned 2026-07-02): OpenRouter can serve the SECONDARY open-weights designer
     # (Qwen3-Coder — config/llm.yaml ``open_weights_*``; report-only, NEVER confirmatory).
     "openrouter": "https://openrouter.ai/api/v1",
+    # 2026-07-06 (supersedes the OpenRouter ROUTING for R71; the Qwen3-Coder model decision is
+    # unchanged): first-party Alibaba Cloud Model Studio — the Qwen vendor's own OpenAI-compatible
+    # host (a stronger reproducibility anchor than a router). This default is the PUBLIC
+    # international endpoint; a personal WORKSPACE endpoint overrides at build time via
+    # ``DASHSCOPE_BASE_URL`` in the gitignored .env, so no personal workspace URL is committed.
+    "dashscope": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 }
 
 #: Default env-var holding each provider's API key (overridable via ``cfg.api_key_env``).
@@ -508,10 +514,11 @@ _DEFAULT_KEY_ENV: dict[str, str] = {
     "gemini": "GEMINI_API_KEY",
     "deepseek": "DEEPSEEK_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
+    "dashscope": "DASHSCOPE_API_KEY",
 }
 
 #: Providers the registry can build a real transport for (Pass A uses the keyless stub instead).
-PROVIDERS: tuple[str, ...] = ("anthropic", "openai", "gemini", "deepseek", "openrouter")
+PROVIDERS: tuple[str, ...] = ("anthropic", "openai", "gemini", "deepseek", "openrouter", "dashscope")
 
 
 def default_key_env(provider: str) -> str:
@@ -548,11 +555,18 @@ def build_transport(
             model, key_env, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries
         )
     if provider in _OPENAI_COMPAT_BASE_URL:
+        base_url = _OPENAI_COMPAT_BASE_URL[provider]
+        if provider == "dashscope":
+            # Resolved at BUILD time (not module import): entry points call load_env() AFTER this
+            # module imports, so a .env-supplied workspace endpoint must be read here.
+            import os as _os
+
+            base_url = _os.environ.get("DASHSCOPE_BASE_URL", base_url)
         return make_openai_transport(
             model,
             key_env,
             temperature=temperature,
-            base_url=_OPENAI_COMPAT_BASE_URL[provider],
+            base_url=base_url,
             max_retries=max_retries,
             max_tokens=max_tokens,  # final-audit #35: was dropped, capping Gemini/DeepSeek silently
         )

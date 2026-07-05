@@ -1066,3 +1066,28 @@ month-ends are themselves gated (6 months ending 2026-06-30; 495-510 members). T
 immune to silent vendor revisions while keeping the gate's teeth — and the incident itself is disclosed in the
 data chapter/datasheet as first-hand evidence of vendor-history instability (why the pre-registered frozen
 record + hash discipline exists). `frozen: false`.
+
+## ADR-052 — Throughput levers approved (Tamer, 2026-07-06) + Qwen served first-party (R71 routing superseded)
+
+**Context.** Tamer directed: push training wall-clock to the minimum via hardware exploitation and
+parallel scheduling ONLY (zero science cuts), and approved "any speed up" under that constraint.
+
+**Decisions.**
+1. **L1 — parallel reflect-on-best search as the executed headline mode — APPROVED by Tamer
+   (2026-07-06).** ~8.9 d -> ~4.1 d for the 210-search stage. Execution is MECHANICAL-PENDING the
+   batched hash move at seed ratification (the frozen prose records `serial_reflect_on_best`; the
+   label change + the seed amendment land as ONE dated amendment). Post-S21/S15 the parallel driver
+   is hash-verified resume-safe for all 7 arms with as-completed archival.
+2. **L2 — H3 single-shot search parallelism — BUILT (run_campaign: `--search-gpu N` now also routes
+   the H3 stage's search through `_search_parallel_arm`).** Science-clean by construction:
+   generations=1 has no reflection chain, so the 30 candidates are exchangeable independent
+   trainings (~1.3 d -> ~0.4 d). The F8 mode guard covers the H3 root too.
+3. **E — `--baselines-only` idle-slot backfill — BUILT** (the no-amendment fallback if L1's
+   amendment is ever declined; unnecessary when L1 runs).
+4. **R71 routing superseded: Qwen3-Coder is served FIRST-PARTY via Alibaba Cloud Model Studio**
+   (Tamer provisioned a "dissertation" workspace; key in the gitignored .env as DASHSCOPE_API_KEY +
+   DASHSCOPE_BASE_URL; the plaintext source file was deleted after transfer). The MODEL decision is
+   unchanged; the pin moves to the OPEN-WEIGHTS snapshot id `qwen3-coder-480b-a35b-instruct` — a
+   stronger reproducibility anchor than a router slug (the weights are downloadable forever).
+   Verified live 2026-07-06: auth + /models (148 visible) work; completions await workspace
+   activation/top-up (smoke_qwen exits 3 with the actionable paywall message until then).
