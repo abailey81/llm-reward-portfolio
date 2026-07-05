@@ -178,3 +178,44 @@ def test_parallel_driver_stall_kwargs_only_when_armed(tmp_path) -> None:
         stall_after_s=123.0, **common,
     )
     assert seen.get("stall_after_s") == 123.0 and callable(seen.get("on_stall"))
+
+
+def test_arm_env_fingerprint_capture_reuse_and_verification(tmp_path) -> None:
+    """2026-07-06: the TEST leg's per-arm env capture — (a) first call writes <arm>/_env/env.json and
+    returns {label, sha256}; (b) a resume REUSES the existing snapshot (F12: recapturing would orphan
+    the digests already embedded in archived records); (c) load_run VERIFIES a record's digest against
+    the shared snapshot via the _env fallback and fails loud on tamper."""
+    import json as _json
+
+    from src.io.results import load_run, write_run
+    from src.orchestration.test_leg import _arm_env_fingerprint
+
+    arm_root = tmp_path / "scalar"
+    fp1 = _arm_env_fingerprint(arm_root, "campaign:scalar:test[1,2)", 0)
+    assert isinstance(fp1, dict) and fp1["env_json_sha256"]
+    env_path = arm_root / "_env" / "env.json"
+    assert env_path.is_file()
+
+    # (b) F12 reuse: doctor the snapshot; a second call must return the DOCTORED file's digest
+    # (proof it reused rather than recaptured).
+    doctored = {"doctored": True}
+    env_path.write_text(_json.dumps(doctored), encoding="utf-8")
+    fp2 = _arm_env_fingerprint(arm_root, "campaign:scalar:test[1,2)", 0)
+    from src.utils.provenance import sha256_obj
+
+    assert fp2["env_json_sha256"] == sha256_obj(doctored) != fp1["env_json_sha256"]
+
+    # (c) the verification round-trip through load_run's shared-_env fallback
+    rec = {
+        "run_id": "scalar-s0", "arm": "scalar", "seed": 0, "fold": 0, "candidate_id": "w",
+        "generation": 0, "reward_source_hash": "h", "feedback_block": "",
+        "metrics": {"val_fitness": 0.1}, "wall_clock": 1.0, "env_fingerprint": fp2,
+    }
+    write_run(rec, arm_root)
+    loaded = load_run("scalar-s0", arm_root)
+    assert loaded["env"] == doctored  # verified + reattached from the shared snapshot
+    env_path.write_text(_json.dumps({"tampered": 1}), encoding="utf-8")
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError, match="env.json sha256 mismatch"):
+        load_run("scalar-s0", arm_root)

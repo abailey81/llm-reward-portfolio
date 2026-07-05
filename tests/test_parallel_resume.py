@@ -76,6 +76,11 @@ class _CountingTransport:
         self.n_calls += 1
         return self._inner(system, user)
 
+    def advance(self, k: int = 1) -> None:
+        """Forward the stream-faithful replay advance (2026-07-06) — hiding it would silently
+        no-op the invariant in every driver-level resume test."""
+        self._inner.advance(k)
+
 
 def _opts(seed: int = 3, *, resume: bool = False) -> dict:
     structural = {
@@ -332,3 +337,48 @@ def test_parallel_search_resume_hash_mismatch_fails_loud(tmp_path) -> None:
     rec_path.write_text(json.dumps(rec), encoding="utf-8")
     with pytest.raises((RuntimeError, ValueError), match="MISMATCH|CORRUPT"):
         parallel._drive_search_arm("random_search", _HashPool(), _opts(resume=True), str(tmp_path))
+
+
+def test_advance_author_stream_forwards_and_noops(tmp_path) -> None:
+    """2026-07-06: LLMClient.advance_author_stream forwards to a POSITIONAL transport's advance and
+    silently no-ops on transports without one (real LLMs) — the duck-typed invariant, unit-pinned
+    so a rename/logic slip cannot degrade to an all-tests-pass no-op."""
+    from src.llm.client import LLMClient
+
+    stub = _RealStubTransport(seed=9)
+    client = LLMClient({"model": "stub"}, transport=stub)
+    first = stub("s", "u")          # position 0 consumed directly
+    client.advance_author_stream()  # consume position 1 by replay-advance
+    third = client.complete("s", "u")  # must equal the uninterrupted run's position-2 output
+    fresh = _RealStubTransport(seed=9)
+    expected = [fresh("s", "u") for _ in range(3)]
+    assert first == expected[0] and third == expected[2]
+    # a transport WITHOUT advance: no-op, no raise
+    client2 = LLMClient({"model": "x"}, transport=lambda s, u: "def reward(*a): return 0.0, {}, None")
+    client2.advance_author_stream()  # must not raise
+
+
+def test_partial_resume_authors_fresh_candidates_at_uninterrupted_positions(tmp_path, monkeypatch) -> None:
+    """The stream-faithfulness END invariant at the driver level: after replaying gen-0 from the
+    archive, the fresh gen-1 candidates must be BYTE-IDENTICAL to the ones an uninterrupted
+    two-generation run authors (the crash-rehearsal catch, pinned as a fast unit test)."""
+    holder = _install_counter(monkeypatch)
+    arm = "placebo"
+
+    # Uninterrupted reference: 2 generations x 2 candidates.
+    ref_root = tmp_path / "ref"
+    parallel._drive_llm_arm(arm, _FakePool(), _opts(resume=False), str(ref_root))
+    from src.io.results import load_all
+    ref_sources = {r["run_id"]: r["reward_source"] for r in load_all(ref_root / arm)}
+
+    # Crash simulation: archive ONLY generation 0, then resume a full 2-gen run.
+    crash_root = tmp_path / "crash"
+    one_gen = _opts(resume=False)
+    one_gen["candidates"], one_gen["generations"] = 2, 1
+    parallel._drive_llm_arm(arm, _FakePool(), one_gen, str(crash_root))
+    parallel._drive_llm_arm(arm, _FakePool(), _opts(resume=True), str(crash_root))
+    res_sources = {r["run_id"]: r["reward_source"] for r in load_all(crash_root / arm)}
+
+    assert set(res_sources) == set(ref_sources)
+    assert res_sources == ref_sources  # gen-1 authored at positions 2,3 — not restarted at 0,1
+    assert holder["t"].n_calls == 2  # the resume authored ONLY the two missing gen-1 candidates

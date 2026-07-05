@@ -783,13 +783,16 @@ def assert_matched_budget_match(yml: dict[str, Any], root: Path) -> str | None:
 #: the construct-validity premise of the whole H2 contrast. Until 2026-07-05 nothing GUARDED that
 #: property: a pre-freeze wording edit re-adding tail vocabulary would have been frozen unnoticed and
 #: silently collapsed the placebo/scalar contrast (every arm pre-seeded with the tail again).
-#: "tail" is matched as a whole WORD (plural included), NOT a substring — a bare substring would
-#: false-positive on benign prompt wording (detail/retail/entail/curtail/detailed) and block a
+#: "tail"/"var" are matched as whole WORDS (plural included), NOT substrings — bare substrings would
+#: false-positive on benign prompt wording (detail/retail/entail; variance/varying) and block a
 #: legitimate pre-freeze edit (2026-07-06 audit MINOR). The rest are compound-safe as substrings.
+#: 2026-07-06 completeness: "skew"/"kurtosis" added — the fed vector includes robust_skew, so a
+#: prompt edit re-seeding a tail MOMENT must trip the gate exactly like a CVaR mention would.
 _PROMPT_TAIL_VOCAB: tuple[str, ...] = (
     "cvar", "drawdown", "downside", "quantile", "shortfall", "value-at-risk", "value at risk",
+    "skew", "kurtosis",
 )
-_PROMPT_TAIL_WORD_RE = re.compile(r"\btails?\b")
+_PROMPT_TAIL_WORD_RE = re.compile(r"\btails?\b|\bvar\b")
 
 
 def assert_prompt_tail_neutrality(root: Path) -> str | None:
@@ -815,7 +818,7 @@ def assert_prompt_tail_neutrality(root: Path) -> str | None:
             "tail-NEUTRAL (R38 de-seeding: only the distributional arm's FEEDBACK may introduce the "
             "tail, else the placebo/scalar construct-validity contrast collapses)",
         )
-    n_tokens = len(_PROMPT_TAIL_VOCAB) + 1  # + the word-boundary "tail" pattern
+    n_tokens = len(_PROMPT_TAIL_VOCAB) + 2  # + the word-boundary "tail(s)" and "var" patterns
     return f"prompt tail-neutrality: {len(present)} base prompt(s) carry none of {n_tokens} tail tokens (R38)"
 
 
