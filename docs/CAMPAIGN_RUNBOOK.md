@@ -30,7 +30,8 @@ worker (RAM-bound); **`--gpu` and `--search-gpu` ≥ 4 are REFUSED by the CLI** 
 **Compute — authoritative source `docs/COMPUTE_AND_TRAINING_TIME.md`
 (post-amendment D2, winner seeds 5→30; 7 arms after R32 added `placebo_shuffled`):** the **7-arm core
 ≈ 600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3) ≈ **2.6 days on the laptop at n_gpu=3**
-(free) / **~13 h on a rented 4090; ~180 GPU-hr** — consistent with the "Estimated wall-clock — core
+(⚠ HISTORICAL 50k/30-seed estimate — the real campaign is **~23 days** at B\*=200k + the ~350-seed
+σ_D-driven amendment; see the superseded-wall-clock note in §4 below) / **~13 h on a rented 4090; ~180 GPU-hr** — consistent with the "Estimated wall-clock — core
 ~600 runs" callout in §4 below. The optional PPO/TD3 algorithm-robustness (~+120 runs) is OPTIONAL on
 scope/time grounds (there is **no GPU-hour cap** — `hard_budget_gpu_hours` was removed 2026-06-28; the
 GPU-hr figures are estimates, not a limit). The run-count recorded at freeze **is** the DSR trial count, so take it from the COMPUTE doc, not a
@@ -270,7 +271,15 @@ python scripts/run_campaign.py --search-gpu 2 --gpu 3 --h3-singleshot --resume -
 # refused by the ≥4 CLI guard anyway.)
 ```
 
-**Estimated wall-clock — core ~600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3 — the 7th arm `placebo_shuffled` (R32) adds +60 over the prior 540; per-run `m`≈**18 min**/50k on the 4050, **11 min** on a 4090 — the Step-3d GPU-smoke confirms `m`):
+> **⚠ SUPERSEDED wall-clock (2026-07-05).** The figures in this block were computed at the legacy
+> **50k** budget and the pre-pilot **30-seed** count. Both moved: B\* = **200,000** (R74) and the σ_D
+> verdict (σ_D=0.369 > 0.10) triggers an **arm-adaptive ~350-seed** amendment (H2 arms ~350, controls 30 —
+> pending Tamer's ratification). The realistic laptop campaign is now **~23 days** at ~350 seeds (median
+> ~85 min/candidate measured in the σ_D farm), NOT 2.6 days. Recompute the exact number at seed
+> ratification; the "rented 4090" rows are dead (ADR-040, laptop-only). Kept below only as the historical
+> 50k/30-seed estimate.
+
+**Estimated wall-clock (HISTORICAL 50k/30-seed — see the superseded note above) — core ~600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3 — the 7th arm `placebo_shuffled` (R32) adds +60 over the prior 540; per-run `m`≈**18 min**/50k on the 4050, **11 min** on a 4090 — the Step-3d GPU-smoke confirms `m`):
 - **Laptop** (search n_gpu=2 / test n_gpu=3): ~31.5 h search + ~25 h test + ~6.75 h H3 = **≈ 2.6 days** (≈ 3–3.5 d under thermal throttle) — *estimate*, the test hours were originally figured at n_gpu=4 so treat them as an upper-bound-favourable estimate; **~180 GPU-hr**.
 - **Rented 4090** (n_gpu=8): **≈ 13 h (½ day)**; **~110 GPU-hr**.
 - **No GPU-hour cap** (the `hard_budget_gpu_hours` limit was removed 2026-06-28 — never code-enforced). The ~110–180 GPU-hr above are *estimates*, not a budget. The optional PPO/TD3 algo-robustness (~+120 runs) can be INCLUDED if wanted — it is now a scope/time choice, not a budget constraint. Opus API ≈ **$18–35** (~150 reward-design authorings: 5 LLM arms × 30, plus reflection turns). The campaign runs on the loader default **univ5** (the headline panel, R73/Split C — zero-fill, no fabricated losses; no env override needed).
@@ -280,10 +289,11 @@ driver `preload()`s pyarrow before torch (gold-parquet ABI guard) and `load_env(
 **Expected banner:**
 ```
 [run_campaign] HEADLINE single-split: arms=[distributional, scalar, placebo, scalar_cvar5,
-  placebo_shuffled, random_search, bayes_opt] seeds=[0..29] search_seed=0 candidates=30 steps=50000
+  placebo_shuffled, random_search, bayes_opt] seeds=[0..29] search_seed=0 candidates=30 steps=200000
   gens=6 pass=B provider=anthropic embargo=21 resume=False -> outputs/campaign
 ```
-**GO/NO-GO (launch sanity, first ~2 min):** the banner shows `steps=50000`, `provider=anthropic`,
+**GO/NO-GO (launch sanity, first ~2 min):** the banner shows `steps=200000` (the frozen B\*, R74 — NOT
+the legacy 50k; a `steps=50000` banner is the mis-configuration to catch), `provider=anthropic`,
 `candidates=30`, all 7 arms (the **frozen H2-family guard** raises `SystemExit` if the arms drift from
 the pre-registered contrast family — that is a hard stop, fix `config/campaign.yaml` arms). The
 `outputs/campaign/{search,frozen,test}` dirs are created and `progress.json` appears. If the banner
@@ -404,7 +414,9 @@ arms (`distributional`, `scalar`, `placebo`, `scalar_cvar5`) `tested` with the f
 python scripts/analyze_campaign.py --root outputs/campaign --single-shot-root outputs/campaign/test_h3_singleshot/distributional
 #   (--root defaults to outputs/campaign; --single-shot-root feeds the H3 single-shot test leg into the H3 difference test.
 #    Emits: PBO/DSR, the H2-RA + H2-Tail two-tier verdict, H1/H3/H4, the secondaries, the floor + R20 rf-robustness,
-#    and the R44 delisting-return sensitivity band (out["delisting_band"]) — univ3 is the 0% end, univ4r the correct re-pull.)
+#    and the R44 delisting-return sensitivity band (out["delisting_band"]) — univ3 is the 0% end, univ4 the
+#    disclosed M&A-contaminated heavy end; the univ5s observed-terminal recovery (R73, executed 2026-07-02)
+#    superseded the planned univ4r re-pull and proved byte-identical to the univ5 zero-fill headline.)
 ```
 > **Note:** `make analyze` runs `scripts/analyze_results.py` — the **1-seed DIRECTIONAL prototype**
 > go/no-go, NOT the campaign headline. For the campaign you must call `scripts/analyze_campaign.py`
@@ -495,7 +507,7 @@ wired, they are explicitly out of scope for run day; do not block the headline o
 | ☐ | `env.json` captured | provenance anchored to the run dir |
 | ☐ | Headline report written | `campaign_overfitting.{md,json}` (PBO + DSR + H2 + floor + rf) |
 | ☐ | Cost sweep written | `cost_sweep/` table |
-| ☐ | Anomalies reviewed | `anomalies.jsonl` (critic explosions noted as a known limitation; PopArt absent) |
+| ☐ | Anomalies reviewed | `anomalies.jsonl` (PopArt value-target normalisation is **ON** since R42, so critic explosions should be RARE — a recurring one flags a genuinely mis-scaled candidate reward, recorded not aborted; `analyze_campaign.divergence_report` clusters them) |
 | ☐ | Rented GPU shut down | auto-shutdown fired (or manually stopped) — no idle spend |
 | ☐ | Verdict recorded | H2 supported/null + the per-leg p-values, into the DECISION_LOG / write-up notes |
 

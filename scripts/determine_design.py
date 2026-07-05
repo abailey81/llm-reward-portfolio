@@ -245,7 +245,20 @@ def determine(evidence: dict[str, Any]) -> dict[str, Any]:
             # prototype archive: 3/4 judgeable arms saturated by gen 3-4, scalar jumped at gen 7).
             return Status.DECIDED if evidence.get("candidates_ratified") else Status.PENDING
         if n == "n_seeds":
-            return Status.DETERMINED if evidence.get("sigma_seed_pilot") else Status.PENDING
+            if not evidence.get("sigma_seed_pilot"):
+                return Status.PENDING
+            # The pilot RAN — but if it fired the pre-registered "sigma_D > 0.10 -> raise the seed
+            # count" trigger (§6 D2 band) while the frozen config still carries the pre-pilot 30-seed
+            # placeholder, the count is NOT yet decided: the seed amendment the pilot mandates is owed
+            # (a false DETERMINED here would greenlight a premature freeze at an under-powered n; found
+            # 2026-07-05). Determined iff the trigger did not fire OR the config has been amended past 30.
+            sd = evidence.get("sigma_pilot_sigma_d")
+            cfg_seeds = evidence.get("config_n_seeds")
+            trigger_fired = sd is not None and float(sd) > 0.10
+            placeholder_unchanged = cfg_seeds is not None and int(cfg_seeds) <= 30
+            if trigger_fired and placeholder_unchanged:
+                return Status.PENDING
+            return Status.DETERMINED
         if n == "cash_daily_rate":
             cdr = evidence.get("cash_daily_rate")
             if cdr is not None and float(cdr) == 0.0:
@@ -349,6 +362,10 @@ def _gather_evidence() -> dict[str, Any]:
             n_shared = sharpe_stats.get("n_shared")
             ev["sigma_pilot_n_shared"] = n_shared
             ev["sigma_pilot_recommended_n"] = spd.get("recommended_n")
+            # The measured seed-difference SD gates the PRE-REGISTERED "30 -> raise if sigma_D > 0.10"
+            # rule (§6 amendment D2 band): a pilot that fires the trigger means the FROZEN seed count
+            # must be amended BEFORE freeze, so the pilot having merely RUN is not "n_seeds decided".
+            ev["sigma_pilot_sigma_d"] = sharpe_stats.get("sigma_d")
             if spd.get("sigma_seed_pilot") is True and int(n_shared or 0) >= 12:
                 ev["sigma_seed_pilot"] = True
         except Exception:  # noqa: BLE001 — an unreadable evidence artifact is NO evidence
@@ -374,7 +391,9 @@ def _gather_evidence() -> dict[str, Any]:
     try:
         from src.utils.config import load_config
 
-        ev["candidates_ratified"] = load_config("campaign").get("candidates_per_arm")
+        camp_cfg = load_config("campaign")
+        ev["candidates_ratified"] = camp_cfg.get("candidates_per_arm")
+        ev["config_n_seeds"] = len(camp_cfg.get("seeds") or [])
     except Exception:  # noqa: BLE001
         pass
     # train_steps: the R74 ratified B* — anchored on the PREREG machine mirror AND its equality with

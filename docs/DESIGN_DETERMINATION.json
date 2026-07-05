@@ -4,10 +4,12 @@
     "recommended_budget": null,
     "sigma_pilot_n_shared": 15,
     "sigma_pilot_recommended_n": null,
+    "sigma_pilot_sigma_d": 0.3687582940713967,
     "sigma_seed_pilot": true,
     "candidates_saturated": false,
     "candidates_diagnostic": "arms still improving at the last generation: ['scalar'] \u2014 the search budget is too small (their best is budget-limited); EXTEND candidates_per_arm",
     "candidates_ratified": 30,
+    "config_n_seeds": 30,
     "train_steps_ratified": 200000,
     "numeraire_ratified_cash": 0.0
   },
@@ -24,7 +26,7 @@
       "class": "MEASURE",
       "method": "paired-CRN power at the SESOI",
       "determination": "scripts/power_analysis + sigma_seed pilot",
-      "status": "DETERMINED"
+      "status": "PENDING"
     },
     {
       "name": "candidates_per_arm",
@@ -139,6 +141,8 @@
       "status": "DECIDED"
     }
   ],
-  "freeze_ready": true,
-  "blockers": []
+  "freeze_ready": false,
+  "blockers": [
+    "n_seeds"
+  ]
 }

@@ -500,6 +500,13 @@ def ast_gate(src: str) -> bool:
         #    banned numpy IO/FFI or object-model attributes (np.load pickle-RCE,
         #    np.save/fromfile/genfromtxt/memmap/DataSource, .mro, ...). (ADR-008.)
         elif isinstance(node, ast.Attribute):
+            # Store/Del context = attribute MUTATION (`np.mean = ...`, `del np.mean`,
+            # `np.pi += 1`). numpy is a process-global singleton and sandbox workers are
+            # REUSED across candidates, so an allowlisted-name assignment would poison every
+            # later candidate in that worker (cross-candidate contamination + determinism
+            # break). Reward code only ever READS attributes.
+            if not isinstance(node.ctx, ast.Load):
+                return False
             if node.attr.startswith("__"):
                 return False
             if node.attr in _BANNED_ATTRS:

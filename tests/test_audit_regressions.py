@@ -91,6 +91,21 @@ def test_ast_gate_blocks_rce_and_ffi_vectors(src: str) -> None:
     assert ast_gate(src) is False
 
 
+# Attribute MUTATION (Store/Del ctx) on allowlisted names: numpy is process-global and
+# workers are reused across candidates, so `np.mean = ...` would poison every later
+# candidate in the worker (2026-07-05 map finding M03).
+_ATTR_MUTATION_VECTORS = [
+    "def reward(w, r, p, pr, i):\n    np.mean = lambda *a, **k: 0.0\n    return 0.0, {}, None\n",
+    "def reward(w, r, p, pr, i):\n    del np.mean\n    return 0.0, {}, None\n",
+    "def reward(w, r, p, pr, i):\n    np.pi += 1.0\n    return 0.0, {}, None\n",
+]
+
+
+@pytest.mark.parametrize("src", _ATTR_MUTATION_VECTORS)
+def test_ast_gate_blocks_attribute_mutation(src: str) -> None:
+    assert ast_gate(src) is False
+
+
 def test_ast_gate_admits_numeric_reward() -> None:
     numeric = (
         "def reward(weights, returns, prev_weights, port_ret, info):\n"

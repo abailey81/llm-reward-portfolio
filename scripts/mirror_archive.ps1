@@ -74,9 +74,13 @@ foreach ($pair in $sources) {
     $code = $LASTEXITCODE
     $verdict = if ($code -ge 8) { "FAIL($code)" } else { "ok($code)" }
     Add-Content $log "$verdict : $($pair.src) -> $($pair.dst)"
-    if ($code -ge 8) { Write-Warning "mirror FAILED for $($pair.src) (robocopy $code)" }
+    if ($code -ge 8) { Write-Warning "mirror FAILED for $($pair.src) (robocopy $code)"; $anyFail = $true }
 }
 
 $total = (Get-ChildItem $MirrorRoot -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
 Add-Content $log ("mirror size: {0:N1} MB" -f $total)
 Write-Host ("mirror pass done -> {0}  ({1:N1} MB; log: {2})" -f $MirrorRoot, $total, $log)
+# robocopy's success code (1 = files copied) would otherwise leak as the script exit code and read as a
+# failure to any caller. Map the 0-7 robocopy-success band to a clean exit 0; reserve non-zero for a real
+# >=8 mirror failure (2026-07-05).
+if ($anyFail) { exit 8 } else { exit 0 }

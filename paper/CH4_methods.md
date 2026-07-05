@@ -58,8 +58,9 @@ the corpus carries no delisting *reason* and the surcharge is therefore applied 
 premium merger-and-acquisition exits, which the source authors explicitly exclude from performance-related
 delistings [`shumway1999delisting`]. Booking fabricated left-tail losses on M&A exits in a study whose object is
 the left tail would be indefensible. Instead, the Shumway surcharge is retained as the heavy end of a disclosed
-**delisting-return sensitivity band** $d\in\{0,-30,-55,-100\%\}$ over the affected cells; the band moves the pooled
-test CVaR-5% by approximately two percentage points, leaving the hypothesis ordering invariant.
+**delisting-return sensitivity band** $d\in\{0,-30,-55,-100\%\}$ over the affected cells; across the full band the
+pooled test CVaR-5% moves by only about two percent in relative terms (of order a tenth of a percentage point),
+leaving the hypothesis ordering invariant.
 
 **State features.** The agent's cash-row state carries three leakage-safe volatility/regime features — 20-day
 realised volatility, the 20-day/60-day volatility ratio, and the VIX close — following the tail-feature
