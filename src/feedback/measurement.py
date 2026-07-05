@@ -205,6 +205,10 @@ class ReturnDistribution:
 
     def __init__(self, threshold_q: float = 0.10) -> None:
         self.threshold_q = float(threshold_q)
+        #: When True, cvar('auto') skips the cross-candidate FED-estimator audit — set on the internal
+        #: bootstrap-replicate refits (``_bootstrap_cvars``) so they don't pollute the registry or storm
+        #: the warning log (2026-07-05). Default False = a genuine fed-candidate measurement records.
+        self._suppress_fed_estimator_record = False
         self.sorted_returns: np.ndarray | None = None
         #: The finite returns in TIME order (NOT sorted). The stationary block bootstrap (``cvar_ci`` /
         #: ``cvar_bias``) must resample in serial order to preserve dependence, so we keep the un-sorted array
@@ -424,7 +428,9 @@ class ReturnDistribution:
         # used and log if it differs across candidates — the data-dependent EVT<->empirical switch
         # (DEEP_H2 §6.3) is then explicit, not silent. Only in "auto" (the fed path); the value is
         # unchanged. Match on the rounded level so 0.05 vs 0.0500000001 still registers.
-        if any(abs(alpha - lvl) < 1e-12 for lvl in FED_HEADLINE_CVAR_LEVELS):
+        if not self._suppress_fed_estimator_record and any(
+            abs(alpha - lvl) < 1e-12 for lvl in FED_HEADLINE_CVAR_LEVELS
+        ):
             self._record_fed_estimator(alpha)
         if alpha <= EVT_ALPHA_CUTOFF:
             return self._evt_cvar(alpha)
@@ -523,7 +529,14 @@ class ReturnDistribution:
         out = np.empty(int(n_boot), dtype=float)
         for b in range(int(n_boot)):
             idx = self._stationary_block_indices(t, eb, rng)
-            out[b] = ReturnDistribution(threshold_q=self.threshold_q).fit(raw[idx]).cvar(alpha)
+            replicate = ReturnDistribution(threshold_q=self.threshold_q)
+            # 2026-07-05: mark these internal REFITS so their per-replicate cvar('auto') calls do NOT
+            # register in the cross-candidate FED-estimator audit — otherwise cvar_ci/cvar_bias/
+            # cvar_uncertainty_report polluted _FED_ESTIMATOR_PATHS with up to n_boot entries and
+            # emitted a WARNING STORM ("FED CVaR estimator INCONSISTENT across candidates") whenever a
+            # resample flipped EVT<->empirical. The reported CI/bias values are byte-identical.
+            replicate._suppress_fed_estimator_record = True
+            out[b] = replicate.fit(raw[idx]).cvar(alpha)
         return out
 
     def cvar_ci(

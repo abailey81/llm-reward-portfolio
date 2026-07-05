@@ -1,0 +1,18 @@
+{
+  "cols": 10,
+  "format": "csv",
+  "frozen_utc": "2026-06-10T16:05:00.552424+00:00",
+  "layer": "clean",
+  "name": "quarantine_shadow30.csv",
+  "provenance": {
+    "note": "reason-coded exclusion queue; original values preserved",
+    "stage": "cli.build/integrity",
+    "vendor": "derived"
+  },
+  "relpath": "data/clean/quarantine_shadow30.csv",
+  "row_hash": "932de89ecc695208dd6d86eb1e37a81d3ef60f53136c4ed1e6aa47300b17fd16",
+  "rows": 4323,
+  "run_id": "build_20260610T160458Z",
+  "sha256": "932de89ecc695208dd6d86eb1e37a81d3ef60f53136c4ed1e6aa47300b17fd16",
+  "vendor": "derived"
+}

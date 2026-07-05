@@ -195,6 +195,8 @@ def bayes_opt_over_template(
     cfg: Any,
     n_init: int = 5,
     rng: Optional[np.random.Generator] = None,
+    cache_lookup: Optional[Callable[[int, np.ndarray], Optional[float]]] = None,
+    on_evaluated: Optional[Callable[[int, np.ndarray, float], None]] = None,
 ) -> dict[str, Any]:
     """Bayesian-optimize reward-template coefficients under the matched budget.
 
@@ -243,7 +245,22 @@ def bayes_opt_over_template(
     y_obs: list[float] = []
 
     def _evaluate(x: np.ndarray, source: str) -> float:
-        score = float(template_eval_fn(x))
+        # Resume/checkpoint hooks (2026-07-05 crash-resume hardening). A cached score skips the
+        # expensive training while leaving the OBSERVED (x, y) history identical, so the GP
+        # posterior — and therefore every subsequent acquisition draw and proposal — reproduces the
+        # original trajectory byte-for-byte (the per-iteration rng consumption is unconditional).
+        # ``cache_lookup(i, x)`` returns the archived score (the caller hash-verifies the
+        # materialized source for these coeffs and fails loud on drift) or ``None``;
+        # ``on_evaluated(i, x, score)`` fires only for FRESH evaluations so the caller can
+        # checkpoint each candidate the moment it completes instead of after the whole arm.
+        idx = len(history)
+        cached = cache_lookup(idx, x) if cache_lookup is not None else None
+        if cached is not None:
+            score = float(cached)
+        else:
+            score = float(template_eval_fn(x))
+            if on_evaluated is not None:
+                on_evaluated(idx, x, score)
         x_obs.append(x.copy())
         y_obs.append(score)
         history.append({"coeffs": x.copy(), "score": score, "source": source})

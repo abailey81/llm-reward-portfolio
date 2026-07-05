@@ -74,7 +74,12 @@ def build_cash_features(
         if mkt.shape[0] != t_len:
             raise ValueError("market_returns must align row-for-row with asset_returns")
     else:
-        mkt = r.mean(axis=1)  # equal-weight market proxy (ADR-007)
+        # NaN-SAFE equal-weight market proxy (2026-07-05 fix): on the full research panel virtually
+        # every row carries pre-IPO/post-delisting NaNs, so the plain mean() propagated them and the
+        # derived vol columns in the gold cash_features came out 100% NaN (verified on univ5; harmless
+        # to the campaign — the engine reads only the vix column — but wrong for any future consumer).
+        with np.errstate(invalid="ignore"):
+            mkt = np.nanmean(r, axis=1)  # equal-weight market proxy over the LIVE names (ADR-007)
 
     vol_short = int(vol_short if vol_short is not None else get("environment.state.vol_short_window"))
     vol_long = int(vol_long if vol_long is not None else get("environment.state.vol_long_window"))

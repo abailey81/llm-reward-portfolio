@@ -188,3 +188,48 @@ def test_campaign_done_requires_sentinel_written_after_watcher_start(tmp_path: P
     (tmp_path / "campaign_summary.json").write_text("{}", encoding="utf-8")
     mt = monitor._sentinel_mtime(search)
     assert mt is not None and mt > 0
+
+
+def test_campaign_done_keeps_watching_on_resumable_exit3_pass(tmp_path) -> None:
+    """2026-07-05: a FRESH sentinel from an exit-3 (resumable) pass must NOT terminate the watcher —
+    the supervisor relaunches with --resume and the remaining passes must stay watched. Terminal
+    passes (exit_code==0) and legacy summaries (no key) still exit; an unreadable summary defers."""
+    from scripts.monitor import _sentinel_exit_code, campaign_done
+
+    # Fresh sentinel + non-zero exit code -> keep watching.
+    assert campaign_done(100.0, 50.0, exit_code=3) is False
+    # Fresh sentinel + terminal pass -> done (and the legacy default keeps old callers exiting).
+    assert campaign_done(100.0, 50.0, exit_code=0) is True
+    assert campaign_done(100.0, 50.0) is True
+    # Unreadable summary (mid-write) -> defer to the next tick.
+    assert campaign_done(100.0, 50.0, exit_code=None) is False
+    # Stale sentinel never exits, whatever the code.
+    assert campaign_done(10.0, 50.0, exit_code=0) is False
+
+    # _sentinel_exit_code: real file round-trip (run_dir layout: summary one level up).
+    run_dir = tmp_path / "search"
+    run_dir.mkdir()
+    (tmp_path / "campaign_summary.json").write_text('{"exit_code": 3}', encoding="utf-8")
+    assert _sentinel_exit_code(run_dir) == 3
+    (tmp_path / "campaign_summary.json").write_text('{"all_arms_tested": true}', encoding="utf-8")
+    assert _sentinel_exit_code(run_dir) == 0  # legacy summary without the key
+    (tmp_path / "campaign_summary.json").write_text("{not json", encoding="utf-8")
+    assert _sentinel_exit_code(run_dir) is None  # mid-write -> defer
+
+
+def test_alert_reason_disk_and_anomaly_rules() -> None:
+    """2026-07-05 precision rules: disk-floor and anomaly-surge alert while the run is otherwise
+    healthy; terminal phases keep precedence; inactive signals (None) change nothing."""
+    st = {"phase": "training"}
+    now = 1000.0
+    # healthy + inactive extras -> None (back-compat)
+    assert monitor.alert_reason(st, now, 600, mtime_epoch=now) is None
+    # disk floor fires while alive
+    assert monitor.alert_reason(st, now, 600, mtime_epoch=now, disk_free_gb=3.0) == "disk_low"
+    assert monitor.alert_reason(st, now, 600, mtime_epoch=now, disk_free_gb=50.0) is None
+    # anomaly surge fires on a >=limit per-tick jump, not on slow growth
+    assert monitor.alert_reason(st, now, 600, mtime_epoch=now, anomaly_delta=25) == "anomaly_surge"
+    assert monitor.alert_reason(st, now, 600, mtime_epoch=now, anomaly_delta=3) is None
+    # terminal phases take precedence over everything
+    assert monitor.alert_reason({"phase": "error"}, now, 600, disk_free_gb=1.0) == "error"
+    assert monitor.alert_reason({"phase": "done"}, now, 600, anomaly_delta=99) == "done"

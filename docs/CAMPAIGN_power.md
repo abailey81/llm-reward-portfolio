@@ -3,8 +3,7 @@
 **Purpose.** Decide whether the planned design can detect a realistic H2 effect before spending compute,
 and be honest in the dissertation about how much power the test has. A non-rejection of H2 is reported
 as a **bounded effect**, NOT an underpowered failure — see "Pre-committed null framing" below. Committed
-before the Phase-1 freeze; the σ_seed-dependent fields are now finalised from the clean seeds-on-winners
-pilot (σ_seed = 0.244).
+before the Phase-1 freeze; re-run with the clean seeds-on-winners pilot σ to finalise the TBD fields.
 
 ## The test this powers (the realized headline — PREREGISTRATION §10 R16)
 The frozen inference unit is `per_seed_iqm_paired_seed_bootstrap`. Concretely: each per-arm winner is
@@ -23,7 +22,7 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 - [x] Per-test alpha the PRIMARY MDE used: **α = 0.0500**.
 - [x] Conservative BH-over-6 sensitivity (Šidák-m=6, two-sided): **α_eff = 0.0085** *(reported below, never deleted)*.
 
-## Result (computed at the measured σ_seed from the clean seeds-on-winners pilot)
+## Result (computed at the directional σ_seed — pilot field flagged)
 - [x] Realized PAIRED sample size **n_seeds = 30** (per-arm winners; Amendment D2 5→30).
 - [x] Seed-to-seed σ of the per-seed score (Sharpe units): **σ_seed = 0.244**
 - [x] Pairing correlation across the shared seed: **ρ = -0.1** *(default 0.0 = conservative; swept below)*
@@ -43,8 +42,9 @@ probability ≥ **target power = 0.80**, at the per-test alpha of the PRIMARY ru
     Δ_MDE = min { Δ ≥ 0 : Power(Δ | n_seeds = 30, σ_seed = 0.244, ρ = -0.1, α = 0.0500) ≥ 0.80 }
 
 estimated by Monte-Carlo (2000 sims/grid-point, 2000 bootstrap reps/test) over the REAL test.
-For the LIVE one-sided IUT rule the bootstrap two-sided p is converted in-direction (p_one = p_two/2 when the
-effect is in the predicted direction; DEEP_H2 stats note A5). The conservative Šidák-over-m figure
+For the power simulation the bootstrap two-sided p is converted in-direction (p_one = p_two/2 when the
+effect is in the predicted direction) — a symmetric-DGP approximation to the headline R64 direct upper-tail
+rule (`pvalue_one_sided_greater`), exact here because the simulation draws symmetric (normal) pairs. The conservative Šidák-over-m figure
 (`alpha_eff = 1 − (1 − 0.05)^(1/6) = 0.0085`) is the BH-over-6 SENSITIVITY below.
 
 ## Conservative BH-over-6 sensitivity (Šidák-m, NOT deleted)
@@ -67,16 +67,14 @@ table uses the PRIMARY decision rule above.
 | 0.5 | 0.130 | 0.53 | 0.154 | 0.63 |
 | 0.7 | 0.107 | 0.44 | 0.126 | 0.52 |
 
-## σ_seed — the noise input (MEASURED on the clean seeds-on-winners pilot)
-σ_seed is the seed-to-seed SD of the per-seed score within an arm. It is now **measured** on the clean
-seeds-on-winners pilot (each per-arm winner re-run at 30 seeds with the reward held **FIXED**):
-σ_seed = **0.244** (annualised-Sharpe units). This **supersedes** the earlier prototype directional
-upper bound of ≈ 0.36 (pooled; headline `distributional`/`scalar` arms 0.36/0.37), which folded
-reward-DESIGN variance (a different reward per candidate) and a 1-seed, shorter window into the
-dispersion (that design-plus-seed dispersion is reported separately as σ_D ≈ 0.37). As the
-pre-registered expectation anticipated, the clean seed-only σ (0.244) came in **below** that upper
-bound, so the MDE tabled here is computed at the measured seed noise and is **no longer pessimistic on
-the σ axis**. Regenerate via `scripts/power_analysis.py --sigma-seed 0.244` if the pilot σ is re-measured.
+## σ_seed — the noise input (MEASURED clean-pilot value)
+σ_seed is the seed-to-seed SD of the per-seed score within an arm. This run was invoked with the
+MEASURED pilot value (`--sigma-seed 0.244`, annualised-Sharpe units — the 2026-07-03
+σ_D farm: two fixed hand-written rewards × 15 CRN seeds at B\*=200k on the Split-C univ5 panel), so
+every MDE above is computed at the pilot-measured noise, not the prototype-era directional proxy.
+Disclosed caveat: the pilot's two hand-written rewards PROXY the (unknown until run) LLM-authored
+campaign winners; the seed-count sizing therefore evaluates σ at its χ² upper confidence bound, which
+buffers exactly that proxy error.
 
 **External cross-check (Colas et al. 2019, arXiv:1904.06979).** For comparing central RL performance
 across seeds at 80% power they report δ=0.5 → N≈100, δ=1 → N≈20, δ=2 → N≈5–10 (δ = |Δμ|/σ_pool; a real
@@ -89,11 +87,11 @@ null rejection is ≤ alpha_eff (conservative), not inflated — see the power c
 | effect (Sharpe) | effect (σ_seed units / δ) | power |
 |---|---|---|
 | 0.000 | 0.00 | 0.054 |
-| 0.031 | 0.13 | 0.117 |
+| 0.030 | 0.12 | 0.117 |
 | 0.061 | 0.25 | 0.220 |
-| 0.092 | 0.38 | 0.344 |
+| 0.091 | 0.38 | 0.344 |
 | 0.122 | 0.50 | 0.517 |
-| 0.153 | 0.62 | 0.670 |
+| 0.152 | 0.62 | 0.670 |
 | 0.183 | 0.75 | 0.808 |
 
 ## Sharpe ↔ validation-DSR reconciliation (T2.5)
@@ -109,7 +107,7 @@ per period and, by the delta method, shifts the DSR by `ΔDSR ≈ φ(z)·√(T�
 `φ(z)/√D` is **maximised** at the benchmark (`z=0 ⇒ φ(0)=0.3989`, DSR≈0.5) and under normal returns
 (`D=1`), giving the conservative **ceiling**
 
-    ΔDSR_max = 0.3989 · √(T−1) / √252 · ΔSR_ann      (T = 694 sessions, val split [2015,2017]).
+    ΔDSR_max = 0.3989 · √(T−1) / √252 · ΔSR_ann      (T = 694 scored sessions; the frozen Split-C validation window 2017–2019, first scored day ~2017-03-30 after the 60-session purge — the old "[2015,2017]" label was the superseded pre-Split-C window, 2026-07-05).
 
 Plugging the headline MDE: **Δ_MDE@80% ≈ 0.120 validation-DSR (conservative ceiling)** — this **EXCEEDS the 0.050 SESOI**, so the Sharpe-MDE and the DSR-SESOI probe DIFFERENT scales: a Sharpe non-rejection alone does NOT establish DSR-equivalence (the INCONCLUSIVE branch below — only the TOST CI *in DSR units* can). The 90%-power Sharpe MDE maps to ≈ 0.141 validation-DSR (ceiling).
 
@@ -154,8 +152,8 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 
 ## Method
 1. Label regimes; count independent blocks (`independent_regime_count`). → N (reported; secondary only).
-2. From the **seeds-on-winners pilot**, estimate σ_seed = seed-to-seed SD of the per-seed score
-   within an arm (measured: **0.244**; the prototype directional upper bound ≈0.36 is superseded). → σ_seed.
+2. From the **seeds-on-winners pilot** (TBD), estimate σ_seed = seed-to-seed SD of the per-seed score
+   within an arm. Until then use the prototype directional upper bound. → σ_seed.
 3. Monte-Carlo: under a grid of true effects, draw n_seeds correlated per-seed score pairs (per-arm SD
    σ_seed, pairing ρ) and reject via the REAL `paired_seed_difference_test` at alpha_eff. → power curve.
 4. Report Δ_MDE at 80% (and 90%) power across ρ∈{0,0.3,0.5,0.7}; if the budget does not
@@ -166,9 +164,9 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 - [x] A committed analysis re-derived against the REAL paired test, with MDE@80%/90% + an explicit trial count (this file).
 - [x] PRIMARY decision rule = one-sided IUT leg at α = 0.05 (multiplicity = live BH/RW, R37); conservative Šidák-m=6 sensitivity reported (α_eff = 0.0085).
 - [x] Pairing correlation ρ swept {0, 0.3, 0.5, 0.7}; default ρ=0 conservative.
-- [x] σ_seed filled from the clean pilot (**measured 0.244**, superseding the directional upper-bound proxy).
-- [x] Target power 80% reached at Δ_MDE (at the measured σ_seed = 0.244).
+- [x] σ_seed filled from the clean pilot (currently the **directional upper-bound proxy**).
+- [x] Target power 80% reached at Δ_MDE (currently at the directional σ_seed).
 - [x] SESOI + TOST margin recorded (FROZEN; PREREGISTRATION §10 R12); pre-committed null framing stated.
 
-> The σ_seed and Δ_MDE fields are **finalised** on the clean seeds-on-winners pilot (σ_seed = 0.244);
-> re-run `scripts/power_analysis.py --sigma-seed <value>` only if the pilot σ is ever re-measured.
+> Pilot-dependent fields (σ_seed and therefore Δ_MDE) are **directional** until the seeds-on-winners pilot
+> runs; re-run `scripts/power_analysis.py --sigma-seed <pilot value>` to finalise this file before the freeze.

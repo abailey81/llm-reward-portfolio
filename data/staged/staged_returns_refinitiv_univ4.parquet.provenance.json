@@ -1,0 +1,32 @@
+{
+  "cols": 953,
+  "format": "parquet",
+  "frozen_utc": "2026-06-25T01:54:21.365772+00:00",
+  "layer": "staged",
+  "name": "staged_returns_refinitiv_univ4.parquet",
+  "provenance": {
+    "alignment": {
+      "off_calendar_dates": [],
+      "off_calendar_rows_dropped": 0,
+      "sessions": 5283
+    },
+    "missing": {
+      "holiday_dropped": 0,
+      "interior_flagged": 3155,
+      "observed": 3701188,
+      "post_delisting_terminal": 957147,
+      "pre_ipo_masked": 373209,
+      "table": "panel",
+      "total_cells": 5034699
+    },
+    "stage": "build_universe",
+    "units": "decimal (percent/100)",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\staged\\staged_returns_refinitiv_univ4.parquet",
+  "row_hash": "c70a9e403630fd374eb5f6958e597d9a1d6f778a386f813201c25bfeb71b5414",
+  "rows": 5283,
+  "run_id": "build_universe",
+  "sha256": "f4edc8615f9cf943cfacee2b9540c4319566735e707f49dbce47e251c689620b",
+  "vendor": "refinitiv"
+}

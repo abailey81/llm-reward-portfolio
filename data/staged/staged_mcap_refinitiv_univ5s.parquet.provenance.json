@@ -1,0 +1,18 @@
+{
+  "cols": 963,
+  "format": "parquet",
+  "frozen_utc": "2026-07-01T22:40:58.227994+00:00",
+  "layer": "staged",
+  "name": "staged_mcap_refinitiv_univ5s.parquet",
+  "provenance": {
+    "frequency": "monthly",
+    "stage": "build_universe",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\staged\\staged_mcap_refinitiv_univ5s.parquet",
+  "row_hash": "e616de2fbcb04f70a3defd5e3e08c0e534fc65d8c5b19907f60a98ca2b64f243",
+  "rows": 555,
+  "run_id": "build_univ5s",
+  "sha256": "10267bf1ff1cae0cd9ec034352a7ec6ff61b2dd2902e3b8873cffb7b4808eb46",
+  "vendor": "refinitiv"
+}

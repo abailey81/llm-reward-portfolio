@@ -94,8 +94,14 @@ def equivalence_band(ax: Any, sesoi: float, *, orient: str = "v", label: str = "
 
 
 def iqm(x: np.ndarray) -> float:
-    """Interquartile mean (Agarwal 2021): the mean of the middle 50% — robust to seed outliers."""
-    x = np.sort(np.asarray(x, dtype=float).ravel())
+    """Interquartile mean (Agarwal 2021): the mean of the middle 50% — robust to seed outliers.
+
+    Non-finite values are dropped first, mirroring the inference-layer oracle
+    (``src/inference/reporting.py`` / ``bootstrap.py``): a single NaN per-seed score otherwise
+    poisons a FIGURE's IQM point/CI while the reported NUMBER silently ignores it — a
+    figure-vs-number divergence in a reproducibility-graded artifact (2026-07-05)."""
+    x = np.asarray(x, dtype=float).ravel()
+    x = np.sort(x[np.isfinite(x)])
     n = x.size
     if n == 0:
         return float("nan")

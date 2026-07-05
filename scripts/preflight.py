@@ -202,6 +202,32 @@ def check_model_consistency(campaign_model: object, llm_model: object) -> Check:
                  f"model_snapshot consistent across campaign/llm: {campaign_model!r}")
 
 
+def check_generations_mirror(
+    campaign_generations: object, llm_generations: object, h3_generations: object
+) -> Check:
+    """2026-07-05 (map M04): the reflection depth is DESIGN-DEFINING (PREREG R30 pins generations=6 and
+    the H3 iterative-vs-single-shot contrast IS 6-vs-1) yet lives only in un-hashed compute configs,
+    authored twice (campaign.yaml ``llm.generations`` — what run_campaign executes — and llm.yaml
+    ``generations``). A key-drop silently runs EVERY LLM arm single-shot (``cfg_get`` default 1) and
+    destroys both the iterative protocol and H3. Same infra-mirror idiom as the model/budget guards;
+    the frozen prereg-mirror key rides the seed-ratification amendment (one batched hash move)."""
+    if campaign_generations is None or llm_generations is None:
+        return Check("generations_mirror", FAIL,
+                     "generations missing from campaign.yaml (llm block) and/or llm.yaml — a dropped key "
+                     "silently runs every LLM arm single-shot (cfg_get default 1); restore generations: 6")
+    if int(campaign_generations) != int(llm_generations):
+        return Check("generations_mirror", FAIL,
+                     f"generations mismatch: campaign.yaml llm.generations={campaign_generations!r} != "
+                     f"llm.yaml generations={llm_generations!r} — reconcile BOTH")
+    if h3_generations is not None and int(h3_generations) != 1:
+        return Check("generations_mirror", FAIL,
+                     f"h3_singleshot_generations={h3_generations!r} != 1 — the H3 control's whole point "
+                     "is a single-generation best-of-N search (DEEP_H3 §1)")
+    return Check("generations_mirror", PASS,
+                 f"generations consistent across campaign/llm ({int(campaign_generations)}); "
+                 f"h3_singleshot_generations={h3_generations!r}")
+
+
 #: FIX-class agent-key typo guard (2026-07-03). Every key the training stack actually CONSUMES from a
 #: config ``agent:`` block — enumerated from the REAL consumers, not from the configs. ``cfg_get``
 #: returns a silent default for an unknown key, so a typo'd frozen key (e.g. ``learning_start:``) would
@@ -516,6 +542,11 @@ def _gather_and_check(n_gpu: int, min_disk_gb: float, *, provider: str, api_prob
         llm_cfg = yaml.safe_load((root / "config" / "llm.yaml").read_text(encoding="utf-8")) or {}
         checks.append(check_model_consistency(
             (camp.get("llm") or {}).get("model_snapshot"), llm_cfg.get("model_snapshot")))
+        # generations mirror (2026-07-05, map M04): the design-defining reflection depth (6) + the H3
+        # single-shot control (1) — a key-drop would silently run every LLM arm single-shot.
+        checks.append(check_generations_mirror(
+            (camp.get("llm") or {}).get("generations"), llm_cfg.get("generations"),
+            (camp.get("llm") or {}).get("h3_singleshot_generations")))
     except Exception as exc:  # noqa: BLE001 - a probe failure must not abort the gauntlet
         checks.append(Check("model_mirror", WARN, f"model-mirror probe failed: {exc}"))
 

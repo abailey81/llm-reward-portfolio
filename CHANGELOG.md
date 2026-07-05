@@ -3,6 +3,55 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-05b] — World-class run hardening: search-arm resume, the SENTINEL invariant monitor + precise logging, mechanism-kernel rewire, freeze gate 17→20; ~40 fixes
+
+Second 2026-07-05 session. Tamer asked for (a) precise seed sizing, (b) world-class resume/checkpoint +
+monitoring + LOGGING that "catches absolutely anything early", then (c) to close ALL flagged issues.
+Master reconciliation: `docs/SESSION_MASTER_STATUS_2026-07-05.md`; seed decision:
+`docs/SEED_DECISION_2026-07-05.md`. Freeze gate **20/20 @ hash `1c6b76b6` UNCHANGED** (the 3 new guards
+are code, not hashed content); ruff clean; touched-file suites green.
+
+- **Crash-resume — the real gap closed.** The two SEARCH arms (`random_search`, `bayes_opt`) had NO
+  resume — a mid-arm crash re-trained from candidate 0 (up to ~40 h re-paid; a deterministic fault =
+  an infinite crash-loop). Added per-candidate checkpointing + a hash-verified resume cache: the seeded
+  draw sequence is regenerated identically, archived candidates skip training, and a source-hash
+  mismatch fails LOUD. **Byte-identity certified** (`tests/test_search.py` ×2: the resumed archive ==
+  the uninterrupted archive, only the un-finished tail re-trained). random_search re-draws + skips;
+  bayes_opt re-fits its GP from the archived (x, y) so every subsequent proposal reproduces.
+- **The SENTINEL (`scripts/sentinel.py`) — "catch absolutely anything early".** A continuous, READ-ONLY
+  invariant health-monitor: 12 severity-graded checks (disk/RAM/GPU-temp, silent-hang, gate-failure
+  rate, **NaN rate in the archive**, **critic-explosion clustering** + a CRITICAL if a FROZEN WINNER
+  diverged, **cross-arm reward-scale drift** = the P5 confound made live, API error rate, exit-code,
+  coverage/husk, mirror freshness). `--watch` loops; exits non-zero on CRITICAL; every check TRANSITION
+  is written **severity-tagged to `events.jsonl`** (the precise, replayable health log). 16 tests; caught
+  the real disk-low condition live. Runbook §5 documents it.
+- **Watcher + ops:** ntfy rules `disk_low` + `anomaly_surge`; the watcher now SURVIVES exit-3 resumable
+  passes (exits only on a terminal `exit_code==0`), so one launch covers the multi-pass run; mirror
+  script exits 0 on success; runbook §5b pre-commits the Day-2 GO/RECHECK gate (treatment-blind), the
+  integrity-only first-arm rehearsal, the anomaly-triage protocol, and the 6-hourly mirror task.
+- **Analysis integrity:** **M19 husk statuses** (a no-shutdown total H1/H3 failure wave now banks
+  `test_failure_wave`→exit 3, not a husk `tested`); **M15** the H3 single-shot subtrees are excluded
+  from the default record walk (they collide run_ids with the headline distributional arm); **the
+  mechanism-kernel rewired to the REGISTERED §2a estimand** — SQ1/SQ2 now use the tail the designer was
+  FED (parsed from the archived prompt = prev-gen best), not each candidate's own post-training tail,
+  with gen-0 excluded and per-generation deltas as the primary form (validated on the real prototype
+  archive); `information_gap` fixed to read the fed prompt not the own-block; the **legible
+  sub-experiment redesigned** to actually inject a real per-seed reference tail block (raw vs legible),
+  with resume + the `left_tail_mass` percent-unit fix + purge/diversity threading.
+- **Freeze gate 17→20** (non-hash-bound guards): R38 prompt tail-neutrality, search-split cross-assert,
+  bound-file existence on the real root; + `preflight.check_generations_mirror` (the design-defining
+  reflection depth was un-guarded). Hash `1c6b76b6` unchanged.
+- **~40 verified small fixes:** attribution x26-refresh routing, loaders manifest-backslash + yaml-error
+  intent, features `nanmean` market proxy, viz `iqm` NaN-strip, `dsr_effective_n` sorted NaN-safe winner
+  scan, ood 2D-shape disambiguation, measurement bootstrap warning-storm, algos.yaml recorded SB3
+  defaults, power-generator conditional-σ prose + window label + k80 sync + `CAMPAIGN_power.md` regen,
+  requirements-test pins + pytest-timeout note, TEST_RIGOR counts/floor, equivalence-claim wording,
+  .gitignore provenance-sidecar rescue, run_campaign stale spans/50k comments, §18-19 phantom cites,
+  reflect-on-last comments, CLAUDE.md panel line, 4 planning-doc staleness banners, LIT-map examiner +
+  RWW #8 attributions.
+- **Deferred by decision (not drift):** write-up prose incl. the 2 corpus cites (troop2021, duan2021dsac);
+  hash-bound edits batched for the seed-ratification amendment; P5/P6 + §9 extra-reward run (compute-gated).
+
 ## [2026-07-05] — Deep review + Claude Council + data/benchmark/lit sweeps; 10 verified fixes; hash-chain changelog gap closed
 
 Full ledger: `docs/DEEP_REVIEW_2026-07-05.md`; the Tamer-decision brief: `docs/SESSION_BRIEF_2026-07-05.md`.

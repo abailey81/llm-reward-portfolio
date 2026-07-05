@@ -97,7 +97,7 @@ def max_power_config(
          only on a SINGLE device. Mixing CPU + GPU workers makes results device-dependent (CPU != CUDA
          bit-for-bit), so for the frozen run use **GPU-only** here (``n_cpu=0``), not this heterogeneous mix.
        * **SEARCH leg:** ``run_parallel`` reflects on the generation's BEST candidate, whereas the FROZEN
-         protocol is ``serial_reflect_on_last`` — so enabling search parallelism is an *amendment-gated
+         protocol is ``serial_reflect_on_best`` (§6 CORRECTION 2026-07-02; the serial loop reflects on the generation BEST, M5) — so enabling search parallelism is an *amendment-gated
          frozen-decision change*, not a free speed-up.
 
        The heterogeneous ``(n_gpu, n_cpu)`` returned here is therefore appropriate for the ``--synthetic`` /
@@ -792,7 +792,7 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
     for gen in range(gens):
         # Reflection PREAMBLE identical to src/llm/loop.py (final-audit #34: both paths share the same
         # preamble string, not two different hand-written ones). NB the appended feedback `prev_block`
-        # itself derives from each path's OWN selection — the serial loop seeds from its LAST candidate,
+        # itself derives from each path's OWN selection — the serial loop seeds from its generation-BEST candidate (M5),
         # this scheduler from the generation's BEST — so the full reflection prompt is not byte-identical
         # across paths for multi-candidate generations; the headline campaign uses the SERIAL path.
         user = prompts.initial if prev_block is None else f"{_REFLECTION_PREAMBLE}\n{prev_block}"

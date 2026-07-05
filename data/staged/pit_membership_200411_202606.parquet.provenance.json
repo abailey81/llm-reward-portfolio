@@ -1,0 +1,36 @@
+{
+  "cols": 2,
+  "format": "parquet",
+  "frozen_utc": "2026-07-01T22:28:26.039993+00:00",
+  "layer": "staged",
+  "name": "pit_membership_200411_202606.parquet",
+  "provenance": {
+    "method": "SPLICE (ADR-051 addendum): frozen pit authoritative through 2025-12-31; fresh reverse event replay (ADR-020) for ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31', '2026-06-30']",
+    "overlap_diagnostic": {
+      "allowlisted": [
+        "EVHC.N^L16"
+      ],
+      "months_checked": 254,
+      "months_differing": 145,
+      "unexplained": []
+    },
+    "selection_buffer_months": 1,
+    "stage": "extend_universe_2026.reconstruct_membership",
+    "validation": {
+      "count_max": 507,
+      "count_min": 500,
+      "lehman_in_2008H1": true,
+      "lehman_out_2008Q4": true,
+      "months": 260,
+      "tesla_in_2021": true,
+      "tesla_out_2019": true
+    },
+    "vendor": "derived"
+  },
+  "relpath": "data\\staged\\pit_membership_200411_202606.parquet",
+  "row_hash": "aea392c92548a0cd9c3387b64d1c78eadcfc6f45c6aa05f9d1c69778d4dc495a",
+  "rows": 130581,
+  "run_id": "universe_refinitiv_x26",
+  "sha256": "c692912c4b9800344bd01ae687005c96f64044491a185fcc383d0f2a0e248b2a",
+  "vendor": "derived"
+}

@@ -59,6 +59,12 @@ data/clean/*
 data/staged/*
 !data/clean/.gitkeep
 !data/staged/.gitkeep
+# ...but DO keep the provenance sidecars (2026-07-05): these later `data/clean|staged/*` rules
+# overrode the earlier `!data/**/*.provenance.json` negation, so a fresh clone lost the clean/staged
+# provenance JSONs (the sha256 lineage the reproducibility story cites). Re-assert them here — they
+# carry checksums + lineage, never licensed payloads.
+!data/clean/*.provenance.json
+!data/staged/*.provenance.json
 # manifest: track provenance, not the journal payloads
 data/manifest/journal/
 # experiment run logs (B): large; keep dir not contents

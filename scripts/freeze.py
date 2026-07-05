@@ -778,6 +778,108 @@ def assert_matched_budget_match(yml: dict[str, Any], root: Path) -> str | None:
     return f"matched_budget: config/campaign.yaml candidates_per_arm == frozen prereg matched_budget ({frozen})"
 
 
+#: Vocabulary that must NEVER appear in the two hash-bound base prompts (case-insensitive substrings).
+#: R38 de-seeded the shared prompts so ONLY the distributional arm's FEEDBACK introduces the tail —
+#: the construct-validity premise of the whole H2 contrast. Until 2026-07-05 nothing GUARDED that
+#: property: a pre-freeze wording edit re-adding tail vocabulary would have been frozen unnoticed and
+#: silently collapsed the placebo/scalar contrast (every arm pre-seeded with the tail again).
+_PROMPT_TAIL_VOCAB: tuple[str, ...] = (
+    "cvar", "tail", "drawdown", "downside", "quantile", "shortfall", "value-at-risk", "value at risk",
+)
+
+
+def assert_prompt_tail_neutrality(root: Path) -> str | None:
+    """The two hash-bound base prompts must stay TAIL-NEUTRAL (construct validity, R38).
+
+    Returns the checked-summary line, or ``None`` when neither prompt exists (a minimal test root).
+    Raises :class:`FreezeConsistencyError` naming the file + token on any hit.
+    """
+    prompt_paths = [root / rel for rel in _BOUND_TREATMENT if rel.startswith("prompts/")]
+    present = [p for p in prompt_paths if p.exists()]
+    if not present:
+        return None
+    for p in present:
+        text = p.read_text(encoding="utf-8").lower()
+        for token in _PROMPT_TAIL_VOCAB:
+            _require(
+                token not in text,
+                f"{p.relative_to(root)} contains the tail token {token!r} — the base prompts must stay "
+                "tail-NEUTRAL (R38 de-seeding: only the distributional arm's FEEDBACK may introduce the "
+                "tail, else the placebo/scalar construct-validity contrast collapses)",
+            )
+    return f"prompt tail-neutrality: {len(present)} base prompt(s) carry none of {len(_PROMPT_TAIL_VOCAB)} tail tokens (R38)"
+
+
+def assert_search_splits_match(root: Path) -> str | None:
+    """The executed SEARCH/sub-experiment split boundaries must equal the frozen data.yaml splits.
+
+    ``config/prototype.yaml`` (the serial search driver's data window) and ``config/subexperiment.yaml``
+    are UN-hashed, yet their ``data.val_end``/``data.train_end`` decide which window the executed search
+    actually runs — and this drift class already bit once (subexperiment.yaml shipped a stale
+    pre-Split-C ``2017-12-31`` until batch-6 M3). Same not-in-the-hash-so-assert pattern as the
+    roster/B*/seeds guards (2026-07-05, map P23).
+
+    Returns the checked-summary line, or ``None`` when data.yaml (or both consumers) are absent.
+    """
+    data_path = root / "config" / "data.yaml"
+    if not data_path.exists():
+        return None
+    data_cfg = yaml.safe_load(data_path.read_text(encoding="utf-8")) or {}
+    splits = data_cfg.get("splits") or {}
+    frozen_val_end = str((splits.get("val") or {}).get("end", "")).strip()
+    frozen_train_end = str((splits.get("train") or {}).get("end", "")).strip()
+    if not frozen_val_end:
+        return None
+    checked: list[str] = []
+    for rel, keys in (
+        ("config/prototype.yaml", {"val_end": frozen_val_end, "train_end": frozen_train_end}),
+        ("config/subexperiment.yaml", {"val_end": frozen_val_end}),
+    ):
+        path = root / rel
+        if not path.exists():
+            continue
+        cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        block = cfg.get("data") or {}
+        for key, frozen_value in keys.items():
+            if not frozen_value:
+                continue
+            executed = block.get(key)
+            if executed is None:
+                continue
+            _require(
+                str(executed).strip() == frozen_value,
+                f"{rel} data.{key} ({str(executed).strip()}) != the frozen config/data.yaml splits "
+                f"boundary ({frozen_value}) — the executed search window has drifted from the frozen "
+                "design (Split C, R73); reconcile before freezing",
+            )
+        checked.append(rel)
+    if not checked:
+        return None
+    return f"search splits: {' + '.join(checked)} val/train boundaries == frozen data.yaml splits"
+
+
+def assert_bound_files_exist(root: Path) -> str | None:
+    """On a REAL repo root, every hash-bound file must EXIST before the hash is trusted.
+
+    ``canonical_bytes`` deliberately skips absent bound files so minimal test roots can exercise the
+    machinery — but on the production root that affordance meant a deleted/renamed prompt or config
+    would freeze a silently-smaller hash with the gate fully green (2026-07-05, map finding). A root
+    is REAL iff it carries ``.git`` (the mini-repo fixtures create ``pyproject.toml`` but never a git
+    dir); minimal fixtures return ``None`` (skipped).
+    """
+    if not (root / ".git").exists():
+        return None
+    bound = [PREREG_MD, PREREG_YAML, *_BOUND_CONFIGS, *_BOUND_TREATMENT]
+    missing = [rel for rel in bound if not (root / rel).exists()]
+    _require(
+        not missing,
+        f"hash-bound file(s) MISSING on a real repo root: {missing} — the canonical hash would silently "
+        "bind fewer files than the design declares; restore them (or record a dated amendment) before "
+        "freezing",
+    )
+    return f"bound-file existence: all {len(bound)} hash-bound files present on the real root"
+
+
 # --------------------------------------------------------------------------- #
 # Verification (shared by --check and the real freeze)                         #
 # --------------------------------------------------------------------------- #
@@ -826,6 +928,18 @@ def verify(root: Path | None = None) -> FreezeStatus:
     budget_check = assert_matched_budget_match(yml, root)
     if budget_check is not None:
         checks.append(budget_check)
+    # 2026-07-05 hardening (map P23 + construct-validity + existence): three further not-in-the-hash
+    # guards — the executed search-split boundaries, the R38 tail-neutrality of the two base prompts,
+    # and (real roots only) the existence of every hash-bound file before the hash is trusted.
+    splits_check = assert_search_splits_match(root)
+    if splits_check is not None:
+        checks.append(splits_check)
+    neutrality_check = assert_prompt_tail_neutrality(root)
+    if neutrality_check is not None:
+        checks.append(neutrality_check)
+    existence_check = assert_bound_files_exist(root)
+    if existence_check is not None:
+        checks.append(existence_check)
     digest = canonical_hash(root)
 
     return FreezeStatus(

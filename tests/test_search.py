@@ -273,3 +273,85 @@ def test_bayes_opt_rejects_bad_bounds() -> None:
     """Malformed bounds raise ValueError."""
     with pytest.raises(ValueError):
         bayes_opt.bayes_opt_over_template(_concave_objective, [(1.0, 0.0)], 5)
+
+
+# --------------------------------------------------------------------------- #
+# Crash-resume hooks (2026-07-05): cached skips must reproduce the ORIGINAL    #
+# trajectory byte-for-byte, and checkpoints must fire only for fresh work.     #
+# --------------------------------------------------------------------------- #
+def test_random_search_resume_reproduces_trajectory_and_skips_training() -> None:
+    cfg = {"matched_budget": 8}
+
+    baseline_ckpts: list[tuple[int, str, float]] = []
+    out_a = random_search.random_search_over_code(
+        env_builder=None, fitness_fn=_deterministic_reward_fitness, cfg=cfg,
+        rng=np.random.default_rng(7),
+        on_evaluated=lambda i, s, sc: baseline_ckpts.append((i, s, sc)),
+    )
+    assert [c[0] for c in baseline_ckpts] == list(range(8))  # incremental, in order
+
+    # Simulate a crash after 5 candidates: the first 5 records form the resume cache.
+    cache = {i: (src, score) for i, src, score in baseline_ckpts[:5]}
+    fresh_calls: list[int] = []
+    resumed_ckpts: list[int] = []
+
+    def lookup(i: int, source: str) -> float | None:
+        hit = cache.get(i)
+        if hit is None:
+            return None
+        # The re-drawn candidate must be IDENTICAL to the archived one (rng-stream fidelity).
+        assert hit[0] == source
+        return hit[1]
+
+    def fitness(reward) -> float:  # noqa: ANN001
+        fresh_calls.append(1)
+        return _deterministic_reward_fitness(reward)
+
+    out_b = random_search.random_search_over_code(
+        env_builder=None, fitness_fn=fitness, cfg=cfg, rng=np.random.default_rng(7),
+        cache_lookup=lookup, on_evaluated=lambda i, s, sc: resumed_ckpts.append(i),
+    )
+
+    assert len(fresh_calls) == 3  # only the 3 unfinished candidates were trained
+    assert resumed_ckpts == [5, 6, 7]  # checkpoints fire ONLY for fresh evaluations
+    assert [c["source"] for c in out_b["archive"]] == [c["source"] for c in out_a["archive"]]
+    assert [c["score"] for c in out_b["archive"]] == [c["score"] for c in out_a["archive"]]
+    assert out_b["best_source"] == out_a["best_source"]
+    assert out_b["best_score"] == out_a["best_score"]
+
+
+def test_bayes_opt_resume_reproduces_gp_trajectory() -> None:
+    cfg = {"matched_budget": 9}
+
+    baseline_ckpts: list[tuple[int, np.ndarray, float]] = []
+    out_a = bayes_opt.bayes_opt_over_template(
+        _concave_objective, BOUNDS, cfg, n_init=4, rng=np.random.default_rng(11),
+        on_evaluated=lambda i, x, sc: baseline_ckpts.append((i, np.array(x), sc)),
+    )
+
+    cache = {i: (x, sc) for i, x, sc in baseline_ckpts[:6]}
+    fresh: list[int] = []
+
+    def lookup(i: int, x: np.ndarray) -> float | None:
+        hit = cache.get(i)
+        if hit is None:
+            return None
+        # The GP-guided proposal at index i must equal the original run's (trajectory fidelity).
+        np.testing.assert_allclose(np.asarray(x, dtype=float), np.asarray(hit[0], dtype=float))
+        return hit[1]
+
+    def eval_fresh(x: np.ndarray) -> float:
+        fresh.append(1)
+        return _concave_objective(x)
+
+    out_b = bayes_opt.bayes_opt_over_template(
+        eval_fresh, BOUNDS, cfg, n_init=4, rng=np.random.default_rng(11), cache_lookup=lookup,
+    )
+
+    assert len(fresh) == 3  # 9 total - 6 cached
+    coeffs_a = np.array([h["coeffs"] for h in out_a["history"]], dtype=float)
+    coeffs_b = np.array([h["coeffs"] for h in out_b["history"]], dtype=float)
+    np.testing.assert_allclose(coeffs_b, coeffs_a)
+    assert [h["score"] for h in out_b["history"]] == [h["score"] for h in out_a["history"]]
+    np.testing.assert_allclose(out_b["best_coeffs"], out_a["best_coeffs"])
+    assert out_b["best_score"] == out_a["best_score"]

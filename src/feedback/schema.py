@@ -81,8 +81,14 @@ def _fmt(value: float) -> str:
 #: its position in [_RANK_LO, _RANK_HI] and tagged "(decile d/10)" — a coarse, legible ORDINAL framing of
 #: the small-float magnitude (the numeracy-bottleneck mechanism: rank/bps framing is easier for an LLM to
 #: compare than -0.0577 vs -0.0582). Skew, being dimensionless and signed, uses a symmetric reference span.
-_RANK_LO, _RANK_HI = -0.12, 0.0  # CVaR / tail-mass values live in this (mostly-negative) band
+_RANK_LO, _RANK_HI = -0.12, 0.0  # CVaR return levels live in this (mostly-negative) band
 _SKEW_LO, _SKEW_HI = -1.0, 1.0
+#: ``left_tail_mass`` is a PROBABILITY (P[return < -k*sigma], typically 0-0.10) — not a return level.
+#: It gets its OWN legible unit (percent) and decile band: bucketing it against the mostly-negative
+#: CVaR band clamped every nonnegative mass to a constant "decile 10/10" and printed a probability as
+#: "bps" (2026-07-05 P21 fix — one of six fields in the numeracy-ablation leg was mis-unit'd and
+#: carried zero ordinal information).
+_MASS_LO, _MASS_HI = 0.0, 0.10
 
 
 def _decile(value: float, lo: float, hi: float) -> int:
@@ -95,19 +101,28 @@ def _decile(value: float, lo: float, hi: float) -> int:
 
 
 def _legible_value(field_id: str, value: float) -> str:
-    """The LEGIBLE rendering of one tail value: integer basis points for CVaR / left-tail-mass, a 2-dp
-    dimensionless number for ``robust_skew``. Basis points (value*1e4, rounded to int) lift the close
-    small floats (e.g. -0.0410 -> -410 bps) out of the LLM's float-comparison failure regime."""
+    """The LEGIBLE rendering of one tail value: integer basis points for the CVaR levels, a percent
+    for the ``left_tail_mass`` probability (P21 fix), a 2-dp dimensionless number for ``robust_skew``.
+    Basis points (value*1e4, rounded to int) lift the close small floats (e.g. -0.0410 -> -410 bps)
+    out of the LLM's float-comparison failure regime."""
     if field_id == "robust_skew":
         return f"{float(value):+.2f}"
+    if field_id == "left_tail_mass":
+        return f"{float(value) * 100.0:.1f}%"
     return f"{int(round(float(value) * 1e4)):+d} bps"
 
 
 def _legible_line(field_id: str, label: str, value: float) -> str:
     """Render one tail line in the legible format: the EXACT label substring (so ``_was_fed_tail`` still
-    matches), the bps/dimensionless value, and an appended decile-rank tag. The CVaR-1% high-variance
-    annotation is preserved (matched-structure across the raw/legible renderings)."""
-    lo, hi = (_SKEW_LO, _SKEW_HI) if field_id == "robust_skew" else (_RANK_LO, _RANK_HI)
+    matches), the bps/percent/dimensionless value, and an appended decile-rank tag (each field bucketed
+    over its OWN band). The CVaR-1% high-variance annotation is preserved (matched-structure across the
+    raw/legible renderings)."""
+    if field_id == "robust_skew":
+        lo, hi = _SKEW_LO, _SKEW_HI
+    elif field_id == "left_tail_mass":
+        lo, hi = _MASS_LO, _MASS_HI
+    else:
+        lo, hi = _RANK_LO, _RANK_HI
     line = f"  {label}: {_legible_value(field_id, value)}  (decile {_decile(value, lo, hi)}/10)"
     if field_id == "cvar_01":
         line += _HIGH_VARIANCE

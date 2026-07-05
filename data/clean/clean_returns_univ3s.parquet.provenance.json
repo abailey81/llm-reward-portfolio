@@ -1,0 +1,18 @@
+{
+  "cols": 953,
+  "format": "parquet",
+  "frozen_utc": "2026-06-25T13:18:43.075882+00:00",
+  "layer": "clean",
+  "name": "clean_returns_univ3s.parquet",
+  "provenance": {
+    "authority": "refinitiv (config data.platform.vendor_authority)",
+    "stage": "build_universe",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\clean\\clean_returns_univ3s.parquet",
+  "row_hash": "c70a9e403630fd374eb5f6958e597d9a1d6f778a386f813201c25bfeb71b5414",
+  "rows": 5283,
+  "run_id": "build_universe_univ3s_screened",
+  "sha256": "f4edc8615f9cf943cfacee2b9540c4319566735e707f49dbce47e251c689620b",
+  "vendor": "refinitiv"
+}

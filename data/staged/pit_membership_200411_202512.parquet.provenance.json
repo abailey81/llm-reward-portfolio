@@ -1,0 +1,28 @@
+{
+  "cols": 2,
+  "format": "parquet",
+  "frozen_utc": "2026-06-12T14:55:58.509433+00:00",
+  "layer": "staged",
+  "name": "pit_membership_200411_202512.parquet",
+  "provenance": {
+    "method": "reverse event replay (ADR-020)",
+    "selection_buffer_months": 1,
+    "stage": "pull_universe.reconstruct_membership",
+    "validation": {
+      "count_max": 506,
+      "count_min": 499,
+      "lehman_in_2008H1": true,
+      "lehman_out_2008Q4": true,
+      "months": 254,
+      "tesla_in_2021": true,
+      "tesla_out_2019": true
+    },
+    "vendor": "derived"
+  },
+  "relpath": "data/staged/pit_membership_200411_202512.parquet",
+  "row_hash": "719b5e810f1f4e3bd68f04f87f5292bcab53c3449381ef0882529274293ecc63",
+  "rows": 127563,
+  "run_id": "universe_refinitiv",
+  "sha256": "d9efef8d16bc29f96047f08439eaa879a6c11c353de29b8a53db3fb0a32a7e46",
+  "vendor": "derived"
+}

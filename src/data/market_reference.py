@@ -56,6 +56,10 @@ _FF_CSV = "french_F-F_Research_Data_Factors_daily.csv"
 _REFRESHED_RAW: dict[str, tuple[str, ...]] = {
     _FRED_CSV: ("fred_macro_x26.csv",),
     _FF_CSV: ("french_ff3_daily_x26.csv",),
+    # 2026-07-05: the Momentum refresh was pulled + frozen (refresh_french_2026.py, to 2026-05-29)
+    # but had NO mapping here, so attribution's Carhart-4 Mom (and its RF read) silently used the
+    # canonical file ending 2026-04-30 and forward-filled the test window's tail with a constant.
+    "french_F-F_Momentum_Factor_daily.csv": ("french_mom_daily_x26.csv",),
 }
 
 

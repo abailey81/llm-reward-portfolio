@@ -75,17 +75,17 @@ def test_drops_nonfinite_pairs():
 # k80_for_rho                                                                  #
 # --------------------------------------------------------------------------- #
 def test_k80_matches_doc_grid_and_is_monotone():
-    assert k80_for_rho(0.0) == pytest.approx(0.71)
-    assert k80_for_rho(0.7) == pytest.approx(0.51)
-    assert k80_for_rho(0.3) == pytest.approx(0.65)
+    assert k80_for_rho(0.0) == pytest.approx(0.72)
+    assert k80_for_rho(0.7) == pytest.approx(0.44)
+    assert k80_for_rho(0.3) == pytest.approx(0.61)
     # monotone non-increasing in ρ over [0, 0.7]
     vals = [k80_for_rho(r) for r in (0.0, 0.2, 0.4, 0.6, 0.7)]
     assert all(vals[i] >= vals[i + 1] for i in range(len(vals) - 1))
 
 
 def test_k80_floors_for_negative_rho_and_none():
-    assert k80_for_rho(-0.5) == pytest.approx(0.71)  # no pairing benefit -> ρ=0 floor
-    assert k80_for_rho(None) == pytest.approx(0.71)
+    assert k80_for_rho(-0.5) == pytest.approx(0.72)  # no pairing benefit -> ρ=0 floor
+    assert k80_for_rho(None) == pytest.approx(0.72)
 
 
 # --------------------------------------------------------------------------- #

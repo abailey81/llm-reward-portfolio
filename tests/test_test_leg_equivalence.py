@@ -5,7 +5,9 @@ parallel ``evaluate_winners_on_test_parallel`` must produce the SAME per-seed ``
 serial ``evaluate_winner_on_test`` for the same frozen winner / seed / windows / agent config. This test
 trains the fixed SAC for real on a synthetic panel, on CPU + single-threaded so the run is deterministic
 (GPU/CUDA + multi-thread reductions are accepted as statistical-not-bitwise elsewhere), and asserts the
-two paths' realized test paths are identical.
+two paths' realized test paths are numerically equivalent to abs 1e-6 (the assert tolerance — float
+reduction ORDER can differ by ~1 ULP between the serial and parallel drivers even on CPU, so the claim
+is "numerically equivalent", not literally byte-identical; 2026-07-05 wording reconcile).
 
 Marked ``slow`` — it trains two tiny agents and spawns a worker process; run it explicitly before the
 campaign (``pytest -m slow -k equivalence``), not in the fast suite.

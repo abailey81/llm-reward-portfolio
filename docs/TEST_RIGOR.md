@@ -4,7 +4,7 @@ Evidence that the test suite is not just large but *strong* — that it exercise
 actually catches faults. Three independent axes: coverage, property/metamorphic depth, and a mutation score.
 
 ## 1. Suite size & composition
-- **~1,295 deterministic (non-slow) tests**, all green; plus the `slow` agent-training tests (run in CI's
+- **~1,930 deterministic (non-slow) tests** (1,926 collected 2026-07-05), all green; plus the `slow` agent-training tests (run in CI's
   slow stage). Grown deliberately for **rigor, not count** (a padded "10×" was explicitly rejected as noise).
 - Composition: behaviour/invariant tests, **property-based** (Hypothesis, `derandomize=True` so zero
   run-to-run variance), **metamorphic** (scale/shift/permute/time-reversal identities), **adversarial**
@@ -26,7 +26,7 @@ actually catches faults. Three independent axes: coverage, property/metamorphic 
      (`sandbox/executor.py`); NVML/GPU telemetry + the rich-Live TTY UI (`utils/monitoring.py`). And
      **`[tool.coverage.run] omit = ["src/orchestration/*"]`** — the spawned-multiprocessing device-pool +
      parallel test-leg engine, line-covered by the SLOW integration proof
-     (`test_test_leg_equivalence.py` byte-identical-vs-serial + `test_parallel_recycling.py`), not the
+     (`test_test_leg_equivalence.py` numerically-equivalent-vs-serial (abs 1e-6) + `test_parallel_recycling.py`), not the
      in-process unit suite.
 - New coverage tests this round: `tests/test_{executor,inference,monitoring}_coverage.py` +
   `test_{baselines_search,platform}_coverage.py` (the `_validate_inline`/ast-gate edges, the ood-stress
@@ -68,7 +68,7 @@ confirmatory inference, so the fix is outside the freeze hash.
 
 ## 5. How to reproduce
 ```
-pytest -m "not slow" --cov=src --cov-report=term     # suite + coverage (enforces the 70% floor)
+pytest -m "not slow" --cov=src --cov-report=term     # suite + coverage (enforces the fail_under=88 floor, pyproject.toml)
 python scripts/mutation_probe.py                      # mutation kill-rate on metrics.py (100%)
 python scripts/freeze.py --check                      # design-freeze gate (incl. the V1 arm-roster guard)
 ruff check src tests scripts && mypy src              # lint + types

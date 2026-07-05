@@ -90,9 +90,15 @@ def test_verify_live_returns_full_status():
     # pre-freeze prose<->yaml contradiction guard, unlike sesoi/m/grid) + the seeds + matched_budget
     # executed<->frozen guards (DEEP_SWEEP E-F1, 2026-07-04: campaign.yaml seeds/candidates_per_arm bound to
     # the frozen prereg — the seed count is the power/equivalence knob, previously unguarded exactly like B* was).
-    assert len(status.checks) == 17
+    # + the 2026-07-05 hardening trio (search-splits cross-assert, R38 prompt tail-neutrality, and the
+    # bound-file existence assert on the real root) -> 20 checks. The canonical hash is UNCHANGED by
+    # these (guards are code, never hashed content).
+    assert len(status.checks) == 20
     assert any("executed arms:" in c for c in status.checks)
     assert any("h1_baselines" in c for c in status.checks)
+    assert any("search splits:" in c for c in status.checks)
+    assert any("tail-neutrality" in c for c in status.checks)
+    assert any("bound-file existence" in c for c in status.checks)
     assert any("data_panel.headline" in c for c in status.checks)
     assert any("train_steps_per_candidate" in c for c in status.checks)
     assert any("tail_diagnostic_set" in c for c in status.checks)
@@ -553,3 +559,50 @@ def test_append_decision_log_records_hash_utc_sha(mini: Path):
     assert "cafef00d" in log
     # Appended below the marker (append-only audit log).
     assert log.index("<!-- amendments appended below this line -->") < log.index("FREEZE-DONE")
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-05 hardening guards: hermetic drift tests                            #
+# --------------------------------------------------------------------------- #
+def test_prompt_tail_neutrality_drift_raises(tmp_path):
+    """A base prompt gaining tail vocabulary must fail the gate (R38 construct validity)."""
+    (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "system.txt").write_text(
+        "You design reward functions. Weigh return against risk and CVaR.", encoding="utf-8"
+    )
+    with pytest.raises(freeze.FreezeConsistencyError, match="cvar"):
+        freeze.assert_prompt_tail_neutrality(tmp_path)
+    # a neutral prompt passes with the summary line
+    (tmp_path / "prompts" / "system.txt").write_text(
+        "You design reward functions. Weigh return against risk.", encoding="utf-8"
+    )
+    assert "tail-neutrality" in freeze.assert_prompt_tail_neutrality(tmp_path)
+
+
+def test_search_splits_drift_raises(tmp_path):
+    """An executed search window (prototype.yaml val_end) drifting from data.yaml must fail (map P23)."""
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    (cfg / "data.yaml").write_text(
+        "splits:\n  train: {start: 2005-01-01, end: 2016-12-31}\n"
+        "  val: {start: 2017-01-01, end: 2019-12-31}\n", encoding="utf-8"
+    )
+    (cfg / "prototype.yaml").write_text(
+        'data:\n  val_end: "2017-12-31"\n  train_end: "2016-12-31"\n', encoding="utf-8"
+    )
+    with pytest.raises(freeze.FreezeConsistencyError, match="drifted"):
+        freeze.assert_search_splits_match(tmp_path)
+    (cfg / "prototype.yaml").write_text(
+        'data:\n  val_end: "2019-12-31"\n  train_end: "2016-12-31"\n', encoding="utf-8"
+    )
+    assert "search splits" in freeze.assert_search_splits_match(tmp_path)
+
+
+def test_bound_files_exist_real_root_only(tmp_path):
+    """The existence assert fires only on a REAL root (a .git dir present — mini fixtures create
+    pyproject.toml but never .git) with a bound file missing."""
+    (tmp_path / "pyproject.toml").write_text("[project]\nname='x'\n", encoding="utf-8")
+    assert freeze.assert_bound_files_exist(tmp_path) is None  # fixture root (no .git) -> skipped
+    (tmp_path / ".git").mkdir()
+    with pytest.raises(freeze.FreezeConsistencyError, match="MISSING"):
+        freeze.assert_bound_files_exist(tmp_path)

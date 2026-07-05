@@ -646,6 +646,19 @@ def test_run_headline_campaign_runs_baseline_stage_via_fakes(tmp_path, monkeypat
     def _spy_baselines(names, **_kw):  # noqa: ANN001
         captured["names"] = list(names)
         captured["n_gpu"] = _kw.get("n_gpu")
+        # M19 (2026-07-05): the stage status now counts records ON DISK unconditionally, so the
+        # fake must leave the archive a COMPLETED stage would (one record per (baseline, seed)) —
+        # else the new no-shutdown-shortfall branch correctly reports a test_failure_wave.
+        base = dict(
+            arm="baseline", seed=0, fold=0, generation=0, reward_source_hash="h",
+            feedback_block="", wall_clock=0.0, env_fingerprint="x",
+        )
+        for n in names:
+            write_run(
+                {**base, "run_id": f"baseline_{n}-s0", "candidate_id": f"baseline_{n}-s0",
+                 "metrics": {"val_fitness": 0.0}},
+                Path(_kw["test_root"]) / f"baseline_{n}",
+            )
         return [{"run_id": f"baseline_{n}-s0"} for n in names]
 
     monkeypatch.setattr(run_campaign, "run_winner_search", _fake_search)
@@ -1186,7 +1199,8 @@ def test_campaign_exit_status_failure_beats_interrupt() -> None:
 
 
 @pytest.mark.parametrize("shutting_down,n_done,n_expected,expected", [
-    (False, 0, 3, "tested"),                 # no shutdown -> always tested (even with 0 done, per §J)
+    (False, 0, 3, "test_failure_wave"),      # M19: a no-shutdown shortfall is a FAILURE WAVE, never success
+    (False, 2, 3, "test_failure_wave"),      # M19: partial no-shutdown shortfall -> same (husk guard)
     (False, 3, 3, "tested"),
     (True, 3, 3, "tested"),                  # shutdown but every seed finished -> tested (flag set at end)
     (True, 4, 3, "tested"),                  # more on disk than requested (stale/resume) -> tested
@@ -1194,7 +1208,9 @@ def test_campaign_exit_status_failure_beats_interrupt() -> None:
     (True, 0, 3, "frozen_test_deferred"),
 ])
 def test_stage_completion_status(shutting_down, n_done, n_expected, expected) -> None:
-    """A completed TEST stage is 'tested'; only a shutdown that left seeds UN-RUN is 'frozen_test_deferred'.
+    """A completed TEST stage is 'tested'; a shutdown that left seeds UN-RUN is 'frozen_test_deferred';
+    a shortfall with NO shutdown is a 'test_failure_wave' (M19, 2026-07-05 — a total parallel H1/H3
+    seed-failure cascade must not bank a husk 'tested (0)' and exit 0).
 
     This pins the distinction the three post-leg sites (arms / H1 baselines / H3 single-shot) share via
     ``stage_completion_status``: the interrupted status is reserved for a REAL partial drain, so a leg

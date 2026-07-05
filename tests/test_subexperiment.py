@@ -82,11 +82,20 @@ def test_other_arms_unaffected_by_legible_flag() -> None:
 # Seam 1/analysis bridge — _was_fed_tail fires on a legible block
 # --------------------------------------------------------------------------- #
 def test_was_fed_tail_true_on_legible_block() -> None:
+    """The legible rendering preserves the exact label substrings, so the fed-tail gate still fires —
+    checked on the CORRECTED archive semantics (2026-07-05 M13): the fed text lives in the archived
+    PROMPT; a bare own-``feedback_block`` counts only for legacy prompt-less records at generation>=1
+    (a generation-0 own block must NOT pass — the designer was fed nothing)."""
     ir = AC._inspect_rewards()
     legible_block = schema.build_block("distributional", 0.83, _TAIL, legible=True)
     raw_block = schema.build_block("distributional", 0.83, _TAIL, legible=False)
-    assert ir._was_fed_tail({"feedback_block": legible_block}) is True
-    assert ir._was_fed_tail({"feedback_block": raw_block}) is True
+    # the fed block in the PROMPT (the corrected read) — legible and raw both match
+    assert ir._was_fed_tail({"prompt": f"Improve the reward.\n{legible_block}"}) is True
+    assert ir._was_fed_tail({"prompt": f"Improve the reward.\n{raw_block}"}) is True
+    # legacy prompt-less records: own block gates only at generation >= 1
+    assert ir._was_fed_tail({"feedback_block": legible_block, "generation": 1}) is True
+    assert ir._was_fed_tail({"feedback_block": raw_block, "generation": 1}) is True
+    assert ir._was_fed_tail({"feedback_block": raw_block, "generation": 0}) is False
 
 
 # --------------------------------------------------------------------------- #
