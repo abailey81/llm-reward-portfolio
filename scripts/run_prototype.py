@@ -294,6 +294,31 @@ def _archive_record(
     }
 
 
+def _load_search_cache(arm_root: str | Path, arm: str, seed: int) -> dict[int, dict[str, Any]]:
+    """Archived search-arm candidate records keyed by candidate index (crash-resume read path).
+
+    The search arms draw their candidate sequence deterministically from the run seed, so on a
+    ``--resume`` relaunch the SAME candidates are re-drawn in the same order; a record archived for
+    index ``i`` lets the driver skip that candidate's training (the caller hash-verifies the
+    re-drawn source against ``reward_source_hash`` and fails LOUD on any drift, so a stale archive
+    from a different draw sequence can never be silently reused). Records missing a
+    ``metrics.val_fitness`` are ignored (never written by the checkpoint path)."""
+    import re as _re
+
+    from src.io.results import load_all
+
+    out: dict[int, dict[str, Any]] = {}
+    root = Path(arm_root)
+    if not root.is_dir():
+        return out
+    pat = _re.compile(rf"^{_re.escape(arm)}-s{int(seed)}-c(\d+)$")
+    for rec in load_all(root):
+        m = pat.match(str(rec.get("run_id", "")))
+        if m and "val_fitness" in (rec.get("metrics") or {}):
+            out[int(m.group(1))] = rec
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Per-arm execution (the picklable worker)                                    #
 # --------------------------------------------------------------------------- #
@@ -485,6 +510,59 @@ def run_arm(
             "matched_budget": candidates,
             "reward_family": cfg_get(proto_cfg, "reward_family", {}),
         }
+
+        # ------------------------------------------------------------------ #
+        # Crash-resume + per-candidate checkpointing (2026-07-05 hardening).
+        # Before this, search-arm records were written only AFTER the whole arm
+        # completed, so a crash mid-arm lost every finished training (up to
+        # ~30 x 85 min at the campaign budget) and a deterministic mid-arm fault
+        # became an infinite supervisor crash-loop. Now: (a) every FRESH
+        # candidate is archived the moment its evaluation completes (the
+        # checkpoint — always on); (b) on --resume, archived candidates are
+        # replayed from disk with the training SKIPPED — the seeded draw
+        # sequence is regenerated identically (the drivers consume rng
+        # unconditionally), and the re-drawn source is hash-verified against
+        # the archived ``reward_source_hash`` so a cache from a different draw
+        # sequence fails LOUD instead of silently polluting the arm.
+        # ------------------------------------------------------------------ #
+        import hashlib as _hl
+
+        _search_cache: dict[int, dict[str, Any]] = (
+            _load_search_cache(arm_root, arm, seed) if resume else {}
+        )
+        _last_vr: list[Any] = [None]  # val_returns holder: fitness -> checkpoint (synchronous)
+        _vr_by_idx: dict[int, Any] = {}
+
+        def _cached_score(idx: int, source: str) -> float | None:
+            rec = _search_cache.get(idx)
+            if rec is None:
+                return None
+            want = _hl.sha256(source.encode("utf-8")).hexdigest()
+            got = rec.get("reward_source_hash")
+            if got != want:
+                raise RuntimeError(
+                    f"search resume cache MISMATCH for {arm}-s{seed}-c{idx}: the archived candidate "
+                    f"hash {str(got)[:12]}... != the re-drawn candidate hash {want[:12]}... — the "
+                    "archive was produced by a DIFFERENT draw sequence (seed/config/grammar drift). "
+                    "Refusing to reuse it; quarantine the arm directory and re-run without --resume."
+                )
+            if monitor is not None:
+                monitor.candidate_done(arm, idx, fitness=float(rec["metrics"]["val_fitness"]),
+                                       status="cached", secs=0.0)
+            return float(rec["metrics"]["val_fitness"])
+
+        def _checkpoint(idx: int, source: str, score: float) -> None:
+            _vr_by_idx[idx] = _last_vr[0]
+            write_run(
+                _archive_record(
+                    run_id=f"{arm}-s{seed}-c{idx}", arm=arm, seed=seed, fold=0,
+                    candidate_id=f"{arm}-s{seed}-c{idx}", generation=0,
+                    source=source or f"# {arm} candidate {idx}\n", score=score,
+                    env_fp=env_fp_record, val_returns=_last_vr[0],
+                ),
+                arm_root,
+            )
+            _last_vr[0] = None
         if arm == "random_search":
             def fitness(reward_fn: Any) -> float:
                 if monitor is not None:
@@ -494,6 +572,7 @@ def run_arm(
                     reward_fn, env_builder, agent_trainer, held_out_fitness, n_trials
                 )
                 val_vectors.append(val_returns)
+                _last_vr[0] = val_returns
                 if monitor is not None:
                     monitor.candidate_done(arm, _sc[0], fitness=score, status="ok",
                                            secs=time.perf_counter() - _c0)
@@ -504,7 +583,8 @@ def run_arm(
             # entropy and does NOT consult set_global_seed's legacy np.random, so the SELECTED
             # winner was non-reproducible; the parallel scheduler's search arms are seeded the same way).
             result = random_search_over_code(
-                env_builder, fitness, search_cfg, rng=np.random.default_rng(seed)
+                env_builder, fitness, search_cfg, rng=np.random.default_rng(seed),
+                cache_lookup=_cached_score, on_evaluated=_checkpoint,
             )
             evaluated = [(c.get("source", ""), float(c["score"])) for c in result["archive"]]
         else:  # bayes_opt
@@ -522,14 +602,21 @@ def run_arm(
                     reward_fn, env_builder, agent_trainer, held_out_fitness, n_trials
                 )
                 val_vectors.append(val_returns)
+                _last_vr[0] = val_returns
                 if monitor is not None:
                     monitor.candidate_done(arm, _sc[0], fitness=score, status="ok",
                                            secs=time.perf_counter() - _c0)
                 _sc[0] += 1
                 return score
 
+            # The resume/checkpoint hooks are keyed by the MATERIALIZED executable source for these
+            # coefficients — the exact text the archive stores — so the hash verification protects
+            # against template/alpha/window drift as well as seed drift.
+            _p2src = lambda x: params_to_source(x, cvar_alpha=alpha, window=window)  # noqa: E731
             result = bayes_opt_over_template(
-                template_eval, family_bounds(proto_cfg), search_cfg, rng=np.random.default_rng(seed)
+                template_eval, family_bounds(proto_cfg), search_cfg, rng=np.random.default_rng(seed),
+                cache_lookup=lambda i, x: _cached_score(i, _p2src(x)),
+                on_evaluated=lambda i, x, s: _checkpoint(i, _p2src(x), s),
             )
             # Rank 2c: archive the MATERIALIZED EXECUTABLE reward source (not a comment stub) so the
             # frozen BO winner rehydrates through validate_once for the sealed TEST leg (H4).
@@ -538,17 +625,20 @@ def run_arm(
                 for h in result["history"]
             ]
 
-        # Archive every evaluated candidate uniformly (so analyze_results reads all arms alike).
-        # Each record additionally carries metrics['val_returns'] (the aligned per-period vector)
-        # for Rank 3 PBO/CSCV, mirroring the LLM-loop candidate records.
+        # Defensive fill-only pass: since the 2026-07-05 hardening, every candidate is archived
+        # INCREMENTALLY at evaluation time (fresh -> _checkpoint; resumed -> the record already
+        # exists from the prior run), so this loop normally writes NOTHING. It survives as a
+        # belt-and-braces net for any candidate whose incremental write did not land — existing
+        # records are never overwritten (a resumed arm's cached records keep their original bytes).
         for i, (source, score) in enumerate(evaluated):
             cid = f"{arm}-s{seed}-c{i}"
-            vr = val_vectors[i] if i < len(val_vectors) else None
+            if (Path(arm_root) / cid / "record.json").is_file():
+                continue
             write_run(
                 _archive_record(
                     run_id=cid, arm=arm, seed=seed, fold=0, candidate_id=cid, generation=0,
                     source=source or f"# {arm} candidate {i}\n", score=score, env_fp=env_fp_record,
-                    val_returns=vr,
+                    val_returns=_vr_by_idx.get(i),
                 ),
                 arm_root,
             )

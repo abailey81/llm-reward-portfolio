@@ -1494,3 +1494,29 @@ def test_pbo_dsr_markdown_two_columns_and_gap() -> None:
     assert "DSR-proxy" in md
     assert "PRIMARY" in md
     assert "n/a" in AC.pbo_dsr_markdown(primary, {"status": "error", "reason": "x"}, n_blocks=N_BLOCKS)
+
+
+def test_load_campaign_records_skips_h3_singleshot_subtrees(tmp_path: Path) -> None:
+    """M15 (2026-07-05): the H3 single-shot control's ``*_h3_singleshot/`` subtrees live under the
+    SAME campaign output_dir with arm='distributional' and colliding run_id patterns — the default
+    walker must NEVER pool them into the headline records (the H3 analysis loads them explicitly
+    via its own ``single_shot_root``)."""
+    from src.io.results import write_run
+
+    base = dict(
+        arm="distributional", seed=0, fold=0, generation=0, reward_source_hash="h",
+        feedback_block="", wall_clock=0.0, env_fingerprint="x",
+    )
+    write_run({**base, "run_id": "distributional-s0-distributional-g0-c0",
+               "candidate_id": "c0", "metrics": {"val_fitness": 0.4}},
+              tmp_path / "search" / "distributional")
+    # The single-shot twin — a DIFFERENT candidate that must stay invisible to the default walk.
+    write_run({**base, "run_id": "distributional-s0-distributional-g0-c99",
+               "candidate_id": "c99", "metrics": {"val_fitness": 0.9}},
+              tmp_path / "search_h3_singleshot" / "distributional")
+
+    records = AC.load_campaign_records(tmp_path)
+    ids = {r["run_id"] for r in records}
+    assert "distributional-s0-distributional-g0-c0" in ids
+    assert "distributional-s0-distributional-g0-c99" not in ids
+    assert len(records) == 1

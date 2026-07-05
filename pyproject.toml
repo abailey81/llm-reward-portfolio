@@ -73,6 +73,11 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# 2026-07-05: pytest-timeout (declared dev-dep) gives a hung TEST a hard ceiling instead of hanging the
+# whole run. It is enabled via the CI/local flags rather than baked into addopts here, because the flag
+# ERRORS if the plugin is not installed and the local .venv does not always carry it — so wiring it into
+# addopts would break every bare `pytest` invocation. Run the ceiling with:
+#   pytest --timeout=300 --timeout-method=thread     (thread method — signal alarms are a Windows no-op)
 addopts = "-q"
 markers = [
     "slow: marks tests that train an agent (deselect with '-m \"not slow\"')",
@@ -94,7 +99,7 @@ source = ["src"]
 # `src/orchestration/*` (the campaign device-pool + parallel test-leg engine) is OMITTED from the UNIT
 # coverage target: it is almost entirely spawned-multiprocessing worker bodies + GPU device-pinning that
 # only execute in child processes / on the RTX-4090, so it is line-covered by the SLOW integration suite
-# (`tests/test_test_leg_equivalence.py` byte-identical-vs-serial proof + `tests/test_parallel_recycling.py`),
+# (`tests/test_test_leg_equivalence.py` numerically-equivalent-vs-serial proof (abs 1e-6) + `tests/test_parallel_recycling.py`),
 # NOT the deterministic in-process unit suite. Honest scoping of unit-coverage to unit-testable code, not a
 # way to hide untested logic — see docs/TEST_RIGOR.md.
 omit = ["src/orchestration/*"]

@@ -1080,8 +1080,16 @@ def load_campaign_records(root: str | Path) -> list[dict[str, Any]]:
                 seen.setdefault(str(rec.get("run_id")), rec)
         # Recurse into the remaining (intermediate) subdirs up to the bounded archive depth, so the
         # campaign's <leg>/<arm>/<cand> leaves are reached without an unbounded filesystem walk.
+        # M15 (2026-07-05): the H3 single-shot control writes its own SEARCH/FROZEN/TEST subtrees
+        # (``*_h3_singleshot/``) under the SAME campaign output_dir, with arm='distributional' and a
+        # run_id pattern that COLLIDES with the headline serial search ids — walking into them would
+        # silently pool (or, via the run_id de-dup, silently drop) single-shot candidates into the
+        # HEADLINE distributional arm's records. They are a DISJOINT condition by design (DEEP_H3 §1),
+        # loaded explicitly by the H3 analysis from its own roots — never by the default walk.
         if depth < _MAX_ARCHIVE_DEPTH:
             for child in children:
+                if child.name.endswith("_h3_singleshot"):
+                    continue
                 _walk(child, depth + 1)
 
     _walk(root, 0)
@@ -2954,9 +2962,24 @@ def dsr_effective_n(
     # _sample_moments, ddof=1) so the two tables' DSR inputs are consistent.
     sharpes = np.asarray([_sample_moments(vec)[0] for _, vec in cands], dtype=float)
     var_sr = float(np.var(sharpes, ddof=1))
-    winner_rec, winner_vec = max(
-        cands, key=lambda rv: rv[0].get("metrics", {}).get("val_fitness", float("-inf"))
+    # Pick the winner exactly as the canonical winner_dsr does (2026-07-05): sort by
+    # (generation, candidate_id) for a deterministic tie-break, and map a non-finite val_fitness to
+    # -inf so a NaN-fitness candidate can never win the scan (the old unsorted `max` could name a
+    # different winner than the canonical DSR table on identical records).
+    def _fit(rec: dict) -> float:
+        v = (rec.get("metrics") or {}).get("val_fitness", float("-inf"))
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            return float("-inf")
+        return fv if np.isfinite(fv) else float("-inf")
+
+    cands_sorted = sorted(
+        cands,
+        key=lambda rv: (int(rv[0].get("generation", 0) or 0),
+                        str(rv[0].get("candidate_id", rv[0].get("run_id", "")))),
     )
+    winner_rec, winner_vec = max(cands_sorted, key=lambda rv: _fit(rv[0]))
     n_trials = len(arm_records)  # full per-arm candidate count = the naïve multiplicity (#32, winner_dsr)
 
     # Mean off-diagonal pairwise correlation of the per-candidate validation return vectors (aligned to the
@@ -4108,23 +4131,26 @@ def _inspect_rewards():  # type: ignore[no-untyped-def]
 def _mechanism_pairs(
     records: list[dict[str, Any]],
 ) -> dict[str, np.ndarray]:
-    """Per-candidate paired (x, m, y) arrays over the TAIL-FED candidates, in (generation, candidate_id) order.
+    """Paired mechanism arrays over the TAIL-FED candidates, in (generation, candidate_id) order.
 
-    Reductions (chosen to mirror the mechanism story, see :mod:`src.inference.mediation` /
-    :mod:`src.inference.responsiveness`):
+    2026-07-05 (M13 construct fix): ``x`` is now the tail summary the DESIGNER WAS FED — parsed from
+    the archived prompt via ``_fed_tail_vector`` (= the previous generation's best block) — NOT the
+    candidate's own post-training measured tail, which the old wiring used and which reversed the
+    registered estimand (PREREGISTRATION §2a SQ1: *does the FED tail signal change the authored
+    code?*). Generation-0 candidates (fed nothing) are excluded by the ``_was_fed_tail`` gate.
 
-    * ``x`` — the fed-signal summary: the candidate's measured **CVaR-5%** tail stat (``_tail_vector[0]``,
-      the ``cvar_05`` field) — the headline fed level.
+    * ``x`` — the FED **CVaR-5%** level (from the prompt's feedback block).
     * ``m`` — an authored-code feature: the count of **tail-shaped constructs** the program references
-      (``_construct_prevalence`` restricted to ``_TAIL_CONSTRUCTS`` — cvar/quantile/drawdown/…), the
-      theory->code instrument the contamination / reward-code-distance modules also use.
+      (``_construct_prevalence`` restricted to ``_TAIL_CONSTRUCTS``).
     * ``y`` — the realised tail OUTCOME: empirical ``cvar(metrics['val_returns'], 0.05)`` per candidate
-      (the VAL-RETURNS proxy path — fully archived for every candidate and better powered than the
-      sparse test-winner path).
+      (the VAL-RETURNS proxy path — fully archived and better powered than the sparse winner path).
+    * ``dx`` / ``dm`` — the REGISTERED §2a form: per-(arm, generation) deltas. Within a generation
+      every candidate sees the SAME fed block (x is generation-constant ⇒ the per-candidate rows are
+      CLUSTERED); the registered "Spearman of Δ(fed tail) vs Δ(authored-reward feature)" therefore
+      aggregates m to the generation mean and differences consecutive generations WITHIN each arm,
+      pooling the deltas across tail-fed arms.
 
-    Gates with ``_was_fed_tail`` so only candidates whose designer actually SAW tail diagnostics enter
-    (scalar / placebo / search arms carry no tail in their prompt, so a spurious x↔m link can't form).
-    Returns ``{"x", "y": <val-returns cvar>, "m"}`` as equal-length float arrays (possibly empty).
+    Returns ``{"x", "m", "y", "dx", "dm"}`` (float arrays; possibly empty).
     """
     from src.inference.bootstrap import cvar
 
@@ -4134,8 +4160,9 @@ def _mechanism_pairs(
     xs: list[float] = []
     ms: list[float] = []
     ys: list[float] = []
+    by_arm_gen: dict[tuple[str, int], dict[str, list[float]]] = {}
     for r in fed:
-        vec = ir._tail_vector(r)
+        vec = ir._fed_tail_vector(r)
         if vec is None or vec.size == 0 or not np.isfinite(vec[0]):
             continue
         prevalence = ir._construct_prevalence(ir._reward_source(r))
@@ -4144,13 +4171,29 @@ def _mechanism_pairs(
         y = float(cvar(vr, 0.05)) if vr is not None else float("nan")
         if not np.isfinite(y):
             continue
-        xs.append(float(vec[0]))  # cvar_05 (the headline fed tail level)
+        x_fed = float(vec[0])  # cvar_05 — the headline FED tail level
+        xs.append(x_fed)
         ms.append(m_count)
         ys.append(y)
+        cell = by_arm_gen.setdefault(
+            (str(r.get("arm") or ""), int(r.get("generation") or 0)), {"x": [], "m": []}
+        )
+        cell["x"].append(x_fed)
+        cell["m"].append(m_count)
+    dxs: list[float] = []
+    dms: list[float] = []
+    for arm in sorted({a for a, _g in by_arm_gen}):
+        gens = sorted(g for a, g in by_arm_gen if a == arm)
+        for g_prev, g_next in zip(gens, gens[1:]):
+            prev, nxt = by_arm_gen[(arm, g_prev)], by_arm_gen[(arm, g_next)]
+            dxs.append(float(np.mean(nxt["x"]) - np.mean(prev["x"])))
+            dms.append(float(np.mean(nxt["m"]) - np.mean(prev["m"])))
     return {
         "x": np.asarray(xs, dtype=float),
         "m": np.asarray(ms, dtype=float),
         "y": np.asarray(ys, dtype=float),
+        "dx": np.asarray(dxs, dtype=float),
+        "dm": np.asarray(dms, dtype=float),
     }
 
 
@@ -4161,18 +4204,30 @@ def responsiveness_markdown(d: dict[str, Any]) -> str:
         return f"## Responsiveness (SQ1; ADR-039) — n/a\n\n{reason}\n"
     verdict = "RESPONSIVE (CI excludes 0)" if d.get("responsive") else "NOT responsive (CI spans 0)"
     out = [
-        f"## Responsiveness — does the fed tail move the authored CODE? (SQ1; ADR-039, report-only) — {verdict}",
+        f"## Responsiveness — does the FED tail move the authored CODE? (SQ1; ADR-039, report-only) — {verdict}",
         "",
-        "Over the tail-FED candidates (gated by `_was_fed_tail`), the association between the fed CVaR-5% "
-        "summary (X) and the count of tail-shaped constructs the program writes (M = cvar/quantile/drawdown/"
-        "…), with a seeded bootstrap CI. Spearman rank (scale-robust). DISJOINT from the frozen m=6 family — "
-        "never gates the headline.",
+        "PRIMARY = the REGISTERED §2a form: Spearman of Δ(fed tail) vs Δ(authored tail-construct count) "
+        "over consecutive generations within each tail-FED arm (X = the CVaR-5% the designer was actually "
+        "shown, parsed from the archived prompt — the previous generation's best block; 2026-07-05 M13 "
+        "construct fix: the old wiring used each candidate's OWN post-training tail, reversing the "
+        "estimand). Generation-0 candidates (fed nothing) are excluded. Seeded bootstrap CI. DISJOINT "
+        "from the frozen m=6 family — never gates the headline.",
         "",
-        f"- n candidates: **{d.get('n', 0)}** ({d.get('method', '?')}; {d.get('n_boot_valid', 0)} valid boots)",
+        f"- n generation-deltas: **{d.get('n', 0)}** ({d.get('method', '?')}; "
+        f"{d.get('n_boot_valid', 0)} valid boots)",
         f"- coefficient: **{d.get('coef', float('nan')):+.4f}**  "
         f"(95% CI [{d.get('ci_low', float('nan')):+.4f}, {d.get('ci_high', float('nan')):+.4f}])",
         "",
     ]
+    lc = d.get("levels_companion") or {}
+    if lc.get("status") == "ok":
+        out += [
+            f"- per-candidate LEVELS companion (descriptive; x is generation-constant, rows CLUSTERED "
+            f"within generation): coef **{lc.get('coef', float('nan')):+.4f}** "
+            f"(95% CI [{lc.get('ci_low', float('nan')):+.4f}, {lc.get('ci_high', float('nan')):+.4f}]; "
+            f"n={lc.get('n', 0)})",
+            "",
+        ]
     return "\n".join(out)
 
 
@@ -4585,15 +4640,22 @@ def analyze(
     # headline. Panel-INDEPENDENT (reads the archived per-candidate tail_stats + reward_source + val_returns
     # of the TAIL-FED arms). Each wrapped so a failure degrades to status="error" and never breaks analyze().
     #
-    # SQ1 responsiveness — does the fed CVaR-5% summary (X) move the count of tail-shaped constructs the
-    # program writes (M)? Per-candidate paired, (generation, candidate_id)-ordered, gated by _was_fed_tail.
+    # SQ1 responsiveness — does the FED CVaR-5% summary (X, parsed from the archived prompt) move the
+    # count of tail-shaped constructs the program writes (M)? 2026-07-05 (M13): the REGISTERED §2a form
+    # ("Spearman of Δ(fed tail) vs Δ(authored-reward feature)", per-generation deltas within arm) is the
+    # PRIMARY statistic; the per-candidate LEVEL association is reported alongside as a descriptive
+    # companion (x is generation-constant, so its rows are clustered — disclosed in the markdown).
     try:
         from src.inference.responsiveness import responsiveness
 
         _pairs = _mechanism_pairs(records)
-        out["responsiveness"] = responsiveness(
+        _resp = responsiveness(_pairs["dx"], _pairs["dm"], rng=np.random.default_rng(0))
+        _resp["form"] = "registered_generation_deltas"
+        _resp["levels_companion"] = responsiveness(
             _pairs["x"], _pairs["m"], rng=np.random.default_rng(0)
         )
+        _resp["levels_companion"]["form"] = "per_candidate_levels_clustered"
+        out["responsiveness"] = _resp
     except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline
         out["responsiveness"] = {"status": "error", "reason": str(exc)[:200]}
 

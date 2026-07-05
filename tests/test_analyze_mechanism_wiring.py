@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -38,27 +39,44 @@ def _reward_source(n_tail: int) -> str:
     return f"def reward(r):\n    x = {body}\n    return x\n"
 
 
-def _search_record(i: int, cvar05: float, n_tail: int, *, arm: str = "distributional") -> dict:
-    """A tail-FED search candidate: structured tail_stats, a tail-construct reward, and a val_returns vector."""
+def _search_record(
+    i: int, cvar05: float, n_tail: int, *, arm: str = "distributional", generation: int | None = None
+) -> dict:
+    """A search candidate in the CORRECTED archive shape (2026-07-05 M13 construct fix).
+
+    Serial-faithful semantics: the record's OWN ``feedback_block`` carries the block built FROM this
+    candidate (fed to the NEXT generation), while the tail the DESIGNER WAS FED (``cvar05``) rides in
+    the archived ``prompt`` — for generation >= 1 only; a generation-0 candidate authors from the
+    tail-neutral base prompt and must be gated OUT of the fed set."""
     rng = np.random.default_rng(1000 + i)
+    gen = (i // 4) if generation is None else int(generation)
+    own_cvar = cvar05 * 1.1 - 0.002  # the candidate's own measured tail differs from the FED one
+    prompt = (
+        "Improve the reward function. Feedback from the previous candidate:\n"
+        f"CVaR 5%: {cvar05:+.4f}\nleft-tail mass: +0.100\n"
+        if gen >= 1
+        else "Write a reward function for a portfolio agent. (base prompt - no feedback)"
+    )
     return {
         "run_id": f"{arm}-search-c{i:02d}",
         "arm": arm,
         "seed": 0,
         "fold": 0,
         "candidate_id": f"c{i:02d}",
-        "generation": i // 4,
+        "generation": gen,
         "reward_source_hash": f"hash{i:02d}",
         "reward_source": _reward_source(n_tail),
-        # _was_fed_tail gates on a rendered "CVaR 5%:" label in feedback_block/prompt.
-        "feedback_block": f"CVaR 5%: {cvar05:+.4f}\nleft-tail mass: 0.10",
+        # The archived PROMPT is what the designer SAW (the fed block); _was_fed_tail gates on it.
+        "prompt": prompt,
+        # Own block (fed to the NEXT generation) — must NOT leak into the fed set (M13).
+        "feedback_block": f"CVaR 5%: {own_cvar:+.4f}\nleft-tail mass: 0.10",
         "metrics": {
             "val_fitness": 0.1 + 0.001 * i,
             "tail_stats": {
-                "cvar_05": cvar05,
-                "cvar_10": cvar05 * 0.9,
-                "cvar_25": cvar05 * 0.7,
-                "cvar_01": cvar05 * 1.2,
+                "cvar_05": own_cvar,
+                "cvar_10": own_cvar * 0.9,
+                "cvar_25": own_cvar * 0.7,
+                "cvar_01": own_cvar * 1.2,
                 "left_tail_mass": 0.10,
                 "robust_skew": -0.20,
             },
@@ -87,9 +105,17 @@ def _test_record(arm: str, seed: int, returns: np.ndarray) -> dict:
 
 
 def _write_search_arm(root: Path) -> None:
-    """12 tail-fed candidates with cvar_05 and tail-construct count correlated (a non-degenerate X, M, Y)."""
+    """12 tail-FED candidates (gens 1..6, 2 per generation; the FED value is generation-constant as in
+    the real loop) with the fed cvar_05 and the authored tail-construct count correlated across
+    generations (a non-degenerate X, M, Y — and a non-degenerate REGISTERED delta form, n=5 deltas),
+    plus 2 generation-0 candidates that the corrected gate must EXCLUDE (M13)."""
     for i in range(12):
-        rec = _search_record(i, cvar05=-0.05 - 0.001 * i, n_tail=1 + (i % 5))
+        gen = 1 + i // 2
+        fed = -0.05 - 0.004 * gen  # generation-constant fed value, varying across generations
+        rec = _search_record(i, cvar05=fed, n_tail=1 + (gen % 5), generation=gen)
+        write_run(rec, root / "search" / "distributional")
+    for i in (90, 91):  # gen-0: base prompt, fed nothing -> gated out
+        rec = _search_record(i, cvar05=-0.05, n_tail=1, generation=0)
         write_run(rec, root / "search" / "distributional")
 
 
@@ -110,32 +136,45 @@ def test_responsiveness_and_mediation_fire_ok(tmp_path: Path) -> None:
     _write_search_arm(tmp_path)
     out = AC.analyze(tmp_path)
 
+    # PRIMARY = the registered §2a per-generation DELTA form (gens 1..6 -> 5 deltas); the
+    # per-candidate LEVELS association rides along as the clustered descriptive companion.
     assert out["responsiveness"]["status"] == "ok"
-    assert out["responsiveness"]["n"] == 12
+    assert out["responsiveness"]["form"] == "registered_generation_deltas"
+    assert out["responsiveness"]["n"] == 5
     assert "coef" in out["responsiveness"] and "ci_low" in out["responsiveness"]
+    assert out["responsiveness"]["levels_companion"]["n"] == 12  # gen-0 records gated OUT
 
     assert out["mediation"]["status"] == "ok"
-    assert out["mediation"]["n"] == 12
+    assert out["mediation"]["n"] == 12  # per-candidate FED level -> code -> outcome
     # the standard mediation decomposition keys are present
     for k in ("a", "b", "c_total", "c_direct", "indirect"):
         assert k in out["mediation"]
 
     # markdown renderers emit a section (and the mediation one surfaces the endogeneity caveat)
-    assert "Responsiveness" in AC.responsiveness_markdown(out["responsiveness"])
+    resp_md = AC.responsiveness_markdown(out["responsiveness"])
+    assert "Responsiveness" in resp_md
+    assert "FED" in resp_md  # the corrected estimand is stated
     med_md = AC.mediation_markdown(out["mediation"])
     assert "Mediation" in med_md
     assert "endogenous" in med_md.lower()
 
 
 def test_mechanism_pairs_gate_to_tail_fed_only() -> None:
-    """A scalar/placebo (NOT tail-fed) candidate must be excluded from the paired arrays (no spurious link)."""
-    fed = [_search_record(i, -0.05 - 0.001 * i, 1 + (i % 3)) for i in range(6)]
-    # a non-tail-fed record: no "CVaR 5%:" label in feedback/prompt -> _was_fed_tail False
-    not_fed = dict(_search_record(99, -0.09, 2, arm="scalar"))
+    """Non-tail-fed candidates AND generation-0 candidates must be excluded from the paired arrays
+    (M13: the old gate let gen-0 candidates leak in via their OWN feedback_block)."""
+    fed = [_search_record(i, -0.05 - 0.004 * (1 + i // 2), 1 + (i % 3), generation=1 + i // 2)
+           for i in range(6)]
+    # a non-tail-fed record: no "CVaR 5%:" label in its prompt -> _was_fed_tail False
+    not_fed = dict(_search_record(99, -0.09, 2, arm="scalar", generation=2))
+    not_fed["prompt"] = "Improve the reward. Feedback: Deflated Sharpe: 0.42"
     not_fed["feedback_block"] = "Deflated Sharpe: 0.42"
-    pairs = AC._mechanism_pairs(fed + [not_fed])
-    assert pairs["x"].size == 6  # the scalar record was gated OUT
+    # a gen-0 distributional record whose OWN block carries tail labels — must NOT leak in (M13)
+    gen0 = _search_record(98, -0.05, 2, generation=0)
+    pairs = AC._mechanism_pairs(fed + [not_fed, gen0])
+    assert pairs["x"].size == 6  # scalar + gen-0 records were gated OUT
     assert pairs["m"].size == 6 and pairs["y"].size == 6
+    # x is the FED value (from the prompt), not the candidate's own measured tail
+    assert pairs["x"][0] == pytest.approx(-0.05 - 0.004 * 1)
 
 
 def test_responsiveness_mediation_degrade_with_no_tail_fed(tmp_path: Path) -> None:

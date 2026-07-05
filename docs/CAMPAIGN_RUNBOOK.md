@@ -199,6 +199,26 @@ batches; monitor RSS for ~20 min.
 is the cross-batch backstop (`max_tasks_per_child` is **disabled** — it DEADLOCKS on Windows spawn
 across all Pythons 3.11–3.14).
 
+### 3e-bis. V4b — CRASH-INJECTION rehearsal (certify resume before the real run, 2026-07-05)
+
+The search-arm resume byte-identity is unit-certified (`tests/test_search.py`
+::`test_random_search_resume_reproduces_trajectory_and_skips_training` +
+`::test_bayes_opt_resume_reproduces_gp_trajectory` — a mid-arm crash re-draws the SAME candidate
+sequence, skips the training of archived candidates, and fails LOUD on any source-hash drift). Before
+the real campaign, also do the END-TO-END kill-storm on the keyless dry-run so the whole
+supervisor→driver→archive loop is proven, not just the unit:
+```bash
+# launch the dry-run under the supervisor, then hard-kill at the nastiest points and confirm --resume
+# lands a COMPLETE, non-duplicated archive each time (kill mid-search-arm, mid-generation, mid-test-batch):
+python scripts/supervisor.py --gpu 3 -- --allow-unfrozen --synthetic --candidates 6 --seeds 0,1 &
+#   ... let it reach a search arm, then: taskkill /F /PID <driver>   (repeat at 3-4 distinct points)
+#   after each kill the supervisor relaunches with --resume; verify no arm re-trains from candidate 0
+#   and the final archive record-count == the uninterrupted baseline (search arms now checkpoint each
+#   candidate + skip on resume — 2026-07-05).
+```
+Expected: every kill resumes cleanly; the search arms re-pay only the un-finished tail (not the whole
+arm); the sentinel stays GREEN through the relaunches.
+
 ### 3f. V5 — resume / idempotency
 Kill a `--synthetic` run mid-way, then re-launch with `--resume`.
 **Expected:** completed `(arm, seed)` test ids are skipped (loaded from `outputs/.../test/<arm>`);
@@ -350,6 +370,64 @@ Anomaly/event detail is also in `outputs/campaign/{events.jsonl,anomalies.jsonl}
 dashboard). **Monitor THROUGH candidate transitions**, not just the clean start — the transition-wave OOM
 risk (the reason n_gpu is capped at 3 and n_gpu=4 is refused) is the simultaneous fresh-buffer allocation
 when a generation's candidates finish together (steady-state probes miss it).
+
+**Watcher alert rules (2026-07-05):** the ntfy watcher now pushes on `error` / `done` / `stall` **plus**
+`disk_low` (run-drive free space under 10 GB — the pagefile + Windows Update live on C:) and
+`anomaly_surge` (anomalies.jsonl growing ≥20 lines within one poll tick — a cascade alerts the moment it
+starts). The watcher also now SURVIVES exit-3 resumable passes (it exits only on a terminal
+`exit_code == 0` summary), so one launch covers the whole multi-pass run.
+
+**The SENTINEL — the "catch absolutely anything early" invariant monitor (2026-07-05, `scripts/sentinel.py`).**
+The dashboard shows what is HAPPENING; the sentinel decides whether it is HEALTHY. Run it beside the
+dashboard, in a third terminal, for the whole campaign:
+```bash
+python scripts/sentinel.py outputs/campaign --watch --interval 120   # continuous, severity-graded
+python scripts/sentinel.py outputs/campaign                          # one shot (exit 1 on CRITICAL — cron/CI-friendly)
+```
+It runs, READ-ONLY, a battery of invariant checks every tick and raises the moment ANY deviates —
+disk/RAM/GPU-temp, silent-hang, **gate-failure rate**, **NaN rate in the archive** (the "surfaces at the
+end" corruption class), **critic-explosion clustering** (diverged-RUN rate + a CRITICAL if a FROZEN WINNER
+diverged), **cross-arm reward-scale drift** (the P5 confound made live-auditable via PopArt `raw_rms`),
+**API error rate**, exit-code, and archive-mirror freshness. Every check TRANSITION is written
+severity-tagged to `events.jsonl` (the precise, machine-parseable health history — grep it, or replay it
+after the run). A CRITICAL exit code lets you wire it into a cron push. This is the layer that means
+nothing about a bad result waits until analysis time to be seen. **After ANY reboot, restart the
+watcher by hand** (the ONSTART task re-enters the supervisor + re-applies the GPU clock lock, but not the
+dashboard): `python scripts/monitor.py outputs/campaign/search --follow-campaign --notify <topic>`.
+
+### 5b. PRE-COMMITTED run protocols (2026-07-05 — treatment-blind by construction; do not improvise)
+
+**(i) DAY-2 GO/RECHECK gate** (~48 h after launch, while stopping still costs 2 days, not 23):
+- [ ] every LLM arm shows plausible ACCEPTED-candidate counts (dashboard / `compute_accounting` inputs);
+      gate-failure burn within the prototype's band (~1 failure / 40 calls);
+- [ ] open 2–3 archived `prompt.txt` sidecars PER ARM and verify the rendered feedback block is EXACTLY
+      the arm's design (distributional = six tail lines; scalar = one DSR line; placebo = inert
+      constants; placebo_shuffled = deranged values, same labels; scalar_cvar5 = the single CVaR line)
+      — this checks the MANIPULATION itself and reads ZERO outcomes;
+- [ ] anomalies: no `failure_wave`; `critic_explosion` clusters ≤ the prototype's ~2.5%/candidate;
+- [ ] verdict recorded here: GO / STOP-FIX-RELAUNCH (a day-2 relaunch = 2 lost days + one dated
+      amendment if a hash-bound prompt must change — survivable by design).
+
+**(ii) FIRST-ARM INTEGRITY REHEARSAL** (the moment the first arm's TEST leg completes, ~day 6–8): run the
+FULL analyze→figures→build pipeline on the partial archive with the hard rule that only **mechanical
+integrity** is read — records parse, schemas complete, seed counts, NaN rates, series lengths, figures
+render, PDF compiles. **Suppress/ignore every cross-arm effect estimate** (severity discipline: no
+outcome peeking mid-run). Purpose: the pipeline's first contact with real campaign data happens with
+2+ weeks of fix-time left, not in August.
+
+**(iii) ANOMALY-TRIAGE protocol (pre-registered; an alarming number triggers this checklist, never a
+re-run):**
+1. INTEGRITY first — replay ONE affected cell from the archive and byte-compare
+   (`metrics.test_returns`, the proven M7-b5 pattern); verify checksums/windows/seeds.
+2. FALSIFY the analysis — run the identical stack on shuffled labels / the synthetic null
+   (`null_calibration` machinery); it must return null.
+3. Only then accept the number as REAL and report it under the pre-registered branch it falls in.
+**Iron rule: NO arm is ever re-run because a result "looks wrong"** — outcome-contingent re-runs are the
+forking-paths sin the whole pre-registration exists to prevent.
+
+**(iv) ARCHIVE MIRROR task** (register at launch, run-day checklist): every 6 h,
+`schtasks /Create /SC HOURLY /MO 6 /TN LLMRewardArchiveMirror /TR "powershell -ExecutionPolicy Bypass -File <repo>\scripts\mirror_archive.ps1"`
+(the script exits 0 on success since 2026-07-05; ≥8 = a real failure worth an alert).
 
 ---
 

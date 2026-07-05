@@ -222,16 +222,36 @@ def post_alert(url: str, message: str, *, timeout: float = 10.0) -> bool:
 
 # ---- notification lifecycle + campaign-follow (pure logic, unit-tested; M5a ops audit 2026-07-02) ------- #
 def alert_reason(
-    st: dict[str, Any] | None, now_epoch: float, stale_secs: float, *, mtime_epoch: float | None = None
+    st: dict[str, Any] | None,
+    now_epoch: float,
+    stale_secs: float,
+    *,
+    mtime_epoch: float | None = None,
+    disk_free_gb: float | None = None,
+    min_disk_gb: float = 10.0,
+    anomaly_delta: int | None = None,
+    anomaly_delta_limit: int = 20,
 ) -> str | None:
-    """The alert-worthy condition right now: ``"done"`` / ``"error"`` / ``"stall"`` / None (healthy)."""
+    """The alert-worthy condition right now (pure; 2026-07-05 rule additions).
+
+    ``"error"`` / ``"done"`` (terminal) take precedence; then ``"disk_low"`` (the run drive under
+    ``min_disk_gb`` — the pagefile + Windows Update live on C:, and a full drive kills the run in ways
+    the stall detector only reports after the fact); then ``"anomaly_surge"`` (the anomalies.jsonl
+    grew by >= ``anomaly_delta_limit`` lines within ONE poll interval — a critic-explosion /
+    ram-pressure / failure-wave cascade worth a phone push the moment it starts, not at the daily
+    read); then ``"stall"``. ``None`` = healthy. Extra signals default to ``None`` = rule inactive,
+    so existing callers/tests are untouched."""
     if st is None:
         return None
     phase = st.get("phase")
-    if phase == "done":
-        return "done"
     if phase == "error":
         return "error"
+    if phase == "done":
+        return "done"
+    if disk_free_gb is not None and disk_free_gb < float(min_disk_gb):
+        return "disk_low"
+    if anomaly_delta is not None and int(anomaly_delta) >= int(anomaly_delta_limit):
+        return "anomaly_surge"
     if is_stale(st, now_epoch, stale_secs, mtime_epoch=mtime_epoch):
         return "stall"
     return None
@@ -259,15 +279,40 @@ def process_notification(reason: str | None, sent: set[str], send: Any) -> bool:
     return False
 
 
-def campaign_done(sentinel_mtime: float | None, started_epoch: float) -> bool:
-    """--follow-campaign exit test: the campaign-level sentinel was (re)written AFTER this watcher started.
+def campaign_done(
+    sentinel_mtime: float | None, started_epoch: float, exit_code: int | None = 0
+) -> bool:
+    """--follow-campaign exit test: a FRESH sentinel from a TERMINAL pass.
 
-    ``run_campaign`` writes ``campaign_summary.json`` exactly once, at the END of the whole campaign —
-    that file (not any single arm's ``progress.json`` phase) is the overall-campaign terminal signal.
-    The ``>= started_epoch`` guard keeps a STALE summary from a previous interrupted run (present on
-    disk at watcher start, e.g. under --resume) from terminating the watcher immediately.
+    ``run_campaign`` writes ``campaign_summary.json`` at the end of EVERY pass — including a
+    resumable exit-3 (``EXIT_INCOMPLETE``) pass that the supervisor immediately relaunches with
+    ``--resume``. The old mtime-only test therefore killed the dashboard/ntfy watcher on the FIRST
+    such pass and the remaining (possibly week-long) passes ran unwatched (2026-07-05 fix). Exit now
+    requires BOTH: (a) the sentinel was (re)written after this watcher started (the ``>=
+    started_epoch`` guard keeps a stale summary from a previous run from terminating immediately),
+    and (b) the pass was TERMINAL — ``exit_code == 0`` (full success, or an operator-initiated
+    graceful shutdown; the supervisor stops in both cases). ``exit_code=None`` (an unreadable /
+    mid-write summary) is NOT done — the next tick re-reads it.
     """
-    return sentinel_mtime is not None and sentinel_mtime >= started_epoch
+    if sentinel_mtime is None or sentinel_mtime < started_epoch:
+        return False
+    return exit_code is not None and int(exit_code) == 0
+
+
+def _sentinel_exit_code(run_dir: Path) -> int | None:
+    """``exit_code`` recorded in the campaign summary (0 for legacy summaries without the key).
+
+    Returns ``None`` when the file exists but cannot be parsed (mid-write) — the watcher then keeps
+    watching and re-reads on the next tick. Missing file -> 0 (the mtime guard alone decides)."""
+    for p in (run_dir / "campaign_summary.json", run_dir.parent / "campaign_summary.json"):
+        if not p.is_file():
+            continue
+        try:
+            summary = json.loads(p.read_text(encoding="utf-8"))
+            return int(summary.get("exit_code", 0) or 0)
+        except (OSError, ValueError):
+            return None
+    return 0
 
 
 def _sentinel_mtime(run_dir: Path) -> float | None:
@@ -449,10 +494,33 @@ def main() -> None:
     sent: set[str] = set()
     started_epoch = time.time()  # --follow-campaign: only a sentinel written AFTER this counts
 
+    _last_anomaly_total = [None]  # per-tick anomaly-count memory for the surge rule (2026-07-05)
+
     def _maybe_notify(st: dict[str, Any] | None) -> None:
         if not args.notify:
             return
-        reason = alert_reason(st, time.time(), args.stale_secs, mtime_epoch=_progress_mtime(run_dir))
+        # Extra precision signals (2026-07-05): free disk on the run drive + the per-tick anomaly
+        # GROWTH (a cascade pushes a phone alert the moment it starts). Both read-only and best-effort
+        # — a probe failure silently deactivates its rule for this tick, never the watcher.
+        disk_free_gb = None
+        try:
+            import shutil as _sh
+
+            disk_free_gb = _sh.disk_usage(str(run_dir)).free / 1e9
+        except OSError:
+            pass
+        anomaly_delta = None
+        try:
+            total = sum(anomaly_counts(run_dir).values())
+            if _last_anomaly_total[0] is not None:
+                anomaly_delta = total - int(_last_anomaly_total[0])
+            _last_anomaly_total[0] = total
+        except Exception:  # noqa: BLE001 - a parse hiccup must never kill the watcher tick
+            pass
+        reason = alert_reason(
+            st, time.time(), args.stale_secs, mtime_epoch=_progress_mtime(run_dir),
+            disk_free_gb=disk_free_gb, anomaly_delta=anomaly_delta,
+        )
         process_notification(
             reason, sent, lambda r: post_alert(args.notify, build_alert(st, r, run_dir))
         )
@@ -468,8 +536,11 @@ def main() -> None:
                 _maybe_notify(st)
                 if args.follow_campaign:
                     # M5a(i): a per-arm 'done'/'error' is NOT the end of the campaign — the next arm
-                    # rewrites the same progress.json. Exit only on the overall-campaign sentinel.
-                    if campaign_done(_sentinel_mtime(run_dir), started_epoch):
+                    # rewrites the same progress.json. Exit only on the overall-campaign sentinel,
+                    # and only when its pass was TERMINAL (exit_code==0) — an exit-3 resumable pass
+                    # is relaunched by the supervisor and must stay watched (2026-07-05).
+                    if campaign_done(_sentinel_mtime(run_dir), started_epoch,
+                                     exit_code=_sentinel_exit_code(run_dir)):
                         live.update(render(read_state(run_dir), run_dir, stale_secs=args.stale_secs, tick=tick))
                         break
                 elif st is not None and st.get("phase") in ("done", "error"):

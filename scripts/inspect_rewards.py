@@ -338,18 +338,64 @@ def _tail_vector(record: dict[str, Any]) -> np.ndarray | None:
     return np.asarray(vec, dtype=float) if found else None
 
 
+def _fed_text(record: dict[str, Any]) -> str:
+    """The feedback text this candidate's designer actually SAW — the archived PROMPT.
+
+    2026-07-05 (M13/M14 construct fix): the record's own ``feedback_block`` is the block built
+    FROM this candidate's results — on the serial path it is fed to the NEXT generation, never to
+    this candidate's own designer — so reading it as "what was fed" reversed the estimand and let
+    generation-0 candidates (fed nothing) pass the fed-tail gate via their own block. The rendered
+    prompt is archived for every candidate (loop.py "Rank 14") and carries the fed block verbatim
+    for every generation >= 1; the generation-0 prompt is the tail-neutral base prompt. Records
+    from a pre-Rank-14 archive (no ``prompt`` key) return ``""`` — callers must then treat fed
+    VALUES as unrecoverable rather than substitute the candidate's own measured tail.
+    """
+    return str(record.get("prompt") or "")
+
+
+def _fed_tail_vector(record: dict[str, Any]) -> np.ndarray | None:
+    """The tail vector the DESIGNER WAS FED (parsed from the archived prompt), or ``None``.
+
+    This — not :func:`_tail_vector` (the candidate's OWN post-training measurement) — is the
+    ``X`` of the pre-registered SQ1/SQ2 mechanism estimands (PREREGISTRATION §2a: "does the fed
+    tail signal change the authored reward code?"). Returns ``None`` for generation-0 candidates
+    (fed nothing), non-tail arms, and legacy records without an archived prompt.
+    """
+    fed = _fed_text(record)
+    if not fed:
+        return None
+    vec: list[float] = []
+    found = False
+    for _fid, label in _TAIL_FIELDS:
+        m = re.search(rf"{re.escape(label)}\s*:\s*([+-]?\d*\.?\d+)", fed)
+        if m is not None:
+            vec.append(float(m.group(1)))
+            found = True
+        else:
+            vec.append(float("nan"))
+    return np.asarray(vec, dtype=float) if found else None
+
+
 def _was_fed_tail(record: dict[str, Any]) -> bool:
     """Did the rendered feedback this candidate's designer SAW carry tail diagnostics?
 
-    The fed feedback lives in ``feedback_block`` when archived, else in the full ``prompt``
-    (the loop renders the feedback there and leaves ``feedback_block`` empty). A ``scalar`` arm
-    sees only a Deflated-Sharpe scalar and ``placebo`` sees inert reference constants, so
-    neither matches a :data:`_TAIL_FIELDS` label; the search arms carry no LLM prompt at all.
-    This is the gate that keeps :func:`feedback_responsiveness` (the H2 "did it use the
-    distribution" test) from scoring an arm against a tail it was never shown.
+    Decided from the archived PROMPT (see :func:`_fed_text`) — what the designer actually saw —
+    so a generation-0 candidate (base prompt, no feedback) is correctly NOT fed, and the serial
+    archive's own-``feedback_block`` (fed to the NEXT generation) can no longer leak a candidate
+    into the fed set (2026-07-05 M13 fix; the old ``feedback_block``-first read did both). A
+    ``scalar`` arm sees only a Deflated-Sharpe scalar and ``placebo`` sees inert reference
+    constants, so neither matches a :data:`_TAIL_FIELDS` label; the search arms carry no LLM
+    prompt at all. Legacy records without an archived prompt fall back to the own-block label
+    check GATED on generation >= 1 (the block schema is fixed per arm, so at gen >= 1 it is a
+    faithful was-fed indicator even though its VALUES are the candidate's own).
     """
-    fed_text = str(record.get("feedback_block") or "") or str(record.get("prompt") or "")
-    return any(re.search(rf"{re.escape(label)}\s*:", fed_text) for _fid, label in _TAIL_FIELDS)
+    fed_text = _fed_text(record)
+    if fed_text:
+        return any(re.search(rf"{re.escape(label)}\s*:", fed_text) for _fid, label in _TAIL_FIELDS)
+    if _generation(record) < 1:
+        return False
+    own_block = str(record.get("feedback_block") or "")
+    return any(re.search(rf"{re.escape(label)}\s*:", own_block) for _fid, label in _TAIL_FIELDS)
 
 
 def _by_generation(records: list[dict[str, Any]]) -> list[dict[str, Any]]:

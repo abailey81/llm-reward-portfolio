@@ -1,0 +1,20 @@
+{
+  "cols": 963,
+  "format": "parquet",
+  "frozen_utc": "2026-07-01T22:41:04.018175+00:00",
+  "layer": "clean",
+  "name": "clean_returns_shumway_univ5s.parquet",
+  "provenance": {
+    "citation": "Shumway 1997 JF; Shumway & Warther 1999 JF",
+    "n_corrections": 333,
+    "policy": "Shumway-STYLE: OBSERVED terminal recovered from the daily series and kept (ADR-051); vendor terminal kept; else -30% NYSE/AMEX / -55% Nasdaq; multiplicative (1+r)(1+dl)-1",
+    "stage": "build_universe.shumway_correction",
+    "vendor": "refinitiv"
+  },
+  "relpath": "data\\clean\\clean_returns_shumway_univ5s.parquet",
+  "row_hash": "199f313219a9391a97a97d9ec23dddf7caa7f8f3cc1aae18ab54153d9c64d1cb",
+  "rows": 5406,
+  "run_id": "build_univ5s",
+  "sha256": "7cf5d98843c53cd6db46e101ca251430b7ebc4b6447e1d5dab9a3c8ec36446d3",
+  "vendor": "refinitiv"
+}

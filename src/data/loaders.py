@@ -94,7 +94,11 @@ def _config_gold_suffix(data_yaml: Path | None = None) -> str | None:
 
         with data_yaml.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh) or {}
-    except (OSError, ValueError):  # missing file / malformed YAML -> fall back
+    except (OSError, ValueError):  # missing file -> fall back to the default suffix
+        # NB (2026-07-05, intent made explicit): yaml.YAMLError does NOT inherit ValueError, so a
+        # MALFORMED data.yaml deliberately raises out of every panel load rather than silently
+        # falling back — data.yaml is the freeze-bound panel-identity file, and running on a default
+        # suffix because the frozen selector failed to parse would be the worse failure mode.
         return None
     gold = data.get("gold") if isinstance(data, dict) else None
     suffix = gold.get("suffix") if isinstance(gold, dict) else None
@@ -207,7 +211,12 @@ def _expected_sha256(path: Path, manifest_path: Path = _MANIFEST) -> str | None:
             if not sha:
                 continue
             relpath = entry.get("relpath", "")
-            if target_rel is not None and relpath == target_rel:
+            # 2026-07-05: the production manifest stores WINDOWS-backslash relpaths, so comparing the
+            # raw string against the as_posix() target made this primary branch DEAD and every
+            # verification silently resolved via the basename fallback (correct today only because all
+            # manifest basenames are unique). Normalizing both sides to posix revives the exact match,
+            # so a future basename collision across layers can no longer verify against the wrong hash.
+            if target_rel is not None and relpath.replace("\\", "/") == target_rel:
                 return sha  # exact relpath match wins
             if Path(relpath).name == target_name or entry.get("name") == target_name:
                 by_name = sha

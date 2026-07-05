@@ -176,13 +176,20 @@ def _load_real_collaborators(synthetic: bool, sub_cfg: Any, seed: int):
 
         res = load_gold_panel(
             phase=str(cfg_get(data_cfg, "phase", "development")),
-            end=str(cfg_get(data_cfg, "val_end", "2017-12-31")),
+            # Split-C val end (R73). The old fallback was the stale pre-Split-C 2017-12-31: a dropped
+            # config key would have silently reverted this leg to the superseded window (2026-07-05).
+            end=str(cfg_get(data_cfg, "val_end", "2019-12-31")),
             on_missing=str(cfg_get(data_cfg, "on_missing", "liquidate_to_cash")),
         )
         ric_by_id = res.ric_by_id
         panel, train_window, val_window = _load_panel_and_windows(False, data_cfg, lookback)
 
-    env_builder = make_env_builder(panel, env_cfg, train_window, val_window)
+    # Thread the R18 purge guard exactly like run_prototype.run_arm / parallel.train_candidate do —
+    # the sub-experiment path previously built its env with purge=0 (guard unarmed; 2026-07-05).
+    env_builder = make_env_builder(
+        panel, env_cfg, train_window, val_window,
+        embargo=int(cfg_get(data_cfg, "embargo_days", 21)), lookback=int(lookback),
+    )
     a = cfg_get(sub_cfg, "agent", {})
     train_steps = int(cfg_get(a, "train_steps_per_candidate", 25000))
     agent_cfg = {
@@ -248,21 +255,6 @@ def run_subexperiment(
 
     if mode not in ("named", "legible"):
         raise ValueError(f"mode must be 'named' or 'legible', got {mode!r}")
-    # MONEY GUARD (2026-07-05 M16): the loop below runs at generations=1, so every candidate is
-    # authored from the *initial* prompt (run_loop only injects a feedback block for gen >= 1). The
-    # `named` leg still varies gen-0 (it appends a provenance paragraph to the initial prompt), but the
-    # `legible` leg only re-renders the ARCHIVED feedback_block — which gen-0 never shows the designer —
-    # so the raw-vs-legible SQ3b differential would be ~0 BY CONSTRUCTION while still burning
-    # ~seeds x conditions x candidates PAID Opus authorings. Refuse the inert legible run until the leg
-    # is redesigned to actually feed the legible rendering (generations>=2, or inject the rendered block
-    # into the gen-0 initial prompt). See the session brief / DEEP_SWEEP mechanism-kernel item.
-    if mode == "legible" and not allow_inert_legible:
-        raise RuntimeError(
-            "legible sub-experiment is INERT at generations=1 (the legible rendering never reaches a "
-            "prompt, so the SQ3b differential is ~0 by construction) — refusing to burn paid Opus calls. "
-            "Redesign the leg to feed the legible block (generations>=2 or gen-0 injection), then re-run. "
-            "Pass allow_inert_legible=True only for a keyless/mocked smoke test."
-        )
     conditions = _NAMED_CONDITIONS if mode == "named" else _LEGIBLE_CONDITIONS
     output_dir = Path(output_dir)
     sub_cfg = sub_cfg if sub_cfg is not None else _safe_load_sub_cfg()
@@ -276,6 +268,11 @@ def run_subexperiment(
     for seed in seeds:
         collab = collaborators_factory(seed)
         for condition in conditions:
+            # CRASH-RESUME (2026-07-05): each (condition, seed) cell is write-once — if its full
+            # candidate slate is already archived, skip re-authoring (a paid multi-day 150-seed run
+            # previously had ZERO crash recovery and re-billed every prior seed on restart).
+            if _condition_complete(output_dir / _ARM, condition, seed, candidates):
+                continue
             transport, model_id = transport_factory(seed)
             llm = _make_llm(transport, model_id)
             prompts = dict(collab["prompts"])  # copy: the NAMED leg appends to `initial`
@@ -285,6 +282,27 @@ def run_subexperiment(
                 prompts["initial"] = prompts["initial"] + _provenance_paragraph(
                     collab["panel"], collab.get("ric_by_id"), collab.get("regime_names", [])
                 )
+            if mode == "legible":
+                # SQ3b REDESIGN (2026-07-05, M16): at generations=1 the reflection turn never fires,
+                # so the old `legible_render` flag only re-rendered the ARCHIVED block — the designer
+                # never SAW any tail rendering and the raw-vs-legible differential was ~0 BY
+                # CONSTRUCTION (a paid ~seeds x conditions x candidates Opus burn for nothing). Both
+                # conditions now receive the SAME real, per-seed reference tail CONTENT injected into
+                # the initial prompt — rendered raw for `raw`, legibly for `legible` — so the ablation
+                # manipulates exactly the ENCODING of identical information, as registered.
+                ref_block = _reference_tail_block(collab, seed, legible=(condition == "legible"))
+                prompts["initial"] = (
+                    prompts["initial"]
+                    + "\n\nFor context, a REFERENCE portfolio's summary metrics on this market "
+                    "(training period) — use them to inform how the reward should shape risk:\n"
+                    + ref_block
+                )
+                if not allow_inert_legible and "CVaR 5%" not in prompts["initial"]:
+                    raise RuntimeError(
+                        "legible sub-experiment PROOF-OF-FEED failed: the reference tail block did "
+                        "not reach the initial prompt — the run would be inert (M16). Refusing to "
+                        "burn paid authoring; pass allow_inert_legible=True only for mocked smokes."
+                    )
             loop_cfg = {
                 "generations": 1,
                 "candidates_per_gen": int(candidates),
@@ -298,6 +316,12 @@ def run_subexperiment(
                 "env_fingerprint": f"subexp:{mode}:{condition}",
                 "extra_record_fields": extra_record_fields,
                 "legible_render": legible_render,
+                # Opus rejects sampler knobs -> per-candidate diversity comes from prompt variation;
+                # the config key existed but was never threaded (2026-07-05 fix), so all K candidates
+                # per condition were authored from the IDENTICAL prompt.
+                "diversity_prompt_variation": bool(
+                    cfg_get(sub_cfg, "diversity_prompt_variation", True)
+                ),
             }
             # Each condition writes under <output_dir>/<arm>/<run_id>/ (load_campaign_records walks any depth).
             run_loop(
@@ -322,6 +346,66 @@ def _safe_load_sub_cfg() -> Any:
         return load_config("subexperiment")
     except Exception:  # noqa: BLE001 - the driver's defaults stand in for a missing config (smoke/tests)
         return {}
+
+
+def _condition_complete(arm_root: Path, condition: str, seed: int, candidates: int) -> bool:
+    """Crash-resume read path: is the full candidate slate for this (condition, seed) archived?
+
+    ``run_loop`` writes one ``<arm_root>/<run_prefix>-...>/record.json`` per candidate with
+    ``run_prefix = f"{condition}-s{seed}"``; the cell is complete when at least ``candidates``
+    such records exist. Write-once semantics: a complete cell is never re-authored (2026-07-05 —
+    the paid multi-day sub-experiment previously restarted from seed 0 on any crash)."""
+    root = Path(arm_root)
+    if not root.is_dir():
+        return False
+    prefix = f"{condition}-s{seed}-"
+    n = sum(1 for d in root.iterdir() if d.name.startswith(prefix) and (d / "record.json").is_file())
+    return n >= int(candidates)
+
+
+def _reference_tail_block(collab: dict, seed: int, *, legible: bool) -> str:
+    """A REAL per-seed reference feedback block for the SQ3b encoding ablation (2026-07-05 redesign).
+
+    Content: the frozen six-field tail measurement fitted on a seeded moving-block resample of the
+    collaborator panel's equal-weight TRAINING-window returns — real market content, deterministic
+    per seed, varying across seeds. The SAME dict is rendered raw (``legible=False``) for the ``raw``
+    condition and legibly (bps/percent/decile) for the ``legible`` condition, so the two prompts
+    differ in ENCODING only. Falls back (with a loud print) to a fixed representative vector when the
+    collaborators carry no usable panel/measurement (keyless or mocked smokes)."""
+    import numpy as np
+
+    from src.feedback.schema import build_block
+
+    stats: dict | None = None
+    panel = (collab or {}).get("panel")
+    rd_cls = (collab or {}).get("measurement")
+    try:
+        if panel is not None and rd_cls is not None:
+            rets = np.nanmean(np.asarray(panel.returns, dtype=float), axis=1)
+            rets = rets[np.isfinite(rets)]
+            n = int(rets.size)
+            if n >= 250:
+                rng = np.random.default_rng(int(seed))
+                blk = 20
+                starts = rng.integers(0, n, size=n // blk + 1)
+                idx = np.concatenate([(np.arange(blk) + s) % n for s in starts])[:n]
+                stats = rd_cls().fit(rets[idx]).tail_stats()
+    except Exception as exc:  # noqa: BLE001 — the reference block must never sink the leg
+        print(f"[run_subexperiment] reference tail measurement failed ({exc}); using the fallback vector")
+        stats = None
+    if stats is None:
+        # Representative of the real univ5 train window (disclosed fallback for stub collaborators),
+        # deterministically JITTERED per seed: cross-seed variation in the fed content is what the
+        # SQ3b responsiveness statistic correlates against, so a seed-constant fallback would make
+        # the instrument degenerate by construction even on a degraded run.
+        # Jitter scale 0.25 (clamped): the RAW rendering prints 3 decimals, so a narrow jitter can
+        # QUANTIZE two seeds' cvar values to the same string (the numeracy thesis biting its own
+        # fixture) and degenerate the raw condition's x.
+        jit = np.clip(np.random.default_rng(int(seed)).normal(1.0, 0.25, size=6), 0.5, 1.5)
+        base = {"cvar_05": -0.0410, "cvar_10": -0.0296, "cvar_25": -0.0173,
+                "cvar_01": -0.0575, "left_tail_mass": 0.021, "robust_skew": -0.08}
+        stats = {k: float(v * jit[i]) for i, (k, v) in enumerate(base.items())}
+    return build_block("distributional", 0.0, stats, legible=legible)
 
 
 def _default_transport_factory(synthetic: bool, sub_cfg: Any, model: str | None):

@@ -86,7 +86,7 @@ but it is listed under Integrity Flags. Anything I could not confirm is marked *
 |---|---|---|
 | IQN (2018) | YES (`dabney2018iqn`) | Distortion-risk-measure formalism for the tail objective; do NOT attribute EVT/elicitability to it. |
 | Beyond-CVaR-Spectral / Moghimi-Ku (2025) | NO | SRM = integral of CVaR over a spectrum; static-vs-dynamic time-consistency for multi-level CVaR. |
-| Coache-Jaimungal DynamicRisk (2022/24) | YES (`coache2024dynamicrisk`) | Time-consistent dynamic-risk formalism; examiner (Jaimungal) lineage; risk_measure.py taxonomy menu. |
+| Coache-Jaimungal DynamicRisk (2022/24) | YES (`coache2024dynamicrisk`) | Time-consistent dynamic-risk formalism; examiner-ADJACENT lineage (Jaimungal is a leading author in the coherent-risk-RL area; the EXAMINER is Dr Okhrati); risk_measure.py taxonomy menu. |
 | Quantile-Targeted-Portfolio (2025) | NO | Quantile-preference -> portfolio-tilt + distributional-Bellman contraction (closest to continuous-weight). |
 | Tail-Safe (2025) | NO | IQN-CVaR-PPO + KL-DRO->worst-case-CVaR bound; model for the limitations chapter. |
 | Distributional-Reasoning-MIT (2026) | NO | Proper-scoring-rule (Brier) reward backbone for "reward a distribution not a point". |

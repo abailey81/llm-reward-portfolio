@@ -1,0 +1,32 @@
+{
+  "cols": 35,
+  "format": "parquet",
+  "frozen_utc": "2026-06-10T16:04:59.882418+00:00",
+  "layer": "staged",
+  "name": "staged_returns_yfinance_shadow30.parquet",
+  "provenance": {
+    "alignment": {
+      "off_calendar_dates": [],
+      "off_calendar_rows_dropped": 0,
+      "sessions": 5282
+    },
+    "missing": {
+      "holiday_dropped": 0,
+      "interior_flagged": 0,
+      "observed": 177269,
+      "post_delisting_terminal": 0,
+      "pre_ipo_masked": 7601,
+      "table": "panel",
+      "total_cells": 184870
+    },
+    "stage": "cli.build/staging",
+    "validation": [],
+    "vendor": "yfinance"
+  },
+  "relpath": "data/staged/staged_returns_yfinance_shadow30.parquet",
+  "row_hash": "5368a8dfdedc8c224fe073357d9d680e10218450fc6359e7e3d354db95c58dfe",
+  "rows": 5282,
+  "run_id": "build_20260610T160458Z",
+  "sha256": "1d07c7aa6363ccb23c2be7ee7bea2d6b44db5b744115c4dfe7d9d3734f94dc1a",
+  "vendor": "yfinance"
+}

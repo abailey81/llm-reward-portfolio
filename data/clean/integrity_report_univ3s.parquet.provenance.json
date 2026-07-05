@@ -1,0 +1,28 @@
+{
+  "cols": 7,
+  "format": "parquet",
+  "frozen_utc": "2026-06-25T13:18:46.781994+00:00",
+  "layer": "clean",
+  "name": "integrity_report_univ3s.parquet",
+  "provenance": {
+    "citation": "Ince & Porter 2006 JFR",
+    "policy": "flag-only (R4); returns NEVER mutated",
+    "stage": "build_universe.integrity_screens",
+    "summary": {
+      "citation": "Ince & Porter 2006 JFR",
+      "n_extreme_reversal": 0,
+      "n_flag_rows": 24,
+      "n_sub_dollar_prior": 0,
+      "n_unadjusted_fwd_split_suspect": 2,
+      "n_unadjusted_split_suspect": 22,
+      "policy": "flag-only (R4): returns are NEVER mutated; this is the data-chapter evidence log"
+    },
+    "vendor": "derived"
+  },
+  "relpath": "data\\clean\\integrity_report_univ3s.parquet",
+  "row_hash": "e1675599bdd52d8b5af82804b849650780bb6cc87e43952cecc35a1536d61ef5",
+  "rows": 24,
+  "run_id": "build_universe_univ3s_screened",
+  "sha256": "25f31dfc02740f9a4f0b0ee3d1fbd7197aa8e8bd2d992a4b28e7177f405cabf5",
+  "vendor": "derived"
+}

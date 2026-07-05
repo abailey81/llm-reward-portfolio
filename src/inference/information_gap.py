@@ -141,7 +141,17 @@ def extract_fed_observations(
     for gen in sorted(by_generation):
         seen: set[tuple[str, ...]] = set()
         for r in by_generation[gen]:
-            fed_text = str(r.get("feedback_block") or "") or str(r.get("prompt") or "")
+            # 2026-07-05 (M14 construct fix): the fed text is the archived PROMPT — what the designer
+            # actually SAW (the previous generation's best block rides in it verbatim). The record's
+            # own ``feedback_block`` is the block built FROM this candidate (fed to the NEXT
+            # generation): the old block-first read (a) computed the redundancy on the wrong,
+            # off-by-one-generation sequence and (b) defeated the sibling de-duplication (every
+            # candidate's own block is distinct, inflating one true fed observation per generation
+            # into K pseudo-observations). Own-block survives only as the legacy fallback for
+            # pre-Rank-14 archives without a prompt, gated to generation >= 1 (gen-0 was fed nothing).
+            fed_text = str(r.get("prompt") or "")
+            if not fed_text and _generation(r) >= 1:
+                fed_text = str(r.get("feedback_block") or "")
             parsed = _parse_fed_block(fed_text)
             if parsed is None:
                 continue

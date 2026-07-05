@@ -734,8 +734,12 @@ def load_factor_panel(
         import pandas as pd
 
         from src.data.market_reference import _aligned_series  # same no-future-leak alignment
+        from src.data.market_reference import _raw_path  # refresh-preferring resolver (2026-07-05)
 
-        ff_path = raw / _FF_CSV
+        # Route through the x26-refresh resolver: the direct `raw / _FF_CSV` reads bypassed the
+        # frozen refresh files, so RF/Mom ended 2026-04-30 and stale-ffilled the test tail while the
+        # sibling FF3 loader (load_ff_factors) already used the fresher data (2026-07-05 fix).
+        ff_path = _raw_path(raw, _FF_CSV)
         if ff_path.exists():
             ff_df = pd.read_csv(ff_path)
             date_col = "Date" if "Date" in ff_df.columns else ff_df.columns[0]
@@ -743,7 +747,7 @@ def load_factor_panel(
             if "RF" in ff_df.columns:
                 rf_vals, _ = _aligned_series(ff_df, "RF", dates)
                 rf_series = np.nan_to_num(rf_vals, nan=0.0)
-        mom_path = raw / _MOM_CSV
+        mom_path = _raw_path(raw, _MOM_CSV)
         if mom_path.exists():
             mom_df = pd.read_csv(mom_path)
             mdate = "Date" if "Date" in mom_df.columns else mom_df.columns[0]

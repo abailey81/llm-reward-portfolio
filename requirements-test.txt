@@ -17,7 +17,10 @@ arch>=7.0                  # StationaryBootstrap/optimal_block_length + MCS orac
 matplotlib>=3.8           # the report-only figure engine (src/viz, scripts/make_figures.py) + tests/test_viz.py.
                           #   CPU-only; learning_curve.py imports it lazily, but test_viz needs it at import.
 pyyaml>=6.0
-pytest>=8.0
+pytest>=9.0.3             # match pyproject.toml (>=9.0.3 closes CVE-2025-71176 insecure /tmp perms; 2026-07-05)
 pytest-cov>=5.0
+pytest-randomly>=3.15,<5  # HARD dep (pyproject): shuffle order + reseed per test; its absence here silently
+                          #   ran the CI light job UNSHUFFLED, defeating the order-determinism guard (2026-07-05)
+pytest-timeout>=2.3       # the per-test ceiling the pyproject comment promises (wired via --timeout below)
 hypothesis>=6.100          # property-based / metamorphic core tests (tests/test_properties.py)
 mutmut==2.5.1              # mutation-testing rigor exhibit (scoped to core modules; see docs/TEST_RIGOR.md) — dev-only, NOT a runtime dep

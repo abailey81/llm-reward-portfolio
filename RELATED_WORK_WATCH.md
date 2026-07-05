@@ -306,7 +306,7 @@ PREREGISTRATION.md: the two residual hazards (CH2 §2.2 "the only design that �
    as a controlled variable (MadEvolve/AlgoEvolve evolve whole-strategy code). The claim is the
    isolation-under-pre-registration, never authorship per se.
 8. First **pre-registered study of LLM agents in trading/portfolio-RL at all** — quantified by the field's
-   own 77-study systematic survey (arXiv 2605.19337): zero pre-registrations, 15/19 primaries at the lowest
+   own 77-study systematic survey (arXiv 2605.19337): its ledger is 2/19 time-consistent, 1/19 cost, 0/19 R3 (the "none pre-registers" reading is OUR inference, NOT the survey's stated claim - do not transplant "zero pre-registrations" as the survey's wording); 15/19 primaries at the lowest
    reproducibility tier. (Adjacent-but-out: Powdthavee 2604.20652 = pre-registered LLM fraud-advisory
    experiment, not trading/RL/reward-design.)
 9. First **numeric-ENCODING ablation** (identical scalars re-rendered: raw small floats vs basis

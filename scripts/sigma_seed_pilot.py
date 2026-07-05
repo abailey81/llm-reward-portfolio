@@ -91,7 +91,11 @@ N_REF: int = 30
 #: ``docs/CAMPAIGN_power.md`` ("Pairing-correlation (ρ) sensitivity" + σ_seed grid). Used for the
 #: at-a-glance preview only; the authoritative MDE is the Monte-Carlo ``power_analysis.py`` re-run.
 _RHO_GRID: tuple[float, ...] = (0.0, 0.3, 0.5, 0.7)
-_K80_GRID: tuple[float, ...] = (0.71, 0.65, 0.59, 0.51)
+# Synced 2026-07-05 to the REGENERATED docs/CAMPAIGN_power.md measured table (σ_D-farm inputs, the
+# 2026-07-03 build): the previous grid (0.71, 0.65, 0.59, 0.51) was the OLD σ=0.36 build's values, so
+# the docstring's "read from CAMPAIGN_power.md" provenance claim had silently gone false. Preview-only
+# either way — the authoritative MDE is the Monte-Carlo power_analysis.py re-run.
+_K80_GRID: tuple[float, ...] = (0.72, 0.61, 0.53, 0.44)
 
 
 # --------------------------------------------------------------------------- #

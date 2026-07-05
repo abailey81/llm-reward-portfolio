@@ -17,12 +17,20 @@ train_steps_per_candidate: 200000 # FIXED per-candidate budget (audit B-5); B* s
 eval_episodes: 1                  # deterministic walk-forward over the eval split
 
 sac:                              # filled from SB3 defaults once Phase 0 confirms; do not tune per arm
+  # RECORDED SB3-2.8.0 SAC defaults (2026-07-05, map P4) — this file DOCUMENTS the fixed agent; the
+  # executed source is prototype.yaml/campaign.yaml (buffer capped 50k) resolved by
+  # trainer.resolve_agent_kwargs. `null` = "use the SB3 default"; the value in the trailing comment is
+  # that default at the PINNED stable_baselines3==2.8.0, so a silent default change on a future SB3
+  # upgrade is visible to a human diffing this recorded-defaults file. All arm-INVARIANT (the agent is
+  # fixed; audit A-1). NOT read by the run; the freeze binds the treatment, not these compute knobs.
   policy: MlpPolicy
-  learning_rate: null             # SB3 default
-  buffer_size: null
-  batch_size: null
-  gamma: null
-  tau: null
+  learning_rate: null             # SB3 default 3e-4
+  buffer_size: null               # SB3 default 1_000_000 -> HARD-capped to 50_000 by the executed config (ADR-042)
+  batch_size: null                # SB3 default 256
+  gamma: null                     # SB3 default 0.99
+  tau: null                       # SB3 default 0.005 (target-net Polyak) — arm-invariant; documented per the header
+  # train_freq: 1, gradient_steps: 1, target_update_interval: 1 are SB3-2.8.0 defaults, unset here and
+  # arm-invariant (used silently by the trainer; recorded for the same upgrade-drift visibility).
   ent_coef: auto
   learning_starts: 1000           # NOT SB3's silent default of 100: the Phase-0 smoke gate validated 1000, so the LIVE
                                   #   trainer (trainer.resolve_agent_kwargs) resolves+floors it at 1000 to match the gate.

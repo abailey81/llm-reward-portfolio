@@ -1,0 +1,18 @@
+{
+  "cols": 4,
+  "format": "parquet",
+  "frozen_utc": "2026-07-01T22:41:04.033789+00:00",
+  "layer": "clean",
+  "name": "shumway_audit_log_univ5s.parquet",
+  "provenance": {
+    "schema": "ric,date,booked_on,action,exchange,delisting_return,prior_return,value,citation",
+    "stage": "build_universe.shumway_correction",
+    "vendor": "derived"
+  },
+  "relpath": "data\\clean\\shumway_audit_log_univ5s.parquet",
+  "row_hash": "0d122e44e9642b36bbd8e2ff005409c607401760179803e8fc2c6cd6bada35c3",
+  "rows": 333,
+  "run_id": "build_univ5s",
+  "sha256": "bb19cc8565944bd9178e7eec5ca7318f1ed2963705298e4693fdb5f107a5b4bd",
+  "vendor": "derived"
+}

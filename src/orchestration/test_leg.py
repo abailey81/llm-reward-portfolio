@@ -193,7 +193,7 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
         set_global_seed(seed, deterministic_torch=True)  # B2
 
         # B3 re-instantiate the reward. The LLM/random/BO winners carry EXECUTABLE source -> the sandbox.
-        # The H1 hand-designed baselines (PREREGISTRATION §18-19) are NAMED REWARD_CANON callables with no
+        # The H1 hand-designed baselines (PREREGISTRATION §1 H1 + §9 hand-reward panel) are NAMED REWARD_CANON callables with no
         # executable source (a ``# baseline:<name>`` stub), so they resolve by name straight from the canon
         # -- EXACTLY mirroring the SEARCH-leg baseline branch (parallel.train_candidate:210-215) so the
         # single source of truth (src.baselines.rewards.REWARD_CANON) is reused, never re-derived.
@@ -341,7 +341,7 @@ def evaluate_winners_on_test_parallel(
                     "winner": winner,
                     "reward_source": reward_source,
                     "reward_hash": reward_hash,
-                    # H1 baselines (PREREGISTRATION §18-19): a baseline "winner" carries reward_kind=
+                    # H1 baselines (PREREGISTRATION §1 H1 + §9): a baseline "winner" carries reward_kind=
                     # "baseline" + the REWARD_CANON name so the worker resolves the canonical callable by
                     # name (no executable source). Absent for the LLM/search winners (default None -> the
                     # worker takes the sandbox source path). Read from the record so a future caller need

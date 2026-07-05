@@ -8,7 +8,7 @@ running the FROZEN select-on-validation -> freeze -> test-once protocol
 (PREREGISTRATION §5/§6/§7/§10) on the **single development/evaluation split**:
 
   - **development** train 2005-2014 / val 2015-2017 — search + selection live here ONLY.
-  - **evaluation**  test 2018-2025 — the *sealed* leg, touched EXACTLY ONCE on the
+  - **evaluation**  test 2020-2026H1 — the *sealed* leg, touched EXACTLY ONCE on the
     frozen winner, per campaign seed; embargo 21 trading days between splits.
 
 The "Eureka post-loop" is four sealed stages per arm:
@@ -21,7 +21,7 @@ The "Eureka post-loop" is four sealed stages per arm:
   3. **FREEZE**  — persist the winner's ``reward_source`` + ``reward_source_hash`` with a
      ``frozen`` marker via ``src.io.results.write_run`` (replay-from-archive, audit C-2).
   4. **TEST**    — re-instantiate the FROZEN winner reward, build a **3-window** bundle
-     (``make_env_builder(..., test_window=<2018-2025 [start,end)>, embargo=21)``),
+     (``make_env_builder(..., test_window=<2020-2026H1 [start,end)>, embargo=21)``),
      re-train via the trainer, and call ``bundle.test_returns(policy)`` EXACTLY ONCE per
      (arm, seed). One record per (arm, seed) carries ``val_fitness``, the realized
      per-step ``test_returns`` vector, ``per_period_pnl``, ``test_sharpe``, ``test_cvar05``.
@@ -294,11 +294,19 @@ def stage_completion_status(*, shutting_down: bool, n_done: int, n_expected: int
     False, resumable) ONLY when a shutdown left work UN-DONE (``n_done < n_expected``). A stage whose leg
     ran to completion is ``"tested"`` even if the flag was set as the LAST seed finished — the signal then
     stops the NEXT arm at the A.2 boundary (-> ``skipped_shutdown``), and must NOT re-label this finished
-    stage. Absent a shutdown a stage is always ``"tested"`` (the A.3 pre-test branch is the other, pre-run
-    producer of ``frozen_test_deferred``). Pure + unit-tested; the single source of truth that keeps the
-    three post-leg status sites (arms / H1 baselines / H3 single-shot) in lockstep (spec §J).
+    stage. Pure + unit-tested; the single source of truth that keeps the three post-leg status sites
+    (arms / H1 baselines / H3 single-shot) in lockstep (spec §J).
+
+    2026-07-05 (M19): a shortfall WITHOUT a shutdown is a silent FAILURE WAVE, never a success — the
+    parallel H1/H3 legs used to bank ``"tested"`` with 0 records written on a total seed-failure
+    cascade, so the exit gate certified a husk run as complete. Such a stage now returns
+    ``"test_failure_wave"`` (already in ``_FAILED_STATUSES`` -> exit ``EXIT_INCOMPLETE``, resumable);
+    for the headline arms this branch is a defensive second net behind the explicit §G failure-wave
+    guard (which ``continue``s before reaching this helper).
     """
-    return "frozen_test_deferred" if (shutting_down and int(n_done) < int(n_expected)) else "tested"
+    if int(n_done) >= int(n_expected):
+        return "tested"
+    return "frozen_test_deferred" if shutting_down else "test_failure_wave"
 
 
 def _search_pool_counts(arm_search_root: str | Path) -> tuple[int, int]:
@@ -604,7 +612,7 @@ def _search_parallel_arm(
 
     # Structural config: prototype base for reward_family/data (the panel + windows the serial run_arm and
     # the proven prototype --parallel path both build from), with the campaign's RESOLVED agent block so
-    # the worker trains at the 50k campaign budget (train_steps threaded straight in below).
+    # the worker trains at the 200k campaign budget (train_steps threaded straight in below).
     proto_base = load_config("prototype")
     structural = {
         "agent": agent_cfg,
@@ -727,7 +735,7 @@ def freeze_winner(
 
 
 # --------------------------------------------------------------------------- #
-# (4) TEST — frozen winner, sealed 2018-2025 leg, touched EXACTLY ONCE         #
+# (4) TEST — frozen winner, sealed 2020-2026H1 leg, touched EXACTLY ONCE         #
 # --------------------------------------------------------------------------- #
 def evaluate_winner_on_test(
     winner: dict[str, Any],
@@ -753,12 +761,12 @@ def evaluate_winner_on_test(
     write: Callable[..., Any] | None = None,
     done_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """TEST stage: evaluate the FROZEN winner on the sealed 2018-2025 leg, once per seed.
+    """TEST stage: evaluate the FROZEN winner on the sealed 2020-2026H1 leg, once per seed.
 
     For EACH campaign ``seed`` this:
       1. re-instantiates the FROZEN winner reward (``reward_builder``);
       2. builds a **3-window** bundle ``env_builder(panel, cfg, train_window, val_window,
-         test_window=<2018-2025 [start,end)>, embargo=embargo)`` (test bundle exists ONLY
+         test_window=<2020-2026H1 [start,end)>, embargo=embargo)`` (test bundle exists ONLY
          here — selection's 2-window bundles keep the seal);
       3. re-trains the FIXED agent via ``trainer(agent_cfg, seed)`` on the train env;
       4. calls ``bundle.test_returns(policy)`` **EXACTLY ONCE** (never re-selects);
@@ -970,7 +978,7 @@ def evaluate_baselines_on_test(
     keeps the serial trainer. Returns the flat list of records written this call.
 
     Budget: ``len(baseline_names) x len(seeds)`` runs (the 4-name H1 family x 30 seeds = 120 runs) at the
-    SAME 50k step budget as the arms — the matched compute the Eureka comparison requires.
+    SAME 200k step budget as the arms — the matched compute the Eureka comparison requires.
     """
     from src.env.runner import make_env_builder
 
@@ -1170,7 +1178,7 @@ def run_h3_singleshot(
             env_fingerprint="campaign:distributional_singleshot",
         )
 
-    # (4) TEST the frozen single-shot winner on the sealed 2018-2025 leg at the SAME campaign seeds.
+    # (4) TEST the frozen single-shot winner on the sealed 2020-2026H1 leg at the SAME campaign seeds.
     done = (
         {r["run_id"] for r in load_all_safe(str(test_root / arm))} if resume else set()
     )
@@ -1309,12 +1317,12 @@ def run_headline_campaign(
         from src.data.loaders import load_gold_panel
 
         # Single-split headline: the development window is loaded to its val end; the test
-        # leg (2018-2025) lives in the SAME panel object. The gold loader's development
-        # phase + an explicit evaluation end give the full 2005-2025 span.
+        # leg (2020-2026H1) lives in the SAME panel object. The gold loader's development
+        # phase + an explicit evaluation end give the full 2005-2026H1 span.
         #
         # UNIVERSE CAVEAT (#13, documented limitation): the agent allocates over a FIXED 30-asset
         # action space, so train and test share ONE universe — the DEVELOPMENT-phase point-in-time
-        # top-30 (selected at 2005-01-03). The sealed test leg (2018-2025) therefore trades the
+        # top-30 (selected at 2005-01-03). The sealed test leg (2020-2026H1) therefore trades the
         # 2005 cohort (names dead by 2018 are held at 0%; later large-caps never enter) — a known
         # COMPOSITION bias, deliberately accepted for train/test universe consistency. It is NOT
         # dev->test return leakage (the splits are disjoint + embargoed). The gold ships point-in-time
@@ -1374,7 +1382,7 @@ def run_headline_campaign(
 
     # Matched compute (final-audit #4/5/8): SEARCH and TEST must train the FIXED agent on the SAME
     # train_steps budget, else the winner is SELECTED under one budget and the headline number produced
-    # under another. The campaign train_steps (50k) is threaded into BOTH stages — TEST via `agent_cfg`
+    # under another. The campaign train_steps (B*=200k) is threaded into BOTH stages — TEST via `agent_cfg`
     # here; SEARCH via run_arm building its config from the SAME train_steps. (Previously SEARCH fell back
     # to prototype.yaml's 25k while TEST used the resolve_agent_kwargs 50k default — a training-budget skew.)
     # NOTE (buffer invariant, ADR-042 — comment reconciled 2026-07-02; the "buffer_size == train_steps"
@@ -1583,7 +1591,7 @@ def run_headline_campaign(
                 {"arm": arm, "status": "frozen_test_deferred", "winner_id": winner.get("candidate_id")}
             )
             break
-        # (4) TEST the frozen winner on the sealed 2018-2025 leg (resume-aware).
+        # (4) TEST the frozen winner on the sealed 2020-2026H1 leg (resume-aware).
         done = (
             {r["run_id"] for r in load_all_safe(str(test_root / arm))} if resume else set()
         )
@@ -1686,7 +1694,7 @@ def run_headline_campaign(
         search_monitor.close(status="interrupted" if SHUTDOWN.is_set() else "done")
 
     # (H1) BASELINE stage — the pre-registered "beat-the-human" hand rewards (PREREGISTRATION §1).
-    # POST-arms, additive: each REWARD_CANON baseline is run at the SAME 30 seeds + matched 50k budget as
+    # POST-arms, additive: each REWARD_CANON baseline is run at the SAME 30 seeds + matched 200k budget as
     # the winners, archived under test/baseline_<name>/. It is SCIENCE-NEUTRAL to the frozen H2 arms (a
     # disjoint archive subtree, no search/select/freeze) — analyze_campaign.beat_human_baseline reads these
     # records POST-FREEZE and does NOT re-select the winner. Skipped when no baselines are configured or a
@@ -1713,14 +1721,12 @@ def run_headline_campaign(
                 recycle_every=int(recycle_every),
             )
             # F18: a shutdown drains the H1 stage at a baseline/seed boundary; bank "frozen_test_deferred"
-            # ONLY if cells were left un-run (fewer records on disk than the len(names)*len(seeds) budget),
-            # else "tested" even if the flag was set as the last cell finished. The on-disk count is read
-            # only under shutdown (the normal path short-circuits it away); --resume re-runs un-done cells.
+            # ONLY if cells were left un-run, else "tested". 2026-07-05 (M19): read the on-disk count
+            # UNCONDITIONALLY (the old shutdown-only shortcut made a no-shutdown total-failure wave look
+            # complete -> a husk "tested (0)"); a shortfall with NO shutdown now banks "test_failure_wave".
+            # --resume re-runs un-done cells.
             _sd = SHUTDOWN.is_set()
-            _base_on_disk = (
-                sum(len(load_all_safe(test_root / f"baseline_{n}")) for n in baseline_names)
-                if _sd else 0
-            )
+            _base_on_disk = sum(len(load_all_safe(test_root / f"baseline_{n}")) for n in baseline_names)
             summaries.append(
                 {"arm": "h1_baselines",
                  "status": stage_completion_status(
@@ -1831,7 +1837,7 @@ def make_agent_trainer_factory() -> Callable[[Any, int], Callable[[Any], Any]]:
 # TODO(Rank 2b): walk-forward folds — confirm per-fold val-split vs frozen prereg.
 #   R43: the frozen scheme is single_sealed_split; the rolling params live under
 #   config/inference.yaml: deferred_walk_forward = {train_years: 5,
-#   test_years: 1, step_years: 1, span: 2018-2025}. The rolling 5y/1y/1y folds and any
+#   test_years: 1, step_years: 1, span: 2020-2026H1}. The rolling 5y/1y/1y folds and any
 #   per-fold re-selection are DEFERRED: the prereg freezes ONE val split (2015-2017) for
 #   selection but does NOT specify a per-fold validation split for walk-forward selection.
 #   Do NOT invent one — STOP-AND-FLAG to confirm the per-fold protocol (re-select per fold

@@ -644,6 +644,7 @@ def validate_stylized_facts(
     historical: np.ndarray,
     *,
     max_lag: int = 10,
+    synthetic_is_paths: bool = True,
 ) -> dict[str, Any]:
     """Validation battery: do synthetic paths reproduce the key stylised facts of the history?
 
@@ -661,12 +662,19 @@ def validate_stylized_facts(
     sanity gates*, not formal tests — a failed gate flags an unrealistic generator to disclose,
     not a quantitative claim.
     """
-    def _to_port(x: np.ndarray) -> np.ndarray:
+    def _to_port(x: np.ndarray, *, is_paths: bool) -> np.ndarray:
         a = np.asarray(x, dtype=float)
         if a.ndim == 3:  # (n_paths, H, n_assets) -> concatenate per-path EW returns
             return a.mean(axis=2).ravel()
         if a.ndim == 2:
-            # historical (T, n_assets) -> EW;  synthetic (n_paths, H) -> flatten
+            # A 2-D array is genuinely ambiguous: a HISTORICAL panel is (T, n_assets) -> EW mean over
+            # axis 1, but a SYNTHETIC path-set is (n_paths, H) -> FLATTEN (each row is a return series).
+            # The old `mean(axis=1) if shape[1] > 1` collapsed a (n_paths, H) path-set over TIME
+            # (nonsense: per-path means, and a (1, H) set -> a single number -> all-NaN facts), so it
+            # only worked for the 3-D synthetic. Disambiguate by the explicit `is_paths` hint
+            # (2026-07-05 fix).
+            if is_paths:
+                return a.ravel()
             return a.mean(axis=1) if a.shape[1] > 1 else a.ravel()
         return a.ravel()
 
@@ -692,8 +700,8 @@ def validate_stylized_facts(
             "leverage": leverage,
         }
 
-    hist = _facts(_to_port(historical))
-    syn = _facts(_to_port(synthetic))
+    hist = _facts(_to_port(historical, is_paths=False))  # historical is a (T, n_assets) panel
+    syn = _facts(_to_port(synthetic, is_paths=synthetic_is_paths))
     # The vol-clustering gate uses a MATERIALLY-positive threshold (0.02), not > 0: the ACF(1) of
     # |returns| of an i.i.d. series is ~0 with small-sample positive noise, so a > 0 gate would pass
     # a Gaussian generator spuriously. Real daily series cluster at ACF(1) ~ 0.1-0.4.

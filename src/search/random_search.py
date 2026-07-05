@@ -202,6 +202,8 @@ def random_search_over_code(
     fitness_fn: Callable[[Any], float],
     cfg: Any,
     rng: Optional[np.random.Generator] = None,
+    cache_lookup: Optional[Callable[[int, str], Optional[float]]] = None,
+    on_evaluated: Optional[Callable[[int, str, float], None]] = None,
 ) -> dict[str, Any]:
     """Randomly search the reward code space under the matched budget (H4a).
 
@@ -276,7 +278,21 @@ def random_search_over_code(
             # consuming a budget unit if it ever does.
             continue
 
-        score = float(fitness_fn(reward))
+        # Resume/checkpoint hooks (2026-07-05 crash-resume hardening). The candidate DRAW above
+        # always happens — so the rng stream is IDENTICAL with or without a cache hit and the
+        # re-drawn sequence byte-matches the original run — but a cached score skips the expensive
+        # training. ``cache_lookup(i, source)`` returns the archived score (the caller verifies the
+        # archived source hash matches this re-drawn ``source`` and fails loud on drift) or ``None``;
+        # ``on_evaluated(i, source, score)`` fires ONLY for fresh evaluations, letting the caller
+        # checkpoint each candidate the moment it completes instead of after the whole arm.
+        idx = len(archive)
+        cached = cache_lookup(idx, source) if cache_lookup is not None else None
+        if cached is not None:
+            score = float(cached)
+        else:
+            score = float(fitness_fn(reward))
+            if on_evaluated is not None:
+                on_evaluated(idx, source, score)
         archive.append({"source": source, "score": score})
 
         if score > best_score:
