@@ -70,6 +70,23 @@ def test_determine_blocks_freeze_when_measure_params_pending() -> None:
     assert rows["lambda_cvar"]["status"] == dd.Status.FIXED.value
 
 
+def test_n_seeds_pilot_ran_but_sigma_trigger_fired_blocks_at_placeholder() -> None:
+    """A sigma_D pilot that fires the pre-registered ">0.10 -> raise seeds" trigger must NOT report
+    n_seeds DETERMINED while the config still carries the pre-pilot 30-seed placeholder — that false
+    READY could greenlight a premature under-powered freeze (2026-07-05 M06)."""
+    ev = {"sigma_seed_pilot": True, "sigma_pilot_sigma_d": 0.369, "config_n_seeds": 30}
+    rows = {r["name"]: r["status"] for r in dd.determine(ev)["rows"]}
+    assert rows["n_seeds"] == dd.Status.PENDING.value
+    # Amending the seed count past the placeholder clears it.
+    ev_amended = {**ev, "config_n_seeds": 350}
+    rows2 = {r["name"]: r["status"] for r in dd.determine(ev_amended)["rows"]}
+    assert rows2["n_seeds"] == dd.Status.DETERMINED.value
+    # A pilot that did NOT fire the trigger (sigma_D <= 0.10) leaves 30 seeds decided.
+    ev_calm = {"sigma_seed_pilot": True, "sigma_pilot_sigma_d": 0.05, "config_n_seeds": 30}
+    rows3 = {r["name"]: r["status"] for r in dd.determine(ev_calm)["rows"]}
+    assert rows3["n_seeds"] == dd.Status.DETERMINED.value
+
+
 def test_determine_cash_rate_zero_is_fix_needed() -> None:
     rows = {r["name"]: r["status"] for r in dd.determine({"cash_daily_rate": 0.0})["rows"]}
     assert rows["cash_daily_rate"] == dd.Status.FIX_NEEDED.value

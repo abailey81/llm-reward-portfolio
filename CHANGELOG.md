@@ -3,6 +3,48 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-05] — Deep review + Claude Council + data/benchmark/lit sweeps; 10 verified fixes; hash-chain changelog gap closed
+
+Full ledger: `docs/DEEP_REVIEW_2026-07-05.md`; the Tamer-decision brief: `docs/SESSION_BRIEF_2026-07-05.md`.
+Installed the Claude Council (`.claude/commands/council.md` + 4 personas incl. examiner-okhrati/statistics-referee).
+A 13-auditor read-only map surfaced **0 critical / 19 major / 63 minor** evidenced findings; a 4-seat council
+deliberated the contested design calls; deep DATA, advanced BENCHMARK, and fresh LITERATURE sweeps ran. Protective
+snapshot commit `cbe269c` (6 days of pre-freeze WIP; no secrets/licensed data staged); first archive-mirror pass.
+
+- **Retroactive record (closes the CHANGELOG gap M07):** the four authorized pre-freeze hash-bound WORDING
+  batches of 2026-07-04 (chain `3c2082…` → `5117d739` → `cedc576b` → `1c6b76b6`; R75 amendment; **NO decision
+  changed** — P9 COVID-in-purge, P20 ξ small-sample bias, P17 leg-p pointer) and the **freeze gate growing
+  15 → 17 checks** were applied in the overnight loop (`docs/OVERNIGHT_DEEP_LOOP_2026-07-04.md` rows 28–31) but
+  never got a CHANGELOG entry until now. Current invariant: **17/17 @ `1c6b76b6`, frozen:false**.
+- **10 verified fixes (all NON-hash-bound → hash UNCHANGED at `1c6b76b6`; ruff clean; 46 touched tests green):**
+  - **Security (M03):** `sandbox/executor.ast_gate` now rejects non-`Load` attribute context — `np.mean = …`,
+    `del np.mean`, `np.pi += 1` on allowlisted names used to pass and execute in-process, poisoning the
+    process-global numpy across reused workers. +3 mutation-vector regression tests.
+  - **Destructive-tool guard (M18):** `data_pipeline/scripts/purge_suffix.py` matched victims/ledger lines by
+    substring while guarding by equality, so `--suffix _univ --yes` matched EVERY universe artifact incl. the
+    frozen headline panel; now requires a digit-bearing suffix + a token-boundary regex.
+  - **Freeze-readiness gate (M06):** `determine_design` reported FREEZE-READY at the pre-pilot 30-seed
+    placeholder despite σ_D=0.369 firing the pre-registered ">0.10 → raise seeds" trigger; now BLOCKS n_seeds
+    until amended. `DESIGN_DETERMINATION.md` regenerated (→ BLOCKED on n_seeds). +1 test.
+  - **`mirror_archive.ps1`** leaked robocopy's success code (1) as a failing exit → maps 0–7 to exit 0.
+  - **`.claude/hooks/freeze_guard.py`** now protects `config/algos.yaml` (B\*-assert-bound since batch-6 M1).
+  - **UCL presentation compliance:** `build_paper.py` +`linestretch=1.5` +`helvet` sans default (portable);
+    PDF rebuilds 315 KB / 0 warnings.
+  - **Run-day safety (M05):** `CAMPAIGN_RUNBOOK` GO/NO-GO said verify `steps=50000` (frozen B\*=200,000) — would
+    make an operator kill a correct launch; fixed + wall-clock marked superseded (→ ~23 days at ~350 seeds);
+    reconciled the PopArt-absent / univ4r internal contradictions.
+  - **CH4 factual (M09):** delisting-band "moves CVaR-5% by ~two percentage points" was a ×20 unit error (the
+    move is ~2% RELATIVE, ≈0.1 pp) that also baked into the CH6 fill contract.
+  - **Money guard (M16):** the legible sub-experiment is INERT at `generations=1` (the legible rendering never
+    reaches a prompt) yet would burn ~1,500 paid Opus calls; `run_subexperiment` now refuses it fail-loud.
+- **Sweep verdicts (details in the review doc):** DATA — `.SPXTR` / bid-ask / (pull) BAB-QMJ are the licensed
+  under-exploited report-only wins; BENCHMARK — all 8 allocators + 9 rewards ARE implemented, the one genuine
+  gap is a **min-CVaR (Rockafellar-Uryasev) allocator**, and §9 needs a two-tier amendment (council: run the 5
+  extra rewards @ ~10 seeds); LIT — **0 scoops**, ~9 new fence neighbours (unverified leads; verify pre-submission).
+- **Routed to the brief (Tamer-gated / careful):** seed ratification, §9 panel, freeze-gate additions, R76
+  wording, TOST margin, the mechanism-kernel rewire (M13/M14, post-campaign, do carefully), H3-pooling verify
+  (M15), parallel-husk status (M19), the write-up prose items, and the corpus citation gaps.
+
 ## [2026-07-04b] — 100-loop DEEP adversarial sweep (10 parallel auditors; confirmatory core verified solid, real prose/consistency findings surfaced)
 
 Went deeper than the 20-loop pass: 100 distinct probes across 10 domains, one read-only adversarial auditor

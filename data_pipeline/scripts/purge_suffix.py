@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -35,6 +36,14 @@ def main() -> int:
     ap.add_argument("--yes", action="store_true", help="actually delete (default: dry-run)")
     args = ap.parse_args()
     sfx = args.suffix
+    # Guard-vs-match symmetry (2026-07-05 M18): the protected/active guards compare by EQUALITY
+    # but victim selection used to SUBSTRING-match, so a partial suffix like "_univ" passed the
+    # guards yet matched EVERY universe artifact (including the frozen headline panel). Require a
+    # digit-bearing suffix and match on an exact token boundary (optional trailing "s" variant,
+    # per the --suffix help), never a bare substring.
+    if not re.search(r"\d", sfx):
+        raise SystemExit(f"REFUSED: {sfx!r} has no digit — a partial suffix would match every universe")
+    sfx_re = re.compile(re.escape(sfx) + r"s?(?=[._]|$)")
     if any(p == sfx or p == sfx.lstrip("_") for p in PROTECTED):
         raise SystemExit(f"REFUSED: {sfx} is a protected frozen suffix")
     # Engine-side active suffix must not be purged.
@@ -51,7 +60,7 @@ def main() -> int:
         if not d.exists():
             continue
         for p in sorted(d.iterdir()):
-            if sfx in p.name:
+            if sfx_re.search(p.name):
                 victims.append(p)
     print(f"[purge] files matching '{sfx}': {len(victims)}")
     for p in victims:
@@ -67,7 +76,7 @@ def main() -> int:
             continue
         keep, drop = [], []
         for line in lf.read_text(encoding="utf-8").splitlines():
-            (drop if sfx in line else keep).append(line)
+            (drop if sfx_re.search(line) else keep).append(line)
         plans.append((lf, keep, drop))
         print(f"[purge] {lf.relative_to(ROOT)}: dropping {len(drop)} line(s)")
         for ln in drop[:12]:

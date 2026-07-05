@@ -226,6 +226,7 @@ def run_subexperiment(
     sub_cfg: Any = None,
     collaborators_factory: Any = None,
     transport_factory: Any = None,
+    allow_inert_legible: bool = False,
 ) -> dict[str, Any]:
     """Run the named/legible sub-experiment over ``seeds`` and return a summary.
 
@@ -247,6 +248,21 @@ def run_subexperiment(
 
     if mode not in ("named", "legible"):
         raise ValueError(f"mode must be 'named' or 'legible', got {mode!r}")
+    # MONEY GUARD (2026-07-05 M16): the loop below runs at generations=1, so every candidate is
+    # authored from the *initial* prompt (run_loop only injects a feedback block for gen >= 1). The
+    # `named` leg still varies gen-0 (it appends a provenance paragraph to the initial prompt), but the
+    # `legible` leg only re-renders the ARCHIVED feedback_block — which gen-0 never shows the designer —
+    # so the raw-vs-legible SQ3b differential would be ~0 BY CONSTRUCTION while still burning
+    # ~seeds x conditions x candidates PAID Opus authorings. Refuse the inert legible run until the leg
+    # is redesigned to actually feed the legible rendering (generations>=2, or inject the rendered block
+    # into the gen-0 initial prompt). See the session brief / DEEP_SWEEP mechanism-kernel item.
+    if mode == "legible" and not allow_inert_legible:
+        raise RuntimeError(
+            "legible sub-experiment is INERT at generations=1 (the legible rendering never reaches a "
+            "prompt, so the SQ3b differential is ~0 by construction) — refusing to burn paid Opus calls. "
+            "Redesign the leg to feed the legible block (generations>=2 or gen-0 injection), then re-run. "
+            "Pass allow_inert_legible=True only for a keyless/mocked smoke test."
+        )
     conditions = _NAMED_CONDITIONS if mode == "named" else _LEGIBLE_CONDITIONS
     output_dir = Path(output_dir)
     sub_cfg = sub_cfg if sub_cfg is not None else _safe_load_sub_cfg()

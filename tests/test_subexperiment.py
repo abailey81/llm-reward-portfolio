@@ -202,6 +202,8 @@ def _run(mode: str, output_dir: Path, *, seeds=(0, 1), candidates: int = 4) -> d
         sub_cfg={},
         collaborators_factory=_collaborators_factory,
         transport_factory=_transport_factory,
+        # mocked transport (no paid Opus), so the inert-legible money guard is not relevant here.
+        allow_inert_legible=True,
     )
 
 

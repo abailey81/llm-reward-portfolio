@@ -203,6 +203,12 @@ def build(md_only: bool, out: Path | None) -> int:
         "-V", "documentclass=report",
         "-V", "fontsize=12pt",
         "-V", "geometry:margin=2.5cm",
+        # UCL IFTE0008 presentation rules: main text at 1.5 line spacing (setspace via pandoc's
+        # linestretch) and a Helvetica-family typeface (the guidelines recommend Arial/Helvetica >=10pt;
+        # `helvet` is the portable Helvetica clone shipped by every TeX distro, so no system font file is
+        # needed and the build stays reproducible under Tectonic). 2026-07-05.
+        "-V", "linestretch=1.5",
+        "-V", "header-includes=\\usepackage{helvet}\\renewcommand{\\familydefault}{\\sfdefault}",
         "-V", "linkcolor=blue",
         "-V", "urlcolor=blue",
         "--metadata", "link-citations=true",
