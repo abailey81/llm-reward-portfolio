@@ -95,3 +95,4 @@ outputs/*.log
 outputs/*.err
 outputs/_bytecheck/
 outputs/campaign_dryrun/
+outputs/crash_rehearsal/
