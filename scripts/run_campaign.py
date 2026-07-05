@@ -97,6 +97,18 @@ def _test_stall_after_s() -> float | None:
         return None
 
 
+def _write_summary_atomic(output_dir: Path, summary: dict[str, Any]) -> None:
+    """``campaign_summary.json`` via tmp + ``os.replace`` (2026-07-06 A4): the summary is the
+    watcher/supervisor's terminal-state sentinel, so a crash mid-write must leave the previous
+    intact version, never a torn file."""
+    import os
+
+    target = Path(output_dir) / "campaign_summary.json"
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
+    os.replace(tmp, target)
+
+
 # --------------------------------------------------------------------------- #
 # Freeze ENFORCEMENT (verify-or-refuse). The pre-registration `--check` is a    #
 # by-hand CI guard; this turns it into a MECHANICAL gate the REAL campaign       #
@@ -1833,9 +1845,7 @@ def run_headline_campaign(
         # (or {"synthetic": True}). Binds the headline number to EXACTLY the panel it ran on.
         "gold_panel": panel_provenance,
     }
-    (output_dir / "campaign_summary.json").write_text(
-        json.dumps(summary, indent=2, default=str), encoding="utf-8"
-    )
+    _write_summary_atomic(output_dir, summary)
     # Content-addressed integrity SEAL over the result archive (2026-07-05): a single verifiable root
     # over every record.json, so the analysis can prove the archive was not corrupted/edited between the
     # run and analysis (results replay from it — CLAUDE.md directive 6). Best-effort: a seal failure
@@ -1846,9 +1856,7 @@ def run_headline_campaign(
         manifest_path = write_manifest(output_dir)
         summary["archive_integrity_root"] = json.loads(
             manifest_path.read_text(encoding="utf-8")).get("root")
-        (output_dir / "campaign_summary.json").write_text(
-            json.dumps(summary, indent=2, default=str), encoding="utf-8"
-        )
+        _write_summary_atomic(output_dir, summary)
     except Exception as exc:  # noqa: BLE001 — sealing is provenance, never a run-blocker
         print(f"[run_campaign] archive-integrity seal skipped: {exc}", flush=True)
     return summary

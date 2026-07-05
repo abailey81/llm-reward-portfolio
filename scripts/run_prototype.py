@@ -673,6 +673,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Use the heterogeneous GPU+CPU candidate scheduler (MAX throughput).")
     p.add_argument("--gpu", type=int, default=None, help="GPU worker slots (default: config/auto).")
     p.add_argument("--cpu", type=int, default=None, help="CPU worker slots (default: config).")
+    p.add_argument("--out", default=None,
+                   help="Override the output dir (config output_dir / the --dry-run default). Used by "
+                        "scripts/crash_rehearsal.py to run reference + crash trees side by side.")
+    p.add_argument("--resume", action="store_true",
+                   help="FORCE resume on (skip COMPLETE arms; replay archived candidates), even under "
+                        "--dry-run (whose default is a fresh run). The crash-resume rehearsal's hook.")
     return p
 
 
@@ -699,13 +705,19 @@ def main() -> None:
 
     if args.dry_run:
         arms = ["distributional", "random_search", "bayes_opt"]  # one LLM + both search paths
-        candidates, generations, train_steps, synthetic, p_arms = 2, 1, 200, True, 2
+        candidates, generations, train_steps, synthetic = 2, 1, 200, True
+        # honor an explicit --p-arms under --dry-run (the crash rehearsal forces 1 = the monitored
+        # sequential path); the dry-run default stays 2.
+        p_arms = int(args.p_arms) if args.p_arms else 2
         # A dry run is a FREE, offline machinery smoke: force the keyless stub regardless of config
         # (final-audit #6 — the prototype now defaults to Pass B / Gemini, so without this override a
         # --dry-run would issue real billed API calls / require GEMINI_API_KEY). Mirrors run_campaign.
         pass_mode, provider = "A", "stub"
         output_dir = "outputs/prototype_dryrun"
         print("[run_prototype] DRY RUN — 3 arms x 2 candidates x 200 steps on a synthetic panel (keyless stub).")
+
+    if args.out:
+        output_dir = str(args.out)  # explicit CLI override wins (crash-rehearsal trees)
 
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
@@ -756,7 +768,7 @@ def main() -> None:
         # arms with a COMPLETE marker (run_arm writes one at :366), but the parallel scheduler did NEITHER,
         # so it silently RE-RAN already-complete arms. Filter before scheduling; write the per-arm marker
         # after — mirroring the sequential contract so a later --parallel re-run resumes correctly.
-        resume_par = bool(proto.get("resume", True)) and not args.dry_run
+        resume_par = bool(args.resume) or (bool(proto.get("resume", True)) and not args.dry_run)
         par_todo = [a for a in arms if not (resume_par and (root / a / "COMPLETE").exists())]
         for a in arms:
             if a not in par_todo:
@@ -787,7 +799,7 @@ def main() -> None:
         print(f"[run_prototype] parallel done in {wall}s -> {root / 'run_summary.json'}")
         return
 
-    resume = bool(proto.get("resume", True)) and not args.dry_run
+    resume = bool(args.resume) or (bool(proto.get("resume", True)) and not args.dry_run)
 
     todo = []
     for arm in arms:
@@ -832,7 +844,10 @@ def main() -> None:
             raise
     else:
         with ProcessPoolExecutor(max_workers=p_arms) as ex:
-            futures = {ex.submit(run_arm, arm, **opts): arm for arm in todo}
+            # resume threads through to the per-arm search cache (2026-07-06 fix: this arm-parallel
+            # path silently dropped it — arm-level COMPLETE skip worked, but a PARTIAL arm restarted
+            # from scratch and re-billed the LLM instead of replaying its archived candidates).
+            futures = {ex.submit(run_arm, arm, resume=resume, **opts): arm for arm in todo}
             for fut in as_completed(futures):
                 summaries.append(fut.result())
 

@@ -91,3 +91,19 @@ def test_unreadable_record_perturbs_the_root(tmp_path: Path) -> None:
     d.mkdir(parents=True)
     (d / "record.json").write_bytes(b"\xff\xfe not json")
     assert AI.merkle_root(AI.record_digests(tmp_path)) != good_root
+
+
+def test_verify_mirror_mode_tolerates_added_but_fails_changed(tmp_path: Path) -> None:
+    """2026-07-06 A5: verify-mirror = the BACKUP check — records ADDED after the seal are lawful
+    (a mid-campaign mirror carries newer work); a sealed record that changed/vanished is corruption."""
+    root = tmp_path / "mirror"
+    _write_record(root, "r1", 0.1)
+    _write_record(root, "r2", 0.2)
+    assert AI.main(["write", str(root)]) == 0
+    # a record added AFTER the seal: strict verify fails, verify-mirror tolerates
+    _write_record(root, "r3", 0.3)
+    assert AI.main(["verify", str(root)]) == 1
+    assert AI.main(["verify-mirror", str(root)]) == 0
+    # a SEALED record mutated: both modes fail
+    _write_record(root, "r1", 999.0)
+    assert AI.main(["verify-mirror", str(root)]) == 1

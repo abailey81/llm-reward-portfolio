@@ -297,7 +297,22 @@ def load_all(
     for run_dir in sorted(p for p in root_path.iterdir() if p.is_dir()):
         if not (run_dir / _RECORD_NAME).is_file():
             continue
-        record = load_run(run_dir.name, root_path)
+        try:
+            record = load_run(run_dir.name, root_path)
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            # FAIL LOUD with an ACTIONABLE message (2026-07-06 A4). Deliberately NOT auto-quarantined:
+            # an LLM-arm record is irreplaceable (a non-deterministic author would regenerate a
+            # DIFFERENT candidate — silently changing the study), and the mirror usually still holds
+            # the intact copy. A human decides: restore the run dir from the archive mirror, or —
+            # for a DETERMINISTIC unit only (test seed / random_search / bayes_opt candidate) —
+            # delete the dir so --resume re-runs it to the identical result.
+            raise ValueError(
+                f"CORRUPT archive record at {run_dir / _RECORD_NAME}: {exc}. "
+                "Recover it from the archive mirror (preferred; verify with "
+                "scripts/archive_integrity.py), or delete this run dir to let --resume re-run the "
+                "unit — ONLY safe for deterministic units (TEST seeds / search-arm candidates); "
+                "deleting an LLM-arm record changes the candidate set."
+            ) from exc
         if filter is not None and not all(
             record.get(k) == v for k, v in filter.items()
         ):

@@ -79,8 +79,32 @@ foreach ($pair in $sources) {
 
 $total = (Get-ChildItem $MirrorRoot -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
 Add-Content $log ("mirror size: {0:N1} MB" -f $total)
+
+# VERIFIED mirror (2026-07-06 A5): after the copy, re-hash the mirror against its sealed
+# archive-integrity manifest so a silently-corrupted BACKUP is caught at mirror time, not at the
+# disaster-recovery moment. verify-mirror mode: sealed records must be intact (removed/changed fail);
+# records ADDED after the seal are tolerated (a mid-campaign mirror lawfully carries newer work).
+# Skipped quietly when no manifest exists yet (the seal is written at campaign end). Best-effort:
+# a verify failure marks the pass FAILED (exit 9) but never blocks the copy itself.
+$py = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$verifyFail = $false
+foreach ($pair in $sources) {
+    $manifest = Join-Path $pair.dst "archive_integrity.json"
+    if ((Test-Path $manifest) -and (Test-Path $py)) {
+        & $py (Join-Path $repoRoot "scripts\archive_integrity.py") verify-mirror $pair.dst
+        if ($LASTEXITCODE -ne 0) {
+            $msg = "MIRROR VERIFY FAILED: $($pair.dst) does not match its sealed manifest (backup corrupt?)"
+            Add-Content $log $msg
+            Write-Warning $msg
+            $verifyFail = $true
+        } else {
+            Add-Content $log "verify ok: $($pair.dst)"
+        }
+    }
+}
+
 Write-Host ("mirror pass done -> {0}  ({1:N1} MB; log: {2})" -f $MirrorRoot, $total, $log)
 # robocopy's success code (1 = files copied) would otherwise leak as the script exit code and read as a
 # failure to any caller. Map the 0-7 robocopy-success band to a clean exit 0; reserve non-zero for a real
-# >=8 mirror failure (2026-07-05).
-if ($anyFail) { exit 8 } else { exit 0 }
+# >=8 mirror failure (2026-07-05) and exit 9 for a backup-integrity verify failure (2026-07-06).
+if ($anyFail) { exit 8 } elseif ($verifyFail) { exit 9 } else { exit 0 }

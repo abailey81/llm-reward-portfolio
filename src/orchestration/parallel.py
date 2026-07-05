@@ -885,9 +885,14 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
                     if _m.get("popart_scale") is not None:
                         r["popart_scale"] = _m["popart_scale"]
                     items.append(("replay", r))
+                    # Stream-faithful replay (2026-07-06): the slot was AUTHORED originally —
+                    # consume its author-stream position so a POSITIONAL (stub) transport keeps
+                    # later fresh candidates index-aligned; real LLM transports no-op.
+                    llm.advance_author_stream()
                     continue
                 if cid in cached_failures:
                     items.append(("fail", cid))
+                    llm.advance_author_stream()  # a ledgered failure was authored too (one position)
                     continue
             # Per-candidate prompt variation -> within-generation diversity without temperature
             # (mirrors src/llm/loop.py; uniform across arms, not a feedback confound).
