@@ -97,13 +97,15 @@ def _test_stall_after_s() -> float | None:
         return None
 
 
-def _write_summary_atomic(output_dir: Path, summary: dict[str, Any]) -> None:
-    """``campaign_summary.json`` via tmp + ``os.replace`` (2026-07-06 A4): the summary is the
-    watcher/supervisor's terminal-state sentinel, so a crash mid-write must leave the previous
-    intact version, never a torn file."""
+def _write_summary_atomic(output_dir: Path, summary: dict[str, Any],
+                          filename: str = "campaign_summary.json") -> None:
+    """Summary via tmp + ``os.replace`` (2026-07-06 A4): the summary is the watcher/supervisor's
+    terminal-state sentinel, so a crash mid-write must leave the previous intact version, never a
+    torn file. ``filename`` lets the baselines-only backfill write its OWN sentinel
+    (``baselines_summary.json``) instead of clobbering the concurrent campaign's."""
     import os
 
-    target = Path(output_dir) / "campaign_summary.json"
+    target = Path(output_dir) / filename
     tmp = target.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     os.replace(tmp, target)
@@ -1314,6 +1316,7 @@ def run_headline_campaign(
     h3_singleshot_generations: int = 1,
     freeze_stamp: dict[str, Any] | None = None,
     min_candidates: int | None = None,
+    baselines_only: bool = False,
 ) -> dict[str, Any]:
     """Run the headline single-split campaign for ``arms`` and return a summary dict.
 
@@ -1339,6 +1342,23 @@ def run_headline_campaign(
     """
     from src.env.runner import make_env_builder
     from src.utils.config import load_config
+
+    if baselines_only:
+        # THROUGHPUT lever E (2026-07-06, docs/MAX_THROUGHPUT_RUN_PLAN.md): the H1 baselines depend
+        # on NOTHING the search produces (hand-designed rewards; matched seeds/budget), so this mode
+        # runs ONLY the baseline stage — designed to BACKFILL the 2 idle GPU slots while the serial
+        # headline search occupies the third in a separate process. Science-neutral: every training
+        # is seeded-deterministic regardless of co-scheduling; the archive is keyed by run_id and
+        # resume-safe. It writes its OWN sentinel (baselines_summary.json) and journal dir so the
+        # concurrent campaign's campaign_summary.json / events.jsonl are never touched.
+        arms = []
+        run_h3_singleshot = False
+        try:  # durable journal for the backfill's seed_done events (its own dir — no interleaving)
+            from src.utils.logging import attach_run_logging
+
+            attach_run_logging(Path(output_dir) / "baselines")
+        except Exception:  # noqa: BLE001 — journaling must never block the stage
+            pass
 
     env_cfg = load_config("environment")
     inf_cfg = load_config("inference")
@@ -1870,6 +1890,14 @@ def run_headline_campaign(
         # (or {"synthetic": True}). Binds the headline number to EXACTLY the panel it ran on.
         "gold_panel": panel_provenance,
     }
+    if baselines_only:
+        # The backfill's sentinel: its OWN file; all_arms_tested is a CAMPAIGN completeness claim
+        # ("all of the empty arm set" would read True and fool the watcher/sentinel), so it is
+        # nulled and the marker carries the mode.
+        summary["baselines_only"] = True
+        summary["all_arms_tested"] = None
+        _write_summary_atomic(output_dir, summary, filename="baselines_summary.json")
+        return summary
     _write_summary_atomic(output_dir, summary)
     # Content-addressed integrity SEAL over the result archive (2026-07-05): a single verifiable root
     # over every record.json, so the analysis can prove the archive was not corrupted/edited between the
@@ -2000,6 +2028,15 @@ def build_parser() -> argparse.ArgumentParser:
              "h3_singleshot_generations (config, =1) on the same candidate budget -> best-of-N, no "
              "reflection; selected/frozen/tested at the same seeds into the disjoint *_h3_singleshot/ roots. "
              "Report-only (cannot sink the headline arms); OFF by default until the R30 amendment is ratified.",
+    )
+    parser.add_argument(
+        "--baselines-only", action="store_true",
+        help="THROUGHPUT lever E (docs/MAX_THROUGHPUT_RUN_PLAN.md): run ONLY the H1 baseline stage "
+             "(the 4 hand-rewards x the campaign seeds), designed to BACKFILL the idle GPU slots while "
+             "the serial headline search runs in a separate process (pair --gpu 2 here with the serial "
+             "search's 1 slot = the proven 3-concurrent ceiling). Science-neutral (seeded-deterministic "
+             "trainings; resume-safe by run_id); writes baselines_summary.json (never the campaign's "
+             "sentinel). Forces --h3-singleshot off.",
     )
     return parser
 
@@ -2171,13 +2208,15 @@ def main() -> None:
         run_h3_singleshot=run_h3_singleshot,        # H3 single-shot control gate (--h3-singleshot, R30)
         h3_singleshot_generations=h3_singleshot_generations,  # config: llm.h3_singleshot_generations (=1)
         freeze_stamp=freeze_stamp,  # verify-or-refuse stamp (canonical hash + frozen/enforced) -> summary
+        baselines_only=bool(getattr(args, "baselines_only", False)),  # throughput lever E (backfill)
     )
     print(f"[run_campaign] windows train={summary['train_window']} val={summary['val_window']} "
           f"test={summary['test_window']}")
     for s in summary["arms"]:
         print(f"  {s['arm']:>14}: {s.get('status')} "
               f"({s.get('n_seeds_written', s.get('reason', ''))})")
-    print(f"[run_campaign] done in {summary['wall_clock_s']}s -> {output_dir}/campaign_summary.json")
+    _summary_name = "baselines_summary.json" if summary.get("baselines_only") else "campaign_summary.json"
+    print(f"[run_campaign] done in {summary['wall_clock_s']}s -> {output_dir}/{_summary_name}")
 
     # C3a: propagate the integrity gate as the PROCESS exit code. exit_code==EXIT_INCOMPLETE (3)
     # means at least one arm failed (not operator-interrupted) — the supervisor sees non-zero and

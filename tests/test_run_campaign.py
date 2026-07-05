@@ -1413,3 +1413,50 @@ def test_build_parser_exposes_min_candidates_and_no_resume() -> None:
     actions = {a.dest: a for a in parser._actions}
     assert "min_candidates" in actions and actions["min_candidates"].default is None
     assert "no_resume" in actions and actions["no_resume"].default is False
+
+
+def test_run_headline_campaign_baselines_only_mode(tmp_path, monkeypatch, _clear_shutdown):
+    """Throughput lever E (2026-07-06): --baselines-only runs ONLY the H1 stage — no arm search, no
+    H3 — and writes its OWN sentinel (baselines_summary.json; never campaign_summary.json, which a
+    concurrent serial-search campaign owns) with all_arms_tested NULLED (an empty-arm-set 'True'
+    would fool the watcher) and exit_code 0 when the stage is fully tested."""
+    import json as _json
+
+    search_called: list = []
+    captured: dict = {}
+
+    def _spy_baselines(names, **_kw):  # noqa: ANN001
+        captured["names"] = list(names)
+        base = dict(
+            arm="baseline", seed=0, fold=0, generation=0, reward_source_hash="h",
+            feedback_block="", wall_clock=0.0, env_fingerprint="x",
+        )
+        for n in names:
+            write_run(
+                {**base, "run_id": f"baseline_{n}-s0", "candidate_id": f"baseline_{n}-s0",
+                 "metrics": {"val_fitness": 0.0}},
+                Path(_kw["test_root"]) / f"baseline_{n}",
+            )
+        return [{"run_id": f"baseline_{n}-s0"} for n in names]
+
+    monkeypatch.setattr(run_campaign, "run_winner_search",
+                        lambda arm, **k: search_called.append(arm) or {"arm": arm})
+    monkeypatch.setattr(run_campaign, "evaluate_baselines_on_test", _spy_baselines)
+    monkeypatch.setattr(run_campaign, "make_agent_trainer_factory", lambda: (lambda *a, **k: None))
+
+    kwargs = _campaign_kwargs(tmp_path, ["distributional"])
+    kwargs["baseline_names"] = ["raw_return", "return_minus_cvar"]
+    kwargs["baselines_only"] = True
+    kwargs["run_h3_singleshot"] = True  # must be forced OFF by the mode
+    summary = run_campaign.run_headline_campaign(**kwargs)
+
+    assert search_called == []  # NO arm search ran
+    assert captured["names"] == ["raw_return", "return_minus_cvar"]
+    assert summary["baselines_only"] is True and summary["all_arms_tested"] is None
+    assert summary["exit_code"] == 0  # the h1_baselines row is 'tested'
+    assert not any(s["arm"].endswith("singleshot") for s in summary["arms"])  # H3 forced off
+    out_dir = Path(kwargs["output_dir"])
+    assert (out_dir / "baselines_summary.json").is_file()
+    assert not (out_dir / "campaign_summary.json").is_file()  # the campaign's sentinel untouched
+    on_disk = _json.loads((out_dir / "baselines_summary.json").read_text(encoding="utf-8"))
+    assert on_disk["baselines_only"] is True
