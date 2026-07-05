@@ -3,6 +3,71 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-06b] — The 11-angle flawlessness review CLOSED, sequentially and first-hand: 22 serious findings verified + fixed, 29 minors, 4 delta-audits, the max-throughput plan
+
+Tamer: "verify absolutely everything yourself, sequentially" (after the review workflow hit his token
+limit mid-verify: 7/11 audits + 1 verifier completed; 22 serious findings + 29 minors recovered from
+the journal). Every serious finding re-verified by ME against the current files before fixing; every
+fix regression-tested. Commits `7cafd07` (code I), `4a3df91` (provenance/guards II), `f8d6a13`
+(paper III). Freeze **20/20 @ `1c6b76b6` UNCHANGED** throughout.
+
+- **The three biggest catches:** (S15) `run_recycling`'s whole-batch token-BLOCKING submission had
+  quietly resurrected the crash-loss window the as-completed rewrite existed to close (+ would have
+  false-CRITICAL'd the stall check every batch — S16); fixed with the bounded sliding window + a
+  spawn-overhead-cancelling latency test. (S17) six documented sentinel checks + BOTH CUSUM drift
+  monitors were PERMANENTLY INERT live — the gatherer never produced their inputs; producers built
+  (cached archive scan, dual-layout ledger census, winner-divergence identity join, mirror age,
+  config expectations). (S21/S5) the parallel search arms ignored `--resume` (~42 GPU-h re-trained +
+  records overwritten per crash); hash-verified replay added, full-resume = zero re-training.
+- **Sentinel truth restored:** transitions now PERSIST (sentinel-owned `sentinel_events.jsonl`
+  sidecar — **corrects the [2026-07-05b] claim** that they reached `events.jsonl`: they never did
+  from the standalone process); the journal probe unions `search/events.jsonl` (S20 — the documented
+  invocation had every journal-backed check inert); coverage reconciles ledgered failures (S19 —
+  summary rows now carry per-arm `n_failed`; an ACCOUNTED shortfall is WARN, not a false husk-CRITICAL);
+  the fps baseline freezes at the first 10 samples ever seen.
+- **Sealed-leg integrity:** `--cpu>0` on a REAL run is CLI-refused (S6: CPU≠CUDA bit-for-bit +
+  token-race assignment = irreproducible device-heterogeneous seeds + degraded CRN pairing — costs
+  no speed, the GPU is the binding resource); every test record carries `metrics.device`; test
+  records now carry CONTENT-HASHED env fingerprints (per-arm `_env` snapshot, F12 reuse-on-resume;
+  `load_run` verifies via the new shared-`_env` fallback that also un-no-ops the serial search
+  snapshots).
+- **Mechanism/inference wiring:** the pooled SQ1/SQ2 primary excludes `placebo_shuffled` (deranged
+  values attenuated rho toward the predicted verdict — anti-conservative; it is the floor row now,
+  S7); the SQ3b differential bootstraps SEED cells (K-clustered rows understated the registered
+  decision CI ~√K, S8); the hash-frozen §2a(f)/(b)/(c) instruments are now CODE (per-arm fingerprint
+  rows incl. the scalar arm's own-scalar A4 discriminator + the floor row; the declared-exploratory
+  distance moderator; the Mayo–Spanos severity CURVE on every TOST companion — empirical, from the
+  same paired draws) (S9); the B.5.2 FZ0 loss-differential Hill tail-index is IMPLEMENTED (per-leg,
+  with the DM-companion heavy-tail flag); the regime block stratifies the median-tail-seed path;
+  the SQ1 cells no longer condition on outcome availability; `h2_conjunction`'s docstring
+  min→max corrected; the evt guard reuses the corrected `_was_fed_tail`.
+- **Paper factual repairs (all my-verified):** the CONFIRMED CH3↔CH4 convergence contradiction
+  (the bounded-agent premise now rests on true grounds); Table 3.1 reproduces the FROZEN §1a table
+  faithfully (S22); the PopArt ablation is nowhere claimed in completed tense (S2 — the only
+  artifact says the OPPOSITE); CH7's scorecard no longer invents pre-registered predictions for
+  H3/H4 (+ H4b over-TEMPLATE); six theory-precision fixes (BSS finite-Θ, DPI finiteness, convex-order
+  gloss, FZ Thm 5.2/Cor 5.4 pinpoint, elicitability scope, finite-valued-φ ball) + Berger's
+  intersection–union naming + the NOMENCLATURE VaR gloss; the ratified v2 mechanism-led abstract is
+  EMBEDDED (the deliverable shipped v1) + the Eureka-pillar-anchored title analysis (final pick =
+  Tamer); CH6 gains the promised regime/synthetic-null/MCS-Bayes/mediation/fingerprint slots and
+  B.7 no longer lists BUILT instruments as future work (S4); the compiled PDF structure is
+  UCL-correct (ToC after the front matter, no double numbering, no "Chapter 9" appendix — S10,
+  verified in the rebuilt PDF); `build_paper.py --final` = the submission placeholder lint (S13,
+  finds today's 59 legitimate fill slots); the Moodle cover placeholder (S14); the word-surgery
+  arithmetic corrected (S11); the seed-ratification checklist gains the paper 30-seed prose sweep.
+- **Guard completeness:** freeze prompt-neutrality vocabulary + skew/kurtosis/\bVaR\b (11 tokens,
+  prompts verified clean, hash unchanged); deterministic omitted-rng defaults in the search APIs;
+  llm_calls.jsonl failures now WARN (rate-limited); `advance_author_stream` unit-pinned + the
+  driver-level byte-identity regression (gen-0 replay ⇒ fresh gens author at uninterrupted
+  positions); the rehearsal PASS banner names its certified path.
+- **4 delta-audits (the angles whose auditors died):** session-crosscut (no submission-order
+  collectors or min-gate twins remain; env/agents untouched this week), rl-env-sandbox +
+  data-leakage (only the already-audited executor/loaders touches), tests-quality (new tests
+  average 3+ behavior asserts). `docs/MAX_THROUGHPUT_RUN_PLAN.md`: the search-stage mode is the one
+  big scheduling lever (serial ≈ +5 days vs the 3-worker mode the ~23-day plan assumes —
+  amendment-gated, recommended YES at seed ratification); H3-parallel as the fallback lever; the
+  TEST leg is already at the hardware ceiling; zero science cut.
+
 ## [2026-07-06] — Resume + monitoring pushed to the maximum: as-completed archival, the journal, 5 new sentinel checks, verified mirror, and an automated crash-resume certifier that immediately CAUGHT a real bug
 
 Tamer: "very extensively work on the resume mechanisms — lose no progress — and detect ANYTHING;
