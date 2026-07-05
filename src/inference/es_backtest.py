@@ -32,6 +32,8 @@ Convention: lower tail at level ``alpha`` (small, e.g. 0.05); ``var`` = the alph
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 from scipy import stats
 
@@ -397,6 +399,23 @@ def comparative_es_backtest(
     # (report-only): gives a certifiable parametric p-value alongside the HAC-robust bootstrap one.
     dm = dm_hln_test(d, h=h)
 
+    # B.5.2 (2026-07-06): the tail-index of the LOSS DIFFERENTIAL — heavy tails of d_t distort the
+    # DM companion's size (its Newey-West variance needs finite fourth-ish moments to behave at these
+    # sample sizes). Hill estimator on the upper order statistics of |d_t - median(d_t)|, k = the
+    # canonical 5% of T floored at 10. hill_alpha <= 4 flags a heavy-tailed differential: read the
+    # bootstrap p as the headline and the DM-HLN companion with extra caution.
+    abs_c = np.sort(np.abs(d - np.median(d)))
+    k = max(10, int(0.05 * n))
+    tail_block: dict[str, Any] = {"hill_alpha": float("nan"), "k": int(k),
+                                  "heavy_tailed_for_dm_companion": None}
+    if abs_c.size > k and abs_c[-(k + 1)] > 0.0:
+        logs = np.log(abs_c[-k:] / abs_c[-(k + 1)])
+        mean_log = float(np.mean(logs))
+        if mean_log > 0.0:
+            hill_alpha = 1.0 / mean_log
+            tail_block = {"hill_alpha": float(hill_alpha), "k": int(k),
+                          "heavy_tailed_for_dm_companion": bool(hill_alpha <= 4.0)}
+
     better = "model1" if obs < 0 else "model2" if obs > 0 else "tie"
     return {
         "mean_score_diff": obs,
@@ -407,4 +426,5 @@ def comparative_es_backtest(
         "dm_stat_hln": dm["dm_stat_hln"],
         "pvalue_dm_normal": dm["pvalue_normal"],
         "pvalue_dm_hln": dm["pvalue_hln"],
+        "loss_diff_tail": tail_block,
     }

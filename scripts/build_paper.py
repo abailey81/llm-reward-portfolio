@@ -152,6 +152,11 @@ def assemble(chapter_dir: Path, names: tuple[str, ...] = ASSEMBLY,
     for name in names:
         text = (chapter_dir / name).read_text(encoding="utf-8")
         parts.append(text.rstrip() + "\n")
+        if name == "FRONT_MATTER.md":
+            # S10 (2026-07-06): the Table of Contents belongs AFTER the front matter (UCL order:
+            # Cover -> Title -> Abstract -> Acknowledgements -> ToC) — raw LaTeX, real page numbers.
+            # Replaces pandoc's --toc, which printed it BEFORE the title page.
+            parts.append("\\clearpage\n\\tableofcontents\n\\clearpage\n")
     # UCL requires an explicit References section; citeproc places the bibliography inside the
     # `#refs` div (otherwise it is appended headingless at the document end). Unnumbered per style.
     parts.append(
@@ -196,8 +201,11 @@ def build(md_only: bool, out: Path | None) -> int:
         "--citeproc",
         "--csl", str(CSL),
         "--bibliography", str(BIB),
-        "--toc", "--toc-depth", "2",
-        "--number-sections",
+        # S10 (2026-07-06): NO --toc and NO --number-sections. --toc printed pandoc's ToC BEFORE
+        # the title page (UCL order: Cover -> Title -> Abstract -> Ack -> ToC), and --number-sections
+        # double-numbered every heading (chapters carry manual numbers) while stamping the front
+        # matter as 'Chapter 1' and the appendix as 'Chapter 9'. The ToC is emitted as raw LaTeX at
+        # the END of the front matter by assemble() — real page numbers, correct position.
         "--pdf-engine", str(TECTONIC),
         "--resource-path", f"{REPO / 'paper'};{REPO / 'outputs' / 'figures'};{REPO}",
         "-V", "documentclass=report",
@@ -234,12 +242,50 @@ def build(md_only: bool, out: Path | None) -> int:
     return 0
 
 
+#: S13 (2026-07-06): editorial placeholders/markers that must NEVER reach the submitted PDF. The
+#: --final gate greps the ASSEMBLED deliverable for them and refuses; ~40 legitimately live in the
+#: chapters today as fill-at-campaign contracts.
+_PLACEHOLDER_RE = re.compile(
+    r"FROM CAMPAIGN|Compile note|Status: structural scaffold|WORD COUNT: fill"
+    r"|RESULT — campaign slot|CONFIRM AT COMPILE|INSERT AT SUBMISSION|TAMER: pick at compile"
+    r"|\[from §6\]|\[in/out\]"
+)
+
+
+def final_lint(md_path: Path) -> int:
+    """The submission gate: exit non-zero if any editorial placeholder survives in the deliverable."""
+    text = md_path.read_text(encoding="utf-8")
+    hits: list[str] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        m = _PLACEHOLDER_RE.search(line)
+        if m:
+            hits.append(f"  line {i}: {m.group(0)!r} in: {line.strip()[:90]}")
+    if hits:
+        print(f"[build_paper] --final FAILED: {len(hits)} editorial placeholder(s) still in the deliverable:")
+        for h in hits[:40]:
+            print(h)
+        return 1
+    print("[build_paper] --final lint clean: no editorial placeholders in the deliverable.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Assemble + compile the dissertation PDF.")
     ap.add_argument("--md-only", action="store_true", help="assemble the markdown only (no pandoc)")
     ap.add_argument("--out", type=Path, default=None, help="output PDF path")
+    ap.add_argument("--final", action="store_true",
+                    help="submission lint (S13): FAIL if the assembled deliverable still carries any "
+                         "editorial placeholder (FROM CAMPAIGN / compile notes / fill slots) — the P8 "
+                         "gate before the upload.")
     args = ap.parse_args(argv)
-    return build(md_only=args.md_only, out=args.out)
+    try:  # the lint echoes deliverable lines (unicode arrows etc.) — never crash on a legacy codepage
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except Exception:  # noqa: BLE001
+        pass
+    rc = build(md_only=args.md_only, out=args.out)
+    if rc == 0 and args.final:
+        rc = final_lint(REPO / "paper" / "_build" / "dissertation.md")
+    return rc
 
 
 if __name__ == "__main__":

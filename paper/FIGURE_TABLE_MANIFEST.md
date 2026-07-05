@@ -29,7 +29,7 @@
 | T2 | IUT results | Per-leg one-sided IUT *p* and TOST equivalence bounds for H2-RA and H2-Tail (distributional vs scalar / placebo / scalar_cvar5), plus the FZ0/DM-HLN ES backtest. | `[CAMPAIGN]` archive. | 6 (§6.2) | **[CAMPAIGN]** |
 | T3 | Robustness | Delisting band $d\in\{0,-30,-55,-100\}\%$, cost sweep, PBO (CSCV), Deflated-Sharpe cross-check, BAB/QMJ factor attribution. | `[CAMPAIGN]` archive. | 6 (§6.3) | **[CAMPAIGN]** |
 | T4 | Secondary hypotheses | H1 (descriptive, both caveats), H3 (TOST-bounded equivalence), H4 (LLM vs random_search / bayes_opt at matched compute). | `[CAMPAIGN]` archive. | 6 (§6.4) | **[CAMPAIGN]** |
-| Table 4.1 | Rigour ledger (in-body, CH4 §4.2) | Examiner-facing map of each named threat to validity → the design element that guards it (leakage, self-grading, format confound, overfitting, reward-scale, etc.). | `docs/RIGOUR_LEDGER.md` (static; rendered as the in-body Table 4.1 — the former "T5 / Appendix A — Rigour ledger" plan was consolidated to the in-body table on 2026-07-04). | 4 (§4.2) | **[built]** |
+| Table 4.1 | Rigour ledger (in-body, CH4 §4.7) | Examiner-facing map of each named threat to validity → the design element that guards it (leakage, self-grading, format confound, overfitting, reward-scale, etc.). | `docs/RIGOUR_LEDGER.md` (static; rendered as the in-body Table 4.1 — the former "T5 / Appendix A — Rigour ledger" plan was consolidated to the in-body table on 2026-07-04). | 4 (§4.7) | **[built]** |
 | T5 | Arms specification | The 7 arms and the single manipulated variable (feedback block) per arm: distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt. | Static from `CH4_methods.md` §4.5. | 4 | **[NOW]** |
 
 *(Compile note: F1–F4, F2's branch labels, and T5 (Arms specification) are buildable now — the rigour ledger is the in-body Table 4.1 — and should be drafted ahead of the
@@ -58,7 +58,7 @@ The honesty discipline (§6 reporting rules in `CH6_results.md`): plot effect si
 SESOI band, never a p-value or a bare bar of means; captions must distinguish "equivalent to within ±0.05
 DSR" (the claim) from "no effect exists" (not the claim) and "inconclusive". Remaining headline figures to
 wire post-campaign (data only): controls raincloud (F7), responsiveness/prompt-leak scatter (F8b), learning
-curves (F9). Static `[NOW]` schematics (F1 system diagram, F4 splits timeline) are not yet engine-built —
-draft ahead of the campaign. F3 stylised facts IS engine-built (`src/viz/eda.py::build_f3`, 2026-07-02; see
+curves (F9). Static `[NOW]` schematics are ENGINE-BUILT (`src/viz/schematics.py`: F1 `system_diagram`,
+F2 `prediction_branch`, F4 `splits_timeline`); F4 is rendered to `outputs/figures/`, F1/F2 render pending. F3 stylised facts IS engine-built (`src/viz/eda.py::build_f3`, 2026-07-02; see
 the F3 row above) and rendered 2026-07-02 from the ACTIVE **univ5** Split-C train window (excess kurtosis
 15.25; empirical/Normal CVaR crossover ×0.84→×1.66; stress co-crash 19.7%).

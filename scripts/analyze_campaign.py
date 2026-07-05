@@ -2684,6 +2684,9 @@ def comparative_es_backtest_report(
             "better": str(res["better"]),
             # corroborates H2-Tail iff the distributional (model1) tail forecast scores strictly better.
             "corroborates_h2_tail": bool(res["better"] == "model1"),
+            # B.5.2 (2026-07-06): Hill tail-index of the FZ0 loss differential — flags a
+            # heavy-tailed d_t whose DM-HLN companion p should be read with extra caution.
+            "loss_diff_tail": res.get("loss_diff_tail"),
         })
     return {
         "status": "ok" if legs else "skipped",

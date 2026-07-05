@@ -226,3 +226,22 @@ def test_comparative_backtest_default_rng_when_none() -> None:
     res = comparative_es_backtest(realized, good, bad, alpha=ALPHA, n_boot=100)
     assert set(res) >= {"mean_score_diff", "stat", "pvalue", "better"}
     assert 0.0 <= res["pvalue"] <= 1.0
+
+
+def test_loss_diff_tail_index_flags_heavy_tails_B552() -> None:
+    """B.5.2 (2026-07-06): the FZ0 loss-differential Hill tail-index is computed and flags a
+    heavy-tailed differential (Pareto alpha=1.5 -> estimate near 1.5, flag True); the block is
+    always present with the k convention."""
+    import numpy as np
+
+    from src.inference.es_backtest import comparative_es_backtest
+
+    rng = np.random.default_rng(3)
+    # realized returns with a genuine lower tail; two distinct (VaR, ES) forecasts (es < 0)
+    r = rng.standard_t(df=3, size=1500) * 0.01
+    out = comparative_es_backtest(r, (-0.02, -0.03), (-0.025, -0.04), alpha=0.05,
+                                  n_boot=200, rng=np.random.default_rng(0))
+    blk = out["loss_diff_tail"]
+    assert set(blk) == {"hill_alpha", "k", "heavy_tailed_for_dm_companion"}
+    assert blk["k"] == max(10, int(0.05 * 1500))
+    assert np.isfinite(blk["hill_alpha"]) and blk["hill_alpha"] > 0

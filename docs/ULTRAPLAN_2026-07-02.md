@@ -41,7 +41,7 @@ exists because it serves at least one of these; anything that serves none gets c
   **0 warnings**, 118 citation groups resolved through the Harvard CSL, References section, and
   the new non-specialist Glossary. First compile surfaced and fixed: 18 missed citation forms +
   the C:-drive-full crisis.
-* **Word budget QUANTIFIED** (new today): `scripts/word_budget.py` → main body = **15,532 words
+* **Word budget QUANTIFIED** (new today): `scripts/word_budget.py` → main body = **16,815 (re-measured 2026-07-06; was 15,532) words
   vs the 10,000 hard limit** (theory 3,433 · CH4 2,967 · CH7 2,603 · CH1 2,124 · CH2 1,873 ·
   CH5 1,342 · CH6 1,190-and-will-grow). ~6k words must move to appendices/math — a scheduled
   workstream (P7), not a final-week scramble.
@@ -198,3 +198,4 @@ resume; C: fills → preflight refuses (fix space first).
 4. **Run `scripts/freeze.py`** at P4 + **create the OSF account/deposit** (10 min).
 5. **Campaign launch day** (run-day checklist together) + keep the laptop on AC/network.
 6. **Okhrati sign-off** on the pivot disclosure; ethics forms.
+> **P7 target arithmetic corrected (2026-07-06 review):** the previous per-chapter targets (1,800+1,500+1,900+2,300+550+2,000 = 10,050) exceeded the 10,000 hard limit BEFORE any CH6 word. Corrected budget: non-CH6 chapters must sum to <= ~8,100 (the 9,500 PASS ceiling minus a realistic ~1,400-word CH6) — i.e. ~1,950 additional words of cuts beyond the old plan, allocated at write-time.
