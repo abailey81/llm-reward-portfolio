@@ -31,7 +31,11 @@ class _FakePool:
     """A DevicePool stand-in: ``submit(spec)`` returns an immediately-resolved Future carrying a
     deterministic accepted result keyed off the candidate id — NO real SAC training. ``train_candidate``
     is never called. Fitness is a stable function of the candidate index so the winner is predictable
-    and identical across a fresh run and its replay."""
+    and identical across a fresh run and its replay. Carries the DevicePool capacity attributes the
+    search driver's sliding-window scheduler reads (2026-07-06)."""
+
+    n_gpu = 0
+    n_cpu = 2
 
     def __init__(self) -> None:
         self.submitted: list[str] = []
@@ -239,3 +243,92 @@ def test_torn_failure_ledger_does_not_crash_resume(tmp_path, monkeypatch):
     assert holder["t"].n_calls == 1
     assert pool.submitted == [f"{arm}-g0-c1"]
     assert summary["n_failed"] == 1  # the one cached failure (c0); c1 succeeded via the fake pool
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-06 S21: the SEARCH arms' parallel resume (random_search / bayes_opt) #
+# --------------------------------------------------------------------------- #
+class _HashPool(_FakePool):
+    """_FakePool whose results carry the REAL sha256 of the materialized source, so the resume
+    cache's hash verification sees exactly what a genuine worker would have archived."""
+
+    def submit(self, spec: dict) -> Future:
+        import hashlib as _hl
+
+        fut = super().submit(spec)
+        r = dict(fut.result())
+        if spec["reward_kind"] == "coeffs":
+            from src.baselines.reward_family import params_to_source
+
+            src = params_to_source(
+                list(spec["reward"]), cvar_alpha=float(spec.get("cvar_alpha", 0.05)),
+                window=int(spec.get("window", 20)),
+            )
+        else:
+            src = str(spec["reward"])
+        r["reward_source"] = src
+        r["reward_hash"] = _hl.sha256(src.encode("utf-8")).hexdigest()
+        out: Future = Future()
+        out.set_result(r)
+        return out
+
+
+def test_parallel_random_search_replays_archived_candidates_on_resume(tmp_path) -> None:
+    """A resumed parallel random_search arm must SKIP archived candidates (zero re-training),
+    reproduce the identical summary, and re-train EXACTLY the missing ones (2026-07-06 S21 —
+    previously it re-trained all n and silently overwrote the records)."""
+    import shutil
+
+    opts = _opts(resume=False)
+    pool1 = _HashPool()
+    s1 = parallel._drive_search_arm("random_search", pool1, opts, str(tmp_path))
+    assert len(pool1.submitted) == 4 and s1["n_candidates"] == 4
+
+    # full resume: every candidate archived -> ZERO submissions, identical summary
+    pool2 = _HashPool()
+    s2 = parallel._drive_search_arm("random_search", pool2, _opts(resume=True), str(tmp_path))
+    assert pool2.submitted == []
+    assert s2["winner_fitness"] == s1["winner_fitness"] and s2["n_candidates"] == 4
+
+    # partial resume: drop one record -> exactly that candidate re-trains
+    shutil.rmtree(tmp_path / "random_search" / "random_search-c2")
+    pool3 = _HashPool()
+    s3 = parallel._drive_search_arm("random_search", pool3, _opts(resume=True), str(tmp_path))
+    assert pool3.submitted == ["random_search-c2"]
+    assert s3["n_candidates"] == 4 and s3["winner_fitness"] == s1["winner_fitness"]
+
+    # resume OFF stays byte-unchanged behavior: everything re-trains
+    pool4 = _HashPool()
+    parallel._drive_search_arm("random_search", pool4, _opts(resume=False), str(tmp_path))
+    assert len(pool4.submitted) == 4
+
+
+def test_parallel_bayes_opt_replays_archived_evaluations_on_resume(tmp_path) -> None:
+    """Same contract for the sequential-BO arm: archived evaluations replay (the GP trajectory is
+    reconstructed from identical (x, y) history), zero re-training on a full resume."""
+    opts = _opts(resume=False)
+    pool1 = _HashPool()
+    s1 = parallel._drive_search_arm("bayes_opt", pool1, opts, str(tmp_path))
+    assert len(pool1.submitted) == 4 and s1["n_candidates"] == 4
+
+    pool2 = _HashPool()
+    s2 = parallel._drive_search_arm("bayes_opt", pool2, _opts(resume=True), str(tmp_path))
+    assert pool2.submitted == []
+    assert s2["winner_fitness"] == s1["winner_fitness"] and s2["n_candidates"] == 4
+
+
+def test_parallel_search_resume_hash_mismatch_fails_loud(tmp_path) -> None:
+    """An archived candidate whose source hash mismatches this run's draw at that index is a
+    config/seed DRIFT — the resume must refuse loudly, never silently mix archives."""
+    import json
+
+    import pytest
+
+    opts = _opts(resume=False)
+    parallel._drive_search_arm("random_search", _HashPool(), opts, str(tmp_path))
+    rec_path = tmp_path / "random_search" / "random_search-c1" / "record.json"
+    rec = json.loads(rec_path.read_text(encoding="utf-8"))
+    rec["reward_source_hash"] = "0" * 64  # forge a drifted archive
+    rec_path.write_text(json.dumps(rec), encoding="utf-8")
+    with pytest.raises((RuntimeError, ValueError), match="MISMATCH|CORRUPT"):
+        parallel._drive_search_arm("random_search", _HashPool(), _opts(resume=True), str(tmp_path))

@@ -51,6 +51,7 @@ def build_test_record(
     popart_scale: dict[str, Any] | None = None,
     train_safe_default_count: int | None = None,
     train_safe_call_count: int | None = None,
+    device: str | None = None,
 ) -> dict[str, Any]:
     """Assemble the ONE archive record for a ``(winner, seed)`` TEST run.
 
@@ -87,6 +88,12 @@ def build_test_record(
         # part-trained on the 0.0 fallback signal. Additive/optional, mirrors popart_scale above.
         metrics["train_safe_default_count"] = int(train_safe_default_count)
         metrics["train_safe_call_count"] = int(train_safe_call_count)
+    if device is not None:
+        # S6 (2026-07-06): the device this seed TRAINED on. CPU vs CUDA numerics differ bit-for-bit,
+        # so the sealed leg must be device-homogeneous (GPU-only; run_campaign refuses --cpu>0 on a
+        # real run) — recording it makes any heterogeneous run attributable post-hoc instead of
+        # undetectable from the archive.
+        metrics["device"] = str(device)
 
     return {
         "run_id": f"{arm}-s{int(seed)}",
@@ -253,6 +260,7 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
             popart_scale=popart_scale,  # T2.4 cross-arm sigma audit at the test leg
             train_safe_default_count=train_sd_count,  # R66 per-seed training-substitution audit
             train_safe_call_count=train_call_count,
+            device=str(device),  # S6: sealed-leg device attribution (homogeneity auditable)
         )
         if str(device).startswith("cuda"):
             torch.cuda.empty_cache()

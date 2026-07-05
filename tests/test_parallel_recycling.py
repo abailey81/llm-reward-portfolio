@@ -101,3 +101,29 @@ def test_run_recycling_stall_detection_fires_and_run_completes() -> None:
     # once only the slow task remains pending, the payload names exactly it
     assert any(s["pending"] == [{"cid": "c0"}] for s in stalls)
     assert all(s["since_last_completion_s"] >= 0 for s in stalls)
+
+
+def _sleepy_stamped(spec: dict) -> dict:
+    """Sleep then return — the driver stamps arrival times via on_result (S15 latency test)."""
+    time.sleep(float(spec.get("sleep", 0)))
+    return {"ok": True, "i": spec["i"]}
+
+
+def test_run_recycling_streams_during_submission_not_only_after_it() -> None:
+    """2026-07-06 S15: submission must NOT block collection. With capacity 1 and four 0.4s tasks,
+    a sliding-window scheduler streams the first result ~3 task-durations before the last; the old
+    blocking whole-batch submission could not start collecting until 3 tasks had already finished,
+    compressing the first-to-last streaming gap to ~one task duration. The spawn overhead cancels
+    in the difference, so the assertion is timing-robust."""
+    specs = [{"i": i, "sleep": 0.4} for i in range(4)]
+    stamps: list[float] = []
+    run_recycling(
+        specs, worker=_sleepy_stamped, n_gpu=0, n_cpu=1, recycle_every=8,
+        initializer=None, on_result=lambda _r: stamps.append(time.monotonic()),
+    )
+    assert len(stamps) == 4
+    spread = stamps[-1] - stamps[0]
+    assert spread > 0.9, (
+        f"first-to-last streaming spread {spread:.2f}s — results were collected in a burst, "
+        "i.e. submission blocked collection (the S15 regression)"
+    )

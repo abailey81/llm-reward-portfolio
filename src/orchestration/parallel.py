@@ -545,12 +545,24 @@ def run_recycling(
     for i in range(0, len(specs), step):
         batch = specs[i : i + step]
         with DevicePool(n_gpu, n_cpu, initializer=initializer) as pool:
-            pending: dict[Future, int] = {
-                pool.submit_with(worker, s): j for j, s in enumerate(batch)
-            }
+            # Submit through a BOUNDED sliding window (2026-07-06 S15): ``submit_with`` BLOCKS on a
+            # device token, so submitting the whole batch up-front (the old dict comprehension)
+            # stalled COLLECTION until all but n_workers trainings had already completed — quietly
+            # resurrecting the crash-loss window the as-completed rewrite exists to close (~9
+            # finished trainings unarchived for hours at recycle_every=12/3 slots) and keeping
+            # ``on_stall`` blind through the submission phase. With ``len(pending) < capacity`` a
+            # token is guaranteed free (completed futures return theirs at completion), so
+            # submission never blocks and archival/journaling/stall-detection stay live from the
+            # FIRST completion. Same pattern as _drive_search_arm.
+            capacity = max(1, pool.n_gpu + pool.n_cpu)
             results: list = [None] * len(batch)
+            pending: dict[Future, int] = {}
+            next_j = 0
             last_done = time.monotonic()
-            while pending:
+            while next_j < len(batch) or pending:
+                while next_j < len(batch) and len(pending) < capacity:
+                    pending[pool.submit_with(worker, batch[next_j])] = next_j
+                    next_j += 1
                 done, _ = wait(pending, timeout=stall_after_s, return_when=FIRST_COMPLETED)
                 if not done:
                     # NOTHING completed within the stall window. Surface the pending identities so
@@ -971,6 +983,47 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
 
 def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) -> dict:
     n = int(opts["candidates"])
+    # Search-replay cache (resume, 2026-07-06 S21): the serial path got per-candidate checkpoint +
+    # hash-verified resume on 2026-07-05, but this parallel driver re-trained ALL candidates on
+    # --resume (~42 GPU-h re-paid per search arm at campaign budget) and silently overwrote the
+    # archived records. Mirror the serial discipline: draws stay UNCONDITIONAL (the rng stream is
+    # position-faithful), an archived candidate is REPLAYED instead of re-trained, and a drawn
+    # source whose hash mismatches its archived record fails LOUD (draw-sequence drift).
+    resume = bool(opts.get("resume", False))
+    arm_root = str(Path(archive_root) / arm)
+
+    def _replay(cid: str, expected_source: str) -> dict | None:
+        """The archived result for ``cid`` (None when absent); hash-verifies against the fresh draw."""
+        if not resume:
+            return None
+        from src.io.results import load_run
+
+        try:
+            hit = load_run(cid, arm_root)
+        except FileNotFoundError:
+            return None  # not yet done -> train it
+        # Corrupt records (KeyError/ValueError) PROPAGATE — same fail-loud rationale as every
+        # other resume path (silently regenerating could desync the search).
+        recorded = str(hit.get("reward_source_hash", ""))
+        actual = hashlib.sha256(expected_source.encode("utf-8")).hexdigest()
+        if recorded and recorded != actual:
+            raise RuntimeError(
+                f"parallel search resume cache MISMATCH for {cid}: the archived candidate was built "
+                f"from a different source than this run drew at its index (recorded {recorded[:12]}.. "
+                f"!= drawn {actual[:12]}..) — config/seed drift; refusing to mix archives"
+            )
+        _m = hit.get("metrics", {}) or {}
+        r: dict[str, Any] = {
+            "ok": True, "candidate_id": cid, "arm": arm,
+            "fitness": float(_m["val_fitness"]),
+            "val_returns": _m.get("val_returns"), "tail_stats": _m.get("tail_stats"),
+            "reward_source": hit.get("reward_source", ""),
+            "reward_hash": recorded,
+        }
+        if _m.get("popart_scale") is not None:
+            r["popart_scale"] = _m["popart_scale"]
+        return r
+
     if arm == "random_search":
         from src.search.random_search import sample_reward_source
 
@@ -992,9 +1045,16 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
         next_i = 0
         while next_i < n or pending:
             while next_i < n and len(pending) < capacity:
-                spec = _spec(arm, "source", sources[next_i], f"{arm}-c{next_i}", opts)
-                pending[pool.submit(spec)] = next_i
+                cid = f"{arm}-c{next_i}"
+                cached = _replay(cid, sources[next_i])
+                if cached is not None:
+                    results[next_i] = cached  # replayed — neither re-trained nor re-archived
+                    next_i += 1
+                    continue
+                pending[pool.submit(_spec(arm, "source", sources[next_i], cid, opts))] = next_i
                 next_i += 1
+            if not pending:
+                continue  # everything in this window replayed from the archive
             done, _ = wait(pending, return_when=FIRST_COMPLETED)
             for f in done:
                 i = pending.pop(f)
@@ -1007,7 +1067,7 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
 
     # bayes_opt — sequential BO (each evaluation trained via the shared pool, so it overlaps the
     # other arms; BO itself is inherently sequential).
-    from src.baselines.reward_family import family_bounds
+    from src.baselines.reward_family import family_bounds, params_to_source
     from src.search.bayes_opt import bayes_opt_over_template
 
     state: dict[str, Any] = {"i": 0, "results": []}
@@ -1015,6 +1075,17 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
     def template_eval(coeffs) -> float:
         cid = f"{arm}-c{state['i']}"
         state["i"] += 1
+        # Resume replay keyed by the MATERIALIZED executable source for these coefficients — the
+        # exact text the archive stores — so hash verification catches template/alpha/window drift
+        # as well as seed drift (parity with the serial BO cache).
+        src = params_to_source(
+            list(coeffs), cvar_alpha=float(opts.get("cvar_alpha", 0.05)),
+            window=int(opts.get("window", 20)),
+        )
+        cached = _replay(cid, src)
+        if cached is not None:
+            state["results"].append(cached)
+            return float(cached["fitness"])
         r = pool.submit(_spec(arm, "coeffs", list(coeffs), cid, opts)).result()
         state["results"].append(r)
         # As-completed archival (2026-07-06): archive each ok evaluation IMMEDIATELY — the old

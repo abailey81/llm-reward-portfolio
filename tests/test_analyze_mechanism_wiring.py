@@ -462,3 +462,105 @@ def test_mechanism_multiplicity_wired_into_analyze_disjoint(tmp_path: Path) -> N
     # the renderer appears in the report
     md = AC.write_report(out, tmp_path / "report").read_text(encoding="utf-8")
     assert "Mechanism multiplicity" in md
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-06 S7/S9: coherent-arm pool gate + the §2a(f) fingerprint instruments
+# --------------------------------------------------------------------------- #
+def test_mechanism_pool_excludes_placebo_shuffled_S7() -> None:
+    """placebo_shuffled passes _was_fed_tail (its prompt carries the labels) but its values are
+    DERANGED — it must be OUTSIDE the pooled SQ1/SQ2 primary (it is the floor row, not signal)."""
+    fed = [_search_record(i, -0.05 - 0.004 * (1 + i // 2), 1 + (i % 3), generation=1 + i // 2)
+           for i in range(6)]
+    shuffled = [_search_record(90 + i, -0.40 - 0.01 * i, 2, arm="placebo_shuffled", generation=1 + i)
+                for i in range(3)]
+    pairs = AC._mechanism_pairs(fed + shuffled)
+    assert pairs["x"].size == 6  # the deranged-arm rows never enter the signal pool
+    assert all(x > -0.30 for x in pairs["x"])  # no -0.40-scale deranged value leaked in
+
+
+def test_mechanism_deltas_do_not_condition_on_outcome() -> None:
+    """2026-07-06: the SQ1 (X->M) delta cells must include a fed candidate whose val_returns are
+    MISSING (code archived, outcome absent) — only the levels/mediation arrays need y."""
+    recs = [_search_record(i, -0.05 - 0.004 * (1 + i // 2), 1 + (i % 3), generation=1 + i // 2)
+            for i in range(6)]
+    # strip the outcome from one gen-2 candidate: dx/dm keep it; levels drop it
+    del recs[3]["metrics"]["val_returns"]
+    pairs = AC._mechanism_pairs(recs)
+    assert pairs["x"].size == 5  # levels: outcome-conditioned (one dropped)
+    assert pairs["dx"].size == 2  # deltas: gens 1..3 -> 2 consecutive deltas, NOT truncated
+
+
+def test_fingerprint_rows_scalar_arm_and_floor_S9() -> None:
+    """§2a(f): the scalar-arm row computes the SAME delta statistic on its OWN fed scalar (the A4
+    discriminator), and placebo_shuffled appears as the flagged floor row."""
+    recs = []
+    # distributional: gens 1..5, 2 candidates each, fed value moves with gen
+    for gen in range(1, 6):
+        for j in range(2):
+            recs.append(_search_record(gen * 10 + j, -0.05 - 0.004 * gen, 1 + (gen % 4),
+                                       generation=gen))
+    # scalar arm: prompt carries the score line (the fed scalar), no tail labels
+    for gen in range(1, 6):
+        for j in range(2):
+            r = _search_record(200 + gen * 10 + j, -0.05, 1 + ((gen + j) % 3),
+                               arm="scalar", generation=gen)
+            r["prompt"] = f"Improve the reward. Your previous reward scored: {0.30 + 0.02 * gen:.4f}"
+            recs.append(r)
+    # placebo_shuffled: labels present, deranged values
+    for gen in range(1, 5):
+        recs.append(_search_record(300 + gen, -0.40 - 0.01 * gen, 2, arm="placebo_shuffled",
+                                   generation=gen))
+    fp = AC.fingerprint_responsiveness_rows(recs)
+    assert fp["status"] == "ok"
+    rows = fp["rows"]
+    assert rows["scalar"]["n_deltas"] == 4 and rows["scalar"]["x_kind"].startswith("fed scalar")
+    assert rows["distributional"]["n_deltas"] == 4
+    assert rows["placebo_shuffled"]["is_floor"] is True
+    # the scalar row is a REAL statistic (ok or an honest no_data on degenerate m), never absent
+    assert rows["scalar"]["status"] in ("ok", "no_data")
+
+
+def test_distance_moderator_exploratory_shape_S9() -> None:
+    """§2a(b): rows = consecutive-generation pairs within the CVaR-fed arms; the output is tagged
+    exploratory with a distance beta + CI; tiny-n inputs degrade to no_data (never fabricate)."""
+    recs = []
+    for arm in ("distributional", "scalar_cvar5"):
+        for gen in range(1, 6):
+            for j in range(2):
+                recs.append(_search_record(400 + len(recs), -0.05 - 0.006 * gen,
+                                           1 + ((gen + j) % 4), arm=arm, generation=gen))
+    d = AC.distance_moderator_exploratory(recs)
+    assert d["status"] == "ok" and d["exploratory"] is True
+    assert d["n"] == 8  # 4 consecutive pairs x 2 arms
+    assert "beta_distance" in d and "ci_low" in d and "plateau" in d["betas"]
+    assert AC.distance_moderator_exploratory(recs[:4])["status"] == "no_data"
+
+
+def test_iqm_tost_severity_curve_2a_c() -> None:
+    """§2a(c): the TOST companion now carries the registered Mayo-Spanos severity curve — high
+    severity at margins the data can rule out, low at margins it cannot."""
+    rng = np.random.default_rng(7)
+    a = rng.normal(0.30, 0.02, 30)
+    b = a + rng.normal(0.0, 0.005, 30)  # tiny true difference
+    res = AC._iqm_tost(a, b, margin=0.05, rng=np.random.default_rng(0))
+    sev = res["severity"]
+    assert set(sev) == {"0.5x_margin", "1x_margin", "1.5x_margin", "2x_margin"}
+    assert sev["2x_margin"] >= sev["0.5x_margin"]  # monotone in the margin
+    assert sev["1x_margin"] > 0.9  # a near-zero difference passes the SESOI claim severely
+
+
+def test_condition_seed_cells_collapse_clustered_rows_S8() -> None:
+    """S8: the SQ3b differential's unit is the SEED cell — K clustered candidate rows per
+    (condition, seed) collapse to one (x, mean-m) row; x is cell-constant by design."""
+    recs = []
+    for seed, x in ((0, -0.040), (1, -0.055), (2, -0.061)):
+        for j in range(4):  # K=4 candidates authored from the identical per-seed prompt
+            r = _search_record(500 + seed * 10 + j, x, 1 + (j % 3), generation=1)
+            r["seed"] = seed
+            recs.append(r)
+    xs, ms = AC._condition_seed_cells(recs)
+    assert xs.size == 3 and ms.size == 3  # one row per seed, not 12 candidate rows
+    assert xs.tolist() == [-0.040, -0.055, -0.061]
+    # m is the within-cell mean of the 4 candidates' construct counts (1,2,3,1 -> 1.75)
+    assert ms[0] == 1.75

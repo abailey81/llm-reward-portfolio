@@ -344,3 +344,93 @@ def test_evaluate_health_runs_fps_drift_when_armed() -> None:
     })
     drift = next(c for c in report.checks if c.name == "fps_drift")
     assert drift.severity == S.WARN
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-06 S17-S20: the gatherer PRODUCES the rate/scale inputs; coverage
+# reconciles ledgered failures; transitions persist to the sidecar; the journal
+# probe unions the search/ ledger location.
+# --------------------------------------------------------------------------- #
+def _mk_record(root: Path, stage: str, arm: str, rid: str, *, fitness: float = 0.1,
+               raw_rms: float | None = None) -> None:
+    d = root / stage / arm / rid
+    d.mkdir(parents=True, exist_ok=True)
+    metrics: dict = {"val_fitness": fitness}
+    if raw_rms is not None:
+        metrics["popart_scale"] = {"raw_rms_max": raw_rms, "raw_rms_last": raw_rms * 0.9}
+    (d / "record.json").write_text(
+        json.dumps({"run_id": rid, "arm": arm, "candidate_id": rid, "metrics": metrics}),
+        encoding="utf-8",
+    )
+
+
+def test_gatherer_produces_rate_scale_and_failure_inputs(tmp_path: Path) -> None:
+    """S17: n_records/n_nonfinite/n_candidates/n_attempted/raw_rms_by_arm/n_failed must be PRODUCED
+    from the archive + BOTH failure-ledger layouts (they were never produced before — six checks
+    plus both CUSUM monitors were permanently inert live)."""
+    run = tmp_path / "campaign"
+    S._RECORD_CACHE.clear()
+    _mk_record(run, "search", "scalar", "scalar-c0", fitness=0.2, raw_rms=1.5)
+    _mk_record(run, "search", "scalar", "scalar-c1", fitness=float("nan"))
+    _mk_record(run, "search", "distributional", "distributional-c0", fitness=0.3, raw_rms=160.0)
+    _mk_record(run, "test", "scalar", "scalar-s0", fitness=0.1)
+    # parallel-layout ledger + serial-layout ledger, one failure each (distinct candidate ids)
+    (run / "search" / "scalar").mkdir(parents=True, exist_ok=True)
+    (run / "search" / "scalar" / "failures.jsonl").write_text(
+        json.dumps({"candidate_id": "scalar-g0-c9", "error": "sandbox: rejected"}) + "\n",
+        encoding="utf-8",
+    )
+    (run / "search" / "proto-distributional.failures.jsonl").write_text(
+        json.dumps({"candidate_id": "distributional-g1-c4", "error": "sandbox: rejected"}) + "\n",
+        encoding="utf-8",
+    )
+    inputs = S.gather_inputs(run)
+    assert inputs["n_records"] == 4 and inputs["n_nonfinite"] == 1
+    assert inputs["n_candidates"] == 3  # search records only
+    assert inputs["n_failed"] == 2  # one per ledger layout, deduped by candidate_id
+    assert inputs["n_attempted"] == 5  # 3 archived search candidates + 2 ledgered failures
+    assert inputs["raw_rms_by_arm"] == {"scalar": 1.5, "distributional": 160.0}
+    # the reward-scale drift check now has real inputs: 160/1.5 > 100 -> WARN fires
+    report = S.evaluate_health(inputs)
+    scale = next(c for c in report.checks if c.name == "reward_scale")
+    assert scale.severity in (S.WARN, S.CRITICAL)
+    nan = next(c for c in report.checks if c.name == "nan_rate")
+    assert nan.severity != S.INFO  # no longer inert: 1/4 non-finite exceeds the warn threshold
+
+
+def test_coverage_reconciles_ledgered_failures_S19(tmp_path: Path) -> None:
+    """S19: a claimed-complete stage whose record shortfall is ACCOUNTED by known failures is a
+    disclosed partial (WARN), not the silent-shortfall CRITICAL husk class."""
+    c = S.check_unit_coverage(300, 330, "test", claimed_complete=True, known_failures=30)
+    assert c.severity == S.WARN and "accounted" in c.detail
+    c = S.check_unit_coverage(300, 330, "test", claimed_complete=True, known_failures=5)
+    assert c.severity == S.CRITICAL  # 25 units of UNACCOUNTED shortfall remain
+
+
+def test_transitions_persist_to_sidecar_S18(tmp_path: Path) -> None:
+    """S18: severity transitions must land in <run_dir>/sentinel_events.jsonl (the sentinel runs in
+    its own process, so the run's root-logger events.jsonl handler can never see them)."""
+    report = S.HealthReport([S.HealthCheck("disk", S.CRITICAL, "free disk 1.0 GB < floor")])
+    last: dict = {}
+    S._emit_transitions(report, last, tmp_path)
+    side = tmp_path / "sentinel_events.jsonl"
+    rows = [json.loads(ln) for ln in side.read_text(encoding="utf-8").splitlines()]
+    assert rows and rows[0]["check"] == "disk" and rows[0]["severity"] == S.CRITICAL
+    # no re-emit while the severity holds; a change re-emits
+    S._emit_transitions(report, last, tmp_path)
+    assert len(side.read_text(encoding="utf-8").splitlines()) == 1
+    S._emit_transitions(S.HealthReport([S.HealthCheck("disk", S.OK, "free disk 100 GB")]), last, tmp_path)
+    assert len(side.read_text(encoding="utf-8").splitlines()) == 2
+
+
+def test_journal_probe_unions_search_ledger_S20(tmp_path: Path) -> None:
+    """S20: the campaign logs under <output>/search — pointing the sentinel at the campaign ROOT
+    (the documented invocation) must still find the completion stream."""
+    run = tmp_path / "campaign"
+    (run / "search").mkdir(parents=True)
+    line = json.dumps({"ts": "2026-07-06T10:00:00", "level": "INFO", "event": "seed_done",
+                       "run_id": "scalar-s0", "arm": "scalar"})
+    (run / "search" / "events.jsonl").write_text(line + "\n", encoding="utf-8")
+    S._RECORD_CACHE.clear()
+    inputs = S.gather_inputs(run)
+    assert len(inputs.get("completion_times", [])) == 1

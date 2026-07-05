@@ -243,9 +243,13 @@ degrades gracefully to n_gpu=2; it never crashes. (n_gpu=4 is not on the table �
 ### 4a. Decide the worker counts (the resource knobs)
 - **TEST leg parallelism — `--gpu N` (science-neutral, the clean win).** The 7×30 = 210 winner
   re-runs are embarrassingly parallel with zero reflection coupling. Laptop: `--gpu 3` (proven-safe
-  2–3; **`--gpu 4` is REFUSED by the CLI** — it OOMs the 6 GiB RTX-4050 VRAM ceiling). Add `--cpu 1`
-  **only if** you freed the ~8 GB of other apps. **Never exceed 4 total workers** (a 4th GPU worker
-  OOMs VRAM; a further CPU worker OOMs RAM — this is physics, not a config knob).
+  2–3; **`--gpu 4` is REFUSED by the CLI** — it OOMs the 6 GiB RTX-4050 VRAM ceiling). **`--cpu N>0`
+  is REFUSED on a REAL run (S6, 2026-07-06)**: CPU≠CUDA bit-for-bit and the device pool assigns
+  seeds by a timing race, so a mixed pool makes the SEALED leg device-heterogeneous and
+  irreproducible, and degrades the paired-seed CRN design. This costs no speed — the GPU is the
+  binding resource and `--gpu 3` keeps it saturated; `--cpu` remains available for
+  `--synthetic`/`--dry-run` dev throughput. Each test record now carries `metrics.device` so
+  homogeneity is auditable from the archive.
 - **SEARCH leg — SERIAL is the ratified HEADLINE (`--search-gpu 0`, the default; 2026-07-01 amendment
   supersedes R24, label corrected 2026-07-02).** The recorded headline
   (`headline_reflect_protocol: serial_reflect_on_best`) runs arms one candidate at a time through the
@@ -283,7 +287,8 @@ degrades gracefully to n_gpu=2; it never crashes. (n_gpu=4 is not on the table �
 # PREREQUISITE: the single-arm 50k GPU-smoke (Step 3d) is GREEN. --resume makes it crash-safe.
 python scripts/run_campaign.py --gpu 3 --h3-singleshot --resume --no-shutdown
 #   --h3-singleshot appends the H3 single-shot control (R30); H1 baselines run automatically (config h1_baselines).
-#   add --cpu 1 only if other apps are closed (never exceed 4 total workers).
+#   --cpu is REFUSED on a real run (S6: the sealed leg must be device-homogeneous; GPU-only at --gpu 3
+#   is already the throughput ceiling — the GPU is the binding resource).
 
 # ROBUSTNESS VARIANT (parallel best-of-generation search; documented, resume-safe; NOT the headline):
 python scripts/run_campaign.py --search-gpu 2 --gpu 3 --h3-singleshot --resume --no-shutdown
@@ -650,7 +655,7 @@ python scripts/run_campaign.py --dry-run            # 3c  (V2, keyless)
 python scripts/run_prototype.py --parallel --synthetic --gpu 3 --pass A --arms distributional  # 3d (V3)
 # ... V4 soak / V5 resume / V6 determinism on the synthetic path ...
 # R73: headline = univ5 (loader DEFAULT — Split C, zero-fill, no fabricated losses); NO env override (search+test+analyze).
-python scripts/run_campaign.py --gpu 3 --h3-singleshot --resume --no-shutdown  # 4  (REAL run — SERIAL reflect-on-best headline [--search-gpu 0 default, ratified 07-01/corrected 07-03] + H3; +--cpu 1 if apps closed)
+python scripts/run_campaign.py --gpu 3 --h3-singleshot --resume --no-shutdown  # 4  (REAL run — SERIAL reflect-on-best headline [--search-gpu 0 default, ratified 07-01/corrected 07-03] + H3; --cpu REFUSED on real runs — S6 device homogeneity)
 python scripts/monitor.py outputs/campaign/search --follow-campaign  # 5  (second terminal; progress.json lives under search/ — M5c)
 python scripts/analyze_campaign.py --root outputs/campaign --single-shot-root outputs/campaign/test_h3_singleshot/distributional  # 8  (PBO + DSR + H2-RA/Tail + H1/H3/H4 + floor + rf + R44 delisting band) — NOT `make analyze`
 python scripts/cost_sweep.py --root outputs/campaign/test   # 9a
