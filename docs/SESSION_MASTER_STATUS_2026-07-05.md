@@ -52,6 +52,13 @@ plan is visible and nothing is silently dropped. Living index; update as items c
 | PDF build + citations | ⏳ pending re-confirm |
 | CHANGELOG + cursor + memories + commit | ⏳ pending |
 
+## F. Advanced methodologies (Tamer: "implement very advanced methodologies")
+| Item | Status | Evidence |
+|------|--------|----------|
+| Statistical process control in the sentinel | ✅ DONE | Page-1954 **CUSUM change-point** drift detector on the streaming gate-failure / NaN rates — alarms on a sustained creep BEFORE any hard threshold (`scripts/sentinel.py`; +5 tests) |
+| Tamper-evident result-archive integrity | ✅ DONE | content-addressed **flat-Merkle seal** over every record.json → one verifiable root; auto-sealed at run-end, **verify-before-trust** in `analyze()` (`out["archive_integrity"]`), loud on mismatch (`scripts/archive_integrity.py`; +6 tests) |
+| Author≠reviewer discipline | ✅ | a fresh adversarial auditor was put on the session-2 diff (findings addressed in the final battery) |
+
 ## What is NOT abandoned but is DEFERRED (by decision, not by drift)
 - Write-up depth / word surgery — Tamer: "don't worry about the write-up yet."
 - Hash-bound edits (generations mirror KEY, author-model KEY, R76 wording, TOST margin registration,

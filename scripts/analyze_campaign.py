@@ -4466,6 +4466,28 @@ def analyze(
     # correction). Read it from the frozen testing_family (single source of truth), not a literal.
     alpha_one_sided = float(fam.get("alpha_one_sided", 0.05))
 
+    # VERIFY-BEFORE-TRUST (2026-07-05): if the run sealed an archive-integrity manifest, re-verify the
+    # live archive against it BEFORE trusting any number — a modified/dropped/added record between the
+    # run and analysis is caught here, not silently averaged into a result. Report-only + best-effort
+    # (an absent manifest, e.g. a unit-test archive, is simply skipped); a genuine MISMATCH is surfaced
+    # loudly under out["archive_integrity"] so it cannot pass unnoticed.
+    archive_integrity = {"status": "not_sealed", "reason": "no archive_integrity.json manifest present"}
+    try:
+        from scripts.archive_integrity import verify_manifest
+
+        manifest = Path(root) / "archive_integrity.json"
+        if manifest.is_file():
+            vr = verify_manifest(root)
+            archive_integrity = {
+                "status": "ok" if vr.ok else "MISMATCH", "root": vr.actual_root,
+                "sealed_root": vr.expected_root, "n_verified": vr.n_verified,
+                "changed": vr.changed[:20], "removed": vr.removed[:20], "added": vr.added[:20],
+            }
+            if not vr.ok:
+                print(f"[analyze_campaign] ARCHIVE INTEGRITY MISMATCH: {vr.summary()}", flush=True)
+    except Exception as exc:  # noqa: BLE001 — the integrity check must never itself break analysis
+        archive_integrity = {"status": "error", "reason": str(exc)[:200]}
+
     records = load_campaign_records(root)
     results = campaign_pbo(records, n_blocks=n_blocks, rng=np.random.default_rng(0))
     # M3 (R36): a SECOND PBO ranked on per-block annualised Sharpe — the DSR-proxy statistic winner
@@ -4492,6 +4514,7 @@ def analyze(
     out: dict[str, Any] = {
         "n_blocks": int(n_blocks),
         "n_records": len(records),
+        "archive_integrity": archive_integrity,  # verify-before-trust seal check (2026-07-05)
         "pbo": results,
         "pbo_dsr": results_dsr,  # M3 (R36): second PBO ranked on the DSR-proxy (per-block Sharpe) statistic
         "winner_dsr": dsr,

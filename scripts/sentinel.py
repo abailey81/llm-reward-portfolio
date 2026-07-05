@@ -255,6 +255,52 @@ def check_exit_code(exit_code: int | None) -> HealthCheck:
                        {"exit_code": int(exit_code)})
 
 
+def cusum(series: list[float], target: float, *, k: float, h: float,
+          direction: str = "up") -> tuple[bool, int, float]:
+    """One-sided Page (1954) CUSUM change-point detector: does a streaming metric DRIFT off ``target``?
+
+    A hard threshold only fires once a value crosses it; a CUSUM accumulates small persistent
+    deviations and alarms on a sustained SHIFT of size ~``k`` (in the series' units) before any single
+    value is extreme — the right tool for "catch anything EARLY". For ``direction='up'`` the statistic
+    is ``S_i = max(0, S_{i-1} + (x_i - target - k))`` and it alarms when ``S_i > h`` (``down`` mirrors
+    it). ``k`` is the allowable slack (half the shift you want to detect); ``h`` is the decision
+    interval. Returns ``(alarmed, first_alarm_index, S_final)``. Pure + total (empty series -> no
+    alarm)."""
+    s = 0.0
+    first = -1
+    sign = 1.0 if direction == "up" else -1.0
+    for i, x in enumerate(series):
+        try:
+            xf = float(x)
+        except (TypeError, ValueError):
+            continue
+        s = max(0.0, s + sign * (xf - target) - k)
+        if s > h and first < 0:
+            first = i
+    return (first >= 0, first, s)
+
+
+def check_metric_drift(name: str, history: list[float], target: float, *, k: float, h: float,
+                       min_points: int = 5) -> HealthCheck:
+    """Statistical-process-control check: a CUSUM upward-drift alarm on a streaming rate/metric.
+
+    Catches a SUSTAINED creep (e.g. the gate-failure or NaN rate slowly rising) that the point-in-time
+    threshold checks would only flag once it becomes extreme — so a degrading authoring loop is seen in
+    hours, not at the end. WARN (not CRITICAL): the drift is an EARLY signal to investigate, and the
+    hard-threshold checks above escalate if it actually reaches a breach. Needs ``min_points`` samples
+    before it can alarm (a short history is not yet evidence of drift)."""
+    hist = [float(x) for x in history if x is not None]
+    if len(hist) < int(min_points):
+        return HealthCheck(f"{name}_drift", INFO, f"{len(hist)} samples (need {min_points} for a drift check)",
+                           {"n": len(hist)})
+    alarmed, idx, s = cusum(hist, target, k=k, h=h, direction="up")
+    ev = {"n": len(hist), "cusum": round(s, 4), "target": target, "k": k, "h": h, "first_alarm_i": idx}
+    if alarmed:
+        return HealthCheck(f"{name}_drift", WARN,
+                           f"{name} is DRIFTING upward (CUSUM {s:.2f} > {h}, since sample {idx})", ev)
+    return HealthCheck(f"{name}_drift", OK, f"{name} stable (CUSUM {s:.2f} <= {h})", ev)
+
+
 def check_mirror_freshness(mirror_age_s: float | None, *, warn_s: float = 43200.0) -> HealthCheck:
     """The irreplaceable archive mirror should refresh (~6-hourly). A stale mirror means a C: failure
     would lose recent runs — worth a nudge, not a stop."""
@@ -288,6 +334,12 @@ def evaluate_health(inputs: dict[str, Any]) -> HealthReport:
         check_api_error_rate(int(g("n_api_errors", 0) or 0), int(g("n_api_calls", 0) or 0)),
         check_mirror_freshness(g("mirror_age_s")),
     ]
+    # Statistical-process-control drift checks (opt-in: the --watch loop accumulates a per-tick history
+    # and passes it in). Target 0 with slack k = half the shift we care about; h the decision interval.
+    if g("gate_failure_history") is not None:
+        checks.append(check_metric_drift("gate_failure", g("gate_failure_history"), 0.0, k=0.03, h=0.15))
+    if g("nan_rate_history") is not None:
+        checks.append(check_metric_drift("nan_rate", g("nan_rate_history"), 0.0, k=0.01, h=0.05))
     return HealthReport(checks)
 
 
@@ -449,9 +501,21 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     run_dir = Path(args.run_dir)
     last: dict[str, str] = {}
+    # Streaming histories for the CUSUM drift checks (accumulate across --watch ticks).
+    gate_hist: list[float] = []
+    nan_hist: list[float] = []
 
     def _tick() -> HealthReport:
-        report = evaluate_health(gather_inputs(run_dir))
+        inputs = gather_inputs(run_dir)
+        na, nc = int(inputs.get("n_failed", 0) or 0), int(inputs.get("n_attempted", 0) or 0)
+        if nc > 0:
+            gate_hist.append(na / nc)
+            inputs["gate_failure_history"] = list(gate_hist)
+        nf, nr = int(inputs.get("n_nonfinite", 0) or 0), int(inputs.get("n_records", 0) or 0)
+        if nr > 0:
+            nan_hist.append(nf / nr)
+            inputs["nan_rate_history"] = list(nan_hist)
+        report = evaluate_health(inputs)
         _emit_transitions(report, last)
         print(json.dumps(report.as_dict()) if args.json else render_report(report), flush=True)
         return report

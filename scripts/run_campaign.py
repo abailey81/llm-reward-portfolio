@@ -1817,6 +1817,21 @@ def run_headline_campaign(
     (output_dir / "campaign_summary.json").write_text(
         json.dumps(summary, indent=2, default=str), encoding="utf-8"
     )
+    # Content-addressed integrity SEAL over the result archive (2026-07-05): a single verifiable root
+    # over every record.json, so the analysis can prove the archive was not corrupted/edited between the
+    # run and analysis (results replay from it — CLAUDE.md directive 6). Best-effort: a seal failure
+    # must never sink a completed run. The root is stamped into the summary for provenance.
+    try:
+        from scripts.archive_integrity import write_manifest
+
+        manifest_path = write_manifest(output_dir)
+        summary["archive_integrity_root"] = json.loads(
+            manifest_path.read_text(encoding="utf-8")).get("root")
+        (output_dir / "campaign_summary.json").write_text(
+            json.dumps(summary, indent=2, default=str), encoding="utf-8"
+        )
+    except Exception as exc:  # noqa: BLE001 — sealing is provenance, never a run-blocker
+        print(f"[run_campaign] archive-integrity seal skipped: {exc}", flush=True)
     return summary
 
 
