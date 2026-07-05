@@ -35,6 +35,13 @@ agent:
     lo: 80
 
 compute:
+  # 2026-07-06 throughput (ADR-052; RESULT-NEUTRAL placement — identical instructions on identical
+  # data): pin every training process (pool workers + the serial driver) to the i7-13620H's
+  # P-cores (logical 0-11 = 6 P-cores x 2 HT; the 4 E-cores 12-15 run ~3.6 vs ~4.9 GHz with weaker
+  # IPC and are left to the OS/monitors — which also shields the run from OS jitter). Also raises
+  # priority to ABOVE_NORMAL and disables Windows EcoQoS power throttling for those processes.
+  # null disables. Machine-specific: re-derive the id list if the campaign ever moves hosts.
+  worker_cpu_affinity: "0-11"
   primary: rtx_4050                    # development / Phase-0 on the owned RTX 4050 laptop (ADR-023, COMPUTE-1)
   campaign: laptop_rtx_4050            # LAPTOP-ONLY confirmatory campaign on the owned RTX 4050 (ADR-040,
                                        #   CLAUDE.md 2026-06-30): Turbo 95->140W, n_gpu 2-3 (>=4 refused), buffer
