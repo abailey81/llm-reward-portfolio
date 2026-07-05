@@ -199,3 +199,12 @@ resume; C: fills → preflight refuses (fix space first).
 5. **Campaign launch day** (run-day checklist together) + keep the laptop on AC/network.
 6. **Okhrati sign-off** on the pivot disclosure; ethics forms.
 > **P7 target arithmetic corrected (2026-07-06 review):** the previous per-chapter targets (1,800+1,500+1,900+2,300+550+2,000 = 10,050) exceeded the 10,000 hard limit BEFORE any CH6 word. Corrected budget: non-CH6 chapters must sum to <= ~8,100 (the 9,500 PASS ceiling minus a realistic ~1,400-word CH6) — i.e. ~1,950 additional words of cuts beyond the old plan, allocated at write-time.
+
+## P9 — ADVANCED NOTEBOOK SUITE (added 2026-07-06, Tamer directive)
+Extend the validated notebooks (results_walkthrough.ipynb — real-kernel validated; the data-provenance
+notebook) into a high-standard, visually rich exhibit suite: advanced/interactive visualisations incl.
+3D (the figure engine already carries 3 static-3D exhibits + 2 GIFs + 9 headline figures in
+src/viz/{figures,advanced,schematics}.py — EXTEND, don't duplicate). Precise, publication-grade,
+mechanism-led exhibits (fed-tail vs authored-code responsiveness surfaces, per-arm fingerprint tables,
+severity curves, regime strata, the 3-link causal chain). SLOT: the campaign window (GPU-busy days) /
+the first analysis days — the notebooks render REAL campaign data when it lands.
