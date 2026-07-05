@@ -88,6 +88,11 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Lint SOURCE only (2026-07-06): outputs/ holds generated run artifacts (incl. LLM/stub-authored
+# reward.py files — linting the study's own subjects is meaningless), and the notebooks are
+# EXECUTED, kernel-validated artifacts whose stored outputs would be invalidated by cosmetic
+# cell rewrites (their 7 hits are notebook idioms: E401/E402/E702).
+extend-exclude = ["outputs", "notebooks"]
 
 [tool.mypy]
 python_version = "3.11"
