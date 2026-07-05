@@ -92,6 +92,48 @@ detaching the end-of-training CPU rollout to free the CUDA slot (~5%-class gain,
 surgery); MPS/TCC (Linux/Quadro-only); the iGPU (no CUDA). Authoring latency is <1% (already
 overlapped by the pool).
 
+## DEEP DIVE ROUND 2 (2026-07-06, "absolute minimum" directive) — measured, not guessed
+
+**The decomposition measurement (the fact that directs everything):** a full env step (obs + reward
++ projection + bookkeeping) costs **49 µs**; the total per-step wall at the measured 55 steps/s is
+**18,182 µs**. The environment is **0.3%** of the step. ~99.7% is the SB3 per-step Python loop plus
+TWO GPU round-trips per step (action inference + gradient update), each paying WDDM submission
+latency. Consequences:
+- The obs/rolling-vol precompute idea is DEAD ON DATA (would save ~0.3%); documented so it is not
+  re-proposed.
+- The remaining minimum lives in (i) CPU placement of the hot loop, (ii) GPU submission latency,
+  (iii) kernel-launch count per update.
+
+**BUILT — P-core placement (result-neutral; ADR-052):** the host CPU is the i7-13620H — 6 P-cores
+(logical 0-11, ~4.9 GHz) + 4 E-cores (12-15, ~3.6 GHz, weaker IPC). Windows freely migrates the
+per-step hot loop onto E-cores and EcoQoS-throttles background-ish processes. New
+`compute.worker_cpu_affinity: "0-11"` (campaign.yaml, ON) pins every training process (pool workers
+AND the serial driver) to P-cores, raises priority to ABOVE_NORMAL, and disables Windows power
+throttling — identical instructions on identical data, byte-identical results; the E-cores absorb
+the OS + monitors (which also shields the run from OS jitter). Expected: recovers whatever fraction
+of the CPU-bound ~40% was being scheduled onto E-cores (bench alongside HAGS at launch).
+
+**BENCH-AT-LAUNCH list (the 50k single-arm smoke, A/B each):**
+1. **HAGS** ON vs OFF (Windows Hardware-Accelerated GPU Scheduling; attacks the WDDM submission
+   latency both GPU round-trips pay; result-neutral; needs a reboot per toggle).
+2. **Fused Adam** (`optimizer_kwargs fused=True`): same algorithm, fewer kernel launches per update
+   (directly cuts launch overhead) — but a different float-reduction order ⇒ numerics-envelope
+   change: legitimate ONLY as a pre-freeze ratified config, and the pilots (B*, σ_D) ran unfused —
+   ratify ONLY if the bench shows ≥~10% (below that the pilot-evidence caveat isn't worth it).
+   Same rule for OMP threads 1→4.
+3. **recycle_every 12→24**: halves the pool-teardown drain bubbles (~0.2-0.4 wall-days over the
+   campaign) — ratify after a RAM-soak shows no RSS creep at 24 (the sentinel's RAM check guards it
+   live either way).
+
+**Noted, low priority — L1b:** the L1 campaign path parallelises within-arm but runs arms
+sequentially; generation-boundary drain bubbles (~0.2-0.4 wall-days total) would vanish if all 7
+arms' searches shared ONE pool (the prototype's run_parallel already does this). Moderate surgery;
+decide at the L1 amendment if the extra ~0.3 days matter.
+
+**Re-verified hard ceilings (unchanged):** the 4th GPU slot (measured OOM + 6 GiB VRAM at zero
+slack + a 23-day fragmentation runway); device-mixing anywhere (determinism); any frozen-config
+knob (science). Thermals have headroom (52 °C at 3 workers — the guardian should never fire).
+
 ## Decision summary for Tamer
 1. **L1 at seed ratification**: amend the executed search mode to the (resume-safe, reflect-on-best)
    3-worker parallel driver → **≈ −5 days**. Recommendation: YES — per-unit numbers identical; it is

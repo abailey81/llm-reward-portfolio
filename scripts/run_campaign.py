@@ -97,6 +97,31 @@ def _test_stall_after_s() -> float | None:
         return None
 
 
+def _export_cpu_placement() -> None:
+    """Export the P-core placement knob (2026-07-06 throughput; result-neutral, config-as-truth).
+
+    ``config/campaign.yaml compute.worker_cpu_affinity`` (a "0-11"-style spec or a list) -> the
+    ``LLMRP_WORKER_CPU_AFFINITY`` env var read by every pool worker's initializer — and applied to
+    THIS driver process too (the SERIAL search trains in-process, so the driver's hot loop needs
+    the same P-core pinning + EcoQoS-off). Best-effort; absent/null = off."""
+    try:
+        import os
+
+        from src.utils.config import load_config
+
+        spec = (load_config("campaign").get("compute") or {}).get("worker_cpu_affinity")
+        if not spec:
+            return
+        if isinstance(spec, (list, tuple)):
+            spec = ",".join(str(int(c)) for c in spec)
+        os.environ["LLMRP_WORKER_CPU_AFFINITY"] = str(spec)
+        from src.orchestration.parallel import _apply_cpu_placement
+
+        _apply_cpu_placement()
+    except Exception:  # noqa: BLE001 — placement is an optimization, never a launch blocker
+        pass
+
+
 def _write_summary_atomic(output_dir: Path, summary: dict[str, Any],
                           filename: str = "campaign_summary.json") -> None:
     """Summary via tmp + ``os.replace`` (2026-07-06 A4): the summary is the watcher/supervisor's
@@ -2085,6 +2110,7 @@ def main() -> None:
     preload(strict=True)  # pyarrow before torch (gold-parquet ABI segfault guard) -- BEFORE any torch import; H2 fail-loud
     load_env()  # .env -> os.environ so the LLM key is available (ADR-038); workers inherit it
     _install_signal_handlers()  # cooperative graceful shutdown (a 27 h run WILL be interrupted)
+    _export_cpu_placement()  # 2026-07-06: P-core pinning + EcoQoS-off for driver + workers (config-gated)
 
     # audit fix: HONOR --config. ``load_config`` resolves config/<stem>.yaml by stem, so derive the
     # stem from the user-supplied path (default config/campaign.yaml -> "campaign"). Previously

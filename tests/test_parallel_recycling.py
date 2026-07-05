@@ -127,3 +127,39 @@ def test_run_recycling_streams_during_submission_not_only_after_it() -> None:
         f"first-to-last streaming spread {spread:.2f}s — results were collected in a burst, "
         "i.e. submission blocked collection (the S15 regression)"
     )
+
+
+def test_parse_affinity_specs() -> None:
+    """2026-07-06 P-core placement: the affinity spec parser (ranges, csv, mixed, junk-total)."""
+    from src.orchestration.parallel import _parse_affinity
+
+    assert _parse_affinity("0-11") == list(range(12))
+    assert _parse_affinity("0,2,4") == [0, 2, 4]
+    assert _parse_affinity("0-3,8,10-11") == [0, 1, 2, 3, 8, 10, 11]
+    assert _parse_affinity("junk,,x-y") == []  # total on garbage — placement is never a blocker
+    assert _parse_affinity("3-3") == [3]
+
+
+def test_apply_cpu_placement_noop_without_env(monkeypatch) -> None:
+    """No env var -> a pure no-op (placement must never surprise a non-configured host)."""
+    from src.orchestration import parallel
+
+    monkeypatch.delenv("LLMRP_WORKER_CPU_AFFINITY", raising=False)
+    parallel._apply_cpu_placement()  # must not raise or change anything
+
+
+def test_apply_cpu_placement_pins_this_process(monkeypatch) -> None:
+    """With the env var set, the process affinity is applied (verified via psutil round-trip)."""
+    import psutil
+
+    from src.orchestration import parallel
+
+    p = psutil.Process()
+    original = p.cpu_affinity()
+    try:
+        want = original[: max(1, len(original) - 1)]  # a strict subset that exists on any host
+        monkeypatch.setenv("LLMRP_WORKER_CPU_AFFINITY", ",".join(str(c) for c in want))
+        parallel._apply_cpu_placement()
+        assert sorted(p.cpu_affinity()) == sorted(want)
+    finally:
+        p.cpu_affinity(original)  # restore — never leak a pinned test runner

@@ -145,12 +145,81 @@ _FIXTURE: tuple[Any, ...] = (
 _LLM_ARMS = ("distributional", "scalar", "placebo", "scalar_cvar5", "placebo_shuffled")
 
 
+def _parse_affinity(spec: str) -> list[int]:
+    """``"0-11"`` / ``"0,1,2"`` / mixed ``"0-5,8"`` -> a sorted logical-CPU id list (total on junk)."""
+    out: set[int] = set()
+    for part in str(spec).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, _, hi = part.partition("-")
+            try:
+                out.update(range(int(lo), int(hi) + 1))
+            except ValueError:
+                continue
+        else:
+            try:
+                out.add(int(part))
+            except ValueError:
+                continue
+    return sorted(out)
+
+
+def _apply_cpu_placement() -> None:
+    """P-core affinity + anti-throttling for THIS process (2026-07-06 throughput; result-neutral).
+
+    The campaign host's i7-13620H is HYBRID (6 P-cores = logical 0-11 with HT, 4 E-cores = 12-15 at
+    ~3.6 vs ~4.9 GHz and weaker IPC). Windows freely migrates the per-step SB3 hot loop onto
+    E-cores — and applies EcoQoS power-throttling to background-ish processes — silently slowing
+    the CPU-bound fraction of every training step. When ``LLMRP_WORKER_CPU_AFFINITY`` is set (the
+    driver exports it from ``config/campaign.yaml compute.worker_cpu_affinity``), pin this process
+    to those logical CPUs, raise it to ABOVE_NORMAL, and disable Windows power throttling.
+    PLACEMENT ONLY — identical instructions on identical data, byte-identical results. Best-effort:
+    a failure never blocks training."""
+    import os
+
+    spec = os.environ.get("LLMRP_WORKER_CPU_AFFINITY", "")
+    if not spec:
+        return
+    cpus = _parse_affinity(spec)
+    if not cpus:
+        return
+    try:
+        import psutil
+
+        p = psutil.Process()
+        p.cpu_affinity(cpus)
+        try:
+            p.nice(psutil.ABOVE_NORMAL_PRIORITY_CLASS)  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 — POSIX/nice differences
+            pass
+    except Exception:  # noqa: BLE001 — affinity is an optimization, never a blocker
+        return
+    try:  # EcoQoS OFF (Windows 11 power throttling — the hybrid-CPU background-process trap)
+        import ctypes
+
+        class _PT(ctypes.Structure):
+            _fields_ = [("Version", ctypes.c_ulong), ("ControlMask", ctypes.c_ulong),
+                        ("StateMask", ctypes.c_ulong)]
+
+        # PROCESS_POWER_THROTTLING_EXECUTION_SPEED = 0x1; ControlMask set + StateMask 0 = NEVER throttle.
+        st = _PT(1, 0x1, 0x0)
+        ctypes.windll.kernel32.SetProcessInformation(
+            ctypes.windll.kernel32.GetCurrentProcess(), 4,  # ProcessPowerThrottling
+            ctypes.byref(st), ctypes.sizeof(st),
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _worker_init() -> None:
     """ProcessPoolExecutor initializer: pin threads BEFORE any heavy import (research §2/§3)."""
     import os
 
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
         os.environ[var] = "1"
+    _apply_cpu_placement()  # 2026-07-06: P-core pinning + EcoQoS-off (config-gated; result-neutral)
     os.environ.setdefault(
         "PYTORCH_CUDA_ALLOC_CONF", "max_split_size_mb:128,garbage_collection_threshold:0.8"
     )
