@@ -127,10 +127,14 @@ def _reward_src(n_tail: int) -> str:
 
 
 class _CyclingTransport:
-    """A keyless transport cycling reward sources with ascending tail-construct counts (so M varies)."""
+    """A keyless transport cycling reward sources with ascending tail-construct counts (so M varies).
+
+    The cycle starts at the SEED offset (2026-07-06): it previously ignored its seed, so every seed
+    authored the identical archetype window and the per-seed MEAN construct count was constant —
+    degenerate for the S8 seed-cell analysis in a way the real (Opus) leg is not."""
 
     def __init__(self, seed: int = 0) -> None:
-        self._n = 0
+        self._n = int(seed)
         self.calls: list[tuple[str, str]] = []
 
     def __call__(self, system: str, user: str) -> str:
@@ -270,10 +274,18 @@ def test_named_leg_analyze_flips_to_ok(tmp_path: Path) -> None:
 
 
 def test_legible_leg_analyze_flips_to_ok(tmp_path: Path) -> None:
+    # S8 (2026-07-06): the differential's bootstrap unit is the SEED CELL (x is cell-constant by
+    # design), so >= 3 seeds per condition are required for a coefficient at all — 4 here, mirroring
+    # the real leg's >= 5. (The old 2-seed fixture passed only because candidate-level rows
+    # fabricated n=8 from 2 independent units — the anti-conservative clustering S8 closed.)
     legible_root = tmp_path / "legible"
-    _run("legible", legible_root, seeds=(0, 1), candidates=4)
+    # candidates=3 = a PARTIAL archetype cycle, so the per-seed mean m varies across the seed-offset
+    # windows (a full cycle of 4 would make the mean offset-invariant — degenerate by arithmetic).
+    _run("legible", legible_root, seeds=(0, 1, 2, 3), candidates=3)
     out = AC.analyze(tmp_path / "empty_main", legible_root=legible_root)
     leg = out["legible_format_responsiveness"]
     assert leg["status"] == "ok", leg
-    # both conditions produced a non-degenerate responsiveness coefficient
+    # both conditions produced a non-degenerate responsiveness coefficient over the seed cells
     assert leg["legible"]["status"] == "ok" and leg["raw"]["status"] == "ok"
+    assert leg["legible"]["n"] == 4 and leg["raw"]["n"] == 4  # one row per SEED (4 seeds), not per candidate
+    assert "clustering" in leg  # the S8 disclosure rides in the output

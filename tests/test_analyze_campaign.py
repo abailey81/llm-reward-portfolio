@@ -1181,8 +1181,16 @@ def test_cross_hypothesis_multiplicity_handles_skipped_hypotheses() -> None:
 # EVT-consistency guard (DEEP_H2 §6.3)                                          #
 # --------------------------------------------------------------------------- #
 def _fed_search_record(arm: str, cid: str, vec: np.ndarray, *, fed_tail: bool) -> dict:
-    """A search candidate whose feedback_block carries (or omits) the CVaR tail labels (the fed-tail gate)."""
+    """A search candidate in the CORRECTED fed shape (2026-07-06: the guard now shares the M13-fixed
+    ``_was_fed_tail`` — prompt-first, generation-gated — so a FED candidate carries the tail labels
+    in its archived PROMPT at generation >= 1; its own feedback_block is what it feeds FORWARD)."""
     rec = _record(arm, cid, vec)
+    rec["generation"] = 1
+    rec["prompt"] = (
+        "Improve the reward. Feedback from the previous best:\n"
+        "CVaR 5%: -0.03\nCVaR 1%: -0.06\nleft-tail mass: 0.02\n"
+        if fed_tail else "Improve the reward. Feedback: Deflated Sharpe: 0.41"
+    )
     rec["feedback_block"] = "CVaR 5%: -0.03\nCVaR 1%: -0.06\nleft-tail mass: 0.02\n" if fed_tail else ""
     return rec
 

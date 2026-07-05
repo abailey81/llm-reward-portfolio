@@ -763,7 +763,8 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
     events = []
     _seen_ev_paths = set()
     for _ep in (run_dir / "events.jsonl", _camp_root / "events.jsonl",
-                _camp_root / "search" / "events.jsonl"):
+                _camp_root / "search" / "events.jsonl",
+                _camp_root / "baselines" / "events.jsonl"):
         rp = str(_ep.resolve()) if _ep.exists() else str(_ep)
         if rp in _seen_ev_paths:
             continue
@@ -796,7 +797,8 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         evs = []
         _seen_j = set()
         for _jp in (run_dir / "events.jsonl", camp_root / "events.jsonl",
-                    camp_root / "search" / "events.jsonl"):
+                    camp_root / "search" / "events.jsonl",
+                    camp_root / "baselines" / "events.jsonl"):
             rp = str(_jp.resolve()) if _jp.exists() else str(_jp)
             if rp in _seen_j:
                 continue

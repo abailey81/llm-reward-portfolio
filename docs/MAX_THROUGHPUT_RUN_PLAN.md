@@ -56,10 +56,48 @@ CPU workers into the sealed leg; overlapping one arm's SEARCH with another's TES
 protocol (the serial search occupies one slot; the overlap would starve the test pool below 3 and
 complicate the RAM envelope for zero net gain at the same total GPU-hours).
 
+## The 2026-07-06 DEEP DIVE — the full option space (Tamer: "push training time to the absolute
+## global minimum; hardware only")
+
+**E — IDLE-SLOT BACKFILL (BUILT TODAY; ops-safe, NO amendment; ≈ −2.3 to −3 days).** During the
+serial headline search only 1 of the 3 proven GPU slots trains — 2 slots idle for ~9 days. The H1
+baselines (120 trainings) depend on NOTHING the search produces (hand rewards, matched seeds); the
+new **`run_campaign.py --baselines-only --gpu 2`** runs exactly that stage as a SECOND process
+beside the serial search (1 + 2 = the proven 3-concurrent envelope; ~3 replay buffers ≈ the same
+RAM). Science-neutral: every training is seeded-deterministic regardless of co-scheduling; archives
+are run-id-keyed + resume-safe; it writes its OWN `baselines_summary.json` + `baselines/` journal
+(the campaign's sentinel files untouched; the sentinel unions the extra journal). With E, the H1
+tail vanishes INTO the search window. E is the no-amendment fallback that captures most of L1's
+value; with L1 approved there are no idle slots and E is unnecessary — pick ONE.
+
+**HAGS — Hardware-Accelerated GPU Scheduling A/B (bench at launch; potential single-digit %).**
+The 07-02 perf audit measured ~58% per-step dead time from WDDM submission overhead + P-state
+hunting; the clock lock fixed P-states, HAGS is the remaining Windows-level submission-latency
+lever. Result-neutral (scheduling only — identical kernels/numerics). Needs a reboot; bench the
+single-arm 50k smoke ON vs OFF on run day (runbook §0b candidate row).
+
+**OMP threads 1→4 per worker (BENCH-then-RATIFY; numerics caveat).** Workers pin BLAS/torch to 1
+thread (the anti-oversubscription decision); at 3 workers on 14 physical cores, ~11 cores idle
+while the env/obs numpy math runs single-threaded. 3×4 threads ≤ 14 cores = no oversubscription →
+a real candidate for the CPU-bound step fraction. CAVEAT: BLAS reduction order changes float sums →
+NOT byte-identical to the 1-thread config; legitimate ONLY as a pre-freeze ratified executed-config
+(thread count is part of the determinism envelope) after an A/B bench shows a material win.
+
+**REJECTED (each violates determinism, physics, or the frozen science — documented so they are not
+re-proposed):** a 4th training slot (RAM transition-wave OOM measured at n_gpu=4 + VRAM ceiling;
+CPU 4th lane breaks archive-replay determinism via token-race device assignment); batch-size /
+buffer / B* / gradient-step changes (frozen agent config = the science); CUDA Graphs / torch.compile
+(no Triton on native Windows — ADR-040; manual graph capture = deep SB3 surgery for a bounded gain);
+detaching the end-of-training CPU rollout to free the CUDA slot (~5%-class gain, high-risk SB3
+surgery); MPS/TCC (Linux/Quadro-only); the iGPU (no CUDA). Authoring latency is <1% (already
+overlapped by the pool).
+
 ## Decision summary for Tamer
 1. **L1 at seed ratification**: amend the executed search mode to the (resume-safe, reflect-on-best)
-   3-worker parallel driver → **≈ −5 days** on the campaign. My recommendation: YES — the per-unit
-   numbers are the same; the amendment is a scheduling label, and it is exactly what the ~23-day
-   plan already assumed.
-2. **L2 only if L1 is declined.**
-3. Everything else is already at the hardware ceiling.
+   3-worker parallel driver → **≈ −5 days**. Recommendation: YES — per-unit numbers identical; it is
+   what the ~23-day plan already assumed.
+2. **If L1 is declined: E (BUILT — `--baselines-only` backfill, ≈ −2.3 to −3 days, zero amendment)**
+   + L2 (H3-parallel) as the remaining fallbacks.
+3. **Run-day benches**: HAGS A/B (reboot + 50k smoke); OMP 1→4 A/B (ratify the thread count into the
+   executed config ONLY if the win is material — numerics-envelope caveat above).
+4. Everything else is at the hardware ceiling; every rejection above is deliberate and documented.
