@@ -177,6 +177,24 @@ def test_mechanism_pairs_gate_to_tail_fed_only() -> None:
     assert pairs["x"][0] == pytest.approx(-0.05 - 0.004 * 1)
 
 
+def test_mechanism_deltas_skip_generation_gaps() -> None:
+    """The registered §2a form differences STRICTLY consecutive generations: when an entire
+    generation is absent (every candidate filtered non-finite), no delta may be formed across the
+    gap — sorted-adjacent differencing (e.g. gen4−gen2) would silently off-spec the estimand
+    (2026-07-06 audit MINOR)."""
+    recs = []
+    for gen in (1, 2, 4, 5):  # generation 3 entirely absent
+        for j in range(2):
+            recs.append(
+                _search_record(gen * 10 + j, -0.05 - 0.004 * gen, 1 + (gen % 5), generation=gen)
+            )
+    pairs = AC._mechanism_pairs(recs)
+    # strictly consecutive pairs are (1,2) and (4,5) only — the 2->4 gap yields NO delta
+    assert pairs["dx"].size == 2 and pairs["dm"].size == 2
+    # each surviving delta spans exactly one generation step of the fed value
+    assert np.allclose(pairs["dx"], -0.004)
+
+
 def test_responsiveness_mediation_degrade_with_no_tail_fed(tmp_path: Path) -> None:
     """No tail-fed candidates -> the modules return status='no_data' (degrade, never raise)."""
     # a single non-tail-fed scalar candidate

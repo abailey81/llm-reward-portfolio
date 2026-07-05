@@ -68,6 +68,17 @@ llm:
                                        #   iterative arm; archived to a SEPARATE root (search_h3_singleshot/,
                                        #   test_h3_singleshot/distributional) for the analyze-H3 difference test.
 
+monitoring:
+  # TEST-leg wedge detection (2026-07-06, as-completed streaming archival). When NO seed training
+  # completes for this many seconds, run_recycling's on_stall fires and a WARNING "test_leg_stall"
+  # event (naming the pending arm/seed identities) lands in events.jsonl for the sentinel/watcher to
+  # escalate — the "one CUDA training wedged while every process is alive" hang a liveness check
+  # cannot see. 5400 s = ~3x the expected inter-completion cadence at n_gpu=3 x ~85-min trainings
+  # (~28 min), so a slow-but-alive pool (thermal pause included) never false-alarms while a genuine
+  # wedge surfaces within 1.5 h instead of hanging silently for days. null disables. Un-hashed
+  # compute/monitoring knob (detection only — no result, seed, or schedule effect).
+  test_stall_after_s: 5400
+
 resume: true                           # idempotent: skip completed run ids. WIRED (ops audit m10,
                                        #   2026-07-02): this is now the DEFAULT for run_campaign's
                                        #   --resume (config-as-truth; previously authored but never

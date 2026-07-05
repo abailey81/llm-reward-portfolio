@@ -21,7 +21,14 @@ import multiprocessing as mp
 import queue
 import time
 from collections.abc import Sequence
-from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    Future,
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+    wait,
+)
 from pathlib import Path
 from typing import Any, Callable, cast
 
@@ -481,6 +488,8 @@ def run_recycling(
     recycle_every: int,
     initializer: Any = _DEFAULT_INIT,
     on_result: Callable[[dict], None] | None = None,
+    stall_after_s: float | None = None,
+    on_stall: Callable[[dict], None] | None = None,
 ) -> list:
     """Run ``specs`` through a SEQUENCE of fresh :class:`DevicePool`s of ``recycle_every`` tasks each.
 
@@ -491,11 +500,14 @@ def run_recycling(
     Windows + spawn across CPython 3.11-3.14 (measured 2026-06-24). The pool re-spawn (~15 s) is
     amortized over ``recycle_every`` trainings. Results are returned in submission order.
 
-    Streaming archival (F1, ultrareview 2026-07-02): ``on_result`` (when given) receives each result
-    the moment its future completes — the success row AND the captured-exception row alike — so the
-    caller can persist finished work IMMEDIATELY. A crash at hour N of a multi-day leg must lose only
-    the in-flight work: the 2026-07-02 σ_D incident's farm survived precisely because its workers
-    wrote incrementally, whereas archiving only after the loop loses the WHOLE batch on a crash.
+    Streaming archival (F1, ultrareview 2026-07-02; AS-COMPLETED 2026-07-06): futures are collected
+    with :func:`concurrent.futures.wait` as they COMPLETE — not in submission order — so ``on_result``
+    (when given) receives each result the moment its training finishes, success and captured-exception
+    rows alike, and the caller can persist finished work IMMEDIATELY. Under the old submission-order
+    collection a completed training's archival waited behind every earlier-submitted future (a driver
+    crash mid-batch could orphan up to ``recycle_every - 1`` COMPLETED trainings ≈ 17 h at campaign
+    scale, and ONE wedged training blocked the whole batch's archival). The RETURNED list stays in
+    submission order (``scripts/run_sigma_pilot_train.py`` re-attributes results by position).
 
     Parameters
     ----------
@@ -518,6 +530,14 @@ def run_recycling(
         captured-exception rows both). An exception it raises is swallowed after stamping
         ``row['archive_error'] = "<Type>: <msg>"`` — a transient disk error must not abort the batch;
         the caller's post-loop writer retries the stamped rows.
+    stall_after_s / on_stall:
+        Wedge DETECTION (2026-07-06): when no future completes for ``stall_after_s`` seconds,
+        ``on_stall({"pending": [...spec identity dicts...], "since_last_completion_s": ...})`` fires
+        (then again every further ``stall_after_s`` of silence) so the caller can journal/alert a
+        hung training — the failure mode a process-liveness check cannot see (driver alive, one CUDA
+        training wedged). Detection only: a running future cannot be cancelled from here; the
+        supervisor/sentinel own the response. ``None`` (default) disables the check (no behavior
+        change). An ``on_stall`` exception is swallowed — monitoring must never kill the batch.
     """
     out: list = []
     specs = list(specs)
@@ -525,30 +545,66 @@ def run_recycling(
     for i in range(0, len(specs), step):
         batch = specs[i : i + step]
         with DevicePool(n_gpu, n_cpu, initializer=initializer) as pool:
-            futs = [pool.submit_with(worker, s) for s in batch]
-            for f, s in zip(futs, batch):
-                try:
-                    out.append(f.result())
-                except Exception as exc:  # noqa: BLE001 — a worker that RAISES (rather than returning
-                    # an error result like ``train_candidate``) must NOT abort the batch or the remaining
-                    # batches; capture it so every spec is still attempted (the caller checks ``ok`` and
-                    # the matched-budget guard surfaces a failure wave). Order is preserved (futs order).
-                    row: dict = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-                    # F19: stamp the spec's identity keys onto the captured-exception row — a pool-level
-                    # crash (worker killed by the OS, unpicklable result) otherwise yields an ANONYMOUS
-                    # failure the caller cannot attribute to a (run_id, arm, seed) cell for resume/triage.
-                    if isinstance(s, dict):
-                        row.update({k: s[k] for k in ("run_id", "arm", "cid", "seed") if s.get(k) is not None})
-                    out.append(row)
-                if on_result is not None:
-                    # Stream the row to the caller's archiver NOW (success + failure alike). Never let
-                    # an archive error abort the batch: stamp it and continue — the post-loop writer is
-                    # the retry (it skips only rows it knows were durably written).
+            pending: dict[Future, int] = {
+                pool.submit_with(worker, s): j for j, s in enumerate(batch)
+            }
+            results: list = [None] * len(batch)
+            last_done = time.monotonic()
+            while pending:
+                done, _ = wait(pending, timeout=stall_after_s, return_when=FIRST_COMPLETED)
+                if not done:
+                    # NOTHING completed within the stall window. Surface the pending identities so
+                    # the caller can journal/alert, then keep waiting — the completed work of this
+                    # batch is ALREADY archived (as-completed above), so a wedge now risks only the
+                    # in-flight trainings.
+                    if on_stall is not None:
+                        try:
+                            on_stall({
+                                "pending": [
+                                    {
+                                        k: batch[j][k]
+                                        for k in ("run_id", "arm", "cid", "seed", "candidate_id")
+                                        if batch[j].get(k) is not None
+                                    }
+                                    if isinstance(batch[j], dict)
+                                    else {"index": j}
+                                    for j in sorted(pending.values())
+                                ],
+                                "since_last_completion_s": time.monotonic() - last_done,
+                            })
+                        except Exception:  # noqa: BLE001 — monitoring must never kill the batch
+                            pass
+                    continue
+                for f in done:
+                    j = pending.pop(f)
+                    s = batch[j]
                     try:
-                        on_result(out[-1])
-                    except Exception as exc:  # noqa: BLE001 — archiving must not kill the training batch
-                        if isinstance(out[-1], dict):
-                            out[-1]["archive_error"] = f"{type(exc).__name__}: {exc}"
+                        row: Any = f.result()
+                    except Exception as exc:  # noqa: BLE001 — a worker that RAISES (rather than
+                        # returning an error result like ``train_candidate``) must NOT abort the batch
+                        # or the remaining batches; capture it so every spec is still attempted (the
+                        # caller checks ``ok`` and the matched-budget guard surfaces a failure wave).
+                        row = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+                        # F19: stamp the spec's identity keys onto the captured-exception row — a
+                        # pool-level crash (worker killed by the OS, unpicklable result) otherwise
+                        # yields an ANONYMOUS failure the caller cannot attribute to a
+                        # (run_id, arm, seed) cell for resume/triage.
+                        if isinstance(s, dict):
+                            row.update(
+                                {k: s[k] for k in ("run_id", "arm", "cid", "seed") if s.get(k) is not None}
+                            )
+                    results[j] = row
+                    last_done = time.monotonic()
+                    if on_result is not None:
+                        # Stream the row to the caller's archiver NOW (success + failure alike). Never
+                        # let an archive error abort the batch: stamp it and continue — the post-loop
+                        # writer is the retry (it skips only rows it knows were durably written).
+                        try:
+                            on_result(row)
+                        except Exception as exc:  # noqa: BLE001 — archiving must not kill the batch
+                            if isinstance(row, dict):
+                                row["archive_error"] = f"{type(exc).__name__}: {exc}"
+            out.extend(results)
     return out
 
 
@@ -916,15 +972,32 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
         rng = np.random.default_rng(opts["seed"])
         # Draw the six family weights from the SAME frozen ranges the BO arm uses
         # (proto_cfg.reward_family.weights), so both H4 arms search the identical space.
+        # ALL sources are drawn UP FRONT, in candidate order, so the rng stream is byte-identical
+        # to the old draw-at-submit code regardless of the as-completed scheduling below.
         _rf_cfg = opts.get("proto_cfg")
-        futs = [
-            pool.submit(_spec(arm, "source", sample_reward_source(rng, _rf_cfg), f"{arm}-c{i}", opts))
-            for i in range(n)
-        ]
-        results = [f.result() for f in futs]
+        sources = [sample_reward_source(rng, _rf_cfg) for _ in range(n)]
+        # As-completed archival (2026-07-06): the old code archived ONLY after every future resolved,
+        # so a driver crash mid-arm lost the WHOLE arm's completed trainings. Submit through a sliding
+        # window (``pool.submit`` blocks on a device token, so unbounded up-front submission would
+        # stall collection too) and archive each ok result the moment it completes. The results list
+        # stays in submission order, so ``_summary``'s winner/tie-break semantics are unchanged.
+        capacity = max(1, pool.n_gpu + pool.n_cpu)
+        results: list[Any] = [None] * n
+        pending: dict[Future, int] = {}
+        next_i = 0
+        while next_i < n or pending:
+            while next_i < n and len(pending) < capacity:
+                spec = _spec(arm, "source", sources[next_i], f"{arm}-c{next_i}", opts)
+                pending[pool.submit(spec)] = next_i
+                next_i += 1
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for f in done:
+                i = pending.pop(f)
+                r = f.result()  # train_candidate catches its own failures -> always a result dict
+                results[i] = r
+                if r.get("ok"):
+                    _archive(r, arm, opts, archive_root)
         accepted = [r for r in results if r.get("ok")]
-        for r in accepted:
-            _archive(r, arm, opts, archive_root)
         return _summary(arm, accepted, len(results) - len(accepted), n)
 
     # bayes_opt — sequential BO (each evaluation trained via the shared pool, so it overlaps the
@@ -939,6 +1012,10 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
         state["i"] += 1
         r = pool.submit(_spec(arm, "coeffs", list(coeffs), cid, opts)).result()
         state["results"].append(r)
+        # As-completed archival (2026-07-06): archive each ok evaluation IMMEDIATELY — the old
+        # end-of-arm loop lost every completed BO training on a mid-arm driver crash.
+        if r.get("ok"):
+            _archive(r, arm, opts, archive_root)
         return float(r["fitness"]) if r.get("ok") else -1e9
 
     # Seed the BO sampler from the run seed (re-audit: this parallel BO arm still drew OS entropy via
@@ -951,8 +1028,6 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
         rng=np.random.default_rng(opts["seed"]),
     )
     accepted = [r for r in state["results"] if r.get("ok")]
-    for r in accepted:
-        _archive(r, arm, opts, archive_root)
     return _summary(arm, accepted, len(state["results"]) - len(accepted), n)
 
 

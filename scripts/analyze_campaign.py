@@ -4185,6 +4185,11 @@ def _mechanism_pairs(
     for arm in sorted({a for a, _g in by_arm_gen}):
         gens = sorted(g for a, g in by_arm_gen if a == arm)
         for g_prev, g_next in zip(gens, gens[1:]):
+            if g_next != g_prev + 1:
+                # Registered §2a form: deltas over STRICTLY consecutive generations only. If an
+                # entire generation is absent for an arm (every candidate filtered non-finite),
+                # differencing across the gap would silently off-spec the estimand — skip it.
+                continue
             prev, nxt = by_arm_gen[(arm, g_prev)], by_arm_gen[(arm, g_next)]
             dxs.append(float(np.mean(nxt["x"]) - np.mean(prev["x"])))
             dms.append(float(np.mean(nxt["m"]) - np.mean(prev["m"])))

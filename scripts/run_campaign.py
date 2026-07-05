@@ -81,6 +81,22 @@ from src.utils.config import cfg_get
 SHUTDOWN = threading.Event()
 
 
+def _test_stall_after_s() -> float | None:
+    """``config/campaign.yaml monitoring.test_stall_after_s`` — the TEST-leg wedge-detection window.
+
+    When set, ``evaluate_winners_on_test_parallel`` journals a WARNING ``test_leg_stall`` event
+    whenever NO seed training completes for this many seconds (a wedged CUDA training with every
+    process still alive — the hang a liveness check cannot see). ``null``/absent -> detection off.
+    Best-effort read: monitoring wiring must never crash the campaign."""
+    try:
+        from src.utils.config import load_config
+
+        v = (load_config("campaign").get("monitoring") or {}).get("test_stall_after_s")
+        return None if v is None else float(v)
+    except Exception:  # noqa: BLE001 — a malformed knob degrades to detection-off, never a crash
+        return None
+
+
 # --------------------------------------------------------------------------- #
 # Freeze ENFORCEMENT (verify-or-refuse). The pre-registration `--check` is a    #
 # by-hand CI guard; this turns it into a MECHANICAL gate the REAL campaign       #
@@ -1015,6 +1031,7 @@ def evaluate_baselines_on_test(
             recycle_every=int(recycle_every),
             test_root=test_root,
             done_ids=done,
+            stall_after_s=_test_stall_after_s(),
         )
         return list(res["written"])
 
@@ -1203,6 +1220,7 @@ def run_h3_singleshot(
             recycle_every=int(recycle_every),
             test_root=test_root,
             done_ids=done,
+            stall_after_s=_test_stall_after_s(),
         )
         written = list(_res["written"])
     else:
@@ -1620,6 +1638,7 @@ def run_headline_campaign(
                     recycle_every=int(recycle_every),
                     test_root=test_root,
                     done_ids=done,
+                    stall_after_s=_test_stall_after_s(),
                 )
                 written = _res["written"]
                 if _res["n_failed"]:
