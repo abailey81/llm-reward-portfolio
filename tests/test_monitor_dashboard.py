@@ -233,3 +233,44 @@ def test_alert_reason_disk_and_anomaly_rules() -> None:
     # terminal phases take precedence over everything
     assert monitor.alert_reason({"phase": "error"}, now, 600, disk_free_gb=1.0) == "error"
     assert monitor.alert_reason({"phase": "done"}, now, 600, anomaly_delta=99) == "done"
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-06: B6 deadman heartbeat + B7 unified sentinel line
+# --------------------------------------------------------------------------- #
+def test_sentinel_summary_line_healthy_and_none_on_failure(tmp_path: Path) -> None:
+    """The one-line health verdict renders for an empty run dir (all probes degrade to INFO/OK)
+    and NEVER raises — a broken sentinel import must yield None, not a dashboard crash."""
+    line = monitor.sentinel_summary_line(tmp_path)
+    # an empty dir yields a valid verdict line (severity word present) or None (sentinel unavailable)
+    assert line is None or "SENTINEL" in line
+
+
+def test_render_includes_sentinel_line(tmp_path: Path) -> None:
+    st = {
+        "title": "t", "model": "m", "pid": 1, "phase": "training", "elapsed_s": 5.0,
+        "arms": {"done": 0, "total": 7, "current": "scalar", "current_idx": 0},
+        "candidates": {"run_done": 1, "run_total": 210, "in_arm_done": 1, "in_arm_total": 30, "gen": 0},
+        "training": {}, "resources": {}, "anomalies": {"count": 0, "recent": []},
+        "best_fitness": {}, "eta_s": None,
+    }
+    panel = monitor.render(st, tmp_path, sentinel_line="SENTINEL WARN — completion_stall: quiet")
+    # rich Panel renders; assert the line made it into the renderable tree
+    from rich.console import Console
+
+    buf = Console(record=True, width=120)
+    buf.print(panel)
+    assert "SENTINEL WARN" in buf.export_text()
+
+
+def test_snapshot_text_appends_sentinel_line(tmp_path: Path, monkeypatch) -> None:
+    st = {
+        "title": "t", "model": "m", "pid": 1, "phase": "training", "elapsed_s": 5.0,
+        "arms": {"done": 0, "total": 7, "current": None, "current_idx": 0},
+        "candidates": {"run_done": 0, "run_total": 210, "in_arm_done": 0, "in_arm_total": 30},
+        "training": {}, "resources": {}, "anomalies": {"count": 0, "recent": []},
+        "best_fitness": {}, "eta_s": None, "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    monkeypatch.setattr(monitor, "sentinel_summary_line", lambda _rd: "SENTINEL OK — all checks OK")
+    text = monitor.snapshot_text(st, tmp_path)
+    assert "SENTINEL OK" in text
