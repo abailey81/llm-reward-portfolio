@@ -214,3 +214,133 @@ def test_evaluate_health_runs_drift_checks_when_history_present() -> None:
     })
     drift = next(c for c in report.checks if c.name == "gate_failure_drift")
     assert drift.severity == S.WARN
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-06 deep-monitoring layer: B1 stall / B3 forecast / B4 coverage / B5 taxonomy
+# --------------------------------------------------------------------------- #
+def test_completion_stall_self_calibrates_to_the_cadence() -> None:
+    # 10 completions at a steady 100 s cadence, last one at t=1000
+    times = [float(100 * i) for i in range(1, 11)]
+    # fresh (silence 50 s < 3x median) -> OK
+    assert S.check_completion_stall(times, 1050.0, floor_s=10.0).severity == S.OK
+    # silence 400 s > 3x median(100) -> WARN
+    assert S.check_completion_stall(times, 1400.0, floor_s=10.0).severity == S.WARN
+    # silence 900 s > 8x median -> CRITICAL (a wedged training with an alive driver)
+    c = S.check_completion_stall(times, 1900.0, floor_s=10.0)
+    assert c.severity == S.CRITICAL
+    assert c.evidence["median_gap_s"] == 100.0
+
+
+def test_completion_stall_floor_prevents_fast_cadence_false_alarms() -> None:
+    # a dev run completing every 2 s must not WARN after 30 s of silence: the floor dominates
+    times = [float(2 * i) for i in range(1, 11)]
+    assert S.check_completion_stall(times, 50.0).severity == S.OK  # default floor 1800 s
+
+
+def test_completion_stall_edges() -> None:
+    assert S.check_completion_stall(None, 100.0).severity == S.INFO      # no journal yet
+    assert S.check_completion_stall([1.0, 2.0], 100.0).severity == S.INFO  # <3 completions
+    assert S.check_completion_stall(None, 100.0, terminal=True).severity == S.OK
+    # the in-driver detector corroborates: stall events escalate even without a yardstick
+    assert S.check_completion_stall([1.0], 100.0, n_recent_stall_events=2).severity == S.WARN
+    times = [float(100 * i) for i in range(1, 11)]
+    assert S.check_completion_stall(times, 1050.0, n_recent_stall_events=1,
+                                    floor_s=10.0).severity == S.WARN
+
+
+def test_disk_forecast_flat_shrinking_and_edges() -> None:
+    assert S.check_disk_forecast(None).severity == S.INFO
+    assert S.check_disk_forecast([(0.0, 100.0)] * 3).severity == S.INFO  # <5 samples
+    flat = [(float(3600 * i), 100.0) for i in range(6)]
+    assert S.check_disk_forecast(flat).severity == S.INFO or S.check_disk_forecast(flat).severity == S.OK
+    # shrinking 1 GB/h from 40 GB -> floor 20 GB in ~20 h -> WARN (48 h) not CRITICAL (12 h)
+    shrink = [(float(3600 * i), 45.0 - 1.0 * i) for i in range(6)]
+    c = S.check_disk_forecast(shrink)
+    assert c.severity == S.WARN
+    assert 15.0 < c.evidence["hours_to_floor"] < 25.0
+    # shrinking 4 GB/h from 40 GB -> floor in ~5 h -> CRITICAL
+    fast = [(float(3600 * i), 60.0 - 4.0 * i) for i in range(6)]
+    assert S.check_disk_forecast(fast).severity == S.CRITICAL
+
+
+def test_disk_forecast_degenerate_spacing_is_info() -> None:
+    assert S.check_disk_forecast([(5.0, 50.0)] * 6).severity == S.INFO
+
+
+def test_unit_coverage_progress_shortfall_and_overrun() -> None:
+    # mid-run progress -> INFO with pct + ETA
+    c = S.check_unit_coverage(105, 210, "search", rate_per_h=2.0)
+    assert c.severity == S.INFO
+    assert c.evidence["eta_h"] == 52.5
+    # complete -> OK
+    assert S.check_unit_coverage(210, 210, "search").severity == S.OK
+    # claims complete but units missing -> CRITICAL (the silent-shortfall husk class)
+    c = S.check_unit_coverage(300, 330, "test", claimed_complete=True)
+    assert c.severity == S.CRITICAL
+    # MORE units than the frozen design expects -> WARN (duplicates / config drift)
+    assert S.check_unit_coverage(340, 330, "test").severity == S.WARN
+    # ledger unavailable -> INFO, never a false alarm
+    assert S.check_unit_coverage(None, 330, "test").severity == S.INFO
+    assert S.check_unit_coverage(10, None, "test").severity == S.INFO
+
+
+def test_error_taxonomy_volume_thresholds() -> None:
+    assert S.check_error_taxonomy(None).severity == S.OK
+    assert S.check_error_taxonomy({}).severity == S.OK
+    small = {"oom": {"count": 2, "arms": ["scalar"]}, "stall": {"count": 1, "arms": []}}
+    c = S.check_error_taxonomy(small)
+    assert c.severity == S.INFO and c.evidence["total"] == 3
+    wave = {"oom": {"count": 12, "arms": ["scalar", "placebo"]}}
+    c = S.check_error_taxonomy(wave)
+    assert c.severity == S.WARN and "oom" in c.detail
+
+
+def test_gatherer_reads_journal_and_coverage(tmp_path: Path) -> None:
+    """events.jsonl seed_done lines -> completion_times + taxonomy; archive record.json counts ->
+    done units; config -> expected units (present when config/campaign.yaml is loadable)."""
+    run = tmp_path / "campaign"
+    (run / "search" / "scalar" / "c0").mkdir(parents=True)
+    (run / "search" / "scalar" / "c0" / "record.json").write_text("{}", encoding="utf-8")
+    (run / "test" / "scalar" / "scalar-s0").mkdir(parents=True)
+    (run / "test" / "scalar" / "scalar-s0" / "record.json").write_text("{}", encoding="utf-8")
+    lines = [
+        json.dumps({"ts": "2026-07-06T10:00:00", "level": "INFO", "event": "seed_done",
+                    "run_id": "scalar-s0", "arm": "scalar"}),
+        json.dumps({"ts": "2026-07-06T10:05:00", "level": "WARNING", "event": "seed_failed",
+                    "run_id": "scalar-s1", "arm": "scalar", "error": "CUDA out of memory"}),
+    ]
+    (run / "events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    inputs = S.gather_inputs(run)
+    assert inputs["done_search_units"] == 1
+    assert inputs["done_test_units"] == 1
+    assert len(inputs.get("completion_times", [])) == 1
+    assert inputs["error_taxonomy"]["oom"]["count"] == 1
+    assert "now" in inputs
+    # the report over these inputs runs the new checks without raising
+    report = S.evaluate_health(inputs)
+    names = {c.name for c in report.checks}
+    assert {"completion_stall", "coverage_search", "coverage_test", "error_taxonomy"} <= names
+
+
+def test_fps_downward_drift_alarms_and_stable_is_ok() -> None:
+    """B2: a sustained fps FALL (thermal creep) alarms via the direction='down' CUSUM; normal
+    fluctuation around the baseline stays OK."""
+    target = 200.0
+    sinking = [200.0, 198.0, 192.0, 185.0, 176.0, 168.0, 160.0, 152.0]
+    c = S.check_metric_drift("fps", sinking, target, k=0.05 * target, h=0.30 * target,
+                             direction="down")
+    assert c.severity == S.WARN and "downward" in c.detail
+    stable = [200.0, 203.0, 197.0, 201.0, 199.0, 202.0, 198.0]
+    assert S.check_metric_drift("fps", stable, target, k=0.05 * target, h=0.30 * target,
+                                direction="down").severity == S.OK
+
+
+def test_evaluate_health_runs_fps_drift_when_armed() -> None:
+    report = S.evaluate_health({
+        "disk_free_gb": 100.0,
+        "fps_target": 200.0,
+        "fps_history": [200.0, 198.0, 192.0, 185.0, 176.0, 168.0, 160.0, 152.0],
+    })
+    drift = next(c for c in report.checks if c.name == "fps_drift")
+    assert drift.severity == S.WARN

@@ -331,6 +331,35 @@ def _sentinel_mtime(run_dir: Path) -> float | None:
     return None
 
 
+def sentinel_summary_line(run_dir: Path) -> str | None:
+    """ONE line of health verdict from the SENTINEL's invariant checks (B7 unified view).
+
+    The dashboard shows what is HAPPENING; this line says whether it is HEALTHY — worst severity +
+    the top offending checks, or coverage/ETA when everything is green (the operator's #1 question).
+    Guarded/best-effort and read-only: any failure returns ``None`` and the dashboard renders
+    without it. Recomputed every ~15 ticks by the watch loop (it walks the archive), not per frame.
+    """
+    try:
+        import sys as _sys
+
+        _here = str(Path(__file__).resolve().parent)
+        if _here not in _sys.path:
+            _sys.path.insert(0, _here)
+        import sentinel as _sentinel
+
+        report = _sentinel.evaluate_health(_sentinel.gather_inputs(run_dir))
+        bad = [c for c in report.checks
+               if c.severity in (_sentinel.WARN, _sentinel.CRITICAL, _sentinel.UNKNOWN)]
+        if not bad:
+            cov = [c.detail for c in report.checks if c.name.startswith("coverage_")]
+            return f"SENTINEL OK — {'; '.join(cov) if cov else 'all checks OK'}"
+        bad.sort(key=lambda c: -_sentinel._RANK.get(c.severity, 0))
+        tops = "; ".join(f"{c.name}: {c.detail}" for c in bad[:3])
+        return f"SENTINEL {report.severity} — {tops}"
+    except Exception:  # noqa: BLE001 — the health line must never break the dashboard
+        return None
+
+
 def _bar(done: int, total: int, width: int = 30) -> str:
     # ASCII fill so the plain-text snapshot prints on ANY console codepage (e.g. Windows cp1251);
     # rich renders these fine too.
@@ -379,6 +408,10 @@ def snapshot_text(st: dict[str, Any], run_dir: Path | None = None, *, stale_secs
             )
     for rec in an.get("recent", []):
         lines.append(f"    ! {rec.get('kind')}: {rec.get('detail')}")
+    if run_dir is not None:
+        health = sentinel_summary_line(run_dir)
+        if health:
+            lines.append(f"  {health}")
     return "\n".join(lines)
 
 
@@ -386,7 +419,8 @@ def _g(v: Any) -> str:
     return f"{v:.4g}" if isinstance(v, (int, float)) and v == v else "?"
 
 
-def render(st: dict[str, Any] | None, run_dir: Path, *, stale_secs: float = _DEFAULT_STALE_SECS, tick: int = 0) -> Any:
+def render(st: dict[str, Any] | None, run_dir: Path, *, stale_secs: float = _DEFAULT_STALE_SECS,
+           tick: int = 0, sentinel_line: str | None = None) -> Any:
     from rich.console import Group
     from rich.panel import Panel
     from rich.table import Table
@@ -442,6 +476,13 @@ def render(st: dict[str, Any] | None, run_dir: Path, *, stale_secs: float = _DEF
     for e in tail_jsonl(run_dir / "events.jsonl", 8):
         style = "red" if e.get("event") == "ANOMALY" else ("yellow" if e.get("level") == "WARNING" else "dim")
         ev.append(f"\n {e.get('ts', '')[-8:]} {e.get('event')} {e.get('msg', '')[:80]}", style=style)
+    if sentinel_line:
+        # B7 unified view: the sentinel's one-line health verdict beneath the event tail.
+        ev.append(
+            f"\n {sentinel_line}",
+            style="bold red" if "CRITICAL" in sentinel_line
+            else ("yellow" if ("WARN" in sentinel_line or "UNKNOWN" in sentinel_line) else "green"),
+        )
 
     spin = _SPINNER[tick % len(_SPINNER)] if st.get("phase") not in ("done", "error") else "●"
     title = f"{spin} {st.get('title')} [{st.get('model')}]  pid {st.get('pid')}"
@@ -459,6 +500,14 @@ def main() -> None:
     ap.add_argument("--notify", metavar="URL", default=None,
                     help="opt-in push URL (e.g. https://ntfy.sh/<topic>): POST a STATUS line on done/error/stall. "
                          "OFF by default; stdlib only; a read-only side-channel that never touches the run.")
+    ap.add_argument("--heartbeat", metavar="URL", default=None,
+                    help="opt-in DEADMAN heartbeat URL (e.g. a healthchecks.io ping): POST a compact health "
+                         "snapshot every --heartbeat-every seconds UNCONDITIONALLY. The external service "
+                         "alarms on the ABSENCE of pings — the only way to detect host death (power loss, "
+                         "kernel panic) that no on-host monitor can report. Best-effort; never touches the run.")
+    ap.add_argument("--heartbeat-every", type=float, default=600.0,
+                    help="seconds between deadman heartbeats (default 600; set the external service's "
+                         "grace period to ~2-3x this)")
     ap.add_argument("--follow-campaign", action="store_true",
                     help="do NOT exit when one phase reports done/error — the campaign rewrites the SAME "
                          "progress.json once per arm, so a plain watch dies after the FIRST arm. Keeps "
@@ -526,14 +575,35 @@ def main() -> None:
         )
 
     tick = 0
+    _health_line: list[str | None] = [None]  # B7: recomputed every ~15 ticks (it walks the archive)
+    _last_beat = [0.0]  # B6: last deadman heartbeat epoch
+
+    def _maybe_heartbeat(st: dict[str, Any] | None) -> None:
+        if not args.heartbeat:
+            return
+        now = time.time()
+        if now - _last_beat[0] < max(30.0, float(args.heartbeat_every)):
+            return
+        line = build_alert(st, "heartbeat", run_dir) if st else f"[{run_dir}] heartbeat (no state yet)"
+        if _health_line[0]:
+            line = f"{line} | {_health_line[0]}"
+        # UNCONDITIONAL send (no dedupe): the external service alarms on ABSENCE, so every interval
+        # must ping. _last_beat advances even on failure — a dead network must not tight-loop POSTs.
+        post_alert(args.heartbeat, line)
+        _last_beat[0] = now
+
     with Live(render(read_state(run_dir), run_dir, stale_secs=args.stale_secs), console=console,
               refresh_per_second=2, screen=False) as live:
         while True:
             try:
                 tick += 1
+                if tick % 15 == 1:
+                    _health_line[0] = sentinel_summary_line(run_dir)
                 st = read_state(run_dir)
-                live.update(render(st, run_dir, stale_secs=args.stale_secs, tick=tick))
+                live.update(render(st, run_dir, stale_secs=args.stale_secs, tick=tick,
+                                   sentinel_line=_health_line[0]))
                 _maybe_notify(st)
+                _maybe_heartbeat(st)
                 if args.follow_campaign:
                     # M5a(i): a per-arm 'done'/'error' is NOT the end of the campaign — the next arm
                     # rewrites the same progress.json. Exit only on the overall-campaign sentinel,
