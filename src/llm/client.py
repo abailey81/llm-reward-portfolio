@@ -602,6 +602,7 @@ class JsonlArchiveSink(list):
     def __init__(self, path: str | Path) -> None:
         super().__init__()
         self._path = Path(path)
+        self._n_write_failures = 0
 
     def append(self, record: Any) -> None:  # type: ignore[override]
         super().append(record)
@@ -615,8 +616,19 @@ class JsonlArchiveSink(list):
             with self._path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(row, default=str) + "\n")
                 fh.flush()
-        except Exception:  # noqa: BLE001 — best-effort ledger; the in-memory archive is already updated
-            pass
+        except Exception as exc:  # noqa: BLE001 — best-effort ledger; the in-memory copy is updated
+            # 2026-07-06: the no-raise contract stands (a provenance hiccup must never crash a paid
+            # call), but a PERSISTENT failure (AV lock, permissions) silently losing the ONLY
+            # on-disk copy of raw responses/usage/served_model deserved at least a visible warning.
+            # Rate-limited: the first failure + every 50th.
+            self._n_write_failures += 1
+            if self._n_write_failures == 1 or self._n_write_failures % 50 == 0:
+                import logging as _lg
+
+                _lg.getLogger(__name__).warning(
+                    "llm_calls.jsonl append FAILED (%d so far) at %s: %s — raw call provenance is "
+                    "not reaching disk", self._n_write_failures, self._path, exc,
+                )
 
 
 class LLMClient:

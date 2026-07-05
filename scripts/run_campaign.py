@@ -822,7 +822,14 @@ def evaluate_winner_on_test(
     arm = arm or str(winner.get("arm", "winner"))
     done_ids = done_ids or set()
     reward_hash = winner.get("reward_source_hash", "")
-    env_fp = f"campaign:{arm}:test[{test_window[0]},{test_window[1]})"
+    # 2026-07-06: content-hashed env capture (parity with the search leg + the parallel test path);
+    # F12 reuse on resume. Falls back to the bare label if the capture machinery is unavailable.
+    from src.orchestration.test_leg import _arm_env_fingerprint
+
+    env_fp = _arm_env_fingerprint(
+        Path(archive_root), f"campaign:{arm}:test[{test_window[0]},{test_window[1]})",
+        int(seeds[0]) if len(seeds) else 0,
+    )
 
     # Guard the select->freeze->test chain (final-audit #10): the frozen source MUST hash to the
     # recorded hash, so a winner swap (e.g. a re-searched resume) can never silently desync the

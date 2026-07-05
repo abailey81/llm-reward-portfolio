@@ -585,6 +585,17 @@ def test_prompt_tail_neutrality_drift_raises(tmp_path):
         "Provide detailed reasoning; retail investors entail curtailed budgets.", encoding="utf-8"
     )
     assert "tail-neutrality" in freeze.assert_prompt_tail_neutrality(tmp_path)
+    # 2026-07-06 completeness: the fed vector's MOMENT vocabulary is guarded too — "skewness"/
+    # "kurtosis" fire (substring-safe) and bare "VaR" fires as a word...
+    for phrase in ("penalize the skewness", "watch the kurtosis", "keep VaR small"):
+        (tmp_path / "prompts" / "system.txt").write_text(f"You design rewards. {phrase}.", encoding="utf-8")
+        with pytest.raises(freeze.FreezeConsistencyError):
+            freeze.assert_prompt_tail_neutrality(tmp_path)
+    # ... while "variance"/"varying" (containing 'var' without word boundaries) stay benign.
+    (tmp_path / "prompts" / "system.txt").write_text(
+        "Weigh return against variance under varying conditions.", encoding="utf-8"
+    )
+    assert "tail-neutrality" in freeze.assert_prompt_tail_neutrality(tmp_path)
     # a neutral prompt passes with the summary line
     (tmp_path / "prompts" / "system.txt").write_text(
         "You design reward functions. Weigh return against risk.", encoding="utf-8"

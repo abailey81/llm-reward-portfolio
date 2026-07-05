@@ -21,7 +21,9 @@ Three pieces, with their responsibilities split so the heavy worker stays out of
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +35,42 @@ from src.utils.logging import get_logger, log_event
 __all__ = ["build_test_record", "evaluate_winners_on_test_parallel"]
 
 _LOG = get_logger(__name__)
+
+
+def _arm_env_fingerprint(arm_root: Path, label: str, seed: int) -> Any:
+    """ONE content-hashed env snapshot per TEST arm -> ``{label, env_json_sha256}`` (2026-07-06).
+
+    The inference-critical test records previously carried a bare label string, so pip/driver/
+    torch-CUDA drift across the multi-week leg was not attributable per record (unlike every
+    SEARCH record). The snapshot lives at ``<arm_root>/_env/env.json``; ``load_run`` verifies the
+    digest via its shared-``_env`` fallback. F12 semantics: an EXISTING snapshot is REUSED — a
+    resume must never re-capture (records archived before the crash embed the original digest;
+    re-capturing would orphan them). Best-effort: any failure falls back to the bare label so
+    archiving never breaks."""
+    try:
+        from src.utils.provenance import sha256_obj
+
+        env_path = Path(arm_root) / "_env" / "env.json"
+        if env_path.is_file():
+            with env_path.open(encoding="utf-8") as fh:
+                env_obj = json.load(fh)
+            return {"label": label, "env_json_sha256": sha256_obj(env_obj)}
+        import sys as _sys
+
+        _scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+        if _scripts not in _sys.path:
+            _sys.path.insert(0, _scripts)
+        from capture_env import capture_env, env_json_sha256  # type: ignore[import-not-found]
+
+        env = capture_env(seed=int(seed))
+        env_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = env_path.with_suffix(".json.tmp")
+        with tmp.open("w", encoding="utf-8") as fh:
+            json.dump(env, fh, indent=2, sort_keys=True, default=str)
+        os.replace(tmp, env_path)
+        return {"label": label, "env_json_sha256": env_json_sha256(env=env)}
+    except Exception:  # noqa: BLE001 — provenance capture must never crash the test leg
+        return label
 
 
 # --------------------------------------------------------------------------- #
@@ -349,7 +387,10 @@ def evaluate_winners_on_test_parallel(
                     f"frozen winner hash mismatch for {arm}: recorded {reward_hash[:12]}.. "
                     f"!= actual {actual[:12]}.. (frozen/test desync guard)"
                 )
-        env_fp = f"campaign:{arm}:test[{test_window[0]},{test_window[1]})"
+        _label = f"campaign:{arm}:test[{test_window[0]},{test_window[1]})"
+        # 2026-07-06: content-hashed env capture for the inference-critical test records (parity
+        # with the search leg); reuses an existing per-arm snapshot on resume (F12).
+        env_fp = _arm_env_fingerprint(test_root / str(arm), _label, int(seeds[0]) if len(seeds) else 0)
         for seed in seeds:
             run_id = f"{arm}-s{int(seed)}"
             if run_id in done_ids:

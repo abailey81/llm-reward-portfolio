@@ -167,7 +167,10 @@ def random_search_over_template(
     if budget <= 0:
         raise ValueError(f"matched budget must be positive; got {budget}")
     if rng is None:
-        rng = np.random.default_rng()
+        # 2026-07-06 (repro audit): the omitted-rng default is now DETERMINISTIC (seed 0), not OS
+        # entropy — the exact footgun that once made the parallel BO winner non-reproducible
+        # (final-audit #2). Every production caller passes a run-seeded generator explicitly.
+        rng = np.random.default_rng(0)
 
     points = _sample_uniform(box, budget, rng)
     history: list[dict[str, Any]] = []
@@ -236,7 +239,10 @@ def bayes_opt_over_template(
     if budget <= 0:
         raise ValueError(f"matched budget must be positive; got {budget}")
     if rng is None:
-        rng = np.random.default_rng()
+        # 2026-07-06 (repro audit): the omitted-rng default is now DETERMINISTIC (seed 0), not OS
+        # entropy — the exact footgun that once made the parallel BO winner non-reproducible
+        # (final-audit #2). Every production caller passes a run-seeded generator explicitly.
+        rng = np.random.default_rng(0)
 
     n_init = int(max(1, min(n_init, budget)))
 

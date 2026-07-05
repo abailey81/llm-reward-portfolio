@@ -256,6 +256,14 @@ def load_run(run_id: str, root: str | Path) -> dict[str, Any]:
     # matches exactly. A normal candidate record (no env.json in its dir) is a no-op.
     env_json_path = run_dir / "env.json"
     fp = record.get("env_fingerprint")
+    if not env_json_path.is_file() and isinstance(fp, dict) and fp.get("env_json_sha256"):
+        # 2026-07-06: the SERIAL search path (and the test leg's per-arm capture) write ONE shared
+        # snapshot at <root>/_env/env.json rather than per run dir — without this fallback the
+        # env-hash verification was a permanent no-op for every record pointing at a shared
+        # snapshot (the digest was checkable only by hand).
+        shared = Path(root) / "_env" / "env.json"
+        if shared.is_file():
+            env_json_path = shared
     if env_json_path.is_file() and isinstance(fp, dict) and fp.get("env_json_sha256"):
         from src.utils.provenance import sha256_obj
 

@@ -661,7 +661,10 @@ def tost_equivalence(
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
     if rng is None:
-        rng = np.random.default_rng()
+        # 2026-07-06 (repro audit): the omitted-rng default is now DETERMINISTIC (seed 0), not OS
+        # entropy — the exact footgun that once made the parallel BO winner non-reproducible
+        # (final-audit #2). Every production caller passes a run-seeded generator explicitly.
+        rng = np.random.default_rng(0)
     na, nb = a.size, b.size
     if na == 0 or nb == 0:
         raise ValueError("a and b must be non-empty")

@@ -200,7 +200,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    {d}")
         return 1
     print(f"[crash_rehearsal] PASS — killed-at-{n_at_kill}-records + resume == uninterrupted run "
-          f"({n_expected} records, science fields byte-identical). Crash-resume is CERTIFIED on this box.")
+          f"({n_expected} records, science fields byte-identical). CERTIFIED path: the serial "
+          f"run_prototype driver (LLM-stub replay + author-stream advance + both search-arm caches). "
+          f"The campaign's run_recycling/test-leg resume is unit-certified separately "
+          f"(tests/test_test_leg.py, test_parallel_*); the multi-point supervisor kill-storm "
+          f"(runbook §3e-bis) remains the optional belt-and-braces end-to-end.")
     return 0
 
 
