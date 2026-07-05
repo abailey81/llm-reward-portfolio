@@ -430,6 +430,7 @@ def check_unit_coverage(
     *,
     claimed_complete: bool = False,
     rate_per_h: float | None = None,
+    known_failures: int = 0,
 ) -> HealthCheck:
     """Expected-vs-done UNIT ledger (B4, 2026-07-06) — the anti-husk guarantee at unit granularity.
 
@@ -445,10 +446,18 @@ def check_unit_coverage(
     if done_units is None or expected_units is None or expected_units <= 0:
         return HealthCheck(f"coverage_{stage}", INFO, f"{stage}: expected-unit ledger unavailable")
     ev: dict[str, Any] = {"done": int(done_units), "expected": int(expected_units),
-                          "claimed_complete": bool(claimed_complete)}
+                          "claimed_complete": bool(claimed_complete),
+                          "known_failures": int(known_failures)}
     if rate_per_h is not None and rate_per_h > 0 and done_units < expected_units:
         ev["eta_h"] = round((expected_units - done_units) / rate_per_h, 1)
     if claimed_complete and done_units < expected_units:
+        # S19 (2026-07-06): a failed unit legitimately writes no record — when the summary/ledger
+        # ACCOUNTS for the whole shortfall, this is a disclosed partial completion (WARN, with the
+        # reconciliation in evidence), not the silent-shortfall husk class (CRITICAL).
+        if done_units + max(0, int(known_failures)) >= expected_units:
+            return HealthCheck(f"coverage_{stage}", WARN,
+                               f"{stage} complete with {expected_units - done_units} failed unit(s) "
+                               f"(accounted: {known_failures} known failures)", ev)
         return HealthCheck(f"coverage_{stage}", CRITICAL,
                            f"{stage} claims complete but {done_units}/{expected_units} units on disk "
                            "(silent shortfall)", ev)
@@ -522,7 +531,8 @@ def evaluate_health(inputs: dict[str, Any]) -> HealthReport:
                             rate_per_h=g("completion_rate_per_h")),
         check_unit_coverage(g("done_test_units"), g("expected_test_units"), "test",
                             claimed_complete=bool(g("all_arms_tested") is True),
-                            rate_per_h=g("completion_rate_per_h")),
+                            rate_per_h=g("completion_rate_per_h"),
+                            known_failures=int(g("test_known_failures", 0) or 0)),
         check_error_taxonomy(g("error_taxonomy")),
     ]
     # Statistical-process-control drift checks (opt-in: the --watch loop accumulates a per-tick history
@@ -584,6 +594,94 @@ def _cluster_diverged_runs(anomaly_lines: list[dict[str, Any]]) -> int:
     return runs
 
 
+#: --watch record-scan cache: path -> (mtime_ns, size, parsed row). Records are WRITE-ONCE, so a
+#: (mtime, size) hit skips re-parsing ~540 json files every tick; only NEW records are read.
+_RECORD_CACHE: dict[str, tuple[int, int, dict[str, Any]]] = {}
+
+#: The archive mirror's documented default destination (scripts/mirror_archive.ps1 -MirrorRoot).
+_MIRROR_ROOT = Path("D:/llm_rp_archive_mirror")
+
+
+def _scan_records(camp_root: Path) -> dict[str, Any]:
+    """One cached pass over the archive's records -> the rate/scale check inputs (S17, 2026-07-06).
+
+    Produces ``n_records`` (metric-bearing records), ``n_nonfinite`` (non-finite primary metric —
+    the check_nan_rate numerator), ``n_search_candidates`` (the divergence denominator),
+    ``raw_rms_by_arm`` (max realized PopArt ``raw_rms`` per arm — the P5 reward-scale audit), and
+    ``arms_seen``. Best-effort per file; an unreadable record is skipped, never fatal."""
+    import math
+
+    res: dict[str, Any] = {"n_records": 0, "n_nonfinite": 0, "n_search_candidates": 0,
+                           "raw_rms_by_arm": {}, "arms_seen": set()}
+    for stage in ("search", "test"):
+        d = camp_root / stage
+        if not d.is_dir():
+            continue
+        for rec_path in d.rglob("record.json"):
+            try:
+                st = rec_path.stat()
+                key = str(rec_path)
+                hit = _RECORD_CACHE.get(key)
+                if hit is not None and hit[0] == st.st_mtime_ns and hit[1] == st.st_size:
+                    row = hit[2]
+                else:
+                    rec = json.loads(rec_path.read_text(encoding="utf-8", errors="replace"))
+                    m = rec.get("metrics") or {}
+                    metric = m.get("val_fitness", m.get("test_sharpe"))
+                    scale = m.get("popart_scale")
+                    raw_rms = None
+                    if isinstance(scale, dict):
+                        v = scale.get("raw_rms_max", scale.get("raw_rms_last"))
+                        raw_rms = None if v is None else float(v)
+                    row = {
+                        "arm": str(rec.get("arm") or ""),
+                        "metric": None if metric is None else float(metric),
+                        "raw_rms": raw_rms,
+                        "search": stage == "search",
+                    }
+                    _RECORD_CACHE[key] = (st.st_mtime_ns, st.st_size, row)
+            except Exception:  # noqa: BLE001 — one unreadable record must not kill the probe
+                continue
+            if row["search"]:
+                res["n_search_candidates"] += 1
+            if row["arm"]:
+                res["arms_seen"].add(row["arm"])
+            if row["metric"] is not None:
+                res["n_records"] += 1
+                if not math.isfinite(row["metric"]):
+                    res["n_nonfinite"] += 1
+            if row["raw_rms"] is not None and row["arm"]:
+                prev = res["raw_rms_by_arm"].get(row["arm"])
+                if prev is None or row["raw_rms"] > prev:
+                    res["raw_rms_by_arm"][row["arm"]] = row["raw_rms"]
+    return res
+
+
+def _scan_ledgered_failures(camp_root: Path) -> int:
+    """Deduped ledgered-failure count across BOTH layouts (S17): the parallel per-arm
+    ``search/<arm>/failures.jsonl`` AND the serial ``search/<prefix>-<arm>.failures.jsonl``."""
+    sroot = camp_root / "search"
+    if not sroot.is_dir():
+        return 0
+    seen: set[str] = set()
+    ledgers = list(sroot.rglob("failures.jsonl")) + list(sroot.glob("*.failures.jsonl"))
+    for lp in ledgers:
+        try:
+            for ln in lp.read_text(encoding="utf-8", errors="replace").splitlines():
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    row = json.loads(ln)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                cid = str(row.get("candidate_id") or "")
+                seen.add(cid or f"{lp.name}#{len(seen)}")
+        except OSError:
+            continue
+    return len(seen)
+
+
 def gather_inputs(run_dir: Path) -> dict[str, Any]:
     """Read the on-disk campaign artifacts + system telemetry into the :func:`evaluate_health` dict.
 
@@ -635,7 +733,7 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         except (OSError, ValueError, TypeError):
             pass
 
-    # Campaign summary (exit code + coverage).
+    # Campaign summary (exit code + coverage + the S19 failed-seed reconciliation).
     for p in (run_dir / "campaign_summary.json", run_dir.parent / "campaign_summary.json"):
         if p.is_file():
             try:
@@ -644,6 +742,9 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
                 out["all_arms_tested"] = summary.get("all_arms_tested")
                 arms = summary.get("arms") or summary.get("summaries") or []
                 out["seen_arms"] = len({a.get("arm") for a in arms if isinstance(a, dict)})
+                out["test_known_failures"] = sum(
+                    int(a.get("n_failed", 0) or 0) for a in arms if isinstance(a, dict)
+                )
             except (OSError, ValueError):
                 pass
             break
@@ -655,16 +756,23 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
     out["n_diverged_runs"] = _cluster_diverged_runs(anomalies)
 
     # Events -> API error + gate-failure rate (best-effort tallies over the structured log).
-    events = _read_jsonl(run_dir / "events.jsonl")
+    # S20 (2026-07-06): the campaign attaches its run logging under <output>/search, so the
+    # documented invocation (`sentinel.py outputs/campaign`) must read the UNION of the possible
+    # event ledgers, not just run_dir's own.
+    _camp_root = run_dir.parent if run_dir.name == "search" else run_dir
+    events = []
+    _seen_ev_paths = set()
+    for _ep in (run_dir / "events.jsonl", _camp_root / "events.jsonl",
+                _camp_root / "search" / "events.jsonl"):
+        rp = str(_ep.resolve()) if _ep.exists() else str(_ep)
+        if rp in _seen_ev_paths:
+            continue
+        _seen_ev_paths.add(rp)
+        events.extend(_read_jsonl(_ep))
     if events:
         kinds = Counter(str(e.get("event", "")) for e in events)
         out["n_api_calls"] = sum(v for k, v in kinds.items() if "llm_call" in k or "api" in k)
         out["n_api_errors"] = sum(v for k, v in kinds.items() if "error" in k or "refus" in k or "degrad" in k)
-
-    # Failures ledger (gate failures + attempted count).
-    failures = _read_jsonl(run_dir / "failures.jsonl") or _read_jsonl(run_dir / "search" / "failures.jsonl")
-    if failures:
-        out["n_failed"] = len(failures)
 
     # 2026-07-06 deep-monitoring inputs: the journal's per-unit completion stream (B1), the
     # expected-vs-done unit ledger (B4), and the error taxonomy (B5). All guarded — an absent/
@@ -684,7 +792,16 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         from src.utils.journal import parse_ts as _parse_ts
         from src.utils.journal import read_events as _read_events
 
-        evs = _read_events(run_dir / "events.jsonl") or _read_events(camp_root / "events.jsonl")
+        # S20: union over every ledger location (the campaign logs under <output>/search).
+        evs = []
+        _seen_j = set()
+        for _jp in (run_dir / "events.jsonl", camp_root / "events.jsonl",
+                    camp_root / "search" / "events.jsonl"):
+            rp = str(_jp.resolve()) if _jp.exists() else str(_jp)
+            if rp in _seen_j:
+                continue
+            _seen_j.add(rp)
+            evs.extend(_read_events(_jp))
         if evs:
             comp = _completions(evs)
             out["completion_times"] = [t for t, _e in comp]
@@ -704,6 +821,51 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
     except Exception:  # noqa: BLE001 — journal read is best-effort
         pass
 
+    # S17 (2026-07-06): the rate/scale/divergence/mirror inputs — previously NEVER produced, so six
+    # documented checks + both CUSUM drift monitors were permanently inert in live use. All guarded.
+    try:
+        scan = _scan_records(camp_root)
+        n_ledgered = _scan_ledgered_failures(camp_root)
+        out["n_records"] = int(scan["n_records"])
+        out["n_nonfinite"] = int(scan["n_nonfinite"])
+        out["n_candidates"] = int(scan["n_search_candidates"])
+        if scan["raw_rms_by_arm"]:
+            out["raw_rms_by_arm"] = dict(scan["raw_rms_by_arm"])
+        out["n_failed"] = n_ledgered
+        # attempted = archived search candidates + ledgered gate failures (the campaign's own
+        # budget-slot resolution contract).
+        out["n_attempted"] = int(scan["n_search_candidates"]) + n_ledgered
+        if not out.get("seen_arms"):
+            out["seen_arms"] = len(scan["arms_seen"])
+    except Exception:  # noqa: BLE001 — archive scan is best-effort
+        n_ledgered = 0
+    # Winner divergence (best-effort): a frozen winner whose candidate id appears among the
+    # critic-explosion anomaly rows (rows carry identity since the M6 fix).
+    try:
+        winner_ids: set[str] = set()
+        for froot in camp_root.glob("frozen*"):
+            for wrec in froot.rglob("record.json"):
+                try:
+                    winner_ids.add(str(json.loads(
+                        wrec.read_text(encoding="utf-8")).get("candidate_id") or ""))
+                except (OSError, ValueError):
+                    continue
+        winner_ids.discard("")
+        if winner_ids:
+            expl = {str(a.get("cand") or a.get("candidate_id") or "") for a in anomalies
+                    if str(a.get("kind", a.get("event", ""))).startswith("critic")}
+            out["winner_diverged"] = bool(winner_ids & expl)
+    except Exception:  # noqa: BLE001
+        pass
+    # Mirror freshness: the documented default destination's last-pass marker.
+    try:
+        marker = _MIRROR_ROOT / "mirror.log"
+        target = marker if marker.is_file() else (_MIRROR_ROOT if _MIRROR_ROOT.is_dir() else None)
+        if target is not None:
+            out["mirror_age_s"] = max(0.0, time.time() - target.stat().st_mtime)
+    except OSError:
+        pass
+
     # Expected units come from config (the frozen source of truth); done units from the archive.
     # NB when the per-arm adaptive seed schema lands (seed ratification), the expected-test formula
     # must switch to summing each arm's own seed count.
@@ -719,6 +881,7 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
             out["expected_search_units"] = len(arms) * cpa
         if arms and seeds:
             out["expected_test_units"] = (len(arms) + len(baselines)) * len(seeds)
+        out.setdefault("expected_arms", len(arms))
     except Exception:  # noqa: BLE001 — config unavailable -> the coverage checks degrade to INFO
         pass
     for key, sub in (("done_search_units", "search"), ("done_test_units", "test")):
@@ -732,6 +895,12 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
             # The campaign root exists but this stage hasn't produced its subtree yet: truthfully
             # ZERO done (renders "0/210 (0%)"), vs a mis-pointed run_dir which stays unavailable.
             out[key] = 0
+    # S19 (2026-07-06): a budget SLOT is legitimately resolved by an archived record OR a ledgered
+    # gate failure (failures write no record.json), so the SEARCH coverage counts RESOLVED units —
+    # otherwise any normally-completed campaign with >=1 gate failure would end in a false CRITICAL
+    # "silent shortfall". The reconciliation is carried in the evidence via done+ledgered.
+    if out.get("done_search_units") is not None:
+        out["done_search_units"] = int(out["done_search_units"]) + int(n_ledgered)
     out["search_claimed_complete"] = out.get("all_arms_tested") is True
 
     return out
@@ -750,22 +919,44 @@ def render_report(report: HealthReport) -> str:
     return "\n".join(lines)
 
 
-def _emit_transitions(report: HealthReport, last: dict[str, str]) -> None:
-    """Structured-log every check whose severity CHANGED since the last tick (precise health history)."""
+def _emit_transitions(report: HealthReport, last: dict[str, str],
+                      run_dir: Path | None = None) -> None:
+    """Persist + log every check whose severity CHANGED since the last tick (precise health history).
+
+    S18 (2026-07-06): the sentinel is a SEPARATE process, so the root-logger events.jsonl handler
+    (attached only inside the RUN process by ``attach_run_logging``) never sees it — transitions
+    went to the console alone and the documented "replayable health history" did not exist. They
+    now ALSO append to a sentinel-owned sidecar ``<run_dir>/sentinel_events.jsonl``: a separate
+    file (never the run's own events.jsonl) so there are no concurrent-append interleavings with
+    the run process and no self-feedback (a WARNING-level sentinel transition must not be counted
+    as a run failure by the journal's error taxonomy, which reads events.jsonl)."""
+    rows: list[dict[str, Any]] = []
+    for c in report.checks:
+        if last.get(c.name) != c.severity:
+            rows.append({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "event": "sentinel_check",
+                         "check": c.name, "severity": c.severity, "detail": c.detail,
+                         **{k: v for k, v in c.evidence.items()}})
+            last[c.name] = c.severity
+    if not rows:
+        return
+    if run_dir is not None:
+        try:
+            with (Path(run_dir) / "sentinel_events.jsonl").open("a", encoding="utf-8") as fh:
+                for row in rows:
+                    fh.write(json.dumps(row, default=str) + "\n")
+        except OSError:
+            pass  # persistence is best-effort; the console line below still fires
     try:
         from src.utils.logging import get_logger, log_event
         import logging as _lg
 
         logger = get_logger("sentinel")
         level = {OK: _lg.INFO, INFO: _lg.INFO, WARN: _lg.WARNING, CRITICAL: _lg.ERROR, UNKNOWN: _lg.WARNING}
-        for c in report.checks:
-            if last.get(c.name) != c.severity:
-                log_event(logger, "sentinel_check", level=level.get(c.severity, _lg.INFO),
-                          check=c.name, severity=c.severity, detail=c.detail, **c.evidence)
-                last[c.name] = c.severity
+        for row in rows:
+            log_event(logger, "sentinel_check", level=level.get(str(row["severity"]), _lg.INFO),
+                      check=row["check"], severity=row["severity"], detail=row["detail"])
     except Exception:  # noqa: BLE001 — logging must never break the sentinel
-        for c in report.checks:
-            last[c.name] = c.severity
+        pass
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -782,8 +973,12 @@ def main(argv: list[str] | None = None) -> int:
     nan_hist: list[float] = []
     # (epoch_s, free_gb) samples for the predictive disk-exhaustion forecast (B3).
     disk_hist: list[tuple[float, float]] = []
-    # fps samples for the cross-candidate throughput drift (B2; thermal creep / swap).
+    # fps samples for the cross-candidate throughput drift (B2; thermal creep / swap). The baseline
+    # target FREEZES at the median of the first 10 samples ever seen (held in fps_target_hold) —
+    # deriving it from the truncated rolling history would slide the baseline onto already-degraded
+    # samples after ~24 h and de-arm the very multi-day creep the check exists to catch.
     fps_hist: list[float] = []
+    fps_target_hold: list[float] = []
 
     def _tick() -> HealthReport:
         inputs = gather_inputs(run_dir)
@@ -801,15 +996,19 @@ def main(argv: list[str] | None = None) -> int:
             inputs["disk_history"] = list(disk_hist)
         if inputs.get("fps_now") is not None:
             fps_hist.append(float(inputs["fps_now"]))
+            if len(fps_target_hold) < 10:
+                fps_target_hold.append(float(inputs["fps_now"]))
             del fps_hist[:-720]
-            # Self-calibrating baseline: the median of the run's own FIRST 10 samples. Only armed
-            # once that baseline exists — a drift check against a half-formed target is noise.
-            if len(fps_hist) >= 10:
-                base = sorted(fps_hist[:10])
+            # Self-calibrating baseline: the median of the run's own FIRST 10 samples EVER seen,
+            # frozen in fps_target_hold (the rolling fps_hist truncates after ~24 h, so deriving
+            # the target from it would slide the baseline onto degraded samples and de-arm the
+            # multi-day creep detection). Only armed once the baseline exists.
+            if len(fps_target_hold) >= 10:
+                base = sorted(fps_target_hold)
                 inputs["fps_target"] = 0.5 * (base[4] + base[5])
                 inputs["fps_history"] = list(fps_hist)
         report = evaluate_health(inputs)
-        _emit_transitions(report, last)
+        _emit_transitions(report, last, run_dir)
         print(json.dumps(report.as_dict()) if args.json else render_report(report), flush=True)
         return report
 

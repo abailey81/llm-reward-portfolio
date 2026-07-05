@@ -76,6 +76,7 @@ import argparse
 import json
 import logging
 import math
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -1654,8 +1655,10 @@ def h2_conjunction(
         stepdown (:func:`romano_wolf_joint`, FWER, one-sided). Both are coherent IUTs (no extra leg
         correction); BH is the default (``config/inference.yaml: multiplicity.method``).
     cvar_levels, sharpe_p, n_boot, rng
-        Forwarded to :func:`collect_family_pvalues` / :func:`romano_wolf_joint`. The tail IUT uses the
-        HEADLINE level (``min(cvar_levels)``, the frozen 0.05); extra opt-in levels stay in ``family``.
+        Forwarded to :func:`collect_family_pvalues` / :func:`romano_wolf_joint`. The tail IUT gates at
+        the HEADLINE level = ``max(cvar_levels)`` — the LEAST-extreme level, the frozen 0.05. (NOT
+        ``min``: under the sanctioned ``[0.05, 0.01]`` expansion, min would silently flip the
+        co-primary gate onto the high-variance 1% tail; extra opt-in levels stay in ``family``.)
 
     Returns
     -------
@@ -1973,6 +1976,18 @@ def _iqm_tost(
         boot[i] = iqm(a[idx]) - iqm(b[idx])
     ci_low = float(np.quantile(boot, 0.05))
     ci_high = float(np.quantile(boot, 0.95))
+    # §2a(c) registered severity presentation (Mayo–Spanos, 2026-07-06): with what post-data
+    # severity did the claim |mu| <= m pass, per margin m? EMPIRICAL from the same paired bootstrap:
+    # recenter the draws at the claim's boundary and measure how often a result LESS in accord with
+    # the claim than the observed estimate would arise there; min(upper, lower) is the binding side
+    # of the symmetric claim. Reported at 0.5x/1x/1.5x/2x the frozen margin (the severity CURVE).
+    centered = boot - float(np.mean(boot))
+    severity: dict[str, float] = {}
+    for mult in (0.5, 1.0, 1.5, 2.0):
+        m = float(margin) * mult
+        sev_upper = float(np.mean(centered + m >= estimate))
+        sev_lower = float(np.mean(centered - m <= estimate))
+        severity[f"{mult:g}x_margin"] = round(min(sev_upper, sev_lower), 4)
     return {
         "equivalent": bool(ci_low > -margin and ci_high < margin),
         "estimate": estimate,
@@ -1980,6 +1995,7 @@ def _iqm_tost(
         "ci_high": ci_high,
         "margin": float(margin),
         "n_seeds": int(n),
+        "severity": severity,
     }
 
 
@@ -3264,12 +3280,13 @@ def evt_consistency_guard(records: list[dict[str, Any]], *, levels: tuple[float,
         "consistent": {level: bool}, "fed_arms": [...], "note"}`` or ``{"status": "skipped", "reason": ...}``.
     """
     # Which arms are FED the tail (so an estimator mismatch is meaningful): the distributional + scalar_cvar5
-    # designers SEE the CVaR block; scalar/placebo/search do not. Mirror inspect_rewards._was_fed_tail.
-    _TAIL_LABELS = ("CVaR 5%", "CVaR 10%", "CVaR 25%", "CVaR 1%", "left-tail mass", "left-tail skew")
+    # designers SEE the CVaR block; scalar/placebo/search do not. ONE source of truth (2026-07-06): the
+    # corrected inspect_rewards._was_fed_tail (prompt-first, generation-gated) — the old local closure
+    # kept the pre-M13 own-block-first convention and could classify a gen-0 archive as fed.
+    _ir = _inspect_rewards()
 
     def _fed_tail(rec: dict[str, Any]) -> bool:
-        fed = str(rec.get("feedback_block") or "") or str(rec.get("prompt") or "")
-        return any(f"{lab}:" in fed for lab in _TAIL_LABELS)
+        return bool(_ir._was_fed_tail(rec))
 
     def _estimator_path(rd: Any, alpha: float) -> str:
         """Which estimator ReturnDistribution.cvar(alpha) routes to (mirrors measurement.py routing).
@@ -4148,14 +4165,26 @@ def _mechanism_pairs(
       every candidate sees the SAME fed block (x is generation-constant ⇒ the per-candidate rows are
       CLUSTERED); the registered "Spearman of Δ(fed tail) vs Δ(authored-reward feature)" therefore
       aggregates m to the generation mean and differences consecutive generations WITHIN each arm,
-      pooling the deltas across tail-fed arms.
+      pooling the deltas across the COHERENT tail-fed arms (distributional, scalar_cvar5 — S7,
+      2026-07-06: placebo_shuffled also carries the labels but with DERANGED values; it is the
+      calibration floor, reported as its own §2a(f) fingerprint row, never pooled into the signal).
+      The (X, M) delta cells are populated INDEPENDENTLY of outcome availability; only the
+      levels/mediation arrays condition on a finite ``y`` (they need it).
 
     Returns ``{"x", "m", "y", "dx", "dm"}`` (float arrays; possibly empty).
     """
     from src.inference.bootstrap import cvar
 
     ir = _inspect_rewards()
-    fed = [r for r in records if ir._was_fed_tail(r)]
+    # S7 (2026-07-06): the pooled PRIMARY is restricted to the COHERENT-tail arms. placebo_shuffled
+    # also passes _was_fed_tail (its prompt carries the six labels), but its values are DERANGED by
+    # construction — the number under "CVaR 5%" is some OTHER statistic — so pooling it feeds the
+    # primary an incoherent x (scale-mixed, attenuating rho toward the predicted null verdict:
+    # anti-conservative). It is the design's calibration FLOOR (information_gap's floor_arm) and is
+    # reported as its own row in the §2a(f) fingerprint table, never inside the signal pool.
+    _COHERENT_TAIL_ARMS = ("distributional", "scalar_cvar5")
+    fed = [r for r in records
+           if str(r.get("arm") or "") in _COHERENT_TAIL_ARMS and ir._was_fed_tail(r)]
     fed = ir._by_generation(fed)
     xs: list[float] = []
     ms: list[float] = []
@@ -4167,19 +4196,24 @@ def _mechanism_pairs(
             continue
         prevalence = ir._construct_prevalence(ir._reward_source(r))
         m_count = float(sum(1 for name in ir._TAIL_CONSTRUCTS if prevalence.get(name)))
-        vr = _val_returns(r)
-        y = float(cvar(vr, 0.05)) if vr is not None else float("nan")
-        if not np.isfinite(y):
-            continue
         x_fed = float(vec[0])  # cvar_05 — the headline FED tail level
-        xs.append(x_fed)
-        ms.append(m_count)
-        ys.append(y)
+        # SQ1 needs only (X, M): populate the delta cells BEFORE the y gate (2026-07-06) — a fed
+        # candidate whose code is archived but whose val_returns are missing/non-finite belongs in
+        # the code-responsiveness estimand; conditioning the X->M sample on OUTCOME availability was
+        # a silent sample-selection narrowing (it also let a fully-y-missing generation truncate the
+        # delta chain). The y gate below still scopes the LEVELS/mediation arrays, which need y.
         cell = by_arm_gen.setdefault(
             (str(r.get("arm") or ""), int(r.get("generation") or 0)), {"x": [], "m": []}
         )
         cell["x"].append(x_fed)
         cell["m"].append(m_count)
+        vr = _val_returns(r)
+        y = float(cvar(vr, 0.05)) if vr is not None else float("nan")
+        if not np.isfinite(y):
+            continue
+        xs.append(x_fed)
+        ms.append(m_count)
+        ys.append(y)
     dxs: list[float] = []
     dms: list[float] = []
     for arm in sorted({a for a, _g in by_arm_gen}):
@@ -4199,6 +4233,210 @@ def _mechanism_pairs(
         "y": np.asarray(ys, dtype=float),
         "dx": np.asarray(dxs, dtype=float),
         "dm": np.asarray(dms, dtype=float),
+    }
+
+
+def _condition_seed_cells(records: list[dict[str, Any]]) -> tuple[np.ndarray, np.ndarray]:
+    """One ``(x, mean-m)`` row PER SEED for a sub-experiment condition (S8, 2026-07-06).
+
+    The redesigned SQ3b injects ONE per-seed reference tail block, so ``x`` is CONSTANT within a
+    ``(condition, seed)`` cell and the K authored candidates are clustered; i.i.d. candidate-row
+    resampling would understate the differential CI by up to ``~sqrt(K)`` — anti-conservative for
+    the REGISTERED ``legibility_helps = ci_low > 0`` decision rule. Collapsing to per-seed cells
+    makes the bootstrap's exchangeable unit the SEED, the true independent unit."""
+    ir = _inspect_rewards()
+    by_seed: dict[int, list[tuple[float, float]]] = {}
+    for r in records:
+        if not ir._was_fed_tail(r):
+            continue
+        vec = ir._fed_tail_vector(r)
+        if vec is None or vec.size == 0 or not np.isfinite(vec[0]):
+            continue
+        prevalence = ir._construct_prevalence(ir._reward_source(r))
+        m = float(sum(1 for name in ir._TAIL_CONSTRUCTS if prevalence.get(name)))
+        by_seed.setdefault(int(r.get("seed") or 0), []).append((float(vec[0]), m))
+    xs: list[float] = []
+    ms: list[float] = []
+    for seed in sorted(by_seed):
+        rows = by_seed[seed]
+        xs.append(rows[0][0])  # x is cell-constant by design (one injected block per seed)
+        ms.append(float(np.mean([mm for _xx, mm in rows])))
+    return np.asarray(xs, dtype=float), np.asarray(ms, dtype=float)
+
+
+#: The §2a(f) fingerprint's per-arm X definition: which fed quantity each arm's designers SAW.
+_FINGERPRINT_X_KIND: dict[str, str] = {
+    "distributional": "fed cvar_05 (six-scalar tail block)",
+    "scalar_cvar5": "fed cvar_05 (single-line CVaR block)",
+    "scalar": "fed scalar (validation score line)",
+    "placebo_shuffled": "value under the 'CVaR 5%' label (DERANGED by construction — the floor row)",
+}
+
+_FED_SCALAR_RE = re.compile(r"Your previous reward scored:\s*([+-]?\d+(?:\.\d+)?)")
+
+
+def _arm_generation_deltas(
+    records: list[dict[str, Any]], arm: str, x_of: Any
+) -> tuple[np.ndarray, np.ndarray, int]:
+    """Strictly-consecutive per-generation ``(dx, dm)`` deltas for ONE arm (the SQ1 kernel's form).
+
+    ``x_of(record) -> float | None`` extracts the arm-appropriate FED quantity; ``None``/non-finite
+    rows are skipped. Returns ``(dx, dm, n_levels)``."""
+    ir = _inspect_rewards()
+    by_gen: dict[int, dict[str, list[float]]] = {}
+    n_levels = 0
+    for r in records:
+        if str(r.get("arm") or "") != arm:
+            continue
+        x = x_of(r)
+        if x is None or not np.isfinite(float(x)):
+            continue
+        prevalence = ir._construct_prevalence(ir._reward_source(r))
+        m = float(sum(1 for name in ir._TAIL_CONSTRUCTS if prevalence.get(name)))
+        cell = by_gen.setdefault(int(r.get("generation") or 0), {"x": [], "m": []})
+        cell["x"].append(float(x))
+        cell["m"].append(m)
+        n_levels += 1
+    gens = sorted(by_gen)
+    dxs: list[float] = []
+    dms: list[float] = []
+    for g_prev, g_next in zip(gens, gens[1:]):
+        if g_next != g_prev + 1:
+            continue  # registered §2a form: strictly consecutive generations only
+        dxs.append(float(np.mean(by_gen[g_next]["x"]) - np.mean(by_gen[g_prev]["x"])))
+        dms.append(float(np.mean(by_gen[g_next]["m"]) - np.mean(by_gen[g_prev]["m"])))
+    return np.asarray(dxs, dtype=float), np.asarray(dms, dtype=float), n_levels
+
+
+def fingerprint_responsiveness_rows(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """The §2a(f) MECHANISM-FINGERPRINT responsiveness rows, per arm (S9, 2026-07-06; report-only).
+
+    The hash-frozen fingerprint matrix registers per-arm rows the pooled SQ1 block cannot fill —
+    most critically the **scalar arm's own-scalar responsiveness** (the same delta-form statistic
+    with X = the fed scalar score line), which UNIQUELY discriminates the A4 prior-dominance
+    account (A4 predicts ≈0 there; A2 readout predicts >0 because the scalar is legible), and the
+    ``placebo_shuffled`` row as the calibration FLOOR (its 'CVaR 5%' slot carries a deranged
+    value). Registered as "computable from the same archived records with the same SQ1 statistic";
+    this makes the registered adjudication matrix mechanically producible instead of improvised
+    post-data. Never gates anything."""
+    from src.inference.responsiveness import responsiveness
+
+    ir = _inspect_rewards()
+
+    def _x_tail(r: dict[str, Any]) -> float | None:
+        if not ir._was_fed_tail(r):
+            return None
+        vec = ir._fed_tail_vector(r)
+        return None if vec is None or vec.size == 0 else float(vec[0])
+
+    def _x_scalar(r: dict[str, Any]) -> float | None:
+        if int(r.get("generation") or 0) < 1:
+            return None  # gen-0 authors from the tail/score-neutral base prompt
+        m = _FED_SCALAR_RE.search(str(r.get("prompt") or ""))
+        return None if m is None else float(m.group(1))
+
+    x_fns = {
+        "distributional": _x_tail,
+        "scalar_cvar5": _x_tail,
+        "scalar": _x_scalar,
+        "placebo_shuffled": _x_tail,  # parses the deranged value under the CVaR-5% label — the floor
+    }
+    rows: dict[str, Any] = {}
+    for arm, x_of in x_fns.items():
+        dx, dm, n_levels = _arm_generation_deltas(records, arm, x_of)
+        if dx.size >= 3:
+            r = responsiveness(dx, dm, rng=np.random.default_rng(0))
+        else:
+            r = {"status": "no_data", "reason": f"{dx.size} consecutive-generation deltas (need >= 3)"}
+        r["x_kind"] = _FINGERPRINT_X_KIND[arm]
+        r["n_deltas"] = int(dx.size)
+        r["n_levels"] = int(n_levels)
+        r["is_floor"] = arm == "placebo_shuffled"
+        rows[arm] = r
+    any_ok = any(v.get("status") == "ok" for v in rows.values())
+    return {"status": "ok" if any_ok else "no_data", "rows": rows,
+            "note": "§2a(f) fingerprint rows — the scalar-arm row is the A4 discriminator; "
+                    "placebo_shuffled is the calibration floor, never pooled into the SQ1 primary"}
+
+
+def distance_moderator_exploratory(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """The §2a(b) DECLARED-EXPLORATORY distance moderator (S9, 2026-07-06; report-only, no gate).
+
+    Registered form: within the CVaR-fed arms only, per-generation designer responsiveness (Δm)
+    regressed on the NUMERIC DISTANCE between consecutively fed CVaR values, controlling magnitude,
+    iteration index, and fitness-plateau state. The numeracy account predicts a POSITIVE distance
+    coefficient (a psychophysics-style distance effect). n is small by design (one row per
+    consecutive-generation pair per arm) — reported with a case-bootstrap CI and zero confirmatory
+    weight, exactly as registered."""
+    ir = _inspect_rewards()
+    rows: list[tuple[float, float, float, float, float]] = []  # (dm, dist, mag, iter, plateau)
+    for arm in ("distributional", "scalar_cvar5"):
+        by_gen: dict[int, dict[str, list[float]]] = {}
+        best_fit: dict[int, float] = {}
+        for r in records:
+            if str(r.get("arm") or "") != arm or not ir._was_fed_tail(r):
+                continue
+            vec = ir._fed_tail_vector(r)
+            if vec is None or vec.size == 0 or not np.isfinite(vec[0]):
+                continue
+            prevalence = ir._construct_prevalence(ir._reward_source(r))
+            m = float(sum(1 for name in ir._TAIL_CONSTRUCTS if prevalence.get(name)))
+            g = int(r.get("generation") or 0)
+            cell = by_gen.setdefault(g, {"x": [], "m": []})
+            cell["x"].append(float(vec[0]))
+            cell["m"].append(m)
+            fit = (r.get("metrics") or {}).get("val_fitness")
+            if fit is not None and np.isfinite(float(fit)):
+                best_fit[g] = max(best_fit.get(g, float("-inf")), float(fit))
+        gens = sorted(by_gen)
+        for g_prev, g_next in zip(gens, gens[1:]):
+            if g_next != g_prev + 1:
+                continue
+            x_prev = float(np.mean(by_gen[g_prev]["x"]))
+            x_next = float(np.mean(by_gen[g_next]["x"]))
+            dm = float(np.mean(by_gen[g_next]["m"]) - np.mean(by_gen[g_prev]["m"]))
+            plateau = 1.0 if (g_prev in best_fit and g_next in best_fit
+                              and best_fit[g_next] <= best_fit[g_prev] + 1e-9) else 0.0
+            rows.append((dm, abs(x_next - x_prev), abs(x_prev), float(g_prev), plateau))
+    if len(rows) < 5:
+        return {"status": "no_data", "reason": f"{len(rows)} consecutive-pair rows (need >= 5)",
+                "exploratory": True}
+    arr = np.asarray(rows, dtype=float)
+    y = arr[:, 0]
+    X = arr[:, 1:5]
+    # Standardise predictors (guarding constant columns) so betas are comparable; add an intercept.
+    sd = X.std(axis=0, ddof=0)
+    sd[sd == 0] = 1.0
+    Xz = (X - X.mean(axis=0)) / sd
+    design = np.column_stack([np.ones(len(y)), Xz])
+
+    def _fit(design_m: np.ndarray, y_v: np.ndarray) -> np.ndarray:
+        beta, *_ = np.linalg.lstsq(design_m, y_v, rcond=None)
+        return beta
+
+    beta = _fit(design, y)
+    rng = np.random.default_rng(0)
+    boots = []
+    for _ in range(2000):
+        idx = rng.integers(0, len(y), len(y))
+        try:
+            boots.append(_fit(design[idx], y[idx])[1])  # the DISTANCE beta
+        except np.linalg.LinAlgError:
+            continue
+    boots_a = np.asarray([b for b in boots if np.isfinite(b)], dtype=float)
+    ci_low, ci_high = ((float(np.percentile(boots_a, 2.5)), float(np.percentile(boots_a, 97.5)))
+                       if boots_a.size else (float("nan"), float("nan")))
+    return {
+        "status": "ok",
+        "exploratory": True,
+        "n": int(len(y)),
+        "beta_distance": float(beta[1]),
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "betas": {"distance": float(beta[1]), "magnitude": float(beta[2]),
+                  "iteration": float(beta[3]), "plateau": float(beta[4])},
+        "note": "declared EXPLORATORY (§2a(b)) — standardised OLS, case-bootstrap CI, no "
+                "confirmatory weight; positive distance beta = the numeracy account's prediction",
     }
 
 
@@ -4687,6 +4925,19 @@ def analyze(
     except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline
         out["responsiveness"] = {"status": "error", "reason": str(exc)[:200]}
 
+    # §2a(f) fingerprint rows (S9, 2026-07-06) — the per-arm responsiveness table the frozen
+    # adjudication matrix registers (scalar-arm own-scalar row = the A4 discriminator;
+    # placebo_shuffled = the floor row) + the §2a(b) declared-exploratory distance moderator.
+    # Report-only, DISJOINT, never gate.
+    try:
+        out["responsiveness_by_arm"] = fingerprint_responsiveness_rows(records)
+    except Exception as exc:  # noqa: BLE001
+        out["responsiveness_by_arm"] = {"status": "error", "reason": str(exc)[:200]}
+    try:
+        out["distance_moderator"] = distance_moderator_exploratory(records)
+    except Exception as exc:  # noqa: BLE001
+        out["distance_moderator"] = {"status": "error", "reason": str(exc)[:200]}
+
     # Mediation — fed tail (X) -> authored CODE (M) -> realised tail outcome Y = cvar(val_returns, 0.05).
     # The VAL-RETURNS proxy path (fully archived, better powered than the sparse test-winner path). A severed
     # FIRST link (a≈0 -> a·b≈0) LOCATES the equivalence at responsiveness. Endogeneity caveat in the markdown.
@@ -4743,14 +4994,25 @@ def analyze(
         try:
             from src.inference.responsiveness import legible_format_responsiveness_differential
 
-            ir = _inspect_rewards()
             leg = load_campaign_records(legible_root)
-            lpairs = _mechanism_pairs([r for r in leg if r.get("condition") == "legible"])
-            rpairs = _mechanism_pairs([r for r in leg if r.get("condition") == "raw"])
-            if lpairs["x"].size and rpairs["x"].size:
-                out["legible_format_responsiveness"] = legible_format_responsiveness_differential(
-                    lpairs["x"], lpairs["m"], rpairs["x"], rpairs["m"], rng=np.random.default_rng(0)
+            # S8 (2026-07-06): aggregate to ONE row PER (condition, seed) CELL before the
+            # differential. The redesigned sub-experiment injects ONE per-seed reference block, so x
+            # is CONSTANT within a cell and the K authored candidates are CLUSTERED — i.i.d. row
+            # resampling of candidate rows understates the CI width by up to ~sqrt(K), letting the
+            # registered `legibility_helps = ci_low > 0` decision fire spuriously. Collapsing to
+            # per-seed cells (x, mean m) makes the bootstrap's exchangeable unit the SEED — the true
+            # independent unit — at the honest cost of a smaller n (disclosed in the output).
+            lx, lm = _condition_seed_cells([r for r in leg if r.get("condition") == "legible"])
+            rx, rm = _condition_seed_cells([r for r in leg if r.get("condition") == "raw"])
+            if lx.size and rx.size:
+                res = legible_format_responsiveness_differential(
+                    lx, lm, rx, rm, rng=np.random.default_rng(0)
                 )
+                res["clustering"] = (
+                    "one row per (condition, seed) cell — x is cell-constant by design; candidate "
+                    "rows within a cell are clustered, so the seed is the bootstrap unit (S8)"
+                )
+                out["legible_format_responsiveness"] = res
         except Exception as exc:  # noqa: BLE001 - never break the headline; degrade to the disclosure above
             out["legible_format_responsiveness"] = {
                 "status": "error", "executed": False, "reason": str(exc)[:200]
@@ -4933,9 +5195,14 @@ def analyze(
 
             returns_by_arm: dict[str, np.ndarray] = {}
             for arm in ARMS:
-                seed_avg = _arm_test_returns(records, arm)
-                if seed_avg is not None and seed_avg.size:
-                    returns_by_arm[arm] = seed_avg
+                # 2026-07-06: stratify the MEDIAN-TAIL-SEED realized path, NOT the seed-averaged
+                # series — averaging ~30 seed paths shrinks the tail ~sqrt(n), so per-regime CVaR-5%
+                # on the mean path is systematically thin (the exact aggregation the repo's own ES-
+                # backtest doctrine forbids for tail statistics). A genuine single realized path
+                # preserves the tail structure; cross-arm comparison stays common-mode.
+                realized, _seed = _arm_median_tail_seed_test_returns(records, arm, 0.05)
+                if realized is not None and np.asarray(realized).size:
+                    returns_by_arm[arm] = np.asarray(realized, dtype=float)
             if not returns_by_arm:
                 out["regime_stratified"] = {
                     "status": "skipped", "reason": "no arm has usable TEST returns"

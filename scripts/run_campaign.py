@@ -836,6 +836,17 @@ def evaluate_winner_on_test(
                 f"!= actual {_actual[:12]}.. (frozen/test desync guard)"
             )
 
+    # S6 (2026-07-06): the device this serial leg trains on — the agent config's explicit choice,
+    # else the trainer's own default (cuda when available). Recorded per seed for the sealed-leg
+    # homogeneity audit; resolved ONCE (the device cannot change mid-leg in-process).
+    try:
+        import torch as _torch
+
+        _dev_default = "cuda" if _torch.cuda.is_available() else "cpu"
+    except Exception:  # noqa: BLE001 — provenance label only; never block the leg
+        _dev_default = "cpu"
+    _serial_device = str(agent_cfg.get("device", _dev_default)) if isinstance(agent_cfg, dict) else _dev_default
+
     written: list[dict[str, Any]] = []
     for seed in seeds:
         if SHUTDOWN.is_set():
@@ -913,6 +924,7 @@ def evaluate_winner_on_test(
             popart_scale=popart_scale,  # T2.4 cross-arm sigma audit (serial path; parity with the parallel worker)
             train_safe_default_count=train_sd_count,  # R66 per-seed training-substitution audit
             train_safe_call_count=train_call_count,
+            device=_serial_device,  # S6: sealed-leg device attribution (homogeneity auditable)
         )
         write(record, archive_root)
         written.append(record)
@@ -1653,6 +1665,7 @@ def run_headline_campaign(
                     stall_after_s=_test_stall_after_s(),
                 )
                 written = _res["written"]
+                _n_failed_leg = int(_res["n_failed"])  # S19: carried onto the summary row below
                 if _res["n_failed"]:
                     # Fail-loud failure-wave guard (§G): distinguish a PARTIAL failure (warn, keep the
                     # arm's good seeds) from a TOTAL wave (a systemic fault — dead CUDA ctx, OOM cascade,
@@ -1680,6 +1693,7 @@ def run_headline_campaign(
                         f"failed seed(s) — first error: {_first}"
                     )
             else:
+                _n_failed_leg = 0  # the serial leg raises per-seed rather than tallying failures
                 written = evaluate_winner_on_test(
                     winner,
                     panel,
@@ -1712,6 +1726,10 @@ def run_headline_campaign(
             )
             summaries.append(
                 {"arm": arm, "status": _status, "n_seeds_written": len(written),
+                 # S19 (2026-07-06): failed seeds write NO record.json, so the summary carries the
+                 # count — the sentinel's coverage check reconciles the record shortfall against it
+                 # (disclosed partial = WARN; an UNACCOUNTED shortfall stays the CRITICAL husk class).
+                 "n_failed": int(_n_failed_leg),
                  "winner_id": winner.get("candidate_id")}
             )
         except ValueError as exc:  # non-executable winner source (search-arm stub) — FLAGGED
@@ -2096,6 +2114,19 @@ def main() -> None:
         raise SystemExit(
             f"[run_campaign] --gpu {args.gpu} OOMs the 6 GiB RTX-4050 VRAM ceiling (measured; "
             f"preflight caps at 3). Use --gpu 2 (proven) or 3 (thermal/RAM watchdog armed)."
+        )
+    # S6 (2026-07-06): the SEALED TEST leg must be device-HOMOGENEOUS — CPU and CUDA numerics differ
+    # bit-for-bit, and the device pool assigns tokens by a timing race, so mixing ``--cpu`` workers
+    # into a REAL run makes which-seed-trained-where irreproducible and quietly degrades the paired-
+    # seed CRN design (arm A seed k on cuda vs arm B seed k on cpu no longer share arithmetic).
+    # Refuse loudly (same pattern as the OOM guards); synthetic/dry runs keep the heterogeneous mix
+    # for dev throughput. NB this does NOT reduce real-run speed: the GPU is the binding resource and
+    # ``--gpu 3`` keeps it saturated; a CPU worker adds a slower, numerics-breaking 4th lane.
+    if int(getattr(args, "cpu", 0) or 0) > 0 and not (args.synthetic or args.dry_run):
+        raise SystemExit(
+            f"[run_campaign] --cpu {args.cpu} on a REAL run mixes CPU into the sealed TEST leg — "
+            "device-heterogeneous seeds are irreproducible (CPU != CUDA bit-for-bit) and break the "
+            "paired-seed CRN design. Use GPU-only (--gpu 3); --cpu is for --synthetic/--dry-run dev."
         )
 
     print(
