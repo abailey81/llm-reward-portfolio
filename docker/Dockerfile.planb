@@ -1,0 +1,40 @@
+# Plan-B fallback host image (docs/PLAN_B_FALLBACK_HOST.md; ADR-052 contingency, 2026-07-06).
+#
+# WHY DOCKER: the fallback machine is a 2019 Intel MacBook Pro — PyTorch dropped macOS x86_64
+# wheels after 2.2, so the ONLY way to run the campaign's EXACT pinned software stack
+# (torch 2.6.0 / SB3 2.8.0 / numpy 1.26.4 ...) on it is a linux/amd64 container. The CPU build of
+# the SAME torch version keeps the software identical to the lockfile; the device numerics (CPU vs
+# CUDA) are the inherent, DISCLOSED fallback discontinuity handled by the seed-boundary migration
+# protocol in the Plan-B doc. NOTHING is baked into the image: the repo, data, outputs and .env
+# mount as volumes so the container is pure runtime.
+#
+# Build (on the Mac, from the repo root):
+#   docker build -f docker/Dockerfile.planb -t llm-rp-planb .
+# Verify (keyless; proves the whole stack + resume machinery on this host):
+#   docker run --rm -v "$PWD:/repo" -w /repo llm-rp-planb \
+#       python scripts/run_prototype.py --dry-run --p-arms 1 --out outputs/planb_dryrun
+#   docker run --rm -v "$PWD:/repo" -w /repo llm-rp-planb python scripts/crash_rehearsal.py
+# Fallback campaign continuation (SEED-BOUNDARY protocol — read the Plan-B doc FIRST):
+#   docker run --rm -v "$PWD:/repo" -w /repo --env-file .env llm-rp-planb \
+#       python scripts/run_campaign.py --gpu 0 --cpu 2 --synthetic ...   # per the doc's exact command
+
+FROM python:3.11-slim
+
+# Build tools only where wheels are unavailable (the pinned set is wheel-complete on amd64, so this
+# stays minimal); git for provenance capture (capture_env records the commit).
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Step 1: the CPU build of the EXACT pinned torch version, from the PyTorch CPU index (the PyPI
+# linux wheel bundles CUDA; the CPU index ships the same 2.6.0 without it).
+RUN pip install --no-cache-dir torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+
+# Step 2: everything else at the identical lockfile pins (torch excluded there by construction).
+COPY requirements-planb-cpu.lock /tmp/requirements-planb-cpu.lock
+RUN pip install --no-cache-dir -r /tmp/requirements-planb-cpu.lock
+
+# Threads are pinned per-process by the code's own _worker_init (OMP=1 etc.); the container adds no
+# thread policy of its own. The repo mounts at /repo (see the run commands above).
+WORKDIR /repo
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "-c", "import torch, stable_baselines3 as sb3; print('planb image OK: torch', torch.__version__, '| sb3', sb3.__version__, '| cuda?', torch.cuda.is_available())"]

@@ -495,6 +495,7 @@ test ids + frozen winners are skipped, so no work is redone and no paid SEARCH b
 
 | Failure | Symptom | Recovery |
 |---|---|---|
+| **UNRECOVERABLE host failure** (hardware death / repair > ~4 days) | the deadman heartbeat alarm fires; the host will not boot | **PLAN B — `docs/PLAN_B_FALLBACK_HOST.md`**: verify the mirror (`archive_integrity.py verify-mirror`), continue on the prepared fallback Mac (Docker, exact pinned stack in CPU build), migrating at a SEED boundary across all arms (CRN pairs stay device-homogeneous; `metrics.device` records the split); the pre-declared contingency clause ships in the seed-ratification amendment |
 | **OOM (RAM) at n_gpu=4** | RAM → ~92%, `MemoryError` cascade / `failure_wave` anomaly | Kill; re-launch with **`--gpu 3`** (the measured-safe count) `--resume`; close more apps; drop `--cpu 1` if set. Root cause is the transition wave, not steady state. |
 | **OOM (VRAM)** | CUDA out-of-memory on a 4th worker | You exceeded the VRAM ceiling — n_gpu **must be ≤ 3** on the 4050 (n_gpu=4 is refused by the CLI). Re-launch `--gpu 3 --resume`. |
 | **Thermal throttle** | GPU temp pinned, fps collapses over hours | Run on a cooling stand / cooler ambient; or move the campaign to the **rented 4090** (much faster + avoids the laptop thermal soak) — same frozen config, `--resume` from the partial archive. |
