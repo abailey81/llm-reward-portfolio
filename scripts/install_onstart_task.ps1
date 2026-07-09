@@ -32,8 +32,15 @@
 .PARAMETER SupervisorGpu
     n_gpu handed to the supervisor's preflight gate (default 2).
 
+.PARAMETER Myriad
+    Register the CLUSTER-driver resume task instead of the laptop one: the supervisor child becomes the
+    Myriad driver (scripts\run_campaign_cluster.py), the laptop GPU clock lock is SKIPPED (the laptop
+    GPU is idle — training is 100% on Myriad), and the supervisor's laptop-GPU preflight is bypassed
+    (--no-preflight; the cluster's own G1 cert is the preflight). Use this for the 100%-Myriad campaign.
+
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File scripts\install_onstart_task.ps1
+    powershell -ExecutionPolicy Bypass -File scripts\install_onstart_task.ps1                 # laptop
+    powershell -ExecutionPolicy Bypass -File scripts\install_onstart_task.ps1 -Myriad         # cluster
     powershell -ExecutionPolicy Bypass -File scripts\uninstall_onstart_task.ps1   # after the run
 #>
 param(
@@ -43,28 +50,46 @@ param(
     # the SUPERSEDED R24 parallel protocol; a reboot would have resumed the campaign on the WRONG
     # protocol. Found + fixed in the 2026-07-02 engineering review.)
     [string]$CampaignArgs = "--gpu 3 --h3-singleshot --no-shutdown",
-    [int]$SupervisorGpu = 3
+    [int]$SupervisorGpu = 3,
+    [switch]$Myriad
 )
 
 $ErrorActionPreference = "Stop"
 
 # Resolve everything to ABSOLUTE paths (an ONSTART task has no useful working directory).
-$repoRoot   = Split-Path -Parent $PSScriptRoot
-$pythonExe  = Join-Path $repoRoot ".venv\Scripts\python.exe"
-$supervisor = Join-Path $repoRoot "scripts\supervisor.py"
-$logDir     = Join-Path $repoRoot "outputs\campaign"
-$logFile    = Join-Path $logDir "onstart_task.log"
+$repoRoot     = Split-Path -Parent $PSScriptRoot
+$pythonExe    = Join-Path $repoRoot ".venv\Scripts\python.exe"
+$supervisor   = Join-Path $repoRoot "scripts\supervisor.py"
+$clusterEntry = Join-Path $repoRoot "scripts\run_campaign_cluster.py"
+$logDir       = Join-Path $repoRoot ($(if ($Myriad) { "outputs\campaign_cluster" } else { "outputs\campaign" }))
+$logFile      = Join-Path $logDir "onstart_task.log"
 
 if (-not (Test-Path $pythonExe))  { throw "venv python not found at $pythonExe - create the venv first." }
 if (-not (Test-Path $supervisor)) { throw "supervisor not found at $supervisor" }
+if ($Myriad -and -not (Test-Path $clusterEntry)) { throw "cluster entry not found at $clusterEntry" }
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
 # cmd.exe /c wrapper so stdout+stderr append to the log (Task Scheduler actions cannot redirect).
-# The GPU clock lock (nvidia-smi -lgc) RESETS on every reboot — re-apply it BEFORE re-entering the
-# campaign so a crash-reboot resumes under the SAME uniform conditions the pilots calibrated
-# (2026-07-02 engineering review; Turbo self-heals via Armoury Crate, the lock does not). The `&`
-# chain means a lock failure logs but never blocks the resume itself.
-$inner  = "nvidia-smi -lgc 2200,2560 & `"$pythonExe`" `"$supervisor`" --gpu $SupervisorGpu -- $CampaignArgs --resume"
+if ($Myriad) {
+    # CLUSTER driver resume: the child is the Myriad driver (over the UCL VPN). No laptop GPU lock (the
+    # laptop GPU is idle), and the supervisor's laptop preflight is bypassed. The default cluster args
+    # are the tiered C-ladder over the frozen 7-arm roster; override with -CampaignArgs. The supervisor
+    # (and, redundantly, the entry) append --resume so re-entry replays the archive — never re-bills.
+    if (-not $PSBoundParameters.ContainsKey('CampaignArgs')) {
+        # The FROZEN roster (config/campaign.yaml): 7 arms + 4 H1 baselines. A reboot-recovery MUST resume
+        # the complete, correct campaign — a wrong default would resume an incomplete/broken roster.
+        $CampaignArgs = "--tiered " +
+            "--arms distributional scalar placebo scalar_cvar5 placebo_shuffled random_search bayes_opt " +
+            "--baselines raw_return return_minus_variance return_minus_cvar differential_sharpe --seeds 0-402"
+    }
+    $inner = "`"$pythonExe`" `"$supervisor`" --no-preflight --campaign `"$clusterEntry`" -- $CampaignArgs --resume"
+} else {
+    # LAPTOP campaign. The GPU clock lock (nvidia-smi -lgc) RESETS on every reboot — re-apply it BEFORE
+    # re-entering so a crash-reboot resumes under the SAME uniform conditions the pilots calibrated
+    # (2026-07-02 engineering review; Turbo self-heals via Armoury Crate, the lock does not). The `&`
+    # chain means a lock failure logs but never blocks the resume itself.
+    $inner = "nvidia-smi -lgc 2200,2560 & `"$pythonExe`" `"$supervisor`" --gpu $SupervisorGpu -- $CampaignArgs --resume"
+}
 $cmdArg = "/c `"$inner >> `"$logFile`" 2>&1`""
 
 $action    = New-ScheduledTaskAction -Execute "cmd.exe" -Argument $cmdArg -WorkingDirectory $repoRoot

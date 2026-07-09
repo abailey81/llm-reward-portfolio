@@ -97,11 +97,43 @@ def test_set_global_seed_sets_pythonhashseed() -> None:
 def test_set_global_seed_sets_cublas_workspace_config() -> None:
     """PD-6: ``CUBLAS_WORKSPACE_CONFIG`` is present for deterministic cuBLAS matmul.
 
-    The module uses ``setdefault(":4096:8")``, so we assert it is set to one of the two
-    documented deterministic values rather than over-constraining a pre-existing override.
+    ``set_global_seed`` guarantees the env var holds one of the two documented deterministic values
+    (``:4096:8`` / ``:16:8``) after the call. (The module does an EXPLICIT set, NOT ``setdefault`` — the
+    exact R66 overwrite-vs-preserve semantics are pinned by
+    ``test_set_global_seed_cublas_config_r66_overwrites_nondeterministic_preserves_valid`` below.)
     """
     set_global_seed(777)
     assert os.environ.get("CUBLAS_WORKSPACE_CONFIG") in {":4096:8", ":16:8"}
+
+
+def test_set_global_seed_cublas_config_r66_overwrites_nondeterministic_preserves_valid(monkeypatch) -> None:
+    """R66 (audit 2026-06-28): the ``CUBLAS_WORKSPACE_CONFIG`` assignment is an EXPLICIT set, NOT
+    ``setdefault``. This governs campaign GPU reproducibility (PD-6), so pin all three cases:
+
+    * a pre-existing NON-deterministic value must be OVERWRITTEN to ``:4096:8`` — otherwise it would
+      SILENTLY defeat reproducible cuBLAS matmul on the campaign GPU (the exact bug R66 fixed; a
+      ``setdefault`` would have kept the bad value and this assertion would fail);
+    * an already-deterministic value (``:16:8`` or ``:4096:8``) must be PRESERVED, not clobbered;
+    * an absent value is set to the canonical ``:4096:8``.
+
+    ``monkeypatch`` restores the env afterwards so mutating this process-global cannot leak into the suite.
+    """
+    # (1) pre-existing non-deterministic value -> OVERWRITTEN (setdefault would have kept ":2:2").
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":2:2")
+    set_global_seed(1)
+    assert os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":4096:8"
+    # (2) already-deterministic ":16:8" -> PRESERVED (not clobbered to ":4096:8").
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":16:8")
+    set_global_seed(1)
+    assert os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":16:8"
+    # (3) already-deterministic ":4096:8" -> PRESERVED.
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    set_global_seed(1)
+    assert os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":4096:8"
+    # (4) absent -> set to the canonical ":4096:8".
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    set_global_seed(1)
+    assert os.environ["CUBLAS_WORKSPACE_CONFIG"] == ":4096:8"
 
 
 def test_set_global_seed_sets_torch_cudnn_flags() -> None:

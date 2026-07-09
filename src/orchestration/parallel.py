@@ -439,6 +439,12 @@ def train_candidate(spec: dict) -> dict:
                    popart_scale=popart_scale,
                    # R66: training-window SAFE_DEFAULT counts -> archived by _archive (additive/optional).
                    train_safe_default_count=train_sd_count, train_safe_call_count=train_call_count)
+        if spec.get("emit_train_returns"):
+            # k-seed search (B-A2): the aggregator re-fits the FED tail on the CONCATENATION of the
+            # k seeds' TRAIN-window returns — the same in-sample window the single-seed fed tail uses
+            # (fed in-sample / scored out-of-sample, the ratified selection-overfitting defense) with
+            # 3x the tail data for the EVT fit. Flag-gated: absent (every k=1 path) -> byte-identical.
+            out["train_returns"] = [float(x) for x in train]
         if sink is not None:
             sink.candidate_done(fitness=fitness, status="ok", secs=time.perf_counter() - _cand_t0)
         # Reclaim this candidate's heavy objects in the PERSISTENT pool worker BEFORE the next candidate.
@@ -782,6 +788,13 @@ def _archive(result: dict, arm: str, opts: dict, archive_root: str, generation: 
                 "val_fitness": result.get("fitness", float("-inf")),
                 "val_returns": result.get("val_returns"),
                 "tail_stats": result.get("tail_stats"),
+                # B-A2 (k-seed search): TRAIN-window returns, archived ONLY when the worker was asked
+                # to emit them (k>1 specs) so the k-seed fed-tail aggregate replays from the archive.
+                **(
+                    {"train_returns": result["train_returns"]}
+                    if result.get("train_returns") is not None
+                    else {}
+                ),
                 # T2.4: realised PopArt scale (sigma_max/last) the critic saw, for the cross-arm sigma audit.
                 # Optional/back-compatible — omitted when the worker didn't surface it (older records / fakes).
                 **(

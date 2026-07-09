@@ -315,6 +315,69 @@ def check_mirror_freshness(mirror_age_s: float | None, *, warn_s: float = 43200.
     return HealthCheck("mirror", OK, f"archive mirror {mirror_age_s/3600:.1f} h old", {"age_s": mirror_age_s})
 
 
+def check_driver_lease(lease_age_s: float | None, *, warn_s: float = 2400.0,
+                       crit_s: float = 5400.0, terminal: bool = False) -> HealthCheck:
+    """The MYRIAD DRIVER LEASE (deadman) — freshness of the laptop driver's per-cycle heartbeat.
+
+    On the cluster the queued training arrays keep running even if the laptop driver dies, but no
+    new results are PULLED and no next generation is SUBMITTED until it returns — so a stale lease
+    means orchestration has stopped: a driver crash/hang, a laptop power-loss, or a VPN/ssh outage
+    the driver could not ride out (:data:`max_transport_outage_secs`). The supervisor + ONSTART task
+    relaunch it; this check makes the gap VISIBLE within minutes rather than at the end. The driver
+    beats every ``poll_secs`` (~10 min), so ~4 missed beats (40 min) is a WARN and ~9 (90 min) a
+    CRITICAL. Absent lease → INFO: a laptop-only run (no cluster driver) or one not yet started; a
+    terminal run is exempt (the driver has exited by design)."""
+    if terminal:
+        return HealthCheck("driver_lease", OK, "run terminal — driver lease not expected")
+    if lease_age_s is None:
+        return HealthCheck("driver_lease", INFO,
+                           "no live driver heartbeat (laptop-only run, finished, or not started)")
+    if lease_age_s >= crit_s:
+        return HealthCheck("driver_lease", CRITICAL,
+                           f"driver heartbeat {lease_age_s/60:.0f} min stale — ORCHESTRATION DOWN "
+                           "(crash/hang/host-death/VPN); supervisor + ONSTART should relaunch",
+                           {"age_s": lease_age_s})
+    if lease_age_s >= warn_s:
+        return HealthCheck("driver_lease", WARN,
+                           f"driver heartbeat {lease_age_s/60:.0f} min stale (expected ~10 min)",
+                           {"age_s": lease_age_s})
+    return HealthCheck("driver_lease", OK, f"driver heartbeat {lease_age_s/60:.1f} min ago",
+                       {"age_s": lease_age_s})
+
+
+def check_queue_health(snapshot: dict[str, Any] | None, *, transport_warn: int = 3,
+                       transport_crit: int = 24) -> HealthCheck:
+    """The MYRIAD QUEUE + TRANSPORT panel, from the driver heartbeat(s). Effect-blind by construction:
+    it reports job COUNTS (queued / pending across active batches) and the driver's OWN transport-
+    failure counters — never a result or performance metric.
+
+    A climbing consecutive pull/ops-failure count is the earliest sign of a VPN/ssh/login-node outage
+    (the driver rides it out to :data:`max_transport_outage_secs`, but you want to KNOW hours before
+    it could ever turn fatal): ``transport_warn`` consecutive failures → WARN, ``transport_crit`` →
+    CRITICAL (an outage the driver may soon raise on, triggering a supervisor relaunch). Queue
+    occupancy is surfaced as evidence (an empty queue with work pending and a live driver is a
+    usually-transient submit gap, not itself an alarm)."""
+    if not snapshot:
+        return HealthCheck("queue", INFO,
+                           "no driver queue snapshot (laptop-only run, finished, or not started)")
+    pending = int(snapshot.get("pending", 0) or 0)
+    queued = int(snapshot.get("queued", 0) or 0)
+    active = int(snapshot.get("active_batches", 0) or 0)
+    tfail = max(int(snapshot.get("pull_failures", 0) or 0), int(snapshot.get("ops_failures", 0) or 0))
+    ev = {"pending": pending, "queued": queued, "active_batches": active,
+          "pull_failures": int(snapshot.get("pull_failures", 0) or 0),
+          "ops_failures": int(snapshot.get("ops_failures", 0) or 0)}
+    if tfail >= transport_crit:
+        return HealthCheck("queue", CRITICAL,
+                           f"transport FAILING ({tfail} consecutive pull/ops failures) — VPN/ssh/"
+                           "login outage; driver will raise + relaunch if it persists", ev)
+    if tfail >= transport_warn:
+        return HealthCheck("queue", WARN,
+                           f"transport degrading ({tfail} consecutive pull/ops failures)", ev)
+    return HealthCheck("queue", OK,
+                       f"{queued} queued, {pending} pending across {active} active batch(es)", ev)
+
+
 def check_completion_stall(
     completion_times: list[float] | None,
     now: float,
@@ -520,6 +583,12 @@ def evaluate_health(inputs: dict[str, Any]) -> HealthReport:
         check_reward_scale_drift(g("raw_rms_by_arm", {}) or {}),
         check_api_error_rate(int(g("n_api_errors", 0) or 0), int(g("n_api_calls", 0) or 0)),
         check_mirror_freshness(g("mirror_age_s")),
+        # 2026-07-08 Myriad-native layer: the cluster driver deadman + queue/transport panel. Both
+        # effect-blind (freshness + counts + SGE occupancy, never a result) and cluster-only (a
+        # laptop run has no driver_status → INFO). The lease is the ONLY monitor that can see a laptop
+        # host-death / driver hang during a cluster run (the trainings survive it on Myriad).
+        check_driver_lease(g("driver_lease_age_s"), terminal=bool(g("terminal", False))),
+        check_queue_health(g("queue_snapshot")),
         # 2026-07-06 deep-monitoring layer (B1/B4/B5): productivity, unit-coverage, triage.
         check_completion_stall(
             g("completion_times"), float(g("now", time.time()) or time.time()),
@@ -680,6 +749,42 @@ def _scan_ledgered_failures(camp_root: Path) -> int:
         except OSError:
             continue
     return len(seen)
+
+
+def _read_driver_status(camp_root: Path) -> tuple[float | None, dict[str, Any] | None]:
+    """Aggregate the Myriad driver heartbeat(s) under ``<camp_root>/driver_status/*.json`` (2026-07-08).
+
+    Only RUNNING beats count: the freshest running beat's age is the driver LEASE (deadman for the
+    :func:`check_driver_lease` check), and the running beats' summed pending + summed queued + worst
+    transport-failure counters form the queue/transport snapshot. A batch's FINAL beat flips to
+    ``phase='done'`` (excluded here), so a cleanly-completed batch never reads as a hung one and a
+    finished campaign yields no live lease (→ the checks degrade to INFO, not a false CRITICAL).
+    Best-effort: an unreadable beat is skipped, never fatal."""
+    sdir = camp_root / "driver_status"
+    if not sdir.is_dir():
+        return None, None
+    now = time.time()
+    freshest: float | None = None
+    pending = queued = pull_f = ops_f = active = 0
+    for f in sdir.glob("*.json"):
+        try:
+            age = max(0.0, now - f.stat().st_mtime)
+            row = json.loads(f.read_text(encoding="utf-8", errors="replace"))
+        except (OSError, ValueError):
+            continue
+        if str(row.get("phase")) != "running":
+            continue  # a done/final beat is not a live lease
+        freshest = age if freshest is None else min(freshest, age)
+        active += 1
+        pending += int(row.get("pending", 0) or 0)
+        queued += len(row.get("queue_names", []) or [])
+        pull_f = max(pull_f, int(row.get("pull_failures", 0) or 0))
+        ops_f = max(ops_f, int(row.get("ops_failures", 0) or 0))
+    if freshest is None:
+        return None, None
+    snap = {"pending": pending, "queued": queued, "pull_failures": pull_f,
+            "ops_failures": ops_f, "active_batches": active}
+    return freshest, snap
 
 
 def gather_inputs(run_dir: Path) -> dict[str, Any]:
@@ -866,6 +971,17 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         if target is not None:
             out["mirror_age_s"] = max(0.0, time.time() - target.stat().st_mtime)
     except OSError:
+        pass
+
+    # Myriad driver LEASE + queue/transport snapshot (2026-07-08) — the cluster orchestration deadman
+    # (host-death / driver hang / VPN outage). Cluster-only: a laptop run has no driver_status dir.
+    try:
+        lease_age, queue_snap = _read_driver_status(camp_root)
+        if lease_age is not None:
+            out["driver_lease_age_s"] = lease_age
+        if queue_snap is not None:
+            out["queue_snapshot"] = queue_snap
+    except Exception:  # noqa: BLE001 — best-effort; absence degrades the two checks to INFO
         pass
 
     # Expected units come from config (the frozen source of truth); done units from the archive.

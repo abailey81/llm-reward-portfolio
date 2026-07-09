@@ -11,8 +11,8 @@
 
     This script robocopy-mirrors the archive roots to D:\llm_rp_archive_mirror\ (a different physical
     disk). /MIR keeps an exact replica (adds+updates+deletes); /R:2 /W:5 bounds retries so a locked
-    in-flight file never stalls the mirror (it lands on the next pass); /XD excludes nothing today but
-    is the hook for future scratch dirs. Run it:
+    in-flight file never stalls the mirror (it lands on the next pass); /XD excludes the transient
+    driver_status (heartbeats) + batches (reconstructible specs) dirs. Run it:
       * manually after any pilot completes;
       * during the campaign: every 6 h via the watcher loop or a scheduled task —
         schtasks /Create /SC HOURLY /MO 6 /TN LLMRewardArchiveMirror
@@ -37,12 +37,17 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 
 # The irreplaceable set: run archives + the frozen-design record + the manifest ledgers.
+# NOTE (2026-07-08): campaign_cluster is the MYRIAD driver's local_archive_root (the pulled Scratch
+# mirror) — it MUST be mirrored too, or the 3-site grade-security guarantee (Myriad->laptop->D:->Mac)
+# does not hold for the cluster run. driver_status/ (transient heartbeats) and batches/ (reconstructible
+# specs/jobscripts) are EXCLUDED via /XD below: they are not irreplaceable and would churn every pass.
 $sources = @(
-    @{ src = Join-Path $repoRoot "outputs\campaign";     dst = Join-Path $MirrorRoot "campaign" },
-    @{ src = Join-Path $repoRoot "outputs\sigma_pilot";  dst = Join-Path $MirrorRoot "sigma_pilot" },
-    @{ src = Join-Path $repoRoot "outputs\prototype";    dst = Join-Path $MirrorRoot "prototype" },
-    @{ src = Join-Path $repoRoot "outputs\tables";       dst = Join-Path $MirrorRoot "tables" },
-    @{ src = Join-Path $repoRoot "data\manifest";        dst = Join-Path $MirrorRoot "manifest" }
+    @{ src = Join-Path $repoRoot "outputs\campaign";         dst = Join-Path $MirrorRoot "campaign" },
+    @{ src = Join-Path $repoRoot "outputs\campaign_cluster"; dst = Join-Path $MirrorRoot "campaign_cluster" },
+    @{ src = Join-Path $repoRoot "outputs\sigma_pilot";      dst = Join-Path $MirrorRoot "sigma_pilot" },
+    @{ src = Join-Path $repoRoot "outputs\prototype";        dst = Join-Path $MirrorRoot "prototype" },
+    @{ src = Join-Path $repoRoot "outputs\tables";           dst = Join-Path $MirrorRoot "tables" },
+    @{ src = Join-Path $repoRoot "data\manifest";            dst = Join-Path $MirrorRoot "manifest" }
 )
 
 New-Item -ItemType Directory -Force $MirrorRoot | Out-Null
@@ -70,7 +75,9 @@ foreach ($pair in $sources) {
         continue
     }
     # robocopy exit codes 0-7 = success variants; >=8 = failure. Never let one root abort the rest.
-    robocopy $pair.src $pair.dst /MIR /R:2 /W:5 /NP /NDL /NFL /NJH | Out-Null
+    # /XD skips transient, reconstructible dirs (heartbeats + spec/jobscript batches) so the mirror holds
+    # only the irreplaceable records and never churns on monitoring state.
+    robocopy $pair.src $pair.dst /MIR /R:2 /W:5 /NP /NDL /NFL /NJH /XD driver_status batches | Out-Null
     $code = $LASTEXITCODE
     $verdict = if ($code -ge 8) { "FAIL($code)" } else { "ok($code)" }
     Add-Content $log "$verdict : $($pair.src) -> $($pair.dst)"

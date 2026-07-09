@@ -245,3 +245,22 @@ def test_loss_diff_tail_index_flags_heavy_tails_B552() -> None:
     assert set(blk) == {"hill_alpha", "k", "heavy_tailed_for_dm_companion"}
     assert blk["k"] == max(10, int(0.05 * 1500))
     assert np.isfinite(blk["hill_alpha"]) and blk["hill_alpha"] > 0
+    # The machine-readable flag (B.5.2's actual deliverable) must FIRE on this heavy-tailed differential.
+    # Previously the docstring promised "flag True" but nothing asserted it -- so an inverted/broken flag
+    # would have passed. hill_alpha ~1.4 << 4 => the DM-HLN companion is correctly marked down-weighted.
+    assert blk["hill_alpha"] < 4.0
+    assert blk["heavy_tailed_for_dm_companion"] is True
+
+
+def test_loss_diff_tail_index_not_flagged_for_light_tailed_differential() -> None:
+    """B.5.2 companion (the previously untested FALSE branch): a THIN-tailed, NON-degenerate loss
+    differential must read ``heavy_tailed_for_dm_companion is False`` -- not True, and not the ``None``
+    default. Bounded (uniform) returns + a broad alpha so most observations are hits => the differential
+    varies everywhere (non-degenerate) and inherits the bounded, light tail (hill_alpha >> 4), so the
+    DM-HLN companion is NOT down-weighted. This pins the flag's discrimination, not just its presence."""
+    r = (np.random.default_rng(5).random(4000) - 0.5) * 0.04  # bounded support => very thin tails
+    out = comparative_es_backtest(r, (0.0, -0.01), (0.003, -0.02), alpha=0.5,
+                                  n_boot=80, rng=np.random.default_rng(0))
+    blk = out["loss_diff_tail"]
+    assert np.isfinite(blk["hill_alpha"]) and blk["hill_alpha"] > 4.0
+    assert blk["heavy_tailed_for_dm_companion"] is False

@@ -434,11 +434,24 @@ def decompose(
         }
         overall = "skipped"
     else:
+        # σ²_search == 0 means the ANOVA truncated a (near-)zero/negative raw between-search
+        # component to 0 (MS_between <= MS_within): the reward-draw variance is NOT distinguishable
+        # from zero at this K. That is the EXPECTED case under σ_seed-dominance (the pilot finding),
+        # so we flag it — a bare "ratio = ∞ / EXCEEDS" would over-state the precision of a small-K
+        # zero estimate. The gap still trivially clears a zero yardstick; the rendering is honest
+        # about WHY (see verdict_markdown).
+        sigma2_search_raw = components.get(arm_a, {}).get("search", {}).get("sigma2_raw")
         verdict = {
             "gap_exceeds_sqrt_sigma2_search": bool(abs(gap) > se_search),
             "iqm_gap": float(gap),
             "sqrt_sigma2_search": float(se_search),
             "ratio_gap_over_se": (float(gap / se_search) if se_search > 0 else float("inf")),
+            "sigma2_search_zero": bool(se_search == 0.0),
+            "sigma2_search_raw": (
+                float(sigma2_search_raw)
+                if isinstance(sigma2_search_raw, (int, float)) and sigma2_search_raw is not None
+                else None
+            ),
             "status": "ok",
         }
         overall = "ok"
@@ -653,20 +666,37 @@ def verdict_markdown(result: dict[str, Any]) -> str:
         se = v.get("sqrt_sigma2_search", 0.0)
         ok = v.get("gap_exceeds_sqrt_sigma2_search")
         ratio = v.get("ratio_gap_over_se")
-        verdict_word = "EXCEEDS" if ok else "does NOT exceed"
-        lines += [
-            f"**Verdict ({result.get('contrast', '?')}):** IQM gap "
-            f"`{_fmt(gap)}` {verdict_word} `√σ²_search = {_fmt(se)}` "
-            f"(gap / √σ²_search = {_fmt(ratio, 2)}).",
-            "",
-            (
-                "→ The effect is a property of the channel, not one lucky reward."
-                if ok
-                else "→ The gap is within one standard deviation of the reward-draw noise — "
-                "report as INCONCLUSIVE on the one-lucky-reward axis (more search re-runs or a "
-                "larger effect needed)."
-            ),
-        ]
+        if v.get("sigma2_search_zero"):
+            # σ²_search truncated to ~0 (between-search MS <= within-search MS): the reward-draw
+            # variance is NOT distinguishable from zero at this K. The gap trivially clears a zero
+            # yardstick, so report it HONESTLY (not as a crisp "ratio = ∞ / channel-not-luck" win).
+            raw = v.get("sigma2_search_raw")
+            lines += [
+                f"**Verdict ({result.get('contrast', '?')}):** σ²_search is estimated at **~0** "
+                f"(raw pre-truncation `{_fmt(raw)}`; between-search MS ≤ within-search MS) — the "
+                f"reward-draw noise is **not distinguishable from zero** at this K. The IQM gap "
+                f"`{_fmt(gap)}` therefore clears it trivially.",
+                "",
+                "→ Consistent with SEED variance dominating reward-draw variance (the σ_seed-"
+                "dominance finding): the one-lucky-reward attack has ~no variance to stand on. This "
+                "is a small-K estimate, so report it as SUPPORTIVE-but-weak (more independent search "
+                "re-runs would sharpen σ²_search), NOT a precise margin.",
+            ]
+        else:
+            verdict_word = "EXCEEDS" if ok else "does NOT exceed"
+            lines += [
+                f"**Verdict ({result.get('contrast', '?')}):** IQM gap "
+                f"`{_fmt(gap)}` {verdict_word} `√σ²_search = {_fmt(se)}` "
+                f"(gap / √σ²_search = {_fmt(ratio, 2)}).",
+                "",
+                (
+                    "→ The effect is a property of the channel, not one lucky reward."
+                    if ok
+                    else "→ The gap is within one standard deviation of the reward-draw noise — "
+                    "report as INCONCLUSIVE on the one-lucky-reward axis (more search re-runs or a "
+                    "larger effect needed)."
+                ),
+            ]
     else:
         lines.append(
             f"**Verdict:** not computed — {v.get('reason', 'insufficient data')} "

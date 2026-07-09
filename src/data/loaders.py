@@ -254,12 +254,48 @@ def _verify_checksum(path: Path) -> None:
     _LOG.debug("checksum OK for %s (%s…)", path.name, expected[:12])
 
 
+# Node-staged gold directory (Myriad $TMPDIR staging / ACFS redirection, PLAN §14.2; V7 closed
+# 2026-07-07). When set, gold reads look here FIRST — per file, by the canonical
+# ``<name>_<suffix>.parquet`` filename — falling back to ``gold_dir`` on a miss. Three safety
+# properties hold by construction: (1) the suffix lives IN the filename, so a wrong-panel staging
+# (e.g. univ3 files while univ5 is active) can never masquerade — it is a filename miss and the
+# canonical path is used; (2) ``verify_checksum=True`` verifies the STAGED bytes against the same
+# frozen manifest SHA-256 (the manifest lookup falls back to basename matching for paths outside
+# the repo, so the staged copy is held to the identical frozen hash); (3) unset ⇒ byte-identical
+# behaviour to before (the campaign laptop path never sets it).
+_STAGED_DIR_ENV = "LLM_RP_GOLD_STAGED_DIR"
+
+
+def _resolve_gold_path(fname: str, gold_dir: Path) -> Path:
+    """The path to read ``fname`` from: the node-staged copy if present, else ``gold_dir/fname``.
+
+    On a cluster node the repo-relative default ``data/gold/`` does not exist (licensed gold is
+    never in git) — the jobscript stages the artifacts to ``$TMPDIR`` (or points at the ACFS
+    input dir when that copy fails) and exports :data:`_STAGED_DIR_ENV`, which this resolver
+    honours for EVERY gold artifact read. A set-but-missing staged file logs a warning and falls
+    back, so a partial staging degrades gracefully instead of failing mid-campaign.
+    """
+    staged_root = os.environ.get(_STAGED_DIR_ENV, "").strip()
+    if staged_root:
+        staged = Path(staged_root) / fname
+        if staged.is_file():
+            _LOG.info("gold read: node-staged %s (canonical: %s)", staged, gold_dir / fname)
+            return staged
+        _LOG.warning(
+            "%s=%s is set but %s is absent there — falling back to canonical %s",
+            _STAGED_DIR_ENV, staged_root, fname, gold_dir / fname,
+        )
+    return gold_dir / fname
+
+
 def _read(name: str, gold_dir: Path, *, verify_checksum: bool = False) -> pd.DataFrame:
-    path = gold_dir / f"{name}_{gold_suffix()}.parquet"
+    fname = f"{name}_{gold_suffix()}.parquet"
+    path = _resolve_gold_path(fname, gold_dir)
     if not path.exists():
         raise FileNotFoundError(
             f"gold artifact not found: {path}. Build it via data_pipeline/ (needs Refinitiv creds) "
-            f"or check data/gold/. (Active suffix {gold_suffix()!r} — set LLM_RP_GOLD_SUFFIX to switch.)"
+            f"or check data/gold/. (Active suffix {gold_suffix()!r} — set LLM_RP_GOLD_SUFFIX to "
+            f"switch; on a cluster node set {_STAGED_DIR_ENV} to the staged input dir.)"
         )
     if verify_checksum:
         _verify_checksum(path)
@@ -456,7 +492,7 @@ def _materialized_val_post_embargo(
     Returns ``(None, embargo)`` when the boundary is absent and ``(None, None)`` when the table or
     its embargo field cannot be read — so callers fall back gracefully (Rank 18).
     """
-    path = gold_dir / f"{_SPLITS_NAME}_{gold_suffix()}.parquet"
+    path = _resolve_gold_path(f"{_SPLITS_NAME}_{gold_suffix()}.parquet", gold_dir)
     if not path.exists():
         return None, None
     try:

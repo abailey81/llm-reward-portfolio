@@ -3,6 +3,278 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-08c] — MYRIAD-NATIVE resilience + monitoring + auto-proceed gate (100%-Myriad GO) — all uncommitted, pre-freeze machinery
+
+Tamer confirmed the GO ("we will use Myriad 100%") and asked that ALL systems be genuinely advanced +
+strictly flawless for a multi-week cluster run: "resume if for absolutely any reason the run was
+stopped" and "advanced systems for Myriad, not only monitoring, everything." Built + tested; the
+canonical freeze hash is UNCHANGED (`1c6b76b6`) — everything here is execution-layer, gated to GO.
+
+- **Long-outage transport tolerance (`driver.run_batch`).** The driver now rides out a long VPN/ssh/
+  login-node outage instead of dying every ~2 h: a transport-failure streak is fatal only past a
+  WALL-TIME bound (`max_transport_outage_secs`, default 12 h) OR the count cap — the time bound is the
+  real guard, decoupled from `poll_secs`. Rationale: the queued Myriad arrays keep training regardless
+  of laptop connectivity, and the archive is the truth, so nothing is lost by waiting; a genuinely dead
+  link is still surfaced (raises → supervisor relaunches with `--resume` on reconnect).
+- **Driver heartbeat → Myriad-native monitoring.** `run_batch` emits a per-cycle read-only status beat
+  (`driver_status/<batch>.json`, atomic; a FINAL `phase=done` beat on completion). Two new sentinel
+  checks consume it, effect-blind (freshness + counts + SGE occupancy — never a result): **`check_driver_lease`**
+  = the orchestration deadman (a stale beat = driver crash/hang, laptop power-loss, or an outage the
+  driver could not ride out — the ONLY monitor that can see laptop host-death during a cluster run,
+  since the trainings survive it on Myriad); **`check_queue_health`** = the queue + transport panel
+  (queued/pending across active batches + the driver's own pull/ops failure counters as the earliest
+  VPN-outage warning). Cluster-only (a laptop run has no `driver_status` → INFO); done beats never read
+  as hung.
+- **Auto-proceed review gate (`run_campaign_tiered`, Tamer's delegated tier-0 decision).** The C3 gate
+  now AUTO-PROCEEDS on green execution health (no manual latency — the time-security requirement) and
+  STOPS only on a real execution defect (a short/inhomogeneous unit) or an explicit `--hold-at-gate`.
+  It reads ONLY counts + homogeneity censuses (`integrity.write_integrity_report` now returns the report
+  dict with `verdict.health_ok`), so releasing on green never conditions continuation on an effect — the
+  single-look inference is protected. The report gained a SEALED-SAFE selection section (the winner's
+  authored reward CODE, the mechanism headline — no performance number).
+- **Myriad-capable boot recovery (`install_onstart_task.ps1 -Myriad`).** The ONSTART Task-Scheduler
+  re-entry now has a cluster mode: the supervisor child becomes the Myriad driver
+  (`run_campaign_cluster.py`), the laptop GPU clock-lock is skipped (laptop GPU idle), and the laptop
+  preflight is bypassed — so a reboot/power-loss auto-resumes the cluster orchestration.
+- **`scripts/resume_audit.py` — the pre-relaunch confidence check (capstone of "resume from ANY
+  reason").** Reads the pulled archive READ-ONLY and reports the EXACT `--resume` plan (per-arm search
+  completeness + winner-frozen; the precise missing sealed-leg seeds), VERIFIES integrity (every record
+  parses — surveys corruption without crashing, unlike `load_all`), and cross-checks a second-disk
+  mirror for un-mirrored sealed records. Exit 2 on a real integrity problem. Effect-blind (run_ids +
+  counts only).
+- **Tests:** +the driver wall-time outage guard + heartbeat/`phase=done`; +the two sentinel Myriad
+  checks + `_read_driver_status` running/done aggregation + the gather_inputs end-to-end; +the gate
+  auto-proceed-vs-hold pair; +4 resume-audit (missing-seed plan / corruption / mirror parity / CLI exit).
+  Driver+sentinel+cluster+resume_audit suites green; freeze `--check` green (hash unchanged).
+- **DEEP MYRIAD RESEARCH → `docs/MYRIAD_DEEP_RESEARCH_2026-07-08.md`** (Tamer: "extremely deep research
+  on Myriad — usage, capabilities, papers that used it; dive deep, not just abstracts"). 13 sources read
+  first-hand (rc.ucl.ac.uk docs + `UCL-ARC/mkdocs-rc-docs` source + nf-core production config + a UCL
+  Myriad paper). **KEY: the §15 GPU-packing risk is DOWNGRADED from "could double the timeline" to "G0
+  confirms."** The Young GPU-nodes page states VERBATIM that **device cgroups are implemented (10 Aug
+  2022) so each job "only ha[s] access to the number of GPUs they requested"** — UCL-wide SGE policy ⇒
+  a `gpu=1` job owns its GPU cgroup-exclusively ⇒ running N training processes on it is safe (§15 pack
+  ×2–2.5 validated); `CUDA_VISIBLE_DEVICES` renumbers our GPU to index 0 ⇒ `cuda:0` correct; `-ac
+  exclusive` reserves a whole node. CONFIRMED: 74 GPUs (38 V100 EF / 24 A100-40 L / 12 A100-80 U/V);
+  393 nodes; walltime 72 h/48 h; SGE `-l h_rt/mem/tmpfs/gpu`, `-pe smp`, `-ac allow=EF|L`, `-t/-tc`,
+  `-hold_jid`, `-r y`; **home==Scratch 1 TB not-backed-up + ACFS backed-up read-only-on-compute** (gold
+  home); `$TMPDIR` 1.5 TB local, wiped on exit; ARR→**CRAG monthly 2nd-Tue** via `rc-support@ucl.ac.uk`;
+  the Myriad@UCL acknowledgment (verbatim). REAL precedent: **nf-core's live Myriad profile**
+  (`executor sge`, `queueSize 100`, `submitRateLimit 10/1s`, `penv smp` — sources our throughput model)
+  and **arXiv:2303.10672** (a UCL group solving an MDP by GPU value iteration on Myriad A100s — the
+  develop-local/scale-on-Myriad pattern + ~2.4× consumer→A100, validating our 1.75× laptop→V100
+  constant). GOTCHAS encoded: Apptainer **builds on local fs ($TMPDIR) not home/Scratch**, no
+  Dockerfiles (`.def`/`pull`), `--nv` for GPU; inode quota; **don't confuse Myriad (`mem`/`gpu=1`/
+  `module load`) with the UCL CS-dept cluster (`tmem`/`gpu=true`/`/share/apps`)**. NEW: Open OnDemand
+  (`ood.myriad.rc.ucl.ac.uk`, pilot via rc-support) as a browser queue-monitor + Jupyter. `g0_probe.sh`
+  updated to confirm cgroup isolation (`nvidia-smi -L` count + `CUDA_VISIBLE_DEVICES`) and `lquota`.
+- **GRADE SECURITY made a first-class design aspect + precise run times + tier ultrathink →
+  `docs/GRADE_SECURITY_AND_TIER_DESIGN_2026-07-08.md`** (Tamer: "add grade security"; "ultrathink the
+  tiers inside the stages"; "precise run times for everything"). Grade security = the design guarantees
+  a distinction-grade submittable dissertation under EVERY adversity, by construction (7 named
+  guarantees: floor-first ordering, every-stop-a-complete-design, exogenous stopping, dual-track
+  fallback, bulletproof resume, deadline buffer, procedural hygiene). The Stage-1 C-ladder is tabulated
+  tier-by-tier with per-tier GPU-h: **the complete distinction floor (7 arms + mechanism + H1 + H3 at
+  n=30) banks in ~1,104 trainings ≈ 644 GPU-h ≈ 1.3 days central** (~10% of Stage 1); the equivalence
+  sweep (30→340→403→568) is additive CI-tightening. **Precise run-time table:** floor ~1.3 d · to 95%
+  (n=403)+D1 ~7 d · to 99% ~9.4 d (central 36 trainings/h = C=12 × packing ×1.75); Stage 2 (report-only,
+  both pools, A100-80 dense packing) ~3–6 d overlapping the write-up. **New code:
+  `power_analysis.recommend_assurance_target(trainings_per_hour, days)`** — the throughput-aware,
+  deadline-safe target selector (picks the highest assurance tier that fits the calendar minus a 25%
+  buffer, floor as last resort; the stop is exogenous ⇒ valid single-look) + test. Freeze hash UNCHANGED
+  (power_analysis is not hash-bound). **THEN (Tamer: "ultrathink Stage 2, re-read the plan, how would
+  everything look") the doc gained §4 (Stage-2 ARMOR design) + §5 (the finished-object view):** Stage 2
+  = publishability armor that CANNOT hurt the grade (no-forward-references; each item = +1 appendix
+  table +1 sentence, prunable to 0). Internal 4-tier structure by value×dependency (2.A FREE DEPTH
+  D3/D4/D9/D6/U5/U4b, no authoring · 2.B nearly-free U3 Qwen + D2+ · 2.C laptop D5 calibration · 2.D
+  premium shelf U2b/D7/U4 → else CH7 future-work). The sophistication: **execute in dependency-readiness
+  order (zero-authoring analyses + robustness flood the pools at the bank gate while U3/D2+ author),
+  prune in value order** — two distinct orderings; A100-80 dense packing for the report-only fleet;
+  D2+ = one authoring sweep of 6 counterfactuals over sampled reflection states + top-Δ trainings; the
+  Eureka re-read register discharged (deviations each probed; k=3 exceeds Eureka). Stage 2 reuses the
+  CERTIFIED orchestrator (config-only, no mega-driver); the D3/D4/D9/D5/D2+ analysis scripts already
+  exist (`variance_decomposition.py`/`popart_ablation.py`/`cost_sweep.py`/`mutation_probe.py`).
+- **THE OVERALL-DESIGN SYNTHESIS → `docs/OVERALL_DESIGN_2026-07-08.md`** (Tamer: "ultrathink the overall
+  design, all stages, all tiers, everything"). The canonical single-source that disambiguates every
+  structural axis (the recurring tier-confusion): **5 value-ladders** (STAGES · C-LADDER execution-order
+  · ASSURANCE-LADDER power · VALUE-CASCADE banking · STAGE-2 ARMOR) + **1 identity axis** (ARM TIERS:
+  arms→hypotheses→tests) + **1 machinery layer** (resume+monitoring+orchestrator), all ORTHOGONAL and
+  composed under the unifying principle "**complete-at-every-boundary**" (cheapest-strongest rung first;
+  adversity costs only the marginal rung). Coherence review (adversarial): CONSISTENT (roster/bounds/
+  order identical in code+config+docs, hash green); RECONCILED the plan's UNPACKED durations (12.4 d)
+  vs the now-validated PACKED figures (~7 d to n=403) — the plan's is the conservative bound, packed
+  supersedes; REFINEMENT: the C3→C4 gate can re-confirm the assurance target from the run's OWN measured
+  cadence (exogenous ⇒ still valid single-look; hook exists); CRISP-UP: one bank-gate runsheet
+  (verify-mirror→analyze→depth-bundle→prereg-bundle). **THE HONEST DOMINANT LEVER stated plainly:** the
+  machinery secures the RESULT with near-certainty but does NOT win the grade — the grade is won in the
+  MECHANISM CHAPTER (SQ1-3 + causal chain + taxonomy), the honest null framing, and the motivating EDA;
+  after freeze the dominant remaining lever is the write-up depth + the 17k→9.5k surgery, not the cluster.
+- **DEEP INTEGRATION AUDIT (Tamer: "find absolutely everything, all issues/inconsistencies/gaps; find
+  first, then fix; don't be lazy").** First-hand adversarial read of every component + seam built this
+  session; ~13 seams VERIFIED CLEAN (resume_audit ids ↔ test-leg run_ids, heartbeat keys ↔ sentinel
+  reader, seed-tier partition ↔ assurance ladder, gate health_ok wiring, driver transport tolerance +
+  done-accounting, `driver_status/` not polluting any archive scan, boot→supervisor→entry chain,
+  gate effect-blindness, resume-through-gate winner-stability). **Fixed 2 MAJOR + 3 MINOR real defects:**
+  (1) **MAJOR** `mirror_archive.ps1` mirrored `outputs\campaign` but NOT `outputs\campaign_cluster` — the
+  MYRIAD archive was UN-MIRRORED (broke the 3-site guarantee); now covers it + `/XD` skips the transient
+  `driver_status`/`batches` dirs. (2) **MAJOR** `resume_audit` had the mirror severity INVERTED — it
+  failed `integrity_ok` (exit 2) on benign 6-hourly mirror-lag (cry-wolf every relaunch) and never
+  checked the real alarm; now `mirror_behind`=benign warning, `local_lost` (mirror has sealed records
+  local lost)=the exit-2 alarm with `recover_from_mirror`. (3) `ASSURANCE_SWEEP_UNITS` 11→12 (the uniform
+  sweep includes H3, matching the run-time doc). (4) plan §3 durations now note the validated packing
+  (12.4 d unpacked → ~7 d packed). (5) resume_audit `--mirror` example → the `campaign_cluster` subdir.
+  **BUILT the one real gap:** the **bank-gate runsheet** (PLAN §3) — the exact idempotent sequence
+  archive_integrity write→verify-mirror → resume_audit → analyze_campaign (the single look) →
+  variance_decomposition (D3) + D4/D9 → make_prereg_bundle. Documented-as-design (tools ready, G1-live):
+  gate target-reconfirmation, Eqw-state detection. Touched suites (109 tests) + freeze `--check` GREEN,
+  hash unchanged.
+- **Round-2 Myriad research (dossier §13):** GPU **MPS + pack density** (V100 ~4–5 / A100-40 ~12–15 /
+  **A100-80 ~25–30** trainings — the Stage-2 lever; MPS optional G1-tested boost, time-slicing default
+  for robustness); **compute-accounting** `jobhist`/`qacct`/`nodesforjob`/`qexplain`/`ruse` (the paper's
+  wall-clock reporting Okhrati grades); `qstat` **`Eqw`** state (a G1 sentinel-panel upgrade);
+  fair-share/Gold/priority-cycles; T-type 64-core AMD nodes for the CPU analysis. **⚠ MIGRATION RISK:**
+  Myriad is moving **SGE→Slurm (RHEL 9.5)** — Kathleen done 06/2025, **Myriad UNSCHEDULED as of 06/2026**
+  (SGE correct for our window). Contingency: the laptop track is scheduler-independent + the isolated
+  scheduler seam ports via the recorded SGE→Slurm directive mapping (dossier §13f) ≈ a day's work.
+
+## [2026-07-08b] — Long-run resilience (tier ladder + resume-hardening + seed schema) + statistical rigor (--assurance) + k=3 search denoising — all uncommitted, pre-freeze upgrades
+
+Tamer delegated the seed/k work ("do k and seed schema and all other stuff yourself … ultrathink,
+strictly to our priorities") and, for the long training, "ultrathink the tier / resume / checkpoint
+systems in an extremely advanced manner … secure the grade SAFELY." Built + tested; the freeze
+canonical hash is UNCHANGED (`1c6b76b6`) — every change is pre-freeze machinery, gated to activation.
+
+- **The grade-securing TIER ladder (`campaign.run_campaign_tiered`).** Each tier is a milestone locked
+  in order, so a crash always leaves the strongest guarantee reached: **tier 0 (n=30)** = the complete
+  distinction-floor (H2 + mechanism + H1 + H3); **tier 1 (n=340)** = 90% equivalence power; **tier 2
+  (n=403)** = 95%; **tier 3 (n≈568)** = 99%. Tiers PARTITION the seed set (order-only, CRN preserved),
+  each later tier extends ONLY the H2 test leg (winners frozen once in tier 0). `src.utils.seeds`
+  (`resolve_seeds`/`seed_tiers`, schema `{mode: uniform|tiered}` + bare-list back-compat) is the single
+  resolver the campaign, entry point, and freeze mirror all bind on.
+- **`power_analysis --assurance`.** χ² upper-CI seed sizing that REPRODUCES the seed-decision doc
+  exactly (80%→279, 90%→340, 95%→403) and extends it (99%→**568**). `assurance_seed_count(C)` =
+  `round(n_point·ν/χ²_{1-C,ν})`; n_point=189, ν=14. (Caught + noted a doc error: the 90% σ_up is
+  0.495, not the 0.449 the seed-decision doc labels — 0.449 is the 80% bound; n=340 is correct.)
+- **Resume-hardening for the days-to-weeks run.** The batch driver now consults its OWN permanent
+  ledger on restart — a deterministically-failing seed was being re-tried 2× on EVERY restart forever;
+  now permanently-ledgered run_ids are skipped from the start. (The full resilience matrix — archive-
+  as-truth per-training checkpoint, compacted-resume, search-replay, supervisor auto-restart, bounded
+  requeue, 3-site mirror, determinism — is documented; per-training granularity is the deliberate
+  checkpoint unit, intra-training checkpointing rejected as marginal.)
+- **k=3 multi-seed search selection (`src.search.multiseed`).** Each search candidate trains at k seeds
+  and is SELECTED on the IQM of its per-seed scores — closing the σ_seed SELECTION channel the pilot
+  measured (σ_seed≈0.244 dominates the SESOI). All-or-nothing validity, per-period MEAN PBO vector,
+  fed tail on the concatenation of the seeds' val returns. Config-gated `search_seeds_per_candidate`
+  (default 1 = **byte-identical** single-seed). Wired into the cluster LLM search AND the H4 family
+  arms (so LLM-vs-family is not confounded by k), with correct partial-candidate resume (reuse the
+  archived source, never re-author). ⚠ FLAGGED for ratification: the single-seed fed tail is on TRAIN
+  returns while the plan's k-seed text says VAL — this follows the plan's literal val-concatenation.
+- **[SAME DAY, LATER] THE C-LADDER EXECUTABLE (tier system v2 — doc-faithful after Tamer's
+  "you're hallucinating a bit; analyse the md plans deeply").** The docs carry FOUR distinct tier
+  concepts on different axes — (1) ARM tiers (statistical labelling: H2 information-channel tier vs
+  search-baseline tier, out of the IUT), (2) SEED tiers (the assurance ladder 30/340/403/568),
+  (3) the C-LADDER (execution checkpoint order C0–C6, §13.1), (4) the VALUE-CASCADE banking levels
+  (0–6: training → CRN pair → seed-block → contrast → checkpoint → stage → program) — and v1
+  conflated them. `run_campaign_tiered` is now the C-ladder verbatim: **C0 canary** (hard-gate
+  before any Opus spend) → **C1–C3** concurrent search pipelines under the §14.3 `-p` priority
+  ladder (H2 at 0, rest at -100; SGE executes the value order natively) + the H2 core test as ONE
+  **pair-adjacent interleaved** array (the Lv-1 CRN-pair banking quantum) → **the effect-blind
+  REVIEW GATE** (Tamer's tier-0-review idea, made statistically safe: `src.cluster.integrity`
+  writes a counts/census-only report — completeness vs budget, F5 ledgers, device/env-fp
+  homogeneity — NO performance statistic read; single-look discipline preserved; approval =
+  `TIER1_APPROVED` file → `--resume` proceeds) → **C4** the uniform-n ROUND-ROBIN sweep (7 arms +
+  H1 baselines, seed-major) in assurance blocks. C5 H3/C6 D1 = separate invocations at -100/-200.
+  Entry: `--tiered --canary --approve-tier1 --no-review-gate`. Priority threaded
+  driver→ClusterRun→orchestrators; `run_test_leg(interleave=…)`.
+- **FED-TAIL WINDOW DECIDED (Tamer-delegated: "whatever maximises publishability/grade"):**
+  the k-seed fed tail = the 6 frozen stats on the CONCATENATION of the k seeds' **TRAIN-window**
+  returns — the plan's "val" line was a drafting slip (corrected, dated). Rationale: the ratified
+  construct is **fed in-sample / scored out-of-sample** (the named selection-overfitting defense;
+  `ReturnDistribution.fit(train_realized_returns)` is the k=1 behaviour); val-fed tails would hand
+  the author richer information about the SELECTION set and split the k=1/k>1 constructs. Plumbed
+  end-to-end: worker `emit_train_returns` flag (k>1 specs only; k=1 byte-identical) → archived
+  `metrics.train_returns` → `aggregate_k_seeds` concatenates TRAIN (fails LOUD if absent — no
+  silent val fallback). Paper claim gained: the fed tail is estimated on 3× the in-sample data.
+- **Verification: 71/71 cluster/entry/multiseed/seeds battery + the full not-slow suite GREEN;
+  ruff clean; freeze hash UNCHANGED (`1c6b76b6`).**
+
+## [2026-07-08] — Myriad cluster integration: the generation-level campaign orchestrator BUILT + deep-audited (4 real bugs + 1 provenance fix), all uncommitted pending Tamer's go
+
+Tamer: "close all gaps and lets go … speed up training as much as possible … strictly flawless …
+work sequentially, ultrathink … the design very accurate, clean, professional, sophisticated." The
+`src/cluster/` adapter (already built + twice-audited: V1–V11) gained the piece that turns the batch
+driver into the actual campaign, then a strict adversarial audit of the whole new surface. **Nothing
+frozen; all cluster work is ADDITIVE + uncommitted — the laptop track stays the certified default
+until Tamer says GO.**
+
+- **Architecture (clean layering, single responsibility per module):** packaging (`spec_io`,
+  `jobscript`) → transport (`submit` tar-over-ssh/qsub/markers, `poll` exact-incremental pull +
+  compacted diff, `ledger` qacct forensics) → on-node (`run_one`, leg-aware) → batch kernel
+  (`driver`, archive-as-truth) → campaign orchestration (`campaign`). Every layer is injectable
+  (runner/push/pull/run_batch/select/freeze/author-lock) so the whole stack is unit-tested with no
+  network/GPU.
+- **`src/cluster/campaign.py` (NEW) — the generation-level composition (PLAN §12 B-A1).** Split
+  laptop/cluster (authoring/reflection/selection laptop-side, training on Myriad). LAPTOP↔CLUSTER
+  PARITY is the invariant: every science primitive is the SAME object the certified local paths use
+  (`build_prompt_set`/`LLMClient`/`extract_reward_source`/`_diversity_directive`/`_spec`/
+  `schema.build_block`/`_test_seed_worker`), so the two substrates cannot run different science.
+  `run_search_arm` mirrors `parallel._drive_llm_arm` step-for-step (reflect-on-generation-BEST, M5)
+  but batches each generation as ONE array (candidates in a gen are independent → batching ==
+  pool-training); F5 failures ledger + search-replay resume preserved. `run_test_leg` = the sealed
+  leg as ONE `-tc`=pool array (93% of GPU-h at max concurrency). `run_arm_pipeline` =
+  SEARCH→SELECT→FREEZE→TEST so an arm's test floods the instant its search ends.
+  `run_campaign_on_cluster` = all arms' pipelines CONCURRENT (thread/arm; a shared authoring lock
+  keeps the API arm-serial while training arrays interleave). `build_cluster_run` wires the production
+  `ClusterRun` over `driver.run_batch` with a shared throttled puller + the hard `spend_guard`.
+- **`run_one` leg-aware routing** — `leg=="test"` → `_test_seed_worker` (+ NODE-side env fingerprint,
+  parity with the search leg's `_run_env_fp`); else the search `train_candidate`. Prompt threaded onto
+  the search record for provenance. **`test_leg.build_test_specs`** extracted as the single source of
+  the sealed-leg spec schema (reused by the local pool AND the cluster). ssh calls hardened
+  (`BatchMode=yes -o StrictHostKeyChecking=accept-new`) so an unattended driver never wedges on a
+  prompt (Tamer's interactive login untouched). `scripts/myriad/build_env.sh` (module-purge → venv →
+  torch 2.6.0+cu124 → lockfile → `pip install -e` → `--smoke` GPU check; Apptainer fallback).
+- **DEEP ADVERSARIAL AUDIT — 4 real bugs + 1 provenance fix, each regression-locked:**
+  - **BUG-1 (resume contamination):** a test record carries the winner's `val_fitness`
+    (`build_test_record`), and on the cluster both legs archived to the same arm dir → on RESUME
+    `select_winner` (max val_fitness) could pick a test record. Fixed by DISJOINT search/test
+    sub-roots (parity with the laptop's search_root/test_root split); the driver is subdir-agnostic.
+  - **BUG-2 (concurrent-pull race):** the shared throttled puller only rate-limited — a pull outlasting
+    `min_pull_interval` let a second arm thread start a concurrent `pull_archive`, both racing on the
+    shared `.pull_tmp` staging dir. Fixed with a `busy` in-progress flag.
+  - **BUG-3 (silent JSON coercion):** `write_specs` wrote task files with `default=str`, silently
+    coercing a non-serializable field to a string — and because `payload_sha` ALSO used `default=str`,
+    the sha check computed over the coerced form on BOTH sides and PASSED, so the node mis-trained
+    silently. Fixed: strict JSON write that FAILS LOUD on the driver.
+  - **BUG-4 (day-1 breaker):** the jobscript ran `python -m src.cluster.run_one` with `-wd`=Scratch
+    while the repo lives at `~/llmrp` (not pip-installed) → `ModuleNotFoundError` on EVERY task. Fixed
+    with a `PYTHONPATH={repo_root}` export ($HOME auto-binds into Apptainer) + `pip install -e` in the
+    build script.
+  - **REFINE-1 (provenance):** the cluster test record's `env_fingerprint` was the DRIVER's, not the
+    V100 that trained the seed (misleading for the S6 sealed-leg homogeneity audit); `run_one` now
+    captures the NODE env fingerprint, matching the search leg.
+- **FULL confirmatory roster (completeness-critic pass).** Beyond the 5 LLM arms, the cluster now runs
+  the whole frozen roster: **the 2 H4 family-search arms** (`run_family_search_arm` — `random_search`
+  samples K family sources up front → ONE array; `bayes_opt` runs the GP on the driver, training each
+  proposed coefficient vector as an array-of-1; both mirror `parallel._drive_search_arm` + reuse
+  `sample_reward_source`/`bayes_opt_over_template`), dispatched in `run_arm_pipeline` (LLM vs family,
+  parity with `run_parallel`); and **the H1 baselines** (`run_baselines_on_cluster` — fixed rewards,
+  no search, flooding the pool from minute 0 as ONE concurrent test array, reusing the single-source
+  `_baseline_winner_record`). H3 single-shot = a separate entry invocation (`--generations 1`).
+- **`scripts/run_campaign_cluster.py` (NEW) — the production entry point.** Reuses `run_campaign`'s
+  config assembly (panel/windows/agent-config/`build_parallel_opts`) so the cluster runs byte-identical
+  science, wires `build_cluster_run` + `run_campaign_on_cluster` (arms + `--baselines`), and ships a
+  `--dry-run` that validates the whole wiring WITHOUT a cluster (assembles config, builds one gen's
+  specs through the strict-JSON guard, renders a jobscript) — verified end-to-end on the synthetic
+  panel. The existing `supervisor.py` wraps it unchanged (`--campaign scripts/run_campaign_cluster.py`,
+  idempotent `--resume`, auto-restart).
+- **Verification:** 57 cluster/campaign/loaders/entry tests (incl. a full-roster CAPSTONE: assemble the
+  real config → run an LLM arm + a family arm + an H1 baseline CONCURRENTLY through a fake cluster →
+  assert the complete archive in the analyze_campaign parity layout) + the full not-slow suite GREEN;
+  ruff clean.
+  Documented-not-fixed (with rationale): deterministic sandbox rejects incur ≤2 fast-failing requeues
+  before ledgering (impact = queue latency, not GPU-h — validation fails in seconds); the `git archive
+  HEAD` push requires the cluster code committed first (Tamer-gated); the daily determinism-heartbeat +
+  qstat queue-panel are cluster-side G1 features (need the live cluster to build/test).
+
 ## [2026-07-06b] — The 11-angle flawlessness review CLOSED, sequentially and first-hand: 22 serious findings verified + fixed, 29 minors, 4 delta-audits, the max-throughput plan
 
 Tamer: "verify absolutely everything yourself, sequentially" (after the review workflow hit his token

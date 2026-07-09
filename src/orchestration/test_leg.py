@@ -318,6 +318,76 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def build_test_specs(
+    *,
+    winners: list[tuple[str, dict[str, Any]]],
+    seeds: list[int],
+    panel_descriptor: dict[str, Any],
+    env_cfg: Any,
+    agent_cfg: dict[str, Any],
+    train_window: tuple[int, int],
+    val_window: tuple[int, int],
+    test_window: tuple[int, int],
+    embargo: int,
+    lookback: int,
+    test_root: str | Path,
+    done_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """One picklable TEST spec per ``(arm, seed)`` — the SINGLE source of the sealed-leg spec schema.
+
+    Reused by the local device-pool driver (:func:`evaluate_winners_on_test_parallel`) AND the Myriad
+    cluster test leg (``src.cluster``), so the two can never drift in what a test job trains. Applies
+    the frozen/test **desync guard** ONCE per winner (a re-searched-resume winner swap can never
+    silently test a different reward) and skips ``done_ids`` for ``--resume``. Each spec carries
+    ``"leg": "test"`` so the on-node ``run_one`` routes it to :func:`_test_seed_worker` (NOT the
+    search ``train_candidate``) and archives the returned record via ``write_run`` (NOT ``_archive``).
+    """
+    import hashlib
+
+    done_ids = done_ids or set()
+    test_root = Path(test_root)
+    specs: list[dict[str, Any]] = []
+    for arm, winner in winners:
+        reward_source = winner.get("reward_source", "")
+        reward_hash = winner.get("reward_source_hash", "")
+        if reward_hash and len(reward_hash) == 64:
+            actual = hashlib.sha256(str(reward_source).encode("utf-8")).hexdigest()
+            if actual != reward_hash:
+                raise ValueError(
+                    f"frozen winner hash mismatch for {arm}: recorded {reward_hash[:12]}.. "
+                    f"!= actual {actual[:12]}.. (frozen/test desync guard)"
+                )
+        _label = f"campaign:{arm}:test[{test_window[0]},{test_window[1]})"
+        env_fp = _arm_env_fingerprint(test_root / str(arm), _label, int(seeds[0]) if len(seeds) else 0)
+        for seed in seeds:
+            run_id = f"{arm}-s{int(seed)}"
+            if run_id in done_ids:
+                continue
+            specs.append(
+                {
+                    "leg": "test",
+                    "run_id": run_id,
+                    "arm": arm,
+                    "seed": int(seed),
+                    "winner": winner,
+                    "reward_source": reward_source,
+                    "reward_hash": reward_hash,
+                    "reward_kind": winner.get("reward_kind"),
+                    "reward_name": winner.get("reward_name"),
+                    "env_fp": env_fp,
+                    "panel_descriptor": panel_descriptor,
+                    "env_cfg": env_cfg,
+                    "agent_cfg": agent_cfg,
+                    "train_window": list(train_window),
+                    "val_window": list(val_window),
+                    "test_window": list(test_window),
+                    "embargo": int(embargo),
+                    "lookback": int(lookback),
+                }
+            )
+    return specs
+
+
 # --------------------------------------------------------------------------- #
 # The driver (all arms' winners × all seeds, device-pooled with recycling)     #
 # --------------------------------------------------------------------------- #
@@ -364,8 +434,6 @@ def evaluate_winners_on_test_parallel(
     for that long — the wedged-CUDA failure mode a process-liveness check cannot see. The stall
     kwargs are only passed to the runner when armed, so injected test runners keep their signature.
     """
-    import hashlib
-
     if runner is None:
         runner = run_recycling
     if worker is None:
@@ -375,52 +443,15 @@ def evaluate_winners_on_test_parallel(
     done_ids = done_ids or set()
     test_root = Path(test_root)
 
-    specs: list[dict[str, Any]] = []
-    for arm, winner in winners:
-        reward_source = winner.get("reward_source", "")
-        reward_hash = winner.get("reward_source_hash", "")
-        # Frozen/test desync guard (ONCE per winner): the frozen source must hash to its recorded hash.
-        if reward_hash and len(reward_hash) == 64:
-            actual = hashlib.sha256(str(reward_source).encode("utf-8")).hexdigest()
-            if actual != reward_hash:
-                raise ValueError(
-                    f"frozen winner hash mismatch for {arm}: recorded {reward_hash[:12]}.. "
-                    f"!= actual {actual[:12]}.. (frozen/test desync guard)"
-                )
-        _label = f"campaign:{arm}:test[{test_window[0]},{test_window[1]})"
-        # 2026-07-06: content-hashed env capture for the inference-critical test records (parity
-        # with the search leg); reuses an existing per-arm snapshot on resume (F12).
-        env_fp = _arm_env_fingerprint(test_root / str(arm), _label, int(seeds[0]) if len(seeds) else 0)
-        for seed in seeds:
-            run_id = f"{arm}-s{int(seed)}"
-            if run_id in done_ids:
-                continue
-            specs.append(
-                {
-                    "run_id": run_id,
-                    "arm": arm,
-                    "seed": int(seed),
-                    "winner": winner,
-                    "reward_source": reward_source,
-                    "reward_hash": reward_hash,
-                    # H1 baselines (PREREGISTRATION §1 H1 + §9): a baseline "winner" carries reward_kind=
-                    # "baseline" + the REWARD_CANON name so the worker resolves the canonical callable by
-                    # name (no executable source). Absent for the LLM/search winners (default None -> the
-                    # worker takes the sandbox source path). Read from the record so a future caller need
-                    # only set these two fields to route a named hand-reward through the parallel TEST leg.
-                    "reward_kind": winner.get("reward_kind"),
-                    "reward_name": winner.get("reward_name"),
-                    "env_fp": env_fp,
-                    "panel_descriptor": panel_descriptor,
-                    "env_cfg": env_cfg,
-                    "agent_cfg": agent_cfg,
-                    "train_window": list(train_window),
-                    "val_window": list(val_window),
-                    "test_window": list(test_window),
-                    "embargo": int(embargo),
-                    "lookback": int(lookback),
-                }
-            )
+    # ONE source of the test-leg spec schema (shared with the Myriad cluster leg, src.cluster) —
+    # the frozen/test desync guard + env_fp + per-(arm,seed) fields live in build_test_specs so the
+    # local pool and the cluster can never train different things.
+    specs = build_test_specs(
+        winners=winners, seeds=seeds, panel_descriptor=panel_descriptor, env_cfg=env_cfg,
+        agent_cfg=agent_cfg, train_window=train_window, val_window=val_window,
+        test_window=test_window, embargo=embargo, lookback=lookback, test_root=test_root,
+        done_ids=done_ids,
+    )
 
     # F1 (streaming archival, ultrareview 2026-07-02): archive each ok record THE MOMENT its future
     # completes, not after the whole leg — a crash at hour N of the multi-day TEST leg must lose only

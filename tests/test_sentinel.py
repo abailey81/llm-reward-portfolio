@@ -268,6 +268,65 @@ def test_disk_forecast_degenerate_spacing_is_info() -> None:
     assert S.check_disk_forecast([(5.0, 50.0)] * 6).severity == S.INFO
 
 
+# --------------------------------------------------------------------------- #
+# Myriad-native: driver LEASE (deadman) + queue/transport panel (2026-07-08)   #
+# --------------------------------------------------------------------------- #
+def test_driver_lease_fresh_warn_crit_absence_and_terminal() -> None:
+    assert S.check_driver_lease(60.0).severity == S.OK            # 1 min ago — alive
+    assert S.check_driver_lease(2500.0).severity == S.WARN        # ~42 min stale
+    assert S.check_driver_lease(6000.0).severity == S.CRITICAL    # ~100 min — orchestration down
+    assert S.check_driver_lease(None).severity == S.INFO          # laptop-only / not started
+    assert S.check_driver_lease(6000.0, terminal=True).severity == S.OK  # finished run is exempt
+
+
+def test_queue_health_transport_degradation_ok_and_absence() -> None:
+    assert S.check_queue_health(None).severity == S.INFO
+    ok = S.check_queue_health({"pending": 400, "queued": 12, "active_batches": 3,
+                               "pull_failures": 0, "ops_failures": 0})
+    assert ok.severity == S.OK and ok.evidence["queued"] == 12
+    assert S.check_queue_health({"pull_failures": 4, "ops_failures": 0}).severity == S.WARN
+    assert S.check_queue_health({"pull_failures": 0, "ops_failures": 30}).severity == S.CRITICAL
+
+
+def test_read_driver_status_aggregates_only_running_beats(tmp_path) -> None:
+    sdir = tmp_path / "driver_status"
+    sdir.mkdir()
+    (sdir / "distributional_g0.json").write_text(json.dumps({
+        "phase": "running", "pending": 5, "queue_names": ["a", "b"],
+        "pull_failures": 1, "ops_failures": 0}))
+    (sdir / "scalar_search.json").write_text(json.dumps({
+        "phase": "running", "pending": 3, "queue_names": ["c"],
+        "pull_failures": 0, "ops_failures": 2}))
+    (sdir / "done_batch.json").write_text(json.dumps({"phase": "done", "pending": 99}))
+    age, snap = S._read_driver_status(tmp_path)
+    assert age is not None and age >= 0.0
+    assert snap["pending"] == 8 and snap["queued"] == 3 and snap["active_batches"] == 2
+    assert snap["pull_failures"] == 1 and snap["ops_failures"] == 2  # worst-of across batches
+
+
+def test_read_driver_status_absent_dir_and_all_done_are_none(tmp_path) -> None:
+    assert S._read_driver_status(tmp_path) == (None, None)  # no driver_status dir
+    sdir = tmp_path / "driver_status"
+    sdir.mkdir()
+    (sdir / "b.json").write_text(json.dumps({"phase": "done", "pending": 0}))
+    assert S._read_driver_status(tmp_path) == (None, None)  # only done beats → no live lease
+
+
+def test_gather_inputs_surfaces_the_two_myriad_checks(tmp_path) -> None:
+    """End-to-end: a live running heartbeat in the archive surfaces both Myriad checks in the report."""
+    sdir = tmp_path / "driver_status"
+    sdir.mkdir()
+    (sdir / "distributional_g0.json").write_text(json.dumps({
+        "phase": "running", "pending": 10, "queue_names": ["j1", "j2"],
+        "pull_failures": 5, "ops_failures": 0}))
+    inp = S.gather_inputs(tmp_path)
+    assert "driver_lease_age_s" in inp and inp["queue_snapshot"]["pending"] == 10
+    rep = S.evaluate_health(inp)
+    names = {c.name for c in rep.checks}
+    assert "driver_lease" in names and "queue" in names
+    assert next(c for c in rep.checks if c.name == "queue").severity == S.WARN  # 5 transport fails
+
+
 def test_unit_coverage_progress_shortfall_and_overrun() -> None:
     # mid-run progress -> INFO with pct + ETA
     c = S.check_unit_coverage(105, 210, "search", rate_per_h=2.0)
