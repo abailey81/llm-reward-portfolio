@@ -1,0 +1,260 @@
+"""Driver-kernel tests: the FULL submit → poll → requeue → done loop against a scripted fake
+cluster (zero network, zero GPU). Every path is exercised: resume no-op, happy path, compacted
+requeue, retry exhaustion → permanent ledger, the double-submit/adoption guard, transient pull
+and qsub failures (bounded), the max-wall guard, and the stale-pending re-filter."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from src.cluster.driver import batch_jobs_in_queue, run_batch, submit_batch
+
+
+class FakeCluster:
+    """A scripted Myriad: a queue of jobnames, qsub registration, and a pull whose per-call
+    actions are scripted as dicts ``{"complete": [run_ids], "drain": bool, "raise": bool}``."""
+
+    def __init__(self, tmp: Path):
+        self.tmp = tmp
+        self.archive = tmp / "archive"
+        self.batches = tmp / "batches"
+        self.queue: set[str] = set()
+        self.qsubs: list[str] = []
+        self.pushes: list[Path] = []
+        self.pull_script: list[dict] = []
+        self.qsub_fail_next = 0
+        self.sleeps: list[float] = []
+        self._clock = 0.0
+
+    # --- injectable seams -------------------------------------------------
+    def runner(self, cmd: list[str]) -> str:
+        if cmd[:2] == ["qstat", "-r"]:
+            return "\n".join(f"Full jobname: {n}" for n in sorted(self.queue))
+        if cmd[0] == "qstat":
+            return ""
+        if cmd[0] == "mkdir":
+            return ""
+        if cmd[0] == "qacct":
+            return "==============\njobnumber 1\nexit_status 1\nfailed 0\n"
+        if cmd[0] == "qsub":
+            if self.qsub_fail_next > 0:
+                self.qsub_fail_next -= 1
+                raise RuntimeError("transient qsub failure")
+            name = Path(cmd[1]).stem
+            self.queue.add(name)
+            self.qsubs.append(name)
+            return f"Your job {100 + len(self.qsubs)} ok"
+        raise AssertionError(f"unexpected cmd {cmd}")
+
+    def push(self, batch_dir, dest) -> None:
+        self.pushes.append(Path(batch_dir))
+
+    def pull(self) -> int:
+        act = self.pull_script.pop(0) if self.pull_script else {}
+        if act.get("raise"):
+            raise ConnectionError("vpn blip")
+        for rid in act.get("complete", []):
+            d = self.archive / "search" / rid
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "record.json").write_text("{}")
+        if act.get("drain"):
+            self.queue.clear()
+        return len(act.get("complete", []))
+
+    def sleep(self, secs: float) -> None:
+        self.sleeps.append(secs)
+        self._clock += secs
+
+    def clock(self) -> float:
+        return self._clock
+
+
+def _specs(n: int) -> list[dict]:
+    return [{"candidate_id": f"c{i}", "arm": "scalar", "seed": i} for i in range(n)]
+
+
+def _run(fc: FakeCluster, specs: list[dict], **kw):
+    return run_batch(
+        specs, "b1",
+        local_batch_root=fc.batches, local_archive_root=fc.archive,
+        remote_root="/r", remote_outputs_root="/r/outputs", gold_dir="/inputs",
+        runner=fc.runner, push=fc.push, pull=fc.pull,
+        poll_secs=1.0, sleep=fc.sleep, clock=fc.clock, **kw,
+    )
+
+
+def test_all_already_complete_is_a_pure_resume_noop(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(3)
+    fc.pull_script = [{"complete": ["c0", "c1", "c2"]}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["completed"] == 3 and out["rounds"] == 0
+    assert out["job_ids"] == [] and fc.qsubs == [] and fc.pushes == []
+
+
+def test_happy_path_submits_once_and_finishes(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(3)
+    fc.pull_script = [{}, {"complete": ["c0", "c1", "c2"]}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["rounds"] == 1 and fc.qsubs == ["b1"]
+    batch = fc.batches / "b1"
+    assert (batch / "task_3.json").is_file() and (batch / "index.json").is_file()
+    raw = (batch / "b1.sh").read_bytes()
+    assert raw.startswith(b"#!/bin/bash -l\n") and b"\r" not in raw  # V11 via write_jobscript
+    assert fc.pushes == [batch]
+
+
+def test_requeue_is_compacted_to_exactly_the_missing_specs(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(3)
+    fc.pull_script = [{}, {"complete": ["c0", "c1"], "drain": True}, {"complete": ["c2"]}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["rounds"] == 2 and out["exhausted"] == []
+    assert fc.qsubs == ["b1", "b1_r1"]
+    index = json.loads((fc.batches / "b1_r1" / "index.json").read_text())
+    assert len(index) == 1  # ONLY c2 was re-emitted (compaction)
+    assert json.loads((fc.batches / "b1_r1" / "task_1.json").read_text())["candidate_id"] == "c2"
+    assert (fc.batches / "b1.qacct.txt").is_file()  # forensics harvested on the drain
+
+
+def test_retries_exhaust_into_the_permanent_ledger(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(1)
+    fc.pull_script = [{}, {"drain": True}, {"drain": True}, {"drain": True}]
+    out = _run(fc, specs)
+    assert not out["ok"] and out["exhausted"] == ["c0"] and out["completed"] == 0
+    assert out["rounds"] == 3 and fc.qsubs == ["b1", "b1_r1", "b1_r2"]
+    rows = [json.loads(x) for x in (fc.batches / "b1.permanent.jsonl").read_text().splitlines()]
+    assert len(rows) == 1 and rows[0]["reason"] == "retries_exhausted"
+    assert rows[0]["spec"]["candidate_id"] == "c0"
+
+
+def test_permanently_ledgered_specs_are_skipped_on_restart(tmp_path):
+    """Resume-hardening (long run): a spec already permanently ledgered on a PRIOR run must not be
+    re-submitted/re-tried on restart — else a deterministically-failing seed loops every restart."""
+    fc = FakeCluster(tmp_path)
+    specs = _specs(2)  # c0, c1
+    fc.batches.mkdir(parents=True, exist_ok=True)
+    (fc.batches / "b1.permanent.jsonl").write_text(
+        json.dumps({"task": 0, "spec": {"candidate_id": "c0"}, "reason": "retries_exhausted"}) + "\n")
+    fc.pull_script = [{}, {"complete": ["c1"]}]
+    out = _run(fc, specs)
+    assert out["exhausted"] == ["c0"] and out["ok"] is False and out["completed"] == 1
+    # only c1 was ever submitted — c0 was skipped straight from the permanent ledger
+    index = json.loads((fc.batches / "b1" / "index.json").read_text())
+    assert len(index) == 1
+    assert json.loads((fc.batches / "b1" / "task_1.json").read_text())["candidate_id"] == "c1"
+
+
+def test_adoption_guard_never_double_submits(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(2)
+    fc.queue = {"b1"}  # a previous driver invocation's job is still queued
+    fc.pull_script = [{}, {"complete": ["c0", "c1"], "drain": True}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["rounds"] == 0 and fc.qsubs == []  # adopted, never re-submitted
+
+
+def test_transient_pull_failures_are_tolerated_then_bounded(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(2)
+    fc.pull_script = [{"raise": True}, {"raise": True}, {"complete": ["c0", "c1"]}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["rounds"] == 1  # submitted on cycle 1 despite the failed pull
+
+    fc2 = FakeCluster(tmp_path / "b")
+    fc2.pull_script = [{"raise": True}] * 10
+    with pytest.raises(RuntimeError, match="consecutive pull failures"):
+        _run(fc2, _specs(1), max_consecutive_errors=3)
+
+
+def test_pull_outage_is_fatal_on_the_wall_time_bound_not_just_the_count(tmp_path):
+    """Long-outage tolerance (resume from ANY stoppage): with the count cap set high, a persistent
+    transport outage is fatal on the WALL-TIME bound (decoupled from poll cadence) — the driver rides
+    out a multi-hour VPN blip instead of dying every N cycles, but a genuinely dead link is surfaced."""
+    fc = FakeCluster(tmp_path)
+    fc.pull_script = [{"raise": True}] * 50
+    # count cap huge; the 5 s outage bound is what trips (clock advances via the poll sleeps)
+    with pytest.raises(RuntimeError, match="VPN/ssh down too long"):
+        _run(fc, _specs(1), max_consecutive_errors=1000, max_transport_outage_secs=5.0)
+
+
+def test_heartbeat_is_emitted_each_cycle_and_marks_done(tmp_path):
+    """The driver beats a read-only status snapshot every cycle (the sentinel's lease + queue panel),
+    and a FINAL phase='done' beat on completion so a finished batch never reads as a hung one."""
+    fc = FakeCluster(tmp_path)
+    beats: list[dict] = []
+    fc.pull_script = [{}, {"complete": ["c0", "c1"]}]
+    out = _run(fc, _specs(2), heartbeat=beats.append)
+    assert out["ok"]
+    assert beats and beats[-1]["phase"] == "done" and beats[-1]["pending"] == 0
+    assert any(b["phase"] == "running" for b in beats)
+    running = next(b for b in beats if b["phase"] == "running")
+    assert set(running) >= {"base_name", "done", "pending", "queue_names", "pull_failures"}
+
+
+def test_max_wall_guard_raises_loud(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(1)  # never completes; job stays alive
+    with pytest.raises(RuntimeError, match="max_wall_secs"):
+        _run(fc, specs, max_wall_secs=2.5)
+
+
+def test_failed_qsub_retries_without_a_retry_bump(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(3)
+    fc.qsub_fail_next = 1  # the FIRST submission attempt blips
+    fc.pull_script = [{}, {}, {"complete": ["c0", "c1", "c2"]}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["rounds"] == 1 and fc.qsubs == ["b1"]
+    assert not (fc.batches / "b1.permanent.jsonl").exists()  # nothing was retry-accounted
+    assert "_cluster_retries" not in specs[0]  # caller's dicts are never mutated
+
+
+def test_stale_pending_submit_is_refiltered_not_retrained(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(3)
+    fc.pull_script = [
+        {},                                            # cycle 1: submit b1
+        {"complete": ["c0", "c1"], "drain": True},     # cycle 2: drain -> requeue c2 owed
+        {"complete": ["c2"]},                          # cycle 3: c2 completed elsewhere
+    ]
+    fc_qsub_after_first = fc.qsub_fail_next  # noqa: F841 — clarity: failure armed below
+
+    # arm the blip AFTER the first successful submit: fail the requeue round's qsub once
+    orig_runner = fc.runner
+
+    def runner(cmd):
+        if cmd[0] == "qsub" and fc.qsubs == ["b1"] and not fc.queue:
+            fc.qsubs_blipped = True
+            raise RuntimeError("transient qsub failure")
+        return orig_runner(cmd)
+
+    out = run_batch(
+        specs, "b1",
+        local_batch_root=fc.batches, local_archive_root=fc.archive,
+        remote_root="/r", remote_outputs_root="/r/outputs", gold_dir="/inputs",
+        runner=runner, push=fc.push, pull=fc.pull,
+        poll_secs=1.0, sleep=fc.sleep, clock=fc.clock,
+    )
+    assert out["ok"] and out["exhausted"] == []
+    assert fc.qsubs == ["b1"]  # the owed requeue round evaporated once c2 arrived
+
+
+def test_submit_batch_packs_and_batch_jobs_in_queue(tmp_path):
+    fc = FakeCluster(tmp_path)
+    jid = submit_batch(
+        _specs(5), "s1_search",
+        local_batch_root=fc.batches, remote_root="/r", gold_dir="/inputs",
+        runner=fc.runner, push=fc.push, pack=2,
+    )
+    assert jid == "101"
+    index = json.loads((fc.batches / "s1_search" / "index.json").read_text())
+    assert len(index) == 3  # 5 specs at pack=2 -> tasks of 2+2+1
+    js = (fc.batches / "s1_search" / "s1_search.sh").read_text()
+    assert "--pack 2" in js and "-t 1-3" in js
+    assert batch_jobs_in_queue("s1_search", fc.runner) == {"s1_search"}
+    assert batch_jobs_in_queue("other", fc.runner) == set()

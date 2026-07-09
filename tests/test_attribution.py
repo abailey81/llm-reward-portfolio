@@ -90,6 +90,34 @@ def test_statsmodels_hac_equals_hand_rolled_newey_west() -> None:
     assert np.allclose(np.asarray(res.cov_params()), hand, rtol=1e-8, atol=1e-14)
 
 
+def test_factor_alpha_fallback_matches_statsmodels_when_statsmodels_absent(monkeypatch) -> None:
+    """factor_alpha's defensive fallback (the ``except`` at attribution.py:289) BECOMES the primary path
+    on a statsmodels-free install, so its answer must equal the statsmodels path's. The test above
+    certifies ``_newey_west_cov`` in ISOLATION; this certifies it is correctly WIRED as the fallback:
+    force ``import statsmodels.api`` to raise (None in sys.modules) and assert the hand-rolled path
+    returns ``status="ok"`` with alpha / t / SE / R^2 / betas identical to the statsmodels path.
+    """
+    import sys
+
+    pytest.importorskip("statsmodels.api")  # need the reference path to compare the fallback against
+    t = 600
+    f = _factor_block(t, seed=3)
+    y = _make_series(f, {"Mkt-RF": 1.1, "SMB": -0.3, "HML": 0.4}, alpha=0.0003, noise=0.004, seed=9)
+    names = ("Mkt-RF", "SMB", "HML")
+    ref = factor_alpha(y, f, factor_names=names)                 # statsmodels HAC path
+    monkeypatch.setitem(sys.modules, "statsmodels.api", None)    # -> `import statsmodels.api` raises
+    fb = factor_alpha(y, f, factor_names=names)                  # forced hand-rolled OLS+NW fallback
+    assert ref["status"] == "ok" and fb["status"] == "ok"
+    assert fb["hac_lag"] == ref["hac_lag"] and fb["n"] == ref["n"]
+    assert fb["alpha"] == pytest.approx(ref["alpha"], rel=1e-6, abs=1e-12)
+    assert fb["alpha_t"] == pytest.approx(ref["alpha_t"], rel=1e-5)
+    assert fb["alpha_se"] == pytest.approx(ref["alpha_se"], rel=1e-5)
+    assert fb["r2"] == pytest.approx(ref["r2"], rel=1e-6)
+    for name in names:
+        assert fb["betas"][name] == pytest.approx(ref["betas"][name], rel=1e-6)
+        assert fb["betas_t"][name] == pytest.approx(ref["betas_t"][name], rel=1e-5)
+
+
 # --------------------------------------------------------------------------- #
 # factor_alpha — recovery + zero-alpha + HAC sanity                            #
 # --------------------------------------------------------------------------- #

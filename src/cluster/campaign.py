@@ -1,0 +1,977 @@
+"""Cluster campaign orchestrator — the generation-level composition (PLAN §7 Phase A / §12 B-A1).
+
+Turns the batch driver (:func:`src.cluster.driver.run_batch`) into the full multi-arm campaign,
+split laptop/cluster: **authoring + reflection + selection run on the LAPTOP** (API keys are
+laptop-only, R10); **training runs on Myriad**. The load-bearing invariant is LAPTOP↔CLUSTER
+PARITY — every science primitive is the SAME object the certified local paths use:
+
+* authoring/reflection: ``build_prompt_set`` + ``LLMClient`` + ``schema.build_block`` +
+  ``_diversity_directive`` + ``_REFLECTION_PREAMBLE`` (identical to ``parallel._drive_llm_arm``);
+* the reflect-on-generation-BEST protocol (``loop.py`` M5) — candidates within a generation are
+  INDEPENDENT (they reflect on the PREVIOUS generation's best, never on each other), so training
+  them as ONE SGE array is scientifically identical to pool-training them ("adaptive execution,
+  invariant design", §13);
+* the search worker (``parallel.train_candidate``) + the sealed-leg worker
+  (``test_leg._test_seed_worker``) + the record schema (``parallel._archive`` /
+  ``test_leg.build_test_record``) — a cluster record is byte-compatible with the local one;
+* the F5 failures ledger + search-replay resume (so a mid-search resume never re-authors a
+  ledgered candidate against the non-deterministic LLM, which could silently change the winner).
+
+Only the SCHEDULING differs. Throughput (PLAN §5/§14) is maximised WITHOUT breaking any of this:
+
+* the **test leg is one embarrassingly-parallel array** (``-tc`` = full pool) — 93% of the GPU
+  hours at maximum concurrency;
+* **per-arm search→test pipelines run concurrently** with ZERO barriers — the moment an arm's
+  search completes, its winner freezes and its test array floods WHILE other arms still search;
+* authoring is serialised across arms (a shared lock) so the API stays rate-limit-safe, while the
+  training arrays interleave freely;
+* one GPU pool per contrast (device homogeneity holds within every analysis unit).
+
+Everything is injectable (``run_batch``/``select_winner``/``freeze_winner``/author lock/guard) so
+the WHOLE campaign is unit-tested against a fake cluster + the keyless stub author, no network/GPU.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import threading
+import time
+from contextlib import nullcontext
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable
+
+__all__ = [
+    "ClusterRun",
+    "build_cluster_run",
+    "run_search_arm",
+    "run_family_search_arm",
+    "run_test_leg",
+    "run_baselines_on_cluster",
+    "run_arm_pipeline",
+    "run_campaign_on_cluster",
+    "run_campaign_tiered",
+    "spend_guard",
+]
+
+_LOG = logging.getLogger(__name__)
+
+# Arms whose reflection block carries the fed tail vector (the manipulated variable). Mirrors
+# parallel._drive_llm_arm:1030-1034 EXACTLY — the scalar/H1 arms get a scalar-only block.
+_TAIL_FED_ARMS = ("distributional", "scalar_cvar5", "placebo_shuffled")
+
+
+@dataclass
+class ClusterRun:
+    """The cluster wiring every orchestrator function threads through.
+
+    ``run_batch(specs, name, *, pool, pack) -> summary`` is the ONLY cluster seam — production
+    binds a partial of :func:`src.cluster.driver.run_batch` (with the ssh/transport infra); tests
+    inject a fake that simulates "jobs ran, records appeared in ``read_root``". ``spec_archive_root``
+    is the REMOTE outputs path stamped into each spec (where on-node ``run_one`` archives);
+    ``read_root`` is the LOCAL mirror this orchestrator READS (``load_run``) — production keeps them
+    distinct (the driver's pull bridges them), tests point both at one tmp dir.
+    """
+
+    run_batch: Callable[..., dict]
+    spec_archive_root: str
+    read_root: Path
+    pool_confirmatory: str = "EF"
+    pool_report_only: str = "L"
+    pack: int = 1
+    # Serialises authoring across concurrent arm threads (rate-limit safety); a plain no-op single-arm.
+    author_lock: Any = field(default_factory=nullcontext)
+    # Called under the author lock before each LLM call — the hard spend cap (see :func:`spend_guard`).
+    author_guard: Callable[[], None] = field(default_factory=lambda: (lambda: None))
+    # SELECT/FREEZE are injected (default = the real run_campaign ones, resolved lazily) so the
+    # pipeline is testable with fakes and reuses the certified selection rule in production.
+    select_winner: Callable[[Any], Any] | None = None
+    freeze_winner: Callable[..., Any] | None = None
+
+    # SEARCH and TEST records live in SEPARATE sub-roots (parity with the laptop campaign's
+    # search_root/test_root split). Critical: a test record carries the winner's ``val_fitness``
+    # (test_leg.build_test_record), so if it shared the arm dir with the search candidates,
+    # ``select_winner`` (max val_fitness) could pick a test record on RESUME. The split makes that
+    # impossible. The driver is subdir-agnostic (it keys the compacted diff on run_id), so this is
+    # invisible to it.
+    def search_read(self) -> Path:
+        return Path(self.read_root) / "search"
+
+    def test_read(self) -> Path:
+        return Path(self.read_root) / "test"
+
+    def search_spec_root(self) -> str:
+        return f"{self.spec_archive_root.rstrip('/')}/search"
+
+    def test_spec_root(self) -> str:
+        return f"{self.spec_archive_root.rstrip('/')}/test"
+
+
+def build_cluster_run(
+    *,
+    remote_root: str,
+    remote_outputs_root: str,
+    local_batch_root: str | Path,
+    local_archive_root: str | Path,
+    gold_dir: str,
+    host: str = "myriad",
+    pool_confirmatory: str = "EF",
+    pool_report_only: str = "L",
+    pack: int = 1,
+    poll_secs: float = 600.0,
+    min_pull_interval: float = 60.0,
+    max_author_calls: int | None = None,
+    concurrent: bool = True,
+) -> ClusterRun:
+    """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
+
+    Binds the ssh/transport infra once and hands the orchestrator the clean
+    ``run_batch(specs, name, *, pool, pack)`` seam. Two throughput/safety details are handled here
+    so the concurrent arm threads behave:
+
+    * a **shared throttled puller** — ``run_batch``'s per-cycle pull is de-duplicated across the arm
+      threads (any thread's pull refreshes the WHOLE local mirror, so a second pull within
+      ``min_pull_interval`` reuses it) — no redundant ssh ``find``/transfer storms;
+    * a shared **authoring lock** (arm-serial API) and, when ``max_author_calls`` is set, the hard
+      **spend cap** (:func:`spend_guard`), both threaded onto the ``ClusterRun``.
+
+    ``spec_archive_root`` (into each spec) is the REMOTE outputs root; ``read_root`` (the mirror the
+    orchestrator reads) is ``local_archive_root`` — the driver's pull bridges them.
+    """
+    from src.cluster import driver
+    from src.cluster.poll import pull_archive
+    from src.cluster.submit import ssh_runner
+
+    runner = ssh_runner(host)
+    pull_lock = threading.Lock()
+    pull_state: dict[str, Any] = {"t": None, "n": 0, "busy": False}
+
+    def shared_pull() -> int:
+        with pull_lock:
+            now = time.monotonic()
+            last = pull_state["t"]
+            # Skip if a pull is IN PROGRESS (concurrent pull_archive would race on the shared
+            # ``.pull_tmp`` staging dir — a real bug when a pull outlasts min_pull_interval) OR if
+            # one refreshed the whole mirror within the interval. Either way reuse the last count;
+            # run_batch re-derives completion from the shared local archive the live pull is updating.
+            if pull_state["busy"] or (last is not None and (now - last) < min_pull_interval):
+                return int(pull_state["n"])
+            pull_state["busy"] = True
+            pull_state["t"] = now
+        try:
+            n = pull_archive(remote_outputs_root, local_archive_root, host=host, runner=runner)
+        except BaseException:
+            with pull_lock:
+                pull_state["busy"] = False
+            raise
+        with pull_lock:
+            pull_state["n"] = n
+            pull_state["busy"] = False
+        return n
+
+    # Per-batch driver heartbeat → <mirror>/driver_status/<name>.json (atomic). The concurrent arm
+    # threads each write their OWN file (no cross-thread races); the sentinel reads them READ-ONLY —
+    # the freshest mtime is the driver LEASE (host-death / hang deadman), and the union of queue_names
+    # + summed pending is the Myriad QUEUE panel. Effect-blind (counts + SGE states only) and
+    # best-effort (a write failure never touches the run).
+    status_dir = Path(local_archive_root) / "driver_status"
+
+    def emit_heartbeat(payload: dict[str, Any]) -> None:
+        status_dir.mkdir(parents=True, exist_ok=True)
+        base = str(payload.get("base_name", "batch")).replace("/", "_").replace("\\", "_")
+        dst = status_dir / f"{base}.json"
+        tmp = dst.with_name(f"{base}.json.{threading.get_ident()}.tmp")
+        tmp.write_text(json.dumps({**payload, "wall_ts": time.time()}), encoding="utf-8")
+        tmp.replace(dst)  # atomic same-dir rename
+
+    def run_batch(specs: list[dict], name: str, *, pool: str = "EF", pack: int = pack,
+                  priority: int = 0) -> dict:
+        # ``priority`` = the §14.3 intra-user -p ladder value (0 / -100 / -200 / -500): SGE itself
+        # executes the C-ladder value order even when everything is queued at once.
+        return driver.run_batch(
+            specs, name,
+            local_batch_root=local_batch_root, local_archive_root=local_archive_root,
+            remote_root=remote_root, remote_outputs_root=remote_outputs_root, gold_dir=gold_dir,
+            host=host, runner=runner, pull=shared_pull, pack=pack, poll_secs=poll_secs, pool=pool,
+            priority=priority, heartbeat=emit_heartbeat,
+        )
+
+    author_lock: Any = threading.Lock() if concurrent else nullcontext()
+    author_guard = spend_guard(max_author_calls) if max_author_calls else (lambda: None)
+    return ClusterRun(
+        run_batch=run_batch, spec_archive_root=remote_outputs_root,
+        read_root=Path(local_archive_root), pool_confirmatory=pool_confirmatory,
+        pool_report_only=pool_report_only, pack=pack, author_lock=author_lock,
+        author_guard=author_guard,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Authoring + result reconstruction (reused primitives, parity with parallel)  #
+# --------------------------------------------------------------------------- #
+def _advance(llm: Any) -> None:
+    """Consume one author-stream position (positional stub transports stay index-aligned on resume;
+    a real LLM transport no-ops). Duck-typed — injected fakes need not implement it."""
+    adv = getattr(llm, "advance_author_stream", None)
+    if adv is not None:
+        adv()
+
+
+def _build_cluster_author(arm: str, opts: dict, arm_root: Path) -> tuple[Any, Any, bool]:
+    """Construct the author EXACTLY as ``parallel._drive_llm_arm`` does (same transport selection,
+    same prompt set, same per-call JSONL provenance sink) → returns ``(llm, prompts, diversity)``."""
+    from src.llm.client import JsonlArchiveSink, LLMClient
+    from src.llm.prompts import build_prompt_set
+
+    if str(opts["pass_mode"]).upper() == "A" or opts["provider"] == "stub":
+        from src.llm.stub_designer import StubDesignerTransport
+
+        transport: Any = StubDesignerTransport(seed=opts["seed"])
+        model = f"stub-designer/seed{opts['seed']}"
+    else:
+        from src.llm.client import build_transport, default_key_env
+
+        model = opts["model"]
+        temp_raw = opts.get("temperature")
+        temperature = float(temp_raw) if temp_raw is not None else None
+        key_env = opts.get("api_key_env") or default_key_env(opts["provider"])
+        transport = build_transport(
+            opts["provider"], model, key_env, temperature=temperature,
+            max_tokens=int(opts.get("max_tokens") or 4096),
+            max_retries=int(opts.get("max_retries") or 6),
+        )
+    diversity = bool(opts.get("diversity_prompt_variation", False))
+    prompts = build_prompt_set(opts["env_cfg"], opts["n_assets"])
+    llm = LLMClient(
+        {"model": model}, transport=transport,
+        archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"),
+    )
+    return llm, prompts, diversity
+
+
+def _result_from_record(cid: str, arm: str, arm_root: Path) -> dict[str, Any] | None:
+    """Reconstruct a search result from an archived record (the ``_drive_llm_arm`` replay shape).
+
+    ``None`` when the record is absent (candidate not yet trained, or FAILED — sandbox reject /
+    exhausted retries). A CORRUPT record (KeyError/ValueError from ``load_run``) PROPAGATES — failing
+    loud beats silently regenerating (re-billing the LLM + desyncing the search)."""
+    from src.io.results import load_run
+
+    try:
+        hit = load_run(cid, str(arm_root))
+    except FileNotFoundError:
+        return None
+    m = hit.get("metrics", {}) or {}
+    r: dict[str, Any] = {
+        "ok": True, "candidate_id": cid, "arm": arm,
+        "fitness": float(m["val_fitness"]),
+        "val_returns": m.get("val_returns"), "tail_stats": m.get("tail_stats"),
+        "reward_source": hit.get("reward_source", ""),
+        "reward_hash": hit.get("reward_source_hash", ""),
+    }
+    if m.get("train_returns") is not None:  # k-seed fed-tail input (B-A2; absent on k=1 records)
+        r["train_returns"] = m["train_returns"]
+    if m.get("popart_scale") is not None:
+        r["popart_scale"] = m["popart_scale"]
+    return r
+
+
+def _search_spec(
+    arm: str, src: str, cid: str, opts: dict, prompt: str, gen: int, spec_archive_root: str
+) -> dict[str, Any]:
+    """The on-node search spec: the certified ``parallel._spec`` PLUS the three fields the cluster
+    archival needs — ``archive_root`` (where ``run_one`` writes), ``generation``, and ``prompt``
+    (threaded so the record carries the exact authored prompt, provenance parity, directive 6)."""
+    from src.orchestration.parallel import _spec
+
+    s = _spec(arm, "source", src, cid, opts)
+    s["archive_root"] = str(spec_archive_root)
+    s["generation"] = int(gen)
+    s["prompt"] = prompt
+    s["monitor_queue"] = None  # a Manager queue is unpicklable to JSON; the cluster is unmonitored in-job
+    return s
+
+
+def _load_failures(fail_ledger: Path) -> dict[str, dict]:
+    """Read the arm's F5 failures ledger (candidate_id -> row); torn last line is tolerated."""
+    cached: dict[str, dict] = {}
+    if not fail_ledger.is_file():
+        return cached
+    for line in fail_ledger.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            f = json.loads(line)
+            cached[str(f["candidate_id"])] = f
+        except Exception:  # noqa: BLE001 — a torn line just re-authors that one candidate
+            pass
+    return cached
+
+
+def _ledger_failure(fail_ledger: Path, row: dict) -> None:
+    """Append+flush one F5 failure row (best-effort — a ledger write must never crash the arm)."""
+    try:
+        fail_ledger.parent.mkdir(parents=True, exist_ok=True)
+        with fail_ledger.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, default=str) + "\n")
+            fh.flush()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# --------------------------------------------------------------------------- #
+# k-seed search selection (B-A2) — the σ_seed selection-noise denoiser          #
+# --------------------------------------------------------------------------- #
+def _candidate_seed_runs(cid: str, k_seeds: int, base_seed: int) -> list[tuple[str, int]]:
+    from src.search.multiseed import candidate_seed_ids
+
+    return candidate_seed_ids(cid, k_seeds, base_seed)
+
+
+def _read_candidate(
+    cid: str, arm: str, arm_root: Path, k_seeds: int, base_seed: int
+) -> dict[str, Any] | None:
+    """A candidate's result from the archive: the single record (k=1) or the k-seed AGGREGATE (k>1);
+    ``None`` if any required seed record is missing (candidate incomplete / failed)."""
+    if k_seeds <= 1:
+        return _result_from_record(cid, arm, arm_root)
+    from src.search.multiseed import aggregate_k_seeds
+
+    per_seed: list[dict[str, Any]] = []
+    for run_id, _ in _candidate_seed_runs(cid, k_seeds, base_seed):
+        r = _result_from_record(run_id, arm, arm_root)
+        if r is None:
+            return None
+        per_seed.append(r)
+    agg = aggregate_k_seeds(cid, arm, per_seed)
+    return agg if agg.get("ok") else None
+
+
+def _archived_source(cid: str, arm: str, arm_root: Path, k_seeds: int, base_seed: int) -> str | None:
+    """The reward source from ANY already-archived seed of this candidate — so a PARTIAL-candidate
+    resume (some of the k seeds done) re-submits the missing seeds with the SAME source instead of
+    re-authoring (a fresh non-deterministic author would orphan the completed seeds). ``None`` when
+    no seed is archived yet (a genuinely fresh candidate)."""
+    for run_id, _ in _candidate_seed_runs(cid, k_seeds, base_seed):
+        r = _result_from_record(run_id, arm, arm_root)
+        if r is not None:
+            return str(r.get("reward_source", ""))
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# SEARCH — the reflection generation loop, per-generation cluster arrays        #
+# --------------------------------------------------------------------------- #
+def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = False,
+                   priority: int = 0) -> dict[str, Any]:
+    """Reflect-on-BEST SEARCH for ONE arm, batching each generation as a single SGE array.
+
+    Mirrors ``parallel._drive_llm_arm`` step-for-step (author cpg candidates per generation →
+    select the generation BEST by val DSR → build the next reflection block via
+    ``schema.build_block``), swapping ONLY the per-candidate ``pool.submit`` for a per-generation
+    ``run.run_batch``. Resume replays already-archived candidates (no re-author, no re-train) and
+    honours the F5 failures ledger, so an interrupted search resumes byte-faithfully.
+    """
+    from src.feedback import schema
+    from src.llm.loop import _REFLECTION_PREAMBLE, _diversity_directive
+    from src.orchestration.parallel import _summary
+    from src.sandbox.executor import extract_reward_source
+
+    arm_root = run.search_read() / arm  # SEARCH sub-root (disjoint from the test records)
+    fail_ledger = arm_root / "failures.jsonl"
+    cached_failures = _load_failures(fail_ledger) if resume else {}
+    llm, prompts, diversity = _build_cluster_author(arm, opts, arm_root)
+
+    gens = max(1, int(opts["generations"]))
+    cpg = max(1, int(opts["candidates"]) // gens)
+    # k-seed search selection (B-A2): each candidate trains at k seeds {base..base+k-1} and is
+    # SELECTED on the IQM of its per-seed scores. Default 1 = byte-identical to the single-seed path
+    # (run_id == cid, no aggregation). k>1 fans each candidate out to {cid}-s{j} at consecutive seeds.
+    k_seeds = max(1, int(opts.get("search_seeds_per_candidate", 1)))
+    base_seed = int(opts["seed"])
+    accepted: list[dict[str, Any]] = []
+    failed = 0
+    prev_block: str | None = None
+
+    for gen in range(gens):
+        user = prompts.initial if prev_block is None else f"{_REFLECTION_PREAMBLE}\n{prev_block}"
+        cids: list[str] = []
+        replayed: dict[str, dict] = {}
+        fresh: list[tuple[str, str, str]] = []  # (cid, source, prompt) to train THIS generation
+        for ci in range(cpg):
+            cid = f"{arm}-g{gen}-c{ci}"
+            cids.append(cid)
+            if resume:
+                done = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
+                if done is not None:  # all k seeds archived -> replay, no re-author, no re-train
+                    replayed[cid] = done
+                    _advance(llm)
+                    continue
+                if cid in cached_failures:  # already tried + failed -> do not re-author (F5)
+                    failed += 1
+                    _advance(llm)
+                    continue
+                prior_src = _archived_source(cid, arm, arm_root, k_seeds, base_seed)
+                if prior_src is not None:  # PARTIAL candidate -> reuse the archived source (no re-author)
+                    _advance(llm)
+                    fresh.append((cid, prior_src, "<resumed>"))
+                    continue
+            cand_user = user
+            if diversity and cpg > 1:
+                cand_user = f"{user}\n\n{_diversity_directive(ci, cpg)}"
+            with run.author_lock:
+                run.author_guard()  # hard spend cap, under the lock (thread-safe shared counter)
+                src = extract_reward_source(llm.complete(prompts.system, cand_user))
+            fresh.append((cid, src, cand_user))
+
+        # Train: k_seeds specs per fresh candidate ({cid}-s{j} at base+j), ONE array for the generation.
+        if fresh:
+            specs = []
+            for cid, src, prompt in fresh:
+                for run_id, seed in _candidate_seed_runs(cid, k_seeds, base_seed):
+                    s = _search_spec(arm, src, run_id, opts, prompt, gen, run.search_spec_root())
+                    s["seed"] = seed  # per-seed seed (base+j); k=1 keeps base
+                    if k_seeds > 1:
+                        s["emit_train_returns"] = True  # the k-seed FED tail is TRAIN-window (B-A2)
+                    specs.append(s)
+            run.run_batch(specs, f"{arm}_g{gen}", pool=run.pool_confirmatory, pack=run.pack,
+                          priority=priority)
+
+        # Collect in candidate order (parity); aggregate each candidate's k seeds; ledger failures (F5).
+        fresh_by_cid = {cid: (src, prompt) for (cid, src, prompt) in fresh}
+        best: dict[str, Any] | None = None
+        for cid in cids:
+            r = replayed.get(cid)
+            if r is None:
+                r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
+            if r is None:  # a seed missing/failed after run_batch -> the candidate FAILED
+                if cid in fresh_by_cid:
+                    failed += 1
+                    src, prompt = fresh_by_cid[cid]
+                    _ledger_failure(fail_ledger, {
+                        "candidate_id": cid, "generation": gen, "prompt": prompt,
+                        "reward_source": src,
+                        "error": "cluster training failed (a seed sandbox-rejected or exhausted retries)",
+                    })
+                continue
+            accepted.append(r)
+            if best is None or r["fitness"] > best["fitness"]:
+                best = r
+
+        if best is not None:
+            tail_for = best.get("tail_stats") if arm in _TAIL_FED_ARMS else None
+            prev_block = schema.build_block(
+                arm, best["fitness"], tail_for,
+                shuffle_seed=(
+                    schema.shuffle_seed_from_id(str(best.get("candidate_id", "")))
+                    if arm == "placebo_shuffled" else None
+                ),
+            )
+    return _summary(arm, accepted, failed, gens * cpg)
+
+
+#: The H4 family-search arms — NOT LLM-authored; they sample/optimize the reward FAMILY. Mirrors
+#: parallel._LLM_ARMS's complement (run_parallel dispatches _drive_search_arm for these).
+_FAMILY_ARMS = ("random_search", "bayes_opt")
+
+
+def _family_spec(arm: str, kind: str, reward: Any, cid: str, opts: dict, spec_archive_root: str
+                 ) -> dict[str, Any]:
+    """The on-node family-search spec: ``parallel._spec`` (kind ``source`` for random_search /
+    ``coeffs`` for bayes_opt) + the cluster archival fields. No authored prompt (no LLM)."""
+    from src.orchestration.parallel import _spec
+
+    s = _spec(arm, kind, reward, cid, opts)
+    s["archive_root"] = str(spec_archive_root)
+    s["generation"] = 0
+    s["monitor_queue"] = None
+    return s
+
+
+def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = False,
+                          priority: int = 0) -> dict[str, Any]:
+    """H4 family SEARCH for ``random_search`` / ``bayes_opt`` (mirrors ``parallel._drive_search_arm``).
+
+    ``random_search`` samples K reward sources UP FRONT (deterministic rng → byte-identical stream +
+    winner to the laptop) and trains them as ONE array (no reflection). ``bayes_opt`` runs the GP on
+    the DRIVER (``bayes_opt_over_template``) and trains each proposed coefficient vector as an
+    array-of-1 — inherently sequential (the GP proposes from prior fitnesses), hidden under the other
+    arms' floods on the cluster. Both reuse the certified search primitives + the search-replay resume.
+    """
+    import numpy as np
+
+    from src.orchestration.parallel import _summary
+
+    arm_root = run.search_read() / arm
+    n = max(1, int(opts["candidates"]))
+    # k-seed selection (B-A2) applies to the H4 family arms too, so the LLM-vs-family comparison is
+    # NOT confounded by k. Default 1 = byte-identical single-seed.
+    k_seeds = max(1, int(opts.get("search_seeds_per_candidate", 1)))
+    base_seed = int(opts["seed"])
+
+    def _family_specs(cid: str, kind: str, reward: Any) -> list[dict[str, Any]]:
+        out = []
+        for run_id, seed in _candidate_seed_runs(cid, k_seeds, base_seed):
+            s = _family_spec(arm, kind, reward, run_id, opts, run.search_spec_root())
+            s["seed"] = seed  # per-seed seed (base+j); k=1 keeps base
+            if k_seeds > 1:
+                s["emit_train_returns"] = True  # the k-seed FED tail is TRAIN-window (B-A2)
+            out.append(s)
+        return out
+
+    if arm == "random_search":
+        from src.search.random_search import sample_reward_source
+
+        rng = np.random.default_rng(opts["seed"])
+        sources = [sample_reward_source(rng, opts.get("proto_cfg")) for _ in range(n)]  # ALL up front
+        cids = [f"{arm}-c{i}" for i in range(n)]
+        fresh = [
+            (cid, src) for cid, src in zip(cids, sources)
+            if not (resume and _read_candidate(cid, arm, arm_root, k_seeds, base_seed) is not None)
+        ]
+        if fresh:
+            specs = [s for cid, src in fresh for s in _family_specs(cid, "source", src)]
+            run.run_batch(specs, f"{arm}_search", pool=run.pool_confirmatory, pack=run.pack,
+                          priority=priority)
+        accepted, failed = [], 0
+        for cid in cids:
+            r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
+            if r is None:
+                failed += 1
+            else:
+                accepted.append(r)
+        return _summary(arm, accepted, failed, n)
+
+    # bayes_opt — driver-side GP, per-iteration cluster training (each iteration = one k-seed array).
+    from src.baselines.reward_family import family_bounds
+    from src.search.bayes_opt import bayes_opt_over_template
+
+    state: dict[str, Any] = {"i": 0, "accepted": [], "failed": 0}
+
+    def template_eval(coeffs: Any) -> float:
+        i = state["i"]
+        state["i"] = i + 1
+        cid = f"{arm}-c{i}"
+        if resume:
+            r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
+            if r is not None:
+                state["accepted"].append(r)
+                return float(r["fitness"])
+        run.run_batch(_family_specs(cid, "coeffs", list(coeffs)), f"{arm}_c{i}",
+                      pool=run.pool_confirmatory, pack=(run.pack if k_seeds > 1 else 1),
+                      priority=priority)
+        r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
+        if r is None:
+            state["failed"] += 1
+            return -1e9
+        state["accepted"].append(r)
+        return float(r["fitness"])
+
+    bayes_opt_over_template(
+        template_eval, family_bounds(opts.get("proto_cfg")), {"matched_budget": n},
+        rng=np.random.default_rng(opts["seed"]),
+    )
+    return _summary(arm, state["accepted"], state["failed"], n)
+
+
+# --------------------------------------------------------------------------- #
+# TEST — the sealed leg as ONE embarrassingly-parallel array                    #
+# --------------------------------------------------------------------------- #
+def run_test_leg(
+    winners: list[tuple[str, dict[str, Any]]],
+    seeds: list[int],
+    run: ClusterRun,
+    *,
+    panel_descriptor: dict[str, Any],
+    env_cfg: Any,
+    agent_cfg: dict[str, Any],
+    train_window: tuple[int, int],
+    val_window: tuple[int, int],
+    test_window: tuple[int, int],
+    embargo: int,
+    lookback: int,
+    name: str = "test",
+    pool: str | None = None,
+    resume: bool = True,
+    priority: int = 0,
+    interleave: bool = False,
+) -> dict[str, Any]:
+    """Run the sealed test leg for ``winners`` × ``seeds`` as ONE array (``-tc`` = full pool).
+
+    Reuses ``test_leg.build_test_specs`` (the single-source spec schema + the frozen/test desync
+    guard) so the cluster trains EXACTLY what the local pool would; stamps the remote
+    ``archive_root`` onto each spec so on-node ``run_one`` routes to ``_test_seed_worker`` and
+    archives the record. Resume skips already-archived ``{arm}-s{seed}`` records.
+
+    ``interleave=True`` reorders the taskfile SEED-MAJOR (pair-adjacent / round-robin across the
+    winners: unit1-s0, unit2-s0, …, unit1-s1, …) — the §14.3/B-A3 schedule, so at ANY truncation
+    point every unit holds a (near-)equal, CRN-paired seed count instead of one unit hogging the
+    early tasks. ``priority`` = the §14.3 -p ladder value for this array.
+    """
+    from src.cluster.poll import completed_run_ids
+    from src.orchestration.test_leg import build_test_specs
+
+    test_read = run.test_read()  # TEST sub-root (disjoint from the search records)
+    done = completed_run_ids(test_read) if resume else set()
+    specs = build_test_specs(
+        winners=winners, seeds=seeds, panel_descriptor=panel_descriptor, env_cfg=env_cfg,
+        agent_cfg=agent_cfg, train_window=train_window, val_window=val_window,
+        test_window=test_window, embargo=embargo, lookback=lookback, test_root=test_read,
+        done_ids=done,
+    )
+    for s in specs:
+        s["archive_root"] = run.test_spec_root()  # where on-node run_one writes the test record
+    if interleave and len(winners) > 1:
+        unit_order = {arm: i for i, (arm, _) in enumerate(winners)}
+        specs.sort(key=lambda s: (int(s["seed"]), unit_order.get(str(s["arm"]), len(unit_order))))
+    if not specs:
+        return {"name": name, "ok": True, "submitted": 0, "note": "all seeds already archived"}
+    return run.run_batch(specs, name, pool=pool or run.pool_confirmatory, pack=run.pack,
+                         priority=priority)
+
+
+def run_baselines_on_cluster(
+    baseline_names: list[str],
+    seeds: list[int],
+    run: ClusterRun,
+    *,
+    test_leg_kwargs: dict[str, Any],
+    name: str = "baselines",
+    resume: bool = True,
+    priority: int = 0,
+    interleave: bool = False,
+) -> dict[str, Any]:
+    """Run the H1 hand-designed baselines (PREREG §1) as ONE embarrassingly-parallel test array.
+
+    A baseline is a FIXED canonical reward — no search/select/freeze — so it depends on NOTHING the
+    search produces and floods the pool from minute 0 (PLAN §5: "H1 flood, 1,612 parallel"). Reuses
+    the single-source ``run_campaign._baseline_winner_record`` (arm=``baseline_<name>``,
+    reward_kind=``baseline``, reward_name=``<name>``) so the on-node ``_test_seed_worker`` resolves the
+    canonical callable BY NAME from ``src.baselines.rewards`` — identical to the laptop H1 leg.
+    """
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+    from run_campaign import _baseline_winner_record  # type: ignore[import-not-found]
+
+    winners = [(f"baseline_{nm}", _baseline_winner_record(nm)) for nm in baseline_names]
+    return run_test_leg(winners, seeds, run, name=name, resume=resume, priority=priority,
+                        interleave=interleave, **test_leg_kwargs)
+
+
+# --------------------------------------------------------------------------- #
+# PIPELINE — per-arm search → select → freeze → test (zero barrier)             #
+# --------------------------------------------------------------------------- #
+def _resolve_select_freeze(run: ClusterRun) -> tuple[Callable[[Any], Any], Callable[..., Any]]:
+    """The SELECT/FREEZE callables — injected on ``run`` for tests, else the certified
+    ``run_campaign`` implementations (imported via the codebase's scripts-on-path pattern)."""
+    select = run.select_winner
+    freeze = run.freeze_winner
+    if select is not None and freeze is not None:
+        return select, freeze
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+    from run_campaign import freeze_winner as _freeze  # type: ignore[import-not-found]
+    from run_campaign import select_winner as _select  # type: ignore[import-not-found]
+
+    return (select or _select), (freeze or _freeze)
+
+
+def run_arm_pipeline(
+    arm: str,
+    opts: dict,
+    seeds: list[int],
+    run: ClusterRun,
+    *,
+    test_leg_kwargs: dict[str, Any],
+    frozen_root: str | Path,
+    search_seed: int = 0,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """The full per-arm pipeline: SEARCH → SELECT winner → FREEZE → sealed TEST leg.
+
+    Run concurrently across arms by :func:`run_campaign_on_cluster`, so an arm's test array floods
+    the pool the instant its search finishes — while the other arms are still searching (§5 zero
+    barriers). Returns a per-arm result dict; never raises for a "no winner" arm (that arm simply
+    contributes no test records — surfaced as ``ok=False, reason="no_winner"``)."""
+    select_winner, freeze_winner = _resolve_select_freeze(run)
+    # Dispatch on arm type (parity with run_parallel): the 5 LLM arms author+reflect; the H4 family
+    # arms (random_search/bayes_opt) sample/optimize the reward family — NOT via an LLM.
+    if arm in _FAMILY_ARMS:
+        search = run_family_search_arm(arm, opts, run, resume=resume)
+    else:
+        search = run_search_arm(arm, opts, run, resume=resume)
+
+    arm_search_root = run.search_read() / arm  # SELECT reads ONLY the search sub-root
+    winner = select_winner(arm_search_root)
+    if winner is None:
+        _LOG.warning("[%s] search produced no winner — no test leg", arm)
+        return {"arm": arm, "ok": False, "reason": "no_winner", "search": search}
+
+    env_fp = winner.get("env_fingerprint") or f"cluster:{arm}:frozen"
+    freeze_winner(arm, winner, search_seed=search_seed, frozen_root=frozen_root, env_fingerprint=env_fp)
+
+    test = run_test_leg(
+        [(arm, winner)], seeds, run, name=f"{arm}_test", resume=resume, **test_leg_kwargs
+    )
+    return {
+        "arm": arm, "ok": True, "search": search, "test": test,
+        "winner_id": winner.get("candidate_id"),
+    }
+
+
+def run_campaign_on_cluster(
+    arms: list[str],
+    opts_for: Callable[[str], dict],
+    seeds: list[int],
+    run: ClusterRun,
+    *,
+    test_leg_kwargs: dict[str, Any],
+    frozen_root: str | Path,
+    baseline_names: list[str] | None = None,
+    resume: bool = False,
+    max_concurrent_arms: int | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Drive ALL arms' search→test pipelines CONCURRENTLY (§5 all-arms-parallel, zero barriers).
+
+    Each arm runs :func:`run_arm_pipeline` in its own thread; the training arrays interleave freely
+    on the cluster while ``run.author_lock`` keeps authoring rate-limit-safe (arm-serial API). The
+    H1 ``baseline_names`` (fixed rewards, no search) run as ONE concurrent test flood from minute 0
+    (:func:`run_baselines_on_cluster`), keyed ``__baselines__`` in the result. A per-unit crash is
+    captured into that unit's result, never taking down the others. The GPU pool is pinned per
+    contrast by ``run.pool_confirmatory`` (all confirmatory units share it -> device homogeneity
+    within every analysis unit)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    has_baselines = bool(baseline_names)
+    workers = max_concurrent_arms or max(1, len(arms) + (1 if has_baselines else 0))
+    results: dict[str, dict[str, Any]] = {}
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="unit") as ex:
+        futs = {
+            ex.submit(
+                run_arm_pipeline, arm, opts_for(arm), seeds, run,
+                test_leg_kwargs=test_leg_kwargs, frozen_root=frozen_root, resume=resume,
+            ): arm
+            for arm in arms
+        }
+        if has_baselines:
+            futs[ex.submit(
+                run_baselines_on_cluster, list(baseline_names or []), seeds, run,
+                test_leg_kwargs=test_leg_kwargs, resume=resume,
+            )] = "__baselines__"
+        for fut in as_completed(futs):
+            key = futs[fut]
+            try:
+                res = fut.result()
+                results[key] = res if key != "__baselines__" else {"ok": res.get("ok", True),
+                                                                    "test": res}
+            except Exception as exc:  # noqa: BLE001 — one unit's failure must not sink the campaign
+                _LOG.exception("[%s] pipeline crashed", key)
+                results[key] = {"arm": key, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
+    return results
+
+
+#: The §14.3 intra-user -p ladder: canary + H2 arrays at 0, remaining Stage-1 at -100 (D1 levels
+#: run at -200 and the Stage-2 fleet at -500 via their own entry invocations).
+PRIORITY_CORE = 0
+PRIORITY_STAGE1 = -100
+
+
+def run_campaign_tiered(
+    arms: list[str],
+    opts_for: Callable[[str], dict],
+    seeds_cfg: Any,
+    run: ClusterRun,
+    *,
+    test_leg_kwargs: dict[str, Any],
+    frozen_root: str | Path,
+    h2_arms: tuple[str, ...] = ("distributional", "scalar"),
+    baseline_names: list[str] | None = None,
+    canary_baselines: list[str] | None = None,
+    review_gate: bool = True,
+    hold_at_gate: bool = False,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """The Stage-1 **C-ladder** (PLAN §13.1) — the value-per-hour greedy checkpoint order, with the
+    §14.3 priority ladder enforcing it IN the scheduler and Tamer's effect-blind review gate at the
+    design-floor boundary.
+
+    * **C0 canary** — ``canary_baselines`` (the first 3 H1 units) through the FULL production path
+      at the core seeds, BEFORE any Opus spend. A canary failure raises loud (abort, fix, re-run).
+    * **C1–C3** — all arms' search→select→freeze pipelines CONCURRENT (H2 arrays at ``-p 0``, the
+      remaining arms + H1 baselines at ``-p -100`` → SGE serves the value order natively). Non-H2
+      arms' core tests flood per-arm the instant their search ends (zero barrier); the H2 pair's
+      core test is ONE **pair-adjacent interleaved** array (B-A3: the taskfile alternates
+      dist-s_k, scalar-s_k, so any truncation leaves the pair CRN-balanced).
+    * **REVIEW GATE** (after the C3 all-arms floor; ``review_gate=True``) — writes the EFFECT-BLIND
+      integrity report (:mod:`src.cluster.integrity` — counts/health/homogeneity ONLY; the docs'
+      "counts-only monitoring; single-look discipline") and STOPS. Tamer reviews + creates the
+      approval file (``<read_root>/TIER1_APPROVED``); re-running with ``resume=True`` then skips
+      straight through C0–C3 (archive-complete) into C4. Looking at RESULTS here would be optional
+      stopping — the gate is execution-health only, by construction.
+    * **C4 sweep** — the uniform-n completion (n_core→n_max) for ALL units (7 arms + the H1
+      baselines), ROUND-ROBIN interleaved per seed, in the assurance-checkpoint blocks the seed
+      schema declares (e.g. 30→340 @90% → 403 @95% → 568 @99%): every block boundary is a clean,
+      complete design at that assurance level.
+
+    H3 single-shot and the D1 curve levels run as separate entry invocations at ``-p -100``/``-200``
+    (C5/C6). Fully resume-safe at every step: rerun and every archived unit is skipped.
+    """
+    from src.utils.seeds import seed_tiers
+
+    select_winner, _ = _resolve_select_freeze(run)
+    tiers = seed_tiers(seeds_cfg)
+    core = tiers[0]
+    out: dict[str, Any] = {
+        "n_tiers": len(tiers), "tier_sizes": [len(t) for t in tiers], "results": {},
+    }
+
+    # ---- C0: the canary — prove the full path on hand rewards BEFORE any Opus spend ----------- #
+    if canary_baselines:
+        _LOG.info("[C0] canary: %s at %d core seeds", canary_baselines, len(core))
+        canary = run_baselines_on_cluster(
+            canary_baselines, core, run, test_leg_kwargs=test_leg_kwargs, name="canary",
+            priority=PRIORITY_CORE, resume=resume,
+        )
+        out["results"]["canary"] = canary
+        if not canary.get("ok", False):
+            raise RuntimeError(
+                f"C0 CANARY FAILED ({canary}) — the production path does not work end-to-end; "
+                f"fix and re-run BEFORE any Opus authoring is spent (the whole point of the canary)"
+            )
+
+    # ---- C1–C3: concurrent search pipelines under the priority ladder ------------------------- #
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    winners: dict[str, dict[str, Any]] = {}
+    core_results: dict[str, dict[str, Any]] = {}
+
+    def _arm_core(arm: str) -> dict[str, Any]:
+        prio = PRIORITY_CORE if arm in h2_arms else PRIORITY_STAGE1
+        opts = opts_for(arm)
+        if arm in _FAMILY_ARMS:
+            search = run_family_search_arm(arm, opts, run, resume=resume, priority=prio)
+        else:
+            search = run_search_arm(arm, opts, run, resume=resume, priority=prio)
+        winner = select_winner(run.search_read() / arm)
+        if winner is None:
+            return {"arm": arm, "ok": False, "reason": "no_winner", "search": search}
+        winner.setdefault("reward_source", "")
+        _, freeze_winner = _resolve_select_freeze(run)
+        env_fp = winner.get("env_fingerprint") or f"cluster:{arm}:frozen"
+        freeze_winner(arm, winner, search_seed=int(opts.get("seed", 0)), frozen_root=frozen_root,
+                      env_fingerprint=env_fp)
+        winners[arm] = winner
+        if arm in h2_arms:
+            return {"arm": arm, "ok": True, "search": search, "test": "deferred_to_pair_array"}
+        test = run_test_leg([(arm, winner)], core, run, name=f"{arm}_test",
+                            priority=PRIORITY_STAGE1, resume=resume, **test_leg_kwargs)
+        return {"arm": arm, "ok": True, "search": search, "test": test}
+
+    with ThreadPoolExecutor(max_workers=len(arms) + 1, thread_name_prefix="unit") as ex:
+        futs = {ex.submit(_arm_core, arm): arm for arm in arms}
+        if baseline_names:
+            futs[ex.submit(
+                run_baselines_on_cluster, list(baseline_names), core, run,
+                test_leg_kwargs=test_leg_kwargs, name="baselines",
+                priority=PRIORITY_STAGE1, resume=resume,
+            )] = "__baselines__"
+        for fut in as_completed(futs):
+            key = futs[fut]
+            try:
+                res = fut.result()
+                core_results[key] = res if key != "__baselines__" else {"ok": res.get("ok", True),
+                                                                        "test": res}
+            except Exception as exc:  # noqa: BLE001 — one unit must not sink the ladder
+                _LOG.exception("[%s] core pipeline crashed", key)
+                core_results[key] = {"arm": key, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    # C2: the H2 pair-test at the core n — ONE pair-adjacent interleaved array at -p 0.
+    h2_present = [a for a in h2_arms if a in winners]
+    if h2_present:
+        pair = run_test_leg(
+            [(a, winners[a]) for a in h2_present], core, run, name="h2_pair_test",
+            priority=PRIORITY_CORE, interleave=True, resume=resume, **test_leg_kwargs,
+        )
+        for a in h2_present:
+            core_results[a]["test"] = pair
+    out["results"]["core"] = core_results
+    core_ok = all(r.get("ok", True) for r in core_results.values())
+
+    # ---- THE REVIEW GATE (effect-blind; auto-proceeds on green health) ------------------------- #
+    # The gate reads ONLY execution health (counts + homogeneity censuses — never a performance
+    # statistic), so releasing C4 on green does NOT condition continuation on observed effects and
+    # cannot become optional stopping. It therefore AUTO-PROCEEDS when execution is clean (no manual
+    # latency on the happy path — Tamer's time-security requirement), and STOPS only when (a) a real
+    # execution defect is found (a short/incomplete unit or device inhomogeneity), or (b) Tamer set an
+    # explicit ``hold_at_gate`` to eyeball the effect-blind report first. Either stop is released by
+    # creating ``<read_root>/TIER1_APPROVED`` and re-running with ``resume=True``.
+    approval = Path(run.read_root) / "TIER1_APPROVED"
+    if review_gate:
+        from src.cluster.integrity import write_integrity_report
+
+        report, _report_json, report_md = write_integrity_report(
+            run, arms=arms, h2_arms=list(h2_present), baseline_names=list(baseline_names or []),
+            core_seeds=core, opts_for=opts_for, winners=winners,
+        )
+        out["integrity_report"] = str(report_md)
+        health_ok = bool(report.get("verdict", {}).get("health_ok"))
+        out["gate_health_ok"] = health_ok
+        approved = approval.exists()
+        if not approved and (not health_ok or hold_at_gate):
+            reason = "RED-execution-health" if not health_ok else "manual-hold"
+            out.update(ok=core_ok, gate=reason, awaiting_review=True,
+                       health_ok=health_ok, approve_by_creating=str(approval))
+            _LOG.warning("[gate] STOPPING before C4 (%s) — review %s then create %s and resume",
+                         reason, report_md, approval)
+            return out
+        _LOG.info("[gate] green execution health — AUTO-PROCEEDING to C4 sweep (no manual wait)")
+
+    # ---- C4: the uniform-n round-robin sweep in assurance-checkpoint blocks ------------------- #
+    sweep_units: list[tuple[str, dict[str, Any]]] = [(a, winners[a]) for a in arms if a in winners]
+    if baseline_names:
+        import sys as _sys
+
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+        from run_campaign import _baseline_winner_record  # type: ignore[import-not-found]
+
+        sweep_units += [(f"baseline_{nm}", _baseline_winner_record(nm)) for nm in baseline_names]
+    for i, tier in enumerate(tiers[1:], start=1):
+        _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin)", i, len(sweep_units),
+                  len(tier))
+        out["results"][f"sweep_t{i}"] = run_test_leg(
+            sweep_units, tier, run, name=f"sweep_t{i}", priority=PRIORITY_CORE, interleave=True,
+            resume=resume, **test_leg_kwargs,
+        )
+    out["ok"] = core_ok and all(
+        out["results"].get(f"sweep_t{i}", {}).get("ok", True) for i in range(1, len(tiers))
+    )
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# The hard authoring spend cap (defense-in-depth for unattended multi-day runs) #
+# --------------------------------------------------------------------------- #
+def spend_guard(max_calls: int) -> Callable[[], None]:
+    """A thread-safe author guard that raises once ``max_calls`` LLM authorings are reached.
+
+    The generation loop is already structurally bounded (Σ arms × gens × cpg), so this is
+    defense-in-depth: a bug that loops authoring (or a mis-sized config) can never silently burn
+    the API budget on an unattended run — it fails LOUD at the ceiling. Wire onto
+    ``ClusterRun.author_guard``; it is invoked under the author lock, so the counter is safe across
+    the concurrent arm threads."""
+    lock = threading.Lock()
+    state = {"n": 0}
+
+    def _guard() -> None:
+        with lock:
+            state["n"] += 1
+            if state["n"] > max_calls:
+                raise RuntimeError(
+                    f"authoring spend cap reached ({max_calls} LLM calls) — refusing to author more; "
+                    f"raise max_author_calls if this is expected, else a loop/config bug is burning budget"
+                )
+
+    return _guard

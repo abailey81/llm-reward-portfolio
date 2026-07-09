@@ -46,6 +46,54 @@ def test_import_resolves() -> None:
     assert not hasattr(regimes_pkg, "detect")
 
 
+def test_assurance_seed_ladder_reproduces_the_seed_decision():
+    """B-A3: the χ² upper-CI assurance sizing must reproduce the seed-decision doc EXACTLY, so the
+    grade-securing tier ladder rests on verified numbers, not a re-derivation that could drift."""
+    pa = importlib.import_module("scripts.power_analysis")
+    assert pa.assurance_seed_count(0.80)["n"] == 279
+    assert pa.assurance_seed_count(0.90)["n"] == 340
+    assert pa.assurance_seed_count(0.95)["n"] == 403
+    assert pa.assurance_seed_count(0.99)["n"] == 568  # the new 99% tier
+    ns = [pa.assurance_seed_count(c)["n"] for c in (0.80, 0.90, 0.95, 0.99)]
+    assert ns == sorted(ns)  # monotone in confidence
+    assert pa.ASSURANCE_TIER_BOUNDS == (30, 340, 403, 568)
+    # σ_up at 90% is 0.495 (NOT 0.449 — that is the 80% bound; the seed-decision doc mislabels it)
+    assert abs(pa.assurance_seed_count(0.90)["sigma_up"] - 0.495) < 0.002
+    assert abs(pa.assurance_seed_count(0.80)["sigma_up"] - 0.449) < 0.002
+    with pytest.raises(ValueError, match="confidence"):
+        pa.assurance_seed_count(1.5)
+
+
+def test_recommend_assurance_target_is_throughput_and_deadline_aware():
+    """GRADE SECURITY: pick the HIGHEST assurance tier whose uniform-n sweep fits the calendar at the
+    MEASURED throughput; fall back to the n=30 distinction floor when even 90% will not fit. The stop
+    is exogenous (throughput + calendar, never the effect), so every recommended tier is a valid
+    single-look design."""
+    pa = importlib.import_module("scripts.power_analysis")
+
+    hi = pa.recommend_assurance_target(40.0, 20.0)  # ample speed + time -> reach 99%
+    assert hi["recommended_confidence"] == 0.99 and hi["recommended_n"] == 568
+    assert hi["floor_only"] is False
+
+    lo = pa.recommend_assurance_target(10.0, 10.0)  # thin -> bank the floor only
+    assert lo["floor_only"] is True and lo["recommended_n"] == 30
+    assert lo["recommended_confidence"] is None
+
+    mid = pa.recommend_assurance_target(20.0, 15.0)  # 95% fits, 99% does not
+    assert mid["recommended_confidence"] == 0.95 and mid["recommended_n"] == 403
+
+    prev = 0  # monotone in time: more days never lowers the deadline-safe target
+    for d in (8, 12, 16, 24, 40):
+        n = pa.recommend_assurance_target(20.0, float(d))["recommended_n"]
+        assert n >= prev
+        prev = n
+
+    with pytest.raises(ValueError):
+        pa.recommend_assurance_target(0.0, 10.0)
+    with pytest.raises(ValueError):
+        pa.recommend_assurance_target(20.0, -1.0)
+
+
 def _cfg(**kw):
     from scripts.power_analysis import PowerConfig
 

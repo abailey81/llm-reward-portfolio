@@ -1,0 +1,187 @@
+"""Polling layer: pull the remote archive, read completion truth, plan compacted resumes (§14.1).
+
+The archive IS the queue: a task is DONE iff its record.json exists (the same atomic-commit
+truth the whole pipeline rests on). Completion therefore survives any scheduler/driver/network
+failure. ``pending_specs`` implements the COMPACTED-RESUME diff: given the full task list and
+the pulled archive, return only the specs whose run_ids are missing — the next array contains
+exactly the unfinished work and nothing else (zero wasted fair-share).
+
+Transfer (V9 audit fix): the Windows driver host has NO rsync (verified 2026-07-06 — only
+scp/ssh in PATH), so the pull is tar-over-ssh with EXACT incrementality derived from our own
+architecture: records are immutable after their atomic commit, so the remote-vs-local run-dir
+set DIFF is the complete transfer list — nothing approximate about it. Dirs land in a staging
+area and move into the mirror only once whole (record.json verified), preserving the archive's
+write-then-rename discipline end-to-end; the nightly mirror chain re-verifies content hashes
+downstream.
+"""
+from __future__ import annotations
+
+import shlex
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Any, Callable
+
+__all__ = [
+    "pull_archive",
+    "remote_completed_dirs",
+    "completed_run_ids",
+    "pending_specs",
+    "spec_run_id",
+]
+
+#: fetch(relpaths, staging_dir) — stream those run dirs from the cluster into staging_dir.
+Fetch = Callable[[list[str], Path], None]
+
+_STAGING = ".pull_tmp"
+
+
+def remote_completed_dirs(
+    remote_outputs_root: str, runner: Callable[[list[str]], str]
+) -> set[str]:
+    """POSIX relpaths of every COMMITTED record dir on the cluster (one ssh round-trip).
+
+    record.json is written LAST by the atomic archive commit, so find-by-record.json lists only
+    COMPLETE run dirs — the same completion truth :func:`completed_run_ids` reads locally.
+    Fails LOUD (with guidance) on a missing root: silently returning 0 forever would mask a
+    wrong-path config bug; ``prepare_remote`` pre-creates ``outputs/`` so empty-but-existing
+    cleanly means "0 completed".
+    """
+    root = remote_outputs_root.rstrip("/")
+    try:
+        out = runner(["find", root, "-name", "record.json", "-type", "f"])
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"listing {root} on the cluster failed — wrong outputs root, or prepare_remote was "
+            f"never run? ({exc})"
+        ) from exc
+    dirs: set[str] = set()
+    for line in out.splitlines():
+        line = line.strip()
+        if not line.endswith("/record.json"):
+            continue
+        rel = line[len(root):].lstrip("/")
+        if "/" not in rel:  # a stray root-level record.json is not a run dir
+            continue
+        dirs.add(rel.rsplit("/", 1)[0])
+    return dirs
+
+
+def _default_fetch(host: str, remote_outputs_root: str) -> Fetch:
+    """Production transport: remote ``tar -cf -`` | ssh | local ``tar -xf -`` into staging.
+
+    check=True on BOTH ends — ssh exits nonzero on a dropped connection and tar -x errors on a
+    truncated stream ("Unexpected EOF in archive") — so a torn pull fails loud here rather than
+    leaving a silently short mirror. The remote side is POSIX-quoted; the local tar runs with
+    cwd=staging (no -C: Windows bsdtar/GNU-tar path-flavor quirks).
+    """
+    from src.cluster.submit import ssh_base
+
+    root = remote_outputs_root.rstrip("/")
+
+    def _fetch(relpaths: list[str], staging: Path) -> None:
+        remote_cmd = (
+            "tar -C " + shlex.quote(root) + " -cf - "
+            + " ".join(shlex.quote(p) for p in relpaths)
+        )
+        ssh = subprocess.Popen([*ssh_base(host), remote_cmd], stdout=subprocess.PIPE)
+        try:
+            subprocess.run(
+                ["tar", "-xf", "-"], stdin=ssh.stdout, check=True, timeout=3600,
+                cwd=str(staging),
+            )
+        finally:
+            if ssh.stdout is not None:
+                ssh.stdout.close()
+        if ssh.wait(timeout=300) != 0:
+            raise subprocess.CalledProcessError(ssh.returncode, "ssh tar -cf - (remote)")
+
+    return _fetch
+
+
+def pull_archive(
+    remote_outputs_root: str,
+    local_root: str | Path,
+    *,
+    host: str = "myriad",
+    runner: Callable[[list[str]], str] | None = None,
+    fetch: Fetch | None = None,
+    chunk: int = 150,
+) -> int:
+    """Pull every remote-complete run dir the local mirror lacks; return how many were pulled.
+
+    EXACT incremental: the run-dir diff (immutable records) is the transfer list. Each chunk is
+    fetched into ``<local_root>/.pull_tmp`` and every dir is moved into the mirror ONLY after
+    its record.json is verified present — the local archive never contains a torn dir, even if
+    the process is killed mid-extract (stale staging is swept on the next call and never counts
+    as completed). ``chunk`` bounds the remote argv length (~150 relpaths ≈ 12 KB, far under
+    ARG_MAX) and keeps each pipe short and restartable.
+    """
+    from src.cluster.submit import ssh_runner
+
+    local = Path(local_root)
+    local.mkdir(parents=True, exist_ok=True)
+    staging = local / _STAGING
+    if staging.exists():  # a previous pull died mid-extract — its content is untrusted
+        shutil.rmtree(staging)
+    runner = runner or ssh_runner(host)
+    fetch = fetch or _default_fetch(host, remote_outputs_root)
+
+    remote = remote_completed_dirs(remote_outputs_root, runner)
+    have = {
+        p.parent.relative_to(local).as_posix()
+        for p in local.rglob("record.json")
+        if _STAGING not in p.parts
+    }
+    missing = sorted(remote - have)
+    if not missing:
+        return 0
+
+    for i in range(0, len(missing), chunk):
+        batch = missing[i : i + chunk]
+        staging.mkdir(parents=True, exist_ok=True)
+        fetch(batch, staging)
+        for rel in batch:
+            src = staging / rel
+            if not (src / "record.json").is_file():
+                raise RuntimeError(
+                    f"pulled dir {rel!r} arrived without record.json — torn transfer; the "
+                    f"local mirror was left untouched for it"
+                )
+            dest = local / rel
+            if dest.exists():
+                continue  # landed by an earlier overlapping pull — keep the committed copy
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), str(dest))
+        shutil.rmtree(staging, ignore_errors=True)
+    return len(missing)
+
+
+def completed_run_ids(local_root: str | Path) -> set[str]:
+    """Every run_id with a committed record under ``local_root`` (recursive; layout-agnostic).
+
+    Staging content (``.pull_tmp`` — a torn pull's leftovers) is EXCLUDED: a record is complete
+    only once it has been moved whole into the mirror proper.
+    """
+    root = Path(local_root)
+    if not root.is_dir():
+        return set()
+    return {
+        p.parent.name for p in root.rglob("record.json") if _STAGING not in p.parts
+    }
+
+
+def spec_run_id(spec: dict[str, Any]) -> str:
+    """The run_id a spec will archive under (search: candidate_id; test: run_id)."""
+    rid = spec.get("run_id") or spec.get("candidate_id")
+    if not rid:
+        raise KeyError(f"spec carries neither run_id nor candidate_id: {sorted(spec)}")
+    return str(rid)
+
+
+def pending_specs(
+    all_specs: list[dict[str, Any]], local_root: str | Path
+) -> list[dict[str, Any]]:
+    """The COMPACTED-RESUME diff: specs whose run_ids are not yet in the archive."""
+    done = completed_run_ids(local_root)
+    return [s for s in all_specs if spec_run_id(s) not in done]

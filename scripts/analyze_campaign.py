@@ -77,6 +77,7 @@ import json
 import logging
 import math
 import re
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -6448,6 +6449,14 @@ def write_report(result: dict[str, Any], root: str | Path) -> Path:
 
 
 def main() -> None:
+    # The report (and argparse --help) print Unicode arrows/>= glyphs; on a non-UTF-8 console
+    # (e.g. Windows cp1251) that raises UnicodeEncodeError and crashed even `--help`. Reconfigure
+    # stdout to UTF-8 with replacement BEFORE parse_args so both the help and the analysis output
+    # render everywhere (same guard build_paper.py uses). No-op where stdout is already UTF-8.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except (AttributeError, ValueError):  # pragma: no cover - non-reconfigurable stream (pytest capsys)
+        pass
     p = argparse.ArgumentParser(description="Campaign PBO/CSCV per-arm overfitting analysis.")
     p.add_argument(
         "--root",

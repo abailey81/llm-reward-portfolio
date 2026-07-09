@@ -1046,9 +1046,110 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 """
 
 
+#: The SESOI-crossing seed count at the POINT pilot σ̂_D — the authoritative MC-tool value
+#: (simulate_power on the σ_D pilot; seed-decision doc 2026-07-05, "n ≈ 189"). Re-run the MC seed
+#: sweep to refresh it if the pilot σ̂_D changes; the assurance ladder scales it analytically (n ∝ σ²).
+ASSURANCE_N_POINT: int = 189
+ASSURANCE_SIGMA_HAT_D: float = 0.369  # the 15-CRN-pair pilot σ_D (2026-07-03 farm)
+ASSURANCE_PILOT_N: int = 15           # -> ν = 14
+#: The grade-securing TIER ladder (cumulative seed bounds): distinction-core → 90% → 95% → 99%.
+ASSURANCE_TIER_BOUNDS: tuple[int, ...] = (30, 340, 403, 568)
+
+
+def assurance_seed_count(
+    confidence: float,
+    *,
+    sigma_hat_d: float = ASSURANCE_SIGMA_HAT_D,
+    pilot_n: int = ASSURANCE_PILOT_N,
+    n_point: int = ASSURANCE_N_POINT,
+) -> dict[str, float]:
+    """Seeds to power the SESOI at the χ² UPPER confidence bound of the pilot σ_D (seed-decision
+    methodology). ν = ``pilot_n - 1``; σ_up(C) = σ̂_D·√(ν/χ²_{1-C,ν}); n(C) = round(n_point·ν/χ²_{1-C,ν})
+    since n ∝ σ² at a fixed SESOI. REPRODUCES the seed-decision doc EXACTLY: 80%→279, 90%→340,
+    95%→403, 99%→568 (verified in tests)."""
+    from scipy.stats import chi2
+
+    if not 0.0 < confidence < 1.0:
+        raise ValueError(f"assurance confidence must be in (0,1), got {confidence}")
+    nu = int(pilot_n) - 1
+    q = float(chi2.ppf(1.0 - confidence, nu))
+    factor2 = nu / q
+    return {
+        "confidence": float(confidence),
+        "sigma_up": float(sigma_hat_d) * factor2**0.5,
+        "factor": factor2**0.5,
+        "n": int(round(n_point * factor2)),
+    }
+
+
+#: The uniform-n sweep carries these units from the n=30 floor to the target n: the **7 arms + 4 H1
+#: baselines + the H3 winner** (all tested at the uniform n per the PLAN §3 catalogue) = 12. The C4
+#: block in ``campaign.run_campaign_tiered`` sweeps 11 of them (H3 runs as a separate ``--generations 1``
+#: invocation), but the TIME to a completed uniform design must include H3 — so the assurance-TARGET
+#: estimate uses 12. D1 (levels tested at a fixed n=100) is NOT at the uniform n, so it is excluded.
+ASSURANCE_SWEEP_UNITS: int = 12
+
+
+def recommend_assurance_target(
+    trainings_per_hour: float,
+    days_available: float,
+    *,
+    ladder: dict[float, int] | None = None,
+    n_floor: int = ASSURANCE_TIER_BOUNDS[0],
+    sweep_units: int = ASSURANCE_SWEEP_UNITS,
+    safety_buffer_frac: float = 0.25,
+) -> dict[str, Any]:
+    """Throughput-aware, deadline-safe assurance target — GRADE SECURITY operationalised.
+
+    The tier ladder (30 floor / 340=90% / 403=95% / 568=99%) says how many seeds each equivalence-power
+    level needs; this says how FAR up it we can safely go given the run's MEASURED speed and the calendar.
+    Given the effective throughput ``trainings_per_hour`` (already reflecting sustained concurrency AND
+    GPU packing — a number MEASURED at G1, never guessed) and ``days_available`` before the submission
+    buffer, return the HIGHEST assurance tier whose uniform-n sweep (``sweep_units`` units from
+    ``n_floor`` to that tier's n) finishes within ``days_available`` × (1 − ``safety_buffer_frac``).
+
+    The n=30 floor — the complete distinction-grade study — is the recommendation of last resort (if
+    even 90% will not fit, we still bank the floor). The stop is EXOGENOUS (throughput + calendar,
+    NEVER the observed effect), so whichever tier we land on is a valid pre-committed single-look design
+    — no optional stopping. This is the mechanism that makes "secure the grade safely" a property of the
+    plan rather than a hope: at G1 we measure speed, run this, and adopt the safest target that fits.
+    """
+    if trainings_per_hour <= 0 or days_available <= 0:
+        raise ValueError("trainings_per_hour and days_available must both be positive")
+    if ladder is None:
+        ladder = {c: assurance_seed_count(c)["n"] for c in (0.90, 0.95, 0.99)}
+    budget_h = float(days_available) * 24.0 * (1.0 - float(safety_buffer_frac))
+
+    def sweep_hours(n_target: int) -> float:
+        return sweep_units * max(0, int(n_target) - int(n_floor)) / float(trainings_per_hour)
+
+    tiers = [
+        {"confidence": float(c), "n": int(n), "sweep_hours": sweep_hours(n),
+         "sweep_days": sweep_hours(n) / 24.0, "fits": sweep_hours(n) <= budget_h}
+        for c, n in sorted(ladder.items())
+    ]
+    reachable = [t for t in tiers if t["fits"]]
+    best = max(reachable, key=lambda t: t["confidence"]) if reachable else None
+    return {
+        "trainings_per_hour": float(trainings_per_hour),
+        "days_available": float(days_available),
+        "budget_hours": budget_h,
+        "n_floor": int(n_floor),
+        "recommended_confidence": (best["confidence"] if best else None),
+        "recommended_n": (best["n"] if best else int(n_floor)),
+        "floor_only": best is None,
+        "tiers": tiers,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Power analysis for the headline H2 campaign test (FINAL_PLAN B-5; viva Q21; R16).",
+    )
+    parser.add_argument(
+        "--assurance", action="store_true",
+        help="Print the χ² upper-CI ASSURANCE seed ladder (80/90/95/99%%) + the grade-securing tier "
+        "bounds, then exit. Reproduces the seed-decision sizing (279/340/403/568).",
     )
     parser.add_argument("--target-power", type=float, default=0.80)
     parser.add_argument("--alpha", type=float, default=0.05)
@@ -1184,6 +1285,19 @@ def main() -> None:
             pass
 
     args = build_parser().parse_args()
+
+    if args.assurance:
+        # ASCII-only console prints (the Windows cp1251 console cannot encode chi2/sigma glyphs).
+        nu = ASSURANCE_PILOT_N - 1
+        print("[power_analysis] chi2 upper-CI ASSURANCE seed ladder (secure-the-grade sizing)")
+        print(f"  pilot sigma_hat_D={ASSURANCE_SIGMA_HAT_D}  nu={nu}  point SESOI-crossing n_point={ASSURANCE_N_POINT}")
+        print("  level   sigma_up   factor   n")
+        for c in (0.80, 0.90, 0.95, 0.99):
+            r = assurance_seed_count(c)
+            print(f"   {c:.2f}    {r['sigma_up']:.3f}    {r['factor']:.3f}   {int(r['n'])}")
+        print(f"  grade-securing TIER ladder (cumulative): {list(ASSURANCE_TIER_BOUNDS)} = "
+              "distinction-core(30) / 90% / 95% / 99%")
+        return
 
     print("[power_analysis] loading design/config + panel (regime count) ...")
     design = _load_design_from_config()

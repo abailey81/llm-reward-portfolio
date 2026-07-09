@@ -284,13 +284,19 @@ def assert_prose_matches_yaml(yml: dict[str, Any], prose: str, root: Path) -> li
     inf = yml.get("inference") or {}
 
     # 1) Seed count -------------------------------------------------------- #
-    seeds = yml.get("seeds")
-    if not isinstance(seeds, list) or not seeds:
-        raise FreezeConsistencyError("yaml 'seeds' must be a non-empty list")
+    # B-A3: 'seeds' may be a bare list OR a schema ({mode: uniform/tiered, …}). Resolve it to the flat
+    # [0..N-1] set the campaign + freeze both bind on (resolve_seeds is the SINGLE source both use, so
+    # they cannot disagree on n); a malformed schema fails the freeze LOUD, not silently.
+    from src.utils.seeds import SeedSchemaError, resolve_seeds
+
+    try:
+        seeds = resolve_seeds(yml.get("seeds"))
+    except SeedSchemaError as exc:
+        raise FreezeConsistencyError(f"yaml 'seeds' is not a valid seed list/schema: {exc}") from exc
     n_seeds = len(seeds)
     _require(
-        seeds == list(range(n_seeds)),
-        f"yaml 'seeds' must be the contiguous [0..{n_seeds - 1}] block, got {seeds!r}",
+        seeds == list(range(n_seeds)),  # guaranteed by resolve_seeds; belt-and-suspenders
+        f"resolved seeds must be the contiguous [0..{n_seeds - 1}] block, got {seeds[:5]}…",
     )
     # Prose binds the headline count via amendment D2 ("5->30", "[0..29]", "headline seed count 30").
     prose_seed_counts = {
@@ -724,17 +730,28 @@ def assert_seeds_match(yml: dict[str, Any], root: Path) -> str | None:
     frozen_field = yml.get("seeds")
     if frozen_field is None:
         return None
-    frozen = [int(s) for s in frozen_field]
+    # B-A3: resolve BOTH the prereg and campaign seed fields through the SAME resolver (list or schema)
+    # so a uniform/tiered schema is compared on its FLAT set — the two files can express the seed set
+    # differently only if they resolve to the identical [0..N-1] block.
+    from src.utils.seeds import SeedSchemaError, resolve_seeds
+
+    try:
+        frozen = resolve_seeds(frozen_field)
+    except SeedSchemaError as exc:
+        raise FreezeConsistencyError(f"prereg 'seeds' is not a valid seed list/schema: {exc}") from exc
     camp_path = root / "config" / "campaign.yaml"
     if not camp_path.exists():
         return None
     camp = yaml.safe_load(camp_path.read_text(encoding="utf-8")) or {}
     executed_field = camp.get("seeds")
     _require(
-        isinstance(executed_field, list) and executed_field,
-        "config/campaign.yaml declares no usable 'seeds' list (the frozen seed set the campaign executes)",
+        executed_field is not None,
+        "config/campaign.yaml declares no 'seeds' (the frozen seed set the campaign executes)",
     )
-    executed = [int(s) for s in executed_field]
+    try:
+        executed = resolve_seeds(executed_field)
+    except SeedSchemaError as exc:
+        raise FreezeConsistencyError(f"campaign 'seeds' is not a valid seed list/schema: {exc}") from exc
     _require(
         executed == frozen,
         f"executed seeds in config/campaign.yaml (n={len(executed)}) != frozen prereg seeds "

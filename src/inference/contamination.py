@@ -95,6 +95,12 @@ __all__ = [
 #: seed-to-seed noise is "invariant for practical purposes".
 DEFAULT_EQUIVALENCE_SD_FRAC: float = 0.5
 
+#: Achieved null-equivalence power below which a per-coefficient TOST is flagged ``underpowered`` (2026-07-09).
+#: A NON-equivalent verdict on an underpowered coefficient is UNINFORMATIVE (the design cannot resolve
+#: equivalence at this n/Delta), NOT evidence of contamination — so ``all_equivalent=False`` can be read as
+#: low power vs a real effect. 0.8 is the conventional power floor.
+TOST_UNDERPOWER_FLOOR: float = 0.8
+
 
 # ---------------------------------------------------------------------------
 # Primary: paired TOST equivalence (the "bounded contamination as a positive claim")
@@ -276,6 +282,10 @@ def named_vs_blinded_tost(
     if equivalence_abs is not None and len(equivalence_abs) != n_coeffs:
         raise ValueError("equivalence_abs length must equal n_coeffs")
 
+    # t critical for the 90% CI (the TOST-convention interval; df = n_seeds - 1), reused for the achieved-
+    # power diagnostic below so it matches paired_tost's own interval exactly.
+    t_crit = float(stats.t.ppf(0.95, max(1, n_seeds - 1)))
+
     per_coeff: list[dict[str, Any]] = []
     n_equiv = 0
     for k in range(n_coeffs):
@@ -301,13 +311,41 @@ def named_vs_blinded_tost(
                     "p_tost": 0.0 if equiv else 1.0,
                     "ci_low": diff,
                     "ci_high": diff,
+                    "ci_halfwidth": 0.0,
+                    "equiv_power_null": float("nan"),  # power undefined for a zero-delta exact-match test
                     "equivalent": equiv,
+                    "decisively_different": bool(not equiv),  # a non-identical zero-width column IS a real diff
+                    "underpowered": False,  # zero-width exact-match case: a difference is real, not underpower
                     "degenerate_zero_width": True,
                 }
             )
             n_equiv += int(equiv)
             continue
         res = paired_tost(col_a, col_b, low=-delta, high=delta)
+        # THREE-WAY TOST OUTCOME (Lakens 2017) operationalising the module's n=30 underpower caveat (was
+        # documented-only; surfaced 2026-07-09). Given the 90% CI [ci_low, ci_high]:
+        #   * EQUIVALENT           — CI ⊂ (-delta, delta): bounded difference (a positive claim).
+        #   * DECISIVELY_DIFFERENT — CI entirely BEYOND ±delta (ci_low>=delta or ci_high<=-delta): a real
+        #     effect LARGER than the SESOI — decisive non-equivalence, NOT a power artefact.
+        #   * UNDERPOWERED (=inconclusive) — neither: the CI STRADDLES a ±delta boundary, so the design
+        #     cannot resolve equivalence. A non-equivalent verdict here is UNINFORMATIVE (low power at this
+        #     n/Delta), NOT contamination — so an analyst cannot misread all_equivalent=False as a positive
+        #     contamination finding. This crucially does NOT mis-flag a decisively-contaminated coefficient
+        #     (whose CI sits far beyond ±delta) as "underpowered" — that is decisively_different.
+        ci_low, ci_high = float(res["ci_low"]), float(res["ci_high"])
+        ci_halfwidth = float((ci_high - ci_low) / 2.0)
+        equivalent = bool(res["equivalent"])
+        decisively_different = bool(ci_low >= delta or ci_high <= -delta)
+        underpowered = bool(not equivalent and not decisively_different)
+        # Reported companion: P(a TRUE-null coefficient would be declared equivalent at this n/Delta) =
+        # 2·Phi(t_crit·(delta/h - 1)) - 1 for half-width h < delta, else 0 — a continuous resolving-power
+        # readout (min over coeffs vs TOST_UNDERPOWER_FLOOR summarises whether the A/B can resolve equivalence).
+        if ci_halfwidth <= 0.0:
+            equiv_power_null = 1.0
+        elif ci_halfwidth >= delta:
+            equiv_power_null = 0.0
+        else:
+            equiv_power_null = float(2.0 * stats.norm.cdf(t_crit * (delta / ci_halfwidth - 1.0)) - 1.0)
         per_coeff.append(
             {
                 "name": names[k],
@@ -315,13 +353,28 @@ def named_vs_blinded_tost(
                 "sd_within": sd_within,
                 "mean_diff": res["mean_diff"],
                 "p_tost": res["p_tost"],
-                "ci_low": res["ci_low"],
-                "ci_high": res["ci_high"],
-                "equivalent": bool(res["equivalent"]),
+                "ci_low": ci_low,
+                "ci_high": ci_high,
+                "ci_halfwidth": ci_halfwidth,
+                "equiv_power_null": equiv_power_null,
+                "equivalent": equivalent,
+                "decisively_different": decisively_different,
+                "underpowered": underpowered,
             }
         )
-        n_equiv += int(bool(res["equivalent"]))
+        n_equiv += int(equivalent)
 
+    # Family-level power summary (2026-07-09): so a consumer reading ``all_equivalent=False`` can tell
+    # whether the non-equivalence is DECISIVE or merely UNDERPOWERED at this n/Delta. ``any_underpowered``
+    # True ⟹ at least one coefficient has achieved null-equivalence power below TOST_UNDERPOWER_FLOOR, so a
+    # non-equivalent verdict must NOT be read as a positive contamination finding (the POWER WARNING, now
+    # machine-readable). ``min_equiv_power_null`` is the weakest coefficient's power (finite entries only).
+    n_underpowered = int(sum(1 for c in per_coeff if c.get("underpowered")))
+    _finite_powers = [
+        float(c["equiv_power_null"])
+        for c in per_coeff
+        if isinstance(c.get("equiv_power_null"), float) and np.isfinite(c["equiv_power_null"])
+    ]
     return {
         "status": "ok",
         "n_seeds": int(n_seeds),
@@ -331,6 +384,11 @@ def named_vs_blinded_tost(
         "n_equivalent": int(n_equiv),
         "all_equivalent": bool(n_equiv == n_coeffs),
         "fraction_equivalent": float(n_equiv / n_coeffs),
+        "n_underpowered": n_underpowered,
+        "fraction_underpowered": float(n_underpowered / n_coeffs),
+        "any_underpowered": bool(n_underpowered > 0),
+        "min_equiv_power_null": (min(_finite_powers) if _finite_powers else float("nan")),
+        "power_floor": float(TOST_UNDERPOWER_FLOOR),
     }
 
 
@@ -606,11 +664,22 @@ def named_vs_blinded_oos_gap(
     # interval comes from the SAME bootstrap draws (no second bootstrap); ci_low/ci_high stay 95%.
     ci90_low, ci90_high = (float(q) for q in np.quantile(draws, [0.05, 0.95]))
     equivalent = bool(ci90_low > -sesoi and ci90_high < sesoi)
+    # THREE-WAY TOST outcome (mirrors named_vs_blinded_tost, 2026-07-09) so a NON-equivalent OOS gap is
+    # machine-readably attributable to LOW POWER vs a REAL identity-driven performance gap:
+    #   * decisively_different — the 90% bootstrap CI lies ENTIRELY beyond ±SESOI (a real gap > SESOI,
+    #     i.e. identity revelation moved out-of-sample Sharpe more than the SESOI — decisive contamination);
+    #   * underpowered (=inconclusive) — the CI straddles a ±SESOI boundary, so the A/B cannot resolve
+    #     equivalence at this n; a non-equivalent verdict here is UNINFORMATIVE, NOT contamination.
+    decisively_different = bool(ci90_low >= sesoi or ci90_high <= -sesoi)
+    underpowered = bool(not equivalent and not decisively_different)
     out: dict[str, Any] = {"status": "ok", "n_seeds": len(common), "sesoi": float(sesoi)}
     out.update({k: float(v) for k, v in res.items()})
     out["ci90_low"] = ci90_low
     out["ci90_high"] = ci90_high
+    out["ci90_halfwidth"] = float((ci90_high - ci90_low) / 2.0)
     out["equivalent"] = equivalent
+    out["decisively_different"] = decisively_different
+    out["underpowered"] = underpowered
     return out
 
 
@@ -654,11 +723,23 @@ def post_cutoff_persistence(
     if rng is None:
         rng = np.random.default_rng(0)
     res = paired_seed_difference_test(pre, post, statistic=iqm, n_boot=n_boot, rng=rng)
+    ci_low, ci_high = float(res["ci_low"]), float(res["ci_high"])
+    # Machine-readable version of the underpower caveat (2026-07-09; mirrors the L90/L91 contamination legs
+    # so "report effect+CI, not p" is ACTIONABLE, not just prose). ``effect`` = pre_iqm - post_iqm: a
+    # POSITIVE value means the H2 gap SHRANK after the model cutoff — the contamination signal (a memorised
+    # advantage fades on unseen post-cutoff data).
+    #   * ``gap_shrank_post_cutoff`` — the 95% CI is entirely POSITIVE (ci_low > 0): decisive shrinkage.
+    #   * ``underpowered`` — the CI INCLUDES ZERO: a non-significant result CANNOT be read as persistence
+    #     (evidence AGAINST contamination); it is equally consistent with LOW POWER on the short post-cutoff
+    #     window, so it is uninformative — exactly what the caveat warns, now machine-readable.
     out: dict[str, Any] = {
         "status": "ok",
         "n_seeds": len(common),
         "pre_iqm": float(iqm(pre)),
         "post_iqm": float(iqm(post)),
+        "ci_halfwidth": float((ci_high - ci_low) / 2.0),
+        "gap_shrank_post_cutoff": bool(ci_low > 0.0),
+        "underpowered": bool(ci_low <= 0.0 <= ci_high),
         "caveat": (
             "post-cutoff window is short; this comparison is underpowered (deep-research §5.9). "
             "Report the effect size + CI, not the p-value alone."

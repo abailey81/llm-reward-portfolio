@@ -13,6 +13,7 @@ from src.inference.bootstrap import (
     cvar,
     cvar_difference_test,
     null_calibration,
+    paired_seed_difference_test,
     sharpe_difference_test,
     sharpe_ratio,
     stationary_bootstrap_indices,
@@ -112,6 +113,39 @@ def test_sharpe_test_null_calibration() -> None:
     assert 0.35 <= res["mean_pvalue"] <= 0.65
 
 
+def test_paired_seed_difference_one_sided_null_calibration() -> None:
+    """R64 / audit-2026-07-02: certify the ONE-SIDED size of the ACTUAL headline rule.
+
+    The co-primary H2-Tail leg rejects on ``pvalue_one_sided_greater`` (the direct upper-tail p, valid
+    under a skewed CVaR bootstrap), NOT the two-sided ``pvalue`` — and ONLY ``paired_seed_difference_test``
+    exposes it (``sharpe``/``cvar_difference_test`` do not, so the two calibration tests above exercise
+    the two-sided branch ONLY, never ``rejection_rate_one_sided``). The module docstring flags exactly
+    this as the size that "can drift" under skew. Under a true exchangeable null the one-sided rule must
+    be correctly sized (~alpha) with a mean p ~0.5; this certifies the R64 branch the tail IUT depends on.
+    """
+    rng = np.random.default_rng(20260709)
+
+    def sampler(r):
+        return r.standard_normal(24), r.standard_normal(24)  # exchangeable null: a, b iid same dist
+
+    def test_fn(a, b):
+        return paired_seed_difference_test(a, b, n_boot=600, rng=rng)
+
+    res = null_calibration(test_fn, sampler, n_reps=300, rng=rng)
+    # The R64 one-sided branch actually fired (the keys the two-sided-only calibration tests never see).
+    for key in ("rejection_rate_one_sided", "mean_pvalue_one_sided", "pvalues_one_sided"):
+        assert key in res
+    assert np.asarray(res["pvalues_one_sided"]).shape == (300,)
+    assert np.all(np.isfinite(res["pvalues_one_sided"]))
+    # The ONE-SIDED rule (the tail IUT's actual decision statistic) is correctly sized under the null:
+    # ~alpha (measured 0.06), does not drift high, and is not vacuously never-rejecting.
+    assert 0.01 <= res["rejection_rate_one_sided"] <= 0.12
+    assert 0.40 <= res["mean_pvalue_one_sided"] <= 0.60  # ~Uniform(0,1) mean 0.5 (measured 0.5003)
+    # The two-sided branch on the SAME headline test stays well-sized too.
+    assert res["rejection_rate"] <= 0.12
+    assert 0.40 <= res["mean_pvalue"] <= 0.60
+
+
 def test_cvar_test_null_calibration() -> None:
     rng = np.random.default_rng(11)
 
@@ -188,6 +222,39 @@ def test_expected_max_sharpe_increases_with_trials() -> None:
     e10 = expected_max_sharpe(1.0, 10)
     e1000 = expected_max_sharpe(1.0, 1000)
     assert e1000 > e10 > 0.0
+
+
+def test_dsr_single_trial_does_not_saturate_regression_r65() -> None:
+    """R65 / DEEP_AUDIT 2026-06-28: the ``n_trials <= 1`` guard in ``expected_max_sharpe``.
+
+    Before the fix, ``n_trials == 1`` gave ``norm.ppf(1 - 1/1) = ppf(0) = -inf`` so ``sr_star = -inf``
+    and ``deflated_sharpe_ratio(x, n_trials=1) == 1.0`` for EVERY series -- even a strongly NEGATIVE-Sharpe
+    one. That silently saturated the H1/T0 benchmark-floor gate (every un-searched benchmark DSR read 1.0,
+    so a winner could never clear the floor). The guard makes a single trial (no multiplicity) benchmark
+    against ``sr_star = 0``, i.e. the DSR reduces to the PSR against zero.
+    """
+    # The guard clauses return exactly 0.0 (documented contract): N <= 1, and a non-positive var_sr.
+    assert expected_max_sharpe(1.0, 1) == 0.0
+    assert expected_max_sharpe(1.0, 0) == 0.0
+    assert expected_max_sharpe(0.0, 100) == 0.0
+    assert expected_max_sharpe(-1.0, 100) == 0.0
+
+    rng = np.random.default_rng(65)
+    neg = -0.02 + 0.01 * rng.standard_normal(500)  # strongly negative per-period Sharpe (~ -2)
+    pos = 0.02 + 0.01 * rng.standard_normal(500)  # strongly positive per-period Sharpe (~ +2)
+    # The bug's signature: a losing series must NOT saturate to 1.0 -- with sr_star=0 it is < 0.5.
+    dsr_neg = deflated_sharpe_ratio(neg, n_trials=1)
+    dsr_pos = deflated_sharpe_ratio(pos, n_trials=1)
+    assert dsr_neg < 0.5 < dsr_pos
+    assert dsr_neg < 0.99  # pre-fix this was exactly 1.0 for the loser
+    # And the documented reduction is EXACT: DSR(., n_trials=1) == PSR against sr_star=0 on the same moments.
+    r = pos.astype(float)
+    mu, sd = float(r.mean()), float(r.std(ddof=1))
+    z = (r - mu) / sd
+    sr, skew, kurt = mu / sd, float(np.mean(z**3)), float(np.mean(z**4))
+    assert dsr_pos == pytest.approx(
+        probabilistic_sharpe_ratio(sr, 0.0, r.size, skew, kurt), abs=1e-12
+    )
 
 
 def _dsr_from_inputs(sr, skew, kurt, n, var_sr, n_trials):
@@ -316,6 +383,38 @@ def test_romano_wolf_rejects_strong_signal() -> None:
     rej = romano_wolf(stats, boot, alpha=0.05)
     assert rej[0]
     assert not rej[3]
+
+
+def test_romano_wolf_controls_fwer_under_complete_null() -> None:
+    """Romano-Wolf's DEFINING guarantee (docstring: "strong control of the family-wise error rate"):
+    under the COMPLETE null (every hypothesis true) the probability of ANY false rejection is <= alpha.
+
+    Monte-Carlo calibration: the observed statistics AND the bootstrap null are drawn from the SAME
+    distribution (one-sided, larger = more evidence), so the max-statistic critical value should admit a
+    false rejection at rate ~alpha and never materially above it. The structural tests
+    (``..._stops_at_first_non_rejection``, ``..._is_order_aware_stepdown``) prove the stepdown mechanics;
+    this proves those mechanics actually deliver the error guarantee -- the one property the whole method
+    exists to provide, previously never empirically verified. Deterministic seed (replayable; no
+    wall-clock / global RNG).
+    """
+    def _fwer(m: int, alpha: float, n_reps: int = 1500, n_boot: int = 1500) -> float:
+        rng = np.random.default_rng(20260709)
+        hits = 0
+        for _ in range(n_reps):
+            stats = rng.standard_normal(m)
+            boot = rng.standard_normal((n_boot, m))
+            if romano_wolf(stats, boot, alpha=alpha).any():
+                hits += 1
+        return hits / n_reps
+
+    fwer_05 = _fwer(4, 0.05)  # measured 0.0433 at this seed
+    fwer_10 = _fwer(4, 0.10)  # measured 0.0940 at this seed
+    # Strong control: at or below nominal, never materially above it (the guarantee, with MC/quantile slack).
+    assert fwer_05 <= 0.065
+    assert fwer_10 <= 0.125
+    # ...and genuinely calibrated, not a vacuously-never-rejecting implementation.
+    assert fwer_05 >= 0.025
+    assert fwer_10 >= 0.060
 
 
 # ---------------------------------------------------------------------------

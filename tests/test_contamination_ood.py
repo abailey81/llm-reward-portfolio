@@ -157,6 +157,18 @@ def test_named_vs_blinded_tost_is_underpowered_at_30_seeds() -> None:
     out = named_vs_blinded_tost(named, blinded)
     assert out["status"] == "ok"
     assert out["all_equivalent"] is False  # underpowered at Delta=0.5*SD, n=30
+    # The 2026-07-09 three-way flag makes the underpower MACHINE-READABLE: because every coefficient here
+    # is TRUE-NULL (named/blinded share the truth), the non-equivalence is a POWER failure — the null CIs
+    # straddle ±delta (inconclusive), so ``any_underpowered`` is True and a consumer CANNOT misread it as
+    # contamination. And the achieved resolving power is below the floor.
+    assert out["any_underpowered"] is True
+    assert out["n_underpowered"] >= 1
+    assert out["min_equiv_power_null"] < out["power_floor"]  # the A/B under-resolves equivalence at n=30
+    # The three-way outcome is a valid PARTITION: each coefficient is EXACTLY one of
+    # {equivalent, decisively_different, underpowered(=inconclusive)}, and power is a valid probability.
+    for c in out["per_coefficient"]:
+        assert 0.0 <= c["equiv_power_null"] <= 1.0
+        assert (int(c["equivalent"]) + int(c["decisively_different"]) + int(c["underpowered"])) == 1
 
 
 def test_named_vs_blinded_tost_flags_a_contaminated_coefficient() -> None:
@@ -174,6 +186,13 @@ def test_named_vs_blinded_tost_flags_a_contaminated_coefficient() -> None:
     assert out["per_coefficient"][1]["equivalent"] is False
     # The untouched coefficients remain equivalent.
     assert out["per_coefficient"][0]["equivalent"] is True
+    # KEY distinction (2026-07-09 three-way flag): at n=200 the A/B is well-powered, so the contaminated
+    # coefficient's NON-equivalence is DECISIVE (its CI sits far beyond ±delta), NOT a power artefact —
+    # coefficient 1 is ``decisively_different`` and NOT ``underpowered``, and ``any_underpowered`` is False.
+    # This is exactly what separates real contamination from low-n noise (the earlier lazy-declined flag).
+    assert out["per_coefficient"][1]["decisively_different"] is True
+    assert out["per_coefficient"][1]["underpowered"] is False
+    assert out["any_underpowered"] is False
 
 
 def test_named_vs_blinded_tost_no_data_paths() -> None:
@@ -292,20 +311,66 @@ def test_named_vs_blinded_oos_gap_equivalence_within_sesoi() -> None:
     res = named_vs_blinded_oos_gap(named, blinded, sesoi=0.05, rng=rng)
     assert res["status"] == "ok"
     assert res["equivalent"] is True
+    # Three-way outcome (2026-07-09): an equivalent gap is neither decisively-different nor underpowered.
+    assert res["decisively_different"] is False
+    assert res["underpowered"] is False
+    assert (int(res["equivalent"]) + int(res["decisively_different"]) + int(res["underpowered"])) == 1
     # And degrades gracefully with too few shared seeds.
     assert named_vs_blinded_oos_gap({0: 1.0}, {0: 1.0})["status"] == "no_data"
+
+
+def test_named_vs_blinded_oos_gap_decisively_different_when_labels_move_sharpe() -> None:
+    """A LARGE named-minus-blinded OOS-Sharpe gap (>> SESOI) is DECISIVELY different, not underpowered."""
+    rng = np.random.default_rng(SEED)
+    seeds = range(30)
+    named = {s: 0.80 + 0.02 * rng.standard_normal() for s in seeds}   # revealing identity lifts OOS Sharpe
+    blinded = {s: 0.50 + 0.02 * rng.standard_normal() for s in seeds}  # by ~0.30 >> SESOI=0.05
+    res = named_vs_blinded_oos_gap(named, blinded, sesoi=0.05, rng=rng)
+    assert res["status"] == "ok"
+    assert res["equivalent"] is False
+    assert res["decisively_different"] is True   # the 90% CI sits entirely beyond +SESOI: a real gap
+    assert res["underpowered"] is False          # decisive, NOT a power artefact
+    assert (int(res["equivalent"]) + int(res["decisively_different"]) + int(res["underpowered"])) == 1
 
 
 def test_post_cutoff_persistence_runs_and_carries_caveat() -> None:
     rng = np.random.default_rng(SEED)
     seeds = range(20)
-    pre = {s: 0.3 + 0.05 * rng.standard_normal() for s in seeds}
-    post = {s: 0.28 + 0.05 * rng.standard_normal() for s in seeds}  # gap persists
+    pre = {s: 0.28 + 0.05 * rng.standard_normal() for s in seeds}
+    post = {s: 0.28 + 0.05 * rng.standard_normal() for s in seeds}  # gap persists (equal pre/post gaps)
     res = post_cutoff_persistence(pre, post, rng=rng)
     assert res["status"] == "ok"
     assert "underpowered" in res["caveat"]
     assert np.isfinite(res["pre_iqm"]) and np.isfinite(res["post_iqm"])
+    # Machine-readable underpower flag (L92) — not just the text caveat.
+    assert isinstance(res["underpowered"], bool)
+    assert isinstance(res["gap_shrank_post_cutoff"], bool)
+    assert res["ci_halfwidth"] == pytest.approx((res["ci_high"] - res["ci_low"]) / 2.0)
+    # Definitional invariants (hold for ANY draw): the flags are exactly the CI-vs-zero verdict, and a
+    # decisive post-cutoff shrinkage and "underpowered/inconclusive" are mutually exclusive.
+    assert res["gap_shrank_post_cutoff"] == bool(res["ci_low"] > 0.0)
+    assert res["underpowered"] == bool(res["ci_low"] <= 0.0 <= res["ci_high"])
+    assert not (res["underpowered"] and res["gap_shrank_post_cutoff"])
+    # Gap persists (equal pre/post means) -> effect ~0, the CI straddles zero, so a non-significant
+    # result is UNINFORMATIVE (equally consistent with persistence or low power), not proof of no drift.
+    assert res["underpowered"] is True
+    assert res["gap_shrank_post_cutoff"] is False
     assert post_cutoff_persistence({0: 1.0}, {0: 1.0})["status"] == "no_data"
+
+
+def test_post_cutoff_persistence_flags_decisive_shrinkage() -> None:
+    # If the H2 gap DECISIVELY shrinks after the cutoff (the contamination signature — a memorised
+    # advantage fades on unseen post-cutoff data), the machine-readable flag must fire and NOT be
+    # mislabelled underpowered. pre gap ~0.60, post gap ~0.10 => ~0.50 >> the ~0.016 SE.
+    rng = np.random.default_rng(SEED)
+    seeds = range(20)
+    pre = {s: 0.60 + 0.05 * rng.standard_normal() for s in seeds}
+    post = {s: 0.10 + 0.05 * rng.standard_normal() for s in seeds}
+    res = post_cutoff_persistence(pre, post, rng=rng)
+    assert res["status"] == "ok"
+    assert res["ci_low"] > 0.0                      # CI entirely above zero
+    assert res["gap_shrank_post_cutoff"] is True
+    assert res["underpowered"] is False             # decisive, not inconclusive
 
 
 def test_cross_model_disagreement_small_when_models_agree() -> None:

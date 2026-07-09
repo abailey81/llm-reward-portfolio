@@ -2124,7 +2124,12 @@ def main() -> None:
     # --no-resume forces a fresh (possibly re-billing) run. Previously the key was never read.
     resume = resolve_resume(bool(args.resume), bool(args.no_resume), cfg_get(camp, "resume", False))
     arms = args.arms.split(",") if args.arms else list(camp["arms"])
-    seeds = [int(s) for s in camp["seeds"]]
+    # Seeds via the schema resolver (B-A3): a bare list resolves to itself (byte-identical to the old
+    # ``[int(s) for s in camp["seeds"]]``), while a ``{mode: uniform/tiered, …}`` schema expands to the
+    # flat [0..N-1] set. The freeze binds on this resolved set (freeze.py mirrors the same resolver).
+    from src.utils.seeds import resolve_seeds
+
+    seeds = resolve_seeds(camp["seeds"])
     search_seed = int(args.search_seed if args.search_seed is not None else seeds[0])
     candidates = int(camp["candidates_per_arm"])
     train_steps = int(camp["train_steps_per_candidate"])

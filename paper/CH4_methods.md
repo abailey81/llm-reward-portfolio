@@ -133,7 +133,11 @@ levels taken empirically; a guard falls back to the empirical estimate in the no
 $\xi\le-0.5$ where the maximum-likelihood estimator is unreliable [`smith1985maximum`]. We disclose the
 finite-sample fragility of an extreme-value tail on a few hundred observations [`belzile2020improved`;
 `cont2010robustness`] and treat the fed CVaR as a noisy signal whose noise biases *against* detecting a channel
-effect. A bias-corrected peaks-over-threshold estimator [`troop2021biascorrected`] would in principle sharpen
+effect. We flag one precedent boundary explicitly: McNeil and Frey validated a peaks-over-threshold
+shortfall estimator at a comparable sample size [`mcneil2000estimation`], but fit the generalised-Pareto
+tail to pre-whitened AR(1)–GARCH residuals rather than the raw realised returns we use, so their
+window-size precedent transfers while the absolute precision at the deepest levels does not. A
+bias-corrected peaks-over-threshold estimator [`troop2021biascorrected`] would in principle sharpen
 the extreme levels, but its second-order regular-variation correction is validated for heavy tails at large
 samples and is ill-conditioned in our regime (a few hundred observations at the 5%/1% levels), so we retain
 the plain maximum-likelihood fit and record the correction as future work. The theoretical justification for
