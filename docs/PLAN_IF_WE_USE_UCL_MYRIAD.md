@@ -370,6 +370,90 @@ arm is named the #1 future-work arm in CH7.
   ("~3,600 GPU-h over 7–10 days on EF") — granted priority at 24–38 sustained turns Stage 1
   into a 4–6-day affair.
 
+## §5b — HOW TO USE MYRIAD PROPERLY + THE MAXIMISED WALL-CLOCK (added 2026-07-09; Tamer: "maximise as much as possible… precisely calculate the time all trainings would take in days" + "add to the plan how to use Myriad properly")
+
+### The precise wall-clock (exact training counts × measured per-training time × bracketed packing F)
+
+**Model.** `effective throughput = C_physical × 1.715 × F  trainings/h`, where `C_physical` = V100s
+held, `1.715 = 1 / 0.583 h` is the measured per-V100 UNPACKED rate (laptop 61 min ÷ 1.75 Linux/V100
+speed-up = 35 min; honest range 24–44 min), and `F` = the packing factor (our ~2–3 GiB trainings
+underutilise the 16 GiB V100, so 4–5 processes fit; the EFFECTIVE speed-up is compute-contention-capped
+≈ **1.75 central, up to ~2.5 aggressive** — **RE-MEASURED at G1** with the 2-process pack smoke).
+**Stage 1 is V100-only** (device-homogeneity rule caps confirmatory concurrency at the 38-GPU EF pool).
+
+| WORKLOAD (exact trainings) | C=12·F1.75 (cautious) | C=24·F1.75 (central) | C=38·F1.75 (all V100) | **C=38·F2.5 (MAX)** |
+|---|---|---|---|---|
+| **Distinction floor — n=30, COMPLETE study** [1,104] | 1.3 d | 0.6 d | 0.4 d | **0.28 d (~7 h)** |
+| **Stage 1 @95% — n=403 + D1 (the dissertation)** [6,141] | 7.1 d | 3.6 d | 2.2 d | **1.6 d** |
+| **Stage 1 @99% — n=568** [8,121] | 9.4 d | 4.7 d | 3.0 d | **2.1 d** |
+| **ALL 16,391 trainings (incl. Stage 2), V100-only worst case** | 19.0 d | 9.5 d | 6.0 d | **4.2 d** |
+
+**Bottom line at maximum Myriad:** the **complete distinction study banks in ~0.3–0.6 days** (hours);
+the **full confirmatory dissertation (95%) in ~1.6–3.6 days**; **99% assurance in ~2.1–4.7 days**; and
+**every training we could ever run (all 16,391) in ~4–6 days of compute**. Stage 2's 10,250 report-only
+trainings additionally recruit the 24 A100-40 + 12 A100-80 pools (~1.4× faster + deeper packing) and
+OVERLAP the write-up, so they never touch the critical path — the grade is secured in the first ~2 days;
+the rest is background. The two honest irreducibles are `F` (packing) and sustained fair-share `C`, both
+MEASURED in G1 before the timeline commits; per-training time varies ±40% (24–44 min).
+
+### How to MAXIMISE (push every lever to the ceiling)
+1. **Pack the GPU** — the #1 lever, ×1.75–2.5. Launch N training processes per `gpu=1` job; device
+   cgroups (10 Aug 2022) make the GPU cgroup-exclusive, so packing is safe with **no MPS daemon
+   required**. ~2–3 GiB/training → 4–5 fit a 16 GiB V100; the speed-up is SM-contention-capped, not
+   memory-capped, so MEASURE F at G1 and raise the per-job process count to the knee.
+2. **Hold the whole V100 pool** — up to ×3 over C=12. Submit every array with `-tc 38` (= the EF pool
+   size), never artificially throttled; fair-share is the only governor. Fresh fair-share + the ARR
+   priority window turns Stage 1 into a 2–4-day affair.
+3. **Front-load on fresh fair-share** — priority decays as you consume, so run Stage 1 when priority is
+   highest; Stage 2 rides the decayed tail.
+4. **Two pools for Stage 2** — the report-only fleet runs on L/A100-40 + U,V/A100-80 (bigger memory packs
+   far more small trainings; ~1.4× faster/training), doubling+ Stage-2 throughput without touching
+   Stage-1 homogeneity.
+5. **Zero-barrier pipelining** — pre-submit each arm's 403-seed test array with an SGE `-hold_jid` on its
+   search-final marker, so the test floods the instant search ends (no driver latency; no arm waits for
+   another — see the §5 MAXIMUM-PARALLELISM AUDIT).
+6. **ARR → CRAG** (co-signed by Dr Okhrati) — a short priority-window request ("~3,600 GPU-h over 7–10
+   days on EF") converts fair-share into 24–38 SUSTAINED V100s.
+
+### How to USE Myriad PROPERLY (the operational do's — violate any and you lose time or data)
+- **Job shape:** `-l gpu=1 -pe smp 4 -l mem=8G -l tmpfs=15G -l h_rt=3:0:0 -ac allow=EF` — small,
+  backfillable, 3 h (≥2× our ~35-min margin), V100-pinned for confirmatory; report-only uses `-ac allow=L`.
+- **Arrays, never `qsub` loops:** one generation / one test-leg = ONE array (`-t 1-N -tc 38`); respect the
+  ~100-queued / ~10-submits-per-second caps; `#$ -r y` auto-reruns on node death (the driver also requeues).
+- **Archive is the ONLY truth:** home == Scratch (1 TB, UNBACKED) → nightly mirror-back
+  Myriad→laptop→D:→Mac (3-site); NOTHING lives only on Myriad. Gold panel staged on ACFS (backed,
+  read-only on compute) or node-local `$TMPDIR` (1.5 TB, WIPED on job end — copy results out before exit).
+- **Never run on login nodes** (>15 min = killed): the driver runs on the LAPTOP over the UCL VPN; ssh is
+  used only for `qsub`/`qstat`/`tar`. The driver is disconnect-tolerant (rides out multi-hour VPN drops).
+- **Own venv, built on LOCAL fs** (torch 2.6.0 + cu124 wheels) — NOT on home/Scratch (inode quota);
+  Apptainer (`--nv`, no Dockerfile, image built on local fs) is the pinned fallback.
+- **Walltime discipline:** 48 h max (multi-core) — our 3 h jobs never approach it; checkpointed short jobs,
+  not one long process (Myriad's own guidance for long computations).
+- **G0 → G1 → freeze certification** before ANY confirmatory unit: G0 = access + `nvidia-smi -L` confirms
+  cgroup isolation (packing) + venv/Apptainer build; G1 = MEASURE the real F, sustained C, and per-training
+  fps on a live V100 → re-anchor this table → `recommend_assurance_target(tph, days)` picks 95%/99% inside
+  the calendar − 25% buffer (falls back to the floor if even 90% won't fit; the exogenous stop keeps the
+  single look valid).
+- **Acknowledgement (mandatory):** "The author acknowledges the use of the UCL Myriad High Performance
+  Computing Facility (Myriad@UCL), and associated support services, in the completion of this work." —
+  verbatim in the dissertation Acknowledgements + the paper.
+- **Don't confuse Myriad with the CS-dept cluster:** Myriad uses `-l mem=` / `gpu=1`, NOT `tmem` /
+  `gpu=true` / `/share/apps`.
+
+### Precedent — papers that used Myriad (validation, not enumeration)
+Myriad is a general UCL facility acknowledged with ONE standard sentence across every discipline (materials,
+quantum, spectroscopy, ML), so "all papers" is neither cleanly enumerable nor useful; the precedent that
+actually validates OUR workload/throughput:
+- **arXiv:2303.10672** — UCL MDP value-iteration on Myriad **A100s** (~2.4× consumer→A100): validates GPU-RL
+  on the exact pools and our 1.75× laptop→V100 assumption.
+- **nf-core** production Myriad profile (`sge`, `queueSize 100`, `10/1 s`, `smp`): validates the array-job
+  throughput shape we submit.
+- **arXiv:2507.13246** (carbon-cost of materials discovery, ML/GPU) & **arXiv:2306.10365** (continuous-time
+  quantum walks for MAX-CUT): confirm the acknowledgement precedent + Myriad GPU use across fields.
+- Myriad's **stated design intent** — "high I/O, high throughput jobs that will run within a single node
+  rather than multi-node parallel jobs" — is our workload verbatim (thousands of independent single-GPU
+  trainings); quote it in the paper's compute section.
+
 ## §6 ZERO-PROBLEM ENGINEERING (prevent → detect → respond → REHEARSE before go-live)
 
 | Class | Prevent | Detect | Respond | Rehearsal (in G1) |
