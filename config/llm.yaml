@@ -55,6 +55,9 @@ open_weights_check_model: "qwen/qwen3-coder"  # R71 SECONDARY panel (Qwen3-Coder
                                               #   from Opus, via OpenRouter): Kimi K2.6 (moonshotai/kimi-k2.6, MIT —
                                               #   now stronger at coding) or GLM-5.1 (z-ai/glm-5.1, MIT). A model swap
                                               #   needs a one-line prose update (the 2nd-model name), nothing more.
+                                              #   VERIFIED LIVE 2026-07-10 (scripts/smoke_qwen.py, Tamer's key):
+                                              #   served_model='qwen/qwen3-coder-480b-a35b-07-25' <- the R71
+                                              #   reproducibility-anchor snapshot; response 'OK', 32 tokens.
 open_weights_provider: openrouter             # OpenAI-compatible transport (src/llm/client.py registry);
                                               #   base URL = https://openrouter.ai/api/v1 (registry default)
 open_weights_api_key_env: OPENROUTER_API_KEY  # read from the gitignored .env; NEVER committed. OpenRouter key =
