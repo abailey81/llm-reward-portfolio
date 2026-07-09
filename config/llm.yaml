@@ -43,17 +43,22 @@ candidates_per_generation: 5                # = budget / generations
 # "secondary panel not yet run" — it gates on second-model DATA, not on this pin), NOT a silent skip; the
 # secondary panel is a SEPARATE run. Until run, the write-up says "the single Claude family (Sonnet ->
 # Opus) for the confirmatory headline; the second-family panel is a pre-registered secondary run."
-open_weights_check_model: "qwen3-coder-480b-a35b-instruct"  # R71 SECONDARY panel (Qwen3-Coder, 2026-07-01
-                                              #   decision unchanged). 2026-07-06: served FIRST-PARTY via Alibaba
-                                              #   Cloud Model Studio (the vendor's own host) and pinned to the
-                                              #   OPEN-WEIGHTS snapshot id — downloadable forever, the strongest
-                                              #   reproducibility anchor (supersedes the OpenRouter routing;
-                                              #   the old slug was qwen/qwen3-coder). Verified live 2026-07-06
-                                              #   against the workspace's /models (148 visible).
-open_weights_provider: dashscope              # OpenAI-compatible transport (src/llm/client.py registry);
-                                              #   base URL = DASHSCOPE_BASE_URL from .env (personal workspace
-                                              #   endpoint; public intl endpoint is the committed default)
-open_weights_api_key_env: DASHSCOPE_API_KEY   # read from the gitignored .env; NEVER committed
+open_weights_check_model: "qwen/qwen3-coder"  # R71 SECONDARY panel (Qwen3-Coder-480B-A35B, OPEN-WEIGHTS).
+                                              #   2026-07-09: reverted DashScope -> OpenRouter. Tamer cannot obtain
+                                              #   the Alibaba DashScope key; OpenRouter serves the SAME open-weights
+                                              #   model and the transport ARCHIVES the served snapshot
+                                              #   (response.model -> ProvenanceRecord.served_model), so it remains a
+                                              #   valid reproducibility anchor — the "anchor" is the OPEN-WEIGHTS
+                                              #   model (downloadable forever), not the host. A ":free" tier for this
+                                              #   slug exists (since 2026-02); ":exacto" pins best tool-calling.
+                                              #   SAME-LEVEL-OR-BETTER swaps if preferred (all open-weights, distinct
+                                              #   from Opus, via OpenRouter): Kimi K2.6 (moonshotai/kimi-k2.6, MIT —
+                                              #   now stronger at coding) or GLM-5.1 (z-ai/glm-5.1, MIT). A model swap
+                                              #   needs a one-line prose update (the 2nd-model name), nothing more.
+open_weights_provider: openrouter             # OpenAI-compatible transport (src/llm/client.py registry);
+                                              #   base URL = https://openrouter.ai/api/v1 (registry default)
+open_weights_api_key_env: OPENROUTER_API_KEY  # read from the gitignored .env; NEVER committed. OpenRouter key =
+                                              #   simple global signup + card (or the free tier) — no Alibaba account.
 
 archive: true                               # store rendered prompt + raw response + parsed reward per call
 archive_dir: outputs/runs                   # keyed by run id (see src/io/results.py)
