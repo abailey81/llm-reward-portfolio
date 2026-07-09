@@ -396,6 +396,27 @@ OVERLAP the write-up, so they never touch the critical path — the grade is sec
 the rest is background. The two honest irreducibles are `F` (packing) and sustained fair-share `C`, both
 MEASURED in G1 before the timeline commits; per-training time varies ±40% (24–44 min).
 
+### The bottleneck (ULTRADEEP, MEASURED — why the per-training time is what it is)
+A training is **NOT compute-bound and NOT env-bound — it is per-step GPU-submission-LATENCY-bound + Python-
+host-loop-bound** (measured; `docs/MAX_THROUGHPUT_RUN_PLAN.md` §Deep-Dive-2). At 200k steps × ~18 ms/step
+(laptop, 55 steps/s): the env physics is **49 µs = 0.3%**; the rest is **~40% single-threaded SB3 Python
+loop (CPU)** + **~60% two GPU round-trips per step (action inference + 1 gradient update), each paying WDDM
+submission latency**. The net is a **256×256 MLP, batch 256, 1 env** (confirmed in `config/algos.yaml`) —
+its matmuls are microseconds on ANY GPU, so it never meaningfully uses a V100's SMs, let alone an A100's
+tensor cores. Three consequences that FIX the model:
+- **Linux V100 ≈ 1.75× (1.4–2.5×) faster** = removing WDDM shrinks the ~60% GPU-side fraction; the speed-up
+  is FLOORED by the ~40% single-thread Python loop, which the Xeon Gold (Skylake ~3.7 GHz) runs **no faster
+  than** the laptop's Raptor-Lake P-core (~4.9 GHz). That floor is why it cannot exceed ~2.5×.
+- **A100 ≈ V100 per training** — its ONLY edge is memory → more packing (this corrects the earlier "~1.4×"
+  note; the workload never touches the tensor cores).
+- **Packing is the ONLY real throughput lever.** It fills the per-step GPU idle (each latency-bound training
+  leaves the GPU idle most of the step). Its ceiling is the node's BINDING resource: **GPU-memory on the
+  V100 (~5/GPU → ~10/node), CPU-CORES on the dense A100 nodes (~9/GPU on L's 36c, ~12/GPU on U/V's 48c —
+  the single-thread Python loops need cores, so memory's 16–32/GPU is NOT reachable)**. Linux's lower
+  per-call latency plausibly RAISES F above the laptop-measured 1.75, so the MAX column may be conservative.
+  G1's 2-process pack smoke MEASURES F; a Fused-Adam A/B (fewer kernel launches per update) is the one
+  micro-lever that also helps on Linux.
+
 ### How to MAXIMISE (push every lever to the ceiling)
 1. **Pack the GPU** — the #1 lever, ×1.75–2.5. Launch N training processes per `gpu=1` job; device
    cgroups (10 Aug 2022) make the GPU cgroup-exclusive, so packing is safe with **no MPS daemon
@@ -406,9 +427,11 @@ MEASURED in G1 before the timeline commits; per-training time varies ±40% (24�
    priority window turns Stage 1 into a 2–4-day affair.
 3. **Front-load on fresh fair-share** — priority decays as you consume, so run Stage 1 when priority is
    highest; Stage 2 rides the decayed tail.
-4. **Two pools for Stage 2** — the report-only fleet runs on L/A100-40 + U,V/A100-80 (bigger memory packs
-   far more small trainings; ~1.4× faster/training), doubling+ Stage-2 throughput without touching
-   Stage-1 homogeneity.
+4. **Two pools for Stage 2** — the report-only fleet runs on L/A100-40 + U,V/A100-80. The A100 gives **≈ 0
+   per-training speed-up** (latency/host-bound workload — see the bottleneck note above); its value is
+   PURELY more PACKING per node, which on those dense 4-GPU nodes is **CPU-CORE-bound (~9–12/GPU)**, not
+   memory-bound. Still multiplies Stage-2 throughput (~36–48 concurrent/node) without touching Stage-1
+   homogeneity.
 5. **Zero-barrier pipelining** — pre-submit each arm's 403-seed test array with an SGE `-hold_jid` on its
    search-final marker, so the test floods the instant search ends (no driver latency; no arm waits for
    another — see the §5 MAXIMUM-PARALLELISM AUDIT).
