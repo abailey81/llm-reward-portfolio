@@ -128,10 +128,19 @@ def test_write_specs_requires_resume_identity(tmp_path):
 
 
 def test_jobscript_apptainer_launcher_is_on_the_run_line():
-    """V3 regression: containerized jobs must actually LAUNCH through apptainer."""
+    """V3 regression: containerized jobs must actually LAUNCH through apptainer.
+    G1 regression (2026-07-10, caught against the live cluster): the container image is BARE
+    python — the run line must call the VENV interpreter through the container, and $TMPDIR
+    (NOT auto-bound by apptainer) plus the gold dir must be explicitly --bind mounted, or the
+    staged-gold env var points at a path that does not exist inside the container."""
     from src.cluster.jobscript import render_jobscript
     js = render_jobscript("t2", 5, "/r", "/inputs", apptainer_sif="~/llmrp.sif")
-    assert "apptainer exec --nv ~/llmrp.sif python -m src.cluster.run_one" in js
+    assert (
+        'apptainer exec --nv --bind "$TMPDIR,/inputs" ~/llmrp.sif '
+        "~/venvs/llmrp/bin/python -m src.cluster.run_one" in js
+    )
+    # the bare container python must never be the interpreter
+    assert "llmrp.sif python -m" not in js
     assert "source ~/venvs" not in js
 
 

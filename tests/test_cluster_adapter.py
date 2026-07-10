@@ -89,9 +89,25 @@ def test_epilogue_line_produces_valid_json_under_real_bash(tmp_path):
     import shutil
     import subprocess
 
-    bash = shutil.which("bash")
+    # Resolve a bash that actually RUNS: on Windows, which("bash") can hit the WSL shim in
+    # System32, which fails with a relay error when no distro is installed (seen live after
+    # the 2026-07-10 OS in-place repair). Probe each candidate and use the first working one.
+    candidates = [shutil.which("bash"), r"C:\Program Files\Git\usr\bin\bash.exe"]
+    bash = None
+    for cand in candidates:
+        if not cand:
+            continue
+        try:
+            probe = subprocess.run(
+                [cand, "-c", "echo ok"], capture_output=True, text=True, timeout=15
+            )
+        except OSError:
+            continue
+        if probe.returncode == 0 and probe.stdout.strip() == "ok":
+            bash = cand
+            break
     if bash is None:
-        pytest.skip("no bash on this host")
+        pytest.skip("no working bash on this host")
     js = render_jobscript("t", 2, "/r", "/inputs")
     echo_line = next(ln for ln in js.splitlines() if ln.startswith("echo "))
     ledger = tmp_path / "t.epilogue.jsonl"

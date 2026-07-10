@@ -94,17 +94,26 @@ def render_jobscript(
 
     name = sanitize_name(name)
     hold_line = f"#$ -hold_jid {hold_jid}\n" if hold_jid else ""
+    gold_dir = gold_dir.rstrip("/")
     # V3 audit fix: the launcher is PART OF THE RUN LINE — the old apptainer branch set a shell
     # variable the run line never used (containerized jobs would have crashed on bare python).
     if apptainer_sif is None:
         env_line = f"source {venv}/bin/activate"
         launcher = "python"
     else:
-        env_line = f"# containerized: {apptainer_sif}"
-        launcher = f"apptainer exec --nv {apptainer_sif} python"
+        # G1 audit fix (2026-07-10): the container image is BARE python — every dep lives in
+        # the venv on $HOME (auto-bound), so the run line must call the VENV interpreter
+        # through the container, not the container's own `python`. And $TMPDIR is NOT
+        # auto-bound: without the explicit --bind, the staged-gold dir and TORCH_HOME would
+        # not exist inside the container and gold reads would fall back to a data/gold that
+        # is absent on nodes. gold_dir is bound too, for the cp-failed ACFS fallback path.
+        env_line = f"# containerized: {apptainer_sif} (venv python called through the container)"
+        launcher = (
+            f'apptainer exec --nv --bind "$TMPDIR,{gold_dir}" {apptainer_sif} {venv}/bin/python'
+        )
     return _TEMPLATE.format(
         name=name, n_tasks=n_tasks, remote_root=remote_root.rstrip("/"),
-        gold_dir=gold_dir.rstrip("/"), pool=pool, tc=tc, priority=priority,
+        gold_dir=gold_dir, pool=pool, tc=tc, priority=priority,
         hold_line=hold_line, pack=pack, cores=cores, mem_per_core=mem_per_core,
         tmpfs=tmpfs, h_rt=h_rt, env_line=env_line, launcher=launcher,
         repo_root=repo_root.rstrip("/"),
