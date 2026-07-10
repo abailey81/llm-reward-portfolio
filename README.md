@@ -8,7 +8,8 @@ A pre-registered study in which a large language model authors the **reward-func
 portfolio agent, and the *feedback channel* of its reflection loop is the manipulated variable.
 
 [![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-1500%2B%20passing-2ea44f)](#reproducibility)
+[![Tests](https://img.shields.io/badge/tests-2000%2B%20passing-2ea44f)](#reproducibility)
+[![Compute](https://img.shields.io/badge/compute-UCL%20Myriad%20HPC%20%C2%B7%20SGE-orange)](docs/PLAN_IF_WE_USE_UCL_MYRIAD.md)
 [![Pre-registered](https://img.shields.io/badge/design-pre--registered-8957e5)](PREREGISTRATION.md)
 [![Determinism](https://img.shields.io/badge/results-replay--from--archive-0072B2)](#design-principles)
 [![Lint](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
@@ -36,6 +37,12 @@ point-in-time** equity panel with a sealed test period — and the headline is f
 prediction**: it asks not merely *whether* the richer channel wins, but *why or why not*, supported by a
 mechanism analysis (reward-code structural distance, designer responsiveness, and a prompt-leakage
 fingerprint). The contribution is the **method and the evidence**, not a trading product.
+
+A **secondary, pre-registered replication** uses an open-weights author (Qwen3-Coder-480B, served via
+OpenRouter with the exact snapshot archived) as the study's reproducibility anchor and cross-model
+contamination check — it never enters the confirmatory family. The confirmatory campaign runs on the
+**UCL Myriad HPC cluster** (SGE batch arrays; device-homogeneous pools), with a laptop track kept in
+full parity as the certified fallback.
 
 ## Contributions
 
@@ -78,11 +85,13 @@ src/
   search/       Search baselines (random-search-over-code, BO-over-template)
   inference/    Bootstrap, PBO/CSCV, Deflated Sharpe, rliable, Bayes-null, MCS, reward-code distance
   viz/          Publication-grade figure engine (Okabe-Ito, honest-null discipline)
+  cluster/      UCL Myriad (SGE) adapter: content-addressed specs, LF-safe jobscripts, batch driver,
+                the full campaign orchestrator — every science primitive REUSED (laptop == cluster)
   io/ utils/    Results schema + the sole analysis loader; deterministic seeding, config, provenance
 config/         Single source of truth (11 YAMLs) — code reads config, never hardcodes
 prompts/        Versioned LLM prompt templates
-scripts/        Entry points: smoke_test · learning_curve · power_analysis · freeze · run_campaign · analyze_campaign · make_figures · monitor
-tests/          1500+ behaviour tests (invariances, bounds, calibration, parallel == serial replay)
+scripts/        Entry points: smoke_test · learning_curve · power_analysis · freeze · run_campaign · run_campaign_cluster · analyze_campaign · make_figures · monitor
+tests/          2,000+ behaviour tests (invariances, bounds, calibration, parallel == serial replay)
 data/           Synthetic panel + checksums + provenance (the licensed gold panel is git-ignored — see below)
 data_pipeline/  Self-contained Refinitiv -> gold acquisition pipeline (provenance, reproducibility)
 paper/          Dissertation + ICAIF manuscript + bibliography
@@ -94,7 +103,7 @@ PREREGISTRATION.md   The frozen design record and amendment log
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.lock && pip install -e .  # exact pinned env (torch==2.6.0+cu124)
-make test                  # 1500+ behaviour tests on the deterministic core (no GPU required)
+make test                  # 2,000+ behaviour tests on the deterministic core (no GPU required)
 make freeze                # cryptographically freeze the design, then run the confirmatory campaign
 ```
 
