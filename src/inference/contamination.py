@@ -232,12 +232,12 @@ def named_vs_blinded_tost(
     bounds), which then overrides the data-driven width.
 
     POWER WARNING (load-bearing limitation, not a bug). With ``Delta = 0.5 * SD`` the equivalence
-    bound is TIGHT: at the campaign's 30 main-experiment seeds the 90% CI half-width on the paired
+    bound is TIGHT: at the tier-0 floor (n=30) the 90% CI half-width on the paired
     mean difference is comparable to ``Delta``, so a genuinely null (label-irrelevant) coefficient
     will typically NOT clear the bound — a measured ``all_equivalent = False`` at n=30 is
     underpowered, NOT evidence of contamination. The named-vs-blinded A/B is a CHEAP dedicated
     sub-experiment (one reward authoring + one cheap eval per seed; it does NOT re-run the 50k-step
-    main training), so it should run many more seeds than the campaign (empirically ~150-200 seeds
+    main training), so it should run more seeds than the tier-0 floor (empirically ~150-200 seeds
     give >0.95 power for the all-coefficient claim at ``Delta = 0.5 * SD``). Report the per-
     coefficient CIs and the achieved power, and pre-register either the seed count or a wider
     ``Delta`` — do not silently read a low-power non-rejection as contamination.

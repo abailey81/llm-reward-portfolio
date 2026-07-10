@@ -4,6 +4,15 @@
 > campaign runs **laptop-only on the owned RTX 4050** (~2–3 weeks; no rented cloud — **no cloud-compute budget**;
 > a WSL2/GPU speed path was probed and rejected). The per-arm / per-seed accounting below is still useful for sizing; ignore
 > the rental-venue recommendation. Current plan: `docs/CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md` + ADR-040.
+>
+> **⚠ FURTHER SUPERSEDED by Amendment E1 (2026-07-10) + Myriad.** Two things below are now stale: (1) the
+> winners×30 ≈ 210 winner-training accounting — the winner seed count is now the assurance-tier ladder
+> `[30, 100, 189, 279, 340, 403, 568]` (flat n=568, uniform across the ~12 test-leg units), so every
+> GPU-hour / wall-clock band anchored on ×30 must be recomputed per-tier; and (2) the venue — the
+> confirmatory campaign now runs on the **UCL Myriad cluster** (V100-PCIE-32GB, containerised), not the
+> laptop. The per-tier bands cannot be finalised until the G1 throughput probe measures the sustained
+> concurrency × packing factor (still queued 2026-07-10); see
+> `docs/G0_G1_CLUSTER_CERTIFICATION_2026-07-10.md` and the CHANGELOG tier-0 core estimate (~644 GPU-h).
 
 **Authoritative compute reference** for the campaign. Supersedes the earlier "$50 Colab" (MASTER_PLAN
 Part VI) and "RTX 4090 + UCL Myriad" (FINAL_PLAN Part I) assumptions, because: (a) the student has **no

@@ -78,9 +78,11 @@ if ($Myriad) {
     if (-not $PSBoundParameters.ContainsKey('CampaignArgs')) {
         # The FROZEN roster (config/campaign.yaml): 7 arms + 4 H1 baselines. A reboot-recovery MUST resume
         # the complete, correct campaign — a wrong default would resume an incomplete/broken roster.
+        # --tiered means the config seed schema (the E1 ladder [0..567]) drives the tiers; --seeds is
+        # ignored here. Kept at the full ladder as a belt-and-suspenders default in case --tiered is dropped.
         $CampaignArgs = "--tiered " +
             "--arms distributional scalar placebo scalar_cvar5 placebo_shuffled random_search bayes_opt " +
-            "--baselines raw_return return_minus_variance return_minus_cvar differential_sharpe --seeds 0-402"
+            "--baselines raw_return return_minus_variance return_minus_cvar differential_sharpe --seeds 0-567"
     }
     $inner = "`"$pythonExe`" `"$supervisor`" --no-preflight --campaign `"$clusterEntry`" -- $CampaignArgs --resume"
 } else {

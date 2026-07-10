@@ -2,10 +2,18 @@
 # timing and the pilot. CPCV is applied to WINNERS, not per-candidate (audit B-3).
 arms: [distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt]
 candidates_per_arm: 30                 # matched across arms; tune via scoping tree (cut candidates before seeds before folds)
-# Amendment D2 (2026-06-19, user-approved; PREREGISTRATION §6/§12): per-arm WINNER seed count 5 -> 30
-# (>=20; Henderson 2018, Colas et al.). SEARCH budget untouched — each candidate trains at 1 seed during
-# search; only the per-arm winners are re-run at these 30 seeds (seeds-on-winners, ADR-023).
-seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]   # named, concrete (audit C-6); recorded in every artifact
+# Amendment E1 (2026-07-10, supervisor-approved; PREREGISTRATION §6/§12): per-arm WINNER seed count is
+# the ASSURANCE-TIER LADDER (mode: tiered) resolving to the flat set [0..567]. SEARCH budget untouched —
+# each candidate trains at 1 seed during search; only the per-arm winners are re-run at these seeds
+# (seeds-on-winners, ADR-023). Tiers are cumulative + order-only (CRN pairing preserved, every tier a
+# COMPLETE study; a truncation falls back to the largest COMPLETED rung, so rung spacing caps the
+# worst-case discarded seeds): 30 = distinction core (CVaR leg conclusive; mechanism complete) ->
+# 100 = sigma-precision insurance rung (sigma_D itself estimated to ~±10%) -> 189 = MC point-estimate
+# power (Sharpe leg decisive if sigma_D is as measured) -> 279 = 80% assurance (chi-square upper bound)
+# -> 340 = 90% -> 403 = 95% (the primary target) -> 568 = 99%. The STOPPING tier is determined
+# EXOGENOUSLY by measured cluster throughput against the deadline, never by inspecting results — this
+# preserves the single confirmatory look (power_analysis.ASSURANCE_TIER_BOUNDS mirrors this ladder).
+seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}   # schema; resolve_seeds -> [0..567]
 cpcv:
   apply_to: winners                    # CPCV on the fixed winners for inference, NOT inside each candidate
   n_blocks: 16                         # even S for C(S, S/2) splits (PBO)
@@ -71,7 +79,8 @@ llm:
   h3_singleshot_generations: 1         # H3 single-shot CONTROL generation count (DEEP_H3 §1, canonical contrast):
                                        #   the distributional arm re-searched at generations:1 spends the WHOLE
                                        #   candidates_per_arm (30) budget in ONE generation -> best-of-N, no reflection.
-                                       #   Same winner selector (validation DSR) + same 30 winner seeds as the headline
+                                       #   Same winner selector (validation DSR) + same winner seed set (the E1
+                                       #   tiered ladder [0..567], Amendment E1) as the headline
                                        #   iterative arm; archived to a SEPARATE root (search_h3_singleshot/,
                                        #   test_h3_singleshot/distributional) for the analyze-H3 difference test.
 
@@ -99,7 +108,8 @@ auto_shutdown_on_complete: false       # rented-GPU-era knob, DISARMED 2026-07-0
 # was a line-number error — the prereg has only §1-§12, DEEP_H1 C-1. Eureka, Ma et al. 2024). The LLM-designed
 # winner is compared, POST-FREEZE and REPORT-ONLY, against the BEST of these hand-designed rewards.
 # Each name MUST be a real key in src/baselines/rewards.py::REWARD_CANON; the baseline TEST stage reads
-# THIS list (no hardcoding — CLAUDE.md) and runs each baseline at the same 30 seeds as the winners.
+# THIS list (no hardcoding — CLAUDE.md) and runs each baseline at the same winner seed set (the E1
+# tiered ladder [0..567], uniform across all test-leg units — Amendment E1) as the winners.
 # These four are the FROZEN H1 family (named in PREREGISTRATION §1 H1; mirrored + freeze-gated via
 # config/preregistration.yaml h1_baselines); the 9-name eureka_loop.yaml panel is a
 # documented SECONDARY set. Baselines are UN-SEARCHED, so their Deflated Sharpe is deflated by N=1

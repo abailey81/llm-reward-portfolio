@@ -216,7 +216,8 @@ reported sensitivity rather than the primary rule. The structure-shuffled arm en
 never as a fourth leg of the conjunction.
 
 Inference is **per-seed and aggregate-robust**, following the reinforcement-learning evaluation standard
-[`agarwal2021rliable`]: each arm is re-run at **thirty random seeds**, each seed's score is reduced to an
+[`agarwal2021rliable`]: each arm is re-run at the pre-registered **winner-seed ladder** (Amendment E1; a
+cumulative tiered schedule up to n = 568, primary target 403, with an exogenous stopping tier), each seed's score is reduced to an
 interquartile mean, and contrasts are tested by a paired stratified bootstrap over shared seeds, carrying the
 across-seed variance rather than the anti-conservative within-path variance. The realised left tail is
 additionally examined by an Expected-Shortfall scoring comparison on the jointly-elicitable Fissler–Ziegel (FZ0)
@@ -276,7 +277,7 @@ falsifiable test in which a *null* is informative rather than uninterpretable.
 | Train/test **leakage** across the split boundary | A **60-session purge and embargo** covering the full feature lookback |
 | Untrusted model-authored code **exfiltrating or corrupting** shared state | An **AST allowlist gate** plus in-process execution on anonymised, read-only arrays |
 | The designer's memorised knowledge of the test era inflating results ("profit-mirage" contamination [`li2025profitmirage`]) | **Date-blind authorship** — anonymised integer-index arrays, the AST gate, train-split-only feedback; residual era-nonspecific reward-shape priors are arm-identical and cancel in the contrast |
-| *Within-path* variance understating uncertainty (anti-conservative inference) | **Thirty seeds** with a per-seed rliable interquartile mean and a paired stratified bootstrap |
+| *Within-path* variance understating uncertainty (anti-conservative inference) | The **winner-seed ladder** (up to n = 568) with a per-seed rliable interquartile mean and a paired stratified bootstrap |
 | A non-rejection misread as a *failure* rather than a bounded *equivalence* | A pre-registered **TOST equivalence** margin ($\pm0.05$ Deflated-Sharpe units) against the SESOI |
 | **Forking paths** / post-hoc goalpost-moving | A **SHA-256 freeze** of the full design before the sealed leg, plus an append-only deviations log |
 | **Cross-hypothesis** multiplicity (H1–H4) | A reported **Bonferroni-across-four** sensitivity over the separate estimands |

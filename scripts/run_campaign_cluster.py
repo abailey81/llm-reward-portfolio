@@ -164,7 +164,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--baselines", nargs="*", default=None,
                    help="H1 hand-designed baseline REWARD_CANON names (fixed rewards, no search; "
                         "flood the pool from minute 0). Omit to skip the H1 leg.")
-    p.add_argument("--seeds", default="0-29", help="Test seeds: comma list and/or a-b ranges (0-402).")
+    p.add_argument("--seeds", default="0-567", help="Test seeds for the NON-tiered path: comma list "
+                   "and/or a-b ranges. Default = the full E1 ladder [0..567]. IGNORED under --tiered "
+                   "(the config seed schema drives the tiers).")
     p.add_argument("--search-seed", type=int, default=0)
     p.add_argument("--candidates", type=int, default=30)
     p.add_argument("--generations", type=int, default=6)

@@ -31,7 +31,7 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   PopArt; a divergence diagnostic; the analysis is robust to excluding diverged candidates, which score poorly and
   lose selection regardless.
 - **B.2.4 Single deterministic validation path.** Selection rests on one deterministic walk-forward path per
-  (candidate, seed). *Mitigation:* the 30-seed winner re-evaluation and PBO/DSR machinery; selection-stability
+  (candidate, seed). *Mitigation:* the winner-seed ladder re-evaluation (up to n = 568) and PBO/DSR machinery; selection-stability
   reported.
 - **B.2.5 Pretraining contamination ("profit mirage").** The designer has memorised financial history that
   includes the sealed era [`li2025profitmirage`]. *Mitigation:* date-blind anonymised integer-index arrays, the

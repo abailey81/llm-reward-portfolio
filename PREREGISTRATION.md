@@ -4,7 +4,9 @@
 amendments — the **mechanism-headline + numeracy reframe (§2a)**, **λ=0 (§5)**, the **rf/cash numeraire (§10)**,
 and the **serial-headline protocol (§6)** — are **RATIFIED** (user-delegated authority 2026-07-01) and mirrored in
 `config/preregistration.yaml`. The freeze (`scripts/freeze.py`, which hashes this into `docs/DECISION_LOG.md`) is
-now gated on only **one remaining item**: the **σ_D pilot** (seed-variance → the winner seed count 30 vs 50).
+now **fully determined**: the **σ_D pilot** has run and its result (σ_D = 0.369) is recorded in
+**Amendment E1 (2026-07-10)**, which sets the winner seeds to the assurance-tier ladder and retires the
+old "30 vs 50" rule — so every design parameter is FIXED/DECIDED and the pre-registration is freeze-ready.
 **B\* is SET: 200,000 (R74, 2026-07-02 — the Split-C convergence pilot; R70's extend-until-converged criterion
 amended with its measured structural blind spot on flat-noise curves).** An **OPTIONAL** model-panel (ADR-039)
 amendment remains (a secondary, budget-dependent generality probe — the headline is Opus-single). The freeze runs only on the user's explicit go. Until frozen, editable; after freeze, changes require an explicit,
@@ -224,8 +226,8 @@ the agent's critic.
 > **Honesty (registered limitations).** (i) The decomposition is **observational/associational**: the fed tail
 > is **endogenous** (the trained policy's own realized returns; §2), so SQ2's mediation has a causal reading
 > only under sequential ignorability (Imai, Keele & Tingley 2010) — reported as a descriptive mechanism
-> decomposition, never a causal proof. (ii) At 30 main-experiment seeds some sub-tests (e.g. the
-> named-vs-blinded equivalence) are underpowered; the dedicated, cheap A/B sub-experiments run more seeds, and
+> decomposition, never a causal proof. (ii) At the tier-0 floor (n = 30) some sub-tests (e.g. the
+> named-vs-blinded equivalence) are underpowered; the dedicated, cheap A/B sub-experiments run more seeds than that floor, and
 > effect sizes + CIs + achieved power are reported, never a bare non-rejection. (iii) Search width K = 5 and
 > the single Claude model family bound the generality of any mechanism claim; the multi-model panel (ADR-039)
 > is the registered generality probe.
@@ -300,7 +302,31 @@ CPCV is applied to the **fixed winners afterward** for inference — NOT inside 
 > is unchanged — the SEARCH budget is untouched: each candidate is trained at **1 seed during search**; only
 > the per-arm **winners** are re-run at **30 seeds** (the "seeds-on-winners" lever, ADR-023). Candidate
 > budget, fitness, λ, splits, and hypotheses are unchanged. See §12 and the amendment record;
-> `config/preregistration.yaml: seeds` is `[0..29]`.
+> at D2 `config/preregistration.yaml: seeds` was `0–29` (n=30) — **superseded by Amendment E1 (2026-07-10),
+> below**, which raises the winner seeds to the assurance-tier ladder.
+
+> **Amendment E1 (2026-07-10, supervisor-approved) — winner seed count → the assurance-tier ladder.**
+> The σ_D pilot has now run (`scripts/sigma_seed_pilot.py`): across 15 CRN seed-pairs the difference
+> standard deviation is **σ_D = 0.369** (σ_seed = 0.244, ρ = −0.141, not significant), which **fires the
+> pre-registered σ_D > 0.10 trigger**. The old rule ("30 → 50 seeds if σ_D > 0.10") is therefore
+> **retired**: 50 seeds cannot bring the Sharpe-leg equivalence interval inside the SESOI = 0.05 when
+> σ_D = 0.369, so the fixed "50" is unattainable and is replaced by a variance-anchored **assurance
+> ladder**. The per-arm WINNER seed count becomes the tiered schema
+> `seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}`, resolving to the flat set
+> **[0..567]** — a **headline seed count 568**. The tiers are cumulative and order-only (CRN pairing
+> preserved; each tier a COMPLETE study), and each rung has a pre-registered meaning:
+> **30** = the distinction-bankable core (H2 + mechanism + H1 + H3 all complete; the CVaR-5% co-primary
+> leg — σ_D = 0.0015, ρ = +0.47 — is already conclusive here); **100** = the σ-precision insurance rung
+> (the σ_D estimate itself tightens to ≈ ±10%, so the seed-noise-dominance finding becomes precise);
+> **189** = the Monte-Carlo point-estimate power rung (the Sharpe-leg TOST is decisive if σ_D is as
+> measured; naive-normal analogue ≈ 147); **279 / 340 / 403 / 568** = 80% / 90% / **95% (the primary
+> target)** / 99% equivalence assurance, powering the SESOI at the χ²-upper confidence bound on σ_D
+> (`power_analysis.ASSURANCE_TIER_BOUNDS`). Because a truncated run falls back to the largest COMPLETED
+> rung, the rung spacing also caps the worst-case number of completed-but-unusable seeds — the
+> insurance rationale for the intermediate rungs. The STOPPING tier is determined **EXOGENOUSLY** by
+> measured Myriad throughput against the 1 Sep deadline, **never by inspecting results** — an exogenous
+> truncation that preserves the single confirmatory look. SEARCH budget, matched compute, candidate
+> budget, fitness, λ, splits, arms, and hypotheses are all unchanged. See §12 and the amendment record.
 
 > **Pre-freeze amendment (2026-06-24) — optional reflect-on-BEST parallel SEARCH + matched 50k buffer.**
 > A parallel SEARCH scheduler (`scripts/run_campaign.py --search-gpu N`, default **0 = serial**) is now
@@ -544,7 +570,7 @@ claim is **comparative**
 > **Leg decision (one-sided).** Each leg's per-seed rliable paired bootstrap (R16) returns a two-sided p;
 > the genuinely one-sided in-direction decision is `p_one = p_two / 2` when the effect is in the predicted
 > direction (`distributional` strictly better), else the leg does not reject (DEEP_H2 stats note A5). **(Superseded by R64, 2026-06-28: the leg p is now the DIRECT upper-tail bootstrap probability `pvalue_one_sided_greater = P(boot − obs ≥ obs)`, NOT `p_two/2` — halving the symmetric two-sided p is exactly valid ONLY under a symmetric bootstrap, whereas the direct upper-tail probability is exactly valid under ANY skew of the CVaR-difference bootstrap; the one-sided intersection-union METHOD is unchanged. See the amendment table, R64.)** No
-> change to the resampling unit, the IQM, the 30 seeds, the arms, the budget, λ, or the splits.
+> change to the resampling unit, the IQM, the seed set, the arms, the budget, λ, or the splits.
 >
 > **Rationale (a design CORRECTION justified a priori by the theory spine, NOT a post-hoc data switch).**
 > (i) A conjunction *is* an intersection–union test (Berger 1982), whose joint size is already ≤ the max
@@ -566,7 +592,8 @@ claim is **comparative**
 > R73 window 2026-07-02 — the statement must name the leg it actually protects).**
 > > *"We pre-registered, before observing the sealed 2020–2026H1 test leg, the hypotheses H2-RA and H2-Tail
 > > above, their three-leg intersection–union decision rules at α = 0.05, the directional predictions, the
-> > per-seed rliable IQM paired-bootstrap test over 30 winner seeds (Agarwal et al. 2021), the SESOI of
+> > per-seed rliable IQM paired-bootstrap test over the pre-registered winner-seed ladder (Amendment E1:
+> > tier-0 core n = 30 up to n = 568, primary target 403, exogenous stopping tier) (Agarwal et al. 2021), the SESOI of
 > > 0.05 DSR, and a symmetric TOST equivalence margin of ±0.05 (in the test-statistic's units). If neither
 > > H2-RA nor H2-Tail rejects, we report a **null**: at matched compute and with a fixed SB3-SAC agent,
 > > multi-level tail-risk feedback to an LLM reward-designer did **not** produce detectably better
@@ -651,7 +678,9 @@ the CVaR-5% arm.
 > matched-compute design, arms, seeds, and folds are unchanged — venue only; the Myriad → rented-4090 trail
 > above is retained as the amendment history.
 
-> **Amendment D2 (2026-06-19, user-approved) — winner seed count 5→30 (re-affirmed at §12).** The per-arm
+> **Amendment D2 (2026-06-19, user-approved) — winner seed count 5→30 (re-affirmed at §12; D2's winner
+> count 30 was subsequently raised to the E1 tiered ladder, 2026-07-10 — see the E1 note below and the
+> amendment record; the winners×30 ≈ 210 figures here are the D2-era historical bands).** The per-arm
 > WINNER seed count is raised from 5 to ≥20 (target **30**); the SEARCH budget is untouched (1 seed per
 > candidate during search; only the per-arm winners re-run at 30 seeds), so matched compute is unchanged.
 > The campaign run-count / GPU-hour bands are recomputed as **winners × 30** (now **≈7 arms × 30 ≈ 210**
@@ -660,7 +689,9 @@ the CVaR-5% arm.
 > test-leg trainings and the DSR trial count EXCEED the bare 180; the exact per-arm tally is read from the
 > run artifacts by `analyze_campaign.compute_accounting` (R35). The search legs are unchanged); see
 > `docs/COMPUTE_AND_TRAINING_TIME.md`. `config/{prereg,
-> campaign,inference}.yaml` carry the headline seed count 30 (`[0..29]`).
+> campaign,inference}.yaml` carry the assurance-tier ladder `{mode: tiered, tiers: [30, 100, 189, 279,
+> 340, 403, 568]}`, resolving to `[0..567]` — a headline seed count 568 (Amendment E1, 2026-07-10;
+> tier 0 = 0–29).
 
 ---
 
@@ -680,7 +711,8 @@ prose). Newest at the bottom.
 | Date | Id | § | Summary | YAML mirror |
 |---|---|---|---|---|
 | 2026-06-17 | ADR-023 | §12 | Compute venue: rented RTX 4090 + seeds-on-winners; no UCL Myriad. | — (compute venue) |
-| 2026-06-19 | D2 | §6, §12 | **Winner seed count 5→30** (target 30, ≥20; Henderson 2018, Colas et al.); search budget untouched (1 seed/candidate); GPU-hour bands recomputed as winners×30. User-approved. | `seeds: [0..29]` |
+| 2026-06-19 | D2 | §6, §12 | **Winner seed count 5→30** (target 30, ≥20; Henderson 2018, Colas et al.); search budget untouched (1 seed/candidate); GPU-hour bands recomputed as winners×30. User-approved. **Superseded by E1.** | `seeds: 0–29` (n=30) |
+| 2026-07-10 | E1 | §6, §12 | **Winner seeds → assurance-tier ladder** `{mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}` (flat `[0..567]`, headline 568). σ_D pilot fired the σ_D>0.10 trigger (σ_D=0.369, ρ=−0.141); the unattainable "30→50" rule is **retired**; cumulative order-only tiers, each a complete study with a pre-registered meaning (30 core / 100 σ-precision / 189 point-estimate power / 279=80% / 340=90% / 403=95% target / 568=99%); truncation falls back to the largest completed rung (spacing caps waste); **exogenous** stopping tier (throughput vs deadline, never results) preserves the single look. Search budget, matched compute, arms, hypotheses unchanged. Supervisor-approved. | `seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}` |
 | 2026-06-20 | R17 | §10 | **Test-universe limitation + PIT robustness**: the sealed test leg trades the development-phase 2005-cohort PIT top-30 (fixed action space -> consistent train/test universe), a documented composition bias (11/30 names differ from the 2018 PIT cohort); `load_gold_panel(phase="walk_forward", window_start=...)` enables a PIT-universe robustness re-evaluation (gated). Reported as a limitation, not silently inherited. | loader `window_start`; run_campaign caveat |
 | 2026-06-20 | R16 | §10 | **Per-seed (rliable) arm-contrast difference tests**: per-seed Sharpe/CVaR → IQM → paired stratified bootstrap over the shared training seeds (carries across-seed variance), realizing `seed_reporting: rliable_iqm`; supersedes the seed-AVERAGED-series bootstrap (anti-conservative ~21%→~5% null rejection). Family (m=6), correction, conjunction, R11 convention unchanged. `h2_conjunction` now wired into the analysis entry point. | `inference.{difference_test_unit, seed_reporting}` |
 | 2026-06-19 | R13 | §10 | **Multiple-testing family enumerated + FROZEN**: `{arm-contrast × {Sharpe, CVaR-0.05}}`, **m = 6** (incl. the H2 conjunction's 3 legs); BH q=0.05 primary, joint Romano-Wolf the FWER alternative; Harvey-Liu t>3 scoped to absolute-alpha claims only. | `inference.testing_family` (`m: 6`) |

@@ -218,7 +218,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("archive_root", help="Campaign output dir (the pulled mirror, e.g. outputs/campaign_cluster).")
     ap.add_argument("--arms", nargs="+", required=True)
     ap.add_argument("--baselines", nargs="*", default=None)
-    ap.add_argument("--seeds", default="0-402", help="Test seeds: comma list and/or a-b ranges.")
+    ap.add_argument("--seeds", default="0-567", help="Test seeds: comma list and/or a-b ranges. "
+                    "Default = the full E1 ladder [0..567]; pass a narrower range only to audit one tier.")
     ap.add_argument("--candidates", type=int, default=30)
     ap.add_argument("--k-search", type=int, default=1, help="search_seeds_per_candidate (k).")
     ap.add_argument("--frozen-root", default=None)

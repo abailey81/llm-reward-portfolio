@@ -56,7 +56,8 @@ def test_assurance_seed_ladder_reproduces_the_seed_decision():
     assert pa.assurance_seed_count(0.99)["n"] == 568  # the new 99% tier
     ns = [pa.assurance_seed_count(c)["n"] for c in (0.80, 0.90, 0.95, 0.99)]
     assert ns == sorted(ns)  # monotone in confidence
-    assert pa.ASSURANCE_TIER_BOUNDS == (30, 340, 403, 568)
+    # E1 ladder: 30 core / 100 σ-precision / 189 point-estimate power / 279=80% / 340=90% / 403=95% / 568=99%
+    assert pa.ASSURANCE_TIER_BOUNDS == (30, 100, 189, 279, 340, 403, 568)
     # σ_up at 90% is 0.495 (NOT 0.449 — that is the 80% bound; the seed-decision doc mislabels it)
     assert abs(pa.assurance_seed_count(0.90)["sigma_up"] - 0.495) < 0.002
     assert abs(pa.assurance_seed_count(0.80)["sigma_up"] - 0.449) < 0.002

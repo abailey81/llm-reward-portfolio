@@ -9,7 +9,7 @@
     "candidates_saturated": false,
     "candidates_diagnostic": "arms still improving at the last generation: ['scalar'] \u2014 the search budget is too small (their best is budget-limited); EXTEND candidates_per_arm",
     "candidates_ratified": 30,
-    "config_n_seeds": 30,
+    "config_n_seeds": 568,
     "train_steps_ratified": 200000,
     "numeraire_ratified_cash": 0.0
   },
@@ -26,7 +26,7 @@
       "class": "MEASURE",
       "method": "paired-CRN power at the SESOI",
       "determination": "scripts/power_analysis + sigma_seed pilot",
-      "status": "PENDING"
+      "status": "DETERMINED"
     },
     {
       "name": "candidates_per_arm",
@@ -141,8 +141,6 @@
       "status": "DECIDED"
     }
   ],
-  "freeze_ready": false,
-  "blockers": [
-    "n_seeds"
-  ]
+  "freeze_ready": true,
+  "blockers": []
 }

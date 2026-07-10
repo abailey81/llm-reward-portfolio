@@ -3,6 +3,33 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-10b] — AMENDMENT E1: the seed decision RECORDED (supervisor-approved) → FREEZE-READY
+
+Ramin approved the design in the 10-Jul meeting; Tamer ratified the assurance-tier ladder and
+instructed the freeze. Recorded as **Amendment E1** across the three seed carriers:
+
+- `config/campaign.yaml` + `config/preregistration.yaml`:
+  `seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}` (flat `[0..567]`, headline 568);
+  `config/inference.yaml` mirror updated to the same ladder. Every rung has a pre-registered meaning
+  (30 core / 100 σ-precision / 189 point-estimate power / 279=80% / 340=90% / 403=95% target / 568=99%),
+  and the intermediate rungs cap the worst-case seeds discarded on an exogenous truncation (a truncated
+  run falls back to the largest COMPLETED rung — with the old 30→340 gap, a truncation at seed 250 would
+  have discarded 220 completed seeds). `power_analysis.ASSURANCE_TIER_BOUNDS` mirrors the ladder.
+- `PREREGISTRATION.md`: the full E1 amendment block (σ_D = 0.369 fired the σ_D>0.10 trigger; the
+  unattainable "30→50" rule RETIRED; sizing 189 point-estimate → χ²-upper ladder 279/340/403/568;
+  CVaR-5% co-primary leg already conclusive at tier 0; **exogenous stopping tier** preserves the single
+  look) + amendment-table row + header updated to freeze-ready; historical D2 text preserved, marked
+  superseded.
+- **Three tiered-schema bugs fixed en route** (each would have mis-read the dict): `determine_design.py`
+  `config_n_seeds` used a raw `len()` (would read 2 and keep `n_seeds` PENDING forever);
+  `power_analysis.py` ×2 (silent fallback to the literal 30 / `list(dict)` yielding keys). All three now
+  resolve through `src.utils.seeds.resolve_seeds`. Three stale freeze-test fixtures updated to the
+  ratified schema (they pinned the old `[0..29]` literal); `tests/test_freeze.py` + `test_seeding.py`
+  58/58 green.
+- Gates: `determine_design` → **FREEZE-READY** (was `BLOCKED on: ['n_seeds']`); `freeze.py --check` all
+  green at the new canonical SHA-256 `4b116f64…` (chain `1c6b76b6` → `296a19ee` → `4b116f64`, every hop
+  this authorized E1 batch). Full suite re-run before the freeze act.
+
 ## [2026-07-10] — MYRIAD FIRST CONTACT: login → container environment → verified data staging → first GPU jobs queued; supervisor-meeting brief; Defender/OS repair; repo-identity cleanup
 
 The cluster went from "never logged in" to "certification jobs in the queue" in one morning, with

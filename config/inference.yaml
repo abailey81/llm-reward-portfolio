@@ -1,8 +1,10 @@
 # Inference machinery — PREREGISTRATION.md §6–7. Formulas implemented in src/stats_inference.py.
-# Amendment D2 (2026-06-19, user-approved; PREREGISTRATION §6/§12): headline per-arm WINNER seed count
-# raised 5 -> 30 (>=20; Henderson 2018, Colas et al.). Search budget untouched (seeds-on-winners, ADR-023);
-# the ablation seed set is unchanged.
-seeds: {headline: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29], ablation: [0,1,2]}
+# Amendment E1 (2026-07-10, supervisor-approved; PREREGISTRATION §6/§12): headline per-arm WINNER seeds
+# = the assurance-tier ladder (flat [0..567]): 30 core / 100 sigma-precision / 189 point-estimate power /
+# 279 (80%) / 340 (90%) / 403 (95% target) / 568 (99%); exogenous stopping tier. Search budget untouched
+# (seeds-on-winners, ADR-023); the ablation seed set is unchanged. This block is a documentation
+# MIRROR — the executed set lives in config/campaign.yaml and both resolve via src.utils.seeds.
+seeds: {headline: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}, ablation: [0,1,2]}
 
 splits:
   # SPLIT C (ADR-044 RATIFIED, executed 2026-07-02 with the ADR-051 univ5 rebuild): train grows to 12y

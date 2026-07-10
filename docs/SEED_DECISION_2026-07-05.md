@@ -1,5 +1,15 @@
 # The seed-count decision — precise analysis for ratification (2026-07-05)
 
+> **⚠ SUPERSEDED by Amendment E1 (2026-07-10).** This document recommends an **arm-adaptive** design
+> (`distributional` = `scalar` at n≈350, all other arms + H1 + H3 held at n=30). The ratified and frozen
+> decision is instead a **uniform assurance-tier ladder** `{mode: tiered, tiers: [30, 100, 189, 279, 340,
+> 403, 568]}` applied to **all** test-leg units, with the stopping tier chosen **exogenously** (measured
+> Myriad throughput vs the 1 Sep deadline). The uniform ladder is affordable because the campaign now runs
+> on the UCL Myriad cluster (not laptop-only), which this doc's §7 could not assume. The σ_D pilot numbers
+> and the χ²-upper-bound sizing method below remain valid and are what E1 uses; the **arm-adaptive
+> allocation and the 350/403 arm-specific counts are NOT the frozen design** — see PREREGISTRATION.md
+> Amendment E1 and `config/preregistration.yaml`. Do not cite this doc's allocation in the write-up.
+
 **Bottom line (recommendation unchanged, now independently re-derived and sharpened):**
 **arm-adaptive seeds — `distributional` = `scalar` = seeds 0..349 (n=350); every other arm + H1 baselines +
 H3 single-shot = seeds 0..29 (n=30).** Sized by **equivalence-test (TOST) power at the SESOI, evaluated at

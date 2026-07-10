@@ -10,10 +10,14 @@ contribution_axis: feedback_channel   # audit A-1: agent fixed (SAC), feedback v
 
 arms: [distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt]   # 7 arms; placebo_shuffled = the R32 structure-vs-content control (V1 reconcile 2026-06-26: was silently missing from the frozen roster while the campaign ran 7). DISJOINT from the m=6 testing family.
 matched_budget: 30
-# Amendment D2 (2026-06-19, user-approved; PREREGISTRATION §6/§12 + amendment record): per-arm WINNER seed
-# count raised 5 -> 30 (>=20 target; Henderson 2018, Colas et al.). SEARCH budget untouched (1 seed per
-# candidate during search; only the winners re-run at 30 seeds — the seeds-on-winners lever, ADR-023).
-seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+# Amendment E1 (2026-07-10, supervisor-approved; PREREGISTRATION §6/§12 + amendment record): per-arm
+# WINNER seed count is the ASSURANCE-TIER LADDER (mode: tiered), resolving to the flat set [0..567].
+# SEARCH budget untouched (1 seed per candidate during search; only the winners re-run at these seeds —
+# the seeds-on-winners lever, ADR-023). Cumulative, order-only tiers (CRN preserved, each a COMPLETE
+# study; truncation falls back to the largest COMPLETED rung): 30 core / 100 sigma-precision /
+# 189 point-estimate power / 279 (80%) / 340 (90%) / 403 (95%, primary target) / 568 (99%). Stopping
+# tier is EXOGENOUS (measured throughput vs deadline, never results) -> the single look is preserved.
+seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}
 
 tail_diagnostic_set:                  # measured on TRAINING returns; empirical body + EVT tails
   cvar_levels: [0.25, 0.10, 0.05, 0.01]   # cvar_01 retained but FLAGGED high-variance (B-7)
@@ -53,7 +57,8 @@ inference:
   # rliable per-seed method — per-seed Sharpe/CVaR -> IQM -> PAIRED stratified bootstrap over the shared
   # training seeds (paired_seed_difference_test), carrying the across-seed variance. This realizes the
   # `seed_reporting: rliable_iqm` intent AT the test and supersedes the prior seed-AVERAGED series
-  # bootstrap (anti-conservative ~21% vs the correctly-sized ~5% true-null rejection on 30 seeds). The
+  # bootstrap (anti-conservative ~21% vs the correctly-sized ~5% true-null rejection, measured on a
+  # 30-seed calibration sample — this is the method-calibration n, not the campaign winner count). The
   # re-centred convention (R11), the frozen family (R13, m=6), and the correction are unchanged.
   difference_test_unit: per_seed_iqm_paired_seed_bootstrap
   seed_reporting: rliable_iqm_poi_stratified_ci

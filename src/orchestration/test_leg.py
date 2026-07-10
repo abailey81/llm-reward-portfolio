@@ -1,8 +1,10 @@
-"""Shared + PARALLEL campaign TEST leg (the 180 winner re-runs).
+"""Shared + PARALLEL campaign TEST leg (the winner re-runs across the seed ladder).
 
-The campaign's TEST stage trains the FROZEN winner at each of 30 seeds and touches the sealed
-2020-2026 test leg EXACTLY ONCE per seed (``scripts/run_campaign.py::evaluate_winner_on_test``). Those
-180 ``(winner × seed)`` runs are embarrassingly parallel — each reseeds the full stack, trains from
+The campaign's TEST stage trains the FROZEN winner at each seed of the E1 assurance-tier ladder
+(``[30, 100, 189, 279, 340, 403, 568]``, flat ``[0..567]`` — resolved via ``src.utils.seeds``) and
+touches the sealed 2020-2026 test leg EXACTLY ONCE per seed
+(``scripts/run_campaign.py::evaluate_winner_on_test``). Those ``(winner × seed)`` runs are
+embarrassingly parallel — each reseeds the full stack, trains from
 scratch, and rolls the test leg once, with NO reflection coupling — so they run across the device pool
 via :func:`src.orchestration.parallel.run_recycling` for the max-throughput laptop campaign.
 

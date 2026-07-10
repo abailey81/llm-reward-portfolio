@@ -290,9 +290,12 @@ def _frozen_n_seeds(fallback: int = 30) -> int:
     NOT a hardcoded literal. Falls back to the literal only if config is unreadable."""
     try:
         from src.utils.config import load_config
+        from src.utils.seeds import resolve_seeds as _resolve_seeds
 
+        # 'seeds' is a bare list OR a schema ({mode: tiered/uniform, …}); resolve to the flat set so
+        # the realized paired n is correct for both forms (a raw len() of the dict would read 2).
         seeds = load_config("preregistration").get("seeds", None)
-        return int(len(seeds)) if isinstance(seeds, (list, tuple)) and seeds else int(fallback)
+        return int(len(_resolve_seeds(seeds))) if seeds else int(fallback)
     except Exception:  # noqa: BLE001 - config unreadable -> documented fallback
         return int(fallback)
 
@@ -1053,7 +1056,7 @@ ASSURANCE_N_POINT: int = 189
 ASSURANCE_SIGMA_HAT_D: float = 0.369  # the 15-CRN-pair pilot σ_D (2026-07-03 farm)
 ASSURANCE_PILOT_N: int = 15           # -> ν = 14
 #: The grade-securing TIER ladder (cumulative seed bounds): distinction-core → 90% → 95% → 99%.
-ASSURANCE_TIER_BOUNDS: tuple[int, ...] = (30, 340, 403, 568)
+ASSURANCE_TIER_BOUNDS: tuple[int, ...] = (30, 100, 189, 279, 340, 403, 568)
 
 
 def assurance_seed_count(
@@ -1101,8 +1104,9 @@ def recommend_assurance_target(
 ) -> dict[str, Any]:
     """Throughput-aware, deadline-safe assurance target — GRADE SECURITY operationalised.
 
-    The tier ladder (30 floor / 340=90% / 403=95% / 568=99%) says how many seeds each equivalence-power
-    level needs; this says how FAR up it we can safely go given the run's MEASURED speed and the calendar.
+    The tier ladder (30 floor / 100 σ-precision / 189 point-estimate power / 279=80% / 340=90% /
+    403=95% / 568=99%) says how many seeds each rung needs; this says how FAR up it we can safely go
+    given the run's MEASURED speed and the calendar.
     Given the effective throughput ``trainings_per_hour`` (already reflecting sustained concurrency AND
     GPU packing — a number MEASURED at G1, never guessed) and ``days_available`` before the submission
     buffer, return the HIGHEST assurance tier whose uniform-n sweep (``sweep_units`` units from
@@ -1256,9 +1260,15 @@ def _load_design_from_config() -> _DesignInfo:
     cpa = int(campaign.get("candidates_per_arm", 0))
     # n_seeds is the per-arm winner seed count (the realized paired n). Prefer the frozen prereg list.
     prereg = load_config("preregistration")
-    seeds_list = prereg.get("seeds", None)
-    if not isinstance(seeds_list, (list, tuple)) or not seeds_list:
-        seeds_list = list(campaign.get("seeds", list(range(DESIGN_N_SEEDS))))
+    # Prefer the frozen prereg seeds, then the campaign's; resolve either form (list OR schema) to
+    # the flat set. A naive list(dict) on the tiered schema would yield its keys, not the seeds.
+    from src.utils.seeds import resolve_seeds as _resolve_seeds
+
+    _sc = prereg.get("seeds") or campaign.get("seeds")
+    try:
+        seeds_list = _resolve_seeds(_sc) if _sc else list(range(DESIGN_N_SEEDS))
+    except Exception:  # noqa: BLE001 - malformed schema -> documented design default
+        seeds_list = list(range(DESIGN_N_SEEDS))
     n_trials = len(arms) * cpa
     return {
         "n_regimes_detected": int(n_regimes_detected),

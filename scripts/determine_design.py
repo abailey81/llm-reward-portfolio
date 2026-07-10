@@ -393,7 +393,13 @@ def _gather_evidence() -> dict[str, Any]:
 
         camp_cfg = load_config("campaign")
         ev["candidates_ratified"] = camp_cfg.get("candidates_per_arm")
-        ev["config_n_seeds"] = len(camp_cfg.get("seeds") or [])
+        # Seeds may be a bare list OR a schema ({mode: tiered/uniform, …}); resolve to the flat
+        # [0..N-1] set so the count is correct for BOTH forms. A naive len() on the tiered dict
+        # would read 2 (its key count), spuriously keeping n_seeds PENDING after ratification.
+        from src.utils.seeds import resolve_seeds as _resolve_seeds
+
+        _sc = camp_cfg.get("seeds")
+        ev["config_n_seeds"] = len(_resolve_seeds(_sc)) if _sc else 0
     except Exception:  # noqa: BLE001
         pass
     # train_steps: the R74 ratified B* — anchored on the PREREG machine mirror AND its equality with

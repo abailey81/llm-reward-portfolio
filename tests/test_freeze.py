@@ -131,7 +131,7 @@ def _write_campaign_yaml(root: Path, arms: list[str]) -> None:
         "arms: [" + ", ".join(arms) + "]\ncandidates_per_arm: 30\n"
         "train_steps_per_candidate: 200000\n"
         "h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]\n"
-        "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]\n",
+        "seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}\n",  # E1 ladder — matches the frozen prereg
         encoding="utf-8",
     )
 
@@ -288,11 +288,10 @@ def test_equivalence_margin_mismatch_raises(mini: Path):
 
 def test_seed_count_mismatch_raises(mini: Path):
     """Drop a seed from the yaml list so len != the prose headline count -> raises."""
+    # Perturb the frozen tiered ladder so its flat set (567) no longer matches the prose headline (568).
     _edit(mini / freeze.PREREG_YAML,
-          "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, "
-          "21, 22, 23, 24, 25, 26, 27, 28, 29]",
-          "seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, "
-          "21, 22, 23, 24, 25, 26, 27, 28]")
+          "seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}",
+          "seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 567]}")
     with pytest.raises(freeze.FreezeConsistencyError, match="seed count"):
         freeze.verify(mini)
 
@@ -545,7 +544,7 @@ def test_set_yaml_frozen_flips_only_the_two_scalars(mini: Path):
     diff = [(a, b) for a, b in zip(before.splitlines(), after.splitlines()) if a != b]
     assert len(diff) == 2
     # The comments + amendment notes survive byte-for-byte (sample a load-bearing one).
-    assert "Amendment D2" in after
+    assert "Amendment E1" in after
 
 
 def test_append_decision_log_records_hash_utc_sha(mini: Path):

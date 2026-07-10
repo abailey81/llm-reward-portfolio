@@ -29,7 +29,7 @@ interpreting effects.
 
 - Frozen design hash (must match `PREREGISTRATION.md`): `[FROM CAMPAIGN: freeze SHA-256]`.
 - Arms run: **7** (distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt);
-  seeds per arm: `[FROM CAMPAIGN: n_seeds, target 30]`; candidate budget per arm: `[FROM CAMPAIGN: 30 = 6 gen × 5]`.
+  seeds per arm: `[FROM CAMPAIGN: n_seeds; E1 ladder [30,100,189,279,340,403,568], primary target 403, stopping tier reached]`; candidate budget per arm: `[FROM CAMPAIGN: 30 = 6 gen × 5]`.
 - Total candidates evaluated: `[FROM CAMPAIGN: N]`; total environment steps: `[FROM CAMPAIGN: N × 200,000]`.
 - Logged deviations (append-only log): `[FROM CAMPAIGN: count]`; disposition: `[FROM CAMPAIGN: summary]`.
 - Realised wall-clock / cost: `[FROM CAMPAIGN: hours / $]`; serial-parallel byte-equivalence: `[FROM CAMPAIGN: confirmed?]`.

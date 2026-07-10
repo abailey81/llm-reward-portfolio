@@ -62,7 +62,7 @@ study's own now-headline mechanism claim — that showing the designer the downs
 in a tail-improving direction. A designer whose authored code moves *opposite* the fed tail is, on its face,
 evidence that the feedback→code link this dissertation is built to detect may be weak or absent, and we do not
 explain it away. Instead the confirmatory design confronts it on its own terms: responsiveness is carried as a
-pre-registered, **report-only** mechanism measure on the real 30-seed campaign — never as a directional result read
+pre-registered, **report-only** mechanism measure on the real confirmatory campaign — never as a directional result read
 off the pilot — scored against the fed signal across seeds, with the saturated binary gate replaced by the
 quantitative reward-program differential (§5.4). Whether the negative sign is a single-seed artefact or a real
 boundary condition on the mechanism is thus left to the powered, sealed-leg analysis of Chapter 6, prejudged in
@@ -72,8 +72,8 @@ neither direction.
 
 Each defect the pilot exposed maps to a specific correction carried into the frozen confirmatory design (Chapter 4).
 
-- **Wrong inference unit → per-seed rliable inference.** The single-path bootstrap was replaced by a 30-seed
-  design with per-seed interquartile-mean reduction and a paired stratified bootstrap over shared seeds, carrying
+- **Wrong inference unit → per-seed rliable inference.** The single-path bootstrap was replaced by a
+  multi-seed design (the winner-seed ladder) with per-seed interquartile-mean reduction and a paired stratified bootstrap over shared seeds, carrying
   the across-seed variance [`agarwal2021rliable`].
 - **Double-corrected conjunction → two co-primary intersection–union tests.** The original Benjamini–Hochberg-over-
   a-conjunction headline double-corrected; it was rebuilt as two co-primary IUTs (risk-adjusted and tail), each its
