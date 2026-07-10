@@ -344,7 +344,7 @@ pre-registered, controlled comparison** — always with *"to our knowledge."*
 | **1** | **Seed decision** — endorse uniform **n = 403** with the ladder to 568 | `determine_design` reports **`BLOCKED on: ['n_seeds']`**. Literally the only thing standing between you and the freeze. |
 | **2** | **Written sign-off on the research-question pivot** (performance → mechanism) | A **tracked item**. You asked on 3 July; still outstanding. Get it in writing today. |
 | **3** | **Approve the seed-band amendment** (the dead "30→50" rule) | Procedural integrity — a pre-registered rule you cannot satisfy must be amended, dated, and disclosed. |
-| **4** | **Myriad**: has UCL contacted him? Is the account active? Would he **co-sign an ARR to CRAG**? | You've never logged in. If the account isn't provisioned, that's a multi-day lead time you must know about *now*. |
+| **4** | **Myriad**: would he **co-sign an ARR to CRAG** if fair-share throughput proves thin? | **LIVE as of this morning (10 Jul):** account active, VPN + key auth working, the Python environment is built on the cluster (containerized, exact locked versions), the licensed gold panel is staged and checksum-verified, and the first two GPU certification jobs are in the queue. The only remaining unknown is *throughput*, which the certification measures. |
 | **5** | **Which deep analyses to expand** (his "depth beats breadth") | Directly shapes where you spend the remaining 7 weeks. |
 | **6** | His **evidential standard for the null** | Determines what you must show to make the null land as a mechanism result rather than a failure. |
 
@@ -381,10 +381,13 @@ correctly, and asks him to specify his own evidential bar — which you can then
 > which would you expand, and is there anything you'd cut?"
 
 **Q4 — Myriad / ARR.**
-> "Have you had any request from UCL about my Myriad access? I have the account details but haven't
-> authenticated yet. And if free fair-share throughput proves thin, would you be willing to co-sign an
-> Additional Resource Request to CRAG for a short priority window — roughly 3,600 GPU-hours over seven
-> to ten days?"
+> "A status update first: I'm on Myriad as of this morning. The account is active, my environment is
+> built on the cluster, the data is staged and checksum-verified, and my first GPU certification jobs
+> are in the queue right now. The one thing I can't know yet is sustained throughput under fair-share.
+> If it proves thin, would you be willing to co-sign an Additional Resource Request to CRAG for a
+> short priority window — roughly 3,600 GPU-hours over seven to ten days, in three-hour single-GPU
+> jobs, which is exactly the low-impact shape their approval criterion asks for? CRAG meets the second
+> Tuesday, so the next window is the fourteenth of July — four days from now."
 
 **Q5 — Procedural (short).**
 > "Two tracked items: your written agreement on the research-question change, and a dated amendment

@@ -3,6 +3,74 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-10] — MYRIAD FIRST CONTACT: login → container environment → verified data staging → first GPU jobs queued; supervisor-meeting brief; Defender/OS repair; repo-identity cleanup
+
+The cluster went from "never logged in" to "certification jobs in the queue" in one morning, with
+one real bug caught against the live system. The canonical freeze hash is UNCHANGED (`1c6b76b6`).
+
+### Context recovered first (2026-07-09→10, pre-cluster)
+- **Overnight self-improvement loops L92–L100 closed** (see `docs/SELF_IMPROVEMENT_LOOP_LOG_2026-07-08.md`
+  §LOOP 100): 10 verified report-only improvements across the inference stack; loops STOPPED at L100
+  per Tamer's instruction.
+- **2nd-LLM re-point (commits `2314514`, `d01e431`)**: Alibaba/DashScope key unobtainable → Qwen3-Coder
+  served via **OpenRouter**; live-verified snapshot `qwen/qwen3-coder-480b-a35b-07-25` recorded in a
+  `config/llm.yaml` comment (file NOT hash-bound; verified against `_BOUND_CONFIGS`).
+- **Windows Defender restored** after a four-layer sabotage (boot-persistent local GPO; IFEO debugger
+  hijacks; disabled services; `MsMpEng.exe` with an EMPTY DACL). Three layers fixed from userland
+  (scripts run by Tamer); the fourth required the in-place repair to 25H2 (build 26200.8655).
+  Result: AntivirusEnabled=True, RTP on, SecurityCenter2 `0x061100` → the UCL VPN posture check PASSES.
+  Before the repair: **27 commits pushed by Tamer** to the private GitHub (verified via `ls-remote`)
+  + 566 MB licensed data / `.env` / SSH keys mirrored to `D:\llm_rp_predefender_backup` (gold SHA verified).
+- **Supervisor-meeting brief** `docs/SUPERVISOR_MEETING_BRIEF_2026-07-10.md` (commit `39c1930`) + a full
+  spoken script and question set. Load-bearing correction to the 3-Jul email: **the CVaR-5% leg is
+  already conclusive at n=30** (σ_D=0.0015, ρ=+0.47) — the seeds sharpen the Sharpe leg only.
+
+### Myriad first contact (2026-07-10 morning, all first-hand)
+- **Access**: the Myriad account was ALREADY ACTIVE (4-day-old approval email); the initial
+  login12 "Connection closed" was a single mistyped password (Myriad allows ONE attempt) — proven by a
+  successful gateway login with the same credentials. Public key installed via the gateway;
+  **passwordless `ssh myriad` (login12) and `myriad13` (login13) both work over the VPN**.
+- **G0 recon** (`scripts/myriad/g0_probe.sh`): ACFS `/acfs/users/ucestes` + Scratch (1.0 TB, new
+  `myriadfs`) exist; **login-node outbound HTTPS works** (api.anthropic.com reachable, pypi 200);
+  Apptainer 1.2.4 present; SGE healthy; **`qrsh` is JSV-rejected (interactive) but `qsub` batch
+  submits cleanly** — the campaign uses batch arrays only, so no impact; `lquota` errors on the new
+  filesystem (cosmetic; `df` gives the quota).
+- **Platform verdict → R12 container route executed**: login nodes run **RHEL 7.9 / glibc 2.17**;
+  pinned `pandas 2.3.3` (wheels need manylinux_2_24) and `contourpy 1.3.3` (2_27) have NO installable
+  wheels there, and source builds die on GCC 4.8.5. Rather than break laptop↔cluster pin parity:
+  `~/python311.sif` (docker `python:3.11-slim-bookworm`, glibc 2.36) pulled; **the venv is created
+  THROUGH the container** → every locked version installs exactly as validated
+  (torch 2.6.0+cu124 / pandas 2.3.3 / numpy 1.26.4 / sb3 2.8.0 / gymnasium 1.2.3; `src.cluster` imports).
+  Repo shipped to `~/llmrp` via `git archive HEAD` (tracked files only — no data, no secrets).
+- **REAL BUG caught + fixed + committed `08a1ba7`** (jobscript template, would have killed every
+  containerized task at first import): the apptainer branch launched the BARE container `python`
+  instead of the venv interpreter, and `$TMPDIR` + the gold dir are NOT auto-bound into the container
+  (the staged-gold env var would point at a path invisible inside). Launcher is now
+  `apptainer exec --nv --bind "$TMPDIR,{gold_dir}" {sif} {venv}/bin/python`; the V3 regression test
+  was updated to lock the CORRECT behaviour (it previously asserted the bug). Also fixed: the
+  epilogue bash test now resolves a WORKING bash (the post-repair `which bash` hits a distro-less WSL
+  shim). 71/71 cluster tests green; fixed `jobscript.py` shipped to the cluster copy.
+- **Gold staged with integrity**: the 10-file `univ5` family (~36 MB) → `/acfs/users/ucestes/gold`;
+  **all SHA-256 hashes verified identical** both sides (`returns_panel_univ5` = `7cf5d988…`).
+  Trainings need only the gold parquets (risk-free CSV is analysis-time; `cash_daily_rate` is config).
+- **First GPU jobs queued + queue-contention measurement**: probes `g0gpu` 762862 (cgroup isolation =
+  packing safety; driver version; compute-node outbound) and `g1smoke` 762914 (validates the EXACT
+  fixed launcher + TMPDIR bind marker + torch CUDA on a V100), plus an A/B pair 762959 (`allow=L`) /
+  762960 (no pool constraint). Measured live: **5,092 pending jobs cluster-wide; several GPU nodes
+  DOWN** (`adu`/`ad` states — e00a-008, f00a-001, l00a-007 — their "free" GPUs are phantoms); only
+  the two e96a nodes show healthy free V100s; **no resource-quota rule caps us** (the sole RQS is
+  disabled and targets another user); >60 min wait for a 15-min job on fresh fair-share. Implication
+  folded into the meeting brief (§11 + Q4): access is LIVE, the only unknown is throughput, and the
+  **ARR→CRAG co-sign ask is now concrete (CRAG meets Tue Jul 14)**.
+- Meeting brief §11/Q4 updated to the live cluster state; the resume cursor
+  (`memory/session-current-focus.md`) carries the full session block.
+
+### Repo-identity cleanup (Tamer's standing instruction, 2026-07-10)
+- **No Claude co-author trailers from `08a1ba7` onward** (first trailer-free commit).
+- Staged next: a one-shot history rewrite stripping the 28 existing `Co-Authored-By: Claude` trailers
+  and normalizing the stray `abailey81` author name (same email) to `Tamer Atesyakar` — prepared in an
+  isolated clone, tree-identity verified, **force-push executed by Tamer only**.
+
 ## [2026-07-08c] — MYRIAD-NATIVE resilience + monitoring + auto-proceed gate (100%-Myriad GO) — all uncommitted, pre-freeze machinery
 
 Tamer confirmed the GO ("we will use Myriad 100%") and asked that ALL systems be genuinely advanced +
