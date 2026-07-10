@@ -90,7 +90,24 @@ tensor cores and the PCIe A100's clocks are lower. This empirically confirms the
 Stage-2 report-only fleet, never per-training speed. The confirmatory campaign stays V100-only for
 device homogeneity.
 
+### Per-training wall-clock — MEASURED (job 764154 → g1anchor, node-e00a-005, V100-PCIE-32GB)
+Real SAC training, obs_dim **1893** (the campaign dimension), 5,000 steps, single training (pack=1):
+
+| Metric | Measured |
+|---|---|
+| Throughput | **102.2 steps/s** |
+| Per 50k steps | **8.15 min** |
+| **Per training at B\*=200k** | **≈ 32.6 min = 0.543 GPU-h** |
+| Critic loss | 418.07 → 0.072 (healthy descent) |
+
+**Re-anchors the throughput model.** The laptop solo baseline is 61 min/training (Windows/WDDM), so a
+Myriad V100 is **≈ 1.87× faster per training** — squarely inside the pre-registered 1.4–2.5× band and
+slightly better than the 1.75× central estimate. This is the pack=1 anchor; the packing factor **F**
+(measured GPU-parallel throughput, G0-confirmed safe on the 32 GB card) multiplies on top and is the
+remaining measurement. Note the queue latency: this 20-min job waited from 18:31 the prior evening —
+fair-share placement, not GPU speed, is the binding constraint under load.
+
 ### Still to measure
-A real short SAC-training timing probe (steps/sec at pack=1 vs pack=N on the staged gold) to convert
-"packing safe" into a measured packing factor **F** and a per-training wall-clock, then re-anchor the
-day-tables. Gold data path being verified on the login node first (CPU) to de-risk the GPU slot.
+The pack=1 vs pack=N sweep (packing factor **F**) and the sustained concurrency **C** — both needed to
+convert per-training minutes into campaign wall-clock days. Deferred until an off-peak window clears the
+queue; the pack=1 anchor above already bounds the single-GPU rate.
