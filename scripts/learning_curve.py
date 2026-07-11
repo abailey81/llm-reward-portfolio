@@ -202,7 +202,12 @@ def build_parser() -> argparse.ArgumentParser:
     # even if the agent is ~10-40x under-trained (the audit estimate). The detector says to extend if not.
     p.add_argument("--budgets", default="50000,100000,200000,400000,800000", help="Comma list of step budgets.")
     p.add_argument("--seeds", default="0", help="Comma list of seeds to average per budget.")
-    p.add_argument("--reward", default="differential_sharpe", help="REWARD_CANON key (representative reward).")
+    p.add_argument("--reward", default="differential_sharpe", help="REWARD_CANON key (representative reward); "
+                   "with --reward-source it is the human LABEL for the run (output files are suffixed by it).")
+    p.add_argument("--reward-source", default=None, metavar="PATH",
+                   help="P6 pilot: path to an ARCHIVED authored reward source (e.g. a prototype winner's "
+                        "reward.py). Compiled via the campaign's exact sandbox gate (validate_once); "
+                        "--reward becomes the label; outputs go to learning_curve_<label>.{json,md,png}.")
     p.add_argument("--synthetic", action="store_true", help="Use a synthetic panel instead of real gold.")
     p.add_argument("--end", default="2016-12-31", help="Real-data slice end date (dev TRAIN end, SPLIT C).")
     p.add_argument("--device", default="auto", choices=["cpu", "cuda", "auto"], help="Compute device.")
@@ -276,12 +281,20 @@ def run_one_budget(
     synthetic: bool,
     end: str,
     device: str,
+    reward_source: str | None = None,
 ) -> dict[str, Any]:
     """Train the FIXED (explosion-fixed) SAC at one (budget, seed); return eval + critic-loss diagnostics.
 
     Returns a dict with the held-out eval IQM return, the terminal and max critic loss, the subsampled
     critic-loss trajectory, and wall-clock seconds. Never raises into the ladder — a failed budget is
     reported with ``ok=False`` so the rest of the curve still runs.
+
+    ``reward_source`` (P6 pilot, 2026-07-11): raw ARCHIVED reward source (an LLM-authored candidate,
+    e.g. a prototype winner's ``reward.py``) instead of a ``REWARD_CANON`` key. Compiled through the
+    campaign's EXACT gate-and-compile path (``sandbox.executor.validate_once`` with the loop.py-parity
+    31-asset fixture — same AST gate, same restricted namespace, same contract check), so the ladder
+    measures the authored code the campaign would actually train, not a reimplementation. ``reward_key``
+    then serves as the human LABEL only.
     """
     out: dict[str, Any] = {"budget": int(budget), "seed": int(seed), "ok": False, "error": None}
     try:
@@ -291,9 +304,24 @@ def run_one_budget(
         from src.inference.bootstrap import iqm
         from src.utils.config import load_config
 
-        if reward_key not in REWARD_CANON:
-            raise KeyError(f"unknown reward {reward_key!r}; REWARD_CANON has {sorted(REWARD_CANON)}")
-        reward_fn = REWARD_CANON[reward_key]
+        if reward_source is not None:
+            from src.sandbox.executor import validate_once
+
+            # Fixture = the exact shape-parity fixture the campaign's loop uses (src/llm/loop.py:361):
+            # weights/prev (N+1 incl. cash) + returns (N risky) — the production reward contract.
+            _n = 31
+            fixture = (
+                np.full(_n, 1.0 / _n, dtype=float),
+                np.full(_n - 1, 0.001, dtype=float),
+                np.full(_n, 1.0 / _n, dtype=float),
+                0.0,
+                {},
+            )
+            reward_fn = validate_once(reward_source, fixture)
+        else:
+            if reward_key not in REWARD_CANON:
+                raise KeyError(f"unknown reward {reward_key!r}; REWARD_CANON has {sorted(REWARD_CANON)}")
+            reward_fn = REWARD_CANON[reward_key]
 
         env_cfg = load_config("environment")
         lookback = int(env_cfg["state"]["lookback_days"])
@@ -348,10 +376,12 @@ def run_curve(
     synthetic: bool,
     end: str,
     device: str,
+    reward_source: str | None = None,
 ) -> dict[str, Any]:
     """Run the full (budget x seed) ladder; return the raw runs + the per-budget seed-IQM summary."""
     runs = [
-        run_one_budget(b, s, reward_key, synthetic=synthetic, end=end, device=device)
+        run_one_budget(b, s, reward_key, synthetic=synthetic, end=end, device=device,
+                       reward_source=reward_source)
         for b in budgets
         for s in seeds
     ]
@@ -372,7 +402,7 @@ def run_curve(
             }
         )
     convergence = recommend_budget(summary)
-    return {
+    result: dict[str, Any] = {
         "reward": reward_key,
         "device": device,
         "runs": runs,
@@ -381,6 +411,12 @@ def run_curve(
         # Turnkey "how long is enough": extrapolate the campaign wall-clock from the measured timings at B*.
         "campaign_projection": project_campaign(runs, convergence.get("recommended_budget")),
     }
+    if reward_source is not None:
+        import hashlib
+
+        result["reward_kind"] = "authored_source"  # P6: LLM-authored candidate, not a REWARD_CANON key
+        result["reward_source_sha256"] = hashlib.sha256(reward_source.encode("utf-8")).hexdigest()
+    return result
 
 
 def _write_markdown(result: dict[str, Any], path: Path) -> None:
@@ -495,22 +531,33 @@ def main() -> None:
         seeds = [int(x) for x in str(args.seeds).split(",") if x.strip()]
         synthetic, device, no_plot, end = bool(args.synthetic), args.device, bool(args.no_plot), args.end
 
+    reward_source: str | None = None
+    if getattr(args, "reward_source", None):
+        src_path = Path(args.reward_source)
+        reward_source = src_path.read_text(encoding="utf-8")
+        if not reward_source.strip():
+            raise ValueError(f"--reward-source {src_path} is empty")
+
     print("=" * 72)
     print("[learning_curve] training-budget convergence diagnostic (under-training gate)")
-    print(f"  reward   : {args.reward}")
+    print(f"  reward   : {args.reward}" + (f"  (authored source: {args.reward_source})" if reward_source else ""))
     print(f"  budgets  : {budgets}")
     print(f"  seeds    : {seeds}")
     print(f"  panel    : {'synthetic' if synthetic else f'real gold dev -> {end}'}")
     print(f"  device   : {device}")
     print("=" * 72)
 
-    result = run_curve(budgets, seeds, args.reward, synthetic=synthetic, end=end, device=device)
+    result = run_curve(budgets, seeds, args.reward, synthetic=synthetic, end=end, device=device,
+                       reward_source=reward_source)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "learning_curve.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
-    _write_markdown(result, out_dir / "learning_curve.md")
-    plotted = False if no_plot else _write_plot(result, out_dir / "learning_curve.png")
+    # Authored-source runs are suffixed by the label so the FROZEN differential_sharpe dossier
+    # (learning_curve.json, cited by R74) is never clobbered by a P6 ladder.
+    stem = f"learning_curve_{args.reward}" if reward_source is not None else "learning_curve"
+    (out_dir / f"{stem}.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    _write_markdown(result, out_dir / f"{stem}.md")
+    plotted = False if no_plot else _write_plot(result, out_dir / f"{stem}.png")
 
     print("\n--- per-budget summary (eval IQM seed-median | max critic loss | finite) ---")
     for row in result["summary"]:
