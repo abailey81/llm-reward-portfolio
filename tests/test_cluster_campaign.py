@@ -565,3 +565,35 @@ def test_build_cluster_run_binds_driver_and_throttles_the_shared_pull(tmp_path, 
     assert pulls["n"] == 1
     # the spend cap is live
     assert callable(run.author_guard)
+
+
+def test_build_cluster_run_threads_apptainer_and_cores_per_training(tmp_path, monkeypatch):
+    """LIVE-rehearsal fixes (2026-07-10/11): the container image AND a right-sized core footprint must
+    reach the jobscript. cores = cores_per_training × the call's pack (Myriad GPU-node CORES are the
+    binding scheduling constraint); apptainer_sif is mandatory (the cluster venv is container-built).
+    Both are OFF by default so the jobscript keeps its own defaults (4×pack, native venv)."""
+    from src.cluster import campaign as C
+
+    rb_calls: list[dict] = []
+    monkeypatch.setattr("src.cluster.driver.run_batch",
+                        lambda specs, name, **kw: rb_calls.append(kw) or {"ok": True})
+    monkeypatch.setattr("src.cluster.submit.ssh_runner", lambda host: (lambda cmd: ""))
+    monkeypatch.setattr("src.cluster.poll.pull_archive", lambda *a, **k: 1)
+
+    run = C.build_cluster_run(
+        remote_root="/r", remote_outputs_root="/r/outputs", local_batch_root=tmp_path / "b",
+        local_archive_root=tmp_path / "a", gold_dir="/inputs",
+        apptainer_sif="~/python311.sif", cores_per_training=2,
+    )
+    run.run_batch([{"candidate_id": "c0", "arm": "x"}], "x_g0", pool="EF", pack=5)
+    kw = rb_calls[0]
+    assert kw["apptainer_sif"] == "~/python311.sif"
+    assert kw["cores"] == 10  # 2 cores/training × pack 5 -> jobscript renders -pe smp 10
+
+    rb_calls.clear()
+    run2 = C.build_cluster_run(
+        remote_root="/r", remote_outputs_root="/r/outputs", local_batch_root=tmp_path / "b2",
+        local_archive_root=tmp_path / "a2", gold_dir="/inputs",
+    )
+    run2.run_batch([{"candidate_id": "c0", "arm": "x"}], "x_g0", pool="EF", pack=5)
+    assert "cores" not in rb_calls[0] and "apptainer_sif" not in rb_calls[0]

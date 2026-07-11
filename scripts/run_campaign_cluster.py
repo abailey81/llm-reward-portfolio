@@ -214,6 +214,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
+    p.add_argument("--cores-per-training", type=int, default=None,
+                   help="CPU cores requested per packed training (total job cores = this × --pack). "
+                        "Default (None) keeps the jobscript's 4×pack. Myriad GPU-node CORES are the "
+                        "binding scheduling constraint, so lowering this (e.g. 2) makes packed jobs place.")
     p.add_argument("--poll-secs", type=float, default=600.0)
     p.add_argument("--max-author-calls", type=int, default=None, help="Hard authoring spend cap.")
     return p
@@ -251,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
         local_batch_root=f"{args.output_dir}/batches", local_archive_root=args.output_dir,
         gold_dir=args.gold_dir, host=args.host, pool_confirmatory=args.pool, pack=args.pack,
         poll_secs=args.poll_secs, max_author_calls=args.max_author_calls, concurrent=True,
-        apptainer_sif=(args.apptainer_sif or None),
+        apptainer_sif=(args.apptainer_sif or None), cores_per_training=args.cores_per_training,
     )
     baselines = list(args.baselines) if args.baselines else None
     if args.tiered:

@@ -123,6 +123,7 @@ def build_cluster_run(
     max_author_calls: int | None = None,
     concurrent: bool = True,
     apptainer_sif: str | None = None,
+    cores_per_training: int | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -189,16 +190,24 @@ def build_cluster_run(
                   priority: int = 0) -> dict:
         # ``priority`` = the §14.3 intra-user -p ladder value (0 / -100 / -200 / -500): SGE itself
         # executes the C-ladder value order even when everything is queued at once.
+        # Jobscript kwargs threaded to render_jobscript via driver.run_batch's **jobscript_kwargs:
+        #  * apptainer_sif (2026-07-10): the cluster venv is built INSIDE python311.sif (RHEL7 glibc is
+        #    too old for the cu124 wheels natively), so every training must launch through apptainer.
+        #  * cores (2026-07-11): the LIVE rehearsal found GPU-node CORES (not GPUs) are the binding
+        #    scheduling constraint (free-GPU nodes sit at load=36). The default 4-cores/training is
+        #    over-provisioned (a training uses <1 core), so cores_per_training lets the campaign shrink
+        #    the footprint (cores = cores_per_training × the call's pack) so packed jobs actually place.
+        _jk: dict[str, Any] = {}
+        if apptainer_sif:
+            _jk["apptainer_sif"] = apptainer_sif
+        if cores_per_training:
+            _jk["cores"] = int(cores_per_training) * int(pack)
         return driver.run_batch(
             specs, name,
             local_batch_root=local_batch_root, local_archive_root=local_archive_root,
             remote_root=remote_root, remote_outputs_root=remote_outputs_root, gold_dir=gold_dir,
             host=host, runner=runner, pull=shared_pull, pack=pack, poll_secs=poll_secs, pool=pool,
-            priority=priority, heartbeat=emit_heartbeat,
-            # Container route (2026-07-10): the cluster venv is built INSIDE python311.sif (RHEL7 glibc
-            # is too old for the cu124 wheels natively), so every training must launch through apptainer.
-            # Threaded as a jobscript kwarg -> render_jobscript(apptainer_sif=...).
-            **({"apptainer_sif": apptainer_sif} if apptainer_sif else {}),
+            priority=priority, heartbeat=emit_heartbeat, **_jk,
         )
 
     author_lock: Any = threading.Lock() if concurrent else nullcontext()
