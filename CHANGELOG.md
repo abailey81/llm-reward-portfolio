@@ -3,6 +3,27 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-11d] — the fleet's first live results: path CERTIFIED, the throughput model measured, a third day-1 breaker fixed
+
+- **★ Apptainer-on-node CERTIFIED**: `p1pack2` (772152) completed on a real V100 — the FULL
+  campaign path (container → venv → `run_one --pack 2` → 2×`train_candidate` on ACFS gold →
+  archived records, real `val_fitness`) executed live end-to-end. No untested piece remains.
+- **The throughput model is now measured**: 102.2 steps/s solo · 66.4 steps/s each at pack-2 ·
+  ~860 s fixed per-task overhead (p4det-t1) → 1.28/1.86 trainings/GPU-h at B\* (unpacked/pack-2);
+  F(2)≈1.45 effective (the early 0.7 was an overhead artifact on 50k probes — fewer/longer tasks
+  ≫ many short). The cores-scale-with-pack confound (CPU starvation vs GPU time-slicing) is
+  resolved by the `p1pack2c4` discriminator (`--cores-total`/`--name-suffix`, 26d9acb).
+- **BUG 3 (batch_tag, 83b06ee)**: the driver's double-submit guard matches queued jobs by NAME
+  across the whole user queue → concurrent runs sharing arm names collide (the prototype adopted
+  the rehearsal's `distributional_g0`/`scalar_g0` and silently polled forever). Per-run
+  `--batch-tag` namespacing at the run_batch choke point + regression test; the prototype's 5
+  orphaned arrays qdel'd and the driver relaunched namespaced (`pm_*`).
+- **Myriad serialization policy measured** (~21:00): `policyjsv`/`snx=1` holds tasks 2..N of every
+  pending array (`hqw`); cascade did NOT release on first task completion (grace, then rc-support);
+  chunked-fleet mitigation encoded.
+- Session record: `docs/SESSION_2026-07-11_NIGHT_PILOT_FLEET_AND_FIXES.md` (chronology, all 11
+  commits, measurements, decisions, the campaign wall-clock table from measured constants).
+
 ## [2026-07-11c] — max-throughput campaign levers (hardware-only); CRAG rejected; device-stratified seed blocks RATIFIED; the battery live on Myriad
 
 Tamer's directives, executed same-night: "use everything Myriad offers, hardware only, no science
