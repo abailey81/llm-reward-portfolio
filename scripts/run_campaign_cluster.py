@@ -214,6 +214,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
+    p.add_argument("--batch-tag", default=None,
+                   help="Per-run batch-name namespace (2026-07-11d bug fix): the driver's "
+                        "double-submit guard matches queued jobs by NAME across the whole user "
+                        "queue, so concurrent runs sharing arm names collide (the later run adopts "
+                        "the earlier run's array and polls forever). Tag every concurrent run, "
+                        "e.g. --batch-tag pm.")
     p.add_argument("--seed-pool-blocks", default=None, metavar="POOL:LO-HI,...",
                    help='Device-stratified seed blocks (RATIFIED 2026-07-11c), e.g. '
                         '"EF:0-283,L:284-567": whole seed blocks run on different GPU pools while '
@@ -288,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
         h_rt=(args.h_rt or None),
         seed_pool_blocks=(parse_seed_pool_blocks(args.seed_pool_blocks)
                           if args.seed_pool_blocks else None),
+        batch_tag=(args.batch_tag or None),
     )
     baselines = list(args.baselines) if args.baselines else None
     if args.tiered:

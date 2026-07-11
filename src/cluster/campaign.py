@@ -133,6 +133,7 @@ def build_cluster_run(
     cores_per_training: int | None = None,
     h_rt: str | None = None,
     seed_pool_blocks: list[tuple[str, set[int]]] | None = None,
+    batch_tag: str | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -197,6 +198,14 @@ def build_cluster_run(
 
     def run_batch(specs: list[dict], name: str, *, pool: str = "EF", pack: int = pack,
                   priority: int = 0) -> dict:
+        # batch_tag (2026-07-11d, BUG FIX): the driver's double-submit guard matches queued jobs by
+        # NAME across the user's WHOLE queue, so two concurrent runs sharing arm names (e.g. a
+        # rehearsal's `distributional_g0` and the prototype's) COLLIDE — the later run silently
+        # "adopts" the earlier run's queued array and polls an archive that job will never write
+        # to. A per-run tag namespaces every batch at this single choke point (markers and local
+        # batch dirs inherit it); same-run resume adoption still works (same tag).
+        if batch_tag:
+            name = f"{batch_tag}_{name}"
         # ``priority`` = the §14.3 intra-user -p ladder value (0 / -100 / -200 / -500): SGE itself
         # executes the C-ladder value order even when everything is queued at once.
         # Jobscript kwargs threaded to render_jobscript via driver.run_batch's **jobscript_kwargs:

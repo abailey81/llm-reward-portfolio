@@ -610,6 +610,26 @@ def test_build_cluster_run_threads_apptainer_and_cores_per_training(tmp_path, mo
     assert rb_calls[0]["h_rt"] == "0:50:0"
 
 
+def test_batch_tag_namespaces_every_batch(tmp_path, monkeypatch):
+    """2026-07-11d regression: the driver's double-submit guard matches queued jobs by NAME across
+    the user's whole queue, so two concurrent runs sharing arm names collide (the prototype adopted
+    the rehearsal's queued `distributional_g0` and polled an archive that job never writes to).
+    A per-run batch_tag must prefix the batch name at the run_batch choke point."""
+    import src.cluster.campaign as C
+
+    names: list[str] = []
+    monkeypatch.setattr("src.cluster.driver.run_batch",
+                        lambda specs, name, **kw: names.append(name) or {"ok": True})
+    monkeypatch.setattr("src.cluster.submit.ssh_runner", lambda host: (lambda cmd: ""))
+    monkeypatch.setattr("src.cluster.poll.pull_archive", lambda *a, **k: 1)
+    run = C.build_cluster_run(
+        remote_root="/r", remote_outputs_root="/r/outputs", local_batch_root=tmp_path / "b",
+        local_archive_root=tmp_path / "a", gold_dir="/inputs", batch_tag="pm",
+    )
+    run.run_batch([{"candidate_id": "c0", "arm": "x"}], "distributional_g0", pool="EF", pack=1)
+    assert names == ["pm_distributional_g0"]
+
+
 def test_seed_pool_blocks_partition_and_parser(tmp_path):
     """Device-stratified seed blocks (2026-07-11c): the test leg partitions its taskfile BY SEED
     into per-pool arrays — every CRN pair (same seed, all arms) stays on ONE device class, the
