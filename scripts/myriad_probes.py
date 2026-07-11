@@ -50,7 +50,8 @@ def _opts(local_out: str) -> dict[str, Any]:
 
 
 def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str,
-                  include_det: bool = True) -> list[Path]:
+                  include_det: bool = True, cores_total: int | None = None,
+                  suffix: str = "") -> list[Path]:
     from src.cluster.campaign import _search_spec
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
@@ -66,12 +67,16 @@ def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str,
         return _search_spec(cid.split("-")[0], source, cid, o, f"probe ({REWARD_PATH})", 0, archive)
 
     for pack in PACKS:  # P1: one task = `pack` concurrent trainings
-        name = f"p1pack{pack}"
+        name = f"p1pack{pack}{suffix}"
         batch = Path(local_out) / "batches" / name
         task = [spec(f"{name}-k{i}", 200 + i) for i in range(pack)]
         write_specs([task], batch)
+        # cores_total discriminates CPU-starvation vs GPU-time-slicing (2026-07-11: the default
+        # cores=pack ladder CONFOUNDS them — F(2)@2cores ≈ 0.7; if F(2)@4cores recovers, the CPU
+        # side was the binder and the campaign packs with cores=2×pack; if not, it's GPU slicing
+        # and MPS is the lever).
         js = render_jobscript(name, 1, remote_root, gold_dir, pool=pool, pack=pack,
-                              cores=pack, apptainer_sif="$HOME/python311.sif")
+                              cores=(cores_total or pack), apptainer_sif="$HOME/python311.sif")
         write_jobscript(js, batch / f"{name}.sh")
         dirs.append(batch)
 
@@ -89,11 +94,12 @@ def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str,
 
 
 def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str,
-           include_det: bool = True) -> None:
+           include_det: bool = True, cores_total: int | None = None, suffix: str = "") -> None:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
-    dirs = build_batches(remote_root, gold_dir, local_out, pool=pool, include_det=include_det)
+    dirs = build_batches(remote_root, gold_dir, local_out, pool=pool, include_det=include_det,
+                         cores_total=cores_total, suffix=suffix)
     prepare_remote(remote_root, [d.name for d in dirs], runner)
     for d in dirs:
         push_batch(d, f"{remote_root.rstrip('/')}/specs", host=host)
@@ -147,6 +153,11 @@ def main() -> int:
     p.add_argument("--packs", default=None,
                    help="Comma list of pack sizes to probe (default: the module PACKS). "
                         "e.g. --packs 8 extends the F ceiling once 2/3/5 are queued.")
+    p.add_argument("--cores-total", type=int, default=None,
+                   help="TOTAL cores for each pack task (default: pack x 1). Use with --name-suffix "
+                        "to disambiguate, e.g. --packs 2 --cores-total 4 --name-suffix c4.")
+    p.add_argument("--name-suffix", default="",
+                   help="Suffix for the batch/candidate names (a re-probe must not collide).")
     args = p.parse_args()
     if args.packs:
         global PACKS
@@ -165,12 +176,14 @@ def main() -> int:
             remote_root = expand_remote(remote_root, remote_home(ssh_runner(args.host)))
 
     det = args.packs is None  # a custom --packs run extends P1 only; never resubmit the P4 pair
+    extra = {"cores_total": args.cores_total, "suffix": args.name_suffix}
     if args.build_only:
-        build_batches(remote_root, args.gold_dir, args.output_dir, pool=args.pool, include_det=det)
+        build_batches(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
+                      include_det=det, **extra)
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host, pool=args.pool,
-               include_det=det)
+               include_det=det, **extra)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)
