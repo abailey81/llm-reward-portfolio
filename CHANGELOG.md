@@ -3,7 +3,88 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-11] — E1 ladder UPGRADED to 7 rungs + deep pre-freeze sweep (5 auditors) + G1 anchor + LIVE end-to-end rehearsal (found & fixed the cluster path)
+
+A long autonomous session that took the pre-registration to freeze-ready and then stress-tested the
+Myriad campaign path with a real end-to-end run. **Canonical hash progressed `4b116f64` → `af385617`
+(7-rung upgrade) → `79a6db44` (sweep fixes); NOT yet frozen (freeze is Tamer's act).**
+
+### Seed ladder upgraded 4 → 7 rungs (Tamer's insight)
+E1 first recorded the 4-rung ladder `[30, 340, 403, 568]`. Tamer flagged the **30 → 340 gap** as a real
+flaw: rungs are the pre-declared fallback points if a run is truncated by the deadline or the queue, and
+that gap spans ~3,700 trainings, so a truncation at, say, seed 250 would discard 220 completed paired
+seeds back to 30. Upgraded to **`[30, 100, 189, 279, 340, 403, 568]`** — each rung with a pre-registered
+meaning (30 distinction core / 100 σ-precision / 189 Monte-Carlo point-estimate / 279=80% / 340=90% /
+403=95% target / 568=99%), zero extra compute (tiers are order-only labels on the same seed set). Updated
+across all three seed carriers + `PREREGISTRATION.md` E1 block + amendment row + `power_analysis`
+`ASSURANCE_TIER_BOUNDS` + its test + the freeze-test fixtures.
+
+### Deep pre-freeze sweep — 5 independent auditors (read-only), every finding fixed
+Ran five parallel auditors over seed/tier consistency, statistical-design coherence, the identification
+principle, data leakage/splits, and paper-vs-frozen-design. **Verdict: theory CLEAN** (CVaR sign, Le Cam
+deficiency direction, DPI strict-convexity gate, Fissler–Ziegel elicitability chain — all correct, no
+misattribution to Okhrati); **leakage EXEMPLARY** (60-session purge re-derived correct at both boundaries;
+survivorship-freeness proven with Wachovia/AIG retained through 2008; sealed test unreachable by
+selection); **identification HOLDS** (only the feedback block varies; 7-arm roster consistent in all five
+locations; placebo_shuffled a correct derangement); **arithmetic EXACT** (re-derived Var(D)=2σ²(1−ρ)=0.369,
+the χ²-upper ladder 279/340/403/568, the m=6/[3,3] partition, TOST=0.05, the R64 one-sided p). Every
+freeze-blocker was the same root cause — the E1 seed change not propagated into older passages — and all
+were fixed: **hash-bound self-contradictions** (the verbatim bankable-null statement said "30 winner
+seeds"; the R64 invariants list; the mechanism sub-tests caveat; the §12 D2 re-affirmation; the H1/H3
+"same 30 seeds" comments in `campaign.yaml`; a `preregistration.yaml` calibration note); **3 operational
+seed-default bugs** (`resume_audit.py`/`run_campaign_cluster.py`/`install_onstart_task.ps1` defaulted
+`0-402` or `0-29` → would silently skip seeds 403–567; now `0-567`); **stale-doc reconciliations**
+(superseded banners on the arm-adaptive `SEED_DECISION` doc and `COMPUTE_AND_TRAINING_TIME.md`; the
+inverted "more seeds than the campaign" comparison in `contamination.py`; six factual seed refs in the
+paper body CH4/CH5/CH6/APPENDIX_B). Committed **79bbfd6**. Gate 21/21 GREEN, `determine_design`
+FREEZE-READY, full suite **2095 passed**. (Deferred post-freeze, non-hash-bound: extend the tail-neutrality
+scan to the in-code reflection preamble; the bulk scattered "30 seeds" doc comments — high false-positive,
+many are legitimately tier-0, want a careful human pass.)
+
+### G1 anchor MEASURED (committed eff0dca)
+A real short SAC training on a Myriad **Tesla V100-PCIE-32GB**: **102.2 steps/s, 8.15 min/50k → ≈32.6
+min/training at B\*=200k**, critic loss 418→0.07. That is **≈1.87× the laptop** (61 min solo), squarely
+in the pre-registered 1.4–2.5× band. Appended to `docs/G0_G1_CLUSTER_CERTIFICATION_2026-07-10.md`. Also
+confirmed the launcher fix on BOTH pools (V100 + an A100-PCIE-40GB), and that the A100 is **not faster**
+per training (0.21 s vs 0.144 s microbench) — its only value is denser packing for Stage 2.
+
+### LIVE end-to-end rehearsal — a small real run to shake out the whole cluster path
+Tamer: "do a very small prototype run with LLMs … to catch and fix absolutely all issues, so the main
+campaign is strictly flawless." Ran the first-ever live execution of `run_campaign_cluster.py` (3 arms,
+2 generations, 1 seed, 10k steps, real **Qwen3-Coder via OpenRouter** authoring — cheap, `--pass-mode B`,
+`--synthetic`, `outputs/proto_timing`). It caught **five real campaign-breaking issues**, all fixed +
+committed (`fb3fc11`, `8118fb8`; ruff clean, 280 cluster tests):
+1. **`apptainer_sif` not threaded into the campaign path** — the cluster venv is built INSIDE
+   `python311.sif` (RHEL7 glibc too old for the cu124 wheels natively), so every training MUST launch
+   through Apptainer; the campaign path rendered the bare-venv launcher → would have failed on every node.
+   Threaded `build_cluster_run` → `driver` → `render_jobscript` + a `--apptainer-sif` flag.
+2. **The driver didn't `load_env()`** — the laptop-side driver authors before shipping specs, so it needs
+   the API key in `os.environ`; real authoring crashed "key unset". Added (parity with `run_campaign.py`).
+3. **cp1251 console crash** — the Russian-locale Windows default encoding crashed the ssh reader thread on
+   any non-ASCII byte from the cluster. Pinned `ssh_runner` to utf-8/`errors=replace`.
+4. **Empty gold dir under `--synthetic`** — the jobscript still `--bind`s the gold dir into the container,
+   and Apptainer errors if the path is absent. Create the input dir.
+5. **The throughput finding + `--cores-per-training` lever** — the decisive one. Myriad GPU nodes sit at
+   **load=36 (CPU-saturated) with free GPUs**, so a job's **CPU-core** request is the binding scheduling
+   constraint, not the GPU. The jobscript's default 4 cores/training is over-provisioned (a training uses
+   <1 core), so pack=5 → 20 cores wouldn't place. Added `cores_per_training` threaded through to
+   `render_jobscript` (cores = cores_per_training × pack; default unchanged) so the campaign can shrink the
+   footprint and pack jobs actually place. This reframes campaign throughput planning: concurrency is gated
+   by GPU-node cores, which depend on total cluster load — so max throughput needs a small core footprint +
+   off-peak timing or a CRAG reservation.
+
+After the fixes, authoring (Qwen `HTTP 200 OK`) and submission worked for all arms; the run is queued
+behind the cluster-wide core saturation. Overnight: sleep disabled so the laptop driver survives, a
+persistent poller fires on the first training record (live Apptainer validation) or a node error, and the
+precise campaign-time answer is owed once the run completes + a packing probe measures F. **⚠ TEMP state:
+`config/prototype.yaml` `llm` block is pointed at Qwen for the smoke — revert to
+`anthropic`/`claude-sonnet-4-6` after; NOT committed.**
+
 ## [2026-07-10b] — AMENDMENT E1: the seed decision RECORDED (supervisor-approved) → FREEZE-READY
+
+> **Note (superseded by [2026-07-11]):** this entry was written at hash `4b116f64` with the ladder later
+> extended to 7 rungs; the deep sweep then moved the canonical hash to **`79a6db44`**. See the
+> [2026-07-11] entry for the 7-rung ladder, the sweep fixes, and the final hash.
 
 Ramin approved the design in the 10-Jul meeting; Tamer ratified the assurance-tier ladder and
 instructed the freeze. Recorded as **Amendment E1** across the three seed carriers:
