@@ -53,6 +53,52 @@ highest-EV grade work) proceeds in the foreground throughout.**
 - **More candidates / arms / SESOI variants** — settled rejections (multiplicity; identification).
 - **Anything that reads the sealed 2020–2026H1 test leg** — never, under any pilot.
 
+## 2b. MAX-THROUGHPUT CAMPAIGN RUNBOOK (2026-07-11, Tamer: "push absolutely everything to the
+## maximum — hardware only, no science reduction")
+
+The throughput identity: `trainings/hour = C (GPUs held) × F (pack) × 1/wall − overheads`.
+Every lever below is hardware/scheduling-side ONLY — B\*, arms, seeds, splits, prompts untouched.
+
+**Levers, in EV order:**
+1. **CRAG reservation (the C lever, dominant).** Fair-share measured 11 July: 369 pending GPU jobs
+   vs ~74 GPUs, ~2 free V100s. A reservation converts C from a random variable into a constant.
+   Draft ready: `docs/CRAG_APPLICATION_DRAFT_2026-07-11.md` — **Tamer sends (Okhrati co-sign)
+   before the Tue 14 Jul CRAG meeting.** 12 V100s × 10 days ≈ the whole Stage-1 to 95%.
+2. **Packing (the F lever).** P1 ladder in flight (pack 2/3/5 = jobs 772152–4, pack 8 = 772286;
+   cores = pack × 1). Campaign policy: `--pack F*` at the measured optimum, `--cores-per-training 1`.
+   If scaling is sublinear from SM contention, per-job **NVIDIA MPS** (`nvidia-cuda-mps-control`,
+   user-space, legal on a cgroup-owned GPU) is the P1-conditional follow-up.
+3. **Backfill-tight walltime (the placement lever).** BUILT tonight: `--h-rt` threads
+   entry→campaign→driver→jobscript. Campaign value = measured wall × 1.5 (e.g. `0:50:0` at
+   pack=1/B\*; `1:15:0` at pack=5 waves) instead of the 3 h default (a 5.5× over-request that
+   disqualifies tasks from backfill gaps). P3/P6 measure the exact wall.
+4. **Launch timing + fair-share hygiene.** Launch C0–C3 Friday evening / weekend (measured: the
+   queue drains overnight); keep pre-campaign usage tiny (pilots ≈ 60 GPU-h — negligible share
+   burn); the C-ladder's `-p` self-deprioritization already orders our own jobs correctly.
+5. **Poll cadence.** Driver `--poll-secs 180` during search phases (generation turnaround), 600
+   during the long test flood. Marker-hold chains already pre-submit test arrays at zero latency.
+6. **⚠ DECISION-PENDING-TAMER — device-stratified seed blocks (the biggest untapped C multiplier).**
+   Current policy: confirmatory = V100-only (homogeneity). But the inference is PAIRED per seed
+   (CRN): every contrast D_s = X_a,s − X_b,s compares arms trained on the SAME device at the same
+   seed, so assigning whole SEED BLOCKS to different pools (e.g. seeds 0–299 → V100/EF, 300–567 →
+   A100/L+U) keeps every pair device-homogeneous while adding ~24–30 A100s to C (≈ +60–80%
+   throughput). Statistically a randomized-block design (device = block, cancels in the pair);
+   diagnosable by a per-device D̄ table (device×arm interaction is the only threat, and it is
+   directly reported). Costs nothing scientifically IF ratified — but it is a design-adjacent
+   execution choice, so it needs Tamer's explicit go + a dated pre-freeze execution note, and the
+   A100 pool then also stops being reserved for Stage-2. If declined, A100s still run Stage-2
+   concurrently (already planned).
+7. **Node-local staging, containerised env, ≤2 fast-fail requeues, `-r y`, 3-site mirror** — all
+   already built; no per-task pip/network on nodes.
+
+**Rejected, with reasons (so no one re-litigates under time pressure):**
+- **torch.compile on the cluster** (Triton works on Linux): ~10–30% per-training gain, but it
+  changes numerics → breaks laptop↔cluster parity + the determinism spine, and compile warmup eats
+  much of the gain on 33-min jobs. Speed is bought with packing instead.
+- **Larger batch / smaller nets / fewer steps:** science reduction — out by definition.
+- **Kathleen / CS cluster:** no GPUs / separate access regime.
+- **`-ac exclusive` node grabs:** wastes 3 of 4 GPUs per node unless pack ≥ 9 per card lands.
+
 ## 3. Standing decisions this battery feeds
 
 - **The stopping tier** (E1): P1's F + P2's C → `recommend_assurance_target(tph, days)` picks the

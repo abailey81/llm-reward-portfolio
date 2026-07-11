@@ -49,7 +49,8 @@ def _opts(local_out: str) -> dict[str, Any]:
     return inputs["opts"]
 
 
-def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str) -> list[Path]:
+def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str,
+                  include_det: bool = True) -> list[Path]:
     from src.cluster.campaign import _search_spec
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
@@ -74,23 +75,25 @@ def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str)
         write_jobscript(js, batch / f"{name}.sh")
         dirs.append(batch)
 
-    name = "p4det"  # P4: two tasks, identical (reward, seed), distinct cids
-    batch = Path(local_out) / "batches" / name
-    write_specs([spec("p4det-t1", DET_SEED), spec("p4det-t2", DET_SEED)], batch)
-    js = render_jobscript(name, 2, remote_root, gold_dir, pool=pool, pack=1,
-                          cores=1, apptainer_sif="$HOME/python311.sif")
-    write_jobscript(js, batch / f"{name}.sh")
-    dirs.append(batch)
+    if include_det:
+        name = "p4det"  # P4: two tasks, identical (reward, seed), distinct cids
+        batch = Path(local_out) / "batches" / name
+        write_specs([spec("p4det-t1", DET_SEED), spec("p4det-t2", DET_SEED)], batch)
+        js = render_jobscript(name, 2, remote_root, gold_dir, pool=pool, pack=1,
+                              cores=1, apptainer_sif="$HOME/python311.sif")
+        write_jobscript(js, batch / f"{name}.sh")
+        dirs.append(batch)
 
     print(f"[probes] built {len(dirs)} batches: {[d.name for d in dirs]}")
     return dirs
 
 
-def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str) -> None:
+def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str,
+           include_det: bool = True) -> None:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
-    dirs = build_batches(remote_root, gold_dir, local_out, pool=pool)
+    dirs = build_batches(remote_root, gold_dir, local_out, pool=pool, include_det=include_det)
     prepare_remote(remote_root, [d.name for d in dirs], runner)
     for d in dirs:
         push_batch(d, f"{remote_root.rstrip('/')}/specs", host=host)
@@ -141,7 +144,13 @@ def main() -> int:
     p.add_argument("--gold-dir", default="/acfs/users/ucestes/gold")
     p.add_argument("--output-dir", default="outputs/probes")
     p.add_argument("--pool", default="EF")
+    p.add_argument("--packs", default=None,
+                   help="Comma list of pack sizes to probe (default: the module PACKS). "
+                        "e.g. --packs 8 extends the F ceiling once 2/3/5 are queued.")
     args = p.parse_args()
+    if args.packs:
+        global PACKS
+        PACKS = [int(x) for x in str(args.packs).split(",") if x.strip()]
 
     from src.utils.preload import preload
     preload(strict=True)
@@ -155,11 +164,13 @@ def main() -> int:
             from src.cluster.submit import expand_remote, remote_home, ssh_runner
             remote_root = expand_remote(remote_root, remote_home(ssh_runner(args.host)))
 
+    det = args.packs is None  # a custom --packs run extends P1 only; never resubmit the P4 pair
     if args.build_only:
-        build_batches(remote_root, args.gold_dir, args.output_dir, pool=args.pool)
+        build_batches(remote_root, args.gold_dir, args.output_dir, pool=args.pool, include_det=det)
         return 0
     if args.submit:
-        submit(remote_root, args.gold_dir, args.output_dir, host=args.host, pool=args.pool)
+        submit(remote_root, args.gold_dir, args.output_dir, host=args.host, pool=args.pool,
+               include_det=det)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)

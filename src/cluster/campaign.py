@@ -124,6 +124,7 @@ def build_cluster_run(
     concurrent: bool = True,
     apptainer_sif: str | None = None,
     cores_per_training: int | None = None,
+    h_rt: str | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -197,11 +198,17 @@ def build_cluster_run(
         #    scheduling constraint (free-GPU nodes sit at load=36). The default 4-cores/training is
         #    over-provisioned (a training uses <1 core), so cores_per_training lets the campaign shrink
         #    the footprint (cores = cores_per_training × the call's pack) so packed jobs actually place.
+        #  * h_rt (2026-07-11, max-throughput): the renderer's default walltime (3h at pack=1) is a
+        #    ~5.5x over-request at the measured 33 min/training — a tight, MEASURED h_rt (wall x1.5)
+        #    makes every task a prime BACKFILL candidate (schedulers slot short jobs into reservation
+        #    gaps), which is a pure placement win on a saturated queue. Hardware/scheduling only.
         _jk: dict[str, Any] = {}
         if apptainer_sif:
             _jk["apptainer_sif"] = apptainer_sif
         if cores_per_training:
             _jk["cores"] = int(cores_per_training) * int(pack)
+        if h_rt:
+            _jk["h_rt"] = str(h_rt)
         return driver.run_batch(
             specs, name,
             local_batch_root=local_batch_root, local_archive_root=local_archive_root,

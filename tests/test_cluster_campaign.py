@@ -597,3 +597,14 @@ def test_build_cluster_run_threads_apptainer_and_cores_per_training(tmp_path, mo
     )
     run2.run_batch([{"candidate_id": "c0", "arm": "x"}], "x_g0", pool="EF", pack=5)
     assert "cores" not in rb_calls[0] and "apptainer_sif" not in rb_calls[0]
+    assert "h_rt" not in rb_calls[0]  # default: the renderer's conservative walltime stands
+
+    rb_calls.clear()
+    run3 = C.build_cluster_run(
+        remote_root="/r", remote_outputs_root="/r/outputs", local_batch_root=tmp_path / "b3",
+        local_archive_root=tmp_path / "a3", gold_dir="/inputs", h_rt="0:50:0",
+    )
+    run3.run_batch([{"candidate_id": "c0", "arm": "x"}], "x_g0", pool="EF", pack=1)
+    # max-throughput 2026-07-11: a MEASURED, tight walltime threads through to the jobscript so
+    # campaign tasks are backfill-eligible (the renderer's 3h default is a ~5.5x over-request at B*).
+    assert rb_calls[0]["h_rt"] == "0:50:0"

@@ -214,6 +214,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
+    p.add_argument("--h-rt", default=None, metavar="H:M:S",
+                   help="Per-array walltime request (default: the renderer's conservative 3h/1h30). "
+                        "Set from the MEASURED per-training wall x1.5 (e.g. 0:50:0 at B*=200k) — a tight "
+                        "h_rt makes tasks backfill-eligible on a saturated queue (pure placement speed; "
+                        "no science change).")
     p.add_argument("--cores-per-training", type=int, default=None,
                    help="CPU cores requested per packed training (total job cores = this × --pack). "
                         "Default (None) keeps the jobscript's 4×pack. Myriad GPU-node CORES are the "
@@ -274,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
         gold_dir=args.gold_dir, host=args.host, pool_confirmatory=args.pool, pack=args.pack,
         poll_secs=args.poll_secs, max_author_calls=args.max_author_calls, concurrent=True,
         apptainer_sif=(args.apptainer_sif or None), cores_per_training=args.cores_per_training,
+        h_rt=(args.h_rt or None),
     )
     baselines = list(args.baselines) if args.baselines else None
     if args.tiered:
