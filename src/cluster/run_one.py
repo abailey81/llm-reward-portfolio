@@ -139,6 +139,13 @@ def main(argv: list[str] | None = None) -> int:
     payload = read_spec(args.spec)
     rows = run_task(payload, pack=args.pack)
     n_ok = sum(1 for r in rows if r.get("ok"))
+    # 2026-07-12 (live-rehearsal fix): failed rows carried their error string but the log printed
+    # only counts — a node-side failure was UNDIAGNOSABLE from the .o file (the scalar_g0 sandbox
+    # reject surfaced as a bare rc=1). One line per failure, greppable, before the summary.
+    for r in rows:
+        if not r.get("ok"):
+            print(json.dumps({"failed": r.get("candidate_id") or r.get("run_id"),
+                              "error": str(r.get("error"))[:500]}), flush=True)
     print(json.dumps({"task": args.spec, "n": len(rows), "ok": n_ok}))
     return 0 if n_ok == len(rows) else 1
 
