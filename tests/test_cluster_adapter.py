@@ -60,7 +60,7 @@ def test_jobscript_encodes_every_researched_rule():
                    'if cp "/acfs/users/u/llmrp-inputs"/*.parquet "$TMPDIR/gold/"',
                    'export LLM_RP_GOLD_STAGED_DIR="$TMPDIR/gold"',
                    'export LLM_RP_GOLD_STAGED_DIR="/acfs/users/u/llmrp-inputs"',
-                   'export PYTHONPATH="~/llmrp:',  # BUG-4: `src` importable (repo != -wd)
+                   'export PYTHONPATH="$HOME/llmrp:',  # BUG-4: `src` importable (repo != -wd)
                    "--pack 3", "epilogue.jsonl"):
         assert needle in js, f"missing: {needle}"
 
@@ -70,6 +70,52 @@ def test_jobscript_pack1_defaults_and_priority_guard():
     assert "-pe smp 4" in js and "-l h_rt=3:0:0" in js and "#$ -p 0" in js
     with pytest.raises(ValueError, match="<= 0"):
         render_jobscript("t", 1, "/r", "/p", priority=5)
+
+
+def test_jobscript_rejects_tilde_and_relative_paths():
+    """2026-07-11 rehearsal incident regression: '~' is expanded by NOTHING the template touches
+    (SGE '#$' directives, double-quoted bash strings, PYTHONPATH) — the rendered '#$ -wd ~/...'
+    sent every array to Eqw at dispatch, where UCL's cleanup deleted them with no qacct record.
+    The render choke point must fail LOUD on any tilde, and on a non-absolute remote_root."""
+    with pytest.raises(ValueError, match="ABSOLUTE"):
+        render_jobscript("t", 2, "~/Scratch/llmrp", "/inputs")
+    with pytest.raises(ValueError, match="ABSOLUTE"):
+        render_jobscript("t", 2, "Scratch/llmrp", "/inputs")
+    for kwargs in (
+        {"gold_dir": "~/Scratch/inputs"},
+        {"gold_dir": "/inputs", "venv": "~/venvs/llmrp"},
+        {"gold_dir": "/inputs", "repo_root": "~/llmrp"},
+        {"gold_dir": "/inputs", "apptainer_sif": "~/python311.sif"},
+    ):
+        gold = kwargs.pop("gold_dir")
+        with pytest.raises(ValueError, match="literal '~'"):
+            render_jobscript("t", 2, "/r", gold, **kwargs)
+    # $HOME IS allowed in the shell-only paths (double-quoted bash expands variables)
+    js = render_jobscript("t", 2, "/r", "/inputs")
+    assert 'export PYTHONPATH="$HOME/llmrp:' in js and "~" not in js
+
+
+def test_expand_remote_and_remote_home():
+    """The user-facing '~' paths are expanded ONCE against the real remote $HOME (resolved via an
+    explicit remote shell — the quoted ssh runner keeps a bare $HOME argv word literal)."""
+    from src.cluster.submit import expand_remote, remote_home
+
+    assert expand_remote("~/Scratch/llmrp", "/home/ucestes") == "/home/ucestes/Scratch/llmrp"
+    assert expand_remote("~", "/home/u") == "/home/u"
+    assert expand_remote("/abs/path", "/home/u") == "/abs/path"
+    with pytest.raises(ValueError, match="~user"):
+        expand_remote("~other/x", "/home/u")
+
+    calls: list[list[str]] = []
+
+    def fake_runner(cmd: list[str]) -> str:
+        calls.append(cmd)
+        return "/home/ucestes\n"
+
+    assert remote_home(fake_runner) == "/home/ucestes"
+    assert calls == [["sh", "-lc", 'printf %s "$HOME"']]
+    with pytest.raises(RuntimeError, match="remote \\$HOME"):
+        remote_home(lambda _cmd: "garbage")
 
 
 def test_write_jobscript_forces_lf_endings(tmp_path):

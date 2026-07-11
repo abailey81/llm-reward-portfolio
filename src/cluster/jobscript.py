@@ -9,6 +9,18 @@ ALWAYS write the rendered text to disk via :func:`write_jobscript` (V11 audit fi
 runs on Windows, where a bare ``write_text`` translates ``\\n`` to ``\\r\\n`` — and a CRLF
 shebang (``#!/bin/bash -l\\r``) makes qsub/exec fail on the cluster. The classic landmine,
 killed at the API level.
+
+PATH CONTRACT (2026-07-11 incident fix): every path handed to :func:`render_jobscript` must be
+**tilde-free**, and ``remote_root`` must be **absolute**. ``~`` is expanded by NOTHING this
+template touches: SGE ``#$`` directives (``-wd``/``-o``) expand neither ``~`` nor ``$HOME``
+(an invalid ``-wd`` puts the whole array in ``Eqw`` at dispatch, where UCL's cleanup deletes it
+with NO qacct record — the observed fate of the 2026-07-11 rehearsal), double-quoted bash
+strings keep ``~`` literal (``mkdir -p "~/..."`` creates a directory named ``~``; the Apptainer
+``--bind`` list fails on the nonexistent literal path), and Python never expands ``~`` in
+``PYTHONPATH``. ``$HOME`` IS allowed in the shell-only paths (``gold_dir``/``venv``/
+``repo_root``/``apptainer_sif``: they appear only inside the bash body, where double quotes
+expand variables) but NOT in ``remote_root`` (directive sink). Callers expand user-supplied
+``~`` against the REAL remote home via ``submit.remote_home`` + ``submit.expand_remote``.
 """
 from __future__ import annotations
 
@@ -73,8 +85,8 @@ def render_jobscript(
     mem_per_core: str = "4G",
     tmpfs: str = "15G",
     h_rt: str | None = None,
-    venv: str = "~/venvs/llmrp",
-    repo_root: str = "~/llmrp",
+    venv: str = "$HOME/venvs/llmrp",
+    repo_root: str = "$HOME/llmrp",
     apptainer_sif: str | None = None,
 ) -> str:
     """Return the §14.6 jobscript text for one array batch.
@@ -88,6 +100,26 @@ def render_jobscript(
         raise ValueError(f"pack must be >= 1, got {pack}")
     if priority > 0:
         raise ValueError("SGE -p only accepts <= 0 for users (self-deprioritization)")
+    # PATH CONTRACT (2026-07-11 rehearsal incident — see the module docstring). Fail LOUD here,
+    # at the single render choke point, instead of silently shipping a script whose array Eqw-dies
+    # at dispatch (deleted with no qacct trace) or whose every task dies on a literal-~ path.
+    if not remote_root.startswith("/"):
+        raise ValueError(
+            f"remote_root must be an ABSOLUTE path (got {remote_root!r}): it lands in the SGE "
+            "'#$ -wd'/'#$ -o' directives, which expand neither '~' nor '$HOME' — an invalid -wd "
+            "sends the whole array to Eqw at dispatch. Expand via submit.remote_home/expand_remote."
+        )
+    for label, val in (
+        ("remote_root", remote_root), ("gold_dir", gold_dir), ("venv", venv),
+        ("repo_root", repo_root), ("apptainer_sif", apptainer_sif or ""),
+    ):
+        if "~" in val:
+            raise ValueError(
+                f"{label} contains a literal '~' (got {val!r}): nothing in the jobscript expands "
+                "it (SGE directives, double-quoted bash strings, PYTHONPATH). Pass an absolute "
+                "path, or '$HOME/...' for shell-only paths; expand user input via "
+                "submit.remote_home + submit.expand_remote."
+            )
     cores = cores if cores is not None else 4 * pack
     h_rt = h_rt if h_rt is not None else ("3:0:0" if pack == 1 else "1:30:0")
     from src.cluster.submit import sanitize_name

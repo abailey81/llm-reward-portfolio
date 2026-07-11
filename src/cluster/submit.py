@@ -20,7 +20,7 @@ from typing import Callable
 
 __all__ = [
     "ssh_runner", "ssh_base", "push_batch", "qsub", "submit_marker", "parse_job_id",
-    "sanitize_name", "prepare_remote",
+    "sanitize_name", "prepare_remote", "remote_home", "expand_remote",
 ]
 
 Runner = Callable[[list[str]], str]
@@ -63,6 +63,34 @@ def ssh_runner(host: str = "myriad") -> Runner:
         )
         return out.stdout
     return _run
+
+
+def remote_home(runner: Runner) -> str:
+    """Resolve ``$HOME`` on the cluster (ONE call; for expanding user-supplied ``~`` paths).
+
+    2026-07-11 incident fix: every layer between the driver and the node keeps ``~`` LITERAL —
+    :func:`ssh_runner` shlex-quotes each argv word, SGE ``#$`` directives never expand it, and
+    double-quoted bash strings keep it verbatim — so the rehearsal's ``~/Scratch/...`` root sent
+    its arrays to Eqw (admin-purged, no qacct trace) and its spec push into a literal ``~``
+    directory under ``$HOME``. All user-facing ``~`` paths are therefore expanded ONCE, up front,
+    against the real remote home via this helper + :func:`expand_remote`.
+    """
+    # The runner quotes each word, so $HOME must be evaluated by an explicit remote shell.
+    home = runner(["sh", "-lc", 'printf %s "$HOME"']).strip()
+    if not home.startswith("/"):
+        raise RuntimeError(f"could not resolve the remote $HOME (got {home!r})")
+    return home
+
+
+def expand_remote(path: str, home: str) -> str:
+    """Expand a leading ``~``/``~/`` in a REMOTE path against the resolved remote ``home``."""
+    if path == "~":
+        return home
+    if path.startswith("~/"):
+        return home + path[1:]
+    if path.startswith("~"):
+        raise ValueError(f"'~user' remote paths are unsupported: {path!r}")
+    return path
 
 
 def parse_job_id(qsub_stdout: str) -> str:

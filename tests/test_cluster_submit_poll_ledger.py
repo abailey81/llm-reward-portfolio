@@ -134,14 +134,14 @@ def test_jobscript_apptainer_launcher_is_on_the_run_line():
     (NOT auto-bound by apptainer) plus the gold dir must be explicitly --bind mounted, or the
     staged-gold env var points at a path that does not exist inside the container."""
     from src.cluster.jobscript import render_jobscript
-    js = render_jobscript("t2", 5, "/r", "/inputs", apptainer_sif="~/llmrp.sif")
+    js = render_jobscript("t2", 5, "/r", "/inputs", apptainer_sif="$HOME/llmrp.sif")
     assert (
-        'apptainer exec --nv --bind "$TMPDIR,/inputs" ~/llmrp.sif '
-        "~/venvs/llmrp/bin/python -m src.cluster.run_one" in js
+        'apptainer exec --nv --bind "$TMPDIR,/inputs" $HOME/llmrp.sif '
+        "$HOME/venvs/llmrp/bin/python -m src.cluster.run_one" in js
     )
     # the bare container python must never be the interpreter
     assert "llmrp.sif python -m" not in js
-    assert "source ~/venvs" not in js
+    assert "source $HOME/venvs" not in js
 
 
 def test_epilogue_reader_tolerates_torn_lines(tmp_path):

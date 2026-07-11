@@ -3,6 +3,38 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-11b] — the vanished-rehearsal root cause: literal `~` paths (campaign-day-1 breaker) FIXED; pilot battery planned
+
+### Diagnosed: the rehearsal arrays Eqw-died on unexpanded `~` and were admin-purged traceless
+The 2026-07-11 rehearsal's three arrays disappeared from the queue with **no `qacct` record**. Forensic
+chain (all verified first-hand on the cluster): the rendered jobscript carried literal `~` in the SGE
+`#$ -wd`/`#$ -o` directives (SGE expands neither `~` nor `$HOME` there → the array goes **Eqw at
+dispatch**, where UCL's cleanup deletes it; deleted-before-start jobs write no accounting), in
+double-quoted bash strings (`mkdir -p "~/..."`), in the Apptainer `--bind` list, and in `PYTHONPATH`
+(Python never expands `~` → `ModuleNotFoundError` on every task even had dispatch succeeded). The spec
+push had created a **literal `~` directory** under `$HOME` (which is why `qsub` "worked" — the relative
+literal path resolved); verified to contain only our specs/logs (44K) and removed. **This would have
+broken the real campaign identically on day 1.**
+
+### Fixed: tilde-free jobscript contract, fail-loud at the render choke point
+`render_jobscript` now REJECTS any literal `~` in `remote_root`/`gold_dir`/`venv`/`repo_root`/
+`apptainer_sif` and requires an absolute `remote_root` (directive sink — even `$HOME` is unsafe there);
+shell-only defaults moved `~/…` → `$HOME/…` (double-quoted bash expands variables, never tildes). New
+`submit.remote_home(runner)` (resolves the real remote `$HOME` via an explicit remote shell — the quoted
+ssh runner keeps a bare `$HOME` argv word literal) + `submit.expand_remote(path, home)`; the entry point
+expands all user-supplied `~` paths ONCE before anything renders (live path), and against a documented
+`/home/USER` stub in `--dry-run`. Two tests that had regression-locked the broken tilde form corrected;
+new regression tests for the render contract + the expansion helpers. Cluster suite green; ruff clean;
+dry-run re-validated end-to-end.
+
+### Planned: the pre-freeze pilot battery (`docs/PILOT_BATTERY_2026-07-11.md`)
+P0 rehearsal relaunch (certifies Apptainer-on-node; command staged, awaiting Tamer's go) · P1 packing-F
+ladder · P2 sustained-C probe · P3 full-length 200k anchor · P4 cross-node determinism pair · P5
+resume-under-fire drill · P6 B\*-on-authored-rewards ladder {100k,200k,400k} × 2 archived winner rewards
+× 3 CRN seeds (closes R74's one-hand-written-reward blind spot; the only pilot that could still move a
+frozen number, hence pre-freeze; needs Tamer's go) · P7 laptop D5 early-start. ≈33 GPU-h total; explicit
+NOT-piloted list (σ_D re-run, intraday, prompt experiments, sealed-leg anything) with reasons.
+
 ## [2026-07-11] — E1 ladder UPGRADED to 7 rungs + deep pre-freeze sweep (5 auditors) + G1 anchor + LIVE end-to-end rehearsal (found & fixed the cluster path)
 
 A long autonomous session that took the pre-registration to freeze-ready and then stress-tested the

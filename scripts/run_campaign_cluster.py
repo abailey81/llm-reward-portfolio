@@ -228,6 +228,7 @@ def main(argv: list[str] | None = None) -> int:
     # Load .env -> os.environ so the authoring key (ANTHROPIC_API_KEY / OPENROUTER_API_KEY) is available
     # to the LAPTOP-side driver that authors before shipping specs (parity with run_campaign.py:2111).
     # Without this, real-authoring (--pass-mode B) crashes with a "key unset" RuntimeError.
+    from src.cluster.submit import expand_remote, remote_home, ssh_runner
     from src.utils.env import load_env
 
     load_env()
@@ -241,10 +242,27 @@ def main(argv: list[str] | None = None) -> int:
         resume=bool(args.resume),
     )
     if args.dry_run:
-        return _dry_run(inputs, list(args.arms), remote_root=args.remote_root, gold_dir=args.gold_dir,
+        # No ssh in a dry-run: expand a leading '~' against a documented STUB home so the render
+        # is representative and passes the tilde-free jobscript contract (2026-07-11 incident).
+        stub = "/home/USER"
+        return _dry_run(inputs, list(args.arms),
+                        remote_root=expand_remote(args.remote_root, stub),
+                        gold_dir=expand_remote(args.gold_dir, stub),
                         pool=args.pool, pack=args.pack)
 
     from src.cluster.campaign import build_cluster_run, run_campaign_on_cluster
+
+    # 2026-07-11 incident fix: '~' survives LITERALLY through the quoted ssh runner, SGE '#$'
+    # directives, and the jobscript's quoted strings (the rehearsal arrays Eqw-died at dispatch
+    # and were admin-purged without a qacct trace). Resolve the REAL remote home once and expand
+    # every user-supplied remote path before anything is rendered, pushed, or submitted.
+    if any(str(p).startswith("~") for p in (args.remote_root, args.gold_dir, args.apptainer_sif or "")):
+        home = remote_home(ssh_runner(args.host))
+        args.remote_root = expand_remote(args.remote_root, home)
+        args.gold_dir = expand_remote(args.gold_dir, home)
+        if args.apptainer_sif:
+            args.apptainer_sif = expand_remote(args.apptainer_sif, home)
+        _LOG.info("remote '~' paths expanded against home=%s", home)
 
     remote_root = args.remote_root.rstrip("/")
     # local_archive_root == output_dir so the pulled mirror is output_dir/{search,test,frozen}/... —
