@@ -122,6 +122,7 @@ def build_cluster_run(
     min_pull_interval: float = 60.0,
     max_author_calls: int | None = None,
     concurrent: bool = True,
+    apptainer_sif: str | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -194,6 +195,10 @@ def build_cluster_run(
             remote_root=remote_root, remote_outputs_root=remote_outputs_root, gold_dir=gold_dir,
             host=host, runner=runner, pull=shared_pull, pack=pack, poll_secs=poll_secs, pool=pool,
             priority=priority, heartbeat=emit_heartbeat,
+            # Container route (2026-07-10): the cluster venv is built INSIDE python311.sif (RHEL7 glibc
+            # is too old for the cu124 wheels natively), so every training must launch through apptainer.
+            # Threaded as a jobscript kwarg -> render_jobscript(apptainer_sif=...).
+            **({"apptainer_sif": apptainer_sif} if apptainer_sif else {}),
         )
 
     author_lock: Any = threading.Lock() if concurrent else nullcontext()

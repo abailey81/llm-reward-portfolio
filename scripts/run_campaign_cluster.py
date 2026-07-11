@@ -211,6 +211,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--gold-dir", default="~/Scratch/llmrp/inputs", help="Staged gold dir on Myriad.")
     p.add_argument("--pool", default="EF", help="Confirmatory GPU pool (device homogeneity).")
     p.add_argument("--pack", type=int, default=1, help="§15 GPU packing (concurrent trainings/job).")
+    p.add_argument("--apptainer-sif", default="~/python311.sif",
+                   help="Container image the node trains through (the cluster venv is built INSIDE it; "
+                        "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
     p.add_argument("--poll-secs", type=float, default=600.0)
     p.add_argument("--max-author-calls", type=int, default=None, help="Hard authoring spend cap.")
     return p
@@ -218,6 +221,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # Load .env -> os.environ so the authoring key (ANTHROPIC_API_KEY / OPENROUTER_API_KEY) is available
+    # to the LAPTOP-side driver that authors before shipping specs (parity with run_campaign.py:2111).
+    # Without this, real-authoring (--pass-mode B) crashes with a "key unset" RuntimeError.
+    from src.utils.env import load_env
+
+    load_env()
     args = build_parser().parse_args(argv)
 
     inputs = assemble_cluster_inputs(
@@ -242,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
         local_batch_root=f"{args.output_dir}/batches", local_archive_root=args.output_dir,
         gold_dir=args.gold_dir, host=args.host, pool_confirmatory=args.pool, pack=args.pack,
         poll_secs=args.poll_secs, max_author_calls=args.max_author_calls, concurrent=True,
+        apptainer_sif=(args.apptainer_sif or None),
     )
     baselines = list(args.baselines) if args.baselines else None
     if args.tiered:

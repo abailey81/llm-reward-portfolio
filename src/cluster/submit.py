@@ -54,8 +54,12 @@ def ssh_runner(host: str = "myriad") -> Runner:
 
     def _run(cmd: list[str]) -> str:
         remote = " ".join(shlex.quote(c) for c in cmd)
+        # encoding is PINNED to utf-8 (not the OS locale): the cluster emits utf-8, but a non-utf-8
+        # Windows console (e.g. cp1251 on a Russian-locale laptop) would otherwise crash the reader
+        # thread on any non-ASCII byte. errors="replace" keeps a stray byte from ever killing a pull.
         out = subprocess.run(
-            [*ssh_base(host), remote], capture_output=True, text=True, timeout=300, check=True
+            [*ssh_base(host), remote], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=300, check=True,
         )
         return out.stdout
     return _run
