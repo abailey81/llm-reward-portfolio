@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root: `scri
 
 BUDGETS = [100_000, 200_000, 400_000]
 SEEDS = [0, 1, 2]  # CRN: shared across budgets AND rewards (paired comparisons throughout)
+SOLO_STEPS_PER_SEC = 102.2  # G1 anchor (job 764154, V100-PCIE-32GB, pack=1) — walltime scaling
 REWARDS = {  # label -> archived authored winner (Sonnet prototype, val-fitness argmax per arm)
     "p6dist": "outputs/prototype/distributional/distributional-g3-c0/reward.py",
     "p6scal": "outputs/prototype/scalar/scalar-g7-c3/reward.py",
@@ -40,13 +41,13 @@ REWARDS = {  # label -> archived authored winner (Sonnet prototype, val-fitness 
 BATCH = "p6ladder"
 
 
-def build_specs(remote_root: str, local_out: str) -> list[dict[str, Any]]:
-    """18 search-leg specs via the campaign's own assembly (one assemble per budget)."""
+def build_specs(remote_root: str, local_out: str, budgets: list[int]) -> list[dict[str, Any]]:
+    """Search-leg specs via the campaign's own assembly (one assemble per budget)."""
     from scripts.run_campaign_cluster import assemble_cluster_inputs
     from src.cluster.campaign import _search_spec
 
     specs: list[dict[str, Any]] = []
-    for budget in BUDGETS:
+    for budget in budgets:
         inputs = assemble_cluster_inputs(
             arms=["distributional"], seeds=[0], output_dir=local_out, synthetic=False,
             train_steps=budget, n_trials=30, candidates=1, generations=1, search_seed=0,
@@ -67,30 +68,39 @@ def build_specs(remote_root: str, local_out: str) -> list[dict[str, Any]]:
     return specs
 
 
-def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, cores: int) -> Path:
+def _auto_h_rt(budgets: list[int]) -> str:
+    """Walltime = slowest rung / the measured V100 rate x1.5 safety, floored at 3 h."""
+    hours = max(3.0, max(budgets) / SOLO_STEPS_PER_SEC / 3600.0 * 1.5)
+    return f"{int(hours) + (1 if hours % 1 else 0)}:0:0"
+
+
+def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, cores: int,
+                budgets: list[int], batch: str) -> Path:
     """Write task_N.json + the jobscript into the local batch dir; return it."""
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
 
-    specs = build_specs(remote_root, local_out)
-    batch_dir = Path(local_out) / "batches" / BATCH
+    specs = build_specs(remote_root, local_out, budgets)
+    batch_dir = Path(local_out) / "batches" / batch
     n = write_specs(specs, batch_dir)  # strict-JSON guard runs here
-    js = render_jobscript(BATCH, n, remote_root, gold_dir, pool=pool, pack=1,
-                          cores=cores, h_rt="3:0:0", apptainer_sif="$HOME/python311.sif")
-    write_jobscript(js, batch_dir / f"{BATCH}.sh")
-    print(f"[p6] built {n} specs + jobscript at {batch_dir}")
+    js = render_jobscript(batch, n, remote_root, gold_dir, pool=pool, pack=1,
+                          cores=cores, h_rt=_auto_h_rt(budgets), apptainer_sif="$HOME/python311.sif")
+    write_jobscript(js, batch_dir / f"{batch}.sh")
+    print(f"[p6] built {n} specs + jobscript at {batch_dir} (h_rt {_auto_h_rt(budgets)})")
     return batch_dir
 
 
-def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str, cores: int) -> str:
+def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str, cores: int,
+           budgets: list[int], batch: str) -> str:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
-    batch_dir = build_batch(remote_root, gold_dir, local_out, pool=pool, cores=cores)
-    prepare_remote(remote_root, [BATCH], runner)
+    batch_dir = build_batch(remote_root, gold_dir, local_out, pool=pool, cores=cores,
+                            budgets=budgets, batch=batch)
+    prepare_remote(remote_root, [batch], runner)
     push_batch(batch_dir, f"{remote_root.rstrip('/')}/specs", host=host)
-    job = qsub(f"{remote_root.rstrip('/')}/specs/{BATCH}/{BATCH}.sh", runner)
-    print(f"[p6] submitted {BATCH} as job {job} (18 tasks, pool {pool})")
+    job = qsub(f"{remote_root.rstrip('/')}/specs/{batch}/{batch}.sh", runner)
+    print(f"[p6] submitted {batch} as job {job} ({len(budgets) * len(REWARDS) * len(SEEDS)} tasks, pool {pool})")
     return job
 
 
@@ -130,7 +140,11 @@ def main() -> int:
     p.add_argument("--output-dir", default="outputs/p6ladder")
     p.add_argument("--pool", default="EF")
     p.add_argument("--cores-per-task", type=int, default=2)
+    p.add_argument("--budgets", default=",".join(str(b) for b in BUDGETS),
+                   help="Comma list of step budgets (extension rungs, e.g. 800000,1600000).")
+    p.add_argument("--batch-name", default=BATCH, help="SGE batch name (extension arrays need their own).")
     args = p.parse_args()
+    budgets = [int(x) for x in str(args.budgets).split(",") if x.strip()]
 
     from src.utils.preload import preload
     preload(strict=True)
@@ -145,11 +159,12 @@ def main() -> int:
             remote_root = expand_remote(remote_root, remote_home(ssh_runner(args.host)))
 
     if args.build_only:
-        build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool, cores=args.cores_per_task)
+        build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
+                    cores=args.cores_per_task, budgets=budgets, batch=args.batch_name)
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
-               pool=args.pool, cores=args.cores_per_task)
+               pool=args.pool, cores=args.cores_per_task, budgets=budgets, batch=args.batch_name)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)
