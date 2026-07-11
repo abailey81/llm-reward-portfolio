@@ -282,6 +282,7 @@ def run_one_budget(
     end: str,
     device: str,
     reward_source: str | None = None,
+    reward_fn: Any | None = None,
 ) -> dict[str, Any]:
     """Train the FIXED (explosion-fixed) SAC at one (budget, seed); return eval + critic-loss diagnostics.
 
@@ -295,6 +296,13 @@ def run_one_budget(
     31-asset fixture — same AST gate, same restricted namespace, same contract check), so the ladder
     measures the authored code the campaign would actually train, not a reimplementation. ``reward_key``
     then serves as the human LABEL only.
+
+    ``reward_fn`` (2026-07-12 hang fix): the ALREADY-COMPILED callable. Both live P6 ladders froze
+    at the SAME site — ``validate_once``'s multiprocessing spawn called per (budget, seed) rung from
+    a CUDA-holding parent (two concurrent GPU parents, Windows ``popen_spawn_win32`` deadlock;
+    py-spy-confirmed on both). Re-validating the SAME source every rung was redundant anyway:
+    ``main`` now compiles ONCE in the clean pre-CUDA parent and threads the callable down. The
+    cluster path is unaffected (Linux, fresh process per task, one validation per candidate).
     """
     out: dict[str, Any] = {"budget": int(budget), "seed": int(seed), "ok": False, "error": None}
     try:
@@ -304,20 +312,10 @@ def run_one_budget(
         from src.inference.bootstrap import iqm
         from src.utils.config import load_config
 
-        if reward_source is not None:
-            from src.sandbox.executor import validate_once
-
-            # Fixture = the exact shape-parity fixture the campaign's loop uses (src/llm/loop.py:361):
-            # weights/prev (N+1 incl. cash) + returns (N risky) — the production reward contract.
-            _n = 31
-            fixture = (
-                np.full(_n, 1.0 / _n, dtype=float),
-                np.full(_n - 1, 0.001, dtype=float),
-                np.full(_n, 1.0 / _n, dtype=float),
-                0.0,
-                {},
-            )
-            reward_fn = validate_once(reward_source, fixture)
+        if reward_fn is not None:
+            pass  # pre-compiled by main() — the 2026-07-12 hang fix (see the docstring)
+        elif reward_source is not None:
+            reward_fn = compile_reward_source(reward_source)
         else:
             if reward_key not in REWARD_CANON:
                 raise KeyError(f"unknown reward {reward_key!r}; REWARD_CANON has {sorted(REWARD_CANON)}")
@@ -368,6 +366,27 @@ def run_one_budget(
     return out
 
 
+def compile_reward_source(reward_source: str) -> Any:
+    """Compile ARCHIVED authored reward source via the campaign's exact sandbox gate — ONCE.
+
+    Call this in a clean (pre-CUDA, single-process) context: the 2026-07-12 live hang showed
+    ``validate_once``'s spawn deadlocks when invoked repeatedly from concurrent CUDA-holding
+    parents on Windows (py-spy: both ladders frozen in ``popen_spawn_win32.__init__``)."""
+    from src.sandbox.executor import validate_once
+
+    # Fixture = the exact shape-parity fixture the campaign's loop uses (src/llm/loop.py:361):
+    # weights/prev (N+1 incl. cash) + returns (N risky) — the production reward contract.
+    _n = 31
+    fixture = (
+        np.full(_n, 1.0 / _n, dtype=float),
+        np.full(_n - 1, 0.001, dtype=float),
+        np.full(_n, 1.0 / _n, dtype=float),
+        0.0,
+        {},
+    )
+    return validate_once(reward_source, fixture)
+
+
 def run_curve(
     budgets: list[int],
     seeds: list[int],
@@ -377,11 +396,12 @@ def run_curve(
     end: str,
     device: str,
     reward_source: str | None = None,
+    reward_fn: Any | None = None,
 ) -> dict[str, Any]:
     """Run the full (budget x seed) ladder; return the raw runs + the per-budget seed-IQM summary."""
     runs = [
         run_one_budget(b, s, reward_key, synthetic=synthetic, end=end, device=device,
-                       reward_source=reward_source)
+                       reward_source=reward_source, reward_fn=reward_fn)
         for b in budgets
         for s in seeds
     ]
@@ -532,11 +552,14 @@ def main() -> None:
         synthetic, device, no_plot, end = bool(args.synthetic), args.device, bool(args.no_plot), args.end
 
     reward_source: str | None = None
+    reward_fn = None
     if getattr(args, "reward_source", None):
         src_path = Path(args.reward_source)
         reward_source = src_path.read_text(encoding="utf-8")
         if not reward_source.strip():
             raise ValueError(f"--reward-source {src_path} is empty")
+        # Compile ONCE here — clean pre-CUDA parent (the 2026-07-12 hang fix; see run_one_budget).
+        reward_fn = compile_reward_source(reward_source)
 
     print("=" * 72)
     print("[learning_curve] training-budget convergence diagnostic (under-training gate)")
@@ -548,7 +571,7 @@ def main() -> None:
     print("=" * 72)
 
     result = run_curve(budgets, seeds, args.reward, synthetic=synthetic, end=end, device=device,
-                       reward_source=reward_source)
+                       reward_source=reward_source, reward_fn=reward_fn)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
