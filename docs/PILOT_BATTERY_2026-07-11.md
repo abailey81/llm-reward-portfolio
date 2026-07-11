@@ -93,6 +93,17 @@ Every lever below is hardware/scheduling-side ONLY — B\*, arms, seeds, splits,
    during the long test flood. Marker-hold chains already pre-submit test arrays at zero latency.
 6. **Node-local staging, containerised env, ≤2 fast-fail requeues, `-r y`, 3-site mirror** — all
    already built; no per-task pip/network on nodes.
+7. **⚠ MEASURED CLUSTER POLICY (2026-07-11 ~21:00): array-tail serialization under contention.**
+   The Myriad policy JSV (`account: policyjsv`, injected `snx=1`) moved tasks 2..N of EVERY pending
+   array to `hqw`, leaving task 1 schedulable — arrays serialize internally during high contention
+   (not a user hold; `qrls` no-ops). Two consequences, both encoded here: (a) **fleet shape
+   matters**: many SMALL arrays ≫ one giant array under this policy (16 arrays → up to 16
+   concurrent eligible tasks even fully serialized) — if the policy is active at campaign time,
+   submit the C4 sweep as CHUNKED arrays (per-arm × seed-chunk) rather than monoliths; the driver
+   already batches per-arm/per-generation, and `--seed-pool-blocks` chunking doubles as this
+   mitigation. (b) **Watch the cascade**: if task 2 flips `hqw→qw` when task 1 completes, the
+   policy is self-releasing (serialized but automatic); if not, rc-support is the escalation path.
+   The fleet monitor observes exactly this transition.
 
 **Rejected, with reasons (so no one re-litigates under time pressure):**
 - **torch.compile on the cluster** (Triton works on Linux): ~10–30% per-training gain, but it
