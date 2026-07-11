@@ -214,6 +214,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
+    p.add_argument("--seed-pool-blocks", default=None, metavar="POOL:LO-HI,...",
+                   help='Device-stratified seed blocks (RATIFIED 2026-07-11c), e.g. '
+                        '"EF:0-283,L:284-567": whole seed blocks run on different GPU pools while '
+                        'every CRN pair (same seed, all arms) stays device-homogeneous — a '
+                        'randomized-block design that adds the A100 pools to confirmatory C. '
+                        'Blocks must be disjoint; unassigned seeds fall back to --pool.')
     p.add_argument("--h-rt", default=None, metavar="H:M:S",
                    help="Per-array walltime request (default: the renderer's conservative 3h/1h30). "
                         "Set from the MEASURED per-training wall x1.5 (e.g. 0:50:0 at B*=200k) — a tight "
@@ -255,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
                         gold_dir=expand_remote(args.gold_dir, stub),
                         pool=args.pool, pack=args.pack)
 
-    from src.cluster.campaign import build_cluster_run, run_campaign_on_cluster
+    from src.cluster.campaign import build_cluster_run, parse_seed_pool_blocks, run_campaign_on_cluster
 
     # 2026-07-11 incident fix: '~' survives LITERALLY through the quoted ssh runner, SGE '#$'
     # directives, and the jobscript's quoted strings (the rehearsal arrays Eqw-died at dispatch
@@ -280,6 +286,8 @@ def main(argv: list[str] | None = None) -> int:
         poll_secs=args.poll_secs, max_author_calls=args.max_author_calls, concurrent=True,
         apptainer_sif=(args.apptainer_sif or None), cores_per_training=args.cores_per_training,
         h_rt=(args.h_rt or None),
+        seed_pool_blocks=(parse_seed_pool_blocks(args.seed_pool_blocks)
+                          if args.seed_pool_blocks else None),
     )
     baselines = list(args.baselines) if args.baselines else None
     if args.tiered:

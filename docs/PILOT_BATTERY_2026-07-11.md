@@ -27,7 +27,7 @@ scheduler surfaces this class of defect* — dry-runs and unit tests all passed 
 |---|---|---|---|---|---|
 | **P0** | **Rehearsal relaunch** (fixed code) | the Apptainer-on-node campaign path — the ONE untested piece | 3 arms × 2 gen × 4 cand × 1 seed × 10k steps, Qwen `--pass-mode B`, `--synthetic`, spend-capped | a node-produced training record lands in the archive → **path CERTIFIED**; any node error → fix, repeat until green | ~0.5 GPU-h + ~¢ Qwen |
 | **P1** | **Packing factor F** | trainings/GPU (multiplies all wall-clock math) | pack ∈ {1, 2, 3, 5} × 3 trainings × 50k steps, `--cores-per-training 1–2` | F = argmax aggregate steps/s s.t. per-training slowdown ≤ 15%; feeds `recommend_assurance_target` | ~3 GPU-h |
-| **P2** | **Sustained concurrency C** | fair-share placement rate (the honest days-formula input) | 30-task array of 15-min probes at 2 cores; log placement latency + peak concurrency, off-peak vs peak | C_central for the wall-clock model; grounds the CRAG reservation ask (CRAG Tue 14 Jul) | ~8 GPU-h |
+| **P2** | **Sustained concurrency C** | fair-share placement rate (the honest days-formula input) | ~~standalone probe~~ **DROPPED as redundant** — the live arrays' epilogue ledgers + `qacct` timestamps ARE the placement experiment | C_central for the wall-clock model, derived from the fleet | $0 |
 | **P3** | **Full-length anchor** | h_rt sizing, memory/thermal stability at B\* (32.6 min is an 8-min extrapolation) | ONE real-gold 200k training (H1 baseline reward, seed 0, train/val windows) on a V100 | campaign array h_rt = 1.5 × measured wall; memory high-water < 8 GB | ~0.6 GPU-h |
 | **P4** | **Cross-node determinism** | does the determinism spine (seeded stacks + CUBLAS workspace) hold ACROSS V100 nodes? | the SAME spec + seed run on two different EF nodes | identical final eval metrics → replay-from-archive claim holds on the cluster; any drift → documented and folded into the seed-variance framing (never silently) | ~1–2 GPU-h |
 | **P5** | **Resume-under-fire** | driver death mid-batch on the REAL cluster (the campaign's scariest failure) | kill the driver after first completions during P0/P1; restart `--resume`; run `resume_audit.py` | zero lost + zero duplicated trainings (resume_audit exit 0) | ~0 (piggybacks) |
@@ -59,16 +59,30 @@ highest-EV grade work) proceeds in the foreground throughout.**
 The throughput identity: `trainings/hour = C (GPUs held) × F (pack) × 1/wall − overheads`.
 Every lever below is hardware/scheduling-side ONLY — B\*, arms, seeds, splits, prompts untouched.
 
+> **CRAG reservation = REJECTED by Tamer (2026-07-11: "we won't use CRAG — we can finish
+> without").** The campaign runs on **fair-share alone**; the draft application was deleted. The
+> design already absorbs fair-share variability BY CONSTRUCTION: the distinction floor banks first
+> (C0–C3, ~644 GPU-h), and the E1 assurance ladder's stopping tier is chosen EXOGENOUSLY from
+> measured throughput vs the deadline — a slow queue costs only the marginal rung, never the study.
+> The levers below are the complete fair-share-side speed budget.
+
 **Levers, in EV order:**
-1. **CRAG reservation (the C lever, dominant).** Fair-share measured 11 July: 369 pending GPU jobs
-   vs ~74 GPUs, ~2 free V100s. A reservation converts C from a random variable into a constant.
-   Draft ready: `docs/CRAG_APPLICATION_DRAFT_2026-07-11.md` — **Tamer sends (Okhrati co-sign)
-   before the Tue 14 Jul CRAG meeting.** 12 V100s × 10 days ≈ the whole Stage-1 to 95%.
-2. **Packing (the F lever).** P1 ladder in flight (pack 2/3/5 = jobs 772152–4, pack 8 = 772286;
+1. **Packing (the F lever — now the dominant controllable).** P1 ladder in flight (pack 2/3/5 = jobs 772152–4, pack 8 = 772286;
    cores = pack × 1). Campaign policy: `--pack F*` at the measured optimum, `--cores-per-training 1`.
    If scaling is sublinear from SM contention, per-job **NVIDIA MPS** (`nvidia-cuda-mps-control`,
    user-space, legal on a cgroup-owned GPU) is the P1-conditional follow-up.
-3. **Backfill-tight walltime (the placement lever).** BUILT tonight: `--h-rt` threads
+2. **Device-stratified seed blocks (the C multiplier — RATIFIED 2026-07-11).** Tamer granted
+   full delegated permission ("solve all other issues yourself") in the max-speed directive after
+   this lever was put to him; ratified as a dated pre-freeze EXECUTION note (CHANGELOG
+   [2026-07-11c]): whole SEED BLOCKS may be assigned to different GPU pools (e.g. seeds → V100/EF
+   and A100/L blocks). Validity: the inference is PAIRED per seed (CRN) — every contrast
+   D_s = X_a,s − X_b,s compares arms trained on the SAME device at the same seed, so each pair
+   stays device-homogeneous and the device cancels in the difference (a randomized-block design);
+   the only conceivable threat (a device×arm interaction) is directly reported as a per-device D̄
+   diagnostic table (env_fp records the GPU per record, S6). Adds ~24–30 A100s to C (≈ +60–80%
+   throughput). Implemented FLAG-OFF (`--seed-pool-blocks "EF:0-283,L:284-567"`); the default
+   single-pool path is byte-identical to the certified one.
+3. **Backfill-tight walltime (the placement lever).** BUILT: `--h-rt` threads
    entry→campaign→driver→jobscript. Campaign value = measured wall × 1.5 (e.g. `0:50:0` at
    pack=1/B\*; `1:15:0` at pack=5 waves) instead of the 3 h default (a 5.5× over-request that
    disqualifies tasks from backfill gaps). P3/P6 measure the exact wall.
@@ -77,18 +91,7 @@ Every lever below is hardware/scheduling-side ONLY — B\*, arms, seeds, splits,
    burn); the C-ladder's `-p` self-deprioritization already orders our own jobs correctly.
 5. **Poll cadence.** Driver `--poll-secs 180` during search phases (generation turnaround), 600
    during the long test flood. Marker-hold chains already pre-submit test arrays at zero latency.
-6. **⚠ DECISION-PENDING-TAMER — device-stratified seed blocks (the biggest untapped C multiplier).**
-   Current policy: confirmatory = V100-only (homogeneity). But the inference is PAIRED per seed
-   (CRN): every contrast D_s = X_a,s − X_b,s compares arms trained on the SAME device at the same
-   seed, so assigning whole SEED BLOCKS to different pools (e.g. seeds 0–299 → V100/EF, 300–567 →
-   A100/L+U) keeps every pair device-homogeneous while adding ~24–30 A100s to C (≈ +60–80%
-   throughput). Statistically a randomized-block design (device = block, cancels in the pair);
-   diagnosable by a per-device D̄ table (device×arm interaction is the only threat, and it is
-   directly reported). Costs nothing scientifically IF ratified — but it is a design-adjacent
-   execution choice, so it needs Tamer's explicit go + a dated pre-freeze execution note, and the
-   A100 pool then also stops being reserved for Stage-2. If declined, A100s still run Stage-2
-   concurrently (already planned).
-7. **Node-local staging, containerised env, ≤2 fast-fail requeues, `-r y`, 3-site mirror** — all
+6. **Node-local staging, containerised env, ≤2 fast-fail requeues, `-r y`, 3-site mirror** — all
    already built; no per-task pip/network on nodes.
 
 **Rejected, with reasons (so no one re-litigates under time pressure):**

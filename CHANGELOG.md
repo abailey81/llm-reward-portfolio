@@ -3,6 +3,33 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-11c] — max-throughput campaign levers (hardware-only); CRAG rejected; device-stratified seed blocks RATIFIED; the battery live on Myriad
+
+Tamer's directives, executed same-night: "use everything Myriad offers, hardware only, no science
+reduction" · "no CRAG — we finish without" · "solve all other issues yourself, full permissions."
+
+- **CRAG reservation REJECTED (Tamer)** — the campaign runs on fair-share alone; the draft
+  application was deleted. The design absorbs fair-share variability by construction (floor-first
+  C-ladder + the E1 exogenous stopping tier: a slow queue costs only the marginal rung).
+- **Device-stratified seed blocks RATIFIED (2026-07-11c, delegated full permission)** — whole seed
+  blocks may run on different GPU pools (`--seed-pool-blocks "EF:0-283,L:284-567"`): the inference
+  is CRN-paired per seed, so every contrast D_s compares arms trained on the SAME device (device
+  cancels in the pair — a randomized-block design); the device×arm interaction is reported via the
+  per-record `env_fp` as a per-device D̄ diagnostic. Adds the A100 pools to confirmatory C
+  (≈ +60–80%). Implemented FLAG-OFF in `ClusterRun.seed_pool_blocks` + `run_test_leg` partition +
+  `parse_seed_pool_blocks` (disjointness fail-loud; unassigned seeds fall back — never dropped);
+  the default single-pool path is unchanged. Regression tests added.
+- **`--h-rt` backfill lever** threaded entry→campaign→driver→jobscript (measured wall ×1.5 instead
+  of the 3 h default — a 5.5× over-request that disqualified tasks from backfill gaps).
+- **Battery live:** P0 rehearsal (3 arrays) · P6 authored-winner ladder 18 tasks + extensions
+  **800k/1.6M** (measured range now 25k→1.6M, 64×; the object is the eval plateau, not the
+  critic-loss minimum — Goodhart) · P1 packing 2/3/5/**8** · P4 cross-node determinism pair ·
+  **P8 full 7-arm prototype on Myriad** (real gold, Qwen, directional-only). P2 dropped as
+  redundant (the fleet's epilogue ledgers ARE the placement experiment); P3 subsumed by P6.
+  Persistent order-insensitive fleet monitor (sorted-diff; v1 false-alarmed on row reordering).
+- **Amendment R76** (separate commit db52495): A5 rational-insensitivity account + the fed-delta
+  SNR/attenuation exhibit; canonical hash `79a6db44` → `e3a8c880`, gate 21/21 GREEN.
+
 ## [2026-07-11b] — the vanished-rehearsal root cause: literal `~` paths (campaign-day-1 breaker) FIXED; pilot battery planned
 
 ### Diagnosed: the rehearsal arrays Eqw-died on unexpanded `~` and were admin-purged traceless

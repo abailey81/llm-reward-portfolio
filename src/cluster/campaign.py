@@ -87,6 +87,13 @@ class ClusterRun:
     # pipeline is testable with fakes and reuses the certified selection rule in production.
     select_winner: Callable[[Any], Any] | None = None
     freeze_winner: Callable[..., Any] | None = None
+    # Device-stratified seed blocks (RATIFIED 2026-07-11, CHANGELOG [2026-07-11c]): whole SEED
+    # BLOCKS may run on different GPU pools — the inference is CRN-PAIRED per seed, so every
+    # contrast D_s compares arms trained on the SAME device (device cancels in the pair; a
+    # randomized-block design; the device×arm interaction is reported via the per-record env_fp).
+    # ``[("EF", {0..283}), ("L", {284..567})]``; None (default) = single-pool, byte-identical to
+    # the certified path. Seeds in no block fall back to the call's pool (fail-safe, never dropped).
+    seed_pool_blocks: list[tuple[str, set[int]]] | None = None
 
     # SEARCH and TEST records live in SEPARATE sub-roots (parity with the laptop campaign's
     # search_root/test_root split). Critical: a test record carries the winner's ``val_fitness``
@@ -125,6 +132,7 @@ def build_cluster_run(
     apptainer_sif: str | None = None,
     cores_per_training: int | None = None,
     h_rt: str | None = None,
+    seed_pool_blocks: list[tuple[str, set[int]]] | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -223,8 +231,35 @@ def build_cluster_run(
         run_batch=run_batch, spec_archive_root=remote_outputs_root,
         read_root=Path(local_archive_root), pool_confirmatory=pool_confirmatory,
         pool_report_only=pool_report_only, pack=pack, author_lock=author_lock,
-        author_guard=author_guard,
+        author_guard=author_guard, seed_pool_blocks=seed_pool_blocks,
     )
+
+
+def parse_seed_pool_blocks(text: str) -> list[tuple[str, set[int]]]:
+    """Parse ``"EF:0-283,L:284-567"`` into device-stratified seed blocks (fail-loud).
+
+    Blocks must be pairwise DISJOINT — one seed on two devices would break the CRN pairing the
+    stratification's validity rests on (2026-07-11c).
+    """
+    blocks: list[tuple[str, set[int]]] = []
+    seen: set[int] = set()
+    for part in [p.strip() for p in text.split(",") if p.strip()]:
+        pool, _, rng = part.partition(":")
+        if not pool or "-" not in rng:
+            raise ValueError(f"bad seed-pool block {part!r} (expected POOL:LO-HI)")
+        lo, hi = (int(x) for x in rng.split("-", 1))
+        if hi < lo:
+            raise ValueError(f"bad seed range in {part!r} (hi < lo)")
+        seeds = set(range(lo, hi + 1))
+        overlap = seen & seeds
+        if overlap:
+            raise ValueError(f"seed-pool blocks overlap (e.g. seed {min(overlap)}): CRN pairing "
+                             "requires each seed on exactly one device class")
+        seen |= seeds
+        blocks.append((pool.strip(), seeds))
+    if not blocks:
+        raise ValueError(f"no seed-pool blocks parsed from {text!r}")
+    return blocks
 
 
 # --------------------------------------------------------------------------- #
@@ -648,7 +683,29 @@ def run_test_leg(
         specs.sort(key=lambda s: (int(s["seed"]), unit_order.get(str(s["arm"]), len(unit_order))))
     if not specs:
         return {"name": name, "ok": True, "submitted": 0, "note": "all seeds already archived"}
-    return run.run_batch(specs, name, pool=pool or run.pool_confirmatory, pack=run.pack,
+    base_pool = pool or run.pool_confirmatory
+    if run.seed_pool_blocks:
+        # Device-stratified seed blocks (2026-07-11c): partition the taskfile BY SEED so each
+        # block's array runs on its pool. Every CRN pair (same seed, all arms) stays on ONE device
+        # class; the interleave order is preserved WITHIN each block. Unassigned seeds fall back to
+        # ``base_pool`` under the original batch name — no spec is ever dropped.
+        assigned: set[int] = set()
+        out: dict[str, Any] = {"name": name, "ok": True, "blocks": {}}
+        for block_pool, block_seeds in run.seed_pool_blocks:
+            part = [s for s in specs if int(s["seed"]) in block_seeds]
+            assigned |= block_seeds
+            if part:
+                r = run.run_batch(part, f"{name}_{block_pool}", pool=block_pool, pack=run.pack,
+                                  priority=priority)
+                out["blocks"][block_pool] = r
+                out["ok"] = out["ok"] and bool(r.get("ok", True))
+        rest = [s for s in specs if int(s["seed"]) not in assigned]
+        if rest:
+            r = run.run_batch(rest, name, pool=base_pool, pack=run.pack, priority=priority)
+            out["blocks"][base_pool] = r
+            out["ok"] = out["ok"] and bool(r.get("ok", True))
+        return out
+    return run.run_batch(specs, name, pool=base_pool, pack=run.pack,
                          priority=priority)
 
 

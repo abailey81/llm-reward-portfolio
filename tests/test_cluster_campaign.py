@@ -608,3 +608,39 @@ def test_build_cluster_run_threads_apptainer_and_cores_per_training(tmp_path, mo
     # max-throughput 2026-07-11: a MEASURED, tight walltime threads through to the jobscript so
     # campaign tasks are backfill-eligible (the renderer's 3h default is a ~5.5x over-request at B*).
     assert rb_calls[0]["h_rt"] == "0:50:0"
+
+
+def test_seed_pool_blocks_partition_and_parser(tmp_path):
+    """Device-stratified seed blocks (2026-07-11c): the test leg partitions its taskfile BY SEED
+    into per-pool arrays — every CRN pair (same seed, all arms) stays on ONE device class, the
+    device cancels in the paired difference, and unassigned seeds fall back to the base pool."""
+    import src.cluster.campaign as C
+
+    # parser: blocks, disjointness fail-loud, bad-shape fail-loud
+    blocks = C.parse_seed_pool_blocks("EF:0-1,L:2-3")
+    assert blocks == [("EF", {0, 1}), ("L", {2, 3})]
+    with pytest.raises(ValueError, match="overlap"):
+        C.parse_seed_pool_blocks("EF:0-2,L:2-3")
+    with pytest.raises(ValueError, match="POOL:LO-HI"):
+        C.parse_seed_pool_blocks("EF")
+
+    calls: list[tuple[str, str, list[int]]] = []
+
+    def fake_run_batch(specs, name, *, pool, pack, priority=0):
+        calls.append((name, pool, sorted(int(s["seed"]) for s in specs)))
+        return {"ok": True, "submitted": len(specs)}
+
+    run = C.ClusterRun(run_batch=fake_run_batch, spec_archive_root="/r/outputs",
+                       read_root=tmp_path, seed_pool_blocks=blocks)
+    winners = [("distributional", {"arm": "distributional", "reward_source": "def reward(*a): ...",
+                                   "candidate_id": "w0", "val_fitness": 1.0})]
+    out = C.run_test_leg(
+        winners, [0, 1, 2, 3, 4], run, panel_descriptor={"synthetic": True}, env_cfg={},
+        agent_cfg={"train_steps_per_candidate": 10}, train_window=(0, 5), val_window=(6, 8),
+        test_window=(9, 12), embargo=0, lookback=1, name="t", resume=False,
+    )
+    assert out["ok"] and set(out["blocks"]) == {"EF", "L"}
+    by_name = {n: (p, seeds) for n, p, seeds in calls}
+    assert by_name["t_EF"] == ("EF", [0, 1])   # block 1 on the V100 pool
+    assert by_name["t_L"] == ("L", [2, 3])     # block 2 on the A100 pool
+    assert by_name["t"][1] == [4]              # unassigned seed falls back to base pool — never dropped
