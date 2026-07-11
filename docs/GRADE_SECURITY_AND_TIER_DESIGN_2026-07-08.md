@@ -161,6 +161,13 @@ part runs" logic that orders Stage 1's tiers also walls Stage 2 off from the gra
 
 ### 4.1 The internal 4-tier structure (ordered by value-per-cost × dependency)
 
+> **⚠ VALUE-ORDERING SUPERSEDED (2026-07-11) by `docs/STAGE2_PUBLISHABILITY_PLAN_2026-07-11.md`.** The
+> machinery + the armor principle (§4.0) still hold, but the *emphasis* is rebalanced for the actual
+> IFTE0008 rubric: **90–100% = journal-publishable**, so Stage 2 is re-centred on a MECHANISM-DEPTH spine
+> (locate-the-break · the cross-LLM **numeracy survey** · the legibility lever) with robustness breadth
+> (D6/U5/U4/FTSE/GPT-5.5) demoted to a thin prunable future-work shell. Read that doc for the operative
+> Stage-2 plan; the 4-tier table below is retained as the cost/dependency reference.
+
 | Tier | Items | API | GPU-h | What it buys | Depends on |
 |---|---|---|---|---|---|
 | **2.A FREE DEPTH** | D3 variance-decomp · D4 shrinkage · D9 spec-curve+permutation · D8 · **D6 TQC · U5 PPO/TD3 · U4b zero-shot FTSE** | **$0** | 367 (+CPU) | robustness across agent-critic, algorithm, and market — **no authoring** (reuse frozen Stage-1 winners) | bank-gate data / frozen winners |
