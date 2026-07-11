@@ -120,6 +120,18 @@ def render_jobscript(
                 "path, or '$HOME/...' for shell-only paths; expand user input via "
                 "submit.remote_home + submit.expand_remote."
             )
+        if ":" in val.split("=", 1)[-1][:12] and ":/" in val:
+            # 2026-07-12 incident: Git Bash (MSYS) path conversion rewrote a laptop CLI arg
+            # '/acfs/users/.../gold' into 'C:/Program Files/Git/acfs/...' BEFORE Python saw it —
+            # every task of the batch then died at the Apptainer mount (rc=255, 1s). A Windows
+            # drive-letter path can never be valid on the cluster: fail at render, not on-node.
+            # (Launcher-side fix: prefix the command with MSYS_NO_PATHCONV=1, or keep POSIX paths
+            # in argparse DEFAULTS rather than shell argv.)
+            raise ValueError(
+                f"{label} looks like a Windows drive-letter path (got {val!r}) — Git Bash MSYS "
+                "path conversion has mangled a POSIX argument. Launch with MSYS_NO_PATHCONV=1 "
+                "or avoid passing absolute POSIX paths through the shell."
+            )
     cores = cores if cores is not None else 4 * pack
     h_rt = h_rt if h_rt is not None else ("3:0:0" if pack == 1 else "1:30:0")
     from src.cluster.submit import sanitize_name

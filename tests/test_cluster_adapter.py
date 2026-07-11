@@ -93,6 +93,10 @@ def test_jobscript_rejects_tilde_and_relative_paths():
     # $HOME IS allowed in the shell-only paths (double-quoted bash expands variables)
     js = render_jobscript("t", 2, "/r", "/inputs")
     assert 'export PYTHONPATH="$HOME/llmrp:' in js and "~" not in js
+    # 2026-07-12 regression: MSYS path conversion mangled '/acfs/...' into 'C:/Program Files/Git/
+    # acfs/...' on the laptop CLI — every task died at the Apptainer mount. Fail at render.
+    with pytest.raises(ValueError, match="drive-letter"):
+        render_jobscript("t", 2, "/r", "C:/Program Files/Git/acfs/users/u/gold")
 
 
 def test_expand_remote_and_remote_home():
