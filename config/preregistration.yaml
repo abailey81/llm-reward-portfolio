@@ -235,6 +235,13 @@ mechanism:
   numeracy_bottleneck:                  # the headline reframe (ADR-039)
     hypothesis: sq1_failure_is_partly_a_numeric_legibility_bottleneck   # close small floats ~50-70% (arXiv 2602.07812; NUMCoT 2406.02864)
     ablation: legible_format_differential   # positive CI-separated legible-minus-raw gap CONFIRMS; null REFUTES
+  fingerprint_accounts:                 # §2a(f); A5 added by Amendment R76 (2026-07-11, pre-freeze/pre-data)
+    [a1_genuine_use, a2_readout_illegibility, a3_execution_failure, a4_prior_dominance, a5_rational_insensitivity]
+  fed_delta_snr_exhibit:                # §2a(h), R76: report-only, archive-computed (R61 cvar_ci machinery)
+    resolvable_signal_share: reported   # share of fed deltas > 2x their PAIRED block-bootstrap SE (common-path pairing)
+    attenuation_sensitivity: reported   # disattenuated SQ1 responsiveness — a SENSITIVITY, never the primary
+    snr_conditioned_responsiveness: reported   # SQ1 on high-SNR vs sub-noise delta subsets (the A5 fingerprint row)
+    a5_vs_a2_adjudicator: ci_annotated_re_rendering_d2plus_iv   # Stage-2; the format-only differential remains the A2 ablation
   robust_to_sigma_d: true               # the mechanism headline does NOT depend on the equivalence-vs-non-rejection pilot outcome
 
 # ---- 2026-07-01 RATIFIED amendment: risk-free numeraire (PREREGISTRATION.md §10) ----

@@ -177,19 +177,22 @@ the agent's critic.
 >   the quantitative localisation of the break (information present → headroom present → designer
 >   unresponsive). VALIDATION data only (the sealed test leg is never used for this bound; a winners-only
 >   test-leg analogue may be reported as an appendix caveat since only winners have test scores).
-> - **(f) The MECHANISM FINGERPRINT — four rival accounts × the instrument suite, signatures registered
->   ex-ante (report-only interpretation scaffolding; no gate, no multiplicity claim).** A SQ1-null admits
->   four nameable rival explanations. We register each account's PREDICTED SIGNATURE across the instruments,
+> - **(f) The MECHANISM FINGERPRINT — five rival accounts × the instrument suite, signatures registered
+>   ex-ante (report-only interpretation scaffolding; no gate, no multiplicity claim; A5 added by
+>   Amendment R76, 2026-07-11, pre-freeze and pre-data).** A SQ1-null admits
+>   five nameable rival explanations. We register each account's PREDICTED SIGNATURE across the instruments,
 >   so the observed pattern SCORES the accounts against one another rather than testing them piecemeal:
 >
-> | Instrument | A1 GENUINE-USE (channel works) | A2 READOUT / numeric illegibility (arXiv:2602.07812) | A3 EXECUTION failure (arXiv:2507.10624) | A4 PRIOR-DOMINANCE (objective prior overrides all feedback) |
-> |---|---|---|---|---|
-> | SQ1 responsiveness (tail arms) | **> 0** | ≈ 0 (raw) | ≈ 0 | ≈ 0 |
-> | Scalar-arm responsiveness (same statistic, its own fed scalar) | > 0 | **> 0** (scalar is legible) | ≈ 0 | **≈ 0** (ignores ALL feedback) |
-> | SQ3b legible-format differential | ≈ 0 (already used) | **> 0** (the key discriminator) | **≈ 0** (format cannot fix execution) | ≈ 0 |
-> | Distance moderator (b) | ≈ 0 | **> 0** (psychophysics distance effect) | weak/≈ 0 | ≈ 0 |
-> | Information-utilization gap (d) | small | large | large | large |
-> | Reward-program diversity (taxonomy concentration) | responsive/diverse | moderate | moderate | **templated/concentrated** |
+> | Instrument | A1 GENUINE-USE (channel works) | A2 READOUT / numeric illegibility (arXiv:2602.07812) | A3 EXECUTION failure (arXiv:2507.10624) | A4 PRIOR-DOMINANCE (objective prior overrides all feedback) | A5 RATIONAL INSENSITIVITY (small deltas discounted as noise — R76) |
+> |---|---|---|---|---|---|
+> | SQ1 responsiveness (tail arms) | **> 0** | ≈ 0 (raw) | ≈ 0 | ≈ 0 | ≈ 0 (raw, un-annotated) |
+> | Scalar-arm responsiveness (same statistic, its own fed scalar) | > 0 | **> 0** (scalar is legible) | ≈ 0 | **≈ 0** (ignores ALL feedback) | > 0 on clearly-resolvable changes |
+> | SQ3b legible-format differential (format-only re-rendering: bp / ranks) | ≈ 0 (already used) | **> 0** (the key discriminator) | **≈ 0** (format cannot fix execution) | ≈ 0 | **≈ 0** (salience does not convey significance) |
+> | CI-/significance-annotated re-rendering (D2+ (iv), Stage-2 adjudicator) | ≈ 0 | ≈ 0 beyond format-only | ≈ 0 | ≈ 0 | **> 0** (the A5-vs-A2 discriminator: responds once told which deltas are signal) |
+> | Distance moderator (b) | ≈ 0 | **> 0** (psychophysics distance effect) | weak/≈ 0 | ≈ 0 | > 0 (confounded with A2 — adjudicated by the CI-annotated row) |
+> | Information-utilization gap (d) | small | large | large | large | large on sub-noise deltas, smaller on resolvable ones |
+> | Fed-delta SNR conditioning (h) | use regardless of SNR | non-use regardless of SNR | non-use regardless of SNR | non-use regardless of SNR | **use CONCENTRATED on high-SNR deltas** |
+> | Reward-program diversity (taxonomy concentration) | responsive/diverse | moderate | moderate | **templated/concentrated** | moderate |
 >
 >   The discriminating cells are bolded: A2-vs-A3 is decided by the legible-format differential; A4 is
 >   uniquely identified by the SCALAR arm's own responsiveness (computable from the same archived records
@@ -202,6 +205,24 @@ the agent's critic.
 >   empirical anchor: LLMs carry measurable risk-preference profiles (Hartley et al., ACL 2025) — a
 >   designer whose prior risk attitude dominates fed evidence is a live, literature-grounded account, not a
 >   straw man.)
+>
+>   **A5 — RATIONAL INSENSITIVITY (added by Amendment R76, 2026-07-11; pre-freeze, pre-data).** The fed
+>   block carries point estimates with NO uncertainty annotation (the R61 `cvar_ci` machinery exists but
+>   the fed block is deliberately not CI-enriched — arms-parity choice). A designer — numerate or not —
+>   that treats small decimal differences as probable estimation noise and declines to act on them is
+>   therefore behaving *defensibly*, not failing: an SQ1-null under A5 is an epistemic-stance result, not
+>   a numeracy deficit. This is a materially different scientific conclusion from A2/A3, which is why it
+>   must be named ex-ante. Quantitative anchor (measured 2026-07-11 on the univ5 train window,
+>   equal-weight top-30 proxy, stationary-block bootstrap): the MARGINAL sampling SE of a fed CVaR-5%
+>   level is ≈ 0.0033, but candidate DIFFERENCES are paired on the common market path, so the paired
+>   diff-SE is ≈ 1e-4 (sibling-close books) to ≈ 8e-4 (structurally different books) — i.e. typical fed
+>   deltas of a few × 1e-4 range from clearly-resolvable signal (vs the sibling floor) to borderline
+>   (vs the distant floor). A5 is adjudicated against A2 by the **CI-/significance-annotated
+>   re-rendering** (D2+ (iv), Stage-2): under A5 responsiveness rises when significance is annotated
+>   (format-only re-rendering does nothing); under A2 format-only re-rendering already helps. The M2
+>   cross-LLM numeracy survey (Stage-2) separates ability from stance: A2 predicts low raw
+>   discrimination accuracy, A5 predicts adequate accuracy that goes unused absent significance
+>   information.
 > - **(g) Reflection-funnel content analysis (report-only, archive-only; declared exploratory).** The
 >   archive stores every reflection the designer writes. We register a staged FUNNEL coding of the tail-fed
 >   arms' reflections — for each generation: (i) **QUOTE** — does the text reference the fed tail values at
@@ -216,6 +237,23 @@ the agent's critic.
 >   sample ≥ 20%), inter-coder agreement reported (Cohen's κ); all reflections of the tail-fed arms coded
 >   (≈ generations × candidates, bounded); declared EXPLORATORY, outside every confirmatory family. To our
 >   knowledge the first staged content analysis of an LLM reward-designer's verbalized reasoning.
+> - **(h) Fed-delta SNR + responsiveness-attenuation exhibit (report-only, archive-computed; added by
+>   Amendment R76, 2026-07-11 — pre-freeze, pre-data).** The SQ1 responsiveness statistic correlates
+>   Δ(fed tail) with Δ(authored-code feature); if part of the fed deltas is estimation noise, the
+>   estimate suffers errors-in-variables ATTENUATION toward 0 — a statistical objection that must be
+>   quantified, not waved at. From the archived per-generation fed vectors and train-window returns
+>   (no new data; the R61 `cvar_ci`/stationary-block machinery): (i) the distribution of |Δ fed
+>   component| across consecutive candidates per arm-chain against the PAIRED block-bootstrap SE of
+>   that difference (paired on the common market path — the common-path design makes fed differences
+>   far better determined than their marginal CIs suggest, and this exhibit shows exactly how much);
+>   (ii) the **resolvable-signal share** = fraction of fed deltas exceeding 2× their paired SE;
+>   (iii) an errors-in-variables attenuation factor λ_att = Var(signal)/(Var(signal)+Var(noise)) with
+>   a disattenuated SQ1 responsiveness reported as a SENSITIVITY (never replacing the primary
+>   statistic); (iv) responsiveness computed separately on the high-SNR vs sub-noise delta subsets —
+>   the A5 fingerprint row. Registered directions: under A1 the primary SQ1 is > 0 and attenuation
+>   is immaterial; under A2/A3/A4 responsiveness ≈ 0 on BOTH SNR subsets; under A5 it concentrates
+>   on the high-SNR subset. Declared report-only, outside every confirmatory family; VALIDATION/train
+>   data only.
 >
 > **Robustness to the σ_D pilot (a deliberate design property).** The mechanism headline is **independent of
 > whether H2 lands as equivalence (σ_D small) or non-rejection (σ_D larger)**: in both cases the SQ1–SQ3
@@ -777,3 +815,4 @@ prose). Newest at the bottom.
 | 2026-07-02 | R74 | §5, §6 | **B\* = 200,000 set from the Split-C convergence pilot — amends R70's termination criterion, which is structurally unsatisfiable on this workload (pre-freeze; evidence-cited).** R70 committed to "extend the ladder until the knee detector reports CONVERGED". The executed pilots reveal that commitment cannot terminate: the held-out eval-IQM is **flat within seed noise across the full 25k→350k ladder** (14× budget range) on BOTH the pre-Split-C ladder and the clean Split-C rerun (3 seeds, uniform max-power conditions), and the detector's plateau tolerance is *relative to the curve's own range* — on a flat-noise curve the range IS the noise, the tolerance collapses, and every run returns "no confirmed plateau" regardless of extension (verified branch-analysis of `recommend_budget`; two independent ladders reproduce it). The under-training threat R70 exists to neutralise (audit B-5) is therefore answered by the totality of evidence rather than the single blind criterion: (i) eval outcome flat/noise across all budgets — no signal improves past the small-budget region; (ii) the critic's terminal loss completes its steep descent **by 100k** (seed-median ≈0.59→0.10; only internal polish thereafter, →0.01 at 350k); (iii) 350k evals are nominally WORSE than 200k (the mild-overfit direction the old-window pilot measured independently); (iv) finite-data regime: ≈17 full passes over the train window at 200k with the 50k buffer — past-knee steps memorise the single realised path. **Decision: B\* = 200,000** — ≥2× the critic-descent knee, eval-indistinguishable-from-or-better-than the 350k ceiling, below the measured overfit onset — IDENTICAL across all arms (identification preserved; matched compute). Mirrors: `config/campaign.yaml` + `config/algos.yaml` (the preflight budget-mirror guard asserts the pair) + the machine mirror below. Dossier archived: `outputs/tables/learning_curve.json` (Split-C, Turbo-uniform) + `learning_curve_baseline_preTurbo_2026-07-01.json`. `determine_design` reports the parameter **DECIDED** (diagnostic disclosed — the same honest semantics as `candidates_per_arm`); the σ_D pilot (2 rewards × 15 seeds at B\*) adds 30 further stability observations at 200k before the freeze. | `config/campaign.yaml`; `config/algos.yaml`; `config/preregistration.yaml`; `scripts/determine_design.py`; `outputs/tables/learning_curve.json` |
 | 2026-07-02 | R73 | §7 | **SPLIT C EXECUTED + the univ5 panel (ADR-044 ratified 2026-07-01; ADR-051 execution — pre-freeze, never results-contingent).** The panel extends to the SETTLED 2026-06-30 cutoff and rebuilds as `univ5` (5,406×963): splits move to **train 2005–2016 / val 2017–2019 / test 2020–2026H1**. Integrity gates all PASSED: (a) the 2005–2025 overlap vs frozen `univ3` is **byte-identical (0 changed cells)**; (b) the frozen membership record stays authoritative for its span (SPLICE rule; the `EVHC.N^L16` vendor event-revision was caught by the overlap gate, externally verified immaterial — never top-30 — and allowlisted); (c) the OBSERVED-terminal recovery booked the realised terminal for **all 333 dead names (zero surcharges)** → the corrected Shumway `univ5s` equals the zero-fill headline on returns, exposing `univ4`'s surcharge as terminal double-counting + M&A contamination (the band keeps `univ4` as its disclosed contaminated heavy end). `expected_windows.univ5 = [60,3021]/[3081,3775]/[3835,5406]` recorded; `gold.suffix: univ5`; FRED macro refreshed to the cutoff (`fred_macro_x26`). | `config/{data,inference,preregistration}.yaml`; `src/data/loaders.py`; `scripts/run_campaign.py`; `data_pipeline/scripts/{extend_universe_2026,refresh_fred_2026,build_univ5,purge_suffix}.py`; DECISIONS ADR-051(+addendum) |
 | 2026-07-04 | R75 | §4, §7, §10 | **Pre-freeze WORDING corrections (NO decision changed).** Three claims in the frozen-design text were tightened to be factually exact before the freeze; no hypothesis, split, SESOI, seed, arm, budget, λ, or the Troop-deferral DECISION is altered — only accuracy. (a) §10 leg-decision: the `p_one = p_two/2` line is annotated **(superseded by R64)** — the leg p is the direct upper-tail bootstrap probability `pvalue_one_sided_greater`, not half the two-sided p (R64 already made the code change; this supplies the missing cross-reference). (b) §4 EVT: the "GPD ξ ≤ 0 for ~94% of samples" rationale for deferring Troop et al. (2021) is reworded as a SMALL-SAMPLE NEGATIVE-BIAS fact at n ≈ 750 (the GPD-MLE systematically UNDER-estimates the shape ⇒ the estimate is centred ≤ 0 even for a genuinely heavy tail; the ≈ 0.14 asymptotic shape SE at ~75 exceedances does not overcome the bias), NOT a claim that portfolio losses are light-tailed — diversifying regularly-varying constituents preserves the tail INDEX, so the underlying loss tail stays genuinely heavy; the deferral now rests on small-sample bias + Troop's heavy-tail/large-sample validated scope, holding regardless of the true tail-index sign (matches DEEP_H2 §6.2). (c) §7 test-regime: "COVID" is tightened to "post-COVID-crash recovery + elevated-vol regime" in `config/inference.yaml` + this file — the 19 Feb–23 Mar 2020 crash falls INSIDE the val→test purge, so the SCORED sealed-test outcomes begin post-crash (~2020-03-30), mirroring the already-correct CH4 §4.2 disclosure. Pre-freeze wording ⇒ the canonical freeze hash recomputes (still `frozen:false`; USER flips). | `config/inference.yaml`; `PREREGISTRATION.md` §4/§7/§10; §7 mirrors CH4 §4.2, §4 EVT mirrors DEEP_H2 §6.2 |
+| 2026-07-11 | R76 | §2a(f), §2a(h) | **A5 RATIONAL-INSENSITIVITY account added to the mechanism fingerprint + the fed-delta SNR/attenuation exhibit (report-only, pre-freeze, PRE-DATA — no campaign data exists).** A SQ1-null admits a fifth rival account: the fed block carries point estimates with NO uncertainty annotation, so a designer that discounts small decimal deltas as probable estimation noise behaves *defensibly* — an epistemic-stance result, not a numeracy deficit (a materially different conclusion from A2/A3, so it must be named ex-ante). Quantitative anchor (measured 2026-07-11, univ5 train window, EW-30 proxy, stationary-block bootstrap): marginal fed-CVaR-5% SE ≈ 0.0033, but candidate differences are PAIRED on the common market path → paired diff-SE ≈ 1e-4 (sibling books) to 8e-4 (distant books), so typical fed deltas straddle the resolvability boundary. Fingerprint (f) extended 4→5 accounts with A5's registered signature; the A5-vs-A2 discriminator = the CI-/significance-annotated re-rendering (D2+ (iv), Stage-2 adjudicator; the format-only differential remains the A2 ablation); M2 separates ability from stance. New instrument (h): the fed-delta SNR + responsiveness-attenuation exhibit — resolvable-signal share, errors-in-variables λ_att with a disattenuated SQ1 SENSITIVITY (never the primary), and SNR-conditioned responsiveness (the A5 row); archive-computed via the R61 `cvar_ci` machinery, validation/train data only, outside every confirmatory family. NO frozen quantity changes (hypotheses, m=6, arms, seeds, SESOI, splits, budgets all untouched — report-only interpretation scaffolding in the exact spirit of (f)). | `mechanism.fingerprint_accounts`; `mechanism.fed_delta_snr_exhibit` |
