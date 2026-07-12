@@ -664,3 +664,59 @@ def test_seed_pool_blocks_partition_and_parser(tmp_path):
     assert by_name["t_EF"] == ("EF", [0, 1])   # block 1 on the V100 pool
     assert by_name["t_L"] == ("L", [2, 3])     # block 2 on the A100 pool
     assert by_name["t"][1] == [4]              # unassigned seed falls back to base pool — never dropped
+
+
+def test_crn_pair_device_consistency_replaces_per_unit_homogeneity(tmp_path):
+    """2026-07-12 gate fix (implements the device-stratified seed-block ratification, 2026-07-11c):
+    under seed-pool blocks a unit legitimately SPANS devices, so per-unit homogeneity must not gate.
+    The correct invariant is per-SEED CRN consistency (every unit at seed s on one device class);
+    a genuine cross-unit device mismatch at one seed must still fail the gate."""
+    import json as _json
+
+    from src.cluster.integrity import _test_census, write_integrity_report
+
+    def put(unit: str, seed: int, gpu: str | None) -> None:
+        rid = f"{unit}-s{seed}"
+        write_run({
+            "run_id": rid, "arm": unit, "seed": seed, "fold": 0, "candidate_id": rid,
+            "generation": 0, "reward_source_hash": "h", "feedback_block": "",
+            "wall_clock": 0.0, "env_fingerprint": "x", "frozen": True,
+            "metrics": {"val_fitness": 0.0},
+        }, str(tmp_path / "test" / unit))
+        if gpu:
+            (tmp_path / "test" / unit / rid / "env.json").write_text(_json.dumps(
+                {"nvidia_smi": {"gpus": [f"550.127.05, {gpu}"]}}), encoding="utf-8")
+
+    # Device-blocked but CRN-consistent: seed 0 on V100 everywhere, seed 1 on A100 everywhere.
+    for unit in ("distributional", "scalar"):
+        put(unit, 0, "Tesla V100-PCIE-32GB")
+        put(unit, 1, "NVIDIA A100-PCIE-40GB")
+
+    class _Run:
+        read_root = tmp_path
+        def search_read(self):
+            return tmp_path / "search"
+        def test_read(self):
+            return tmp_path / "test"
+
+    census = _test_census(tmp_path / "test" / "distributional", "distributional", [0, 1])
+    assert census["per_seed_device"] == {"0": "Tesla V100-PCIE-32GB", "1": "NVIDIA A100-PCIE-40GB"}
+    assert census["device_homogeneous"]  # metrics.device is absent -> per-unit field unaffected
+
+    report, _, _ = write_integrity_report(
+        _Run(), arms=["distributional", "scalar"], h2_arms=["distributional"], baseline_names=[],
+        core_seeds=[0, 1], opts_for=lambda a: {"candidates": 0, "search_seeds_per_candidate": 1},
+        out_dir=tmp_path)
+    v = report["verdict"]
+    assert v["crn_pair_device_consistent"] and v["health_ok"]  # blocks pass under the new invariant
+
+    # A REAL CRN violation: scalar's seed 1 record retrained on a V100 -> devices differ at seed 1.
+    (tmp_path / "test" / "scalar" / "scalar-s1" / "env.json").write_text(
+        _json.dumps({"nvidia_smi": {"gpus": ["550.127.05, Tesla V100-PCIE-32GB"]}}), encoding="utf-8")
+    report2, _, _ = write_integrity_report(
+        _Run(), arms=["distributional", "scalar"], h2_arms=["distributional"], baseline_names=[],
+        core_seeds=[0, 1], opts_for=lambda a: {"candidates": 0, "search_seeds_per_candidate": 1},
+        out_dir=tmp_path)
+    v2 = report2["verdict"]
+    assert not v2["crn_pair_device_consistent"] and not v2["health_ok"]
+    assert "1" in v2["crn_device_violations"]

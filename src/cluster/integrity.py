@@ -48,6 +48,22 @@ def _search_census(arm_root: Path, expected_candidates: int, k_seeds: int) -> di
     }
 
 
+def _record_device(arm_root: Path, run_id: str) -> str:
+    """The GPU model that trained this record, from its replayable ``env.json`` (S6).
+
+    Source: ``env.json → nvidia_smi.gpus[0]`` (e.g. ``'550.127.05, Tesla V100-PCIE-32GB'`` →
+    ``'Tesla V100-PCIE-32GB'``), else ``'<absent>'`` — which the CRN-consistency check treats as a
+    WILDCARD (laptop/legacy records without a GPU capture must not fail the gate)."""
+    try:
+        env = json.loads((arm_root / run_id / "env.json").read_text(encoding="utf-8"))
+        gpus = (env.get("nvidia_smi") or {}).get("gpus") or []
+        if gpus:
+            return str(gpus[0]).split(",", 1)[-1].strip()
+    except (OSError, ValueError):
+        pass
+    return "<absent>"
+
+
 def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
     """Presence census for one unit's sealed-leg records at the given seeds (+ homogeneity fields)."""
     from src.io.results import load_all
@@ -57,6 +73,7 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
     missing = [s for s in seeds if f"{arm}-s{s}" not in have]
     devices: dict[str, int] = {}
     env_labels: dict[str, int] = {}
+    per_seed_device: dict[str, str] = {}
     popart_present = 0
     safe_default_total = 0
     for r in records:
@@ -66,6 +83,8 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         fp = r.get("env_fingerprint")
         label = fp.get("label", "<dict>") if isinstance(fp, dict) else str(fp)[:60]
         env_labels[label] = env_labels.get(label, 0) + 1
+        if r.get("seed") is not None:
+            per_seed_device[str(r["seed"])] = _record_device(arm_root, str(r.get("run_id")))
         if m.get("popart_scale") is not None:
             popart_present += 1
         if m.get("train_safe_default_count") is not None:
@@ -76,6 +95,7 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         "missing_seeds": missing[:25],
         "device_census": devices,
         "device_homogeneous": len([d for d in devices if d != "<absent>"]) <= 1,
+        "per_seed_device": per_seed_device,
         "env_label_census": env_labels,
         "popart_scale_present": popart_present,
         "train_safe_default_total": safe_default_total,
@@ -121,11 +141,25 @@ def write_integrity_report(
         t["present"] == t["expected"] for t in report["test"].values()
     ) and all(s["matched_budget_ok"] for s in report["search"].values())
     all_homogeneous = all(t["device_homogeneous"] for t in report["test"].values())
+    # CRN-pair device consistency (2026-07-12; implements the device-stratified seed-block
+    # ratification, CHANGELOG [2026-07-11c]). Under seed-pool blocks a unit legitimately spans
+    # devices, so per-UNIT homogeneity is the WRONG invariant — the paired inference needs every
+    # unit at seed s on the SAME device class (the device then cancels in D_s). '<absent>' is a
+    # wildcard. Single-pool runs satisfy this trivially, so the gate is strictly more correct.
+    seed_devices: dict[str, set[str]] = {}
+    for t in report["test"].values():
+        for s, dev in t.get("per_seed_device", {}).items():
+            if dev != "<absent>":
+                seed_devices.setdefault(s, set()).add(dev)
+    crn_violations = {s: sorted(devs) for s, devs in seed_devices.items() if len(devs) > 1}
+    crn_consistent = not crn_violations
     report["verdict"] = {
         "all_units_complete": all_complete,
-        "device_homogeneous_everywhere": all_homogeneous,
+        "device_homogeneous_everywhere": all_homogeneous,  # informational under seed-pool blocks
+        "crn_pair_device_consistent": crn_consistent,
+        "crn_device_violations": dict(list(crn_violations.items())[:10]),
         # the GATE reads ONLY this — execution health, never a performance statistic
-        "health_ok": bool(all_complete and all_homogeneous),
+        "health_ok": bool(all_complete and crn_consistent),
         "h2_arms": h2_arms,
     }
 
