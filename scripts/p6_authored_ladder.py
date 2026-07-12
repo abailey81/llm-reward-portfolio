@@ -68,9 +68,15 @@ def build_specs(remote_root: str, local_out: str, budgets: list[int]) -> list[di
     return specs
 
 
+PLANNING_STEPS_PER_SEC = 51.0  # WORST measured co-tenancy rate (p6 task on a loaded node,
+# 2026-07-12) — NOT the clean-node anchor (102.2). The first ext800 task was h_rt-killed because
+# its walltime was sized on the anchor x1.5; contended nodes run at ~half the anchor, so walltime
+# must be sized on the worst measured rate (evidence ledger #6: 40-50% node wall variance).
+
+
 def _auto_h_rt(budgets: list[int]) -> str:
-    """Walltime = slowest rung / the measured V100 rate x1.5 safety, floored at 3 h."""
-    hours = max(3.0, max(budgets) / SOLO_STEPS_PER_SEC / 3600.0 * 1.5)
+    """Walltime = slowest rung at the WORST measured rate + overhead, x1.3, floored at 3 h."""
+    hours = max(3.0, (max(budgets) / PLANNING_STEPS_PER_SEC + 900) / 3600.0 * 1.3)
     return f"{int(hours) + (1 if hours % 1 else 0)}:0:0"
 
 
