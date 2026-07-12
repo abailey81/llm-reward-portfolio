@@ -40,11 +40,33 @@ def _search_census(arm_root: Path, expected_candidates: int, k_seeds: int) -> di
     n_records = len(records)
     n_failures = _count_lines(arm_root / "failures.jsonl")
     expected_records = expected_candidates * max(1, k_seeds)
+    # Reflection-archival census (2026-07-12 upgrade; instrument (g) dies silently without it):
+    # the funnel content analysis codes the designer's archived COMPLETIONS, so the gate counts
+    # llm_calls rows and how many carry an EMPTY response — counts only, never the text itself
+    # (effect-blind). A tail-fed arm with archived candidates but zero/empty completions is an
+    # archival defect to fix before C4, not at the bank gate.
+    llm_calls = 0
+    empty_completions = 0
+    calls_path = arm_root / "llm_calls.jsonl"
+    if calls_path.is_file():
+        for line in calls_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            llm_calls += 1
+            try:
+                if not str(json.loads(line).get("response", "")).strip():
+                    empty_completions += 1
+            except ValueError:
+                empty_completions += 1  # a torn/unparseable row cannot be coded either
     return {
         "records": n_records,
         "ledgered_failures": n_failures,
         "expected_records": expected_records,
         "matched_budget_ok": (n_records + n_failures * max(1, k_seeds)) >= expected_records,
+        "llm_calls_archived": llm_calls,
+        "empty_completions": empty_completions,
+        "reflection_archive_ok": llm_calls == 0 or empty_completions == 0,
     }
 
 

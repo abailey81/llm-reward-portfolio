@@ -928,6 +928,23 @@ def run_campaign_tiered(
                 f"C0 CANARY FAILED ({canary}) — the production path does not work end-to-end; "
                 f"fix and re-run BEFORE any Opus authoring is spent (the whole point of the canary)"
             )
+        # ANALYSIS-SMOKE (2026-07-12 upgrade): the canary's definition of success extends from
+        # "trainings ran" to "the READER side parses them" — load_all validates every canary record
+        # against the full schema (fail-loud), so an analysis-side break surfaces on day 0 instead
+        # of at the bank gate. Counts only; no performance value is inspected (effect-blind).
+        from src.io.results import load_all as _load_all
+
+        for nm in canary_baselines:
+            unit = f"baseline_{nm}"
+            recs = _load_all(str(run.test_read() / unit))
+            got = {int(r["seed"]) for r in recs}
+            if not set(core) <= got:
+                raise RuntimeError(
+                    f"C0 canary ANALYSIS-SMOKE failed: unit {unit} parsed {sorted(got)} but the "
+                    f"core seeds are {core} — records exist per the census yet the reader cannot "
+                    "recover them all; fix the archive/reader before any Opus spend"
+                )
+        _LOG.info("[C0] analysis-smoke: all canary records parse + full seed coverage")
 
     # ---- C1–C3: concurrent search pipelines under the priority ladder ------------------------- #
     from concurrent.futures import ThreadPoolExecutor, as_completed
