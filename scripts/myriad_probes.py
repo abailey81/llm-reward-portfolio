@@ -81,9 +81,9 @@ def build_batches(remote_root: str, gold_dir: str, local_out: str, *, pool: str,
         dirs.append(batch)
 
     if include_det:
-        name = "p4det"  # P4: two tasks, identical (reward, seed), distinct cids
+        name = f"p4det{suffix}"  # P4: two tasks, identical (reward, seed), distinct cids
         batch = Path(local_out) / "batches" / name
-        write_specs([spec("p4det-t1", DET_SEED), spec("p4det-t2", DET_SEED)], batch)
+        write_specs([spec(f"{name}-t1", DET_SEED), spec(f"{name}-t2", DET_SEED)], batch)
         js = render_jobscript(name, 2, remote_root, gold_dir, pool=pool, pack=1,
                               cores=1, apptainer_sif="$HOME/python311.sif")
         write_jobscript(js, batch / f"{name}.sh")
@@ -158,9 +158,16 @@ def main() -> int:
                         "to disambiguate, e.g. --packs 2 --cores-total 4 --name-suffix c4.")
     p.add_argument("--name-suffix", default="",
                    help="Suffix for the batch/candidate names (a re-probe must not collide).")
+    p.add_argument("--only-det", action="store_true",
+                   help="Submit ONLY a P4 determinism pair (evidence replicate; use with "
+                        "--name-suffix and optionally --det-seed).")
+    p.add_argument("--det-seed", type=int, default=None,
+                   help="Override the determinism pair's seed (a replicate pair at a new seed).")
+    global PACKS, DET_SEED
     args = p.parse_args()
+    if args.det_seed is not None:
+        DET_SEED = int(args.det_seed)
     if args.packs:
-        global PACKS
         PACKS = [int(x) for x in str(args.packs).split(",") if x.strip()]
 
     from src.utils.preload import preload
@@ -176,6 +183,10 @@ def main() -> int:
             remote_root = expand_remote(remote_root, remote_home(ssh_runner(args.host)))
 
     det = args.packs is None  # a custom --packs run extends P1 only; never resubmit the P4 pair
+    if args.only_det:
+        PACKS, det = [], True
+        if not args.name_suffix:
+            p.error("--only-det requires --name-suffix (a replicate must not collide with p4det)")
     extra = {"cores_total": args.cores_total, "suffix": args.name_suffix}
     if args.build_only:
         build_batches(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
