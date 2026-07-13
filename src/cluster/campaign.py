@@ -1131,6 +1131,21 @@ def run_campaign_tiered(
     if review_gate:
         from src.cluster.integrity import write_integrity_report
 
+        # P6 (2026-07-13 audit): a STALE approval file (left over from a rehearsal in a reused
+        # output dir, or created BEFORE any report existed to review) bypassed even a RED gate.
+        # An approval counts only if it postdates the report THE REVIEWER SAW — i.e. the report
+        # file as it existed BEFORE this run regenerates it (regeneration always postdates any
+        # legitimate approval, so comparing against the fresh report would reject everything).
+        _prior_report = Path(run.read_root) / "tier1_integrity.json"
+        approved = False
+        if approval.exists():
+            if _prior_report.exists() and approval.stat().st_mtime >= _prior_report.stat().st_mtime:
+                approved = True
+            else:
+                _LOG.warning("[gate] STALE approval (predates the reviewed report, or no report "
+                             "was ever written) — IGNORED; re-create %s AFTER reviewing the "
+                             "integrity report", approval)
+
         report, _report_json, report_md = write_integrity_report(
             run, arms=arms, h2_arms=list(h2_present), baseline_names=list(baseline_names or []),
             core_seeds=core, opts_for=opts_for, winners=winners,
@@ -1138,17 +1153,6 @@ def run_campaign_tiered(
         out["integrity_report"] = str(report_md)
         health_ok = bool(report.get("verdict", {}).get("health_ok"))
         out["gate_health_ok"] = health_ok
-        # P6 (2026-07-13 audit): a STALE approval file (left over from a rehearsal in a reused
-        # output dir, or created before the run) bypassed even a RED gate. An approval counts
-        # only if it POSTDATES the integrity report it approves; it is CONSUMED on release so
-        # each gate passage needs its own explicit act.
-        approved = False
-        if approval.exists():
-            if approval.stat().st_mtime >= Path(_report_json).stat().st_mtime:
-                approved = True
-            else:
-                _LOG.warning("[gate] STALE approval file predates the integrity report — IGNORED "
-                             "(re-create %s AFTER reviewing %s)", approval, report_md)
         if not approved and (not health_ok or hold_at_gate):
             reason = "RED-execution-health" if not health_ok else "manual-hold"
             out.update(ok=core_ok, gate=reason, awaiting_review=True,
