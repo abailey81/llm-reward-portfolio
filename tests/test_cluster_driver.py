@@ -58,6 +58,8 @@ class FakeCluster:
         act = self.pull_script.pop(0) if self.pull_script else {}
         if act.get("raise"):
             raise ConnectionError("vpn blip")
+        if act.get("raise_bug"):  # P14: a LOCAL bug, not transport
+            raise TypeError("local bug: not a transport blip")
         for rid in act.get("complete", []):
             d = self.archive / "search" / rid
             d.mkdir(parents=True, exist_ok=True)
@@ -310,6 +312,17 @@ def test_transient_node_reject_still_gets_the_bounded_requeue(tmp_path):
     out = _run(fc, specs)
     assert out["ok"] and out["completed"] == 1 and out["exhausted"] == []
     assert fc.qsubs == ["b1", "b1_r1"]  # transient -> retried normally, then succeeded
+
+
+def test_local_bug_in_pull_propagates_immediately_not_as_transport(tmp_path):
+    """P14: only whitelisted transport exceptions ride the outage budget — a local bug
+    (TypeError here) must crash LOUD on the first cycle, not burn 12 h mislabeled as
+    'VPN/ssh down'."""
+    fc = FakeCluster(tmp_path)
+    fc.pull_script = [{"raise_bug": True}]
+    with pytest.raises(TypeError, match="local bug"):
+        _run(fc, _specs(1))
+    assert fc.sleeps == []  # no tolerate-and-retry cycle happened
 
 
 def test_purged_array_requeues_without_a_retry_bump(tmp_path):

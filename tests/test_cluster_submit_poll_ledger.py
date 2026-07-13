@@ -329,6 +329,18 @@ def test_remote_completed_dirs_parses_skips_and_fails_loud():
         remote_completed_dirs("/r/out", failing)
 
 
+def test_pull_archive_reports_per_chunk_progress(tmp_path):
+    """P14: the pull ticks its progress callback once per committed chunk so the driver can
+    heartbeat mid-pull (a big pull is many pipes, each up to an hour)."""
+    from src.cluster.poll import pull_archive
+
+    runner = _fake_find_runner("/r/out", ["search/c0", "search/c1"])
+    ticks: list[tuple[int, int]] = []
+    n = pull_archive("/r/out", tmp_path, runner=runner, fetch=_writing_fetch(), chunk=1,
+                     progress=lambda i, t: ticks.append((i, t)))
+    assert n == 2 and ticks == [(1, 2), (2, 2)]
+
+
 def test_pull_archive_mirrors_reject_markers_incrementally(tmp_path):
     """P9: node-side reject markers (flat JSON under _rejects/) ride the same pull as record
     dirs — exact incremental, staged, idempotent — and permanent_reject_ids reads them."""

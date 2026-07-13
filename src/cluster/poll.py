@@ -135,6 +135,7 @@ def pull_archive(
     runner: Callable[[list[str]], str] | None = None,
     fetch: Fetch | None = None,
     chunk: int = 150,
+    progress: Callable[[int, int], None] | None = None,
 ) -> int:
     """Pull every remote-complete run dir the local mirror lacks; return how many were pulled.
 
@@ -173,6 +174,20 @@ def pull_archive(
     if not missing and not rej_missing:
         return 0
 
+    # P14: a big pull is MANY chunked pipes (each up to an hour) — report per-chunk progress so
+    # the driver can heartbeat mid-pull instead of looking hung to the sentinel. Best-effort.
+    n_chunks = -(-len(missing) // chunk) + -(-len(rej_missing) // chunk)
+    chunks_done = 0
+
+    def _tick() -> None:
+        nonlocal chunks_done
+        chunks_done += 1
+        if progress is not None:
+            try:
+                progress(chunks_done, n_chunks)
+            except Exception:  # noqa: BLE001 — observability must never break the pull
+                pass
+
     for i in range(0, len(missing), chunk):
         batch = missing[i : i + chunk]
         staging.mkdir(parents=True, exist_ok=True)
@@ -190,6 +205,7 @@ def pull_archive(
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))
         shutil.rmtree(staging, ignore_errors=True)
+        _tick()
 
     for i in range(0, len(rej_missing), chunk):
         batch = rej_missing[i : i + chunk]
@@ -207,6 +223,7 @@ def pull_archive(
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))
         shutil.rmtree(staging, ignore_errors=True)
+        _tick()
     return len(missing) + len(rej_missing)
 
 

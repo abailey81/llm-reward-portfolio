@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -33,6 +34,13 @@ from src.cluster.submit import prepare_remote, push_batch, qsub, sanitize_name, 
 __all__ = ["submit_batch", "run_batch", "batch_jobs_in_queue"]
 
 _LOG = logging.getLogger(__name__)
+
+#: P14 (2026-07-13 pre-spend audit): the ONLY exception classes the pull loop may ride out as a
+#: transport blip. ConnectionError/TimeoutError/OSError = network + ssh; SubprocessError covers
+#: CalledProcessError/TimeoutExpired from the tar|ssh pipes; RuntimeError = pull_archive's own
+#: loud-but-retryable failures (torn transfer, remote find). Everything else is a local bug.
+_TRANSPORT_ERRORS = (ConnectionError, TimeoutError, OSError,
+                     subprocess.SubprocessError, RuntimeError)
 
 
 def _ledgered_run_ids(ledger_path: Path) -> set[str]:
@@ -278,8 +286,21 @@ def _run_batch_unlocked(
     runner = runner or ssh_runner(host)
     if pull is None:
         def pull() -> int:
+            # P14: heartbeat per pulled CHUNK — a big pull is many pipes (each up to an hour),
+            # during which a silent driver looks hung to the sentinel.
+            def _pull_beat(i: int, n: int) -> None:
+                if heartbeat is not None:
+                    try:
+                        heartbeat({"base_name": base_name, "done": None, "pending": None,
+                                   "exhausted": None, "rounds": None, "queue_names": [],
+                                   "pull_failures": 0, "ops_failures": 0,
+                                   "phase": f"pulling {i}/{n}"})
+                    except Exception:  # noqa: BLE001 — observability never breaks the pull
+                        pass
+
             return pull_archive(
-                remote_outputs_root, local_archive_root, host=host, runner=runner
+                remote_outputs_root, local_archive_root, host=host, runner=runner,
+                progress=_pull_beat,
             )
     base_name = sanitize_name(base_name)
     ledger_path = Path(local_batch_root) / f"{base_name}.permanent.jsonl"
@@ -322,7 +343,10 @@ def _run_batch_unlocked(
             pull()
             pull_failures = 0
             first_pull_fail_at = None
-        except Exception as exc:  # noqa: BLE001 — transport is allowed to blip, not to die
+        except _TRANSPORT_ERRORS as exc:  # transport is allowed to blip, not to die (P14:
+            # anything OUTSIDE this whitelist — KeyError/TypeError/ValueError/MemoryError — is a
+            # LOCAL bug or corruption; retrying it for the 12 h outage budget only delays the
+            # crash and mislabels it "VPN/ssh down". Those now propagate immediately.)
             pull_failures += 1
             if first_pull_fail_at is None:
                 first_pull_fail_at = clock()
@@ -488,7 +512,8 @@ def _run_batch_unlocked(
                 _LOG.info("[%s] submitted %s as job %s", base_name, round_name, job_id)
             ops_failures = 0
             first_ops_fail_at = None
-        except Exception as exc:  # noqa: BLE001 — qstat/qsub/push blip; retry next cycle
+        except _TRANSPORT_ERRORS as exc:  # qstat/qsub/push blip; retry next cycle (P14: local
+            # bugs — KeyError/TypeError/ValueError — propagate immediately, see the pull clause)
             ops_failures += 1
             if first_ops_fail_at is None:
                 first_ops_fail_at = clock()
