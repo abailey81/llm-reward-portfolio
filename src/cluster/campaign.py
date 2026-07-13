@@ -354,6 +354,38 @@ def _result_from_record(cid: str, arm: str, arm_root: Path) -> dict[str, Any] | 
     return r
 
 
+_TRANSIENT_AUTHOR_MARKERS = (
+    "overloaded", "529", "503", "500", "502", "504", "timeout", "timed out", "connection",
+    "rate limit", "rate_limit", "temporarily", "unavailable", "getaddrinfo", "reset by peer",
+)
+
+
+def _complete_with_outage_tolerance(
+    llm: Any, system: str, user: str, *, label: str = "",
+    budget_secs: float = 7200.0, retry_wait: float = 60.0,
+) -> str:
+    """P2 (2026-07-13 audit): authoring rode out only ~31 s of API trouble (the transport's
+    tenacity budget) while training transport rides out 12 h — a few-minute 529/VPN window killed
+    the whole arm days into an unattended run. Ride out TRANSIENT authoring failures for up to
+    ``budget_secs`` (2 h), retrying each ``retry_wait``; non-transient errors (401/404/400 — wrong
+    key/model/request) re-raise IMMEDIATELY (no spend-burning retries on a permanent problem).
+    Held under the author lock BY DESIGN: during an API outage no arm can author anyway, and the
+    serialized wait preserves the arm-serial authoring order."""
+    deadline = time.monotonic() + float(budget_secs)
+    while True:
+        try:
+            return str(llm.complete(system, user))
+        except Exception as exc:  # noqa: BLE001 — classify, then re-raise or ride out
+            msg = f"{type(exc).__name__}: {exc}".lower()
+            transient = any(m in msg for m in _TRANSIENT_AUTHOR_MARKERS)
+            if not transient or time.monotonic() >= deadline:
+                raise
+            _LOG.warning("[author%s] transient API failure (%.0f min budget left): %s",
+                         f":{label}" if label else "", (deadline - time.monotonic()) / 60.0,
+                         msg[:200])
+            time.sleep(retry_wait)
+
+
 def _search_spec(
     arm: str, src: str, cid: str, opts: dict, prompt: str, gen: int, spec_archive_root: str
 ) -> dict[str, Any]:
@@ -486,9 +518,18 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                     replayed[cid] = done
                     _advance(llm)
                     continue
-                if cid in cached_failures:  # already tried + failed -> do not re-author (F5)
-                    failed += 1
+                if cid in cached_failures:
+                    # P3 (2026-07-13 audit): an INFRA-killed candidate (h_rt kill, node death,
+                    # requeue exhaustion) was ledgered permanently and its ~paid authoring
+                    # stranded — resume now RESUBMITS from the ledger row's stored source
+                    # (no re-author; candidate identity preserved). A deterministic sandbox
+                    # reject simply fails again and re-ledgers (bounded by the node retry cap).
+                    _led_src = str(cached_failures[cid].get("reward_source") or "")
                     _advance(llm)
+                    if _led_src.strip():
+                        fresh.append((cid, _led_src, "<resubmitted-from-failure-ledger>"))
+                    else:
+                        failed += 1  # no stored source (legacy row) -> remains abandoned, counted
                     continue
                 prior_src = _archived_source(cid, arm, arm_root, k_seeds, base_seed)
                 if prior_src is not None:  # PARTIAL candidate -> reuse the archived source (no re-author)
@@ -500,7 +541,9 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                 cand_user = f"{user}\n\n{_diversity_directive(ci, cpg)}"
             with run.author_lock:
                 run.author_guard()  # hard spend cap, under the lock (thread-safe shared counter)
-                src = extract_reward_source(llm.complete(prompts.system, cand_user))
+                src = extract_reward_source(
+                    _complete_with_outage_tolerance(llm, prompts.system, cand_user, label=cid)
+                )
             fresh.append((cid, src, cand_user))
 
         # Train: k_seeds specs per fresh candidate ({cid}-s{j} at base+j), ONE array for the generation.
@@ -982,6 +1025,26 @@ def run_campaign_tiered(
         winner.setdefault("reward_source", "")
         _, freeze_winner = _resolve_select_freeze(run)
         env_fp = winner.get("env_fingerprint") or f"cluster:{arm}:frozen"
+        # P5 (2026-07-13 audit): a resume after search-archive drift (different --candidates/
+        # --generations, an F5 bypass) could re-derive a DIFFERENT winner and silently re-freeze
+        # it — already-tested seeds keep the old reward, the rest train the new one (a mixed-
+        # winner unit). Refuse to overwrite an existing frozen winner with a different hash.
+        _existing = Path(frozen_root) / f"{arm}-winner" / "record.json"
+        if _existing.is_file():
+            try:
+                _old = json.loads(_existing.read_text(encoding="utf-8"))
+            except ValueError as exc:
+                raise RuntimeError(f"corrupt frozen winner record at {_existing}: {exc}") from exc
+            _old_h = str(_old.get("reward_source_hash", ""))
+            _new_h = str(winner.get("reward_source_hash", ""))
+            if _old_h and _new_h and _old_h != _new_h:
+                raise RuntimeError(
+                    f"[{arm}] WINNER-SWAP REFUSED: a frozen winner already exists with reward hash "
+                    f"{_old_h[:12]}… but this resume selected {_new_h[:12]}… — the search archive "
+                    "changed between runs (config drift?). A mixed-winner unit is scientifically "
+                    "meaningless. Investigate; delete the frozen record ONLY with an explicit, "
+                    "dated decision."
+                )
         freeze_winner(arm, winner, search_seed=int(opts.get("seed", 0)), frozen_root=frozen_root,
                       env_fingerprint=env_fp)
         winners[arm] = winner

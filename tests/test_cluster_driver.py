@@ -260,5 +260,20 @@ def test_submit_batch_packs_and_batch_jobs_in_queue(tmp_path):
     assert len(index) == 3  # 5 specs at pack=2 -> tasks of 2+2+1
     js = (fc.batches / "s1_search" / "s1_search.sh").read_text()
     assert "--pack 2" in js and "-t 1-3" in js
-    assert batch_jobs_in_queue("s1_search", fc.runner) == {"s1_search"}
-    assert batch_jobs_in_queue("other", fc.runner) == set()
+    assert batch_jobs_in_queue("s1_search", fc.runner)[0] == {"s1_search"}
+    assert batch_jobs_in_queue("other", fc.runner) == (set(), {})
+
+
+def test_batch_jobs_in_queue_captures_states_for_eqw_detection():
+    """P1 (2026-07-13 audit): an Eqw array never dispatches, so without state capture it waits
+    forever with green heartbeats. The parser pairs each queue row's state with the following
+    'Full jobname:' detail line (real qstat -r block shape)."""
+    text = (
+        " 771972 2.29514 p6ladder   ucestes      Eqw   07/11/2026 15:16:29    2 1\n"
+        "       Full jobname:     s1_search\n"
+        " 771973 2.10000 other_job  ucestes      r     07/11/2026 15:16:29    2 1\n"
+        "       Full jobname:     s1_search_r1\n"
+    )
+    names, states = batch_jobs_in_queue("s1_search", lambda cmd: text)
+    assert names == {"s1_search", "s1_search_r1"}
+    assert states == {"s1_search": "Eqw", "s1_search_r1": "r"}

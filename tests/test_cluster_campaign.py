@@ -159,10 +159,21 @@ def test_search_arm_ledgers_failures_and_skips_them_on_resume(tmp_path):
     rows = [json.loads(x) for x in ledger.read_text().splitlines() if x.strip()]
     assert rows and rows[0]["candidate_id"] == "scalar-g0-c1"
 
-    # resume: the failed candidate is NOT re-authored/re-trained (F5), the survivor replays
+    # P3 (2026-07-13 audit): resume RESUBMITS the ledgered candidate from the ledger row's STORED
+    # source — never re-authored (the paid call is preserved), candidate identity kept. Here the
+    # fake still fails it (deterministic failure), so it re-ledgers and the summary is unchanged;
+    # exactly ONE training batch is submitted, containing only the resubmitted candidate.
     fake.calls.clear()
     s2 = run_search_arm("scalar", opts, _run(tmp_path, fake), resume=True)
-    assert fake.calls == [] and s2["n_candidates"] == 1 and s2["n_failed"] == 1
+    assert [c[3] for c in fake.calls] == [["scalar-g0-c1"]]  # resubmitted, alone, no survivor churn
+    assert s2["n_candidates"] == 1 and s2["n_failed"] == 1
+
+    # An INFRA-style failure (the fake now lets it train) recovers on the NEXT resume — the
+    # stranded authoring spend is realized instead of abandoned.
+    fake.fail.clear()
+    fake.calls.clear()
+    s3 = run_search_arm("scalar", opts, _run(tmp_path, fake), resume=True)
+    assert s3["n_candidates"] == 2 and s3["n_failed"] == 0
 
 
 def test_search_arm_k3_fans_out_3_seeds_per_candidate_and_selects_on_iqm(tmp_path):

@@ -55,20 +55,33 @@ def _ledgered_run_ids(ledger_path: Path) -> set[str]:
     return ids
 
 
-def batch_jobs_in_queue(base_name: str, runner: Callable[[list[str]], str]) -> set[str]:
-    """Full jobnames of this batch's live jobs (``base`` or ``base_r<k>`` rounds).
+def batch_jobs_in_queue(
+    base_name: str, runner: Callable[[list[str]], str]
+) -> tuple[set[str], dict[str, str]]:
+    """(full jobnames, {jobname: state}) of this batch's live jobs (``base``/``base_r<k>``).
 
     Uses ``qstat -r`` because plain ``qstat`` TRUNCATES the name column — an exact-name guard
     on truncated output would silently never match, and the double-submit guard would be dead.
-    """
+    P1 (2026-07-13 audit): the STATE is now captured too — an ``Eqw`` array previously waited
+    forever with green heartbeats (never dispatched ⇒ h_rt never starts ⇒ no bound applied).
+    Parsing: each ``qstat -r`` job block starts with the normal queue row (state in column 5),
+    followed by indented detail lines including ``Full jobname:`` — pair the last row's state
+    with the next full name."""
     names: set[str] = set()
+    states: dict[str, str] = {}
+    last_state = ""
     for line in runner(["qstat", "-r"]).splitlines():
-        line = line.strip()
-        if line.startswith("Full jobname:"):
-            nm = line.split(":", 1)[1].strip()
+        stripped = line.strip()
+        parts = stripped.split()
+        # a queue row: "<job-ID> <prior> <name> <user> <state> ..." — job-ID is all digits
+        if parts and parts[0].isdigit() and len(parts) >= 5:
+            last_state = parts[4]
+        elif stripped.startswith("Full jobname:"):
+            nm = stripped.split(":", 1)[1].strip()
             if nm == base_name or nm.startswith(base_name + "_r"):
                 names.add(nm)
-    return names
+                states[nm] = last_state
+    return names, states
 
 
 def _chunk_packs(flat: list[dict[str, Any]], pack: int) -> list[Any]:
@@ -200,6 +213,7 @@ def run_batch(
     ops_failures = 0
     first_pull_fail_at: float | None = None  # monotonic start of the current pull-failure streak
     first_ops_fail_at: float | None = None   # …and the queue-op streak (both for the time-outage guard)
+    eqw_since: float | None = None           # P1: start of the current Eqw dwell (None = no Eqw seen)
     last_queue_names: list[str] = []         # last-observed queue members of this batch (for the heartbeat)
     t0 = clock()
 
@@ -266,8 +280,30 @@ def run_batch(
 
         # 3) act on queue state (transient scheduler/ssh failures are bounded, not fatal)
         try:
-            alive_names = batch_jobs_in_queue(base_name, runner)
+            alive_names, queue_states = batch_jobs_in_queue(base_name, runner)
             last_queue_names = sorted(alive_names)
+            # P1 (2026-07-13 audit): an Eqw array never dispatches (h_rt never starts) — without
+            # this it waits FOREVER with green heartbeats. Bounded dwell, then harvest + qdel +
+            # treat as a drain (the bounded requeue takes over; a deterministic Eqw cause exhausts
+            # after MAX_RETRIES and is loudly ledgered).
+            eqw_names = sorted(n for n, st in queue_states.items() if "E" in st)
+            if eqw_names:
+                if eqw_since is None:
+                    eqw_since = clock()
+                    _LOG.warning("[%s] Eqw detected: %s — dwell timer started", base_name, eqw_names)
+                elif clock() - eqw_since > 900.0:  # 15 min: Eqw never self-heals
+                    _LOG.error("[%s] Eqw persisted >15 min on %s — harvesting + deleting",
+                               base_name, eqw_names)
+                    _harvest_qacct(job_ids[-1] if job_ids else None, runner, diag_path)
+                    for nm in eqw_names:
+                        try:
+                            runner(["qdel", nm])
+                        except Exception as exc:  # noqa: BLE001 — best-effort; drain handles it
+                            _LOG.warning("[%s] qdel %s failed: %s", base_name, nm, exc)
+                    eqw_since = None
+                    alive_names = alive_names - set(eqw_names)
+            else:
+                eqw_since = None
             if alive_names:
                 alive_seen = True
             else:

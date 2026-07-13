@@ -96,9 +96,15 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
     devices: dict[str, int] = {}
     env_labels: dict[str, int] = {}
     per_seed_device: dict[str, str] = {}
+    reward_hashes: dict[str, int] = {}
     popart_present = 0
     safe_default_total = 0
     for r in records:
+        # P5 (2026-07-13 audit): a mid-unit WINNER SWAP (resume after config drift re-freezes a
+        # different winner; remaining seeds train the new reward) was undetectable — census the
+        # distinct reward_source_hash per unit; >1 hash = a mixed-winner unit = gate RED.
+        rh = str(r.get("reward_source_hash", "<absent>"))
+        reward_hashes[rh] = reward_hashes.get(rh, 0) + 1
         m = r.get("metrics", {}) or {}
         dev = str(m.get("device", "<absent>"))
         devices[dev] = devices.get(dev, 0) + 1
@@ -123,6 +129,8 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         "device_homogeneous": len([d for d in devices if d != "<absent>"]) <= 1,
         "per_seed_device": per_seed_device,
         "env_label_census": env_labels,
+        "reward_hash_census": reward_hashes,
+        "winner_hash_consistent": len(reward_hashes) <= 1,
         "popart_scale_present": popart_present,
         "train_safe_default_total": safe_default_total,
     }
@@ -179,13 +187,20 @@ def write_integrity_report(
                 seed_devices.setdefault(s, set()).add(dev)
     crn_violations = {s: sorted(devs) for s, devs in seed_devices.items() if len(devs) > 1}
     crn_consistent = not crn_violations
+    # P5 (2026-07-13): every test unit must carry exactly ONE reward hash (a mixed-winner unit is
+    # scientifically meaningless — some seeds trained a different reward). Effect-blind: a HASH
+    # census, never a performance value.
+    mixed_winner_units = [u for u, t in report["test"].items()
+                          if not t.get("winner_hash_consistent", True)]
     report["verdict"] = {
         "all_units_complete": all_complete,
         "device_homogeneous_everywhere": all_homogeneous,  # informational under seed-pool blocks
         "crn_pair_device_consistent": crn_consistent,
         "crn_device_violations": dict(list(crn_violations.items())[:10]),
+        "winner_hash_consistent_everywhere": not mixed_winner_units,
+        "mixed_winner_units": mixed_winner_units[:10],
         # the GATE reads ONLY this — execution health, never a performance statistic
-        "health_ok": bool(all_complete and crn_consistent),
+        "health_ok": bool(all_complete and crn_consistent and not mixed_winner_units),
         "h2_arms": h2_arms,
     }
 
