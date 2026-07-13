@@ -59,6 +59,11 @@ class FakeCluster:
             d = self.archive / "search" / rid
             d.mkdir(parents=True, exist_ok=True)
             (d / "record.json").write_text("{}")
+        for rid, perm in act.get("reject", []):  # P9 node-side reject markers ride the pull
+            d = self.archive / "search" / "_rejects"
+            d.mkdir(parents=True, exist_ok=True)
+            (d / f"{rid}.json").write_text(json.dumps(
+                {"run_id": rid, "permanent": perm, "error": "sandbox: bad name"}))
         if act.get("drain"):
             self.queue.clear()
         return len(act.get("complete", []))
@@ -277,3 +282,46 @@ def test_batch_jobs_in_queue_captures_states_for_eqw_detection():
     names, states = batch_jobs_in_queue("s1_search", lambda cmd: text)
     assert names == {"s1_search", "s1_search_r1"}
     assert states == {"s1_search": "Eqw", "s1_search_r1": "r"}
+
+
+# --------------------------------------------------------------------------- #
+# P9 (2026-07-13 pre-spend audit): permanent node-side rejects are abandoned
+# IMMEDIATELY (no requeue rounds); transient markers keep the bounded retry.
+# --------------------------------------------------------------------------- #
+def test_permanent_node_reject_abandons_without_requeue(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(2)
+    fc.pull_script = [{}, {"complete": ["c0"], "reject": [("c1", True)], "drain": True}]
+    out = _run(fc, specs)
+    assert not out["ok"] and out["completed"] == 1 and out["exhausted"] == ["c1"]
+    assert fc.qsubs == ["b1"]  # NO requeue round was burned on the deterministic reject
+    rows = [json.loads(x) for x in (fc.batches / "b1.permanent.jsonl").read_text().splitlines()]
+    assert len(rows) == 1 and rows[0]["reason"] == "permanent_node_reject"
+    assert rows[0]["spec"]["candidate_id"] == "c1"
+
+
+def test_transient_node_reject_still_gets_the_bounded_requeue(tmp_path):
+    fc = FakeCluster(tmp_path)
+    specs = _specs(1)
+    fc.pull_script = [{}, {"reject": [("c0", False)], "drain": True}, {"complete": ["c0"]}]
+    out = _run(fc, specs)
+    assert out["ok"] and out["completed"] == 1 and out["exhausted"] == []
+    assert fc.qsubs == ["b1", "b1_r1"]  # transient -> retried normally, then succeeded
+
+
+def test_run_one_failed_rows_leave_durable_reject_markers(tmp_path):
+    from src.cluster.poll import permanent_reject_ids
+    from src.cluster.run_one import _archive_result
+
+    base = {"archive_root": str(tmp_path), "arm": "scalar", "leg": "search"}
+    _archive_result({"ok": False, "error": "sandbox: bad name", "failed_validation": True,
+                     "candidate_id": "c7"}, {**base, "candidate_id": "c7"})
+    _archive_result({"ok": False, "error": "MemoryError: oom", "candidate_id": "c8"},
+                    {**base, "candidate_id": "c8"})
+    # both durable; only the validation reject is PERMANENT
+    assert (tmp_path / "_rejects" / "c7.json").is_file()
+    assert (tmp_path / "_rejects" / "c8.json").is_file()
+    assert permanent_reject_ids(tmp_path) == {"c7"}
+    # torn marker never sinks the reader
+    (tmp_path / "_rejects" / "torn.json").write_text("{not json")
+    assert permanent_reject_ids(tmp_path) == {"c7"}

@@ -327,3 +327,35 @@ def test_remote_completed_dirs_parses_skips_and_fails_loud():
 
     with pytest.raises(RuntimeError, match="wrong outputs root"):
         remote_completed_dirs("/r/out", failing)
+
+
+def test_pull_archive_mirrors_reject_markers_incrementally(tmp_path):
+    """P9: node-side reject markers (flat JSON under _rejects/) ride the same pull as record
+    dirs — exact incremental, staged, idempotent — and permanent_reject_ids reads them."""
+    import json as _json
+
+    from src.cluster.poll import permanent_reject_ids, pull_archive
+
+    def runner(cmd):
+        assert cmd[0] == "find"
+        if "-path" in cmd:  # the reject-marker find
+            return "/r/out/search/_rejects/c1.json\n"
+        return "/r/out/search/c0/record.json\n"
+
+    def fetch(relpaths, staging):
+        for rel in relpaths:
+            p = staging / rel
+            if "_rejects" in rel:
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(_json.dumps(
+                    {"run_id": "c1", "permanent": True, "error": "sandbox: bad name"}))
+            else:
+                p.mkdir(parents=True, exist_ok=True)
+                (p / "record.json").write_text("{}")
+
+    n = pull_archive("/r/out", tmp_path, runner=runner, fetch=fetch)
+    assert n == 2  # one record dir + one marker
+    assert (tmp_path / "search" / "_rejects" / "c1.json").is_file()
+    assert permanent_reject_ids(tmp_path) == {"c1"}
+    # idempotent second pull — both diffs empty, nothing fetched
+    assert pull_archive("/r/out", tmp_path, runner=runner, fetch=fetch) == 0

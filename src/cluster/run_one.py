@@ -35,12 +35,42 @@ def _worker_for(spec: dict[str, Any]) -> Any:
     return train_candidate
 
 
+def _write_reject_marker(result: dict[str, Any], spec: dict[str, Any]) -> None:
+    """P9 (2026-07-13 pre-spend audit): a FAILED row previously left NOTHING durable on the archive —
+    the driver saw only a missing record and burned MAX_RETRIES requeue rounds (queue wait + h_rt
+    each) even on a DETERMINISTIC sandbox/contract reject, and every resume re-tried it again.
+    Write an atomic marker under ``<archive_root>/_rejects/<run_id>.json`` (a sibling of the arm
+    dirs — never named record.json, so completion truth / analysis / integrity ignore it).
+    ``permanent`` is True ONLY for the validation-reject class (``failed_validation`` — same-source
+    retry is provably futile); anything else (OOM, CUDA hiccup) stays retryable."""
+    import os
+    import time
+
+    rid = str(result.get("run_id") or result.get("candidate_id")
+              or spec.get("run_id") or spec.get("candidate_id") or "")
+    if not rid or not spec.get("archive_root"):
+        return
+    d = Path(spec["archive_root"]) / "_rejects"
+    d.mkdir(parents=True, exist_ok=True)
+    marker = {
+        "run_id": rid, "candidate_id": result.get("candidate_id"), "arm": spec.get("arm"),
+        "leg": spec.get("leg", "search"), "error": str(result.get("error"))[:500],
+        "permanent": bool(result.get("failed_validation")), "ts": time.time(),
+    }
+    tmp = d / f".{rid}.tmp"
+    tmp.write_text(json.dumps(marker, sort_keys=True), encoding="utf-8")
+    os.replace(tmp, d / f"{rid}.json")
+
+
 def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
     """Archive an OK result via the LEG-appropriate path — the SAME atomic ``write_run`` the local
     paths use (search: ``parallel._archive``; test: ``test_leg`` record → ``write_run`` under the
     winner's arm dir). Both workers return their record WITHOUT archiving, so this is the single,
-    first archival — no double-write; the poll layer's completion truth reads exactly these dirs."""
+    first archival — no double-write; the poll layer's completion truth reads exactly these dirs.
+    FAILED rows leave a durable ``_rejects`` marker instead (P9) so the driver can distinguish a
+    deterministic reject from a transient death."""
     if not result.get("ok"):
+        _write_reject_marker(result, spec)
         return
     if spec.get("leg") == "test":
         rec = result.get("record")

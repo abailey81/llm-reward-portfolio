@@ -605,10 +605,26 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                 if cid in fresh_by_cid:
                     failed += 1
                     src, prompt = fresh_by_cid[cid]
+                    # P9 (2026-07-13 audit): consult the node-side reject markers (mirrored under
+                    # <search>/_rejects/) — a PERMANENT one (deterministic sandbox/contract reject)
+                    # marks the F5 row permanent, so the P3 resume-resubmit never re-ships the same
+                    # invalid source, and the row carries the node's ACTUAL error (diagnosability).
+                    _perm, _err = False,                         "cluster training failed (a seed sandbox-rejected or exhausted retries)"
+                    for _rid, _ in _candidate_seed_runs(cid, k_seeds, base_seed):
+                        _mp = arm_root.parent / "_rejects" / f"{_rid}.json"
+                        if _mp.is_file():
+                            try:
+                                _m = json.loads(_mp.read_text(encoding="utf-8"))
+                            except Exception:  # noqa: BLE001 — a torn marker keeps the default row
+                                continue
+                            _err = f"node reject: {str(_m.get('error'))[:400]}"
+                            if _m.get("permanent"):
+                                _perm = True
+                                break
                     _ledger_failure(fail_ledger, {
                         "candidate_id": cid, "generation": gen, "prompt": prompt,
-                        "reward_source": src,
-                        "error": "cluster training failed (a seed sandbox-rejected or exhausted retries)",
+                        "reward_source": src, "error": _err,
+                        **({"permanent": True} if _perm else {}),
                     })
                 continue
             accepted.append(r)

@@ -26,7 +26,7 @@ from typing import Any, Callable
 
 from src.cluster.jobscript import render_jobscript, write_jobscript
 from src.cluster.ledger import requeue_specs
-from src.cluster.poll import pending_specs, pull_archive, spec_run_id
+from src.cluster.poll import pending_specs, permanent_reject_ids, pull_archive, spec_run_id
 from src.cluster.spec_io import write_specs
 from src.cluster.submit import prepare_remote, push_batch, qsub, sanitize_name, ssh_runner
 
@@ -262,6 +262,26 @@ def run_batch(
 
         # 2) the archive-truth diff (over the non-exhausted specs)
         pending = pending_specs(live, local_archive_root)
+        # P9 (2026-07-13 audit): a PERMANENT node-side reject marker (deterministic sandbox/
+        # contract reject — run_one._write_reject_marker) is abandoned IMMEDIATELY: same-source
+        # retry is provably futile, so burning MAX_RETRIES requeue rounds (queue wait + h_rt
+        # each) on it wasted 2 rounds per reject. Ledgered in the same permanent-JSONL shape as
+        # retries_exhausted, so resume + bank-gate accounting see it identically.
+        perm = permanent_reject_ids(local_archive_root)
+        dead_now = [s for s in pending if spec_run_id(s) in perm]
+        if dead_now:
+            ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            with ledger_path.open("a", encoding="utf-8") as fh:
+                for s in dead_now:
+                    fh.write(json.dumps({"task": None, "spec": s,
+                                         "reason": "permanent_node_reject"},
+                                        sort_keys=True, default=str) + "\n")
+            dead_ids = {spec_run_id(s) for s in dead_now}
+            _LOG.error("[%s] %d permanent node reject(s) abandoned without requeue: %s",
+                       base_name, len(dead_ids), sorted(dead_ids))
+            exhausted.extend(sorted(dead_ids))
+            live = [s for s in live if spec_run_id(s) not in dead_ids]
+            pending = [s for s in pending if spec_run_id(s) not in dead_ids]
         done = len(flat_specs) - len(pending) - len(exhausted)
         if not pending:
             summary = {

@@ -16,6 +16,7 @@ downstream.
 """
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 import subprocess
@@ -25,7 +26,9 @@ from typing import Any, Callable
 __all__ = [
     "pull_archive",
     "remote_completed_dirs",
+    "remote_reject_files",
     "completed_run_ids",
+    "permanent_reject_ids",
     "pending_specs",
     "spec_run_id",
 ]
@@ -65,6 +68,31 @@ def remote_completed_dirs(
             continue
         dirs.add(rel.rsplit("/", 1)[0])
     return dirs
+
+
+def remote_reject_files(
+    remote_outputs_root: str, runner: Callable[[list[str]], str]
+) -> set[str]:
+    """POSIX relpaths of every node-side reject MARKER on the cluster (P9): flat JSON files under
+    any ``_rejects/`` dir (written atomically by ``run_one._write_reject_marker``). Same loud
+    missing-root behavior as :func:`remote_completed_dirs` (the pull calls that first anyway)."""
+    root = remote_outputs_root.rstrip("/")
+    try:
+        out = runner(["find", root, "-path", "*/_rejects/*.json", "-type", "f"])
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(
+            f"listing reject markers under {root} on the cluster failed ({exc})"
+        ) from exc
+    rels: set[str] = set()
+    for line in out.splitlines():
+        line = line.strip()
+        if not line.endswith(".json"):
+            continue
+        rel = line[len(root):].lstrip("/")
+        if "_rejects/" not in rel:
+            continue
+        rels.add(rel)
+    return rels
 
 
 def _default_fetch(host: str, remote_outputs_root: str) -> Fetch:
@@ -134,7 +162,15 @@ def pull_archive(
         if _STAGING not in p.parts
     }
     missing = sorted(remote - have)
-    if not missing:
+    # P9: reject MARKERS ride the same pull (flat immutable JSON files under _rejects/) so the
+    # driver can abandon deterministic node-side rejects without waiting out requeue rounds.
+    rej_have = {
+        p.relative_to(local).as_posix()
+        for p in local.rglob("_rejects/*.json")
+        if _STAGING not in p.parts
+    }
+    rej_missing = sorted(remote_reject_files(remote_outputs_root, runner) - rej_have)
+    if not missing and not rej_missing:
         return 0
 
     for i in range(0, len(missing), chunk):
@@ -154,7 +190,24 @@ def pull_archive(
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))
         shutil.rmtree(staging, ignore_errors=True)
-    return len(missing)
+
+    for i in range(0, len(rej_missing), chunk):
+        batch = rej_missing[i : i + chunk]
+        staging.mkdir(parents=True, exist_ok=True)
+        fetch(batch, staging)
+        for rel in batch:
+            src = staging / rel
+            if not src.is_file():
+                raise RuntimeError(
+                    f"pulled reject marker {rel!r} missing after extract — torn transfer"
+                )
+            dest = local / rel
+            if dest.exists():
+                continue  # markers are effectively immutable — keep the committed copy
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), str(dest))
+        shutil.rmtree(staging, ignore_errors=True)
+    return len(missing) + len(rej_missing)
 
 
 def completed_run_ids(local_root: str | Path) -> set[str]:
@@ -169,6 +222,27 @@ def completed_run_ids(local_root: str | Path) -> set[str]:
     return {
         p.parent.name for p in root.rglob("record.json") if _STAGING not in p.parts
     }
+
+
+def permanent_reject_ids(local_root: str | Path) -> set[str]:
+    """Run_ids with a PERMANENT node-side reject marker in the mirror (P9): the deterministic
+    validation-reject class the driver abandons immediately (no requeue rounds — same-source
+    retry is provably futile). Transient markers (``permanent: false``) are diagnostics only;
+    torn/unreadable markers are skipped (that spec just keeps the normal bounded retry)."""
+    root = Path(local_root)
+    if not root.is_dir():
+        return set()
+    ids: set[str] = set()
+    for p in root.rglob("_rejects/*.json"):
+        if _STAGING in p.parts:
+            continue
+        try:
+            row = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — a torn marker must not sink the poll cycle
+            continue
+        if row.get("permanent"):
+            ids.add(str(row.get("run_id") or p.stem))
+    return ids
 
 
 def spec_run_id(spec: dict[str, Any]) -> str:
