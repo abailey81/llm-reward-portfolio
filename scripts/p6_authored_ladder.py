@@ -110,6 +110,54 @@ def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: 
     return job
 
 
+def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str,
+                   cores: int, budgets: list[int], batch: str,
+                   exclude: set[str], skip_done: bool) -> list[str]:
+    """Submit each (winner, budget, seed) spec as its OWN 1-task array (2026-07-13 recovery).
+
+    WHY: the scheduler's serialization policy holds an array's tail tasks (``snx=1``) and has
+    twice PURGED pending tails outright (the rehearsal arrays 07-08; the p6ext800b/1600b tails
+    07-13 — qacct confirms tasks 2-6 left no trace). Single-task arrays have NO pending tail to
+    purge and every task is immediately eligible — the many-small-arrays lever (runbook §2b).
+    ``exclude`` drops named candidate ids (e.g. one currently RUNNING elsewhere); ``skip_done``
+    drops specs whose record already exists in the local mirror (idempotent re-entry).
+    """
+    from src.cluster.jobscript import render_jobscript, write_jobscript
+    from src.cluster.spec_io import write_specs
+    from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
+
+    runner = ssh_runner(host)
+    specs = build_specs(remote_root, local_out, budgets)
+    done: set[str] = set()
+    if skip_done:
+        for rec_path in Path(local_out).glob("search/**/record.json"):
+            done.add(rec_path.parent.name)
+    todo = [s for s in specs
+            if s["candidate_id"] not in exclude and s["candidate_id"] not in done]
+    skipped = len(specs) - len(todo)
+    if skipped:
+        print(f"[p6] singles: skipping {skipped} spec(s) (excluded/already archived)")
+    jobs: list[str] = []
+    names: list[str] = []
+    for i, spec in enumerate(todo, start=1):
+        name = f"{batch}{i:02d}"
+        names.append(name)
+        batch_dir = Path(local_out) / "batches" / name
+        write_specs([spec], batch_dir)
+        h_rt = _auto_h_rt([int(spec.get("train_steps") or max(budgets))])
+        js = render_jobscript(name, 1, remote_root, gold_dir, pool=pool, pack=1,
+                              cores=cores, h_rt=h_rt, apptainer_sif="$HOME/python311.sif")
+        write_jobscript(js, batch_dir / f"{name}.sh")
+    prepare_remote(remote_root, names, runner)
+    for name, spec in zip(names, todo):
+        push_batch(Path(local_out) / "batches" / name, f"{remote_root.rstrip('/')}/specs")
+        job = qsub(f"{remote_root.rstrip('/')}/specs/{name}/{name}.sh", runner)
+        jobs.append(job)
+        print(f"[p6] single {name} = job {job}: {spec['candidate_id']}")
+    print(f"[p6] {len(jobs)} single-task arrays submitted (pool {pool})")
+    return jobs
+
+
 def pull_and_summarize(remote_root: str, local_out: str, *, host: str) -> None:
     """Pull node-written records and print the per-(reward, budget) seed summary of val_fitness."""
     from src.cluster.poll import pull_archive
@@ -149,6 +197,13 @@ def main() -> int:
     p.add_argument("--budgets", default=",".join(str(b) for b in BUDGETS),
                    help="Comma list of step budgets (extension rungs, e.g. 800000,1600000).")
     p.add_argument("--batch-name", default=BATCH, help="SGE batch name (extension arrays need their own).")
+    p.add_argument("--singles", action="store_true",
+                   help="Submit each (winner,budget,seed) spec as its OWN 1-task array — no "
+                        "pending tail for the scheduler policy to purge (2026-07-13 recovery).")
+    p.add_argument("--exclude", default="",
+                   help="Comma list of candidate ids to drop (e.g. one running elsewhere).")
+    p.add_argument("--skip-done", action="store_true",
+                   help="Drop specs whose record already exists in the local mirror.")
     args = p.parse_args()
     budgets = [int(x) for x in str(args.budgets).split(",") if x.strip()]
 
@@ -167,6 +222,13 @@ def main() -> int:
     if args.build_only:
         build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
                     cores=args.cores_per_task, budgets=budgets, batch=args.batch_name)
+        return 0
+    if args.submit and args.singles:
+        submit_singles(remote_root, args.gold_dir, args.output_dir, host=args.host,
+                       pool=args.pool, cores=args.cores_per_task, budgets=budgets,
+                       batch=args.batch_name,
+                       exclude={x.strip() for x in args.exclude.split(",") if x.strip()},
+                       skip_done=bool(args.skip_done))
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
