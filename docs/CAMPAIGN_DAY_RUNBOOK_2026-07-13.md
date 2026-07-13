@@ -13,7 +13,7 @@
 | 0.2 | Post-verdict wording batch landed (incl. the hash-bound PREREG/yaml lines) | commit exists; gate re-run green |
 | 0.3 | **FROZEN**: `scripts/freeze.py` run (delegated; announced loudly) | `freeze.py --check`: frozen=true, recorded==canonical |
 | 0.4 | p4detb leg-2 complete → cluster checkout synced to HEAD | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp` AFTER leg-2, never before |
-| 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --rehearse` output |
+| 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --archive outputs/proto_myriad --rehearsal` output |
 | 0.6 | Anthropic balance sufficient for ~$50 authoring (+$70 top-up if low) | step 4 smoke + Tamer's console |
 
 ## 1. Pre-flight checklist (run in order; each must pass)
@@ -22,8 +22,10 @@
 # 1. Freeze gate — 21/21 green, recorded hash matches canonical:
 python scripts/freeze.py --check
 
-# 2. Full test suite (background, ~10 min) — 0 failures:
-python -m pytest tests/ -q
+# 2. Full test suite (background, ~10 min) — 0 failures AND the skip report shows ONLY the
+#    3 permanent Windows/POSIX skips (2026-07-13: a transient made 66 tests skip once — the
+#    -rs report makes any recurrence self-documenting; skips are fail-safe but must be READ):
+python -m pytest tests/ -q -rs
 
 # 3. Keyless wiring dry-run of the EXACT campaign shape (no ssh, no spend):
 python scripts/run_campaign_cluster.py --dry-run --synthetic \
@@ -116,6 +118,6 @@ C<4 for 48h → the E1 exogenous-stop reading: bank the highest CLEAN rung; do N
 
 ## 7. At the end: the bank gate
 
-`python scripts/bank_gate.py --root outputs/campaign_cluster --seeds <realized rung>` — the
+`python scripts/bank_gate.py --archive outputs/campaign_cluster --seeds <realized rung>` — the
 rehearsed six-step runsheet (archive integrity → resume audit → analyze → variance → fed-delta
 SNR → prereg bundle). Then and only then: numbers into the PDF (evidence-ledger grades enforced).

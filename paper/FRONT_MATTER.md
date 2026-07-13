@@ -93,8 +93,12 @@ production of this work, all employed under my own direction and with the output
   AI-assisted code was read, tested and verified by me; all AI-assisted prose was checked, rewritten in my own
   words, and fact-checked; and every citation was verified against its primary source. This authorship/coding
   assistance is distinct from the language models studied as the experimental *object* of this dissertation
-  (above). *(Reconcile the precise permitted-use category against the current UCL Academic Manual generative-AI
-  policy at compile.)*
+  (above). Under UCL's three-category framework for generative AI in assessment (Academic Manual §9.2.6a and
+  the UCL Generative AI Hub's assessment categorisation), the use disclosed here is of the *assistive* kind
+  (Category 2: drafting, coding and proofreading support under the author's direction and verification), while
+  the language models analysed in Chapters 4–6 are the *object of study*, archived and reproducible under the
+  pre-registered protocol; no generative system authored this dissertation's claims, analyses or conclusions
+  on the author's behalf.
 
 I confirm that all reported results, where present, are produced by the frozen, pre-registered pipeline and that
 any quantity that depends on the (yet-to-be-run) confirmatory campaign is, in the present version, a clearly
