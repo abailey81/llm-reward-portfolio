@@ -437,6 +437,10 @@ def train_candidate(spec: dict) -> dict:
             torch.cuda.empty_cache()
         out.update(ok=True, fitness=fitness, val_returns=[float(x) for x in val], tail_stats=tail,
                    popart_scale=popart_scale,
+                   # 2026-07-13 pre-spend audit: real elapsed seconds -> the record's wall_clock.
+                   # _archive had HARDCODED 0.0 since inception, so NO search record (laptop or
+                   # cluster) ever carried wall-clock — the compute-reporting hole Okhrati docks.
+                   elapsed_secs=float(time.perf_counter() - _cand_t0),
                    # R66: training-window SAFE_DEFAULT counts -> archived by _archive (additive/optional).
                    train_safe_default_count=train_sd_count, train_safe_call_count=train_call_count)
         if spec.get("emit_train_returns"):
@@ -814,7 +818,9 @@ def _archive(result: dict, arm: str, opts: dict, archive_root: str, generation: 
                     else {}
                 ),
             },
-            "wall_clock": 0.0,
+            # 2026-07-13 pre-spend audit fix: was HARDCODED 0.0 — the worker's measured elapsed
+            # seconds now flow through (0.0 only for legacy results lacking the field).
+            "wall_clock": float(result.get("elapsed_secs", 0.0)),
             # Rank 14: the env_fingerprint is the REAL provenance now, not a bare label. ``_run_env_fp``
             # writes <run_dir>/env.json (full CI-grade capture) and returns {label, env_json_sha256} so
             # the record points at a replayable, content-hashed environment snapshot (audit C-2/C-6).

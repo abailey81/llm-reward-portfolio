@@ -214,6 +214,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
+    p.add_argument("--llm-from", choices=["campaign", "prototype"], default="campaign",
+                   help="Which config's `llm` block authors the rewards (2026-07-13 pre-spend audit "
+                        "fix: llm_cfg was hardcoded None, silently inheriting prototype.yaml's block "
+                        "— the WRONG MODEL for the confirmatory run). Default `campaign` = "
+                        "config/campaign.yaml's Opus 4.8 block (the campaign OWNS its author, "
+                        "ADR-035). Rehearsals/prototypes pass `prototype` EXPLICITLY.")
     p.add_argument("--batch-tag", default=None,
                    help="Per-run batch-name namespace (2026-07-11d bug fix): the driver's "
                         "double-submit guard matches queued jobs by NAME across the whole user "
@@ -246,16 +252,36 @@ def main(argv: list[str] | None = None) -> int:
     # to the LAPTOP-side driver that authors before shipping specs (parity with run_campaign.py:2111).
     # Without this, real-authoring (--pass-mode B) crashes with a "key unset" RuntimeError.
     from src.cluster.submit import expand_remote, remote_home, ssh_runner
+    from src.utils.config import load_config as _load_config
     from src.utils.env import load_env
 
     load_env()
     args = build_parser().parse_args(argv)
 
+    # ---- 2026-07-13 PRE-SPEND AUDIT GUARDS (all fail LOUD before any submission/authoring) ---- #
+    from src.utils.config import cfg_get as _cfg_get
+    llm_cfg = None  # None -> assemble falls back to prototype.yaml (the legacy rehearsal path)
+    if args.llm_from == "campaign":
+        llm_cfg = dict(_cfg_get(_load_config("campaign"), "llm", {}) or {})
+        if not llm_cfg:
+            raise SystemExit("--llm-from campaign but config/campaign.yaml has no `llm` block")
+    # Provider<->model consistency: authoring with a mismatched pair either 400s (burning retries)
+    # or silently authors with the wrong family — both unacceptable at real spend.
+    if args.pass_mode.upper() == "B" and args.provider != "stub":
+        _block = llm_cfg if llm_cfg is not None else _cfg_get(_load_config("prototype"), "llm", {})
+        _model = str(_cfg_get(_block, "model_snapshot", ""))
+        if args.provider == "anthropic" and not _model.startswith("claude"):
+            raise SystemExit(f"provider=anthropic but the {args.llm_from} llm block's model is "
+                             f"{_model!r} — wrong-model spend guard (pass --llm-from correctly)")
+        if args.provider == "openrouter" and _model.startswith("claude"):
+            raise SystemExit(f"provider=openrouter with model {_model!r} — the campaign authors "
+                             "Opus via the NATIVE anthropic provider (ADR-035)")
+
     inputs = assemble_cluster_inputs(
         arms=list(args.arms), seeds=_parse_seeds(args.seeds), output_dir=args.output_dir,
         synthetic=bool(args.synthetic), train_steps=args.train_steps, n_trials=args.n_trials,
         candidates=args.candidates, generations=args.generations, search_seed=args.search_seed,
-        embargo=args.embargo, pass_mode=args.pass_mode, provider=args.provider, llm_cfg=None,
+        embargo=args.embargo, pass_mode=args.pass_mode, provider=args.provider, llm_cfg=llm_cfg,
         resume=bool(args.resume),
     )
     if args.dry_run:
@@ -280,6 +306,31 @@ def main(argv: list[str] | None = None) -> int:
         if args.apptainer_sif:
             args.apptainer_sif = expand_remote(args.apptainer_sif, home)
         _LOG.info("remote '~' paths expanded against home=%s", home)
+
+    # ---- 2026-07-13 pre-spend audit: safe DEFAULTS for the two silent money sinks ---- #
+    # (a) Spend cap: --max-author-calls defaulted to None = the spend_guard was a NO-OP on an
+    #     unattended run. Default it to 2x the structural authoring bound + slack, logged.
+    _LLM_ARMS = {"distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled"}
+    if args.max_author_calls is None and args.pass_mode.upper() == "B" and args.provider != "stub":
+        n_llm = len(set(args.arms) & _LLM_ARMS)
+        args.max_author_calls = max(30, 2 * n_llm * int(args.candidates) + 60)
+        _LOG.info("spend cap DEFAULTED: max_author_calls=%d (2 x %d LLM arms x %d candidates + 60 "
+                  "slack); override with --max-author-calls", args.max_author_calls, n_llm,
+                  args.candidates)
+    # (b) Walltime: the renderer's pack>1 default (1:30) was sized for 50k probes — a pack-5 B*
+    #     task needs ~2.4h on a contended node and would be h_rt-KILLED after burning the GPU
+    #     (the p6ext800/1600 incident class). Size on the measured aggregate curve at its worst
+    #     (x0.5 contention) + overhead + 30% margin.
+    if args.h_rt is None:
+        _agg_clean = {1: 102.0, 2: 133.0, 3: 220.0, 4: 240.0, 5: 253.0, 8: 257.0}
+        agg = 0.5 * _agg_clean.get(int(args.pack), 253.0)
+        steps = int(args.train_steps or (_load_config("campaign").get("agent") or {})
+                    .get("train_steps_per_candidate") or 200000)
+        secs = (steps * int(args.pack) / agg + 1200.0) * 1.3
+        hours = int(secs // 3600) + 1
+        args.h_rt = f"{hours}:0:0"
+        _LOG.info("walltime DEFAULTED: h_rt=%s (steps=%d, pack=%d, worst-agg=%.0f steps/s); "
+                  "override with --h-rt", args.h_rt, steps, args.pack, agg)
 
     remote_root = args.remote_root.rstrip("/")
     # local_archive_root == output_dir so the pulled mirror is output_dir/{search,test,frozen}/... —
