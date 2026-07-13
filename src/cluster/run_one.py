@@ -147,6 +147,13 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
     """
     specs = payload if isinstance(payload, list) else [payload]
     if len(specs) <= 1 or pack <= 1:
+        # P18 (2026-07-13 audit): the pack path gets _worker_init via the DevicePool spawn
+        # initializer, but the inline path skipped it — no pyarrow-before-torch preload (the
+        # SIGSEGV class verified 2026-06-20) and no thread pinning. Run the SAME init so the
+        # two node paths share one environment contract (BLAS threads=1, alloc conf, preload).
+        from src.orchestration.parallel import _worker_init
+
+        _worker_init()
         return [_run_single(s) for s in specs]
 
     from concurrent.futures import as_completed

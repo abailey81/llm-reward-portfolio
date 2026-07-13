@@ -677,6 +677,33 @@ def test_seed_pool_blocks_partition_and_parser(tmp_path):
     assert by_name["t"][1] == [4]              # unassigned seed falls back to base pool — never dropped
 
 
+def test_seed_pool_blocks_drive_concurrently_not_serially(tmp_path):
+    """P16 (2026-07-13 audit): the per-pool block drivers must OVERLAP — the old serial loop
+    idled the second pool for the whole first block. A 2-party barrier inside the fake
+    run_batch deadlocks (and fails loud) unless both blocks are in flight simultaneously."""
+    import threading
+
+    import src.cluster.campaign as C
+
+    blocks = C.parse_seed_pool_blocks("EF:0-0,L:1-1")
+    both_in_flight = threading.Barrier(2, timeout=20)
+
+    def fake_run_batch(specs, name, *, pool, pack, priority=0):
+        both_in_flight.wait()  # raises BrokenBarrierError if the blocks were serialized
+        return {"ok": True, "submitted": len(specs)}
+
+    run = C.ClusterRun(run_batch=fake_run_batch, spec_archive_root="/r/outputs",
+                       read_root=tmp_path, seed_pool_blocks=blocks)
+    winners = [("distributional", {"arm": "distributional", "reward_source": "def reward(*a): ...",
+                                   "candidate_id": "w0", "val_fitness": 1.0})]
+    out = C.run_test_leg(
+        winners, [0, 1], run, panel_descriptor={"synthetic": True}, env_cfg={},
+        agent_cfg={"train_steps_per_candidate": 10}, train_window=(0, 5), val_window=(6, 8),
+        test_window=(9, 12), embargo=0, lookback=1, name="t", resume=False,
+    )
+    assert out["ok"] and set(out["blocks"]) == {"EF", "L"}
+
+
 def test_crn_pair_device_consistency_replaces_per_unit_homogeneity(tmp_path):
     """2026-07-12 gate fix (implements the device-stratified seed-block ratification, 2026-07-11c):
     under seed-pool blocks a unit legitimately SPANS devices, so per-unit homogeneity must not gate.

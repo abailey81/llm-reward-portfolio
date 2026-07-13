@@ -806,20 +806,31 @@ def run_test_leg(
         # class; the interleave order is preserved WITHIN each block. Unassigned seeds fall back to
         # ``base_pool`` under the original batch name — no spec is ever dropped.
         assigned: set[int] = set()
-        out: dict[str, Any] = {"name": name, "ok": True, "blocks": {}}
+        jobs: list[tuple[str, str, list[dict[str, Any]]]] = []  # (pool, batch name, taskfile part)
         for block_pool, block_seeds in run.seed_pool_blocks:
             part = [s for s in specs if int(s["seed"]) in block_seeds]
             assigned |= block_seeds
             if part:
-                r = run.run_batch(part, f"{name}_{block_pool}", pool=block_pool, pack=run.pack,
-                                  priority=priority)
-                out["blocks"][block_pool] = r
-                out["ok"] = out["ok"] and bool(r.get("ok", True))
+                jobs.append((block_pool, f"{name}_{block_pool}", part))
         rest = [s for s in specs if int(s["seed"]) not in assigned]
         if rest:
-            r = run.run_batch(rest, name, pool=base_pool, pack=run.pack, priority=priority)
-            out["blocks"][base_pool] = r
-            out["ok"] = out["ok"] and bool(r.get("ok", True))
+            jobs.append((base_pool, name, rest))
+        # P16 (2026-07-13 audit): blocks drive CONCURRENTLY (one thread per pool) — the old
+        # serial loop idled the second pool for the whole first block, forfeiting exactly the
+        # extra confirmatory C the device-stratified blocks were ratified to add. Concurrent
+        # run_batch is the established pattern (the per-arm pipelines already do it): distinct
+        # batch names, per-batch P12 locks, and the shared pull is internally serialized.
+        out: dict[str, Any] = {"name": name, "ok": True, "blocks": {}}
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max(1, len(jobs))) as ex:
+            futs = {ex.submit(run.run_batch, part, bname, pool=bpool, pack=run.pack,
+                              priority=priority): bpool
+                    for bpool, bname, part in jobs}
+            for f, bpool in futs.items():
+                r = f.result()
+                out["blocks"][bpool] = r
+                out["ok"] = out["ok"] and bool(r.get("ok", True))
         return out
     return run.run_batch(specs, name, pool=base_pool, pack=run.pack,
                          priority=priority)
@@ -857,6 +868,23 @@ def run_baselines_on_cluster(
 # --------------------------------------------------------------------------- #
 # PIPELINE — per-arm search → select → freeze → test (zero barrier)             #
 # --------------------------------------------------------------------------- #
+def _guard_k_seed_selector(opts: dict, run: ClusterRun) -> None:
+    """P15 (2026-07-13 pre-spend audit; DORMANT at the ratified k=1): under k-seed search (B-A2)
+    the SELECTION metric is the IQM aggregate (``multiseed.aggregate_k_seeds`` — the value the
+    LLM reflection also sees), but the default ``select_winner`` reads the PER-SEED records and
+    takes the max — a max-single-lucky-seed freeze would contradict the aggregate semantics and
+    re-open the exact selection-noise channel k-seed search was built to close. Fail loud until
+    an aggregate-aware selector is injected."""
+    if int(opts.get("search_seeds_per_candidate", 1) or 1) > 1 and run.select_winner is None:
+        raise NotImplementedError(
+            "k-seed search (search_seeds_per_candidate>1) requires an aggregate-aware winner "
+            "selector: the default select_winner picks the max SINGLE-SEED val_fitness from "
+            "per-seed records, contradicting the IQM selection semantics "
+            "(src.search.multiseed.aggregate_k_seeds). Inject run.select_winner before "
+            "enabling k>1."
+        )
+
+
 def _resolve_select_freeze(run: ClusterRun) -> tuple[Callable[[Any], Any], Callable[..., Any]]:
     """The SELECT/FREEZE callables — injected on ``run`` for tests, else the certified
     ``run_campaign`` implementations (imported via the codebase's scripts-on-path pattern)."""
@@ -899,6 +927,7 @@ def run_arm_pipeline(
         search = run_search_arm(arm, opts, run, resume=resume)
 
     arm_search_root = run.search_read() / arm  # SELECT reads ONLY the search sub-root
+    _guard_k_seed_selector(opts, run)  # P15: max-single-seed select is WRONG under k>1
     winner = select_winner(arm_search_root)
     if winner is None:
         _LOG.warning("[%s] search produced no winner — no test leg", arm)
@@ -1070,6 +1099,7 @@ def run_campaign_tiered(
             search = run_family_search_arm(arm, opts, run, resume=resume, priority=prio)
         else:
             search = run_search_arm(arm, opts, run, resume=resume, priority=prio)
+        _guard_k_seed_selector(opts, run)  # P15: max-single-seed select is WRONG under k>1
         winner = select_winner(run.search_read() / arm)
         if winner is None:
             return {"arm": arm, "ok": False, "reason": "no_winner", "search": search}
