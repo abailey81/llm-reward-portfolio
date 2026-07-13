@@ -718,6 +718,9 @@ def _spec(arm: str, kind: str, reward: Any, cid: str, opts: dict) -> dict:
         # learning_starts (gated 1000) + PopArt scale-normalization: threaded so the SEARCH worker trains the
         # SAME agent as serial/TEST (parity; the trainer floors learning_starts at 1000 and gates popart).
         "learning_starts": opts.get("learning_starts", 1000),
+        # P10 (2026-07-13): the replay cap travels IN the spec (self-contained task JSON); absent/
+        # None -> train_candidate's prior behavior (buffer==train_steps, node-side clamp).
+        **({"buffer_size": int(opts["buffer_size"])} if opts.get("buffer_size") else {}),
         "popart": opts.get("popart", True),
         "popart_beta": opts.get("popart_beta", 1e-3),
         "popart_min_scale": opts.get("popart_min_scale", 1.0),

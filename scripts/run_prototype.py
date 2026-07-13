@@ -183,6 +183,11 @@ def build_parallel_opts(
         # learning_starts (gated 1000) + PopArt scale-normalization (default on): threaded so the parallel
         # SEARCH worker trains the SAME fixed agent as the serial path + the parallel TEST worker.
         "learning_starts": int(cfg_get(agent, "learning_starts", 1000)),
+        # P10 (2026-07-13 audit): stamp the replay cap into opts -> specs so a cluster task's JSON
+        # is SELF-CONTAINED. Without it the node's cap came from the REMOTE checkout's campaign
+        # yaml — a divergent sync would silently uncap the buffer (5 workers x ~2.8 GiB = cgroup
+        # OOM cascade at pack-5/B*). None (absent in the agent block) keeps prior behavior.
+        "buffer_size": cfg_get(agent, "buffer_size", None),
         "popart": bool(cfg_get(agent, "popart", True)),
         "popart_beta": float(cfg_get(agent, "popart_beta", 1e-3)),
         "popart_min_scale": float(cfg_get(agent, "popart_min_scale", 1.0)),
