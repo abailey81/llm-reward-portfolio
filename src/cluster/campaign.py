@@ -1103,7 +1103,17 @@ def run_campaign_tiered(
         out["integrity_report"] = str(report_md)
         health_ok = bool(report.get("verdict", {}).get("health_ok"))
         out["gate_health_ok"] = health_ok
-        approved = approval.exists()
+        # P6 (2026-07-13 audit): a STALE approval file (left over from a rehearsal in a reused
+        # output dir, or created before the run) bypassed even a RED gate. An approval counts
+        # only if it POSTDATES the integrity report it approves; it is CONSUMED on release so
+        # each gate passage needs its own explicit act.
+        approved = False
+        if approval.exists():
+            if approval.stat().st_mtime >= Path(_report_json).stat().st_mtime:
+                approved = True
+            else:
+                _LOG.warning("[gate] STALE approval file predates the integrity report — IGNORED "
+                             "(re-create %s AFTER reviewing %s)", approval, report_md)
         if not approved and (not health_ok or hold_at_gate):
             reason = "RED-execution-health" if not health_ok else "manual-hold"
             out.update(ok=core_ok, gate=reason, awaiting_review=True,
@@ -1111,7 +1121,13 @@ def run_campaign_tiered(
             _LOG.warning("[gate] STOPPING before C4 (%s) — review %s then create %s and resume",
                          reason, report_md, approval)
             return out
-        _LOG.info("[gate] green execution health — AUTO-PROCEEDING to C4 sweep (no manual wait)")
+        if approved:
+            try:
+                approval.unlink()  # consume: the NEXT gate passage needs its own explicit approval
+            except OSError:
+                _LOG.warning("[gate] could not consume %s (continuing)", approval)
+        _LOG.info("[gate] %s — PROCEEDING to C4 sweep",
+                  "explicit approval consumed" if approved else "green execution health (auto)")
 
     # ---- C4: the uniform-n round-robin sweep in assurance-checkpoint blocks ------------------- #
     sweep_units: list[tuple[str, dict[str, Any]]] = [(a, winners[a]) for a in arms if a in winners]
