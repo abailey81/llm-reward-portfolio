@@ -20,7 +20,7 @@ from typing import Any
 
 from src.viz.style import OKABE_ITO
 
-__all__ = ["system_diagram", "splits_timeline", "prediction_branch"]
+__all__ = ["system_diagram", "splits_timeline", "prediction_branch", "mechanism_chain"]
 
 
 def _box(ax: Any, x: float, y: float, w: float, h: float, text: str, *,
@@ -148,5 +148,52 @@ def prediction_branch(title: str = "Pre-registered outcome tree (read BEFORE the
         ax.text(cx, 1.7, meaning, ha="center", va="center", fontsize=7.0, color="0.25")
     ax.text(5.0, 0.35, "Every branch has a fixed, pre-registered reading — the result cannot be reinterpreted post hoc.",
             ha="center", va="center", fontsize=7.4, color="0.3", style="italic")
+    ax.set_title(title, fontsize=10, loc="left")
+    return fig
+def mechanism_chain(
+    *,
+    sq1_label: str = "SQ1 responsiveness\nSpearman ρ = [CAMPAIGN] (CI)",
+    sq2_label: str = "SQ2 mediation\nindirect a·b = [CAMPAIGN] (CI)",
+    sq3_label: str = "H2-Tail co-primary IUT",
+    cut_link: int | None = None,
+    title: str = "The 3-link mechanism chain — where does the information stop?",
+) -> Any:
+    """F10 (D3, integrated 2026-07-13): the paper's spine as ONE image — fed tail signal →
+    authored reward code → trained policy → realised tail outcome, with the three sub-questions
+    as the arrows. ``cut_link`` (1/2/3 or None) draws the red break glyph on the measured
+    severed link — OUTCOME-NEUTRAL scaffolding: built once, the bank gate fills the annotations
+    and the cut position; a positive SQ1 simply renders with no cut. Grayscale-safe (Okabe–Ito)."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(9.0, 3.2))
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 4)
+    ax.axis("off")
+    blue, verm, grey = OKABE_ITO["blue"], OKABE_ITO["vermillion"], "0.92"
+
+    boxes = [
+        (0.2, "Fed tail signal", "6 tail statistics\n(e.g. CVaR-5% = [CAMPAIGN])", blue, "white"),
+        (3.3, "Authored reward CODE", "the function the LLM writes\n(AST-audited)", grey, "black"),
+        (6.4, "Trained policy", "fixed SAC agent\nmatched budget", grey, "black"),
+        (9.5, "Realised tail outcome", "out-of-sample CVaR-5%\nacross the seed ladder", grey, "black"),
+    ]
+    for x0, head, sub, fc, tc in boxes:
+        _box(ax, x0, 1.9, 2.3, 1.1, head, fc=fc, tc=tc, fontsize=8.5)
+        ax.text(x0 + 1.15, 1.55, sub, ha="center", va="top", fontsize=6.8, color="0.3")
+
+    arrows = [((2.5, 2.45), (3.3, 2.45), sq1_label), ((5.6, 2.45), (6.4, 2.45), sq2_label),
+              ((8.7, 2.45), (9.5, 2.45), sq3_label)]
+    for i, (p0, p1, lab) in enumerate(arrows, start=1):
+        _arrow(ax, p0, p1, color="0.25")
+        ax.text((p0[0] + p1[0]) / 2, 3.25, lab, ha="center", va="bottom", fontsize=6.8, color="0.25")
+        if cut_link == i:
+            mx = (p0[0] + p1[0]) / 2
+            ax.plot([mx - 0.12, mx + 0.12], [2.25, 2.65], color=verm, lw=2.4)
+            ax.plot([mx - 0.12, mx + 0.12], [2.65, 2.25], color=verm, lw=2.4)
+            ax.text(mx, 0.9, "the chain is severed here:\nthe information does not pass this joint",
+                    ha="center", va="center", fontsize=7.2, color=verm)
+    if cut_link is None:
+        ax.text(6.0, 0.9, "[CAMPAIGN]: the cut glyph is placed on the measured severed link — or absent",
+                ha="center", va="center", fontsize=7.2, color="0.4", style="italic")
     ax.set_title(title, fontsize=10, loc="left")
     return fig

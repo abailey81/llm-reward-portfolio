@@ -9,6 +9,15 @@ improvement or its calibrated absence — is evidence. The theory of Chapter 3 e
 *could* exploit the tail; the experiment measures whether a bounded, real one *does*, and, when it does not,
 locates where along the chain from fed signal to authored code to realised behaviour the information is lost.
 
+In plain terms: when an AI is asked to write software that pursues a goal, the goal must be written down as a
+score the software optimises — and in investing, the score that matters most is the one that captures rare,
+catastrophic losses, not average performance. This dissertation asks whether **showing the AI detailed
+information about those rare losses changes the score it writes**. Everything else is held identical — the
+market data, the learning algorithm, the budget — and every prediction and decision rule was registered in
+advance, so the result cannot be reshaped after the fact. The stake reaches beyond finance: modern AI systems
+are increasingly asked to act on numerical evidence, and this design measures, under pre-registered controls,
+whether the numbers an AI is shown can be seen to enter the code it writes.
+
 ## 1.1 Reward design is the bottleneck in risk-sensitive financial reinforcement learning
 
 Reinforcement learning offers an appealing template for sequential financial decision-making: an agent observes a

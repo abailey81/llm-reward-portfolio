@@ -13,9 +13,15 @@ known, and its mitigation or disclosure. Grouped by validity type [`shadish2002e
 - **B.1.3 Single-estimator fed CVaR.** The fed 5%/1% CVaR is a generalised-Pareto extreme-value estimate on a few
   hundred training observations, with documented finite-sample bias [`belzile2020improved`; `cont2010robustness`;
   `giles2016biascorrected`]. *Direction:* estimation noise biases *against* detecting a channel effect. *Mitigation:*
-  the $\xi\le-0.5$ guard; a bootstrap error bound on the fitted tail is reported.
+  the $\xi\le-0.5$ guard; a bootstrap error bound on the fitted tail is reported, and the fed-signal SNR
+  exhibit quantifies which fed components carried resolvable signal at the campaign's horizons.
 
 ## B.2 Internal validity (whether the comparison is clean)
+- **B.2.0 Endogeneity of the fed signal.** The tail vector is measured on the trained policy's *own* realised
+  returns — two coupled reward→policy→measurement loops, never an exogenous measurement; "critic-agnostic" is
+  not "agent-independent". *Mitigation:* the fed/selected/tested three-way split keeps the loops from grading
+  themselves; the mediation analysis (SQ2) is reported as a descriptive decomposition under
+  sequential-ignorability caveats, never as causal proof.
 - **B.2.1 Training budget.** The per-candidate budget is 200,000 steps, set from a Split-C learning-curve pilot:
   the critic's steep descent completes by ~100,000 steps and out-of-sample performance is flat within seed noise
   from 25,000 to 350,000 — the pilot's measured ceiling (the 350,000 rung was nominally worse at three seeds, one
@@ -123,6 +129,14 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   asymmetric (over- or under-stating it according to the skew direction, which is unmeasured), so it is
   superseded by the direct upper-tail probability, which is valid under any skew, and retained at most as a
   sensitivity note.
+- **B.5.6 Descriptive conventions.** Annualised Sharpe assumes i.i.d. returns [`lo2002statistics`] and is used
+  descriptively only — all inference is the per-seed paired bootstrap. The measured seed-pairing correlation
+  ($\rho=-0.141$) is not significantly different from zero; it is a methods note on the CRN design's realised
+  efficiency, not evidence about the channel.
+- **B.5.7 Single-look sealed test.** The sealed 2020–2026H1 window is evaluated once, at the exogenous
+  assurance-ladder rung achieved; per-regime slices of that window are reported descriptively and are never
+  re-tested. *Rationale:* a single pre-registered look is what makes the sealed leg a severe test rather than a
+  second search space.
 
 ## B.6 Reproducibility and process
 - **B.6.1 Language-model non-determinism.** Generation is non-reproducible (version drift; floating-point
@@ -138,6 +152,9 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   run, and the directional pilot is disclosed as corroborating, not causal, to the design.
 - **B.6.5 H1 descriptive-only.** The beat-the-human comparator is selected on the same sealed leg it is reported on
   (a data-snoop); H1 carries no inferential claim and is marked descriptive throughout.
+- **B.6.6 The prototype is not evidence.** A single-seed Sonnet prototype (≈18 h) shaped engineering and
+  directional expectations only; no prototype number appears anywhere in the results or informs any
+  confirmatory conclusion.
 
 ## B.7 Future work (from the disclosed limitations)
 A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a

@@ -1,6 +1,12 @@
 # Communication-dimension build — DRAFTS FOR TAMER'S REVIEW (2026-07-12)
 
-> **Status: NEW draft prose/specs, not yet wired into any chapter.** Per the handoff §4 build plan and
+> **Status UPDATE (2026-07-13, delegated permission): D1 -> CH1 (plain-terms paragraph), D2 -> FRAMING §4
+> (softened "first" -> "to our knowledge" per the honesty register), D3 -> BUILT (`schematics.mechanism_chain`,
+> manifest row F10), D4 -> reconciled into APPENDIX_B (new B.2.0 endogeneity, B.5.6 conventions incl. verified
+> `lo2002statistics`, B.5.7 single-look, B.6.6 prototype-not-evidence; K=5/cohort/CVaR-1% were already covered).
+> ⚠ D5 DEFERRED BY RULE: it quotes real PROTOTYPE numbers and the standing rule is that no prototype number
+> enters the dissertation — it will be re-instantiated verbatim-in-form from CAMPAIGN sibling records at the
+> bank gate. Original status:** NEW draft prose/specs, not yet wired into any chapter. Per the handoff §4 build plan and
 > the deep-analysis §5: these are the four highest-EV dimension-4 artifacts, drafted under the
 > delegated full permission. Nothing existing was rewritten; hash-bound files untouched. Numbers
 > marked ⟨CAMPAIGN⟩ are placeholders the bank gate fills; every other number is real and sourced.

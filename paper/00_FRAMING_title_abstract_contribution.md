@@ -142,6 +142,18 @@ DLM, Eureka, CARD, GIFT, ELfolio, AlgoEvolve, RD-Agent(Q), and Gallego explicitl
 never let the abstract elevate the (descriptive, comparator-snooped) "beat-the-human" H1 to the
 novelty axis.
 
+**The outward one-sentence positioning (D2, integrated 2026-07-13 — abstract-grade; softened per the
+honesty register):** To our knowledge this is the first theory-grounded, pre-registered test of whether
+an LLM reward-designer is a **Bayes-responsive user of risk information**: whether the *content* of
+distributional feedback — not its format, length, or vocabulary — changes the reward code the model
+writes, and whether that change propagates to the trained agent's realised tail behaviour. The question
+instantiates the general "do LLM optimizers use feedback content?" problem in the one arena where the
+answer is checkable against decision theory, with portfolio construction as the testbed rather than the
+object: an information-theoretic envelope says the fed tail vector *cannot hurt* and generically helps a
+Bayes-responsive designer, so a pre-registered null cleanly localises a failure of responsiveness — which
+the mechanism analysis traces ⟨CAMPAIGN: to the measured break in the chain, adjudicated among five
+registered rival accounts⟩.
+
 ---
 
 ## 5. Construct disclosure (insert verbatim near the first use of "tail-risk feedback")
