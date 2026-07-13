@@ -68,10 +68,12 @@ def build_specs(remote_root: str, local_out: str, budgets: list[int]) -> list[di
     return specs
 
 
-PLANNING_STEPS_PER_SEC = 51.0  # WORST measured co-tenancy rate (p6 task on a loaded node,
-# 2026-07-12) — NOT the clean-node anchor (102.2). The first ext800 task was h_rt-killed because
-# its walltime was sized on the anchor x1.5; contended nodes run at ~half the anchor, so walltime
-# must be sized on the worst measured rate (evidence ledger #6: 40-50% node wall variance).
+PLANNING_STEPS_PER_SEC = 25.0  # planning FLOOR, revised DOWN 2026-07-13: job 774923 (800k steps)
+# was h_rt-killed at its full 6 h (qacct failed=37, ru_wallclock 21,612 s) ⇒ that node sustained
+# UNDER 37 st/s — worse than the previous worst measurement (51). Two successive downward
+# surprises (102 anchor → 51 → <37) say co-tenancy has a heavier tail than any point estimate;
+# 25 st/s prices the observed floor with margin. h_rt is a LIMIT, not a reservation — the only
+# cost of generosity is backfill placement, and these report-only rungs prefer certainty.
 
 
 def _auto_h_rt(budgets: list[int]) -> str:
