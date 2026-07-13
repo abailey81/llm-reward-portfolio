@@ -27,6 +27,9 @@ class FakeCluster:
         self.qsub_fail_next = 0
         self.sleeps: list[float] = []
         self._clock = 0.0
+        # P13: scripted qacct output. The default (rows but NO taskid) is unattributable
+        # evidence -> the drain degrades to the legacy bump-all, keeping older tests intact.
+        self.qacct_text = "==============\njobnumber 1\nexit_status 1\nfailed 0\n"
 
     # --- injectable seams -------------------------------------------------
     def runner(self, cmd: list[str]) -> str:
@@ -37,7 +40,7 @@ class FakeCluster:
         if cmd[0] == "mkdir":
             return ""
         if cmd[0] == "qacct":
-            return "==============\njobnumber 1\nexit_status 1\nfailed 0\n"
+            return self.qacct_text
         if cmd[0] == "qsub":
             if self.qsub_fail_next > 0:
                 self.qsub_fail_next -= 1
@@ -307,6 +310,35 @@ def test_transient_node_reject_still_gets_the_bounded_requeue(tmp_path):
     out = _run(fc, specs)
     assert out["ok"] and out["completed"] == 1 and out["exhausted"] == []
     assert fc.qsubs == ["b1", "b1_r1"]  # transient -> retried normally, then succeeded
+
+
+def test_purged_array_requeues_without_a_retry_bump(tmp_path):
+    """P13: a drain with NO qacct trace (deleted-pending: the array was purged before dispatch)
+    must not bump retry counts — under the old bump-all drain, 2 purge events permanently
+    abandoned specs that never ran once. Three trace-less purges here; the spec survives all of
+    them and completes on the 4th round."""
+    fc = FakeCluster(tmp_path)
+    fc.qacct_text = ""  # deleted-pending leaves no accounting rows
+    fc.pull_script = [{}, {"drain": True}, {"drain": True}, {"drain": True}, {"complete": ["c0"]}]
+    out = _run(fc, _specs(1))
+    assert out["ok"] and out["completed"] == 1 and out["exhausted"] == []
+    assert fc.qsubs == ["b1", "b1_r1", "b1_r2", "b1_r3"]  # requeued, never abandoned
+    assert not (fc.batches / "b1.permanent.jsonl").exists()
+
+
+def test_per_task_qacct_evidence_bumps_only_the_dispatched_specs(tmp_path):
+    """P13: with per-task qacct rows, ONLY the dispatched spec's retry count bumps — the
+    never-attempted pack-mate rides every requeue unbumped and completes normally."""
+    fc = FakeCluster(tmp_path)
+    # task 1 (c0) dispatched + failed each round; task 2 (c1) never ran
+    fc.qacct_text = "==============\ntaskid 1\nexit_status 1\nfailed 100\n"
+    fc.pull_script = [{}, {"drain": True}, {"drain": True}, {"drain": True},
+                      {"complete": ["c1"]}]
+    out = _run(fc, _specs(2))
+    assert not out["ok"] and out["completed"] == 1 and out["exhausted"] == ["c0"]
+    rows = [json.loads(x) for x in (fc.batches / "b1.permanent.jsonl").read_text().splitlines()]
+    assert len(rows) == 1 and rows[0]["spec"]["candidate_id"] == "c0"
+    assert rows[0]["reason"] == "retries_exhausted"
 
 
 def test_driver_lock_refuses_a_live_second_driver_and_breaks_stale(tmp_path):

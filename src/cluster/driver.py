@@ -122,17 +122,56 @@ def submit_batch(
 
 def _harvest_qacct(
     job_id: str | None, runner: Callable[[list[str]], str], diag_path: Path
-) -> None:
-    """Append ``qacct -j`` output for a drained job to the diagnostics file (best-effort)."""
+) -> str:
+    """Append ``qacct -j`` output for a drained job to the diagnostics file (best-effort);
+    return the raw text ("" when unavailable) so the drain can weigh the ATTEMPT EVIDENCE (P13)."""
     if job_id is None:
-        return
+        return ""
     try:
         text = runner(["qacct", "-j", job_id])
         diag_path.parent.mkdir(parents=True, exist_ok=True)
         with diag_path.open("a", encoding="utf-8") as fh:
             fh.write(f"\n===== job {job_id} =====\n{text}\n")
+        return text
     except Exception as exc:  # noqa: BLE001 — forensics must never kill the loop
         _LOG.warning("qacct harvest failed for job %s: %s", job_id, exc)
+        return ""
+
+
+def _attempted_run_ids(
+    qacct_text: str, batch_root: Path, round_name: str
+) -> set[str] | None:
+    """P13 (2026-07-13 pre-spend audit): which run_ids did the scheduler ACTUALLY dispatch?
+
+    * ``None`` — no accounting trace at all (the deleted-pending class: an admin purge / Eqw
+      qdel before dispatch leaves NO qacct rows). Nothing was attempted, so retry counts must
+      NOT be bumped — under the old bump-everything drain, 2 purge events permanently abandoned
+      specs that never ran once.
+    * empty set — rows exist but cannot be attributed per-task (no ``taskid``, or the round's
+      task files are unreadable): the caller degrades to the legacy bump-all.
+    * non-empty set — exactly the run_ids in the tasks qacct says were dispatched.
+    """
+    from src.cluster.ledger import parse_qacct
+
+    rows = [r for r in parse_qacct(qacct_text) if r]
+    if not rows:
+        return None
+    ids: set[str] = set()
+    for r in rows:
+        t = str(r.get("taskid", "")).split()
+        if not t or not t[0].isdigit():
+            return set()
+        try:
+            payload = json.loads(
+                (batch_root / round_name / f"task_{t[0]}.json").read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — unattributable evidence -> legacy bump-all
+            return set()
+        for s in (payload if isinstance(payload, list) else [payload]):
+            rid = s.get("run_id") or s.get("candidate_id") if isinstance(s, dict) else None
+            if not rid:
+                return set()
+            ids.add(str(rid))
+    return ids
 
 
 def _acquire_driver_lock(lock_path: Path) -> None:
@@ -265,6 +304,7 @@ def _run_batch_unlocked(
     first_pull_fail_at: float | None = None  # monotonic start of the current pull-failure streak
     first_ops_fail_at: float | None = None   # …and the queue-op streak (both for the time-outage guard)
     eqw_since: float | None = None           # P1: start of the current Eqw dwell (None = no Eqw seen)
+    evidenceless_drains = 0                  # P13: consecutive drains with NO qacct trace (purges)
     last_queue_names: list[str] = []         # last-observed queue members of this batch (for the heartbeat)
     t0 = clock()
 
@@ -380,25 +420,50 @@ def _run_batch_unlocked(
             else:
                 if alive_seen and pending_submit is None:
                     # DRAIN TRANSITION: a round finished with work remaining → bounded requeue.
-                    _harvest_qacct(job_ids[-1] if job_ids else None, runner, diag_path)
-                    by_no = dict(enumerate(pending))
-                    retryable = requeue_specs(list(by_no), by_no, ledger_path)
-                    retry_ids = {spec_run_id(s) for s in retryable}
-                    newly_dead = [
-                        spec_run_id(s) for s in pending if spec_run_id(s) not in retry_ids
-                    ]
-                    exhausted.extend(newly_dead)
-                    dead = set(exhausted)
-                    bumped = {spec_run_id(s): s for s in retryable}
-                    live = [
-                        bumped.get(spec_run_id(s), s)
-                        for s in live
-                        if spec_run_id(s) not in dead
-                    ]
-                    alive_seen = False
-                    if not retryable:
-                        continue  # only exhausted specs remained → next cycle returns
-                    pending_submit = retryable
+                    qtext = _harvest_qacct(job_ids[-1] if job_ids else None, runner, diag_path)
+                    last_round = base_name if rounds <= 1 else f"{base_name}_r{rounds - 1}"
+                    attempted = _attempted_run_ids(qtext, Path(local_batch_root), last_round)
+                    # P13: retry bumps require ATTEMPT EVIDENCE. A drain with NO qacct trace at
+                    # all is the deleted-pending class (admin purge / qdel before dispatch) —
+                    # nothing ran, so bumping would let 2 purge events permanently abandon
+                    # never-attempted specs. Requeue UNBUMPED, bounded to 3 consecutive
+                    # evidence-less drains (a systemic no-trace crash loop must still exhaust
+                    # loudly rather than spin forever).
+                    if attempted is None and evidenceless_drains < 3:
+                        evidenceless_drains += 1
+                        _LOG.warning(
+                            "[%s] drain with NO qacct trace (%d/3) — the array was purged "
+                            "before dispatch; requeueing %d spec(s) WITHOUT a retry bump",
+                            base_name, evidenceless_drains, len(pending))
+                        alive_seen = False
+                        pending_submit = pending
+                    else:
+                        evidenceless_drains = 0
+                        if attempted:  # per-task evidence: bump ONLY the dispatched specs
+                            by_no = {i: s for i, s in enumerate(pending)
+                                     if spec_run_id(s) in attempted}
+                            unbumped = [s for s in pending
+                                        if spec_run_id(s) not in attempted]
+                        else:  # unattributable evidence (or the 4th no-trace drain): legacy bump-all
+                            by_no = dict(enumerate(pending))
+                            unbumped = []
+                        retryable = requeue_specs(list(by_no), by_no, ledger_path) + unbumped
+                        retry_ids = {spec_run_id(s) for s in retryable}
+                        newly_dead = [
+                            spec_run_id(s) for s in pending if spec_run_id(s) not in retry_ids
+                        ]
+                        exhausted.extend(newly_dead)
+                        dead = set(exhausted)
+                        bumped = {spec_run_id(s): s for s in retryable}
+                        live = [
+                            bumped.get(spec_run_id(s), s)
+                            for s in live
+                            if spec_run_id(s) not in dead
+                        ]
+                        alive_seen = False
+                        if not retryable:
+                            continue  # only exhausted specs remained → next cycle returns
+                        pending_submit = retryable
                 elif pending_submit is None:
                     # FIRST submission (or a restart after a drain) — no retry bump.
                     pending_submit = pending
