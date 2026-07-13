@@ -291,7 +291,19 @@ def parse_seed_pool_blocks(text: str) -> list[tuple[str, set[int]]]:
         blocks.append((pool.strip(), seeds))
     if not blocks:
         raise ValueError(f"no seed-pool blocks parsed from {text!r}")
-    return blocks
+    # STRIPED splits (2026-07-13, launch ratification): a pool may appear in MULTIPLE ranges
+    # (e.g. "EF:0-14,L:15-29,EF:30-64,..." engages both pools at EVERY ladder rung instead of
+    # idling the A100s until seed 284). Merge same-pool entries into ONE block — without this,
+    # run_test_leg would submit two arrays under the SAME batch name (t_EF twice: a P12 lock
+    # collision + queue-name adoption). Order-preserving on first occurrence.
+    merged: dict[str, set[int]] = {}
+    order: list[str] = []
+    for pool, seeds in blocks:
+        if pool not in merged:
+            merged[pool] = set()
+            order.append(pool)
+        merged[pool] |= seeds
+    return [(pool, merged[pool]) for pool in order]
 
 
 # --------------------------------------------------------------------------- #
@@ -928,6 +940,7 @@ def run_arm_pipeline(
     frozen_root: str | Path,
     search_seed: int = 0,
     resume: bool = False,
+    priority: int = 0,
 ) -> dict[str, Any]:
     """The full per-arm pipeline: SEARCH → SELECT winner → FREEZE → sealed TEST leg.
 
@@ -939,9 +952,9 @@ def run_arm_pipeline(
     # Dispatch on arm type (parity with run_parallel): the 5 LLM arms author+reflect; the H4 family
     # arms (random_search/bayes_opt) sample/optimize the reward family — NOT via an LLM.
     if arm in _FAMILY_ARMS:
-        search = run_family_search_arm(arm, opts, run, resume=resume)
+        search = run_family_search_arm(arm, opts, run, resume=resume, priority=priority)
     else:
-        search = run_search_arm(arm, opts, run, resume=resume)
+        search = run_search_arm(arm, opts, run, resume=resume, priority=priority)
 
     arm_search_root = run.search_read() / arm  # SELECT reads ONLY the search sub-root
     _guard_k_seed_selector(opts, run)  # P15: max-single-seed select is WRONG under k>1
@@ -954,7 +967,8 @@ def run_arm_pipeline(
     freeze_winner(arm, winner, search_seed=search_seed, frozen_root=frozen_root, env_fingerprint=env_fp)
 
     test = run_test_leg(
-        [(arm, winner)], seeds, run, name=f"{arm}_test", resume=resume, **test_leg_kwargs
+        [(arm, winner)], seeds, run, name=f"{arm}_test", resume=resume, priority=priority,
+        **test_leg_kwargs
     )
     return {
         "arm": arm, "ok": True, "search": search, "test": test,
@@ -1039,6 +1053,7 @@ def run_campaign_on_cluster(
     baseline_names: list[str] | None = None,
     resume: bool = False,
     max_concurrent_arms: int | None = None,
+    priority: int = 0,
 ) -> dict[str, dict[str, Any]]:
     """Drive ALL arms' search→test pipelines CONCURRENTLY (§5 all-arms-parallel, zero barriers).
 
@@ -1063,13 +1078,14 @@ def run_campaign_on_cluster(
                 # of the actual search seed; thread the arm's own opts value (science unaffected —
                 # authoring used opts["seed"] correctly — provenance now truthful).
                 search_seed=int(opts_for(arm).get("seed", 0)),
+                priority=priority,
             ): arm
             for arm in arms
         }
         if has_baselines:
             futs[ex.submit(
                 run_baselines_on_cluster, list(baseline_names or []), seeds, run,
-                test_leg_kwargs=test_leg_kwargs, resume=resume,
+                test_leg_kwargs=test_leg_kwargs, resume=resume, priority=priority,
             )] = "__baselines__"
         for fut in as_completed(futs):
             key = futs[fut]

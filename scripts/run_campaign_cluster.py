@@ -293,6 +293,17 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Dev escape hatch (P19, 2026-07-13 audit): downgrade the freeze "
                         "verify-or-refuse gate to a WARNING. ONLY for rehearsals/prototypes "
                         "(e.g. the pm2 prototype) — the real confirmatory campaign runs frozen.")
+    p.add_argument("--root-suffix", default=None, metavar="NAME",
+                   help="C6-class namespace guard (2026-07-13): ANY report-only re-search "
+                        "invocation (e.g. the D1 search-saturation curve levels) MUST pass a "
+                        "suffix — its archives go to search_<NAME>/, test_<NAME>/, frozen_<NAME>/ "
+                        "and its batch names are prefixed <NAME>_. Sharing the confirmatory roots "
+                        "would let the compacted resume ADOPT headline run_ids and fabricate the "
+                        "exhibit (the P4 hazard class). Lowercase [a-z0-9_]+ only.")
+    p.add_argument("--priority", type=int, default=None,
+                   help="SGE -p override for THIS invocation's arrays (default: the mode's "
+                        "ladder value — confirmatory 0/-100; report-only invocations should "
+                        "pass -200 per §14.3).")
     p.add_argument("--h3-singleshot", action="store_true",
                    help="C5 (P4 closed 2026-07-13): run the pre-registered H3 SINGLE-SHOT control "
                         "on the cluster — the distributional arm at generations=1 (no reflection), "
@@ -419,6 +430,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run:
         # No ssh in a dry-run: expand a leading '~' against a documented STUB home so the render
         # is representative and passes the tilde-free jobscript contract (2026-07-11 incident).
+        # 2026-07-13 (launch readiness): the dry-run now ALSO validates the two launch-critical
+        # configs that previously only failed at real launch — the seed-pool block spec and the
+        # tiered seeds schema — so the keyless pre-flight step 3 exercises the WHOLE launch shape.
+        if args.seed_pool_blocks:
+            from src.cluster.campaign import parse_seed_pool_blocks as _pspb
+            _blocks = _pspb(args.seed_pool_blocks)  # fail-loud on overlap/shape
+            _LOG.info("dry-run: seed-pool blocks OK — %s",
+                      {p: len(sd) for p, sd in _blocks})
+        if args.tiered:
+            from src.utils.seeds import seed_tiers as _st
+            _tiers = _st(_load_config("campaign").get("seeds"))  # fail-loud on a bad schema
+            _LOG.info("dry-run: tiered seeds schema OK — %d tiers, sizes %s",
+                      len(_tiers), [len(t) for t in _tiers])
         stub = "/home/USER"
         return _dry_run(inputs, list(args.arms),
                         remote_root=expand_remote(args.remote_root, stub),
@@ -481,6 +505,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     baselines = list(args.baselines) if args.baselines else None
 
+    if args.root_suffix:
+        # C6-class guard: namespaced roots + batch names for report-only re-search invocations.
+        import re as _re
+        from dataclasses import replace as _dc_replace
+
+        if not _re.fullmatch(r"[a-z0-9_]+", args.root_suffix):
+            raise SystemExit(f"--root-suffix {args.root_suffix!r} must be lowercase [a-z0-9_]+")
+        if args.h3_singleshot:
+            raise SystemExit("--h3-singleshot manages its own roots — do not combine it with "
+                             "--root-suffix.")
+        _sfx = args.root_suffix
+        _base_rb = run.run_batch
+
+        def _sfx_run_batch(specs, name, **kw):
+            return _base_rb(specs, f"{_sfx}_{name}", **kw)
+
+        run = _dc_replace(run, run_batch=_sfx_run_batch,
+                          search_subdir=f"search_{_sfx}", test_subdir=f"test_{_sfx}")
+        inputs["frozen_root"] = Path(args.output_dir) / f"frozen_{_sfx}"
+        _LOG.info("root-suffix %r: archives -> search_%s/ test_%s/ frozen_%s/; batches %s_*",
+                  _sfx, _sfx, _sfx, _sfx, _sfx)
+
     if args.h3_singleshot:
         # C5: the H3 single-shot control — disjoint *_h3_singleshot roots, h3ss_ batch names,
         # -p -100. Its sentinel is its OWN file (h3_singleshot_summary.json): clobbering the
@@ -542,6 +588,7 @@ def main(argv: list[str] | None = None) -> int:
         list(args.arms), inputs["opts_for"], inputs["seeds"], run,
         test_leg_kwargs=inputs["test_leg_kwargs"], frozen_root=inputs["frozen_root"],
         baseline_names=baselines, resume=bool(args.resume),
+        priority=(args.priority if args.priority is not None else 0),
     )
     ok = all(r.get("ok") for r in results.values())
     for arm, r in results.items():

@@ -809,3 +809,20 @@ def test_h3_singleshot_disjoint_roots_namespaced_batches_and_gen1(tmp_path):
     # prompt (the archived prompts never carry the reflection preamble)
     h3recs = load_all(str(tmp_path / "search_h3_singleshot" / "distributional"))
     assert all(_REFLECTION_PREAMBLE not in (r.get("prompt") or "") for r in h3recs)
+
+
+def test_seed_pool_blocks_striped_spec_merges_per_pool(tmp_path):
+    """Launch ratification (2026-07-13): the STRIPED split (both pools engaged at every ladder
+    rung) parses with repeated pool names MERGED into one block per pool — two same-pool blocks
+    would otherwise submit two arrays under the same batch name (P12 lock collision)."""
+    import src.cluster.campaign as C
+
+    blocks = C.parse_seed_pool_blocks("EF:0-14,L:15-29,EF:30-64,L:65-99")
+    assert [p for p, _ in blocks] == ["EF", "L"]  # merged, order-preserving
+    ef, lp = dict(blocks)["EF"], dict(blocks)["L"]
+    assert ef == set(range(0, 15)) | set(range(30, 65))
+    assert lp == set(range(15, 30)) | set(range(65, 100))
+    with pytest.raises(ValueError, match="overlap"):
+        C.parse_seed_pool_blocks("EF:0-14,L:10-29")  # cross-pool overlap still fails loud
+    with pytest.raises(ValueError, match="overlap"):
+        C.parse_seed_pool_blocks("EF:0-14,EF:10-20")  # same-pool overlap is ALSO a spec error

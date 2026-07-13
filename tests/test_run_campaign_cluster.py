@@ -177,3 +177,18 @@ def test_h3_singleshot_conflicts_with_tiered(tmp_path):
     with pytest.raises(SystemExit, match="SEPARATE invocations"):
         rcc.main(["--h3-singleshot", "--tiered", "--dry-run", "--synthetic",
                   "--output-dir", str(tmp_path)])
+
+
+def test_root_suffix_validation_and_h3_conflict(tmp_path, monkeypatch):
+    """C6-class guard: --root-suffix must be [a-z0-9_]+ and cannot combine with --h3-singleshot
+    (which manages its own roots). Validation fires before any cluster contact."""
+    import pytest
+    import run_campaign as rc
+
+    monkeypatch.setattr(rc, "enforce_freeze",
+                        lambda allow_unfrozen=False: {"enforced": True, "frozen": True})
+    with pytest.raises(SystemExit, match="lowercase"):
+        rcc.main(["--synthetic", "--root-suffix", "Curve-C10", "--output-dir", str(tmp_path)])
+    with pytest.raises(SystemExit, match="do not combine"):
+        rcc.main(["--synthetic", "--h3-singleshot", "--root-suffix", "curve_c10",
+                  "--output-dir", str(tmp_path)])
