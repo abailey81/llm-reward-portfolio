@@ -123,3 +123,18 @@ Every lever below is hardware/scheduling-side ONLY — B\*, arms, seeds, splits,
   rotation, C: disk cleanup; plus the two open design calls — **P6 go/no-go** and the **A5
   rational-insensitivity fingerprint amendment** (option 1: surgical pre-freeze amendment, hash
   moves; option 2: Stage-2-doc-only registration).
+
+---
+
+## 2c. SUPERSESSION POINTER (2026-07-13)
+
+The operative launch document is now **`docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md`** (verbatim
+final commands). Since §2b was written: the serialization-policy lever became a BUILT feature
+(**chunked submission `--chunk-tasks 1`**, ADR-054 — every round as many small arrays; the §2b
+"chunk the C4 sweep" mitigation is now structural); the device-stratified blocks were ratified
+STRIPED (both pools at every rung); the ladder/probe walltime planning floor moved 51→25 st/s
+(ADR-055 — job 774923's 6 h kill measured a <37 st/s node); A100 pack probes are in flight
+(F_A100, ledger claim 16); MPS remains not-pursued pre-launch (unproven gain vs risk — revisit
+only if the measured C disappoints). The §2b pending-Tamer list is superseded: P6 ran (the
+extended curve is the live freeze gate), the A5 amendment landed as R76 (hash `e3a8c880`), and
+launch+freeze are gated on Tamer's OFFICIAL GO (ADR-053).
