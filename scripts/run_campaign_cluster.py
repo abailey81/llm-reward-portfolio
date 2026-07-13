@@ -324,6 +324,23 @@ def main(argv: list[str] | None = None) -> int:
         except CampaignNotFrozenError as exc:
             raise SystemExit(f"[run_campaign_cluster] {exc}") from exc
 
+    # P17/A3-F12 (2026-07-13 audit): --hold-at-gate is meaningless without the review gate —
+    # the hold would be SILENTLY ignored and C4 would launch unreviewed.
+    if args.hold_at_gate and args.no_review_gate:
+        raise SystemExit("--hold-at-gate requires the review gate, but --no-review-gate disables "
+                         "it — drop one of the two flags.")
+    # P17/A3-F9 (2026-07-13 audit): the search authors candidates//generations per generation
+    # (floor division, laptop-parity). A non-divisible pair silently DROPS the remainder from
+    # the budget — e.g. a D1 curve level would train fewer candidates than its x-axis claims.
+    if args.candidates % max(1, args.generations) != 0:
+        _dropped = args.candidates - (args.candidates // max(1, args.generations)) * max(1, args.generations)
+        raise SystemExit(
+            f"--candidates {args.candidates} is not divisible by --generations "
+            f"{args.generations}: {_dropped} candidate(s) would be SILENTLY dropped from the "
+            f"budget (candidates-per-generation is floor division, laptop-parity). Pick a "
+            f"divisible pair (e.g. --generations 1 for small D1 curve levels)."
+        )
+
     # ---- 2026-07-13 PRE-SPEND AUDIT GUARDS (all fail LOUD before any submission/authoring) ---- #
     from src.utils.config import cfg_get as _cfg_get
     llm_cfg = None  # None -> assemble falls back to prototype.yaml (the legacy rehearsal path)

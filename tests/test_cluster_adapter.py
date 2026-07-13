@@ -159,11 +159,14 @@ def test_epilogue_line_produces_valid_json_under_real_bash(tmp_path):
     if bash is None:
         pytest.skip("no working bash on this host")
     js = render_jobscript("t", 2, "/r", "/inputs")
-    echo_line = next(ln for ln in js.splitlines() if ln.startswith("echo "))
+    # P17/A4-F10: the epilogue echo now rides an EXIT trap (so a SOFT kill still records the
+    # task) — extract the trap-installation line and exercise the REAL trap under bash.
+    trap_line = next(ln for ln in js.splitlines() if ln.startswith("trap 'echo "))
     ledger = tmp_path / "t.epilogue.jsonl"
     script = (
         "SGE_TASK_ID=7\nRC=0\nGPUINFO='Tesla V100-SXM2-16GB, 525.105'\n"
-        + echo_line.replace('"/r/ledger/t.epilogue.jsonl"', f'"{ledger.as_posix()}"')
+        + trap_line.replace('"/r/ledger/t.epilogue.jsonl"', f'"{ledger.as_posix()}"')
+        + "\nexit 0"
     )
     try:
         r = subprocess.run([bash, "-c", script], capture_output=True, text=True, timeout=30)
@@ -172,6 +175,9 @@ def test_epilogue_line_produces_valid_json_under_real_bash(tmp_path):
     assert r.returncode == 0, r.stderr
     row = json.loads(ledger.read_text().strip())
     assert row["task"] == 7 and row["rc"] == 0 and "V100" in row["gpu"]
+    # -notify must accompany the trap: SIGUSR2 precedes the h_rt SIGKILL, so the trap actually
+    # gets a chance to fire on a walltime kill (a bare SIGKILL is untrappable)
+    assert "#$ -notify" in js and "trap 'exit 143' TERM USR2" in js
 
 
 def test_run_one_routing_and_exit_semantics(monkeypatch, tmp_path):

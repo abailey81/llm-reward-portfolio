@@ -86,7 +86,12 @@ def batch_jobs_in_queue(
             last_state = parts[4]
         elif stripped.startswith("Full jobname:"):
             nm = stripped.split(":", 1)[1].strip()
-            if nm == base_name or nm.startswith(base_name + "_r"):
+            # P17/A2 (2026-07-13 audit): ANCHORED match — bare startswith(base + "_r") also
+            # adopted foreign batches like "b1_rehearsal"; only our own requeue rounds
+            # (base_r<digits>) belong to this batch.
+            if nm == base_name or (
+                nm.startswith(base_name + "_r") and nm[len(base_name) + 2:].isdigit()
+            ):
                 names.add(nm)
                 states[nm] = last_state
     return names, states
@@ -162,6 +167,11 @@ def _attempted_run_ids(
     from src.cluster.ledger import parse_qacct
 
     rows = [r for r in parse_qacct(qacct_text) if r]
+    # P17/A2: Myriad REUSES job numbers, so `qacct -j <id>` can return a FOREIGN job's blocks —
+    # whose taskids would then be attributed to OUR round. Keep only rows whose jobname matches
+    # this round (rows without a jobname field are kept: a truncated qacct block is still ours
+    # far more often than not, and mis-keeping only degrades toward the legacy bump-all).
+    rows = [r for r in rows if str(r.get("jobname", round_name)).strip() == round_name]
     if not rows:
         return None
     ids: set[str] = set()
@@ -311,7 +321,11 @@ def _run_batch_unlocked(
     # requeue-exhausted + permanently ledgered on a prior run, hence no record) would be re-emitted and
     # re-tried 2× on EVERY driver restart — an unbounded waste over a days-to-weeks run. Seeding
     # ``exhausted`` from the ledger makes the abandonment durable across restarts.
-    prior_exhausted = _ledgered_run_ids(ledger_path)
+    # P17/A2 (2026-07-13 audit): intersect with THIS batch's run_ids — the ledger may carry rows
+    # from a differently-shaped prior invocation (roster change), and foreign ids would deflate
+    # the done count and fail `ok` for specs this batch never asked for.
+    batch_ids = {spec_run_id(s) for s in flat_specs}
+    prior_exhausted = _ledgered_run_ids(ledger_path) & batch_ids
     live: list[dict[str, Any]] = [
         dict(s) for s in flat_specs if spec_run_id(s) not in prior_exhausted
     ]

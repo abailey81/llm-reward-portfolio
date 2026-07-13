@@ -349,6 +349,7 @@ def _result_from_record(cid: str, arm: str, arm_root: Path) -> dict[str, Any] | 
         "val_returns": m.get("val_returns"), "tail_stats": m.get("tail_stats"),
         "reward_source": hit.get("reward_source", ""),
         "reward_hash": hit.get("reward_source_hash", ""),
+        "prompt": hit.get("prompt", ""),
     }
     if m.get("train_returns") is not None:  # k-seed fed-tail input (B-A2; absent on k=1 records)
         r["train_returns"] = m["train_returns"]
@@ -461,15 +462,19 @@ def _read_candidate(
     return agg if agg.get("ok") else None
 
 
-def _archived_source(cid: str, arm: str, arm_root: Path, k_seeds: int, base_seed: int) -> str | None:
-    """The reward source from ANY already-archived seed of this candidate — so a PARTIAL-candidate
-    resume (some of the k seeds done) re-submits the missing seeds with the SAME source instead of
-    re-authoring (a fresh non-deterministic author would orphan the completed seeds). ``None`` when
-    no seed is archived yet (a genuinely fresh candidate)."""
+def _archived_source(
+    cid: str, arm: str, arm_root: Path, k_seeds: int, base_seed: int
+) -> tuple[str, str] | None:
+    """``(reward_source, prompt)`` from ANY already-archived seed of this candidate — so a
+    PARTIAL-candidate resume (some of the k seeds done) re-submits the missing seeds with the
+    SAME source instead of re-authoring (a fresh non-deterministic author would orphan the
+    completed seeds), and the remaining seeds' records carry the REAL authored prompt
+    (P17/A1-F10: they previously archived a ``<resumed>`` placeholder — a provenance gap
+    against directive 6). ``None`` when no seed is archived yet (a genuinely fresh candidate)."""
     for run_id, _ in _candidate_seed_runs(cid, k_seeds, base_seed):
         r = _result_from_record(run_id, arm, arm_root)
         if r is not None:
-            return str(r.get("reward_source", ""))
+            return str(r.get("reward_source", "")), str(r.get("prompt", ""))
     return None
 
 
@@ -548,14 +553,19 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                     _led_src = str(_row.get("reward_source") or "")
                     _advance(llm)
                     if _led_src.strip() and not _row.get("permanent"):
-                        fresh.append((cid, _led_src, "<resubmitted-from-failure-ledger>"))
+                        # P17/A1-F10: carry the REAL authored prompt from the ledger row (it has
+                        # always stored it) — the old placeholder string became the archived
+                        # prompt of the recovered record, a provenance gap (directive 6).
+                        fresh.append((cid, _led_src,
+                                      str(_row.get("prompt") or "<resubmitted-from-failure-ledger>")))
                     else:
                         failed += 1  # permanent reject or no stored source -> stays abandoned
                     continue
-                prior_src = _archived_source(cid, arm, arm_root, k_seeds, base_seed)
-                if prior_src is not None:  # PARTIAL candidate -> reuse the archived source (no re-author)
+                prior = _archived_source(cid, arm, arm_root, k_seeds, base_seed)
+                if prior is not None:  # PARTIAL candidate -> reuse the archived source (no re-author)
                     _advance(llm)
-                    fresh.append((cid, prior_src, "<resumed>"))
+                    prior_src, prior_prompt = prior
+                    fresh.append((cid, prior_src, prior_prompt or "<resumed>"))
                     continue
             cand_user = user
             if diversity and cpg > 1:
@@ -1226,10 +1236,18 @@ def run_campaign_tiered(
     for i, tier in enumerate(tiers[1:], start=1):
         _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin)", i, len(sweep_units),
                   len(tier))
-        out["results"][f"sweep_t{i}"] = run_test_leg(
+        r = run_test_leg(
             sweep_units, tier, run, name=f"sweep_t{i}", priority=PRIORITY_CORE, interleave=True,
             resume=resume, **test_leg_kwargs,
         )
+        out["results"][f"sweep_t{i}"] = r
+        if not r.get("ok", True):
+            # P17/A3-F10 (2026-07-13 audit): a failed assurance block STOPS the ladder — the old
+            # loop marched on to the next block, spending GPU-days ON TOP of a broken level
+            # (every block boundary must be a clean, complete design). Resume continues here.
+            _LOG.error("[C4] sweep block %d INCOMPLETE — stopping the ladder (fix + resume; "
+                       "later blocks are not run on top of a broken assurance level)", i)
+            break
     out["ok"] = core_ok and all(
         out["results"].get(f"sweep_t{i}", {}).get("ok", True) for i in range(1, len(tiers))
     )

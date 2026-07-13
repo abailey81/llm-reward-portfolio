@@ -773,7 +773,12 @@ def _run_env_fp(arm_root: str, run_id: str, opts: dict) -> Any:
             _json.dump(env, fh, indent=2, sort_keys=True, default=str)
         return {"label": label, "env_json_sha256": digest}
     except Exception:  # noqa: BLE001 - provenance capture must never crash a candidate's archive
-        return label
+        # P17/A4-F11 (2026-07-13 audit): the bare fallback label is the DRIVER-built fingerprint
+        # (on the cluster: the LAPTOP env captured at spec-build time) — returning it unmarked
+        # made the S6 homogeneity audit count a phantom laptop environment as if a node had
+        # captured it. Mark the fallback so the census sees a capture FAILURE (loud,
+        # distinguishable) instead of a silently wrong environment.
+        return f"capture-failed:{label}" if label else "capture-failed"
 
 
 def _archive(result: dict, arm: str, opts: dict, archive_root: str, generation: int = 0) -> None:

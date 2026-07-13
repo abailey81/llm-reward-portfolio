@@ -14,6 +14,7 @@ censuses (device + env-fingerprint labels across the sealed leg). It NEVER reads
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable
 
@@ -59,11 +60,37 @@ def _search_census(arm_root: Path, expected_candidates: int, k_seeds: int) -> di
                     empty_completions += 1
             except ValueError:
                 empty_completions += 1  # a torn/unparseable row cannot be coded either
+    # P17/A3-F8 (2026-07-13 audit): the budget check was `>=` — an OVERSHOOT (duplicate
+    # candidates from a reused root or a doubled generation) passed as "matched budget", the
+    # exact contamination class the matched-budget defense exists to catch. EXACT candidate-
+    # level accounting instead: every expected candidate is either RESOLVED (>=1 record) or
+    # ledgered-failed (an F5 row with NO record); a recovered resubmit (record + a stale F5
+    # row) counts ONCE, and anything != expected — short OR overshoot — fails the gate.
+    def _cand(cid: str) -> str:
+        return re.sub(r"-s\d+$", "", cid) if k_seeds > 1 else cid
+
+    resolved = {_cand(str(r.get("candidate_id") or r.get("run_id"))) for r in records}
+    failed_cids: set[str] = set()
+    fpath = arm_root / "failures.jsonl"
+    if fpath.is_file():
+        for line in fpath.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                cid = json.loads(line).get("candidate_id")
+            except ValueError:
+                continue
+            if cid:
+                failed_cids.add(str(cid))
+    accounted = len(resolved) + len(failed_cids - resolved)
     return {
         "records": n_records,
         "ledgered_failures": n_failures,
         "expected_records": expected_records,
-        "matched_budget_ok": (n_records + n_failures * max(1, k_seeds)) >= expected_records,
+        "expected_candidates": expected_candidates,
+        "accounted_candidates": accounted,
+        "matched_budget_ok": accounted == expected_candidates,
         "llm_calls_archived": llm_calls,
         "empty_completions": empty_completions,
         "reflection_archive_ok": llm_calls == 0 or empty_completions == 0,

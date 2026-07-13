@@ -36,6 +36,7 @@ _TEMPLATE = """#!/bin/bash -l
 #$ -l tmpfs={tmpfs}
 #$ -l h_rt={h_rt}
 #$ -ac allow={pool}
+#$ -notify
 #$ -r y
 #$ -p {priority}
 #$ -t 1-{n_tasks} -tc {tc}
@@ -62,10 +63,16 @@ export TORCH_HOME="$TMPDIR/torch"
 # `python -m src.cluster.run_one` dies with ModuleNotFoundError on EVERY task. $HOME auto-binds
 # into Apptainer, so this also works inside the container.
 export PYTHONPATH="{repo_root}:${{PYTHONPATH:-}}"
+# P17/A4-F10 (2026-07-13 audit): the epilogue line rides an EXIT trap so a SOFT kill (SGE sends
+# SIGUSR2/SIGTERM ahead of the h_rt SIGKILL) still records the task — the old echo-after-the-run
+# missed exactly the walltime-killed/node-failed cases the ledger exists for. RC=126 marks
+# "trapped before the run returned"; a hard SIGKILL remains unrecordable (forensics via qacct).
+RC=126
+GPUINFO=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1)
+trap 'echo "{{\\"task\\":${{SGE_TASK_ID}},\\"host\\":\\"$(hostname)\\",\\"gpu\\":\\"${{GPUINFO}}\\",\\"rc\\":${{RC}},\\"secs\\":${{SECONDS}}}}" >> "{remote_root}/ledger/{name}.epilogue.jsonl"' EXIT
+trap 'exit 143' TERM USR2
 {launcher} -m src.cluster.run_one --spec "{remote_root}/specs/{name}/task_${{SGE_TASK_ID}}.json" --pack {pack}
 RC=$?
-GPUINFO=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1)
-echo "{{\\"task\\":${{SGE_TASK_ID}},\\"host\\":\\"$(hostname)\\",\\"gpu\\":\\"${{GPUINFO}}\\",\\"rc\\":${{RC}},\\"secs\\":${{SECONDS}}}}" >> "{remote_root}/ledger/{name}.epilogue.jsonl"
 exit $RC
 """
 
