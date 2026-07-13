@@ -109,9 +109,11 @@ asserting it: at 200,000 steps the critic's steep descent is complete — its kn
 out-of-sample performance is flat within seed noise out to 350,000 steps, the pilot's measured ceiling, so 200,000
 sits beyond the critic knee within the measured range; budgets beyond that range are examined by an extended
 learning-curve ladder reported with the results (Chapter 7). We report the learning-curve diagnostic and interpret arm
-differences as differences *at a fixed, matched budget applied identically across arms*. On the study's single laptop RTX 4050 GPU a candidate
-trains in roughly 85 minutes at this budget, and up to three candidates train in parallel; the realised total
-wall-clock and API cost of the confirmatory campaign are reported in Chapter 6.
+differences as differences *at a fixed, matched budget applied identically across arms*. The confirmatory campaign
+runs on the UCL Myriad HPC cluster (SGE batch arrays; device-homogeneous V100/A100 pools, with every
+common-random-number seed pair kept device-consistent): a candidate trains in roughly 33 minutes on a dedicated
+V100 at this budget, five candidates share each GPU at a measured aggregate 3.74 trainings per GPU-hour, and the
+realised total wall-clock, concurrency, and API cost of the campaign are reported in Chapter 6.
 
 One positioning note prevents a natural misreading: although every experiment runs on a fixed historical panel,
 this is **simulated-online, not offline, reinforcement learning**. The agent runs off-policy SAC against a
