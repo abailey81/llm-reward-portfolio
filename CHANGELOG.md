@@ -3,6 +3,70 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-13b] — B\* reopened + curve recovery · launch config finalized · dim-4 integration · ALL non-write-up gaps closed · max-throughput levers · walltime-floor revision
+
+**The B\* thread (Tamer's correction: "nothing is closed"):**
+- The 1.6M ext rung landed val-DSR **0.187 vs 0.041 @100k, same CRN seed** (verified: same reward
+  hash, same 694-day val window, real return-path gain). Evidence-ledger claim 8 DOWNGRADED A−→B;
+  claim 15 added; the **extended B\* decision rule PRE-COMMITTED before the remaining curve points**.
+- Verdict-INDEPENDENT honesty rewording applied to graded prose (`91a1097`): "convergence pilot"→
+  "learning-curve pilot"; "below the (mild-)overfit onset" REMOVED (no onset was ever observed);
+  the 25k–350k range stated AS the pilot's measured ceiling. Hash-bound wording held for ONE
+  post-verdict batch. Plus 2 claims false on the CURRENT record fixed (`6b05d94`: README
+  "measured convergence knee"; determine_design provenance label).
+- **Curve-tail PURGE caught live** (p6ext1600b tasks 2–6: no qacct trace; 771972 comparators
+  crawling) → recovered via the `--singles` ladder mode (`5bdf247`): 22 one-task arrays, no tail
+  to purge. Then **774923 (800k) h_rt-killed at its full 6 h ⇒ that node ran <37 st/s** →
+  planning floor revised 51→25 st/s (ADR-055, `bb35478`); 16 at-risk pending singles replaced
+  (400k@7h / 800k@12h incl. the dead s0 / 1.6M@24h); the 200k six kept their accrued priority.
+
+**Launch readiness (`7a1e44a`, `ccbe860`, `dc86322`):**
+- **C5 H3-single-shot cluster mode BUILT** (P4 closed by the Myriad directive): disjoint
+  `*_h3_singleshot/` roots by construction, `h3ss_` batch namespace, −100 priority,
+  reflection-never-fires verified, adoption-decoy test.
+- **`--root-suffix` C6-class guard**: any report-only re-search invocation gets namespaced
+  search/test/frozen roots + prefixed batch names (the P4 hazard class closed generically);
+  `--priority` threaded through the non-tiered pipeline.
+- **STRIPED seed-pool blocks ratified** (delegated): both pools engaged ~50/50 at EVERY ladder
+  rung (the contiguous split idled the A100s until seed 284); the parser merges repeated pool
+  names (two same-name arrays would collide on P12 locks).
+- **CHUNKED SUBMISSION (`--chunk-tasks`, ADR-054)**: the snx=1 serialization policy is ACTIVE —
+  big arrays crawl at ~1 task/2 h regardless of free GPUs; every round now submits as many small
+  arrays; drain/P13 evidence follows the parts; launch lines carry `--chunk-tasks 1`.
+- **`scripts/author_smoke.py`** — one-call Opus pre-flight via the campaign's own transport;
+  LIVE-VERIFIED (claude-opus-4-8, key valid, account funded, 3.1 s).
+- **A100 pack probes submitted** (785630 pack-5 / 785631 pack-8, pool L — the F-curve was
+  V100-only; ledger claim 16). Dry-run now validates the tiered seeds schema + block spec; the
+  EXACT launch and H3 lines dry-ran GREEN on real gold.
+- **`docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md`** = the single operative launch document
+  (preconditions, pre-flight, verbatim commands, monitoring + C measurement, resume/abort,
+  bank gate). Bank-gate flags in it corrected to the TRUE argparse contract.
+
+**Dimension-4 + gap closures (Tamer: "close absolutely all gaps except the write up"):**
+- **D1–D4 integrated** (`9d7a334`): plain-terms paragraph → CH1; outward positioning (honesty-
+  softened "to our knowledge") → FRAMING; **the 3-link mechanism figure BUILT**
+  (`schematics.mechanism_chain`, outcome-neutral cut glyph, manifest F10, both variants render);
+  4 missing limitations → APPENDIX_B (B.2.0 endogeneity, B.5.6 conventions + VERIFIED
+  `lo2002statistics`, B.5.7 single-look, B.6.6 prototype-not-evidence). **D5 DEFERRED BY RULE**
+  (quotes prototype numbers) — re-instantiated from campaign records at the bank gate.
+- **NOVELTY FENCE SWEEP banked** (`docs/NOVELTY_FENCE_SWEEP_2026-07-13.md`): **cell still EMPTY,
+  HIGH confidence** (21 queries, 12 first-hand fetches); two-flank squeeze documented;
+  `kvasiuk2026madevolve` hallucination flag RESOLVED as real; 2 new verified bib entries.
+- **M2 SURVEY FLEET RUNNER BUILT** (`scripts/m2_survey.py`, protocol-v1-exact, 4 tests, roster
+  config); harness validated at zero spend (70 items × 2 stub models).
+- **Bank-gate rehearsal RAN CLEAN on the pm2 CLUSTER archive** (REHEARSAL_20260713_180954) —
+  runbook precondition 0.5 closed early. AI disclosure finalized against UCL's PUBLISHED
+  3-category framework. `_build` PDF rebuilt (0 warnings). CH4 compute prose → Myriad facts
+  (`6e48592`). The 66-skip transient: instrumented (`-rs` in the runbook), fail-safe, clean
+  re-run 2,196/3/0.
+
+**Governance:** launch (and the freeze trigger with it) is GATED ON TAMER'S OFFICIAL APPROVAL
+(his 2026-07-13 instruction; the delegation memory amended). ADR-053 (Myriad substrate),
+ADR-054 (chunked posture), ADR-055 (25 st/s floor) recorded. Ops lesson (4th occurrence, now
+absolute): backslash-bearing content goes through Write/Edit tools ONLY — bash heredocs mangle
+`
+`/`` escapes.
+
 ## [2026-07-13] — pre-spend audit CLOSED (41 findings) · B\* reopened under a pre-committed rule · C5 built · campaign = Myriad · DELEGATED RATIFICATIONS
 
 - **Pre-spend audit COMPLETE**: waves 1–4 + P19 (missing cluster freeze gate) + P4/C5 = **41

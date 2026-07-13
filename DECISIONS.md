@@ -1091,3 +1091,39 @@ parallel scheduling ONLY (zero science cuts), and approved "any speed up" under 
    stronger reproducibility anchor than a router slug (the weights are downloadable forever).
    Verified live 2026-07-06: auth + /models (148 visible) work; completions await workspace
    activation/top-up (smoke_qwen exits 3 with the actionable paywall message until then).
+
+## ADR-053 — Campaign substrate = UCL MYRIAD (Tamer's directive, 2026-07-13); laptop demoted to certified fallback
+
+**Decision (Tamer, verbatim intent): "the whole campaign, we will run it on Myriad to speed up."**
+Supersedes the 2026-06-30 LAPTOP-ONLY decision (which itself superseded ADR-023's rented-4090
+framing). The confirmatory campaign runs through `scripts/run_campaign_cluster.py` on Myriad SGE
+(pack-5, 3.74 trainings/GPU-h measured; V100 EF + A100 L pools under the striped device-blocked
+seed design). The laptop (RTX 4050) remains the CERTIFIED FALLBACK — full science parity by
+construction (every primitive reused; cross-substrate parity pairs measured). Consequences applied
+the same day: CH4 compute prose rewritten to the Myriad facts; CLAUDE.md campaign-compute block
+superseded (gitignored-local); the C5 H3-single-shot cluster mode built (`ccbe860`) because a
+Myriad-only campaign requires it; the CAMPAIGN_DAY_RUNBOOK (2026-07-13) is the operative launch
+document. Launch itself is GATED on Tamer's OFFICIAL approval (his 2026-07-13 instruction) — the
+GO package = curve verdict + wording batch + gate green + rehearsal, presented for his explicit GO.
+
+## ADR-054 — Chunked submission as the standing anti-serialization posture (2026-07-13)
+
+**Context (measured, evidence-ledger claim 17):** the scheduler's policy JSV (`snx=1`) holds a
+multi-task array's tail in `hqw`, self-releasing ~1 task/~2 h, and has PURGED pending tails
+outright twice (the 07-08 rehearsal arrays; the 07-13 `p6ext` tails — qacct shows no trace).
+A campaign of big arrays would be policy-throttled regardless of free GPUs (a 180-task tier
+array ≈ days; a 6-task search generation ≈ 12 h).
+**Decision:** every campaign submission round is split into MANY SMALL ARRAYS
+(`submit_batch(chunk_tasks=…)`, launch line `--chunk-tasks 1`; `dc86322`): no pending tail to
+hold or purge, every part immediately eligible; drain forensics and the P13 attempt-evidence
+attribution follow each part; the adoption matcher is anchored for part names. The 07-13 singles
+recovery is the live existence proof of the pattern.
+
+## ADR-055 — Walltime planning floor 25 steps/s for ladder/probe sizing (2026-07-13)
+
+Job 774923 (800k steps) was h_rt-killed at its full 6 h (qacct `failed 37`, wallclock 21,612 s)
+⇒ that node sustained **<37 st/s** — the THIRD downward surprise in the sustained-rate series
+(clean anchor 102.2 → worst-measured 51 → <37). Co-tenancy has a heavier tail than any point
+estimate: report-only ladder/probe h_rt is now sized at a 25 st/s PLANNING FLOOR (h_rt is a
+limit, not a reservation; the only cost is backfill placement). The CAMPAIGN's own auto-sizer
+already implied ~25.3 st/s per training (×0.5 of the pack-5 aggregate) — consistent, unchanged.
