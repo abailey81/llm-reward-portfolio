@@ -42,24 +42,28 @@
 | P3 | ~~A1-F5 infra-failure permanence~~ | HIGH | **FIXED wave 3**: resume resubmits from the ledger's stored source (no re-author); test locks resubmit + recovery |
 | P4 | A3-F2 **H3 single-shot has NO cluster path**; improvised reuse of the same roots would fabricate a null via run-id adoption | HIGH (design) | build the C5 mode with `search_h3_singleshot/` sub-roots OR hard-guard distinct roots; **Tamer decision: cluster-H3 vs laptop-H3** |
 | P5 | ~~A3-F3 mid-unit winner swap~~ | HIGH | **FIXED wave 3**: per-unit hash census gates health + freeze-overwrite refusal |
-| P6 | A3-F6 stale `TIER1_APPROVED` bypasses a RED gate | MED | mtime-postdates-report + consume-on-release |
-| P7 | A5-8 no `campaign_summary.json` on the cluster mirror → DeMiguel floor silently absent; blanket except in analyze | MED | write summary at campaign end + log the exception |
-| P8 | A1-F8 truncated/refused completions shipped to nodes; ledger misattributes | MED | driver-side `ast_gate` pre-check (no spawn) + `stop_reason` into failure rows |
-| P9 | A4-F6 sandbox rejects invisible to the driver → 2 pointless requeue rounds each | MED | node-side durable failure marker the poll layer subtracts |
-| P10 | A4-F9 `buffer_size` not stamped into specs (remote-checkout cap divergence = OOM cascade) | MED | stamp explicitly into cluster specs |
-| P11 | A1-F6 resume replay reads a stale mirror (no pull before authoring loop) | MED | expose shared_pull on ClusterRun; call at resume entry |
-| P12 | A2-#5 no single-driver lock (double-submit across processes) | MED | lockfile keyed on base_name |
-| P13 | A2-#4 drain requeue bumps never-attempted tasks (2 purge events = permanent abandonment) | MED | bump only with qacct evidence; unbumped requeue otherwise |
-| P14 | A2-#6/#7 heartbeat starvation in long pulls; local errors classed as transport | MED | beat per chunk; exception whitelist |
-| P15 | A3-F4 k-seed selector mismatch (IQM-reflect vs max-single-seed freeze) | dormant (k=1) | document; wire aggregate-selector IF k=3 is ever enabled |
-| P16 | A3-F7 seed-pool blocks submit serially (idles the 2nd pool) | MED (throughput) | thread the block submissions |
-| P17 | A3-F8 gate budget check `>=` not exact; A3-F9 D1 cpg remainder; A3-F10 sweep continues past failed block; A3-F12 hold+no-review-gate conflict; A2-#8/#10/#11/#12; A4-F10/F11; A1-F10 | LOW batch | one cleanup pass |
-| P18 | A4-F5 pack=1 inline path skips `_worker_init` (pyarrow-order SIGSEGV + thread pinning) | LOW (downgraded: p4det ran inline on real gold successfully) | call `_worker_init()` in run_one.main |
+| P6 | ~~A3-F6 stale `TIER1_APPROVED` bypasses a RED gate~~ | MED | **FIXED wave 4 (`f2bfd92`+`83125a4`)**: approval must postdate the PRIOR report (the one the reviewer saw) + consumed on release; gate test locks it |
+| P7 | ~~A5-8 no `campaign_summary.json` on the cluster mirror; blanket except in analyze~~ | MED | **FIXED wave 4 (`21d89e3`)**: cluster writes an analyze-compatible summary at both terminal paths (never at the C3 stop); analyze floor-skip now LOUD |
+| P8 | ~~A1-F8 truncated/refused completions shipped to nodes~~ | MED | **FIXED wave 4 (`926b814`)**: spawn-free AST pre-check at authoring; permanent F5 row; P3 never resubmits it |
+| P9 | ~~A4-F6 sandbox rejects invisible to the driver~~ | MED | **FIXED wave 4 (`e9208d7`)**: durable `_rejects/<rid>.json` markers (atomic, ride the pull); PERMANENT class abandoned with zero requeue rounds; F5 row marked permanent |
+| P10 | ~~A4-F9 `buffer_size` not stamped into specs~~ | MED | **FIXED wave 4 (`877f1f9`)**: cap stamped into every spec (self-contained task JSON) |
+| P11 | ~~A1-F6 resume replay reads a stale mirror~~ | MED | **FIXED wave 4 (`1e4a84b`)**: resume refreshes the mirror first (3×30 s, then loud) |
+| P12 | ~~A2-#5 no single-driver lock~~ | MED | **FIXED wave 4 (`d5ce18b`)**: O_EXCL lockfile + owner pid; live foreign owner refused, dead owner auto-broken (psutil — never `os.kill(pid,0)` on Windows: it TERMINATES) |
+| P13 | ~~A2-#4 drain requeue bumps never-attempted tasks~~ | MED | **FIXED wave 4 (`866f1ae`)**: bumps require qacct ATTEMPT evidence; trace-less drains requeue unbumped (bounded 3); per-taskid attribution |
+| P14 | ~~A2-#6/#7 heartbeat starvation in long pulls; local errors classed as transport~~ | MED | **FIXED wave 4 (`6f3bf23`)**: per-chunk pull beats; transport whitelist — local bugs crash loud on cycle 1 |
+| P15 | ~~A3-F4 k-seed selector mismatch~~ | dormant (k=1) | **GUARDED wave 4 (`1654ddb`)**: `_guard_k_seed_selector` fails loud at both select sites if k>1 without an injected aggregate-aware selector |
+| P16 | ~~A3-F7 seed-pool blocks submit serially~~ | MED (throughput) | **FIXED wave 4 (`1654ddb`)**: blocks drive concurrently (one thread per pool); barrier test proves overlap |
+| P17 | ~~low batch: A3-F8/F9/F10/F12; A2-#8/#10/#11; A4-F10/F11; A1-F10~~ | LOW batch | **FIXED wave 4 (`7daab27`)**: exact candidate-level matched-budget (`==`, overshoot fails); cpg-remainder + gate-flag conflicts fail loud at the CLI; C4 stops at a failed block; anchored adoption regex; exhausted∩batch; qacct jobname filter (job-number reuse); epilogue via EXIT trap + `-notify`; env-fp fallback marked `capture-failed:`; resume/resubmit carry the REAL prompt. ⚠ **A2-#12: detail LOST to context compaction** (the driver was independently re-hardened by P9/P12/P13/P14 + three P17 driver fixes this wave, so the residual risk is low — disclosed, not silently dropped) |
+| P18 | ~~A4-F5 pack=1 inline path skips `_worker_init`~~ | LOW | **FIXED wave 4 (`1654ddb`)**: inline path runs the same init as the pack path (preload order + thread pinning). NOTE: cluster checkout NOT re-synced — the queued p4det leg-2 runs the old code, keeping the determinism pair internally consistent; the campaign syncs fresh (both legs same code) |
 
 ## GO/NO-GO for the real spend
 
-**UPDATED (wave 3, `bd05c8b`): P1/P2/P3/P5 are FIXED and tested. The single remaining pre-GO item
-is P4 — Tamer's H3 decision** (cluster C5 mode ~half a day of build, or H3 as a laptop leg; either
-is valid, improvised reuse of the same roots is the only forbidden path). P6–P18 are
-quality/robustness items, none GO-blocking; they proceed as wave 4. After the H3 decision:
-freeze → C0 canary (which now also analysis-smokes the reader path) → GO.
+**UPDATED (wave 4 COMPLETE, `21d89e3`…`7daab27`): every tracked finding except P4 is FIXED and
+test-locked — 40 findings closed across the four waves, all suites green (full-suite capstone run
+at wave-4 close). The single remaining pre-GO item is P4 — Tamer's H3 decision** (cluster C5 mode
+~half a day of build, or H3 as a laptop leg; either is valid, improvised reuse of the same roots is
+the only forbidden path). Two wave-4 additions beyond the tracked list: **P19** — the cluster entry
+point had NO freeze gate at all (the laptop's verify-or-refuse now mirrored exactly; `--allow-unfrozen`
+for rehearsals only; NOTE: any pm2 prototype RESUME now needs `--allow-unfrozen`) — and the
+campaign launch line is unchanged (post-freeze, no flag). After the H3 decision:
+freeze (Tamer) → C0 canary (which also analysis-smokes the reader path) → GO.
