@@ -57,6 +57,14 @@ def make_bundle(root: Path | None = None, out: Path | None = None) -> Path:
     frozen = bool(yml.get("frozen", False))
     recorded = yml.get("freeze_hash") or None
     digest = canonical_hash(root)
+    # 2026-07-13 audit fix: the bundle recorded BOTH hashes but never compared them — a drifted
+    # bound file would be silently bundled as "frozen: true" with a mismatching digest. Fail loud.
+    if frozen and recorded and digest != recorded:
+        raise RuntimeError(
+            f"FROZEN-DESIGN DRIFT: canonical hash {digest[:12]}… != recorded freeze_hash "
+            f"{str(recorded)[:12]}… — a hash-bound file changed after the freeze. Do NOT bundle; "
+            "run scripts/freeze.py --check and investigate."
+        )
 
     members = bundle_members()
     missing = [m for m in members if not (root / m).is_file()]

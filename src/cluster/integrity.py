@@ -104,6 +104,10 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         devices[dev] = devices.get(dev, 0) + 1
         fp = r.get("env_fingerprint")
         label = fp.get("label", "<dict>") if isinstance(fp, dict) else str(fp)[:60]
+        if not isinstance(label, str):
+            # 2026-07-13 audit (defense-in-depth for the run_one nested-dict bug, fixed at source):
+            # a non-str label must never crash the gate — coerce deterministically instead.
+            label = json.dumps(label, sort_keys=True, default=str)[:60]
         env_labels[label] = env_labels.get(label, 0) + 1
         if r.get("seed") is not None:
             per_seed_device[str(r["seed"])] = _record_device(arm_root, str(r.get("run_id")))

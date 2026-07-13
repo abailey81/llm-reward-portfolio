@@ -229,6 +229,22 @@ def run_batch(
                     f"{(clock() - first_pull_fail_at) / 3600.0:.1f} h — VPN/ssh down too long; "
                     f"the batch is safe to resume with run_batch() once connectivity returns"
                 ) from exc
+            # 2026-07-13 audit fix (HIGH): the old code FELL THROUGH to the archive diff and the
+            # submit/requeue step on a STALE mirror — a drained array whose records had not been
+            # pulled yet would be REQUEUED (double-training completed work, burning retry budget,
+            # overwriting remote records). "Nothing is lost by waiting" must mean exactly that:
+            # never act on the queue without a fresh successful pull. Beat, sleep, retry.
+            if heartbeat is not None:
+                try:
+                    heartbeat({"base_name": base_name, "done": None, "pending": None,
+                               "exhausted": len(exhausted), "rounds": rounds,
+                               "queue_names": list(last_queue_names),
+                               "pull_failures": pull_failures, "ops_failures": ops_failures,
+                               "phase": "pull_outage"})
+                except Exception:  # noqa: BLE001
+                    _LOG.debug("[%s] heartbeat emit failed (ignored)", base_name)
+            sleep(poll_secs)
+            continue
 
         # 2) the archive-truth diff (over the non-exhausted specs)
         pending = pending_specs(live, local_archive_root)

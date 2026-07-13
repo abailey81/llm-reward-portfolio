@@ -276,6 +276,10 @@ def _panel_and_windows(synthetic: bool, data: dict, lookback: int):
             phase=phase,
             end=str(data.get("val_end", "2019-12-31")),
             on_missing=cast(OnMissing, data.get("on_missing", "liquidate_to_cash")),
+            # 2026-07-13 audit: on-node reads were NOT checksum-verified (the jobscript comment
+            # claimed they were) — a stale/diverged staged panel would silently mis-slice every
+            # integer window resolved on the laptop panel. Fail loud against the frozen manifest.
+            verify_checksum=True,
         )
         panel = r.panel
         dates = np.asarray(panel.dates)

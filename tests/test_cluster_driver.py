@@ -163,7 +163,11 @@ def test_transient_pull_failures_are_tolerated_then_bounded(tmp_path):
     specs = _specs(2)
     fc.pull_script = [{"raise": True}, {"raise": True}, {"complete": ["c0", "c1"]}]
     out = _run(fc, specs)
-    assert out["ok"] and out["rounds"] == 1  # submitted on cycle 1 despite the failed pull
+    # 2026-07-13 audit fix: the driver must NEVER act on a stale mirror — the old behavior
+    # ("submitted on cycle 1 despite the failed pull") could requeue already-completed work
+    # (double-training + retry-budget burn + remote-record overwrite). Failed-pull cycles now
+    # beat-and-wait; the first SUCCESSFUL pull (cycle 3) reveals the work complete -> no submit.
+    assert out["ok"] and out["rounds"] == 0 and fc.qsubs == []
 
     fc2 = FakeCluster(tmp_path / "b")
     fc2.pull_script = [{"raise": True}] * 10

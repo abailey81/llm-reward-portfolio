@@ -106,6 +106,11 @@ def assemble_cluster_inputs(
     agent_cfg = _agent_cfg(load_config("prototype"), train_steps)
     for _k, _v in dict(cfg_get(load_config("campaign"), "agent", {}) or {}).items():
         agent_cfg[_k] = _v
+    # 2026-07-13 audit: the LAPTOP-calibrated thermal governor (88C hi on the RTX-4050) must not
+    # ship onto V100 nodes — a co-tenanted card crossing 88C would pause trainings up to 1800s
+    # each inside an already-tight h_rt. Nodes have datacenter thermal management; the governor is
+    # a laptop concern. Result-neutral (wall-clock-only knob).
+    agent_cfg["thermal_guardian"] = None
 
     # Search opts — the SAME build_parallel_opts the laptop search uses (mirror _search_parallel_arm).
     proto = load_config("prototype")
@@ -233,10 +238,11 @@ def build_parser() -> argparse.ArgumentParser:
                         'randomized-block design that adds the A100 pools to confirmatory C. '
                         'Blocks must be disjoint; unassigned seeds fall back to --pool.')
     p.add_argument("--h-rt", default=None, metavar="H:M:S",
-                   help="Per-array walltime request (default: the renderer's conservative 3h/1h30). "
-                        "Set from the MEASURED per-training wall x1.5 (e.g. 0:50:0 at B*=200k) — a tight "
-                        "h_rt makes tasks backfill-eligible on a saturated queue (pure placement speed; "
-                        "no science change).")
+                   help="Per-array walltime request. Default: AUTO-SIZED from the measured aggregate "
+                        "throughput curve at worst-node contention (steps x pack / (0.5 x F-curve) + "
+                        "overhead, x1.3) — NEVER a per-training number: at pack=5 the per-training "
+                        "wall stretches ~2x under GPU time-slicing and a per-training h_rt would "
+                        "walltime-kill every packed task (the 2026-07-12 p6ext incident class).")
     p.add_argument("--cores-per-training", type=int, default=None,
                    help="CPU cores requested per packed training (total job cores = this × --pack). "
                         "Default (None) keeps the jobscript's 4×pack. Myriad GPU-node CORES are the "
@@ -265,6 +271,33 @@ def main(argv: list[str] | None = None) -> int:
         llm_cfg = dict(_cfg_get(_load_config("campaign"), "llm", {}) or {})
         if not llm_cfg:
             raise SystemExit("--llm-from campaign but config/campaign.yaml has no `llm` block")
+    # F1 (agent audit, CRITICAL): pass-mode B with the DEFAULT provider=stub silently authors the
+    # whole "Opus" campaign with the keyless stub and completes "successfully". Derive the provider
+    # from the resolved llm block when possible (campaign.yaml carries provider: anthropic), else
+    # fail loud — a real-spend run must never fall through to the stub.
+    if args.pass_mode.upper() == "B" and args.provider == "stub":
+        _blk = llm_cfg if llm_cfg is not None else _cfg_get(_load_config("prototype"), "llm", {})
+        _blk_provider = str(_cfg_get(_blk, "provider", "") or "")
+        if _blk_provider and _blk_provider != "stub":
+            args.provider = _blk_provider
+            _LOG.info("provider DERIVED from the %s llm block: %s", args.llm_from, args.provider)
+        else:
+            raise SystemExit(
+                "pass-mode B with provider=stub: a real-spend run would silently author with the "
+                "keyless stub designer. Pass --provider explicitly (or --llm-from campaign, whose "
+                "block carries provider: anthropic)."
+            )
+    # F2 (agent audit, CRITICAL): restarting WITHOUT --resume re-authors every candidate (paid)
+    # while archive-truth training discards the new sources — the full authoring budget wasted.
+    if not args.resume and not args.dry_run:
+        _dirty = list(Path(args.output_dir).glob("search/*/*/record.json"))
+        if _dirty:
+            raise SystemExit(
+                f"{len(_dirty)} search records already exist under {args.output_dir} but --resume "
+                "was not passed. A fresh start here RE-AUTHORS every candidate (paid API calls) and "
+                "then DISCARDS the new sources (training is archive-truth). Pass --resume, or move "
+                "the output dir aside if you truly want a fresh run."
+            )
     # Provider<->model consistency: authoring with a mismatched pair either 400s (burning retries)
     # or silently authors with the wrong family — both unacceptable at real spend.
     if args.pass_mode.upper() == "B" and args.provider != "stub":

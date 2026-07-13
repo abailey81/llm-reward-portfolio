@@ -55,9 +55,15 @@ def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
             # which must attribute each test seed to the node it ran on, not the laptop that authored
             # the spec. Best-effort (falls back to the driver label if capture fails), writes the
             # replayable <run_dir>/env.json exactly like the search records.
+            # 2026-07-13 audit fix (2 independent auditors): rec["env_fingerprint"] is already the
+            # driver's {label, env_json_sha256} DICT — passing it whole as env_fp nested a dict
+            # into the node fingerprint's label, and the C3 gate's label census then crashed on
+            # `unhashable type: dict` AFTER the full floor had trained. Unwrap to the string label.
+            _fp = rec.get("env_fingerprint")
+            _lbl = _fp.get("label", "") if isinstance(_fp, dict) else _fp
             node_fp = _run_env_fp(
                 arm_root, str(rec["run_id"]),
-                {"seed": rec.get("seed"), "env_fp": rec.get("env_fingerprint")},
+                {"seed": rec.get("seed"), "env_fp": _lbl},
             )
             write_run({**rec, "env_fingerprint": node_fp}, arm_root)
     else:
@@ -72,12 +78,33 @@ def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
         _archive(result, spec["arm"], spec, spec["archive_root"], int(spec.get("generation", 0)))
 
 
+def _already_archived(spec: dict[str, Any]) -> bool:
+    """2026-07-13 audit fix (idempotency the module docstring CLAIMED but never implemented):
+    ``-r y`` makes SGE re-execute the WHOLE task after a node failure — without this check every
+    completed pack-mate would be RETRAINED (up to pack−1 × ~1.5 h wasted) and its remote record
+    overwritten with a different node fingerprint (remote ≠ pulled-mirror divergence)."""
+    rid = str(spec.get("run_id") or spec.get("candidate_id") or "")
+    arm = str(spec.get("arm") or "")
+    root = spec.get("archive_root")
+    if not (rid and arm and root):
+        return False
+    return (Path(str(root)) / arm / rid / "record.json").is_file()
+
+
 def _run_single(spec: dict[str, Any]) -> dict[str, Any]:
     """One training through the certified LEG worker; archives on success; returns the result row."""
     spec = dict(spec)
     spec.setdefault("device", "cuda")  # the job's cgroup-exclusive GPU
+    if _already_archived(spec):
+        return {"ok": True, "candidate_id": spec.get("candidate_id"),
+                "run_id": spec.get("run_id"), "skipped": "already_archived"}
     result = _worker_for(spec)(spec)
-    _archive_result(result, spec)
+    try:
+        _archive_result(result, spec)
+    except Exception as exc:  # noqa: BLE001 — 2026-07-13 audit: an archival hiccup must not
+        # abort the surviving pack-mates' collection loop (their finished GPU-hours would be
+        # dropped unarchived). Stamp the error; the record is absent so the driver requeues.
+        result = {**result, "ok": False, "archive_error": f"{type(exc).__name__}: {exc}"}
     return result
 
 
@@ -106,10 +133,22 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
             flush=True,
         )
     rows: list[dict[str, Any]] = []
+    # 2026-07-13 audit (-r y idempotency): SGE re-executes the WHOLE task after a node failure —
+    # skip pack-mates whose record already exists instead of retraining them (and overwriting the
+    # remote record with a divergent node fingerprint).
+    to_run: list[dict[str, Any]] = []
+    for s in specs:
+        if _already_archived(s):
+            rows.append({"ok": True, "candidate_id": s.get("candidate_id"),
+                         "run_id": s.get("run_id"), "skipped": "already_archived"})
+        else:
+            to_run.append(s)
+    if not to_run:
+        return rows
     # submit_with routes each spec to its LEG worker (the pool injects the device token); a pack is
     # homogeneous in practice (one array = one leg), but per-spec routing keeps mixed packs correct.
-    with DevicePool(n_gpu=min(pack, len(specs)), n_cpu=0) as pool:
-        futs = {pool.submit_with(_worker_for(s), dict(s)): s for s in specs}
+    with DevicePool(n_gpu=min(pack, len(to_run)), n_cpu=0) as pool:
+        futs = {pool.submit_with(_worker_for(s), dict(s)): s for s in to_run}
         for fut in as_completed(futs):
             s = futs[fut]
             try:
@@ -123,8 +162,13 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
                     "candidate_id": s.get("candidate_id"),
                     "run_id": s.get("run_id"),
                 }
+            try:
+                _archive_result(row, s)
+            except Exception as exc:  # noqa: BLE001 — 2026-07-13 audit: an archival hiccup on ONE
+                # row must not abort the as_completed loop and drop the surviving pack-mates'
+                # finished GPU-hours unarchived. Stamp it; absent record -> the driver requeues.
+                row = {**row, "ok": False, "archive_error": f"{type(exc).__name__}: {exc}"}
             rows.append(row)
-            _archive_result(row, s)
     return rows
 
 

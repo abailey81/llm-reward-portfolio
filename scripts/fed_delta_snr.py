@@ -47,15 +47,29 @@ APPROX_FLOOR = {"left_tail_mass", "robust_skew"}
 
 
 def load_chain(archive: Path, arm: str) -> list[dict[str, Any]]:
-    """The arm's candidates in chain order (generation, then candidate index) with tail_stats."""
+    """The arm's candidates in chain order (generation, then candidate index) with tail_stats.
+
+    2026-07-13 audit fixes: (a) the cluster mirror nests search records under ``<root>/search/``
+    — try both layouts; (b) candidate order is now NUMERIC (``…-c10`` sorted after ``…-c2``): the
+    old lexicographic sort scrambled consecutive-delta pairs in any generation with ≥10 candidates,
+    biasing the |Δ| stimulus distribution the exhibit exists to measure."""
+    import re
+
+    root = archive / arm
+    if not root.is_dir() and (archive / "search" / arm).is_dir():
+        root = archive / "search" / arm
     rows: list[dict[str, Any]] = []
-    for rec_path in sorted((archive / arm).glob(f"{arm}-*/record.json")):
+    for rec_path in sorted(root.glob(f"{arm}-*/record.json")):
         rec = json.loads(rec_path.read_text(encoding="utf-8"))
         ts = (rec.get("metrics") or {}).get("tail_stats")
         if ts:
             rows.append({"cid": rec["candidate_id"], "gen": int(rec.get("generation", 0)), "ts": ts})
-    def _key(r: dict[str, Any]) -> tuple[int, str]:
-        return (r["gen"], r["cid"])
+
+    def _key(r: dict[str, Any]) -> tuple[int, int, str]:
+        m = re.search(r"-g(\d+)-c(\d+)", str(r["cid"]))
+        if m:
+            return (int(m.group(1)), int(m.group(2)), "")
+        return (r["gen"], 10**9, str(r["cid"]))  # non-standard ids: stable, after numbered ones
     return sorted(rows, key=_key)
 
 

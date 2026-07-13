@@ -196,6 +196,10 @@ def _load_test_panel(descriptor: dict[str, Any]) -> Any:
             phase=str(descriptor.get("phase", "development")),
             end=str(descriptor.get("end")),
             on_missing=str(descriptor.get("on_missing", "liquidate_to_cash")),  # type: ignore[arg-type]
+            # 2026-07-13 audit: sealed-leg on-node reads must be checksum-verified against the
+            # frozen manifest — integer windows are resolved on the LAPTOP panel; a diverged
+            # staged copy would silently mis-slice the sealed test. Fail loud, never guess.
+            verify_checksum=True,
         ).panel
     _TEST_PANEL_CACHE[key] = panel
     return panel

@@ -156,7 +156,7 @@ def build_cluster_run(
 
     runner = ssh_runner(host)
     pull_lock = threading.Lock()
-    pull_state: dict[str, Any] = {"t": None, "n": 0, "busy": False}
+    pull_state: dict[str, Any] = {"t": None, "n": 0, "busy": False, "last_error": None}
 
     def shared_pull() -> int:
         with pull_lock:
@@ -164,21 +164,32 @@ def build_cluster_run(
             last = pull_state["t"]
             # Skip if a pull is IN PROGRESS (concurrent pull_archive would race on the shared
             # ``.pull_tmp`` staging dir — a real bug when a pull outlasts min_pull_interval) OR if
-            # one refreshed the whole mirror within the interval. Either way reuse the last count;
-            # run_batch re-derives completion from the shared local archive the live pull is updating.
+            # one SUCCEEDED within the interval. Either way reuse the last count; run_batch
+            # re-derives completion from the shared local archive the live pull is updating.
+            # 2026-07-13 audit fix (HIGH): the window timestamp was stamped BEFORE the attempt and
+            # never rolled back on failure — for min_pull_interval after every FAILED pull, every
+            # other arm thread got a cached "success", resetting each thread's outage streak so the
+            # 12 h fatal bound could NEVER trip during a permanent breakage (the campaign would
+            # idle forever with green heartbeats). The window now opens only on SUCCESS; a failure
+            # RAISES to every caller in the failed window so outage streaks accumulate honestly.
             if pull_state["busy"] or (last is not None and (now - last) < min_pull_interval):
+                if pull_state.get("last_error") is not None and not pull_state["busy"]:
+                    raise RuntimeError(f"shared pull failed recently: {pull_state['last_error']}")
                 return int(pull_state["n"])
             pull_state["busy"] = True
-            pull_state["t"] = now
         try:
             n = pull_archive(remote_outputs_root, local_archive_root, host=host, runner=runner)
-        except BaseException:
+        except BaseException as exc:
             with pull_lock:
                 pull_state["busy"] = False
+                pull_state["t"] = time.monotonic()  # rate-limit RETRIES of a failing remote too
+                pull_state["last_error"] = f"{type(exc).__name__}: {exc}"
             raise
         with pull_lock:
             pull_state["n"] = n
+            pull_state["t"] = time.monotonic()
             pull_state["busy"] = False
+            pull_state["last_error"] = None
         return n
 
     # Per-batch driver heartbeat → <mirror>/driver_status/<name>.json (atomic). The concurrent arm
@@ -235,7 +246,9 @@ def build_cluster_run(
         )
 
     author_lock: Any = threading.Lock() if concurrent else nullcontext()
-    author_guard = spend_guard(max_author_calls) if max_author_calls else (lambda: None)
+    # F7 (agent audit): `if max_author_calls` treated an EXPLICIT 0 as "uncapped" — the exact
+    # inverse of the operator's intent ("forbid authoring"). None = uncapped; 0 = forbid.
+    author_guard = spend_guard(max_author_calls) if max_author_calls is not None else (lambda: None)
     return ClusterRun(
         run_batch=run_batch, spec_archive_root=remote_outputs_root,
         read_root=Path(local_archive_root), pool_confirmatory=pool_confirmatory,
@@ -840,6 +853,10 @@ def run_campaign_on_cluster(
             ex.submit(
                 run_arm_pipeline, arm, opts_for(arm), seeds, run,
                 test_leg_kwargs=test_leg_kwargs, frozen_root=frozen_root, resume=resume,
+                # F9 (agent audit): the frozen-winner provenance stamped search_seed=0 regardless
+                # of the actual search seed; thread the arm's own opts value (science unaffected —
+                # authoring used opts["seed"] correctly — provenance now truthful).
+                search_seed=int(opts_for(arm).get("seed", 0)),
             ): arm
             for arm in arms
         }
