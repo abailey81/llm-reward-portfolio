@@ -309,6 +309,32 @@ def test_transient_node_reject_still_gets_the_bounded_requeue(tmp_path):
     assert fc.qsubs == ["b1", "b1_r1"]  # transient -> retried normally, then succeeded
 
 
+def test_driver_lock_refuses_a_live_second_driver_and_breaks_stale(tmp_path):
+    """P12: a second driver of the SAME batch is refused while the owner pid is alive; a lock
+    left by a DEAD pid (crash) is broken automatically; the lock is released on completion."""
+    import subprocess
+    import sys
+
+    fc = FakeCluster(tmp_path)
+    lock = fc.batches / "b1.driver.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    # a live FOREIGN pid owns the lock (a sleeper subprocess stands in for a concurrent driver)
+    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        lock.write_text(json.dumps({"pid": sleeper.pid, "ts": 0.0}))
+        fc.pull_script = [{"complete": ["c0"]}]
+        with pytest.raises(RuntimeError, match="another driver"):
+            _run(fc, _specs(1))
+    finally:
+        sleeper.kill()
+        sleeper.wait()
+    # dead owner -> stale lock broken automatically, run proceeds, lock released afterwards
+    lock.write_text(json.dumps({"pid": sleeper.pid, "ts": 0.0}))
+    fc.pull_script = [{"complete": ["c0"]}]
+    out = _run(fc, _specs(1))
+    assert out["ok"] and not lock.exists()
+
+
 def test_run_one_failed_rows_leave_durable_reject_markers(tmp_path):
     from src.cluster.poll import permanent_reject_ids
     from src.cluster.run_one import _archive_result

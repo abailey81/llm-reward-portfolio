@@ -135,7 +135,58 @@ def _harvest_qacct(
         _LOG.warning("qacct harvest failed for job %s: %s", job_id, exc)
 
 
+def _acquire_driver_lock(lock_path: Path) -> None:
+    """P12 (2026-07-13 pre-spend audit): ONE driver per batch name. The queue-adoption guard
+    dedupes by job NAME, so a second concurrent driver of the same batch would silently ADOPT
+    the first's arrays and then race it on every drain (double requeue rounds, duplicated
+    permanent-ledger rows, interleaved pulls on the shared mirror). O_EXCL lockfile carrying
+    the owner pid; a DEAD owner's lock is broken automatically (crash-resume stays
+    one-command — no manual lock cleanup after a kill/BSOD)."""
+    import os
+
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(2):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump({"pid": os.getpid(), "ts": time.time()}, fh)
+            return
+        except FileExistsError:
+            try:
+                pid = int(json.loads(lock_path.read_text(encoding="utf-8")).get("pid", -1))
+            except Exception:  # noqa: BLE001 — torn lock = stale lock
+                pid = -1
+            import psutil  # never os.kill(pid, 0): on Windows that TERMINATES the process
+
+            if pid > 0 and pid != os.getpid() and psutil.pid_exists(pid):
+                raise RuntimeError(
+                    f"another driver (pid {pid}) is already running batch "
+                    f"{lock_path.name!r} — refusing to double-drive (double requeues would "
+                    f"corrupt the retry accounting). If that pid is NOT a driver, delete "
+                    f"{lock_path} and relaunch."
+                )
+            lock_path.unlink(missing_ok=True)  # stale lock from a crashed driver — break it
+    raise RuntimeError(f"could not acquire the driver lock {lock_path} after breaking a stale one")
+
+
 def run_batch(
+    flat_specs: list[dict[str, Any]],
+    base_name: str,
+    *,
+    local_batch_root: str | Path,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Public entry: :func:`_run_batch_unlocked` under the per-batch driver lock (P12)."""
+    lock_path = Path(local_batch_root) / f"{sanitize_name(base_name)}.driver.lock"
+    _acquire_driver_lock(lock_path)
+    try:
+        return _run_batch_unlocked(flat_specs, base_name,
+                                   local_batch_root=local_batch_root, **kwargs)
+    finally:
+        lock_path.unlink(missing_ok=True)
+
+
+def _run_batch_unlocked(
     flat_specs: list[dict[str, Any]],
     base_name: str,
     *,
