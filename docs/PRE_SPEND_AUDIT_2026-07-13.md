@@ -40,7 +40,7 @@
 | P1 | ~~A2-#3 no Eqw detection~~ | HIGH | **FIXED wave 3 (`bd05c8b`)**: state capture + 15-min dwell → harvest+qdel+drain; parser test |
 | P2 | ~~A1-F3 authoring 31 s outage budget~~ | HIGH | **FIXED wave 3**: transient failures ridden out ≤2 h; non-transient immediate |
 | P3 | ~~A1-F5 infra-failure permanence~~ | HIGH | **FIXED wave 3**: resume resubmits from the ledger's stored source (no re-author); test locks resubmit + recovery |
-| P4 | A3-F2 **H3 single-shot has NO cluster path**; improvised reuse of the same roots would fabricate a null via run-id adoption | HIGH (design) | build the C5 mode with `search_h3_singleshot/` sub-roots OR hard-guard distinct roots; **Tamer decision: cluster-H3 vs laptop-H3** |
+| P4 | ~~A3-F2 H3 single-shot had NO cluster path~~ | HIGH (design) | **CLOSED (`ccbe860`) — Tamer directed the whole campaign onto Myriad (2026-07-13), resolving the decision to cluster-H3. C5 BUILT**: `run_h3_singleshot_on_cluster` + `--h3-singleshot` entry mode; disjoint `*_h3_singleshot/` roots BY CONSTRUCTION; `h3ss_` batch namespace; -p -100; adoption-decoy + reflection-absence tests |
 | P5 | ~~A3-F3 mid-unit winner swap~~ | HIGH | **FIXED wave 3**: per-unit hash census gates health + freeze-overwrite refusal |
 | P6 | ~~A3-F6 stale `TIER1_APPROVED` bypasses a RED gate~~ | MED | **FIXED wave 4 (`f2bfd92`+`83125a4`)**: approval must postdate the PRIOR report (the one the reviewer saw) + consumed on release; gate test locks it |
 | P7 | ~~A5-8 no `campaign_summary.json` on the cluster mirror; blanket except in analyze~~ | MED | **FIXED wave 4 (`21d89e3`)**: cluster writes an analyze-compatible summary at both terminal paths (never at the C3 stop); analyze floor-skip now LOUD |
@@ -58,7 +58,7 @@
 
 ## GO/NO-GO for the real spend
 
-**UPDATED (wave 4 COMPLETE, `21d89e3`…`7daab27`): every tracked finding except P4 is FIXED and
+**UPDATED 2026-07-13 (FINAL): ALL tracked findings including P4 are FIXED and test-locked — the GO gate is CLEAR.** Remaining sequence: (curve-verdict on B\* per the pre-committed ledger rule, ~a day) → freeze (Tamer; RECOMMENDED to wait for the curve verdict so no wording needs amendment days later) → C0 canary → campaign. Prior status for the record: **(wave 4, `21d89e3`…`7daab27`): every tracked finding except P4 was FIXED and
 test-locked — 40 findings closed across the four waves, all suites green (full-suite capstone run
 at wave-4 close). The single remaining pre-GO item is P4 — Tamer's H3 decision** (cluster C5 mode
 ~half a day of build, or H3 as a laptop leg; either is valid, improvised reuse of the same roots is
