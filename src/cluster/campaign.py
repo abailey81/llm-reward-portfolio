@@ -87,6 +87,9 @@ class ClusterRun:
     # pipeline is testable with fakes and reuses the certified selection rule in production.
     select_winner: Callable[[Any], Any] | None = None
     freeze_winner: Callable[..., Any] | None = None
+    # P11 (2026-07-13 audit): the shared throttled pull, exposed so resume paths can refresh the
+    # mirror BEFORE making replay/authoring decisions (a stale mirror re-authors PAID candidates).
+    pull: Callable[[], int] | None = None
     # Device-stratified seed blocks (RATIFIED 2026-07-11, CHANGELOG [2026-07-11c]): whole SEED
     # BLOCKS may run on different GPU pools — the inference is CRN-PAIRED per seed, so every
     # contrast D_s compares arms trained on the SAME device (device cancels in the pair; a
@@ -253,7 +256,7 @@ def build_cluster_run(
         run_batch=run_batch, spec_archive_root=remote_outputs_root,
         read_root=Path(local_archive_root), pool_confirmatory=pool_confirmatory,
         pool_report_only=pool_report_only, pack=pack, author_lock=author_lock,
-        author_guard=author_guard, seed_pool_blocks=seed_pool_blocks,
+        author_guard=author_guard, seed_pool_blocks=seed_pool_blocks, pull=shared_pull,
     )
 
 
@@ -490,6 +493,22 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
 
     arm_root = run.search_read() / arm  # SEARCH sub-root (disjoint from the test records)
     fail_ledger = arm_root / "failures.jsonl"
+    if resume and run.pull is not None:
+        # P11 (2026-07-13 audit): replay/authoring decisions below read the LOCAL mirror — a crash
+        # between the last pull and the arrays finishing makes completed candidates look absent,
+        # and each would be RE-AUTHORED (paid) then discarded by archive-truth training. Refresh
+        # first; if the mirror cannot be refreshed, fail loud rather than pay twice.
+        for _attempt in range(3):
+            try:
+                run.pull()
+                break
+            except Exception as exc:  # noqa: BLE001 — bounded retry, then loud
+                if _attempt == 2:
+                    raise RuntimeError(
+                        f"[{arm}] resume requires a FRESH mirror (3 pull attempts failed: {exc}) "
+                        "— resuming on stale state would re-author paid candidates"
+                    ) from exc
+                time.sleep(30.0)
     cached_failures = _load_failures(fail_ledger) if resume else {}
     llm, prompts, diversity = _build_cluster_author(arm, opts, arm_root)
 
