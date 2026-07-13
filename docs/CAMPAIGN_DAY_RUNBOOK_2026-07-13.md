@@ -54,7 +54,7 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --tiered \
     --pass-mode B --llm-from campaign \
     --pack 5 --cores-per-training 1 --pool EF \
     --seed-pool-blocks "EF:0-14,L:15-29,EF:30-64,L:65-99,EF:100-143,L:144-188,EF:189-233,L:234-278,EF:279-308,L:309-339,EF:340-370,L:371-402,EF:403-484,L:485-567" \
-    --batch-tag c1 --poll-secs 180 \
+    --batch-tag c1 --poll-secs 180 --chunk-tasks 1 \
     --output-dir outputs/campaign_cluster --resume
 ```
 
@@ -70,7 +70,7 @@ review `outputs/campaign_cluster/tier1_integrity.md`, then re-run the SAME line 
 MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --h3-singleshot \
     --pass-mode B --llm-from campaign --pack 5 --cores-per-training 1 --pool EF \
     --seed-pool-blocks "EF:0-14,L:15-29,EF:30-64,L:65-99,EF:100-143,L:144-188,EF:189-233,L:234-278,EF:279-308,L:309-339,EF:340-370,L:371-402,EF:403-484,L:485-567" \
-    --batch-tag c1 --poll-secs 180 --output-dir outputs/campaign_cluster --resume
+    --batch-tag c1 --poll-secs 180 --chunk-tasks 1 --output-dir outputs/campaign_cluster --resume
 ```
 
 Roots are disjoint by construction (`*_h3_singleshot/`), batch names `h3ss_*`, priority −100.

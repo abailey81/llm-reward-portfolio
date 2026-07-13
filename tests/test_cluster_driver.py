@@ -260,12 +260,12 @@ def test_stale_pending_submit_is_refiltered_not_retrained(tmp_path):
 
 def test_submit_batch_packs_and_batch_jobs_in_queue(tmp_path):
     fc = FakeCluster(tmp_path)
-    jid = submit_batch(
+    submitted = submit_batch(
         _specs(5), "s1_search",
         local_batch_root=fc.batches, remote_root="/r", gold_dir="/inputs",
         runner=fc.runner, push=fc.push, pack=2,
     )
-    assert jid == "101"
+    assert submitted == [("101", "s1_search")]  # unchunked round = ONE array, round-named
     index = json.loads((fc.batches / "s1_search" / "index.json").read_text())
     assert len(index) == 3  # 5 specs at pack=2 -> tasks of 2+2+1
     js = (fc.batches / "s1_search" / "s1_search.sh").read_text()
@@ -396,3 +396,37 @@ def test_run_one_failed_rows_leave_durable_reject_markers(tmp_path):
     # torn marker never sinks the reader
     (tmp_path / "_rejects" / "torn.json").write_text("{not json")
     assert permanent_reject_ids(tmp_path) == {"c7"}
+
+
+
+def test_chunked_submission_defeats_the_serialization_policy(tmp_path):
+    """Max-throughput lever (2026-07-13): chunk_tasks=1 splits every round into single-task
+    arrays — no hqw tail for the snx=1 policy to hold or purge; requeue rounds chunk too when
+    they have >1 task; the adoption matcher recognises part names but still rejects foreign
+    batches."""
+    fc = FakeCluster(tmp_path)
+    specs = _specs(3)
+    fc.pull_script = [{}, {"complete": ["c0"], "drain": True}, {"complete": ["c1", "c2"]}]
+    out = _run(fc, specs, chunk_tasks=1)
+    assert out["ok"] and out["completed"] == 3
+    # round 0: three single-task arrays; requeue round (c1+c2 missing): two more parts
+    assert fc.qsubs[:3] == ["b1_p01", "b1_p02", "b1_p03"]
+    assert fc.qsubs[3:] == ["b1_r1_p01", "b1_r1_p02"]
+    # each part carries exactly ONE task file
+    assert (fc.batches / "b1_p02" / "task_1.json").is_file()
+    assert not (fc.batches / "b1_p02" / "task_2.json").exists()
+
+    # adoption matcher: parts + requeue parts adopted; foreign lookalikes rejected
+    lines = [
+        " 1 2.0 x u r 07/13/2026 10:00:00 q 2 1",
+        "       Full jobname:     b1_p02",
+        " 2 2.0 x u r 07/13/2026 10:00:00 q 2 1",
+        "       Full jobname:     b1_r1_p01",
+        " 3 2.0 x u r 07/13/2026 10:00:00 q 2 1",
+        "       Full jobname:     b1_rehearsal",
+        " 4 2.0 x u r 07/13/2026 10:00:00 q 2 1",
+        "       Full jobname:     b1_p02x",
+    ]
+    text = chr(10).join(lines)
+    names, _states = batch_jobs_in_queue("b1", lambda cmd: text)
+    assert names == {"b1_p02", "b1_r1_p01"}

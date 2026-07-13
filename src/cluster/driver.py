@@ -88,9 +88,11 @@ def batch_jobs_in_queue(
             nm = stripped.split(":", 1)[1].strip()
             # P17/A2 (2026-07-13 audit): ANCHORED match — bare startswith(base + "_r") also
             # adopted foreign batches like "b1_rehearsal"; only our own requeue rounds
-            # (base_r<digits>) belong to this batch.
-            if nm == base_name or (
-                nm.startswith(base_name + "_r") and nm[len(base_name) + 2:].isdigit()
+            # (base_r<digits>) and chunk parts (base[_r<digits>]_p<digits>) belong here.
+            import re as _re
+
+            if nm == base_name or _re.fullmatch(
+                _re.escape(base_name) + r"(_r\d+)?(_p\d+)?", nm
             ):
                 names.add(nm)
                 states[nm] = last_state
@@ -114,23 +116,45 @@ def submit_batch(
     runner: Callable[[list[str]], str],
     push: Callable[..., None] = push_batch,
     pack: int = 1,
+    chunk_tasks: int | None = None,
     **jobscript_kwargs: Any,
-) -> str:
-    """Write specs + jobscript locally, prepare the remote tree, push ONE batch dir, qsub it.
+) -> list[tuple[str, str]]:
+    """Write specs + jobscripts locally, prepare the remote tree, push, qsub — possibly as
+    MANY SMALL ARRAYS (``chunk_tasks``; see the serialization-policy note below).
 
-    Returns the SGE job id. The jobscript rides INSIDE the batch dir (one push carries specs
-    and script together), written LF-pure via :func:`write_jobscript` (V11); the array's task
-    count is the number of task FILES (a §15 pack of N specs is one task).
+    Returns ``[(job_id, batch_dir_name), …]`` (one pair per submitted array). The jobscript
+    rides INSIDE each batch dir; the array's task count is the number of task FILES (a §15
+    pack of N specs is one task).
     """
     name = sanitize_name(name)
     tasks = _chunk_packs(flat_specs, pack)
-    batch_dir = Path(local_batch_root) / name
-    write_specs(tasks, batch_dir)
-    js = render_jobscript(name, len(tasks), remote_root, gold_dir, pack=pack, **jobscript_kwargs)
-    write_jobscript(js, batch_dir / f"{name}.sh")
-    prepare_remote(remote_root, [name], runner)
-    push(batch_dir, f"{remote_root.rstrip('/')}/specs")
-    return qsub(f"{remote_root.rstrip('/')}/specs/{name}/{name}.sh", runner)
+    # CHUNKED SUBMISSION (2026-07-13 max-throughput lever): the scheduler's serialization
+    # policy (snx=1, OBSERVED ACTIVE) holds a multi-task array's tail in hqw and self-releases
+    # ~one task per ~2 h — a 180-task tier array would crawl for days regardless of free GPUs.
+    # ``chunk_tasks`` splits the round into MANY SMALL ARRAYS (``name_p01…``): no pending tail
+    # to hold or purge, every part immediately eligible (the 2026-07-13 singles recovery is the
+    # live existence proof). Returns ``[(job_id, batch_dir_name), …]`` so the drain's P13
+    # attempt-evidence attribution can follow each part's own task files.
+    parts: list[tuple[str, list[Any]]] = []
+    if chunk_tasks is not None and int(chunk_tasks) >= 1 and len(tasks) > int(chunk_tasks):
+        k = int(chunk_tasks)
+        for i in range(0, len(tasks), k):
+            parts.append((f"{name}_p{i // k + 1:02d}", tasks[i:i + k]))
+    else:
+        parts.append((name, tasks))
+    for pname, ptasks in parts:
+        batch_dir = Path(local_batch_root) / pname
+        write_specs(ptasks, batch_dir)
+        js = render_jobscript(pname, len(ptasks), remote_root, gold_dir, pack=pack,
+                              **jobscript_kwargs)
+        write_jobscript(js, batch_dir / f"{pname}.sh")
+    prepare_remote(remote_root, [pn for pn, _ in parts], runner)
+    out: list[tuple[str, str]] = []
+    for pname, _ in parts:
+        push(Path(local_batch_root) / pname, f"{remote_root.rstrip('/')}/specs")
+        jid = qsub(f"{remote_root.rstrip('/')}/specs/{pname}/{pname}.sh", runner)
+        out.append((jid, pname))
+    return out
 
 
 def _harvest_qacct(
@@ -257,6 +281,7 @@ def _run_batch_unlocked(
     push: Callable[..., None] = push_batch,
     pull: Callable[[], int] | None = None,
     pack: int = 1,
+    chunk_tasks: int | None = None,
     poll_secs: float = 600.0,
     max_wall_secs: float | None = None,
     max_consecutive_errors: int = 72,
@@ -331,6 +356,7 @@ def _run_batch_unlocked(
     ]
     exhausted: list[str] = list(prior_exhausted)
     job_ids: list[str] = []
+    last_parts: list[tuple[str, str]] = []  # (job_id, batch_dir_name) of the LAST submitted round
     rounds = 0
     alive_seen = False  # a job of ours has been observed live (or was submitted) this run
     pending_submit: list[dict[str, Any]] | None = None  # set = a submission is owed
@@ -458,9 +484,23 @@ def _run_batch_unlocked(
             else:
                 if alive_seen and pending_submit is None:
                     # DRAIN TRANSITION: a round finished with work remaining → bounded requeue.
-                    qtext = _harvest_qacct(job_ids[-1] if job_ids else None, runner, diag_path)
+                    # Chunked rounds: harvest EACH part's job and attribute via that part's own
+                    # task files; tri-state union — all-parts-no-rows = the purge class (None);
+                    # any rows but nothing attributable = legacy bump-all (empty set); else the
+                    # union of attributed run_ids (unmatched specs ride unbumped this round).
                     last_round = base_name if rounds <= 1 else f"{base_name}_r{rounds - 1}"
-                    attempted = _attempted_run_ids(qtext, Path(local_batch_root), last_round)
+                    parts = last_parts or ([(job_ids[-1], last_round)] if job_ids else [])
+                    attempted: set[str] | None = None
+                    any_rows = False
+                    for _jid, _dname in parts:
+                        qtext = _harvest_qacct(_jid, runner, diag_path)
+                        part_att = _attempted_run_ids(qtext, Path(local_batch_root), _dname)
+                        if part_att is not None:
+                            any_rows = True
+                            if part_att:
+                                attempted = (attempted or set()) | part_att
+                    if any_rows and not attempted:
+                        attempted = set()  # rows exist but unattributable -> legacy bump-all
                     # P13: retry bumps require ATTEMPT EVIDENCE. A drain with NO qacct trace at
                     # all is the deleted-pending class (admin purge / qdel before dispatch) —
                     # nothing ran, so bumping would let 2 purge events permanently abandon
@@ -513,17 +553,19 @@ def _run_batch_unlocked(
                     pending_submit = None
                     continue
                 round_name = base_name if rounds == 0 else f"{base_name}_r{rounds}"
-                job_id = submit_batch(
+                submitted = submit_batch(
                     pending_submit, round_name,
                     local_batch_root=local_batch_root, remote_root=remote_root,
                     gold_dir=gold_dir, runner=runner, push=push, pack=pack,
-                    **jobscript_kwargs,
+                    chunk_tasks=chunk_tasks, **jobscript_kwargs,
                 )
-                job_ids.append(job_id)
+                job_ids.extend(jid for jid, _ in submitted)
+                last_parts = list(submitted)
                 rounds += 1
                 pending_submit = None  # consumed ONLY on success → a failed submit re-tries
                 alive_seen = True
-                _LOG.info("[%s] submitted %s as job %s", base_name, round_name, job_id)
+                _LOG.info("[%s] submitted %s as %d array(s): %s", base_name, round_name,
+                          len(submitted), [jid for jid, _ in submitted])
             ops_failures = 0
             first_ops_fail_at = None
         except _TRANSPORT_ERRORS as exc:  # qstat/qsub/push blip; retry next cycle (P14: local

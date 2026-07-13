@@ -287,6 +287,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="CPU cores requested per packed training (total job cores = this × --pack). "
                         "Default (None) keeps the jobscript's 4×pack. Myriad GPU-node CORES are the "
                         "binding scheduling constraint, so lowering this (e.g. 2) makes packed jobs place.")
+    p.add_argument("--chunk-tasks", type=int, default=None, metavar="K",
+                   help="Split every submission round into MANY SMALL ARRAYS of K tasks each "
+                        "(2026-07-13 max-throughput lever): the scheduler's serialization policy "
+                        "(snx=1, observed ACTIVE) holds a big array's tail in hqw at ~1 task/2h — "
+                        "chunked arrays have no tail to hold, every part immediately eligible. "
+                        "Campaign launch uses --chunk-tasks 1 (task = a pack-5 bundle). Default "
+                        "None = one array per round (legacy).")
     p.add_argument("--poll-secs", type=float, default=600.0)
     p.add_argument("--max-author-calls", type=int, default=None, help="Hard authoring spend cap.")
     p.add_argument("--allow-unfrozen", action="store_true",
@@ -496,6 +503,7 @@ def main(argv: list[str] | None = None) -> int:
         remote_root=remote_root, remote_outputs_root=f"{remote_root}/outputs",
         local_batch_root=f"{args.output_dir}/batches", local_archive_root=args.output_dir,
         gold_dir=args.gold_dir, host=args.host, pool_confirmatory=args.pool, pack=args.pack,
+        chunk_tasks=args.chunk_tasks,
         poll_secs=args.poll_secs, max_author_calls=args.max_author_calls, concurrent=True,
         apptainer_sif=(args.apptainer_sif or None), cores_per_training=args.cores_per_training,
         h_rt=(args.h_rt or None),

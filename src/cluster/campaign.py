@@ -135,6 +135,7 @@ def build_cluster_run(
     pool_confirmatory: str = "EF",
     pool_report_only: str = "L",
     pack: int = 1,
+    chunk_tasks: int | None = None,
     poll_secs: float = 600.0,
     min_pull_interval: float = 60.0,
     max_author_calls: int | None = None,
@@ -251,7 +252,8 @@ def build_cluster_run(
             specs, name,
             local_batch_root=local_batch_root, local_archive_root=local_archive_root,
             remote_root=remote_root, remote_outputs_root=remote_outputs_root, gold_dir=gold_dir,
-            host=host, runner=runner, pull=shared_pull, pack=pack, poll_secs=poll_secs, pool=pool,
+            host=host, runner=runner, pull=shared_pull, pack=pack, chunk_tasks=chunk_tasks,
+            poll_secs=poll_secs, pool=pool,
             priority=priority, heartbeat=emit_heartbeat, **_jk,
         )
 
