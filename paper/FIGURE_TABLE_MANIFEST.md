@@ -19,7 +19,7 @@
 | F6 | TOST equivalence | The two co-primary equivalence bounds (H2-RA, H2-Tail) plotted against the ±0.05-DSR SESOI band — equivalence-first. | `[CAMPAIGN]` archive (TOST). | 6 (§6.2) | **[CAMPAIGN]** |
 | F7 | Controls overlay | Placebo and placebo_shuffled overlaid on the same axes as the distributional arm (tail and Sharpe), so the effect is read against its own controls. | `[CAMPAIGN]` archive. | 6 (§6.3) | **[CAMPAIGN]** |
 | F8 | Mechanism / responsiveness | Fed-tail change vs authored-reward change (responsiveness, with sign); EPIC/STARC reward-distance between arms. | `[CAMPAIGN]` archive (mediation + reward metrics). | 6 (§6.5) | **[CAMPAIGN]** |
-| F9 | Learning curves / convergence | Critic-loss and return trajectories vs the 200,000-step budget across arms — the training-adequacy diagnostic. | `[CAMPAIGN]` archive (per-candidate logs). | 6 (§6.5) | **[CAMPAIGN]** |
+| F9 | Learning curves / training budget | Critic-loss and return trajectories vs the 200,000-step budget across arms — the training-budget diagnostic (incl. the extended ladder). | `[CAMPAIGN]` archive (per-candidate logs). | 6 (§6.5) | **[CAMPAIGN]** |
 
 ## Tables (~6)
 

@@ -107,7 +107,7 @@ make test                  # 2,000+ behaviour tests on the deterministic core (n
 make freeze                # cryptographically freeze the design, then run the confirmatory campaign
 ```
 
-For the exact pinned environment and a stage-by-stage reproduction map (tests → convergence study → freeze →
+For the exact pinned environment and a stage-by-stage reproduction map (tests → learning-curve study → freeze →
 campaign → analysis → figures), see **[`REPRODUCIBILITY.md`](REPRODUCIBILITY.md)**. The campaign is
 orchestrated by `scripts/run_campaign.py` (idempotent, `--resume`-safe) and analysed by
 `scripts/analyze_campaign.py`; see [`docs/CAMPAIGN_RUNBOOK.md`](docs/CAMPAIGN_RUNBOOK.md).

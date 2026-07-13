@@ -43,7 +43,7 @@ not handed $F$ directly; it is handed *feedback* — a statistic of the return d
 induced — and asked to revise the reward code. The scientific question is whether the **content** of that
 feedback changes the rewards it writes and, through them, realised performance. Because the agent is bounded —
 finite representational capacity, a $K{=}5$ per-generation search width, and a fixed, matched optimisation
-budget that Chapter 4 sets from a convergence pilot — the optimal-reward-problem premise applies: there is, in
+budget that Chapter 4 sets from a learning-curve pilot — the optimal-reward-problem premise applies: there is, in
 principle, room for a well-chosen reward to compensate for the agent's boundedness, and therefore room for
 *better information to the designer* to matter.
 

@@ -16,11 +16,13 @@ known, and its mitigation or disclosure. Grouped by validity type [`shadish2002e
   the $\xi\le-0.5$ guard; a bootstrap error bound on the fitted tail is reported.
 
 ## B.2 Internal validity (whether the comparison is clean)
-- **B.2.1 Training adequacy.** The per-candidate budget is 200,000 steps, set from a Split-C convergence pilot:
-  the critic's steep descent completes by ~100,000 steps and out-of-sample performance is flat within noise from
-  25,000 to 350,000 (350,000 nominally worse — a mild-overfit direction), so 200,000 sits at roughly twice the
-  critic knee and below the overfit onset. *Residual:* a single fixed budget, applied identically across arms,
-  with a learning-curve diagnostic reported.
+- **B.2.1 Training budget.** The per-candidate budget is 200,000 steps, set from a Split-C learning-curve pilot:
+  the critic's steep descent completes by ~100,000 steps and out-of-sample performance is flat within seed noise
+  from 25,000 to 350,000 — the pilot's measured ceiling (the 350,000 rung was nominally worse at three seeds, one
+  ordering we do not over-read). Budgets beyond that range were not measured in the pilot; an extended
+  learning-curve ladder to larger budgets is reported with the results. *Residual:* a single fixed budget, applied
+  identically across arms — arm contrasts are matched-compute by construction, so the reading is "at this budget",
+  not "at convergence".
 - **B.2.2 Reward-scale → effective-entropy confound.** In SAC the reward scale acts as inverse temperature
   [`haarnoja2018sac`], and `ent_coef="auto"` re-adapts to the normalised scale, so arms whose authored rewards
   differ in magnitude receive different effective entropy regularisation. *Mitigation:* uniform PopArt normaliser

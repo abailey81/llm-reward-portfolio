@@ -104,9 +104,10 @@ manufacturing significance out of a rich instrument.
 We foreground the four limitations most likely to bound the result's interpretation; the full register is
 Appendix B. **(i) Construct.** The fed signal is six left-tail scalars, not the full return distribution; we name
 it *multi-level tail-risk feedback* throughout and claim only that it spans the coherent-risk class (Chapter 3),
-making no claim about upside or non-coherent features. **(ii) Training adequacy.** The fixed agent is trained for
-200,000 steps, a budget set from a convergence pilot (the critic's descent completes near 100,000 steps and
-out-of-sample performance is flat within noise to 350,000); arm differences are read *at this fixed, matched
+making no claim about upside or non-coherent features. **(ii) Training budget.** The fixed agent is trained for
+200,000 steps, a budget set from a learning-curve pilot (the critic's descent completes near 100,000 steps and
+out-of-sample performance is flat within seed noise to 350,000, the pilot's measured ceiling; larger budgets are
+examined by an extended ladder reported with the results); arm differences are read *at this fixed, matched
 budget*, supported by a learning-curve diagnostic. **(iii)
 Selection blindness.** The selector is deliberately tail-blind ($\lambda=0$); this is what makes a tail effect
 attributable to the channel, but it also places the study on the boundary of the Null branch, so the result speaks

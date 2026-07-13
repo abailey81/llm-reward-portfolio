@@ -135,7 +135,7 @@ This section supplies the mechanism that turns a null into a finding (reporting 
 (the mediation/indirect-effect quantity of §3.7 [`imai2010identification`; `mackinnon2000equivalence`]) — and
 reports its sign. It quantifies the **reward-program
 differential** across arms with the EPIC/STARC reward pseudometrics (do tail-fed arms author measurably different
-reward code?). Finally it presents the **learning-curve / convergence diagnostic**, disclosing training adequacy
+reward code?). Finally it presents the **learning-curve / training-budget diagnostic**, disclosing the budget verdict
 at the 200,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
 
 - Responsiveness (fed-tail change → authored-reward change): `[FROM CAMPAIGN: estimate, sign, CI]`.
@@ -144,7 +144,7 @@ at the 200,000-step budget and interpreting all arm differences as differences *
   discriminator — and the placebo_shuffled floor): `[FROM CAMPAIGN: table]`.
 - Reward-program differential (EPIC/STARC distances between arms): `[FROM CAMPAIGN: distances]`;
   prompt-leak fingerprint / tail-construct count by arm: `[FROM CAMPAIGN: counts]`.
-- Learning-curve / convergence diagnostic: `[FROM CAMPAIGN: critic-loss trajectory, convergence verdict]`.
+- Learning-curve / training-budget diagnostic: `[FROM CAMPAIGN: critic-loss trajectory, budget verdict, extended-ladder verdict]`.
 
 *Figure 6.4 (mechanism / responsiveness) — manifest F8; Figure 6.5 (learning curves) — manifest F9.*
 

@@ -104,11 +104,12 @@ across arms [`vanhasselt2016popart`] — which preserves the realised-return ser
 quantities are byte-identical with and without it — and log the realised per-candidate normalisation scale; a
 one-seed `popart`-disabled ablation of the frozen winners is reported in Chapter 6 [FROM CAMPAIGN: ordering verdict]. A truncated-quantile critic
 [`kuznetsov2020tqc`] is run as a *named secondary* experiment (mean critic vs. quantile critic), not as the
-contribution, which lives in the off-critic feedback channel. We set the training budget from a convergence pilot rather than
+contribution, which lives in the off-critic feedback channel. We set the training budget from a learning-curve pilot rather than
 asserting it: at 200,000 steps the critic's steep descent is complete — its knee falls near 100,000 steps — and
-out-of-sample performance is flat within noise out to 350,000 steps, so 200,000 sits beyond the critic knee and
-below the mild-overfit onset (Chapter 7). We report the convergence/learning-curve diagnostic and interpret arm
-differences as differences *at a fixed, matched budget*. On the study's single laptop RTX 4050 GPU a candidate
+out-of-sample performance is flat within seed noise out to 350,000 steps, the pilot's measured ceiling, so 200,000
+sits beyond the critic knee within the measured range; budgets beyond that range are examined by an extended
+learning-curve ladder reported with the results (Chapter 7). We report the learning-curve diagnostic and interpret arm
+differences as differences *at a fixed, matched budget applied identically across arms*. On the study's single laptop RTX 4050 GPU a candidate
 trains in roughly 85 minutes at this budget, and up to three candidates train in parallel; the realised total
 wall-clock and API cost of the confirmatory campaign are reported in Chapter 6.
 
