@@ -3,6 +3,36 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-13] — pre-spend audit CLOSED (41 findings) · B\* reopened under a pre-committed rule · C5 built · campaign = Myriad · DELEGATED RATIFICATIONS
+
+- **Pre-spend audit COMPLETE**: waves 1–4 + P19 (missing cluster freeze gate) + P4/C5 = **41
+  findings fixed + test-locked**; full suite 2,116 passed / 0 failed. Inventory:
+  `docs/PRE_SPEND_AUDIT_2026-07-13.md` (final).
+- **B\* REOPENED (Tamer's correction: "nothing is closed")**: the 1.6M ext rung scored val-DSR
+  0.187 vs 0.041 @100k on the same CRN seed (verified: same reward hash, real return-path gain).
+  Evidence-ledger claim 8 downgraded A−→B; claim 15 added; the **extended B\* decision rule was
+  PRE-COMMITTED before the remaining curve points land**. Verdict-independent honesty rewording
+  applied to unbound prose (`91a1097`); hash-bound wording held for ONE post-verdict batch.
+- **C5 BUILT (`ccbe860`)**: the H3 single-shot control on the cluster — disjoint
+  `*_h3_singleshot/` roots by construction, `h3ss_` batch namespace, −100 priority, gens=1
+  (reflection provably never fires), own summary sentinel.
+- **Campaign substrate = UCL MYRIAD (Tamer's directive)**: "the whole campaign, we will run it
+  on Myriad to speed up." Laptop demoted to certified fallback (CLAUDE.md superseded).
+- **DELEGATED RATIFICATIONS (Tamer, 2026-07-13: "full permission, full freedom, ratify on my
+  behalf" — each exercised only within the pre-registered design):**
+  1. **Launch config RATIFIED**: device-stratified seed blocks ON at launch
+     (`--seed-pool-blocks "EF:0-283,L:284-567"` — the 2026-07-11c design, now a launch fact);
+     full line: `run_campaign_cluster.py --tiered --pack 5 --cores-per-training 1
+     --llm-from campaign --pass-mode B --batch-tag c1 --seed-pool-blocks "EF:0-283,L:284-567"
+     --resume` + a separate `--h3-singleshot --batch-tag c1 --resume` invocation after the
+     headline, + C0 canary first.
+  2. **Freeze execution DELEGATED**: freeze runs (by Claude, loudly announced) only when ALL of:
+     the 30-point curve verdict is applied, the post-verdict wording batch has landed, and the
+     gate is 21/21 green. NOT before the curve verdict (standing recommendation).
+  3. **B\* verdict protocol**: clean-cut outcome (no ascent → keep 200k; ascent at 400k only →
+     raise to 400k with the rung math) = decided autonomously with a dated amendment; any
+     outcome forcing an n-vs-budget-vs-deadline trade-off still goes to Tamer explicitly.
+
 ## [2026-07-11d] — the fleet's first live results: path CERTIFIED, the throughput model measured, a third day-1 breaker fixed
 
 - **★ Apptainer-on-node CERTIFIED**: `p1pack2` (772152) completed on a real V100 — the FULL
