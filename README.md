@@ -66,7 +66,7 @@ full parity as the certified fallback.
 |---|---|
 | **Garden of forking paths** | Design, hypotheses, arms, budgets, splits, and the entire analysis plan are **frozen** (`PREREGISTRATION.md`) and bound by a cryptographic hash before any confirmatory run; every change is a dated amendment. |
 | **Survivorship / look-ahead bias** | A **survivorship-free, point-in-time** Refinitiv panel (delisted names retained); purged-and-embargoed train / validation / sealed-test splits. |
-| **"No effect because it didn't train"** | The per-candidate budget is set at a **measured convergence knee** (not a timing guess), with a learning-curve adequacy diagnostic. |
+| **"No effect because it didn't train"** | The per-candidate budget is set from a **measured learning-curve pilot** (critic-loss knee ~100k; held-out performance flat within seed noise across the 25k–350k ladder — budgets beyond that range are under active measurement), applied **identically across arms** (matched compute), with a learning-curve diagnostic disclosed. |
 | **Reward hacking / spurious wins** | LLM-authored code is AST-gated and sandboxed; selection is on a tail-blind, reward-independent held-out Deflated Sharpe; the sealed test is never used for selection. |
 | **Inference rigor** | rliable IQM with stratified-bootstrap CIs, intersection-union tests, TOST equivalence, Bayes factors, Model Confidence Set, PBO/CSCV, Deflated/Probabilistic Sharpe, FZ0 (VaR, ES) backtests, EVT/GPD tails, factor attribution. |
 | **Reproducibility** | Determinism is load-bearing: results **replay from an on-disk provenance archive** rather than being regenerated; every prompt, authored reward, feedback block, and token count is archived. |

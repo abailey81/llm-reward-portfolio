@@ -82,8 +82,13 @@ class ParamSpec:
 # this never duplicates the single source of truth (CLAUDE.md: code reads config, never hardcodes).
 REGISTRY: tuple[ParamSpec, ...] = (
     # ---- MEASURE (the only optimised parameters; optimise for adequacy) ----
+    # 2026-07-13 (paper-front audit): the criterion label said "eval-return knee (convergence)" —
+    # but R74 records that criterion as structurally unsatisfiable on this workload (no confirmed
+    # eval plateau ever fired); the ACTUAL decision basis was the totality-of-evidence override
+    # (critic knee + range-limited eval flatness + matched compute). The provenance must say so.
     ParamSpec("train_steps_per_candidate", ParamClass.MEASURE,
-              "eval-return knee (convergence)", "scripts/learning_curve.recommend_budget", True),
+              "learning-curve pilot (critic knee + range-limited eval flatness; R74 override)",
+              "scripts/learning_curve + R74 totality-of-evidence", True),
     ParamSpec("n_seeds", ParamClass.MEASURE,
               "paired-CRN power at the SESOI", "scripts/power_analysis + sigma_seed pilot", True),
     ParamSpec("candidates_per_arm", ParamClass.MEASURE,

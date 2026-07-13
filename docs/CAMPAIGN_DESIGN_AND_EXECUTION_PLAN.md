@@ -71,6 +71,16 @@ gaps (not in corpus, to fetch when writing) are flagged in §9.
 
 ### 3.1 Training steps — **200,000** (and crucially, *not more*)
 
+> **⚠ UNDER ACTIVE RE-MEASUREMENT (2026-07-13, evidence-ledger claims 8/15).** The "more steps
+> OVERFIT" verdict below was inferred from ONE nominal ordering (350k vs 200k, 3 seeds) and is
+> contradicted by a first extended-ladder observation: the authored distributional winner at
+> **1.6M steps scored val-DSR 0.187 vs 0.041 at 100k on the same CRN seed** (single seed; the
+> full 5-budget × 3-seed × 2-winner cluster curve is queued). A pre-committed decision rule
+> (EVIDENCE_LEDGER_2026-07-12.md) fires a B\* amendment proposal to Tamer if the ascent confirms.
+> The matched-compute identification argument below is UNAFFECTED either way (B\* identical
+> across arms); what is in question is the "overfit onset" interpretation, not the design's
+> validity. Read this section as the dated 2026-07-02 record, not settled fact.
+
 **The decisive finding: this is a DATA-LIMITED task, so more steps OVERFIT rather than help.** There are only
 ~2,520 distinct trading days in the train window; off-policy SAC with replay simply re-passes the *same price
 path*, so extra steps add overfitting risk, not information. 200k ≈ ~80 passes; 50k ≈ ~20 passes.
