@@ -1,0 +1,16 @@
+# M2 survey roster (protocol v1 §2) — FINAL ids pinned AT EXECUTION with served-snapshot
+# archival (the Qwen pattern). `pinned: false` entries are placeholders: the runner refuses
+# nothing (per-model gates run at execution: live smoke, contamination screen, capability floor).
+# Frontier / mid / deliberately-weak — the capability GRADIENT is the evidence.
+models:
+  - {label: opus-4-8,      provider: anthropic,  model: claude-opus-4-8,          pinned: true}
+  - {label: sonnet-4-6,    provider: anthropic,  model: claude-sonnet-4-6,        pinned: true}
+  - {label: haiku-4-5,     provider: anthropic,  model: claude-haiku-4-5-20251001, pinned: true}
+  - {label: gpt-5-5,       provider: openai,     model: PIN-AT-EXECUTION,         pinned: false}
+  - {label: gemini-class,  provider: gemini,     model: PIN-AT-EXECUTION,         pinned: false}
+  - {label: qwen3-coder,   provider: openrouter, model: qwen/qwen3-coder-480b,    pinned: false, api_key_env: OPENROUTER_API_KEY}
+  - {label: kimi-k2,       provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
+  - {label: glm-class,     provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
+  - {label: llama-large,   provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
+  - {label: mistral-large, provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
+  - {label: small-open-7b, provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
