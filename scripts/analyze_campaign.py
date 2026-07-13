@@ -6522,7 +6522,12 @@ def main() -> None:
         # Eval-span END from config (the frozen single source), NOT a hardcoded date (no-hardcoding audit).
         _span = load_config("inference").get("splits", {}).get("evaluation", {}).get("span", [None, "2026-06-30"])
         panel = load_gold_panel(phase="development", end=str(_span[1])).panel
-    except Exception:  # noqa: BLE001 - floor is best-effort; records-only analysis always runs
+    except Exception as _floor_exc:  # noqa: BLE001 - floor is best-effort; records-only analysis always runs
+        # P7 (2026-07-13 audit): was a SILENT blanket except — the benchmark-floor exhibit vanished
+        # without a word when campaign_summary.json was absent (the cluster mirror never had one).
+        print(f"[analyze] benchmark floor SKIPPED ({type(_floor_exc).__name__}: {_floor_exc}) — "
+              "records-only analysis proceeds; write campaign_summary.json at the archive root to "
+              "enable the floor", flush=True)
         panel = cfg = test_window = winner_n_trials = None
 
     result = analyze(

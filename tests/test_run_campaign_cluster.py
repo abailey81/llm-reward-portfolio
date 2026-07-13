@@ -85,3 +85,77 @@ def test_capstone_full_roster_end_to_end(tmp_path):
         "baseline_differential_sharpe-s0", "baseline_differential_sharpe-s1"}
     # search and test roots are disjoint (BUG-1 invariant) across the whole roster
     assert (tmp_path / "search").is_dir() and (tmp_path / "test").is_dir()
+
+
+# --------------------------------------------------------------------------- #
+# P19 (2026-07-13 pre-spend audit): the cluster entry point mirrors the laptop's
+# verify-or-refuse freeze gate. These lock the semantics freeze-state-independently
+# (enforce_freeze is monkeypatched on run_campaign, which main imports at call time).
+# --------------------------------------------------------------------------- #
+def test_freeze_gate_refuses_unfrozen_non_dry_run(tmp_path, monkeypatch):
+    import run_campaign as rc
+
+    def _refuse(*, allow_unfrozen=False):
+        raise rc.CampaignNotFrozenError("NOT frozen (test)")
+
+    monkeypatch.setattr(rc, "enforce_freeze", _refuse)
+    import pytest
+
+    with pytest.raises(SystemExit, match="NOT frozen"):
+        rcc.main(["--synthetic", "--arms", "distributional", "--output-dir", str(tmp_path)])
+
+
+def test_freeze_gate_exempts_dry_run(tmp_path, monkeypatch):
+    import run_campaign as rc
+
+    def _refuse(*, allow_unfrozen=False):  # would sink the run if the exemption regressed
+        raise rc.CampaignNotFrozenError("NOT frozen (test)")
+
+    monkeypatch.setattr(rc, "enforce_freeze", _refuse)
+    rc_code = rcc.main(["--dry-run", "--synthetic", "--arms", "distributional",
+                        "--output-dir", str(tmp_path)])
+    assert rc_code == 0
+
+
+def test_freeze_gate_allow_unfrozen_passes_through(tmp_path, monkeypatch):
+    """--allow-unfrozen reaches enforce_freeze with the flag set, then main PROCEEDS to the
+    next guard (F2 dirty-dir refusal proves we got past the gate without ssh)."""
+    import run_campaign as rc
+
+    calls: list[bool] = []
+
+    def _stamp(*, allow_unfrozen=False):
+        calls.append(allow_unfrozen)
+        return {"enforced": True, "frozen": False, "allow_unfrozen": allow_unfrozen}
+
+    monkeypatch.setattr(rc, "enforce_freeze", _stamp)
+    dirty = tmp_path / "search" / "distributional" / "x"
+    dirty.mkdir(parents=True)
+    (dirty / "record.json").write_text("{}", encoding="utf-8")
+    import pytest
+
+    with pytest.raises(SystemExit, match="RE-AUTHORS"):
+        rcc.main(["--synthetic", "--arms", "distributional", "--allow-unfrozen",
+                  "--output-dir", str(tmp_path)])
+    assert calls == [True]
+
+
+def test_write_campaign_summary_mirrors_run_campaign_keys(tmp_path):
+    """P7: the cluster writes an analyze/sentinel-compatible campaign_summary.json at the mirror
+    root (test_window is what analyze_campaign's DeMiguel floor reads)."""
+    import json
+
+    inp = rcc.assemble_cluster_inputs(
+        arms=["distributional"], seeds=[0], output_dir=str(tmp_path), synthetic=True,
+        train_steps=200, n_trials=1, candidates=2, generations=1, search_seed=0,
+        embargo=21, pass_mode="A", provider="stub", llm_cfg=None, resume=False,
+    )
+    rcc._write_campaign_summary(str(tmp_path), inp, freeze_stamp={"enforced": True},
+                                extra={"tiered": True, "all_arms_tested": True, "exit_code": 0})
+    s = json.loads((tmp_path / "campaign_summary.json").read_text(encoding="utf-8"))
+    assert s["source"] == "run_campaign_cluster"
+    assert s["gold_panel"] == {"synthetic": True}
+    assert s["freeze"] == {"enforced": True}
+    assert s["all_arms_tested"] is True and s["tiered"] is True
+    tw = s["test_window"]  # exactly what analyze_campaign.main consumes for the benchmark floor
+    assert isinstance(tw, list) and len(tw) == 2 and all(isinstance(x, int) for x in tw)

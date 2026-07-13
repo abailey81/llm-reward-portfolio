@@ -162,6 +162,45 @@ def _dry_run(inputs: dict[str, Any], arms: list[str], *, remote_root: str, gold_
     return 0
 
 
+def _write_campaign_summary(output_dir: str | Path, inputs: dict[str, Any], *,
+                            freeze_stamp: dict[str, Any] | None,
+                            extra: dict[str, Any]) -> None:
+    """P7 (2026-07-13 pre-spend audit): the cluster mirror had NO ``campaign_summary.json``, so
+    ``analyze_campaign.py`` silently skipped the DeMiguel benchmark floor (it reads ``test_window``
+    from the summary) and the sentinel/monitor had no terminal-state sentinel to key off. Mirrors
+    ``run_campaign``'s summary keys (windows + freeze stamp + gold-panel provenance) and REUSES its
+    atomic writer. Written ONLY on terminal completion — never at the C3 review stop, where the
+    watcher would misread the file as "campaign done"."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from run_campaign import _write_summary_atomic
+
+    train_window, val_window, test_window = inputs["windows"]
+    if inputs["panel_descriptor"].get("synthetic"):
+        provenance: dict[str, Any] = {"synthetic": True}
+    else:
+        try:
+            from capture_env import _gold_panel_provenance
+
+            provenance = _gold_panel_provenance()
+        except Exception as exc:  # noqa: BLE001 — provenance is best-effort; the descriptor still names the panel
+            print(f"[cluster] gold-panel provenance unavailable ({type(exc).__name__}: {exc}); "
+                  "recording the panel descriptor instead", flush=True)
+            provenance = dict(inputs["panel_descriptor"])
+    summary = {
+        "source": "run_campaign_cluster",
+        "train_window": list(train_window),
+        "val_window": list(val_window),
+        "test_window": list(test_window),
+        "freeze": freeze_stamp if freeze_stamp is not None else {"enforced": False, "frozen": None},
+        "gold_panel": provenance,
+        **extra,
+    }
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    _write_summary_atomic(Path(output_dir), summary)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Run the headline campaign on UCL Myriad.")
     p.add_argument("--arms", nargs="+", default=["distributional", "scalar"],
@@ -249,6 +288,10 @@ def build_parser() -> argparse.ArgumentParser:
                         "binding scheduling constraint, so lowering this (e.g. 2) makes packed jobs place.")
     p.add_argument("--poll-secs", type=float, default=600.0)
     p.add_argument("--max-author-calls", type=int, default=None, help="Hard authoring spend cap.")
+    p.add_argument("--allow-unfrozen", action="store_true",
+                   help="Dev escape hatch (P19, 2026-07-13 audit): downgrade the freeze "
+                        "verify-or-refuse gate to a WARNING. ONLY for rehearsals/prototypes "
+                        "(e.g. the pm2 prototype) — the real confirmatory campaign runs frozen.")
     return p
 
 
@@ -263,6 +306,23 @@ def main(argv: list[str] | None = None) -> int:
 
     load_env()
     args = build_parser().parse_args(argv)
+
+    # P19 (2026-07-13 pre-spend audit): the cluster entry point had NO freeze gate at all — the
+    # laptop campaign REFUSES to launch on an unfrozen/drifted pre-registration (verify-or-refuse,
+    # run_campaign.py enforce_freeze) but the Myriad path would happily author + train the whole
+    # confirmatory campaign against an unfrozen design. Mirror the laptop semantics exactly: the
+    # keyless --dry-run is exempt; --allow-unfrozen downgrades to a warning (rehearsals only).
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from run_campaign import CampaignNotFrozenError, enforce_freeze
+
+    freeze_stamp: dict[str, Any] | None = None
+    if not args.dry_run:
+        try:
+            freeze_stamp = enforce_freeze(allow_unfrozen=bool(args.allow_unfrozen))
+        except CampaignNotFrozenError as exc:
+            raise SystemExit(f"[run_campaign_cluster] {exc}") from exc
 
     # ---- 2026-07-13 PRE-SPEND AUDIT GUARDS (all fail LOUD before any submission/authoring) ---- #
     from src.utils.config import cfg_get as _cfg_get
@@ -409,6 +469,10 @@ def main(argv: list[str] | None = None) -> int:
                   f"(On green health without --hold-at-gate the gate auto-proceeds — no manual wait.)")
             return 0
         ok = bool(out.get("ok"))
+        _write_campaign_summary(args.output_dir, inputs, freeze_stamp=freeze_stamp, extra={
+            "tiered": True, "all_arms_tested": ok, "exit_code": 0 if ok else 1,
+            "n_tiers": out.get("n_tiers"), "tier_sizes": out.get("tier_sizes"),
+        })
         print(f"[campaign] TIERED {'OK' if ok else 'INCOMPLETE'} — "
               f"{out['n_tiers']} tiers, sizes {out['tier_sizes']}")
         return 0 if ok else 1
@@ -422,6 +486,10 @@ def main(argv: list[str] | None = None) -> int:
     for arm, r in results.items():
         _LOG.info("[%s] ok=%s %s", arm, r.get("ok"),
                   {k: v for k, v in r.items() if k not in ("search", "test")})
+    _write_campaign_summary(args.output_dir, inputs, freeze_stamp=freeze_stamp, extra={
+        "tiered": False, "all_arms_tested": ok, "exit_code": 0 if ok else 1,
+        "arms": {arm: bool(r.get("ok")) for arm, r in results.items()},
+    })
     print(f"[campaign] {'ALL OK' if ok else 'INCOMPLETE'} — "
           f"{sum(1 for r in results.values() if r.get('ok'))}/{len(results)} arms")
     return 0 if ok else 1
