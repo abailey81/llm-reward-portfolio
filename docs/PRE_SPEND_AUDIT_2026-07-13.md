@@ -37,11 +37,11 @@
 
 | # | Finding | Severity | Plan |
 |---|---|---|---|
-| P1 | A2-#3 **no Eqw detection; no max_wall bound** → an Eqw array waits forever with green heartbeats | HIGH | qstat state parse + bounded Eqw dwell → qdel + drain; before GO |
-| P2 | A1-F3 authoring rides out only ~31 s of API trouble (vs 12 h transport) → arm dies on a 529 window | HIGH | time-bounded outage loop around the authoring call; before GO |
-| P3 | A1-F5 infra-killed candidates permanently ledgered; resume never retrains from stored source | HIGH | resume resubmits ledgered cids from stored `reward_source` (no re-author); before GO |
+| P1 | ~~A2-#3 no Eqw detection~~ | HIGH | **FIXED wave 3 (`bd05c8b`)**: state capture + 15-min dwell → harvest+qdel+drain; parser test |
+| P2 | ~~A1-F3 authoring 31 s outage budget~~ | HIGH | **FIXED wave 3**: transient failures ridden out ≤2 h; non-transient immediate |
+| P3 | ~~A1-F5 infra-failure permanence~~ | HIGH | **FIXED wave 3**: resume resubmits from the ledger's stored source (no re-author); test locks resubmit + recovery |
 | P4 | A3-F2 **H3 single-shot has NO cluster path**; improvised reuse of the same roots would fabricate a null via run-id adoption | HIGH (design) | build the C5 mode with `search_h3_singleshot/` sub-roots OR hard-guard distinct roots; **Tamer decision: cluster-H3 vs laptop-H3** |
-| P5 | A3-F3 mid-unit winner swap undetectable on resume | HIGH | per-unit `reward_source_hash` census in the gate + freeze-overwrite refusal |
+| P5 | ~~A3-F3 mid-unit winner swap~~ | HIGH | **FIXED wave 3**: per-unit hash census gates health + freeze-overwrite refusal |
 | P6 | A3-F6 stale `TIER1_APPROVED` bypasses a RED gate | MED | mtime-postdates-report + consume-on-release |
 | P7 | A5-8 no `campaign_summary.json` on the cluster mirror → DeMiguel floor silently absent; blanket except in analyze | MED | write summary at campaign end + log the exception |
 | P8 | A1-F8 truncated/refused completions shipped to nodes; ledger misattributes | MED | driver-side `ast_gate` pre-check (no spawn) + `stop_reason` into failure rows |
@@ -58,7 +58,8 @@
 
 ## GO/NO-GO for the real spend
 
-**NO-GO until P1–P5 close** (each is hours, not days): Eqw watch, authoring outage tolerance,
-ledger-resubmit, the H3 decision (Tamer's), and the winner-hash census. Everything else is either
-fixed, evidence-closed, or bounded-cost. After P1–P5: freeze → C0 canary (which now also
-analysis-smokes) → GO.
+**UPDATED (wave 3, `bd05c8b`): P1/P2/P3/P5 are FIXED and tested. The single remaining pre-GO item
+is P4 — Tamer's H3 decision** (cluster C5 mode ~half a day of build, or H3 as a laptop leg; either
+is valid, improvised reuse of the same roots is the only forbidden path). P6–P18 are
+quality/robustness items, none GO-blocking; they proceed as wave 4. After the H3 decision:
+freeze → C0 canary (which now also analysis-smokes the reader path) → GO.
