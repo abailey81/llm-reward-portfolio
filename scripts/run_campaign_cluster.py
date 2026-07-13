@@ -164,7 +164,8 @@ def _dry_run(inputs: dict[str, Any], arms: list[str], *, remote_root: str, gold_
 
 def _write_campaign_summary(output_dir: str | Path, inputs: dict[str, Any], *,
                             freeze_stamp: dict[str, Any] | None,
-                            extra: dict[str, Any]) -> None:
+                            extra: dict[str, Any],
+                            filename: str = "campaign_summary.json") -> None:
     """P7 (2026-07-13 pre-spend audit): the cluster mirror had NO ``campaign_summary.json``, so
     ``analyze_campaign.py`` silently skipped the DeMiguel benchmark floor (it reads ``test_window``
     from the summary) and the sentinel/monitor had no terminal-state sentinel to key off. Mirrors
@@ -198,7 +199,7 @@ def _write_campaign_summary(output_dir: str | Path, inputs: dict[str, Any], *,
         **extra,
     }
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    _write_summary_atomic(Path(output_dir), summary)
+    _write_summary_atomic(Path(output_dir), summary, filename=filename)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -292,6 +293,15 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Dev escape hatch (P19, 2026-07-13 audit): downgrade the freeze "
                         "verify-or-refuse gate to a WARNING. ONLY for rehearsals/prototypes "
                         "(e.g. the pm2 prototype) — the real confirmatory campaign runs frozen.")
+    p.add_argument("--h3-singleshot", action="store_true",
+                   help="C5 (P4 closed 2026-07-13): run the pre-registered H3 SINGLE-SHOT control "
+                        "on the cluster — the distributional arm at generations=1 (no reflection), "
+                        "same candidate budget + agent config + seeds, archived to the SEPARATE "
+                        "*_h3_singleshot/ roots at -p -100. A separate invocation from the "
+                        "headline campaign (shares --output-dir; roots are disjoint by "
+                        "construction; batch names force-prefixed h3ss_). Forces "
+                        "--arms distributional and --generations from campaign.yaml's "
+                        "h3_singleshot_generations.")
     return p
 
 
@@ -323,6 +333,18 @@ def main(argv: list[str] | None = None) -> int:
             freeze_stamp = enforce_freeze(allow_unfrozen=bool(args.allow_unfrozen))
         except CampaignNotFrozenError as exc:
             raise SystemExit(f"[run_campaign_cluster] {exc}") from exc
+
+    # C5 (P4): the H3 single-shot control is its OWN invocation — force its fixed shape BEFORE
+    # the guards/assembly so the spend cap, divisibility check, and dry-run all see the truth.
+    if args.h3_singleshot:
+        if args.tiered:
+            raise SystemExit("--h3-singleshot and --tiered are SEPARATE invocations (C5 vs "
+                             "C1-C4) — run the H3 control after (or alongside) the ladder.")
+        from src.utils.config import cfg_get as _h3cg
+        args.arms = ["distributional"]
+        args.generations = int(_h3cg(_load_config("campaign"), "h3_singleshot_generations", 1) or 1)
+        _LOG.info("C5 H3 single-shot: arms forced to ['distributional'], generations=%d",
+                  args.generations)
 
     # P17/A3-F12 (2026-07-13 audit): --hold-at-gate is meaningless without the review gate —
     # the hold would be SILENTLY ignored and C4 would launch unreviewed.
@@ -458,6 +480,28 @@ def main(argv: list[str] | None = None) -> int:
         batch_tag=(args.batch_tag or None),
     )
     baselines = list(args.baselines) if args.baselines else None
+
+    if args.h3_singleshot:
+        # C5: the H3 single-shot control — disjoint *_h3_singleshot roots, h3ss_ batch names,
+        # -p -100. Its sentinel is its OWN file (h3_singleshot_summary.json): clobbering the
+        # HEADLINE campaign_summary.json in the shared output dir would fool the watcher/analyze.
+        from src.cluster.campaign import run_h3_singleshot_on_cluster
+
+        out = run_h3_singleshot_on_cluster(
+            inputs["opts"], inputs["seeds"], run,
+            test_leg_kwargs=inputs["test_leg_kwargs"],
+            frozen_root=Path(args.output_dir) / "frozen_h3_singleshot",
+            search_seed=args.search_seed, resume=bool(args.resume),
+        )
+        ok = bool(out.get("ok"))
+        _write_campaign_summary(args.output_dir, inputs, freeze_stamp=freeze_stamp, extra={
+            "h3_singleshot": True, "all_arms_tested": ok, "exit_code": 0 if ok else 1,
+            "winner_id": out.get("winner_id"),
+        }, filename="h3_singleshot_summary.json")
+        print(f"[campaign] H3 SINGLE-SHOT {'OK' if ok else 'INCOMPLETE'} — "
+              f"winner={out.get('winner_id')} ({out.get('reason', 'tested at the campaign seeds')})")
+        return 0 if ok else 1
+
     if args.tiered:
         from src.cluster.campaign import run_campaign_tiered
         from src.utils.config import load_config

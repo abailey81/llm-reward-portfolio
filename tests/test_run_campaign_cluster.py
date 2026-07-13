@@ -159,3 +159,21 @@ def test_write_campaign_summary_mirrors_run_campaign_keys(tmp_path):
     assert s["all_arms_tested"] is True and s["tiered"] is True
     tw = s["test_window"]  # exactly what analyze_campaign.main consumes for the benchmark floor
     assert isinstance(tw, list) and len(tw) == 2 and all(isinstance(x, int) for x in tw)
+
+
+def test_h3_singleshot_flag_forces_shape_and_dry_runs(tmp_path, capsys):
+    """C5: --h3-singleshot forces arms=[distributional] + generations from campaign.yaml's
+    h3_singleshot_generations (1), and the keyless dry-run validates the wiring."""
+    rc = rcc.main(["--h3-singleshot", "--dry-run", "--synthetic",
+                   "--candidates", "4", "--output-dir", str(tmp_path)])
+    assert rc == 0
+    outtext = capsys.readouterr().out
+    assert "1 arms" in outtext  # distributional only
+
+
+def test_h3_singleshot_conflicts_with_tiered(tmp_path):
+    import pytest
+
+    with pytest.raises(SystemExit, match="SEPARATE invocations"):
+        rcc.main(["--h3-singleshot", "--tiered", "--dry-run", "--synthetic",
+                  "--output-dir", str(tmp_path)])

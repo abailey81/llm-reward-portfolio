@@ -758,3 +758,54 @@ def test_crn_pair_device_consistency_replaces_per_unit_homogeneity(tmp_path):
     v2 = report2["verdict"]
     assert not v2["crn_pair_device_consistent"] and not v2["health_ok"]
     assert "1" in v2["crn_device_violations"]
+
+
+def test_h3_singleshot_disjoint_roots_namespaced_batches_and_gen1(tmp_path):
+    """C5 (P4 closed 2026-07-13): the H3 single-shot control runs search(gens=1, no reflection)
+    -> select -> freeze -> test on the cluster with STRUCTURALLY disjoint *_h3_singleshot roots
+    (same-root reuse would let the compacted resume adopt headline run_ids and fabricate the H3
+    null), h3ss_-prefixed batch names, and the -100 priority class."""
+    import src.cluster.campaign as C
+    from src.io.results import load_all
+
+    fc = FakeCluster(tmp_path)
+    run = ClusterRun(run_batch=fc.run_batch, spec_archive_root=str(tmp_path), read_root=tmp_path)
+    frozen = _inject_select_freeze(run)
+
+    # a PRE-EXISTING headline record with a COLLIDING run_id — the P4 adoption hazard
+    write_run({
+        "run_id": "distributional-g0-c1", "arm": "distributional", "seed": 0, "fold": 0,
+        "candidate_id": "distributional-g0-c1", "generation": 0, "reward_source": "def reward(*a): return 0.0",
+        "reward_source_hash": "HEADLINE", "prompt": "", "feedback_block": "", "wall_clock": 0.0,
+        "env_fingerprint": "x", "metrics": {"val_fitness": 99.0, "val_returns": [0.01]},
+    }, str(tmp_path / "search" / "distributional"))
+
+    opts = _opts(generations=6, candidates=3)  # headline shape; C5 overrides gens itself
+    opts["h3_singleshot_generations"] = 1
+    out = C.run_h3_singleshot_on_cluster(
+        opts, [0, 1], run,
+        test_leg_kwargs=dict(panel_descriptor={"synthetic": True}, env_cfg={},
+                             agent_cfg={"train_steps_per_candidate": 10}, train_window=(0, 5),
+                             val_window=(6, 8), test_window=(9, 12), embargo=0, lookback=1),
+        frozen_root=tmp_path / "frozen_h3_singleshot",
+    )
+    assert out["ok"] and out["arm"] == "distributional_singleshot"
+    # the FULL candidate budget authored in ONE generation (no reflection at gens=1)
+    ids = {r["run_id"] for r in load_all(str(tmp_path / "search_h3_singleshot" / "distributional"))}
+    assert ids == {"distributional-g0-c0", "distributional-g0-c1", "distributional-g0-c2"}
+    # sealed test leg at the campaign seeds, in ITS root
+    tids = {r["run_id"] for r in load_all(str(tmp_path / "test_h3_singleshot" / "distributional"))}
+    assert tids == {"distributional-s0", "distributional-s1"}
+    # the headline root holds EXACTLY its pre-existing record (no adoption in, no writes out) and
+    # the winner came from the H3 candidates (c2 = best index fitness), NOT the 99.0 headline decoy
+    hd = load_all(str(tmp_path / "search" / "distributional"))
+    assert [r["reward_source_hash"] for r in hd] == ["HEADLINE"]
+    assert out["winner_id"] == "distributional-g0-c2" and frozen == ["distributional"]
+    assert not (tmp_path / "test" / "distributional").exists()
+    # every array namespaced h3ss_ + the C5 priority class
+    assert fc.calls and all(name.startswith("h3ss_") for name, *_ in fc.calls)
+    assert all(call[4] == C.PRIORITY_H3_SINGLESHOT for call in fc.calls)
+    # construct fidelity: NO reflection at gens=1 — every candidate authored from the INITIAL
+    # prompt (the archived prompts never carry the reflection preamble)
+    h3recs = load_all(str(tmp_path / "search_h3_singleshot" / "distributional"))
+    assert all(_REFLECTION_PREAMBLE not in (r.get("prompt") or "") for r in h3recs)

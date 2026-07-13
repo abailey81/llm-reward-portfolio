@@ -98,6 +98,13 @@ class ClusterRun:
     # the certified path. Seeds in no block fall back to the call's pool (fail-safe, never dropped).
     seed_pool_blocks: list[tuple[str, set[int]]] | None = None
 
+    # C5 (P4 closed 2026-07-13): the H3 single-shot control runs through a ``dataclasses.replace``d
+    # ClusterRun whose subdirs are the ``*_h3_singleshot`` names — the headline and H3 archives are
+    # DISJOINT BY CONSTRUCTION (same-root reuse would let the compacted resume ADOPT headline
+    # run_ids and fabricate the H3 null via run-id collision).
+    search_subdir: str = "search"
+    test_subdir: str = "test"
+
     # SEARCH and TEST records live in SEPARATE sub-roots (parity with the laptop campaign's
     # search_root/test_root split). Critical: a test record carries the winner's ``val_fitness``
     # (test_leg.build_test_record), so if it shared the arm dir with the search candidates,
@@ -105,16 +112,16 @@ class ClusterRun:
     # impossible. The driver is subdir-agnostic (it keys the compacted diff on run_id), so this is
     # invisible to it.
     def search_read(self) -> Path:
-        return Path(self.read_root) / "search"
+        return Path(self.read_root) / self.search_subdir
 
     def test_read(self) -> Path:
-        return Path(self.read_root) / "test"
+        return Path(self.read_root) / self.test_subdir
 
     def search_spec_root(self) -> str:
-        return f"{self.spec_archive_root.rstrip('/')}/search"
+        return f"{self.spec_archive_root.rstrip('/')}/{self.search_subdir}"
 
     def test_spec_root(self) -> str:
-        return f"{self.spec_archive_root.rstrip('/')}/test"
+        return f"{self.spec_archive_root.rstrip('/')}/{self.test_subdir}"
 
 
 def build_cluster_run(
@@ -953,6 +960,72 @@ def run_arm_pipeline(
         "arm": arm, "ok": True, "search": search, "test": test,
         "winner_id": winner.get("candidate_id"),
     }
+
+
+#: §14.3 priority ladder value for the C5 H3-single-shot invocation (below the confirmatory core,
+#: same report-only class as stage-1; the plan's "-p -100" for C5).
+PRIORITY_H3_SINGLESHOT = -100
+
+
+def run_h3_singleshot_on_cluster(
+    opts: dict,
+    seeds: list[int],
+    run: ClusterRun,
+    *,
+    test_leg_kwargs: dict[str, Any],
+    frozen_root: str | Path,
+    search_seed: int = 0,
+    resume: bool = False,
+) -> dict[str, Any]:
+    """C5 — the pre-registered H3 SINGLE-SHOT control on the cluster (P4 closed 2026-07-13,
+    Tamer's directive: the whole campaign runs on Myriad).
+
+    Mirrors ``scripts/run_campaign.run_h3_singleshot`` stage-for-stage on the cluster primitives:
+    the **distributional** arm re-run at ``generations = h3_singleshot_generations`` (1 — every
+    candidate authors from the INITIAL prompt; ``run_search_arm``'s reflection block never fires
+    because ``prev_block`` only becomes non-None after a completed generation), the SAME candidate
+    budget and agent config (matched compute, DEEP_H3 §4), the IDENTICAL winner selector, and the
+    sealed test leg at the SAME campaign seeds.
+
+    Archives to the SEPARATE ``search_h3_singleshot/`` / ``frozen_h3_singleshot/`` /
+    ``test_h3_singleshot/`` roots — laptop-layout parity, so ``analyze_campaign``'s H3 loader reads
+    both substrates identically. Root disjointness is STRUCTURAL (a ``dataclasses.replace``d
+    ClusterRun): the P4 audit hazard was that same-root reuse would let the compacted resume ADOPT
+    headline run_ids and fabricate the H3 null. Batch names are force-prefixed ``h3ss_`` so this
+    invocation can never adopt (or be adopted by) the headline campaign's queued arrays even when
+    both share a ``--batch-tag`` namespace.
+    """
+    from dataclasses import replace
+
+    arm = "distributional"  # the H3 contrast lives wholly on the distributional arm (DEEP_H3 §1)
+    _headline_rb = run.run_batch
+
+    def _h3_run_batch(specs: list[dict[str, Any]], name: str, **kw: Any) -> dict[str, Any]:
+        return _headline_rb(specs, f"h3ss_{name}", **kw)
+
+    h3_run = replace(run, run_batch=_h3_run_batch,
+                     search_subdir="search_h3_singleshot", test_subdir="test_h3_singleshot")
+    gens = int(opts.get("h3_singleshot_generations", 1) or 1)
+    h3_opts = {**opts, "generations": gens}
+
+    search = run_search_arm(arm, h3_opts, h3_run, resume=resume,
+                            priority=PRIORITY_H3_SINGLESHOT)
+    select_winner, freeze_winner = _resolve_select_freeze(run)
+    _guard_k_seed_selector(h3_opts, h3_run)  # P15: max-single-seed select is WRONG under k>1
+    winner = select_winner(h3_run.search_read() / arm)
+    if winner is None:
+        _LOG.warning("[h3ss] single-shot search produced no winner — no test leg")
+        return {"arm": "distributional_singleshot", "ok": False,
+                "reason": "no_winner", "search": search}
+    winner.setdefault("reward_source", "")
+    # Laptop-parity provenance string (run_h3_singleshot freezes with exactly this fingerprint).
+    env_fp = winner.get("env_fingerprint") or "campaign:distributional_singleshot"
+    freeze_winner(arm, winner, search_seed=search_seed, frozen_root=str(frozen_root),
+                  env_fingerprint=env_fp)
+    test = run_test_leg([(arm, winner)], seeds, h3_run, name=f"{arm}_test",
+                        resume=resume, priority=PRIORITY_H3_SINGLESHOT, **test_leg_kwargs)
+    return {"arm": "distributional_singleshot", "ok": True, "search": search, "test": test,
+            "winner_id": winner.get("candidate_id")}
 
 
 def run_campaign_on_cluster(
