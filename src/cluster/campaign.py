@@ -543,12 +543,14 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                     # stranded — resume now RESUBMITS from the ledger row's stored source
                     # (no re-author; candidate identity preserved). A deterministic sandbox
                     # reject simply fails again and re-ledgers (bounded by the node retry cap).
-                    _led_src = str(cached_failures[cid].get("reward_source") or "")
+                    # P8: rows marked permanent (author-side AST rejects) are NEVER re-shipped.
+                    _row = cached_failures[cid]
+                    _led_src = str(_row.get("reward_source") or "")
                     _advance(llm)
-                    if _led_src.strip():
+                    if _led_src.strip() and not _row.get("permanent"):
                         fresh.append((cid, _led_src, "<resubmitted-from-failure-ledger>"))
                     else:
-                        failed += 1  # no stored source (legacy row) -> remains abandoned, counted
+                        failed += 1  # permanent reject or no stored source -> stays abandoned
                     continue
                 prior_src = _archived_source(cid, arm, arm_root, k_seeds, base_seed)
                 if prior_src is not None:  # PARTIAL candidate -> reuse the archived source (no re-author)
@@ -563,6 +565,20 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                 src = extract_reward_source(
                     _complete_with_outage_tolerance(llm, prompts.system, cand_user, label=cid)
                 )
+            # P8 (2026-07-13 audit): a truncated/refused completion previously SHIPPED to a node,
+            # burned a queue slot + a poll cycle, fast-failed 3x, and its F5 row blamed the sandbox.
+            # A spawn-free AST gate here catches it at zero cost; the row is marked PERMANENT so
+            # the P3 resume-resubmit never re-ships a deterministic author-reject.
+            from src.sandbox.executor import ast_gate
+
+            if not ast_gate(src):
+                failed += 1
+                _ledger_failure(fail_ledger, {
+                    "candidate_id": cid, "generation": gen, "permanent": True,
+                    "error": "author_reject: ast_gate (truncated/refused/invalid completion)",
+                    "reward_source": src, "prompt": cand_user,
+                })
+                continue
             fresh.append((cid, src, cand_user))
 
         # Train: k_seeds specs per fresh candidate ({cid}-s{j} at base+j), ONE array for the generation.
