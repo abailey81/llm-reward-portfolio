@@ -190,3 +190,18 @@ C<4 for 48h → the E1 exogenous-stop reading: bank the highest CLEAN rung; do N
 `python scripts/bank_gate.py --archive outputs/campaign_cluster --seeds <realized rung>` — the
 rehearsed six-step runsheet (archive integrity → resume audit → analyze → variance → fed-delta
 SNR → prereg bundle). Then and only then: numbers into the PDF (evidence-ledger grades enforced).
+
+## 8. THE CAMPAIGN-WINDOW QUEUE (2026-07-18 completeness sweep — the report-only items whose
+## scheduled slot IS the ~11 GPU-busy days; none is freeze-bound, none gates the headline)
+
+| # | Item | When | Invocation / plan | Registered where |
+|---|---|---|---|---|
+| 1 | **Dose-response tier** (R77-ii): CAMPAIGN winners × {200k, 400k, 800k} × 10 CRN seeds, report-only | after the C3 review gate (winners frozen) | the p6 ladder machinery pointed at the CAMPAIGN frozen winners (`scripts/p6_authored_ladder.py` `--singles` pattern; budgets 200000,400000,800000; seeds 0-9; `-p -200` so it only ever backfills idle GPUs; `--root-suffix dose` for namespaced roots) | PREREGISTRATION R77(ii); F11 campaign re-render |
+| 2 | **P3 sub-experiments** (SQ3 named-vs-blinded + legible-format): small authored probes | any API-quiet day during the window | `python scripts/run_subexperiment.py --mode named` and `--mode legible` (launch-ready, rehearsed keyless; small Opus spend, covered by the $25 top-up margin) | mechanism protocol §SQ3; 2026-07-02i |
+| 3 | **FTSE-100 lite panel build** (ADR-047, rescheduled 2026-07-02i to this window): acquire + build the survivorship-free FTSE-100 panel via `data_pipeline/` (PowerShell + `.venv-lseg`; NEVER from the Bash tool) | the GPU-busy / operator-quiet days | panel build only during the window; the U4b **zero-shot replication** (frozen winners re-tested on the FTSE panel, no authoring) runs post-bank as Stage-2.A free depth | ADR-047; GRADE_SECURITY 2.A |
+| 4 | **M2 model-fleet survey** (real run on campaign stimuli) | post-bank (needs the campaign fed-delta quantiles) | `scripts/m2_survey.py` + `config/m2_models.yaml` (harness validated 2026-07-13) | M2 protocol v1 (registered 2026-07-12) |
+| 5 | **D6/U5 algorithm robustness** (TQC / PPO / TD3 critics on frozen winners, no authoring) | post-bank, free depth | `run_test_leg` on the frozen Stage-1 winners with the alternate agent configs | GRADE_SECURITY 2.A |
+
+Everything above is REPORT-ONLY and disjoint from the frozen m=6 family: it can deepen the
+story, never gate or contaminate the headline. Items 1–3 belong to the campaign window itself;
+4–5 wait for the bank gate by construction.
