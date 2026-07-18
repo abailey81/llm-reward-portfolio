@@ -17,8 +17,8 @@
     {
       "name": "train_steps_per_candidate",
       "class": "MEASURE",
-      "method": "eval-return knee (convergence)",
-      "determination": "scripts/learning_curve.recommend_budget",
+      "method": "learning-curve pilot (critic knee + range-limited eval flatness; R74 override)",
+      "determination": "scripts/learning_curve + R74 totality-of-evidence",
       "status": "DECIDED"
     },
     {
