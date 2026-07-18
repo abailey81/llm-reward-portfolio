@@ -1187,3 +1187,27 @@ the knee at 400,000; the pre-committed rule fired on that evidence, making 400,0
 projection (Myriad throughput at 400k = 2.05 trainings/GPU-h, superseding the pre-R77 200k figure of
 3.74; ADR-053). `config/campaign.yaml` + `config/algos.yaml` `train_steps_per_candidate` and the
 freeze-gate `assert_train_steps_match` cross-file check bind to 400,000. `frozen: false`.
+
+## ADR-058 — Frozen-registration S12 venue-chain staleness: recorded, NOT re-hashed (2026-07-19)
+
+**Finding (35-agent audit, CONFIRMED).** `PREREGISTRATION.md` §S12's dated compute-venue amendment
+chain terminates at **ADR-040 (2026-07-01/02, "laptop-only on the owned RTX 4050")** and does not
+carry the **ADR-053 (2026-07-13, UCL Myriad)** supersession, even though ADR-053 predates the
+2026-07-18 freeze. The same frozen document's Amendment E1 already presumes Myriad, so the frozen
+registration v1.0 (`ce5db62c`) is internally inconsistent on compute VENUE only.
+
+**Decision: record here; do NOT re-freeze.** The correction is venue-only — design, arms, seeds,
+folds, hypotheses, SESOI, and analysis are unchanged (the prereg itself flags compute venue as a
+non-hash-bound knob). Editing `PREREGISTRATION.md` would change `ce5db62c`, which is referenced by
+the launch runbook, `preflight.py`, the freeze-gate fixture, the `prereg-v1.0` tag, the bundle
+filename, the cursor, and the CHANGELOG freeze record; re-hashing on launch-eve to fix an
+amendment-chain blemish in a supplementary artifact carries a real risk of introducing a NEW
+inconsistency for negligible grade benefit — the examiner reads the PDF, whose **CH4 methods
+correctly state the Myriad substrate**. Per the zero-defect rule's "record explicitly if it
+genuinely cannot be fixed now" clause, the authoritative venue is: **the executed and reported
+compute substrate is UCL Myriad (ADR-053; `run_campaign_cluster.py` + `src/cluster/`), with the
+laptop RTX-4050 as the certified fallback.** WRITE-TIME follow-through: the final submission's
+pre-registration appendix carries a one-line footnote pointing S12 → ADR-053/this entry, so the
+supplementary artifact's staleness is transparently disclosed rather than silently shipped. If a
+future amendment re-freezes the registration for an INDEPENDENT reason, fold the S12 correction into
+that same re-hash (v1.1) at that time.
