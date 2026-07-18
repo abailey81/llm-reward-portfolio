@@ -23,7 +23,7 @@ $logFile  = Join-Path $outDir "supervisor.log"
 New-Item -ItemType Directory -Force $outDir | Out-Null
 
 # THE LAUNCH LINE — must stay in lockstep with docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md §2.
-$py = ".venv\Scripts\python.exe"
+$py = Join-Path $repo ".venv\Scripts\python.exe"   # ABSOLUTE (2026-07-18 drill: a relative path can fail to resolve and PS tries module-autoload)
 $args = @(
   "scripts/run_campaign_cluster.py", "--tiered",
   "--arms", "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled",
@@ -51,8 +51,17 @@ while ($attempt -lt $maxAttempts) {
     if (Test-Path $stopFile) { Log "STOP_CAMPAIGN present - deliberate stop."; break }
     $attempt += 1
     Log ("attempt {0}: launching the campaign driver" -f $attempt)
-    & $py @args
-    $rc = $LASTEXITCODE
+    # 2026-07-18 drill catch: if the invocation FAILS TO START, $LASTEXITCODE is never set and a
+    # STALE zero from a prior iteration would read as "CAMPAIGN COMPLETE". Default rc to -1 and
+    # only trust $LASTEXITCODE when the call actually ran.
+    $rc = -1
+    try {
+        & $py @args
+        if ($null -ne $LASTEXITCODE) { $rc = $LASTEXITCODE }
+    } catch {
+        Log ("driver INVOCATION failed before start: {0}" -f $_.Exception.Message)
+        $rc = -1
+    }
     if ($rc -eq 0) { Log "driver exited 0 - CAMPAIGN COMPLETE (or gate stop handled). Supervisor done."; break }
     Log ("driver exited {0} (outage/crash class) - relaunching in {1}s; running arrays on Myriad are unaffected" -f $rc, $backoffSecs)
     Start-Sleep -Seconds $backoffSecs
