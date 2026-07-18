@@ -129,7 +129,7 @@ def _write_campaign_yaml(root: Path, arms: list[str]) -> None:
     # campaign.yaml that OMITS the family once the prereg yaml declares it — audit H-L2, 2026-07-02).
     (root / "config" / "campaign.yaml").write_text(
         "arms: [" + ", ".join(arms) + "]\ncandidates_per_arm: 30\n"
-        "train_steps_per_candidate: 200000\n"
+        "train_steps_per_candidate: 400000\n"  # R77 (2026-07-18): B* = the measured knee
         "h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]\n"
         "seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}\n",  # E1 ladder — matches the frozen prereg
         encoding="utf-8",

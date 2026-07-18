@@ -105,10 +105,10 @@ We foreground the four limitations most likely to bound the result's interpretat
 Appendix B. **(i) Construct.** The fed signal is six left-tail scalars, not the full return distribution; we name
 it *multi-level tail-risk feedback* throughout and claim only that it spans the coherent-risk class (Chapter 3),
 making no claim about upside or non-coherent features. **(ii) Training budget.** The fixed agent is trained for
-200,000 steps, a budget set from a learning-curve pilot (the critic's descent completes near 100,000 steps and
-out-of-sample performance is flat within seed noise to 350,000, the pilot's measured ceiling; larger budgets are
-examined by an extended ladder reported with the results); arm differences are read *at this fixed, matched
-budget*, supported by a learning-curve diagnostic. **(iii)
+400,000 steps — the measured knee of a 16×-range, two-stage learning curve (pilot to 350,000; a pre-committed
+extension to 1,600,000 on both authored winners located the knee and the order-of-magnitude-smaller residual
+beyond it); arm differences are read *at this fixed, matched budget at the measured knee*, supported by the
+full curve exhibit. **(iii)
 Selection blindness.** The selector is deliberately tail-blind ($\lambda=0$); this is what makes a tail effect
 attributable to the channel, but it also places the study on the boundary of the Null branch, so the result speaks
 to *this* (conservative, identifiable) configuration and not to a tail-rewarded selector. **(iv) External

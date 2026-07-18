@@ -104,15 +104,20 @@ across arms [`vanhasselt2016popart`] — which preserves the realised-return ser
 quantities are byte-identical with and without it — and log the realised per-candidate normalisation scale; a
 one-seed `popart`-disabled ablation of the frozen winners is reported in Chapter 6 [FROM CAMPAIGN: ordering verdict]. A truncated-quantile critic
 [`kuznetsov2020tqc`] is run as a *named secondary* experiment (mean critic vs. quantile critic), not as the
-contribution, which lives in the off-critic feedback channel. We set the training budget from a learning-curve pilot rather than
-asserting it: at 200,000 steps the critic's steep descent is complete — its knee falls near 100,000 steps — and
-out-of-sample performance is flat within seed noise out to 350,000 steps, the pilot's measured ceiling, so 200,000
-sits beyond the critic knee within the measured range; budgets beyond that range are examined by an extended
-learning-curve ladder reported with the results (Chapter 7). We report the learning-curve diagnostic and interpret arm
-differences as differences *at a fixed, matched budget applied identically across arms*. The confirmatory campaign
+contribution, which lives in the off-critic feedback channel. We set the training budget by measurement in two
+pre-registered stages rather than asserting it. An initial pilot found the critic's steep descent complete near
+100,000 steps and held-out performance flat within seed noise to its 350,000-step ceiling; because a ceiling is a
+range limit and not a verdict, a pre-committed extension rule — registered before the extension data existed —
+then carried the ladder to 1,600,000 steps (a 16× range) on both archived designer-authored rewards, three
+common-random-number seeds each. The extended curve rises decisively from 200,000 to 400,000 steps (paired
+seed-mean gains of two to five standard errors on both rewards) and flattens beyond it, with residual gains an
+order of magnitude smaller: **the measured knee is 400,000 steps, and that is the campaign budget**, applied
+identically across arms so that arm differences are read *at a fixed, matched budget at the knee of the measured
+learning curve*; the full curve is reported as an exhibit with the results (Chapter 6), and the budget's residual
+limits are disclosed in Chapter 7. The confirmatory campaign
 runs on the UCL Myriad HPC cluster (SGE batch arrays; device-homogeneous V100/A100 pools, with every
-common-random-number seed pair kept device-consistent): a candidate trains in roughly 33 minutes on a dedicated
-V100 at this budget, five candidates share each GPU at a measured aggregate 3.74 trainings per GPU-hour, and the
+common-random-number seed pair kept device-consistent): a candidate trains in roughly 65 minutes on a dedicated
+V100 at this budget, five candidates share each GPU at a measured aggregate 2.05 trainings per GPU-hour, and the
 realised total wall-clock, concurrency, and API cost of the campaign are reported in Chapter 6.
 
 One positioning note prevents a natural misreading: although every experiment runs on a fixed historical panel,
@@ -150,7 +155,13 @@ coherent-risk class — is developed in Chapter 3.
 ## 4.5 The reward-designer and the experimental arms
 
 The reward-designer is a frontier language model (Claude Opus 4.8 in the confirmatory campaign; Claude Sonnet 4.6
-in the prototype) operating in an Eureka-style reflect-and-improve loop [`ma2024eureka`]: it authors a
+in the prototype). The choice was re-verified against the July 2026 model landscape immediately before the design
+freeze: Opus 4.8 carried the strongest independently benchmarked code-generation record then available for this
+role, under a single stable model identifier and with no safety-classifier layer that could refuse mid-campaign —
+a refusal on one arm but not another would break arm symmetry, so freedom from that interference was treated as a
+validity requirement, not a convenience (newer models with higher headline capability but classifier layers or
+launch-week-only evidence were assigned to the descriptive cross-model survey instead). It operates
+in an Eureka-style reflect-and-improve loop [`ma2024eureka`]: it authors a
 reward-function as Python code, the agent is trained and evaluated, a feedback block is composed, and the model
 revises the code. The loop runs six generations of five candidates under a matched budget of thirty candidates per
 arm, reflecting on the generation's best candidate. The study uses a single model family throughout, so claims are

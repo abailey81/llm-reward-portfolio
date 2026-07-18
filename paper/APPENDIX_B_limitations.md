@@ -22,13 +22,14 @@ known, and its mitigation or disclosure. Grouped by validity type [`shadish2002e
   not "agent-independent". *Mitigation:* the fed/selected/tested three-way split keeps the loops from grading
   themselves; the mediation analysis (SQ2) is reported as a descriptive decomposition under
   sequential-ignorability caveats, never as causal proof.
-- **B.2.1 Training budget.** The per-candidate budget is 200,000 steps, set from a Split-C learning-curve pilot:
-  the critic's steep descent completes by ~100,000 steps and out-of-sample performance is flat within seed noise
-  from 25,000 to 350,000 — the pilot's measured ceiling (the 350,000 rung was nominally worse at three seeds, one
-  ordering we do not over-read). Budgets beyond that range were not measured in the pilot; an extended
-  learning-curve ladder to larger budgets is reported with the results. *Residual:* a single fixed budget, applied
-  identically across arms — arm contrasts are matched-compute by construction, so the reading is "at this budget",
-  not "at convergence".
+- **B.2.1 Training budget.** The per-candidate budget is 400,000 steps — the knee of a two-stage measured
+  learning curve: an initial pilot (flat within seed noise to its 350,000-step ceiling) extended, under a rule
+  pre-committed before the extension data existed, to 1,600,000 steps on both archived authored winners; the
+  curve rises decisively to 400,000 and flattens beyond it (residual paired gains an order of magnitude smaller,
+  though still statistically resolvable — disclosed, not hidden). *Residual:* a single fixed budget, applied
+  identically across arms — matched-compute by construction, read "at the measured knee", not "at convergence";
+  the seed-level dispersion of the curve fans out with budget, so the campaign's in-ladder σ_D re-estimate
+  recalibrates power expectations at the new budget (the seed ladder's rung structure absorbs any shortfall).
 - **B.2.2 Reward-scale → effective-entropy confound.** In SAC the reward scale acts as inverse temperature
   [`haarnoja2018sac`], and `ent_coef="auto"` re-adapts to the normalised scale, so arms whose authored rewards
   differ in magnitude receive different effective entropy regularisation. *Mitigation:* uniform PopArt normaliser

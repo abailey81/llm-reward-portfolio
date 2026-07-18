@@ -17,7 +17,7 @@ seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}   # schema; res
 cpcv:
   apply_to: winners                    # CPCV on the fixed winners for inference, NOT inside each candidate
   n_blocks: 16                         # even S for C(S, S/2) splits (PBO)
-train_steps_per_candidate: 200000      # mirrors algos.yaml; FIXED (audit B-5). B* SET 2026-07-02 from the Split-C convergence pilot (R74): eval flat-within-noise 25k..350k on BOTH ladders (3 seeds); critic steep descent over by 100k (terminal ~0.59->0.10), only internal polish after; 350k nominally WORSE than 200k (mild-overfit direction, matches the old-window pilot) -> 200k = >=2x the critic knee, below the overfit onset. Dossier: outputs/tables/learning_curve.json + PREREGISTRATION.md R74.
+train_steps_per_candidate: 400000      # mirrors algos.yaml; FIXED (audit B-5). B* = 400,000 SET 2026-07-18 (R77, supersedes R74's 200k): the extended same-protocol curve (5 budgets x 3 CRN seeds x both authored winners, cluster val-DSR) fired the PRE-COMMITTED rule at every rung vs 200k (dist +0.145/+0.161/+0.162 at 400k/800k/1.6M, mean/SE 2.9-3.6; scal +0.032 at 400k, 5.4x) with THE KNEE AT 400k (increments beyond it collapse to +0.016-0.017); 400k captures ~90% of the attainable gain at 2x compute (feasible) vs 4-8x (not). Identification unchanged (identical across arms). Dossiers: outputs/tables/bstar_rule_verdict.json + p6_summary.json + PREREGISTRATION.md R74/R77.
 
 agent:
   # HARD replay-buffer cap (ADR-025 memory-safety, EXTENDED for B* > 50k; CLAUDE.md 2026-06-30 laptop design).

@@ -39,7 +39,7 @@ loop: {runs: once, cpcv_on: winners, per_candidate_budget: fixed}   # audit B-3,
 # detector's tolerance scales with the curve's own range -> collapses on a flat curve). Totality of
 # evidence: critic steep descent done by 100k (0.59->0.10), 350k nominally WORSE than 200k (overfit
 # direction), ~17 buffer passes at 200k. Mirrors campaign.yaml + algos.yaml (budget-mirror guard).
-train_steps_per_candidate: 200000
+train_steps_per_candidate: 400000  # R77 (2026-07-18): raised to the measured knee by the pre-committed extended-curve rule (see PREREGISTRATION.md R77; verdict artifact outputs/tables/bstar_rule_verdict.json)
 
 # R19 (2026-06-20): de-duped the mislabelled spy_buy_and_hold (== 1/N, no index in the anonymised panel)
 # and expanded to 8 DISTINCT published allocators. Names match analyze_campaign._BENCHMARK_NAMES exactly.
