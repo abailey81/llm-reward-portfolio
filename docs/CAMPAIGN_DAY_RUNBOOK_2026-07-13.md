@@ -43,6 +43,23 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 
 ## 2. THE LAUNCH (tiered ladder: C0 canary → C1–C3 core → gate → C4 rungs)
 
+> **LAUNCH VIA THE SUPERVISOR (2026-07-18, the VPN-outage hardening).** The 07-17 outage
+> measured the failure mode: the driver's ops-failure count cap (72 × poll interval) tripped at
+> 6.5 h and both drivers died loudly-but-unattended. Two fixes are live: (i) the count cap now
+> defaults to 240 (= the 12 h wall bound at poll 180 s); (ii) **`scripts\campaign_supervisor.ps1`
+> relaunches the driver on ANY nonzero exit** (idempotent by design: archive-truth resume, P12
+> lock auto-break, no authoring re-billed) — a driver death now costs only the backoff, and
+> RUNNING ARRAYS ON MYRIAD ARE NEVER AFFECTED by laptop-side outages. Stop deliberately via
+> `outputs\campaign_cluster\STOP_CAMPAIGN`. Exit 0 = complete OR a C3 RED-gate stop — the
+> supervisor stops there too, correctly: a RED gate needs a human before `--approve-tier1`.
+>
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File scripts\campaign_supervisor.ps1
+> ```
+> (The raw single-shot line below remains valid for manual runs; the supervisor embeds it —
+> keep them in lockstep.) Also set ssh keep-alives in `~/.ssh/config` (`ServerAliveInterval 60`,
+> `ServerAliveCountMax 10`) to ride out brief VPN blips without connection resets.
+
 The **striped seed-pool blocks** (ratified 2026-07-13): both pools engaged at EVERY ladder rung
 (the old contiguous split idled the A100s until seed 284). Halves of each rung range; CRN pairs
 stay device-homogeneous per seed (the blocked-design invariant); parser merges per pool.
