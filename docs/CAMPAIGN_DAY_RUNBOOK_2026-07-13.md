@@ -14,7 +14,7 @@
 | 0.3 | **FROZEN**: `scripts/freeze.py` run (delegated; announced loudly) | `freeze.py --check`: frozen=true, recorded==canonical |
 | 0.4 | Cluster checkout synced to HEAD **+ the GIT_COMMIT marker written** (2026-07-18: the archive deploy is not a work-tree — without the marker every record's code identity is None) | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp && git rev-parse HEAD \| ssh myriad "cat > ~/llmrp/GIT_COMMIT"` |
 | 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --archive outputs/proto_myriad --rehearsal` output |
-| 0.6 | Anthropic balance sufficient for ~$50 authoring (+$70 top-up if low) | step 4 smoke + Tamer's console |
+| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25** (covers canary/smoke + P3 probes + M2/Qwen headroom) | step 4 smoke + Tamer's console |
 
 ## 1. Pre-flight checklist (run in order; each must pass)
 
@@ -42,7 +42,7 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 
 # 7. PAUSE WINDOWS UPDATE for the campaign window (2026-07-18 threat audit: an auto-update
 #    reboot kills the supervisor+driver silently — resume is one command but unattended hours
-#    are lost). Settings -> Windows Update -> Pause for 2 weeks (Tamer's click; admin).
+#    are lost). Settings -> Windows Update -> Pause for 5 weeks (Tamer's click; admin).
 #    On any reboot: just re-run the supervisor (idempotent).
 
 # 8. Cluster calendar (2026-07-18 audit): Myriad's maintenance day = the SECOND TUESDAY of
