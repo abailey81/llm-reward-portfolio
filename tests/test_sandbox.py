@@ -624,3 +624,65 @@ def test_infinite_loop_killed_and_parent_survives(rng: np.random.Generator) -> N
     with pytest.raises(SandboxError):
         validate_once(src, _fixture(rng), timeout_s=1.0)
     assert _parent_survives_marker() == "45"
+
+
+# --------------------------------------------------------------------------------------------- #
+# 2026-07-18 validation-handshake regression lock (commit-starvation forensics): timeout_s must  #
+# clock ONLY the candidate's code — spawn + numpy import get environment grace; a starved spawn  #
+# environment raises a DISTINCT environment error, never a candidate rejection.                  #
+# --------------------------------------------------------------------------------------------- #
+def test_handshake_verdict_timeout_names_the_candidate(rng: np.random.Generator) -> None:
+    """A while-True reward is rejected with the CANDIDATE timeout message (phase 3), and the
+    rejection arrives promptly (the graces gate earlier phases, not the verdict clock)."""
+    import time
+
+    src = """
+def reward(weights, returns, prev_weights, port_ret, info):
+    while True:
+        pass
+"""
+    t0 = time.perf_counter()
+    with pytest.raises(SandboxError, match="exceeded the 1.0s validation timeout"):
+        validate_once(src, _fixture(rng), timeout_s=1.0)
+    # ready+armed are fast on a healthy box; the whole call must be far below the graces
+    assert time.perf_counter() - t0 < 30.0
+
+
+def test_handshake_startup_crash_is_reported_not_misdiagnosed() -> None:
+    """A startup failure inside the boot shim reaches the parent as a loud 'error' verdict
+    (exercised in-process: a garbage fixture blob cannot unpickle)."""
+    import queue as _queue
+
+    from src.sandbox._child_boot import boot_candidate_child
+
+    q: _queue.Queue = _queue.Queue()
+    boot_candidate_child("def reward():\n    pass\n", b"not-a-pickle", q)
+    status, message = q.get_nowait()  # phase 1
+    assert status == "ready"
+    status, message = q.get_nowait()  # early terminal
+    assert status == "error"
+    assert "crashed during startup" in message
+
+
+def test_handshake_boot_module_is_stdlib_only_at_import() -> None:
+    """The boot shim must import NOTHING heavy at module level — that is the whole point
+    (numpy loads only AFTER 'ready'); a numpy/torch/module-level regression re-opens the
+    startup-counted-against-the-candidate bug."""
+    import ast
+    from pathlib import Path
+
+    tree = ast.parse(Path("src/sandbox/_child_boot.py").read_text(encoding="utf-8"))
+    top_level_imports = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    names = {a.name for n in top_level_imports if isinstance(n, ast.Import) for a in n.names}
+    names |= {n.module for n in top_level_imports if isinstance(n, ast.ImportFrom)}
+    assert names <= {"__future__", "typing"}, f"heavy module-level import(s) crept in: {names}"
+
+
+def test_handshake_fixture_roundtrips_through_the_blob(rng: np.random.Generator) -> None:
+    """Arrays must arrive in the child bit-intact through the pickle-bytes handoff: the
+    validated reward's value on the fixture equals the in-process computation."""
+    fixture = _fixture(rng)
+    fn = validate_once(VALID_SRC, fixture, timeout_s=5.0)
+    reset_failure_flag()
+    total, _components, _state = safe_call(fn, *fixture)
+    assert np.isclose(total, float(np.sum(fixture[0] * fixture[1])))

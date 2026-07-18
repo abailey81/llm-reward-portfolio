@@ -192,3 +192,132 @@ def test_root_suffix_validation_and_h3_conflict(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="do not combine"):
         rcc.main(["--synthetic", "--h3-singleshot", "--root-suffix", "curve_c10",
                   "--output-dir", str(tmp_path)])
+
+
+# ---------------------------------------------------------------------------------------------
+# 2026-07-18 DEFAULTS-CLASS SWEEP regression lock (the launch-critical B*-resolution bug + its
+# class): argparse defaults must NEVER hardcode mirrors of frozen config values — None resolves
+# from the same keys the laptop main reads, asserted against the pre-registration where bound.
+# ---------------------------------------------------------------------------------------------
+
+def test_design_argparse_defaults_are_none_not_hardcoded_mirrors():
+    """The bug class itself: a hardcoded default (30/6/30/21/25k) is a mirror that drifts."""
+    args = rcc.build_parser().parse_args([])
+    for name in ("train_steps", "candidates", "generations", "n_trials", "embargo"):
+        assert getattr(args, name) is None, f"--{name} regressed to a hardcoded config mirror"
+
+
+def test_bstar_none_resolves_from_campaign_yaml_and_matches_prereg():
+    """THE launch-critical instance: train_steps=None must assemble at campaign.yaml's B*
+    (the R77 400k), not prototype.yaml's 25k."""
+    from src.utils.config import cfg_get, load_config
+
+    expected = int(cfg_get(load_config("campaign"), "train_steps_per_candidate", 0))
+    assert expected > 0
+    inp = rcc.assemble_cluster_inputs(
+        arms=["distributional"], seeds=[0], output_dir="outputs/_t",
+        synthetic=True, train_steps=None, n_trials=1, candidates=4, generations=2,
+        search_seed=0, embargo=21, pass_mode="A", provider="stub", llm_cfg=None, resume=False,
+    )
+    assert int(inp["agent_cfg"]["train_steps_per_candidate"]) == expected
+    assert int(inp["opts"]["train_steps"]) == expected
+    prereg = int(cfg_get(load_config("preregistration"), "train_steps_per_candidate", 0))
+    assert expected == prereg  # the mirror pair the assembly asserts
+
+
+def test_bstar_mirror_drift_refuses_assembly(monkeypatch):
+    """If campaign.yaml and preregistration.yaml disagree on B*, assembly must refuse loudly."""
+    import pytest
+
+    import src.utils.config as cfgmod
+
+    real = cfgmod.load_config
+
+    def drifted(name, *a, **k):
+        cfg = real(name, *a, **k)
+        if name == "preregistration":
+            cfg = dict(cfg)
+            cfg["train_steps_per_candidate"] = 12345  # deliberate drift
+        return cfg
+
+    monkeypatch.setattr(cfgmod, "load_config", drifted)
+    with pytest.raises(SystemExit, match="mirror drift"):
+        rcc.assemble_cluster_inputs(
+            arms=["distributional"], seeds=[0], output_dir="outputs/_t",
+            synthetic=True, train_steps=None, n_trials=1, candidates=4, generations=2,
+            search_seed=0, embargo=21, pass_mode="A", provider="stub", llm_cfg=None,
+            resume=False,
+        )
+
+
+def test_main_resolves_all_design_values_from_configs(monkeypatch):
+    """A flag-free launch (the supervisor line's shape) must resolve candidates/generations/
+    n_trials/embargo from campaign.yaml + inference.yaml, laptop-parity, and leave train_steps
+    None for the asserted in-assembly resolution."""
+    captured = {}
+    real = rcc.assemble_cluster_inputs
+
+    def spy(**kw):
+        captured.update(kw)
+        return real(**kw)
+
+    monkeypatch.setattr(rcc, "assemble_cluster_inputs", spy)
+    rc = rcc.main(["--dry-run", "--synthetic", "--arms", "distributional"])
+    assert rc == 0
+    from src.utils.config import cfg_get, load_config
+
+    camp = load_config("campaign")
+    assert captured["candidates"] == int(camp["candidates_per_arm"])
+    assert captured["generations"] == int(cfg_get(camp.get("llm") or {}, "generations", 1))
+    assert captured["n_trials"] == captured["candidates"]  # laptop parity (run_campaign.py:2138)
+    inf = load_config("inference")
+    assert captured["embargo"] == int(cfg_get(cfg_get(inf, "splits", {}),
+                                              "embargo_trading_days", 21))
+    assert captured["train_steps"] is None
+
+
+def test_candidates_mirror_drift_refuses_launch(monkeypatch):
+    """campaign.yaml candidates_per_arm vs preregistration.yaml matched_budget must agree."""
+    import pytest
+
+    import src.utils.config as cfgmod
+
+    real = cfgmod.load_config
+
+    def drifted(name, *a, **k):
+        cfg = real(name, *a, **k)
+        if name == "preregistration":
+            cfg = dict(cfg)
+            cfg["matched_budget"] = 99
+        return cfg
+
+    monkeypatch.setattr(cfgmod, "load_config", drifted)
+    with pytest.raises(SystemExit, match="mirror drift"):
+        rcc.main(["--dry-run", "--synthetic", "--arms", "distributional"])
+
+
+def test_real_spend_refuses_explicit_design_overrides():
+    """Pass-mode B without --allow-unfrozen must refuse ANY explicit design flag (the guard that
+    makes the resolved-and-asserted path the only real-spend path)."""
+    import pytest
+
+    with pytest.raises(SystemExit, match="explicit design override"):
+        rcc.main(["--dry-run", "--pass-mode", "B", "--candidates", "30",
+                  "--arms", "distributional"])
+
+
+def test_autosize_h_rt_sizes_on_the_resolved_bstar():
+    """Catch #2: the walltime autosizer read a NONEXISTENT campaign.agent key then a stale
+    hardcoded 200k — at B*=400k every pack-5 array task (~6:09 needed) would have been sized
+    ~4h and walltime-killed. Lock the formula to the resolved top-level B*."""
+    from src.utils.config import cfg_get, load_config
+
+    bstar = int(cfg_get(load_config("campaign"), "train_steps_per_candidate", 0))
+    # the campaign agent block must NOT grow a shadowing copy (the key the old code read)
+    assert "train_steps_per_candidate" not in (cfg_get(load_config("campaign"), "agent", {}) or {})
+    got = rcc.autosize_h_rt(5, bstar)
+    hours = int(got.split(":")[0])
+    # pack-5 at 400k on the worst-case curve needs ~6.2h -> 7; a 200k-sized 4h is the dead zone
+    need_secs = (bstar * 5 / (0.5 * 253.0) + 1200.0) * 1.3
+    assert hours * 3600 >= need_secs
+    assert got == f"{int(need_secs // 3600) + 1}:0:0"

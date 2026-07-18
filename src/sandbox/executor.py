@@ -275,6 +275,13 @@ _RLIMIT_CPU_SECONDS: int = 15  # CPU-seconds ceiling (wall-clock timeout is the 
 _RLIMIT_NOFILE: int = 64  # open file descriptors
 _RLIMIT_FSIZE_BYTES: int = 1 * 1024 * 1024  # ~1 MiB max written-file size
 
+# Environment grace for the validation child's NON-candidate phases (handshake, 2026-07-18):
+# spawn+interpreter start ("ready") and numpy/MKL import + fixture unpickle ("armed"). Sized
+# from forensics — a commit-starved box completed the numpy DLL load in ~103 s worst-case; the
+# grace must absorb a starved-but-recovering environment without hiding a truly wedged one.
+_STARTUP_GRACE_S: float = 45.0
+_IMPORT_GRACE_S: float = 120.0
+
 
 def _apply_resource_limits() -> None:  # pragma: no cover - called only from the spawned _candidate_child (POSIX rlimits); never in-process
     """Best-effort POSIX resource caps for the candidate child, applied before exec.
@@ -577,37 +584,69 @@ def validate_once(src: str, fixture: Any, timeout_s: float = 2.0) -> RewardFn:
     whole run). The orchestrator must run candidates in NON-daemon workers so the child
     can be spawned; if it cannot (e.g. inside a daemonic worker), validation falls back
     to inline crash/contract checks without a hard timeout.
+
+    Handshake (2026-07-18): the child boots via ``src/sandbox/_child_boot.py`` and
+    reports ``ready`` (spawned) then ``armed`` (imports + fixture done) before the
+    verdict, so ``timeout_s`` clocks ONLY the candidate's own code — spawn and
+    numpy/MKL import time (minutes on a commit-starved box or a contended node) get
+    separate environment grace (``_STARTUP_GRACE_S``/``_IMPORT_GRACE_S``) and their
+    exhaustion raises a DISTINCT environment error, never a candidate rejection.
     """
     src = extract_reward_source(src)  # salvage fenced / prose-wrapped LLM output (final-audit P0)
     if not ast_gate(src):
         raise SandboxError("ast_gate rejected the candidate source")
 
-    # Runtime validation in a killable child process (cross-platform timeout, C2/ADR-028).
+    # Runtime validation in a killable child process (cross-platform timeout, C2/ADR-028),
+    # via the three-phase handshake (ready -> armed -> verdict; src/sandbox/_child_boot.py).
+    # 2026-07-18 (commit-starvation forensics, pre-launch): ``timeout_s`` used to clock the
+    # child's WHOLE lifetime, so spawn + numpy DLL load counted against the candidate — on a
+    # commit-starved box or a contended cluster node startup alone exceeds 2 s and a GOOD
+    # reward was rejected (a paid candidate discarded at authoring, or a sealed-leg seed
+    # failed on re-instantiation). Phases 1-2 (spawn, imports, fixture unpickle) now get
+    # generous ENVIRONMENT grace; the strict ``timeout_s`` clocks ONLY the candidate's code.
     import multiprocessing as mp
+    import pickle
     import queue as _queue
+
+    from src.sandbox._child_boot import boot_candidate_child
 
     ctx = mp.get_context("spawn")  # Windows-safe; uniform across platforms
     q: Any = ctx.Queue()
-    proc = ctx.Process(target=_candidate_child, args=(src, fixture, q), daemon=True)
+    proc = ctx.Process(target=boot_candidate_child,
+                       args=(src, pickle.dumps(fixture), q), daemon=True)
     try:
         proc.start()
     except (AssertionError, OSError, RuntimeError):  # pragma: no cover - spawn-failure fallback (only inside a daemonic worker); the inline path is covered directly via _validate_inline tests
         # Cannot spawn here (e.g. inside a daemonic worker) -> inline fallback (no timeout).
         return _validate_inline(src, fixture)
 
-    timed_out = False
-    status, message = "error", ""
+    timed_out_phase: str | None = None
+    status, message = "error", "validation child ended without a verdict"
     try:
-        status, message = q.get(timeout=float(timeout_s))
-    except _queue.Empty:
-        timed_out = True
+        for phase, grace in (("ready", _STARTUP_GRACE_S), ("armed", _IMPORT_GRACE_S),
+                             ("verdict", float(timeout_s))):
+            try:
+                status, message = q.get(timeout=grace)
+            except _queue.Empty:
+                timed_out_phase = phase
+                break
+            if status in ("ok", "error"):  # terminal verdict (possibly early, e.g. startup crash)
+                break
     finally:
+        # Graceful first: a child that just delivered its verdict is exiting on its own —
+        # killing it mid-teardown is what the forensics flagged as needless violence.
+        proc.join(timeout=1.0)
         if proc.is_alive():
             proc.terminate()
-        proc.join(timeout=2.0)
+            proc.join(timeout=2.0)
 
-    if timed_out:
+    if timed_out_phase == "verdict":
         raise SandboxError(f"reward exceeded the {timeout_s}s validation timeout")
+    if timed_out_phase is not None:
+        raise SandboxError(
+            f"validation child did not reach phase {timed_out_phase!r} within its "
+            f"environment grace — the SPAWN ENVIRONMENT is starved (system commit "
+            f"charge / CPU contention), NOT a candidate defect; free resources and retry")
     if status == "error":
         raise SandboxError(str(message))
 

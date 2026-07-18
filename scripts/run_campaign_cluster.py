@@ -103,6 +103,23 @@ def assemble_cluster_inputs(
     train_window, val_window, test_window = resolve_windows(panel, lookback, splits, embargo=embargo)
 
     # Agent config (matched-compute B*): prototype base + campaign overlay (mirror 1522-1540).
+    # 2026-07-18 LAUNCH-CRITICAL FIX (caught by the pre-flight coherence assert, the day before
+    # launch): --train-steps None claimed "default: campaign.yaml" but _agent_cfg fell back to
+    # PROTOTYPE.yaml's 25,000 — the entire campaign would have trained at 1/16th the registered
+    # B*. Resolve None from campaign.yaml's top-level train_steps_per_candidate (the R77 value),
+    # and HARD-ASSERT the assembled budget equals the PRE-REGISTERED B* (config/preregistration
+    # .yaml) — the freeze guard checks config mirrors, not the runtime assembly; this closes the
+    # runtime side so the class can never recur.
+    if train_steps is None:
+        train_steps = int(cfg_get(load_config("campaign"), "train_steps_per_candidate", 0) or 0)
+        if not train_steps:
+            raise SystemExit("campaign.yaml train_steps_per_candidate missing — B* unresolved")
+        _prereg_bstar = int(cfg_get(load_config("preregistration"),
+                                    "train_steps_per_candidate", 0) or 0)
+        if _prereg_bstar and train_steps != _prereg_bstar:
+            raise SystemExit(
+                f"campaign.yaml B* ({train_steps}) != pre-registered B* ({_prereg_bstar}) — "
+                f"mirror drift; fix the configs (a dated amendment) before assembling")
     agent_cfg = _agent_cfg(load_config("prototype"), train_steps)
     for _k, _v in dict(cfg_get(load_config("campaign"), "agent", {}) or {}).items():
         agent_cfg[_k] = _v
@@ -213,11 +230,20 @@ def build_parser() -> argparse.ArgumentParser:
                    "and/or a-b ranges. Default = the full E1 ladder [0..567]. IGNORED under --tiered "
                    "(the config seed schema drives the tiers).")
     p.add_argument("--search-seed", type=int, default=0)
-    p.add_argument("--candidates", type=int, default=30)
-    p.add_argument("--generations", type=int, default=6)
+    # 2026-07-18 DEFAULTS-CLASS SWEEP (the B*-resolution bug generalized): every design value
+    # below used to carry a HARDCODED MIRROR of a frozen config value as its argparse default
+    # (30/6/30/21). Mirrors drift silently — the B* instance would have trained the whole
+    # campaign at prototype.yaml's 25k. All five now default to None and resolve in main()
+    # from the SAME config keys the laptop main reads (run_campaign.py:2134-2151).
+    p.add_argument("--candidates", type=int, default=None,
+                   help="Candidate budget per arm (default: campaign.yaml candidates_per_arm).")
+    p.add_argument("--generations", type=int, default=None,
+                   help="Reflection generations (default: campaign.yaml llm.generations).")
     p.add_argument("--train-steps", type=int, default=None, help="B* (default: campaign.yaml).")
-    p.add_argument("--n-trials", type=int, default=30)
-    p.add_argument("--embargo", type=int, default=21)
+    p.add_argument("--n-trials", type=int, default=None,
+                   help="DSR expected-max trial count (default: = candidates, laptop parity).")
+    p.add_argument("--embargo", type=int, default=None,
+                   help="Embargo trading days (default: inference.yaml splits.embargo_trading_days).")
     p.add_argument("--pass-mode", default="A")
     p.add_argument("--provider", default="stub")
     p.add_argument("--synthetic", action="store_true", help="Synthetic panel (dry-run / cert only).")
@@ -323,6 +349,17 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def autosize_h_rt(pack: int, train_steps: int) -> str:
+    """Walltime default for a pack-``pack`` task at ``train_steps``: the measured clean aggregate
+    curve at its WORST (x0.5 contention) + 1200 s overhead + 30% margin, rounded up to whole hours
+    (unit-testable — the 2026-07-18 defaults-class sweep found the inline version sized on a stale
+    hardcoded 200k)."""
+    _agg_clean = {1: 102.0, 2: 133.0, 3: 220.0, 4: 240.0, 5: 253.0, 8: 257.0}
+    agg = 0.5 * _agg_clean.get(int(pack), 253.0)
+    secs = (int(train_steps) * int(pack) / agg + 1200.0) * 1.3
+    return f"{int(secs // 3600) + 1}:0:0"
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # Load .env -> os.environ so the authoring key (ANTHROPIC_API_KEY / OPENROUTER_API_KEY) is available
@@ -334,6 +371,12 @@ def main(argv: list[str] | None = None) -> int:
 
     load_env()
     args = build_parser().parse_args(argv)
+
+    # Capture which design values the CALLER set explicitly, BEFORE any programmatic forcing
+    # (the H3 block below sets args.generations itself — that must not read as a caller override).
+    _explicit_design = {name: getattr(args, name) is not None
+                        for name in ("train_steps", "candidates", "generations",
+                                     "n_trials", "embargo")}
 
     # P19 (2026-07-13 pre-spend audit): the cluster entry point had NO freeze gate at all — the
     # laptop campaign REFUSES to launch on an unfrozen/drifted pre-registration (verify-or-refuse,
@@ -363,6 +406,45 @@ def main(argv: list[str] | None = None) -> int:
         args.generations = int(_h3cg(_load_config("campaign"), "h3_singleshot_generations", 1) or 1)
         _LOG.info("C5 H3 single-shot: arms forced to ['distributional'], generations=%d",
                   args.generations)
+
+    # 2026-07-18 (the B*-resolution catch, GENERALIZED to the class): on a REAL-SPEND run an
+    # EXPLICIT design-value flag overrides the pre-registered/frozen configuration — only
+    # rehearsals (--allow-unfrozen) may do that. Uses the pre-forcing capture so the H3 block's
+    # programmatic generations never trips it.
+    if args.pass_mode.upper() == "B" and not args.synthetic and not args.allow_unfrozen:
+        _overridden = [n for n, was_set in _explicit_design.items() if was_set]
+        if _overridden:
+            raise SystemExit(
+                f"explicit design override(s) {_overridden} on a real-spend run: the confirmatory "
+                f"campaign must NOT pass --train-steps/--candidates/--generations/--n-trials/"
+                f"--embargo (the frozen campaign.yaml/inference.yaml values are resolved and "
+                f"asserted); rehearsals pass --allow-unfrozen.")
+
+    # DEFAULTS-CLASS RESOLUTION (2026-07-18): fill every None design value from the SAME config
+    # keys the laptop main reads (run_campaign.py:2134-2151) — the freeze hash binds these files,
+    # so config-read IS the frozen truth; a hardcoded argparse mirror is drift waiting to fire.
+    from src.utils.config import cfg_get as _rescfg
+    _camp_cfg = _load_config("campaign")
+    if args.candidates is None:
+        args.candidates = int(_rescfg(_camp_cfg, "candidates_per_arm", 0) or 0)
+        if not args.candidates:
+            raise SystemExit("campaign.yaml candidates_per_arm missing — candidate budget unresolved")
+        _prereg_budget = int(_rescfg(_load_config("preregistration"), "matched_budget", 0) or 0)
+        if _prereg_budget and args.candidates != _prereg_budget:
+            raise SystemExit(
+                f"campaign.yaml candidates_per_arm ({args.candidates}) != pre-registered "
+                f"matched_budget ({_prereg_budget}) — mirror drift; fix the configs (a dated "
+                f"amendment) before launching")
+    if args.generations is None:
+        args.generations = int(_rescfg(_rescfg(_camp_cfg, "llm", {}) or {}, "generations", 1) or 1)
+    if args.n_trials is None:
+        args.n_trials = int(args.candidates)  # laptop parity: DSR expected-max = per-arm candidates
+    if args.embargo is None:
+        args.embargo = int(_rescfg(_rescfg(_load_config("inference"), "splits", {}) or {},
+                                   "embargo_trading_days", 21))
+    _LOG.info("design values RESOLVED: candidates=%d generations=%d n_trials=%d embargo=%d "
+              "train_steps=%s", args.candidates, args.generations, args.n_trials, args.embargo,
+              args.train_steps if args.train_steps is not None else "campaign.yaml (assembly)")
 
     # P17/A3-F12 (2026-07-13 audit): --hold-at-gate is meaningless without the review gate —
     # the hold would be SILENTLY ignored and C4 would launch unreviewed.
@@ -485,15 +567,20 @@ def main(argv: list[str] | None = None) -> int:
     #     (the p6ext800/1600 incident class). Size on the measured aggregate curve at its worst
     #     (x0.5 contention) + overhead + 30% margin.
     if args.h_rt is None:
-        _agg_clean = {1: 102.0, 2: 133.0, 3: 220.0, 4: 240.0, 5: 253.0, 8: 257.0}
-        agg = 0.5 * _agg_clean.get(int(args.pack), 253.0)
-        steps = int(args.train_steps or (_load_config("campaign").get("agent") or {})
-                    .get("train_steps_per_candidate") or 200000)
-        secs = (steps * int(args.pack) / agg + 1200.0) * 1.3
-        hours = int(secs // 3600) + 1
-        args.h_rt = f"{hours}:0:0"
-        _LOG.info("walltime DEFAULTED: h_rt=%s (steps=%d, pack=%d, worst-agg=%.0f steps/s); "
-                  "override with --h-rt", args.h_rt, steps, args.pack, agg)
+        # 2026-07-18 DEFAULTS-CLASS catch #2 (launch-critical): this read
+        # campaign.agent.train_steps_per_candidate — a key that DOES NOT EXIST (B* is top-level)
+        # — then fell to a stale hardcoded 200000. At B*=400k the auto-h_rt would have been sized
+        # for 200k (~4h vs the ~6:09 a pack-5 400k task needs) and EVERY chunked array task would
+        # have been walltime-killed after burning ~4 GPU-h. Read the SAME top-level key the
+        # assembly resolves, and fail loud rather than guess.
+        steps = int(args.train_steps
+                    or _cfg_get(_load_config("campaign"), "train_steps_per_candidate", 0) or 0)
+        if not steps:
+            raise SystemExit("h_rt autosize: B* unresolved (campaign.yaml "
+                             "train_steps_per_candidate missing) — refusing to guess a walltime")
+        args.h_rt = autosize_h_rt(int(args.pack), steps)
+        _LOG.info("walltime DEFAULTED: h_rt=%s (steps=%d, pack=%d); override with --h-rt",
+                  args.h_rt, steps, args.pack)
 
     remote_root = args.remote_root.rstrip("/")
     # local_archive_root == output_dir so the pulled mirror is output_dir/{search,test,frozen}/... —

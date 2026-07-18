@@ -50,6 +50,15 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 #    clear of it; if rungs run past Aug 10, treat Aug 11 as a planned at-risk day — running
 #    jobs may die and REQUEUE (idempotent; no data loss by design); the supervisor rides it.
 #    Scratch headroom verified 2026-07-18: 97 MB used / 1 TB filesystem.
+
+# 9. COMMIT-CHARGE headroom (2026-07-18 forensics; enforced by preflight.py check_commit_headroom,
+#    FAIL < 6 GB): exhausted system commit stalls every spawned validation child for minutes in the
+#    numpy DLL load (the ArmouryCrate.UserSessionHelper leak held 7.61 GB for 8 days; headroom hit
+#    0.37 GB). Preflight now gates this; if it FAILs: find the leaker
+#    (Get-Process | sort PrivateMemorySize64 -desc | select -First 8) — the known offenders are
+#    ArmouryCrate.UserSessionHelper (kill; Turbo re-applies at boot) and a bloated StateRepository
+#    svchost (admin restart — Tamer). Durable improvement (Tamer, admin, optional): set a FIXED
+#    16 GB pagefile on D: (C: free space caps commit growth).
 ```
 
 ## 2.0 THE GO SEQUENCE (executed by Claude on Tamer's OFFICIAL GO — in this exact order)

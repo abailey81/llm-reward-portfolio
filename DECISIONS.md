@@ -1145,3 +1145,25 @@ M2 candidate); **Gemini 3.1 Pro** (frontier tier Preview-only = unciteable endpo
 Grok 4.5 / Kimi K3 (too fresh; K3 weights unreleased). The secondary reproducibility anchor
 (Qwen3-Coder, open weights) is unchanged. This ADR supersedes the model-currency aspect of
 ADR-039; the panel/robustness design is unchanged.
+
+## ADR-057 — Validation handshake: timeout_s clocks ONLY candidate code (2026-07-18)
+
+**Decision.** `validate_once` spawns its killable child through a stdlib-only boot shim
+(`src/sandbox/_child_boot.py`) with a three-phase protocol — `ready` (child spawned, before any
+heavy import) → `armed` (numpy + executor imported, fixture unpickled from a bytes blob) →
+verdict — and applies the strict `timeout_s` (2.0 s) ONLY to the third phase, the candidate's
+own code. Phases 1–2 get environment graces (45 s / 120 s); their exhaustion raises a DISTINCT
+"spawn environment starved" `SandboxError`, never a candidate rejection. Success path joins
+gracefully before terminating.
+
+**Why.** Forensics (2026-07-18, 15 probes) proved the old single-clock design conflated
+environment latency with candidate behaviour: with system commit charge exhausted (an 8-day
+ArmouryCrate.UserSessionHelper leak held 7.61 GB; headroom fell to 0.37 GB), a child's numpy/MKL
+DLL load stalled ~103 s (py-spy-verified stack; reproduced with plain subprocess — not an mp,
+env, CWD, priority, or CPU effect) and perfectly good rewards were rejected as "exceeded the
+2.0s validation timeout". The same conflation would reject PAID candidates at authoring under
+laptop commit pressure and fail sealed-leg seeds on contended Myriad nodes (the p6ext800 ×0.5
+class). Result-neutral by design intent: validation is pass/fail on the candidate's semantics;
+excluding environment noise makes the gate MORE faithful to the pre-registered 2 s contract.
+Security unchanged: AST gate in-parent, killable child, hard user-code cap. Companion ops
+control: `preflight.py check_commit_headroom` (FAIL < 6 GB commit available).

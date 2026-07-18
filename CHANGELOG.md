@@ -3,6 +3,49 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-18c] — DEFAULTS-CLASS SWEEP (2 launch-critical catches) · COMMIT-STARVATION FORENSICS → validation handshake (ADR-057)
+
+**The hardcoded-defaults bug class (the B\* instance generalized, all pre-launch):**
+- **Catch #1 (launch-critical):** `run_campaign_cluster.py --train-steps None` fell back to
+  prototype.yaml's **25,000** instead of campaign.yaml's 400,000 — the whole campaign would have trained
+  at 1/16th the registered B\*. Runtime assembly now resolves None from `campaign.yaml
+  train_steps_per_candidate` AND hard-asserts it equals the pre-registered B\* (mirror-drift refusal).
+- **Catch #2 (launch-critical, NEW):** the auto-`h_rt` sizer read `campaign.agent.train_steps_per_candidate`
+  — a key that DOES NOT EXIST — then a stale hardcoded 200000: at 400k every pack-5 array task (~6:09
+  needed) would have been sized ~4h and **walltime-killed after burning ~4 GPU-h each**. Now reads the same
+  top-level key the assembly resolves; fails loud if missing; `autosize_h_rt()` unit-locked (7:0:0 at 400k).
+- The rest of the class closed the same way: `--candidates/--generations/--n-trials/--embargo` argparse
+  defaults (30/6/30/21 hardcoded mirrors) → None + resolution from campaign.yaml/inference.yaml with a
+  candidates-vs-`matched_budget` prereg assert; a real-spend guard refuses ANY explicit design override
+  without `--allow-unfrozen`; laptop-parity documented against run_campaign.py:2134-2151. 7 regression
+  tests; exact launch line + H3 dry-runs re-verified green (resolved: 30/6/30/21 + B\* in-assembly).
+
+**Commit-starvation forensics (15 probes; began as "5 cross-file test failures", ended launch-relevant):**
+- Symptom: `test_cluster_campaign.py` + `test_run_campaign.py` together → 5 failures ("reward exceeded the
+  2.0s validation timeout"); each file alone green. PRE-EXISTED this session's diff (stash-verified).
+- Root cause chain, each link verified empirically: validation children were **stalled loading the
+  numpy/MKL DLLs** (py-spy stack) because **system commit charge was exhausted** (2.15→0.37 GB across the
+  first half of the cluster file; py-spy itself died with "memory allocation failed") — the box's ceiling
+  was already low because **ArmouryCrate.UserSessionHelper.exe had leaked 7.61 GB of commit over 8 days**
+  (+ a wedged 3.3 GB stale background pytest), and the pagefile cannot grow far on the constrained C:.
+  A starved child completed numpy import in ~103 s — the 2.0 s `validate_once` timeout (which clocked
+  spawn+import+user-code TOGETHER) then false-failed perfectly good rewards. NOT mp-specific (plain
+  subprocess hung too), NOT env/CWD/priority/CPU (all counterfactualed; HIGH-priority child still hung).
+- **Why it mattered for the campaign:** the same conflation would (a) reject PAID candidates at authoring
+  on a commit-pressured laptop, (b) fail sealed-leg seeds on contended Myriad nodes (the p6ext800 ×0.5
+  class), where child startup alone can exceed 2 s.
+- **Fix (ADR-057): the three-phase validation handshake.** `src/sandbox/_child_boot.py` (stdlib-only;
+  AST-locked by test) boots the child: `ready` (pre-import) → `armed` (numpy+fixture done; fixture ships
+  as pickle BYTES so unpickling can't front-load numpy into bootstrap) → verdict. `timeout_s` (2.0 s)
+  now clocks ONLY the candidate's code; startup/import get environment graces (45 s/120 s) whose
+  exhaustion raises a DISTINCT "spawn environment starved" error — never a candidate rejection. Graceful
+  join-before-terminate on the success path. Security unchanged (AST gate, killable child, user-code cap).
+  4 regression tests; the formerly-failing pair now 96/96 green.
+- **Ops closures:** ArmouryCrate leaker + stale pytest killed (commit 0.37→9.82 GB; standing
+  resource-management grant); `preflight.py` gained `check_commit_headroom` (FAIL < 6 GB, live-verified);
+  the 4.5 GB StateRepository svchost is flagged for Tamer (admin-only). Campaign authoring pattern itself
+  verified clean (validate_once ×100 sequential: no degradation).
+
 ## [2026-07-13b] — B\* reopened + curve recovery · launch config finalized · dim-4 integration · ALL non-write-up gaps closed · max-throughput levers · walltime-floor revision
 
 **The B\* thread (Tamer's correction: "nothing is closed"):**

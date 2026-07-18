@@ -53,6 +53,22 @@ def check_ram(total_gb: float, avail_gb: float, n_gpu: int) -> Check:
     return Check("ram", PASS, f"{avail_gb:.1f} GB available, n_gpu={n_gpu} needs ~{need:.1f} GB")
 
 
+def check_commit_headroom(avail_gb: float | None, min_gb: float = 6.0) -> Check:
+    """Windows COMMIT-CHARGE headroom (2026-07-18 forensics): with system commit exhausted
+    (the 8-day ArmouryCrate.UserSessionHelper leak held 7.6 GB; avail fell to 0.37 GB), every
+    spawned process stalls for MINUTES loading the numpy/MKL DLLs while Windows grows the
+    pagefile — validation children then miss even generous graces and the driver wedges.
+    RAM-available does NOT catch this (commit is RAM+pagefile, capped by C: free space)."""
+    if avail_gb is None:
+        return Check("commit", WARN, "commit-charge telemetry unavailable (non-Windows?)")
+    if avail_gb < min_gb:
+        return Check("commit", FAIL,
+                     f"only {avail_gb:.1f} GB system commit available (< {min_gb:.0f}); child "
+                     f"spawns will stall — find the leaker (Get-Process | sort PrivateMemorySize64;"
+                     f" the known one is ArmouryCrate.UserSessionHelper) and/or grow the pagefile")
+    return Check("commit", PASS, f"{avail_gb:.1f} GB system commit available (>= {min_gb:.0f})")
+
+
 def check_vram(free_mb: float | None, n_gpu: int) -> Check:
     if free_mb is None:
         return Check("vram", WARN, "no CUDA / NVML telemetry — cannot verify VRAM headroom (CPU run?)")
@@ -415,6 +431,29 @@ def _ram_gb() -> tuple[float, float]:
     return vm.total / 2**30, vm.available / 2**30
 
 
+def _commit_avail_gb() -> float | None:
+    """Available Windows commit charge (RAM + pagefile headroom) in GB; None off-Windows."""
+    try:
+        import ctypes
+
+        class _MSX(ctypes.Structure):
+            _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                        ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                        ("ullTotalPageFile", ctypes.c_ulonglong),
+                        ("ullAvailPageFile", ctypes.c_ulonglong),
+                        ("ullTotalVirtual", ctypes.c_ulonglong),
+                        ("ullAvailVirtual", ctypes.c_ulonglong),
+                        ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+
+        m = _MSX()
+        m.dwLength = ctypes.sizeof(m)
+        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
+            return None
+        return m.ullAvailPageFile / 2**30
+    except (AttributeError, OSError):
+        return None
+
+
 def _free_vram_mb() -> float | None:
     try:
         import torch
@@ -460,6 +499,7 @@ def _gather_and_check(n_gpu: int, min_disk_gb: float, *, provider: str, api_prob
         checks.append(check_ram(total, avail, n_gpu))
     except Exception as exc:  # noqa: BLE001
         checks.append(Check("ram", WARN, f"ram probe failed (psutil?): {exc}"))
+    checks.append(check_commit_headroom(_commit_avail_gb()))
     checks.append(check_vram(_free_vram_mb(), n_gpu))
 
     # retry layer (C1): tenacity must be importable or every API call is single-attempt.
