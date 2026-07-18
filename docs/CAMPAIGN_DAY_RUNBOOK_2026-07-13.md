@@ -52,6 +52,24 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 #    Scratch headroom verified 2026-07-18: 97 MB used / 1 TB filesystem.
 ```
 
+## 2.0 THE GO SEQUENCE (executed by Claude on Tamer's OFFICIAL GO — in this exact order)
+
+```bash
+# 1. FREEZE (stamps the recorded hash = canonical ce5db62c) + verify:
+python scripts/freeze.py            # the one irreversible act
+python scripts/freeze.py --check    # recorded == canonical, frozen: true
+# 2. Provenance anchors:
+git tag prereg-freeze-ce5db62c && python scripts/make_prereg_bundle.py  # bundle sha -> CHANGELOG
+# 3. Sync freshness (marker included; a no-op if HEAD unchanged since the last sync):
+git archive HEAD | ssh myriad "tar -x -C ~/llmrp" && git rev-parse HEAD | ssh myriad "cat > ~/llmrp/GIT_COMMIT"
+# 4. LAUNCH (two commands, then hands off):
+powershell -ExecutionPolicy Bypass -File scripts\campaign_supervisor.ps1   # (PowerShell window)
+bash scripts/campaign_monitor.sh &                                          # (Git Bash window)
+```
+
+The C0 canary fires first and HARD-STOPS everything before any Opus spend if the path is
+unsound. First records expected within hours; the C measurement reads at +24 h / +48 h.
+
 ## 2. THE LAUNCH (tiered ladder: C0 canary → C1–C3 core → gate → C4 rungs)
 
 > **LAUNCH VIA THE SUPERVISOR (2026-07-18, the VPN-outage hardening).** The 07-17 outage
