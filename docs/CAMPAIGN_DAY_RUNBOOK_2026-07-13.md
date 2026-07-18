@@ -150,6 +150,11 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py \
 #     the campaign roots; run as a background loop, ~300 s cadence):
 #     watches: qstat state-class diffs for c1_*/h3ss_* names, records under
 #     outputs/campaign_cluster/{search,test}, Eqw appearance, driver_status staleness >15 min.
+#     PUSH ALERTING (2026-07-18): export NTFY_URL=https://ntfy.sh/<private-topic> before
+#     starting it and every state-change line is pushed to the phone (Priority: high on Eqw or
+#     a stale heartbeat — the two states that need a human). Pick the topic at launch; treat it
+#     as a secret (anyone with the topic name can read it).
+NTFY_URL=https://ntfy.sh/<private-topic> bash scripts/campaign_monitor.sh &
 ssh myriad qstat   # manual spot-check form
 # (b) Driver heartbeats (staleness = driver problem, not cluster):
 ls outputs/campaign_cluster/driver_status/   # per-batch JSON, ts field
@@ -157,6 +162,13 @@ ls outputs/campaign_cluster/driver_status/   # per-batch JSON, ts field
 ssh myriad "qstat -s r | grep ' r ' | wc -l"   # concurrent running tasks ≈ C
 # (d) Authoring spend: count llm_calls.jsonl rows vs the auto-cap (2×arms×candidates+60):
 find outputs/campaign_cluster/search -name llm_calls.jsonl -exec wc -l {} +
+
+# (e) THE SENTINEL (2026-07-18 readiness pass: it was built+certified 07-06 but never armed in
+#     this runbook). 17 read-only invariant checks incl. the MYRIAD DRIVER LEASE deadman (stale
+#     driver heartbeat → WARN at ~40 min, CRITICAL at ~90 min — visible within minutes, not at
+#     the end), divergence clustering, disk fill-rate forecast, error taxonomy. Verified against
+#     the cluster mirror pre-launch (2026-07-18: runs clean).
+.venv/Scripts/python.exe scripts/sentinel.py --watch outputs/campaign_cluster &
 ```
 
 Decision aids: C≥12 → n=403 in ~7–9 days (on plan). C∈[4,8) → still fine via rung banking.
