@@ -39,6 +39,17 @@ ssh myriad "ls ~/Scratch/llmrp /acfs/users/ucestes/gold 2>/dev/null | head; qsta
 
 # 6. Laptop driver host: disable sleep (the driver runs for days), check disk:
 powercfg /change standby-timeout-ac 0   # (admin shell)
+
+# 7. PAUSE WINDOWS UPDATE for the campaign window (2026-07-18 threat audit: an auto-update
+#    reboot kills the supervisor+driver silently — resume is one command but unattended hours
+#    are lost). Settings -> Windows Update -> Pause for 2 weeks (Tamer's click; admin).
+#    On any reboot: just re-run the supervisor (idempotent).
+
+# 8. Cluster calendar (2026-07-18 audit): Myriad's maintenance day = the SECOND TUESDAY of
+#    every month (at-risk from 08:00; next: Aug 11). The Jul-19 launch finishes n=403 ~Aug 1,
+#    clear of it; if rungs run past Aug 10, treat Aug 11 as a planned at-risk day — running
+#    jobs may die and REQUEUE (idempotent; no data loss by design); the supervisor rides it.
+#    Scratch headroom verified 2026-07-18: 97 MB used / 1 TB filesystem.
 ```
 
 ## 2. THE LAUNCH (tiered ladder: C0 canary → C1–C3 core → gate → C4 rungs)
@@ -108,8 +119,10 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py \
 ## 5. Monitoring (arm all three at launch)
 
 ```bash
-# (a) Fleet monitor — state-class qstat diff + record counts + Eqw (the proven v3 pattern):
-#     run as a background loop; alert classes: Eqw (P1 handles, watch anyway), record stalls.
+# (a) THE CAMPAIGN MONITOR (start at launch — the proven v3 state-class pattern, pointed at
+#     the campaign roots; run as a background loop, ~300 s cadence):
+#     watches: qstat state-class diffs for c1_*/h3ss_* names, records under
+#     outputs/campaign_cluster/{search,test}, Eqw appearance, driver_status staleness >15 min.
 ssh myriad qstat   # manual spot-check form
 # (b) Driver heartbeats (staleness = driver problem, not cluster):
 ls outputs/campaign_cluster/driver_status/   # per-batch JSON, ts field
