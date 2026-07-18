@@ -7,17 +7,20 @@ The notebook is a GENERATED artifact (deterministic, clean, byte-stable — see
 
 Section map (what the notebook demonstrates, in order):
   0  setup                       repo-root resolution, house style, analysis-only stack
-  1  provenance & freeze state   live gold suffix + prereg freeze flags (pre-freeze: frozen=false)
+  1  provenance & freeze state   live gold suffix + prereg freeze flags + the B* (R77) pin
   2  the data (Split C / univ5)  REAL panel header facts + two point-in-time top-30 books + design
   3  EDA (F3)                    stylised facts recomputed LIVE on the real train window
   4  the fed channel             the real four-level CVaR profile + the numeracy bottleneck
-  5  analysis bundle             synthetic-NULL demo data (swap for the sealed-leg loader post-run)
-  6  headline H2                 TOST/IUT equivalence-first readout + the three headline figures
-  7  reward-program taxonomy     REAL prototype-archive kinds table (discriminative validity)
-  8  mechanism kernel            SQ1/SQ2/SQ3 instruments on seeded synthetic nulls + figures
-  9  robustness                  what the confirmatory run adds
-  10 honest limitations
-  11 figure manifest             regeneration commands + entry points
+  5  the budget (REAL, R77)      the measured 30-point curve + the pre-committed rule verdict + F11
+  6  analysis bundle             synthetic-NULL demo data (swap for the sealed-leg loader post-run)
+  7  headline H2                 TOST/IUT equivalence-first readout + the three headline figures
+  8  reward-program taxonomy     REAL prototype-archive kinds table (discriminative validity)
+  9  mechanism kernel            SQ1/SQ2/SQ3 on seeded synthetic nulls + the REAL-archive
+                                 fingerprint rows (239 records, honest at-depth verdicts) + figures
+  10 robustness                  what the confirmatory run adds
+  11 honest limitations          incl. the R77 sigma_D-grows-with-budget disclosure
+  12 figure manifest             regeneration commands + entry points
+  13 real-vs-synthetic ledger    the machine-checked honesty table + session info
 
 Real-data cells only READ frozen artifacts (parquet/JSON); nothing is trained, pulled, or written.
 Deterministic: double-build byte-identity is asserted at the end of ``main``.
@@ -56,9 +59,36 @@ def cells() -> list[dict]:
         "> **Status.** The confirmatory campaign is unrun, so every *inferential* number below is "
         "rendered on a **synthetic NULL-shaped demo** (`make_figures.synthesize_null`) that "
         "exercises the real analysis engine. *No inferential number here is a result.* The data, "
-        "EDA, and taxonomy sections **are real** (frozen gold panel + the prototype reward "
-        "archive). Post-campaign, replace the one `synthesize_null(...)` call with the sealed-leg "
-        "loader and every cell re-runs **identically** — the notebook is the analysis contract."
+        "EDA, budget-curve, taxonomy, and mechanism-kernel sections **are real** (frozen gold "
+        "panel + the measured learning-curve artifacts + the prototype reward archive), and §13 "
+        "closes with a machine-checked ledger of exactly which was which. Post-campaign, replace "
+        "the one `synthesize_null(...)` call with the sealed-leg loader and every cell re-runs "
+        "**identically** — the notebook is the analysis contract."
+    ))
+
+    # ------------------------------------------------------------------ at a glance + contents
+    out.append(md(
+        "**At a glance**\n"
+        "\n"
+        "| | |\n"
+        "|---|---|\n"
+        "| **Question** | does multi-level *tail* feedback beat a *scalar* when an LLM authors reward code? |\n"
+        "| **Design** | 7 pre-registered arms, one varying ingredient (the feedback string) |\n"
+        "| **Agent / panel** | fixed SB3 SAC · survivorship-free PIT S&P 500 top-30 (`univ5`, Split C) |\n"
+        "| **Budget** | B\\* = **400,000** steps/candidate — set by a pre-committed, data-blind rule on a measured 30-point curve (§5; R77) |\n"
+        "| **Headline** | H2 co-primary TOST equivalence (Sharpe **and** CVaR-5%), SESOI 0.05, IUT conjunction |\n"
+        "| **Prediction** | a **bounded null**, read as a mechanism boundary condition (§9) |\n"
+        "| **Status** | pre-campaign: §§1–5, 8 and the §9 kernel exhibit are **real**; §§6–7 inferential cells are a labeled **synthetic demo** (§13 = the machine-checked ledger) |\n"
+        "\n"
+        "**Contents**\n"
+        "\n"
+        "> **0** Setup · **1** Provenance & freeze state · **2** The data & the design · "
+        "**3** EDA — the stylised facts (real) · **4** What the channel carries · "
+        "**5** How the training budget was set (real) · **6** The analysis bundle (demo) · "
+        "**7** Headline H2 equivalence (demo) · **8** The reward-program taxonomy (real) · "
+        "**9** Mechanism — the 3-link causal chain (+ the real-archive kernel) · "
+        "**10** Robustness · **11** Honest limitations · **12** Figure manifest · "
+        "**13** The real-vs-synthetic ledger"
     ))
 
     # ------------------------------------------------------------------ reproducibility contract
@@ -78,7 +108,13 @@ def cells() -> list[dict]:
         "identity); §1 prints the live freeze state, and the companion "
         "`data_provenance_walkthrough.ipynb` re-verifies the data artifacts hash-by-hash.\n"
         "- **Honest nulls.** Equivalence is read off **TOST vs the ±SESOI band** and **Bayes "
-        "factors / a Model Confidence Set** — never off a bare *p* > 0.05."
+        "factors / a Model Confidence Set** — never off a bare *p* > 0.05.\n"
+        "- **Visual grammar.** Every figure uses the Okabe–Ito colourblind-safe palette with a "
+        "**fixed** per-arm (colour, marker, hatch) triple (`src/viz/style.py`) — identity is never "
+        "colour-alone, controls carry a hatch, and every distinction survives greyscale print. "
+        "The 7-arm ordering was re-validated 2026-07-18 (CVD-separation checks; the one "
+        "sub-threshold adjacency — the two *controls* — is exactly the pair that carries "
+        "redundant hatch + marker encoding by design)."
     ))
 
     # ------------------------------------------------------------------ 0 setup
@@ -135,11 +171,14 @@ def cells() -> list[dict]:
         ".read_text(encoding='utf-8'))\n"
         "arms = list(prereg['arms'])\n"
         "assert len(arms) == 7, f'expected the 7-arm frozen roster, found {len(arms)}'\n"
+        "bstar = int(prereg['train_steps_per_candidate'])\n"
+        "assert bstar == 400_000, f'pre-registered B* drifted: {bstar} (expected 400,000; R77)'\n"
         "prov = {\n"
         "    'gold suffix (hash-bound)': suffix,\n"
         "    'frozen': prereg.get('frozen'),\n"
         "    'freeze_hash': prereg.get('freeze_hash'),\n"
         "    'arms (n=7)': ', '.join(arms),\n"
+        "    'B* steps/candidate (R77)': f'{bstar:,}',\n"
         "}\n"
         "for k, v in prov.items():\n"
         "    print(f'{k:>25} : {v}')"
@@ -205,7 +244,9 @@ def cells() -> list[dict]:
         "### The design in one box\n"
         "\n"
         "**Seven arms, one varying ingredient.** Every arm shares the identical environment, "
-        "agent (SAC), search protocol, and budget; *only the feedback string shown to the "
+        "agent (SAC), search protocol, and budget — **B\\* = 400,000 training steps per "
+        "candidate**, set by a pre-committed data-blind rule on a measured learning curve "
+        "(§5; amendment R77) and matched across arms; *only the feedback string shown to the "
         "reward-designing LLM differs* (the identification principle: nothing else may vary).\n"
         "\n"
         "| arm | designer | feedback |\n"
@@ -345,7 +386,7 @@ def cells() -> list[dict]:
         "typically differ in the **fourth decimal place** — squarely inside that failure regime. "
         "The channel can be *open* (the information is there) yet *silent* (the reader cannot act "
         "on it): a concrete, citable, falsifiable reason the effect should be ≈0 that is about "
-        "**legibility, not capacity** — and §8's SQ3b instrument tests exactly that."
+        "**legibility, not capacity** — and §9's SQ3b instrument tests exactly that."
     ))
     out.append(code(
         "# The REAL fed-style tail profile of this panel's EW portfolio (train window, daily):\n"
@@ -359,12 +400,100 @@ def cells() -> list[dict]:
         "gap = abs(profile['cvar_05']) * 0.01\n"
         "print(f'\\nnumeracy regime: telling {profile[\"cvar_05\"]:+.4f} from a sibling '\n"
         "      f'{profile[\"cvar_05\"] - gap:+.4f} is a ~{gap:.1e} gap between close small\\n'\n"
-        "      'negatives -- the documented ~50-70% LLM comparison-failure regime (SQ3b, sec. 8).')"
+        "      'negatives -- the documented ~50-70% LLM comparison-failure regime (SQ3b, sec. 9).')"
     ))
 
-    # ------------------------------------------------------------------ 5 bundle
+    # ------------------------------------------------------------------ 5 the budget (REAL)
     out.append(md(
-        "## 5 · Load the analysis bundle (synthetic NULL demo)\n"
+        "## 5 · How the training budget was set — a measured curve and a pre-committed rule "
+        "(real)\n"
+        "\n"
+        "**Compute transparency is a design claim.** The matched budget B\\* is the one shared "
+        "dial every arm trains at, so *how it was chosen* belongs in the record — not a habit, "
+        "not a hunch, but a measurement plus a rule committed **before** the deciding data "
+        "landed.\n"
+        "\n"
+        "**Two stages.**\n"
+        "1. A learning-curve pilot (R74) measured budgets **25k–350k** on the authored prototype "
+        "winners; the pre-registered knee detector never fired inside that range, and 200k was "
+        "adopted with the explicit disclosure that *budgets beyond 350k were not measured*.\n"
+        "2. That blind spot was then **closed by measurement**: an extended same-protocol curve — "
+        "**5 budgets (100k → 1.6M, a 16× range) × 3 CRN-paired seeds × both authored winners = "
+        "30 points**, every training run on the same cluster substrate with the campaign's exact "
+        "agent config. Before the deciding rungs landed, the decision rule was **pre-committed**: "
+        "*if the CRN-paired ascent over 200k clears 2× its seed-SE at any higher rung, a B\\* "
+        "amendment goes forward.* The rule **fired** (both winners), the knee sits at **400k**, "
+        "and amendment **R77** raised B\\* to the knee — the choice below is the rule's output, "
+        "not a preference.\n"
+        "\n"
+        "The cells below re-derive the verdict from the frozen per-seed artifacts "
+        "(`scripts/apply_bstar_rule.py` is the same code that produced the shipped verdict "
+        "`outputs/tables/bstar_rule_verdict.json`), then render the mandatory R77 exhibit (F11). "
+        "Wall-clock context (epilogue ledgers, 2026-07-13→18): one 400k candidate ≈ **65 min** "
+        "solo on a V100; the campaign packs 5 per GPU ≈ **2.05 trainings/GPU-h**."
+    ))
+    out.append(code(
+        "import json\n"
+        "from apply_bstar_rule import load_grid\n"
+        "\n"
+        "grid = load_grid()   # {winner: {budget: {seed: val_DSR}}} from the frozen curve JSONs\n"
+        "n_points = sum(len(s) for b in grid.values() for s in b.values())\n"
+        "assert sorted(grid) == ['p6dist', 'p6scal'] and n_points == 30, \\\n"
+        "    f'expected the full 30-point curve, found {n_points}'\n"
+        "assert all(sorted(by_b) == [100_000, 200_000, 400_000, 800_000, 1_600_000]\n"
+        "           and all(len(s) == 3 for s in by_b.values())\n"
+        "           for by_b in grid.values()), 'curve grid shape drifted'\n"
+        "\n"
+        "verdict = json.loads((ROOT / 'outputs' / 'tables' / 'bstar_rule_verdict.json')\n"
+        "                     .read_text(encoding='utf-8'))\n"
+        "print('pre-committed rule :', verdict['rule'])\n"
+        "print('verdict            :', verdict['verdict'])\n"
+        "\n"
+        "rows = []\n"
+        "for winner, by_b in verdict['winners'].items():\n"
+        "    for b, r in sorted(by_b.items(), key=lambda kv: int(kv[0])):\n"
+        "        rows.append({'winner': winner, 'budget': f'{int(b)//1000}k',\n"
+        "                     'paired mean Δ vs 200k': round(r['mean'], 4),\n"
+        "                     'seed SE': round(r['se'], 4),\n"
+        "                     'mean / SE': round(r['ratio_mean_over_se'], 2),\n"
+        "                     'fires (>2×SE)': r['fires']})\n"
+        "firing = pd.DataFrame(rows).set_index(['winner', 'budget'])\n"
+        "\n"
+        "# Pin the facts the prose claims: the rule fires at 400k for BOTH winners, and the\n"
+        "# distributional increments BEYOND the 400k knee collapse by an order of magnitude.\n"
+        "d = verdict['winners']['p6dist']\n"
+        "assert d['400000']['fires'] and d['400000']['ratio_mean_over_se'] > 2.9\n"
+        "assert verdict['winners']['p6scal']['400000']['fires']\n"
+        "assert (d['800000']['mean'] - d['400000']['mean']) < 0.02, 'the knee claim'\n"
+        "assert (d['1600000']['mean'] - d['400000']['mean']) < 0.03, 'the knee claim'\n"
+        "firing"
+    ))
+    out.append(code(
+        "from src.viz import figures as F\n"
+        "\n"
+        "fig = F.budget_curve_exhibit(grid, b_star=400_000)  # F11 — the R77 mandatory exhibit\n"
+        "fig"
+    ))
+    out.append(md(
+        "### Reading the curve\n"
+        "\n"
+        "- **The knee is visual, not statistical sleight.** Both winners rise decisively to "
+        "**400k** and flatten beyond it: the distributional winner's paired gain over 200k is "
+        "**+0.145** at 400k but only **+0.016–0.017 more** at 800k/1.6M — ~90% of the attainable "
+        "gain at 2× compute rather than 4–8×.\n"
+        "- **The thin lines are the honest part.** Per-seed trajectories fan out as budget grows "
+        "— seed dispersion *increases* with B\\* (disclosed in R77 as a power caveat; the "
+        "in-campaign rung-100 σ_D re-estimate is the designed-in answer, and the seed ladder "
+        "extends to n=568 if needed).\n"
+        "- **Channel-dependent budget response.** The distributional winner gains far more from "
+        "budget than the scalar winner at every rung — itself mechanism-relevant, and the "
+        "reason the campaign re-renders this exhibit as a dose-response tier "
+        "({200k, 400k, 800k} × 10 seeds × both winners) after the headline banks."
+    ))
+
+    # ------------------------------------------------------------------ 6 bundle
+    out.append(md(
+        "## 6 · Load the analysis bundle (synthetic NULL demo)\n"
         "\n"
         "One call produces a NULL-shaped bundle with the exact schema the sealed-leg loader will "
         "emit — arms, per-seed scores by leg, contrasts, Bayes factors, MCS, and the mechanism "
@@ -381,9 +510,9 @@ def cells() -> list[dict]:
         "(for the AST mechanism)')"
     ))
 
-    # ------------------------------------------------------------------ 6 headline H2
+    # ------------------------------------------------------------------ 7 headline H2
     out.append(md(
-        "## 6 · Headline H2 — co-primary equivalence (risk-adjusted **and** tail)\n"
+        "## 7 · Headline H2 — co-primary equivalence (risk-adjusted **and** tail)\n"
         "\n"
         "**Equivalence-first, by construction.** A bare $p>0.05$ says *\"we saw nothing\"*; a "
         "**TOST equivalence** says *\"the effect is provably inside ±SESOI\"* — a positive, "
@@ -421,9 +550,9 @@ def cells() -> list[dict]:
         "fig"
     ))
 
-    # ------------------------------------------------------------------ 7 taxonomy
+    # ------------------------------------------------------------------ 8 taxonomy
     out.append(md(
-        "## 7 · The reward-program taxonomy — what did the designers actually *write*? (real)\n"
+        "## 8 · The reward-program taxonomy — what did the designers actually *write*? (real)\n"
         "\n"
         "**The instrument.** Every authored program is reduced to its canonical **AST shape-set** "
         "(node *types* only — identifiers, constants and comments are invisible, so renaming a "
@@ -500,9 +629,9 @@ def cells() -> list[dict]:
         "(30 candidates/arm) via `scripts/build_taxonomy.py`."
     ))
 
-    # ------------------------------------------------------------------ 8 mechanism kernel
+    # ------------------------------------------------------------------ 9 mechanism kernel
     out.append(md(
-        "## 8 · Mechanism — the originality kernel (a 3-link causal chain)\n"
+        "## 9 · Mechanism — the originality kernel (a 3-link causal chain)\n"
         "\n"
         "The deep contribution is *where* the channel acts — or fails to. The chain\n"
         "\n"
@@ -520,7 +649,7 @@ def cells() -> list[dict]:
         "\n"
         "**Why a null is informative here.** If SQ1 is null (path $a \\approx 0$), the indirect "
         "effect $a\\times b$ collapses **for any** downstream strength $b$ — the chain is severed "
-        "at the *first* hop, and the performance equivalence of §6 is *explained* (the designer "
+        "at the *first* hop, and the performance equivalence of §7 is *explained* (the designer "
         "never routed the signal into code), not merely observed. The cells below run each "
         "instrument on **seeded synthetic nulls** so the logic is visible; post-campaign the same "
         "calls run on the archive."
@@ -583,6 +712,64 @@ def cells() -> list[dict]:
         "      % (diff['coef_legible'], diff['coef_raw'], diff['differential'],\n"
         "         diff['ci_low'], diff['ci_high'], diff['legibility_helps']))"
     ))
+    out.append(md(
+        "### The kernel on the **real** archive — proven end-to-end at prototype depth "
+        "(report-only)\n"
+        "\n"
+        "The synthetic cells above show the *logic*; this cell runs the **registered SQ1 "
+        "machinery on real data** — the 239-record deep prototype archive — via the same "
+        "`fingerprint_responsiveness_rows` the campaign analysis calls (§2a(f) of the mechanism "
+        "protocol: per-arm rows, the scalar arm's own-scalar row as the A4-prior-dominance "
+        "discriminator, `placebo_shuffled` as the calibration floor).\n"
+        "\n"
+        "**How to read what comes out.** At prototype depth each arm yields only ~6 "
+        "consecutive-generation deltas, so every bootstrap CI is wide and every row honestly "
+        "reads *non-responsive* — **that is the correct output at this depth, not a defect**: "
+        "the exhibit proves the instrument runs end-to-end on real archived records and reports "
+        "honestly when the data cannot decide. The campaign's 30-candidate × 6-generation arms "
+        "across the seed ladder are what give SQ1 its registered power. No number below enters "
+        "the dissertation (prototype data never does)."
+    ))
+    out.append(code(
+        "import analyze_campaign as AC\n"
+        "from src.io.results import load_all\n"
+        "\n"
+        "proto_root = ROOT / 'outputs' / 'prototype'\n"
+        "records = []\n"
+        "for arm_dir in sorted(p for p in proto_root.iterdir() if p.is_dir()\n"
+        "                      and p.name not in ('tables',)):\n"
+        "    records += load_all(arm_dir)\n"
+        "assert len(records) == 239, f'deep-archive record count drifted: {len(records)}'\n"
+        "\n"
+        "fp = AC.fingerprint_responsiveness_rows(records)\n"
+        "assert fp['status'] == 'ok'\n"
+        "rows = []\n"
+        "for arm, r in fp['rows'].items():\n"
+        "    if r.get('status') == 'ok':\n"
+        "        rows.append({'arm': arm, 'fed X': r['x_kind'], 'Δ pairs': r['n_deltas'],\n"
+        "                     'levels': r['n_levels'], 'coef': round(r['coef'], 3),\n"
+        "                     'CI low': round(r['ci_low'], 3), 'CI high': round(r['ci_high'], 3),\n"
+        "                     'responsive': r['responsive']})\n"
+        "    else:\n"
+        "        rows.append({'arm': arm, 'fed X': r.get('x_kind', ''), 'Δ pairs': r['n_deltas'],\n"
+        "                     'levels': r['n_levels'], 'coef': None, 'CI low': None,\n"
+        "                     'CI high': None, 'responsive': f\"{r['status']}\"})\n"
+        "kernel = pd.DataFrame(rows).set_index('arm')\n"
+        "\n"
+        "# Pin the honest shape of the prototype-depth result (drift = archive or code change):\n"
+        "ok_rows = {a for a, r in fp['rows'].items() if r.get('status') == 'ok'}\n"
+        "assert ok_rows == {'distributional', 'scalar_cvar5', 'scalar'}, ok_rows\n"
+        "assert all(fp['rows'][a]['n_deltas'] == 6 for a in ok_rows)\n"
+        "assert not any(fp['rows'][a].get('responsive') for a in ok_rows), \\\n"
+        "    'prototype depth cannot support a responsive verdict; a flip here means drift'\n"
+        "assert fp['rows']['placebo_shuffled']['status'] == 'no_data', \\\n"
+        "    'the calibration floor should honestly report insufficient depth here'\n"
+        "print(f'{len(records)} real records -> per-arm SQ1 fingerprint rows '\n"
+        "      f'({len(ok_rows)} computable at prototype depth; every CI wide, every row\\n'\n"
+        "      ' non-responsive; placebo_shuffled floor honestly no_data) -- the instrument is\\n'\n"
+        "      ' PROVEN RUNNABLE + HONEST; campaign depth is where it gains power.')\n"
+        "kernel"
+    ))
     out.append(code(
         "# The mechanism figures: the responsiveness scatter (F8b) and the 3-D reward-code\n"
         "# embedding (clusters cutting ACROSS arms = the taxonomy's cross-arm twins, in 3-D).\n"
@@ -595,9 +782,9 @@ def cells() -> list[dict]:
         "fig"
     ))
 
-    # ------------------------------------------------------------------ 9 robustness
+    # ------------------------------------------------------------------ 10 robustness
     out.append(md(
-        "## 9 · Robustness (post-campaign)\n"
+        "## 10 · Robustness (post-campaign)\n"
         "\n"
         "The confirmatory run re-estimates the headline under: the **delisting-treatment band** "
         "`{0, -30, -55, -100}%` (a sensitivity *surface*, never a single hidden choice — note the "
@@ -608,9 +795,9 @@ def cells() -> list[dict]:
         "renders in the same house style; the cells activate when the sealed-leg artifacts exist."
     ))
 
-    # ------------------------------------------------------------------ 10 limitations
+    # ------------------------------------------------------------------ 11 limitations
     out.append(md(
-        "## 10 · Honest limitations & interpretation\n"
+        "## 11 · Honest limitations & interpretation\n"
         "\n"
         "- **The null is a boundary condition, not a non-result.** It says tail *specificity* "
         "adds no marginal value *over general risk-adjustment* **for a bounded, numerically "
@@ -622,22 +809,26 @@ def cells() -> list[dict]:
         "but **not** agent-independent. We never claim otherwise.\n"
         "- **Power.** Tight equivalence bounds at the tier-0 floor (n=30) are underpowered for some "
         "sub-tests (e.g. the named-vs-blinded TOST); the winner-seed ladder (up to n=568) powers the "
-        "headline legs, and we report effect sizes + CIs + achieved power, never bare non-rejections.\n"
+        "headline legs, and we report effect sizes + CIs + achieved power, never bare non-rejections. "
+        "R77 additionally discloses that per-seed dispersion *grows* with the raised B\\* (visible in "
+        "§5's thin lines), so the campaign re-estimates σ_D in-flight at the rung-100 checkpoint "
+        "rather than trusting the 200k-era estimate.\n"
         "- **Generality.** Search width K, one model family for the confirmatory leg, one asset "
         "class, one panel. The pre-registered multi-model panel (ADR-039: Claude Opus + a strong "
         "open-weights coder) is the generality probe, secondary by design."
     ))
 
-    # ------------------------------------------------------------------ 11 figure manifest
+    # ------------------------------------------------------------------ 12 figure manifest
     out.append(md(
-        "## 11 · Figure manifest & how to regenerate\n"
+        "## 12 · Figure manifest & how to regenerate\n"
         "\n"
         "Everything regenerates deterministically from the repo:\n"
         "\n"
         "```bash\n"
         "python scripts/make_figures.py --out outputs/figures          # headline + 3-D + GIF suite\n"
         "python scripts/make_figures.py --out outputs/figures --no-advanced   # headline only\n"
-        "python scripts/build_taxonomy.py --root outputs/prototype     # the section-7 tables\n"
+        "python scripts/build_taxonomy.py --root outputs/prototype     # the section-8 tables\n"
+        "python scripts/apply_bstar_rule.py                            # the section-5 B* verdict\n"
         "python scripts/build_notebook_results.py                      # THIS notebook\n"
         "python scripts/build_notebook_provenance.py                   # the provenance companion\n"
         "```\n"
@@ -651,6 +842,39 @@ def cells() -> list[dict]:
         "print('headline figures  (src/viz/figures.py)  :', list(F.__all__))\n"
         "print('advanced figures  (src/viz/advanced.py) :',\n"
         "      [f for f in ADV.__all__ if f != 'classical_mds'])"
+    ))
+
+    # ------------------------------------------------------------------ 13 the honesty ledger
+    out.append(md(
+        "## 13 · The real-vs-synthetic ledger\n"
+        "\n"
+        "Reaching this cell means every assertion above held in **this** kernel, on **this** "
+        "checkout. One table states, section by section, exactly which numbers were real and "
+        "which were the labeled demo — the notebook's own honesty contract, machine-checked "
+        "against what actually ran."
+    ))
+    out.append(code(
+        "import matplotlib\n"
+        "ledger = pd.DataFrame([\n"
+        "    ('1 provenance & freeze', 'REAL', 'hash-bound gold suffix + prereg flags + B* (R77)'),\n"
+        "    ('2 panel & design', 'REAL', 'frozen univ5 parquet: shape/date pins + two PIT books'),\n"
+        "    ('3 EDA stylised facts', 'REAL', 'train window only, checksum-verified, 5 numeric pins'),\n"
+        "    ('4 fed-channel profile', 'REAL', 'four CVaR coordinates of the train-window EW book'),\n"
+        "    ('5 budget curve + rule', 'REAL', '30-point measured grid + the shipped R77 verdict'),\n"
+        "    ('6-7 headline inference', 'SYNTHETIC DEMO', 'NULL-shaped bundle; swaps for the '\n"
+        "                                                 'sealed-leg loader post-campaign'),\n"
+        "    ('8 taxonomy', 'REAL', '239 archived programs; search-arm collapse = validity check'),\n"
+        "    ('9 mechanism logic', 'SYNTHETIC DEMO', 'seeded nulls make the SQ1-SQ3 logic visible'),\n"
+        "    ('9 mechanism kernel', 'REAL', '239 records -> per-arm SQ1 rows; honest wide-CI '\n"
+        "                                   'non-responsive at prototype depth'),\n"
+        "], columns=['section', 'data', 'what was checked']).set_index('section')\n"
+        "\n"
+        "n_real = int((ledger['data'] == 'REAL').sum())\n"
+        "print(f'{n_real}/{len(ledger)} section groups ran on REAL frozen artifacts; the '\n"
+        "      f'{len(ledger) - n_real} demo groups are labeled at the cell AND here.')\n"
+        "print(f'session: python {platform.python_version()} | numpy {np.__version__} | '\n"
+        "      f'pandas {pd.__version__} | matplotlib {matplotlib.__version__}')\n"
+        "ledger"
     ))
     return out
 

@@ -63,7 +63,11 @@ def cells() -> list[dict]:
         "| 3 | the 2026 rebuild changed **zero** shared historical cells vs frozen `univ3` |\n"
         "| 4 | the membership splice: one allowlisted vendor revision (`EVHC.N^L16`), zero unexplained |\n"
         "| 5 | delisting: 333 observed terminals kept, **zero** surcharges → `univ5s` ≡ `univ5` |\n"
-        "| 6 | the Split-C windows resolve to the frozen `expected_windows.univ5` exactly |"
+        "| 6 | the Split-C windows resolve to the frozen `expected_windows.univ5` exactly |\n"
+        "\n"
+        "*Companion:* `results_walkthrough.ipynb` consumes what this notebook certifies — it "
+        "loads the panel these hashes pin and quotes this walkthrough wherever an integrity "
+        "fact is load-bearing."
     ))
 
     # ------------------------------------------------------------------ 0 setup
@@ -159,6 +163,22 @@ def cells() -> list[dict]:
         "    live = loaders._file_sha256(path)\n"
         "    verify(f'{name}: recomputed sha256 == frozen', live == frozen,\n"
         "           f'{live[:16]}... == {frozen[:16]}...')"
+    ))
+    out.append(code(
+        "# The vault at a glance — shape, span, size, and the (just re-verified) hash prefix of\n"
+        "# every gold univ5 artifact, read live from disk. A reviewer can quote this table.\n"
+        "rows = []\n"
+        "for name in ('returns_panel_univ5.parquet', 'cash_features_univ5.parquet',\n"
+        "             'top30_selection_univ5.parquet', 'splits_univ5.parquet'):\n"
+        "    path = gold / name\n"
+        "    df = pd.read_parquet(path)\n"
+        "    span = (f'{df.index[0].date()} -> {df.index[-1].date()}'\n"
+        "            if isinstance(df.index, pd.DatetimeIndex) else '-')\n"
+        "    rows.append({'artifact': name, 'rows x cols': f'{df.shape[0]:,} x {df.shape[1]}',\n"
+        "                 'span': span, 'MiB': round(path.stat().st_size / 2**20, 1),\n"
+        "                 'sha256 (frozen==live)': loaders._file_sha256(path)[:16] + '…'})\n"
+        "vault = pd.DataFrame(rows).set_index('artifact')\n"
+        "vault"
     ))
     out.append(code(
         "from src.data.loaders import load_gold_panel\n"
@@ -430,7 +450,10 @@ def cells() -> list[dict]:
         "print(f'ALL INTEGRITY CHECKS PASSED  (n={len(CHECKS)})\\n')\n"
         "for i, (name, _detail) in enumerate(CHECKS, 1):\n"
         "    print(f'  {i:>2}. {name}')\n"
-        "assert len(CHECKS) >= 25, 'the ledger is unexpectedly short -- were cells skipped?'"
+        "assert len(CHECKS) >= 25, 'the ledger is unexpectedly short -- were cells skipped?'\n"
+        "print(f'\\nsession: python {platform.python_version()} | numpy {np.__version__} | '\n"
+        "      f'pandas {pd.__version__}')\n"
+        "print('companion: results_walkthrough.ipynb (the analysis these certifications license)')"
     ))
     return out
 
