@@ -1127,3 +1127,21 @@ Job 774923 (800k steps) was h_rt-killed at its full 6 h (qacct `failed 37`, wall
 estimate: report-only ladder/probe h_rt is now sized at a 25 st/s PLANNING FLOOR (h_rt is a
 limit, not a reservation; the only cost is backfill placement). The CAMPAIGN's own auto-sizer
 already implied ~25.3 st/s per training (×0.5 of the pack-5 aggregate) — consistent, unchanged.
+
+## ADR-056 — Campaign author RE-CONFIRMED: Claude Opus 4.8, on fresh evidence (2026-07-18 sweep)
+
+Tamer commissioned an unbiased, fresh model sweep (2026-07-18; `docs/MODEL_SWEEP_2026-07-18.md`).
+**Verdict: `claude-opus-4-8` stays the single campaign author** — the strongest independently
+verified coding record available for the role (SWE-bench Verified 88.6% / Pro 69.2%; LMArena
+coding leader, July 2026) with ZERO operational confounds: no refusal classifiers (a
+mid-campaign refusal would break arm symmetry — a validity threat), no retention precondition,
+no preview churn, one stable canonical id, ~$10.50 total authoring. Considered and dispositioned:
+**Claude Fable 5** (outright frontier but classifier-interference risk + 30-day retention +
+always-on thinking latency/cost → joins the M2 survey roster, where a refusal is DATA);
+**GPT-5.6 Sol** (9 days old, no independent benchmarks → M2 roster; NOTE: GPT-5.5 is superseded
+— all prose references update to GPT-5.6 or get dated); **DeepSeek V4-Pro** (LiveCodeBench #1 +
+MIT weights, but the standing contamination rejection is not worth reopening pre-freeze;
+M2 candidate); **Gemini 3.1 Pro** (frontier tier Preview-only = unciteable endpoint);
+Grok 4.5 / Kimi K3 (too fresh; K3 weights unreleased). The secondary reproducibility anchor
+(Qwen3-Coder, open weights) is unchanged. This ADR supersedes the model-currency aspect of
+ADR-039; the panel/robustness design is unchanged.

@@ -71,7 +71,7 @@ All CPU/laptop, ~$0, run at/around the bank gate on the just-banked data.
 
 - **U3 — one open-family replication (Qwen; optionally Kimi-K2).** Enough to say "not Opus-specific."
   This is the *only* full-replication we foreground.
-- **D6 TQC · U5 PPO/TD3 · U4/U4b FTSE · D7 GPT-5.5-class** → **CH7 FUTURE WORK by default.** Run ONLY if
+- **D6 TQC · U5 PPO/TD3 · U4/U4b FTSE · D7 GPT-5.6 (supersedes GPT-5.5, Jul 2026; ADR-056)-class** → **CH7 FUTURE WORK by default.** Run ONLY if
   trivially free (frozen winners on an already-built panel); never foreground. A second market and a
   third algorithm are the breadth Okhrati would rather see spent on M2/M3. If pruned, **zero holes**.
 
@@ -81,7 +81,7 @@ All CPU/laptop, ~$0, run at/around the bank gate on the just-banked data.
 |---|---|
 | 2.A "free depth" = D3/D4/D9 **+ D6 TQC + U5 PPO/TD3 + U4b FTSE** (robustness) | Split: analyses → **TIER R (rigor)**; TQC/PPO/TD3/FTSE → **TIER G (prunable future-work)** |
 | 2.B = U3 Qwen + D2+ lean grid | U3 → **TIER G (one replication)**; D2+ → **TIER M (mechanism spine)** |
-| 2.D premium = U2b + **D7 GPT-5.5** + U4 (\$72–135) | **Dissolved.** Third family = a *capable open* model (Kimi/GLM, ~\$3); the "bunch of LLMs" goes into the cheap **M2 survey**, not expensive replications. Premium tier ≈ gone. |
+| 2.D premium = U2b + **D7 GPT-5.6 (supersedes GPT-5.5, Jul 2026; ADR-056)** + U4 (\$72–135) | **Dissolved.** Third family = a *capable open* model (Kimi/GLM, ~\$3); the "bunch of LLMs" goes into the cheap **M2 survey**, not expensive replications. Premium tier ≈ gone. |
 | (none) | **NEW M2 — the cross-LLM numeracy survey: the flagship publishable instrument.** |
 
 ## 4. Publication path
