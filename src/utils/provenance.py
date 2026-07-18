@@ -64,13 +64,31 @@ def sha256_obj(obj: Any) -> str:
 
 
 def git_commit(short: bool = False) -> str | None:
-    """Current git commit hash, or ``None`` if not in a git work-tree."""
+    """Current git commit hash; falls back to the deployed-archive marker; ``None`` if neither.
+
+    2026-07-18 (publication-readiness audit, caught PRE-launch): the CLUSTER checkout is
+    deployed via ``git archive | tar`` — NOT a git work-tree — so every campaign record's
+    ``git_commit`` would have been None and the archive could not prove which code produced
+    it. The sync procedure now writes a ``GIT_COMMIT`` file at the deployed root (runbook
+    lockstep); this fallback reads it, prefixed ``deployed-archive:`` so a record is never
+    mistaken for one captured inside a live work-tree."""
     try:
         args = ["git", "rev-parse", "--short" if short else "HEAD"]
         out = subprocess.run(args, capture_output=True, text=True, check=True)
         return out.stdout.strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return None
+        pass
+    try:
+        from pathlib import Path
+
+        marker = Path(__file__).resolve().parents[2] / "GIT_COMMIT"
+        if marker.is_file():
+            sha = marker.read_text(encoding="utf-8").strip()
+            if sha:
+                return f"deployed-archive:{sha[:12] if short else sha}"
+    except OSError:
+        pass
+    return None
 
 
 def git_dirty() -> bool | None:
