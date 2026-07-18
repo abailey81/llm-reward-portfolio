@@ -3,6 +3,28 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-18d] — ★★★ THE FREEZE (Tamer's instruction) + notebooks-to-world-class
+
+- **THE PRE-REGISTRATION IS FROZEN** (`068f0e1`, tag `prereg-freeze-ce5db62c` + `prereg-v1.0`):
+  `frozen: true`, hash **ce5db62c97b6f79236e5f827ae7ad2df81d8c9df450757df5f066ba4480c58ba**
+  stamped 2026-07-18T13:41:24Z at git `c523d77`; gate `--check` verifies recorded == canonical
+  [MATCHES]. Bundle `outputs/prereg_bundle_ce5db62c.zip` (73 KB, sha256 `6f9fbfa725ce916e…`).
+  Cluster synced: `frozen: true` verified node-side, marker = `068f0e1`. From here every design
+  change is a dated, approved amendment; the freeze-aware guard now protects the 8 bound files.
+  LAUNCH still awaits Tamer's explicit GO (his two items: Windows-Update pause + top-up).
+- **Opus top-up computed from MEASURED archive usage** (160 real authored calls: mean 534 in /
+  1,215 out tokens) × the documented $5/$25 per MTok: expected campaign authoring (150 headline
+  + 30 H3 = 180 calls) ≈ **$5.95**; absolute worst case at the spend caps (480 calls, driver
+  hard-stops) ≈ **$15.86** → recommended top-up **$25** (covers worst case + canary/smoke +
+  M2/Qwen headroom).
+- **Notebooks to world-class** (`c523d77`): results_walkthrough 44 cells — at-a-glance + TOC,
+  REAL §5 budget-curve section (30-point grid re-derived, R77 rule verdict re-asserted, F11
+  rendered live), REAL §9 mechanism-kernel exhibit (239 records → per-arm SQ1 fingerprint rows,
+  honest at-depth verdicts), §13 machine-checked real-vs-synthetic ledger; provenance notebook
+  21 cells / 39 checks + vault-at-a-glance. Both execute-validated on final bytes (0 errors);
+  palette re-validated (dataviz six-checks; the one sub-threshold CVD adjacency is the
+  hatch+marker-encoded control pair, by design).
+
 ## [2026-07-18c] — DEFAULTS-CLASS SWEEP (2 launch-critical catches) · COMMIT-STARVATION FORENSICS → validation handshake (ADR-057)
 
 **The hardcoded-defaults bug class (the B\* instance generalized, all pre-launch):**
