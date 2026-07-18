@@ -12,7 +12,7 @@
 | 0.1 | 30-point B\* curve verdict applied (pre-committed rule, EVIDENCE_LEDGER) | ledger claim 8 shows the verdict + any amendment ratified |
 | 0.2 | Post-verdict wording batch landed (incl. the hash-bound PREREG/yaml lines) | commit exists; gate re-run green |
 | 0.3 | **FROZEN**: `scripts/freeze.py` run (delegated; announced loudly) | `freeze.py --check`: frozen=true, recorded==canonical |
-| 0.4 | p4detb leg-2 complete → cluster checkout synced to HEAD | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp` AFTER leg-2, never before |
+| 0.4 | Cluster checkout synced to HEAD **+ the GIT_COMMIT marker written** (2026-07-18: the archive deploy is not a work-tree — without the marker every record's code identity is None) | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp && git rev-parse HEAD \| ssh myriad "cat > ~/llmrp/GIT_COMMIT"` |
 | 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --archive outputs/proto_myriad --rehearsal` output |
 | 0.6 | Anthropic balance sufficient for ~$50 authoring (+$70 top-up if low) | step 4 smoke + Tamer's console |
 
