@@ -31,6 +31,7 @@ from src.viz.style import (
 )
 
 __all__ = [
+    "budget_curve_exhibit",
     "equivalence_forest",
     "rliable_intervals",
     "risk_return_clouds",
@@ -459,3 +460,46 @@ def _to_rgb(hexcolor: str) -> tuple[float, float, float]:
     import matplotlib.colors as mcolors
 
     return mcolors.to_rgb(hexcolor)
+def budget_curve_exhibit(
+    grid: Mapping[str, Mapping[int, Mapping[int, float]]],
+    *,
+    b_star: int = 400_000,
+    title: str = "The measured learning curve: per-seed validation DSR vs training budget (16\u00d7 range)",
+) -> Any:
+    """F11 (R77 MANDATORY exhibit): the extended budget curve, per-seed lines + the paired mean.
+
+    ``grid``: ``{winner_label: {budget: {seed: val_dsr}}}`` (the ``apply_bstar_rule.load_grid``
+    shape). One panel per winner, log-x budgets; THIN lines = individual CRN seeds (the honest
+    seed fan-out), THICK line = the seed mean; the chosen B\* is marked. Okabe\u2013Ito, grayscale-safe.
+    The caption story: the curve rises decisively to the knee at B\* and flattens beyond it \u2014
+    and the seed dispersion GROWS with budget (the \u03c3_D-recalibration disclosure, R77)."""
+    import matplotlib.pyplot as plt
+
+    winners = list(grid.keys())
+    fig, axes = plt.subplots(1, len(winners), figsize=(6.4 * len(winners) / 2 + 3.0, 3.6),
+                             sharey=False)
+    if len(winners) == 1:
+        axes = [axes]
+    for ax, w in zip(axes, winners):
+        budgets = sorted(grid[w].keys())
+        seeds = sorted({s for b in budgets for s in grid[w][b].keys()})
+        for sd in seeds:
+            ys = [grid[w][b].get(sd) for b in budgets]
+            ax.plot(budgets, ys, color="0.55", lw=0.9, marker="o", ms=2.5, zorder=2)
+        means = [sum(grid[w][b].values()) / len(grid[w][b]) for b in budgets]
+        ax.plot(budgets, means, color=OKABE_ITO["blue"], lw=2.4, marker="o", ms=5,
+                zorder=4, label="seed mean")
+        ax.axvline(b_star, color=OKABE_ITO["vermillion"], lw=1.4, ls="--", zorder=1)
+        ax.text(b_star, ax.get_ylim()[1], "  B*", color=OKABE_ITO["vermillion"],
+                fontsize=8, va="top")
+        ax.set_xscale("log")
+        ax.set_xticks(budgets)
+        ax.set_xticklabels([f"{b//1000}k" if b < 1_000_000 else f"{b/1e6:g}M" for b in budgets],
+                           fontsize=7)
+        ax.set_xlabel("training budget (steps, log scale)")
+        ax.set_title(w, fontsize=9, loc="left")
+        ax.legend(loc="upper left", fontsize=7)
+    axes[0].set_ylabel("validation DSR (selection metric)")
+    fig.suptitle(title, fontsize=10, x=0.02, ha="left")
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    return fig

@@ -21,6 +21,7 @@
 | F8 | Mechanism / responsiveness | Fed-tail change vs authored-reward change (responsiveness, with sign); EPIC/STARC reward-distance between arms. | `[CAMPAIGN]` archive (mediation + reward metrics). | 6 (§6.5) | **[CAMPAIGN]** |
 | F9 | Learning curves / training budget | Critic-loss and return trajectories vs the 200,000-step budget across arms — the training-budget diagnostic (incl. the extended ladder). | `[CAMPAIGN]` archive (per-candidate logs). | 6 (§6.5) | **[CAMPAIGN]** |
 | F10 | 3-link mechanism chain | The paper's spine as one image: fed tail signal -> authored code -> trained policy -> realised tail, with SQ1/SQ2/H2-Tail as the arrows and the red cut glyph on the MEASURED severed link (outcome-neutral: built now, annotations + cut position filled at the bank gate). BUILT 2026-07-13 (`schematics.mechanism_chain`, both variants render). | Scaffold NOW; `[CAMPAIGN]` fills SQ1 rho, a*b, the cut. | 1 (par 1) + 6 (par 6.5) | **[NOW + CAMPAIGN fill]** |
+| F11 | The measured budget curve (R77 MANDATORY) | Per-seed validation-DSR vs training budget, 100k-1.6M (16x), both authored winners; thin lines = CRN seeds (the honest fan-out), thick = seed mean; B* marked at the measured knee. BUILT 2026-07-18 (viz.figures.budget_curve_exhibit; rendered on the real 30-point grid). Campaign version re-renders on the dose-response tier. | Curve grid NOW; dose-response tier at the gate. | 4 (design) + 6 (exhibit) | **[NOW + CAMPAIGN re-render]** |
 
 ## Tables (~6)
 
