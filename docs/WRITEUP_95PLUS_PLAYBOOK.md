@@ -129,3 +129,9 @@ for write-time because they rewrite graded prose and a rushed edit risks a worse
    garbling), which is STRONGER and matches the code. Rewrite §3.3 (and the mirror at :144-150) to the
    nested form; verify the downstream Le Cam/DPI results still read correctly under the exact nesting. Do
    this carefully with the theory chapter open in full — it is the probabilist-examiner's home ground.
+3. **Pre-registration appendix footnote (S12 venue, ADR-058).** The frozen prereg's §S12 venue chain
+   stops at "laptop-only RTX-4050" and never recorded the ADR-053 Myriad supersession (a pre-freeze miss;
+   venue-only, no design change; NOT re-hashed to avoid launch-eve churn — see ADR-058). If the prereg
+   bundle is reproduced/cited in the submission, add a one-line footnote: "§S12's venue chain terminates
+   at ADR-040; the executed and reported substrate is UCL Myriad (ADR-053) — venue-only correction, no
+   design change." CH4 methods already state Myriad, so the PDF body is correct as-is.
