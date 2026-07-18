@@ -21,6 +21,33 @@ Technique: every paragraph ends by NEEDING the next; every cited paper does WORK
 contrast, or boundary); kill any paragraph whose deletion loses no argument. The neighbor
 distinctions (GIFT four-axis, Gallego, ELfolio) move INTO the argument as act-two evidence.
 
+#### MOVE 1 addendum — the OPTIMAL-CONTROL BRIDGE (added 2026-07-19, from Tamer's aerospace
+#### conversation; ~1 paragraph in CH2 or CH3's opening + 2–3 cites; zero scope, pure depth)
+
+The dissertation currently never says what a control theorist would see instantly: the portfolio
+task IS a discrete-time stochastic optimal-control problem (state = features + holdings; control =
+weights; the reward = the COST FUNCTIONAL), whose classical solution — Merton's HJB treatment —
+requires KNOWN dynamics. With unknown, sampled, non-stationary dynamics the modern solution is
+model-free RL: SAC solves the entropy-regularized Bellman equation (the sampled-data HJB) from
+data. Write the bridge paragraph and then land the reframe that makes the contribution legible to
+ANY technical reader: *in optimal control, the cost functional is the designer's entire lever —
+everything else is optimization. This study asks who writes the cost functional (an LLM), and
+what MEASUREMENT of the closed-loop system that writer needs (a scalar vs the realized tail
+profile) to write it well.* The feedback channel becomes the "sensor" on a design loop — an
+instrumentation question, which is exactly what the mechanism kernel instruments. Payoffs: (a)
+Okhrati is a mathematical probabilist — Merton/HJB is home ground and the mapping is INTUITION,
+not machinery (his #1 criterion); (b) the second marker from any engineering discipline gets the
+whole design in one paragraph; (c) it deepens the CH3 sufficiency spine (the fed tail as a
+sufficient statistic OF THE CLOSED LOOP for tail-aware cost design). Cites: Merton 1969/1971
+(VERIFY first-hand before adding — prime directive 4); `chow2015risk` (already in refs.bib —
+CVaR-MDP, the risk-sensitive control lineage); optionally Ruszczyński 2010 (Markov risk measures;
+VERIFY). SAC-as-max-entropy-control is already covered by `haarnoja2018sac` — frame it, don't
+re-cite. **DO NOT IMPLEMENT classical control machinery** (LQR/Merton baselines, model-based
+trajectory optimization): the design is FROZEN; the agent is FIXED by the identification
+principle; a Merton baseline needs estimated drift/covariance — the estimation-risk trap that
+DeMiguel's 1/N result (already our floor) exists to warn about; and the contribution is the
+feedback channel, not the control algorithm. This is a WRITE-TIME paragraph, nothing more.
+
 ### MOVE 2 — The mechanism is the headline; write it as a DETECTIVE STORY (dim 3: ~85 → 92+)
 - Chapter order of emphasis: the 3-link chain figure (F10) appears in CH1; CH6's mechanism
   section is the longest results section; the H2 equivalence is the "rigorous backdrop" (the
