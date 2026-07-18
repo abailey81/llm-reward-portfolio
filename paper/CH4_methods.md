@@ -81,7 +81,7 @@ and outputs portfolio weights over the thirty assets and a cash position via a s
 unreachable [`gaopavel2017softmax`]; we adopt this conventional parameterisation [`jiang2017eiie`] and treat the
 unreachable corner as a disclosed limitation, reporting how close the trained policy approaches cash in stress
 states and citing the corner-reaching alternatives (Dirichlet policies, simplex decomposition) as future work
-[`andre2020dirichlet`; `winkel2024simplex`]. Each candidate reward trains the agent for a fixed budget of 200,000
+[`andre2020dirichlet`; `winkel2024simplex`]. Each candidate reward trains the agent for a fixed budget of 400,000
 environment steps, and evaluation is a single deterministic walk-forward rollout over the relevant split, the
 standard backtest protocol [`sood2023deep`]. The window edge is treated as a time-limit *truncation* rather than an
 absorbing *termination*, so the critic's value bootstrap is not spuriously zeroed once per episode. The replay

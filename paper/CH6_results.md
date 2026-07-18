@@ -30,7 +30,7 @@ interpreting effects.
 - Frozen design hash (must match `PREREGISTRATION.md`): `[FROM CAMPAIGN: freeze SHA-256]`.
 - Arms run: **7** (distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt);
   seeds per arm: `[FROM CAMPAIGN: n_seeds; E1 ladder [30,100,189,279,340,403,568], primary target 403, stopping tier reached]`; candidate budget per arm: `[FROM CAMPAIGN: 30 = 6 gen × 5]`.
-- Total candidates evaluated: `[FROM CAMPAIGN: N]`; total environment steps: `[FROM CAMPAIGN: N × 200,000]`.
+- Total candidates evaluated: `[FROM CAMPAIGN: N]`; total environment steps: `[FROM CAMPAIGN: N × 400,000]`.
 - Logged deviations (append-only log): `[FROM CAMPAIGN: count]`; disposition: `[FROM CAMPAIGN: summary]`.
 - Realised wall-clock / cost: `[FROM CAMPAIGN: hours / $]`; serial-parallel byte-equivalence: `[FROM CAMPAIGN: confirmed?]`.
 - Untrusted-code screen rejections: `[FROM CAMPAIGN: count]`; critic-divergence events: `[FROM CAMPAIGN: count]`.
@@ -136,7 +136,7 @@ This section supplies the mechanism that turns a null into a finding (reporting 
 reports its sign. It quantifies the **reward-program
 differential** across arms with the EPIC/STARC reward pseudometrics (do tail-fed arms author measurably different
 reward code?). Finally it presents the **learning-curve / training-budget diagnostic**, disclosing the budget verdict
-at the 200,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
+at the 400,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
 
 - Responsiveness (fed-tail change → authored-reward change): `[FROM CAMPAIGN: estimate, sign, CI]`.
 - Mediation (fed → code → realized tail; a·b indirect effect): `[FROM CAMPAIGN: a, b, indirect, CI]`.

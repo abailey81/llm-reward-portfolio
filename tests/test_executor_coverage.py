@@ -48,7 +48,7 @@ def test_validate_inline_accepts_a_valid_reward() -> None:
         ("def reward(w, r, pw, pr, info):\n    return (1.0,\n", "compile/exec"),  # SyntaxError
         ("x = 1\n", "no callable"),                                                # no `reward`
         ("def reward(*a):\n    raise ValueError('boom')\n", "crashed"),            # runtime crash
-        ("def reward(*a):\n    return 1.0\n", "3-tuple"),                          # not a 3-tuple
+        ("def reward(*a):\n    return 1.0\n", "unpackable"),                       # not a 3-element unpackable
         ("def reward(*a):\n    return float('nan'), {}, None\n", "non-finite"),    # non-finite total
         ("def reward(*a):\n    return 1.0, 7, None\n", "components is not a dict"),# components not dict
     ],

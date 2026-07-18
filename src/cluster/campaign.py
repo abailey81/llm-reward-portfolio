@@ -918,6 +918,29 @@ def _guard_k_seed_selector(opts: dict, run: ClusterRun) -> None:
         )
 
 
+def _refuse_winner_swap(arm: str, winner: dict[str, Any], frozen_root: str | Path) -> None:
+    """P5 winner-swap refusal (2026-07-19 audit: hoisted out of the tiered path so EVERY freeze
+    site enforces it). If a frozen winner already exists for ``arm`` with a DIFFERENT reward hash,
+    resume must refuse rather than silently overwrite — a mixed-winner unit (some seeds trained on
+    winner A, some on B) is scientifically meaningless. A P3 ledger-resubmit recovery makes the
+    swap non-exotic, and the non-tiered pipeline + the H3 C5 control previously lacked this guard."""
+    existing = Path(frozen_root) / f"{arm}-winner" / "record.json"
+    if not existing.is_file():
+        return
+    try:
+        old = json.loads(existing.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise RuntimeError(f"corrupt frozen winner record at {existing}: {exc}") from exc
+    old_h = str(old.get("reward_source_hash", ""))
+    new_h = str(winner.get("reward_source_hash", ""))
+    if old_h and new_h and old_h != new_h:
+        raise RuntimeError(
+            f"[{arm}] WINNER-SWAP REFUSED: a frozen winner already exists with reward hash "
+            f"{old_h[:12]}… but this resume selected {new_h[:12]}… — the search archive changed "
+            "between runs (config drift?). A mixed-winner unit is scientifically meaningless. "
+            "Investigate; delete the frozen record ONLY with an explicit, dated decision.")
+
+
 def _resolve_select_freeze(run: ClusterRun) -> tuple[Callable[[Any], Any], Callable[..., Any]]:
     """The SELECT/FREEZE callables — injected on ``run`` for tests, else the certified
     ``run_campaign`` implementations (imported via the codebase's scripts-on-path pattern)."""
@@ -968,6 +991,7 @@ def run_arm_pipeline(
         return {"arm": arm, "ok": False, "reason": "no_winner", "search": search}
 
     env_fp = winner.get("env_fingerprint") or f"cluster:{arm}:frozen"
+    _refuse_winner_swap(arm, winner, frozen_root)  # P5 (hoisted 2026-07-19): non-tiered path too
     freeze_winner(arm, winner, search_seed=search_seed, frozen_root=frozen_root, env_fingerprint=env_fp)
 
     test = run_test_leg(
@@ -1038,6 +1062,7 @@ def run_h3_singleshot_on_cluster(
     winner.setdefault("reward_source", "")
     # Laptop-parity provenance string (run_h3_singleshot freezes with exactly this fingerprint).
     env_fp = winner.get("env_fingerprint") or "campaign:distributional_singleshot"
+    _refuse_winner_swap(arm, winner, str(frozen_root))  # P5 (hoisted 2026-07-19): H3 C5 path too
     freeze_winner(arm, winner, search_seed=search_seed, frozen_root=str(frozen_root),
                   env_fingerprint=env_fp)
     test = run_test_leg([(arm, winner)], seeds, h3_run, name=f"{arm}_test",
@@ -1213,22 +1238,7 @@ def run_campaign_tiered(
         # --generations, an F5 bypass) could re-derive a DIFFERENT winner and silently re-freeze
         # it — already-tested seeds keep the old reward, the rest train the new one (a mixed-
         # winner unit). Refuse to overwrite an existing frozen winner with a different hash.
-        _existing = Path(frozen_root) / f"{arm}-winner" / "record.json"
-        if _existing.is_file():
-            try:
-                _old = json.loads(_existing.read_text(encoding="utf-8"))
-            except ValueError as exc:
-                raise RuntimeError(f"corrupt frozen winner record at {_existing}: {exc}") from exc
-            _old_h = str(_old.get("reward_source_hash", ""))
-            _new_h = str(winner.get("reward_source_hash", ""))
-            if _old_h and _new_h and _old_h != _new_h:
-                raise RuntimeError(
-                    f"[{arm}] WINNER-SWAP REFUSED: a frozen winner already exists with reward hash "
-                    f"{_old_h[:12]}… but this resume selected {_new_h[:12]}… — the search archive "
-                    "changed between runs (config drift?). A mixed-winner unit is scientifically "
-                    "meaningless. Investigate; delete the frozen record ONLY with an explicit, "
-                    "dated decision."
-                )
+        _refuse_winner_swap(arm, winner, frozen_root)  # P5 (2026-07-19: shared helper, all paths)
         freeze_winner(arm, winner, search_seed=int(opts.get("seed", 0)), frozen_root=frozen_root,
                       env_fingerprint=env_fp)
         winners[arm] = winner

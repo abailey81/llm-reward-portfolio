@@ -25,9 +25,9 @@ language model in reinforcement learning [`cao2024survey`]. Read at a higher alt
 faster agenda: the **automated discovery of objective functions and algorithms** by evolving code against an
 evaluator, whose flagships are FunSearch's program-search discoveries in mathematics [`romera2024funsearch`],
 AlphaEvolve's algorithmic improvements [`deepmind2025alphaevolve`], and the "AI Scientist" systems that draft
-entire papers [`lu2024aiscientist`; `yamada2025aiscientist`]. The agenda's own survey is candid that its systems
-are evaluated by demonstration, with "no pre-registered or controlled experimental protocols" in evidence
-[`gridach2025agentic`] — they establish that discovery is *possible*, not that a design choice *causes* an
+entire papers [`lu2024aiscientist`; `yamada2025aiscientist`]. Across this agenda the systems are evaluated by
+demonstration rather than by pre-registered or controlled experimental protocols [`gridach2025agentic`] — they
+establish that discovery is *possible*, not that a design choice *causes* an
 improvement. That methodological gap is the one this dissertation is built to fill.
 
 The decisive question for our purposes is *what these systems feed back to the designer*, and a clear taxonomy
@@ -65,7 +65,7 @@ In the terms the axis has now acquired, this study is therefore, to our knowledg
 controlled, inferentially *decided* instance of feedback engineering for reward design.
 The line's newest entry is candid, finally, that automated reward design is *high-variance* — the average
 LLM-authored candidate fails outright, and only a multi-run search surfaces good ones [`cardenoso2025learnopt`]
-— which independently licenses both the matched thirty-candidate budget and the per-seed, thirty-seed inference
+— which independently licenses both the matched thirty-candidate budget and the per-seed, tiered-ladder inference
 of Chapter 4.
 
 It is equally important to acknowledge the strongest *counter*-claim: that scalar reward suffices for in-context

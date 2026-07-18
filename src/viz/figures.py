@@ -87,7 +87,7 @@ def equivalence_forest(
         ax.set_ylim(-0.6, len(rows) - 0.4)
         ax.invert_yaxis()
         ax.set_title(_LEG_LABEL.get(leg, leg), loc="left", fontsize=9)
-    axes[-1, 0].set_xlabel("contrast effect size (deflated-Sharpe units)")
+    axes[-1, 0].set_xlabel("contrast effect size (per-leg units: Sharpe / CVaR-5%; vs ±SESOI)")
     # one shared legend entry for the band + a filled/open key
     handles = [
         plt.Line2D([], [], marker="o", color=OKABE_ITO["blue"], ls="-", lw=3.2, label="equivalent (TOST ⊂ band)"),
@@ -449,7 +449,7 @@ def delisting_robustness(
     ax.set_xticks(x)
     ax.set_xticklabels(order)
     ax.set_xlabel("delisting return applied to delisted names")
-    ax.set_ylabel("contrast effect size (deflated-Sharpe units)")
+    ax.set_ylabel("contrast effect size (per-seed Sharpe / CVaR-5%)")
     ax.set_xlim(-0.5, len(order) - 0.5)
     ax.set_title(title, fontsize=10, loc="left")
     ax.legend(loc="best", fontsize=7)
@@ -471,8 +471,10 @@ def budget_curve_exhibit(
     ``grid``: ``{winner_label: {budget: {seed: val_dsr}}}`` (the ``apply_bstar_rule.load_grid``
     shape). One panel per winner, log-x budgets; THIN lines = individual CRN seeds (the honest
     seed fan-out), THICK line = the seed mean; the chosen B\* is marked. Okabe\u2013Ito, grayscale-safe.
-    The caption story: the curve rises decisively to the knee at B\* and flattens beyond it \u2014
-    and the seed dispersion GROWS with budget (the \u03c3_D-recalibration disclosure, R77)."""
+    The caption story: the DISTRIBUTIONAL winner's curve rises decisively to the knee at B\* and
+    flattens beyond it (the scalar winner clears the rule at B\* too but keeps rising at 1.6M \u2014
+    the matched budget is set at the distributional knee); the seed dispersion GROWS with budget
+    (the \u03c3_D-recalibration disclosure, R77)."""
     import matplotlib.pyplot as plt
 
     winners = list(grid.keys())

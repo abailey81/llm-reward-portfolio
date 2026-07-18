@@ -49,9 +49,15 @@ import numpy as np
 
 from src.reward.contract import ALLOWED_IMPORTS, RewardFn, SAFE_DEFAULT
 
-# Names that may never be called from untrusted reward source.
+# Names that may never be called from untrusted reward source. The introspection/hook builtins
+# (vars/globals/locals/dir/help/breakpoint) are ALSO runtime-blocked by absence from SAFE_BUILTINS,
+# but listing them here makes the gate namespace-INDEPENDENT defense-in-depth (audit 2026-07-19):
+# breakpoint() can drop into pdb (arbitrary-code path) and globals()/vars() expose the exec namespace.
 _FORBIDDEN_CALLS: frozenset[str] = frozenset(
-    {"open", "exec", "eval", "__import__", "compile", "getattr", "setattr", "input"}
+    {
+        "open", "exec", "eval", "__import__", "compile", "getattr", "setattr", "input",
+        "vars", "globals", "locals", "dir", "help", "breakpoint",
+    }
 )
 
 # Attribute names rejected ANYWHERE in the source (ADR-008). Covers numpy's
@@ -268,6 +274,15 @@ class SandboxError(Exception):
     """Raised by validate_once when a candidate reward is rejected."""
 
 
+class SandboxEnvironmentError(SandboxError):
+    """Raised when validation could not RUN because the spawn ENVIRONMENT is starved — NOT a
+    candidate defect (2026-07-19 audit). Subclasses ``SandboxError`` so existing ``except
+    SandboxError`` sites still catch it, but callers that permanently ledger a rejection must
+    catch this FIRST and treat it as retryable/abort-and-resume: a good candidate hit by a
+    transient commit-/CPU-starved box during PAID authoring must never be poisoned into the
+    frozen reject set that ``--resume`` replays."""
+
+
 # Resource ceilings for the candidate child (ADR-008). Address space caps OOM blast
 # radius on the rented GPU box; the rest bound CPU burn, open files, and file size.
 _RLIMIT_AS_BYTES: int = 2 * 1024 * 1024 * 1024  # ~2 GiB address space
@@ -343,10 +358,14 @@ def _candidate_child(src: str, fixture: Any, q: Any) -> None:  # pragma: no cove
             q.put(("error", "source defines no callable named 'reward'"))
             return
         out = fn(*fixture)
-        if not (isinstance(out, tuple) and len(out) == 3):
-            q.put(("error", "reward did not return a 3-tuple (total, components, state)"))
+        # Mirror production safe_call (executor.py:699), which unpacks ANY 3-element iterable, not tuples
+        # only: a reward returning a 3-element LIST trains fine yet was falsely rejected here (audit
+        # 2026-07-19). Validation must reject exactly what production rejects — no stricter.
+        try:
+            total, components, _state = out
+        except (TypeError, ValueError):
+            q.put(("error", "reward did not return an unpackable (total, components, state)"))
             return
-        total, components, _state = out
         try:
             total_f = float(total)
         except (TypeError, ValueError):
@@ -381,9 +400,12 @@ def _validate_inline(src: str, fixture: Any) -> RewardFn:
         out = fn(*fixture)
     except Exception as exc:  # noqa: BLE001
         raise SandboxError(f"reward crashed during validation: {exc!r}") from exc
-    if not (isinstance(out, tuple) and len(out) == 3):
-        raise SandboxError("reward did not return a 3-tuple (total, components, state)")
-    total, components, _state = out
+    # Mirror production safe_call (executor.py:699): unpack ANY 3-element iterable, not tuples only
+    # (audit 2026-07-19 — a 3-element list trains fine but was falsely rejected here).
+    try:
+        total, components, _state = out
+    except (TypeError, ValueError) as exc:
+        raise SandboxError("reward did not return an unpackable (total, components, state)") from exc
     try:
         total_f = float(total)
     except (TypeError, ValueError) as exc:
@@ -643,7 +665,7 @@ def validate_once(src: str, fixture: Any, timeout_s: float = 2.0) -> RewardFn:
     if timed_out_phase == "verdict":
         raise SandboxError(f"reward exceeded the {timeout_s}s validation timeout")
     if timed_out_phase is not None:
-        raise SandboxError(
+        raise SandboxEnvironmentError(
             f"validation child did not reach phase {timed_out_phase!r} within its "
             f"environment grace — the SPAWN ENVIRONMENT is starved (system commit "
             f"charge / CPU contention), NOT a candidate defect; free resources and retry")

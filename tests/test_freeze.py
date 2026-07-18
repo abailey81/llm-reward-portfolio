@@ -18,6 +18,7 @@ config/preregistration.yaml are never edited by the suite.
 """
 from __future__ import annotations
 
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -49,6 +50,15 @@ def _mini_repo(tmp_path: Path) -> Path:
     # the check now reads root/config/data.yaml, so the mini-repo must supply it — copied from the real
     # one so it mirrors the prereg's frozen headline, which lets the drift test below edit it hermetically).
     shutil.copyfile(REPO / "config" / "data.yaml", tmp_path / "config" / "data.yaml")
+    # The live prereg is now FROZEN (frozen: true + a recorded hash, 2026-07-18). Reset the COPY to
+    # its pre-freeze state so the write/drift fixtures below (which expect 'frozen: false' /
+    # 'freeze_hash: null' to exercise the flip and drift paths) apply and stay meaningful. This only
+    # edits the throwaway tmp_path copy; the real repo is never touched.
+    _yml = tmp_path / freeze.PREREG_YAML
+    _t = _yml.read_text(encoding="utf-8")
+    _t = _t.replace("frozen: true", "frozen: false", 1)
+    _t = re.sub(r"(?m)^(freeze_hash:\s*)\S+", r"\1null", _t, count=1)
+    _yml.write_text(_t, encoding="utf-8")
     return tmp_path
 
 
@@ -77,8 +87,8 @@ def test_verify_live_returns_full_status():
     assert len(status.hash) == 64
     int(status.hash, 16)  # hex
     assert status.phase0_marker.strip()
-    assert not status.already_frozen
-    assert status.recorded_hash is None  # freeze_hash: null pre-freeze
+    assert status.already_frozen  # the live prereg is FROZEN (2026-07-18)
+    assert status.recorded_hash == status.hash  # recorded == recomputed canonical hash (no drift)
     # FIFTEEN frozen checks on the LIVE repo: the 6 original + the 3 2026-06-24 amendments
     # (lambda/tf32/reflect) + the §3 arm-roster prose guard + the V1 cross-file executed-arms guard
     # (campaign.yaml/arms.yaml rosters == frozen prereg arms) + the §18 h1_baselines cross-file guard
@@ -513,10 +523,10 @@ def test_check_does_not_mutate_live_files():
 
     after = (yaml_path.read_bytes(), md_path.read_bytes(), log_path.read_bytes())
     assert before == after, "--check must not write to any artifact"
-    # And the pre-freeze state is intact.
+    # And the frozen state is intact (2026-07-18 freeze).
     yml = freeze.load_yaml(REPO)
-    assert yml["frozen"] is False
-    assert yml["freeze_hash"] is None
+    assert yml["frozen"] is True
+    assert yml["freeze_hash"] == "ce5db62c97b6f79236e5f827ae7ad2df81d8c9df450757df5f066ba4480c58ba"
 
 
 def test_check_reports_nonzero_on_drift(mini: Path, capsys):

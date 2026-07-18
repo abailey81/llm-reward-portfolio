@@ -826,3 +826,31 @@ def test_seed_pool_blocks_striped_spec_merges_per_pool(tmp_path):
         C.parse_seed_pool_blocks("EF:0-14,L:10-29")  # cross-pool overlap still fails loud
     with pytest.raises(ValueError, match="overlap"):
         C.parse_seed_pool_blocks("EF:0-14,EF:10-20")  # same-pool overlap is ALSO a spec error
+
+
+def test_pending_specs_scopes_completion_to_each_specs_own_subroot(tmp_path):
+    """2026-07-19 audit (CONFIRMED critical): test run_ids are bare ``{arm}-s{seed}`` so a disjoint
+    -root invocation (H3 C5 test_h3_singleshot/, or a --root-suffix re-search) reuses run_ids that
+    also exist under the headline test/ root. A mirror-wide completion diff would mark the H3 unit
+    'done' from the HEADLINE record and never train it — a silently empty (fabricated) H3 archive.
+    pending_specs must scope completion to each spec's OWN archive sub-root."""
+    from src.cluster.poll import pending_specs
+    from src.io.results import write_run
+
+    mirror = tmp_path
+    # The headline already wrote distributional-s0 under test/.
+    write_run({"run_id": "distributional-s0", "arm": "distributional", "seed": 0, "fold": 0,
+               "candidate_id": "distributional-winner", "generation": 0, "reward_source_hash": "h",
+               "feedback_block": "", "wall_clock": 0.0, "env_fingerprint": "x", "frozen": True,
+               "metrics": {"val_fitness": 0.0, "test_sharpe": 0.1, "test_returns": [0.01, -0.02]}},
+              str(mirror / "test" / "distributional"))
+    headline = {"run_id": "distributional-s0", "arm": "distributional",
+                "archive_root": "/remote/outputs/test"}
+    h3 = {"run_id": "distributional-s0", "arm": "distributional",
+          "archive_root": "/remote/outputs/test_h3_singleshot"}
+    pending = pending_specs([headline, h3], mirror)
+    pending_roots = {Path(s["archive_root"]).name for s in pending}
+    # The headline unit is done (record exists under test/); the H3 unit is NOT (empty h3 sub-root).
+    assert pending_roots == {"test_h3_singleshot"}, (
+        "the H3 spec must remain pending — its own test_h3_singleshot/ archive is empty")
+    assert all(Path(s["archive_root"]).name != "test" for s in pending)

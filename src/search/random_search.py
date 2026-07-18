@@ -178,7 +178,10 @@ def _default_fixture() -> tuple:
     returns = np.array([0.01, -0.02], dtype=float)  # N = len(weights) - 1 (the risky leg)
     prev_weights = np.array([0.34, 0.33, 0.33], dtype=float)
     port_ret = 0.002
-    info: dict[str, Any] = {}
+    # info mirrors portfolio_env.py:323-327 (weights, prev_weights, reward_state=None at reset) so a
+    # stateful reward reading the prompt-documented info["reward_state"] is not falsely rejected here
+    # (audit 2026-07-19). The returns above are already mixed-sign — the reference non-degenerate fixture.
+    info: dict[str, Any] = {"weights": weights, "prev_weights": prev_weights, "reward_state": None}
     return (weights, returns, prev_weights, port_ret, info)
 
 

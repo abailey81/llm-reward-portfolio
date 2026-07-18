@@ -237,8 +237,8 @@ def test_runs_on_the_real_repo_without_crashing() -> None:
     # Core pillars present + earned.
     assert st["determinism settings"] == A.PASS
     assert st["dependency lockfile"] == A.PASS
-    # The honest CURRENT state: pre-freeze (WARN) and no hard FAIL anywhere.
-    assert st["pre-registration freeze"] == A.WARN
+    # Post-freeze (PASS): frozen: true and recorded hash matches recomputed; no hard FAIL anywhere.
+    assert st["pre-registration freeze"] == A.PASS
     assert st["data provenance"] in (A.PASS, A.WARN)   # PASS when the panel is on disk; WARN on a bare clone
     assert res["ok"] is True
     assert A.render_report(res).startswith("Reproducibility audit")

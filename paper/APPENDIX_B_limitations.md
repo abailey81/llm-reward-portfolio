@@ -106,11 +106,17 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   rewards the cash-fleeing tail-aware arm in ZIRP periods — conservative against the hypothesis.
 
 ## B.5 Statistical inference
-- **B.5.1 Power vs. SESOI.** Under the primary one-sided intersection–union rule the minimum detectable effect is
-  ≈0.181 Sharpe ≈ 0.120 DSR at 80% power (≈0.141 DSR at 90%); the conservative Šidák ($m=6$, two-sided) sensitivity
-  this rule superseded as the gate is higher, ≈0.257 Sharpe. Either way the detectable effect exceeds the smallest
-  effect of interest (0.05 DSR); a non-rejection licenses "equivalent" only if the TOST interval lies inside ±0.05,
-  otherwise "inconclusive" [`lakens2017equivalence`]. Disclosed; the calibrated statement is reported.
+- **B.5.1 Power vs. SESOI (tier-conditional).** Equivalence power is a function of the seed rung the exogenous
+  stopping rule (Amendment E1) actually reaches, not a single fixed value. At the tier-0 floor ($n=30$) the minimum
+  detectable effect is ≈0.181 Sharpe ≈ 0.120 DSR at 80% power (≈0.141 DSR at 90%) — larger than the smallest effect
+  of interest (0.05 DSR), so the floor is equivalence-*underpowered* and a non-rejection there reads "inconclusive"
+  rather than "equivalent". The winner-seed ladder is designed to cross that threshold: rungs **279 / 340 / 403 / 568**
+  deliver **80% / 90% / 95% (the primary target) / 99%** equivalence assurance, powering the ±0.05 SESOI at the
+  χ²-upper confidence bound on σ_D (`power_analysis.ASSURANCE_TIER_BOUNDS`). A truncated run banks the largest
+  completed rung, so the reported power is always the achieved-rung power, stated explicitly. Independently of the
+  rung, a non-rejection licenses "equivalent" only if the TOST interval lies inside ±0.05, otherwise "inconclusive"
+  [`lakens2017equivalence`]; the conservative Šidák ($m=6$, two-sided) sensitivity this rule superseded as the gate
+  is higher still (≈0.257 Sharpe). Disclosed; the calibrated, tier-conditional statement is reported.
 - **B.5.2 ES-backtest power and heavy tails.** Comparative Expected-Shortfall backtests are low-powered on
   multi-year windows [`du2017backtesting`], and the Diebold–Mariano statistic is oversized under heavy-tailed loss
   differentials irrespective of sample size [`heavytailsDM2026`], which the Harvey–Leybourne–Newbold

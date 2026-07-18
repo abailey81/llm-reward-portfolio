@@ -68,7 +68,12 @@ from typing import Any
 import numpy as np
 
 from src.feedback import schema
-from src.sandbox.executor import SandboxError, extract_reward_source, validate_once
+from src.sandbox.executor import (
+    SandboxEnvironmentError,
+    SandboxError,
+    extract_reward_source,
+    validate_once,
+)
 from src.utils.config import cfg_get
 
 __all__ = ["CandidateRecord", "CandidateArchive", "run_loop"]
@@ -358,13 +363,19 @@ def run_loop(
     # spec-faithful `weights[:-1] @ returns` was falsely REJECTED here while the sloppy
     # `weights @ returns` passed and then zero-trained via SAFE_DEFAULT. The fixture now mirrors
     # the production contract: returns has ONE FEWER element than weights/prev_weights.
+    # DEGENERACY PARITY (audit 2026-07-19): non-degenerate returns + a production-shaped info dict. A
+    # constant all-positive returns vector + empty info falsely rejected valid downside/tail/stateful
+    # rewards at validate_once (empty left-tail subset, ÷0 std, or KeyError on info["reward_state"]) —
+    # none of which occur in production (portfolio_env.py:323-327 always supplies the three info keys).
     _n_fix = max(2, int(cfg_get(cfg, "fixture_n_assets", 31)))
+    _fix_w = np.full(_n_fix, 1.0 / _n_fix, dtype=float)
+    _fix_prev = np.full(_n_fix, 1.0 / _n_fix, dtype=float)
     fixture: tuple = (
-        np.full(_n_fix, 1.0 / _n_fix, dtype=float),       # weights (simplex over ~30 risky + cash)
-        np.full(_n_fix - 1, 0.001, dtype=float),          # returns (N = n_act - 1, the risky leg)
-        np.full(_n_fix, 1.0 / _n_fix, dtype=float),       # prev_weights
-        0.0,                                              # port_ret
-        {},                                               # info
+        _fix_w,                                           # weights (simplex over ~30 risky + cash)
+        ((np.arange(_n_fix - 1) % 5) - 2) * 0.01,         # returns (N = n_act - 1): mixed-sign, non-zero var
+        _fix_prev,                                        # prev_weights
+        0.002,                                            # port_ret (non-zero)
+        {"weights": _fix_w, "prev_weights": _fix_prev, "reward_state": None},  # info mirrors portfolio_env.py:323-327
     )
 
     # The feedback block fed into the next generation's reflection prompt. None at
@@ -504,6 +515,15 @@ def run_loop(
             try:
                 reward_fn = validate_once(src, fixture)
                 monitor.sandbox_result(arm, cand_n, ok=True)
+            except SandboxEnvironmentError:
+                # 2026-07-19 audit: a STARVED spawn environment is NOT a candidate defect. Do NOT
+                # ledger it as a permanent rejection (that would poison this PAID candidate into the
+                # frozen reject set --resume replays). Abort the authoring loop LOUDLY instead: the
+                # supervisor relaunches, and --resume preserves every already-validated candidate
+                # and re-attempts only this one on a (hopefully freed) box.
+                _LOG.error("candidate %s: validation ENVIRONMENT starved — aborting authoring for a "
+                           "clean supervisor relaunch (candidate NOT rejected)", candidate_id)
+                raise
             except SandboxError as exc:
                 _LOG.warning(
                     "candidate %s failed validation and was skipped: %s",

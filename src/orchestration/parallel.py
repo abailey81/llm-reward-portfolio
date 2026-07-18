@@ -135,12 +135,21 @@ _PANEL_CACHE: dict[str, Any] = {}
 #: the spec-faithful `weights[:-1] @ returns` was falsely REJECTED (fixture shape mismatch) while the
 #: sloppy `weights @ returns` was falsely ACCEPTED and then zero-trained via SAFE_DEFAULT on every
 #: real step. The fixture must mirror the production shape contract: returns has ONE FEWER element.
+#: DEGENERACY PARITY (audit 2026-07-19): a degenerate all-positive, zero-variance returns vector with an
+#: EMPTY info dict falsely REJECTED valid rewards at validate_once. A left-tail/downside reward hits an
+#: empty ``returns[returns < 0]`` subset (nan / ValueError on min) or a zero-variance ``std()`` (÷0), and a
+#: stateful reward reading the prompt-documented ``info["reward_state"]`` raised KeyError — none of which
+#: occur in production, where returns are mixed-sign with variance and info always carries the three keys
+#: portfolio_env.py:323-327 supplies (weights, prev_weights, reward_state=None at reset). The fixture now
+#: mirrors that so the treatment arm's characteristic tail-aware rewards are gated faithfully, not starved.
+_FIX_WEIGHTS = np.full(31, 1.0 / 31)
+_FIX_PREV = np.full(31, 1.0 / 31)
 _FIXTURE: tuple[Any, ...] = (
-    np.full(31, 1.0 / 31),
-    np.full(30, 0.001),
-    np.full(31, 1.0 / 31),
-    0.0,
-    {},
+    _FIX_WEIGHTS,
+    ((np.arange(30) % 5) - 2) * 0.01,     # returns (N=30): mixed-sign, non-zero variance
+    _FIX_PREV,
+    0.002,                                # port_ret (non-zero)
+    {"weights": _FIX_WEIGHTS, "prev_weights": _FIX_PREV, "reward_state": None},
 )
 _LLM_ARMS = ("distributional", "scalar", "placebo", "scalar_cvar5", "placebo_shuffled")
 

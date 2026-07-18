@@ -109,3 +109,23 @@ Decision procedure, applied paragraph-by-paragraph to the 15.5k body:
   specifically; (VaR,ES) jointly elicitable (Fissler–Ziegel), ES alone not (Gneiting 2011).
 - The disclosure-as-tactic reasoning stays OUT of the PDF.
 - Keep breadth in appendices; depth in the body. Never silently drop a pre-registered result.
+
+## Audit-confirmed WRITE-TIME items (2026-07-19, 14/35 agents; deferred from the code pass — judgment-heavy graded prose)
+
+Two fix-register items were re-confirmed by the audit as still un-landed; they are deliberately left
+for write-time because they rewrite graded prose and a rushed edit risks a worse error:
+
+1. **CH7 §7.1 "corroborated prediction" → anchor to Mayoian severity.** CH1:160-168 disclaims Popperian
+   corroboration in favour of error-statistical severity (Mayo; Rubin 2025), but CH7:47 leads with "a
+   corroborated prediction about the envelope–realisation gap" with NO severity basis (grep of CH7 for
+   Mayo/severe finds only "severed"). Per the fix register, MOVE the Mayo/Rubin/Gelman severity paragraph
+   from CH1 §1.4 to CH7 §7.1 (leaving a one-line pointer in CH1), and anchor the corroborated-prediction
+   claim to severity (a frozen deviation-free protocol ⇒ no unknown Type-I inflation, so the null passed a
+   test it could have failed). One coordinated edit across CH1+CH7.
+2. **Theory §3.3 garbling identity `E_scalar = g∘E_vec`.** The chapter formalizes the scalar experience as
+   a garbling of the vector one, but the IMPLEMENTED feedback blocks are exactly NESTED — the tail arm is
+   fed (scalar header ⊕ tail vector), the scalar arm is fed the scalar header alone — so E_vec should emit
+   the PAIR and g the coordinate projection deleting the tail coordinates (a clean sub-σ-algebra / Blackwell
+   garbling), which is STRONGER and matches the code. Rewrite §3.3 (and the mirror at :144-150) to the
+   nested form; verify the downstream Le Cam/DPI results still read correctly under the exact nesting. Do
+   this carefully with the theory chapter open in full — it is the probabilist-examiner's home ground.

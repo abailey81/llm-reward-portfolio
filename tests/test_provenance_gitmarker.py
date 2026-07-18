@@ -30,11 +30,16 @@ def test_marker_fallback_shape(tmp_path, monkeypatch):
     # instead validate the parsing contract directly on a real marker file
     marker = Path(prov.__file__).resolve().parents[2] / "GIT_COMMIT"
     existed = marker.exists()
+    original = marker.read_bytes() if existed else None
     try:
         marker.write_text("abc123def456789\n", encoding="utf-8")
         out = prov.git_commit()
         assert out == "deployed-archive:abc123def456789"
         assert prov.git_commit(short=True) == "deployed-archive:abc123def456"
     finally:
-        if not existed:
+        # Restore the tree exactly: rewrite the original content if the marker pre-existed
+        # (never silently corrupt a genuine deployed marker), else remove the temp one.
+        if existed:
+            marker.write_bytes(original)
+        else:
             marker.unlink(missing_ok=True)

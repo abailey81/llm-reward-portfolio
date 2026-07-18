@@ -73,7 +73,11 @@ def assemble_cluster_inputs(
     import sys as _sys
 
     _sys.path.insert(0, str(Path(__file__).resolve().parent))  # scripts on path (codebase convention)
-    from run_campaign import make_agent_trainer_factory, resolve_windows  # noqa: F401  (parity import)
+    from run_campaign import (  # noqa: F401  (parity import)
+        _assert_expected_windows,
+        make_agent_trainer_factory,
+        resolve_windows,
+    )
     from run_prototype import _agent_cfg, build_parallel_opts
 
     from src.utils.config import cfg_get, load_config
@@ -101,6 +105,16 @@ def assemble_cluster_inputs(
 
     splits = cfg_get(inf_cfg, "splits", {})
     train_window, val_window, test_window = resolve_windows(panel, lookback, splits, embargo=embargo)
+
+    # 2026-07-19 (35-agent audit, CONFIRMED major): the laptop path guards resolved windows against
+    # config/inference.yaml splits.expected_windows (M1 drift guard, run_campaign._assert_expected_
+    # windows) but the Myriad entry point did NOT — a rebuilt panel whose session axis shifts could
+    # slide the integer windows THROUGH the searchsorted clamps silently and train/score the wrong
+    # span. Mirror the laptop guard exactly on the real-gold path (synthetic has no frozen calendar).
+    if not synthetic:
+        from src.data.loaders import gold_suffix
+
+        _assert_expected_windows(gold_suffix(), train_window, val_window, test_window, splits)
 
     # Agent config (matched-compute B*): prototype base + campaign overlay (mirror 1522-1540).
     # 2026-07-18 LAUNCH-CRITICAL FIX (caught by the pre-flight coherence assert, the day before
@@ -395,6 +409,20 @@ def main(argv: list[str] | None = None) -> int:
         except CampaignNotFrozenError as exc:
             raise SystemExit(f"[run_campaign_cluster] {exc}") from exc
 
+    # --root-suffix VALIDATION (C6-class): format + the h3 conflict, hoisted here so a bad flag
+    # is rejected BEFORE any cluster contact (2026-07-19 audit: the checks lived after remote_home,
+    # so an invalid suffix hit the ssh path first — the validation could not run offline and its
+    # own "before any cluster contact" contract was violated). The root-suffix APPLICATION stays
+    # after assembly (it rewrites the ClusterRun); only the guards move up.
+    if args.root_suffix:
+        import re as _re
+
+        if not _re.fullmatch(r"[a-z0-9_]+", args.root_suffix):
+            raise SystemExit(f"--root-suffix {args.root_suffix!r} must be lowercase [a-z0-9_]+")
+        if args.h3_singleshot:
+            raise SystemExit("--h3-singleshot manages its own roots — do not combine it with "
+                             "--root-suffix.")
+
     # C5 (P4): the H3 single-shot control is its OWN invocation — force its fixed shape BEFORE
     # the guards/assembly so the spend cap, divisibility check, and dry-run all see the truth.
     if args.h3_singleshot:
@@ -403,9 +431,30 @@ def main(argv: list[str] | None = None) -> int:
                              "C1-C4) — run the H3 control after (or alongside) the ladder.")
         from src.utils.config import cfg_get as _h3cg
         args.arms = ["distributional"]
-        args.generations = int(_h3cg(_load_config("campaign"), "h3_singleshot_generations", 1) or 1)
+        # h3_singleshot_generations is nested under the campaign.yaml `llm:` block — read it the SAME way
+        # the laptop entry (run_campaign.py:2155) and preflight (preflight.py:589) do. A flat top-level
+        # cfg_get missed the nested key and silently fell to the default, a laptop/cluster divergence
+        # that would bite the moment the config value differs from 1 (audit 2026-07-19).
+        _camp_llm = (_load_config("campaign") or {}).get("llm") or {}
+        args.generations = int(_h3cg(_camp_llm, "h3_singleshot_generations", 1) or 1)
         _LOG.info("C5 H3 single-shot: arms forced to ['distributional'], generations=%d",
                   args.generations)
+
+    # 2026-07-19 (35-agent audit, CONFIRMED major): the LLM_RP_GOLD_SUFFIX env var silently
+    # OUTRANKS the freeze-bound config/data.yaml gold.suffix (loaders.gold_suffix precedence), so a
+    # stray override would run the whole confirmatory campaign on the WRONG panel with every gate
+    # green and no record of it. That variable is an explicit sensitivity-band tool only; forbid it
+    # on a real-spend headline run (rehearsals pass --allow-unfrozen).
+    if args.pass_mode.upper() == "B" and not args.synthetic and not args.allow_unfrozen:
+        import os as _os
+
+        _ovr = _os.environ.get("LLM_RP_GOLD_SUFFIX", "").strip()
+        if _ovr:
+            raise SystemExit(
+                f"LLM_RP_GOLD_SUFFIX={_ovr!r} is set on a real-spend headline run — it OUTRANKS the "
+                f"freeze-bound config/data.yaml gold.suffix and would run the campaign on the wrong "
+                f"panel silently. Unset it (the frozen panel governs), or pass --allow-unfrozen for "
+                f"an explicit sensitivity-band rehearsal.")
 
     # 2026-07-18 (the B*-resolution catch, GENERALIZED to the class): on a REAL-SPEND run an
     # EXPLICIT design-value flag overrides the pre-registered/frozen configuration — only
@@ -601,15 +650,10 @@ def main(argv: list[str] | None = None) -> int:
     baselines = list(args.baselines) if args.baselines else None
 
     if args.root_suffix:
-        # C6-class guard: namespaced roots + batch names for report-only re-search invocations.
-        import re as _re
+        # C6-class APPLICATION: namespaced roots + batch names for report-only re-search
+        # invocations (the format + h3-conflict VALIDATION already ran early, pre-ssh).
         from dataclasses import replace as _dc_replace
 
-        if not _re.fullmatch(r"[a-z0-9_]+", args.root_suffix):
-            raise SystemExit(f"--root-suffix {args.root_suffix!r} must be lowercase [a-z0-9_]+")
-        if args.h3_singleshot:
-            raise SystemExit("--h3-singleshot manages its own roots — do not combine it with "
-                             "--root-suffix.")
         _sfx = args.root_suffix
         _base_rb = run.run_batch
 

@@ -273,6 +273,24 @@ def spec_run_id(spec: dict[str, Any]) -> str:
 def pending_specs(
     all_specs: list[dict[str, Any]], local_root: str | Path
 ) -> list[dict[str, Any]]:
-    """The COMPACTED-RESUME diff: specs whose run_ids are not yet in the archive."""
-    done = completed_run_ids(local_root)
-    return [s for s in all_specs if spec_run_id(s) not in done]
+    """The COMPACTED-RESUME diff: specs whose run_ids are not yet in the archive.
+
+    2026-07-19 (35-agent audit, CONFIRMED critical): completion truth is scoped to each spec's
+    OWN archive sub-root, NOT the whole mirror. Test run_ids are bare ``{arm}-s{seed}``
+    (``test_leg.py``), so a disjoint-root invocation — the H3 C5 single-shot (``test_h3_singleshot/``)
+    or a ``--root-suffix`` re-search — reuses run_ids like ``distributional-s0`` that ALSO exist
+    under the headline ``test/`` root. A mirror-wide diff would see the headline's record, mark the
+    H3/re-search unit "done", never submit its training, and leave the disjoint archive EMPTY — a
+    silently fabricated H3 null. Grouping by sub-root (the ``archive_root`` basename: ``test`` vs
+    ``test_h3_singleshot`` vs ``search`` vs ``search_<suffix>``) restores disjointness; a spec with
+    no ``archive_root`` falls back to the mirror-wide check (unchanged behaviour)."""
+    local_root = Path(local_root)
+    done_by_subroot: dict[str, set[str]] = {}
+    out: list[dict[str, Any]] = []
+    for s in all_specs:
+        sub = Path(str(s.get("archive_root", ""))).name
+        if sub not in done_by_subroot:
+            done_by_subroot[sub] = completed_run_ids(local_root / sub if sub else local_root)
+        if spec_run_id(s) not in done_by_subroot[sub]:
+            out.append(s)
+    return out
