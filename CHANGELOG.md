@@ -45,6 +45,14 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   resource-management grant); `preflight.py` gained `check_commit_headroom` (FAIL < 6 GB, live-verified);
   the 4.5 GB StateRepository svchost is flagged for Tamer (admin-only). Campaign authoring pattern itself
   verified clean (validate_once ×100 sequential: no degradation).
+- **Post-batch certification:** full suite **2,139 passed + 3 skipped (POSIX-only) = 2,142 = the collected
+  count, 0 failed, exit 0** (three-way verified: progress-char census == collection sum, [100%] reached,
+  exit code; the final pytest count line does not appear in captured output on this box — counted from the
+  progress lines; the 07-13 "2,196" figure is a different counting basis, and no test was deleted since:
+  `--diff-filter=D` empty, 0 `-def test_`, +18 `+def test_`). Monitoring arm-up (`96239ad`): ntfy push in
+  campaign_monitor.sh + the sentinel — built+certified 07-06 but NEVER armed in the runbook — added as
+  §5(e), verified clean against the cluster mirror. Audit trail consolidated: PRE_SPEND_AUDIT addendum
+  P20/P21/P22. Cluster re-synced twice; GIT_COMMIT marker `96239ad`.
 
 ## [2026-07-13b] — B\* reopened + curve recovery · launch config finalized · dim-4 integration · ALL non-write-up gaps closed · max-throughput levers · walltime-floor revision
 

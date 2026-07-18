@@ -67,3 +67,22 @@ point had NO freeze gate at all (the laptop's verify-or-refuse now mirrored exac
 for rehearsals only; NOTE: any pm2 prototype RESUME now needs `--allow-unfrozen`) — and the
 campaign launch line is unchanged (post-freeze, no flag). After the H3 decision:
 freeze (Tamer) → C0 canary (which also analysis-smokes the reader path) → GO.
+
+## ADDENDUM 2026-07-18 (post-inventory catches — the audit trail kept in ONE place)
+
+Three further launch-critical findings surfaced AFTER the wave-4 close, during Tamer's
+"ultrathink 1000000×" defaults sweep and the subsequent forensics (full narrative:
+CHANGELOG [2026-07-18c]; decision record: ADR-057):
+
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| P20 | `--train-steps` None resolved via `_agent_cfg` to **prototype.yaml's 25,000**, not campaign.yaml's 400,000 — the ENTIRE campaign would have trained at 1/16th the pre-registered B\*. The freeze gate checks config MIRRORS, not the runtime assembly, so it could not catch this. | **CRITICAL** | **FIXED (`8981808`)**: assembly resolves None from `campaign.yaml train_steps_per_candidate` + hard-asserts == prereg B\*; real-spend runs refuse ANY explicit design flag (`--train-steps/--candidates/--generations/--n-trials/--embargo`) without `--allow-unfrozen`; the whole argparse-mirror class (30/6/30/21) moved to config resolution; 7 regression tests |
+| P21 | The auto-`h_rt` sizer read `campaign.agent.train_steps_per_candidate` — a key that DOES NOT EXIST — then a stale hardcoded 200000: at B\*=400k every pack-5 array task (~6:09 needed) would have been sized ~4h → **fleet-wide walltime kills after ~4 GPU-h burned each** (the p6ext800 incident class, industrialized). | **CRITICAL** | **FIXED (`8981808`)**: reads the top-level B\* the assembly resolves; fails loud if missing; `autosize_h_rt()` extracted + unit-locked (400k/pack-5 → 7:0:0, matching the runbook's corrected walltimes) |
+| P22 | `validate_once`'s 2.0 s timeout clocked spawn + numpy/MKL import + user code TOGETHER → on a commit-starved box (forensics: ArmouryCrate.UserSessionHelper leaked 7.61 GB over 8 days; system commit headroom hit 0.37 GB; children stalled ~103 s in the numpy DLL load, py-spy-verified) or a contended node, GOOD rewards were rejected as timeouts — paid-candidate loss at authoring + sealed-leg seed failures. Manifested as the pre-existing cross-file test failures (test_cluster_campaign + test_run_campaign). | **HIGH** | **FIXED (`8981808`, ADR-057)**: three-phase handshake (stdlib-only boot shim; ready→armed→verdict); 2.0 s clocks ONLY candidate code; environment graces (45/120 s) raise a DISTINCT starved-environment error; leakers killed (commit → 9.82 GB); `preflight.py check_commit_headroom` (FAIL < 6 GB); runbook §1.9 |
+
+Post-addendum verification: full suite **2,139 passed + 3 skipped (POSIX-only) = 2,142 = the
+collected count, 0 failed, exit 0** (counting note: the 07-13 "2,196" figure is not reconstructable
+from the current tree but no test was deleted since — `git log --diff-filter=D` empty, `-def test_`
+count 0, `+def test_` +18); exact launch line + H3 dry-runs green at the resolved 400k design;
+cluster re-synced (marker `96239ad`). The GO gate remains CLEAR; the only remaining items are
+Tamer's (balance confirmation + the OFFICIAL GO).

@@ -143,7 +143,7 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py \
     --output-dir outputs/campaign_cluster --resume
 ```
 
-## 5. Monitoring (arm all three at launch)
+## 5. Monitoring (arm (a) the state-class monitor [+ntfy push] and (e) the sentinel at launch; (b)–(d) are read-on-demand)
 
 ```bash
 # (a) THE CAMPAIGN MONITOR (start at launch — the proven v3 state-class pattern, pointed at
