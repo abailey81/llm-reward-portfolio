@@ -21,13 +21,15 @@ locks (the search/compute budgets in §4 are the Deflated-Sharpe trial count). I
    package versions, echoed into every run sidecar". Do not freeze a pointer to a file that does not exist.
 2. **Arm budgets.** Confirm the arm roster + per-candidate budget in §3/§4 equal the EXECUTED
    `config/campaign.yaml` (roster) + `config/campaign.yaml`/`config/algos.yaml` (`train_steps_per_candidate`
-   = B* = 200,000, R74). Do NOT consult `config/eureka_loop.yaml` — it is documentary only ("NOT loaded by
+   = B* = 400,000, R77 (supersedes R74's 200,000; matches config/campaign.yaml + config/algos.yaml)). Do NOT consult `config/eureka_loop.yaml` — it is documentary only ("NOT loaded by
    the live run"; it still carries the legacy 240 budget). The freeze gate now binds all three cross-file:
    `assert_executed_arms_match` (roster), `assert_train_steps_match` (B*, batch-6 M1), and the
    preflight budget-/model-mirror checks — so a drift here fails `make freeze-check` rather than freezing.
-3. **Compute venue.** Confirm §12 / compute references match the CURRENT decision (2026-06-30): the campaign
-   runs **LAPTOP-ONLY on the owned RTX 4050** (Turbo + n_gpu=3 + buffer capped 50k). The older "rented RTX
-   4090" framing (ADR-023) is **superseded**; **no UCL Myriad**.
+3. **Compute venue.** Confirm §12 / compute references match the CURRENT decision (2026-07-13, ADR-053): the
+   confirmatory campaign runs on the **UCL Myriad HPC cluster** (SGE arrays; `scripts/run_campaign_cluster.py`),
+   with the owned RTX 4050 laptop as the **certified fallback** (Turbo + n_gpu=3 + buffer capped 50k; full
+   cross-substrate science parity). Both the older "rented RTX 4090" framing (ADR-023) and the 2026-06-30
+   "LAPTOP-ONLY" decision are **superseded** by ADR-053.
 
 Edit `PREREGISTRATION.md` (and config, if a number moves) directly to resolve any mismatch — there is no
 staging copy to apply.

@@ -1,9 +1,11 @@
-"""Feedback-block serialization — identical structure across arms (B.5 / F.3).
+"""Feedback-block serialization — a shared schema with structure-matched controls (B.5 / F.3).
 
 The headline contribution (H2) is the *information content* of the feedback, not
-its token count. To make that claim cleanly, every feedback block shares an
-IDENTICAL structure (line count, field layout); only the *content* differs across
-arms. This module renders those blocks deterministically.
+its token count. To isolate content from token count, the PLACEBO controls (placebo,
+placebo_shuffled) match the distributional block's EXACT line count and field layout,
+differing only in content; the scalar and scalar_cvar5 arms deliberately carry FEWER
+lines (a scalar-only header, and header-plus-one-line respectively). This module renders
+every block deterministically.
 
 Arms (FINAL_PLAN B.5 / F.3) and their block content:
   - distributional : scalar metric + the FULL frozen tail set (CVaR 5/10/25/1%,

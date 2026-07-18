@@ -127,7 +127,7 @@ def render_jobscript(
                 "path, or '$HOME/...' for shell-only paths; expand user input via "
                 "submit.remote_home + submit.expand_remote."
             )
-        if ":" in val.split("=", 1)[-1][:12] and ":/" in val:
+        if ":" in val.split("=", 1)[-1][:12] and (":/" in val or ":\\" in val):
             # 2026-07-12 incident: Git Bash (MSYS) path conversion rewrote a laptop CLI arg
             # '/acfs/users/.../gold' into 'C:/Program Files/Git/acfs/...' BEFORE Python saw it —
             # every task of the batch then died at the Apptainer mount (rc=255, 1s). A Windows

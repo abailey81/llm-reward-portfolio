@@ -1,6 +1,6 @@
 # Light, CI-friendly subset that runs the DETERMINISTIC core test suite (no torch/SB3/GPU).
 # The full training/LLM paths need the heavier deps in pyproject.toml.
-numpy>=1.26,<3
+numpy>=1.26,<2.0
 scipy>=1.11
 scikit-learn>=1.3
 pandas>=2.1

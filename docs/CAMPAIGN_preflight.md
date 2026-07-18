@@ -180,10 +180,11 @@ The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml
   in-spec launch.** Command (B) is faster and more Eureka-faithful but is amendment-gated.
 - **Recommended n_gpu = 3** on this laptop (VRAM ceiling; `--gpu >= 4` is refused by run_campaign). Fallback
   **`--gpu 2`** if any OOM. Optional `--cpu 1` only after freeing the ~8 GB other apps (marginal +10–15%).
-- **Throughput:** the campaign is **LAPTOP-ONLY** (ADR-040, RTX 4050 n_gpu 2–3); wall-clock depends on the
-  frozen per-candidate budget B\* (convergence pilot pending) — see `docs/COMPUTE_AND_TRAINING_TIME.md` for the
-  laptop estimate. The earlier rented-RTX-4090 target is **superseded** (a cost choice, not a data/licence
-  blocker). `auto_shutdown_on_complete` is a verified no-op on the laptop; operators pass `--no-shutdown`.
+- **Throughput:** the confirmatory campaign's PRIMARY substrate is **UCL Myriad** (ADR-053, 2026-07-13;
+  `scripts/run_campaign_cluster.py`, SGE arrays); the **RTX 4050 laptop is the certified fallback** (n_gpu 2–3).
+  Wall-clock depends on the frozen per-candidate budget B\* — see `docs/COMPUTE_AND_TRAINING_TIME.md` for the
+  laptop estimate. Both the earlier rented-RTX-4090 target and the LAPTOP-ONLY (ADR-040) framing are
+  **superseded** by ADR-053. `auto_shutdown_on_complete` is a verified no-op on the laptop; operators pass `--no-shutdown`.
 
 ### Useful variants
 - Resume after interruption: append `--resume` (already in the recommended lines).

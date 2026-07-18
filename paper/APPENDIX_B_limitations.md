@@ -1,5 +1,5 @@
 # Appendix B — Limitations Register
-> *Lettering note (2026-07-06): Appendix A is reserved for the planned Chapter-3 proofs appendix (P7); if that appendix is not included at final compile, relabel this one 'Appendix A' (P8 checklist item). Word-count status: appendices are excluded from the 10,000-word body count.*
+> *Lettering note: this Limitations Register is the dissertation's sole appendix; it is lettered 'B' (not 'A') to mirror the pre-registration's appendix lettering, under which the register is Appendix B — the numbering is intentional, not a missing Appendix A. Word-count status: appendices are excluded from the 10,000-word body count.*
 
 A complete, structured register of the study's limitations, each with its rationale, its direction of bias where
 known, and its mitigation or disclosure. Grouped by validity type [`shadish2002experimental`].
@@ -100,7 +100,7 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   *Mitigation:* a diagnostic of how close the trained policy approaches cash in stress states; if it drives risky
   weight toward zero, the limitation is empirically non-binding. *Future work:* Dirichlet / simplex-decomposition
   parameterisations.
-- **B.4.5 Risk-free rate.** Cash accrues at a zero rate in the headline — the ratified §10 numeraire (rf = 0 is
+- **B.4.5 Risk-free rate.** Cash accrues at a zero rate in the headline — the ratified numeraire convention (rf = 0 is
   common-mode across the arms and cancels to first order in the Sharpe difference); a DGS3MO rf-excess robustness
   re-run of the family is reported to demonstrate, not assert, rf-invariance. *Direction:* under-
   rewards the cash-fleeing tail-aware arm in ZIRP periods — conservative against the hypothesis.

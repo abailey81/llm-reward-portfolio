@@ -380,7 +380,7 @@ this space). Flags at the end are load-bearing.
 Theorem-level, frontier, and cross-disciplinary depth beyond Part I. Purpose: lift the dissertation from
 high-Distinction to *publishable / doctoral-capable* (the verified 86–100 band) and bulletproof it against an
 expert's subtlest objections. **Headline: many of these enable concrete NEW analyses computable on data already
-on disk (the 239 archived reward programs + the 30-seed×arm matrix) with NO new compute** — see §M. All cites
+on disk (the 239 archived reward programs + the winner-seed-ladder × arm matrix — Amendment E1; tiers to n=568, primary target 403) with NO new compute** — see §M. All cites
 verified-vs-snippet tagged; new integrity flags in §N.
 
 ## I. THEORY PILLARS — three deep, rigorous foundations for the contribution
@@ -657,7 +657,7 @@ implicit/unbounded LLM search that PBO/DSR can't fully deflate)
 | 17 | **Null-rhetoric abstract** (Lucic/Dacrema cadence + Kerr no-HARKing) | Dacrema 2019, Kerr 1998 | highest-leverage writing move |
 
 **Nine of seventeen (★) need no new training compute** — they are post-hoc analyses over the 239 archived programs
-+ the 30-seed×arm matrix + the prose. That is the cheapest, fastest route from high-Distinction to publishable.
++ the winner-seed-ladder × arm matrix (Amendment E1; primary target 403) + the prose. That is the cheapest, fastest route from high-Distinction to publishable.
 
 ## N. NEW CITATION-INTEGRITY FLAGS (Part II)
 - **FZ-2016 has a 2021 correction note** (*Ann. Stat.* 49(1):614) — pair it; Okhrati will expect it.

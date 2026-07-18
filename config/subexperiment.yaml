@@ -22,7 +22,7 @@ legible:
   skew_window: [-1.0, 1.0]    # symmetric reference span for the robust_skew decile tag (dimensionless, 2-dp)
 
 # Reward author — REUSE the campaign's Opus 4.8 block (config/campaign.yaml: llm). The cheap sub-experiment
-# does NOT re-run the B*=200k-step main training; it authors a reward + a cheap eval per seed (contamination.py).
+# does NOT re-run the B*=400k-step main training; it authors a reward + a cheap eval per seed (contamination.py).
 # Pass A (or --synthetic, or no ANTHROPIC_API_KEY) falls back to the keyless StubDesignerTransport.
 llm:
   pass: B
@@ -43,7 +43,7 @@ data:
   on_missing: liquidate_to_cash
 
 agent:
-  train_steps_per_candidate: 25000   # cheap eval (NOT the B*=200k-step main training); report-only
+  train_steps_per_candidate: 25000   # cheap eval (NOT the B*=400k-step main training); report-only
   batch_size: 256
   learning_rate: 0.0003
   gamma: 0.99

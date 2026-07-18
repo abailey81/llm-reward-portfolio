@@ -546,7 +546,14 @@ class DevicePool:
 
     def submit(self, spec: dict) -> Future:
         token = self._tokens.get()  # blocks until a device is free
-        fut = self._ex.submit(train_candidate, {**spec, "device": token})
+        try:
+            fut = self._ex.submit(train_candidate, {**spec, "device": token})
+        except BaseException:
+            # _ex.submit raised (pool already shut down, un-picklable spec, ...) BEFORE the done-callback
+            # that returns the token could attach — return it here or the pool leaks a device forever and
+            # eventually deadlocks on the next .get() (audit 2026-07-19).
+            self._tokens.put(token)
+            raise
         # token is a fresh per-call local (NOT a mutating loop var), so a plain closure captures it
         # correctly; no `t=token` default needed (which also broke the callback's type inference).
         fut.add_done_callback(lambda _f: self._tokens.put(token))
@@ -558,7 +565,13 @@ class DevicePool:
         winner re-runs share the SAME device-load-balanced pool as the search trainings.
         """
         token = self._tokens.get()  # blocks until a device is free
-        fut = self._ex.submit(fn, {**spec, "device": token})
+        try:
+            fut = self._ex.submit(fn, {**spec, "device": token})
+        except BaseException:
+            # See submit(): return the token if _ex.submit raises before the callback attaches, else the
+            # pool leaks a device and deadlocks on the next .get() (audit 2026-07-19).
+            self._tokens.put(token)
+            raise
         # token is a fresh per-call local (NOT a mutating loop var), so a plain closure captures it
         # correctly; no `t=token` default needed (which also broke the callback's type inference).
         fut.add_done_callback(lambda _f: self._tokens.put(token))

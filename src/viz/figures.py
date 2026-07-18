@@ -2,7 +2,7 @@
 
 Designed for a corroborated NULL — every figure visualises equivalence/overlap HONESTLY:
 
-* :func:`equivalence_forest`     — TOST intervals vs the ±SESOI band, both co-primary legs (F5/F6).
+* :func:`equivalence_forest`     — TOST intervals vs the ±SESOI band, both co-primary legs (F6).
 * :func:`rliable_intervals`      — per-arm IQM + stratified-bootstrap CIs, the canonical RL-eval figure.
 * :func:`risk_return_clouds`     — the collapsed (CVaR, Sharpe) frontier: the 7 arms pile into one blob.
 * :func:`evidence_for_null`      — Bayes-factor gauge + Model-Confidence-Set strip (evidence FOR H0).

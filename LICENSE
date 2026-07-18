@@ -13,7 +13,7 @@ The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
 NOTE: This license covers the CODE only. The market data used by this project
-(e.g. CRSP via WRDS) is licensed separately and is NOT redistributable; it is
+(Refinitiv/LSEG via the London Stock Exchange Group) is licensed separately and is NOT redistributable; it is
 not included in this repository (see config/data.yaml and .gitignore).
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR

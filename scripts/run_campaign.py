@@ -667,7 +667,7 @@ def _search_parallel_arm(
 
     # Structural config: prototype base for reward_family/data (the panel + windows the serial run_arm and
     # the proven prototype --parallel path both build from), with the campaign's RESOLVED agent block so
-    # the worker trains at the 200k campaign budget (train_steps threaded straight in below).
+    # the worker trains at the 400k campaign budget (R77; train_steps threaded straight in below).
     proto_base = load_config("prototype")
     structural = {
         "agent": agent_cfg,
@@ -1052,7 +1052,7 @@ def evaluate_baselines_on_test(
     keeps the serial trainer. Returns the flat list of records written this call.
 
     Budget: ``len(baseline_names) x len(seeds)`` runs (the 4-name H1 family x 30 seeds = 120 runs) at the
-    SAME 200k step budget as the arms — the matched compute the Eureka comparison requires.
+    SAME 400k step budget as the arms — the matched compute the Eureka comparison requires.
     """
     from src.env.runner import make_env_builder
 
@@ -2237,6 +2237,21 @@ def main() -> None:
             f"[run_campaign] --cpu {args.cpu} on a REAL run mixes CPU into the sealed TEST leg — "
             "device-heterogeneous seeds are irreproducible (CPU != CUDA bit-for-bit) and break the "
             "paired-seed CRN design. Use GPU-only (--gpu 3); --cpu is for --synthetic/--dry-run dev."
+        )
+
+    # PROVIDER GUARD (F1-class, mirrors run_campaign_cluster.py's guard): a REAL confirmatory run
+    # (pass B) must NOT author with the keyless StubDesignerTransport — that silently produces a
+    # scientifically-void campaign mislabeled as the Opus headline (detectable only post-hoc via the
+    # archived model_id 'stub-designer/...'). `provider` is already resolved from config/campaign.yaml
+    # llm.provider (line ~2150, default 'stub'); if it is still 'stub' under pass B on a real run, the
+    # config is misconfigured — refuse loudly rather than burn the run (audit 2026-07-19). The keyless
+    # --dry-run smoke legitimately forces pass A / provider stub above, so it is exempt.
+    if not args.dry_run and pass_mode.upper() == "B" and provider == "stub":
+        raise SystemExit(
+            "[run_campaign] pass-mode B with provider=stub: a real confirmatory run would silently "
+            "author with the keyless StubDesignerTransport (scientifically void, mislabeled as the Opus "
+            "headline). Set config/campaign.yaml llm.provider (it carries 'anthropic'), or use --dry-run "
+            "for the keyless wiring smoke."
         )
 
     print(

@@ -283,14 +283,32 @@ def pending_specs(
     H3/re-search unit "done", never submit its training, and leave the disjoint archive EMPTY — a
     silently fabricated H3 null. Grouping by sub-root (the ``archive_root`` basename: ``test`` vs
     ``test_h3_singleshot`` vs ``search`` vs ``search_<suffix>``) restores disjointness; a spec with
-    no ``archive_root`` falls back to the mirror-wide check (unchanged behaviour)."""
+    no ``archive_root`` falls back to the mirror-wide check (unchanged behaviour).
+
+    2026-07-19 (verification follow-up): ``archive_root`` means two things by substrate, so resolving
+    the LOCAL completion root must handle both. In a CLUSTER run it is the REMOTE sub-root path (its
+    basename — ``test`` / ``test_h3_singleshot`` / ``search`` / ``search_<suffix>`` — is what the pull
+    mirrors under ``local_root``), so the local root is ``local_root / basename``. In a LOCAL / laptop
+    pack run (``run_one`` archives straight to ``archive_root``) it IS the local record directory, so
+    the local root is ``archive_root`` itself. Distinguish by existence: if ``archive_root`` is already
+    a local directory, read it directly; else map its basename under the mirror. Both keep the sub-roots
+    disjoint (the H3-null-fabrication fix); the earlier basename-only form pointed at a non-existent
+    ``local_root/<leaf>`` whenever ``archive_root == local_root`` and marked completed specs pending —
+    a resume would then re-run finished work (caught by test_pack_path_end_to_end_two_real_specs)."""
     local_root = Path(local_root)
-    done_by_subroot: dict[str, set[str]] = {}
+    done_by_root: dict[str, set[str]] = {}
     out: list[dict[str, Any]] = []
     for s in all_specs:
-        sub = Path(str(s.get("archive_root", ""))).name
-        if sub not in done_by_subroot:
-            done_by_subroot[sub] = completed_run_ids(local_root / sub if sub else local_root)
-        if spec_run_id(s) not in done_by_subroot[sub]:
+        ar = str(s.get("archive_root", ""))
+        if ar and Path(ar).is_dir():
+            root = Path(ar)                       # local/pack run: records live at archive_root itself
+        elif ar:
+            root = local_root / Path(ar).name     # cluster run: remote sub-root mirrored under local_root
+        else:
+            root = local_root                     # no archive_root: mirror-wide (legacy behaviour)
+        key = str(root)
+        if key not in done_by_root:
+            done_by_root[key] = completed_run_ids(root)
+        if spec_run_id(s) not in done_by_root[key]:
             out.append(s)
     return out

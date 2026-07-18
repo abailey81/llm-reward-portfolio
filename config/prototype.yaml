@@ -32,7 +32,8 @@ data:
 agent:
   algo: sac                       # the FIXED headline agent (audit A-1)
   train_steps_per_candidate: 25000  # prototype-scale budget; MATCHED across arms. The CAMPAIGN'S B* is
-                                    #   200,000 on the laptop RTX 4050 (R74/ADR-040 - the old '50k on the
+                                    #   400,000 (R77 measured knee, supersedes R74's 200,000); campaign on UCL
+                                    #   Myriad (ADR-053), laptop RTX 4050 fallback. The old '50k on the
                                     #   rented 4090' framing is superseded). Set from Phase-0 m (~18.9 min/50k).
   buffer_size: 25000              # == train_steps (memory-safe; ADR-025)
   batch_size: 256

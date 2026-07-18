@@ -61,6 +61,6 @@ SESOI band, never a p-value or a bare bar of means; captions must distinguish "e
 DSR" (the claim) from "no effect exists" (not the claim) and "inconclusive". Remaining headline figures to
 wire post-campaign (data only): controls raincloud (F7), responsiveness/prompt-leak scatter (F8b), learning
 curves (F9). Static `[NOW]` schematics are ENGINE-BUILT (`src/viz/schematics.py`: F1 `system_diagram`,
-F2 `prediction_branch`, F4 `splits_timeline`); F4 is rendered to `outputs/figures/`, F1/F2 render pending. F3 stylised facts IS engine-built (`src/viz/eda.py::build_f3`, 2026-07-02; see
+F2 `prediction_branch`, F4 `splits_timeline`); F1, F2 and F4 are all engine-built, tested, and rendered to `outputs/figures/`. F3 stylised facts IS engine-built (`src/viz/eda.py::build_f3`, 2026-07-02; see
 the F3 row above) and rendered 2026-07-02 from the ACTIVE **univ5** Split-C train window (excess kurtosis
 15.25; empirical/Normal CVaR crossover ×0.84→×1.66; stress co-crash 19.7%).

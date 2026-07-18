@@ -1167,3 +1167,23 @@ class). Result-neutral by design intent: validation is pass/fail on the candidat
 excluding environment noise makes the gate MORE faithful to the pre-registered 2 s contract.
 Security unchanged: AST gate in-parent, killable child, hard user-code cap. Companion ops
 control: `preflight.py check_commit_headroom` (FAIL < 6 GB commit available).
+
+## ADR-058 — B* RAISED 200,000 → 400,000 steps (R77, 2026-07-18); supersedes ADR-043 and clears its RE-RUN-PENDING status
+
+**Decision.** Amendment **R77 (2026-07-18)** raises the confirmatory per-candidate training budget
+**B\* = 200,000 → 400,000 steps**, set at the measured **knee of the extended 30-point same-protocol
+learning curve**. The raise was fired by the **pre-committed extended-curve rule** (not a discretionary
+bump): the rule's verdict artifact is `outputs/tables/bstar_rule_verdict.json`. This **supersedes
+ADR-043's B\* = 200,000** and **clears ADR-043's `DECIDED-pending-execution` / `RE-RUN PENDING`
+status** — ADR-043's historical finding (flat held-out ≈ 0 across the old 25k–350k ladder, loss knee
+~100k) stands as the record of the pre-R77 measurement; the extended 30-point curve at 400,000 is the
+governing budget going forward.
+
+**Why.** The pre-R77 ladder topped out at 350k with no measurable held-out gain, so budgets beyond that
+range were flagged "under active measurement". Extending the same-protocol curve to 30 points located
+the knee at 400,000; the pre-committed rule fired on that evidence, making 400,000 the campaign budget.
+
+**Consequences.** B\* = 400,000 is the value stamped into every campaign spec and used for wall-clock
+projection (Myriad throughput at 400k = 2.05 trainings/GPU-h, superseding the pre-R77 200k figure of
+3.74; ADR-053). `config/campaign.yaml` + `config/algos.yaml` `train_steps_per_candidate` and the
+freeze-gate `assert_train_steps_match` cross-file check bind to 400,000. `frozen: false`.

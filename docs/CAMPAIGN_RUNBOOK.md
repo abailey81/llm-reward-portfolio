@@ -1,5 +1,12 @@
 # CAMPAIGN RUNBOOK — the single operational document for run day
 
+> **⚠ CURRENT SUBSTRATE (2026-07-13, ADR-053).** The confirmatory campaign runs on the **UCL Myriad HPC
+> cluster** (SGE arrays; `scripts/run_campaign_cluster.py`) — this is the PRIMARY venue. The laptop path
+> described in this runbook is the **CERTIFIED FALLBACK**, not the primary substrate (cross-substrate
+> science parity is certified — same primitives, `src/cluster/`). **Run-day operators should use
+> `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md`** as the operative launch document; this file's laptop
+> sequence applies only when training on the fallback box.
+>
 > **⚠ SUPERSEDED COMPUTE FRAMING (2026-07-01, ADR-040).** The campaign runs **LAPTOP-ONLY on the owned RTX 4050**
 > — no rented RTX 4090 / cloud (**no cloud-compute budget**; a WSL2/GPU speed path was also probed and rejected
 > after systematic install failure). Wherever this runbook says "rented 4090", "`--gpu 8`",

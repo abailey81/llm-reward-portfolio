@@ -40,10 +40,22 @@ def _parse_seeds(spec: str) -> list[int]:
         if not part:
             continue
         if "-" in part:
-            a, b = part.split("-", 1)
-            out.extend(range(int(a), int(b) + 1))
+            a, b = (t.strip() for t in part.split("-", 1))
+            # str.isdigit() rejects underscores ('0_567'.isdigit() is False -> CPython would parse it to
+            # 567), signs, and spaces — silent malformations that would run the WRONG seed set (audit
+            # 2026-07-19). Also reject a reversed range, which range() turns into a silent empty set.
+            if not (a.isdigit() and b.isdigit()):
+                raise SystemExit(f"--seeds range {part!r} must be 'A-B' with non-negative integers")
+            ai, bi = int(a), int(b)
+            if bi < ai:
+                raise SystemExit(f"--seeds range {part!r} is reversed (A > B: {ai} > {bi})")
+            out.extend(range(ai, bi + 1))
         else:
+            if not part.isdigit():
+                raise SystemExit(f"--seeds token {part!r} must be a non-negative integer")
             out.append(int(part))
+    if not out:
+        raise SystemExit(f"--seeds {spec!r} parsed to an empty seed set")
     return sorted(set(out))
 
 

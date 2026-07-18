@@ -85,9 +85,10 @@ attribution rules out a low-volatility-beta explanation of any headline.
 - Synthetic-null falsification (the identical inference stack on shuffled labels must return null):
   `[FROM CAMPAIGN: null-calibration verdict]`.
 - Model-Confidence-Set membership + the triangulated Bayesian null evidence (JZS BF, ROPE):
-  `[FROM CAMPAIGN: MCS members at 90%; BF01; ROPE mass]` — figures F-D/F-E (manifest).
+  `[FROM CAMPAIGN: MCS members at 90%; BF01; ROPE mass]` — Figures 6.4–6.5 (manifest F-D/F-E).
 
-*Figure 6.3 (controls overlay) — manifest F7; Table 6.3 (robustness) — manifest T3.*
+*Figure 6.3 (controls overlay) — manifest F7; Figure 6.4 (per-seed risk–return clouds) — manifest F-D;
+Figure 6.5 (Bayesian null-evidence gauge, MCS membership) — manifest F-E; Table 6.3 (robustness) — manifest T3.*
 
 ## 6.4 Secondary hypotheses
 
@@ -137,6 +138,8 @@ reports its sign. It quantifies the **reward-program
 differential** across arms with the EPIC/STARC reward pseudometrics (do tail-fed arms author measurably different
 reward code?). Finally it presents the **learning-curve / training-budget diagnostic**, disclosing the budget verdict
 at the 400,000-step budget and interpreting all arm differences as differences *at a fixed, matched budget*.
+Figure 6.6 renders the paper's three-link chain — fed tail signal → authored reward code → trained policy →
+realised tail — as a single spine, with the cut glyph marking the link the evidence severs.
 
 - Responsiveness (fed-tail change → authored-reward change): `[FROM CAMPAIGN: estimate, sign, CI]`.
 - Mediation (fed → code → realized tail; a·b indirect effect): `[FROM CAMPAIGN: a, b, indirect, CI]`.
@@ -145,16 +148,19 @@ at the 400,000-step budget and interpreting all arm differences as differences *
 - Reward-program differential (EPIC/STARC distances between arms): `[FROM CAMPAIGN: distances]`;
   prompt-leak fingerprint / tail-construct count by arm: `[FROM CAMPAIGN: counts]`.
 - Learning-curve / training-budget diagnostic: `[FROM CAMPAIGN: critic-loss trajectory, budget verdict, extended-ladder verdict]`.
+  The measured per-seed validation-DSR-versus-budget curve, with $B^\*$ marked at the empirical knee, is shown in
+  Figure 6.9 (manifest F11, the R77-mandatory budget exhibit).
 
-*Figure 6.4 (mechanism / responsiveness) — manifest F8; Figure 6.5 (learning curves) — manifest F9.*
+*Figure 6.6 (three-link mechanism chain) — manifest F10; Figure 6.7 (mechanism / responsiveness) — manifest F8;
+Figure 6.8 (learning curves) — manifest F9; Figure 6.9 (measured training-budget curve, R77) — manifest F11.*
 
 ## 6.6 Summary against the §3.7 prediction table
 
 This closing section maps the realised results onto the three pre-registered mechanism branches (Strict / Weak /
 Null) of the Chapter 3 §3.7 table, stating which branch the evidence corroborates and why. The verdict is read off
 the conjunction of the four signature columns — H2-RA (Sharpe), H2-Tail (CVaR-5%), responsiveness sign, and the
-reward-code differential — exactly as pre-registered, so the outcome is a *decided prediction* of either sign
-rather than a bare measurement.
+reward-code differential — exactly as pre-registered (Table 6.5), so the outcome is a *decided prediction* of either
+sign rather than a bare measurement.
 
 | §3.7 signature | Pre-registered prediction (Null branch) | Realised | Branch corroborated |
 |---|---|---|---|
@@ -162,6 +168,9 @@ rather than a bare measurement.
 | H2-Tail (CVaR-5% legs) | tie (equivalence) | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
 | Responsiveness | $\le 0$ | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
 | Reward-code differential | none / reversed | `[FROM CAMPAIGN]` | `[FROM CAMPAIGN]` |
+
+*Table 6.5 — Realised results mapped onto the §3.7 pre-registered prediction branches (Strict / Weak / Null); the
+corroborated branch is read off the conjunction of the four signature columns, as pre-registered.*
 
 Verdict: `[FROM CAMPAIGN: Strict / Weak / Null branch corroborated]`, with `[FROM CAMPAIGN: one-line theory-tied
 interpretation per §3.7]`.

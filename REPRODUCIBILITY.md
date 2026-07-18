@@ -73,4 +73,4 @@ The campaign is documented end-to-end in [`docs/CAMPAIGN_RUNBOOK.md`](docs/CAMPA
 - [x] Pre-registered design with a cryptographic integrity hash (`PREREGISTRATION.md`, `scripts/freeze.py`).
 - [x] Data provenance + SHA-256 checksums; a shape-identical synthetic stand-in for the licensed panel.
 - [x] Exact commands to reproduce every stage (§4).
-- [x] Behaviour test suite (1500+ tests; `make test`) plus a continuous-integration drift guard.
+- [x] Behaviour test suite (2,000+ tests; `make test`) plus a continuous-integration drift guard.

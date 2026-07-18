@@ -172,20 +172,6 @@ above.]
 
 ---
 
-## Table of Contents
-
-*(Compile note: page numbers and final section numbering are generated at LaTeX compile; the structure below is authoritative.)*
-
-1. **Introduction**
-2. **Literature Review**
-3. **The Information Value of Tail-Risk Feedback** (Theory)
-4. **Methods** — data & stylised facts · the off-critic instrument · the seven arms · pre-registration & freeze · inference plan
-5. **Directional Prototype** (pre-registration-time, non-confirmatory)
-6. **Results** (confirmatory campaign)
-7. **Discussion, Limitations and Conclusion**
-- **References**
-- **Appendix B — Limitations Register** (§B.1–B.7)
-
 ## List of Figures
 
 | # | Title |

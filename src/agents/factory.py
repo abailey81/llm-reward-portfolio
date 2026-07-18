@@ -62,7 +62,7 @@ DISTRIBUTIONAL_ALGO = "TQC"
 
 #: Fallback HARD replay-buffer cap when config/campaign.yaml is unreadable (ADR-025 EXTENDED,
 #: CLAUDE.md 2026-06-30 laptop design). At the 1,893-dim obs a full-history buffer needs ~2.8 GB
-#: at 200k / ~5 GB at 350k and OOMs the 15.6 GB laptop; capped at 50k the replay is a bounded
+#: at 200k / ~5.6 GB at the frozen 400k budget (R77) and OOMs the 15.6 GB laptop; capped at 50k the replay is a bounded
 #: ~0.76 GB sliding window (50000 x 1893 x 4 B x 2, obs + next_obs float32).
 DEFAULT_REPLAY_CAP = 50000
 

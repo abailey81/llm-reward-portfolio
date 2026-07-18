@@ -60,7 +60,8 @@ Design choices (each load-bearing)
 * **Bias-corrected EMA, scale from step 1 (NOT a warmup hold).** The scale must act from the FIRST
   reward: a warmup that passes early rewards through unscaled would let a ``1e4`` opening transition into
   the replay buffer, where it is resampled for many replay passes and re-explodes the critic (the buffer
-  is a capped 50k FIFO window that still resamples an opening transition for ~17 passes at B*=200k, ADR-025
+  is a capped 50k FIFO window that still resamples an opening transition for ~17 passes before it is
+  evicted at step 50k (budget-independent: the same at the frozen B*=400k as at the old 200k), ADR-025
   EXTENDED). We instead debias the EMA Adam-style — ``sq_hat = sq_ema / (1 - (1-beta)^count)``
   — so after a single reward ``v`` the estimate is exactly ``v^2`` and the scaled output is ``v/|v| = ±1``
   (perfectly normalized), not ``v/sqrt(beta*v^2)``. ``warmup`` therefore defaults to ``0``; it is kept as
