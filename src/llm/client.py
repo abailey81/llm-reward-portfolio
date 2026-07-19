@@ -353,6 +353,24 @@ def _usage_dict(message: Any) -> dict[str, Any] | None:
     }
 
 
+def _is_key_dead_error(exc: BaseException) -> bool:
+    """True iff ``exc`` means THIS KEY cannot pay/authenticate — the only failover triggers.
+
+    Duck-typed on ``status_code`` (SDK-independent, hence unit-testable without ``anthropic``):
+    * **400 + "credit balance"** — Anthropic's insufficient-funds error ("Your credit balance is
+      too low to access the Anthropic API") — the account is dry; a different funded key fixes it.
+    * **401** — authentication_error: the key is invalid/disabled/revoked.
+
+    DELIBERATELY excluded: 429/5xx/overloaded (transient — tenacity retries them on the SAME key;
+    rotating would burn the fallback on a shared outage) and every other 400 (a malformed request
+    fails identically on any key — rotating cannot help and would only mask a real bug).
+    """
+    status = getattr(exc, "status_code", None)
+    if status == 401:
+        return True
+    return status == 400 and "credit balance" in str(exc).lower()
+
+
 class _AnthropicTransport:
     """Callable Anthropic transport that also exposes ``last_usage`` for archival.
 
@@ -361,6 +379,17 @@ class _AnthropicTransport:
     each completion). Prompt-caches the static system block, applies the injected ``retrying``
     backoff, and passes ``temperature`` only when explicitly set (else the provider default —
     which for the Eureka K-sampling loop MUST stay > 0, ADR-016).
+
+    **Automatic key failover (2026-07-19, Tamer's request).** If ``fallback_key_env`` names a
+    set, non-empty env var (convention: ``<primary>_FALLBACK``, e.g.
+    ``ANTHROPIC_API_KEY_FALLBACK``), then a call that fails with a KEY-DEAD error
+    (:func:`_is_key_dead_error`: credit exhausted, or 401) switches to a fresh client built on
+    the fallback key and retries the SAME request once. The switch is **sticky** (every later
+    call uses the fallback — no flapping) and **loud** (an ERROR log; the archived call itself
+    is unaffected — a failed request never billed and never generated). With no fallback set,
+    behaviour is byte-identical to before: the error propagates and the loop's skip-and-resume
+    path handles it. Safe by construction: authored candidates replay from the archive, so the
+    retried request can never double-bill or duplicate a candidate.
     """
 
     def __init__(
@@ -372,6 +401,8 @@ class _AnthropicTransport:
         max_tokens: int,
         cache_system: bool,
         retrying: Any,
+        fallback_key_env: str | None = None,
+        client_factory: Any = None,  # Callable[[str], client]; injectable for tests
     ) -> None:
         self._client = client
         self._model = model
@@ -379,10 +410,36 @@ class _AnthropicTransport:
         self._max_tokens = max_tokens
         self._cache_system = cache_system
         self._retrying = retrying
+        self._fallback_key_env = fallback_key_env
+        self._client_factory = client_factory
+        self._failed_over = False
         self.last_usage: dict[str, Any] | None = None
         self.last_stop_reason: str | None = None
         self.last_request_id: str | None = None
         self.last_served_model: str | None = None
+
+    def _try_failover(self, exc: BaseException) -> bool:
+        """Switch to the fallback key if ``exc`` is key-dead and a fallback is available."""
+        if self._failed_over or not self._fallback_key_env or not _is_key_dead_error(exc):
+            return False
+        fallback_key = os.environ.get(self._fallback_key_env, "").strip()
+        if not fallback_key:
+            return False
+        if self._client_factory is not None:
+            new_client = self._client_factory(fallback_key)
+        else:  # pragma: no cover - exercised only with the real SDK installed
+            from anthropic import Anthropic
+
+            new_client = Anthropic(api_key=fallback_key, max_retries=0)
+        _LOG.error(
+            "API KEY FAILOVER: the primary key is dead (%s: %s) — switching PERMANENTLY to the "
+            "fallback key from %s and retrying this request. Top up / replace the primary before "
+            "the next run.",
+            type(exc).__name__, str(exc)[:160], self._fallback_key_env,
+        )
+        self._client = new_client
+        self._failed_over = True
+        return True
 
     def __call__(self, system: str, user: str) -> str:
         # Prompt-cache the static system block (ADR-016: the K=16 shared-context lever — a 5-min
@@ -404,7 +461,14 @@ class _AnthropicTransport:
         def _call() -> Any:
             return self._client.messages.create(**kwargs)
 
-        message = self._retrying(_call) if self._retrying is not None else _call()
+        try:
+            message = self._retrying(_call) if self._retrying is not None else _call()
+        except Exception as exc:  # noqa: BLE001 — classify, fail over on key-dead only, else re-raise
+            if not self._try_failover(exc):
+                raise
+            # One sticky retry of the SAME request on the fallback client (idempotent: the failed
+            # request neither billed nor generated; the archive/ledger never double-bills).
+            message = self._retrying(_call) if self._retrying is not None else _call()
         self.last_usage = _usage_dict(message)
         self.last_stop_reason = getattr(message, "stop_reason", None)
         self.last_request_id = getattr(message, "_request_id", None)
@@ -483,6 +547,9 @@ def make_anthropic_transport(
         max_tokens=max_tokens,
         cache_system=cache_system,
         retrying=_make_retrying(max_retries),
+        # Automatic key failover (2026-07-19): <primary>_FALLBACK, e.g. ANTHROPIC_API_KEY_FALLBACK.
+        # Read lazily at failover time, so adding it to .env mid-run needs no rebuild.
+        fallback_key_env=f"{api_key_env}_FALLBACK",
     )
 
 

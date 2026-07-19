@@ -477,3 +477,89 @@ def test_openrouter_429_is_retried_by_tenacity() -> None:
     )
     assert t("S", "U") == "OK"
     assert attempts["n"] == 2  # 429 once, retried, succeeded
+
+
+# --------------------------------------------------------------------------------------------- #
+# 2026-07-19 AUTOMATIC KEY FAILOVER (Tamer's request): a key-dead error (credit exhausted / 401) #
+# switches PERMANENTLY to <primary>_FALLBACK and retries once; everything else is untouched.     #
+# --------------------------------------------------------------------------------------------- #
+class _FakeApiError(Exception):
+    def __init__(self, status_code, message):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class _FoFakeMessage:
+    def __init__(self, text):
+        self.content = [type("B", (), {"type": "text", "text": text})()]
+        self.stop_reason = "end_turn"
+        self.model = "claude-opus-4-8"
+        self.usage = None
+
+
+class _FoFakeClient:
+    """messages.create raises each exception in `errors` first, then returns `text`."""
+
+    def __init__(self, text, errors=()):
+        self.calls = 0
+        self._errors = list(errors)
+        self._text = text
+        outer = self
+
+        class _Messages:
+            def create(self, **kwargs):
+                outer.calls += 1
+                if outer._errors:
+                    raise outer._errors.pop(0)
+                return _FoFakeMessage(outer._text)
+
+        self.messages = _Messages()
+
+
+def _mk_transport(primary, factory, fallback_env="TEST_FALLBACK_KEY"):
+    from src.llm.client import _AnthropicTransport
+
+    return _AnthropicTransport(
+        primary, "claude-opus-4-8", temperature=None, max_tokens=64,
+        cache_system=False, retrying=None, fallback_key_env=fallback_env,
+        client_factory=factory,
+    )
+
+
+def test_failover_on_credit_exhaustion_is_sticky_and_returns_the_completion(monkeypatch):
+    monkeypatch.setenv("TEST_FALLBACK_KEY", "sk-fallback")
+    primary = _FoFakeClient("never", errors=[_FakeApiError(400, "Your credit balance is too low")])
+    fallback = _FoFakeClient("from-fallback")
+    built = []
+    t = _mk_transport(primary, lambda key: built.append(key) or fallback)
+    assert t("sys", "user") == "from-fallback"
+    assert built == ["sk-fallback"]          # the factory got the FALLBACK key
+    assert t("sys", "again") == "from-fallback"   # sticky: later calls stay on the fallback
+    assert primary.calls == 1 and fallback.calls == 2
+
+
+def test_failover_on_401_auth_error(monkeypatch):
+    monkeypatch.setenv("TEST_FALLBACK_KEY", "sk-fallback")
+    primary = _FoFakeClient("never", errors=[_FakeApiError(401, "invalid x-api-key")])
+    fallback = _FoFakeClient("ok")
+    t = _mk_transport(primary, lambda key: fallback)
+    assert t("s", "u") == "ok"
+
+
+def test_no_fallback_env_means_unchanged_raise(monkeypatch):
+    monkeypatch.delenv("TEST_FALLBACK_KEY", raising=False)
+    primary = _FoFakeClient("never", errors=[_FakeApiError(400, "credit balance is too low")])
+    t = _mk_transport(primary, lambda key: (_ for _ in ()).throw(AssertionError("must not build")))
+    with pytest.raises(_FakeApiError):
+        t("s", "u")
+
+
+def test_non_billing_errors_never_rotate(monkeypatch):
+    monkeypatch.setenv("TEST_FALLBACK_KEY", "sk-fallback")
+    for err in (_FakeApiError(400, "max_tokens exceeds model limit"),   # other 400: a real bug
+                _FakeApiError(429, "rate limited"),                      # transient: tenacity's job
+                _FakeApiError(529, "overloaded")):
+        primary = _FoFakeClient("never", errors=[err])
+        t = _mk_transport(primary, lambda key: (_ for _ in ()).throw(AssertionError("must not rotate")))
+        with pytest.raises(_FakeApiError):
+            t("s", "u")

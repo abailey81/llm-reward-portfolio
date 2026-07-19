@@ -14,7 +14,7 @@
 | 0.3 | **FROZEN**: `scripts/freeze.py` run (delegated; announced loudly) | `freeze.py --check`: frozen=true, recorded==canonical |
 | 0.4 | Cluster checkout synced to HEAD **+ the GIT_COMMIT marker written** (2026-07-18: the archive deploy is not a work-tree — without the marker every record's code identity is None) | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp && git rev-parse HEAD \| ssh myriad "cat > ~/llmrp/GIT_COMMIT"` |
 | 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --archive outputs/proto_myriad --rehearsal` output |
-| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25** (covers canary/smoke + P3 probes + M2/Qwen headroom) | step 4 smoke + Tamer's console |
+| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25**; AUTOMATIC KEY FAILOVER (2026-07-19): set `ANTHROPIC_API_KEY_FALLBACK` in `.env` to a second funded key — a credit-exhausted or revoked primary switches to it PERMANENTLY mid-run (one loud ERROR log; same request retried once; 429/5xx never rotate; test-locked). With the primary at $5.91 vs the $5.95 expected spend, the fallback IS the plan, not insurance (covers canary/smoke + P3 probes + M2/Qwen headroom) | step 4 smoke + Tamer's console |
 
 ## 1. Pre-flight checklist (run in order; each must pass)
 
