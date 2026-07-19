@@ -388,6 +388,7 @@ def run_loop(
     # run_campaign) needs the count surfaced in the run summary to distinguish "search incomplete,
     # --resume re-attempts these slots" from a genuinely exhausted budget.
     llm_error_skips = 0
+    _failover_announced = False  # emit the api_key_failover anomaly ONCE per loop (2026-07-20)
 
     for gen in range(generations):
         # F15 (ultrareview 2026-07-02): accrue budget_spent from the ACTUAL draws. Every slot of the
@@ -510,6 +511,18 @@ def run_loop(
             _u = (getattr(_arch[-1], "usage", None) or {}) if _arch else {}
             monitor.llm_call(arm, cand_n, secs=time.perf_counter() - _llm_t0,
                              in_tok=_u.get("input_tokens"), out_tok=_u.get("output_tokens"), model=model_id)
+            # 2026-07-20 (key-failover visibility): a SUCCESSFUL failover raises no exception, so
+            # without this it would live only in the driver log — invisible to anomalies.jsonl and
+            # the ntfy push. Surface it ONCE per loop as a monitor anomaly (the operator must know
+            # the run is now spending the fallback account).
+            if (getattr(getattr(llm, "_transport", None), "_failed_over", False)
+                    and not _failover_announced):
+                _failover_announced = True
+                monitor.anomaly(
+                    "api_key_failover",
+                    "the PRIMARY API key died (credit exhausted / revoked) — authoring switched "
+                    "PERMANENTLY to the fallback key; all further spend is on the fallback account",
+                    arm=arm, cand=cand_n)
 
             # 3. Validate; LOG + SKIP on failure (never crash the loop).
             try:

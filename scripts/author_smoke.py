@@ -11,6 +11,12 @@ Usage::
 
     python scripts/author_smoke.py                 # campaign.yaml llm block (the real check)
     python scripts/author_smoke.py --from prototype  # prototype.yaml block (rehearsals)
+    python scripts/author_smoke.py --fallback      # smoke the <key_env>_FALLBACK key instead
+
+``--fallback`` (2026-07-20, the key-failover follow-through): validates the SECOND key end-to-end
+through the identical plumbing. With the primary near-exhausted, the fallback IS the plan — a
+dead/unfunded fallback must be discovered HERE, not mid-campaign at the exact moment the primary
+dies. Run BOTH smokes at pre-flight step 4.
 """
 from __future__ import annotations
 
@@ -23,9 +29,14 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="One-call authoring smoke (key/model/balance).")
     p.add_argument("--from", dest="source", choices=["campaign", "prototype"], default="campaign",
                    help="Which config's llm block to smoke (default: campaign — the real check).")
+    p.add_argument("--fallback", action="store_true",
+                   help="Smoke the <key_env>_FALLBACK key instead of the primary (validates the "
+                        "failover key end-to-end BEFORE launch).")
     args = p.parse_args(argv)
 
-    from src.llm.client import build_transport
+    import os
+
+    from src.llm.client import build_transport, default_key_env
     from src.utils.config import cfg_get, load_config
     from src.utils.env import load_env
 
@@ -37,6 +48,20 @@ def main(argv: list[str] | None = None) -> int:
     provider = str(blk.get("provider", ""))
     model = str(blk.get("model_snapshot", ""))
     key_env = blk.get("api_key_env")
+    if args.fallback:
+        resolved_env = str(key_env or default_key_env(provider))
+        fb_env = f"{resolved_env}_FALLBACK"
+        fb_key = os.environ.get(fb_env, "").strip()
+        if not fb_key:
+            print(f"[smoke] FAIL: --fallback but {fb_env} is unset/empty in the environment/.env "
+                  f"— the failover key does not exist; set it before relying on failover",
+                  flush=True)
+            return 1
+        # Process-local swap: the transport reads the primary env var, so pointing it at the
+        # fallback value smokes the SECOND key through the byte-identical plumbing.
+        os.environ[resolved_env] = fb_key
+        key_env = resolved_env
+        print(f"[smoke] FAILOVER-KEY MODE: smoking the key from {fb_env}")
     print(f"[smoke] provider={provider} model={model} key_env={key_env or '<default>'}")
     try:
         transport = build_transport(provider, model, key_env, max_tokens=32)

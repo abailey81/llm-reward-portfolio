@@ -31,8 +31,11 @@ python -m pytest tests/ -q -rs
 python scripts/run_campaign_cluster.py --dry-run --synthetic \
     --arms distributional scalar scalar_cvar5 placebo placebo_shuffled random_search bayes_opt
 
-# 4. ONE-call Opus smoke through the campaign's own plumbing (~$0.01; live-verified 2026-07-13, 3.1s):
+# 4. ONE-call Opus smoke through the campaign's own plumbing (~$0.01; live-verified 2026-07-13, 3.1s)
+#    + the FALLBACK-key smoke (2026-07-20: with the primary at $5.91 the fallback IS the plan — a
+#    dead/unfunded fallback must be caught HERE, not mid-run when the primary dies):
 python scripts/author_smoke.py
+python scripts/author_smoke.py --fallback
 
 # 5. Remote state: VPN up, home resolved, gold staged, venv/apptainer certified:
 ssh myriad "ls ~/Scratch/llmrp /acfs/users/ucestes/gold 2>/dev/null | head; qstat | head -3"
