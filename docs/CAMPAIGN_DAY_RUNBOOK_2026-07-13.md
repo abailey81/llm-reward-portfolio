@@ -14,7 +14,7 @@
 | 0.3 | **FROZEN**: `scripts/freeze.py` run (delegated; announced loudly) | `freeze.py --check`: frozen=true, recorded==canonical |
 | 0.4 | Cluster checkout synced to HEAD **+ the GIT_COMMIT marker written** (2026-07-18: the archive deploy is not a work-tree — without the marker every record's code identity is None) | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp && git rev-parse HEAD \| ssh myriad "cat > ~/llmrp/GIT_COMMIT"` |
 | 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --archive outputs/proto_myriad --rehearsal` output |
-| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25**; AUTOMATIC KEY FAILOVER (2026-07-19): set `ANTHROPIC_API_KEY_FALLBACK` in `.env` to a second funded key — a credit-exhausted or revoked primary switches to it PERMANENTLY mid-run (one loud ERROR log; same request retried once; 429/5xx never rotate; test-locked). RECOMMENDED KEY ORDER (2026-07-20, ratified reasoning): the NEW FUNDED key (~$25) = PRIMARY `ANTHROPIC_API_KEY`; the old $5.91 key = `ANTHROPIC_API_KEY_FALLBACK` — zero expected switches (single-account semantics + warm prompt cache), failover as pure insurance, and the $5.91 stays spendable later (P3 probes / M2). Key identity is scientifically irrelevant AND provable: the archive records served-model + request id per call | step 4 smoke + Tamer's console |
+| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25**; **SINGLE-KEY PLAN (2026-07-20, Tamer's decision — supersedes the same-day two-key/failover plan):** ONE funded key in `ANTHROPIC_API_KEY`, minimum **$16** (covers the $15.86 worst-case at the spend caps), recommended **$25**. `ANTHROPIC_API_KEY_FALLBACK` stays **UNSET** — the transport's failover mechanism (2a46f5d, test-locked byte-identical when unconfigured) remains in the code as dormant insurance only. If the key dies mid-run anyway: the authoring loop SKIPS the slot loudly (never a permanent rejection), the monitor screams, and a top-up + supervisor relaunch `--resume`s exactly the unauthored slots — zero waste by the archive-replay construction | step 4 smoke + Tamer's console |
 
 ## 1. Pre-flight checklist (run in order; each must pass)
 
@@ -31,11 +31,10 @@ python -m pytest tests/ -q -rs
 python scripts/run_campaign_cluster.py --dry-run --synthetic \
     --arms distributional scalar scalar_cvar5 placebo placebo_shuffled random_search bayes_opt
 
-# 4. ONE-call Opus smoke through the campaign's own plumbing (~$0.01; live-verified 2026-07-13, 3.1s)
-#    + the FALLBACK-key smoke (2026-07-20: with the primary at $5.91 the fallback IS the plan — a
-#    dead/unfunded fallback must be caught HERE, not mid-run when the primary dies):
+# 4. ONE-call Opus smoke through the campaign's own plumbing (~$0.01; live-verified 2026-07-13, 3.1s).
+#    (SINGLE-KEY PLAN 2026-07-20: no fallback key is configured; `author_smoke.py --fallback` exists
+#    but is NOT part of pre-flight — run it only if a fallback is ever deliberately set.)
 python scripts/author_smoke.py
-python scripts/author_smoke.py --fallback
 
 # 5. Remote state: VPN up, home resolved, gold staged, venv/apptainer certified:
 ssh myriad "ls ~/Scratch/llmrp /acfs/users/ucestes/gold 2>/dev/null | head; qstat | head -3"
