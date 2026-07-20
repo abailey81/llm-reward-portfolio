@@ -1,5 +1,18 @@
 # Your Dissertation, Explained From Zero
 
+> **⚠ DESIGN SUPERSESSION (2026-07-20/21 — read this first).** This document describes the **v1**
+> design (frozen 2026-07-18 at `ce5db62c`). On 2026-07-20, after industry-supervisor feedback
+> (NatWest AI R&D), the registration was UNFROZEN **pre-data** (ADR-059; legitimate — no campaign
+> data existed) and revised to **v2**: the same confirmatory core (Opus 4.8, 7 arms, m=6, SESOI,
+> the E1 seed ladder) now wrapped by **9 report-only replication legs** (DeepSeek V4-Pro, GLM-5.2,
+> the Qwen 27B/9B open pair, Haiku 4.5 + Sonnet 4.6 closed ladder, GPT-5.6 Luna, Nemotron 3
+> Super, Gemini 3.5 Flash stretch seat) + a ~25-model reading-link survey + a pre-registered
+> cross-model synthesis + an advisory $30 spend ledger. Everything below about the core science
+> remains accurate; single-model/frozen-state statements are superseded. Authority:
+> `docs/V2_MASTER_PLAN_2026-07-20.md`, `docs/MODEL_SWEEP_2026-07-20_v2.md`, PREREGISTRATION §14,
+> CHANGELOG [2026-07-20/21].
+
+
 > **Who this is for.** Someone with *no* background in finance, machine learning, statistics, or AI.
 > Every idea is built up from scratch, in order, each on top of the last. By the end you will
 > understand exactly what this dissertation does, why it is designed the way it is, and why its
