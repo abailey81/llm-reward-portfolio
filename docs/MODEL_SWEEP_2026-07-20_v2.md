@@ -141,3 +141,58 @@ license. ELfolio=DeepSeek-V3 (paywalled; medium confidence). QuantaAlpha=GPT-5.2
 - The v2 design (closed-frontier confirmatory + open replication legs + pinned versions + cost
   disclosure) **matches or exceeds the documented best practice of the entire lineage** (GEPA's
   Oral-winning two-model structure, extended).
+
+---
+
+# ADDENDUM (2026-07-20, later) — the completeness close-out: 3 further agents (8 total)
+
+## A. Full OpenRouter catalog census (the callable universe)
+**339 models, 58 vendor prefixes** (live `GET /api/v1/models`; raw JSON archived in the session
+scratchpad as a dated snapshot — itself a reproducibility artifact). New code-capable vendors
+found: **Kuaishou `kwaipilot` KAT-Coder** (dedicated agentic-coder line, v2.5 Jul 2026 — the one
+clear prior miss; M2 + watchlist), Nex AGI (nex-n2, ultra-cheap), Deep Cogito 671B, Arcee,
+**Inception Mercury-2** (diffusion LLM — a unique architecture-diversity row for M2), Writer
+Palmyra X5. **Free routes exist for code-capable models** (North Mini Code, Laguna, Nemotron
+Super/Ultra, Hy3, Gemma 4) — budget relief for M2 under the $30 ceiling. Catalog CHURNS (Liquid,
+Zyphra, thudm delisted — calls 404): archive-the-catalog discipline validated. **`~vendor/*-latest`
+rolling aliases = reproducibility poison — the build hard-rejects them.** Provider pinning
+mechanics verified: `provider: {only: [slug], allow_fallbacks: false}`; `quantizations` filter;
+per-endpoint quantization disclosed via the endpoints API.
+
+## B. Remaining world labs (Japan/Korea/MEA/Russia/SEA/LatAm/Europe/community — ~45 labs)
+**Nothing displaces the roster.** Closest: Rakuten AI 3.0 (open Apache ~700B, JP-optimized,
+weights-only — no API), Writer Palmyra X5 (BigCodeBench 48.7, Bedrock, closed, below tier),
+Kakao Kanana-2 (open agentic, license unverified), K2 Think / Falcon-H1R (small Gulf reasoning),
+GigaChat 3.5 Ultra (**UK-sanctioned entity — unusable regardless of its claimed MIT weights**).
+Notable watch: OpenEuroLLM 8B due ~Jul 31; UK "Lumen Sovereign" (Cosine, late 2026). Full rows
+in the session record. Serving vendors (Together/Groq/Cerebras/Fireworks/SambaNova) confirmed
+non-labs; Magic/SSI/Character have nothing usable released.
+
+## C. License verification gate (primary sources; DECISION-CHANGING)
+- **MiniMax-M3: FAILS the open bar** — "MINIMAX COMMUNITY LICENSE": non-commercial grant +
+  $20M/yr revenue authorization trigger + mandatory "Built with MiniMax M3" attribution +
+  use restrictions. Llama-class restricted. **SEAT 7 → Tencent Hy3 per the pre-declared
+  fallback** (Apache 2.0 confirmed on the card; one LICENSE-file glance pre-PDF). MiniMax → M2,
+  labeled "weights-available under a custom community license."
+- Confirmed clean: **DeepSeek V4-Pro MIT** (modes non-think/high/max; vendor default think-HIGH;
+  OpenRouter pass-through default undocumented → **the build PINS the mode explicitly**);
+  **GLM-5.2 MIT** ("no regional limits"); **Qwen3.6-27B + Qwen3.5-9B Apache 2.0**;
+  **Ring-2.6-1T MIT** (M2).
+- **Nemotron 3 Super: NVIDIA Nemotron Open Model License** (NOT Apache) + "major portions" of
+  training data released, some subsets gated → paper phrasing: "open weights under the NVIDIA
+  Open Model License, with major portions of the training data released." Keeps its seat
+  (still the most data-transparent competitive model).
+- **Kimi K3: still no weights on HF** (unchanged; watch Jul 27).
+- **Qwen quantization finding → pinning plan:** 9B has bf16 endpoints; **27B has NO bf16 on
+  OpenRouter (fp8 best)**. To keep the within-family pair confound-free: **pin BOTH Qwens to the
+  SAME provider at the SAME precision (SiliconFlow, fp8)** — provider + quantization held
+  constant inside the pair; one methods sentence disclosés fp8 serving.
+
+## FINAL LOCKED ROSTER (pending Tamer sign-off)
+**Opus 4.8 (confirmatory) · DeepSeek V4-Pro (MIT; contamination re-adjudication gate; fallback
+GLM takes the slot) · GLM-5.2 (MIT) · Qwen3.6-27B (Apache) · Qwen3.5-9B (Apache; the
+within-family pair, SiliconFlow-fp8-pinned together) · Nemotron 3 Super (NVIDIA OML) · Hy3
+(Apache; replaced MiniMax-M3 on the license gate).** All via Anthropic + OpenRouter only (two
+keys, no other accounts). Total leg authoring ≈ $2; all-in LLM spend under the pre-registered
+$30 ceiling. M2 roster ~25 under the inclusion rule (adds KAT-Coder, Mercury-2, nex-n2-mini,
+MiniMax-M3-as-restricted, free-route models).
