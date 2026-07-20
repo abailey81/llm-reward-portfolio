@@ -196,3 +196,20 @@ within-family pair, SiliconFlow-fp8-pinned together) · Nemotron 3 Super (NVIDIA
 keys, no other accounts). Total leg authoring ≈ $2; all-in LLM spend under the pre-registered
 $30 ceiling. M2 roster ~25 under the inclusion rule (adds KAT-Coder, Mercury-2, nex-n2-mini,
 MiniMax-M3-as-restricted, free-route models).
+
+## ADDENDUM 2 (2026-07-20 night, Tamer's addition) — the two cheap closed legs
+
+**Haiku 4.5 (`claude-haiku-4-5-20251001`, $1/$5, leg ≈ $1.19)** and **GPT-5.6 Luna
+(`openai/gpt-5.6-luna` via OpenRouter, $1/$6, leg ≈ $1.41 + reasoning; output capped 4k ⇒
+≈$4.50 worst-case)** are PROMOTED from M2 to full legs. Rationale: they restore two dimensions
+the one-frontier rule had orphaned — (1) Haiku↔Opus = the CLOSED within-family capability pair
+(the controlled contrast now replicates across ecosystems: closed Anthropic pair + open Qwen
+pair — a two-ecosystem mini meta-analysis of the capability-gating claim); (2) Luna = the
+cross-vendor closed point at cheap-tier price (the "Anthropic-ecosystem quirk?" outcome answer
+Sol's exclusion deleted). Neither is a frontier ⇒ the one-frontier rule holds. **Final: 9
+full-loop models** (the new knee — a 10th leg would be repetition); sign test 0.5^9 ≈ 0.002
+unanimous (permutation-checked); queue order DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Luna →
+Nemotron → Hy3; legs total ≈ $5–7; all-in expected ~$20–24 vs the $30 ceiling (priority-ordered
+spend gate absorbs the worst case — M2 closed extras trim first, never a leg). Haiku = the
+best-pinned leg after Opus (dated snapshot); Luna's no-dated-snapshot + hidden-reasoning facts
+disclosed as they would have been for Sol.

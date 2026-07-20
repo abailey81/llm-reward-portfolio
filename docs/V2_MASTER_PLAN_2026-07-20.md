@@ -10,13 +10,19 @@
 
 One frozen question (does feedback content change the reward code an LLM writes, and does it
 transmit?); ONE frontier confirmatory author (Opus 4.8) under the full v1 rigor (7 arms, m=6,
-co-primary IUTs, SESOI ±0.05, floor-30 → rung-279 expectation, exogenous stop); SIX open-weight
-replication legs (DeepSeek V4-Pro·MIT [contamination gate; GLM absorbs on failure], GLM-5.2·MIT,
-Qwen3.6-27B·Apache + Qwen3.5-9B·Apache [the controlled capability pair — SiliconFlow fp8, same
-provider+quant], Nemotron-3-Super·NVIDIA-OML [data-transparency seat], Hy3·Apache [replaced
-MiniMax-M3 on the license gate]) — floor-30 seeds each, byte-identical prompts, unified
+co-primary IUTs, SESOI ±0.05, floor-30 → rung-279 expectation, exogenous stop); EIGHT replication
+legs — six open-weight (DeepSeek V4-Pro·MIT [contamination gate; GLM absorbs on failure],
+GLM-5.2·MIT, Qwen3.6-27B·Apache + Qwen3.5-9B·Apache [open capability pair — SiliconFlow fp8,
+same provider+quant], Nemotron-3-Super·NVIDIA-OML [data-transparency seat], Hy3·Apache [replaced
+MiniMax-M3 on the license gate]) **plus two cheap closed tiers (Tamer's addition, 2026-07-20
+night): Claude Haiku 4.5 (`claude-haiku-4-5-20251001`, dated snapshot — the CLOSED within-family
+capability pair vs Opus, so the controlled capability contrast runs TWICE, once per ecosystem)
+and GPT-5.6 Luna (`openai/gpt-5.6-luna` — restores the cross-vendor closed point at $1/$6;
+output capped 4k tokens to bound hidden-reasoning billing ≈$4.50 worst-case; no dated snapshot,
+disclosed)** — 9 full-loop models total; floor-30 seeds each, byte-identical prompts, unified
 prompt-variation diversity, pinned providers/quant/reasoning-modes, priority-queued behind the
-core, calendar-gated **Aug 14**; the M2 reading-link survey (25 exact models incl. both
+core (DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Luna → Nemotron → Hy3), calendar-gated
+**Aug 14**; the M2 reading-link survey (25 exact models incl. both
 within-family ladders) post-headline; a dependence-aware pre-registered synthesis (descriptive
 sign count + seed-block permutation test + capability regression on a pre-declared external
 anchor, M2 score secondary); per-model authoring-reliability + code-taxonomy outputs; study-level
