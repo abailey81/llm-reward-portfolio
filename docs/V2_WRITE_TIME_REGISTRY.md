@@ -21,14 +21,18 @@ during the writing month; the pre-submission sweep verifies zero open rows.
 ## Results-machinery revisions (build week Jul 23–25)
 7. **CH6 skeleton v2 revision** — leg-results subsection slots, the synthesis slot, the
    reliability-table slot, achieved-rung/power slots; every number a [FROM CAMPAIGN] tag under
-   the rung-freshness convention.
+   the rung-freshness convention. **BUILT 2026-07-21 (`e968cdd`): §6.7/§6.8 + §6.1 slots +
+   reporting rule 5 defines the tag convention; `scripts/check_rung_freshness.py` = the gate.**
 8. **FIGURE_TABLE_MANIFEST v2** + `src/viz/figures.py` additions: the cross-leg forest plot, the
    capability-gradient scatter (anchors on x, responsiveness on y, family pairs highlighted), the
    reliability table/heatmap, and the TEN-WINNERS side-by-side annotated code exhibit.
-9. **results_walkthrough notebook v2 sections** mirroring 7–8.
+   **BUILT 2026-07-21 (`e968cdd`): F12–F15 + T6/T7 rows + all four renderers, tested.**
+9. **results_walkthrough notebook v2 sections** mirroring 7–8. *(Write-time: needs leg data;
+   the renderers + aggregation it mirrors are built.)*
 10. **analyze pipeline multi-root aggregation** — 9 leg archives + the core, feeding the
     synthesis module (in the code build; listed here because CH6/notebook depend on its output
-    shapes).
+    shapes). **BUILT 2026-07-20/21 (`e0380c5` leg_aggregate + `7bf1fa7` the --leg launch path
+    producing the per-leg roots it reads).**
 
 ## Campaign-window artifacts
 11. **The interim report pack (~Aug 6–8)** — floor-tier results (labeled provisional), draft

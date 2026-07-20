@@ -4,10 +4,12 @@
 > zero loss. Read this, then `memory/session-current-focus.md` (the cursor) + `CLAUDE.md`
 > (PRIORITIES + both feedback blocks). Authorities cross-referenced at the end.
 >
-> **State in one line:** the pre-registration is UNFROZEN (`frozen: false`, pre-data, legitimate);
-> the v2 design is fully specified and **build steps 1–6 of 8 are done, committed, and green**;
-> HEAD = `e0380c5`; **nothing freezes or launches without Tamer's explicit word** (no scheduled
-> date).
+> **State in one line (updated 2026-07-21e):** the pre-registration is UNFROZEN (`frozen: false`,
+> pre-data, legitimate); **ALL 8/8 build steps are done, committed, and full-suite-certified**
+> (steps 7–8 landed `e968cdd` + `7bf1fa7` on Tamer's "Build"; suite exit 0); **nothing freezes or
+> launches without Tamer's explicit word** (no scheduled date). Remaining: the pre-launch leg
+> gates (need ~$5 OpenRouter) + Tamer's items (§6). Cluster sync VPN-blocked; the GO sequence
+> re-syncs at launch.
 
 ---
 
@@ -82,6 +84,9 @@ OpenRouter to run this week's gates; the rest at launch.
 | 5 | `0464b4f` | `src/inference/cross_model.py` — synthesis (sign count, permutation, pair DiD, leg-family BH, gen-indexed SQ1, capability regression); 15 tests |
 | docs | `4b160e3`, `98f2c38` | CHANGELOG [2026-07-20/21] · master-plan de-stale · v2 banners on both overview docs |
 | 6 | `e0380c5` | `scripts/leg_gates.py` (smoke + compliance + contamination screen) + `src/inference/leg_aggregate.py` (multi-root → synthesis input) + 11 tests |
+| fix | `5c7f50c` | §14 R83 reconciliation (the "hard-capped/enforced" sentence → advisory wording; gate 21 OK) |
+| 7 | `e968cdd` | CH6 skeleton v2 (§6.7 legs + §6.8 synthesis + rung slots) · the CONCRETE rung-freshness convention (rule 5) + `scripts/check_rung_freshness.py` gate · manifest F12–F15/T6–T7 · the four viz renderers (`cross_leg_forest`/`capability_gradient`/`reliability_heatmap`/`ten_winners_exhibit`) · 15 tests |
+| 8 | `7bf1fa7` | **the leg-launch wiring gap closed** (`--leg <label>` on the cluster driver; `extra_body` pins survive both author sites; the R83 per-call ledger at `LLMClient.complete` incl. the Opus planning-price row) · runbook §9 (leg queue / monitoring / spend) · dry-runs GREEN on real gold (core + deepseek + qwen lines) · 10 tests + regression sweep |
 
 **Two pre-freeze statistical catches (do NOT re-litigate — already fixed + registered):**
 (a) the cross-leg sign test's **independence flaw** (legs share panel + CRN seeds) → the
@@ -90,21 +95,17 @@ statistic is near-powerless** under joint flips with correlated legs → the tes
 **POOLED MEAN difference** (multivariate paired sign-flip), sign count kept descriptive. Both are
 in `config/preregistration.yaml: model_suite.synthesis*` and §14 prose.
 
-## 4. What's LEFT (do NOT start until Tamer says "build" again)
+## 4. What's LEFT (steps 7–8 are DONE — see §3; this is the remaining path)
 
-- **Step 7** — CH6 skeleton v2 (leg-results / synthesis / reliability-table slots, all
-  `[FROM CAMPAIGN]` under the rung-freshness convention) + `paper/FIGURE_TABLE_MANIFEST.md` v2 +
-  `src/viz/figures.py` additions: cross-leg forest plot, capability-gradient scatter,
-  reliability heatmap, the **ten-winners annotated code exhibit**.
-- **Step 8** — runbook v2 (leg-queue §, per-leg monitoring, spend reporting) + EXACT launch-line
-  dry-runs on real gold (Opus core + one leg) + cluster code sync + marker verify.
-- **Gates (need ~$5 OpenRouter credit)** — `python scripts/leg_gates.py --all --out
-  outputs/leg_gates` (×9 smoke + compliance baseline + contamination screen). DeepSeek fail →
-  GLM absorbs seat 1 (pre-declared). Then license-file glances (Hy3-not-in-legs anymore, but
-  Nemotron OML text archived).
+- **Gates (need ~$5 OpenRouter credit; the one build-side item left)** —
+  `python scripts/leg_gates.py --all --out outputs/leg_gates` (×9 smoke + compliance baseline +
+  contamination screen). DeepSeek fail → GLM absorbs seat 1 (pre-declared). Then license-file
+  glances (Nemotron OML text archived).
+- **Cluster sync** — VPN-blocked 2026-07-21 (ssh timeout); the GO-sequence step 3 re-syncs +
+  writes the GIT_COMMIT marker at launch. The marker is STALE until then.
 - **Then (Tamer's word only)**: FREEZE v2 (`freeze.py`; new hash; tag `prereg-v2.0`; bundle;
-  **PUBLIC OSF/Zenodo deposit** per the freeze-day checklist) → C0 canary → LAUNCH → writing
-  starts same day per `docs/V2_WRITE_TIME_REGISTRY.md`.
+  **PUBLIC OSF/Zenodo deposit** per the freeze-day checklist) → C0 canary → LAUNCH (runbook §2.0;
+  legs per runbook §9) → writing starts same day per `docs/V2_WRITE_TIME_REGISTRY.md`.
 
 ## 5. The write-time registry (13 binding items) lives in `docs/V2_WRITE_TIME_REGISTRY.md`
 Nothing there may be silently dropped: the g(capability) CH3/CH7 paragraphs, the CH4 model-suite
@@ -125,9 +126,11 @@ per-leg bank-gate logs, and the pre-submission gates.
 - Overviews (v2-bannered): `docs/DISSERTATION_MASTER_OVERVIEW.md` · `docs/DISSERTATION_EXPLAINED_FOR_BEGINNERS.md`.
 
 ## 8. First actions for the next session
-1. Read this file + the cursor + CLAUDE.md; say "Resuming from: … — next: …".
+1. Read this file + the cursor + CLAUDE.md (incl. the ★★★ FOUR-AUTHORITY COMPLIANCE RULE,
+   2026-07-21); say "Resuming from: … — next: …".
 2. Run the FULL suite once to confirm the green baseline before touching anything:
    `./.venv/Scripts/python.exe -m pytest -p no:cacheprovider -p no:warnings -q` (expect 0 failed;
    the freeze `--check` should show **21 OK** lines, `frozen: false`).
-3. Do NOT build steps 7–8 or freeze/launch unless Tamer says so. If he says "build/continue",
-   resume at step 7. If he asks about cost/models/schedule, answer from §2 above.
+3. The BUILD is COMPLETE (8/8). Do NOT freeze/launch unless Tamer says so. If OpenRouter credit
+   has landed, run the leg gates (§4). If he asks about cost/models/schedule, answer from §2;
+   about launch mechanics, runbook §2.0 (core) + §9 (legs).

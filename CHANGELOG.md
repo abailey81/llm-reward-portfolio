@@ -3,6 +3,80 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-21b] — ★★★ V2 BUILD COMPLETE (steps 7–8 on Tamer's "Build") + the four-authority rule + full-suite certification
+
+**Session shape:** deep resume (both handoffs + all v2 authorities re-read first-hand) → two
+fix-on-sight defects closed → Tamer's "Build" → steps 7–8 (the last two) built sequential-solo,
+each verified then committed → full suite GREEN (exit 0, 3 POSIX-only skips). All 8/8 v2 build
+steps are now done; the only remaining items are Tamer's (Okhrati email, OpenRouter top-up,
+freeze GO, launch GO).
+
+- **R83 consistency fix (`5c7f50c`, fix-on-sight):** PREREGISTRATION.md §14 prose still said the
+  spend ceiling was "hard-capped, enforced in code, trimmed" — the R83 softening had updated the
+  yaml comment + both external drafts but missed this sentence. Reconciled to the advisory
+  wording (tracked per-call, warned 80/100%, never refused, reported in full). No decision
+  changed; gate re-verified 21 OK; repo-wide grep confirmed no other stale site.
+- **★★★ THE FOUR-AUTHORITY STANDING COMPLIANCE RULE (Tamer's instruction; CLAUDE.md, which is
+  gitignored by design — the rule lives on disk and auto-loads every session):** every
+  substantive decision is checked explicitly against (1) the ★ PRIORITIES (they arbitrate
+  conflicts), (2) Dr Okhrati's revealed grading function (chapters drafted AGAINST it), (3) the
+  Raad+Stefan six points (structural adoption; registry-tracked, none silently droppable), and
+  (4) the IFTE0008 guidelines read first-hand (weakest-dimension-caps, 10k body, 16-section
+  order, any-discipline second marker). Enforcement: per-chapter four-authority check at write
+  time + zero-open-registry-rows at pre-submission; the guardrail preserved (industry feedback
+  never weakens confirmatory logic / identification / mechanism depth).
+- **STEP 7 (`e968cdd`) — results machinery v2:** CH6 gains §6.7 (replication suite: leg
+  completion/truncation, per-leg contrasts → Table 6.6, T0-floor inclusion semantics, the
+  authoring-reliability Table 6.7, the ten-winners exhibit) + §6.8 (synthesis: descriptive sign
+  count, pooled-mean joint-flip permutation, family-pair DiD, capability regression,
+  generation-indexed SQ1, leg-family BH, the g(capability) bridge — closing with the explicit
+  cannot-alter-§6.6 sentence) + achieved-rung/realised-power + leg-execution/spend slots in §6.1.
+  **The rung-freshness convention, previously named but never DEFINED, is now concrete
+  (reporting rule 5: `<!--RUNG:n-->` core / `<!--LEG-TIER:30-->` legs) and MECHANICAL:**
+  `scripts/check_rung_freshness.py` (per-rung mode fails stale tags; `--final` also fails
+  unfilled `[FROM CAMPAIGN…]` slots; the achieved rung comes from a flag or
+  `outputs/tables/achieved_rung.json`, never assumed; validated against the frozen E1 ladder;
+  DRAFTS_ excluded; 7 behaviour tests + a live green run on the real paper dir).
+  FIGURE_TABLE_MANIFEST v2: F12 cross-leg forest / F13 capability-gradient scatter / F14
+  reliability heatmap / F15 ten-winners exhibit + T6/T7 + honest-null renderer notes. The four
+  renderers land in `src/viz/figures.py` matching the `cross_model`/`leg_aggregate` contracts
+  (excluded legs greyed-never-hidden; the permutation *p* is a forest's ONE inferential number;
+  NaN renders "—" never fake-zero; winner highlights = the fixed registered
+  `TAIL_CONSTRUCT_PATTERNS` regex set, never curated; byte-determinism tested). One layout fix
+  mirrors the `reward_code_similarity` precedent (no `tight_layout` on colorbar figures under
+  the house constrained-layout engine — caught by cross-module test ordering). 15 new tests.
+- **STEP 8 (`7bf1fa7`) — leg LAUNCH wiring + runbook v2 + dry-runs. ★ WIRING GAP FOUND + CLOSED
+  during verification:** the legs were UNLAUNCHABLE — `load_legs`/`transport_kwargs` were
+  consumed only by `leg_gates.py`, and BOTH author-construction sites
+  (`parallel._drive_llm_arm` + `cluster._build_cluster_author`) dropped `extra_body`, so an
+  OpenRouter leg would have authored with its registered provider/quantization/reasoning pins
+  SILENTLY STRIPPED (pin loss = registered-design violation). Closed end-to-end:
+  `run_campaign_cluster.py --leg <label>` (the SAME `transport_kwargs` translation the gates use
+  — one translation point, no drift; FORCES the sanitized `leg_<label>` root-suffix = the
+  `leg_aggregate` disjoint-roots contract; conflicting explicit suffix refused; `--llm-from
+  prototype`/`--h3-singleshot` combos refused; provider-derivation log names the leg source);
+  `extra_body` + `spend_ledger` threaded through `build_parallel_opts` into both author sites.
+  **The R83 per-call author ledger** (the REGISTERED "tracked per-call" behaviour, previously
+  gates-only) now lives at the `LLMClient.complete` chokepoint: realized cost (OpenRouter
+  `usage.cost`) else the tokens×planning-prices estimate (`spend_ledger.estimate_cost_usd`;
+  `claude-opus-4-8: [5.00, 25.00]` added to legs.yaml planning_prices) — best-effort,
+  rate-limited-warn, NEVER crashes a paid call; fakes/stubs surface no metadata and stay
+  ledger-silent (suite-clean by construction). **Runbook §9** (day-runbook): the leg queue —
+  the gates command, the EXACT per-leg launch line (5 LLM arms, `--seeds 0-29` = the common-30
+  CRN subset the pair-DiD needs, `-p -200`, no `--tiered`/`--baselines`), per-leg monitoring
+  rows, the spend-summary one-liner, the per-leg bank-gate + aggregation path. **DRY-RUNS GREEN
+  ON REAL GOLD:** the exact §2 core line (7 arms, 568 seeds, tiers [30,70,89,90,61,63,165],
+  windows == frozen `expected_windows`) + two leg lines (deepseek → suffix `leg_deepseek_v4_pro`;
+  qwen3.6 → `leg_qwen3_6_27b`; providers derived correctly). 10 new tests
+  (`tests/test_leg_launch.py`) + a regression sweep over
+  leg-gates/transports/cluster/campaign/prototype/parallel-resume/freeze: exit 0.
+- **Certification:** freeze gate **21 OK** (incl. the leg-roster guard, post-legs.yaml-edit),
+  ruff clean on every touched file, **FULL SUITE GREEN (exit 0, [100%], 3 POSIX-only skips)** —
+  run twice this session (baseline at resume + certification after steps 7–8).
+- **⚠ Open (external):** cluster sync VPN-BLOCKED (ssh timeout; recorded — GO-sequence step 3
+  re-syncs at launch; the cluster marker is stale until then). Tamer's items: send the Okhrati
+  email; OpenRouter ~$5 (gates) / ~$25 (everything); then the freeze GO + launch GO.
+
 ## [2026-07-20/21] — ★★★★★ THE UNFREEZE → THE V2 REDESIGN (NatWest feedback) → implementation steps 1–5
 
 **Trigger (2026-07-19 call):** industry supervisors Raad (Head of AI R&D, NatWest) + Stefan —

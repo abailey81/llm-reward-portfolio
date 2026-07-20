@@ -6,14 +6,18 @@
 > strategy (Tamer's plan), and every gate/fallback decided in the 2026-07-20 design session.
 > Deadline: **1 Sep 2026**; submission target **Aug 28–29**.
 
-> **⚠ LIVING-PLAN STATUS (2026-07-21):** build steps 1–5 are DONE + committed (legs.yaml
-> `ceadd54` · advisory ledger `41e9a1e` · leg transport `99d2901` · 21-check gate w/ leg-roster
-> guard `aa910eb` · synthesis module w/ the pooled-mean refinement `0464b4f`). SUPERSESSIONS by
-> Tamer's instructions: the spend ceiling is ADVISORY (R83 — tracked+warned, never refused); the
-> FREEZE + LAUNCH have NO scheduled date — they happen ONLY on his explicit word (dates below are
-> planning references, not triggers); the final roster is 9 legs + Opus incl. SONNET 4.6 (replaced
-> Hy3; the closed 3-ladder + pilot bridge) and GEMINI 3.5 FLASH (seat-10 stretch). The executed
-> truth for the roster is `config/legs.yaml` == `model_suite` (gate-verified, n=9).
+> **⚠ LIVING-PLAN STATUS (2026-07-21e): THE BUILD IS COMPLETE — all 8/8 steps DONE + committed +
+> full-suite-certified** (1–5: legs.yaml `ceadd54` · advisory ledger `41e9a1e` · leg transport
+> `99d2901` · 21-check gate w/ leg-roster guard `aa910eb` · synthesis w/ the pooled-mean
+> refinement `0464b4f`; 6: gates+aggregation `e0380c5`; 7: CH6/manifest/figures v2 + the
+> rung-freshness gate `e968cdd`; 8: the leg-LAUNCH wiring [--leg, pin survival, R83 per-call
+> ledger] + runbook §9 + real-gold dry-runs `7bf1fa7`). SUPERSESSIONS by Tamer's instructions:
+> the spend ceiling is ADVISORY (R83 — tracked+warned, never refused); the FREEZE + LAUNCH have
+> NO scheduled date — they happen ONLY on his explicit word (dates below are planning references,
+> not triggers); the final roster is 9 legs + Opus incl. SONNET 4.6 (replaced Hy3; the closed
+> 3-ladder + pilot bridge) and GEMINI 3.5 FLASH (seat-10 stretch). Executed truth:
+> `config/legs.yaml` == `model_suite` (gate-verified, n=9). Remaining: the ~$5 leg gates +
+> Tamer's items (Okhrati email · top-up · freeze GO · launch GO); cluster re-sync at launch.
 
 ## 0. The design being executed (one paragraph of record)
 
