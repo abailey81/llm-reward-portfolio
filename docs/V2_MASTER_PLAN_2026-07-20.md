@@ -98,6 +98,29 @@ banks the degree regardless.
 - Post-submission: P2 (numeracy/legibility) + P3 (the $30 open suite) paper drafts from
   campaign artifacts; K3/KAT Stage-2 legs if their gates opened.
 
+## 1b. The unified TIER × STAGE × LEG queue (precise compute; added 2026-07-20 night)
+
+**Tiers (E1 ladder, cumulative; marginal cost = 12 units × Δn [7 arms + 4 baselines + H3]):**
+30 = distinction floor (600 tr incl. search) · 100 = σ_D re-estimate at 400k (+840) · 189 = MC
+power rung (+1,068) · 279 = 80% assurance, v2 central target (+1,080) · 340/403/568 =
+90/95/99% (+732/+756/+1,980). **Stages:** S1 = frozen confirmatory (the dissertation's
+verdicts); S2 = post-headline report-only (M2 25-model ~$10 no-GPU; R77-ii dose-response
+{B*/2,B*,2B*}×10 CRN seeds ≈50 tr-equiv; FTSE-lite ADR-047; D6/U5; trigger legs K3/KAT —
+dissertation-optional, Papers-2/3-bound).
+
+**Unified priority queue:** Opus search → TIER-30 floor → tier-100 (σ recalibration EARLY so
+the exogenous stop uses updated σ) → legs 1–9 (tier-30 each) → tier-189 → tier-279 → Gemini
+seat-10 → tier-340 → tier-403 → [calendar cuts here] → S2.
+
+**Milestones from Jul 28 launch (39.4×C tr/day; 10-model design = 6,288 tr core+legs):**
+mechanism +0.4d C12 · floor +1.3d (~Jul 29) · tier-100 +3.0d · 9 legs +8.8d (~Aug 6) ·
+tier-189 +11.0d · tier-279 +13.3d (~Aug 10) · Gemini +14.0d · tier-340 +15.5d (~Aug 13) —
+then the Aug-14 gate + S2 window + bank ~Aug 18. C=20: all by ~Aug 5 + tier-403 reachable.
+C=8: tier-279 lands Aug 17; Gemini/340 truncate by rule. C=4: floor banks day ~4; achieved-rung
+honesty carries the write-up. Every speed outcome is a pre-named branch: tiers absorb speed on
+the DEPTH axis, the leg queue on the BREADTH axis, stages keep the confirmatory core sealed off
+from everything exploratory.
+
 ## 2. Gate table
 
 | Gate | When | Rule | Failure path |
