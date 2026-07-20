@@ -274,18 +274,25 @@ def _stub_transport(_system: str, user: str) -> str:
     return "def reward(returns, weights, **kw):\n    return returns.mean()\n"
 
 
-def load_roster(spec: str) -> list[dict[str, str]]:
-    """``stub`` -> the keyless harness roster; else a YAML file with ``models: [{label, provider,
-    model, api_key_env?}]`` (final ids pinned at execution — the Qwen snapshot pattern)."""
+def load_roster(spec: str, include_extras: bool = False) -> list[dict[str, str]]:
+    """``stub`` -> the keyless harness roster; else a YAML roster file.
+
+    Accepts BOTH schemas: the v1 flat ``models: [...]`` list and the v2 (R80, 2026-07-20)
+    ``core: [...]`` + ``extras_budget_permitting: [...]`` split — the extras are appended only
+    when ``include_extras`` is set (they run only if the R81 $30 ceiling has headroom; the
+    budget-ordered execution is the caller's responsibility). ``excluded_by_design`` entries are
+    never loaded. Final ids pinned at execution — the Qwen snapshot pattern."""
     if spec == "stub":
         return [{"label": "stub-a", "provider": "stub", "model": "stub"},
                 {"label": "stub-b", "provider": "stub", "model": "stub"}]
     import yaml
 
     cfg = yaml.safe_load(Path(spec).read_text(encoding="utf-8")) or {}
-    models = cfg.get("models") or []
+    models = list(cfg.get("models") or cfg.get("core") or [])
+    if include_extras:
+        models += list(cfg.get("extras_budget_permitting") or [])
     if not models:
-        raise SystemExit(f"no models in {spec}")
+        raise SystemExit(f"no models in {spec} (expected 'models:' or 'core:')")
     return [dict(m) for m in models]
 
 
@@ -296,6 +303,9 @@ def main(argv: list[str] | None = None) -> int:
                         "(campaign search/ post-bank; a prototype root = directional dry run).")
     p.add_argument("--models", required=True,
                    help="'stub' (keyless harness validation) or a YAML roster file.")
+    p.add_argument("--include-extras", action="store_true",
+                   help="Also load the roster's extras_budget_permitting tier (R81: run only "
+                        "with $30-ceiling headroom).")
     p.add_argument("--out", required=True, help="Output root (per-model subdirs).")
     p.add_argument("--max-calls", type=int, default=1000,
                    help="HARD spend cap across the whole invocation (protocol ~700-800).")
@@ -316,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
 
     budget = [int(args.max_calls)]
     tallies = []
-    for m in load_roster(args.models):
+    for m in load_roster(args.models, include_extras=bool(getattr(args, "include_extras", False))):
         label = str(m["label"])
         if m.get("provider") == "stub":
             transport: Callable[[str, str], str] = _stub_transport

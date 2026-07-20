@@ -250,3 +250,62 @@ numeraire:
   headline_risk_free: 0.0               # rf=0 headline (excess == total); cancels to FIRST ORDER in the arm contrast (common-mode)
   idle_cash_daily_rate: 0.0             # config/environment.yaml cash_daily_rate (env prices cash when set; frozen value 0)
   rf_excess_robustness: reported        # DGS3MO-excess sensitivity (analyze_campaign.h2_sharpe_rf_robustness) demonstrates rf-invariance of the H2 ordering
+
+# ============================================================================ #
+# V2 MODEL REPLICATION SUITE (R80/R81, 2026-07-20 — pre-data; ADR-059/060).    #
+# REPORT-ONLY: keys disjoint from the m=6 machinery; nothing here gates H1-H4. #
+# The confirmatory author + frozen v1 core are UNCHANGED (Opus 4.8).           #
+# ============================================================================ #
+model_suite:
+  confirmatory_author: claude-opus-4-8          # the ONE frontier (Tamer's rule); native Anthropic API
+  legs:                                          # 9 replication legs, floor-tier (30 seeds), 5 LLM arms x 30 candidates each
+    - {label: deepseek-v4-pro, id: deepseek/deepseek-v4-pro, license: MIT, reasoning_pin: think-high-explicit, gate: contamination_screen, fallback: absorbs-to-glm}
+    - {label: glm-5.2,         id: z-ai/glm-5.2, license: MIT}
+    - {label: qwen3.6-27b,     id: qwen/qwen3.6-27b,  license: Apache-2.0, provider_pin: siliconflow, quantization: fp8}   # open pair TOP (dense)
+    - {label: qwen3.5-9b,      id: qwen/qwen3.5-9b,   license: Apache-2.0, provider_pin: siliconflow, quantization: fp8}   # open pair BOTTOM (dense; same provider+quant as top — confound-free pair)
+    - {label: haiku-4.5,       id: claude-haiku-4-5-20251001, license: closed, note: dated-snapshot}                       # closed ladder BOTTOM
+    - {label: sonnet-4.6,      id: claude-sonnet-4-6, license: closed, note: closed-ladder-mid + PILOT-BRIDGE (prototype author; frozen-design replication of the pilot's responsiveness direction)}
+    - {label: gpt-5.6-luna,    id: openai/gpt-5.6-luna, license: closed, reasoning_pin: effort-low, output_cap_tokens: 2048, note: cross-vendor closed; no dated snapshot (disclosed)}
+    - {label: nemotron-3-super, id: nvidia/nemotron-3-super-120b-a12b, license: NVIDIA-Open-Model-License, note: major portions of training data released (some gated) — phrase exactly}
+    - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, reasoning_pin: default-budget, output_cap_tokens: 2048, role: SEAT-10-STRETCH-first-to-truncate}
+  queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, sonnet-4.6, gpt-5.6-luna, nemotron-3-super, gemini-3.5-flash]
+  leg_seed_tier: 30                              # legs run at the floor tier ONLY (claims calibrated to floor power)
+  leg_calendar_gate: "2026-08-14"                # legs incomplete at the gate report as truncated-by-calendar
+  prompts: byte-identical-across-all-legs        # the treatment text is ONE instrument (R79 format pass included)
+  diversity: prompt-variation-unified            # ALL legs use the R38-de-seeded prompt-variation protocol; temperature at provider default, recorded
+  rolling_alias_ban: true                        # "~vendor/*-latest" ids are rejected by the transport
+  stage2_triggers:                               # rule-driven only; never mid-flight
+    - {model: kimi-k3, condition: "open weights + permissive license land (promised 2026-07-27) + gates pass -> post-campaign Stage-2 leg"}
+    - {model: kwaipilot-kat-coder, condition: "open weights + verified coding benchmarks -> M2 promotion / Stage-2 candidate"}
+  spend_ceiling_usd: 30                          # HARD total LLM spend ceiling, all providers summed (R81)
+  spend_priority: [opus-confirmatory, legs-in-queue-order, m2-open-models, m2-closed-models]   # trims from the BACK on ceiling contact
+  synthesis:                                     # pre-registered cross-leg synthesis (report-only)
+    sign_count: descriptive                      # cross-leg replication count reported DESCRIPTIVELY (legs share panel+CRN seeds -> not independent)
+    permutation_test: "per shared CRN seed, flip the (distributional<->scalar) assignment with p=0.5 SIMULTANEOUSLY across all legs; recompute the cross-leg sign statistic; 10,000 reps (shared-seed/panel dependence lives inside the null)"
+    capability_anchor: {primary: pre-declared-external-composite, secondary: m2-reading-score}
+    gradient_prediction: "responsiveness is monotone non-decreasing in author capability (registered ex-ante)"
+    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument"
+  reliability_metrics: [format_compliance_baseline, sandbox_pass_rate, contract_violation_taxonomy, refusal_truncation_rates, code_diversity, per_model_taxonomy]
+  feedback_protocol: "Supervisor and industry feedback received after launch informs presentation and interpretation ONLY; data-collection decisions (rungs, legs, stops) follow the pre-registered exogenous rules exclusively."
+  interim_report: {when: floor-bank (~2026-08-06/08), to: [Dr-Okhrati, industry-supervisors], content: floor-tier-results (labeled provisional) + draft mechanism chapter + design record, effect-on-data-collection: none}
+  # --- R82 supplement (2026-07-20 late night; the completeness pass) ------------------------- #
+  max_tokens_pins:                               # UNIFORM output caps — provider defaults differ and could silently truncate code
+    open_legs: 4096                              # deepseek/glm/qwen27/qwen9/nemotron
+    capped_closed: 2048                          # gpt-5.6-luna, gemini-3.5-flash
+    anthropic_legs: 4096                         # haiku-4.5, sonnet-4.6 (opus = v1 convention unchanged)
+  leg_gate_timestamp: "2026-08-14T23:59:00Z"     # the calendar gate, made exact
+  synthesis_exactness:                           # closes the ambiguities a referee could exploit
+    sign_count_statistic: cvar_leg_contrast      # the tail (CVaR-5%) dist-vs-scalar sign — the Sharpe leg is predicted-tie for every model, so counting it would count noise
+    leg_inclusion_criterion: "a leg enters the sign count ONLY if its winners clear the T0 naive-benchmark floor in BOTH contrasted arms; failing legs report in the reliability table as authoring/search failures (a finding), never as votes"
+    pair_contrast_estimator: "(dist - scalar)_top_rung_member - (dist - scalar)_bottom_member, computed on the COMMON floor-30 CRN seed subset for BOTH family pairs (Qwen 9B/27B; Haiku/Opus — Opus restricted to its first 30 shared seeds for the paired estimator), seed-paired bootstrap CI"
+    leg_family_correction: "BH across the 9-leg report-only TOST family for any starred statement"
+  m2_probes:                                     # protocol extensions (report-only, ~$3 total)
+    guided_comparison: "identical stimuli + ONE added instruction sentence ('explicitly compare each fed value against the previous attempt's before revising') — separates CANNOT-read from WILL-not-use; with the legible-format probe forms the 2x2 format x instruction grid"
+    responsiveness_positive_control: "~20 stimuli whose blocks carry OVERT directive content ('penalize turnover more heavily') where responsiveness MUST fire — proves the SQ1 metric's sensitivity, sealing a responsiveness null against the broken-instrument critique"
+  additional_registered_cuts:
+    generation_indexed_responsiveness: "SQ1 recomputed per generation (1..6) from existing archives — does the model LEARN to use feedback within the loop? (zero new compute)"
+    search_replicate: "Stage-2: ONE full 30-candidate search replicate on the qwen3.5-9b leg (~150 trainings) — the lineage's first direct estimate of authoring-search variance (upgrades limitation B.2.6 from disclosed to quantified)"
+  freeze_day_checklist_additions:
+    public_deposit: "at the v2 freeze: deposit the prereg bundle PUBLICLY (OSF or Zenodo, DOI'd) — the public timestamp anchor referees can verify (the private-repo tag/bundle/OpenTimestamps remain the internal chain)"
+  per_leg_bank_gates: "each leg archive root passes the same write->verify integrity gate as the campaign root BEFORE its numbers enter any table"
+  theory_bridge: "the capability gradient TRACES the envelope-realization gap as a function of author capability, g(capability): the Blackwell envelope binds every user; the suite measures the realized distance to it along the capability axis; the numeracy bottleneck is the registered hypothesized shape of g (CH3/CH7 paragraphs at write time)"

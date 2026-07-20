@@ -22,4 +22,5 @@ Rules:
 - Optimize RISK-ADJUSTED performance — weigh return against its risk (you are selected on a
   risk-adjusted score). The feedback after each attempt tells you HOW to weigh it; do not assume.
 - After each attempt you receive feedback; revise the function to improve out-of-sample
-  risk-adjusted performance. Return ONLY the function definition.
+  risk-adjusted performance. Respond with a single Python code block containing ONLY the
+  function definition — no prose or explanation before or after the code.

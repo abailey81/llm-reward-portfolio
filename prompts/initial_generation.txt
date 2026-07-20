@@ -12,4 +12,5 @@ A trivial example that satisfies the contract:
     def reward(weights, returns, prev_weights, port_ret, info):
         return float(port_ret), {"port_ret": float(port_ret)}, None
 
-Return ONLY your reward function definition.
+Respond with a single Python code block containing ONLY your reward function definition — no
+prose before or after the code.

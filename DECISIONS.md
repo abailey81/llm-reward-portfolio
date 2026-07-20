@@ -1251,3 +1251,21 @@ metrics/success-story framing, and the reporting/paper structure.
 **Consequences.** Freeze-state-dependent tests flip to state-adaptive assertions (they assert
 consistency with the live yaml rather than pinning a state). The cluster marker is stale pending the
 v2 sync. The S12 venue staleness (ADR-058) folds into the v2 re-hash, as that ADR anticipated.
+
+## ADR-060 — THE V2 DESIGN: the 10-model replication suite under the $30 ceiling (2026-07-20)
+
+**Decision (Tamer, 2026-07-20 night: "implement this plan").** The v2 redesign triggered by the
+NatWest feedback (ADR-059) is SETTLED: the frozen v1 confirmatory core (Opus 4.8, 7 arms, m=6,
+E1 ladder — rung 403 remains the likely landing at C=12) is wrapped by a 9-leg model replication
+suite (DeepSeek V4-Pro·MIT, GLM-5.2·MIT, Qwen3.6-27B + Qwen3.5-9B·Apache [the open family pair,
+SiliconFlow-fp8-paired], Haiku 4.5 + Sonnet 4.6 [the closed family ladder; Sonnet = the PILOT
+BRIDGE — the prototype's author re-tested under the frozen design], GPT-5.6 Luna [cross-vendor
+closed, effort-low + 2k cap], Nemotron 3 Super [NVIDIA OML; data transparency], Gemini 3.5 Flash
+[seat-10 stretch, first-to-truncate]) + the 25-model M2 reading-link survey + the pre-registered
+dependence-aware synthesis + per-model reliability/taxonomy metrics + the $30 hard spend ceiling
++ the 2026-08-14 leg gate + the post-launch feedback-presentation-only protocol. Evidence base:
+the 8-agent 2026-07-20 sweep (`docs/MODEL_SWEEP_2026-07-20_v2.md`: OpenRouter 339-model census,
+~45 world labs, primary-source license gate — MiniMax-M3 failed the open bar and lost its seat
+to the ladder; the 15/15 closed-author lineage survey). Amendments R79-R81; plan
+`docs/V2_MASTER_PLAN_2026-07-20.md`. Freeze-v2 + Okhrati sign-off REQUIRED before launch
+(target ≤2026-07-28); Aug-11 Myriad maintenance budgeted (+1d).

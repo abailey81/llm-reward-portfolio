@@ -1,18 +1,54 @@
-# M2 survey roster (protocol v1 §2) — FINAL ids pinned AT EXECUTION with served-snapshot
-# archival (the Qwen pattern). `pinned: false` entries are placeholders: the runner refuses
-# nothing (per-model gates run at execution: live smoke, contamination screen, capability floor).
-# Frontier / mid / deliberately-weak — the capability GRADIENT is the evidence.
-models:
-  - {label: opus-4-8,      provider: anthropic,  model: claude-opus-4-8,          pinned: true}
-  - {label: sonnet-4-6,    provider: anthropic,  model: claude-sonnet-4-6,        pinned: true}
-  - {label: haiku-4-5,     provider: anthropic,  model: claude-haiku-4-5-20251001, pinned: true}
-  - {label: fable-5,       provider: anthropic,  model: claude-fable-5,           pinned: true}   # refusals are DATA here (ADR-056)
-  - {label: gpt-5-6-sol,   provider: openai,     model: PIN-AT-EXECUTION,         pinned: false}  # was gpt-5-5 (superseded Jul 9)
-  - {label: deepseek-v4,   provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}  # contamination-screen REQUIRED
-  - {label: gemini-class,  provider: gemini,     model: PIN-AT-EXECUTION,         pinned: false}
-  - {label: qwen3-coder,   provider: openrouter, model: qwen/qwen3-coder-480b,    pinned: false, api_key_env: OPENROUTER_API_KEY}
-  - {label: kimi-k2,       provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
-  - {label: glm-class,     provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
-  - {label: llama-large,   provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
-  - {label: mistral-large, provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
-  - {label: small-open-7b, provider: openrouter, model: PIN-AT-EXECUTION,         pinned: false, api_key_env: OPENROUTER_API_KEY}
+# M2 reading-link survey roster — v2 (R80, 2026-07-20; supersedes the placeholder roster).
+# 25 CORE models + budget-permitting EXTRAS. INCLUSION RULE (pre-registered): UK-callable AND
+# passes the author smoke AND passes the behavioural contamination screen AND a distinct base
+# model AND not an orchestrator/router. Execution is BUDGET-ORDERED under the $30 total ceiling
+# (R81): free routes first, then open, then closed, stop at ceiling contact. Ids pinned AT
+# EXECUTION with served-snapshot + provider + quantization archived per call (the Qwen pattern).
+# "~vendor/*-latest" rolling aliases are BANNED (reproducibility). Full-loop LEG models appear
+# here too (they double as M2 rows at zero marginal design cost).
+
+core:
+  # --- The Anthropic capability ladder (closed family; refusals are DATA on fable) ---
+  - {label: haiku-4-5,    provider: anthropic, model: claude-haiku-4-5-20251001, pinned: true}
+  - {label: sonnet-4-6,   provider: anthropic, model: claude-sonnet-4-6,         pinned: true}
+  - {label: opus-4-8,     provider: anthropic, model: claude-opus-4-8,           pinned: true}
+  - {label: fable-5,      provider: anthropic, model: claude-fable-5,            pinned: true}
+  # --- The Qwen capability ladder (open family; 5 points behind the 2-point full-loop pair) ---
+  - {label: qwen3.5-9b,   provider: openrouter, model: qwen/qwen3.5-9b,                 pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: qwen3-coder-30b, provider: openrouter, model: qwen/qwen3-coder-30b-a3b-instruct, pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: qwen3.6-35b,  provider: openrouter, model: qwen/qwen3.6-35b-a3b,            pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: qwen3.6-27b,  provider: openrouter, model: qwen/qwen3.6-27b,                pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: qwen3-coder-480b, provider: openrouter, model: qwen/qwen3-coder,            pinned: true, api_key_env: OPENROUTER_API_KEY}  # v1-pin continuity
+  # --- Closed cross-vendor tier (excluded from legs by the one-frontier rule; cheap here) ---
+  - {label: gpt-5.6-sol,  provider: openrouter, model: openai/gpt-5.6-sol,   pinned: true, api_key_env: OPENROUTER_API_KEY}  # METR reward-hacking context
+  - {label: gpt-5.6-luna, provider: openrouter, model: openai/gpt-5.6-luna,  pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: gemini-3.5-flash, provider: openrouter, model: google/gemini-3.5-flash, pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: grok-4.5,     provider: openrouter, model: x-ai/grok-4.5,        pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: nova-2-lite,  provider: openrouter, model: amazon/nova-2-lite-v1, pinned: true, api_key_env: OPENROUTER_API_KEY}
+  # --- Open cross-vendor tier (the 4 open leg models double as rows; plus these 8) ---
+  - {label: deepseek-v4-pro, provider: openrouter, model: deepseek/deepseek-v4-pro, pinned: true, api_key_env: OPENROUTER_API_KEY, note: contamination-screen-gated}
+  - {label: glm-5.2,      provider: openrouter, model: z-ai/glm-5.2,         pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: nemotron-3-super, provider: openrouter, model: nvidia/nemotron-3-super-120b-a12b, pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: hy3,          provider: openrouter, model: tencent/hy3,          pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: minimax-m3,   provider: openrouter, model: minimax/minimax-m3,   pinned: true, api_key_env: OPENROUTER_API_KEY, note: weights-available-RESTRICTED-license (never call open)}
+  - {label: kimi-k2.7-code, provider: openrouter, model: moonshotai/kimi-k2.7-code, pinned: true, api_key_env: OPENROUTER_API_KEY, note: K3 stand-in until weights land}
+  - {label: mimo-v2.5-pro, provider: openrouter, model: xiaomi/mimo-v2.5-pro, pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: north-mini-code, provider: openrouter, model: cohere/north-mini-code, pinned: true, api_key_env: OPENROUTER_API_KEY, note: free-route}
+  # --- Floor + curiosities ---
+  - {label: granite-4.1-8b, provider: openrouter, model: ibm-granite/granite-4.1-8b, pinned: true, api_key_env: OPENROUTER_API_KEY}
+  - {label: gemma-4-26b,  provider: openrouter, model: google/gemma-4-26b-a4b-it, pinned: true, api_key_env: OPENROUTER_API_KEY, note: strong-snippet/weak-agentic shape row; free-route}
+  - {label: mercury-2,    provider: openrouter, model: inception/mercury-2,  pinned: true, api_key_env: OPENROUTER_API_KEY, note: diffusion-LLM — the architecture-diversity row}
+
+extras_budget_permitting:  # run only if the $30 ceiling has headroom, in this order
+  - {label: olmo-3.1-32b, provider: openrouter, model: allenai/olmo-3.1-32b-instruct, pinned: false, api_key_env: OPENROUTER_API_KEY, note: fully-open-science pedigree}
+  - {label: mistral-large-3, provider: openrouter, model: mistralai/mistral-large-2512, pinned: false, api_key_env: OPENROUTER_API_KEY, note: the EU lab}
+  - {label: gpt-oss-20b,  provider: openrouter, model: openai/gpt-oss-20b,   pinned: false, api_key_env: OPENROUTER_API_KEY, note: OpenAI's open model; free-route}
+  - {label: kat-coder-pro, provider: openrouter, model: kwaipilot/kat-coder-pro-v2.5, pinned: false, api_key_env: OPENROUTER_API_KEY, note: the census discovery; watch}
+  - {label: inkling,      provider: openrouter, model: thinkingmachines/inkling, pinned: false, api_key_env: OPENROUTER_API_KEY}
+  - {label: laguna-xs,    provider: openrouter, model: poolside/laguna-xs-2.1, pinned: false, api_key_env: OPENROUTER_API_KEY, note: free-route}
+  - {label: nex-n2-mini,  provider: openrouter, model: nex-agi/nex-n2-mini,  pinned: false, api_key_env: OPENROUTER_API_KEY, note: ultra-cheap row}
+
+excluded_by_design:  # cite in methods
+  - {label: sakana-fugu, reason: orchestrator — routes to a hidden pool of frontier models; single-author attribution impossible (identification principle)}
+  - {label: llama-4, reason: SWE-V ~24 (an order below open leaders) + Community-License friction}
+  - {label: any ~latest alias, reason: rolling redirect — reproducibility poison}
