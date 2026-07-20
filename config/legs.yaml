@@ -1,0 +1,74 @@
+# EXECUTED leg config (v2, R80/R82) — must match config/preregistration.yaml `model_suite`
+# (a freeze-gate cross-check, assert_leg_roster_match, will bind them when built; NOTHING is
+# frozen at this stage — 2026-07-21, per Tamer). Two transports only: anthropic + openrouter.
+# Rolling "~*/-latest" aliases are BANNED. max_tokens pinned per R82 (provider defaults differ —
+# silent-truncation guard). Costs are ceiling-planning estimates, not authorities.
+
+legs:
+  - label: deepseek-v4-pro
+    provider: openrouter
+    model: deepseek/deepseek-v4-pro
+    api_key_env: OPENROUTER_API_KEY
+    reasoning: {mode: think-high}          # pinned EXPLICITLY (vendor default; OR pass-through undocumented)
+    max_tokens: 4096
+    gate: contamination_screen             # fallback: glm-5.2 absorbs this seat
+  - label: glm-5.2
+    provider: openrouter
+    model: z-ai/glm-5.2
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 4096
+  - label: qwen3.6-27b
+    provider: openrouter
+    model: qwen/qwen3.6-27b
+    api_key_env: OPENROUTER_API_KEY
+    provider_pin: {only: [siliconflow], allow_fallbacks: false}
+    quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.5-9b
+    max_tokens: 4096
+  - label: qwen3.5-9b
+    provider: openrouter
+    model: qwen/qwen3.5-9b
+    api_key_env: OPENROUTER_API_KEY
+    provider_pin: {only: [siliconflow], allow_fallbacks: false}
+    quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.6-27b
+    max_tokens: 4096
+  - label: haiku-4.5
+    provider: anthropic
+    model: claude-haiku-4-5-20251001       # dated snapshot — best-pinned leg after Opus
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
+  - label: sonnet-4.6
+    provider: anthropic
+    model: claude-sonnet-4-6               # the PILOT BRIDGE (prototype author, frozen-design re-test)
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
+  - label: gpt-5.6-luna
+    provider: openrouter
+    model: openai/gpt-5.6-luna
+    api_key_env: OPENROUTER_API_KEY
+    reasoning: {effort: low}               # pinned (R82: bounds hidden-reasoning billing)
+    max_tokens: 2048
+  - label: nemotron-3-super
+    provider: openrouter
+    model: nvidia/nemotron-3-super-120b-a12b
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 4096
+  - label: gemini-3.5-flash
+    provider: openrouter
+    model: google/gemini-3.5-flash
+    api_key_env: OPENROUTER_API_KEY
+    reasoning: {budget: default}           # default thinking budget, recorded
+    max_tokens: 2048
+    role: seat-10-stretch                  # first-to-truncate at the calendar gate
+
+# Planning prices ($/M in, $/M out) for the R81 spend ledger's pre-call estimates; the ledger's
+# AUTHORITY is the per-call cost captured from the provider response, never this table.
+planning_prices:
+  deepseek/deepseek-v4-pro: [0.435, 0.87]
+  z-ai/glm-5.2: [0.9688, 3.0448]
+  qwen/qwen3.6-27b: [0.45, 2.70]
+  qwen/qwen3.5-9b: [0.10, 0.15]
+  claude-haiku-4-5-20251001: [1.00, 5.00]
+  claude-sonnet-4-6: [3.00, 15.00]
+  openai/gpt-5.6-luna: [1.00, 6.00]
+  nvidia/nemotron-3-super-120b-a12b: [0.08, 0.45]
+  google/gemini-3.5-flash: [1.50, 9.00]
