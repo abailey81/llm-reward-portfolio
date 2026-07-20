@@ -863,8 +863,11 @@ refusal/truncation rates, code diversity, per-model program taxonomy), generatio
 responsiveness (does feedback-use strengthen across the loop's generations?), and the M2 probes —
 the legible-format probe, the guided-comparison probe, and the responsiveness POSITIVE CONTROL
 (overt-directive stimuli where the SQ1 metric must fire, proving its sensitivity) — are all
-registered report-only. The total LLM spend is hard-capped at $30 (R81), enforced in code,
-trimmed in the pre-declared priority order. Post-launch supervisor/industry feedback informs
+registered report-only. The total LLM spend is tracked per-call in a cross-provider ledger
+against the $30 ADVISORY planning ceiling (R81, softened by R83: warned at 80%/100%, never
+refused — spend decisions rest with the researcher; realized spend is reported in full), with
+the pre-declared priority order governing execution and reporting order (no automatic
+trimming). Post-launch supervisor/industry feedback informs
 presentation only (R81); the interim floor-tier report pack (~2026-08-06/08) is registered with
 no effect on data collection. At the v2 freeze the pre-registration bundle is DEPOSITED PUBLICLY
 (OSF/Zenodo, DOI) as the externally verifiable timestamp anchor.
