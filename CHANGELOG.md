@@ -3,6 +3,77 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-20/21] — ★★★★★ THE UNFREEZE → THE V2 REDESIGN (NatWest feedback) → implementation steps 1–5
+
+**Trigger (2026-07-19 call):** industry supervisors Raad (Head of AI R&D, NatWest) + Stefan —
+open-weight/multi-model evidence, reproducibility permanence, cost discipline, success metrics,
+multiple papers. Their feedback is now BINDING alongside Okhrati's compass (CLAUDE.md block).
+
+- **THE UNFREEZE (`3db904a`, ADR-059 + amendment R78):** v1.0 (`ce5db62c`) superseded PRE-DATA on
+  Tamer's instruction — zero campaign data existed, sealed leg untouched → a documented pre-data
+  revision, not a forking path. v1 records preserved (tags/bundle/log). `enforce_freeze` refuses
+  real launches until a v2 freeze — which happens ONLY on Tamer's explicit word (no scheduled
+  date; his 2026-07-21 instruction removed all date pressure). Freeze-state tests made
+  STATE-ADAPTIVE (assert consistency with the live yaml, not a pinned state).
+- **THE 8-AGENT MODEL SWEEP (`f88a3d2` + close-out `b9e5c74`, `docs/MODEL_SWEEP_2026-07-20_v2.md`):**
+  frontier-closed delta (GPT-5.6 benchmarks/pins; Anthropic deprecation floors + weight-preservation
+  commitment = best closed-vendor repro posture; METR: GPT-5.6 Sol = highest reward-hacking rate of
+  any public model, 55.4%), open-weight majors (DeepSeek V4-Pro MIT LCB-93.5 #1; GLM-5.2 MIT;
+  Qwen3.6 line supersedes the stale 480B pin; 4-rung all-Apache Qwen family gradient), the
+  15/15-closed-authors LINEAGE SURVEY (REvolve "necessary choice" verbatim; GEPA ICLR'26-Oral
+  closed+open precedent; NeurIPS checklist accepts hosted models; GIFT never names its model),
+  exhaustive Chinese labs (~17), rest-of-world (~45 labs), the OpenRouter 339-model census
+  (catalog JSON archived; provider-pin mechanics verified; `~latest` aliases = banned), and the
+  primary-source LICENSE GATE: **MiniMax-M3 FAILED the open bar** ($20M revenue trigger +
+  attribution badge) → its seat fell to the pre-declared fallback; Nemotron = NVIDIA OML (not
+  Apache; "major portions" of data released — exact phrasing bound); K3 weightless (watch Jul 27).
+- **THE V2 DESIGN (ADR-060; `docs/V2_MASTER_PLAN_2026-07-20.md` + §1b/§2b):** ONE frontier
+  confirmatory (Opus 4.8, unchanged core: 7 arms, m=6, IUTs, SESOI, E1 ladder — rung 403 remains
+  the likely landing at C=12) + **9 replication legs at tier-30** (DeepSeek V4-Pro [contamination
+  gate; GLM absorbs] · GLM-5.2 · Qwen3.6-27B + Qwen3.5-9B [open family pair, SiliconFlow-fp8-
+  paired] · Haiku 4.5 + Sonnet 4.6 [closed family ladder; Sonnet = the PILOT BRIDGE] · GPT-5.6
+  Luna [effort-low, 2k cap] · Nemotron 3 Super · Gemini 3.5 Flash [seat-10 stretch,
+  first-to-truncate]) + M2 reading-link survey at 25 models (+7 extras; inclusion rule) + the
+  unified TIER × STAGE × LEG queue (tier-100 hoisted early so the exogenous stop consumes the
+  UPDATED σ; leg gate 2026-08-14T23:59Z; Aug-11 Myriad maintenance budgeted +1d). Compute matrix
+  banked: leg = 300 tr = 0.63d @C12; 10 models × full 403 ladder ≈ Aug 13–14 @C12.
+- **PREREG-V2 RECORDS (`a858b04`):** R79 (model-agnostic prompt-format pass; tail-neutrality gate
+  re-verified) · R80 (the model_suite: legs+pins+queue+gates+synthesis+success metrics+feedback
+  protocol+interim report) · R81 (spend + presentation-only feedback protocol) · R82 (the
+  completeness supplement: uniform max-token pins; exact gate timestamp; synthesis exactness —
+  CVaR-contrast sign statistic, T0-floor leg-inclusion, common-30 pair-DiD estimator, leg-family
+  BH; M2 guided-comparison + responsiveness-POSITIVE-CONTROL probes; generation-indexed
+  responsiveness; Stage-2 qwen9 search replicate; PUBLIC OSF/Zenodo deposit on the freeze-day
+  checklist; per-leg bank gates; the g(capability) envelope-gap theory bridge) · §14 v2 prose ·
+  `config/m2_models.yaml` v2 (schema-aware loader + `--include-extras`, 25/32 verified) ·
+  `docs/V2_WRITE_TIME_REGISTRY.md` (13 binding items) · the Okhrati email draft + the NatWest
+  response brief (`docs/DRAFT_EMAIL_OKHRATI_2026-07-20.md`, `docs/NATWEST_RESPONSE_BRIEF_2026-07-20.md`).
+- **R83 (`41e9a1e`, Tamer):** the spend system is ADVISORY — `src/llm/spend_ledger.py` records
+  per-call cross-provider costs, warns at 80%/100% of the $30 planning ceiling, and NEVER refuses;
+  drafts + yaml softened to "tracked and reported".
+- **IMPLEMENTATION (sequential-solo per Tamer; agents stopped unused):**
+  step 1 `ceadd54` `config/legs.yaml` (9 legs, pins validated vs the registered queue; Qwen pair
+  invariant; alias ban; planning prices) · step 3 `99d2901` leg transport (client `extra_body`
+  passthrough: provider pins/quantizations/reasoning/usage-cost; `~latest` HARD-REJECT at
+  `build_transport`; `last_cost_usd` capture; `src/llm/legs.py` loader; 13 tests) · step 4
+  `aa910eb` freeze-gate `assert_leg_roster_match` (**the live gate now runs 21 checks**; order+
+  ids+pin-membership+quantization+caps+reasoning-presence+duplicate+alias guards; 9 adversarial
+  drift tests) · step 5 `0464b4f` `src/inference/cross_model.py` (T0-filtered sign count; the
+  joint per-seed-flip permutation test; pair DiD on the common-30 subset with seed-paired
+  bootstrap; leg-family BH; generation-indexed SQ1; capability regression; 15 property tests).
+- **★ PRE-FREEZE STATISTICAL CATCH (the property tests earning their keep):** the registered
+  permutation statistic was the SIGN COUNT — near-POWERLESS under joint per-seed flips with
+  correlated legs (all legs flip together ⇒ unanimity routine under the null ⇒ p≈0.5 even for a
+  strong true effect). REFINED PRE-DATA to the **POOLED MEAN difference** (the multivariate
+  paired sign-flip test — full power, identical dependence-honest null); the sign count stays
+  DESCRIPTIVE; registered text updated in yaml + §14. Second registered-spec defect caught by
+  verification before any data (the first: the sign-test independence flaw caught at design).
+- **Remaining build (sequential):** step 6 compliance-smoke script + multi-root leg aggregation +
+  per-leg bank gates · step 7 CH6 skeleton v2 + figures v2 (forest/gradient/reliability/winners)
+  · step 8 runbook v2 + dry-runs + cluster sync. **Tamer's pending items:** send the Okhrati
+  email; OpenRouter ~$25 top-up (gates the ×9 contamination screens + author smokes + compliance
+  baselines). **Freeze + launch strictly on Tamer's explicit word.**
+
 ## [2026-07-18d] — ★★★ THE FREEZE (Tamer's instruction) + notebooks-to-world-class
 
 - **THE PRE-REGISTRATION IS FROZEN** (`068f0e1`, tag `prereg-freeze-ce5db62c` + `prereg-v1.0`):
@@ -138,7 +209,8 @@ research code, so entries are grouped by session date. Every entry cites its ADR
 ADR-054 (chunked posture), ADR-055 (25 st/s floor) recorded. Ops lesson (4th occurrence, now
 absolute): backslash-bearing content goes through Write/Edit tools ONLY — bash heredocs mangle
 `
-`/`` escapes.
+`/`
+` escapes.
 
 ## [2026-07-13] — pre-spend audit CLOSED (41 findings) · B\* reopened under a pre-committed rule · C5 built · campaign = Myriad · DELEGATED RATIFICATIONS
 

@@ -6,34 +6,42 @@
 > strategy (Tamer's plan), and every gate/fallback decided in the 2026-07-20 design session.
 > Deadline: **1 Sep 2026**; submission target **Aug 28–29**.
 
+> **⚠ LIVING-PLAN STATUS (2026-07-21):** build steps 1–5 are DONE + committed (legs.yaml
+> `ceadd54` · advisory ledger `41e9a1e` · leg transport `99d2901` · 21-check gate w/ leg-roster
+> guard `aa910eb` · synthesis module w/ the pooled-mean refinement `0464b4f`). SUPERSESSIONS by
+> Tamer's instructions: the spend ceiling is ADVISORY (R83 — tracked+warned, never refused); the
+> FREEZE + LAUNCH have NO scheduled date — they happen ONLY on his explicit word (dates below are
+> planning references, not triggers); the final roster is 9 legs + Opus incl. SONNET 4.6 (replaced
+> Hy3; the closed 3-ladder + pilot bridge) and GEMINI 3.5 FLASH (seat-10 stretch). The executed
+> truth for the roster is `config/legs.yaml` == `model_suite` (gate-verified, n=9).
+
 ## 0. The design being executed (one paragraph of record)
 
 One frozen question (does feedback content change the reward code an LLM writes, and does it
 transmit?); ONE frontier confirmatory author (Opus 4.8) under the full v1 rigor (7 arms, m=6,
-co-primary IUTs, SESOI ±0.05, floor-30 → rung-279 expectation, exogenous stop); EIGHT replication
-legs — six open-weight (DeepSeek V4-Pro·MIT [contamination gate; GLM absorbs on failure],
-GLM-5.2·MIT, Qwen3.6-27B·Apache + Qwen3.5-9B·Apache [open capability pair — SiliconFlow fp8,
-same provider+quant], Nemotron-3-Super·NVIDIA-OML [data-transparency seat], Hy3·Apache [replaced
-MiniMax-M3 on the license gate]) **plus two cheap closed tiers (Tamer's addition, 2026-07-20
-night): Claude Haiku 4.5 (`claude-haiku-4-5-20251001`, dated snapshot — the CLOSED within-family
-capability pair vs Opus, so the controlled capability contrast runs TWICE, once per ecosystem)
-and GPT-5.6 Luna (`openai/gpt-5.6-luna` — restores the cross-vendor closed point at $1/$6;
-output capped 4k tokens to bound hidden-reasoning billing ≈$4.50 worst-case; no dated snapshot,
-disclosed)** — 9 full-loop models total; floor-30 seeds each, byte-identical prompts, unified
+co-primary IUTs, SESOI ±0.05, floor-30 → rung-279 expectation, exogenous stop); NINE replication
+legs (FINAL roster, gate-verified vs `config/legs.yaml`): five open-weight — DeepSeek V4-Pro·MIT
+[contamination gate; GLM absorbs on failure], GLM-5.2·MIT, Qwen3.6-27B + Qwen3.5-9B·Apache [the
+open capability pair — SiliconFlow fp8, same provider+quant], Nemotron-3-Super·NVIDIA-OML
+[data-transparency seat] — plus four closed tiers: Haiku 4.5 + **Sonnet 4.6** [the closed family
+LADDER with Opus — 3 points; Sonnet = the PILOT BRIDGE (the prototype's author re-tested under
+the frozen design; replaced Hy3, which moved to M2)], GPT-5.6 Luna [effort-low + 2k cap], and
+**Gemini 3.5 Flash** [seat-10 stretch, FIRST-TO-TRUNCATE — completes big-three closed coverage]
+— 10 full-loop models total; floor-30 seeds each, byte-identical prompts, unified
 prompt-variation diversity, pinned providers/quant/reasoning-modes, priority-queued behind the
-core (DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Luna → Nemotron → Hy3), calendar-gated
-**Aug 14**; the M2 reading-link survey (25 exact models incl. both
+core (DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Sonnet → Luna → Nemotron → Gemini),
+calendar-gated **2026-08-14T23:59Z**; the M2 reading-link survey (25 exact models incl. both
 within-family ladders) post-headline; a dependence-aware pre-registered synthesis (descriptive
 sign count + seed-block permutation test + capability regression on a pre-declared external
 anchor, M2 score secondary); per-model authoring-reliability + code-taxonomy outputs; study-level
-success metrics; **$30 total LLM ceiling** as a priority-ordered exogenous spend gate; two keys
+success metrics; a **$30 ADVISORY planning ceiling** (R83: per-call ledger, warned, never refused — reported in full); two keys
 only (Anthropic + OpenRouter). All extensions truncation-safe behind the core; the tier-30 floor
 banks the degree regardless.
 
 ## 1. Phase plan (day-by-day, with owners)
 
 ### Phase 0 — TONIGHT (Jul 20): sign-off + drafts  [Tamer + me]
-- **Tamer: sign off the package** (roster 7 + M2 25 + rung 279 + $30 ceiling + Aug-14 leg gate).
+- **Tamer: sign off the package** — DONE 2026-07-20 ("implement everything"): roster 10 + M2 25 + full ladder under the exogenous rule + advisory $30 + Aug-14 leg gate.
 - Me: draft (a) the Okhrati email (pre-data revision, v2 shape, sign-off request, time-box
   noted, default-proceed offered under his standing full-permissions grant — Tamer edits/sends);
   (b) the NatWest response brief (point-by-point: adopted/answered/declined-with-reason + the
@@ -65,7 +73,7 @@ banks the degree regardless.
 - Full suite green; ruff clean; EXACT launch lines dry-run on real gold (Opus core + one leg);
   cluster code sync + marker verified.
 
-### Phase 3 — Jul 26–28: FREEZE v2 + LAUNCH  [Tamer's GO]
+### Phase 3 — FREEZE v2 + LAUNCH — ONLY on Tamer's explicit word (NO scheduled date; his 2026-07-21 instruction)
 - Okhrati response in hand (or Tamer invokes default-proceed).
 - `freeze.py` → v2 canonical hash; tag `prereg-v2.0`; bundle; gate re-verified green; DECISION_LOG.
 - Balances confirmed; supervisor + campaign monitor + sentinel armed; **C0 canary** (hard-stops
@@ -128,10 +136,10 @@ from everything exploratory.
 | Package sign-off | tonight | Tamer approves roster/rung/ceiling | iterate tonight only |
 | Contamination×6 + smokes | Jul 21–22 | pre-declared screens pass | DeepSeek→GLM absorbs; any other leg → next in queue |
 | Okhrati sign-off | by Jul 26 | email reply or default-proceed | Tamer's call, documented |
-| FREEZE v2 | ≤ Jul 28 | gate green + hash stamped + sync verified | slip eats leg-queue tail, never the core |
+| FREEZE v2 | ON TAMER'S EXPLICIT WORD ONLY (no scheduled date, his 2026-07-21 instruction) | gate green + hash stamped + sync verified + PUBLIC deposit | schedule shifts accordingly; the core is always protected |
 | C0 canary | launch | hard-stop pre-spend | fix → relaunch |
 | Leg calendar gate | **Aug 14** | completed legs report; rest truncate | pre-registered wording |
-| $30 spend ceiling | continuous | priority-ordered; hard stop | M2 closed-tier trims first |
+| $30 spend ceiling (ADVISORY, R83) | continuous | tracked per-call; WARNS at 80/100%; never refuses | spend decisions are Tamer's |
 | Rung stop | ~Aug 18–20 | exogenous (throughput+calendar) | largest completed rung banks |
 | The confirmatory look | once, at bank | single look; bank-gate logged | — |
 | Novelty sweep | pre-submission | mandatory | wording tightened to the cell |
