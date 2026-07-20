@@ -195,16 +195,23 @@ class _OpenAITransport:
         temperature: float | None,
         retrying: Any,
         max_tokens: int = 4096,
+        extra_body: dict[str, Any] | None = None,
     ) -> None:
         self._client = client
         self._model = model
         self._temperature = temperature
         self._retrying = retrying
         self._max_tokens = int(max_tokens)
+        # v2 legs (R80/R82): OpenRouter routing prefs — provider pinning ({"provider": {"only":
+        # [...], "allow_fallbacks": false}}), quantization filters, reasoning pins ({"reasoning":
+        # {"effort"/"mode": ...}}), and {"usage": {"include": true}} (per-call cost for the R83
+        # advisory ledger) — all ride the OpenAI SDK's ``extra_body`` passthrough.
+        self._extra_body = dict(extra_body) if extra_body else None
         self.last_usage: dict[str, Any] | None = None
         self.last_stop_reason: str | None = None
         self.last_request_id: str | None = None
         self.last_served_model: str | None = None
+        self.last_cost_usd: float | None = None
 
     def __call__(self, system: str, user: str) -> str:
         kwargs: dict[str, Any] = {
@@ -220,12 +227,20 @@ class _OpenAITransport:
         }
         if self._temperature is not None:
             kwargs["temperature"] = self._temperature
+        if self._extra_body:
+            kwargs["extra_body"] = self._extra_body
 
         def _call() -> Any:
             return self._client.chat.completions.create(**kwargs)
 
         response = self._retrying(_call) if self._retrying is not None else _call()
         self.last_usage = _openai_usage_dict(response)
+        # OpenRouter returns the realized dollar cost in usage when {"usage": {"include": true}}
+        # was requested (extra_body above); absent elsewhere -> None (the ledger then estimates
+        # from tokens x planning prices). Advisory only (R83) — never gates.
+        _usage_obj = getattr(response, "usage", None)
+        _cost = getattr(_usage_obj, "cost", None) if _usage_obj is not None else None
+        self.last_cost_usd = float(_cost) if _cost is not None else None
         choice = response.choices[0]
         self.last_stop_reason = getattr(choice, "finish_reason", None)
         self.last_request_id = getattr(response, "id", None)
@@ -244,6 +259,7 @@ def make_openai_transport(
     base_url: str | None = None,
     max_retries: int = 6,
     max_tokens: int = 4096,
+    extra_body: dict[str, Any] | None = None,
 ) -> Transport:
     """Create a real OpenAI-SDK transport, lazily importing ``openai``.
 
@@ -290,7 +306,7 @@ def make_openai_transport(
     client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
     return _OpenAITransport(
         client, model, temperature=temperature, retrying=_make_retrying(max_retries),
-        max_tokens=max_tokens,
+        max_tokens=max_tokens, extra_body=extra_body,
     )
 
 
@@ -601,6 +617,7 @@ def build_transport(
     temperature: float | None = None,
     max_tokens: int = 4096,
     max_retries: int = 6,
+    extra_body: dict[str, Any] | None = None,
 ) -> Transport:
     """Single, centralized real-transport factory — provider dispatch lives in ONE place.
 
@@ -616,8 +633,21 @@ def build_transport(
         For an unknown provider, or (lazily, at build time) a missing key / SDK.
     """
     provider = provider.lower()
+    # ROLLING-ALIAS BAN (R80, 2026-07-20): OpenRouter's "~vendor/*-latest" aliases redirect to
+    # the newest family member — reproducibility poison for a pinned study. Reject at the single
+    # factory chokepoint so no code path can construct one.
+    if "~" in model or model.endswith("-latest"):
+        raise ValueError(
+            f"model id {model!r} is a rolling 'latest' alias — banned for reproducibility (R80). "
+            "Pin the concrete slug/snapshot instead."
+        )
     key_env = api_key_env or default_key_env(provider)
     if provider == "anthropic":
+        if extra_body:
+            raise ValueError(
+                "extra_body (OpenRouter routing/reasoning prefs) is not supported on the "
+                "anthropic transport — leg pins for Anthropic models are id+max_tokens only."
+            )
         return make_anthropic_transport(
             model, key_env, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries
         )
@@ -636,6 +666,7 @@ def build_transport(
             base_url=base_url,
             max_retries=max_retries,
             max_tokens=max_tokens,  # final-audit #35: was dropped, capping Gemini/DeepSeek silently
+            extra_body=extra_body,  # v2 legs: provider pins / quantizations / reasoning / usage-cost
         )
     raise RuntimeError(
         f"unknown LLM provider {provider!r}; known providers: {', '.join(PROVIDERS)} "
