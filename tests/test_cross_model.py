@@ -175,3 +175,43 @@ def test_capability_regression_anchors():
     with pytest.raises(ValueError, match="anchor"):
         capability_regression(pts, anchor="bogus")
     assert capability_regression(pts[:2], anchor="m2")["rho"] is None  # <3 points -> honest None
+
+
+# ---- pooled_bound (R86 — the registered bounded-effect statement) ----------------------------------- #
+def test_pooled_bound_covers_truth_and_recovers_shift() -> None:
+    from src.inference.cross_model import pooled_bound
+
+    rng = np.random.default_rng(7)
+    res = pooled_bound(_legs(rng, shift=0.004), n_boot=2000)
+    assert res["ci_low"] < 0.004 < res["ci_high"]          # the injected effect sits inside the CI
+    assert res["ci_level"] == 0.90 and res["n_legs"] == 6
+
+
+def test_pooled_bound_dependence_honest_no_fake_root_k_shrink() -> None:
+    """k perfectly correlated legs must yield (about) ONE leg's CI width, never a sqrt(k) shrink."""
+    from src.inference.cross_model import pooled_bound
+
+    rng = np.random.default_rng(11)
+    one = rng.standard_normal(30) * 0.01
+    dup = {f"leg{i}": {"cvar_diff_per_seed": one.copy(), "t0_floor_pass": True} for i in range(9)}
+    single = {"only": {"cvar_diff_per_seed": one.copy(), "t0_floor_pass": True}}
+    w_dup = pooled_bound(dup, n_boot=3000)
+    w_one = pooled_bound(single, n_boot=3000)
+    width_dup = w_dup["ci_high"] - w_dup["ci_low"]
+    width_one = w_one["ci_high"] - w_one["ci_low"]
+    assert width_dup == pytest.approx(width_one, rel=0.15)  # identical, not /3
+
+
+def test_pooled_bound_relative_scale_and_empty_inclusion() -> None:
+    from src.inference.cross_model import pooled_bound
+
+    rng = np.random.default_rng(3)
+    legs = _legs(rng, n_legs=4, shift=0.001)
+    for leg in legs.values():
+        leg["cvar_b_per_seed"] = np.full(30, -0.02)         # scalar-arm pooled CVaR level = -0.02
+    res = pooled_bound(legs, n_boot=1000)
+    assert res["scalar_arm_pooled_cvar"] == pytest.approx(-0.02)
+    assert res["relative_to_scalar_cvar"]["estimate"] == pytest.approx(res["estimate"] / 0.02)
+    # No included legs -> honest None, never a fabricated bound.
+    none_in = {"a": {"cvar_diff_per_seed": np.ones(5), "t0_floor_pass": False}}
+    assert pooled_bound(none_in)["estimate"] is None

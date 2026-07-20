@@ -985,10 +985,37 @@ def assert_leg_roster_match(yml: dict, root: Path) -> str | None:
                 f"leg {label!r}: the registration pins reasoning "
                 f"({fleg['reasoning_pin']!r}) but the executed leg carries no reasoning block",
             )
+    pending = pending_hf_pins(root)
+    suffix = (
+        f"; R85 hf_pins PENDING for {len(pending)} open leg(s) — filled at gate time, "
+        "the real freeze REFUSES until then" if pending else "; R85 hf_pins filled"
+    )
     return (
         f"leg roster (v2): config/legs.yaml == frozen model_suite "
-        f"(n={len(frozen_legs)}, order + ids + pins verified)"
+        f"(n={len(frozen_legs)}, order + ids + pins verified{suffix})"
     )
+
+
+def pending_hf_pins(root: Path) -> list[str]:
+    """Open-weight legs whose R85 hf_pin (repo+commit) is absent or still a placeholder.
+
+    The weights hash is the permanence anchor behind the open-replication reproducibility claim
+    (MODEL_SWEEP §4.1; model_suite.hf_weights_pins): pre-freeze ``--check`` REPORTS pending pins;
+    :func:`do_freeze` REFUSES while any remain (a registered pin must be real before it is hashed).
+    """
+    legs_path = root / "config" / "legs.yaml"
+    if not legs_path.exists():
+        return []
+    executed = (yaml.safe_load(legs_path.read_text(encoding="utf-8")) or {}).get("legs") or []
+    pending: list[str] = []
+    for leg in executed:
+        if "hf_pin" not in leg:
+            continue  # closed legs carry no weights pin by design
+        hf = leg.get("hf_pin") or {}
+        repo, commit = str(hf.get("repo") or ""), str(hf.get("commit") or "")
+        if not repo or not commit or "TO-VERIFY" in repo or "TO-VERIFY" in commit:
+            pending.append(str(leg.get("label")))
+    return pending
 
 
 # --------------------------------------------------------------------------- #
@@ -1184,6 +1211,14 @@ def do_freeze(root: Path | None = None) -> FreezeStatus:
         raise FreezeError(
             f"{PREREG_YAML} is already frozen (frozen: true, freeze_hash={status.recorded_hash}). "
             "Re-freezing is forbidden; post-freeze changes go through a dated amendment."
+        )
+    # R85 (2026-07-21): a registered weights pin must be REAL before it is hashed — refuse the
+    # freeze while any open leg still carries a TO-VERIFY-AT-GATE placeholder.
+    _pending = pending_hf_pins(root)
+    if _pending:
+        raise FreezeError(
+            f"R85 hf_pin placeholders remain for open leg(s) {_pending} — fill repo+commit from "
+            "each official HF card (gate step) before freezing."
         )
 
     when = _utc_now_iso()

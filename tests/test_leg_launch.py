@@ -33,7 +33,8 @@ def test_openrouter_leg_carries_pins_and_forced_suffix() -> None:
     llm_cfg, provider, suffix = RCC.resolve_leg_override("qwen3.6-27b", None)
     assert provider == "openrouter"
     assert llm_cfg["model_snapshot"] == "qwen/qwen3.6-27b"
-    assert llm_cfg["pass"] == "B" and llm_cfg["temperature"] is None
+    assert llm_cfg["pass"] == "B"
+    assert llm_cfg["temperature"] == 1.0        # R85 uniform decoding pin on OpenRouter legs
     assert llm_cfg["diversity_prompt_variation"] is True
     eb = llm_cfg["extra_body"]
     assert eb["provider"] == {"only": ["siliconflow"], "allow_fallbacks": False,
@@ -46,6 +47,7 @@ def test_anthropic_leg_has_no_extra_body() -> None:
     llm_cfg, provider, suffix = RCC.resolve_leg_override("haiku-4.5", None)
     assert provider == "anthropic"
     assert "extra_body" not in llm_cfg                            # native transport: id + caps only
+    assert llm_cfg["temperature"] is None                          # R85: Anthropic legs carry no temp pin
     assert llm_cfg["model_snapshot"] == "claude-haiku-4-5-20251001"
     assert suffix == "leg_haiku_4_5"
 

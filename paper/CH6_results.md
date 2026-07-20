@@ -209,7 +209,10 @@ root before its numbers entered any table.
   authoring/search failures — **a finding, never a vote** — `[FROM CAMPAIGN: list + failure mode]`.
 - Authoring reliability (Table 6.7, the practitioner-facing table): pre-launch format-compliance baseline,
   sandbox pass rate, contract-violation taxonomy, refusal/truncation rates, code diversity, and the per-model
-  reward-program taxonomy: `[FROM CAMPAIGN: per-model rows]`.
+  reward-program taxonomy: `[FROM CAMPAIGN: per-model rows]`. **Fairness note (binding on the table and
+  Figure 6.12): per-leg registered output caps differ (2,048 tokens for gpt-5.6-luna and gemini-3.5-flash vs
+  4,096 elsewhere, R82) — truncation rates are conditional on each leg's cap and the caps are annotated in
+  the table, so a capped model is never misread as an unreliable one.**
 - The ten winners side-by-side (one annotated winning reward program per model, tail-constructs highlighted):
   Figure 6.13 `[FROM CAMPAIGN]` — the qualitative exhibit of *what different model families write*.
 
@@ -230,6 +233,14 @@ family.
 - The per-seed joint-flip permutation test (statistic = the POOLED MEAN difference; 10,000 reps, one-sided
   toward dist-safer; shared-seed/panel dependence inside the null): observed pooled mean
   `[FROM CAMPAIGN]`; *p* `[FROM CAMPAIGN]`.
+- **The bounded-effect statement (R86 — the synthesis's equivalence-first tier):** the 90% seed-block-bootstrap
+  CI on the pooled mean CVaR-5% difference: `[FROM CAMPAIGN: CI in daily-return units]`, i.e.
+  `[FROM CAMPAIGN: CI as % of the scalar-arm pooled CVaR level]` — *"across the included models the pooled
+  content effect on the realized tail is bounded within this interval."*
+- The three-signature gradient adjudication (R87: capacity = rising / representational = flat-at-zero, the
+  registered prediction / echo = decreasing): `[FROM CAMPAIGN: signature corroborated + the A1–A5
+  fingerprint read]`; the ex-ante sonnet-bridge direction (≤ 0, the pilot's direction):
+  `[FROM CAMPAIGN: replicated?]`.
 - Family-pair difference-in-differences (the content-effect × capability interaction, common floor-30 CRN
   seeds, seed-paired 90% bootstrap CI): open pair (Qwen 27B − 9B) `[FROM CAMPAIGN: estimate, CI]`; closed
   pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`.

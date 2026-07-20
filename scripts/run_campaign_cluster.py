@@ -406,7 +406,8 @@ def resolve_leg_override(label: str, explicit_root_suffix: str | None) -> tuple[
         "model_snapshot": tk["model"],
         "api_key_env": tk["api_key_env"],
         "max_tokens": tk["max_tokens"],
-        "temperature": None,
+        # R85: the leg's registered decoding pin (1.0 on OpenRouter legs; absent on Anthropic).
+        "temperature": tk.get("temperature"),
         "diversity_prompt_variation": True,
     }
     if tk.get("extra_body"):

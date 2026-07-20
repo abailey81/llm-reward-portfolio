@@ -267,8 +267,15 @@ model_suite:
     - {label: sonnet-4.6,      id: claude-sonnet-4-6, license: closed, note: closed-ladder-mid + PILOT-BRIDGE (prototype author; frozen-design replication of the pilot's responsiveness direction)}
     - {label: gpt-5.6-luna,    id: openai/gpt-5.6-luna, license: closed, reasoning_pin: effort-low, output_cap_tokens: 2048, note: cross-vendor closed; no dated snapshot (disclosed)}
     - {label: nemotron-3-super, id: nvidia/nemotron-3-super-120b-a12b, license: NVIDIA-Open-Model-License, note: major portions of training data released (some gated) — phrase exactly}
-    - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, reasoning_pin: default-budget, output_cap_tokens: 2048, role: SEAT-10-STRETCH-first-to-truncate}
+    - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, output_cap_tokens: 2048, role: SEAT-10-STRETCH-first-to-truncate, note: reasoning-at-provider-default-DISCLOSED (R85 — the prior "default-budget" pin used an undocumented OpenRouter reasoning key, a silent-ignore/fictional-pin risk; the smoke archives reasoning-token usage as the record of what was actually served)}
   queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, sonnet-4.6, gpt-5.6-luna, nemotron-3-super, gemini-3.5-flash]
+  # R85 (2026-07-21): reproducibility-permanence pins + decoding-uniformity (closing the gap      #
+  # between the ADOPTED sweep mechanics (MODEL_SWEEP §4.1 "open legs pin by HF commit hash")      #
+  # and the executed config, which carried provider/quant pins but NO weights hashes).            #
+  hf_weights_pins: "REQUIRED for every open-weight leg BEFORE the v2 freeze: the Hugging Face repo id + commit hash of the exact weights release, retrieved at gate time from the model's official HF card (never inferred), archived with the gate verdicts, and mirrored into config/legs.yaml. The weights hash is the PERMANENT artifact behind the reproducibility claim — hosted API routes are transient; anyone can re-host the pinned weights"
+  served_variant_disclosure: "the Qwen pair is SERVED fp8 (SiliconFlow) — the authoring artifact is the fp8-served variant of the hash-pinned bf16 weights; the pin + provider + quantization TOGETHER define the executed author (one methods sentence; never claim the bf16 weights authored)"
+  temperature_policy: "OpenRouter legs pin temperature=1.0 explicitly (uniform — different providers DEFAULT differently, an uncontrolled nuisance axis across legs that the prior 'provider default, recorded' wording could not actually record); models that REJECT the parameter fall back to provider default, disclosed per leg from the gate smoke. Anthropic legs keep the Opus convention (no temperature param; prompt-variation diversity). Within-leg contrasts are temperature-common-mode, so arm comparisons are unaffected either way"
+  reasoning_pin_evidence: "every reasoning pin must ROUND-TRIP: the gate smoke archives the response's reasoning-token usage + served provider as evidence the pin functioned (a pass-through key an API silently ignores is a fictional pin; a 400 fails the smoke loudly). DeepSeek think-high = the vendor DEFAULT, so even a silently-ignored pass-through yields the registered mode"
   leg_seed_tier: 30                              # legs run at the floor tier ONLY (claims calibrated to floor power)
   leg_calendar_gate: "2026-08-14"                # legs incomplete at the gate report as truncated-by-calendar
   prompts: byte-identical-across-all-legs        # the treatment text is ONE instrument (R79 format pass included)
@@ -282,9 +289,24 @@ model_suite:
   synthesis:                                     # pre-registered cross-leg synthesis (report-only)
     sign_count: descriptive                      # cross-leg replication count reported DESCRIPTIVELY (legs share panel+CRN seeds -> not independent)
     permutation_test: "per shared CRN seed, flip the (distributional<->scalar) assignment with p=0.5 SIMULTANEOUSLY across all legs; STATISTIC = the POOLED MEAN difference over included legs (the multivariate paired sign-flip test; refined pre-freeze 2026-07-21 — a sign-COUNT statistic is near-powerless under joint flips with correlated legs, unanimity being routine under that null; the sign count remains the DESCRIPTIVE layer); 10,000 reps, one-sided toward dist-safer (shared-seed/panel dependence lives inside the null)"
-    capability_anchor: {primary: pre-declared-external-composite, secondary: m2-reading-score}
-    gradient_prediction: "responsiveness is monotone non-decreasing in author capability (registered ex-ante)"
-    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument"
+    # R84 (2026-07-21): the capability anchor CONCRETELY pre-declared — a rule, not a choice.  #
+    capability_anchor:
+      primary: swe_bench_verified            # ONE named benchmark (the lineage-standard coding axis)
+      primary_rule: "value = the SWE-bench-Verified score published on the model's official card / vendor announcement as of the retrieval date below; a model with NO such published score is MISSING — excluded from the primary regression and reported under the secondary anchor instead (never imputed, never swapped for a different benchmark)"
+      retrieval: {date: "2026-07-20 (MODEL_SWEEP_2026-07-20_v2) re-verified at gate time pre-freeze", archive: "per-model source URL + score archived with the gate verdicts"}
+      values_verified_so_far: {qwen3.6-27b: 77.2, haiku-4.5: 73.3}   # sweep-verified; remaining legs filled MECHANICALLY at gate time under primary_rule (discretion-free); gpt-5.6-luna documented ABSENT (sweep §5)
+      secondary: m2-reading-score            # OUR instrument — shares method variance with the outcome (circularity DISCLOSED; that is why it is secondary, never primary)
+      tertiary_descriptive: within-family-ordinal   # parameter/tier order inside each family pair (9B<27B; Haiku<Sonnet<Opus) — benchmark-free, zero missing; embodied by the pair contrasts
+    # R87 (2026-07-21): the gradient prediction made FALSIFIABLE — three rival signatures named   #
+    # ex-ante (the prior wording "monotone non-decreasing" was satisfied by BOTH a flat and a     #
+    # rising gradient — near-unfalsifiable — and named the RIVAL account's signature, not ours).  #
+    gradient_signatures:
+      capacity_account: "responsiveness RISES with capability (weak authors fail to use the numbers; strong ones use them)"
+      representational_account: "responsiveness FLAT at ~0 across capability — THE REGISTERED PREDICTION of the numeracy-bottleneck headline (the bottleneck is the numeric REPRESENTATION, so it binds every author incl. the frontier; the legibility/guided-comparison probes, not capability, are the predicted levers)"
+      echo_account: "responsiveness DECREASING in capability (weaker models surface-echo fed numbers without using them)"
+      decision: "read off jointly from the capability regression + both family-pair DiDs + the M2 probe grid; the fingerprint accounts A1-A5 adjudicate as registered"
+    sonnet_bridge_prediction: "REGISTERED EX-ANTE: the sonnet-4.6 leg (the prototype's author re-tested under the frozen design) REPLICATES the pilot's responsiveness direction (<= 0). The only leg with prior directional data, hence the only leg-level directional pre-registration made"
+    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument; the cross-family regression is DESCRIPTIVE (n=9 legs carries no meaningful test power) — the pair DiDs are the identified estimates"
   reliability_metrics: [format_compliance_baseline, sandbox_pass_rate, contract_violation_taxonomy, refusal_truncation_rates, code_diversity, per_model_taxonomy]
   feedback_protocol: "Supervisor and industry feedback received after launch informs presentation and interpretation ONLY; data-collection decisions (rungs, legs, stops) follow the pre-registered exogenous rules exclusively."
   interim_report: {when: floor-bank (~2026-08-06/08), to: [Dr-Okhrati, industry-supervisors], content: floor-tier-results (labeled provisional) + draft mechanism chapter + design record, effect-on-data-collection: none}
@@ -297,6 +319,15 @@ model_suite:
   synthesis_exactness:                           # closes the ambiguities a referee could exploit
     sign_count_statistic: cvar_leg_contrast      # the tail (CVaR-5%) dist-vs-scalar sign — the Sharpe leg is predicted-tie for every model, so counting it would count noise
     leg_inclusion_criterion: "a leg enters the sign count ONLY if its winners clear the T0 naive-benchmark floor in BOTH contrasted arms; failing legs report in the reliability table as authoring/search failures (a finding), never as votes"
+    # R84 (2026-07-21): the floor VALUE pinned (was named-but-unpinned — 8 registered benchmarks   #
+    # would each give a different floor -> a different inclusion set -> a forking path).           #
+    t0_floor_definition: "floor = the EQUAL-WEIGHT benchmark's mean per-seed Sharpe over the common floor seeds 0-29, computed from the shared core baseline records (equal_weight is the canonical naive allocator; the same records every leg is compared against)"
+    t0_filter_size_note: "the inclusion filter is ARM-SYMMETRIC (both arms must clear the same floor), so it preserves the sign-flip symmetry of the null — filtering cannot bias the permutation test's size (registered so the selection-then-test question is answered ex-ante)"
+    # R86 (2026-07-21): the BOUNDED-EFFECT statement — the synthesis's equivalence-first tier      #
+    # (a large permutation p alone is absence-of-evidence; per-leg TOSTs at the 30-seed floor are  #
+    # inconclusive by construction — pooling 9 x 30 paired seeds is where the precision lives).    #
+    pooled_bound: "the 90% seed-block-bootstrap CI on the pooled mean (dist - scalar) CVaR-5% difference over included legs (resample seed indices i.i.d., the SAME draw applied to every leg — dependence-honest), reported in daily-return units AND as a percentage of the scalar-arm pooled CVaR level; this CI is the registered cross-model bounded-effect statement"
+    leg_tost_family: "the 9-leg report-only TOST family = the per-leg CVaR-5% dist-vs-scalar contrasts (the Sharpe leg is predicted-tie); BH within this family for any starred statement"
     pair_contrast_estimator: "(dist - scalar)_top_rung_member - (dist - scalar)_bottom_member, computed on the COMMON floor-30 CRN seed subset for BOTH family pairs (Qwen 9B/27B; Haiku/Opus — Opus restricted to its first 30 shared seeds for the paired estimator), seed-paired bootstrap CI"
     leg_family_correction: "BH across the 9-leg report-only TOST family for any starred statement"
   m2_probes:                                     # protocol extensions (report-only, ~$3 total)

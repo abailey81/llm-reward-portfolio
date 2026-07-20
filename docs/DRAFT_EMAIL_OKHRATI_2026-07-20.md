@@ -1,6 +1,7 @@
-# DRAFT — email to Dr Okhrati (for Tamer to edit + send, target 2026-07-21)
+# DRAFT — email to Dr Okhrati (for Tamer to edit + send; DATES REFRESHED 2026-07-21 — the
+# launch has no scheduled date, so the ask is now RELATIVE: sign-off within ~5 days of sending)
 
-Subject: Pre-data design revision (v2) — sign-off requested by Fri 26 July
+Subject: Pre-data design revision (v2) — sign-off requested within the week
 
 Dear Dr Okhrati,
 
@@ -35,9 +36,10 @@ What is ADDED — all report-only, none of it gating the confirmatory hypotheses
    decisions, so the single-confirmatory-look discipline is preserved.
 
 The revised registration re-freezes (new hash, publicly deposited with a DOI) before any launch.
-I would be grateful for your sign-off, or any objections, by Friday 26 July so the campaign can
-launch on the 28th; given the compressed window, if I do not hear from you I will proceed under
-the permissions you kindly granted and treat any later concerns as dated amendments.
+I would be grateful for your sign-off, or any objections, within about five days of this email so
+the campaign can launch promptly against the 1 September deadline; given the compressed window,
+if I do not hear from you I will proceed under the permissions you kindly granted and treat any
+later concerns as dated amendments.
 
 The one-page revision record and the model-selection evidence are attached / available on request.
 

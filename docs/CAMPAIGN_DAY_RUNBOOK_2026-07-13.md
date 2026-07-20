@@ -261,3 +261,18 @@ same write→verify integrity gate as the campaign root (`model_suite.per_leg_ba
 gate log is archived with the leg's tables (write-time registry item 12). Aggregation:
 `src.inference.leg_aggregate.leg_results_for_synthesis` (leg label → root map) feeds
 `src.inference.cross_model` — the CH6 §6.7–6.8 numbers come ONLY through that path.
+
+**(f) ⚠ v2 top-up sizing (2026-07-21 deep-sweep correction):** the "$25 Anthropic" recommendation
+was sized 07-18 for OPUS ALONE (expected $5.95 / worst $15.86). v2 adds the Haiku (+~$1.2 exp)
+and Sonnet (+~$3.6 exp / ~$9–11 worst) legs on the SAME key: Anthropic worst-case total ≈ $28–30.
+**Recommend Anthropic ≥ $35** (or accept a possible mid-leg pause-for-top-up — legitimate under
+advisory R83, but plan it). OpenRouter ~$25 remains comfortable (6 legs ≈ $5–8 expected; Luna's
+cap bounds its tail). Also per ADR-060 addendum: **enable OpenRouter's account-level
+do-not-log/train privacy setting BEFORE the gates run.**
+
+**(g) ⚠ Freeze-day decision (G8):** `leg_calendar_gate: 2026-08-14T23:59Z` was sized for a
+~Jul-28 launch. At the freeze (whenever Tamer calls it), CONFIRM or RE-FIX the gate date once,
+pre-freeze — still calendar-fixed and exogenous; never moved after launch. Also fill the R85
+`hf_pin` placeholders (5 open legs) from the official HF cards — `freeze.py` refuses while any
+remain — and run the R84 anchor-value retrieval (SWE-bench-Verified per the registered rule,
+sources archived).

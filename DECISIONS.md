@@ -1269,3 +1269,18 @@ the 8-agent 2026-07-20 sweep (`docs/MODEL_SWEEP_2026-07-20_v2.md`: OpenRouter 33
 to the ladder; the 15/15 closed-author lineage survey). Amendments R79-R81; plan
 `docs/V2_MASTER_PLAN_2026-07-20.md`. Freeze-v2 + Okhrati sign-off REQUIRED before launch
 (target ≤2026-07-28); Aug-11 Myriad maintenance budgeted (+1d).
+
+**Addendum (2026-07-21) — licensed-data entitlement for OpenRouter-routed authoring (the
+paragraph promised in V2_MASTER_PLAN §2b, closing the deep-sweep gap).** What leaves the machine
+to any LLM API during authoring is the feedback block: **six derived aggregate statistics of the
+realized-return distribution (cvar_05/10/25/01, left_tail_mass, robust_skew) plus a scalar
+score — no raw licensed price/return series, no identifiers, no dates** (the anonymization
+contract, enforced by the sandbox/prompt design). The recorded reasoning for the Anthropic case —
+derived aggregates of licensed LSEG data are analysis OUTPUTS, not redistribution of the licensed
+series — extends unchanged to OpenRouter-routed third-party hosts: the recipient class changes,
+the payload class does not. Two operational notes: (1) **Tamer should enable OpenRouter's
+account-level "do not log/train" privacy setting before the gates run** (paid routes; free routes
+may train on inputs — irrelevant to legs, which all use paid routes, and acceptable for M2's
+synthetic/derived probe stimuli); (2) the separate open question in
+`docs/RELEASE_REPRODUCIBILITY_CHECKLIST.md` (whether raw derived return SERIES may be published
+in the public deposit) is about publication, not authoring, and is unaffected by this addendum.

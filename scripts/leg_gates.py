@@ -115,6 +115,10 @@ def run_leg_gates(
             "leg": label, "gate": gate, "user": user, "response": text,
             "served_model": getattr(transport, "last_served_model", None),
             "stop_reason": getattr(transport, "last_stop_reason", None),
+            # R85 round-trip evidence: full usage (incl. any reasoning-token counts) archived per
+            # call — the record of whether a reasoning/temperature pin actually FUNCTIONED
+            # (an API silently ignoring a pass-through key would otherwise leave the pin fictional).
+            "usage": getattr(transport, "last_usage", None),
             "cost_usd": cost,
         }
         with rows_path.open("a", encoding="utf-8") as fh:
@@ -129,6 +133,15 @@ def run_leg_gates(
     if "smoke" in which:
         text = _call("You are a terse assistant.", "Reply with exactly: SMOKE-OK", "smoke")
         summary["smoke_ok"] = "SMOKE-OK" in text
+        # R85: surface the pin round-trip observables in the verdict — a leg registering a
+        # reasoning pin whose smoke shows NO usage metadata gets an explicit review flag
+        # (never silently trusted).
+        usage = getattr(transport, "last_usage", None)
+        summary["usage_observed"] = usage
+        if leg.get("reasoning") and not usage:
+            summary["pin_roundtrip"] = "UNVERIFIED->review (reasoning pinned but no usage metadata returned)"
+        elif leg.get("reasoning"):
+            summary["pin_roundtrip"] = "usage-archived (inspect reasoning-token counts vs the pin)"
 
     if "compliance" in which:
         system = (Path("prompts/system.txt").read_text(encoding="utf-8"))
@@ -172,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ledger", default="outputs/spend_ledger.jsonl")
     args = p.parse_args(argv)
     legs = load_legs()["legs"]
-    chosen = legs if args.all else [next(l for l in legs if l["label"] == args.leg)]
+    chosen = legs if args.all else [next(lg for lg in legs if lg["label"] == args.leg)]
     which = (args.only,) if args.only else ("smoke", "compliance", "screen")
     out = Path(args.out)
     verdicts = []

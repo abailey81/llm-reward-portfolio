@@ -78,6 +78,11 @@ def transport_kwargs(leg: dict[str, Any]) -> dict[str, Any]:
         "api_key_env": str(leg["api_key_env"]),
         "max_tokens": int(leg["max_tokens"]),
     }
+    # R85 uniform-decoding pin: OpenRouter legs carry temperature: 1.0 in legs.yaml; a model that
+    # rejects the parameter surfaces at the gate smoke and falls back to provider default,
+    # disclosed. Anthropic legs never carry the key (the Opus no-temperature convention).
+    if leg.get("temperature") is not None:
+        kwargs["temperature"] = float(leg["temperature"])
     if provider == "anthropic":
         return kwargs  # id + max_tokens only; no extra_body on the native transport
 

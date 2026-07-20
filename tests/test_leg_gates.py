@@ -79,3 +79,22 @@ def test_spend_rides_the_advisory_ledger(tmp_path: Path):
                   ledger_path=led)
     from src.llm.spend_ledger import spend_summary
     assert spend_summary(led)["n_calls"] == 1
+
+
+def test_r85_usage_roundtrip_evidence_archived(tmp_path: Path):
+    """R85: the smoke archives full usage + surfaces a pin-roundtrip verdict for reasoning legs."""
+    fake = _FakeTransport(["SMOKE-OK"])
+    fake.last_usage = {"input_tokens": 10, "output_tokens": 5, "reasoning_tokens": 42}
+    leg = dict(_LEG, reasoning={"effort": "low"})
+    s = run_leg_gates(leg, tmp_path, which=("smoke",), transport_factory=lambda lg: fake)
+    assert s["pin_roundtrip"].startswith("usage-archived")
+    assert s["usage_observed"]["reasoning_tokens"] == 42
+    row = json.loads((tmp_path / "test-leg.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert row["usage"]["reasoning_tokens"] == 42        # the per-call evidence on disk
+
+
+def test_r85_pinned_reasoning_with_no_usage_flags_review(tmp_path: Path):
+    fake = _FakeTransport(["SMOKE-OK"])           # _FakeTransport has no last_usage attribute
+    leg = dict(_LEG, reasoning={"mode": "think-high"})
+    s = run_leg_gates(leg, tmp_path, which=("smoke",), transport_factory=lambda lg: fake)
+    assert s["pin_roundtrip"].startswith("UNVERIFIED")   # never silently trusted

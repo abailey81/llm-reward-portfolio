@@ -1,64 +1,83 @@
-# EXECUTED leg config (v2, R80/R82) — must match config/preregistration.yaml `model_suite`
-# (a freeze-gate cross-check, assert_leg_roster_match, will bind them when built; NOTHING is
-# frozen at this stage — 2026-07-21, per Tamer). Two transports only: anthropic + openrouter.
+# EXECUTED leg config (v2, R80/R82/R84/R85) — must match config/preregistration.yaml `model_suite`
+# (the freeze-gate cross-check assert_leg_roster_match binds them; NOTHING is frozen at this
+# stage — 2026-07-21, per Tamer). Two transports only: anthropic + openrouter.
 # Rolling "~*/-latest" aliases are BANNED. max_tokens pinned per R82 (provider defaults differ —
-# silent-truncation guard). Costs are ceiling-planning estimates, not authorities.
+# silent-truncation guard). temperature: 1.0 pinned on OpenRouter legs per R85 (uniform decoding
+# across legs — providers default differently; models that REJECT the param fall back to provider
+# default, disclosed from the gate smoke). hf_pin (R85): the open legs' PERMANENT weights anchor —
+# repo + commit retrieved from the official HF card AT GATE TIME (never inferred/fabricated),
+# then filled here + archived; the freeze REFUSES while any open leg still says TO-VERIFY-AT-GATE
+# (see model_suite.hf_weights_pins). Costs are ceiling-planning estimates, not authorities.
 
 legs:
   - label: deepseek-v4-pro
     provider: openrouter
     model: deepseek/deepseek-v4-pro
     api_key_env: OPENROUTER_API_KEY
-    reasoning: {mode: think-high}          # pinned EXPLICITLY (vendor default; OR pass-through undocumented)
+    reasoning: {mode: think-high}          # pinned EXPLICITLY (vendor default; OR pass-through undocumented — R85: the smoke archives reasoning-token usage as round-trip evidence; a silent ignore still yields the vendor-default think-high, i.e. the registered mode)
+    temperature: 1.0                       # R85 uniform decoding pin
     max_tokens: 4096
+    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}   # R85: filled from the official HF card at gate time
     gate: contamination_screen             # fallback: glm-5.2 absorbs this seat
   - label: glm-5.2
     provider: openrouter
     model: z-ai/glm-5.2
     api_key_env: OPENROUTER_API_KEY
+    temperature: 1.0
     max_tokens: 4096
+    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
   - label: qwen3.6-27b
     provider: openrouter
     model: qwen/qwen3.6-27b
     api_key_env: OPENROUTER_API_KEY
     provider_pin: {only: [siliconflow], allow_fallbacks: false}
-    quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.5-9b
+    quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.5-9b (the served artifact is the fp8 variant of the pinned weights — model_suite.served_variant_disclosure)
+    temperature: 1.0
     max_tokens: 4096
+    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
   - label: qwen3.5-9b
     provider: openrouter
     model: qwen/qwen3.5-9b
     api_key_env: OPENROUTER_API_KEY
     provider_pin: {only: [siliconflow], allow_fallbacks: false}
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.6-27b
+    temperature: 1.0
     max_tokens: 4096
+    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
   - label: haiku-4.5
     provider: anthropic
     model: claude-haiku-4-5-20251001       # dated snapshot — best-pinned leg after Opus
     api_key_env: ANTHROPIC_API_KEY
-    max_tokens: 4096
+    max_tokens: 4096                       # Anthropic legs: no temperature param (the Opus convention; prompt-variation diversity)
   - label: sonnet-4.6
     provider: anthropic
-    model: claude-sonnet-4-6               # the PILOT BRIDGE (prototype author, frozen-design re-test)
+    model: claude-sonnet-4-6               # the PILOT BRIDGE (prototype author, frozen-design re-test; model_suite.sonnet_bridge_prediction registered ex-ante)
     api_key_env: ANTHROPIC_API_KEY
     max_tokens: 4096
   - label: gpt-5.6-luna
     provider: openrouter
     model: openai/gpt-5.6-luna
     api_key_env: OPENROUTER_API_KEY
-    reasoning: {effort: low}               # pinned (R82: bounds hidden-reasoning billing)
+    reasoning: {effort: low}               # pinned (R82: bounds hidden-reasoning billing; documented OpenRouter key — round-trip evidenced by the smoke's reasoning-token usage)
+    temperature: 1.0                       # GPT-5-family models may reject/fix temperature — smoke discloses per R85 policy
     max_tokens: 2048
   - label: nemotron-3-super
     provider: openrouter
     model: nvidia/nemotron-3-super-120b-a12b
     api_key_env: OPENROUTER_API_KEY
+    temperature: 1.0
     max_tokens: 4096
+    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
   - label: gemini-3.5-flash
     provider: openrouter
     model: google/gemini-3.5-flash
     api_key_env: OPENROUTER_API_KEY
-    reasoning: {budget: default}           # default thinking budget, recorded
+    temperature: 1.0
     max_tokens: 2048
     role: seat-10-stretch                  # first-to-truncate at the calendar gate
+    # NO reasoning key (R85): the prior {budget: default} used an UNDOCUMENTED OpenRouter reasoning
+    # field — a silent-ignore would have made the pin fictional. Thinking runs at provider default,
+    # DISCLOSED; the smoke archives reasoning-token usage as the record of what was served.
 
 # Planning prices ($/M in, $/M out) for the R81 spend ledger's pre-call estimates; the ledger's
 # AUTHORITY is the per-call cost captured from the provider response, never this table.

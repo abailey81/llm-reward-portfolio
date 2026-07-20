@@ -38,6 +38,7 @@ from src.inference.responsiveness import responsiveness
 __all__ = [
     "sign_count",
     "permutation_test",
+    "pooled_bound",
     "pair_did",
     "leg_family_bh",
     "generation_indexed_responsiveness",
@@ -127,6 +128,56 @@ def permutation_test(
         "null_q95": float(np.quantile(null_stats, 0.95)),
         "null_count_q95": float(np.quantile(null_counts, 0.95)),
         "labels": labels,
+    }
+
+
+def pooled_bound(
+    leg_results: dict[str, dict[str, Any]],
+    n_boot: int = 10_000,
+    seed: int = 20260721,
+) -> dict[str, Any]:
+    """R86 — the registered BOUNDED-EFFECT statement: a 90% seed-block-bootstrap CI on the pooled
+    mean (dist − scalar) CVaR-5% difference over the T0-included legs.
+
+    A large permutation p alone is absence-of-evidence; per-leg TOSTs at the 30-seed floor are
+    inconclusive by construction — the pooled 9×30 paired seeds is where the precision lives.
+    Dependence honesty: resample SEED indices i.i.d. and apply the SAME draw to every leg (the
+    per-seed leg-pooled means carry the cross-leg dependence inside each resample — k perfectly
+    correlated legs yield exactly one leg's CI, never a fake √k shrink). Reported in daily-return
+    units AND as a fraction of the scalar-arm pooled CVaR level (interpretability; the SESOI is
+    DSR-denominated so no CVaR-unit margin exists — this is a bound, not a TOST verdict).
+    """
+    included = _included(leg_results)
+    if not included:
+        return {"estimate": None, "note": "no legs passed the T0 floor"}
+    labels = sorted(included)
+    if len({included[k].size for k in labels}) != 1:
+        raise ValueError("all included legs must share the same CRN seed count (seed-aligned)")
+    mat = np.vstack([included[k] for k in labels])              # (n_legs, n_seeds)
+    seed_means = mat.mean(axis=0)                               # leg-pooled per seed
+    n_seeds = seed_means.size
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, n_seeds, size=(int(n_boot), n_seeds))
+    boot = seed_means[idx].mean(axis=1)
+    est = float(seed_means.mean())
+    lo, hi = float(np.quantile(boot, 0.05)), float(np.quantile(boot, 0.95))
+    # Scale context: the scalar arm's pooled CVaR level over the same included legs/seeds.
+    scalar_levels = [
+        np.asarray(leg_results[k]["cvar_b_per_seed"], dtype=float)
+        for k in labels if "cvar_b_per_seed" in leg_results[k]
+    ]
+    scalar_level = float(np.mean(np.vstack(scalar_levels))) if scalar_levels else None
+    rel = (
+        {"estimate": est / abs(scalar_level), "ci_low": lo / abs(scalar_level),
+         "ci_high": hi / abs(scalar_level)}
+        if scalar_level not in (None, 0.0) else None
+    )
+    return {
+        "estimate": est, "ci_low": lo, "ci_high": hi, "ci_level": 0.90,
+        "n_legs": len(labels), "n_seeds": int(n_seeds), "n_boot": int(n_boot),
+        "labels": labels,
+        "scalar_arm_pooled_cvar": scalar_level,
+        "relative_to_scalar_cvar": rel,
     }
 
 
