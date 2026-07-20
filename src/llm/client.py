@@ -784,6 +784,13 @@ class LLMClient:
         self.max_retries: int = int(cfg_get(cfg, "max_retries", 6))
         self._transport = transport
         self.archive: ArchiveSink = archive if archive is not None else []
+        # R83 advisory spend ledger (v2): when cfg names a ledger path, every completed call's
+        # realized cost (transport ``last_cost_usd``; OpenRouter usage.cost) — or, failing that,
+        # the tokens×planning-prices estimate — is appended per-call. None/absent -> no recording
+        # (bare clients, tests, and fakes stay ledger-silent; the campaign author paths thread the
+        # path in via opts). Advisory: recording failures warn (rate-limited), never raise.
+        self.spend_ledger: str | None = cfg_get(cfg, "spend_ledger", None) or None
+        self._n_ledger_failures = 0
 
     def _ensure_transport(self) -> Transport:
         """Return the injected transport, or lazily build the real one for ``provider``."""
@@ -855,4 +862,42 @@ class LLMClient:
                 served_model=served_model,
             )
         )
+        self._record_spend(transport, usage)
         return response
+
+    def _record_spend(self, transport: Any, usage: dict[str, Any] | None) -> None:
+        """Best-effort R83 per-call ledger append (advisory — must NEVER crash a paid call).
+
+        Records ONLY when a ledger path is configured AND the transport surfaced real per-call
+        metadata (cost or usage) — fakes/stubs expose neither and stay silent. Realized cost
+        (``last_cost_usd``) is the authority; else the tokens×planning-prices estimate; an
+        unpriced model records $0 with an explicit note rather than a fabricated number.
+        """
+        if not self.spend_ledger:
+            return
+        cost = getattr(transport, "last_cost_usd", None)
+        if cost is None and usage is None:
+            return  # no real metadata (fake/stub transport) — nothing truthful to record
+        try:
+            from src.llm.spend_ledger import estimate_cost_usd, record_spend
+
+            t_in = (usage or {}).get("input_tokens")
+            t_out = (usage or {}).get("output_tokens")
+            note = "realized"
+            if cost is None:
+                cost = estimate_cost_usd(self.model, t_in, t_out)
+                note = "estimated-from-planning-prices"
+            if cost is None:
+                cost, note = 0.0, "cost-unknown(model-unpriced)"
+            record_spend(
+                self.spend_ledger, provider=self.provider, model=self.model,
+                cost_usd=float(cost), tokens_in=t_in, tokens_out=t_out, note=note,
+            )
+        except Exception as exc:  # noqa: BLE001 — advisory ledger: warn (rate-limited), never raise
+            self._n_ledger_failures += 1
+            if self._n_ledger_failures == 1 or self._n_ledger_failures % 50 == 0:
+                logging.getLogger(__name__).warning(
+                    "spend-ledger append FAILED (%d so far) at %s: %s — advisory only, call "
+                    "unaffected", self._n_ledger_failures, self.spend_ledger, exc,
+                )
+        return

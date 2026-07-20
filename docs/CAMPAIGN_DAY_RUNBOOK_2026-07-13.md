@@ -207,3 +207,57 @@ SNR → prereg bundle). Then and only then: numbers into the PDF (evidence-ledge
 Everything above is REPORT-ONLY and disjoint from the frozen m=6 family: it can deepen the
 story, never gate or contaminate the headline. Items 1–3 belong to the campaign window itself;
 4–5 wait for the bank gate by construction.
+
+## 9. THE V2 LEG QUEUE (R80/R82 — the 9 replication legs; report-only, behind the core)
+
+> Legs run the identical FIVE LLM arms at the tier-30 floor (seeds 0–29 = the core's floor
+> subset — the common-30 CRN pairing the pair-DiD estimator requires), byte-identical prompts,
+> pinned transports. Queue order is FROZEN (`model_suite.queue_order`); truncate — never
+> reorder — at the calendar gate **2026-08-14T23:59Z**. Nothing here gates H1–H4.
+
+**(a) Pre-launch gates (once, needs OpenRouter credit ~$1–2; verdicts archived):**
+
+```bash
+python scripts/leg_gates.py --all --out outputs/leg_gates
+# smoke (pin route live) + compliance baseline (10 authoring calls/model) + contamination screen.
+# DeepSeek screen FAIL -> GLM-5.2 absorbs seat 1 (pre-declared); any flag routes to Tamer.
+```
+
+**(b) The per-leg launch line** (one invocation per leg, in queue order; `--leg` forces the
+disjoint `leg_<label>` roots + the pinned author from `config/legs.yaml` — provider pin,
+quantization, reasoning mode, max-tokens, and the usage-cost request all ride automatically):
+
+```bash
+MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --leg deepseek-v4-pro \
+    --arms distributional scalar scalar_cvar5 placebo placebo_shuffled \
+    --seeds 0-29 --pass-mode B --priority -200 \
+    --pack 5 --cores-per-training 1 --pool EF --seed-pool-blocks "EF:0-14,L:15-29" \
+    --batch-tag leg1 --poll-secs 180 --chunk-tasks 1 \
+    --output-dir outputs/campaign_cluster --resume
+# Queue (frozen): deepseek-v4-pro -> glm-5.2 -> qwen3.6-27b -> qwen3.5-9b -> haiku-4.5
+#              -> sonnet-4.6 -> gpt-5.6-luna -> nemotron-3-super -> gemini-3.5-flash
+# Per leg: change --leg and --batch-tag (leg2, leg3, ...). No --baselines (H1 is core-only);
+# no --tiered (legs are floor-tier by design). Priority -200 = legs only backfill idle GPUs.
+```
+
+**(c) Per-leg monitoring:** the same `campaign_monitor.sh` + sentinel watch the shared
+`outputs/campaign_cluster` mirror — leg records live under `search_leg_<label>/`,
+`test_leg_<label>/`, `frozen_leg_<label>/` and batch names are `leg_<label>_*`-prefixed, so the
+state-class monitor's per-batch rows separate them at a glance. A leg model authoring garbage is
+a FINDING (reliability table), not an incident: the T0 floor + selection floor handle it.
+
+**(d) Spend reporting (R83, advisory):** every authored call (core AND legs) now records
+per-call realized cost (OpenRouter `usage.cost`) or the tokens×planning-prices estimate
+(Anthropic) to `outputs/spend_ledger.jsonl` automatically. Report any time:
+
+```bash
+python -c "from src.llm.spend_ledger import spend_summary; import json; print(json.dumps(spend_summary('outputs/spend_ledger.jsonl'), indent=2))"
+# Warns in the driver log at 80%/100% of the $30 ADVISORY ceiling — never refuses (R83).
+# The realized total is a CH4/CH6 reported number + the NatWest-brief line.
+```
+
+**(e) Per-leg bank gate:** before a leg's numbers enter any table, its archive root passes the
+same write→verify integrity gate as the campaign root (`model_suite.per_leg_bank_gates`); the
+gate log is archived with the leg's tables (write-time registry item 12). Aggregation:
+`src.inference.leg_aggregate.leg_results_for_synthesis` (leg label → root map) feeds
+`src.inference.cross_model` — the CH6 §6.7–6.8 numbers come ONLY through that path.

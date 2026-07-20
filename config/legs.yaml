@@ -63,6 +63,7 @@ legs:
 # Planning prices ($/M in, $/M out) for the R81 spend ledger's pre-call estimates; the ledger's
 # AUTHORITY is the per-call cost captured from the provider response, never this table.
 planning_prices:
+  claude-opus-4-8: [5.00, 25.00]           # the confirmatory author (documented $5/$25 per MTok) — anthropic returns no per-call cost, so the R83 ledger estimates from tokens
   deepseek/deepseek-v4-pro: [0.435, 0.87]
   z-ai/glm-5.2: [0.9688, 3.0448]
   qwen/qwen3.6-27b: [0.45, 2.70]

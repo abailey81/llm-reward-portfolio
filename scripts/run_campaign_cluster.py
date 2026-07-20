@@ -311,6 +311,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
                         "RHEL7 glibc is too old for the cu124 wheels natively). Empty string = native venv.")
+    p.add_argument("--leg", default=None, metavar="LABEL",
+                   help="v2 replication leg (R80/R82): author THIS invocation with the named "
+                        "config/legs.yaml leg (e.g. deepseek-v4-pro) — the leg's pinned transport "
+                        "(provider/quantization/reasoning/max-tokens + the usage-cost request) "
+                        "replaces the campaign llm block, and the archive namespace is FORCED to "
+                        "leg_<label> (disjoint roots; the leg_aggregate input contract). "
+                        "Report-only: pass --priority -200 per runbook §14.3. Not combinable with "
+                        "--llm-from prototype or --h3-singleshot.")
     p.add_argument("--llm-from", choices=["campaign", "prototype"], default="campaign",
                    help="Which config's `llm` block authors the rewards (2026-07-13 pre-spend audit "
                         "fix: llm_cfg was hardcoded None, silently inheriting prototype.yaml's block "
@@ -375,6 +383,43 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def resolve_leg_override(label: str, explicit_root_suffix: str | None) -> tuple[dict[str, Any], str, str]:
+    """Resolve a v2 replication leg into ``(llm_cfg override, provider, forced root suffix)``.
+
+    The llm block mirrors the campaign-block schema ``build_parallel_opts`` consumes
+    (``model_snapshot``/``api_key_env``/``max_tokens``/``extra_body``), built from the SAME
+    ``transport_kwargs`` translation the pre-launch gates use — one translation point, no drift.
+    ``temperature`` stays None (provider default, recorded — the registered diversity protocol is
+    prompt-variation, unified across legs). The archive suffix is forced to ``leg_<label>``
+    (sanitized to the [a-z0-9_]+ suffix grammar); an explicitly-passed different suffix is refused
+    rather than silently overridden (ambiguity kills resumability).
+    """
+    import re as _re
+
+    from src.llm.legs import leg_by_label, transport_kwargs
+
+    leg = leg_by_label(label)          # loud KeyError listing known labels on a typo
+    tk = transport_kwargs(leg)
+    llm_cfg: dict[str, Any] = {
+        "pass": "B",
+        "provider": tk["provider"],
+        "model_snapshot": tk["model"],
+        "api_key_env": tk["api_key_env"],
+        "max_tokens": tk["max_tokens"],
+        "temperature": None,
+        "diversity_prompt_variation": True,
+    }
+    if tk.get("extra_body"):
+        llm_cfg["extra_body"] = tk["extra_body"]
+    suffix = "leg_" + _re.sub(r"[^a-z0-9_]", "_", str(label).lower())
+    if explicit_root_suffix and explicit_root_suffix != suffix:
+        raise SystemExit(
+            f"--leg {label!r} forces --root-suffix {suffix!r}; the explicit --root-suffix "
+            f"{explicit_root_suffix!r} conflicts — drop it (the leg owns its namespace)."
+        )
+    return llm_cfg, str(tk["provider"]), suffix
+
+
 def autosize_h_rt(pack: int, train_steps: int) -> str:
     """Walltime default for a pack-``pack`` task at ``train_steps``: the measured clean aggregate
     curve at its WORST (x0.5 contention) + 1200 s overhead + 30% margin, rounded up to whole hours
@@ -420,6 +465,23 @@ def main(argv: list[str] | None = None) -> int:
             freeze_stamp = enforce_freeze(allow_unfrozen=bool(args.allow_unfrozen))
         except CampaignNotFrozenError as exc:
             raise SystemExit(f"[run_campaign_cluster] {exc}") from exc
+
+    # v2 REPLICATION LEG (R80/R82): resolve BEFORE the root-suffix validation so the forced
+    # leg_<label> namespace flows through the same guards as an explicit suffix. The leg supplies
+    # its own pinned author block (one translation point with the pre-launch gates: transport_kwargs).
+    leg_llm_cfg: dict[str, Any] | None = None
+    if args.leg:
+        if args.h3_singleshot:
+            raise SystemExit("--leg and --h3-singleshot are SEPARATE invocations — a leg runs the "
+                             "standard five LLM arms, never the H3 control.")
+        if args.llm_from != "campaign":
+            raise SystemExit("--leg supplies its own author block from config/legs.yaml — do not "
+                             "combine it with --llm-from prototype.")
+        leg_llm_cfg, _leg_provider, _forced_suffix = resolve_leg_override(args.leg, args.root_suffix)
+        args.root_suffix = _forced_suffix
+        logging.getLogger(__name__).info(
+            "leg %s: author=%s/%s, root-suffix FORCED to %s",
+            args.leg, _leg_provider, leg_llm_cfg["model_snapshot"], _forced_suffix)
 
     # --root-suffix VALIDATION (C6-class): format + the h3 conflict, hoisted here so a bad flag
     # is rejected BEFORE any cluster contact (2026-07-19 audit: the checks lived after remote_home,
@@ -527,7 +589,9 @@ def main(argv: list[str] | None = None) -> int:
     # ---- 2026-07-13 PRE-SPEND AUDIT GUARDS (all fail LOUD before any submission/authoring) ---- #
     from src.utils.config import cfg_get as _cfg_get
     llm_cfg = None  # None -> assemble falls back to prototype.yaml (the legacy rehearsal path)
-    if args.llm_from == "campaign":
+    if leg_llm_cfg is not None:
+        llm_cfg = leg_llm_cfg  # v2 leg: the pinned author block from config/legs.yaml wins
+    elif args.llm_from == "campaign":
         llm_cfg = dict(_cfg_get(_load_config("campaign"), "llm", {}) or {})
         if not llm_cfg:
             raise SystemExit("--llm-from campaign but config/campaign.yaml has no `llm` block")
@@ -540,7 +604,8 @@ def main(argv: list[str] | None = None) -> int:
         _blk_provider = str(_cfg_get(_blk, "provider", "") or "")
         if _blk_provider and _blk_provider != "stub":
             args.provider = _blk_provider
-            _LOG.info("provider DERIVED from the %s llm block: %s", args.llm_from, args.provider)
+            _src = f"leg:{args.leg}" if leg_llm_cfg is not None else args.llm_from
+            _LOG.info("provider DERIVED from the %s llm block: %s", _src, args.provider)
         else:
             raise SystemExit(
                 "pass-mode B with provider=stub: a real-spend run would silently author with the "

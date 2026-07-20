@@ -343,11 +343,14 @@ def _build_cluster_author(arm: str, opts: dict, arm_root: Path) -> tuple[Any, An
             opts["provider"], model, key_env, temperature=temperature,
             max_tokens=int(opts.get("max_tokens") or 4096),
             max_retries=int(opts.get("max_retries") or 6),
+            # v2 legs: the registered OpenRouter pins (provider/quantization/reasoning + usage-cost)
+            # must survive into the cluster author — parity with parallel._drive_llm_arm.
+            extra_body=opts.get("extra_body") or None,
         )
     diversity = bool(opts.get("diversity_prompt_variation", False))
     prompts = build_prompt_set(opts["env_cfg"], opts["n_assets"])
     llm = LLMClient(
-        {"model": model}, transport=transport,
+        {"model": model, "spend_ledger": opts.get("spend_ledger")}, transport=transport,
         archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"),
     )
     return llm, prompts, diversity

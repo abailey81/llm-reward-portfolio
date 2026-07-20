@@ -48,6 +48,38 @@ def planning_ceiling(repo_root: Path | None = None) -> float:
         return DEFAULT_CEILING_USD
 
 
+def estimate_cost_usd(
+    model: str,
+    tokens_in: int | None,
+    tokens_out: int | None,
+    prices: dict[str, Any] | None = None,
+) -> float | None:
+    """Estimate one call's cost from tokens × the legs.yaml ``planning_prices`` ($/MTok in, out).
+
+    The REALIZED per-call cost from the provider response is always the authority when present
+    (OpenRouter ``usage.cost``); this estimator covers providers that do not return cost (the
+    native Anthropic transport). Returns None when the model is unpriced or tokens are absent —
+    the caller records the call with an explicit note rather than a fabricated number.
+    """
+    if tokens_in is None and tokens_out is None:
+        return None
+    if prices is None:
+        try:
+            import yaml
+
+            root = Path(__file__).resolve().parents[2]
+            cfg = yaml.safe_load((root / "config" / "legs.yaml").read_text(encoding="utf-8")) or {}
+            prices = dict(cfg.get("planning_prices") or {})
+        except Exception as exc:  # noqa: BLE001 — advisory path: warn, never crash
+            _LOG.warning("spend_ledger: could not read planning_prices (%r)", exc)
+            return None
+    pair = prices.get(model)
+    if not pair:
+        return None
+    p_in, p_out = float(pair[0]), float(pair[1])
+    return (int(tokens_in or 0) / 1e6) * p_in + (int(tokens_out or 0) / 1e6) * p_out
+
+
 def record_spend(
     ledger_path: str | Path,
     *,

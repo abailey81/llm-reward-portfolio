@@ -957,10 +957,13 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
         key_env = opts.get("api_key_env") or default_key_env(opts["provider"])
         # F17: thread the author block's max_tokens/max_retries through (defaults = the historical
         # hardcodes 4096/6) — raising the config value must not silently no-op into a truncated reward.
+        # v2 legs: extra_body carries the OpenRouter provider/quantization/reasoning pins + the
+        # usage-cost request — dropping it here would strip a leg's registered pins at authoring.
         transport = build_transport(
             opts["provider"], model, key_env, temperature=temperature,
             max_tokens=int(opts.get("max_tokens") or 4096),
             max_retries=int(opts.get("max_retries") or 6),
+            extra_body=opts.get("extra_body") or None,
         )
 
     diversity = bool(opts.get("diversity_prompt_variation", False))
@@ -970,7 +973,7 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
     # "w" dump lost the whole arm's call provenance (incl. the R71 served_model reproducibility anchor,
     # which config/llm.yaml requires recorded at the FIRST live call) on any mid-arm crash.
     llm = LLMClient(
-        {"model": model},
+        {"model": model, "spend_ledger": opts.get("spend_ledger")},
         transport=transport,
         archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"),
     )

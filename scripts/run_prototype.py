@@ -221,6 +221,15 @@ def build_parallel_opts(
         # config value must not silently no-op into a truncated reward misread as a 'bad candidate'.
         "max_tokens": int(cfg_get(llm_block, "max_tokens", 4096)),
         "max_retries": int(cfg_get(llm_block, "max_retries", 6)),
+        # v2 legs (R80/R82): OpenRouter routing/reasoning pins + the usage-cost request ride the
+        # llm block's ``extra_body`` into the transport — without this key a leg's provider pin /
+        # quantization / reasoning pins would be SILENTLY DROPPED at authoring (a registered-design
+        # violation). None (absent) keeps every v1 path byte-identical.
+        "extra_body": cfg_get(llm_block, "extra_body", None),
+        # R83 advisory spend ledger: the campaign author paths record per-call realized/estimated
+        # cost here (LLMClient skips recording when the transport surfaces neither cost nor usage —
+        # fakes/stubs stay ledger-silent). Explicit null in the block disables.
+        "spend_ledger": cfg_get(llm_block, "spend_ledger", "outputs/spend_ledger.jsonl"),
         "diversity_prompt_variation": bool(cfg_get(llm_block, "diversity_prompt_variation", False)),
         "env_cfg": env_cfg,
         # Universe size from config (environment.yaml: universe.n_assets) — NOT a hardcoded 30 on the
