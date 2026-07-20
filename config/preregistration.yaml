@@ -277,8 +277,8 @@ model_suite:
   stage2_triggers:                               # rule-driven only; never mid-flight
     - {model: kimi-k3, condition: "open weights + permissive license land (promised 2026-07-27) + gates pass -> post-campaign Stage-2 leg"}
     - {model: kwaipilot-kat-coder, condition: "open weights + verified coding benchmarks -> M2 promotion / Stage-2 candidate"}
-  spend_ceiling_usd: 30                          # HARD total LLM spend ceiling, all providers summed (R81)
-  spend_priority: [opus-confirmatory, legs-in-queue-order, m2-open-models, m2-closed-models]   # trims from the BACK on ceiling contact
+  spend_ceiling_usd: 30                          # ADVISORY planning ceiling (R83 softening, Tamer 2026-07-21): tracked + reported, WARNS at thresholds, NEVER refuses — spend decisions are the researcher's; the exogenous stops are the seed-rung rule + the calendar gate
+  spend_priority: [opus-confirmatory, legs-in-queue-order, m2-open-models, m2-closed-models]   # the execution/reporting order (advisory; no automatic trimming)
   synthesis:                                     # pre-registered cross-leg synthesis (report-only)
     sign_count: descriptive                      # cross-leg replication count reported DESCRIPTIVELY (legs share panel+CRN seeds -> not independent)
     permutation_test: "per shared CRN seed, flip the (distributional<->scalar) assignment with p=0.5 SIMULTANEOUSLY across all legs; recompute the cross-leg sign statistic; 10,000 reps (shared-seed/panel dependence lives inside the null)"

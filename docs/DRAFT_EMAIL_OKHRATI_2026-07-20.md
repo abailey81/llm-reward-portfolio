@@ -27,8 +27,9 @@ What is ADDED — all report-only, none of it gating the confirmatory hypotheses
 2. A pre-registered, dependence-aware cross-model synthesis (the legs share the panel and the
    CRN seeds, so the replication count is reported descriptively and inference uses a per-seed
    joint-flip permutation test), plus a registered capability-gradient prediction.
-3. A hard 30-USD total LLM-spend ceiling, enforced in code with a pre-declared trimming order —
-   an exogenous economic stopping rule.
+3. A 30-USD planning ceiling on total LLM spend, tracked per-call in a cross-provider ledger
+   and reported in full (the design's exogenous stops are the seed-rung rule and the leg
+   calendar gate).
 4. An interim floor-tier report to you (~6–8 August, clearly labelled provisional) — with the
    protocol registered that post-launch feedback informs presentation only, never data-collection
    decisions, so the single-confirmatory-look discipline is preserved.
