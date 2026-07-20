@@ -16,12 +16,23 @@ Point-by-point:
 | "Good vs bad approaches" | A named "Practitioner's checklist for LLM-in-the-loop feedback" section, built from the above. |
 | "Multiple papers" | Four, by design: the main study (TMLR track); "Do LLMs read the numbers you feed them?" (evaluation venue); "The $30 open replication suite" (ICAIF/workshop — we would value your input on this one); the evaluation protocol itself. |
 
-One respectful push-back, with the evidence: we kept a frontier model in the confirmatory seat
-because our predicted result is a null, and a null on a weak model is a capacity artifact — a
-peer-reviewed lineage paper states this exactly (REvolve, ICLR 2025: the closed frontier model
-"was a necessary choice" given the reward-design capability gap). The cheap/open models you
-recommended are all in — as the replication suite and the capability gradient, where they answer
-the question rigorously.
+One respectful push-back, with the evidence — on the point that cheap/open models make the study
+*more credible*: that is true for one kind of credibility and false for another, and the design
+separates them. **Credibility of the finding:** our predicted result is a null, and a null on a
+cheap model is uninformative — reviewers read it as "the author couldn't use any feedback well"
+(the capacity artifact; REvolve, ICLR 2025, states exactly this: the closed frontier model "was
+a necessary choice" given the reward-design capability gap — and 15/15 published papers in this
+lineage made the same choice). The frontier seat is what makes the null *mean something*.
+**Credibility of reproduction:** here you are right, and the design delivers it in full — the
+cheap/open models run the complete experiment (five open-weight legs, weights-hash + provider +
+quantization pinned, ~$1–4 each: permanently re-runnable by anyone), every frontier-model call is
+archived verbatim so the closed leg's entire analysis chain replays bit-exactly even after model
+retirement, and the vendor's dated retirement floor + weight-preservation commitment are cited.
+Because both kinds of model run the same frozen experiment, your suggestion becomes a *measured
+result* rather than a design opinion: if the cheap models replicate the bounded null, the finding
+is general and the reproducible legs carry it — your standard satisfied in full; if they do not,
+that is the capability-gating discovery only the frontier seat could reveal. Either way the
+study answers the question you raised, with evidence.
 
 You will receive the interim floor-tier results pack ~6–8 August. Thank you again — the study is
 materially stronger for the call.
