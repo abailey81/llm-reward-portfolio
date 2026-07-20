@@ -136,6 +136,27 @@ from everything exploratory.
 | The confirmatory look | once, at bank | single look; bank-gate logged | — |
 | Novelty sweep | pre-submission | mandatory | wording tightened to the cell |
 
+## 2b. Final deep-pass additions (2026-07-20, late night)
+
+- **⚠ Myriad maintenance Aug 11 (2nd Tuesday) falls MID-CAMPAIGN** under the Jul-28 launch:
+  budget +1 day (rung-403 lands ~Aug 14 at C=12); resume machinery absorbs it; runbook treats it
+  as an EXPECTED event.
+- **Permutation synthesis spec (exact, for R80):** per shared CRN seed, flip the
+  (distributional↔scalar) assignment with p=½ SIMULTANEOUSLY across all legs; recompute the
+  cross-leg sign statistic; 10,000 reps — shared-seed/panel dependence lives inside the null.
+- **Build-spec additions:** (1) the $30 spend gate as CODE (live cross-provider ledger + hard
+  refuse in priority order); (2) NEW freeze guard `assert_leg_roster_match` — leg roster + pins
+  (provider/quant/mode/caps) go INTO preregistration.yaml (hash-bound) with an executed↔frozen
+  cross-check; (3) contamination screens for the CLOSED legs too (Haiku/Sonnet/Luna/Gemini —
+  screen is model-agnostic); (4) launch-day per-leg re-smoke inside the C0 canary; (5) the
+  rung-freshness compile gate (grep-fails on stale number tags).
+- **Entitlement extension:** fed blocks to OpenRouter-routed hosts = six derived aggregate
+  statistics + a score, no raw licensed series — the recorded Anthropic-case reasoning extends;
+  one paragraph in the decision note.
+- **Okhrati framing win:** with the full-ladder math, **rung 403 (95%) remains the LIKELY
+  landing even with 10 models** (~Aug 14 at C=12 incl. maintenance) — the email asks him to
+  approve the SAME ladder/rung he already approved, plus report-only legs. Easier sign-off.
+
 ## 3. Top risks + standing mitigations
 
 1. **Myriad throughput below plan** → queue order guarantees the floor banks first; legs and
