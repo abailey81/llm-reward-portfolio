@@ -909,6 +909,88 @@ def assert_bound_files_exist(root: Path) -> str | None:
     return f"bound-file existence: all {len(bound)} hash-bound files present on the real root"
 
 
+def assert_leg_roster_match(yml: dict, root: Path) -> str | None:
+    """v2 (R80/R82): the EXECUTED leg config (``config/legs.yaml``) must match the registered
+    ``model_suite`` — the same not-in-the-hash-so-assert pattern as the arm-roster/B* guards
+    (legs.yaml is an executed knob; ``model_suite`` lives inside the hashed prereg yaml).
+
+    Binds: label set AND queue order, per-leg model id, provider-pin membership, quantization,
+    output caps where the registration specifies them, reasoning-pin presence, and the rolling-
+    alias ban. Skipped (``None``) when the registration carries no ``model_suite`` (pre-v2
+    fixtures) or when ``legs.yaml`` is absent on a NON-real root (minimal test fixtures — the
+    same ``.git`` realness test as :func:`assert_bound_files_exist`).
+    """
+    suite = yml.get("model_suite")
+    if not suite:
+        return None
+    legs_path = root / "config" / "legs.yaml"
+    if not legs_path.exists():
+        _require(
+            not (root / ".git").exists(),
+            "config/legs.yaml is MISSING on a real repo root while the registration declares a "
+            "model_suite — the executed leg roster is unverifiable; restore it before freezing",
+        )
+        return None
+    executed = (yaml.safe_load(legs_path.read_text(encoding="utf-8")) or {}).get("legs") or []
+    exe_by_label = {str(leg.get("label")): leg for leg in executed}
+    _require(
+        len(exe_by_label) == len(executed),
+        "duplicate leg labels in config/legs.yaml (labels must be unique)",
+    )
+    frozen_legs = suite.get("legs") or []
+    frozen_labels = [str(leg.get("label")) for leg in frozen_legs]
+    queue = [str(x) for x in (suite.get("queue_order") or [])]
+    # Exact three-way equality: executed order == frozen queue == frozen leg list. Catches
+    # extras, omissions, AND reordering in one comparison (dict preserves insertion order).
+    _require(
+        list(exe_by_label) == queue == frozen_labels,
+        f"leg roster/order drift: executed {list(exe_by_label)} vs frozen queue {queue} "
+        f"vs frozen legs {frozen_labels}",
+    )
+    for fleg in frozen_legs:
+        label = str(fleg.get("label"))
+        eleg = exe_by_label[label]
+        _require(
+            str(eleg.get("model")) == str(fleg.get("id")),
+            f"leg {label!r}: executed model {eleg.get('model')!r} != frozen id {fleg.get('id')!r}",
+        )
+        model = str(eleg.get("model"))
+        _require(
+            "~" not in model and not model.endswith("-latest"),
+            f"leg {label!r}: executed model {model!r} is a rolling alias (banned, R80)",
+        )
+        if fleg.get("provider_pin"):
+            only = ((eleg.get("provider_pin") or {}).get("only")) or []
+            _require(
+                str(fleg["provider_pin"]) in [str(x) for x in only],
+                f"leg {label!r}: frozen provider pin {fleg['provider_pin']!r} not in the "
+                f"executed only-list {only!r}",
+            )
+        if fleg.get("quantization"):
+            quants = [str(q) for q in (eleg.get("quantizations") or [])]
+            _require(
+                str(fleg["quantization"]) in quants,
+                f"leg {label!r}: frozen quantization {fleg['quantization']!r} not in the "
+                f"executed list {quants!r}",
+            )
+        if fleg.get("output_cap_tokens"):
+            _require(
+                int(eleg.get("max_tokens", -1)) == int(fleg["output_cap_tokens"]),
+                f"leg {label!r}: executed max_tokens {eleg.get('max_tokens')!r} != frozen "
+                f"output cap {fleg['output_cap_tokens']!r}",
+            )
+        if fleg.get("reasoning_pin"):
+            _require(
+                bool(eleg.get("reasoning")),
+                f"leg {label!r}: the registration pins reasoning "
+                f"({fleg['reasoning_pin']!r}) but the executed leg carries no reasoning block",
+            )
+    return (
+        f"leg roster (v2): config/legs.yaml == frozen model_suite "
+        f"(n={len(frozen_legs)}, order + ids + pins verified)"
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Verification (shared by --check and the real freeze)                         #
 # --------------------------------------------------------------------------- #
@@ -969,6 +1051,11 @@ def verify(root: Path | None = None) -> FreezeStatus:
     existence_check = assert_bound_files_exist(root)
     if existence_check is not None:
         checks.append(existence_check)
+    # v2 (R80/R82): the executed leg roster must match the registered model_suite — same
+    # not-in-the-hash-so-assert pattern (legs.yaml is an executed knob, model_suite is hashed).
+    legs_check = assert_leg_roster_match(yml, root)
+    if legs_check is not None:
+        checks.append(legs_check)
     digest = canonical_hash(root)
 
     return FreezeStatus(

@@ -109,7 +109,9 @@ def test_verify_live_returns_full_status():
     # + the 2026-07-05 hardening trio (search-splits cross-assert, R38 prompt tail-neutrality, and the
     # bound-file existence assert on the real root) -> 20 checks. The canonical hash is UNCHANGED by
     # these (guards are code, never hashed content).
-    assert len(status.checks) == 20
+    # 20 v1 checks + the v2 leg-roster guard (R80/R82) = 21 on the live repo.
+    assert len(status.checks) == 21
+    assert any("leg roster (v2):" in c for c in status.checks)
     assert any("executed arms:" in c for c in status.checks)
     assert any("h1_baselines" in c for c in status.checks)
     assert any("search splits:" in c for c in status.checks)
@@ -649,3 +651,91 @@ def test_bound_files_exist_real_root_only(tmp_path):
     (tmp_path / ".git").mkdir()
     with pytest.raises(freeze.FreezeConsistencyError, match="MISSING"):
         freeze.assert_bound_files_exist(tmp_path)
+
+
+# --------------------------------------------------------------------------- #
+# v2: the leg-roster guard (R80/R82) — adversarial unit tests                   #
+# --------------------------------------------------------------------------- #
+_MS_YAML = """
+model_suite:
+  legs:
+    - {label: a, id: v/a, provider_pin: sf, quantization: fp8}
+    - {label: b, id: v/b, output_cap_tokens: 2048, reasoning_pin: effort-low}
+  queue_order: [a, b]
+"""
+
+_LEGS_OK = """
+legs:
+  - {label: a, provider: openrouter, model: v/a, api_key_env: K, max_tokens: 4096,
+     provider_pin: {only: [sf], allow_fallbacks: false}, quantizations: [fp8]}
+  - {label: b, provider: openrouter, model: v/b, api_key_env: K, max_tokens: 2048,
+     reasoning: {effort: low}}
+"""
+
+
+def _legs_root(tmp_path: Path, legs_text: str | None) -> Path:
+    (tmp_path / "config").mkdir(exist_ok=True)
+    if legs_text is not None:
+        (tmp_path / "config" / "legs.yaml").write_text(legs_text, encoding="utf-8")
+    return tmp_path
+
+
+def _ms() -> dict:
+    import yaml as _y
+
+    return _y.safe_load(_MS_YAML)
+
+
+def test_leg_guard_passes_on_matching_roster(tmp_path: Path):
+    root = _legs_root(tmp_path, _LEGS_OK)
+    out = freeze.assert_leg_roster_match(_ms(), root)
+    assert out is not None and "n=2" in out
+
+
+def test_leg_guard_skips_without_model_suite(tmp_path: Path):
+    assert freeze.assert_leg_roster_match({}, _legs_root(tmp_path, _LEGS_OK)) is None
+
+
+def test_leg_guard_skips_absent_legs_on_minimal_root(tmp_path: Path):
+    # no .git -> minimal fixture root -> skip, never crash
+    assert freeze.assert_leg_roster_match(_ms(), _legs_root(tmp_path, None)) is None
+
+
+def test_leg_guard_fails_absent_legs_on_real_root(tmp_path: Path):
+    root = _legs_root(tmp_path, None)
+    (root / ".git").mkdir()
+    with pytest.raises(Exception, match="MISSING on a real repo root"):
+        freeze.assert_leg_roster_match(_ms(), root)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expect"),
+    [
+        ("model: v/a", "model: v/WRONG"),                     # id drift
+        ("only: [sf]", "only: [other]"),                      # provider-pin drift
+        ("quantizations: [fp8]", "quantizations: [bf16]"),    # quantization drift
+        ("max_tokens: 2048", "max_tokens: 4096"),             # output-cap drift (leg b)
+        ("reasoning: {effort: low}", "note: none"),           # reasoning pin dropped
+        ("label: b", "label: c"),                             # roster drift
+    ],
+    ids=["id", "provider_pin", "quant", "cap", "reasoning", "roster"],
+)
+def test_leg_guard_fails_on_each_drift(tmp_path: Path, mutation: str, expect: str):
+    root = _legs_root(tmp_path, _LEGS_OK.replace(mutation, expect, 1))
+    with pytest.raises(Exception):
+        freeze.assert_leg_roster_match(_ms(), root)
+
+
+def test_leg_guard_fails_on_duplicate_labels(tmp_path: Path):
+    dup = _LEGS_OK.replace("label: b", "label: a", 1)
+    with pytest.raises(Exception, match="duplicate leg labels"):
+        freeze.assert_leg_roster_match(_ms(), _legs_root(tmp_path, dup))
+
+
+def test_leg_guard_fails_on_rolling_alias(tmp_path: Path):
+    ali = _MS_YAML.replace("id: v/a", "id: v/a-latest")
+    legs = _LEGS_OK.replace("model: v/a", "model: v/a-latest")
+    import yaml as _y
+
+    with pytest.raises(Exception, match="rolling alias"):
+        freeze.assert_leg_roster_match(_y.safe_load(ali), _legs_root(tmp_path, legs))
