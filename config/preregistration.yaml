@@ -1,8 +1,8 @@
 # Machine-readable mirror of PREREGISTRATION.md. FROZEN at end of Phase 1; scripts/freeze.py hashes
 # it into docs/DECISION_LOG.md and asserts it agrees with the prose record. Changes after freeze
 # require a dated amendment entry.
-frozen: true                         # flips true at the Phase-1 freeze
-freeze_hash: ce5db62c97b6f79236e5f827ae7ad2df81d8c9df450757df5f066ba4480c58ba                     # SHA-256, emitted by scripts/freeze.py
+frozen: false                        # UNFROZEN 2026-07-20 (ADR-059): v1.0 (ce5db62c) superseded PRE-DATA; v2 re-freeze required before launch
+freeze_hash: null                    # emitted by scripts/freeze.py at the v2 freeze (v1.0 hash ce5db62c preserved in ADR-059 / DECISION_LOG / tag prereg-v1.0)
 phase0_smoke_passed_log_id: "DECISION_LOG.md#PHASE-0 (GREEN 2026-06-17)"   # precondition MET (P2; CPU m≈18.9/25.9)
 
 hypotheses: [H1, H2, H3, H4]          # H2 headline; secondary = SAC-vs-TQC critic

@@ -1211,3 +1211,43 @@ pre-registration appendix carries a one-line footnote pointing S12 → ADR-053/t
 supplementary artifact's staleness is transparently disclosed rather than silently shipped. If a
 future amendment re-freezes the registration for an INDEPENDENT reason, fold the S12 correction into
 that same re-hash (v1.1) at that time.
+
+## ADR-059 — THE UNFREEZE: registration v1.0 superseded PRE-DATA; v2 redesign process opened (2026-07-20)
+
+**Decision (Tamer, 2026-07-20): the pre-registration freeze v1.0 (`ce5db62c`, frozen 2026-07-18) is
+LIFTED and the design re-enters revision.** `config/preregistration.yaml` flips `frozen: false`,
+`freeze_hash: null`. The v1.0 records (tag `prereg-v1.0`, tag `prereg-freeze-ce5db62c`, bundle
+`outputs/prereg_bundle_ce5db62c.zip`, the DECISION_LOG freeze entry) are PRESERVED as history —
+superseded, never deleted.
+
+**Why this is scientifically clean.** The confirmatory campaign has NOT run: zero campaign data
+exists, the sealed 2020–2026 test leg is untouched, and no result of any kind has been observed.
+The forking-paths/pre-registration sin is POST-DATA design change; a documented, dated, PRE-DATA
+revision — v1 frozen → expert feedback → transparent redesign → v2 frozen BEFORE launch — is the
+pre-registration discipline working as intended, and is disclosed as such in the amendment record.
+
+**Trigger.** Industry-supervisor feedback (2026-07-19 call: Head of AI R&D, NatWest + industry
+supervisor Stefan): (1) the model axis — publishable/useful studies in 2025-26 increasingly require
+open-weight and multi-model evidence; a single closed-model study is weak on community
+reproducibility and permanence (model deprecation makes the generative step historically
+irreproducible); (2) compute allocation — ~85% of campaign compute purchased seed-ladder assurance
+on ONE statistic (the Sharpe-leg TOST) for ONE model while the model axis received zero;
+(3) success metrics should be stated in method-usefulness terms (incl. per-model reward-authoring
+reliability); (4) the work should be structured to yield multiple papers.
+
+**Scope of the rethink (the axes OPEN for revision):** the model roster and depth (single vs
+multi-model legs; open-weight legs), the seed/assurance allocation (E1 realized-rung policy), the
+metrics/success-story framing, and the reporting/paper structure.
+
+**Invariants that stay CLOSED (integrity + degree constraints, not preferences):**
+1. the sealed test leg stays sealed — untouched by any person or process until the single
+   pre-registered look;
+2. a v2 RE-FREEZE (new canonical hash, gate green) is REQUIRED before any real-spend launch —
+   `enforce_freeze` continues to refuse unfrozen launches throughout;
+3. the 1 Sep deadline governs: the rethink is time-boxed (decisions ≤ 2026-07-22, re-freeze +
+   launch ≤ 2026-07-28) or seed/leg targets shrink to fit;
+4. supervisor (Dr Okhrati) sign-off on the revised design before the v2 freeze.
+
+**Consequences.** Freeze-state-dependent tests flip to state-adaptive assertions (they assert
+consistency with the live yaml rather than pinning a state). The cluster marker is stale pending the
+v2 sync. The S12 venue staleness (ADR-058) folds into the v2 re-hash, as that ADR anticipated.

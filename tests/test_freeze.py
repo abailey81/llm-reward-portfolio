@@ -87,8 +87,14 @@ def test_verify_live_returns_full_status():
     assert len(status.hash) == 64
     int(status.hash, 16)  # hex
     assert status.phase0_marker.strip()
-    assert status.already_frozen  # the live prereg is FROZEN (2026-07-18)
-    assert status.recorded_hash == status.hash  # recorded == recomputed canonical hash (no drift)
+    # STATE-ADAPTIVE (ADR-059): mirror the live yaml rather than pin a freeze state. Frozen -> the
+    # recorded hash must equal the recomputed canonical hash (no drift); unfrozen -> no recorded hash.
+    _live = freeze.load_yaml(REPO)
+    assert status.already_frozen == bool(_live["frozen"])
+    if status.already_frozen:
+        assert status.recorded_hash == status.hash  # recorded == recomputed (no drift)
+    else:
+        assert status.recorded_hash is None
     # FIFTEEN frozen checks on the LIVE repo: the 6 original + the 3 2026-06-24 amendments
     # (lambda/tf32/reflect) + the §3 arm-roster prose guard + the V1 cross-file executed-arms guard
     # (campaign.yaml/arms.yaml rosters == frozen prereg arms) + the §18 h1_baselines cross-file guard
@@ -523,10 +529,14 @@ def test_check_does_not_mutate_live_files():
 
     after = (yaml_path.read_bytes(), md_path.read_bytes(), log_path.read_bytes())
     assert before == after, "--check must not write to any artifact"
-    # And the frozen state is intact (2026-07-18 freeze).
+    # STATE-ADAPTIVE (ADR-059 lesson — pinned-state assertions broke on every freeze/unfreeze flip):
+    # assert INTERNAL CONSISTENCY of the live state, not a particular state. Frozen -> the recorded
+    # hash must be the 64-hex canonical digest; unfrozen -> the recorded hash must be null.
     yml = freeze.load_yaml(REPO)
-    assert yml["frozen"] is True
-    assert yml["freeze_hash"] == "ce5db62c97b6f79236e5f827ae7ad2df81d8c9df450757df5f066ba4480c58ba"
+    if yml["frozen"]:
+        assert isinstance(yml["freeze_hash"], str) and len(yml["freeze_hash"]) == 64
+    else:
+        assert yml["freeze_hash"] is None
 
 
 def test_check_reports_nonzero_on_drift(mini: Path, capsys):
