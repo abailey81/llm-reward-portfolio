@@ -854,8 +854,9 @@ common floor-30 CRN seed subset; seed-paired bootstrap CI).
 a DESCRIPTIVE replication count on the CVaR-leg contrast (the Sharpe leg is predicted-tie for
 every model), restricted to legs whose winners clear the T0 naive floor in both contrasted arms
 (failing legs report as authoring/search failures — a finding, never a vote); the per-seed
-joint-flip permutation test (10,000 reps; shared-seed and shared-panel dependence live inside the
-null); the capability regression on a pre-declared external composite anchor (M2 reading score
+joint-flip permutation test on the POOLED MEAN difference (10,000 reps, one-sided; the sign count
+is descriptive only — a count statistic is near-powerless under joint flips with correlated legs;
+shared-seed and shared-panel dependence live inside the null); the capability regression on a pre-declared external composite anchor (M2 reading score
 secondary); BH across the nine-leg report-only TOST family for any starred statement. Per-model
 authoring-reliability metrics (format-compliance baseline, sandbox pass rate, violation taxonomy,
 refusal/truncation rates, code diversity, per-model program taxonomy), generation-indexed

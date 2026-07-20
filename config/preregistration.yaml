@@ -281,7 +281,7 @@ model_suite:
   spend_priority: [opus-confirmatory, legs-in-queue-order, m2-open-models, m2-closed-models]   # the execution/reporting order (advisory; no automatic trimming)
   synthesis:                                     # pre-registered cross-leg synthesis (report-only)
     sign_count: descriptive                      # cross-leg replication count reported DESCRIPTIVELY (legs share panel+CRN seeds -> not independent)
-    permutation_test: "per shared CRN seed, flip the (distributional<->scalar) assignment with p=0.5 SIMULTANEOUSLY across all legs; recompute the cross-leg sign statistic; 10,000 reps (shared-seed/panel dependence lives inside the null)"
+    permutation_test: "per shared CRN seed, flip the (distributional<->scalar) assignment with p=0.5 SIMULTANEOUSLY across all legs; STATISTIC = the POOLED MEAN difference over included legs (the multivariate paired sign-flip test; refined pre-freeze 2026-07-21 — a sign-COUNT statistic is near-powerless under joint flips with correlated legs, unanimity being routine under that null; the sign count remains the DESCRIPTIVE layer); 10,000 reps, one-sided toward dist-safer (shared-seed/panel dependence lives inside the null)"
     capability_anchor: {primary: pre-declared-external-composite, secondary: m2-reading-score}
     gradient_prediction: "responsiveness is monotone non-decreasing in author capability (registered ex-ante)"
     pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument"
