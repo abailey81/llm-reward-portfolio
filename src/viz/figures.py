@@ -12,6 +12,13 @@ Designed for a corroborated NULL — every figure visualises equivalence/overlap
 * :func:`learning_curves`        — per-arm critic-loss + return trajectories: training adequacy (F9).
 * :func:`delisting_robustness`   — headline contrasts vs ±SESOI across the {0,-30,-55,-100}% delisting band.
 
+v2 replication-suite renderers (R80/R82 report-only; F12–F15):
+
+* :func:`cross_leg_forest`       — per-leg CVaR-contrast CIs + the pooled-mean permutation row (F12).
+* :func:`capability_gradient`    — responsiveness vs capability anchor, family pairs as segments (F13).
+* :func:`reliability_heatmap`    — models × reliability-metric rates, annotated, fixed [0,1] scale (F14).
+* :func:`ten_winners_exhibit`    — verbatim winner code panels, mechanical tail-construct highlights (F15).
+
 The functions take ALREADY-COMPUTED arrays/dicts (per-seed scores, TOST bounds, BF01, MCS result, an
 AST-distance matrix) so they are decoupled from the inference layer and trivially testable. Captions and
 the SESOI value are the caller's responsibility; defaults match the pre-registration (SESOI = 0.05 DSR).
@@ -32,6 +39,10 @@ from src.viz.style import (
 
 __all__ = [
     "budget_curve_exhibit",
+    "capability_gradient",
+    "cross_leg_forest",
+    "reliability_heatmap",
+    "ten_winners_exhibit",
     "equivalence_forest",
     "rliable_intervals",
     "risk_return_clouds",
@@ -504,4 +515,200 @@ def budget_curve_exhibit(
     axes[0].set_ylabel("validation DSR (selection metric)")
     fig.suptitle(title, fontsize=10, x=0.02, ha="left")
     fig.tight_layout(rect=(0, 0, 1, 0.93))
+    return fig
+
+
+# --------------------------------------------------------------------------------------------------- #
+# v2 replication-suite renderers (F12-F15; R80/R82 report-only — nothing here gates H1-H4)             #
+# --------------------------------------------------------------------------------------------------- #
+
+def cross_leg_forest(
+    per_leg: Sequence[Mapping[str, Any]],
+    *,
+    pooled: Mapping[str, Any] | None = None,
+    title: str = "Cross-leg replication: (dist − scalar) CVaR-5% contrast at the floor tier",
+) -> Any:
+    """F12 — per-leg forest of the CVaR-leg contrast with the pooled-mean permutation row.
+
+    ``per_leg``: mappings with ``label``, ``estimate``, ``ci_lo``, ``ci_hi`` (90% seed-bootstrap CI)
+    and ``included`` (the registered T0-floor verdict). Excluded legs draw GREYED with an
+    "excluded (T0 floor)" annotation — visible, never hidden, never a vote. ``pooled`` (optional):
+    ``{"estimate", "p_value"}`` from :func:`src.inference.cross_model.permutation_test` — the ONLY
+    inferential number on the figure. Sign convention: positive = distributional safer.
+    """
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(6.2, 1.0 + 0.42 * (len(per_leg) + (1 if pooled else 0))))
+    ax.axvline(0.0, color=OKABE_ITO["black"], lw=0.8, zorder=2)
+    rows = list(per_leg)
+    for y, row in enumerate(rows):
+        included = bool(row.get("included", True))
+        col = OKABE_ITO["blue"] if included else OKABE_ITO["grey"]
+        est, lo, hi = float(row["estimate"]), float(row["ci_lo"]), float(row["ci_hi"])
+        ax.plot([lo, hi], [y, y], color=col, lw=2.4, solid_capstyle="round", zorder=3)
+        ax.plot([est], [y], marker="o", ms=6, color=col,
+                markerfacecolor=col if included else "white", markeredgecolor=col, zorder=4)
+        if not included:
+            ax.annotate("excluded (T0 floor) — authoring/search failure, not a vote",
+                        xy=(hi, y), xytext=(4, 0), textcoords="offset points",
+                        fontsize=6.5, color=OKABE_ITO["grey"], va="center")
+    if pooled is not None:
+        y = len(rows)
+        est = float(pooled["estimate"])
+        ax.plot([est], [y], marker="D", ms=8, color=OKABE_ITO["vermillion"], zorder=5)
+        p = pooled.get("p_value")
+        ax.annotate(f"pooled mean (joint per-seed flip permutation p = {p:.3f})" if p is not None
+                    else "pooled mean (permutation p pending)",
+                    xy=(est, y), xytext=(6, 0), textcoords="offset points",
+                    fontsize=7, color=OKABE_ITO["vermillion"], va="center")
+        ax.set_yticks(range(len(rows) + 1))
+        ax.set_yticklabels([r["label"] for r in rows] + ["POOLED"])
+        ax.set_ylim(-0.6, len(rows) + 0.6)
+    else:
+        ax.set_yticks(range(len(rows)))
+        ax.set_yticklabels([r["label"] for r in rows])
+        ax.set_ylim(-0.6, len(rows) - 0.4)
+    ax.invert_yaxis()
+    ax.set_xlabel("(dist − scalar) per-seed mean CVaR-5% diff (signed returns; positive = dist safer)")
+    ax.set_title(title, loc="left", fontsize=10)
+    fig.tight_layout()
+    return fig
+
+
+def capability_gradient(
+    points: Sequence[Mapping[str, Any]],
+    *,
+    pairs: Sequence[tuple[str, str]] = (),
+    anchor_label: str = "capability anchor (pre-declared external composite)",
+    rho: float | None = None,
+    title: str = "Responsiveness vs author capability (registered: monotone non-decreasing)",
+) -> Any:
+    """F13 — the capability-gradient scatter with the two family pairs drawn as segments.
+
+    ``points``: mappings with ``label``, ``x`` (capability anchor), ``y`` (SQ1 responsiveness).
+    ``pairs``: (bottom_label, top_label) within-family pairs (Qwen 9B→27B open; Haiku→Opus
+    closed) — the controlled contrast is made visible as a segment. A flat cloud at y≈0 is the
+    honest-null image; ``rho`` (Spearman, from ``capability_regression``) annotates when given.
+    """
+    import matplotlib.pyplot as plt
+
+    by_label = {str(p["label"]): (float(p["x"]), float(p["y"])) for p in points}
+    fig, ax = plt.subplots(figsize=(6.2, 4.2))
+    ax.axhline(0.0, color=OKABE_ITO["black"], lw=0.8, zorder=1)
+    for bottom, top in pairs:
+        if bottom in by_label and top in by_label:
+            (x0, y0), (x1, y1) = by_label[bottom], by_label[top]
+            ax.plot([x0, x1], [y0, y1], color=OKABE_ITO["orange"], lw=1.6, zorder=2,
+                    solid_capstyle="round")
+    for label, (x, y) in by_label.items():
+        ax.plot([x], [y], marker="o", ms=6, color=OKABE_ITO["blue"], zorder=3)
+        ax.annotate(label, xy=(x, y), xytext=(4, 4), textcoords="offset points", fontsize=6.5)
+    if rho is not None:
+        ax.annotate(f"Spearman ρ = {rho:+.2f} (n = {len(by_label)} legs)", xy=(0.02, 0.96),
+                    xycoords="axes fraction", fontsize=8, va="top")
+    handles = [
+        plt.Line2D([], [], marker="o", color=OKABE_ITO["blue"], ls="", label="leg (model)"),
+        plt.Line2D([], [], color=OKABE_ITO["orange"], lw=1.6, label="within-family pair"),
+    ]
+    ax.legend(handles=handles, loc="lower right", fontsize=7)
+    ax.set_xlabel(anchor_label)
+    ax.set_ylabel("SQ1 responsiveness (fed-signal → authored-code)")
+    ax.set_title(title, loc="left", fontsize=10)
+    fig.tight_layout()
+    return fig
+
+
+def reliability_heatmap(
+    models: Sequence[str],
+    metrics: Sequence[str],
+    rates: Any,
+    *,
+    title: str = "Authoring reliability by model (rates in [0, 1])",
+) -> Any:
+    """F14 — the models × reliability-metrics annotated rate heatmap (the practitioner table).
+
+    ``rates``: array-like (n_models, n_metrics) of rates in [0, 1] (NaN = not measured, rendered
+    as an explicit "—" rather than a fake zero). Fixed vmin/vmax [0, 1]: a fully-compliant column
+    renders unremarkably — no rhetorical rescaling.
+    """
+    import matplotlib.pyplot as plt
+
+    mat = np.asarray(rates, dtype=float)
+    if mat.shape != (len(models), len(metrics)):
+        raise ValueError(
+            f"rates shape {mat.shape} != (len(models)={len(models)}, len(metrics)={len(metrics)})"
+        )
+    fig, ax = plt.subplots(figsize=(1.6 + 0.85 * len(metrics), 1.0 + 0.42 * len(models)))
+    im = ax.imshow(np.ma.masked_invalid(mat), cmap="viridis", vmin=0.0, vmax=1.0, aspect="auto")
+    for i in range(len(models)):
+        for j in range(len(metrics)):
+            v = mat[i, j]
+            if np.isfinite(v):
+                ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=7,
+                        color="white" if v < 0.55 else "black")
+            else:
+                ax.text(j, i, "—", ha="center", va="center", fontsize=7, color=OKABE_ITO["grey"])
+    ax.set_xticks(range(len(metrics)))
+    ax.set_xticklabels(metrics, rotation=30, ha="right", fontsize=7)
+    ax.set_yticks(range(len(models)))
+    ax.set_yticklabels(models, fontsize=8)
+    fig.colorbar(im, ax=ax, fraction=0.035, pad=0.02, label="rate")
+    ax.set_title(title, loc="left", fontsize=10)
+    # NO tight_layout here: colorbar layout engines are incompatible with replacing the house
+    # constrained-layout engine (the reward_code_similarity precedent).
+    return fig
+
+
+#: The registered tail-construct highlight rule for the winners exhibit (mechanical, not curated):
+#: a line is highlighted iff it matches one of these case-insensitive patterns.
+TAIL_CONSTRUCT_PATTERNS = (
+    r"cvar", r"tail", r"quantile", r"percentile", r"drawdown", r"\bvar\b", r"skew",
+    r"downside", r"sortino", r"worst",
+)
+
+
+def ten_winners_exhibit(
+    winners: Mapping[str, str],
+    *,
+    max_lines: int = 26,
+    ncols: int = 2,
+    title: str = "The winning reward program per model (tail-construct lines highlighted)",
+) -> Any:
+    """F15 — verbatim side-by-side winner code panels, one per model, mechanically annotated.
+
+    ``winners``: ordered mapping label → reward source. Lines matching
+    :data:`TAIL_CONSTRUCT_PATTERNS` get an amber background — the highlight rule is a fixed
+    registered regex set, never a curated selection. Panels truncate at ``max_lines`` with an
+    explicit "(+k more lines)" marker; code is shown verbatim (no reflow) in monospace.
+    """
+    import re as _re
+
+    import matplotlib.pyplot as plt
+
+    pat = _re.compile("|".join(TAIL_CONSTRUCT_PATTERNS), _re.IGNORECASE)
+    n = len(winners)
+    if n == 0:
+        raise ValueError("winners must be a non-empty mapping label -> source")
+    nrows = -(-n // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(7.0 * ncols, 0.16 * max_lines * nrows + 1.2),
+                             squeeze=False)
+    for ax in axes.ravel():
+        ax.set_axis_off()
+    for k, (label, source) in enumerate(winners.items()):
+        ax = axes[k // ncols][k % ncols]
+        lines = source.splitlines()
+        shown, extra = lines[:max_lines], max(0, len(lines) - max_lines)
+        ax.set_title(label, loc="left", fontsize=9, fontweight="bold")
+        for i, line in enumerate(shown):
+            y = 1.0 - (i + 1) / (max_lines + 2)
+            hit = bool(pat.search(line))
+            ax.text(0.01, y, line[:110], transform=ax.transAxes, fontsize=5.6,
+                    family="monospace", va="top",
+                    bbox=(dict(facecolor="#FFE8B0", edgecolor="none", pad=0.6) if hit else None))
+        if extra:
+            ax.text(0.01, 1.0 - (len(shown) + 1.5) / (max_lines + 2), f"(+{extra} more lines)",
+                    transform=ax.transAxes, fontsize=6, family="monospace",
+                    color=OKABE_ITO["grey"], va="top")
+    fig.suptitle(title, fontsize=11, x=0.02, ha="left")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig

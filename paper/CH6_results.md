@@ -15,6 +15,14 @@ These rules are pre-committed and govern every result statement below:
 4. **A null with a mechanism is a finding.** A confirmed null is reported as a corroborated §3.7 prediction and is
    always accompanied by the §6.5 mechanism evidence (responsiveness, reward-code differential, reward-distance),
    never as a bare absence of effect.
+5. **Rung-freshness tagging (v2 convention — machine-checked).** Every campaign-derived number, when filled,
+   carries an invisible freshness tag: numbers computed on the E1 core ladder append `<!--RUNG:n-->` (n = the
+   rung the number was computed at); replication-leg numbers append `<!--LEG-TIER:30-->` (legs run at the
+   floor tier by design and never refresh on the ladder). `scripts/check_rung_freshness.py --achieved N`
+   fails on any core tag whose rung ≠ the achieved rung (a stale number surviving a rung refresh);
+   `--final` additionally fails on any remaining unfilled `[FROM CAMPAIGN…]` slot. While the ladder climbs,
+   interim drafts are labelled provisional at the chapter head; the single confirmatory look is unaffected
+   (the tags govern prose freshness, never data collection).
 
 ---
 
@@ -34,6 +42,13 @@ interpreting effects.
 - Logged deviations (append-only log): `[FROM CAMPAIGN: count]`; disposition: `[FROM CAMPAIGN: summary]`.
 - Realised wall-clock / cost: `[FROM CAMPAIGN: hours / $]`; serial-parallel byte-equivalence: `[FROM CAMPAIGN: confirmed?]`.
 - Untrusted-code screen rejections: `[FROM CAMPAIGN: count]`; critic-divergence events: `[FROM CAMPAIGN: count]`.
+- **E1 achieved rung + realised power (v2 slot):** rung reached at the bank gate `[FROM CAMPAIGN: rung of
+  [30,100,189,279,340,403,568]]`; assurance at that rung `[FROM CAMPAIGN: %]`; the rung-100 σ_D re-estimate at
+  B\* = 400k `[FROM CAMPAIGN: σ_D; vs the 200k pilot value]`. Every §6.2–§6.6 number is tagged `RUNG:` at this
+  achieved rung (reporting rule 5); leg numbers (§6.7–§6.8) are `LEG-TIER:30` by design.
+- Replication-leg execution (v2): legs completed by the 2026-08-14T23:59Z calendar gate `[FROM CAMPAIGN: k of
+  9 + the truncated-by-calendar list, in queue order]`; per-leg bank-gate verdicts `[FROM CAMPAIGN: pass
+  list]`; realised total LLM spend vs the $30 advisory ceiling (R83) `[FROM CAMPAIGN: $ per provider, summed]`.
 
 *Table 6.1 (run ledger) — see `FIGURE_TABLE_MANIFEST.md` T1.*
 
@@ -174,3 +189,60 @@ corroborated branch is read off the conjunction of the four signature columns, a
 
 Verdict: `[FROM CAMPAIGN: Strict / Weak / Null branch corroborated]`, with `[FROM CAMPAIGN: one-line theory-tied
 interpretation per §3.7]`.
+
+## 6.7 The model replication suite (v2 — report-only)
+
+Nine further models author the identical five LLM arms under byte-identical prompts at the 30-seed floor tier
+(R80/R82): the executed roster, pins (provider / quantization / reasoning mode / output caps), queue order and
+the 2026-08-14T23:59Z calendar gate are frozen in `model_suite`. **Nothing in this section or §6.8 gates
+H1–H4** — the suite is the registered external-validity and capability-gradient instrument wrapped around the
+confirmatory core, and every number here is floor-tier by design (`LEG-TIER:30`; claims are calibrated to
+floor power and stated as such). Each leg's archive passed the same write→verify bank gate as the campaign
+root before its numbers entered any table.
+
+- Legs completed vs truncated-by-calendar (queue order): `[FROM CAMPAIGN: k of 9; truncated list]`; the
+  DeepSeek contamination-gate disposition (pass, or GLM-5.2 absorbed seat 1 as pre-declared):
+  `[FROM CAMPAIGN: verdict + archived screen pointer]`.
+- Per-leg headline contrasts (distributional − scalar, CVaR-5% and Sharpe, floor-30, 90% CI): Table 6.6
+  `[FROM CAMPAIGN]`.
+- T0-floor inclusion (the registered leg-inclusion criterion): included `[FROM CAMPAIGN: list]`; excluded as
+  authoring/search failures — **a finding, never a vote** — `[FROM CAMPAIGN: list + failure mode]`.
+- Authoring reliability (Table 6.7, the practitioner-facing table): pre-launch format-compliance baseline,
+  sandbox pass rate, contract-violation taxonomy, refusal/truncation rates, code diversity, and the per-model
+  reward-program taxonomy: `[FROM CAMPAIGN: per-model rows]`.
+- The ten winners side-by-side (one annotated winning reward program per model, tail-constructs highlighted):
+  Figure 6.13 `[FROM CAMPAIGN]` — the qualitative exhibit of *what different model families write*.
+
+*Figure 6.10 (cross-leg forest) — manifest F12; Figure 6.12 (authoring-reliability heatmap) — manifest F14;
+Figure 6.13 (ten-winners annotated code exhibit) — manifest F15; Table 6.6 (per-leg contrasts) — manifest T6;
+Table 6.7 (authoring reliability) — manifest T7.*
+
+## 6.8 Cross-model synthesis and the capability gradient (v2 — report-only)
+
+The legs share the market panel and the CRN seed set *by design* (pairing), so they are not independent
+replications and are never counted as if they were (the registered dependence discipline). The synthesis has
+two tiers — a descriptive count and a dependence-honest permutation test — plus the two registered
+capability instruments. Any starred statement in this section survives BH across the nine-leg report-only
+family.
+
+- Descriptive replication count (CVaR-leg contrast, T0-filtered — the Sharpe leg is predicted-tie for every
+  model and is not counted): `[FROM CAMPAIGN: k dist-safer of n included]`.
+- The per-seed joint-flip permutation test (statistic = the POOLED MEAN difference; 10,000 reps, one-sided
+  toward dist-safer; shared-seed/panel dependence inside the null): observed pooled mean
+  `[FROM CAMPAIGN]`; *p* `[FROM CAMPAIGN]`.
+- Family-pair difference-in-differences (the content-effect × capability interaction, common floor-30 CRN
+  seeds, seed-paired 90% bootstrap CI): open pair (Qwen 27B − 9B) `[FROM CAMPAIGN: estimate, CI]`; closed
+  pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`.
+- Capability regression (registered primary = the pre-declared external composite anchor; M2 reading score
+  secondary): Spearman ρ `[FROM CAMPAIGN: ρ, n legs, p]`; the registered monotone-non-decreasing gradient
+  prediction `[FROM CAMPAIGN: corroborated / not]`.
+- Generation-indexed responsiveness (does feedback-use strengthen across the loop's six generations?):
+  per-generation SQ1 + trend Spearman `[FROM CAMPAIGN]`.
+
+The suite traces the envelope–realization gap $g(\text{capability})$ — the Blackwell envelope of Chapter 3
+binds every author; the legs measure the realized distance to it along the capability axis, with the numeracy
+bottleneck as the registered hypothesized shape (the interpretation is developed in §7). Whatever this
+section shows, it cannot alter the §6.6 confirmatory verdict: the suite refines *where* the mechanism story
+generalises, not *whether* the pre-registered result stands.
+
+*Figure 6.11 (capability-gradient scatter) — manifest F13.*

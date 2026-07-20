@@ -22,6 +22,10 @@
 | F9 | Learning curves / training budget | Critic-loss and return trajectories vs the 400,000-step budget across arms — the training-budget diagnostic (incl. the extended ladder). | `[CAMPAIGN]` archive (per-candidate logs). | 6 (§6.5) | **[CAMPAIGN]** |
 | F10 | 3-link mechanism chain | The paper's spine as one image: fed tail signal -> authored code -> trained policy -> realised tail, with SQ1/SQ2/H2-Tail as the arrows and the red cut glyph on the MEASURED severed link (outcome-neutral: built now, annotations + cut position filled at the bank gate). BUILT 2026-07-13 (`schematics.mechanism_chain`, both variants render). | Scaffold NOW; `[CAMPAIGN]` fills SQ1 rho, a*b, the cut. | 1 (par 1) + 6 (par 6.5) | **[NOW + CAMPAIGN fill]** |
 | F11 | The measured budget curve (R77 MANDATORY) | Per-seed validation-DSR vs training budget, 100k-1.6M (16x), both authored winners; thin lines = CRN seeds (the honest fan-out), thick = seed mean; B* marked at the measured knee. BUILT 2026-07-18 (viz.figures.budget_curve_exhibit; rendered on the real 30-point grid). Campaign version re-renders on the dose-response tier. | Curve grid NOW; dose-response tier at the gate. | 4 (design) + 6 (exhibit) | **[NOW + CAMPAIGN re-render]** |
+| F12 | Cross-leg forest (v2) | Per-leg (dist − scalar) CVaR-5% mean diff + 90% seed-bootstrap CI at the floor tier, one row per replication leg; T0-floor-excluded legs greyed + annotated as authoring/search failures (never votes); the pooled-mean row at the bottom with the joint-flip permutation *p*. Engine-built `cross_leg_forest` (2026-07-21). | `[CAMPAIGN]` leg archives via `leg_aggregate` + `cross_model`. | 6 (§6.7–6.8) | **[CAMPAIGN]** |
+| F13 | Capability-gradient scatter (v2) | Per-leg SQ1 responsiveness vs the pre-declared external capability composite (M2 score = secondary axis option); the two family pairs (Qwen 9B↔27B open, Haiku↔Opus closed) connected as within-family segments; Spearman ρ annotated; the registered monotone prediction read directly off the picture. Engine-built `capability_gradient` (2026-07-21). | `[CAMPAIGN]` + `capability_regression`. | 6 (§6.8) | **[CAMPAIGN]** |
+| F14 | Authoring-reliability heatmap (v2) | Models × reliability metrics (format compliance, sandbox pass, violation taxonomy share, refusal/truncation, code diversity) as an annotated rate heatmap — the practitioner's "which models write executable objective code" picture. Engine-built `reliability_heatmap` (2026-07-21). | `[CAMPAIGN]` ledger + pre-launch compliance baselines (`leg_gates`). | 6 (§6.7) | **[CAMPAIGN]** |
+| F15 | Ten-winners annotated code exhibit (v2) | One winning reward program per model, side-by-side monospace panels with tail-construct lines highlighted — the qualitative "what do different model families write" exhibit (per-model taxonomy made visible). Engine-built `ten_winners_exhibit` (2026-07-21). | `[CAMPAIGN]` winner archives. | 6 (§6.7) | **[CAMPAIGN]** |
 
 ## Tables (~6)
 
@@ -33,6 +37,8 @@
 | T4 | Secondary hypotheses | H1 (descriptive, both caveats), H3 (TOST-bounded equivalence), H4 (LLM vs random_search / bayes_opt at matched compute). | `[CAMPAIGN]` archive. | 6 (§6.4) | **[CAMPAIGN]** |
 | Table 4.1 | Rigour ledger (in-body, CH4 §4.7) | Examiner-facing map of each named threat to validity → the design element that guards it (leakage, self-grading, format confound, overfitting, reward-scale, etc.). | `docs/RIGOUR_LEDGER.md` (static; rendered as the in-body Table 4.1 — the former "T5 / Appendix A — Rigour ledger" plan was consolidated to the in-body table on 2026-07-04). | 4 (§4.7) | **[built]** |
 | T5 | Arms specification | The 7 arms and the single manipulated variable (feedback block) per arm: distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt. | Static from `CH4_methods.md` §4.5. | 4 | **[NOW]** |
+| T6 | Per-leg contrasts (v2) | One row per replication leg: (dist − scalar) CVaR-5% and Sharpe floor-30 contrasts + 90% CIs, T0-floor verdict, completed/truncated status, per-leg bank-gate verdict. | `[CAMPAIGN]` leg archives (`leg_aggregate`). | 6 (§6.7) | **[CAMPAIGN]** |
+| T7 | Authoring reliability (v2) | Per model: pre-launch format-compliance baseline, sandbox pass rate, contract-violation taxonomy, refusal/truncation rates, code diversity, taxonomy cluster — the reliability-as-finding table (failed legs report HERE, never as synthesis votes). | `[CAMPAIGN]` ledger + `leg_gates` baselines. | 6 (§6.7) | **[CAMPAIGN]** |
 
 *(Compile note: F1–F4, F2's branch labels, and T5 (Arms specification) are buildable now — the rigour ledger is the in-body Table 4.1 — and should be drafted ahead of the
 campaign; all `[CAMPAIGN]` items must remain unrendered placeholders until the frozen run completes. Keep figure
@@ -55,6 +61,10 @@ function in `src/viz/figures.py`, tested in `tests/test_viz.py`):
 | `risk_return_clouds` | **NEW (F-D)** | the 7 arms' per-seed (CVaR, Sharpe) clouds collapse onto one neighbourhood — the whole-story null image |
 | `evidence_for_null` | **NEW (F-E)** | JZS Bayes-factor gauge (Jeffreys bands) + Model-Confidence-Set membership strip — positive evidence FOR H0 |
 | `reward_code_similarity` | **F8 (mechanism)** | AST-distance clustered heatmap + dendrogram + arm sidebar — clusters cut ACROSS arms (the placebo writes the same code) |
+| `cross_leg_forest` | **F12 (v2)** | per-leg CIs vs the zero line, excluded legs greyed-not-hidden, pooled-mean row carries the only inferential number (the permutation *p*) |
+| `capability_gradient` | **F13 (v2)** | family-pair segments make the controlled contrast visible; a flat cloud = the capability-independence honest-null image |
+| `reliability_heatmap` | **F14 (v2)** | rates annotated in-cell; a full-compliance column renders unremarkably (no rhetorical scaling) |
+| `ten_winners_exhibit` | **F15 (v2)** | verbatim code, mechanical highlight rule (registered tail-construct regexes) — no cherry-picked lines |
 
 The honesty discipline (§6 reporting rules in `CH6_results.md`): plot effect size + interval against the
 SESOI band, never a p-value or a bare bar of means; captions must distinguish "equivalent to within ±0.05
