@@ -6,7 +6,7 @@
 # across legs — providers default differently; models that REJECT the param fall back to provider
 # default, disclosed from the gate smoke). hf_pin (R85): the open legs' PERMANENT weights anchor —
 # repo + commit retrieved from the official HF card AT GATE TIME (never inferred/fabricated),
-# then filled here + archived; the freeze REFUSES while any open leg still says TO-VERIFY-AT-GATE
+# FILLED 2026-07-22 from the official HF API (R93 freeze-day record; licenses re-verified: MIT/MIT/Apache/Apache/OML)
 # (see model_suite.hf_weights_pins). Costs are ceiling-planning estimates, not authorities.
 
 legs:
@@ -17,7 +17,7 @@ legs:
     reasoning: {mode: think-high}          # pinned EXPLICITLY (vendor default; OR pass-through undocumented — R85: the smoke archives reasoning-token usage as round-trip evidence; a silent ignore still yields the vendor-default think-high, i.e. the registered mode)
     temperature: 1.0                       # R85 uniform decoding pin
     max_tokens: 4096
-    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}   # R85: filled from the official HF card at gate time
+    hf_pin: {repo: deepseek-ai/DeepSeek-V4-Pro, commit: b5968e9190ef611bbf34a7229255be88a0e937c1}   # retrieved 2026-07-22, official HF API   # R85: filled from the official HF card at gate time
     gate: contamination_screen             # fallback: glm-5.2 absorbs this seat
   - label: glm-5.2
     provider: openrouter
@@ -25,7 +25,7 @@ legs:
     api_key_env: OPENROUTER_API_KEY
     temperature: 1.0
     max_tokens: 4096
-    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
+    hf_pin: {repo: zai-org/GLM-5.2, commit: b4734de4facf877f85769a911abafc5283eab3d9}   # retrieved 2026-07-22, official HF API
   - label: qwen3.6-27b
     provider: openrouter
     model: qwen/qwen3.6-27b
@@ -34,7 +34,7 @@ legs:
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.5-9b (the served artifact is the fp8 variant of the pinned weights — model_suite.served_variant_disclosure)
     temperature: 1.0
     max_tokens: 4096
-    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
+    hf_pin: {repo: Qwen/Qwen3.6-27B, commit: 6a9e13bd6fc8f0983b9b99948120bc37f49c13e9}   # retrieved 2026-07-22, official HF API
   - label: qwen3.5-9b
     provider: openrouter
     model: qwen/qwen3.5-9b
@@ -43,7 +43,7 @@ legs:
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.6-27b
     temperature: 1.0
     max_tokens: 4096
-    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
+    hf_pin: {repo: Qwen/Qwen3.5-9B, commit: c202236235762e1c871ad0ccb60c8ee5ba337b9a}   # retrieved 2026-07-22, official HF API
   - label: haiku-4.5
     provider: anthropic
     model: claude-haiku-4-5-20251001       # dated snapshot — best-pinned leg after Opus
@@ -62,7 +62,7 @@ legs:
     api_key_env: OPENROUTER_API_KEY
     temperature: 1.0
     max_tokens: 4096
-    hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
+    hf_pin: {repo: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16, commit: d51eab0d1f979ebc26b546e634a04f450d99158e}   # retrieved 2026-07-22, official HF API
   - label: sonnet-5
     provider: anthropic
     model: claude-sonnet-5                 # R90/R92: the LATEST-GENERATION seat (released 2026-06-30); the generation-pair instrument is now the conditional Opus pair (R91/R92)
