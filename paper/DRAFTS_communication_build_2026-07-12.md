@@ -51,7 +51,7 @@ pre-registered) and the stake (do AIs use numerical evidence) without one formul
   `[fed tail signal] —SQ1: responsiveness→ [authored reward CODE] —SQ2: mediation→ [trained policy] —→ [realised tail outcome]`
 - **Box annotations (small, under each):** fed signal = "6 tail statistics, e.g. CVaR-5% = −0.0305"
   (real archived value); code = "the reward function the LLM writes (AST-audited)"; policy = "fixed
-  SAC agent, 200k steps"; outcome = "out-of-sample CVaR-5% across 568-seed ladder".
+  SAC agent, 400k steps (B\*, R77)"; outcome = "out-of-sample CVaR-5% across the seed ladder".
 - **Arrow annotations:** SQ1 carries "Spearman ρ = ⟨CAMPAIGN⟩ [CI]"; SQ2 carries "indirect effect
   a·b = ⟨CAMPAIGN⟩ [CI]"; arrow 3 carries "co-primary H2-Tail IUT".
 - **The cut:** a break symbol on the SQ1 arrow with the caption line: *"the chain is severed at its
@@ -100,5 +100,92 @@ Order: honesty first, each with the mitigation in the same breath; no defensive 
 > (close small decimals) is where frontier models' comparisons become unreliable.
 
 ---
-*Next in the build order (handoff §4): the M2 survey figure slot; the scannable tables (CVaR-leg
-conclusiveness, assurance ladder, ablation). Queued behind Tamer's review of D1–D5.*
+
+# RAISED-BAR BUILD (2026-07-21) — registry rows 18–23 drafted; grade-inflation adjustment
+# (supervisor-confirmed: last year's distinction ≈ this year's merit — every dimension needs
+# unambiguous evidence). D6–D10 below are NEW drafts for Tamer's review; nothing existing rewritten.
+
+## D6. The SESOI justification paragraph (registry row 19 → CH4, beside the TOST spec)
+
+> The equivalence margin of ±0.05 Sharpe units is not a statistical convenience but a materiality
+> threshold, chosen before any data on three grounds. First, decision-relevance: the question a
+> practitioner brings to this study is whether building a distributional-feedback pipeline is worth
+> its engineering and maintenance cost, and an improvement smaller than 0.05 annualised Sharpe —
+> roughly the effect of a few basis points of execution slippage — would not survive that
+> cost–benefit comparison in any allocation process we are aware of. Second, operational
+> resolvability: run-to-run seed variation in this training regime is measured at σ ≈ 0.24 Sharpe
+> units, so an effect below one-fifth of that noise floor could not be exploited reliably by a
+> deployer even if it existed, because detecting it would require more independent training runs
+> than any production pipeline performs. Third, conservatism relative to the literature: published
+> strategy improvements that survive selection-aware deflation are typically an order of magnitude
+> larger; halving the smaller of those figures errs on the side of calling small-but-real effects
+> inconclusive rather than dismissing them. The margin is symmetric because neither direction of
+> deviation is privileged ex ante.
+
+*(Raised-bar purpose: converts the one assertable number in the confirmatory spec into an argued
+one — the exact class of borderline item a harsh marker rounds down.)*
+
+## D7. H4 prominence + the Coache–Jaimungal differentiation (registry row 20)
+
+**(a) CH2 differentiation paragraph:**
+
+> Distributional risk objectives inside reinforcement learning are not new: Coache and Jaimungal,
+> in particular, optimise dynamic risk measures directly within the learning algorithm, treating
+> the *agent* as the object of design. This dissertation holds the agent fixed and asks a question
+> that line of work does not: when the reward function itself is *authored by a language model*,
+> does the risk information shown to the author change what it writes? The distributional content
+> therefore enters one step earlier in the pipeline — at the specification stage, through a
+> natural-language-and-numbers interface — and the appropriate comparison class is not a better
+> risk-sensitive algorithm but a better *reward search*: hence the matched-compute random-search
+> and Bayesian-optimisation arms. No published work, to our knowledge, has tested whether an LLM
+> reward-designer outperforms matched non-LLM search at all — so hypothesis H4 is not a robustness
+> check but the empirical answer to whether the LLM layer earns its place in this pipeline.
+
+**(b) CH6/CH7 framing note (write-time):** H4 is a NAMED result with its own table row and
+paragraph, both branches meaningful — an edge is the lineage's first such evidence; no edge is an
+honest boundary that the mechanism chapter explains. Never bury it as a secondary footnote.
+
+## D8. The independence narrative (registry row 22 → CH1 close or CH7 opening; ~120 words)
+
+> The design reported here is the product of a documented sequence of the author's decisions. A
+> February proposal sketched a ten-component system; it was deliberately narrowed — a shift the
+> module guidelines explicitly sanction — to the single identified question a controlled experiment
+> could answer to depth. That design was frozen, hash-bound, as version 1.0. When industry
+> supervisors subsequently challenged its model coverage and reproducibility permanence, the
+> registration was unfrozen *before any data existed*, revised into the ten-model design, and
+> re-frozen with every change recorded as a dated amendment — the pre-registration discipline
+> working as intended rather than being worked around. The amendment table (R1–R88) and the
+> decision log are appended in full: each records what changed, why, and on whose call.
+
+*(Raised-bar purpose: under an AI-assistance disclosure, this paper trail — pivot, freeze,
+feedback, documented pre-data revision — is the auditable evidence of independence of thought.)*
+
+## D9. Publishability made demonstrable (registry row 23 → abstract tail + CH7)
+
+> The full pre-registration — hypotheses, decision rules, model roster, and analysis plan — was
+> deposited publicly with a DOI before launch and is citable independently of this dissertation.
+> The study was designed to decompose into four self-contained papers (the main controlled study;
+> the cross-model numeracy survey; the open-weight replication suite; the evaluation protocol),
+> and an interim results pack was reviewed by industry supervisors at NatWest's AI research group
+> during the campaign.
+
+*(Placement: two sentences of this in CH7's significance paragraph; the DOI line in the abstract's
+final sentence. Purpose: the 90–100 descriptor is "publishable in a peer-reviewed journal" — this
+makes the claim verifiable rather than asserted.)*
+
+## D10. The why-ten-models plain-language paragraph (registry row 18 → CH6 §6.7 opening)
+
+> One model can tell us whether the most capable AI available uses the risk information it is
+> shown; it cannot tell us whether the answer is a quirk of that one system. So nine further
+> models — from four different developer ecosystems, five of them fully open so that anyone can
+> re-run them indefinitely — each repeat the identical experiment at a smaller scale: same market
+> data, same prompts, same rules, differing only in which model writes the reward code. Reading
+> the outcome needs no statistics: the forest plot shows one arrow per model — do the arrows
+> agree? — and a single pre-registered number summarises how large any across-model effect could
+> be, given everything observed. Models that failed to produce working code at all are reported in
+> their own table, because *that*, too, is an answer a practitioner needs.
+
+---
+*Next in the build order (handoff §4 + playbook): the M2 survey figure slot; the scannable tables
+(CVaR-leg conclusiveness, assurance ladder, ablation). D1–D4 are wired; D5 refills from campaign
+records at the bank gate; D6–D10 await Tamer's review, then wire into CH1/CH2/CH4/CH6/CH7.*
