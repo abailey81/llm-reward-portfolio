@@ -20,7 +20,7 @@ Set-Location $repo
 
 # Queue order (must match config/preregistration.yaml model_suite.queue_order).
 $lines = @(
-  "core",
+  "core", "h3",
   "deepseek-v4-pro", "glm-5.2", "qwen3.6-27b", "qwen3.5-9b",
   "haiku-4.5", "sonnet-4.6", "gpt-5.6-luna", "nemotron-3-super", "gemini-3.5-flash"
 )

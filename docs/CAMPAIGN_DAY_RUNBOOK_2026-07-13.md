@@ -308,6 +308,17 @@ exists to catch surfaces before any leg authoring is billed). Monitoring unchang
 later blocks' already-queued work — exposure is bounded GPU-hours (priorities keep later blocks
 behind), and BANKING is unaffected: a rung banks only when it and every rung below are complete.
 
+**(2026-07-21c addition — the H3 line):** the launcher now includes an **"h3" line** (12 total):
+the H3 single-shot FLOOR unit (`--h3-singleshot --seeds 0-29`) launches day-0 — the 12-unit tier
+math includes H3, and it was previously a MANUAL post-headline invocation, i.e. the last human
+dependency on every rung bank; single-shot has no reflection chain, so the floor unit lands ~L+1.
+**The H3 LADDER COMPLETION is a follow-up invocation** (run it once the legs are in flight; it
+must never jump the legs in the registered queue): the §3 line with `--seeds 0-567 --resume` and
+`--priority -300` — archive-truth skips the done seeds. Also noted: the C3 gate releases C4 only
+after ALL core units complete, so the gate-release time ≈ the BO chain (~L+1.7–2) — a deliberate
+protection (the effect-blind integrity report reads a complete floor before mass compute);
+per-unit rung pipelining was considered and REJECTED to keep it.
+
 **(2026-07-21b additions — the training-speed pass):**
 - **The floor's TRUE critical path is the bayes_opt chain** (30 inherently-sequential GP
   proposals ≈ 30 × [1.1h training + queue-wait + poll-notice]): the honest floor-bank estimate

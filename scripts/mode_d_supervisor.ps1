@@ -43,7 +43,22 @@ $legTag = @{
   "nemotron-3-super" = "leg8"; "gemini-3.5-flash" = "leg9"
 }
 
-if ($Line -eq "core") {
+if ($Line -eq "h3") {
+    # THE H3 FLOOR UNIT (2026-07-21b): the 12-unit tier math includes the H3 single-shot control,
+    # previously a MANUAL post-headline invocation - the last human dependency on every rung bank.
+    # No reflection chain (all 30 candidates author at once), so the floor unit lands ~L+1.
+    # SEEDS 0-29 ONLY here: the full-ladder H3 completion re-runs later with --seeds 0-567 --resume
+    # at rung priority (runbook s.10) so H3 rung seeds never jump the legs in the registered queue.
+    $driverArgs = @(
+      "scripts/run_campaign_cluster.py", "--h3-singleshot",
+      "--seeds", "0-29", "--pass-mode", "B", "--llm-from", "campaign",
+      "--pack", "5", "--search-pack", "2", "--search-poll-secs", "45",
+      "--cores-per-training", "1", "--pool", "EF",
+      "--seed-pool-blocks", "EF:0-14,L:15-29",
+      "--batch-tag", "h3", "--poll-secs", "180", "--chunk-tasks", "1",
+      "--output-dir", $outDir, "--resume"
+    )
+} elseif ($Line -eq "core") {
     # THE CORE LINE - the s.2 canonical line + the mode-D levers (search lane pack-2, pipelined rungs).
     $driverArgs = @(
       "scripts/run_campaign_cluster.py", "--tiered",
@@ -70,7 +85,7 @@ if ($Line -eq "core") {
       "--output-dir", $outDir, "--resume"
     )
 } else {
-    Write-Host ("unknown line '{0}' - use 'core' or a leg label from config/legs.yaml" -f $Line)
+    Write-Host ("unknown line '{0}' - use 'core', 'h3', or a leg label from config/legs.yaml" -f $Line)
     exit 2
 }
 
