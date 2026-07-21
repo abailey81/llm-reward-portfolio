@@ -145,3 +145,75 @@ def test_search_poll_lane_and_bo_priority_rule(tmp_path):
     assert _core_priority("distributional", h2) == PRIORITY_CORE
     assert _core_priority("random_search", h2) == PRIORITY_STAGE1
     assert _core_priority("placebo", h2) == PRIORITY_STAGE1
+
+
+def test_canary_concurrent_with_family_gates_only_authoring(monkeypatch, tmp_path):
+    """2026-07-21c: family arms (no Opus spend) start DURING the canary; LLM arms wait for it."""
+    from src.cluster import campaign as C
+
+    order: list[str] = []
+    canary_may_finish = threading.Event()
+    family_started = threading.Event()
+
+    def fake_baselines(names, seeds, run, *, name, **kw):
+        if name == "canary":
+            order.append("canary_start")
+            assert family_started.wait(timeout=10)   # family began while the canary still runs
+            canary_may_finish.wait(timeout=10)
+            order.append("canary_done")
+        return {"ok": True}
+
+    def fake_family(arm, opts, run, *, resume, priority):
+        family_started.set()
+        order.append(f"family_start:{arm}")
+        return {"arm": arm, "accepted": [], "n": 0}
+
+    def fake_search(arm, opts, run, *, resume, priority):
+        order.append(f"llm_search:{arm}")            # must appear only after canary_done
+        return {"arm": arm}
+
+    monkeypatch.setattr(C, "run_baselines_on_cluster", fake_baselines)
+    monkeypatch.setattr(C, "run_family_search_arm", fake_family)
+    monkeypatch.setattr(C, "run_search_arm", fake_search)
+    import src.io.results as R
+    monkeypatch.setattr(R, "load_all", lambda p: [{"seed": 0}, {"seed": 1}])  # smoke coverage
+    monkeypatch.setattr(C, "run_test_leg",
+                        lambda *a, **k: {"ok": True, "n": 0})
+    monkeypatch.setattr(C, "_resolve_select_freeze",
+                        lambda run: (lambda p: None, lambda *a, **k: None))
+    threading.Timer(0.3, canary_may_finish.set).start()
+    run = ClusterRun(run_batch=lambda *a, **k: {"ok": True}, spec_archive_root=str(tmp_path),
+                     read_root=tmp_path)
+    out = C.run_campaign_tiered(
+        ["distributional", "bayes_opt"], lambda a: {"seed": 0}, {"mode": "tiered", "tiers": [2]},
+        run, test_leg_kwargs={}, frozen_root=tmp_path / "f", review_gate=False,
+        canary_baselines=["raw_return"],
+    )
+    assert "family_start:bayes_opt" in order and "canary_done" in order
+    assert order.index("family_start:bayes_opt") < order.index("canary_done")   # no-spend work early
+    assert order.index("llm_search:distributional") > order.index("canary_done")  # authoring gated
+    assert out["results"]["canary"] == {"ok": True}
+
+
+def test_canary_failure_still_aborts_loud_with_zero_authoring(monkeypatch, tmp_path):
+    from src.cluster import campaign as C
+    import pytest as _pytest
+
+    authored: list[str] = []
+    monkeypatch.setattr(C, "run_baselines_on_cluster",
+                        lambda *a, **k: {"ok": False, "boom": True})
+    monkeypatch.setattr(C, "run_family_search_arm",
+                        lambda arm, *a, **k: {"arm": arm, "accepted": [], "n": 0})
+    monkeypatch.setattr(C, "run_search_arm",
+                        lambda arm, *a, **k: authored.append(arm) or {"arm": arm})
+    monkeypatch.setattr(C, "_resolve_select_freeze",
+                        lambda run: (lambda p: None, lambda *a, **k: None))
+    run = ClusterRun(run_batch=lambda *a, **k: {"ok": True}, spec_archive_root=str(tmp_path),
+                     read_root=tmp_path)
+    with _pytest.raises(RuntimeError, match="CANARY FAILED"):
+        C.run_campaign_tiered(
+            ["distributional", "random_search"], lambda a: {"seed": 0},
+            {"mode": "tiered", "tiers": [2]}, run, test_leg_kwargs={},
+            frozen_root=tmp_path / "f", review_gate=False, canary_baselines=["raw_return"],
+        )
+    assert authored == []                             # ZERO Opus authoring on a failed canary

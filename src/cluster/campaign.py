@@ -1247,42 +1247,61 @@ def run_campaign_tiered(
         "n_tiers": len(tiers), "tier_sizes": [len(t) for t in tiers], "results": {},
     }
 
-    # ---- C0: the canary — prove the full path on hand rewards BEFORE any Opus spend ----------- #
-    if canary_baselines:
-        _LOG.info("[C0] canary: %s at %d core seeds", canary_baselines, len(core))
-        canary = run_baselines_on_cluster(
-            canary_baselines, core, run, test_leg_kwargs=test_leg_kwargs, name="canary",
-            priority=PRIORITY_CORE, resume=resume,
-        )
-        out["results"]["canary"] = canary
-        if not canary.get("ok", False):
-            raise RuntimeError(
-                f"C0 CANARY FAILED ({canary}) — the production path does not work end-to-end; "
-                f"fix and re-run BEFORE any Opus authoring is spent (the whole point of the canary)"
-            )
-        # ANALYSIS-SMOKE (2026-07-12 upgrade): the canary's definition of success extends from
-        # "trainings ran" to "the READER side parses them" — load_all validates every canary record
-        # against the full schema (fail-loud), so an analysis-side break surfaces on day 0 instead
-        # of at the bank gate. Counts only; no performance value is inspected (effect-blind).
-        from src.io.results import load_all as _load_all
-
-        for nm in canary_baselines:
-            unit = f"baseline_{nm}"
-            recs = _load_all(str(run.test_read() / unit))
-            got = {int(r["seed"]) for r in recs}
-            if not set(core) <= got:
-                raise RuntimeError(
-                    f"C0 canary ANALYSIS-SMOKE failed: unit {unit} parsed {sorted(got)} but the "
-                    f"core seeds are {core} — records exist per the census yet the reader cannot "
-                    "recover them all; fix the archive/reader before any Opus spend"
-                )
-        _LOG.info("[C0] analysis-smoke: all canary records parse + full seed coverage")
-
-    # ---- C1–C3: concurrent search pipelines under the priority ladder ------------------------- #
+    # ---- C0 + C1–C3 (MODE-D 2026-07-21c): the canary runs CONCURRENTLY with the no-spend work - #
+    # The canary's purpose is SPEND protection: prove the full path before any *Opus authoring*
+    # is billed. The family arms (random_search/bayes_opt) author NOTHING — they are the same
+    # fixed-machinery risk class as the canary's own baseline trainings — yet the old sequential
+    # structure made the floor's LONGEST chain (the 30-step BO sequence) wait ~4-6h for a gate
+    # that protects nothing it does. Now: the canary + family arms + H1 baselines all start at
+    # L+0; ONLY the LLM arms' authoring waits on the canary verdict (``canary_ok``). A canary
+    # failure still aborts loudly with ZERO Opus spent: LLM arms return un-authored, the loop
+    # drains (in-flight family arrays are legitimate trainings; a truly broken path fails them
+    # fast via the driver's error caps), and the canary error re-raises after the drain.
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     winners: dict[str, dict[str, Any]] = {}
     core_results: dict[str, dict[str, Any]] = {}
+    canary_ok = threading.Event()
+    canary_abort = threading.Event()
+    canary_failure: list[BaseException] = []
+    if not canary_baselines:
+        canary_ok.set()  # no canary configured -> nothing gates authoring
+
+    def _run_canary() -> dict[str, Any]:
+        _LOG.info("[C0] canary: %s at %d core seeds (concurrent with the no-spend arms)",
+                  canary_baselines, len(core))
+        canary = run_baselines_on_cluster(
+            canary_baselines, core, run, test_leg_kwargs=test_leg_kwargs, name="canary",
+            priority=PRIORITY_CORE, resume=resume,
+        )
+        try:
+            if not canary.get("ok", False):
+                raise RuntimeError(
+                    f"C0 CANARY FAILED ({canary}) — the production path does not work end-to-end; "
+                    f"fix and re-run BEFORE any Opus authoring is spent (the point of the canary)"
+                )
+            # ANALYSIS-SMOKE (2026-07-12 upgrade): the canary's definition of success extends from
+            # "trainings ran" to "the READER side parses them" — load_all validates every canary
+            # record against the full schema (fail-loud) so an analysis-side break surfaces day 0.
+            from src.io.results import load_all as _load_all
+
+            for nm in canary_baselines:
+                unit = f"baseline_{nm}"
+                recs = _load_all(str(run.test_read() / unit))
+                got = {int(r["seed"]) for r in recs}
+                if not set(core) <= got:
+                    raise RuntimeError(
+                        f"C0 canary ANALYSIS-SMOKE failed: unit {unit} parsed {sorted(got)} but "
+                        f"the core seeds are {core} — records exist per the census yet the reader "
+                        "cannot recover them all; fix the archive/reader before any Opus spend"
+                    )
+            _LOG.info("[C0] analysis-smoke: all canary records parse + full seed coverage")
+        except BaseException as exc:
+            canary_failure.append(exc)
+            canary_abort.set()
+            raise
+        canary_ok.set()
+        return canary
 
     def _arm_core(arm: str) -> dict[str, Any]:
         prio = _core_priority(arm, h2_arms)
@@ -1290,6 +1309,10 @@ def run_campaign_tiered(
         if arm in _FAMILY_ARMS:
             search = run_family_search_arm(arm, opts, run, resume=resume, priority=prio)
         else:
+            # LLM arms WAIT for the canary verdict — authoring is the spend the canary protects.
+            while not canary_ok.wait(timeout=5.0):
+                if canary_abort.is_set():
+                    return {"arm": arm, "ok": False, "reason": "canary_failed_no_authoring"}
             search = run_search_arm(arm, opts, run, resume=resume, priority=prio)
         _guard_k_seed_selector(opts, run)  # P15: max-single-seed select is WRONG under k>1
         winner = select_winner(run.search_read() / arm)
@@ -1312,23 +1335,42 @@ def run_campaign_tiered(
                             priority=PRIORITY_STAGE1, resume=resume, **test_leg_kwargs)
         return {"arm": arm, "ok": True, "search": search, "test": test}
 
-    with ThreadPoolExecutor(max_workers=len(arms) + 1, thread_name_prefix="unit") as ex:
+    with ThreadPoolExecutor(max_workers=len(arms) + 2, thread_name_prefix="unit") as ex:
         futs = {ex.submit(_arm_core, arm): arm for arm in arms}
+        if canary_baselines:
+            futs[ex.submit(_run_canary)] = "__canary__"
         if baseline_names:
-            futs[ex.submit(
-                run_baselines_on_cluster, list(baseline_names), core, run,
-                test_leg_kwargs=test_leg_kwargs, name="baselines",
-                priority=PRIORITY_STAGE1, resume=resume,
-            )] = "__baselines__"
+            # The canary IS the first canary_baselines' core run — now that the two tasks are
+            # CONCURRENT, the baselines batch must EXCLUDE them or the same run_ids double-submit
+            # (two live jobs writing one record — the P4 write-race class; sequentially the old
+            # code merely re-submitted redundantly). The exclusion is also strictly faster.
+            _rest = [n for n in baseline_names if n not in set(canary_baselines or [])]
+            if _rest:
+                futs[ex.submit(
+                    run_baselines_on_cluster, _rest, core, run,
+                    test_leg_kwargs=test_leg_kwargs, name="baselines",
+                    priority=PRIORITY_STAGE1, resume=resume,
+                )] = "__baselines__"
         for fut in as_completed(futs):
             key = futs[fut]
             try:
                 res = fut.result()
-                core_results[key] = res if key != "__baselines__" else {"ok": res.get("ok", True),
-                                                                        "test": res}
+                if key == "__canary__":
+                    out["results"]["canary"] = res
+                elif key == "__baselines__":
+                    core_results[key] = {"ok": res.get("ok", True), "test": res}
+                else:
+                    core_results[key] = res
             except Exception as exc:  # noqa: BLE001 — one unit must not sink the ladder
+                if key == "__canary__":
+                    continue  # recorded in canary_failure; re-raised loudly after the drain
                 _LOG.exception("[%s] core pipeline crashed", key)
                 core_results[key] = {"arm": key, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
+    if canary_failure:
+        # The loud abort semantics are PRESERVED: zero Opus was authored (LLM arms returned
+        # un-authored the moment the abort flag rose); the drain above only let already-submitted
+        # no-spend arrays finish. Fix the path, then re-run — resume skips completed work.
+        raise RuntimeError(str(canary_failure[0])) from canary_failure[0]
 
     # C2: the H2 pair-test at the core n — ONE pair-adjacent interleaved array at -p 0.
     h2_present = [a for a in h2_arms if a in winners]

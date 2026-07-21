@@ -412,11 +412,15 @@ def test_run_campaign_tiered_c_ladder_canary_priorities_pair_and_sweep(tmp_path)
     )
     assert out["n_tiers"] == 2 and out["tier_sizes"] == [2, 2] and out["ok"]
     by_name = {c[0]: c for c in fake.calls}
-    # C0: the canary ran FIRST at -p 0
-    assert fake.calls[0][0] == "canary" and fake.calls[0][4] == 0
-    # priorities: H2 search arrays at 0; the non-H2 arm + baselines at -100
+    # C0 (MODE-D 2026-07-21c): the canary runs CONCURRENTLY with the no-spend arms (its batch is
+    # present at -p 0 but no longer necessarily FIRST); only LLM authoring waits on its verdict.
+    assert by_name["canary"][4] == 0
+    # priorities: H2 search arrays at 0; the non-H2 family arm at -100
     assert by_name["distributional_g0"][4] == 0 and by_name["scalar_g0"][4] == 0
-    assert by_name["random_search_search"][4] == -100 and by_name["baselines"][4] == -100
+    assert by_name["random_search_search"][4] == -100
+    # dedup contract: baselines covered by the canary are NOT re-submitted as a second batch
+    # (concurrent double-submission of the same run_ids = the P4 write-race class).
+    assert "baselines" not in by_name
     # C2: the H2 pair core-test = ONE interleaved array at -p 0 (dist-s0, scalar-s0, dist-s1, ...)
     pair = by_name["h2_pair_test"]
     assert pair[4] == 0

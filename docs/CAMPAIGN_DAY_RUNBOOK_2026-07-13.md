@@ -322,7 +322,11 @@ per-unit rung pipelining was considered and REJECTED to keep it.
 **(2026-07-21b additions — the training-speed pass):**
 - **The floor's TRUE critical path is the bayes_opt chain** (30 inherently-sequential GP
   proposals ≈ 30 × [1.1h training + queue-wait + poll-notice]): the honest floor-bank estimate
-  is **~L+1.7–2**, not the throughput-only L+1.3. Two fixes shave it: `bayes_opt` is HOISTED to
+  is **~L+1.5–1.8** (was ~L+1.7–2 before the 2026-07-21c canary-concurrency fix, and NOT the
+  throughput-only L+1.3): the canary now runs CONCURRENTLY with the no-spend family arms — the
+  30-step BO chain starts at L+0 instead of waiting ~5h for a gate that only protects Opus
+  authoring (which still waits, spend-protection intact; canary-covered baselines are no longer
+  double-submitted). Two fixes shave it: `bayes_opt` is HOISTED to
   `-p 0` (`_core_priority` — an array-of-1 every ~70 min costs nothing; at −100 every one of its
   30 steps could queue behind H2 waves, ×30), and `--search-poll-secs 45` cuts up to 180s of
   driver-notice latency per chain step (~1h+ on the BO chain alone; search-generation handoffs
