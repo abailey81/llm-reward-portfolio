@@ -40,6 +40,13 @@ core:
   - {label: mercury-2,    provider: openrouter, model: inception/mercury-2,  pinned: true, api_key_env: OPENROUTER_API_KEY, note: diffusion-LLM — the architecture-diversity row}
 
 extras_budget_permitting:  # run only if the $30 ceiling has headroom, in this order
+  # R89 (2026-07-21 freshness research): two adds surfaced by the as-of-today model sweep —
+  # sonnet-5 (released 2026-06-30) extends the closed Anthropic ladder to FIVE points incl. a
+  # Claude-5-generation one (refusals are data, the fable-5 convention); qwen4-coder (2026-06-02,
+  # Apache, MoE A3B) = the family's newest coder — NOT a leg (MoE would break the dense-dense
+  # pair invariant with qwen3.5-9b) but a natural M2 reading-capability row.
+  - {label: sonnet-5,     provider: anthropic,  model: claude-sonnet-5, pinned: true, note: Claude-5-generation ladder point (R89)}
+  - {label: qwen4-coder,  provider: openrouter, model: qwen/qwen4-coder-32b-a3b, pinned: true, api_key_env: OPENROUTER_API_KEY, note: newest family coder; MoE so M2-only (pair invariant); slug verified at execution (R89)}
   - {label: olmo-3.1-32b, provider: openrouter, model: allenai/olmo-3.1-32b-instruct, pinned: false, api_key_env: OPENROUTER_API_KEY, note: fully-open-science pedigree}
   - {label: mistral-large-3, provider: openrouter, model: mistralai/mistral-large-2512, pinned: false, api_key_env: OPENROUTER_API_KEY, note: the EU lab}
   - {label: gpt-oss-20b,  provider: openrouter, model: openai/gpt-oss-20b,   pinned: false, api_key_env: OPENROUTER_API_KEY, note: OpenAI's open model; free-route}
