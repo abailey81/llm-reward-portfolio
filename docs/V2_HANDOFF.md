@@ -48,13 +48,13 @@ equivalence backdrop.
 | Leg 3 | Qwen3.6-27B | `qwen/qwen3.6-27b` | Apache; **SiliconFlow fp8** |
 | Leg 4 | Qwen3.5-9B | `qwen/qwen3.5-9b` | Apache; **SiliconFlow fp8** — same provider+quant as leg 3 (the confound-free OPEN pair) |
 | Leg 5 | Haiku 4.5 | `claude-haiku-4-5-20251001` | closed ladder bottom (dated snapshot) |
-| Leg 6 | Sonnet 4.6 | `claude-sonnet-4-6` | closed ladder mid + **the PILOT BRIDGE** (prototype author, re-tested under the frozen design) |
 | Leg 7 | GPT-5.6 Luna | `openai/gpt-5.6-luna` | cross-vendor closed; effort=low, max_tokens=2048 (bounds hidden-reasoning cost) |
 | Leg 8 | Nemotron 3 Super | `nvidia/nemotron-3-super-120b-a12b` | NVIDIA OML (NOT Apache; "major portions of data" — phrase exactly); US-lab + data transparency |
-| Leg 9 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | **seat-10 STRETCH, first-to-truncate**; reasoning at provider default DISCLOSED (R85 — the old "budget=default" pin used an undocumented key), max_tokens=2048 |
+| Leg 9 | Sonnet 5 | `claude-sonnet-5` | the LATEST-GENERATION seat (R90/R92; the pair partner 4.6 was removed — the generation pair is now the conditional Opus pair) |
+| Leg 10→9 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | **seat-10 STRETCH, first-to-truncate**; reasoning at provider default DISCLOSED (R85 — the old "budget=default" pin used an undocumented key), max_tokens=2048 |
 
 Queue order (pre-declared, exogenous truncation from the BACK):
-`DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Sonnet → Luna → Nemotron → Gemini`.
+`DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Luna → Nemotron → Sonnet-5 → Gemini` (R90/R92).
 All non-Anthropic via **OpenRouter** (two keys total: `ANTHROPIC_API_KEY` + `OPENROUTER_API_KEY`).
 Legs run at the **tier-30 floor**; byte-identical prompts; unified prompt-variation diversity;
 `~*/-latest` aliases BANNED.

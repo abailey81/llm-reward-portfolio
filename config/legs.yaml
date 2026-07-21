@@ -49,11 +49,6 @@ legs:
     model: claude-haiku-4-5-20251001       # dated snapshot — best-pinned leg after Opus
     api_key_env: ANTHROPIC_API_KEY
     max_tokens: 4096                       # Anthropic legs: no temperature param (the Opus convention; prompt-variation diversity)
-  - label: sonnet-4.6
-    provider: anthropic
-    model: claude-sonnet-4-6               # the PILOT BRIDGE (prototype author, frozen-design re-test; model_suite.sonnet_bridge_prediction registered ex-ante)
-    api_key_env: ANTHROPIC_API_KEY
-    max_tokens: 4096
   - label: gpt-5.6-luna
     provider: openrouter
     model: openai/gpt-5.6-luna
@@ -70,7 +65,7 @@ legs:
     hf_pin: {repo: TO-VERIFY-AT-GATE, commit: TO-VERIFY-AT-GATE}
   - label: sonnet-5
     provider: anthropic
-    model: claude-sonnet-5                 # R90 (2026-07-21): the LATEST-GENERATION seat (released 2026-06-30) — forms the GENERATION pair with sonnet-4.6 (same vendor+tier, one generation apart; tokenizer change disclosed as a pair covariate)
+    model: claude-sonnet-5                 # R90/R92: the LATEST-GENERATION seat (released 2026-06-30); the generation-pair instrument is now the conditional Opus pair (R91/R92)
     api_key_env: ANTHROPIC_API_KEY
     max_tokens: 4096
   - label: gemini-3.5-flash
@@ -93,7 +88,6 @@ planning_prices:
   qwen/qwen3.6-27b: [0.45, 2.70]
   qwen/qwen3.5-9b: [0.10, 0.15]
   claude-haiku-4-5-20251001: [1.00, 5.00]
-  claude-sonnet-4-6: [3.00, 15.00]
   claude-sonnet-5: [2.00, 10.00]           # introductory pricing through 2026-08-31 (covers the campaign window); standard $3/$15 after
   openai/gpt-5.6-luna: [1.00, 6.00]
   nvidia/nemotron-3-super-120b-a12b: [0.08, 0.45]

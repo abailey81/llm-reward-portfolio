@@ -22,7 +22,7 @@ Set-Location $repo
 $lines = @(
   "core", "h3",
   "deepseek-v4-pro", "glm-5.2", "qwen3.6-27b", "qwen3.5-9b",
-  "haiku-4.5", "sonnet-4.6", "gpt-5.6-luna", "nemotron-3-super", "sonnet-5", "gemini-3.5-flash"
+  "haiku-4.5", "gpt-5.6-luna", "nemotron-3-super", "sonnet-5", "gemini-3.5-flash"
 )
 
 $i = 0

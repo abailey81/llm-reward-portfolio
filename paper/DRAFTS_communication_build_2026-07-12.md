@@ -176,7 +176,7 @@ makes the claim verifiable rather than asserted.)*
 ## D10. The why-ten-models plain-language paragraph (registry row 18 → CH6 §6.7 opening)
 
 > One model can tell us whether the most capable AI available uses the risk information it is
-> shown; it cannot tell us whether the answer is a quirk of that one system. So ten further
+> shown; it cannot tell us whether the answer is a quirk of that one system. So nine further
 > models — from four different developer ecosystems, five of them fully open so that anyone can
 > re-run them indefinitely — each repeat the identical experiment at a smaller scale: same market
 > data, same prompts, same rules, differing only in which model writes the reward code. Reading

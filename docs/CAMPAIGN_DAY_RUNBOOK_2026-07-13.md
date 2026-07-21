@@ -235,7 +235,7 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --leg deepseek-v4-pro 
     --batch-tag leg1 --poll-secs 180 --chunk-tasks 1 \
     --output-dir outputs/campaign_cluster --resume
 # Queue (frozen): deepseek-v4-pro -> glm-5.2 -> qwen3.6-27b -> qwen3.5-9b -> haiku-4.5
-#              -> sonnet-4.6 -> gpt-5.6-luna -> nemotron-3-super -> sonnet-5 -> gemini-3.5-flash  (R90)
+#              -> gpt-5.6-luna -> nemotron-3-super -> sonnet-5 -> gemini-3.5-flash  (R90/R92)
 # Per leg: change --leg and --batch-tag (leg2, leg3, ...). No --baselines (H1 is core-only);
 # no --tiered (legs are floor-tier by design). Priority -200 = legs only backfill idle GPUs.
 ```
@@ -299,7 +299,7 @@ powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1
 
 The core line = the §2 canonical line + `--search-pack 2 --search-poll-secs 45 --pipeline-rungs`;
 each leg line = the §9(b) line + `--search-pack 2 --search-poll-secs 45` with its ladder priority
-(deepseek −200 … sonnet-5 −280, gemini −290; R90) — both embedded in `scripts/mode_d_supervisor.ps1`, which is the
+(deepseek −200 … sonnet-5 −270, gemini −280; R90/R92) — both embedded in `scripts/mode_d_supervisor.ps1`, which is the
 single source of the exact argument lists (keep it in lockstep with §2/§9 on any flag change).
 The launcher starts legs ~1h after the core (the CANARY SHIELD: most path breakage the C0 canary
 exists to catch surfaces before any leg authoring is billed). Monitoring unchanged
@@ -309,14 +309,14 @@ later blocks' already-queued work — exposure is bounded GPU-hours (priorities 
 behind), and BANKING is unaffected: a rung banks only when it and every rung below are complete.
 
 **(2026-07-21d addition — the MODE-D SYNTHETIC MINI-REHEARSAL, a named pre-launch step):** the
-13-line launcher has never run END-TO-END concurrently (each line dry-runs green; the
-CONCURRENCY — shared mirror, poll staggering, per-batch locks under 13 pollers — is what is
+12-line launcher has never run END-TO-END concurrently (each line dry-runs green; the
+CONCURRENCY — shared mirror, poll staggering, per-batch locks under 12 pollers — is what is
 unrehearsed). Once the VPN is up and BEFORE the freeze: run a ~30-minute synthetic mini
 (`--synthetic`, tiny steps, pass A stub — zero spend) with the core + 2 leg lines via
 `mode_d_supervisor.ps1`, confirm three clean supervisor logs + no lock/poll contention, then
 STOP_CAMPAIGN. Cheap insurance against launch-day multi-driver surprises.
 
-**(2026-07-21c addition — the H3 line):** the launcher now includes an **"h3" line** (13 lines total with the R90 sonnet-5 leg):
+**(2026-07-21c addition — the H3 line):** the launcher now includes an **"h3" line** (12 lines total (R92: sonnet-4.6 removed)):
 the H3 single-shot FLOOR unit (`--h3-singleshot --seeds 0-29`) launches day-0 — the 12-unit tier
 math includes H3, and it was previously a MANUAL post-headline invocation, i.e. the last human
 dependency on every rung bank; single-shot has no reflection chain, so the floor unit lands ~L+1.

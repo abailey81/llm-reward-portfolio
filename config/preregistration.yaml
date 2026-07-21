@@ -258,19 +258,18 @@ numeraire:
 # ============================================================================ #
 model_suite:
   confirmatory_author: claude-opus-4-8          # the ONE frontier (Tamer's rule); native Anthropic API
-  legs:                                          # 10 replication legs (R90), floor-tier (30 seeds), 5 LLM arms x 30 candidates each
+  legs:                                          # 9 replication legs (R90/R92), floor-tier (30 seeds), 5 LLM arms x 30 candidates each
     - {label: deepseek-v4-pro, id: deepseek/deepseek-v4-pro, license: MIT, reasoning_pin: think-high-explicit, gate: contamination_screen, fallback: absorbs-to-glm}
     - {label: glm-5.2,         id: z-ai/glm-5.2, license: MIT}
     - {label: qwen3.6-27b,     id: qwen/qwen3.6-27b,  license: Apache-2.0, provider_pin: siliconflow, quantization: fp8}   # open pair TOP (dense)
     - {label: qwen3.5-9b,      id: qwen/qwen3.5-9b,   license: Apache-2.0, provider_pin: siliconflow, quantization: fp8}   # open pair BOTTOM (dense; same provider+quant as top — confound-free pair)
     - {label: haiku-4.5,       id: claude-haiku-4-5-20251001, license: closed, note: dated-snapshot}                       # closed ladder BOTTOM
-    - {label: sonnet-4.6,      id: claude-sonnet-4-6, license: closed, note: closed-ladder-mid + PILOT-BRIDGE (prototype author; frozen-design replication of the pilot's responsiveness direction)}
     - {label: gpt-5.6-luna,    id: openai/gpt-5.6-luna, license: closed, reasoning_pin: effort-low, output_cap_tokens: 2048, note: cross-vendor closed; no dated snapshot (disclosed)}
     - {label: nemotron-3-super, id: nvidia/nemotron-3-super-120b-a12b, license: NVIDIA-Open-Model-License, note: major portions of training data released (some gated) — phrase exactly}
-    - {label: sonnet-5,        id: claude-sonnet-5, license: closed, note: R90 (2026-07-21) LATEST-GENERATION seat — released 2026-06-30; forms the GENERATION PAIR with sonnet-4.6 (same vendor+tier, one generation apart — the third controlled pair; the tokenizer change is disclosed as a pair covariate)}
+    - {label: sonnet-5,        id: claude-sonnet-5, license: closed, note: R90/R92 — the LATEST-GENERATION seat (released 2026-06-30; the former pair partner sonnet-4.6 was removed on Tamer's instruction, so the generation-pair instrument is now the conditional Opus pair)}
     - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, output_cap_tokens: 2048, role: STRETCH-first-to-truncate, note: reasoning-at-provider-default-DISCLOSED (R85 — the prior "default-budget" pin used an undocumented OpenRouter reasoning key, a silent-ignore/fictional-pin risk; the smoke archives reasoning-token usage as the record of what was actually served)}
-  queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, sonnet-4.6, gpt-5.6-luna, nemotron-3-super, sonnet-5, gemini-3.5-flash]
-  generation_pair: "R90 (2026-07-21): (sonnet-4.6, sonnet-5) — the GENERATION contrast at fixed vendor+tier: the content-effect x generation interaction on the common floor-30 CRN seed subset, seed-paired bootstrap CI — complements the two CAPABILITY pairs (a third controlled instrument)"
+  queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, gpt-5.6-luna, nemotron-3-super, sonnet-5, gemini-3.5-flash]
+  generation_pair: "R92 (2026-07-21, supersedes R90's sonnet pair — sonnet-4.6 removed on Tamer's instruction): the generation-pair instrument survives ONLY as the CONDITIONAL Opus pair (opus-4.8 <-> opus-5 per conditional_seat_opus_5); if R91's rule does not fire, the design carries the two capability pairs and no generation pair (disclosed)"
   conditional_seat_kimi_k3: "R90 (rule-driven, pre-declared — never results-contingent): IF Moonshot's Kimi-K3 open weights land with a permissive license on/before the v2 freeze day (vendor-promised 2026-07-27) AND the leg gates pass (smoke + compliance baseline + contamination screen), THEN kimi-k3 joins as the LAST stretch seat (after gemini-3.5-flash; truncates first) with pins fixed at gate time; ELSE the existing stage2_triggers rule stands unchanged"
   conditional_seat_opus_5: "R91 (rule-driven, pre-declared — never results-contingent; leak-stage as of 2026-07-21, no API id exists): IF an Opus-lane successor (claude-opus-5) reaches GA with a public API id on/before the v2 freeze day AND passes the leg gates AND single-author ATTRIBUTION is verifiable (the leaked spec mentions a safety fallback routing to opus-4.8 on trigger — every gate call's served-model metadata must identify opus-5, and any silent fallback-routing FAILS the seat on the Sakana-Fugu exclusion principle), THEN claude-opus-5 joins as a stretch leg forming the SECOND generation pair (opus-4.8 <-> opus-5, mirroring the sonnet pair) after sonnet-5 in the queue; the CONFIRMATORY seat remains claude-opus-4-8 REGARDLESS (a days-old model in the seat that gates H1-H4 fails the registered stability bar; opus-4.8's retirement-floor + weight-preservation commitments are unaffected by a successor's existence)"
   queue_semantics: "R88 (2026-07-21): the queue order is realized as a SCHEDULER PRIORITY LADDER (core search/floor/tier-100 above the legs; legs -200..-280 in queue order; tier-189+ below the legs) — execution may OVERLAP across legs and rungs, but COMPLETION and calendar-gate TRUNCATION order follow the ladder, i.e. exactly the pre-declared queue. Ops-only: no seed, arm, budget, or stopping rule changes"
@@ -310,8 +309,8 @@ model_suite:
       representational_account: "responsiveness FLAT at ~0 across capability — THE REGISTERED PREDICTION of the numeracy-bottleneck headline (the bottleneck is the numeric REPRESENTATION, so it binds every author incl. the frontier; the legibility/guided-comparison probes, not capability, are the predicted levers)"
       echo_account: "responsiveness DECREASING in capability (weaker models surface-echo fed numbers without using them)"
       decision: "read off jointly from the capability regression + both family-pair DiDs + the M2 probe grid; the fingerprint accounts A1-A5 adjudicate as registered"
-    sonnet_bridge_prediction: "REGISTERED EX-ANTE: the sonnet-4.6 leg (the prototype's author re-tested under the frozen design) REPLICATES the pilot's responsiveness direction (<= 0). The only leg with prior directional data, hence the only leg-level directional pre-registration made"
-    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument; the cross-family regression is DESCRIPTIVE (n=10 legs carries no meaningful test power) — the pair DiDs are the identified estimates"
+    sonnet_bridge_prediction: "WITHDRAWN pre-data by R92 (2026-07-21): the prediction was defined on the pilot's author (sonnet-4.6), whose leg was removed on Tamer's instruction; no re-scoping to another model (that would dilute the ex-ante falsifiability). The withdrawal is dated and pre-data — the prototype remains engineering-only evidence"
+    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument; the cross-family regression is DESCRIPTIVE (n=9 legs carries no meaningful test power) — the pair DiDs are the identified estimates"
   reliability_metrics: [format_compliance_baseline, sandbox_pass_rate, contract_violation_taxonomy, refusal_truncation_rates, code_diversity, per_model_taxonomy]
   feedback_protocol: "Supervisor and industry feedback received after launch informs presentation and interpretation ONLY; data-collection decisions (rungs, legs, stops) follow the pre-registered exogenous rules exclusively."
   interim_report: {when: floor-bank (~2026-08-06/08), to: [Dr-Okhrati, industry-supervisors], content: floor-tier-results (labeled provisional) + draft mechanism chapter + design record, effect-on-data-collection: none}
@@ -319,7 +318,7 @@ model_suite:
   max_tokens_pins:                               # UNIFORM output caps — provider defaults differ and could silently truncate code
     open_legs: 4096                              # deepseek/glm/qwen27/qwen9/nemotron
     capped_closed: 2048                          # gpt-5.6-luna, gemini-3.5-flash
-    anthropic_legs: 4096                         # haiku-4.5, sonnet-4.6 (opus = v1 convention unchanged)
+    anthropic_legs: 4096                         # haiku-4.5, sonnet-5 (R92; opus = v1 convention unchanged)
   leg_gate_timestamp: "2026-08-14T23:59:00Z"     # the calendar gate, made exact
   synthesis_exactness:                           # closes the ambiguities a referee could exploit
     sign_count_statistic: cvar_leg_contrast      # the tail (CVaR-5%) dist-vs-scalar sign — the Sharpe leg is predicted-tie for every model, so counting it would count noise
@@ -332,9 +331,9 @@ model_suite:
     # (a large permutation p alone is absence-of-evidence; per-leg TOSTs at the 30-seed floor are  #
     # inconclusive by construction — pooling 9 x 30 paired seeds is where the precision lives).    #
     pooled_bound: "the 90% seed-block-bootstrap CI on the pooled mean (dist - scalar) CVaR-5% difference over included legs (resample seed indices i.i.d., the SAME draw applied to every leg — dependence-honest), reported in daily-return units AND as a percentage of the scalar-arm pooled CVaR level; this CI is the registered cross-model bounded-effect statement"
-    leg_tost_family: "the 10-leg report-only TOST family (R90) = the per-leg CVaR-5% dist-vs-scalar contrasts (the Sharpe leg is predicted-tie); BH within this family for any starred statement"
+    leg_tost_family: "the 9-leg report-only TOST family (R90/R92) = the per-leg CVaR-5% dist-vs-scalar contrasts (the Sharpe leg is predicted-tie); BH within this family for any starred statement"
     pair_contrast_estimator: "(dist - scalar)_top_rung_member - (dist - scalar)_bottom_member, computed on the COMMON floor-30 CRN seed subset for BOTH family pairs (Qwen 9B/27B; Haiku/Opus — Opus restricted to its first 30 shared seeds for the paired estimator), seed-paired bootstrap CI"
-    leg_family_correction: "BH across the 10-leg (R90) report-only TOST family for any starred statement"
+    leg_family_correction: "BH across the 9-leg (R90/R92) report-only TOST family for any starred statement"
   m2_probes:                                     # protocol extensions (report-only, ~$3 total)
     guided_comparison: "identical stimuli + ONE added instruction sentence ('explicitly compare each fed value against the previous attempt's before revising') — separates CANNOT-read from WILL-not-use; with the legible-format probe forms the 2x2 format x instruction grid"
     responsiveness_positive_control: "~20 stimuli whose blocks carry OVERT directive content ('penalize turnover more heavily') where responsiveness MUST fire — proves the SQ1 metric's sensitivity, sealing a responsiveness null against the broken-instrument critique"
