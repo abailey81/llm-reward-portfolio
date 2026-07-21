@@ -66,11 +66,12 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 ## 2.0 THE GO SEQUENCE (executed by Claude on Tamer's OFFICIAL GO — in this exact order)
 
 ```bash
-# 1. FREEZE (stamps the recorded hash = canonical ce5db62c) + verify:
+# 1. FREEZE (stamps the recorded hash = the canonical at GO; currently ccf2e76f — R93/R94:
+#    the freeze executes AT the full-campaign approval, never before) + verify:
 python scripts/freeze.py            # the one irreversible act
 python scripts/freeze.py --check    # recorded == canonical, frozen: true
 # 2. Provenance anchors:
-git tag prereg-freeze-ce5db62c && python scripts/make_prereg_bundle.py  # bundle sha -> CHANGELOG
+git tag prereg-v2.0 prereg-freeze-<hash8> && python scripts/make_prereg_bundle.py  # bundle sha -> CHANGELOG
 # 3. Sync freshness (marker included; a no-op if HEAD unchanged since the last sync):
 git archive HEAD | ssh myriad "tar -x -C ~/llmrp" && git rev-parse HEAD | ssh myriad "cat > ~/llmrp/GIT_COMMIT"
 # 4. LAUNCH (two commands, then hands off):

@@ -1,8 +1,8 @@
 # Machine-readable mirror of PREREGISTRATION.md. FROZEN at end of Phase 1; scripts/freeze.py hashes
 # it into docs/DECISION_LOG.md and asserts it agrees with the prose record. Changes after freeze
 # require a dated amendment entry.
-frozen: true                        # UNFROZEN 2026-07-20 (ADR-059): v1.0 (ce5db62c) superseded PRE-DATA; v2 re-freeze required before launch
-freeze_hash: ccf2e76f2c865174731e923742e32cf111c74a515efe5b9dabd1633c59740a46                    # emitted by scripts/freeze.py at the v2 freeze (v1.0 hash ce5db62c preserved in ADR-059 / DECISION_LOG / tag prereg-v1.0)
+frozen: false                        # R94 (2026-07-22, Tamer): the 07-22 freeze (ccf2e76f, R93) LIFTED same-day PRE-DATA — the freeze executes TOGETHER WITH the full-campaign-run approval (GO-sequence step 1), never before it; all R93 evidence (HF pins, anchor values, conditional windows) RETAINED as completed preparation. (Earlier chain: v1.0 ce5db62c frozen 07-18, lifted 07-20 ADR-059/R78.)
+freeze_hash: null                    # ccf2e76f records preserved as history (commit 30ae72b, bundle prereg_bundle_ccf2e76f.zip); re-stamped fresh at the GO
 phase0_smoke_passed_log_id: "DECISION_LOG.md#PHASE-0 (GREEN 2026-06-17)"   # precondition MET (P2; CPU m≈18.9/25.9)
 
 hypotheses: [H1, H2, H3, H4]          # H2 headline; secondary = SAC-vs-TQC critic
