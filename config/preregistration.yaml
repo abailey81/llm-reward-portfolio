@@ -258,7 +258,7 @@ numeraire:
 # ============================================================================ #
 model_suite:
   confirmatory_author: claude-opus-4-8          # the ONE frontier (Tamer's rule); native Anthropic API
-  legs:                                          # 9 replication legs, floor-tier (30 seeds), 5 LLM arms x 30 candidates each
+  legs:                                          # 10 replication legs (R90), floor-tier (30 seeds), 5 LLM arms x 30 candidates each
     - {label: deepseek-v4-pro, id: deepseek/deepseek-v4-pro, license: MIT, reasoning_pin: think-high-explicit, gate: contamination_screen, fallback: absorbs-to-glm}
     - {label: glm-5.2,         id: z-ai/glm-5.2, license: MIT}
     - {label: qwen3.6-27b,     id: qwen/qwen3.6-27b,  license: Apache-2.0, provider_pin: siliconflow, quantization: fp8}   # open pair TOP (dense)
@@ -267,8 +267,11 @@ model_suite:
     - {label: sonnet-4.6,      id: claude-sonnet-4-6, license: closed, note: closed-ladder-mid + PILOT-BRIDGE (prototype author; frozen-design replication of the pilot's responsiveness direction)}
     - {label: gpt-5.6-luna,    id: openai/gpt-5.6-luna, license: closed, reasoning_pin: effort-low, output_cap_tokens: 2048, note: cross-vendor closed; no dated snapshot (disclosed)}
     - {label: nemotron-3-super, id: nvidia/nemotron-3-super-120b-a12b, license: NVIDIA-Open-Model-License, note: major portions of training data released (some gated) — phrase exactly}
-    - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, output_cap_tokens: 2048, role: SEAT-10-STRETCH-first-to-truncate, note: reasoning-at-provider-default-DISCLOSED (R85 — the prior "default-budget" pin used an undocumented OpenRouter reasoning key, a silent-ignore/fictional-pin risk; the smoke archives reasoning-token usage as the record of what was actually served)}
-  queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, sonnet-4.6, gpt-5.6-luna, nemotron-3-super, gemini-3.5-flash]
+    - {label: sonnet-5,        id: claude-sonnet-5, license: closed, note: R90 (2026-07-21) LATEST-GENERATION seat — released 2026-06-30; forms the GENERATION PAIR with sonnet-4.6 (same vendor+tier, one generation apart — the third controlled pair; the tokenizer change is disclosed as a pair covariate)}
+    - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, output_cap_tokens: 2048, role: STRETCH-first-to-truncate, note: reasoning-at-provider-default-DISCLOSED (R85 — the prior "default-budget" pin used an undocumented OpenRouter reasoning key, a silent-ignore/fictional-pin risk; the smoke archives reasoning-token usage as the record of what was actually served)}
+  queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, sonnet-4.6, gpt-5.6-luna, nemotron-3-super, sonnet-5, gemini-3.5-flash]
+  generation_pair: "R90 (2026-07-21): (sonnet-4.6, sonnet-5) — the GENERATION contrast at fixed vendor+tier: the content-effect x generation interaction on the common floor-30 CRN seed subset, seed-paired bootstrap CI — complements the two CAPABILITY pairs (a third controlled instrument)"
+  conditional_seat_kimi_k3: "R90 (rule-driven, pre-declared — never results-contingent): IF Moonshot's Kimi-K3 open weights land with a permissive license on/before the v2 freeze day (vendor-promised 2026-07-27) AND the leg gates pass (smoke + compliance baseline + contamination screen), THEN kimi-k3 joins as the LAST stretch seat (after gemini-3.5-flash; truncates first) with pins fixed at gate time; ELSE the existing stage2_triggers rule stands unchanged"
   queue_semantics: "R88 (2026-07-21): the queue order is realized as a SCHEDULER PRIORITY LADDER (core search/floor/tier-100 above the legs; legs -200..-280 in queue order; tier-189+ below the legs) — execution may OVERLAP across legs and rungs, but COMPLETION and calendar-gate TRUNCATION order follow the ladder, i.e. exactly the pre-declared queue. Ops-only: no seed, arm, budget, or stopping rule changes"
   # R85 (2026-07-21): reproducibility-permanence pins + decoding-uniformity (closing the gap      #
   # between the ADOPTED sweep mechanics (MODEL_SWEEP §4.1 "open legs pin by HF commit hash")      #
@@ -307,7 +310,7 @@ model_suite:
       echo_account: "responsiveness DECREASING in capability (weaker models surface-echo fed numbers without using them)"
       decision: "read off jointly from the capability regression + both family-pair DiDs + the M2 probe grid; the fingerprint accounts A1-A5 adjudicate as registered"
     sonnet_bridge_prediction: "REGISTERED EX-ANTE: the sonnet-4.6 leg (the prototype's author re-tested under the frozen design) REPLICATES the pilot's responsiveness direction (<= 0). The only leg with prior directional data, hence the only leg-level directional pre-registration made"
-    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument; the cross-family regression is DESCRIPTIVE (n=9 legs carries no meaningful test power) — the pair DiDs are the identified estimates"
+    pair_contrast: "the content-effect x capability interaction, estimated within BOTH family pairs (Qwen 9B/27B open; Haiku/Opus closed) — the controlled capability instrument; the cross-family regression is DESCRIPTIVE (n=10 legs carries no meaningful test power) — the pair DiDs are the identified estimates"
   reliability_metrics: [format_compliance_baseline, sandbox_pass_rate, contract_violation_taxonomy, refusal_truncation_rates, code_diversity, per_model_taxonomy]
   feedback_protocol: "Supervisor and industry feedback received after launch informs presentation and interpretation ONLY; data-collection decisions (rungs, legs, stops) follow the pre-registered exogenous rules exclusively."
   interim_report: {when: floor-bank (~2026-08-06/08), to: [Dr-Okhrati, industry-supervisors], content: floor-tier-results (labeled provisional) + draft mechanism chapter + design record, effect-on-data-collection: none}
@@ -328,9 +331,9 @@ model_suite:
     # (a large permutation p alone is absence-of-evidence; per-leg TOSTs at the 30-seed floor are  #
     # inconclusive by construction — pooling 9 x 30 paired seeds is where the precision lives).    #
     pooled_bound: "the 90% seed-block-bootstrap CI on the pooled mean (dist - scalar) CVaR-5% difference over included legs (resample seed indices i.i.d., the SAME draw applied to every leg — dependence-honest), reported in daily-return units AND as a percentage of the scalar-arm pooled CVaR level; this CI is the registered cross-model bounded-effect statement"
-    leg_tost_family: "the 9-leg report-only TOST family = the per-leg CVaR-5% dist-vs-scalar contrasts (the Sharpe leg is predicted-tie); BH within this family for any starred statement"
+    leg_tost_family: "the 10-leg report-only TOST family (R90) = the per-leg CVaR-5% dist-vs-scalar contrasts (the Sharpe leg is predicted-tie); BH within this family for any starred statement"
     pair_contrast_estimator: "(dist - scalar)_top_rung_member - (dist - scalar)_bottom_member, computed on the COMMON floor-30 CRN seed subset for BOTH family pairs (Qwen 9B/27B; Haiku/Opus — Opus restricted to its first 30 shared seeds for the paired estimator), seed-paired bootstrap CI"
-    leg_family_correction: "BH across the 9-leg report-only TOST family for any starred statement"
+    leg_family_correction: "BH across the 10-leg (R90) report-only TOST family for any starred statement"
   m2_probes:                                     # protocol extensions (report-only, ~$3 total)
     guided_comparison: "identical stimuli + ONE added instruction sentence ('explicitly compare each fed value against the previous attempt's before revising') — separates CANNOT-read from WILL-not-use; with the legible-format probe forms the 2x2 format x instruction grid"
     responsiveness_positive_control: "~20 stimuli whose blocks carry OVERT directive content ('penalize turnover more heavily') where responsiveness MUST fire — proves the SQ1 metric's sensitivity, sealing a responsiveness null against the broken-instrument critique"

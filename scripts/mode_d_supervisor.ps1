@@ -35,12 +35,12 @@ $legArms = @("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shu
 $legPriority = @{
   "deepseek-v4-pro" = -200; "glm-5.2" = -210; "qwen3.6-27b" = -220; "qwen3.5-9b" = -230;
   "haiku-4.5" = -240; "sonnet-4.6" = -250; "gpt-5.6-luna" = -260; "nemotron-3-super" = -270;
-  "gemini-3.5-flash" = -280
+  "sonnet-5" = -280; "gemini-3.5-flash" = -290
 }
 $legTag = @{
   "deepseek-v4-pro" = "leg1"; "glm-5.2" = "leg2"; "qwen3.6-27b" = "leg3"; "qwen3.5-9b" = "leg4";
   "haiku-4.5" = "leg5"; "sonnet-4.6" = "leg6"; "gpt-5.6-luna" = "leg7";
-  "nemotron-3-super" = "leg8"; "gemini-3.5-flash" = "leg9"
+  "nemotron-3-super" = "leg8"; "sonnet-5" = "leg9"; "gemini-3.5-flash" = "leg10"
 }
 
 if ($Line -eq "h3") {
