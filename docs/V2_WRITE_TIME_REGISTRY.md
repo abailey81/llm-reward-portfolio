@@ -77,3 +77,29 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     dimension): one jargon-free paragraph — why ten models, what a "leg" is, what the reader
     should look at (the forest plot + the bound) — placed with the CH6 §6.7 opening; the
     capability-gradient figure caption readable without knowing what fp8 or BH means.
+
+## GRADE-INFLATION rows (2026-07-21 — supervisor-confirmed raised bar; binding; see the memory
+## note: last year's distinction ≈ this year's merit — borderline evidence rounds DOWN)
+19. **SESOI justification paragraph (CH4):** the ±0.05-DSR margin argued from DECISION-RELEVANCE
+    (what effect size would justify building a distributional-feedback pipeline), not asserted —
+    an unjustified SESOI is exactly the borderline item a harsh marker rounds down.
+20. **H4 prominence upgrade:** the guides' own methodology validation (§8) flags that NO
+    literature shows an LLM designer beating matched-compute non-LLM search — "demonstrating (or
+    honestly not) that edge is itself the contribution." Under the raised bar H4 moves from
+    afterthought to a NAMED result with its own paragraph + table row; the Coache–Jaimungal
+    differentiation (guides §5 caveat) becomes an explicit CH2 paragraph.
+21. **The 60%-core ratio re-check post-v2:** the pre-v2 budget was ~51% core (guides §1); v2
+    prose lands appendix-first but CH4/CH6 grow — re-measure Methodology+Results+Discussion ≥60%
+    at surgery and nudge Discussion UP (it was the thinnest at ~700 words).
+22. **The independence narrative:** a short research-journey thread (Feb proposal → disciplined
+    pivot → v1 freeze → industry feedback → documented pre-data v2 revision) told as TAMER'S
+    decisions — under heavy-AI-assistance disclosure this is the auditable evidence of
+    "independence of thought", and the guides sanction the pivot explicitly (§5).
+23. **Publishability made DEMONSTRABLE, not asserted:** cite the public prereg DOI in the PDF,
+    the 4-paper map, and the NatWest interim pack as artifacts; frame vs the 90–100 descriptor
+    ("publishable in a peer-reviewed journal") with TMLR named.
+24. **The any-discipline reader gate (pre-submission):** a genuine non-specialist reads CH1 +
+    the plain-language paragraphs + every figure caption cold; anything they stumble on gets
+    rewritten. Cheap, and directly targets the guidelines' named "single biggest risk" under
+    the harshest-grading year. Front-matter exactness (Moodle cover, exact title wording,
+    Arial ≥10 / 1.5 spacing template SET BEFORE writing) rides with this row.
