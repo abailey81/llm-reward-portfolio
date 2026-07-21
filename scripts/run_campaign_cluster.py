@@ -354,6 +354,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "curve makes pack a latency/throughput dial (pack-2 halves chain latency "
                         "at ~half throughput on ~20%% of the work). Ops-only — identical "
                         "seeds/steps/maths. Recommended: 2. Default None = uniform pack (legacy).")
+    p.add_argument("--search-poll-secs", type=float, default=None, metavar="S",
+                   help="MODE-D chain-lane polling (2026-07-21b): poll SEARCH/BO chain batches at "
+                        "this cadence (recommended 45) while burst arrays keep --poll-secs. Every "
+                        "chain handoff (6 generations x 10 lines; the 30-step BO chain) pays up "
+                        "to --poll-secs of notice latency — ~1h+ on the BO chain alone at 180s. "
+                        "Fast polling runs only while small chain batches are outstanding.")
     p.add_argument("--pipeline-rungs", action="store_true",
                    help="MODE-D: submit ALL C4 assurance blocks at once under a descending "
                         "priority ladder (tier-100 at -100 above the legs; tier-189+ from -300 "
@@ -764,6 +770,7 @@ def main(argv: list[str] | None = None) -> int:
                           if args.seed_pool_blocks else None),
         batch_tag=(args.batch_tag or None),
         search_pack=args.search_pack, search_h_rt=search_h_rt,
+        search_poll_secs=args.search_poll_secs,
     )
     baselines = list(args.baselines) if args.baselines else None
 

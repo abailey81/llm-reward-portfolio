@@ -115,3 +115,33 @@ def test_pipeline_rungs_concurrent_ladder(monkeypatch, tmp_path):
                      "sweep_t3": PRIORITY_RUNG_BASE - 10}
     assert out["results"]["sweep_t1"]["ok"] and out["results"]["sweep_t3"]["n"] == 2
     assert out["ok"] is True
+
+
+def test_search_poll_lane_and_bo_priority_rule(tmp_path):
+    """2026-07-21b: chain batches poll at search_poll_secs; bayes_opt is floor-critical-path -> -p 0."""
+    from src.cluster.campaign import PRIORITY_CORE, _core_priority
+
+    class _PollFake(_Fake):
+        def __init__(self, root):
+            super().__init__(root)
+            self.polls: list[tuple[str, float | None]] = []
+
+        def run_batch(self, specs, name, *, pool="EF", pack=1, priority=0,
+                      h_rt_call=None, poll_call=None):
+            self.polls.append((name, poll_call))
+            return _Fake.run_batch(self, specs, name, pool=pool, pack=pack)
+
+    fake = _PollFake(tmp_path)
+    run = ClusterRun(run_batch=fake.run_batch, spec_archive_root=str(tmp_path),
+                     read_root=tmp_path, pack=5, search_pack=2, search_h_rt="5:0:0",
+                     search_poll_secs=45.0)
+    run_search_arm("distributional", _opts(), run)
+    gen_polls = [pc for name, pc in fake.polls if "_g" in name]
+    assert gen_polls and all(pc == 45.0 for pc in gen_polls)   # the chain lane polls fast
+
+    # The BO hoist: sequential 30-chain rides at PRIORITY_CORE; other non-H2 arms stay -100.
+    h2 = ("distributional", "scalar")
+    assert _core_priority("bayes_opt", h2) == PRIORITY_CORE
+    assert _core_priority("distributional", h2) == PRIORITY_CORE
+    assert _core_priority("random_search", h2) == PRIORITY_STAGE1
+    assert _core_priority("placebo", h2) == PRIORITY_STAGE1

@@ -27,7 +27,10 @@ $lines = @(
 
 $i = 0
 foreach ($line in $lines) {
-    $stagger = $i * 20   # spread the 180s poll phases (login-node kindness)
+    $stagger = if ($line -eq "core") { 0 } else { 3600 + $i * 20 }   # CANARY SHIELD: legs start
+    # ~1h after the core so most path breakage the C0 canary exists to catch surfaces before
+    # any leg authoring is billed (bounded anyway; ~1h is negligible vs the legs' 3-4 days).
+    # The +20s spacing spreads the poll phases (login-node kindness).
     Write-Host ("mode-D: starting supervised line '{0}' (stagger {1}s)" -f $line, $stagger)
     Start-Process powershell -ArgumentList @(
         "-ExecutionPolicy", "Bypass",

@@ -297,11 +297,30 @@ powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1
 # Stop everything: create outputs\campaign_cluster\STOP_CAMPAIGN.
 ```
 
-The core line = the §2 canonical line + `--search-pack 2 --pipeline-rungs`; each leg line = the
-§9(b) line + `--search-pack 2` with its ladder priority (deepseek −200 … gemini −280) — both
-embedded in `scripts/mode_d_supervisor.ps1`, which is the single source of the exact argument
-lists (keep it in lockstep with §2/§9 on any flag change). Monitoring unchanged
+The core line = the §2 canonical line + `--search-pack 2 --search-poll-secs 45 --pipeline-rungs`;
+each leg line = the §9(b) line + `--search-pack 2 --search-poll-secs 45` with its ladder priority
+(deepseek −200 … gemini −280) — both embedded in `scripts/mode_d_supervisor.ps1`, which is the
+single source of the exact argument lists (keep it in lockstep with §2/§9 on any flag change).
+The launcher starts legs ~1h after the core (the CANARY SHIELD: most path breakage the C0 canary
+exists to catch surfaces before any leg authoring is billed). Monitoring unchanged
 (campaign_monitor.sh + sentinel over the shared mirror; per-line batch prefixes separate rows).
 **P17 note (accepted trade, documented):** with pipelined rungs a block failure no longer halts
 later blocks' already-queued work — exposure is bounded GPU-hours (priorities keep later blocks
 behind), and BANKING is unaffected: a rung banks only when it and every rung below are complete.
+
+**(2026-07-21b additions — the training-speed pass):**
+- **The floor's TRUE critical path is the bayes_opt chain** (30 inherently-sequential GP
+  proposals ≈ 30 × [1.1h training + queue-wait + poll-notice]): the honest floor-bank estimate
+  is **~L+1.7–2**, not the throughput-only L+1.3. Two fixes shave it: `bayes_opt` is HOISTED to
+  `-p 0` (`_core_priority` — an array-of-1 every ~70 min costs nothing; at −100 every one of its
+  30 steps could queue behind H2 waves, ×30), and `--search-poll-secs 45` cuts up to 180s of
+  driver-notice latency per chain step (~1h+ on the BO chain alone; search-generation handoffs
+  likewise). Fast polling runs ONLY while small chain batches are outstanding.
+- **Launch-day pool-stripe tune:** an A100 (L) slot is worth ~1.7–2.2× a V100 (EF) slot. The
+  seed-pool stripe ratio is a FREE pre-launch choice (device homogeneity per CRN seed is what
+  matters, not the ratio): at GO, check `qstat -g c` for both pools' load and, if L has headroom,
+  shift the stripe toward L before launching. Fixed once, pre-launch — never mid-flight.
+- **Evaluated and REJECTED (keep them dead):** `torch.compile` on the cluster — the pack curve
+  (1→102 / 5→253 agg steps/s) proves trainings are NOT GPU-bound (the Python env loop dominates),
+  so compile buys ~nothing and costs re-certification; **pre-gate baseline flooding** — the only
+  window it could fill (L+0→gate) is already saturated by the 9 leg lines' ~225 search tasks.

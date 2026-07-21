@@ -51,7 +51,7 @@ if ($Line -eq "core") {
                 "random_search", "bayes_opt",
       "--baselines", "raw_return", "return_minus_variance", "return_minus_cvar", "differential_sharpe",
       "--pass-mode", "B", "--llm-from", "campaign",
-      "--pack", "5", "--search-pack", "2", "--pipeline-rungs",
+      "--pack", "5", "--search-pack", "2", "--search-poll-secs", "45", "--pipeline-rungs",
       "--cores-per-training", "1", "--pool", "EF",
       "--seed-pool-blocks", "EF:0-14,L:15-29,EF:30-64,L:65-99,EF:100-143,L:144-188,EF:189-233,L:234-278,EF:279-308,L:309-339,EF:340-370,L:371-402,EF:403-484,L:485-567",
       "--batch-tag", "c1", "--poll-secs", "180", "--chunk-tasks", "1",
@@ -63,7 +63,7 @@ if ($Line -eq "core") {
       "--arms") + $legArms + @(
       "--seeds", "0-29", "--pass-mode", "B",
       "--priority", [string]$legPriority[$Line],
-      "--pack", "5", "--search-pack", "2",
+      "--pack", "5", "--search-pack", "2", "--search-poll-secs", "45",
       "--cores-per-training", "1", "--pool", "EF",
       "--seed-pool-blocks", "EF:0-14,L:15-29",
       "--batch-tag", $legTag[$Line], "--poll-secs", "180", "--chunk-tasks", "1",

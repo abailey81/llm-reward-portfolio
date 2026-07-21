@@ -107,6 +107,12 @@ class ClusterRun:
     # = uniform pack, byte-identical to the certified path.
     search_pack: int | None = None
     search_h_rt: str | None = None
+    # MODE-D chain-lane polling (2026-07-21b): every chain handoff (6 search generations x 10
+    # lines; the 30-step BO chain) pays up to poll_secs of driver-notice latency before the next
+    # authoring/proposal can start — ~45-75 min on the BO chain alone at 180s. Chain batches poll
+    # at this faster cadence; burst arrays keep the run-level poll (login-node kindness: fast
+    # polling only while small chain batches are outstanding). None = legacy.
+    search_poll_secs: float | None = None
 
     # C5 (P4 closed 2026-07-13): the H3 single-shot control runs through a ``dataclasses.replace``d
     # ClusterRun whose subdirs are the ``*_h3_singleshot`` names — the headline and H3 archives are
@@ -158,6 +164,7 @@ def build_cluster_run(
     batch_tag: str | None = None,
     search_pack: int | None = None,
     search_h_rt: str | None = None,
+    search_poll_secs: float | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -232,7 +239,8 @@ def build_cluster_run(
         tmp.replace(dst)  # atomic same-dir rename
 
     def run_batch(specs: list[dict], name: str, *, pool: str = "EF", pack: int = pack,
-                  priority: int = 0, h_rt_call: str | None = None) -> dict:
+                  priority: int = 0, h_rt_call: str | None = None,
+                  poll_call: float | None = None) -> dict:
         # batch_tag (2026-07-11d, BUG FIX): the driver's double-submit guard matches queued jobs by
         # NAME across the user's WHOLE queue, so two concurrent runs sharing arm names (e.g. a
         # rehearsal's `distributional_g0` and the prototype's) COLLIDE — the later run silently
@@ -271,7 +279,7 @@ def build_cluster_run(
             remote_root=remote_root, remote_outputs_root=remote_outputs_root, gold_dir=gold_dir,
             host=host, runner=runner, pull=shared_pull, pack=pack, chunk_tasks=chunk_tasks,
             max_consecutive_errors=max_consecutive_errors,
-            poll_secs=poll_secs, pool=pool,
+            poll_secs=(poll_call if poll_call is not None else poll_secs), pool=pool,
             priority=priority, heartbeat=emit_heartbeat, **_jk,
         )
 
@@ -285,6 +293,7 @@ def build_cluster_run(
         pool_report_only=pool_report_only, pack=pack, author_lock=author_lock,
         author_guard=author_guard, seed_pool_blocks=seed_pool_blocks, pull=shared_pull,
         search_pack=search_pack, search_h_rt=search_h_rt,
+        search_poll_secs=search_poll_secs,
     )
 
 
@@ -650,6 +659,8 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
             _skw: dict[str, Any] = {}
             if run.search_h_rt:
                 _skw["h_rt_call"] = run.search_h_rt
+            if run.search_poll_secs:
+                _skw["poll_call"] = run.search_poll_secs
             run.run_batch(specs, f"{arm}_g{gen}", pool=run.pool_confirmatory,
                           pack=(run.search_pack or run.pack), priority=priority, **_skw)
 
@@ -795,6 +806,8 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
         _bkw: dict[str, Any] = {}
         if run.search_h_rt:
             _bkw["h_rt_call"] = run.search_h_rt
+        if run.search_poll_secs:
+            _bkw["poll_call"] = run.search_poll_secs   # 30 chain steps x up to 180s notice = ~1h+
         run.run_batch(_family_specs(cid, "coeffs", list(coeffs)), f"{arm}_c{i}",
                       pool=run.pool_confirmatory, pack=(run.pack if k_seeds > 1 else 1),
                       priority=priority, **_bkw)
@@ -1171,6 +1184,19 @@ PRIORITY_STAGE1 = -100
 PRIORITY_RUNG_BASE = -300
 
 
+def _core_priority(arm: str, h2_arms: tuple[str, ...] | list[str]) -> int:
+    """The C1-C3 per-arm -p value (MODE-D critical-path fix, 2026-07-21b).
+
+    H2 arms ride at PRIORITY_CORE as before. ``bayes_opt`` is HOISTED to PRIORITY_CORE too: its
+    30 GP proposals are inherently sequential (one training per proposal), making it the FLOOR
+    BANK's longest chain (~30 x 1.1h + every queue wait, x30) — at -100 each chain step could
+    queue behind H2 search waves and tier-100 work, multiplying the wait by 30. An array-of-1
+    every ~70 min at -p 0 costs the machine nothing and the chain never waits. Everything else
+    stays PRIORITY_STAGE1.
+    """
+    return PRIORITY_CORE if (arm in h2_arms or arm == "bayes_opt") else PRIORITY_STAGE1
+
+
 def run_campaign_tiered(
     arms: list[str],
     opts_for: Callable[[str], dict],
@@ -1259,7 +1285,7 @@ def run_campaign_tiered(
     core_results: dict[str, dict[str, Any]] = {}
 
     def _arm_core(arm: str) -> dict[str, Any]:
-        prio = PRIORITY_CORE if arm in h2_arms else PRIORITY_STAGE1
+        prio = _core_priority(arm, h2_arms)
         opts = opts_for(arm)
         if arm in _FAMILY_ARMS:
             search = run_family_search_arm(arm, opts, run, resume=resume, priority=prio)
