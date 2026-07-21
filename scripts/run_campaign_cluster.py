@@ -347,6 +347,20 @@ def build_parser() -> argparse.ArgumentParser:
                    help="CPU cores requested per packed training (total job cores = this × --pack). "
                         "Default (None) keeps the jobscript's 4×pack. Myriad GPU-node CORES are the "
                         "binding scheduling constraint, so lowering this (e.g. 2) makes packed jobs place.")
+    p.add_argument("--search-pack", type=int, default=None, metavar="P",
+                   help="MODE-D phase-adaptive packing (2026-07-21): run SEARCH waves (the 6-deep "
+                        "reflection critical path) at this pack with a matching auto-sized tight "
+                        "walltime, while winner/rung bursts keep --pack's throughput. The measured "
+                        "curve makes pack a latency/throughput dial (pack-2 halves chain latency "
+                        "at ~half throughput on ~20%% of the work). Ops-only — identical "
+                        "seeds/steps/maths. Recommended: 2. Default None = uniform pack (legacy).")
+    p.add_argument("--pipeline-rungs", action="store_true",
+                   help="MODE-D: submit ALL C4 assurance blocks at once under a descending "
+                        "priority ladder (tier-100 at -100 above the legs; tier-189+ from -300 "
+                        "below them = the registered unified queue enforced natively) instead of "
+                        "draining each block before submitting the next. Rungs still COMPLETE in "
+                        "order; a rung only BANKS when it and all below are clean (cumulative "
+                        "tiers). Removes every inter-block drain bubble.")
     p.add_argument("--chunk-tasks", type=int, default=None, metavar="K",
                    help="Split every submission round into MANY SMALL ARRAYS of K tasks each "
                         "(2026-07-13 max-throughput lever): the scheduler's serialization policy "
@@ -659,6 +673,17 @@ def main(argv: list[str] | None = None) -> int:
             _tiers = _st(_load_config("campaign").get("seeds"))  # fail-loud on a bad schema
             _LOG.info("dry-run: tiered seeds schema OK — %d tiers, sizes %s",
                       len(_tiers), [len(t) for t in _tiers])
+        if args.search_pack is not None:
+            # MODE-D lane validation belongs in the keyless pre-flight too: size the search
+            # walltime here so a bad --search-pack/B* combination fails OFFLINE, not at launch.
+            _dr_steps = int(args.train_steps
+                            or _cfg_get(_load_config("campaign"), "train_steps_per_candidate", 0)
+                            or 0)
+            if not _dr_steps:
+                raise SystemExit("--search-pack: B* unresolved — refusing to size the search lane")
+            _LOG.info("dry-run: MODE-D search lane OK — pack=%d h_rt=%s (bursts pack=%d)%s",
+                      args.search_pack, autosize_h_rt(int(args.search_pack), _dr_steps),
+                      args.pack, "; pipelined rungs ON" if args.pipeline_rungs else "")
         stub = "/home/USER"
         return _dry_run(inputs, list(args.arms),
                         remote_root=expand_remote(args.remote_root, stub),
@@ -709,6 +734,20 @@ def main(argv: list[str] | None = None) -> int:
         _LOG.info("walltime DEFAULTED: h_rt=%s (steps=%d, pack=%d); override with --h-rt",
                   args.h_rt, steps, args.pack)
 
+    # MODE-D phase-adaptive packing (2026-07-21): search waves (the 6-deep reflection critical
+    # path) run at --search-pack with a MATCHING auto-sized tight walltime — short low-pack
+    # requests are prime backfill and roughly halve every chain's latency; burst work keeps
+    # --pack's throughput. Ops-only: identical seeds/steps/maths.
+    search_h_rt = None
+    if args.search_pack is not None:
+        _sp_steps = int(args.train_steps
+                        or _cfg_get(_load_config("campaign"), "train_steps_per_candidate", 0) or 0)
+        if not _sp_steps:
+            raise SystemExit("--search-pack: B* unresolved — refusing to size the search walltime")
+        search_h_rt = autosize_h_rt(int(args.search_pack), _sp_steps)
+        _LOG.info("MODE-D search lane: pack=%d h_rt=%s (bursts stay pack=%d h_rt=%s)",
+                  args.search_pack, search_h_rt, args.pack, args.h_rt)
+
     remote_root = args.remote_root.rstrip("/")
     # local_archive_root == output_dir so the pulled mirror is output_dir/{search,test,frozen}/... —
     # EXACTLY the laptop campaign's layout, so analyze_campaign reads the cluster archive identically
@@ -724,6 +763,7 @@ def main(argv: list[str] | None = None) -> int:
         seed_pool_blocks=(parse_seed_pool_blocks(args.seed_pool_blocks)
                           if args.seed_pool_blocks else None),
         batch_tag=(args.batch_tag or None),
+        search_pack=args.search_pack, search_h_rt=search_h_rt,
     )
     baselines = list(args.baselines) if args.baselines else None
 
@@ -781,7 +821,7 @@ def main(argv: list[str] | None = None) -> int:
             test_leg_kwargs=inputs["test_leg_kwargs"], frozen_root=inputs["frozen_root"],
             baseline_names=baselines, canary_baselines=(canary or None),
             review_gate=not args.no_review_gate, hold_at_gate=bool(args.hold_at_gate),
-            resume=bool(args.resume),
+            resume=bool(args.resume), pipeline_rungs=bool(args.pipeline_rungs),
         )
         if out.get("awaiting_review"):
             reason = out.get("gate", "review")

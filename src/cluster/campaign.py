@@ -97,6 +97,16 @@ class ClusterRun:
     # ``[("EF", {0..283}), ("L", {284..567})]``; None (default) = single-pool, byte-identical to
     # the certified path. Seeds in no block fall back to the call's pool (fail-safe, never dropped).
     seed_pool_blocks: list[tuple[str, set[int]]] | None = None
+    # MODE-D phase-adaptive packing (2026-07-21, ops-only — no registered quantity changes): the
+    # measured aggregate curve {1:102, 2:133, 5:253 steps/s} makes pack a LATENCY/THROUGHPUT dial —
+    # pack-5 maximizes trainings/GPU-hour but stretches each training's wall time ~2.5x. The
+    # 6-generation reflection chains are LATENCY-critical (each generation's authoring waits on the
+    # previous wave), so search waves run at ``search_pack`` (typically 2) with a matching tight
+    # ``search_h_rt`` (short requests backfill into idle windows pack-5's cannot use), while the
+    # embarrassingly-parallel winner/rung bursts keep the run-level throughput pack. None (default)
+    # = uniform pack, byte-identical to the certified path.
+    search_pack: int | None = None
+    search_h_rt: str | None = None
 
     # C5 (P4 closed 2026-07-13): the H3 single-shot control runs through a ``dataclasses.replace``d
     # ClusterRun whose subdirs are the ``*_h3_singleshot`` names — the headline and H3 archives are
@@ -146,6 +156,8 @@ def build_cluster_run(
     h_rt: str | None = None,
     seed_pool_blocks: list[tuple[str, set[int]]] | None = None,
     batch_tag: str | None = None,
+    search_pack: int | None = None,
+    search_h_rt: str | None = None,
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -220,7 +232,7 @@ def build_cluster_run(
         tmp.replace(dst)  # atomic same-dir rename
 
     def run_batch(specs: list[dict], name: str, *, pool: str = "EF", pack: int = pack,
-                  priority: int = 0) -> dict:
+                  priority: int = 0, h_rt_call: str | None = None) -> dict:
         # batch_tag (2026-07-11d, BUG FIX): the driver's double-submit guard matches queued jobs by
         # NAME across the user's WHOLE queue, so two concurrent runs sharing arm names (e.g. a
         # rehearsal's `distributional_g0` and the prototype's) COLLIDE — the later run silently
@@ -247,7 +259,11 @@ def build_cluster_run(
             _jk["apptainer_sif"] = apptainer_sif
         if cores_per_training:
             _jk["cores"] = int(cores_per_training) * int(pack)
-        if h_rt:
+        # MODE-D: a per-call h_rt (search waves at a lower pack need a TIGHTER walltime than the
+        # run-level pack-5 sizing — short requests are prime backfill) overrides the run-level one.
+        if h_rt_call:
+            _jk["h_rt"] = str(h_rt_call)
+        elif h_rt:
             _jk["h_rt"] = str(h_rt)
         return driver.run_batch(
             specs, name,
@@ -268,6 +284,7 @@ def build_cluster_run(
         read_root=Path(local_archive_root), pool_confirmatory=pool_confirmatory,
         pool_report_only=pool_report_only, pack=pack, author_lock=author_lock,
         author_guard=author_guard, seed_pool_blocks=seed_pool_blocks, pull=shared_pull,
+        search_pack=search_pack, search_h_rt=search_h_rt,
     )
 
 
@@ -627,8 +644,14 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                     if k_seeds > 1:
                         s["emit_train_returns"] = True  # the k-seed FED tail is TRAIN-window (B-A2)
                     specs.append(s)
-            run.run_batch(specs, f"{arm}_g{gen}", pool=run.pool_confirmatory, pack=run.pack,
-                          priority=priority)
+            # MODE-D phase-adaptive packing: the generation wave is on the 6-deep reflection
+            # CRITICAL PATH — run it at the latency pack (with its matching tight h_rt) when
+            # configured; None keeps the certified uniform-pack path byte-identical.
+            _skw: dict[str, Any] = {}
+            if run.search_h_rt:
+                _skw["h_rt_call"] = run.search_h_rt
+            run.run_batch(specs, f"{arm}_g{gen}", pool=run.pool_confirmatory,
+                          pack=(run.search_pack or run.pack), priority=priority, **_skw)
 
         # Collect in candidate order (parity); aggregate each candidate's k seeds; ledger failures (F5).
         fresh_by_cid = {cid: (src, prompt) for (cid, src, prompt) in fresh}
@@ -766,9 +789,15 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
             if r is not None:
                 state["accepted"].append(r)
                 return float(r["fitness"])
+        # MODE-D: the BO chain (30 sequential GP proposals) is the campaign's LONGEST serial path —
+        # already pack-1 per proposal; give it the tight search h_rt when configured (a 1.1h
+        # training under a 6-7h pack-5 walltime request is a poor backfill candidate).
+        _bkw: dict[str, Any] = {}
+        if run.search_h_rt:
+            _bkw["h_rt_call"] = run.search_h_rt
         run.run_batch(_family_specs(cid, "coeffs", list(coeffs)), f"{arm}_c{i}",
                       pool=run.pool_confirmatory, pack=(run.pack if k_seeds > 1 else 1),
-                      priority=priority)
+                      priority=priority, **_bkw)
         r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
         if r is None:
             state["failed"] += 1
@@ -1135,6 +1164,11 @@ def run_campaign_on_cluster(
 #: run at -200 and the Stage-2 fleet at -500 via their own entry invocations).
 PRIORITY_CORE = 0
 PRIORITY_STAGE1 = -100
+#: MODE-D rung ladder base (2026-07-21): pipelined C4 blocks 2+ (tier-189 and above) sit BELOW the
+#: replication legs (-200..-280) so the scheduler enforces the REGISTERED unified queue (core
+#: search/floor/tier-100 -> legs -> tier-189+) natively; block 1 (tier-100) keeps PRIORITY_STAGE1
+#: (-100, above the legs, per the registered queue's early-sigma-recalibration hoist).
+PRIORITY_RUNG_BASE = -300
 
 
 def run_campaign_tiered(
@@ -1151,6 +1185,7 @@ def run_campaign_tiered(
     review_gate: bool = True,
     hold_at_gate: bool = False,
     resume: bool = False,
+    pipeline_rungs: bool = False,
 ) -> dict[str, Any]:
     """The Stage-1 **C-ladder** (PLAN §13.1) — the value-per-hour greedy checkpoint order, with the
     §14.3 priority ladder enforcing it IN the scheduler and Tamer's effect-blind review gate at the
@@ -1339,21 +1374,51 @@ def run_campaign_tiered(
         from run_campaign import _baseline_winner_record  # type: ignore[import-not-found]
 
         sweep_units += [(f"baseline_{nm}", _baseline_winner_record(nm)) for nm in baseline_names]
-    for i, tier in enumerate(tiers[1:], start=1):
-        _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin)", i, len(sweep_units),
-                  len(tier))
-        r = run_test_leg(
-            sweep_units, tier, run, name=f"sweep_t{i}", priority=PRIORITY_CORE, interleave=True,
-            resume=resume, **test_leg_kwargs,
-        )
-        out["results"][f"sweep_t{i}"] = r
-        if not r.get("ok", True):
-            # P17/A3-F10 (2026-07-13 audit): a failed assurance block STOPS the ladder — the old
-            # loop marched on to the next block, spending GPU-days ON TOP of a broken level
-            # (every block boundary must be a clean, complete design). Resume continues here.
-            _LOG.error("[C4] sweep block %d INCOMPLETE — stopping the ladder (fix + resume; "
-                       "later blocks are not run on top of a broken assurance level)", i)
-            break
+    if pipeline_rungs:
+        # MODE-D (2026-07-21): submit ALL assurance blocks AT ONCE under a descending priority
+        # ladder instead of draining each block before submitting the next. The scheduler then
+        # (a) keeps the eligible backlog deep at every instant (idle-window harvesting — the
+        # sequential path forfeits capacity during every block's drain), and (b) still COMPLETES
+        # blocks in rung order (block 1 = tier-100 at -100 above the legs; blocks 2+ descend from
+        # PRIORITY_RUNG_BASE below the legs — the registered unified queue, enforced natively).
+        # P17 semantics are PRESERVED where they bind: a rung only BANKS when it and every rung
+        # below it are complete (the cumulative-tier definition), so a broken lower level can
+        # never carry results; the exposure is bounded GPU-hours of above-a-broken-level work,
+        # traded deliberately for zero drain bubbles (documented in the runbook §10).
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+
+        def _block(i: int, tier: list[int]) -> tuple[int, dict[str, Any]]:
+            prio = PRIORITY_STAGE1 if i == 1 else PRIORITY_RUNG_BASE - 10 * (i - 2)
+            _LOG.info("[C4|pipelined] block %d: %d units x %d seeds at -p %d",
+                      i, len(sweep_units), len(tier), prio)
+            return i, run_test_leg(
+                sweep_units, tier, run, name=f"sweep_t{i}", priority=prio, interleave=True,
+                resume=resume, **test_leg_kwargs,
+            )
+
+        with _TPE(max_workers=max(1, len(tiers) - 1), thread_name_prefix="rung") as ex:
+            for i, r in ex.map(lambda it: _block(*it), list(enumerate(tiers[1:], start=1))):
+                out["results"][f"sweep_t{i}"] = r
+                if not r.get("ok", True):
+                    _LOG.error("[C4|pipelined] block %d INCOMPLETE — the ladder BANKS only up to "
+                               "the last clean level (fix + resume completes it); higher-block "
+                               "work already run above this level is reported, never banked", i)
+    else:
+        for i, tier in enumerate(tiers[1:], start=1):
+            _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin)", i,
+                      len(sweep_units), len(tier))
+            r = run_test_leg(
+                sweep_units, tier, run, name=f"sweep_t{i}", priority=PRIORITY_CORE,
+                interleave=True, resume=resume, **test_leg_kwargs,
+            )
+            out["results"][f"sweep_t{i}"] = r
+            if not r.get("ok", True):
+                # P17/A3-F10 (2026-07-13 audit): a failed assurance block STOPS the ladder — the
+                # old loop marched on to the next block, spending GPU-days ON TOP of a broken
+                # level (every block boundary must be a clean, complete design). Resume continues.
+                _LOG.error("[C4] sweep block %d INCOMPLETE — stopping the ladder (fix + resume; "
+                           "later blocks are not run on top of a broken assurance level)", i)
+                break
     out["ok"] = core_ok and all(
         out["results"].get(f"sweep_t{i}", {}).get("ok", True) for i in range(1, len(tiers))
     )

@@ -269,6 +269,7 @@ model_suite:
     - {label: nemotron-3-super, id: nvidia/nemotron-3-super-120b-a12b, license: NVIDIA-Open-Model-License, note: major portions of training data released (some gated) — phrase exactly}
     - {label: gemini-3.5-flash, id: google/gemini-3.5-flash, license: closed, output_cap_tokens: 2048, role: SEAT-10-STRETCH-first-to-truncate, note: reasoning-at-provider-default-DISCLOSED (R85 — the prior "default-budget" pin used an undocumented OpenRouter reasoning key, a silent-ignore/fictional-pin risk; the smoke archives reasoning-token usage as the record of what was actually served)}
   queue_order: [deepseek-v4-pro, glm-5.2, qwen3.6-27b, qwen3.5-9b, haiku-4.5, sonnet-4.6, gpt-5.6-luna, nemotron-3-super, gemini-3.5-flash]
+  queue_semantics: "R88 (2026-07-21): the queue order is realized as a SCHEDULER PRIORITY LADDER (core search/floor/tier-100 above the legs; legs -200..-280 in queue order; tier-189+ below the legs) — execution may OVERLAP across legs and rungs, but COMPLETION and calendar-gate TRUNCATION order follow the ladder, i.e. exactly the pre-declared queue. Ops-only: no seed, arm, budget, or stopping rule changes"
   # R85 (2026-07-21): reproducibility-permanence pins + decoding-uniformity (closing the gap      #
   # between the ADOPTED sweep mechanics (MODEL_SWEEP §4.1 "open legs pin by HF commit hash")      #
   # and the executed config, which carried provider/quant pins but NO weights hashes).            #

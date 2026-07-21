@@ -276,3 +276,32 @@ pre-freeze — still calendar-fixed and exogenous; never moved after launch. Als
 `hf_pin` placeholders (5 open legs) from the official HF cards — `freeze.py` refuses while any
 remain — and run the R84 anchor-value retrieval (SWE-bench-Verified per the registered rule,
 sources archived).
+
+## 10. MODE D — MAXIMUM-PARALLEL LAUNCH (R88; supersedes §9(b)'s one-leg-at-a-time operation)
+
+> **The global-minimum configuration** (2026-07-21 analysis): every driver line starts at L+0;
+> the SGE priority ladder enforces the REGISTERED queue natively (core search/floor/tier-100 →
+> legs −200…−280 in queue order → tier-189+ blocks from −300); search waves run the pack-2
+> LATENCY lane (the 6-generation reflection chains are the critical path — pack-2 ≈ halves
+> their wall time; tight auto-sized walltimes make them prime backfill); winner/rung bursts
+> keep pack-5 THROUGHPUT; C4 rungs are pipelined (no drain bubbles). All ops-only (R88):
+> identical seeds, steps, budgets, stopping rules. Expected vs §2+§9 serial operation:
+> **all 9 legs ~L+3–4 (was L+8.8), tier-403 ~L+12–14 (was L+16.5), mechanism ~L+0.3**.
+
+**The ONE command (after the v2 freeze, on Tamer's LAUNCH word):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1
+# Spawns 10 supervised lines (core + 9 legs), each self-healing (relaunch-on-death), each with
+# its own log: outputs\campaign_cluster\supervisor_<line>.log. Poll phases staggered 20s apart.
+# Stop everything: create outputs\campaign_cluster\STOP_CAMPAIGN.
+```
+
+The core line = the §2 canonical line + `--search-pack 2 --pipeline-rungs`; each leg line = the
+§9(b) line + `--search-pack 2` with its ladder priority (deepseek −200 … gemini −280) — both
+embedded in `scripts/mode_d_supervisor.ps1`, which is the single source of the exact argument
+lists (keep it in lockstep with §2/§9 on any flag change). Monitoring unchanged
+(campaign_monitor.sh + sentinel over the shared mirror; per-line batch prefixes separate rows).
+**P17 note (accepted trade, documented):** with pipelined rungs a block failure no longer halts
+later blocks' already-queued work — exposure is bounded GPU-hours (priorities keep later blocks
+behind), and BANKING is unaffected: a rung banks only when it and every rung below are complete.
