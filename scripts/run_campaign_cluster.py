@@ -851,10 +851,17 @@ def main(argv: list[str] | None = None) -> int:
     for arm, r in results.items():
         _LOG.info("[%s] ok=%s %s", arm, r.get("ok"),
                   {k: v for k, v in r.items() if k not in ("search", "test")})
+    # MODE-D audit catch (2026-07-21): a --root-suffix invocation (every LEG line; the C6 dose
+    # class) sharing --output-dir would CLOBBER the headline campaign_summary.json — the exact
+    # hazard the H3 path already guards against for itself (its own comment warns it). Namespace
+    # the summary per suffix, exactly like the archive roots.
+    _summary_name = (f"campaign_summary_{args.root_suffix}.json" if args.root_suffix
+                     else "campaign_summary.json")
     _write_campaign_summary(args.output_dir, inputs, freeze_stamp=freeze_stamp, extra={
         "tiered": False, "all_arms_tested": ok, "exit_code": 0 if ok else 1,
         "arms": {arm: bool(r.get("ok")) for arm, r in results.items()},
-    })
+        **({"root_suffix": args.root_suffix} if args.root_suffix else {}),
+    }, filename=_summary_name)
     print(f"[campaign] {'ALL OK' if ok else 'INCOMPLETE'} — "
           f"{sum(1 for r in results.values() if r.get('ok'))}/{len(results)} arms")
     return 0 if ok else 1

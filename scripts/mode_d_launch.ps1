@@ -1,14 +1,14 @@
-# MODE-D LAUNCHER (2026-07-21) — the maximum-parallel campaign: ten supervised driver lines at
+# MODE-D LAUNCHER (2026-07-21) - the maximum-parallel campaign: ten supervised driver lines at
 # once (the Opus core + all 9 replication legs), each in its own window with its own log.
 #
-# WHAT MODE D IS (runbook §10): every line submits from L+0; the SGE priority ladder — core
+# WHAT MODE D IS (runbook s.10): every line submits from L+0; the SGE priority ladder - core
 # search/floor/tier-100 highest, legs -200..-280 in the registered queue order, tier-189+ blocks
-# from -300 — makes the scheduler enforce the registered unified queue natively, so completion
+# from -300 - makes the scheduler enforce the registered unified queue natively, so completion
 # and truncation order are EXACTLY the pre-declared ones while the eligible backlog stays deep
 # enough to harvest every idle window. Search waves run pack-2 (latency lane); bursts pack-5
 # (throughput lane); C4 rungs are pipelined. All ops-only: no registered quantity changes (R88).
 #
-# USAGE (after the v2 FREEZE + on Tamer's explicit LAUNCH word — never before):
+# USAGE (after the v2 FREEZE + on Tamer's explicit LAUNCH word - never before):
 #   powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1
 # Stop everything: create outputs\campaign_cluster\STOP_CAMPAIGN (all lines check it).
 # Monitoring: bash scripts/campaign_monitor.sh + the sentinel watch the shared mirror as usual;

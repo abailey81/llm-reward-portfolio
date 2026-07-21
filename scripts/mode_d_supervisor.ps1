@@ -1,9 +1,9 @@
-# MODE-D LINE SUPERVISOR (2026-07-21) — one self-healing driver line (core OR one leg).
+# MODE-D LINE SUPERVISOR (2026-07-21) - one self-healing driver line (core OR one leg).
 #
 # The mode-D campaign runs TEN driver lines concurrently (the Opus core + 9 replication legs;
-# see docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md §10). Each line gets its own supervisor instance
+# see docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md s.10). Each line gets its own supervisor instance
 # (this script) with the same self-healing contract as campaign_supervisor.ps1: relaunch on any
-# nonzero exit (the driver is idempotent — archive-truth resume, P12 lock auto-break, no
+# nonzero exit (the driver is idempotent - archive-truth resume, P12 lock auto-break, no
 # authoring re-billed); running arrays on Myriad are never affected by a laptop-side death.
 #
 # USAGE (normally via mode_d_launch.ps1, which spawns all ten):
@@ -44,8 +44,8 @@ $legTag = @{
 }
 
 if ($Line -eq "core") {
-    # THE CORE LINE — the §2 canonical line + the mode-D levers (search lane pack-2, pipelined rungs).
-    $args = @(
+    # THE CORE LINE - the s.2 canonical line + the mode-D levers (search lane pack-2, pipelined rungs).
+    $driverArgs = @(
       "scripts/run_campaign_cluster.py", "--tiered",
       "--arms", "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled",
                 "random_search", "bayes_opt",
@@ -58,7 +58,7 @@ if ($Line -eq "core") {
       "--output-dir", $outDir, "--resume"
     )
 } elseif ($legPriority.ContainsKey($Line)) {
-    $args = @(
+    $driverArgs = @(
       "scripts/run_campaign_cluster.py", "--leg", $Line,
       "--arms") + $legArms + @(
       "--seeds", "0-29", "--pass-mode", "B",
@@ -70,7 +70,7 @@ if ($Line -eq "core") {
       "--output-dir", $outDir, "--resume"
     )
 } else {
-    Write-Host ("unknown line '{0}' — use 'core' or a leg label from config/legs.yaml" -f $Line)
+    Write-Host ("unknown line '{0}' - use 'core' or a leg label from config/legs.yaml" -f $Line)
     exit 2
 }
 
@@ -81,7 +81,7 @@ function Log([string]$msg) {
 }
 
 if ($StaggerSecs -gt 0) {
-    # Poll staggering: ten lines polling qstat/rsync in lockstep would burst the login node —
+    # Poll staggering: ten lines polling qstat/rsync in lockstep would burst the login node -
     # offset each line's start so the 180s poll phases spread out.
     Log ("staggering start by {0}s" -f $StaggerSecs)
     Start-Sleep -Seconds $StaggerSecs
@@ -91,14 +91,14 @@ $attempt = 0
 $maxAttempts = 1000
 $backoffSecs = 600
 
-Log ("line supervisor started: {0}" -f ($args -join " "))
+Log ("line supervisor started: {0}" -f ($driverArgs -join " "))
 while ($attempt -lt $maxAttempts) {
     if (Test-Path $stopFile) { Log "STOP_CAMPAIGN present - deliberate stop."; break }
     $attempt += 1
     Log ("attempt {0}: launching the driver" -f $attempt)
     $rc = -1
     try {
-        & $py @args
+        & $py @driverArgs
         if ($null -ne $LASTEXITCODE) { $rc = $LASTEXITCODE }
     } catch {
         Log ("driver INVOCATION failed before start: {0}" -f $_.Exception.Message)

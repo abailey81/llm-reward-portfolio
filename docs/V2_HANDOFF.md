@@ -51,7 +51,7 @@ equivalence backdrop.
 | Leg 6 | Sonnet 4.6 | `claude-sonnet-4-6` | closed ladder mid + **the PILOT BRIDGE** (prototype author, re-tested under the frozen design) |
 | Leg 7 | GPT-5.6 Luna | `openai/gpt-5.6-luna` | cross-vendor closed; effort=low, max_tokens=2048 (bounds hidden-reasoning cost) |
 | Leg 8 | Nemotron 3 Super | `nvidia/nemotron-3-super-120b-a12b` | NVIDIA OML (NOT Apache; "major portions of data" — phrase exactly); US-lab + data transparency |
-| Leg 9 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | **seat-10 STRETCH, first-to-truncate**; budget=default, max_tokens=2048 |
+| Leg 9 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | **seat-10 STRETCH, first-to-truncate**; reasoning at provider default DISCLOSED (R85 — the old "budget=default" pin used an undocumented key), max_tokens=2048 |
 
 Queue order (pre-declared, exogenous truncation from the BACK):
 `DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Sonnet → Luna → Nemotron → Gemini`.
@@ -72,7 +72,7 @@ full 403 ladder ≈ ~Aug 13–14 @C12.
 GPU is the Myriad allocation (free). Pre-launch gates alone ≈ $1–2. Tamer only needs ~$5 on
 OpenRouter to run this week's gates; the rest at launch.
 
-## 3. What's BUILT (steps 1–6, all committed + green)
+## 3. What's BUILT (ALL 8 steps + the post-build hardening waves, committed + green)
 
 | Step | Commit | Delivered |
 |---|---|---|
@@ -87,6 +87,10 @@ OpenRouter to run this week's gates; the rest at launch.
 | fix | `5c7f50c` | §14 R83 reconciliation (the "hard-capped/enforced" sentence → advisory wording; gate 21 OK) |
 | 7 | `e968cdd` | CH6 skeleton v2 (§6.7 legs + §6.8 synthesis + rung slots) · the CONCRETE rung-freshness convention (rule 5) + `scripts/check_rung_freshness.py` gate · manifest F12–F15/T6–T7 · the four viz renderers (`cross_leg_forest`/`capability_gradient`/`reliability_heatmap`/`ten_winners_exhibit`) · 15 tests |
 | 8 | `7bf1fa7` | **the leg-launch wiring gap closed** (`--leg <label>` on the cluster driver; `extra_body` pins survive both author sites; the R83 per-call ledger at `LLMClient.complete` incl. the Opus planning-price row) · runbook §9 (leg queue / monitoring / spend) · dry-runs GREEN on real gold (core + deepseek + qwen lines) · 10 tests + regression sweep |
+| brief | `4d233db` | NatWest push-back reframed to the TWO-CREDIBILITIES argument (finding-credibility needs the frontier; reproduction-credibility fully delivered by the pinned open legs + verbatim call archives) |
+| R84–R87 | `e16fad2` | deep-sweep amendments: capability anchor PINNED (SWE-V rule) · T0 floor PINNED (equal_weight, seeds 0–29) + arm-symmetry note · HF weights pins REQUIRED (freeze REFUSES placeholders — `pending_hf_pins`) · temp=1.0 OpenRouter pin · reasoning round-trip evidence in leg_gates · `pooled_bound` (the 90% bounded-effect CI, dependence-honest) · the FALSIFIABLE three-signature gradient table + the ex-ante sonnet-bridge ≤0 · ADR-060 entitlement addendum · registry rows 14–18 · Anthropic top-up ≥$35 |
+| MODE D | `131a8e2` | R88 max-parallel execution: phase-adaptive packing (`--search-pack 2` latency lane, tight h_rt; bursts pack-5) · pipelined C4 rungs (`--pipeline-rungs`, ladder −100/−300… fixing the rungs-starve-legs wiring) · `mode_d_launch.ps1` = ONE command, 10 self-healing lines · runbook §10 · expected: legs ~L+3–4, tier-403 ~L+12–14 |
+| audit | (this commit) | consistency audit: leg/root-suffix `campaign_summary` CLOBBER fixed (namespaced per suffix — the H3-class hazard); both PS1s parse-validated (em-dash/BOM-less-UTF-8 smart-quote breakage + a `$args`-shadow splat bug fixed); citations gate clean; CHANGELOG [2026-07-21c] |
 
 **Two pre-freeze statistical catches (do NOT re-litigate — already fixed + registered):**
 (a) the cross-leg sign test's **independence flaw** (legs share panel + CRN seeds) → the

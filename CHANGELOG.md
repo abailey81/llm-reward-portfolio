@@ -3,6 +3,72 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-21c] — ★★★★ PRE-FREEZE DEEP SWEEP (R84–R88) + MODE-D MAX-PARALLEL + the consistency audit
+
+**Tamer's directives:** deep-analyse the design/structure/feedback for every closable gap ("nothing
+is frozen, anything could be changed"), then "global minimum for the training time" on Myriad
+(everything-on-Myriad; no RC share request), then a full consistency/bug audit. Three commits +
+this audit's fixes; full suite GREEN after each wave.
+
+- **NatWest brief reframe (`4d233db`):** the push-back rewritten to the TWO-CREDIBILITIES argument
+  their actual claim ("cheap models = more credible") deserves — finding-credibility (a null on a
+  cheap author is a capacity artifact; REvolve verbatim + the 15/15 survey) vs
+  reproduction-credibility (conceded and DELIVERED: pinned open legs run the complete experiment
+  ~$1–4 each; verbatim call archives make even the closed leg's analysis chain replay bit-exactly
+  post-retirement); the synthesis turns their suggestion into a measured result on either branch.
+- **DEEP-SWEEP AMENDMENTS R84–R87 (`e16fad2`; every finding evidence-cited):** R84 pins the two
+  registered-name-without-registered-value forking paths (capability anchor → the SWE-bench-Verified
+  discretion-free retrieval rule, missing=excluded-never-imputed, M2-circularity named; T0
+  leg-inclusion floor → equal_weight mean per-seed Sharpe on seeds 0–29 + the arm-symmetry
+  size-preservation argument registered ex-ante). R85 lands the adopted-but-absent permanence
+  mechanics: HF weights pins REQUIRED per open leg (`freeze.py::pending_hf_pins` REFUSES the real
+  freeze while TO-VERIFY placeholders remain; `--check` surfaces "PENDING ×5"), the fp8
+  served-variant disclosure, temperature=1.0 pinned on OpenRouter legs (decoding uniformity — the
+  prior "provider default, recorded" was partially unfulfillable), Gemini's undocumented
+  `budget: default` reasoning key REMOVED (silent-ignore = fictional pin) → provider-default
+  DISCLOSED, and the reasoning-pin ROUND-TRIP evidence (leg_gates archives usage incl. reasoning
+  tokens; `pin_roundtrip` verdict, UNVERIFIED→review). R86 registers the synthesis's missing
+  equivalence tier: `cross_model.pooled_bound` = the 90% seed-block-bootstrap CI on the pooled
+  CVaR diff (dependence-honest — property-tested: k identical legs yield ONE leg's CI), absolute +
+  relative-to-scalar-CVaR; the leg TOST family pinned to the CVaR contrast; the capability
+  regression labeled DESCRIPTIVE with the pair DiDs as the identified estimates. R87 makes the
+  gradient prediction FALSIFIABLE (three ex-ante signatures: capacity=rising /
+  representational=flat-at-zero=THE registered prediction / echo=decreasing — the prior "monotone
+  non-decreasing" was near-unfalsifiable AND named the rival account's signature) + the ex-ante
+  sonnet-bridge direction (≤0, the pilot's). Plus: the ADR-060 OpenRouter entitlement addendum
+  (six derived aggregates only; the account do-not-log toggle), registry rows 14–18 (word-budget
+  APPENDIX-FIRST re-plan vs the 10k cap; REvolve/GEPA/METR verified ABSENT from refs.bib →
+  evidence-grade row; novelty-fence scope + due-at-freeze; 6 limitations rows; the plain-language
+  paragraph), runbook §9(f) Anthropic top-up resized ≥$35 (the $25 was Opus-only; the Haiku+Sonnet
+  legs push the worst case ≈$28–30) + §9(g) freeze-day decisions, Okhrati email dates made relative.
+- **MODE D (`131a8e2`, R88 — ops-only):** maximum-parallel execution built on first-hand-verified
+  structure (C1–C3 already concurrent; random_search floods; BO inherently sequential and already
+  pack-1). (1) Phase-adaptive packing: `--search-pack 2` runs the 6-deep reflection chains in a
+  latency lane (auto-sized tight h_rt 5:0:0 = prime backfill; ≈halves chain latency at ~2–4%
+  GPU-time) while bursts keep pack-5; legacy None byte-identical (strict-fake test). (2) Pipelined
+  C4 (`--pipeline-rungs`): all assurance blocks eligible at once under the descending ladder —
+  tier-100 at −100 ABOVE the legs, tier-189+ from `PRIORITY_RUNG_BASE` −300 BELOW them (fixing the
+  wiring where rungs-at-0 would starve the legs against the registered queue); barrier-proven
+  concurrency test; banking semantics untouched. (3) `mode_d_launch.ps1` = ONE command spawning 10
+  self-healing supervised lines (ladder −200…−280, tags leg1–9, 20s poll stagger, shared STOP).
+  (4) R88 registered (`model_suite.queue_semantics` + row): queue order = a PRIORITY LADDER;
+  completion/truncation order = the pre-declared queue. Expected: all 9 legs ~L+3–4 (was L+8.8),
+  tier-403 ~L+12–14 (was L+16.5). Both mode-D lines dry-ran GREEN on real gold; the lane check
+  hoisted into the keyless pre-flight.
+- **CONSISTENCY AUDIT (this commit):** (a) CONFIRMED BUG FIXED — any `--root-suffix` invocation
+  (every leg line; the C6 dose class) sharing `--output-dir` CLOBBERED the headline
+  `campaign_summary.json` the watcher/analyze read (the exact hazard the H3 path guards against
+  for itself) → summaries now namespaced `campaign_summary_<suffix>.json`; (b) mode-D PS1s
+  PARSE-VALIDATED — the supervisor had 5 real parse errors (em-dash bytes read as cp1252 smart
+  QUOTES under BOM-less UTF-8 in PowerShell 5.1, closing a string early) + a `$args`-shadow splat
+  bug introduced by the rename (the driver would have launched with NO arguments); both now
+  ASCII-clean, `@driverArgs`, 0 parse errors (the legacy supervisor re-verified 0 too);
+  (c) shared-state hazards for 10 concurrent drivers verified SAFE by inspection (per-batch driver
+  locks, per-batch heartbeat files) with the summary the one real collision (fixed); (d) M2 loader
+  key (`extras_budget_permitting`) verified; the leg (non-tiered) path verified fully concurrent
+  per-arm; (e) citations gate clean; V2_HANDOFF de-staled (+4 rows, Gemini pin row, heading);
+  §14 gains the R85 pin clause.
+
 ## [2026-07-21b] — ★★★ V2 BUILD COMPLETE (steps 7–8 on Tamer's "Build") + the four-authority rule + full-suite certification
 
 **Session shape:** deep resume (both handoffs + all v2 authorities re-read first-hand) → two

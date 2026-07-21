@@ -836,7 +836,12 @@ the open family pair Qwen3.6-27B + Qwen3.5-9B (Apache; one provider, one quantiz
 family ladder Haiku 4.5 + Sonnet 4.6 (the latter = the PILOT BRIDGE: the prototype's author
 re-measured under the frozen design), GPT-5.6 Luna (cross-vendor closed; effort-low, 2k cap),
 Nemotron 3 Super (NVIDIA Open Model License; major portions of training data published), and
-Gemini 3.5 Flash (seat-10 stretch, first-to-truncate). Legs execute in the pre-declared queue
+Gemini 3.5 Flash (seat-10 stretch, first-to-truncate). Per R85, every open-weight leg
+additionally pins the Hugging Face repo + commit hash of its exact weights release (retrieved
+from the official card at gate time; the freeze refuses placeholders), the served quantization is
+disclosed as the executed variant of those weights, OpenRouter legs pin temperature = 1.0
+(uniform decoding; rejection → provider default, disclosed), and every reasoning pin is
+round-trip-evidenced by the gate smoke's archived usage. Legs execute in the pre-declared queue
 order behind the confirmatory core and truncate — never reorder — at the calendar gate
 (2026-08-14T23:59Z). Kimi K3 and KAT-Coder are rule-driven Stage-2 triggers only.
 
