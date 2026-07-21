@@ -243,7 +243,10 @@ family.
   `[FROM CAMPAIGN: replicated?]`.
 - Family-pair difference-in-differences (the content-effect × capability interaction, common floor-30 CRN
   seeds, seed-paired 90% bootstrap CI): open pair (Qwen 27B − 9B) `[FROM CAMPAIGN: estimate, CI]`; closed
-  pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`.
+  pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`;
+  **the generation pair (R90: Sonnet 5 − Sonnet 4.6, same vendor and tier, one generation apart —
+  the content-effect × generation interaction; tokenizer change disclosed as a covariate)**
+  `[FROM CAMPAIGN: estimate, CI]` `[+ the conditional Opus 4.8 − Opus 5 pair if R91's rule fired]`.
 - Capability regression (registered primary = the pre-declared external composite anchor; M2 reading score
   secondary): Spearman ρ `[FROM CAMPAIGN: ρ, n legs, p]`; the registered monotone-non-decreasing gradient
   prediction `[FROM CAMPAIGN: corroborated / not]`.

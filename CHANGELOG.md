@@ -3,6 +3,44 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-21d] — ★★★ MODE-D FINAL PASSES + THE RAISED BAR + R89–R91 (freshness) + the completeness sweep
+
+- **Mode-D 2nd/3rd/4th passes (`26caaf6`, `1922e27`, `0643df2`):** the training-latency anatomy —
+  the floor's TRUE critical path identified as the 30-step BO chain (honest correction: floor ≈
+  L+1.5–1.8, not L+1.3) → bayes_opt hoisted to −p 0 (`_core_priority`, unit-tested) + chain-lane
+  polling (`--search-poll-secs 45`); the H3 single-shot FLOOR unit added as launcher line 12
+  (the last manual dependency on every rung bank — day-0, seeds 0–29 only so H3 rung seeds never
+  jump the legs; ladder completion = documented follow-up); **canary-concurrency** — the C0
+  canary gates only what it protects (Opus authoring): family arms + baselines start at L+0
+  (the suite then CAUGHT a real race this introduced — canary-covered baselines double-submitted
+  → now excluded, dedup asserted); launcher CANARY SHIELD (legs +1h). Evaluated-and-REJECTED
+  recorded: torch.compile (env-loop-bound per the pack curve), pre-gate baseline flood
+  (early window saturated), pack-1 search, per-unit rung release (the gate's protection kept).
+- **THE RAISED BAR (`9974d62`, `5b7cc5b`; memory: project-grade-inflation-adjustment-2026):**
+  supervisor-confirmed grade-inflation adjustment (last year's distinction ≈ this year's merit)
+  → guidelines re-read first-hand; registry rows 19–24 (SESOI justification; H4 prominence +
+  Coache–Jaimungal; 60%-core re-check; independence narrative; demonstrable publishability; the
+  any-discipline reader gate); **D6–D10 drafted at submission quality** (the five keystones now
+  exist as prose); D3's stale 200k→400k fixed.
+- **R89–R91 freshness (`47585b3`, `27d5c30`, `c7987ca`; web-verified as-of-today):** every leg
+  pin re-verified CURRENT; M2 extras +2 (sonnet-5, qwen4-coder); **R90: claude-sonnet-5 promoted
+  to LEG seat 9/10 → the GENERATION PAIR (sonnet-4.6 ↔ sonnet-5; 11 full-loop models; ladder
+  −200…−290; 13 launcher lines)**; the Fable-5 confirmatory swap analysed and DECLINED
+  (classifier fallback = a treatment-correlated interference channel; the June suspension = the
+  permanence contradiction); **R91: the Opus-5 leak (Honeycomb EAP) converted to a pre-declared
+  conditional seat** (GA + API id + gates + verifiable single-author attribution — the leaked
+  4.8-fallback routing would FAIL it on the Fugu principle → the second generation pair if it
+  fires; the confirmatory stays Opus 4.8 regardless).
+- **The completeness sweep (this entry):** ★ **the unpushed-history existential risk CLOSED** —
+  the local sole-author-rewritten history (all of today's work) shared no commits with origin;
+  a NON-destructive `backup-2026-07-21` branch pushed (Tamer's force-push decision untouched);
+  disk/commit-headroom re-verified green (C: 25.8 GB > the 20 GB floor; commit 14 GB > 6);
+  the concurrent-session Ramin brief given minimal currency fixes (9→10-leg family ×2 + an
+  R88–R91 currency note; left uncommitted as found); CH6 §6.8 gains the generation-pair slot
+  (+ the conditional Opus-pair line); runbook §10 gains the MODE-D SYNTHETIC MINI-REHEARSAL as
+  a named pre-launch step (the 13-line concurrency is the one unrehearsed surface).
+  Six full-suite certifications today; gate 21 OK throughout.
+
 ## [2026-07-21c] — ★★★★ PRE-FREEZE DEEP SWEEP (R84–R88) + MODE-D MAX-PARALLEL + the consistency audit
 
 **Tamer's directives:** deep-analyse the design/structure/feedback for every closable gap ("nothing

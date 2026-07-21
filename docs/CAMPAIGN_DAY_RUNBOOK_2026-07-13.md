@@ -308,6 +308,14 @@ exists to catch surfaces before any leg authoring is billed). Monitoring unchang
 later blocks' already-queued work — exposure is bounded GPU-hours (priorities keep later blocks
 behind), and BANKING is unaffected: a rung banks only when it and every rung below are complete.
 
+**(2026-07-21d addition — the MODE-D SYNTHETIC MINI-REHEARSAL, a named pre-launch step):** the
+13-line launcher has never run END-TO-END concurrently (each line dry-runs green; the
+CONCURRENCY — shared mirror, poll staggering, per-batch locks under 13 pollers — is what is
+unrehearsed). Once the VPN is up and BEFORE the freeze: run a ~30-minute synthetic mini
+(`--synthetic`, tiny steps, pass A stub — zero spend) with the core + 2 leg lines via
+`mode_d_supervisor.ps1`, confirm three clean supervisor logs + no lock/poll contention, then
+STOP_CAMPAIGN. Cheap insurance against launch-day multi-driver surprises.
+
 **(2026-07-21c addition — the H3 line):** the launcher now includes an **"h3" line** (13 lines total with the R90 sonnet-5 leg):
 the H3 single-shot FLOOR unit (`--h3-singleshot --seeds 0-29`) launches day-0 — the 12-unit tier
 math includes H3, and it was previously a MANUAL post-headline invocation, i.e. the last human
