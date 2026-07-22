@@ -103,3 +103,12 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     rewritten. Cheap, and directly targets the guidelines' named "single biggest risk" under
     the harshest-grading year. Front-matter exactness (Moodle cover, exact title wording,
     Arial ≥10 / 1.5 spacing template SET BEFORE writing) rides with this row.
+
+## The optional M2 psychometric module (R96 — 2026-07-22; DECIDE AT THE WRITE-TIME FORK)
+25. **The M2 extension activation decision (Tamer's, dated).** The full pre-specification lives
+    in `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (Axis A: per-model JND thresholds + the
+    fed-delta overlay = the mechanism closure figure; Axis B: the ~100-130-base ecosystem map).
+    IF activated: all estimands report in full (the all-or-nothing clause); the stimulus builder
+    rides scripts/m2_survey.py; ~$25-35 as a separate P2-module budget line; zero GPU. IF not:
+    the registered v1 M2 probes still run (~$10, 34 rows). Either way this row must be CLOSED
+    with a dated decision before the pre-submission sweep.
