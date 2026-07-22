@@ -3,7 +3,7 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
-## [2026-07-22] — ★★★ THE FREEZE CYCLE
+## [2026-07-22] — ★★★ THE FREEZE CYCLE (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
 
 - **PRE-GO END-TO-END AUDIT (Tamer: "extremely deep audit… prepare everything for the campaign
   run"):** batteries — gate 21 OK · citations clean · ruff (2 pre-existing unused test imports
@@ -17,7 +17,6 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   single-line supervisor — now mode_d_launch.ps1 per R88/§10, legacy noted as fallback.
   Rung-freshness refusal confirmed fail-loud-BY-DESIGN pre-campaign. 13th full-suite
   certification launched post-fix.
- (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
 
 - **R97 — the hand-written reward panel steel-manned (Tamer: "make sure the human written is very
   smart… do a very deep internet sweep"):** the deep sweep (ACM Computing Surveys taxonomy
