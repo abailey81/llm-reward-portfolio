@@ -37,7 +37,7 @@ handoff_state:
 | Rule-driven upside | K3 → open-class on the Jul-27 weights (`kimi_k3_upgrade_rule`) · Opus-5 conditional seat (attribution-gated) · the R96 module (Tamer's write-time activation, registry row 25) |
 | Execution | MODE D final: **12 launch lines** via `scripts/mode_d_launch.ps1` (core + h3 + 10 legs; ladder −200…−290; pack lanes; pipelined rungs; canary-concurrent; 45s chain polls) |
 | Timings from GO | mechanism ~L+0.7 · **floor ~L+1.5–1.8** (BO-bound) · all legs ~L+4.5–5.5 · **tier-403 ~L+13–14.5** · 99% rung likely from a ≤Jul-25 GO |
-| Verification | freeze gate **21 OK** · **11 full-suite certifications** (all exit 0) · citations clean · rung-freshness green · both PS1s parse 0 · backup branch `backup-2026-07-21` == HEAD |
+| Verification | freeze gate **21 OK** · **12 full-suite certifications** (all exit 0) · citations clean · rung-freshness green · both PS1s parse 0 · backup branch `backup-2026-07-21` == HEAD |
 | Money | expected **~$28 all-in** (campaign) · top-ups: **Anthropic ≥$35 · OpenRouter ≥$25** + the do-not-log toggle · the R96 module = a separate ~$25–35 P2 line if activated |
 | NOT done, by order | **NOT frozen · NOT launched · gates NOT run** (need OpenRouter credit; pre-launch per R93e) |
 | Tamer's pending items | ① Okhrati email (draft + the meeting brief ready) ② top-ups + toggle ③ Windows-Update pause ④ UCL password rotation ⑤ the force-push decision (backup branch protects meanwhile) ⑥ **the full-campaign approval** → fires freeze→gates→launch |
@@ -56,11 +56,11 @@ handoff_state:
 
 | Truth | Owner |
 |---|---|
-| The design of record | `config/preregistration.yaml` (`model_suite` + amendment mirrors) + `PREREGISTRATION.md` §14 + rows R79–R96 |
+| The design of record | `config/preregistration.yaml` (`model_suite` + amendment mirrors) + `PREREGISTRATION.md` §14 + rows R79–R97 |
 | The executed leg config | `config/legs.yaml` (gate-bound == model_suite; HF pins FILLED) |
 | The roster, prices, pins, functions | `docs/MODEL_ROSTER_2026-07-22.md` |
 | Launch mechanics | `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md` — §2.0 GO sequence · §9 legs · **§10 MODE D** (the one command) |
-| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–25; none may silently drop) |
+| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–29; none may silently drop) |
 | The optional M2 module | `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (R96) |
 | Prose drafts awaiting wiring | `paper/DRAFTS_communication_build_2026-07-12.md` (D1–D10) |
 | The writing plan | `docs/WRITEUP_95PLUS_PLAYBOOK.md` (under the raised bar; registry rows 19–24) |
