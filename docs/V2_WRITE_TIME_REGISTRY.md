@@ -112,3 +112,29 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     rides scripts/m2_survey.py; ~$25-35 as a separate P2-module budget line; zero GPU. IF not:
     the registered v1 M2 probes still run (~$10, 34 rows). Either way this row must be CLOSED
     with a dated decision before the pre-submission sweep.
+
+## Universe-size defense (2026-07-22; Tamer's "is 30 stocks enough?" review — assessment: YES, defend in prose, do NOT widen)
+26. **The "why thirty" paragraph (CH4 §4.2, one paragraph).** The choice is currently stated,
+    not argued. Argue it on four grounds: (i) TRAINABILITY AT MATCHED COMPUTE — the identification
+    principle fixes the agent + budget across arms; a wider action space at the frozen 200k-step
+    budget resurrects the undertraining threat and inflates seed variance (σ_seed already dominates,
+    0.244), i.e. MORE assets = LESS power for the arm contrast, the thing actually under test;
+    (ii) DIVERSIFICATION SATURATION — the classical result that 20–40 names capture most
+    diversifiable-risk reduction (Statman 1987 / Elton–Gruber — NOT yet in refs.bib: verify
+    first-hand at wiring per the strong-evidence standard, else lean on demiguel2009naive alone);
+    (iii) COMPARABILITY — DJIA-30 is the de-facto universe of the deep-RL portfolio literature,
+    and ours STRICTLY DOMINATES the common practice of using today's constituent list: PIT top-30
+    from a 953-name survivorship-free parent with delisting terminals retained (brown1992survivorship
+    already cited); (iv) BENCHMARK STRENGTH — at n=30 with ~3,000 train days the covariance-based
+    baselines (Ledoit–Wolf, min-var, HRP) are well-estimated, so the comparative claim faces
+    strong, not straw, baselines. Prose-only; zero design change; identification-safe.
+27. **Pre-empt the "null-by-design universe" objection (CH7 Discussion, 2–3 sentences).** The
+    strongest examiner attack on a bounded-effect null is "your 30 large-caps in one market are
+    too internally correlated / tail-poor for tail-specific feedback to matter — the universe
+    stacked the deck." Answer with evidence already in hand: the F3 stylized facts measured ON
+    this panel (excess kurtosis 15.25, deep-tail Gaussian understatement ×1.66, co-crash 19.7%)
+    show the multi-level tail structure was demonstrably present to exploit; the Sharpe co-primary
+    is not tail-dependent at all; and the mechanism kernel supplies an independent causal account
+    (the numeracy bottleneck) for WHY the informational margin fails to convert. Close with the
+    registered external-validity scope: B.4.1 + the shipped PIT walk-forward re-evaluation
+    capability (R17) + the ADR-047 FTSE-100-lite replication (S2, report-only, Papers-2/3-bound).
