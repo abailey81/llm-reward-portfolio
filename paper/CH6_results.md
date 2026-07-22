@@ -47,7 +47,7 @@ interpreting effects.
   B\* = 400k `[FROM CAMPAIGN: σ_D; vs the 200k pilot value]`. Every §6.2–§6.6 number is tagged `RUNG:` at this
   achieved rung (reporting rule 5); leg numbers (§6.7–§6.8) are `LEG-TIER:30` by design.
 - Replication-leg execution (v2): legs completed by the 2026-08-14T23:59Z calendar gate `[FROM CAMPAIGN: k of
-  9 + the truncated-by-calendar list, in queue order]`; per-leg bank-gate verdicts `[FROM CAMPAIGN: pass
+  10 + the truncated-by-calendar list, in queue order]`; per-leg bank-gate verdicts `[FROM CAMPAIGN: pass
   list]`; realised total LLM spend vs the $30 advisory ceiling (R83) `[FROM CAMPAIGN: $ per provider, summed]`.
 
 *Table 6.1 (run ledger) — see `FIGURE_TABLE_MANIFEST.md` T1.*
@@ -192,7 +192,7 @@ interpretation per §3.7]`.
 
 ## 6.7 The model replication suite (v2 — report-only)
 
-Nine further models author the identical five LLM arms under byte-identical prompts at the 30-seed floor tier
+Ten further models author the identical five LLM arms under byte-identical prompts at the 30-seed floor tier
 (R80/R82): the executed roster, pins (provider / quantization / reasoning mode / output caps), queue order and
 the 2026-08-14T23:59Z calendar gate are frozen in `model_suite`. **Nothing in this section or §6.8 gates
 H1–H4** — the suite is the registered external-validity and capability-gradient instrument wrapped around the
@@ -244,9 +244,9 @@ family.
 - Family-pair difference-in-differences (the content-effect × capability interaction, common floor-30 CRN
   seeds, seed-paired 90% bootstrap CI): open pair (Qwen 27B − 9B) `[FROM CAMPAIGN: estimate, CI]`; closed
   pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`;
-  **the generation pair (R90: Sonnet 5 − Sonnet 4.6, same vendor and tier, one generation apart —
-  the content-effect × generation interaction; tokenizer change disclosed as a covariate)**
-  `[FROM CAMPAIGN: estimate, CI]` `[+ the conditional Opus 4.8 − Opus 5 pair if R91's rule fired]`.
+  **the generation pair (R92-re-scoped: the conditional Opus 4.8 − Opus 5 contrast, same vendor and
+  tier, one generation apart — reported ONLY if R91's rule fired; otherwise the design carries the
+  two capability pairs and no generation pair, disclosed)** `[FROM CAMPAIGN or N/A]`.
 - Capability regression (registered primary = the pre-declared external composite anchor; M2 reading score
   secondary): Spearman ρ `[FROM CAMPAIGN: ρ, n legs, p]`; the registered monotone-non-decreasing gradient
   prediction `[FROM CAMPAIGN: corroborated / not]`.

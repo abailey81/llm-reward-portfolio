@@ -1,6 +1,6 @@
 """Cross-model synthesis for the v2 replication legs — REPORT-ONLY (R80/R82, frozen spec).
 
-The replication legs (ten under R90) share the market panel and the CRN seed set BY DESIGN (pairing), so they are NOT
+The replication legs (ten under R95) share the market panel and the CRN seed set BY DESIGN (pairing), so they are NOT
 independent replications: a naive binomial sign test (0.5^k) would overstate the evidence. The
 registered synthesis therefore has two tiers:
 

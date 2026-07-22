@@ -37,8 +37,8 @@
 the reward code an LLM writes, and does it transmit? Mechanism headline + pre-registered
 equivalence backdrop.
 
-**The 10 full-loop models** (FINAL; the executed truth is `config/legs.yaml`, gate-verified ==
-`model_suite`):
+**The 11 full-loop models** (R95; the executed truth is `config/legs.yaml`, gate-verified ==
+`model_suite`, n=10 legs):
 
 | Seat | Model | id | Role / pins |
 |---|---|---|---|
@@ -51,15 +51,16 @@ equivalence backdrop.
 | Leg 7 | GPT-5.6 Luna | `openai/gpt-5.6-luna` | cross-vendor closed; effort=low, max_tokens=2048 (bounds hidden-reasoning cost) |
 | Leg 8 | Nemotron 3 Super | `nvidia/nemotron-3-super-120b-a12b` | NVIDIA OML (NOT Apache; "major portions of data" — phrase exactly); US-lab + data transparency |
 | Leg 9 | Sonnet 5 | `claude-sonnet-5` | the LATEST-GENERATION seat (R90/R92; the pair partner 4.6 was removed — the generation pair is now the conditional Opus pair) |
-| Leg 10→9 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | **seat-10 STRETCH, first-to-truncate**; reasoning at provider default DISCLOSED (R85 — the old "budget=default" pin used an undocumented key), max_tokens=2048 |
+| Leg 9 | Gemini 3.5 Flash | `google/gemini-3.5-flash` | **seat-10 STRETCH, first-to-truncate**; reasoning at provider default DISCLOSED (R85 — the old "budget=default" pin used an undocumented key), max_tokens=2048 |
+| Leg 10 | **Kimi K3** | `moonshotai/kimi-k3-20260715` | R95: seated via OpenRouter on the CANONICAL DATED slug; always-on thinking disclosed; the Jul-27 weights upgrade it to open-class by rule; LAST — truncates first |
 
 Queue order (pre-declared, exogenous truncation from the BACK):
-`DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Luna → Nemotron → Sonnet-5 → Gemini` (R90/R92).
+`DeepSeek → GLM → Qwen27 → Qwen9 → Haiku → Luna → Nemotron → Sonnet-5 → Gemini → Kimi-K3` (R95).
 All non-Anthropic via **OpenRouter** (two keys total: `ANTHROPIC_API_KEY` + `OPENROUTER_API_KEY`).
 Legs run at the **tier-30 floor**; byte-identical prompts; unified prompt-variation diversity;
 `~*/-latest` aliases BANNED.
 
-**M2 reading-link survey**: 25 core + 7 extras in `config/m2_models.yaml` (schema-aware loader;
+**M2 reading-link survey**: 25 core + 9 extras (R89) in `config/m2_models.yaml` (schema-aware loader;
 `--include-extras`). Excluded-by-design: Sakana Fugu (orchestrator), Llama 4, `~latest` aliases.
 
 **Tiers × Stages × Queue**: E1 ladder 30→100→189→279→340→403→568 (tier-100 hoisted early so the

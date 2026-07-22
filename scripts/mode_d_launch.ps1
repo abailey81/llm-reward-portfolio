@@ -1,5 +1,5 @@
-# MODE-D LAUNCHER (2026-07-21) - the maximum-parallel campaign: ten supervised driver lines at
-# once (the Opus core + all 9 replication legs), each in its own window with its own log.
+# MODE-D LAUNCHER (2026-07-21) - the maximum-parallel campaign: TWELVE supervised driver lines
+# at once (the Opus core + the H3 floor unit + all 10 replication legs), each with its own log.
 #
 # WHAT MODE D IS (runbook s.10): every line submits from L+0; the SGE priority ladder - core
 # search/floor/tier-100 highest, legs -200..-280 in the registered queue order, tier-189+ blocks

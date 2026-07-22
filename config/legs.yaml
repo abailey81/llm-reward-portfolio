@@ -74,7 +74,7 @@ legs:
     api_key_env: OPENROUTER_API_KEY
     temperature: 1.0
     max_tokens: 2048
-    role: seat-10-stretch                  # first-to-truncate at the calendar gate
+    role: stretch                          # truncates SECOND at the calendar gate (kimi-k3, last in queue, truncates first — R95)
     # NO reasoning key (R85): the prior {budget: default} used an UNDOCUMENTED OpenRouter reasoning
     # field — a silent-ignore would have made the pin fictional. Thinking runs at provider default,
     # DISCLOSED; the smoke archives reasoning-token usage as the record of what was served.

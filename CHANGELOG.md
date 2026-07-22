@@ -3,6 +3,42 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-22] — ★★★ THE FREEZE CYCLE (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
+
+- **R93 freeze-day preparation, all evidence-backed (`30ae72b`):** the five HF weights pins FILLED
+  from the official HF API (licenses independently re-verified MIT/MIT/Apache/Apache/OML;
+  hash-bound record `model_suite.hf_pins_recorded`); the R84 anchor table applied DISCRETION-FREE
+  (at-freeze {qwen27: 77.2, haiku: 73.3}; every other leg MISSING by rule — the DeepSeek Max-mode
+  80.6 conflation refused); the K3/Opus-5 conditional windows re-anchored to the LAUNCH-GO day;
+  the Aug-14 leg gate confirmed; R80 gate timing → PRE-LAUNCH (credit-gated; branches
+  pre-declared); the Okhrati sign-off invariant → before-LAUNCH with default-proceed; the
+  freeze-due novelty probe CLEAN. **THE FREEZE EXECUTED** on Tamer's twice-given explicit
+  permission (ccf2e76f, verified [MATCHES]) — then **LIFTED the same day (R94, `79f4347`)** on his
+  clarified instruction: the freeze now executes TOGETHER WITH the full-campaign-run approval
+  (GO-sequence step 1), never before. Pre-data, integrity-clean; the ccf2e76f records preserved;
+  the state scalars are hash-excluded, so the GO-day freeze RE-STAMPS the same hash if no design
+  change lands. Launch was never touched.
+- **R95 (`7439ece`): KIMI K3 SEATED as leg 10** — re-researched on Tamer's challenge: live on
+  OpenRouter ($3/$15, 1M ctx; two-keys rule holds) with a CANONICAL DATED slug
+  `moonshotai/kimi-k3-20260715` (stronger pinning than the undated closed legs); the Luna
+  stability precedent; the Jul-27 weights upgrade it to open-class by the pre-declared
+  `kimi_k3_upgrade_rule`. **10 legs + Opus = 11 full-loop models**; K3 last (truncates first).
+  Earlier the same day: **R92 (`c56c402`)** removed sonnet-4.6 on Tamer's instruction (the
+  pilot-bridge prediction WITHDRAWN pre-data; the R90 generation pair re-scoped to the
+  conditional Opus pair; sonnet-4.6 retained in M2; Qwen-9B retention re-affirmed; the
+  freed-seat alternatives sweep registered).
+- **The roster of record (`721ed2d`):** `docs/MODEL_ROSTER_2026-07-22.md` — the 11-model
+  full-loop matrix (status/pin-grade/architecture/prices/costs/functions/truncation order), the
+  three instruments, the rule-driven seats, the ~34-row M2 survey by family ladders, the
+  excluded-by-design table, the money page (~$28 expected all-in). Feeds CH4 registry row 2.
+- **Post-churn consistency pass (this entry):** the roster churned three times in 24 h; the
+  sweep found + fixed six stale surfaces — CH6 §6.7 "Nine further"→Ten + §6.1 "k of 9"→10; the
+  DEAD R90 generation-pair slot in §6.8 → re-scoped to the conditional Opus contrast; gemini's
+  "first-to-truncate" role notes (both yamls) → K3 truncates first now; the launcher header
+  ("ten lines") → TWELVE (core + h3 + 10 legs) + the runbook count parenthetical; the handoff
+  roster table/queue/M2 counts (+ the K3 row); the cross_model docstring cite. §14 prose
+  updated to ten legs incl. K3.
+
 ## [2026-07-21d] — ★★★ MODE-D FINAL PASSES + THE RAISED BAR + R89–R91 (freshness) + the completeness sweep
 
 - **Mode-D 2nd/3rd/4th passes (`26caaf6`, `1922e27`, `0643df2`):** the training-latency anatomy —

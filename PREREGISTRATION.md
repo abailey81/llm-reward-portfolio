@@ -827,15 +827,18 @@ prose). Newest at the bottom.
 ## §14 — The v2 model replication suite (2026-07-20; R79–R82; placed after the amendment table by v2-addendum convention)
 
 **Design.** The frozen v1 confirmatory core — the Opus 4.8 author, the seven arms, the m=6 family,
-the two co-primary IUTs, the ±0.05 SESOI, the E1 seed ladder — is unchanged. Around it, nine
+the two co-primary IUTs, the ±0.05 SESOI, the E1 seed ladder — is unchanged. Around it, ten (R95)
 REPORT-ONLY replication legs run the identical five LLM arms (30 candidates each; byte-identical
 prompts incl. the R79 format pass; unified R38-de-seeded prompt-variation diversity; provider,
 quantization, reasoning-mode, and max-token pins per the machine mirror) at the tier-30 seed floor:
 DeepSeek V4-Pro (MIT; contamination-screen gate, GLM-5.2 absorbing on failure), GLM-5.2 (MIT),
-the open family pair Qwen3.6-27B + Qwen3.5-9B (Apache; one provider, one quantization), Haiku 4.5 (the closed capability pair's floor, vs Opus), GPT-5.6 Luna (cross-vendor closed;
-effort-low, 2k cap), Sonnet 5 (the latest-generation seat, R90/R92),
-Nemotron 3 Super (NVIDIA Open Model License; major portions of training data published), and
-Gemini 3.5 Flash (seat-10 stretch, first-to-truncate). Per R85, every open-weight leg
+the open family pair Qwen3.6-27B + Qwen3.5-9B (Apache; one provider, one quantization), Haiku 4.5
+(the closed capability pair's floor, vs Opus), GPT-5.6 Luna (cross-vendor closed; effort-low,
+2k cap), Nemotron 3 Super (NVIDIA Open Model License; major portions of training data published),
+Sonnet 5 (the latest-generation seat, R90/R92), Gemini 3.5 Flash (stretch), and Kimi K3 (R95:
+the canonical dated slug via OpenRouter; always-on thinking disclosed; the vendor-promised
+2026-07-27 open weights upgrade it to open-class by the pre-declared rule; last in queue —
+truncates first). Per R85, every open-weight leg
 additionally pins the Hugging Face repo + commit hash of its exact weights release (retrieved
 from the official card at gate time; the freeze refuses placeholders), the served quantization is
 disclosed as the executed variant of those weights, OpenRouter legs pin temperature = 1.0

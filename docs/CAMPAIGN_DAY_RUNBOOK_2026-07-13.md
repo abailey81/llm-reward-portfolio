@@ -317,7 +317,7 @@ unrehearsed). Once the VPN is up and BEFORE the freeze: run a ~30-minute synthet
 `mode_d_supervisor.ps1`, confirm three clean supervisor logs + no lock/poll contention, then
 STOP_CAMPAIGN. Cheap insurance against launch-day multi-driver surprises.
 
-**(2026-07-21c addition — the H3 line):** the launcher now includes an **"h3" line** (12 lines total (R92: sonnet-4.6 removed)):
+**(2026-07-21c addition — the H3 line):** the launcher now includes an **"h3" line** (12 lines total under R95: core + h3 + 10 legs):
 the H3 single-shot FLOOR unit (`--h3-singleshot --seeds 0-29`) launches day-0 — the 12-unit tier
 math includes H3, and it was previously a MANUAL post-headline invocation, i.e. the last human
 dependency on every rung bank; single-shot has no reflection chain, so the floor unit lands ~L+1.
