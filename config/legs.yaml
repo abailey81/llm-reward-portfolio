@@ -79,6 +79,13 @@ legs:
     # field — a silent-ignore would have made the pin fictional. Thinking runs at provider default,
     # DISCLOSED; the smoke archives reasoning-token usage as the record of what was served.
 
+  - label: kimi-k3
+    provider: openrouter
+    model: moonshotai/kimi-k3-20260715     # R95: the CANONICAL DATED slug (verified on OpenRouter 2026-07-22 — stronger pinning than the undated closed legs); always-on thinking disclosed; weights due 2026-07-27 upgrade this to open-class (hf_pin filled by rule)
+    api_key_env: OPENROUTER_API_KEY
+    temperature: 1.0
+    max_tokens: 4096
+
 # Planning prices ($/M in, $/M out) for the R81 spend ledger's pre-call estimates; the ledger's
 # AUTHORITY is the per-call cost captured from the provider response, never this table.
 planning_prices:
@@ -92,3 +99,4 @@ planning_prices:
   openai/gpt-5.6-luna: [1.00, 6.00]
   nvidia/nemotron-3-super-120b-a12b: [0.08, 0.45]
   google/gemini-3.5-flash: [1.50, 9.00]
+  moonshotai/kimi-k3-20260715: [3.00, 15.00]  # verified on OpenRouter 2026-07-22; always-on thinking -> the priciest leg (~$4-7 expected); the compliance gate measures real output economics

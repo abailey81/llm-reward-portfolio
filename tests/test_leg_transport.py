@@ -17,7 +17,7 @@ from src.llm.legs import leg_by_label, load_legs, transport_kwargs  # noqa: E402
 REPO = Path(__file__).resolve().parents[1]
 QUEUE = ["deepseek-v4-pro", "glm-5.2", "qwen3.6-27b", "qwen3.5-9b", "haiku-4.5",
          "gpt-5.6-luna", "nemotron-3-super", "sonnet-5",  # R90/R92: sonnet-4.6 removed, sonnet-5 stays
-         "gemini-3.5-flash"]
+         "gemini-3.5-flash", "kimi-k3"]  # R95
 
 
 # --------------------------------------------------------------------------- #
