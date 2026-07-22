@@ -239,3 +239,28 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     pre-checks (SGE job-cap qconf commands; h3 canary exposure disclosed w/ the STOP file
     mitigation); (n) C6 sequential sweep blocks now mirror the pipelined ladder priorities
     (test updated to the registered-queue invariant) + C7 tiered summary root-suffix-namespaced.
+
+## World-models assessment (2026-07-23; Tamer's "adding world models" review — verdict: a FRAMING win now, machinery = Papers 2/3)
+32. **The world-model FRAMING paragraph (CH7, one paragraph — the cheap win; wire at write time).**
+    Position the reward designer AS a prior-laden world model with a narrow numeric interface:
+    the LLM carries a rich implicit model of market behavior (the contamination/H4 priors — the
+    OBJECT of study), and the fed tail vector is an attempt to UPDATE that world model with
+    measured state; the numeracy bottleneck (B.3.2 + the say–know gap, 2602.07812) is then an
+    INTERFACE failure between explicit measurement and the implicit world model — which is why
+    format probes (legible mode, R96 JND) are the right instruments. Cite the LLM-as-world-model
+    line (arXiv 2411.08794, verify first-hand) + DreamerV3 (Nature 2025) as the agent-side
+    contrast. One sentence in CH4 §4.2 completes it: the historical-replay simulator is the
+    REALIZED world, deliberately preferred to a LEARNED one (a generative simulator would let
+    authored rewards exploit simulator artifacts — reward hacking against the world model — and
+    would trade the study's strongest asset, licensed PIT data, for a sim-to-real validity gap).
+    **CONSIDERED AND REJECTED for this cycle (dated):** (i) swapping SAC for a Dreamer-class
+    agent — invalidates every pilot/calibration/certification, months of work, muddies the
+    deliberate simulated-online-vs-offline-RL positioning (Okhrati bridge), and near-martingale
+    daily returns are the worst case for learned-dynamics overfitting; (ii) training inside a
+    generative market simulator (MarS/LMM class) — the artifact-exploitation + data-asset
+    trade above; (iii) a queryable simulator for the DESIGNER — enriches the feedback channel =
+    the registered identification-breaker class (row 31). **Papers-2/3 extensions (named):**
+    (a) the tail-feedback contrast replicated under a DreamerV3-class agent (does the null
+    persist when reward shaping interacts with imagination rollouts?); (b) generative
+    tail-stress — synthetic crisis world models extending the EXISTING ood_stress module for
+    counterfactual evaluation of the frozen winners.
