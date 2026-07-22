@@ -194,3 +194,26 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     vs ~1,200 pipelined arrays (runbook §10 note); (n) C6 non-pipelined sweep blocks at -p 0
     (latent inversion) + C7 tiered summary not root-suffix-namespaced (latent clobber); (o) h3
     line bills ~30 authorings unshielded by the canary (design drift, bounded — disclose or gate).
+
+## LLM-layer deep review (2026-07-23; Tamer's "dive deep into models/prompts/loops" order — verdict: KEEP the layer, bank the literature)
+31. **The 2026-07-23 LLM-practice sweep: citations + the considered-and-rejected record.**
+    (a) ⚠ **"LLMs Know More About Numbers than They Can Say" (arXiv 2602.07812)** — models decode
+    log-magnitudes internally at >90% (linear probes) yet VERBALIZE cross-notation comparisons at
+    only 50–70%: the strongest external corroboration yet of THE numeracy-bottleneck mechanism
+    (the say–know gap IS our A1–A5 story) and it reports NO format fix — validating both the raw
+    small-float default and the registered legible-mode/R96 JND probes as open science. Wire into
+    CH2 (mechanism lineage after wallace2019numbers) + CH7; verify first-hand at wiring.
+    (b) The 2025–26 numeric-tokenization line (TST arXiv 2604.11582; xVal 2310.02989; single-token
+    encodings 2510.06824) = CH2 one-sentence context for WHY digit fragmentation breaks numeracy.
+    (c) **RDA (arXiv 2606.01672)** — the Eureka successor: VLM visual-trajectory diagnostics +
+    subtask decomposition. Cite in CH2; DIFFERENTIATE: RDA enriches the feedback channel for
+    performance, we CONTROL it for identification — rich diagnostics would break the
+    single-varying-factor design; our "coarse numerical reflection" is the manipulated variable,
+    not a limitation. Fence entry alongside GIFT/ELfolio.
+    (d) **CONSIDERED AND REJECTED (dated, pre-freeze — record so the fence shows conscious
+    decisions):** (i) XML-tagging the prompts (Anthropic 2026 guidance: 20–40% consistency gain on
+    LONG prompts) — ours are short, the executable-rate is already high, and restructuring would
+    invalidate the tail-neutrality verification + the σ pilots calibrated under these exact bytes;
+    (ii) assistant-prefill ("```python") to force code-only output — provider-ASYMMETRIC (Anthropic
+    supports it, OpenRouter legs vary) → a format confound across legs; the fence-parser already
+    handles the residual prose rate. Both re-openable for Papers 2/3, never mid-campaign.
