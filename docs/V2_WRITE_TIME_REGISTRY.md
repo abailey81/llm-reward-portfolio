@@ -138,3 +138,14 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     (the numeracy bottleneck) for WHY the informational margin fails to convert. Close with the
     registered external-validity scope: B.4.1 + the shipped PIT walk-forward re-evaluation
     capability (R17) + the ADR-047 FTSE-100-lite replication (S2, report-only, Papers-2/3-bound).
+28. **Benchmark-canon citation completion (rides the CH4/CH6 benchmark-suite paragraphs).** Every
+    allocator and hand-written reward carries its literature anchor in the CODE docstring, but
+    several are not yet promoted to refs.bib (Tier-1 currently covers demiguel2009naive,
+    ledoit2004honey, lopezdeprado2018afml, jiang2017eiie, moody1998performance, moody2001directrl,
+    rockafellar2000cvar, artzner1999coherent). MISSING at PDF-cite level, to be first-hand
+    verified per the strong-evidence standard when the prose wires them: Markowitz 1952 (mean-
+    variance/quadratic utility), Jegadeesh & Titman 1993 (cross-sectional momentum), Choueifaty
+    & Coignard 2008 (maximum diversification), Maillard, Roncalli & Teiletche 2010 (equal-risk-
+    contribution), Clarke, de Silva & Thorley 2011 (long-only min-variance), Kelly 1956 + Thorp
+    1971 (log-growth), Sortino/downside-deviation anchor (return_minus_downside). Rule: cite only
+    what the prose names; verify each against the publisher record; no orphan bib entries.
