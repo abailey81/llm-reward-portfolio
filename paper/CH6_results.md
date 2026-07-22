@@ -200,7 +200,7 @@ confirmatory core, and every number here is floor-tier by design (`LEG-TIER:30`;
 floor power and stated as such). Each leg's archive passed the same write→verify bank gate as the campaign
 root before its numbers entered any table.
 
-- Legs completed vs truncated-by-calendar (queue order): `[FROM CAMPAIGN: k of 9; truncated list]`; the
+- Legs completed vs truncated-by-calendar (queue order): `[FROM CAMPAIGN: k of 10; truncated list]`; the
   DeepSeek contamination-gate disposition (pass, or GLM-5.2 absorbed seat 1 as pre-declared):
   `[FROM CAMPAIGN: verdict + archived screen pointer]`.
 - Per-leg headline contrasts (distributional − scalar, CVaR-5% and Sharpe, floor-30, 90% CI): Table 6.6
@@ -225,7 +225,7 @@ Table 6.7 (authoring reliability) — manifest T7.*
 The legs share the market panel and the CRN seed set *by design* (pairing), so they are not independent
 replications and are never counted as if they were (the registered dependence discipline). The synthesis has
 two tiers — a descriptive count and a dependence-honest permutation test — plus the two registered
-capability instruments. Any starred statement in this section survives BH across the nine-leg report-only
+capability instruments. Any starred statement in this section survives BH across the ten-leg report-only
 family.
 
 - Descriptive replication count (CVaR-leg contrast, T0-filtered — the Sharpe leg is predicted-tie for every

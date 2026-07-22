@@ -1,5 +1,6 @@
 # Eureka-style search loop — anchors: Ma et al. (ICLR 2024); ADR-004 for restarts & dev-split search.
-# PREREGISTRATION.md §4 makes these numbers the DSR trial count. Changing them post-freeze = deviation.
+# NB: the loop numbers below are the NOT-LOADED v0 blueprint (see the arms: banner); the LIVE
+# budget is config/campaign.yaml (K=5 x 6 generations = 30) - audit 2026-07-22 comment fix.
 loop:
   iterations: 5                # N — Eureka default
   samples_per_iteration: 16    # K — i.i.d. candidates; >=1 executable w.h.p. (Eureka §exec-filtering)

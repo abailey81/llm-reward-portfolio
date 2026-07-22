@@ -614,6 +614,15 @@ def main(argv: list[str] | None = None) -> int:
         llm_cfg = leg_llm_cfg  # v2 leg: the pinned author block from config/legs.yaml wins
     elif args.llm_from == "campaign":
         llm_cfg = dict(_cfg_get(_load_config("campaign"), "llm", {}) or {})
+    # AUDIT 2026-07-22 (MAJOR, R83): the cluster path never set spend_ledger -> LLMClient's guard
+    # silently recorded NOTHING for the whole campaign. Per-LINE namespaced ledgers (batch_tag)
+    # also avoid the cross-process torn-append undercount on a shared file; report-time spend =
+    # the sum over spend_ledger_*.jsonl.
+    if llm_cfg is not None:
+        import re as _re_tag
+        _tag = _re_tag.sub(r"[^A-Za-z0-9_]", "_", str(args.batch_tag or "core"))
+        llm_cfg.setdefault("spend_ledger",
+                           str(Path(args.output_dir) / f"spend_ledger_{_tag}.jsonl"))
         if not llm_cfg:
             raise SystemExit("--llm-from campaign but config/campaign.yaml has no `llm` block")
     # F1 (agent audit, CRITICAL): pass-mode B with the DEFAULT provider=stub silently authors the
@@ -636,7 +645,7 @@ def main(argv: list[str] | None = None) -> int:
     # F2 (agent audit, CRITICAL): restarting WITHOUT --resume re-authors every candidate (paid)
     # while archive-truth training discards the new sources — the full authoring budget wasted.
     if not args.resume and not args.dry_run:
-        _dirty = list(Path(args.output_dir).glob("search/*/*/record.json"))
+        _dirty = list(Path(args.output_dir).glob("search*/*/*/record.json"))  # audit 2026-07-22: search_leg_*/search_h3_* too
         if _dirty:
             raise SystemExit(
                 f"{len(_dirty)} search records already exist under {args.output_dir} but --resume "
@@ -672,6 +681,13 @@ def main(argv: list[str] | None = None) -> int:
         if _unknown:
             raise SystemExit(
                 f"--baselines: unknown REWARD_CANON key(s) {_unknown}; valid: {sorted(_RC)}")
+    if getattr(args, "canary", None):
+        # Same guard for --canary names (audit 2026-07-22: they bypassed validation → fail-after-submit).
+        from src.baselines.rewards import REWARD_CANON as _RC2
+        _unknown_c = [b for b in args.canary if b not in _RC2]
+        if _unknown_c:
+            raise SystemExit(
+                f"--canary: unknown REWARD_CANON key(s) {_unknown_c}; valid: {sorted(_RC2)}")
 
     if args.dry_run:
         # No ssh in a dry-run: expand a leading '~' against a documented STUB home so the render
@@ -812,6 +828,7 @@ def main(argv: list[str] | None = None) -> int:
             test_leg_kwargs=inputs["test_leg_kwargs"],
             frozen_root=Path(args.output_dir) / "frozen_h3_singleshot",
             search_seed=args.search_seed, resume=bool(args.resume),
+            priority=args.priority,  # audit 2026-07-22: the ladder re-run passes --priority -300
         )
         ok = bool(out.get("ok"))
         _write_campaign_summary(args.output_dir, inputs, freeze_stamp=freeze_stamp, extra={

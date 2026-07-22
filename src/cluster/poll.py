@@ -39,6 +39,11 @@ Fetch = Callable[[list[str], Path], None]
 _STAGING = ".pull_tmp"
 
 
+def _is_staging_part(part: str) -> bool:
+    """True for ANY staging dir — ours or a foreign process's (audit 2026-07-22)."""
+    return part.startswith(_STAGING)
+
+
 def remote_completed_dirs(
     remote_outputs_root: str, runner: Callable[[list[str]], str]
 ) -> set[str]:
@@ -150,8 +155,14 @@ def pull_archive(
 
     local = Path(local_root)
     local.mkdir(parents=True, exist_ok=True)
-    staging = local / _STAGING
-    if staging.exists():  # a previous pull died mid-extract — its content is untrusted
+    # Per-PROCESS staging (audit 2026-07-22 CRITICAL): 12 concurrent mode-D driver processes
+    # share this output dir; a fixed shared staging raced (one process rmtree'd another's
+    # mid-extract tree; a torn record.json could be committed via the copytree fallback).
+    # Each process stages under its own pid-suffixed dir and NEVER touches foreign staging
+    # (a dead process's leftovers are inert: every reader excludes staging-prefixed dirs).
+    import os as _os
+    staging = local / f"{_STAGING}.{_os.getpid()}"
+    if staging.exists():  # OUR previous pull died mid-extract — its content is untrusted
         shutil.rmtree(staging)
     runner = runner or ssh_runner(host)
     fetch = fetch or _default_fetch(host, remote_outputs_root)
@@ -160,7 +171,7 @@ def pull_archive(
     have = {
         p.parent.relative_to(local).as_posix()
         for p in local.rglob("record.json")
-        if _STAGING not in p.parts
+        if not any(_is_staging_part(x) for x in p.parts)
     }
     missing = sorted(remote - have)
     # P9: reject MARKERS ride the same pull (flat immutable JSON files under _rejects/) so the
@@ -168,7 +179,7 @@ def pull_archive(
     rej_have = {
         p.relative_to(local).as_posix()
         for p in local.rglob("_rejects/*.json")
-        if _STAGING not in p.parts
+        if not any(_is_staging_part(x) for x in p.parts)
     }
     rej_missing = sorted(remote_reject_files(remote_outputs_root, runner) - rej_have)
     if not missing and not rej_missing:
@@ -237,7 +248,7 @@ def completed_run_ids(local_root: str | Path) -> set[str]:
     if not root.is_dir():
         return set()
     return {
-        p.parent.name for p in root.rglob("record.json") if _STAGING not in p.parts
+        p.parent.name for p in root.rglob("record.json") if not any(_is_staging_part(x) for x in p.parts)
     }
 
 
@@ -251,7 +262,7 @@ def permanent_reject_ids(local_root: str | Path) -> set[str]:
         return set()
     ids: set[str] = set()
     for p in root.rglob("_rejects/*.json"):
-        if _STAGING in p.parts:
+        if any(_is_staging_part(x) for x in p.parts):
             continue
         try:
             row = json.loads(p.read_text(encoding="utf-8"))

@@ -116,7 +116,7 @@ during the writing month; the pre-submission sweep verifies zero open rows.
 ## Universe-size defense (2026-07-22; Tamer's "is 30 stocks enough?" review — assessment: YES, defend in prose, do NOT widen)
 26. **The "why thirty" paragraph (CH4 §4.2, one paragraph).** The choice is currently stated,
     not argued. Argue it on four grounds: (i) TRAINABILITY AT MATCHED COMPUTE — the identification
-    principle fixes the agent + budget across arms; a wider action space at the frozen 200k-step
+    principle fixes the agent + budget across arms; a wider action space at the frozen 400k-step (R77)
     budget resurrects the undertraining threat and inflates seed variance (σ_seed already dominates,
     0.244), i.e. MORE assets = LESS power for the arm contrast, the thing actually under test;
     (ii) DIVERSIFICATION SATURATION — the classical result that 20–40 names capture most
@@ -172,3 +172,25 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     + the BO-tuned six-term family jointly span location/scale/tail/path/asymmetry/cost/growth +
     online-ratio (symmetric DSR AND downside DDR) + the optimized-composite class — the strongest
     published-canon steelman the identification principle permits.
+
+## 5-auditor final sweep — REMAINING VERIFIED MINORS (2026-07-22; fix before/at write time; sources = the audit reports in CHANGELOG [2026-07-22])
+30. **Open minor fixes from the 5-auditor sweep (all verified, none campaign-blocking):**
+    (a) analyze_campaign.py: shared `headline_cvar_level()` helper — the superset early-return at
+    ~1151 skips membership checks (restrict-and-continue instead) + `max(cvar_levels)` at ~1691 and
+    `cvar_levels[0]` at 4804/4825/4835/4846/4856/5096 should all resolve the frozen 0.05 via one
+    helper; (b) cross_model.pooled_bound/pair_did: n>=2 fail-loud + vstack length assert + NaN
+    scalar_level guard; (c) leg_aggregate.py:33-37 + regime_analysis.py:29-35: add bootstrap.cvar's
+    non-finite strip; (d) es_backtest.py:92-94 stale docstring (code is the documented interpolated
+    convention; fix the words); (e) magnitude guard: |total|>1e6 → SAFE_DEFAULT in
+    sandbox/executor.py::safe_call + portfolio_env substitution site (protects the popart=False
+    ablation; identification-neutral) + test; (f) leg_gates.py: assert every leg model id resolves
+    in planning_prices (the $0-booking drift guard); (g) client.py JsonlArchiveSink: escalate
+    persistent write-failures to always-ERROR + marker file; (h) resume_brief.py: legs regex
+    `^\s*-\s*label:`, frozen probe case-insensitive, fix the "HEAD or HEAD~1" comment (code = last-3);
+    (i) portfolio_env.py:317 stale rewards.py line refs (drop numbers); (j) CH6 §6.7 needs the R97
+    ten-name-panel landing slot sentence; (k) docs/CAMPAIGN_RUNBOOK.md needs a SUPERSEDED banner
+    (stale 200k GO/NO-GO would kill a correct 400k launch); (l) regression tests for the three R97
+    SystemExit guards (currently manually verified only); (m) launch-day: verify Myriad max_u_jobs
+    vs ~1,200 pipelined arrays (runbook §10 note); (n) C6 non-pipelined sweep blocks at -p 0
+    (latent inversion) + C7 tiered summary not root-suffix-namespaced (latent clobber); (o) h3
+    line bills ~30 authorings unshielded by the canary (design drift, bounded — disclose or gate).

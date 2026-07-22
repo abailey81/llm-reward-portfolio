@@ -1063,6 +1063,7 @@ def run_h3_singleshot_on_cluster(
     frozen_root: str | Path,
     search_seed: int = 0,
     resume: bool = False,
+    priority: int | None = None,
 ) -> dict[str, Any]:
     """C5 — the pre-registered H3 SINGLE-SHOT control on the cluster (P4 closed 2026-07-13,
     Tamer's directive: the whole campaign runs on Myriad).
@@ -1095,8 +1096,10 @@ def run_h3_singleshot_on_cluster(
     gens = int(opts.get("h3_singleshot_generations", 1) or 1)
     h3_opts = {**opts, "generations": gens}
 
-    search = run_search_arm(arm, h3_opts, h3_run, resume=resume,
-                            priority=PRIORITY_H3_SINGLESHOT)
+    h3_prio = PRIORITY_H3_SINGLESHOT if priority is None else int(priority)
+    # AUDIT 2026-07-22 (MAJOR): the full-ladder H3 re-run (--seeds 0-567 --resume) must run
+    # at RUNG priority per the registered queue; the hardcoded -100 would jump all 10 legs.
+    search = run_search_arm(arm, h3_opts, h3_run, resume=resume, priority=h3_prio)
     select_winner, freeze_winner = _resolve_select_freeze(run)
     _guard_k_seed_selector(h3_opts, h3_run)  # P15: max-single-seed select is WRONG under k>1
     winner = select_winner(h3_run.search_read() / arm)
@@ -1111,7 +1114,7 @@ def run_h3_singleshot_on_cluster(
     freeze_winner(arm, winner, search_seed=search_seed, frozen_root=str(frozen_root),
                   env_fingerprint=env_fp)
     test = run_test_leg([(arm, winner)], seeds, h3_run, name=f"{arm}_test",
-                        resume=resume, priority=PRIORITY_H3_SINGLESHOT, **test_leg_kwargs)
+                        resume=resume, priority=h3_prio, **test_leg_kwargs)
     return {"arm": "distributional_singleshot", "ok": True, "search": search, "test": test,
             "winner_id": winner.get("candidate_id")}
 
@@ -1270,11 +1273,14 @@ def run_campaign_tiered(
     def _run_canary() -> dict[str, Any]:
         _LOG.info("[C0] canary: %s at %d core seeds (concurrent with the no-spend arms)",
                   canary_baselines, len(core))
-        canary = run_baselines_on_cluster(
-            canary_baselines, core, run, test_leg_kwargs=test_leg_kwargs, name="canary",
-            priority=PRIORITY_CORE, resume=resume,
-        )
         try:
+            # AUDIT 2026-07-22 (CRITICAL): this call sat OUTSIDE the try — a canary-batch exception
+            # (driver outage, spec desync, qsub parse) set NEITHER event, so the LLM-arm waiters
+            # spun forever and the line hung silently. Everything canary-fatal now aborts loudly.
+            canary = run_baselines_on_cluster(
+                canary_baselines, core, run, test_leg_kwargs=test_leg_kwargs, name="canary",
+                priority=PRIORITY_CORE, resume=resume,
+            )
             if not canary.get("ok", False):
                 raise RuntimeError(
                     f"C0 CANARY FAILED ({canary}) — the production path does not work end-to-end; "
@@ -1363,6 +1369,7 @@ def run_campaign_tiered(
                     core_results[key] = res
             except Exception as exc:  # noqa: BLE001 — one unit must not sink the ladder
                 if key == "__canary__":
+                    _LOG.exception("[C0] canary crashed (abort raised; re-raised after the drain)")
                     continue  # recorded in canary_failure; re-raised loudly after the drain
                 _LOG.exception("[%s] core pipeline crashed", key)
                 core_results[key] = {"arm": key, "ok": False, "error": f"{type(exc).__name__}: {exc}"}

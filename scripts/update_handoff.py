@@ -69,14 +69,25 @@ def main(argv: list[str] | None = None) -> int:
                     help='e.g. "exit 0 (11th certification)" — the one fact the script cannot '
                          "derive (run the suite first; verify-then-claim).")
     ap.add_argument("--gate-checks", type=int, default=21)
-    ap.add_argument("--backup-branch", default="backup-2026-07-21")
+    ap.add_argument("--backup-branch", default=None,
+                    help="Omit to carry the previous block's value forward.")
     args = ap.parse_args(argv)
 
     text = HANDOFF.read_text(encoding="utf-8")
-    if not BLOCK_RE.search(text):
+    m = BLOCK_RE.search(text)
+    if not m:
         raise SystemExit("HANDOFF.md has no handoff_state block — restore it before regenerating")
-    block = render_block(live_facts(), args.suite_status, args.gate_checks, args.backup_branch)
-    HANDOFF.write_text(BLOCK_RE.sub(block, text, count=1), encoding="utf-8")
+    backup_branch = args.backup_branch
+    if backup_branch is None:
+        # Carry the previous block's value forward (audit 2026-07-22: the old hardcoded date
+        # default silently recorded a stale branch name when omitted).
+        prev = re.search(r"backup_branch:\s*(\S+)", m.group(0))
+        backup_branch = prev.group(1) if prev else "UNKNOWN-pass---backup-branch"
+    block = render_block(live_facts(), args.suite_status, args.gate_checks, backup_branch)
+    # lambda replacement: block is raw text, NOT a regex template (audit 2026-07-22: a backslash
+    # in --suite-status, e.g. a quoted Windows path, was interpreted as a regex escape — silent
+    # corruption or re.error).
+    HANDOFF.write_text(BLOCK_RE.sub(lambda _m: block, text, count=1), encoding="utf-8")
     print(f"[update_handoff] regenerated: {block.splitlines()[2].strip()} … "
           f"{block.splitlines()[5].strip()}")
     print("[update_handoff] REMINDER: review §1's PROSE rows for anything this session changed "

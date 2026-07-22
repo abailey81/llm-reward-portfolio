@@ -2,7 +2,7 @@
 # at once (the Opus core + the H3 floor unit + all 10 replication legs), each with its own log.
 #
 # WHAT MODE D IS (runbook s.10): every line submits from L+0; the SGE priority ladder - core
-# search/floor/tier-100 highest, legs -200..-280 in the registered queue order, tier-189+ blocks
+# search/floor/tier-100 highest, legs -200..-290 in the registered queue order, tier-189+ blocks
 # from -300 - makes the scheduler enforce the registered unified queue natively, so completion
 # and truncation order are EXACTLY the pre-declared ones while the eligible backlog stays deep
 # enough to harvest every idle window. Search waves run pack-2 (latency lane); bursts pack-5

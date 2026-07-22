@@ -893,7 +893,7 @@ score secondary — secondary precisely because it shares method variance with t
 DESCRIPTIVE at n=10 legs (R95), the two family-pair DiDs being the identified estimates); **the R87
 three-signature gradient adjudication (capacity=rising / representational=flat-at-zero, THE
 registered prediction / echo=decreasing) plus the ex-ante sonnet-bridge direction (≤ 0)**; BH
-across the nine-leg (R92) report-only CVaR-contrast TOST family for any starred statement. The legs'
+across the ten-leg (R95) report-only CVaR-contrast TOST family for any starred statement. The legs'
 sealed-leg evaluations are part of this SAME single pre-registered protocol — every run is
 specified before any result is observed, so no adaptive reuse of the test window occurs. Per-model
 authoring-reliability metrics (format-compliance baseline, sandbox pass rate, violation taxonomy,

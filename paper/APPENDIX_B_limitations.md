@@ -58,9 +58,13 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   two are reported as such.
 
 ## B.3 The manipulation and the designer
-- **B.3.1 Single model family.** One Claude family (Sonnet 4.6 → Opus 4.8); the pre-registered open-weights
-  second-model cross-check is *specified but unexecuted*. *Direction:* no plural "language models" claim is earned;
-  scoped to the tested family. *Disclosure:* logged as a deviation.
+- **B.3.1 Single confirmatory author.** The *confirmatory* verdicts rest on one frontier model (Opus 4.8):
+  the ten replication legs (R80/R95; ≥6 vendors, five open-weights with hash-pinned checkpoints) are
+  report-only at the tier-30 floor, so cross-model claims are descriptive (the sign pattern, the pooled
+  R86 bound, the capability gradient) — never confirmatory. *Direction:* generalisation beyond the
+  confirmatory author is claimed only at the strength the legs' evidence class supports. *Disclosure:*
+  the asymmetry (one confirmatory author vs ten descriptive legs) is a registered design choice, not a
+  deviation.
 - **B.3.2 Designer numeracy / responsiveness.** A negative responsiveness may reflect the documented weakness of
   language models on raw numerical magnitudes — a lineage running from embedding-era numeracy probes
   [`wallace2019numbers`] to benchmark-wide number-understanding failures in current frontier models
