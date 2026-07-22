@@ -16,6 +16,16 @@
 
 ---
 
+> **Methodological positioning (2026-07-23, the say-know complement).** arXiv 2602.07812 ("LLMs
+> Know More About Numbers than They Can Say") shows models decode magnitudes internally at >90%
+> (linear probes on hidden states) while verbalizing cross-notation comparisons at only 50-70%.
+> Axis A's 2AFC JND is the BEHAVIORAL face of that same gap — it measures what a deployed,
+> API-accessed designer can USE, the deployment-relevant quantity for reward design. The
+> probe-based INTERNAL face requires open weights + local GPU and is registered here as the
+> module's future-work arm (Papers 2/3): running both faces on the five open-weight legs would
+> separate "cannot represent" from "cannot verbalize" — the sharpest version of the bottleneck
+> question. Verify the citation first-hand at wiring.
+
 ## AXIS A — Per-model discrimination thresholds (the 11 full-loop models; ~$8–12)
 
 ### The idea
