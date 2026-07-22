@@ -5,6 +5,19 @@ research code, so entries are grouped by session date. Every entry cites its ADR
 
 ## [2026-07-22] — ★★★ THE FREEZE CYCLE (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
 
+- **The handoff system made SELF-VERIFYING (the smart-continuity upgrade):** `docs/HANDOFF.md` §1
+  now carries a machine-readable `handoff_state` block (regenerated_utc / head / frozen / legs_n /
+  amendments_through / suite_status / gate_checks / backup_branch); NEW `scripts/update_handoff.py`
+  regenerates it from LIVE facts in one command (git HEAD, the `frozen:` flag, the legs.yaml count,
+  the highest amendment row — `--suite-status` stays a required human input, verify-then-claim);
+  the SessionStart hook (`scripts/resume_brief.py`) now DIFFS the block against the same live facts
+  at every boot (stdlib-only, fail-safe, HEAD-tolerance = last 3 commits so the snapshot commit
+  itself never false-alarms) and prints a LOUD per-field staleness warning or a one-line CURRENT
+  verdict; both paths verified live (injected head+legs_n mismatches detected, restore clean);
+  the hook's closing pointer now names the full read order + all four END-duties; CLAUDE.md
+  protocol duty ① names the script. **11th full-suite certification exit 0** (background run,
+  post-audit-battery).
+
 - **R93 freeze-day preparation, all evidence-backed (`30ae72b`):** the five HF weights pins FILLED
   from the official HF API (licenses independently re-verified MIT/MIT/Apache/Apache/OML;
   hash-bound record `model_suite.hf_pins_recorded`); the R84 anchor table applied DISCRETION-FREE

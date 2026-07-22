@@ -147,10 +147,61 @@ def main() -> None:
         for m, p in rf:
             out(f"  {age_h(m):5.0f}h  {p}")
 
+    # --- HANDOFF integrity check (the smart-continuity system, 2026-07-22) -------------------- #
+    # docs/HANDOFF.md carries a machine-readable handoff_state block regenerated at session end
+    # (scripts/update_handoff.py). Diff it against LIVE reality here so a stale snapshot
+    # announces itself at boot instead of silently misleading the next session.
+    try:
+        import re as _re
+
+        _htxt = read(REPO / "docs" / "HANDOFF.md")
+        _m = _re.search(r"```yaml\nhandoff_state:\n(.*?)```", _htxt, _re.DOTALL)
+        if not _m:
+            out("!! HANDOFF: docs/HANDOFF.md has NO handoff_state block - restore it "
+                "(scripts/update_handoff.py).")
+        else:
+            # Flat `key: value` lines — parsed by hand to keep this script stdlib-only.
+            _snap: dict[str, str] = {}
+            for _ln in _m.group(1).splitlines():
+                if ":" in _ln:
+                    _k, _v = _ln.split(":", 1)
+                    _snap[_k.strip()] = _v.strip().strip('"')
+            # The snapshot commit itself moves HEAD, so the snapshot legitimately records either
+            # HEAD or HEAD~1 (the last WORK commit). Anything older = a session ended un-closed.
+            _recent = sh(["git", "log", "--format=%h", "-3"]).split()
+            _live_head = _recent[0] if _recent else ""
+            _live_frozen = "true" if "frozen: true" in prereg else "false"
+            _legs_n = len(_re.findall(r"^  - label:", read(REPO / "config" / "legs.yaml"), _re.M))
+            _rows = _re.findall(r"\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*(R\d+)\s*\|",
+                                read(REPO / "PREREGISTRATION.md"))
+            _rmax = max(_rows, key=lambda r: int(r[1:])) if _rows else "R?"
+            _diffs = []
+            if _snap.get("head") not in _recent:
+                _diffs.append(f"HEAD {_snap.get('head')} -> {_live_head}")
+            if _snap.get("frozen") != _live_frozen:
+                _diffs.append(f"frozen {_snap.get('frozen')} -> {_live_frozen}")
+            if _snap.get("legs_n") != str(_legs_n):
+                _diffs.append(f"legs_n {_snap.get('legs_n')} -> {_legs_n}")
+            if _snap.get("amendments_through") != _rmax:
+                _diffs.append(f"amendments {_snap.get('amendments_through')} -> {_rmax}")
+            if _diffs:
+                out("!! HANDOFF SNAPSHOT IS STALE (docs/HANDOFF.md S1 vs live): "
+                    + "; ".join(_diffs))
+                out("!! The last session ended without the protocol close-out. TRUST THE LIVE "
+                    "REPO + the cursor; regenerate via scripts/update_handoff.py early.")
+            else:
+                out(f"HANDOFF S1 CURRENT [OK]  (regenerated {_snap.get('regenerated_utc')}; "
+                    f"suite: {_snap.get('suite_status')})")
+    except Exception as _exc:  # the brief must never break the session
+        out(f"!! HANDOFF check unavailable ({type(_exc).__name__}) - read docs/HANDOFF.md "
+            "manually.")
+
     out("-" * 74)
-    out("-> Read memory/session-current-focus.md (the cursor) + CLAUDE.md (PRIORITIES + CURRENT")
-    out("   STATE), say 'Resuming from: <state> - next: <action>', and CONTINUE the work - do")
-    out("   NOT ask 'what would you like to do'. UPDATE the cursor before ending substantive work.")
+    out("-> READ ORDER: docs/HANDOFF.md (S1 state + standing orders + the authority map) ->")
+    out("   memory/session-current-focus.md (the cursor NOW entry) -> CLAUDE.md (PRIORITIES +")
+    out("   the four-authority rule). Say 'Resuming from: <state> - next: <action>' and CONTINUE.")
+    out("   END-OF-WORK DUTIES (all four): update_handoff.py + short cursor entry + CHANGELOG +")
+    out("   backup push (CLAUDE.md -> SESSION HANDOFF PROTOCOL).")
     out("=" * 74)
 
     print("\n".join(_lines))
