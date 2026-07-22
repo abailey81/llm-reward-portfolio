@@ -873,7 +873,7 @@ level — the registered cross-model bounded-null statement (per-leg TOSTs at th
 inconclusive by construction; pooling is where the precision lives)**; the capability regression
 on the R84-pinned SWE-bench-Verified anchor under its discretion-free retrieval rule (M2 reading
 score secondary — secondary precisely because it shares method variance with the outcome;
-DESCRIPTIVE at n=9 legs, the two family-pair DiDs being the identified estimates); **the R87
+DESCRIPTIVE at n=10 legs (R95), the two family-pair DiDs being the identified estimates); **the R87
 three-signature gradient adjudication (capacity=rising / representational=flat-at-zero, THE
 registered prediction / echo=decreasing) plus the ex-ante sonnet-bridge direction (≤ 0)**; BH
 across the nine-leg (R92) report-only CVaR-contrast TOST family for any starred statement. The legs'

@@ -39,6 +39,22 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   roster table/queue/M2 counts (+ the K3 row); the cross_model docstring cite. §14 prose
   updated to ten legs incl. K3.
 
+- **R96 (`b6d0fb7`): the OPTIONAL M2 psychometric module** fully pre-specified (Axis A: 2AFC
+  delta-ladder JND per full-loop model + THE OVERLAY — the share of realized fed deltas below
+  each model's resolution limit, the mechanism's quantitative closure; Axis B: the census-frame
+  ecosystem map, ~100–130 bases, psychometrically linked short form; activation = Tamer's dated
+  write-time decision with the ALL-OR-NOTHING reporting clause; registry row 25).
+- **THE HANDOFF SYSTEM (this entry):** `docs/HANDOFF.md` = the new canonical entrypoint
+  (regenerated §1 state snapshot · §2 standing orders · §3 the authority map — one owner per
+  truth · §4 the R78–R96 one-line ledger · §5 first actions); V2_HANDOFF bannered historical;
+  CLAUDE.md gains the ★ SESSION HANDOFF PROTOCOL (start/end duties incl. regenerate-§1,
+  ≤15-line cursor entries, CHANGELOG blocks, the backup push; + the hard-won lessons: PS1
+  ASCII+parse-check, no `git add -A`, no backslash heredocs, R-row ordering, name-needs-value).
+  **Final audit battery:** gate 21 OK · citations clean · rung-freshness green · backup==HEAD ·
+  three stale spots fixed (runbook §10 expectations/line-count; §14 n=9→10) · the freeze-written
+  `prereg-v1.0.sha256` restored to its v1 content (the GO-day freeze writes its own) · the 10th
+  full-suite certification green.
+
 ## [2026-07-21d] — ★★★ MODE-D FINAL PASSES + THE RAISED BAR + R89–R91 (freshness) + the completeness sweep
 
 - **Mode-D 2nd/3rd/4th passes (`26caaf6`, `1922e27`, `0643df2`):** the training-latency anatomy —

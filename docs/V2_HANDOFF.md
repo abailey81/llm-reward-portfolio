@@ -1,3 +1,8 @@
+# ⚠ SUPERSEDED (2026-07-22) — read `docs/HANDOFF.md` instead
+> This file was the v2-build handoff (steps 1–8 + the hardening waves). It is now a HISTORICAL
+> record: the canonical, always-current session entrypoint is **`docs/HANDOFF.md`** (regenerated
+> §1 state snapshot + standing orders + the authority map). Facts below may be stale.
+
 # V2 HANDOFF — read this FIRST to continue losslessly (2026-07-21)
 
 > **Purpose.** A self-contained handoff so the NEXT Claude Code session picks up the v2 build with

@@ -287,13 +287,13 @@ sources archived).
 > their wall time; tight auto-sized walltimes make them prime backfill); winner/rung bursts
 > keep pack-5 THROUGHPUT; C4 rungs are pipelined (no drain bubbles). All ops-only (R88):
 > identical seeds, steps, budgets, stopping rules. Expected vs §2+§9 serial operation:
-> **all 9 legs ~L+3–4 (was L+8.8), tier-403 ~L+12–14 (was L+16.5), mechanism ~L+0.3**.
+> **all 10 legs ~L+4.5–5.5, tier-403 ~L+13–14.5, floor (BO-bound) ~L+1.5–1.8, mechanism ~L+0.7** (R95-updated).
 
 **The ONE command (after the v2 freeze, on Tamer's LAUNCH word):**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1
-# Spawns 10 supervised lines (core + 9 legs), each self-healing (relaunch-on-death), each with
+# Spawns 12 supervised lines (core + h3 + 10 legs), each self-healing (relaunch-on-death), each with
 # its own log: outputs\campaign_cluster\supervisor_<line>.log. Poll phases staggered 20s apart.
 # Stop everything: create outputs\campaign_cluster\STOP_CAMPAIGN.
 ```
