@@ -38,7 +38,7 @@ handoff_state:
 | Execution | MODE D final: **12 launch lines** via `scripts/mode_d_launch.ps1` (core + h3 + 10 legs; ladder −200…−290; pack lanes; pipelined rungs; canary-concurrent; 45s chain polls) |
 | Timings from GO | mechanism ~L+0.7 · **floor ~L+1.5–1.8** (BO-bound) · all legs ~L+4.5–5.5 · **tier-403 ~L+13–14.5** · 99% rung likely from a ≤Jul-25 GO |
 | Verification | freeze gate **21 OK** · **13 full-suite certifications** (all exit 0; 13th = post-pre-GO-audit) · citations clean · rung-freshness green · both PS1s parse 0 · backup branch `backup-2026-07-21` == HEAD |
-| Money | expected **~$28 all-in** (campaign) · top-ups: **Anthropic ≥$35 · OpenRouter ≥$25** + the do-not-log toggle · the R96 module = a separate ~$25–35 P2 line if activated |
+| Money | expected **~$28 all-in** (campaign) · **Anthropic FUNDED: $25.91 (Tamer, 2026-07-22; key verified LIVE via author_smoke — covers expected ~$10 with 2.6×, $1.09 under the ~$27 worst-at-caps; advisory ledger pauses-not-wastes; optional +$5–10 buys full margin)** · OpenRouter ≥$25 + the do-not-log toggle STILL PENDING · the R96 module = a separate ~$25–35 P2 line if activated |
 | NOT done, by order | **NOT frozen · NOT launched · gates NOT run** (need OpenRouter credit; pre-launch per R93e) |
 | Tamer's pending items | ① Okhrati email (draft + the meeting brief ready) ② top-ups + toggle ③ Windows-Update pause ④ UCL password rotation ⑤ the force-push decision (backup branch protects meanwhile) ⑥ **the full-campaign approval** → fires freeze→gates→launch |
 | Next Claude work | the WRITING month (dimension 4 = the binding constraint under the grade-inflation bar): CH2-argument skeleton, CH1/CH4 depth-passes, wiring D1–D10, the scannable tables — needs no results, no spend |
