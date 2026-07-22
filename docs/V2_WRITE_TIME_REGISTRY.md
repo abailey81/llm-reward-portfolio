@@ -217,3 +217,11 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     (ii) assistant-prefill ("```python") to force code-only output — provider-ASYMMETRIC (Anthropic
     supports it, OpenRouter legs vary) → a format confound across legs; the fence-parser already
     handles the residual prose rate. Both re-openable for Papers 2/3, never mid-campaign.
+    (e) DEEPER SWEEP (same day): OPRO/TextGrad/CodeGrad = the textual-gradient lineage — CH2 one-liner
+    differentiating our CONTROLLED-feedback loop from optimization-maximal loops; execution-error
+    traces in reflection (ReflectionCoder-style) = a known loop upgrade, CONSIDERED-REJECTED
+    mid-campaign (arm-identical hence identification-safe, but it changes the pilot-validated loop
+    behavior days before GO; Papers 2/3). (f) PROMPT-PORTABILITY: industrial studies show 20-30%
+    cross-model prompt degradation -> B.3.4 NOW ADDED to APPENDIX_B (same-prompt = the replication
+    design; gates + anchor = the defense); find + verify the exact citation at wiring (the
+    meta-prompting industrial paper, arXiv 2508.01443 candidate).

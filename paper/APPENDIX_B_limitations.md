@@ -83,6 +83,14 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   30-candidate budget overstates effective search. A wider K is identified as future work; the narrow width is a
   scope choice, disclosed, not a power claim.
   *Mitigation:* a pairwise reward-source diversity / Quality-Diversity coverage report.
+- **B.3.4 Prompt portability across replication legs.** The ten legs receive the SAME
+  Opus-calibrated prompts; industrial meta-prompting studies find prompts tuned on one model can
+  degrade 20-30% on another [`meta-prompting-industrial` — verify at wiring], so part of any leg's
+  shortfall may reflect instruction-format sensitivity rather than the tail-reading construct.
+  *Mitigation:* the pre-launch compliance gate screens each leg's executable rate BEFORE results
+  (format-incapable legs are excluded and disclosed, never scored); the SWE-bench-Verified anchor
+  absorbs general instruction-following into the capability axis; identical prompts are the
+  REPLICATION design (varying them per leg would confound the model axis with prompt tuning).
 
 ## B.4 External validity and data realism
 - **B.4.1 Single universe / period / cohort.** US large-cap equities, 2020–2026H1 sealed leg, fixed 2005-cohort
