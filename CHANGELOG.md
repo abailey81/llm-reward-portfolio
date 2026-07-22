@@ -5,6 +5,30 @@ research code, so entries are grouped by session date. Every entry cites its ADR
 
 ## [2026-07-22] — ★★★ THE FREEZE CYCLE (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
 
+- **R97 — the hand-written reward panel steel-manned (Tamer: "make sure the human written is very
+  smart… do a very deep internet sweep"):** the deep sweep (ACM Computing Surveys taxonomy
+  2408.10932; the 2506.04358 composite-reward line; Almahdi & Yang 2017; the Moody–Saffell canon)
+  found ONE canonical gap — the **differential downside deviation ratio (DDR)**, Moody & Saffell
+  2001's OWN downside companion to the DSR, indefensibly absent from a tail-feedback study's human
+  panel. **Implemented from the primary source** (eqs. (19)–(24) transcribed off the rasterized
+  page of the on-disk PDF, never from memory): `differential_downside_ratio` in REWARD_CANON
+  (state-threaded, warm-up-guarded, worked-example-tested incl. the no-penalty-upside asymmetry
+  property) + the 10-name `baseline_rewards` seat. **The §9 promise-vs-execution gap CLOSED:** the
+  secondary panel had NO execution path (nothing consumed `baseline_rewards`; the freeze gate pins
+  the H1 four exactly) → R97 states it precisely (H1 four FROZEN-unchanged; the ten-name canon runs
+  report-only at the tier-30 floor post-headline, priority −310) and wires it: runbook **§9(h)**
+  real command (cluster `--baselines` + `--resume` no-op-arm pattern), fail-before-ssh
+  REWARD_CANON validation in the cluster driver, and a guarded laptop `--baselines` override
+  (refuses without `--baselines-only`). NEW config↔code lock: `baseline_rewards ==
+  REWARD_CANON.keys()` asserted in both directions. **⚠ NOVELTY FENCE: GIFT (arXiv 2606.08450,
+  7 Jun 2026)** read first-hand + archived to the corpus — adjacent (LLM-guided state+reward
+  interface, PPO), does NOT occupy the cell (varies state+reward jointly, 5-stock panels, 3 seeds,
+  no prereg/tests/contrast), strengthens the motivation; registry row 29 = the CH2 wiring + fence
+  obligations. **STALE-HASH FIX:** HANDOFF §1 + runbook §2.0 claimed the GO-day freeze re-stamps
+  `ccf2e76f` — FALSE since R95 (verified empirically: the live would-be hash had moved) → both now
+  state the hash is recomputed at GO and `ccf2e76f` is R93 history. 160 targeted tests green; gate
+  21 OK; ruff clean.
+
 - **The handoff system made SELF-VERIFYING (the smart-continuity upgrade):** `docs/HANDOFF.md` §1
   now carries a machine-readable `handoff_state` block (regenerated_utc / head / frozen / legs_n /
   amendments_through / suite_status / gate_checks / backup_branch); NEW `scripts/update_handoff.py`

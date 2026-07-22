@@ -25,16 +25,18 @@ arms:                            # legacy blueprint budget = iterations*samples*
   - bayes_opt                    # H4b: GP-EI Bayesian optimisation (Matern-2.5; Snoek et al. 2012) over the same family
 
 baseline_rewards:                # hand-designed canon (citations in src/baselines/rewards.py docstrings)
-  # The full 9-name SECONDARY panel (PREREGISTRATION §9). Every name MUST be a real key in
+  # The full 10-name SECONDARY panel (PREREGISTRATION §9; R97 added differential_downside_ratio). Every name MUST be a real key in
   # src/baselines/rewards.py::REWARD_CANON (the branch resolves via getattr(rewards, name)); the
   # previous list had 5/6 STALE names that would AttributeError (log_wealth/sharpe_episodic/
   # cvar_penalised_mean/drawdown_penalised/turnover_penalised — fixed to the real names below;
   # sharpe_episodic DROPPED, it has no REWARD_CANON function). The FROZEN H1 family is the 4-name
-  # subset in config/campaign.yaml::h1_baselines; this 9-name set is the documented secondary panel.
+  # subset in config/campaign.yaml::h1_baselines; this 10-name set is the documented secondary panel
+  # (tests/test_baselines.py asserts it == REWARD_CANON.keys() in both directions).
   - raw_return                   # myopic bare portfolio return
   - return_minus_variance        # mean-variance penalty
   - return_minus_cvar            # tail-risk (CVaR) penalty   (was: cvar_penalised_mean)
   - differential_sharpe          # Moody & Saffell online incremental Sharpe — primary baseline
+  - differential_downside_ratio  # Moody & Saffell 2001 eqs.(21),(23),(24) — the DOWNSIDE companion (R97)
   - mean_variance_utility        # Markowitz quadratic utility
   - return_minus_drawdown        # running-drawdown penalty   (was: drawdown_penalised)
   - return_minus_downside        # Sortino downside semi-deviation penalty

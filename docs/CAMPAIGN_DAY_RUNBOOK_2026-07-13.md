@@ -66,7 +66,9 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 ## 2.0 THE GO SEQUENCE (executed by Claude on Tamer's OFFICIAL GO — in this exact order)
 
 ```bash
-# 1. FREEZE (stamps the recorded hash = the canonical at GO; currently ccf2e76f — R93/R94:
+# 1. FREEZE (stamps the recorded hash = the canonical at GO; RECOMPUTED live — the R93 ccf2e76f
+#    stamp is history: R95-R97 moved the would-be hash since, and any further pre-GO amendment
+#    moves it again; the GO freeze stamps the then-current value + fresh bundle — R93/R94:
 #    the freeze executes AT the full-campaign approval, never before) + verify:
 python scripts/freeze.py            # the one irreversible act
 python scripts/freeze.py --check    # recorded == canonical, frozen: true
@@ -277,6 +279,24 @@ pre-freeze — still calendar-fixed and exogenous; never moved after launch. Als
 `hf_pin` placeholders (5 open legs) from the official HF cards — `freeze.py` refuses while any
 remain — and run the R84 anchor-value retrieval (SWE-bench-Verified per the registered rule,
 sources archived).
+
+**(h) The SECONDARY hand-reward panel (R97; POST-HEADLINE, report-only, rock-bottom priority).**
+After the headline banks, run the SIX secondary canon members (the H1 four already ran with the
+campaign; this completes the ten-name §9 panel, incl. the R97 `differential_downside_ratio`) at
+the tier-30 floor seed set, on the cluster, via the EXISTING baselines flood + resume machinery
+(no new code path — `--resume` makes the named arm a no-op, so only the six baselines submit):
+
+    python scripts/run_campaign_cluster.py --arms distributional --resume \
+      --baselines differential_downside_ratio mean_variance_utility return_minus_drawdown \
+                  return_minus_downside return_minus_turnover log_growth \
+      --seeds 0-29 --priority -310 --batch-tag secondary_panel
+
+(-310 = strictly below every leg and rung line; 6 rewards × 30 seeds = 180 seeded-deterministic
+trainings, zero LLM spend, resume-safe by run_id. Baseline names validate against REWARD_CANON
+up front — fail-before-ssh. Laptop parity/fallback: `run_campaign.py --baselines-only
+--baselines <names>`, whose `--baselines` flag refuses to run without `--baselines-only`, so the
+headline's frozen `h1_baselines` path cannot be altered by it. If the deadline truncates the
+set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing.)
 
 ## 10. MODE D — MAXIMUM-PARALLEL LAUNCH (R88; supersedes §9(b)'s one-leg-at-a-time operation)
 

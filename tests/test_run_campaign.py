@@ -377,6 +377,18 @@ def test_build_parser_exposes_search_gpu_defaulting_to_serial():
     assert "search_cpu" in actions and actions["search_cpu"].default == 0
 
 
+def test_build_parser_baselines_override_defaults_to_config_path():
+    """R97: ``--baselines`` exists, DEFAULTS to None (=> the frozen config h1_baselines path is
+    byte-identical), and parses a name list for the report-only secondary-panel invocation."""
+    parser = run_campaign.build_parser()
+    actions = {a.dest: a for a in parser._actions}
+    assert "baselines" in actions and actions["baselines"].default is None
+    args = parser.parse_args(
+        ["--baselines-only", "--baselines", "differential_downside_ratio", "log_growth"])
+    assert args.baselines == ["differential_downside_ratio", "log_growth"]
+    assert args.baselines_only is True
+
+
 # --------------------------------------------------------------------------- #
 # Graceful-shutdown flag (campaign-robustness §A): the SHUTDOWN Event stops the #
 # arm loop at a boundary NON-DESTRUCTIVELY, via an injected fake runner.        #

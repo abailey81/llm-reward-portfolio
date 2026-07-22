@@ -2098,6 +2098,14 @@ def build_parser() -> argparse.ArgumentParser:
              "trainings; resume-safe by run_id); writes baselines_summary.json (never the campaign's "
              "sentinel). Forces --h3-singleshot off.",
     )
+    parser.add_argument(
+        "--baselines", nargs="+", default=None, metavar="NAME",
+        help="R97: override the baseline NAME list for the baseline stage (default: config/campaign.yaml "
+             "h1_baselines — the frozen H1 four, which the freeze gate pins and this flag does NOT touch). "
+             "Use with --baselines-only to run the SECONDARY hand-reward panel (PREREGISTRATION §9, the "
+             "ten-name canon in config/eureka_loop.yaml baseline_rewards) report-only at the tier-30 floor "
+             "post-headline (runbook §9(h)). Each name must be a REWARD_CANON key (validated up front).",
+    )
     return parser
 
 
@@ -2139,7 +2147,21 @@ def main() -> None:
     synthetic = bool(args.synthetic)
     # H1 "beat-the-human" baselines (PREREGISTRATION §1), READ from config (no hardcoding — CLAUDE.md);
     # absent => the stage is skipped. Each name must be a real REWARD_CANON key (validated when resolved).
-    baseline_names = [str(b) for b in cfg_get(camp, "h1_baselines", [])]
+    # R97: --baselines overrides the list for the report-only SECONDARY panel invocation (runbook §9(h));
+    # the default (config) path is byte-identical, and the freeze gate still pins config's h1_baselines.
+    if args.baselines is not None:
+        if not args.baselines_only:
+            raise SystemExit(
+                "--baselines requires --baselines-only: the headline campaign must run the FROZEN "
+                "config h1_baselines (R97 scopes the override to the report-only secondary panel).")
+        from src.baselines.rewards import REWARD_CANON
+        unknown = [b for b in args.baselines if b not in REWARD_CANON]
+        if unknown:
+            raise SystemExit(
+                f"--baselines: unknown REWARD_CANON key(s) {unknown}; valid: {sorted(REWARD_CANON)}")
+        baseline_names = [str(b) for b in args.baselines]
+    else:
+        baseline_names = [str(b) for b in cfg_get(camp, "h1_baselines", [])]
 
     # The headline RUN MODE *and* reward-author are read from config/campaign.yaml: llm and threaded
     # as `llm_cfg` into run_arm, so the campaign uses its OWN author (Claude Opus 4.8) and does NOT

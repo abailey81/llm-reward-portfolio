@@ -515,7 +515,7 @@ strings); `scripts/run_campaign.py` (`_baseline_reward_builder` L581 `return fn`
 (`train_candidate` baseline branch L210-215 `getattr(R, spec["reward"])`, no param injection);
 `src/env/portfolio_env.py` L293-311 (`info = {weights, prev_weights, reward_state}` — NO λ/window/α/η
 injected — the T-UNTUNED root cause); `tests/test_baselines.py`; `config/campaign.yaml` (`h1_baselines`
-L47, candidates_per_arm 30, seeds 0-29), `config/eureka_loop.yaml` (9-name panel, now real names),
+L47, candidates_per_arm 30, seeds 0-29), `config/eureka_loop.yaml` (10-name panel since R97, now real names),
 `config/prototype.yaml` (40 candidates / 8 gen). `PREREGISTRATION.md` §1/§5/§9/§10 + amendment record
 (verified: 12 sections, no §18-19).
 

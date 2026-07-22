@@ -111,7 +111,7 @@ auto_shutdown_on_complete: false       # rented-GPU-era knob, DISARMED 2026-07-0
 # THIS list (no hardcoding — CLAUDE.md) and runs each baseline at the same winner seed set (the E1
 # tiered ladder [0..567], uniform across all test-leg units — Amendment E1) as the winners.
 # These four are the FROZEN H1 family (named in PREREGISTRATION §1 H1; mirrored + freeze-gated via
-# config/preregistration.yaml h1_baselines); the 9-name eureka_loop.yaml panel is a
+# config/preregistration.yaml h1_baselines); the 10-name eureka_loop.yaml panel (R97) is a
 # documented SECONDARY set. Baselines are UN-SEARCHED, so their Deflated Sharpe is deflated by N=1
 # (like the 8 allocators) while the LLM winner keeps its searched multiplicity — the fair, conservative
 # searched-LLM-vs-fixed-human Eureka comparison (the asymmetry FAVOURS the baselines).

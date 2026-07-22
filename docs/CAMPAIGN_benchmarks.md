@@ -11,7 +11,7 @@ CAMPAIGN "does it work?" comparison defensible. NOT dissertation prose. No code 
 > band conclusions are unchanged. **The G1 blocker below has since been CLOSED:** the 4-name H1
 > baseline panel is dispatched automatically (`config/campaign.yaml: h1_baselines` = raw_return,
 > return_minus_variance, return_minus_cvar, differential_sharpe; guarded by
-> `freeze.py::assert_h1_baselines_match`; 120 H1 trainings = 4 × 30 seeds — R30/R72), with the 9-name
+> `freeze.py::assert_h1_baselines_match`; 120 H1 trainings = 4 × 30 seeds — R30/R72), with the 10-name (R97)
 > `REWARD_CANON` documented as the secondary panel (`config/eureka_loop.yaml` note).
 
 Scope: the benchmark **ladder** the comparative claim needs —
@@ -230,8 +230,9 @@ gap that touches a *frozen hypothesis* (H1). Three sub-tasks:
   normalized improvement** `(LLM − best_hand)/|best_hand|`, against the **83% / +52%** Eureka reference.
 - (c) **Fix the stale config.** `config/eureka_loop.yaml: baseline_rewards` must use the real function
   names (`log_growth`, `return_minus_cvar`, `return_minus_drawdown`, `return_minus_turnover`, drop
-  `sharpe_episodic`) — ideally enumerate the **9-name §9 panel** directly from `REWARD_CANON.keys()` to
-  prevent drift. As-is, 5/6 names would `AttributeError`.
+  `sharpe_episodic`) — ideally enumerate the **§9 panel** directly from `REWARD_CANON.keys()` to
+  prevent drift. As-is, 5/6 names would `AttributeError`. [RESOLVED, R97: the 10-name panel is now
+  test-locked to `REWARD_CANON.keys()` in both directions — tests/test_baselines.py.]
 
 **G2 — (documentation) The referenced deep-research findings doc is absent.** The task pointed to
 `00_planning/CAMPAIGN_DEEP_RESEARCH_FINDINGS_2026-06-21.md` (the "6-tier ladder + FinRL band"). **There

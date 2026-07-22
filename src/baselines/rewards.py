@@ -289,6 +289,93 @@ def differential_sharpe(
 # scalar-feedback LLM rewards but to the standard literature designs. These are  #
 # SECONDARY baselines (additive), NOT part of the frozen H2 family.              #
 # =========================================================================== #
+def differential_downside_ratio(
+    weights: Any,
+    returns: Any,
+    prev_weights: Any,
+    port_ret: float,
+    info: dict[str, Any],
+) -> tuple[float, dict[str, float], object]:
+    """Differential (online incremental) downside deviation ratio (DDR).
+
+    The DOWNSIDE companion of :func:`differential_sharpe` from the SAME canonical paper — the
+    tail-asymmetric member of the human canon (R97, 2026-07-22): it "rewards the presence of large
+    average positive returns and penalizes risky returns, where 'risky' now refers to downside
+    returns" (Moody & Saffell 2001, p. 879). A hand-written panel facing a distributional-vs-scalar
+    tail-feedback study MUST include the canonical downside-sensitive online reward, not only the
+    symmetric-Sharpe half of its own primary citation. STATEFUL via ``reward_state``.
+
+    Citation (formulas transcribed FIRST-HAND from the on-disk PDF, p. 879)
+    ----------------------------------------------------------------------
+    **Moody & Saffell (2001)**, "Learning to Trade via Direct Reinforcement," *IEEE Trans. Neural
+    Networks* 12(4):875-889, eqs. (19)-(24). DD is the square root of the mean SQUARED NEGATIVE
+    return (19); DDR = Average(R)/DD (20); the differential form is the first-order term of the
+    expansion in the adaptation rate eta (22). Footnote 7 there notes the DD "tracks the Sterling
+    ratio effectively" (White), so this member also proxies the drawdown-RATIO axis
+    (Calmar/Sterling; cf. Almahdi & Yang 2017) alongside the return_minus_drawdown PENALTY form.
+
+    Algorithm sketch (Moody & Saffell 2001, eqs. (21), (23), (24))
+    --------------------------------------------------------------
+    State carries A (EMA of return) and DD2 (EMA of squared negative return), decay eta:
+
+        A_t   = A_{t-1}   + eta * (R_t - A_{t-1})
+        DD2_t = DD2_{t-1} + eta * (min{R_t, 0}^2 - DD2_{t-1})           # (21)
+
+        D_t = (R_t - 0.5*A_{t-1}) / DD_{t-1}                            # R_t > 0   (23)
+        D_t = (DD2_{t-1}*(R_t - 0.5*A_{t-1}) - 0.5*A_{t-1}*R_t^2)
+              / DD_{t-1}^3                                              # R_t <= 0  (24)
+
+    with DD_{t-1} = sqrt(DD2_{t-1}). Per (24), a positive return carries NO penalty however large
+    (unlike the variance-based DSR) while a negative return is penalized through the cubic
+    denominator — the asymmetry that makes this the tail-sensitive human reward.
+
+    Worked example (replayed exactly in tests/test_baselines.py)
+    ------------------------------------------------------------
+    eta = 0.1, A_0 = DD2_0 = 0. Feed R = 0.02, -0.01, 0.005, -0.02:
+      Step 1 (0.02):  DD_0 = 0 -> warm-up D_1 = 0; A_1 = 0.002, DD2_1 = 0 (positive return).
+      Step 2 (-0.01): DD_1 = 0 -> warm-up D_2 = 0; A_2 = 0.0008, DD2_2 = 1e-05.
+      Step 3 (0.005): R > 0: D_3 = (0.005 - 0.0004)/sqrt(1e-05) ~= 1.454653;
+                      A_3 = 0.00122, DD2_3 = 9e-06.
+      Step 4 (-0.02): R <= 0: D_4 = (9e-06*(-0.02 - 0.00061) - 0.00061*0.0004)/(9e-06)**1.5
+                      ~= -15.907037; A_4 = -0.000902, DD2_4 = 4.81e-05.
+
+    Warm-up disclosure (mirrors the DSR's): D is undefined until a NEGATIVE return has entered
+    DD2 (DD_{t-1} = 0), so 0.0 is emitted during warm-up — the live reward SAC receives on those
+    early steps, stated rather than silent. SECONDARY panel member (config/eureka_loop.yaml
+    ``baseline_rewards``), NOT part of the frozen H1 four (multiplicity unchanged).
+    """
+    r = float(port_ret)
+
+    state = info.get("reward_state")
+    if state is None:
+        eta = float(info.get("eta", 0.1))
+        a_prev, dd2_prev = 0.0, 0.0
+    else:
+        a_prev = float(state["A"])
+        dd2_prev = float(state["DD2"])
+        eta = float(state["eta"])
+
+    # Warm-up guard: DD_{t-1} = 0 (no negative return seen yet, or degenerate state) leaves both
+    # branches of (23)/(24) undefined; emit 0.0 until DD2 is strictly positive.
+    if dd2_prev > 0.0:
+        dd_prev = dd2_prev**0.5
+        if r > 0.0:
+            ddr = (r - 0.5 * a_prev) / dd_prev  # (23)
+        else:
+            ddr = (dd2_prev * (r - 0.5 * a_prev) - 0.5 * a_prev * r * r) / (dd_prev**3)  # (24)
+    else:
+        ddr = 0.0
+
+    neg_sq = min(r, 0.0) ** 2
+    a_new = a_prev + eta * (r - a_prev)
+    dd2_new = dd2_prev + eta * (neg_sq - dd2_prev)
+
+    total = float(ddr)
+    components = {"ddr": total, "A": float(a_new), "DD2": float(dd2_new)}
+    new_state = {"A": float(a_new), "DD2": float(dd2_new), "eta": eta}
+    return total, components, new_state
+
+
 def mean_variance_utility(
     weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
 ) -> tuple[float, dict[str, float], object]:
@@ -397,6 +484,7 @@ REWARD_CANON: dict[str, Any] = {
     "return_minus_variance": return_minus_variance,
     "return_minus_cvar": return_minus_cvar,
     "differential_sharpe": differential_sharpe,
+    "differential_downside_ratio": differential_downside_ratio,
     "mean_variance_utility": mean_variance_utility,
     "return_minus_drawdown": return_minus_drawdown,
     "return_minus_downside": return_minus_downside,

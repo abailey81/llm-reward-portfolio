@@ -16,6 +16,7 @@ ALL_REWARDS = [
     rewards.return_minus_variance,
     rewards.return_minus_cvar,
     rewards.differential_sharpe,
+    rewards.differential_downside_ratio,
 ]
 
 
@@ -74,6 +75,85 @@ def test_differential_sharpe_sequence() -> None:
     assert np.isclose(comp2["B"], 0.000046)
     assert np.isclose(state2["A"], 0.0008)
     assert np.isclose(state2["B"], 0.000046)
+
+
+def test_differential_downside_ratio_sequence() -> None:
+    """differential_downside_ratio replays the docstring's hand-computed sequence.
+
+    Formulas transcribed first-hand from Moody & Saffell (2001), p. 879, eqs. (21), (23), (24):
+    A/DD2 EWMAs; D = (R - A/2)/DD for R > 0; D = (DD2*(R - A/2) - (A/2)*R^2)/DD^3 for R <= 0.
+    """
+    eta = 0.1
+    w = np.array([1.0])
+
+    # Step 1: R = 0.02 (positive) with A_0 = DD2_0 = 0 -> warm-up D = 0; DD2 stays 0.
+    total1, comp1, state1 = rewards.differential_downside_ratio(w, w, w, 0.02, {"eta": eta})
+    assert total1 == 0.0
+    assert np.isclose(state1["A"], 0.002)
+    assert state1["DD2"] == 0.0
+    assert np.isclose(state1["eta"], eta)
+
+    # Step 2: R = -0.01 -> DD2_prev still 0 -> warm-up D = 0; the negative return seeds DD2.
+    total2, comp2, state2 = rewards.differential_downside_ratio(
+        w, w, w, -0.01, {"reward_state": state1})
+    assert total2 == 0.0
+    assert np.isclose(state2["A"], 0.0008)
+    assert np.isclose(state2["DD2"], 1e-05)
+
+    # Step 3: R = 0.005 > 0 -> eq. (23): D = (R - A/2) / DD, NO penalty term for the gain.
+    a2, dd2_2 = 0.0008, 1e-05
+    total3, comp3, state3 = rewards.differential_downside_ratio(
+        w, w, w, 0.005, {"reward_state": state2})
+    assert np.isclose(total3, (0.005 - 0.5 * a2) / dd2_2**0.5)
+    assert np.isclose(state3["A"], 0.00122)
+    assert np.isclose(state3["DD2"], 9e-06)  # positive return DECAYS DD2: 1e-05 + 0.1*(0 - 1e-05)
+
+    # Step 4: R = -0.02 <= 0 -> eq. (24): the cubic-denominator downside branch.
+    a3, dd2_3 = 0.00122, 9e-06
+    r4 = -0.02
+    total4, comp4, state4 = rewards.differential_downside_ratio(
+        w, w, w, r4, {"reward_state": state3})
+    expected4 = (dd2_3 * (r4 - 0.5 * a3) - 0.5 * a3 * r4 * r4) / dd2_3**1.5
+    assert np.isclose(total4, expected4)
+    assert total4 < 0.0  # a loss is penalized...
+    assert total3 > 0.0  # ...a gain is rewarded
+    assert np.isclose(state4["A"], -0.000902)
+    assert np.isclose(state4["DD2"], 4.81e-05)
+
+
+def test_differential_downside_ratio_asymmetry() -> None:
+    """The DDR's defining property (Moody & Saffell 2001, discussion of eq. (24)):
+    a LARGE positive return carries no risk penalty (D grows linearly, unlike the DSR,
+    whose squared-return term drags large gains), while the matched negative return is
+    penalized strictly harder than the positive one is rewarded once A > 0."""
+    w = np.array([1.0])
+    state = {"A": 0.001, "DD2": 1e-04, "eta": 0.1}
+    up_small, _, _ = rewards.differential_downside_ratio(w, w, w, 0.01, {"reward_state": dict(state)})
+    up_big, _, _ = rewards.differential_downside_ratio(w, w, w, 0.05, {"reward_state": dict(state)})
+    down, _, _ = rewards.differential_downside_ratio(w, w, w, -0.01, {"reward_state": dict(state)})
+    # Linear, unpenalized upside: 5x the return -> more than 4.9x the reward.
+    assert up_big > 4.9 * up_small > 0.0
+    # Asymmetry: the matched-magnitude loss outweighs the gain.
+    assert down < 0.0
+    assert abs(down) > up_small
+
+
+def test_secondary_panel_config_matches_reward_canon() -> None:
+    """R97: config/eureka_loop.yaml ``baseline_rewards`` (the §9 secondary panel) must equal
+    REWARD_CANON's keys exactly — the config comment's 'every name MUST be a real key' promise,
+    enforced mechanically in both directions (no phantom names, no silently-undocumented rewards)."""
+    from pathlib import Path
+
+    import yaml
+
+    cfg = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "config" / "eureka_loop.yaml")
+        .read_text(encoding="utf-8"))
+    panel = [str(n) for n in cfg["baseline_rewards"]]
+    assert len(panel) == len(set(panel)), "duplicate names in baseline_rewards"
+    assert set(panel) == set(rewards.REWARD_CANON), (
+        f"config panel != REWARD_CANON: missing {set(rewards.REWARD_CANON) - set(panel)}, "
+        f"phantom {set(panel) - set(rewards.REWARD_CANON)}")
 
 
 def test_return_minus_variance_penalizes_volatility(rng: np.random.Generator) -> None:

@@ -149,3 +149,26 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     contribution), Clarke, de Silva & Thorley 2011 (long-only min-variance), Kelly 1956 + Thorp
     1971 (log-growth), Sortino/downside-deviation anchor (return_minus_downside). Rule: cite only
     what the prose names; verify each against the publisher record; no orphan bib entries.
+
+## The hand-written reward panel review (2026-07-22; Tamer's "make the human-written very smart" sweep — R97 executed same-day)
+29. **The 2026-07-22 dated reward-literature sweep: CH2 wiring + fence entries (verify each
+    first-hand at wiring; none may silently drop).** (a) ⚠ **GIFT (arXiv 2606.08450, 7 Jun 2026,
+    "LLM-Guided State-Reward Interface for Financial RL") — the NEWEST adjacent paper; MUST be
+    cited + differentiated in CH2.** Read first-hand today (PDF on disk in the session scratch):
+    the LLM generates state features from a factor library AND auxiliary rewards from a 7-rule
+    risk library under PPO, on 5-stock S&P panels, 3 seeds, win-rate counting — no pre-registration,
+    no hypothesis tests, no scalar-vs-distributional contrast, and it varies STATE and REWARD
+    JOINTLY (exactly what our identification principle forbids). It does NOT occupy our cell;
+    it STRENGTHENS the motivation (its own diagnostic finds free-form LLM generation unstable in
+    finance — convergent with our numeracy-bottleneck mechanism). Scoop-watch: joins ELfolio;
+    the freeze-due novelty sweep (row 16) must re-verify against it. (b) CH2's reward-canon
+    paragraph gains its literature spine: the ACM Computing Surveys taxonomy (arXiv 2408.10932 —
+    profit/utility/composite reward classes), Almahdi & Yang 2017 (Calmar/E(MDD) RRL objective;
+    covered in-panel by the drawdown penalty + the DDR's Sterling-tracking DD, Moody & Saffell
+    2001 fn. 7), the 2025 composite risk-aware reward line (arXiv 2506.04358 — Treynor/benchmark-
+    relative terms are STRUCTURALLY EXCLUDED here: the anonymized panel has no market index, R19),
+    and behavioral/prospect-theory rewards (named as a distinct un-fielded axis, future work —
+    not canon). (c) The panel-coverage claim CH2 can now make, evidence-backed: the ten-name canon
+    + the BO-tuned six-term family jointly span location/scale/tail/path/asymmetry/cost/growth +
+    online-ratio (symmetric DSR AND downside DDR) + the optimized-composite class — the strongest
+    published-canon steelman the identification principle permits.

@@ -773,6 +773,14 @@ def main(argv: list[str] | None = None) -> int:
         search_poll_secs=args.search_poll_secs,
     )
     baselines = list(args.baselines) if args.baselines else None
+    if baselines:
+        # R97 fail-before-ssh guard (mirrors run_campaign.py --baselines): every name must resolve
+        # in REWARD_CANON — an unknown name would otherwise fail on-node after submission.
+        from src.baselines.rewards import REWARD_CANON
+        _unknown = [b for b in baselines if b not in REWARD_CANON]
+        if _unknown:
+            raise SystemExit(
+                f"--baselines: unknown REWARD_CANON key(s) {_unknown}; valid: {sorted(REWARD_CANON)}")
 
     if args.root_suffix:
         # C6-class APPLICATION: namespaced roots + batch names for report-only re-search
