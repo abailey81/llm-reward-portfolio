@@ -18,7 +18,6 @@ def test_git_commit_prefers_real_tree_here():
 
 def test_marker_fallback_shape(tmp_path, monkeypatch):
     # simulate the deployed tree: no git available + a marker at the resolved root
-    import subprocess as sp
 
     import src.utils.provenance as prov
 

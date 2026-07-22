@@ -76,9 +76,11 @@ python scripts/freeze.py --check    # recorded == canonical, frozen: true
 git tag prereg-v2.0 prereg-freeze-<hash8> && python scripts/make_prereg_bundle.py  # bundle sha -> CHANGELOG
 # 3. Sync freshness (marker included; a no-op if HEAD unchanged since the last sync):
 git archive HEAD | ssh myriad "tar -x -C ~/llmrp" && git rev-parse HEAD | ssh myriad "cat > ~/llmrp/GIT_COMMIT"
-# 4. LAUNCH (two commands, then hands off):
-powershell -ExecutionPolicy Bypass -File scripts\campaign_supervisor.ps1   # (PowerShell window)
-bash scripts/campaign_monitor.sh &                                          # (Git Bash window)
+# 4. LAUNCH — MODE D (R88, §10; audit 2026-07-22: this step previously named the LEGACY
+#    single-line campaign_supervisor.ps1 — §10's mode-D launcher is the ratified launch):
+powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1   # 12 supervised lines (§10)
+bash scripts/campaign_monitor.sh &                                   # (Git Bash window)
+# (campaign_supervisor.ps1 remains the single-line FALLBACK if mode-D must be abandoned mid-run.)
 ```
 
 The C0 canary fires first and HARD-STOPS everything before any Opus spend if the path is

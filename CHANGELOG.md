@@ -3,7 +3,21 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
-## [2026-07-22] — ★★★ THE FREEZE CYCLE (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
+## [2026-07-22] — ★★★ THE FREEZE CYCLE
+
+- **PRE-GO END-TO-END AUDIT (Tamer: "extremely deep audit… prepare everything for the campaign
+  run"):** batteries — gate 21 OK · citations clean · ruff (2 pre-existing unused test imports
+  fixed, suite-verified) · all 3 supervisor PS1s parse 0 · ALL FOUR launch lines dry-run GREEN
+  VERBATIM (mode-D core w/ pack-2+pipelined-rungs; leg kimi-k3; h3 single-shot; the R97 §9(h)
+  secondary panel) · launcher = 12 lines matching the registered queue · disk C:26G/D:72G ·
+  backup==HEAD · .env keys structurally present. TWO REAL DEFECTS CAUGHT+FIXED: (1) the R97
+  fail-before-ssh baseline-name guard sat BELOW the dry-run early-exit — live for real launches
+  but dead in the keyless pre-flight — moved above it; negative path now REJECTS a bogus name in
+  dry-run (verified both directions); (2) runbook §2.0 step 4 still launched the LEGACY
+  single-line supervisor — now mode_d_launch.ps1 per R88/§10, legacy noted as fallback.
+  Rung-freshness refusal confirmed fail-loud-BY-DESIGN pre-campaign. 13th full-suite
+  certification launched post-fix.
+ (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
 
 - **R97 — the hand-written reward panel steel-manned (Tamer: "make sure the human written is very
   smart… do a very deep internet sweep"):** the deep sweep (ACM Computing Surveys taxonomy

@@ -663,6 +663,16 @@ def main(argv: list[str] | None = None) -> int:
         embargo=args.embargo, pass_mode=args.pass_mode, provider=args.provider, llm_cfg=llm_cfg,
         resume=bool(args.resume),
     )
+    if args.baselines:
+        # R97 fail-before-ssh guard (mirrors run_campaign.py --baselines), placed ABOVE the dry-run
+        # exit so the keyless pre-flight validates baseline names too (audit 2026-07-22: the guard
+        # originally sat after the dry-run return — live for real launches, dead for dry-runs).
+        from src.baselines.rewards import REWARD_CANON as _RC
+        _unknown = [b for b in args.baselines if b not in _RC]
+        if _unknown:
+            raise SystemExit(
+                f"--baselines: unknown REWARD_CANON key(s) {_unknown}; valid: {sorted(_RC)}")
+
     if args.dry_run:
         # No ssh in a dry-run: expand a leading '~' against a documented STUB home so the render
         # is representative and passes the tilde-free jobscript contract (2026-07-11 incident).
@@ -772,15 +782,7 @@ def main(argv: list[str] | None = None) -> int:
         search_pack=args.search_pack, search_h_rt=search_h_rt,
         search_poll_secs=args.search_poll_secs,
     )
-    baselines = list(args.baselines) if args.baselines else None
-    if baselines:
-        # R97 fail-before-ssh guard (mirrors run_campaign.py --baselines): every name must resolve
-        # in REWARD_CANON — an unknown name would otherwise fail on-node after submission.
-        from src.baselines.rewards import REWARD_CANON
-        _unknown = [b for b in baselines if b not in REWARD_CANON]
-        if _unknown:
-            raise SystemExit(
-                f"--baselines: unknown REWARD_CANON key(s) {_unknown}; valid: {sorted(REWARD_CANON)}")
+    baselines = list(args.baselines) if args.baselines else None  # names validated pre-dry-run (R97)
 
     if args.root_suffix:
         # C6-class APPLICATION: namespaced roots + batch names for report-only re-search
