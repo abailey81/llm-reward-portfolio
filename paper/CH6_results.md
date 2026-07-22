@@ -225,7 +225,7 @@ Table 6.7 (authoring reliability) — manifest T7.*
 The legs share the market panel and the CRN seed set *by design* (pairing), so they are not independent
 replications and are never counted as if they were (the registered dependence discipline). The synthesis has
 two tiers — a descriptive count and a dependence-honest permutation test — plus the two registered
-capability instruments. Any starred statement in this section survives BH across the ten-leg report-only
+capability instruments. [SLOT R97 — the ten-name hand-reward panel: the six secondary canon members (incl. the differential downside deviation ratio) run report-only at the tier-30 floor post-headline (runbook §9(h)); report the executed subset VERBATIM here — a deadline-truncated subset is disclosed, never silently narrowed.] Any starred statement in this section survives BH across the ten-leg report-only
 family.
 
 - Descriptive replication count (CVaR-leg contrast, T0-filtered — the Sharpe leg is predicted-tie for every

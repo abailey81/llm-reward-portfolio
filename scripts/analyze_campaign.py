@@ -1113,6 +1113,28 @@ H2_CONTRASTS: tuple[tuple[str, str], ...] = (
 )
 
 
+def headline_cvar_level(cvar_levels):
+    """The FROZEN headline tail level (PREREGISTRATION S10: CVaR-5%), resolved consistently.
+
+    AUDIT 2026-07-22 (row 30a): the gate previously took ``max(cvar_levels)`` while every report
+    site took ``cvar_levels[0]`` -- two conventions that agree only under the current config
+    ordering. This helper is the single resolution rule: the headline is the MAXIMUM of the
+    FROZEN family levels (sanctioned expansions only add DEEPER/smaller alphas, so the frozen
+    headline 0.05 is invariant), asserted present in the realized levels when any are given.
+    """
+    from src.utils.config import load_config
+
+    fam = (load_config("preregistration").get("inference", {}) or {}).get("testing_family") or {}
+    frozen = [float(x) for x in (fam.get("cvar_levels") or [0.05])]
+    headline = max(frozen)
+    realized = [float(x) for x in (cvar_levels or [])]
+    if realized:
+        assert headline in realized, (
+            f"frozen headline CVaR level {headline} missing from realized levels {realized} "
+            "(PREREGISTRATION S10 -- family drift)")
+    return float(headline)
+
+
 def assert_realized_family_matches_frozen(
     tests: list[dict[str, Any]],
     *,
@@ -1149,7 +1171,12 @@ def assert_realized_family_matches_frozen(
     frozen_levels = {float(x) for x in fam.get("cvar_levels", [0.05])}
     realized_levels = {float(x) for x in cvar_levels}
     if realized_levels > frozen_levels:
-        return
+        # AUDIT 2026-07-22 (row 30a): the old early-return skipped ALL checks (membership, m, the
+        # co-primary partition), not just the level comparison. The sanctioned expansion only ADDS
+        # levels, so restrict the realized tests to the FROZEN levels and verify the frozen core
+        # exactly — the guard survives the expansion instead of being waved off by it.
+        tests = [t for t in tests
+                 if t["level"] is None or float(t["level"]) in frozen_levels]
 
     # Realized family, as the campaign actually built it.
     realized = {
@@ -1688,7 +1715,7 @@ def h2_conjunction(
     # alpha) level. The opt-in cvar_01 is MORE extreme (smaller alpha, high-variance per Bauer 2025) and
     # must NEVER gate, so take max(cvar_levels): when only [0.05] is frozen this is 0.05; when cvar_01 is
     # added for reporting it stays in `family` but does not become the tail IUT's gating level.
-    tail_level = float(max(cvar_levels)) if cvar_levels else 0.05
+    tail_level = headline_cvar_level(cvar_levels)  # row 30a: one shared resolution rule
 
     if method == "rw":
         from src.inference.bootstrap import cvar, sharpe_ratio
@@ -4801,7 +4828,7 @@ def analyze(
     # ±0.05 in the test-statistic's units. The bankable-null complement to h2_conjunction. DISJOINT.
     try:
         out["h2_tost"] = h2_tost(
-            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05,
+            records, cvar_level=headline_cvar_level(cvar_levels),
             rng=np.random.default_rng(0),
         )
     except Exception as exc:  # noqa: BLE001
@@ -4822,7 +4849,7 @@ def analyze(
     # realized series + pooled per-arm val (VaR,ES) forecasts). Report-only, DISJOINT; graceful skip absent data.
     try:
         out["comparative_es_backtest"] = comparative_es_backtest_report(
-            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05, rng=np.random.default_rng(0)
+            records, cvar_level=headline_cvar_level(cvar_levels), rng=np.random.default_rng(0)
         )
     except Exception as exc:  # noqa: BLE001 - a report-only corroboration must never break the headline
         out["comparative_es_backtest"] = {"status": "error", "reason": str(exc)[:200]}
@@ -4832,7 +4859,7 @@ def analyze(
     # Built + unit-tested (src.inference.bayes_null) but never wired. Report-only, DISJOINT; graceful skip.
     try:
         out["bayesian_null_report"] = bayesian_null_report_block(
-            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05, rng=np.random.default_rng(0)
+            records, cvar_level=headline_cvar_level(cvar_levels), rng=np.random.default_rng(0)
         )
     except Exception as exc:  # noqa: BLE001 - a report-only Bayesian lens must never break the headline
         out["bayesian_null_report"] = {"status": "error", "reason": str(exc)[:200]}
@@ -4843,7 +4870,7 @@ def analyze(
     # degrades to status="error" (this guard) when absent. Report-only, DISJOINT; never gates.
     try:
         out["model_confidence_set"] = model_confidence_set_report(
-            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05, rng=np.random.default_rng(0)
+            records, cvar_level=headline_cvar_level(cvar_levels), rng=np.random.default_rng(0)
         )
     except Exception as exc:  # noqa: BLE001 - a report-only MCS (arch-optional) must never break the headline
         out["model_confidence_set"] = {"status": "error", "reason": str(exc)[:200], "executed": False}
@@ -4853,7 +4880,7 @@ def analyze(
     # Reported, DISJOINT from the frozen m=6 union, NEVER a gate.
     try:
         out["h2_structure"] = h2_structure_control(
-            records, cvar_level=cvar_levels[0] if cvar_levels else 0.05,
+            records, cvar_level=headline_cvar_level(cvar_levels),
             rng=np.random.default_rng(0),
         )
     except Exception as exc:  # noqa: BLE001
@@ -5093,7 +5120,7 @@ def analyze(
         out["validation_headroom"] = validation_headroom(
             [r for r in records if _is_search_candidate(r)],
             arms=ARMS,
-            cvar_level=cvar_levels[0] if cvar_levels else 0.05,
+            cvar_level=headline_cvar_level(cvar_levels),
             rng=np.random.default_rng(0),
         )
     except Exception as exc:  # noqa: BLE001 - a report-only mechanism leg must never break the headline

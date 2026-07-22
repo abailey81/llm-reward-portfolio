@@ -1480,10 +1480,14 @@ def run_campaign_tiered(
                                "work already run above this level is reported, never banked", i)
     else:
         for i, tier in enumerate(tiers[1:], start=1):
-            _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin)", i,
-                      len(sweep_units), len(tier))
+            # row 30n/C6 (audit 2026-07-22): the sequential path submitted every sweep block at
+            # PRIORITY_CORE (0) — ABOVE the legs, inverting the registered queue whenever mode D
+            # runs without --pipeline-rungs. Mirror the pipelined ladder exactly.
+            prio = PRIORITY_STAGE1 if i == 1 else PRIORITY_RUNG_BASE - 10 * (i - 2)
+            _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin, -p %d)", i,
+                      len(sweep_units), len(tier), prio)
             r = run_test_leg(
-                sweep_units, tier, run, name=f"sweep_t{i}", priority=PRIORITY_CORE,
+                sweep_units, tier, run, name=f"sweep_t{i}", priority=prio,
                 interleave=True, resume=resume, **test_leg_kwargs,
             )
             out["results"][f"sweep_t{i}"] = r

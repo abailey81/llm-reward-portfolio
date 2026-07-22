@@ -722,6 +722,12 @@ def safe_call(fn: RewardFn, *args: Any) -> tuple[float, dict[str, float], object
         total_f = float(total)
         if not math.isfinite(total_f):
             raise ValueError("non-finite total")
+        # row 30e (audit 2026-07-22): a finite-but-astronomical reward (e.g. 1e200 from a
+        # decayed-denominator ratio) previously passed straight into SAC — the only magnitude
+        # guard was PopArt's sigma cap, absent in the popart=False ablation. Treat it exactly
+        # like non-finite: candidate-failure semantics, SAFE_DEFAULT substitution, counted.
+        if abs(total_f) > 1.0e6:
+            raise ValueError(f"reward magnitude {total_f!r} exceeds the 1e6 contract bound")
     except Exception:  # noqa: BLE001 — any failure is a candidate failure, not fatal
         _LAST_CALL_FAILED = True
         _SAFE_DEFAULT_COUNT += 1  # accumulate across the window (R66); the bool is last-call only

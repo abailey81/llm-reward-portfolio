@@ -429,7 +429,10 @@ def test_run_campaign_tiered_c_ladder_canary_priorities_pair_and_sweep(tmp_path)
     assert by_name["random_search_test"][4] == -100
     # C4: ONE round-robin sweep block over ALL units (3 arms + 1 baseline) x seeds 2-3, seed-major
     sweep = by_name["sweep_t1"]
-    assert sweep[4] == 0 and len(sweep[3]) == 8
+    # row 30n/C6: sweep block 1 = the tier-100 rung at PRIORITY_STAGE1 (-100), NEVER 0 — the
+    # sequential path now mirrors the pipelined ladder (rungs sit in the registered queue,
+    # below core-0 and above nothing they may starve; the old 0 inverted the queue vs the legs).
+    assert sweep[4] == -100 and len(sweep[3]) == 8
     assert sweep[3][:4] == ["distributional-s2", "scalar-s2", "random_search-s2",
                             "baseline_differential_sharpe-s2"]
     # partition: H2 test seeds 0-3 all present, no overlap/gap

@@ -314,7 +314,7 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         gross = float(w[: self.N] @ r_t) + float(w[self.N]) * self.cash_daily_rate
         cost = self.cost * turnover
         port_ret = gross - cost
-        # Clip port_ret > -1 before log1p, mirroring the baseline rewards (src/baselines/rewards.py:305,364):
+        # Clip port_ret > -1 before log1p, mirroring the baseline rewards (src/baselines/rewards.py (the log1p clip sites)):
         # a <= -100% step (>=100% combined loss after cost) gives log1p(<=-1) = -inf/NaN. This makes the
         # accumulation consistent with the port_growth <= 0.0 raise above (which already rejects a drifted
         # wipeout) and with the baselines' max(port_ret, -0.9999) floor (final-audit fix).

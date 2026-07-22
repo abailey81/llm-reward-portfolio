@@ -225,3 +225,17 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     cross-model prompt degradation -> B.3.4 NOW ADDED to APPENDIX_B (same-prompt = the replication
     design; gates + anchor = the defense); find + verify the exact citation at wiring (the
     meta-prompting industrial paper, arXiv 2508.01443 candidate).
+    **[ROW 30 CLOSED 2026-07-23 — wave 2 executed]:** (a) headline_cvar_level() shared helper wired
+    at the gate + all 6 report sites + the superset branch now restricts-and-continues; (b) pooled_bound/
+    pair_did n>=2 fail-loud + length + NaN guards; (c) non-finite strips added (leg_aggregate,
+    regime_analysis); (d) es_backtest docstring now matches the A-L1 code; (e) |total|>1e6 ->
+    SAFE_DEFAULT in safe_call (+ inclusive-bound test; covers the popart=False ablation);
+    (f) leg_gates price_key check (all 10 legs live-verified resolving); (g) archive-sink persistent
+    failures escalate to always-ERROR + ARCHIVE_WRITE_FAILURES marker at >=3; (h) resume_brief
+    parsers hardened (indent/case-tolerant) + comment fixed; (i) portfolio_env stale line refs
+    dropped; (j) CH6 §6.7 R97 slot added; (k) CAMPAIGN_RUNBOOK superseded banner (the M05-class
+    trap defused); (l) 3 guard regression tests (dry-run placement LOCKED; laptop-side guard
+    remains manually-verified + parser-tested — residual noted); (m)+(o) runbook launch-day
+    pre-checks (SGE job-cap qconf commands; h3 canary exposure disclosed w/ the STOP file
+    mitigation); (n) C6 sequential sweep blocks now mirror the pipelined ladder priorities
+    (test updated to the registered-queue invariant) + C7 tiered summary root-suffix-namespaced.

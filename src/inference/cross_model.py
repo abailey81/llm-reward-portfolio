@@ -156,6 +156,9 @@ def pooled_bound(
     mat = np.vstack([included[k] for k in labels])              # (n_legs, n_seeds)
     seed_means = mat.mean(axis=0)                               # leg-pooled per seed
     n_seeds = seed_means.size
+    if n_seeds < 2:
+        # row 30b: a 1-seed "CI" is a silent point interval; mirror paired_seed_difference_test.
+        raise ValueError(f"pooled_bound needs >=2 CRN seeds (got {n_seeds})")
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, n_seeds, size=(int(n_boot), n_seeds))
     boot = seed_means[idx].mean(axis=1)
@@ -166,7 +169,11 @@ def pooled_bound(
         np.asarray(leg_results[k]["cvar_b_per_seed"], dtype=float)
         for k in labels if "cvar_b_per_seed" in leg_results[k]
     ]
+    if scalar_levels and len({a.size for a in scalar_levels}) != 1:
+        raise ValueError("cvar_b_per_seed lengths differ across included legs (seed alignment broken)")
     scalar_level = float(np.mean(np.vstack(scalar_levels))) if scalar_levels else None
+    if scalar_level is not None and not np.isfinite(scalar_level):
+        scalar_level = None  # row 30b: NaN would silently poison relative_to_scalar_cvar
     rel = (
         {"estimate": est / abs(scalar_level), "ci_low": lo / abs(scalar_level),
          "ci_high": hi / abs(scalar_level)}
@@ -200,6 +207,8 @@ def pair_did(
     n = arrs[0].size
     if any(a.ndim != 1 or a.size != n for a in arrs):
         raise ValueError("all four per-seed arrays must be 1-D and seed-aligned (common subset)")
+    if n < 2:
+        raise ValueError(f"pair_did needs >=2 common seeds (got {n})")
     per_seed = (arrs[0] - arrs[1]) - (arrs[2] - arrs[3])
     estimate = float(per_seed.mean())
     rng = np.random.default_rng(seed)

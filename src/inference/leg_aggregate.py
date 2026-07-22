@@ -32,7 +32,10 @@ __all__ = ["empirical_cvar", "per_seed_series", "leg_results_for_synthesis"]
 
 def empirical_cvar(returns: np.ndarray, alpha: float = 0.05) -> float:
     """Mean of the worst ``ceil(alpha*T)`` signed returns (house convention: more negative = worse)."""
-    arr = np.sort(np.asarray(returns, dtype=float))
+    arr = np.asarray(returns, dtype=float)
+    arr = np.sort(arr[np.isfinite(arr)])  # row 30c: strip non-finite (mirrors bootstrap.cvar);
+    if arr.size == 0:                     # -inf would otherwise poison the tail mean silently
+        raise ValueError("empirical_cvar: no finite returns")
     k = max(1, math.ceil(alpha * arr.size))
     return float(arr[:k].mean())
 

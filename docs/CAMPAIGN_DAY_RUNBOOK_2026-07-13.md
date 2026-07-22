@@ -311,6 +311,18 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
 > identical seeds, steps, budgets, stopping rules. Expected vs §2+§9 serial operation:
 > **all 10 legs ~L+4.5–5.5, tier-403 ~L+13–14.5, floor (BO-bound) ~L+1.5–1.8, mechanism ~L+0.7** (R95-updated).
 
+**Launch-day pre-checks (row 30m/30o, audit 2026-07-22):**
+- **SGE job-cap check (C5):** pipelined rungs + `--chunk-tasks 1` can enqueue ~1,200 arrays from
+  the core line alone. BEFORE launch run `qconf -sconf | grep -i max` and
+  `qconf -srqs 2>/dev/null | head` on Myriad; if `max_u_jobs` (or an RQS) is below ~1,500, either
+  raise `--chunk-tasks` (fewer, larger arrays) or drop `--pipeline-rungs` (sequential blocks) —
+  both ops-only. A cap hit mid-run classes as a transport error (12h retry then fatal) — cheap to
+  check, expensive to discover live.
+- **H3 canary exposure (disclosed):** the h3 line starts at L+1h (the stagger shield) and authors
+  ~30 Opus candidates WITHOUT waiting on the C0 canary verdict (it is a separate process). Bounded
+  spend (~$1-2) and the stagger covers most path breakage; accepted as a design trade — if C0
+  fails in under an hour, touch `outputs\campaign_cluster\STOP_CAMPAIGN` to stop the h3 line too.
+
 **The ONE command (after the v2 freeze, on Tamer's LAUNCH word):**
 
 ```powershell

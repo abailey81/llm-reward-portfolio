@@ -166,12 +166,12 @@ def main() -> None:
                 if ":" in _ln:
                     _k, _v = _ln.split(":", 1)
                     _snap[_k.strip()] = _v.strip().strip('"')
-            # The snapshot commit itself moves HEAD, so the snapshot legitimately records either
-            # HEAD or HEAD~1 (the last WORK commit). Anything older = a session ended un-closed.
+            # The snapshot commit (and small follow-ups) move HEAD, so the snapshot may
+            # legitimately record any of the last 3 commits. Older = a session ended un-closed.
             _recent = sh(["git", "log", "--format=%h", "-3"]).split()
             _live_head = _recent[0] if _recent else ""
-            _live_frozen = "true" if "frozen: true" in prereg else "false"
-            _legs_n = len(_re.findall(r"^  - label:", read(REPO / "config" / "legs.yaml"), _re.M))
+            _live_frozen = "true" if _re.search(r"frozen:\s*true", prereg, _re.I) else "false"  # row 30h: case/space-tolerant
+            _legs_n = len(_re.findall(r"^\s*-\s*label:", read(REPO / "config" / "legs.yaml"), _re.M))  # row 30h: indent-tolerant
             _rows = _re.findall(r"\|\s*\d{4}-\d{2}-\d{2}\s*\|\s*(R\d+)\s*\|",
                                 read(REPO / "PREREGISTRATION.md"))
             _rmax = max(_rows, key=lambda r: int(r[1:])) if _rows else "R?"

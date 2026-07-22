@@ -89,8 +89,11 @@ def fz0_loss(
 def var_es_estimates(returns: np.ndarray, alpha: float) -> tuple[float, float]:
     """Empirical (VaR_alpha, ES_alpha) of a return series (lower tail).
 
-    Returns ``(var, es)`` with ``var`` the alpha-quantile and ``es`` the mean of the worst
-    ``ceil(alpha * T)`` returns.
+    Returns ``(var, es)`` with ``var`` the (interpolated) empirical alpha-quantile and ``es`` the
+    mean of the returns AT OR BELOW that quantile — the one-convention A-L1 pair guaranteeing
+    ES <= VaR (row 30d docstring fix: the old text claimed mean-of-worst-``ceil(alpha*T)``, which
+    is the HOUSE headline-CVaR convention but deliberately NOT what this ES-backtest input uses;
+    the code below was always the documented A-L1 choice — the words now match it).
     """
     if not 0.0 < alpha < 1.0:
         raise ValueError("alpha must be in (0, 1)")

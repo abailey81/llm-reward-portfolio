@@ -867,10 +867,14 @@ def main(argv: list[str] | None = None) -> int:
                   f"(On green health without --hold-at-gate the gate auto-proceeds — no manual wait.)")
             return 0
         ok = bool(out.get("ok"))
+        # row 30n/C7 (audit 2026-07-22): a --tiered --root-suffix combo previously clobbered the
+        # HEADLINE campaign_summary.json (only the non-tiered path namespaced). Mirror it.
+        _tiered_fname = (f"campaign_summary_{args.root_suffix}.json" if args.root_suffix
+                         else "campaign_summary.json")
         _write_campaign_summary(args.output_dir, inputs, freeze_stamp=freeze_stamp, extra={
             "tiered": True, "all_arms_tested": ok, "exit_code": 0 if ok else 1,
             "n_tiers": out.get("n_tiers"), "tier_sizes": out.get("tier_sizes"),
-        })
+        }, filename=_tiered_fname)
         print(f"[campaign] TIERED {'OK' if ok else 'INCOMPLETE'} — "
               f"{out['n_tiers']} tiers, sizes {out['tier_sizes']}")
         return 0 if ok else 1

@@ -130,6 +130,16 @@ def run_leg_gates(
 
     summary: dict[str, Any] = {"leg": label, "model": leg["model"]}
 
+    # row 30f (audit 2026-07-22, the $0-booking drift guard): every leg model id MUST resolve in
+    # config/legs.yaml planning_prices — an unpriced id would silently book cost_usd=0.0 for the
+    # whole leg ("cost-unknown(model-unpriced)"), corrupting the reported spend transparency.
+    from src.llm.spend_ledger import estimate_cost_usd
+    if estimate_cost_usd(str(leg["model"]), 1000, 1000) is None:
+        summary["price_key"] = "MISSING->review"
+        summary["screen_verdict"] = "review"
+    else:
+        summary["price_key"] = "ok"
+
     if "smoke" in which:
         text = _call("You are a terse assistant.", "Reply with exactly: SMOKE-OK", "smoke")
         summary["smoke_ok"] = "SMOKE-OK" in text

@@ -28,7 +28,8 @@ _REGIME_NAMES = {0: "calm", 1: "normal", 2: "stress"}
 
 def cvar(returns: np.ndarray, q: float = 0.05) -> float:
     """Empirical CVaR at level ``q`` (mean of the worst ``q`` fraction of returns); NaN for an empty input."""
-    r = np.sort(np.asarray(returns, dtype=float).ravel())
+    r = np.asarray(returns, dtype=float).ravel()
+    r = np.sort(r[np.isfinite(r)])  # row 30c: strip non-finite (mirrors bootstrap.cvar)
     if r.size == 0:
         return float("nan")
     k = max(1, int(np.ceil(q * r.size)))

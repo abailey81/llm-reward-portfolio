@@ -321,3 +321,32 @@ def test_autosize_h_rt_sizes_on_the_resolved_bstar():
     need_secs = (bstar * 5 / (0.5 * 253.0) + 1200.0) * 1.3
     assert hours * 3600 >= need_secs
     assert got == f"{int(need_secs // 3600) + 1}:0:0"
+
+
+def test_baselines_guard_rejects_unknown_name_in_dry_run():
+    """row 30l: the R97 fail-before-ssh guard must fire IN THE DRY-RUN PATH (it already regressed
+    once by sitting below the dry-run exit — this locks the placement)."""
+    import pytest
+
+    with pytest.raises(SystemExit, match="unknown REWARD_CANON key"):
+        rcc.main(["--dry-run", "--synthetic", "--arms", "distributional",
+                  "--baselines", "not_a_real_reward"])
+
+
+def test_canary_guard_rejects_unknown_name_in_dry_run():
+    """row 30l: --canary names route through the same validation (they previously bypassed it
+    and would have failed only after ssh/submit)."""
+    import pytest
+
+    with pytest.raises(SystemExit, match="unknown REWARD_CANON key"):
+        rcc.main(["--dry-run", "--synthetic", "--tiered", "--arms", "distributional",
+                  "--canary", "raw_retrun"])
+
+
+def test_baselines_guard_accepts_full_canon_in_dry_run():
+    """row 30l: every REWARD_CANON name (the ten-name §9 panel) passes the guard."""
+    from src.baselines.rewards import REWARD_CANON
+
+    rc = rcc.main(["--dry-run", "--synthetic", "--arms", "distributional",
+                   "--baselines", *sorted(REWARD_CANON)])
+    assert rc in (0, None)

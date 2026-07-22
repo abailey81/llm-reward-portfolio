@@ -1,5 +1,11 @@
 # CAMPAIGN RUNBOOK — the single operational document for run day
 
+> ⚠ **SUPERSEDED (2026-07-22, row 30k): the operative runbook is `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md`.**
+> Numbers below are v1-era: B\* is now **400,000** (R77, not 200k) and the seed plan is the E1 tiered
+> ladder [30..568] (not the fixed sets below). Do NOT use this file's GO/NO-GO banner values —
+> an operator checking `steps=200000` here would KILL a correct 400k launch (the M05 class).
+
+
 > **⚠ CURRENT SUBSTRATE (2026-07-13, ADR-053).** The confirmatory campaign runs on the **UCL Myriad HPC
 > cluster** (SGE arrays; `scripts/run_campaign_cluster.py`) — this is the PRIMARY venue. The laptop path
 > described in this runbook is the **CERTIFIED FALLBACK**, not the primary substrate (cross-substrate

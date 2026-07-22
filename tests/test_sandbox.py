@@ -583,6 +583,30 @@ def test_safe_call_never_raises_into_training_path(rng: np.random.Generator) -> 
         assert candidate_failed() is True
 
 
+def test_safe_call_clamps_astronomical_finite_reward(rng: np.random.Generator) -> None:
+    """row 30e: a finite-but-astronomical total (a decayed-denominator ratio can emit 1e15+)
+    is treated exactly like non-finite — SAFE_DEFAULT + candidate-failure — because SAC has no
+    other magnitude guard in the popart=False ablation. The 1e6 contract bound is inclusive:
+    a large-but-legal total passes."""
+    fixture = _fixture(rng)
+
+    def huge(weights, returns, prev_weights, port_ret, info):  # noqa: ANN001
+        return 1.0e200, {}, None
+
+    def legal(weights, returns, prev_weights, port_ret, info):  # noqa: ANN001
+        return 9.9e5, {"x": 9.9e5}, None
+
+    reset_failure_flag()
+    total, components, state = safe_call(huge, *fixture)
+    assert total == SAFE_DEFAULT and components == {} and state is None
+    assert candidate_failed() is True
+
+    reset_failure_flag()
+    total2, _, _ = safe_call(legal, *fixture)
+    assert total2 == 9.9e5
+    assert candidate_failed() is False
+
+
 # --- POSIX-guarded: a resource bomb is killed at validate_once and the PARENT survives -------------
 
 

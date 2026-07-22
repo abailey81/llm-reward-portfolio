@@ -734,12 +734,28 @@ class JsonlArchiveSink(list):
             # on-disk copy of raw responses/usage/served_model deserved at least a visible warning.
             # Rate-limited: the first failure + every 50th.
             self._n_write_failures += 1
-            if self._n_write_failures == 1 or self._n_write_failures % 50 == 0:
-                import logging as _lg
+            import logging as _lg
 
-                _lg.getLogger(__name__).warning(
-                    "llm_calls.jsonl append FAILED (%d so far) at %s: %s — raw call provenance is "
-                    "not reaching disk", self._n_write_failures, self._path, exc,
+            _log = _lg.getLogger(__name__)
+            if self._n_write_failures >= 3:
+                # row 30g (audit 2026-07-22): >=3 consecutive-run failures = a PERSISTENT condition
+                # (AV lock / permissions / disk-full) silently starving the replay archive. Escalate
+                # to ERROR on EVERY failure (the sentinel greps ERROR) + drop a best-effort marker
+                # the monitor can see. The no-raise contract stands — never crash a paid call.
+                _log.error(
+                    "llm_calls.jsonl append FAILED (%d so far, PERSISTENT) at %s: %s — the "
+                    "replay archive is losing rows; fix the disk/permissions NOW",
+                    self._n_write_failures, self._path, exc,
+                )
+                try:
+                    (self._path.parent / "ARCHIVE_WRITE_FAILURES").write_text(
+                        f"{self._n_write_failures} failures; last: {exc}\n", encoding="utf-8")
+                except Exception:  # noqa: BLE001 — the marker itself is best-effort
+                    pass
+            elif self._n_write_failures == 1:
+                _log.warning(
+                    "llm_calls.jsonl append FAILED (first) at %s: %s — raw call provenance is "
+                    "not reaching disk", self._path, exc,
                 )
 
 
