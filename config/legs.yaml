@@ -14,7 +14,7 @@ legs:
     provider: openrouter
     model: deepseek/deepseek-v4-pro
     api_key_env: OPENROUTER_API_KEY
-    reasoning: {mode: think-high}          # pinned EXPLICITLY (vendor default; OR pass-through undocumented — R85: the smoke archives reasoning-token usage as round-trip evidence; a silent ignore still yields the vendor-default think-high, i.e. the registered mode)
+    reasoning: {mode: pro}                 # pinned EXPLICITLY (provider RENAMED the value 2026-07-23: think-high -> pro, caught by the gate 400; same registered mode, new vendor name) (vendor default; OR pass-through undocumented — R85: the smoke archives reasoning-token usage as round-trip evidence; a silent ignore still yields the vendor-default think-high, i.e. the registered mode)
     temperature: 1.0                       # R85 uniform decoding pin
     max_tokens: 4096
     hf_pin: {repo: deepseek-ai/DeepSeek-V4-Pro, commit: b5968e9190ef611bbf34a7229255be88a0e937c1}   # retrieved 2026-07-22, official HF API   # R85: filled from the official HF card at gate time

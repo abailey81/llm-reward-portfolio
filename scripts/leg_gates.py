@@ -194,14 +194,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--ledger", default="outputs/spend_ledger.jsonl")
     args = p.parse_args(argv)
+
+    # Check-day catch (2026-07-23): the campaign drivers load .env themselves but this script
+    # did NOT — a fresh shell crashed on the unset OPENROUTER_API_KEY. Load it here, same as
+    # the drivers (keys stay in the gitignored .env, never in code or logs).
+    from src.utils.env import load_env
+    load_env()
     legs = load_legs()["legs"]
     chosen = legs if args.all else [next(lg for lg in legs if lg["label"] == args.leg)]
     which = (args.only,) if args.only else ("smoke", "compliance", "screen")
     out = Path(args.out)
     verdicts = []
     for leg in chosen:
-        s = run_leg_gates(leg, out, which=which, n_compliance=args.n_compliance,
-                          ledger_path=Path(args.ledger))
+        try:
+            s = run_leg_gates(leg, out, which=which, n_compliance=args.n_compliance,
+                              ledger_path=Path(args.ledger))
+        except Exception as exc:  # noqa: BLE001 - one leg's API error must not kill the other nine (check-day catch)
+            s = {"leg": leg.get("label", "?"), "error": f"{type(exc).__name__}: {exc}"[:300],
+                 "screen_verdict": "ERROR->review"}
+            print(f"[gate] {s['leg']}: ERROR - {s['error']}")
         verdicts.append(s)
         print(json.dumps(s))
     flagged = [v["leg"] for v in verdicts if v.get("screen_verdict", "pass") != "pass"]
