@@ -323,6 +323,23 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
   spend (~$1-2) and the stagger covers most path breakage; accepted as a design trade — if C0
   fails in under an hour, touch `outputs\campaign_cluster\STOP_CAMPAIGN` to stop the h3 line too.
 
+**GO-DAY THROUGHPUT LEVERS (2026-07-24 deep Myriad dig — legitimate, NEVER touch priority):**
+1. **Pool selection (the big lever, already parameterized via `--pool` -> `-ac allow=`).** Myriad
+   free GPU pools: **EF** = ~17 nodes x 2 V100 (larger, older, LESS contended); **L** = ~7 nodes
+   x 4 A100-40G (fewer, ~1.7-2.2x faster/training, MORE contended). At GO run
+   `ssh myriad "qhost -F gpu | grep -B1 'gpu=[1-9]'"` to read live free-GPU headroom per pool, and
+   pin whichever maximizes (availability x speed) for banked trainings — SUBJECT to the CRN
+   determinism rule (a comparison unit stays on ONE gpu type; `pool_confirmatory` enforces). Default
+   EF (bigger pool). Tonight: 5 EF + 3 L nodes had free GPUs while we still queued (fair-share depth).
+2. **tmpfs right-sizing (unexploited — measure then cut).** The gold panel is ~35 MB yet the
+   jobscript requests **tmpfs=15G** (jobscript.py default). Nodes with a free GPU but <15G free
+   local scratch are EXCLUDED for us -> free GPUs sit idle while we wait. AT THE CANARY: measure the
+   real tmpfs high-water mark (`df /tmpdir` on-node, or the run_one working-dir peak), then reduce
+   `tmpfs=` to (peak + margin) so many more nodes qualify. DO NOT cut blind (under-provision = job
+   failure; it is load-bearing for gold staging + working space). Verified legitimate, no priority.
+3. Already on: pack-5 (fewer queue entries), h_rt auto-size (backfill-friendly), `reserve: y`
+   (anti-starvation). NOT available: self-elevation (fair-share) / more free allocation (needs RC).
+
 **CHECK-DAY PRE-MORTEM ORDER (2026-07-23; run in THIS order — the cheap probes first):**
 1. `ssh myriad "qstat | head -3; ls ~/Scratch/llmrp; qconf -sconf | grep -i max_u_jobs"` — access,
    ALLOCATION ALIVE, scratch, job-cap: learn the worst news in minute one, at $0.
