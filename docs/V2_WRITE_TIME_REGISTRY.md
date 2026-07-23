@@ -264,3 +264,18 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     persist when reward shaping interacts with imagination rollouts?); (b) generative
     tail-stress — synthetic crisis world models extending the EXISTING ood_stress module for
     counterfactual evaluation of the frozen winners.
+
+## The two-tier verdict framing (2026-07-23; Tamer's "let's listen to all 11" — verdict: the design already does; make the prose SAY it)
+33. **The two-tier-verdict paragraph (CH6 §6.8 lead-in + one CH7 sentence).** State explicitly:
+    the verdict architecture is TWO-TIER BY DESIGN — (i) confirmatory PRECISION from one named
+    instrument (Opus 4.8 at ladder depth, where TOST power exists against the SESOI), and
+    (ii) generalization BREADTH from all eleven full-loop models read JOINTLY through the
+    registered synthesis (sign pattern · joint per-seed flip permutation · the pooled R86 bound —
+    built precisely because per-leg floor verdicts are inconclusive by construction · pair DiD ·
+    the R87 gradient). Say plainly: the MECHANISM conclusion (the numeracy bottleneck) rests on
+    the full 11-model gradient + the 35-model M2 axis, not on Opus alone; and the asymmetry is
+    epistemic honesty (no defined "population of LLMs" exists to sample, so breadth is pooled
+    descriptive evidence, never overclaimed as confirmatory) — B.3.1's registered design choice,
+    argued in one paragraph instead of left implicit. Anticipated-question fodder: "why not make
+    all 11 confirmatory?" -> m=6 × 11 ≈ 66-test multiplicity burn + ladder-depth compute ×20 +
+    the undefined inference target. Wire beside D10 (the why-ten-models plain para).
