@@ -337,6 +337,9 @@ REHEARSAL AUTHOR FALLBACK (pre-declared): qwen3.5-9b -> deepseek-v4-pro -> nemot
 **The idle-tail leg-deepening (R100; fires AFTER the core ladder tops out, before the Aug-27 stop):**
 per leg, in queue order, the H3-completion pattern at rung priority — e.g.
 `python scripts/run_campaign_cluster.py --leg deepseek-v4-pro --arms distributional scalar scalar_cvar5 placebo placebo_shuffled --seeds 0-99 --resume --priority -300 --batch-tag leg1_t100` — cumulative rungs, resume-safe, report-only; bank each leg's highest completed rung; STOP at 2026-08-27 regardless of position (the pre-committed exogenous stop; GO-day may move it EARLIER only).
+ORDER (amended 2026-07-23, Tamer): legs deepen FIRST after the core's 403 banks; the core's
+403->568 block runs LAST, only if the remaining tail fits it whole (an incomplete 568 banks
+nothing above 403 — the cumulative-rung rule). M2 (GPU-free) runs in parallel post-bank.
 
 **The ONE command (after the v2 freeze, on Tamer's LAUNCH word):**
 
