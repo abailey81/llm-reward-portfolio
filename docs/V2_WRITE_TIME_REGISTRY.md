@@ -110,7 +110,7 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     fed-delta overlay = the mechanism closure figure; Axis B: the ~100-130-base ecosystem map).
     IF activated: all estimands report in full (the all-or-nothing clause); the stimulus builder
     rides scripts/m2_survey.py; ~$25-35 as a separate P2-module budget line; zero GPU. IF not:
-    the registered v1 M2 probes still run (~$10, 34 rows). Either way this row must be CLOSED
+    the registered v1 M2 probes still run (~$10, 35 rows since R99). Either way this row must be CLOSED
     with a dated decision before the pre-submission sweep.
 
 ## Universe-size defense (2026-07-22; Tamer's "is 30 stocks enough?" review — assessment: YES, defend in prose, do NOT widen)

@@ -36,7 +36,7 @@ released, some subsets gated" (phrase exactly). † Sonnet-5 introductory pricin
 2026-08-31 (covers the campaign window); $3/$15 after.
 
 **Truncation order at the Aug-14 calendar gate (last = first cut):** …Nemotron → Sonnet-5 →
-Gemini → **K3**. Under mode-D all ten legs land ~L+4–5, so truncation is unlikely at any
+Gemini → **K3**. Under mode-D all ten legs land ~L+4.5–5.5 (R95-updated), so truncation is unlikely at any
 plausible launch date.
 
 ## 3. The three controlled instruments (where model differences become inference)
@@ -60,7 +60,7 @@ secondary (M2 reading score) and tertiary (within-family ordinal) anchors carry 
   single-author attribution (the leaked 4.8-fallback routing FAILS it on the Fugu principle) by
   launch-GO → joins after Sonnet-5, forming the generation pair.
 
-## 5. The M2 reading-link survey (~34 rows; no RL, ~$10 total, post-headline)
+## 5. The M2 reading-link survey (~35 (R99 Terra) rows; no RL, ~$10 total, post-headline)
 
 | Family group | Rows | Purpose |
 |---|---|---|
