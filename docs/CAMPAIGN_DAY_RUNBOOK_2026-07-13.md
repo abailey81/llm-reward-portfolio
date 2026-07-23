@@ -323,6 +323,17 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
   spend (~$1-2) and the stagger covers most path breakage; accepted as a design trade — if C0
   fails in under an hour, touch `outputs\campaign_cluster\STOP_CAMPAIGN` to stop the h3 line too.
 
+**CHECK-DAY PRE-MORTEM ORDER (2026-07-23; run in THIS order — the cheap probes first):**
+1. `ssh myriad "qstat | head -3; ls ~/Scratch/llmrp; qconf -sconf | grep -i max_u_jobs"` — access,
+   ALLOCATION ALIVE, scratch, job-cap: learn the worst news in minute one, at $0.
+2. Sync the checkout (`git archive HEAD | ssh myriad tar -x -C ~/llmrp` + GIT_COMMIT marker) —
+   the cluster MUST run the post-audit code; re-run build_env/G1 cert if imports fail.
+3. `python scripts/preflight.py` laptop-side (commit headroom, disk).
+4. THEN: gates + mini-rehearsal + fast rehearsal in parallel.
+5. Gold checksum spot-check on ACFS during the afternoon (GO-readiness, not check-critical).
+REHEARSAL AUTHOR FALLBACK (pre-declared): qwen3.5-9b -> deepseek-v4-pro -> nemotron-3-super
+(any cheap leg works; the rehearsal validates machinery, not the author).
+
 **The idle-tail leg-deepening (R100; fires AFTER the core ladder tops out, before the Aug-27 stop):**
 per leg, in queue order, the H3-completion pattern at rung priority — e.g.
 `python scripts/run_campaign_cluster.py --leg deepseek-v4-pro --arms distributional scalar scalar_cvar5 placebo placebo_shuffled --seeds 0-99 --resume --priority -300 --batch-tag leg1_t100` — cumulative rungs, resume-safe, report-only; bank each leg's highest completed rung; STOP at 2026-08-27 regardless of position (the pre-committed exogenous stop; GO-day may move it EARLIER only).
