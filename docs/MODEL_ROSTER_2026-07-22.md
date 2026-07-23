@@ -11,7 +11,7 @@
 ## 1. The design in one sentence
 
 One frontier model answers the confirmatory question under full rigor; ten replication legs
-answer *"is it general?"* at the 30-seed floor; ~34 survey rows answer *"can models read the
+answer *"is it general?"* at the 30-seed floor; ~35 survey rows (R99) answer *"can models read the
 numbers at all?"* — and three controlled instruments (two capability pairs + a conditional
 generation pair) turn model differences into identified contrasts instead of anecdotes.
 
