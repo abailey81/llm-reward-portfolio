@@ -1472,3 +1472,21 @@ def test_run_headline_campaign_baselines_only_mode(tmp_path, monkeypatch, _clear
     assert not (out_dir / "campaign_summary.json").is_file()  # the campaign's sentinel untouched
     on_disk = _json.loads((out_dir / "baselines_summary.json").read_text(encoding="utf-8"))
     assert on_disk["baselines_only"] is True
+
+
+def test_resolve_baseline_names_guards_and_default():
+    """row 30l: the R97 laptop guard, now directly testable — (a) refusal without
+    --baselines-only, (b) unknown-name rejection, (c) the byte-identical config default,
+    (d) a valid override passes."""
+    import pytest
+
+    camp = {"h1_baselines": ["raw_return", "return_minus_variance"]}
+    assert run_campaign.resolve_baseline_names(None, False, camp) == [
+        "raw_return", "return_minus_variance"]
+    with pytest.raises(SystemExit, match="requires --baselines-only"):
+        run_campaign.resolve_baseline_names(["log_growth"], False, camp)
+    with pytest.raises(SystemExit, match="unknown REWARD_CANON key"):
+        run_campaign.resolve_baseline_names(["not_a_reward"], True, camp)
+    assert run_campaign.resolve_baseline_names(
+        ["differential_downside_ratio", "log_growth"], True, camp) == [
+        "differential_downside_ratio", "log_growth"]

@@ -2109,6 +2109,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def resolve_baseline_names(baselines: "list[str] | None", baselines_only: bool,
+                           camp: "dict") -> list[str]:
+    """Resolve the baseline-stage names (R97; extracted for direct testing — row 30l).
+
+    Default path: the FROZEN config h1_baselines (byte-identical to the pre-R97 behavior; the
+    freeze gate pins it). The ``--baselines`` override is scoped to the report-only secondary
+    panel: it REFUSES to run without ``--baselines-only`` (the headline campaign may never run a
+    non-frozen list) and validates every name against REWARD_CANON up front (fail-fast, before
+    any spend or submission).
+    """
+    from src.utils.config import cfg_get as _cfg_get
+
+    if baselines is not None:
+        if not baselines_only:
+            raise SystemExit(
+                "--baselines requires --baselines-only: the headline campaign must run the FROZEN "
+                "config h1_baselines (R97 scopes the override to the report-only secondary panel).")
+        from src.baselines.rewards import REWARD_CANON
+        unknown = [b for b in baselines if b not in REWARD_CANON]
+        if unknown:
+            raise SystemExit(
+                f"--baselines: unknown REWARD_CANON key(s) {unknown}; valid: {sorted(REWARD_CANON)}")
+        return [str(b) for b in baselines]
+    return [str(b) for b in _cfg_get(camp, "h1_baselines", [])]
+
+
 def main() -> None:
     args = build_parser().parse_args()
     from src.utils.config import load_config
@@ -2149,19 +2175,7 @@ def main() -> None:
     # absent => the stage is skipped. Each name must be a real REWARD_CANON key (validated when resolved).
     # R97: --baselines overrides the list for the report-only SECONDARY panel invocation (runbook §9(h));
     # the default (config) path is byte-identical, and the freeze gate still pins config's h1_baselines.
-    if args.baselines is not None:
-        if not args.baselines_only:
-            raise SystemExit(
-                "--baselines requires --baselines-only: the headline campaign must run the FROZEN "
-                "config h1_baselines (R97 scopes the override to the report-only secondary panel).")
-        from src.baselines.rewards import REWARD_CANON
-        unknown = [b for b in args.baselines if b not in REWARD_CANON]
-        if unknown:
-            raise SystemExit(
-                f"--baselines: unknown REWARD_CANON key(s) {unknown}; valid: {sorted(REWARD_CANON)}")
-        baseline_names = [str(b) for b in args.baselines]
-    else:
-        baseline_names = [str(b) for b in cfg_get(camp, "h1_baselines", [])]
+    baseline_names = resolve_baseline_names(args.baselines, bool(args.baselines_only), camp)
 
     # The headline RUN MODE *and* reward-author are read from config/campaign.yaml: llm and threaded
     # as `llm_cfg` into run_arm, so the campaign uses its OWN author (Claude Opus 4.8) and does NOT

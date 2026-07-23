@@ -234,8 +234,8 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     failures escalate to always-ERROR + ARCHIVE_WRITE_FAILURES marker at >=3; (h) resume_brief
     parsers hardened (indent/case-tolerant) + comment fixed; (i) portfolio_env stale line refs
     dropped; (j) CH6 §6.7 R97 slot added; (k) CAMPAIGN_RUNBOOK superseded banner (the M05-class
-    trap defused); (l) 3 guard regression tests (dry-run placement LOCKED; laptop-side guard
-    remains manually-verified + parser-tested — residual noted); (m)+(o) runbook launch-day
+    trap defused); (l) 4 guard regression tests (dry-run placement LOCKED; laptop-side guard
+    EXTRACTED to resolve_baseline_names + directly tested 2026-07-23 — residual CLOSED); (m)+(o) runbook launch-day
     pre-checks (SGE job-cap qconf commands; h3 canary exposure disclosed w/ the STOP file
     mitigation); (n) C6 sequential sweep blocks now mirror the pipelined ladder priorities
     (test updated to the registered-queue invariant) + C7 tiered summary root-suffix-namespaced.
