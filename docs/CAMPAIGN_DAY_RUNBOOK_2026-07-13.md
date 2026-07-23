@@ -323,6 +323,10 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
   spend (~$1-2) and the stagger covers most path breakage; accepted as a design trade — if C0
   fails in under an hour, touch `outputs\campaign_cluster\STOP_CAMPAIGN` to stop the h3 line too.
 
+**The idle-tail leg-deepening (R100; fires AFTER the core ladder tops out, before the Aug-27 stop):**
+per leg, in queue order, the H3-completion pattern at rung priority — e.g.
+`python scripts/run_campaign_cluster.py --leg deepseek-v4-pro --arms distributional scalar scalar_cvar5 placebo placebo_shuffled --seeds 0-99 --resume --priority -300 --batch-tag leg1_t100` — cumulative rungs, resume-safe, report-only; bank each leg's highest completed rung; STOP at 2026-08-27 regardless of position (the pre-committed exogenous stop; GO-day may move it EARLIER only).
+
 **The ONE command (after the v2 freeze, on Tamer's LAUNCH word):**
 
 ```powershell
