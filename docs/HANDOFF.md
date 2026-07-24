@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-24"
-  head: "bea8443"
+  head: "b450c76"
   frozen: false
   legs_n: 10
   amendments_through: R100
-  suite_status: "exit 0 (15th certification; check-day live: gates 10/10, rehearsals queued on Myriad)"
+  suite_status: "exit 0 (15th cert; allocation system 14 tests green, live-proven)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
