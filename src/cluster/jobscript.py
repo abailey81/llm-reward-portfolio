@@ -44,6 +44,12 @@ _TEMPLATE = """#!/bin/bash -l
 #$ -o {remote_root}/logs/{name}/$TASK_ID.o -j y
 umask 077
 mkdir -p "{remote_root}/logs/{name}" "{remote_root}/ledger"
+# The Apptainer run below bind-mounts {gold_dir}; a NON-EXISTENT bind source makes Apptainer
+# FATAL at container creation BEFORE any python runs (caught live 2026-07-24: the synthetic
+# rehearsal crashed rc=255/secs=1 every dispatch on a missing inputs/ dir). mkdir -p makes the
+# mount always succeed: a synthetic run needs no gold; a REAL run whose gold is genuinely absent
+# then fails LOUD in the loader (a clear "panel not found") instead of a cryptic mount FATAL.
+mkdir -p "{gold_dir}"
 # Gold artifacts staged to node-local tmpfs (§14.2) — LOAD-BEARING via the loaders' staged-dir
 # hook (V7 closed 2026-07-07): LLM_RP_GOLD_STAGED_DIR is honoured per file by its canonical
 # <name>_<suffix>.parquet filename (wrong-suffix staging = filename miss -> canonical fallback)
