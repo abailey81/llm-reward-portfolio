@@ -67,9 +67,17 @@ def usable_pools(snap: Snapshot) -> dict[str, int]:
     return pools
 
 
-def chunking(snap: Snapshot) -> tuple[str, int]:
-    """The two-regime doctrine (dossier §3b): contended -> big arrays; quiet -> many arrays."""
-    if snap.cluster_qw >= CONTENDED_QW:
+def chunking(snap: Snapshot, *, prev_regime: str | None = None) -> tuple[str, int]:
+    """The two-regime doctrine (dossier §3b) WITH HYSTERESIS: enter CONTENDED above 1.2x the
+    threshold, exit below 0.8x — a noisy boundary can never flap the regime between reads."""
+    enter, exit_ = CONTENDED_QW * 1.2, CONTENDED_QW * 0.8
+    if prev_regime == "CONTENDED":
+        contended = snap.cluster_qw > exit_
+    elif prev_regime == "QUIET":
+        contended = snap.cluster_qw >= enter
+    else:
+        contended = snap.cluster_qw >= CONTENDED_QW
+    if contended:
         return "CONTENDED", 25       # few, heavy arrays: priority-per-job dominates
     return "QUIET", 1                # the mode-D flood: 1-task chunks ramp 1/job/cycle in parallel
 
@@ -143,12 +151,13 @@ def eta(remaining_trainings: dict[str, int],
 def advise(snap: Snapshot, *, seed_segments: list[tuple[int, int]] | None = None,
            measured_vram_per_training_gb: float | None = None,
            remaining_trainings: dict[str, int] | None = None,
-           measured_trainings_per_day: float | None = None) -> Plan:
+           measured_trainings_per_day: float | None = None,
+           prev_regime: str | None = None) -> Plan:
     """The full plan from one snapshot (+ optional measured facts)."""
     segments = seed_segments or [(0, 29), (30, 99), (100, 188), (189, 278),
                                  (279, 339), (340, 402), (403, 567)]
     pools = usable_pools(snap)
-    regime, chunk = chunking(snap)
+    regime, chunk = chunking(snap, prev_regime=prev_regime)
     pack, pack_note = recommend_pack(pools, measured_vram_per_training_gb=measured_vram_per_training_gb)
     order, blocks = stripe(segments, pools, pack)
     plan = Plan(

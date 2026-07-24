@@ -19,7 +19,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.cluster.allocation import advise  # noqa: E402
-from src.cluster.telemetry import append_log, collect  # noqa: E402
+from src.cluster.telemetry import (append_log, collect, contention_trend,  # noqa: E402
+                                   measure_rate, observed_gpus)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="Measured trainings/day from the live archive; unlocks ETAs.")
     ap.add_argument("--remaining", default=None,
                     help='Milestones as "name=count,...", e.g. "tier403=6800,legs=3000".')
+    ap.add_argument("--archive-root", default=None,
+                    help="Live archive root: AUTO-measures the rate + the granted GPU models "
+                         "(supersedes --rate when records exist).")
+    ap.add_argument("--prev-regime", choices=["CONTENDED", "QUIET"], default=None,
+                    help="The previous plan regime (the hysteresis anchor).")
     args = ap.parse_args(argv)
 
     remaining = None
@@ -44,12 +50,22 @@ def main(argv: list[str] | None = None) -> int:
 
     snap = collect(args.host, probe_age_hours=args.probe_age_hours)
     append_log(snap)
+
+    rate = args.rate
+    if args.archive_root:
+        measured, n = measure_rate(args.archive_root)
+        if n:
+            rate = measured
+            print(f"[self-measured] {n} records -> {measured:.0f} trainings/day; granted GPUs "
+                  f"so far: {observed_gpus(args.archive_root) or 'none archived'}")
     plan = advise(snap,
                   measured_vram_per_training_gb=args.vram_per_training,
                   remaining_trainings=remaining,
-                  measured_trainings_per_day=args.rate)
+                  measured_trainings_per_day=rate,
+                  prev_regime=args.prev_regime)
     print(f"[telemetry {snap.ts}] pools free: {snap.pool_free} | cluster qw: {snap.cluster_qw} "
           f"({snap.cluster_users} users) | our jobs: {len(snap.our_jobs)}")
+    print(f"CONTENTION TREND: {contention_trend()}")
     print(plan.render())
     return 0
 

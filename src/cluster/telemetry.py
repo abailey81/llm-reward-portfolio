@@ -171,3 +171,74 @@ def append_log(snap: Snapshot, path: str | Path = "outputs/myriad_telemetry.json
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(asdict(snap)) + "\n")
+
+
+# --------------------------------------------------------------------------------------- #
+# Self-measurement (the SMART half: the system computes its own facts from the archives)   #
+# --------------------------------------------------------------------------------------- #
+def measure_rate(archive_root: str | Path, *, window_hours: float = 24.0) -> tuple[float, int]:
+    """(trainings/day, records-in-window) measured from ``record.json`` mtimes under a root.
+
+    The rate the ETA math uses is OUR OWN realized throughput — never an assumption. Returns
+    (0.0, 0) when nothing has landed yet (the advisor then refuses to invent ETAs).
+    """
+    root = Path(archive_root)
+    if not root.is_dir():
+        return 0.0, 0
+    now = time.time()
+    cutoff = now - window_hours * 3600
+    times = [m for pth in root.rglob("record.json")
+             if (m := pth.stat().st_mtime) >= cutoff]
+    if not times:
+        return 0.0, 0
+    span_h = max((now - min(times)) / 3600.0, 0.25)   # floor: a burst never divides by ~zero
+    return len(times) * 24.0 / span_h, len(times)
+
+
+def observed_gpus(archive_root: str | Path, *, sample: int = 40) -> dict[str, int]:
+    """Which GPU models the cluster ACTUALLY granted us, from archived records (defensive parse:
+    any string field mentioning a known card name counts). Resolves e.g. the V100 16G-vs-32G
+    question empirically once the first records land."""
+    root = Path(archive_root)
+    counts: dict[str, int] = {}
+    if not root.is_dir():
+        return counts
+    for i, pth in enumerate(root.rglob("record.json")):
+        if i >= sample:
+            break
+        try:
+            blob = pth.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for card in ("V100", "A100", "H100"):
+            if card in blob:
+                key = card
+                m = re.search(card + r'[^"]{0,20}?(\d\d)GB', blob)
+                if m:
+                    key = f"{card}-{m.group(1)}G"
+                counts[key] = counts.get(key, 0) + 1
+                break
+    return counts
+
+
+def contention_trend(log_path: str | Path = "outputs/myriad_telemetry.jsonl",
+                     *, frames: int = 12) -> str:
+    """Rising/falling/flat verdict from the telemetry log's recent cluster_qw values."""
+    p = Path(log_path)
+    if not p.is_file():
+        return "no-history"
+    rows = p.read_text(encoding="utf-8").strip().splitlines()[-frames:]
+    qws: list[int] = []
+    for r in rows:
+        try:
+            qws.append(int(json.loads(r).get("cluster_qw", 0)))
+        except (ValueError, KeyError):
+            continue
+    if len(qws) < 3:
+        return "insufficient-history"
+    first, last = qws[0], qws[-1]
+    if last > first * 1.15:
+        return f"RISING ({first}->{last})"
+    if last < first * 0.85:
+        return f"FALLING ({first}->{last})"
+    return f"flat (~{last})"

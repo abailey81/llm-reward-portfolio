@@ -122,3 +122,54 @@ def test_advise_end_to_end_plan_shape() -> None:
     rendered = plan.render()
     assert "qalter" not in rendered
     assert not re.search(r"(?:^|\s)-p\s+-?\d", rendered)
+
+
+def test_chunking_hysteresis_no_flap() -> None:
+    """Near the boundary the regime sticks to its previous state (enter 1.2x, exit 0.8x)."""
+    near = _snap(qw=1500)  # exactly at the base threshold
+    assert chunking(near, prev_regime="CONTENDED")[0] == "CONTENDED"  # 1500 > 1200 exit bar
+    assert chunking(near, prev_regime="QUIET")[0] == "QUIET"          # 1500 < 1800 enter bar
+    assert chunking(_snap(qw=1000), prev_regime="CONTENDED")[0] == "QUIET"   # true exit
+    assert chunking(_snap(qw=2000), prev_regime="QUIET")[0] == "CONTENDED"   # true enter
+
+
+def test_measure_rate_from_record_mtimes(tmp_path) -> None:
+    import os
+    import time as _t
+
+    from src.cluster.telemetry import measure_rate
+    root = tmp_path / "archive"
+    now = _t.time()
+    for i, age_h in enumerate([1.0, 2.0, 3.0]):
+        d = root / f"u{i}"
+        d.mkdir(parents=True)
+        f = d / "record.json"
+        f.write_text("{}", encoding="utf-8")
+        os.utime(f, (now - age_h * 3600, now - age_h * 3600))
+    rate, n = measure_rate(root, window_hours=24.0)
+    assert n == 3
+    assert 20.0 <= rate <= 28.0  # 3 records over ~3h -> ~24/day
+    assert measure_rate(tmp_path / "absent") == (0.0, 0)
+
+
+def test_observed_gpus_defensive_parse(tmp_path) -> None:
+    from src.cluster.telemetry import observed_gpus
+    d = tmp_path / "a"
+    d.mkdir()
+    (d / "record.json").write_text('{"gpu": "Tesla V100-SXM2-32GB, 550.54"}', encoding="utf-8")
+    e = tmp_path / "b"
+    e.mkdir()
+    (e / "record.json").write_text('{"gpu": "NVIDIA A100 80GB PCIe"}', encoding="utf-8")
+    got = observed_gpus(tmp_path)
+    assert got.get("V100-32G") == 1 and sum(got.values()) == 2
+
+
+def test_contention_trend(tmp_path) -> None:
+    import json as _json
+
+    from src.cluster.telemetry import contention_trend
+    log = tmp_path / "tele.jsonl"
+    rows = [{"cluster_qw": q} for q in (1000, 1200, 1500, 2000)]
+    log.write_text("\n".join(_json.dumps(r) for r in rows), encoding="utf-8")
+    assert contention_trend(log).startswith("RISING")
+    assert contention_trend(tmp_path / "absent.jsonl") == "no-history"
