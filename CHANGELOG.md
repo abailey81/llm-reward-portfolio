@@ -3,6 +3,69 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-24b] — ★★★ LIVE PRE-LAUNCH OPS: A100 timing probe · THE CONTAINER-MOUNT BUG CAUGHT & FIXED · Qwen rehearsal analysis · strict-documentation rule
+
+> No campaign/design change. This is a LIVE-OPS + investigation session (recorded in full per the
+> new ★★★ STRICT CONTINUOUS DOCUMENTATION rule added to CLAUDE.md this session). One code commit
+> (`c7b483e`, jobscript hardening); everything else is Myriad-side ops + findings.
+
+- **HONEST ASSESSMENTS (Tamer asked "how smart is the allocation system, does it really speed up
+  everything" + "exact timelines" + "why aren't we using the A100"):** delivered non-sycophantic
+  answers, banked here so the reasoning survives. (1) The allocation system is competent+disciplined,
+  NOT magic: it can't touch the BO-bound critical path (mechanism ~L+0.7, floor ~L+1.5–1.8 are
+  sequential — Amdahl), only the throughput-bound tail (legs ~L+4.5–5.5, tier-403 ~L+13–14.5); most
+  of its "speedup" is the A100 HARDWARE it surfaces, not the software; and it optimizes a resource
+  (wall-clock) that already has ~2.5wk of deadline slack, so its true value is risk-reduction +
+  idle-tail depth, not deadline rescue. (2) The A100 is not GPU-bound for us — the env Python loop
+  dominates (pack curve 1→102 / 5→253 agg steps/s, documented) — so the A100 win is PACKING (10/GPU
+  on 80G vs 5), gated on the canary, with sub-linear returns; the real cap is fair-share ALLOCATION,
+  not GPU horsepower. Full timeline table (GO=Jul-27): mechanism ~Jul-28 · floor ~Jul-29 · all 10
+  legs ~Aug-1/2 · **95% primary (tier-403) ~Aug-9/11** · Aug-27 stop · Sep-1 submit; 568/99% is
+  last-if-it-fits by design.
+
+- **THE A100 TIMING PROBE (spend-free, to replace the modeled ETA with a measured one):** reused the
+  tested machinery — cloned the check jobscript + a real synthetic spec (`synthetic:True`, reward
+  embedded, `run_one` calls `train_candidate` = NO API, $0), bumped steps 2000→25000, isolated the
+  output dir. Built via a Linux-side builder (LF-native, sidesteps the CRLF landmine). Submitted:
+  **11004 `a100_probe_u`** (A100/U), **11078 `a100_probe_v`** (A100/V — added to grab a transiently
+  free V GPU), **11005 `v100_probe_ef`** (V100 baseline). Combined background poller `b4te7p8m3`
+  watches both A100 epilogues. STILL QUEUED at session-write (all 12 U/V A100 GPUs busy; the free
+  slots are V100/EF only). Clock note: caught + corrected my own laptop-vs-Myriad TZ misread
+  (14:29 GMT-labelled vs 10:32 BST) — Tamer then aligned the laptop clock.
+
+- **★ CONTAINER-MOUNT BUG — CAUGHT LIVE, ROOT-CAUSED, FIXED (the session's real find; exactly the
+  "things don't go as planned" the supervisor warned of):** every queued CHECK task + Qwen rehearsal
+  had been **failing `rc:255` in ~1 second, all night** (since Jul-23 17:47) — I initially misread the
+  log files as "progressing"; the epilogues proved otherwise. Cause: the Apptainer run bind-mounts
+  `~/Scratch/llmrp/inputs`, which **did not exist** → `FATAL: container creation failed: mount ...
+  doesn't exist`, before any python. My timing probes (cloned from the same jobscript) would have
+  crashed identically. **Fixes:** (a) `mkdir -p ~/Scratch/llmrp/inputs` on Myriad (immediate unblock;
+  the loader confirms synthetic runs generate their own panel and never read gold, so the empty dir
+  suffices); (b) **hardened `src/cluster/jobscript.py`** to `mkdir -p "{gold_dir}"` before the
+  Apptainer line so a missing bind source can NEVER FATAL the container again — a real run with truly
+  absent gold now fails LOUD in the loader instead (commit **`c7b483e`**, jobscript tests green,
+  pushed to backup). **De-risking bonus:** verified the REAL campaign gold IS staged on ACFS
+  (`/acfs/users/ucestes/gold/returns_panel_univ5.parquet` 36MB + support files, Jul-10) — so this bit
+  only the check; the real campaign points at ACFS and is unaffected.
+
+- **QWEN REHEARSAL ANALYSIS (Tamer asked about the qwen check jobs):** the Qwen LLM AUTHORING WORKED
+  — **20 calls on qwen3.5-9b, total $0.0139** (1.4 cents), produced valid reward specs → the LLM half
+  of the loop is VALIDATED; spend STOPPED 00:26 (not ongoing). Only the TRAINING half crashed (the
+  mount bug), leaving retries `..._r1`/`..._r2` (jobs 10401/10434) queued — they'll now SUCCEED when a
+  slot frees. ~8 laptop-side check/rehearsal drivers still alive but idle since 00:26 (not
+  authoring/burning). No money concern.
+
+- **QUEUE STATE at session-write:** 12 jobs qw (3 timing probes 11004/11078/11005 · 2 Qwen retries
+  10401/10434 · 6 pipeline check tasks 8323/8333/8334/8364/8367/10310 · the old 10295 probe_ef) + 6
+  STALE abandoned `pm2_*` held jobs (Jul-11/13) that dilute our fair-share tickets — Tamer offered the
+  cleanup (qdel), DECISION PENDING. Cluster jam ~2,900 pending. Nothing broken now; purely waiting for
+  free GPUs (A100 U/V for the probes; EF/V100 for the rest).
+
+- **CLAUDE.md: the ★★★ STRICT CONTINUOUS DOCUMENTATION + ALWAYS-RESUME rule** added to the SESSION
+  HANDOFF PROTOCOL (Tamer's instruction): document EVERYTHING in detail ALWAYS in CHANGELOG + HANDOFF
+  §1 (even no-commit/live-ops sessions), name in-flight state precisely, resume from them every session
+  start. Memory `feedback-strict-continuous-documentation` + MEMORY.md index line added.
+
 ## [2026-07-24] — ★★★★ MYRIAD MASTERY (the expert dossier + best-hardware probes) · THE ADAPTIVE ALLOCATION SYSTEM · the zero-tolerance sweep
 
 - **MYRIAD EXPERT DOSSIER (`bea8443`→`25fbe7a`→`f60f016`→`de89a1e`→`2b70f83`;
