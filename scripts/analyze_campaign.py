@@ -4747,7 +4747,14 @@ def analyze(
     # loudly under out["archive_integrity"] so it cannot pass unnoticed.
     archive_integrity = {"status": "not_sealed", "reason": "no archive_integrity.json manifest present"}
     try:
-        from scripts.archive_integrity import verify_manifest
+        try:
+            from scripts.archive_integrity import verify_manifest
+        except ModuleNotFoundError:  # direct `python scripts/...` puts scripts/ on sys.path, NOT the
+            import sys as _sys        # repo root, so `scripts` is not an importable package (the SAME
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))  # class as the run_campaign seal
+            from archive_integrity import verify_manifest              # bug, 2026-07-24) -> without this
+            # fallback the seal is written but NEVER VERIFIED at analysis time (the provenance chain is
+            # broken at the read end for BOTH the local and the pulled-cluster archive).
 
         manifest = Path(root) / "archive_integrity.json"
         if manifest.is_file():

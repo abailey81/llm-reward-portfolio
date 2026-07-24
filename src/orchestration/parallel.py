@@ -769,7 +769,13 @@ _ENV_CACHE: dict[Any, tuple[dict, str]] = {}
 def _capture_env_cached(seed: Any) -> tuple[dict, str]:
     key = seed
     if key not in _ENV_CACHE:
-        from scripts.capture_env import capture_env, env_json_sha256
+        try:
+            from scripts.capture_env import capture_env, env_json_sha256
+        except ModuleNotFoundError:  # a directly-launched `python scripts/run_campaign.py` puts
+            import sys as _sys        # scripts/ on sys.path, not the repo root, so `scripts` is not an
+            from pathlib import Path as _Path  # importable package (same class as the seal bug,
+            _sys.path.insert(0, str(_Path(__file__).resolve().parents[2] / "scripts"))  # 2026-07-24);
+            from capture_env import capture_env, env_json_sha256   # Myriad's `-m` run keeps this dead.
 
         env = capture_env(seed=int(seed) if isinstance(seed, (int, float)) else None)
         _ENV_CACHE[key] = (env, env_json_sha256(env=env))
