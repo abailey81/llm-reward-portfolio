@@ -323,6 +323,17 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
   spend (~$1-2) and the stagger covers most path breakage; accepted as a design trade — if C0
   fails in under an hour, touch `outputs\campaign_cluster\STOP_CAMPAIGN` to stop the h3 line too.
 
+**THE ADAPTIVE ALLOCATION SYSTEM (2026-07-24; automates every lever below):**
+`python scripts/allocation_advisor.py [--probe-age-hours H] [--vram-per-training G --rate R
+--remaining "tier403=6800,..."]` — ONE command that live-probes Myriad (telemetry archived to
+outputs/myriad_telemetry.jsonl) and PRINTS the current-optimal settings: the §3b chunking regime,
+the search-lane pool pin, the exact throughput-weighted `--seed-pool-blocks` string (CRN
+block-homogeneous by construction), canary-gated pack depths, the U/V probe verdict, and
+measured-rate ETAs. Advisory only (nothing submitted; priorities untouchable by construction —
+test-locked). Run at GO morning, after the canary (with --vram-per-training + --rate), and daily
+during the campaign for recomputed ETAs. Logic: src/cluster/{telemetry,allocation}.py;
+tests/test_allocation.py (10 tests); LIVE-VERIFIED 2026-07-24 against the real cluster.
+
 **GO-DAY THROUGHPUT LEVERS (2026-07-24 deep Myriad dig — legitimate, NEVER touch priority):**
 0. **BEST-HARDWARE PROTOCOL (2026-07-24; the U/V probe + the search-lane pin).**
    (a) **U/V pools (12x A100-80G)**: the JSV ACCEPTED `-ac allow=U` and `allow=V` submissions
