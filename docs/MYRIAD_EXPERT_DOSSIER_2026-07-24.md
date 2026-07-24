@@ -1,0 +1,89 @@
+# MYRIAD EXPERT DOSSIER (2026-07-24) — the scheduling ground truth, live-probed + doc-verified
+
+> Purpose: everything that actually determines how fast our jobs run on UCL Myriad, verified
+> against the LIVE scheduler configuration (`qconf -ssconf`, probed 2026-07-24), the official RC
+> docs, and the SGE reference manuals — so the campaign's speed decisions rest on the scheduler's
+> real arithmetic, never folklore. Standing order: NEVER lower our job priority (CLAUDE.md ★).
+
+## 1. THE PRIORITY FORMULA (decoded from the live config — this IS Myriad)
+
+```
+prior = 4.0 * norm(POSIX -p)  +  1.5 * norm(tickets)  +  1.0 * norm(waiting_time)   [urgency 0]
+```
+
+- **POSIX term (weight 4.0)**: users can only LOWER -p (forbidden for us, ever). Everyone sane
+  sits at 0 → the term cancels among competitors. Ignore.
+- **Tickets (weight 1.5), policy O>S>F with functional DOMINANT**:
+  `weight_tickets_functional = 5e8` vs `weight_tickets_share = 1e4` → the share-tree (usage
+  history) is **negligible: 50,000× smaller**. Myriad priority is effectively usage-history-FREE.
+  - **Functional = equal share per USER** (122 users pending at probe time → our slice ≈ 1/122),
+    and `share_functional_shares = TRUE` → **our slice is SPLIT ACROSS OUR PENDING JOBS**
+    (SGE sched_conf: "shares … shared among all the jobs associated with the object").
+    → **THE LEVER: fewer simultaneously-pending jobs = more tickets per job = higher prior.**
+  - `max_functional_jobs_to_schedule 200` / `max_pending_tasks_per_job 50` (defaults): only the
+    front of a big array is scheduler-considered per cycle, but the JOB's tickets stay
+    concentrated — big arrays are strictly better than many small ones.
+- **Waiting time (weight 1.0)**: eligible (`qw`) jobs accrue priority while they wait.
+  **Held (`hqw`) tasks show prior 0.000 — dependency-held work accrues NOTHING** (live-verified).
+  Implication: pipelined-rungs earns concurrency, not waiting-time credit; only eligible jobs age.
+- `halftime 604800` (7d) applies to the (negligible) share component. Pilot usage does NOT
+  handicap us; the campaign does NOT degrade its own standing as it runs.
+- `max_reservation 20` cluster-wide; our jobs carry `reserve: y` (anti-starvation, keep it).
+
+**Live calibration (2026-07-24 04–05 UTC+5):** our eligible jobs prior 2.39–3.19 vs cluster top
+3.50 → near the FRONT of the pending band; ~2,990 qw / ~700 hqw cluster-wide; 122 users.
+
+## 2. THE HARDWARE (free-tier GPU pools)
+
+| Pool | Nodes | GPUs | VRAM | Notes |
+|---|---|---|---|---|
+| **EF** (E-type) | ~19 | 2× V100 each (~38) | 16/32G (verify via the jobscript's archived `nvidia-smi` at canary) | Bigger pool, less contended — our default |
+| **L** | 6 | 4× A100-40G each (24) | 40G | ~1.7–2.2× faster/training; more contended |
+| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | Visible in `qhost`, actively loaded; requestability for free users UNKNOWN (docs document only `allow=EF|L`; `qsub -w v` is unreliable — false-negatives even on EF). Treat as an RC-question (Tamer's call), never assume. |
+
+CPU nodes (D/I/B/T) irrelevant to training. tmpfs per node is large (hundreds of GB) but our
+REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2–36 cores).
+
+## 3. THE LEVERS (all legitimate; priority never touched)
+
+1. **TICKET CONCENTRATION (new, confirmed, material at campaign scale).** Consolidate work into
+   FEW, LARGE array jobs; avoid flooding hundreds of small pending arrays. At mode-D scale the
+   difference between ~1,200 single-task arrays and ~dozens of chunked arrays is ~50× tickets per
+   job. Concrete: raise `--chunk-tasks` at GO (also solves `max_u_jobs 1000`). The 12 driver
+   LINES are fine (12-way split is nothing); the per-line array chunking is what matters.
+2. **Pool selection at GO** (`--pool` → `-ac allow=`): read live free-GPU headroom per pool
+   (`qhost -F gpu | grep -B1 'gpu=[1-9]'`) and pin for (availability × speed), CRN-homogeneous
+   per comparison unit. Default EF; L for the latency-critical core if it has headroom.
+3. **tmpfs right-sizing**: we request 15G; the gold panel is 35 MB. Nodes with a free GPU but
+   <15G free tmpfs EXCLUDE us. Measure the true high-water at canary → cut to peak+margin.
+4. **Per-VRAM pack calibration**: pack-5 was sized conservatively; A100-40/80G can host more
+   concurrent envs per GPU. Measure VRAM headroom at canary (`nvidia-smi` is already archived) →
+   raise pack per pool if headroom is 2×. More effective GPUs per granted slot.
+5. **Submit early / morning launch / summer window**: eligible waiting-time accrues (weight 1.0);
+   late-July–August is the UK academic low season; maintenance = 2nd Tuesday (Aug 11).
+6. Already optimal: pack bursts (fewer queue entries), auto-sized short h_rt (backfill-friendly),
+   `reserve: y`, 12 concurrent lines, striped pools.
+
+## 4. DEAD ENDS (verified — stop revisiting)
+
+- **Self-elevation**: impossible (fair-share allows only self-LOWERING; forbidden for us anyway).
+- **Usage-history worry**: a myth on Myriad (share weight 1e4 ≪ functional 5e8).
+- **Idle departmental nodes**: owned/paid pools, invisible to free allocation.
+- **`qsub -w v` pre-validation**: false-negatives on gpu/allow complexes; don't trust it.
+- **RC fast-track**: admin-only; Tamer's standing "no RC request"; surfaced, never actioned.
+
+## 5. THE COMMAND TOOLKIT
+
+```
+qstat -u '*' | awk '{print $5}' | sort | uniq -c    # cluster pressure at a glance
+qstat -j <jid>                                      # why pending + exact resource request
+qhost -F gpu | grep -B1 'gpu=[1-9]'                 # nodes with free GPUs right now
+qconf -ssconf                                       # the scheduler policy (this dossier's source)
+qquota                                              # resource-quota limits on us
+qdel <jid>                                          # remove (never on reserved queued jobs
+                                                    #   — kill+resubmit forfeits reservation+age)
+```
+
+*Sources: live `qconf -ssconf`/`qstat`/`qhost` probes (2026-07-24); UCL RC docs (Myriad cluster
+page; GPU nodes; Experienced Users); SGE sched_conf(5)/sge_priority(5) manuals. UCL is migrating
+SGE→Slurm at some future date — this dossier is SGE-era.*

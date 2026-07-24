@@ -337,8 +337,19 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
    real tmpfs high-water mark (`df /tmpdir` on-node, or the run_one working-dir peak), then reduce
    `tmpfs=` to (peak + margin) so many more nodes qualify. DO NOT cut blind (under-provision = job
    failure; it is load-bearing for gold staging + working space). Verified legitimate, no priority.
-3. Already on: pack-5 (fewer queue entries), h_rt auto-size (backfill-friendly), `reserve: y`
-   (anti-starvation). NOT available: self-elevation (fair-share) / more free allocation (needs RC).
+3. **TICKET CONCENTRATION (2026-07-24 dossier — the scheduler-arithmetic lever).** Myriad's live
+   config: functional tickets dominate (5e8 vs share 1e4) and `share_functional_shares TRUE`
+   splits OUR per-user slice across OUR pending jobs -> few LARGE arrays beat many small ones by
+   ~a 50x per-job ticket factor at campaign scale. At GO: raise `--chunk-tasks` so concurrent
+   pending arrays stay ~dozens (also solves max_u_jobs=1000). NUANCE (live-verified): held (hqw)
+   tasks accrue NO waiting time — only eligible jobs age; pipelined rungs buy concurrency, not age.
+4. **Per-VRAM pack calibration at canary**: A100 pools may host ~2x the envs/GPU of pack-5;
+   the jobscript already archives nvidia-smi -> measure headroom, raise pack per pool if clear.
+5. Already on: pack-5 (fewer queue entries), h_rt auto-size (backfill-friendly), `reserve: y`
+   (anti-starvation; NEVER kill+resubmit a reserved queued job). NOT available: self-elevation
+   (fair-share; forbidden for us anyway), U/V A100-80G pools (requestability unknown — an RC
+   question, Tamer's call), more free allocation (RC). Full ground truth:
+   `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md`.
 
 **CHECK-DAY PRE-MORTEM ORDER (2026-07-23; run in THIS order — the cheap probes first):**
 1. `ssh myriad "qstat | head -3; ls ~/Scratch/llmrp; qconf -sconf | grep -i max_u_jobs"` — access,

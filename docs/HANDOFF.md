@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-07-22"
-  head: "7d6d7a1"
+  regenerated_utc: "2026-07-24"
+  head: "bea8443"
   frozen: false
   legs_n: 10
-  amendments_through: R98
-  suite_status: "exit 0 (15th certification, post-wave-2)"
+  amendments_through: R100
+  suite_status: "exit 0 (15th certification; check-day live: gates 10/10, rehearsals queued on Myriad)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
@@ -32,7 +32,7 @@ handoff_state:
 |---|---|
 | Design state | **UNFROZEN** (`frozen: false`; R94 standing order: **the freeze executes together with Tamer's full-campaign-run approval — GO step 1 — never before**) |
 | Canonical hash | **recomputed at the GO-day freeze** — R95–R97 landed AFTER the R93 stamp, so the live would-be hash has MOVED off `ccf2e76f` (that stamp + bundle remain valid R93 *history*, commit `30ae72b`); the GO freeze stamps whatever the then-current design hashes to and builds a fresh bundle. Never expect `ccf2e76f` at GO. (Check live: `python -c "import sys; sys.path.insert(0,'scripts'); from freeze import canonical_hash; print(canonical_hash()[:16])"`) |
-| Amendments | through **R99** (R93 freeze-prep retained · R94 lift · R95 K3 seated · R96 the OPTIONAL M2 module · R97 the DDR companion + §9(h) · R98 Opus-5 full leg not exercised, M2-only fallback · R99 Sol/Terra legs declined, Terra seated in M2, the GPT-5.6 ladder = the named first Stage-2 extension) |
+| Amendments | through **R100** (R93 freeze-prep retained · R94 lift · R95 K3 seated · R96 the OPTIONAL M2 module · R97 the DDR companion + §9(h) · R98 Opus-5 full leg not exercised, M2-only fallback · R99 Sol/Terra legs declined, Terra seated in M2, the GPT-5.6 ladder = the named first Stage-2 extension · R100 idle-tail leg-deepening LEGS-FIRST after the 403 bank + the pre-committed Aug-27 stop) |
 | Roster | **11 full-loop** = Opus 4.8 confirmatory + **10 legs** (queue: deepseek → glm → qwen27 → qwen9 → haiku → luna → nemotron → sonnet-5 → gemini → kimi-k3); ~35 distinct models with M2 (26 core + 9 extras, R99 Terra seated; 3 documented exclusions) |
 | Rule-driven upside | K3 → open-class on the Jul-27 weights (`kimi_k3_upgrade_rule`) · Opus-5 conditional seat (attribution-gated) · the R96 module (Tamer's write-time activation, registry row 25) |
 | Execution | MODE D final: **12 launch lines** via `scripts/mode_d_launch.ps1` (core + h3 + 10 legs; ladder −200…−290; pack lanes; pipelined rungs; canary-concurrent; 45s chain polls) |
@@ -56,11 +56,11 @@ handoff_state:
 
 | Truth | Owner |
 |---|---|
-| The design of record | `config/preregistration.yaml` (`model_suite` + amendment mirrors) + `PREREGISTRATION.md` §14 + rows R79–R97 |
+| The design of record | `config/preregistration.yaml` (`model_suite` + amendment mirrors) + `PREREGISTRATION.md` §14 + rows R79–R100 |
 | The executed leg config | `config/legs.yaml` (gate-bound == model_suite; HF pins FILLED) |
 | The roster, prices, pins, functions | `docs/MODEL_ROSTER_2026-07-22.md` |
 | Launch mechanics | `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md` — §2.0 GO sequence · §9 legs · **§10 MODE D** (the one command) |
-| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–32; none may silently drop) |
+| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–33; none may silently drop) |
 | The optional M2 module | `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (R96) |
 | Prose drafts awaiting wiring | `paper/DRAFTS_communication_build_2026-07-12.md` (D1–D10) |
 | The writing plan | `docs/WRITEUP_95PLUS_PLAYBOOK.md` (under the raised bar; registry rows 19–24) |
@@ -77,7 +77,7 @@ seat (its pair died with R92) · R91 Opus-5 conditional · R92 sonnet-4.6 remove
 withdrawn) · R93 the freeze-day evidence (executed ccf2e76f) · R94 the same-day lift
 (freeze=GO-step-1) · R95 K3 seated · R96 the optional psychometric module · R97 the differential
 downside deviation ratio seated (Moody & Saffell 2001, first-hand) + the ten-name secondary
-panel's execution path (runbook §9(h)) · R98 the Opus-5 full leg NOT exercised (Tamer's budget decision; M2-only fallback) · R99 Sol/Terra full legs DECLINED (budget, pre-event; Terra seated in M2 — the 3-pt GPT-5.6 reading ladder; the full-loop ladder = the named first Stage-2 extension).
+panel's execution path (runbook §9(h)) · R98 the Opus-5 full leg NOT exercised (Tamer's budget decision; M2-only fallback) · R99 Sol/Terra full legs DECLINED (budget, pre-event; Terra seated in M2 — the 3-pt GPT-5.6 reading ladder; the full-loop ladder = the named first Stage-2 extension) · R100 the idle-tail deepening rule, ORDER: legs-first after 403, core 568 last-if-it-fits, stop 2026-08-27 (GO-day may only move it EARLIER).
 
 ## §5 FIRST ACTIONS FOR A FRESH SESSION
 
