@@ -63,6 +63,21 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   (unpiped), nothing broke. (The 6 sites + the subprocess regression guard are in [2026-07-24b];
   commits `c36af20`/`685e611`/`9fb413e`.)
 
+- **★ CAMPAIGN-SPEED PRIORITY (new STANDING priority, Tamer) + the timeline CORRECTION.** Registered
+  in CLAUDE.md (★ CAMPAIGN-SPEED PRIORITY, beside the ★ MYRIAD PRIORITY) + memory
+  `project-campaign-speed-priority`: **actively use the BEST pools/hardware/packing/options to drive
+  the campaign wall-clock to its GLOBAL MINIMUM — WITHOUT cutting the science, and without lowering
+  our SGE priority.** Under R101 throughput = the achieved seed rung = a stronger result = the grade,
+  so speed is now directly grade-relevant. **Timeline CORRECTED (Tamer pushed back — "why so long,
+  didn't we find faster pools?"):** my earlier "~100–189 seeds by Aug-27" was the too-conservative
+  JAMMED-DEFAULT read, over-weighting the confounded 2-core A100 probe. With the best pools (A100 U/V +
+  L, less contention + deeper packing) the realistic Aug-27 common rung is **~280–400 seeds** (deep
+  into the 90–95% assurance tiers), vs ~130 on the jammed default; the 30-seed floor lands ~2–3 days.
+  Also reconciled a doc inconsistency (`MYRIAD_EXPERT_DOSSIER`): "1.7–2.2× faster/training" for L/A100 is
+  the **GPU-compute ratio** — irrelevant for our CPU/env-bound workload; the pools' real value is
+  **contention + packing (throughput)**, not per-training clock. The GO-day canary measures the true
+  packed multi-core per-node rate — plan the reachable rung from THAT, not the ratio or the microbench.
+
 ## [2026-07-24d] — ADVISORY / CALL-PREP SESSION + ★ RAMIN'S SEED-PARITY DIRECTIVE (open decision, undocumented until now)
 
 > A parallel advisory chat (Tamer prepping for supervisor calls). No commits. Most of the
