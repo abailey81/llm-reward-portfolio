@@ -62,8 +62,10 @@ def test_transport_kwargs_openrouter_assembles_extra_body():
 
 
 def test_transport_kwargs_reasoning_pins():
+    # 2026-07-23 gate catch: the provider RENAMED the mode values (think-high -> pro); the pin
+    # migrated in both bound files (same registered vendor-default mode, new API name).
     assert transport_kwargs(leg_by_label("deepseek-v4-pro"))["extra_body"]["reasoning"] == {
-        "mode": "think-high"}
+        "mode": "pro"}
     luna = transport_kwargs(leg_by_label("gpt-5.6-luna"))
     assert luna["extra_body"]["reasoning"] == {"effort": "low"} and luna["max_tokens"] == 2048
 
