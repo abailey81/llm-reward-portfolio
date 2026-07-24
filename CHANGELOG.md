@@ -3,6 +3,120 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-24e] — ★★★★ R101: OKHRATI'S SEED-PARITY CONFIRMED + APPLIED · A100 MEASURED (CPU-bound) · all-arms local pass · session close-out
+
+> The strategy-defining session. Tamer confirmed Ramin's directive after a supervisor conversation
+> (was "open decision" in [2026-07-24d]); it is now registered as **R101** and applied at the
+> prereg/doc level. Also completes the technical record from [2026-07-24b] (the A100 probe had been
+> "still queued" there; it ran).
+
+- **★★★ R101 — ALL 11 MODELS RUN IN PARALLEL AT EQUAL SEEDS (Okhrati's directive, Tamer-confirmed;
+  the design of record CHANGES).** Dr Okhrati told Tamer all models must run to the SAME number of
+  seeds. Registered as **R101** (PREREGISTRATION.md amendment table; `config/preregistration.yaml`
+  leg_seed_tier + queue_semantics superseded-notes; HANDOFF §1). **The change:** the confirmatory
+  Opus 4.8 + all 10 legs climb ONE common assurance ladder [30,100,189,279,340,403,568] IN LOCKSTEP
+  at EQUAL priority — no model privileged with more seeds. SUPERSEDES R88 (Opus-above-legs priority),
+  `leg_seed_tier:30` (legs floor-capped), and R100 (idle-tail legs-first). The Aug-27 exogenous stop
+  is unchanged + now uniform: the FINAL result is the common rung all 11 complete by then (30
+  GUARANTEED, ~100–189 fair-share expectation, all-11-to-403 unlikely — trades single-model depth
+  for balanced breadth, Okhrati's explicit preference: cut seeds before models). **Analysis reframe
+  (multiplicity-controlled):** MECHANISM headline (SQ1–3) UNCHANGED; the performance backdrop moves
+  from Opus-403 single-model equivalence to PRIMARY = CVaR-5% tail (conclusive at the 30 floor per
+  the σ_D pilot) + the POOLED cross-model bounded-effect (a pre-specified random-effects meta-estimate
+  of the within-model tail-vs-scalar contrast across the 11 models — where the Sharpe precision now
+  lives); SECONDARY = the R87 capability gradient on a BALANCED 11-point panel + per-model contrasts
+  under BH-FDR. **Rolling write-up (single-look-preserving):** write now → 30-seed checkpoint fills
+  Results provisionally → update in place at each checkpoint → the ONE confirmatory look is at the
+  Aug-27 achieved rung (interim rungs are draft-filling; the calendar, not results, sets the rung).
+  **Sequencing:** the pending Myriad checks finish FIRST → then all 11 launch in parallel. Identification
+  + m=6 fed vector UNTOUCHED. **GO-PREP remaining (before freeze/launch, check must finish first):**
+  the launcher (mode_d) equal-priority lockstep, the seed config so every leg climbs the full ladder,
+  the roster/runbook reframe, and the pooled-primary + FDR + balanced-gradient analysis plan (HANDOFF
+  §1 "R101 GO-PREP" row tracks these). **Statistical flag:** implemented as pooled-primary (the natural
+  reading of "all models equal"); if Okhrati wants 11 independent per-model confirmatory tests, promote
+  the FDR family to primary — flagged, not assumed.
+
+- **★ A100-80G MEASURED — and it CONFIRMS the workload is CPU/env-bound, not GPU-bound.** The timing
+  probe (queued in [2026-07-24b]) finally ran: **`rc:0`, `NVIDIA A100 80GB PCIe`, wall_clock 1050s for
+  25k steps ≈ ~24 steps/s** at 2 cores. That is SLOWER than the laptop (~100 steps/s for train_candidate
+  at 4 P-cores) — because the GPU sits idle while the single-threaded env loop grinds (empirically proves
+  the documented pack-curve thesis: 1→102 / 5→253 agg steps/s). **So the A100 gives NO per-training
+  speedup for us; its only lever is packing + parallelism.** This does NOT worsen the timeline — the
+  conservative estimate never counted on an A100 speedup (it was un-baked upside); the probe replaced a
+  hopeful guess with a fact. The clean per-node campaign-config throughput still comes from the GO canary.
+  **Probe scaffolding saga (all MY hand-built shortcut, none affect the real campaign):** the probe hit
+  three gaps the real submit path creates automatically — (1) the container-mount `inputs/` dir (fixed
+  [2026-07-24b] + `c7b483e`), (2) an SGE `Eqw`: the `-o` log dir must exist at job START (`submit.py`
+  pre-creates it; my manual qsub didn't — `mkdir` + `qmod -cj`), (3) `read_spec` FileNotFoundError: the
+  `index.json` sha-manifest `write_specs` writes (I generated it stdlib-only after the repo-import failed
+  on Myriad's ancient login python). Each caught by the poller, diagnosed, fixed; `submit.py:180-189`
+  verified to handle all three for the real campaign. The v100/EF baseline is still queued (EF jam).
+
+- **ALL-ARMS LOCAL PASS — GREEN (Tamer: "run all arms to verify it works").** `run_campaign.py` on a
+  shrunk synthetic config (all 7 arms, 2 candidates, 200 steps, 1 seed, keyless stub = $0): every arm
+  authored→searched→froze→trained→tested + the H1 baseline, **ALLARMS_EXIT=0 in 32.9s** — including the
+  two search baselines (random_search, bayes_opt) the earlier distributional-only dry-run didn't cover.
+  Cleaned up completely (throwaway config removed, `outputs/campaign` restored, incidental tracked
+  `outputs/campaign_dryrun` changes reverted → **TRACKED TREE CLEAN**).
+
+- **FULL-SUITE CERTIFICATION GREEN** across all 6 cross-substrate `from scripts.X` edits: `PYTEST_RC=0`
+  (unpiped), nothing broke. (The 6 sites + the subprocess regression guard are in [2026-07-24b];
+  commits `c36af20`/`685e611`/`9fb413e`.)
+
+## [2026-07-24d] — ADVISORY / CALL-PREP SESSION + ★ RAMIN'S SEED-PARITY DIRECTIVE (open decision, undocumented until now)
+
+> A parallel advisory chat (Tamer prepping for supervisor calls). No commits. Most of the
+> compute/A100/allocation discussion independently re-reached conclusions already banked in
+> [2026-07-24b]; the NEW, load-bearing item is a Ramin directive that CONFLICTS with the current
+> seed design and must be reconciled before the freeze. Recorded here per the strict-documentation rule.
+
+- **★ RAMIN SEED-PARITY + REDUCE-SEEDS DIRECTIVE (relayed by Tamer — OPEN DECISION, NOT APPLIED).**
+  In supervisor discussions this session, Dr Okhrati told Tamer: (1) **"whatever results I land on,
+  all models must run to the SAME number of seeds"** (full seed parity across the confirmatory Opus +
+  every leg); (2) **it is fine to reduce the number of models** if needed; (3) when trading off,
+  **prefer reducing SEEDS over reducing models** (keep the roster, lower the common rung). This
+  **CONFLICTS with the current design**, where `model_suite.leg_seed_tier: 30` pins the legs to the
+  floor while Opus ALONE climbs the E1 ladder to tier-403 (HANDOFF timings: legs ~L+4.5–5.5,
+  tier-403 ~L+13–14.5), with **R100 only *idle-tail-deepening* the legs "legs-first after the 403
+  bank, if it fits"** — i.e. NOT guaranteed same-rung parity. Reconciling Ramin's directive means a
+  **material pre-freeze amendment:** all 11 full-loop models (Opus + 10 legs) climb ONE common ladder
+  in lockstep under the exogenous stop and bank the SAME rung; the primary target likely drops from
+  403 to whatever the common rung reaches (this session's compute analysis: ~100–189 at fair-share C,
+  floor 30 guaranteed); and the **headline REFRAMES** from a single-model tight equivalence to the
+  **pooled cross-model bounded-effect statement + the tail (CVaR) result + the mechanism + the
+  10-point capability gradient**, with the per-model Sharpe equivalence honestly reported as
+  bounded/inconclusive at the achieved rung. **NOT silently applied — surfaced for Tamer to confirm
+  with Ramin whether full parity supersedes the R100 idle-tail design before the freeze.** (Rationale
+  banked: for a breadth+mechanism study the pooled bound is where precision lives — the CVaR leg is
+  conclusive at 30, the Sharpe precision comes from pooling many models — so "more models / fewer
+  seeds" is sound and Ramin's call is well-founded.)
+
+- **Compute / Myriad speed (independently re-derived; largely already in [2026-07-24b]).** Reached the
+  same conclusions — the allocation system is competent-not-magic, the binding ceiling is fair-share
+  (Tamer's standing "no RC request"), packing + concurrency are the levers, both A100-80 (U/V) pools
+  unlocked + striped, front-of-queue priority, usage-history-free, summer window. **Self-correction
+  banked:** earlier in the session I told Tamer A100 ≈ V100 per training (from the stale G1 matmul
+  microbench); the `MYRIAD_EXPERT_DOSSIER_2026-07-24` + the live A100 timing probe SUPERSEDE this —
+  the A100 pools are faster/less-contended per training, moving the timeline forward. Floor est.
+  ~2–3 days at the maximised config.
+
+- **Call-prep + supervisor comms (advisory).** Delivered plain-English explanations of the whole
+  design (seeds/σ_D, equivalence/TOST, M2, the 400k-step knee, the daily-returns data model, the 7
+  arms, H1–H4, the roster, and the H1 hand-written baselines + their literature provenance — FinRL
+  raw-return / Markowitz 1952 / Rockafellar–Uryasev 2000 / Moody–Saffell 2001, verified first-hand in
+  `refs.bib` + `src/baselines/rewards.py`). Drafted the **Okhrati follow-up email** (the two things
+  Tamer forgot in the meeting: the 400k-step budget derivation, and what M2 is / why — the
+  "training >10 models is expensive" origin), iterated to his style (no semicolons / em-dashes, human,
+  concise). NOTE: `docs/DISSERTATION_COMPLETE_BRIEF_FOR_RAMIN_2026-07-21.md` was independently
+  regenerated to 730 lines by the main line ([2026-07-23b]); my earlier R92 currency edits to the
+  ~460-line version are SUPERSEDED by that regeneration.
+
+- **Uncommitted local edit (verify against the committed state).** Applied `PREREGISTRATION.md:288`
+  "log-returns" → "simple (arithmetic) per-step returns" (the fed vector is measured on simple returns
+  per `src/feedback/measurement.py` + `distributional_feedback_schema.md`; R55 fixed this repo-wide but
+  missed this one prereg line). Uncommitted; the main line's zero-tolerance sweep may have addressed it
+  independently — verify before the freeze.
+
 ## [2026-07-24b] — ★★★ LIVE PRE-LAUNCH OPS: A100 timing probe · THE CONTAINER-MOUNT BUG CAUGHT & FIXED · Qwen rehearsal analysis · strict-documentation rule
 
 > No campaign/design change. This is a LIVE-OPS + investigation session (recorded in full per the
