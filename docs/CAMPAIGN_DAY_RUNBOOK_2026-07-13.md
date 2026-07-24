@@ -353,8 +353,10 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
 3. **TICKET CONCENTRATION (2026-07-24 dossier — the scheduler-arithmetic lever).** Myriad's live
    config: functional tickets dominate (5e8 vs share 1e4) and `share_functional_shares TRUE`
    splits OUR per-user slice across OUR pending jobs -> few LARGE arrays beat many small ones by
-   ~a 50x per-job ticket factor at campaign scale. At GO: raise `--chunk-tasks` so concurrent
-   pending arrays stay ~dozens (also solves max_u_jobs=1000). NUANCE (live-verified): held (hqw)
+   ~a 50x per-job ticket factor at campaign scale. At GO apply the TWO-REGIME
+   CHUNKING DOCTRINE (dossier §3b; max_pending_tasks_per_job=1 discovered 2026-07-24): read live
+   contention first — CONTENDED -> chunk BIG (priority dominates); QUIET -> keep many arrays
+   (each ramps 1 task/cycle from cold; the flood IS the fast ramp). Always < 1000 pending jobs. NUANCE (live-verified): held (hqw)
    tasks accrue NO waiting time — only eligible jobs age; pipelined rungs buy concurrency, not age.
 4. **Per-VRAM pack calibration at canary**: A100 pools may host ~2x the envs/GPU of pack-5;
    the jobscript already archives nvidia-smi -> measure headroom, raise pack per pool if clear.

@@ -64,6 +64,26 @@ REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2
 6. Already optimal: pack bursts (fewer queue entries), auto-sized short h_rt (backfill-friendly),
    `reserve: y`, 12 concurrent lines, striped pools.
 
+## 3b. THE DISPATCH MECHANICS (probed 2026-07-24 — corrects the naive ticket doctrine)
+
+- `schedule_interval 0:10:0` + `flush_submit_sec/flush_finish_sec 1`: full cycles every 10 min;
+  MICRO-CYCLES fire within 1s of any submit/finish -> dispatch is event-driven at churn,
+  10-min-granular from COLD (launch, post-maintenance).
+- **`max_pending_tasks_per_job 1`** (vanilla default 50): each array job exposes exactly ONE
+  pending task per cycle. (This is why qstat shows each array as one qw entry at real priority +
+  one hqw bundle at 0.000 — the tail tasks are throttled, not merely dependency-held.)
+- `max_functional_jobs_to_schedule 5000`; RQS: one rule, DISABLED, other-user-scoped ->
+  **no hidden per-user GPU caps** (the fair-share grant IS the ceiling).
+- **THE CHUNKING DOCTRINE (two regimes — replaces one-sided ticket concentration):**
+  - CONTENDED (grants scarce): per-job PRIORITY dominates -> chunk BIG (few heavy arrays).
+  - QUIET (slots plentiful): RAMP dominates (1 task/job/cycle from cold) -> MORE arrays ramp
+    faster in parallel; a monolithic 568-task array would need days just to spin up.
+  - STEADY STATE (hundreds running, finishes every few seconds): flush micro-cycles make
+    dispatch continuous -> chunking barely matters; the constraint bites at cold-start only.
+  - GO-day rule: read live contention (`qstat -u '*' | grep -c ' qw '`); heavy -> raise
+    chunk-tasks toward job-count ~dozens; quiet -> keep the mode-D flood (its many arrays are a
+    RAMP FEATURE under quiet skies). Never exceed max_u_jobs=1000 pending jobs either way.
+
 ## 4. DEAD ENDS (verified — stop revisiting)
 
 - **Self-elevation**: impossible (fair-share allows only self-LOWERING; forbidden for us anyway).
@@ -71,6 +91,9 @@ REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2
 - **Idle departmental nodes**: owned/paid pools, invisible to free allocation.
 - **`qsub -w v` pre-validation**: false-negatives on gpu/allow complexes; don't trust it.
 - **RC fast-track**: admin-only; Tamer's standing "no RC request"; surfaced, never actioned.
+- **Advance reservations (qrsub)**: `max_advance_reservations 0` + explicit ACL denial
+  ("must be manager or in userset arusers") — definitively unavailable (probed 2026-07-24).
+- **Hidden per-user quotas**: none (the single RQS is disabled + other-user-scoped).
 
 ## 5. THE COMMAND TOOLKIT
 
