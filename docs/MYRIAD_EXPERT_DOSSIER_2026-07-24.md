@@ -40,7 +40,7 @@ prior = 4.0 * norm(POSIX -p)  +  1.5 * norm(tickets)  +  1.0 * norm(waiting_time
 |---|---|---|---|---|
 | **EF** (E-type) | ~19 | 2× V100 each (~38) | 16/32G (verify via the jobscript's archived `nvidia-smi` at canary) | Bigger pool, less contended — our default |
 | **L** | 6 | 4× A100-40G each (24) | 40G | ~1.7–2.2× faster/training; more contended |
-| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | **U = CONFIRMED USABLE (2026-07-24 02:01): probe_u (10293) RAN — qacct: node-u00a-001, smp-U, failed 0, exit 0 — while the EF control still queued (U had free capacity through a ~3k-qw jam). Scheduling access proven; GPU/VRAM class confirmed by the GO-day canary nvidia-smi before deep striping.** V: probe 10294 still pending (EF control 10295 also pending) — RUNNING = usable (the full +12); pending >48h vs the control = effectively restricted (then qdel the probes). Runbook §10 best-hardware protocol has the branch. |
+| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | **U + V BOTH CONFIRMED USABLE (2026-07-24): probe_u ran on node-u00a-001 (qacct smp-U, exit 0) AND probe_v ran on node-v00a-002 (stdout probe_v.o10294 — qacct shows job-ID reuse, so the stdout hostname is the evidence) — BOTH while the EF control (10295) was STILL queued through a ~2.7k-qw jam. The A100-80G pools were LESS contended for us than the default EF pool → the full +12 A100-80G unlock. GPU/VRAM class confirmed by the GO-day canary nvidia-smi before deep striping. Runbook §10 best-hardware protocol has the stripe branch.** |
 
 CPU nodes (D/I/B/T) irrelevant to training. tmpfs per node is large (hundreds of GB) but our
 REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2–36 cores).

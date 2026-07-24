@@ -354,15 +354,15 @@ tests/test_allocation.py (test-locked; 16+ tests); LIVE-VERIFIED 2026-07-24 agai
 0. **BEST-HARDWARE PROTOCOL (2026-07-24; the U/V probe + the search-lane pin).**
    (a) **U/V pools (12x A100-80G)**: the JSV ACCEPTED `-ac allow=U` and `allow=V` submissions
    (probe jobs 10293/10294 queued 2026-07-24, 5-min hostname probes; control 10295 on EF).
-   **★ U VERDICT IN (2026-07-24 02:01): probe_u RAN — qacct: node-u00a-001, granted_pe smp-U,
-   failed 0, exit_status 0 — while the EF control still sat queued (U had free capacity through
-   a ~3k-qw jam). U SCHEDULING ACCESS = CONFIRMED for our account; add U to the GO stripe.**
-   What the probe did NOT prove (hostname-only stdout): GPU visibility/VRAM class — the GO-day
-   canary's nvidia-smi confirms A100-80G + pack depth before striping deep (the already-registered
-   canary-gated pack rule). V (10294) + EF control (10295) still pending — same rule applies:
-   IF probe_v RUNS -> V usable too (the full +50% A100 unlock). IF it pends >48h while EF
-   control runs -> treat V as restricted; drop (qdel the stale probe then — probes are NOT
-   reserved check jobs; the never-kill rule protects the check/campaign queue age, not probes).
+   **★★ BOTH VERDICTS IN (2026-07-24): probe_u RAN on node-u00a-001 (qacct: smp-U, exit 0) AND
+   probe_v RAN on node-v00a-002 (stdout probe_v.o10294; qacct shows job-ID reuse so the stdout
+   hostname is the evidence) — BOTH while the EF control (10295) was STILL queued through a
+   ~2.7k-qw jam. The A100-80G U/V pools were LESS contended for our account than the default EF
+   pool. U/V SCHEDULING ACCESS = CONFIRMED (the full +12 A100-80G unlock); add both to the GO
+   stripe.** What the probes did NOT prove (hostname-only stdout): GPU visibility/VRAM class — the
+   GO-day canary's nvidia-smi confirms A100-80G + pack depth before striping deep (the
+   already-registered canary-gated pack rule). The EF control still queuing is itself the finding:
+   at GO, PREFER U/V over EF when they show free capacity.
    (b) **Search-lane pool pin**: the floor's critical path is the BO/reflection CHAIN (sequential
    trainings). If L (or U/V) has live headroom at GO, pin the CORE's SEARCH lane to the A100 pool
    (`--pool` on the search invocation): ~1.7-2.2x faster chain steps -> floor ~L+1.5-1.8 ->
