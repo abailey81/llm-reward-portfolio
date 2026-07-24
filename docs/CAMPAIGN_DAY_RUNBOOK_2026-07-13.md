@@ -80,6 +80,12 @@ git archive HEAD | ssh myriad "tar -x -C ~/llmrp" && git rev-parse HEAD | ssh my
 #    single-line campaign_supervisor.ps1 — §10's mode-D launcher is the ratified launch):
 powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1   # 12 supervised lines (§10)
 bash scripts/campaign_monitor.sh &                                   # (Git Bash window)
+# 5. THE LIVE ALLOCATION WATCHER (2026-07-24 system; third window — runs for the whole campaign):
+python scripts/allocation_advisor.py --watch 900 --archive-root outputs/campaign_cluster
+#    every 15 min: live pools/contention -> [ALERT] on regime flips / U-V unlocks / pool shifts;
+#    self-measured rate + ETAs once records land; state persists across restarts. Plan changes
+#    apply at natural boundaries only (new batch/rung submissions via supervisor relaunch,
+#    --resume-safe) — never mid-batch, priorities never touched.
 # (campaign_supervisor.ps1 remains the single-line FALLBACK if mode-D must be abandoned mid-run.)
 ```
 
