@@ -61,6 +61,29 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   cleanup (qdel), DECISION PENDING. Cluster jam ~2,900 pending. Nothing broken now; purely waiting for
   free GPUs (A100 U/V for the probes; EF/V100 for the rest).
 
+- **LOCAL FALLBACK-SUBSTRATE VERIFICATION (Tamer: "run it on our pc in parallel to verify it works",
+  full laptop-resource permission granted; Myriad queue left untouched — all jobs to finish):** ran
+  the laptop path end-to-end alongside the Myriad jobs. **Stage 1 — SAC training core
+  (`smoke_test.py --synthetic --algos sac`): GREEN** — CUDA works (RTX 4050, torch 2.6.0+cu124),
+  SAC trained cleanly, critic_loss 418.07→0.17, 142.8 steps/s (a laptop datapoint for the A100
+  comparison). **Stage 2 — full pipeline (`run_campaign.py --dry-run`, $0 keyless stub, 200 steps):
+  GREEN** — author→search→select/freeze→train→test→H1-baseline→summary in ~10s. **Two findings:**
+  (1) the dry-run's stale-dir GUARD correctly refused a serial run over a leftover parallel-mode
+  archive (working as designed; archived the stale dir + re-ran clean) — also a reminder that the
+  `; echo EXIT=$?` wrapper reported exit 0 while the real `DRYRUN_EXIT=1` sat in the log (the
+  false-green class again; I logged + read the real RC). (2) **REAL BUG FIXED — the archive-integrity
+  SEAL was silently skipped on EVERY local run:** `from scripts.archive_integrity import
+  write_manifest` raises `ModuleNotFoundError` when `run_campaign.py` is launched directly (scripts/
+  is on sys.path, not the repo root, so `scripts` is not an importable package), and the seal's
+  best-effort `except` swallowed it — so the content-addressed provenance root (CLAUDE.md directive 6,
+  "results replay from a verifiable archive") NEVER wrote on the local/fallback campaign. Fixed to
+  import the sibling module directly per the codebase convention (cf. the `analyze_campaign` import);
+  a fresh dry-run CONFIRMS the seal now writes (`archive_integrity_root` in the summary +
+  `archive_integrity.json` manifest). The cluster path (`run_campaign_cluster.py`) does not use this
+  seal, so only the local path was affected. Tests green (`test_run_campaign` + `test_archive_integrity`,
+  PYTEST_RC=0). **Verdict: the laptop fallback substrate runs the current code end-to-end, and it is
+  now provenance-sealed.**
+
 - **CLAUDE.md: the ★★★ STRICT CONTINUOUS DOCUMENTATION + ALWAYS-RESUME rule** added to the SESSION
   HANDOFF PROTOCOL (Tamer's instruction): document EVERYTHING in detail ALWAYS in CHANGELOG + HANDOFF
   §1 (even no-commit/live-ops sessions), name in-flight state precisely, resume from them every session

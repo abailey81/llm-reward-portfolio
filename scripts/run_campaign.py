@@ -1964,7 +1964,14 @@ def run_headline_campaign(
     # run and analysis (results replay from it — CLAUDE.md directive 6). Best-effort: a seal failure
     # must never sink a completed run. The root is stamped into the summary for provenance.
     try:
-        from scripts.archive_integrity import write_manifest
+        try:
+            from scripts.archive_integrity import write_manifest
+        except ModuleNotFoundError:  # `python scripts/run_campaign.py` puts scripts/ on sys.path,
+            import sys as _sys        # NOT the repo root, so `scripts` is not an importable package
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))  # -> the seal was SILENTLY
+            from archive_integrity import write_manifest               # skipped on every real local
+            # run (caught 2026-07-24 by the laptop dry-run); import the sibling module directly per
+            # the codebase convention (cf. the analyze_campaign import above).
 
         manifest_path = write_manifest(output_dir)
         summary["archive_integrity_root"] = json.loads(
