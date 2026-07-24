@@ -14,7 +14,7 @@
 | 0.3 | **FROZEN**: `scripts/freeze.py` run (delegated; announced loudly) | `freeze.py --check`: frozen=true, recorded==canonical |
 | 0.4 | Cluster checkout synced to HEAD **+ the GIT_COMMIT marker written** (2026-07-18: the archive deploy is not a work-tree — without the marker every record's code identity is None) | `git archive HEAD \| ssh myriad tar -x -C ~/llmrp && git rev-parse HEAD \| ssh myriad "cat > ~/llmrp/GIT_COMMIT"` |
 | 0.5 | Bank-gate rehearsal passed on the pm2 archive | `bank_gate.py --archive outputs/proto_myriad --rehearsal` output |
-| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25**; **SINGLE-KEY PLAN (2026-07-20, Tamer's decision — supersedes the same-day two-key/failover plan):** ONE funded key in `ANTHROPIC_API_KEY`, minimum **$16** (covers the $15.86 worst-case at the spend caps), recommended **$25**. `ANTHROPIC_API_KEY_FALLBACK` stays **UNSET** — the transport's failover mechanism (2a46f5d, test-locked byte-identical when unconfigured) remains in the code as dormant insurance only. If the key dies mid-run anyway: the authoring loop SKIPS the slot loudly (never a permanent rejection), the monitor screams, and a top-up + supervisor relaunch `--resume`s exactly the unauthored slots — zero waste by the archive-replay construction | step 4 smoke + Tamer's console |
+| 0.6 | Anthropic balance: MEASURED need (2026-07-18, from 160 archived calls x $5/$25) = expected **$5.95** (180 calls), worst-case-at-caps **$15.86** (480); recommended top-up **$25**; **SINGLE-KEY PLAN (2026-07-20, Tamer's decision — supersedes the same-day two-key/failover plan):** ONE funded key in `ANTHROPIC_API_KEY`, minimum **$16** (covers the $15.86 worst-case at the spend caps), recommended **$25**. `ANTHROPIC_API_KEY_FALLBACK` stays **UNSET** — the transport's failover mechanism (2a46f5d, test-locked byte-identical when unconfigured) remains in the code as dormant insurance only. If the key dies mid-run anyway: the authoring loop SKIPS the slot loudly (never a permanent rejection), the monitor screams, and a top-up + supervisor relaunch `--resume`s exactly the unauthored slots — zero waste by the archive-replay construction | step 4 smoke + Tamer's console. **SIZING SUPERSEDED (audit 2026-07-24): the figures in this row are the v1 Opus-only measurement; the v2 authority = 9(f) (worst ~28-30, guidance >=35) + HANDOFF Money (FUNDED $25.91 on 2026-07-22, key live-verified; ~27 worst-at-caps by the precise calc; pauses-not-wastes).** |
 
 ## 1. Pre-flight checklist (run in order; each must pass)
 
@@ -48,8 +48,8 @@ powercfg /change standby-timeout-ac 0   # (admin shell)
 #    On any reboot: just re-run the supervisor (idempotent).
 
 # 8. Cluster calendar (2026-07-18 audit): Myriad's maintenance day = the SECOND TUESDAY of
-#    every month (at-risk from 08:00; next: Aug 11). The Jul-19 launch finishes n=403 ~Aug 1,
-#    clear of it; if rungs run past Aug 10, treat Aug 11 as a planned at-risk day — running
+#    every month (at-risk from 08:00; next: Aug 11). From a ~Jul-27 GO, tier-403 lands ~Aug 8-11
+#    (L+13-14.5, R95) — STRADDLING Aug 11: treat it as a planned at-risk day — running
 #    jobs may die and REQUEUE (idempotent; no data loss by design); the supervisor rides it.
 #    Scratch headroom verified 2026-07-18: 97 MB used / 1 TB filesystem.
 
@@ -78,8 +78,16 @@ git tag prereg-v2.0 prereg-freeze-<hash8> && python scripts/make_prereg_bundle.p
 git archive HEAD | ssh myriad "tar -x -C ~/llmrp" && git rev-parse HEAD | ssh myriad "cat > ~/llmrp/GIT_COMMIT"
 # 4. LAUNCH — MODE D (R88, §10; audit 2026-07-22: this step previously named the LEGACY
 #    single-line campaign_supervisor.ps1 — §10's mode-D launcher is the ratified launch):
+# PRECEDENCE (audit 2026-07-24): the ADVISOR'S live values SUPERSEDE the embedded defaults
+# for --chunk-tasks / --seed-pool-blocks / --pool — transplant them into
+# scripts\mode_d_supervisor.ps1 BEFORE launching (the supervisor stays the single source of
+# the exact argument lists; the advisor is where those arguments now COME FROM at GO).
 powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1   # 12 supervised lines (§10)
-bash scripts/campaign_monitor.sh &                                   # (Git Bash window)
+# Monitoring arms (audit 2026-07-24: step 4 previously omitted both — §5 documents them but the
+# GO sequence must be executable VERBATIM): export NTFY_URL FIRST or push alerts silently
+# never arm, and launch the 17-check sentinel alongside the monitor (§5 arms (a)+(e)):
+NTFY_URL=https://ntfy.sh/<private-topic> bash scripts/campaign_monitor.sh &   # (Git Bash window)
+.venv/Scripts/python.exe scripts/sentinel.py --watch outputs/campaign_cluster &
 # 5. THE LIVE ALLOCATION WATCHER (2026-07-24 system; third window — runs for the whole campaign):
 python scripts/allocation_advisor.py --watch 900 --archive-root outputs/campaign_cluster
 #    every 15 min: live pools/contention -> [ALERT] on regime flips / U-V unlocks / pool shifts;
@@ -219,7 +227,7 @@ Everything above is REPORT-ONLY and disjoint from the frozen m=6 family: it can 
 story, never gate or contaminate the headline. Items 1–3 belong to the campaign window itself;
 4–5 wait for the bank gate by construction.
 
-## 9. THE V2 LEG QUEUE (R80/R82 — the 9 replication legs; report-only, behind the core)
+## 9. THE V2 LEG QUEUE (R80/R82/R95 — the 10 replication legs; report-only, behind the core)
 
 > Legs run the identical FIVE LLM arms at the tier-30 floor (seeds 0–29 = the core's floor
 > subset — the common-30 CRN pairing the pair-DiD estimator requires), byte-identical prompts,
@@ -246,7 +254,7 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --leg deepseek-v4-pro 
     --batch-tag leg1 --poll-secs 180 --chunk-tasks 1 \
     --output-dir outputs/campaign_cluster --resume
 # Queue (frozen): deepseek-v4-pro -> glm-5.2 -> qwen3.6-27b -> qwen3.5-9b -> haiku-4.5
-#              -> gpt-5.6-luna -> nemotron-3-super -> sonnet-5 -> gemini-3.5-flash  (R90/R92)
+#              -> gpt-5.6-luna -> nemotron-3-super -> sonnet-5 -> gemini-3.5-flash -> kimi-k3  (R90/R92/R95)
 # Per leg: change --leg and --batch-tag (leg2, leg3, ...). No --baselines (H1 is core-only);
 # no --tiered (legs are floor-tier by design). Priority -200 = legs only backfill idle GPUs.
 ```
@@ -320,7 +328,9 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
 **Launch-day pre-checks (row 30m/30o, audit 2026-07-22):**
 - **SGE job-cap check (C5):** pipelined rungs + `--chunk-tasks 1` can enqueue ~1,200 arrays from
   the core line alone. BEFORE launch run `qconf -sconf | grep -i max` and
-  `qconf -srqs 2>/dev/null | head` on Myriad; if `max_u_jobs` (or an RQS) is below ~1,500, either
+  `qconf -srqs 2>/dev/null | head` on Myriad. PROBED 2026-07-24: max_u_jobs = 1000 (RQS clean)
+  -> the C5 condition FIRES for the raw chunk-1 pipelined flood (~1,200 arrays): resolve per the
+  TWO-REGIME doctrine + the advisor's chunk value (its QUIET cap-note names this exact bound); either
   raise `--chunk-tasks` (fewer, larger arrays) or drop `--pipeline-rungs` (sequential blocks) —
   both ops-only. A cap hit mid-run classes as a transport error (12h retry then fatal) — cheap to
   check, expensive to discover live.
@@ -338,15 +348,20 @@ block-homogeneous by construction), canary-gated pack depths, the U/V probe verd
 measured-rate ETAs. Advisory only (nothing submitted; priorities untouchable by construction —
 test-locked). Run at GO morning, after the canary (with --vram-per-training + --rate), and daily
 during the campaign for recomputed ETAs. Logic: src/cluster/{telemetry,allocation}.py;
-tests/test_allocation.py (10 tests); LIVE-VERIFIED 2026-07-24 against the real cluster.
+tests/test_allocation.py (test-locked; 16+ tests); LIVE-VERIFIED 2026-07-24 against the real cluster.
 
 **GO-DAY THROUGHPUT LEVERS (2026-07-24 deep Myriad dig — legitimate, NEVER touch priority):**
 0. **BEST-HARDWARE PROTOCOL (2026-07-24; the U/V probe + the search-lane pin).**
    (a) **U/V pools (12x A100-80G)**: the JSV ACCEPTED `-ac allow=U` and `allow=V` submissions
-   (probe jobs 10293/10294 queued 2026-07-24, 5-min hostname probes; control 10295 on EF). IF a
-   probe RUNS -> U/V are usable: add them to the GO stripe (A100-80G; pack deeper per the VRAM
-   calibration) — a +50% A100 capacity unlock. IF probes pend >48h while the EF control runs ->
-   treat U/V as effectively restricted; drop (qdel the stale probes then — probes are NOT
+   (probe jobs 10293/10294 queued 2026-07-24, 5-min hostname probes; control 10295 on EF).
+   **★ U VERDICT IN (2026-07-24 02:01): probe_u RAN — qacct: node-u00a-001, granted_pe smp-U,
+   failed 0, exit_status 0 — while the EF control still sat queued (U had free capacity through
+   a ~3k-qw jam). U SCHEDULING ACCESS = CONFIRMED for our account; add U to the GO stripe.**
+   What the probe did NOT prove (hostname-only stdout): GPU visibility/VRAM class — the GO-day
+   canary's nvidia-smi confirms A100-80G + pack depth before striping deep (the already-registered
+   canary-gated pack rule). V (10294) + EF control (10295) still pending — same rule applies:
+   IF probe_v RUNS -> V usable too (the full +50% A100 unlock). IF it pends >48h while EF
+   control runs -> treat V as restricted; drop (qdel the stale probe then — probes are NOT
    reserved check jobs; the never-kill rule protects the check/campaign queue age, not probes).
    (b) **Search-lane pool pin**: the floor's critical path is the BO/reflection CHAIN (sequential
    trainings). If L (or U/V) has live headroom at GO, pin the CORE's SEARCH lane to the A100 pool
@@ -355,8 +370,8 @@ tests/test_allocation.py (10 tests); LIVE-VERIFIED 2026-07-24 against the real c
    stay as ratified (blocks are pool-homogeneous by construction). Ops-only under the ratified
    launch-day pool-stripe clause.
 1. **Pool selection (the big lever, already parameterized via `--pool` -> `-ac allow=`).** Myriad
-   free GPU pools: **EF** = ~17 nodes x 2 V100 (larger, older, LESS contended); **L** = ~7 nodes
-   x 4 A100-40G (fewer, ~1.7-2.2x faster/training, MORE contended). At GO run
+   free GPU pools (dossier-probed): **EF** = ~19 nodes x 2 V100 (~38; larger, LESS contended);
+   **L** = 6 nodes x 4 A100-40G (24; ~1.7-2.2x faster/training, MORE contended). At GO run
    `ssh myriad "qhost -F gpu | grep -B1 'gpu=[1-9]'"` to read live free-GPU headroom per pool, and
    pin whichever maximizes (availability x speed) for banked trainings — SUBJECT to the CRN
    determinism rule (a comparison unit stays on ONE gpu type; `pool_confirmatory` enforces). Default
@@ -394,7 +409,7 @@ tests/test_allocation.py (10 tests); LIVE-VERIFIED 2026-07-24 against the real c
 REHEARSAL AUTHOR FALLBACK (pre-declared): qwen3.5-9b -> deepseek-v4-pro -> nemotron-3-super
 (any cheap leg works; the rehearsal validates machinery, not the author).
 
-**The idle-tail leg-deepening (R100; fires AFTER the core ladder tops out, before the Aug-27 stop):**
+**The idle-tail leg-deepening (R100; fires AFTER the core banks the 403 rung (the amended legs-first order; the 403->568 block runs LAST-if-it-fits), before the Aug-27 stop):**
 per leg, in queue order, the H3-completion pattern at rung priority — e.g.
 `python scripts/run_campaign_cluster.py --leg deepseek-v4-pro --arms distributional scalar scalar_cvar5 placebo placebo_shuffled --seeds 0-99 --resume --priority -300 --batch-tag leg1_t100` — cumulative rungs, resume-safe, report-only; bank each leg's highest completed rung; STOP at 2026-08-27 regardless of position (the pre-committed exogenous stop; GO-day may move it EARLIER only).
 ORDER (amended 2026-07-23, Tamer): legs deepen FIRST after the core's 403 banks; the core's
@@ -459,4 +474,4 @@ per-unit rung pipelining was considered and REJECTED to keep it.
 - **Evaluated and REJECTED (keep them dead):** `torch.compile` on the cluster — the pack curve
   (1→102 / 5→253 agg steps/s) proves trainings are NOT GPU-bound (the Python env loop dominates),
   so compile buys ~nothing and costs re-certification; **pre-gate baseline flooding** — the only
-  window it could fill (L+0→gate) is already saturated by the 9 leg lines' ~225 search tasks.
+  window it could fill (L+0→gate) is already saturated by the 10 leg lines' ~250 search tasks.

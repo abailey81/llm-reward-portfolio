@@ -1,6 +1,6 @@
 # MODE-D LINE SUPERVISOR (2026-07-21) - one self-healing driver line (core OR one leg).
 #
-# The mode-D campaign runs TEN driver lines concurrently (the Opus core + 9 replication legs;
+# The mode-D campaign runs TWELVE driver lines concurrently (the Opus core + 10 replication legs;
 # see docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md s.10). Each line gets its own supervisor instance
 # (this script) with the same self-healing contract as campaign_supervisor.ps1: relaunch on any
 # nonzero exit (the driver is idempotent - archive-truth resume, P12 lock auto-break, no
@@ -31,7 +31,7 @@ $py = Join-Path $repo ".venv\Scripts\python.exe"   # ABSOLUTE (2026-07-18 drill)
 
 # The five LLM arms every replication leg runs (model_suite: "the identical five LLM arms").
 $legArms = @("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
-# Queue order + the -p ladder (-200..-280): must match model_suite.queue_order exactly.
+# Queue order + the -p ladder (-200..-290): must match model_suite.queue_order exactly.
 $legPriority = @{
   "deepseek-v4-pro" = -200; "glm-5.2" = -210; "qwen3.6-27b" = -220; "qwen3.5-9b" = -230;
   "haiku-4.5" = -240; "gpt-5.6-luna" = -250; "nemotron-3-super" = -260;

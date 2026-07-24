@@ -177,7 +177,14 @@ def run_leg_gates(
             if _flagged(text):
                 flags.append(probe["name"])
         summary["screen_flags"] = flags
-        summary["screen_verdict"] = "pass" if not flags else "FLAG->review"
+        # Audit 2026-07-24 (MAJOR): never DOWNGRADE an existing review verdict — the price_key
+        # guard sets "review" up front, and this line used to clobber it back to "pass" on a
+        # clean screen, making the $0-booking guard inert in the documented --all invocation.
+        screen_result = "pass" if not flags else "FLAG->review"
+        if summary.get("screen_verdict") in (None, "pass"):
+            summary["screen_verdict"] = screen_result
+        elif flags:
+            summary["screen_verdict"] = f"{summary['screen_verdict']}+FLAG"
 
     (out_dir / f"{label}.summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8")
@@ -201,7 +208,14 @@ def main(argv: list[str] | None = None) -> int:
     from src.utils.env import load_env
     load_env()
     legs = load_legs()["legs"]
-    chosen = legs if args.all else [next(lg for lg in legs if lg["label"] == args.leg)]
+    if args.all:
+        chosen = legs
+    else:
+        # Audit m4: an unknown --leg used to die with a raw StopIteration.
+        chosen = [lg for lg in legs if lg["label"] == args.leg]
+        if not chosen:
+            raise SystemExit(f"--leg {args.leg!r}: no such leg; valid: "
+                             f"{[lg['label'] for lg in legs]}")
     which = (args.only,) if args.only else ("smoke", "compliance", "screen")
     out = Path(args.out)
     verdicts = []
@@ -212,13 +226,20 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:  # noqa: BLE001 - one leg's API error must not kill the other nine (check-day catch)
             s = {"leg": leg.get("label", "?"), "error": f"{type(exc).__name__}: {exc}"[:300],
                  "screen_verdict": "ERROR->review"}
+            # Audit m4: persist the ERROR verdict so a stale previous summary can never be
+            # read as current evidence (T7/F14 consume these files).
+            out.mkdir(parents=True, exist_ok=True)
+            (out / f"{s['leg']}.summary.json").write_text(
+                json.dumps(s, indent=2), encoding="utf-8")
             print(f"[gate] {s['leg']}: ERROR - {s['error']}")
         verdicts.append(s)
         print(json.dumps(s))
     flagged = [v["leg"] for v in verdicts if v.get("screen_verdict", "pass") != "pass"]
     if flagged:
         print(f"SCREEN FLAGS -> Tamer review (fallback chain decides): {flagged}")
-    return 0
+    # Audit m4: hard errors are an exit-code signal (flags stay rc 0 — they are review-routed,
+    # not failures); an all-errored run must not read as success to a calling script.
+    return 1 if any(v.get("error") for v in verdicts) else 0
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -57,22 +57,36 @@ def main(argv: list[str] | None = None) -> int:
             k, v = part.split("=", 1)
             remaining[k.strip()] = int(v)
 
-    def one_cycle(prev_regime: str | None, old_fields: dict | None) -> dict:
-        """Snapshot -> advise -> persist -> print (heartbeat always; details on change)."""
-        snap = collect(args.host, probe_age_hours=args.probe_age_hours)
+    import time as _time
+    watch_started = _time.time()
+
+    def one_cycle(prev_regime: str | None, old_fields: dict | None, *,
+                  always_render: bool) -> dict:
+        """Snapshot -> advise -> persist -> print (heartbeat always; plan per render policy)."""
+        # Audit m10b: in watch mode the probe age ADVANCES with wall time, so the 48h
+        # RESTRICTED transition can actually fire mid-watch.
+        probe_age = args.probe_age_hours + (_time.time() - watch_started) / 3600.0
+        snap = collect(args.host, probe_age_hours=probe_age)
         append_log(snap)
         rate = args.rate
+        pool_vram = None
         if args.archive_root:
             measured, n = measure_rate(args.archive_root)
+            gpus = observed_gpus(args.archive_root)
             if n:
-                rate = measured
-                print(f"[self-measured] {n} records -> {measured:.0f} trainings/day; granted "
-                      f"GPUs so far: {observed_gpus(args.archive_root) or 'none archived'}")
+                rate = measured if measured > 0 else None
+                stale_note = "" if measured > 0 else " (STALE >3h since the last record — rate withheld)"
+                print(f"[self-measured] {n} records{stale_note}; granted GPUs so far: "
+                      f"{gpus or 'none archived'}")
+            # Audit m8: feed the empirically observed EF card back into the pack ceiling.
+            if any(k.startswith("V100-32") for k in gpus):
+                pool_vram = {"EF": 32, "L": 40, "U": 80, "V": 80}
         plan = advise(snap,
                       measured_vram_per_training_gb=args.vram_per_training,
                       remaining_trainings=remaining,
                       measured_trainings_per_day=rate,
-                      prev_regime=prev_regime)
+                      prev_regime=prev_regime,
+                      pool_vram=pool_vram)
         fields = {"regime": plan.regime, "chunk_tasks": plan.chunk_tasks,
                   "search_pool": plan.search_pool, "stripe_pools": plan.stripe_pools,
                   "seed_pool_blocks": plan.seed_pool_blocks, "pack": plan.pack, "ts": snap.ts}
@@ -82,7 +96,9 @@ def main(argv: list[str] | None = None) -> int:
               f"{len(snap.our_jobs)} | trend: {contention_trend()}")
         for a in alerts:
             print(f"[ALERT] {a}")
-        if alerts or old_fields is None:
+        # Audit M2: one-shot ALWAYS renders the full plan (the runbook's daily-ETA run was
+        # printing only a heartbeat); watch mode stays change-gated to keep alerts meaningful.
+        if always_render or alerts or old_fields is None:
             print(plan.render())
         save_state({"prev_regime": plan.regime, "last_plan": fields})
         return fields
@@ -92,22 +108,24 @@ def main(argv: list[str] | None = None) -> int:
     fields = state.get("last_plan")
 
     if args.watch is None:
-        one_cycle(prev, fields if fields else None)
+        one_cycle(prev, fields if fields else None, always_render=True)
         return 0
 
     # LIVE MODE: forever, degrade-never-crash (a bad cycle logs and waits for the next).
-    print(f"[watch] live every {args.watch}s — Ctrl+C to stop; alerts on actionable change only")
-    import time as _time
+    interval = max(60, args.watch)  # audit m10c: the 60s floor is now STATED, not silent
+    print(f"[watch] live every {interval}s (min 60) — Ctrl+C to stop; "
+          "alerts on actionable change only")
     while True:
         try:
-            fields = one_cycle(prev, fields)
+            fields = one_cycle(prev, fields, always_render=False)
             prev = fields["regime"]
-        except KeyboardInterrupt:
+            _time.sleep(interval)
+        except KeyboardInterrupt:  # audit m10c: clean exit even mid-sleep
             print("[watch] stopped")
             return 0
         except Exception as exc:  # noqa: BLE001 — the watcher outlives any single bad cycle
             print(f"[watch] cycle failed ({type(exc).__name__}: {exc}) — retrying next tick")
-        _time.sleep(max(60, args.watch))
+            _time.sleep(interval)
     return 0
 
 

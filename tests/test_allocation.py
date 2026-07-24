@@ -195,3 +195,11 @@ def test_state_round_trip_and_corruption_tolerance(tmp_path) -> None:
     p.write_text("{corrupt", encoding="utf-8")
     assert load_state(p) == {}                                      # never raises
     assert load_state(tmp_path / "absent.json") == {}
+
+
+def test_absent_probe_is_never_usable() -> None:
+    """Audit M1 regression: a probe missing from qstat must NOT admit its pool."""
+    v = probe_verdicts([], pending_hours=100.0)
+    assert all("USABLE" not in s for s in v.values())
+    s = _snap(pools={"EF": 2, "L": 1, "U": 4}, probes=v)
+    assert "U" not in usable_pools(s) and "V" not in usable_pools(s)

@@ -3,6 +3,112 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-24] — ★★★★ MYRIAD MASTERY (the expert dossier + best-hardware probes) · THE ADAPTIVE ALLOCATION SYSTEM · the zero-tolerance sweep
+
+- **MYRIAD EXPERT DOSSIER (`bea8443`→`25fbe7a`→`f60f016`→`de89a1e`→`2b70f83`;
+  `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md`):** the scheduler DECODED from live probes, not
+  folklore — priority = 4.0×POSIX + 1.5×tickets + 1.0×waiting_time with functional tickets (5e8)
+  dominating the share-tree (1e4) ~50,000× → **usage-history-free** (the "heavy users get
+  deprioritized" myth KILLED); `share_functional_shares TRUE` → per-user tickets SPLIT across
+  pending jobs (the ticket-concentration lever: fewer simultaneous pending jobs = more tickets
+  each); `max_pending_tasks_per_job 1` (probed — explains the hqw 0.000 bundles: arrays ramp ONE
+  task/job/scheduling-cycle from cold) → the **TWO-REGIME CHUNKING DOCTRINE** (contended queue →
+  big arrays; quiet → many arrays; steady-state moot); `schedule_interval 0:10:0` + 1s flush;
+  held (hqw) tasks accrue NO waiting-time (live-verified); ARs definitively DEAD (max_advance_
+  reservations=0 + ACL denial); no hidden RQS user caps; `max_u_jobs 1000` probed. **Best-hardware
+  protocol:** JSV accepted `allow=U/V` → probes **10293/10294 queued** (U/V = 3 nodes × 4
+  A100-80G, ~2.1×; if one RUNS → +12 GPUs unlock; pending >48h → restricted), EF control 10295;
+  **search-lane A100 pin** option registered (floor L+1.5–1.8 → ~L+1.0–1.2); tmpfs right-sizing
+  (15G req vs 35MB gold); all levers legitimate — **priority NEVER touched** (the ★ MYRIAD
+  PRIORITY rule added to CLAUDE.md verbatim per Tamer: "never lower the priority of any of our
+  work, ever" + memory `feedback-never-lower-job-priority`).
+- **THE ADAPTIVE ALLOCATION SYSTEM (`dbe4455`→`b450c76`→`2c8ec8b`→`ee6c78b`→`3b74eb7`; Tamer:
+  "ultra smart… live, constantly monitoring and dynamic… absolute priority = maximise campaign
+  speed"):** `src/cluster/telemetry.py` (one-ssh snapshot: qhost GPU pools / cluster contention /
+  our jobs / U-V probe verdicts, per-section `#RC:` sentinels so a partial ssh can never
+  masquerade as a quiet cluster) + `src/cluster/allocation.py` (the brain: two-regime chunking
+  with 1800/1200 HYSTERESIS, search-pool pick at ≥2 free, throughput-weighted CRN stripe
+  GENERATOR — 6,000-case fuzz-validated coverage invariants — measurement-gated pack
+  recommendation, measured-rate-only ETAs) + `scripts/allocation_advisor.py` (one-shot + `--watch`
+  live mode: heartbeat every cycle, [ALERT] only on actionable change — regime flip / U-V unlock /
+  pool shifts; atomic persistent state making hysteresis real across restarts; self-measured rate
+  from record.json mtimes, >3h stale → refuses to invent ETAs; V100 16/32G resolved empirically
+  from granted-GPU archives). ADVISORY-only BY CONSTRUCTION — it renders qsub/config values,
+  never qalter, never `-p`; test-locked (`(?:^\s)-p\s`-class regex + no-qalter assertions).
+  Live-proven ×3 against real Myriad (CONTENDED→chunk-25 · L search lane · stripe re-weighted
+  itself when EF freed 10 GPUs mid-test). Runbook §2.0 gains **step 5** (the whole-campaign
+  watcher, third window) + the step-4 **PRECEDENCE note** (at GO the advisor's live values
+  supersede the supervisor's embedded --chunk-tasks/--seed-pool-blocks/--pool defaults —
+  transplant before launching). A star-glyph cp1251 console crash on the first live run was
+  caught → stdout reconfigure guard + ASCII [ALERT] prefix.
+- **THE FALSE-GREEN CATCH (`2951756`):** the "16th certification exit 0" was a LIE —
+  `pytest | tail -2; echo $?` reported the PIPE TAIL's exit, masking a real test failure
+  (test_leg_transport asserting the pre-migration pin). Caught by reading the FAILED line;
+  the test now follows the registered migration (mode: pro); re-certified with pytest's OWN
+  RC. The class is closed: HANDOFF §5 now pins THE UNPIPED CERTIFICATION RULE (redirect to a
+  file, read the file; the verdict is pytest's own exit code) — verified no verdict-bearing
+  pipe exists in any script (both supervisors use the null-guarded `$LASTEXITCODE` pattern).
+- **THE ZERO-TOLERANCE SWEEP (Tamer: "find all mistakes… 0 tolerance"; three parallel auditors —
+  allocation-breaker, code-delta, docs-consistency — every finding verified then fixed):**
+  ① allocation MAJORs: absent U/V probe ⇒ was USABLE → now "GONE — verify via qacct (NOT
+  auto-usable)" + regression test; one-shot rendered nothing on an unchanged 2nd run → always
+  renders; partial-ssh confident advice → RC sentinels + degraded-telemetry regime FREEZE;
+  QUIET chunk-1 vs `max_u_jobs` → cap note. ② code MAJORs: the row-30f **price_key "review"
+  verdict was CLOBBERED back to "pass" by a clean screen** (the $0-booking guard inert in the
+  documented `--all` invocation) → never-downgrade merge semantics + regression test + the
+  fixture moved off the unpriced `v/m` id that had HIDDEN it; **kimi 8192 existed only in the
+  executed config** while the hashed registration said "uniform caps" with no kimi class (the
+  freeze gate green over the divergence) → `output_cap_tokens: 8192` on the leg row +
+  per-class pins wording + **R97a** registered + `src/llm/legs.py` phrase fix. ③ docs MAJORs:
+  advisor-vs-supervisor precedence absent → step-4 note; 9-leg remnants → 10; §0.6
+  sizing-superseded note; stale serial ETAs → M5 calendar fix; R100 header order; GO step 4
+  omitted NTFY_URL export + sentinel arming → now verbatim-executable; the canonical-cert
+  command pinned. Minors: dead `if not llm_cfg` guard after setdefault (unreachable) →
+  reordered; per-leg gate errors now persist `{label}.summary.json` (stale-evidence hazard,
+  T7/F14 consume these) + `--all` exits 1 on hard errors; unknown `--leg` names the valid list
+  (was raw StopIteration); telemetry staging exclusion (`.pull_tmp*`) in measure_rate +
+  observed_gpus; roster "pinned think-high" → "pro (née think-high)"; kimi cost notes ~$5–11 @
+  8192 (worst ~$22) everywhere; pull-lock comment updated for per-pid staging. Suite:
+  leg_gates+allocation **26/26 green (PYTEST_RC=0, unpiped)**; the 17th full-suite
+  certification launched.
+
+## [2026-07-23] — ★★★ THE PRE-LAUNCH CHECK GOES LIVE (gates 10/10 + the Myriad rehearsal queue) · R100 (+order) · R97a evidence · registry rows 32–33
+
+- **THE CHECK, part 1 — the leg gates RAN (Tamer's supervisor-motivated mandate: "things often
+  don't go as planned… firstly try running on cheap models"):** OpenRouter privacy toggle set by
+  Tamer + VERIFIED (417|13; all 8 pinned OpenRouter models route). `leg_gates.py --all` →
+  **10/10 legs returned verdicts.** FOUR REAL CATCHES, each fixed + committed (`93057aa`,
+  `72870f7`): (1) the script never loaded `.env` → crash on a fresh shell → `load_env()` in
+  main (the drivers' pattern); (2) one leg's API error killed the whole `--all` → per-leg
+  try/except with an ERROR->review verdict; (3) **DeepSeek 400: the provider RENAMED the
+  reasoning values (`think-high` → `pro`)** → schema-migrated in BOTH bound files, dated, same
+  registered mode (the gate-400 catch is exactly what the check exists for); (4) **kimi
+  truncated 5/10 compliance calls at 4096** (always-on thinking, stop_reason=length) →
+  `max_tokens: 8192` both files (the R97a evidence).
+- **THE CHECK, part 2 — the Myriad rehearsal queue:** mode-D mini-rehearsal + the fast deep
+  rehearsal (25k steps, synthetic, Qwen author) + probes = **19 jobs queued** (`reserve: y`)
+  into a ~3,000-qw cluster jam; 4 laptop drivers alive and polling (they SURVIVED an app
+  restart — the P12 locks correctly refused duplicate attach: crash-resilience validated in
+  anger). Pre-mortem order committed (`127d578`: cheap probes first — allocation/ssh/job-cap
+  in minute one) + the rehearsal author fallback chain.
+- **R100 — the idle-tail deepening rule (`3e83932`) + Tamer's order amendment (`f2e4e75`):**
+  registered PRE-FREEZE: idle GPU-tail time after the core banks the 403 rung deepens the LEGS
+  FIRST (steeper √n gains + granular banking at the stop), core 568 last-if-it-fits, M2
+  orthogonal (GPU-free); the **pre-committed exogenous stop 2026-08-27** (GO-day may only move
+  it EARLIER). Primary beneficiary = the R86 pooled bound.
+- **Registry rows 32–33 (`75aa1e6`, `b95beb4`):** the world-models assessment (designer-as-world-
+  model CH7 framing + 3 dated rejections) and the two-tier-verdict framing (precision × breadth —
+  the mechanism listens to all 11 models) — Tamer's questions converted into write-time
+  obligations. Row-30l residual closed (`51c02c0`): the R97 laptop guard extracted to
+  `resolve_baseline_names` + 4-way direct test. R99 wording corrected same-day (`a5c6a30`:
+  Terra seated in the M2 CORE tier — a ladder interior point must not be budget-contingent);
+  HANDOFF currency (`d7e15d8`); roster 34→35 (`90cd62b`).
+- **The exposé audited on request (`docs/expose_dissertation_v5.pdf`, untracked):**
+  ACCURATE-WITH-FIXES — the vol-ratio arithmetic error, "ten labs" → ~15, the fed-delta SE
+  mislabel; Eureka 28.6% verified first-hand against the paper. The Ramin meeting brief
+  (expanded 514→730 lines, cold-audited SOUND-WITH-FIXES, fixes applied) stays untracked by
+  Tamer's choice.
+
 ## [2026-07-22] — ★★★ THE FREEZE CYCLE (R93→R94) · K3 SEATED (R95) · the roster of record · post-churn consistency pass
 
 - **PRE-GO END-TO-END AUDIT (Tamer: "extremely deep audit… prepare everything for the campaign

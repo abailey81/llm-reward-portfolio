@@ -50,7 +50,7 @@ class Plan:
             f"PACK: {self.pack}  ({self.pack_note})",
         ]
         if self.eta_days:
-            lines.append("ETA (days from now): "
+            lines.append("ETA (days from now, EACH-IF-RUN-ALONE at the measured rate): "
                          + ", ".join(f"{k}={v:.1f}" for k, v in self.eta_days.items()))
         lines += [f"NOTE: {n}" for n in self.notes]
         return "\n".join(lines)
@@ -73,6 +73,9 @@ def plan_delta(old: dict | None, new: dict) -> list[str]:
     if set(old.get("stripe_pools", [])) != set(new.get("stripe_pools", [])):
         out.append(f"*** STRIPE POOLS CHANGED: {old.get('stripe_pools')} -> "
                    f"{new.get('stripe_pools')} (U/V unlock or a pool emptied)")
+    if old.get("pack") != new.get("pack"):
+        out.append(f"*** PACK CHANGED: {old.get('pack')} -> {new.get('pack')} "
+                   "(apply to NEW batches only)")
     return out
 
 
@@ -172,13 +175,23 @@ def advise(snap: Snapshot, *, seed_segments: list[tuple[int, int]] | None = None
            measured_vram_per_training_gb: float | None = None,
            remaining_trainings: dict[str, int] | None = None,
            measured_trainings_per_day: float | None = None,
-           prev_regime: str | None = None) -> Plan:
+           prev_regime: str | None = None,
+           pool_vram: dict[str, int] | None = None) -> Plan:
     """The full plan from one snapshot (+ optional measured facts)."""
     segments = seed_segments or [(0, 29), (30, 99), (100, 188), (189, 278),
                                  (279, 339), (340, 402), (403, 567)]
     pools = usable_pools(snap)
-    regime, chunk = chunking(snap, prev_regime=prev_regime)
-    pack, pack_note = recommend_pack(pools, measured_vram_per_training_gb=measured_vram_per_training_gb)
+    if snap.errors and prev_regime:
+        # Audit M3: degraded telemetry must never flip decisions — freeze on the last known
+        # regime and say so, rather than advising QUIET off a phantom-empty queue.
+        regime, chunk = chunking(snap, prev_regime=prev_regime)
+        if regime != prev_regime:
+            regime = prev_regime
+            chunk = 25 if regime == "CONTENDED" else 1
+    else:
+        regime, chunk = chunking(snap, prev_regime=prev_regime)
+    pack, pack_note = recommend_pack(pools, measured_vram_per_training_gb=measured_vram_per_training_gb,
+                                     pool_vram=pool_vram)
     order, blocks = stripe(segments, pools, pack)
     plan = Plan(
         regime=regime,
@@ -196,5 +209,13 @@ def advise(snap: Snapshot, *, seed_segments: list[tuple[int, int]] | None = None
             plan.notes.append(f"pool {pool}: {v}")
     if snap.errors:
         plan.notes.append(f"telemetry degraded: {snap.errors}")
+    if plan.regime == "QUIET":
+        # Audit M4: the flood is the fast ramp, but the doctrine's own cap still binds.
+        plan.notes.append("QUIET cap: keep TOTAL pending jobs < 1000 (max_u_jobs) — the "
+                          "pipelined-rung flood at chunk-1 can exceed it; chunk the rung "
+                          "blocks up if the pending count approaches the cap")
+    if snap.errors and prev_regime:
+        plan.notes.append(f"DEGRADED TELEMETRY — regime frozen at {prev_regime}; "
+                          "act only on a clean snapshot")
     plan.notes.append("advisory only — apply at batch boundaries; priorities untouched")
     return plan

@@ -619,12 +619,14 @@ def main(argv: list[str] | None = None) -> int:
     # also avoid the cross-process torn-append undercount on a shared file; report-time spend =
     # the sum over spend_ledger_*.jsonl.
     if llm_cfg is not None:
+        # Audit 2026-07-24 (minor): emptiness must be tested BEFORE the ledger key is injected —
+        # setdefault made the dict non-empty, so this guard was unreachable dead code.
+        if not llm_cfg:
+            raise SystemExit("--llm-from campaign but config/campaign.yaml has no `llm` block")
         import re as _re_tag
         _tag = _re_tag.sub(r"[^A-Za-z0-9_]", "_", str(args.batch_tag or "core"))
         llm_cfg.setdefault("spend_ledger",
                            str(Path(args.output_dir) / f"spend_ledger_{_tag}.jsonl"))
-        if not llm_cfg:
-            raise SystemExit("--llm-from campaign but config/campaign.yaml has no `llm` block")
     # F1 (agent audit, CRITICAL): pass-mode B with the DEFAULT provider=stub silently authors the
     # whole "Opus" campaign with the keyless stub and completes "successfully". Derive the provider
     # from the resolved llm block when possible (campaign.yaml carries provider: anthropic), else

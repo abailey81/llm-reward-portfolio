@@ -194,7 +194,7 @@ def build_cluster_run(
             now = time.monotonic()
             last = pull_state["t"]
             # Skip if a pull is IN PROGRESS (concurrent pull_archive would race on the shared
-            # ``.pull_tmp`` staging dir — a real bug when a pull outlasts min_pull_interval) OR if
+            # ``.pull_tmp.<pid>`` staging dirs (per-pid since the 2026-07-24 audit fix; the lock now mainly dedupes in-process pulls) — a real bug when a pull outlasts min_pull_interval) OR if
             # one SUCCEEDED within the interval. Either way reuse the last count; run_batch
             # re-derives completion from the shared local archive the live pull is updating.
             # 2026-07-13 audit fix (HIGH): the window timestamp was stamped BEFORE the attempt and

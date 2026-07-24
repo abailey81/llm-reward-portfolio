@@ -10,7 +10,7 @@ This module is the single translation point from a leg entry to the transport-fa
   Luna effort, Gemini budget; explicit, never provider-default-trusted),
 * **per-call cost capture** (``extra_body["usage"] = {"include": true}`` on OpenRouter so the
   realized dollar cost rides each response into the R83 advisory ledger),
-* the uniform **max_tokens pins** (R82 silent-truncation guard),
+* the registered per-leg **max_tokens pins** (R82 silent-truncation guard; kimi = 8192, R97a),
 * the **rolling-alias ban** (defense in depth — also enforced at the transport factory).
 
 Anthropic legs carry only id + max_tokens (native transport; no extra_body).

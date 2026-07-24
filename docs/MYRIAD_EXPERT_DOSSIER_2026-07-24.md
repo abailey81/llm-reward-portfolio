@@ -40,7 +40,7 @@ prior = 4.0 * norm(POSIX -p)  +  1.5 * norm(tickets)  +  1.0 * norm(waiting_time
 |---|---|---|---|---|
 | **EF** (E-type) | ~19 | 2× V100 each (~38) | 16/32G (verify via the jobscript's archived `nvidia-smi` at canary) | Bigger pool, less contended — our default |
 | **L** | 6 | 4× A100-40G each (24) | 40G | ~1.7–2.2× faster/training; more contended |
-| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | LIVE EXPERIMENT (2026-07-24): the JSV **accepted** `-ac allow=U`/`allow=V` submissions — probes 10293/10294 queued (EF control 10295). A probe RUNNING = usable (+12 A100-80G); pending >48h vs the control = effectively restricted (then qdel the probes). Runbook §10 best-hardware protocol has the branch. |
+| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | **U = CONFIRMED USABLE (2026-07-24 02:01): probe_u (10293) RAN — qacct: node-u00a-001, smp-U, failed 0, exit 0 — while the EF control still queued (U had free capacity through a ~3k-qw jam). Scheduling access proven; GPU/VRAM class confirmed by the GO-day canary nvidia-smi before deep striping.** V: probe 10294 still pending (EF control 10295 also pending) — RUNNING = usable (the full +12); pending >48h vs the control = effectively restricted (then qdel the probes). Runbook §10 best-hardware protocol has the branch. |
 
 CPU nodes (D/I/B/T) irrelevant to training. tmpfs per node is large (hundreds of GB) but our
 REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2–36 cores).

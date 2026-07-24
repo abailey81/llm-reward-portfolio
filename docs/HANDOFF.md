@@ -11,7 +11,7 @@
 
 ---
 
-## §1 STATE SNAPSHOT (regenerated 2026-07-22, session end)
+## §1 STATE SNAPSHOT (regenerated 2026-07-24, session end)
 
 <!-- MACHINE-STATE: auto-managed by `python scripts/update_handoff.py` — the SessionStart hook
      (resume_brief.py) DIFFS this block against live reality at every boot and prints a LOUD
@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-24"
-  head: "b450c76"
+  head: "2951756"
   frozen: false
   legs_n: 10
   amendments_through: R100
-  suite_status: "exit 0 (15th cert; allocation system 14 tests green, live-proven)"
+  suite_status: "exit 0 (17th certification; zero-tolerance sweep closed; 26 leg/alloc tests + gate 21 OK)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
@@ -32,15 +32,16 @@ handoff_state:
 |---|---|
 | Design state | **UNFROZEN** (`frozen: false`; R94 standing order: **the freeze executes together with Tamer's full-campaign-run approval — GO step 1 — never before**) |
 | Canonical hash | **recomputed at the GO-day freeze** — R95–R97 landed AFTER the R93 stamp, so the live would-be hash has MOVED off `ccf2e76f` (that stamp + bundle remain valid R93 *history*, commit `30ae72b`); the GO freeze stamps whatever the then-current design hashes to and builds a fresh bundle. Never expect `ccf2e76f` at GO. (Check live: `python -c "import sys; sys.path.insert(0,'scripts'); from freeze import canonical_hash; print(canonical_hash()[:16])"`) |
-| Amendments | through **R100** (R93 freeze-prep retained · R94 lift · R95 K3 seated · R96 the OPTIONAL M2 module · R97 the DDR companion + §9(h) · R98 Opus-5 full leg not exercised, M2-only fallback · R99 Sol/Terra legs declined, Terra seated in M2, the GPT-5.6 ladder = the named first Stage-2 extension · R100 idle-tail leg-deepening LEGS-FIRST after the 403 bank + the pre-committed Aug-27 stop) |
+| Amendments | through **R100** (R93 freeze-prep retained · R94 lift · R95 K3 seated · R96 the OPTIONAL M2 module · R97 the DDR companion + §9(h) · R97a kimi cap 8192 (gate evidence) · R98 Opus-5 full leg not exercised, M2-only fallback · R99 Sol/Terra legs declined, Terra seated in M2, the GPT-5.6 ladder = the named first Stage-2 extension · R100 idle-tail leg-deepening LEGS-FIRST after the 403 bank + the pre-committed Aug-27 stop) |
 | Roster | **11 full-loop** = Opus 4.8 confirmatory + **10 legs** (queue: deepseek → glm → qwen27 → qwen9 → haiku → luna → nemotron → sonnet-5 → gemini → kimi-k3); ~35 distinct models with M2 (26 core + 9 extras, R99 Terra seated; 3 documented exclusions) |
 | Rule-driven upside | K3 → open-class on the Jul-27 weights (`kimi_k3_upgrade_rule`) · Opus-5 conditional seat (attribution-gated) · the R96 module (Tamer's write-time activation, registry row 25) |
 | Execution | MODE D final: **12 launch lines** via `scripts/mode_d_launch.ps1` (core + h3 + 10 legs; ladder −200…−290; pack lanes; pipelined rungs; canary-concurrent; 45s chain polls) |
-| Timings from GO | mechanism ~L+0.7 · **floor ~L+1.5–1.8** (BO-bound) · all legs ~L+4.5–5.5 · **tier-403 ~L+13–14.5** · 99% rung likely from a ≤Jul-25 GO |
-| Verification | freeze gate **21 OK** · **15 full-suite certifications** (all exit 0; 15th = post-wave-2) · citations clean · rung-freshness green · both PS1s parse 0 · backup branch `backup-2026-07-21` == HEAD |
-| Money | expected **~$28 all-in** (campaign) · **Anthropic FUNDED: $25.91 (Tamer, 2026-07-22; key verified LIVE via author_smoke — covers expected ~$10 with 2.6×, $1.09 under the ~$27 worst-at-caps; advisory ledger pauses-not-wastes; optional +$5–10 buys full margin)** · OpenRouter ≥$25 + the do-not-log toggle STILL PENDING · the R96 module = a separate ~$25–35 P2 line if activated |
-| NOT done, by order | **NOT frozen · NOT launched · gates NOT run** (need OpenRouter credit; pre-launch per R93e) |
-| Tamer's pending items | ① Okhrati email (draft + the meeting brief ready) ② top-ups + toggle ③ Windows-Update pause ④ UCL password rotation ⑤ the force-push decision (backup branch protects meanwhile) ⑥ **the full-campaign approval** → fires freeze→gates→launch |
+| Timings from GO | mechanism ~L+0.7 · **floor ~L+1.5–1.8** (BO-bound; the advisor's A100 search-lane pin trims it to **~L+1.0–1.2 when L/U/V have ≥2 free**) · all legs ~L+4.5–5.5 · **tier-403 ~L+13–14.5** · 99% rung likely from a ≤Jul-25 GO |
+| Verification | freeze gate **21 OK** · **17 full-suite certifications** (15 valid + the re-certified 16th + the 17th post-zero-tolerance-sweep, PYTEST_RC=0 unpiped; the first "16th" was a FALSE GREEN — a `\| tail` pipe masked pytest's RC; caught, re-run genuinely, the unpiped-RC rule now pinned in §5) · citations clean · rung-freshness green · all 3 campaign PS1s parse 0 · backup branch `backup-2026-07-21` |
+| Money | expected **~$28 all-in** (campaign) · **Anthropic FUNDED: $25.91 (Tamer, 2026-07-22; key verified LIVE via author_smoke — covers expected ~$10 with 2.6×, $1.09 under the ~$27 worst-at-caps; advisory ledger pauses-not-wastes)** · **OpenRouter: toggle DONE + verified (2026-07-23, 417\|13 — all 8 pinned models route); balance $9.91 → needs exactly +$15** · the R96 module = a separate ~$25–35 P2 line if activated |
+| The pre-launch check (2026-07-23/24) | **gates RAN: 10/10 leg verdicts** (catches: .env load, per-leg tolerance, deepseek pin schema-migration think-high→pro, kimi 8192 — R97a) · check jobs **queued on Myriad** (~3k qw jam; reserve:y; 4 drivers alive; rehearsal lines land when slots grant) · **★ U-POOL VERDICT IN: probe_u (10293) RAN 02:01 — qacct: node-u00a-001, smp-U, failed 0, exit 0, while the EF control still queued → U SCHEDULING ACCESS CONFIRMED (+A100-80G stripe candidate; GPU/VRAM confirmed by the GO canary); V (10294) + EF control (10295) still pending** |
+| NOT done, by order | **NOT frozen · NOT launched** (both fire only on Tamer's approval, R94); the check's Myriad rehearsal legs still queued |
+| Tamer's pending items | ① Okhrati email (draft + the meeting brief ready) ② **OpenRouter +$15** (toggle already done) ③ Windows-Update pause ④ UCL password rotation ⑤ the force-push decision (backup branch protects meanwhile) ⑥ **the full-campaign approval** → fires freeze→gates-reverify→launch (GO ~Jul-27 MORNING) |
 | Next Claude work | the WRITING month (dimension 4 = the binding constraint under the grade-inflation bar): CH2-argument skeleton, CH1/CH4 depth-passes, wiring D1–D10, the scannable tables — needs no results, no spend |
 
 ## §2 STANDING ORDERS (Tamer's, strict — violating any is a defect)
@@ -60,6 +61,8 @@ handoff_state:
 | The executed leg config | `config/legs.yaml` (gate-bound == model_suite; HF pins FILLED) |
 | The roster, prices, pins, functions | `docs/MODEL_ROSTER_2026-07-22.md` |
 | Launch mechanics | `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md` — §2.0 GO sequence · §9 legs · **§10 MODE D** (the one command) |
+| Myriad scheduler + hardware truth | `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` (live-probed formula, pools, two-regime chunking doctrine, dead ends, the ★ priority rule) |
+| The live allocation system | `src/cluster/telemetry.py` + `src/cluster/allocation.py` (sensors + brain) · `scripts/allocation_advisor.py` (CLI/--watch; runbook §2.0 step 5) — ADVISORY-only; at GO its values supersede the supervisor's embedded defaults (step 4 precedence note) |
 | Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–33; none may silently drop) |
 | The optional M2 module | `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (R96) |
 | Prose drafts awaiting wiring | `paper/DRAFTS_communication_build_2026-07-12.md` (D1–D10) |
@@ -77,13 +80,17 @@ seat (its pair died with R92) · R91 Opus-5 conditional · R92 sonnet-4.6 remove
 withdrawn) · R93 the freeze-day evidence (executed ccf2e76f) · R94 the same-day lift
 (freeze=GO-step-1) · R95 K3 seated · R96 the optional psychometric module · R97 the differential
 downside deviation ratio seated (Moody & Saffell 2001, first-hand) + the ten-name secondary
-panel's execution path (runbook §9(h)) · R98 the Opus-5 full leg NOT exercised (Tamer's budget decision; M2-only fallback) · R99 Sol/Terra full legs DECLINED (budget, pre-event; Terra seated in M2 — the 3-pt GPT-5.6 reading ladder; the full-loop ladder = the named first Stage-2 extension) · R100 the idle-tail deepening rule, ORDER: legs-first after 403, core 568 last-if-it-fits, stop 2026-08-27 (GO-day may only move it EARLIER).
+panel's execution path (runbook §9(h)) · R97a kimi cap 4096→8192 (gate evidence: 5/10 truncations
+under always-on thinking; per-class pins, the one registered exception) · R98 the Opus-5 full leg NOT exercised (Tamer's budget decision; M2-only fallback) · R99 Sol/Terra full legs DECLINED (budget, pre-event; Terra seated in M2 — the 3-pt GPT-5.6 reading ladder; the full-loop ladder = the named first Stage-2 extension) · R100 the idle-tail deepening rule, ORDER: legs-first after 403, core 568 last-if-it-fits, stop 2026-08-27 (GO-day may only move it EARLIER).
 
 ## §5 FIRST ACTIONS FOR A FRESH SESSION
 
 1. Read per the §0 read order; state "Resuming from: … — next: …".
 2. `./.venv/Scripts/python.exe -m pytest -p no:cacheprovider -p no:warnings -q` → expect exit 0;
-   `freeze.py --check` → 21 OK, `frozen: false`.
+   `freeze.py --check` → 21 OK, `frozen: false`. **THE CERTIFICATION COMMAND IS RUN UNPIPED and
+   the verdict is pytest's OWN exit code** — never `pytest | tail`-style pipes (`$?`/`$LASTEXITCODE`
+   then reports the pipe tail's exit, not pytest's: the 2026-07-24 false-green lesson). Redirect to
+   a log file and `tail` the FILE instead.
 3. If Tamer's credit landed → run the leg gates (`scripts/leg_gates.py --all`). If he gives the
    full-campaign approval → runbook §2.0 (freeze first) then §10 (`mode_d_launch.ps1`). If
    neither → the writing month (see §1 last row). NEVER freeze or launch without the words.

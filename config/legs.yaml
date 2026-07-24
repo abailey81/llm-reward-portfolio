@@ -99,4 +99,4 @@ planning_prices:
   openai/gpt-5.6-luna: [1.00, 6.00]
   nvidia/nemotron-3-super-120b-a12b: [0.08, 0.45]
   google/gemini-3.5-flash: [1.50, 9.00]
-  moonshotai/kimi-k3-20260715: [3.00, 15.00]  # verified on OpenRouter 2026-07-22; always-on thinking -> the priciest leg (~$4-7 expected); the compliance gate measures real output economics
+  moonshotai/kimi-k3-20260715: [3.00, 15.00]  # verified on OpenRouter 2026-07-22; always-on thinking -> the priciest leg (~$5-11 expected at the 8192 cap, worst ~$22 at caps; R97a); the compliance gate measures real output economics

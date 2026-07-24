@@ -12,7 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from leg_gates import _flagged, _screen_probes, run_leg_gates  # noqa: E402
 
-_LEG = {"label": "test-leg", "provider": "openrouter", "model": "v/m",
+# A PRICED model id (audit 2026-07-24: the old unpriced "v/m" fixture only passed because the
+# price_key "review" verdict was being clobbered by a clean screen — the exact MAJOR bug).
+_LEG = {"label": "test-leg", "provider": "openrouter", "model": "qwen/qwen3.5-9b",
         "api_key_env": "K", "max_tokens": 100}
 
 
@@ -21,7 +23,7 @@ class _FakeTransport:
         self._responses = list(responses)
         self.calls: list[tuple[str, str]] = []
         self.last_cost_usd = 0.001
-        self.last_served_model = "v/m-served"
+        self.last_served_model = "fake-served"
         self.last_stop_reason = "stop"
 
     def __call__(self, system: str, user: str) -> str:
@@ -98,3 +100,18 @@ def test_r85_pinned_reasoning_with_no_usage_flags_review(tmp_path: Path):
     leg = dict(_LEG, reasoning={"mode": "think-high"})
     s = run_leg_gates(leg, tmp_path, which=("smoke",), transport_factory=lambda lg: fake)
     assert s["pin_roundtrip"].startswith("UNVERIFIED")   # never silently trusted
+
+
+def test_price_key_review_survives_a_clean_screen(tmp_path, monkeypatch):
+    """Audit 2026-07-24 MAJOR regression: the unpriced-model 'review' verdict must NOT be
+    clobbered back to 'pass' by a clean contamination screen."""
+    import scripts.leg_gates as lg
+
+    leg = {"label": "x", "model": "unpriced/model", "provider": "openrouter"}
+
+    class _T:
+        def __call__(self, system, user):
+            return "I cannot determine that."  # hedged -> screen passes
+    s = lg.run_leg_gates(leg, tmp_path, which=("screen",), transport_factory=lambda _lg: _T())
+    assert s["price_key"] == "MISSING->review"
+    assert s["screen_verdict"] != "pass"

@@ -82,10 +82,13 @@ def parse_cluster_pending(text: str) -> tuple[int, int]:
     users: set[str] = set()
     for line in text.splitlines()[2:]:
         cols = line.split()
-        if len(cols) >= 5 and cols[4] == "qw":
+        if len(cols) < 5:
+            continue
+        # Audit m9: a job NAME containing spaces shifts the whitespace columns — detect the
+        # eligible state by TOKEN (a standalone " qw ", never hqw/Eqw), not by position.
+        if re.search(r"\s(qw)\s", line) and not re.search(r"\s\w*[hE]\w*qw\s", line):
             qw += 1
-        if len(cols) >= 5:
-            users.add(cols[3])
+        users.add(cols[3])
     return qw, len(users)
 
 
@@ -111,8 +114,15 @@ def probe_verdicts(our_jobs: list[dict], *, pending_hours: float,
     for jid, pool in PROBE_JOBS.items():
         st = states.get(jid)
         if st is None:
-            verdicts[pool] = "ran-or-gone (USABLE if it ran — check accounting)"
-        elif st.startswith("r"):
+            # Audit M1 (2026-07-24): absent must NEVER read as usable — a qdel'd/aged-out probe
+            # would silently admit a pool that never grants (CRN blocks pending forever). A
+            # positive confirmation (qacct/archived hostname) is required to flip this to usable.
+            verdicts[pool] = "GONE from qstat — verify via qacct before enabling (NOT auto-usable)"
+        elif st.lower().startswith("e"):
+            # Audit m6: Eqw = OUR probe errored; a diagnosis, not a pool restriction.
+            verdicts[pool] = f"probe ERROR ({st}) — investigate/resubmit; NOT usable"
+        elif st.lower().startswith("r"):
+            # Audit m6: case-insensitive so Rr/Rt (running-after-restart) still count as running.
             verdicts[pool] = "RUNNING (USABLE)"
         elif pending_hours >= restricted_after_h:
             verdicts[pool] = "pending>%dh (effectively RESTRICTED)" % int(restricted_after_h)
@@ -125,9 +135,11 @@ def probe_verdicts(our_jobs: list[dict], *, pending_hours: float,
 # The collector (thin ssh shell — one round trip)                                          #
 # --------------------------------------------------------------------------------------- #
 _REMOTE = (
-    "echo '#QHOST'; qhost -F gpu 2>/dev/null; "
-    "echo '#PENDING'; qstat -u '*' -s p 2>/dev/null; "
-    "echo '#MINE'; qstat 2>/dev/null"
+    # Audit M3: each section emits its OWN rc sentinel — a failed middle command can no longer
+    # parse as "legitimately empty" (rc was previously only the LAST command's).
+    "echo '#QHOST'; qhost -F gpu 2>/dev/null; echo \"#RC:QHOST=$?\"; "
+    "echo '#PENDING'; qstat -u '*' -s p 2>/dev/null; echo \"#RC:PENDING=$?\"; "
+    "echo '#MINE'; qstat 2>/dev/null; echo \"#RC:MINE=$?\""
 )
 
 
@@ -141,7 +153,12 @@ def collect(host: str = "myriad", *, probe_age_hours: float = 0.0,
         r = subprocess.run(["ssh", "-o", "ConnectTimeout=20", host, _REMOTE],
                            capture_output=True, text=True, timeout=timeout)
         current = None
+        section_rc: dict[str, int] = {}
         for line in (r.stdout or "").splitlines():
+            m_rc = re.match(r"#RC:(\w+)=(\d+)", line)
+            if m_rc:
+                section_rc[m_rc.group(1)] = int(m_rc.group(2))
+                continue
             if line.startswith("#") and line[1:] in sections:
                 current = line[1:]
                 continue
@@ -149,6 +166,14 @@ def collect(host: str = "myriad", *, probe_age_hours: float = 0.0,
                 sections[current] += line + "\n"
         if r.returncode != 0:
             errors.append(f"ssh rc={r.returncode}: {(r.stderr or '')[-200:]}")
+        for name in sections:
+            rc = section_rc.get(name)
+            if rc is None:
+                errors.append(f"section {name}: no rc sentinel (transport truncated?)")
+            elif rc not in (0, 1):
+                # qstat exits 1 with no jobs on some builds — rc 1 with empty output is legal;
+                # anything else is a genuine section failure (audit M3).
+                errors.append(f"section {name}: rc={rc}")
     except Exception as exc:  # noqa: BLE001 — telemetry must degrade, never crash a caller
         errors.append(f"{type(exc).__name__}: {exc}")
 
@@ -165,15 +190,19 @@ def collect(host: str = "myriad", *, probe_age_hours: float = 0.0,
     )
 
 
-def append_log(snap: Snapshot, path: str | Path = "outputs/myriad_telemetry.jsonl") -> None:
+def append_log(snap: Snapshot, path: str | Path | None = None) -> None:
     """Append one frame to the local telemetry log (atomic-enough single write)."""
-    p = Path(path)
+    p = Path(path) if path is not None else _LOG_PATH  # audit m7: repo-anchored default
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(asdict(snap)) + "\n")
 
 
-_STATE_PATH = Path("outputs/allocation_state.json")
+# Audit m7: anchor ALL persistence to the repo root — a CWD-relative path silently forked the
+# state/log into stray outputs/ dirs (losing hysteresis + trend) when run from elsewhere.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_STATE_PATH = _REPO_ROOT / "outputs" / "allocation_state.json"
+_LOG_PATH = _REPO_ROOT / "outputs" / "myriad_telemetry.jsonl"
 
 
 def load_state(path: str | Path = _STATE_PATH) -> dict:
@@ -209,9 +238,14 @@ def measure_rate(archive_root: str | Path, *, window_hours: float = 24.0) -> tup
     now = time.time()
     cutoff = now - window_hours * 3600
     times = [m for pth in root.rglob("record.json")
-             if (m := pth.stat().st_mtime) >= cutoff]
+             if not any(part.startswith(".pull_tmp") for part in pth.parts)
+             and (m := pth.stat().st_mtime) >= cutoff]
     if not times:
         return 0.0, 0
+    # Audit m5: a DEAD pipeline (records exist in-window but nothing recent) must read as rate 0
+    # — a healthy-looking extrapolation from stale records would mask a stall in the ETAs.
+    if (now - max(times)) > 3.0 * 3600:
+        return 0.0, len(times)
     span_h = max((now - min(times)) / 3600.0, 0.25)   # floor: a burst never divides by ~zero
     return len(times) * 24.0 / span_h, len(times)
 
@@ -224,8 +258,12 @@ def observed_gpus(archive_root: str | Path, *, sample: int = 40) -> dict[str, in
     counts: dict[str, int] = {}
     if not root.is_dir():
         return counts
-    for i, pth in enumerate(root.rglob("record.json")):
-        if i >= sample:
+    seen = 0
+    for pth in root.rglob("record.json"):
+        if any(part.startswith(".pull_tmp") for part in pth.parts):
+            continue
+        seen += 1
+        if seen > sample:
             break
         try:
             blob = pth.read_text(encoding="utf-8", errors="ignore")
@@ -242,10 +280,10 @@ def observed_gpus(archive_root: str | Path, *, sample: int = 40) -> dict[str, in
     return counts
 
 
-def contention_trend(log_path: str | Path = "outputs/myriad_telemetry.jsonl",
+def contention_trend(log_path: str | Path | None = None,
                      *, frames: int = 12) -> str:
     """Rising/falling/flat verdict from the telemetry log's recent cluster_qw values."""
-    p = Path(log_path)
+    p = Path(log_path) if log_path is not None else _LOG_PATH  # audit m7: repo-anchored
     if not p.is_file():
         return "no-history"
     rows = p.read_text(encoding="utf-8").strip().splitlines()[-frames:]

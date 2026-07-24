@@ -20,7 +20,7 @@ generation pair) turn model differences into identified contrasts instead of ane
 | # | Model | Status | Pin (grade) | Open? | Arch / size | $/MTok in–out | Leg cost (exp.) | Scientific function |
 |---|---|---|---|---|---|---|---|---|
 | ★ | **Claude Opus 4.8** | **CONFIRMATORY** | `claude-opus-4-8` (dateless-immutable, ADR-016; retirement floor ≥ May-2027 + weight-preservation) | ✗ | undisclosed | 5.00–25.00 | ~$6 (full ladder) | The one frontier author; gates H1–H4; the E1 seed ladder; the mechanism kernel reads its archives |
-| 1 | DeepSeek V4-Pro | leg (open) | HF `deepseek-ai/DeepSeek-V4-Pro@b5968e91` (**weights-hash**) + think-high pinned | ✅ MIT | MoE 1.6T / 49B active | 0.435–0.87 | ~$0.4 | Open frontier #1; the contamination-gated seat (GLM absorbs on fail) |
+| 1 | DeepSeek V4-Pro | leg (open) | HF `deepseek-ai/DeepSeek-V4-Pro@b5968e91` (**weights-hash**) + reasoning mode: pro pinned (provider renamed think-high, 2026-07-23) | ✅ MIT | MoE 1.6T / 49B active | 0.435–0.87 | ~$0.4 | Open frontier #1; the contamination-gated seat (GLM absorbs on fail) |
 | 2 | GLM-5.2 | leg (open) | HF `zai-org/GLM-5.2@b4734de4` (**weights-hash**) | ✅ MIT | MoE 744B | 0.97–3.04 | ~$0.8 | Open frontier #2 + DeepSeek's pre-declared fallback (open replication ≠ one lab) |
 | 3 | Qwen 3.6-27B | leg (open) | HF `Qwen/Qwen3.6-27B@6a9e13bd` + SiliconFlow-fp8 provider-pin | ✅ Apache | **dense** 27B | 0.45–2.70 | ~$0.5 | **Open capability pair — TOP** (same provider+quant as its sibling: the confound-free contrast) |
 | 4 | Qwen 3.5-9B | leg (open) | HF `Qwen/Qwen3.5-9B@c2022362` + SiliconFlow-fp8 provider-pin | ✅ Apache | **dense** 9B | 0.10–0.15 | ~$0.1 | **Open capability pair — FLOOR**: where the numeracy bottleneck is predicted to bite; failure-is-a-finding |
@@ -29,7 +29,7 @@ generation pair) turn model differences into identified contrasts instead of ane
 | 7 | Nemotron 3 Super | leg (open) | HF `nvidia/…-A12B-BF16@d51eab0d` (**weights-hash**) | ✅ NVIDIA OML* | LatentMoE 120B / 12B active | 0.08–0.45 | ~$0.1 | The data-transparency seat (only model with major portions of training data released) + US-open + architecture diversity |
 | 8 | Sonnet 5 | leg (closed) | `claude-sonnet-5` (undated; disclosed) | ✗ | undisclosed | 2.00–10.00† | ~$2.9 | The latest-generation seat (released 2026-06-30) |
 | 9 | Gemini 3.5 Flash | leg (closed) | `google/gemini-3.5-flash` (undated; reasoning at provider default, disclosed) + 2k cap | ✗ | undisclosed | 1.50–9.00 | ~$1.6 | Big-three closed coverage; stretch seat |
-| 10 | **Kimi K3** | leg (closed→open upgrade) | `moonshotai/kimi-k3-20260715` (**dated snapshot** — strongest pin among the closed-class legs); weights due 2026-07-27 → HF-hash by rule | (✅ pending) | MoE 2.8T (largest ever open, on upgrade) | 3.00–15.00 | ~$4–7 (always-on thinking) | The frontier-class open-upgrade seat; 4th-ranked frontier on independent testing |
+| 10 | **Kimi K3** | leg (closed→open upgrade) | `moonshotai/kimi-k3-20260715` (**dated snapshot** — strongest pin among the closed-class legs); weights due 2026-07-27 → HF-hash by rule | (✅ pending) | MoE 2.8T (largest ever open, on upgrade) | 3.00–15.00 | ~$5–11 at the 8192 cap (R97a; worst ~$22; always-on thinking) | The frontier-class open-upgrade seat; 4th-ranked frontier on independent testing |
 
 \* NVIDIA Open Model License — open weights, *not* Apache; "major portions of the training data
 released, some subsets gated" (phrase exactly). † Sonnet-5 introductory pricing through
@@ -49,7 +49,8 @@ plausible launch date.
 
 Capability anchor (R84, discretion-free): SWE-bench-Verified from the official card —
 at-freeze values {Qwen-27B: 77.2, Haiku: 73.3}; **all other legs MISSING by rule** (no
-conflation: DeepSeek's circulating 80.6 is Max-mode, not our pinned think-high). The registered
+conflation: DeepSeek's circulating 80.6 is Max-mode, not our pinned pro mode — née think-high,
+vendor-renamed 2026-07-23). The registered
 secondary (M2 reading score) and tertiary (within-family ordinal) anchors carry the rest.
 
 ## 4. The rule-driven seats (pre-declared; never results-contingent)
