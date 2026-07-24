@@ -173,6 +173,27 @@ def append_log(snap: Snapshot, path: str | Path = "outputs/myriad_telemetry.json
         fh.write(json.dumps(asdict(snap)) + "\n")
 
 
+_STATE_PATH = Path("outputs/allocation_state.json")
+
+
+def load_state(path: str | Path = _STATE_PATH) -> dict:
+    """The advisor's persisted memory (prev regime + last plan fields). {} when absent/corrupt —
+    a broken state file must never break the advisor (it just loses hysteresis for one cycle)."""
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state: dict, path: str | Path = _STATE_PATH) -> None:
+    """Persist the advisor's memory (atomic replace so a mid-write kill can't corrupt it)."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    tmp.replace(p)
+
+
 # --------------------------------------------------------------------------------------- #
 # Self-measurement (the SMART half: the system computes its own facts from the archives)   #
 # --------------------------------------------------------------------------------------- #

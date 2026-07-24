@@ -16,11 +16,16 @@ import argparse
 import sys
 from pathlib import Path
 
+try:  # Windows consoles default to legacy codepages — never let a glyph kill a live cycle
+    sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ignore[union-attr]
+except Exception:  # noqa: BLE001
+    pass
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.cluster.allocation import advise  # noqa: E402
+from src.cluster.allocation import advise, plan_delta  # noqa: E402
 from src.cluster.telemetry import (append_log, collect, contention_trend,  # noqa: E402
-                                   measure_rate, observed_gpus)
+                                   load_state, measure_rate, observed_gpus, save_state)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,7 +43,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="Live archive root: AUTO-measures the rate + the granted GPU models "
                          "(supersedes --rate when records exist).")
     ap.add_argument("--prev-regime", choices=["CONTENDED", "QUIET"], default=None,
-                    help="The previous plan regime (the hysteresis anchor).")
+                    help="Override the hysteresis anchor (default: the persisted state file).")
+    ap.add_argument("--watch", type=int, default=None, metavar="SECS",
+                    help="LIVE MODE: re-snapshot + re-advise every SECS seconds forever; prints "
+                         "a heartbeat each cycle and LOUD ★ alerts only on actionable changes "
+                         "(regime flip, U/V unlock, pool changes). Ctrl+C to stop.")
     args = ap.parse_args(argv)
 
     remaining = None
@@ -48,25 +57,57 @@ def main(argv: list[str] | None = None) -> int:
             k, v = part.split("=", 1)
             remaining[k.strip()] = int(v)
 
-    snap = collect(args.host, probe_age_hours=args.probe_age_hours)
-    append_log(snap)
+    def one_cycle(prev_regime: str | None, old_fields: dict | None) -> dict:
+        """Snapshot -> advise -> persist -> print (heartbeat always; details on change)."""
+        snap = collect(args.host, probe_age_hours=args.probe_age_hours)
+        append_log(snap)
+        rate = args.rate
+        if args.archive_root:
+            measured, n = measure_rate(args.archive_root)
+            if n:
+                rate = measured
+                print(f"[self-measured] {n} records -> {measured:.0f} trainings/day; granted "
+                      f"GPUs so far: {observed_gpus(args.archive_root) or 'none archived'}")
+        plan = advise(snap,
+                      measured_vram_per_training_gb=args.vram_per_training,
+                      remaining_trainings=remaining,
+                      measured_trainings_per_day=rate,
+                      prev_regime=prev_regime)
+        fields = {"regime": plan.regime, "chunk_tasks": plan.chunk_tasks,
+                  "search_pool": plan.search_pool, "stripe_pools": plan.stripe_pools,
+                  "seed_pool_blocks": plan.seed_pool_blocks, "pack": plan.pack, "ts": snap.ts}
+        alerts = plan_delta(old_fields, fields)
+        print(f"[telemetry {snap.ts}] pools free: {snap.pool_free} | cluster qw: "
+              f"{snap.cluster_qw} ({snap.cluster_users} users) | our jobs: "
+              f"{len(snap.our_jobs)} | trend: {contention_trend()}")
+        for a in alerts:
+            print(f"[ALERT] {a}")
+        if alerts or old_fields is None:
+            print(plan.render())
+        save_state({"prev_regime": plan.regime, "last_plan": fields})
+        return fields
 
-    rate = args.rate
-    if args.archive_root:
-        measured, n = measure_rate(args.archive_root)
-        if n:
-            rate = measured
-            print(f"[self-measured] {n} records -> {measured:.0f} trainings/day; granted GPUs "
-                  f"so far: {observed_gpus(args.archive_root) or 'none archived'}")
-    plan = advise(snap,
-                  measured_vram_per_training_gb=args.vram_per_training,
-                  remaining_trainings=remaining,
-                  measured_trainings_per_day=rate,
-                  prev_regime=args.prev_regime)
-    print(f"[telemetry {snap.ts}] pools free: {snap.pool_free} | cluster qw: {snap.cluster_qw} "
-          f"({snap.cluster_users} users) | our jobs: {len(snap.our_jobs)}")
-    print(f"CONTENTION TREND: {contention_trend()}")
-    print(plan.render())
+    state = load_state()
+    prev = args.prev_regime or state.get("prev_regime")
+    fields = state.get("last_plan")
+
+    if args.watch is None:
+        one_cycle(prev, fields if fields else None)
+        return 0
+
+    # LIVE MODE: forever, degrade-never-crash (a bad cycle logs and waits for the next).
+    print(f"[watch] live every {args.watch}s — Ctrl+C to stop; alerts on actionable change only")
+    import time as _time
+    while True:
+        try:
+            fields = one_cycle(prev, fields)
+            prev = fields["regime"]
+        except KeyboardInterrupt:
+            print("[watch] stopped")
+            return 0
+        except Exception as exc:  # noqa: BLE001 — the watcher outlives any single bad cycle
+            print(f"[watch] cycle failed ({type(exc).__name__}: {exc}) — retrying next tick")
+        _time.sleep(max(60, args.watch))
     return 0
 
 

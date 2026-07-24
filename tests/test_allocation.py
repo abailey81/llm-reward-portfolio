@@ -173,3 +173,25 @@ def test_contention_trend(tmp_path) -> None:
     log.write_text("\n".join(_json.dumps(r) for r in rows), encoding="utf-8")
     assert contention_trend(log).startswith("RISING")
     assert contention_trend(tmp_path / "absent.jsonl") == "no-history"
+
+
+def test_plan_delta_alerts_on_actionable_changes_only() -> None:
+    from src.cluster.allocation import plan_delta
+    base = {"regime": "QUIET", "search_pool": "L", "stripe_pools": ["L", "EF"],
+            "chunk_tasks": 1}
+    assert plan_delta(None, base)[0].startswith("INITIAL PLAN")
+    assert plan_delta(base, dict(base)) == []                       # no change -> silence
+    flip = dict(base, regime="CONTENDED", chunk_tasks=25)
+    assert any("REGIME FLIP" in a for a in plan_delta(base, flip))
+    unlock = dict(base, stripe_pools=["U", "L", "EF"])
+    assert any("STRIPE POOLS CHANGED" in a for a in plan_delta(base, unlock))
+
+
+def test_state_round_trip_and_corruption_tolerance(tmp_path) -> None:
+    from src.cluster.telemetry import load_state, save_state
+    p = tmp_path / "state.json"
+    save_state({"prev_regime": "CONTENDED", "last_plan": {"regime": "CONTENDED"}}, p)
+    assert load_state(p)["prev_regime"] == "CONTENDED"
+    p.write_text("{corrupt", encoding="utf-8")
+    assert load_state(p) == {}                                      # never raises
+    assert load_state(tmp_path / "absent.json") == {}

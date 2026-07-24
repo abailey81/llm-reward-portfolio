@@ -56,6 +56,26 @@ class Plan:
         return "\n".join(lines)
 
 
+def plan_delta(old: dict | None, new: dict) -> list[str]:
+    """Actionable CHANGES between two plans' key fields — the watch loop's alert source.
+
+    Pure + testable. Compares only decision-relevant fields; returns loud human lines
+    (empty list = nothing actionable happened).
+    """
+    if not old:
+        return [f"INITIAL PLAN: regime={new.get('regime')} search_pool={new.get('search_pool')}"]
+    out: list[str] = []
+    if old.get("regime") != new.get("regime"):
+        out.append(f"*** REGIME FLIP: {old.get('regime')} -> {new.get('regime')} "
+                   f"(re-chunk NEW submissions: --chunk-tasks {new.get('chunk_tasks')})")
+    if old.get("search_pool") != new.get("search_pool"):
+        out.append(f"*** SEARCH-LANE POOL: {old.get('search_pool')} -> {new.get('search_pool')}")
+    if set(old.get("stripe_pools", [])) != set(new.get("stripe_pools", [])):
+        out.append(f"*** STRIPE POOLS CHANGED: {old.get('stripe_pools')} -> "
+                   f"{new.get('stripe_pools')} (U/V unlock or a pool emptied)")
+    return out
+
+
 def usable_pools(snap: Snapshot) -> dict[str, int]:
     """Pools we may schedule on, with free-GPU counts. U/V join ONLY on a RUNNING/ran probe
     verdict (the runbook §10 branch); EF/L are always ours (documented allow=EF|L)."""
