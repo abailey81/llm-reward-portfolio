@@ -20,12 +20,13 @@ prior = 4.0 * norm(POSIX -p)  +  1.5 * norm(tickets)  +  1.0 * norm(waiting_time
     and `share_functional_shares = TRUE` → **our slice is SPLIT ACROSS OUR PENDING JOBS**
     (SGE sched_conf: "shares … shared among all the jobs associated with the object").
     → **THE LEVER: fewer simultaneously-pending jobs = more tickets per job = higher prior.**
-  - `max_functional_jobs_to_schedule 200` / `max_pending_tasks_per_job 50` (defaults): only the
-    front of a big array is scheduler-considered per cycle, but the JOB's tickets stay
-    concentrated — big arrays are strictly better than many small ones.
+  - Myriad overrides the array-consideration defaults (`max_functional_jobs_to_schedule 5000`,
+    **`max_pending_tasks_per_job 1`**) — see §3b: big arrays concentrate tickets but ramp at
+    1 task/cycle from cold, so chunking is TWO-REGIME, not one-sided.
 - **Waiting time (weight 1.0)**: eligible (`qw`) jobs accrue priority while they wait.
-  **Held (`hqw`) tasks show prior 0.000 — dependency-held work accrues NOTHING** (live-verified).
-  Implication: pipelined-rungs earns concurrency, not waiting-time credit; only eligible jobs age.
+  **`hqw` entries show prior 0.000** (live-verified) — these are BOTH genuine dependency holds
+  AND each array's throttled tail beyond its one considered task (§3b). Only the eligible front
+  tasks age; pipelined-rungs earns concurrency, not waiting-time credit.
 - `halftime 604800` (7d) applies to the (negligible) share component. Pilot usage does NOT
   handicap us; the campaign does NOT degrade its own standing as it runs.
 - `max_reservation 20` cluster-wide; our jobs carry `reserve: y` (anti-starvation, keep it).
@@ -39,18 +40,18 @@ prior = 4.0 * norm(POSIX -p)  +  1.5 * norm(tickets)  +  1.0 * norm(waiting_time
 |---|---|---|---|---|
 | **EF** (E-type) | ~19 | 2× V100 each (~38) | 16/32G (verify via the jobscript's archived `nvidia-smi` at canary) | Bigger pool, less contended — our default |
 | **L** | 6 | 4× A100-40G each (24) | 40G | ~1.7–2.2× faster/training; more contended |
-| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | Visible in `qhost`, actively loaded; requestability for free users UNKNOWN (docs document only `allow=EF|L`; `qsub -w v` is unreliable — false-negatives even on EF). Treat as an RC-question (Tamer's call), never assume. |
+| U / V | 1 + 2 | 4× A100-80G each (12) | 80G | LIVE EXPERIMENT (2026-07-24): the JSV **accepted** `-ac allow=U`/`allow=V` submissions — probes 10293/10294 queued (EF control 10295). A probe RUNNING = usable (+12 A100-80G); pending >48h vs the control = effectively restricted (then qdel the probes). Runbook §10 best-hardware protocol has the branch. |
 
 CPU nodes (D/I/B/T) irrelevant to training. tmpfs per node is large (hundreds of GB) but our
 REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2–36 cores).
 
 ## 3. THE LEVERS (all legitimate; priority never touched)
 
-1. **TICKET CONCENTRATION (new, confirmed, material at campaign scale).** Consolidate work into
-   FEW, LARGE array jobs; avoid flooding hundreds of small pending arrays. At mode-D scale the
-   difference between ~1,200 single-task arrays and ~dozens of chunked arrays is ~50× tickets per
-   job. Concrete: raise `--chunk-tasks` at GO (also solves `max_u_jobs 1000`). The 12 driver
-   LINES are fine (12-way split is nothing); the per-line array chunking is what matters.
+1. **TICKET CONCENTRATION — read WITH §3b's two-regime doctrine.** Fewer pending jobs = more
+   tickets each (~50× between the 1,200-singleton and dozens-of-arrays extremes), but cold-start
+   ramp runs at 1 task/job/cycle — so chunk BIG only under contention; under quiet skies the
+   many-array flood ramps faster and tickets barely bind. GO-day congestion read decides
+   (`--chunk-tasks`); always < 1000 pending jobs (max_u_jobs).
 2. **Pool selection at GO** (`--pool` → `-ac allow=`): read live free-GPU headroom per pool
    (`qhost -F gpu | grep -B1 'gpu=[1-9]'`) and pin for (availability × speed), CRN-homogeneous
    per comparison unit. Default EF; L for the latency-critical core if it has headroom.
