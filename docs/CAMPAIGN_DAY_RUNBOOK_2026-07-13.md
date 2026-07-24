@@ -324,6 +324,19 @@ set, CH6 §6.7's slot DISCLOSES the executed subset — never a silent narrowing
   fails in under an hour, touch `outputs\campaign_cluster\STOP_CAMPAIGN` to stop the h3 line too.
 
 **GO-DAY THROUGHPUT LEVERS (2026-07-24 deep Myriad dig — legitimate, NEVER touch priority):**
+0. **BEST-HARDWARE PROTOCOL (2026-07-24; the U/V probe + the search-lane pin).**
+   (a) **U/V pools (12x A100-80G)**: the JSV ACCEPTED `-ac allow=U` and `allow=V` submissions
+   (probe jobs 10293/10294 queued 2026-07-24, 5-min hostname probes; control 10295 on EF). IF a
+   probe RUNS -> U/V are usable: add them to the GO stripe (A100-80G; pack deeper per the VRAM
+   calibration) — a +50% A100 capacity unlock. IF probes pend >48h while the EF control runs ->
+   treat U/V as effectively restricted; drop (qdel the stale probes then — probes are NOT
+   reserved check jobs; the never-kill rule protects the check/campaign queue age, not probes).
+   (b) **Search-lane pool pin**: the floor's critical path is the BO/reflection CHAIN (sequential
+   trainings). If L (or U/V) has live headroom at GO, pin the CORE's SEARCH lane to the A100 pool
+   (`--pool` on the search invocation): ~1.7-2.2x faster chain steps -> floor ~L+1.5-1.8 ->
+   ~L+1.0-1.2. CRN note: chains are homogeneous if the whole lane pins to one pool; TEST stripes
+   stay as ratified (blocks are pool-homogeneous by construction). Ops-only under the ratified
+   launch-day pool-stripe clause.
 1. **Pool selection (the big lever, already parameterized via `--pool` -> `-ac allow=`).** Myriad
    free GPU pools: **EF** = ~17 nodes x 2 V100 (larger, older, LESS contended); **L** = ~7 nodes
    x 4 A100-40G (fewer, ~1.7-2.2x faster/training, MORE contended). At GO run
