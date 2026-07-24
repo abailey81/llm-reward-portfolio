@@ -416,7 +416,13 @@ def run_cost_sweep(
     winner-identity rows. This is the production (analytic-only) entry point; the re-roll
     fallback is reserved for the consistency test / older archives that lack the decomposition.
     """
-    from scripts.analyze_campaign import load_campaign_records  # type: ignore[import-not-found]
+    try:
+        from scripts.analyze_campaign import load_campaign_records
+    except ModuleNotFoundError:  # `python scripts/cost_sweep.py` (documented in the runbook) puts
+        import sys as _sys                     # scripts/ on sys.path, NOT the repo root -> `scripts`
+        from pathlib import Path as _P          # is not an importable package: this UNGUARDED import
+        _sys.path.insert(0, str(_P(__file__).resolve().parent))  # HARD-CRASHED the documented cost-
+        from analyze_campaign import load_campaign_records        # sweep command (seal-bug class, 2026-07-24)
 
     records = load_campaign_records(test_root)
     curve = cost_curve(records, grid_bps, arms=arms, cvar_alpha=cvar_alpha)

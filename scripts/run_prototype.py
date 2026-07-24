@@ -262,7 +262,12 @@ def _run_env_fp(arm_root: str, run_id: str, label: str, seed: int) -> Any:
     from a written env.json", capture_env docstring).
     """
     try:
-        from scripts.capture_env import capture_env, env_json_sha256
+        try:
+            from scripts.capture_env import capture_env, env_json_sha256
+        except ModuleNotFoundError:  # direct `python scripts/run_prototype.py` puts scripts/ on
+            import sys as _sys        # sys.path, not the repo root -> `scripts` not a package; the
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))  # broad except below would else
+            from capture_env import capture_env, env_json_sha256       # SILENTLY drop env.json (seal-bug class)
 
         run_dir = Path(arm_root) / str(run_id)
         env_path = run_dir / "env.json"

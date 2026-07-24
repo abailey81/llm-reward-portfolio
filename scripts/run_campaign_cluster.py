@@ -243,6 +243,24 @@ def _write_campaign_summary(output_dir: str | Path, inputs: dict[str, Any], *,
     }
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     _write_summary_atomic(Path(output_dir), summary, filename=filename)
+    # Parity with run_campaign.py's run-end seal (audit 2026-07-24): the cluster mirror is
+    # AUTHORITATIVELY sealed by the bank_gate ritual (runbook §step-1), but a bare `analyze_campaign`
+    # BEFORE the gate reports "not_sealed" and this summary otherwise lacks the integrity root (F4).
+    # Seal the as-pulled archive here too (this fires only on TERMINAL completion per the docstring;
+    # bank_gate re-seals idempotently) and stamp the root for summary parity. Best-effort — a seal
+    # failure must never sink a completed campaign. Sibling import: scripts/ is already on sys.path
+    # (line ~220); `from scripts.archive_integrity` would itself hit the import-bug class on direct launch.
+    try:
+        import json as _json
+
+        from archive_integrity import write_manifest
+
+        _manifest = write_manifest(output_dir)
+        summary["archive_integrity_root"] = _json.loads(
+            Path(_manifest).read_text(encoding="utf-8")).get("root")
+        _write_summary_atomic(Path(output_dir), summary, filename=filename)
+    except Exception as exc:  # noqa: BLE001 — sealing is provenance, never a run-blocker
+        print(f"[cluster] archive-integrity seal skipped: {exc}", flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:

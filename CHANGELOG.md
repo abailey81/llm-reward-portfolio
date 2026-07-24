@@ -84,6 +84,32 @@ research code, so entries are grouped by session date. Every entry cites its ADR
   PYTEST_RC=0). **Verdict: the laptop fallback substrate runs the current code end-to-end, and it is
   now provenance-sealed.**
 
+- **CROSS-SUBSTRATE `from scripts.X` IMPORT-CLASS SWEEP (Tamer: "if you catch errors that might be on
+  Myriad, fix them too"; a read-only auditor mapped the class + the seal lifecycle first-hand):** the
+  local seal-skip was one instance of a CLASS — `from scripts.X import Y` raises
+  `ModuleNotFoundError("No module named 'scripts'")` whenever a script is launched DIRECTLY
+  (`python scripts/foo.py` puts scripts/ on sys.path, NOT the repo root; `src` is an installed package
+  — `pyproject packages=["src"]` — so `from src.X` is unaffected, which isolates the failure to
+  `scripts.`). It is INVISIBLE to pytest (the suite has the repo root on sys.path). **6 sites fixed
+  this session**, each with a robust `try/ModuleNotFoundError` sibling-fallback: run_campaign.py
+  seal-WRITE (`c36af20`), analyze_campaign.py seal-VERIFY + parallel.py capture_env (`685e611`), and
+  now **cost_sweep.py:419 — a CONFIRMED hard-crash** on the documented `python scripts/cost_sweep.py`
+  command (the cost-robustness exhibit never produced; direct-launch now verified to run past the
+  import), **run_prototype.py:265** (silent env.json loss on direct launch), and **cluster seal
+  parity** (below). **KEY CORRECTION — my "cluster never seals" worry was a FALSE POSITIVE:** the
+  Myriad campaign DOES seal its pulled mirror, not automatically but via the manual **bank_gate
+  ritual** (runbook step 1: `bank_gate.py --archive` → subprocess `archive_integrity.py write`, which
+  imports only stdlib, so it dodges the class). Good that the auditor checked before I edited the real
+  driver. For belt-and-suspenders parity + to fill the summary's missing `archive_integrity_root`
+  (F4), I added a best-effort production-time seal to `run_campaign_cluster.py::_write_campaign_summary`
+  (fires on terminal completion; bank_gate re-seals idempotently). **Confirmed BENIGN (no fix):
+  preflight / make_prereg_bundle / p6_authored_ladder / myriad_probes** all insert the repo root
+  BEFORE the import (that is why they run historically). **Env-fingerprint parity CONFIRMED:** the
+  cluster mirror carries per-record `env.json` (poll.py tars whole run-dirs; Myriad's `-m` run keeps
+  `from scripts.capture_env` resolving). **NEW regression guard `tests/test_direct_launch_imports.py`**
+  — a SUBPROCESS launch with the repo root OFF PYTHONPATH, the only faithful way to catch this
+  pytest-invisible class (F6). All fixes tested green (cost_sweep + cluster + the new guard, PYTEST_RC=0).
+
 - **CLAUDE.md: the ★★★ STRICT CONTINUOUS DOCUMENTATION + ALWAYS-RESUME rule** added to the SESSION
   HANDOFF PROTOCOL (Tamer's instruction): document EVERYTHING in detail ALWAYS in CHANGELOG + HANDOFF
   §1 (even no-commit/live-ops sessions), name in-flight state precisely, resume from them every session
