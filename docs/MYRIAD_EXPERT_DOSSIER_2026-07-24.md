@@ -45,6 +45,18 @@ prior = 4.0 * norm(POSIX -p)  +  1.5 * norm(tickets)  +  1.0 * norm(waiting_time
 CPU nodes (D/I/B/T) irrelevant to training. tmpfs per node is large (hundreds of GB) but our
 REQUEST size gates node eligibility (see lever 3). GPU job wallclock cap: 48h (2–36 cores).
 
+> **⚠ PER-TRAINING SPEED vs THROUGHPUT — reconcile (2026-07-24, the A100 timing probe):** the
+> "1.7–2.2× faster/training" for L and the A100 pools is the **GPU-compute ratio** — it holds only
+> for a GPU-BOUND workload. OURS IS NOT: the training is bottlenecked by the single-thread Python
+> env loop (pack curve 1→102 / 5→253 agg steps/s; the A100 timing probe measured ~24 steps/s @2
+> cores, no GPU benefit visible). So the A100's per-training speedup is MODEST (≈1.0–1.4× at best,
+> from faster node CPUs — not 2×). **The A100 pools' RELIABLE value is (a) LESS CONTENTION → more
+> sustained GPU slots (proven: our probes ran on U/V while EF jammed for hours) + (b) DEEPER PACKING
+> (80G hosts ~10 envs vs V100's ~5) → more concurrent trainings per node.** For time-to-result under
+> R101 (all 11 parallel) THROUGHPUT is what sets the achieved seed rung, and the pools help it a lot;
+> per-training clock barely moves. The GO-day canary measures the true PACKED multi-core per-node
+> trainings/GPU-hour — plan the rung from THAT, not from the GPU-compute ratio or the 2-core probe.
+
 ## 3. THE LEVERS (all legitimate; priority never touched)
 
 1. **TICKET CONCENTRATION — read WITH §3b's two-regime doctrine.** Fewer pending jobs = more
