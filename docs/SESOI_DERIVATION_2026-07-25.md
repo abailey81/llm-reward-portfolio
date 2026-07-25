@@ -37,11 +37,17 @@ of interest** — bracketed BELOW by economic exploitability and ABOVE by practi
    turnover** (both MEASURED), so the annual cost drag is `10bps × 112% = 0.112%/yr` and the breakeven
    Sharpe floor is `0.112% / 20.2% = 0.0055 ann-Sharpe`. **A difference below 0.0055 Sharpe cannot be
    exploited after costs → economically null → correctly "of no interest".**
-2. **Upper bound — practitioner-material scale.** DeMiguel, Garlappi & Uppal (2009, "Optimal Versus Naive
-   Diversification: 1/N is hard to beat") place *materially distinguishable* Sharpe differences at
-   ~**0.10–0.20 ann-Sharpe**. An effect a practitioner would *act on* lives at or above this scale, so the
-   SESOI (the boundary of "of interest") must sit **at or below 0.10** — otherwise we would wrongly declare
-   a practitioner-material effect "equivalent".
+2. **Upper bound — practitioner-material scale (a conservative heuristic).** We take **0.10 ann-Sharpe** as
+   a deliberately-conservative practitioner-material threshold. DeMiguel, Garlappi & Uppal (2009) establish
+   the QUALITATIVE result that *1/N is remarkably hard to beat* — no optimizing strategy delivers a Sharpe
+   statistically superior to the naive benchmark across their seven datasets. **Unit caveat (load-bearing):**
+   their tabulated 0.10–0.20 Sharpe differences are **MONTHLY** (≈0.35–0.69 annualised; Lo 2002 notes even
+   ×√12 understates), so **0.10 *annualised* is a conservative practitioner floor**, corroborated by Lo
+   (2002)'s Sharpe-distinguishability machinery and the Harvey–Liu–Zhu (2016) t>3 hurdle. There is no
+   canonical "0.10–0.20 *annualised*" citation — this is a stated conservative synthesis, and correcting the
+   unit only *strengthens* the argument (the true practitioner scale sits far above our SESOI). The SESOI (the
+   boundary of "of interest") sits **at or below 0.10** so we never declare a practitioner-material effect
+   "equivalent".
 3. **Statistical corroboration — Harvey-Liu t>3.** The absolute-Sharpe significance hurdle under multiple
    testing (Harvey, Liu & Zhu 2016) is far above the SESOI (t>3 ⇒ SR ≳ 0.87 over a 12-yr track; larger on
    the shorter scored window), confirming the SESOI is deliberately **sub-significance** — an equivalence

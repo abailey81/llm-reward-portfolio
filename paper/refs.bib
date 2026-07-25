@@ -2406,3 +2406,133 @@
   year         = {2026},
   howpublished = {arXiv preprint arXiv:2601.08237},
 }
+
+% ============================================================================
+% 2026-07-25 EVIDENCE-RESEARCH ADDITIONS (5-cluster corpus+internet sweep).
+% Each VERIFIED first-hand (arXiv/DOI/AAAI abstract fetched this date) UNLESS the
+% note says otherwise. Grades A=seminal/authoritative, B=supporting, C=weak.
+% (lo2002statistics already present ~:2378 -- Sharpe annualisation authority.)
+% ============================================================================
+
+% --- SESOI / risk-adjusted performance (cluster 1) ---
+@article{almgren2000optimal,
+  author  = {Almgren, Robert and Chriss, Neil},
+  title   = {Optimal Execution of Portfolio Transactions},
+  journal = {Journal of Risk},
+  volume  = {3}, number = {2}, pages = {5--39}, year = {2000},
+  note    = {Grade A. On disk (K_final_sweep/OptimalExecution-AlmgrenChriss__2000.pdf), now keyed; published J. Risk 3(2):5-39. VERIFIED first-hand 2026-07-25 (PDF p.1 + risk.net TOC).},
+}
+
+% --- LLM numeracy / capability bottleneck (cluster 2) ---
+@misc{li2025numeracygaps,
+  author = {Li, Haoyang and Chen, Xuejia and Xu, Zhanchao and Li, Darian and Hu, Nicole and Teng, Fei and Li, Yiming and Qiu, Luyu and Zhang, Chen Jason and Li, Qing and Chen, Lei},
+  title  = {Exposing Numeracy Gaps: A Benchmark to Evaluate Fundamental Numerical Abilities in Large Language Models},
+  year   = {2025}, eprint = {2502.11075}, archivePrefix = {arXiv}, primaryClass = {cs.CL},
+  note   = {Grade A. NumericBench; names our mechanism (surface patterns, not continuous magnitudes). VERIFIED first-hand 2026-07-25.},
+}
+@misc{sun2025numericalsensitivity,
+  author = {Sun, Zhishen and Dai, Guang and Tsang, Ivor and Ye, Haishan},
+  title  = {Numerical Sensitivity and Robustness: Exploring the Flaws of Mathematical Reasoning in Large Language Models},
+  year   = {2025}, eprint = {2511.08022}, archivePrefix = {arXiv}, primaryClass = {cs.CL},
+  note   = {Grade A/B. Small open models drop >=10\% under numeric perturbation. VERIFIED first-hand 2026-07-25.},
+}
+@misc{yuchi2026numbers,
+  author = {Yuchi, Fengting and Du, Li and Eisner, Jason},
+  title  = {{LLMs} Know More About Numbers than They Can Say},
+  year   = {2026}, eprint = {2602.07812}, archivePrefix = {arXiv}, primaryClass = {cs.CL},
+  note   = {Grade B (honest complication: log-magnitude encoded but unreliably USED -- frame as such, do NOT claim LLMs cannot perceive magnitude). VERIFIED first-hand 2026-07-25.},
+}
+@misc{hasan2025smallcode,
+  author = {Hasan, Md Mahade and Waseem, Muhammad and Kemell, Kai-Kristian and Rasku, Jussi and Ala-Rantala, Juha and Abrahamsson, Pekka},
+  title  = {Assessing Small Language Models for Code Generation: An Empirical Study with Benchmarks},
+  year   = {2025}, eprint = {2507.03160}, archivePrefix = {arXiv}, primaryClass = {cs.SE},
+  note   = {Grade B. 20 SLMs 0.4-10B; larger>smaller on code (perf-efficiency trade-off, not strict monotone). VERIFIED first-hand 2026-07-25.},
+}
+@misc{souza2025codeforces,
+  author = {Souza, D{\'e}bora and Gheyi, Rohit and Albuquerque, Lucas and Soares, Gustavo and Ribeiro, M{\'a}rcio},
+  title  = {Code Generation with Small Language Models: A Codeforces-Based Study},
+  year   = {2025}, eprint = {2504.07343}, archivePrefix = {arXiv}, primaryClass = {cs.SE},
+  note   = {Grade B. SLM failures are minor IMPLEMENTATION issues not reasoning -- mirrors our qwen sandbox-fail. VERIFIED first-hand 2026-07-25.},
+}
+@misc{guo2025bugreplicators,
+  author = {Guo, Liwei and Ye, Sixiang and Sun, Zeyu and Chen, Xiang and Zhang, Yuxia and Wang, Bo and Zhang, Jie M. and Li, Zheng and Liu, Yong},
+  title  = {{LLMs} are Bug Replicators: An Empirical Study on {LLMs'} Capability in Completing Bug-prone Code},
+  year   = {2025}, eprint = {2503.11082}, archivePrefix = {arXiv}, primaryClass = {cs.SE},
+  note   = {Grade B (complication: even GPT-4 collapses on bug-prone code -- cite to avoid over-claiming a clean capability->robustness monotone). VERIFIED first-hand 2026-07-25.},
+}
+
+% --- Reproducibility (cluster 3) ---
+@inproceedings{gundersen2018reproducibility,
+  author    = {Gundersen, Odd Erik and Kjensmo, Sigbj{\o}rn},
+  title     = {State of the Art: Reproducibility in Artificial Intelligence},
+  booktitle = {Proceedings of the Thirty-Second AAAI Conference on Artificial Intelligence (AAAI)},
+  volume    = {32}, number = {1}, year = {2018}, doi = {10.1609/aaai.v32i1.11503},
+  note      = {Grade A. 400 papers; 20-30\% of reproducibility variables documented. VERIFIED first-hand 2026-07-25 (AAAI page).},
+}
+@article{pineau2021reproducibility,
+  author  = {Pineau, Joelle and Vincent-Lamarre, Philippe and Sinha, Koustuv and Larivi{\`e}re, Vincent and Beygelzimer, Alina and d'Alch{\'e}-Buc, Florence and Fox, Emily and Larochelle, Hugo},
+  title   = {Improving Reproducibility in Machine Learning Research (A Report from the {NeurIPS} 2019 Reproducibility Program)},
+  journal = {Journal of Machine Learning Research},
+  volume  = {22}, number = {164}, pages = {1--20}, year = {2021},
+  note    = {Grade A. arXiv:2003.12206; introduces the ML Reproducibility Checklist. VERIFIED first-hand 2026-07-25 (note the full subtitle).},
+}
+@article{baker2016reproducibility,
+  author  = {Baker, Monya},
+  title   = {1,500 Scientists Lift the Lid on Reproducibility},
+  journal = {Nature}, volume = {533}, number = {7604}, pages = {452--454}, year = {2016}, doi = {10.1038/533452a},
+  note    = {Grade A. 1,576-scientist survey. Coordinates CORROBORATED across Nature/ADS/PubMed/RePEc; Nature paywall blocked first-hand fetch (flagged) -- re-confirm at deposit.},
+}
+@misc{he2025defeating,
+  author       = {He, Horace and {Thinking Machines Lab}},
+  title        = {Defeating Nondeterminism in {LLM} Inference},
+  year         = {2025},
+  howpublished = {Thinking Machines Lab: Connectionism, \url{https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/}},
+  note         = {Grade B (authoritative BLOG, not peer-reviewed -- PAIR with yuan2025nondeterminism, do not stand alone). Batch-invariance / concurrency mechanism. VERIFIED first-hand 2026-07-25.},
+}
+@misc{chen2023chatgptdrift,
+  author = {Chen, Lingjiao and Zaharia, Matei and Zou, James},
+  title  = {How Is {ChatGPT}'s Behavior Changing over Time?},
+  year   = {2023}, eprint = {2307.09009}, archivePrefix = {arXiv}, primaryClass = {cs.CL},
+  note   = {Grade A (existence, first-hand) / B (HDSR 6(2) 2024 venue search-corroborated only). Behavioural drift under a FIXED API id.},
+}
+@article{spirling2023opensource,
+  author  = {Spirling, Arthur},
+  title   = {Why Open-Source Generative {AI} Models Are an Ethical Way Forward for Science},
+  journal = {Nature}, volume = {616}, number = {7957}, pages = {413}, year = {2023}, doi = {10.1038/d41586-023-01295-4},
+  note    = {Grade A. THE open-weights-permanence anchor (our Layer-3 thesis). Coordinates CORROBORATED (ADS 2023Natur.616..413S/RePEc); Nature paywall blocked first-hand fetch (flagged).},
+}
+
+% --- LLM-reward-code lineage + novelty neighbours (cluster 4) ---
+@misc{xue2026riskfeedback,
+  author = {Xue, Weicheng},
+  title  = {Representation Signatures and Risk-Feedback Alignment in {LLM} Trading Agents},
+  year   = {2026}, eprint = {2605.28850}, archivePrefix = {arXiv}, primaryClass = {cs.LG},
+  note   = {Grade B. NEAREST placebo x risk-feedback x LLM-trading neighbour (LLM is the AGENT, not a reward-code author) -- CORROBORATES our placebo method; cite-and-distinguish in CH2. VERIFIED first-hand 2026-07-25.},
+}
+@misc{qian2026infolimits,
+  author = {Qian, Cheng},
+  title  = {Information Limits and Attractor Dynamics in Economies of Frontier {LLM} Agents: A Pre-Registered Test},
+  year   = {2026}, eprint = {2607.06001}, archivePrefix = {arXiv}, primaryClass = {cs.AI},
+  note   = {Grade B. PRE-REGISTERED LLM-agent markets -> PIN our "first pre-registered" claim to portfolio-RL/reward-design, NOT "LLM-agent-in-markets". VERIFIED first-hand 2026-07-25.},
+}
+@misc{yao2026execution,
+  author = {Yao, Junyi and Zheng, Zihao},
+  title  = {Beyond Agent Architecture: Execution Assumptions and Reproducibility in {LLM}-Based Trading Systems},
+  year   = {2026}, eprint = {2606.08285}, archivePrefix = {arXiv}, primaryClass = {cs.AI},
+  note   = {Grade B. Reproducibility audit of 30 LLM-trading studies -> supports our reproducibility framing. VERIFIED first-hand 2026-07-25.},
+}
+@misc{cardenoso2025leveraging,
+  author = {Cardenoso, Franklin and Caarls, Wouter},
+  title  = {Leveraging {LLMs} for Reward Function Design in Reinforcement Learning Control Tasks},
+  year   = {2025}, eprint = {2511.19355}, archivePrefix = {arXiv}, primaryClass = {cs.LG},
+  note   = {Grade B. Eureka-lineage breadth (control tasks; reward design is high-variance). VERIFIED first-hand 2026-07-25. NB: arXiv:2511.19355 is Cardenoso-Caarls, NOT "LEARN-Opt" (fix the stale map in RELATED_WORK_WATCH).},
+}
+
+% --- Risk-sensitive RL / coherent risk (cluster 5) ---
+@article{rockafellar2002general,
+  author  = {Rockafellar, R. Tyrrell and Uryasev, Stanislav},
+  title   = {Conditional Value-at-Risk for General Loss Distributions},
+  journal = {Journal of Banking \& Finance},
+  volume  = {26}, number = {7}, pages = {1443--1471}, year = {2002},
+  note    = {Grade A. The atomic/finite-sample CVaR setting our theory 3.5 lives in. Vol/issue/pages triple-sourced (RePEc/SciRP/UW-PDF); DOI 10.1016/S0378-4266(02)00271-6 NOT first-hand-verified (flagged) -- confirm at deposit.},
+}

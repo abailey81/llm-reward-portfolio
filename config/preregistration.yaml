@@ -137,7 +137,8 @@ inference:
     book_turnover_ann_oneway: 1.12              # equal-weight daily-rebalanced one-way turnover per yr, MEASURED
     cost_bps_oneway: 10                         # env transaction cost, one-way bps (must match environment cost)
     lower_bound_cost_breakeven_sharpe: 0.0055   # = cost_bps*1e-4 * turnover / sigma; below this an edge is unexploitable-after-costs
-    upper_bound_practitioner_sharpe: 0.10       # DeMiguel-Garlappi-Uppal 2009 material-Sharpe scale (0.10-0.20)
+    upper_bound_practitioner_sharpe: 0.10       # a deliberately-CONSERVATIVE practitioner-material heuristic (ann-Sharpe); basis below
+    practitioner_floor_basis: "0.10 ann-Sharpe = a conservative practitioner heuristic. DeMiguel-Garlappi-Uppal 2009 gives the QUALITATIVE '1/N is remarkably hard to beat' result; their tabulated 0.10-0.20 is MONTHLY (~0.35-0.69 annualised, Lo 2002), so 0.10 ANNUALISED is conservative. Corroborated by Lo 2002 (Sharpe-distinguishability) + Harvey-Liu-Zhu 2016 (t>3). No canonical '0.10-0.20 ANNUALISED' cite exists -> a stated conservative synthesis; correcting the unit only STRENGTHENS conservativeness (SESOI 0.0756 sits a fortiori below)."
     verdict: sesoi_inside_band                  # 0.0055 < 0.0756 < 0.10 (exploitable-after-costs AND conservative)
     source: docs/SESOI_DERIVATION_2026-07-25.md
   # Amendment 2026-06-25 (R26/R30/R31): the PRE-REGISTERED report-only SECONDARY families. ALL use keys DISJOINT
