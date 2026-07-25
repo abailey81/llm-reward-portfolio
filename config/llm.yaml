@@ -1,16 +1,29 @@
 # LLM reward-designer (FINAL_PLAN E, F.8, K). Pin the snapshot; archive every call (replay, not
 # regenerate — audit C-2). The key is read from the environment, NEVER committed.
 
-provider: anthropic                         # CAMPAIGN reward-author = Claude Opus 4.8 (ADR-038, supersedes the
-                                            #   ADR-035 Gemini pick); the PROTOTYPE uses Claude Sonnet 4.6 (ADR-038,
-                                            #   also native Anthropic SDK / same ANTHROPIC_API_KEY).
-model_snapshot: "claude-opus-4-8"           # ADR-038: campaign reward-author = Claude Opus 4.8 (prototype = Sonnet 4.6)
+provider: anthropic                         # CAMPAIGN reward-author = Claude Opus 5 (R102, 2026-07-24; supersedes
+                                            #   ADR-038's Opus 4.8, which supersedes the ADR-035 Gemini pick); the
+                                            #   PROTOTYPE uses Claude Sonnet 4.6 (ADR-038, also native Anthropic SDK /
+                                            #   same ANTHROPIC_API_KEY).
+model_snapshot: "claude-opus-5"             # R102: campaign reward-author = Claude Opus 5 (dateless id IS a pinned
+                                            #   snapshot, not an evergreen pointer — vendor doc, same rule as ADR-016).
+                                            #   Same price as Opus 4.8 ($5/$25 per MTok) -> budget unchanged. Opus 4.8
+                                            #   is now vendor-LEGACY; it survives as an M2 survey datapoint.
 api_key_env: ANTHROPIC_API_KEY              # read from the gitignored .env; NEVER committed
 temperature: 1.0                            # Eureka diversity (ADR-016): K candidates/gen share ONE prompt -> temp MUST
                                             #   be > 0 (0 collapses the within-gen search; per-provider diversity per ADR-038:
-                                            #   prototype Sonnet 4.6 uses temp=1.0, campaign Opus 4.8 uses prompt-variation)
+                                            #   prototype Sonnet 4.6 uses temp=1.0, campaign Opus 5 uses prompt-variation
+                                            #   — the Opus lane REJECTS temperature, so client.py drops it, R85/R102)
 top_p: 1.0
-max_tokens: 4096
+max_tokens: 8192                            # R102 (2026-07-24): raised 4096 -> 8192 for the Opus 5 swap. Opus 5 runs
+                                            #   ADAPTIVE THINKING BY DEFAULT (Opus 4.8 ran WITHOUT thinking when the
+                                            #   `thinking` field is omitted), and max_tokens caps thinking + response
+                                            #   TOGETHER -> at 4096 the authored reward code can be truncated mid-function.
+                                            #   Exactly the R97a failure already observed on the always-on-thinking
+                                            #   kimi-k3 leg (5/10 compliance calls truncated at 4096 -> bumped to 8192);
+                                            #   this applies that remedy to the confirmatory author BEFORE it can bite.
+                                            #   Raising the CAP costs nothing per se (billing is on generated tokens);
+                                            #   the real cost delta is the thinking tokens themselves (R83 ledger tracks it).
 
 # Matched-compute budget (the property that licenses the comparative claim). Same for ALL arms.
 candidate_budget_total: 30                  # total reward candidates per arm (set via scoping tree)

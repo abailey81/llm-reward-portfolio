@@ -19,13 +19,16 @@
 
 ---
 
-> **Model-currency note.** The confirmatory author is **Claude Opus 4.8** (dateless-immutable id,
-> retirement floor ≥ May 2027 + Anthropic's weight-preservation commitment — the best deprecation
-> posture in the roster). Anthropic's **Fable 5** (9 June 2026) has since superseded Opus 4.8 as
-> flagship; the swap was analysed and **declined** (its dual-use classifiers with mid-response
-> fallback are a treatment-correlated interference channel, and the June government-directive
-> suspension contradicts the permanence claim) — Fable 5 sits in the M2 reading survey only,
-> where refusals are data. Disclosed in CH4.
+> **Model-currency note.** The confirmatory author is **Claude Opus 5** (dateless-immutable id,
+> retirement floor + Anthropic's weight-preservation commitment — the best deprecation posture in
+> the roster). It succeeded **Claude Opus 4.8** in this seat pre-launch under amendment **R102**
+> (2026-07-25), when Opus 5 reached GA: same safety classifiers, tokenizer and $5/$25 price as 4.8,
+> so no new identification threat and the budget is unchanged; Opus 4.8 is retained as the M2
+> generation-pair partner. Separately, Anthropic's **Fable 5** (9 June 2026) — a different model —
+> was analysed as an author and **declined** (its dual-use classifiers with mid-response fallback
+> are a treatment-correlated interference channel, and the June government-directive suspension
+> contradicts the permanence claim); Fable 5 sits in the M2 reading survey only, where refusals are
+> data. Disclosed in CH4.
 
 ## Table of contents
 
@@ -74,7 +77,7 @@
                          SQ3: is any effect genuine use of the tail CONTENT, or a surface echo?
 ```
 
-**The v2 breadth around the frozen core.** One frontier model (Opus 4.8) answers the confirmatory question under full rigor; **ten replication legs** (five open-weight with hash-pinned checkpoints, five closed, ≥6 vendors) answer *"is it general?"* at the 30-seed floor; a **35-model M2 reading survey** answers *"can models read the numbers at all?"*; and three controlled instruments (two capability pairs + a conditional generation pair) turn model differences into identified contrasts instead of anecdotes. Nothing in the breadth layer gates the confirmatory verdicts.
+**The v2 breadth around the frozen core.** One frontier model (Opus 5) answers the confirmatory question under full rigor; **ten replication legs** (five open-weight with hash-pinned checkpoints, five closed, ≥6 vendors) answer *"is it general?"* at the 30-seed floor; a **35-model M2 reading survey** answers *"can models read the numbers at all?"*; and three controlled instruments (two capability pairs + a generation pair) turn model differences into identified contrasts instead of anecdotes. Nothing in the breadth layer gates the confirmatory verdicts.
 
 **The recommended title.** *"Does Showing a Language Model the Downside Change the Reward Code It Writes? A Pre-Registered, Off-Critic Test in Risk-Sensitive Portfolio RL."*
 
@@ -93,7 +96,7 @@
 | **Arms** | **7** (5 LLM feedback arms + 2 non-LLM search baselines) |
 | **Candidate budget** | **30** per arm = **6 generations × 5 candidates**, reflect-on-best |
 | **Fed tail vector** | **6** left-tail scalars (CVaR at 1/5/10/25%, left-tail mass, robust skew) |
-| **Confirmatory author** | **Claude Opus 4.8** (the single frontier model) |
+| **Confirmatory author** | **Claude Opus 5** (the single frontier model; R102, was Opus 4.8) |
 | **v2 replication legs** | **10** legs → **11 full-loop models** (R95; queue: deepseek → glm → qwen27 → qwen9 → haiku → luna → nemotron → sonnet-5 → gemini → kimi-k3) |
 | **M2 reading survey** | **26 core + 9 extras = 35 models** (R99 seated gpt-5.6-terra; 3 documented config exclusions) |
 | **Hand-written reward canon** | **10 names** (H1's four frozen + the six-member secondary panel incl. R97's `differential_downside_ratio`) |
@@ -273,7 +276,7 @@ The distributional arm feeds **exactly six** left-tail scalars (returned by `Ret
 
 > *Completeness notes (2026-07-23 audit):* the campaign authors under **`--pass-mode B`** (the registered two-pass protocol; pinned in every runbook launch line); model output runs through the **salvage extraction path** (`extract_reward_source` — fenced or prose-wrapped code is recovered, so a well-formed reward is never rejected for formatting; the residual non-compliance rate is itself a reported reliability metric).
 
-**The reward-designer.** A frontier LM — **Claude Opus 4.8** in the confirmatory campaign (Claude Sonnet 4.6 in the prototype). It operates in an **Eureka-style reflect-and-improve loop**: it authors a reward-function as Python code, the agent is trained and evaluated, a feedback block is composed, and the model revises the code. The loop runs **six generations of five candidates under a matched budget of thirty per arm, reflecting on the generation's best candidate** (serial reflect-on-best; Eureka-faithful). Opus was chosen for strongest benchmarked code generation and because it has no safety-classifier layer that could refuse mid-campaign (a refusal on one arm but not another would break arm symmetry) — the same reasoning that excludes Fable 5 as an author and Sakana Fugu entirely (orchestrator → single-author attribution impossible).
+**The reward-designer.** A frontier LM — **Claude Opus 5** in the confirmatory campaign (Claude Sonnet 4.6 in the prototype; R102 succeeded Opus 4.8 pre-launch). It operates in an **Eureka-style reflect-and-improve loop**: it authors a reward-function as Python code, the agent is trained and evaluated, a feedback block is composed, and the model revises the code. The loop runs **six generations of five candidates under a matched budget of thirty per arm, reflecting on the generation's best candidate** (serial reflect-on-best; Eureka-faithful). Opus was chosen for strongest benchmarked code generation and because its safety-classifier posture is common-mode across arms — Opus 5 carries the same classifiers as its predecessor, so the succession adds no arm-asymmetric refusal channel (a refusal on one arm but not another would break arm symmetry) — the same reasoning that excludes Fable 5 as an author (whose classifier behaviour differs) and Sakana Fugu entirely (orchestrator → single-author attribution impossible).
 
 **The prompts are one instrument.** The two loaded prompts are tail-**neutral** (verified: no tail/CVaR vocabulary), R79-strengthened for model-agnostic output format ("a single Python code block containing ONLY the function definition"), and **byte-identical across all eleven full-loop models** — the "same exam for every student" principle. A 2026-07-23 deep review *considered and rejected* (dated, pre-freeze) XML-tagging the prompts and assistant-prefill code-forcing — the first would invalidate the tail-neutrality verification and the σ pilots calibrated under these exact bytes; the second is provider-asymmetric and would become a format confound across legs (§19d).
 
@@ -377,13 +380,13 @@ It is *bankable* because it (a) names the estimand, (b) carries an equivalence b
 
 **What changed and why.** v1 used a *single* frontier author (Opus) and spent nearly all compute climbing the seed ladder. After the NatWest call (Raad, Head of AI R&D, + industry supervisor Stefan) pushed back — *why one model? what about open weights and reproducibility? you bought seed-certainty on one statistic for one model and gave the model axis zero* — the design was **unfrozen pre-data** (zero campaign data existed, the sealed leg was untouched, so this is a legitimate pre-data revision, not a forking path) and rebuilt as **v2**.
 
-**The v2 shape.** *One* frozen question, *one* frontier **confirmatory** author (Opus 4.8, under the full v1 rigor — 7 arms, m=6, co-primary IUTs, SESOI ±0.05, the seed ladder, exogenous stop), plus **ten replication legs — 11 full-loop models total** (R80 established nine; R90/R92 reshaped seat 9; **R95 seated Kimi K3 as leg 10**). Each leg re-runs the **five LLM arms × 30 candidates** at the **30-seed floor** (seeds 0–29 — the core's floor subset, giving the common-30 CRN pairing the pair-DiD estimator requires), with byte-identical prompts, unified prompt-variation diversity, pinned providers/quantisation/reasoning-modes/max-tokens, priority-laddered behind the core, and calendar-gated at **2026-08-14T23:59Z**. The suite is **report-only and disjoint from the m=6 family — it never gates H1–H4.** The confirmatory logic is untouched; the legs add *breadth* (does the choice of author matter?) and *reproducibility* (open-weight legs run the complete experiment for ~$0.1–0.8 each).
+**The v2 shape.** *One* frozen question, *one* frontier **confirmatory** author (Opus 5, under the full v1 rigor — 7 arms, m=6, co-primary IUTs, SESOI ±0.05, the seed ladder, exogenous stop), plus **ten replication legs — 11 full-loop models total** (R80 established nine; R90/R92 reshaped seat 9; **R95 seated Kimi K3 as leg 10**). Each leg re-runs the **five LLM arms × 30 candidates** at the **30-seed floor** (seeds 0–29 — the core's floor subset, giving the common-30 CRN pairing the pair-DiD estimator requires), with byte-identical prompts, unified prompt-variation diversity, pinned providers/quantisation/reasoning-modes/max-tokens, priority-laddered behind the core, and calendar-gated at **2026-08-14T23:59Z**. The suite is **report-only and disjoint from the m=6 family — it never gates H1–H4.** The confirmatory logic is untouched; the legs add *breadth* (does the choice of author matter?) and *reproducibility* (open-weight legs run the complete experiment for ~$0.1–0.8 each).
 
 ### 15a. The full-loop roster of record (11 models; `config/legs.yaml` == `model_suite`, gate-bound)
 
 | # | Model | Open? | Pin (grade) | $/MTok in–out | Leg cost (exp.) | Scientific function |
 |---|---|---|---|---|---|---|
-| ★ | **Claude Opus 4.8** | ✗ | `claude-opus-4-8` (dateless-immutable; retirement floor ≥ May-2027 + weight preservation) | 5.00–25.00 | ~$6 (full ladder) | **CONFIRMATORY** — gates H1–H4; the E1 ladder; the mechanism kernel reads its archives |
+| ★ | **Claude Opus 5** | ✗ | `claude-opus-5` (dateless-immutable; **R102 2026-07-25 — was `claude-opus-4-8`**, now vendor-LEGACY; same classifiers/tokenizer/price) | 5.00–25.00 | ~$6 (full ladder) | **CONFIRMATORY** — gates H1–H4; the E1 ladder; the mechanism kernel reads its archives |
 | 1 | DeepSeek V4-Pro | ✅ MIT | HF `deepseek-ai/DeepSeek-V4-Pro@b5968e91` (**weights-hash**) + think-high pinned | 0.435–0.87 | ~$0.4 | Open frontier #1; the contamination-gated seat (GLM absorbs on fail) |
 | 2 | GLM-5.2 | ✅ MIT | HF `zai-org/GLM-5.2@b4734de4` (**weights-hash**) | 0.97–3.04 | ~$0.8 | Open frontier #2 + DeepSeek's pre-declared fallback |
 | 3 | Qwen 3.6-27B | ✅ Apache | HF `Qwen/Qwen3.6-27B@6a9e13bd` + SiliconFlow-fp8 provider-pin | 0.45–2.70 | ~$0.5 | **Open capability pair — TOP** (dense; same provider+quant as its sibling) |
@@ -402,8 +405,8 @@ Queue order (frozen; realized as the mode-D priority ladder −200…−290): **
 | Instrument | Members | What it identifies |
 |---|---|---|
 | **Open capability pair** | Qwen 9B ↔ 27B (one vendor, one provider, one quantization, both dense) | content-effect × capability, open ecosystem |
-| **Closed capability pair** | Haiku 4.5 ↔ Opus 4.8 (one vendor; Opus restricted to the common 30 seeds) | content-effect × capability, closed ecosystem |
-| **Generation pair** (conditional; **full-leg form NOT exercised this cycle — R98**) | Opus 4.8 ↔ Opus 5 — R91's rule remains registered, but Tamer's pre-event budget decision (R98) caps the Opus-5 footprint at a ~$1 M2 reading-survey seat even if the rule fires; the full-leg pair moves to future work (Papers 2/3) | content-effect × one model generation, vendor+tier fixed |
+| **Closed capability pair** | Haiku 4.5 ↔ Opus 5 (one vendor; the Opus-5 confirmatory restricted to the common 30 seeds) | content-effect × capability, closed ecosystem |
+| **Generation pair** | Opus 4.8 (M2) ↔ Opus 5 (**confirmatory + M2**) — **REALIZED under R102 (2026-07-25)**: Opus 5 became the confirmatory author, with Opus 4.8 retained in M2 as the pair partner (supersedes the R91-conditional / R98-budget-deferral form) | content-effect × one model generation, vendor+tier fixed |
 
 **The capability-gradient prediction, made falsifiable (R87).** Three *rival, pre-registered* signatures are named ex-ante so the prediction can't be trivially satisfied:
 - **Capacity account** — responsiveness *rises* with capability (weak authors fail to use the numbers).
@@ -449,7 +452,7 @@ Three orthogonal axes keep the confirmatory core sealed while everything else sc
   - **Stage 1** = the frozen confirmatory campaign (the dissertation's verdicts) + the report-only breadth registered with it (legs, M2, mechanism, the ten-name canon).
   - **Stage 2** = post-headline, **report-only, dissertation-optional** extensions bound to Papers 2/3: the **named first-priority extension is the 3-point GPT-5.6 within-family ladder** (R99 — Luna 82.5 / Terra 84.3 / Sol 88.8 as full legs, ~$9.32, declined this cycle on budget; the M2 reading axis carries all three points now); a training-budget dose-response (campaign winners × {200k, 400k, 800k} × 10 CRN seeds); an FTSE-100-lite zero-shot replication (frozen winners re-tested, no authoring); the **qwen3.5-9b full search replicate** (~150 trainings — the lineage's first direct estimate of authoring-search variance, upgrading limitation B.2.6 from disclosed to quantified); the CI-annotated re-rendering (the A5-vs-A2 adjudicator); alternate-agent robustness (TQC/PPO/TD3 on frozen winners); and the remaining rule-driven trigger (**KAT-Coder** — open weights + verified benchmarks → M2 promotion / Stage-2 candidate). **Kimi-K3 is no longer a Stage-2 trigger — R95 seated it outright as leg 10** (its 2026-07-27 weights release upgrades it to open-class by the pre-declared rule). Nothing Stage-2 is ever injected mid-flight.
 
-**The M2 reading-link survey (Stage-1-registered, post-headline, ~$10, zero GPU).** Now **26 core + 9 budget-permitting extras = 35 models** across ~10+ labs: the Anthropic reading ladder (Haiku 4.5 · Sonnet 4.6 · Opus 4.8 · Fable 5, + Sonnet 5 extra), the Qwen ladder (5–6 points behind the 2-point full-loop pair), the closed cross-vendor tier (**GPT-5.6 Sol · Terra (R99) · Luna** — the 3-point family ladder — + Gemini 3.5 Flash, Grok 4.5, Nova 2 Lite), the open cross-vendor tier (DeepSeek, GLM, Nemotron, Hy3, MiniMax-M3 (restricted-license, labeled), Kimi K2.7-code, MiMo, North-Mini-Code), and the floor/curiosity rows (Granite 4.1, Gemma 4, **Mercury-2 — the diffusion-architecture row**). Inclusion rule (pre-registered): UK-callable + passes the author smoke + passes the behavioural contamination screen + a distinct base model + not an orchestrator. Leg models double as survey rows at zero marginal design cost. **Three exclusions documented in the executed config** (cite in methods): Sakana Fugu (orchestrator → attribution impossible — the identification principle), Llama 4 (SWE-V ~24 + license friction), and any `~latest` rolling alias (reproducibility poison); the roster doc's fuller excluded-by-design table adds Fable-5-as-author, MiniMax-M3-as-leg, Qwen-4-Coder-as-leg (MoE — would break the dense–dense pair invariant), and Sonnet 4.6 (removed by R92; retained in M2).
+**The M2 reading-link survey (Stage-1-registered, post-headline, ~$10, zero GPU).** Now **26 core + 9 budget-permitting extras = 35 models** across ~10+ labs: the Anthropic reading ladder (Haiku 4.5 · Sonnet 4.6 · Opus 4.8 · Opus 5 · Fable 5, + Sonnet 5 extra), the Qwen ladder (5–6 points behind the 2-point full-loop pair), the closed cross-vendor tier (**GPT-5.6 Sol · Terra (R99) · Luna** — the 3-point family ladder — + Gemini 3.5 Flash, Grok 4.5, Nova 2 Lite), the open cross-vendor tier (DeepSeek, GLM, Nemotron, Hy3, MiniMax-M3 (restricted-license, labeled), Kimi K2.7-code, MiMo, North-Mini-Code), and the floor/curiosity rows (Granite 4.1, Gemma 4, **Mercury-2 — the diffusion-architecture row**). Inclusion rule (pre-registered): UK-callable + passes the author smoke + passes the behavioural contamination screen + a distinct base model + not an orchestrator. Leg models double as survey rows at zero marginal design cost. **Three exclusions documented in the executed config** (cite in methods): Sakana Fugu (orchestrator → attribution impossible — the identification principle), Llama 4 (SWE-V ~24 + license friction), and any `~latest` rolling alias (reproducibility poison); the roster doc's fuller excluded-by-design table adds Fable-5-as-author, MiniMax-M3-as-leg, Qwen-4-Coder-as-leg (MoE — would break the dense–dense pair invariant), and Sonnet 4.6 (removed by R92; retained in M2).
 
 ### 16a. The R96 optional psychometric module (registered-NOT-activated; Tamer's dated write-time decision)
 

@@ -79,7 +79,7 @@ So the **canonical contrast** is, *within the distributional arm*:
 ### 1.3 Within-generation diversity (the mechanism that makes single-shot competitive)
 `_diversity_directive` (loop.py lines 189–204) appends a per-candidate-index instruction telling the
 LLM to vary the risk term / window / functional form, fired only when `diversity_prompt_variation` is
-on AND `candidates_per_gen > 1` (line 347). Rationale: Claude Opus 4.8 (the campaign author) *rejects*
+on AND `candidates_per_gen > 1` (line 347). Rationale: Claude Opus 5 (the campaign author) *rejects*
 the `temperature` parameter, so within-generation variety is injected by prompt variation instead;
 Sonnet 4.6 (prototype author) honours `temperature=1.0` and does NOT use the directive
 (`config/prototype.yaml: diversity_prompt_variation:false`; `config/campaign.yaml:true`). The directive

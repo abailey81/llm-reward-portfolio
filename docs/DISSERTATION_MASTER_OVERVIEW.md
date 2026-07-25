@@ -3,7 +3,7 @@
 > **⚠ DESIGN SUPERSESSION (2026-07-20/21 — read this first).** This document describes the **v1**
 > design (frozen 2026-07-18 at `ce5db62c`). On 2026-07-20, after industry-supervisor feedback
 > (NatWest AI R&D), the registration was UNFROZEN **pre-data** (ADR-059; legitimate — no campaign
-> data existed) and revised to **v2**: the same confirmatory core (Opus 4.8, 7 arms, m=6, SESOI,
+> data existed) and revised to **v2**: the same confirmatory core (Opus 5, 7 arms, m=6, SESOI,
 > the E1 seed ladder) now wrapped by **9 report-only replication legs** (DeepSeek V4-Pro, GLM-5.2,
 > the Qwen 27B/9B open pair, Haiku 4.5 + Sonnet 4.6 closed ladder, GPT-5.6 Luna, Nemotron 3
 > Super, Gemini 3.5 Flash stretch seat) + a ~25-model reading-link survey + a pre-registered
@@ -45,7 +45,7 @@
 
 ## 1. The dissertation in one page
 
-**What it is.** A pre-registered, controlled experiment in which a large language model (Claude Opus 4.8)
+**What it is.** A pre-registered, controlled experiment in which a large language model (Claude Opus 5)
 **writes the reward-function code** for a risk-sensitive deep-reinforcement-learning portfolio agent, and
 the **only thing that varies between experimental arms is what the LLM is shown about its previous
 attempt**: either a single scalar performance number, or that same scalar **plus a six-number profile of
@@ -89,7 +89,7 @@ written after the campaign.
 |---|---|
 | Manipulated variable | Feedback content in the LLM's reflection prompt (tail vector vs scalar) |
 | Fixed agent | SB3 SAC (TQC = secondary, named critic experiment only) |
-| Author LLM (campaign) | Claude Opus 4.8 (single-family confirmatory; 2nd model = secondary panel) |
+| Author LLM (campaign) | Claude Opus 5 (single-family confirmatory; 2nd model = secondary panel) |
 | Arms (7) | distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt |
 | Fed tail set (6 scalars) | cvar_05, cvar_10, cvar_25, cvar_01 (high-variance-annotated), left_tail_mass, robust_skew |
 | Fitness / selection | Validation **Deflated Sharpe Ratio** (DSR) |
@@ -727,7 +727,7 @@ Every slot — accepted, sandbox-rejected, LLM-error-skipped, or resume-replayed
 draw. `matched_budget: 30` is asserted identical across every arm: *"the property that licenses the
 comparative claim."* **Winner** = the accepted candidate with the highest validation fitness.
 
-**Diversity without temperature.** Opus 4.8 *rejects* the temperature parameter, so within-generation
+**Diversity without temperature.** Opus 5 *rejects* the temperature parameter, so within-generation
 diversity comes from a per-candidate **prompt-variation directive** — identical across arms and
 deliberately naming NO risk statistic (the R38 de-seed: it asks the model to vary *which* statistics
 it tracks without ever suggesting CVaR/drawdown, so it cannot pre-seed the tail into non-tail arms).
@@ -762,13 +762,13 @@ tail-aware code, and the manipulation collapsed — the R38 de-seeding fixed it.
 reflection turn is composed from the built-in preamble + `build_block`. Describe it that way, never
 as a template file.
 
-**The client:** pinned dated snapshot (Opus 4.8 campaign / Sonnet 4.6 prototype); key from env var
+**The client:** pinned dated snapshot (Opus 5 campaign / Sonnet 4.6 prototype); key from env var
 (never archived); every call appends a provenance record — model, rendered prompts, raw response,
 token usage, `stop_reason` (so a truncation/refusal is attributed correctly, not mislabeled a "bad
 candidate"), request id, served model (the reproducibility anchor for the secondary Qwen3-Coder
 panel). The JSONL archive sink flushes per call, so a crash loses at most the in-flight call. Prompt
-caching is disclosed as **physically inert** on Opus 4.8 (the ~898-token prefix is below the
-4096-token cache floor).
+caching is disclosed as **physically inert** on the confirmatory author (the ~898-token prefix is far
+below any cacheable-prefix floor; measured at 4096 on the prior Opus generation / 2048 on Sonnet 4.6).
 
 ### 6.3 The seven arms and the contrast logic
 
@@ -1284,7 +1284,7 @@ rationale + direction of bias + mitigation. The load-bearing entries:
   measurement; 'critic-agnostic' is not 'agent-independent'."* Mitigation: the fed/selected/tested
   three-way split "keeps the loops from grading themselves"; the mediation analysis is a descriptive
   decomposition under sequential-ignorability caveats, never causal proof.
-- **Single-family confirmatory (B.3.1)** — one Claude family (Sonnet 4.6 → Opus 4.8); the
+- **Single-family confirmatory (B.3.1)** — one Claude family (Sonnet 4.6 → Opus 5); the
   open-weights second-model cross-check (Qwen3-Coder) is *specified but unexecuted*, secondary/
   report-only; no plural "language models" claim is earned.
 - **Unit-of-analysis (B.2.6)** — the confirmatory contrast re-runs *one* selected reward program per

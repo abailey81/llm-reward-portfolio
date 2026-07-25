@@ -99,7 +99,7 @@ pre-ticked `[x]`; manual/decision items are `[ ]`.
 - [x] **Fast suite GREEN** — `pytest -m "not slow"` → 466 passed / 0 failed.
 - [x] **`ANTHROPIC_API_KEY` present in `.env`** (len 110, `sk-ant…`). Campaign reads it via `load_env()` and
       workers inherit it. `config/campaign.yaml` is `pass: B`, `provider: anthropic`, `model_snapshot:
-      claude-opus-4-8` — the real reward author.
+      claude-opus-5` — the real reward author.
 - [x] **Dry-run GREEN** — 4 stages exercised, exit 0 (§1).
 
 ### Resources (do immediately before the run — MUST re-check live)
@@ -149,7 +149,7 @@ degrades gracefully and never crashes.
 ## 5. EXACT run command(s) for the real campaign
 
 The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml` (7 arms · 30 candidates ·
-30 seeds · 50k steps · Opus 4.8 · `pass: B`). Pick ONE launch line by the search-parallelism decision.
+30 seeds · 50k steps · Opus 5 · `pass: B`). Pick ONE launch line by the search-parallelism decision.
 
 ### Recommended n_gpu = 3 (the laptop ceiling; `--gpu >= 4` is refused by run_campaign)
 

@@ -351,7 +351,7 @@ Ranked by (impact on defensibility) × (1/cost). **A-items are nearly free and s
   `outputs/prototype/analysis_report.md:6-13`) — i.e. **the prototype did NOT show a clean LLM>search
   gap**; if anything random-search was a *strong* baseline, exactly as Bergstra-Bengio predicts. **Frame
   this as evidence your controls are NOT crippled** (the opposite of over-claiming), and let the campaign
-  (Opus 4.8, 30 seeds-on-winners, sealed test) be the actual test. **Do not** present the prototype as
+  (Opus 5, 30 seeds-on-winners, sealed test) be the actual test. **Do not** present the prototype as
   positive H4.
 
 ---

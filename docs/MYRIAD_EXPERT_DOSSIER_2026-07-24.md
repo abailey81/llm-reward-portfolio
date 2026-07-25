@@ -5,6 +5,59 @@
 > docs, and the SGE reference manuals — so the campaign's speed decisions rest on the scheduler's
 > real arithmetic, never folklore. Standing order: NEVER lower our job priority (CLAUDE.md ★).
 
+## 0. ★★★ 2026-07-25 UPDATE — THE CPU LANE IS THE FAST SUBSTRATE FOR THIS WORKLOAD (measured)
+
+> Supersedes the GPU-centric framing below **for the actual campaign training**. Established by a live
+> probe fleet (b/d/t CPU pools + a U-pool A100), 2026-07-25. The workload is a TINY MLP (n_assets=30,
+> obs 1893-dim, batch 256) — far too small to saturate a datacentre GPU — so per-node THROUGHPUT
+> inverts the naive "GPU is fastest".
+
+**Measured aggregate throughput (steps/s), identical training config, `bench_compute.py`:**
+
+| Substrate | Packing | Agg steps/s | Per-training |
+|---|---|---|---|
+| A100-80GB (U pool) | 8 packed (knee 6–8) | **346** | 43 (65 at 2-pack → contends as it packs) |
+| **36-core CPU node** (b/d; **344 exist**, 1.5 TB RAM) | 36 (1/core) | **~580–620** (extrapolated; linear) | ~16–18 |
+| 24-core CPU node | 24 | **434 (MEASURED)** | ~18 |
+| 8-core CPU job | 8 | 177–217 peak / ~112 under dense co-location | 14–27 |
+
+**THE FINDING:** a standard **36-core CPU node beats an A100-80G on aggregate training throughput (~1.7×)**,
+and there are **344 of them** vs a handful of perpetually-starved A100/V100 nodes. For THIS workload the fast
+substrate is CPU, not GPU. (Per-training *latency* still favours the GPU — one A100 training ~65 steps/s vs
+~18 on a CPU core — but the campaign is **throughput-bound, not latency-bound**: the R101 rung reached by the
+Aug-27 exogenous stop is set by trainings-COMPLETED, and a CPU node completes more per node-hour.)
+
+**Scheduling reality (live-observed 2026-07-25):** the CPU pools (b/d/t) schedule an 8-slot job in minutes;
+the GPU pools + every big-slot job (gpupack 8-slot, packcurve 18/26, cpucurve 36, v100_probe) have sat `qw`
+for HOURS-to-DAYS under our ~1/122 fair-share slice. **Smaller-footprint jobs win scheduling** — prefer MANY
+modest CPU jobs over few big GPU jobs. (Consistent with §1's "fewer pending tickets per job" arithmetic + the
+whole-node-reservation cost of big smp requests.)
+
+**MPS:** feasible (daemon starts on the A100, Default compute mode — `mpsprobe`). Its throughput benefit (can
+it push the A100 past the 8-pack knee?) is PENDING — probe `mps_thru` (**job 13138**, queued behind the GPU
+starvation). Even a generous MPS gain (~+30% → ~450) stays **below** the 36-core CPU node's ~600, so MPS is
+very unlikely to flip the conclusion; measuring to confirm.
+
+**Science (why this is neutral):** a CPU-only campaign is **CRN-HOMOGENEOUS** (PyTorch-CPU is deterministic
+under seeding) and cross-substrate parity is already certified (`src/cluster/`, same science primitives).
+Device mixing is handled by the existing `--seed-pool-blocks device-stratified` machinery (CPU is just another
+homogeneous block). The CPU lane changes the SUBSTRATE, not the science — no identification / CRN / determinism
+cost. **Recommend Dr Okhrati/Ramin's courtesy nod** (the CPU lane is now the PRIMARY plan, not insurance), but
+**no pre-registration amendment is required** (design / arms / seeds / fitness all unchanged).
+
+**IMPLEMENTATION SPEC (next session — a real multi-file change to tested cluster code; do NOT rush at
+transition-close):**
+1. `src/cluster/allocation.py` is GPU-only (`usable_pools`=EF/L/U/V; VRAM packing). Extend to a first-class
+   CPU lane: add b/d/t pools; "pack" on CPU = cores-per-node (≈36, 1 training/core, NO VRAM gate); weight CPU
+   nodes by the measured ~600 steps/s; include them in `stripe()` + the ETA; keep the CRN device-homogeneity
+   invariant (CPU blocks are contiguous, like GPU-pool blocks).
+2. `src/cluster/telemetry.py`: surface CPU-pool free-slot counts + a CPU `POOL_SPEED` entry.
+3. `run_campaign_cluster.py`: confirm/enable a CPU jobscript path (`-pe smp 36`, no `-l gpu`, `-l mem` sized to
+   node, tmpfs right-sized) — the probes prove `apptainer` runs the trainer on CPU with no code change.
+4. Keep GPU as an OPPORTUNISTIC lane (device-stratified blocks) for whatever A100/V100 we DO win.
+5. Regression-test the advisor's new CPU branch before launch. Fold the final `mps_thru` + `cpucurve_d`
+   (36-core) numbers in when they land.
+
 ## 1. THE PRIORITY FORMULA (decoded from the live config — this IS Myriad)
 
 ```

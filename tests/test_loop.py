@@ -198,7 +198,7 @@ def test_winner_is_best_fitness_candidate(tmp_path) -> None:
 def test_diversity_prompt_variation_makes_candidate_prompts_distinct(tmp_path) -> None:
     """With diversity ON the K candidates get DISTINCT prompts (per-candidate directive); with it
     OFF they're identical. This is the mechanism that lets a temperature-rejecting author
-    (Claude Opus 4.8) still get within-generation variety. Uniform across arms -> no H2 confound."""
+    (Claude Opus 5) still get within-generation variety. Uniform across arms -> no H2 confound."""
     cfg_off = {"generations": 1, "candidates_per_gen": 3, "budget": 99, "n_trials": 5}
     _, llm_off = _run("scalar", _VALID_REWARD_SRC, cfg_off, tmp_path / "off")
     prompts_off = [u for _, u in llm_off.prompts]

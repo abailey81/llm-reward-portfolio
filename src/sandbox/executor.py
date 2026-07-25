@@ -433,7 +433,7 @@ def _parses_as_python(src: str) -> bool:
 def extract_reward_source(text: str) -> str:
     """Recover runnable reward source from a raw LLM completion (final-audit 2026-06-19 P0 fix).
 
-    A real reward-author (Claude Opus 4.8 with thinking off, Gemini 3.5 Flash, ...) frequently
+    A real reward-author (Claude Opus 5 with adaptive thinking, Gemini 3.5 Flash, ...) frequently
     wraps the function in a markdown fence (```python ... ```) or adds a prose preamble/epilogue
     despite the 'return only the function' instruction. ``ast_gate`` parses the WHOLE string, so any
     such wrapper makes ``ast.parse`` raise SyntaxError and a perfectly good reward is rejected for

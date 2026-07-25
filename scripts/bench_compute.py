@@ -74,11 +74,16 @@ def _worker(device: str, steps: int, idx: int, threads: int, n_assets: int, batc
         print(f"[worker {idx} {device}] FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
 
 
-def bench(n_gpu: int, n_cpu: int, steps: int, n_assets: int = 953, batch: int = 256) -> dict:
+def bench(n_gpu: int, n_cpu: int, steps: int, n_assets: int = 30, batch: int = 256) -> dict:
     """Run ``n_gpu`` cuda + ``n_cpu`` cpu workers concurrently; return aggregate throughput.
 
-    ``n_assets``/``batch`` default to the CAMPAIGN profile (953-asset obs, batch 256) so the measured
-    concurrency ceiling reflects the real run, not a toy panel.
+    ``n_assets``/``batch`` default to the CAMPAIGN profile so the measured concurrency ceiling reflects
+    the real run, not a toy panel. **The campaign trades a PIT top-30 universe** (``load_gold_panel
+    phase="development"`` -> N=30), so obs = 63*N+3 = **1893-dim** and the 50k buffer is ~0.71 GB.
+    DEFECT FIXED 2026-07-25: the previous default was ``n_assets=953`` with a comment claiming
+    "953-asset -> 1893-dim" — but 953 assets give a **60,042-dim** obs (~24 GB buffer), a 30x-HEAVIER
+    toy that is NOT the campaign. Running this tool with the old default silently measured that toy.
+    Use ``--n-assets 30`` for the campaign scale (now the default); pass 953 only to probe the heavy case.
     """
     ctx = mp.get_context("spawn")
     q = ctx.Queue()
@@ -118,8 +123,10 @@ def main() -> None:
         help="Comma list of '<gpu>x<cpu>' worker configs. Default = GPU-only 2..6: the campaign uses ONE "
              "GPU, and CPU workers would train on a DIFFERENT device => a hardware confound across arms.",
     )
-    p.add_argument("--n-assets", type=int, default=953,
-                   help="Synthetic panel width (default 953 => ~1893-dim obs, the campaign profile).")
+    p.add_argument("--n-assets", type=int, default=30,
+                   help="Synthetic panel width (default 30 => 1893-dim obs = the campaign PIT top-30 "
+                        "profile). NOTE 953 => 60,042-dim (~24 GB buffer) = a 30x-heavier toy, NOT the "
+                        "campaign — the old default; fixed 2026-07-25.")
     p.add_argument("--batch", type=int, default=256, help="batch_size (default 256, the campaign value).")
     p.add_argument("--total-steps", type=int, default=None,
                    help="Total campaign steps for the wall-clock projection (e.g. 600 * B*).")

@@ -196,7 +196,7 @@ placebo*. **The inert `+0.000`×6 placebo controls token count but NOT structure
 the master findings call it "the single most reviewer-convincing experiment," and it directly operationalizes
 the Gupta–Hartford permuted-label control. Counter-evidence exists but is conditional and non-peer-reviewed
 (Wainrib et al. 2026 preprint: feedback-sensitivity emerges only above a model-capability threshold — a
-Sonnet 4.5→4.6 upgrade flipped n.s.→significant; supports using Opus 4.8 but **still requires the placebo**).
+Sonnet 4.5→4.6 upgrade flipped n.s.→significant; supports using Opus 5 but **still requires the placebo**).
 
 **S5 — HIGH — "The supporting rungs (H1, floor, H4) are individually p-hacked — no multiplicity control."**
 The frozen m=6 family protects H2 only; H1/floor/(H4) write disjoint keys and carry no correction (§1.3).
@@ -292,7 +292,7 @@ contained?"
 
 **The honest framing that scopes without gutting the contribution (one paragraph for the dissertation):**
 > *This is a single-instance study by design: one task, one survivorship-free US-large-cap universe, one
-> period, one fixed bounded agent (SB3-SAC), one frontier LLM (Opus 4.8). That is a deliberate
+> period, one fixed bounded agent (SB3-SAC), one frontier LLM (Opus 5). That is a deliberate
 > internal-validity trade, not an oversight — fixing the agent is precisely what isolates the feedback
 > channel, and a single pre-registered comparison is what makes a null bankable. Most threats to the result
 > (universe composition, delisting fill, exogenous prices, rf convention, seed count, even a BAB/low-vol
@@ -326,7 +326,7 @@ sentence that forgets to do this.**
 | **Statistical** | H3/H4 untested on sealed leg | H3, H4 | Single-seed descriptive only | **Wire or descope** (S2) | **HIGH** |
 | **External** | n-of-1 (task/universe/period/agent/LLM) | Generality | Comparative/internal framing | Scope to mechanism+method; cite Liao 2021 (§3) | MED |
 | **External** | Regime shift may flip the advantage direction | Generality | 2018/2020/2022 stress in-window | Disclose; OOD stress as falsification-probe not OOS (L-set) | MED |
-| **External** | Result won't transfer past Opus 4.8 | Generality | Pinned snapshot, replay | Scope as LLM-loop-genre limit; 2nd open-weights model | LOW |
+| **External** | Result won't transfer past Opus 5 | Generality | Pinned snapshot, replay | Scope as LLM-loop-genre limit; 2nd open-weights model | LOW |
 | **Reproducibility** | LLM non-determinism | Whole pipeline | Replay-from-archive, pinned snapshots | Disclosed (L9); genre-standard | LOW |
 
 **Reading:** the **CRITICAL** cell is BAB (one internal-validity control closes it). The **HIGH** cluster is

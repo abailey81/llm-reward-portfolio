@@ -19,7 +19,7 @@ generation pair) turn model differences into identified contrasts instead of ane
 
 | # | Model | Status | Pin (grade) | Open? | Arch / size | $/MTok in–out | Leg cost (exp.) | Scientific function |
 |---|---|---|---|---|---|---|---|---|
-| ★ | **Claude Opus 4.8** | **CONFIRMATORY** | `claude-opus-4-8` (dateless-immutable, ADR-016; retirement floor ≥ May-2027 + weight-preservation) | ✗ | undisclosed | 5.00–25.00 | ~$6 (full ladder) | The one frontier author; gates H1–H4; the E1 seed ladder; the mechanism kernel reads its archives |
+| ★ | **Claude Opus 5** | **CONFIRMATORY** | `claude-opus-5` (dateless-immutable, ADR-016; **R102 2026-07-25 — was `claude-opus-4-8`**, now vendor-LEGACY) | ✗ | undisclosed | 5.00–25.00 (IDENTICAL to 4.8 → budget unchanged) | ~$6 (full ladder) | The one frontier author; gates H1–H4; the E1 seed ladder; the mechanism kernel reads its archives. R102: same classifiers/tokenizer as 4.8 (no new identification threat); `max_tokens` 8192 (adaptive-thinking-default-on) |
 | 1 | DeepSeek V4-Pro | leg (open) | HF `deepseek-ai/DeepSeek-V4-Pro@b5968e91` (**weights-hash**) + reasoning mode: pro pinned (provider renamed think-high, 2026-07-23) | ✅ MIT | MoE 1.6T / 49B active | 0.435–0.87 | ~$0.4 | Open frontier #1; the contamination-gated seat (GLM absorbs on fail) |
 | 2 | GLM-5.2 | leg (open) | HF `zai-org/GLM-5.2@b4734de4` (**weights-hash**) | ✅ MIT | MoE 744B | 0.97–3.04 | ~$0.8 | Open frontier #2 + DeepSeek's pre-declared fallback (open replication ≠ one lab) |
 | 3 | Qwen 3.6-27B | leg (open) | HF `Qwen/Qwen3.6-27B@6a9e13bd` + SiliconFlow-fp8 provider-pin | ✅ Apache | **dense** 27B | 0.45–2.70 | ~$0.5 | **Open capability pair — TOP** (same provider+quant as its sibling: the confound-free contrast) |
@@ -44,8 +44,8 @@ plausible launch date.
 | Instrument | Members | What it identifies |
 |---|---|---|
 | **Open capability pair** | Qwen 9B ↔ 27B (one vendor, one provider, one quantization, both dense) | content-effect × capability, open ecosystem |
-| **Closed capability pair** | Haiku 4.5 ↔ Opus 4.8 (one vendor; Opus restricted to the common 30 seeds) | content-effect × capability, closed ecosystem |
-| **Generation pair** (conditional) | Opus 4.8 ↔ Opus 5 — fires only if R91's rule triggers (GA + API id + verifiable attribution by launch-GO) | content-effect × one model generation, vendor+tier fixed |
+| **Closed capability pair** | Haiku 4.5 ↔ Opus 5 (one vendor; the Opus-5 confirmatory restricted to the common 30 seeds) | content-effect × capability, closed ecosystem |
+| **Generation pair** | Opus 4.8 (M2) ↔ Opus 5 (**confirmatory + M2**) — **REALIZED under R102 (2026-07-25)**: Opus 5 is now the confirmatory author; Opus 4.8 is RETAINED in M2 as the pair partner (the R91 conditional-leg form is superseded) | content-effect × one model generation, vendor+tier fixed |
 
 Capability anchor (R84, discretion-free): SWE-bench-Verified from the official card —
 at-freeze values {Qwen-27B: 77.2, Haiku: 73.3}; **all other legs MISSING by rule** (no
@@ -65,7 +65,7 @@ secondary (M2 reading score) and tertiary (within-family ordinal) anchors carry 
 
 | Family group | Rows | Purpose |
 |---|---|---|
-| Anthropic ladder | Haiku 4.5 · Sonnet 4.6 · Opus 4.8 · **Fable 5** (+ Sonnet 5 extra) | 4–5-point closed reading ladder; Fable's refusals are data |
+| Anthropic ladder | Haiku 4.5 · Sonnet 4.6 · Opus 4.8 · **Opus 5** (R102) · **Fable 5** (+ Sonnet 5 extra) | 5–6-point closed reading ladder; Fable's refusals are data |
 | Qwen ladder | 3.5-9B · 3-Coder-30B · 3.6-35B · 3.6-27B · 3-Coder-480B (+ **Qwen-4-Coder** extra) | 5–6-point open reading ladder (incl. the v1-pin continuity row) |
 | Closed cross-vendor | GPT-5.6 Sol · Luna · Gemini 3.5 Flash · Grok 4.5 · Nova 2 Lite | frontier + budget closed tiers (Sol = the METR reward-hacking context) |
 | Open cross-vendor | DeepSeek V4-Pro · GLM-5.2 · Nemotron · MiniMax-M3 (restricted-license, labeled) · Kimi lines · LongCat · Hy3 · MiMo · North-Mini-Code · OLMo · Ring · KAT-Coder · Mercury-2 (diffusion-arch row) · granite/nex/etc. | the breadth axis: ~10 labs, incl. architecture diversity |

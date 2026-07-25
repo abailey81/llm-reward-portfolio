@@ -49,7 +49,7 @@ worker (RAM-bound); **`--gpu` and `--search-gpu` ≥ 4 are REFUSED by the CLI** 
 scope/time grounds (there is **no GPU-hour cap** — `hard_budget_gpu_hours` was removed 2026-06-28; the
 GPU-hr figures are estimates, not a limit). The run-count recorded at freeze **is** the DSR trial count, so take it from the COMPUTE doc, not a
 round number. `run_campaign.py` writes to `outputs/campaign/{search,frozen,test}` and
-`campaign_summary.json`. The campaign reward-author is **Claude Opus 4.8** (`config/campaign.yaml`,
+`campaign_summary.json`. The campaign reward-author is **Claude Opus 5** (`config/campaign.yaml`,
 `pass: B`, `provider: anthropic`, `ANTHROPIC_API_KEY`); 7 arms × 30 candidates (search) → 7 winners
 × 30 seeds (test).
 

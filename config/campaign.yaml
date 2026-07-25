@@ -66,11 +66,12 @@ llm:
   # The campaign OWNS its author: this whole block is threaded into run_arm as `llm_cfg`, so the campaign
   # uses Opus 4.8 and does NOT inherit the prototype's Gemini. (Was previously hardcoded to the stub, and
   # earlier read model/key from prototype.yaml — both fixed by the provider-neutral wiring, ADR-035.)
-  pass: B                              # 'B' = real LLM (Claude Opus 4.8); 'A' = the keyless stub control.
+  pass: B                              # 'B' = real LLM (Claude Opus 5); 'A' = the keyless stub control.
   provider: anthropic                  # frontier reward-author; needs ANTHROPIC_API_KEY in the gitignored .env.
-  model_snapshot: "claude-opus-4-8"    # pinned snapshot (dateless id IS immutable, ADR-016).
+  model_snapshot: "claude-opus-5"      # R102 (2026-07-24): confirmatory author 4.8 -> 5. Pinned snapshot
+                                       #   (dateless id IS immutable, ADR-016 + vendor's model-ID doc).
   api_key_env: ANTHROPIC_API_KEY
-  # Opus 4.8 REJECTS the `temperature` parameter, so within-generation diversity comes from prompt
+  # Opus 5 REJECTS the `temperature` parameter, so within-generation diversity comes from prompt
   # variation, NOT temperature (uniform across arms -> not an H2 confound; src/llm/loop.py).
   temperature: null
   diversity_prompt_variation: true

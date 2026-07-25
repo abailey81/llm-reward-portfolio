@@ -176,5 +176,5 @@ def test_probe_wiring_uses_campaign_model_and_classifies(monkeypatch) -> None:
     checks = pf._gather_and_check(2, 5.0, provider="anthropic", api_probe=True)
     probe = next(c for c in checks if c.name == "api_probe")
     assert probe.status == pf.FAIL                       # a dead key is a NO-GO at t0
-    assert seen["model"] == "claude-opus-4-8"            # the pinned campaign snapshot, not a hardcode
+    assert seen["model"] == "claude-opus-5"              # the pinned campaign snapshot (R102), not a hardcode
     assert seen["key_env"] == "ANTHROPIC_API_KEY"

@@ -83,7 +83,7 @@ production of this work, all employed under my own direction and with the output
 - **Reference data.** FRED (risk-free rate, DGS3MO), an equal-weighted market benchmark, and Fama–French factor
   series, used for evaluation and factor attribution.
 - **Large language models in the experimental loop.** The reward-designer under study is a frontier large
-  language model (Claude Opus 4.8 in the confirmatory campaign; Claude Sonnet 4.6 in the prototype). These models
+  language model (Claude Opus 5 in the confirmatory campaign; Claude Sonnet 4.6 in the prototype). These models
   are the *object of study*, not authorship aids; all of their outputs are archived, screened and replayed under
   the pre-registered protocol described in Chapter 4.
 - **Software.** Open-source scientific Python (including Stable-Baselines3, NumPy, SciPy, pandas and the `rliable`

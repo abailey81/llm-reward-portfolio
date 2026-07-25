@@ -761,7 +761,7 @@ def cross_model_disagreement(
     """Compare reward-coefficient centroids from two DIFFERENT models (different cutoffs).
 
     ``model_a_coeffs`` / ``model_b_coeffs`` are ``(n_seeds_a, n_coeffs)`` and
-    ``(n_seeds_b, n_coeffs)`` coefficient matrices for two models (e.g. Opus 4.8 vs a
+    ``(n_seeds_b, n_coeffs)`` coefficient matrices for two models (e.g. Opus 5 vs a
     commit-pinned open-weights model with a different cutoff, ideally a ChronoGPT/DatedGPT
     pre-cutoff model). Seed counts NEED NOT match (the models are independent designers), so this
     is an UNPAIRED two-sample comparison of the coefficient means, reported as a per-coefficient

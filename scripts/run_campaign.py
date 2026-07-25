@@ -588,7 +588,7 @@ def run_winner_search(
     de-risked) so "matched compute" holds across arms. ``arm_runner`` is injectable so the
     stage is unit-testable without real SAC training; it defaults to the real
     ``run_prototype.run_arm``. ``llm_cfg`` carries the campaign's OWN reward-author block
-    (Opus 4.8) so the campaign does NOT inherit the prototype's Gemini config. ``resume``
+    (Opus 5) so the campaign does NOT inherit the prototype's Gemini config. ``resume``
     (M4, ops audit 2026-07-02) threads the campaign's --resume down to ``run_arm``'s
     search-replay cache, so the SERIAL search fallback replays already-archived candidates
     instead of re-billing the paid author + retraining — parity with the parallel search
@@ -2185,7 +2185,7 @@ def main() -> None:
     baseline_names = resolve_baseline_names(args.baselines, bool(args.baselines_only), camp)
 
     # The headline RUN MODE *and* reward-author are read from config/campaign.yaml: llm and threaded
-    # as `llm_cfg` into run_arm, so the campaign uses its OWN author (Claude Opus 4.8) and does NOT
+    # as `llm_cfg` into run_arm, so the campaign uses its OWN author (Claude Opus 5) and does NOT
     # inherit the prototype's (Gemini 3.5 Flash). (Previously hardcoded to the stub, and earlier read
     # the model/key from prototype.yaml — both fixed by the provider-neutral wiring, 2026-06-19.)
     camp_llm = dict(cfg_get(camp, "llm", {}))  # plain dict: picklable across the process pool

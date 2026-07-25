@@ -341,7 +341,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Which config's `llm` block authors the rewards (2026-07-13 pre-spend audit "
                         "fix: llm_cfg was hardcoded None, silently inheriting prototype.yaml's block "
                         "— the WRONG MODEL for the confirmatory run). Default `campaign` = "
-                        "config/campaign.yaml's Opus 4.8 block (the campaign OWNS its author, "
+                        "config/campaign.yaml's Opus 5 block (the campaign OWNS its author,"
                         "ADR-035). Rehearsals/prototypes pass `prototype` EXPLICITLY.")
     p.add_argument("--batch-tag", default=None,
                    help="Per-run batch-name namespace (2026-07-11d bug fix): the driver's "

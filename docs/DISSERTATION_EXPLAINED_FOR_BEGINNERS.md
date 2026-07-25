@@ -3,7 +3,7 @@
 > **⚠ DESIGN SUPERSESSION (2026-07-20/21 — read this first).** This document describes the **v1**
 > design (frozen 2026-07-18 at `ce5db62c`). On 2026-07-20, after industry-supervisor feedback
 > (NatWest AI R&D), the registration was UNFROZEN **pre-data** (ADR-059; legitimate — no campaign
-> data existed) and revised to **v2**: the same confirmatory core (Opus 4.8, 7 arms, m=6, SESOI,
+> data existed) and revised to **v2**: the same confirmatory core (Opus 5, 7 arms, m=6, SESOI,
 > the E1 seed ladder) now wrapped by **9 report-only replication legs** (DeepSeek V4-Pro, GLM-5.2,
 > the Qwen 27B/9B open pair, Haiku 4.5 + Sonnet 4.6 closed ladder, GPT-5.6 Luna, Nemotron 3
 > Super, Gemini 3.5 Flash stretch seat) + a ~25-model reading-link survey + a pre-registered
@@ -606,7 +606,7 @@ less interesting, not more.
   automated tests** guards the whole machine, including deliberately adversarial ones (e.g. corrupt
   all "future" data and verify the agent's observations don't change — proving it can't peek
   ahead).
-- **Cost sanity.** The LLM writing the rewards is Claude Opus 4.8 (a frontier model, pinned to a
+- **Cost sanity.** The LLM writing the rewards is Claude Opus 5 (a frontier model, pinned to a
   dated version for reproducibility); authoring the whole campaign's rewards costs on the order of
   tens of dollars. The expensive part is the GPU training time, hence the cluster.
 - **The data are licensed** (LSEG/Refinitiv) and can't be redistributed — so the repository ships
@@ -653,7 +653,7 @@ less interesting, not more.
 | **Feedback / reflection** | What the LLM is shown about its last attempt before writing the next |
 | **Freeze / hash** | The cryptographic wax seal on the pre-registered plan (`ce5db62c…`); software refuses to run if broken |
 | **Left tail** | Your worst days, as a group |
-| **LLM** | Large language model — AI that writes text and code (here: Claude Opus 4.8) |
+| **LLM** | Large language model — AI that writes text and code (here: Claude Opus 5) |
 | **Null result** | "No difference found" — here, predicted, pre-registered, bounded, and explained |
 | **Placebo** | An inert stand-in for the treatment, to separate "got something" from "got information" |
 | **Portfolio weights** | The fraction of money in each stock (plus cash), re-chosen daily |

@@ -427,7 +427,7 @@ def _default_transport_factory(synthetic: bool, sub_cfg: Any, model: str | None)
     from src.llm.client import build_transport, default_key_env
 
     provider = str(cfg_get(llm_cfg, "provider", "anthropic"))
-    model_id = str(model or cfg_get(llm_cfg, "model_snapshot", "claude-opus-4-8"))
+    model_id = str(model or cfg_get(llm_cfg, "model_snapshot", "claude-opus-5"))
     temp_raw = cfg_get(llm_cfg, "temperature", None)
     temperature = float(temp_raw) if temp_raw is not None else None
     key_env = str(cfg_get(llm_cfg, "api_key_env", default_key_env(provider)))

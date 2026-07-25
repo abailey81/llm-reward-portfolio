@@ -361,7 +361,7 @@ def run_arm(
     picklable for the process pool (no closures crossing the spawn boundary).
 
     ``llm_cfg`` is the reward-author block to use for Pass B: the campaign threads its OWN
-    (Opus 4.8) so it doesn't inherit the prototype's; ``None`` falls back to
+    (Opus 5) so it doesn't inherit the prototype's; ``None`` falls back to
     ``config/prototype.yaml: llm`` (Sonnet 4.6), which is the prototype's own author."""
     import numpy as np  # used by the seeded search-arm RNGs below (final-audit #2)
 
@@ -427,7 +427,7 @@ def run_arm(
         from src.llm.loop import run_loop
         from src.llm.prompts import build_prompt_set
 
-        # Reward-author config: the campaign threads its OWN block (Opus 4.8) via `llm_cfg`; a
+        # Reward-author config: the campaign threads its OWN block (Opus 5) via `llm_cfg`; a
         # direct prototype run falls back to config/prototype.yaml: llm (Claude Sonnet 4.6).
         _llm = llm_cfg if llm_cfg is not None else cfg_get(proto_cfg, "llm", {})
 
@@ -473,7 +473,7 @@ def run_arm(
             # default) so the LLM-arm records carry the real, content-hashed env fingerprint.
             "env_fingerprint": env_fp_record,
             # Within-generation diversity by per-candidate prompt variation (uniform across arms) —
-            # required for temperature-rejecting reward-authors (Opus 4.8). Off by default.
+            # required for temperature-rejecting reward-authors (Opus 5). Off by default.
             "diversity_prompt_variation": bool(cfg_get(_llm, "diversity_prompt_variation", False)),
             "monitor": monitor,  # RunMonitor for live progress/logs/anomalies (sequential path; no-op if None)
             # Search-replay cache: on --resume the loop REPLAYS the archived candidates/failures of an

@@ -11,7 +11,7 @@
 > `--gpu`/`--search-gpu` ≥ 4 are now **refused by the CLI** (the §C/§D OOM concern is enforced at launch).
 
 **Run under audit:** 6 arms × 30 candidates (1 search seed) → SELECT/FREEZE → 6 winners × 30 test seeds × 50k SAC steps.
-Real **Claude Opus 4.8** reward-author (Pass B, `ANTHROPIC_API_KEY`). Target host = **maxed RTX-4050-Laptop (6141 MiB VRAM) / 15.6 GB RAM**,
+Real **Claude Opus 5** reward-author (Pass B, `ANTHROPIC_API_KEY`). Target host = **maxed RTX-4050-Laptop (6141 MiB VRAM) / 15.6 GB RAM**,
 `n_gpu=4`, ~27 h (user chose laptop over rented 4090). Calibration anchors (verified): prototype ran **17.9 h at n_gpu=2** for
 the *search legs only* at 25k steps; campaign **doubles steps (25k→50k → 2× replay buffer ≈ 0.76 GB/worker)** and **adds the 180-run test leg**.
 `m ≈ 18 min / 50k-run` on a 4050 (`docs/COMPUTE_AND_TRAINING_TIME.md`). 360 core runs ÷ ~3.5 effective concurrency × 18 min ≈ **30 h** — an interruption over that span is **near-certain**.
@@ -29,7 +29,7 @@ Confirmed by:
 - `src/orchestration/parallel.py::_drive_llm_arm` (the `--search-gpu` path) likewise has **no** per-candidate resume — `run_parallel` re-runs the whole arm.
 - `scripts/run_campaign.py:641-651`: `--resume` for SEARCH is **all-or-nothing at the arm level** — it loads a *frozen winner* if one exists, else re-runs the **entire** search (all 30 candidates → all 30 paid Opus calls).
 
-**Blast radius of one mid-search interruption:** up to **30 wasted Opus 4.8 calls** for the in-flight arm (the prototype's analogue was ~$3.17 for 160 Sonnet calls; Opus is ≫ pricier per token), plus the GPU-hours already spent. Over a 27 h run with ≥1 expected interruption, this is the dominant operational risk to **both budget and timeline**.
+**Blast radius of one mid-search interruption:** up to **30 wasted Opus 5 calls** for the in-flight arm (the prototype's analogue was ~$3.17 for 160 Sonnet calls; Opus is ≫ pricier per token), plus the GPU-hours already spent. Over a 27 h run with ≥1 expected interruption, this is the dominant operational risk to **both budget and timeline**.
 
 ---
 
@@ -39,7 +39,7 @@ Likelihood is over the **full ~27 h single-shot run**. Blast radius = what is lo
 
 | # | Failure mode | Likelihood (27 h) | Blast radius | Fix (→ §) |
 |---|---|---|---|---|
-| **R1** | **Interruption during SEARCH (Ctrl-C / sleep / thermal / crash) → all paid Opus calls in the in-flight arm re-burned on resume.** No candidate-level resume; `run_loop` re-issues every `llm.complete`. | **High** (≥1 interruption near-certain) | **Up to 30 Opus 4.8 calls re-billed per affected arm + GPU-hours; can recur every restart.** Dominant $ + time risk. | **§A** (SIGINT handler) + **§B** (candidate-level SEARCH resume) |
+| **R1** | **Interruption during SEARCH (Ctrl-C / sleep / thermal / crash) → all paid Opus calls in the in-flight arm re-burned on resume.** No candidate-level resume; `run_loop` re-issues every `llm.complete`. | **High** (≥1 interruption near-certain) | **Up to 30 Opus 5 calls re-billed per affected arm + GPU-hours; can recur every restart.** Dominant $ + time risk. | **§A** (SIGINT handler) + **§B** (candidate-level SEARCH resume) |
 | **R2** | **No SIGINT/atexit handler → Ctrl-C kills the process pool mid-`learn()`; partial/zero in-flight candidate flush; spawn workers may orphan / leave a half-written `record.json`.** | **High** | In-flight candidate(s) lost; possible **truncated `record.json`** that fails `load_run` schema check on resume → loud crash (or silent skip of a real result). | **§A** + **§F** (atomic record write) |
 | **R3** | **`n_gpu=4` is the MEASURED OOM setting for SEARCH** (transition-wave: 4 simultaneous 0.76 GB buffer allocs at ~92% RAM → MemoryError cascade; prototype lost 52 candidates at n_gpu=4). The `--gpu 4` smoke that survived was the **TEST** leg *with recycling*; SEARCH (`run_parallel`) uses a **single persistent pool, no recycling**. | **High if `--search-gpu 4`** | A failure *wave* — dozens of candidates fail their gate as `MemoryError`, arm reports few/zero accepted, winner is selected from a depleted pool (science-corrupting, not just slow). | **§C** (OOM-wave adaptive n_gpu back-off) + **§D** (SEARCH must use recycling) |
 | **R4** | **GPU temperature is sampled but never thresholded.** `_Resources.sample()` reads `gpu_temp` and writes it to `progress.json`, but there is **no anomaly** on it. A laptop 4050 under 27 h sustained load **will** thermally throttle (or the OS will sleep). No telemetry-driven warning, no pause. | **High** (sustained laptop load) | Silent throughput collapse (throttle), or a sleep that suspends CUDA → on wake, CUDA context is often dead → cascade of worker failures. | **§E** (GPU-temp anomaly + thermal-pause hook) |

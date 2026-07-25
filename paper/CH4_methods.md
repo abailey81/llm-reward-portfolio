@@ -154,13 +154,17 @@ coherent-risk class — is developed in Chapter 3.
 
 ## 4.5 The reward-designer and the experimental arms
 
-The reward-designer is a frontier language model (Claude Opus 4.8 in the confirmatory campaign; Claude Sonnet 4.6
-in the prototype). The choice was re-verified against the July 2026 model landscape immediately before the design
-freeze: Opus 4.8 carried the strongest independently benchmarked code-generation record then available for this
-role, under a single stable model identifier and with no safety-classifier layer that could refuse mid-campaign —
-a refusal on one arm but not another would break arm symmetry, so freedom from that interference was treated as a
-validity requirement, not a convenience (newer models with higher headline capability but classifier layers or
-launch-week-only evidence were assigned to the descriptive cross-model survey instead). It operates
+The reward-designer is a frontier language model (Claude Opus 5 in the confirmatory campaign — the frontier Opus
+author, which superseded Claude Opus 4.8 in this seat immediately before launch; Claude Sonnet 4.6 in the
+prototype). The choice was re-verified against the model landscape immediately before the design freeze: the
+confirmatory author is the strongest single-frontier Opus code-author under a single stable model identifier, and
+— the identification-critical property — its safety-classifier posture must not introduce an *arm-asymmetric*
+refusal channel: a refusal on one arm but not another would break arm symmetry, so freedom from that interference
+is treated as a validity requirement, not a convenience. Opus 5 carries the *same* classifier posture as the
+incumbent Opus 4.8 (verified against the vendor's migration record and a live authoring smoke), so the succession
+introduces no new such channel; by the same criterion a newer-family model whose classifier behaviour *differed*
+from that posture — one whose refusal probability could co-vary with the risk-content-heavy distributional arm —
+was instead assigned to the descriptive cross-model survey, not the confirmatory seat. It operates
 in an Eureka-style reflect-and-improve loop [`ma2024eureka`]: it authors a
 reward-function as Python code, the agent is trained and evaluated, a feedback block is composed, and the model
 revises the code. The loop runs six generations of five candidates under a matched budget of thirty candidates per

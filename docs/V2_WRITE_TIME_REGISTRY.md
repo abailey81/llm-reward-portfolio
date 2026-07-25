@@ -268,7 +268,7 @@ during the writing month; the pre-submission sweep verifies zero open rows.
 ## The two-tier verdict framing (2026-07-23; Tamer's "let's listen to all 11" — verdict: the design already does; make the prose SAY it)
 33. **The two-tier-verdict paragraph (CH6 §6.8 lead-in + one CH7 sentence).** State explicitly:
     the verdict architecture is TWO-TIER BY DESIGN — (i) confirmatory PRECISION from one named
-    instrument (Opus 4.8 at ladder depth, where TOST power exists against the SESOI), and
+    instrument (Opus 5 at ladder depth, where TOST power exists against the SESOI), and
     (ii) generalization BREADTH from all eleven full-loop models read JOINTLY through the
     registered synthesis (sign pattern · joint per-seed flip permutation · the pooled R86 bound —
     built precisely because per-leg floor verdicts are inconclusive by construction · pair DiD ·

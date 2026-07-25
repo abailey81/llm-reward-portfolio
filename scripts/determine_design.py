@@ -118,7 +118,7 @@ REGISTRY: tuple[ParamSpec, ...] = (
     ParamSpec("popart", ParamClass.FIX,
               "critic value-scale normalisation", "on (explosion fix)", False),
     ParamSpec("llm_decoding", ParamClass.FIX,
-              "held identical; only feedback varies", "Opus 4.8, K=16, max_tokens 4096", False),
+              "held identical; only feedback varies", "Opus 5, K=16, max_tokens 8192", False),
     # ---- REALISTIC (credible, not result-maximising) ----
     ParamSpec("n_assets", ParamClass.REALISTIC, "diversified tradable book", "30 from 963 PIT pool (univ5)", False),
     ParamSpec("lookback_days", ParamClass.REALISTIC, "feature window", "60", False),

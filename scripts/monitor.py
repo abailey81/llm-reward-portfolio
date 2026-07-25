@@ -41,7 +41,8 @@ _DEFAULT_STALE_SECS = 300.0
 # slightly because it ignores prompt-cache reads (which bill ~0.1x). Update if Anthropic re-prices.
 _PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
     "fable-5": (10.0, 50.0),
-    "opus-4-8": (5.0, 25.0),
+    "opus-5": (5.0, 25.0),    # confirmatory author (R102, 2026-07-25); same $5/$25 as 4.8
+    "opus-4-8": (5.0, 25.0),  # retained: M2 generation-pair partner + legacy
     "opus-4-7": (5.0, 25.0),
     "opus-4-6": (5.0, 25.0),
     "sonnet-4-6": (3.0, 15.0),

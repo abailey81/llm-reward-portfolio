@@ -59,7 +59,7 @@ per-parameter status table and a FREEZE-READY verdict (`docs/DESIGN_DETERMINATIO
 | `sesoi` | 0.05 deflated-Sharpe (~0.072 ann-Sharpe) | CALIBRATE | settled |
 | `embargo` | ≥ feature lookback (60) — verify effective purge | CALIBRATE | VERIFY |
 | SAC hyperparameters | SB3 defaults; `learning_starts=1000`; PopArt on | FIX | settled |
-| LLM decoding | Opus 4.8; K=16 internal; max_tokens 4096; held identical | FIX | settled |
+| LLM decoding | Opus 5; K=16 internal; max_tokens 8192; held identical | FIX | settled |
 | universe / lookback / cost / splits / delisting | 30 assets / 60d / 10 bps / 10y-3y-8y / retain *(splits superseded 2026-07-02 → Split C 12y-3y-6.5y on univ5: 2005-16 / 17-19 / 20-26H1; ADR-044, R73)* | REALISTIC | settled |
 
 ---
@@ -279,7 +279,7 @@ walk-forward) until the 2 weeks are spent or marginal value drops below threshol
    the likely σ_D regime → report TOST practical equivalence (a *positive* result), not "we found nothing."
 3. **Mechanism is the contribution** — the reward-code differential (AST distance: does tail-specific
    feedback change the code?), responsiveness, the prompt-leak fingerprint answer *why*.
-4. **Ceiling-effect nuance** — Opus 4.8 may write good risk-aware rewards from the general-risk base alone
+4. **Ceiling-effect nuance** — Opus 5 may write good risk-aware rewards from the general-risk base alone
    (tail channel redundant). The multi-model secondary panel (weaker model) *tests* this — scientific value
    beyond robustness.
 5. **H1 is the validity anchor** — LLM rewards beating naive baselines proves the agent is reward-sensitive,

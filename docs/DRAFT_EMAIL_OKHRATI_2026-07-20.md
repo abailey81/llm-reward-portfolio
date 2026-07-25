@@ -1,5 +1,8 @@
 # DRAFT — email to Dr Okhrati (for Tamer to edit + send; DATES REFRESHED 2026-07-21 — the
 # launch has no scheduled date, so the ask is now RELATIVE: sign-off within ~5 days of sending)
+# ⚠ R102 (2026-07-25) POST-DATES this draft — the confirmatory author changed Opus 4.8 -> Opus 5 (a separate
+# pre-data amendment); the body below now discloses it, moved OUT of "unchanged". Tamer: confirm how you want
+# to present this to the examiner before sending.
 
 Subject: Pre-data design revision (v2) — sign-off requested within the week
 
@@ -11,9 +14,14 @@ untouched), I received detailed feedback from my industry supervisors at NatWest
 a documented pre-data revision to the pre-registration — v1.0 was formally superseded and the
 change is recorded as dated amendments (R79–R82) with the full decision trail in the repository.
 
-What is UNCHANGED — everything you approved: the confirmatory author (Claude Opus 4.8), the seven
-arms, the m=6 testing family, the two co-primary intersection–union tests, the ±0.05 SESOI, and
-the E1 winner-seed ladder with its exogenous stopping rule. On current throughput the ladder's
+What is UNCHANGED — everything you approved: the seven arms, the m=6 testing family, the two
+co-primary intersection–union tests, the ±0.05 SESOI, and the E1 winner-seed ladder with its
+exogenous stopping rule. **One approved element has since changed** — a separate pre-data amendment
+(R102, 2026-07-25): the confirmatory author is now **Claude Opus 5**, which reached general
+availability and succeeded Claude Opus 4.8 in that seat. It is the same vendor at the same $5/$25
+price, with the same safety-classifier posture and tokenizer, so the identification logic is
+unaffected; Opus 4.8 is retained in the model-reading survey. I flag it explicitly here rather than
+fold it silently into "unchanged". On current throughput the ladder's
 likely landing remains the 403-seed / 95%-assurance rung you approved.
 
 What is ADDED — all report-only, none of it gating the confirmatory hypotheses:

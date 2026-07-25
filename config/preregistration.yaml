@@ -254,10 +254,14 @@ numeraire:
 # ============================================================================ #
 # V2 MODEL REPLICATION SUITE (R80/R81, 2026-07-20 — pre-data; ADR-059/060).    #
 # REPORT-ONLY: keys disjoint from the m=6 machinery; nothing here gates H1-H4. #
-# The confirmatory author + frozen v1 core are UNCHANGED (Opus 4.8).           #
+# The confirmatory author is Opus 5 (R102, 2026-07-24 — pre-data, pre-freeze). #
 # ============================================================================ #
 model_suite:
-  confirmatory_author: claude-opus-4-8          # the ONE frontier (Tamer's rule); native Anthropic API
+  confirmatory_author: claude-opus-5           # R102 (2026-07-24, Tamer's instruction; SUPERSEDES R91's "the CONFIRMATORY
+                                               #   seat remains claude-opus-4-8 REGARDLESS" clause and R98's budget
+                                               #   deferral): still the ONE frontier (Tamer's rule), native Anthropic API.
+                                               #   Pre-data + pre-freeze, so a legitimate design revision, not a forking path.
+  confirmatory_author_migration: "R102 (2026-07-24): the confirmatory seat moves claude-opus-4-8 -> claude-opus-5. WHY: Opus 5 is GA with a public API id, the vendor now lists Opus 4.8 as LEGACY, and shipping the confirmatory arm on a legacy model contradicts the freshest-strongest-model priority. VERIFIED BEFORE THE SWAP (not assumed): (a) ATTRIBUTION — R91's own gate — a live call returns served model 'claude-opus-5' with NO silent fallback-routing, so the Sakana-Fugu exclusion is satisfied; (b) PRICE IDENTICAL at $5/$25 per MTok, so the R81 $30 ceiling and the ~$28 all-in estimate are UNCHANGED; (c) TOKENIZER unchanged (Opus 4.7 family) so token/cost baselines carry over; (d) SAFETY CLASSIFIERS + refusal semantics IDENTICAL to Opus 4.8 — no NEW treatment-correlated interference channel (this is why Opus 5 is acceptable where the Fable-5 swap was declined on identification grounds); (e) temperature/top_p/top_k still rejected -> the Opus no-temperature convention (R85) is preserved and claude-opus-5 was added to the client's temperature-rejecting list so a stray temperature cannot 400 the run. TWO CONSEQUENT CHANGES: (1) max_tokens 4096 -> 8192 because Opus 5 runs ADAPTIVE THINKING BY DEFAULT and max_tokens caps thinking+response together (the R97a kimi-k3 truncation failure applied pre-emptively to the confirmatory author); (2) Opus 4.8 is RETAINED as an M2 survey datapoint, which also preserves the R92 generation-pair instrument (opus-4.8 <-> opus-5) at M2 resolution. IDENTIFICATION UNAFFECTED: the author model is common to every arm, so arms still vary ONLY the feedback block; what changes is the generalisation target (the reported result now describes Opus 5), stated plainly in CH4/CH7."
   legs:                                          # 10 replication legs (R95), floor-tier (30 seeds), 5 LLM arms x 30 candidates each
     - {label: deepseek-v4-pro, id: deepseek/deepseek-v4-pro, license: MIT, reasoning_pin: pro-explicit-nee-think-high, gate: contamination_screen, fallback: absorbs-to-glm}
     - {label: glm-5.2,         id: z-ai/glm-5.2, license: MIT}

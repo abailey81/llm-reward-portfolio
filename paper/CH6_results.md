@@ -244,9 +244,9 @@ family.
 - Family-pair difference-in-differences (the content-effect × capability interaction, common floor-30 CRN
   seeds, seed-paired 90% bootstrap CI): open pair (Qwen 27B − 9B) `[FROM CAMPAIGN: estimate, CI]`; closed
   pair (Opus − Haiku, Opus restricted to its first 30 shared seeds) `[FROM CAMPAIGN: estimate, CI]`;
-  **the generation pair (R92-re-scoped: the conditional Opus 4.8 − Opus 5 contrast, same vendor and
-  tier, one generation apart — reported ONLY if R91's rule fired; otherwise the design carries the
-  two capability pairs and no generation pair, disclosed)** `[FROM CAMPAIGN or N/A]`.
+  **the generation pair (R92/R102: the Opus 4.8 − Opus 5 contrast, same vendor and
+  tier, one generation apart — REALIZED under R102, since Opus 5 became the confirmatory author with
+  Opus 4.8 retained in M2 as the pair partner)** `[FROM CAMPAIGN]`.
 - Capability regression (registered primary = the pre-declared external composite anchor; M2 reading score
   secondary): Spearman ρ `[FROM CAMPAIGN: ρ, n legs, p]`; the registered monotone-non-decreasing gradient
   prediction `[FROM CAMPAIGN: corroborated / not]`.

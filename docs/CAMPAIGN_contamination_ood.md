@@ -81,7 +81,7 @@ absence-of-evidence non-result a bare two-sided `p > 0.05` would be.
 | `structural_mcnemar` | **difference** (structural) | McNemar on a binary motif vector `s` (does a CVaR / drawdown / turnover term appear?). Exact-binomial for small discordant counts. |
 | `named_vs_blinded_oos_gap` | **equivalence**, downstream | NAMED−BLINDED **OOS-Sharpe** gap, gated to the pre-registered SESOI = 0.05; reuses `bootstrap.paired_seed_difference_test` (rliable IQM + paired seed bootstrap). |
 | `post_cutoff_persistence` | **difference** | Pre- vs post-cutoff H2 gap (paired seed bootstrap). **Carries the underpowered-short-window caveat in its output** (`res["caveat"]`); report effect + CI, not the p-value. |
-| `cross_model_disagreement` | triangulation | Per-coefficient standardised mean difference (Cohen's d) + L2 centroid distance between Opus 4.8 and a 2nd model. NOT a hypothesis test — a robustness triangulation. |
+| `cross_model_disagreement` | triangulation | Per-coefficient standardised mean difference (Cohen's d) + L2 centroid distance between Opus 5 and a 2nd model. NOT a hypothesis test — a robustness triangulation. |
 
 `contamination_report(...)` runs every available leg; any leg whose inputs are absent returns
 `{"status": "no_data", "reason": ...}` (**never fabricates**), and the top-level

@@ -58,7 +58,8 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   two are reported as such.
 
 ## B.3 The manipulation and the designer
-- **B.3.1 Single confirmatory author.** The *confirmatory* verdicts rest on one frontier model (Opus 4.8):
+- **B.3.1 Single confirmatory author.** The *confirmatory* verdicts rest on one frontier model (Opus 5, which
+  superseded Opus 4.8 in this seat pre-launch — R102):
   the ten replication legs (R80/R95; ≥6 vendors, five open-weights with hash-pinned checkpoints) are
   report-only at the tier-30 floor, so cross-model claims are descriptive (the sign pattern, the pooled
   R86 bound, the capability gradient) — never confirmatory. *Direction:* generalisation beyond the

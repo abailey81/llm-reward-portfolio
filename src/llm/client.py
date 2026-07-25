@@ -17,7 +17,7 @@ Design notes
       ``transport`` callable ``(system, user) -> str``. Tests and offline runs
       pass a :class:`FakeTransport`; production omits it and a real provider
       transport is created LAZILY per ``cfg.provider`` (default ``anthropic``; the
-      campaign reward-author is Claude Opus 4.8 — ADR-035, which REJECTS temperature
+      campaign reward-author is Claude Opus 5 — ADR-035/R102, which REJECTS temperature
       so its diversity is prompt-variation — and the prototype author is Claude
       Sonnet 4.6 — ADR-038, which honors temperature; so ``anthropic``/``openai``
       need not be installed to import this module).
@@ -61,13 +61,14 @@ _LOG = logging.getLogger("llm.client")
 #: Anthropic uses ``max_tokens``/``refusal``; the OpenAI-compatible surface uses ``length`` for truncation.
 _INCOMPLETE_STOP_REASONS: frozenset[str] = frozenset({"max_tokens", "refusal", "length", "content_filter"})
 
-# NOTE on prompt caching (measured 2026-06-29): the shared prefix here (prompts/system.txt + the rendered
-# ENV_INTERFACE) is ~898 tokens — BELOW Opus 4.8's 4096-token minimum cacheable prefix (and below Sonnet
-# 4.6's 2048-token floor). So the ``cache_control`` marker on the system block below is a SILENT NO-OP on
-# both campaign + prototype models: caching cannot engage regardless of placement. It is left in place
-# (harmless; would engage on a future model with a lower floor or a larger contract) and disclosed in the
-# write-up — the ADR-016 "shared-context cache lever" is inert on Opus 4.8. The wasted spend is trivial
-# (~188k prefix tokens over ~210 calls ~= $0.94), so no request restructuring is warranted.
+# NOTE on prompt caching (measured 2026-06-29; confirmatory author now Claude Opus 5 per R102): the shared
+# prefix here (prompts/system.txt + the rendered ENV_INTERFACE) is ~898 tokens — far BELOW any current
+# cacheable-prefix floor (Opus 4.8's was 4096, Sonnet 4.6's 2048; Opus 5 shares the 4.7-family tokenizer).
+# So the ``cache_control`` marker on the system block below is a SILENT NO-OP on both campaign + prototype
+# models: caching cannot engage regardless of placement. It is left in place (harmless; would engage on a
+# future model with a lower floor or a larger contract) and disclosed in the write-up — the ADR-016
+# "shared-context cache lever" is inert on the confirmatory author. The wasted spend is trivial (~188k
+# prefix tokens over ~210 calls ~= $0.94), so no request restructuring is warranted.
 
 __all__ = [
     "Transport",
@@ -88,8 +89,12 @@ Transport = Callable[[str, str], str]
 #: Claude models that REJECT the ``temperature`` parameter (HTTP 400). Diversity for these comes from
 #: per-candidate PROMPT VARIATION (src/llm/loop.py), not sampling. ``make_anthropic_transport`` drops a
 #: stray ``temperature`` for these so a config mismatch can't silently 400 a run (audit 2026-06-20). The
-#: campaign author Opus 4.8 is here; the prototype author Sonnet 4.6 is NOT (it honors temperature).
-_TEMPERATURE_REJECTING_MODELS: tuple[str, ...] = ("opus-4-7", "opus-4-8")
+#: campaign author Opus 5 is here (R102, 2026-07-24 — the confirmatory swap 4.8 -> 5; the Opus lane keeps
+#: the no-temperature convention, R85); Opus 4.7/4.8 stay listed (4.8 remains an M2 survey datapoint and
+#: the pre-swap history). The prototype author Sonnet 4.6 is NOT here (it honors temperature).
+#: NOTE the match is a SUBSTRING test: "opus-5" matches "claude-opus-5" and does NOT match the dated
+#: "claude-opus-4-5-20251101" (which contains "opus-4-5"), so the older Opus 4.5 is unaffected.
+_TEMPERATURE_REJECTING_MODELS: tuple[str, ...] = ("opus-4-7", "opus-4-8", "opus-5")
 
 
 class ArchiveSink(Protocol):
@@ -505,7 +510,7 @@ def make_anthropic_transport(
 ) -> Transport:
     """Create a real Anthropic-backed transport, lazily importing ``anthropic`` (ADR-033 primary).
 
-    The PRIMARY reward-author transport: serves BOTH the campaign author Claude Opus 4.8 (ADR-035)
+    The PRIMARY reward-author transport: serves BOTH the campaign author Claude Opus 5 (ADR-035/R102)
     and the prototype author Claude Sonnet 4.6 (ADR-038). Reads the key from ``api_key_env``
     (never archived), pins ``model``, maps the system prompt to Anthropic's top-level ``system``
     field, and wires the ADR-034 "queued" hardening: prompt-cache the static system block, archive

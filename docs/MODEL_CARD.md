@@ -6,7 +6,7 @@ the dissertation:
 
 - **(a) the fixed RL portfolio agent** — a Stable-Baselines3 SAC policy that allocates over a
   30-asset long-only simplex, held architecturally + hyperparameter-fixed across all arms; and
-- **(b) the LLM reward-designer** — a Claude model (Sonnet 4.6 prototype → Opus 4.8 campaign) that
+- **(b) the LLM reward-designer** — a Claude model (Sonnet 4.6 prototype → Opus 5 campaign) that
   **authors the reward-function code** the agent then optimizes, inside an Eureka-style reflection loop.
 
 The headline experiment varies **only the feedback channel** fed to model (b) — multi-level
@@ -53,8 +53,8 @@ executed (the pre-registration is not yet frozen: `config/preregistration.yaml: 
   `config/prototype.yaml`; ADR-038), native Anthropic SDK, `temperature=1.0` for within-generation
   diversity. The prototype is **directional/plumbing-only — no prototype number enters the
   dissertation.**
-- **Campaign author.** Claude **Opus 4.8** (`model_snapshot: "claude-opus-4-8"`, `config/campaign.yaml`
-  + `config/llm.yaml`; ADR-038). Opus 4.8 rejects the `temperature` parameter, so within-generation
+- **Campaign author.** Claude **Opus 5** (`model_snapshot: "claude-opus-5"`, `config/campaign.yaml`
+  + `config/llm.yaml`; ADR-038). Opus 5 rejects the `temperature` parameter, so within-generation
   diversity comes from **prompt variation** (`diversity_prompt_variation: true`), applied uniformly
   across arms (not an H2 confound).
 - **Same vendor + key.** Both are the **single Claude model family**, same `ANTHROPIC_API_KEY`.
@@ -175,7 +175,7 @@ avoidance (Gelman & Loken 2014), reported via TOST equivalence — not a bare p>
   on anonymised arrays. Reward code remains untrusted by design.
 - **LLM contamination.** Reward-design priors are the **object of study** (H4), not a defended
   weakness; contamination is handled by structural blinding (anonymised arrays, no tickers/dates) and
-  cutoff-stratified evaluation. A cross-family + open-weights model **panel** (Opus 4.8 primary + GPT-5.5 +
+  cutoff-stratified evaluation. A cross-family + open-weights model **panel** (Opus 5 primary + GPT-5.5 +
   Qwen3-Coder; ADR-039) is specified, to be ratified into the pre-registration before freeze.
 - **Survivorship & delisting bias.** Honestly disclosed and since sharpened (ADR-051, 2026-07-02):
   the observed-terminal audit recovered the realised terminal for all 333 dead names from the vendor

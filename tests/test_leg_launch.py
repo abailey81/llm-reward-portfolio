@@ -162,5 +162,7 @@ def test_ledger_failure_never_breaks_the_call(tmp_path, monkeypatch) -> None:
 def test_estimate_cost_math_and_unpriced_none() -> None:
     assert estimate_cost_usd("claude-opus-4-8", 100_000, 10_000) == pytest.approx(
         0.1 * 5.00 + 0.01 * 25.00)
+    assert estimate_cost_usd("claude-opus-5", 100_000, 10_000) == pytest.approx(  # R102: confirmatory author priced
+        0.1 * 5.00 + 0.01 * 25.00)
     assert estimate_cost_usd("never/priced-model", 100, 100) is None
     assert estimate_cost_usd("claude-opus-4-8", None, None) is None

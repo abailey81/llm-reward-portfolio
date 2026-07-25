@@ -101,7 +101,7 @@ Derived from 195 first-hand per-paper deep-dives. Three inventories:
 | **rliable** | Headline per-seed inference (IQM + stratified bootstrap CIs + performance profiles). |
 | **NumPy / pandas / SciPy** | Reward-code numerics, metrics, bootstrap, closed-form stats. |
 | **PyTorch** | SB3 backend. |
-| **Anthropic SDK (Claude Sonnet 4.6 / Opus 4.8)** | Reward-code authoring LLM (offline, frozen). |
+| **Anthropic SDK (Claude Sonnet 4.6 / Opus 5)** | Reward-code authoring LLM (offline, frozen). |
 | **arch (Politis–Romano stationary bootstrap)** | Block-bootstrap inference — but flagged as a **determinism hazard** if its GARCH-MLE paths are used; use seeded resampling only. |
 
 ### 2b. CANDIDATE-USEFUL (report-only / analysis layer; clears gates per shortlist)

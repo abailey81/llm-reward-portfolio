@@ -203,7 +203,7 @@ def _diversity_directive(cidx: int, n: int) -> str:
 
     Eureka samples ``n`` candidates per generation from the SAME prompt and relies on sampling
     ``temperature`` for variety; a reward-author that rejects the ``temperature`` parameter
-    (e.g. Claude Opus 4.8) needs the variety injected another way. Appending a distinct directive
+    (e.g. Claude Opus 5) needs the variety injected another way. Appending a distinct directive
     per candidate index does that. The directive set is IDENTICAL across arms AND (R38 de-seed)
     names NO specific risk statistic — it asks the LLM to vary WHICH statistics it tracks, not to use
     CVaR/drawdown — so it neither differentially favours an arm nor pre-seeds the tail to the
@@ -294,7 +294,7 @@ def run_loop(
     run_prefix = cfg_get(cfg, "run_prefix", "run")
     env_fingerprint = cfg_get(cfg, "env_fingerprint", "injected")
     # Within-generation diversity by per-candidate PROMPT VARIATION (uniform across arms) — needed
-    # when the reward-author rejects the ``temperature`` parameter (e.g. Claude Opus 4.8). Off by
+    # when the reward-author rejects the ``temperature`` parameter (e.g. Claude Opus 5). Off by
     # default (temperature-honoring models like Gemini get diversity from sampling instead).
     diversity = bool(cfg_get(cfg, "diversity_prompt_variation", False))
     # Report-only mechanism sub-experiments (ADR-039), both DEFAULT-OFF so the frozen campaign path is

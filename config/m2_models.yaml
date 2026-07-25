@@ -11,7 +11,8 @@ core:
   # --- The Anthropic capability ladder (closed family; refusals are DATA on fable) ---
   - {label: haiku-4-5,    provider: anthropic, model: claude-haiku-4-5-20251001, pinned: true}
   - {label: sonnet-4-6,   provider: anthropic, model: claude-sonnet-4-6,         pinned: true}
-  - {label: opus-4-8,     provider: anthropic, model: claude-opus-4-8,           pinned: true}
+  - {label: opus-4-8,     provider: anthropic, model: claude-opus-4-8,           pinned: true}   # R102: no longer the confirmatory author (vendor-LEGACY) — RETAINED here so the M2 ladder keeps the generation-pair partner (R92: opus-4.8 <-> opus-5)
+  - {label: opus-5,       provider: anthropic, model: claude-opus-5,             pinned: true}   # R102 (2026-07-24): THE confirmatory author, now also an M2 datapoint so the capability ladder covers the seat that gates H1-H4
   - {label: fable-5,      provider: anthropic, model: claude-fable-5,            pinned: true}
   # --- The Qwen capability ladder (open family; 5 points behind the 2-point full-loop pair) ---
   - {label: qwen3.5-9b,   provider: openrouter, model: qwen/qwen3.5-9b,                 pinned: true, api_key_env: OPENROUTER_API_KEY}

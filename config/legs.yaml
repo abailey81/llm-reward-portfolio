@@ -89,7 +89,8 @@ legs:
 # Planning prices ($/M in, $/M out) for the R81 spend ledger's pre-call estimates; the ledger's
 # AUTHORITY is the per-call cost captured from the provider response, never this table.
 planning_prices:
-  claude-opus-4-8: [5.00, 25.00]           # the confirmatory author (documented $5/$25 per MTok) — anthropic returns no per-call cost, so the R83 ledger estimates from tokens
+  claude-opus-5: [5.00, 25.00]             # R102 (2026-07-24): THE confirmatory author (documented $5/$25 per MTok — IDENTICAL to Opus 4.8, so the R81 ceiling and the ~$28 all-in estimate are unchanged); anthropic returns no per-call cost, so the R83 ledger estimates from tokens
+  claude-opus-4-8: [5.00, 25.00]           # RETAINED post-R102: no longer the confirmatory author (vendor-LEGACY), kept as the M2 survey datapoint + the R92 generation-pair partner (opus-4.8 <-> opus-5) so the ledger can still price it
   deepseek/deepseek-v4-pro: [0.435, 0.87]
   z-ai/glm-5.2: [0.9688, 3.0448]
   qwen/qwen3.6-27b: [0.45, 2.70]

@@ -23,7 +23,7 @@ MSc Banking & Digital Finance · UCL Institute of Finance & Technology · Superv
 
 ## Abstract
 
-An LLM (Claude Opus 4.8) is used as an **automated reward engineer**: through an Eureka-style reflection
+An LLM (Claude Opus 5) is used as an **automated reward engineer**: through an Eureka-style reflection
 loop it writes the Python reward function that a **fixed** Soft Actor-Critic agent optimizes while allocating
 a long-only equity portfolio. The single manipulated variable is the **feedback channel** returned to the
 designer between iterations — a **distributional** signal (six coherent left-tail risk statistics: CVaR at

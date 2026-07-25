@@ -22,7 +22,8 @@ __all__ = ["PRICES_PER_MTOK", "CACHE_WRITE_MULT", "CACHE_READ_MULT", "summarize_
 #: Mirrors ``scripts/monitor.py``'s table; this one additionally prices cache write/read tokens.
 PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
     "fable-5": (10.0, 50.0),
-    "opus-4-8": (5.0, 25.0),
+    "opus-5": (5.0, 25.0),    # confirmatory author (R102, 2026-07-25); same $5/$25 as 4.8
+    "opus-4-8": (5.0, 25.0),  # retained: M2 generation-pair partner + legacy
     "opus-4-7": (5.0, 25.0),
     "opus-4-6": (5.0, 25.0),
     "sonnet-4-6": (3.0, 15.0),
