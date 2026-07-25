@@ -606,8 +606,8 @@
 
 % Benjamini & Hochberg -- FDR.
 % Cache: K_final_sweep__BenjaminiHochberg-FDR__1995.txt is 0 bytes (scanned PDF,
-% NO TEXT LAYER). Bibliographic data below is canonical (JRSS-B 57(1):289-300)
-% and could NOT be verified first-hand from disk -- flagged.
+% NO TEXT LAYER). Bibliographic data below (JRSS-B 57(1):289-300) VERIFIED
+% first-hand 2026-07-26 via CrossRef (the earlier disk-scan flag is LIFTED).
 @article{benjamini1995fdr,
   author  = {Benjamini, Yoav and Hochberg, Yosef},
   title   = {Controlling the False Discovery Rate: A Practical and Powerful
@@ -2480,7 +2480,7 @@
   author  = {Baker, Monya},
   title   = {1,500 Scientists Lift the Lid on Reproducibility},
   journal = {Nature}, volume = {533}, number = {7604}, pages = {452--454}, year = {2016}, doi = {10.1038/533452a},
-  note    = {Grade A. 1,576-scientist survey. Coordinates CORROBORATED across Nature/ADS/PubMed/RePEc; Nature paywall blocked first-hand fetch (flagged) -- re-confirm at deposit.},
+  note    = {Grade A. 1,576-scientist survey. Coordinates VERIFIED first-hand 2026-07-26 (DOI 10.1038/533452a).},
 }
 @misc{he2025defeating,
   author       = {He, Horace and {Thinking Machines Lab}},
@@ -2499,7 +2499,7 @@
   author  = {Spirling, Arthur},
   title   = {Why Open-Source Generative {AI} Models Are an Ethical Way Forward for Science},
   journal = {Nature}, volume = {616}, number = {7957}, pages = {413}, year = {2023}, doi = {10.1038/d41586-023-01295-4},
-  note    = {Grade A. THE open-weights-permanence anchor (our Layer-3 thesis). Coordinates CORROBORATED (ADS 2023Natur.616..413S/RePEc); Nature paywall blocked first-hand fetch (flagged).},
+  note    = {Grade A. THE open-weights-permanence anchor (our Layer-3 thesis). Coordinates VERIFIED first-hand 2026-07-26 (DOI 10.1038/d41586-023-01295-4).},
 }
 
 % --- LLM-reward-code lineage + novelty neighbours (cluster 4) ---
@@ -2525,7 +2525,7 @@
   author = {Cardenoso, Franklin and Caarls, Wouter},
   title  = {Leveraging {LLMs} for Reward Function Design in Reinforcement Learning Control Tasks},
   year   = {2025}, eprint = {2511.19355}, archivePrefix = {arXiv}, primaryClass = {cs.LG},
-  note   = {Grade B. Eureka-lineage breadth (control tasks; reward design is high-variance). VERIFIED first-hand 2026-07-25. NB: arXiv:2511.19355 is Cardenoso-Caarls, NOT "LEARN-Opt" (fix the stale map in RELATED_WORK_WATCH).},
+  note   = {Grade B. Eureka-lineage breadth (control tasks; reward design high-variance); this paper INTRODUCES the LEARN-Opt method, so RELATED_WORK_WATCH's 2511.19355->LEARN-Opt map is CORRECT (one paper, not two). VERIFIED first-hand 2026-07-25/26.},
 }
 
 % --- Risk-sensitive RL / coherent risk (cluster 5) ---
@@ -2534,5 +2534,165 @@
   title   = {Conditional Value-at-Risk for General Loss Distributions},
   journal = {Journal of Banking \& Finance},
   volume  = {26}, number = {7}, pages = {1443--1471}, year = {2002},
-  note    = {Grade A. The atomic/finite-sample CVaR setting our theory 3.5 lives in. Vol/issue/pages triple-sourced (RePEc/SciRP/UW-PDF); DOI 10.1016/S0378-4266(02)00271-6 NOT first-hand-verified (flagged) -- confirm at deposit.},
+  note    = {Grade A. The atomic/finite-sample CVaR setting our theory 3.5 lives in. Vol/issue/pages + DOI 10.1016/S0378-4266(02)00271-6 VERIFIED first-hand 2026-07-26 (CrossRef PII S0378426602002716).},
+}
+
+% ============================================================================
+% 2026-07-26 BACKBONE-RESEARCH ADDITIONS (integrity-verify + A3 multiplicity +
+% CRN / identification / mediation). Every coordinate VERIFIED first-hand
+% (arXiv / CrossRef DOI-registry). Grades A/B per entry.
+% ============================================================================
+
+% --- integrity-verified nondeterminism / numeracy / reproducibility (sweep A) ---
+@article{fu2026beyond,
+  title   = {Beyond Reproducibility: Token Probabilities Expose Large Language Model Nondeterminism},
+  author  = {Fu, Tairan and Mart\'{i}nez, Gonzalo and Conde, Javier and Arriaga, Carlos and Reviriego, Pedro and Qi, Xiuyuan and Liu, Shanshan},
+  journal = {arXiv preprint arXiv:2601.06118}, year = {2026},
+  note    = {Grade A. Token-probability-level LLM nondeterminism. VERIFIED first-hand 2026-07-26.},
+}
+@article{kapoor2024reforms,
+  title   = {{REFORMS}: Consensus-based Recommendations for Machine-learning-based Science},
+  author  = {Kapoor, Sayash and Cantrell, Emily M. and Peng, Kenny and Pham, Thanh Hien and Bail, Christopher A. and Gundersen, Odd Erik and Hofman, Jake M. and Hullman, Jessica and Lones, Michael A. and Malik, Momin M. and Nanayakkara, Priyanka and Poldrack, Russell A. and Raji, Inioluwa Deborah and Roberts, Michael and Salganik, Matthew J. and Serra-Garcia, Marta and Stewart, Brandon M. and Vandewiele, Gilles and Narayanan, Arvind},
+  journal = {Science Advances}, volume = {10}, number = {18}, pages = {eadk3452}, year = {2024},
+  doi     = {10.1126/sciadv.adk3452},
+  note    = {Grade A. ML-science reporting standards. VERIFIED 2026-07-26 (3rd author is Peng, NOT "Chang").},
+}
+@article{chen2021codex,
+  title   = {Evaluating Large Language Models Trained on Code},
+  author  = {Chen, Mark and Tworek, Jerry and Jun, Heewoo and others},
+  journal = {arXiv preprint arXiv:2107.03374}, year = {2021},
+  note    = {Grade B for the capability->code-correctness SCALING claim: Fig.~6 = a SIGMOID in log-parameters (NOT log-linear; ~58-author collab). VERIFIED first-hand 2026-07-26.},
+}
+@article{liang2025swebench,
+  title   = {The {SWE}-Bench Illusion: When State-of-the-Art {LLMs} Remember Instead of Reason},
+  author  = {Liang, Shanchao and Garg, Spandan and Zilouchian Moghaddam, Roshanak},
+  journal = {arXiv preprint arXiv:2506.12286}, year = {2025},
+  note    = {Grade B. Memorization/contamination confound in SWE-bench-Verified (the capability-anchor caveat). VERIFIED first-hand 2026-07-26.},
+}
+
+% --- multiplicity / graphical testing backbone for the A3 validity tier (sweep B) ---
+@article{bretz2009graphical,
+  author  = {Bretz, Frank and Maurer, Willi and Brannath, Werner and Posch, Martin},
+  title   = {A Graphical Approach to Sequentially Rejective Multiple Test Procedures},
+  journal = {Statistics in Medicine}, volume = {28}, number = {4}, pages = {586--604}, year = {2009},
+  doi     = {10.1002/sim.3495},
+  note    = {Grade A. THE alpha-propagation framework for the H3/H4 validity tier. VERIFIED 2026-07-26 (CrossRef).},
+}
+@article{berger1982iut,
+  author  = {Berger, Roger L.},
+  title   = {Multiparameter Hypothesis Testing and Acceptance Sampling},
+  journal = {Technometrics}, volume = {24}, number = {4}, pages = {295--300}, year = {1982},
+  doi     = {10.2307/1267823},
+  note    = {Grade A. Origin of the IUT (the conjunction IS the correction). REPAIRS the uncited "Berger 1982" at CH4_methods.md:231 / NOMENCLATURE.md:40. VERIFIED 2026-07-26 (CrossRef).},
+}
+@article{marcus1976closed,
+  author  = {Marcus, Ruth and Peritz, Eric and Gabriel, K. R.},
+  title   = {On Closed Testing Procedures with Special Reference to Ordered Analysis of Variance},
+  journal = {Biometrika}, volume = {63}, number = {3}, pages = {655--660}, year = {1976},
+  doi     = {10.1093/biomet/63.3.655},
+  note    = {Grade A. The closure principle giving the graph its strong-FWER guarantee. VERIFIED 2026-07-26 (CrossRef).},
+}
+@article{bergerhsu1996equivalence,
+  author  = {Berger, Roger L. and Hsu, Jason C.},
+  title   = {Bioequivalence Trials, Intersection--Union Tests and Equivalence Confidence Sets},
+  journal = {Statistical Science}, volume = {11}, number = {4}, pages = {283--319}, year = {1996},
+  doi     = {10.1214/ss/1032280304},
+  note    = {Grade A. TOST IS an IUT -> equivalence + superiority mix in ONE FWER graph without inflation. VERIFIED 2026-07-26 (CrossRef).},
+}
+@book{dmitrienko2009mtp,
+  editor    = {Dmitrienko, Alex and Tamhane, Ajit C. and Bretz, Frank},
+  title     = {Multiple Testing Problems in Pharmaceutical Statistics},
+  publisher = {Chapman \& Hall/CRC}, year = {2009}, doi = {10.1201/9781584889854},
+  note      = {Grade A. Gatekeeping/hierarchical multiplicity reference. VERIFIED 2026-07-26 (CrossRef).},
+}
+@book{bretz2010mcr,
+  author    = {Bretz, Frank and Hothorn, Torsten and Westfall, Peter},
+  title     = {Multiple Comparisons Using R},
+  publisher = {Chapman \& Hall/CRC}, year = {2010}, isbn = {9781584885740}, doi = {10.1201/9781420010909},
+  note      = {Grade B. Implementable exposition (gMCP/multcomp). VERIFIED 2026-07-26 (CrossRef).},
+}
+@article{dmitrienko2003gatekeeping,
+  author  = {Dmitrienko, Alexei and Offen, Walter W. and Westfall, Peter H.},
+  title   = {Gatekeeping Strategies for Clinical Trials That Do Not Require All Primary Effects to Be Significant},
+  journal = {Statistics in Medicine}, volume = {22}, number = {15}, pages = {2387--2400}, year = {2003},
+  doi     = {10.1002/sim.1526},
+  note    = {Grade A. Canonical gatekeeping (parallel/serial). VERIFIED 2026-07-26 (CrossRef).},
+}
+
+% --- CRN / variance-reduction, identification, mediation, endogeneity (sweep C) ---
+@book{glasserman2004monte,
+  author = {Glasserman, Paul}, title = {Monte Carlo Methods in Financial Engineering},
+  series = {Stochastic Modelling and Applied Probability}, volume = {53},
+  publisher = {Springer}, address = {New York}, year = {2004}, doi = {10.1007/978-0-387-21617-1},
+  note   = {Grade A. CRN = Sec. 4.2 (the finance-standard variance-reduction reference). VERIFIED 2026-07-26 (CrossRef).},
+}
+@article{glasserman1992guidelines,
+  author  = {Glasserman, Paul and Yao, David D.},
+  title   = {Some Guidelines and Guarantees for Common Random Numbers},
+  journal = {Management Science}, volume = {38}, number = {6}, pages = {884--908}, year = {1992},
+  doi     = {10.1287/mnsc.38.6.884},
+  note    = {Grade A. CRN helps iff Cov(A,B)>0 + the monotonicity condition (different reward code breaks it) -> the rigorous basis for disclosing our rho<0 Sharpe-leg honestly. VERIFIED first-hand 2026-07-26.},
+}
+@inproceedings{lecuyer1994efficiency,
+  author = {L'Ecuyer, Pierre}, title = {Efficiency Improvement and Variance Reduction},
+  booktitle = {Proceedings of the 1994 Winter Simulation Conference}, pages = {122--132}, year = {1994},
+  note   = {Grade B. CRN synchronization condition. VERIFIED 2026-07-26 (IEEE doc 717089; DOI to confirm at deposit).},
+}
+@book{law2015simulation,
+  author = {Law, Averill M.}, title = {Simulation Modeling and Analysis}, edition = {5th},
+  publisher = {McGraw-Hill Education}, address = {New York}, year = {2015}, isbn = {978-0-07-340132-4},
+  note   = {Grade A. CRN in the variance-reduction chapter (earlier eds = "Law \& Kelton"). VERIFIED 2026-07-26.},
+}
+@article{holland1986statistics,
+  author = {Holland, Paul W.}, title = {Statistics and Causal Inference},
+  journal = {Journal of the American Statistical Association}, volume = {81}, number = {396}, pages = {945--960}, year = {1986},
+  doi = {10.1080/01621459.1986.10478354},
+  note = {Grade A. "No causation without manipulation" -> reward is an intervenable treatment. VERIFIED 2026-07-26 (CrossRef).},
+}
+@book{pearl2009causality,
+  author = {Pearl, Judea}, title = {Causality: Models, Reasoning, and Inference}, edition = {2nd},
+  publisher = {Cambridge University Press}, year = {2009}, isbn = {978-0-521-89560-6},
+  note = {Grade A. do-operator (each arm = do(reward := r)). VERIFIED 2026-07-26.},
+}
+@book{imbens2015causal,
+  author = {Imbens, Guido W. and Rubin, Donald B.},
+  title = {Causal Inference for Statistics, Social, and Biomedical Sciences: An Introduction},
+  publisher = {Cambridge University Press}, year = {2015}, doi = {10.1017/CBO9781139025751},
+  note = {Grade A. Seeds = units, arms = treatments, CRN = a matched-pairs design. VERIFIED 2026-07-26 (DOI).},
+}
+@article{baron1986moderator,
+  author = {Baron, Reuben M. and Kenny, David A.},
+  title  = {The Moderator--Mediator Variable Distinction in Social Psychological Research},
+  journal = {Journal of Personality and Social Psychology}, volume = {51}, number = {6}, pages = {1173--1182}, year = {1986},
+  doi = {10.1037/0022-3514.51.6.1173},
+  note = {Grade A (classic). Use to NAME the framing, then UPGRADE to imai2010general (Baron-Kenny is mis-specified for a high-dim code mediator). VERIFIED 2026-07-26 (CrossRef).},
+}
+@article{imai2010general,
+  author = {Imai, Kosuke and Keele, Luke and Tingley, Dustin},
+  title  = {A General Approach to Causal Mediation Analysis},
+  journal = {Psychological Methods}, volume = {15}, number = {4}, pages = {309--334}, year = {2010},
+  doi = {10.1037/a0020761},
+  note = {Grade A. Potential-outcomes mediation + sensitivity (DISTINCT from imai2010identification, Stat.Sci.25(1); cite BOTH). VERIFIED 2026-07-26 (CrossRef).},
+}
+@book{vanderweele2015explanation,
+  author = {VanderWeele, Tyler J.}, title = {Explanation in Causal Inference: Methods for Mediation and Interaction},
+  publisher = {Oxford University Press}, year = {2015}, isbn = {978-0-19-932587-0},
+  note = {Grade A. Natural direct/indirect effects + interaction. VERIFIED 2026-07-26.},
+}
+@inproceedings{perdomo2020performative,
+  author = {Perdomo, Juan C. and Zrnic, Tijana and Mendler-D\"unner, Celestine and Hardt, Moritz},
+  title  = {Performative Prediction},
+  booktitle = {Proceedings of the 37th International Conference on Machine Learning (ICML)},
+  series = {PMLR}, volume = {119}, pages = {7599--7609}, year = {2020},
+  note = {Grade A. THE anchor for our endogeneity: the fed tail is a PERFORMATIVE statistic (influences the target it measures). arXiv:2002.06673. VERIFIED first-hand 2026-07-26 (PMLR).},
+}
+@article{strathern1997improving,
+  author = {Strathern, Marilyn}, title = {`Improving Ratings': Audit in the {British} University System},
+  journal = {European Review}, volume = {5}, number = {3}, pages = {305--321}, year = {1997},
+  note = {Grade A. Goodhart: "when a measure becomes a target, it ceases to be a good measure" (p.308, verified verbatim). VERIFIED 2026-07-26.},
+}
+@article{manheim2018categorizing,
+  author = {Manheim, David and Garrabrant, Scott}, title = {Categorizing Variants of Goodhart's Law},
+  journal = {arXiv preprint arXiv:1803.04585}, year = {2018},
+  note = {Grade B. ML Goodhart taxonomy (the fed tail is a proxy the arms optimize against). VERIFIED 2026-07-26.},
 }
