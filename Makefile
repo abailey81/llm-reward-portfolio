@@ -63,6 +63,9 @@ freeze:  ## Phase 1.E — hash + freeze the pre-registration (WRITE: user-only, 
 freeze-check:  ## CI drift guard — verify prose<->yaml + Phase-0 + hash (no writes)
 	$(VPY) scripts/freeze.py --check
 
+reproduce:  ## Reproducibility — keyless SYNTHETIC golden reproduction (no API key, no licensed data)
+	$(VPY) scripts/reproduce_synthetic.py --check
+
 campaign:  ## Phase 3 — run the campaign (config/campaign.yaml)
 	$(VPY) scripts/run_campaign.py
 

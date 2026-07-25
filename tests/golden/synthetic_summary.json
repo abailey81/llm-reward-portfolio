@@ -1,0 +1,45 @@
+{
+  "arm": "distributional",
+  "candidates": 4,
+  "n_records": 4,
+  "panel": {
+    "n_assets": 30,
+    "n_days": 600,
+    "seed": 0,
+    "sha16": "4b14eab6284f6bd5"
+  },
+  "records": [
+    {
+      "candidate_id": "distributional-g0-c0",
+      "cvar_05": -0.011750314207510477,
+      "generation": 0,
+      "reward_sha": "8ec003551d28c63a",
+      "val_fitness": 0.05331864764279228
+    },
+    {
+      "candidate_id": "distributional-g0-c1",
+      "cvar_05": -0.011945411667136262,
+      "generation": 0,
+      "reward_sha": "5ffcf4928c784a84",
+      "val_fitness": 0.05048145604383004
+    },
+    {
+      "candidate_id": "distributional-g0-c2",
+      "cvar_05": -0.01170296146535764,
+      "generation": 0,
+      "reward_sha": "bbe6f6f17e19e368",
+      "val_fitness": 0.05227453110771424
+    },
+    {
+      "candidate_id": "distributional-g0-c3",
+      "cvar_05": -0.011911114008336813,
+      "generation": 0,
+      "reward_sha": "e5455d6054a47b30",
+      "val_fitness": 0.050264064478341974
+    }
+  ],
+  "schema": 1,
+  "seed": 12345,
+  "train_steps": 1500,
+  "winner_candidate_id": "distributional-g0-c0"
+}
