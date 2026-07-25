@@ -16,6 +16,14 @@ methods chapter and the pre-registration freeze.
 > literature grounding are otherwise unchanged. Track-length-dependent numbers (§4 power/K) are to be
 > regenerated at the executed Split-C windows (`make power`). Statuses in §2/§11 are as of 2026-06-29 —
 > `docs/DESIGN_DETERMINATION.md` (regenerated) is the live status table.
+>
+> **⚠ FURTHER PRE-FREEZE SUPERSESSIONS (post-2026-07-02, all pre-data, never results-contingent).** Three
+> committed values below have since moved: **`train_steps_per_candidate` 200,000 → 400,000** (R77,
+> 2026-07-18, the pre-committed extended-curve rule); **winner seeds "30 floor → 50" → the tiered
+> assurance-tier ladder `[30, 100, 189, 279, 340, 403, 568]`** (Amendment E1 / R101 seed-parity; primary
+> target 403, max 568); and the **compute substrate laptop-only → UCL Myriad HPC primary** (A100 pools /
+> SGE; Tamer's 2026-07-13 directive), the RTX 4050 laptop now the certified parity fallback. Wherever
+> §2/§3/§6 below say "200,000", "30 floor → 50", or "laptop-only / two weeks", read these superseding values.
 
 > **Determination principle (read first).** This is a CONTROLLED experiment: the agent is a fixed instrument
 > and the *feedback channel* is the only manipulated variable. A system that searched parameters to MAXIMISE
@@ -50,8 +58,8 @@ per-parameter status table and a FREEZE-READY verdict (`docs/DESIGN_DETERMINATIO
 
 | Parameter | **Committed value** | Class | Status |
 |---|---|---|---|
-| `train_steps_per_candidate` (B\*) | **200,000** (band 150k–300k) + plateau figure | MEASURE | confirm via convergence pilot |
-| `n_seeds` (winners) | **30** floor → **50** if σ_D > ~0.10 | MEASURE | confirm via σ_D pilot |
+| `train_steps_per_candidate` (B\*) | **400,000** (R77, superseding R74's 200,000) + plateau figure | MEASURE | confirm via convergence pilot |
+| `n_seeds` (winners) | **tiered ladder [30, 100, 189, 279, 340, 403, 568]** (Amendment E1 / R101; primary target 403, max 568) | MEASURE | confirm via σ_D pilot |
 | `candidates_per_arm` | **30** (6 generations × 5) | MEASURE | confirm via saturation; opt. 6×8=48 |
 | `arms` | **7** (kept; two-tier labelling) | design | settled |
 | `lambda` (fitness tail-weight) | **calibrate** on pre-2015 fold (currently `null`) | CALIBRATE | **PENDING** — run calibration |
@@ -59,7 +67,7 @@ per-parameter status table and a FREEZE-READY verdict (`docs/DESIGN_DETERMINATIO
 | `sesoi` | 0.05 deflated-Sharpe (~0.072 ann-Sharpe) | CALIBRATE | settled |
 | `embargo` | ≥ feature lookback (60) — verify effective purge | CALIBRATE | VERIFY |
 | SAC hyperparameters | SB3 defaults; `learning_starts=1000`; PopArt on | FIX | settled |
-| LLM decoding | Opus 5; K=16 internal; max_tokens 8192; held identical | FIX | settled |
+| LLM decoding | Opus 5; K=5 (candidates_per_generation; 30/arm total); max_tokens 8192; held identical | FIX | settled |
 | universe / lookback / cost / splits / delisting | 30 assets / 60d / 10 bps / 10y-3y-8y / retain *(splits superseded 2026-07-02 → Split C 12y-3y-6.5y on univ5: 2005-16 / 17-19 / 20-26H1; ADR-044, R73)* | REALISTIC | settled |
 
 ---
@@ -254,9 +262,9 @@ more, with diminishing returns. Padding the primary makes the result *worse*. In
 | 3 | Seeds 30→50 (winners) | ~1.75 d | tighter equivalence CI |
 | 4 | Robustness grids (cost-bps, λ) — re-*evaluation*, no retraining | ~0.5 d | "null holds across costs/λ" |
 | — | Buffer (restart/thermal) | ~1.5 d | resilience |
-| | **TOTAL** | **~14 d** | **fully used** |
+| | **TOTAL** | **~14 d** | **fully used** *(laptop-only plan; superseded → Myriad-primary — see top banner)* |
 
-The 14-day, 2× budget = **1,120 trainings**; the primary is 600. The remaining ~520 buy a second model,
+The 14-day, 2× budget = **1,120 trainings** *(laptop-only 2026-06-29 plan; superseded → Myriad-primary, R101 — see top banner)*; the primary is 600. The remaining ~520 buy a second model,
 tighter seeds, and robustness — each a real paper paragraph.
 
 **Identifying the best 24/7 run-time — the principle:** run until the marginal value of the next compute-hour

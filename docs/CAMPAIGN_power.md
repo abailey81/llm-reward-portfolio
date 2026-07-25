@@ -30,7 +30,7 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 - [x] Per-test alpha (PRIMARY rule above): **α = 0.0500** *(one-sided IUT leg at α; multiplicity is the live BH/RW, not a fixed Šidák-α_eff — R37)* 
 - [x] Independent-regime count from `src/regimes/definition.py`: **N = 6** *(design value; auto-detected = 289 is UNRELIABLE — it exceeds the single-digit-regimes premise (> 12 plausible-max). `independent_regime_count` over-segments the noisy vix into many short run-length blocks, not the ~6 macro regimes the design assumes, so the design value is used)* — REPORTED for the SECONDARY regime-stratified analyses; it does **not** enter the headline paired n.
 - [x] **Trial count for the campaign, stated explicitly: 210** (candidates generated across all arms)
-- [x] SESOI (smallest effect size of interest): **0.050 validation-DSR** *(FROZEN; PREREGISTRATION §10 R12)*
+- [x] SESOI (smallest effect size of interest): **0.050 validation-DSR** *(FROZEN; PREREGISTRATION §10 R12; DERIVED band R104 — cost-breakeven 0.0055 < 0.0756 ann-Sharpe < practitioner-material 0.10; `docs/SESOI_DERIVATION_2026-07-25.md` / `inference.sesoi_derivation`)*
 - [x] TOST symmetric equivalence margin: **±0.050 validation-DSR**
 - [x] **Δ_MDE in the SESOI's units (T2.5 reconciliation):** **Δ_MDE@80% ≈ 0.120 validation-DSR (conservative ceiling)** — this **EXCEEDS the 0.050 SESOI**, so the Sharpe-MDE and the DSR-SESOI probe DIFFERENT scales: a Sharpe non-rejection alone does NOT establish DSR-equivalence (the INCONCLUSIVE branch below — only the TOST CI *in DSR units* can). *(Sharpe→DSR conservative ceiling, T=694; see "Sharpe ↔ validation-DSR reconciliation")*
 

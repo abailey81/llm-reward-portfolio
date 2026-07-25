@@ -1,7 +1,7 @@
 # Code-Quality, Reproducibility & Architecture Audit
 
 **Scope:** `llm-reward-portfolio` (the experimental engine `src/`, the campaign/analysis `scripts/`, the test suite `tests/`).
-**Stance:** strict but realistic. The engine is verified-green (ruff clean on the project config, `freeze.py --check` 9/9, full suite green, 611 tests collected) and days from FREEZE. Every recommendation below is **behaviour-preserving** and **LOW-risk**; none changes the science. No "sophistication" rewrite is proposed — for this codebase that would be all downside.
+**Stance:** strict but realistic. The engine is verified-green (ruff clean on the project config, `freeze.py --check` 9/9, full suite green, 2,057 tests collected) and days from FREEZE. Every recommendation below is **behaviour-preserving** and **LOW-risk**; none changes the science. No "sophistication" rewrite is proposed — for this codebase that would be all downside.
 **Method:** read first-hand; ran `mypy src`, `ruff check`, `pytest --collect-only`, and verified each sub-finding against the actual code/prose (several plausible-sounding flags turned out to be false positives — recorded as such so they are not re-raised).
 
 **Auditor verdict (TL;DR):** This is a **clean, reproducible, well-structured research codebase that a top technical examiner will respect.** Provenance and determinism are genuinely publication-grade (atomic+fsync record writes, byte-for-byte sidecar verification, content-hashed env capture, content-hashed frozen pre-registration with a CI drift gate, single-seed-derived RNG across every stack). The new H2/H3/H4/multiplicity analysis layer is rigorous, defensively coded, and well-tested. There are **no HIGH-severity latent bugs.** The improvements below are polish: one genuine robustness asymmetry (MED), the standing mypy noise (all safely fixable), and documentation drift in the README/status counts. Implement the SAFE list, re-run `make test` + `make typecheck` + `make freeze-check`, and the codebase is in excellent shape for submission.
@@ -14,7 +14,7 @@ Ordered by grade-value per unit of effort.
 
 ### A1. Fix README documentation drift (test counts, dates, stub claims) — **HIGH grade-value, trivial effort**
 - **Where:** `README.md` lines 50–53, 74, 78, 92 (and any docs that echo "148 tests").
-- **What:** The README states "**153 behaviour tests (148 engine + 5 …)**", "**148 tests pass**", "Status (as of **16 Jun 2026**)", and lists `run_campaign`, `analyze_results`, `inspect_rewards` as "**STUBS (fail loudly; … blueprint T1–T6)**". All three are stale: `pytest --collect-only` now reports **611 tests**, and `scripts/run_campaign.py` is the real **1,400-line** campaign orchestrator (not a stub), as is `analyze_campaign.py` (the analysis entry point the README doesn't even mention). An examiner opening the README first will see numbers that contradict the repo.
+- **What:** The README states "**153 behaviour tests (148 engine + 5 …)**", "**148 tests pass**", "Status (as of **16 Jun 2026**)", and lists `run_campaign`, `analyze_results`, `inspect_rewards` as "**STUBS (fail loudly; … blueprint T1–T6)**". All three are stale: `pytest --collect-only` now reports **2,057 tests**, and `scripts/run_campaign.py` is the real **1,400-line** campaign orchestrator (not a stub), as is `analyze_campaign.py` (the analysis entry point the README doesn't even mention). An examiner opening the README first will see numbers that contradict the repo.
 - **Fix:** Update the count to the true figure (run `pytest --collect-only -q` and quote it), refresh the status date, and reclassify `run_campaign`/`analyze_campaign` as live. Add a one-line pointer to `docs/CAMPAIGN_RUNBOOK.md` so an examiner can navigate from README → runbook → reproduce.
 - **Grade value:** The PDF-only grade leans on "an examiner can navigate + reproduce." A README whose headline metrics are wrong undercuts that on first contact; this is the cheapest credibility win available.
 
@@ -70,7 +70,7 @@ The brief cited "9 standing errors"; the actual count from `mypy src` (the `make
 | B2 | **LOW** | `git_dirty` not captured in the provenance fingerprint (modified-uncommitted run looks reproducible from its SHA). Mitigated by full `pip_freeze`/CUDA/env capture + frozen-tag workflow. | `provenance.py:75`, `capture_env.py` | **Fix = A4** |
 | B3 | **LOW** | 19 `mypy src` errors stand (brief said "9"). All are local-narrowing artifacts, none a contract gap; all safely silenceable. | executor/monitoring/trainer/parallel | **Fix = A3** |
 | B4 | **LOW** | `load_all_safe` name over-promises: it only guards a missing dir, not a corrupt record. Worth a one-line docstring caveat even if you don't extend it. | `run_campaign.py:702` | Doc-only; see A2 caveat |
-| B5 | **LOW** | README/status counts and stub list are stale (148/153 tests vs 611; `run_campaign` mislabelled a stub; status date 16 Jun). | `README.md` | **Fix = A1** |
+| B5 | **LOW** | README/status counts and stub list are stale (148/153 tests vs 2,057; `run_campaign` mislabelled a stub; status date 16 Jun). | `README.md` | **Fix = A1** |
 
 **No HIGH-severity latent bugs found.** In particular, the items most likely to harbour a science-breaking bug were checked first-hand and are sound:
 - **Atomic writes / replay integrity** (`io/results.py`): temp-file + `flush` + `os.fsync` + `os.replace` (atomic on Windows & POSIX); `load_run` verifies the `reward.py`, `prompt.txt`, and `env.json` sidecars **byte-for-byte** against the embedded copy and raises on mismatch. Tested incl. the mid-write truncation property (`test_results_io.py:77–130`).
@@ -101,7 +101,7 @@ These are not findings; they are the things that make this codebase examiner-gra
 - **The freeze is content-addressed and CI-gated**: `freeze.py` hashes the prereg prose **plus** the bound `inference`/`environment`/`data` configs (so "nothing frozen can drift" is true at the config layer too), and `--check` re-derives the hash + verifies prose↔YAML consistency + the Phase-0 marker with no writes. The 9/9 check is a real drift guard, not a rubber stamp.
 - **Determinism knobs are recorded with the run** (`capture_env`): `CUBLAS_WORKSPACE_CONFIG`, `PYTHONHASHSEED`, `CUDA_VISIBLE_DEVICES`, `are_deterministic_algorithms_enabled`, the nvidia driver line and torch/CUDA/cuDNN versions — exactly what is needed to *judge* whether a given run could be bit-reproduced.
 - **The new analysis layer is unusually well-documented**: every hypothesis function (`h2_conjunction`, `h3_iterative_vs_singleshot`, `h4_search_controls`, `cross_hypothesis_multiplicity`, `evt_consistency_guard`) carries a docstring that names the pre-registration section, the statistical rationale, the disjoint-key discipline that keeps report-only tests out of the frozen m=6 family, and the exact skip/null semantics — and each has supported / not-supported / skipped tests. This is the part most at risk of being a confusing critical path; instead it is the best-commented region of the repo.
-- **Test discipline**: 611 collected tests with `pytest-randomly` (order-shuffle + per-test reseed) pinned `<5` as a *hard* dep to catch inter-test state leakage; behaviour/invariance tests (atomicity, no-look-ahead, sidecar integrity, IUT verdicts, parallel≡serial equivalence), not just smoke tests.
+- **Test discipline**: 2,057 collected tests with `pytest-randomly` (order-shuffle + per-test reseed) pinned `<5` as a *hard* dep to catch inter-test state leakage; behaviour/invariance tests (atomicity, no-look-ahead, sidecar integrity, IUT verdicts, parallel≡serial equivalence), not just smoke tests.
 
 ---
 
@@ -109,7 +109,7 @@ These are not findings; they are the things that make this codebase examiner-gra
 
 Do these, then re-run `make test && make typecheck && make freeze-check` and confirm all green before freezing:
 
-1. **[A1, ~10 min]** Refresh `README.md`: true test count (611), status date, reclassify `run_campaign`/`analyze_campaign` as live, add a `docs/CAMPAIGN_RUNBOOK.md` pointer.
+1. **[A1, ~10 min]** Refresh `README.md`: true test count (2,057), status date, reclassify `run_campaign`/`analyze_campaign` as live, add a `docs/CAMPAIGN_RUNBOOK.md` pointer.
 2. **[A2 / B1, ~5 min]** Swap bare `load_all` → `load_all_safe` at `run_campaign.py:1108` and `:831`. (Optional: extend `load_all_safe` to log-and-skip a corrupt dir + update its docstring per B4.)
 3. **[A3 / B3, ~20 min]** Clear `mypy src` to 0 via the exact per-site annotations/`type: ignore`/`cast` listed in A3 — **no logic changes**. Re-run `make typecheck`.
 4. **[A4 / B2, ~5 min]** Add `git_dirty` to `provenance.env_fingerprint` (and it flows into `capture_env`).

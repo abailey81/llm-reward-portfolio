@@ -30,7 +30,7 @@ executed (the pre-registration is not yet frozen: `config/preregistration.yaml: 
   run config, NOT `config/algos.yaml`, which is a documentation template):
   `learning_rate=3e-4`, `batch_size=256`, `gamma=0.99`, `ent_coef="auto"`,
   `learning_starts=1000` (floored at 1000 to match the Phase-0 gate; SB3's unset default is 100),
-  `buffer_size = train_steps_per_candidate` (memory-safe, ADR-025 — not the 1M default that would OOM).
+  `buffer_size` **hard-capped at 50k** (memory-safe, ADR-025 extension — decoupled from the 400k `train_steps_per_candidate`, not the 1M default that would OOM).
   Held **identical across all feedback arms** so performance differences are attributable to the
   reward, not the learner (runtime equivalence test in `src/arms/factory.py`).
 - **Numerical augmentations applied uniformly across arms** (`src/agents/trainer.py`,
@@ -58,10 +58,9 @@ executed (the pre-registration is not yet frozen: `config/preregistration.yaml: 
   diversity comes from **prompt variation** (`diversity_prompt_variation: true`), applied uniformly
   across arms (not an H2 confound).
 - **Same vendor + key.** Both are the **single Claude model family**, same `ANTHROPIC_API_KEY`.
-  The open-weights second-model contamination check is **pinned (2026-07-02): `qwen/qwen3-coder` via
-  OpenRouter** (`config/llm.yaml`, R71; wiring + key-gated smoke built) but **not yet executed** — the
-  write-up must never say "LLMs"/"models" in the plural for the authored rewards until the secondary
-  Qwen panel has actually run (report-only leg).
+  The open-weights replication is now a **10-leg suite (11 full-loop models incl. the Opus 5
+  confirmatory)** registered in `config/preregistration.yaml: model_suite` (R95) — so "LLMs"/"models" in
+  the plural for the authored rewards is now **design-justified**, not a caveat to defer.
 - **Loop.** Eureka-style reflection (`src/llm/loop.py`): 6 generations × 5 candidates/generation =
   30-candidate budget per arm (`config/campaign.yaml`, `config/llm.yaml`). The H3 single-shot control
   spends the same 30-candidate budget at `generations: 1`.
@@ -78,9 +77,10 @@ executed (the pre-registration is not yet frozen: `config/preregistration.yaml: 
 - **Author / owner.** Tamer Atesyakar (UCL MSc Banking & Digital Finance, Institute of Finance and
   Technology), supervised by Dr Ramin Okhrati.
 - **Pre-registration.** `PREREGISTRATION.md` + machine mirror `config/preregistration.yaml`;
-  frozen by `scripts/freeze.py` (SHA-256). Currently `frozen: false` (latest computed canonical
-  hash `d9204087…` is pre-freeze — it moved intentionally with the Split-C/univ5 rebuild, 3 bound
-  configs + prereg changed; CHANGELOG `[2026-07-02c]`).
+  frozen by `scripts/freeze.py` (SHA-256). Currently `frozen: false`; the pre-freeze canonical hash is
+  **recomputed on every design-file edit** and emitted by `scripts/freeze.py --check` (it moves with each
+  pre-freeze amendment — e.g. the Split-C/univ5 rebuild, 3 bound configs + prereg changed; CHANGELOG
+  `[2026-07-02c]`), so no hash value is hardcoded here.
 
 ## Intended Use
 - **Primary intended use.** A controlled research experiment for an MSc dissertation (target also:
@@ -103,7 +103,7 @@ executed (the pre-registration is not yet frozen: `config/preregistration.yaml: 
 - **Market regime.** Regime labelling (`src/regimes/`) feeds the power analysis; the test span
   (2020–2026H1, Split C) spans the 2020 COVID stress, the 2022 hiking cycle, the 2023–25 rally, and
   settled H1-2026.
-- **Seeds.** 30 winner seeds `[0..29]` (Amendment D2; Henderson 2018, Colas et al. ≥20) carry the
+- **Seeds.** The tiered assurance-tier winner seeds `[30, 100, 189, 279, 340, 403, 568]` (Amendment E1 / R101 seed-parity; primary target 403, max 568; Henderson 2018, Colas et al. ≥20) carry the
   across-seed (training-RNG) variance into the inference.
 - **Delisting-return assumption.** A pre-registered sensitivity band d ∈ {0, −30%, −55%, −100%}
   (`analyze_campaign.delisting_band`) over the 333 delisting cells. The 2026-07-02 observed-terminal
@@ -175,18 +175,20 @@ avoidance (Gelman & Loken 2014), reported via TOST equivalence — not a bare p>
   on anonymised arrays. Reward code remains untrusted by design.
 - **LLM contamination.** Reward-design priors are the **object of study** (H4), not a defended
   weakness; contamination is handled by structural blinding (anonymised arrays, no tickers/dates) and
-  cutoff-stratified evaluation. A cross-family + open-weights model **panel** (Opus 5 primary + GPT-5.5 +
-  Qwen3-Coder; ADR-039) is specified, to be ratified into the pre-registration before freeze.
+  cutoff-stratified evaluation. A cross-family + open-weights model **panel** (Opus 5 confirmatory + the 10 open-weight replication
+  legs — `deepseek-v4-pro`, `glm-5.2`, `qwen3.6-27b`, `qwen3.5-9b`, `haiku-4.5`, `gpt-5.6-luna`,
+  `nemotron-3-super`, `sonnet-5`, `gemini-3.5-flash`, `kimi-k3`; R95) is **already registered** in
+  `config/preregistration.yaml: model_suite`; GPT-5.5 was rejected.
 - **Survivorship & delisting bias.** Honestly disclosed and since sharpened (ADR-051, 2026-07-02):
   the observed-terminal audit recovered the realised terminal for all 333 dead names from the vendor
   daily series, so the zero-fill headline (univ5, formerly univ3) already carries the realised
   delisting tail; univ4's unconditional Shumway surcharges both fabricate M&A losses AND double-count
   terminals already in the series — handled via a reported sensitivity band (univ4 = the disclosed
   contaminated heavy end), never as the headline truth.
-- **Reproducibility / compute footprint.** The confirmatory campaign runs **laptop-only on the owned RTX 4050**
-  (6 GB VRAM; n_gpu 2–3, TF32 on; no third-party cloud — **no cloud-compute budget**), projected at ~2–3 weeks
-  for the model panel; no GPU-hour cost (owned hardware). The earlier "rented RTX 4090" framing is superseded
-  (ADR-040); a WSL2/GPU speed path was probed and rejected (systematic install failure + no net benefit given the deadline).
+- **Reproducibility / compute footprint.** The confirmatory campaign runs **on UCL Myriad HPC (primary)** —
+  A100 pools under SGE (`src/cluster/`, `run_campaign_cluster.py`; cross-substrate science parity certified), with the
+  owned **RTX 4050** laptop (6 GB VRAM; n_gpu 2–3, TF32 on) as the **certified parity fallback** substrate. The earlier
+  "laptop-only" / "rented RTX 4090" framings are superseded (Tamer's 2026-07-13 directive; ADR-040); a WSL2/GPU speed path was probed and rejected (systematic install failure + no net benefit given the deadline).
 
 ## Caveats & Recommendations
 - **All performance numbers are TBD** until the campaign runs; the pre-registration is **not yet

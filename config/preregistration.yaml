@@ -124,8 +124,22 @@ inference:
       - {arm_a: distributional, arm_b: scalar_cvar5, metric: sharpe, level: null}
       - {arm_a: distributional, arm_b: scalar_cvar5, metric: cvar,   level: 0.05}
   # Amendment 2026-06-19 (R12): SESOI + symmetric TOST equivalence margin for the headline H2 contrast.
+  # Amendment 2026-07-25 (R104): the SESOI VALUE (0.05 DSR) is UNCHANGED; its JUSTIFICATION is upgraded from
+  # ASSERTED to DERIVED — the economic band in sesoi_derivation below (docs/SESOI_DERIVATION_2026-07-25.md).
+  # 0.05 DSR = 0.0756 ann-Sharpe (k=0.6616 DSR/ann-Sharpe, T=694; CAMPAIGN_power.md T2.5) sits INSIDE
+  # [cost-breakeven 0.0055, practitioner-material 0.10] -> exploitable-after-costs AND stricter-than-practitioner.
   sesoi: 0.05                                   # validation-DSR units
   equivalence_margin: 0.05                      # symmetric TOST margin (+/- DSR)
+  sesoi_derivation:                             # R104 (2026-07-25): DERIVES sesoi=0.05 (was asserted). tests/test_sesoi_derivation.py binds this band.
+    dsr_per_ann_sharpe: 0.6616                  # k (delta-method ceiling, z=0, T=694): DSR = k * ann_Sharpe (CAMPAIGN_power.md T2.5)
+    sesoi_ann_sharpe_equiv: 0.0756              # = sesoi / k  (0.05 DSR -> 0.0756 ann-Sharpe)
+    book_sigma_ann: 0.202                       # equal-weight T0 book annualised vol, MEASURED (data/gold/returns_panel_univ5)
+    book_turnover_ann_oneway: 1.12              # equal-weight daily-rebalanced one-way turnover per yr, MEASURED
+    cost_bps_oneway: 10                         # env transaction cost, one-way bps (must match environment cost)
+    lower_bound_cost_breakeven_sharpe: 0.0055   # = cost_bps*1e-4 * turnover / sigma; below this an edge is unexploitable-after-costs
+    upper_bound_practitioner_sharpe: 0.10       # DeMiguel-Garlappi-Uppal 2009 material-Sharpe scale (0.10-0.20)
+    verdict: sesoi_inside_band                  # 0.0055 < 0.0756 < 0.10 (exploitable-after-costs AND conservative)
+    source: docs/SESOI_DERIVATION_2026-07-25.md
   # Amendment 2026-06-25 (R26/R30/R31): the PRE-REGISTERED report-only SECONDARY families. ALL use keys DISJOINT
   # from the frozen m=6 above, so analyze_campaign.assert_realized_family_matches_frozen is untouched; each is
   # computed + reported but NEVER gates H2. Pre-registering them BEFORE the sealed-test freeze is what pre-empts

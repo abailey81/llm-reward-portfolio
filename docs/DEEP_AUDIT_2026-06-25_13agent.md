@@ -248,7 +248,7 @@ the sealed leg is the Popperian move that elevates a result of any sign from a m
 confirmed/refuted prediction.
 
 ### T3.3 [MED LEVER] Make the rigour legible — it's currently invisible to a PDF-only examiner
-The deepest rigour lives in code/611 tests the examiner never reads. Add: (a) a one-page **system
+The deepest rigour lives in code/2,057 tests the examiner never reads. Add: (a) a one-page **system
 diagram** (data → fixed SAC → reward-slot ← LLM-designer ← feedback block ← off-critic measurement →
 λ=0 fitness → sealed test → inference); (b) a **rigour ledger** table (one row per defended threat:
 conjunction×BH→IUT, EVT bias, units-matched TOST, single-seed-winner asymmetry, each with its

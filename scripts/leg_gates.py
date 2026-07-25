@@ -86,11 +86,14 @@ def _screen_probes(seed: int = 20260721) -> list[dict[str, str]]:
     ]
 
 
-#: Below this compliance rate a leg is flagged for review (2026-07-25): a leg that authors little/no
+#: Below this compliance rate a leg is flagged for review: a leg that authors little/no
 #: contract-compliant code is unusable regardless of the contamination screen — this closes the
 #: qwen3.5-9b gap (0.0 compliance was stamped "pass" because the verdict keyed off screen_flags only).
 #: NOT an auto-fail (the pre-declared fallback chain decides), but never a silent "pass".
-_COMPLIANCE_FLOOR = 0.5
+#: 2026-07-25 (Tamer): RAISED 0.5 → 1.0 = EXTREMELY STRICT. ANY authoring call that fails to emit a
+#: contract-compliant reward now flags the leg for review — a leg must be PERFECTLY compliant to pass
+#: silently. (Review, not block: the pre-declared fallback chain still decides the final roster.)
+_COMPLIANCE_FLOOR = 1.0
 
 
 def run_leg_gates(

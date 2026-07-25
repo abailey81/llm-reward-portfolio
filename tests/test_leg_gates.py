@@ -69,9 +69,15 @@ def test_compliance_rate_scored_on_real_prompts(tmp_path: Path):
     s = run_leg_gates(_LEG, tmp_path, which=("compliance",), n_compliance=4,
                       transport_factory=lambda leg: fake)
     assert s["compliance_rate"] == pytest.approx(0.75)
+    assert s["compliance_verdict"].startswith("LOW")   # 0.75 < 1.0 strict floor (2026-07-25, Tamer)
     # the REAL frozen prompts were used (same-exam principle)
     system_sent = fake.calls[0][0]
     assert "ANONYMIZED numeric arrays" in system_sent
+
+
+def test_compliance_floor_is_extremely_strict():
+    from scripts.leg_gates import _COMPLIANCE_FLOOR
+    assert _COMPLIANCE_FLOOR == 1.0   # 2026-07-25 (Tamer): any sub-1.0 leg flags for review
 
 
 def test_spend_rides_the_advisory_ledger(tmp_path: Path):

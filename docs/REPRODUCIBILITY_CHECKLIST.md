@@ -68,8 +68,8 @@ run"**, since the campaign has not yet been executed (the pre-registration is no
   `scripts/analyze_campaign.py`). Single source of truth for all parameters is `config/*.yaml` (code
   reads config, never hardcodes — `CLAUDE.md`).
 - **Tests.** A behaviour-test suite (invariances / bounds / calibration + parallel≡serial
-  byte-identical equivalence) under `tests/` (`make test`; README cites 611 passing on the light
-  scientific stack — % VERIFY the live count at run time). Coverage floor `fail_under = 88`
+  byte-identical equivalence) under `tests/` (`make test`; the live `def test_` count is **2,057**, README
+  cites **2,000+** on the light scientific stack). Coverage floor `fail_under = 88`
   (`pyproject.toml`), property-based tests with a deterministic Hypothesis profile.
 
 ## 5. Experimental results & determinism
@@ -77,12 +77,12 @@ run"**, since the campaign has not yet been executed (the pre-registration is no
 - **Specification of all training details (hyperparameters, how chosen).** Yes. Live agent kwargs are
   resolved by `src/agents/trainer.py::resolve_agent_kwargs` (NOT `config/algos.yaml`, which is a
   documentation template): `learning_rate=3e-4`, `batch_size=256`, `gamma=0.99`, `ent_coef="auto"`,
-  `learning_starts=1000`, `buffer_size=train_steps_per_candidate` (50k campaign / 25k prototype;
+  `learning_starts=1000`, `buffer_size` **hard-capped at 50k** (DECOUPLED from the 400k `train_steps_per_candidate`; 50k campaign / 25k prototype cap;
   ADR-025). **Library defaults, identical across feedback arms** (audit A-1; runtime equivalence test
   `src/arms/factory.py`). PopArt value-target scale-norm + train-only `VecNormalize(norm_reward=False)`
   + TF32 applied uniformly across arms.
-- **Number of runs / seeds.** **30 winner seeds `[0..29]`** (Amendment D2; Henderson 2018, Colas et
-  al. ≥20), one seed per candidate during search (matched budget), winners re-run at 30 seeds —
+- **Number of runs / seeds.** **Tiered assurance ladder `[30, 100, 189, 279, 340, 403, 568]`** (Amendment E1 / R101 seed-parity; primary target 403, max 568; Henderson 2018, Colas et
+  al. ≥20), one seed per candidate during search (matched budget); all 11 full-loop models re-run winners in lockstep up the common ladder to the 2026-08-27 exogenous stop —
   `config/campaign.yaml`, `config/preregistration.yaml`.
 - **Measure of central tendency + variation.** rliable **IQM** + probability of improvement +
   stratified-bootstrap CIs; per-seed → paired stratified bootstrap over shared training seeds (R16);
@@ -114,13 +114,16 @@ run"**, since the campaign has not yet been executed (the pre-registration is no
 
 ## 6. Compute
 
-- **Description of compute infrastructure.** Development, Phase-0 gate, **and** the confirmatory campaign all run
-  on the owned **RTX 4050** laptop (6 GB; n_gpu 2–3, TF32) — **laptop-only, no rented cloud / UCL Myriad** (**no
-  cloud-compute budget**; a WSL2/GPU speed path was probed and rejected — ADR-040), seeds-on-winners, ~2–3 weeks. Validated build: **torch 2.6.0+cu124** (ADR-030/032).
+- **Description of compute infrastructure.** The confirmatory campaign runs on **UCL Myriad HPC (primary)** —
+  A100 pools under SGE, all 11 full-loop models climbing the common seed ladder in lockstep (R101) to the
+  2026-08-27 exogenous stop; the owned **RTX 4050** laptop (6 GB; n_gpu 2–3, TF32) is the **certified parity
+  fallback** (`src/cluster/` reuses every science primitive — cross-substrate parity certified). Development
+  and the Phase-0 gate ran on the laptop; a WSL2/GPU speed path was probed and rejected (ADR-040). Validated
+  build: **torch 2.6.0+cu124** (ADR-030/032).
 - **Compute budget.** **No GPU-hour cap** (removed 2026-06-28 — it was never enforced by any code, and
   `auto_shutdown_on_complete` is a verified no-op). The GPU-hour figures in
   `docs/COMPUTE_AND_TRAINING_TIME.md` are **informational wall-clock/cost estimates only, not a limit**.
-  `resume: true` (idempotent restart). Per-candidate budget **50,000** training steps (fixed, matched;
+  `resume: true` (idempotent restart). Per-candidate budget **400,000** training steps (R77 measured-knee, superseding R74's 200k; fixed, matched;
   `train_steps_per_candidate`). **Wall-clock TBD** until the campaign runs.
 
 ## 7. Code release & licensing
