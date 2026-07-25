@@ -32,6 +32,7 @@ legs:
     api_key_env: OPENROUTER_API_KEY
     provider_pin: {only: [siliconflow], allow_fallbacks: false}
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.5-9b (the served artifact is the fp8 variant of the pinned weights — model_suite.served_variant_disclosure)
+    reasoning: {enabled: false}            # R103 (2026-07-25) repro-gate FIX: siliconflow serves Qwen3 in THINKING mode by default, burning the whole output budget on hidden reasoning -> EMPTY authored code (0.4/10 compliance at the frozen config). Disabling thinking VERIFIED 0.4->1.0. A DISABLE pin: leg_gates verifies ~0 reasoning tokens served (client.py now captures reasoning_tokens). PAIR INVARIANT: identical reasoning config across the qwen pair
     temperature: 1.0
     max_tokens: 4096
     hf_pin: {repo: Qwen/Qwen3.6-27B, commit: 6a9e13bd6fc8f0983b9b99948120bc37f49c13e9}   # retrieved 2026-07-22, official HF API
@@ -41,6 +42,7 @@ legs:
     api_key_env: OPENROUTER_API_KEY
     provider_pin: {only: [siliconflow], allow_fallbacks: false}
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.6-27b
+    reasoning: {enabled: false}            # R103 (2026-07-25) repro-gate FIX: siliconflow serves Qwen3 in THINKING mode by default -> the whole output budget goes to hidden reasoning -> EMPTY authored code (0/10 compliance at the frozen config). Disabling thinking VERIFIED 0.0->1.0. A DISABLE pin: leg_gates verifies ~0 reasoning tokens served. PAIR INVARIANT: identical reasoning config across the qwen pair
     temperature: 1.0
     max_tokens: 4096
     hf_pin: {repo: Qwen/Qwen3.5-9B, commit: c202236235762e1c871ad0ccb60c8ee5ba337b9a}   # retrieved 2026-07-22, official HF API
@@ -73,11 +75,13 @@ legs:
     model: google/gemini-3.5-flash
     api_key_env: OPENROUTER_API_KEY
     temperature: 1.0
-    max_tokens: 2048
+    max_tokens: 8192                       # R103 (2026-07-25) repro-gate FIX: was 2048 -> mandatory (non-disablable) thinking consumed the whole cap -> EMPTY authored code (0.1/10). Reasoning CANNOT be disabled here (OpenRouter 400: "Reasoning is mandatory for this endpoint and cannot be disabled"), so the lever is BUDGET (the R97a-kimi pattern): 2048->8192 VERIFIED 0.1->1.0
     role: stretch                          # truncates SECOND at the calendar gate (kimi-k3, last in queue, truncates first — R95)
-    # NO reasoning key (R85): the prior {budget: default} used an UNDOCUMENTED OpenRouter reasoning
-    # field — a silent-ignore would have made the pin fictional. Thinking runs at provider default,
-    # DISCLOSED; the smoke archives reasoning-token usage as the record of what was served.
+    # NO disable key (R85/R103): OpenRouter returns "Reasoning is mandatory for this endpoint and
+    # cannot be disabled" (verified 2026-07-25) -> thinking runs at provider default, DISCLOSED, and
+    # max_tokens is sized to fit thinking + code. The smoke archives reasoning-token usage + served
+    # provider as the record of what was served (the client.py reasoning-token capture is now
+    # IMPLEMENTED per R103, so the round-trip evidence is real, not merely claimed).
 
   - label: kimi-k3
     provider: openrouter

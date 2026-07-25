@@ -140,6 +140,11 @@ class ProvenanceRecord:
         when the transport exposes it. For an aggregator like OpenRouter (the R71 secondary
         open-weights designer) this is the exact snapshot/version behind the requested slug — the
         REPRODUCIBILITY ANCHOR that must be recorded at the first live call (config/llm.yaml).
+    served_provider : str or None
+        The upstream PROVIDER an aggregator (OpenRouter) reports it routed to (``response.provider``)
+        when exposed, else ``None`` (native transports like Anthropic have no routing). Archived so a
+        ``provider_pin`` (e.g. siliconflow-only + fp8) can be VERIFIED against what was actually
+        served — not merely what was requested (repro-audit 2026-07-25, HOLE 4).
     """
 
     model: str
@@ -150,6 +155,7 @@ class ProvenanceRecord:
     stop_reason: str | None = None
     request_id: str | None = None
     served_model: str | None = None
+    served_provider: str | None = None
 
 
 def _warn_if_incomplete(stop_reason: str | None, model: str) -> None:
@@ -177,11 +183,22 @@ def _openai_usage_dict(response: Any) -> dict[str, Any] | None:
     u = getattr(response, "usage", None)
     if u is None:
         return None
-    return {
+    d: dict[str, Any] = {
         "input_tokens": getattr(u, "prompt_tokens", None),
         "output_tokens": getattr(u, "completion_tokens", None),
         "total_tokens": getattr(u, "total_tokens", None),
     }
+    # R85 round-trip evidence (repro-audit 2026-07-25, HOLE 2): capture the REASONING-token count so
+    # a reasoning pin's EFFECT is measurable from the replay archive. Without it a silently-ignored
+    # pin (0 reasoning tokens) is indistinguishable from a functioning one, making the pin FICTIONAL.
+    # OpenAI/OpenRouter nest it under ``usage.completion_tokens_details.reasoning_tokens``; absent on
+    # providers that don't reason -> the key is simply omitted (never fabricated as 0).
+    details = getattr(u, "completion_tokens_details", None)
+    if details is not None:
+        rt = getattr(details, "reasoning_tokens", None)
+        if rt is not None:
+            d["reasoning_tokens"] = rt
+    return d
 
 
 class _OpenAITransport:
@@ -216,6 +233,7 @@ class _OpenAITransport:
         self.last_stop_reason: str | None = None
         self.last_request_id: str | None = None
         self.last_served_model: str | None = None
+        self.last_served_provider: str | None = None
         self.last_cost_usd: float | None = None
 
     def __call__(self, system: str, user: str) -> str:
@@ -252,6 +270,10 @@ class _OpenAITransport:
         # The model the provider REPORTS it served (``response.model``). For OpenRouter (R71) this is
         # the exact snapshot behind the requested slug — archived as the reproducibility anchor.
         self.last_served_model = getattr(response, "model", None)
+        # R85 provider round-trip (repro-audit 2026-07-25, HOLE 4): OpenRouter reports the upstream
+        # provider it actually routed to (``response.provider``) — archived so the provider_pin
+        # (e.g. siliconflow-only) can be VERIFIED against what was served, not merely requested.
+        self.last_served_provider = getattr(response, "provider", None)
         _warn_if_incomplete(self.last_stop_reason, self._model)
         return choice.message.content or ""
 
@@ -871,6 +893,7 @@ class LLMClient:
         stop_reason = getattr(transport, "last_stop_reason", None)
         request_id = getattr(transport, "last_request_id", None)
         served_model = getattr(transport, "last_served_model", None)
+        served_provider = getattr(transport, "last_served_provider", None)
         self.archive.append(
             ProvenanceRecord(
                 model=self.model,
@@ -881,6 +904,7 @@ class LLMClient:
                 stop_reason=stop_reason,
                 request_id=request_id,
                 served_model=served_model,
+                served_provider=served_provider,
             )
         )
         self._record_spend(transport, usage)

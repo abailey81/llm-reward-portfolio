@@ -89,7 +89,10 @@ def test_r85_usage_roundtrip_evidence_archived(tmp_path: Path):
     fake.last_usage = {"input_tokens": 10, "output_tokens": 5, "reasoning_tokens": 42}
     leg = dict(_LEG, reasoning={"effort": "low"})
     s = run_leg_gates(leg, tmp_path, which=("smoke",), transport_factory=lambda lg: fake)
-    assert s["pin_roundtrip"].startswith("usage-archived")
+    # 2026-07-25 (repro-audit HOLE 2): the verdict now VERIFIES from the reasoning-token count, not
+    # merely bool(usage) — 42 > 0 tokens on an ENABLE pin => it functioned.
+    assert s["pin_roundtrip"].startswith("verified")
+    assert s["reasoning_tokens_observed"] == 42
     assert s["usage_observed"]["reasoning_tokens"] == 42
     row = json.loads((tmp_path / "test-leg.jsonl").read_text(encoding="utf-8").splitlines()[0])
     assert row["usage"]["reasoning_tokens"] == 42        # the per-call evidence on disk
@@ -100,6 +103,74 @@ def test_r85_pinned_reasoning_with_no_usage_flags_review(tmp_path: Path):
     leg = dict(_LEG, reasoning={"mode": "think-high"})
     s = run_leg_gates(leg, tmp_path, which=("smoke",), transport_factory=lambda lg: fake)
     assert s["pin_roundtrip"].startswith("UNVERIFIED")   # never silently trusted
+
+
+def test_r85_disable_pin_verified_when_no_reasoning(tmp_path: Path):
+    """A DISABLING reasoning pin ({"enabled": false}) is VERIFIED iff ~0 reasoning tokens are served
+    (the qwen thinking-off fix: the pin's whole point is to STOP the budget-burning reasoning)."""
+    good = "```python\ndef reward(w, r, p, pr, i):\n    return float(pr), {}, None\n```"
+    fake = _FakeTransport([good] * 3)
+    fake.last_usage = {"input_tokens": 8, "output_tokens": 20, "reasoning_tokens": 0}
+    leg = dict(_LEG, reasoning={"enabled": False})
+    s = run_leg_gates(leg, tmp_path, which=("compliance",), n_compliance=3,
+                      transport_factory=lambda lg: fake)
+    assert s["pin_roundtrip"].startswith("verified")
+    assert s["reasoning_tokens_observed"] == 0
+
+
+def test_r85_enable_pin_fictional_when_zero_reasoning_on_compliance(tmp_path: Path):
+    """An ENABLE reasoning pin that yields a MEASURED 0 reasoning tokens on real authoring calls is
+    FICTIONAL (the pin was silently ignored — the R85 defect the archive could not previously detect)."""
+    good = "```python\ndef reward(w, r, p, pr, i):\n    return float(pr), {}, None\n```"
+    fake = _FakeTransport([good] * 3)
+    fake.last_usage = {"input_tokens": 8, "output_tokens": 20, "reasoning_tokens": 0}  # MEASURED 0
+    leg = dict(_LEG, reasoning={"mode": "pro"})
+    s = run_leg_gates(leg, tmp_path, which=("compliance",), n_compliance=3,
+                      transport_factory=lambda lg: fake)
+    assert s["pin_roundtrip"].startswith("FICTIONAL")
+    assert s["screen_verdict"] == "review"               # routed to Tamer, never silently trusted
+
+
+def test_r85_pin_unverified_when_reasoning_field_absent(tmp_path: Path):
+    """CRITICAL fix M1/m1: when the provider returns NO reasoning_tokens field, the pin's effect is
+    UNMEASURABLE -> UNVERIFIED for BOTH directions. Previously a DISABLE pin failed OPEN ('verified'
+    on absent evidence) and an ENABLE pin mislabelled absence as 'FICTIONAL'."""
+    good = "```python\ndef reward(w, r, p, pr, i):\n    return float(pr), {}, None\n```"
+    for i, pin in enumerate(({"enabled": False}, {"mode": "pro"})):   # disable AND enable both fail-safe
+        fake = _FakeTransport([good] * 3)
+        fake.last_usage = {"input_tokens": 8, "output_tokens": 20}    # NO reasoning_tokens field
+        leg = dict(_LEG, reasoning=pin)
+        s = run_leg_gates(leg, tmp_path / f"u{i}", which=("compliance",), n_compliance=3,
+                          transport_factory=lambda lg: fake)
+        assert s["pin_roundtrip"].startswith("UNVERIFIED"), (pin, s["pin_roundtrip"])
+        assert s["reasoning_tokens_observed"] is None
+
+
+def test_m3_served_provider_adjudicated_against_pin(tmp_path: Path):
+    """m3: a served provider OUTSIDE provider_pin.only flags MISROUTE->review; an in-pin match is
+    'verified'. Previously served_provider was archived but never adjudicated."""
+    good = "```python\ndef reward(w, r, p, pr, i):\n    return float(pr), {}, None\n```"
+    leg = dict(_LEG, provider_pin={"only": ["siliconflow"], "allow_fallbacks": False})
+    fake_ok = _FakeTransport([good] * 3); fake_ok.last_served_provider = "siliconflow"
+    s_ok = run_leg_gates(leg, tmp_path / "ok", which=("compliance",), n_compliance=3,
+                         transport_factory=lambda lg: fake_ok)
+    assert s_ok["provider_roundtrip"].startswith("verified")
+    fake_bad = _FakeTransport([good] * 3); fake_bad.last_served_provider = "someone-else"
+    s_bad = run_leg_gates(leg, tmp_path / "bad", which=("compliance",), n_compliance=3,
+                          transport_factory=lambda lg: fake_bad)
+    assert s_bad["provider_roundtrip"].startswith("MISROUTE")
+    assert s_bad["screen_verdict"] == "review"
+
+
+def test_compliance_floor_flags_zero_compliance(tmp_path: Path):
+    """A leg that authors 0 compliant rewards must be flagged for review, not stamped 'pass'
+    (2026-07-25: closes the qwen3.5-9b 0.0->'pass' verdict-logic gap)."""
+    fake = _FakeTransport(["no code here"] * 4)
+    s = run_leg_gates(_LEG, tmp_path, which=("compliance",), n_compliance=4,
+                      transport_factory=lambda lg: fake)
+    assert s["compliance_rate"] == 0.0
+    assert s["screen_verdict"] == "review"
+    assert s["compliance_verdict"].startswith("LOW")
 
 
 def test_price_key_review_survives_a_clean_screen(tmp_path, monkeypatch):

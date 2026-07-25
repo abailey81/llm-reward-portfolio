@@ -985,6 +985,21 @@ def assert_leg_roster_match(yml: dict, root: Path) -> str | None:
                 f"leg {label!r}: the registration pins reasoning "
                 f"({fleg['reasoning_pin']!r}) but the executed leg carries no reasoning block",
             )
+        # R103 (2026-07-25, repro-audit HOLE 5): bind the hf_pin COMMIT HASH — the reproducibility
+        # PERMANENCE anchor. model_suite.hf_pins_recorded carries "repo@commit" per filled open leg
+        # (legs.yaml mirrors it as hf_pin: {repo, commit}); previously only pin PRESENCE was bound, so
+        # a post-freeze commit drift of the exact weights release passed --check UNDETECTED. (The
+        # reasoning VALUE is deliberately NOT static-bound here — a human label can't cleanly match the
+        # API dict; the R103 leg-gate round-trip verifies the pin FUNCTIONED, a stronger guarantee.)
+        recorded_pin = (suite.get("hf_pins_recorded") or {}).get(label)
+        if recorded_pin:
+            hp = eleg.get("hf_pin") or {}
+            executed_pin = f"{hp.get('repo')}@{hp.get('commit')}" if hp else "<none>"
+            _require(
+                executed_pin == str(recorded_pin),
+                f"leg {label!r}: executed hf_pin {executed_pin!r} != registered "
+                f"hf_pins_recorded {recorded_pin!r} — the weights-hash permanence anchor must not drift",
+            )
     pending = pending_hf_pins(root)
     suffix = (
         f"; R85 hf_pins PENDING for {len(pending)} open leg(s) — filled at gate time, "

@@ -86,6 +86,13 @@ def _screen_probes(seed: int = 20260721) -> list[dict[str, str]]:
     ]
 
 
+#: Below this compliance rate a leg is flagged for review (2026-07-25): a leg that authors little/no
+#: contract-compliant code is unusable regardless of the contamination screen — this closes the
+#: qwen3.5-9b gap (0.0 compliance was stamped "pass" because the verdict keyed off screen_flags only).
+#: NOT an auto-fail (the pre-declared fallback chain decides), but never a silent "pass".
+_COMPLIANCE_FLOOR = 0.5
+
+
 def run_leg_gates(
     leg: dict[str, Any],
     out_dir: Path,
@@ -107,20 +114,31 @@ def run_leg_gates(
         transport_factory = lambda lg: build_transport(**transport_kwargs(lg))  # noqa: E731
     transport = transport_factory(leg)
 
+    reasoning_seen: list[int] = []   # reasoning-token counts across calls -> pin round-trip verdict
+    providers_seen: list[str] = []   # served providers across calls -> provider round-trip verdict (m3)
+
     def _call(system: str, user: str, gate: str) -> str:
         text = transport(system, user)
         cost = getattr(transport, "last_cost_usd", None)
+        usage = getattr(transport, "last_usage", None)
+        served_provider = getattr(transport, "last_served_provider", None)
         row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "leg": label, "gate": gate, "user": user, "response": text,
             "served_model": getattr(transport, "last_served_model", None),
+            "served_provider": served_provider,
             "stop_reason": getattr(transport, "last_stop_reason", None),
-            # R85 round-trip evidence: full usage (incl. any reasoning-token counts) archived per
-            # call — the record of whether a reasoning/temperature pin actually FUNCTIONED
-            # (an API silently ignoring a pass-through key would otherwise leave the pin fictional).
-            "usage": getattr(transport, "last_usage", None),
+            # R85 round-trip evidence: full usage (incl. reasoning-token counts, now captured by
+            # client.py) archived per call — the record of whether a reasoning/temperature pin
+            # actually FUNCTIONED (an API silently ignoring a pass-through key leaves the pin fictional).
+            "usage": usage,
             "cost_usd": cost,
         }
+        _rt = (usage or {}).get("reasoning_tokens")
+        if _rt is not None:
+            reasoning_seen.append(int(_rt))
+        if served_provider:
+            providers_seen.append(str(served_provider))
         with rows_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row) + "\n")
         if ledger_path is not None and cost is not None:
@@ -148,10 +166,8 @@ def run_leg_gates(
         # (never silently trusted).
         usage = getattr(transport, "last_usage", None)
         summary["usage_observed"] = usage
-        if leg.get("reasoning") and not usage:
-            summary["pin_roundtrip"] = "UNVERIFIED->review (reasoning pinned but no usage metadata returned)"
-        elif leg.get("reasoning"):
-            summary["pin_roundtrip"] = "usage-archived (inspect reasoning-token counts vs the pin)"
+        # The reasoning-pin round-trip VERDICT is computed after the gates from the reasoning-token
+        # counts (a trivial smoke prompt is an unreliable reasoning trigger; the compliance calls fire it).
 
     if "compliance" in which:
         system = (Path("prompts/system.txt").read_text(encoding="utf-8"))
@@ -167,6 +183,14 @@ def run_leg_gates(
                 pass
         summary["compliance_rate"] = ok / max(1, int(n_compliance))
         summary["compliance_n"] = int(n_compliance)
+        # A leg that authors little/no compliant code is UNUSABLE regardless of the contamination
+        # screen (2026-07-25: qwen3.5-9b scored 0.0 yet passed because the verdict keyed off
+        # screen_flags only). Gate the verdict on compliance too: below the floor -> review.
+        if summary["compliance_rate"] < _COMPLIANCE_FLOOR:
+            summary["compliance_verdict"] = (
+                f"LOW->review ({summary['compliance_rate']:.0%} < {_COMPLIANCE_FLOOR:.0%} floor)")
+            if summary.get("screen_verdict") in (None, "pass"):
+                summary["screen_verdict"] = "review"
 
     if "screen" in which:
         flags: list[str] = []
@@ -185,6 +209,56 @@ def run_leg_gates(
             summary["screen_verdict"] = screen_result
         elif flags:
             summary["screen_verdict"] = f"{summary['screen_verdict']}+FLAG"
+
+    # R85 pin round-trip VERIFICATION (repro-audit 2026-07-25, HOLE 2): reasoning-token counts are
+    # now archived (client.py), so a reasoning pin's EFFECT is measurable instead of assumed.
+    # THREE-STATE, direction-aware (repro-audit fix M1/m1 — never claim verified OR fictional on
+    # ABSENT evidence): (a) NO reasoning_tokens field on any call -> UNMEASURABLE -> UNVERIFIED for
+    # BOTH directions; (b) a MEASURED count -> an ENABLE pin (mode/effort/budget) must be >0 (0 on
+    # real authoring calls = silently ignored = FICTIONAL), a DISABLE pin ({"enabled": false}) must
+    # be ~0 (>0 = IGNORED); (c) a trivial smoke prompt may not trigger reasoning, so a measured 0 on
+    # an ENABLE pin is only conclusive when a compliance (authoring) call ran.
+    reasoning_pin = leg.get("reasoning")
+    if reasoning_pin is not None:
+        max_rt = max(reasoning_seen) if reasoning_seen else None
+        summary["reasoning_tokens_observed"] = max_rt
+        disabling = isinstance(reasoning_pin, dict) and reasoning_pin.get("enabled") is False
+        measured = max_rt is not None            # did ANY call return a reasoning_tokens field?
+        reasoned = bool(max_rt and max_rt > 0)   # a POSITIVE reasoning-token count was measured
+        if not measured:
+            rt_verdict = ("UNVERIFIED->review (no reasoning_tokens field returned by the provider — "
+                          "the pin's effect cannot be confirmed from the archive)")
+        elif disabling:
+            rt_verdict = (
+                f"IGNORED->review (reasoning-DISABLE pinned but {max_rt} reasoning tokens served)"
+                if reasoned else "verified (reasoning disabled; 0 reasoning tokens measured)")
+        elif reasoned:
+            rt_verdict = f"verified ({max_rt} reasoning tokens served; enable pin functioned)"
+        elif "compliance" in which:
+            rt_verdict = ("FICTIONAL->review (reasoning-ENABLE pinned but 0 reasoning tokens MEASURED "
+                          "on authoring calls — pin silently ignored)")
+        else:
+            rt_verdict = ("UNVERIFIED->review (reasoning-ENABLE pinned; 0 reasoning tokens on the smoke "
+                          "call — run --compliance to verify)")
+        summary["pin_roundtrip"] = rt_verdict
+        if "->review" in rt_verdict and summary.get("screen_verdict") in (None, "pass"):
+            summary["screen_verdict"] = "review"
+
+    # m3 (repro-audit 2026-07-25): adjudicate the SERVED PROVIDER against the provider_pin, symmetric
+    # with the reasoning verdict — a silent mis-route (served provider not in the pinned only-list) now
+    # flags review instead of merely being archived for a human to notice.
+    pin_only = [str(x) for x in ((leg.get("provider_pin") or {}).get("only") or [])]
+    if pin_only:
+        served = {p for p in providers_seen if p}
+        if not served:
+            summary["provider_roundtrip"] = "unrecorded (no served_provider field returned)"
+        elif served - set(pin_only):
+            summary["provider_roundtrip"] = (
+                f"MISROUTE->review (served {sorted(served - set(pin_only))} not in pin {pin_only})")
+            if summary.get("screen_verdict") in (None, "pass"):
+                summary["screen_verdict"] = "review"
+        else:
+            summary["provider_roundtrip"] = f"verified (served {sorted(served)} within pin)"
 
     (out_dir / f"{label}.summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8")

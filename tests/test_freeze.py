@@ -726,6 +726,29 @@ def test_leg_guard_fails_on_each_drift(tmp_path: Path, mutation: str, expect: st
         freeze.assert_leg_roster_match(_ms(), root)
 
 
+def test_leg_guard_binds_hf_pin_commit(tmp_path: Path):
+    """R103 (repro-audit HOLE 5): the hf_pin COMMIT HASH is bound — a matching commit passes, a
+    post-freeze commit drift OR an absent pin (when the registration records one) is caught. This is
+    the reproducibility PERMANENCE anchor; previously only pin PRESENCE was bound."""
+    import yaml as _y
+
+    ms = _y.safe_load(_MS_YAML)
+    ms["model_suite"]["hf_pins_recorded"] = {"a": "v/a@abc123"}
+    legs_ok = _LEGS_OK.replace(
+        "provider_pin: {only: [sf], allow_fallbacks: false}, quantizations: [fp8]}",
+        "provider_pin: {only: [sf], allow_fallbacks: false}, quantizations: [fp8],\n"
+        "     hf_pin: {repo: v/a, commit: abc123}}", 1)
+    # matching commit -> passes
+    assert freeze.assert_leg_roster_match(ms, _legs_root(tmp_path, legs_ok)) is not None
+    # drifted commit -> caught
+    drifted = legs_ok.replace("commit: abc123", "commit: DRIFTED", 1)
+    with pytest.raises(Exception, match="permanence anchor"):
+        freeze.assert_leg_roster_match(ms, _legs_root(tmp_path, drifted))
+    # absent pin while the registration records one -> caught
+    with pytest.raises(Exception, match="permanence anchor"):
+        freeze.assert_leg_roster_match(ms, _legs_root(tmp_path, _LEGS_OK))
+
+
 def test_leg_guard_fails_on_duplicate_labels(tmp_path: Path):
     dup = _LEGS_OK.replace("label: b", "label: a", 1)
     with pytest.raises(Exception, match="duplicate leg labels"):

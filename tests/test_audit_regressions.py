@@ -210,8 +210,8 @@ def test_openai_transport_sends_max_tokens() -> None:
                     msg = type("M", (), {"content": "def reward(): return 0.0"})()
                     return type("R", (), {"choices": [type("C", (), {"message": msg})()], "usage": None})()
 
-    _OpenAITransport(_Client(), "gemini-3.5-flash", temperature=None, retrying=None, max_tokens=2048)("s", "u")
-    assert captured["max_tokens"] == 2048
+    _OpenAITransport(_Client(), "gemini-3.5-flash", temperature=None, retrying=None, max_tokens=8192)("s", "u")
+    assert captured["max_tokens"] == 8192   # R103: gemini cap raised 2048->8192 (mandatory-thinking headroom)
 
 
 # --------------------------------------------------------------------------- #
