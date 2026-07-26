@@ -198,6 +198,22 @@ inference:
       metrics: [cvar_05, cvar_01]               # pooled tail recomputed per d (DATA-level, NO policy re-run)
       report_only: true
       gates_h2: false                           # DISJOINT from the frozen m=6 union — reported, NEVER a gate
+  # ---- R67 JZS prior pin, MIRRORED 2026-07-26 (ratification item 7c; Tamer + Okhrati) ------------
+  # R67 pins the ONE researcher degree of freedom in the Bayesian null complement -- the Cauchy prior
+  # scale -- and requires it to be PINNED before the freeze for the complement to be confirmatory.
+  # It WAS pinned, but in PROSE ONLY: config/preregistration.yaml carried no `jzs`/`prior`/`bf_threshold`
+  # key, so scripts/freeze.py's prose<->yaml assertions could not check it (they can only compare fields
+  # present on BOTH sides), unlike the SESOI, the equivalence margin and the m=6 family. The hash binds
+  # the prose bytes, so the VALUE could never move silently -- what was missing was the check that would
+  # catch the CODE drifting from the registered value. Mirrored here; the code<->yaml drift guard lives
+  # in tests/test_bayes_null.py (deliberately NOT in freeze.py, which stays import-light: pulling
+  # src/inference/bayes_null.py into the gate would drag scipy in at freeze time).
+  bayes:
+    prior_scale_r: 0.7071067811865476          # sqrt(2)/2 — the BayesFactor "medium" default (R67); == src/inference/bayes_null.DEFAULT_R
+    prior_scale_grid: [0.5, 0.7071067811865476, 1.0, 1.4142135623730951]   # {0.5, sqrt(2)/2, 1, sqrt(2)} — the MANDATORY robustness band; == bayes_null.R_GRID
+    bf_threshold: 3.0                          # == the bayesian_null_report default; the null is "supported" only ACROSS the whole grid
+    rope: reuses_frozen_equivalence_margin     # R67: the ROPE is the already-frozen equivalence_margin above, never a second free parameter
+    status: ratified                           # 2026-07-26 (Tamer + Okhrati). R67 made the complement CONFIRMATORY only on user ratification of the pinned r; before that it was a disclosed exploratory appendix. It remains REPORT-ONLY and DISJOINT from the m=6 family either way.
   validity_tier:                                # R105 (2026-07-26, A3): the DESIGNED graphical-multiplicity confirmatory tier. Full design + 7 fragility guards: docs/VALIDITY_TIER_DESIGN_2026-07-26.md
     status: ratified   # R108 (2026-07-26): SIGNED OFF by Tamer AND Okhrati ("me and Okhrati ratify everything"), which is exactly the precondition this field required. The graphical validity tier is therefore ACTIVE and SUPERSEDES the R31 separate-estimands stance. NOTE this is a TRANSCRIPTION of the sign-off, not a design act: the weights, topology, node set and per-node strength were already fully specified by the design session; only the supervisor signature was outstanding. STILL NOT FROZEN (Tamer's standing instruction) — the freeze remains GO-step-1.
     ratified_by: [tamer, okhrati]                        # R108
@@ -411,7 +427,20 @@ model_suite:
     permutation_test: "per shared CRN seed, flip the (distributional<->scalar) assignment with p=0.5 SIMULTANEOUSLY across all legs; STATISTIC = the POOLED MEAN difference over included legs (the multivariate paired sign-flip test; refined pre-freeze 2026-07-21 — a sign-COUNT statistic is near-powerless under joint flips with correlated legs, unanimity being routine under that null; the sign count remains the DESCRIPTIVE layer); 10,000 reps, one-sided toward dist-safer (shared-seed/panel dependence lives inside the null)"
     # R84 (2026-07-21): the capability anchor CONCRETELY pre-declared — a rule, not a choice.  #
     capability_anchor:
-      primary: swe_bench_verified            # ONE named benchmark (the lineage-standard coding axis)
+      # ★ DOWN-RANK REGISTERED 2026-07-26 (ratification item 7b; Tamer + Okhrati). The retrieval rule
+      # below is discretion-free and yielded values for only 2 of the 10 legs, so the "primary capability
+      # regression" is a line through TWO points: zero residual degrees of freedom, no estimable slope
+      # uncertainty, no testable gradient. The FALLBACK was already pre-declared (secondary M2 + tertiary
+      # ordinal pairs), so nothing was hidden -- but the register called this instrument PRIMARY while
+      # docs/VALIDITY_TIER_DESIGN_2026-07-26.md called it DEAD and proposed a down-rank that was
+      # registered NOWHERE. R87's falsifiability cannot rest on a non-estimable regression, so the
+      # hierarchy is now stated explicitly rather than left contradictory.
+      instrument_hierarchy_for_r87:
+        primary: [family_pair_did_qwen_9b_27b, family_pair_did_haiku_opus, m2_probe_grid]   # the IDENTIFIED estimates + the probe grid carry R87's decision
+        descriptive_only: swe_bench_verified_regression   # retained and reported, but NOT a decision instrument at n=2
+        rationale: "2 of 10 legs carry a card-published SWE-bench-Verified score under the discretion-free rule (glm-5.2 publishes SWE-bench-PRO; deepseek-v4-pro's circulating 80.6 is the MAX-mode figure our pinned pro-mode leg does not use; sonnet-5/qwen3.5-9b/nemotron/gemini-flash publish none; gpt-5.6-luna documented ABSENT). A 2-point regression has no residual df, so reading a GRADIENT off it would be an artefact. The pair DiDs are the CONTROLLED capability instrument (within-family, everything else held) and were always the identified estimates -- this makes the register say so."
+        never_imputed: true                    # the discretion-free rule stands: a missing score is MISSING, never imputed, never swapped for a different benchmark
+      primary: swe_bench_verified            # ONE named benchmark (the lineage-standard coding axis) -- see instrument_hierarchy_for_r87 above: DESCRIPTIVE since the 2026-07-26 down-rank
       # ⚠ ESTIMABILITY, stated plainly (deep review 2026-07-26, loop 7). The discretion-free retrieval rule
       # below yielded values for only 2 of the 10 legs, so the "primary capability regression" is a line
       # through TWO points: zero residual degrees of freedom, no estimable slope uncertainty, no testable

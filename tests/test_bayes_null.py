@@ -8,8 +8,10 @@ TOST, and the whole thing is deterministic and degenerate-safe. Pure scipy/numpy
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import numpy as np
+import pytest
 
 from src.inference.bayes_null import (
     R_GRID,
@@ -98,3 +100,35 @@ def test_uses_bootstrap_draws_for_hdi_when_given() -> None:
     draws = rng.normal(0.0, 0.2, 4000)  # deliberately wide -> HDI spills outside the ROPE
     rep = bayesian_null_report(diffs, sesoi=0.05, bootstrap_draws=draws)
     assert rep["hdi_in_rope"] is False  # the wide bootstrap HDI, not the tight conjugate interval
+
+
+def test_jzs_prior_pin_matches_the_registered_mirror() -> None:
+    """The CODE's prior pin must equal the REGISTERED one (ratification item 7c, 2026-07-26).
+
+    R67 pins the single researcher degree of freedom in the Bayesian null complement — the Cauchy prior
+    scale `r` — and makes the complement confirmatory ONLY on that pin. An un-pinned prior manufactures
+    null evidence: by Bartlett's / the Jeffreys–Lindley paradox `BF01 -> inf` as `r -> inf`.
+
+    The pin was real but PROSE-ONLY: `config/preregistration.yaml` carried no corresponding key, so
+    `scripts/freeze.py`'s prose<->yaml assertions could not check it (they only compare fields present on
+    BOTH sides). The hash binds the prose, so the registered VALUE could not move silently — the gap was
+    that the CODE could drift from it undetected. This test is that missing link, and it lives here
+    rather than in `freeze.py` so the gate stays import-light (importing this module drags scipy in).
+    """
+    import yaml
+
+    from src.inference.bayes_null import DEFAULT_R, R_GRID
+
+    root = Path(__file__).resolve().parents[1]
+    reg = (yaml.safe_load((root / "config" / "preregistration.yaml").read_text(encoding="utf-8"))
+           or {})["inference"]["bayes"]
+
+    assert DEFAULT_R == pytest.approx(reg["prior_scale_r"]), (
+        "src/inference/bayes_null.DEFAULT_R has drifted from the registered prior scale (R67)"
+    )
+    assert [pytest.approx(g) for g in R_GRID] == [pytest.approx(g) for g in reg["prior_scale_grid"]], (
+        "the robustness band R_GRID has drifted from the registered grid (R67)"
+    )
+    assert reg["bf_threshold"] == pytest.approx(3.0)
+    # The ROPE must never become a second free parameter — R67 reuses the frozen equivalence margin.
+    assert reg["rope"] == "reuses_frozen_equivalence_margin"

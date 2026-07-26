@@ -209,7 +209,23 @@ bankable, pre-registered result — not a disappointment.**
 
 ---
 
-## 11. Sign-off
+## 11. Sign-off — ✅ **RATIFIED 2026-07-26 by Tamer AND Dr Ramin Okhrati ("me and Okhrati ratify everything")**
+
+**Recorded in the machine config, not just in prose:** `inference.validity_tier.status: ratified`,
+`ratified_by: [tamer, okhrati]`, `ratified_utc: 2026-07-26`, `ratification_pending: []`, and
+`ratification_completed` naming all eight signed items. The guard test was **re-pointed, not deleted** —
+`tests/test_validity_tier.py::test_tier_ratification_is_RECORDED_not_silent` now requires a ratified tier
+to carry WHO and WHEN, so activation can never become a silent edit. **R31 is superseded.**
+
+**Landed as dated amendments:** **R108** (the ratification set) · **R109** (7a — the calendar gate
+reconciled to the uniform 2026-08-27 stop) · **R110** (7b + 7c — the two items that were approved but had
+no machine record: the R87 instrument hierarchy, and the JZS prior mirror plus its code↔config drift
+guard).
+
+**Still NOT frozen** — the freeze remains GO step 1 and fires only with Tamer's full-campaign approval
+(R94). Ratification settles *what* gets frozen; it is not itself the freeze.
+
+### The original sign-off table (kept as the record of what was put)
 
 | # | Item | Decision |
 |---|---|---|
