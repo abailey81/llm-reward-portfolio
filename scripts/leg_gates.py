@@ -96,6 +96,17 @@ def _screen_probes(seed: int = 20260721) -> list[dict[str, str]]:
 _COMPLIANCE_FLOOR = 1.0
 
 
+def _norm_provider(name: str) -> str:
+    """Fold a provider identifier for comparison: ``SiliconFlow`` == ``siliconflow`` == ``Silicon Flow``.
+
+    The pin is OpenRouter's routing SLUG; the response reports a human DISPLAY NAME. Comparing them
+    literally produced a permanent false MISROUTE on both qwen legs (measured 2026-07-26). Only case
+    and separators are folded — a different provider (``Together``, ``DeepInfra``) still fails, which
+    is the condition the check exists to catch.
+    """
+    return "".join(ch for ch in str(name).lower() if ch.isalnum())
+
+
 def run_leg_gates(
     leg: dict[str, Any],
     out_dir: Path,
@@ -276,11 +287,20 @@ def run_leg_gates(
     pin_only = [str(x) for x in ((leg.get("provider_pin") or {}).get("only") or [])]
     if pin_only:
         served = {p for p in providers_seen if p}
+        # NORMALISE before comparing (2026-07-26). The pin carries OpenRouter's routing SLUG
+        # (`siliconflow`) but the response reports the DISPLAY NAME (`SiliconFlow`), so a literal
+        # set difference declared MISROUTE on both qwen legs while the routing was in fact exactly
+        # as pinned. That is worse than cosmetic: a check that cries wolf on every run trains the
+        # operator to ignore it, and this is the check that would catch a REAL silent re-route to a
+        # provider serving a different quantization — the R85/Stefan-#3 reproducibility risk it
+        # exists for. Case and separators are folded; a genuinely different provider still fails.
+        unmatched = sorted(p for p in served if _norm_provider(p) not in
+                           {_norm_provider(q) for q in pin_only})
         if not served:
             summary["provider_roundtrip"] = "unrecorded (no served_provider field returned)"
-        elif served - set(pin_only):
+        elif unmatched:
             summary["provider_roundtrip"] = (
-                f"MISROUTE->review (served {sorted(served - set(pin_only))} not in pin {pin_only})")
+                f"MISROUTE->review (served {unmatched} not in pin {pin_only})")
             if summary.get("screen_verdict") in (None, "pass"):
                 summary["screen_verdict"] = "review"
         else:

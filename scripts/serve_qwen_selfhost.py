@@ -35,6 +35,60 @@ from typing import Any, Optional, Sequence
 _DTYPE_ALIASES = {"bf16": "bfloat16", "fp16": "float16", "fp32": "float32"}
 
 
+def hf_snapshot_dir(hf_home: str | Path, repo: str, commit: str) -> Path:
+    """Where the HuggingFace cache stores EXACTLY this repo@commit.
+
+    Pure path arithmetic over the documented cache layout
+    (``<HF_HOME>/hub/models--<org>--<name>/snapshots/<commit>``) so the preflight below needs no
+    ``huggingface_hub`` import and is unit-testable with no network and no GPU.
+    """
+    return (Path(hf_home) / "hub" / ("models--" + str(repo).replace("/", "--"))
+            / "snapshots" / str(commit))
+
+
+def preflight_weights(hf_home: str | Path | None, repo: str, commit: str) -> tuple[bool, str]:
+    """Are the PINNED weights already on disk? ``(ok, actionable message)``.
+
+    THE FAILURE THIS EXISTS TO PREVENT (2026-07-26). Myriad compute nodes have **no internet**, and
+    `vllm serve <repo> --revision <commit>` tries to DOWNLOAD when the revision is not cached. On a
+    GPU node that means: the scarce allocation is granted, the job starts, vLLM stalls then dies on a
+    network error, and the log blames vLLM rather than the real cause. The weights (~18 GB at bf16)
+    must therefore be staged on a LOGIN node first (``--prestage``) into a SHARED filesystem, and the
+    serve must run with ``HF_HUB_OFFLINE=1``.
+
+    Checking cheaply and failing LOUDLY here converts a wasted GPU allocation into an instant,
+    self-explaining error — the same discipline as the jobscript's apptainer-presence guard, which
+    exists because a missing ``.sif`` burned a granted slot with a bare ``rc=127``.
+    """
+    if not hf_home:
+        return False, ("HF_HOME is unset. Myriad compute nodes have no internet, so vLLM cannot "
+                       "download the pinned revision at serve time. Set HF_HOME to a SHARED path "
+                       "and pre-stage on a login node:\n"
+                       "    export HF_HOME=$HOME/Scratch/hf\n"
+                       "    python -m scripts.serve_qwen_selfhost --prestage --leg <leg>")
+    snap = hf_snapshot_dir(hf_home, repo, commit)
+    if snap.is_dir() and any(snap.iterdir()):
+        return True, f"pinned weights present: {snap}"
+    return False, (f"pinned weights NOT staged for {repo}@{commit[:12]} (expected {snap}).\n"
+                   "Run this ON A LOGIN NODE (which has internet), then resubmit:\n"
+                   f"    export HF_HOME={hf_home}\n"
+                   f"    python -m scripts.serve_qwen_selfhost --prestage --leg <leg>\n"
+                   "Serving without it would burn the GPU allocation on a download that cannot "
+                   "succeed on a compute node.")
+
+
+def prestage(repo: str, commit: str) -> int:  # pragma: no cover (network; run on a login node)
+    """Download EXACTLY the pinned revision into HF_HOME. Login-node step; needs internet."""
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:
+        raise SystemExit("--prestage needs huggingface_hub (available inside the vLLM image / on "
+                         "the login node): pip install huggingface_hub") from None
+    path = snapshot_download(repo_id=repo, revision=commit)
+    print(f"[serve_qwen_selfhost] staged {repo}@{commit[:12]} -> {path}", file=sys.stderr)
+    return 0
+
+
 def build_serve_command(
     repo: str, commit: str, dtype: str, served_name: str, port: int,
     *, enable_thinking: bool, api_key: Optional[str] = None,
@@ -109,6 +163,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--manifest", default=None, help="where to write served-manifest.json")
     p.add_argument("--dry-run", action="store_true",
                    help="print the command + write the manifest; do NOT launch (CI / off-GPU safe)")
+    p.add_argument("--prestage", action="store_true",
+                   help="LOGIN-NODE step: download exactly the pinned revision into HF_HOME, so the "
+                        "GPU node (which has no internet) can serve it offline")
+    p.add_argument("--skip-preflight", action="store_true",
+                   help="serve even if the pinned weights look unstaged (escape hatch; the default "
+                        "refuses, because a download cannot succeed on a compute node)")
     args = p.parse_args(argv)
 
     from src.llm.legs import leg_by_label
@@ -124,6 +184,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     enable_thinking = bool((leg.get("reasoning") or {}).get("enabled", False))
 
     import os
+    if args.prestage:
+        return prestage(repo, commit)
     api_key = os.environ.get("VLLM_API_KEY")
     served_name = args.served_model_name or args.leg
 
@@ -137,6 +199,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"[serve_qwen_selfhost] command : {' '.join(cmd)}", file=sys.stderr)
     if args.dry_run:
         return 0
+    # PREFLIGHT before we consume the GPU allocation: refuse to start a serve whose weights are not
+    # already on disk, because on a compute node the download it would attempt cannot succeed.
+    ok, why = preflight_weights(os.environ.get("HF_HOME"), repo, commit)
+    print(f"[serve_qwen_selfhost] preflight: {why}", file=sys.stderr)
+    if not ok and not args.skip_preflight:
+        raise SystemExit(2)
     return subprocess.call(cmd)  # pragma: no cover (GPU-node launch)
 
 

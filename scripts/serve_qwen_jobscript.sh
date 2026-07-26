@@ -35,6 +35,16 @@ set -euo pipefail
 : "${VLLM_LEG:=qwen3.5-9b}"
 : "${VLLM_API_KEY:?set VLLM_API_KEY (any non-empty dummy string; the client + vLLM auth)}"
 
+# OFFLINE WEIGHTS (2026-07-26). Myriad compute nodes have NO internet, so `vllm serve --revision`
+# must NOT try to fetch: the pinned revision is pre-staged on a LOGIN node into a SHARED HF_HOME
+# (`python -m scripts.serve_qwen_selfhost --prestage --leg <leg>`), and the serve runs offline.
+# Without this the job dies AFTER the scarce GPU allocation is granted, with a network error that
+# blames vLLM rather than the missing stage. serve_qwen_selfhost.py preflights and refuses early.
+: "${HF_HOME:=$HOME/Scratch/hf}"
+export HF_HOME
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
+echo "[serve_qwen] HF_HOME=${HF_HOME} HF_HUB_OFFLINE=${HF_HUB_OFFLINE}"
+
 NODE="$(hostname -f)"
 ENDPOINT="http://${NODE}:${VLLM_PORT}/v1"
 echo "[serve_qwen] node=${NODE} port=${VLLM_PORT} leg=${VLLM_LEG} job=${JOB_ID:-local}"

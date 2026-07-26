@@ -233,3 +233,24 @@ def test_price_key_review_survives_a_clean_screen(tmp_path, monkeypatch):
     s = lg.run_leg_gates(leg, tmp_path, which=("screen",), transport_factory=lambda _lg: _T())
     assert s["price_key"] == "MISSING->review"
     assert s["screen_verdict"] != "pass"
+
+
+# --- provider round-trip normalisation (2026-07-26, measured false alarm) ----------------------
+
+def test_provider_pin_matches_the_display_name_the_API_actually_returns():
+    """MEASURED: the pin is OpenRouter's slug `siliconflow`, the response says `SiliconFlow`, and a
+    literal comparison declared MISROUTE on BOTH qwen legs while routing was exactly as pinned."""
+    from scripts.leg_gates import _norm_provider
+
+    assert _norm_provider("SiliconFlow") == _norm_provider("siliconflow")
+    assert _norm_provider("Silicon Flow") == _norm_provider("siliconflow")
+    assert _norm_provider("SILICONFLOW") == _norm_provider("siliconflow")
+
+
+def test_a_GENUINELY_different_provider_still_fails_the_pin():
+    """The fold must not become a rubber stamp: a real silent re-route (different provider, and so
+    potentially a different quantization) is exactly what this check exists to catch."""
+    from scripts.leg_gates import _norm_provider
+
+    for other in ("Together", "DeepInfra", "Fireworks", "Novita"):
+        assert _norm_provider(other) != _norm_provider("siliconflow")
