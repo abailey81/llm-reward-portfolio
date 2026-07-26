@@ -3,6 +3,546 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-26] — ★★★★ MYRIAD MAX-CAPACITY MEASUREMENT (636 cores) · THE "96-CORE CEILING" REFUTED · CPU LANE BUILT · A LAUNCH-BREAKING H1 DEFECT CAUGHT · KILL-RESILIENCE SYSTEM (capacity session — 4th concurrent session)
+
+> Tamer: *"test how far Myriad would allow us to go, and how many cpu it would allow us to take …
+> then from there very precisely calculate the speed, and then the timings of the campaign Run."*
+> Then: *"make sure you know when to stop with Myriad so they don't kick us out … I would much
+> rather save my access to the Myriad than lose it in trying to find out the maximum possible."*
+> Then: *"don't just write, fix"*, *"the system has to be extremely smart"*, and *"ensure the
+> reproducibility"*. Full findings: the scratchpad `MYRIAD_MAXCORE_FINDINGS.md` +
+> `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` §0-PRE / §0-LIMITS (rewritten).
+
+### ★★★ THE MEASUREMENT — 636 cores held; the campaign's core planning constant was an artifact
+
+Method: staged fleets of independent CPU jobs running the REAL campaign-scale trainer
+(`bench_compute.py --n-assets 30 --batch 256`; **$0**, no API), 02:30–04:30 UTC, with live
+`qstat`/`qhost`/`qconf` instrumentation. **148 jobs completed OK.**
+
+- **PEAK 636 concurrent cores — 1.99× the previous 320 record.** Three independent ramps settled at
+  **72 / 75 / 76–77 concurrent 8-core jobs**, so this is an EQUILIBRIUM, not a spike.
+- **The "96-core fair-share ceiling" that every campaign timeline rests on is an ARTIFACT**: the
+  probe that produced it **submitted 12 jobs and got 12**. Re-verified live — `maxujobs 1000`,
+  `max_u_jobs 1000`, `job_load_adjustments NONE`, and the sole RQS `slowemdown` is **enabled FALSE**
+  and scoped to another user. **There is no per-user slot cap.**
+- **`-pe smp 36` SILENTLY REQUESTS AN EXCLUSIVE WHOLE NODE.** UCL's JSV adds `exb=true,exd=true`
+  when the core count equals a full node (binary-searched: 28/32/34/35 clean, **36 not**; `smp 64
+  -ac allow=T` → `ext=true`). This is why job `cpucurve_d` sat queued **2+ days** — a malformed
+  request, not fair-share — and why the dossier's "36-core CPU node" job shape would have STARVED.
+- **Per-core throughput is FLAT in footprint**: 148 jobs, mean **14.19** steps/s/core (median 14.25,
+  p10 13.00, p90 15.38), flat from 1 to 28 workers. Degradation is nodes being full of *everyone's*
+  jobs, not our packing ⇒ **choose footprint purely for placeability (8 cores)**. This supersedes
+  the 17.5 / 20.3 / 26–27 figures (measured on quiet nodes by small fleets — the wrong regime).
+  Warmup-corrected (`learning_starts: 1000`): **13.00 steps/s/core = 8.54 core-h per 400k training**.
+- **⚠ TICKET CONCENTRATION IS REFUTED** (contradicts dossier §3 lever 1 + runbook §10 lever 3's
+  "~50×"). Controlled test: `qhold` 228 of 309 pending jobs, one full scheduler cycle → top eligible
+  priority moved only **2.0165 → 2.0413** (waiting-time accrual, which happens anyway), **zero**
+  32-core jobs placed, and our running count decayed **44 → 9**. Our jobs sit at the cluster
+  priority FLOOR (2.01 vs median 2.00) regardless. **Do not chunk big to buy priority.**
+- **Capacity is BACKFILL FLOW, not an allocation**: holding the queue collapsed us 621 → 92 in
+  ~20 min; releasing re-ramped to ~628. It needs a continuously-deep queue of SMALL jobs.
+- **Node defect**: `/usr/bin/apptainer` missing on some d nodes (`node-d00a-230`) → `rc=127`
+  (the venv python lives INSIDE the `.sif`). **Rate 3/151 = 2.0%.** Now guarded.
+
+### ★★★ THE TIMELINE CONSEQUENCE (work model verified from config, not the stale docs)
+
+**Total trainings = 1,740 search + 69n test** (7 core arms + 10 legs×5 + **11** H1 canon + 1 H3).
+*Validated*: under the pre-expansion 4-name canon this reproduces the independently-recorded
+"search = 48% of work at rung-30, ~22% at rung-100" exactly (48.3% / 21.9%).
+
+| rung | C=96 *(the plan of record)* | C=320 *(old peak)* | **C=628 (measured)** |
+|---|---|---|---|
+| 30 floor | 13.6 d | 4.1 d | **2.2 d** |
+| 189 | ✗ | 16.4 d | **8.5 d** |
+| 403 (95%) | ✗ | 32.8 d ✗ | **16.9 d** |
+| **568 (99%)** | ✗ | ✗ | **23.4 d (~Aug 19–20)** |
+
+**⇒ In the 31 days GO→Aug-27 the ACHIEVED SEED RUNG STOPS BEING THE BINDING CONSTRAINT**: C=96 gives
+n≈96 (the source of the plan's "~100–189"), C=628 gives n≈760 so **the ladder TOPS OUT** — the
+registered design can be **COMPLETED at n=568** rather than truncated at n≈142.
+Hard floors cores cannot move: **`bayes_opt` = 25 strictly-sequential GP-EI iterations ≈ 8.9 days**;
+LLM reflection chains ≈ 2.1 days.
+
+### ★★★ THE GPU, RECONCILED — the answer is a HYBRID, and it needs 1–2 GPUs, not 33
+
+The launcher's own measured curve (`autosize_h_rt::_agg_clean`) is per-GPU aggregate: pack1 **102**
+… pack5 **253**, and pack-1 matches the G1 V100 anchor (102.2 steps/s, real SAC at obs 1893, job
+764154) exactly. So: **LATENCY** — one GPU is 7.8× a CPU core per training (1.09 h vs 8.54 h);
+**THROUGHPUT** — one V100 at pack-5 ≈ 19 CPU cores, so matching our 636 cores needs **~33 GPUs =
+45% of every GPU on Myriad**, and we obtained **zero in three days**. ⇒ **Use the GPU only where
+volume is tiny and latency is everything: the SEQUENTIAL CHAINS.** `bayes_opt` 8.9 days → **~27 h on
+ONE V100**. Science: every *scored* comparison lives on the all-CPU test leg (homogeneous by
+construction); the search leg only selects a reward *program*, re-trained from scratch on CPU. A
+declarable design choice needing Ramin's nod — **not a necessity** (all-CPU still completes in 23.4 d).
+
+### ★★★ FIXED — a LAUNCH-BREAKING H1 defect (this alone justified the session)
+
+`config` expanded the H1 canon **4 → 11** on 2026-07-26, but **four live launch paths still
+hand-typed the old four**: `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md` §2, **`scripts/campaign_supervisor.ps1`**,
+**`scripts/mode_d_supervisor.ps1` (the launcher of record)** and `scripts/install_onstart_task.ps1`.
+`run_campaign_cluster.py --baselines` had `default=None` and took the CLI list **verbatim** — it did
+NOT read config — so **MODE D would have launched a SUBSET of the registered family**, silently
+making the new **N6 intersection-union node unsatisfiable** (its p = max over the 11 one-sided leg
+p-values) and **mis-sizing the C0 canary** (which defaults to the first 3 of the list). The laptop
+driver has always refused exactly this (`run_campaign.py::resolve_baseline_names`, R97) — the
+cluster path simply lacked the guard.
+**Fix:** new `resolve_cluster_baselines()` — under `--tiered` the frozen `config/campaign.yaml
+h1_baselines` is resolved automatically; an explicit list must be EXACTLY that family or the launch
+is refused before ssh. `--baselines` removed from all four launch paths. 5 new tests incl. a
+regression lock on the exact drifted four. Runbook **§9(h) marked SUPERSEDED** (the canon expansion
+makes the secondary-panel run duplicate already-banked work).
+
+### ★★★ BUILT — the CPU lane (A2), with the two guards the probe proved necessary
+
+`render_jobscript(device="cuda"|"cpu")`: the CPU lane omits `-l gpu=1` and the `-ac allow=` pool pin,
+drops `--nv`, and sizes **1 core per packed training** (CPU trainings are single-threaded —
+multi-thread BLAS would change float reduction order and break CRN). Wired end-to-end via
+`build_cluster_run(device=…)` → `run_batch` (which injects `device` into BOTH the jobscript AND
+every spec, since `run_one` defaults to `"cuda"`) → `--device {cuda,cpu}`. Guards: **`cores == 36`
+is REFUSED** at render (the exclusivity trap), and a containerized job now emits a
+`command -v apptainer` probe that fails with a NAMED error instead of a bare `rc=127`.
+
+### ★★★ BUILT — `src/cluster/killswitch.py`: kill-resilience (26 tests)
+
+The insight that reconciles "go maximum" with "never lose access": **kill-resilience is what makes
+aggression safe.** The driver's existing behaviour is exactly wrong for an administrative kill — it
+treats task death as node/transport failure and REQUEUES, and blind resubmission straight after a
+`qdel` is what escalates to account suspension.
+- **PROACTIVE `plan_footprint`**: the probe found ~5,000 cores FREE while ~2,000 jobs pended, so the
+  fast move and the courteous move coincide — claim 50% of free capacity when quiet / 30% normal /
+  15% busy, clamped by `ABSOLUTE_CORE_CEILING = 640`.
+- **REACTIVE `classify_task_deaths`**: separates the three fingerprints from the epilogue ledger the
+  jobscript already writes — one host → node failure (requeue) · `secs ≈ h_rt` → walltime (requeue)
+  · many deaths across many DISTINCT hosts in a short window → **ADMIN KILL → RETREAT** (stop
+  submitting, do NOT requeue, halve the cap monotonically, write `MYRIAD_KILL_INCIDENT.json`, alert
+  a human). Deliberately trigger-happy: false positive costs hours of a run with 7 days of slack;
+  false negative costs the account. Human-in-the-loop release; unreadable incident file BLOCKS.
+- ⚠ Retreat reduces FOOTPRINT, never SGE priority; the module is structurally pure (no
+  `subprocess`/`os` import — test-locked) so it cannot touch the scheduler at all.
+
+### ★★★ REPRODUCIBILITY — a hole I would have opened, found and closed
+
+`capture_env` records the **node's** CUDA availability, **not the device the training used** — so a
+`device=cpu` spec on a GPU node captured `cuda_available: true` and the **S6 homogeneity audit was
+blind to a CPU/GPU mix**. CPU ≠ CUDA bit-for-bit (the reason `run_campaign.py` refuses `--cpu` on the
+sealed leg), so an undetected mix breaks the CRN pairing every paired contrast rests on.
+**Fixed**: `run_one` stamps `|dev=<device>` into the env_fp label the C3 census compares, so a mixed
+run now shows two labels and is flagged. **Also**: `--device cpu` + GPU `--seed-pool-blocks` is now
+REFUSED (the stripe would assert a device stratification the run does not have).
+**`CLAUDE.md` gains a ★★★★ REPRODUCIBILITY section** (Tamer, 2026-07-26) making the determinism
+envelope binding on every change: never trade arithmetic for speed; a substrate change is a DESIGN
+decision; anything that can vary across records must be made visible in the archive **in the same
+change**; fail loud on incoherent combinations; verify by re-running the golden reproduction.
+
+### ★★★★ FOLLOW-UP (same session) — the 2×2 factorial, and why 636 is a LOWER BOUND
+
+Tamer: *"we must use the maximum Myriad would offer … if it would offer us say 2000, why would we
+reject?"* He is right, and the earlier 640/2560 self-imposed ceilings were conservatism without a
+principled basis. **SGE's fair-share IS the allocation mechanism** — if it dispatches our jobs it
+has already arbitrated our entitlement against every other user, so declining granted capacity is
+pure loss. Policy revised to **"take what the scheduler grants, minus a reserve for others"**:
+share raised to **90 / 70 / 50%** of FREE cores by pressure, `ABSOLUTE_CORE_CEILING` **2560 → 8192
+and redefined as a RUNAWAY BACKSTOP, not a policy limit**. The two protections that remain are the
+principled ones: **`FREE_CORE_RESERVE = 1000`** (we can never be the reason someone waits for a CPU
+slot) and the administrative-kill retreat.
+
+**A 2×2 factorial (footprint × walltime, 60 jobs, ~400 core-h) settled two open questions:**
+
+| cell | 8 cores | 32 cores |
+|---|---|---|
+| h_rt 50 min | **15/15 placed** | 0/15 |
+| h_rt **11 h** | **15/15 placed** | 0/15 |
+
+- **WALLTIME IS IRRELEVANT TO PLACEMENT.** An 11-hour request placed exactly as fast as a 50-minute
+  one. This closes the biggest threat to the timeline: the campaign's real ~8.54 h tasks place just
+  as well as the short probe jobs the 636 figure was measured with.
+- **FOOTPRINT IS THE BINDING VARIABLE**, and the gradient is steep: `smp 8` → 30/30 instantly ·
+  `smp 16` → 2/60 in 15 min (separate 60-job fleet) · `smp 32` → **0/30 over two full cycles**,
+  despite 69 d-nodes having ≥32 cores free. ⇒ **use `-pe smp 8`; scale comes from job COUNT ×
+  DURATION, never from footprint.**
+
+**★ THE RE-DERIVATION THAT CHANGES THE PROJECTION.** The ~75-concurrent-job plateau (flat from 109
+to 448 pending) is NOT a job-count ceiling — it is a **flow equilibrium**,
+`concurrent = dispatch_rate × job_duration`. The probe's jobs ran ~20 min and CHURNED (~72 replaced
+every ~22 min ⇒ **dispatch ≈ 3.3 jobs/min**; the 03:48 burst alone placed 67 in one cycle).
+**Campaign tasks are ~25× longer, so they ACCUMULATE rather than churn** — the free d-pool
+(~3,700–4,000 cores) saturates in **~2.3 h**, after which FREE CAPACITY, not dispatch, binds. Sound
+because (a) long `h_rt` is not penalised at dispatch (measured above) and (b) functional tickets are
+usage-history-free, so our priority does not decay as we accumulate. **⇒ a realistic campaign steady
+state is ~2,000–3,000 cores, putting n=568 at ~5–7 days rather than 23.4.** ⚠ A model calibrated on
+a measured dispatch rate, NOT a multi-hour measurement — the GO canary must watch the accumulation
+curve over the first ~3 h and let the advisor re-forecast. Deliberately NOT chasing the ~850 idle
+CPU cores on GPU nodes: taking them would block GPU jobs (`-pe smp 4` alongside `gpu=1`) — the one
+case where we would genuinely impair other users.
+
+### ★★★★ THE CRITICAL-PATH ANALYSIS + THE `bayes_opt` IN-JOB CHAIN (`src/cluster/lanes.py`, `src/cluster/bayes_chain.py`)
+
+Tamer: *"create a very smart approach to both cpu and gpu and pools … don't cut the science or make
+something weaker for the sake of time."* Campaign wall-clock is a MAKESPAN, not a throughput number:
+`makespan = max(total_work / capacity, longest_sequential_chain)`.
+
+**THE RESULT THAT REFRAMES EVERYTHING.** With 349,558 core-hours of work at n=568, the throughput
+term drops below the 8.90-day `bayes_opt` chain at **~1,640 CPU cores**. Past that the campaign is
+**LATENCY-bound, and additional CPU capacity buys literally nothing** — 2,000 and 3,000 cores give
+the *identical* makespan. The binding chain is **30 trainings**, which one GPU at pack-1 finishes in
+**27 h instead of 8.90 days**. So the highest-leverage action in the whole campaign is putting
+*thirty* trainings on *one* GPU, not acquiring thousands more cores.
+
+**A DEFECT THIS UNCOVERED — the GPU lever would have silently failed.** `campaign.py:768` documents
+that `bayes_opt` "runs the GP on the DRIVER and trains each proposed coefficient vector as an
+**array-of-1**". So the chain pays a QUEUE WAIT **30 times**. On CPU that is ~2%. On GPU, where our
+jobs have queued for hours-to-days, 25 dispatches at even 2 h each bolt ~50 h of waiting onto ~27 h
+of compute — destroying the speed-up nobody would have noticed until GO day.
+
+**BUILT: `src/cluster/bayes_chain.py`** — runs the ENTIRE GP chain inside ONE job (13 tests).
+- **Science untouched, by construction**: the same `bayes_opt_over_template` GP, the same seed (so
+  the same proposal sequence), the same matched budget and B\*, the same candidate ids, and the same
+  certified training path (`run_one._run_single` after `_worker_init()`). Verified by a test that
+  asserts the evaluated coefficient sequence is **byte-identical to a reference
+  `bayes_opt_over_template` run** at the same seed. Speed comes ONLY from removing queue latency.
+- **No new determinism surface**: `run_one`'s `pack==1` path *already* trains specs sequentially
+  in-process, and the P18 audit made it share the pooled path's `_worker_init()` environment
+  contract — so this reuses an audited path rather than inventing one.
+- **Deadline-aware**, which is what makes it work on CPU too: SGE caps walltime at 48 h (2-36 cores)
+  / 72 h (1 core) but the chain needs ~27 h on GPU and ~214 h on a CPU core. The runner stops
+  cleanly before it would be killed and reports `partial`; because resume is **archive replay**
+  (a trained candidate returns its recorded fitness for free), a restart re-derives an identical GP
+  trajectory. One GPU job finishes it; ~4 chained 72 h CPU jobs do the same with 4 queue waits
+  instead of 25. A test drives the full resubmit loop and asserts **every candidate trains exactly
+  once**. `est_iter_secs` (from the measured rate) guards the first iteration of each job — a gap a
+  test exposed, since without it a job starts blind and can be SIGKILLed at the walltime.
+- `render_jobscript` gains `entry_module` so the chain is actually reachable (default unchanged).
+
+**REFUSED, on integrity grounds (all three would bias toward our own hypothesis).** `bayes_opt` is
+the H4b CONTROL the LLM must beat, so anything that weakens it makes our result look better:
+raising `n_init` 5→15 (halves the chain, but fewer GP-guided steps = a weaker optimiser) · batch/
+q-EI parallel BO (25 serial → 5 rounds, but batch BO extracts less information per decision at equal
+budget; note Snoek et al. 2012 — the *registered* citation — does contain it, so it would arguably
+be in scope, and it is still refused) · a reduced search-candidate B\* (changes which candidate
+wins). Recorded here so they are not re-proposed as "free" speed.
+
+**ALSO ENCODED IN `lanes.py` (two science/etiquette constraints, so they cannot be forgotten):**
+the **`t` pool is EXCLUDED** — AMD EPYC (Zen4) vs Intel Xeon everywhere else means different oneDNN
+kernels and hence different float reduction order, which breaks the CRN bit-exactness every paired
+contrast depends on (and it measured no faster: 14.75 vs 14.2, so the exclusion is free); and the
+**~850 idle CPU cores on GPU nodes are DELIBERATELY not harvested** — GPU jobs request `-pe smp 4`
+alongside `gpu=1`, so taking them would block GPU users, the one case where we would genuinely
+impair others.
+
+**Net timeline** with the chain in-job on one GPU: 2,000 cores → **7.3 d**, 3,000 → **4.9 d**
+(vs 8.9 d hard-floored without it). The GPU remains an OPTIMISATION, never a dependency — with none
+at all the campaign is 8.9 days, still inside the 31-day window.
+
+### ★★★★ THE THREAD SWEEP — 8 threads = 2.72× on one training, and the GPU dependency DISAPPEARS
+
+Tamer: *"if GPU would make us slower, why not put bayesian and others on CPU cores as well?"* First a
+correction — the GPU is **7.8× FASTER** per training (102 vs 13 steps/s); it is *unobtainable at
+scale*, not slow. But the question pointed at something untested: **every training is pinned to ONE
+thread**, which is right for the test flood but wrong for a chain, whose cost is pure LATENCY.
+`bench_compute` hardcodes `threads=1` and could not answer it, so a new `scripts/thread_sweep.py`
+was written and run (jobs 17784 `smp 16`, 17836 `smp 8`; two independent runs, closely agreeing):
+
+| threads | 1 | 2 | 4 | **8** | 16 |
+|---|---|---|---|---|---|
+| 16-core (steps/s) | 20.9 | 32.9 | 46.4 | **55.1** | 44.0 |
+| 8-core (steps/s) | 21.5 | 33.7 | 48.1 | **60.0** | — |
+| speedup | 1.00 | 1.57 | 2.23 | **2.72** | **2.11 ← REGRESSES** |
+
+**8 threads is the optimum and 16 is measurably SLOWER** — small-matmul oversubscription (256×256
+nets at batch 256). Worth knowing, since "more threads" is the obvious next guess and it is wrong.
+
+**THE RESULT.** At the contended campaign rate this turns the `bayes_opt` chain from **8.9 d into
+~3.3 d on plain CPU** — below the throughput term at any realistic core count. The campaign is
+**throughput-bound on pure CPU, so the GPU is NO LONGER NEEDED**: adding one leaves the makespan
+unchanged (asserted to 1e-9 in `test_threading_the_chain_REMOVES_the_need_for_a_gpu`). CPU scaling
+now pays out to **~4,460 cores** (was ~1,640). Strictly better than the GPU plan: 8 CPU cores are
+reliably obtainable, a GPU is not; it removes a dependency instead of adding one.
+
+**THE RULE, measured BOTH ways on the same hardware — threads where LATENCY binds, cores where
+THROUGHPUT binds:** 8 cores as 8× 1-thread trainings give ~104 steps/s aggregate vs ~35 for one
+8-thread training, so 1 thread is ~3× better for the FLOOD while 8 threads is ~2.7× better for a
+CHAIN. Encoded in `src/cluster/lanes.py` (`CPU_THREAD_SPEEDUP`, `CPU_CHAIN_THREADS=8`, 15 tests
+incl. a lock that 16 threads must stay recorded as slower).
+
+**⚠ NEEDS TAMER'S RATIFICATION — a registered config change, not an ops detail.** Multi-threaded
+BLAS changes float reduction ORDER, so an 8-thread training is not bit-identical to a 1-thread one.
+`docs/MAX_THROUGHPUT_RUN_PLAN.md` already prescribed exactly this procedure (**bench-then-ratify
+pre-freeze**) and this is the material win it required. Two things make it sound: it applies to the
+**search/chain leg ONLY** (every SCORED comparison lives on the uniformly 1-thread test leg, so no
+paired contrast is affected — threads change *which candidate wins*, not any measured number), and
+the archive now RECORDS the regime.
+
+**PRE-EXISTING REPRODUCIBILITY HOLE CLOSED (independent of any change of mine):**
+`scripts/capture_env.py::_DETERMINISM_ENV_KEYS` recorded CUDA/hash-seed settings but **not the thread
+count** — even though `MAX_THROUGHPUT_RUN_PLAN.md` calls it "part of the determinism envelope". A
+node running under different OMP settings would have been INVISIBLE to the S6 homogeneity audit,
+the same blindness as the device gap closed earlier today. Now records
+`OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS` (requested) **and** `torch.get_num_threads()` /
+`get_num_interop_threads()` (effective — a process calling `set_num_threads()` overrides the env,
+and it is the effective value that fixes the reduction order). +2 tests.
+
+**H4 DFO RECONCILED** (the CMA-ES/TPE toolkit another session landed concurrently): **CMA-ES** is
+~4 sequential *generations* (its population is parallel), **TPE** ~20–30 sequential. They run
+CONCURRENTLY with `bayes_opt`, so the critical path is the MAX (~25–30 serial trainings), never the
+sum — absorbed with no change to the plan. ⚠ Flag for whoever wires TPE: if its 10 startup trials
+are dispatched sequentially rather than batched, TPE becomes the LONGEST chain.
+
+**Verification:** 184 cluster+capture_env tests `RC=0`; `test_cluster_pack_integration` verified
+separately `RC=0` (it failed in the combined run on `WinError 1455 — paging file too small`, i.e.
+host memory pressure from three concurrent sessions spawning torch subprocesses, NOT a regression —
+confirmed by re-running it in isolation).
+
+### ✅ GAP-CLOSING PASS (Tamer: *"fix all gaps … make it flawless strictly"*)
+
+Every gap this session had itself flagged, closed — plus two defects found while closing them.
+
+**GAP 1 — the advisor was GPU-only, so the capacity findings were applied BY HAND at GO. CLOSED.**
+- `telemetry.py`: new `cpu_free` Snapshot field + `parse_cpu_free()` + a `#CPUFREE` remote section
+  carrying the `qhost` × `qstat -f` join for FREE CORES per node type. Additive (defaulted field,
+  own rc sentinel), so every existing caller and archived frame stays valid. The join **normalises
+  hostnames** — `qhost` prints `node-d00a-001`, `qstat` prints `Queue@node-d00a-001.data.priv`, and
+  the un-normalised version silently matches nothing and reports every core as free (a real bug hit
+  while measuring on 2026-07-26, now encoded in the comment).
+- `allocation.py`: new **`advise_cpu_lane()`** composing the two modules that own the halves —
+  `killswitch.plan_footprint` (how much to take) + `lanes.plan_lanes` (what the makespan then is) —
+  plus the measured job shape. Uses the confirmatory pools ONLY (`d`+`b`); an empty `cpu_free` reads
+  as **unknown**, reporting `target_cores: None` rather than a silent stall.
+- `allocation_advisor.py` prints it. **VERIFIED LIVE against Myriad**, not just unit-tested:
+  `CPU LANE: hold ~3203 cores of 4576 free {'d': 4178, 'b': 398} … makespan ~4.55 d at rung 568
+  (BINDING: throughput; more cores stop helping past ~4453)`.
+
+**GAP 2 — `chunking()` rested on a REFUTED doctrine. RATIONALE CORRECTED (behaviour unchanged).**
+It returned `chunk-25` under CONTENDED because "priority-per-job dominates" — the
+ticket-concentration doctrine this session **disproved** (§0-PRE M5). The recommendation SURVIVES on
+a different, real constraint: **`max_u_jobs = 1000`** (chunk-1 + pipelined rungs can enqueue ~1,200
+arrays; runbook §10's C5 check). So: chunk big to stay under the job cap, **never to buy priority**.
+No behaviour change ⇒ no test churn; the refutation is recorded at the decision point and locked.
+
+**GAP 3 — TPE would silently become the campaign's LONGEST chain. MODELLED + HANDED OFF.**
+`tpe_over_template` drives Optuna with `study.optimize(...)`, which evaluates **one trial at a
+time** ⇒ TPE is a **30-step sequential chain, longer than `bayes_opt`'s 25**. This contradicts the
+module's own docstring ("a startup **batch** … the parallel search leg can dispatch concurrently")
+and T5's "parallel-by-design" spec — a **spec-vs-implementation gap**. The first `n_startup_trials`
+are drawn by Optuna's RANDOM sampler and do not depend on observed values, so batching them via
+`ask()`/`tell()` is a **pure dispatch change with identical results** that cuts the chain 30 → ~21.
+**Not edited by me** — `dfo_toolkit.py` is the FEATURE/BUILD lane and was committed ~2 h earlier;
+handed over as a precise, quantified finding in `docs/SESSION_TASK_DISPATCH_2026-07-26.md` (T5-a).
+**Modelled on my side:** `lanes.py` gains `_TPE_SERIAL_STEPS = 30` / `_CMA_SERIAL_GENERATIONS = 4`
+behind `plan_lanes(..., include_dfo=True)` — **excluded by default because the toolkit is
+report-only**, so seating TPE confirmatorily becomes a visible decision rather than a surprise.
+(CMA-ES is fine: `es.ask()` proposes a whole population, so ~4 serial generations at budget 30.)
+
+**Two defects found while closing the above:** `allocation.py` used `dict[str, Any]` with **`Any`
+never imported** (added); and my own first version of the `chunking` regression test asserted on a
+whole-function string scan, which failed because the prose legitimately QUOTES the refuted claim in
+order to refute it — rewritten to assert on the operative return-line comment. (Same mistake class
+as the earlier `qdel` scan in `killswitch`; documentation must be free to name what it overturns.)
+
+**Verification:** 78 tests `RC=0` across `lanes` + the new `cpu_lane_advisor` + `allocation` +
+`killswitch` + `bayes_chain`, and the advisor exercised END-TO-END against the live cluster.
+
+### ✅ SESSION CLOSE-OUT — the GO-day operating rules landed in the OWNER doc + honest verification status
+
+**Documentation.** Tamer: *"document absolutely everything so we know what to do when we start a
+campaign run."* First attempt was a NEW `docs/CAMPAIGN_COMPUTE_PLAYBOOK.md` — **Tamer declined it,
+correctly**: HANDOFF §3's authority map assigns launch mechanics to the runbook and scheduler truth
+to the dossier, with the explicit rule *"never fork the same fact into a third place"*, and CLAUDE.md
+says do not add new docs unless needed. A third overlapping doc would have forked both. **Landed
+instead as `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md` §11 "THE COMPUTE LANE — GO-day operating
+rules"** (job shape · the thread/core lane split · footprint policy · launch-sequence deltas · the
+3-hour accumulation curve the canary must measure · the kill-incident procedure · the decisions
+needing Tamer/Ramin · the refused speed-ups), cross-referencing dossier §0-PRE/§0-LIMITS for the
+evidence rather than restating it. **One owner per truth, preserved.**
+
+**⚠ VERIFICATION STATUS — stated precisely, not rounded up.**
+- **CERTIFIED since all code changes:** the 184-test cluster + `capture_env` surface `RC=0`, plus
+  `test_cluster_pack_integration` `RC=0` separately, plus `freeze.py --check` `RC=0` (`frozen: false`).
+  This covers every module touched this session.
+- **NOT certified end-to-end:** the full ~2,700-test suite has **not** completed since these
+  changes. It passed `FULL_PYTEST_RC=0` earlier in the session (before the killswitch gate wiring,
+  `lanes.py`, `bayes_chain.py` and the `capture_env` change), and three later attempts were killed
+  by session teardown at 2 %, 2 % and 8 %. **Next session should run it to completion.**
+
+**⚠ NEW OPERATIONAL HAZARD — a red suite on this laptop can be a FALSE red.** Running several
+Claude sessions' pytest suites concurrently produces spurious, non-reproducible failures. Observed
+twice today: `WinError 1455 (paging file too small)` in `test_cluster_pack_integration`, and
+`CUDA error: invalid resource handle` on three `test_agents_deep` SAC/TQC constructions (the 8 %
+`F` in the last partial run). **Both were chased rather than waved away, and both passed on isolated
+re-run** — `test_agents_deep` alone `RC=0` (35 tests) and the exact failing pair
+`test_agents.py + test_agents_deep.py` `RC=0` on repeat, proving non-determinism rather than a
+test-ordering bug. Neither is a regression; neither touches code changed this session. Recorded in
+runbook §11.9: **always re-run a failing test alone before calling it a regression — and never the
+reverse (never assume green without the unpiped `PYTEST_RC`).**
+
+### Myriad hygiene — stood down deliberately (Tamer's access-preservation directive)
+
+Killed the login-node monitor (policy: no resident processes >15 min — `rogueusers` is a real queue
+load-threshold complex); stopped looping `qsub` (R3 says arrays); **cancelled the 16-core wave rather
+than step our draw up to ~1,200 cores** — it would have bought only calendar slack (the ladder
+already tops out at ~600) against real fair-use exposure; deleted the provably-unplaceable
+`cpucurve_d`/`packcurve_*` and the stale `pm2_*` jobs. **Final state: 0 running, footprint clean.**
+`docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` §0-LIMITS records the 8 hard STOP RULES.
+
+### Verification
+
+`PYTEST_RC=0` on the full cluster surface (`test_cluster_{adapter,campaign,driver,killswitch,
+pack_integration,submit_poll_ledger}` + `test_run_campaign_cluster` = **138 tests**), plus
+`test_reproduce_synthetic` green (the golden keyless reproduction the new CLAUDE.md section
+demands). All 4 PS1 launchers `Parser::ParseFile` clean (0 errors); the non-ASCII bytes present are
+pre-existing em-dashes/§ in COMMENTS (not strings) and were left alone per the LEAVE-ALONE rule.
+Full-suite certification run separately.
+
+## [2026-07-26] — OVERNIGHT DEEP-REVIEW LOOPS (review session; three sessions ran concurrently — this one is REVIEW)
+
+> Tamer: *"conduct an extremely deep logic, design, structure, meaning, sense review loop … find absolutely everything: any gaps, inconsistencies, anything that doesn't work or doesn't make sense, or is wrong, contradictory, doesn't work as it should, or is vulnerable … fix absolutely everything … the loops do NOT stop until 30 loops in a row are 100 % confident everything is flawless."* Then: *"nothing is frozen or hashed — full permission to change ONLY if you are 100 % confident and have checked and verified strictly and deeply"*, and *"work sequentially, don't blow up my token usage, there is no need to rush."*
+>
+> **The loop ledger — every finding, its first-hand verification, its fix and its evidence — is `docs/DEEP_REVIEW_LOOPS_2026-07-26.md`.** This block is the narrative summary. **Nothing was frozen:** only `scripts/freeze.py --check` (read-only gate mode) was ever run; it stayed RC=0 throughout while the canonical hash moved with each authorized pre-freeze edit, exactly as expected.
+>
+> **Concurrency:** two other sessions were editing this repo throughout (one reviewing code, one building). Protocol adopted: surgical string-replacement edits that fail loudly rather than clobber; `git log` / `git status` re-checked around every batch; hot files left alone. One consequence is recorded honestly under Verification.
+
+### ✅ Loop 1 — a CRITICAL cross-platform config-corruption defect (plus 7 more of the same class)
+
+`src/utils/config.py::load_config` opened every `config/*.yaml` with the **platform locale codec** (`path.open()`), not UTF-8. On this box (locale **cp1251**) that silently mis-decoded non-ASCII in **all 14** config files and CORRUPTED PARSED VALUES in two: `preregistration.yaml::model_suite` (30+ registered strings, em-dash mojibake) and `m2_models.yaml::core` / `excluded_by_design`. The loaded design of record therefore differed from the bytes on disk **and would differ between machines** — the *protocol* layer of the reproducibility claim (Stefan criterion 3), broken. Bytes undefined in the locale codec (e.g. U+2605) raise `UnicodeDecodeError` outright, so the failure mode ranged from silent corruption to a hard crash.
+
+MEASURED before the fix: 2 config files' parsed values diverge, with the exact per-key diffs captured. MEASURED after: **0 of 14 diverge**, U+2014 preserved, mojibake absent. A repo-wide sweep for unencoded text-mode IO across `src/`, `scripts/`, `tests/`, `data_pipeline/` and `tools/` found and fixed **7 more** sites, including every provenance/lineage write in the data vault (`data_pipeline/src/data/vault.py`). `scripts/freeze.py` was already fully explicit UTF-8, which is why the canonical hash was never affected. Two regression tests added (`tests/test_platform_deep.py`).
+
+Also fixed in this loop: three stale statements in `src/baselines/rewards.py` and `config/eureka_loop.yaml` still claiming the H1 family is "the four" and that `differential_downside_ratio` is not part of it; two stale canonical-hash claims (`docs/HANDOFF.md`, `docs/PRE_SUBMISSION_CHECKLIST.md`) presented as live invariants; 2 ruff errors (so the claimed "ruff clean" baseline was false); and `src/selection/fitness.py` docstrings that hardcoded `CVaR(5%)` where the code reads `inference.yaml: fitness.alpha`.
+
+**Honest note:** my own first edit introduced a `★` (U+2605) into a config file, turning the silent bug into a hard `UnicodeDecodeError` across the loader. It was caught by running the tests, reverted to ASCII — and it is what exposed the root cause.
+
+### ✅ Loop 2 — three fail-open defects on the untrusted-code path
+
+`src/sandbox/executor.py::SandboxEnvironmentError` documents that a starved spawn environment is NOT a candidate defect and MUST be caught first by any caller that permanently ledgers a rejection. `src/llm/loop.py` honoured that contract; **three sites did not**:
+
+- `src/orchestration/parallel.py` — marked `failed_validation`, poisoning a good, **PAID** candidate into the frozen reject set that `--resume` replays.
+- `scripts/run_campaign.py` — raised `ValueError`, turning transient starvation into a **deterministic exit-3 on every resume** of the sealed test leg, blaming the frozen winner. (The fix also needed an import that was missing, which would otherwise have been a `NameError` at the exact moment of failure.)
+- `src/search/random_search.py` — the worst: it `continue`d **without consuming a budget unit**, so a persistently starved box spins to `max_attempts` (≥ 1000) and returns a **short archive**, silently breaking H4a's matched-budget control instead of failing.
+
+The third was found by the new test, not by any auditor. It was written as a **repo-wide AST contract test** (`tests/test_sandbox.py`) asserting that every `except SandboxError` in `src/` and `scripts/` is preceded, in the same `try`, by `except SandboxEnvironmentError` — structural rather than per-call-site, so a new handler cannot reintroduce the defect silently.
+
+Separately, `validate_once` silently degraded to `_validate_inline` — which takes **no timeout parameter at all** — whenever a killable child could not be spawned. The fallback is legitimate (a daemonic worker genuinely cannot spawn) but was invisible: no log line, no counter, no field on the record, so a commit-/handle-starved box could quietly drop the sandbox's only wall-clock timeout. Now ERROR-logged with the triggering exception, counted via the exported `inline_fallback_count()`, and stamped on the returned callable as `fn.validated_inline`.
+
+Docs integrity in the same loop: rows **R82 → R105** — the ENTIRE v2 amendment history, including R101/R102/R104/R105 — followed the §14 paragraph with no blank line, no header row and no delimiter row, so in GitHub-flavoured Markdown and in pandoc they render as a run-on paragraph of literal pipes rather than a table. Fixed with **no row content changed**. Two different decisions were both numbered **ADR-058**, with live references split six ways; disambiguated to **ADR-058a** / **ADR-058b** and every reference updated. `config/m2_models.yaml` said "26 CORE" where the list is programmatically 27.
+
+### ✅ Loop 3 — the design of record reconciled (six items, worked sequentially, each re-verified first-hand)
+
+- **`PREREGISTRATION.md` §1 H1** still defined H1's comparator as **four** rewards and still described the R49 "identity selected on validation, falling back to the sealed leg" snoop, while every config, `REWARD_CANON` and node N6 had moved to **eleven** and to a snoop-free IUT. Rewritten: all 11 named; the Berger-1982 formalisation stated (beat-all ⟺ beat-max, so no comparator is selected and there is nothing to snoop); R49 marked superseded *and* recorded as having been dead code (`val_fitness = NaN`); the one surviving disclosed bias — **un-tuned baselines**, which runs in FAVOUR of the LLM — stated as such; status pinned as report-only under R31, confirmatory as N6 only on ratification.
+- **§9** never mentioned `volatility_scaled_return` — the **11th canon member and a trained comparator inside a confirmatory-candidate node** — which had entered by silent edit rather than by dated amendment. Now registered with its Zhang, Zohren & Roberts (2020) provenance, and the canon stated to BE the H1/N6 comparator family rather than a "secondary panel".
+- **The R97 box** asserted "the FROZEN … H1 family remains **the four** … the full **ten-name** canon … report-only secondary" — both counts false and the two sets no longer distinct. Given an explicit ⚠ SUPERSEDED-IN-PART block, with dated supersession markers appended to rows **R30 / R49 / R97** and **row content preserved**, matching the convention the §13 table already uses. Applied by an anchored script asserting each anchor matched exactly once, so a concurrent edit could not cause a silent mis-apply.
+- **§10 and the R104 row** both stated the "0.25 CVaR tail margin" was "an INVENTED number and is RETRACTED" / that no such number exists. **Checkably false:** `tail_margin_fraction = 0.25` is still the live default in `analyze_campaign.h2_tost` and the Bayesian-ROPE path, producing a rendered `equivalent_fraction` annotation. Both statements made true and precise: retracted **as a registered equivalence margin** (it gates nothing and is mirrored in no config), with the surviving report-only descriptive default DISCLOSED rather than denied. No science changed.
+- **The validity tier claimed "ZERO headline power cost"** while `initial_weights` is 0.5/0.5. That is true only against a graph that had given the tier nodes initial weight; the OPERATIVE baseline is **R31** — H2-RA and H2-Tail as separate estimands, each an IUT at the FULL one-sided α = 0.05 (§1 H2, the "two-tier verdict"). Under the graph each co-primary is tested at `w_i·α = 0.025`. The power cost was computed here rather than quoted: a one-sided leg powered to **0.80 at α = 0.05 falls to 0.7007 at α = 0.025**. Corrected in `config/preregistration.yaml` and in the design doc, framed as the honest price of strong FWER and tied to the existing `ratification_pending: alpha_allocation`.
+- **`docs/VALIDITY_TIER_DESIGN_2026-07-26.md` specified a 4-node graph while the YAML carried 6** (N5, N6 added the same day) — and the YAML cites that doc as both `source:` and `per_node_strength:`, so the ratifiers would have been signing off on a topology that was not the registered one. Node list, α-allocation and all six edge sets transcribed verbatim from the authoritative YAML. Also corrected in the same doc: a test description still saying "H1 excluded" (H1 *is* node N6), the stale 4-name-core-plus-10-name-secondary framing, and a "Beyond 10 — pending the reward-canon deep-research (running)" item that had in fact concluded; the pre-resolution reasoning was retained as a labelled trail rather than deleted.
+
+### ✅ Loop 4 — two registered-versus-executed gaps
+
+**`src/inference/cross_model.py` and `src/inference/leg_aggregate.py` are built, unit-tested, and UNWIRED.** A repo-wide import search over `src/` and `scripts/` (excluding tests) finds **no production caller**; the only hits are docstrings, comments, and `contamination.py`'s unrelated `cross_model_disagreement`. Yet `pooled_bound` is registered as *"the registered cross-model bounded-effect statement"* (R86) and **R101 reframed the headline around it**. This repeats exactly the failure Amendment R16 fixed for `h2_conjunction` — a unit-tested module is not a wired one. Wiring is build work in another session's lane (and `analyze_campaign.py` was hot throughout), so the review action was taken: **write-time obligation row 34** records both acceptable closures — wire it with an end-to-end test that fails if the call is removed, or amend the register to withdraw the claim — plus the latent unit trap that only bites on wiring (`leg_aggregate` builds a per-period `ddof=1` Sharpe and compares it to `floor_sharpe`, while the T0 floor elsewhere is annualised `ddof=0`; passing the real floor would fail every leg by ≈ √252). The module docstring, which read as though it described an executed path, now says plainly that it has none.
+
+**The FZ0/(VaR, ES) Diebold–Mariano backtest cannot corroborate H2-Tail**, though §1 H2 registered it as doing so. As wired, BOTH forecasts are FZ0-scored against ONE series — the distributional arm's **own** test path — while forecast 1 is estimated from that same arm's pooled validation returns and forecast 2 from the comparator's. Under a strictly consistent scoring rule the forecast nearer the truth of the scored series wins, so "model 1 better" is close to automatic: it measures **self-prediction across the val→test split**, which can evidence that the arms' distributions DIFFER but carries no information about the DIRECTION of the tail contrast — precisely what H2-Tail asserts. `src/inference/es_backtest.py` already warns against this exact use in its own scope note. §1 H2 corrected with a dated block (the exhibit is retained as a **forecast-calibration diagnostic**; the tail claim loses nothing, because the 3-leg IUT already uses `cvar_difference_test` — the very test that scope note points to). The misnamed `corroborates_h2_tail` key is registered for rename as **obligation row 35**.
+
+### ⚠ Deliberately NOT changed — left for Tamer's decision
+
+**N6's registered endpoint is `deflated_sharpe`; `scripts/analyze_campaign.py` computes annualised Sharpe.** The inconsistency is certain — two auditors found it independently and both sides were confirmed here. Which side to correct is NOT certain, so it was not decided unilaterally:
+
+- Implementing DSR restores the registered conservativeness (the LLM winner deflated by N = 30 search trials, each hand reward by N = 1 — the asymmetry that makes the human bar honestly high), **but** `deflated_sharpe_ratio` returns a PSR-style probability in **[0, 1]**, which saturates on a ~1571-day test window; a paired-difference IUT on a saturating bounded score can be structurally powerless.
+- Keeping Sharpe is well-behaved and shares one inference tool with the H2 legs, **but** the registered conservativeness argument is then void and must be withdrawn or re-derived.
+
+### Verification
+
+Full suite **`PYTEST_RC=0`, UNPIPED**, after loops 1–3 (the RC read from the log file itself, per the §5 false-green rule), zero FAILED/ERROR lines · `scripts/freeze.py --check` **RC=0** re-run after every batch, `frozen: false`, `freeze_hash: null` throughout · `check_citations` clean · `ruff` clean · targeted test slices green at every step.
+
+**Honest correction to this session's own work:** the new UTF-8 test went RED in one full-suite run while passing in isolation. The cause was `load_config`'s `lru_cache` holding a pre-edit parse while configs were being edited mid-run — a test-environment artefact, not a code defect. `cache_clear()` was added to it and to the pre-existing `test_load_config_suffix_optional_and_cached`, which had the identical fragility and was the very failure that opened Loop 0.
+
+### ✅ Loop 9 — S05, the money path
+
+`sonnet-5` is a **seated, ANTHROPIC-BILLED leg** (`config/legs.yaml`: `provider: anthropic`, `ANTHROPIC_API_KEY`, model `claude-sonnet-5`) with a registered per-leg price of `[2.00, 10.00]`. Both Anthropic price tables (`src/llm/cost.py::PRICES_PER_MTOK`, `scripts/monitor.py::_PRICES_PER_MTOK`) match by **SUBSTRING**, and none of their keys (`fable-5 / opus-5 / opus-4-8 / opus-4-7 / opus-4-6 / sonnet-4-6 / haiku-4-5`) is a substring of `claude-sonnet-5` — so `_price` returned `None` and **every sonnet-5 call booked $0.00**. Same class the 2026-07-24 zero-tolerance sweep fixed for opus-5; sonnet-5 was missed, and the only existing price test pins `claude-sonnet-4-6`, the leg **R92 removed**.
+
+**Scope corrected before reporting (recorded because the first framing was wrong):** the initial write-up said this could exhaust the funded key while the ledger showed headroom. Checked the other pricing path first — **false**. The R83 advisory ledger uses a SEPARATE table (`legs.yaml::planning_prices`) which DOES price sonnet-5 and is already locked by `tests/test_leg_transport.py::test_planning_prices_cover_all_legs`, so the 80%/100% spend WARNINGS are unaffected. The real impact is **reporting + monitoring**: `summarize_llm_cost` (the reported spend figure the "report cost prominently" obligation rests on) and the live monitor dashboard both under-state.
+
+Fixed in both tables; `sonnet-4-6` marked legacy-for-archived-calls. **Structural lock added** — `test_every_anthropic_billed_leg_resolves_to_a_price`, derived from `legs.yaml` rather than a fixed list, so seating a new Anthropic leg without pricing it FAILS instead of silently costing $0.
+
+### ✅ Loop 10 — S03 env timing + S10 theory: **ZERO real defects**
+
+First clean loop. Checked first-hand and found SOUND:
+- **Env VIX lag / leakage.** Specifically hunted the negative-index leak (`t=0` ⇒ `vix[-1]` = the LAST, i.e. FUTURE, observation): **unreachable** — `self.start = lookback` and the constructor RAISES if `start < lookback`, so `t ≥ lookback ≥ 1`. The analogous vol-window case was already caught as final-audit #28.
+- **Theory fix-register.** `M3` (Le Cam deficiency direction) genuinely fixed: the chapter PINS the standard Le Cam/Torgersen orientation (*first* argument is the garbled experiment), under which `δ(E_scalar, E_vec) > 0` is correct, and the risk-transfer constant of exactly 1 follows from `‖L‖_∞ ≤ 1` with TV normalised to `[0,2]`. `M1` is fixed too — the "Conventions box" exists as a **Sign convention** box covering signed-return vs mirror-loss `ℓ = −Z`, with the Rockafellar–Uryasev dual reconciled. `C3`, `M2` and the `gneiting2011` cite all present.
+
+### ✅ Loop 11 — S12 citation attribution (CLEAN) + S11 prose
+
+**Attribution swept and found genuinely STRONG.** `check_citations` only catches dangling keys, so the *correctness* of the load-bearing attributions was checked directly: the elicitability chain is exact (ES not elicitable → `gneiting2011making`; expectiles the unique elicitable law-invariant coherent measures → `ziegel2016coherence` + `bellini2015elicitable`; (VaR, ES) jointly elicitable → `fissler2016higherorder` cited with **specific results, Thm 5.2 / Cor. 5.4 / Cor. 5.5, AND the published correction `fisslerziegel2021correction`**). VaR's failure is pinned to **subadditivity** specifically. Both supervisor-directed cites are genuinely USED: `khraishi2022offline` (CH4) and `hartley2025personality` (CH1 + CH7). **None of the four CLAUDE.md misattribution traps is tripped.**
+
+**MAJOR — broken forward reference on the load-bearing axiom.** CH2 says the coherence axioms "are developed formally in Chapter 3", but CH3 never states them: it uses "coherent" throughout (Kusuoka, spectral, Acerbi) while *subadditivity* and *Artzner* appear nowhere in it. **This is the SAME blind spot as loop 6**, where `tests/test_properties.py` enumerated only three of the four axioms — the fourth axiom went missing in two independent places. Added a compact *"Coherence, stated once and used throughout"* paragraph naming all four with `artzner1999coherent`, VaR's specific failure, CVaR=ES satisfying all four, and a pointer that the estimator inherits subadditivity exactly and is asserted as a test invariant.
+
+**MAJOR — the word budget is far worse than recorded.** `make wordcount` reports **19,129** words of main body against the UCL **10,000** limit, while registry row 14 recorded "~15.5k" — so the planned surgery was sized for roughly half the cut actually needed. Verified `scripts/word_budget.py` applies every UCL exclusion (display + inline math, code, tables, footnotes, image lines, word-excluded appendices, FRONT_MATTER wholesale), so 19,129 is genuine countable prose: **91% over a hard limit, needing a ~9,600-word cut**. Row 14 re-measured with the full per-chapter table (CH4 4,250 · CH3 4,000 · CH2 2,748 · CH1 2,588 = 71% of the body) and `make wordcount` flagged as usable as a GATE, since it exits 1 over the limit. *(Tamer later de-scoped the write-up for this session.)*
+
+### ✅ Loop 12 — S06 cluster + S13 the freeze gate itself
+
+**MAJOR — the confirmatory author had NO guard.** `model_suite.confirmatory_author` is hash-bound, but what the campaign CALLS is `config/llm.yaml: model_snapshot` — and `config/llm.yaml` is **not** in `_BOUND_CONFIGS`, so it is not hashed. `freeze.py` referenced `confirmatory_author` **zero** times. `scripts/preflight.py` does cross-check the two EXECUTED mirrors against each other, but neither was ever compared to the REGISTERED value, so both executed copies could drift TOGETHER and leave `--check` green — silently changing which model the reported result generalises to. This is exactly the not-in-the-hash-so-assert pattern already applied to the arm roster, `h1_baselines`, B\*, seeds and the leg roster; the author — the most identity-defining choice, changed as recently as R102 — was the one such value left unguarded.
+
+`assert_confirmatory_author_match` added in the gate's own idiom (gate now **22 checks**), and **proved discriminating in BOTH directions** before being trusted: returns the OK line on the live repo, raises `FreezeConsistencyError` on a doctored registration. Two regression tests plus the pre-migration skip case. Canonical hash UNCHANGED — guards are code, never hashed content. All three values agree today, so this is preventive, not a live drift.
+
+**Checked and SOUND:** cluster↔laptop science parity. `src/cluster/run_one.py` never calls `set_global_seed`, which looks like a break — it is not: it routes every spec through `parallel.train_candidate` / `test_leg._test_seed_worker`, and BOTH seed with `deterministic_torch=True`. The cluster inherits the laptop's seeding by construction. Also checked rather than assumed: `spend_ceiling_usd`, `validity_tier` and `sesoi_derivation` have no explicit gate assertion either, but — unlike the author — no second UNHASHED home, so the whole-file hash already protects them. One finding, not four.
+
+**COORDINATION.** `docs/SESSION_TASK_DISPATCH_2026-07-26.md` assigns lanes: FEATURE/BUILD · **LOGIC-REVIEWER (this session)** · CODE-REVIEWER · CAPACITY/MYRIAD. Loop-3 and loop-5 findings were already ROUTED into its pre-freeze decision list (the N6-endpoint entry restates the saturation/validation-selection reasoning; the α-allocation entry carries the measured 0.80 → 0.70 headline cost). Consequently this session did NOT touch `src/search/dfo_toolkit.py`'s lint or the untracked cluster test (FEATURE lane's active files), and did NOT take T2 (the `robust_skew` "Bowley" mislabel) — dispatched to CODE-REVIEWER.
+
+**A MISS, recorded honestly.** T2 is real: `src/feedback/measurement.py` calls `robust_skew` "the (quantile-based) **Bowley** skewness", but Bowley is the *quartile* (p=0.25) case — the implemented Q05/Q50/Q95 statistic is the Groeneveld–Meeden γ(0.05) generalized quantile skewness. **This session read that exact docstring in loop 1**, verified its SIGN convention, and never questioned the NAME. Another lane caught it. Lesson recorded: when a docstring names a NAMED statistic, verify the name against its definition, not just the formula's behaviour.
+
+### ✅ Loop 13 — self-review of a fix from loop 6, and a gate enforcing a retired rule
+
+**Refined MY OWN loop-6 change.** Loop 6 made duplicate `(arm, seed)` records raise unconditionally. Re-examined: `src/io/results.py::load_all` de-duplicates nothing, and `--resume` / winner re-runs can legitimately write a SECOND run directory for a seed that already has a record. An unconditional raise could therefore **hard-fail a valid campaign analysis at the very last step** — a worse trade than the bug it prevents, this close to the run. Refined so AGREEING duplicates (idempotent re-write, archive replay) pass silently while DISAGREEING duplicates raise — the case where last-wins silently shifted a seed-paired estimate. Both branches locked by regression tests.
+
+**`scripts/check_rung_freshness.py` enforced a retired rule.** `LEG_TIER = 30` was hardcoded and any `LEG-TIER:<n>` marker whose n ≠ 30 was flagged — but R101 explicitly retired that floor ("legs are no longer floor-capped"; all 11 climb ONE common ladder in lockstep). As written the gate **compelled the prose to keep stating the superseded floor**, which is worse than no gate. Now compared against the same `achieved` rung the sibling `RUNG:` marker uses.
+
+**Verified SOUND:** purge/embargo (`max(embargo_days, lookback) = max(21, 60) = 60`, backed by six dedicated tests including the ratified 2017-03-30 boundary); no negative-skew claim anywhere in the paper (measured panel skew is +0.21); and all cross-artifact counts agree (10 legs, 7 arms, 11-name canon, correct seed ladder, no stale leg counts in operative prose).
+
+### ✅ Loop 14 — gap closure
+
+**MAJOR — the exogenous stop had NO machine mirror.** R100/R101 pre-commit the stop to the calendar date **2026-08-27** ("throughput-only, never results-contingent"), and that rule fixes the achieved common rung — i.e. the study's effective **n**, hence its power. A repo-wide search found **zero** occurrences of `2026-08-27` in `config/`. A registered NAME with no registered VALUE, on the most power-determining rule in the design: exactly the R84 forking-path lesson. `exogenous_stop: "2026-08-27"` registered. The neighbouring `leg_calendar_gate: "2026-08-14"` is **left unchanged** and annotated UNRECONCILED — R101's uniform lockstep stop leaves no room for an earlier leg-only truncation, so either the date moves or the gate must be re-described; a design call for Tamer/Ramin, registered rather than silently resolved.
+
+**The repo-wide linter was RED**, blocking every lane: a dead `dim` in `src/search/dfo_toolkit.py`'s CMA-ES path. Verified genuinely dead (CMA infers dimensionality from `x0`) and confirmed the sibling `dim` at :151 IS used by the TPE path at :165 and left alone. `ruff check src scripts` → All checks passed.
+
+**Two ruff `F821`s investigated and DISMISSED as READ RACES** — one claimed `parse_cpu_free` undefined in `src/cluster/telemetry.py:208` (it is defined at :83, used at :230, and line 208 does not contain it); the next run moved the error to `src/cluster/allocation.py`. Both are ruff reading a file mid-write by the capacity lane. Third instance of this pattern; recorded so nobody later "repairs" a bug that does not exist. `tests/test_cluster_bayes_chain.py`'s two `F401`s were left deliberately — the file is UNTRACKED and mid-authoring, and `pytest` + `ChainStopped` are near-certainly about to be used in a `pytest.raises(ChainStopped)`.
+
+### 🔒 The GitHub attribution rule + the removal tool
+
+Tamer set an ABSOLUTE rule: **Claude must never be shown as a collaborator or contributor.** A concurrent session added an equivalent `CLAUDE.md` block at the same moment; the duplicate written here was DELETED so exactly one authoritative rule stands.
+
+**Audit of the existing surface.** Git identity is already clean — `Tamer Atesyakar` is the *sole* author across all history; the exposure is purely `Co-Authored-By: Claude …` trailers. Remote is `github.com/abailey81/llm-reward-portfolio`, **PRIVATE** (anonymous API 404), with **five** branches (`main`, `myriad-cluster-and-tier-system`, three `backup-*`) and **no tags**. Write auth verified with a dry-run push that changed nothing.
+
+**File-level surfaces checked and CORRECTLY left alone** — an important negative result, because a careless sweep would have damaged the work: `README.md` names Claude Opus 5 as the *automated reward engineer* (the research SUBJECT, not a credit line), `pyproject.toml` declares the `anthropic` dependency, `CONTRIBUTING.md` references the *filename* `CLAUDE.md`, and `CITATION.cff` has no mention at all.
+
+**The rewrite itself was BLOCKED** — `git filter-branch` denied by the permission classifier. Not routed around (every alternative is the same class of action). Instead: full backups taken (two 9.9 MB bundles, local all-refs and remote-refs), staged temp refs cleaned up, and **`scripts/strip_ai_attribution.py` shipped** so Tamer is not gated on agent permissions. Dry-run-by-default; bundles backups; rewrites **copies of the REMOTE refs only** (`refs/heads/__aiclean/*`, so working branches and the other three sessions are untouched); PROVES the rewrite is message-only by requiring byte-identical trees; refuses to push on failed verification; aborts if origin moved; preserves human `Co-Authored-By` trailers. **Dry run verified: 306 commits reachable, 171 carrying AI attribution.**
+
+### ⚠ OPERATIONAL INCIDENT — the laptop was crushed, and why
+
+Repeated **background** full-suite launches (~25 min each) were killed mid-flight by successive session restarts, each leaking a pytest process pair. Four accumulated, holding ~4.7 GB with only ~3.2 GB free, and the machine thrashed — Tamer's words: *"stop fucking crushing my laptop"*. Fixed immediately: orphans identified BY COMMAND LINE (not blind), killed, RAM recovered to 7.0 GB, **0 python processes left**.
+
+**Root cause was the METHOD, not the suite.** Standing rule adopted for the remainder: **no background suite runs**; verification only via short foreground slices; nothing long-running without asking. The full certification was then completed as **four sequential FOREGROUND chunks**, each inside the tool timeout, nothing left running between them.
+
+### ✅ FULL CAMPAIGN-READINESS CERTIFICATION — all gates green
+
+| gate | result |
+|---|---|
+| Full test suite, **all 141 test files** in 4 sequential chunks | **RC=0 · RC=0 · RC=0 · RC=0** |
+| `scripts/freeze.py --check` | **RC=0**, `recorded freeze_hash: null` — correctly **NOT frozen** |
+| `scripts/check_citations.py` | clean (0 dangling · 0 verify-in-use · 0 literal VERIFY) |
+| `ruff check src scripts` | All checks passed |
+| `mode_d_launch.ps1` · `mode_d_supervisor.ps1` · `campaign_supervisor.ps1` | **0 parse errors** each |
+
+### Commits (all authored solely by Tamer; **zero** attribution trailers, verified)
+
+- `5eda026` — deep-review loops 1–13: 45 verified defect fixes (code + tests)
+- `b9da562` — deep-review loops 1–13: design-of-record reconciliation + the loop ledger
+- `e8d30a9` — loop 14: register the exogenous stop, clear the repo-wide lint, ship the attribution tool
+- `24989d3` — FULL campaign-readiness certification, all gates green
+
+### Final tally
+
+**47 real defects fixed** (4 CRITICAL, 16 MAJOR, 27 MINOR) · **2 write-time obligations registered** (rows 34–35, where the fix is build work) · **5 items surfaced for Tamer/Ramin** · **9 verified FALSE POSITIVES recorded** so they are never "fixed" by mistake · **2 self-corrections** (my own duplicate-seed guard refined; my own `★` in a config caught and reverted) · **1 miss acknowledged** (the "Bowley" mislabel another lane caught).
+
+**Readiness verdict, stated honestly.** Nothing in the LOGIC-REVIEWER lane blocks a launch, and every gate is green. **Green gates are NOT approval.** Still open by design: the **freeze itself** (R94 — it executes only together with Tamer's full-campaign approval, GO step 1, never before), the supervisor **ratification set**, Tamer's funding/GO items, and the three surfaced design decisions (the `leg_calendar_gate` reconciliation, the capability-anchor down-rank, mirroring the JZS prior into the YAML).
+
+**Streak 0 / 30** — every loop but one found real defects, so the 30-consecutive-clean-loop counter never started. Reported as-is rather than as a flattering number: the honest statement is 47 defects found and fixed with all gates green, not "certified flawless".
+
 ## [2026-07-26] — APPLY THE "WHY BEST-OF-4?" LOGIC EVERYWHERE (non-fragile · smart · no-noise · critical) — N6 made a SNOOP-FREE IUT (self-caught dead-code fragility) · +18 verified comparator cites · CRN methods note · regime fix-on-sight · comparator canons researched + registered
 
 > Tamer, across several mid-turn steers: "apply the same logic I asked before" (the "why best-of-4?" hunt) EVERYWHERE — strengthen every arbitrary/small comparator, report-only, weak, or fragile choice; "make sure everything is very NOT fragile, very smart, clear, logical"; "DON'T add noise, only relevant stuff that serves the priorities; critical thinking, don't be lazy"; and on H1/N6 specifically: "make it beat the human… make it smart + sound" (framing freed). Two background subagents (comparator-canon deep research + a strengthen-everything design audit) ran in parallel; their reports + my own non-fragility hunt drove the work. Strict-documentation duty: everything below is the record.
@@ -274,6 +814,1249 @@ that defaults to a permissive value and audited EVERY call site. Four such param
   `run_prototype.py:85` and `smoke_test.py:78` (no prototype number enters the dissertation),
   `popart_ablation.py:492` and `run_subexperiment.py:177` (report-only legs).
 - Verified: `test_power_analysis` + `test_analyze_campaign` **124 passed**, ruff clean.
+
+**Loop 8 — silent-degradation sweep of `src/cluster/` + `parallel.py`: 1 fixed (streak stays 0).**
+Full suite after loop 7: **`PYTEST_RC=0`** (unpiped, from the log — not the wrapper's exit code).
+
+- Triaged every `except` in the long-running campaign code. The codebase is disciplined: nearly all
+  carry an explicit rationale (torn line / observability / best-effort) and log or re-raise. Two had
+  no rationale comment; both checked out (`driver.py:413` logs at debug; `campaign.py:485` states its
+  rationale in the docstring instead).
+- **[MINOR, FIXED] `campaign.py::_ledger_failure` dropped F5 failure rows in TOTAL silence** (`pass`,
+  no log). Swallowing is correct — a ledger write must never crash the arm — but the loss was
+  invisible, and this ledger is READ twice: `_load_failures` seeds `cached_failures` on `--resume`
+  (a dropped row silently RE-AUTHORS that candidate = a wasted PAID LLM call), and `integrity.py:42`
+  counts `failures.jsonl` for the campaign integrity census (a dropped row under-reports it). Now
+  logs a named warning naming both consequences; swallow behaviour unchanged, so it still cannot
+  crash an arm. Verified: 110 cluster tests pass, ruff clean.
+
+**Loop 9 — `src/baselines/rewards.py`, the 11-member H1/N6 canon: CLEAN (streak 1/30).**
+Highest-stakes remaining unit: N6's IUT p-value is the MAX over all 11 legs, so one bad member
+propagates into a confirmatory claim. Verified EMPIRICALLY, not by reading:
+
+- `REWARD_CANON` **n=11 == `config/campaign.yaml h1_baselines` n=11, exact set match**; all 11 pass
+  `validate_signature`, return finite totals + dict components on three DEGENERATE sequences
+  (constant-zero, all-negative, single-step), and are step-order DETERMINISTIC (same sequence twice →
+  identical outputs). **0 members failed.**
+- Division/`sqrt` guards checked at every site: `differential_downside_ratio` gates both eqs (23)/(24)
+  behind `dd2_prev > 0.0`; `volatility_scaled_return` gates on `sigma > 1e-9`; `return_minus_drawdown`
+  and `log_growth` both clip `port_ret` at `-0.9999` before `log1p`.
+- Two hypotheses KILLED by reading — do not re-open: (a) `return_minus_downside`'s
+  `np.mean(short**2)` cannot hit an empty slice — `np.minimum(arr - target, 0.0)` CLAMPS elementwise,
+  it does not filter, so `short.size == arr.size ≥ 1`; (b) `volatility_scaled_return`'s
+  `sigma <= 1e-9 → scale = 1.0` is not a discontinuity bug but the module's neutral-default
+  convention, matching its own warm-up branch (`arr.size < 2 → scale = 1.0`).
+
+**Loop 10 — `src/llm/loop.py` (Eureka search loop): 1 config defect fixed (streak → 0).**
+
+- **Matched-budget accounting VERIFIED SOUND.** `budget_spent += candidates_per_gen` accrues per
+  generation before the candidate loop; that is truthful because every slot consumes exactly one
+  author draw (accepted / sandbox-reject / llm-error / resume-replay all `continue`, never skip) and
+  there is **no `break` anywhere in the file** — checked, not assumed. Divisibility holds in every
+  shipped config: campaign 6×5=30, H3 single-shot 1×30=30, prototype 8×5=40. `parallel.py:996`
+  computes `cpg = candidates // generations` explicitly rather than trusting a config key.
+- **[MINOR, FIXED] `config/llm.yaml` advertised a search width that nothing reads.** The file has
+  exactly ONE consumer repo-wide (`scripts/smoke_qwen.py`), is not freeze-bound, and its
+  `candidates_per_generation` is a **dead key name** — `loop.py:289` reads `candidates_per_gen` (the
+  abbreviation) and defaults it to **1**. An operator tuning search width there would have seen no
+  effect, silently; and had any caller passed this config through, arms would have drawn 6 candidates
+  instead of 30. Annotated both keys as NON-AUTHORITATIVE mirrors naming the real authority
+  (`config/campaign.yaml` + `parallel.py:996`). Comment-only — zero behavioural change; keys left in
+  place rather than deleted, since config is design surface and this file is not mine to prune.
+- Verified: `test_loop` 13 passed; `freeze.py --check` **RC=0** (read-only) with `frozen: false`.
+
+**Loop 11 — `loop.py` replay/fed-block wiring + the spend gate: 1 integrity-relevant stale fact fixed.**
+
+- **Fed-block wiring VERIFIED SOUND (construct validity holds).** Gen-0 gating is on
+  `prev_feedback_block is None` (l.406), and the assignment `prev_feedback_block = gen_best_block`
+  sits at the **generation boundary** (8-space indent, OUTSIDE the candidate loop, l.728-729) — so
+  every gen-0 candidate gets the initial prompt and **no candidate ever sees its own block** (M13
+  stays closed). `gen_best_*` are re-initialised INSIDE the generation loop (l.413-414), so
+  reflect-on-best is Eureka-faithful best-of-THIS-generation, not best-ever. A barren generation
+  correctly retains the prior block rather than dropping the reflection thread.
+- **[MINOR / INTEGRITY, FIXED] `CLAUDE.md` claimed a spend gate the code does not implement.** The
+  industry-feedback block described the $30 ceiling as *"pre-registered as a hard, priority-ordered,
+  exogenous gate"*, but **amendment R83** (Tamer, 2026-07-21) SOFTENED it to advisory, and code +
+  config + register all agree: `spend_ledger.record_spend` warns at 80%/100% and **NEVER refuses**
+  (`preregistration.yaml:366` "ADVISORY … NEVER refuses"; `PREREGISTRATION.md` R83 row). CLAUDE.md
+  was the lone drifted mirror — and it is a BINDING authority doc the write-up drafts from, so the
+  PDF could have claimed a hard spend gate that does not exist. Reconciled to its owner (the R83
+  row), with the real exogenous stops named (seed-rung rule + leg calendar gate) and a do-not-restore
+  note. Swept repo-wide: no other document carries the stale phrasing.
+- Verified: `test_loop` + `test_spend_ledger` **20 passed**.
+
+**Loop 12 — the R102 operative-vs-historical audit: 1 stale binding fact fixed (streak stays 0).**
+
+Closed the lead opened in loop 11. R102 (2026-07-24) swapped the confirmatory author Opus 4.8 → Opus 5
+and its sweep flipped *operative* refs while preserving *history* verbatim — so every remaining
+"Opus 4.8" had to be CLASSIFIED, not blind-replaced.
+
+- **[MINOR, FIXED] `CLAUDE.md:453` — the one operative miss.** The industry-feedback block, marked
+  **BINDING**, still named "Opus 4.8, the confirmatory". Config is unambiguous
+  (`campaign.yaml: model_snapshot: claude-opus-5`; `legs.yaml:96` "THE confirmatory author"). Corrected
+  to **Opus 5** with the R102 pointer, the identical-price note (so the ceiling/estimate claims stay
+  true), and why 4.8 is RETAINED (vendor-legacy M2 datapoint + R92 generation-pair partner).
+- **Deliberately NOT changed — all verified HISTORICAL, not stale:** `CLAUDE.md:248` sits inside the
+  `⚠ 2026-07-20 STATE SUPERSESSION` blockquote and was TRUE on that date (R102 is 4 days later) — an
+  in-line note now warns future readers not to "fix" it; `docs/ARCHITECTURE_BLOCKS.md:7` is dated
+  **2026-06-20 in its own title** and still describes a "rented-GPU campaign" (superseded 2026-07-13),
+  i.e. a dated snapshot per this repo's naming convention; `DECISIONS.md` + `docs/DECISION_LOG.md` are
+  append-only records; the remaining hits (`CORPUS_MINING_2026-07-04`, `DRAFT_EMAIL_…_2026-07-20`,
+  `MASTER_PUNCHLIST_2026-06-30`, `MODEL_ROSTER_2026-07-22`, `DISSERTATION_…BRIEF_2026-07-21`,
+  `M2_SURVEY_PROTOCOL_v1`) are all date-stamped pre-R102 or legitimately cite 4.8 as an M2 datapoint.
+- **`docs/HANDOFF.md` verified CLEAN** — its three mentions all correctly state Opus 5 as current and
+  describe R102 as the amendment. The R102 sweep was thorough; CLAUDE.md was its single operative gap.
+
+**Loop 13 — `src/llm/client.py` (48 KB, the largest un-reviewed src file): CLEAN (streak 1/30).**
+Four adversarial lenses, all sound:
+
+- **R85/R103 round-trip capture (the reproducibility linchpin).** `reasoning_tokens` is read from
+  `usage.completion_tokens_details` and the key is **omitted, never fabricated as 0**, when the
+  provider does not report it — which is precisely what keeps a silently-ignored reasoning pin
+  DETECTABLE rather than fictional. `served_provider` / `served_model` are captured from the response
+  so a `provider_pin` is verified against what was SERVED, not merely requested.
+- **Retry cannot double-bill.** The tenacity wrapper encloses `_call()`, which contains ONLY
+  `chat.completions.create(...)`; every parse (`last_usage`, `last_cost_usd`, `last_served_provider`,
+  `last_stop_reason`) happens AFTER the wrapper returns. A parse-side failure therefore cannot
+  re-issue a billed request.
+- **Key-failover classification is correctly narrow.** `_is_key_dead_error` rotates only on **401**
+  or **400 + "credit balance"**; 429 / 5xx / overloaded stay on the same key under backoff, exactly
+  as the single-key plan requires.
+- **The `opus-5` temperature guard (R102's campaign-killer) verified EMPIRICALLY**, not by reading:
+  all 8 model-name cases classify correctly — `claude-opus-5` and `claude-opus-5-20260115` are
+  rejected (no `temperature` sent), while `claude-opus-4-5-20251101` is correctly NOT matched, so the
+  older Opus 4.5 is unaffected by the substring test. Verified: 67 client/transport tests pass.
+
+**Loop 14 — `src/orchestration/parallel.py` (73 KB, the live execution engine): CLEAN (streak 2/30).**
+Four concurrency lenses, all sound:
+
+- **Process/thread safety.** Candidates run in a `spawn`-context `ProcessPoolExecutor` (separate
+  PROCESSES), so `sandbox/executor.py`'s module-global substitution counters stay per-process —
+  the exact precondition its 2026-07-03 note requires. The arms ARE driven by a `ThreadPoolExecutor`
+  in the parent, which looked like a violation of that note; it is not — `_drive_llm_arm` /
+  `_drive_search_arm` only submit and read results, while `train_agent` / `held_out_fitness` /
+  `safe_call` appear ONLY inside the pool-submitted worker. No reward ever executes in the parent, so
+  the N arm threads cannot interleave the counters.
+- **Seed determinism.** The training seed is `opts["seed"]` (run-level; search is 1-seed by design) —
+  never a worker index or completion order, so results are invariant to scheduling. The one seed that
+  MUST track identity, `placebo_shuffled`'s derangement, is `shuffle_seed_from_id(candidate_id)` via
+  blake2b (cross-process stable), so the permutation replays from the archive.
+- **Partial failure / resume.** `src/io/results.py:174-179` writes a temp sibling, flush+fsync, then
+  `os.replace` — atomic on Windows and POSIX. A worker dying mid-write leaves an ignored `.json.tmp`,
+  so `--resume` can never mistake a half-written record for a complete one.
+- **The `.pull_tmp` staging race** (2026-07-22/24 audit) is still closed: staging dirs are
+  pid-namespaced (`.pull_tmp.<pid>`) and staging content is EXCLUDED from the completeness scan.
+- Verified: 69 parallel / results-IO / poll tests pass.
+
+**Loop 15 — `src/inference/multiple_testing.py` (BH/FDR + Romano-Wolf): 1 fixed (streak → 0).**
+
+- **[MINOR, FIXED] `benjamini_hochberg` defaulted `q=0.1` — TWICE the pre-registered FDR.** The
+  registered value is `config/inference.yaml:61 multiplicity: {method: benjamini_hochberg, q: 0.05}`,
+  so any caller omitting `q` would silently have run a more permissive correction than the design
+  registers. Same permissive-default class as findings #9/#10/#11. **Provably behaviour-free today:**
+  every call site — `attribution.py:661`, `cross_model.py:246`, `analyze_campaign.py:1525,3268`, and
+  all 8 test call sites — passes `q` explicitly, so the default was unreachable. Default now mirrors
+  the registered 0.05, with a docstring note that `config/inference.yaml` stays the single source of
+  truth and production code must keep passing it explicitly.
+- **Both procedures verified textbook-correct:** BH is the linear step-up (largest `k` with
+  `p_(k) <= (k/m)q`, reject all ranks `<= k`) using a STABLE mergesort so ties resolve
+  deterministically, and NaN p-values sort last and fail `<=`, i.e. are conservatively never rejected.
+  Romano-Wolf is a correct stepdown — recomputing the bootstrap max over the REMAINING hypotheses at
+  each step and halting at the first non-rejection — with a fail-loud shape check on `boot_stats`.
+- Verified: 193 inference / campaign-inference / cross-model / attribution tests pass, ruff clean.
+
+**Loop 16 — `src/inference/bootstrap.py` + the permissive-default sweep: CLEAN (streak 1/30).**
+
+- **Permissive-default sweep across ALL of `src/inference/` — clean.** Every statistical default now
+  matches its registered value: `alpha=0.05` (bootstrap, es_backtest ×2, leg_aggregate,
+  romano_wolf), `sesoi=0.05` (contamination ×2), `q=0.05` (attribution), `ci=0.95` (reporting ×2),
+  `threshold_q=0.10` (ood_stress, matching `measurement`). Loop 15's `q=0.1` was the **only** outlier
+  in the package, and it is closed. Useful negative result — the pattern is not systemic here.
+- **R64 skew-agnostic correction VERIFIED: comments match code.** `pvalue_one_sided_greater` is the
+  DIRECT upper-tail `P(boot - obs >= obs)` read off the draws — **not** `p_two/2`, whose equivalence
+  requires a symmetric `boot - obs` and which mis-states the tail otherwise (decision-flipping at α on
+  the co-primary CVaR-5% leg). Two-sided `p = P(|boot - obs| >= |obs|)` is the re-centred basic
+  bootstrap. Both carry the finite-resolution guard `max(p, 1/(n_boot+1))`, so a p can never be 0.
+- **Cross-module CVaR convention PROVEN identical.** `bootstrap.cvar` and
+  `measurement._empirical_cvar` both take the mean of the worst `ceil(alpha*T)` returns; verified
+  numerically equal to 1e-15 on **all 12** (n ∈ {250, 751, 2961}) × (α ∈ {0.01, 0.05, 0.10, 0.25})
+  cells. The analysis layer and the fed vector therefore cannot silently diverge on what "CVaR" means.
+  (`np.partition` vs a full sort is an O(n)-vs-O(n log n) difference only — the tail mean is identical.)
+- **Noted, not a defect:** the p-value uses the basic/re-centred bootstrap while `ci_low`/`ci_high`
+  use the percentile interval. Both are legitimate; they coincide under symmetry and the CI is
+  reported, never the confirmatory decision rule (which is the p-value / TOST). Recorded so a later
+  reviewer does not read it as an inconsistency.
+- Verified: 41 bootstrap tests pass.
+
+**Loop 17 — `src/inference/es_backtest.py` (FZ0 / the Okhrati elicitability trap): CLEAN (streak 2/30).**
+Full suite after loop 16: **`PYTEST_RC=0`** (unpiped, from the log).
+
+- **FZ0 strict consistency VERIFIED EMPIRICALLY, not from memory.** The implemented score
+  `-(1/(αe))·1{r≤v}·(v−r) + v/e + log(−e) − 1` is the 0-homogeneous Patton-Ziegel-Chen form; on 400k
+  student-t draws its mean is **minimised at the true (VaR, ES) pair** — none of 16 perturbations
+  (±0.002/±0.004 on each coordinate) scored better. The sign convention is therefore right, which is
+  the load-bearing question for the whole comparative backtest.
+- **Attribution chain CORRECT — no misattribution.** Joint elicitability is credited to Fissler &
+  Ziegel (2016, *Ann. Statist.* 44(4):1680-1707), the right paper for the theorem; `refs.bib` also
+  carries the distinct `fisslerziegelgneiting2015` (arXiv:1507.00244) and the dossier's C.7 chain is
+  intact. This is the exact spot CLAUDE.md warns must never misattribute CVaR-elicitability — it does not.
+- **The two CVaR conventions differ here BY DESIGN, and correctly.** `var_es_estimates` deliberately
+  uses the one-convention A-L1 pair (VaR = empirical α-quantile, ES = mean of returns AT OR BELOW it)
+  rather than the HOUSE headline convention (mean of the worst `ceil(αT)`), because FZ0's strict
+  consistency requires a coherent (VaR, ES) pair on a SINGLE convention — mixing them would break the
+  property the test rests on. Documented in-module at l.93-107. Recorded so it is not "reconciled" later.
+- **[IMPROVEMENT — deliberately NOT counted as a defect]** The module asserted "ES alone is not
+  elicitable" with no citation while correctly citing the joint result. The claim is TRUE and the code
+  is correct, so this is documentation completeness, not a defect — added the `Gneiting 2011`
+  attribution (already in `refs.bib` as `gneiting2011making`) so the module's own reasoning is
+  traceable, per the standing citation discipline. **Streak NOT reset**: nothing was wrong. Flagging
+  the judgement openly — if Tamer prefers any edit at all to reset the counter, say so and I will.
+- Verified: 22 ES-backtest tests pass, ruff clean.
+
+**Loop 18 — `src/inference/overfitting.py` (PBO/CSCV, the PRIMARY overfitting guard): CLEAN (streak 3/30).**
+
+- **Rank → logit → PBO math verified correct.** Ascending OOS ranks with a hand-rolled average-rank
+  tie correction (`((i+1)+(j+1))/2` over each equal run — checked against the standard rankdata rule);
+  `omega = rank/(n_cfg+1)` is in the OPEN interval by construction so the logit can never be ±inf;
+  and `lam < 0 ⟺ rank < (n_cfg+1)/2` is exactly "IS-best lands STRICTLY below the OOS median", the
+  strict inequality Bailey et al. (2017) / FINAL_PLAN B.9 specify (an exact median tie is NOT counted
+  as overfit). `argmax` on IS ties takes the first index — deterministic, not arbitrary.
+- **Determinism holds on the reported path — checked, not assumed.** `C(16,8) = 12,870 > ` the 4,000
+  default cap, so the DEFAULT path samples splits; but `rng=None` falls back to a SEEDED
+  `default_rng(0)` (P24), and PBO is a fraction over splits so it is order-independent regardless of
+  `set` iteration order. More importantly the reported caller (`analyze_campaign.py:355`) passes
+  `max_combinations=n_full` — **exact enumeration of all 12,870 splits** — plus an explicit seeded rng
+  at l.4792, so the sampling approximation never affects a reported number.
+- **Permissive-default check (standing rule) — clean:** `n_blocks=16` matches the registered
+  `config/inference.yaml:55 pbo: {n_blocks: 16}` and `campaign.yaml:19`.
+- **Contract honoured:** `perf_matrix` is documented as per-period performance statistics, so the
+  `mean(axis=0)` IS-/OOS- aggregation is the right operation (not a hidden Sharpe-vs-mean substitution);
+  validation fail-louds on ndim, `n_cfg<2`, odd/small `n_blocks`, and `t_obs<n_blocks`; the trailing
+  remainder rows are dropped so blocks stay equal-size, as documented.
+- Verified: 28 overfitting/PBO tests pass.
+
+**Loop 19 — `deflated_sharpe.py` leftovers + `leg_aggregate.py`: CLEAN (streak 4/30).**
+
+- **MinTRL matches Bailey & López de Prado exactly:** `1 + [1 − γ₃·SR + (γ₄−1)/4·SR²]·(Z/(SR−SR*))²`,
+  sharing the identical `denom_var` expression with `probabilistic_sharpe_ratio`, and returning `inf`
+  when `sr <= sr_star` ("never significant"). The legacy `deflated_sharpe` alias REJECTS a non-zero
+  `sr_benchmark` loudly rather than silently dropping it (final-audit #31). Neither has a production
+  caller — exported API surface only.
+- **A suspected inconsistency that turned out NOT to be one** (recorded so it is not "fixed" later):
+  MinTRL floors a degenerate `denom_var` to `1e-12` (→ ≈1 observation) while PSR takes a sign-based
+  branch. That looked contradictory until I checked PSR's actual return — it yields **`1.0`
+  (trivially significant)** when `sr > sr_star`, so both functions treat a degenerate denominator the
+  SAME way: trivially significant. Coherent, not conflicting. Unreachable at realistic per-period
+  Sharpes regardless (`denom_var ≈ 0.999` at sr≈0.05, skew≈0.2, kurt≈15).
+- **A THIRD `empirical_cvar` found in `leg_aggregate.py` — and it agrees.** It sorts before slicing
+  (`np.sort(arr[np.isfinite(arr)])`, explicitly "mirrors bootstrap.cvar"), so `arr[:k]` really is the
+  worst `ceil(αT)`. **Extended loop 16's two-way proof to THREE-way: `measurement._empirical_cvar` ==
+  `bootstrap.cvar` == `leg_aggregate.empirical_cvar`, numerically identical to 1e-15 on all 16
+  (n ∈ {60, 251, 751, 2961}) × (α ∈ {0.01, 0.05, 0.10, 0.25}) cells.** Three independent copies of the
+  house tail convention have NOT drifted — worth knowing, since copies are exactly what drifts.
+  (One deliberate difference: `leg_aggregate` RAISES on an all-non-finite series where `bootstrap.cvar`
+  returns NaN — stricter, and documented.)
+- Verified: 57 leg-aggregate / deep-inference tests pass.
+
+**Loop 20 — `src/inference/mediation.py`: 1 fixed (streak → 0).**
+
+- **[MINOR, FIXED] `mediated` was gated on a NON-EMPTY bootstrap, not a RELIABLE one.** `_effects`
+  raises `LinAlgError` on a rank-deficient resample (a constant predictor column) and that replicate is
+  dropped to NaN; `mediated = bool(valid.size and ...)` therefore only excluded the ZERO case, so a
+  positive mediation verdict could rest on a handful of survivors. **This is the identical degeneracy
+  mode the project already fixed elsewhere (P7b):** `responsiveness.responsiveness` — which DEFINES
+  `MIN_BOOT_VALID_FRACTION = 0.5` — gates its `responsive` flag on it, and `information_gap` imports
+  and applies the same constant. Mediation was the one sibling instrument left ungated. Now imports
+  the SAME constant (one owner, three instruments, no fourth copy to drift), gates `mediated`, and
+  reports `ci_reliable` alongside the existing `n_boot_valid`. Regression test pins the threshold rule
+  AND the invariant "a positive verdict can never outrun the reliability gate". 12 mediation tests +
+  39 mediation/responsiveness/information-gap tests pass, ruff clean.
+- **Verified sound, no change:** `_slopes` fails LOUD on a rank-deficient design rather than returning
+  a garbage fit; the `prop_mediated` triple stability guard (bootstrap CI on `c_total` straddles 0, OR
+  `|c| < 2·SE_boot`, OR SE non-finite → NaN + an explicit `prop_mediated_undefined` flag) correctly
+  prevents the small/small explosion Preacher & Hayes warn about near c≈0; attribution is complete and
+  correct (Preacher-Hayes 2008, Imai-Keele-Tingley 2010, MacKinnon 2002) with the sequential-ignorability
+  caveat stated in-module — the 2026-07-25 research's "softest link" concern is already addressed.
+- **Method note — a narrow grep nearly produced a FALSE finding for the second time.** My initial
+  pattern omitted `ci_reliable`, so `responsiveness.py` LOOKED ungated; it is not (l.115-116). Reading
+  the return block corrected it and narrowed the real defect to mediation alone. Same lesson as loop 7:
+  never conclude an absence from a grep window.
+
+**Loop 21 — `information_gap.py` + `reporting.py`: CLEAN (streak 1/30).**
+
+- **The M13 own-block leak guard is SOUND.** The parent search is restricted to `by_generation[gen-1]`
+  so a candidate can never match its OWN fed block; the match is on the SORTED tail MULTISET, which is
+  derangement-proof (so `placebo_shuffled`'s permuted values still resolve to the right parent); and
+  uniqueness is enforced with 0 → `n_parent_unmatched` / 2+ → `n_parent_ambiguous`, **never guessed**.
+  Fed blocks are de-duplicated so sibling candidates fed the same block count once.
+- **[IMPROVEMENT — not counted as a defect] The parser is RAW-rendering-only, and the symptom was
+  misleading.** Verified empirically: a LEGIBLE block (`legible_render: true`, ADR-039) is **parsed
+  happily** — the regex stops before the unit — yielding `('-1100','-500','-700','-900','8.5','-0.80')`,
+  which can never equal the raw `_fmt` multiset `('-0.110',…)`. So every record on a legible leg lands
+  in `n_parent_unmatched`. The degradation is HONEST (counted, never guessed), so this is not wrong
+  behaviour — but a 100% unmatched rate reads as "no parents found" when the real cause is a FORMAT
+  mismatch. Added an in-code note naming the symptom, the cause, and the fix (extend `_COMPONENT_RES`
+  + the comparison to bps/percent before running this instrument on a legible leg). Streak NOT reset.
+- **`reporting.py` correct:** IQM is the mean of the [25th, 75th] band (rliable convention);
+  `probability_of_improvement` splits ties as `(greater + 0.5·ties)/total`; both bootstrap CIs derive
+  `alpha` from `ci` and take proper two-sided percentile bounds (`alpha/2`, `1−alpha/2`), pointwise on
+  `axis=0` for the profile band.
+- **Duplicate-primitive check extended to `iqm`** (the standing rule earned on `cvar`): `bootstrap.iqm`
+  == `reporting.iqm`, identical to 1e-15 across 18 cases spanning n ∈ {4, 5, 8, 30, 100, 403} — including
+  the small-n sizes where the quartile band is most fragile. No drift.
+- Verified: 14 information-gap / reporting tests pass, ruff clean.
+
+**Loop 22 — the Sharpe-convention register + `bayes_null.py`: CLEAN (streak 2/30).**
+
+- **Duplicate-primitive register extended to `sharpe` — no silent drift, but THREE declared
+  conventions coexist.** `bootstrap.sharpe_ratio` is **annualised, ddof=0**, →0.0 on zero variance;
+  `regime_analysis._sharpe` is **per-period, ddof=1**, →NaN; `leg_aggregate` computes per-period
+  ddof=1 inline; `deflated_sharpe._sample_moments` is per-period by explicit module contract. Each is
+  documented AT ITS DEFINITION, and — the part that actually protects the science —
+  **labelled at the point of use**: `analyze_campaign.py:663` reads
+  `"winner_sharpe": sharpe_ratio(...)  # annualized, for display; dsr_* above use the per-period
+  convention`. `sharpe_difference_test` annualises BOTH arms identically, and a common positive
+  rescaling leaves a re-centred bootstrap p-value invariant, so the test is unaffected — only the
+  reported effect UNITS differ. Relevant because the A4/SESOI work already flagged Sharpe units as
+  this project's fragile spot; the code side is disciplined.
+- **`bayes_null.py` is exceptionally well-reasoned and its one gap is ACCURATELY SELF-DISCLOSED.**
+  The module names its single researcher degree of freedom (Cauchy prior scale `r` + ROPE half-width)
+  and the exact reason it matters — by Bartlett / Jeffreys-Lindley, `BF01 → ∞` as `r → ∞` regardless of
+  the data, so a vague prior can MANUFACTURE the null evidence that is this paper's headline. It
+  mitigates correctly: fix `r = sqrt(2)/2` (BayesFactor "medium"), reuse the frozen SESOI as the ROPE,
+  and ALWAYS report the robustness curve over `R_GRID` so the null counts only if it survives the band;
+  TOST carries no prior and is the prior-immune complement. `_paired_t` uses the same RELATIVE
+  near-zero-sd guard as `_sample_moments` — the duplicate-primitive discipline showing up positively.
+- **Cross-session note (no action taken by this lane).** The in-module ⚠ GAP — `r`/`R_GRID`/
+  `bf_threshold` are pinned in PROSE but absent from `config/preregistration.yaml`, so `freeze.py`'s
+  prose↔YAML assertions cannot bind them — was disclosed by the CONCURRENT review session, which
+  deliberately did not fix it unilaterally because it adds a registered field. **Independently verified
+  accurate here** (zero `prior`/`bf_threshold`/`rope`/`cauchy` keys in the YAML). Left to that lane;
+  flagged so it is not double-fixed or lost.
+
+**Loop 23 — `model_confidence_set.py` + `headroom.py`: CLEAN (streak 3/30).**
+
+- **MCS sign convention VERIFIED END-TO-END** — the one place a slip would silently INVERT the result.
+  The module correctly delegates to `arch.bootstrap.MCS` (vetted) rather than rolling its own
+  elimination loop, and wires the orientation with `losses = -scores if higher_is_better else scores`
+  plus a matching `best_arm` key. Since `arch` works on LOSSES (lower = better), a missing negation
+  would have returned the WORST arms as the confidence set. Proved it instead of assuming: on a
+  planted 3-arm design (clear best / statistical tie / clear worst), the worst arm is **excluded at
+  p=0.0**, the two indistinguishable arms are **both retained**, and the best sits at **p=1.0** exactly
+  as documented. Validation is fail-loud on <2 arms, ragged (unpaired) lengths, and <2 seeds; `seed` is
+  threaded to MCS for determinism.
+- **`headroom.py` cannot be poisoned by the NaN-argmax hazard identified in loop 3.** Its usability
+  filter (l.85) requires a non-empty val_returns vector with `np.all(np.isfinite(...))` AND a finite
+  `val_fitness` BEFORE any candidate reaches `np.argmax(fitness)` — so the "NaN wins argmax" failure
+  mode that would silently crown a degenerate candidate is structurally unreachable here. Ties resolve
+  to the first index (deterministic, documented), and `gap = frontier − achieved ≥ 0` holds by
+  construction because the oracle leg IS the max.
+- Verified: 48 headroom / MCS / regime tests pass.
+
+**Loop 24 — `regime_analysis.py` + `regimes/definition.py`: CLEAN (streak 4/30).**
+
+- **A FOURTH `cvar` copy found — and the register held.** `regime_analysis.cvar` (l.29) is a fourth
+  independent implementation of the house tail convention. Per the standing duplicate-primitive rule it
+  was proved immediately: **`measurement._empirical_cvar` == `bootstrap.cvar` ==
+  `leg_aggregate.empirical_cvar` == `regime_analysis.cvar`, identical to 1e-15 on all 20 cells**
+  (n ∈ {11, 60, 251, 751, 2961} × α ∈ {0.01, 0.05, 0.10, 0.25}), including n=11 where `ceil(αT)`
+  rounding bites hardest. Four copies, zero drift.
+- **The regime module is honest about the thing that actually limits H2.** `definition.py` states
+  plainly that the *independent-regime count* — contiguous run-length episodes, not per-date counts —
+  is what feeds the power analysis, and that a 20-year sample still holds only **single-digit
+  independent stress episodes**, which bounds achievable power. That is the correct and
+  uncomfortable framing, stated up front rather than buried. `label_regimes` fail-louds on inverted
+  thresholds (`calm > stress`) and on the unimplemented `nber_dates`/`hmm_*` variants rather than
+  silently mislabelling.
+- **The `c4154ef` guard (concurrent session) verified correctly wired**, and it passes the standing
+  permissive-default check: `max_plausible_independent_regimes` is registered at
+  `config/regimes.yaml:14` as **12** and `power_analysis._max_plausible_regimes` reads it from config
+  with a fallback of **12** — fallback == registered value, so the documented fallback path cannot
+  silently loosen the sanity bound. Contrast finding #16, where a fallback DID disagree with its
+  registered value.
+- Metrics are per-period and explicitly labelled "relative comparison only; not annualised" — consistent
+  with the loop-22 Sharpe-convention map. Underpowered regime slices return NaN with an
+  `underpowered` flag rather than a misleading point estimate.
+
+**Loop 25 — `reward_code_distance.py` (structural clustering of authored code): CLEAN (streak 5/30).**
+
+- **`_shape` is genuinely NAME-BLIND**, which is the whole point of the instrument: it recurses via
+  `ast.iter_child_nodes` over node TYPES only, so identifiers and constant values never enter the
+  canonical shape. That keeps this test orthogonal to the cosmetic-token leakage the placebo controls
+  already neutralise — it asks whether the model's *program structure* differs by condition.
+- **The within-vs-across pairing is right where it is easiest to get wrong.** `np.triu_indices(m, k=1)`
+  excludes the DIAGONAL — including it would fold m self-similarities of 1.0 into the within-condition
+  mean and inflate it toward a spurious "conditions cluster" result. The similarity matrix is
+  symmetric and deterministic; empty buckets yield NaN, not a fake 0; `m < 2` returns an explicit
+  `insufficient` status.
+- **Unparseable sources are excluded AND counted** (`n_unparseable`, P7c) — the same
+  report-the-degradation discipline as `n_boot_valid` / `ci_reliable` elsewhere in the package, rather
+  than a silent drop that would inflate within-similarity.
+- **Method note — a THIRD near-miss from reading grep output instead of code.** `jaccard`'s docstring
+  promises `1.0` for two empty sets while the line my grep surfaced (`... if union else 0.0`) appeared
+  to return `0.0` — a docstring/code contradiction, and in a similarity context that sign difference
+  means "identical" vs "completely dissimilar". Verified empirically FIRST: it returns **1.0**. There
+  is an early `if not a and not b: return 1.0` on the two lines my grep pattern skipped. No defect.
+  Same lesson as loops 7 and 20, now generalised in the loop state: **for any short function, read the
+  WHOLE function — never infer behaviour from grep-selected lines.**
+- Verified: 35 code-distance / taxonomy tests pass.
+
+**Loop 26 — FIRST SWEEP UNDER THE NEW DETERMINISM-ENVELOPE LENS: CLEAN (streak 6/30).**
+Full suite after loop 25: **`PYTEST_RC=0`**.
+
+CLAUDE.md gained a BINDING §"REPRODUCIBILITY — THE SINGLE MOST IMPORTANT POINT" with the hard rule
+*never introduce a numerical-nondeterminism source to gain speed*. Swept `src/` + `scripts/` for every
+hazard it names. **The envelope is genuinely enforced, not merely claimed:**
+
+- **Absent entirely (the dangerous ones):** no `torch.compile`, no `autocast`, no fp16/float16, no
+  `fused=` optimizers anywhere in `src/` or `scripts/`. Nothing to refuse — they were never let in.
+- **TF32 is applied SYMMETRICALLY across every training path** (`trainer._apply_tf32`, called from
+  `train_agent` so the serial trainer, the SEARCH worker and the parallel TEST worker all agree),
+  with `set_float32_matmul_precision` moved in lockstep. The reasoning in-module is exactly right:
+  *"the frozen winner must be EVALUATED under the precision it was SELECTED under"* — a search-vs-test
+  precision asymmetry would silently re-rank candidates. `agent_numerics.tf32` is a frozen field.
+- **BLAS threads pinned to 1 on BOTH confirmatory substrates.** `parallel._worker_init` sets
+  `OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS=1` before any heavy import (env vars only bind pre-import), and
+  — the part I went looking for — the CLUSTER node path does NOT re-implement it: `run_one.py:160-166`
+  IMPORTS AND CALLS the same `_worker_init`, explicitly so *"two node paths share one environment
+  contract (BLAS threads=1, alloc conf, preload)"* (P18, 2026-07-13 audit). **My hypothesis that the
+  Myriad path might run multi-threaded BLAS and break the certified laptop↔cluster parity is REFUTED
+  by design** — single-threaded reduction order holds on both.
+- **`set_global_seed` is comprehensive and subtle in the right places:** `cudnn.benchmark = False`
+  (benchmark=True selects algorithms by TIMING, i.e. non-deterministically), `cudnn.deterministic = True`,
+  `use_deterministic_algorithms(warn_only=True)` on the training path, and `CUBLAS_WORKSPACE_CONFIG`
+  set by EXPLICIT assignment rather than `setdefault` — so a pre-existing NON-deterministic value is
+  overridden while an already-valid `:16:8` is preserved. It is also honest that the LLM layer gives
+  statistical, not bitwise, reproducibility (archive replay covers that).
+- Verified: 68 seeding / trainer / agent tests pass.
+
+**Loop 27 — `reward_taxonomy.py` (the mechanism-kernel program taxonomy): CLEAN (streak 7/30).**
+
+- **Formulas verified against known values, not read:** `rand_index` returns 1.0 for identical
+  partitions, 0.0 for all-together-vs-all-apart, and **0.5 on a hand-derived textbook case** (3 of 6
+  pairs agreeing) — it is the genuine Rand (1971) pair-counting index, and the docstring is HONEST
+  that it is the UNadjusted form and why (raw pair-agreement between adjacent thresholds, not a
+  chance-corrected statistic — using ARI silently would have been the easy misstep).
+  `_shannon_bits` gives exactly **2.0 bits** for four equal kinds, and `0.0` — not `-0.0` — for a
+  single kind, because it deliberately normalises the IEEE negative zero that `-(1·log2 1)` produces,
+  keeping report JSON byte-stable.
+- **Deterministic BY CONSTRUCTION, and proven so.** `_components` runs union-find over SORTED ids and
+  roots each union at the **smaller index** (`parent[max] = min`) rather than by rank — that is what
+  makes the component labelling canonical rather than merely correct — then orders kinds by
+  `(-size, first member)`. Verified end-to-end: `induce_taxonomy` returns a **byte-identical** result
+  when the input dict order is shuffled. Under the new determinism-envelope lens this is exactly right:
+  a clustering whose labels depended on dict order would silently break archive replay.
+- **`_medoid` degrades honestly:** a singleton kind returns mean similarity `None`, explicitly "never a
+  fabricated 1.0", with ties broken to the lexicographically-first member. Same
+  report-the-degradation discipline as `n_boot_valid` / `ci_reliable` / `n_unparseable` elsewhere.
+- Verified: 25 taxonomy tests pass.
+
+**Loop 28 — `cross_model.py` + a REACHABILITY sweep of the whole inference package: CLEAN (streak 8/30).**
+
+- **Independently VERIFIED the concurrent session's row-34 disclosure — it is accurate.**
+  `cross_model.py` carries a ⚠ NOT-YET-WIRED note: `pooled_bound` is the registered cross-model
+  bounded-effect statement (R86) and **R101 reframed the headline around it**, yet nothing calls it.
+  Confirmed here by an independent import search: **zero** `import` statements for `cross_model` OR
+  `leg_aggregate` anywhere in `src/` or `scripts/` — the only mentions are prose. Tracked as
+  `docs/V2_WRITE_TIME_REGISTRY.md` row **34** with the two acceptable closures (wire it end-to-end, or
+  amend the register to withdraw the claim). 26 unit tests pass — which is precisely the R16 failure
+  class the note itself cites: *"implemented and unit-tested but previously unwired, so the documented
+  headline test never actually ran."* Left to that lane; flagged so it is neither lost nor double-fixed.
+- **★ A GAP IN THIS REVIEW'S OWN METHOD, now closed.** In loop 19 I reviewed `leg_aggregate.py` for
+  correctness and called it CLEAN without ever asking whether it was REACHED. A correct, well-tested,
+  unreachable module is exactly the failure above. **Reachability is now a standing PASS-B lens: "is
+  this module on an executed path?"** — retro-applied immediately as a full sweep of all 20
+  `src/inference/` modules. Result: **18 wired, 2 not.** `bootstrap` is the hub (18 importers);
+  `responsiveness` 5; `deflated_sharpe` 4. The two unwired are `leg_aggregate` (row 34, above) and
+  `ood_stress`.
+- **`ood_stress` unwired is NOT a second row-34 — verified, not assumed.** Its only repo-wide
+  reference is a COMMENT in `measurement.py:270`. But it self-describes as a *"standalone… robustness
+  appendix… **NEVER headline**"* generator, it is absent from `preregistration.yaml` /
+  `PREREGISTRATION.md` as a deliverable, and the registry names it only as the EXISTING module a
+  future world-models item would extend. An ad-hoc appendix generator is *supposed* to be unwired;
+  a registered headline statistic is not. Materially different, so no finding raised.
+
+**Loop 29 — REACHABILITY sweep of ALL 84 `src/` modules + a 3-way price-table drift check: CLEAN (streak 9/30).**
+
+- **Full reachability sweep (the lens earned in loop 28): 84 modules, 6 with ZERO production
+  importers** (counting `src/` + `scripts/` only — test importers do not make a module wired, which is
+  the whole R16 lesson). **Every one verified rather than assumed:**
+  - `inference/cross_model.py`, `inference/leg_aggregate.py` — registry **row 34**, concurrent lane.
+  - `inference/ood_stress.py` — self-declared standalone "NEVER headline" appendix generator (loop 28).
+  - `cluster/run_one.py` — **a CLI entry point, not a library**: `jobscript.py:78` generates
+    `{launcher} -m src.cluster.run_one --spec ... --pack {pack}`. Zero importers is CORRECT here.
+  - `arms/factory.py`, `llm/cost.py` — imported by TESTS ONLY.
+- **3-way price-table drift check — no drift today.** `llm/cost.py::PRICES_PER_MTOK` is test-only yet
+  R102 maintained it, and its own comment calls it a "mirror" of `scripts/monitor.py`, while the LIVE
+  ledger (`spend_ledger.estimate_cost_usd`) reads a THIRD source, `config/legs.yaml: planning_prices`.
+  R102 already tripped this exact class ("opus-5 missing from all-but-one cost map"), so it was worth
+  measuring: **cost.py vs monitor.py agree on all 7 shared keys; all three price the confirmatory
+  author identically at $5/$25** (`legs.yaml` uses full ids `claude-opus-5`, the others a substring
+  convention `opus-5` — which is why they share no literal keys). Structural hazard noted, values correct.
+- **⏭ OPEN FOR NEXT LOOP (not asserted — needs verification):** `arms/factory.py` exports
+  `assert_fixed_agent_across_arms`, a guard on the **identification principle** ("only the reward may
+  vary across arms"), and it appears reachable only from tests while production iterates plain arm
+  STRINGS from config. Before calling that a gap I must check whether `freeze.py`'s
+  `assert_executed_arms_match` + the arms.yaml roster guard already enforce the same invariant at
+  runtime. Flagged, not claimed.
+
+**Loop 30 — the IDENTIFICATION-PRINCIPLE invariant: CLEAN (streak 10/30). Loop 29's concern RESOLVED as a strength.**
+
+Loop 29 flagged that `arms/factory.py::assert_fixed_agent_across_arms` — the guard on "only the reward
+may vary across arms" — appears reachable only from tests while production iterates plain arm strings.
+If the study's core identification claim were merely unit-tested, that would be a row-34-class gap on
+something far more central than a pooled bound. **It is not a gap, and the reason is the strongest one
+available.**
+
+- **The invariant is enforced STRUCTURALLY, not by assertion.** `resolve_agent_kwargs(cfg, seed)` takes
+  **no arm argument** — verified by runtime introspection, not by reading the docstring:
+  signature is `(cfg: Any, seed: int)`. A per-arm hyperparameter override is therefore not something
+  the code declines to do; it is **unrepresentable**. An independent grep confirms no
+  `agent_cfg_for_arm` / per-arm agent mapping exists anywhere in `src/` or `scripts/` (the only hits are
+  the factory's own docstring describing the hypothetical, and `headroom.py`'s unrelated `per_arm`
+  results dict). This is exactly CLAUDE.md's own design rule — *make illegal states unrepresentable* —
+  applied to the study's identification claim.
+- **The module is honest about its own scope**, which is why the concern resolved cleanly: its
+  docstring (critical-review 2026-06-20) states plainly that it is *"a TEST-time regression guard, NOT
+  a runtime per-arm-override detector … the matched-agent property holds structurally, by
+  construction"*, and spells out what it DOES verify (matched candidate budget · agent kwargs depend on
+  the SEED ALONE, byte-identical at two seeds · each LLM arm carries a distinct `feedback_kind`) and
+  what it would take to make it a true per-arm guard. A test-only guard whose job is to catch a FUTURE
+  refactor breaking a structural property is correctly placed in tests.
+- **Worth stating in the write-up:** the identification principle is not asserted, not merely
+  test-checked — it is impossible to violate without a signature change that the guard would catch.
+- No code changed in loops 22-30 (documentation only), so the loop-25 full-suite `PYTEST_RC=0` stands;
+  next full run due by loop 35.
+
+**Loop 31 — `contamination.py` SESOI units: 1 fixed (streak → 0).**
+
+- **[MINOR, FIXED] `named_vs_blinded_oos_gap` conflated the two SESOI units R104 exists to separate.**
+  The endpoint is a per-seed **Sharpe** difference gated at `sesoi = 0.05`, and its docstring described
+  that as *"the pre-registered SESOI = 0.05 DSR/Sharpe units"*. But the register is explicit:
+  `config/preregistration.yaml: inference.sesoi = 0.05` is annotated **"validation-DSR units"**, and
+  amendment **R104** derives the Sharpe equivalent separately as
+  `sesoi_ann_sharpe_equiv = 0.0756 (= 0.05 / k, k = 0.6616 DSR per ann-Sharpe)`. Writing
+  "DSR/Sharpe units" as if interchangeable is precisely the unit-mismatch class already flagged as this
+  project's fragile spot. **Verified the arithmetic against the register:** `0.05 / 0.6616 = 0.0756`,
+  matching `sesoi_ann_sharpe_equiv` exactly — the derivation is self-consistent, and applying 0.05 on a
+  Sharpe scale is **33.9% TIGHTER** than the registered Sharpe equivalent.
+- **Direction matters and is now stated: the error is CONSERVATIVE.** A tighter margin makes
+  equivalence HARDER to declare, never easier, so it cannot manufacture a bounded-gap positive claim.
+  Docstring corrected to name the unit precisely, give the R104 conversion, and state the direction.
+- **The value was deliberately NOT changed.** Loosening the margin to 0.0756 would relax an equivalence
+  gate; that is a pre-registration decision, not a code change — and loosening is the wrong direction to
+  take unilaterally. Callers wanting the Sharpe-equivalent margin pass `sesoi` explicitly. Also recorded
+  that this endpoint is a **report-only** A/B sub-experiment: the registered confirmatory instrument is
+  `named_vs_blinded_structural` (AST), per `preregistration.yaml:289`.
+- Verified: 73 contamination / SESOI tests pass, ruff clean.
+
+**Loop 32 — the SESOI unit-check lens, continued: 1 MAJOR fixed (streak stays 0).**
+
+- **[MAJOR, FIXED] `viz.equivalence_forest` drew ONE ±0.05 band across BOTH co-primary legs — visually
+  OVER-CLAIMING the null on the tail leg, in a PDF figure.** The two legs are not in the same units:
+  `analyze_campaign.h2_tost` is *"RA-only by construction; the CVaR equivalence stays in `h2_tost`
+  (its own units)"*, and the analysis layer explicitly guards the consequence — *"the raw ±SESOI (0.05)
+  ROPE is in RAW CVaR units and is LARGE relative to a daily CVaR magnitude O(0.01–0.06), so on the
+  TAIL legs it can near-trivially contain the posterior and **OVER-CLAIM null evidence**"* — which is why
+  it uses a RELATIVE P6 band (`tail_margin_fraction` × |baseline CVaR|, default 25 %). The figure
+  reproduced exactly the error the analysis corrects. **PROVEN by verdict flip:** the same tail interval
+  `[-0.020, +0.012]` reads **equivalent** at ±0.05 but **NOT equivalent** at the P6 band
+  (0.25 × |−0.04| = 0.01) — a filled (green) row where the honest verdict is open. The direction is
+  **anti-conservative**, and it lands on the bankable-null headline leg, which is the claim the whole
+  paper rests on. **Fix:** `sesoi` now accepts a `{leg: margin}` mapping and the band + the
+  filled/open verdict are computed PER LEG; a scalar still applies to every leg, so existing
+  single-leg callers are unchanged. Regression test pins the mapping API, back-compat, AND the verdict
+  flip. 26 viz tests pass, ruff clean.
+- **Also unit-checked this loop, no change needed:** `bayes_null.bayesian_null_report` takes `sesoi` as
+  a **REQUIRED** parameter with no default — correct, because its `diffs` may be "per-seed Sharpe or
+  CVaR difference", so the caller must supply a margin matching their units. The
+  `contamination.py:876` N3 wrapper forwards `sesoi` to the endpoint documented in loop 31.
+- **Method note:** this was found by the lens earned in loop 31 — *a default that matches the
+  registered NUMBER may still mismatch the registered UNIT*. Loop 31's instance was conservative;
+  this one was not. Worth applying to every remaining margin/threshold consumer.
+
+**Loop 33 — finding #19 COMPLETED end-to-end (loop 32's fix was a HALF-MIGRATION).**
+
+- **My own loop-32 fix did not reach production.** It made a per-leg band *possible* but neither caller
+  passes one: `scripts/make_figures.py:167` — which renders the actual PDF figure — and
+  `scripts/build_notebook_results.py:544`, labelled *"F5/F6 — the bankable-null figure"*, both call
+  `equivalence_forest(data["contrasts"])` with no `sesoi`. So the shipped figure still drew the CVaR
+  leg against the raw ±0.05 DSR band and still over-claimed the null. **CLAUDE.md is explicit —
+  *"Finish end-to-end (update every call site) or state what is left — never half-migrate"* — and I
+  violated it by fixing the library and not checking the callers. Logging it against my own work.**
+- **Completed properly, so the correct band flows without touching the bundle builder:** the margin
+  now travels WITH the contrast row (`sesoi`/`margin` per row), which is where it belongs — the tail
+  band is `tail_margin_fraction × |baseline CVaR|`, i.e. per-CONTRAST, not per-leg. Precedence is
+  row > `{leg: margin}` mapping > scalar. `analyze_campaign.h2_tost` already RETURNS this value
+  (`{"margin", "tail_margin_fraction", ...}`), so the analysis-computed band can be carried straight
+  through.
+- **And the unsafe path is no longer silent.** Drawing a `cvar` leg from a bare scalar now emits a
+  loud `WARNING` naming the cause and the fix. Verified behaviourally: warns on the scalar path,
+  silent when a per-row margin or a per-leg mapping is supplied, and the verdict flip
+  (`True → False` on `[-0.020, +0.012]`) still holds. A silent over-claim became a visible one.
+- Verified: `tests/test_viz.py` **VIZ_RC=0** (26 tests), ruff clean (fixed an E402 introduced by the
+  logger placement). Full suite for loops 31-33 launched; RC reported next loop.
+
+**Loop 34 — RETRO-AUDIT of this review's OWN fixes for the half-migration failure: CLEAN (streak 1/30).**
+
+Loop 33 showed a fix can be complete in the library and still not reach production. That is a
+*pattern* risk, so every prior fix was re-audited against it. **Result: #19 was the ONLY
+half-migration, and it is closed.** The structural reason, verified rather than assumed:
+
+- **Only ONE of my fixes introduced an opt-in parameter.** Scanned the working diff for newly-added
+  optional parameters; among this lane's changes only `equivalence_forest(sesoi=...)` (#19) adds
+  behaviour a caller must OPT INTO — exactly the shape that can half-migrate. (The diff also carries
+  the concurrent session's work — `random_search`, `utils/config`, `llm/cost`, `monitor.py`,
+  `_INLINE_FALLBACK_COUNT` in the sandbox, `rho`/`device` params — deliberately NOT claimed here.)
+- **Every other fix is behaviour-INTERNAL, so it propagates to all callers automatically** — and each
+  sits on a REACHED path (the loop-28 lens): `threshold_sensitivity` (#7) 7 production refs ·
+  `mediation_analysis` (#17) called at `analyze_campaign.py:5005` · `legible_render` (#8) wired at
+  `loop.py:304,653` so the decile inversion reaches the numeracy leg when that config flag is on ·
+  `_empirical_cvar` 4 refs. #2's `CAMPAIGN_RUN_BREAKDOWN` is a module-level constant consumed by
+  `project_campaign(n_runs=...)`, so the config-derived count reaches every caller.
+- **Direct production edits need no propagation check:** #10 (`analyze_campaign` checksum), #11
+  (`power_analysis` loud fallback), #12 (`campaign` ledger warning), #9 (`learning_curve` purge — where
+  I *did* change the call site in the same loop).
+- **#16 confirmed to have NO production effect by design:** every `benjamini_hochberg` call site passes
+  `q` explicitly, so the corrected default is future-proofing, exactly as documented when it was made.
+- **#13/#14/#15/#18 are documentation/config** — no call sites to migrate.
+
+**Standing close-out step now applied to every fix: after changing a library, grep the callers and
+confirm the change actually reaches production.** A green test suite does not prove reach.
+
+**Loop 35 — `src/inference/attribution.py` (the BAB/factor difference-in-alpha secondary): CLEAN (streak 2/30).**
+
+- **The Newey-West automatic lag rule VERIFIED NUMERICALLY, not taken on citation.**
+  `newey_west_hac_lag(T)` matches `floor(4·(T/100)^(2/9))` AND statsmodels' own HAC default on all 7
+  sample sizes tested — including **T=694** (the registered track length) and **T=2961** (the Split-C
+  fed window). The citation split is also precisely right, which is the kind of thing an examiner
+  checks: **Newey-West 1994 for the LAG RULE, Newey-West 1987 for the ESTIMATOR** — a very common
+  misattribution, avoided here, and the lag is passed explicitly rather than left to a library default
+  so it is logged and reproducible.
+- **A suspected multiplicity-family contamination that ISN'T one.** The module docstring says its keys
+  "cannot be confused with the frozen H2 family's `arm_a`/`arm_b`/`metric`/`level`", yet l.596-599
+  emits `arm_a`/`arm_b` too — so the separation cannot rest on key exclusivity. Checked the actual
+  mechanism: **BH is applied INTERNALLY across this module's own runnable cells only** (l.659-663,
+  *"Disjoint from the frozen m=6 — corrected internally per deep-research §5.10 ('one declared family
+  each')"*). Attribution never contributes p-values to the H2 pool, so there is no shared pool to
+  contaminate; `arm_a`/`arm_b` merely identify the contrast. The FDR control is structurally sound.
+  `q` is passed explicitly to `benjamini_hochberg`, consistent with the loop-15 audit.
+- **Unit lens (loops 31-32) applied — clean.** Per-period and annualised alpha are BOTH reported under
+  DISTINCT key names (`alpha` / `alpha_ann`, `alpha_diff` / `alpha_diff_ann`, all `× 252`), so the unit
+  is explicit at every point of use rather than implied — the same discipline that kept the three
+  Sharpe conventions safe in loop 22.
+- **Estimand construction is right:** per-seed alpha first, then the PAIRED across-seed bootstrap on
+  per-seed alpha differences over shared training seeds — so the across-seed (training-RNG) variance is
+  carried rather than pooled away, matching the rest of the inference stack.
+
+**Loop 36 — `contamination.paired_tost`: CLEAN (streak 3/30). `src/inference/` COMPLETE — all 20 files.**
+
+- **The TOST decision rule is right, and verified behaviourally.** `p_tost = max(p_lower, p_upper)` —
+  equivalence requires BOTH one-sided tests to reject, and using `min` or an average is the classic
+  error that silently manufactures equivalence. Confirmed on three regimes: a tight paired difference
+  → `equivalent=True`; a clearly different +0.10 against a ±0.05 margin → `False`; and — the case that
+  actually matters — **wide-noise underpowered data → `equivalent=False`** with CI
+  `[-0.0092, +0.0733]` straddling the bound. An underpowered sample is refused, not quietly called
+  equivalent. `p_tost == max(one-sided)` held exactly in every case.
+- **Strict-inequality convention is consistent across modules.** The zero-variance degenerate branch
+  decides on `low < mean_diff < high` (strict), matching `viz.figures._is_equivalent`'s P14-F4 rule
+  that "a boundary CI at exactly ±sesoi is NOT equivalent". Test and figure agree on the boundary —
+  which is exactly the alignment loop 32 showed can silently break.
+- **`src/inference/` is now fully reviewed (20/20 files)** across loops 15-36: 2 defects found and
+  fixed (#16 BH q default, #17 mediation reliability gate) plus 2 unit-lens fixes reaching into
+  `viz` (#18, #19); `cvar` proven identical 4-way and `iqm` 2-way; FZ0 strict consistency, the MCS
+  sign convention, the Newey-West lag rule and the TOST rule each verified by EXECUTION rather than
+  by reading.
+
+**Cross-session note (no action):** the concurrent lane added a 22nd freeze check — a
+**confirmatory-author guard** (their loop 12), on the grounds that `config/llm.yaml` is NOT hashed so
+the EXECUTED reward-author could drift from the registered one with `--check` still green. That is the
+same file this lane flagged in finding #13 (dead `candidates_per_generation` key, single consumer) —
+two lanes converging on the same weak file from different angles. Verified the two changes coexist:
+`tests/test_freeze.py` **59 passed** with BOTH their new guard and this lane's drift-proof mini fixture.
+
+**Loop 37 — `src/cluster/campaign.py` authoring outage-tolerance: 1 MAJOR fixed (streak → 0).**
+
+- **[MAJOR, FIXED] Permanent API errors rode out the full 2-hour retry budget instead of failing fast.**
+  `_complete_with_outage_tolerance` classified an authoring failure as transient by substring-matching a
+  marker tuple that contained the **bare digit strings** `"500"`, `"502"`, `"503"`, `"504"`, `"529"`.
+  Digits appear incidentally in almost every API error message, so PERMANENT 4xx failures matched.
+  **Verified on realistic messages — 4 of 6 were misclassified:** `max_tokens: 8500 > 8192`,
+  `claude-opus-5000-preview not found`, `req_011CQ500ABCD is malformed`, `prompt is 1500 tokens over
+  the limit` — every one contains `"500"`. This **directly defeats the function's own documented
+  guarantee** (*"non-transient errors … re-raise IMMEDIATELY (no spend-burning retries on a permanent
+  problem)"*), and it does so on precisely the failure mode this project has ALREADY HIT TWICE — the
+  R97a and R102 `max_tokens` 400s. In an unattended multi-week campaign a single misconfigured
+  `max_tokens` would have burned **2 h per candidate** against a fixed Aug-27 exogenous stop.
+- **Fix:** statuses are now matched as NUMBERS, not substrings. `_is_transient_author_error` prefers the
+  SDK's `status_code` attribute, falls back to a parsed `error code: NNN`, and a definitive status
+  DECIDES on its own — a 4xx stays permanent even if the prose contains a transient-looking word. Only
+  when no status exists do the textual markers (all WORDS now) apply, and unknown errors **fail
+  closed**. `429` was added deliberately: rate-limiting IS transient and the old tuple caught it only
+  when the message happened to spell "rate limit" — now it is caught by status, matching `client.py`.
+- **Verified: 0 of 7 permanent errors now retry (was 4), 0 of 6 transient errors are missed.**
+  13 new parametrised regression tests pin both directions plus the fail-closed default;
+  `tests/test_cluster_campaign.py` **CLUSTER_RC=0**, ruff clean.
+- **A RED full suite investigated, not waved away.** The loop-36 run returned `PYTEST_RC=1` on
+  `test_cluster_pack_integration.py::test_pack_path_end_to_end_two_real_specs`. That run overlapped the
+  concurrent lane's `freeze.py` edits, and the test passes in isolation on the settled tree — but
+  isolation-passing does NOT rule out a suite-ordering interaction, so it is NOT being declared
+  resolved. A fresh full suite is running; its `PYTEST_RC` will be reported before any clean-streak claim.
+
+**Loop 38 — the intermittent-RED full suite ROOT-CAUSED. It is a VERIFICATION-LAYER reproducibility
+problem, not a production defect — and it retro-qualifies this review's own green claims.**
+
+- **Root cause:** `test_cluster_pack_integration::test_pack_path_end_to_end_two_real_specs` fails with
+  `RuntimeError: CUDA error: out of memory` / `fatal: Memory allocation failure` **only when a prior
+  in-process training has already initialised CUDA in the pytest parent** (e.g.
+  `test_reproduce_synthetic` runs a real SB3-SAC fit). The pack test then spawns TWO 'cuda' workers —
+  which is exactly what it verifies (Myriad-style device-token routing) — and on the 6 GB laptop GPU
+  the parent's surviving CUDA CONTEXT leaves the children nothing.
+- **Why it looked random:** `pytest-randomly` is installed and SHUFFLES MODULE ORDER every run, so the
+  suite was green or red depending on the run's random seed. Reproduced deterministically with
+  `pytest -p no:randomly tests/test_reproduce_synthetic.py tests/test_cluster_pack_integration.py`.
+  Note this repo has ALREADY been bitten by the same class once — the conftest's pyarrow-before-torch
+  preload exists precisely because `pytest-randomly` exposed an order-dependent SIGSEGV.
+- **NOT a production defect — verified, not assumed.** The pack test passes ALONE in a fresh process,
+  and production never enters this path from a CUDA-holding parent: the jobscript launches
+  `python -m src.cluster.run_one` as a FRESH process per SGE task (`jobscript.py:67,103`).
+- **⚠ HONEST RETRO-QUALIFICATION of this review's own reporting.** The `PYTEST_RC=0` results reported
+  after loops 7, 16 and 25 were real observations, but because module order is randomised they were
+  **order-dependent** — a different random seed could have turned any of them red on this same test.
+  They should be read as "green under that run's order", not "green under all orders". Re-running the
+  suite with `-p no:randomly` makes the result REPRODUCIBLE, and that is how it is now being run.
+- **Added (correct hygiene, but it does NOT fix the OOM — stated plainly):** an autouse conftest
+  fixture releases retained GPU memory after any test that touched CUDA (`gc.collect()` +
+  `torch.cuda.empty_cache()`, guarded by `torch.cuda.is_initialized()` so the ~2,000 non-GPU tests pay
+  nothing). It reduces allocator pressure; it cannot release the parent's CUDA *context*, which is the
+  actual constraint. Verified it does not break anything: `test_reproduce_synthetic` passes alone,
+  ruff clean.
+- **DELIBERATELY NOT DONE — needs Tamer's call.** The natural fix is a free-VRAM capacity guard that
+  SKIPS this test when the GPU cannot host two contexts. CLAUDE.md forbids silencing a check
+  ("no … skipped tests"), and skipping-for-capacity vs skipping-to-go-green is a judgement I will not
+  make unilaterally on a test that guards the Myriad packing path. Flagged for decision.
+
+**Loop 39 — `run_one.run_task` INLINE path: 1 MAJOR fixed. The `-r y` idempotency guard protected only
+the packed branch, while the DEFAULT branch was unprotected.**
+
+- **[MAJOR, FIXED] A re-executed SGE task retrained a COMPLETED spec and overwrote its record.**
+  `#$ -r y` (`jobscript.py:38`) makes SGE re-execute the WHOLE task after a node failure. The PACK
+  branch guards this with `_already_archived` (added by the 2026-07-13 audit); the **INLINE branch
+  returned before ever reaching the check** — and inline is where **`pack=1`** routes, which is the
+  **DEFAULT** in three places (`jobscript.py:94`, `campaign.py:82`, `campaign.py:154`; the renderer
+  even sizes `h_rt` specifically for `pack == 1`). So the guard covered the non-default path only.
+- **Two harms, both the ones the original guard was written to prevent:** ~1.5 h of GPU retraining
+  burnt per re-executed task against the **Aug-27 exogenous stop**, and — the worse one — the remote
+  `record.json` **overwritten with a different node fingerprint**, creating the remote-vs-pulled-mirror
+  divergence that `cluster/integrity.py`'s device + env-fingerprint census audits across the **SEALED
+  leg**. A fingerprint mismatch there is a reproducibility defect on the paper's headline evidence.
+- **The telling detail:** the P18 comment sitting THREE LINES ABOVE the bug records that same
+  2026-07-13 audit noticing the inline path skipped `_worker_init` and fixing it — while not noticing
+  the inline path also skipped `_already_archived`. One inline-path omission was closed; its sibling
+  was left open in the same edit.
+- **Fix:** the inline branch now applies the identical skip and returns the identical row shape
+  (`{"ok": True, ..., "skipped": "already_archived"}`) as the pack branch. Regression test pins **the
+  harm, not the return shape**: a pre-seeded record carrying `ORIGINAL-NODE-FINGERPRINT` must survive
+  **byte-for-byte** after a re-executed `run_task(spec, pack=1)`. It is also fast and GPU-free —
+  the guard short-circuits before any training, which is itself evidence the skip fires.
+  Verified: `tests/test_cluster_campaign.py` **RC=0** (44 tests), cluster suite **RC=0**.
+- **Method note:** this was found by asking "the pack branch has a guard — does the OTHER branch?"
+  It is the same shape as finding #19 (a fix that reached one call path and not the others), which is
+  now the third instance of that pattern in this review. **Whenever a guard exists on one branch,
+  check every sibling branch.**
+
+**Loop 40 — finding #3 (open since loop 1) CLOSED as NOT-A-DEFECT. Static review only, zero machine load.**
+
+Loop 1 flagged that operative docs quote the stale campaign size "≈600 runs (210 search + 210
+winner-test + **120 H1** + 60 H3)" when the H1 canon's 4→11 expansion makes the core-rung total **810**
+(330 H1). It was deliberately left open pending the authority map. Classified all six candidates with
+the loop-12 rule (date-stamped title / dated supersession block / append-only log ⇒ HISTORICAL):
+
+- `docs/CAMPAIGN_RUNBOOK.md` — header: **"⚠ SUPERSEDED (2026-07-22, row 30k)"** → historical.
+- `docs/COMPUTE_AND_TRAINING_TIME.md` — header: **"⚠ SUPERSEDED 2026-07-01 (ADR-040)"** → historical.
+- `docs/CAMPAIGN_READINESS.md` — title date-stamped **(2026-06-28)** → historical.
+- `docs/OPTION_A_compute_enabled_expansion.md` — **(2026-06-27)** → historical.
+- `docs/UCL_CLUSTER_ULTRAPLAN_2026-07-06.md` — **"SUPERSEDED-AS-OPERATIONAL (2026-07-06)"** → historical.
+- `docs/CAMPAIGN_freeze_decisions.md` — **"Compiled: 2026-06-24 · Status: decision brief"** AND
+  "⚠ SUPERSEDED 2026-07-01"; its ≈600 figure explicitly cites `COMPUTE_AND_TRAINING_TIME.md §3-5`,
+  i.e. a historical citation of an already-superseded doc → historical.
+
+**Two FALSE POSITIVES from loop 1's grep, corrected:** `PLAN_IF_WE_USE_UCL_MYRIAD.md`'s two "600"s are
+a **poll interval** ("every 600 s") and a **directory-sharding bound** ("≤ ~600 run-dirs") — not run
+counts at all. Same bare-number substring trap as finding #20; caught here by reading the context.
+
+**The operative authority is clean.** `docs/HANDOFF.md` carries the CURRENT compute model — the R101
+common-ladder framing (rung ~100–189 floor, ~23 trainings/hr, concurrency-bound) — and does not quote
+600 anywhere. No operative document asserts the stale size, so there is nothing to reconcile; editing
+the superseded ones would corrupt the record. **#3 closed: correctly flagged, correctly not-fixed.**
+
+**Loop 41 — `src/orchestration/test_leg.py`, the SEALED confirmatory leg: CLEAN (streak 2/30).**
+Static review only (no test execution — machine-load stop in force).
+
+- **The frozen/test desync guard is real and fires loudly.** It recomputes
+  `sha256(winner.reward_source)` and raises `ValueError("frozen/test desync guard")` on any mismatch —
+  so a resume that re-searched and swapped the winner cannot silently test a DIFFERENT reward than the
+  one frozen. Applied once per winner in the driver, not per seed (correct: it is a property of the
+  winner, not the seed).
+- **Its fail-open branch is SPECIFIED, not an oversight.** The guard is gated on
+  `if reward_hash and len(reward_hash) == 64`, so a winner with a missing/malformed hash is NOT
+  verified. Checked before judging: production always supplies one (`loop.py:690` for LLM winners,
+  `run_campaign.py:998` for the baseline canon; the serial path additionally recomputes-if-absent at
+  `run_campaign.py:777`), and `tests/test_test_leg.py` deliberately exercises BOTH branches — six sites
+  pass `reward_source_hash: ""` to take the bypass and one passes a valid 64-char hash to make the
+  guard fire. Deliberate back-compat, not a hole.
+- **The "sealed leg touched EXACTLY ONCE per seed" invariant holds, and the sibling-branch lens
+  (finding #22) comes back CLEAN here.** `done_ids` is derived from the ARCHIVE on resume
+  (`{r["run_id"] for r in load_all_safe(...)} if resume else set()`), and all THREE call sites are
+  structurally identical — baselines over `test_root/baseline_<name>` (l.1079), the H3 single-shot
+  (l.1296) and the main arms (l.1728), each rooted at its own stage directory. No branch was left
+  unguarded, which is exactly the asymmetry that produced #22 in `run_one`.
+- **Record shape is right:** deterministic `run_id = f"{arm}-s{seed}"`, `frozen: True`, the env
+  fingerprint captured per arm, and `val_fitness` CARRIED from the frozen winner rather than
+  recomputed on the test split — so the sealed leg cannot re-derive a selection statistic.
+
+**Loop 42 — `src/data/loaders.py`, the PIT / survivorship / delisting layer: CLEAN (streak 3/30).**
+Static review only (machine-load stop in force). The data layer is where a defect corrupts everything
+downstream, and all three leakage-critical mechanisms hold up under adversarial reading:
+
+- **`_seed_leading_vix` is a correct and subtle look-ahead guard.** It recognises that `ffill` is
+  leakage-free (past → interior/trailing) but a LEADING NaN cannot be ffill'd, so a bare `.bfill()`
+  would pull VIX BACKWARD from a later session — a future leak at the agent's FIRST decision-day obs.
+  It instead seeds from `cash.index < start` (**strict** `<`, so the start row itself can never seed
+  it), and reserves `bfill` solely for the global-first session where no prior observation exists
+  anywhere — which it honestly calls "genuinely unknowable, not a silent leak" rather than papering
+  over. Verified the fill order too: `ffill()` first means the only NaNs left ARE leading, so the
+  subsequent `fillna(seed)` cannot overwrite interior data.
+- **All three delisting branches are correct — the sibling-branch lens (#22) finds no asymmetry.**
+  `liquidate_to_cash` zero-fills; `error` raises naming the offending columns; and `ffill_then_zero`
+  gets the critical subtlety right: it captures `last_valid_index()` **BEFORE** the ffill (capturing it
+  after would return the window end and defeat the whole guard), then zeroes `index > lv` **strictly**,
+  so a delisted name cannot repeat its final daily return and fabricate compounding wealth
+  (final-audit #20). Every branch terminates with no NaN surviving.
+- **The VIX unit detection deliberately avoids the sealed span.** It detects fraction-vs-points from
+  the FIRST ~504 rows only — "always inside TRAIN (2005-2016)" — precisely so the read never touches
+  the sealed test window, where a panel-wide median would have. The `< 2.0` threshold sits safely in
+  the gap between the fraction max (~0.83) and the points min (~5), and is magnitude-guarded so a
+  points-format gold can never be double-scaled. This is the fix for the 2026-06-19 bug where every
+  gold date was labelled calm and the independent-regime count collapsed to 1 — the same mechanism the
+  concurrent lane's `c4154ef` confirmed still live when it removed the stale "still broken" comment.
+
+**Loop 43 — `src/agents/trainer.py` + the replay-cap chain: CLEAN (streak 4/30).** Static only.
+
+- **Both safety knobs bind in the CORRECT DIRECTION.** `buffer_size = min(requested_or_train_steps,
+  campaign_replay_cap())` is a true CEILING — it clamps even an EXPLICITLY larger request, which is
+  the right semantics for a RAM guard (a default would be overridable; a cap must not be). And
+  `learning_starts = max(cfg_value, 1000)` is a FLOOR, deliberately so: SB3-SAC's unset default is 100,
+  but the Phase-0 gate validated the agent at 1000, so a lower config value is raised rather than
+  honoured — the runtime cannot silently run a warmup the gate never proved.
+- **Permissive-default check (the lens that caught #16) — CLEAN.** `DEFAULT_REPLAY_CAP = 50000`
+  MATCHES the registered `config/campaign.yaml: agent.buffer_size: 50000`, and the fallback direction
+  is fail-safe: an unreadable/absent config KEEPS a cap rather than losing one.
+- **A suspected third-site gap, REFUTED by tracing the call chain.** There are three places that clamp
+  the buffer, and `parallel.py:418` clamps to `train_steps` rather than the cap — so with `_spec`
+  including `buffer_size` only CONDITIONALLY (l.754), a missing config key would make that line
+  `min(train_steps, train_steps)`, i.e. no cap, and ~5 GB at 350k would OOM the laptop. That looked
+  like the #9/#16 pattern. It is not: `train_agent` ALWAYS routes through `resolve_agent_kwargs`
+  (`trainer.py:216`), which applies `campaign_replay_cap()` unconditionally. So there is ONE
+  enforcement point that no spec shape can bypass, and `parallel.py:418` is a secondary defensive
+  clamp. Correct architecture — verified by following the chain rather than counting the clamps.
+- PopArt's realised `sigma_max`/`sigma_last` is attached per-candidate for the T2.4 audit, with
+  `{"popart": 0.0}` recorded when off — so the ablation and the cross-arm table read the same field.
+
+**Loop 44 — `src/agents/popart.py`, the scale-normalisation engine: 1 MINOR fixed (streak → 0).**
+
+- **Finding #23 — a config-reachable knob could SILENTLY disable PopArt while the audit read clean.**
+  `wrap_popart` sources `popart_beta` / `popart_min_scale` / `popart_warmup` from config, but the
+  constructor only `float()`-cast them — no validation. Traced (not assumed): `popart_beta: 0` freezes
+  `sq_ema` at 0 → `bias_correction = 0` → `sq_hat = 0/eps = 0` → `sigma = max(sqrt(eps), 1.0) = 1.0`,
+  i.e. the exact identity. `beta > 1` can drive `sq_ema` negative → NaN `sigma` → `_scale`'s backstop
+  returns the floor. `min_scale <= 0` voids both the identity guarantee and the div-by-zero floor.
+  **Why it matters beyond a typo:** every one of those paths logs `sigma_max == min_scale`, which is
+  INDISTINGUISHABLE from the healthy sub-unit reading the R48 cross-arm scale audit expects — so a
+  mistyped knob would corrupt the audit *instrument* rather than fail. Fixed by rejecting at the
+  constructor boundary (fail-loud, naming the offending value; NaN fails every comparison so it raises
+  too). Predicate chosen as `min_scale > 0`, **not** `>= 1.0`, because three existing tests legitimately
+  pass `min_scale=1e-12` to exercise unclamped scaling — checked before editing, nothing broken.
+  Covered by a new 7-case parametrized rejection test + a positive control over the defaults and the
+  suite's own range. `tests/test_popart.py` 20 passed RC=0; `test_deep_p3_popart_dynamics` +
+  `test_popart_ablation` + `test_agents_deep -k popart` also green (targeted runs only — no full suite).
+- **Verified CLEAN in the same pass:** the overflow guard `_RAW_CAP = sqrt(float64_max/2)` correctly
+  leaves headroom for the EMA accumulation, and its `not -cap <= raw <= cap` form is *also* the NaN
+  gate (NaN fails both comparisons), which matters because a NaN entering `sq_ema` would poison it
+  IRREVERSIBLY. The Adam-style debias is exact — at `count=1`, `sq_ema = β·v²` and `bias_correction = β`
+  give `sq_hat = v²`. `sigma` is computed ONCE and reused for both the division and the audit record,
+  so the logged scale cannot drift from the one the critic actually divided by.
+
+**Loop 45 — `src/data/validation.py`, the panel/leakage contract: CLEAN (streak 1/30).** Static only.
+
+- **A suspected NaT hole in the leakage guard, REFUTED empirically (not by reading).** The guard is
+  `np.diff(dates.astype("int64")) > 0`, and `NaT.astype(int64)` is `INT64_MIN` — so a *leading* NaT
+  looked like it would produce two positive gaps and pass silently. Executed it: it is CAUGHT, because
+  `d2 - INT64_MIN` overflows to a negative gap. Middle-NaT is caught the obvious way. Float-encoded
+  dates are also safe: `int64` truncation is monotone non-decreasing, so it can only raise a FALSE
+  POSITIVE, never mask an inversion. Non-2-D returns correctly early-`return`s before the later checks.
+- **The `market_caps` block already carries the fix for the exact short-circuit bug this lens hunts**
+  (`isfinite(mc).all() and (mc < 0).any()` skipped the negativity check whenever any value was NaN);
+  it now filters `finite = mc[np.isfinite(mc)]` first. The `vix` pair is independent, so it never had it.
+- **`validate=False` as the runtime default is NOT a defect — traced, and the concern is closed.**
+  `load_gold_panel(validate=False)` means neither production leg (`parallel.py:284` search,
+  `test_leg.py:195` sealed) runs the contract. That reads like the permissive-default class (#9, #16),
+  but the invariant is established and asserted elsewhere: the builder NORMALISES it structurally
+  (`pivot(...).sort_index()` + `validate.align_to_calendar(returns, sessions)`, `build_universe.py:164,301`
+  — a non-monotonic panel is unconstructible), the examiner-facing provenance notebook ASSERTS it on the
+  real panel (`load_gold_panel('development', verify_checksum=True, validate=True)`,
+  `build_notebook_provenance.py:186`), and both legs PIN the bytes with `verify_checksum=True`.
+  Normalise → assert → pin. **Deliberately NOT changed:** enabling `validate=True` on the sealed leg
+  would newly abort runs that currently succeed, it is the build lane's call, and it is redundant here.
+
+**Loop 46 — `src/agents/factory.py`: NO code defect, but finding #24 (a real GAP) closed (streak → 0).**
+
+- **The code is correct — proven by execution, not by reading.** The memory-safety replay cap clamps
+  at the frozen 400k budget (R77) on BOTH documented construction sites: `_policy_kwargs` and
+  `resolve_agent_kwargs` each returned `buffer_size=50000` for an implicit 400k budget, an EXPLICIT
+  400k request, and an explicit 1M request, while a sub-cap 777 passed through untouched. It is a
+  true CEILING, not an overridable default, and it bounds the BUFFER only — `train_steps` stayed 400k.
+- **Finding #24 — the cap had ZERO test coverage on the clamping path.** Every pre-existing
+  `buffer_size` assertion in the suite used a SUB-cap value (777 / 321 / 100), so the `min(...)` could
+  have been refactored away and the whole suite would have stayed green — on the single guard that
+  stops a 400k run allocating a ~5.6 GB replay buffer and OOM-ing the 15.6 GB laptop (ADR-025
+  EXTENDED). Logged as a real finding because Tamer's standing brief is "any **gaps**, bugs,
+  inconsistencies", and a safety-critical path with no test is a gap in the repo's defences even
+  though the code behaves correctly today. Closed with
+  `test_replay_cap_clamps_the_frozen_budget_at_both_construction_sites` (asserts both sites, the
+  explicit-over-cap ceiling, the sub-cap no-op, and that the budget is never truncated).
+- **Also bound the duplicated constant.** `DEFAULT_REPLAY_CAP = 50000` duplicates
+  `config/campaign.yaml: agent.buffer_size: 50000`, and NOTHING (no test, no freeze guard) tied them
+  together — `campaign_replay_cap()` falls back to the literal when the config is unreadable, so a
+  future YAML change without a code change would silently resolve a different buffer in the failure
+  path (a laptop/cluster parity break). Added `test_default_replay_cap_matches_the_registered_config`.
+- **Tightened a MISLEADING test comment** (`test_agents_deep.py:348`): "explicit override honoured"
+  was true only BELOW the cap — read literally it invites exactly the 400k OOM the cap exists to
+  prevent. Now reads "honoured -- BELOW the cap; see next test".
+- **Verified CLEAN in the same pass:** the SAC↔TQC contrast really does hold everything but the critic
+  — both factories build from the SAME `_policy_kwargs(cfg)`, and TQC's defining knobs are routed to
+  their correct homes (`top_quantiles_to_drop_per_net` top-level; `n_quantiles`/`n_critics` via
+  `policy_kwargs`, MERGED not clobbered), so the audit-A-2 construct-validity claim is sound.
+  The `learning_starts` default here (1000) vs the trainer's FLOOR (`max(cfg, 1000)`) is NOT a
+  divergence: production always reaches the factory through `resolve_agent_kwargs`, so the factory
+  reads an already-floored value. `tests/test_agents_deep.py` 37 passed, `PYTEST_RC=0`.
+
+**Loop 47 — `src/data/panel.py`, the `Panel` structural contract: finding #25 (LATENT) fixed (streak → 0).**
+
+- **Finding #25 — `Panel.slice()` accepted windows NumPy silently REINTERPRETS.** Demonstrated, not
+  theorised: on a `T=20` panel, `slice(-5, 20)` returned rows **15-19 — the LAST five, i.e. FUTURE
+  data** — because a negative `start` is an offset from the end; `slice(10, 5)` (inverted) and
+  `slice(-5, 3)` silently returned an EMPTY panel, and `__post_init__` accepts that because `T=0` is a
+  valid shape; `slice(15, 999)` silently clamped. Every one of those is a look-ahead-shaped failure on
+  the exact object the no-look-ahead proof slices (`tests/test_env_nolookahead.py:45` uses
+  `panel.slice(0, t+1)` to prove the env cannot see the future). Now raises unless
+  `0 <= start <= end <= T`, naming the offending values.
+- **Honestly classified as LATENT, not live.** A repo-wide search found **zero production callers** of
+  `.slice(` — the only project hits are three files under `tests/` (everything else was third-party
+  under `.venv-lseg`). So no current path could reach the tail-aliasing; the guard closes it by
+  construction, in the same spirit as #23. Recorded as a finding rather than waved through because the
+  behaviour itself was reproduced, and "any gaps … or vulnerable" is the standing brief.
+- **Verified CLEAN in the same pass (three candidate findings REFUTED with evidence, not assumed):**
+  (a) `__post_init__` enforces shapes + returns-finiteness ONLY — which is exactly what loop 45
+  credited it with, so that argument stands un-overclaimed (semantics belong to `validation.py`,
+  normalisation to the builder); (b) `@dataclass(frozen=True)` blocks rebinding but NOT in-place NumPy
+  mutation, and `slice()` returns VIEWS sharing memory with the parent — a genuine aliasing hazard
+  **refuted** by searching for writes: no production code mutates panel arrays, and the only
+  `setflags` calls (`portfolio_env.py:287,341,346,348`) set arrays READ-ONLY, the opposite of mutation;
+  (c) `slice()` manually re-lists all six fields and a dropped field caused a real past regression
+  (`vix_prelagged` reverting to `False` → env double-lagged VIX to a t-2 close) — but every current
+  field is covered (half-open semantics, all time-indexed arrays, `asset_ids` untouched,
+  `market_caps`, new-object identity, slice COMPOSITION as a metamorphic property, and the prelag flag
+  in two files), so a generic future-field guard would be preventive-only and was NOT added (YAGNI).
+- `tests/test_data_deep.py` + `test_audit_regressions.py` + `test_env_nolookahead.py`: **82 passed,
+  `PYTEST_RC=0`** (the no-look-ahead proof still green under the new guard).
+
+**Loop 48 — `scripts/smoke_test.py`, the PHASE-0 GATE: 2 findings, both MAJOR, both REPRODUCED (streak → 0).**
+
+The lens was "can this gate PASS while the thing it gates is broken?". It could, two ways.
+
+- **Finding #26 — a VACUOUS GREEN. `--algos ""` reported `STATUS: GREEN` and exited 0 having trained
+  NOTHING.** The GREEN predicate is `len(trained) == len(algos) and len(finite_loss) == len(trained)`;
+  with an empty roster both equalities are trivially true (`0 == 0`), and that branch is evaluated
+  BEFORE the `elif trained` / `else RED` fallbacks, so emptiness wins outright. Reproduced:
+  `--algos "" --steps 1` → empty results block, `STATUS: GREEN`, `EXIT_CODE=0`. Any runbook or CI step
+  keying on the exit code would have accepted a typo'd flag as a passed gate.
+- **Finding #27 — a bare `else` in the dispatch silently built TQC for ANY non-`"sac"` name, so the
+  gate could go GREEN without ever constructing the HEADLINE SAC agent.** `_train_one` chose
+  `make_headline_agent(...) if algo == "sac" else make_distributional_agent(...)`. Reproduced:
+  `--algos foo` printed `[FOO] OK … STATUS: GREEN, EXIT_CODE=0` — a TQC trained and reported under a
+  fabricated label. `--algos foo,bar` would therefore certify the gate GREEN with SAC never built at
+  all, and `--algos SAC` (capitals) silently meant TQC for the same reason.
+- **Both share one root cause — `--algos` was a free-form string with no validation.** Fixed by
+  validating the roster against a new `_SUPPORTED_ALGOS = ("sac", "tqc")` *before* the torch import
+  and the panel load (a usage error must not require loading the gold panel to be discovered), by
+  case-folding so `SAC` means SAC, and by replacing the bare `else` with an explicit `elif "tqc"` plus
+  a `ValueError` that names the offending algo — mirroring `factory.make_agent`'s existing style.
+- **VERIFIED after the fix, by execution:** `--algos ""` → `error: --algos must name at least one of
+  ['sac', 'tqc'] … (empty roster)`, `EXIT=2`; `--algos foo` → `(unrecognised: ['foo'])`, `EXIT=2`;
+  `--algos SAC` → `[SAC] OK`; and the untouched production path `--steps 50 --device cpu` → `[SAC] OK`
+  + `[TQC] OK`, `STATUS: GREEN`, `EXIT_CODE=0`. **The diagnosis is confirmed numerically:** TQC's loss
+  trace in the good run (`9.823744773864746->9.617093086242676`) is byte-identical to the bogus
+  `[FOO]` run's, proving `foo` had been building TQC, while SAC's is a different scale entirely
+  (`413.3->345.5`).
+- **New `tests/test_smoke_gate.py` (9 passed, `PYTEST_RC=0`)** — the gate had NO test coverage at all
+  (`test_smoke_qwen.py` is unrelated). Covers the 7 rejected rosters, that `_train_one` fails a leg
+  rather than mislabelling an unknown algo, and that the advertised roster cannot drift away from the
+  dispatch branches (the mirror-image bug).
+- **Verified CLEAN in the same pass:** the GREEN finiteness test is correct on the subtle inputs —
+  `critic_loss_last is None` drops the leg from `finite_loss` (→ AMBER, cannot go green without a real
+  loss), and `abs(NaN) < 1e9` / `abs(inf) < 1e9` are both False, so NaN and inf are caught. A partly
+  failing roster (`sac` OK + `foo` failing) correctly yields AMBER, not GREEN.
+
+**Loop 49 — KNOWN-BUG-CLASS SWEEP for the #26 vacuous-truth pattern: CLEAN (streak 1/30).**
+
+Rather than take the next file in the manifest, this loop treated #26 as a *class*: `all(...)` and
+`not any(...)` both return `True` on an empty collection, and `len(a) == len(b)` is trivially true at
+`0 == 0`. Every gate/status predicate in `scripts/` and `src/` was enumerated and checked. **The one
+real instance was #26 itself (fixed in loop 48); every other instance is guarded, semantically correct
+when vacuous, or structurally unreachable.** Checked, with the reason each is sound:
+
+- **`scripts/freeze.py` — the pre-registration integrity machinery — is CLEAN on this class, by
+  design.** All four prose↔yaml guards precede their `all(...)` with an explicit non-empty
+  requirement: `_require(bool(prose_m), …)` (l.395) before the `m` check, `_require(bool(prose_sesoi),
+  …)` (l.442) before SESOI, `_require(bool(prose_margin), …)` (l.454) before the TOST margin, and
+  `if prose_ranges:` (l.316) before the seed-range check. The seed-count guard uses
+  `max(...) if prose_seed_counts else None`, so an absent prose count yields `None != n_seeds` and
+  fails LOUDLY. **This matters: had any been unguarded, rewording the prose would have silently
+  disabled the guard that binds it to the config.** `freeze.py:986`'s `len(exe_by_label) ==
+  len(executed)` is vacuous at zero legs, but that is the CORRECT semantics (no legs → no duplicate
+  labels), and the missing-`legs.yaml` case is caught by a separate guard immediately above.
+- **`scripts/learning_curve.py` CLEAN.** l.477 already uses the correct `bool(ok) and all(...)` form —
+  evidence the codebase knows this bug class. l.116's `all(finite[i:])` iterates
+  `range(len(rows) - 1)`, so the slice always holds ≥2 elements and can never be empty.
+- **`scripts/run_campaign_cluster.py:976` (`ok = all(r.get("ok") …)`) — unreachable.** `--arms` is
+  `nargs="+"` with a two-arm default, so argparse structurally forbids an empty roster; and
+  `run_campaign_on_cluster` writes `results[key]` for every future *including* the exception path
+  (`campaign.py:1449/1453`), so a non-empty arm list cannot yield an empty result dict.
+- **`src/cluster/integrity.py` — unreachable, and it fails loud upstream.** `matched_budget_ok` is
+  `accounted == expected_candidates`, which would be vacuously true if `expected_candidates` were 0 —
+  and it is sourced from `int(opts.get("candidates", 0))`, a permissive default. But `opts` is
+  hard-subscripted as `opts["candidates"]` at `run_campaign_cluster.py:195`, so a missing key raises
+  `KeyError` long before integrity runs. Noted as defensive slack, deliberately NOT "fixed": there is
+  no reachable path, and the audit LEAVE-ALONE discipline applies.
+- **`src/cluster/campaign.py:1557` — correct, verified by reading both ladder paths.** Missing
+  `sweep_t{i}` keys default to `True`, which looked like it could mask a stopped ladder. It cannot:
+  BOTH the pipelined (l.1532) and sequential (l.1549) paths store the block result BEFORE testing it,
+  so a failed block always leaves an `ok=False` entry that forces `all(...)` False. The later,
+  never-run tiers defaulting to `True` is then harmless.
+- **`src/inference/` CLEAN on this class** (already fully reviewed loops 15-36): `attribution.py:475`
+  and `headroom.py:85` both test `arr.size == 0 or not np.all(...)` — emptiness checked FIRST — and
+  the TOST combination is `max(p_lower, p_upper)` over two scalars, so the IUT ("all sub-tests
+  reject", the shape where a vacuous truth would be worst) has no empty-input path.
+- **One inconsistency NOTED, not actioned:** `campaign.py:1448` uses `r.get("ok", True)` (a malformed
+  result counts as SUCCESS) while `run_campaign_cluster.py:976` uses `r.get("ok")` (counts as
+  FAILURE). Opposite intents for the same situation. Neither is reachable with a malformed dict, so
+  changing live campaign code for it would be unjustified risk — recorded for Tamer instead.
+
+**Loop 50 — `scripts/leg_gates.py`, the LLM leg-admission gate: finding #28 (MAJOR) fixed (streak → 0).**
+
+Lens: *what does a PASS certify, and can a provider failure look like one?* It could — on the gate
+whose job is to detect DATA CONTAMINATION in a candidate LLM leg.
+
+- **Finding #28 — the contamination screen was FAIL-OPEN on absent evidence.** `_flagged(text)` asks
+  whether a probe answer contains recognition markers; `_flagged("")` is `False` (verified by
+  execution, along with `_flagged("   ")`). So a leg whose screen probes all returned EMPTY produced
+  `flags == []` → `screen_result = "pass"` → the gate certified *"this model shows no sign of
+  recognising the anonymised data"* having asked three questions and learnt **nothing**.
+- **The empty-completion path is real and documented IN THIS REPO, not hypothetical.**
+  `src/llm/client.py:57-62` declares `_INCOMPLETE_STOP_REASONS = {max_tokens, refusal, length,
+  content_filter}` and describes such a completion as "**empty**/partial"; `_warn_if_incomplete`
+  only WARN-logs it — deliberately, because the comment assumes "it will fail the AST gate", i.e. the
+  mitigation is the *compliance* gate downstream. **The screen has no such mitigation**, and
+  `--only screen` (an explicitly supported invocation, `leg_gates.py:275`) runs no compliance gate at
+  all. Note the asymmetry that made this invisible: compliance is fail-CLOSED (0 extractions → rate
+  0.0 → review, itself a 2026-07-25 fix after qwen3.5-9b scored 0.0 yet passed), while the screen was
+  fail-OPEN. Concretely reachable under the R85 reasoning pins: a reasoning model can spend its whole
+  token budget on reasoning and return empty content with `stop_reason="length"`.
+- **`stop_reason` was already being CAPTURED into the archived row (l.133) and never used in the
+  verdict** — the evidence to catch this was being recorded and ignored.
+- **Fixed to match the file's own R85 discipline** (the pin block immediately below is explicitly
+  three-state and refuses to "claim verified OR fictional on ABSENT evidence"): a probe whose answer
+  is blank or whose `stop_reason` is incomplete is now recorded in `screen_unusable`, and the verdict
+  becomes `UNVERIFIED->review` instead of `pass`. Precedence preserved — a genuine `FLAG->review`
+  still outranks unusable probes — as does the 2026-07-24 never-DOWNGRADE rule (an existing `review`
+  now gains `+UNVERIFIED` rather than being clobbered). `_INCOMPLETE_STOP_REASONS` is IMPORTED from
+  `client.py` rather than re-declared, since duplicating it would recreate the config↔code drift class.
+- **`tests/test_leg_gates.py`: 18 passed, `PYTEST_RC=0`** (15 before; the pre-existing 15 stayed green,
+  confirming no behaviour change for usable answers). Added: all-empty probes → `UNVERIFIED->review`
+  with 3 unusable; truncated (`stop_reason="max_tokens"`) non-empty answers → also `UNVERIFIED`
+  (markers may sit past the cut); and a real flag still outranking unusable probes.
+- **Verified CLEAN in the same pass:** `_call` does NOT swallow exceptions, so a hard API error
+  propagates to `main`'s per-leg handler, is persisted as an `ERROR->review` summary, and drives
+  `exit 1` — a hard outage was never the hole; only a *successful call with unusable content* was.
+
+**Loop 51 — FAIL-OPEN-ON-ABSENT-EVIDENCE sweep (the #28 class): finding #29 (MAJOR) fixed (streak → 0).**
+
+Swept the remaining verdict paths asking one question of each: *what does it conclude when it learns
+NOTHING?* The sandbox's author gate answered "everything is fine".
+
+- **Finding #29 — the campaign's pre-ship author gate admitted EMPTY/unusable completions, which is
+  the exact case it was written to reject.** `cluster/campaign.py:692` guarded candidate admission
+  with `if not ast_gate(src)`, and its own P8 comment (2026-07-13) states the gate exists because "a
+  **truncated/refused** completion previously SHIPPED to a node, burned a queue slot + a poll cycle,
+  fast-failed 3x, and its F5 row blamed the sandbox". But `ast_gate` answers *is this source SAFE*,
+  not *is this a REWARD* — and `ast_gate("")` is `True`, because nothing dangerous is present in
+  nothing.
+- **Measured, not argued.** Across 7 realistic completions the gate rejected exactly ONE (prose — and
+  only because prose is a `SyntaxError`). It ADMITTED: the empty completion (the canonical
+  refusal/`content_filter` output per `client.py` `_INCOMPLETE_STOP_REASONS`), a whitespace-only
+  block, a comment-only block, and valid Python containing no reward at all. Each would be shipped to
+  a cluster node as a candidate with unusable source — reproducing the precise P8 symptom.
+- **Fixed with a new `executor.defines_reward(src)`, required alongside `ast_gate` at the call site.**
+  It is deliberately NOT folded into `ast_gate`: that is the SAFETY boundary, also asserted by
+  `random_search.py:278` and used by `executor.py:657`, and widening its contract would be wrong.
+  The predicate mirrors what the executor actually accepts (`namespace.get("reward")` + `callable`),
+  so a `reward = lambda ...` or annotated binding still passes — **a `def`-only check would have been
+  STRICTER than validation and could have discarded real candidates.** The bias is deliberate: a
+  false negative destroys science, a false positive only wastes a node slot the caller was already
+  spending. Nested `def`s correctly do NOT count, matching the executor's own "source defines no
+  callable named 'reward'". The ledger error string now distinguishes the two rejection causes (it
+  had no consumers anywhere in the repo — checked before changing it).
+- **`tests/test_sandbox.py` + `tests/test_cluster_campaign.py`: 120 tests, 3 skipped, `PYTEST_RC=0`**,
+  including a new test locking the SAFE-vs-USABLE distinction and both accepted binding forms.
+  Separately confirmed that the annotated-binding case's `ast_gate=False` came from the `typing`
+  import hitting the pre-existing allowlist, not from this change (it is `True` without the import).
+- **NOTED for Tamer, deliberately NOT changed — `scripts/monitor.py:249`.** `alert_reason` returns
+  `None` (no alert) when the state is ABSENT, and `read_state` returns `None` for a missing file, so
+  a state file that VANISHED mid-run reads as healthy forever. `is_stale` covers a stale state, but
+  nothing covers an absent one. This is not a mechanical fix: `st is None` also legitimately means
+  "the campaign has not started yet", and distinguishing that from "died" needs a design decision
+  (e.g. latch once a state has ever been seen). Changing live alerting risks false-positive pages
+  during the run — Tamer's call.
+
+**Loop 52 — #28-class sweep COMPLETED: finding #30 (MINOR) fixed (streak → 0).**
+
+- **Finding #30 — `audit_reproducibility.check_lockfile` PASSED on a lockfile that pins NOTHING.**
+  It accepted the first NON-EMPTY candidate: a comment-only `requirements.lock` computed `n = 0`,
+  reported `"(0 pinned lines)"`, and still returned PASS. Reproduced verbatim before fixing:
+  `{'status': 'pass', 'detail': 'requirements.lock (0 pinned lines)'}`. The evidence was gathered,
+  showed nothing, and was reported as success — against this module's OWN documented contract
+  ("degrades to WARN, **never a silent PASS**"; "the tool NEVER fabricates"). A pin-less lockfile
+  certifies exactly as much reproducibility as no lockfile at all, which the same function already
+  treats as FAIL.
+- **A second flaw in the same function:** the early `return` meant a pin-less `requirements.lock`
+  MASKED a genuine `uv.lock`/`poetry.lock` later in the search tuple — the audit would report FAIL-ish
+  evidence for a repo that actually was properly pinned. Now the loop continues past a pin-less
+  candidate and only reports failure if NONE of them pins anything (naming the offenders).
+- **Verified across four cases, including no regression:** comment-only → FAIL ("pin NOTHING:
+  requirements.lock"); pin-less `.lock` + real `uv.lock` → PASS via `uv.lock (2 pinned lines)`;
+  no lockfile → FAIL (unchanged); **the REAL repo → PASS `requirements.lock (94 pinned lines)`**.
+  `tests/test_audit_reproducibility.py`: **13 passed, `PYTEST_RC=0`** (12 before; all pre-existing
+  stayed green), with a new test locking both the pin-less rejection and the no-masking behaviour.
+- **`scripts/preflight.py` — CLEAN, and exemplary for this lens.** The launch gate already
+  distinguishes "verified good" from "could not verify": absent commit-charge telemetry, absent
+  NVML/CUDA, and an unavailable Windows-update probe all return **WARN, not PASS** (l.63/74/123), and
+  `check_data` is a model three-state — FAIL if the panel is missing, FAIL on checksum mismatch,
+  **WARN when the checksum is unverified**, PASS only when actually verified. `verdict()` is
+  `any(FAIL) → NO-GO`, `any(WARN) → GO-WITH-WARNINGS`, else GO, and `checks` can never be empty since
+  every probe appends even from its `except` branch. Noted but NOT changed: `GO-WITH-WARNINGS` exits
+  **0**, identical to `GO`, so a caller keying purely on the exit code cannot tell "all verified" from
+  "several checks verified nothing" — defensible, since WARN legitimately covers inapplicable probes
+  on a CPU host, and `--strict` already exists for the stricter reading.
+- **`src/cluster/integrity.py` censuses — CLEAN on the MISSING-directory case** (loop 49 checked only
+  the `all()` shape). `_test_census` reports `present = len(seeds) - len(missing)` against
+  `expected = len(seeds)`, so an entirely absent run root gives `0 == 30` → False and is caught; the
+  same holds for `_search_census` (`accounted == expected_candidates`, `0 == 30`).
+- **`src/reward/contract.py` — not applicable.** It validates STRUCTURE (unpackable triple, finite
+  float total, dict components); an empty components dict and a zero total are legitimate authored
+  outcomes ranked by the fitness stage, not absent evidence being read as success.
+
+**Loop 53 — `scripts/bench_compute.py` + `scripts/thread_sweep.py`: finding #31 (MAJOR) fixed (streak → 0).**
+
+Lens: *are these timings measured under the conditions the campaign actually runs?* They were not —
+and this is the instrument that sizes the campaign, where wall-clock is the seed rung.
+
+- **Finding #31 — both benchmarks timed SAC's WARMUP as if it were training, inflating throughput and
+  understating the projected campaign wall-clock.** Neither script set `learning_starts`, so the
+  factory default of **1000** applied (`factory._policy_kwargs`). SAC's warmup is a random-action
+  rollout with **no gradient update**, so those steps are nearly free — yet they sat inside the
+  `perf_counter()` window whose quotient becomes `steps/dt`.
+- **MEASURED on this machine, not asserted** (300 steps each, CPU, identical env/agent):
+  **warmup-only ≈ 5,406.9 steps/s vs training-only ≈ 29.9 steps/s — warmup is ~181x cheaper.**
+  At `bench_compute`'s default `--steps 2500` with `learning_starts=1000`, 40% of the window is
+  warmup, so the reported rate is **≈ 49.7 steps/s against a true steady state of ≈ 29.9 — a 66%
+  OVERSTATEMENT**, which understates the projection by ~40%. `thread_sweep` (default 6000 steps) was
+  inflated ~20% by the same mechanism.
+- **This directly corrupts the campaign plan.** `bench_compute` is not merely a concurrency probe: it
+  PROJECTS wall-clock (`proj_d = total / agg / 86400`, l.145) and prints "projected campaign ~ X days"
+  (l.156) over a default `600 x 200_000 = 120,000,000` steps. A 66% throughput overstatement turns a
+  ~39-day reality into a ~23-day plan. **The failure is far worse for a short exploratory run:** with
+  `--steps 300` (below the 1000-step warmup) NO step trains at all, so the pre-fix tool would have
+  reported ~5,400 steps/s and projected **~0.26 days** — a ~250x error, and it would have looked like
+  a perfectly ordinary result.
+- **Fixed** by setting `"learning_starts": 0` in both bench workers, so every timed step performs the
+  gradient work being measured. Steady state is the correct basis here: the projection spans 400k-step
+  trainings in which the 1000-step warmup is ~0.25% of the work. Sampling a full batch from a
+  near-empty buffer is safe (SB3 samples with replacement, and gradient-step cost is independent of
+  buffer contents) — confirmed by the measurement above, which ran exactly that configuration.
+- **VERIFIED after the fix:** `bench_compute.py --configs 0x1 --steps 300 --total-steps 120000000`
+  now reports **21 aggregate steps/s → 65.5 projected days** (a plausible single-CPU-worker steady
+  state), instead of the pure-warmup nonsense the same invocation would have produced before.
+- **Noted honestly:** neither script has any test coverage (no test file references them), and a
+  string-matching source test would be brittle, so the regression guard here is the in-code comment
+  recording the measured 5407-vs-30 steps/s figures and why steady state is the right basis.
+
+### 📋 SESSION SUMMARY — deep code-review loops 44-53 (2026-07-26, the CODE-REVIEW lane)
+
+> Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),
+> and *"document absolutely everything from this session in details"* (→ this block).
+
+**Nine findings in ten loops (#23-#31), five of them MAJOR. Every one was REPRODUCED or traced before
+being touched; none was reported on speculation.** Two loops came back CLEAN and are recorded as such.
+
+| # | Loop | Sev | Defect | Status |
+|---|------|-----|--------|--------|
+| 23 | 44 | MINOR | `popart` config knobs (`popart_beta`/`min_scale`/`warmup`) were only `float()`-cast; `beta=0` silently made PopArt the exact IDENTITY while `sigma_max` logged the healthy value — corrupting the R48 cross-arm audit *instrument* | FIXED, **committed `184c879`** |
+| 24 | 46 | GAP | the 50k replay cap — the guard preventing a ~5.6 GB OOM at the R77 400k budget — had ZERO coverage on the clamping path (every prior assertion used a sub-cap value) | FIXED (2 tests) |
+| 25 | 47 | LATENT | `Panel.slice()` accepted windows NumPy REINTERPRETS: `slice(-5, 20)` on T=20 returned the LAST five rows (FUTURE data); inverted/past-end silently yielded an empty panel | FIXED (guard + test) |
+| 26 | 48 | MAJOR | Phase-0 GATE reported `STATUS: GREEN`, `EXIT 0` on an EMPTY `--algos` roster — "all N trained" is vacuously true at N=0 | FIXED |
+| 27 | 48 | MAJOR | the gate's bare `else` built TQC for ANY non-`"sac"` name, so `--algos foo,bar` could certify GREEN with the HEADLINE SAC **never constructed** | FIXED (+ new `tests/test_smoke_gate.py`) |
+| 28 | 50 | MAJOR | the LLM **contamination screen** was FAIL-OPEN: `_flagged("")` is False, so all-empty probes certified "no sign of recognising the data" having learnt NOTHING | FIXED (3-state `UNVERIFIED->review`) |
+| 29 | 51 | MAJOR | the campaign's pre-ship **author gate** admitted empty/comment-only/no-reward completions — exactly the truncated-refused case its own P8 comment says it exists to stop | FIXED (`executor.defines_reward`) |
+| 30 | 52 | MINOR | `check_lockfile` PASSED on a lockfile pinning NOTHING, and a pin-less file MASKED a genuine `uv.lock` | FIXED (+ test) |
+| 31 | 53 | MAJOR | both compute benchmarks timed SAC WARMUP as training (~5407 vs ~30 steps/s), inflating throughput 66% and understating the projected campaign wall-clock ~40% | FIXED |
+
+**Two loops CLEAN, with the reasons recorded so they are never re-swept:** loop 45 (`data/validation.py`
+— the NaT concern REFUTED by execution: `d2 - INT64_MIN` overflows to a negative gap, so it IS caught)
+and loop 49 (the #26 vacuous-truth CLASS sweep — `freeze.py` proved clean BY DESIGN, every prose↔yaml
+guard preceded by an explicit non-empty `_require`).
+
+**Three bug CLASSES were swept, not just their instances** — this is what made the session productive:
+1. **Vacuous truth on empty input** (from #26): `all()`/`not any()` are True on empty. Swept all of
+   `scripts/` + `src/`; only #26 was real.
+2. **Fail-open on ABSENT evidence** (from #28): swept every verdict path. Found #29 and #30; confirmed
+   `preflight.py` EXEMPLARY (absent telemetry → WARN, never PASS) and the integrity censuses clean.
+3. **A guard's own comment is a testable claim** (from #29/#31): three findings were guards that did
+   not cover the case their own comment said they existed for.
+
+**Cross-cutting theme, worth carrying into the write-up:** five of the nine were *instruments that
+reported success while measuring nothing* — a screen that asked and learnt nothing, a gate that trained
+nothing, a benchmark that timed nothing, an audit that pinned nothing, a scale-normaliser silently
+disabled while its own audit field read healthy. Correctness of the happy path was never the problem.
+
+**Standing constraints honoured:** NOTHING was frozen (`freeze.py` never invoked); no commits beyond
+the single explicitly-authorised `184c879` (author `Tamer Atesyakar`, verified free of any AI
+attribution per the CLAUDE.md ABSOLUTE RULE); **the full test suite was never run** — per Tamer's
+machine-load instruction only targeted per-file runs were used, and no repo-wide green is claimed.
+
+**⚠ OPEN FOR TAMER (none actioned unilaterally):**
+- **`scripts/monitor.py:249`** — `alert_reason` returns None when the state is ABSENT, so a state file
+  that VANISHED mid-run reads as healthy forever. Needs a design decision (latch once ever-seen);
+  changing live alerting risks false-positive pages.
+- **40 pre-existing commits carry `Co-Authored-By: Claude` trailers.** Removing them needs a history
+  rewrite + force-push — never unilateral.
+- **`campaign.py:1448` vs `run_campaign_cluster.py:976`** — a malformed result counts as SUCCESS in one
+  and FAILURE in the other. Neither reachable today; unifying live campaign code is unjustified risk.
+- **`CHANGELOG.md` carries ~1300 uncommitted lines spanning three concurrent sessions** — left for a
+  coordinated commit rather than swept into a review commit.
+- **`GO-WITH-WARNINGS` exits 0** like `GO` in `preflight.py` (defensible; `--strict` exists).
+- **A full-suite run is still owed** whenever the machine is free — this session's per-file runs cover
+  every file it changed, but not the repo as a whole.
 
 ### ⏳ REGISTERED (build/design/ratification-pending — tracked in the ledger + todos, nothing dropped)
 - **min_cvar allocator** (research B, the tail-optimal benchmark) + **H4 → +CMA-ES+TPE** (research A + audit #3, the DFO toolkit; multi-fidelity Hyperband/BOHB pruned as inapplicable under matched-candidate-count) — BUILD-pending (deps `cma`/`optuna` vet+pin; Okhrati on confirmatory-vs-toolkit). Cites already added.
