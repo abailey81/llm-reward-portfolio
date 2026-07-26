@@ -3823,6 +3823,49 @@ invariant was only half-enforced, and the unguarded half is the one that actuall
   pins verified; R85 hf_pins filled)"* and `freeze_hash: null` — **nothing frozen**, as Tamer
   confirmed this loop.
 
+**Loop 90 — `src/utils/journal.py` + the FULL-SUITE re-certification: ONE finding (#65), and a
+load-bearing assumption CLEARED by tracing rather than trusting. Streak stays 0/30.**
+
+- **★★ FULL SUITE RE-CERTIFIED (Tamer: "nothing is frozen, I give full permission").** 147 test
+  files, **4 sequential FOREGROUND chunks, `PYTEST_RC=0` on every chunk**, logs redirected to files
+  and the RC read FROM the log (never piped — a `| tail` masks pytest's RC and once produced a false
+  green here). Observed passes per chunk: **895 / 654 / 693 / 540**, with **zero** `FAILED`/`ERROR`
+  markers in any log. Plus `ruff src scripts tests` RC=0 · citations RC=0 · `freeze --check` RC=0
+  with **`freeze_hash: null` — still correctly UNFROZEN**, as Tamer confirmed this loop. This
+  re-certifies loops 85-90 repo-wide, not just per-file.
+- **★ #65 — the triage taxonomy matched bare substrings, so ordinary words became failures.**
+  `_classify` used `needle in text` over the event's error/msg/kind fields. MEASURED on realistic
+  driver-log messages: `"pip install failed for pyarrow"` → **`stall`** (in-**stall**-ed),
+  `"cluster maintenance window on Sunday"` → **`nan`** (mainte-**nan**-ce), `"reading capital
+  allocation table"` → **`api_error`** (c-**api**-tal). The B5 triage panel would then show a
+  **numeric-divergence row for a maintenance notice** — at 03:00 that sends the operator hunting a
+  science problem that does not exist. Same class as #60 (matching on a substring of prose).
+  **Fix:** letter-boundary matching. Two details had to be right, and the second one I got wrong
+  first and caught by testing: (a) the boundary is **letter-only**, not `\b`, because event kinds
+  are snake_case and `\bstall\b` would fail to match the real `test_leg_stall` event; (b) the
+  trailing boundary is **opt-in**, because the needles are STEMS — requiring it everywhere regressed
+  `"loss diverged to inf"` to `other`. Trailing is applied only to the short high-collision needles
+  (`api`, `nan`). Verified after: all twelve legitimate cases classify correctly **including
+  inflections** (sandboxed / rate limited / timeouts / diverged / stalled), and all six misfires fall
+  through to `other`.
+- **★ CLEARED by tracing, not by trusting the comment.** The module docstring rests on a load-bearing
+  assumption: *"the only consumer (the sentinel runs where the campaign runs)"*, which justifies
+  local-time `mktime` on a zone-less timestamp. Under the cluster design that looked like a #59
+  recurrence waiting to happen — driver on Windows, tasks on Myriad nodes. **Traced the writers:**
+  `attach_run_logging` is called only from `utils/monitoring.py:125` and `scripts/run_campaign.py`,
+  both driver-side; **`src/cluster/run_one.py` (the node-side entry) never writes `events.jsonl`**.
+  So write and read genuinely happen in the same process and host, local-vs-local is self-consistent,
+  and there is no cross-node clock-skew ordering hazard either. The assumption holds.
+- **Verified CLEAN (do not re-open):** `read_events` returns `[]` for a missing file and skips torn
+  lines — correct here, and NOT the #40 fail-open class, because the archive (not this ledger) is the
+  durable source of truth for work, which the docstring states explicitly; `parse_ts` returns `None`
+  rather than guessing on an absent/unparseable stamp, and `completions` drops those rather than
+  bucketing them at epoch 0; `cadence_stats` is a correct median/MAD with matching even/odd handling
+  and cannot take a negative index (`len(ts) >= 3` guarantees `n >= 2`), and it returns `None` below
+  three completions rather than inventing a yardstick from one gap.
+- **Verified:** **48 tests `PYTEST_RC=0`** on the directly affected suites (`test_journal`,
+  `test_sentinel`) plus the full-suite battery above; ruff clean.
+
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),

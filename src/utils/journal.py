@@ -23,6 +23,7 @@ the campaign runs). Report-only infrastructure: nothing here touches a result or
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -120,24 +121,50 @@ def cadence_stats(times: list[float]) -> dict[str, float] | None:
     return {"median_gap_s": float(median), "mad_gap_s": float(mad), "last_completion_s": float(ts[-1])}
 
 
+#: Taxonomy needles, in priority order (FIRST match wins — keep the specific before the generic).
+#: Matched on LETTER boundaries, not as bare substrings (deep review 2026-07-26, #65). A plain
+#: ``needle in text`` misfires on ordinary words that happen to contain a needle, and it did:
+#: MEASURED — "pip install failed" classified as ``stall`` (in-STALL-ed), "cluster maintenance
+#: window" as ``nan`` (mainte-NAN-ce), and "reading capital allocation table" as ``api_error``
+#: (c-API-tal). The triage panel would then show a NUMERIC-DIVERGENCE row for a maintenance notice,
+#: which at 03:00 sends the operator hunting a science problem that does not exist.
+#:
+#: The boundary is LETTER-only (``(?<![a-z])…(?![a-z])``), deliberately NOT ``\b``: event kinds are
+#: snake_case, so ``\bstall\b`` would FAIL to match the real ``test_leg_stall`` event (``_`` is a
+#: word character) while still matching nothing useful. A letter boundary matches ``test_leg_stall``
+#: and ``api_error`` while refusing ``install`` and ``capital``.
+#: ``(needle, kind, whole_word)``. The LEADING boundary always applies — it is what blocks
+#: "in-STALL-ed", "c-API-tal" and "mainte-NAN-ce". The TRAILING boundary is opt-in because most
+#: needles are STEMS that must still match their inflections: requiring it everywhere regressed
+#: "loss diverged to inf" to ``other`` (caught by testing the fix against the legitimate cases, not
+#: only against the misfires). It is applied only to the short, high-collision needles where a bare
+#: prefix would over-match — ``api`` (apiary/apiece) and ``nan`` (nanometer).
+_TAXONOMY: tuple[tuple[str, str, bool], ...] = (
+    ("out of memory", "oom", False),
+    ("cuda", "cuda_error", False),
+    ("sandbox", "sandbox_reject", False),      # sandboxed / sandboxing
+    ("overloaded", "api_error", False),
+    ("rate limit", "api_error", False),        # rate limited / rate limiting
+    ("api", "api_error", True),                # NOT capital / therapist / apiary
+    ("timeout", "timeout", False),             # timeouts / timeout_s
+    ("diverge", "divergence", False),          # diverged / divergence / diverging
+    ("nan", "nan", True),                      # NOT maintenance / nanometer
+    ("stall", "stall", False),                 # stalled / stalling — but NOT install (leading bound)
+)
+
+_TAXONOMY_RE: tuple[tuple[Any, str], ...] = tuple(
+    (re.compile(r"(?<![a-z])" + re.escape(needle) + (r"(?![a-z])" if whole else "")), kind)
+    for needle, kind, whole in _TAXONOMY
+)
+
+
 def _classify(ev: dict[str, Any]) -> str:
     """Cluster an error-ish event into a stable taxonomy kind (triage panel rows)."""
     text = " ".join(
         str(ev.get(k, "")) for k in ("error", "msg", "kind", "event")
     ).lower()
-    for needle, kind in (
-        ("out of memory", "oom"),
-        ("cuda", "cuda_error"),
-        ("sandbox", "sandbox_reject"),
-        ("overloaded", "api_error"),
-        ("rate limit", "api_error"),
-        ("api", "api_error"),
-        ("timeout", "timeout"),
-        ("diverge", "divergence"),
-        ("nan", "nan"),
-        ("stall", "stall"),
-    ):
-        if needle in text:
+    for pattern, kind in _TAXONOMY_RE:
+        if pattern.search(text):
             return kind
     return "other"
 

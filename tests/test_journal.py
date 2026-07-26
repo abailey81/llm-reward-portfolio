@@ -93,3 +93,52 @@ def test_error_taxonomy_clusters_and_ignores_info_noise() -> None:
     assert tax["stall"]["count"] == 1
     assert tax["sandbox_reject"]["count"] == 1
     assert "other" not in tax  # the INFO progress event was ignored
+
+
+def test_error_taxonomy_matches_on_word_boundaries_not_bare_substrings():
+    """Ordinary words that CONTAIN a needle must not be classified as that failure (#65).
+
+    ``_classify`` used ``needle in text``, which misfires on real driver-log messages. MEASURED
+    before the fix: "pip install failed for pyarrow" -> ``stall`` (in-STALL-ed), "cluster maintenance
+    window" -> ``nan`` (mainte-NAN-ce), "reading capital allocation table" -> ``api_error``
+    (c-API-tal). The triage panel would then show a NUMERIC-DIVERGENCE row for a maintenance notice,
+    which at 03:00 sends the operator hunting a science problem that does not exist.
+
+    The boundary is LETTER-only and mostly LEADING-only, which matters in both directions:
+      * ``\b`` would break ``test_leg_stall`` (event kinds are snake_case, ``_`` is a word char);
+      * requiring a TRAILING boundary everywhere regressed "loss diverged to inf" to ``other`` —
+        the needles are STEMS and must still match their inflections. Trailing is opt-in, used only
+        for the short high-collision needles (``api``, ``nan``)."""
+    from src.utils.journal import _classify, error_taxonomy
+
+    # real failures still classify, INCLUDING inflected forms
+    for msg, expected in (
+        ("CUDA out of memory", "oom"),
+        ("sandbox rejected the reward source", "sandbox_reject"),
+        ("sandboxed execution refused", "sandbox_reject"),
+        ("provider overloaded, retrying", "api_error"),
+        ("rate limited by openrouter", "api_error"),
+        ("api_error from the provider", "api_error"),
+        ("request timeouts observed", "timeout"),
+        ("loss diverged to inf", "divergence"),
+        ("divergence detected in the critic", "divergence"),
+        ("reward returned nan at step 1200", "nan"),
+        ("test_leg_stall: no completion in 3h", "stall"),
+        ("training stalled for 3h", "stall"),
+    ):
+        assert _classify({"msg": msg}) == expected, f"{msg!r} misclassified"
+
+    # ordinary words that merely CONTAIN a needle must fall through to "other"
+    for msg in ("pip install failed for pyarrow", "cluster maintenance window on Sunday",
+                "reading capital allocation table", "nanometer scale", "therapist",
+                "scheduled maintenance: no action needed"):
+        assert _classify({"msg": msg}) == "other", f"{msg!r} still misfires"
+
+    # and the misfire cannot reach the triage panel either
+    events = [
+        {"event": "seed_failed", "msg": "cluster maintenance window", "level": "WARNING"},
+        {"event": "seed_failed", "msg": "reward returned nan", "level": "WARNING", "arm": "scalar"},
+    ]
+    tax = error_taxonomy(events)
+    assert set(tax) == {"other", "nan"}, tax
+    assert tax["nan"]["count"] == 1 and tax["nan"]["arms"] == ["scalar"]
