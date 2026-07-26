@@ -244,3 +244,61 @@ guard).
 record the outcome of each row above as a dated amendment, then the GO-day freeze stamps the ratified
 design. **Until then R31 is the operative default and the freeze must not run** (R94: the freeze executes
 only together with Tamer's full-campaign approval, as GO step 1).
+
+---
+
+## 12. ADDENDUM (2026-07-26, post-ratification) — TWO items opened AFTER the sign-off above
+
+The sign-off in §11 covered every item known at the time. Two have opened since and are **not** covered
+by it. Both are one-line decisions with the analysis already done.
+
+### D1 — what supplies `floor_sharpe` (the R86 pooled-bound leg-inclusion criterion)
+
+**Why it is open now.** Row 34's modules (`leg_aggregate` + `cross_model`) had no production caller, and
+`pooled_bound` is the registered cross-model bounded-effect statement that **R101 made a headline
+component**. Wiring it exposed two defects (both now fixed + mutation-tested): the archive-layout
+assumption was *unsatisfiable*, and the per-seed Sharpe was per-period ddof=1 against an annualised
+ddof=0 floor — a **measured 15.88×** mismatch. Both failed silently into the same fabricated artifact:
+every leg excluded, the bound computed over zero legs, reported as *"all legs failed the T0 floor"*.
+
+**The residual question is registered content, not implementation.** The docstring says "the T0
+naive-benchmark floor"; `analyze_campaign.benchmark_floor` gates on **DSR against the whole benchmark
+suite**. Those are different estimands, and the leg filter must use one of them explicitly.
+
+**RECOMMENDATION — and it is verified implementable, not merely plausible:**
+
+```python
+floor_sharpe = benchmark_floor(...)["benchmarks"]["equal_weight"]["sharpe"]
+```
+
+1. **It is literally the registered naive floor.** `equal_weight` is the DeMiguel–Garlappi–Uppal (2009)
+   1/N floor of the §9 benchmark suite, rolled through the IDENTICAL costed `PortfolioEnv` over the same
+   sealed test window, so it pays the same transaction costs as the arms.
+2. **It is unit-consistent BY CONSTRUCTION — verified at source.** `benchmark_floor` computes it as
+   `float(sharpe_ratio(rets))`, the exact canonical annualised ddof=0 estimator that `per_seed_series`
+   now uses after the row-34 fix. One estimator, one definition, no conversion, no new code path — which
+   is precisely the property whose absence created the 15.88× trap.
+3. **The alternative is wrong for this job.** The DSR gate is a stricter, multiplicity-corrected
+   estimand; using it as a raw-Sharpe leg filter would compare two different quantities.
+
+**Also register the guard:** REFUSE a `floor_sharpe` below ~0.01 and fail loud. That magnitude means a
+per-period number was passed, and the guard makes the trap unrepresentable rather than merely fixed.
+
+**If D1 is NOT decided before freeze, row 34 closure (b) — WITHDRAW the pooled-bound claim — becomes
+MANDATORY.** A registered statement with no executable path is exactly the failure R16 already fixed
+once for `h2_conjunction`; carrying it into freeze would repeat it knowingly.
+
+### D2 — H1 canon depth, now that N6 is confirmatory
+
+The floor-30 ruling was taken when N6 was **report-only**. R108 promoted it to a confirmatory node, so
+carrying the old ruling forward silently attaches a pre-ratification rationale to a post-ratification
+design. **Measured MDEs:** n=30 → 0.1675 · n=189 → 0.0667 · n=568 → 0.0385 Sharpe — **4.35× less
+sensitive at 30 than at 568**. Either choice is defensible; the requirement is that it be *chosen* and
+dated, not inherited. Note the honest asymmetry that holds either way: the LLM winner is searched and
+selected while each hand reward is a single un-tuned specification — a bias that already FAVOURS the
+LLM, disclosed in CH6.
+
+| # | Item | Decision |
+|---|------|----------|
+| D1 | `floor_sharpe` = equal-weight 1/N annualised Sharpe + sub-0.01 refusal guard | ratify / amend / decline → *(if declined: withdraw the R86 pooled-bound claim)* |
+| D2 | H1 canon depth at the confirmatory rung (floor-30 vs climbing with the ladder) | keep-30 / climb / other — **dated either way** |
