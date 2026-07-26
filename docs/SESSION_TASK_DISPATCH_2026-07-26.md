@@ -618,7 +618,7 @@ repeat Phase 2. The freeze fires only on Tamer's GO (R94) — a green suite is e
 
 ## QUIESCENCE DECLARATIONS  ·  *(append your line here)*
 
-- `LOGIC-REVIEWER: quiesced at 545bb96 — nothing uncommitted, not editing src/scripts/config/tests.`
+- `LOGIC-REVIEWER: QUIESCED at 6afedd4 — zero uncommitted src/scripts/config/tests changes of mine; my last three touches were docs-only (dispatch/CHANGELOG/HANDOFF). Not editing code until Phase 3.`
 - `FEATURE/BUILD: `
 - `CODE-REVIEWER: `
 - `CAPACITY/MYRIAD: `
