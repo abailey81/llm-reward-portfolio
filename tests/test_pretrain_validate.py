@@ -6,10 +6,6 @@ not "does it pass on good input" but "is every check FALSIFIABLE".
 """
 from __future__ import annotations
 
-import json
-
-import pytest
-
 from scripts.pretrain_validate import (
     FAIL,
     PASS,

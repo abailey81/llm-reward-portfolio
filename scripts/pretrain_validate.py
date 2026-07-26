@@ -608,7 +608,6 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # noqa: BLE001
         verdicts.append(check_freeze_gate(None, None))
 
-    worst = max((_RANK[v.status] for v in verdicts), default=0)
     failed = [v for v in verdicts if v.status == FAIL]
     warned = [v for v in verdicts if v.status == WARN]
 
