@@ -208,7 +208,13 @@ that is, a *tail-blind* risk-adjusted criterion. This is a deliberate, conservat
 arm, so it gives no *between-arm* advantage to tail-aware rewards — its only tail sensitivity, the Deflated Sharpe's
 second-order skew and kurtosis correction (§3.4), is common-mode — and any tail effect observed downstream must
 arise endogenously from the designer's *use* of the fed signal rather than from selection pressure. The deflation corrects the selected
-Sharpe for the multiplicity and non-normality of the search [`bailey2014deflated`]. The resulting **three-way
+Sharpe for the multiplicity and non-normality of the search [`bailey2014deflated`]. During the search this
+deflation is evaluated in its *within-series* form — the sampling variance of a single Sharpe estimator (§3.4),
+the only dispersion available before an arm's candidate population is complete; it equals the canonical
+*cross-trial* Deflated Sharpe under the homogeneous zero-skill null, is applied identically across arms (so the
+no-between-arm-advantage property above is preserved), and is superseded for the *headline* winner, whose
+Deflated Sharpe is recomputed post hoc from the empirical cross-trial variance of the realised candidate Sharpes.
+The resulting **three-way
 decoupling** is the methodological core: the tail is *fed* by the extreme-value estimator on the *training* split;
 candidates are *selected* by the tail-blind Deflated Sharpe on the *validation* split; and the hypothesis is
 *tested* by the empirical CVaR on the *sealed test* split. Because the object fed is neither the object selected on
