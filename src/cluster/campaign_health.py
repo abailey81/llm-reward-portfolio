@@ -49,7 +49,92 @@ __all__ = [
     "check_determinism_homogeneity",
     "check_admin_kill",
     "check_record_sanity",
+    "check_authoring_health",
+    "MEASURED_AUTHORING_YIELD",
 ]
+
+
+#: MEASURED executable yield per author (2026-07-26, live gates: archived responses re-run through
+#: the real AST gate and 12 contract steps). These are EVIDENCE, not guesses, and they are what makes
+#: the streak detector below CALIBRATED rather than blind: a single global threshold would scream at
+#: qwen3.5-9b on every healthy run (it genuinely fails ~3 of 4) and stay silent while haiku quietly
+#: failed 40% (it genuinely never fails). Unmeasured authors fall back to the Anthropic-class rate.
+MEASURED_AUTHORING_YIELD: dict[str, float] = {
+    "qwen3.5-9b": 0.25,       # 5/20 executable at 1.00 format compliance - the capability floor
+    "deepseek-v4-pro": 0.88,  # 14/16
+    "nemotron-3-super": 0.89,  # 16/18
+    "qwen3.6-27b": 0.96,      # 23/24
+    "glm-5.2": 0.90,          # 9/10 post-R112
+    "kimi-k3": 1.00, "gemini-3.5-flash": 1.00, "gpt-5.6-luna": 1.00,
+    "haiku-4.5": 1.00, "sonnet-5": 1.00,
+}
+#: Opus-class default for anything unmeasured (the core campaign's confirmatory author).
+_DEFAULT_YIELD = 0.95
+#: A streak this improbable under the author's OWN measured rate is not bad luck.
+_STREAK_IMPROBABILITY = 1e-3
+
+
+def _streak_alarm_length(success_rate: float) -> int:
+    """How many consecutive rejections are too many FOR THIS AUTHOR.
+
+    Solves ``(1 - p)**k < 1e-3`` — the point at which an unbroken run of failures stops being
+    consistent with the author's measured competence. It adapts automatically: a 100%-yield author
+    trips after 3, while qwen3.5-9b (25%) is allowed ~24 before anyone is woken up.
+    """
+    p = min(max(float(success_rate), 0.01), 0.999)
+    import math
+    return max(2, int(math.ceil(math.log(_STREAK_IMPROBABILITY) / math.log(1.0 - p))))
+
+
+def check_authoring_health(per_arm: dict[str, dict[str, Any]],
+                           yields: dict[str, float] | None = None) -> HealthCheck:
+    """THE EARLIEST possible alarm — fires in MINUTES, before any training completes.
+
+    Authoring happens first: the model writes reward code and the sandbox accepts or rejects it
+    within seconds, and every rejection is flushed to ``<arm>.failures.jsonl`` immediately. A record,
+    by contrast, appears only after a FULL training (~3-8 h). So this is the earliest layer at which
+    a systematic failure is observable at all, and it is where the most expensive silent failure
+    lives: an arm whose authoring is broken burns its entire 30-candidate budget producing nothing,
+    and on the current design nobody finds out until the end.
+
+    CALIBRATED PER AUTHOR, which is the whole point. The alarm length is derived from each author's
+    OWN measured yield, so the detector is simultaneously sensitive for strong authors and tolerant
+    of the weak one whose failures are the expected scientific finding. A single global threshold
+    could not be both, and a detector that cries wolf on qwen every run is a detector nobody reads.
+
+    ``per_arm`` maps arm -> ``{"accepted": n, "rejected": n, "consecutive_rejects": k,
+    "author": <leg label>}``.
+    """
+    if not per_arm:
+        return HealthCheck("authoring_health", INFO, "no authoring activity yet", {})
+    table = {**MEASURED_AUTHORING_YIELD, **(yields or {})}
+    alarms, watch, detail_ev = [], [], {}
+    for arm, st in sorted(per_arm.items()):
+        author = str(st.get("author") or arm)
+        p = float(table.get(author, _DEFAULT_YIELD))
+        limit = _streak_alarm_length(p)
+        streak = int(st.get("consecutive_rejects", 0) or 0)
+        acc, rej = int(st.get("accepted", 0) or 0), int(st.get("rejected", 0) or 0)
+        detail_ev[arm] = {"author": author, "expected_yield": p, "streak": streak,
+                          "alarm_at": limit, "accepted": acc, "rejected": rej}
+        if streak >= limit:
+            alarms.append(f"{arm} ({author}): {streak} consecutive rejections, and this author "
+                          f"normally succeeds {p:.0%} of the time (alarm at {limit})")
+        elif acc + rej >= 8 and acc / max(acc + rej, 1) < p / 2:
+            watch.append(f"{arm}: accepting {acc}/{acc + rej} vs an expected ~{p:.0%}")
+    if alarms:
+        return HealthCheck("authoring_health", CRITICAL,
+                           "AUTHORING IS FAILING SYSTEMATICALLY — " + "; ".join(alarms[:3])
+                           + ". This burns the arm's whole candidate budget for nothing; check the "
+                             "prompt, the key and the served model before more spend",
+                           {"alarms": alarms, "arms": detail_ev})
+    if watch:
+        return HealthCheck("authoring_health", WARN,
+                           "authoring below the author's measured rate — " + "; ".join(watch[:3]),
+                           {"watch": watch, "arms": detail_ev})
+    return HealthCheck("authoring_health", OK,
+                       f"authoring healthy across {len(per_arm)} arm(s) against each author's "
+                       "measured yield", {"arms": detail_ev})
 
 
 def check_record_sanity(summary: dict[str, Any] | None) -> HealthCheck:

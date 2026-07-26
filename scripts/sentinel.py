@@ -641,7 +641,7 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     g = inputs.get
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
-                "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity")):
+                "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity", "authoring_health")):
         return []
     from src.cluster import campaign_health as ch
 
@@ -663,6 +663,10 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("authoring_health") is not None:
+        # THE EARLIEST layer: authoring happens in the first minutes, long before any training
+        # completes, and a systematically broken arm otherwise burns its whole budget unnoticed.
+        out.append(ch.check_authoring_health(g("authoring_health")))
     if g("record_sanity") is not None:
         # LIVE garbage detection on every new record — the shortest path from a void record to an
         # alert. Effect-blind, so it cannot preview the result or touch the confirmatory look.
@@ -1189,6 +1193,53 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
                 "n_undated": verdict.n_undated,
                 "enforced": False,  # detection only — no incident file is written from here
             }
+
+    # AUTHORING HEALTH (2026-07-27) — the earliest observable signal in the whole campaign. Every
+    # sandbox rejection is flushed to `<prefix>-<arm>.failures.jsonl` the instant it happens, and
+    # candidate ids carry `-g<gen>-c<idx>`, so successes and failures can be put in TRUE order and a
+    # genuine consecutive-rejection streak computed — not merely a rate, which needs far more
+    # samples before it becomes conclusive.
+    try:
+        import re as _re
+
+        cid = _re.compile(r"^(?P<arm>.+)-g(?P<gen>\d+)-c(?P<idx>\d+)$")
+        outcomes: dict[str, dict[tuple[int, int], bool]] = {}
+        for fp in sorted(camp_root.rglob("*.failures.jsonl")):
+            for line in fp.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    m = cid.match(str(json.loads(line).get("candidate_id", "")))
+                except Exception:  # noqa: BLE001
+                    continue
+                if m:
+                    outcomes.setdefault(m["arm"], {})[(int(m["gen"]), int(m["idx"]))] = False
+        search_root = camp_root / "search"
+        if search_root.is_dir():
+            for rec_path in search_root.rglob("record.json"):
+                try:
+                    rid = str(json.loads(rec_path.read_text(encoding="utf-8"))
+                              .get("candidate_id", ""))
+                except Exception:  # noqa: BLE001
+                    continue
+                m = cid.match(rid)
+                if m:
+                    outcomes.setdefault(m["arm"], {})[(int(m["gen"]), int(m["idx"]))] = True
+        if outcomes:
+            per_arm = {}
+            for arm, by_pos in outcomes.items():
+                seq = [by_pos[k] for k in sorted(by_pos)]
+                streak = 0
+                for ok_ in reversed(seq):        # trailing run of rejections, in candidate order
+                    if ok_:
+                        break
+                    streak += 1
+                per_arm[arm] = {"accepted": sum(seq), "rejected": len(seq) - sum(seq),
+                                "consecutive_rejects": streak,
+                                "author": camp_root.name.replace("test_leg_", "")}
+            lane["authoring_health"] = per_arm
+    except Exception:  # noqa: BLE001 — monitoring must never break the gatherer
+        pass
 
     # LIVE record sanity (2026-07-27): assess the most recent records EVERY poll, so a garbage
     # record reaches the operator in one interval instead of at the 30-seed floor two days in.

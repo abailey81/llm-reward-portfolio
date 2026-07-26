@@ -359,3 +359,71 @@ def test_NO_records_yet_is_INFO_never_a_false_all_clear():
 
     assert check_record_sanity({"n_assessed": 0, "note": "no records yet"}).severity == "INFO"
     assert check_record_sanity(None).severity == "INFO"
+
+
+# --- 8. AUTHORING HEALTH — the earliest observable layer (minutes, not hours) -------------------
+
+def test_the_alarm_length_is_CALIBRATED_to_each_authors_measured_yield():
+    """The core idea: one global threshold cannot serve both a 100%-yield author and a 25% one.
+    It would scream at qwen every healthy run, and a detector that cries wolf is not read."""
+    from src.cluster.campaign_health import MEASURED_AUTHORING_YIELD, _streak_alarm_length
+
+    strong = _streak_alarm_length(MEASURED_AUTHORING_YIELD["haiku-4.5"])
+    weak = _streak_alarm_length(MEASURED_AUTHORING_YIELD["qwen3.5-9b"])
+    assert strong <= 3, "an author that never fails must alarm almost immediately"
+    assert weak >= 20, "an author that genuinely fails 3 of 4 must not alarm on ordinary failures"
+    assert weak > strong * 5
+
+
+def test_a_STRONG_author_failing_twice_is_CRITICAL_within_minutes():
+    """haiku authored 20/20 executable rewards today. Two straight failures is not bad luck."""
+    from src.cluster.campaign_health import check_authoring_health
+
+    c = check_authoring_health({"distributional": {"accepted": 0, "rejected": 2,
+                                                   "consecutive_rejects": 2,
+                                                   "author": "haiku-4.5"}})
+    assert c.severity == "CRITICAL"
+    assert "burns the arm" in c.detail and "haiku-4.5" in c.detail
+
+
+def test_the_WEAK_author_failing_repeatedly_stays_quiet():
+    """qwen3.5-9b's failures ARE the capability finding — alarming on them would be noise."""
+    from src.cluster.campaign_health import check_authoring_health
+
+    c = check_authoring_health({"distributional": {"accepted": 3, "rejected": 10,
+                                                   "consecutive_rejects": 10,
+                                                   "author": "qwen3.5-9b"}})
+    assert c.severity == "OK"
+
+
+def test_even_the_weak_author_ALARMS_once_the_streak_is_impossible():
+    from src.cluster.campaign_health import check_authoring_health
+
+    c = check_authoring_health({"a": {"accepted": 0, "rejected": 30, "consecutive_rejects": 30,
+                                      "author": "qwen3.5-9b"}})
+    assert c.severity == "CRITICAL"
+
+
+def test_an_UNMEASURED_author_gets_the_conservative_default():
+    """The core campaign's Opus arms have no measured row; they must still be guarded."""
+    from src.cluster.campaign_health import check_authoring_health
+
+    c = check_authoring_health({"scalar": {"accepted": 0, "rejected": 4,
+                                           "consecutive_rejects": 4, "author": "claude-opus-5"}})
+    assert c.severity == "CRITICAL"
+
+
+def test_a_sustained_low_rate_WARNS_even_without_a_streak():
+    """Alternating success/failure never builds a streak, but a rate far under the author's
+    measured yield still means something is wrong."""
+    from src.cluster.campaign_health import check_authoring_health
+
+    c = check_authoring_health({"a": {"accepted": 2, "rejected": 10, "consecutive_rejects": 1,
+                                      "author": "sonnet-5"}})
+    assert c.severity == "WARN" and "below the author" in c.detail
+
+
+def test_no_authoring_activity_is_INFO_not_a_false_all_clear():
+    from src.cluster.campaign_health import check_authoring_health
+
+    assert check_authoring_health({}).severity == "INFO"
