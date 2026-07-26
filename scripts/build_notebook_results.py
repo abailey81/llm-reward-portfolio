@@ -73,7 +73,7 @@ def cells() -> list[dict]:
         "| | |\n"
         "|---|---|\n"
         "| **Question** | does multi-level *tail* feedback beat a *scalar* when an LLM authors reward code? |\n"
-        "| **Design** | 7 pre-registered arms, one varying ingredient (the feedback string) |\n"
+        "| **Design** | 9 pre-registered arms (5 LLM + 4 DFO search), one varying ingredient across the LLM arms (the feedback string) |\n"
         "| **Agent / panel** | fixed SB3 SAC · survivorship-free PIT S&P 500 top-30 (`univ5`, Split C) |\n"
         "| **Budget** | B\\* = **400,000** steps/candidate — set by a pre-committed, data-blind rule on a measured 30-point curve (§5; R77) |\n"
         "| **Headline** | H2 co-primary TOST equivalence (Sharpe **and** CVaR-5%), SESOI 0.05, IUT conjunction |\n"
@@ -85,7 +85,8 @@ def cells() -> list[dict]:
         "> **0** Setup · **1** Provenance & freeze state · **2** The data & the design · "
         "**3** EDA — the stylised facts (real) · **4** What the channel carries · "
         "**5** How the training budget was set (real) · **6** The analysis bundle (demo) · "
-        "**7** Headline H2 equivalence (demo) · **8** The reward-program taxonomy (real) · "
+        "**7** Headline H2 equivalence (demo) · **7b** Portfolio behaviour (demo) · "
+        "**8** The reward-program taxonomy (real) · "
         "**9** Mechanism — the 3-link causal chain (+ the real-archive kernel) · "
         "**10** Robustness · **11** Honest limitations · **12** Figure manifest · "
         "**13** The real-vs-synthetic ledger"
@@ -112,7 +113,8 @@ def cells() -> list[dict]:
         "- **Visual grammar.** Every figure uses the Okabe–Ito colourblind-safe palette with a "
         "**fixed** per-arm (colour, marker, hatch) triple (`src/viz/style.py`) — identity is never "
         "colour-alone, controls carry a hatch, and every distinction survives greyscale print. "
-        "The 7-arm ordering was re-validated 2026-07-18 (CVD-separation checks; the one "
+        "The arm ordering is CVD-separation-validated (2026-07-18 base; the R108 `cma_es`/`tpe` "
+        "additions each carry a distinct colour + marker); the one "
         "sub-threshold adjacency — the two *controls* — is exactly the pair that carries "
         "redundant hatch + marker encoding by design)."
     ))
@@ -170,14 +172,14 @@ def cells() -> list[dict]:
         "prereg = yaml.safe_load((ROOT / 'config' / 'preregistration.yaml')"
         ".read_text(encoding='utf-8'))\n"
         "arms = list(prereg['arms'])\n"
-        "assert len(arms) == 7, f'expected the 7-arm frozen roster, found {len(arms)}'\n"
+        "assert len(arms) == 9, f'expected the 9-arm frozen roster (R108: +cma_es/tpe), found {len(arms)}'\n"
         "bstar = int(prereg['train_steps_per_candidate'])\n"
         "assert bstar == 400_000, f'pre-registered B* drifted: {bstar} (expected 400,000; R77)'\n"
         "prov = {\n"
         "    'gold suffix (hash-bound)': suffix,\n"
         "    'frozen': prereg.get('frozen'),\n"
         "    'freeze_hash': prereg.get('freeze_hash'),\n"
-        "    'arms (n=7)': ', '.join(arms),\n"
+        "    'arms (n=9)': ', '.join(arms),\n"
         "    'B* steps/candidate (R77)': f'{bstar:,}',\n"
         "}\n"
         "for k, v in prov.items():\n"
@@ -261,7 +263,9 @@ def cells() -> list[dict]:
         "| `placebo` | LLM | structurally matched, information-free string |\n"
         "| `placebo_shuffled` | LLM | placebo with shuffled numbers (structure-vs-content control) |\n"
         "| `random_search` | none | parameterised template, random constants |\n"
-        "| `bayes_opt` | none | parameterised template, BO-tuned constants |\n"
+        "| `bayes_opt` | none | parameterised template, GP-EI-tuned constants |\n"
+        "| `cma_es` | none | parameterised template, CMA-ES-tuned constants |\n"
+        "| `tpe` | none | parameterised template, TPE-tuned constants |\n"
         "\n"
         "**Headline test (H2).** Two **co-primary** one-sided equivalence questions, combined as "
         "intersection–union tests (Berger 1982) at SESOI $\\Delta^\\* = 0.05$:\n"
@@ -529,10 +533,13 @@ def cells() -> list[dict]:
         "itself the multiplicity correction (Berger 1982). The forest draws a contrast **filled** "
         "iff its 90% TOST interval lies inside the ±SESOI band.\n"
         "\n"
-        "Three complementary readouts, one story:\n"
-        "1. the **TOST forest** — is the effect bounded inside the band?\n"
-        "2. **rliable IQM intervals** (Agarwal et al. 2021) — seed-level uncertainty, "
-        "stratified-bootstrap, no seed-averaging;\n"
+        "Four complementary readouts, one story:\n"
+        "1. the **TOST forest** — is the effect bounded inside the ±SESOI band?\n"
+        "2. the **rliable evaluation quartet** (Agarwal et al. 2021) — IQM point + "
+        "stratified-bootstrap intervals, run-score **performance profiles**, and **probability of "
+        "improvement** over the scalar baseline: seed-level uncertainty with no seed-averaging, "
+        "robust to the heavy tails of §3, and the correct way to *see* a null (overlapping "
+        "intervals / crossing profiles / P ≈ 0.5);\n"
         "3. **evidence for the null** — Bayes factors BF₀₁ and the Model Confidence Set: does the "
         "data *support* equivalence rather than merely fail to reject?"
     ))
@@ -553,7 +560,56 @@ def cells() -> list[dict]:
         "fig"
     ))
     out.append(code(
+        "# Performance profiles (Agarwal 2021): the run-score distribution per arm — overlapping\n"
+        "# curves = no arm stochastically dominates (the visual signature of a null).\n"
+        "fig = F.performance_profile(data['scores_by_leg']['Sharpe'])\n"
+        "fig"
+    ))
+    out.append(code(
+        "# Probability of improvement over the scalar baseline, with CIs; the 0.5 line = no effect.\n"
+        "# Points clustered on 0.5 with CIs spanning it are the null signature.\n"
+        "fig = F.probability_of_improvement(data['prob_improve'])\n"
+        "fig"
+    ))
+    out.append(code(
         "fig = F.evidence_for_null(data['bf01_by_leg'], data['mcs'])  # BF01 + Model Confidence Set\n"
+        "fig"
+    ))
+
+    # ------------------------------------------------------------------ 7b portfolio behaviour
+    out.append(md(
+        "## 7b · Portfolio behaviour on the sealed test — what the policies *did* (demo)\n"
+        "\n"
+        "The inference figures above summarise *effects*; a finance reader also wants to *see the "
+        "book*. These three exhibits render the per-arm sealed-test behaviour the campaign archive "
+        "will carry — the M1/M1b run-diagnostics capture (`docs/METRICS_AND_FIGURES_COMPLETENESS`) "
+        "makes them replayable from the frozen archive:\n"
+        "\n"
+        "1. **Equity + drawdown** — log growth-of-1 and the underwater curve, arms + market overlaid "
+        "(the finance staple; EIIE / FinRL-DeepSeek / Sood).\n"
+        "2. **Return / tail distribution** — the realised-return ECDF with the α = 5% VaR marked and "
+        "the left tail shaded: where a CVaR claim actually lives (Tail-Safe / RAMAC).\n"
+        "3. **Allocation heatmap** — the top holdings' weights over time (the learned-policy exhibit; "
+        "Cartea / Coache / RAMAC), from the M1b `alloc_snapshots` reduction of a winner's per-step "
+        "test weights.\n"
+        "\n"
+        "On the NULL-shaped demo the arms overlap by construction; post-campaign each renders from the "
+        "sealed-leg `test_returns` / `test_alloc` per arm."
+    ))
+    out.append(code(
+        "# Equity curve (log growth of 1) + underwater drawdown, arms + market overlaid (G4).\n"
+        "fig = F.equity_drawdown(data['returns_by_arm'], benchmark=data['market_bench'])\n"
+        "fig"
+    ))
+    out.append(code(
+        "# Realised-return ECDF per arm, alpha=5% VaR marked, left tail shaded (G3) -- the risk story.\n"
+        "fig = F.return_tail_distribution(data['returns_by_arm'], alpha=0.05)\n"
+        "fig"
+    ))
+    out.append(code(
+        "# Allocation over time: the top-K holdings' weights + the 'other' residual (G5), from the\n"
+        "# M1b alloc_snapshots reduction of a representative winner's per-step sealed-test weights.\n"
+        "fig = F.allocation_heatmap(data['alloc'])\n"
         "fig"
     ))
 
@@ -632,7 +688,7 @@ def cells() -> list[dict]:
         "- **Not a threshold artifact**: re-clustering at 0.5/0.6/0.7 keeps pair-agreement (Rand "
         "index) at 0.979 and 0.9998 between adjacent cuts.\n"
         "\n"
-        "Post-campaign, the identical induction re-runs on the 7-arm campaign archive "
+        "Post-campaign, the identical induction re-runs on the 9-arm campaign archive "
         "(30 candidates/arm) via `scripts/build_taxonomy.py`."
     ))
 
@@ -868,8 +924,9 @@ def cells() -> list[dict]:
         "    ('3 EDA stylised facts', 'REAL', 'train window only, checksum-verified, 5 numeric pins'),\n"
         "    ('4 fed-channel profile', 'REAL', 'four CVaR coordinates of the train-window EW book'),\n"
         "    ('5 budget curve + rule', 'REAL', '30-point measured grid + the shipped R77 verdict'),\n"
-        "    ('6-7 headline inference', 'SYNTHETIC DEMO', 'NULL-shaped bundle; swaps for the '\n"
-        "                                                 'sealed-leg loader post-campaign'),\n"
+        "    ('6-7b headline + portfolio', 'SYNTHETIC DEMO', 'NULL-shaped bundle + demo '\n"
+        "                                                   'behaviour figures; swaps for the '\n"
+        "                                                   'sealed-leg loader post-campaign'),\n"
         "    ('8 taxonomy', 'REAL', '239 archived programs; search-arm collapse = validity check'),\n"
         "    ('9 mechanism logic', 'SYNTHETIC DEMO', 'seeded nulls make the SQ1-SQ3 logic visible'),\n"
         "    ('9 mechanism kernel', 'REAL', '239 records -> per-arm SQ1 rows; honest wide-CI '\n"
@@ -881,7 +938,16 @@ def cells() -> list[dict]:
         "      f'{len(ledger) - n_real} demo groups are labeled at the cell AND here.')\n"
         "print(f'session: python {platform.python_version()} | numpy {np.__version__} | '\n"
         "      f'pandas {pd.__version__} | matplotlib {matplotlib.__version__}')\n"
-        "ledger"
+        "\n"
+        "# A styled honesty contract: REAL rows shaded green, labeled-DEMO rows amber (version-robust\n"
+        "# Styler.apply so it renders on nbconvert across pandas 1.x/2.x without applymap deprecation).\n"
+        "def _shade(v):\n"
+        "    return 'background-color: #d7f0d7' if v == 'REAL' else 'background-color: #fde6c4'\n"
+        "(ledger.style\n"
+        "       .apply(lambda col: [_shade(v) for v in col], subset=['data'])\n"
+        "       .set_properties(**{'font-size': '90%'})\n"
+        "       .set_caption('The real-vs-synthetic honesty contract, "
+        "machine-checked against what actually ran.'))"
     ))
     return out
 
