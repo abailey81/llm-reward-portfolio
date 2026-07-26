@@ -1,0 +1,50 @@
+#!/bin/bash -l
+# =====================================================================================
+# A5 self-host SERVING jobscript (UCL Myriad / SGE) -- serve the pinned bf16 Qwen leg.
+#
+# WHAT: one LONG-RUNNING single GPU task that runs scripts/serve_qwen_selfhost.py, which
+# launches `vllm serve` with --revision <hf_commit> (ENFORCES the reproducibility pin),
+# --dtype bfloat16, and thinking-off, and writes served-manifest-*.json (serving-node
+# provenance). It is NOT the training array (src/cluster/jobscript.py, run_one): a vLLM
+# server holds a PORT for the whole campaign, so it needs its own single-task template.
+#
+# USAGE (set the runtime env, override the resource directives on the qsub line for the
+# CURRENT Myriad allocation, then submit):
+#   qsub -l h_rt=48:00:00 -ac allow=<A100_pool> \
+#        -v VLLM_LEG=qwen3.5-9b,VLLM_PORT=8000,VLLM_API_KEY=<dummy>,VLLM_SIF=<image.sif> \
+#        scripts/serve_qwen_jobscript.sh
+# Then, for the campaign driver on the head node:
+#   export VLLM_BASE_URL=http://<served-node>:8000/v1   VLLM_API_KEY=<dummy>
+# The served node:port is written to serve-endpoint-<JOB_ID>.txt for discovery.
+#
+# ⚠ The SGE resource directives below (h_rt / mem / pool) are Myriad-allocation-specific --
+# CONFIRM against the live pool state (docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md) and override
+# on the qsub line as needed. The A100-80G U/V pools are the campaign-speed default.
+# =====================================================================================
+#$ -N qwen_selfhost_serve
+#$ -l gpu=1
+#$ -l h_rt=48:00:00
+#$ -l mem=32G
+#$ -cwd
+#$ -j y
+#$ -o serve_qwen_$JOB_ID.log
+
+set -euo pipefail
+
+: "${VLLM_PORT:=8000}"
+: "${VLLM_LEG:=qwen3.5-9b}"
+: "${VLLM_API_KEY:?set VLLM_API_KEY (any non-empty dummy string; the client + vLLM auth)}"
+
+NODE="$(hostname -f)"
+ENDPOINT="http://${NODE}:${VLLM_PORT}/v1"
+echo "[serve_qwen] node=${NODE} port=${VLLM_PORT} leg=${VLLM_LEG} job=${JOB_ID:-local}"
+echo "${ENDPOINT}" > "serve-endpoint-${JOB_ID:-local}.txt"
+echo "[serve_qwen] driver: export VLLM_BASE_URL=${ENDPOINT}"
+
+# Serve inside the pinned Apptainer image if provided (--nv exposes the GPU); else host venv.
+if [ -n "${VLLM_SIF:-}" ]; then
+  exec apptainer exec --nv "${VLLM_SIF}" \
+    python -m scripts.serve_qwen_selfhost --leg "${VLLM_LEG}" --port "${VLLM_PORT}"
+else
+  exec python -m scripts.serve_qwen_selfhost --leg "${VLLM_LEG}" --port "${VLLM_PORT}"
+fi
