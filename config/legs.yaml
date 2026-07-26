@@ -23,6 +23,7 @@ legs:
     provider: openrouter
     model: z-ai/glm-5.2
     api_key_env: OPENROUTER_API_KEY
+    reasoning: {enabled: false}            # R112 (2026-07-26) repro-gate FIX, same class as R103: GLM reasons by DEFAULT and ~40% of authoring calls spent the ENTIRE 4096 budget on hidden reasoning -> stop_reason=length, reasoning_tokens 3900-4222, EMPTY code (MEASURED 6/10 compliance). Disable VERIFIED live: 537 output tokens, 0 reasoning, code authored (raising the cap to 8192 also worked but cost ~9x). A DISABLE pin: leg_gates verifies ~0 reasoning tokens served
     temperature: 1.0
     max_tokens: 4096
     hf_pin: {repo: zai-org/GLM-5.2, commit: b4734de4facf877f85769a911abafc5283eab3d9}   # retrieved 2026-07-22, official HF API
@@ -87,8 +88,9 @@ legs:
     provider: openrouter
     model: moonshotai/kimi-k3-20260715     # R95: the CANONICAL DATED slug (verified on OpenRouter 2026-07-22 — stronger pinning than the undated closed legs); always-on thinking disclosed; weights due 2026-07-27 upgrade this to open-class (hf_pin filled by rule)
     api_key_env: OPENROUTER_API_KEY
+    reasoning: {enabled: false}            # R112 (2026-07-26) repro-gate FIX: the R97a cap bump 4096->8192 was NOT enough — 3/12 compliance calls still spent the WHOLE 8192 on hidden reasoning (reasoning_tokens 8189, stop=length, EMPTY code), and a passing call used 7004, so 8192 was marginal by construction. The "always-on thinking" premise was FALSE (mapped 2026-07-25, re-VERIFIED live here 3/3: 0 reasoning tokens, ~550 output tokens, code authored) — so the correct lever is DISABLE, not a bigger budget, which also cuts this leg's cost ~15x
     temperature: 1.0
-    max_tokens: 8192  # gate-evidence bump 2026-07-23: always-on thinking truncated 5/10 compliance calls at 4096
+    max_tokens: 8192  # gate-evidence bump 2026-07-23: always-on thinking truncated 5/10 compliance calls at 4096; RETAINED as headroom under the R112 disable
 
 # Planning prices ($/M in, $/M out) for the R81 spend ledger's pre-call estimates; the ledger's
 # AUTHORITY is the per-call cost captured from the provider response, never this table.
