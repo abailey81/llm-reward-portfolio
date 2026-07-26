@@ -482,6 +482,77 @@ envelope) ② **Ramin: CPU as a randomised device block** ③ ~~commit/stash the
 **DONE — committed `8c5a022`** (see the monitoring section below) ④ FEATURE/BUILD to action
 `SESSION_TASK_DISPATCH` T5-a (batch TPE's startup trials, 30 → ~21).
 
+### ★★★★ AI CO-AUTHOR ATTRIBUTION REMOVED FROM ALL HISTORY — local AND remote (commit `17b72a9`)
+
+> Tamer: *"push everything from this session, but make sure not contributed or coauthored by Claude"*,
+> then — when asked whether to rewrite shared history — *"ultrathink deeply, it should not say
+> contributed or coauthored by Claude anywhere."*
+
+**The situation.** A concurrent session had just pushed `backup-2026-07-26`, which carried this
+session's work up to GitHub — **and with it 174 commits bearing `Co-Authored-By: Claude …`
+trailers**, the exact string GitHub reads to render a co-author. Full detail + the translation table:
+`docs/ATTRIBUTION_REWRITE_2026-07-26.md` + `docs/ATTRIBUTION_REWRITE_SHA_MAP.tsv`.
+
+**THE SURVEY FIRST (what "anywhere" actually covers).** Enumerated before touching anything —
+commit trailers · author/committer identity fields · annotated-tag messages · GitHub PRs/releases ·
+`CITATION.cff` / `pyproject.toml` / `CONTRIBUTING.md` / `AUTHORS` / `.mailmap` · the paper front
+matter. **Only git carried real attribution.** The identity fields were already clean (`Tamer
+Atesyakar` and the older `abailey81`, same email — never Claude), `CITATION.cff` and
+`pyproject.toml` name Tamer alone, and the paper front matter already states the models are **"the
+object of study, not authorship aids"**. **DELIBERATELY PRESERVED, and why:** the UCL-required
+AI-assistance disclosure (removing it would be an integrity breach, and it describes tool use under
+the author's direction, not authorship); Claude named as the research SUBJECT; and the prose in
+CLAUDE.md / this file / `strip_ai_attribution.py` that *forbids* or *records* attribution — those
+say the opposite of what the trailer said, and deleting them would remove the rule that prevents
+recurrence and conceal the remediation.
+
+**THE DECISIVE POINT — remote-only cleaning would NOT have held.** The purpose-built script cleans
+copies of the REMOTE refs and explicitly leaves local history alone. But local kept the trailers, so
+**the next backup push would have put all 174 straight back** — which is precisely how they reached
+GitHub an hour earlier. So local was cleaned too, and everything re-anchored.
+
+**EXECUTED (message-only; proven before anything was pushed):** 174 of 365 commits carried
+attribution → **0**. Verified on **all 365 old→new pairs**: **0 tree mismatches** (byte-identical
+trees = contents untouched), **0 author/date mismatches**, **0 attribution remaining**. Then: all 6
+remote branches force-pushed with `--force-with-lease`; the local branch, the stale local `main`,
+and both tags re-anchored; 12 leftover scaffolding refs (`__aiclean/*`, `refs/original/*`) deleted.
+The annotated tag `prereg-v1.0` was rebuilt with its **ORIGINAL tagger identity and timestamp**
+(`1784382084 +0500`), so re-anchoring is not a re-dating. `prereg-freeze-ce5db62c` turned out to be a
+LIGHTWEIGHT tag — its trailer was in the commit it points at, already stripped.
+
+**SAFETY UNDER FOUR CONCURRENT SESSIONS (the part that needed care):**
+- `filter-branch` refuses to run with unstaged changes, and 33 files of other sessions' in-flight
+  work were dirty. **Their work was never stashed or touched** — the rewrite ran in an **isolated
+  clone**. (A shared worktree was tried first and rejected: a CRLF/`autocrlf` mismatch on
+  `deflated_sharpe.py` can never read clean without changing repo-wide config.)
+- One commit from another session landed **mid-operation**. It was replayed with `commit-tree`
+  (identical tree ⇒ **no checkout**, so the working tree and index stayed valid) and the branch moved
+  under a **compare-and-swap** against the observed HEAD — a concurrent commit would have failed
+  LOUDLY rather than being silently orphaned. Dirty-file count before/after: **33 → 33**.
+- ⚠ **CAUGHT BY VERIFICATION, NOT ASSUMED:** the force-push to `myriad-cluster-and-tier-system` was
+  a **non-fast-forward** (that remote branch was a stale, DIVERGENT lineage, 38 commits apart from
+  the line the sessions actually work on), which left **5 commits reachable from no remote ref**.
+  Found by re-counting reachability afterwards (365 → 362) and **restored** to
+  `lineage-myriad-pre-rewrite-2026-07-26`. Orphans now: **0**.
+
+**FINAL STATE — measured, not asserted:** **7 remote branches, 368 commits, `0` carrying
+attribution**; **`0` across every LOCAL ref including tags**; identities are Tamer's alone;
+`freeze --check` **RC=0**, `freeze_hash: null` (**still UNFROZEN**); post-rewrite test slice
+**RC=0** (149 tests) confirming the code is untouched. Pre-rewrite backups:
+`outputs/attribution_rewrite_backup/pre_rewrite_*.bundle` (all refs, gitignored — **these still
+contain the old trailers by design; delete only once you are satisfied**).
+
+**NOT done, deliberately:** the ~141 cited SHAs in CHANGELOG/HANDOFF/DECISIONS were **not**
+regex-rewritten. They are TRUE as written (that is what the commit was called at the time), and the
+docs record **freeze SHA-256 digests** (`ce5db62c…`, `68c0a4ff…`) in the same short-hex backticked
+style — a sweep could not reliably tell them apart, and corrupting a recorded freeze hash would
+damage the scientific record far more than a stale link. The verified 365-row translation table is
+committed instead (`grep ^8c5a022 docs/ATTRIBUTION_REWRITE_SHA_MAP.tsv`).
+
+⚠ **NOTE FOR TAMER:** GitHub's *Contributors* panel is cached and can lag; the underlying commits
+now carry no trailer. Also, the two tags remain **local-only** (they were never pushed, and that was
+left as-is rather than changed unilaterally).
+
 ### ★★★★ CAMPAIGN MONITORING — the five CPU-lane failures the sentinel could not see (commit `8c5a022`)
 
 > Tamer: *"when we start the campaign we would try to take as much as Myriad would let us take …
@@ -3190,6 +3261,202 @@ un-reviewed file, and it produces the confirmatory p-values and CIs consumed by 
   Then verified discrimination per the loop-76 rule: the guard flags the pre-fix text and passes both
   corrected modules, with whitespace collapsed so a line-wrapped claim cannot slip through.
 - **Verified:** **126 tests `PYTEST_RC=0`** across all four inference suites; ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
+**Loop 78 — `src/search/bayes_opt.py` + `dfo_toolkit.py` (the H4 optimisers): ONE MAJOR finding
+(#51) — a failed candidate silently destroyed the GP-EI arm. Streak stays 0/30.**
+
+Chosen as the highest-science-stakes zero-mention files: R108 promoted H4 to a CONFIRMATORY
+beat-the-max node over the four-optimiser portfolio {random, GP-EI, CMA-ES, TPE}, so these ARE
+registered arms — a defect here corrupts a confirmatory claim.
+
+- **★★ #51 (MAJOR) — one failed candidate degraded GP-EI to worse-than-random for the rest of the
+  arm, silently, and ONLY that arm.** Both production evaluators score a failed candidate with the
+  sentinel **`-1e9`** (`cluster/campaign.py:894`, which also increments `state["failed"]`, and
+  `orchestration/parallel.py:1235`) — so failures are an ANTICIPATED event, not a hypothetical.
+  CMA-ES and TPE are rank-based: an extreme value is merely "last" and costs them nothing. **A GP is
+  not.** With `normalize_y=True` the targets are standardised by their own mean/std, so one sentinel
+  among ~12 observations gives std ≈ 2.8e8 and collapses every genuine candidate into a span of
+  **~4e-10 normalised units** — numerically identical to the surrogate.
+  **Measured on a smooth 6-D objective:** posterior mean range blew out from `[0.018, 0.161]` to
+  `[-1.1e9, 1.1e8]`, and the EI-selected point fell from a true value of **0.0662 to -0.0813** (best
+  achievable 0.1934). End-to-end across seeds 0-4, the best GP-**guided** pick was **-0.195 … -0.500
+  with the bug versus -0.003 … -0.086 after the fix.** Because the other three optimisers are immune,
+  this biased the H4 beat-the-max comparison against `bayes_opt` specifically.
+  **Fix:** `_winsorize_for_surrogate` — a median/MAD fence (10 MAD ≈ 6.7σ, deliberately permissive)
+  applied ONLY to the GP's training targets. `x_obs` / `y_obs` / `history` and the returned winner are
+  untouched, so the archive, the matched budget, the reported `best_score` and rng consumption stay
+  bit-identical; a sentinel-free input is returned unchanged, so every existing caller and test is
+  unaffected. The floored sentinel still sorts strictly BELOW every retained point, preserving its
+  rank as the worst candidate. Fixing the consumer rather than the sentinel keeps the complexity in
+  the module that has the problem and leaves the rank-based arms alone.
+- **★ I caught my own end-to-end assertion being vacuous — again — and strengthened it.** The first
+  version asserted on `best_score`, which passed WITH the bug present (-0.1306 > -0.15) because
+  best-of-all includes the five random init points, and a lucky init masks a dead surrogate. The
+  discriminating signal is the **GP-guided** picks alone, which separate cleanly across five seeds.
+  This is the third loop running where testing a guard against the pre-fix state caught a hole in it.
+- **Verified CORRECT, no finding (do not re-open):**
+  * **Matched compute holds for all four arms** — `bayes_opt` (`n_init` clamped, `n_init +
+    n_remaining == budget`), `cma_es` (exact `evaluated` accounting; the final partial generation is
+    evaluated for the archive but NOT told, keeping the CMA state clean), `tpe`
+    (`n_batched + remaining == budget`), `random_search` (exactly `budget` draws).
+  * **Expected Improvement is the correct Jones/Snoek form**, and the zero-σ guard correctly captures
+    σ BEFORE clamping (a prior audit fix that is still intact).
+  * **Determinism:** all four default to `default_rng(0)`, never OS entropy; the init/startup
+    batching is a pure DISPATCH change (points are drawn from `rng` before the branch, so consumption
+    is identical); and the resume claim holds — per-iteration rng draws are unconditional, so a cached
+    score reproduces the trajectory exactly.
+  * **`cma_es`'s `np.clip` on `es.ask()` output is a harmless defensive no-op:** pycma's
+    `BoundTransform` handler already returns in-box points (**0 of 175 outside across 25
+    generations**), so `tell` is never given a point CMA did not propose.
+  * NaN is not reachable: both evaluators use the finite `-1e9` sentinel, and loop 3 established
+    `held_out_fitness` cannot return NaN — so `_result`'s `np.argmax` cannot select a NaN winner.
+- **Verified:** **64 tests `PYTEST_RC=0`** (`test_search.py` + `test_baselines_search_coverage.py`);
+  ruff clean; `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
+**Loop 79 — `src/baselines/reward_family.py`, the shared H4 substrate: ONE finding (#52), a
+config↔code convention mismatch. The sealed-leg round-trip is CLEAN and now proven. Streak 0/30.**
+
+This file is what all four H4 arms actually search, and `params_to_source` materialises the winner
+into the source the SEALED TEST LEG executes — so a search-vs-sealed drift here would be invisible
+(the archive hash-verifies the source TEXT, not its behaviour). It is also the last un-reviewed file
+in `src/baselines/` (rewards.py loop 75, strategies.py loop 76).
+
+- **★ THE SEALED-LEG GUARANTEE HOLDS — proven, not assumed.** Across **265 points** (all 64 box
+  corners + 200 interior + the all-zero degenerate): every materialised source passes **`ast_gate`
+  AND `defines_reward`** — i.e. none would be archived `winner_not_testable`, the exact failure the
+  emitter exists to prevent. And over **2,400 reward calls** the materialised source matched the
+  in-process closure **bit-for-bit** (totals and every component), including a −150% wipeout step, a
+  −0.999999 step at the `log1p` clip boundary, and a +300% step.
+- **★ #52 (MINOR, but in a REGISTERED search space) — the frozen config documented the wrong
+  turnover convention.** `config/eureka_loop.yaml` described the H4 term as *"(one-way, in [0, 1])"*.
+  The code computes the **TWO-WAY** `sum|w − w_prev|`, range `[0, 2]` — **measured 2.0** at a fully
+  disjoint rebalance, against **1.0** for the sibling H1 member `rewards.py::return_minus_turnover`,
+  which really is one-way (Gârleanu–Pedersen `0.5*Σ|·|`). The two families legitimately differ, which
+  is exactly why the stale comment was so believable.
+  **It breaks the config's own stated justification:** that block says the ranges are "sized so each
+  term can reach ~±0.02 per step". At `w_turnover = 0.02` the coded two-way term reaches
+  **0.02 × 2.0 = 0.04 — twice the target**; one-way would give exactly 0.02. Every other term does
+  meet it (return/log ≈ 0.02, cvar 5 × ~0.004, vol 2 × ~0.01).
+  **Fixed the DOCS, deliberately NOT the code.** Changing the turnover semantics would change every
+  H4 candidate's reward and therefore the REGISTERED H4 search space — a pre-registration decision
+  for Tamer/Okhrati (halving `high` to 0.01 restores exact parity), not a review-lane edit. The
+  config comment and the module docstring now state the real convention, the contrast with the H1
+  canon, and the doubled reach. The module docstring also gained an explicit **Conventions** block
+  (turnover / drawdown / CVaR / sigma), which it lacked entirely — Stefan's criterion 5, "clarity of
+  what is measured", and the reason two sibling files could disagree unnoticed.
+- **Verified CLEAN (do not re-open):** `_DEFAULT_BOUNDS` mirrors `config/eureka_loop.yaml`
+  **exactly** (all six rows); `family_bounds` is finite with `low < high` and the cfg-driven path
+  agrees with the defaults; the CVaR term uses the stack-wide `ceil(alpha*n)` worst-mean convention;
+  sigma is the deliberate `ddof=0` penalty scale; and the **train-vs-archive parameters agree** —
+  `_spec` propagates `cvar_alpha`/`window` from `opts` (as required keys, so a missing one fails
+  loud), so the worker's `params_to_reward` and `params_to_source` and the driver's resume-hash all
+  resolve the same values. That last one mattered: bit-exactness only holds when those args match.
+- **New coverage, chosen to extend rather than duplicate.** `test_source_and_closure_parity` already
+  existed but used ONE coefficient vector, FIXED weights every step (so turnover never varied),
+  benign returns (never reaching the `log1p` clip), and a bare `exec` that never touches `ast_gate`.
+  The three new tests cover precisely those gaps: the config-mirror guard, the turnover-convention
+  pin, and gate-clean bit-exact parity across the box under pathological returns. Both new guards
+  were checked against simulated drift — a perturbed `_DEFAULT_BOUNDS` is flagged, and a one-way
+  turnover injected into the emitter alone makes the totals diverge (−0.00102 vs +0.00698).
+- **Verified:** **201 tests `PYTEST_RC=0`** (`test_reward_family` + `test_baselines_search_coverage` +
+  `test_rewards_deep`); ruff clean; `eureka_loop.yaml` still parses; `freeze.py --check` RC=0,
+  read-only, `freeze_hash: null` — nothing frozen.
+
+**Loop 80 — `src/data/market_reference.py`: ONE finding (#53) — a previously-fixed failure mode had
+silently RECURRED, because the fix added a mapping but no detector. Streak stays 0/30.**
+
+This file supplies the risk-free rate and market/factor reference series that feed REPORTED numbers,
+and it closes the other half of loop 65's rf story without re-opening `metrics.py` (loop 65, do not
+re-open).
+
+- **★ #53 — the forward-fill silently extrapolates past the END of the source file.** The ffill that
+  correctly bridges a publication gap also carries the last value forward for as long as the target
+  axis runs. The module's own `_REFRESHED_RAW` note records this happening once already: the Momentum
+  refresh had no mapping, so attribution *"silently used the canonical file ending 2026-04-30 and
+  forward-filled the test window's tail with a constant"*. That fix added the mapping — **but nothing
+  was added to DETECT a recurrence, so the same condition returned.** MEASURED against the frozen
+  Split-C test window (1,631 sessions, 2020-01-02 → 2026-06-30):
+
+  | series | file used | last real obs | test sessions extrapolated |
+  |---|---|---|---|
+  | FRED `DGS3MO` (rf) | `fred_macro_x26.csv` | 2026-06-30 | **0** ✓ |
+  | FF `Mkt-RF/SMB/HML` | `french_ff3_daily_x26.csv` | 2026-05-29 | **21 (1.3%)** |
+  | FF `Mom` (Carhart-4) | `french_mom_daily_x26.csv` | 2026-05-29 | **21 (1.3%)** |
+  | market proxy `univ5` (ACTIVE) | `market_proxy_univ5.parquet` | 2026-06-30 | **0** ✓ |
+  | market proxy `univ3` (legacy) | `market_proxy_univ3.parquet` | 2025-12-31 | **123 (7.5%)** |
+
+  **The headline is NOT affected** — rf and the active `univ5` proxy cover the window exactly. What
+  is affected is the report-only factor ladder (CAPM/FF3/Carhart-4), whose last month regresses
+  against repeated values, and any run under a legacy `LLM_RP_GOLD_SUFFIX` — `univ3` is the
+  documented delisting-band 0% end, so that path is reachable, which is why the market proxy got the
+  same treatment rather than being skipped as "unlikely".
+  **Fix: make it DETECTABLE, do not change a single value.** Inventing factor data would be worse
+  than carrying the last one, so the arithmetic is untouched. `_aligned_series` now returns the last
+  REAL observation instead of a **hardcoded `True` "ok" flag** (a status that is always success is
+  not a status — and all four call sites discarded it, so the provenance was free); a new
+  `_extrapolated_after` counts target dates beyond it and logs one loud, actionable warning; and all
+  three result objects expose `last_observation` + `n_extrapolated`, exactly as `rf_source` is
+  already surfaced. For a factor SET the **stalest column governs**, since the regression uses them
+  jointly. This is the CLAUDE.md "recorded, not merely chosen" rule: a condition that cannot be
+  audited is indistinguishable from one that never happens.
+- **Verified CLEAN (do not re-open):** the alignment genuinely has **no future leak** —
+  `reindex(union).ffill().reindex(targets)` gives each target the last PRIOR observation, and
+  interior NaNs (FRED publishes `.` on holidays, coerced to NaN) are filled by the same ffill, so
+  `nan_to_num` only ever catches a genuine LEADING gap; the rf unit conversion is the documented
+  geometric `(1 + y/100)^(1/252) − 1` applied exactly once (live: `annual_pct_mean = 2.9195%` over
+  the full test window, reconciling with loop 65's `0.3618%` measured over 2020 alone); an absent
+  file is distinguishable from a zero rate via `available=False`; and the market proxy correctly
+  resolves `suffix=None` through `gold_suffix()` so the market line tracks the SAME universe as the
+  traded panel.
+- **Verified:** **102 tests `PYTEST_RC=0`** (`test_market_reference` + `test_data_deep` +
+  `test_attribution` + `test_campaign_inference` — the last two because `attribution.py` unpacks
+  `_aligned_series`'s changed second element, so the signature change was reconciled, not
+  half-migrated); ruff clean; `freeze.py --check` RC=0, read-only, `freeze_hash: null`.
+
+**Loop 81 — `src/llm/prompts.py`: the CODE is clean and its identification claims now PROVEN; ONE
+finding (#54) — a PAPER-FACING table named a dead file as the frozen reflection prompt. Streak 0/30.**
+
+- **★ TAIL-NEUTRALITY PROVEN — the construct-validity hinge, measured rather than assumed.** H2's
+  effect is the MARGINAL value of tail-specificity, which only reads that way if the text EVERY arm
+  sees is tail-neutral. Measured across all three arm-shared artifacts (`system.txt`, the rendered
+  `initial_generation.txt`, and the in-code `_REFLECTION_PREAMBLE`): **ZERO occurrences** of cvar /
+  expected-shortfall / tail / downside / drawdown / skew / kurtosis / quantile / percentile /
+  worst-case / sortino. What IS present is deliberate and load-bearing: *"Optimize RISK-ADJUSTED
+  performance … (you are selected on a risk-adjusted score)"* and *"an online Sharpe"* — which is
+  precisely what makes the SCALAR arm a fair control rather than a straw man, since it supplies the
+  scalar the base prompt already gestures at. The shared text even states the design in the open:
+  *"The feedback you receive after each attempt is what should steer how you shape risk."*
+  Also verified: **no dates and no tickers** reach the model (N3 anonymisation), and
+  `build_prompt_set` takes **no arm argument at all**, so arm-blindness holds by construction — the
+  other half of the claim loop 72 established for `llm/loop.py`.
+- **★ #54 (PAPER-FACING) — `docs/PAPER_TABLES_G7_G9_2026-07-26.md` named `prompts/reflection.txt` as
+  the frozen Reflection prompt. That file is DEAD.** No `.py` in the repo loads it; its `{ARM_BLOCK}`
+  marker is never substituted; and **`scripts/freeze.py` deliberately EXCLUDES it** from
+  `_BOUND_TREATMENT`, saying so in its own comment. The real reflection turn is composed at run time
+  from the in-code `_REFLECTION_PREAMBLE` (`src/llm/loop.py:108`) plus `schema.build_block`.
+  The table is part of the publication-grade exhibit suite and promised that file "reproduced
+  verbatim in the appendix" as "the exact author instructions" — i.e. **the dissertation would have
+  shown an examiner a prompt the model never received**, and called it frozen when it is not.
+  Corrected in three places, each with the reason: the G7-G9 table row + its identification-hinge
+  paragraph, `docs/distributional_feedback_schema.md` (which called it "the live A-set template"),
+  and the `EUREKA_gap_analysis.md` implementation-mapping cell.
+  **Left alone deliberately:** `DEEP_H2.md` and `EUREKA_gap_analysis.md`'s *sources-read* lists cite
+  the file — citing a file you read is accurate, not a false claim; and `CAMPAIGN_DESIGN…`,
+  `DISSERTATION_MASTER_OVERVIEW` and `MASTER_PUNCHLIST` already describe it correctly as dead.
+- **⚠ FLAGGED, NOT ACTIONED (for Tamer):** the frozen treatment set is `arms.yaml` + `system.txt` +
+  `initial_generation.txt`. The reflection preamble lives in Python source, so it is **NOT
+  hash-bound** — yet it is part of the arm-shared scaffold whose permanence R62 exists to guarantee.
+  Identification is unaffected (it is identical across arms and version-controlled), but whether to
+  add it to `_BOUND_TREATMENT` is a pre-registration decision and would change the freeze hash. Not
+  a review-lane edit.
+- **New guard (genuinely missing, not duplicated).** The freeze-binding invariant was ALREADY pinned
+  at `tests/test_freeze.py:538-541` (asserting `reflection.txt` is excluded and the two real prompts
+  bound) — so I left it untouched. What had never been pinned is the tail-neutrality claim itself,
+  despite it being the identification hinge for the whole study. `test_prompts.py` now asserts it,
+  and the guard is proven to discriminate: injecting *"minimise the CVaR of the downside tail"* into
+  the system prompt flags `['cvar', 'tail', 'downside']`, while the live prompts return NONE.
+- **Verified:** **63 tests `PYTEST_RC=0`** (`test_prompts` + `test_freeze`); ruff clean;
   `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
 
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
