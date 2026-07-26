@@ -95,3 +95,27 @@ def test_allocation_heatmap_from_snapshots():
 def test_allocation_heatmap_empty_is_graceful():
     fig = allocation_heatmap({"asset_idx": [], "steps": [], "weights": [], "other": []})
     assert fig.axes  # a placeholder panel, never raises
+
+
+# --------------------------------------------------------------------------- #
+# Previously-untested engine members (flagged by the 2026-07-26 audit): F10/F11 #
+# --------------------------------------------------------------------------- #
+def test_mechanism_chain_renders_all_cut_variants():
+    """F10: the 3-link spine renders with each severed-link glyph and with none (labelled texts present)."""
+    from src.viz.schematics import mechanism_chain
+
+    for cut in (None, 1, 2, 3):
+        fig = mechanism_chain(cut_link=cut)
+        assert fig.axes
+        assert any(t.get_text() for t in fig.axes[0].texts)
+
+
+def test_budget_curve_exhibit_marks_bstar():
+    """F11: the per-seed budget curve renders and marks B*."""
+    from src.viz.figures import budget_curve_exhibit
+
+    grid = {"distributional": {100_000: {0: 0.10, 1: 0.12},
+                               400_000: {0: 0.20, 1: 0.22},
+                               800_000: {0: 0.21, 1: 0.20}}}
+    fig = budget_curve_exhibit(grid, b_star=400_000)
+    assert fig.axes  # renders a panel per winner with the B* marker

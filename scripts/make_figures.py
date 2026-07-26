@@ -142,8 +142,27 @@ def synthesize_null(seed: int = 7, n_seeds: int = 30) -> dict[str, Any]:
             series[treat] = {"estimate": est, "ci_lo": est - 0.03, "ci_hi": est + 0.03}
         delisting[contrast] = series
 
+    # G1-G5 (2026-07-26): the corpus-standard additions, all NULL-shaped (no number here is a result).
+    # G2: all-pairs P(arm > scalar) over seeds -> ~0.5 for every arm (no improvement).
+    base_sharpe = sharpe["scalar"]
+    prob_improve = {}
+    for a in arms:
+        pa = float(np.mean(sharpe[a][:, None] > base_sharpe[None, :]))
+        prob_improve[a] = (pa, max(0.0, pa - 0.09), min(1.0, pa + 0.09))
+    # G3/G4: per-step realized test returns per arm (one representative winner; a shared daily law -> null).
+    n_test = 400
+    returns_by_arm = {a: 0.0004 + rng.normal(0.0, 0.011, n_test) for a in arms}
+    market_bench = 0.0003 + rng.normal(0.0, 0.012, n_test)
+    # G5: a representative winner's simplex weights -> allocation snapshots for the heatmap.
+    from src.inference.exposure import alloc_snapshots
+
+    weights_demo = rng.dirichlet(np.ones(12), size=n_test)
+    alloc_demo = alloc_snapshots(weights_demo, top_k=8, n_snapshots=32)
+
     return {
         "scores_by_leg": scores_by_leg, "sharpe": sharpe, "cvar": cvar,
+        "prob_improve": prob_improve, "returns_by_arm": returns_by_arm,
+        "market_bench": market_bench, "alloc": alloc_demo,
         "contrasts": contrasts, "bf01_by_leg": bf01_by_leg, "mcs": mcs,
         "ast_distance": dist, "cand_arms": cand_arms,
         "controls_cvar": controls_cvar, "fed_delta": fed_delta, "reward_delta": reward_delta, "rho": rho,
@@ -152,7 +171,7 @@ def synthesize_null(seed: int = 7, n_seeds: int = 30) -> dict[str, Any]:
 
 
 def render_all(data: dict[str, Any], out: Path) -> list[Path]:
-    """Render the nine headline figures from a data bundle; return the saved PNG paths."""
+    """Render the fourteen headline figures from a data bundle; return the saved PNG paths."""
     apply_house_style()
     saved: list[Path] = []
 
@@ -174,6 +193,12 @@ def render_all(data: dict[str, Any], out: Path) -> list[Path]:
           "F_responsiveness_scatter.png")
     _save(F.learning_curves(data["curves"]), "F_learning_curves.png")
     _save(F.delisting_robustness(data["delisting"]), "F_delisting_robustness.png")
+    # G1-G5 (2026-07-26): the rliable-quartet completion + the risk-lens/finance staples.
+    _save(F.performance_profile(data["scores_by_leg"]["Sharpe"]), "F_performance_profile.png")
+    _save(F.probability_of_improvement(data["prob_improve"]), "F_probability_of_improvement.png")
+    _save(F.return_tail_distribution(data["returns_by_arm"]), "F_return_tail_distribution.png")
+    _save(F.equity_drawdown(data["returns_by_arm"], benchmark=data["market_bench"]), "F_equity_drawdown.png")
+    _save(F.allocation_heatmap(data["alloc"]), "F_allocation_heatmap.png")
     return saved
 
 

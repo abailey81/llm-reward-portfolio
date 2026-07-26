@@ -515,7 +515,7 @@ def budget_curve_exhibit(
     b_star: int = 400_000,
     title: str = "The measured learning curve: per-seed validation DSR vs training budget (16\u00d7 range)",
 ) -> Any:
-    """F11 (R77 MANDATORY exhibit): the extended budget curve, per-seed lines + the paired mean.
+    r"""F11 (R77 MANDATORY exhibit): the extended budget curve, per-seed lines + the paired mean.
 
     ``grid``: ``{winner_label: {budget: {seed: val_dsr}}}`` (the ``apply_bstar_rule.load_grid``
     shape). One panel per winner, log-x budgets; THIN lines = individual CRN seeds (the honest

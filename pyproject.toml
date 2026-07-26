@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "llm-reward-portfolio"
 version = "0.1.0"
-description = "LLM-driven reward engineering with distributional tail-risk feedback for risk-sensitive deep-RL portfolio allocation (MSc dissertation, UCL IFT)."
+description = "LLM-driven reward engineering with multi-level tail-risk feedback for risk-sensitive deep-RL portfolio allocation (MSc dissertation, UCL IFT)."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"  # 3.11/3.12 (the <3.13 cap is a CI-matrix choice, NOT a d3rlpy
                                   # requirement -- d3rlpy is an isolated extra; ADR-026 revised 2026-06-19)

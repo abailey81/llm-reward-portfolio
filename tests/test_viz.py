@@ -1,7 +1,7 @@
 """Behaviour tests for the report-only figure engine (src/viz + scripts/make_figures).
 
 Headless (Agg): every figure function must return a non-empty matplotlib Figure on synthetic data, the
-style helpers must be deterministic + cover all 7 arms, and the demo script must render all eight figures
+style helpers must be deterministic + cover all 9 arms, and the demo script must render all fourteen figures
 (PNG + PDF) to disk. No display, no network; fast (no torch).
 """
 
@@ -187,7 +187,7 @@ def test_learning_curves_two_panels_all_arms(demo: dict) -> None:
 def test_make_figures_demo_writes_png_and_pdf(tmp_path: Path) -> None:
     data = MF.synthesize_null(seed=2, n_seeds=15)
     saved = MF.render_all(data, tmp_path)
-    assert len(saved) == 9
+    assert len(saved) == 14  # 9 original headline figures + G1-G5 (2026-07-26)
     for p in saved:
         assert p.exists() and p.stat().st_size > 0
         assert p.with_suffix(".pdf").exists()  # vector sibling
