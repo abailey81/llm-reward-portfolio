@@ -306,9 +306,12 @@ DESIGN_N_SEEDS: int = _frozen_n_seeds(30)
 #: Design-time independent-regime count for 2005–2025 (GFC, the 2010s low-vol bull, 2018 vol spikes,
 #: COVID, the 2022 drawdown — ~6 independent regimes). REPORTED to bound the SECONDARY regime-stratified
 #: analyses; it does NOT enter the headline paired n (the per-seed IQM test does not stratify by regime).
-#: NB the gold panel's ``vix`` field is a DECIMAL (≈0.10–0.81), not VIX *points*, so `config/regimes.yaml`'s
-#: point thresholds (calm=15/stress=25) never trigger and the auto-detected count collapses to 1 — a units
-#: mismatch FLAGGED for the user (not silently fixed here; regimes config/data are out of scope).
+#: NB the vix-units issue (raw FRED VIXCLS is stored as a FRACTION ≈0.10–0.81, not points) is FIXED at load:
+#: ``src/data/loaders.load_gold_panel`` head-detects the unit and rescales vix ×100 → conventional points
+#: (loaders.py ~L455-458; 2026-06-19), so ``config/regimes.yaml``'s point thresholds (calm=15/stress=25) apply
+#: directly and the independent-regime count no longer collapses to 1. DESIGN_REGIME_COUNT is a hardcoded
+#: design-time constant regardless (NOT auto-detected here), so it is report-only and this note is
+#: informational — it does NOT enter the headline paired n.
 DESIGN_REGIME_COUNT: int = 6
 
 
