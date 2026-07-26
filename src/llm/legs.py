@@ -14,6 +14,17 @@ This module is the single translation point from a leg entry to the transport-fa
 * the **rolling-alias ban** (defense in depth — also enforced at the transport factory).
 
 Anthropic legs carry only id + max_tokens (native transport; no extra_body).
+
+⚠ THE QWEN PAIR INVARIANT (R80/R103) — read this before editing either qwen leg. ``qwen3.6-27b``
+and ``qwen3.5-9b`` are the CAPABILITY GRADIENT (9b is the bottom anchor, ~17% authoring gate-pass;
+27b ~83%), so every SERVING knob must be identical between them or the gradient is confounded by
+serving rather than capability: ``provider_pin`` · ``quantizations`` · ``reasoning`` ·
+``temperature`` · ``max_tokens`` · ``api_key_env``. The reasoning half is not decorative — R103
+measured siliconflow serving Qwen3 in THINKING mode by default, burning the whole output budget on
+hidden reasoning and yielding EMPTY authored code (0.4/10 compliance, 0.4 -> 1.0 once disabled).
+Enforced by ``tests/test_leg_transport.py::test_qwen_pair_invariant_same_provider_and_quant``, which
+checks the YAML fields AND the translated ``extra_body`` (deep review 2026-07-26, #64: the test
+previously covered only provider+quantization, leaving the half that actually bit unguarded).
 """
 
 from __future__ import annotations

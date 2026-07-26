@@ -30,11 +30,35 @@ def test_legs_match_registered_queue_order():
 
 
 def test_qwen_pair_invariant_same_provider_and_quant():
-    """The confound-free family pair: identical provider pin AND quantization (R80)."""
+    """The confound-free family pair: EVERY serving knob identical (R80/R103).
+
+    Extended 2026-07-26 (deep review #64). This asserted only ``provider_pin`` and
+    ``quantizations``, while ``config/legs.yaml`` declares the invariant more broadly —
+    "PAIR INVARIANT: identical reasoning config across the qwen pair". The unguarded half was the
+    one that actually bit: R103 records siliconflow serving Qwen3 in THINKING mode by default,
+    which burned the whole output budget on hidden reasoning and produced EMPTY authored code
+    (compliance 0.4/10 at the frozen config, 0.4 -> 1.0 once disabled).
+
+    The pair IS the capability gradient (9b is the bottom anchor, ~17% gate-pass; 27b ~83%), so a
+    divergence in ANY serving knob — reasoning, decoding temperature, output budget, or the key/route
+    — would confound exactly the comparison the pair exists to make. Assert the whole contract, not
+    the two fields someone happened to write down first."""
     q27, q9 = leg_by_label("qwen3.6-27b"), leg_by_label("qwen3.5-9b")
     assert q27["provider_pin"] == q9["provider_pin"]
     assert q27["quantizations"] == q9["quantizations"] == ["fp8"]
     assert q27["provider_pin"]["allow_fallbacks"] is False
+    # the knobs that would confound the gradient if they ever drifted apart
+    for field in ("reasoning", "temperature", "max_tokens", "api_key_env"):
+        assert q27.get(field) == q9.get(field), (
+            f"qwen pair invariant broken on {field!r}: 27b={q27.get(field)!r} vs 9b={q9.get(field)!r}"
+        )
+    # and the reasoning pin is present and DISABLING on both — the R103 fix, not merely equal
+    assert q27["reasoning"] == {"enabled": False}, q27["reasoning"]
+
+    # the invariant must survive the TRANSLATION too, not just the yaml: identical extra_body
+    # serving config is what the provider actually receives
+    eb27, eb9 = transport_kwargs(q27)["extra_body"], transport_kwargs(q9)["extra_body"]
+    assert eb27 == eb9, f"translated serving config diverges: {eb27} vs {eb9}"
 
 
 def test_every_leg_has_max_tokens_and_no_alias():

@@ -3785,6 +3785,44 @@ reviewed. Streak stays 0/30.**
 - **Verified:** **177 tests `PYTEST_RC=0`** across seven cluster suites; ruff clean;
   `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
 
+**Loop 89 — `src/llm/legs.py` (the registered model suite): ONE finding (#64) — the Qwen pair
+invariant was only half-enforced, and the unguarded half is the one that actually bit. Streak 0/30.**
+
+- **★ #64 — the pair invariant's REASONING half had no test.** `config/legs.yaml` declares
+  *"PAIR INVARIANT: identical reasoning config across the qwen pair"*, but
+  `test_qwen_pair_invariant_same_provider_and_quant` asserted only `provider_pin` and
+  `quantizations`. **Verified the gap discriminates:** a simulated drift leaving one leg in thinking
+  mode **PASSES the old test** and fails the new one.
+  Why it matters concretely: `qwen3.6-27b` / `qwen3.5-9b` ARE the capability gradient (9b is the
+  bottom anchor at ~17% authoring gate-pass, 27b ~83%), so any *serving* difference confounds the
+  very comparison the pair exists to make. And reasoning is not a hypothetical knob — **R103 measured
+  siliconflow serving Qwen3 in THINKING mode by default, burning the whole output budget on hidden
+  reasoning and producing EMPTY authored code** (compliance 0.4/10 at the frozen config, 0.4 → 1.0
+  once disabled). The half that had already caused a measured failure was the half left unguarded.
+  **Fix:** the test now asserts the FULL declared contract — `reasoning`, `temperature`,
+  `max_tokens`, `api_key_env` equal across the pair, the reasoning pin present *and* disabling on
+  both (not merely equal), and the **translated `extra_body` identical**, since what the provider
+  actually receives is what matters. The invariant is also now stated in `legs.py`'s own module
+  docstring, where someone editing a leg will see it.
+- **Verified CLEAN, no finding (do not re-open):** `load_legs` fails loud on a missing
+  `label`/`provider`/`model`/`api_key_env`, on a duplicate label, on a missing `max_tokens` (R82),
+  and on a **rolling alias** (`~` or `-latest`, R80) — no silent defaults. `transport_kwargs` handles
+  `temperature: 0` correctly (`is not None`, not truthiness) and the two Anthropic legs carry **no**
+  temperature, so nothing can send the parameter to the native transport that rejects it on the
+  Opus family — I checked all ten legs end-to-end rather than assuming. `leg_by_label` raises a loud
+  `KeyError` listing the known labels rather than returning `None`.
+  **Deliberately NOT claimed:** four OpenRouter legs carry no `reasoning` pin and six carry no
+  `provider_pin`. That is *not* automatically a defect — a model with no reasoning mode has nothing
+  to pin, and R85's rule is that pins which EXIST must be round-trip verified, not that every leg
+  must have one. The Qwen pair's pin exists because a specific failure was measured. Flagging the
+  others would be manufacturing a finding, and which legs need pins is a pre-registration question,
+  not a code one.
+- **Verified:** **150 tests `PYTEST_RC=0`** (`test_leg_transport`, `test_leg_gates`,
+  `test_run_campaign_cluster`, `test_llm_transport`, `test_freeze`); ruff clean; `freeze --check`
+  RC=0 confirming *"leg roster (v2): config/legs.yaml == frozen model_suite (n=10, order + ids +
+  pins verified; R85 hf_pins filled)"* and `freeze_hash: null` — **nothing frozen**, as Tamer
+  confirmed this loop.
+
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),
