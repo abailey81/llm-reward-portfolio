@@ -218,12 +218,33 @@ def test_random_search_is_one_array_of_sampled_sources(tmp_path):
     assert not (tmp_path / "search" / "random_search" / "llm_calls.jsonl").exists()
 
 
-def test_bayes_opt_is_sequential_one_eval_per_array(tmp_path):
+def test_bayes_opt_batches_its_INIT_but_keeps_the_GUIDED_phase_sequential(tmp_path):
+    """The invariant that actually matters (re-pointed 2026-07-26).
+
+    GP-EI has two phases with DIFFERENT dispatch requirements, and the old version of this test
+    used ``candidates=3`` — which, with ``n_init=min(5,3)=3``, was ALL init and never exercised the
+    guided phase. It therefore locked the init points as one-array-each, i.e. it locked an
+    inefficiency: the driver turns every eval into its own array-of-1 job, so those "5 parallel"
+    init points were really 5 more SERIAL queue-and-train steps, making the GP chain 30 rather than
+    the 25 documented everywhere.
+
+    * INIT (``n_init`` i.i.d. uniform draws, fixed by the rng before any training) -> ONE batch.
+      Batching cannot change the result; ``tests/test_dfo_tpe_batch.py`` proves the identity.
+    * GUIDED (each proposal depends on all prior observations) -> MUST stay array-of-1. This is an
+      algorithmic requirement, not a dispatch choice, and must never be "optimised" away.
+    """
     fake = FakeCluster(tmp_path)
-    summary = run_family_search_arm("bayes_opt", _opts(candidates=3), _run(tmp_path, fake))
-    # the driver GP trains each proposed coefficient vector as an array-of-1 (sequential)
-    assert len(fake.calls) == 3 and all(len(c[3]) == 1 for c in fake.calls)
-    assert summary["n_candidates"] == 3
+    summary = run_family_search_arm("bayes_opt", _opts(candidates=8), _run(tmp_path, fake))
+
+    init_calls = [c for c in fake.calls if str(c[0]).endswith("_startup")]
+    guided_calls = [c for c in fake.calls if not str(c[0]).endswith("_startup")]
+
+    assert len(init_calls) == 1, "the init phase must be ONE batch, not one array per point"
+    assert len(init_calls[0][3]) == 5, "all n_init=5 init candidates belong to that single batch"
+    assert len(guided_calls) == 3, "budget 8 - n_init 5 = 3 guided steps"
+    assert all(len(c[3]) == 1 for c in guided_calls), \
+        "each GP-guided proposal depends on prior observations and MUST stay array-of-1"
+    assert summary["n_candidates"] == 8
 
 
 def test_family_random_search_k3_fans_out_seeds(tmp_path):

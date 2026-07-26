@@ -926,10 +926,16 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
                 out.append(float(r["fitness"]))
         return out
 
-    # Only TPE accepts a batch evaluator; passing it to GP-EI / CMA-ES / random_search would
-    # TypeError (and CMA-ES already dispatches a whole population per generation).
+    # BATCH-CAPABLE ARMS. Both GP-EI and TPE open with a phase of points fixed by the rng BEFORE
+    # any training runs (bayes_opt's n_init=5 i.i.d. uniform draws; TPE's n_startup random trials),
+    # so dispatching each phase as ONE array is a pure DISPATCH change with identical results.
+    # It matters because the driver turns every `template_eval` into its own array-of-1 job: left
+    # sequential, bayes_opt's "5 parallel" init is really 5 more SERIAL queue-and-train steps,
+    # making the GP chain 30 rather than 25 on the campaign's critical path.
+    # random_search is already one array; CMA-ES already dispatches a whole population per
+    # generation; neither accepts the kwarg.
     _opt_kwargs: dict[str, Any] = {"rng": np.random.default_rng(opts["seed"])}
-    if arm == "tpe":
+    if arm in ("tpe", "bayes_opt"):
         _opt_kwargs["batch_eval_fn"] = template_eval_batch
 
     over_template_optimizer(arm)(
@@ -1347,8 +1353,10 @@ def run_campaign_tiered(
       approval file (``<read_root>/TIER1_APPROVED``); re-running with ``resume=True`` then skips
       straight through C0–C3 (archive-complete) into C4. Looking at RESULTS here would be optional
       stopping — the gate is execution-health only, by construction.
-    * **C4 sweep** — the uniform-n completion (n_core→n_max) for ALL units (7 arms + the H1
-      baselines), ROUND-ROBIN interleaved per seed, in the assurance-checkpoint blocks the seed
+    * **C4 sweep** — the uniform-n completion (n_core→n_max) for ALL units (the 9 arms of
+      ``config/arms.yaml`` after R108's 7 -> 9, plus the 11-member H1 canon; both RESOLVED at
+      runtime — ``sweep_units`` is built from the passed ``arms`` and ``baseline_names``, never from
+      a hand-typed count), ROUND-ROBIN interleaved per seed, in the assurance-checkpoint blocks the seed
       schema declares (e.g. 30→340 @90% → 403 @95% → 568 @99%): every block boundary is a clean,
       complete design at that assurance level.
 

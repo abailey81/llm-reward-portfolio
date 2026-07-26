@@ -128,7 +128,14 @@ EXCLUDED_CPU_POOLS = {
 }
 
 #: Structure of the two sequential chains (``config/preregistration.yaml`` + ``src/search/bayes_opt.py``).
-_BAYES_SERIAL_STEPS = 25          # n_init=5 are parallel; the GP-EI loop is strictly serial
+# ⚠ 25 is TRUE ONLY BECAUSE THE INIT IS NOW BATCHED (fixed 2026-07-26). `bayes_opt_over_template`
+# ran `for x in init_points: _evaluate(x, "init")` — a SEQUENTIAL loop — and the cluster driver
+# turns every eval into its own array-of-1 job, so the "5 parallel" init this project documented
+# everywhere was really 5 more SERIAL queue-and-train steps: the chain was 30, not 25 (8.9 d ->
+# 10.7 d at 1 thread). `campaign.run_family_search_arm` now passes `batch_eval_fn` for bayes_opt
+# (as well as tpe), dispatching the i.i.d.-uniform init as ONE array. Identity proven in
+# tests/test_dfo_tpe_batch.py; the GUIDED phase stays strictly serial by algorithmic necessity.
+_BAYES_SERIAL_STEPS = 25          # 30 budget - 5 BATCHED init; the GP-EI loop is strictly serial
 _LLM_CHAIN_GENERATIONS = 6        # K=5 candidates/generation x 6 = the 30-candidate budget
 
 #: The H4 DFO comparators (``src/search/dfo_toolkit.py``, added 2026-07-26 by the FEATURE/BUILD

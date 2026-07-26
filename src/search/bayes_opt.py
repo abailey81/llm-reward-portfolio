@@ -200,6 +200,7 @@ def bayes_opt_over_template(
     rng: Optional[np.random.Generator] = None,
     cache_lookup: Optional[Callable[[int, np.ndarray], Optional[float]]] = None,
     on_evaluated: Optional[Callable[[int, np.ndarray, float], None]] = None,
+    batch_eval_fn: Optional[Callable[[Sequence[np.ndarray]], Sequence[float]]] = None,
 ) -> dict[str, Any]:
     """Bayesian-optimize reward-template coefficients under the matched budget.
 
@@ -273,9 +274,36 @@ def bayes_opt_over_template(
         return score
 
     # 1. Random seed phase.
+    # INIT PHASE — batched when the caller can evaluate concurrently (2026-07-26).
+    # These ``n_init`` points are i.i.d. UNIFORM draws from the box: they are fixed by ``rng``
+    # before any training runs and depend on NO observed value, so evaluating them together is a
+    # pure DISPATCH change with identical results. It matters because the cluster driver turns each
+    # ``_evaluate`` into its own array-of-1 job, so the "5 parallel" init was in fact 5 more SERIAL
+    # queue-and-train steps — making the real GP chain 30, not 25, on the campaign's critical path
+    # (``src/cluster/lanes.py``). Without ``batch_eval_fn`` the behaviour is byte-identical to
+    # before, so the laptop path and every existing caller are untouched.
     init_points = _sample_uniform(box, n_init, rng)
-    for x in init_points:
-        _evaluate(x, "init")
+    if batch_eval_fn is not None and n_init > 0:
+        idx0 = len(history)
+        _cached = [cache_lookup(idx0 + i, x) if cache_lookup is not None else None
+                   for i, x in enumerate(init_points)]
+        _need = [i for i, c in enumerate(_cached) if c is None]
+        _got = list(batch_eval_fn([init_points[i] for i in _need])) if _need else []
+        if len(_got) != len(_need):
+            raise ValueError(
+                f"batch_eval_fn returned {len(_got)} scores for {len(_need)} points — the init "
+                "batch must be evaluated 1:1 or the observed history would desynchronise")
+        _fresh = dict(zip(_need, _got))
+        for i, x in enumerate(init_points):
+            score = float(_cached[i]) if _cached[i] is not None else float(_fresh[i])
+            if _cached[i] is None and on_evaluated is not None:
+                on_evaluated(idx0 + i, x, score)
+            x_obs.append(x.copy())
+            y_obs.append(score)
+            history.append({"coeffs": x.copy(), "score": score, "source": "init"})
+    else:
+        for x in init_points:
+            _evaluate(x, "init")
 
     # 2. BO-guided phase for the remaining budget.
     kernel = (
