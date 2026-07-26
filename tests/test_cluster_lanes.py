@@ -233,3 +233,21 @@ def test_saturation_is_a_CURVE_PROPERTY_and_is_STRUCTURALLY_PERMITTED():
     assert beyond.binding == "critical_chain"
     # DOUBLING the cores past saturation buys nothing at all - that floor is real
     assert beyond.makespan_days == pytest.approx(beyond.critical_chain_days, rel=1e-9)
+
+
+def test_the_two_thread_regimes_are_BOTH_reachable_and_clearly_labelled():
+    """The crossover depends entirely on the chain thread count, and the DEFAULT is the superseded
+    1-thread regime (~1,685) while the RATIFIED campaign runs 8 threads (~4,584). A bare call
+    therefore models the OLD design — which reads as a contradiction of the function's own
+    docstring unless the regime is stated. The operational callers (plan_lanes, advise_cpu_lane)
+    pass the value explicitly, so this is a documentation trap rather than a live defect; this test
+    pins both numbers so neither can drift and the gap stays visible."""
+    from src.cluster.lanes import CPU_CHAIN_THREADS, cpu_saturation_cores
+
+    assert CPU_CHAIN_THREADS == 8
+    one_thread = cpu_saturation_cores(568, chain_threads=1)
+    ratified = cpu_saturation_cores(568, chain_threads=CPU_CHAIN_THREADS)
+    assert one_thread == pytest.approx(1685, rel=0.03)
+    assert ratified == pytest.approx(4584, rel=0.03)
+    assert cpu_saturation_cores(568) == pytest.approx(one_thread)   # the default IS the old regime
+    assert "the default is NOT the campaign" in cpu_saturation_cores.__doc__

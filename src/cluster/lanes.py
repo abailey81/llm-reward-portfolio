@@ -210,6 +210,16 @@ def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
                          include_dfo: bool = True) -> float:
     """CPU cores beyond which MORE CORES BUY NOTHING (the throughput/critical-path crossover).
 
+    ⚠ **READ THE THREAD REGIME BEFORE QUOTING A NUMBER — the default is NOT the campaign's.**
+    ``chain_threads`` DEFAULTS TO 1, which returns the pre-R107 crossover **~1,685**. The RATIFIED
+    campaign runs its chains at :data:`CPU_CHAIN_THREADS` = 8 (R107), where the crossover is
+    **~4,584** — the figure this docstring quotes below and the one the GO-day advisor reports
+    (``allocation.advise_cpu_lane`` passes the value explicitly, as does :func:`plan_lanes`, so the
+    operational path is correct). The default is retained at 1 only so the two regimes stay
+    comparable; **a bare ``cpu_saturation_cores()`` models the SUPERSEDED design.** Pass
+    ``chain_threads=CPU_CHAIN_THREADS`` for the campaign as ratified. (Flagged 2026-07-27 after a
+    bare call returned 1,685 and appeared to contradict this very docstring.)
+
     ⚠ THIS IS A PROPERTY OF THE CURVE, **NOT A CLAIM THAT SUCH CAPACITY IS AVAILABLE.** It answers
     "above what point does adding cores stop helping?", nothing else. Do not quote it beside
     measured or projected capacity without saying which is which. The ladder of what is actually
