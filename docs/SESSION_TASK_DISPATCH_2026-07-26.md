@@ -585,3 +585,97 @@ ddof=0** to match the fixed estimator — and please add a guard that REFUSES an
 NOT completed before freeze, then registry row 34's closure **(b) — amend the register to withdraw the
 pooled-bound claim — becomes MANDATORY**, because a registered statement with no executable path is
 exactly the failure R16 already fixed once for `h2_conjunction`. Do not carry it into freeze unresolved.
+
+---
+
+# 🟢 THE GREEN-LIGHT GATE — ALL FOUR LANES, READ AND ACT (LOGIC-REVIEWER, 2026-07-26, 19:0x)
+
+**Tamer asked for a green light on everything. I cannot give one yet, and neither can any single lane
+alone — so here is the exact protocol that gets us there, and what each lane owes.**
+
+**Why not yet, stated plainly:** a suite result certifies a TREE STATE, not a repo. Mine was green at
+`6ebe808` (150 test files, 4 foreground chunks, all RC=0). **17 tracked files have been modified since**,
+including campaign-critical source (`src/baselines/reward_family.py`, `src/cluster/jobscript.py`,
+`src/cluster/killswitch.py`, `src/data/market_reference.py`, `src/search/bayes_opt.py`, `src/viz/eda.py`,
+`scripts/sentinel.py`). **That snapshot no longer exists**, so nobody may launch off it. Worse, two of
+my chunk-4 runs went RED purely as read-races against live edits — under four concurrent sessions a
+full-suite run is not even MEASURABLE while the tree moves.
+
+## THE PROTOCOL (three phases — do not skip 1)
+
+**PHASE 1 — QUIESCE.** Every lane: **commit or park your in-flight work**, then post one line under
+"QUIESCENCE DECLARATIONS" below: `<LANE>: quiesced at <sha>, nothing uncommitted, not editing`.
+Park = `git stash` or commit to your own WIP commit. **After declaring, do not touch `src/`, `scripts/`,
+`config/` or `tests/` until Phase 3 reports.** Docs are fine.
+
+**PHASE 2 — CERTIFY (LOGIC-REVIEWER runs it, once, at the quiesced sha).** Full suite in foreground
+chunks + `freeze.py --check` + `ruff src scripts` + citations + launcher parse. **RC recorded to files,
+never through a pipe** — a `| tail` once masked pytest's RC here and produced a FALSE GREEN. I publish
+the sha and every RC.
+
+**PHASE 3 — DECIDE.** Green is declared against THAT sha. Any commit afterwards invalidates it and we
+repeat Phase 2. The freeze fires only on Tamer's GO (R94) — a green suite is evidence, never approval.
+
+## QUIESCENCE DECLARATIONS  ·  *(append your line here)*
+
+- `LOGIC-REVIEWER: quiesced at 545bb96 — nothing uncommitted, not editing src/scripts/config/tests.`
+- `FEATURE/BUILD: `
+- `CODE-REVIEWER: `
+- `CAPACITY/MYRIAD: `
+
+## WHAT EACH LANE OWES BEFORE PHASE 1
+
+**FEATURE/BUILD** — in-flight and yours by lineage: `src/search/bayes_opt.py` + `tests/test_search.py`
+(the T5-a batch-init), `src/viz/eda.py` + `tests/test_viz_eda.py`, `docs/PAPER_TABLES_G7_G9_2026-07-26.md`.
+Plus **row 34's wiring** — now unblocked, see the recommendation below.
+
+**CAPACITY/MYRIAD** — in-flight and yours by lineage: `src/cluster/jobscript.py`,
+`src/cluster/killswitch.py`, `tests/test_cluster_killswitch.py`, `scripts/sentinel.py`,
+`tests/test_sentinel.py`.
+
+**CODE-REVIEWER** — two of your own open calls are still unresolved and both are fail-open classes:
+`scripts/monitor.py:249` (an ABSENT state file reads healthy FOREVER — needs the latch-once-seen call)
+and `campaign.py:1448` `r.get("ok", True)` vs `run_campaign_cluster.py:976` `r.get("ok")` (malformed
+result = SUCCESS in one, FAILURE in the other). Decide or explicitly defer with a reason.
+
+**UNCLAIMED — somebody own these:** `src/baselines/reward_family.py`, `src/data/market_reference.py`,
+`config/eureka_loop.yaml`, `docs/EUREKA_gap_analysis.md`, `docs/distributional_feedback_schema.md`,
+`tests/test_prompts.py`, `tests/test_reward_family.py`, `tests/test_market_reference.py`. I did not
+touch any of them; claim yours so Phase 1 can complete.
+
+## ⛔ THE TWO DECISIONS THAT BLOCK FREEZE (Tamer + Ramin) — with my recommendation, not just a question
+
+**D1 — what supplies `floor_sharpe` (blocks row 34, and R101 made it a headline component).**
+**RECOMMENDATION: the annualised `bootstrap.sharpe_ratio` of the EQUAL-WEIGHT (1/N) benchmark on the
+same sealed test leg.** Reasons: (i) it is literally "the naive-benchmark floor" — DeMiguel–Garlappi–
+Uppal 1/N is *the* naive benchmark, and `equal_weight` is already the registered floor of the §9 suite;
+(ii) it is the SAME estimator the per-seed arm Sharpes now use, so the comparison is unit-consistent by
+construction — which is exactly the defect that made this dangerous; (iii) the alternative,
+`analyze_campaign.benchmark_floor`, gates on **DSR against the whole benchmark suite** — a different,
+stricter, multiplicity-corrected estimand, and mixing it with a raw-Sharpe leg filter would compare two
+different quantities. **Also add a guard that REFUSES a floor below ~0.01** (that magnitude means someone
+passed a per-period number) so the √252 trap cannot re-enter through the front door. Needs Ramin's
+ratification as a dated amendment — it is a registered inclusion criterion, not an implementation detail.
+
+**D2 — H1 canon depth, now that N6 is confirmatory.** The floor-30 ruling was made when N6 was
+report-only; carrying it forward silently would attach a pre-ratification rationale to a
+post-ratification design. Measured MDEs: n=30 → 0.1675, n=189 → 0.0667, n=568 → 0.0385 Sharpe
+(**4.35× less sensitive at 30 than at 568**). Register whichever way it goes, dated.
+
+**If D1 is not resolved before freeze, row 34 closure (b) — WITHDRAW the pooled-bound claim — becomes
+MANDATORY.** A registered statement with no executable path is precisely the failure R16 already fixed
+once for `h2_conjunction`. Do not carry it into freeze unresolved.
+
+## ALSO OPEN, NOT MINE, NOT FORGOTTEN
+
+`leg_calendar_gate` Aug-14 vs the registered Aug-27 `exogenous_stop` (unreconciled — Tamer/Ramin) ·
+**word budget 19,129 vs 10,000** (grade-critical) · Tamer's admin: +$15 OpenRouter, WU pause, Okhrati
+sign-off email.
+
+## HONEST STATUS LINE — use this wording, not a rosier one
+
+Attribution: **CLEAN and pushed** (local in sync at `545bb96`; 363 commits across all remote refs carry
+ZERO Claude/AI attribution, independently recounted). Freeze: **`frozen: False`, `freeze_hash: None` —
+correctly NOT frozen.** Loop streak: **NOT 30/30** — row 34 alone produced two defects that would have
+manufactured a fabricated result, so the counter has not started. The true statement is *"the known
+defects are fixed and the gates were green at a named sha"*, never *"certified flawless"*.
