@@ -73,7 +73,18 @@ export PYTHONPATH="{repo_root}:${{PYTHONPATH:-}}"
 # "trapped before the run returned"; a hard SIGKILL remains unrecordable (forensics via qacct).
 RC=126
 {apptainer_guard}GPUINFO=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1)
-trap 'echo "{{\\"task\\":${{SGE_TASK_ID}},\\"host\\":\\"$(hostname)\\",\\"gpu\\":\\"${{GPUINFO}}\\",\\"rc\\":${{RC}},\\"secs\\":${{SECONDS}}}}" >> "{remote_root}/ledger/{name}.epilogue.jsonl"' EXIT
+# `ts` (epoch seconds at task exit) is REQUIRED, not decorative (deep review 2026-07-26, #56):
+# killswitch.classify_task_deaths judges an ADMIN KILL by burstiness — N deaths across M hosts
+# inside a 300s window. Without a timestamp its window admits every row ever written, so a whole
+# campaign's scattered benign failures read as one burst and the killswitch retreats + blocks
+# submission. MEASURED: 12 ordinary deaths spread over 20 days classified as `admin_kill`.
+# The `|| echo 0` is NOT defensive noise: a bare `$(date +%s)` that yields nothing emits a
+# `"ts":` with NO VALUE — invalid JSON — and `read_epilogue` is torn-line tolerant, so it
+# silently DISCARDS the row. The death record is then lost, defeating the very detector `ts` was
+# added for, and the loss is invisible. Reproduced 2026-07-26: `bash.exe` invoked directly (no
+# MSYS PATH) has no `date`, and the epilogue test failed to parse at exactly that column. A
+# numeric fallback keeps the row PARSEABLE and merely un-timed, which the window treats as old.
+trap 'echo "{{\\"task\\":${{SGE_TASK_ID}},\\"host\\":\\"$(hostname)\\",\\"gpu\\":\\"${{GPUINFO}}\\",\\"rc\\":${{RC}},\\"secs\\":${{SECONDS}},\\"ts\\":$(date +%s 2>/dev/null || echo 0)}}" >> "{remote_root}/ledger/{name}.epilogue.jsonl"' EXIT
 trap 'exit 143' TERM USR2
 {launcher} -m {entry_module} --spec "{remote_root}/specs/{name}/task_${{SGE_TASK_ID}}.json" --pack {pack}
 RC=$?

@@ -493,3 +493,48 @@ def test_journal_probe_unions_search_ledger_S20(tmp_path: Path) -> None:
     S._RECORD_CACHE.clear()
     inputs = S.gather_inputs(run)
     assert len(inputs.get("completion_times", [])) == 1
+
+
+def test_admin_kill_verdict_is_COMPUTED_from_the_mirrored_ledger(tmp_path: Path) -> None:
+    """The sentinel must actually RUN the admin-kill classifier (deep review #57, loop 84).
+
+    ``poll.sync_epilogue_ledgers`` documents TWO consumers of the epilogue rows: the bad-node check
+    and ``killswitch.classify_task_deaths``. Only the first was ever wired — the classifier and
+    ``killswitch.write_incident`` had NO production call site anywhere in the repo, while the
+    submission GATE (``incident_blocks_submission``) WAS wired in ``cluster/campaign.py``. The result
+    was a gate nothing could trip: the automated Myriad-access guard could not fire at all.
+
+    Detection is now computed here from rows the sentinel already reads. ENFORCEMENT is deliberately
+    NOT wired (``enforced: False``) — writing the incident file blocks all submission until a human
+    clears it, i.e. it can halt a 23-day campaign, which is an operator decision."""
+    camp = tmp_path / "campaign"
+    ledger = camp / "ledger"
+    ledger.mkdir(parents=True)
+
+    import time as _t
+
+    now = _t.time()
+    # a GENUINE administrative burst: 10 deaths across 5 hosts inside ~200s
+    rows = [{"task": i, "host": f"node-{i % 5:02d}", "rc": 137, "secs": 120.0, "ts": now - i * 20.0}
+            for i in range(10)]
+    (ledger / "arr.epilogue.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8"
+    )
+
+    lane = S._gather_campaign_lane(camp, {})
+    kv = lane.get("kill_verdict")
+    assert kv is not None, "the sentinel does not compute an admin-kill verdict at all"
+    assert kv["classification"] == "admin_kill" and kv["action"] == "retreat"
+    assert kv["n_deaths"] == 10 and kv["n_hosts"] == 5 and kv["n_undated"] == 0
+    assert kv["enforced"] is False, "the read-only watcher must NOT enforce (no incident write)"
+
+    # the bad-node sibling still works alongside it
+    assert lane.get("host_failures")
+
+    # and a benign ledger yields a benign verdict, not a false alarm
+    (ledger / "arr.epilogue.jsonl").write_text(
+        json.dumps({"task": 1, "host": "n1", "rc": 0, "secs": 900.0, "ts": now}) + "\n",
+        encoding="utf-8",
+    )
+    lane_ok = S._gather_campaign_lane(camp, {})
+    assert lane_ok["kill_verdict"]["classification"] == "ok"

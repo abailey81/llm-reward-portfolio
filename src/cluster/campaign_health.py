@@ -47,7 +47,53 @@ __all__ = [
     "check_host_failure_concentration",
     "check_rung_forecast",
     "check_determinism_homogeneity",
+    "check_admin_kill",
 ]
+
+
+def check_admin_kill(verdict: dict[str, Any] | None) -> HealthCheck:
+    """Surface ``killswitch.classify_task_deaths`` to the OPERATOR — the last link in that chain.
+
+    The classifier had no production call site until the sentinel began computing a verdict from the
+    epilogue rows it already reads; but a verdict written into the inputs dict and read by no check
+    never reaches the report, the severity aggregation, or the phone alert — the same
+    built-but-unwired failure one level up. This is the consumer.
+
+    Severity mirrors what the event MEANS for Tamer's standing priority that keeping Myriad access
+    outranks throughput: an ``admin_kill`` is CRITICAL because the correct response is to RETREAT
+    (stop submitting, do not requeue) rather than to fight the scheduler, and that decision is
+    time-critical. ``node_failure``/``walltime`` are ordinary campaign weather — reported, never
+    alarming.
+
+    Detection only, by deliberate design: this never writes the incident file. Writing one blocks ALL
+    submission until a human clears it, i.e. it can halt a 23-day campaign — an operator decision,
+    not something a read-only watcher may take on its own.
+    """
+    if not verdict:
+        return HealthCheck("admin_kill", INFO, "no task-death rows to classify", {})
+    kind = str(verdict.get("classification", "ok"))
+    action = str(verdict.get("action", "continue"))
+    n_deaths = int(verdict.get("n_deaths", 0) or 0)
+    n_hosts = int(verdict.get("n_hosts", 0) or 0)
+    n_undated = int(verdict.get("n_undated", 0) or 0)
+    ev = {**verdict, "enforced": False}
+    if kind == "admin_kill":
+        return HealthCheck("admin_kill", CRITICAL,
+                           f"ADMINISTRATIVE KILL suspected: {n_deaths} deaths across {n_hosts} hosts "
+                           f"({verdict.get('reason', '')}) — RETREAT: stop submitting and do NOT "
+                           "requeue. Access preservation outranks throughput; no incident file was "
+                           "written, so resuming stays a human decision", ev)
+    if kind in ("node_failure", "walltime"):
+        return HealthCheck("admin_kill", INFO,
+                           f"{n_deaths} task death(s) classified {kind} (action: {action}) — "
+                           "ordinary campaign weather, not an administrative kill", ev)
+    if n_undated:
+        return HealthCheck("admin_kill", WARN,
+                           f"{n_undated} death row(s) carry no usable timestamp — the burst window "
+                           "cannot see them, so an administrative kill could go undetected; check "
+                           "that the epilogue trap is stamping `ts`", ev)
+    return HealthCheck("admin_kill", OK,
+                       f"no administrative-kill signature ({n_deaths} deaths, {n_hosts} hosts)", ev)
 
 
 def check_capacity_accumulation(report: dict[str, Any], *, expected_cores: int,

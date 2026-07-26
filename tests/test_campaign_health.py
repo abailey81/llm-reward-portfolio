@@ -195,6 +195,64 @@ def test_capture_FAILURES_are_distinguished_from_a_real_substrate_mix():
     assert "capture FAILURES" in c.detail
 
 
+# --- 6. admin-kill verdict --------------------------------------------------------------------
+
+def test_an_ADMIN_KILL_is_CRITICAL_and_says_RETREAT_not_fight():
+    """Tamer's standing priority: keeping Myriad access outranks throughput. The correct response
+    is to stop submitting, not to re-submit into an administrative kill."""
+    from src.cluster.campaign_health import check_admin_kill
+
+    c = check_admin_kill({"classification": "admin_kill", "action": "retreat",
+                          "reason": "18 deaths / 9 hosts in 300s", "n_deaths": 18, "n_hosts": 9,
+                          "n_undated": 0})
+    assert c.severity == "CRITICAL"
+    assert "RETREAT" in c.detail and "do NOT" in c.detail
+
+
+def test_ordinary_node_failures_do_NOT_alarm():
+    from src.cluster.campaign_health import check_admin_kill
+
+    c = check_admin_kill({"classification": "node_failure", "action": "requeue", "n_deaths": 3,
+                          "n_hosts": 1, "n_undated": 0})
+    assert c.severity == "INFO" and "not an administrative kill" in c.detail
+
+
+def test_UNDATED_rows_warn_because_the_burst_window_cannot_see_them():
+    """A row with no usable ts is invisible to the 300s window, so a real kill could go undetected —
+    the failure mode the epilogue `ts` fallback exists to prevent."""
+    from src.cluster.campaign_health import check_admin_kill
+
+    c = check_admin_kill({"classification": "ok", "action": "continue", "n_deaths": 5,
+                          "n_hosts": 3, "n_undated": 5})
+    assert c.severity == "WARN" and "no usable timestamp" in c.detail
+
+
+def test_the_watcher_NEVER_claims_to_have_enforced_anything():
+    """Writing the incident file blocks ALL submission until a human clears it — it can halt a
+    23-day campaign, so a read-only watcher must not do it."""
+    from src.cluster.campaign_health import check_admin_kill
+
+    for kind in ("admin_kill", "node_failure", "ok"):
+        c = check_admin_kill({"classification": kind, "action": "retreat", "n_deaths": 1,
+                              "n_hosts": 1, "n_undated": 0})
+        assert c.evidence["enforced"] is False
+
+
+def test_the_kill_verdict_REACHES_the_sentinel_report():
+    """The verdict was computed into the inputs dict and read by NO check — so it never reached the
+    report, the severity, or the phone alert. This is the wiring lock."""
+    from scripts.sentinel import evaluate_health
+
+    report = evaluate_health({
+        "exit_code": 0,
+        "kill_verdict": {"classification": "admin_kill", "action": "retreat", "n_deaths": 20,
+                         "n_hosts": 10, "n_undated": 0},
+    })
+    names = {c.name for c in report.checks}
+    assert "admin_kill" in names
+    assert report.severity == "CRITICAL"
+
+
 # --- integration with the sentinel's report ---------------------------------------------------
 
 def test_a_LAPTOP_run_supplies_none_of_these_inputs_and_gets_none_of_the_checks():

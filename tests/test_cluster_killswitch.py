@@ -274,3 +274,82 @@ def test_governor_and_retreat_compose_monotonically():
         cores, _ = plan_footprint(free_cores=12_000, pending_jobs=0, retreat_cap_cores=cap)
         assert prev is None or cores < prev
         prev = cores
+
+
+def test_UNDATED_rows_cannot_masquerade_as_a_burst(caplog):
+    """A row with no ``ts`` must never be counted as "within the window" (deep review #56).
+
+    The jobscript's epilogue trap emitted ``task/host/gpu/rc/secs`` and NO timestamp, while
+    ``_recent`` admitted any row whose ``ts`` was missing. The 300s window was therefore INERT on
+    every real ledger: a whole campaign's scattered, unrelated failures read as one burst.
+    MEASURED before the fix — 12 ordinary deaths spread over 20 DAYS across 6 hosts classified as
+    ``admin_kill`` -> ``retreat``, which halves the core cap AND writes the incident file that blocks
+    all submission until a human clears it. Over a 23-day campaign that false positive was close to
+    certain, and it would have fired unattended.
+
+    Note the asymmetry this module is built around (see its docstring): a false negative costs the
+    Myriad account. So undated rows are excluded from the burst evidence but the exclusion is
+    COUNTED and WARNED — never silent."""
+    import logging
+
+    now = 1_700_000_000.0
+    day = 86_400.0
+
+    # exactly the shape the jobscript used to emit: no "ts"
+    undated = [{"task": i, "host": f"node-{i % 6:02d}", "rc": 1, "secs": 900.0} for i in range(12)]
+    with caplog.at_level(logging.WARNING):
+        v = classify_task_deaths(undated, now=now, current_core_cap=636)
+    assert v.classification == "ok" and v.action == "continue", (
+        f"12 undated deaths were treated as a burst: {v.classification}/{v.action}"
+    )
+    assert v.n_undated == 12
+    assert v.new_core_cap is None, "an undated ledger must not trigger a cap retreat"
+    assert "killswitch_UNDATED_EPILOGUE_ROWS" in caplog.text, "the degradation must be LOUD"
+
+    # the SAME events, correctly timestamped days apart, are also benign
+    spread = [dict(e, ts=now - (20.0 - i * 1.5) * day) for i, e in enumerate(undated)]
+    v_spread = classify_task_deaths(spread, now=now, current_core_cap=636)
+    assert v_spread.classification == "ok" and v_spread.n_undated == 0
+
+    # and a GENUINE burst is still caught — the fix must not blind the detector
+    burst = [{"task": i, "host": f"node-{i % 5:02d}", "rc": 137, "secs": 120.0, "ts": now - i * 20.0}
+             for i in range(10)]
+    v_burst = classify_task_deaths(burst, now=now, current_core_cap=636)
+    assert v_burst.classification == "admin_kill" and v_burst.action == "retreat"
+    assert v_burst.new_core_cap == 318 and v_burst.n_undated == 0
+
+    # a non-numeric ts is undated too, not a crash
+    junk = [{"task": 1, "host": "n1", "rc": 1, "secs": 5.0, "ts": "not-a-number"}]
+    assert classify_task_deaths(junk, now=now).n_undated == 1
+
+
+def test_jobscript_epilogue_stamps_a_timestamp():
+    """The emitter must write ``ts`` — the burst window is meaningless without it (#56)."""
+    import json as _json
+    import re
+
+    from src.cluster.jobscript import render_jobscript
+
+    txt = render_jobscript(name="arr", n_tasks=2, remote_root="/scratch/x/run", gold_dir="/scratch/x/gold")
+    line = next(ln for ln in txt.splitlines() if "epilogue.jsonl" in ln)
+    # Asserted as an INVARIANT (ts is stamped from date) rather than as one exact command string:
+    # this previously pinned `$(date +%s)` verbatim, which made the emitter un-hardenable.
+    assert '\\"ts\\":$(date +%s' in line, f"epilogue trap does not stamp ts: {line}"
+
+    # the emitted line must still be VALID JSON once the shell expands it
+    tpl = re.search(r'echo "(.*)" >>', line).group(1).replace('\\"', '"')
+    cmd = re.search(r'"ts":(\$\(date[^)]*\))', tpl).group(1)   # whatever the ts command now is
+    base = (tpl.replace("${SGE_TASK_ID}", "7").replace("$(hostname)", "node-a1")
+               .replace("${GPUINFO}", "A100").replace("${RC}", "137")
+               .replace("${SECONDS}", "120"))
+    row = _json.loads(base.replace(cmd, "1769472000"))
+    assert set(row) == {"task", "host", "gpu", "rc", "secs", "ts"}
+    assert isinstance(row["ts"], int)
+
+    # ...AND it must still be valid JSON when `date` is UNAVAILABLE and the substitution yields
+    # nothing. Without a numeric fallback the row reads `"ts":` with no value, `read_epilogue`
+    # discards it as a torn line, and the death record `ts` exists to timestamp is silently LOST —
+    # reproduced 2026-07-26 under a bash with no MSYS PATH, where `date` is simply absent.
+    assert "|| echo 0" in cmd, f"ts command has no numeric fallback: {cmd}"
+    degraded = _json.loads(base.replace(cmd, "0"))
+    assert degraded["ts"] == 0 and isinstance(degraded["ts"], int)

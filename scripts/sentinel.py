@@ -641,7 +641,7 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     g = inputs.get
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
-                "rung_targets", "env_fp_labels")):
+                "rung_targets", "env_fp_labels", "kill_verdict")):
         return []
     from src.cluster import campaign_health as ch
 
@@ -663,6 +663,10 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("kill_verdict") is not None:
+        # The CONSUMER of the admin-kill verdict the gatherer computes. Without this the verdict sits
+        # in the inputs dict and never reaches the report, the severity, or the phone alert.
+        out.append(ch.check_admin_kill(g("kill_verdict")))
     return out
 
 
@@ -1157,6 +1161,30 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
         if rows:
             attempts, failed = host_task_counts(rows)
             lane["host_attempts"], lane["host_failures"] = attempts, failed
+
+            # ADMIN-KILL VERDICT (deep review 2026-07-26, #57). `poll.sync_epilogue_ledgers` names
+            # TWO consumers of these rows — the bad-node check above and
+            # `killswitch.classify_task_deaths`. Only the first was ever wired: the classifier had NO
+            # production call site anywhere in the repo, and neither did `killswitch.write_incident`.
+            # The submission GATE (`incident_blocks_submission`) IS wired in
+            # `cluster/campaign.py`, so the architecture was a gate that nothing could ever trip —
+            # the automated Myriad-access guard could not fire.
+            # This computes the verdict from rows ALREADY read and reports it. It deliberately does
+            # NOT call `write_incident`: that blocks all submission until a human clears it, i.e. it
+            # can halt a 23-day campaign, which is an operator decision (flagged for Tamer), not
+            # something a read-only watcher should start doing on its own.
+            from src.cluster.killswitch import classify_task_deaths
+
+            verdict = classify_task_deaths(rows)
+            lane["kill_verdict"] = {
+                "classification": verdict.classification,
+                "action": verdict.action,
+                "reason": verdict.reason,
+                "n_deaths": verdict.n_deaths,
+                "n_hosts": verdict.n_hosts,
+                "n_undated": verdict.n_undated,
+                "enforced": False,  # detection only — no incident file is written from here
+            }
 
     # Substrate homogeneity over the SCORED leg only — the search leg legitimately explores, but a
     # device/thread mix inside the scored leg breaks the CRN pairing every paired contrast needs.
