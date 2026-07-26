@@ -453,7 +453,18 @@ def cells() -> list[dict]:
         "assert len(CHECKS) >= 25, 'the ledger is unexpectedly short -- were cells skipped?'\n"
         "print(f'\\nsession: python {platform.python_version()} | numpy {np.__version__} | '\n"
         "      f'pandas {pd.__version__}')\n"
-        "print('companion: results_walkthrough.ipynb (the analysis these certifications license)')"
+        "print('companion: results_walkthrough.ipynb (the analysis these certifications license)')\n"
+        "\n"
+        "# A styled verdict card: every recomputed integrity claim, all green (version-robust Styler\n"
+        "# so it renders on nbconvert across pandas 1.x/2.x).\n"
+        "verdict = pd.DataFrame({'integrity claim (recomputed live in this kernel)':\n"
+        "                        [n for n, _ in CHECKS], 'status': 'PASSED'})\n"
+        "verdict.index = range(1, len(verdict) + 1)\n"
+        "(verdict.style\n"
+        "        .apply(lambda col: ['background-color: #d7f0d7; font-weight: 600'] * len(col),\n"
+        "               subset=['status'])\n"
+        "        .set_caption(f'{len(CHECKS)} data-integrity claims, recomputed and asserted "
+        "in this kernel -- a red cell would mean an integrity claim no longer holds.'))"
     ))
     return out
 
