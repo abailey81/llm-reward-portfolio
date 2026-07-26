@@ -5473,6 +5473,9 @@ def beat_human_baseline(
     baseline_names: list[str] | tuple[str, ...],
     winner_arm: str | None = None,
     winner_n_trials: int | None = None,
+    n_boot: int = 2000,
+    alpha_one_sided: float = 0.05,
+    rng: Any | None = None,
 ) -> dict[str, Any]:
     """H1 — the Eureka-STYLE "did the LLM-designed reward beat the BEST hand-designed reward?" metric.
 
@@ -5520,6 +5523,15 @@ def beat_human_baseline(
         a sensitivity, not the headline;
       * ``winner_dsr`` / ``best_baseline_dsr`` — the median-per-seed DSR comparison (consistent with the
         floor gate's robust winner-DSR), deflated by ``winner_n_trials`` (LLM) vs N=1 (baseline).
+      * ``iut`` — N6 (``validity_tier``, ratification-pending): the SNOOP-FREE intersection-union test of
+        whether the LLM reward DOMINATES the hand-reward canon — does it beat EVERY member one-sided at
+        ``alpha_one_sided`` (== beat the *best* human, since best = max and beat-max ⟺ beat-all; berger1982iut)?
+        Carries ``iut_pvalue`` (= the MAX over the per-baseline one-sided leg p-values), ``dominates_canon``
+        (the verdict; requires every member testable), and the per-baseline ``dominance_profile``
+        (effect / one-sided p / verdict ∈ {dominates, ahead_ns, behind, not_testable}). NO comparator is ever
+        selected, so there is nothing to snoop — this dissolves the White-2000 snoop that keeps the
+        max-selection above REPORT-ONLY, and needs no baseline validation-roll (the campaign archives
+        ``val_fitness=NaN``). Reuses the H2 paired seed bootstrap so H1 and the headline share one inference.
 
     Degrades gracefully to ``{"status": "skipped", "reason": ...}`` when the winner arm or all configured
     baselines are absent from ``records`` (e.g. the baseline stage was not run, or a records-only window).
@@ -5699,6 +5711,70 @@ def beat_human_baseline(
             np.median([deflated_sharpe_ratio(np.asarray(v, dtype=float).ravel(), 1) for v in best_base_vecs])
         )
 
+    # --- N6 (validity_tier, ratification-pending): does the LLM reward DOMINATE the hand-reward canon? ---
+    # The intuitive claim "the LLM beats the BEST human-crafted reward" made PRECISE and SNOOP-FREE. The best
+    # human is the pointwise MAX over the canon, and (LLM > max) <=> (LLM beats EVERY member); so requiring the
+    # LLM to beat all N baselines — each one-sided at alpha — is an INTERSECTION-UNION TEST (Berger 1982): the
+    # IUT p-value is the MAX over the per-baseline one-sided p-values, and the LLM "dominates the canon" iff
+    # every leg rejects. NO comparator is ever selected, so there is nothing to snoop — this DISSOLVES the
+    # White-2000 data-snoop that keeps the max-selection above report-only, WITHOUT the fragile baseline
+    # val-roll the val-select framing needed (the campaign archives val_fitness=NaN). Reuses the SAME paired
+    # per-seed bootstrap as the H2 legs (paired_seed_difference_test over shared seeds, iqm statistic) so H1
+    # and the headline share one inference tool. Conservative by design (the searched LLM's DSR is deflated by
+    # N=winner_n_trials, each hand reward by N=1 — the human bar is conservatively HIGH). Report-only until the
+    # validity tier is ratified; the per-baseline dominance PROFILE is the honest structure beneath the binary.
+    from src.inference.bootstrap import iqm as _iqm, paired_seed_difference_test as _paired_test
+    _iut_rng = rng if rng is not None else np.random.default_rng(0)
+    _w_seed = _seed_scores(records, head, _sr)                # winner arm: {seed -> annualized test Sharpe}
+    iut_legs: list[dict[str, Any]] = []
+    for name in names:
+        _b_seed = _seed_scores(records, f"baseline_{name}", _sr)
+        _common = sorted(set(_w_seed) & set(_b_seed))
+        if len(_common) < 2:
+            iut_legs.append({
+                "baseline": name, "present": bool(_b_seed), "n_seeds": len(_common),
+                "effect": None, "pvalue_one_sided": None, "beaten": None,
+                "verdict": "not_testable",
+                "reason": "no shared test seed" if not _b_seed else "only 1 shared test seed (need >= 2)",
+            })
+            continue
+        _a = np.asarray([_w_seed[s] for s in _common], dtype=float)
+        _bb = np.asarray([_b_seed[s] for s in _common], dtype=float)
+        _res = _paired_test(_a, _bb, statistic=_iqm, n_boot=n_boot, rng=_iut_rng)
+        _eff = float(_res["effect"])
+        _p1 = float(_res["pvalue_one_sided_greater"])
+        _beaten = bool(_eff > 0.0 and _p1 <= alpha_one_sided)
+        iut_legs.append({
+            "baseline": name, "present": True, "n_seeds": len(_common),
+            "effect": _eff, "pvalue_one_sided": _p1, "beaten": _beaten,
+            # 3-way honest profile from the single LLM-vs-baseline leg: dominated / ahead-but-n.s. / behind.
+            "verdict": ("dominates" if _beaten else ("ahead_ns" if _eff > 0.0 else "behind")),
+        })
+    _testable = [lg for lg in iut_legs if lg.get("pvalue_one_sided") is not None]
+    _all_present = bool(len(_testable) == len(names) and len(names) > 0)
+    _iut_p = max((lg["pvalue_one_sided"] for lg in _testable), default=None)   # IUT p = MAX leg p (Berger 1982)
+    _dominates = bool(_all_present and _testable and all(lg.get("beaten") for lg in _testable))
+    iut_block = {
+        "test": "llm_dominates_hand_reward_canon",
+        "claim": "the LLM-designed reward beats the BEST human-crafted reward (dominates the full hand-reward canon)",
+        "method": "intersection_union_over_canon",   # berger1982iut: beat every member <=> beat the max (the best)
+        "snoop_free": True,                           # no comparator selected -> nothing to snoop (cf. white2000reality)
+        "ref": ["berger1982iut", "white2000reality"],
+        "alpha_one_sided": float(alpha_one_sided),
+        "n_baselines": len(names),
+        "n_testable": len(_testable),
+        "all_baselines_present": _all_present,        # dominance is certifiable ONLY when every member is testable
+        "iut_pvalue": _iut_p,                         # the MAX one-sided leg p (None if none testable)
+        "dominates_canon": _dominates,                # True iff EVERY member beaten one-sided at alpha AND all present
+        "n_significantly_beaten": int(sum(1 for lg in _testable if lg.get("beaten"))),
+        "n_ahead_not_significant": int(sum(1 for lg in _testable if lg.get("verdict") == "ahead_ns")),
+        "n_behind_on_point_estimate": int(sum(1 for lg in _testable if lg.get("verdict") == "behind")),
+        "dominance_profile": iut_legs,                # per-baseline effect + one-sided p + verdict (the honest structure)
+        "note": ("dominance is certifiable ONLY when every canon member has >= 2 shared test seeds; a missing or "
+                 "under-seeded member sets all_baselines_present=false -> report-only, never a dominance claim"),
+        "status": "registered_pending_supervisor_ratification (validity_tier N6)",
+    }
+
     return {
         "status": "ok",
         "winner_arm": head,
@@ -5740,6 +5816,9 @@ def beat_human_baseline(
             if (winner_dsr is not None and best_baseline_dsr is not None) else None
         ),
         "baselines": per_baseline,
+        # N6 (validity_tier, ratification-pending): the snoop-free IUT — does the LLM reward DOMINATE the
+        # entire hand-reward canon (== beat the best human, made precise)? + the per-baseline dominance profile.
+        "iut": iut_block,
     }
 
 
@@ -5810,6 +5889,38 @@ def h1_beat_human_markdown(h1: dict[str, Any]) -> str:
             f"| {name}{marker} | {e.get('present')} | {e.get('n_seeds', 0)} | "
             f"{_f(e.get('median_sharpe'))} | {_f(e.get('val_sharpe'))} |"
         )
+
+    # N6 (validity_tier, ratification-pending): the snoop-free IUT — does the LLM reward DOMINATE the canon?
+    iut = h1.get("iut") or {}
+    if iut.get("n_testable"):
+        dom = iut.get("dominates_canon")
+        verdict = "DOMINATES the hand-reward canon" if dom else "does NOT dominate the canon"
+        cert = "" if iut.get("all_baselines_present") else (
+            "  ⚠️ *(not every canon member is testable — dominance is NOT certifiable here; report-only)*"
+        )
+        out += [
+            "",
+            f"### N6 — does the LLM reward beat the BEST human? (snoop-free IUT over the canon; Berger 1982) "
+            f"— **{verdict}**",
+            "",
+            f"The best hand reward is the pointwise max over the canon, and beating the max ⟺ beating *every* "
+            f"member; so the LLM must beat all {iut.get('n_baselines')} hand rewards, each one-sided at "
+            f"α={_f(iut.get('alpha_one_sided'), 3)} — an intersection-union test that selects **no** comparator "
+            f"(nothing to snoop; this is the snoop-free reading of “beat the best human”). "
+            f"**IUT p = max leg p = {_f(iut.get('iut_pvalue'), 4)}.**{cert}",
+            f"- **Dominance profile:** {iut.get('n_significantly_beaten')}/{iut.get('n_testable')} "
+            f"significantly beaten · {iut.get('n_ahead_not_significant')} ahead (n.s.) · "
+            f"{iut.get('n_behind_on_point_estimate')} behind (the LLM DSR is deflated by N={h1.get('winner_n_trials')}; "
+            "each hand reward by N=1 — the human bar is conservatively high).",
+            "",
+            "| hand reward | Δ Sharpe (LLM − human) | one-sided p | verdict |",
+            "|---|---|---|---|",
+        ]
+        for lg in iut.get("dominance_profile", []):
+            out.append(
+                f"| {lg.get('baseline')} | {_f(lg.get('effect'), 4)} | {_f(lg.get('pvalue_one_sided'), 4)} | "
+                f"{lg.get('verdict')} |"
+            )
     out.append("")
     return "\n".join(out)
 

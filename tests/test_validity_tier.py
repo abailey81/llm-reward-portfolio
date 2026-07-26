@@ -37,14 +37,21 @@ def test_every_node_out_edges_sum_to_at_most_one():
         assert sum(outs.values()) <= 1.0 + 1e-9, (src, outs)
 
 
-def test_snooped_h1_excluded_but_desnooped_h1_is_node_n6():
-    # 2026-07-26 (Tamer, nothing-frozen): H1 PROMOTED to a confirmatory node via the de-snoop + full canon.
+def test_snooped_h1_excluded_but_h1_is_confirmatory_node_n6_via_iut():
+    # 2026-07-26 (Tamer, nothing-frozen + "make it smart + sound"): H1 PROMOTED to a confirmatory node via a
+    # SNOOP-FREE intersection-union test over the full canon (beat EVERY member one-sided at alpha == beat the
+    # best human, since best = max), SUPERSEDING the val-select framing (dead code: the campaign archives
+    # val_fitness=NaN, so beat_human_baseline already fell back to the test-snoop) — the IUT selects no
+    # comparator, so there is nothing to snoop and no fragile baseline val-roll is needed.
     t = _tier()
     assert "H1_snooped_test_max" in t["excludes"]   # the max-over-the-sealed-TEST snoop has no valid p-value
-    assert "N6_h1" in t["nodes"]                     # the DE-SNOOPED (val-selected) H1 IS a confirmatory node
+    assert "N6_h1" in t["nodes"]                     # H1 IS a confirmatory node (snoop-free IUT)
     n6 = t["nodes"]["N6_h1"]
-    assert n6["selection"] == "val" and n6["scoring"] == "sealed_test"   # de-snoop: champion on val, scored on test
-    assert n6["champion"] == "max_over_h1_baselines_canon"               # the FULL canon champion (not a 4-subset)
+    assert n6["test"] == "llm_beats_best_human_reward"
+    assert n6["method"] == "intersection_union_over_canon"       # berger1982iut: beat-all <=> beat-best, no selection
+    assert n6["comparator"] == "full_11name_hand_reward_canon"   # the FULL canon (not a 4-subset)
+    assert "selection" not in n6                                 # NO comparator selected -> nothing to snoop (dissolved)
+    assert n6["endpoint"] == "deflated_sharpe"
 
 
 def test_every_tier_node_is_reachable_from_the_headline():

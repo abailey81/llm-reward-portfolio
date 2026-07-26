@@ -349,6 +349,73 @@ def test_beat_human_baseline_llm_loses_to_all() -> None:
     assert h1["norm_improvement"] is not None and h1["norm_improvement"] < 0.0
 
 
+# --------------------------------------------------------------------------- #
+# N6 (validity_tier) — the snoop-free IUT: does the LLM reward DOMINATE the      #
+# hand-reward canon (== beat the BEST human, made precise)? Berger 1982.         #
+# --------------------------------------------------------------------------- #
+def _iut_seeded(arm: str, base_mu: float, *, n_seeds: int = 10, jitter: float = 0.0015, seed0: int = 0) -> list[dict]:
+    """Per-seed records whose per-seed Sharpe VARIES across seeds (real across-seed variance for the paired
+    bootstrap), with the arm's mean Sharpe set by ``base_mu``. Shared seed indices 0..n_seeds-1 across arms ->
+    CRN-paired (unlike the deterministic ``_seeded_test_records`` which forces zero across-seed variance)."""
+    out: list[dict] = []
+    for s in range(n_seeds):
+        rng = np.random.default_rng(7000 + seed0 + s)
+        mu_s = base_mu + float(rng.standard_normal()) * jitter   # per-seed mean jitter -> across-seed Sharpe spread
+        v = rng.standard_normal(250)
+        v = (v - v.mean()) / v.std(ddof=1) * 0.02 + mu_s         # force sd=0.02, mean=mu_s
+        out.append(_test_record(arm, s, v))
+    return out
+
+
+def test_iut_dominates_canon_when_llm_beats_every_member() -> None:
+    """N6: the LLM significantly beats EVERY hand reward => dominates_canon True; IUT p (max leg p) <= alpha."""
+    records = _iut_seeded("distributional", 0.012)                       # clearly the highest Sharpe
+    for i, name in enumerate(_H1_BASELINES):
+        records += _iut_seeded(f"baseline_{name}", 0.002 + 0.0008 * i, seed0=100 * (i + 1))
+    h1 = AC.beat_human_baseline(records, baseline_names=_H1_BASELINES, winner_arm="distributional",
+                                winner_n_trials=30, n_boot=2000)
+    iut = h1["iut"]
+    assert iut["test"] == "llm_dominates_hand_reward_canon"
+    assert iut["all_baselines_present"] is True
+    assert iut["n_significantly_beaten"] == len(_H1_BASELINES)
+    assert iut["dominates_canon"] is True
+    assert iut["iut_pvalue"] is not None and iut["iut_pvalue"] <= 0.05
+    assert len(iut["dominance_profile"]) == len(_H1_BASELINES)
+    assert all(lg["verdict"] == "dominates" for lg in iut["dominance_profile"])
+
+
+def test_iut_does_not_dominate_when_one_member_beats_llm() -> None:
+    """N6: one hand reward beats the LLM => dominates_canon False even though the LLM beats the rest;
+    IUT p is dominated by the losing leg (max over legs) => > alpha. The honest profile flags the loss."""
+    records = _iut_seeded("distributional", 0.007)
+    for i, name in enumerate(_H1_BASELINES[:-1]):                        # 3 weak baselines the LLM beats
+        records += _iut_seeded(f"baseline_{name}", 0.002 + 0.0008 * i, seed0=100 * (i + 1))
+    records += _iut_seeded(f"baseline_{_H1_BASELINES[-1]}", 0.013, seed0=900)   # 1 STRONG -> beats the LLM
+    h1 = AC.beat_human_baseline(records, baseline_names=_H1_BASELINES, winner_arm="distributional",
+                                winner_n_trials=30, n_boot=2000)
+    iut = h1["iut"]
+    assert iut["all_baselines_present"] is True
+    assert iut["dominates_canon"] is False
+    assert iut["n_behind_on_point_estimate"] >= 1
+    strong = next(lg for lg in iut["dominance_profile"] if lg["baseline"] == _H1_BASELINES[-1])
+    assert strong["beaten"] is False and strong["verdict"] == "behind"
+    assert iut["iut_pvalue"] is not None and iut["iut_pvalue"] > 0.05
+
+
+def test_iut_incomplete_when_a_member_missing() -> None:
+    """N6: a canon member with no test records => dominance NOT certifiable (all_baselines_present False)."""
+    records = _iut_seeded("distributional", 0.012)
+    for i, name in enumerate(_H1_BASELINES[:-1]):                        # only 3 of 4 baselines present
+        records += _iut_seeded(f"baseline_{name}", 0.003, seed0=100 * (i + 1))
+    h1 = AC.beat_human_baseline(records, baseline_names=_H1_BASELINES, winner_arm="distributional",
+                                winner_n_trials=30, n_boot=2000)
+    iut = h1["iut"]
+    assert iut["all_baselines_present"] is False
+    assert iut["dominates_canon"] is False                              # cannot certify with a missing member
+    missing = next(lg for lg in iut["dominance_profile"] if lg["baseline"] == _H1_BASELINES[-1])
+    assert missing["present"] is False and missing["verdict"] == "not_testable"
+
+
 def test_beat_human_baseline_skips_when_baselines_absent() -> None:
     """No baseline_<name> records => graceful skip (the baseline stage was not run)."""
     records = _seeded_test_records("distributional", mu=0.01)  # winner present, no baselines

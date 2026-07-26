@@ -663,6 +663,7 @@
   volume  = {13},
   pages   = {281--305},
   year    = {2012},
+  note    = {Grade A. Random search > grid search (the proof); the H4a model-free floor. JMLR 13:281--305 VERIFIED 2026-07-26.},
 }
 
 % Snoek, Larochelle & Adams -- Practical Bayesian Optimization (the H4b GP-EI method; corrects the false Optuna/TPE label).
@@ -2770,4 +2771,141 @@
   journal = {Data}, volume = {4}, number = {3}, pages = {110}, year = {2019},
   doi = {10.3390/data4030110},
   note = {Grade A. RL-in-finance survey (canon-reflects-practice anchor). VERIFIED 2026-07-26.},
+}
+
+% ============================================================================ %
+% COMPARATOR-CANON research (2026-07-26, first-hand-verified) — the H4 black-box %
+% search toolkit (A) + the allocator-benchmark method cites (B). Supports the    %
+% registered H4 optimizer expansion (random/GP-EI/TPE/CMA-ES; multi-fidelity     %
+% pruned as inapplicable under matched-candidate-count) and closes the allocator %
+% citation-integrity gap (6 method papers were in strategies.py docstrings only).%
+% rockafellar2000cvar / chekhlov2005drawdown / kelly1956information /            %
+% bergstra2012randomsearch / markowitz1952portfolio / ledoit2004honey /          %
+% demiguel2009optimal already present — NOT duplicated here.                     %
+% ============================================================================ %
+
+% (A) H4 search-baseline canon — the derivative-free-optimization toolkit.
+@article{hansen2001cmaes,
+  author = {Hansen, Nikolaus and Ostermeier, Andreas},
+  title = {Completely Derandomized Self-Adaptation in Evolution Strategies},
+  journal = {Evolutionary Computation}, volume = {9}, number = {2}, pages = {159--195}, year = {2001},
+  doi = {10.1162/106365601750190398},
+  note = {Grade A (PubMed 11382355). CMA-ES original -- the H4 evolution-strategy search champion (low-D continuous DFO gold standard). VERIFIED 2026-07-26.},
+}
+@misc{hansen2016cmatutorial,
+  author = {Hansen, Nikolaus}, title = {The {CMA} Evolution Strategy: A Tutorial},
+  year = {2016}, howpublished = {arXiv preprint arXiv:1604.00772},
+  note = {Grade A. Standard modern CMA-ES reference/implementation anchor (pycma). VERIFIED first-hand 2026-07-26.},
+}
+@inproceedings{bergstra2011tpe,
+  author = {Bergstra, James and Bardenet, R{\'e}mi and Bengio, Yoshua and K{\'e}gl, Bal{\'a}zs},
+  title = {Algorithms for Hyper-Parameter Optimization},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS) 24}, pages = {2546--2554}, year = {2011},
+  note = {Grade A. Tree-structured Parzen Estimator (TPE) -- the density-ratio H4 search arm. Cite ONLY if a real TPE arm is implemented. VERIFIED 2026-07-26.},
+}
+@inproceedings{akiba2019optuna,
+  author = {Akiba, Takuya and Sano, Shotaro and Yanase, Toshihiko and Ohta, Takeru and Koyama, Masanori},
+  title = {Optuna: A Next-generation Hyperparameter Optimization Framework},
+  booktitle = {Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)}, year = {2019},
+  doi = {10.1145/3292500.3330701},
+  note = {Grade A. arXiv:1907.10902. Software vehicle for the TPE arm (provenance), not a method to beat. VERIFIED first-hand 2026-07-26.},
+}
+@article{shahriari2016bo,
+  author = {Shahriari, Bobak and Swersky, Kevin and Wang, Ziyu and Adams, Ryan P. and de Freitas, Nando},
+  title = {Taking the Human Out of the Loop: A Review of Bayesian Optimization},
+  journal = {Proceedings of the IEEE}, volume = {104}, number = {1}, pages = {148--175}, year = {2016},
+  doi = {10.1109/JPROC.2015.2494218},
+  note = {Grade A. BO survey; supports the small-budget-BO discussion (H4b). VERIFIED 2026-07-26.},
+}
+@article{storn1997de,
+  author = {Storn, Rainer and Price, Kenneth},
+  title = {Differential Evolution -- A Simple and Efficient Heuristic for Global Optimization over Continuous Spaces},
+  journal = {Journal of Global Optimization}, volume = {11}, number = {4}, pages = {341--359}, year = {1997},
+  doi = {10.1023/A:1008202821328},
+  note = {Grade A. DE; pruned from the H4 core (budget-hungry) -> optional larger-budget dev sensitivity. VERIFIED 2026-07-26.},
+}
+@article{li2018hyperband,
+  author = {Li, Lisha and Jamieson, Kevin and DeSalvo, Giulia and Rostamizadeh, Afshin and Talwalkar, Ameet},
+  title = {Hyperband: A Novel Bandit-Based Approach to Hyperparameter Optimization},
+  journal = {Journal of Machine Learning Research}, volume = {18}, number = {185}, pages = {1--52}, year = {2018},
+  note = {Grade A. Multi-fidelity; INAPPLICABLE under the matched-candidate-count protocol -> future work (cheap-fidelity reward search). VERIFIED 2026-07-26.},
+}
+@inproceedings{falkner2018bohb,
+  author = {Falkner, Stefan and Klein, Aaron and Hutter, Frank},
+  title = {{BOHB}: Robust and Efficient Hyperparameter Optimization at Scale},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning (ICML)},
+  series = {PMLR}, volume = {80}, pages = {1437--1446}, year = {2018},
+  note = {Grade A. BO+Hyperband; INAPPLICABLE (no fidelity axis under matched candidate counts) -> future work. VERIFIED 2026-07-26.},
+}
+@article{kirkpatrick1983sa,
+  author = {Kirkpatrick, Scott and Gelatt, C. Daniel and Vecchi, Mario P.},
+  title = {Optimization by Simulated Annealing},
+  journal = {Science}, volume = {220}, number = {4598}, pages = {671--680}, year = {1983},
+  doi = {10.1126/science.220.4598.671},
+  note = {Grade A. SA; pruned from the H4 core (budget-hungry, dominated by CMA-ES at 30 evals). VERIFIED 2026-07-26.},
+}
+@inproceedings{kennedy1995pso,
+  author = {Kennedy, James and Eberhart, Russell},
+  title = {Particle Swarm Optimization},
+  booktitle = {Proceedings of the IEEE International Conference on Neural Networks}, pages = {1942--1948}, year = {1995},
+  doi = {10.1109/ICNN.1995.488968},
+  note = {Grade A. PSO; pruned from the H4 core (population-hungry, dominated at low budget). VERIFIED 2026-07-26.},
+}
+@article{nelder1965simplex,
+  author = {Nelder, John A. and Mead, Roger},
+  title = {A Simplex Method for Function Minimization},
+  journal = {The Computer Journal}, volume = {7}, number = {4}, pages = {308--313}, year = {1965},
+  doi = {10.1093/comjnl/7.4.308},
+  note = {Grade A. Local direct search; pruned from the H4 core (weak global optimizer on noisy multimodal fitness). VERIFIED 2026-07-26.},
+}
+
+% (B) Allocator-benchmark method cites — closing the strategies.py docstring-only gap.
+@article{choueifaty2008maxdiv,
+  author = {Choueifaty, Yves and Coignard, Yves},
+  title = {Toward Maximum Diversification},
+  journal = {The Journal of Portfolio Management}, volume = {35}, number = {1}, pages = {40--51}, year = {2008},
+  doi = {10.3905/JPM.2008.35.1.40},
+  note = {Grade A. Source for the maximum_diversification allocator. VERIFIED 2026-07-26.},
+}
+@article{maillard2010erc,
+  author = {Maillard, S{\'e}bastien and Roncalli, Thierry and Teiletche, J{\'e}r{\^o}me},
+  title = {The Properties of Equally Weighted Risk Contribution Portfolios},
+  journal = {The Journal of Portfolio Management}, volume = {36}, number = {4}, pages = {60--70}, year = {2010},
+  doi = {10.3905/jpm.2010.36.4.060},
+  note = {Grade A. ERC / risk_parity foundation (PRIMARY over spinu2013riskparity). VERIFIED 2026-07-26.},
+}
+@article{spinu2013riskparity,
+  author = {Spinu, Florin},
+  title = {An Algorithm for Computing Risk Parity Weights},
+  journal = {SSRN Electronic Journal}, year = {2013},
+  doi = {10.2139/ssrn.2297383},
+  note = {Grade B (SSRN working paper; widely cited). Convex risk_parity ALGORITHM used in strategies.py; supporting cite to maillard2010erc. VERIFIED 2026-07-26.},
+}
+@article{lopezdeprado2016hrp,
+  author = {L{\'o}pez de Prado, Marcos},
+  title = {Building Diversified Portfolios that Outperform Out of Sample},
+  journal = {The Journal of Portfolio Management}, volume = {42}, number = {4}, pages = {59--69}, year = {2016},
+  doi = {10.3905/jpm.2016.42.4.059},
+  note = {Grade A. HRP source (the dedicated HRP paper; distinct from lopezdeprado2018afml, the book). VERIFIED 2026-07-26.},
+}
+@article{clarke2011minvar,
+  author = {Clarke, Roger and de Silva, Harindra and Thorley, Steven},
+  title = {Minimum-Variance Portfolio Composition},
+  journal = {The Journal of Portfolio Management}, volume = {37}, number = {2}, pages = {31--45}, year = {2011},
+  doi = {10.3905/jpm.2011.37.2.031},
+  note = {Grade A. Source for the minimum_variance allocator. VERIFIED 2026-07-26.},
+}
+@article{jegadeesh1993momentum,
+  author = {Jegadeesh, Narasimhan and Titman, Sheridan},
+  title = {Returns to Buying Winners and Selling Losers: Implications for Stock Market Efficiency},
+  journal = {The Journal of Finance}, volume = {48}, number = {1}, pages = {65--91}, year = {1993},
+  doi = {10.1111/j.1540-6261.1993.tb04702.x},
+  note = {Grade A. Source for cross_sectional_momentum. VERIFIED 2026-07-26.},
+}
+@article{black1992litterman,
+  author = {Black, Fischer and Litterman, Robert},
+  title = {Global Portfolio Optimization},
+  journal = {Financial Analysts Journal}, volume = {48}, number = {5}, pages = {28--43}, year = {1992},
+  doi = {10.2469/faj.v48.n5.28},
+  note = {Grade A. OPTIONAL -- documents BL as an EXCLUDED allocator (infeasible on the anonymized panel: no market caps / no views). VERIFIED 2026-07-26.},
 }

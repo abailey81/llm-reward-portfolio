@@ -108,16 +108,22 @@ discipline, or Okhrati's depth-over-breadth. Each element below is judged agains
   stronger: *reward-content matters (H2) AND it is the content not the format (N5) AND iteration helps (H3)
   AND it beats naive search (H4).*
 
-**CANDIDATE — upgradeable only after a de-snoop fix (registered, ratification-pending):**
-- **H1 (beat-the-human)** is descriptive-only *solely* because the four hand-designed baselines are
-  max-selected on the same sealed leg they are scored on (a test-set snoop → no valid p-value). That snoop
-  is FIXABLE without new data: select the **best-of-four human rewards on the VALIDATION split** (a pinned
-  argmax-over-4, mirroring the winner-selection protocol), then contrast the LLM's val-selected winner
-  against that single val-selected human champion **on the sealed test**. Both sides are then selected on
-  val and scored on test → the contrast is clean and confirmatory-eligible. This would add a node
-  **N6 = "the method beats hand-crafted human rewards."** Registered here as a CANDIDATE, not yet a node,
-  because (i) it is tangential to the feedback-channel headline (Okhrati depth-over-breadth), and (ii) the
-  de-snoop is a genuine change to H1's definition that a supervisor should ratify. Flagged for ratification.
+**CANDIDATE — H1 promoted via a SNOOP-FREE reformulation (registered, ratification-pending):**
+- **H1 (beat-the-human)** is descriptive-only *solely* because "the best hand-reward" is named by the MAX over
+  the same sealed leg the LLM is scored on (a comparator test-snoop → no valid p-value; White 2000). The
+  SMART, non-fragile fix (Tamer 2026-07-26, "make it smart + sound") needs no new data and no baseline
+  validation-roll: **beating the best hand-reward is logically identical to beating EVERY member of the
+  canon** — the best is the pointwise max, so beat-max ⟺ beat-all. Requiring the LLM to beat all 11, each
+  one-sided at α, is an **intersection-union test** (Berger 1982) that selects NO comparator, so there is
+  nothing to snoop; the IUT p-value is the MAX over the per-baseline one-sided leg p's, and the LLM
+  "DOMINATES the canon" iff every member is beaten. This adds a node **N6 = "the LLM reward DOMINATES the
+  hand-reward canon (== beats the best human, made precise)"**, reported with the honest per-baseline
+  dominance profile (dominates / ahead-n.s. / behind). It SUPERSEDES the earlier val-select framing, which
+  was DEAD CODE (the campaign archives `val_fitness=NaN`, so `beat_human_baseline` already fell back to the
+  test-snoop) AND needed a fragile new baseline val-roll — the IUT **dissolves** the fragility instead of
+  patching it, and is consistent with the H2 co-primary IUTs (one shared inference tool). Registered as a
+  CANDIDATE (it changes H1's inferential definition → supervisor ratification); implemented + unit-tested in
+  `beat_human_baseline` (the `iut` block; `tests/test_analyze_campaign.py::test_iut_*`).
 
 **KEEP report-only — upgrading would VIOLATE the priorities or is infeasible (stated, not defaulted):**
 - **`factor_attribution` (BAB/low-vol pre-empt)** — a robustness DEFENCE ("your edge is just a known
@@ -138,7 +144,7 @@ discipline, or Okhrati's depth-over-breadth. Each element below is judged agains
   confirmatory tests" alternative that R101 flagged as *Okhrati's* call, not a unilateral upgrade.
 
 **Net:** two upgrades already in the tier (H3, H4) + one strong new one (N5 structure/content-over-format,
-implemented) + one ratification-pending candidate (N6 H1, de-snooped). Everything else stays report-only
+implemented) + one ratification-pending candidate (N6 H1, snoop-free IUT). Everything else stays report-only
 for a stated priority reason. This is "upgrade where it deepens the confirmatory validity story at zero
 headline cost; keep report-only where it is a sensitivity, a defence, a dead anchor, or a depth-analysis."
 
@@ -159,8 +165,9 @@ report-only secondary panel. The analysis + upgrade:
    a STRONGER human bar = a MORE impressive LLM win. And the design's deflation asymmetry — the LLM winner
    is searched / multiplicity-deflated (DSR over its true candidate count) while every hand-reward is
    un-searched / N=1 (`campaign.yaml:116-118`) — already FAVOURS the humans, so raising the human bar only
-   sharpens an already-conservative claim. Selection bias from the max-over-N is neutralised by the
-   val-selection (the N6 champion is argmax-on-validation, scored on the sealed test).
+   sharpens an already-conservative claim. Selection bias from the max-over-N is **DISSOLVED** by the IUT
+   reformulation: N6 selects no champion at all (it requires beating EVERY member — beat-all ⟺ beat-max),
+   so there is no order statistic to snoop (superseding the earlier val-select fix, which was dead code).
 3. **N6's comparator is therefore the FULL canon, not the 4** (registered in the N6 spec, this amendment).
 4. **Beyond 10 — pending the reward-canon deep-research (running).** Whether to expand the canon to the
    comprehensive literature toolkit (Calmar, Sterling, Omega, prospect-theory / CPT utility, risk-parity,
@@ -198,8 +205,10 @@ cherry-picking the confirmatory set on prototype hints would itself be a forking
   volatility targeting (`zhang2020drltrading`) — each literature-cited and first-hand-verified. Beating THIS
   is beating the accumulated wisdom of the field, not a strawman. TWO features make it CONSERVATIVE (hard
   for the LLM, so a win is non-fragile): every hand-reward is un-searched / DSR-deflated at N=1 while the LLM
-  winner still pays its full search-multiplicity penalty; and the DE-SNOOP (val-select the champion, score
-  on the sealed test) removes the max-over-N selection bias. NOVELTY: the lineage (Eureka / Text2Reward /
+  winner still pays its full search-multiplicity penalty; and the IUT reformulation (beat EVERY canon member —
+  NO champion is selected) removes the max-over-N selection bias ENTIRELY: there is no order statistic to snoop
+  (beat-all ⟺ beat-max, `berger1982iut`), so the conservative human bar is also a snoop-free one, and H1 needs
+  no fragile baseline validation-roll. NOVELTY: the lineage (Eureka / Text2Reward /
   REvolve) benchmarks against a SINGLE incumbent reward; a **canon-as-champion is, to our knowledge, a first**
   in the LLM-reward-design lineage — itself a contribution (framing for CH2/CH7).
 
