@@ -509,3 +509,65 @@ it forward would attach a pre-ratification rationale to a post-ratification desi
 **Whoever picks T1 up: do not implement the floor-30 pin until that decision is recorded.** The rest of
 T1 (freeing genuinely report-only units from the confirmatory rung denominator, and the regression test
 on sweep composition) is unaffected and still worth doing.
+
+---
+
+## ⛔ ROW 34 — `leg_aggregate`/`cross_model` was not merely UNWIRED, it was **UNWIREABLE**. Two defects fixed + locked (LOGIC-REVIEWER, 2026-07-26)
+
+**FEATURE/BUILD owns what remains — but read this first, because wiring it before today's fixes would
+have produced a confidently WRONG scientific result, not a crash.**
+
+`pooled_bound` is the registered cross-model bounded-effect statement (R86) and R101 reframed the
+headline around it, yet the module had no production caller. On inspecting it for wiring, **two
+independent defects were found, both of which fail SILENTLY into the same fabricated outcome**: every
+leg excluded, the pooled bound computed over ZERO legs, and the artifact reading *"all legs failed the
+T0 floor"* — a plausible-looking sentence that would have been entirely an artefact of the bug.
+
+**Defect 1 — ARCHIVE LAYOUT (fatal; the module could never read a real archive).**
+`per_seed_series` did `load_run(f"{arm}-s{seed}", root)`, assuming a FLAT `root/<arm>-s<seed>`. The real
+archive is TWO-level: the campaign hands `write_run` an ARM-level root
+(`src/cluster/run_one.py:108`), giving `test_<sfx>/<arm>/<arm>-s<seed>/` — verified first-hand on disk
+(`outputs/campaign_dryrun/test/distributional/distributional-s0`). Because
+`leg_results_for_synthesis` passes ONE root for BOTH contrasted arms, the flat assumption was not just
+wrong but **unsatisfiable**: no single `root` resolves both `distributional-s0` and `scalar-s0` when
+they sit in sibling arm directories. Every leg would have raised `FileNotFoundError` → caught as a leg
+failure → `t0_floor_pass: False`. **Why the green suite proved nothing:** the unit fixture wrote the
+same flat shape, so the code and the fixture agreed with each other and both disagreed with reality.
+Fixed (`root/<arm>`), and the fixture now mirrors the producer.
+
+**Defect 2 — SHARPE UNIT (the √252 trap flagged in the registry, now closed).**
+The per-seed Sharpe was per-period, ddof=1 (`rets.mean()/rets.std(ddof=1)`) while `floor_sharpe` — and
+every other Sharpe in the stack — is the annualised, ddof=0 `bootstrap.sharpe_ratio`. **Measured: a
+15.88× mismatch** (√252 = 15.87). Passing the real floor would have compared ~0.04 against ~0.6 and
+failed the floor for every leg. Fixed by delegating to the canonical estimator, which removes BOTH
+mismatches (annualisation *and* ddof) and leaves exactly one Sharpe definition in the codebase. The
+CVaR arrays that actually feed the pooled bound are untouched.
+
+**Both fixes are MUTATION-TESTED**, not merely green: reverting either one turns
+`tests/test_leg_aggregate.py` RED (verified, then restored). Two new locks —
+`test_flat_layout_is_refused_loudly` and `test_sharpe_is_the_canonical_annualised_estimator`.
+
+### What is LEFT for FEATURE/BUILD, with the contract now VERIFIED for you
+
+The leg root is **deterministically derivable** — no convention needs inventing:
+`run_campaign_cluster.resolve_leg_override` forces `--root-suffix leg_<sanitized label>` and applies it
+as `test_subdir = test_<sfx>`, so:
+
+```
+leg_roots = { label: Path(output_dir) / f"test_leg_{re.sub(r'[^a-z0-9_]', '_', label.lower())}" }
+```
+
+and `leg_results_for_synthesis(leg_roots, seeds, floor_sharpe)` then feeds `cross_model.sign_count` /
+`pooled_bound` / `permutation_test` directly — their input contract already matches its output.
+
+**ONE OPEN DECISION BLOCKS IT, and it is science, not plumbing → RAMIN/TAMER, not BUILD's to assume:**
+*what supplies `floor_sharpe`?* The docstring says "the T0 naive-benchmark floor (from the shared
+baseline records)", but `analyze_campaign.benchmark_floor` gates on **DSR against the benchmark suite**,
+not on a raw Sharpe threshold. These are different quantities. Whatever is chosen **must be annualised
+ddof=0** to match the fixed estimator — and please add a guard that REFUSES an implausibly small value
+(a per-period number), so the trap cannot return through the front door.
+
+**⚠ CONTINGENCY THE REGISTER DEPENDS ON.** R86/R101 make this a headline component. If the wiring is
+NOT completed before freeze, then registry row 34's closure **(b) — amend the register to withdraw the
+pooled-bound claim — becomes MANDATORY**, because a registered statement with no executable path is
+exactly the failure R16 already fixed once for `h2_conjunction`. Do not carry it into freeze unresolved.
