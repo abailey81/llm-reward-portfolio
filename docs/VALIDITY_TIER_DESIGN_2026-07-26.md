@@ -142,6 +142,34 @@ implemented) + one ratification-pending candidate (N6 H1, de-snooped). Everythin
 for a stated priority reason. This is "upgrade where it deepens the confirmatory validity story at zero
 headline cost; keep report-only where it is a sensitivity, a defence, a dead anchor, or a depth-analysis."
 
+## The H1 comparator — "why best of 4 only?" (Tamer, 2026-07-26)
+Tamer asked why H1 compares against only FOUR hand-designed rewards. The current design freezes a 4-name
+CORE — `raw_return`, `return_minus_variance`, `return_minus_cvar`, `differential_sharpe` (the pre-registered
+§1-H1 family) — while a broader 10-name `REWARD_CANON` (adding the differential-downside ratio, Markowitz
+utility, drawdown-penalty, Sortino downside, turnover-penalty, Kelly log-growth) already runs as a
+report-only secondary panel. The analysis + upgrade:
+
+1. **There is no good reason to cap the CONFIRMATORY comparator at 4.** The human champion (the strongest
+   hand-reward on THIS heavy-tailed panel) could lie OUTSIDE the core 4 — e.g. Kelly log-growth or the
+   differential-downside ratio may dominate differential-Sharpe under fat tails. "Beat the best of 4" is
+   weaker and invites the "you cherry-picked four weak baselines" critique; **"beat the best of the full
+   standard human-reward toolkit"** is the strong, non-fragile, Stefan-aligned claim.
+2. **The upgrade is FREE and STRICTLY MORE CONSERVATIVE.** The 10 canon rewards are ALREADY trained (the
+   secondary panel), so selecting the champion from all 10 costs NO extra compute. A larger champion pool =
+   a STRONGER human bar = a MORE impressive LLM win. And the design's deflation asymmetry — the LLM winner
+   is searched / multiplicity-deflated (DSR over its true candidate count) while every hand-reward is
+   un-searched / N=1 (`campaign.yaml:116-118`) — already FAVOURS the humans, so raising the human bar only
+   sharpens an already-conservative claim. Selection bias from the max-over-N is neutralised by the
+   val-selection (the N6 champion is argmax-on-validation, scored on the sealed test).
+3. **N6's comparator is therefore the FULL canon, not the 4** (registered in the N6 spec, this amendment).
+4. **Beyond 10 — pending the reward-canon deep-research (running).** Whether to expand the canon to the
+   comprehensive literature toolkit (Calmar, Sterling, Omega, prospect-theory / CPT utility, risk-parity,
+   …) so "the human toolkit" is complete and every member is literature-cited. Each added member costs one
+   trained baseline + one verified citation; the research returns the principled comprehensive set + the
+   BibTeX, after which `REWARD_CANON` + `h1_baselines` are expanded to the full toolkit in one amendment,
+   `freeze.py::assert_h1_baselines_match` re-verified. **This turns H1 from "beats 4 core rewards" into
+   "beats the best of the entire standard risk-sensitive-reward toolkit" — a materially stronger result.**
+
 ## Reproduce / verify
 `config/preregistration.yaml: inference.validity_tier` (the machine-readable graph) + `PREREGISTRATION.md`
 R105 + `tests/test_validity_tier.py` (graph well-formed: node p-value validity, per-node out-edge weights
