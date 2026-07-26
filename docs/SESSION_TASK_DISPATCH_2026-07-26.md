@@ -454,3 +454,58 @@ module header:
 √252 floor trap). Unchanged, and genuinely untouched by me.
 
 **Still CODE-REVIEWER's: T1** — now the ONLY correctness item left before GO.
+
+---
+
+## ⛔ STOP BEFORE IMPLEMENTING T1 — ratification invalidated its premise (LOGIC-REVIEWER, 2026-07-26)
+
+Tamer asked me to finish everything myself. I went to implement **T1 (baseline-depth guard)** and found
+its stated justification is no longer true. **I did not implement it**, because doing so would silently
+cap a now-CONFIRMATORY node. Flagging instead of guessing.
+
+**T1's premise, as written in this document:** pin the H1 canon at **floor-30** while the confirmatory
+arms climb the ladder, on the grounds that they are *"report-only units"* and — Tamer's ruling — *"N6 is
+report-only and ample at 30."*
+
+**What changed.** **R108 ratified `n6_h1_confirmatory_node`.** The 11-name H1 canon is no longer
+report-only: it is the comparator set of confirmatory node **N6**, inside the ratified validity tier.
+`src/cluster/lanes.py:170` currently has `_TEST_UNITS_PER_RUNG = 71  # 9 core arms + 50 leg arms + 11 H1
+canon + 1 H3`, i.e. the canon climbs with everything else.
+
+**Why pinning them at 30 now bites.** N6 is a paired per-seed IUT over SHARED seeds
+(`paired_seed_difference_test`), so the test runs on the INTERSECTION of the winner's and each
+baseline's seed sets. Pin the canon at 30 and **N6 is decided at n = 30 no matter how deep the
+confirmatory arms go.** At the registered σ_D = 0.369, per-leg MDE at 80 % power, one-sided α = 0.05:
+
+| n | per-leg MDE (Sharpe) |
+|---|---|
+| 30 | **0.1675** |
+| 100 | 0.0918 |
+| 189 | 0.0667 |
+| 403 | 0.0457 |
+| 568 | 0.0385 |
+
+So N6 would be **4.35× less sensitive than the rest of the tier at n = 568** (2.51× at n = 189) — and
+it is an ELEVEN-leg IUT, which needs *every* leg to reject, so it is the tier's most power-hungry node
+sitting on its thinnest data. Under the registered NULL-branch prediction the tier activates via N2's
+TOST and then flows α to N3/N6 — so N6 is on the live path, not a sideshow.
+
+**This is a genuine trade, not a bug — and it is Tamer's + Ramin's call, not mine:**
+
+- **Keep T1 as specified (canon at floor-30).** Frees ~5,918 trainings, ~2.5× faster rung for the
+  9 real arms — a large, real speed win. **Cost:** N6 is capped at n = 30 and will be the weakest
+  node in the tier by a factor of ~4. Given capacity is now measured at 636+ cores and n = 568 is
+  reachable in ~23 d, the speed win may no longer be worth what it costs a *confirmatory* node.
+- **Pin the canon at a middle rung (e.g. 100 or 189)** — most of the compute saving, MDE 0.092 / 0.067
+  instead of 0.168.
+- **Let the canon climb with everything else** — N6 at full sensitivity, no speed win. Note the honest
+  asymmetry either way: the LLM winner is searched/selected while each hand reward is a single un-tuned
+  spec, a bias that already FAVOURS the LLM (CH6 discloses it).
+
+**Recommendation:** re-decide the depth now that N6 is confirmatory, and **register the choice as a
+dated amendment** — the original floor-30 ruling was made when N6 was report-only, so silently carrying
+it forward would attach a pre-ratification rationale to a post-ratification design.
+
+**Whoever picks T1 up: do not implement the floor-30 pin until that decision is recorded.** The rest of
+T1 (freeing genuinely report-only units from the confirmatory rung denominator, and the regression test
+on sweep composition) is unaffected and still worth doing.
