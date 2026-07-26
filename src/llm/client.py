@@ -174,6 +174,58 @@ def _warn_if_incomplete(stop_reason: str | None, model: str) -> None:
         )
 
 
+#: Process-level registry of the SERVED model snapshot seen for each REQUESTED model id, in
+#: first-seen order. Mirrors ``src.feedback.measurement``'s ``fed_estimator_log`` idiom: a switch that
+#: would otherwise be silent is made AUDITABLE instead (deep review 2026-07-26).
+#:
+#: WHY THIS EXISTS. ``served_model`` is the R71 reproducibility anchor — ``config/llm.yaml`` requires
+#: the exact served string to be recorded at the first live call and QUOTED in the write-up. It was
+#: recorded on every archived call but nothing ever COMPARED it, so a provider silently re-routing a
+#: slug (or rotating a snapshot) mid-campaign would produce a MIXED-MODEL candidate set while the
+#: quoted anchor named only the first snapshot. A naive ``served == requested`` assertion would be
+#: WRONG — OpenRouter expands a slug to a concrete snapshot BY DESIGN (``…a35b`` -> ``…a35b-07-25``) —
+#: so the invariant asserted here is STABILITY, which needs no registered expectation: whatever the
+#: first live call resolves to is the anchor, and every later call must agree with it.
+_SERVED_MODEL_LOG: dict[str, list[str]] = {}
+_SERVED_SWITCH_WARNED: set[str] = set()
+
+
+def reset_served_model_log() -> None:
+    """Clear the served-model registry (test isolation; mirrors ``reset_fed_estimator_log``)."""
+    _SERVED_MODEL_LOG.clear()
+    _SERVED_SWITCH_WARNED.clear()
+
+
+def served_model_log() -> dict[str, list[str]]:
+    """Requested-model -> distinct SERVED snapshots, in first-seen order.
+
+    A requested id whose list holds MORE THAN ONE entry means the provider changed what it served
+    mid-run: the R71 anchor quoted in the write-up would then describe only the first snapshot, and
+    the candidate set is mixed-model. Callers (gates, analysis) can assert ``len(v) == 1`` for every
+    entry; the loud warning is emitted once per requested id as it happens.
+    """
+    return {k: list(v) for k, v in _SERVED_MODEL_LOG.items()}
+
+
+def _record_served_model(requested: str, served: str | None) -> None:
+    """Record ``served`` under ``requested`` and WARN LOUDLY (once) on the first divergence."""
+    if not served:
+        return  # fakes/stubs surface nothing — silence is correct, there is no claim to check
+    seen = _SERVED_MODEL_LOG.setdefault(str(requested), [])
+    if served in seen:
+        return
+    seen.append(str(served))
+    if len(seen) > 1 and requested not in _SERVED_SWITCH_WARNED:
+        _SERVED_SWITCH_WARNED.add(str(requested))
+        _LOG.warning(
+            "llm_served_model_SWITCHED requested=%s served_now=%s previously=%s — the provider "
+            "changed the served snapshot MID-RUN. The R71 reproducibility anchor quoted in the "
+            "write-up names only the first snapshot, and the candidate set is now MIXED-MODEL. "
+            "Inspect served_model_log() and decide whether to restart the arm.",
+            requested, served, seen[:-1],
+        )
+
+
 def _openai_usage_dict(response: Any) -> dict[str, Any] | None:
     """Extract token usage from an OpenAI-compatible response as a plain dict (or None).
 
@@ -910,6 +962,10 @@ class LLMClient:
         request_id = getattr(transport, "last_request_id", None)
         served_model = getattr(transport, "last_served_model", None)
         served_provider = getattr(transport, "last_served_provider", None)
+        # Read AFTER the retry-wrapped transport returns, so this is the FINAL served snapshot even if
+        # a retry landed elsewhere. Registering it here turns the R71 anchor from write-only provenance
+        # into a checkable invariant (see ``served_model_log``).
+        _record_served_model(self.model, served_model)
         self.archive.append(
             ProvenanceRecord(
                 model=self.model,

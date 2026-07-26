@@ -1275,6 +1275,15 @@ def run_campaign_on_cluster(
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     has_baselines = bool(baseline_names)
+    if not arms and not has_baselines:
+        # VACUOUS-TRUTH GUARD (2026-07-26 review). With zero units this returns {}, and every caller
+        # scores the campaign with ``all(r.get("ok") for r in results.values())`` — ``all({})`` is
+        # True, so a no-op run reports "ALL OK", writes all_arms_tested=true, and exits 0. A campaign
+        # that tested NOTHING must never be indistinguishable from one that tested everything.
+        raise ValueError(
+            "run_campaign_on_cluster called with no units: arms=[] and baseline_names empty "
+            "(nothing would run, yet the caller's all(...) would report the campaign OK)"
+        )
     workers = max_concurrent_arms or max(1, len(arms) + (1 if has_baselines else 0))
     results: dict[str, dict[str, Any]] = {}
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="unit") as ex:

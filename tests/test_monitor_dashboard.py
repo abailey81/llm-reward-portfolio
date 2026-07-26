@@ -313,3 +313,40 @@ def test_every_anthropic_billed_leg_resolves_to_a_price() -> None:
         "these ANTHROPIC-billed legs resolve to NO price, so their calls book $0.00 and the reported "
         f"spend under-states the funded key: {unpriced}"
     )
+
+
+def test_alert_reason_latches_a_vanished_state_file_instead_of_reporting_healthy() -> None:
+    """A progress.json that DISAPPEARS mid-run must alert, not read as healthy.
+
+    ``st is None`` has two meanings. Before the run writes its first state it means "not started yet"
+    (correctly silent). After a state has once been read it means the file VANISHED — deleted,
+    truncated, or a write that failed on a full disk — and without the latch the watcher reports the
+    run healthy FOREVER, silently swallowing every later stall/error/done alert at exactly the hour
+    the operator is asleep and trusting the push."""
+    import time as _t
+
+    now = _t.time()
+    fresh = _t.strftime("%Y-%m-%dT%H:%M:%S", _t.localtime(now))
+
+    # pre-launch: absent state is silent (unchanged legacy behaviour, default state_seen=False)
+    assert monitor.alert_reason(None, now, 300.0) is None
+    assert monitor.alert_reason(None, now, 300.0, state_seen=False) is None
+
+    # mid-run disappearance: LOUD
+    assert monitor.alert_reason(None, now, 300.0, state_seen=True) == "state_lost"
+
+    # a readable state still routes by its own rules once the latch is set
+    assert monitor.alert_reason(_state("training", updated=fresh), now, 300.0, state_seen=True) is None
+    assert monitor.alert_reason(_state("error", updated=fresh), now, 300.0, state_seen=True) == "error"
+
+    # the alert text distinguishes "vanished" from "not started", so the operator knows which it is
+    msg = monitor.build_alert(None, "state_lost", Path("runs/campaign"))
+    assert "VANISHED" in msg and "yet" not in msg
+    assert "no progress.json yet" in monitor.build_alert(None, "stall", Path("runs/campaign"))
+
+    # and it drives the notifier exactly once per episode, like every other reason
+    sent: set[str] = set()
+    posts: list[str] = []
+    for _ in range(3):
+        monitor.process_notification("state_lost", sent, lambda r: (posts.append(r), True)[1])
+    assert posts == ["state_lost"]

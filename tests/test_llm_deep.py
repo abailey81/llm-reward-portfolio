@@ -17,6 +17,7 @@ src/llm/stub_designer.py, src/feedback/schema.py.
 
 from __future__ import annotations
 
+import logging
 import re
 
 import numpy as np
@@ -610,3 +611,55 @@ def test_api_key_is_never_logged_or_archived(monkeypatch, caplog) -> None:
         assert secret not in str(rec.usage)
     # The key is nowhere in any captured log line.
     assert secret not in caplog.text
+
+
+class _SwappingTransport:
+    """A transport whose provider silently changes the SERVED snapshot mid-run (R71's failure mode)."""
+
+    def __init__(self, served: list[str]) -> None:
+        self._served = list(served)
+        self._i = 0
+        self.last_served_model: str | None = None
+
+    def __call__(self, system: str, user: str) -> str:
+        self.last_served_model = self._served[min(self._i, len(self._served) - 1)]
+        self._i += 1
+        return _VALID_REWARD_SRC
+
+
+def test_served_model_registry_is_silent_when_stable_and_loud_on_a_mid_run_swap(caplog) -> None:
+    """R71 ANCHOR INTEGRITY: the write-up quotes the SERVED snapshot as the reproducibility anchor, so a
+    provider that swaps snapshots mid-run silently invalidates that anchor and mixes the candidate set.
+
+    Stable serving must stay silent (one logged snapshot, no warning); a swap must warn LOUDLY exactly
+    ONCE per requested id and expose both snapshots for audit."""
+    from src.llm.client import reset_served_model_log, served_model_log
+
+    reset_served_model_log()
+    try:
+        stable = LLMClient(
+            {"model": "claude-opus-5", "provider": "anthropic"},
+            transport=_SwappingTransport(["claude-opus-5-20260115"] * 3),
+        )
+        with caplog.at_level(logging.WARNING):
+            for _ in range(3):
+                stable.complete("SYS", "USER")
+        assert served_model_log() == {"claude-opus-5": ["claude-opus-5-20260115"]}
+        assert "llm_served_model_SWITCHED" not in caplog.text  # stable serving is SILENT
+
+        caplog.clear()
+        swapping = LLMClient(
+            {"model": "qwen/qwen3-coder", "provider": "openrouter", "api_key_env": "OPENROUTER_API_KEY"},
+            transport=_SwappingTransport(["qwen-snapshot-A", "qwen-snapshot-B", "qwen-snapshot-B"]),
+        )
+        with caplog.at_level(logging.WARNING):
+            for _ in range(3):
+                swapping.complete("SYS", "USER")
+
+        assert caplog.text.count("llm_served_model_SWITCHED") == 1  # loud, but ONCE — never a log flood
+        assert "qwen-snapshot-B" in caplog.text and "qwen-snapshot-A" in caplog.text
+        assert served_model_log()["qwen/qwen3-coder"] == ["qwen-snapshot-A", "qwen-snapshot-B"]
+        # the stable client's entry is untouched: the registry is per-requested-id
+        assert served_model_log()["claude-opus-5"] == ["claude-opus-5-20260115"]
+    finally:
+        reset_served_model_log()

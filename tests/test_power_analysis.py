@@ -72,27 +72,58 @@ def test_recommend_assurance_target_is_throughput_and_deadline_aware():
     single-look design."""
     pa = importlib.import_module("scripts.power_analysis")
 
-    hi = pa.recommend_assurance_target(40.0, 20.0)  # ample speed + time -> reach 99%
+    # PIN the sweep width: this test exercises the SELECTION LOGIC, not the roster size. Letting it
+    # inherit the config-derived default would make a legitimate roster change (R108 took arms 7 -> 9)
+    # fail an unrelated behaviour test, and would silently assert a config value this test does not own.
+    units = 12
+
+    hi = pa.recommend_assurance_target(40.0, 20.0, sweep_units=units)  # ample speed + time -> 99%
     assert hi["recommended_confidence"] == 0.99 and hi["recommended_n"] == 568
     assert hi["floor_only"] is False
 
-    lo = pa.recommend_assurance_target(10.0, 10.0)  # thin -> bank the floor only
+    lo = pa.recommend_assurance_target(10.0, 10.0, sweep_units=units)  # thin -> bank the floor only
     assert lo["floor_only"] is True and lo["recommended_n"] == 30
     assert lo["recommended_confidence"] is None
 
-    mid = pa.recommend_assurance_target(20.0, 15.0)  # 95% fits, 99% does not
+    mid = pa.recommend_assurance_target(20.0, 15.0, sweep_units=units)  # 95% fits, 99% does not
     assert mid["recommended_confidence"] == 0.95 and mid["recommended_n"] == 403
 
     prev = 0  # monotone in time: more days never lowers the deadline-safe target
     for d in (8, 12, 16, 24, 40):
-        n = pa.recommend_assurance_target(20.0, float(d))["recommended_n"]
+        n = pa.recommend_assurance_target(20.0, float(d), sweep_units=units)["recommended_n"]
         assert n >= prev
         prev = n
+
+    # a wider sweep at fixed speed+calendar can only LOWER (never raise) the reachable tier
+    assert (
+        pa.recommend_assurance_target(20.0, 15.0, sweep_units=2 * units)["recommended_n"]
+        <= mid["recommended_n"]
+    )
 
     with pytest.raises(ValueError):
         pa.recommend_assurance_target(0.0, 10.0)
     with pytest.raises(ValueError):
         pa.recommend_assurance_target(20.0, -1.0)
+    with pytest.raises(ValueError, match="sweep_units"):
+        pa.recommend_assurance_target(20.0, 15.0, sweep_units=0)
+
+
+def test_assurance_sweep_units_is_derived_from_config_not_hardcoded():
+    """The sweep width is arms + H1 baselines + the H3 winner, READ FROM CONFIG.
+
+    Regression for a stale planning constant (deep review 2026-07-26): it was the literal 12 ("7 arms
+    + 4 H1 + H3") while BOTH inputs had since changed (roster 7 -> 9, H1 canon 4 -> 11), so the true
+    width was 21 — the recommender was 43% optimistic about what fits the calendar, silently."""
+    pa = importlib.import_module("scripts.power_analysis")
+    from src.utils.config import load_config
+
+    n_arms = len(load_config("campaign")["arms"])
+    n_h1 = len(load_config("preregistration")["h1_baselines"])
+    assert pa.assurance_sweep_units() == n_arms + n_h1 + 1
+
+    # and the resolved value is RECORDED in the result, so a plan can be audited after the fact
+    out = pa.recommend_assurance_target(20.0, 15.0)
+    assert out["sweep_units"] == pa.assurance_sweep_units()
 
 
 def _cfg(**kw):

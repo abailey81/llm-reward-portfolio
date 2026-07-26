@@ -973,7 +973,10 @@ def main(argv: list[str] | None = None) -> int:
         baseline_names=baselines, resume=bool(args.resume),
         priority=(args.priority if args.priority is not None else 0),
     )
-    ok = all(r.get("ok") for r in results.values())
+    # ``all({})`` is True: an empty results dict would score a no-op run as ALL OK / exit 0. The
+    # library refuses a zero-unit call outright; this is the same guard at the point of USE, so the
+    # exit code can never claim success for a campaign that tested nothing (2026-07-26 review).
+    ok = bool(results) and all(r.get("ok") for r in results.values())
     for arm, r in results.items():
         _LOG.info("[%s] ok=%s %s", arm, r.get("ok"),
                   {k: v for k, v in r.items() if k not in ("search", "test")})

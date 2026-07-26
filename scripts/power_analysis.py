@@ -1107,12 +1107,38 @@ def assurance_seed_count(
     }
 
 
-#: The uniform-n sweep carries these units from the n=30 floor to the target n: the **7 arms + 4 H1
-#: baselines + the H3 winner** (all tested at the uniform n per the PLAN §3 catalogue) = 12. The C4
-#: block in ``campaign.run_campaign_tiered`` sweeps 11 of them (H3 runs as a separate ``--generations 1``
-#: invocation), but the TIME to a completed uniform design must include H3 — so the assurance-TARGET
-#: estimate uses 12. D1 (levels tested at a fixed n=100) is NOT at the uniform n, so it is excluded.
-ASSURANCE_SWEEP_UNITS: int = 12
+def assurance_sweep_units() -> int:
+    """DERIVE the uniform-n sweep unit count from config — never hardcode a roster size.
+
+    Semantics (PLAN §3 catalogue), unchanged: every unit carried from the n=30 floor to the target n
+    = the EXECUTED ARMS + the H1 baseline canon + the single H3 winner. The C4 block in
+    ``campaign.run_campaign_tiered`` sweeps all but H3 (which runs as a separate ``--generations 1``
+    invocation), but the TIME to a completed uniform design must include H3. D1 (levels tested at a
+    fixed n=100) is NOT at the uniform n, so it is excluded.
+
+    WHY DERIVED (deep review 2026-07-26). This was the literal ``12``, written as "7 arms + 4 H1 +
+    H3". BOTH inputs later changed — R108 took the roster 7 -> 9, and the H1 canon expanded 4 -> 11 —
+    leaving a PLANNING constant at 12 against a true 21, i.e. **43% low, with no signal**. Reading the
+    roster from config is this module's own stated discipline (see ``_frozen_inference``: "code reads
+    config, never hardcodes"), and it closes the staleness permanently rather than for one value.
+
+    Raises
+    ------
+    ValueError
+        If either roster is missing/empty — a silent fallback would reinstate exactly the
+        stale-constant failure this replaces.
+    """
+    from src.utils.config import load_config
+
+    arms = load_config("campaign").get("arms") or []
+    h1 = load_config("preregistration").get("h1_baselines") or []
+    if not arms or not h1:
+        raise ValueError(
+            "cannot derive the assurance sweep units: "
+            f"campaign.yaml arms={len(arms)}, preregistration.yaml h1_baselines={len(h1)} "
+            "(both must be non-empty; refusing to guess a planning constant)"
+        )
+    return len(arms) + len(h1) + 1  # + the H3 winner
 
 
 def recommend_assurance_target(
@@ -1121,7 +1147,7 @@ def recommend_assurance_target(
     *,
     ladder: dict[float, int] | None = None,
     n_floor: int = ASSURANCE_TIER_BOUNDS[0],
-    sweep_units: int = ASSURANCE_SWEEP_UNITS,
+    sweep_units: int | None = None,
     safety_buffer_frac: float = 0.25,
 ) -> dict[str, Any]:
     """Throughput-aware, deadline-safe assurance target — GRADE SECURITY operationalised.
@@ -1133,6 +1159,8 @@ def recommend_assurance_target(
     GPU packing — a number MEASURED at G1, never guessed) and ``days_available`` before the submission
     buffer, return the HIGHEST assurance tier whose uniform-n sweep (``sweep_units`` units from
     ``n_floor`` to that tier's n) finishes within ``days_available`` × (1 − ``safety_buffer_frac``).
+    ``sweep_units`` defaults to ``assurance_sweep_units()`` — DERIVED from the live rosters in config,
+    never a hardcoded count — and is echoed in the returned dict so the planning input is auditable.
 
     The n=30 floor — the complete distinction-grade study — is the recommendation of last resort (if
     even 90% will not fit, we still bank the floor). The stop is EXOGENOUS (throughput + calendar,
@@ -1142,6 +1170,10 @@ def recommend_assurance_target(
     """
     if trainings_per_hour <= 0 or days_available <= 0:
         raise ValueError("trainings_per_hour and days_available must both be positive")
+    if sweep_units is None:
+        sweep_units = assurance_sweep_units()
+    if int(sweep_units) <= 0:
+        raise ValueError(f"sweep_units must be positive; got {sweep_units!r}")
     if ladder is None:
         ladder = {c: assurance_seed_count(c)["n"] for c in (0.90, 0.95, 0.99)}
     budget_h = float(days_available) * 24.0 * (1.0 - float(safety_buffer_frac))
@@ -1161,6 +1193,7 @@ def recommend_assurance_target(
         "days_available": float(days_available),
         "budget_hours": budget_h,
         "n_floor": int(n_floor),
+        "sweep_units": int(sweep_units),
         "recommended_confidence": (best["confidence"] if best else None),
         "recommended_n": (best["n"] if best else int(n_floor)),
         "floor_only": best is None,

@@ -201,6 +201,8 @@ def token_spend(run_dir: Path) -> dict[str, Any]:
 def build_alert(st: dict[str, Any] | None, reason: str, run_dir: Path) -> str:
     """One-line status message for a push notification. Carries run STATUS only — never data/returns/code."""
     if not st:
+        if reason == "state_lost":  # the file was READ before and is now gone — not a slow start
+            return f"[{run_dir.name}] STATE_LOST: progress.json VANISHED mid-run (was readable earlier) — check the run/disk"
         return f"[{run_dir.name}] {reason}: no progress.json yet"
     a, c = st.get("arms", {}), st.get("candidates", {})
     an = st.get("anomalies", {})
@@ -236,6 +238,7 @@ def alert_reason(
     min_disk_gb: float = 10.0,
     anomaly_delta: int | None = None,
     anomaly_delta_limit: int = 20,
+    state_seen: bool = False,
 ) -> str | None:
     """The alert-worthy condition right now (pure; 2026-07-05 rule additions).
 
@@ -245,9 +248,17 @@ def alert_reason(
     grew by >= ``anomaly_delta_limit`` lines within ONE poll interval — a critic-explosion /
     ram-pressure / failure-wave cascade worth a phone push the moment it starts, not at the daily
     read); then ``"stall"``. ``None`` = healthy. Extra signals default to ``None`` = rule inactive,
-    so existing callers/tests are untouched."""
+    so existing callers/tests are untouched.
+
+    ``state_seen`` (LATCH-ONCE-SEEN, 2026-07-26) disambiguates the two meanings of a MISSING state.
+    Before the run writes its first ``progress.json``, ``st is None`` means "not started yet" and is
+    correctly silent. AFTER a state has once been read, ``None`` means the file VANISHED — deleted,
+    truncated, or a write that failed on a full disk — and the watcher would otherwise report the run
+    healthy forever while every later stall/error/done alert is silently lost, exactly when the
+    operator is asleep and relying on the push. With the latch set, that case raises ``"state_lost"``.
+    """
     if st is None:
-        return None
+        return "state_lost" if state_seen else None
     phase = st.get("phase")
     if phase == "error":
         return "error"
@@ -549,10 +560,13 @@ def main() -> None:
     started_epoch = time.time()  # --follow-campaign: only a sentinel written AFTER this counts
 
     _last_anomaly_total = [None]  # per-tick anomaly-count memory for the surge rule (2026-07-05)
+    _state_seen = [False]  # LATCH: once progress.json has been read, a later disappearance is an ALERT
 
     def _maybe_notify(st: dict[str, Any] | None) -> None:
         if not args.notify:
             return
+        if st is not None:
+            _state_seen[0] = True  # latch BEFORE the check: a first read is never itself "lost"
         # Extra precision signals (2026-07-05): free disk on the run drive + the per-tick anomaly
         # GROWTH (a cascade pushes a phone alert the moment it starts). Both read-only and best-effort
         # — a probe failure silently deactivates its rule for this tick, never the watcher.
@@ -573,7 +587,7 @@ def main() -> None:
             pass
         reason = alert_reason(
             st, time.time(), args.stale_secs, mtime_epoch=_progress_mtime(run_dir),
-            disk_free_gb=disk_free_gb, anomaly_delta=anomaly_delta,
+            disk_free_gb=disk_free_gb, anomaly_delta=anomaly_delta, state_seen=_state_seen[0],
         )
         process_notification(
             reason, sent, lambda r: post_alert(args.notify, build_alert(st, r, run_dir))

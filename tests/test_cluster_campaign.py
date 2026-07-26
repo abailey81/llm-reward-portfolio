@@ -981,3 +981,27 @@ def test_inline_path_skips_an_already_archived_spec(tmp_path: Path) -> None:
     assert rows[0].get("skipped") == "already_archived", rows
     # THE POINT: the completed record was neither retrained nor overwritten.
     assert json.loads((rec_dir / "record.json").read_text(encoding="utf-8")) == sentinel
+
+
+def test_zero_unit_campaign_is_refused_not_scored_as_all_ok(tmp_path) -> None:
+    """A campaign with NO units must fail loudly, never report success.
+
+    Every caller scores the run with ``all(r.get("ok") for r in results.values())``, and ``all({})``
+    is True — so returning an empty dict would write ``all_arms_tested: true`` and exit 0 for a run
+    that trained nothing, which is indistinguishable from a complete campaign in the archive."""
+    fake = FakeCluster(tmp_path)
+    run = _run(tmp_path, fake)
+
+    with pytest.raises(ValueError, match="no units"):
+        run_campaign_on_cluster(
+            [], lambda arm: _opts(), [0], run,
+            test_leg_kwargs=_test_leg_kwargs(), frozen_root=tmp_path / "frozen",
+        )
+    # baselines-only remains legitimate: the guard fires on zero UNITS, not on zero arms
+    with pytest.raises(ValueError, match="no units"):
+        run_campaign_on_cluster(
+            [], lambda arm: _opts(), [0], run,
+            test_leg_kwargs=_test_leg_kwargs(), frozen_root=tmp_path / "frozen",
+            baseline_names=[],
+        )
+    assert all({}) is True, "the vacuous truth this guard exists to defeat"
