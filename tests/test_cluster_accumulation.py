@@ -53,8 +53,13 @@ def _write_log(tmp_path, series):
     now = time.time()
     with p.open("w", encoding="utf-8") as fh:
         for i, cores in enumerate(series):
+            # gmtime, NOT localtime: `telemetry.collect` stamps frames with ``time.gmtime()`` and
+            # the trailing ``Z`` says UTC. This fixture previously wrote LOCAL time under a ``Z``
+            # label, which happened to CANCEL the reader's ``time.mktime`` (local) bug — so the
+            # tests passed while production was an offset out. Matching the real writer is what
+            # lets these tests see that class of defect at all (deep review 2026-07-26, #59).
             ts = time.strftime("%Y-%m-%dT%H:%M:%SZ",
-                               time.localtime(now - (len(series) - i) * 300))
+                               time.gmtime(now - (len(series) - i) * 300))
             fh.write(json.dumps({"ts": ts,
                                  "our_jobs": [{"id": "1", "prior": 2.0, "state": "r",
                                                "slots": cores}]}) + "\n")
@@ -108,3 +113,50 @@ def test_report_survives_a_truncated_tail_line(tmp_path):
     with p.open("a", encoding="utf-8") as fh:
         fh.write('{"ts": "2026-07-26T0')      # a crash mid-write
     assert accumulation_report(p, hours=24)["status"] == "plateaued"
+
+
+def test_frames_are_read_as_UTC_so_the_GO_day_window_is_not_truncated(tmp_path):
+    """The `Z` on a frame means UTC — reading it as LOCAL silently truncates the window (#59).
+
+    `telemetry.collect` stamps `ts` with ``time.gmtime()`` and marks it ``Z``; the reader used
+    ``time.mktime``, which interprets its struct as LOCAL time. Under BST — which covers the whole
+    campaign window — every frame therefore read back 3600 s OLDER than it was.
+
+    MEASURED before the fix, on 18 frames written 10 min apart across exactly 3.0 h: the report
+    returned ``n=12`` (a third of the window silently discarded) and ``early_mean_cores=250``
+    against a true 150, so the climb ratio read 1.64 instead of 2.73. Near the 1.15/0.85 thresholds
+    that can FLIP the verdict, and ``early_mean_cores`` is the number the operator re-forecasts the
+    seed rung from on GO day. This pins the UTC contract end-to-end."""
+    now = time.time()
+    p = tmp_path / "utc.jsonl"
+    with p.open("w", encoding="utf-8") as fh:
+        for i in range(18):                       # 18 frames x 10 min = exactly 3.0 h
+            t = now - (17 - i) * 600
+            fh.write(json.dumps({
+                # stamped the way `collect` really stamps it: gmtime + a Z marker
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t)),
+                "our_jobs": [{"id": "1", "prior": 2.0, "state": "r", "slots": 100 + i * 20}],
+            }) + "\n")
+
+    out = accumulation_report(p, hours=3.0)
+    assert out["n"] == 18, f"frames were dropped from the window: n={out['n']} of 18"
+    # the early third is frames 0-5 -> 100,120,140,160,180,200 -> mean 150
+    assert out["early_mean_cores"] == 150, out["early_mean_cores"]
+    assert out["status"] == "climbing"
+    # and the ratio the verdict turns on is computed over the FULL window
+    assert out["late_mean_cores"] / out["early_mean_cores"] > 2.0
+
+    # a frame one second inside the window is kept; one comfortably outside is not
+    edge = tmp_path / "edge.jsonl"
+    with edge.open("w", encoding="utf-8") as fh:
+        for offset in (3.0 * 3600 - 60, 60):      # just inside, and very recent
+            fh.write(json.dumps({
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - offset)),
+                "our_jobs": [{"id": "1", "prior": 2.0, "state": "r", "slots": 500}],
+            }) + "\n")
+        fh.write(json.dumps({                     # 5 h old -> must be excluded
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 5 * 3600)),
+            "our_jobs": [{"id": "1", "prior": 2.0, "state": "r", "slots": 999}],
+        }) + "\n")
+    res = accumulation_report(edge, hours=3.0)
+    assert res["status"] == "insufficient" and res["n"] == 2, res

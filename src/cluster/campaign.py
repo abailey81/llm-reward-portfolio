@@ -221,6 +221,7 @@ def build_cluster_run(
             try:
                 sync_epilogue_ledgers(f"{remote_root.rstrip('/')}/ledger",
                                       Path(local_archive_root) / "ledger", runner)
+                _enforce_kill_switch(local_archive_root)
             except Exception:  # noqa: BLE001 — observability never breaks the run
                 pass
         except BaseException as exc:
@@ -533,6 +534,61 @@ def _load_failures(fail_ledger: Path) -> dict[str, dict]:
         except Exception:  # noqa: BLE001 — a torn line just re-authors that one candidate
             pass
     return cached
+
+
+def _enforce_kill_switch(local_archive_root: str | Path) -> None:
+    """Classify the mirrored epilogue rows and, on a RETREAT verdict, write the incident file.
+
+    RATIFIED 2026-07-26 (Tamer: *"I give you full freedom and ratify"*; deep review #57). The
+    detector, the incident writer and the submission gate all existed and were individually tested,
+    but nothing ever called the first two — ``incident_blocks_submission`` was wired at the top of
+    this module against a file no code path could create, so the automated access guard could not
+    fire. Detection alone is not enough here: the module's premise is that blind resubmission right
+    after an administrative ``qdel`` is what escalates "your jobs were killed" into "your account was
+    suspended", and an alert nobody reads at 03:00 does not stop the driver resubmitting.
+
+    THE ASYMMETRY (killswitch's own docstring): a false positive costs a few hours on a run with ~7
+    days of slack and is undone by a human clearing one file; a false negative costs the account. So
+    this enforces — but only on evidence it can trust:
+
+    * ``n_undated > 0`` ⇒ **do NOT enforce.** Undated rows are exactly the #56 false-positive shape
+      (a whole campaign's scattered failures read as one burst). A ledger written by a jobscript
+      predating the ``ts`` fix, or a torn row, must never trigger a retreat.
+    * only ``action == "retreat"`` writes; every other verdict is inert.
+
+    Best-effort by contract: the caller wraps this in the same swallow as the ledger sync, so a
+    forensics failure can never fail a pull. Writing is idempotent-safe — ``write_incident``
+    replaces atomically, and the gate blocks on ANY uncleared incident, so a repeated verdict simply
+    rewrites the same block rather than compounding.
+    """
+    from src.cluster.killswitch import classify_task_deaths, write_incident
+    from src.cluster.ledger import read_epilogue
+
+    ledger_dir = Path(local_archive_root) / "ledger"
+    if not ledger_dir.is_dir():
+        return
+    rows: list[dict[str, Any]] = []
+    for p in sorted(ledger_dir.glob("*.epilogue.jsonl")):
+        rows.extend(read_epilogue(p))
+    if not rows:
+        return
+    verdict = classify_task_deaths(rows)
+    if verdict.n_undated:
+        _LOG.warning(
+            "killswitch NOT enforced: %d undated epilogue rows (a pre-`ts` jobscript or torn "
+            "lines). Detection is degraded and an undated ledger is the known false-positive "
+            "shape, so no incident was written. Re-render the jobscript and resubmit.",
+            verdict.n_undated,
+        )
+        return
+    if verdict.action != "retreat":
+        return
+    path = write_incident(local_archive_root, verdict)
+    _LOG.critical(
+        "MYRIAD ADMIN-KILL RETREAT: %s — incident written to %s. Submission is now BLOCKED until a "
+        "human clears it (killswitch.clear_incident). Do NOT resubmit; check for mail from "
+        "rc-support@ucl.ac.uk first.", verdict.reason, path,
+    )
 
 
 def _ledger_failure(fail_ledger: Path, row: dict) -> None:

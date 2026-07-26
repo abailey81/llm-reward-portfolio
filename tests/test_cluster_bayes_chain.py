@@ -10,10 +10,9 @@ from __future__ import annotations
 import json
 
 import numpy as np
-import pytest
 
 from src.cluster import bayes_chain
-from src.cluster.bayes_chain import ChainStopped, run_bayes_chain
+from src.cluster.bayes_chain import run_bayes_chain
 
 
 class _FakeClock:

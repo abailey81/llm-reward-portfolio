@@ -162,6 +162,7 @@ def accumulation_report(log_path: str | Path | None = None, *, hours: float = 3.
     ``plateaued`` / ``declining``. Feed the observed plateau back into
     ``lanes.plan_lanes(cpu_cores=…)`` to re-forecast the reachable rung.
     """
+    import calendar as _calendar
     import json as _json
 
     path = Path(log_path) if log_path else _LOG_PATH
@@ -178,7 +179,15 @@ def accumulation_report(log_path: str | Path | None = None, *, hours: float = 3.
         if not any("slots" in j for j in jobs):
             continue                      # frames written before slots were recorded
         try:
-            ts = time.mktime(time.strptime(str(row.get("ts", "")), "%Y-%m-%dT%H:%M:%SZ"))
+            # UTC in, UTC out (deep review 2026-07-26, #59). Frames are stamped with
+            # ``time.gmtime()`` and the trailing ``Z`` says so, but ``time.mktime`` interprets its
+            # struct as LOCAL time — so every frame read back one UTC-offset OLDER than it is.
+            # MEASURED under BST (the campaign runs Jul-Aug, DST active): a −3600 s shift silently
+            # truncated the window by an hour, so a 3.0 h watch of 18 frames reported n=12 and an
+            # ``early_mean_cores`` of 250 against a true 150 — the climb ratio read 1.64 instead of
+            # 2.73. Near the 1.15/0.85 thresholds that can FLIP the GO-day verdict, and
+            # ``early_mean_cores`` is a number the operator re-forecasts the rung from.
+            ts = _calendar.timegm(time.strptime(str(row.get("ts", "")), "%Y-%m-%dT%H:%M:%SZ"))
         except Exception:  # noqa: BLE001
             continue
         if ts >= cutoff:

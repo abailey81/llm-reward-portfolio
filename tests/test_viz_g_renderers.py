@@ -11,7 +11,6 @@ import matplotlib
 matplotlib.use("Agg")
 
 import numpy as np
-import pytest
 
 from src.inference.exposure import alloc_snapshots
 from src.viz.figures import (

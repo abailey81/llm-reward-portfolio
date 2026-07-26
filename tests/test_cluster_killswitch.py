@@ -353,3 +353,62 @@ def test_jobscript_epilogue_stamps_a_timestamp():
     assert "|| echo 0" in cmd, f"ts command has no numeric fallback: {cmd}"
     degraded = _json.loads(base.replace(cmd, "0"))
     assert degraded["ts"] == 0 and isinstance(degraded["ts"], int)
+
+
+def test_enforcement_writes_the_incident_on_retreat_but_NEVER_on_undated_rows(tmp_path, caplog):
+    """The driver must ENFORCE a retreat — and must not be fooled by an undated ledger (#57/#56).
+
+    RATIFIED 2026-07-26. Detection alone does not stop the driver resubmitting after an
+    administrative qdel, which is the escalation the module exists to prevent; an alert nobody reads
+    at 03:00 is not a control. But enforcement must trust only evidence it can place in time: an
+    undated ledger is exactly the #56 false-positive shape (a whole campaign's scattered failures
+    read as one burst), so it must produce NO incident."""
+    import logging
+    import time
+
+    from src.cluster.campaign import _enforce_kill_switch
+    from src.cluster.killswitch import INCIDENT_FILENAME, incident_blocks_submission
+
+    root = tmp_path / "archive"
+    ledger = root / "ledger"
+    ledger.mkdir(parents=True)
+    now = time.time()
+
+    def _write(rows):
+        (ledger / "arr.epilogue.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    # 1. UNDATED rows that WOULD have looked like a burst -> no incident, loud warning
+    _write([{"task": i, "host": f"node-{i % 6:02d}", "rc": 1, "secs": 900.0} for i in range(12)])
+    with caplog.at_level(logging.WARNING):
+        _enforce_kill_switch(root)
+    assert not (root / INCIDENT_FILENAME).exists(), "an UNDATED ledger must never trigger a retreat"
+    assert "NOT enforced" in caplog.text
+    assert incident_blocks_submission(root)[0] is False
+
+    # 2. benign dated rows -> still no incident
+    _write([{"task": i, "host": f"node-{i % 6:02d}", "rc": 1, "secs": 900.0,
+             "ts": now - (20.0 - i * 1.5) * 86400.0} for i in range(12)])
+    _enforce_kill_switch(root)
+    assert not (root / INCIDENT_FILENAME).exists()
+
+    # 3. a GENUINE admin-kill burst -> incident written AND submission blocked
+    _write([{"task": i, "host": f"node-{i % 5:02d}", "rc": 137, "secs": 120.0, "ts": now - i * 20.0}
+            for i in range(10)])
+    _enforce_kill_switch(root)
+    inc = root / INCIDENT_FILENAME
+    assert inc.exists(), "a real admin kill must write the incident file"
+    blocked, why = incident_blocks_submission(root)
+    assert blocked is True and "admin_kill" in why
+    payload = json.loads(inc.read_text(encoding="utf-8"))
+    assert payload["action"] == "retreat" and payload["cleared"] is False
+    assert payload["new_core_cap"] is None or payload["new_core_cap"] > 0
+
+    # 4. re-running is idempotent-safe (rewrites the same block, never compounds)
+    _enforce_kill_switch(root)
+    assert incident_blocks_submission(root)[0] is True
+
+    # 5. a human clears it -> submission is released again
+    from src.cluster.killswitch import clear_incident
+    clear_incident(root, who="tamer", note="verified with RC support")
+    assert incident_blocks_submission(root)[0] is False
