@@ -40,27 +40,40 @@ identical swap — `from src.search.dfo_toolkit import over_template_optimizer`,
 `_drive_search_arm` automatically once they are in the roster.)
 
 **E4 — priority (`src/cluster/campaign.py:1226`)**: NO CHANGE. `bayes_opt` is hoisted to `PRIORITY_CORE`
-because its 30-proposal chain is the floor-bank's longest SERIAL path; cma_es/tpe are REPORT-ONLY and
+because its 30-proposal chain is the floor-bank's longest SERIAL path; cma_es/tpe are CONFIRMATORY (N4 portfolio) but
 parallel-by-design, so they correctly fall to the `else` (`PRIORITY_STAGE1`) — below the confirmatory
 core, never gating the rung (consistent with the campaign-speed priority + the baseline-depth logic).
 
-## Open design decisions for Tamer / Okhrati (pre-freeze)
-1. **Report-only vs confirmatory (my rec: REPORT-ONLY).** Keep the confirmatory **N4 IUT over
-   {random_search, bayes_opt}** exactly as registered (no prereg change). cma_es/tpe are the STRONGER
-   black-box controls, reported **descriptively** in H4 (the LLM beats — or honestly does not beat — the
-   best DFO across all 3 paradigms). Rationale: adding them to the confirmatory IUT makes the registered
-   test *harder to pass with no power gain* and bets the confirmatory claim on out-optimising CMA-ES;
-   report-only delivers the non-fragility ("we tried the best optimizers") without that fragility, and
-   preserves pre-registration integrity. This is the honest, depth-over-breadth choice.
-2. **Run mechanism for report-only comparators (config, currently dirty).** They must RUN to be reported.
-   My rec: a `report_only_arms: [cma_es, tpe]` list in `config/campaign.yaml` iterated at `PRIORITY_STAGE1`
-   — so they never enter the confirmatory `arms:` roster or N4, but do produce winners for the descriptive
-   panel. Alternative: fold into the existing baseline report-only runner. NEEDS the config owner.
-3. **Analysis (`scripts/analyze_campaign.py`, dirty).** Extend the H4 panel to report
-   `max-over-{random, GP-EI, CMA-ES, TPE}` descriptively alongside the confirmatory N4.
-4. **Roster metadata (`config/arms.yaml`, clean).** Add `cma_es`/`tpe` `{search: template, llm: false}`
-   rows + viz styles in `src/viz/style.py` (clean) — apply together with E1-E3 so activation is atomic
-   (holding them avoids a transient "arm known but unrunnable" inconsistency).
+## CONFIRMATORY RULING + the ATOMIC config activation (Tamer, 2026-07-26 — NO hedge)
+
+**RULING (supersedes the earlier report-only recommendation):** cma_es/tpe are **CONFIRMATORY**. H4/N4 is
+the snoop-free intersection–union test over the optimiser portfolio {random_search, GP-EI, cma_es, tpe} =
+"the LLM beats the pointwise MAX = the best black-box optimiser of the reward family at matched budget" —
+the exact mirror of H1's beat-the-best-human IUT. Deep-researched backbone (now in CH4 §4.5/§4.7 + refs.bib,
+committed 1b2366e): the portfolio-envelope is the fair best-numerical-search — no single optimiser dominates
+across budgets [`raponi2024lowbudget` IEEE TEVC BBOB+Gym; `shahriari2016bo`], budget-inappropriate methods
+pruned with cause; IUT size <= alpha for ANY portfolio size [`berger1982iut`] so N4 stays ONE node with ZERO
+added family-wise multiplicity (graph weights unchanged); the free-form-vs-6-term expressivity asymmetry
+STRENGTHENS the claim (harder search at the same 30-eval budget; only edge = the semantic prior; attribution
+decomposed by the mechanism audit); decisive either way via a non-inferiority readout at the pre-registered
+SESOI; and it fills a VERIFIED lineage gap (corpus sweep: no reward-design paper pre-registers this
+head-to-head vs best-in-class DFO of a matched family).
+
+**Land these five ATOMICALLY — a prereg node naming arms the cluster cannot run is a freeze landmine (R84):**
+1. **prereg `N4_h4` (`config/preregistration.yaml:198`):** `comparators: [random_search, bayes_opt]` ->
+   `[random_search, bayes_opt, cma_es, tpe]`. Graph nodes/weights (`:201-208`) UNCHANGED.
+2. **prereg `h4_search_controls` (`:163`):** the separate-estimands mirror — `tests: [h4a_vs_random_search,
+   h4b_vs_bayes_opt]` + `bonferroni_2` -> add `h4c_vs_cma_es, h4d_vs_tpe` + `bonferroni_4`.
+3. **arms roster:** `config/campaign.yaml:3 arms:` += `cma_es, tpe`; `config/arms.yaml` +=
+   `cma_es: {search: template, llm: false}` / `tpe: {...}`; `config/eureka_loop.yaml` search list += both;
+   `src/viz/style.py` += their plot styles.
+4. **dispatch E1–E3** (above): `_FAMILY_ARMS` += cma_es/tpe + the `over_template_optimizer(arm)` swap in
+   BOTH dispatchers. `parallel.py` is now CLEAN; **`src/cluster/campaign.py` is the ONE remaining dirty
+   file — the whole activation is gated on it clearing.** Land 1–4 + E1–E3 in ONE commit + re-run
+   `freeze --check`.
+5. **analysis (`scripts/analyze_campaign.py`):** extend the N4 block to the 4-portfolio IUT (max-p over the
+   four one-sided paired-seed tests) + the 3-way non-inferiority-at-SESOI readout (mirror the N6/H1 IUT
+   block); add a regression test on a synthetic 4-optimiser panel.
 
 ## Paper (my lane, not blocked)
 CH4 already frames the H4 control as best-in-class. Once decision 1 is ratified, state explicitly:

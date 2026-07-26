@@ -65,7 +65,7 @@ but it is listed under Integrity Flags. Anything I could not confirm is marked *
 
 | Paper (year) | Cited? | One-line leverage note |
 |---|---|---|
-| CARD (2024) | YES (`sun2025card`) | TPE avoids full RL train per step; precedent for budget-matched search; preference (not distribution) feedback. |
+| CARD (2024) | YES (`sun2025card`) | CARD's "TPE" = Trajectory Preference Evaluation, a preference-based reward evaluator — NOT the Tree-structured Parzen Estimator / DFO; preference (not distribution) feedback. Do NOT cite as a budget-matched-search / DFO-adjacent precedent (corpus-sweep correction 2026-07-26). |
 | MultiObj-Reward-Searcher / ERFSL (2024) | NO | Multi-component reward composition + critic-fixes-code; how the LLM assembles return vs tail terms. |
 | URDP (2025) | NO | Self-consistency filtering + BO for hyperparams; cite as related efficiency work (NOT adopted). |
 | Expert-Investment-Team (2026) | NO | Leakage-controlled backtest protocol supporting PIT/purge/embargo; Zohren/Roberts authority. |
