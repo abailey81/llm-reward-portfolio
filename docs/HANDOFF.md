@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-26"
-  head: "3dd15ef"
+  head: "e711ed9"
   frozen: false
   legs_n: 10
   amendments_through: R105
-  suite_status: "exit 0 (2026-07-26: A3 test_validity_tier 6/6 + freeze --check RC=0 + test_freeze green + reproduce_synthetic deterministic; full 2057-suite not re-run this session)"
+  suite_status: "exit 0 (2026-07-26: H1 canon 4->11 + N6 promotion; test_baselines/test_validity_tier/freeze --check RC=0 + check_citations clean; full 2057-suite not re-run this session)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
