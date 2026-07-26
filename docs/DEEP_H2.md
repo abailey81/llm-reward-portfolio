@@ -150,6 +150,20 @@ defining property of an IUT, confirmed in the multiple-testing literature, is:
 
 In plain terms: **a conjunction test controls its own type-I error at α without any multiplicity correction on the
 legs.** Requiring *all* legs to reject is already conservative; the joint size is ≤ max(leg sizes) = α. Applying
+
+> ⚠ **MEASURED CAVEAT on the "= α" (added 2026-07-26, deep code-review loop 77 — the argument above is
+> unaffected).** "joint size ≤ max(leg sizes)" is Berger's IUT result and is correct. The second equality,
+> "max(leg sizes) = α", holds only if each leg is EXACTLY level-α. Ours are not: the leg test
+> (`paired_seed_difference_test`, IQM, n_boot=2000, n=30 paired seeds, 6,000 null replications; MC SE
+> 0.0028) measures **0.0573 two-sided / 0.0613 one-sided** against nominal 0.05 — mildly
+> ANTI-conservative, from the re-centred basic bootstrap's own approximation error at n=30. So the joint
+> IUT inherits that drift: its size is ≤ max(leg sizes) ≈ 0.061, **not ≤ 0.05**. This does NOT weaken the
+> section's point — double-correcting with BH on top of the conjunction still over-penalises — but the
+> headline must report the measured size rather than assert exact α control. Source of truth:
+> the `src/inference/bootstrap.py` module docstring. `docs/CAMPAIGN_power.md` was corrected in loop 5;
+> this passage was missed by that sweep.
+
+
 **BH on top of the conjunction double-penalizes**: each leg's bar is raised by BH *and* the conjunction requires all
 of them to clear it. The result is a test whose true size is far below α, i.e. **under-powered against H2** — it
 will fail to reject even when distributional genuinely dominates.

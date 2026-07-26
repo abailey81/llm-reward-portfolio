@@ -17,8 +17,10 @@ Scope / what this is NOT (read carefully — these answer different questions):
   * Comparing the *realized* CVaR of two DIFFERENT return series (e.g. the distributional vs scalar arm,
     which have different policies and hence different realizations) is a TWO-SAMPLE comparison of the ES
     functional. No published named test exists for that; use the re-centred stationary block bootstrap in
-    ``src.inference.bootstrap.cvar_difference_test`` (size certified by ``null_calibration``, audit C-7;
-    not studentized — the bootstrap SE cancels in its p-value).
+    ``src.inference.bootstrap.cvar_difference_test`` (size MEASURED — not certified — by
+    ``null_calibration``, audit C-7: mildly ANTI-conservative, 0.0573 two-sided / 0.0613 one-sided
+    against nominal 0.05 at production settings; not studentized — the bootstrap SE cancels in its
+    p-value).
 
 Power caveat (audit B-7 / Bauer 2025, arXiv:2505.23333): comparative tail-risk tests have **low power at
 the most extreme quantiles** (alpha = 1%, 2.5%) and short out-of-sample windows; power improves with

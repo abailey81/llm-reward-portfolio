@@ -3139,6 +3139,59 @@ mentions `strategies.py` only in my own plan line — genuinely un-reviewed, unl
 - **Verified:** **48 tests `PYTEST_RC=0`** (`test_baselines.py` + `test_campaign_inference.py`, the
   benchmark consumer); ruff clean; `freeze.py --check` RC=0, read-only, `freeze_hash: null`.
 
+**Loop 77 — `src/inference/bootstrap.py`: math + determinism CLEAN (proven), 2 residual-overstatement
+defects (#49-#50). Streak stays 0/30.**
+
+**Target chosen on EVIDENCE, not the stale plan.** §6 queued "`src/backtest/` as a unit" — but the
+package is only `__init__.py` + `metrics.py`, and loop 65 already closed `metrics.py` CLEAN with "do
+NOT re-open the code". Rather than guess again I cross-referenced EVERY `src/**/*.py` against the loop
+log: **`src/inference/bootstrap.py` (599 lines) had ZERO mentions anywhere** — the largest wholly
+un-reviewed file, and it produces the confirmatory p-values and CIs consumed by `metrics.py`,
+`measurement.py`, `attribution.py` and `contamination.py`. That is where the value was.
+
+- **★ The statistics and determinism are CORRECT — verified by execution, not by reading.**
+  * Politis-Romano stationary bootstrap matches the published index form (restart w.p. `p`, else step
+    `+1 mod n`; geometric block length `1/p`).
+  * `paired_seed_difference_test`'s one-sided p is the genuine upper-tail `P(boot - obs >= obs)`, and
+    the two-sided is the re-centred basic bootstrap where `se` provably cancels.
+  * **The vectorised IQM fast path is BIT-identical**, which underpins the "analysis = bit-exact
+    replay" layer: `_iqm_rows` == per-row `iqm` on **0 mismatches / 300 random shapes**, and the full
+    test agrees key-by-key (`stat`/`pvalue`/`pvalue_one_sided_greater`/`effect`/`ci_low`/`ci_high` all
+    exactly equal) between the fast path and the forced reference loop.
+  * `cvar` is the mean of the worst `ceil(alpha*T)` — the stack's shared convention.
+- **★ A load-bearing claim MEASURED rather than accepted (no finding, but worth the run).**
+  `scripts/power_analysis.py:531` decides with `pvalue/2` while the live rule uses the direct one-sided
+  p — the exact misalignment this module's own `null_calibration` was fixed for. Its comment justifies
+  it: *"the two coincide here because the power DGP draws symmetric (normal) pairs."* **That is true,
+  and now measured:** at effect=0.30, power 0.9940 (`p/2`) vs 0.9900 (direct) — a 0.004 gap against a
+  Monte-Carlo SE of 0.018; at effect=0.50 both 1.0000. The large raw p-gap (mean −0.25) occurs only
+  where the observed effect is NEGATIVE, which the `direction_ok` gate removes. The seed count rests on
+  this simulator, so the claim is worth having measured rather than assumed. **CLEARED.**
+- **★ #49 (MINOR, confirmatory-inference prose) — a declared correction was never finished.**
+  The module docstring states plainly that the word "certified" *"was an overstatement, and at the call
+  sites below"*, because the measured size at production settings is **0.0573 two-sided / 0.0613
+  one-sided against nominal 0.05 — mildly ANTI-conservative**, and warns that "every claim in the
+  register that the simulated null rejection is 'conservative' points the WRONG WAY". But loop 5 only
+  added that central note: **six sites still asserted an unqualified certification** — module docstring
+  ×2, `paired_seed_difference_test` (the HEADLINE test), `sharpe_difference_test`,
+  `cvar_difference_test`, `null_calibration`'s own summary line, and **`src/inference/es_backtest.py`,
+  a different module where a reader has no correction anywhere in view**. All now say MEASURED, and
+  carry the measured numbers at the point of claim. A size claim is exactly what a referee checks.
+- **#50 (MINOR, doc) — `docs/DEEP_H2.md:152` asserts the joint IUT size "= α".** "joint size ≤
+  max(leg sizes)" is correct Berger; the second equality holds only if each leg is EXACTLY level-α, and
+  ours measure 0.0613. So the joint size is ≤ ~0.061, **not ≤ 0.05**. Loop 5's sweep corrected
+  `docs/CAMPAIGN_power.md` and missed this live, undated dossier on the HEADLINE hypothesis. Annotated
+  with the measured caveat; **the section's actual argument (BH-on-top-of-conjunction double-penalises)
+  is untouched and still correct** — I fixed the claim, not the reasoning.
+- **★ The guard found two sites I had missed — and I fixed the code, not the guard.** After correcting
+  four call sites I added the regression test; it FAILED, flagging the two module-docstring sites whose
+  correction sits 13 lines below them. I could have widened the test's context window to accept them;
+  making the prose accurate AT the point of claim is the more robust fix, and keeps the guard strict.
+  Then verified discrimination per the loop-76 rule: the guard flags the pre-fix text and passes both
+  corrected modules, with whitespace collapsed so a line-wrapped claim cannot slip through.
+- **Verified:** **126 tests `PYTEST_RC=0`** across all four inference suites; ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),

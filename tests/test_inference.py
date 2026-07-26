@@ -769,3 +769,36 @@ def test_romano_wolf_trivial_m1_no_error() -> None:
     boot = rng.standard_normal((3000, 1))
     assert romano_wolf(np.array([5.0]), boot, alpha=0.05).tolist() == [True]
     assert romano_wolf(np.array([0.0]), boot, alpha=0.05).tolist() == [False]
+
+
+def test_no_inference_docstring_claims_a_CERTIFIED_size() -> None:
+    """The bootstrap tests' size is MEASURED (and anti-conservative), never "certified".
+
+    Regression for a real residual-overstatement defect (deep code-review loop 77, 2026-07-26).
+    ``bootstrap.py``'s module docstring already recorded that the word "certified" "was an
+    overstatement … and at the call sites below", because the measured size at production settings is
+    **0.0573 two-sided / 0.0613 one-sided** against nominal 0.05 — mildly ANTI-conservative. But that
+    loop-5 correction was only added centrally: four call sites in ``bootstrap.py`` (including
+    ``paired_seed_difference_test``, the headline test) and one in ``es_backtest.py`` still asserted an
+    unqualified certification. The ``es_backtest.py`` site was the worst — a different module, so a
+    reader there had no correction anywhere in view.
+
+    A size claim is the kind of thing a referee checks, so this asserts the prose directly: any
+    "certif*" wording in these modules must sit next to the measured qualifier."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "src" / "inference"
+    offenders = []
+    for mod in ("bootstrap.py", "es_backtest.py"):
+        # whitespace COLLAPSED so a line-wrapped claim cannot slip through (the loop-76 lesson: a
+        # naive substring test missed a real defect whose phrase straddled a newline)
+        text = re.sub(r"\s+", " ", (root / mod).read_text(encoding="utf-8")).lower()
+        for m in re.finditer(r"size (?:is |was )?(?:\w+ ){0,2}certified", text):
+            window = text[max(0, m.start() - 200): m.end() + 200]
+            if "measured" not in window and "overstatement" not in window:
+                offenders.append(f"{mod}: ...{text[m.start() - 60:m.end() + 60]}...")
+    assert not offenders, (
+        "these claim a CERTIFIED size with no measured qualifier in view; the measured size is "
+        f"0.0573/0.0613 vs nominal 0.05 (anti-conservative): {offenders}"
+    )

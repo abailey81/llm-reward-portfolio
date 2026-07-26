@@ -1,5 +1,20 @@
 # DEEP_H1 — exhaustive scrutiny of H1 ("beat the human")
 
+> **⚠ SUPERSEDED IN PART (2026-07-26) — H1's comparator family and inferential status BOTH changed
+> after this dossier was written.** Everything below dates from 2026-06-25 and describes H1 as a
+> **four**-baseline comparison (`raw_return`, `return_minus_variance`, `return_minus_cvar`,
+> `differential_sharpe`) against the MAX of those four. Live state now: `h1_baselines` is the **FULL
+> 11-name canon** (`== REWARD_CANON`, expanded 4 → 11) and H1 was **PROMOTED to CONFIRMATORY node N6**
+> (R108, ratified 2026-07-26), formalised as an **intersection-union test** — the node rejects iff the
+> LLM beats *every* one of the 11, so its p-value is the MAX over the legs and no comparator is
+> selected (which is precisely what dissolves the White-2000 comparator data-snoop this dossier
+> analyses at length). The DESIGN REASONING below remains valid and is why the IUT was adopted; the
+> COUNTS, the named four, and the "descriptive-only" status are historical. Authoritative now:
+> `config/preregistration.yaml` (`h1_baselines`, `confirmatory_family.N6_h1`) and
+> `docs/VALIDITY_TIER_DESIGN_2026-07-26.md`. This banner was added by the deep code-review loop
+> (2026-07-26) because the dossier carried no supersession marker while its sibling
+> `docs/CAMPAIGN_benchmarks.md` already did. Dated analysis is NOT rewritten here.
+
 **Status:** read-only analysis dossier (no code edited). Prepared as a HARSH reward-design +
 multiple-comparison-statistics reviewer making H1 bulletproof and the strongest *defensible* version.
 **Date:** 2026-06-25. **Repo:** `llm-reward-portfolio`. **Grade context:** PDF-only, NO viva

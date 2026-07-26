@@ -40,14 +40,15 @@ Politis & Romano (**1994**, random geometric block lengths), chosen on its own
 merits for autocorrelated returns. We deliberately do **not** claim the Ledoit &
 Wolf (2008) studentized construction — LW use the *circular* block bootstrap of
 Politis & Romano (**1992**, fixed block size) *and* a studentization that does not
-cancel; our size is certified empirically by ``null_calibration`` (audit C-7)
-rather than by appeal to that result.
+cancel; our size is MEASURED empirically by ``null_calibration`` (audit C-7)
+rather than by appeal to that result — measured, and mildly anti-conservative;
+see the ⚠ block below for the numbers.
 
 ``cvar_difference_test`` applies the analogous re-centred stationary-bootstrap
 construction to the difference in CVaR (expected shortfall) at level ``alpha``.
 No published difference-in-CVaR test was located, so this is a *bespoke*
-extension whose size is likewise certified empirically by ``null_calibration``
-(audit C-7) rather than by a citation.
+extension whose size is likewise MEASURED empirically by ``null_calibration``
+(audit C-7) rather than by a citation — see the ⚠ block below.
 
 ``null_calibration`` repeatedly applies a difference test under a true null and
 reports the empirical rejection rate at the 5% level together with the raw
@@ -162,7 +163,10 @@ def paired_seed_difference_test(
     N i.i.d.-seed paths shrinks the tested object's variance ~N×, so a per-period bootstrap on the
     averaged series is anti-conservative by ~√N). The two-sided p-value uses the SAME re-centred basic
     empirical-bootstrap convention as :func:`sharpe_difference_test` — the bootstrap probability that
-    ``|boot - obs| >= |obs|`` — so :func:`null_calibration` certifies its size identically (audit C-7).
+    ``|boot - obs| >= |obs|`` — so :func:`null_calibration` MEASURES its size identically (audit C-7).
+    ⚠ Measured, not certified: at production settings this test rejects at **0.0573 two-sided /
+    0.0613 one-sided** against nominal 0.05 (mildly ANTI-conservative — see the module docstring for
+    the full measurement). Do not describe it as correctly sized or conservative.
 
     Parameters
     ----------
@@ -426,8 +430,9 @@ def sharpe_difference_test(
     un-studentized empirical-bootstrap p-value — the bootstrap probability that
     the null-recentred difference ``boot - obs`` exceeds the observed difference
     ``obs`` in absolute value. It is therefore a re-centred basic (empirical)
-    stationary block bootstrap whose size is certified by ``null_calibration``
-    (audit C-7); see the module docstring for why this is *not* the Ledoit-Wolf
+    stationary block bootstrap whose size is MEASURED (not certified) by
+    ``null_calibration`` (audit C-7) — the measured drift is anti-conservative,
+    see the module docstring; it also explains why this is *not* the Ledoit-Wolf
     (2008) studentized construction.
     """
     a = np.asarray(a, dtype=float)
@@ -478,8 +483,9 @@ def cvar_difference_test(
     losses differ — the same re-centred stationary block-bootstrap construction as
     :func:`sharpe_difference_test`, applied to the CVaR functional (the bootstrap SE cancels in the
     p-value, so it is **not** studentized). No *published, named* two-sample difference-in-CVaR test
-    exists (deep-research #2/#3), so this bespoke construction's size is certified empirically by
-    :func:`null_calibration` (audit C-7). CVaR/ES is a well-defined estimable functional because the pair
+    exists (deep-research #2/#3), so this bespoke construction's size is MEASURED empirically by
+    :func:`null_calibration` (audit C-7) — measured, NOT certified: the drift is anti-conservative
+    (module docstring). CVaR/ES is a well-defined estimable functional because the pair
     (VaR, ES) is *jointly* elicitable (Fissler & Ziegel, 2016), even though ES alone is not.
 
     NOT to be confused with a *comparative backtest*: if instead you are comparing the tail-FORECAST
@@ -546,7 +552,12 @@ def null_calibration(
     n_reps: int = 200,
     rng: np.random.Generator | None = None,
 ) -> dict[str, object]:
-    """Certify a difference test's size under a true null (audit C-7).
+    """MEASURE a difference test's size under a true null (audit C-7).
+
+    ⚠ Named "null_calibration" for history, but it CERTIFIES nothing: it reports an empirical
+    rejection rate with Monte-Carlo error. At production settings the headline test measured
+    0.0573 two-sided / 0.0613 one-sided against nominal 0.05 — mildly anti-conservative. Report the
+    measured value with its MC SE; never restate it as "correctly sized" or "conservative".
 
     Parameters
     ----------

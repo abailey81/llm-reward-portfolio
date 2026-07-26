@@ -377,3 +377,144 @@ def test_no_forecast_baselines(rng: np.random.Generator) -> None:
     # only in mean, so HRP weights are unaffected by a constant level shift.
     shifted = window + 0.05
     assert np.allclose(strategies.hrp(window), strategies.hrp(shifted), atol=1e-8)
+
+
+def test_no_canon_member_docstring_denies_its_registered_H1_membership() -> None:
+    """No member may DOCUMENT itself as outside the registered H1/N6 family.
+
+    Regression for a real stale-fact defect (deep review loop 75, 2026-07-26):
+    ``differential_downside_ratio``'s docstring read "SECONDARY panel member ... NOT part of the
+    frozen H1 four (multiplicity unchanged)" — written when the canon was 4 + a secondary panel, and
+    left behind by the 4 -> 11 expansion (R108). By then the member WAS one of the eleven legs of
+    CONFIRMATORY node N6, whose intersection-union p-value is the max over the legs. The module
+    header, ``config/eureka_loop.yaml`` and all three config lists had been updated; this docstring
+    had not, so the code said the opposite of the pre-registration about a confirmatory comparator.
+
+    Nothing numerical catches that — the function computes correctly either way — so this asserts the
+    prose directly. The phrases are matched case-insensitively because the original was shouted."""
+    import re
+
+    denials = ("not part of the frozen h1", "secondary panel member", "frozen h1 four")
+    offenders = []
+    for name, fn in rewards.REWARD_CANON.items():
+        # whitespace COLLAPSED so a line-wrapped claim cannot slip through (loop 76 found exactly that
+        # hole in the sibling projection guard, where the phrase straddled a newline)
+        doc = re.sub(r"\s+", " ", (fn.__doc__ or "").lower())
+        for phrase in denials:
+            # the CORRECTED text may quote the phrase to say it is no longer true; only a bare,
+            # unqualified assertion is a defect, so require the absence of the correcting context
+            if phrase in doc and "no longer" not in doc and "corrected" not in doc:
+                offenders.append(f"{name}: {phrase!r}")
+    assert not offenders, (
+        "these canon members' docstrings deny membership of the registered H1/N6 family, which the "
+        f"pre-registration and REWARD_CANON both affirm: {offenders}"
+    )
+    # and the family really is the full canon, which is what makes such a denial wrong
+    assert len(rewards.REWARD_CANON) == 11
+
+
+def test_every_allocator_stays_on_the_simplex_on_DEGENERATE_windows() -> None:
+    """Simplex conformance on the degenerate panels the guards exist for (deep review loop 76).
+
+    ``test_strategies_return_simplex`` uses one well-conditioned window, so the delisted/dead-name
+    branches every covariance allocator carries (`_live_mask`, the nl==0 / nl==1 early returns) were
+    never exercised. These are not hypothetical: the `liquidate_to_cash` delisting policy zero-fills
+    dead names, and the module's own comments note that EVERY 2020-2026 test window holds at least one.
+    A dead name has ~0 variance, so an unguarded 1/sigma or min-variance allocator hands it ~100% of
+    the book."""
+    T, n = 60, 6
+    rng = np.random.default_rng(11)
+    live_block = rng.normal(0.0, 0.01, size=(T, n))
+
+    all_dead = np.zeros((T, n))                       # whole panel delisted
+    one_live = np.zeros((T, n))
+    one_live[:, 2] = live_block[:, 2]
+    mixed = live_block.copy()
+    mixed[:, [0, 4]] = 0.0                             # the realistic case: some names dead
+    singular = np.repeat(live_block[:, :1], n, axis=1)  # perfectly collinear -> singular covariance
+    single_row = live_block[:1, :]                     # T=1: no variance is estimable at all
+    one_asset = live_block[:, :1]                      # N=1 edge
+
+    cases = {
+        "all_dead": all_dead, "one_live": one_live, "mixed_dead": mixed,
+        "singular": singular, "single_row": single_row, "one_asset": one_asset,
+    }
+    for label, window in cases.items():
+        n_cols = window.shape[1]
+        for name, fn in strategies.STRATEGY_CANON.items():
+            w = np.asarray(fn(window), dtype=float)
+            assert w.shape == (n_cols,), f"{name} on {label}: shape {w.shape} != {(n_cols,)}"
+            assert np.all(np.isfinite(w)), f"{name} on {label}: non-finite weight {w}"
+            assert np.all(w >= -1e-12), f"{name} on {label}: negative weight {w}"
+            assert np.isclose(w.sum(), 1.0, atol=1e-8), f"{name} on {label}: sums to {w.sum()}"
+
+    # and the substantive guarantee behind the guards: a DEAD name never absorbs the book
+    for name, fn in strategies.STRATEGY_CANON.items():
+        if name in ("equal_weight", "spy_buy_and_hold"):
+            continue  # 1/N is forecast-free and weights dead names by construction
+        w = np.asarray(fn(mixed), dtype=float)
+        assert w[0] <= 1e-8 and w[4] <= 1e-8, f"{name} put weight on a delisted name: {w}"
+
+
+def test_min_variance_QP_falls_back_when_the_solver_does_not_converge(monkeypatch) -> None:
+    """A NON-CONVERGED SLSQP result must never be reported as the minimum-variance portfolio.
+
+    ``scipy.optimize.minimize`` returns ``res.x`` whether or not it converged, and an unconverged
+    iterate renormalises into a perfectly valid-looking simplex vector — measured at up to 60x the
+    optimal portfolio SD on a forced ``maxiter=1`` solve. The sibling ``_long_only_min_cvar`` already
+    gated on ``res.success``; the two SLSQP QPs did not (deep review loop 76). Verified NOT triggerable
+    in 500 adversarial solves, so this pins the hardening, not a live bug."""
+    import scipy.optimize as sopt
+
+    vol = np.array([0.001, 0.30, 0.02, 0.05])
+    corr = np.full((4, 4), 0.5)
+    np.fill_diagonal(corr, 1.0)
+    cov = np.outer(vol, vol) * corr
+
+    converged = strategies._long_only_min_variance(cov)
+    assert converged.argmax() == 0, "sanity: the lowest-vol asset should dominate the true GMV"
+
+    class _Unconverged:
+        success = False
+        message = "iteration limit"
+        x = np.array([0.25, 0.25, 0.25, 0.25])   # a plausible-looking but WRONG iterate
+
+    monkeypatch.setattr(sopt, "minimize", lambda *a, **k: _Unconverged())
+    fell_back = strategies._long_only_min_variance(cov)
+
+    # the fallback is the inverse-variance heuristic, NOT the unconverged iterate
+    assert not np.allclose(fell_back, _Unconverged.x), "reported the non-converged iterate as the GMV"
+    expected = 1.0 / np.maximum(np.diag(cov), 1e-12)
+    assert np.allclose(fell_back, expected / expected.sum())
+    assert np.isclose(fell_back.sum(), 1.0)
+
+    # and the tangency QP gates the same way (its fallback is the long-only GMV)
+    mu = np.array([0.01, 0.02, 0.03, 0.04])
+    assert np.allclose(strategies._long_only_max_sharpe(mu, cov), fell_back)
+
+
+def test_no_allocator_docstring_claims_the_REMOVED_simplex_projection() -> None:
+    """No allocator may document the projection footgun that was removed on 2026-06-20.
+
+    Regression for a real stale-fact defect (deep review loop 76): ``minimum_variance`` and
+    ``maximum_diversification`` both still said the UNCONSTRAINED solution "is projected onto the
+    long-only simplex" — the approach the module's own comments record as removed because it collapses
+    to a single asset (and, for max-diversification, yields diversification ratio 1.0, the WORST
+    value). Each docstring contradicted an inline comment a few lines below it. Nothing numerical
+    catches prose, so this asserts it directly."""
+    import re
+
+    offenders = []
+    for name, fn in strategies.STRATEGY_CANON.items():
+        # COLLAPSE whitespace before matching. The real `minimum_variance` defect wrapped the phrase
+        # across a line break ("projected onto the\n    long-only simplex"), so a naive substring test
+        # silently missed it — a guard that cannot fail is the very defect class this loop hunts.
+        doc = re.sub(r"\s+", " ", (fn.__doc__ or "").lower())
+        claims_projection = "projected onto the long-only simplex" in doc
+        # the CORRECTED text quotes the phrase to say it is wrong; only an unqualified claim is a defect
+        if claims_projection and "corrected" not in doc:
+            offenders.append(name)
+    assert not offenders, (
+        "these allocators document the REMOVED unconstrained-then-project approach as if it were "
+        f"what they do; they solve the constrained QP instead: {offenders}"
+    )

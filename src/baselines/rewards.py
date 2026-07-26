@@ -367,8 +367,19 @@ def differential_downside_ratio(
 
     Warm-up disclosure (mirrors the DSR's): D is undefined until a NEGATIVE return has entered
     DD2 (DD_{t-1} = 0), so 0.0 is emitted during warm-up — the live reward SAC receives on those
-    early steps, stated rather than silent. SECONDARY panel member (config/eureka_loop.yaml
-    ``baseline_rewards``), NOT part of the frozen H1 four (multiplicity unchanged).
+    early steps, stated rather than silent.
+
+    Registered status (CORRECTED 2026-07-26 — this paragraph previously asserted the OPPOSITE)
+    ---------------------------------------------------------------------------------------------
+    Since the H1 canon expansion 4 -> 11 (R108, ratified together with ``n6_h1_confirmatory_node``),
+    this member **IS** part of the registered H1 family and is one of the ELEVEN legs of CONFIRMATORY
+    node **N6**, whose intersection-union p-value is the MAX over the legs. It is no longer a
+    "secondary panel" member, and there is no longer a "frozen H1 four" for it to sit outside of (see
+    the module header and ``config/eureka_loop.yaml``, both of which say so).
+    On multiplicity, precisely: adding legs does NOT inflate alpha — an IUT is level-alpha for free
+    (Berger 1982) — but it does make N6 strictly HARDER to reject, since the LLM winner must beat
+    EVERY member. So the old "(multiplicity unchanged)" was right about FWER and wrong about
+    membership; the membership claim is what made it dangerous.
     """
     r = float(port_ret)
 
@@ -529,8 +540,10 @@ def volatility_scaled_return(
     return total, {"return": float(port_ret), "vol": sigma, "vol_scale": scale}, hist
 
 
-#: The full hand-crafted reward canon (name -> callable), for the secondary "did the LLM beat the
-#: standard literature rewards?" baseline comparison. Stateful rewards thread state via ``reward_state``.
+#: The full hand-crafted reward canon (name -> callable). Since the 2026-07-26 expansion (4 -> 11)
+#: this IS the registered H1 family and the comparator set of CONFIRMATORY node N6 — "did the LLM beat
+#: the standard literature rewards?" is now a confirmatory question, not a secondary one, so every
+#: member below carries a leg of N6's intersection-union test. Stateful rewards thread ``reward_state``.
 REWARD_CANON: dict[str, Any] = {
     "raw_return": raw_return,
     "return_minus_variance": return_minus_variance,

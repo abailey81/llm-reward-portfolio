@@ -8,14 +8,27 @@ weights lying on the probability simplex (non-negative, summing to one — long
 only, fully invested). They provide the floor that any discovered reward must
 beat to be interesting.
 
-Allocator canon (FINAL_PLAN F.6)
---------------------------------
-    spy_buy_and_hold : single-asset (market proxy) buy-and-hold; no forecast.
-    equal_weight     : 1/N naive diversification; no forecast.
-    mean_variance    : Markowitz with Ledoit-Wolf shrinkage of the covariance.
-    risk_parity      : equal risk contribution allocation.
+Allocator canon (FINAL_PLAN F.6) — the authoritative list is :data:`STRATEGY_CANON` at the foot
+of this module; all TEN members are named here (the list previously stopped at the first five,
+omitting the entire block-B8 extension including the tail-optimal ``min_cvar`` — corrected
+2026-07-26, deep review loop 76)
+------------------------------------------------------------------------------------------------
+    spy_buy_and_hold : equal-weight market proxy; a DUPLICATE of equal_weight (see its docstring)
+                       and therefore excluded from the benchmark gate.
+    equal_weight     : 1/N naive diversification; no forecast (DeMiguel et al. 2009 floor).
+    mean_variance    : Markowitz with Ledoit-Wolf shrinkage; long-only tangency QP.
+    risk_parity      : equal risk contribution, convex Spinu (2013) log-barrier form.
     hrp              : Hierarchical Risk Parity (Lopez de Prado): hierarchical
                        clustering -> quasi-diagonalization -> recursive bisection.
+    minimum_variance : long-only global minimum-variance QP (Clarke et al. 2011).
+    inverse_volatility       : naive risk parity, w ∝ 1/σ (correlation-blind).
+    maximum_diversification  : most-diversified portfolio (Choueifaty & Coignard 2008).
+    cross_sectional_momentum : top-tertile past-return winners, long-only (Jegadeesh & Titman 1993).
+    min_cvar         : CVaR-optimal / TAIL-optimal via the Rockafellar-Uryasev LP (2000) — the
+                       benchmark that optimises the very tail a tail-aware reward targets.
+
+The nine gate names in ``analyze_campaign::_BENCHMARK_NAMES`` are this canon MINUS
+``spy_buy_and_hold`` (which would double-count the 1/N floor).
 
 Conventions
 -----------
@@ -165,8 +178,17 @@ def _long_only_min_variance(cov: np.ndarray) -> np.ndarray:
             constraints=({"type": "eq", "fun": lambda w: float(w.sum() - 1.0), "jac": lambda w: np.ones(n)},),
             options={"maxiter": 500, "ftol": 1e-12},
         )
+        # A NON-CONVERGED solve must not be reported as the GMV (2026-07-26, deep review loop 76):
+        # ``res.x`` is returned regardless of success, and an unconverged iterate renormalises to a
+        # perfectly valid-looking simplex vector that is NOT minimum-variance — measured at up to 60x
+        # the optimal portfolio SD on a forced maxiter=1 solve. The sibling ``_long_only_min_cvar``
+        # already gates on ``res.success``; these two QPs did not. Not triggerable in 500 adversarial
+        # solves (singular and 1e8-condition covariances all converged), so this is HARDENING, not a
+        # live-bug fix — it makes the failure detectable-by-fallback instead of silent.
+        if not getattr(res, "success", False):
+            raise RuntimeError(f"SLSQP min-variance did not converge: {getattr(res, 'message', '')}")
         w = np.maximum(np.asarray(res.x, dtype=float), 0.0)
-    except Exception:  # noqa: BLE001 - optimiser unavailable -> inverse-variance heuristic (still long-only)
+    except Exception:  # noqa: BLE001 - optimiser unavailable/non-converged -> inverse-variance heuristic (still long-only)
         w = 1.0 / np.maximum(np.diag(cov), 1e-12)
     s = float(w.sum())
     return w / s if s > 1e-300 else np.full(n, 1.0 / n)
@@ -193,8 +215,13 @@ def _long_only_max_sharpe(mu: np.ndarray, cov: np.ndarray) -> np.ndarray:
             constraints=({"type": "eq", "fun": lambda w: float(w @ mu - 1.0), "jac": lambda w: np.asarray(mu)},),
             options={"maxiter": 500, "ftol": 1e-12},
         )
+        # Same convergence gate as the GMV QP above: an unconverged tangency iterate would be
+        # renormalised into a plausible-looking simplex vector and reported as the max-Sharpe
+        # benchmark. Fall back to the long-only GMV, exactly as the solver-unavailable path does.
+        if not getattr(res, "success", False):
+            raise RuntimeError(f"SLSQP tangency did not converge: {getattr(res, 'message', '')}")
         w = np.maximum(np.asarray(res.x, dtype=float), 0.0)
-    except Exception:  # noqa: BLE001 - optimiser unavailable -> GMV fallback
+    except Exception:  # noqa: BLE001 - optimiser unavailable/non-converged -> GMV fallback
         return _long_only_min_variance(cov)
     s = float(w.sum())
     return w / s if s > 1e-300 else _long_only_min_variance(cov)
@@ -377,10 +404,17 @@ def _recursive_bisection(cov: np.ndarray, sort_ix: list[int]) -> np.ndarray:
 # competes against a broad, citation-anchored benchmark suite.                   #
 # =========================================================================== #
 def minimum_variance(returns: Any, cfg: Any = None) -> np.ndarray:
-    """Global minimum-variance portfolio ``w ∝ Σ^{-1} 1`` (Markowitz 1952; Clarke, de Silva & Thorley 2011).
+    """Long-only global minimum-variance portfolio (Markowitz 1952; Clarke, de Silva & Thorley 2011).
 
-    Needs NO return forecast — only the covariance. The unconstrained GMV solution is projected onto the
-    long-only simplex.
+    Needs NO return forecast — only the covariance. Solves the CONSTRAINED convex QP
+    ``argmin_w wᵀΣw s.t. w>=0, Σw=1`` over the LIVE names via :func:`_long_only_min_variance`.
+
+    ⚠ CORRECTED 2026-07-26 (deep review loop 76): this docstring previously said the *unconstrained*
+    ``Σ^{-1}1`` solution "is projected onto the long-only simplex" — describing the exact footgun that
+    was REMOVED on 2026-06-20 (see the module-level note above ``_live_mask``). Euclidean-projecting the
+    unconstrained GMV is NOT the long-only optimum: it collapses to a single asset, which is what made
+    this allocator degenerate in the first place. The code has solved the QP since that fix; only the
+    prose lagged, and it contradicted the inline comment three lines below it.
     """
     arr = _as_window(returns)
     n = arr.shape[1]
@@ -492,8 +526,15 @@ def inverse_volatility(returns: Any, cfg: Any = None) -> np.ndarray:
 def maximum_diversification(returns: Any, cfg: Any = None) -> np.ndarray:
     """Maximum-diversification portfolio (Choueifaty & Coignard 2008, *J. Portfolio Mgmt*).
 
-    Maximises the diversification ratio ``(w·σ)/sqrt(wᵀΣw)``; the unconstrained solution is
-    ``w ∝ Σ^{-1} σ``, projected onto the long-only simplex. Needs no return forecast.
+    Maximises the diversification ratio ``(w·σ)/sqrt(wᵀΣw)``. Needs no return forecast.
+
+    Implemented the Choueifaty-Coignard way: the most-diversified long-only portfolio is the long-only
+    GMV of the CORRELATION matrix, de-scaled by ``1/σ`` and renormalised (see the inline comment below).
+
+    ⚠ CORRECTED 2026-07-26 (deep review loop 76): this docstring previously said the unconstrained
+    ``w ∝ Σ^{-1}σ`` solution is "projected onto the long-only simplex" — the very approach the inline
+    comment below marks as WRONG (it collapses to one asset, giving diversification ratio 1.0, the
+    WORST possible value for this objective). The prose asserted the opposite of the code.
     """
     arr = _as_window(returns)
     n = arr.shape[1]
