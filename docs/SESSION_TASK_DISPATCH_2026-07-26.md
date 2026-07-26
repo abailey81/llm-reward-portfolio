@@ -149,6 +149,22 @@ R80/R82/R93/R94 rows were left verbatim as history; definitive Aug-14 sweep clea
 - **→ CAPACITY/MYRIAD:** execution (live serve + the ~17% reliability measurement) needs your GPU
   allocation; the leg is ready to submit.
 
+  **↳ Qwen-host execution spec (CAPACITY — so the canary validates the right things; asked by Tamer
+  2026-07-26 "can we actually host Qwen?").** FEASIBLE — no known hard blocker. The pinned weights are
+  stageable: `Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a` (Apache-2.0, R93 hash-bound),
+  ~18 GB in bf16 → fits an A100-80G / V100 comfortably; **too big for the laptop's 6 GB VRAM, so Myriad
+  (or a cloud A100) is REQUIRED — this leg CANNOT fall back to the laptop.** The canary must prove FOUR
+  Myriad-specific things, none yet live-tested: (1) **pre-stage the pinned revision to shared FS** —
+  Myriad compute nodes have NO internet, so download the exact `@commit` on a login node into `HF_HOME`
+  and serve with `HF_HUB_OFFLINE=1` (else vLLM tries to fetch and dies at start); (2) a **vLLM Apptainer
+  `.sif`** whose CUDA/torch matches Myriad's driver (pass via `VLLM_SIF`); (3) **driver↔serving-node
+  networking** — the serve holds a port and writes `serve-endpoint-<JOB_ID>.txt`; confirm the campaign
+  driver reaches `http://<node>:<port>/v1` intra-cluster; (4) the serve window — `h_rt=48h` is ample
+  (a floor-30 leg is a short inference burst, not days). **Honesty note:** the API leg is **fp8 via
+  SiliconFlow** (~17% reliability MEASURED); the self-host anchor is **bf16** — a different quantization,
+  so **measure its reliability FRESH with `selfhost_author_test.py`; do NOT assume it equals the fp8
+  number.** Fallback if a Myriad snag appears: a short rented cloud A100 (never the laptop).
+
 **Ownership map after this update (unchanged unless noted):** T6 (config mirrors of the 3 report-only
 exhibits + the capability-anchor down-rank) stays **MINE (FEATURE/BUILD)** — config is now clean (I
 reconciled the gate), so it is unblocked and I hold it. **T1/T2 → CODE-REVIEWER · T4 → CAPACITY/MYRIAD ·
