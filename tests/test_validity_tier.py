@@ -18,10 +18,18 @@ def _tier() -> dict:
     return prereg["inference"]["validity_tier"]
 
 
-def test_tier_is_ratification_pending_not_a_silent_override():
+def test_tier_ratification_is_RECORDED_not_silent():
+    """R108 (2026-07-26): the tier was signed off by Tamer AND Okhrati — exactly the precondition
+    the `status` field named. The guard is NOT removed, it is RE-POINTED: a ratified tier must
+    still carry WHO ratified it and WHEN, so activation can never be a silent edit. It still
+    declares what it supersedes (R31), and it is still not frozen."""
     t = _tier()
-    assert t["status"] == "registered_pending_supervisor_ratification"
-    assert t["supersedes_on_ratification"] == "cross_hypothesis_multiplicity"   # R31 stays the default until ratified
+    assert t["status"] == "ratified"
+    assert set(t["ratified_by"]) == {"tamer", "okhrati"}, "activation requires a NAMED sign-off"
+    assert t["ratified_utc"], "a ratification without a date is not auditable"
+    assert t["supersedes_on_ratification"] == "cross_hypothesis_multiplicity"   # R31 now superseded
+    assert t["ratification_pending"] == [], "nothing may remain pending once status is ratified"
+    assert len(t["ratification_completed"]) >= 7, "the completed set must record what was signed"
 
 
 def test_all_initial_alpha_starts_on_the_headline():

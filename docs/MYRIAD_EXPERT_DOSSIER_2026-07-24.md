@@ -157,21 +157,33 @@ run). **Rate: 3 of 151 dispatched tasks = 2.0%.** Now guarded: `render_jobscript
 127 after the slot was already granted (`tests/test_cluster_adapter.py`).
 
 **M7 — THE CONSEQUENCE FOR THE CAMPAIGN.** Work model (verified from `config/preregistration.yaml`):
-**total trainings = 1,740 search + 69n test** (7 core arms + 10 legs × 5 arms + 11 H1 canon + 1 H3
-= 69 test units/rung; search = 7×30 + 30 H3 + 10×5×30). *Model validated: under the pre-2026-07-26
-4-name canon it reproduces the independently recorded "search = 48% of work at rung-30, ~22% at
-rung-100" exactly (48.3% / 21.9%).* At the measured 8.54 core-h/training:
+**total trainings = 1,800 search + 71n test** — ⚠ **UPDATED late 2026-07-26**: the registered roster
+grew **7 → 9 arms** (`+cma_es, +tpe`, the H4 optimiser portfolio, **N4 confirmatory**, ratified
+R108), so it is now 9 core arms + 10 legs × 5 arms + 11 H1 canon + 1 H3 = **71 test units/rung**;
+search = 9×30 + 30 H3 + 10×5×30 = **1,800**. The DFO arms are CORE-only, so the leg total is
+unchanged at 50. *(The earlier 1,740 + 69n figures — and the day-counts derived from them — were
+~3% optimistic and are superseded here. The old model's validation against the recorded
+"48% / 22%" search split remains true of its own era.)*
+
+| rung | 30 | 100 | 189 | 279 | 340 | 403 | **568** |
+|---|---|---|---|---|---|---|---|
+| trainings | 3,930 | 8,900 | 15,219 | 21,609 | 25,940 | 30,413 | **42,128** |
+
+At the measured 8.54 core-h/training (≈2.81 trainings/day/core):
 
 | sustained cores | rung reachable in the 31 days GO→Aug-27 | n=568 (99%) completes in |
 |---|---|---|
-| 96 *(the old assumption)* | n ≈ 96 | never |
-| 320 *(old peak)* | n ≈ 380 | never |
-| **628 (measured, SHORT probe jobs)** | n ≈ 760 → the LADDER TOPS OUT | **23.4 days (~Aug 19–20)** |
-| **2,000 (projected, M4b)** | ladder tops out | **7.3 days** |
-| **3,000 (projected, M4b)** | ladder tops out | **4.9 days** |
+| 96 *(the old assumption)* | n ≈ 93 | never |
+| 320 *(old peak)* | n ≈ 367 | never |
+| **628 (measured, SHORT probe jobs)** | n ≈ 745 → the LADDER TOPS OUT | **23.9 days (~Aug 19–20)** |
+| **2,000 (projected, M4b)** | ladder tops out | **7.5 days** |
+| **3,000 (projected, M4b)** | ladder tops out | **5.0 days** |
+
+*(9-arm figures. The 1-thread `bayes_opt` chain is 8.9 d, so every row here is throughput-bound;
+with the R107 8-thread chains it falls to 3.3 d and CPU scaling pays out to ~4,584 cores.)*
 
 Above ~628 the extra rate buys no additional SCIENCE (the ladder ends at 568) — it buys **schedule
-robustness** (23.4 d leaves only ~7 d of slack in the 31-day window; 5–7 d leaves ~24 d) and makes
+robustness** (23.9 d leaves only ~7 d of slack in the 31-day window; 5–7.5 d leaves ~24 d) and makes
 the Stage-2 report-only armor fully affordable.
 
 **=> the achieved seed rung stops being the binding constraint; the registered design can be

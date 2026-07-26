@@ -47,6 +47,10 @@ Method: staged fleets of independent CPU jobs running the REAL campaign-scale tr
 ### ★★★ THE TIMELINE CONSEQUENCE (work model verified from config, not the stale docs)
 
 **Total trainings = 1,740 search + 69n test** (7 core arms + 10 legs×5 + **11** H1 canon + 1 H3).
+> ⚠ **SUPERSEDED the same day (see the 9-arm correction entry below):** the roster grew **7 → 9**
+> (`+cma_es, +tpe`, N4 confirmatory, ratified R108), so the model is **1,800 + 71n** and n=568 is
+> **42,128** trainings. The figures in this block are ~3% optimistic; kept verbatim as the record of
+> what was measured and believed at the time.
 *Validated*: under the pre-expansion 4-name canon this reproduces the independently-recorded
 "search = 48% of work at rung-30, ~22% at rung-100" exactly (48.3% / 21.9%).
 
@@ -2125,13 +2129,381 @@ and this is the instrument that sizes the campaign, where wall-clock is the seed
   value. Corrected, with a note that the ladder was raised past the frozen 400k B* (R77).
   `tests/test_learning_curve.py` **21 passed, `PYTEST_RC=0`**.
 
-### 📋 SESSION SUMMARY — deep code-review loops 44-54 (2026-07-26, the CODE-REVIEW lane)
+**Loop 55 — MEASUREMENT-VALIDITY sweep COMPLETED (spend · ETA · rate reporters): CLEAN (streak 1/30).**
+
+No code changed, so there were no affected tests to run; verification was by reading and tracing. Three
+candidates were investigated and **all three died on the evidence** — recorded here so they are never
+re-opened.
+
+- **The spend ledger is CLEAN, and notably well-built.** The concern was that an empty/refused
+  completion still costs money (input + reasoning tokens) but might go unbooked. It does not:
+  `LLMClient._record_spend` fires **unconditionally** after every call (`client.py:926`), before the
+  response is returned and independently of whether the content is usable — the correct boundary,
+  since the money is spent when the call happens. Realized provider cost (`last_cost_usd`, which
+  OpenRouter returns because the client explicitly requests `{"usage": {"include": true}}`) is
+  preferred over the estimate, and an unpriced model books **$0 with an explicit
+  `cost-unknown(model-unpriced)` note rather than a fabricated number** — which `leg_gates`/`preflight`
+  already route to review. A second concern — that the OpenAI-style `prompt_tokens`/`completion_tokens`
+  from the open legs would miss `cost.py`'s Anthropic-style keys — is also refuted: `_openai_usage_dict`
+  NORMALISES them (`prompt_tokens→input_tokens`, `completion_tokens→output_tokens`) and lifts
+  `reasoning_tokens` out of `completion_tokens_details`.
+- **★ A candidate finding I REFUTED against my own first reading — recorded because the reasoning
+  matters.** `RunMonitor.candidate_done` appends every candidate's wall-clock to the ETA window
+  *ignoring `status`*, so fast `sandbox_reject`/`llm_error` candidates (milliseconds) mix with trained
+  ones (~8.5 core-hours). With qwen3.5-9b gate-passing only ~17%, that looked like a systematic
+  optimism bug in the ETA. **It is not.** `run_total` counts ALL candidates including those that will
+  be rejected, and so does `remaining` — therefore `mean_over_the_mixed_population × remaining` is an
+  **unbiased** estimator of remaining time. Mixing rejects in is the CORRECT estimator; it raises
+  variance when rejects arrive in bursts, but introduces no bias. Reported as clean rather than
+  written up as a finding.
+- **`_cand_secs` is genuinely rolling** — `deque(maxlen=20)` (`monitoring.py:132`), so the comment
+  calling it a "rolling mean" is accurate rather than aspirational (the failure mode would have been a
+  cumulative mean that lags a real slowdown over a multi-day run).
+- **The remaining rate reporters carry no derived rate to bias:** `run_prototype.py` and
+  `run_campaign.py` record only raw `wall_clock_s`; the one `steps/s/core` hit in
+  `run_campaign_cluster.py:338` is prose inside a message, not a computation.
+- **TWO asymmetries NOTED and deliberately NOT changed** (unproven reachability + cosmetic
+  consequence — the same discipline applied in loops 47/49/51): (a) the parallel ETA path clamps with
+  `max(0, run_total - run_done)` (`monitoring.py:620`) while the serial path does not
+  (`l.306-307`), so the serial path could in principle emit a negative `eta_s` and a completion
+  timestamp in the PAST — but `run_total` is a fixed `total_arms × candidates_per_arm` product and no
+  path was found that drives `run_done` past it; (b) `state["eta"]` (the ISO timestamp) is written
+  only by the serial path and read nowhere in the monitor — it is a field of the `progress.json`
+  surface, so deleting it risks an unseen consumer for no gain. *(Both were checked against false
+  positives: the `state["eta"]` hits in `src/baselines/rewards.py` are an unrelated EWMA smoothing
+  parameter in a different dict.)*
+
+**Loop 56 — the GOLD BUILDER, auditing the credit loop 45 gave it: CLEAN (streak 2/30).**
+
+Loop 45 declared `load_gold_panel(validate=False)` a non-defect **on the strength of these two files**
+— "the builder NORMALISES the leakage invariant, so a non-monotonic panel is unconstructible" — yet
+neither had ever been reviewed. This loop audited that claim rather than inheriting it. **It holds**,
+and the surrounding code is honest about missingness. No code changed ⇒ no affected tests.
+
+- **The monotonicity credit is STRUCTURAL, not incidental.** `align_to_calendar` does
+  `df.reindex(sessions)` where `sessions` comes from `exchange_calendars.sessions_in_range()` — a
+  sorted, unique `DatetimeIndex` by construction. After the reindex the panel's index simply **IS**
+  the exchange calendar, so strictly-increasing dates are guaranteed by the operation itself, not by a
+  check that could be skipped. Loop 45's argument stands.
+- **The reindex does NOT fabricate data.** Missing sessions arrive as `NaN` (pandas' reindex default),
+  never as `0.0` — which matters because a zero return asserts the asset was FLAT, a materially
+  different claim from "no observation". And `returns_aligned` is frozen to both the `staged` and
+  `clean` artifacts **as-is, with the NaNs intact — there is no `fillna` anywhere in the path**.
+- **Dropped rows are REPORTED, not silently discarded.** Off-calendar rows (vendor artefacts on
+  holidays) are counted AND sampled into `align_rep` (`off_calendar_rows_dropped` + the first 20
+  dates), and that report is persisted into the frozen artifact's metadata alongside
+  `missing_rep.as_dict()`, plus `record_lineage`. The evidence survives the build.
+- **`classify_missing` draws exactly the right distinction.** Missing cells are classified three ways
+  — `pre_ipo` (before the column's first valid observation), `post_delisting` (after its last), and
+  **`interior`** (a gap INSIDE the asset's traded life, the one that would corrupt a return series if
+  ever filled) — each counted separately. The holiday definition is stated precisely and correctly in
+  the docstring: holidays are non-session dates in the RAW index, and sessions the vendor never
+  covered are explicitly NOT holidays.
+- **NOTED, deliberately NOT changed — no assertion binds the built panel to the REGISTERED window.**
+  `build_universe.py:298-300` ends the calendar at `min(window["end"], returns.index.max())`, so a
+  truncated vendor pull would silently shrink the panel, and the absent tail would never appear in the
+  missing report (those sessions are not in `sessions` at all, so they cannot be classified
+  `interior`). Nothing in `build_universe`, `loaders.py`, or `preflight.py` asserts coverage. **Why it
+  is left alone:** the clip is design-defensible — for an ONGOING series the data legitimately ends
+  before a future `window.end`, and blindly using `window["end"]` would manufacture all-NaN rows for
+  sessions that have not happened yet. A strict coverage assertion would break that intended case, no
+  live path to a truncated frozen panel was demonstrated, and the data pipeline is a separate lane.
+  Recorded for Tamer as a "what would still be green if this broke?" observation, not a defect claim.
+
+**Loop 57 — `config/` CROSS-FILE MIRRORS (hunting the #24 pattern): CLEAN (streak 3/30).**
+
+#24 proved that a constant duplicated across a config and the code, with nothing binding the two,
+drifts silently (`DEFAULT_REPLAY_CAP` vs `agent.buffer_size`). This loop asked whether the same trap
+exists BETWEEN config files. It was scanned mechanically, not eyeballed: a throwaway script flattened
+all 14 `config/*.yaml` to scalar leaves and reported every leaf-key appearing in 2+ files, splitting
+DISAGREEING from AGREEING values. No code changed ⇒ no affected tests.
+
+- **The registered mirrors that matter are ALL guarded by the freeze gate.** `train_steps_per_candidate`
+  (400000 in `algos.yaml` + `campaign.yaml` + `preregistration.yaml`) has a dedicated cross-file assert
+  in `freeze.py` — the file itself calls it "the single most important executed number" — and
+  `preflight.check_budget_mirror` independently binds the campaign↔algos pair. `matched_budget` (30,
+  `arms.yaml` ↔ `preregistration.yaml`) has `assert_matched_budget_match`. `lambda_cvar` (0.0) is
+  pinned to the R22 value. Three-for-three: the cross-file integrity this project depends on is real.
+- **★ A false pairing my own scan produced, refuted before acting — worth recording as a method note.**
+  `alpha = 0.05` appears in BOTH `inference.yaml` and `preregistration.yaml` and appears NOWHERE in
+  `freeze.py`, which looked like an unguarded mirror of the SIGNIFICANCE LEVEL — the worst possible
+  thing to let drift. It is not a mirror at all: `inference.yaml: fitness.alpha` is consumed by
+  `src/selection/fitness.py:110` as **`cvar_alpha` — the CVaR TAIL PROBABILITY** — while
+  `preregistration.yaml: inference.validity_tier.alpha` is the significance level. Two different
+  quantities that coincide at 0.05 and share a leaf name. **Binding them would have been actively
+  wrong.** Matching on key NAME is not evidence of a mirror; the resolved PATH and the CONSUMER are.
+- **`pbo.n_blocks` is live and correctly wired.** `analyze_campaign.py:4759` reads
+  `inference.yaml: pbo.n_blocks` (its docstrings claim exactly that, and the claim checks out — lens
+  51). Its `16` fallback duplicates the registered value, but unlike #24 it only fires if the KEY is
+  DELETED — a changed value is honoured — so it is materially weaker than the cap case and was left
+  alone.
+- **NOTED, not claimed as a defect:** `config/campaign.yaml: cpcv.n_blocks` has no reader anywhere in
+  main-repo code (only a docstring mention at `analyze_campaign.py:23`); the live `cpcv.n_blocks`
+  consumer is `data_pipeline/src/data/panel.py:105`, which reads **data_pipeline's own**
+  `config/inference.yaml`. That smells like a duplicated/dead key, but `splits`-shaped config IS
+  consumed via a passed-in cfg in `src/data/pipeline.py:327`, so calling it dead would be speculation
+  on the evidence gathered. Recorded for a future loop rather than acted on.
+- The remaining agreeing pairs (`batch_size`, `gamma`, `learning_rate`, `temperature`, `window`,
+  `low`, `cvar_alpha`, `learning_starts`) sit between `prototype.yaml` / `subexperiment.yaml` /
+  `eureka_loop.yaml` — non-campaign configs that are legitimately independent, not design mirrors.
+  Every DISAGREEING value likewise resolved to the deliberate prototype-vs-campaign gap (25k vs 400k
+  steps, 40 vs 30 candidates, 8 vs 6 generations).
+
+**Loop 58 — `src/env/portfolio_env.py`, the env/untrusted-reward TRUST BOUNDARY: CLEAN (streak 4/30).**
+
+The largest unreviewed load-bearing file: the object the no-look-ahead proof slices, the reward
+contract is called against, and every arm's identification rests on. Led with the sandbox-adjacent
+lens — *can untrusted LLM reward code mutate env state?* — and probed it ADVERSARIALLY rather than by
+reading. No code changed ⇒ no affected tests.
+
+- **The trust boundary HOLDS under an adversarial reward.** A probe reward was run that tried every
+  mutation vector at once: injecting a key, clobbering `port_ret`, and writing in place through every
+  mutable value reachable via `info` (lists, dicts, and `ndarray[:] = 0`). Result: the reward saw
+  exactly three keys (`weights`, `prev_weights`, `reward_state`), **NO ndarray it received was
+  writable**, the env's returned `info` was NOT polluted, `port_ret` was NOT clobbered, and the shared
+  gold panel was NOT corrupted.
+- **The hardening's threat model is unusually sharp.** The reward is handed **detached read-only
+  COPIES, not read-only views** — because a read-only view still exposes a writable parent via
+  `.base`, which would make the protection depend on the AST gate denying `.base`; a copy has
+  `base is None`, so the array boundary is self-sufficient. `r_t` is likewise copied off the shared
+  panel so neither the env's arithmetic nor the reward can write through to data later candidates
+  replay from. `reward_info = dict(info)` blocks key injection/clobbering.
+- **My "shallow copy" hypothesis was REFUTED empirically.** `dict(info)` is shallow, so a mutable
+  VALUE in `info` would still be shared — but at call time `info` holds only the two read-only arrays
+  plus `reward_state`, which is the reward's OWN returned object and is never read back by the env.
+  There is no mutable env-owned value to reach.
+- **The accounting is correct and fail-loud.** `port_growth <= 0.0` RAISES a `FloatingPointError`
+  naming `t` rather than dividing through a wiped-out portfolio; `w_tilde = w_prev * growth /
+  port_growth` is properly renormalised (it sums to 1 by construction — a suspected missing
+  renormalisation was refuted); turnover is the documented half-L1 against the DRIFTED prior weights;
+  and the `log1p(max(port_ret, -0.9999))` floor is explicitly tied to the baselines' identical clip,
+  so env and baseline accounting cannot diverge.
+- **One writability ASYMMETRY found, PROVEN HARMLESS, deliberately not changed.** The returned
+  `info["prev_weights"]` is writable on **step 1 only** (it is the reset-time array, which never passes
+  through the `setflags` at l.287); from step 2 it is read-only because `self.w_prev = w` is already
+  hardened — measured across four steps. It cannot corrupt anything: `reset()` mints a FRESH array
+  every episode (`np.full`, l.247) so there is no cross-episode contamination path, and the returned
+  reference is already orphaned when `step` returns (`is_env_w_prev=False` at every step, since the
+  env has advanced to `w`). Left alone under the LEAVE-ALONE discipline — this is proven harmless
+  rather than merely unproven, and the V15a comment's claim is accurate as written (it describes how
+  `weights` becomes the NEXT step's `prev_weights`, and `weights` is read-only at every step).
+
+**Loop 59 — `portfolio_env._obs()`, the observation build: finding #33 (LATENT look-ahead) fixed (streak → 0).**
+
+- **Finding #33 — `lookback_days = 0` built an env whose observation contained the panel's FINAL row.**
+  `_obs` reads the VIX as `vix[t - 1]` on the contemporaneous (synthetic) convention. At
+  `lookback = 0` the default `start` is 0, so `t = 0` and the index is `-1` — **NumPy's negative
+  index, i.e. the last row of the panel: the FUTURE.** `_obs`'s `min(vix_idx, T - 1)` clamp bounds the
+  index only from ABOVE, and nothing validated `lookback >= 1`, so the env constructed happily.
+  **REPRODUCED before fixing:** an observation built at `t=0` contained `vix[-1]` and did **not**
+  contain `vix[0]`.
+- **The codebase had already been bitten by this exact class once.** The comment at l.183-185 records
+  final-audit #28: "a window > lookback silently produced a negative-index/empty slice -> NaN obs +
+  RuntimeWarning, not a raise", which added the `max(vol_windows) <= lookback` guard. That closed the
+  vol-window case and left the lookback itself open — the same negative-index aliasing as #25
+  (`Panel.slice(-5, 20)` returning the last five rows).
+- **Fixed by REFUSING at construction, mirroring the file's own fail-loud style** (`start < lookback`
+  and `vol_window > lookback` already raise). Deliberately NOT a `max(0, ...)` clamp on `vix_idx`: a
+  zero lookback is a misconfiguration to SURFACE — the observation would carry no return history at
+  all — not a geometry to silently repair. With `lookback >= 1` enforced, `start >= 1` and `t - 1 >= 0`,
+  so the negative index is unreachable by construction rather than patched at the read site.
+- **Severity honestly stated: LATENT.** It requires `lookback_days: 0` in config; the live value is 60
+  (with `realized_vol_windows: [20, 60]`). Logged and fixed anyway because it is config-REACHABLE (the
+  #23 class), the failure mode is LOOK-AHEAD in a project whose credibility rests on its absence, and
+  the fix is one guard in the file's established idiom.
+- **VERIFIED:** `lookback=0` → `ValueError: lookback_days must be >= 1 …`; the normal config still
+  builds (`obs_dim=255`, `start=60`), which also cross-checks `_obs_dim`'s formula exactly for N=4
+  (60·4 + 2·4 + 1 + 1 + 5). `tests/test_env_nolookahead.py` + `test_audit_regressions.py` +
+  `test_platform_coverage.py`: **88 passed, `PYTEST_RC=0`**, with a new regression test in the
+  look-ahead proof file.
+- **Verified CLEAN in the same pass:** the returns window `returns[t-lb:t]` and each vol window
+  `returns[t-w:t]` can never take a negative start, because `start >= lookback` and
+  `max(vol_windows) <= lookback` are both enforced loudly at construction. And the no-look-ahead proof
+  is NOT partial — its central test is `test_truncation_invariance_over_all_columns`, which checks
+  every observation column, so a leak in an unchecked channel is not possible there.
+
+**Loop 60 — NEGATIVE-INDEX / ONE-SIDED-CLAMP class sweep (the #33 class): CLEAN (streak 1/30).**
+
+#33 was the THIRD instance of this class (after #25 `Panel.slice`, and final-audit #28's vol-window
+guard), so it was swept as a pattern across `src/` and `scripts/`. **No new instance exists.** Two
+candidate findings were chased and both died on the evidence. No code changed ⇒ no affected tests.
+
+- **The one-sided index clamp has exactly ONE instance repo-wide** — `portfolio_env.py:444`
+  (`min(vix_idx, T-1)`), i.e. #33 itself, now unreachable by construction after loop 59's
+  `lookback >= 1` guard. Every other `min(...)`/`max(...)` found is a VALUE floor (`max(p[1], 1e-12)`,
+  `max(q, 1e-6)`, the `max(float(bf), 0.3)` plot marker) or a non-time-axis canonicalisation
+  (`reward_taxonomy.py:196`'s union-find roots at the smaller index — both indices are ≥ 0).
+- **Every subtraction-inside-an-index on a time axis is guarded at its loop bound.**
+  `es_backtest.py:310`'s AR(1) recursion allocates `d` INSIDE the replication loop (so nothing carries
+  across reps), sets `d[0]` as an explicit stationary start, and iterates `range(1, t)` — `d[-1]` is
+  unreachable; its `innov_sd = sqrt(1 - ar1²)` also correctly gives the stationary series unit
+  variance. `synthetic.py`'s GARCH (l.68) and EWMA (l.109) recursions likewise initialise `[0]`
+  explicitly and iterate from 1, and the GARCH `omega = base_vol²(1-α-β)` yields the intended
+  stationary variance. `scripts/` has ZERO instances of the shape.
+- **★ A candidate that looked like a SIBLING OF #9, refuted by a genuinely well-built guard.**
+  `run_campaign.resolve_windows` (l.505-510) clamps every split boundary two-sidedly —
+  `val_start = min(train_end + purge, max(train_end, T-1))` and the same for `test_start`. That is the
+  silent-clamp shape #9 fixed in `learning_curve.py` (where `min(split + lookback, T-1)` silently ate
+  the R18 purge), and this is the LIVE campaign driver, so a silent squash would run the campaign on
+  windows differing from the registered ones. **It is safe, because the clamps' OUTPUT is asserted:**
+  `_assert_expected_windows` compares the resolved tuples against
+  `config/inference.yaml: splits.expected_windows.<suffix>` and raises `WindowDriftError` on mismatch —
+  and it is invoked on BOTH production paths (`run_campaign.py:1505`, `run_campaign_cluster.py:129`),
+  is tested, and is documented in the provenance notebook.
+- **That guard is itself FAIL-CLOSED on absent evidence — the #28 discipline, done right.** If NO
+  expectation is recorded for the suffix (a fresh rebuild), it does not pass quietly: it RAISES,
+  naming the resolved tuples so the operator can record and review them. Exactly the property whose
+  absence made the contamination screen (#28) and the author gate (#29) fail open.
+- **Loop-60 protocol note:** the standing loop asks for a full suite every 10 loops. Still DEFERRED
+  under Tamer's machine-load rule — targeted per-file runs only, so no repo-wide green is claimed and
+  a full run remains owed.
+
+**Loop 61 — `project_simplex` + the action boundary: finding #34 (LATENT, MASKED) fixed (streak → 0).**
+
+- **Finding #34 — a non-finite action silently poisoned the rollout while training LOOKED healthy.**
+  `env.step(nan_action)` did **not** raise. It produced `port_ret = NaN`, fed a **NaN OBSERVATION back
+  to the agent**, and `safe_call` substituted a SAFE_DEFAULT reward of `0.0` — so the run showed a
+  plausible reward and no error while the policy trained on poison. **REPRODUCED before fixing.**
+- **The existing wipeout guard cannot catch it, for two independent reasons.** `port_growth <= 0.0`
+  (the `FloatingPointError` praised in loop 58) is **False for NaN** — NaN comparisons always are —
+  and on the first poisoned step `port_growth` is still computed from the PREVIOUS finite weights, so
+  it is not even reached. The corruption enters through `turnover` and `gross` instead.
+- **The corruption is TOTAL, not partial — and my own prediction was wrong until I ran it.** I expected
+  `[inf, 0, 0, …]` to project to `[1, 0, 0, …]`. It does not: the softmax subtracts `max(a)`, which is
+  `inf`, so `inf - inf` NaNs **the max element itself** and the entire weight vector becomes NaN. Any
+  single non-finite entry destroys the whole allocation.
+- **Fixed by validating at the BOUNDARY** — immediately after projection, before any env state is
+  touched — raising `FloatingPointError` naming `t` and the offending action, in the same idiom as the
+  wipeout guard below it. This is CLAUDE.md's "validate untrusted input once at the boundary": a
+  non-finite action means the policy has diverged, and failing loudly is strictly better than training
+  on NaN under a fabricated 0.0 reward. Checked first that no test feeds a non-finite action expecting
+  graceful handling.
+- **VERIFIED:** all three shapes (`all-NaN`, `all-inf`, a single `inf`) now refused with a message
+  naming the step and action; a 20-step ordinary rollout is unaffected (finite obs, sensible reward
+  sum). `test_env.py` + `test_env_nolookahead.py` + `test_deep_p10_delisting_timeout.py` +
+  `test_cost_sweep.py` + `test_audit_regressions.py`: **74 passed, `PYTEST_RC=0`**, with a
+  parametrized regression test (including the single-`inf` case precisely because the corruption is
+  total) plus a positive control.
+- **Severity honestly LATENT but MASKED.** It needs a diverged policy — SAC actions are tanh-squashed,
+  so NaN implies NaN network weights. What raises it above a curiosity is that the failure was
+  *actively concealed*: `safe_call`'s SAFE_DEFAULT turned a poisoned step into a normal-looking reward,
+  which is the same "instrument reports success while measuring nothing" theme as #28/#29/#31/#32.
+- **Verified CLEAN in the same pass:** the softmax is correctly stabilised (`a - max(a)` ⇒
+  `exp(z) ∈ (0,1]` and the denominator is ≥ 1, so no overflow and no division by zero); the
+  `l1_normalize_of_clipped` branch has a documented uniform fallback for the all-zero case; an unknown
+  `kind` RAISES. The docstring's disclosure is exemplary and worth keeping for the write-up: softmax
+  maps onto the OPEN interior, so it can never reach an exact 100%-cash corner — it damps the
+  flee-to-cash response — but it does so EQUALLY for every arm, making it a shared limitation of the
+  action parameterisation rather than an H2 confound.
+
+**Loop 62 — NaN-BLIND NUMERIC GUARD sweep (the #34 class): CLEAN (streak 1/30).**
+
+#34's root cause is fully general — a guard written as a numeric comparison is False for NaN, so it
+passes exactly the poisoned state it exists to stop. Swept the statistical-integrity surfaces. **No new
+instance.** No code changed ⇒ no affected tests.
+
+- **Threat DIRECTION established first, which is what made the sweep tractable.** For a REJECTION test
+  (`p < alpha`) a NaN is *conservative* — you fail to reject, losing power but never falsely claiming
+  an effect; the same holds for TOST, where a NaN `p_tost` simply fails to conclude equivalence. The
+  DANGEROUS shape is the opposite: a guard that FLAGS or REJECTS on a comparison, where NaN silently
+  SKIPS the flag (the #28 fail-open direction). The sweep targeted that shape, not p-values.
+- **`src/inference/deflated_sharpe.py` is the POSITIVE TEMPLATE for this class.** It filters its input
+  (`r = r[np.isfinite(r)]` — "a pathological reward must not poison the moments") and every numeric
+  guard PAIRS the comparison with a finiteness check: `denom_var <= 0.0 or not np.isfinite(denom_var)`
+  (l.93) and `not np.isfinite(sd) or sd <= 1e-12 * (…) or np.ptp(r) == 0.0` (l.151). That is precisely
+  the construction #34's `port_growth <= 0.0` was missing.
+- **`held_out_fitness` cannot emit NaN — verified by execution, not by reading.** Constant returns,
+  all-zeros, `n=1` and an empty series all return finite values (0.019 / 0.0), and a NaN *inside* the
+  return series still yields a finite fitness (0.165) because the moments filter it out; an all-NaN
+  series returns 0.0. The R65 "DSR n≤1" hardening holds. The `lam != 0` CVaR penalty is separately
+  isfinite-guarded, and the frozen `lambda_cvar = 0.0` (R22) means the live path is the DSR alone.
+- **The ranking hazard is REAL but has no reachable source.** `max()` is order-dependent under NaN —
+  confirmed empirically: `max([NaN, good])` returns the **NaN** candidate, while `max([good, NaN])`
+  returns `good`. Neither ranking site filters (`loop.py:193` `max(self.candidates, key=…val_fitness)`,
+  `parallel.py:883` `max(accepted, key=…["fitness"])`). They are safe only because `held_out_fitness`
+  cannot produce NaN. Recorded rather than "fixed": adding a filter would be speculative hardening
+  against a source that does not exist, and the candidate lists hold accepted candidates only.
+- **Already-verified members of the class, not re-checked:** `safe_call` raises on a non-finite reward
+  total (loop 58) and `popart.py` is isfinite-guarded throughout (loop 44).
+
+**Loop 63 — the DELISTING BAND {0, −30, −55, −100} (R33, PREREGISTRATION §7): CLEAN (streak 2/30).**
+
+The lens was "is it applied at the right STEP and to the right LEG?", since a misplaced delisting
+return would bias the survivorship-critical tail. It is right on both, and the surrounding reasoning is
+unusually careful. No code changed ⇒ the existing tests were run as verification: **9 passed,
+`PYTEST_RC=0`**.
+
+- **Right STEP — and the obvious implementation would have been wrong.** The Shumway audit log's
+  `date` is the delisting EVENT/booking date, which lags the corrected session by **~13 sessions**.
+  The band does NOT use it: it books each delisting return onto the dead name's **last valid return
+  session**, so the loss lands in the window where the position actually died rather than a fortnight
+  later (potentially in the wrong split). The docstring records this as "verified, not the audit
+  `date`".
+- **Right LEG.** It reprices ONLY the data, cell-by-cell on the 333 dead-name cells — not the
+  portfolio, not the cash sleeve — and is registered DISJOINT from the multiplicity families (asserted
+  by `test_delisting_band_disjoint_keys_no_family_tuple`).
+- **The `univ4` pin is deliberate, and its alternative would have been a #28-class SILENT SKIP.**
+  `univ4` is the only build carrying the Shumway audit log that LOCATES the 333 cells; the headline
+  panel is a zero-fill build (`univ3` post-R44, `univ5` post-Split-C) with no audit log. The comment
+  states plainly that if the band deferred to `gold_suffix()` it would look for
+  `shumway_audit_log_univ5.parquet`, which does not exist on disk, and the LOAD-BEARING band would
+  silently `skip` under a default analyze run. Pinning to `univ4` locates the cells and brackets back
+  to the headline at `d = 0` (the zero-fill end).
+- **The M&A contamination is SURFACED, not hidden — and a test enforces it.** Refinitiv carries no
+  vendor delisting terminal, so the fixed surcharge hits 100% of delistings *including* premium
+  M&A/mergers whose true terminal return was positive or neutral. That makes `univ4` an OVERSTATEMENT
+  of the delisting penalty — i.e. a conservative UPPER bracket — and
+  `test_delisting_band_flags_univ4_as_ma_contaminated_upper_bracket` asserts it is reported as exactly
+  that rather than as a point estimate. This is the right scientific framing for the write-up: the
+  band BRACKETS the headline (`d=0` = the executed zero-fill policy) instead of replacing it.
+- **`_pooled_cvar`'s zero-fill is the right population, not a distortion.** Non-finite cells are set to
+  0.0 to mirror the headline `liquidate_to_cash` policy, so the pool is the SAME finite return
+  population the env actually trades and only the band overwrite moves the tail; it reuses the
+  canonical `src.inference.bootstrap.cvar` rather than re-deriving the estimator.
+
+**Loop 64 — `src/io/results.py`, the ARCHIVE + REPLAY layer: CLEAN (streak 3/30).**
+
+The lens was the one that would matter most if it failed: **can a record be silently dropped, shrinking
+the effective n of every downstream statistic with no signal?** It cannot. Verified by EXECUTION, not
+by reading — a scratch archive was written, then deliberately damaged three ways. No code changed;
+existing tests run as verification: **24 passed, `PYTEST_RC=0`**.
+
+- **A corrupt record RAISES — it is never skipped.** A truncated `record.json` produced
+  `ValueError: CORRUPT archive record at …: Unterminated string` (observed, not inferred). The
+  refusal to auto-quarantine is a deliberate SCIENTIFIC argument, not laziness: "an LLM-arm record is
+  irreplaceable (a non-deterministic author would regenerate a DIFFERENT candidate — silently changing
+  the study)". The message then distinguishes what a human may safely do — restore from the archive
+  mirror, or delete the dir to let `--resume` re-run it, **only** for DETERMINISTIC units (test seeds /
+  search-arm candidates), never for an LLM-arm record.
+- **A torn write is structurally impossible.** Sidecars are written FIRST, each with explicit
+  `flush()` + `os.fsync()`, and `record.json` is then committed atomically (temp sibling → fsync →
+  `os.replace`). The ordering has a recorded reason: writing sidecars AFTER the commit once left a
+  window where a crash produced a committed record with a MISSING/TRUNCATED sidecar, which **bricked
+  every subsequent `--resume`**, since `load_all` → `load_run` raises on that one directory.
+  Sidecars-first means a crash leaves either NO new record (the old state stands) or a COMPLETE,
+  byte-verifiable set — and `load_run` does verify the sidecars byte-for-byte, propagating the
+  mismatch by design.
+- **The one silent path is correct, and is covered elsewhere.** A directory with sidecars but no
+  `record.json` — a crash BEFORE the commit point — is skipped by `load_all` without a signal
+  (observed: the orphan dir was correctly not counted). That is right, because an incomplete run must
+  not count as a result; and the count itself is independently checked by the cluster integrity
+  censuses (`present == expected`, loops 49/52), so a shortfall cannot pass unnoticed. Separation of
+  concerns: `load_all` loads what is complete, the census verifies the COUNT against expectation.
+- **`_validate` is fail-loud too** — a missing required field raises `KeyError` naming the field
+  (observed: `run record is missing required field 'fold'`).
+
+### 📋 SESSION SUMMARY — deep code-review loops 44-64 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),
 > and *"document absolutely everything from this session in details"* (→ this block).
 
-**Ten findings in eleven loops (#23-#32), six of them MAJOR. Every one was REPRODUCED or traced before
-being touched; none was reported on speculation.** Two loops came back CLEAN and are recorded as such.
+**Twelve findings in eighteen loops (#23-#34), six of them MAJOR. Every one was REPRODUCED or traced
+before being touched; none was reported on speculation.** Seven loops came back CLEAN and are recorded
+as such — including loop 55, where a plausible ETA-bias finding was **refuted by my own analysis**
+rather than written up; loop 56, which **audited an earlier loop's own reasoning** (loop 45's clean
+verdict rested on two files nobody had reviewed; the credit was checked and holds); and loop 57, where
+an apparent unguarded mirror of the SIGNIFICANCE LEVEL turned out to be **two different quantities
+sharing a name** — binding them would have been a self-inflicted defect.
 
 | # | Loop | Sev | Defect | Status |
 |---|------|-----|--------|--------|
@@ -2145,6 +2517,8 @@ being touched; none was reported on speculation.** Two loops came back CLEAN and
 | 30 | 52 | MINOR | `check_lockfile` PASSED on a lockfile pinning NOTHING, and a pin-less file MASKED a genuine `uv.lock` | FIXED (+ test) |
 | 31 | 53 | MAJOR | both compute benchmarks timed SAC WARMUP as training (~5407 vs ~30 steps/s), inflating throughput 66% and understating the projected campaign wall-clock ~40% | FIXED |
 | 32 | 54 | MAJOR | the Phase-0 gate's **`m` (min/50k) — the planning number recorded in DECISION_LOG** — timed warmup too: reported 16.12 vs a true 24.54 min/50k, **understating the campaign's sizing input by 34%** | FIXED (steady-state window; + test) |
+| 33 | 59 | LATENT | `lookback_days = 0` built an env whose observation read `vix[-1]` — the panel's FINAL row, i.e. **the FUTURE** (negative-index aliasing; the clamp bounded only the upper side) | FIXED (refuse at construction; + test) |
+| 34 | 61 | LATENT (masked) | a non-finite action silently poisoned the rollout — NaN obs fed back to the agent while `safe_call` substituted a 0.0 reward, so training LOOKED healthy; the `port_growth <= 0.0` guard cannot catch NaN | FIXED (validate at the action boundary; + tests) |
 
 **Two loops CLEAN, with the reasons recorded so they are never re-swept:** loop 45 (`data/validation.py`
 — the NaT concern REFUTED by execution: `d2 - INT64_MIN` overflows to a negative gap, so it IS caught)
