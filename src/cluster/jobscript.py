@@ -30,13 +30,11 @@ __all__ = ["render_jobscript", "write_jobscript"]
 
 _TEMPLATE = """#!/bin/bash -l
 #$ -N {name}
-#$ -l gpu=1
-#$ -pe smp {cores}
+{gpu_line}#$ -pe smp {cores}
 #$ -l mem={mem_per_core}
 #$ -l tmpfs={tmpfs}
 #$ -l h_rt={h_rt}
-#$ -ac allow={pool}
-#$ -notify
+{pool_line}#$ -notify
 #$ -r y
 #$ -p {priority}
 #$ -t 1-{n_tasks} -tc {tc}
@@ -74,10 +72,10 @@ export PYTHONPATH="{repo_root}:${{PYTHONPATH:-}}"
 # missed exactly the walltime-killed/node-failed cases the ledger exists for. RC=126 marks
 # "trapped before the run returned"; a hard SIGKILL remains unrecordable (forensics via qacct).
 RC=126
-GPUINFO=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1)
+{apptainer_guard}GPUINFO=$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | head -1)
 trap 'echo "{{\\"task\\":${{SGE_TASK_ID}},\\"host\\":\\"$(hostname)\\",\\"gpu\\":\\"${{GPUINFO}}\\",\\"rc\\":${{RC}},\\"secs\\":${{SECONDS}}}}" >> "{remote_root}/ledger/{name}.epilogue.jsonl"' EXIT
 trap 'exit 143' TERM USR2
-{launcher} -m src.cluster.run_one --spec "{remote_root}/specs/{name}/task_${{SGE_TASK_ID}}.json" --pack {pack}
+{launcher} -m {entry_module} --spec "{remote_root}/specs/{name}/task_${{SGE_TASK_ID}}.json" --pack {pack}
 RC=$?
 exit $RC
 """
@@ -101,6 +99,8 @@ def render_jobscript(
     venv: str = "$HOME/venvs/llmrp",
     repo_root: str = "$HOME/llmrp",
     apptainer_sif: str | None = None,
+    device: str = "cuda",
+    entry_module: str = "src.cluster.run_one",
 ) -> str:
     """Return the §14.6 jobscript text for one array batch.
 
@@ -108,9 +108,36 @@ def render_jobscript(
     priority 0 (the caller passes the §14.3 ladder value: 0 / -100 / -200 / -500), cores scale
     with the pack (4 per concurrent training), walltime scales with the pack wave (1h30 per
     §15's one-wave shape, 3h for pack=1's conservative margin).
+
+    ``device`` selects the LANE (2026-07-26, the CPU-lane build — dossier §0-PRE):
+
+    * ``"cuda"`` (default, unchanged): requests ``-l gpu=1`` + ``-ac allow=<pool>``.
+    * ``"cpu"``: NO ``gpu`` request and NO pool ``allow`` (a CPU job places on any node type, which
+      is the whole point — the d pool alone is 10,584 cores vs 74 GPUs cluster-wide), ``--nv`` is
+      dropped from the Apptainer line, and ``cores`` defaults to ONE PER PACKED TRAINING (a
+      training is single-threaded; the 4-per-training GPU sizing would over-request 4x).
+      Pass ``pool`` explicitly to pin a CPU node type (e.g. ``"D"``/``"B"``/``"T"``).
+
+    Two guards encode live-probed Myriad facts (2026-07-26); both fail LOUD at render:
+
+    * **``-pe smp 36`` is an EXCLUSIVE WHOLE-NODE request.** UCL's JSV silently adds ``exb=true``
+      + ``exd=true`` when the core count equals a full node, so the job needs an ENTIRELY EMPTY
+      node and starves (job ``cpucurve_d`` sat queued 2+ days). 35 is clean; 36 is not.
+    * **Apptainer is not on every node** (``node-d00a-230`` had none): the venv python lives INSIDE
+      the ``.sif``, so a missing container means ``rc=127`` after the slot was already granted. The
+      rendered script probes for it and exits with a named error instead.
+
+    ``entry_module`` selects the on-node entry point. The default trains the task's specs; pass
+    ``"src.cluster.bayes_chain"`` to run the WHOLE bayes_opt GP chain inside one job instead of
+    dispatching its 30 sequential proposals as 30 separate array-of-1 jobs (each paying a queue
+    wait). That packaging change is what makes the GPU lane worth having for the campaign's
+    critical path — see ``src/cluster/bayes_chain.py`` and ``src/cluster/lanes.py``.
     """
     if pack < 1:
         raise ValueError(f"pack must be >= 1, got {pack}")
+    device = str(device).lower()
+    if device not in ("cuda", "cpu"):
+        raise ValueError(f"device must be 'cuda' or 'cpu', got {device!r}")
     if priority > 0:
         raise ValueError("SGE -p only accepts <= 0 for users (self-deprioritization)")
     # PATH CONTRACT (2026-07-11 rehearsal incident — see the module docstring). Fail LOUD here,
@@ -145,7 +172,17 @@ def render_jobscript(
                 "path conversion has mangled a POSIX argument. Launch with MSYS_NO_PATHCONV=1 "
                 "or avoid passing absolute POSIX paths through the shell."
             )
-    cores = cores if cores is not None else 4 * pack
+    # CPU trainings are single-threaded (the 2026-07-25 profile: ~97% is the SAC gradient update,
+    # and multi-thread BLAS would change float reduction order = break CRN determinism), so the
+    # GPU lane's 4-cores-per-training sizing would over-request 4x on CPU.
+    cores = cores if cores is not None else ((1 if device == "cpu" else 4) * pack)
+    if int(cores) == 36 or (device == "cpu" and int(cores) >= 36):
+        raise ValueError(
+            f"cores={cores}: a full-node core request makes UCL's JSV add the EXCLUSIVE complexes "
+            "(exb/exd/ext), so the job needs an ENTIRELY EMPTY node and starves — live-probed "
+            "2026-07-26 (job cpucurve_d, '-pe smp 36', queued 2+ days). Use <= 35 (35 still gets "
+            "97% of a node); 8 places best. See docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md §0-PRE M2."
+        )
     h_rt = h_rt if h_rt is not None else ("3:0:0" if pack == 1 else "1:30:0")
     from src.cluster.submit import sanitize_name
 
@@ -154,6 +191,10 @@ def render_jobscript(
     gold_dir = gold_dir.rstrip("/")
     # V3 audit fix: the launcher is PART OF THE RUN LINE — the old apptainer branch set a shell
     # variable the run line never used (containerized jobs would have crashed on bare python).
+    # A CPU lane requests no GPU and pins no GPU pool; pass `pool` explicitly to pin a CPU node
+    # type (D/B/T) if a contrast ever needs CPU-model homogeneity beyond the seed-block scheme.
+    gpu_line = "" if device == "cpu" else "#$ -l gpu=1\n"
+    pool_line = f"#$ -ac allow={pool}\n" if (pool and (device == "cuda" or pool not in ("", "EF"))) else ""
     if apptainer_sif is None:
         env_line = f"source {venv}/bin/activate"
         launcher = "python"
@@ -165,15 +206,26 @@ def render_jobscript(
         # not exist inside the container and gold reads would fall back to a data/gold that
         # is absent on nodes. gold_dir is bound too, for the cp-failed ACFS fallback path.
         env_line = f"# containerized: {apptainer_sif} (venv python called through the container)"
+        # --nv injects the host NVIDIA stack; it is meaningless (and noise) on a CPU node.
+        nv = "" if device == "cpu" else "--nv "
         launcher = (
-            f'apptainer exec --nv --bind "$TMPDIR,{gold_dir}" {apptainer_sif} {venv}/bin/python'
+            f'apptainer exec {nv}--bind "$TMPDIR,{gold_dir}" {apptainer_sif} {venv}/bin/python'
         )
+    # Apptainer is NOT installed on every node (node-d00a-230, 2026-07-26): the venv python lives
+    # INSIDE the .sif, so a missing container burns the granted slot with a bare rc=127 and no
+    # diagnosis. Fail with a NAMED error the ledger can count instead.
+    apptainer_guard = "" if apptainer_sif is None else (
+        'command -v apptainer >/dev/null 2>&1 || { '
+        'echo "FATAL apptainer missing on $(hostname) - cannot start the containerized venv" >&2; '
+        'exit 127; }\n'
+    )
     return _TEMPLATE.format(
         name=name, n_tasks=n_tasks, remote_root=remote_root.rstrip("/"),
         gold_dir=gold_dir, pool=pool, tc=tc, priority=priority,
         hold_line=hold_line, pack=pack, cores=cores, mem_per_core=mem_per_core,
         tmpfs=tmpfs, h_rt=h_rt, env_line=env_line, launcher=launcher,
-        repo_root=repo_root.rstrip("/"),
+        repo_root=repo_root.rstrip("/"), gpu_line=gpu_line, pool_line=pool_line,
+        apptainer_guard=apptainer_guard, entry_module=entry_module,
     )
 
 

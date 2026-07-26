@@ -16,6 +16,7 @@ chunking doctrine §3b, pool speeds §2) + the ratified runbook levers (§10).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from src.cluster.telemetry import CONTENDED_QW, POOL_SPEED, Snapshot
 
@@ -100,9 +101,62 @@ def chunking(snap: Snapshot, *, prev_regime: str | None = None) -> tuple[str, in
         contended = snap.cluster_qw >= enter
     else:
         contended = snap.cluster_qw >= CONTENDED_QW
+    # ⚠ RATIONALE CORRECTED 2026-07-26 (the recommendation is unchanged; its REASON was wrong).
+    # This returned chunk-25 because "priority-per-job dominates" under contention — the ticket-
+    # concentration doctrine. That doctrine is REFUTED by a controlled test (dossier §0-PRE M5):
+    # holding 228 of 309 pending jobs moved our top eligible priority only 2.0165 -> 2.0413
+    # (waiting-time accrual, which happens anyway) and placed ZERO 32-core jobs, while 8-core jobs
+    # place 67-at-once. Our jobs sit at the cluster priority FLOOR whatever we do. Chunking buys
+    # NO priority.
+    # The recommendation SURVIVES on a different, real constraint: `max_u_jobs = 1000`. Chunk-1
+    # with pipelined rungs can enqueue ~1,200 arrays from the core line alone (runbook §10's C5
+    # check), and a cap hit mid-run classes as a transport error. So chunk BIG under contention to
+    # stay under the job cap — never to buy priority.
     if contended:
-        return "CONTENDED", 25       # few, heavy arrays: priority-per-job dominates
+        return "CONTENDED", 25       # few, heavy arrays: stay under max_u_jobs (NOT for priority)
     return "QUIET", 1                # the mode-D flood: 1-task chunks ramp 1/job/cycle in parallel
+
+
+def advise_cpu_lane(snap: Snapshot, *, rung: int = 568,
+                    retreat_cap_cores: int | None = None) -> dict[str, Any]:
+    """The CPU-lane recommendation: how many cores to hold, in what shape, and the makespan.
+
+    Closes the gap that left the 2026-07-26 capacity findings applied BY HAND at GO. Composes the
+    two modules that own the halves — ``killswitch.plan_footprint`` (how much to take, given live
+    pressure and the courtesy reserve) and ``lanes.plan_lanes`` (what the makespan then is, and
+    which lever is binding) — and adds the measured job shape.
+
+    Reads ``snap.cpu_free`` for FREE CORES in the confirmatory pools only (``d`` + ``b``; ``t`` is
+    excluded on CRN grounds and GPU-node cores are never harvested — ``lanes.EXCLUDED_CPU_POOLS``).
+    An empty ``cpu_free`` means "unknown", NOT "zero": the advisory then reports ``target_cores:
+    None`` rather than silently recommending a stall.
+    """
+    from src.cluster.killswitch import plan_footprint
+    from src.cluster.lanes import (CONFIRMATORY_CPU_POOLS, CPU_CHAIN_THREADS, plan_lanes)
+
+    known = {p: int(snap.cpu_free.get(p, 0)) for p in CONFIRMATORY_CPU_POOLS if p in snap.cpu_free}
+    if not known:
+        return {"target_cores": None, "why": "cpu_free unknown (telemetry section empty/failed)",
+                "free_cores": None, "pools": list(CONFIRMATORY_CPU_POOLS)}
+
+    free = sum(known.values())
+    target, why = plan_footprint(free_cores=free, pending_jobs=int(snap.cluster_qw),
+                                 retreat_cap_cores=retreat_cap_cores)
+    plan = plan_lanes(rung=rung, cpu_cores=max(1, target), chain_threads=CPU_CHAIN_THREADS)
+    return {
+        "pools": list(CONFIRMATORY_CPU_POOLS),
+        "free_by_pool": known,
+        "free_cores": free,
+        "target_cores": target,
+        "why": why,
+        # the measured job shape - see the dossier §0-PRE M2/M4c and runbook §11.1
+        "job_shape": "-pe smp 8 -l mem=2G (NEVER smp 36: it requests an EXCLUSIVE whole node)",
+        "flood_threads": 1,
+        "chain_threads": CPU_CHAIN_THREADS,
+        "makespan_days": round(plan.makespan_days, 2),
+        "binding": plan.binding,
+        "saturation_cores": round(plan.saturation_cores),
+    }
 
 
 def pick_search_pool(pools: dict[str, int]) -> str:

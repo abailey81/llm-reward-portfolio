@@ -100,6 +100,23 @@ def main(argv: list[str] | None = None) -> int:
         # printing only a heartbeat); watch mode stays change-gated to keep alerts meaningful.
         if always_render or alerts or old_fields is None:
             print(plan.render())
+            # CPU LANE (2026-07-26). The campaign's throughput lane is CPU, not GPU: 636 cores were
+            # measured concurrently vs ZERO GPUs granted in three days. Printed alongside the GPU
+            # plan so GO day READS the target instead of a human re-deriving it from the dossier.
+            from src.cluster.allocation import advise_cpu_lane
+
+            cpu = advise_cpu_lane(snap)
+            if cpu.get("target_cores") is None:
+                print(f"CPU LANE: {cpu['why']} — fall back to runbook §11.3 (manual sizing)")
+            else:
+                print(
+                    f"CPU LANE: hold ~{cpu['target_cores']} cores of {cpu['free_cores']} free "
+                    f"{cpu['free_by_pool']} | {cpu['job_shape']}\n"
+                    f"  threads: flood={cpu['flood_threads']} chain={cpu['chain_threads']} "
+                    f"(threads where LATENCY binds, cores where THROUGHPUT binds)\n"
+                    f"  makespan ~{cpu['makespan_days']} d at rung 568 (BINDING: {cpu['binding']}; "
+                    f"more cores stop helping past ~{cpu['saturation_cores']})\n"
+                    f"  why: {cpu['why']}")
         save_state({"prev_regime": plan.regime, "last_plan": fields})
         return fields
 

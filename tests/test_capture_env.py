@@ -39,3 +39,38 @@ def test_gold_panel_provenance_matches_default_suffix() -> None:
 
     gp = capture_env._gold_panel_provenance()
     assert gp["suffix"] == gold_suffix() == "univ5"
+
+
+# --- BLAS thread count: part of the determinism envelope (2026-07-26) -----------------------
+# Multi-threaded BLAS changes the ORDER of float reductions, so a training at 4 threads is NOT
+# bit-identical to the same training at 1. docs/MAX_THROUGHPUT_RUN_PLAN.md calls the thread count
+# "part of the determinism envelope" and gates any change behind a pre-freeze ratification -- but
+# the archive did not RECORD it, leaving the S6 homogeneity audit blind to a heterogeneous thread
+# regime exactly as it was blind to a CPU/GPU device mix.
+
+
+def test_determinism_env_records_the_BLAS_thread_counts(monkeypatch) -> None:
+    """The REQUESTED thread regime must land in the archive, so a mix is detectable by audit."""
+    monkeypatch.setenv("OMP_NUM_THREADS", "4")
+    monkeypatch.setenv("MKL_NUM_THREADS", "4")
+    env = capture_env.capture_env(seed=0)
+    det = env["determinism_env"]
+    for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+                "NUMEXPR_NUM_THREADS"):
+        assert key in det, f"{key} is not recorded — a thread-regime change would be invisible"
+    assert det["OMP_NUM_THREADS"] == "4"
+    # the pre-existing keys must survive
+    for key in ("CUBLAS_WORKSPACE_CONFIG", "PYTHONHASHSEED", "CUDA_VISIBLE_DEVICES"):
+        assert key in det
+
+
+def test_torch_block_records_the_EFFECTIVE_thread_count() -> None:
+    """The env var records what was REQUESTED; torch.set_num_threads() can override it in-process,
+    and it is the EFFECTIVE value that fixes the reduction order — so record that too."""
+    tc = capture_env._torch_cuda()
+    if not tc.get("available"):
+        import pytest
+
+        pytest.skip("torch not installed in this environment")
+    assert "num_threads" in tc and "num_interop_threads" in tc
+    assert tc["num_threads"] is None or tc["num_threads"] >= 1

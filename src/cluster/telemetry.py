@@ -43,6 +43,10 @@ class Snapshot:
     our_jobs: list[dict]                 # [{id, prior, state}] for our user
     probe_states: dict[str, str]         # probe job id -> qstat state ("r"/"qw"/"done"/"absent")
     errors: list[str] = field(default_factory=list)
+    # 2026-07-26 CPU lane: free CORES per node-type letter ("d", "b", "t", ...). The CPU lane is
+    # sized in cores, not GPUs, so pool_free (a GPU count) cannot answer it. Defaulted so every
+    # existing caller/archived frame stays valid.
+    cpu_free: dict[str, int] = field(default_factory=dict)
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2)
@@ -73,6 +77,28 @@ def parse_qhost_gpu(text: str) -> dict[str, int]:
         if g and current_pool:
             free[current_pool] = free.get(current_pool, 0) + int(float(g.group(1)))
             current_pool = None
+    return free
+
+
+def parse_cpu_free(text: str) -> dict[str, int]:
+    """``"<type> <free_cores>"`` lines -> ``{node_type: free_cores}``.
+
+    Tolerant by design (telemetry must degrade, never raise): unparseable lines are skipped and a
+    missing/empty section yields ``{}``, which the CPU-lane advisory reads as "unknown" rather than
+    "zero free" — the safe direction, since a false zero would silently stall the lane.
+    """
+    free: dict[str, int] = {}
+    for line in (text or "").splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        pool, n = parts
+        if len(pool) != 1 or not pool.isalpha():
+            continue
+        try:
+            free[pool] = int(n)
+        except ValueError:
+            continue
     return free
 
 
@@ -139,7 +165,21 @@ _REMOTE = (
     # parse as "legitimately empty" (rc was previously only the LAST command's).
     "echo '#QHOST'; qhost -F gpu 2>/dev/null; echo \"#RC:QHOST=$?\"; "
     "echo '#PENDING'; qstat -u '*' -s p 2>/dev/null; echo \"#RC:PENDING=$?\"; "
-    "echo '#MINE'; qstat 2>/dev/null; echo \"#RC:MINE=$?\""
+    "echo '#MINE'; qstat 2>/dev/null; echo \"#RC:MINE=$?\"; "
+    # CPU FREE CORES per node type (2026-07-26). `qhost` gives NCPU per host but no used count,
+    # and `qstat -f` gives used slots per QUEUE INSTANCE — a host appears in ~40 queues, so the
+    # per-host used total is the SUM over its instances. Hence the join. Hostnames must be
+    # normalised: qhost prints `node-d00a-001`, qstat prints `Queue@node-d00a-001.data.priv` —
+    # the un-normalised join silently matches nothing and reports every core as free (a real bug
+    # hit while measuring on 2026-07-26).
+    "echo '#CPUFREE'; { qhost | awk 'NR>3 && $1 ~ /^node-/ {h=$1; sub(/\\..*/,\"\",h); print h, $3}' "
+    "| sort > /tmp/_llmrp_n.txt; qstat -f -q '*' 2>/dev/null "
+    "| awk '/@node-/ {split($1,q,\"@\"); h=q[2]; sub(/\\..*/,\"\",h); split($3,r,\"/\"); u[h]+=r[2]} "
+    "END{for(h in u) print h, u[h]}' | sort > /tmp/_llmrp_u.txt; "
+    "join /tmp/_llmrp_n.txt /tmp/_llmrp_u.txt "
+    "| awk '{f=$2-$3; if(f<0)f=0; split($1,a,\"-\"); t=substr(a[2],1,1); tot[t]+=f} "
+    "END{for(k in tot) print k, tot[k]}' | sort; "
+    "rm -f /tmp/_llmrp_n.txt /tmp/_llmrp_u.txt; } 2>/dev/null; echo \"#RC:CPUFREE=$?\""
 )
 
 
@@ -148,7 +188,7 @@ def collect(host: str = "myriad", *, probe_age_hours: float = 0.0,
     """One ssh round trip -> a parsed :class:`Snapshot` (errors captured, never raised)."""
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     errors: list[str] = []
-    sections = {"QHOST": "", "PENDING": "", "MINE": ""}
+    sections = {"QHOST": "", "PENDING": "", "MINE": "", "CPUFREE": ""}
     try:
         r = subprocess.run(["ssh", "-o", "ConnectTimeout=20", host, _REMOTE],
                            capture_output=True, text=True, timeout=timeout)
@@ -187,6 +227,7 @@ def collect(host: str = "myriad", *, probe_age_hours: float = 0.0,
         our_jobs=mine,
         probe_states=probe_verdicts(mine, pending_hours=probe_age_hours),
         errors=errors,
+        cpu_free=parse_cpu_free(sections["CPUFREE"]),
     )
 
 

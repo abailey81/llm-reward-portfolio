@@ -82,7 +82,9 @@ if ($Myriad) {
         # ignored here. Kept at the full ladder as a belt-and-suspenders default in case --tiered is dropped.
         $CampaignArgs = "--tiered " +
             "--arms distributional scalar placebo scalar_cvar5 placebo_shuffled random_search bayes_opt " +
-            "--baselines raw_return return_minus_variance return_minus_cvar differential_sharpe --seeds 0-567"
+            # NO --baselines: --tiered resolves the FROZEN config h1_baselines family. The old
+            # hand-mirrored H1 four DRIFTED at the 2026-07-26 canon expansion (4 -> 11).
+            "--seeds 0-567"
     }
     $inner = "`"$pythonExe`" `"$supervisor`" --no-preflight --campaign `"$clusterEntry`" -- $CampaignArgs --resume"
 } else {

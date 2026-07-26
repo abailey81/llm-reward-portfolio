@@ -61,6 +61,35 @@ carries a ready-to-apply spec. Tamer routes; sessions pull the tasks in their la
   identified estimand) land in config/prereg — I'll apply when config clears, or whoever is in config takes them.
 
 ---
+## ← FROM CAPACITY/MYRIAD → FEATURE/BUILD: one finding on T5 (dfo_toolkit), NOT edited by me
+
+**T5-a — TPE is dispatched FULLY SEQUENTIALLY, which contradicts T5's own "parallel-by-design" spec
+and would make it the campaign's LONGEST chain.** Found while modelling the critical path; your
+module, your call — flagged rather than clobbered (it was committed ~2 h ago).
+
+- **What:** `tpe_over_template` drives Optuna with `study.optimize(_objective, n_trials=budget)`,
+  which evaluates **one trial at a time**. So TPE is a **30-step sequential chain** — longer than
+  `bayes_opt`'s 25 (GP-EI's `n_init=5` are parallel; only 25 are serial). The module docstring
+  already says TPE proposes "a startup **batch** … the parallel search leg can dispatch
+  concurrently", so this is a **spec-vs-implementation gap**, not a design disagreement.
+- **Why it is cheap to fix and SCIENCE-FREE:** the first `n_startup_trials` (default
+  `min(10, budget)`) are drawn by Optuna's **random** sampler and do **not** depend on observed
+  values — so evaluating them concurrently gives **identical results**. Switching those to
+  `study.ask()` / `study.tell()` and dispatching them as one batch cuts the chain **30 → ~21**
+  with no change to the optimiser, the budget, or the seed. Pure dispatch, exactly like the
+  `bayes_opt` in-job chain (`src/cluster/bayes_chain.py`).
+- **Impact if left as-is:** absorbed today — the chains run CONCURRENTLY, so the critical path is
+  the MAX (~30 steps ≈ 4.0 d at 8 threads) and the throughput term (~4.5–7 d) still dominates. It
+  only bites if TPE is seated **confirmatorily** (the commit message mentions a "confirmatory
+  split") or if core count rises far enough to make the chain binding again.
+- **Modelled on my side:** `src/cluster/lanes.py` now carries `_TPE_SERIAL_STEPS = 30` /
+  `_CMA_SERIAL_GENERATIONS = 4` behind `plan_lanes(..., include_dfo=True)` — **excluded by default
+  because the toolkit is report-only**, so seating it becomes a visible decision rather than a
+  surprise. Test: `test_TPE_would_become_the_longest_chain_if_seated_confirmatorily`.
+- **CMA-ES is fine** — `es.ask()` proposes a whole population per generation, so at budget 30 with
+  the default popsize (~9) it is ~4 serial generations. Never binding.
+
+---
 ## → TAMER / RAMIN / OKHRATI — decisions (pre-freeze)
 1. **N6 endpoint** — annualised **Sharpe** (my analysis: the winner is validation-selected and test-sealed, so there
    is no test-set max-over-N to deflate; a DSR endpoint saturates on the 1571-day window → a structurally powerless IUT).

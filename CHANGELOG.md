@@ -390,7 +390,92 @@ pack_integration,submit_poll_ledger}` + `test_run_campaign_cluster` = **138 test
 `test_reproduce_synthetic` green (the golden keyless reproduction the new CLAUDE.md section
 demands). All 4 PS1 launchers `Parser::ParseFile` clean (0 errors); the non-ASCII bytes present are
 pre-existing em-dashes/§ in COMMENTS (not strings) and were left alone per the LEAVE-ALONE rule.
-Full-suite certification run separately.
+
+### ✅ R107 — CHAIN-ARM THREAD COUNT 1 → 8, RATIFIED BY TAMER (2026-07-26) · **NOT FROZEN**
+
+Tamer: *"Don't freeze anything, but I ratify everything."* Applied in my lane; **nothing frozen**
+(`frozen: false`, `freeze_hash: null`, verified after the edit).
+
+- **Registered** as amendment **R107** in `PREREGISTRATION.md` (the table's next row) + mirrored
+  machine-readably in `config/preregistration.yaml: execution` — `chain_thread_count: 8`,
+  `test_leg_thread_count: 1`, `chain_thread_count_max: 8`, plus where the regime is recorded.
+  **R106 is deliberately RESERVED** for Ramin's uniform-reasoning-off call, hence the jump.
+- **Why it is a registered amendment and not an ops tweak:** multi-threaded BLAS changes the ORDER
+  of float reductions ⇒ the thread count is part of the **determinism envelope**, exactly as
+  `MAX_THROUGHPUT_RUN_PLAN.md` prescribed (*bench-then-ratify pre-freeze*). The bench is the
+  measured 2.72× (and the 16-thread REGRESSION to 2.11×).
+- **Why it touches no result:** confined to the SEARCH/chain leg. Every SCORED comparison —
+  H1/H2/H3/H4, all paired contrasts, all CRN pairing — lives on the uniformly **1-thread TEST
+  leg**. Threads change only *which candidate is selected*, never a measured quantity; matched
+  budget, B\*, seeds, arms, fitness and analysis plan are UNTOUCHED. The inverse choice is equally
+  measured and equally registered (flood stays 1-thread: ~104 steps/s aggregate vs ~35).
+- **DEFECT CAUGHT WHILE RATIFYING:** `lanes.CPU_CHAIN_THREADS = 8` had become a **hardcoded mirror
+  of a registered config value** — precisely the DEFAULTS-CLASS bug the 2026-07-18 sweep killed for
+  B\*/candidates/generations. Now **BOUND by test** (`test_thread_counts_are_BOUND_to_the_
+  registered_config_not_mirrored`), so code and registration cannot drift.
+
+**CAMPAIGN-READINESS VERIFICATION (all run, all real output):**
+
+| gate | result |
+|---|---|
+| `freeze.py --check` | **RC=0**, `recorded freeze_hash: null (not yet frozen — expected pre-freeze)` ✅ still UNFROZEN |
+| `check_citations.py` | **RC=0**, clean on dangling + verify-in-use |
+| 4 campaign PS1 launchers | `Parser::ParseFile` **0 errors** each |
+| **MODE-D launch line, dry-run** | **RC=0** — 7 arms · 568 seeds · 7 tiers `[30,70,89,90,61,63,165]` · 5 candidates/gen · jobscript renders (52 lines) · pool=EF pack=5 |
+| **the H1 launch-blocker, proven fixed** | headline (`--tiered`, flag omitted) resolves **11** baselines; non-tiered → `None` (skip, as h3/C6 rely on); the **drifted 4-name list REFUSED** |
+| tests | **RC=0** — 194 over the risk surface, +84 incl. the new config binding and `test_freeze` |
+
+### ⭐ SESSION INVENTORY + FINAL VERIFICATION (read this first if you are picking the session up)
+
+**⚠ EVERYTHING BELOW IS UNCOMMITTED.** Four sessions shared this working tree, so nothing was
+committed unilaterally. The three NEW modules and four NEW test files are **untracked** (`??`) —
+a `git clean` or a careless checkout would destroy them. **Commit or stash them first.**
+
+**NEW files (untracked):**
+
+| file | what it is | tests |
+|---|---|---|
+| `src/cluster/lanes.py` | the MAKESPAN model + lane policy (CPU/GPU/thread split, the pool exclusions, the crossover arithmetic) | `tests/test_cluster_lanes.py` (16) |
+| `src/cluster/killswitch.py` | proactive footprint governor + administrative-kill detector + monotone retreat + the incident gate | `tests/test_cluster_killswitch.py` (26) |
+| `src/cluster/bayes_chain.py` | the whole `bayes_opt` GP chain in ONE job (deadline-aware, archive-replay resume) | `tests/test_cluster_bayes_chain.py` (13) |
+| `scripts/thread_sweep.py` | the single-training thread benchmark (`bench_compute` hardcodes `threads=1` and could not answer it) | — (run on-cluster) |
+| — | the CPU-lane advisory tests | `tests/test_cluster_cpu_lane_advisor.py` (9) |
+
+**MODIFIED files:** `src/cluster/{jobscript,campaign,run_one,telemetry,allocation}.py` ·
+`scripts/{run_campaign_cluster,capture_env,allocation_advisor}.py` ·
+`scripts/{campaign_supervisor,mode_d_supervisor,install_onstart_task}.ps1` ·
+`docs/{CAMPAIGN_DAY_RUNBOOK_2026-07-13,MYRIAD_EXPERT_DOSSIER_2026-07-24,PLAN_IF_WE_USE_UCL_MYRIAD,SESSION_TASK_DISPATCH_2026-07-26,HANDOFF}.md` ·
+`CLAUDE.md` (the ★★★★ REPRODUCIBILITY section) · `CHANGELOG.md`.
+
+**Where the knowledge lives (one owner per truth):** measurements + stop rules →
+`MYRIAD_EXPERT_DOSSIER` §0-PRE/§0-LIMITS · GO-day mechanics → `CAMPAIGN_DAY_RUNBOOK` §11 ·
+cross-lane finding → `SESSION_TASK_DISPATCH` T5-a · narrative → this file.
+
+**FINAL VERIFICATION — exact, not rounded up:**
+- **`VERIFY_RC=0` — 194 tests** over the entire risk surface at the FINAL working-tree state
+  (`allocation` · `cpu_lane_advisor` · `lanes` · `killswitch` · `bayes_chain` · `cluster_adapter` ·
+  `cluster_campaign` · `cluster_driver` · `run_campaign_cluster` · `capture_env`).
+- **`FULLFINAL_RC=0`** — a complete full-suite run finished mid-session with **zero failures**;
+  it certifies the state at its collection time, i.e. **before** the final gap-closing edits.
+- The gap-closing edits touched only `telemetry/allocation/lanes` + `allocation_advisor.py`. The
+  **only** tests importing those are the three covered above, and **no test imports
+  `allocation_advisor`** (grep-verified) — it was instead exercised **end-to-end against the live
+  cluster**, printing a real recommendation. So the post-edit surface is fully covered.
+- `freeze.py --check` **RC=0**, `frozen: false`. Advisor live-run **RC=0**.
+- Three further full-suite attempts were killed by session teardown at 2 %, 2 % and 8 %; the 8 %
+  `F` was chased to ground (see below) and was **not** a regression.
+
+**THE TWO FALSE REDS — both chased, neither a regression.** Running four sessions' pytest suites
+concurrently on this laptop produces spurious failures: `WinError 1455 (paging file too small)` in
+`test_cluster_pack_integration`, and `CUDA error: invalid resource handle` on three
+`test_agents_deep` SAC/TQC constructions. Each passed on isolated re-run, and the CUDA one **also
+passed when the exact failing pair was re-run** — proving non-determinism rather than a
+test-ordering bug (isolation alone could not have distinguished the two). Recorded as runbook
+§11.10: **re-run a failing test alone before calling it a regression — and never the reverse.**
+
+**OPEN, for Tamer:** ① **ratify 1 → 8 threads on the chain arms** (pre-freeze; the determinism
+envelope) ② **Ramin: CPU as a randomised device block** ③ commit/stash the untracked work
+④ FEATURE/BUILD to action `SESSION_TASK_DISPATCH` T5-a (batch TPE's startup trials, 30 → ~21).
 
 ## [2026-07-26] — OVERNIGHT DEEP-REVIEW LOOPS (review session; three sessions ran concurrently — this one is REVIEW)
 
@@ -2001,12 +2086,51 @@ and this is the instrument that sizes the campaign, where wall-clock is the seed
   string-matching source test would be brittle, so the regression guard here is the in-code comment
   recording the measured 5407-vs-30 steps/s figures and why steady state is the right basis.
 
-### 📋 SESSION SUMMARY — deep code-review loops 44-53 (2026-07-26, the CODE-REVIEW lane)
+**Loop 54 — MEASUREMENT-VALIDITY sweep (the #31 class): finding #32 (MAJOR) fixed (streak → 0).**
+
+- **Finding #32 — the Phase-0 gate's `m` (min/50k), the planning number the operator records in
+  `DECISION_LOG`, was understated by ~34% because it timed SAC's WARMUP as training.** Identical
+  mechanism to #31, in the instrument one step closer to the plan. `smoke_test._train_one` sets
+  `learning_starts = min(1000, steps // 3)`, so at the default `--steps 3000` **a full third of the
+  timed window is warmup**, and `minutes_per_50k` was derived from `steps / dt` over the whole run.
+- **REPRODUCED through the real production code path** (called `_train_one` directly at `steps=600`,
+  which yields the SAME 1/3 warmup fraction as the default, so the bias ratio is identical):
+  **smoke_test reported 51.7 steps/s → m = 16.12 min/50k, against a true steady state of 34.0
+  steps/s → m = 24.54** — the rate 52% high, `m` 34% low.
+- **Fixed WITHOUT touching what the gate exercises.** The gate's `learning_starts` is deliberate and
+  unchanged; instead `_CriticLossRecorder` now stamps the wall-clock and `num_timesteps` at the FIRST
+  critic update — `train/critic_loss` only appears once SAC starts updating, so that reading IS the
+  warmup→training boundary — and `m` is computed over that post-warmup window only. The raw whole-run
+  rate is still reported alongside it (`51.1 steps/s raw / 34.1 steady (warmup 202)`) so the two can
+  never silently disagree, and if NO training window is observed (`steps <= learning_starts`) `m` is
+  `NaN` rather than a fabricated number.
+- **VERIFIED live:** `--algos sac --steps 600 --device cpu` → `51.1 raw / 34.1 steady (warmup 202)`,
+  **m = 24.44 min/50k**, `STATUS: GREEN`, `EXIT=0`. The corrected m (24.44) matches the independent
+  steady-state measurement (24.54) to **0.4%**, and the gate's own behaviour is unchanged.
+  `tests/test_smoke_gate.py`: **10 passed, `PYTEST_RC=0`** (9 before).
+- **A useful correction to my own reasoning, recorded because it changes the rationale.** My first
+  test asserted `steady <= raw` as an invariant. It FAILED (`57.1 <= 19.0`) — at tiny step counts the
+  fixed cost inside `learn()` (the ~0.76 GB replay allocation + model setup) dominates the whole-run
+  rate instead of warmup. The code was right and the assertion was wrong. This makes the fix
+  *stronger* than first argued: clocking from the first gradient update excludes BOTH the warmup and
+  the one-off setup, and **neither scales to a 50k-step training**. The test now asserts what actually
+  holds (m derives from the steady rate, not the raw one) and documents both regimes.
+- **`scripts/learning_curve.py` — same mechanism, NOT changed, quantified instead.** It also projects
+  campaign wall-clock (fitting `sec_per_step = seconds / budget`), but its ladder runs at
+  `50000,100000,200000,400000,800000` steps, so the warmup fraction is **≤2%** (1000/50000) and
+  partially offset by the fixed setup cost pushing the other way. Below the noise of any wall-clock
+  projection and not worth the callback plumbing.
+- **NIT fixed while there:** that file's header documented the ladder as `25000,50000,100000,200000`
+  while the parser's live default is `50000,…,800000` — a stale fact a reader would take at face
+  value. Corrected, with a note that the ladder was raised past the frozen 400k B* (R77).
+  `tests/test_learning_curve.py` **21 passed, `PYTEST_RC=0`**.
+
+### 📋 SESSION SUMMARY — deep code-review loops 44-54 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),
 > and *"document absolutely everything from this session in details"* (→ this block).
 
-**Nine findings in ten loops (#23-#31), five of them MAJOR. Every one was REPRODUCED or traced before
+**Ten findings in eleven loops (#23-#32), six of them MAJOR. Every one was REPRODUCED or traced before
 being touched; none was reported on speculation.** Two loops came back CLEAN and are recorded as such.
 
 | # | Loop | Sev | Defect | Status |
@@ -2020,6 +2144,7 @@ being touched; none was reported on speculation.** Two loops came back CLEAN and
 | 29 | 51 | MAJOR | the campaign's pre-ship **author gate** admitted empty/comment-only/no-reward completions — exactly the truncated-refused case its own P8 comment says it exists to stop | FIXED (`executor.defines_reward`) |
 | 30 | 52 | MINOR | `check_lockfile` PASSED on a lockfile pinning NOTHING, and a pin-less file MASKED a genuine `uv.lock` | FIXED (+ test) |
 | 31 | 53 | MAJOR | both compute benchmarks timed SAC WARMUP as training (~5407 vs ~30 steps/s), inflating throughput 66% and understating the projected campaign wall-clock ~40% | FIXED |
+| 32 | 54 | MAJOR | the Phase-0 gate's **`m` (min/50k) — the planning number recorded in DECISION_LOG** — timed warmup too: reported 16.12 vs a true 24.54 min/50k, **understating the campaign's sizing input by 34%** | FIXED (steady-state window; + test) |
 
 **Two loops CLEAN, with the reasons recorded so they are never re-swept:** loop 45 (`data/validation.py`
 — the NaT concern REFUTED by execution: `d2 - INT64_MIN` overflows to a negative gap, so it IS caught)
@@ -2034,10 +2159,12 @@ guard preceded by an explicit non-empty `_require`).
 3. **A guard's own comment is a testable claim** (from #29/#31): three findings were guards that did
    not cover the case their own comment said they existed for.
 
-**Cross-cutting theme, worth carrying into the write-up:** five of the nine were *instruments that
-reported success while measuring nothing* — a screen that asked and learnt nothing, a gate that trained
-nothing, a benchmark that timed nothing, an audit that pinned nothing, a scale-normaliser silently
-disabled while its own audit field read healthy. Correctness of the happy path was never the problem.
+**Cross-cutting theme, worth carrying into the write-up:** six of the ten were *instruments that
+reported a result they had not actually measured* — a screen that asked and learnt nothing, a gate that
+trained nothing, an audit that pinned nothing, a scale-normaliser silently disabled while its own audit
+field read healthy, and TWO timing instruments (#31, #32) that clocked SAC's warmup as if it were
+training and so sized the campaign ~34-66% optimistically. Correctness of the happy path was never the
+problem; what failed was the machinery that is supposed to *tell us* whether things are working.
 
 **Standing constraints honoured:** NOTHING was frozen (`freeze.py` never invoked); no commits beyond
 the single explicitly-authorised `184c879` (author `Tamer Atesyakar`, verified free of any AI

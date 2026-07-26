@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 from contextlib import nullcontext
@@ -165,6 +166,7 @@ def build_cluster_run(
     search_pack: int | None = None,
     search_h_rt: str | None = None,
     search_poll_secs: float | None = None,
+    device: str = "cuda",
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
 
@@ -249,6 +251,16 @@ def build_cluster_run(
         # batch dirs inherit it); same-run resume adoption still works (same tag).
         if batch_tag:
             name = f"{batch_tag}_{name}"
+        # KILL-INCIDENT GATE (2026-07-26). Every batch on every path funnels through here, so this
+        # is the one place that can guarantee we do not resubmit into an unresolved administrative
+        # kill — the behaviour that turns "our jobs were killed" into "our account was suspended".
+        # Human-in-the-loop by design (like the tier-1 review gate): a machine may stop the
+        # campaign, only a person may restart it (killswitch.clear_incident).
+        from src.cluster.killswitch import incident_blocks_submission
+
+        _blocked, _why = incident_blocks_submission(local_archive_root)
+        if _blocked:
+            raise RuntimeError(f"submission BLOCKED — {_why}")
         # ``priority`` = the §14.3 intra-user -p ladder value (0 / -100 / -200 / -500): SGE itself
         # executes the C-ladder value order even when everything is queued at once.
         # Jobscript kwargs threaded to render_jobscript via driver.run_batch's **jobscript_kwargs:
@@ -262,7 +274,15 @@ def build_cluster_run(
         #    ~5.5x over-request at the measured 33 min/training — a tight, MEASURED h_rt (wall x1.5)
         #    makes every task a prime BACKFILL candidate (schedulers slot short jobs into reservation
         #    gaps), which is a pure placement win on a saturated queue. Hardware/scheduling only.
+        #  * device (2026-07-26, the CPU lane): selects the SUBSTRATE. It must reach BOTH the
+        #    jobscript (so the array requests no GPU and pins no GPU pool) AND every spec (so
+        #    run_one._run_single trains on cpu instead of its "cuda" default) — setting only one
+        #    of the two would either strand a CPU array on a GPU queue or run torch on a device
+        #    the job never requested. Injected at this single choke point.
         _jk: dict[str, Any] = {}
+        if device != "cuda":
+            _jk["device"] = device
+            specs = [{**s, "device": device} for s in specs]
         if apptainer_sif:
             _jk["apptainer_sif"] = apptainer_sif
         if cores_per_training:
@@ -410,10 +430,40 @@ def _result_from_record(cid: str, arm: str, arm_root: Path) -> dict[str, Any] | 
     return r
 
 
+#: TEXTUAL transient markers — safe as substrings because they are WORDS, not digits.
 _TRANSIENT_AUTHOR_MARKERS = (
-    "overloaded", "529", "503", "500", "502", "504", "timeout", "timed out", "connection",
+    "overloaded", "timeout", "timed out", "connection",
     "rate limit", "rate_limit", "temporarily", "unavailable", "getaddrinfo", "reset by peer",
 )
+#: Transient HTTP statuses, matched as NUMBERS not substrings (2026-07-26 review). The bare strings
+#: "500"/"502"/"503"/"504"/"529" used to live in the tuple above and matched any INCIDENTAL digits in
+#: an error message, so PERMANENT 4xx errors were classified transient and rode out the full 2 h
+#: budget — verified on realistic messages: ``max_tokens: 8500 > 8192``, ``claude-opus-5000-preview``,
+#: ``req_011CQ500ABCD``, ``prompt is 1500 tokens over the limit`` ALL contain "500". That directly
+#: defeats this function's stated guarantee ("no spend-burning retries on a permanent problem") on
+#: exactly the failure this project has already hit twice (the R97a / R102 max_tokens 400s).
+#: 429 is included deliberately: rate-limiting IS transient, and the old tuple only caught it when the
+#: message happened to spell "rate limit" — matching client.py, where 429 retries on the SAME key.
+_TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504, 529})
+_STATUS_CODE_RE = re.compile(r"\b(?:error code|status(?:[ _]code)?|http)\D{0,3}(\d{3})\b")
+
+
+def _is_transient_author_error(exc: BaseException) -> bool:
+    """True iff an authoring failure should be RIDDEN OUT rather than re-raised.
+
+    FAIL-CLOSED: anything not positively recognised as transient re-raises immediately, so an
+    unknown error never burns the retry budget. A definitive HTTP status (from the SDK attribute, else
+    parsed from the message) DECIDES on its own — a 4xx is permanent even if the prose happens to
+    contain a transient-looking word. Only when no status is available do the textual markers apply.
+    """
+    status = getattr(exc, "status_code", None)
+    msg = f"{type(exc).__name__}: {exc}".lower()
+    if not isinstance(status, int):
+        m = _STATUS_CODE_RE.search(msg)
+        status = int(m.group(1)) if m else None
+    if isinstance(status, int):
+        return status in _TRANSIENT_STATUS_CODES
+    return any(marker in msg for marker in _TRANSIENT_AUTHOR_MARKERS)
 
 
 def _complete_with_outage_tolerance(
@@ -433,8 +483,7 @@ def _complete_with_outage_tolerance(
             return str(llm.complete(system, user))
         except Exception as exc:  # noqa: BLE001 — classify, then re-raise or ride out
             msg = f"{type(exc).__name__}: {exc}".lower()
-            transient = any(m in msg for m in _TRANSIENT_AUTHOR_MARKERS)
-            if not transient or time.monotonic() >= deadline:
+            if not _is_transient_author_error(exc) or time.monotonic() >= deadline:
                 raise
             _LOG.warning("[author%s] transient API failure (%.0f min budget left): %s",
                          f":{label}" if label else "", (deadline - time.monotonic()) / 60.0,
@@ -482,8 +531,15 @@ def _ledger_failure(fail_ledger: Path, row: dict) -> None:
         with fail_ledger.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, default=str) + "\n")
             fh.flush()
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as exc:  # noqa: BLE001 — best-effort by design, but never SILENT (2026-07-26)
+        # Swallowing stays correct (a ledger write must never crash the arm), but the loss was
+        # invisible, and this ledger is READ twice: `_load_failures` seeds `cached_failures` on
+        # --resume (a dropped row re-authors that candidate = a wasted PAID LLM call), and
+        # `integrity.py:42` counts failures.jsonl for the campaign integrity census (a dropped row
+        # under-reports it). Both corruptions were undetectable. Warn, then continue as before.
+        _LOG.warning("failure-ledger write FAILED (%s: %s) — row lost from %s; --resume may "
+                     "re-author this candidate and the integrity census will under-count",
+                     type(exc).__name__, exc, fail_ledger)
 
 
 # --------------------------------------------------------------------------- #
@@ -631,13 +687,24 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
             # burned a queue slot + a poll cycle, fast-failed 3x, and its F5 row blamed the sandbox.
             # A spawn-free AST gate here catches it at zero cost; the row is marked PERMANENT so
             # the P3 resume-resubmit never re-ships a deterministic author-reject.
-            from src.sandbox.executor import ast_gate
+            from src.sandbox.executor import ast_gate, defines_reward
 
-            if not ast_gate(src):
+            # Deep review 2026-07-26: `ast_gate` alone did NOT deliver what P8 above promises. It
+            # answers "is this SAFE", and `ast_gate("")` is True — nothing dangerous in nothing — so
+            # an EMPTY completion (the canonical refusal/content_filter output per client.py
+            # `_INCOMPLETE_STOP_REASONS`), a whitespace/comment-only block, or valid Python with no
+            # reward at all still SHIPPED to a node: precisely the truncated/refused case P8 exists
+            # to stop. Only the syntactically-invalid subset (e.g. prose) was caught. Require the
+            # function the contract needs as well — still spawn-free, still zero cost.
+            if not ast_gate(src) or not defines_reward(src):
                 failed += 1
                 _ledger_failure(fail_ledger, {
                     "candidate_id": cid, "generation": gen, "permanent": True,
-                    "error": "author_reject: ast_gate (truncated/refused/invalid completion)",
+                    "error": (
+                        "author_reject: ast_gate (unsafe construct)" if not ast_gate(src)
+                        else "author_reject: no top-level 'reward' binding "
+                             "(empty/refused/truncated completion)"
+                    ),
                     "reward_source": src, "prompt": cand_user,
                 })
                 continue
@@ -715,7 +782,7 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
 
 #: The H4 family-search arms — NOT LLM-authored; they sample/optimize the reward FAMILY. Mirrors
 #: parallel._LLM_ARMS's complement (run_parallel dispatches _drive_search_arm for these).
-_FAMILY_ARMS = ("random_search", "bayes_opt")
+_FAMILY_ARMS = ("random_search", "bayes_opt", "cma_es", "tpe")   # H4 optimiser portfolio (N4 confirmatory, 2026-07-26)
 
 
 def _family_spec(arm: str, kind: str, reward: Any, cid: str, opts: dict, spec_archive_root: str
@@ -787,7 +854,7 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
 
     # bayes_opt — driver-side GP, per-iteration cluster training (each iteration = one k-seed array).
     from src.baselines.reward_family import family_bounds
-    from src.search.bayes_opt import bayes_opt_over_template
+    from src.search.dfo_toolkit import over_template_optimizer  # GP-EI / CMA-ES / TPE, resolved by arm
 
     state: dict[str, Any] = {"i": 0, "accepted": [], "failed": 0}
 
@@ -818,7 +885,7 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
         state["accepted"].append(r)
         return float(r["fitness"])
 
-    bayes_opt_over_template(
+    over_template_optimizer(arm)(
         template_eval, family_bounds(opts.get("proto_cfg")), {"matched_budget": n},
         rng=np.random.default_rng(opts["seed"]),
     )

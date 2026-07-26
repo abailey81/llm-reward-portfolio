@@ -126,7 +126,6 @@ stay device-homogeneous per seed (the blocked-design invariant); parser merges p
 ```bash
 MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --tiered \
     --arms distributional scalar scalar_cvar5 placebo placebo_shuffled random_search bayes_opt \
-    --baselines raw_return return_minus_variance return_minus_cvar differential_sharpe \
     --pass-mode B --llm-from campaign \
     --pack 5 --cores-per-training 1 --pool EF \
     --seed-pool-blocks "EF:0-14,L:15-29,EF:30-64,L:65-99,EF:100-143,L:144-188,EF:189-233,L:234-278,EF:279-308,L:309-339,EF:340-370,L:371-402,EF:403-484,L:485-567" \
@@ -137,7 +136,23 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --tiered \
 Notes: `--resume` is SAFE on a fresh dir and MANDATORY on any restart (F2 guard refuses a dirty
 non-resume start). h_rt auto-sizes from the measured worst-rate curve. The C0 canary (first 3
 baselines × 30 core seeds) runs first and HARD-STOPS the campaign on any failure — before any
-Opus spend. The C3 gate auto-proceeds on green execution health (effect-blind); on a stop:
+Opus spend.
+
+> **⚠ `--baselines` IS DELIBERATELY ABSENT (fixed 2026-07-26 — it was a launch-breaking defect).**
+> This line used to hand-type `--baselines raw_return return_minus_variance return_minus_cvar
+> differential_sharpe`, a hand-mirrored copy of a FROZEN config value — the exact bug class the
+> 2026-07-18 DEFAULTS-CLASS SWEEP killed for B\*/candidates/generations. It then **drifted**: the
+> H1 canon expanded **4 → 11** on 2026-07-26 and this list did not, so the headline launch would
+> have run a **SUBSET** of the registered family — silently making the **N6 intersection-union
+> node unsatisfiable** (its p = max over the 11 one-sided leg p-values) and **mis-sizing the C0
+> canary** (which defaults to the first 3 of this list). The same stale four were live in
+> `campaign_supervisor.ps1`, `mode_d_supervisor.ps1` and `install_onstart_task.ps1`.
+> **Fix:** under `--tiered` the launcher now resolves the frozen `config/campaign.yaml
+> h1_baselines` itself (`run_campaign_cluster.py::resolve_cluster_baselines`, the same drift-proof
+> path the laptop driver has always used), and an explicitly-passed list must be EXACTLY that
+> family or the launch is refused before ssh. Regression-locked by
+> `tests/test_run_campaign_cluster.py::test_resolve_cluster_baselines_refuses_the_drifted_runbook_four`.
+> **Never re-add a hand-typed baseline list to a launch line.** The C3 gate auto-proceeds on green execution health (effect-blind); on a stop:
 review `outputs/campaign_cluster/tier1_integrity.md`, then re-run the SAME line + `--approve-tier1`.
 
 ## 3. C5 — the H3 single-shot control (after, or alongside, the headline)
@@ -296,8 +311,17 @@ pre-freeze — still calendar-fixed and exogenous; never moved after launch. Als
 remain — and run the R84 anchor-value retrieval (SWE-bench-Verified per the registered rule,
 sources archived).
 
-**(h) The SECONDARY hand-reward panel (R97; POST-HEADLINE, report-only, rock-bottom priority).**
-After the headline banks, run the SIX secondary canon members (the H1 four already ran with the
+**(h) The SECONDARY hand-reward panel (R97) — ⚠ SUPERSEDED 2026-07-26 by the H1 canon expansion.**
+
+> The 2026-07-26 expansion made the registered H1 family **the full 11-name canon**, so the
+> HEADLINE campaign now trains every member of this panel at every rung. There is no "secondary
+> remainder" left to run: executing the command below would **duplicate already-banked work**, and
+> the launcher now **refuses** it anyway (a partial family fails `resolve_cluster_baselines`).
+> Retained only as the historical record of the R97 execution path. If a genuinely report-only
+> SUBSET is ever wanted, use the R97-sanctioned laptop route (`run_campaign.py --baselines-only
+> --baselines <names>`), which is scoped to report-only work by construction.
+
+*(historical)* After the headline banks, run the SIX secondary canon members (the H1 four already ran with the
 campaign; this completes the ten-name §9 panel, incl. the R97 `differential_downside_ratio`) at
 the tier-30 floor seed set, on the cluster, via the EXISTING baselines flood + resume machinery
 (no new code path — `--resume` makes the named arm a no-op, so only the six baselines submit):
@@ -475,3 +499,158 @@ per-unit rung pipelining was considered and REJECTED to keep it.
   (1→102 / 5→253 agg steps/s) proves trainings are NOT GPU-bound (the Python env loop dominates),
   so compile buys ~nothing and costs re-certification; **pre-gate baseline flooding** — the only
   window it could fill (L+0→gate) is already saturated by the 10 leg lines' ~250 search tasks.
+
+---
+
+## 11. ★★★★ THE COMPUTE LANE — GO-day operating rules (2026-07-26 capacity session)
+
+> **Scope:** what to actually DO with CPU/GPU/threads at launch. The measurements behind every
+> number live in `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` **§0-PRE** (capacity) and **§0-LIMITS**
+> (the stop rules) — the owner of scheduler truth; this section owns the *launch mechanics* only and
+> deliberately does not restate the evidence. Model: `src/cluster/lanes.py`.
+>
+> **This section SUPERSEDES §10's GPU-pool-centric framing for the CPU-lane campaign.** §10's
+> pool-stripe/pack levers still apply to whatever GPU work is run.
+
+### 11.1 The job shape — non-negotiable, all measured
+
+```
+#$ -pe smp 8          # NOT 16, NOT 32, NEVER 36
+#$ -l mem=2G          # per core
+#$ -l h_rt=<honest>   # walltime does NOT affect placement - size it for the real work
+                      # CPU lane: NO -l gpu, NO -ac allow=
+```
+
+- **`smp 8`.** Measured placement gradient: **8 → 30/30 instantly · 16 → 2/60 in 15 min · 32 →
+  0/30 over two full scheduler cycles** (with 69 d-nodes holding ≥32 free cores — so it is
+  backfill/priority, not capacity). Bigger footprints lose more dispatch rate than they gain cores.
+- **NEVER `-pe smp 36`.** UCL's JSV silently adds `exb=true,exd=true` when the request equals a full
+  node ⇒ it needs an ENTIRELY EMPTY node and starves (job `cpucurve_d` sat queued **2+ days**).
+  `render_jobscript` now **raises** on `cores == 36`. 35 is clean; 8 is best.
+- **Walltime is free.** An 11 h `h_rt` placed exactly as fast as a 50 min one (15/15 vs 15/15).
+  Size honestly; do NOT shorten hoping for backfill.
+
+### 11.2 The lane split — threads where LATENCY binds, cores where THROUGHPUT binds
+
+| lane | what runs there | threads |
+|---|---|---|
+| **THROUGHPUT** — test flood + H1 (97 %+ of trainings) | many small jobs, wide | **1** |
+| **LATENCY** — `bayes_opt`, the 55 LLM reflection chains, TPE/CMA-ES | few jobs | **8** |
+| **GPU** | opportunistic only; put the longest chain on it if one is granted | pack 1 |
+
+Measured both ways on the same hardware: 8 cores as 8× 1-thread trainings = **~104 steps/s
+aggregate** vs **~35** for one 8-thread training (1 thread ~3× better for the flood), while
+8 threads = **2.72×** on a single training (better for a chain). **NEVER exceed 8 threads — 16
+measurably REGRESSES** (2.11×; small-matmul oversubscription).
+
+Sequential chains run CONCURRENTLY with each other ⇒ the critical path is the **MAX** over them,
+never the sum: `bayes_opt` 25 serial · TPE ~20–30 serial · CMA-ES ~4 serial *generations* ·
+LLM chains 6 serial generations.
+
+**Why this matters more than core count:** at 1 thread the campaign is latency-bound past
+**~1,640 cores** (2,000 and 3,000 cores give an *identical* makespan). Threading the chains drops
+`bayes_opt` from 8.9 d to ~3.3 d, moving the binding constraint back to throughput and pushing the
+saturation point to **~4,460 cores**. With 8-thread chains, adding a GPU changes the makespan by
+**nothing**.
+
+```bash
+python -c "from src.cluster.lanes import plan_lanes; print(plan_lanes(rung=568, cpu_cores=2000, chain_threads=8).render())"
+```
+
+### 11.3 Footprint — take what the scheduler grants, minus a reserve
+
+`src/cluster/killswitch.py::plan_footprint(free_cores, pending_jobs)` → 90 / 70 / 50 % of FREE cores
+by live pressure, then four clamps (tightest wins): the share · **`FREE_CORE_RESERVE = 1000`
+(never consume the last cores — the courtesy guarantee that makes an aggressive share defensible)** ·
+`ABSOLUTE_CORE_CEILING = 8192` (a runaway-bug backstop, NOT a policy limit) · any standing retreat
+cap from a kill incident (always wins until a human clears it).
+
+**Pools: use `d` + `b` only.** EXCLUDE `t` (AMD EPYC vs Intel Xeon ⇒ different oneDNN kernels ⇒
+different float reduction order ⇒ breaks CRN bit-exactness; measured no faster anyway) and EXCLUDE
+the ~850 idle CPU cores on GPU nodes (harvesting them blocks GPU jobs, which request `-pe smp 4`
+alongside `gpu=1` — the one case where we would genuinely impair other users). Both encoded in
+`lanes.EXCLUDED_CPU_POOLS`.
+
+### 11.4 Launch-sequence deltas (fold into §2.0)
+
+1. **Do NOT pass `--baselines`.** Under `--tiered` the launcher now resolves the frozen
+   `config/campaign.yaml h1_baselines` itself (`resolve_cluster_baselines`); an explicit partial
+   list is REFUSED pre-ssh. *(The old hand-typed 4-name list drifted after the canon went 4→11 and
+   would have made the N6 IUT unsatisfiable + mis-sized the C0 canary — see §2's warning box.)*
+2. **`bayes_opt` runs as ONE job**, not 30. Use `entry_module="src.cluster.bayes_chain"` and pass
+   `est_iter_secs` (= `train_steps / measured steps_per_s`) so each job's FIRST iteration is
+   deadline-checked. A `partial` status is a **normal, successful** bounded run — resubmit until it
+   reports `complete`; resume is archive replay, so every candidate trains exactly once.
+   *(Previously it dispatched as 30 array-of-1 jobs = 30 queue waits — tolerable on CPU, fatal on
+   GPU where our jobs queue for hours.)*
+3. **Confirm no open incident** before submitting: `MYRIAD_KILL_INCIDENT.json` absent from the
+   archive root (the gate in `campaign.run_batch` blocks all submission while one exists).
+
+### 11.5 ⚠ THE ONE THING THE GO CANARY MUST MEASURE
+
+**636 cores is a LOWER BOUND.** The ~75-concurrent-job plateau is a FLOW equilibrium
+(`concurrent = dispatch_rate × job_duration`; ~3.3 jobs/min measured on 20-min probe jobs).
+Campaign tasks are ~25× longer, so they **accumulate** rather than churn ⇒ the free d-pool should
+saturate in ~2.3 h and the realistic steady state is **~2,000–3,000 cores**. That is a MODEL, not a
+multi-hour measurement.
+
+> **ACTION: for the first ~3 hours, log concurrent jobs/cores every ~5 min and plot the
+> accumulation curve. Re-forecast the achievable rung from the OBSERVED plateau, not from the
+> projection.** If it plateaus near ~636 instead of climbing, the campaign is a ~23-day run (still
+> inside the window) — plan the rung accordingly and say so plainly.
+
+### 11.6 If our jobs get killed
+
+`killswitch.classify_task_deaths()` reads the epilogue ledger and separates: deaths on **one host**
+→ node failure (requeue, correct) · `secs ≈ h_rt` → walltime kill (requeue, resize) · **many deaths
+× many DISTINCT hosts × short window → ADMIN KILL → RETREAT**: stop submitting, do **NOT** requeue,
+halve the cap (monotone), write `MYRIAD_KILL_INCIDENT.json`, alert a human. Blind resubmission after
+an administrative `qdel` is what turns "jobs killed" into "account suspended". Release is
+human-in-the-loop only (`clear_incident`). **Retreat reduces FOOTPRINT, never SGE priority.**
+
+### 11.7 Decisions required BEFORE launch
+
+| # | decision | owner | status |
+|---|---|---|---|
+| 1 | **1 → 8 threads on the chain arms** (search/chain leg ONLY; the scored test leg stays 1-thread) | Tamer | ✅ **RATIFIED 2026-07-26 → registered as amendment R107**; mirrored in `config/preregistration.yaml: execution` and BOUND to `lanes.CPU_CHAIN_THREADS` by a test so it cannot drift. **NOT frozen** (standing instruction). Disclose in CH4 as an executed-config choice. |
+| 2 | **CPU as a randomised device block** (+ a parity check) | **Ramin** | ⏳ open |
+| 3 | *(optional)* GPU search + CPU test split | Ramin | ⏳ open — **no longer necessary** after the thread lever; keep only if a GPU is free |
+
+*(R106 is deliberately RESERVED for Ramin's uniform-reasoning-off call, hence the jump to R107.)*
+
+### 11.8 Refused speed-ups — do not re-propose
+
+Each would weaken `bayes_opt`, the **H4b CONTROL the LLM must beat**, biasing the result toward our
+own hypothesis: raising `n_init` 5→15 · batch/q-EI parallel BO *(note: in Snoek et al. 2012, the
+registered citation — still refused)* · a reduced search `B*`. Also dead: multi-threading the TEST
+flood (breaks CRN where every scored comparison lives, and is ~3× slower for aggregate throughput
+anyway) · `torch.compile`/fp16/tf32/fused Adam (change numerics) · harvesting GPU-node CPU cores.
+
+### 11.9 The advisor now PRINTS the CPU lane — read it, don't re-derive it
+
+`python scripts/allocation_advisor.py` emits the CPU-lane recommendation alongside the GPU plan
+(`allocation.advise_cpu_lane`, composing `killswitch.plan_footprint` + `lanes.plan_lanes`).
+**Verified live 2026-07-26:**
+
+```
+CPU LANE: hold ~3203 cores of 4576 free {'d': 4178, 'b': 398} | -pe smp 8 -l mem=2G (NEVER smp 36 …)
+  threads: flood=1 chain=8 (threads where LATENCY binds, cores where THROUGHPUT binds)
+  makespan ~4.55 d at rung 568 (BINDING: throughput; more cores stop helping past ~4453)
+  why: normal cluster (1721 pending, 4576 free cores) -> 70% share = 3203
+```
+
+`telemetry.Snapshot.cpu_free` carries free CORES per node type (the `qhost`+`qstat -f` join —
+hostnames MUST be normalised, or the join silently matches nothing and reports every core free).
+An empty section reads as **unknown**, printing a fall-back note rather than a silent zero.
+⚠ `chunking()` still returns `chunk-25` under CONTENDED, but its **justification changed**: the
+ticket-concentration doctrine is REFUTED (dossier §0-PRE M5) — chunk big to stay under
+`max_u_jobs = 1000`, **never to buy priority**.
+
+### 11.10 ⚠ Certifying the suite on this laptop
+
+Running several sessions' pytest suites concurrently produces **spurious, non-reproducible
+failures** — observed twice on 2026-07-26: `WinError 1455 (paging file too small)` in
+`test_cluster_pack_integration`, and `CUDA error: invalid resource handle` on three
+`test_agents_deep` SAC/TQC constructions. Both passed on isolated re-run. **A red suite here can be
+a FALSE red: always re-run the failing test alone before treating it as a regression** — and never
+the reverse (never assume green without the unpiped `PYTEST_RC`).

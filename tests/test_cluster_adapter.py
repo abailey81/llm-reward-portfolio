@@ -72,6 +72,77 @@ def test_jobscript_pack1_defaults_and_priority_guard():
         render_jobscript("t", 1, "/r", "/p", priority=5)
 
 
+# --- the CPU lane (2026-07-26; dossier MYRIAD_EXPERT_DOSSIER §0-PRE) ------------------------
+# Live-measured: 636 CPU cores held vs 0 GPUs granted in 3 days. The d pool alone is 10,584 cores
+# against 74 GPUs cluster-wide, so the CPU lane is the substrate that actually gets scheduled.
+
+
+def test_jobscript_cpu_lane_requests_no_gpu_and_no_pool_allow():
+    """A CPU job must not request a GPU or pin a GPU pool - that is what lets it place on any of
+    the ~294 d nodes instead of queueing behind the 74 contended GPUs."""
+    js = render_jobscript("cpu_batch", 100, "/home/u/Scratch/llmrp", "/inputs", device="cpu")
+    assert "-l gpu=1" not in js
+    assert "-ac allow=" not in js
+    assert "#$ -pe smp 1" in js          # 1 core per packed training, not the GPU lane's 4
+    assert "#!/bin/bash -l" in js
+
+
+def test_jobscript_cpu_lane_sizes_one_core_per_packed_training():
+    """CPU trainings are single-threaded (multi-thread BLAS would break CRN determinism), so the
+    GPU lane's 4-cores-per-training default would over-request 4x."""
+    assert "#$ -pe smp 8" in render_jobscript("b", 1, "/r", "/i", pack=8, device="cpu")
+    assert "#$ -pe smp 32" in render_jobscript("b", 1, "/r", "/i", pack=8)  # cuda lane unchanged
+
+
+def test_jobscript_gpu_lane_is_byte_unchanged_by_the_cpu_build():
+    """Regression lock: adding the CPU lane must not alter a single GPU-lane directive."""
+    js = render_jobscript("s1_search", 630, "/home/u/Scratch/llmrp", "/acfs/users/u/llmrp-inputs",
+                          pool="EF", tc=38, priority=-100, hold_jid="marker_1", pack=3)
+    for needle in ("-l gpu=1", "-ac allow=EF", "-pe smp 12", "-l h_rt=1:30:0"):
+        assert needle in js, f"GPU lane regressed: {needle}"
+
+
+def test_jobscript_refuses_the_exclusive_whole_node_core_count():
+    """THE 2026-07-26 STARVATION LOCK: `-pe smp 36` makes UCL's JSV add exb/exd, so the job needs
+    an ENTIRELY EMPTY node. Job cpucurve_d sat queued 2+ days on exactly this."""
+    with pytest.raises(ValueError, match="EXCLUSIVE"):
+        render_jobscript("t", 1, "/r", "/i", cores=36)
+    # 35 is clean - 97% of a node with none of the exclusivity penalty
+    assert "#$ -pe smp 35" in render_jobscript("t", 1, "/r", "/i", cores=35)
+
+
+def test_jobscript_containerized_job_guards_against_a_missing_apptainer():
+    """node-d00a-230 had no apptainer (2026-07-26): the venv python lives INSIDE the .sif, so the
+    task burned its granted slot on a bare rc=127. Fail with a NAMED error instead."""
+    js = render_jobscript("t", 1, "/r", "/i", apptainer_sif="/home/u/python311.sif")
+    assert "command -v apptainer" in js and "FATAL apptainer missing" in js
+    # ...and a non-containerized job must not carry the guard
+    assert "command -v apptainer" not in render_jobscript("t", 1, "/r", "/i")
+
+
+def test_jobscript_cpu_lane_drops_nv_from_the_apptainer_line():
+    """--nv injects the host NVIDIA stack; meaningless on a CPU node."""
+    js = render_jobscript("t", 1, "/r", "/i", device="cpu", apptainer_sif="/home/u/python311.sif")
+    assert "apptainer exec --bind" in js and "--nv" not in js
+
+
+def test_jobscript_rejects_an_unknown_device():
+    with pytest.raises(ValueError, match="device must be"):
+        render_jobscript("t", 1, "/r", "/i", device="tpu")
+
+
+def test_jobscript_entry_module_defaults_to_run_one_and_can_select_the_bayes_chain():
+    """The chain runner must be REACHABLE from a jobscript, else the critical-path optimisation
+    exists only in tests. Default behaviour is unchanged."""
+    assert "-m src.cluster.run_one --spec" in render_jobscript("t", 1, "/r", "/i")
+    chain = render_jobscript("bo_chain", 1, "/r", "/i", device="cuda",
+                             entry_module="src.cluster.bayes_chain")
+    assert "-m src.cluster.bayes_chain --spec" in chain
+    # the RUN LINE must not still call run_one (an explanatory comment in the template does
+    # mention the module name, so match the run-line form, not a bare substring)
+    assert "-m src.cluster.run_one --spec" not in chain
+
+
 def test_jobscript_rejects_tilde_and_relative_paths():
     """2026-07-11 rehearsal incident regression: '~' is expanded by NOTHING the template touches
     (SGE '#$' directives, double-quoted bash strings, PYTHONPATH) — the rendered '#$ -wd ~/...'

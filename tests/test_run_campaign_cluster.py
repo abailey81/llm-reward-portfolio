@@ -350,3 +350,52 @@ def test_baselines_guard_accepts_full_canon_in_dry_run():
     rc = rcc.main(["--dry-run", "--synthetic", "--arms", "distributional",
                    "--baselines", *sorted(REWARD_CANON)])
     assert rc in (0, None)
+
+
+# --- H1 frozen-family resolution (2026-07-26 launch-defect fix) -----------------------------
+# The runbook's headline line hand-mirrored the H1 family and drifted to 4 names after the canon
+# expanded to 11, which would have run a SUBSET of the registered family (breaking the N6 IUT,
+# whose p = max over the 11 leg p-values) and mis-sized the C0 canary (first 3 of the list).
+
+
+def _frozen_h1_family() -> list[str]:
+    from src.utils.config import cfg_get, load_config
+
+    return [str(b) for b in (cfg_get(load_config("campaign"), "h1_baselines", []) or [])]
+
+
+def test_resolve_cluster_baselines_tiered_omitted_uses_frozen_family():
+    """Headline (--tiered) with the flag OMITTED resolves the frozen config family, so the
+    launch command can never carry a stale hand-typed mirror again."""
+    frozen = _frozen_h1_family()
+    assert len(frozen) >= 11, "the H1 canon expanded to 11 on 2026-07-26"
+    assert rcc.resolve_cluster_baselines(None, tiered=True) == frozen
+
+
+def test_resolve_cluster_baselines_non_tiered_omitted_skips_h1():
+    """The h3 single-shot and C6 --root-suffix re-search lines rely on omit == skip."""
+    assert rcc.resolve_cluster_baselines(None, tiered=False) is None
+
+
+def test_resolve_cluster_baselines_refuses_the_drifted_runbook_four():
+    """THE REGRESSION LOCK: the exact 4-name list the runbook carried must now be refused,
+    naming the 7 missing canon members."""
+    import pytest
+
+    drifted = ["raw_return", "return_minus_variance", "return_minus_cvar", "differential_sharpe"]
+    with pytest.raises(SystemExit, match="must be the FROZEN config h1_baselines family"):
+        rcc.resolve_cluster_baselines(drifted, tiered=True)
+
+
+def test_resolve_cluster_baselines_accepts_exact_family_any_order():
+    """An explicit list is fine when it IS the frozen family (set equality — order-free)."""
+    frozen = _frozen_h1_family()
+    assert rcc.resolve_cluster_baselines(list(reversed(frozen)), tiered=True) == list(reversed(frozen))
+
+
+def test_resolve_cluster_baselines_still_rejects_unknown_names_first():
+    """The pre-existing R97 unknown-name guard keeps its own error message."""
+    import pytest
+
+    with pytest.raises(SystemExit, match="unknown REWARD_CANON key"):
+        rcc.resolve_cluster_baselines(["not_a_real_reward"], tiered=True)

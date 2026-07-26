@@ -45,6 +45,17 @@ _DETERMINISM_ENV_KEYS = (
     "CUBLAS_WORKSPACE_CONFIG",
     "PYTHONHASHSEED",
     "CUDA_VISIBLE_DEVICES",
+    # 2026-07-26: BLAS THREAD COUNTS. Multi-threaded BLAS changes the ORDER of float reductions,
+    # so a training at 4 threads is NOT bit-identical to the same training at 1 — which is why
+    # docs/MAX_THROUGHPUT_RUN_PLAN.md calls the thread count "part of the determinism envelope"
+    # and gates any change behind a pre-freeze ratification. Yet the archive did not record it,
+    # so a node running under different OMP settings would have been INVISIBLE to the S6
+    # homogeneity audit (the same blindness as the device gap fixed the same day). Record it, so
+    # a heterogeneous thread regime is DETECTABLE rather than merely improbable.
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
 )
 
 
@@ -114,6 +125,14 @@ def _torch_cuda() -> dict[str, Any]:
         deterministic = bool(torch.are_deterministic_algorithms_enabled())
     except Exception:  # noqa: BLE001 - older torch lacks the getter
         deterministic = None
+    # The ENV vars in _DETERMINISM_ENV_KEYS record what was REQUESTED; these record what torch
+    # actually resolved to (a process that calls torch.set_num_threads() overrides the env, and it
+    # is the effective value that determines the float reduction order).
+    try:
+        num_threads = int(torch.get_num_threads())
+        num_interop_threads = int(torch.get_num_interop_threads())
+    except Exception:  # noqa: BLE001
+        num_threads = num_interop_threads = None
     return {
         "available": True,
         "torch_version": torch.__version__,
@@ -121,6 +140,8 @@ def _torch_cuda() -> dict[str, Any]:
         "cudnn": cudnn_version,
         "cuda_available": bool(torch.cuda.is_available()),
         "deterministic_algorithms_enabled": deterministic,
+        "num_threads": num_threads,
+        "num_interop_threads": num_interop_threads,
     }
 
 

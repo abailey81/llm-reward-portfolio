@@ -136,8 +136,10 @@ is one documented procedure, not tribal knowledge). Root = `outputs/campaign_clu
 # 1. INTEGRITY: seal the local archive, verify the backup + every unit is present (resume_audit)
 python scripts/archive_integrity.py write outputs/campaign_cluster
 python scripts/archive_integrity.py verify-mirror D:/llm_rp_archive_mirror/campaign_cluster   # exit 0
-python scripts/resume_audit.py outputs/campaign_cluster --arms <7 arms> \
-    --baselines <4 H1> --seeds 0-402 --candidates 30 --k-search 3 \
+# 2026-07-26 staleness fix: the H1 canon is 11 (was 4), the ladder tops at 567 (was 402), and
+# k=3 search was NOT adopted (config: 1 seed per candidate) -> --k-search 1, its real default.
+python scripts/resume_audit.py outputs/campaign_cluster --arms <the 7 arms> \
+    --baselines <the 11 h1_baselines> --seeds 0-<achieved rung-1> --candidates 30 --k-search 1 \
     --mirror D:/llm_rp_archive_mirror/campaign_cluster        # integrity_ok, remaining_test_units==0
 # 2. THE SINGLE CONFIRMATORY LOOK (H2 IUT + mechanism SQ1-3 + PBO/CSCV) — inspect the result HERE
 python scripts/analyze_campaign.py --root outputs/campaign_cluster

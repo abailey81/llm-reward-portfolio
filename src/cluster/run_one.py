@@ -91,6 +91,16 @@ def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
             # `unhashable type: dict` AFTER the full floor had trained. Unwrap to the string label.
             _fp = rec.get("env_fingerprint")
             _lbl = _fp.get("label", "") if isinstance(_fp, dict) else _fp
+            # 2026-07-26 (the CPU lane, REPRODUCIBILITY): capture_env records the NODE's cuda
+            # availability, NOT the device this training actually used — so a `device=cpu` spec
+            # running on a GPU node captured `cuda_available: true` and the S6 homogeneity audit
+            # was BLIND to a CPU/GPU mix. CPU and CUDA are not bit-identical (the reason
+            # run_campaign.py refuses `--cpu` on the sealed leg), so an undetected mix would break
+            # the CRN pairing that every paired contrast rests on. Stamp the RESOLVED device into
+            # the label the C3 label-census compares: a mixed run now shows two distinct labels and
+            # is flagged, instead of passing silently.
+            _dev = str(spec.get("device", "cuda"))
+            _lbl = f"{_lbl}|dev={_dev}" if _lbl else f"dev={_dev}"
             node_fp = _run_env_fp(
                 arm_root, str(rec["run_id"]),
                 {"seed": rec.get("seed"), "env_fp": _lbl},
@@ -154,7 +164,24 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
         from src.orchestration.parallel import _worker_init
 
         _worker_init()
-        return [_run_single(s) for s in specs]
+        # 2026-07-26 review: the inline path ALSO needs the `-r y` idempotency skip the pack branch
+        # below applies. `#$ -r y` (jobscript.py:38) makes SGE re-execute the WHOLE task after a node
+        # failure, and `pack=1` — which routes HERE — is the DEFAULT (jobscript.py:94,
+        # campaign.py:82/154; the renderer even sizes h_rt specifically for it). Without this check a
+        # re-executed task RETRAINS an already-completed spec (~1.5 h burnt against the Aug-27
+        # exogenous stop) and OVERWRITES its remote record with a different node fingerprint — the
+        # remote-vs-pulled-mirror divergence `_already_archived` was added to prevent, and which
+        # `cluster/integrity.py`'s env-fingerprint census would then flag on the SEALED leg.
+        # (Same class as the P18 note above: that audit fixed the inline path's MISSING `_worker_init`
+        # and did not notice the inline path also skipped this guard.)
+        out: list[dict[str, Any]] = []
+        for s in specs:
+            if _already_archived(s):
+                out.append({"ok": True, "candidate_id": s.get("candidate_id"),
+                            "run_id": s.get("run_id"), "skipped": "already_archived"})
+            else:
+                out.append(_run_single(s))
+        return out
 
     from concurrent.futures import as_completed
 

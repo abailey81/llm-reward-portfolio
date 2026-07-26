@@ -269,7 +269,11 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Arms to run (the frozen roster at GO; default is the two headline arms).")
     p.add_argument("--baselines", nargs="*", default=None,
                    help="H1 hand-designed baseline REWARD_CANON names (fixed rewards, no search; "
-                        "flood the pool from minute 0). Omit to skip the H1 leg.")
+                        "flood the pool from minute 0). NORMALLY OMIT IT: under --tiered the frozen "
+                        "config/campaign.yaml h1_baselines family is used automatically (never "
+                        "hand-mirror a frozen list — it drifts); omitted on any other path skips "
+                        "the H1 leg. If passed, it must be EXACTLY the frozen family. See "
+                        "resolve_cluster_baselines().")
     p.add_argument("--seeds", default="0-567", help="Test seeds for the NON-tiered path: comma list "
                    "and/or a-b ranges. Default = the full E1 ladder [0..567]. IGNORED under --tiered "
                    "(the config seed schema drives the tiers).")
@@ -325,6 +329,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--remote-root", default="~/Scratch/llmrp", help="Scratch working root on Myriad.")
     p.add_argument("--gold-dir", default="~/Scratch/llmrp/inputs", help="Staged gold dir on Myriad.")
     p.add_argument("--pool", default="EF", help="Confirmatory GPU pool (device homogeneity).")
+    p.add_argument("--device", default="cuda", choices=("cuda", "cpu"),
+                   help="Training SUBSTRATE (2026-07-26 CPU lane). 'cuda' = the GPU pools "
+                        "(-l gpu=1 -ac allow=<pool>): ~7.8x faster PER TRAINING, so it is the lane "
+                        "for the SEQUENTIAL critical paths (the bayes_opt GP chain, the reflection "
+                        "chains) — but only 74 GPUs exist cluster-wide and they are heavily "
+                        "contended. 'cpu' = no GPU request, no pool pin, 1 core/training: ~14 "
+                        "steps/s/core but the d pool alone is 10,584 cores and 636 concurrent were "
+                        "measured, so it is the lane for the embarrassingly-parallel TEST flood "
+                        "(93-97% of all trainings). Device homogeneity is enforced per CONTRAST, "
+                        "so a GPU search + CPU test split is legitimate — see the dossier §0-PRE.")
     p.add_argument("--pack", type=int, default=1, help="§15 GPU packing (concurrent trainings/job).")
     p.add_argument("--apptainer-sif", default="~/python311.sif",
                    help="Container image the node trains through (the cluster venv is built INSIDE it; "
@@ -468,6 +482,50 @@ def autosize_h_rt(pack: int, train_steps: int) -> str:
     agg = 0.5 * _agg_clean.get(int(pack), 253.0)
     secs = (int(train_steps) * int(pack) / agg + 1200.0) * 1.3
     return f"{int(secs // 3600) + 1}:0:0"
+
+
+def resolve_cluster_baselines(baselines: list[str] | None, *, tiered: bool) -> list[str] | None:
+    """Resolve the H1 hand-reward family for a cluster launch — the DRIFT-PROOF path.
+
+    The laptop driver has always taken H1 from the FROZEN config and REFUSES a hand-typed list on
+    the headline path (``run_campaign.py::resolve_baseline_names``, R97). The cluster driver did
+    not: ``--baselines`` was taken verbatim, so the runbook's headline line carried a hand-mirrored
+    copy of a frozen config value — precisely the failure mode the 2026-07-18 DEFAULTS-CLASS SWEEP
+    closed for B*/candidates/generations/n_trials/embargo. It then drifted: the runbook still named
+    the 4 pre-2026-07-26 baselines after the H1 canon expanded to 11, so the headline launch would
+    have run a SUBSET of the registered family and silently made the N6 intersection-union node
+    (its p = max over the 11 one-sided leg p-values) unsatisfiable — and, because ``--canary``
+    defaults to the first 3 of this list, would also have mis-sized the C0 canary hard-gate.
+
+    Semantics (chosen so the h3 / C6 re-search lines keep working unchanged):
+
+    - omitted on the headline ``--tiered`` path -> the frozen ``config/campaign.yaml h1_baselines``
+      (the list ``freeze.py::assert_h1_baselines_match`` pins against the pre-registration);
+    - omitted on any other path -> ``None`` (skip the H1 leg — what ``--h3-singleshot`` and the
+      ``--root-suffix`` re-search invocations rely on);
+    - provided -> every name must be a ``REWARD_CANON`` key AND the list must be exactly the frozen
+      family (set equality). A partial family is refused up front, before ssh or any spend.
+    """
+    from src.utils.config import cfg_get, load_config
+
+    frozen = [str(b) for b in (cfg_get(load_config("campaign"), "h1_baselines", []) or [])]
+    if baselines is None:
+        return list(frozen) if (tiered and frozen) else None
+
+    from src.baselines.rewards import REWARD_CANON
+
+    unknown = [b for b in baselines if b not in REWARD_CANON]
+    if unknown:
+        raise SystemExit(
+            f"--baselines: unknown REWARD_CANON key(s) {unknown}; valid: {sorted(REWARD_CANON)}")
+    missing = sorted(set(frozen) - set(baselines))
+    extra = sorted(set(baselines) - set(frozen))
+    if frozen and (missing or extra):
+        raise SystemExit(
+            f"--baselines must be the FROZEN config h1_baselines family ({len(frozen)} names; "
+            f"freeze.py::assert_h1_baselines_match pins it against the pre-registration). "
+            f"missing={missing} unexpected={extra}. Omit the flag to use the frozen family.")
+    return [str(b) for b in baselines]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -692,15 +750,25 @@ def main(argv: list[str] | None = None) -> int:
         embargo=args.embargo, pass_mode=args.pass_mode, provider=args.provider, llm_cfg=llm_cfg,
         resume=bool(args.resume),
     )
-    if args.baselines:
-        # R97 fail-before-ssh guard (mirrors run_campaign.py --baselines), placed ABOVE the dry-run
-        # exit so the keyless pre-flight validates baseline names too (audit 2026-07-22: the guard
-        # originally sat after the dry-run return — live for real launches, dead for dry-runs).
-        from src.baselines.rewards import REWARD_CANON as _RC
-        _unknown = [b for b in args.baselines if b not in _RC]
-        if _unknown:
-            raise SystemExit(
-                f"--baselines: unknown REWARD_CANON key(s) {_unknown}; valid: {sorted(_RC)}")
+    # R97 fail-before-ssh guard (mirrors run_campaign.py --baselines), placed ABOVE the dry-run
+    # exit so the keyless pre-flight validates baseline names too (audit 2026-07-22: the guard
+    # originally sat after the dry-run return — live for real launches, dead for dry-runs).
+    # 2026-07-26: widened from a name check to full frozen-family resolution — see
+    # resolve_cluster_baselines() for why a hand-typed partial list was a launch-breaking defect.
+    _resolved_baselines = resolve_cluster_baselines(args.baselines, tiered=bool(args.tiered))
+    # DEVICE COHERENCE (2026-07-26, added WITH the CPU lane so the lane cannot create an
+    # incoherent run). --seed-pool-blocks stripes seeds across GPU POOLS (EF/L/U/V) to keep every
+    # CRN pair device-homogeneous; under --device cpu those pool names denote nothing the job
+    # requests, so the stripe would silently claim a device stratification the run does not have.
+    # CPU and CUDA are NOT bit-identical, so a false homogeneity claim is a reproducibility defect,
+    # not a cosmetic one. Fail loud at the CLI boundary rather than mislabel the archive.
+    if args.device == "cpu" and args.seed_pool_blocks:
+        raise SystemExit(
+            "--device cpu is incompatible with --seed-pool-blocks: the blocks stratify seeds "
+            "across GPU pools (EF/L/U/V) for CRN device-homogeneity, but a CPU job requests no "
+            "GPU and pins no pool, so the stripe would assert a stratification that does not "
+            "exist. Drop --seed-pool-blocks for a CPU run (a CPU run is device-homogeneous by "
+            "construction).")
     if getattr(args, "canary", None):
         # Same guard for --canary names (audit 2026-07-22: they bypassed validation → fail-after-submit).
         from src.baselines.rewards import REWARD_CANON as _RC2
@@ -816,9 +884,9 @@ def main(argv: list[str] | None = None) -> int:
                           if args.seed_pool_blocks else None),
         batch_tag=(args.batch_tag or None),
         search_pack=args.search_pack, search_h_rt=search_h_rt,
-        search_poll_secs=args.search_poll_secs,
+        search_poll_secs=args.search_poll_secs, device=args.device,
     )
-    baselines = list(args.baselines) if args.baselines else None  # names validated pre-dry-run (R97)
+    baselines = _resolved_baselines  # frozen-family resolved + validated pre-dry-run (R97)
 
     if args.root_suffix:
         # C6-class APPLICATION: namespaced roots + batch names for report-only re-search
