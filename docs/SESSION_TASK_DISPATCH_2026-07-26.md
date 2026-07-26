@@ -165,6 +165,20 @@ R80/R82/R93/R94 rows were left verbatim as history; definitive Aug-14 sweep clea
   so **measure its reliability FRESH with `selfhost_author_test.py`; do NOT assume it equals the fp8
   number.** Fallback if a Myriad snag appears: a short rented cloud A100 (never the laptop).
 
+  **↳ FEATURE/BUILD landed the run-diagnostics CAPTURE LAYER (M1-M4) — heads-up, CAPACITY (touches your
+  overlap zone).** So the frozen replay-only campaign records what the new figures need, the sealed-leg
+  frozen-winner record now archives (inside `metrics{}`, report-only, best-effort, OPTIONAL): `test_exposure`
+  (per-step Herfindahl/eff-N/max/top-5), `test_alloc` (top-K monthly allocation snapshots), `test_components`
+  (reward-decomposition means), `train_curve` (downsampled critic/actor loss + return). Touched files:
+  `src/env/runner.py` (new `rollout_port_diagnostics` + `test_diagnostics`), `src/orchestration/test_leg.py`,
+  `scripts/run_campaign.py` (serial parity), `src/agents/trainer.py` (a READ-ONLY SB3 curve callback,
+  config-gated `capture_train_curve`, default on), `src/inference/exposure.py` (new). **All additive +
+  back-compatible + DETERMINISM-SAFE — proven bit-exact: `scripts/reproduce_synthetic.py --check` still
+  reproduces the golden with the recorders attached; 277 touched-surface tests green.** Nothing to do on your
+  side; your live test runs will just start carrying the extra diagnostics. Also shipped the corpus-standard
+  figure gaps G1-G5 (`src/viz/figures.py`) + tables G7-G9 (`docs/PAPER_TABLES_G7_G9_2026-07-26.md`). Full
+  spec: `docs/METRICS_AND_FIGURES_COMPLETENESS_2026-07-26.md`.
+
 **Ownership map after this update (unchanged unless noted):** T6 (config mirrors of the 3 report-only
 exhibits + the capability-anchor down-rank) stays **MINE (FEATURE/BUILD)** — config is now clean (I
 reconciled the gate), so it is unblocked and I hold it. **T1/T2 → CODE-REVIEWER · T4 → CAPACITY/MYRIAD ·
