@@ -29,17 +29,18 @@ def test_measured_constants_give_the_documented_per_training_cost():
 
 
 def test_work_model_matches_the_registered_design():
-    """total = 1,740 search + 69n test (7 core arms + 10 legs x 5 + 11 H1 canon + 1 H3)."""
-    assert total_trainings(0) == 1_740
-    assert total_trainings(30) == 3_810
-    assert total_trainings(403) == 29_547
-    assert total_trainings(568) == 40_932
+    """total = 1,800 search + 71n test (9 core arms + 10 legs x 5 + 11 H1 canon + 1 H3).
+    The roster grew 7 -> 9 on 2026-07-26 (+cma_es, +tpe as N4 CONFIRMATORY H4 comparators)."""
+    assert total_trainings(0) == 1_800          # 9x30 core + 30 H3 + 10 legs x 5 x 30
+    assert total_trainings(30) == 3_930
+    assert total_trainings(403) == 30_413
+    assert total_trainings(568) == 42_128
 
 
 def test_below_the_crossover_the_campaign_is_throughput_bound():
     p = plan_lanes(rung=568, cpu_cores=628)
     assert p.binding == "throughput"
-    assert p.makespan_days == pytest.approx(23.2, abs=0.5)
+    assert p.makespan_days == pytest.approx(23.9, abs=0.5)
     assert "more CPU cores DO still help" in " ".join(p.notes)
 
 
@@ -56,22 +57,29 @@ def test_ABOVE_the_crossover_more_cores_buy_NOTHING():
 
 def test_the_crossover_sits_near_1640_cores():
     sat = cpu_saturation_cores(rung=568, bayes_on_gpu=False)
-    assert sat == pytest.approx(1640, rel=0.03)
+    assert sat == pytest.approx(1685, rel=0.03)
     # at the crossover the two terms coincide
     p = plan_lanes(rung=568, cpu_cores=int(sat))
     assert p.throughput_days == pytest.approx(p.critical_chain_days, rel=0.02)
 
 
-def test_ONE_gpu_for_thirty_trainings_unlocks_the_whole_plan():
-    """Moving the 25-step GP chain to one GPU turns 8.9 days of dead critical path into ~1.1,
-    and re-opens CPU scaling all the way to ~6,850 cores."""
+def test_a_gpu_for_bayes_ALONE_no_longer_unlocks_the_plan_TPE_becomes_the_pole():
+    """Once cma_es/tpe became N4 CONFIRMATORY arms (2026-07-26), moving ONLY the 25-step GP chain
+    to a GPU stops being sufficient: TPE's 20 SERIAL steps (batched startup) become the new
+    critical path at 1 thread. Locked because the obvious-but-wrong move is to buy a GPU for
+    bayes and expect the makespan to fall — it barely does."""
     cpu_only = plan_lanes(rung=568, cpu_cores=2500, bayes_on_gpu=False)
     with_gpu = plan_lanes(rung=568, cpu_cores=2500, bayes_on_gpu=True)
-    assert cpu_only.makespan_days == pytest.approx(8.90, abs=0.05)
-    assert with_gpu.makespan_days == pytest.approx(5.83, abs=0.1)
-    assert with_gpu.makespan_days < cpu_only.makespan_days
-    assert with_gpu.binding == "throughput"          # capacity matters again
-    assert cpu_saturation_cores(568, bayes_on_gpu=True) == pytest.approx(6850, rel=0.05)
+
+    assert cpu_only.makespan_days == pytest.approx(8.90, abs=0.05)   # bayes 25 serial binds
+    assert with_gpu.makespan_days == pytest.approx(7.12, abs=0.1)    # ...now TPE's 20 binds
+    assert with_gpu.binding == "critical_chain", "TPE, not capacity, is what it waits on"
+    assert with_gpu.makespan_days < cpu_only.makespan_days           # a real but modest gain
+
+    # THE ACTUAL UNLOCK is THREADING, which shortens EVERY cpu chain at once (no GPU needed).
+    threaded = plan_lanes(rung=568, cpu_cores=2500, chain_threads=8)
+    assert threaded.binding == "throughput"
+    assert threaded.makespan_days < with_gpu.makespan_days
 
 
 def test_the_gpu_is_an_optimisation_never_a_dependency():
@@ -137,7 +145,7 @@ def test_threading_the_chain_REMOVES_the_need_for_a_gpu():
     assert one_thread.binding == "critical_chain"       # 8.9 d chain dominates
     assert threaded.binding == "throughput"             # ...until the chain is threaded
     assert threaded.critical_chain_days == pytest.approx(3.27, abs=0.1)
-    assert threaded.makespan_days == pytest.approx(7.3, abs=0.2)
+    assert threaded.makespan_days == pytest.approx(7.50, abs=0.2)
     assert threaded.makespan_days < one_thread.makespan_days
 
     # and with a GPU on top the makespan is UNCHANGED - the GPU no longer buys anything here
@@ -148,7 +156,7 @@ def test_threading_the_chain_REMOVES_the_need_for_a_gpu():
 def test_threading_pushes_the_cpu_saturation_point_out():
     """More cores keep paying for longer once the chain is threaded."""
     assert cpu_saturation_cores(568, chain_threads=8) > cpu_saturation_cores(568, chain_threads=1)
-    assert cpu_saturation_cores(568, chain_threads=8) == pytest.approx(4460, rel=0.05)
+    assert cpu_saturation_cores(568, chain_threads=8) == pytest.approx(4584, rel=0.05)
 
 
 def test_batching_TPE_keeps_it_OFF_the_critical_path():

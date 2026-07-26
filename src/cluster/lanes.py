@@ -11,13 +11,16 @@ The work decomposes into three shapes with wildly different scheduling character
 ============================  ===============  ==========================  ==================
 component                     trainings @n=568 structure                   CPU critical path
 ============================  ===============  ==========================  ==================
-test flood + H1 baselines     39,192 + 6,248   embarrassingly parallel     --
+test flood + H1 baselines     40,328           embarrassingly parallel     --
 LLM reflection chains         1,650            55 chains x 6 SEQUENTIAL    6 x 8.54 h = 2.1 d
 ``bayes_opt`` GP-EI chain     30               5 parallel + **25 SERIAL**  25 x 8.54 h = 8.9 d
+TPE (batched startup)         30               10 batched + **20 SERIAL**  20 x 8.54 h = 7.1 d
+CMA-ES                        30               populations => ~4 SERIAL    ~1.4 d
 ============================  ===============  ==========================  ==================
 
-THE RESULT THAT DRIVES EVERYTHING: with ~349,558 core-hours of total work, the throughput term
-falls below the 8.9-day ``bayes_opt`` chain at about **1,640 CPU cores**. Past that the campaign is
+THE RESULT THAT DRIVES EVERYTHING: with ~360,000 core-hours of total work (9 arms since
+2026-07-26), the throughput term falls below the 8.9-day ``bayes_opt`` chain at about **1,685 CPU
+cores**. Past that the campaign is
 LATENCY-bound, and additional CPU capacity buys **literally nothing** -- while the binding chain is
 just **30 trainings**, which one GPU at pack-1 finishes in ~27 h instead of 8.9 days.
 
@@ -152,8 +155,12 @@ _LLM_CHAIN_GENERATIONS = 6        # K=5 candidates/generation x 6 = the 30-candi
 #:   never the binding chain.
 _TPE_SERIAL_STEPS = 20   # budget 30 - n_startup 10, now BATCHED on the cluster path
 _CMA_SERIAL_GENERATIONS = 4
-_SEARCH_TRAININGS = 1_740         # 7x30 core + 30 H3 + 10 legs x 5 arms x 30
-_TEST_UNITS_PER_RUNG = 69         # 7 core arms + 50 leg arms + 11 H1 canon + 1 H3
+# ⚠ UPDATED 2026-07-26 (late): the registered roster grew 7 -> 9 arms the same day
+# (`config/preregistration.yaml: arms` gained `cma_es` + `tpe` as the H4 optimiser portfolio,
+# N4 CONFIRMATORY — not report-only). The DFO arms are CORE-only: the 10 replication legs still
+# run 5 LLM arms each, so the leg total is unchanged at 50.
+_SEARCH_TRAININGS = 1_800         # 9x30 core + 30 H3 + 10 legs x 5 arms x 30
+_TEST_UNITS_PER_RUNG = 71         # 9 core arms + 50 leg arms + 11 H1 canon + 1 H3
 
 
 def training_core_hours(train_steps: int = 400_000,
@@ -173,7 +180,7 @@ def total_trainings(rung: int) -> int:
 
 def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
                          train_steps: int = 400_000, chain_threads: int = 1,
-                         include_dfo: bool = False) -> float:
+                         include_dfo: bool = True) -> float:
     """CPU cores beyond which MORE CORES BUY NOTHING (the throughput/critical-path crossover).
 
     This is the number that makes the whole plan legible: below it, buy cores; above it, buy
@@ -187,7 +194,7 @@ def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
 
 
 def _critical_chain_days(*, bayes_on_gpu: bool, train_steps: int,
-                         chain_threads: int = 1, include_dfo: bool = False) -> float:
+                         chain_threads: int = 1, include_dfo: bool = True) -> float:
     """Longest sequential chain, in days.
 
     ``chain_threads`` applies the MEASURED thread speed-up to the CHAIN ONLY — legitimate because
@@ -236,7 +243,7 @@ class LanePlan:
 
 def plan_lanes(*, rung: int = 568, cpu_cores: int, bayes_on_gpu: bool = False,
                train_steps: int = 400_000, chain_threads: int = 1,
-               include_dfo: bool = False) -> LanePlan:
+               include_dfo: bool = True) -> LanePlan:
     """Compute the makespan and say plainly which lever is worth pulling next.
 
     The ``notes`` are the actionable part: they name the ONE change that would most reduce the
