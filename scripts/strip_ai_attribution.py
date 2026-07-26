@@ -26,6 +26,19 @@ USAGE
     python scripts/strip_ai_attribution.py --execute       # rewrite local temp refs + verify, NO push
     python scripts/strip_ai_attribution.py --execute --push # …and force-push the cleaned refs
 
+    # UNPUSHED local work (see --local-branch, added 2026-07-26):
+    python scripts/strip_ai_attribution.py --local-branch <name> --execute --push
+
+THE GAP ``--local-branch`` CLOSES (found 2026-07-26). The default mode cleans what is ALREADY on the
+remote, so attributed commits that exist only locally can be cleaned only by pushing them FIRST — which
+publishes Claude as a co-author, exactly what the rule forbids, and GitHub may cache a contributor list
+even after a later rewrite. ``--local-branch`` rewrites a copy of the LOCAL branch instead and pushes
+that, so no attributed commit is ever published. It still never modifies your local refs. ⚠ Its
+``--execute`` path is DRY-RUN-verified only: the environment that added it could not run
+``git filter-branch``, so the first real run should be watched (the tool's own verification gate still
+refuses to push unless every rewritten tip tree is byte-identical, and a full bundle backup is taken
+first).
+
 IMPORTANT — it never touches your working branches. It rewrites copies taken from the REMOTE refs
 (``refs/heads/__aiclean/*``), so a repo with several agents committing is unaffected. Your local
 history keeps its original SHAs, so the commit hashes cited throughout CHANGELOG.md / HANDOFF.md /
@@ -81,27 +94,55 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--execute", action="store_true", help="actually rewrite (default: dry run)")
     ap.add_argument("--push", action="store_true", help="force-push the cleaned refs (implies --execute)")
+    ap.add_argument(
+        "--local-branch", metavar="NAME", default=None,
+        help=(
+            "Clean the LOCAL branch NAME and push the cleaned copy to origin/NAME, instead of "
+            "cleaning what is already on the remote. Use this when local work has NOT been pushed "
+            "yet: it means no attributed commit is ever published, so there is no window in which "
+            "GitHub can see (or cache) Claude as a co-author. Local refs are still never modified."
+        ),
+    )
     args = ap.parse_args()
     if args.push:
         args.execute = True
 
-    branches = remote_branches()
-    if not branches:
+    # The remote snapshot is ALWAYS taken: it is the abort-check baseline before pushing, and in
+    # remote mode it is also the rewrite source. Kept separate from `branches` so --local-branch
+    # cannot break the "did origin move under us?" guard (local SHAs never equal remote ones).
+    remote_snapshot = remote_branches()
+    if not remote_snapshot:
         raise SystemExit("no remote branches found on origin")
-    print(f"remote branches: {len(branches)}")
-    for n, s in branches.items():
-        print(f"  {n:38} {s[:10]}")
+
+    if args.local_branch:
+        name = args.local_branch
+        local_sha = git("rev-parse", "--verify", f"refs/heads/{name}", check=False)
+        if not local_sha:
+            raise SystemExit(f"no LOCAL branch {name!r} (refs/heads/{name} does not resolve)")
+        branches = {name: local_sha}
+        print(f"LOCAL-SOURCE mode: cleaning refs/heads/{name} -> origin/{name}")
+        print(f"  {name:38} {local_sha[:10]}")
+    else:
+        branches = remote_snapshot
+        print(f"remote branches: {len(branches)}")
+        for n, s in branches.items():
+            print(f"  {n:38} {s[:10]}")
+
+    def source_ref(n: str) -> str:
+        """The ref a branch's rewrite reads FROM — local in --local-branch mode, else the remote."""
+        return f"refs/heads/{n}" if args.local_branch else f"refs/remotes/origin/{n}"
 
     # --- survey -----------------------------------------------------------------
     git("fetch", "origin", "+refs/heads/*:refs/remotes/origin/*", "--prune")
-    scope = [f"refs/remotes/origin/{n}" for n in branches]
+    scope = [source_ref(n) for n in branches]
     shas = git("rev-list", *scope).splitlines()
     dirty = []
     for sha in shas:
         body = git("log", "-1", "--format=%B", sha)
         if body != clean_message(body):
             dirty.append(sha)
-    print(f"\ncommits reachable from remote refs : {len(shas)}")
+    _src = f"local branch {args.local_branch}" if args.local_branch else "remote refs"
+    print(f"\ncommits reachable from {_src} : {len(shas)}")
     print(f"commits carrying AI attribution    : {len(dirty)}")
     if dirty:
         sample = dirty[0]
@@ -141,7 +182,7 @@ def main() -> int:
     temps = []
     for n in branches:
         ref = f"{TEMP_NS}/{n}"
-        git("update-ref", ref, git("rev-parse", f"refs/remotes/origin/{n}"))
+        git("update-ref", ref, git("rev-parse", source_ref(n)))
         temps.append(ref)
     print(f"staged {len(temps)} temp refs under {TEMP_NS}/ (working branches untouched)")
 
@@ -158,7 +199,7 @@ def main() -> int:
     # --- verify -----------------------------------------------------------------
     bad_tree, still_dirty = [], []
     for n in branches:
-        old, new = git("rev-parse", f"refs/remotes/origin/{n}"), git("rev-parse", f"{TEMP_NS}/{n}")
+        old, new = git("rev-parse", source_ref(n)), git("rev-parse", f"{TEMP_NS}/{n}")
         if git("rev-parse", f"{old}^{{tree}}") != git("rev-parse", f"{new}^{{tree}}"):
             bad_tree.append(n)
     for sha in git("rev-list", *temps).splitlines():
@@ -176,9 +217,15 @@ def main() -> int:
         return 0
 
     # --- push (abort if the remote moved under us) ------------------------------
-    if remote_branches() != branches:
+    # Compare against the REMOTE snapshot, never `branches` — under --local-branch the two are
+    # different by construction (local SHAs are not remote SHAs), so comparing to `branches` would
+    # abort every run and, worse, would stop guarding the thing it exists to guard.
+    if remote_branches() != remote_snapshot:
         raise SystemExit("ABORT: origin changed since the survey — re-run so no one's push is lost.")
     for n in branches:
+        # --force-with-lease is checked against refs/remotes/origin/<n>, refreshed by the fetch
+        # above, so a concurrent push still cannot be clobbered even though the rewrite is a
+        # non-fast-forward by construction.
         git("push", "--force-with-lease", "origin", f"{TEMP_NS}/{n}:refs/heads/{n}")
         print(f"  pushed {n}")
     for ref in temps:
