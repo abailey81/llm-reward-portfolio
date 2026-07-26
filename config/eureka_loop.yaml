@@ -26,13 +26,17 @@ arms:                            # legacy blueprint budget = iterations*samples*
   - bayes_opt                    # H4b: GP-EI Bayesian optimisation (Matern-2.5; Snoek et al. 2012) over the same family
 
 baseline_rewards:                # hand-designed canon (citations in src/baselines/rewards.py docstrings)
-  # The full 11-name SECONDARY panel (PREREGISTRATION §9; R97 added differential_downside_ratio). Every name MUST be a real key in
-  # src/baselines/rewards.py::REWARD_CANON (the branch resolves via getattr(rewards, name)); the
-  # previous list had 5/6 STALE names that would AttributeError (log_wealth/sharpe_episodic/
+  # The full 11-name hand-reward canon (PREREGISTRATION §9; R97 added differential_downside_ratio; the
+  # 2026-07-26 expansion added volatility_scaled_return). Every name MUST be a real key in
+  # src/baselines/rewards.py::REWARD_CANON (the branch resolves via getattr(rewards, name)); an earlier
+  # list carried 5/6 STALE names that would AttributeError (log_wealth/sharpe_episodic/
   # cvar_penalised_mean/drawdown_penalised/turnover_penalised — fixed to the real names below;
-  # sharpe_episodic DROPPED, it has no REWARD_CANON function). The FROZEN H1 family is the 4-name
-  # subset in config/campaign.yaml::h1_baselines; this 11-name set is the documented secondary panel
-  # (tests/test_baselines.py asserts it == REWARD_CANON.keys() in both directions).
+  # sharpe_episodic DROPPED, it has no REWARD_CANON function). *** SINCE THE 2026-07-26 H1 CANON
+  # EXPANSION (4 -> 11) THIS LIST *IS* THE REGISTERED H1/N6 COMPARATOR FAMILY *** - it is no longer a
+  # "secondary panel" distinct from a 4-name H1 subset: config/preregistration.yaml::h1_baselines ==
+  # config/campaign.yaml::h1_baselines == this list == REWARD_CANON.keys(). The first two are bound by
+  # scripts/freeze.py::assert_h1_baselines_match; this list is bound to REWARD_CANON in both directions
+  # by tests/test_baselines.py::test_secondary_panel_config_matches_reward_canon.
   - raw_return                   # myopic bare portfolio return
   - return_minus_variance        # mean-variance penalty
   - return_minus_cvar            # tail-risk (CVaR) penalty   (was: cvar_penalised_mean)

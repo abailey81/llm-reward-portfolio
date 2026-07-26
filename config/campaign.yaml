@@ -115,7 +115,11 @@ auto_shutdown_on_complete: false       # rented-GPU-era knob, DISARMED 2026-07-0
 # "nothing is frozen": the old 4-core was arbitrary — the human champion could lie OUTSIDE it, and all 11
 # are trained anyway, so max-over-the-full-toolkit is the genuinely-HARD champion; this UNIFIES the old
 # 4-subset with the eureka_loop.yaml canon, which now == this list). Each is literature-cited (refs.bib,
-# reward-canon research). Mirrored + freeze-gated via config/preregistration.yaml h1_baselines. Baselines are UN-SEARCHED, so their Deflated Sharpe is deflated by N=1
-# (like the 8 allocators) while the LLM winner keeps its searched multiplicity — the fair, conservative
-# searched-LLM-vs-fixed-human Eureka comparison (the asymmetry FAVOURS the baselines).
+# reward-canon research). Mirrored + freeze-gated via config/preregistration.yaml h1_baselines. Baselines are UN-SEARCHED (a single fixed specification each),
+# while the LLM winner is the best of 30 VALIDATION candidates. ⚠ CORRECTED 2026-07-26 (deep review,
+# loop 5): the H1/N6 test does NOT deflate — its endpoint is annualised per-seed Sharpe, not DSR, and
+# deflation would be misapplied anyway because selection happens on VALIDATION and the test leg is
+# SEALED, so there is no test-set max-over-N to correct for. The residual asymmetry therefore FAVOURS
+# THE LLM, not the baselines, and is disclosed as the un-tuned-baseline bias (CH6). The DSR-deflated
+# winner-vs-best-baseline comparison still exists, but only in the DESCRIPTIVE gate panel.
 h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe, differential_downside_ratio, mean_variance_utility, return_minus_drawdown, return_minus_downside, return_minus_turnover, log_growth, volatility_scaled_return]

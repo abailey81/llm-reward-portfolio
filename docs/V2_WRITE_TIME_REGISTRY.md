@@ -53,6 +53,31 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     (why-ten-models; the synthesis verdict + bound; the practitioner takeaway) and every
     mechanism-of-the-suite detail (pins, queue mechanics, reliability tables, synthesis math)
     goes to word-excluded appendices/tables. The surgery pass re-measures AFTER v2 prose lands.
+    **⚠ RE-MEASURED 2026-07-26 (deep review, loop 11) — the "~15.5k" above is STALE and the plan is
+    sized ~3.6k words too small.** `make wordcount` (`scripts/word_budget.py`, which DOES apply every
+    UCL exclusion — display + inline math, code fences, inline code, tables, footnote definitions,
+    image lines, word-excluded in-file appendices, and FRONT_MATTER wholesale) now reports:
+
+    | chapter | words |
+    |---|---|
+    | CH1_introduction | 2,588 |
+    | CH2_related_work | 2,748 |
+    | 02_CHAPTER_theory | 4,000 |
+    | CH4_methods | 4,250 |
+    | CH5_prototype | 1,391 |
+    | CH6_results | 2,297 |
+    | CH7_discussion_limitations_conclusion | 1,855 |
+    | **TOTAL (main body)** | **19,129** — vs limit 10,000, PASS ceiling 9,500 |
+
+    So the body is **91 % over a HARD limit**, and the required cut is **~9,600 words (about half the
+    document)**, not the ~5.5k the stale figure implies. This is not a rounding matter: communication is
+    one of four equally-weighted dimensions, the WEAKEST dimension CAPS the mark, and a marker can
+    penalise a hard-limit breach directly regardless of content quality. The four heaviest chapters
+    (CH4 4,250 · CH3 4,000 · CH2 2,748 · CH1 2,588 = 13,586, i.e. 71 % of the body) are where the
+    surgery has to happen. The levers are the ones `word_budget.py`'s own docstring names — push formal
+    apparatus into EXCLUDED math, and move mechanism detail into word-excluded appendices/tables — plus
+    the playbook's MOVE 3 distillation. **Re-run `make wordcount` after every writing session**; it
+    exits 1 over the limit, so it can be treated as a gate rather than a report.
 15. **New-citation evidence grade (strong-evidence standard).** REvolve, GEPA, and METR are
     load-bearing v2 citations (the REvolve "necessary choice" quote is verbatim in the NatWest
     brief and planned for CH2) and are **absent from refs.bib** (verified 2026-07-21, 199
@@ -279,3 +304,50 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     argued in one paragraph instead of left implicit. Anticipated-question fodder: "why not make
     all 11 confirmatory?" -> m=6 × 11 ≈ 66-test multiplicity burn + ladder-depth compute ×20 +
     the undefined inference target. Wire beside D10 (the why-ten-models plain para).
+
+## The registered cross-model synthesis is BUILT BUT UNWIRED (2026-07-26 deep review, loop 4 — verified first-hand; MUST close before the headline is written)
+34. **Wire `src/inference/cross_model.py` + `src/inference/leg_aggregate.py` into the analysis, or
+    withdraw the registered claim.** VERIFIED by a repo-wide import search (`src/` + `scripts/`,
+    excluding `tests/`): **no production code imports either module.** The only hits are
+    `src/inference/contamination.py`'s own, unrelated `cross_model_disagreement` (same word,
+    different function), a docstring in `src/viz/figures.py:536`, a comment in
+    `scripts/analyze_campaign.py:4996`, and a docstring in `scripts/run_campaign_cluster.py:337`.
+    The modules and their unit tests are real and pass; nothing calls them.
+    **Why this is load-bearing, not housekeeping:** `config/preregistration.yaml`
+    `synthesis_exactness.pooled_bound` registers the 90 % seed-block-bootstrap CI on the pooled
+    (dist − scalar) CVaR-5% difference as *"the registered cross-model bounded-effect statement"*
+    (R86); `synthesis.permutation_test` registers the joint per-seed sign-flip test; and **R101
+    reframed the headline itself around "the POOLED cross-model bounded effect"**, with registry
+    row 33 above resting the generalization tier on exactly these statistics. So the pipeline as it
+    stands cannot produce a registered headline component.
+    **Precedent — this is a repeat of a known failure mode:** Amendment R16 fixed precisely this for
+    `h2_conjunction` ("implemented and unit-tested but previously unwired, so the documented headline
+    test never actually ran"). A unit-tested module is not a wired one.
+    **Close it one of two ways, and record which:** (a) wire the synthesis into
+    `scripts/analyze_campaign.py` (assemble per-leg results via
+    `leg_aggregate.leg_results_for_synthesis`, then `sign_count` / `permutation_test` /
+    `pooled_bound` / `pair_did` / `leg_family_bh`) and add an end-to-end test that FAILS if the call
+    is removed; or (b) amend the register to withdraw the pooled-bound claim and restate the
+    generalization tier in terms of what is actually computed. Silently shipping neither is the one
+    unacceptable outcome.
+    **Also check when closing:** `leg_aggregate.py:57-58,91` builds a **per-period, ddof=1** Sharpe
+    and compares its mean to `floor_sharpe`, while the T0 floor used elsewhere
+    (`src/inference/bootstrap.py:309-314`, `benchmark_floor`) is **annualised, ddof=0**. If the real
+    T0 floor is passed in at wiring time, every leg would fail by a factor of about √252. This is a
+    latent unit trap that only bites on wiring — fix it in the same change.
+
+## The FZ0/DM backtest does not corroborate H2-Tail (2026-07-26 deep review, loop 4 — verified; PREREGISTRATION §1 H2 already corrected)
+35. **Rename `corroborates_h2_tail` and restate the exhibit as a calibration diagnostic.** As wired in
+    `scripts/analyze_campaign.py`, both (VaR, ES) forecasts are FZ0-scored against ONE series — the
+    distributional arm's own test path — while forecast 1 comes from that same arm's pooled
+    validation returns and forecast 2 from the comparator's. A strictly consistent scoring rule then
+    favours forecast 1 close to automatically: the flag measures **self-prediction across the
+    val→test split**, not which arm's tail is less severe, so it can show the arms' distributions
+    DIFFER but says nothing about the DIRECTION H2-Tail asserts. `src/inference/es_backtest.py`
+    already warns against this exact use in its scope note and points to
+    `src.inference.bootstrap.cvar_difference_test` — which the 3-leg CVaR IUT already uses, so the
+    tail claim loses nothing by the correction.
+    **To close:** (a) rename the key (e.g. `forecast_calibration_favours_dist`) and update every
+    reader/renderer; (b) make sure no CH6/CH7 sentence presents it as corroboration of the tail
+    result; and (c) if genuine corroboration is wanted, score BOTH forecasts on a neutral common
+    series instead. `PREREGISTRATION.md` §1 H2 already carries the dated correction.

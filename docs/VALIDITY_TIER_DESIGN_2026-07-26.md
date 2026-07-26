@@ -28,22 +28,68 @@ types mix):
 - **N3 = H3** — iterative > single-shot best-of-N (one-sided superiority).
 - **N4 = H4** — LLM designer > {random-search, Bayesian-opt}; itself an IUT over the two comparators, so it
   stays one valid p-value.
+- **N5 = structure control** — `distributional > placebo_shuffled` on CVaR-5% (content over format).
+- **N6 = H1** — the LLM reward DOMINATES the 11-name hand-reward canon; itself an IUT over the canon
+  (Berger 1982), so it too supplies exactly one valid p-value.
 
-**Initial α-allocation (pre-specified):** `w(N1)=0.5, w(N2)=0.5, w(N3)=0, w(N4)=0`. ALL α starts on the two
-headline co-primaries; the validity tier (N3, N4) is **activated only by upstream success** — the defining
-feature of a confirmatory tier and precisely why it costs the H2 headline **zero power** vs the current
-design. Rationale for 0.5/0.5: co-primary symmetry (neither H2 leg is privileged); rationale for 0 on the
-tier: the headline must earn the right to spend α downstream.
+> **⚠ RECONCILED 2026-07-26 by the deep review.** This block previously described a **4-node** graph
+> (N1–N4) with edges `N1→{N2:0.5, N4:0.5}`, `N2→{N1:0.5, N3:0.5}`, `N3↔N4`, while
+> `config/preregistration.yaml: inference.validity_tier` — the machine mirror that
+> `tests/test_validity_tier.py` binds and that `forking_path_guard` declares FROZEN — carried a
+> **6-node** graph including N5 and N6, added the same day. Since this document is cited by the YAML
+> as both `source:` and `per_node_strength:`, the ratifiers would have been signing off on a topology
+> that was not the registered one. The YAML is authoritative; the node list, allocation and edges
+> below are now transcribed from it verbatim.
 
-**Edges (recycle α on ANY rejection — superiority or equivalence alike):**
-- `N1 → {N2: 0.5, N4: 0.5}` — a confirmed tail headline frees α to confirm the method beats search.
-- `N2 → {N1: 0.5, N3: 0.5}` — a confirmed RA-equivalence (or RA-superiority) frees α to confirm iteration helps.
-- `N3 ↔ N4` (weight 1 each way) — the two tier nodes recycle exhausted α to each other.
+**Initial α-allocation (pre-specified):** `w(N1)=0.5, w(N2)=0.5, w(N3)=w(N4)=w(N5)=w(N6)=0` (sums to 1).
+ALL α starts on the two headline co-primaries; the validity tier (N3–N6) is **activated only by upstream
+success** — the defining feature of a confirmatory tier. Rationale for 0.5/0.5: co-primary symmetry
+(neither H2 leg is privileged); rationale for 0 on the tier: the headline must earn the right to spend α
+downstream.
+
+> **⚠ "Zero power cost" corrected 2026-07-26 (same review).** Promoting N3–N6 costs the headline nothing
+> *relative to a graph that had given them initial weight* — that much is true and is the point of the
+> activate-on-success design. But the OPERATIVE baseline is **R31**: H2-RA and H2-Tail as SEPARATE
+> ESTIMANDS, each an IUT decided at the FULL one-sided α = 0.05 (`PREREGISTRATION.md` §1 H2, the
+> "two-tier verdict"). Under this graph each co-primary is instead tested at `w_i·α = 0.025`. That IS a
+> headline power cost: a one-sided leg powered to **0.80 at α = 0.05 falls to 0.7007 at α = 0.025**
+> (verified numerically, normal approximation). It is the honest price of STRONG FWER across all six
+> nodes and may well be worth paying — but it is not zero, and it is exactly what
+> `ratification_pending: alpha_allocation` asks the supervisors to accept.
+
+**Edges (recycle α on ANY rejection — superiority or equivalence alike; each node's out-edges sum to ≤ 1):**
+- `N1 → {N2: 0.34, N4: 0.33, N5: 0.33}` — a confirmed tail headline frees α to the RA co-primary, to
+  "beats naive search", and to the content-over-format structure control.
+- `N2 → {N1: 0.34, N3: 0.33, N6: 0.33}` — a confirmed RA-equivalence (or RA-superiority) frees α to the
+  tail co-primary, to "iteration helps", and to "beats the best human".
+- `N3 → {N4: 0.5, N6: 0.5}` · `N4 → {N3: 0.34, N5: 0.33, N6: 0.33}` · `N5 → {N3: 0.5, N4: 0.5}` ·
+  `N6 → {N3: 0.5, N4: 0.5}` — the tier nodes recycle exhausted α among themselves.
 
 **The predicted-null path is a first-class α source (non-obvious, load-bearing).** α flows on *rejection*,
-and a **TOST rejection = "equivalence proven."** So our predicted outcome — a CVaR-5% tail win (N1 rejects)
-+ a Sharpe *equivalence* (N2's TOST rejects) — activates the tier legitimately; we are **not** stranded when
-the Sharpe superiority is, as predicted, a tie. This is why `bergerhsu1996equivalence` is load-bearing.
+and a **TOST rejection = "equivalence proven."** So the tier can activate even when every superiority test
+ties; we are **not** stranded when the Sharpe superiority is, as predicted, a tie. This is why
+`bergerhsu1996equivalence` is load-bearing.
+
+> **⚠ PREDICTION CORRECTED 2026-07-26 (deep review, loop 8).** This paragraph previously called
+> *"a CVaR-5% tail win (N1 rejects) + a Sharpe equivalence"* **"our predicted outcome"**. That
+> **contradicts the registered prediction.** `PREREGISTRATION.md` §1a is a conditional table
+> (Strict → tail rejects · Weak → inconclusive · Null → both tie), and its *specific a-priori
+> prediction* is the **NULL branch**: "its negative responsiveness (≈ −0.05) and un-beaten placebo
+> **predict the NULL branch** — a clean, bankable result". A tail win is the **STRICT-branch** outcome,
+> not the predicted one. Getting this right is not cosmetic: the whole epistemic claim is Mayoian
+> severity, which is only earned by stating the prediction in advance and then reporting what happened —
+> a design document that quietly upgrades the registered prediction to the more favourable branch is
+> exactly the forking-path move the severity argument is meant to exclude.
+>
+> **What this means for the tier, stated honestly.** Under the *predicted* (null) branch, N1 does NOT
+> reject, so the tier's activation rests entirely on **N2 rejecting via TOST** — i.e. on *proving*
+> Sharpe equivalence. That is a genuine, pre-registered α source, but it is **power-limited**:
+> `docs/SESOI_DERIVATION_2026-07-25.md` puts the seeds needed to declare equivalence against the
+> SESOI at **n\* ≈ 173**, while R101's expected achieved common rung is **~100–189**. So on the
+> design's own prediction the tier is *borderline* to activate, and it is honest to say so up front
+> rather than discover it at analysis time. The tier remains worth having — it costs the headline only
+> the α-split already disclosed above, and it pays off on the Strict branch and on any rung above
+> n\* — but it must not be presented as certain to be evaluated.
 
 **Primary rule = the Bonferroni-weighted graph** (valid under any dependence; referee-proof). **Sensitivity
 = a Romano–Wolf / resampling graph** (recovers the correlation-induced power our shared-seed design earns);
@@ -149,11 +195,12 @@ for a stated priority reason. This is "upgrade where it deepens the confirmatory
 headline cost; keep report-only where it is a sensitivity, a defence, a dead anchor, or a depth-analysis."
 
 ## The H1 comparator — "why best of 4 only?" (Tamer, 2026-07-26)
-Tamer asked why H1 compares against only FOUR hand-designed rewards. The current design freezes a 4-name
+Tamer asked why H1 compares against only FOUR hand-designed rewards. **State of the design when the
+question was asked (now superseded — see the resolution at the end of this section):** it froze a 4-name
 CORE — `raw_return`, `return_minus_variance`, `return_minus_cvar`, `differential_sharpe` (the pre-registered
 §1-H1 family) — while a broader 10-name `REWARD_CANON` (adding the differential-downside ratio, Markowitz
-utility, drawdown-penalty, Sortino downside, turnover-penalty, Kelly log-growth) already runs as a
-report-only secondary panel. The analysis + upgrade:
+utility, drawdown-penalty, Sortino downside, turnover-penalty, Kelly log-growth) ran as a report-only
+secondary panel. The analysis + upgrade:
 
 1. **There is no good reason to cap the CONFIRMATORY comparator at 4.** The human champion (the strongest
    hand-reward on THIS heavy-tailed panel) could lie OUTSIDE the core 4 — e.g. Kelly log-growth or the
@@ -162,14 +209,30 @@ report-only secondary panel. The analysis + upgrade:
    standard human-reward toolkit"** is the strong, non-fragile, Stefan-aligned claim.
 2. **The upgrade is FREE and STRICTLY MORE CONSERVATIVE.** The 10 canon rewards are ALREADY trained (the
    secondary panel), so selecting the champion from all 10 costs NO extra compute. A larger champion pool =
-   a STRONGER human bar = a MORE impressive LLM win. And the design's deflation asymmetry — the LLM winner
-   is searched / multiplicity-deflated (DSR over its true candidate count) while every hand-reward is
-   un-searched / N=1 (`campaign.yaml:116-118`) — already FAVOURS the humans, so raising the human bar only
-   sharpens an already-conservative claim. Selection bias from the max-over-N is **DISSOLVED** by the IUT
+   a STRONGER human bar = a MORE impressive LLM win. ⚠ **Corrected 2026-07-26 (deep review, loop 5):**
+   this paragraph previously claimed a *deflation asymmetry* favouring the humans (LLM winner
+   DSR-deflated over its candidate count, each hand-reward at N=1). That is not what happens. N6's
+   endpoint is annualised per-seed **Sharpe**, not DSR, so nothing is deflated in the test; and
+   deflation would be misapplied regardless, because selection is on **VALIDATION**
+   (`run_campaign` selects on `val_fitness`; `held_out_fitness` refuses a non-val split) and the test
+   leg is **SEALED** — there is no test-set max-over-N to correct for. The real residual asymmetry runs
+   the OTHER way: the LLM winner is the best of 30 validation candidates while each hand reward is one
+   fixed, un-tuned specification, which **FAVOURS the LLM** and is disclosed as such in CH6. Raising the
+   human bar to the full canon therefore strengthens the claim on its own merits, not via a deflation
+   that does not occur. Selection bias from the max-over-N is **DISSOLVED** by the IUT
    reformulation: N6 selects no champion at all (it requires beating EVERY member — beat-all ⟺ beat-max),
    so there is no order statistic to snoop (superseding the earlier val-select fix, which was dead code).
 3. **N6's comparator is therefore the FULL canon, not the 4** (registered in the N6 spec, this amendment).
-4. **Beyond 10 — pending the reward-canon deep-research (running).** Whether to expand the canon to the
+4. **Beyond 10 — RESOLVED the same day; the section above is the pre-resolution reasoning.** The canon
+   was expanded **4 → 11**: the research returned exactly ONE principled addition,
+   `volatility_scaled_return` (the volatility-TARGETED deep-RL-for-trading reward of Zhang, Zohren &
+   Roberts 2020 — the RL-trading-provenance member the panel lacked). `REWARD_CANON` ==
+   `config/preregistration.yaml: h1_baselines` == `config/campaign.yaml: h1_baselines` ==
+   `config/eureka_loop.yaml: baseline_rewards` == the SAME 11 names;
+   `freeze.py::assert_h1_baselines_match` verifies n=11 and `tests/test_baselines.py` binds the config
+   list to `REWARD_CANON` in both directions. The open question below is what was considered *before*
+   that resolution, and is retained as the reasoning trail:
+   Whether to expand the canon to the
    comprehensive literature toolkit (Calmar, Sterling, Omega, prospect-theory / CPT utility, risk-parity,
    …) so "the human toolkit" is complete and every member is literature-cited. Each added member costs one
    trained baseline + one verified citation; the research returns the principled comprehensive set + the
@@ -203,9 +266,15 @@ cherry-picking the confirmatory set on prototype hints would itself be a forking
   coherent tail (`rockafellar2000cvar` CVaR; `sortino1991downside`; Moody-Saffell DDR), drawdown
   (`chekhlov2005drawdown`), growth-optimal (`kelly1956information`), transaction cost (`garleanu2013dynamic`),
   volatility targeting (`zhang2020drltrading`) — each literature-cited and first-hand-verified. Beating THIS
-  is beating the accumulated wisdom of the field, not a strawman. TWO features make it CONSERVATIVE (hard
-  for the LLM, so a win is non-fragile): every hand-reward is un-searched / DSR-deflated at N=1 while the LLM
-  winner still pays its full search-multiplicity penalty; and the IUT reformulation (beat EVERY canon member —
+  is beating the accumulated wisdom of the field at its standard specifications — a strong bar, though not
+  a TUNED one (see the honest caveat below). ⚠ **Corrected 2026-07-26 (deep review, loop 5):** the earlier
+  text claimed TWO conservative features, the first being that "every hand-reward is un-searched /
+  DSR-deflated at N=1 while the LLM winner still pays its full search-multiplicity penalty". That feature
+  does not exist — N6's endpoint is annualised Sharpe (no deflation), and deflation would be misapplied
+  anyway since selection is on validation and the test leg is sealed. The surviving asymmetry is the
+  opposite one and must be stated plainly: **the baselines are UN-TUNED**, so the comparison favours the
+  LLM (CH6 already discloses this). What genuinely remains conservative is the second feature — the IUT
+  reformulation (beat EVERY canon member —
   NO champion is selected) removes the max-over-N selection bias ENTIRELY: there is no order statistic to snoop
   (beat-all ⟺ beat-max, `berger1982iut`), so the conservative human bar is also a snoop-free one, and H1 needs
   no fragile baseline validation-roll. NOVELTY: the lineage (Eureka / Text2Reward /
@@ -221,5 +290,10 @@ precisely *because* each is hard, conservative, and evidence-backed.
 ## Reproduce / verify
 `config/preregistration.yaml: inference.validity_tier` (the machine-readable graph) + `PREREGISTRATION.md`
 R105 + `tests/test_validity_tier.py` (graph well-formed: node p-value validity, per-node out-edge weights
-sum ≤ 1, initial weights sum to α-allocation, H1 excluded). The analysis implementation reuses
+sum ≤ 1, initial weights sum to α-allocation, and — corrected 2026-07-26, this line previously said
+"H1 excluded" — that **H1 IS present as node N6**, promoted the same day, with
+`endpoint: sharpe_annualized` (corrected 2026-07-26, deep review loop 5: the code builds the IUT legs from
+annualised per-seed Sharpe, not DSR — a DSR endpoint would deflate the winner by n=30 vs each hand reward by
+n=1, i.e. different nulls per arm, so the winner would lose every leg even at an equal true Sharpe). The analysis
+implementation reuses
 `src/inference/multiple_testing.py` (`benjamini_hochberg`, `romano_wolf`) as node/sensitivity procedures.

@@ -1168,7 +1168,13 @@ excluding environment noise makes the gate MORE faithful to the pre-registered 2
 Security unchanged: AST gate in-parent, killable child, hard user-code cap. Companion ops
 control: `preflight.py check_commit_headroom` (FAIL < 6 GB commit available).
 
-## ADR-058 — B* RAISED 200,000 → 400,000 steps (R77, 2026-07-18); supersedes ADR-043 and clears its RE-RUN-PENDING status
+## ADR-058a — B* RAISED 200,000 → 400,000 steps (R77, 2026-07-18); supersedes ADR-043 and clears its RE-RUN-PENDING status
+
+> **ID COLLISION, disambiguated 2026-07-26 (deep review, loop 2).** Two distinct decisions were both
+> numbered ADR-058. They are now **ADR-058a** (this one — the B\* raise) and **ADR-058b** (the §S12
+> venue-chain staleness, below). Bare "ADR-058" in dated records means **058b** everywhere except
+> `docs/DISSERTATION_MASTER_OVERVIEW.md` "R77/ADR-058", which meant **058a**; all live references have
+> been updated. No decision content changed.
 
 **Decision.** Amendment **R77 (2026-07-18)** raises the confirmatory per-candidate training budget
 **B\* = 200,000 → 400,000 steps**, set at the measured **knee of the extended 30-point same-protocol
@@ -1188,7 +1194,9 @@ projection (Myriad throughput at 400k = 2.05 trainings/GPU-h, superseding the pr
 3.74; ADR-053). `config/campaign.yaml` + `config/algos.yaml` `train_steps_per_candidate` and the
 freeze-gate `assert_train_steps_match` cross-file check bind to 400,000. `frozen: false`.
 
-## ADR-058 — Frozen-registration S12 venue-chain staleness: recorded, NOT re-hashed (2026-07-19)
+## ADR-058b — Frozen-registration S12 venue-chain staleness: recorded, NOT re-hashed (2026-07-19)
+
+> Renumbered from a colliding "ADR-058" on 2026-07-26 (see the note under ADR-058a). Content unchanged.
 
 **Finding (35-agent audit, CONFIRMED).** `PREREGISTRATION.md` §S12's dated compute-venue amendment
 chain terminates at **ADR-040 (2026-07-01/02, "laptop-only on the owned RTX 4050")** and does not
@@ -1250,7 +1258,7 @@ metrics/success-story framing, and the reporting/paper structure.
 
 **Consequences.** Freeze-state-dependent tests flip to state-adaptive assertions (they assert
 consistency with the live yaml rather than pinning a state). The cluster marker is stale pending the
-v2 sync. The S12 venue staleness (ADR-058) folds into the v2 re-hash, as that ADR anticipated.
+v2 sync. The S12 venue staleness (ADR-058b) folds into the v2 re-hash, as that ADR anticipated.
 
 ## ADR-060 — THE V2 DESIGN: the 10-model replication suite under the $30 ceiling (2026-07-20)
 

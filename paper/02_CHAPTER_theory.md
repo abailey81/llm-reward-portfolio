@@ -172,6 +172,17 @@ Proposition 3.2 shows a richer signal cannot hurt an optimal user, but it does n
 Two results establish that the multi-level CVaR vector is a principled — indeed, in a precise sense canonical —
 representation of the lower tail, rather than an arbitrary collection of numbers.
 
+*Coherence, stated once and used throughout.* A risk measure $\rho$ on the loss orientation $\ell=-Z$ is
+**coherent** in the sense of Artzner, Delbaen, Eber & Heath if it is *monotone*, *translation-equivariant*
+($\rho(\ell+c)=\rho(\ell)+c$), *positively homogeneous* ($\rho(\lambda\ell)=\lambda\rho(\ell)$, $\lambda\ge 0$)
+and — the axiom that does the work here — **subadditive**, $\rho(\ell_1+\ell_2)\le\rho(\ell_1)+\rho(\ell_2)$,
+so that diversification can never be penalised [`artzner1999coherent`]. Value-at-risk satisfies the first three
+and **fails subadditivity**; $\mathrm{CVaR}=\mathrm{ES}$ satisfies all four [`rockafellar2000cvar`;
+`acerbi2002spectral`]. This is the formal content behind the choice announced in §2, and it is what the
+representation results below take as given. (The empirical estimator we actually compute inherits
+subadditivity exactly, being a minimum over $k$-subsets of the realised losses; the property is asserted as a
+test invariant in `tests/test_properties.py`, not merely assumed here.)
+
 **It spans the coherent-risk class.** By the Kusuoka representation (on an atomless probability space; stated in the mirror loss orientation $\ell=-Z$ of §3.6), every law-invariant
 *coherent* risk measure is a supremum over mixtures of CVaR (average value-at-risk) across confidence levels, and every *comonotonic*
 law-invariant coherent risk measure is a single, unique such mixture — a spectral risk measure

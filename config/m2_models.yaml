@@ -1,5 +1,6 @@
 # M2 reading-link survey roster — v2 (R80, 2026-07-20; supersedes the placeholder roster).
-# 26 CORE (R99 seated gpt-5.6-terra) models + budget-permitting EXTRAS. INCLUSION RULE (pre-registered): UK-callable AND
+# 27 CORE models (R99 seated gpt-5.6-terra; R102 added opus-5 without bumping this count — corrected by
+# the 2026-07-26 deep review, loop 2: the `core` list is programmatically 27) + budget-permitting EXTRAS. INCLUSION RULE (pre-registered): UK-callable AND
 # passes the author smoke AND passes the behavioural contamination screen AND a distinct base
 # model AND not an orchestrator/router. Execution is BUDGET-ORDERED under the $30 total ceiling
 # (R81): free routes first, then open, then closed, stop at ceiling contact. Ids pinned AT

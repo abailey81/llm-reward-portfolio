@@ -4,8 +4,11 @@
 > (`docs/SELF_IMPROVEMENT_LOOP_LOG_2026-07-08.md` §STAGED). **This is the tidy list to work from when
 > the write-up resumes** — every citation below was VERIFIED FIRST-HAND (author/venue/claim) unless
 > marked `%VERIFY`. Loop refs (Lnn) point back to the loop-log entry with the full evidence.
-> NOTHING here is applied to the paper yet (write-up deferred by Tamer 2026-07-08). The freeze hash
-> `1c6b76b6` is UNCHANGED; all cites are additive.
+> NOTHING here is applied to the paper yet (write-up deferred by Tamer 2026-07-08). All cites are
+> additive — none of them moves the canonical hash. **(Dated fact, not a live invariant:** at
+> consolidation the would-be hash was `1c6b76b6`; it has since moved with every authorized pre-freeze
+> design edit — `b8993600` as of 2026-07-26. The design is still **UNFROZEN**; check live with
+> `freeze.py --check` rather than trusting any hash written in a dated doc.**)**
 
 ## 0. Status at consolidation (loop 78)
 - **Code: converged-flawless.** ~28 core modules + the ENTIRE confirmatory decision path
