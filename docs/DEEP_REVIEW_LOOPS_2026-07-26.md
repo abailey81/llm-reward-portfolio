@@ -443,6 +443,28 @@ and line 208 does not contain it), another that moved to `src/cluster/allocation
 run. Both are ruff reading a file mid-write by the capacity lane. Recorded so nobody later "repairs" a
 bug that does not exist — the third instance of this pattern in these loops.
 
+### ✅ FULL CERTIFICATION (2026-07-26) — the campaign-readiness battery, all green
+
+The full suite had NOT completed since ~45 fixes landed: four background runs were killed by session
+teardown, and their orphaned pytest processes were what crushed the laptop. Root cause was the METHOD,
+not the suite — so it was re-run as **four sequential FOREGROUND chunks**, each inside the tool timeout,
+with nothing left running between them.
+
+| gate | result |
+|---|---|
+| Full test suite, **all 141 test files** in 4 chunks | **RC=0 · RC=0 · RC=0 · RC=0** |
+| `scripts/freeze.py --check` | **RC=0**, `recorded freeze_hash: null` — correctly **NOT frozen** |
+| `scripts/check_citations.py` | clean (0 dangling · 0 verify-in-use · 0 literal VERIFY) |
+| `ruff check src scripts` | All checks passed |
+| Campaign launchers (`mode_d_launch` · `mode_d_supervisor` · `campaign_supervisor`) | **0 parse errors** each |
+
+**Readiness verdict, stated honestly.** Everything in the LOGIC-REVIEWER lane is green and no known
+defect blocks a launch. What is NOT mine to certify, and remains open by design: the **freeze itself**
+(R94 — it executes only together with Tamer's full-campaign approval, as GO step 1, never before), the
+supervisor **ratification set**, Tamer's funding/GO items, and the three design decisions this review
+surfaced (the `leg_calendar_gate` reconciliation, the capability-anchor down-rank, mirroring the JZS
+prior into the YAML). "Green gates" is not "approved to run" — the approval is his.
+
 **OPEN — verified findings from the S09 auditor, queued for loops 15+** (each independently re-verified
 by me before any fix; the two marked ✔ are already re-verified first-hand):
 ✔ `PREREGISTRATION.md:27` (§1 H1, **hash-bound**) still defines the H1 comparator as **four** named
