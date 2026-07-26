@@ -322,3 +322,40 @@ def test_record_env_label_survives_a_bare_string_and_a_nested_dict():
     assert record_env_label({"env_fingerprint": "legacy-label"}) == "legacy-label"
     nested = record_env_label({"env_fingerprint": {"label": {"label": "x"}}})
     assert isinstance(nested, str) and record_env_label({"env_fingerprint": {"label": {"label": "x"}}}) == nested
+
+
+# --- 7. LIVE per-record garbage detection ------------------------------------------------------
+
+def test_a_GARBAGE_record_raises_the_whole_report_to_CRITICAL():
+    """The point of live tracking: a void record reaches the operator in ONE poll interval, not at
+    the 30-seed floor two days in. It must drive the REPORT severity, which is what pushes."""
+    from scripts.sentinel import evaluate_health
+
+    report = evaluate_health({"exit_code": 0, "record_sanity": {
+        "n_assessed": 40, "suspect": [],
+        "garbage": [{"arm": "scalar", "seed": 0,
+                     "reasons": ["the agent trained mostly on the neutral fallback"]}]}})
+    names = {c.name for c in report.checks}
+    assert "record_sanity" in names
+    assert report.severity == "CRITICAL" and not report.healthy
+
+
+def test_suspect_records_WARN_without_screaming():
+    from src.cluster.campaign_health import check_record_sanity
+
+    c = check_record_sanity({"n_assessed": 50, "garbage": [],
+                             "suspect": [{"arm": "llm_tail", "seed": 3, "reasons": ["partial"]}]})
+    assert c.severity == "WARN" and "SUSPECT" in c.detail
+
+
+def test_a_clean_batch_is_OK():
+    from src.cluster.campaign_health import check_record_sanity
+
+    assert check_record_sanity({"n_assessed": 120, "garbage": [], "suspect": []}).severity == "OK"
+
+
+def test_NO_records_yet_is_INFO_never_a_false_all_clear():
+    from src.cluster.campaign_health import check_record_sanity
+
+    assert check_record_sanity({"n_assessed": 0, "note": "no records yet"}).severity == "INFO"
+    assert check_record_sanity(None).severity == "INFO"

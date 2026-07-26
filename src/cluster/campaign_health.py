@@ -48,7 +48,51 @@ __all__ = [
     "check_rung_forecast",
     "check_determinism_homogeneity",
     "check_admin_kill",
+    "check_record_sanity",
 ]
+
+
+def check_record_sanity(summary: dict[str, Any] | None) -> HealthCheck:
+    """LIVE per-record garbage detection — the shortest path from a bad record to a phone alert.
+
+    Consumes :func:`scripts.first_seed_sanity.assess_recent`. The campaign's first STATISTICAL
+    result arrives at the 30-seed floor about two days in, but the ways a run goes wrong are visible
+    on the first completed record: a reward that crashed every step so the agent trained on the
+    neutral fallback, NaN returns, a policy parked in cash emitting a flat line, an absurd return
+    magnitude. Checking every new record each poll turns "two days" into "one poll interval".
+
+    EFFECT-BLIND, and that is what makes it safe to run mid-campaign: it reads no performance value
+    and compares no arms, so it cannot preview the result and cannot contaminate the single
+    pre-registered confirmatory look. (``tests/test_first_seed_sanity.py`` proves this by running the
+    assessment over two archives that differ ONLY in which arm wins and demanding identical output.)
+
+    CRITICAL on garbage: a record the agent trained on a constant signal is not a slow result, it is
+    a void one, and every hour spent producing more of them is wasted.
+    """
+    if not summary:
+        return HealthCheck("record_sanity", INFO, "no records assessed yet", {})
+    n = int(summary.get("n_assessed", 0) or 0)
+    bad = list(summary.get("garbage") or [])
+    sus = list(summary.get("suspect") or [])
+    if not n:
+        return HealthCheck("record_sanity", INFO,
+                           str(summary.get("note", "no records yet")), {})
+    if bad:
+        who = ", ".join(f"{b.get('arm')}-s{b.get('seed')}" for b in bad[:4])
+        why = (bad[0].get("reasons") or ["?"])[0]
+        return HealthCheck("record_sanity", CRITICAL,
+                           f"{len(bad)}/{n} recent record(s) are GARBAGE ({who}) — e.g. {why}. "
+                           "These are void, not slow: stop and diagnose before more compute is "
+                           "spent producing them", {"garbage": bad[:8], "n_assessed": n})
+    if sus:
+        who = ", ".join(f"{s.get('arm')}-s{s.get('seed')}" for s in sus[:4])
+        return HealthCheck("record_sanity", WARN,
+                           f"{len(sus)}/{n} recent record(s) look SUSPECT ({who}) — partial "
+                           "fallback contamination or missing execution counters",
+                           {"suspect": sus[:8], "n_assessed": n})
+    return HealthCheck("record_sanity", OK,
+                       f"all {n} most-recent records pass the execution-sanity checks",
+                       {"n_assessed": n})
 
 
 def check_admin_kill(verdict: dict[str, Any] | None) -> HealthCheck:

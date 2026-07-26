@@ -641,7 +641,7 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     g = inputs.get
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
-                "rung_targets", "env_fp_labels", "kill_verdict")):
+                "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity")):
         return []
     from src.cluster import campaign_health as ch
 
@@ -663,6 +663,10 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("record_sanity") is not None:
+        # LIVE garbage detection on every new record — the shortest path from a void record to an
+        # alert. Effect-blind, so it cannot preview the result or touch the confirmatory look.
+        out.append(ch.check_record_sanity(g("record_sanity")))
     if g("kill_verdict") is not None:
         # The CONSUMER of the admin-kill verdict the gatherer computes. Without this the verdict sits
         # in the inputs dict and never reaches the report, the severity, or the phone alert.
@@ -1185,6 +1189,15 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
                 "n_undated": verdict.n_undated,
                 "enforced": False,  # detection only — no incident file is written from here
             }
+
+    # LIVE record sanity (2026-07-27): assess the most recent records EVERY poll, so a garbage
+    # record reaches the operator in one interval instead of at the 30-seed floor two days in.
+    try:
+        from scripts.first_seed_sanity import assess_recent
+
+        lane["record_sanity"] = assess_recent(camp_root)
+    except Exception:  # noqa: BLE001 — a monitoring failure must never break the gatherer
+        pass
 
     # Substrate homogeneity over the SCORED leg only — the search leg legitimately explores, but a
     # device/thread mix inside the scored leg breaks the CRN pairing every paired contrast needs.
