@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-07-25"
-  head: "113639b"
+  regenerated_utc: "2026-07-26"
+  head: "3dd15ef"
   frozen: false
   legs_n: 10
-  amendments_through: R104
-  suite_status: "exit 0 (2026-07-26: reproduce_synthetic fast tests GREEN + 2x --check DETERMINISTIC + freeze --check RC=0 + check_citations clean; full 2057-suite not re-run this session)"
+  amendments_through: R105
+  suite_status: "exit 0 (2026-07-26: A3 test_validity_tier 6/6 + freeze --check RC=0 + test_freeze green + reproduce_synthetic deterministic; full 2057-suite not re-run this session)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
