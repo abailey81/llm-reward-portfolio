@@ -2938,3 +2938,45 @@
   journal = {arXiv preprint arXiv:2407.21787}, year = {2024},
   note    = {Grade B. coverage(k) follows an exponentiated-power-law scaling -- the principled basis for the search-adequacy saturation / coverage-vs-k exhibit (would more samples surface a qualifying candidate?). VERIFIED 2026-07-26.},
 }
+
+% ============================================================================ %
+% FED-VECTOR elicitability GROUNDING (2026-07-26, first-hand-verified) — grounds %
+% the 2 non-CVaR fed coordinates. left_tail_mass = a tail-exceedance PROBABILITY %
+% (directly elicitable: Brier/quadratic, gneitingraftery2007strictly + the mean, %
+% gneiting2011making). robust_skew = the Groeneveld-Meeden gamma(0.05) quantile   %
+% skewness (NOT Bowley, which is the quartile p=0.25 case), a function of the     %
+% elicitable quantiles Q05/Q50/Q95 (koenkerbassett1978regression) -- NOT itself   %
+% elicitable (like variance). gneiting2011making / fissler2016higherorder already %
+% present -> NOT duplicated. hinkley1975 SKIPPED (GM84 subsumes it -- no noise).   %
+% ============================================================================ %
+@article{groeneveldmeeden1984measuring,
+  author  = {Groeneveld, Richard A. and Meeden, Glen},
+  title   = {Measuring Skewness and Kurtosis},
+  journal = {Journal of the Royal Statistical Society, Series D (The Statistician)},
+  volume  = {33}, number = {4}, pages = {391--399}, year = {1984},
+  doi     = {10.2307/2987742},
+  note    = {Grade A. CORRECT NAME for robust_skew: the generalized quantile skewness gamma(p)=(Q(1-p)+Q(p)-2Q(1/2))/(Q(1-p)-Q(p)); our statistic is gamma(0.05). Bowley = the p=0.25 quartile special case. Values in (-1,1), no moments required. VERIFIED 2026-07-26.},
+}
+@article{gneitingraftery2007strictly,
+  author  = {Gneiting, Tilmann and Raftery, Adrian E.},
+  title   = {Strictly Proper Scoring Rules, Prediction, and Estimation},
+  journal = {Journal of the American Statistical Association},
+  volume  = {102}, number = {477}, pages = {359--378}, year = {2007},
+  doi     = {10.1198/016214506000001437},
+  note    = {Grade A. Grounds the direct elicitability of an event PROBABILITY (left_tail_mass): the quadratic/Brier score is strictly proper for a binary probability, unified with Bregman divergences. VERIFIED 2026-07-26.},
+}
+@article{koenkerbassett1978regression,
+  author  = {Koenker, Roger and Bassett, Gilbert},
+  title   = {Regression Quantiles},
+  journal = {Econometrica},
+  volume  = {46}, number = {1}, pages = {33--50}, year = {1978},
+  doi     = {10.2307/1913643},
+  note    = {Grade A. Canonical origin of the check/pinball loss => quantiles are elicitable; grounds the elicitability of the Q05/Q50/Q95 inputs to robust_skew. VERIFIED 2026-07-26.},
+}
+@book{bowley1920elements,
+  author    = {Bowley, Arthur L.},
+  title     = {Elements of Statistics},
+  edition   = {4th}, year = {1920},
+  publisher = {P. S. King \& Son}, address = {London},
+  note      = {Grade B (classical text; verified via authoritative secondary attribution -- Groeneveld & Meeden 1984). Progenitor QUARTILE skewness (Q75+Q25-2Q50)/(Q75-Q25); the p=0.25 special case -- named to CONTRAST, since robust_skew is p=0.05, NOT Bowley. VERIFIED 2026-07-26.},
+}

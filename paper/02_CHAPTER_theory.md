@@ -199,8 +199,13 @@ a measurable reduction of the vector), and it is what the value-of-information a
 absolute sufficiency claim for the full return law, which six tail scalars do not deliver. Second, and
 *independently* of sufficiency, the vector's CVaR sub-vector — *together with its quantiles* — is a jointly
 identifiable, jointly (higher-order) elicitable representation of the lower tail of the spectral class (the two
-auxiliary coordinates, the $-2\sigma$ tail mass and the Bowley skew, are identifiable summary statistics not
-covered by the cited elicitability theorems) — which is what makes the fed quantity a
+auxiliary coordinates are principled descriptive tail-shape statistics grounded in *other* elicitable primitives
+rather than the FZ0 theorems: the $-2\sigma$ tail mass estimates a tail-exceedance *probability*, whose core object
+is a first-order elicitable, identifiable Bernoulli mean [`gneiting2011making`; `gneitingraftery2007strictly`],
+while the robust skew is the $5/95$ quantile-skewness coefficient [`groeneveldmeeden1984measuring`; Bowley's
+[`bowley1920elements`] is its quartile special case], a fixed function of the jointly elicitable quantiles
+$(Q_{05},Q_{50},Q_{95})$ [`koenkerbassett1978regression`] — consistently estimable by plug-in, though the ratio is
+not itself elicitable, exactly as the variance is a non-elicitable function of jointly elicitable moments) — which is what makes the fed quantity a
 legitimate, calibration-testable learning and forecasting target (it is what licenses the strictly consistent
 FZ0/$(\mathrm{VaR},\mathrm{CVaR})$ tail backtest of Chapter 6), **not** what establishes the dominance. The scalar
 is neither sufficient relative to the vector nor a coherent elicitable target.
