@@ -189,3 +189,25 @@ def test_rejects_nonsense_inputs(bad):
         plan_lanes(rung=568, cpu_cores=bad)
     with pytest.raises(ValueError):
         training_core_hours(steps_per_s=bad)
+
+
+def test_saturation_is_a_CURVE_PROPERTY_not_an_availability_claim():
+    """Guards a real confusion (caught by Tamer, 2026-07-26: "who said we can get 4584 cores?").
+
+    `cpu_saturation_cores` answers "above what point do more cores stop helping?" — it says
+    NOTHING about attainable capacity. Our own courtesy reserve caps us BELOW it at every free
+    capacity we have observed, so the campaign is throughput-bound at every reachable core count.
+    """
+    from src.cluster.killswitch import FREE_CORE_RESERVE, plan_footprint
+
+    saturation = cpu_saturation_cores(568, chain_threads=8)
+    best_observed_free = 4576                      # live advisor reading, 2026-07-26
+    quiet_ceiling, _ = plan_footprint(free_cores=best_observed_free, pending_jobs=100)
+
+    assert quiet_ceiling <= best_observed_free - FREE_CORE_RESERVE, "the reserve must bind"
+    assert quiet_ceiling < saturation, (
+        "the policy ceiling must sit BELOW saturation — otherwise 'more cores stop helping' "
+        "would be reachable and the throughput-bound conclusion would not hold")
+    # therefore: throughput binds at every attainable core count
+    assert plan_lanes(rung=568, cpu_cores=int(quiet_ceiling),
+                      chain_threads=8).binding == "throughput"

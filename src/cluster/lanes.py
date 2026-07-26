@@ -190,6 +190,16 @@ def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
                          include_dfo: bool = True) -> float:
     """CPU cores beyond which MORE CORES BUY NOTHING (the throughput/critical-path crossover).
 
+    ⚠ THIS IS A PROPERTY OF THE CURVE, **NOT A CLAIM THAT SUCH CAPACITY IS AVAILABLE.** It answers
+    "above what point does adding cores stop helping?", nothing else. Do not quote it beside
+    measured or projected capacity without saying which is which. The ladder of what is actually
+    known (2026-07-26): **636 cores MEASURED** (peak, reproducible over three ramps);
+    ~2,000-3,000 PROJECTED from the flow model and still UNVERIFIED over multiple hours; and a
+    POLICY CEILING of ~3,576 = the best free capacity ever observed (4,576) minus
+    ``killswitch.FREE_CORE_RESERVE``. Since that ceiling sits BELOW the ~4,584 saturation point,
+    **the campaign is throughput-bound at every attainable core count** — more cores always help,
+    right up to whatever the scheduler grants minus the reserve.
+
     This is the number that makes the whole plan legible: below it, buy cores; above it, buy
     LATENCY on the binding chain instead. With ``bayes_opt`` on CPU the crossover is ~1,640 cores;
     moving those 30 trainings to one GPU pushes it out to ~6,850 (where the LLM chains bind).
