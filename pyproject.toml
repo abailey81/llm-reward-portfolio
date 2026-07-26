@@ -20,7 +20,14 @@ dependencies = [
     "pandas>=2.1,<3.0",           # pandas 3.0 breaks arch 7.2.0 (deprecate_kwarg sig) under the numpy<2.0
                                   #   pin, and the repo code targets pandas 2.x. Capped for the env (ADR-026).
     "scipy>=1.11",
-    "scikit-learn>=1.3",          # Ledoit-Wolf shrinkage, clustering for HRP
+    "scikit-learn>=1.3",          # Ledoit-Wolf shrinkage, clustering for HRP; GP-EI surrogate (H4b control)
+    "cma>=4.0,<5.0",              # CMA-ES over the reward template — H4 DFO comparator (evolution-strategy
+                                  #   paradigm; Hansen & Ostermeier 2001). Report-only black-box control the
+                                  #   LLM must beat; PARALLEL-by-design (population), so off the GP-EI critical
+                                  #   path. Installed build: 4.4.4 (src/search/dfo_toolkit.py). BSD.
+    "optuna>=4.0,<5.0",          # TPE over the reward template — H4 DFO comparator (density-ratio paradigm;
+                                  #   Bergstra et al. 2011 via Akiba et al. 2019). Sibling of the GP-EI control;
+                                  #   low-budget-friendly. Installed build: 4.9.0. MIT.
     "pyyaml>=6.0",
     "gymnasium>=0.29",
     "stable-baselines3>=2.4,<2.9",  # SAC (headline), PPO, TD3. Capped <2.9: SB3 2.9 *requires* torch>=2.8, but
