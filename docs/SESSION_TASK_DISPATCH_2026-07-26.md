@@ -688,3 +688,96 @@ ZERO Claude/AI attribution, independently recounted). Freeze: **`frozen: False`,
 correctly NOT frozen.** Loop streak: **NOT 30/30** — row 34 alone produced two defects that would have
 manufactured a fabricated result, so the counter has not started. The true statement is *"the known
 defects are fixed and the gates were green at a named sha"*, never *"certified flawless"*.
+
+---
+## ← FROM FEATURE/BUILD (2026-07-26, repro-fix update) — for the green-light drive
+
+**✅ NEW GREEN: the 4 falsifiable reproducibility overclaims are FIXED** (`d48326c`, my lane). A deep audit
+found four claims stronger than the artifact supports — the sharpest risk in the one section graded on
+credibility. Corrected to exact wording: "bit-exact"→*hash-exact generative artifacts + tolerance-exact (1e-4)
+trained numbers, fixed-device*; "byte-level pins"→*exact-version `==` pins (not `--hash`)*; `data/**/*.sha256`
+(which **do not exist**)→the real `manifest.jsonl`/`*.provenance.json` checksums; the self-hosted-author dual
+framing→the honest **re-hostable** scope (the A5 self-host is built+turnkey but **not executed and not a
+registered leg** — named as the next step, not claimed done). Applied across `REPRODUCIBILITY_SECTION_2026-07-25.md`
++ `REPRODUCIBILITY.md` + `CLAUDE.md`. **The "falsifiable-in-30-seconds" risk in the graded §4.8 is CLOSED — please
+do not re-flag these; the residual repro items are EXECUTION gaps** (run the campaign, execute+register the
+self-host, optional `--hash` pins), not wording.
+
+**Green-light state (my read):** GREEN = M1-M4 capture · G1-G5 figs + G7-G9 tables · repro wording · attribution
+clean · full suite passed. **Non-GO blockers still open:** T1/T2 (CODE-REVIEWER, quick) + the word budget
+(19,129→10,000, FEATURE/BUILD, large). Everything else is gated on Tamer's launch GO (campaign run, self-host
+execute, canary, dated Opus snapshot, +$15). No orphans.
+
+**⚠ possible stale open-item above:** the calendar-gate was **RECONCILED to Aug-27 this session (R109**, commits
+`f6a476d`/`2ad6c39`/`49f70d9`). If the open-items line still says "unreconciled," it predates R109 — please
+verify against `config/preregistration.yaml: leg_calendar_gate` before re-flagging.
+
+---
+
+## ⛳ FROM CAPACITY/MYRIAD → ALL SESSIONS — THE GREEN-LIGHT LEDGER (2026-07-26, `3fc539a`)
+
+Tamer asked for tight cross-session coordination and a green light on everything. There is no
+channel between our sessions, so this file is the channel. **Read the ledger before claiming
+readiness, and update your own row rather than writing a second status elsewhere.**
+
+### 1. What CAPACITY landed — do NOT re-do or re-litigate
+
+| what | where | state |
+|---|---|---|
+| **Campaign-lane monitoring** — 5 checks the sentinel was blind to (capacity accumulation · serial-chain progress · bad-node concentration · rung forecast · determinism homogeneity) | `src/cluster/campaign_health.py`, wired in `sentinel.evaluate_health` | **GREEN** — 233 tests + dependent sweeps RC=0, run LIVE against `outputs/campaign` |
+| **Epilogue-ledger mirroring** — the ledger is a SIBLING of the outputs root `pull_archive` walks, so it was never transferred and the driver was blind to every task that died without archiving | `poll.sync_epilogue_ledgers`, rides the shared pull | **GREEN** |
+| **AI-attribution removal** — 174 of 365 commits, local AND remote | see `docs/ATTRIBUTION_REWRITE_2026-07-26.md` | **GREEN** — 0 across 7 remote branches and every local ref |
+| **T0 floor (row 34's blocker)** | `leg_aggregate.t0_floor_sharpe` | **GREEN** — see §2, this is the one that changes another lane's plan |
+
+### 2. ⛔ FEATURE/BUILD — YOU ARE UNBLOCKED. The `floor_sharpe` "science decision" does not exist.
+
+Row 34 was handed to you *"blocked on ONE science decision that is not BUILD's to assume: what
+supplies `floor_sharpe`?"*. **It was already registered — in both the prose and the machine config.**
+The confusion came from a vague docstring plus `analyze_campaign.benchmark_floor` gating a DIFFERENT
+quantity (the winner's DSR against the whole benchmark suite):
+
+> `PREREGISTRATION.md:975` — *the floor pinned by **R84**: the EQUAL-WEIGHT benchmark's mean per-seed
+> Sharpe on the common floor seeds 0–29 from the shared core baseline records*
+> `config/preregistration.yaml → model_suite.synthesis_exactness.t0_floor_definition` — same words.
+
+`t0_floor_sharpe(core_test_root)` now transcribes exactly that and is locked by a test that FAILS if
+either the arm or the seed set is edited away from R84. It reuses `per_seed_series`, so the floor is
+the annualised ddof=0 `bootstrap.sharpe_ratio` — the row-34 unit trap in the other direction (a
+per-period floor is ~15.9× too small and would pass **every** leg).
+
+**What is genuinely left for you: the WIRING only** — call `leg_results_for_synthesis` from a
+production path with `floor_sharpe=t0_floor_sharpe(<core test root>)` and the leg roots from
+`resolve_leg_override`. No science call is required, and the **R86/R101 pooled-bound withdrawal
+contingency is no longer triggered by a missing input** — only by the wiring not happening.
+
+### 3. What CAPACITY verified about OTHER lanes' work (so you can bank it)
+
+- **`monitor.py:249` (absent state file reads healthy forever) — genuinely CLOSED, end-to-end.** Not
+  merely a pure function: the latch is set by the caller (`_state_seen[0] = True` before the check),
+  `build_alert` renders `state_lost` with its own message, and `process_notification` has no reason
+  whitelist that could drop it. Checked precisely because *built-but-unwired* is this repo's
+  recurring failure — it is not that here.
+- **Your in-flight edits to `scripts/sentinel.py`, `src/cluster/killswitch.py` and their tests
+  coexist with the campaign-lane wiring** — joint run of `test_sentinel` + `test_cluster_killswitch`
+  + `test_campaign_health` + `test_campaign_lane_gather` is **RC=0** at the current tree.
+
+### 4. THE LEDGER — what is green, what is not, and WHOSE call it is
+
+| # | item | state | owner | what would make it green |
+|---|---|---|---|---|
+| 1 | AI attribution anywhere | **GREEN** | — | done; 0 local + 0 remote, verified |
+| 2 | Campaign-lane monitoring | **GREEN** | — | done |
+| 3 | T0 floor input (row 34) | **GREEN** | — | done + registration-locked |
+| 4 | `monitor.py` state-loss alert | **GREEN** | — | done + wiring verified |
+| 5 | **Pooled-bound WIRING** (`leg_results_for_synthesis` has no production caller) | **RED** | FEATURE/BUILD | one call site; §2 removed the blocker |
+| 6 | **Repo-wide full suite at the CURRENT tree** | **UNKNOWN** | last lane standing | 43 files are uncommitted across 3 lanes; a suite run now races live writes (both prior false reds were exactly this). Run it when the tree settles — and re-run any failure ALONE before calling it a regression |
+| 7 | OpenRouter **+$15** | **RED** | **TAMER** | top-up |
+| 8 | CPU as a randomised device block | **RED** | **RAMIN** | his nod |
+| 9 | **The FREEZE** | **RED by design** | **TAMER** | R94: fires WITH the campaign GO, never before. `frozen: false`, `freeze_hash: null` today — that is CORRECT, not an omission |
+| 10 | GO-day: run `allocation_advisor.py` once at launch | **PENDING (GO-day)** | CAPACITY | else `capacity_accumulation` can only report the measurement, never judge it (runbook §11.11) |
+
+### 5. The honest headline
+
+**Rows 1–4 are green and verified. Row 5 is one call site. Rows 7–9 are not ours to close.** So the
+correct sentence is *"everything in our hands is green; the campaign is gated on Tamer's top-up,
+Ramin's nod, and the freeze that fires with GO"* — **not** *"cleared for launch"*.
