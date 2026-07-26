@@ -930,7 +930,7 @@ def _find_arm_provenance_dir(root: Path, arm: str) -> Path | None:
 #: (``src/search/random_search.py`` ~259: a ``SandboxError`` ``continue``s WITHOUT consuming a budget unit),
 #: so they obtain strictly MORE valid candidates per matched budget — the compute-accounting asymmetry (i).
 _LLM_AUTHORED_ARMS: tuple[str, ...] = ("distributional", "scalar", "placebo", "scalar_cvar5", "placebo_shuffled")
-_SEARCH_ARMS: tuple[str, ...] = ("random_search", "bayes_opt")
+_SEARCH_ARMS: tuple[str, ...] = ("random_search", "bayes_opt", "cma_es", "tpe")
 #: The arms that feed the LLM EXTRA distributional feedback lines (the token-count asymmetry (ii)): the
 #: tail-aware blocks carry ~8 feedback lines vs the scalar arm's 1. This token gap is CONTROLLED for the
 #: information-vs-token-count contrast by the inert ``placebo`` leg (matched block length, zero content).
@@ -1968,11 +1968,14 @@ def h2_sharpe_rf_robustness(
 #  per-seed IQM paired-bootstrap one-sided IUT pattern.)                         #
 # =========================================================================== #
 #: The H4 search controls the LLM is contrasted against (DEEP_H4 §0; PREREGISTRATION §1/§3):
-#: H4a = LLM (distributional winner) vs random-search-over-code; H4b = vs Bayesian-opt-over-template.
+#: H4a = vs random-search-over-code; H4b = vs GP-EI; H4c = vs CMA-ES; H4d = vs TPE -- the 4-optimiser
+#: portfolio whose all-supported conjunction is the CONFIRMATORY N4 beat-the-MAX IUT (2026-07-26).
 #: Each entry is ``(arm_a, arm_b)`` read "a predicted BETTER than b" (one-sided, higher Sharpe).
 H4_CONTRASTS: tuple[tuple[str, str, str], ...] = (
     ("h4a", "distributional", "random_search"),
     ("h4b", "distributional", "bayes_opt"),
+    ("h4c", "distributional", "cma_es"),
+    ("h4d", "distributional", "tpe"),
 )
 
 
@@ -2065,6 +2068,8 @@ def _iqm_tost(
 _H4_REFERENCE_FRAMING: dict[str, str] = {
     "h4a": "in-family random-search reference (same 6-term family, R28) — isolates PROCEDURE at matched richness",
     "h4b": "fixed-parametric-template reference (Bayes-opt over the BO family) — open-ended language vs fixed family",
+    "h4c": "CMA-ES-over-template reference (evolution-strategy DFO) -- best-in-class numerical search of the family",
+    "h4d": "TPE-over-template reference (density-ratio DFO) -- low-budget-friendly numerical search of the family",
 }
 
 
@@ -2086,7 +2091,10 @@ def h4_search_controls(
     direction (the LLM is predicted to beat each control):
 
       * **H4a** — ``distributional`` vs ``random_search`` (random-search-over-code);
-      * **H4b** — ``distributional`` vs ``bayes_opt`` (Bayesian-opt-over-template).
+      * **H4b** — ``distributional`` vs ``bayes_opt`` (GP-EI-over-template);
+      * **H4c** -- ``distributional`` vs ``cma_es`` (CMA-ES-over-template);
+      * **H4d** -- ``distributional`` vs ``tpe`` (TPE-over-template).
+    The all-supported conjunction is the confirmatory **N4 beat-the-MAX IUT** (LLM beats the best optimiser).
 
     SCOPE (DEEP_H4 §1.2 — state precisely; this function only computes, the write-up scopes): H4a is the
     closest to a *procedure-at-comparable-richness* comparison (both emit code); H4b is an *open-ended
@@ -2104,9 +2112,12 @@ def h4_search_controls(
     within ±0.05 in Sharpe-IQM units") rather than mere absence of evidence (Lakens 2017). This closes the
     H4-vs-H3 asymmetry (H3 had a TOST bound; H4 did not).
 
-    MULTIPLICITY (DEEP_H4 §4 A5): H4 is its OWN family of 2 tests {H4a, H4b}, NOT in the frozen m=6 H2
-    family. A Bonferroni-over-2 reported decision (``reject_one_sided_bonferroni`` at ``alpha/2``) is
-    carried alongside the per-test one-sided decision so the 2-test multiplicity is explicit; the
+    MULTIPLICITY (DEEP_H4 §4 A5; +cma_es/tpe 2026-07-26): H4 is its OWN family of 4 tests {H4a, H4b, H4c,
+    H4d} -- and its ALL-SUPPORTED conjunction is exactly the CONFIRMATORY N4 beat-the-MAX IUT (the LLM
+    beats the best of the {random, GP-EI, CMA-ES, TPE} portfolio; size<=alpha for any portfolio size,
+    berger1982iut). NOT in the frozen m=6 H2 family. A Bonferroni-over-4 reported decision
+    (``reject_one_sided_bonferroni`` at ``alpha/4``) is the separate-estimands mirror carried alongside
+    the per-test one-sided decision so the multiplicity is explicit; the
     per-test one-sided p is also returned for transparency.
 
     DISJOINT KEY: writes ``out["h4"]`` with NO ``arm_a/arm_b/metric/level`` family-tuple keys (it uses

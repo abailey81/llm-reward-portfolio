@@ -7,8 +7,8 @@ reward-discovery strategies under a single MATCHED candidate budget. To keep the
 comparison fair, every arm shares the same headline agent and the same budget;
 the arms differ only in *how* candidate rewards are proposed.
 
-The seven arms (config/arms.yaml; FINAL_PLAN B.5; R32 added placebo_shuffled)
-----------------------------------------------------------------------------
+The nine arms (config/arms.yaml; FINAL_PLAN B.5; R32 added placebo_shuffled; cma_es/tpe added 2026-07-26)
+-------------------------------------------------------------------------------------------------------
 Five LLM arms — identical in every respect except the feedback block fed back to
 the model (audit A-1: the feedback channel is the contribution):
 
@@ -18,12 +18,16 @@ the model (audit A-1: the feedback channel is the contribution):
     scalar_cvar5   : scalar + one downside number (CVaR 5%).
     placebo_shuffled : distributional's EXACT structure with the tail VALUES deranged (structure-vs-content control; R32).
 
-Two non-LLM search baselines:
+Four non-LLM search baselines (the H4 optimiser portfolio; N4 confirmatory):
 
     random_search  : H4a — samples reward CODE from the same code space the LLM
                      uses (src/search/random_search.py).
     bayes_opt      : H4b — Bayesian optimization of the coefficients of a fixed
                      parametric reward template (src/search/bayes_opt.py).
+    cma_es         : H4c -- CMA-ES over the SAME template, matched budget
+                     (src/search/dfo_toolkit.py; evolution-strategy).
+    tpe            : H4d -- TPE over the SAME template, matched budget
+                     (src/search/dfo_toolkit.py; density-ratio).
 
 Invariant
 ---------
@@ -36,7 +40,7 @@ mapped onto the ``src.feedback.schema`` arm string by ``FEEDBACK_KIND_TO_SCHEMA_
 
 Tests (tests/test_arms.py)
 --------------------------
-    - all seven arms build;
+    - all nine arms build;
     - every arm shares the same candidate budget (matched compute);
     - the five LLM arms have ``is_llm=True`` and are identical except
       ``feedback_kind``;

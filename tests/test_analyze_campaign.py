@@ -606,20 +606,22 @@ def test_h1_markdown_surfaces_loud_warning_block_at_top_on_snoop() -> None:
 # --------------------------------------------------------------------------- #
 # H4 — LLM winner vs random_search / bayes_opt (DEEP_H4)                        #
 # --------------------------------------------------------------------------- #
-def test_h4_llm_beats_both_search_controls() -> None:
-    """LLM (high test Sharpe) beats both random_search and bayes_opt => both H4 legs reject one-sided."""
+def test_h4_llm_beats_all_search_controls() -> None:
+    """LLM (high test Sharpe) beats all four search controls => every H4 leg rejects one-sided (N4 beat-max)."""
     records = _seeded_test_records("distributional", mu=0.012, n_seeds=12)
     records += _seeded_test_records("random_search", mu=0.001, n_seeds=12, seed0=400)
     records += _seeded_test_records("bayes_opt", mu=0.001, n_seeds=12, seed0=800)
+    records += _seeded_test_records("cma_es", mu=0.001, n_seeds=12, seed0=1200)
+    records += _seeded_test_records("tpe", mu=0.001, n_seeds=12, seed0=1600)
     h4 = AC.h4_search_controls(records, winner_arm="distributional", rng=np.random.default_rng(0))
     assert h4["status"] == "ok"
-    assert h4["n_tests"] == 2
-    assert {t["test"] for t in h4["tests"]} == {"h4a", "h4b"}
+    assert h4["n_tests"] == 4
+    assert {t["test"] for t in h4["tests"]} == {"h4a", "h4b", "h4c", "h4d"}
     assert all(t["direction_ok"] for t in h4["tests"])      # LLM is better in both
     assert all(t["reject_one_sided"] for t in h4["tests"])
     assert h4["all_supported"] is True
-    # The 2-test multiplicity is reported (Bonferroni over 2 at alpha/2).
-    assert h4["bonferroni_alpha"] == pytest.approx(0.025)
+    # The 4-test multiplicity is reported (Bonferroni over 4 at alpha/4); all-supported = the N4 beat-max IUT.
+    assert h4["bonferroni_alpha"] == pytest.approx(0.0125)
     assert "reject_one_sided_bonferroni" in h4["tests"][0]
 
 
@@ -736,6 +738,8 @@ def test_h4_carries_tost_equivalence_per_leg() -> None:
     records = _seeded_test_records("distributional", mu=0.012, n_seeds=12)
     records += _seeded_test_records("random_search", mu=0.001, n_seeds=12, seed0=400)
     records += _seeded_test_records("bayes_opt", mu=0.001, n_seeds=12, seed0=800)
+    records += _seeded_test_records("cma_es", mu=0.001, n_seeds=12, seed0=1200)
+    records += _seeded_test_records("tpe", mu=0.001, n_seeds=12, seed0=1600)
     h4 = AC.h4_search_controls(records, winner_arm="distributional", rng=np.random.default_rng(0))
     assert "equiv_margin" in h4 and "all_equivalent" in h4
     for t in h4["tests"]:
@@ -748,6 +752,8 @@ def test_h4_equivalence_bounded_null_when_llm_matches_controls() -> None:
     records = _seeded_test_records("distributional", mu=0.005, n_seeds=16)
     records += _seeded_test_records("random_search", mu=0.005, n_seeds=16, seed0=400)
     records += _seeded_test_records("bayes_opt", mu=0.005, n_seeds=16, seed0=800)
+    records += _seeded_test_records("cma_es", mu=0.005, n_seeds=16, seed0=1200)
+    records += _seeded_test_records("tpe", mu=0.005, n_seeds=16, seed0=1600)
     h4 = AC.h4_search_controls(
         records, winner_arm="distributional", equiv_margin=0.5, rng=np.random.default_rng(1)
     )
