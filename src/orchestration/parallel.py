@@ -1208,7 +1208,7 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
     # bayes_opt — sequential BO (each evaluation trained via the shared pool, so it overlaps the
     # other arms; BO itself is inherently sequential).
     from src.baselines.reward_family import family_bounds, params_to_source
-    from src.search.bayes_opt import bayes_opt_over_template
+    from src.search.dfo_toolkit import over_template_optimizer  # GP-EI / CMA-ES / TPE, resolved by arm
 
     state: dict[str, Any] = {"i": 0, "results": []}
 
@@ -1237,7 +1237,7 @@ def _drive_search_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str)
     # Seed the BO sampler from the run seed (re-audit: this parallel BO arm still drew OS entropy via
     # the rng=None default, so its winner was non-reproducible — the exact defect final-audit #2 closed
     # on the sequential path; random_search above already seeds the same way).
-    bayes_opt_over_template(
+    over_template_optimizer(arm)(
         template_eval,
         cast(Sequence[Sequence[float]], family_bounds(opts.get("proto_cfg"))),
         {"matched_budget": n},

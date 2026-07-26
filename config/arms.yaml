@@ -11,4 +11,6 @@ arms:
   scalar_cvar5:   {feedback: scalar_plus_cvar5}       # scalar + ONE downside number (tail-shape != any-downside)
   placebo_shuffled: {feedback: scalar_plus_shuffled_tail}  # R32: distributional's EXACT structure, values DERANGED (shape vs content)
   random_search:  {search: code,     llm: false}      # H4a — isolates search quality
-  bayes_opt:      {search: template,  llm: false}      # H4b — isolates form-richness (fixed parametric template)
+  bayes_opt:      {search: template,  llm: false}      # H4b — GP-EI over a fixed parametric template (Snoek 2012)
+  cma_es:         {search: template,  llm: false}      # H4c — CMA-ES over the SAME template (evolution-strategy; Hansen 2001)
+  tpe:            {search: template,  llm: false}      # H4d — TPE over the SAME template (density-ratio; Bergstra 2011)

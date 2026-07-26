@@ -31,14 +31,16 @@ EXPECTED_NAMES = {
     "placebo_shuffled",
     "random_search",
     "bayes_opt",
+    "cma_es",
+    "tpe",
 }
 LLM_NAMES = {"distributional", "scalar", "placebo", "scalar_cvar5", "placebo_shuffled"}
 
 
-def test_all_seven_arms_build() -> None:
-    """Every declared arm builds into a frozen Arm with the right name set."""
+def test_all_nine_arms_build() -> None:
+    """Every declared arm builds into a frozen Arm with the right name set (9: 5 LLM + 4 H4 search)."""
     arms = all_arms()
-    assert len(arms) == 7
+    assert len(arms) == 9
     assert {a.name for a in arms} == EXPECTED_NAMES
     for a in arms:
         assert isinstance(a, Arm)

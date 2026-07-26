@@ -142,7 +142,7 @@ def test_all_frozen_fields_are_checked():
 # --------------------------------------------------------------------------- #
 _FROZEN_ARMS = [
     "distributional", "scalar", "placebo", "scalar_cvar5",
-    "placebo_shuffled", "random_search", "bayes_opt",
+    "placebo_shuffled", "random_search", "bayes_opt", "cma_es", "tpe",
 ]
 
 
@@ -182,7 +182,7 @@ def test_executed_arms_guard_present_on_live():
     """The live repo carries campaign.yaml + arms.yaml, so the executed-arms guard runs and AGREES."""
     line = freeze.assert_executed_arms_match(freeze.load_yaml(REPO), REPO)
     assert line is not None and "campaign.yaml" in line and "arms.yaml" in line
-    # The frozen roster is the seven arms incl. the R32 structure-vs-content control.
+    # The frozen roster is the nine arms (5 LLM + the 4-optimiser H4 search portfolio) incl. the R32 control.
     for arm in _FROZEN_ARMS:
         assert arm in line
 

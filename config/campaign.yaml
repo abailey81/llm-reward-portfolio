@@ -1,6 +1,6 @@
 # A campaign run (FINAL_PLAN H Phase 3, I). Scope is set via the scoping tree AFTER the Phase-0
 # timing and the pilot. CPCV is applied to WINNERS, not per-candidate (audit B-3).
-arms: [distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt]
+arms: [distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt, cma_es, tpe]
 candidates_per_arm: 30                 # matched across arms; tune via scoping tree (cut candidates before seeds before folds)
 # Amendment E1 (2026-07-10, supervisor-approved; PREREGISTRATION §6/§12): per-arm WINNER seed count is
 # the ASSURANCE-TIER LADDER (mode: tiered) resolving to the flat set [0..567]. SEARCH budget untouched —
