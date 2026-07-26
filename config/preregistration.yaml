@@ -42,8 +42,12 @@ loop: {runs: once, cpcv_on: winners, per_candidate_budget: fixed}   # audit B-3,
 train_steps_per_candidate: 400000  # R77 (2026-07-18): raised to the measured knee by the pre-committed extended-curve rule (see PREREGISTRATION.md R77; verdict artifact outputs/tables/bstar_rule_verdict.json)
 
 # R19 (2026-06-20): de-duped the mislabelled spy_buy_and_hold (== 1/N, no index in the anonymised panel)
-# and expanded to 8 DISTINCT published allocators. Names match analyze_campaign._BENCHMARK_NAMES exactly.
-benchmarks: [equal_weight, mean_variance, risk_parity, hrp, minimum_variance, maximum_diversification, inverse_volatility, cross_sectional_momentum]
+# and expanded to 8 DISTINCT published allocators. 2026-07-26: +min_cvar (the CVaR-optimal / TAIL-optimal
+# allocator, Rockafellar-Uryasev 2000) = 9 -- the classical tail-optimizer, so the report-only comparison now
+# reads "the LLM's tail-aware reward beats even the benchmark that optimises the very tail it targets"
+# (comparator-canon research; report-only, DSR-deflated at N=1 like the others; the 8-name audit LEAVE-ALONE
+# stands -- min_cvar is the ONE non-gratuitous tail-study addition). Names match _BENCHMARK_NAMES exactly.
+benchmarks: [equal_weight, mean_variance, risk_parity, hrp, minimum_variance, maximum_diversification, inverse_volatility, cross_sectional_momentum, min_cvar]
 
 inference:
   primary_overfitting_guard: pbo_cscv

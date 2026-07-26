@@ -217,6 +217,7 @@ ALL_STRATEGIES = [
     strategies.maximum_diversification,
     strategies.inverse_volatility,
     strategies.cross_sectional_momentum,
+    strategies.min_cvar,
 ]
 
 
@@ -249,6 +250,34 @@ def test_minimum_variance_beats_1n_variance() -> None:
         assert _port_var(strategies.minimum_variance(x), x) <= _port_var(np.full(n, 1.0 / n), x) + 1e-12
 
 
+def test_min_cvar_is_tail_optimal_and_matches_bruteforce() -> None:
+    """min_cvar (Rockafellar-Uryasev) must (a) UNDERWEIGHT a fat-left-tail asset that minimum_variance
+    treats as equal (same variance) => it is genuinely TAIL-aware, not variance; and (b) match an
+    INDEPENDENT brute-force grid over the 2-asset simplex (proving the LP IS the RU CVaR minimiser)."""
+    rng = np.random.default_rng(0)
+    T, sig, alpha = 5000, 0.02, 0.05
+    A = sig * rng.standard_normal(T)                    # symmetric
+    B = sig * (-(rng.standard_exponential(T) - 1.0))    # SAME mean~0 + variance, LEFT-skewed (fat left tail)
+    R = np.column_stack([A, B])
+    w = strategies.min_cvar(R)
+    assert np.isclose(w.sum(), 1.0, atol=1e-6) and (w >= -1e-9).all()        # valid long-only simplex
+    # (a) tail-aware: underweights the fat-left-tail B; minimum_variance stays ~equal (same variance)
+    assert w[1] < w[0] - 0.05, "min_cvar did not underweight the fat-left-tail asset"
+    wv = strategies.minimum_variance(R)
+    assert abs(wv[0] - wv[1]) < 0.08, "sanity: minimum_variance should be ~equal on equal-variance assets"
+    # (b) the LP == an independent brute-force empirical-CVaR grid (integer alpha*T = 250)
+    k = int(alpha * T)
+
+    def _ecvar(wa: float) -> float:
+        loss = -(wa * A + (1.0 - wa) * B)
+        return float(np.sort(loss)[-k:].mean())
+
+    grid = np.linspace(0.0, 1.0, 201)
+    w_grid = float(grid[int(np.argmin([_ecvar(g) for g in grid]))])
+    assert abs(w[0] - w_grid) < 0.02, f"LP w_A={w[0]:.3f} != brute-force {w_grid:.3f}"
+    assert np.allclose(strategies.min_cvar(R), strategies.min_cvar(R))       # deterministic
+
+
 def test_maximum_diversification_beats_1n_div_ratio() -> None:
     """The most-diversified portfolio must have a HIGHER diversification ratio than 1/N (collapse -> 1.0)."""
     for seed in range(15):
@@ -263,7 +292,7 @@ def test_vol_cov_allocators_exclude_delisted_names() -> None:
         x = _factor_window(seed, dead=5)  # first 5 columns delisted (zero variance)
         for fn in (strategies.minimum_variance, strategies.inverse_volatility,
                    strategies.maximum_diversification, strategies.hrp, strategies.risk_parity,
-                   strategies.cross_sectional_momentum):
+                   strategies.cross_sectional_momentum, strategies.min_cvar):
             w = fn(x)
             assert float(w[:5].sum()) < 1e-6, f"{fn.__name__} allocated to delisted names"
             assert np.isclose(w.sum(), 1.0, atol=1e-6) and np.isfinite(w).all()

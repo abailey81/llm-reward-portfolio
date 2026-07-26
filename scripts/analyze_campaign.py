@@ -3498,6 +3498,7 @@ _BENCHMARK_NAMES: tuple[str, ...] = (
     "maximum_diversification",   # Choueifaty & Coignard (2008) most-diversified portfolio
     "inverse_volatility",        # naive risk parity, 1/sigma
     "cross_sectional_momentum",  # Jegadeesh & Titman (1993) top-tertile, long-only
+    "min_cvar",                  # CVaR-optimal / TAIL-optimal (Rockafellar & Uryasev 2000) — the beats-the-tail benchmark (2026-07-26)
 )
 
 

@@ -401,6 +401,77 @@ def minimum_variance(returns: Any, cfg: Any = None) -> np.ndarray:
     return w / s if s > 0 else np.full(n, 1.0 / n)
 
 
+def _long_only_min_cvar(scenarios: np.ndarray, alpha: float = 0.05) -> np.ndarray:
+    """Long-only CVaR-optimal weights ``argmin_w CVaR_α(−w·r)  s.t. w>=0, Σw=1`` — the Rockafellar-Uryasev LP.
+
+    CVaR of the portfolio LOSS ``L_t = −r_t·w`` is ``min_ζ  ζ + 1/(αT) Σ_t [L_t − ζ]^+`` (Rockafellar &
+    Uryasev 2000, *J. Risk*); jointly minimising over ``(w, ζ, u)`` with epigraph variables ``u_t ≥ L_t − ζ``
+    and ``u_t ≥ 0`` is a LINEAR PROGRAM in ``T + n + 1`` variables, solved with HiGHS. Deterministic. On any
+    solver failure it falls back to long-only 1/N over the given block (never a degenerate single-name weight).
+    """
+    scen = np.asarray(scenarios, dtype=float)
+    T, n = scen.shape
+    if n == 1:
+        return np.ones(1, dtype=float)
+    if T < 2:
+        return np.full(n, 1.0 / n, dtype=float)
+    try:
+        from scipy.optimize import linprog
+
+        # x = [ w(n) | ζ(1) | u(T) ];  minimise ζ + 1/(αT) Σ u_t.
+        c = np.concatenate([np.zeros(n), [1.0], np.full(T, 1.0 / (alpha * T))])
+        # Epigraph rows:  −r_t·w − ζ − u_t ≤ 0   (⇔  u_t ≥ L_t − ζ,  with L_t = −r_t·w).
+        A_ub = np.hstack([-scen, -np.ones((T, 1)), -np.eye(T)])
+        b_ub = np.zeros(T)
+        # Budget:  Σ w = 1.
+        A_eq = np.concatenate([np.ones(n), [0.0], np.zeros(T)]).reshape(1, -1)
+        b_eq = np.array([1.0])
+        bounds = [(0.0, 1.0)] * n + [(None, None)] + [(0.0, None)] * T   # w∈[0,1], ζ free, u≥0
+        res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method="highs")
+        if not getattr(res, "success", False):
+            return np.full(n, 1.0 / n, dtype=float)
+        w = np.maximum(np.asarray(res.x[:n], dtype=float), 0.0)
+    except Exception:  # noqa: BLE001 - solver unavailable/failed -> long-only 1/N (never degenerate)
+        return np.full(n, 1.0 / n, dtype=float)
+    s = float(w.sum())
+    return w / s if s > 0 else np.full(n, 1.0 / n, dtype=float)
+
+
+def min_cvar(returns: Any, cfg: Any = None) -> np.ndarray:
+    """CVaR-optimal (tail-optimal) portfolio ``argmin_w CVaR_α(−w·r)`` (Rockafellar & Uryasev 2000).
+
+    The classical TAIL-optimal allocator: it minimises the Conditional Value-at-Risk of the portfolio loss
+    DIRECTLY, so it is the natural hand-crafted comparator for a tail-risk study — does the LLM's tail-aware
+    reward beat even the benchmark that optimises the very tail the reward targets? Long-only over the LIVE
+    names (delisted zero-variance names excluded, as for the other risk allocators — else a dead name with
+    ~0 loss variation would absorb the whole book). The CVaR level defaults to the headline ``α=0.05`` and is
+    overridable via ``cfg['cvar_alpha']``. Report-only benchmark context, DSR-deflated at N=1 like the other
+    allocators (`benchmark_floor`). Deterministic (HiGHS LP; no RNG).
+    """
+    arr = _as_window(returns)
+    n = arr.shape[1]
+    if n == 1:
+        return np.ones(1, dtype=float)
+    alpha = 0.05
+    if isinstance(cfg, dict):
+        alpha = float(cfg.get("cvar_alpha", 0.05))
+    elif cfg is not None and hasattr(cfg, "cvar_alpha"):
+        alpha = float(getattr(cfg, "cvar_alpha"))
+    alpha = min(max(alpha, 1e-3), 0.5)   # guard the 1/(αT) objective coefficient
+    live = _live_mask(arr)
+    nl = int(live.sum())
+    if nl == 0:
+        return np.full(n, 1.0 / n)
+    if nl == 1:
+        w = np.zeros(n, dtype=float)
+        w[live] = 1.0
+        return w
+    w = np.zeros(n, dtype=float)
+    w[live] = _long_only_min_cvar(arr[:, live], alpha)
+    s = float(w.sum())
+    return w / s if s > 0 else np.full(n, 1.0 / n)
+
+
 def inverse_volatility(returns: Any, cfg: Any = None) -> np.ndarray:
     """Inverse-volatility (naive risk parity): ``w_i ∝ 1/σ_i`` (equal risk under zero correlation).
 
@@ -491,4 +562,5 @@ STRATEGY_CANON: dict[str, Any] = {
     "inverse_volatility": inverse_volatility,
     "maximum_diversification": maximum_diversification,
     "cross_sectional_momentum": cross_sectional_momentum,
+    "min_cvar": min_cvar,   # CVaR-optimal / TAIL-optimal (Rockafellar & Uryasev 2000)
 }
