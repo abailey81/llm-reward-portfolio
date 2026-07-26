@@ -14,17 +14,21 @@ fragile (Gundersen & Kjensmo 2018 [VERIFY]) and quantitative backtests are espec
 non-reproducible overfitting (López de Prado 2018; Bailey & López de Prado 2014), we separate three
 layers and state each with its exact scope *and* its honest boundary.
 
-**Layer 1 — the analysis is bit-exact replay.** Given the archived generations, every number in this
-dissertation recomputes deterministically. The full stochastic stack is seeded from a single run seed —
+**Layer 1 — the analysis replays deterministically from the archive.** Given the archived generations,
+every number recomputes: the *generative artifacts* — every rendered prompt, the reward source, and the
+panel — reproduce **hash-exact**, and the *trained* numbers reproduce to a tight tolerance (relative 1e-4)
+on a fixed device (they are not bit-identical, because floating-point reductions are non-associative). The
+full stochastic stack is seeded from a single run seed —
 Python `random`, NumPy, PyTorch and cuDNN — with `PYTHONHASHSEED` fixed and `CUBLAS_WORKSPACE_CONFIG=:4096:8`
 set *before the first CUDA op* so cuBLAS matmul is deterministic (`src/utils/seeding.py`). The environment
-is pinned to the byte level in `requirements.lock` — the notorious source of irreproducible RL numbers,
+is pinned by exact version in `requirements.lock` (`==` pins, not artifact-hash `--hash` pins) — the notorious source of irreproducible RL numbers,
 the PyTorch/CUDA build, is fixed at `torch==2.6.0+cu124` (with `stable-baselines3==2.8.0`) against
 interpreter `3.11.9`. The campaign's parallel execution path is proven byte-identical to the serial one by
 a behaviour test (`tests/test_test_leg_equivalence.py`), so throughput optimisation cannot move a result.
 A continuous-integration job and a pre-commit hook both run `freeze.py --check` on every touch to a design
 file, so the analysis cannot silently drift from the frozen specification. The honest boundary: this
-bit-exactness holds *on a fixed device*. Across a CPU↔GPU boundary, across different GPUs, or across
+determinism holds *on a fixed device* (and even there the trained numbers match to a tight tolerance,
+not bit-for-bit). Across a CPU↔GPU boundary, across different GPUs, or across
 PyTorch releases, floating-point non-associativity makes training only *statistically* reproducible —
 which is exactly why every headline is an interquartile mean with bootstrap error bars over a seed ladder,
 never a single run (Henderson et al. 2018).
@@ -57,13 +61,15 @@ For the closed legs and the confirmatory author we archive the provider-reported
 `served_provider` and `request_id` at each call and rely on the vendor's stated weight-preservation
 commitment; the residual deprecation exposure is disclosed, not hidden.
 
-*The self-hosted-leg question, answered honestly.* An earlier framing promised a fully self-hosted leg as
-the ultimate permanence anchor. To honour it we self-host one open-weight leg (Qwen3.5-9B in bf16) on the
-UCL Myriad cluster, authoring its rewards from the exact HF-commit-pinned weights on known hardware — the
-one configuration whose *generation* is bit-reproducible, not merely re-hostable. [If the self-host is not
-executed: "That leg does not currently exist — every open-weight leg is served through a hosted router;
-we therefore scope Layer 3 to *re-hostable weights — replication, not bit-reproduction*, and identify the
-Myriad self-host as the single upgrade that would close the remaining distance."]
+*The self-hosted-leg question, answered honestly.* We scope Layer 3 to what the artifact **demonstrates
+today: re-hostable pinned weights — replication, not bit-reproduction of the generation.** Every open-weight
+leg is served through a hosted router (the registered `qwen3.5-9b` leg is served fp8 by a pinned provider),
+so the permanence guarantee is that anyone can re-host the pinned `repo@commit`, not that the generation is
+bit-identical. The single upgrade that would close the remaining distance — authoring one leg from the exact
+HF-commit-pinned bf16 weights on known UCL Myriad hardware, the one configuration whose *generation* is
+bit-reproducible — is **built and turnkey** (`scripts/serve_qwen_selfhost.py`) but **not yet executed and not
+yet a registered suite leg**; we name it as the next step and claim no self-hosted author the run has not
+produced.
 
 **Why the generation cannot be regenerated.** Language-model inference is non-deterministic even at fixed
 model and temperature: floating-point non-associativity under concurrent execution yields different
@@ -87,18 +93,19 @@ remains. (iii) The provenance ledger is append-only JSONL flushed per call — c
 complete, but not cryptographically tamper-evident; a signed manifest would harden it. Reasoning
 round-trip evidence is captured for the OpenRouter legs via the usage field; the Anthropic legs expose no
 equivalent reasoning-token count, so their thinking posture is disclosed rather than round-trip-measured.
-None of these touches the analysis layer, which is bit-exact given the archive.
+None of these touches the analysis layer, which replays deterministically given the archive (hash-exact
+generative artifacts; tolerance-exact trained numbers on a fixed device).
 
 ### Table 4.x — Reproducibility artifacts
 | Artifact | What it pins | Where |
 |---|---|---|
 | `.python-version` | Interpreter `3.11.9` | repo root |
-| `requirements.lock` | Exact dependency graph (`torch==2.6.0+cu124`, `sb3`/`sb3-contrib==2.8.0`, `anthropic==0.111.0`, `openai==2.42.0`) | repo root |
+| `requirements.lock` | Exact **version** pins (`torch==2.6.0+cu124`, `sb3`/`sb3-contrib==2.8.0`, `anthropic==0.111.0`, `openai==2.42.0`); `==` pins, not `--hash` artifact pins | repo root |
 | `src/utils/seeding.py` | Single-seed determinism: RNGs, `PYTHONHASHSEED`, `CUBLAS_WORKSPACE_CONFIG` | `src/utils/` |
 | Canonical SHA-256 freeze hash | 8 design files (prereg prose + yaml, 3 configs, 3 treatment/prompt files) | `scripts/freeze.py` |
 | CI + pre-commit `freeze.py --check` | Design-drift guard on every commit/push | `.github/workflows/ci.yml`, `.pre-commit-config.yaml` |
 | `tests/test_test_leg_equivalence.py` | Parallel ≡ serial byte-identity (fixed device) | `tests/` |
-| Checksums + pipeline + synthetic panel | Byte-exact panel verification / license-free method replay | `data/**/*.sha256`, `data_pipeline/`, `data/synthetic/` |
+| Checksums + pipeline + synthetic panel | Byte-exact panel verification / license-free method replay | `data/manifest/manifest.jsonl` + `data/**/*.provenance.json` (checksums), `data_pipeline/`, `src/data/synthetic.py::make_synthetic_panel` |
 | `ProvenanceRecord` → `llm_calls.jsonl` | Per-call prompt, response, usage (+`reasoning_tokens`), stop reason, `served_model`/`served_provider`, `request_id` | `src/llm/client.py` |
 | `hf_pins_recorded` + `assert_leg_roster_match` | Open-leg weights `repo@commit` (5 legs), bound into the freeze | `preregistration.yaml`, `legs.yaml`, `freeze.py` |
 
@@ -111,8 +118,15 @@ REAL (`client.py:196-201,276`) + three-state leg-gate verdict (`leg_gates.py:215
 freeze binding (`freeze.py:988-1001`); 5 open legs HF-commit-pinned; served-variant fp8 disclosure;
 device-conditional determinism stated; FP-nondeterminism already cited (`yuan2025nondeterminism`, `CH4:318`).
 
-**NEEDS-A-FIX (close before deposit):** (1) self-hosted leg — either EXECUTE the Myriad Qwen-9B-bf16
-self-host (A5) or make the "re-hostable weights" reframe consistent everywhere (no dual framing). (2)
+**✅ WORDING OVERCLAIMS CORRECTED 2026-07-26 (deep reproducibility audit).** Four falsifiable claims fixed in
+this doc: "bit-exact replay" → "hash-exact generative artifacts + tolerance-exact (1e-4) trained numbers,
+fixed-device"; "byte-level pins" → "exact-version `==` pins (not `--hash`)"; `data/**/*.sha256` → the actual
+`manifest.jsonl` + `*.provenance.json` checksums; and the self-hosted dual framing → the honest **re-hostable**
+scope (self-host named as built-but-unexecuted). The items below are now EXECUTION/artifact gaps, not wording.
+
+**NEEDS-A-FIX (close before deposit):** (1) self-hosted leg — EXECUTE the Myriad Qwen-9B-bf16 self-host (A5)
++ register it as a suite leg to upgrade Layer 3 from re-hostable to bit-reproducible (the framing is now
+consistent everywhere). (2)
 Regenerate the STALE `MODEL_CARD.md` + `REPRODUCIBILITY_CHECKLIST.md` (30 seeds/50k/laptop-only → the
 ladder→568, B*=400k, Myriad-primary). (3) Replace the current 2-regime CH4 §4.8 with this 3-layer version.
 (4) Confirmatory `claude-opus-5` is dateless — archive served_model+request_id at first call (already in

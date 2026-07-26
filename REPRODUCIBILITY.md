@@ -36,9 +36,11 @@ repository ships everything needed to reproduce the *method* without the raw dat
 
 - [`data_pipeline/`](data_pipeline/) — the Refinitiv → gold acquisition pipeline; an entitled user rebuilds
   the exact panel.
-- `data/**/*.sha256`, `data/**/*.provenance.json` — SHA-256 checksums and provenance for byte-exact verification.
-- [`data/synthetic/`](data/synthetic/) — a shape-identical synthetic panel; the full pipeline and test suite
-  run on it. Most scripts accept a `--synthetic` flag to run end-to-end without the licensed data.
+- `data/manifest/manifest.jsonl` + `data/**/*.provenance.json` — SHA-256 checksums and provenance for byte-exact panel verification (the checksums live in the manifest + per-file provenance, not in separate `.sha256` files).
+- A shape-identical synthetic panel is generated in-code (`src/data/synthetic.py::make_synthetic_panel`); the
+  full pipeline and test suite run on it. The keyless end-to-end entry point is
+  `python scripts/reproduce_synthetic.py --check` (`make reproduce`) — note the *headline* `run_campaign`
+  deliberately **refuses** synthetic data, because the sealed result must be real.
 
 ## 4. Reproduce, stage by stage
 
@@ -71,6 +73,6 @@ The campaign is documented end-to-end in [`docs/CAMPAIGN_RUNBOOK.md`](docs/CAMPA
 - [x] Exact dependency lockfile, with PyTorch + CUDA pinned (`requirements.lock`).
 - [x] Deterministic seeding, documented and tested.
 - [x] Pre-registered design with a cryptographic integrity hash (`PREREGISTRATION.md`, `scripts/freeze.py`).
-- [x] Data provenance + SHA-256 checksums; a shape-identical synthetic stand-in for the licensed panel.
+- [x] Data provenance + SHA-256 checksums (in `manifest.jsonl` / `*.provenance.json`); an in-code shape-identical synthetic stand-in for the licensed panel.
 - [x] Exact commands to reproduce every stage (§4).
 - [x] Behaviour test suite (2,000+ tests; `make test`) plus a continuous-integration drift guard.
