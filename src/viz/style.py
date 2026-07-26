@@ -25,7 +25,7 @@ OKABE_ITO: dict[str, str] = {
 
 #: Canonical arm rendering order (the contribution first, controls grouped, search baselines last).
 ARM_ORDER: tuple[str, ...] = (
-    "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled", "random_search", "bayes_opt",
+    "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled", "random_search", "bayes_opt", "cma_es", "tpe",
 )
 
 #: Arms that are CONTROLS — drawn with a hatch (a non-colour channel) so they read as controls in greyscale.
@@ -40,6 +40,8 @@ ARM_STYLE: dict[str, dict[str, Any]] = {
     "placebo_shuffled": {"color": OKABE_ITO["purple"],      "marker": "v", "hatch": "xxx"},
     "random_search":    {"color": OKABE_ITO["orange"],      "marker": "P", "hatch": None},
     "bayes_opt":        {"color": OKABE_ITO["skyblue"],     "marker": "X", "hatch": None},
+    "cma_es":           {"color": OKABE_ITO["yellow"],      "marker": "*", "hatch": None},
+    "tpe":              {"color": OKABE_ITO["black"],       "marker": "d", "hatch": None},
 }
 
 

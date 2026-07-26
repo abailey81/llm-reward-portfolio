@@ -27,8 +27,8 @@ import make_figures as MF  # noqa: E402
 # ---- style helpers ---------------------------------------------------------------------------------- #
 def test_arm_style_covers_all_arms_with_distinct_colors() -> None:
     colors = [S.arm_style(a)["color"] for a in S.ARM_ORDER]
-    assert len(S.ARM_ORDER) == 7
-    assert len(set(colors)) == 7  # every arm a distinct colour
+    assert len(S.ARM_ORDER) == 9
+    assert len(set(colors)) == 9  # every arm a distinct colour (palette has exactly 9; tpe takes black)
     assert S.CONTROL_ARMS <= set(S.ARM_ORDER)
     for ctrl in S.CONTROL_ARMS:
         assert S.arm_style(ctrl)["hatch"]  # controls carry a non-colour (hatch) channel
@@ -66,6 +66,27 @@ def test_equivalence_forest_returns_two_panel_figure(demo: dict) -> None:
     fig = F.equivalence_forest(demo["contrasts"])
     assert len(fig.axes) == 2  # Sharpe + CVaR legs
     plt.close(fig)
+
+
+def test_equivalence_forest_band_is_per_leg(demo: dict) -> None:
+    """The co-primary legs are in DIFFERENT units, so the band must be settable PER LEG (2026-07-26).
+
+    ``analyze_campaign.h2_tost`` is "RA-only by construction; the CVaR equivalence stays in h2_tost
+    (its own units)", and its P6 note warns the raw ±0.05 DSR margin is LARGE against a daily CVaR
+    O(0.01-0.06) so it "can near-trivially contain the posterior and OVER-CLAIM null evidence" — hence
+    the relative tail band (25% x |baseline CVaR|). A single scalar drew the CVaR rows FILLED against a
+    far-too-wide corridor, visually over-claiming the null on the bankable-null headline leg.
+    """
+    # A mapping is accepted, and a scalar still works (back-compat for single-leg callers).
+    fig = F.equivalence_forest(demo["contrasts"], sesoi={"sharpe": 0.05, "cvar": 0.01})
+    assert len(fig.axes) == 2
+    plt.close(fig)
+    fig = F.equivalence_forest(demo["contrasts"], sesoi=0.05)
+    assert len(fig.axes) == 2
+    plt.close(fig)
+    # THE POINT: the same tail interval flips verdict between the wrong band and the P6 band.
+    assert F._is_equivalent(-0.02, 0.012, 0.05) is True       # raw DSR margin: too wide -> over-claims
+    assert F._is_equivalent(-0.02, 0.012, 0.25 * 0.04) is False  # P6 relative band: honest verdict
 
 
 def test_rliable_intervals_one_axis_per_leg(demo: dict) -> None:
