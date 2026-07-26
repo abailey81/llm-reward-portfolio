@@ -275,6 +275,16 @@ the primary overfitting guard [`bailey2017pbo`]; we disclose the known regimes i
 Beta and Quality-Minus-Junk, Newey–West standard errors) rules out the headline being a low-volatility beta
 [`frazzini2014bab`; `asness2019qmj`; `newey1987simple`].
 
+Three further **report-only robustness exhibits** are pre-registered here, disjoint from the confirmatory $m=6$
+family, to guard the manipulated variable and the tail claim. (i) A **fed-vector ablation** re-estimates the
+H2-Tail contrast on the four CVaR levels alone, confirming that the effect does not rest on the two tail-shape
+coordinates that sit outside the coherent-risk sub-vector (§3.5). (ii) A **CVaR-grid-robustness** exhibit
+recomputes the fed profile at a denser and a sparser $\alpha$-grid and reports whether the authored-code
+responsiveness and the H2 ordering are grid-invariant. (iii) A **regime-concentration** exhibit reports the
+directional prediction of §3.6 — that any tail benefit concentrates in the sub-periods where the return
+distribution shifts most — as a pre-registered directional check, with a full walk-forward re-estimation carried
+as a disclosed deferred limitation (§7.2).
+
 The smallest effect size of interest is **0.05 Deflated-Sharpe units**, and a symmetric two-one-sided-tests
 equivalence margin of $\pm0.05$ is pre-registered so that a non-rejection can be reported as a bounded equivalence
 rather than an underpowered failure [`lakens2017equivalence`]. A power analysis places the minimum detectable
