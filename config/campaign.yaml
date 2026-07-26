@@ -111,9 +111,11 @@ auto_shutdown_on_complete: false       # rented-GPU-era knob, DISARMED 2026-07-0
 # Each name MUST be a real key in src/baselines/rewards.py::REWARD_CANON; the baseline TEST stage reads
 # THIS list (no hardcoding — CLAUDE.md) and runs each baseline at the same winner seed set (the E1
 # tiered ladder [0..567], uniform across all test-leg units — Amendment E1) as the winners.
-# These four are the FROZEN H1 family (named in PREREGISTRATION §1 H1; mirrored + freeze-gated via
-# config/preregistration.yaml h1_baselines); the 10-name eureka_loop.yaml panel (R97) is a
-# documented SECONDARY set. Baselines are UN-SEARCHED, so their Deflated Sharpe is deflated by N=1
+# These ELEVEN are the FROZEN H1 family = the FULL hand-reward canon (2026-07-26 EXPANSION, Tamer
+# "nothing is frozen": the old 4-core was arbitrary — the human champion could lie OUTSIDE it, and all 11
+# are trained anyway, so max-over-the-full-toolkit is the genuinely-HARD champion; this UNIFIES the old
+# 4-subset with the eureka_loop.yaml canon, which now == this list). Each is literature-cited (refs.bib,
+# reward-canon research). Mirrored + freeze-gated via config/preregistration.yaml h1_baselines. Baselines are UN-SEARCHED, so their Deflated Sharpe is deflated by N=1
 # (like the 8 allocators) while the LLM winner keeps its searched multiplicity — the fair, conservative
 # searched-LLM-vs-fixed-human Eureka comparison (the asymmetry FAVOURS the baselines).
-h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]
+h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe, differential_downside_ratio, mean_variance_utility, return_minus_drawdown, return_minus_downside, return_minus_turnover, log_growth, volatility_scaled_return]

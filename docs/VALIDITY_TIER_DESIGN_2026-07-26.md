@@ -170,6 +170,45 @@ report-only secondary panel. The analysis + upgrade:
    `freeze.py::assert_h1_baselines_match` re-verified. **This turns H1 from "beats 4 core rewards" into
    "beats the best of the entire standard risk-sensitive-reward toolkit" — a materially stronger result.**
 
+## Per-node STRENGTH, EVIDENCE, and NON-FRAGILITY (Tamer, 2026-07-26: additions must be *very strong*)
+Each confirmatory node is a rigorous, evidence-backed, VALID level-α test under strong FWER; the graph is
+robust to any node being a null (it reports only what is confirmed); and the whole graph is frozen BEFORE
+the sealed leg (the forking-path guard). We keep EVERY legitimate node regardless of expected outcome —
+cherry-picking the confirmatory set on prototype hints would itself be a forking path.
+
+- **N1 / N2 (H2 — the headline).** Two co-primary IUTs (`berger1982iut`); the mechanism the whole thesis
+  rests on. Powered to the derived SESOI (R104: 0.05 DSR = 0.0756 ann-Sharpe, inside the economic band).
+  Grade-A, first-hand-measured. Non-fragile: the conjunction IS the correction.
+- **N3 (H3 — iteration > single-shot).** A CORE Eureka-lineage claim — does the reflection loop help?
+  (`ma2024eureka` shows it does). A single one-sided superiority test (LESS conservative than an IUT).
+  Honest-null posture: the directional prototype was inconclusive, so we test rigorously and report either
+  way — a null is the finding "iteration does not help HERE, a boundary", never a design flaw.
+- **N4 (H4 — LLM designer > naive search).** The LLM winner vs random-search + Bayesian-opt over the SAME
+  six-primitive reward family — an IUT over the two procedural comparators. Isolates the LLM's contribution
+  from mere search. Strong (the prototype was directionally clean); each comparator a valid node p-value.
+- **N5 (structure control — CONTENT over FORMAT).** `distributional > placebo_shuffled` on CVaR-5%: the real
+  six-number tail block vs its DERANGED values. Rules out the format confound — the single most load-bearing
+  MECHANISM control (Stefan: the control that isolates the effect). Frozen arm (R32); forking-path-clean
+  (never ran in the 6-arm prototype). A single one-sided test.
+- **N6 (H1 — LLM beats the best HUMAN reward, over the full 11-canon).** The STRONGEST-possible human bar:
+  the pointwise max over EVERY accepted family of hand-designed portfolio objective — risk-neutral return,
+  mean-variance + online Sharpe (`markowitz1952portfolio`; `moody2001directrl`; `sharpe1966mutualfund`),
+  coherent tail (`rockafellar2000cvar` CVaR; `sortino1991downside`; Moody-Saffell DDR), drawdown
+  (`chekhlov2005drawdown`), growth-optimal (`kelly1956information`), transaction cost (`garleanu2013dynamic`),
+  volatility targeting (`zhang2020drltrading`) — each literature-cited and first-hand-verified. Beating THIS
+  is beating the accumulated wisdom of the field, not a strawman. TWO features make it CONSERVATIVE (hard
+  for the LLM, so a win is non-fragile): every hand-reward is un-searched / DSR-deflated at N=1 while the LLM
+  winner still pays its full search-multiplicity penalty; and the DE-SNOOP (val-select the champion, score
+  on the sealed test) removes the max-over-N selection bias. NOVELTY: the lineage (Eureka / Text2Reward /
+  REvolve) benchmarks against a SINGLE incumbent reward; a **canon-as-champion is, to our knowledge, a first**
+  in the LLM-reward-design lineage — itself a contribution (framing for CH2/CH7).
+
+**Non-fragility summary.** No node is a weak link: each is a valid level-α test (Berger / TOST / one-sided);
+the tier costs the H2 headline ZERO power (activate-on-upstream); the graph enjoys strong FWER (closed test,
+`marcus1976closed`); the forking-path guard freezes the graph before the sealed leg; and a failing node is
+an honest, reportable boundary, never a collapse. The additions STRENGTHEN the conjunctive validity story
+precisely *because* each is hard, conservative, and evidence-backed.
+
 ## Reproduce / verify
 `config/preregistration.yaml: inference.validity_tier` (the machine-readable graph) + `PREREGISTRATION.md`
 R105 + `tests/test_validity_tier.py` (graph well-formed: node p-value validity, per-node out-edge weights

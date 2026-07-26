@@ -26,12 +26,12 @@ arms:                            # legacy blueprint budget = iterations*samples*
   - bayes_opt                    # H4b: GP-EI Bayesian optimisation (Matern-2.5; Snoek et al. 2012) over the same family
 
 baseline_rewards:                # hand-designed canon (citations in src/baselines/rewards.py docstrings)
-  # The full 10-name SECONDARY panel (PREREGISTRATION §9; R97 added differential_downside_ratio). Every name MUST be a real key in
+  # The full 11-name SECONDARY panel (PREREGISTRATION §9; R97 added differential_downside_ratio). Every name MUST be a real key in
   # src/baselines/rewards.py::REWARD_CANON (the branch resolves via getattr(rewards, name)); the
   # previous list had 5/6 STALE names that would AttributeError (log_wealth/sharpe_episodic/
   # cvar_penalised_mean/drawdown_penalised/turnover_penalised — fixed to the real names below;
   # sharpe_episodic DROPPED, it has no REWARD_CANON function). The FROZEN H1 family is the 4-name
-  # subset in config/campaign.yaml::h1_baselines; this 10-name set is the documented secondary panel
+  # subset in config/campaign.yaml::h1_baselines; this 11-name set is the documented secondary panel
   # (tests/test_baselines.py asserts it == REWARD_CANON.keys() in both directions).
   - raw_return                   # myopic bare portfolio return
   - return_minus_variance        # mean-variance penalty
@@ -43,6 +43,7 @@ baseline_rewards:                # hand-designed canon (citations in src/baselin
   - return_minus_downside        # Sortino downside semi-deviation penalty
   - return_minus_turnover        # transaction-cost / turnover penalty  (was: turnover_penalised)
   - log_growth                   # Kelly growth-optimal log return  (was: log_wealth)
+  - volatility_scaled_return     # volatility-TARGETED return (Zhang-Zohren-Roberts 2020) — the RL-trading-provenance member (2026-07-26 canon expansion; the one research-recommended addition)
 
 reward_family:                   # H4 SHARED six-primitive space (ADR-010; PREREGISTRATION §4a).
   # Six-term linear family implemented in src/baselines/reward_family.py. Exactly which dimensions

@@ -2696,3 +2696,78 @@
   journal = {arXiv preprint arXiv:1803.04585}, year = {2018},
   note = {Grade B. ML Goodhart taxonomy (the fed tail is a proxy the arms optimize against). VERIFIED 2026-07-26.},
 }
+
+% ============================================================================
+% 2026-07-26 REWARD-CANON ADDITIONS — the literature sources for the H1
+% "beat-the-human" hand-reward toolkit (src/baselines/rewards.py::REWARD_CANON)
+% + RL-trading-reward provenance. Coordinates VERIFIED first-hand (>=2 authorities).
+% ============================================================================
+@article{markowitz1952portfolio,
+  author = {Markowitz, Harry}, title = {Portfolio Selection},
+  journal = {The Journal of Finance}, volume = {7}, number = {1}, pages = {77--91}, year = {1952},
+  doi = {10.1111/j.1540-6261.1952.tb01525.x},
+  note = {Grade A. Source for mean_variance_utility / return_minus_variance. VERIFIED 2026-07-26.},
+}
+@article{sharpe1966mutualfund,
+  author = {Sharpe, William F.}, title = {Mutual Fund Performance},
+  journal = {The Journal of Business}, volume = {39}, number = {1}, pages = {119--138}, year = {1966},
+  note = {Grade A (JSTOR 2351515). The reward-to-variability (Sharpe) ratio underpinning differential_sharpe. VERIFIED 2026-07-26.},
+}
+@article{sortino1991downside,
+  author = {Sortino, Frank A. and van der Meer, Robert}, title = {Downside Risk},
+  journal = {The Journal of Portfolio Management}, volume = {17}, number = {4}, pages = {27--31}, year = {1991},
+  doi = {10.3905/jpm.1991.409343},
+  note = {Grade A. Source for return_minus_downside (Sortino semi-deviation). VERIFIED 2026-07-26.},
+}
+@article{kelly1956information,
+  author = {Kelly, John L.}, title = {A New Interpretation of Information Rate},
+  journal = {The Bell System Technical Journal}, volume = {35}, number = {4}, pages = {917--926}, year = {1956},
+  doi = {10.1002/j.1538-7305.1956.tb03809.x},
+  note = {Grade A. Growth-optimal (Kelly) criterion -> log_growth. VERIFIED 2026-07-26.},
+}
+@article{chekhlov2005drawdown,
+  author = {Chekhlov, Alexei and Uryasev, Stanislav and Zabarankin, Michael},
+  title = {Drawdown Measure in Portfolio Optimization},
+  journal = {International Journal of Theoretical and Applied Finance}, volume = {8}, number = {1}, pages = {13--58}, year = {2005},
+  doi = {10.1142/S0219024905002767},
+  note = {Grade A. Source for return_minus_drawdown. VERIFIED 2026-07-26.},
+}
+@article{garleanu2013dynamic,
+  author = {G{\^a}rleanu, Nicolae and Pedersen, Lasse Heje},
+  title = {Dynamic Trading with Predictable Returns and Transaction Costs},
+  journal = {The Journal of Finance}, volume = {68}, number = {6}, pages = {2309--2340}, year = {2013},
+  doi = {10.1111/jofi.12080},
+  note = {Grade A. Source for return_minus_turnover (transaction-cost objective). VERIFIED 2026-07-26.},
+}
+@article{deng2017ddr,
+  author = {Deng, Yue and Bao, Feng and Kong, Youyong and Ren, Zhiquan and Dai, Qionghai},
+  title = {Deep Direct Reinforcement Learning for Financial Signal Representation and Trading},
+  journal = {IEEE Transactions on Neural Networks and Learning Systems}, volume = {28}, number = {3}, pages = {653--664}, year = {2017},
+  note = {Grade A (dblp DengBKRD17). Deep direct-RL trading (DSR lineage). VERIFIED 2026-07-26.},
+}
+@article{zhang2020drltrading,
+  author = {Zhang, Zihao and Zohren, Stefan and Roberts, Stephen},
+  title = {Deep Reinforcement Learning for Trading},
+  journal = {The Journal of Financial Data Science}, volume = {2}, number = {2}, pages = {25--40}, year = {2020},
+  note = {Grade A. arXiv:1911.10107. Source for volatility_scaled_return (volatility targeting) — the RL-trading-provenance canon member added 2026-07-26. VERIFIED first-hand.},
+}
+@article{almahdi2017adaptive,
+  author = {Almahdi, Saud and Yang, Steve Y.},
+  title = {An Adaptive Portfolio Trading System: A Risk-Return Portfolio Optimization Using Recurrent Reinforcement Learning with Expected Maximum Drawdown},
+  journal = {Expert Systems with Applications}, volume = {87}, pages = {267--279}, year = {2017},
+  note = {Grade A. Recurrent-RL with a Calmar/E(MDD) objective (the drawdown-ratio axis, in-RL). VERIFIED 2026-07-26.},
+}
+@article{hambly2023advances,
+  author = {Hambly, Ben and Xu, Renyuan and Yang, Huining},
+  title = {Recent Advances in Reinforcement Learning in Finance},
+  journal = {Mathematical Finance}, volume = {33}, number = {3}, pages = {437--503}, year = {2023},
+  doi = {10.1111/mafi.12382},
+  note = {Grade A. The PUBLISHED form of the corpus preprint hambly2021rlfinancesurvey -- prefer this. VERIFIED 2026-07-26.},
+}
+@article{meng2019rlfinance,
+  author = {Meng, Terry Lingze and Khushi, Matloob},
+  title = {Reinforcement Learning in Financial Markets},
+  journal = {Data}, volume = {4}, number = {3}, pages = {110}, year = {2019},
+  doi = {10.3390/data4030110},
+  note = {Grade A. RL-in-finance survey (canon-reflects-practice anchor). VERIFIED 2026-07-26.},
+}

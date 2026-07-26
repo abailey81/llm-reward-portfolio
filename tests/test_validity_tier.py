@@ -37,10 +37,14 @@ def test_every_node_out_edges_sum_to_at_most_one():
         assert sum(outs.values()) <= 1.0 + 1e-9, (src, outs)
 
 
-def test_h1_beat_human_excluded_from_the_confirmatory_graph():
+def test_snooped_h1_excluded_but_desnooped_h1_is_node_n6():
+    # 2026-07-26 (Tamer, nothing-frozen): H1 PROMOTED to a confirmatory node via the de-snoop + full canon.
     t = _tier()
-    assert "H1_beat_human" in t["excludes"]
-    assert not any("h1" in n.lower() for n in t["nodes"]), "H1's test-set snoop has no valid node p-value"
+    assert "H1_snooped_test_max" in t["excludes"]   # the max-over-the-sealed-TEST snoop has no valid p-value
+    assert "N6_h1" in t["nodes"]                     # the DE-SNOOPED (val-selected) H1 IS a confirmatory node
+    n6 = t["nodes"]["N6_h1"]
+    assert n6["selection"] == "val" and n6["scoring"] == "sealed_test"   # de-snoop: champion on val, scored on test
+    assert n6["champion"] == "max_over_h1_baselines_canon"               # the FULL canon champion (not a 4-subset)
 
 
 def test_every_tier_node_is_reachable_from_the_headline():

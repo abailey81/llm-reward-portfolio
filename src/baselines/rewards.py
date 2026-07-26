@@ -477,6 +477,32 @@ def log_growth(
     return total, {"log_return": total, "return": float(port_ret)}, info.get("reward_state")
 
 
+def volatility_scaled_return(
+    weights: Any, returns: Any, prev_weights: Any, port_ret: float, info: dict[str, Any]
+) -> tuple[float, dict[str, float], object]:
+    """Volatility-TARGETED (risk-scaled) return (Zhang, Zohren & Roberts 2020, *J. Financial Data Science*).
+
+    The canonical deep-RL-for-trading reward that TARGETS a fixed volatility: scale the raw return by
+    ``sigma_target / sigma_realized``, where ``sigma_realized`` is a rolling std of recent returns carried
+    in ``reward_state``. Risk-targeting normalises the signal across volatility regimes (the position is
+    implicitly levered down in turbulent markets, up in calm ones). STATEFUL via a rolling window; ``info``
+    may supply ``sigma_target``, ``window``. The scale is capped to bound the leverage-like blow-up when the
+    realised vol is near zero (mirrors the defensive clipping in the other canon members).
+    """
+    sigma_target = float(info.get("sigma_target", 0.01))   # per-step target volatility
+    window = int(info.get("window", 20))
+    state = info.get("reward_state")
+    hist: list[float] = list(state) if state is not None else []
+    hist.append(float(port_ret))
+    if len(hist) > window:
+        hist = hist[-window:]
+    arr = np.asarray(hist, dtype=float)
+    sigma = float(np.std(arr)) if arr.size >= 2 else sigma_target
+    scale = min(sigma_target / sigma, 10.0) if sigma > 1e-9 else 1.0   # cap the leverage-like scaling
+    total = float(port_ret) * scale
+    return total, {"return": float(port_ret), "vol": sigma, "vol_scale": scale}, hist
+
+
 #: The full hand-crafted reward canon (name -> callable), for the secondary "did the LLM beat the
 #: standard literature rewards?" baseline comparison. Stateful rewards thread state via ``reward_state``.
 REWARD_CANON: dict[str, Any] = {
@@ -490,4 +516,5 @@ REWARD_CANON: dict[str, Any] = {
     "return_minus_downside": return_minus_downside,
     "return_minus_turnover": return_minus_turnover,
     "log_growth": log_growth,
+    "volatility_scaled_return": volatility_scaled_return,
 }

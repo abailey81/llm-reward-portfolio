@@ -11,13 +11,8 @@ import numpy as np
 
 from src.baselines import rewards, strategies
 
-ALL_REWARDS = [
-    rewards.raw_return,
-    rewards.return_minus_variance,
-    rewards.return_minus_cvar,
-    rewards.differential_sharpe,
-    rewards.differential_downside_ratio,
-]
+# EVERY canon member is contract-tested (was a hardcoded 5-subset -> a gap; now auto-covers additions).
+ALL_REWARDS = list(rewards.REWARD_CANON.values())
 
 
 def _reward_args(rng: np.random.Generator) -> tuple:
@@ -43,6 +38,19 @@ def test_rewards_obey_contract(rng: np.random.Generator) -> None:
             assert isinstance(v, float)
         # state is an opaque object — just confirm the triple unpacks.
         _ = state
+
+
+def test_volatility_scaled_return_targets_volatility(rng: np.random.Generator) -> None:
+    """volatility_scaled_return (Zhang-Zohren-Roberts 2020) scales UP in calm markets, DOWN in turbulent
+    ones (risk targeting), stays finite, and honours the leverage cap."""
+    weights, returns, prev_weights, _, _ = _reward_args(rng)
+    calm = [0.001] * 20
+    wild = [0.05 * ((-1) ** i) for i in range(20)]
+    t_calm, c_calm, _ = rewards.volatility_scaled_return(weights, returns, prev_weights, 0.01, {"reward_state": calm})
+    t_wild, c_wild, _ = rewards.volatility_scaled_return(weights, returns, prev_weights, 0.01, {"reward_state": wild})
+    assert np.isfinite(t_calm) and np.isfinite(t_wild)
+    assert c_calm["vol_scale"] > c_wild["vol_scale"]   # calmer market -> larger scale (levered up)
+    assert c_calm["vol_scale"] <= 10.0                 # the leverage cap holds
 
 
 def test_differential_sharpe_sequence() -> None:
