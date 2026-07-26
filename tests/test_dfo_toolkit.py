@@ -3,9 +3,24 @@ valid, and they actually optimise. No agent training (a deterministic closed-for
 import numpy as np
 import pytest
 
-from src.search.dfo_toolkit import cma_es_over_template, tpe_over_template
+from src.search.dfo_toolkit import cma_es_over_template, over_template_optimizer, tpe_over_template
 
 _OPTS = [cma_es_over_template, tpe_over_template]
+
+
+def test_over_template_optimizer_resolves_the_three_adaptive_arms_and_fails_loud() -> None:
+    """The single arm->optimizer map both dispatchers share: exact resolution + fail-loud on the rest."""
+    from src.search.bayes_opt import bayes_opt_over_template
+
+    assert over_template_optimizer("bayes_opt") is bayes_opt_over_template
+    assert over_template_optimizer("cma_es") is cma_es_over_template
+    assert over_template_optimizer("tpe") is tpe_over_template
+    # random_search is NOT an adaptive over-template arm — it must fail loud here (its up-front-draw
+    # path lives in each dispatcher), never be silently mis-resolved.
+    with pytest.raises(ValueError, match="random_search uses its own"):
+        over_template_optimizer("random_search")
+    with pytest.raises(ValueError, match="unknown over-template search arm"):
+        over_template_optimizer("not_an_arm")
 
 
 @pytest.mark.parametrize("opt", _OPTS)

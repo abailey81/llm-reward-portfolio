@@ -23,7 +23,7 @@ import numpy as np
 
 from src.search.bayes_opt import _as_bounds, _budget
 
-__all__ = ["cma_es_over_template", "tpe_over_template"]
+__all__ = ["cma_es_over_template", "tpe_over_template", "over_template_optimizer"]
 
 
 def _make_recorder(
@@ -169,3 +169,31 @@ def tpe_over_template(
 
     study.optimize(_objective, n_trials=int(budget))
     return _result(history, x_obs, y_obs, budget)
+
+
+def over_template_optimizer(arm: str) -> Callable[..., dict[str, Any]]:
+    """Resolve an H4 family-search arm name to its ADAPTIVE over-template optimizer.
+
+    GP-EI (``bayes_opt``), CMA-ES (``cma_es``) and TPE (``tpe``) share ONE driver body in BOTH
+    dispatchers — the cluster ``campaign.run_family_search_arm`` and the laptop
+    ``parallel._drive_search_arm``: each searches the SAME reward template, at the SAME matched candidate
+    budget, through the SAME scalar ``template_eval(coeffs) -> fitness`` closure; only the proposal
+    strategy differs. This is the SINGLE SOURCE OF TRUTH for the arm->function map, so the two dispatchers
+    cannot drift, and it fails LOUD on an unregistered arm rather than silently defaulting to GP-EI (the
+    old ``else``-branch behaviour, which would mislabel a typo'd arm as bayes_opt).
+
+    ``random_search`` is deliberately NOT here: it draws all candidates UP FRONT (an
+    embarrassingly-parallel batch, not an adaptive ask-tell loop), so each dispatcher keeps its own
+    distinct up-front-draw path for it. Only the adaptive optimizers share this driver.
+    """
+    if arm == "bayes_opt":
+        from src.search.bayes_opt import bayes_opt_over_template
+        return bayes_opt_over_template
+    if arm == "cma_es":
+        return cma_es_over_template
+    if arm == "tpe":
+        return tpe_over_template
+    raise ValueError(
+        f"unknown over-template search arm {arm!r} — expected 'bayes_opt' / 'cma_es' / 'tpe' "
+        f"(random_search uses its own up-front-draw path, not this adaptive driver)"
+    )
