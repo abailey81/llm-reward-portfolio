@@ -191,6 +191,48 @@ def _apply_tf32(enabled: bool) -> None:
         pass
 
 
+def _make_curve_recorder(record_every: int) -> Any:
+    """A READ-ONLY SB3 callback sampling the training curve into ``.curve`` (M2 — the F9 data).
+
+    Every ``record_every`` env steps it appends ``(step, critic_loss, actor_loss, ent_coef, rollout
+    return)`` read from the SB3 logger + episode buffer. It draws NO randomness and mutates neither the
+    model nor the env, so training is bit-identical whether it is attached or not (the determinism
+    envelope is untouched; verified by the golden reproduction). ~``train_steps/record_every`` points, so
+    the archived curve is a few hundred floats — a frozen, replay-only campaign can only plot what it logs
+    (``docs/METRICS_AND_FIGURES_COMPLETENESS_2026-07-26.md``)."""
+    from stable_baselines3.common.callbacks import BaseCallback
+
+    class _TrainCurveRecorder(BaseCallback):
+        def __init__(self) -> None:
+            super().__init__()
+            self.record_every = max(1, int(record_every))
+            self.curve: dict[str, list[float]] = {
+                "step": [], "critic_loss": [], "actor_loss": [], "ent_coef": [], "return": [],
+            }
+
+        @staticmethod
+        def _f(v: Any) -> float:
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return float("nan")
+
+        def _on_step(self) -> bool:  # read-only hook; always returns True (never halts training)
+            if self.num_timesteps % self.record_every == 0:
+                nv = getattr(self.model.logger, "name_to_value", {}) or {}
+                ep = getattr(self.model, "ep_info_buffer", None)
+                self.curve["step"].append(int(self.num_timesteps))
+                self.curve["critic_loss"].append(self._f(nv.get("train/critic_loss")))
+                self.curve["actor_loss"].append(self._f(nv.get("train/actor_loss")))
+                self.curve["ent_coef"].append(self._f(nv.get("train/ent_coef")))
+                self.curve["return"].append(
+                    float(np.mean([e.get("r", float("nan")) for e in ep])) if ep else float("nan")
+                )
+            return True
+
+    return _TrainCurveRecorder()
+
+
 def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
     """Build the fixed SAC agent and train it on ``env`` for the fixed step budget.
 
@@ -236,10 +278,28 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
 
     reset_failure_flag()
 
+    # M2 (2026-07-26): attach a READ-ONLY training-curve recorder so F9's learning curves have data to
+    # plot. Config-gated (``capture_train_curve``, default on); combined with any passed monitor callback
+    # via CallbackList. Determinism-safe — it only reads the SB3 logger, so training is bit-identical
+    # whether it is attached or not (verified by the golden reproduction).
+    curve_rec = (
+        _make_curve_recorder(max(1, train_steps // 80))
+        if bool(cfg_get(cfg, "capture_train_curve", True))
+        else None
+    )
+    if curve_rec is None:
+        learn_cb = callback
+    elif callback is None:
+        learn_cb = curve_rec
+    else:
+        from stable_baselines3.common.callbacks import CallbackList
+
+        learn_cb = CallbackList([callback, curve_rec])
+
     if not normalize_obs:
         popart_env = wrap_popart(env, cfg)
         model = make_headline_agent(popart_env, kwargs)
-        model.learn(total_timesteps=train_steps, callback=callback)
+        model.learn(total_timesteps=train_steps, callback=learn_cb)
         n_sd, n_call = _training_substitution_counts()  # read BEFORE the eval rollouts re-zero them
         # T2.4: surface the realised PopArt scale (sigma_max/last) the critic actually used so the
         # cross-arm sigma distribution is auditable. Attached to the returned policy; the loop / TEST
@@ -248,6 +308,8 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
         # Training-window SAFE_DEFAULT counts (R66): attached so the caller can archive them.
         model.train_safe_default_count = n_sd  # type: ignore[attr-defined]
         model.train_safe_call_count = n_call  # type: ignore[attr-defined]
+        if curve_rec is not None:
+            model.train_curve = curve_rec.curve  # type: ignore[attr-defined]  # M2 learning-curve data
         return model
 
     # Train-only observation normalization (deep-research §2). norm_reward=False: the
@@ -264,7 +326,7 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
         training=True,
     )
     model = make_headline_agent(venv, kwargs)
-    model.learn(total_timesteps=train_steps, callback=callback)
+    model.learn(total_timesteps=train_steps, callback=learn_cb)
     n_sd, n_call = _training_substitution_counts()  # read BEFORE the eval rollouts re-zero them
 
     rms: Any = venv.obs_rms  # frozen train-period running mean/var (single-obs RunningMeanStd at runtime)
@@ -282,6 +344,8 @@ def train_agent(env: Any, cfg: Any, seed: int, callback: Any = None) -> Any:
     # the raw-model branch) so the loop / parallel worker can archive them with the candidate record.
     policy.train_safe_default_count = n_sd  # type: ignore[attr-defined]
     policy.train_safe_call_count = n_call  # type: ignore[attr-defined]
+    if curve_rec is not None:
+        policy.train_curve = curve_rec.curve  # type: ignore[attr-defined]  # M2 learning-curve data
     return policy
 
 

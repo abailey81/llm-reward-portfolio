@@ -131,3 +131,57 @@ def test_build_test_record_archives_diagnostics_and_is_back_compatible():
     assert "test_exposure" not in rec2["metrics"]
     assert "test_alloc" not in rec2["metrics"]
     assert "test_components" not in rec2["metrics"]
+    assert "train_curve" not in rec2["metrics"]
+
+
+# --------------------------------------------------------------------------- #
+# M2 — the read-only training-curve recorder                                   #
+# --------------------------------------------------------------------------- #
+def test_train_curve_recorder_samples_read_only():
+    """The recorder samples the SB3 logger/episode buffer every ``record_every`` steps, read-only."""
+    from src.agents.trainer import _make_curve_recorder
+
+    rec = _make_curve_recorder(record_every=2)
+
+    class _Logger:
+        name_to_value = {"train/critic_loss": 1.5, "train/actor_loss": -0.3, "train/ent_coef": 0.1}
+
+    class _Model:
+        logger = _Logger()
+        ep_info_buffer = [{"r": 2.0}, {"r": 4.0}]
+
+    rec.model = _Model()
+    for step in range(1, 7):
+        rec.num_timesteps = step
+        assert rec._on_step() is True         # never halts training
+    assert rec.curve["step"] == [2, 4, 6]     # sampled at the cadence
+    assert rec.curve["critic_loss"] == [1.5, 1.5, 1.5]
+    assert rec.curve["return"] == [3.0, 3.0, 3.0]  # mean of the episode buffer
+
+
+def test_train_curve_recorder_tolerates_missing_logger_values():
+    """Absent logger keys / empty episode buffer -> NaN, never a crash (early-training steps)."""
+    from src.agents.trainer import _make_curve_recorder
+
+    rec = _make_curve_recorder(record_every=1)
+
+    class _Model:
+        class logger:  # noqa: N801
+            name_to_value: dict = {}
+        ep_info_buffer: list = []
+
+    rec.model = _Model()
+    rec.num_timesteps = 1
+    assert rec._on_step() is True
+    assert np.isnan(rec.curve["critic_loss"][0])
+    assert np.isnan(rec.curve["return"][0])
+
+
+def test_build_test_record_archives_train_curve():
+    winner = {"candidate_id": "c", "generation": 0, "reward_source": "",
+              "feedback_block": "", "metrics": {"val_fitness": 0.1}}
+    curve = {"step": [80, 160], "critic_loss": [5.0, 1.0], "actor_loss": [0.0, 0.0],
+             "ent_coef": [0.1, 0.1], "return": [1.0, 2.0]}
+    rec = build_test_record(winner=winner, arm="scalar", seed=7, reward_hash="h", env_fp="fp",
+                            test_returns=[0.01], train_curve=curve)
+    assert rec["metrics"]["train_curve"] == curve

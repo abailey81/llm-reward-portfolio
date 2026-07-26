@@ -122,6 +122,7 @@ def build_test_record(
     test_exposure: dict[str, Any] | None = None,
     test_alloc: dict[str, Any] | None = None,
     test_components: dict[str, Any] | None = None,
+    train_curve: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the ONE archive record for a ``(winner, seed)`` TEST run.
 
@@ -175,6 +176,8 @@ def build_test_record(
         metrics["test_alloc"] = test_alloc         # M1b: top-K monthly allocation snapshots (heatmap source)
     if test_components is not None:
         metrics["test_components"] = test_components  # M3: per-component mean of the reward decomposition
+    if train_curve is not None:
+        metrics["train_curve"] = train_curve  # M2: this seed's training curve (critic/actor loss + return)
 
     return {
         "run_id": f"{arm}-s{int(seed)}",
@@ -322,6 +325,7 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
         # (frozen at train end); the test rollout below re-zeroes the live executor counters.
         train_sd_count = getattr(policy, "train_safe_default_count", None)
         train_call_count = getattr(policy, "train_safe_call_count", None)
+        train_curve = getattr(policy, "train_curve", None)  # M2 learning-curve data (None if capture off)
 
         # B4 once-only test touch. Prefer the full-diagnostics superset (net/gross/turnover + per-step
         # weights + reward components): net/gross/turnover are BYTE-IDENTICAL to test_series (the same
@@ -372,6 +376,7 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
             test_exposure=test_exposure,  # M1: per-step concentration series
             test_alloc=test_alloc,        # M1b: allocation-heatmap snapshots
             test_components=test_components,  # M3: reward-component means
+            train_curve=train_curve,      # M2: per-seed training curve
         )
         if str(device).startswith("cuda"):
             torch.cuda.empty_cache()

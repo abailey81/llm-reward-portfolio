@@ -935,11 +935,33 @@ def evaluate_winner_on_test(
         # R66: training-window SAFE_DEFAULT counts (train_agent attach) — policy attrs, frozen at train end.
         train_sd_count = getattr(policy, "train_safe_default_count", None)
         train_call_count = getattr(policy, "train_safe_call_count", None)
+        train_curve = getattr(policy, "train_curve", None)  # M2 learning-curve data (None if capture off)
         # Prefer the gross/turnover/net superset (Rank 15: persist the decomposition so the
         # cost sweep re-prices analytically). A bundle/fake without `test_series` (e.g. the
         # counting wrapper in tests) falls back to the NET-only `test_returns` — the test leg
         # is still touched EXACTLY ONCE either way.
-        if hasattr(bundle, "test_series"):
+        # M1/M1b/M3 (2026-07-26): prefer the full-diagnostics superset so the serial path captures the
+        # exposure/allocation diagnostics IDENTICALLY to the parallel worker (net/gross/turnover are
+        # byte-identical to test_series). Best-effort; a summariser miss degrades to net/gross/turnover.
+        test_exposure = test_alloc = test_components = None
+        if hasattr(bundle, "test_diagnostics"):
+            diag = bundle.test_diagnostics(policy)
+            test_returns = np.asarray(diag["net"], dtype=float)
+            test_gross = np.asarray(diag["gross"], dtype=float)
+            test_turnover = np.asarray(diag["turnover"], dtype=float)
+            try:
+                from src.inference.exposure import alloc_snapshots, exposure_series
+                from src.orchestration.test_leg import _summarize_components
+
+                _w = diag.get("weights")
+                if _w is not None:
+                    test_exposure = exposure_series(_w)
+                    test_alloc = alloc_snapshots(_w)
+                if diag.get("components") is not None:
+                    test_components = _summarize_components(diag.get("components"))
+            except Exception:  # noqa: BLE001 — capture must never crash the sealed leg
+                test_exposure = test_alloc = test_components = None
+        elif hasattr(bundle, "test_series"):
             series = bundle.test_series(policy)
             test_returns = np.asarray(series["net"], dtype=float)
             test_gross = np.asarray(series["gross"], dtype=float)
@@ -966,6 +988,10 @@ def evaluate_winner_on_test(
             train_safe_default_count=train_sd_count,  # R66 per-seed training-substitution audit
             train_safe_call_count=train_call_count,
             device=_serial_device,  # S6: sealed-leg device attribution (homogeneity auditable)
+            test_exposure=test_exposure,  # M1: per-step concentration series
+            test_alloc=test_alloc,        # M1b: allocation-heatmap snapshots
+            test_components=test_components,  # M3: reward-component means
+            train_curve=train_curve,      # M2: per-seed training curve
         )
         write(record, archive_root)
         written.append(record)
