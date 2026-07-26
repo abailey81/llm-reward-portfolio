@@ -134,14 +134,16 @@ _LLM_CHAIN_GENERATIONS = 6        # K=5 candidates/generation x 6 = the 30-candi
 #: becomes the LONGEST chain in the campaign** — longer than GP-EI — so the option is modelled
 #: explicitly rather than left as an assumption:
 #:
-#: * **TPE = 30 serial.** ``tpe_over_template`` drives Optuna with ``study.optimize(...)``, which
-#:   evaluates ONE trial at a time, so the full budget is sequential — including the
-#:   ``n_startup_trials`` (default ``min(10, budget)``). ⚠ Those startup trials are drawn by
-#:   Optuna's RANDOM sampler and do NOT depend on observed values, so batching them via
-#:   ``ask()``/``tell()`` would be a PURE DISPATCH change (identical results) that cuts the chain
-#:   30 → ~21. The module's own docstring already describes it as "a startup batch … the parallel
-#:   search leg can dispatch concurrently", so this is a spec-vs-implementation gap, not a design
-#:   disagreement. Flagged to the owning lane; NOT edited here (cross-session courtesy).
+#: * **TPE = 30 serial by default, ~21 when batched.** ``tpe_over_template`` drives Optuna with
+#:   ``study.optimize(...)``, which evaluates ONE trial at a time, so the full budget was
+#:   sequential. **FIXED 2026-07-26 (T5-a):** the function now accepts ``batch_eval_fn`` and, when
+#:   given, dispatches the ``n_startup_trials`` (default ``min(10, budget)``) as ONE batch — those
+#:   points come from Optuna's RANDOM sampler and depend on no observed value, so the results are
+#:   IDENTICAL (proven by ``tests/test_dfo_tpe_batch.py``, which asserts the same points, order,
+#:   scores and winner as the sequential path). Pure dispatch; matched budget untouched.
+#:   ⚠ **The value below stays 30 — the CONSERVATIVE number — because the cluster driver does not
+#:   yet PASS ``batch_eval_fn``.** Wire that at GO-prep and this becomes ~21. Modelling the
+#:   shorter chain before the wiring exists would be claiming a speed-up we do not have.
 #: * **CMA-ES ≈ 4 serial generations.** ``es.ask()`` proposes a whole population per generation
 #:   (parallel within a generation), so at budget 30 with the default popsize ~9 it is ~4 steps —
 #:   never the binding chain.

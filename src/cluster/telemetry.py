@@ -119,13 +119,89 @@ def parse_cluster_pending(text: str) -> tuple[int, int]:
 
 
 def parse_our_jobs(text: str) -> list[dict]:
-    """``qstat`` (our user) -> [{id, prior, state}] (one row per qstat line, arrays included)."""
+    """``qstat`` (our user) -> [{id, prior, state, slots}] (one row per line, arrays included).
+
+    ``slots`` added 2026-07-26 so the GO-day ACCUMULATION CURVE is reconstructable from the
+    archived telemetry (runbook §11.5): without it the log records job COUNT but not CORES, and the
+    one projection the campaign plan still rests on — that ~8.5 h tasks accumulate to ~2,000–3,000
+    cores rather than churning at ~636 — could not be checked against reality.
+
+    ⚠ THE COLUMN POSITION DIFFERS BY STATE, which is the trap: a RUNNING row carries a queue name
+    (``Queue@node-…``) that a PENDING row does not, so slots sit at index 8 when running and 7 when
+    pending. Reading a fixed index silently yields the date/time field for half the rows.
+    """
     out: list[dict] = []
     for line in text.splitlines()[2:]:
         cols = line.split()
         if len(cols) >= 5 and cols[0].isdigit():
-            out.append({"id": cols[0], "prior": float(cols[1]), "state": cols[4]})
+            state = cols[4]
+            idx = 8 if state and state[0] in "rRtsS" else 7
+            slots = 0
+            if len(cols) > idx:
+                try:
+                    slots = int(cols[idx])
+                except ValueError:
+                    slots = 0
+            out.append({"id": cols[0], "prior": float(cols[1]), "state": state, "slots": slots})
     return out
+
+
+def running_slots(our_jobs: list[dict]) -> tuple[int, int]:
+    """``(running_job_count, running_core_count)`` — the accumulation-curve datapoint."""
+    jobs = [j for j in our_jobs if str(j.get("state", ""))[:1] in ("r", "R", "t")]
+    return len(jobs), sum(int(j.get("slots", 0) or 0) for j in jobs)
+
+
+def accumulation_report(log_path: str | Path | None = None, *, hours: float = 3.0) -> dict:
+    """Has our concurrency PLATEAUED, or is it still climbing? — the GO-day canary check.
+
+    The campaign plan's one un-measured projection is that ~8.5 h tasks ACCUMULATE (the ~75-job
+    plateau seen with 20-min probe jobs was a flow equilibrium, `concurrent = dispatch_rate ×
+    duration`). This reads the archived telemetry and answers it from data instead of hope:
+    compares the last third of the window against the first third and calls ``climbing`` /
+    ``plateaued`` / ``declining``. Feed the observed plateau back into
+    ``lanes.plan_lanes(cpu_cores=…)`` to re-forecast the reachable rung.
+    """
+    import json as _json
+
+    path = Path(log_path) if log_path else _LOG_PATH
+    if not path.is_file():
+        return {"status": "no-data", "reason": f"{path} absent"}
+    cutoff = time.time() - hours * 3600.0
+    pts: list[tuple[float, int]] = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            row = _json.loads(line)
+        except Exception:  # noqa: BLE001 — a truncated tail line must not kill the report
+            continue
+        jobs = row.get("our_jobs") or []
+        if not any("slots" in j for j in jobs):
+            continue                      # frames written before slots were recorded
+        try:
+            ts = time.mktime(time.strptime(str(row.get("ts", "")), "%Y-%m-%dT%H:%M:%SZ"))
+        except Exception:  # noqa: BLE001
+            continue
+        if ts >= cutoff:
+            pts.append((ts, running_slots(jobs)[1]))
+    if len(pts) < 6:
+        return {"status": "insufficient", "n": len(pts),
+                "reason": "need >=6 slot-bearing frames; keep --watch running"}
+    pts.sort()
+    third = max(1, len(pts) // 3)
+    early = sum(c for _, c in pts[:third]) / third
+    late = sum(c for _, c in pts[-third:]) / third
+    peak = max(c for _, c in pts)
+    if late > early * 1.15:
+        status = "climbing"
+    elif late < early * 0.85:
+        status = "declining"
+    else:
+        status = "plateaued"
+    return {"status": status, "n": len(pts), "early_mean_cores": round(early),
+            "late_mean_cores": round(late), "peak_cores": peak,
+            "advice": ("still accumulating — do NOT re-forecast the rung yet"
+                       if status == "climbing" else
+                       f"re-forecast from ~{round(late)} cores via lanes.plan_lanes")}
 
 
 def probe_verdicts(our_jobs: list[dict], *, pending_hours: float,

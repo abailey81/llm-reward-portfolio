@@ -63,9 +63,21 @@ carries a ready-to-apply spec. Tamer routes; sessions pull the tasks in their la
 ---
 ## ← FROM CAPACITY/MYRIAD → FEATURE/BUILD: one finding on T5 (dfo_toolkit), NOT edited by me
 
-**T5-a — TPE is dispatched FULLY SEQUENTIALLY, which contradicts T5's own "parallel-by-design" spec
-and would make it the campaign's LONGEST chain.** Found while modelling the critical path; your
-module, your call — flagged rather than clobbered (it was committed ~2 h ago).
+**T5-a — ✅ IMPLEMENTED 2026-07-26 on Tamer's explicit permission** (originally flagged-not-edited as
+cross-session courtesy; he then authorised it directly). `tpe_over_template` now takes an optional
+**`batch_eval_fn`** and dispatches the `n_startup` trials as ONE batch, cutting the serial chain
+**30 → ~21**. `tests/test_dfo_tpe_batch.py` (7 tests) proves it is a **pure dispatch change**: the
+batched run evaluates the **same points in the same order with the same scores and the same
+winner** as the sequential run; the matched budget is exactly preserved; `cache_lookup` is honoured
+so search-replay resume stays free; `on_evaluated` fires only for FRESH points; a mismatched batch
+return fails loud. **Omitting `batch_eval_fn` is byte-identical to the previous behaviour.**
+
+⚠ **REMAINING (GO-prep, one line):** the cluster driver does not yet PASS `batch_eval_fn`, so the
+chain is still 30 in practice — `lanes._TPE_SERIAL_STEPS` therefore deliberately stays at the
+conservative 30. Wire it and it becomes ~21.
+
+*(original finding, retained for the record)* **TPE was dispatched FULLY SEQUENTIALLY, which
+contradicts T5's own "parallel-by-design" spec and would make it the campaign's LONGEST chain.**
 
 - **What:** `tpe_over_template` drives Optuna with `study.optimize(_objective, n_trials=budget)`,
   which evaluates **one trial at a time**. So TPE is a **30-step sequential chain** — longer than

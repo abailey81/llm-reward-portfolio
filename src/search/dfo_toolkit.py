@@ -138,11 +138,21 @@ def tpe_over_template(
     on_evaluated: Optional[Callable[[int, np.ndarray, float], None]] = None,
     *,
     n_startup: Optional[int] = None,
+    batch_eval_fn: Optional[Callable[[Sequence[np.ndarray]], Sequence[float]]] = None,
 ) -> dict[str, Any]:
     """Tree-structured Parzen Estimator over the template coefficients (Bergstra et al. 2011) via Optuna
     (Akiba et al. 2019) — the density-ratio, low-budget-friendly model-based complement to GP-EI — at the
     matched budget and deterministic from ``rng``. ``n_startup`` random trials seed the density models before
-    TPE guides (default ``min(10, budget)``, TPE's designed low-budget regime)."""
+    TPE guides (default ``min(10, budget)``, TPE's designed low-budget regime).
+
+    ``batch_eval_fn`` (optional) evaluates a LIST of points at once and, when supplied, is used for the
+    ``n_startup`` phase — cutting the SEQUENTIAL chain from ``budget`` (30) to ``budget - n_startup``
+    (~21). Those startup points come from Optuna's RANDOM sampler and depend on no observed value, so
+    concurrent evaluation is a pure DISPATCH change that returns identical results; the matched budget,
+    the seed, and the guided phase are untouched. Omit it and behaviour is byte-identical to before.
+    This matters because ``study.optimize`` evaluates one trial at a time, which made TPE a 30-step
+    serial chain — LONGER than GP-EI's 25 — i.e. the campaign's binding critical path
+    (``src/cluster/lanes.py``)."""
     import optuna  # MIT
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -159,14 +169,52 @@ def tpe_over_template(
     sampler = optuna.samplers.TPESampler(seed=int(rng.integers(1, 2**31 - 1)), n_startup_trials=n_startup_trials)
     study = optuna.create_study(direction="maximize", sampler=sampler)
 
-    def _objective(trial: "optuna.Trial") -> float:
-        x = np.array(
+    def _ask_x(trial: "optuna.Trial") -> "np.ndarray":
+        return np.array(
             [trial.suggest_float(f"c{j}", float(box[j, 0]), float(box[j, 1])) for j in range(dim)],
             dtype=float,
         )
-        return _evaluate(x, "tpe")
 
-    study.optimize(_objective, n_trials=int(budget))
+    def _objective(trial: "optuna.Trial") -> float:
+        return _evaluate(_ask_x(trial), "tpe")
+
+    # STARTUP BATCH (2026-07-26, the campaign-speed lens — CAPACITY lane finding T5-a).
+    # `study.optimize` evaluates ONE trial at a time, so the whole budget was a SEQUENTIAL chain of
+    # 30 — LONGER than GP-EI's 25 serial steps, which would have made TPE the campaign's binding
+    # critical path (src/cluster/lanes.py). The first `n_startup_trials` are drawn by Optuna's
+    # RANDOM sampler and do NOT depend on any observed value, so evaluating them CONCURRENTLY
+    # yields IDENTICAL results — a pure DISPATCH change, exactly like the bayes_opt in-job chain.
+    # Cuts the serial chain 30 -> ~21 with no change to the optimiser, the matched budget, or the
+    # seed. Opt-in and backward-compatible: without `batch_eval_fn` the behaviour is byte-identical
+    # to before (the single-point `template_eval_fn` cannot parallelise anything by itself).
+    n_batched = min(n_startup_trials, int(budget)) if batch_eval_fn is not None else 0
+    if n_batched > 0:
+        trials = [study.ask() for _ in range(n_batched)]
+        xs = [_ask_x(t) for t in trials]
+        # Cache-aware, with the SAME index convention as `_evaluate` (idx = position in history),
+        # so search-replay RESUME stays free and `on_evaluated` still fires only for FRESH work.
+        idx0 = len(history)
+        cached = [cache_lookup(idx0 + i, x) if cache_lookup is not None else None
+                  for i, x in enumerate(xs)]
+        need = [i for i, c in enumerate(cached) if c is None]
+        got = list(batch_eval_fn([xs[i] for i in need])) if need else []
+        if len(got) != len(need):
+            raise ValueError(
+                f"batch_eval_fn returned {len(got)} scores for {len(need)} points — the startup "
+                "batch must be evaluated 1:1 or the study and history would desynchronise")
+        fresh = dict(zip(need, got))
+        for i, (trial, x) in enumerate(zip(trials, xs)):
+            score = float(cached[i]) if cached[i] is not None else float(fresh[i])
+            if cached[i] is None and on_evaluated is not None:
+                on_evaluated(idx0 + i, x, score)
+            x_obs.append(x.copy())
+            y_obs.append(score)
+            history.append({"coeffs": x.copy(), "score": score, "source": "tpe"})
+            study.tell(trial, score)
+
+    remaining = int(budget) - n_batched
+    if remaining > 0:
+        study.optimize(_objective, n_trials=remaining)
     return _result(history, x_obs, y_obs, budget)
 
 
