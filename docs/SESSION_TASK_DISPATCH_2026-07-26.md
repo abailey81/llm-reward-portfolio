@@ -111,6 +111,51 @@ contradicts T5's own "parallel-by-design" spec and would make it the campaign's 
 4. **R106** (Ramin) — uniform reasoning-off + the off-vs-high ablation: the same-conditions call.
 
 ---
+## ← FROM FEATURE/BUILD → ALL SESSIONS (update 2026-07-26, later same day) — status + cross-lane notices
+
+**⚠⚠ CRITICAL — EVERY SESSION, BEFORE ANY CANONICAL PUSH.** Three commits (`a1da13e`, `f427990`,
+`b723efb`) carry the forbidden `Co-Authored-By: Claude` trailer and are on `origin/backup-2026-07-26`.
+Per CLAUDE.md's absolute "Claude is NEVER a contributor" rule, **do NOT push or merge these onto any
+canonical branch or PR without stripping first** (`scripts/strip_ai_attribution.py`). The strip is a
+history-rewrite + force-push = **Tamer's explicit decision ONLY, never unilateral** — surfaced to him,
+GO pending. All *current* session commits are verified trailer-clean; keep it that way (re-read every
+message pre-commit).
+
+**T5 — ✅ DONE, and NOW CONFIRMATORY (Tamer overruled the original report-only scoping).** The DFO
+toolkit (`cma_es`/`tpe` over-template + the `over_template_optimizer(arm)` resolver) is live and the two
+arms are promoted into the **N4 beat-the-max IUT** {random_search, GP-EI, CMA-ES, TPE}. Arm roster
+**7 → 9** migrated across EVERY call site (code, configs, prereg, all paper chapters, viz, tests); freeze
+`--check` green at **n=9**; ratified R108/N4 (Tamer + Okhrati). Consequences for your lanes:
+- **→ CAPACITY/MYRIAD:** your **T5-a** finding is now LIVE — TPE **is** seated confirmatorily, so
+  `lanes._TPE_SERIAL_STEPS = 30` is the binding chain, not a hypothetical. Wiring `batch_eval_fn` into
+  the cluster driver (30 → ~21) is now **GO-prep**, not optional. R108 records the operative lever as the
+  R107 8-thread split; please confirm the makespan re-forecast at the canary.
+- **→ CODE-REVIEWER:** CMA-ES + TPE are now **confirmatory arms**, not report-only — the **T1**
+  sweep-composition regression test must treat all 9 arms correctly. Your "do NOT batch `bayes_opt`
+  (science-cut)" ruling still holds.
+
+**Calendar gate — ✅ RECONCILED by me (amendment R109); this RESOLVES the `PREREGISTRATION.md:955`
+⚠UNRECONCILED flag.** Aug-14 → Aug-27 across all SIX live instances (config `leg_calendar_gate` +
+`leg_gate_timestamp`, the prose flag + a stale tense, `paper/CH6_results.md` ×2); the dated
+R80/R82/R93/R94 rows were left verbatim as history; definitive Aug-14 sweep clean; freeze green. Commits
+`f6a476d`, `2ad6c39`, `49f70d9`.
+- **→ CODE-REVIEWER:** the ":955 flag" sub-item inside **T1 is DONE** — do NOT re-reconcile the calendar
+  gate. **T1's CORE defect** (report-only baselines climbing the C4 sweep → gating the confirmatory rung,
+  `campaign.py:1452-1458`) is SEPARATE and remains yours.
+
+**T3 (A5) — ✅ serving script + harness + jobscript BUILT (turnkey).** `scripts/serve_qwen_selfhost.py`
+(`vllm serve --revision <hf_commit> --dtype bfloat16`, thinking-off) + `scripts/selfhost_author_test.py`
+(reliability harness) + `scripts/serve_qwen_jobscript.sh` (Myriad SGE, `bash -n` clean).
+- **→ CAPACITY/MYRIAD:** execution (live serve + the ~17% reliability measurement) needs your GPU
+  allocation; the leg is ready to submit.
+
+**Ownership map after this update (unchanged unless noted):** T6 (config mirrors of the 3 report-only
+exhibits + the capability-anchor down-rank) stays **MINE (FEATURE/BUILD)** — config is now clean (I
+reconciled the gate), so it is unblocked and I hold it. **T1/T2 → CODE-REVIEWER · T4 → CAPACITY/MYRIAD ·
+R106 → Ramin** — unchanged. Nothing here touches the frozen confirmatory logic; on Tamer's GO the gate is
+`freeze → run`.
+
+---
 
 ## ← FROM LOGIC-REVIEWER (deep-review loops 1–14) — handover to the other lanes
 
