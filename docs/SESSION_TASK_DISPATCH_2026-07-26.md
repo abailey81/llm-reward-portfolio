@@ -109,3 +109,92 @@ contradicts T5's own "parallel-by-design" spec and would make it the campaign's 
 3. **Ratification set** — {validity-tier · α-allocation [real 0.80→0.70 headline cost, now disclosed] · N5 · N6-IUT ·
    h1-canon 4→11 · min_cvar · K-budget-KEEP}.
 4. **R106** (Ramin) — uniform reasoning-off + the off-vs-high ablation: the same-conditions call.
+
+---
+
+## ← FROM LOGIC-REVIEWER (deep-review loops 1–14) — handover to the other lanes
+
+Posted 2026-07-26 after 14 review loops (47 defects fixed, all committed) and a full re-certification.
+Full evidence for every item: `docs/DEEP_REVIEW_LOOPS_2026-07-26.md`. Each item below is **verified
+first-hand**, states *why it matters*, and is routed to the lane that owns the file.
+
+### Status you can rely on (so nobody re-does it)
+
+- **FULL SUITE RE-CERTIFIED after the 7→9 arm migration: all 144 test files RC=0** (four sequential
+  FOREGROUND chunks). `freeze --check` **RC=0** (`freeze_hash: null`, correctly unfrozen) · citations
+  clean · `ruff check src scripts` clean · all 3 campaign PS1s parse 0.
+- ⚠ **Please do NOT launch background full-suite runs.** Four were killed by session teardown and their
+  orphaned pytest pairs crushed the laptop (~4.7 GB held, ~3.2 GB free). Chunked FOREGROUND runs work
+  fine — four chunks of ~36 test files each, split alphabetically.
+- **The 7→9 arm migration is VERIFIED consistent** (prereg == campaign == arms.yaml == 9; prose §3 "The
+  nine arms"; gate green) and — the load-bearing check — **`m = 6` is UNCHANGED**, because the added
+  arms are H4 *comparators*, not feedback arms. **Identification and the H2 headline are untouched.**
+  One quantification for whoever writes it up: N4 is an IUT, so its power sits in `[∏pᵢ, min pᵢ]` —
+  2→4 comparators moves that from **[0.640, 0.80] to [0.410, 0.80]** at 0.80 per leg. The binding cost
+  is NOT multiplicity but that CMA-ES/TPE are genuinely *stronger* optimisers, so `min pᵢ` reflects a
+  higher bar. Written up in the ratification pack.
+
+### → CODE-REVIEWER
+
+1. **T2 is still open** — `src/feedback/measurement.py:452` still reads *"This is the (quantile-based)
+   **Bowley** skewness"*. Bowley is the **quartile** (p = 0.25) case; the implemented Q05/Q50/Q95
+   statistic is the **Groeneveld–Meeden (1984) γ(0.05)** generalized quantile skewness. Doc-only, frozen
+   value untouched. *(Credit where due: this lane caught it; I read that exact docstring in loop 1,
+   verified its SIGN convention, and never questioned the NAME. Lesson worth sharing — when a docstring
+   names a NAMED statistic, check the name against its definition, not just the formula's behaviour.)*
+2. **T1 is still open and is now on the campaign critical path.** It is flagged HIGH as *both* a ~2.5×
+   speed lever *and* a correctness defect, and it also resolves the `PREREGISTRATION.md` ⚠UNRECONCILED
+   flag. Recommend closing it **before** GO, not after.
+
+### → FEATURE/BUILD
+
+3. **Write-time obligation ROW 34 — `src/inference/cross_model.py` + `src/inference/leg_aggregate.py`
+   are BUILT, unit-tested, and UNWIRED.** Re-verified just now: a repo-wide import search over `src/` +
+   `scripts/` finds **no production caller** (only docstrings in `src/viz/figures.py:569` and
+   `scripts/run_campaign_cluster.py:351`, plus `contamination.py`'s unrelated
+   `cross_model_disagreement`). This matters because `synthesis_exactness.pooled_bound` is registered as
+   *"the registered cross-model bounded-effect statement"* (R86) and **R101 reframed the headline around
+   it** — so the pipeline cannot currently produce a registered headline component. It does not block
+   the RUN; it blocks REPORTING. Exactly the failure R16 already fixed once for `h2_conjunction`: a
+   unit-tested module is not a wired one.
+   **Two acceptable closures** (record which): wire it into `analyze_campaign` with an end-to-end test
+   that FAILS if the call is removed, **or** amend the register to withdraw the pooled-bound claim.
+   ⚠ **Latent trap that only bites on wiring:** `leg_aggregate.py:57-58,91` builds a **per-period,
+   ddof=1** Sharpe and compares it to `floor_sharpe`, while the T0 floor elsewhere
+   (`src/inference/bootstrap.py:309-314`) is **annualised, ddof=0** — passing the real floor would fail
+   every leg by a factor ≈ √252. Fix in the same change.
+4. **Row 35 — `corroborates_h2_tail` is misnamed** (3 occurrences in `scripts/analyze_campaign.py`). As
+   wired, BOTH (VaR, ES) forecasts are FZ0-scored against ONE series — the distributional arm's **own**
+   test path — while forecast 1 is estimated from that same arm's validation returns. A strictly
+   consistent scoring rule then favours it near-automatically, so the flag measures **self-prediction
+   across the val→test split**, not the DIRECTION of the tail contrast. `src/inference/es_backtest.py`
+   already warns against this exact use. `PREREGISTRATION.md` §1 H2 carries the dated correction; the
+   key still needs renaming (e.g. `forecast_calibration_favours_dist`) and no CH6/CH7 sentence may
+   present it as corroboration of the tail result.
+5. **Housekeeping:** `tests/test_cluster_bayes_chain.py` (untracked) trips two `F401`s — `pytest` and
+   `ChainStopped` imported but unused. I deliberately did **not** touch it, assuming you are about to
+   use them in a `pytest.raises(ChainStopped)`. Worth clearing before you commit so repo-wide `ruff`
+   stays green for everyone.
+
+### → CAPACITY/MYRIAD
+
+6. **No defects found in your files** — cluster↔laptop science parity specifically VERIFIED SOUND:
+   `src/cluster/run_one.py` never calls `set_global_seed`, which *looks* like a parity break but is not,
+   because it routes every spec through `parallel.train_candidate` / `test_leg._test_seed_worker`, and
+   both seed with `deterministic_torch=True`. Inheriting rather than reimplementing is why the invariant
+   holds — good design, worth keeping that way.
+7. **FYI only, no action:** repo-wide `ruff` intermittently reports `F821` in your in-flight files
+   (`telemetry.py`, `allocation.py` — the name moved between runs and the reported line did not contain
+   it). These are **read races** against your active writes, not defects. Recorded so nobody "repairs" a
+   bug that does not exist — it happened three times during these loops.
+
+### → TAMER / RAMIN
+
+8. **`docs/RATIFICATION_PACK_2026-07-26.md` now exists** — the single sign-off document for every
+   pending pre-freeze decision, wired into `config/preregistration.yaml: validity_tier.ratification_pack`.
+   One page per item: what changed, why, the MEASURED cost, what it buys, a recommendation, and a
+   sign-off table. It covers all seven `ratification_pending` entries **plus** the three reconciliations
+   this review surfaced (the `leg_calendar_gate` Aug-14 vs the uniform Aug-27 stop; the capability anchor
+   being non-estimable at 2/10 legs; the prose-only JZS prior pin) **plus** R106. It states plainly that
+   declining every item still yields a submittable study, since R31 remains the operative default.
+   **This is the critical path to GO.**
