@@ -351,3 +351,36 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     reader/renderer; (b) make sure no CH6/CH7 sentence presents it as corroboration of the tail
     result; and (c) if genuine corroboration is wanted, score BOTH forecasts on a neutral common
     series instead. `PREREGISTRATION.md` §1 H2 already carries the dated correction.
+
+## ⛔ THE RATIFIED PRIMARY DECISION RULE HAS NO IMPLEMENTATION (2026-07-26 deep review — top pre-results blocker)
+36. **Implement the graphical (Bretz–Maurer–Brannath–Posch 2009) α-propagation, or the confirmatory
+    inference cannot be computed as registered.** VERIFIED by repo-wide search over `src/` + `scripts/`
+    (excluding tests) for `bretz|graphical|weighted_graph|alpha_graph|alpha_propagat|alpha_recycl`:
+    **zero hits.** `src/inference/multiple_testing.py` provides only `benjamini_hochberg` and
+    `romano_wolf`. `tests/test_validity_tier.py` only YAML-lints the graph (weights sum, edge sums,
+    reachability) — it executes nothing.
+    **Why this is now a BLOCKER when it previously was not.** Until 2026-07-26 the tier was
+    `registered_pending_supervisor_ratification`, R31 (separate estimands + a reported Bonferroni-over-4
+    sensitivity) was the OPERATIVE default, and `analyze_campaign`'s `reject_one_sided_bonferroni` at
+    α/4 — described in-code as *"the separate-estimands mirror"* — was exactly right. **Ratification
+    (R108) flipped that**: `primary_rule: bonferroni_weighted_graph` is now the PRIMARY confirmatory
+    rule and R31 is SUPERSEDED, so the analysis currently implements the superseded stance and cannot
+    execute the ratified one. The campaign will run and produce data; the registered primary inference
+    could not be computed from it.
+    **Ready-to-apply spec.** Add `graphical_alpha_propagation(p, weights, edges, alpha)` to
+    `src/inference/multiple_testing.py` implementing the standard sequentially-rejective loop: test each
+    node at `w_i·α`; on rejecting node `i`, remove it and propagate its weight along its out-edges
+    (`w_j += w_i·g_ij`), re-normalising the surviving graph per Bretz et al. (2009) eq. (2)–(3); repeat
+    until no further rejection. Feed it the six node p-values already produced (N1/N2 = the H2 IUT max-p
+    per family; N3 = h3; N4 = the 4-comparator IUT max-p; N5 = the structure test; N6 = the 11-leg canon
+    IUT max-p) with `initial_weights` and `edges` read from
+    `config/preregistration.yaml: inference.validity_tier`. **Do NOT hardcode the graph** — read it, so
+    the executed rule cannot drift from the registered one (the same not-in-the-hash-so-assert lesson as
+    the arm roster / h1_baselines / confirmatory_author guards).
+    **Tests that would have caught this:** (a) an end-to-end test asserting the confirmatory verdict is
+    produced BY the graph (fails if the call is removed); (b) a known-answer test against a hand-worked
+    2–3 node example; (c) a test that the executed graph equals the registered one.
+    **Also unimplemented:** `sensitivity: [romano_wolf_graph, bh_fdr_over_m6]` — plain `romano_wolf`
+    exists (a stepdown), but not its GRAPH variant. Lower priority: it is a sensitivity, not the gate.
+    **Keep** the Bonferroni-over-4 computation — as a *disclosed sensitivity* it is still valuable, and
+    the ratification pack notes Bonferroni is the weakest member of the family the graph generalises.

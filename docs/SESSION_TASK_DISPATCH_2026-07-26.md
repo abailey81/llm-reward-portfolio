@@ -243,3 +243,69 @@ first-hand**, states *why it matters*, and is routed to the lane that owns the f
    being non-estimable at 2/10 legs; the prose-only JZS prior pin) **plus** R106. It states plainly that
    declining every item still yields a submittable study, since R31 remains the operative default.
    **This is the critical path to GO.**
+
+---
+
+## ⛔ URGENT — FROM LOGIC-REVIEWER, post-ratification (2026-07-26): the ratified PRIMARY rule has no implementation
+
+**RATIFICATION CREATED THIS. It was not a defect an hour ago.** Until R108 the tier was
+`registered_pending_supervisor_ratification`, R31 (separate estimands + a reported Bonferroni-over-4
+sensitivity) was the OPERATIVE default, and `analyze_campaign`'s `reject_one_sided_bonferroni` at α/4 —
+labelled in-code as *"the separate-estimands mirror"* — was exactly correct. **R108 flipped it.**
+
+**The finding.** `config/preregistration.yaml: inference.validity_tier` is now
+`status: ratified`, `method: graphical_bretz_maurer_brannath_posch_2009`,
+`primary_rule: bonferroni_weighted_graph` — and a repo-wide search over `src/` + `scripts/` (excluding
+tests) for `bretz|graphical|weighted_graph|alpha_graph|alpha_propagat|alpha_recycl` returns **ZERO
+hits**. `src/inference/multiple_testing.py` provides only `benjamini_hochberg` and `romano_wolf`.
+`tests/test_validity_tier.py` only YAML-lints the graph (weight sums, edge sums, reachability) — it
+executes nothing.
+
+**Consequence, stated precisely.** The campaign will run and produce data perfectly well. But **the
+registered PRIMARY confirmatory inference cannot be computed from it**, and the analysis currently
+implements the stance ratification just SUPERSEDED. This is strictly more serious than row 34 (which
+blocks a headline *component*): this blocks the *decision rule itself*.
+
+**→ OWNER: FEATURE/BUILD** (analysis implementation). Ready-to-apply spec is **write-time registry
+row 36**; the short version:
+
+- Add `graphical_alpha_propagation(p, weights, edges, alpha)` to `src/inference/multiple_testing.py`:
+  test each node at `w_i·α`; on rejecting node *i*, remove it and propagate its weight along its
+  out-edges (`w_j += w_i·g_ij`), re-normalising the surviving graph per Bretz et al. (2009) eq. (2)–(3);
+  repeat until no further rejection.
+- Feed it the six node p-values the pipeline already produces: **N1/N2** = the H2 IUT max-p per family ·
+  **N3** = h3 · **N4** = the 4-comparator IUT max-p · **N5** = the structure test · **N6** = the 11-leg
+  canon IUT max-p.
+- **READ `initial_weights` + `edges` from the config — do NOT hardcode the graph.** Same
+  not-in-the-hash-so-assert lesson as the arm-roster / `h1_baselines` / `confirmatory_author` guards: a
+  hardcoded copy is a drift waiting to happen, and `forking_path_guard` declares the graph FROZEN.
+- **Tests that would have caught this:** an end-to-end test asserting the confirmatory verdict is
+  produced BY the graph (fails if the call is removed); a known-answer test against a hand-worked 2–3
+  node example; and a test that the executed graph equals the registered one.
+- **KEEP** the Bonferroni-over-4 computation — it remains a valuable *disclosed sensitivity* (the
+  ratification pack notes Bonferroni is the weakest member of the family the graph generalises).
+- Lower priority, also unimplemented: `sensitivity: [romano_wolf_graph, bh_fdr_over_m6]` — plain
+  `romano_wolf` exists (a stepdown), but not its GRAPH variant. It is a sensitivity, not the gate.
+
+**Sequencing note for whoever schedules:** this does **not** block LAUNCH — it blocks REPORTING, so it
+can be built while the campaign runs. But it must be done before any confirmatory verdict is quoted,
+and building it *after* seeing data is exactly the forking path the pre-registration exists to prevent.
+**Build it before the first results checkpoint.**
+
+### Also newly landed and relevant to other lanes
+
+- **R110 (this lane)** gave the last two ratified items a machine record: `inference.bayes` now mirrors
+  the R67 JZS prior pin (`r = √2/2`, the robustness grid, `bf_threshold`, ROPE = the frozen equivalence
+  margin) with a code↔config drift guard in `tests/test_bayes_null.py` — **deliberately a test, not a
+  freeze check, so the gate stays import-light** (importing `bayes_null` drags scipy into the freeze).
+  And `capability_anchor.instrument_hierarchy_for_r87` now states the down-rank: the two family-pair
+  DiDs + the M2 probe grid are PRIMARY for R87; the SWE-bench regression is `descriptive_only`, because
+  the discretion-free rule yields a score for only **2 of 10 legs** (a 2-point regression has no
+  residual df). **Anyone writing up R87 or the capability gradient: read the hierarchy, not the old
+  "primary regression" wording.**
+- **R31 is SUPERSEDED.** Any code, comment or prose still describing separate-estimands /
+  Bonferroni-over-4 as the *operative* stance is now stale — it is a **sensitivity**. Worth a grep in
+  your own lane.
+- **The freeze gate is now 22 checks** (the `confirmatory_author` guard was added: `config/llm.yaml` is
+  NOT hash-bound, so the EXECUTED reward-author could previously drift from the registered one with
+  `--check` still green).
