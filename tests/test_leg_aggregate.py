@@ -10,9 +10,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.inference.leg_aggregate import (  # noqa: E402
+    T0_FLOOR_ARM,
+    T0_FLOOR_SEEDS,
     empirical_cvar,
     leg_results_for_synthesis,
     per_seed_series,
+    t0_floor_sharpe,
 )
 from src.io.results import write_run  # noqa: E402
 
@@ -47,6 +50,62 @@ def _write_leg(root: Path, seeds: list[int], rng, a_shift=0.0, b_shift=0.0) -> N
         base = rng.standard_normal(200) * 0.01
         write_run(_record("distributional", seed, base + a_shift), root / "distributional")
         write_run(_record("scalar", seed, base + b_shift), root / "scalar")
+
+
+def test_the_T0_floor_matches_what_amendment_R84_REGISTERED():
+    """The floor was treated as an open science decision; it is registered, in BOTH places.
+
+    This is the guard that keeps the implementation tied to the design of record rather than to a
+    docstring: if either the registered arm or the registered seed set is ever edited, this fails.
+    """
+    import yaml
+
+    cfg = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "config" / "preregistration.yaml")
+        .read_text(encoding="utf-8"))
+    registered = cfg["model_suite"]["synthesis_exactness"]["t0_floor_definition"].lower()
+    assert "equal-weight" in registered and "mean per-seed sharpe" in registered
+    assert "0-29" in registered
+    assert T0_FLOOR_ARM == "equal_weight"
+    assert T0_FLOOR_SEEDS == list(range(30))       # the "common floor seeds 0-29"
+
+
+def test_t0_floor_is_the_equal_weight_MEAN_per_seed_sharpe(tmp_path: Path):
+    rng = np.random.default_rng(11)
+    seeds = [0, 1, 2, 3]
+    for seed in seeds:
+        write_run(_record("equal_weight", seed, rng.standard_normal(300) * 0.01),
+                  tmp_path / "equal_weight")
+    expected = per_seed_series(tmp_path, "equal_weight", seeds)["sharpe"].mean()
+    assert t0_floor_sharpe(tmp_path, seeds) == pytest.approx(float(expected))
+
+
+def test_the_floor_is_ANNUALISED_so_it_is_comparable_to_the_leg_sharpes(tmp_path: Path):
+    """The row-34 trap: a per-period floor would be ~sqrt(252) smaller and pass every leg.
+
+    The floor and the leg statistic must be the SAME estimator, so this pins the floor to the
+    annualised ddof=0 bootstrap.sharpe_ratio rather than a hand-rolled mean/std.
+    """
+    from src.inference.bootstrap import sharpe_ratio
+
+    rng = np.random.default_rng(5)
+    rets = {s: rng.standard_normal(300) * 0.01 + 0.0004 for s in range(3)}
+    for seed, r in rets.items():
+        write_run(_record("equal_weight", seed, r), tmp_path / "equal_weight")
+    floor = t0_floor_sharpe(tmp_path, list(rets))
+    annualised = float(np.mean([sharpe_ratio(r) for r in rets.values()]))
+    per_period = float(np.mean([r.mean() / r.std(ddof=1) for r in rets.values()]))
+    assert floor == pytest.approx(annualised)
+    assert abs(floor) > 5 * abs(per_period)        # unmistakably NOT the per-period statistic
+
+
+def test_a_partial_seed_set_FAILS_LOUD_rather_than_lowering_the_floor(tmp_path: Path):
+    """A floor averaged over whatever happens to be on disk is a different number from the
+    registered one — and it would silently change which legs vote in the pooled bound."""
+    write_run(_record("equal_weight", 0, np.random.default_rng(1).standard_normal(200) * 0.01),
+              tmp_path / "equal_weight")
+    with pytest.raises(FileNotFoundError):
+        t0_floor_sharpe(tmp_path, [0, 1, 2])
 
 
 def test_empirical_cvar_worst_alpha_mean():
@@ -125,7 +184,16 @@ def test_diff_sign_convention_dist_safer_positive(tmp_path: Path):
     for seed in seeds:
         base = rng.standard_normal(200) * 0.01
         dist = np.where(base < -0.015, -0.015, base)   # dist: tail clipped => safer
-        write_run(_record("distributional", seed, dist), root)
-        write_run(_record("scalar", seed, base), root)
+        write_run(_record("distributional", seed, dist), root / "distributional")
+        write_run(_record("scalar", seed, base), root / "scalar")
     out = leg_results_for_synthesis({"leg": root}, seeds, floor_sharpe=-10.0)
-    assert np.all(out["leg"]["cvar_diff_per_seed"] > 0)
+    diff = out["leg"]["cvar_diff_per_seed"]
+    # NON-VACUITY FIRST (row 34, 2026-07-26). This test wrote the FLAT layout, so after the
+    # layout fix every record was missing, the leg was caught as a failure, and `diff` came back
+    # EMPTY — whereupon `np.all(empty > 0)` is True and the test passed while asserting NOTHING.
+    # That is the vacuous-truth-on-empty class, and a sign-convention test that cannot fail is
+    # worse than no test: it certifies the convention it never checked. Assert the array is the
+    # expected size, and that the leg actually loaded, BEFORE reading the sign.
+    assert "failure" not in out["leg"], out["leg"].get("failure")
+    assert diff.shape == (len(seeds),)
+    assert np.all(diff > 0)

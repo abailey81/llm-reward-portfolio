@@ -643,7 +643,16 @@ result = SUCCESS in one, FAILURE in the other). Decide or explicitly defer with 
 `tests/test_prompts.py`, `tests/test_reward_family.py`, `tests/test_market_reference.py`. I did not
 touch any of them; claim yours so Phase 1 can complete.
 
-## ⛔ THE TWO DECISIONS THAT BLOCK FREEZE (Tamer + Ramin) — with my recommendation, not just a question
+## ⚠ CORRECTED 19:2x — D1 IS **NOT** OPEN (R84 already pins it); only D2 needs a decision
+
+> **Correction, same day:** `floor_sharpe` is registered by **amendment R84** — verified in the prose
+> register AND at `config/preregistration.yaml: model_suite.synthesis_exactness.t0_floor_definition`.
+> I traced it through the CODE and did not grep the REGISTER first, so I wrongly called it an open
+> decision blocking freeze. It is implemented by another lane as `leg_aggregate.t0_floor_sharpe()`.
+> **Row 34's wiring is therefore NOT blocked on a decision** — FEATURE/BUILD can wire it now.
+> **D2 (H1 canon depth) remains genuinely open.** Full detail: RATIFICATION_PACK §12 + its correction.
+
+## ⛔ THE DECISIONS THAT BLOCK FREEZE (Tamer + Ramin) — with my recommendation, not just a question
 
 **D1 — what supplies `floor_sharpe` (blocks row 34, and R101 made it a headline component).**
 **RECOMMENDATION: the annualised `bootstrap.sharpe_ratio` of the EQUAL-WEIGHT (1/N) benchmark on the

@@ -30,7 +30,12 @@ import numpy as np
 from src.inference.bootstrap import sharpe_ratio
 from src.io.results import load_run
 
-__all__ = ["empirical_cvar", "per_seed_series", "leg_results_for_synthesis"]
+__all__ = ["empirical_cvar", "per_seed_series", "t0_floor_sharpe", "leg_results_for_synthesis"]
+
+#: The registered T0 floor's source arm and seed set (amendment R84). NOT a free parameter — see
+#: :func:`t0_floor_sharpe`.
+T0_FLOOR_ARM = "equal_weight"
+T0_FLOOR_SEEDS = list(range(30))
 
 
 def empirical_cvar(returns: np.ndarray, alpha: float = 0.05) -> float:
@@ -89,6 +94,41 @@ def per_seed_series(
     return {"cvar": np.asarray(cvars), "sharpe": np.asarray(sharpes)}
 
 
+def t0_floor_sharpe(core_test_root: str | Path,
+                    seeds: list[int] | None = None) -> float:
+    """The registered T0 naive-benchmark floor — computed, never chosen.
+
+    This closes the last open input of the R86/R101 pooled cross-model statement. The value was
+    briefly treated as an unresolved science decision (the module docstring only said "the supplied
+    naive-benchmark floor", and ``analyze_campaign.benchmark_floor`` gates on a DIFFERENT quantity —
+    the winner's DSR against the whole benchmark suite). It is not a decision: **amendment R84 pins
+    it exactly**, in the prose (``PREREGISTRATION.md``) and in the machine config
+    (``config/preregistration.yaml: model_suite.synthesis_exactness.t0_floor_definition`` — path
+    corrected 2026-07-26; it was cited as ``inference.t0_floor_definition``, which does not exist, and
+    a wrong path in a docstring is how the next reader concludes the value was never registered):
+
+        the EQUAL-WEIGHT benchmark's mean per-seed Sharpe over the common floor seeds 0-29,
+        computed from the shared core baseline records
+
+so this function is a faithful transcription of that sentence and nothing more. ``equal_weight`` is
+    the canonical naive allocator, and the CORE baseline records are deliberately the source: every
+    leg is filtered against the SAME floor, which is what makes the filter arm-symmetric and keeps
+    the permutation test's size intact.
+
+    Units matter here and were the trap row 34 flagged: this reuses :func:`per_seed_series`, so the
+    floor is the ANNUALISED, ddof=0 ``bootstrap.sharpe_ratio`` — the same statistic the legs are
+    compared with. Supplying a per-period Sharpe instead would understate the floor by ~√252 ≈ 15.9×
+    and pass every leg; taking a per-period leg Sharpe against an annualised floor would fail every
+    leg and silently empty the pooled bound.
+
+    Fails LOUD on missing records: a floor computed from a partial seed set is a different (and
+    lower-integrity) number than the registered one.
+    """
+    seeds = list(T0_FLOOR_SEEDS if seeds is None else seeds)
+    series = per_seed_series(core_test_root, T0_FLOOR_ARM, seeds)
+    return float(series["sharpe"].mean())
+
+
 def leg_results_for_synthesis(
     leg_roots: dict[str, str | Path],
     seeds: list[int],
@@ -100,7 +140,9 @@ def leg_results_for_synthesis(
 ) -> dict[str, dict[str, Any]]:
     """Assemble the :func:`cross_model.sign_count`/``permutation_test`` input across legs.
 
-    ``floor_sharpe`` is the T0 naive-benchmark floor (from the shared baseline records); the
+    ``floor_sharpe`` is the T0 naive-benchmark floor — obtain it from :func:`t0_floor_sharpe`, which
+    transcribes the R84 registration (equal-weight, mean per-seed Sharpe, floor seeds 0-29, from the
+    shared CORE baseline records) rather than leaving the caller to pick a quantity; the
     registered criterion: BOTH arms' mean per-seed Sharpe must clear it or the leg is marked
     ``t0_floor_pass: False`` (reported, never voting). A leg whose records are missing/corrupt is
     included with ``t0_floor_pass: False`` and the reason in ``failure`` — reliability data,

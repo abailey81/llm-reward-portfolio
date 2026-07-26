@@ -302,3 +302,36 @@ LLM, disclosed in CH6.
 |---|------|----------|
 | D1 | `floor_sharpe` = equal-weight 1/N annualised Sharpe + sub-0.01 refusal guard | ratify / amend / decline → *(if declined: withdraw the R86 pooled-bound claim)* |
 | D2 | H1 canon depth at the confirmatory rung (floor-30 vs climbing with the ladder) | keep-30 / climb / other — **dated either way** |
+
+### ⚠ CORRECTION TO D1 (same day, 2026-07-26 19:2x) — **D1 IS NOT AN OPEN DECISION. IT WAS ALREADY REGISTERED.**
+
+**I was wrong above.** `floor_sharpe` is **not** an open science decision and does **not** block the
+freeze. **Amendment R84 (2026-07-21) already pins it**, and I verified this in BOTH required places
+rather than trusting either alone:
+
+* prose — `PREREGISTRATION.md` R84 row: *"floor = the **EQUAL-WEIGHT** benchmark's mean per-seed Sharpe
+  over the common floor seeds 0–29 from the shared core baseline records"*, explicitly recorded as
+  closing a registered NAME that had no registered VALUE (*"was 'the T0 naive-benchmark floor' with 8
+  registered benchmarks to choose from post-hoc"*) — i.e. exactly the forking path I re-opened;
+* machine mirror — `config/preregistration.yaml: model_suite.synthesis_exactness.t0_floor_definition`
+  (confirmed present at that precise path), alongside the ex-ante size argument in `t0_filter_size_note`.
+
+**How I got it wrong:** I traced the floor through the CODE (`analyze_campaign.benchmark_floor`, which
+gates on a different quantity — the winner's DSR against the whole suite) and concluded the leg filter's
+input was unregistered. I did not grep the REGISTER for it first. The lesson is the one this project
+already learned in R84 itself: *check the design of record before declaring something undecided.*
+
+**My recommendation was substantively right but not exactly the registered statistic** — I proposed the
+benchmark suite's single rolled `equal_weight` Sharpe; R84 registers the **mean per-seed** Sharpe over
+seeds 0–29 from the **core baseline records**. The registered form is the correct one (it is the same
+per-seed estimator the legs are compared with, over the same common floor seed set).
+
+**Status:** implemented by another lane as `leg_aggregate.t0_floor_sharpe()` — a faithful transcription,
+now guarded by a test that fails if either the registered arm or the seed set is edited. **Nothing for
+Tamer or Ramin to decide here.** ⚠ One residual to fix in that new code: its docstring cites the config
+path as `inference.t0_floor_definition`; the real path is `model_suite.synthesis_exactness.
+t0_floor_definition` (the test uses the correct one). Cosmetic, but a wrong path in a docstring is how
+the next person fails to find the registration.
+
+**D2 (H1 canon depth) is UNAFFECTED and remains genuinely open** — it is the only one of the two that
+needs a dated decision from Tamer/Ramin.
