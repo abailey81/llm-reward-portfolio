@@ -652,7 +652,20 @@ touch any of them; claim yours so Phase 1 can complete.
 > **Row 34's wiring is therefore NOT blocked on a decision** — FEATURE/BUILD can wire it now.
 > **D2 (H1 canon depth) remains genuinely open.** Full detail: RATIFICATION_PACK §12 + its correction.
 
-## ⛔ THE DECISIONS THAT BLOCK FREEZE (Tamer + Ramin) — with my recommendation, not just a question
+## ✅ NO DECISION BLOCKS THE FREEZE ANY MORE — D1 was never open (R84), D2 is registered (R111)
+
+> **D2 RESOLVED 2026-07-26 as amendment R111** under Tamer's standing delegation: **the H1 canon
+> CLIMBS the seed ladder**, so N6's n equals the achieved rung. Decided on measured facts: the IUT
+> tests on the seed INTERSECTION (so canon depth CAPS N6 — pinning at 30 leaves a CONFIRMATORY node
+> 4.35x less sensitive than its siblings); the cost is already in the 71-unit denominator and does
+> not bind; uniform climbing is self-balancing under the adaptive stop-at-date design; and an
+> under-seeded member already fails safe to report-only. Registered in the prose table + the machine
+> mirror `canon_seed_depth`. `freeze --check` RC=0, still unfrozen.
+>
+> **Remaining to launch: Tamer's admin (+$15 OpenRouter, WU pause, Okhrati sign-off), the GO, then
+> the freeze.** Nothing scientific is outstanding.
+
+## (historical) the decisions that blocked freeze — with my recommendation, not just a question
 
 **D1 — what supplies `floor_sharpe` (blocks row 34, and R101 made it a headline component).**
 **RECOMMENDATION: the annualised `bootstrap.sharpe_ratio` of the EQUAL-WEIGHT (1/N) benchmark on the

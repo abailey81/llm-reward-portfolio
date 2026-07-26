@@ -335,3 +335,38 @@ the next person fails to find the registration.
 
 **D2 (H1 canon depth) is UNAFFECTED and remains genuinely open** — it is the only one of the two that
 needs a dated decision from Tamer/Ramin.
+
+### ✅ D2 — RESOLVED as amendment **R111** (2026-07-26, under Tamer's standing delegation)
+
+**Decision: the H1 hand-reward canon CLIMBS the seed ladder. N6's effective n EQUALS the achieved rung;
+it is NOT pinned to the 30-seed floor.** Ratified on Tamer's *"I give you full permission and ratify
+everything"*, decided on four measured facts rather than preference:
+
+1. **Canon depth caps N6 by construction.** Each IUT leg tests on the seed INTERSECTION of winner and
+   baseline (`analyze_campaign` ~5796-5806). Pinning the canon at 30 would hold a **confirmatory** node
+   at n=30 while its co-primary siblings run at the achieved rung — **4.35× less sensitive** (MDE 0.1675
+   vs 0.0385 annualised Sharpe). A confirmatory node materially less sensitive than the nodes it shares
+   an α-graph with is incoherent.
+2. **The cost is already in the denominator and does not bind.**
+   `lanes._TEST_UNITS_PER_RUNG = 71 = 9 core arms + 50 leg arms + 11 canon + 1 H3`, and
+   `total_trainings(568) = 42,128` reproduces this ladder's top rung **exactly**. Pinning the canon at 30
+   would give `60n + 2,130` (~666 at the same budget) — but **568 is the registered ceiling** and the
+   timeline carries slack (~23.4 d at the MEASURED 636 cores against the 2026-08-27 stop), so the trade
+   buys nothing reachable.
+3. **Uniform climbing is self-balancing under the adaptive design.** The stop is exogenous and the
+   achieved rung is reported, so N6 automatically matches H2 at whatever rung is actually reached — no
+   per-node seed bookkeeping and no exception to maintain.
+4. **The fail-safe already exists.** An under-seeded member sets `all_baselines_present = false`, making
+   N6 report-only rather than a dominance claim — the design already refuses to certify dominance on a
+   thin canon.
+
+**Unchanged either way:** the LLM winner is best-of-30 searched while each hand reward is a single
+un-tuned specification — a bias that FAVOURS the LLM, disclosed in CH6.
+
+**Caught while deciding it (same class, two files):** `lanes.total_trainings`'s docstring claimed
+`1,740 + 69n` — stale since the DFO arms and wrong by 1,196 trainings at n=568 — and `killswitch.py`
+repeated it. Not cosmetic: the `69` concealed that the 11-member canon sits in the per-rung denominator,
+i.e. it misstated the exact quantity D2 decides. Constants were right throughout; only the prose drifted.
+
+**⇒ BOTH post-sign-off items are now closed: D1 was never open (R84), D2 is registered (R111). No
+decision is outstanding for Tamer or Ramin.**
