@@ -1,0 +1,70 @@
+# SESSION TASK DISPATCH (2026-07-26) — from the FEATURE/BUILD session
+
+**Four concurrent sessions** share this repo: **FEATURE/BUILD** (this one — features, strengthening, the paper,
+and any clean build), **LOGIC-REVIEWER** (the deep-review loops, `docs/DEEP_REVIEW_LOOPS_2026-07-26.md`),
+**CODE-REVIEWER** (`src/` defect sweep), **CAPACITY/MYRIAD** (the cluster, CPU lane, capacity, `docs/MYRIAD_EXPERT_DOSSIER`).
+This doc dispatches the remaining plan items to the lane that owns them so we do not collide or clobber. Each task
+carries a ready-to-apply spec. Tamer routes; sessions pull the tasks in their lane.
+
+---
+## → CODE-REVIEWER (you are active in `src/` and can run the cluster tests)
+
+### T1 — Baseline-depth guard  ·  [#1, HIGH — the ~2.5× speed lever AND a correctness defect]
+- **Defect:** `src/cluster/campaign.py:1452-1458` adds all 11 report-only H1 baselines to the C4 confirmatory
+  `sweep_units` → they climb the FULL ladder and, by the cumulative-tier bank rule, **GATE the confirmatory rung**
+  — contradicting the frozen **R97** (`PREREGISTRATION.md:552-556`: the canon runs at the tier-30 floor, rock-bottom
+  priority). The baselines ALREADY run at the C3 floor via `run_baselines_on_cluster` (line **1363**), so removing
+  the C4 inclusion loses no data.
+- **Fix (surgical, reversible):** add `_BASELINES_CLIMB_C4_SWEEP = False` near the `PRIORITY_*` consts (~line 1194);
+  guard line 1452: `if baseline_names and _BASELINES_CLIMB_C4_SWEEP:`. Reconcile the `config/campaign.yaml:112-113`
+  "uniform across all test-leg units" note; resolve the `PREREGISTRATION.md:955` ⚠UNRECONCILED flag; add a
+  regression test on the sweep composition.
+- **Impact:** frees ~5,918 trainings from the confirmatory denominator; the 7 real arms go ~39% → ~100% of
+  above-floor throughput (~2.5× faster rung), and stop being rung-gated by report-only units.
+- **Depth (Tamer's ruling below):** floor-30 (R97-exact, simplest) vs rung-100 (N6-IUT stronger). Given n=568 is now
+  reachable (capacity session), the confirmatory arms should get the capacity → **floor-30** is my rec; N6 is
+  report-only and ample at 30. Do NOT batch bayes_opt (science-cut — changes the H4b winner).
+
+### T2 — `robust_skew` code label  ·  [#5, MINOR, freeze-safe doc-only]
+- `src/feedback/measurement.py:452-454` calls it "the (quantile-based) **Bowley** skewness" — WRONG name. It is the
+  **Groeneveld–Meeden (1984) γ(0.05)** generalized quantile skewness (Bowley is the p=0.25 *quartile* case). The
+  frozen key/formula/value are untouched; this is documentation accuracy only. The theory §3.5 + the 4 cites are
+  already committed (`bb79c04`); this just aligns the code comment.
+
+---
+## → CAPACITY/MYRIAD (you have the cluster + the serving/CPU-lane infra)
+
+### T3 — Self-host Qwen-9B-bf16 + EXHAUSTIVE test  ·  [A5, reproducibility permanence anchor — Stefan #3]
+- **Build:** serve `qwen3.5-9b` in **bf16** (~18 GB → a Myriad GPU, or vLLM), **HF-commit-hash-pinned**, as the
+  self-hosted open-weight LEG (the lineage's first fully-pinned author — closes the experiment-layer reproducibility
+  gap closed models cannot). **Exhaustively test** it authors executable reward code (the reliability table; the API
+  measurement was ~17% for qwen3.5-9b — the self-hosted pinned build should match).
+- **FEATURE/BUILD can write the serving script + test harness on request; the EXECUTION needs your Myriad access.**
+
+### T4 — GO-day canary levers  ·  [#4/#5 from the speed audit — already parameterized, apply at GO]
+- pack-depth 5→8 on the A100 pools once the canary measures per-training VRAM (`allocation_advisor.py`); cut `tmpfs`
+  from 15 G to peak+margin (gold panel ~35 MB) so more nodes qualify; keep `--cores-per-training 1`. All auto-recommended.
+
+---
+## MINE (FEATURE/BUILD) — building (new files / clean lane, no collision)
+
+### T5 — H4 +CMA-ES/TPE DFO toolkit  ·  [feature; my design call = REPORT-ONLY toolkit, so no Okhrati confirmatory gate]
+- New files `src/search/cma_es.py` + `tpe.py` (drop-in siblings of `bayes_opt_over_template`), **parallel-by-design**
+  (ask-tell + pool dispatch, batched to the LLM cadence — the speed lens); deps `cma` (BSD) + `optuna` (MIT), pinned +
+  seeded from the run seed. Report "LLM vs max-over-{random, GP-EI, TPE, CMA-ES}". Cites already in `refs.bib`.
+  **Coordinate the `pip install cma optuna` so it doesn't collide with a live test run.**
+
+### T6 — config mirrors of the paper-registered exhibits + the capability down-rank
+- The CH4 pre-registration of the 3 report-only exhibits is committed (`7fe3481`); the `config/preregistration.yaml`
+  machine-mirror (`mechanism.fed_vector_ablation`, `inference.alpha_grid_robustness`, `mechanism.regime_concentration`)
+  + the #6 capability-gradient down-rank (SWE-bench anchor dead 2/10 → descriptive; the 2 within-family pair-DiDs the
+  identified estimand) land in config/prereg — I'll apply when config clears, or whoever is in config takes them.
+
+---
+## → TAMER / RAMIN / OKHRATI — decisions (pre-freeze)
+1. **N6 endpoint** — annualised **Sharpe** (my analysis: the winner is validation-selected and test-sealed, so there
+   is no test-set max-over-N to deflate; a DSR endpoint saturates on the 1571-day window → a structurally powerless IUT).
+2. **Baseline depth** — floor-30 vs rung-100 (T1).
+3. **Ratification set** — {validity-tier · α-allocation [real 0.80→0.70 headline cost, now disclosed] · N5 · N6-IUT ·
+   h1-canon 4→11 · min_cvar · K-budget-KEEP}.
+4. **R106** (Ramin) — uniform reasoning-off + the off-vs-high ablation: the same-conditions call.
