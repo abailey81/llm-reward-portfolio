@@ -90,7 +90,6 @@ def cma_es_over_template(
     import cma  # pycma (BSD)
 
     box = _as_bounds(bounds)
-    dim = int(box.shape[0])
     budget = _budget(cfg)
     if budget <= 0:
         raise ValueError(f"matched budget must be positive; got {budget}")

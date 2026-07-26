@@ -360,7 +360,25 @@ model_suite:
   temperature_policy: "OpenRouter legs pin temperature=1.0 explicitly (uniform — different providers DEFAULT differently, an uncontrolled nuisance axis across legs that the prior 'provider default, recorded' wording could not actually record); models that REJECT the parameter fall back to provider default, disclosed per leg from the gate smoke. Anthropic legs keep the Opus convention (no temperature param; prompt-variation diversity). Within-leg contrasts are temperature-common-mode, so arm comparisons are unaffected either way"
   reasoning_pin_evidence: "every reasoning pin must ROUND-TRIP: the gate smoke archives the response's reasoning-token usage + served provider as evidence the pin functioned (a pass-through key an API silently ignores is a fictional pin; a 400 fails the smoke loudly). DeepSeek think-high = the vendor DEFAULT, so even a silently-ignored pass-through yields the registered mode. SCHEMA MIGRATION 2026-07-23 (gate catch): the provider renamed the mode values to standard/pro; the pin is now mode: pro, the SAME registered vendor-default thinking mode under its new API name; round-trip usage at the gate = the proof of service. R103 IMPLEMENTATION (2026-07-25): the round-trip is now REAL, not merely claimed — client.py captures usage.completion_tokens_details.reasoning_tokens (+ response.provider) into every provenance record, and leg_gates.py computes a DIRECTION-AWARE verdict: an ENABLE pin (mode/effort) yielding 0 reasoning tokens on the authoring calls = FICTIONAL->review; a DISABLE pin ({enabled:false} — the new qwen-pair thinking-off) yielding >0 reasoning tokens = IGNORED->review; and a leg below the 0.5 compliance floor is flagged review (was silently 'pass'). The prior wording CLAIMED this capture; the 2026-07-25 repro-audit found reasoning_tokens were dropped, and it is now landed"
   leg_seed_tier: 30                              # R101 (2026-07-24, Okhrati SEED-PARITY CONFIRMED): REINTERPRETED — 30 is the GUARANTEED COMMON FLOOR rung that ALL 11 full-loop models (Opus + every leg) bank in LOCKSTEP; the achieved common rung by the Aug-27 exogenous stop is >=30 (fair-share expectation ~100-189), NOT a leg-only cap. (Was: "legs run at the floor tier ONLY.") check_rung_freshness.py reads 30 as the floor tier — still valid.
-  leg_calendar_gate: "2026-08-14"                # legs incomplete at the gate report as truncated-by-calendar
+  exogenous_stop: "2026-08-27"                   # ★ THE STOP RULE, mirrored 2026-07-26 (deep review, loop 14). R100/R101
+                                                 # pre-commit the exogenous stop to this CALENDAR date ("throughput-only,
+                                                 # never results-contingent; GO-day may move it EARLIER, never later"),
+                                                 # and it is the rule that fixes the achieved common rung -- i.e. the
+                                                 # study's effective n, hence its power. It existed ONLY as register
+                                                 # prose: a repo-wide search found ZERO occurrences of 2026-08-27 in
+                                                 # config/. That is a registered NAME with no registered VALUE, exactly
+                                                 # the R84 forking-path lesson, on the most power-determining rule in
+                                                 # the design. Mirrored here so the machine config states it.
+  leg_calendar_gate: "2026-08-14"                # legs incomplete at the gate report as truncated-by-calendar.
+                                                 # ⚠ UNRECONCILED WITH exogenous_stop ABOVE (flagged 2026-07-26, deep
+                                                 # review loop 6; NOT changed unilaterally -- it is a design call for
+                                                 # Tamer/Ramin). R101 makes the stop UNIFORM: all 11 full-loop models
+                                                 # climb ONE common ladder in lockstep and bank the SAME rung at the
+                                                 # 2026-08-27 stop, which leaves no room for a separate, EARLIER
+                                                 # leg-only truncation gate. Either this date moves to 2026-08-27, or
+                                                 # the gate must be re-described as something other than a stop (e.g. an
+                                                 # interim reporting checkpoint). Registered as an open reconciliation
+                                                 # rather than silently resolved either way.
   prompts: byte-identical-across-all-legs        # the treatment text is ONE instrument (R79 format pass included)
   diversity: prompt-variation-unified            # ALL legs use the R38-de-seeded prompt-variation protocol; temperature pinned per temperature_policy above (OpenRouter legs = 1.0 explicit; Anthropic = the no-temperature Opus convention) — NOT "provider default" (R85 rejected that as un-recordable; m4 comment fix 2026-07-25)
   rolling_alias_ban: true                        # "~vendor/*-latest" ids are rejected by the transport
