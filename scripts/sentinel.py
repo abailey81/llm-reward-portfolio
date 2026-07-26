@@ -623,7 +623,47 @@ def evaluate_health(inputs: dict[str, Any]) -> HealthReport:
     # Predictive exhaustion (B3): fed by the --watch loop's accumulated (epoch_s, free_gb) samples.
     if g("disk_history") is not None:
         checks.append(check_disk_forecast(g("disk_history")))
+    checks.extend(_campaign_lane_checks(inputs))
     return HealthReport(checks)
+
+
+def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
+    """The 2026-07-26 CPU-lane checks (``src/cluster/campaign_health``), each opt-in on its input.
+
+    Every one is a failure the checks above CANNOT see — capacity that never accumulates, a stalled
+    serial search chain, one bad node eating tasks, a rung forecast drifting from the model, a
+    device/thread MIX inside the scored leg. They live in ``src/cluster`` because they are
+    cluster-lane facts, and are imported HERE (function-local) because that module imports this
+    one's severity vocabulary: a module-level import either way would be circular.
+
+    A laptop run supplies none of these inputs and gets none of the checks — no false alarms.
+    """
+    g = inputs.get
+    if not any(inputs.get(k) is not None for k in
+               ("accumulation_report", "chain_progress", "host_attempts",
+                "rung_targets", "env_fp_labels")):
+        return []
+    from src.cluster import campaign_health as ch
+
+    out: list[HealthCheck] = []
+    if g("accumulation_report") is not None:
+        out.append(ch.check_capacity_accumulation(
+            g("accumulation_report"), expected_cores=int(g("expected_cores", 0) or 0),
+            hours_in=float(g("lane_hours_in", 0.0) or 0.0)))
+    if g("chain_progress") is not None:
+        out.append(ch.check_chain_progress(g("chain_progress")))
+    if g("host_attempts") is not None:
+        out.append(ch.check_host_failure_concentration(
+            g("host_failures", {}) or {}, g("host_attempts") or {}))
+    if g("rung_targets") is not None:
+        out.append(ch.check_rung_forecast(
+            completed_trainings=int(g("done_test_units", 0) or 0),
+            elapsed_hours=float(g("lane_hours_in", 0.0) or 0.0),
+            hours_remaining=float(g("lane_hours_remaining", 0.0) or 0.0),
+            rung_targets=g("rung_targets")))
+    if g("env_fp_labels") is not None:
+        out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -1021,7 +1061,113 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         out["done_search_units"] = int(out["done_search_units"]) + int(n_ledgered)
     out["search_claimed_complete"] = out.get("all_arms_tested") is True
 
+    try:
+        out.update(_gather_campaign_lane(camp_root, out))
+    except Exception:  # noqa: BLE001 — best-effort; absence just switches the lane checks off
+        pass
+
     return out
+
+
+def _prereg_stop_and_rungs(now: float) -> tuple[float | None, dict[int, int]]:
+    """``(hours to the pre-registered exogenous stop, {rung: trainings needed})``.
+
+    Both come from ``config/preregistration.yaml`` — ``model_suite.exogenous_stop`` (the calendar
+    stop; exogenous BY DESIGN, never a function of the observed effect) and the ``seeds.tiers``
+    ladder costed through :func:`src.cluster.lanes.total_trainings`. Returns ``(None, {})`` if either
+    is absent so the forecast simply does not run.
+    """
+    import datetime as _dt
+
+    from src.cluster import lanes
+    from src.utils.config import load_config
+
+    prereg = load_config("preregistration")
+    stop = ((prereg.get("model_suite") or {}).get("exogenous_stop")) or None
+    tiers = ((prereg.get("seeds") or {}).get("tiers")) or []
+    if not stop or not tiers:
+        return None, {}
+    stop_dt = _dt.datetime.fromisoformat(str(stop)).replace(tzinfo=_dt.timezone.utc)
+    hours = max(0.0, (stop_dt.timestamp() - now) / 3600.0)
+    return hours, {int(t): int(lanes.total_trainings(int(t))) for t in tiers}
+
+
+def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any]:
+    """Inputs for the CPU-lane checks, each derived from a real artifact or left ABSENT.
+
+    Nothing here is invented: capacity comes from the telemetry log the watcher writes, chain
+    progress from the archive, host attribution from the mirrored epilogue ledgers, and the two
+    facts that can only be DECLARED (the forecast we are holding ourselves to and the exogenous stop
+    date) from ``outputs/allocation_state.json``, written at GO. A missing input means its check
+    simply does not run — a monitor that guesses is worse than one that is silent.
+    """
+    from src.cluster import lanes
+    from src.cluster.telemetry import _LOG_PATH, accumulation_report, load_state
+
+    lane: dict[str, Any] = {}
+    state = load_state() or {}
+    now = float(out.get("now") or time.time())
+
+    if Path(_LOG_PATH).is_file():
+        lane["accumulation_report"] = accumulation_report()
+
+    # Elapsed: the DECLARED lane start when GO recorded one, else the earliest archived record. The
+    # fallback under-reports by roughly one training (~8.5 h — nothing lands before the first one
+    # finishes), which only ever DELAYS a warning; it never manufactures one.
+    started = state.get("lane_started_utc")
+    if started is None:
+        mtimes = [p.stat().st_mtime for p in camp_root.rglob("record.json")] \
+            if camp_root.is_dir() else []
+        started = min(mtimes) if mtimes else None
+    if started is not None:
+        lane["lane_hours_in"] = max(0.0, (now - float(started)) / 3600.0)
+    if state.get("lane_expected_cores"):
+        lane["expected_cores"] = int(state["lane_expected_cores"])
+
+    # The stop and the rung ladder are PRE-REGISTERED design facts, so they are read from the
+    # pre-registration rather than re-declared at GO — one source of truth, and no launch-day step
+    # that can be forgotten (which would leave the rung forecast silently switched off all campaign).
+    stop_h, rungs = _prereg_stop_and_rungs(now)
+    if stop_h is not None and rungs:
+        lane["lane_hours_remaining"] = stop_h
+        lane["rung_targets"] = rungs
+
+    # Critical path: completed steps + idle time per serial-chain arm, straight from the archive.
+    search_root = camp_root / "search"
+    chains: dict[str, dict[str, Any]] = {}
+    for arm, total in lanes.SERIAL_CHAIN_STEPS.items():
+        arm_root = search_root / arm
+        if not arm_root.is_dir():
+            continue
+        recs = [p.stat().st_mtime for p in arm_root.rglob("record.json")]
+        chains[arm] = {"completed": len(recs), "total": total,
+                       "hours_since_last": (now - max(recs)) / 3600.0 if recs
+                       else lane.get("lane_hours_in", 0.0)}
+    if chains:
+        lane["chain_progress"] = chains
+
+    # Bad-node attribution from the mirrored epilogue ledgers (see poll.sync_epilogue_ledgers).
+    ledger_dir = camp_root / "ledger"
+    if ledger_dir.is_dir():
+        from src.cluster.ledger import host_task_counts, read_epilogue
+
+        rows: list[dict[str, Any]] = []
+        for p in sorted(ledger_dir.glob("*.epilogue.jsonl")):
+            rows.extend(read_epilogue(p))
+        if rows:
+            attempts, failed = host_task_counts(rows)
+            lane["host_attempts"], lane["host_failures"] = attempts, failed
+
+    # Substrate homogeneity over the SCORED leg only — the search leg legitimately explores, but a
+    # device/thread mix inside the scored leg breaks the CRN pairing every paired contrast needs.
+    test_root = camp_root / "test"
+    if test_root.is_dir():
+        from src.cluster.integrity import env_label_census
+
+        census = env_label_census([p for p in sorted(test_root.iterdir()) if p.is_dir()])
+        if census:
+            lane["env_fp_labels"] = census
+    return lane
 
 
 # --------------------------------------------------------------------------- #

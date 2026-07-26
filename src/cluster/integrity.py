@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-__all__ = ["write_integrity_report"]
+__all__ = ["write_integrity_report", "record_env_label", "env_label_census"]
 
 _BLIND_HEADER = (
     "EFFECT-BLIND EXECUTION-INTEGRITY REPORT — contains NO performance statistics.\n"
@@ -113,6 +113,57 @@ def _record_device(arm_root: Path, run_id: str) -> str:
     return "<absent>"
 
 
+def record_env_label(record: dict[str, Any]) -> str:
+    """The record's environment-fingerprint LABEL, normalised — the substrate-homogeneity key.
+
+    Extracted so the post-hoc S6 gate (:func:`_test_census`) and the LIVE campaign check
+    (:func:`src.cluster.campaign_health.check_determinism_homogeneity`) key on the SAME string. If
+    they normalised differently, one of them would lie about homogeneity — and the one that lies is
+    the one that decides whether a paired contrast is valid.
+
+    ``env_fingerprint`` is the driver's ``{label, env_json_sha256}`` dict; older/degraded records may
+    carry a bare string. A non-str label is coerced deterministically rather than crashing the gate
+    (defense-in-depth for the 2026-07-13 run_one nested-dict bug, fixed at source).
+    """
+    fp = record.get("env_fingerprint")
+    label = fp.get("label", "<dict>") if isinstance(fp, dict) else str(fp)[:60]
+    if not isinstance(label, str):
+        label = json.dumps(label, sort_keys=True, default=str)[:60]
+    return label
+
+
+def env_label_census(arm_roots: list[Path] | list[str]) -> dict[str, int]:
+    """Leg-wide ``{env label: count}`` across archive roots — the LIVE homogeneity census.
+
+    ``_test_census`` censuses ONE unit at report time; this censuses the whole scored leg WHILE the
+    campaign runs, which is the only point at which a device/thread mix can still be re-run.
+
+    Deliberately reads ``record.json`` directly instead of going through ``load_all``: that reader is
+    ALL-OR-NOTHING by design (it raises on the first schema-invalid record so the GATE fails loud),
+    which is right for the gate and wrong here — a single half-written record mid-campaign would
+    take the live monitor DARK exactly when something is going wrong. A record we cannot parse is
+    skipped, never guessed at; the labels themselves still come from :func:`record_env_label`, so the
+    live census and the gate can never disagree about what counts as the same substrate.
+    """
+    counts: dict[str, int] = {}
+    for root in arm_roots:
+        p = Path(root)
+        if not p.is_dir():
+            continue
+        for rec_path in p.rglob("record.json"):
+            if any(part.startswith(".pull_tmp") for part in rec_path.parts):
+                continue                      # in-flight staging is not archived truth
+            try:
+                rec = json.loads(rec_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if not isinstance(rec, dict):
+                continue
+            lbl = record_env_label(rec)
+            counts[lbl] = counts.get(lbl, 0) + 1
+    return counts
+
+
 def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
     """Presence census for one unit's sealed-leg records at the given seeds (+ homogeneity fields)."""
     from src.io.results import load_all
@@ -135,12 +186,7 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         m = r.get("metrics", {}) or {}
         dev = str(m.get("device", "<absent>"))
         devices[dev] = devices.get(dev, 0) + 1
-        fp = r.get("env_fingerprint")
-        label = fp.get("label", "<dict>") if isinstance(fp, dict) else str(fp)[:60]
-        if not isinstance(label, str):
-            # 2026-07-13 audit (defense-in-depth for the run_one nested-dict bug, fixed at source):
-            # a non-str label must never crash the gate — coerce deterministically instead.
-            label = json.dumps(label, sort_keys=True, default=str)[:60]
+        label = record_env_label(r)   # shared with the live check so the two can never disagree
         env_labels[label] = env_labels.get(label, 0) + 1
         if r.get("seed") is not None:
             per_seed_device[str(r["seed"])] = _record_device(arm_root, str(r.get("run_id")))

@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-__all__ = ["parse_qacct", "failures", "requeue_specs", "read_epilogue"]
+__all__ = ["parse_qacct", "failures", "requeue_specs", "read_epilogue", "host_task_counts"]
 
 _RETRY_KEY = "_cluster_retries"
 MAX_RETRIES = 2
@@ -88,3 +88,28 @@ def read_epilogue(path: str | Path) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             continue
     return rows
+
+
+def host_task_counts(epilogue_rows: list[dict[str, Any]]) -> tuple[dict[str, int], dict[str, int]]:
+    """``(attempts_by_host, failures_by_host)`` from epilogue rows — the bad-node detector's input.
+
+    A node can be individually broken while the cluster is fine (measured 2026-07-26: node-d00a-230
+    had no ``apptainer``, so every task routed to it returned rc=127 in ~1 s). A GLOBAL failure rate
+    cannot see that — it averages one dead host into thousands of healthy tasks — so attribution by
+    host is what makes it detectable. Rows without a usable host are skipped rather than bucketed
+    under a fake key, which would invent a phantom bad node.
+    """
+    attempts: dict[str, int] = {}
+    failed: dict[str, int] = {}
+    for row in epilogue_rows:
+        host = str(row.get("host") or "").strip()
+        if not host:
+            continue
+        attempts[host] = attempts.get(host, 0) + 1
+        try:
+            rc = int(row.get("rc"))
+        except (TypeError, ValueError):
+            continue          # unparseable rc is unknown, NOT a failure
+        if rc != 0:
+            failed[host] = failed.get(host, 0) + 1
+    return attempts, failed

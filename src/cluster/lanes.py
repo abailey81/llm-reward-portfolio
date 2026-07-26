@@ -72,6 +72,7 @@ from dataclasses import dataclass, field
 __all__ = [
     "CPU_STEPS_PER_S_PER_CORE",
     "GPU_PACK1_STEPS_PER_S",
+    "SERIAL_CHAIN_STEPS",
     "CONFIRMATORY_CPU_POOLS",
     "EXCLUDED_CPU_POOLS",
     "training_core_hours",
@@ -162,6 +163,17 @@ _LLM_CHAIN_GENERATIONS = 6        # K=5 candidates/generation x 6 = the 30-candi
 #:   never the binding chain.
 _TPE_SERIAL_STEPS = 20   # budget 30 - n_startup 10, now BATCHED on the cluster path
 _CMA_SERIAL_GENERATIONS = 4
+
+#: The CRITICAL PATH, per arm: how many trainings that arm must run STRICTLY IN SEQUENCE. The
+#: makespan is ``max(total_work / capacity, longest chain)``, so these floor the campaign no matter
+#: how many cores Myriad grants — which is exactly why the live monitor watches them (a stalled
+#: chain slips the finish date while the parallel test flood keeps every other indicator green).
+#: Derived from the constants above so there is ONE source of truth for the chain lengths.
+SERIAL_CHAIN_STEPS: dict[str, int] = {
+    "bayes_opt": _BAYES_SERIAL_STEPS,
+    "tpe": _TPE_SERIAL_STEPS,
+    "cma_es": _CMA_SERIAL_GENERATIONS,
+}
 # ⚠ UPDATED 2026-07-26 (late): the registered roster grew 7 -> 9 arms the same day
 # (`config/preregistration.yaml: arms` gained `cma_es` + `tpe` as the H4 optimiser portfolio,
 # N4 CONFIRMATORY — not report-only). The DFO arms are CORE-only: the 10 replication legs still

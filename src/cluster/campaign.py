@@ -184,7 +184,7 @@ def build_cluster_run(
     orchestrator reads) is ``local_archive_root`` — the driver's pull bridges them.
     """
     from src.cluster import driver
-    from src.cluster.poll import pull_archive
+    from src.cluster.poll import pull_archive, sync_epilogue_ledgers
     from src.cluster.submit import ssh_runner
 
     runner = ssh_runner(host)
@@ -212,6 +212,17 @@ def build_cluster_run(
             pull_state["busy"] = True
         try:
             n = pull_archive(remote_outputs_root, local_archive_root, host=host, runner=runner)
+            # The epilogue ledgers ride the same rate-limited window (2026-07-26). They live in
+            # ``{remote_root}/ledger``, a SIBLING of the outputs root pull_archive walks, so without
+            # this the driver never sees the tasks that died WITHOUT archiving anything — a walltime
+            # kill, a node failure, or a host missing apptainer. Those are precisely the events the
+            # kill-classifier and the bad-node check exist for. Best-effort and swallowed: the
+            # archive is the completion truth, so failing forensics must never fail a pull.
+            try:
+                sync_epilogue_ledgers(f"{remote_root.rstrip('/')}/ledger",
+                                      Path(local_archive_root) / "ledger", runner)
+            except Exception:  # noqa: BLE001 — observability never breaks the run
+                pass
         except BaseException as exc:
             with pull_lock:
                 pull_state["busy"] = False

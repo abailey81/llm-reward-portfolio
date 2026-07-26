@@ -63,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
     def one_cycle(prev_regime: str | None, old_fields: dict | None, *,
                   always_render: bool) -> dict:
         """Snapshot -> advise -> persist -> print (heartbeat always; plan per render policy)."""
+        # save_state REPLACES the file, so anything else the state carries (the lane facts the
+        # sentinel reads) must be carried forward explicitly or a single advisor cycle would erase
+        # it — silently switching the capacity check back off mid-campaign.
+        lane_state = {k: v for k, v in (load_state() or {}).items()
+                      if k not in ("prev_regime", "last_plan")}
         # Audit m10b: in watch mode the probe age ADVANCES with wall time, so the 48h
         # RESTRICTED transition can actually fire mid-watch.
         probe_age = args.probe_age_hours + (_time.time() - watch_started) / 3600.0
@@ -106,6 +111,14 @@ def main(argv: list[str] | None = None) -> int:
             from src.cluster.allocation import advise_cpu_lane
 
             cpu = advise_cpu_lane(snap)
+            # Hand the CPU target to the sentinel's capacity check (2026-07-26). It is the ONE lane
+            # input that cannot be derived from the archive or the pre-registration — it is the
+            # forecast we are choosing to hold ourselves to — and recording it HERE means it is
+            # captured by the tool that already computes it, with no GO-day step to forget. Without
+            # it the capacity check can only report the measurement, never judge it.
+            if cpu.get("target_cores") is not None:
+                lane_state["lane_expected_cores"] = int(cpu["target_cores"])
+                lane_state["lane_forecast_utc"] = _time.time()
             if cpu.get("target_cores") is None:
                 print(f"CPU LANE: {cpu['why']} — fall back to runbook §11.3 (manual sizing)")
             else:
@@ -117,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
                     f"  makespan ~{cpu['makespan_days']} d at rung 568 (BINDING: {cpu['binding']}; "
                     f"more cores stop helping past ~{cpu['saturation_cores']})\n"
                     f"  why: {cpu['why']}")
-        save_state({"prev_regime": plan.regime, "last_plan": fields})
+        save_state({**lane_state, "prev_regime": plan.regime, "last_plan": fields})
         return fields
 
     state = load_state()

@@ -31,6 +31,7 @@ __all__ = [
     "permanent_reject_ids",
     "pending_specs",
     "spec_run_id",
+    "sync_epilogue_ledgers",
 ]
 
 #: fetch(relpaths, staging_dir) — stream those run dirs from the cluster into staging_dir.
@@ -98,6 +99,65 @@ def remote_reject_files(
             continue
         rels.add(rel)
     return rels
+
+
+def sync_epilogue_ledgers(
+    remote_ledger_dir: str, local_dir: str | Path, runner: Callable[[list[str]], str],
+) -> dict[str, int]:
+    """Mirror the per-array epilogue ledgers locally; return ``{filename: bytes}`` for what landed.
+
+    The ledgers are the ONLY record of tasks that died without archiving anything (walltime kill,
+    node failure, a host missing ``apptainer``), and they are written on the cluster while every
+    consumer of them — :func:`src.cluster.killswitch.classify_task_deaths` and the bad-node check —
+    runs on the driver. ``pull_archive`` cannot carry them: it transfers committed run dirs under
+    ``outputs/``, and ``ledger/`` is a SIBLING of that root, so without this the driver was blind to
+    exactly the failures the ledger exists to record.
+
+    Transfer discipline: the files are append-only, so a remote-vs-local SIZE difference is an exact
+    "has anything been added" test — a finished array's ledger stops changing and is never re-sent,
+    and only the active array's file moves. Wholesale re-fetch of a changed file (rather than a
+    byte-offset tail) is deliberate: array tasks append CONCURRENTLY, so an offset-based tail can
+    split a line across two fetches and leave a permanently torn local row, whereas a whole-file copy
+    is always internally consistent. Best-effort by contract — the caller degrades to "no ledger
+    data" rather than failing, because this is monitoring, never the completion truth (the archive is
+    the queue).
+    """
+    root = remote_ledger_dir.rstrip("/")
+    local = Path(local_dir)
+    local.mkdir(parents=True, exist_ok=True)
+    try:
+        listing = runner(["find", root, "-name", "*.epilogue.jsonl", "-type", "f",
+                          "-printf", "%s %p\n"])
+    except (subprocess.SubprocessError, OSError):
+        return {}
+    landed: dict[str, int] = {}
+    for line in listing.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) != 2:
+            continue
+        try:
+            remote_size = int(parts[0])
+        except ValueError:
+            continue
+        remote_path = parts[1]
+        name = remote_path.rsplit("/", 1)[-1]
+        if not name.endswith(".epilogue.jsonl"):
+            continue
+        target = local / name
+        if target.is_file() and target.stat().st_size == remote_size:
+            continue                                  # unchanged — the array is done appending
+        try:
+            body = runner(["cat", remote_path])
+        except (subprocess.SubprocessError, OSError):
+            continue
+        tmp = target.with_suffix(".tmp")
+        # newline="" + explicit "\n": Windows CRLF translation would make the local size differ from
+        # the remote size on every byte, so the skip-if-unchanged test would never fire again.
+        with tmp.open("w", encoding="utf-8", newline="") as fh:
+            fh.write(body)
+        tmp.replace(target)
+        landed[name] = target.stat().st_size
+    return landed
 
 
 def _default_fetch(host: str, remote_outputs_root: str) -> Fetch:
