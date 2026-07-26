@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-26"
-  head: "c4154ef"
+  head: "690c7f9"
   frozen: false
   legs_n: 10
   amendments_through: R105
-  suite_status: "exit 0 (2026-07-26: N6 IUT + regime fix + 18 cites; validity_tier/analyze_campaign/baselines/power green + check_citations clean + freeze --check RC=0; full 2057-suite not re-run)"
+  suite_status: "exit 0 (2026-07-26 continuation: min_cvar + search-adequacy defence; baselines/campaign_inference/validity_tier/power green + check_citations clean + freeze --check RC=0; full 2057-suite not re-run)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```

@@ -19,10 +19,280 @@ From the comparator-canon research (all verified first-hand 2026-07-26): 4 searc
 ### ✅ Regime config fix-on-sight (audit #10) — commit `c4154ef`
 `power_analysis.py:308-311` claimed the gold vix is a decimal so regimes thresholds "never trigger → count collapses to 1 (live bug)", contradicting `regimes.yaml:5` ("fixed 2026-06-19"). VERIFIED the truth: `loaders.load_gold_panel` head-detects the unit and rescales vix×100→points (`loaders.py:455-458`, unconditional) → regimes.yaml is correct, the comment was STALE. Fixed the comment + REGISTERED the missing `max_plausible_independent_regimes: 12` key (was a silent fallback; a registered NAME needs a registered VALUE). Power tests green (37); freeze RC=0.
 
+### ✅ OVERNIGHT DEEP-REVIEW LOOP — session opened (Tamer: "deep code review loops… every 1 minute… until 30 loops in a row are 100% flawless")
+
+> Standing constraints Tamer set for this loop: **NOTHING MAY BE FROZEN** (`scripts/freeze.py` is run
+> `--check`-only, read-only; active work is ongoing) · document everything to CHANGELOG + owner docs ·
+> work surgically and precisely · always verify, never break anything.
+
+Loop scheduled as a 1-minute recurring job; durable state (manifest · findings ledger · stop condition)
+lives in the session scratchpad `REVIEW_LOOP_STATE.md`. Review surface enumerated exhaustively:
+**340 files / 5,096,064 bytes** (src 103 · scripts 56 · tests 135 · data_pipeline 28 · config 14 · prompts 4),
+worked as PASS A (per-file deep read) interleaved with 12 PASS-B adversarial lenses.
+
+**⚠ CONCURRENT SESSION.** A second Claude session is editing this same working tree (commits `c808117`
+and `c4154ef` landed mid-setup). The loop now works defensively: re-read before every edit, re-verify a
+finding still exists before fixing it, focused CHANGELOG Edits only (never a whole-file write), never
+`git add -A` / commit / reset. Flagged to Tamer.
+
+**Loop 1 — baseline established, suite was RED (`PYTEST_RC=1`, 2 failures):**
+
+- **[MAJOR, FIXED] `tests/test_freeze.py:151` — stale hardcoded H1 family broke the freeze gate's own test.**
+  `_write_campaign_yaml` pinned the pre-expansion 4-name `h1_baselines`; the canon expanded **4 → 11**
+  (`a19b601`) and the fixture was never reconciled, so `test_matching_executed_configs_pass` went RED. It
+  went unnoticed because that session ran only 25 targeted tests, never the full suite. **Fix:** the mini
+  fixture now DERIVES every freeze-bound field (`h1_baselines` · `candidates_per_arm` ·
+  `train_steps_per_candidate` · `seeds`) from the mini root's own prereg yaml → structurally drift-proof,
+  while the negative/drift tests still write explicit drifted values so fail-loud coverage is intact.
+  Also strengthened `test_h1_baselines_guard_present_on_live` to assert **every** canon member plus the
+  `n=` count (it pinned only a 4-name subset, so the family could silently SHRINK without failing).
+  VERIFIED: `pytest tests/test_freeze.py` → **57 passed**.
+- **[MAJOR, FIXED] `scripts/learning_curve.py:136` — the campaign wall-clock projection under-counted by 210 trainings.**
+  `CAMPAIGN_RUN_BREAKDOWN["h1_baselines"] = 4 * 30` hardcoded the old comparator count against an
+  11-member canon: the projected campaign was **600 runs when the truth is 810** (26% of the total
+  missing), and that count feeds `project_campaign` → `gpu_hours` → `wall_days` → the
+  **GO / ADAPT / RECONSIDER verdict**. This exact drift had already been flagged and left unfixed in
+  `docs/DEEP_AUDIT_2026-06-26_verification.md:147` ("H1 is really 9 rewards"). **Fix:** new
+  `campaign_run_breakdown(camp)` derives every factor from `config/campaign.yaml` (arms ·
+  candidates_per_arm · h1_baselines · the tier-0 seed core via `seed_tiers()[0]`) per the
+  config-is-the-single-source-of-truth convention, and fails LOUD on a degenerate config rather than
+  silently projecting a too-small campaign. Tests no longer pin the literal `600`; added a derivation
+  test + a 4-case degenerate-config fail-loud test. VERIFIED: `pytest tests/test_learning_curve.py` →
+  **20 passed**; live breakdown = `{search 210, winners 210, h1_baselines 330, h3_singleshot 60} = 810`.
+- **[NOT A DEFECT] `tests/test_validity_tier.py::test_snooped_h1_excluded_but_desnooped_h1_is_node_n6`**
+  failed in the baseline run only because the concurrent session committed `c808117` (N6 val-select → IUT)
+  while that run was in flight. Re-ran on the settled tree: **6 passed**. Recorded, not "fixed".
+- **[OPEN, #3] Operative docs still quote the superseded campaign size** — `docs/CAMPAIGN_RUNBOOK.md:45`
+  ("≈600 runs … 120 H1"), `docs/CAMPAIGN_READINESS.md:45`, `docs/COMPUTE_AND_TRAINING_TIME.md:49,63,95,98,105`.
+  Deliberately NOT blast-edited: it interacts with R101 (the common seed ladder supersedes the flat-30
+  framing), so it goes through the HANDOFF §3 authority map first. Historical CHANGELOG/DECISIONS entries
+  and `outputs/` artifacts are the RECORD and will not be rewritten.
+
+**Loop 2 — the reward/sandbox spine (`contract.py` · `_child_boot.py` · `executor.py`), adversarially probed:**
+
+Reviewed by EXECUTING the gate, not by reading it: an 18-case probe (10 legitimate reward shapes, 8 known
+escape classes) plus a dedicated redundancy probe.
+
+- **SECURITY: no false negatives. All 8 escape classes correctly rejected** — `import os`,
+  `from numpy import load`, the `().__class__.__mro__` dunder walk, the `np.load` pickle-RCE, the
+  `"{0.__class__}".format(x)` literal walk, numpy-global attribute MUTATION (`np.mean = None`), the
+  `np.seterr` process-global determinism leak, and the `ndarray.ctypes` FFI vector. The attribute
+  ALLOWLIST design holds up: no chain reaches a dangerous leaf because the final hop would have to be
+  allowlisted.
+- **[MAJOR, FIXED] The gate silently rejected PAID candidates for their PROSE.** `_FORMAT_FIELD_RE`
+  scanned *every* string literal for a `{…}` replacement field containing `.` or `[`, including
+  **docstrings**. Three legitimate reward shapes were rejected outright, most damningly a docstring
+  documenting the reward's own components dict — and `prompts/initial_generation.txt` shows the author
+  the literal example `{"port_ret": float(port_ret)}`, so this is the shape the prompt actively primes.
+  A reward whose docstring reads `Return (total, {"cvar_05": -0.03}, state)` was discarded for its
+  comment, not its logic — invisible, since a gate rejection is indistinguishable from a bad candidate.
+  **Fix:** docstrings (first-statement `Expr` of a Module / FunctionDef / AsyncFunctionDef / ClassDef)
+  are exempt from the format-field scan only. This is sound because a docstring can never BE the
+  template — reaching one requires `__doc__`, a dunder checks 2-3 already reject.
+  **NOT a blanket removal:** I first probed whether the regex was load-bearing; neutralising it newly
+  admitted `format(x, "{…}")`, so the scan stays for every non-docstring string. VERIFIED: the 3
+  legitimate docstring shapes now pass; all 8 escapes plus `s.format` / `format_map` / `str.format` /
+  the `format()` builtin / an assigned template / a *second* string in a function that also has a
+  docstring all still reject. `tests/test_sandbox.py` 73 passed; 2 new regression tests (one proving the
+  exemption works, one proving it did not widen the hole).
+- **[NIT, FIXED]** `executor.py:183` built the regex via `__import__("re").compile(...)` although `re`
+  is imported at module level and used that way everywhere else — gratuitous, and misleading to a reader.
+- **[OBSERVED, not a defect]** A helper `class` with `self.n = 0` is gate-rejected — but by the
+  deliberate Store-context rule (attribute WRITES are banned so a candidate cannot poison the reused
+  numpy global). Stateful rewards use the documented `info["reward_state"]` round-trip, which passes.
+  Correct as designed; recorded so a future reviewer does not "fix" it.
+
+VERIFIED this loop: full suite **`PYTEST_RC=0`** (clean run, replacing the RC=1 baseline) · ruff clean ·
+`freeze.py --check` RC=0 with `frozen: false` / `freeze_hash: null` — **nothing frozen**, per Tamer's
+standing constraint.
+
+**Loop 3 — selection + fed-vector numerics: CLEAN (first clean loop; streak 1/30).**
+
+Unit reviewed: `src/selection/fitness.py` (full) · `src/inference/deflated_sharpe.py` (`_sample_moments`,
+`probabilistic_sharpe_ratio`, `expected_max_sharpe`) · `src/feedback/measurement.py` (`fit`,
+`_empirical_cvar`, `_evt_cvar`, `_evt_falls_back`, `cvar`, `tail_stats`, `exceedance_count`).
+**No defects found.** Three specific hypotheses were raised and each was KILLED by execution, not by
+reading — recorded so a later reviewer does not re-open them:
+
+- **Non-finite `val_fitness` winning selection — NOT reachable.** `RunArchive.winner()` is
+  `max(..., key=val_fitness)`, and Python's `max` never displaces a leading NaN, so a NaN in first
+  position would silently win and make selection ORDER-DEPENDENT (confirmed in isolation). But the
+  input cannot be NaN: `_sample_moments` strips non-finite values and applies a RELATIVE near-zero
+  σ guard, so every degenerate series probed (constant / all-cash, all-zero, single-observation,
+  empty, NaN-contaminated) returned a FINITE fitness. The hazard is real in the abstract and
+  unreachable in practice — no change made.
+- **CVaR monotonicity across the empirical↔EVT switch — HOLDS.** `cvar()` documents "monotone
+  non-increasing as alpha shrinks" while routing `cvar_25`/`cvar_10` to the empirical estimator and
+  `cvar_05`/`cvar_01` to EVT/GPD; two estimators carry no cross-guarantee, so a deeper level could
+  have come out LESS extreme and fed the arm an incoherent tail profile. Probed over **240 fitted
+  distributions** (student-t(3)/t(5)/normal/skew-left mixture × 60 seeds, T=2,961 = the executed
+  Split-C fed window): **0 violations**. The docstring claim is accurate.
+- **Bowley sign convention — CORRECT.** `robust_skew = ((Q95-Q50)-(Q50-Q05))/((Q95-Q05)+eps)` is
+  negative exactly when the left tail is longer, and the docstring's stated equivalent form is
+  algebraically identical. Verified by derivation.
+
+**[OBSERVED — logic lane, not code]** The probe made `measurement.py`'s own T2.8b detector fire
+repeatedly: *"FED CVaR-5% estimator INCONSISTENT across candidates: first used 'evt', this candidate
+used 'empirical' (reason=xi_ge_1)"*. That is the guard WORKING (many different tails fitted in one
+process), and the underlying data-dependent EVT↔empirical switch is already registered as a science
+risk in DEEP_H2 §6.3 with the standing instruction to audit before reporting the tail leg. No code
+defect; flagged here so the logic session sees it surfaced empirically rather than only in prose.
+
+**Loop 4 — `measurement.py` bootstrap/CI block: 1 latent defect fixed (streak reset to 0).**
+
+Unit reviewed: `_stationary_block_indices` · `_bootstrap_cvars` · `cvar_ci` · `cvar_bias` ·
+`cvar_uncertainty_report` · `threshold_sensitivity` · the `_suppress_fed_estimator_record` path.
+
+- **[MINOR-latent, FIXED] `threshold_sensitivity` refit its replicates on the SORTED series.**
+  It took `arr = self._check_fitted()`, which returns `sorted_returns`, and passed that to
+  `ReturnDistribution().fit(arr)` for each probed threshold. Each replicate is a fully-formed
+  estimator, so its `_raw` — documented as *"the finite returns in TIME order … the stationary block
+  bootstrap must resample in serial order to preserve dependence"* — came out **sorted**, silently
+  violating the class invariant. **Verified both halves before touching it:** (a) the method's own
+  output is **byte-identical** either way (the POT/GPD path — threshold quantile, exceedance set, MLE
+  fit — is order-invariant), so this was NOT a numerical error in any reported value; (b) the trap is
+  real — calling `cvar_ci` on a sorted-`_raw` estimator resamples monotone runs and returns a
+  **~3.5× too-wide interval** on an AR(1)+heavy-tail fixture (width 0.01207 vs 0.00347). **Fix:** pass
+  `self._raw`, keeping `_check_fitted()` purely as the fitted-state guard. New regression test spies
+  on `ReturnDistribution.fit` and asserts every internal refit receives a NON-sorted series — pinning
+  the invariant rather than the numbers. `tests/test_measurement.py` + `test_measurement_uncertainty.py`
+  **52 passed**, ruff clean.
+- **Verified sound, no change:** the Politis-Romano stationary scheme (geometric blocks, mean
+  `1/p`, circular wrap) is textbook-correct; `_bootstrap_cvars` is deterministic given `seed` and
+  side-effect-free (fresh replicate objects); `cvar_ci`'s percentile convention `(1-ci)/2` is right;
+  `cvar_bias` is the standard `mean(boot) - point`; sharing one `seed` across levels and between the
+  CI and bias calls is deliberate and correct (comparable, CRN-like, nested resamples).
+- **Confirmed the 2026-07-05 warning-storm fix still holds:** `_bootstrap_cvars` sets
+  `_suppress_fed_estimator_record = True` on each replicate *before* `fit()`, and `fit()` does not
+  reset the flag — checked directly, since a reset would silently restore the storm.
+
+**Loop 5 — `feedback/schema.py`, the fed-block renderer: 1 defect fixed (streak stays 0).**
+
+- **[MAJOR, FIXED] The legible decile tag meant OPPOSITE things on different lines of the same block.**
+  Each of the six fed fields was bucketed POSITIONALLY over its own band, so severity ran in
+  conflicting directions: for the four CVaR levels and `robust_skew` a worse tail gave a LOWER decile,
+  while for `left_tail_mass` a worse tail gave a HIGHER one. A clearly risky tail therefore rendered as
+  `CVaR 1%: -1100 bps (decile 1/10)` beside `left-tail mass: 8.5% (decile 9/10)` — both meaning
+  "worst", with nothing in the text to say so. **Why it matters:** the decile exists solely to give the
+  author a coarse ORDINAL framing it can compare WITHOUT float arithmetic (the numeracy-bottleneck
+  device, ADR-039). A direction that flips between lines is worse than no tag at all, and it works
+  directly against `responsiveness.legible_format_responsiveness_differential`, whose hypothesis is
+  that the SAME tail content in a MORE legible format RAISES responsiveness — a self-contradicting
+  ordinal signal biases that leg toward a spurious null. This is the same failure CLASS as the
+  2026-07-05 P21 fix, and on the same field: P21 gave `left_tail_mass` its own unit and band but never
+  reconciled its DIRECTION. **Fix:** `_DECILE_INVERTED_FIELDS` inverts the positional decile
+  (`11 - d`, staying in 1..10) for the four CVaR levels + `robust_skew`, so on all six lines a HIGHER
+  decile means MORE tail risk. `left_tail_mass` is a probability that rises with risk and keeps its
+  positional decile. **The rendered VALUES (bps / percent / dimensionless) are unchanged — only the
+  ordinal tag — and the default RAW rendering is untouched.** Verified: risky tail now reads
+  8/6/5/10/9/10 vs safe 1/1/1/1/1/4, one direction throughout. Regression test asserts the decile
+  strictly RISES with risk on every field. 85 tests green, ruff clean.
+- **⚠ STIMULUS-AFFECTING — flagged for Tamer + the logic session.** This changes the text the author
+  sees in the LEGIBLE leg. Judged safe to apply now: `legible_render` is config-gated and defaults to
+  `False`, the sub-experiment has NOT run, nothing is frozen, and no archived record exists to replay.
+  The confirmatory raw feed is byte-identical. Veto-able if the logic lane prefers the other
+  convention (decile 1 = worst); the defect is the INCONSISTENCY, and either consistent direction fixes it.
+- **Verified sound, no change:** the `scalar` arm's render is genuinely tail-free (`return header`),
+  so the R38 construct-validity premise holds at the renderer; the `placebo_shuffled` derangement is
+  correct (`np.roll` fallback is fixed-point-free, and the 64-attempt rejection loop fails with
+  probability ~1e-13 at n=6); `shuffle_seed_from_id` correctly uses `blake2b` rather than the salted
+  builtin `hash()`, so the permutation is replayable across processes; and the legible renderer
+  preserves the EXACT label substrings, so the `_was_fed_tail` gate still matches (checked against
+  its real call sites, not just the claim in the docstring).
+
+**Loop 6 — env spine (`portfolio_env.py` · `runner.py`): 1 leakage defect fixed (streak stays 0).**
+
+- **[MAJOR, FIXED] R18 purge leakage in the convergence probe, with its own guard switched off.**
+  `scripts/learning_curve.py::_resolve_panel_and_windows` returned `train=(lookback, 400)` and
+  `val=(400, T)` on the SYNTHETIC branch — val started AT the train end, so the val env's first
+  observation read `returns[340:400]`, **entirely inside the train window**. The sibling real-data
+  branch carries the comment *"Keep a lookback-sized purge"*; the synthetic branch never did.
+  It survived because the same file called `make_env_builder(panel, env_cfg, train_w, val_w)` WITHOUT
+  `lookback=`, so `purge = max(embargo, lookback) = 0` and the R18 guard was inert — the one guard whose
+  own comment in `runner.py` says it exists *"so the leakage invariant does NOT rest solely on
+  resolve_windows … a future revert is caught here"*. **Every other production call site
+  (`parallel.py`, `test_leg.py`, `run_prototype.py`, `run_sigma_pilot_train.py`,
+  `run_subexperiment.py`, `reproduce_synthetic.py`) passes `lookback`; this was the only one that did
+  not.** Also fixed in the same function: the real-data branch computed
+  `min(split + lookback, panel.T - 1)`, which on a short slice **silently clamped** to a value that
+  violates the very purge it intends — now `split + lookback` with a fail-loud error when the slice
+  cannot hold a purged window. **Why it matters:** this tool selects B\* (`train_steps_per_candidate`
+  = 400,000, R77 "the measured knee"), and a contaminated held-out eval return can move the detected
+  plateau. **Verified:** fixed synthetic windows give a 60-step purge gap and 140 val steps, and the
+  re-armed guard now REJECTS the pre-fix windows (`val_window (400, 600) must start at/after
+  train_window end 400 + max(embargo 0, lookback 60)`) — proving the leak was real, not theoretical.
+  Regression test pins the gap AND asserts the guard rejects the old windows. 77 tests green
+  (`test_learning_curve` + `test_env` + `test_agents_deep`), ruff clean.
+- **Verified sound, no change:** the look-ahead invariants hold (`_obs` reads `returns[t-lookback:t]`
+  strictly-past, `r_t = returns[t]` is consumed only as the post-action realisation, VIX is pre-lagged);
+  `truncated` (never `terminated`) at the window edge is correct for SB3's value bootstrap;
+  `project_simplex` is numerically sound (max-subtraction softmax, zero-sum fallback, fail-loud on an
+  unknown kind); the untrusted-reward boundary hands out DETACHED read-only copies with `base is None`;
+  both rollout loops are deterministic (`deterministic=True`) with correct window lengths; and
+  `cost_sweep`'s analytic re-pricing claim genuinely holds — the observation carries nothing
+  cost-dependent, so `gross`/`turnover` are cost-invariant for a fixed policy.
+- **[OBSERVED — logic lane, already registered, do NOT re-open]** The turnover drift uses `r_t`
+  (holdings drifted by the returns that settle at t) rather than `r_{t-1}`. This is a KNOWN, deliberate
+  deviation recorded in `docs/environment_spec_v1.md` v1.1 (2026-07-03): doc-aligned-to-code, magnitude
+  ≈ `c·0.5·|r_t − r_{t−1}|·‖w‖₁` (hundredths of a bp/step at 10 bps), identical across arms so it cannot
+  confound H2, and test-locked by `test_cost_is_half_l1_drifted_turnover`. **One note for the logic
+  lane:** the recorded justification was *"aligning the doc was chosen over a code change pre-freeze to
+  preserve prototype comparability"* — and since no prototype number enters the dissertation (CLAUDE.md
+  CURRENT STATE) and nothing is frozen, that specific rationale may no longer bind. Flagging the
+  rationale, not proposing the change; the accounting choice is theirs.
+
+**Loop 7 — systematic sweep: guards DISARMED by permissive defaults. 2 fixed (streak stays 0).**
+
+Loop 6's finding was a guard that existed but was not armed at one call site. Treating that as a
+PATTERN rather than a one-off, this loop enumerated every guard-bearing parameter in `src/` + `scripts/`
+that defaults to a permissive value and audited EVERY call site. Four such parameters exist:
+`make_env_builder(embargo=0, lookback=0)` (closed in loop 6) and
+`load_gold_panel(verify_checksum=False, validate=False)`.
+
+- **Method note — reading beat grepping, twice.** A `grep -A 4` window initially showed
+  `parallel.py:284` and `test_leg.py:195` as omitting `verify_checksum`. Both were FALSE POSITIVES:
+  each passes `verify_checksum=True` a few lines further down (l.291 / l.202, closed by the 2026-07-13
+  audit). Reported here because the near-miss is the lesson — a truncated grep window would have
+  produced two fabricated "critical" findings on the two most load-bearing paths in the repo.
+- **[MAJOR, FIXED] `scripts/analyze_campaign.py` scored the campaign against an UNVERIFIED gold panel.**
+  The benchmark-floor exhibit (H1/T0) loaded gold with no checksum verification, while *every* other
+  confirmatory path already verifies (`run_campaign.py:1474` and `run_campaign_cluster.py:113` with
+  `validate=True` too, `parallel.py:291`, `test_leg.py:202`). Analysis was the one place that scored
+  the campaign against a panel whose integrity was never proven — precisely the divergence the
+  2026-07-13 on-node audit closed everywhere else. Now `verify_checksum=True`; a mismatch raises and
+  the existing handler reports it as a loud, named SKIP rather than a silently-wrong floor.
+- **[MINOR, FIXED] `scripts/power_analysis.py` fell back to a SYNTHETIC panel in silence.** A bare
+  `load_gold_panel()` inside `except Exception` substituted an 8-asset synthetic panel for the 963-name
+  gold with no message. The fallback itself is correct and deliberate (gold is licensed; an external
+  reproducer legitimately has none) — but the regime count derived there is a DESIGN INPUT to the power
+  analysis and hence the seed ladder, so an operator could read it off synthetic data and never know.
+  Now prints a named, loud notice, mirroring the P7 fix applied to `analyze_campaign`'s floor.
+- **Deliberately NOT changed, with reasons (so none of this is "noticed but moved on"):** the global
+  `verify_checksum=False` default STAYS — it is documented as the opt-out for callers with no manifest
+  (`loaders.py:381`), so flipping it would break external reproducibility, which is Stefan's criterion 3.
+  Four remaining sites keep the default because nothing confirmatory rests on them:
+  `run_prototype.py:85` and `smoke_test.py:78` (no prototype number enters the dissertation),
+  `popart_ablation.py:492` and `run_subexperiment.py:177` (report-only legs).
+- Verified: `test_power_analysis` + `test_analyze_campaign` **124 passed**, ruff clean.
+
 ### ⏳ REGISTERED (build/design/ratification-pending — tracked in the ledger + todos, nothing dropped)
 - **min_cvar allocator** (research B, the tail-optimal benchmark) + **H4 → +CMA-ES+TPE** (research A + audit #3, the DFO toolkit; multi-fidelity Hyperband/BOHB pruned as inapplicable under matched-candidate-count) — BUILD-pending (deps `cma`/`optuna` vet+pin; Okhrati on confirmatory-vs-toolkit). Cites already added.
 - **audit #1 search-adequacy instrument** (TOP grade-mover: first-gen executable-rate + oracle-headroom + lean SQ1) · **#2 CH4↔config prose reconcile** (ratification-gated) · **#5 fed-vector 2/6 derive-or-reclassify + ablation** · **#6 capability-gradient down-rank** · **#7 DSR-proxy sentence** · **#8 α-grid robustness exhibit** · **#11 walk-forward/regime-concentration exhibit**.
 - **Audit LEAVE-ALONE respected (no noise):** the 8 allocators, M2 axes, factor-attribution ladder, robustness algos, cost/delisting grids, 30-seed floor, 7-arm ladder, mechanism SQ1-3 are all correctly report-only — expanding them would be gratuitous breadth (Okhrati depth-over-breadth).
+
+### ✅ (continuation, same day) — min_cvar tail-optimal allocator · search-adequacy severity defence + KEEP-K · 4→11 timeline answered · CLAUDE.md strict-assessment rule
+
+> Tamer, across the continuation: "work very hard, ultrathink, satisfy the priorities… if something makes the dissertation better, DO it, nothing is frozen"; "ultrathink on ALL deliverables — K=5, the candidate amounts, all others"; "everything must have STRONG EVIDENCE, an extremely strong backbone"; "add to CLAUDE.md: always ultrathink, assess strictly, only relevant, no noise"; and "don't freeze anything — I'll tell you when." Two background agents (search-adequacy severity research + the 4→11 compute-timeline trace) returned and drove the work.
+
+**✅ min_cvar — the tail-optimal allocator benchmark (`ac99603`).** The ONE non-gratuitous allocator add for a TAIL study (comparator-research B; the 8-name audit LEAVE-ALONE otherwise stands): the classical CVaR-optimal portfolio, so the report-only comparison now reads "the LLM's tail-aware reward beats even the benchmark that optimises the very tail it targets". Implemented as the exact **Rockafellar–Uryasev (2000) LINEAR PROGRAM** (CVaR_α(L)=min_ζ{ζ + 1/(αT)Σ(L_t−ζ)⁺}, jointly over (w,ζ,u), long-only simplex, HiGHS, deterministic, 1/N fallback). **STRONG-EVIDENCE verification (Tamer's backbone directive):** (a) it UNDERWEIGHTS a fat-left-tail asset (w=0.334) that `minimum_variance` treats as equal (0.485/0.515, same variance) → genuinely TAIL-aware not variance; (b) the LP MATCHES an independent brute-force empirical-CVaR grid to |diff|=0.001. Registered STRATEGY_CANON + _BENCHMARK_NAMES + prereg benchmarks (8→9; `rockafellar2000cvar`). 44 tests green, freeze --check RC=0.
+
+**✅ Search-adequacy severity defence — the audit's #1 grade-mover (`690c7f9`).** Deep research (agent) established: K=5/30 is ~1/13 Eureka's 400/task (honestly below the field norm), and the prototype's saturation detector flagged the `scalar` arm still-rising. DEFENCE built + PRE-REGISTERED (`mechanism.search_adequacy`, report-only, disjoint from m=6): (1) the **tri-partite null-SEVERITY decomposition** (responsiveness-power [met: the 750-authoring sub-exp + positive control, UPSTREAM of the 30-search] · search-adequacy [instrumented] · equivalence-seed-power [E1 ladder]) → localises the "you under-searched" attack to ONE leg; (2) the `search_adequacy` EXHIBIT (best-so-far saturation + executable-rate + oracle-headroom-vs-N6 + within-gen diversity + coverage-vs-k); (3) the **SQ1-upstream-of-K** logic (holds for the MECHANISM headline, NOT H2 equivalence — disclosed). +3 first-hand cites (`altman1995absence`, `liu2024eoh`, `brown2024monkeys`; mayo-spanos SKIPPED per no-noise). candidates=30 RELABELLED MEASURE→FIX-ratified-cap.
+
+**✅ ULTRATHINK on K=5 / 30 candidates / 6 generations (Tamer asked twice): KEEP + instrument, Ramin-ratifiable.** Increasing width TRADES the already-weakest leg (leg-3 seed/equivalence power: reframed INCONCLUSIVE at MDE>SESOI, rungs>189 aspirational under R101) for a marginal leg-2 gain that (a) is CONSERVATIVE for H1/H4, (b) does NOT bind the mechanism headline (leg-1, upstream of K via SQ1), (c) touches only the reframed-conditional H2 backdrop. The coverage-vs-k saturation instrument is a STRONGER, evidence-based defence than a bigger raw K — at ZERO seed cost (EoH/GEPA: small budgets ARE adequate on quality). Registered `mechanism.search_adequacy.budget_decision: keep_and_instrument`.
+
+**✅ 4→11 baseline TIMELINE (Tamer asked): does NOT threaten Aug-27.** Compute-agent trace (first-hand, arithmetic): Aug-27 is a fixed EXOGENOUS stop (the rung flexes, not the deadline); the +7 baselines are un-searched → +7 test-leg units (62→69) → reachable common rung ×62/69 ≈ **−10%** (~19 seeds off the top, e.g. 189→170); the **30-seed distinction floor is safe with 3–6× margin** (CVaR leg + mechanism complete at 30). The 279/403 rungs were already aspirational under R101 (~100–189) before AND after. MITIGATION (queued, needs sign-off): pin the report-only H1 baselines at a fixed 30–100 rung → CRN-clean (the IUT pairs on SHARED seeds, code-verified) → recovers the rung to ≥ pre-expansion.
+
+**✅ CLAUDE.md += STRICT ASSESSMENT · SIGNAL OVER NOISE** (Tamer): after ultrathinking, assess strictly + add ONLY what serves the priorities — the audit-style LEAVE-ALONE discipline (demonstrated live: 3 of 4 offered cites added, 1 skipped; 8 allocators kept at 8 except the one tail-optimal a tail study needs). **✅ Fix-on-sight (compute agent):** run_campaign.py:1061/2109 + CAMPAIGN_benchmarks.md stale "4-name/120/9-reward/8-allocator" counts → 11-canon + E1 ladder + 9 allocators. **NOTE (Tamer): nothing is frozen — only `freeze.py --check` (read-only consistency) was ever run; `frozen: false` throughout; the real freeze waits for his GO.**
 
 ## [2026-07-25] — ★★★ R102 OPUS 5 CONFIRMATORY SWAP (applied · suite-GREEN · Opus-5-EVERYWHERE · COMMITTED) · ★★★ THE CPU LANE BEATS THE A100 for this workload (measured) · EXHAUSTIVE science-neutral MYRIAD SPEED investigation · the obs-dim scare RESOLVED · a per-training profile that OVERTURNS the "env-bound" thesis
 

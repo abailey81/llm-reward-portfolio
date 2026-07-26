@@ -724,7 +724,7 @@ def _reinstantiate_frozen_winner(reward_source: str | None) -> Any:
     see the FLAG in the module note.
     """
     from src.orchestration.parallel import _FIXTURE  # the SHARED 31-asset search/TEST-worker fixture
-    from src.sandbox.executor import SandboxError, validate_once
+    from src.sandbox.executor import SandboxEnvironmentError, SandboxError, validate_once
 
     if not reward_source or not reward_source.strip():
         raise ValueError("winner record carries no reward_source to re-instantiate")
@@ -736,6 +736,13 @@ def _reinstantiate_frozen_winner(reward_source: str | None) -> Any:
     # parity makes this re-validation a pure replay of the gate the candidate already passed.
     try:
         return validate_once(reward_source, _FIXTURE)
+    except SandboxEnvironmentError:
+        # CONTRACT (src/sandbox/executor.py::SandboxEnvironmentError): a starved spawn environment is
+        # NOT a defect of the frozen winner. Converting it to ValueError below would blame the winner
+        # and produce a DETERMINISTIC exit-3 on EVERY resume of the sealed test leg, because the
+        # starvation — not the reward — is what failed. Re-raise so the supervisor relaunches on a
+        # freed box. (deep-review 2026-07-26, loop 2 — contract documented but unhonoured here.)
+        raise
     except SandboxError as exc:
         raise ValueError(
             f"frozen winner reward_source did not re-instantiate as an executable reward "
@@ -1051,7 +1058,8 @@ def evaluate_baselines_on_test(
     them up. ``n_gpu > 0`` runs the seeds across the device pool (the laptop headline path); ``n_gpu=0``
     keeps the serial trainer. Returns the flat list of records written this call.
 
-    Budget: ``len(baseline_names) x len(seeds)`` runs (the 4-name H1 family x 30 seeds = 120 runs) at the
+    Budget: ``len(baseline_names) x len(seeds)`` runs (the 11-name H1 canon x the E1 seed ladder — 2026-07-26,
+    the full hand-reward canon; was the 4-name family x 30 = 120) at the
     SAME 400k step budget as the arms — the matched compute the Eureka comparison requires.
     """
     from src.env.runner import make_env_builder
@@ -2099,7 +2107,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--baselines-only", action="store_true",
         help="THROUGHPUT lever E (docs/MAX_THROUGHPUT_RUN_PLAN.md): run ONLY the H1 baseline stage "
-             "(the 4 hand-rewards x the campaign seeds), designed to BACKFILL the idle GPU slots while "
+             "(the 11 hand-rewards x the campaign seeds), designed to BACKFILL the idle GPU slots while "
              "the serial headline search runs in a separate process (pair --gpu 2 here with the serial "
              "search's 1 slot = the proven 3-concurrent ceiling). Science-neutral (seeded-deterministic "
              "trainings; resume-safe by run_id); writes baselines_summary.json (never the campaign's "

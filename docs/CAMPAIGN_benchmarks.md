@@ -14,6 +14,16 @@ CAMPAIGN "does it work?" comparison defensible. NOT dissertation prose. No code 
 > `freeze.py::assert_h1_baselines_match`; 120 H1 trainings = 4 × 30 seeds — R30/R72), with the 10-name (R97)
 > `REWARD_CANON` documented as the secondary panel (`config/eureka_loop.yaml` note).
 
+> **11-canon / E1-ladder / min_cvar update (2026-07-26) — supersedes the counts in this dossier.** The H1
+> hand-reward panel is now the **FULL 11-name canon** (`h1_baselines` == `REWARD_CANON`, expanded 4 → 11:
+> +differential_downside_ratio, mean_variance_utility, return_minus_drawdown, return_minus_downside,
+> return_minus_turnover, log_growth, volatility_scaled_return), trained at the **E1 assurance-tier seed
+> ladder** (NOT the old 4 × 30 = 120), and promoted to the confirmatory node **N6** — a snoop-free IUT (the
+> LLM reward DOMINATES the canon == beats the best human; Berger 1982). The classical allocator suite is now
+> **9** (the 8 + `min_cvar`, the tail-optimal Rockafellar–Uryasev CVaR-min benchmark). Every "4-name / 120 /
+> 10-name / 9-reward / 8-allocator / six-arm" figure BELOW is a HISTORICAL 2026-06-24 audit snapshot,
+> superseded by these numbers; the authoritative live count is `learning_curve.campaign_run_breakdown()`.
+
 Scope: the benchmark **ladder** the comparative claim needs —
 
 | Tier | What | Where it lives | Runnable today? |
