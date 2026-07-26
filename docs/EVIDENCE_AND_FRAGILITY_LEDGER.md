@@ -34,8 +34,8 @@ expert can snap; **the grade is capped by the weakest link.** This ledger maps e
 | decision | rationale | evidence + grade | fragility | status / fix |
 |---|---|---|---|---|
 | 7 arms, each control bound to a named threat | one-to-one threat→control mapping (Table 4.1) | `config/arms.yaml` + CH4 — **A** | LOW | ✅ |
-| H1 (LLM vs hand-designed) currently report-only / snooped-descriptive | selection on the sealed leg without archived val fitness | `PREREGISTRATION.md` — **A** (that it's weak) | HIGH (the "does the LLM help?" evidence is demoted) | 🔧 **R105**: promote to a validation-selected confirmatory validity tier |
-| H4 (LLM vs random/bayes search) secondary | multiplicity/power at design time | `config/preregistration.yaml` — **A** | HIGH | 🔧 **R105**: promote via a graphical multiplicity hierarchy |
+| H1 (LLM vs hand-designed) currently report-only / snooped-descriptive | selection on the sealed leg without archived val fitness | `PREREGISTRATION.md` — **A** (that it's weak) | HIGH→resolving | ✅ **R105 (2026-07-26)**: the graphical validity tier is registered; H1's DE-SNOOP (val-select best-of-4 + score on the sealed test) is candidate node N6 (ratification-pending) |
+| H4 (LLM vs random/bayes search) secondary | multiplicity/power at design time | `config/preregistration.yaml` — **A** | HIGH→resolved | ✅ **R105 (2026-07-26)**: promoted to node N4 in the graphical validity tier (`bretz2009graphical`), ratification-pending |
 
 ## Feedback vector
 | decision | rationale | evidence + grade | fragility | status / fix |
@@ -95,7 +95,7 @@ expert can snap; **the grade is capped by the weakest link.** This ledger maps e
 ## The weakest links (the fragility-ordered close list)
 1. **SESOI = 0.05 (C, HIGH)** — the equivalence linchpin, asserted → **A4 derivation.**
 2. **H2 equivalence power (HIGH)** + **mechanism instruments underpowered (HIGH)** → **A3 promote H1/H4 to a well-powered backbone** + reframe + drive seeds→~400.
-3. **H1/H4 demoted (HIGH)** → **R105.**
+3. **H1/H4 demoted (HIGH)** → ✅ **R105 (2026-07-26): graphical validity tier registered** (H3/H4/N5 confirmatory; H1=N6 de-snoop candidate; ratification-pending).
 4. **K=5 (C, MED/HIGH)** → executable-rate adequacy check.
 5. **2/6 tail components + α-grid (C, MED)** → justify/reclassify + grid-robustness exhibit.
 6. **Self-hosted-leg claim (false, MED)** → **A5.**
@@ -113,8 +113,8 @@ Both auditors independently confirmed the seed grades AND converged on the SAME 
 | **candidates=30 MISLABELED** — classed MEASURE-saturation but the evidence note admits *"arms still improving… budget too small"* (`DESIGN_DETERMINATION.md:30`) → a mechanism null could be under-search | C | **HIGH** | 🔧 relabel FIX/disclosed-limitation; lean on the oracle-headroom instrument |
 | **Capability gradient PRIMARY ANCHOR DEAD** — SWE-bench-Verified published for only 2/10 legs (`preregistration.yaml:308`) → the regression cannot run (`cross_model.py:275`) → "gradient" collapses to 2 pair-DiDs + circular M2 | A (that it's dead) | **HIGH** | 🔧 down-rank "gradient"→"pair contrasts"; add ≥1 card-published-SWE-V leg |
 | **Per-model authoring reliability MEASURED (2026-07-25, grade-A)** — sandbox gate-pass over 6 diversity-varied authorings: qwen3.5-9b **1/6 (17%)**, qwen3.6-27b 5/6, gemini-2.5-flash (R105 substitute) 5/6, deepseek-v4-pro 6/6. The 9B floor authors the least-robust reward code (shape 31≠30, None-state, TypeError, ast-gate) = the numeracy-bottleneck thesis + the gradient's BOTTOM ANCHOR. Campaign handles it: a sandbox-reject consumes one author draw + is logged (`loop.py:395,470`), the search continues, a leg failing the T0 floor reports as a finding (never a vote) — NO stall. | A | **LOW** | ✅ measured; feeds the reliability table + capability gradient |
-| **Closed capability pair NOT confound-matched** — Haiku (4096, no reasoning) vs Opus-5 (8192) → the DiD conflates capability with token-budget/thinking | A | **HIGH** | 🔧 to RESOLVE by R105 (uniform reasoning-off + matched caps; NB R104 is now the SESOI) |
-| **Opus-5 thinking record CONTRADICTION** — prereg/llm.yaml assert "adaptive thinking BY DEFAULT" (drives 8192) but the LIVE test shows Opus OFF by default; Anthropic legs never round-trip-gated | C→resolved | MED | 🔧 DONE: the readiness gate confirmed Opus-5 OFF by default + meaningful (2026-07-25); correct the 'adaptive-by-default' claim in R105 |
+| **Closed capability pair NOT confound-matched** — Haiku (4096, no reasoning) vs Opus-5 (8192) → the DiD conflates capability with token-budget/thinking | A | **HIGH** | 🔧 to RESOLVE by R106 (uniform reasoning-off + matched caps; NB R105 is the A3 validity tier, R104 the SESOI) |
+| **Opus-5 thinking record CONTRADICTION** — prereg/llm.yaml assert "adaptive thinking BY DEFAULT" (drives 8192) but the LIVE test shows Opus OFF by default; Anthropic legs never round-trip-gated | C→resolved | MED | 🔧 DONE: the readiness gate confirmed Opus-5 OFF by default + meaningful (2026-07-25); correct the 'adaptive-by-default' claim in R106 |
 | **Self-hosted leg ABSENT** — the "self-hosted on Myriad" permanence pitch is unrealized (all hosted API) | A | MED | 🔧 A5: self-host one open leg OR strike "self-hosted" |
 | **Stale MODEL_CARD + REPRODUCIBILITY_CHECKLIST** — 30 seeds / 50k steps / laptop-only / old panel, all superseded | A | MED→resolving | 🔧 CHECKLIST regenerated 2026-07-25 (seeds→ladder / steps→400k / buffer-decoupled / compute→Myriad / test-count→2,057); MODEL_CARD + DESIGN_DETERMINATION regenerating |
 | **DSR selection = within-series variance PROXY** — not the canonical cross-trial DSR the paper cites (`deflated_sharpe.py:180`; common-mode → not an ID threat) | A | MED | 🔧 one methods sentence disclosing the proxy |
