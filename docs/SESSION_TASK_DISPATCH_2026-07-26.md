@@ -368,3 +368,52 @@ removed. **KEEP** the Bonferroni-over-4 computation as the disclosed sensitivity
 Two known-answer cases from the tests, useful when you wire it: with equal 0.5/0.5 weights and full
 recycling, `p = (0.02, 0.04)` rejects **both** (the cascade), while `p = (0.03, 0.04)` rejects
 **neither** — the second is the measured α-split price the ratification pack quantified.
+
+---
+
+## ✅ ROW 36 — the ASSEMBLY is now built too. FEATURE/BUILD: **one line left**, and it is yours.
+
+`src/inference/validity_tier.py` bridges what `analyze_campaign` already computes to the ratified rule:
+
+- `tier_node_pvalues(out)` — extracts ONE p-value per confirmatory node. For the IUT nodes it takes the
+  **MAX over legs** (Berger 1982), which is why the H2 co-primaries need no further within-family
+  correction.
+- `tier_verdict(out)` — reads the graph from the registered config (never hardcoded) and returns the
+  propagation result **plus** the per-node extraction record.
+- `tests/test_validity_tier_assembly.py` — 6 tests, green.
+
+**FAIL-SAFE, deliberately.** A node whose p-value cannot be located is reported `untestable` and can
+never reject; it is never silently treated as a pass or a fail. Every key searched is recorded in
+`nodes[...]["searched"]`, so a shape mismatch shows up in the artifact instead of producing a
+confidently wrong confirmatory verdict — the worst possible failure mode here. An IUT with even one
+untestable leg refuses to certify, mirroring `beat_human_baseline`'s `all_baselines_present` gate.
+
+**THE ONE LINE — and the one thing I could not verify.** At the `out[...]` assembly point
+(~`analyze_campaign.py:4857-4880`, beside `out["h4"]` / `out["h3"]`):
+
+```python
+from src.inference.validity_tier import tier_verdict
+out["validity_tier"] = tier_verdict(out)
+```
+
+**Please check `NODE_SOURCES` against the real result shapes before trusting the output.** I mapped it
+from the docstrings — `out["h2"]["tail_legs"]` / `["legs"]`, `out["h3"]`, `out["h4"]["legs"]`,
+`out["structure_control"]["legs"]`, `out["h1"]["iut"]["legs"]`, with p-keys tried in the order
+`pvalue_one_sided` → `pvalue_one_sided_greater` → `pvalue` — but I could not run it against real
+campaign output, and I deliberately did NOT guess: a wrong key yields `untestable` (visible, safe),
+never a wrong rejection. Fixing a key is a one-word edit to `NODE_SOURCES`; add an end-to-end test that
+FAILS if the `tier_verdict` call is removed.
+
+**Still open and unchanged:** row 34 (`cross_model` / `leg_aggregate` wiring, with the
+per-period-vs-annualised floor trap) — that one is entirely yours.
+
+### Also closed by LOGIC-REVIEWER since the last note
+
+- **Row 35 DONE** — `corroborates_h2_tail` → `forecast_calibration_favours_dist` across all three sites,
+  plus a test asserting the OLD name is gone. The FZ0/DM backtest scores both forecasts against the
+  distributional arm's own path, so it measures self-prediction, not the DIRECTION of the tail contrast.
+- **T2 DONE** (was CODE-REVIEWER's) — `measurement.py` now names the statistic correctly:
+  **Groeneveld–Meeden (1984) γ(0.05)**, not Bowley (which is the *quartile* case γ(0.25)). Frozen key,
+  formula and value untouched; documentation accuracy only.
+- **T1 remains OPEN and is the last correctness item before GO** — still flagged HIGH as both a ~2.5×
+  speed lever and a correctness defect.

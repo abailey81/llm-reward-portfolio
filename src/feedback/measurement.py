@@ -449,9 +449,18 @@ class ReturnDistribution:
             left_tail_mass = mean(returns < -k * std), k = 2.0
             robust_skew    = ((Q95 - Q50) - (Q50 - Q05)) / (Q95 - Q05 + eps)
 
-        This is the (quantile-based) Bowley skewness, written so that it is
-        NEGATIVE when the left tail is longer, per the frozen design's stated
-        sign convention. Equivalently ``-((Q50-Q05)-(Q95-Q50))/(Q95-Q05+eps)``.
+        This is the **Groeneveld-Meeden (1984) generalized quantile skewness**
+        gamma(p) at p = 0.05, written so that it is NEGATIVE when the left tail
+        is longer, per the frozen design's stated sign convention. Equivalently
+        ``-((Q50-Q05)-(Q95-Q50))/(Q95-Q05+eps)``.
+
+        NAME CORRECTED 2026-07-26 (dispatch T2): this previously read "the
+        (quantile-based) **Bowley** skewness". Bowley's coefficient is the
+        QUARTILE case, gamma(0.25) = ((Q75-Q50)-(Q50-Q25))/(Q75-Q25); the
+        statistic implemented here uses the 5th/95th percentiles, i.e. gamma(0.05)
+        of the same Groeneveld-Meeden family. The FROZEN key, formula and value
+        are UNCHANGED - this is documentation accuracy only, so that a reader
+        checking the reference finds the estimator we actually compute.
 
         Returns
         -------

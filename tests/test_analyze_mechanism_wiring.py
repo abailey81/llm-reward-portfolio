@@ -334,7 +334,11 @@ def test_p3_blocks_are_emitted_disjoint_and_do_not_gate(tmp_path: Path) -> None:
     if es["status"] == "ok":
         assert es["legs"], es
         for leg in es["legs"]:
-            assert "corroborates_h2_tail" in leg and "pvalue_dm_hln" in leg
+            assert "forecast_calibration_favours_dist" in leg and "pvalue_dm_hln" in leg
+            # Row 35 (2026-07-26): the key must NOT be named "corroborates_h2_tail" -- the FZ0/DM
+            # backtest measures self-prediction on the distributional arm's own path, not the
+            # DIRECTION of the tail contrast, so the old name licensed a claim it cannot support.
+            assert "corroborates_h2_tail" not in leg
 
     # bayesian null: paired per-seed diffs -> BF01 + ROPE, for both co-primary metrics
     bn = out["bayesian_null_report"]

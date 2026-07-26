@@ -24,7 +24,7 @@ NOT this overfitting metric. ``config/inference.yaml`` keeps them separate: ``pb
 
 Inputs
 ------
-Results are read ONLY through ``src.io.results.load_all`` (audit C-1). All seven arms persist
+Results are read ONLY through ``src.io.results.load_all`` (audit C-1). All nine arms persist
 the per-candidate validation vector ``metrics['val_returns']`` during search (LLM arms via
 ``src/llm/loop.py``; search arms via ``scripts/run_prototype.py`` /
 ``src/orchestration/parallel.py``). ``n_blocks`` is read from ``config/inference.yaml``
@@ -158,7 +158,7 @@ ARMS: tuple[str, ...] = (
 def _val_returns(record: dict[str, Any]) -> np.ndarray | None:
     """Extract a candidate's per-period validation return vector, or ``None``.
 
-    The vector rides inside ``metrics['val_returns']`` (all seven arms write it during
+    The vector rides inside ``metrics['val_returns']`` (all nine arms write it during
     search). Returns ``None`` when the field is absent, ``None``, or not a 1-D vector of
     length >= 1 — those candidates are skipped (with a logged warning) by
     :func:`build_perf_matrix`.
@@ -2709,7 +2709,7 @@ def comparative_es_backtest_report(
     NEVER gates: it writes a DISJOINT block with NO ``arm_a/arm_b/metric/level`` family-tuple keys.
 
     Returns ``{"status", "level", "realized_series": {kind, seed, alpha}, "legs": [{contrast,
-    mean_score_diff, pvalue, pvalue_dm_hln, better, corroborates_h2_tail}, ...], "skipped": [...]}``;
+    mean_score_diff, pvalue, pvalue_dm_hln, better, forecast_calibration_favours_dist}, ...], "skipped": [...]}``;
     ``status="skipped"`` when NO contrast had a usable common realized series + two forecasts.
     """
     from src.inference.es_backtest import comparative_es_backtest, var_es_estimates
@@ -2751,8 +2751,14 @@ def comparative_es_backtest_report(
             "pvalue": float(res["pvalue"]),
             "pvalue_dm_hln": float(res["pvalue_dm_hln"]),
             "better": str(res["better"]),
-            # corroborates H2-Tail iff the distributional (model1) tail forecast scores strictly better.
-            "corroborates_h2_tail": bool(res["better"] == "model1"),
+            # ⚠ RENAMED 2026-07-26 (deep review row 35): this was `corroborates_h2_tail`, which it is NOT.
+            # Both forecasts are FZ0-scored against the SAME series -- the distributional arm's OWN test
+            # path -- while forecast 1 is fitted on that same arm's validation returns, so a strictly
+            # consistent rule favours it near-automatically. This flags which forecast CALIBRATES that
+            # path better (self-prediction across val->test); it says NOTHING about the DIRECTION of the
+            # tail contrast, which is what H2-Tail asserts and what the 3-leg cvar_difference_test IUT
+            # decides. es_backtest.py's own scope note warns against reading it the old way.
+            "forecast_calibration_favours_dist": bool(res["better"] == "model1"),
             # B.5.2 (2026-07-06): Hill tail-index of the FZ0 loss differential — flags a
             # heavy-tailed d_t whose DM-HLN companion p should be read with extra caution.
             "loss_diff_tail": res.get("loss_diff_tail"),
@@ -6229,7 +6235,7 @@ def comparative_es_backtest_markdown(d: dict[str, Any]) -> str:
     for leg in d.get("legs", []):
         out.append(
             f"| {leg['contrast']} | {leg['mean_score_diff']:+.4f} | {leg['pvalue']:.4f} | "
-            f"{leg['pvalue_dm_hln']:.4f} | {leg['better']} | {leg['corroborates_h2_tail']} |"
+            f"{leg['pvalue_dm_hln']:.4f} | {leg['better']} | {leg['forecast_calibration_favours_dist']} |"
         )
     if d.get("skipped"):
         out += ["", f"Skipped: {', '.join(s['contrast'] for s in d['skipped'])} (missing/degenerate forecast)."]
