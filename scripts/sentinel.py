@@ -641,7 +641,8 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     g = inputs.get
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
-                "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity", "authoring_health")):
+                "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity", "authoring_health",
+                "unreadable_records", "arm_progress")):
         return []
     from src.cluster import campaign_health as ch
 
@@ -663,6 +664,11 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("unreadable_records") is not None:
+        nu, nt, ex = g("unreadable_records")
+        out.append(ch.check_unreadable_records(nu, nt, ex))
+    if g("arm_progress") is not None:
+        out.append(ch.check_arm_progress_symmetry(g("arm_progress")))
     if g("authoring_health") is not None:
         # THE EARLIEST layer: authoring happens in the first minutes, long before any training
         # completes, and a systematically broken arm otherwise burns its whole budget unnoticed.
@@ -1193,6 +1199,40 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
                 "n_undated": verdict.n_undated,
                 "enforced": False,  # detection only — no incident file is written from here
             }
+
+    # ARCHIVE READABILITY + PER-ARM PROGRESS (2026-07-27), computed in ONE pass over the records.
+    # Both close failures that every existing indicator hides: a torn record is silently SKIPPED by
+    # every reader, and a single dead arm is masked by the global completion rate its siblings keep
+    # healthy. One walk serves both, so the cost is a stat per record.
+    try:
+        n_total = n_bad = 0
+        bad_examples: list[str] = []
+        per_arm_prog: dict[str, dict[str, Any]] = {}
+        now_e = float(out.get("now") or time.time())
+        for rec_path in camp_root.rglob("record.json"):
+            if any(x.startswith(".pull_tmp") for x in rec_path.parts):
+                continue
+            n_total += 1
+            try:
+                rec = json.loads(rec_path.read_text(encoding="utf-8"))
+                if not isinstance(rec, dict):
+                    raise ValueError("not an object")
+            except Exception:  # noqa: BLE001 — the COUNT is the symptom; the skip is not
+                n_bad += 1
+                if len(bad_examples) < 5:
+                    bad_examples.append(str(rec_path.relative_to(camp_root)))
+                continue
+            arm = str(rec.get("arm") or rec_path.parent.parent.name)
+            st = per_arm_prog.setdefault(arm, {"n_records": 0, "hours_since_last": 1e9})
+            st["n_records"] += 1
+            age_h = max(0.0, (now_e - rec_path.stat().st_mtime) / 3600.0)
+            st["hours_since_last"] = min(st["hours_since_last"], age_h)
+        if n_total:
+            lane["unreadable_records"] = (n_bad, n_total, bad_examples)
+        if len(per_arm_prog) >= 3:
+            lane["arm_progress"] = per_arm_prog
+    except Exception:  # noqa: BLE001
+        pass
 
     # AUTHORING HEALTH (2026-07-27) — the earliest observable signal in the whole campaign. Every
     # sandbox rejection is flushed to `<prefix>-<arm>.failures.jsonl` the instant it happens, and

@@ -427,3 +427,74 @@ def test_no_authoring_activity_is_INFO_not_a_false_all_clear():
     from src.cluster.campaign_health import check_authoring_health
 
     assert check_authoring_health({}).severity == "INFO"
+
+
+# --- 9. the two failures EVERY other indicator hides -------------------------------------------
+
+def test_a_torn_record_is_COUNTED_not_silently_skipped():
+    """Every reader skips an unparseable record, and each skip is individually correct. Nothing
+    counted them, so rising corruption was invisible while all other checks stayed green."""
+    from src.cluster.campaign_health import check_unreadable_records
+
+    assert check_unreadable_records(0, 500).severity == "OK"
+    assert check_unreadable_records(2, 500).severity == "WARN"
+    c = check_unreadable_records(9, 500)
+    assert c.severity == "CRITICAL" and "atomically" in c.detail
+
+
+def test_no_records_yet_is_INFO_not_a_clean_bill():
+    from src.cluster.campaign_health import check_unreadable_records
+
+    assert check_unreadable_records(0, 0).severity == "INFO"
+
+
+def _peers(n=5, records=40, age=0.5):
+    return {f"arm{i}": {"n_records": records, "hours_since_last": age} for i in range(n)}
+
+
+def test_ONE_dead_arm_is_caught_though_the_global_rate_looks_healthy():
+    """With 9 arms and 10 legs, a dead arm is ~1/19th of the flow — the campaign-wide cadence stays
+    fine and its seeds are simply missing at the end."""
+    from src.cluster.campaign_health import check_arm_progress_symmetry
+
+    p = _peers()
+    p["dead"] = {"n_records": 3, "hours_since_last": 26.0}
+    c = check_arm_progress_symmetry(p)
+    assert c.severity == "CRITICAL"
+    assert "dead" in c.detail and "siblings" in c.detail
+
+
+def test_a_FINISHED_arm_does_NOT_alarm():
+    """Ahead of its peers and therefore idle. Alarming here would cry wolf every single campaign."""
+    from src.cluster.campaign_health import check_arm_progress_symmetry
+
+    p = _peers()
+    p["finished"] = {"n_records": 95, "hours_since_last": 30.0}
+    assert check_arm_progress_symmetry(p).severity == "OK"
+
+
+def test_an_arm_that_is_BEHIND_but_still_producing_does_NOT_alarm():
+    """Behind alone is not a fault — it may simply have started late or drawn slower nodes."""
+    from src.cluster.campaign_health import check_arm_progress_symmetry
+
+    p = _peers()
+    p["catching_up"] = {"n_records": 5, "hours_since_last": 0.6}
+    assert check_arm_progress_symmetry(p).severity == "OK"
+
+
+def test_the_detector_is_DIFFERENTIAL_so_it_survives_a_slow_cluster():
+    """A fixed 'records per hour' would fire constantly when capacity is low. Judging each arm
+    against its siblings — same cluster, same hour — is robust to that."""
+    from src.cluster.campaign_health import check_arm_progress_symmetry
+
+    slow = _peers(age=6.0)                       # everything slow together = healthy
+    assert check_arm_progress_symmetry(slow).severity == "OK"
+    slow["dead"] = {"n_records": 1, "hours_since_last": 40.0}
+    assert check_arm_progress_symmetry(slow).severity == "CRITICAL"
+
+
+def test_too_few_arms_SKIPS_rather_than_guessing():
+    from src.cluster.campaign_health import check_arm_progress_symmetry
+
+    assert check_arm_progress_symmetry({"a": {"n_records": 1, "hours_since_last": 99}}).severity \
+        == "INFO"

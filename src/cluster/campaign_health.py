@@ -50,6 +50,8 @@ __all__ = [
     "check_admin_kill",
     "check_record_sanity",
     "check_authoring_health",
+    "check_unreadable_records",
+    "check_arm_progress_symmetry",
     "MEASURED_AUTHORING_YIELD",
 ]
 
@@ -135,6 +137,87 @@ def check_authoring_health(per_arm: dict[str, dict[str, Any]],
     return HealthCheck("authoring_health", OK,
                        f"authoring healthy across {len(per_arm)} arm(s) against each author's "
                        "measured yield", {"arms": detail_ev})
+
+
+def check_unreadable_records(n_unreadable: int, n_total: int,
+                             examples: list[str] | None = None) -> HealthCheck:
+    """Torn / unparseable records — the failure EVERY reader currently swallows in silence.
+
+    `integrity.env_label_census`, `first_seed_sanity` and the analysis loaders all skip a record they
+    cannot parse, and each skip is individually correct (one bad file must not blind a whole gate).
+    But nothing COUNTS them, so a rising tide of corruption — a truncating transport, a full disk, a
+    writer killed mid-commit — is invisible while every other indicator stays green. The archive
+    integrity seal catches it, but that runs post-hoc, i.e. after the compute is spent.
+
+    Any unreadable record is worth surfacing: the archive is written with an atomic
+    write-then-rename precisely so a record is either whole or absent, so a TORN one means that
+    invariant was violated and the cause will not fix itself.
+    """
+    if n_total <= 0:
+        return HealthCheck("unreadable_records", INFO, "no records to read yet", {})
+    if n_unreadable <= 0:
+        return HealthCheck("unreadable_records", OK,
+                           f"all {n_total} records parsed cleanly", {"n_total": n_total})
+    frac = n_unreadable / n_total
+    sev = CRITICAL if (frac > 0.01 or n_unreadable >= 5) else WARN
+    return HealthCheck("unreadable_records", sev,
+                       f"{n_unreadable}/{n_total} archived records are UNREADABLE ({frac:.1%}) — "
+                       "records are written atomically, so a torn one means that invariant broke "
+                       "(truncating transport, full disk, or a writer killed mid-commit). Every "
+                       "reader silently SKIPS these, so the count is the only symptom",
+                       {"n_unreadable": n_unreadable, "n_total": n_total,
+                        "examples": (examples or [])[:5]})
+
+
+def check_arm_progress_symmetry(per_arm: dict[str, dict[str, Any]], *,
+                                stale_factor: float = 4.0,
+                                min_arms: int = 3) -> HealthCheck:
+    """One DEAD arm among many healthy ones — masked by every global rate in the system.
+
+    `sentinel.check_completion_stall` watches the campaign's OVERALL cadence, so with nine arms and
+    ten legs running, a single arm whose driver died, whose key expired, or whose chain hung
+    contributes ~1/19th of the flow and the global rate still looks fine. That arm can be silent for
+    a day before anything notices, and its seeds are simply missing at the end.
+
+    DIFFERENTIAL rather than threshold-based, deliberately: the absolute completion rate swings with
+    granted capacity, so any fixed "expected records per hour" would be wrong all the time. Judging
+    each arm against its SIBLINGS is robust to that — they share the same cluster, the same hour and
+    the same scheduler.
+
+    Alarms only on the conjunction of BEHIND and SILENT: an arm that has produced fewer records than
+    its peers AND has gone much staler than them. An arm that is merely FINISHED is behind on
+    nothing and is correctly ignored.
+
+    ``per_arm`` maps arm -> ``{"n_records": int, "hours_since_last": float}``.
+    """
+    active = {a: s for a, s in per_arm.items() if int(s.get("n_records", 0) or 0) >= 0}
+    if len(active) < min_arms:
+        return HealthCheck("arm_progress_symmetry", INFO,
+                           f"need >={min_arms} arms to compare, have {len(active)}", {})
+    ages = sorted(float(s.get("hours_since_last", 0.0) or 0.0) for s in active.values())
+    counts = sorted(int(s.get("n_records", 0) or 0) for s in active.values())
+    mid = len(ages) // 2
+    median_age = ages[mid] if len(ages) % 2 else 0.5 * (ages[mid - 1] + ages[mid])
+    median_n = counts[mid] if len(counts) % 2 else 0.5 * (counts[mid - 1] + counts[mid])
+    threshold = max(stale_factor * max(median_age, 0.25), 2.0)
+
+    stalled = []
+    for arm, s in sorted(active.items()):
+        age = float(s.get("hours_since_last", 0.0) or 0.0)
+        n = int(s.get("n_records", 0) or 0)
+        if age >= threshold and n < median_n:      # BEHIND *and* SILENT - never merely finished
+            stalled.append(f"{arm} ({n} records, silent {age:.1f}h vs peers ~{median_age:.1f}h)")
+    if stalled:
+        return HealthCheck("arm_progress_symmetry", CRITICAL,
+                           "ARM STALLED while its siblings advance: " + "; ".join(stalled[:4])
+                           + " — a global completion rate cannot see this, and its seeds will "
+                             "simply be missing at the end",
+                           {"stalled": stalled, "median_age_h": median_age,
+                            "median_records": median_n})
+    return HealthCheck("arm_progress_symmetry", OK,
+                       f"all {len(active)} arms progressing together "
+                       f"(median idle {median_age:.1f}h)",
+                       {"n_arms": len(active), "median_age_h": median_age})
 
 
 def check_record_sanity(summary: dict[str, Any] | None) -> HealthCheck:
