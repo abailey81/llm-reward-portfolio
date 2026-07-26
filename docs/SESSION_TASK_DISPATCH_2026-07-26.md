@@ -888,3 +888,51 @@ were right. What WAS done: the dry-run emits the correct pin-enforcing argv, the
 `bash -n` clean, and **the offline-weights defect was found and fixed** (see `86ee018`) — without it
 the Myriad serve would have died *after* the GPU allocation was granted. **Execution still needs a
 GPU allocation; it is otherwise turnkey.**
+
+---
+
+# ✅ PHASE 2 COMPLETE — CERTIFICATION AT `c8f753d` (LOGIC-REVIEWER, 2026-07-26)
+
+**ALL GATES GREEN at the pinned sha.** Every RC below was written to a FILE and read back, never
+piped — a `| tail` has masked pytest's RC in this repo before and produced a false green.
+
+| gate | result |
+|---|---|
+| full suite — chunk 1/4 (files 1–38) | **RC=0** |
+| full suite — chunk 2/4 (files 39–76) | **RC=0** |
+| full suite — chunk 3/4 (files 77–114) | **RC=0** |
+| full suite — chunk 4/4 (files 115–151) | **RC=0** |
+| **total** | **2,620 tests across 151 files, zero failures** |
+| `freeze.py --check` | **RC=0** — canonical SHA-256 `b03afd68…`, `freeze_hash: null` ⇒ **correctly NOT frozen** |
+| `ruff check src scripts` | **RC=0** |
+| `check_citations.py` | **RC=0** |
+| PowerShell launcher parse (7 × `.ps1`) | **0 parse errors** |
+
+## HOW it was run, and why that matters
+
+Phase 1 never fully converged — CAPACITY declared, but `config/preregistration.yaml` was being
+rewritten (R112) *during* chunk 1, giving a `yaml.parser.ParserError` that vanished on re-read. That was
+the **sixth** read-race today. A suite run in a live shared tree is not merely flaky here, **it is not
+measurable**.
+
+So the certification was run in a **detached `git worktree` pinned to `c8f753d`**, which live edits
+cannot touch, with the gitignored `data/` (licensed Refinitiv/FRED, 1.2 GB, correctly out of git)
+mounted as a **read-only NTFS junction** — without it the R20 risk-free robustness block is absent and
+`test_analyze_produces_benchmark_floor_when_panel_supplied` fails for want of data, not correctness.
+**This is the repeatable way to certify this repo while four sessions are live — use it.**
+⚠ **Removing such a worktree, `rm -rf` will FOLLOW the junction and delete the real data.** Always
+`cmd /c rmdir <path>\data` first (removes the link, not the target), verify the file count is unchanged,
+then `git worktree remove`. Done here: 2,353 files before and after — intact.
+
+## ⚠ WHAT THIS CERTIFICATION DOES **NOT** COVER — read before treating it as a launch gate
+
+`c8f753d` is a **snapshot**. Already landed on top of it: **`d8c113c` (R112 — two legs silently losing
+authoring calls to hidden reasoning)** and **`b5eff33` (capability-gradient ledger)**, plus **7 dirty
+tracked files** right now (`model_confidence_set`, `responsiveness`, `viz/style` + their tests, and a new
+untracked `scripts/pretrain_validate.py`). **None of that is covered.** R112 in particular changes leg
+execution config, which is exactly the class that must be green before launch.
+
+**⇒ The freeze must be preceded by a re-certification at the ACTUAL freeze sha.** That is cheap now: the
+procedure above is scripted in this section, and it is the same four chunks. Green here means *"this
+repo was sound at `c8f753d`"* — it is evidence, never approval, and **the freeze still fires only on
+Tamer's GO (R94)**.
