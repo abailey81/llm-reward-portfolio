@@ -44,6 +44,17 @@ anything, *less* responsive to larger movements in the fed tail. We therefore re
 condition rather than a performance claim. Three readings make this a positive scientific result rather than an
 absence of evidence.
 
+The distinction rests on the *severity* requirement of error-statistics [`mayo2018severetesting`;
+`altman1995absence`]: a non-rejection is *evidence of absence* rather than mere *absence of evidence* precisely
+when the design would, with high probability, have detected a genuine effect had one been present. That
+"would-have-detected-it" probability decomposes into three independent legs, each of which the design meets or
+explicitly instruments — **responsiveness power** (the dedicated dose-response sub-experiment and its positive
+control, which fire on overtly directive content and sit *upstream* of the candidate search), **search
+adequacy** (the pre-registered saturation, executable-rate, oracle-headroom and coverage-vs-$k$ exhibit; the
+narrow $K=5$ search width is disclosed as this leg's residual in Appendix B.3.3), and **equivalence power** (the
+winner-seed assurance ladder). A reviewer's "you did not search hard enough" therefore lands on exactly one
+instrumented leg, not on the null itself.
+
 First, it is a *corroborated prediction about the envelope–realisation gap*. The theory predicts exactly this
 outcome under the study's two design facts — a tail-blind selector ($\lambda=0$) gives the channel no exogenous
 help, and a non-responsive designer supplies none endogenously — so the null confirms the mechanism account of
@@ -101,7 +112,7 @@ manufacturing significance out of a rich instrument.
 
 ## 7.2 Limitations
 
-We foreground the four limitations most likely to bound the result's interpretation; the full register is
+We foreground the five limitations most likely to bound the result's interpretation; the full register is
 Appendix B. **(i) Construct.** The fed signal is six left-tail scalars, not the full return distribution; we name
 it *multi-level tail-risk feedback* throughout and claim only that it spans the coherent-risk class (Chapter 3),
 making no claim about upside or non-coherent features. **(ii) Training budget.** The fixed agent is trained for
@@ -114,7 +125,13 @@ attributable to the channel, but it also places the study on the boundary of the
 to *this* (conservative, identifiable) configuration and not to a tail-rewarded selector. **(iv) External
 validity.** One universe of US large-cap equities, one historical window, and one language-model family: the study
 claims a boundary condition for that instance and, in particular, cannot earn the plural "language models" — every
-quantitative claim is scoped to the single tested family. Each of these is a deliberate, disclosed design decision
+quantitative claim is scoped to the single tested family. **(v) Search width.** The reward search is $K=5$
+candidates per generation over six generations (30 per arm), below the field's Eureka-scale budget, so for the
+*performance-equivalence* leg a wider search could in principle surface a stronger authored winner. This residual
+is instrumented — the pre-registered saturation, executable-rate, oracle-headroom and coverage-vs-$k$ exhibit — is
+common-mode across arms (hence conservative for the *direction* of any between-arm difference), and does not bind
+the mechanism claim, whose responsiveness is measured *upstream* of the candidate search; a wider-$K$ replication is
+registered as future work. Each of these is a deliberate, disclosed design decision
 with a documented rationale, not a hidden assumption; the register below records the remainder with the same
 candour.
 
