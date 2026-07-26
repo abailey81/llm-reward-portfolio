@@ -30,7 +30,8 @@ import numpy as np
 from src.inference.bootstrap import sharpe_ratio
 from src.io.results import load_run
 
-__all__ = ["empirical_cvar", "per_seed_series", "t0_floor_sharpe", "leg_results_for_synthesis"]
+__all__ = ["empirical_cvar", "per_seed_series", "t0_floor_sharpe", "leg_results_for_synthesis",
+           "discover_leg_roots", "cross_model_synthesis"]
 
 #: The registered T0 floor's source arm and seed set (amendment R84). NOT a free parameter — see
 #: :func:`t0_floor_sharpe`.
@@ -170,3 +171,80 @@ def leg_results_for_synthesis(
             "cvar_b_per_seed": b["cvar"],
         }
     return out
+
+
+#: Leg archives are written to ``<output_dir>/test_leg_<sanitized label>`` (``run_campaign_cluster``
+#: forces ``--root-suffix leg_<label>``), so discovery is a glob rather than a config lookup.
+_LEG_DIR_PREFIX = "test_leg_"
+
+
+def discover_leg_roots(output_dir: str | Path) -> dict[str, Path]:
+    """``{leg label: archive root}`` for every replication leg present under ``output_dir``."""
+    base = Path(output_dir)
+    if not base.is_dir():
+        return {}
+    return {p.name[len(_LEG_DIR_PREFIX):]: p
+            for p in sorted(base.glob(f"{_LEG_DIR_PREFIX}*")) if p.is_dir()}
+
+
+def cross_model_synthesis(
+    output_dir: str | Path,
+    seeds: list[int] | None = None,
+    *,
+    core_test_root: str | Path | None = None,
+    n_reps: int = 10_000,
+    n_boot: int = 10_000,
+) -> dict[str, Any]:
+    """THE R86/R101 cross-model statement, assembled end-to-end from the leg archives.
+
+    This is the production caller the pieces were missing. ``cross_model`` and this module were both
+    built and unit-tested, but NOTHING invoked them — so the registered "across every model we
+    tested, the effect is at most X" claim had no executable route to a number and would have had to
+    be withdrawn after the compute was already spent (the R16 failure repeating).
+
+    THE ANTI-FABRICATION CONTRACT. Three states are reported DISTINCTLY, because collapsing them is
+    precisely how a plausible-but-empty result appears:
+
+    * ``no_leg_archives``  — no leg ran (missing DATA; says nothing about any effect);
+    * ``no_core_baseline`` — the registered T0 floor cannot be computed (missing INPUT);
+    * ``no_legs_passed_floor`` — legs ran and every one failed the floor (a FINDING, reportable as
+      an authoring/search failure — never as "no effect").
+
+    Only ``ok`` carries the statistics. ``n_legs_found`` and ``n_legs_included`` are always reported
+    side by side so a bound can never be read without knowing what it was computed over — the exact
+    hole that let a bound over ZERO legs read as "all legs failed the T0 floor".
+
+    Deterministic and read-only: the permutation and bootstrap seeds are the registered constants.
+    """
+    from src.inference.cross_model import permutation_test, pooled_bound, sign_count
+
+    seeds = list(T0_FLOOR_SEEDS if seeds is None else seeds)
+    base = Path(output_dir)
+    leg_roots = discover_leg_roots(base)
+    core = Path(core_test_root) if core_test_root is not None else base / "test"
+    common: dict[str, Any] = {"n_legs_found": len(leg_roots), "legs_found": sorted(leg_roots),
+                              "seeds": len(seeds), "core_test_root": str(core)}
+    if not leg_roots:
+        return {**common, "status": "no_leg_archives", "n_legs_included": 0,
+                "note": "no replication-leg archives under the campaign root — MISSING DATA, "
+                        "not evidence about the effect"}
+    try:
+        floor = t0_floor_sharpe(core, seeds)
+    except Exception as exc:  # noqa: BLE001 — a missing floor is a missing INPUT, never a result
+        return {**common, "status": "no_core_baseline", "n_legs_included": 0,
+                "note": f"the registered T0 floor (equal_weight, seeds 0-29) is not computable "
+                        f"from {core}: {type(exc).__name__}: {exc}"}
+
+    legs = leg_results_for_synthesis(leg_roots, seeds, floor)
+    included = sorted(k for k, v in legs.items() if v.get("t0_floor_pass"))
+    failures = {k: v.get("failure") for k, v in legs.items() if v.get("failure")}
+    common.update({"floor_sharpe": floor, "n_legs_included": len(included),
+                   "legs_included": included, "leg_failures": failures})
+    if not included:
+        return {**common, "status": "no_legs_passed_floor",
+                "note": "every leg failed the T0 floor in at least one contrasted arm — report this "
+                        "as an authoring/search failure (a finding), NEVER as a null effect"}
+    return {**common, "status": "ok",
+            "sign_count": sign_count(legs),
+            "permutation_test": permutation_test(legs, n_reps=n_reps),
+            "pooled_bound": pooled_bound(legs, n_boot=n_boot)}

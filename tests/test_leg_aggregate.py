@@ -197,3 +197,75 @@ def test_diff_sign_convention_dist_safer_positive(tmp_path: Path):
     assert "failure" not in out["leg"], out["leg"].get("failure")
     assert diff.shape == (len(seeds),)
     assert np.all(diff > 0)
+
+
+# --- the production wiring (row 34): cross_model_synthesis ------------------------------------
+# `cross_model` + `leg_aggregate` were built and tested but NOTHING called them, so the registered
+# cross-model claim had no route to a number. These lock the caller AND its anti-fabrication states.
+
+def test_no_leg_archives_is_MISSING_DATA_not_a_null_effect(tmp_path: Path):
+    from src.inference.leg_aggregate import cross_model_synthesis
+
+    out = cross_model_synthesis(tmp_path)
+    assert out["status"] == "no_leg_archives"
+    assert out["n_legs_found"] == 0 and out["n_legs_included"] == 0
+    assert "MISSING DATA" in out["note"]
+    assert "pooled_bound" not in out          # never a statistic computed over nothing
+
+
+def test_a_missing_T0_floor_is_a_MISSING_INPUT_not_a_result(tmp_path: Path):
+    """Legs exist but the core baseline does not: the floor cannot be computed, so no bound may be
+    reported. Silently treating this as 'no legs passed' would invent a finding."""
+    from src.inference.leg_aggregate import cross_model_synthesis
+
+    rng = np.random.default_rng(3)
+    _write_leg(tmp_path / "test_leg_alpha", [0, 1], rng)
+    out = cross_model_synthesis(tmp_path, [0, 1])
+    assert out["status"] == "no_core_baseline"
+    assert out["n_legs_found"] == 1 and "pooled_bound" not in out
+
+
+def test_legs_that_all_FAIL_the_floor_are_a_FINDING_and_never_a_bound(tmp_path: Path):
+    """The failure the layout/unit bugs would have produced: a bound over ZERO legs reading as
+    'all legs failed the floor'. Now the two are distinct and no statistic is emitted."""
+    from src.inference.leg_aggregate import cross_model_synthesis
+
+    rng = np.random.default_rng(4)
+    seeds = [0, 1, 2]
+    for s in seeds:                                   # a HIGH core floor nothing can clear
+        write_run(_record("equal_weight", s, np.full(200, 0.02)), tmp_path / "test" / "equal_weight")
+    _write_leg(tmp_path / "test_leg_alpha", seeds, rng, a_shift=-0.05, b_shift=-0.05)
+    out = cross_model_synthesis(tmp_path, seeds)
+    assert out["status"] == "no_legs_passed_floor"
+    assert out["n_legs_found"] == 1 and out["n_legs_included"] == 0
+    assert "NEVER as a null effect" in out["note"]
+    assert "pooled_bound" not in out
+
+
+def test_the_HAPPY_path_produces_the_three_registered_statistics(tmp_path: Path):
+    from src.inference.leg_aggregate import cross_model_synthesis
+
+    rng = np.random.default_rng(5)
+    seeds = list(range(6))
+    for s in seeds:                                   # a floor both leg arms clear
+        write_run(_record("equal_weight", s, rng.standard_normal(300) * 0.01),
+                  tmp_path / "test" / "equal_weight")
+    for leg in ("alpha", "beta"):
+        _write_leg(tmp_path / f"test_leg_{leg}", seeds, np.random.default_rng(7),
+                   a_shift=0.004, b_shift=0.004)
+    out = cross_model_synthesis(tmp_path, seeds, n_reps=200, n_boot=200)
+    assert out["status"] == "ok"
+    assert out["n_legs_found"] == 2 and out["n_legs_included"] == 2
+    assert {"sign_count", "permutation_test", "pooled_bound"} <= set(out)
+    assert out["pooled_bound"].get("estimate") is not None
+    assert out["floor_sharpe"] == pytest.approx(
+        t0_floor_sharpe(tmp_path / "test", seeds))
+
+
+def test_leg_roots_are_discovered_by_the_layout_the_launcher_actually_writes(tmp_path: Path):
+    from src.inference.leg_aggregate import discover_leg_roots
+
+    (tmp_path / "test_leg_qwen3.5-9b").mkdir(parents=True)
+    (tmp_path / "test").mkdir()                       # the CORE leg must not be mistaken for one
+    (tmp_path / "search").mkdir()
+    assert sorted(discover_leg_roots(tmp_path)) == ["qwen3.5-9b"]

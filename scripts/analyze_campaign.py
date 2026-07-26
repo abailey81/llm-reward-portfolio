@@ -4863,6 +4863,19 @@ def analyze(
     except Exception as exc:  # noqa: BLE001 - a report-only secondary must never break the headline
         out["h4"] = {"status": "error", "reason": str(exc)[:200]}
 
+    # CROSS-MODEL SYNTHESIS (R86/R101) — the registered "across every model we tested, the effect is
+    # at most X" statement. WIRED 2026-07-26: `cross_model` and `leg_aggregate` were both built and
+    # unit-tested but had NO production caller, so the claim had no executable route to a number and
+    # would have had to be withdrawn AFTER the campaign's compute was spent (the R16 failure
+    # repeating). The helper reports `no_leg_archives` / `no_core_baseline` / `no_legs_passed_floor`
+    # as DISTINCT states, so an empty synthesis can never be mistaken for a null effect.
+    try:
+        from src.inference.leg_aggregate import cross_model_synthesis
+
+        out["cross_model"] = cross_model_synthesis(root)
+    except Exception as exc:  # noqa: BLE001 - never break the headline analysis
+        out["cross_model"] = {"status": "error", "reason": str(exc)[:200]}
+
     # H3 (DEEP_H3; PREREGISTRATION §1/§6) — iterative reflection vs single-shot best-of-N, per-seed IQM
     # paired bootstrap + a TOST equivalence (±0.05). The single-shot condition is a SEPARATE run archived
     # under single_shot_root (D-2: test_h3_singleshot/<arm>); graceful skip when absent. DISJOINT out["h3"].
