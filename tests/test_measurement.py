@@ -236,6 +236,43 @@ def test_threshold_sensitivity_diagnostic(heavy_tail_returns: np.ndarray) -> Non
     assert rd.tail_stats() == before
 
 
+def test_threshold_sensitivity_refits_on_time_ordered_returns() -> None:
+    """Internal refits must receive the TIME-ORDERED series, never ``sorted_returns`` (2026-07-26).
+
+    The POT/GPD path is order-invariant, so the returned values are byte-identical either way — this
+    pins the INVARIANT, not the numbers. It matters because each internal replicate is a fully-formed
+    ReturnDistribution whose ``_raw`` is what the stationary block bootstrap resamples: seeded from a
+    SORTED series it would resample monotone runs, destroy the serial dependence the block scheme
+    exists to preserve, and silently report a materially too-wide CI (~3.5x on an AR(1) fixture).
+    """
+    rng = np.random.default_rng(7)
+    eps = rng.standard_t(4, 1200) * 0.008
+    r = np.empty(1200)
+    r[0] = eps[0]
+    for i in range(1, 1200):
+        r[i] = 0.15 * r[i - 1] + eps[i]  # serial dependence sorting would destroy
+    assert not np.all(np.diff(r) >= 0.0), "fixture precondition: the series is not already sorted"
+
+    seen: list[np.ndarray] = []
+    original_fit = ReturnDistribution.fit
+
+    def _spy(self, train_realized_returns):  # noqa: ANN001, ANN202 - local test spy
+        seen.append(np.asarray(train_realized_returns, dtype=float).ravel())
+        return original_fit(self, train_realized_returns)
+
+    rd = ReturnDistribution(threshold_q=0.10).fit(r)
+    ReturnDistribution.fit = _spy  # type: ignore[method-assign]
+    try:
+        rd.threshold_sensitivity(alpha=0.01, threshold_qs=(0.05, 0.10, 0.20))
+    finally:
+        ReturnDistribution.fit = original_fit  # type: ignore[method-assign]
+
+    assert len(seen) == 3, f"expected one refit per probed threshold, saw {len(seen)}"
+    for got in seen:
+        assert not np.all(np.diff(got) >= 0.0), "a refit received a SORTED series (the _raw trap)"
+        np.testing.assert_allclose(got, r)
+
+
 # --------------------------------------------------------------------------- #
 # T2.8(a) — the xi <= -0.5 non-regular-GPD-MLE guard (mirrors the xi >= 1 guard)
 # --------------------------------------------------------------------------- #

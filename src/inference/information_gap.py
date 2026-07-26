@@ -161,6 +161,16 @@ def extract_fed_observations(
                 continue
             seen.add(key)
 
+            # ⚠ RAW-RENDERING ONLY (verified 2026-07-26). The match below compares against the schema's
+            # RAW ``_fmt`` (``-0.090``). A LEGIBLE-rendered block (``legible_render: true`` — the
+            # numeracy sub-experiment, ADR-039) renders basis points / percent (``-900 bps``, ``8.5%``),
+            # which this parser HAPPILY PARSES (the regex stops before the unit) but which can never
+            # equal the raw multiset — so every such record lands in ``n_parent_unmatched``. That
+            # degradation is honest (counted, never guessed), but the SYMPTOM is misleading: a 100%
+            # unmatched rate on a legible leg is a FORMAT mismatch, NOT missing parents. Read the
+            # counters with the leg's ``legible_render`` setting in hand; extend ``_COMPONENT_RES`` +
+            # this comparison to the bps/percent units before running this instrument on a legible leg.
+            #
             # Underlying full-precision parent: the g-1 record whose measured tail_stats render (via the
             # schema's raw _fmt) to the fed value MULTISET (multiset => derangement-proof) and which
             # carries a FINITE val_fitness (only so underlying_scalar exists). The fed SCALAR is

@@ -42,6 +42,10 @@ from typing import Any
 
 import numpy as np
 
+# The valid-bootstrap-fraction floor is DEFINED in ``responsiveness`` and already imported the same way
+# by ``information_gap`` — one constant, one owner, three instruments (no third copy to drift).
+from src.inference.responsiveness import MIN_BOOT_VALID_FRACTION
+
 __all__ = ["mediation_analysis"]
 
 #: Guard threshold for ``prop_mediated``: the total effect c must exceed this many bootstrap SEs of 0 for the
@@ -148,7 +152,14 @@ def mediation_analysis(
         ci_low, ci_high = (float(v) for v in np.percentile(valid, [2.5, 97.5]))
     else:
         ci_low = ci_high = float("nan")
-    mediated = bool(valid.size and (ci_low > 0.0 or ci_high < 0.0))
+    # Gate the percentile CI on the valid-boot FRACTION, mirroring the P7b fix already applied to the
+    # sibling instrument (``responsiveness.responsiveness``, which DEFINES ``MIN_BOOT_VALID_FRACTION``,
+    # and ``information_gap`` which imports it). Mediation has the IDENTICAL degeneracy mode: ``_effects``
+    # raises ``LinAlgError`` on a rank-deficient resample (a constant predictor column), those replicates
+    # are dropped to NaN, and ``valid.size`` alone only excluded the ZERO case — so ``mediated=True`` could
+    # be declared from a handful of survivors. 2026-07-26 review.
+    ci_reliable = bool(valid.size >= MIN_BOOT_VALID_FRACTION * int(n_boot))
+    mediated = bool(ci_reliable and valid.size and (ci_low > 0.0 or ci_high < 0.0))
 
     # STABILITY GUARD on prop_mediated (predicted-null-regime safety). ``prop_mediated`` is only a meaningful
     # ratio when the total effect c is DISTINGUISHABLE from 0. We mark it undefined (NaN, with a flag) when the
@@ -184,5 +195,6 @@ def mediation_analysis(
         "ci_high": ci_high,
         "mediated": mediated,
         "n_boot_valid": int(valid.size),
+        "ci_reliable": ci_reliable,
         "standardized": bool(standardize),
     }

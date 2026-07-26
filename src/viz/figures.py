@@ -26,6 +26,7 @@ the SESOI value are the caller's responsibility; defaults match the pre-registra
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Mapping, Sequence
 
 import numpy as np
@@ -36,6 +37,8 @@ from src.viz.style import (
     equivalence_band,
     iqm_bootstrap_ci,
 )
+
+_LOG = logging.getLogger(__name__)
 
 __all__ = [
     "budget_curve_exhibit",
@@ -67,7 +70,7 @@ def _is_equivalent(tost_lo: float, tost_hi: float, sesoi: float) -> bool:
 def equivalence_forest(
     contrasts: Sequence[Mapping[str, Any]],
     *,
-    sesoi: float = 0.05,
+    sesoi: float | Mapping[str, float] = 0.05,
     legs: Sequence[str] = ("sharpe", "cvar"),
     title: str = "Co-primary equivalence: contrasts vs the ±SESOI band",
 ) -> Any:
@@ -75,8 +78,21 @@ def equivalence_forest(
 
     ``contrasts``: an iterable of mappings with keys ``label`` (e.g. "dist − scalar"), ``leg``
     (``"sharpe"``/``"cvar"``), ``estimate``, ``tost_lo``, ``tost_hi``, ``ci_lo``, ``ci_hi``. A row is drawn
-    FILLED when its 90% TOST interval lies inside [-sesoi, +sesoi] (EQUIVALENT) and OPEN otherwise
+    FILLED when its 90% TOST interval lies inside the band (EQUIVALENT) and OPEN otherwise
     (INCONCLUSIVE) — the figure never reads a null off a p-value.
+
+    ⚠ THE BAND IS PER-LEG (2026-07-26 review). ``sesoi`` may be a single float OR a
+    ``{leg: margin}`` mapping, and for the co-primary pair it SHOULD be a mapping. The two legs are
+    NOT in the same units — ``analyze_campaign.h2_tost`` is "RA-only by construction; the CVaR
+    equivalence stays in ``h2_tost`` (its own units)". Applying the raw ±0.05 DSR margin to the CVaR
+    leg is the exact error the analysis layer corrects: per ``analyze_campaign`` (P6 band), *"the raw
+    ±SESOI (0.05) ROPE is in RAW CVaR units and is LARGE relative to a daily CVaR magnitude
+    O(0.01–0.06), so on the TAIL legs it can near-trivially contain the posterior and OVER-CLAIM null
+    evidence"* — so the tail leg uses a RELATIVE band (``tail_margin_fraction`` × |baseline CVaR|,
+    default 25 %). A single scalar here would draw the CVaR rows FILLED against a far-too-wide
+    corridor, i.e. visually over-claim the null on the bankable-null headline leg. Pass e.g.
+    ``sesoi={"sharpe": 0.05, "cvar": 0.25 * abs(baseline_cvar)}``. A scalar is still accepted (it
+    applies to every leg) so existing single-leg callers are unchanged.
     """
     import matplotlib.pyplot as plt
 
@@ -84,9 +100,26 @@ def equivalence_forest(
     fig, axes = plt.subplots(len(legs), 1, figsize=(6.2, 1.2 + 1.6 * len(legs)), sharex=True, squeeze=False)
     for ax, leg in zip(axes[:, 0], legs):
         rows = [c for c in contrasts if c["leg"] == leg]
-        equivalence_band(ax, sesoi, orient="v")
+        # PER-LEG band: the co-primary legs are in different units (see the docstring warning).
+        # Precedence: a per-ROW ``sesoi``/``margin`` (the analysis-computed band, e.g. h2_tost's
+        # relative tail margin, which depends on THAT contrast's baseline CVaR) > a {leg: margin}
+        # mapping > the scalar. Row-level wins because the tail band is per-contrast, not per-leg.
+        leg_sesoi = float(sesoi[leg]) if isinstance(sesoi, Mapping) else float(sesoi)
+        row_margins = [float(c.get("sesoi", c.get("margin", leg_sesoi))) for c in rows]
+        if leg == "cvar" and not isinstance(sesoi, Mapping) and not any(
+            ("sesoi" in c or "margin" in c) for c in rows
+        ):
+            # The over-claim case (2026-07-26 review): a raw DSR-unit margin on the TAIL leg is LARGE
+            # against a daily CVaR O(0.01-0.06) and near-trivially contains the interval. Never silent.
+            _LOG.warning(
+                "equivalence_forest: the %r leg is being drawn against the SCALAR band %.4g, which is "
+                "in validation-DSR units — on the tail leg that OVER-CLAIMS equivalence. Pass the "
+                "analysis band (h2_tost 'margin', = tail_margin_fraction x |baseline CVaR|) either "
+                "per-row as 'sesoi'/'margin' or as sesoi={'cvar': <margin>}.", leg, leg_sesoi,
+            )
+        equivalence_band(ax, float(np.median(row_margins)) if row_margins else leg_sesoi, orient="v")
         for y, c in enumerate(rows):
-            equiv = _is_equivalent(float(c["tost_lo"]), float(c["tost_hi"]), sesoi)
+            equiv = _is_equivalent(float(c["tost_lo"]), float(c["tost_hi"]), row_margins[y])
             col = OKABE_ITO["blue"] if equiv else OKABE_ITO["vermillion"]
             # 95% CI = thin whisker; 90% TOST interval = thick bar; estimate = marker.
             ax.plot([c["ci_lo"], c["ci_hi"]], [y, y], color=col, lw=1.0, zorder=3)

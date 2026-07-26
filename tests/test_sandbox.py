@@ -837,3 +837,34 @@ def test_inline_fallback_counter_starts_at_zero_and_is_readable():
 
     n = inline_fallback_count()
     assert isinstance(n, int) and n >= 0
+
+
+def test_defines_reward_separates_SAFE_from_USABLE() -> None:
+    """``ast_gate`` proves SAFE; ``defines_reward`` proves USABLE — an empty completion is both safe
+    and useless (deep review 2026-07-26).
+
+    ``ast_gate("")`` is True (nothing dangerous is present in nothing), so an empty / whitespace /
+    comment-only / no-reward completion — the canonical refusal & ``content_filter`` output — passed
+    the campaign's pre-ship author gate and was SHIPPED to a cluster node. That is exactly the
+    truncated/refused case the P8 gate (``cluster/campaign.py``) exists to stop; only the
+    syntactically-invalid subset (prose) was actually being caught.
+    """
+    from src.sandbox.executor import ast_gate, defines_reward
+
+    for src in ["", "   \n\n ", "# I cannot provide this", "import numpy as np\nx = 1"]:
+        assert ast_gate(src) is True, f"the SAFETY gate alone accepts {src!r} — that is the point"
+        assert defines_reward(src) is False, f"{src!r} must not count as a usable reward"
+
+    # Both forms the executor accepts (`namespace.get("reward")` + `callable`) must still pass: a
+    # def-only check would be STRICTER than validation and would discard real candidates.
+    assert defines_reward("def reward(w, r, wp, pr, info):\n    return 0.0, {}, None")
+    assert defines_reward("reward = lambda w, r, wp, pr, info: (0.0, {}, None)")
+    assert defines_reward("reward: object = lambda w, r, wp, pr, i: (0.0, {}, None)")
+
+    # A NESTED def never reaches the exec namespace, so it must NOT count — this mirrors the
+    # executor's own "source defines no callable named 'reward'" rejection.
+    assert not defines_reward(
+        "def outer():\n    def reward(a, b, c, d, e):\n        return 0.0, {}, None"
+    )
+    # Unparseable stays rejected (fail-closed), as ast_gate already is.
+    assert not defines_reward("def reward(:")

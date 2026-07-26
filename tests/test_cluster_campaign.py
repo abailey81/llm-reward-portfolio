@@ -861,3 +861,102 @@ def test_pending_specs_scopes_completion_to_each_specs_own_subroot(tmp_path):
     assert pending_roots == {"test_h3_singleshot"}, (
         "the H3 spec must remain pending — its own test_h3_singleshot/ archive is empty")
     assert all(Path(s["archive_root"]).name != "test" for s in pending)
+
+
+# --------------------------------------------------------------------------- #
+# Authoring outage tolerance: transient-vs-PERMANENT classification (2026-07-26) #
+# --------------------------------------------------------------------------- #
+class _ApiError(Exception):
+    """Stand-in for an SDK error; ``status_code`` is set when the SDK would supply it."""
+
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        if status_code is not None:
+            self.status_code = status_code
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Error code: 400 - max_tokens: 8500 > 8192, which is the maximum allowed",
+        "Error code: 404 - model claude-opus-5000-preview not found",
+        "Error code: 400 - request_id req_011CQ500ABCD is malformed",
+        "Error code: 400 - prompt is 1500 tokens over the limit",
+        "Error code: 400 - your credit balance is too low",
+        "Error code: 401 - invalid x-api-key",
+    ],
+)
+def test_permanent_author_errors_never_ride_out(message: str) -> None:
+    """A PERMANENT error must re-raise at once — never burn the 2 h outage budget.
+
+    The first four messages are the regression: the transient markers used to include the BARE
+    strings "500"/"502"/"503"/"504"/"529", which matched INCIDENTAL digits (``8500``, ``opus-5000``,
+    ``req_011CQ500ABCD``, ``1500 tokens``). Those 4xx failures were therefore classified transient and
+    retried for two hours apiece, defeating the documented guarantee of "no spend-burning retries on a
+    permanent problem" — on exactly the max_tokens 400 this project already hit twice (R97a, R102).
+    """
+    from src.cluster.campaign import _is_transient_author_error
+
+    assert _is_transient_author_error(_ApiError(message)) is False
+
+
+@pytest.mark.parametrize(
+    "message, status",
+    [
+        ("Error code: 529 - overloaded_error", None),
+        ("Error code: 503 - service unavailable", None),
+        ("Error code: 429 - rate limit exceeded", None),  # 429 now caught by STATUS, not only prose
+        ("Request timed out", None),
+        ("Connection error", None),
+        ("overloaded", 529),                               # SDK-supplied status_code wins
+    ],
+)
+def test_transient_author_errors_ride_out(message: str, status: int | None) -> None:
+    """A genuinely transient failure must still be ridden out (the P2 outage-tolerance behaviour)."""
+    from src.cluster.campaign import _is_transient_author_error
+
+    assert _is_transient_author_error(_ApiError(message, status)) is True
+
+
+def test_unknown_author_error_fails_closed() -> None:
+    """An unrecognised error re-raises: never burn the budget on something we cannot classify."""
+    from src.cluster.campaign import _is_transient_author_error
+
+    assert _is_transient_author_error(_ApiError("something entirely unexpected")) is False
+
+
+# --------------------------------------------------------------------------- #
+# `-r y` idempotency on the INLINE (pack=1) path — 2026-07-26 deep review       #
+# --------------------------------------------------------------------------- #
+def test_inline_path_skips_an_already_archived_spec(tmp_path: Path) -> None:
+    """A completed spec must NOT be retrained/overwritten when SGE re-executes the task.
+
+    `#$ -r y` (jobscript.py:38) makes SGE re-run the WHOLE task after a node failure. The PACK branch
+    guarded against that with `_already_archived`, but the INLINE branch — which `pack=1` routes to,
+    and pack=1 is the DEFAULT (jobscript.py:94, campaign.py:82/154) — returned before the check. A
+    re-executed task therefore retrained a finished spec (~1.5 h against the Aug-27 exogenous stop)
+    and OVERWROTE its remote record with a different node fingerprint: the remote-vs-pulled-mirror
+    divergence that `cluster/integrity.py`'s env-fingerprint census would flag on the SEALED leg.
+
+    The assertion pins the HARM, not just the return shape: the pre-existing record must survive
+    byte-for-byte.
+    """
+    import json
+
+    from src.cluster.run_one import run_task
+
+    arm, rid = "scalar", "packtest-resume"
+    rec_dir = tmp_path / arm / rid
+    rec_dir.mkdir(parents=True)
+    sentinel = {"run_id": rid, "arm": arm, "metrics": {"val_fitness": 0.42},
+                "env_fingerprint": "ORIGINAL-NODE-FINGERPRINT"}
+    (rec_dir / "record.json").write_text(json.dumps(sentinel), encoding="utf-8")
+
+    spec = {"run_id": rid, "candidate_id": rid, "arm": arm, "archive_root": str(tmp_path)}
+    rows = run_task(spec, pack=1)  # dict payload + pack=1 -> the INLINE branch
+
+    assert len(rows) == 1
+    assert rows[0]["ok"] is True
+    assert rows[0].get("skipped") == "already_archived", rows
+    # THE POINT: the completed record was neither retrained nor overwritten.
+    assert json.loads((rec_dir / "record.json").read_text(encoding="utf-8")) == sentinel

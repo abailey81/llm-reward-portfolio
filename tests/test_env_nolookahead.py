@@ -289,3 +289,23 @@ def test_vix_prelagged_panel_reads_row_t_still_no_lookahead() -> None:
     env_p = _make_env(panel_p)
     env_p.t = t
     np.testing.assert_array_equal(obs, env_p._obs())
+
+
+def test_zero_lookback_refused_because_the_vix_channel_would_read_the_future() -> None:
+    """``lookback_days = 0`` must RAISE, not build an env whose obs leaks the panel's LAST row.
+
+    At ``lookback=0`` the default ``start`` is 0, so on the contemporaneous (synthetic) convention
+    ``_obs`` reads ``vix[t - 1]`` = ``vix[-1]`` -- NumPy's NEGATIVE index, i.e. the panel's FINAL row:
+    the future. DEMONSTRATED before the guard existed (deep review 2026-07-26): an obs built at t=0
+    contained ``vix[-1]`` and NOT ``vix[0]``. ``_obs``'s ``min(vix_idx, T-1)`` clamp bounds the index
+    only from ABOVE, so nothing caught it. Same negative-index class as final-audit #28, which closed
+    it for ``realized_vol_windows`` but left the lookback itself open.
+    """
+    import copy
+
+    cfg = copy.deepcopy(load_config("environment"))
+    cfg["state"]["lookback_days"] = 0
+    cfg["state"]["realized_vol_windows"] = []  # else the #28 guard fires first and masks this one
+
+    with pytest.raises(ValueError, match="lookback_days must be >= 1"):
+        PortfolioEnv(_hand_panel(), cfg, _port_ret_reward)

@@ -345,7 +345,55 @@ def test_resolve_agent_kwargs_buffer_sized_to_train_steps() -> None:
     kwargs2, _ = resolve_agent_kwargs(
         {"train_steps_per_candidate": 777, "buffer_size": 100}, seed=0
     )
-    assert kwargs2["buffer_size"] == 100  # explicit override honoured
+    assert kwargs2["buffer_size"] == 100  # explicit override honoured -- BELOW the cap; see next test
+
+
+def test_replay_cap_clamps_the_frozen_budget_at_both_construction_sites() -> None:
+    """The memory-safety cap is a true CEILING at the frozen 400k budget (R77), not a default.
+
+    Nothing else in the suite exercised the cap ACTUALLY clamping: every other ``buffer_size``
+    assertion uses a sub-cap value (777 / 321 / 100), so a refactor that dropped the ``min(...)``
+    would leave the suite green while a 400k run allocated a ~5.6 GB replay buffer and OOM'd the
+    15.6 GB laptop (ADR-025 EXTENDED). Both sites are asserted because the cap is documented as
+    "enforced at BOTH" (``factory._policy_kwargs`` and ``trainer.resolve_agent_kwargs``);
+    ``_policy_kwargs`` is used directly so the assertion needs no SB3 agent construction.
+    """
+    from src.agents.factory import _policy_kwargs, campaign_replay_cap
+    from src.agents.trainer import resolve_agent_kwargs
+
+    cap = campaign_replay_cap()
+
+    # A ceiling cannot be overridden UPWARD -- that is the whole point of a RAM guard.
+    assert _policy_kwargs({"train_steps_per_candidate": 400_000})["buffer_size"] == cap
+    assert _policy_kwargs({"buffer_size": 400_000})["buffer_size"] == cap
+    assert _policy_kwargs({"train_steps_per_candidate": 777})["buffer_size"] == 777  # no-op below
+
+    kw_implicit, steps = resolve_agent_kwargs({"train_steps_per_candidate": 400_000}, seed=0)
+    assert kw_implicit["buffer_size"] == cap
+    assert steps == 400_000, "the cap bounds the BUFFER only -- it must never truncate the budget"
+    kw_explicit, _ = resolve_agent_kwargs(
+        {"train_steps_per_candidate": 400_000, "buffer_size": 400_000}, seed=0
+    )
+    assert kw_explicit["buffer_size"] == cap
+
+
+def test_default_replay_cap_matches_the_registered_config() -> None:
+    """``DEFAULT_REPLAY_CAP`` duplicates ``config/campaign.yaml agent.buffer_size`` -- bind them.
+
+    ``campaign_replay_cap()`` falls back to the literal when the config cannot be read, so if the
+    registered value were changed without updating the literal, that fallback would silently resolve
+    a DIFFERENT buffer than the registered one -- a laptop/cluster parity break in the failure path.
+    Nothing (no test, no freeze guard) bound the two before this.
+    """
+    from src.agents.factory import DEFAULT_REPLAY_CAP, campaign_replay_cap
+    from src.utils.config import load_config
+
+    registered = (load_config("campaign").get("agent") or {}).get("buffer_size")
+    assert registered == DEFAULT_REPLAY_CAP, (
+        f"config/campaign.yaml agent.buffer_size={registered!r} has drifted from "
+        f"DEFAULT_REPLAY_CAP={DEFAULT_REPLAY_CAP!r}"
+    )
+    assert campaign_replay_cap() == registered
 
 
 def test_resolve_agent_kwargs_train_steps_fallback_chain() -> None:

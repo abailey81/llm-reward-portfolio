@@ -451,6 +451,41 @@ def _parses_as_python(src: str) -> bool:
         return False
 
 
+def defines_reward(src: str) -> bool:
+    """True iff ``src`` BINDS a top-level name ``reward`` (deep review 2026-07-26).
+
+    ``ast_gate`` answers "is this source SAFE", which is a different question from "is this a REWARD":
+    ``ast_gate("")`` is ``True`` because nothing dangerous is present in nothing. So an EMPTY,
+    whitespace-only, comment-only, or code-without-a-reward completion — the canonical refusal /
+    ``content_filter`` output (``src/llm/client.py`` ``_INCOMPLETE_STOP_REASONS``) — passes a safety
+    gate untouched. Callers deciding whether a completion is USABLE (not merely harmless) need both.
+
+    Deliberately mirrors what the executor actually accepts (``namespace.get("reward")`` +
+    ``callable``), so ``reward = lambda ...`` counts: a check restricted to ``def`` would be STRICTER
+    than validation and could reject a valid candidate. The bias is intentional — a false negative
+    would discard real science, a false positive only wastes the node slot the caller was already
+    prepared to spend.
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return False
+    for node in tree.body:  # top level only: a nested def never reaches the exec namespace
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "reward":
+            return True
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "reward" for t in node.targets
+        ):
+            return True
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "reward"
+        ):
+            return True
+    return False
+
+
 def extract_reward_source(text: str) -> str:
     """Recover runnable reward source from a raw LLM completion (final-audit 2026-06-19 P0 fix).
 

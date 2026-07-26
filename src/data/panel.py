@@ -77,7 +77,22 @@ class Panel:
         return self.returns.shape[1]
 
     def slice(self, start: int, end: int) -> "Panel":
-        """Return a contiguous ``[start, end)`` time-slice as a new ``Panel``."""
+        """Return a contiguous ``[start, end)`` time-slice as a new ``Panel``.
+
+        Raises ``ValueError`` unless ``0 <= start <= end <= T``.
+        """
+        # Reject windows NumPy would silently REINTERPRET rather than reject (2026-07-26 deep review).
+        # A negative ``start`` is an offset from the END, so ``slice(-5, 20)`` on T=20 silently returns
+        # the LAST five rows -- FUTURE data -- instead of failing; an inverted or past-end window
+        # silently yields an EMPTY panel, which ``__post_init__`` accepts (T=0 is a valid shape). Both
+        # are look-ahead-shaped failures on the very object the no-look-ahead proof slices
+        # (tests/test_env_nolookahead.py), so they must fail loudly. No production caller passes a
+        # computed window today; this guard keeps the silent-reinterpretation path closed by construction.
+        if not 0 <= start <= end <= self.T:
+            raise ValueError(
+                f"slice window must satisfy 0 <= start <= end <= T={self.T}; "
+                f"got start={start}, end={end}"
+            )
         return Panel(
             returns=self.returns[start:end],
             vix=self.vix[start:end],

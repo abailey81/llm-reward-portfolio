@@ -6,6 +6,9 @@ for null-calibration tests, and an isolated results directory.
 """
 from __future__ import annotations
 
+import gc
+import sys
+
 # H1: import pyarrow BEFORE torch (order-independent SIGSEGV fix). pytest-randomly shuffles test /
 # module order, so a test that imports torch before any pyarrow-backed gold load can trigger the
 # torch/pyarrow first-loader-wins ABI segfault (src/utils/preload). Preloading here — at the very top
@@ -23,6 +26,33 @@ from src.data.panel import Panel  # noqa: E402
 from src.data.synthetic import make_synthetic_panel  # noqa: E402
 
 SEED = 12345
+
+
+@pytest.fixture(autouse=True)
+def _release_cuda_between_tests():
+    """Return retained GPU memory after any test that touched CUDA (2026-07-26 deep review).
+
+    SAME ORDER-DEPENDENCE CLASS as the pyarrow-before-torch fix at the top of this file. A test that
+    trains IN-PROCESS (``tests/test_reproduce_synthetic.py`` runs a real SB3-SAC fit) leaves PyTorch's
+    caching allocator holding the GPU. A later test that SPAWNS cuda workers then OOMs —
+    ``tests/test_cluster_pack_integration.py`` deliberately packs TWO 'cuda' tokens onto the one
+    physical GPU (that IS what it verifies: Myriad-style device-token routing), and on the 6 GB laptop
+    GPU the parent's retained cache leaves the children nothing:
+    ``RuntimeError: CUDA error: out of memory``.
+
+    Because ``pytest-randomly`` shuffles module order, this made the WHOLE SUITE green or red
+    depending on the run's random seed. Reproduced deterministically with
+    ``pytest -p no:randomly tests/test_reproduce_synthetic.py tests/test_cluster_pack_integration.py``.
+
+    Cost is ~zero for the ~2,000 non-GPU tests: ``is_initialized()`` is false unless a CUDA context
+    actually exists. ``gc.collect()`` runs first so model objects still referencing CUDA tensors are
+    dropped before the cache is handed back to the driver.
+    """
+    yield
+    torch = sys.modules.get("torch")
+    if torch is not None and torch.cuda.is_available() and torch.cuda.is_initialized():
+        gc.collect()
+        torch.cuda.empty_cache()
 
 
 @pytest.fixture

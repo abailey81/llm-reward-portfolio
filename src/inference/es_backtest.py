@@ -1,6 +1,7 @@
 """Comparative Expected-Shortfall (CVaR) backtesting via the jointly-elicitable (VaR, ES) pair.
 
-Closes the methodology gap that **ES alone is not elicitable** — so no strictly consistent loss exists
+Closes the methodology gap that **ES alone is not elicitable** (Gneiting, 2011, *Making and evaluating
+point forecasts*, JASA 106(494):746-762 — `gneiting2011making`) — so no strictly consistent loss exists
 for ES by itself — whereas the **pair (VaR_alpha, ES_alpha) IS jointly elicitable** (Fissler & Ziegel,
 2016, *Higher order elicitability and Osband's principle*, Ann. Statist. 44(4):1680-1707). That joint
 elicitability licenses a strictly consistent scoring function, and comparing the *tail-forecast accuracy*

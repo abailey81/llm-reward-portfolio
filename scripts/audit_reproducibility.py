@@ -116,12 +116,23 @@ def check_python_version(root: Path) -> dict[str, str]:
 
 
 def check_lockfile(root: Path) -> dict[str, str]:
+    pinless: list[str] = []
     for name in ("requirements.lock", "requirements.txt", "uv.lock", "poetry.lock"):
         txt = _read(root, name)
-        if txt.strip():
-            n = sum(1 for line_v in txt.splitlines() if line_v.strip() and not line_v.lstrip().startswith("#"))
+        if not txt.strip():
+            continue
+        n = sum(1 for line_v in txt.splitlines() if line_v.strip() and not line_v.lstrip().startswith("#"))
+        # Deep review 2026-07-26: this PASSED on the first non-empty candidate even when it pinned
+        # NOTHING — it computed ``n``, reported "(0 pinned lines)", and called that a pass. A
+        # comment-only lockfile certifies exactly as much reproducibility as no lockfile at all, so
+        # per this module's own "never a silent PASS" contract it must not pass. The early return
+        # also let a pin-less requirements.lock MASK a genuine uv.lock/poetry.lock later in the tuple.
+        if n:
             return {"name": "dependency lockfile", "status": PASS, "detail": f"{name} ({n} pinned lines)"}
-    return {"name": "dependency lockfile", "status": FAIL, "detail": "no lockfile (requirements.lock/uv.lock/…)"}
+        pinless.append(name)
+    detail = (f"lockfile(s) present but pin NOTHING: {', '.join(pinless)}" if pinless
+              else "no lockfile (requirements.lock/uv.lock/…)")
+    return {"name": "dependency lockfile", "status": FAIL, "detail": detail}
 
 
 def check_version_pins(root: Path) -> dict[str, str]:

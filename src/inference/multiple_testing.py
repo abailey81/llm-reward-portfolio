@@ -22,7 +22,7 @@ import numpy as np
 __all__ = ["benjamini_hochberg", "romano_wolf"]
 
 
-def benjamini_hochberg(pvals: np.ndarray, q: float = 0.1) -> np.ndarray:
+def benjamini_hochberg(pvals: np.ndarray, q: float = 0.05) -> np.ndarray:
     """Benjamini-Hochberg FDR control at level ``q``.
 
     Parameters
@@ -30,7 +30,14 @@ def benjamini_hochberg(pvals: np.ndarray, q: float = 0.1) -> np.ndarray:
     pvals:
         One p-value per hypothesis.
     q:
-        Target false-discovery rate.
+        Target false-discovery rate. The default MIRRORS the registered value
+        (``config/inference.yaml: multiplicity.q = 0.05``) — it was ``0.1`` until
+        2026-07-26, i.e. TWICE the pre-registered FDR, so any caller that omitted ``q``
+        would silently have run a more permissive correction than the design registers.
+        The change is behaviour-free today (every call site in ``src/``, ``scripts/`` and
+        ``tests/`` passes ``q`` explicitly, so the default was unreachable) and removes the
+        trap for future callers. ``config/inference.yaml`` remains the single source of
+        truth; production code must keep passing it explicitly rather than lean on this.
 
     Returns
     -------

@@ -170,6 +170,18 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         self.cost_bps: float | None = None if cost_bps is None else float(cost_bps)
 
         self.N: int = panel.N
+        # The lookback must be at least ONE row. At lookback=0 the default start is 0, so on the
+        # contemporaneous (synthetic) convention `_obs` reads `vix[t - 1]` = `vix[-1]` — NumPy's
+        # NEGATIVE index, i.e. the panel's FINAL row: the FUTURE. Demonstrated 2026-07-26 (an obs
+        # built at t=0 contained vix[-1] and not vix[0]); `_obs`'s clamp bounds `vix_idx` only from
+        # ABOVE, so nothing catches it. This is the same negative-index class as final-audit #28
+        # below, which closed it for `realized_vol_windows` but not for the lookback itself. REFUSED
+        # at construction rather than clamped: a zero lookback is a misconfiguration to surface (the
+        # observation would carry no return history at all), not a geometry to silently repair.
+        if self.lookback < 1:
+            raise ValueError(
+                f"lookback_days must be >= 1 so the observation window exists; got {self.lookback}"
+            )
         self.start: int = self.lookback if start is None else int(start)
         self.end: int = panel.T if end is None else int(end)
         if self.start < self.lookback:
@@ -276,6 +288,22 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
             at every window edge, biasing the critic). ``reward`` is a Python float.
         """
         w = project_simplex(action, self.projection)
+        # Validate the untrusted action at the BOUNDARY (deep review 2026-07-26). A non-finite action
+        # silently poisons the whole rollout, and the `port_growth <= 0.0` wipeout guard below CANNOT
+        # catch it: NaN comparisons are always False, and on the first such step `port_growth` is still
+        # computed from the previous FINITE weights, so it is not even reached. DEMONSTRATED:
+        # `step(nan_action)` did not raise — it produced `port_ret=NaN`, fed a NaN OBSERVATION back to
+        # the agent, and `safe_call` substituted a SAFE_DEFAULT reward of 0.0, so training LOOKED
+        # healthy while the policy learned from poison. Note the softmax turns ANY non-finite entry
+        # into an ALL-NaN weight vector (`max(a)` is `inf`, so `inf - inf` NaNs the max element itself),
+        # so this is not a partial corruption. A non-finite action means the policy has diverged: fail
+        # loudly here, exactly as the wipeout guard below does, rather than train on NaN.
+        if not np.isfinite(w).all():
+            raise FloatingPointError(
+                f"non-finite weights at t={self.t}: projection of action "
+                f"{np.asarray(action, dtype=np.float64).ravel()[:8]!r} produced {w[:8]!r} — the "
+                "policy has diverged (NaN/inf action); refusing to train on a poisoned rollout"
+            )
         # V15a extension (2026-07-03): freeze the projected weights. This SAME array is emitted below as
         # info["weights"], becomes `self.w_prev` at the end of this step, and is re-emitted NEXT step as
         # info["prev_weights"] — one live array aliased across the env boundary, so a trusted info

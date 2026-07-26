@@ -61,6 +61,17 @@ def _worker(device: str, steps: int, idx: int, threads: int, n_assets: int, batc
                 "device": device,
                 "seed": idx,
                 "verbose": 0,
+                # MEASURE STEADY-STATE THROUGHPUT (deep review 2026-07-26). Without this the factory
+                # default `learning_starts=1000` applied, so 1000 of the default 2500 steps were SAC
+                # WARMUP — random-action rollout with NO gradient update. Measured on this machine:
+                # warmup runs at ~5407 steps/s vs ~30 steps/s once training starts (~181x cheaper), so
+                # the reported rate was ~49.7 steps/s against a true steady state of ~29.9 — a 66%
+                # OVERSTATEMENT, which understated the `proj days` wall-clock projection below by ~40%.
+                # The projection spans 400k-step trainings where the 1000-step warmup is ~0.25% of the
+                # work, so steady state IS the right basis; training from step 1 makes the measured
+                # rate equal it. (Sampling a full batch from a near-empty buffer is fine — SB3 samples
+                # with replacement, and gradient-step cost is independent of buffer contents.)
+                "learning_starts": 0,
             },
         )
         t0 = time.perf_counter()

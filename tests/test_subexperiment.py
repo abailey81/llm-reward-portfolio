@@ -58,6 +58,37 @@ def test_legible_preserves_labels_and_renders_bps() -> None:
     assert "(high-variance estimate)" in block
 
 
+def test_legible_decile_rises_with_tail_risk_on_every_field() -> None:
+    """The decile tag must mean the SAME thing on all six lines: HIGHER decile = MORE tail risk.
+
+    The tag exists to give an LLM a coarse ORDINAL framing it can compare without float arithmetic
+    (the numeracy-bottleneck device, ADR-039). Until 2026-07-26 the direction FLIPPED between lines —
+    each field was bucketed positionally over its own band, so a risky tail rendered as
+    "CVaR 1%: decile 1/10" beside "left-tail mass: decile 9/10", both meaning "worst". A tag whose
+    direction is inconsistent is worse than no tag, and it biases
+    ``responsiveness.legible_format_responsiveness_differential`` toward a spurious null.
+    """
+    safe = {"cvar_05": -0.005, "cvar_10": -0.004, "cvar_25": -0.003, "cvar_01": -0.008,
+            "left_tail_mass": 0.010, "robust_skew": +0.20}
+    risky = {"cvar_05": -0.090, "cvar_10": -0.070, "cvar_25": -0.050, "cvar_01": -0.110,
+             "left_tail_mass": 0.085, "robust_skew": -0.80}
+
+    def _deciles(stats: dict) -> dict[str, int]:
+        out: dict[str, int] = {}
+        for line in schema.build_block("distributional", 0.5, stats, legible=True).splitlines():
+            if "(decile" in line:
+                out[line.split(":")[0].strip()] = int(line.split("(decile ")[1].split("/")[0])
+        return out
+
+    safe_d, risky_d = _deciles(safe), _deciles(risky)
+    assert len(risky_d) == len(schema._DIST_FIELDS) == 6
+    for label, risky_val in risky_d.items():
+        assert risky_val > safe_d[label], (
+            f"{label}: decile must RISE with tail risk (safe={safe_d[label]}, risky={risky_val})"
+        )
+    assert all(1 <= d <= 10 for d in {**safe_d, **risky_d}.values())
+
+
 def test_legible_false_is_byte_identical_to_raw() -> None:
     """The frozen-path guard: legible=False reproduces the current raw bytes EXACTLY (default-off)."""
     raw_default = schema.build_block("distributional", 0.83, _TAIL)

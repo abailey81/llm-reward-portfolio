@@ -647,7 +647,16 @@ class ReturnDistribution:
             fallback (``_evt_falls_back``); if > 0 the spread mixes GPD and empirical estimates and bounds
             instability only loosely.
         """
-        arr = self._check_fitted()
+        self._check_fitted()  # fitted-state guard (raises before any refit)
+        # Refit on the TIME-ORDERED returns, NOT ``sorted_returns`` (2026-07-26 review). Every value
+        # this method returns is byte-identical either way — the POT/GPD path (threshold quantile,
+        # exceedance set, MLE fit) is order-invariant, verified. The reason to pass ``_raw`` is that
+        # each replicate below is a fully-formed ReturnDistribution, and one built from a SORTED
+        # series carries a SORTED ``_raw`` — the very array the stationary block bootstrap resamples.
+        # A later ``rd_q.cvar_ci()`` / ``cvar_bias()`` would then resample monotone runs, destroying
+        # the serial dependence the block scheme exists to preserve, and silently report a ~3.5x
+        # too-wide interval. Keep every ReturnDistribution consistent with its documented invariant.
+        arr = self._raw
         per_threshold: dict[str, float] = {}
         vals: list[float] = []
         n_empirical_fallback = 0

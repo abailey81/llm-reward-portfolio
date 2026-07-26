@@ -256,6 +256,26 @@ def test_panel_slice_propagates_prelag_flag() -> None:
     assert p2.slice(2, 8).vix_prelagged is False
 
 
+def test_panel_slice_rejects_windows_numpy_would_silently_reinterpret() -> None:
+    """An illegal window must RAISE -- NumPy would otherwise silently REINTERPRET it.
+
+    A negative ``start`` is an offset from the END, so ``slice(-5, 20)`` on a T=20 panel returned the
+    LAST five rows -- FUTURE data -- instead of failing; inverted and past-end windows silently
+    produced an EMPTY panel, which ``__post_init__`` accepts because T=0 is a valid shape. Both are
+    look-ahead-shaped failures on the very object the no-look-ahead proof slices
+    (tests/test_env_nolookahead.py), so an out-of-contract window has to fail loudly.
+    """
+    p = _toy_panel(t=20, n=3)
+    for start, end in [(-5, 20), (10, 5), (0, 999), (-1, -1), (21, 21)]:
+        with pytest.raises(ValueError, match="slice window"):
+            p.slice(start, end)
+
+    # Legal boundaries still work: full span, a deliberately EMPTY window, and the final row.
+    assert p.slice(0, p.T).T == 20
+    assert p.slice(7, 7).T == 0
+    assert p.slice(19, 20).T == 1
+
+
 def test_panel_slice_without_market_caps_stays_none() -> None:
     p = _toy_panel(t=10, n=2, caps=False)
     assert p.market_caps is None

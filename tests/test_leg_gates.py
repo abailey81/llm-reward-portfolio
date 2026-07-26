@@ -58,6 +58,45 @@ def test_contaminated_model_is_flagged_not_dropped(tmp_path: Path):
     fake = _FakeTransport(["I recognize this — clearly the 2008 Lehman window."] * 3)
     s = run_leg_gates(_LEG, tmp_path, which=("screen",), transport_factory=lambda leg: fake)
     assert s["screen_verdict"] == "FLAG->review"          # routed to Tamer, never silently dropped
+
+
+class _StopReasonTransport(_FakeTransport):
+    """A transport whose completions carry a chosen ``last_stop_reason`` (truncated/refused)."""
+
+    def __init__(self, responses, stop_reason: str):
+        super().__init__(responses)
+        self.last_stop_reason = stop_reason
+
+
+def test_empty_screen_answers_are_unverified_not_clean(tmp_path: Path):
+    """An UNANSWERED screen must not certify a clean screen (deep review 2026-07-26).
+
+    A refusal / content_filter / max_tokens completion is EMPTY without raising, and ``_flagged("")``
+    is False -- so an all-empty screen used to report ``pass``, certifying "no contamination markers"
+    having asked and learnt NOTHING. Under ``--only screen`` no compliance gate runs to catch it.
+    """
+    fake = _FakeTransport(["", "", ""])
+    s = run_leg_gates(_LEG, tmp_path, which=("screen",), transport_factory=lambda leg: fake)
+
+    assert s["screen_flags"] == []                        # nothing was FLAGGED...
+    assert len(s["screen_unusable"]) == 3                 # ...because nothing was ANSWERED
+    assert s["screen_verdict"].startswith("UNVERIFIED->review"), s["screen_verdict"]
+
+
+def test_truncated_screen_answers_are_unverified_not_clean(tmp_path: Path):
+    """A PARTIAL answer cannot clear the screen either -- the markers may sit past the cut."""
+    fake = _StopReasonTransport(["The series appears to be"] * 3, "max_tokens")
+    s = run_leg_gates(_LEG, tmp_path, which=("screen",), transport_factory=lambda leg: fake)
+
+    assert s["screen_verdict"].startswith("UNVERIFIED->review"), s["screen_verdict"]
+
+
+def test_a_real_flag_outranks_unusable_probes(tmp_path: Path):
+    """Precedence: a genuine contamination marker still wins over unanswered probes."""
+    fake = _FakeTransport(["I recognize this — clearly the 2008 Lehman window.", "", ""])
+    s = run_leg_gates(_LEG, tmp_path, which=("screen",), transport_factory=lambda leg: fake)
+
+    assert s["screen_verdict"] == "FLAG->review"
     assert set(s["screen_flags"]) <= {"continuation", "identification", "canary"}
     assert len(s["screen_flags"]) >= 1
 

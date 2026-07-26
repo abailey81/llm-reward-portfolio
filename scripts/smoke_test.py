@@ -40,6 +40,13 @@ import argparse
 import time
 
 
+#: The algo roster this gate understands. ``--algos`` is validated against it (2026-07-26 deep review):
+#: an EMPTY roster made the GREEN length-equalities VACUOUSLY true, and an unknown name fell through
+#: the ``sac``/else dispatch to TQC -- either way the gate could report GREEN having never exercised
+#: the HEADLINE SAC agent. Both were reproduced before the guard was added.
+_SUPPORTED_ALGOS: tuple[str, ...] = ("sac", "tqc")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Phase 0 GATE smoke test (FINAL_PLAN H, Phase 0).")
     p.add_argument("--steps", type=int, default=3000, help="Training steps per algo (default 3000).")
@@ -80,10 +87,18 @@ def _load_panel(synthetic: bool, end: str):
 
 
 class _CriticLossRecorder:
-    """A tiny SB3 callback that records 'train/critic_loss' values seen during training."""
+    """A tiny SB3 callback that records 'train/critic_loss' values seen during training.
+
+    It also stamps WHEN training actually began — the first critic update — so the caller can time the
+    STEADY-STATE window instead of the whole run (deep review 2026-07-26). ``train/critic_loss`` only
+    appears once SAC starts updating, so the first reading IS the warmup->training boundary.
+    """
 
     def __init__(self):
         self.losses: list[float] = []
+        #: ``perf_counter`` and ``num_timesteps`` at the FIRST critic update (None if none happened).
+        self.train_t0: float | None = None
+        self.train_step0: int | None = None
 
     def make(self):
         from stable_baselines3.common.callbacks import BaseCallback
@@ -94,6 +109,9 @@ class _CriticLossRecorder:
             def _on_step(self) -> bool:
                 v = self.model.logger.name_to_value.get("train/critic_loss")
                 if v is not None:
+                    if recorder.train_t0 is None:
+                        recorder.train_t0 = time.perf_counter()
+                        recorder.train_step0 = int(self.model.num_timesteps)
                     recorder.losses.append(float(v))
                 return True
 
@@ -130,20 +148,44 @@ def _train_one(algo: str, panel, cfg, steps: int, device: str) -> dict:
             "device": device,
         }
         fresh_env = PortfolioEnv(panel, cfg, _trivial_reward)
-        agent = (
-            make_headline_agent(fresh_env, agent_cfg)
-            if algo == "sac"
-            else make_distributional_agent(fresh_env, agent_cfg)
-        )
+        if algo == "sac":
+            agent = make_headline_agent(fresh_env, agent_cfg)
+        elif algo == "tqc":
+            agent = make_distributional_agent(fresh_env, agent_cfg)
+        else:
+            # Defence in depth: main() validates the roster, but a bare ``else`` here previously
+            # built TQC for ANY non-"sac" name and reported it under that name. Never mislabel.
+            raise ValueError(f"unknown algo {algo!r}; expected one of {list(_SUPPORTED_ALGOS)}")
         rec = _CriticLossRecorder()
         t0 = time.perf_counter()
         agent.learn(total_timesteps=steps, callback=rec.make(), progress_bar=False)
-        dt = time.perf_counter() - t0
+        t1 = time.perf_counter()
+        dt = t1 - t0
 
         out["ok"] = True
         out["seconds"] = round(dt, 2)
         out["steps_per_sec"] = round(steps / dt, 1) if dt > 0 else float("inf")
-        out["minutes_per_50k"] = round((50000 / (steps / dt)) / 60, 2) if dt > 0 else float("nan")
+        # ``m`` (min/50k) is the PHASE-0 PLANNING number the operator records in DECISION_LOG, so it
+        # must be the STEADY-STATE cost of a training step — not the whole-run average, which includes
+        # SAC's warmup. Warmup is a random-action rollout with NO gradient update: measured on this
+        # machine at ~5407 steps/s vs ~30 steps/s once training starts (~181x cheaper). With
+        # ``learning_starts = min(1000, steps//3)`` a THIRD of the default 3000-step run is warmup, and
+        # the whole-run rate therefore ran ~52% high — reporting m = 16.12 min/50k where the true
+        # steady state was 24.54, a 34% UNDERSTATEMENT of the planning number (deep review 2026-07-26;
+        # same defect class as bench_compute/thread_sweep). Time only the post-warmup window instead.
+        # The GATE's own config is deliberately untouched: what it exercises must not change.
+        steady_dt = (t1 - rec.train_t0) if rec.train_t0 is not None else None
+        steady_steps = (steps - rec.train_step0) if rec.train_step0 is not None else None
+        steady_rate = (
+            steady_steps / steady_dt
+            if (steady_dt is not None and steady_steps is not None and steady_dt > 0 and steady_steps > 0)
+            else None
+        )
+        out["steady_steps_per_sec"] = round(steady_rate, 1) if steady_rate else None
+        out["warmup_steps"] = rec.train_step0
+        # No training window observed (steps <= learning_starts) -> report NOTHING rather than a
+        # fabricated planning number; the gate's own finiteness check already routes that to AMBER.
+        out["minutes_per_50k"] = round((50000 / steady_rate) / 60, 2) if steady_rate else float("nan")
         out["critic_loss_first"] = rec.losses[0] if rec.losses else None
         out["critic_loss_last"] = rec.losses[-1] if rec.losses else None
         out["critic_loss_n"] = len(rec.losses)
@@ -156,7 +198,21 @@ def _train_one(algo: str, panel, cfg, steps: int, device: str) -> dict:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    # Resolve + VALIDATE the roster before the (expensive) panel load. A gate must never pass
+    # vacuously: with an empty roster the two GREEN length-equalities below are trivially true
+    # (0 == 0), so ``--algos ""`` printed STATUS: GREEN and exited 0 having trained NOTHING; and an
+    # unrecognised name fell through ``_train_one``'s dispatch to TQC, so ``--algos foo`` reported
+    # "[FOO] OK" GREEN while the HEADLINE SAC agent was never built. Case-folded so ``--algos SAC``
+    # means SAC rather than silently meaning TQC.
+    algos = [a.strip().lower() for a in args.algos.split(",") if a.strip()]
+    unknown = [a for a in algos if a not in _SUPPORTED_ALGOS]
+    if not algos or unknown:
+        parser.error(
+            f"--algos must name at least one of {list(_SUPPORTED_ALGOS)}; got {args.algos!r}"
+            + (f" (unrecognised: {unknown})" if unknown else " (empty roster)")
+        )
     from src.utils.config import load_config
     from src.utils.preload import preload
 
@@ -174,7 +230,6 @@ def main() -> None:
     print(f"  panel        : {panel_desc}")
     print("=" * 72)
 
-    algos = [a.strip() for a in args.algos.split(",") if a.strip()]
     results = [_train_one(a, panel, cfg, args.steps, device) for a in algos]
 
     print("\n--- results ---")
@@ -182,7 +237,8 @@ def main() -> None:
         if r["ok"]:
             print(
                 f"  [{r['algo'].upper():>3}] OK  obs_dim={r.get('obs_dim')}  "
-                f"{r['seconds']}s  {r['steps_per_sec']} steps/s  "
+                f"{r['seconds']}s  {r['steps_per_sec']} steps/s raw / "
+                f"{r.get('steady_steps_per_sec')} steady (warmup {r.get('warmup_steps')})  "
                 f"~{r['minutes_per_50k']} min/50k  "
                 f"critic_loss {r['critic_loss_first']}->{r['critic_loss_last']} (n={r['critic_loss_n']})"
             )
@@ -208,7 +264,8 @@ def main() -> None:
     print(f"\n[smoke_test] STATUS: {status}")
     if trained:
         ms = [r["minutes_per_50k"] for r in trained]
-        print(f"[smoke_test] measured m (min/50k-run): {min(ms)}–{max(ms)} on device={device}")
+        print(f"[smoke_test] measured m (min/50k-run, STEADY-STATE — warmup excluded): "
+              f"{min(ms)}–{max(ms)} on device={device}")
     print("[smoke_test] record the result + m in docs/DECISION_LOG.md (PHASE-0 entry).")
     raise SystemExit(0 if status == "GREEN" else (1 if status == "AMBER" else 2))
 

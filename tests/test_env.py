@@ -558,3 +558,42 @@ def test_port_ret_and_cost_are_env_computed_not_reward_reported() -> None:
     assert info["port_ret"] != pytest.approx(inflated)
     # The agent's reward IS the (inflated) total the reward returned — accounting and reward are decoupled.
     assert reward == pytest.approx(inflated)
+
+
+@pytest.mark.parametrize("bad", ["all_nan", "all_inf", "one_inf"])
+def test_non_finite_action_is_refused_not_silently_trained_on(env: PortfolioEnv, bad: str) -> None:
+    """A NaN/inf action must RAISE, not poison the rollout while looking healthy.
+
+    Demonstrated before the guard existed (deep review 2026-07-26): ``step(nan_action)`` did NOT
+    raise -- it produced ``port_ret=NaN``, fed a NaN OBSERVATION back to the agent, and ``safe_call``
+    substituted a SAFE_DEFAULT reward of 0.0, so training looked healthy while the policy learned
+    from poison. The ``port_growth <= 0.0`` wipeout guard cannot catch this: NaN comparisons are
+    always False, and on the first such step ``port_growth`` is still computed from the previous
+    FINITE weights, so it is never even reached.
+
+    ``one_inf`` is included deliberately: the softmax turns ANY single non-finite entry into an
+    ALL-NaN weight vector, because ``max(a)`` is ``inf`` and ``inf - inf`` NaNs the max element
+    itself. The corruption is total, not partial.
+    """
+    env.reset(seed=0)
+    n = env.N + 1
+    action = {
+        "all_nan": np.full(n, np.nan),
+        "all_inf": np.full(n, np.inf),
+        "one_inf": np.array([np.inf] + [0.0] * (n - 1)),
+    }[bad]
+
+    # `errstate` only silences NumPy's expected "invalid value in subtract" from the deliberate
+    # inf - inf inside the softmax; the RAISE below is what is being asserted.
+    with np.errstate(invalid="ignore"), pytest.raises(FloatingPointError, match="non-finite weights"):
+        env.step(action)
+
+
+def test_finite_actions_still_step_normally(env: PortfolioEnv) -> None:
+    """Positive control for the guard above: an ordinary rollout is untouched."""
+    env.reset(seed=0)
+    for _ in range(10):
+        obs, reward, terminated, truncated, _info = env.step(env.action_space.sample())
+        assert np.isfinite(obs).all() and np.isfinite(reward)
+        if terminated or truncated:
+            break

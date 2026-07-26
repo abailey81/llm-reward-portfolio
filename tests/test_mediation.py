@@ -163,3 +163,30 @@ def test_bootstrap_linalgerror_is_swallowed_to_nan() -> None:
     # some replicates were dropped as invalid -> fewer valid than requested
     assert res["n_boot_valid"] < 400
     assert np.isfinite(res["ci_low"]) and np.isfinite(res["ci_high"])
+
+
+def test_mediated_is_gated_on_the_valid_boot_fraction() -> None:
+    """``mediated`` must require a RELIABLE bootstrap, not merely a non-empty one (2026-07-26 review).
+
+    ``_effects`` raises ``LinAlgError`` on a rank-deficient resample and that replicate is dropped, so
+    ``valid.size`` alone only excluded the ZERO case — a ``mediated=True`` could rest on a handful of
+    survivors. This mirrors the P7b gate already applied in the sibling instruments
+    (``responsiveness.responsiveness``, which DEFINES ``MIN_BOOT_VALID_FRACTION``, and
+    ``information_gap``), which share the identical degeneracy mode.
+    """
+    from src.inference.responsiveness import MIN_BOOT_VALID_FRACTION
+
+    rng = np.random.default_rng(7)
+    n, n_boot = 200, 300
+    x = rng.standard_normal(n)
+    m = 0.8 * x + 0.3 * rng.standard_normal(n)
+    y = 0.7 * m + 0.2 * rng.standard_normal(n)
+    res = mediation_analysis(x, m, y, n_boot=n_boot, rng=rng)
+
+    # The flag is reported and is exactly the documented threshold rule.
+    assert res["ci_reliable"] == (res["n_boot_valid"] >= MIN_BOOT_VALID_FRACTION * n_boot)
+    # A healthy design keeps every replicate, so the gate passes and mediation is still detected.
+    assert res["ci_reliable"] is True
+    assert res["mediated"] is True
+    # THE INVARIANT: a positive verdict can never outrun the reliability gate.
+    assert not (res["mediated"] and not res["ci_reliable"])

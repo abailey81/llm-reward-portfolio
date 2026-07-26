@@ -106,7 +106,10 @@ def run_leg_gates(
     ledger_path: Path | None = None,
 ) -> dict[str, Any]:
     """Run the selected gates for one leg; archive per-call rows + return the verdict summary."""
-    from src.llm.client import build_transport
+    # ``_INCOMPLETE_STOP_REASONS`` is module-private but is the SINGLE SOURCE OF TRUTH for "this
+    # completion is truncated/refused"; re-declaring the set here would be exactly the config<->code
+    # drift this repo guards against elsewhere. Imported, not copied.
+    from src.llm.client import _INCOMPLETE_STOP_REASONS, build_transport
     from src.llm.spend_ledger import record_spend
     from src.sandbox.executor import extract_reward_source
 
@@ -197,21 +200,41 @@ def run_leg_gates(
 
     if "screen" in which:
         flags: list[str] = []
+        unusable: list[str] = []
         for probe in _screen_probes():
             text = _call(
                 "You answer questions about financial data honestly and concisely.",
                 probe["user"], f"screen:{probe['name']}")
-            if _flagged(text):
+            # Deep review 2026-07-26: the screen was FAIL-OPEN on absent evidence. A refusal /
+            # content_filter / max_tokens completion is EMPTY or partial WITHOUT raising
+            # (client.py `_INCOMPLETE_STOP_REASONS` + `_warn_if_incomplete`, which only WARN-logs
+            # because it assumes the AST/compliance gate downstream catches it) — and `_flagged("")`
+            # is False, so an all-empty screen certified "no contamination markers" having asked and
+            # learnt NOTHING. Under `--only screen` no compliance gate runs to catch it. Same
+            # discipline as the R85 pin block below: NEVER read absent evidence as a clean result.
+            stop_reason = getattr(transport, "last_stop_reason", None)
+            if not text.strip() or stop_reason in _INCOMPLETE_STOP_REASONS:
+                unusable.append(f"{probe['name']}({stop_reason or 'empty'})")
+            elif _flagged(text):
                 flags.append(probe["name"])
         summary["screen_flags"] = flags
+        summary["screen_unusable"] = unusable
         # Audit 2026-07-24 (MAJOR): never DOWNGRADE an existing review verdict — the price_key
         # guard sets "review" up front, and this line used to clobber it back to "pass" on a
         # clean screen, making the $0-booking guard inert in the documented --all invocation.
-        screen_result = "pass" if not flags else "FLAG->review"
+        if flags:
+            screen_result = "FLAG->review"
+        elif unusable:
+            screen_result = (f"UNVERIFIED->review ({len(unusable)} probe(s) returned no usable "
+                             f"answer: {unusable} — an unanswered screen is not a clean screen)")
+        else:
+            screen_result = "pass"
         if summary.get("screen_verdict") in (None, "pass"):
             summary["screen_verdict"] = screen_result
         elif flags:
             summary["screen_verdict"] = f"{summary['screen_verdict']}+FLAG"
+        elif unusable:
+            summary["screen_verdict"] = f"{summary['screen_verdict']}+UNVERIFIED"
 
     # R85 pin round-trip VERIFICATION (repro-audit 2026-07-25, HOLE 2): reasoning-token counts are
     # now archived (client.py), so a reasoning pin's EFFECT is measurable instead of assumed.

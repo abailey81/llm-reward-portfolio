@@ -111,6 +111,25 @@ def test_complete_prefreeze_repo_passes_with_one_freeze_warn(tmp_path: Path) -> 
     assert st["dependency lockfile"] == A.PASS
 
 
+def test_pinless_lockfile_does_not_pass_and_does_not_mask_a_real_one(tmp_path: Path) -> None:
+    """A lockfile that pins NOTHING certifies nothing (deep review 2026-07-26).
+
+    The check used to PASS on the first NON-EMPTY candidate: a comment-only ``requirements.lock``
+    computed ``n = 0``, reported "(0 pinned lines)", and still returned PASS — a reproducibility claim
+    made on a file pinning nothing, against this module's own "never a silent PASS" contract. The
+    early return also let that pin-less file MASK a genuine ``uv.lock`` later in the search order.
+    """
+    (tmp_path / "requirements.lock").write_text("# pins go here\n# TODO: regenerate\n", encoding="utf-8")
+    res = A.check_lockfile(tmp_path)
+    assert res["status"] == A.FAIL, res
+    assert "pin NOTHING" in res["detail"]
+
+    # A real lockfile further down the search order must still be found, not shadowed.
+    (tmp_path / "uv.lock").write_text("numpy==1.26.4\ntorch==2.3.1\n", encoding="utf-8")
+    res2 = A.check_lockfile(tmp_path)
+    assert res2["status"] == A.PASS and "uv.lock (2 pinned lines)" in res2["detail"], res2
+
+
 def test_missing_pillars_fail(tmp_path: Path) -> None:
     (tmp_path / "config").mkdir()
     res = A.audit_reproducibility(tmp_path)  # almost-empty repo

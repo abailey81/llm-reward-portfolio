@@ -635,8 +635,22 @@ def named_vs_blinded_oos_gap(
     (rliable IQM + paired seed bootstrap), so the across-seed variance is carried. ``equivalent``
     flags whether the TOST-convention 90% bootstrap CI (the 5/95 quantiles of the SAME paired
     draws; two one-sided 5% tests — Lakens 2017, matching every other equivalence flag in the
-    stack) lies inside ``[-sesoi, +sesoi]`` (a bounded-gap positive claim at the pre-registered
-    SESOI = 0.05 DSR/Sharpe units). The reported ``ci_low``/``ci_high`` remain the 95% interval;
+    stack) lies inside ``[-sesoi, +sesoi]``.
+
+    ⚠ UNITS — read before quoting this margin (2026-07-26 review). The endpoint here is a **Sharpe**
+    difference, but the registered ``sesoi = 0.05`` is in **validation-DSR units**
+    (``config/preregistration.yaml: inference.sesoi``), and amendment **R104** derives its Sharpe
+    equivalent explicitly: ``sesoi_ann_sharpe_equiv = 0.0756`` (``= 0.05 / k``, ``k = 0.6616``
+    DSR per ann-Sharpe). The previous wording "0.05 DSR/Sharpe units" conflated the two units that
+    R104 exists to separate. Applying ``0.05`` on a Sharpe scale is therefore a **~34% TIGHTER**
+    margin than the registered Sharpe equivalent — i.e. **CONSERVATIVE for an equivalence claim**
+    (harder to declare equivalence, never easier), so it cannot manufacture a bounded-gap positive.
+    The default is deliberately LEFT at 0.05: loosening a margin to 0.0756 on a report-only
+    sub-experiment is a design decision for the pre-registration, not a code change — pass ``sesoi``
+    explicitly if the Sharpe-equivalent margin is wanted. This endpoint is a report-only A/B
+    sub-experiment; the registered confirmatory instrument is ``named_vs_blinded_structural`` (AST).
+
+    The reported ``ci_low``/``ci_high`` remain the 95% interval;
     ``ci90_low``/``ci90_high`` are also reported so the flag is auditable.
 
     Returns the bootstrap dict augmented with ``{"status", "n_seeds", "sesoi", "ci90_low",

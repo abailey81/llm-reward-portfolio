@@ -40,7 +40,8 @@ Outputs (``--out-dir``, default ``outputs/tables``)
 
 Flags
 -----
-  --budgets       Comma list of step budgets (default ``25000,50000,100000,200000``).
+  --budgets       Comma list of step budgets (default ``50000,100000,200000,400000,800000`` —
+                  kept in sync with the parser; the ladder was raised past the frozen 400k B*, R77).
   --seeds         Comma list of seeds to average per budget (default ``0``; the campaign uses more).
   --reward        REWARD_CANON key for the representative reward (default ``differential_sharpe``).
   --synthetic     Use a synthetic panel instead of the real gold dev slice (default real).
@@ -127,16 +128,52 @@ def recommend_budget(
             **base}
 
 
-# Exact campaign training-run count, enumerated from the frozen design (config/campaign.yaml). Each of
-# these trains the fixed SAC for `train_steps_per_candidate` (== B*) steps, so the campaign wall-clock is a
-# LINEAR function of B* — the only quantity the convergence study leaves unknown.
-CAMPAIGN_RUN_BREAKDOWN: dict[str, int] = {
-    "search": 30 * 7,        # candidates_per_arm (30) x 7 arms x 1 seed during search
-    "winners": 7 * 30,       # 7 per-arm winners re-run at 30 seeds (Amendment D2, seeds-on-winners)
-    "h1_baselines": 4 * 30,  # ~4 hand-designed comparator rewards x 30 seeds (H1 beat-the-human)
-    "h3_singleshot": 30 + 30,  # distributional re-searched at generations:1 (30 candidates) + 30 winner seeds
-}
-CAMPAIGN_N_RUNS: int = sum(CAMPAIGN_RUN_BREAKDOWN.values())  # = 600
+def campaign_run_breakdown(camp: Any | None = None) -> dict[str, int]:
+    """Exact campaign training-run count, DERIVED from ``config/campaign.yaml`` (never hardcoded).
+
+    Each entry trains the fixed SAC for ``train_steps_per_candidate`` (== B*) steps, so the campaign
+    wall-clock is a LINEAR function of B* — the only quantity the convergence study leaves unknown.
+
+    Every factor is read from config because each has already moved at least once and a stale literal
+    silently mis-sizes the projection: the H1 comparator family expanded 4 -> 11 on 2026-07-26 (the full
+    hand-reward canon, N6), which alone added 7 x 30 = 210 trainings the hardcoded ``4 * 30`` did not
+    count — a ~35% under-estimate feeding straight into the GO / ADAPT / RECONSIDER verdict.
+
+    The seed factor is the TIER-0 core (``src.utils.seeds.seed_tiers(...)[0]``, the crash-insurance
+    ``n=30`` rung at which H2 + mechanism + H1 + H3 are all complete), NOT the full ladder: this
+    projection sizes the bankable core run. Deeper rungs extend it tier-by-tier and are projected by
+    scaling the ``winners`` / ``h1_baselines`` / ``h3_singleshot`` seed factor to the target rung.
+    """
+    from src.utils.config import cfg_get, load_config
+    from src.utils.seeds import seed_tiers
+
+    camp = load_config("campaign") if camp is None else camp
+    n_arms = len(cfg_get(camp, "arms", []) or [])
+    n_candidates = int(cfg_get(camp, "candidates_per_arm", 0) or 0)
+    n_h1 = len(cfg_get(camp, "h1_baselines", []) or [])
+    seeds_cfg = cfg_get(camp, "seeds")
+    if seeds_cfg is None:
+        raise KeyError("config/campaign.yaml declares no 'seeds' — cannot size the campaign projection")
+    n_core_seeds = len(seed_tiers(seeds_cfg)[0])
+    if not (n_arms and n_candidates and n_h1 and n_core_seeds):
+        raise ValueError(
+            f"config/campaign.yaml gives a degenerate campaign size (arms={n_arms}, "
+            f"candidates_per_arm={n_candidates}, h1_baselines={n_h1}, tier-0 seeds={n_core_seeds})"
+        )
+    return {
+        # candidates_per_arm x arms x 1 seed during search
+        "search": n_candidates * n_arms,
+        # per-arm winners re-run at the tier-0 core (Amendment D2, seeds-on-winners)
+        "winners": n_arms * n_core_seeds,
+        # the hand-designed comparator canon x the core seeds (H1 beat-the-human / N6 dominance IUT)
+        "h1_baselines": n_h1 * n_core_seeds,
+        # distributional re-searched at generations:1 (candidates) + its winner at the core seeds
+        "h3_singleshot": n_candidates + n_core_seeds,
+    }
+
+
+CAMPAIGN_RUN_BREAKDOWN: dict[str, int] = campaign_run_breakdown()
+CAMPAIGN_N_RUNS: int = sum(CAMPAIGN_RUN_BREAKDOWN.values())
 
 
 def project_campaign(
@@ -250,7 +287,12 @@ def _resolve_panel_and_windows(synthetic: bool, end: str, lookback: int) -> tupl
         from src.data.synthetic import make_synthetic_panel
 
         panel = make_synthetic_panel(n_assets=30, n_days=600, seed=0)
-        return panel, (lookback, 400), (400, panel.T)
+        # PURGED by the feature lookback, exactly like the real branch below (2026-07-26 review).
+        # ``(400, panel.T)`` started val AT the train end, so the val env's first observation read
+        # ``returns[400-lookback:400]`` — entirely INSIDE the train window (R18 leakage). It went
+        # unnoticed because this call site did not pass ``lookback`` to ``make_env_builder``, leaving
+        # the R18 purge guard inert; both are fixed. 600 - (400 + 60) = 140 val steps remain.
+        return panel, (lookback, 400), (400 + lookback, panel.T)
     from src.data.loaders import load_gold_panel
 
     # verify_checksum=True (C2): the convergence probe trains on the production gold panel; checksum-
@@ -261,7 +303,18 @@ def _resolve_panel_and_windows(synthetic: bool, end: str, lookback: int) -> tupl
     # campaign val split — this tool never touches the 2020-2026 test leg). Keep a lookback-sized purge.
     split = max(lookback + 1, int(panel.T * 0.8))
     split = min(split, panel.T - 1)
-    return panel, (lookback, split), (min(split + lookback, panel.T - 1), panel.T)
+    # The purge is ``split + lookback`` with NO clamp (2026-07-26 review): the old
+    # ``min(split + lookback, panel.T - 1)`` SILENTLY CLAMPED on a short slice, producing a val window
+    # that violated the very lookback purge this line intends. A slice too short to hold a purged val
+    # window must FAIL LOUD (the R18 guard in make_env_builder now raises), never leak quietly.
+    val_start = split + lookback
+    if val_start >= panel.T:
+        raise ValueError(
+            f"gold slice too short for a lookback-purged eval window: train ends at {split}, "
+            f"purge is {lookback}, so val would start at {val_start} >= panel.T ({panel.T}); "
+            f"extend --end or lower state.lookback_days"
+        )
+    return panel, (lookback, split), (val_start, panel.T)
 
 
 def _subsample(steps: list[int], losses: list[float], k: int = 60) -> list[list[float]]:
@@ -324,7 +377,11 @@ def run_one_budget(
         env_cfg = load_config("environment")
         lookback = int(env_cfg["state"]["lookback_days"])
         panel, train_w, val_w = _resolve_panel_and_windows(synthetic, end, lookback)
-        builder = make_env_builder(panel, env_cfg, train_w, val_w)
+        # Pass ``lookback`` so the R18 purge guard is LIVE here (2026-07-26 review). Every other
+        # production call site already does; omitting it left ``purge = max(embargo, lookback) = 0``,
+        # so runner.py's guard — which exists precisely so "the leakage invariant does NOT rest solely
+        # on resolve_windows" — was switched off at the one site whose windows are computed inline.
+        builder = make_env_builder(panel, env_cfg, train_w, val_w, lookback=lookback)
         bundle = builder(reward_fn)
 
         # The FIXED agent under the CAMPAIGN numerics: PopArt on + the gated learning_starts + the HARD

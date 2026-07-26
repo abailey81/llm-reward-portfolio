@@ -168,14 +168,82 @@ def _timed(budget: int, seconds: float) -> dict:
 
 
 def test_project_campaign_linear_extrapolation_and_breakdown() -> None:
-    """seconds-per-step is fit (robust median) and extrapolated to B*; the run count is the design's 600."""
+    """seconds-per-step is fit (robust median) and extrapolated to B*; the run count is the DESIGN's count.
+
+    The run count is asserted against the live config-derived breakdown, never a literal: pinning ``600``
+    is what let the 2026-07-26 H1 canon expansion (4 -> 11 comparators = +210 trainings) pass unnoticed.
+    """
     runs = [_timed(1000, 10.0), _timed(2000, 20.0)]  # 0.01 s/step
     proj = lc.project_campaign(runs, 2000, parallelism=2.0)
+    n = sum(lc.CAMPAIGN_RUN_BREAKDOWN.values())
     assert proj["sec_per_step"] == pytest.approx(0.01)
     assert proj["time_per_run_s"] == pytest.approx(20.0)        # 0.01 * 2000
-    assert proj["n_runs"] == 600 == sum(lc.CAMPAIGN_RUN_BREAKDOWN.values())
-    assert proj["gpu_hours"] == pytest.approx(600 * 20 / 3600, abs=0.1)   # ~3.3 GPU-h
-    assert proj["wall_days"] == pytest.approx((600 * 20 / 3600) / 2 / 24, abs=0.01)
+    assert proj["n_runs"] == n
+    assert proj["gpu_hours"] == pytest.approx(n * 20 / 3600, abs=0.1)
+    assert proj["wall_days"] == pytest.approx((n * 20 / 3600) / 2 / 24, abs=0.01)
+
+
+def test_resolve_windows_purges_val_by_the_feature_lookback() -> None:
+    """The eval window must be purged by the feature lookback on BOTH branches (R18, 2026-07-26).
+
+    The synthetic branch returned ``(400, T)`` with train ``(lookback, 400)`` — val started AT the
+    train end, so the val env's first observation read ``returns[400-lookback:400]``, entirely inside
+    the train window. It survived because this module's ``make_env_builder`` call omitted ``lookback``,
+    leaving the R18 purge guard inert. This test pins the gap directly AND re-arms the guard.
+    """
+    lookback = 60
+    panel, train_w, val_w = lc._resolve_panel_and_windows(True, "2016-12-31", lookback)
+    assert val_w[0] - train_w[1] >= lookback, (
+        f"val must be purged by the lookback: train ends {train_w[1]}, val starts {val_w[0]}"
+    )
+    assert val_w[1] - val_w[0] > 0, "the purged val window must still have steps"
+
+    from src.env.runner import make_env_builder
+    from src.utils.config import load_config
+
+    env_cfg = load_config("environment")
+    make_env_builder(panel, env_cfg, train_w, val_w, lookback=lookback)  # must not raise
+    # The pre-fix windows must be REJECTED by the guard — proving the leak was real, not theoretical.
+    with pytest.raises(ValueError, match="purged"):
+        make_env_builder(panel, env_cfg, (lookback, 400), (400, panel.T), lookback=lookback)
+
+
+def test_campaign_run_breakdown_is_derived_from_config() -> None:
+    """Every factor tracks config/campaign.yaml — no hardcoded arm/candidate/comparator/seed count."""
+    camp = {
+        "arms": ["a", "b", "c"],
+        "candidates_per_arm": 5,
+        "h1_baselines": ["r1", "r2", "r3", "r4"],
+        "seeds": {"mode": "tiered", "tiers": [10, 40]},   # tier-0 core = 10 seeds
+    }
+    bd = lc.campaign_run_breakdown(camp)
+    assert bd == {
+        "search": 5 * 3,          # candidates x arms x 1 seed
+        "winners": 3 * 10,        # arms x tier-0 core
+        "h1_baselines": 4 * 10,   # comparator canon x tier-0 core
+        "h3_singleshot": 5 + 10,  # re-search candidates + its winner at the core
+    }
+    # The live breakdown agrees with the live config (the guard that caught the stale 4-comparator literal).
+    from src.utils.config import load_config
+
+    live = load_config("campaign")
+    assert lc.CAMPAIGN_RUN_BREAKDOWN["h1_baselines"] == len(live["h1_baselines"]) * 30
+    assert lc.CAMPAIGN_RUN_BREAKDOWN["search"] == len(live["arms"]) * int(live["candidates_per_arm"])
+
+
+@pytest.mark.parametrize(
+    "bad, match",
+    [
+        ({"arms": [], "candidates_per_arm": 5, "h1_baselines": ["r"], "seeds": [0]}, "degenerate"),
+        ({"arms": ["a"], "candidates_per_arm": 0, "h1_baselines": ["r"], "seeds": [0]}, "degenerate"),
+        ({"arms": ["a"], "candidates_per_arm": 5, "h1_baselines": [], "seeds": [0]}, "degenerate"),
+        ({"arms": ["a"], "candidates_per_arm": 5, "h1_baselines": ["r"]}, "no 'seeds'"),
+    ],
+)
+def test_campaign_run_breakdown_fails_loud_on_degenerate_config(bad: dict, match: str) -> None:
+    """A missing/empty size factor raises rather than silently projecting a too-small campaign."""
+    with pytest.raises((ValueError, KeyError), match=match):
+        lc.campaign_run_breakdown(bad)
 
 
 def test_project_campaign_verdict_thresholds() -> None:
