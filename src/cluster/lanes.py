@@ -195,10 +195,13 @@ def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
     measured or projected capacity without saying which is which. The ladder of what is actually
     known (2026-07-26): **636 cores MEASURED** (peak, reproducible over three ramps);
     ~2,000-3,000 PROJECTED from the flow model and still UNVERIFIED over multiple hours; and a
-    POLICY CEILING of ~3,576 = the best free capacity ever observed (4,576) minus
-    ``killswitch.FREE_CORE_RESERVE``. Since that ceiling sits BELOW the ~4,584 saturation point,
-    **the campaign is throughput-bound at every attainable core count** — more cores always help,
-    right up to whatever the scheduler grants minus the reserve.
+    ~3,576 available under the policy at the best free capacity we happened to SAMPLE (4,576 free
+    minus ``killswitch.FREE_CORE_RESERVE``). **That sample is not a ceiling.** SGE's
+    ``maxujobs = 1000`` at 8 cores/job structurally permits ~**8,000** cores, and d+b hold 11,160,
+    so saturation is well inside what the scheduler allows — it is UNMEASURED, not unattainable.
+    PUSH FOR IT: every core up to ~4,584 shortens the campaign, and ``plan_footprint`` scales with
+    whatever is free, so a generous cluster is exploited automatically. Past ~4,584 the makespan
+    genuinely stops improving (the 3.27 d chain floor) — that part is real.
 
     This is the number that makes the whole plan legible: below it, buy cores; above it, buy
     LATENCY on the binding chain instead. With ``bayes_opt`` on CPU the crossover is ~1,640 cores;

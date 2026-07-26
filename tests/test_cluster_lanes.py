@@ -191,23 +191,45 @@ def test_rejects_nonsense_inputs(bad):
         training_core_hours(steps_per_s=bad)
 
 
-def test_saturation_is_a_CURVE_PROPERTY_not_an_availability_claim():
-    """Guards a real confusion (caught by Tamer, 2026-07-26: "who said we can get 4584 cores?").
+def test_saturation_is_a_CURVE_PROPERTY_and_is_STRUCTURALLY_PERMITTED():
+    """Guards a real confusion (Tamer, 2026-07-26: "who said we can get 4584 cores?" then "who
+    said not attainable?"). BOTH corrections matter, and they are different:
 
-    `cpu_saturation_cores` answers "above what point do more cores stop helping?" — it says
-    NOTHING about attainable capacity. Our own courtesy reserve caps us BELOW it at every free
-    capacity we have observed, so the campaign is throughput-bound at every reachable core count.
+    1. `cpu_saturation_cores` answers only "above what point do more cores stop helping?" — it is a
+       property of the WORK CURVE and says nothing about availability. Never quote it beside
+       measured capacity without labelling which is which.
+    2. It is NOT "unattainable". SGE's `maxujobs = 1000` (max RUNNING jobs per user) at 8 cores per
+       job permits ~8,000 cores — comfortably ABOVE saturation — and the d+b pools hold 11,160
+       cores. Whether we GET there depends on free capacity and what the scheduler grants, both of
+       which are unmeasured above the 636 we actually observed. So: push for it.
+
+    This test therefore locks the STRUCTURAL headroom and the fact that the governor scales with
+    free capacity — deliberately NOT any ordering that depends on a sampled free-core reading,
+    since rising capacity is good news and must never fail a test.
     """
-    from src.cluster.killswitch import FREE_CORE_RESERVE, plan_footprint
+    from src.cluster.killswitch import ABSOLUTE_CORE_CEILING, plan_footprint
 
     saturation = cpu_saturation_cores(568, chain_threads=8)
-    best_observed_free = 4576                      # live advisor reading, 2026-07-26
-    quiet_ceiling, _ = plan_footprint(free_cores=best_observed_free, pending_jobs=100)
 
-    assert quiet_ceiling <= best_observed_free - FREE_CORE_RESERVE, "the reserve must bind"
-    assert quiet_ceiling < saturation, (
-        "the policy ceiling must sit BELOW saturation — otherwise 'more cores stop helping' "
-        "would be reachable and the throughput-bound conclusion would not hold")
-    # therefore: throughput binds at every attainable core count
-    assert plan_lanes(rung=568, cpu_cores=int(quiet_ceiling),
-                      chain_threads=8).binding == "throughput"
+    MAXUJOBS, CORES_PER_JOB = 1000, 8          # qconf -ssconf, and the measured best job shape
+    assert MAXUJOBS * CORES_PER_JOB > saturation, (
+        "saturation must sit INSIDE the scheduler's structural per-user headroom — otherwise it "
+        "really would be unreachable and the 'push for more cores' plan would be wrong")
+    assert ABSOLUTE_CORE_CEILING >= MAXUJOBS * CORES_PER_JOB, (
+        "our own backstop must not bind below what SGE structurally permits")
+
+    # the governor must TAKE more when more is free — so a generous cluster is exploited, not capped
+    lo, _ = plan_footprint(free_cores=4_500, pending_jobs=100)
+    hi, _ = plan_footprint(free_cores=9_000, pending_jobs=100)
+    assert hi > lo, "plan_footprint must scale with free capacity"
+    assert hi >= saturation, "on a genuinely idle cluster the policy must allow reaching saturation"
+
+    # ...and past saturation the makespan genuinely stops improving (the floor is real)
+    at_sat = plan_lanes(rung=568, cpu_cores=int(saturation), chain_threads=8)
+    beyond = plan_lanes(rung=568, cpu_cores=int(saturation) * 2, chain_threads=8)
+    # rel=1e-3, not 1e-9: at exactly int(saturation) the throughput term still sits a hair ABOVE
+    # the chain (integer-core rounding), so the two agree to ~1e-4, not to machine precision.
+    assert beyond.makespan_days == pytest.approx(at_sat.makespan_days, rel=1e-3)
+    assert beyond.binding == "critical_chain"
+    # DOUBLING the cores past saturation buys nothing at all - that floor is real
+    assert beyond.makespan_days == pytest.approx(beyond.critical_chain_days, rel=1e-9)
