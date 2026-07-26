@@ -185,13 +185,20 @@ def test_fig_stylised_facts_is_deterministic() -> None:
 def test_fig_stylised_facts_accepts_dates_and_defaults() -> None:
     panel = _make_panel(t=300, n=6, seed=2)
     dates = np.datetime64("2005-01-03") + np.arange(300).astype("timedelta64[D]")
+    pre = set(plt.get_fignums())  # whatever earlier tests left open is NOT this test's business
     fig = E.fig_stylised_facts(panel, dates=dates, footnote="train window only — snoop-clean")
     assert any("snoop-clean" in t.get_text() for t in fig.texts)  # the caption footnote is baked in
     plt.close(fig)
     fig2 = E.fig_stylised_facts(panel)  # no dates, no alive mask, no footnote -> integer axis
     assert len(fig2.axes) == 4
     plt.close(fig2)
-    assert plt.get_fignums() == []  # everything closed cleanly
+    # ⚠ 2026-07-26 deep review (#68). This asserted the GLOBAL `plt.get_fignums() == []`, which is not a
+    # property of the code under test but of every test that happened to run first — and pytest-randomly is
+    # a HARD dependency here precisely to reshuffle that order each run. MEASURED: identical code, identical
+    # tree, `--randomly-seed=11` PASSED while `22` and `33` FAILED with 13 figures left open by earlier viz
+    # tests. A green suite was therefore partly a property of the shuffle seed. The honest assertion is the
+    # DELTA — it still catches the real leak (a stray figure beyond the one returned) and nothing else.
+    assert set(plt.get_fignums()) - pre == set(), "fig_stylised_facts leaked a figure beyond the one returned"
 
 
 def test_render_eda_skips_gracefully_without_gold(

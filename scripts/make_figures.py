@@ -44,6 +44,13 @@ from src.viz.style import ARM_ORDER, apply_house_style, savefig
 
 _LEGS = ("sharpe", "cvar")
 
+#: The analysis' report-only RELATIVE tail band, as a fraction of |baseline CVaR| — MIRRORS the
+#: ``tail_margin_fraction`` default of ``scripts.analyze_campaign.h2_tost``. It is duplicated here (rather
+#: than imported) to keep the figure path free of that heavy module; the mirror is pinned against the real
+#: default by ``tests/test_make_figures_demo.py::test_tail_margin_fraction_mirrors_the_analysis``, so drift
+#: fails a test instead of silently re-widening the tail band (#67).
+TAIL_MARGIN_FRACTION = 0.25
+
 
 def synthesize_null(seed: int = 7, n_seeds: int = 30) -> dict[str, Any]:
     """Synthesise NULL-shaped per-seed scores + inference outputs (all arms indistinguishable).
@@ -57,20 +64,56 @@ def synthesize_null(seed: int = 7, n_seeds: int = 30) -> dict[str, Any]:
     cvar = {a: -0.058 + rng.normal(0, 0.012, n_seeds) + rng.uniform(-0.002, 0.002) for a in arms}
     scores_by_leg = {"Sharpe": sharpe, "CVaR-5%": cvar}
 
-    # Co-primary contrasts: distributional vs each control, both legs; estimates ~0, 90% TOST ⊂ ±0.05.
+    # Co-primary contrasts: distributional vs each control, both legs — every number DERIVED from the
+    # draws above by the analysis' OWN estimators, never asserted.
+    #
+    # ⚠ 2026-07-26 deep review (#67). This block used to hardcode `half = 0.035` and clip the estimate to
+    # ±0.03, which IMPOSED the verdict instead of deriving it. MEASURED consequence on the tail leg: all
+    # three H2-Tail rows rendered GREEN "equivalent" — because a ±0.035 interval sits inside the 0.05
+    # default band, which is in validation-DSR (Sharpe) units. Against the analysis' own RELATIVE tail band
+    # (`tail_margin_fraction` × |baseline CVaR| ≈ 0.0147) every one of those rows is NOT equivalent. So the
+    # demo asserted the bankable-null verdict on the co-primary tail leg that the campaign exists to TEST,
+    # under `F_equivalence_forest.png` — the exact filename `paper/FIGURE_TABLE_MANIFEST.md` points the PDF
+    # at. A demo previews the ENGINE; it must never pre-announce the result.
+    from src.inference.bootstrap import iqm
+
+    def _paired_iqm_boot(a: np.ndarray, b: np.ndarray, n_boot: int = 2000) -> tuple[float, np.ndarray]:
+        """IQM(a)-IQM(b) + its paired-seed bootstrap draws — `analyze_campaign._iqm_tost`'s estimator."""
+        a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
+        boot = np.empty(int(n_boot), dtype=float)
+        for i in range(int(n_boot)):
+            idx = rng.integers(0, a.size, size=a.size)  # paired: the SAME seed draw on both arms
+            boot[i] = iqm(a[idx]) - iqm(b[idx])
+        return float(iqm(a) - iqm(b)), boot
+
     contrasts = []
     for leg, ref in (("sharpe", sharpe), ("cvar", cvar)):
         for other in ("scalar", "placebo", "scalar_cvar5"):
-            est = float(np.mean(ref["distributional"]) - np.mean(ref[other]))
-            est = float(np.clip(est, -0.03, 0.03))
-            half = 0.035
-            contrasts.append({
+            est, boot = _paired_iqm_boot(ref["distributional"], ref[other])
+            row = {
                 "label": f"dist − {other}", "leg": leg, "estimate": est,
-                "tost_lo": est - half, "tost_hi": est + half,
-                "ci_lo": est - 0.055, "ci_hi": est + 0.055,
-            })
+                # 90% (the TOST interval: two one-sided 5% tests) inside 95% (the reported CI).
+                "tost_lo": float(np.quantile(boot, 0.05)), "tost_hi": float(np.quantile(boot, 0.95)),
+                "ci_lo": float(np.quantile(boot, 0.025)), "ci_hi": float(np.quantile(boot, 0.975)),
+            }
+            if leg == "cvar":
+                # The RELATIVE tail band, PER CONTRAST: fraction × |baseline CVaR|, the baseline being the
+                # comparator arm's IQM (`analyze_campaign.h2_tost._legs(..., relative=True)`). Supplying it
+                # per-row is what stops the tail leg being judged against the Sharpe-unit DSR margin.
+                row["margin"] = TAIL_MARGIN_FRACTION * abs(float(iqm(np.asarray(ref[other], dtype=float))))
+            contrasts.append(row)
 
-    bf01_by_leg = {"sharpe": 6.4, "cvar": 4.8}  # moderate evidence for H0 (illustrative)
+    # BF01 per leg, DERIVED from the same paired per-seed differences through the real estimator
+    # (was a hardcoded {"sharpe": 6.4, "cvar": 4.8} labelled "illustrative" — but it rendered into
+    # `F_evidence_for_null.png` as a Jeffreys "moderate evidence for H0" verdict, same #67 class).
+    from src.inference.bayes_null import bayesian_null_report
+
+    bf01_by_leg = {}
+    for leg, ref in (("sharpe", sharpe), ("cvar", cvar)):
+        base = np.asarray(ref["scalar"], dtype=float)
+        diffs = np.asarray(ref["distributional"], dtype=float) - base
+        rope = 0.05 if leg == "sharpe" else TAIL_MARGIN_FRACTION * abs(float(iqm(base)))
+        bf01_by_leg[leg] = float(bayesian_null_report(diffs, rope)["bf01"])
 
     from src.inference.model_confidence_set import model_confidence_set
 
@@ -170,13 +213,45 @@ def synthesize_null(seed: int = 7, n_seeds: int = 30) -> dict[str, Any]:
     }
 
 
-def render_all(data: dict[str, Any], out: Path) -> list[Path]:
-    """Render the fourteen headline figures from a data bundle; return the saved PNG paths."""
+#: Stamped ONTO every figure rendered from synthetic demo data (deep review 2026-07-26, #66).
+_DEMO_STAMP = ("SYNTHETIC DEMO DATA — NOT RESULTS  ·  rendered by make_figures.py --demo  ·  "
+               "numbers are illustrative (null-shaped draws), not campaign output")
+
+
+def stamp_demo(fig: Any) -> None:
+    """Mark a figure as synthetic, ON THE ARTIFACT — not merely in a console line.
+
+    WHY (deep review #66). ``--demo`` is the DEFAULT, and it writes fabricated numbers — contrast
+    estimates clipped to +/-0.03 with invented CIs, an "illustrative" Bayes factor, ``rng.normal``
+    search trajectories — under the EXACT filenames the final PDF wants
+    (``F_equivalence_forest.png``, ``F_evidence_for_null.png``, ...), into the SAME
+    ``outputs/figures/`` that ``paper/FIGURE_TABLE_MANIFEST.md`` points at, alongside GENUINE figures
+    (``F3_stylised_facts`` from the real train window, ``F4_splits_timeline``). The demo status lived
+    only in the script docstring and one stdout line, so nothing on the artifact distinguished a
+    fabricated forest plot from a real one — and a figure of invented numbers reaching the
+    dissertation is the worst failure mode this project has.
+
+    This mirrors the discipline ``eda.build_f3`` already applies (it bakes its provenance footnote
+    into the figure, and refuses to render at all from synthetic input rather than produce a
+    fabricated one). Post-campaign, ``--results-root`` renders WITHOUT this stamp, so the presence of
+    the banner is itself the real-vs-demo test.
+    """
+    fig.text(0.5, 0.985, _DEMO_STAMP, ha="center", va="top", fontsize=6.5, color="#B3261E",
+             bbox=dict(boxstyle="round,pad=0.25", fc="#FDECEA", ec="#B3261E", lw=0.6), zorder=1000)
+
+
+def render_all(data: dict[str, Any], out: Path, *, demo: bool = True) -> list[Path]:
+    """Render the fourteen headline figures from a data bundle; return the saved PNG paths.
+
+    ``demo=True`` (the default, matching the CLI default) stamps every artifact as synthetic (#66).
+    """
     apply_house_style()
     saved: list[Path] = []
 
     def _save(fig: Any, name: str) -> None:
         p = out / name
+        if demo:
+            stamp_demo(fig)
         savefig(fig, p)
         saved.append(p)
         import matplotlib.pyplot as plt
@@ -202,14 +277,19 @@ def render_all(data: dict[str, Any], out: Path) -> list[Path]:
     return saved
 
 
-def render_advanced(data: dict[str, Any], out: Path) -> list[Path]:
-    """Render the principled static 3-D figures (PDF-safe; they go IN the dissertation); return PNG paths."""
+def render_advanced(data: dict[str, Any], out: Path, *, demo: bool = True) -> list[Path]:
+    """Render the principled static 3-D figures (PDF-safe; they go IN the dissertation); return PNG paths.
+
+    These go IN the PDF, so the ``demo`` stamp matters here most of all (#66).
+    """
     from src.viz import advanced as A
 
     apply_house_style()
     saved: list[Path] = []
 
     def _save(fig: Any, name: str) -> None:
+        if demo:
+            stamp_demo(fig)
         savefig(fig, out / name)
         saved.append(out / name)
         import matplotlib.pyplot as plt
@@ -291,7 +371,9 @@ def main() -> None:
             "the post-campaign API (feed per-seed scores + inference outputs)."
         )
     data = synthesize_null(seed=args.seed)
-    saved = render_all(data, out)
+    # demo=True stamps every artifact as synthetic (#66). When --results-root is finally wired,
+    # pass demo=False there so the REAL renders carry no banner — the banner is the real-vs-demo test.
+    saved = render_all(data, out, demo=True)
     print(f"[make_figures] DEMO (synthetic null) — {len(saved)} headline figures -> {out}/")
     for p in saved:
         print(f"  {p.name}  (+ {p.with_suffix('.pdf').name})")
@@ -308,7 +390,7 @@ def main() -> None:
             print(f"  {p.name}  (+ {p.with_suffix('.pdf').name})")
 
     if not args.no_advanced:
-        adv = render_advanced(data, out)
+        adv = render_advanced(data, out, demo=True)   # see the note above (#66)
         print(f"[make_figures] advanced static 3-D figures — {len(adv)} -> {out}/")
         for p in adv:
             print(f"  {p.name}  (+ {p.with_suffix('.pdf').name})")
