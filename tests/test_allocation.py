@@ -203,3 +203,71 @@ def test_absent_probe_is_never_usable() -> None:
     assert all("USABLE" not in s for s in v.values())
     s = _snap(pools={"EF": 2, "L": 1, "U": 4}, probes=v)
     assert "U" not in usable_pools(s) and "V" not in usable_pools(s)
+
+
+def test_pool_admission_is_a_POSITIVE_test_and_cannot_fail_open_on_a_reworded_negative() -> None:
+    """U/V admission must not hinge on a word appearing inside a human-readable sentence (#60).
+
+    ``usable_pools`` gated on ``"USABLE" in verdict`` — a CASE-SENSITIVE substring of prose written
+    in ``telemetry.probe_verdicts``. The live negatives spell it lowercase ("NOT usable"), so the
+    gate was correct in practice, but it is fail-OPEN by construction: REPRODUCED 2026-07-26, a
+    verdict reworded to ``"NOT USABLE"`` or ``"UNUSABLE"`` — the natural way to add emphasis —
+    ADMITTED the pool. That would schedule the campaign onto a pool that never grants (jobs pend
+    forever) or onto one we were told not to use, which is exactly what Audit M1's "absent is NOT
+    auto-usable" rule exists to prevent.
+
+    The admission test is now positive and lives beside the vocabulary it tests, so an edited or
+    newly-added negative is refused by default rather than accidentally matching."""
+    from src.cluster.telemetry import USABLE_VERDICT, pool_is_usable
+
+    def _joins(verdict: str | None) -> bool:
+        return "U" in usable_pools(_snap(pools={"EF": 2, "L": 1, "U": 4}, probes={"U": verdict}))
+
+    # the ONE admitting verdict, and it is the same string probe_verdicts actually emits
+    assert pool_is_usable(USABLE_VERDICT) and _joins(USABLE_VERDICT)
+    assert probe_verdicts([{"id": "10293", "state": "r"}], pending_hours=1.0)["U"] == USABLE_VERDICT
+
+    # every negation is refused — including the case variants that previously admitted
+    for verdict in ("NOT USABLE", "UNUSABLE", "NOT usable", "not auto-usable",
+                    "usable maybe", "RUNNING (USABLE) but drained", "", None):
+        assert not pool_is_usable(verdict), f"pool_is_usable admitted {verdict!r}"
+        assert not _joins(verdict), f"usable_pools admitted {verdict!r}"
+
+    # the real verdicts for every probe state still behave as designed
+    for state, expected in ((None, False), ("Eqw", False), ("r", True), ("qw", False)):
+        jobs = [] if state is None else [{"id": "10293", "state": state}]
+        verdict = probe_verdicts(jobs, pending_hours=1.0)["U"]
+        assert _joins(verdict) is expected, f"state={state!r} verdict={verdict!r}"
+
+    # EF/L are always ours and never depend on a probe verdict
+    always = usable_pools(_snap(pools={"EF": 2, "L": 1}, probes={"U": "NOT USABLE"}))
+    assert set(always) == {"EF", "L"}
+
+
+def test_a_FIRST_read_with_degraded_telemetry_defaults_to_the_safe_regime() -> None:
+    """Audit M3 freezes the regime only when a PRIOR one exists; a first read fell through (#61).
+
+    With no ``prev_regime``, a failed PENDING section parses as ``cluster_qw=0`` and the doctrine
+    reads that phantom-empty queue as QUIET — the AGGRESSIVE chunk-1 flood. Wrong direction under
+    unknown pressure: the constraint chunking actually protects is ``max_u_jobs = 1000``, chunk-1
+    with pipelined rungs can enqueue ~1,200 arrays, and a cap hit classes as a transport error.
+    CONTENDED/chunk-25 cannot breach it.
+
+    Not hypothetical: the runbook has the advisor run AT LAUNCH — both a first read and the moment
+    ssh/qstat is most likely to hiccup."""
+    degraded = _snap(qw=0, probes={})
+    degraded.errors = ["section PENDING: rc=2"]
+    plan = advise(degraded, prev_regime=None)
+    assert plan.regime == "CONTENDED" and plan.chunk_tasks == 25, (
+        f"a degraded first read advised {plan.regime}/chunk-{plan.chunk_tasks}"
+    )
+    assert any("FIRST read" in n for n in plan.notes)
+    assert any("telemetry degraded" in n for n in plan.notes)
+
+    # a CLEAN empty queue is still legitimately QUIET — the fix must not blunt a real measurement
+    clean = _snap(qw=0, probes={})
+    assert advise(clean, prev_regime=None).regime == "QUIET"
+
+    # and the M3 freeze is untouched where a prior regime exists
+    for prev in ("QUIET", "CONTENDED"):
+        assert advise(degraded, prev_regime=prev).regime == prev

@@ -239,3 +239,58 @@ def test_chain_module_never_reaches_for_the_scheduler():
             imported.add(node.module)
     assert not any("driver" in m or "submit" in m for m in imported)
     assert "subprocess" not in imported
+
+
+def test_a_FAILED_candidate_replays_its_sentinel_so_a_resume_is_deterministic(tmp_path):
+    """An attempted-and-FAILED candidate must not be silently re-tried on resume (#62).
+
+    A failed candidate archives no ``record.json``, so ``_read_candidate`` returns None — which on a
+    resume is indistinguishable from "never attempted", and the candidate is RE-TRAINED. If the retry
+    succeeds, the search sees a different fitness at that index than the original job did, and every
+    later GP proposal diverges. MEASURED before the fix on a 14-candidate chain where candidate 6
+    failed: the interrupted and uninterrupted runs selected entirely different winners
+    ([0.7746, -0.1899] vs [0.0902, -0.5119]).
+
+    That breaks "analysis = deterministic archive replay" for a REGISTERED H4 arm — the winner would
+    depend on whether SGE happened to interrupt the job. The sidecar marker makes the sentinel
+    replay, so the trajectory is identical either way."""
+    from src.cluster.campaign import (candidate_failed_before, failed_marker_path,
+                                      record_failed_candidate)
+
+    arm_root = tmp_path / "search" / "bayes_opt"
+    arm_root.mkdir(parents=True)
+
+    # nothing recorded yet -> a fresh candidate is NOT treated as previously failed
+    assert candidate_failed_before(arm_root, "bayes_opt-c6") is False
+
+    record_failed_candidate(arm_root, "bayes_opt-c6", reason="no record after _run_single")
+    assert candidate_failed_before(arm_root, "bayes_opt-c6") is True
+
+    # the marker is a SIDECAR, never a record.json - the results archive keeps its meaning
+    marker = failed_marker_path(arm_root, "bayes_opt-c6")
+    assert marker.name.endswith(".failed.json")
+    assert not (arm_root / "bayes_opt-c6" / "record.json").exists()
+    payload = json.loads(marker.read_text(encoding="utf-8"))
+    assert payload["candidate_id"] == "bayes_opt-c6" and payload["failed"] is True
+
+    # other candidates are unaffected
+    assert candidate_failed_before(arm_root, "bayes_opt-c7") is False
+
+    # writing is idempotent and never raises
+    record_failed_candidate(arm_root, "bayes_opt-c6", reason="second attempt")
+    assert candidate_failed_before(arm_root, "bayes_opt-c6") is True
+
+
+def test_the_two_resume_paths_share_ONE_failure_convention():
+    """The on-node chain and the driver-side arm must agree, or a resume diverges by which ran (#62)."""
+    import inspect
+
+    from src.cluster import bayes_chain, campaign
+
+    chain_src = inspect.getsource(bayes_chain.run_bayes_chain)
+    driver_src = inspect.getsource(campaign.run_family_search_arm)
+    for name in ("candidate_failed_before", "record_failed_candidate"):
+        assert name in chain_src, f"the on-node chain does not use {name}"
+        assert name in driver_src, f"the driver-side arm does not use {name}"
+    # and both use the SAME sentinel value
+    assert bayes_chain._FAILED_FITNESS == -1e9

@@ -637,6 +637,40 @@ def _read_candidate(
     return agg if agg.get("ok") else None
 
 
+def failed_marker_path(arm_root: Path | str, cid: str) -> Path:
+    """Sidecar recording that candidate ``cid`` was ATTEMPTED and failed (deep review #62).
+
+    A failed candidate archives no ``record.json``, so ``_read_candidate`` returns None for it —
+    which on a resume is indistinguishable from "never attempted", and the candidate is RE-TRAINED.
+    If the retry succeeds, the search sees a different fitness at that index than the original run
+    did, and every subsequent GP proposal diverges. MEASURED: an interrupted chain and an
+    uninterrupted one selected entirely different winners.
+
+    This is a ``.failed.json`` SIDECAR, deliberately not a ``record.json``: the results archive keeps
+    its "a record means a completed training" meaning, and nothing downstream (``src/io/results.py``,
+    the analysis) can mistake a failure for a result. Only the search-resume path consults it.
+    """
+    return Path(arm_root) / f"{cid}.failed.json"
+
+
+def record_failed_candidate(arm_root: Path | str, cid: str, *, reason: str = "") -> None:
+    """Mark ``cid`` as attempted-and-failed so a resume reproduces the sentinel deterministically."""
+    p = failed_marker_path(arm_root, cid)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"candidate_id": cid, "failed": True, "ts": time.time(),
+                                   "reason": str(reason)[:400]}, indent=2), encoding="utf-8")
+        tmp.replace(p)
+    except OSError as exc:  # noqa: BLE001 — a marker write must never crash the arm
+        _LOG.warning("could not record failed-candidate marker for %s: %s", cid, exc)
+
+
+def candidate_failed_before(arm_root: Path | str, cid: str) -> bool:
+    """True iff ``cid`` was already attempted and failed (so replay must NOT re-train it)."""
+    return failed_marker_path(arm_root, cid).is_file()
+
+
 def _archived_source(
     cid: str, arm: str, arm_root: Path, k_seeds: int, base_seed: int
 ) -> tuple[str, str] | None:
@@ -934,6 +968,12 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
             if r is not None:
                 state["accepted"].append(r)
                 return float(r["fitness"])
+            # Same determinism guard as the on-node chain (#62): a candidate that was attempted and
+            # FAILED archives no record, so replay would re-train it, and a retry that succeeds
+            # changes the fitness at this index and every proposal after it. Replay the sentinel.
+            if candidate_failed_before(arm_root, cid):
+                state["failed"] += 1
+                return -1e9
         # MODE-D: the BO chain (30 sequential GP proposals) is the campaign's LONGEST serial path —
         # already pack-1 per proposal; give it the tight search h_rt when configured (a 1.1h
         # training under a 6-7h pack-5 walltime request is a poor backfill candidate).
@@ -948,6 +988,7 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
         r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
         if r is None:
             state["failed"] += 1
+            record_failed_candidate(arm_root, cid, reason="no record after run_batch")
             return -1e9
         state["accepted"].append(r)
         return float(r["fitness"])

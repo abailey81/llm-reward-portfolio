@@ -83,10 +83,16 @@ def plan_delta(old: dict | None, new: dict) -> list[str]:
 def usable_pools(snap: Snapshot) -> dict[str, int]:
     """Pools we may schedule on, with free-GPU counts. U/V join ONLY on a RUNNING/ran probe
     verdict (the runbook §10 branch); EF/L are always ours (documented allow=EF|L)."""
+    from src.cluster.telemetry import pool_is_usable
+
     pools = {p: snap.pool_free.get(p, 0) for p in ("EF", "L")}
     for pool in ("U", "V"):
-        verdict = snap.probe_states.get(pool, "")
-        if "USABLE" in verdict:
+        # POSITIVE admission test, not a word scan (deep review 2026-07-26, #60). This was
+        # ``"USABLE" in verdict`` — a case-sensitive substring of prose written in telemetry.py, so a
+        # negative reworded to "NOT USABLE"/"UNUSABLE" would have ADMITTED the pool (reproduced).
+        # The rule now lives beside the vocabulary it tests, and refuses anything it does not
+        # positively recognise.
+        if pool_is_usable(snap.probe_states.get(pool)):
             pools[pool] = snap.pool_free.get(pool, 0)
     return pools
 
@@ -242,6 +248,16 @@ def advise(snap: Snapshot, *, seed_segments: list[tuple[int, int]] | None = None
         if regime != prev_regime:
             regime = prev_regime
             chunk = 25 if regime == "CONTENDED" else 1
+    elif snap.errors:
+        # FIRST READ with degraded telemetry (deep review 2026-07-26, #61). M3 above only fires when
+        # there IS a last-known regime; with none, a failed PENDING section parses as qw=0 and the
+        # doctrine reads that phantom-empty queue as QUIET — the AGGRESSIVE chunk-1 flood. That is
+        # the wrong direction under unknown pressure: the constraint chunking actually protects is
+        # ``max_u_jobs = 1000``, and chunk-1 with pipelined rungs can enqueue ~1,200 arrays, where a
+        # cap hit classes as a transport error. CONTENDED (few, heavy arrays) cannot breach it.
+        # This path is not hypothetical: the runbook has the advisor run AT LAUNCH, which is both a
+        # first read and the moment ssh/qstat is most likely to hiccup.
+        regime, chunk = "CONTENDED", 25
     else:
         regime, chunk = chunking(snap, prev_regime=prev_regime)
     pack, pack_note = recommend_pack(pools, measured_vram_per_training_gb=measured_vram_per_training_gb,
@@ -271,5 +287,9 @@ def advise(snap: Snapshot, *, seed_segments: list[tuple[int, int]] | None = None
     if snap.errors and prev_regime:
         plan.notes.append(f"DEGRADED TELEMETRY — regime frozen at {prev_regime}; "
                           "act only on a clean snapshot")
+    elif snap.errors:
+        plan.notes.append("DEGRADED TELEMETRY on a FIRST read (no prior regime) — defaulted to "
+                          "CONTENDED/chunk-25, the setting that cannot breach max_u_jobs. Do NOT "
+                          "read this as a measurement of cluster pressure; re-run for a clean one")
     plan.notes.append("advisory only — apply at batch boundaries; priorities untouched")
     return plan

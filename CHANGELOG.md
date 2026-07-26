@@ -3652,6 +3652,92 @@ own UTC timestamps as LOCAL, truncating the window by an hour. Streak stays 0/30
   `test_allocation` + `test_sentinel`); ruff clean; `freeze.py --check` RC=0, read-only,
   `freeze_hash: null` — nothing frozen.
 
+**Loop 86 — `src/cluster/allocation.py`, the decision layer over loops 83-85: TWO findings (#60,
+#61), both fail-in-the-wrong-direction under conditions that occur at GO. Streak stays 0/30.**
+
+- **★ #60 — pool admission was a case-sensitive substring of PROSE, and fails OPEN.** `usable_pools`
+  admitted the U/V pools on `"USABLE" in verdict`, where `verdict` is a human-readable sentence
+  written in `telemetry.probe_verdicts`. The live negatives happen to spell it lowercase
+  (`"NOT usable"`), so the gate is correct today — but **REPRODUCED**: a verdict reworded to
+  `"NOT USABLE"` or `"UNUSABLE"`, the natural way to add emphasis, makes the pool **JOIN**. That
+  would schedule the campaign onto a pool that never grants (jobs pend forever) or one we were told
+  not to use — precisely the hazard telemetry's own Audit M1 ("absent must NEVER read as usable")
+  exists to prevent. The correctness of an access decision rested on an unstated case convention in
+  a different module's prose.
+  **Fix:** a POSITIVE admission test, `telemetry.pool_is_usable`, living beside the vocabulary it
+  tests, matching the one admitting verdict exactly (now the `USABLE_VERDICT` constant the emitter
+  also uses). A positive test cannot fail open on a reworded negation — anything unrecognised is
+  refused by default. Verified: all four real probe states behave identically, and `NOT USABLE` /
+  `UNUSABLE` / `RUNNING (USABLE) but drained` / `""` / `None` are all now refused.
+- **★ #61 — a FIRST read with degraded telemetry advised the AGGRESSIVE regime.** Audit M3 freezes
+  the regime on degraded input, but its guard is `if snap.errors and prev_regime` — so with **no**
+  prior regime it fell through. A failed PENDING section parses as `cluster_qw=0`, and the doctrine
+  reads that phantom-empty queue as **QUIET → chunk-1, the mode-D flood**. Wrong direction under
+  unknown pressure: the constraint chunking actually protects is `max_u_jobs = 1000`, chunk-1 with
+  pipelined rungs can enqueue ~1,200 arrays, and a cap hit classes as a transport error.
+  **This is not hypothetical — the runbook has the advisor run AT LAUNCH**, which is both a first
+  read and the moment ssh/qstat is most likely to hiccup. Now defaults to CONTENDED/chunk-25, the
+  setting that cannot breach the cap, with a note saying explicitly that it is a safe default and
+  not a measurement of cluster pressure. Verified: a *clean* empty queue is still QUIET (the fix does
+  not blunt a real measurement) and the M3 freeze is untouched where a prior regime exists.
+- **Verified CLEAN (do not re-open):** the **M3 claim was checked by EXECUTION, not by trusting its
+  comment** — with `prev=CONTENDED` and a degraded `qw=0`, the plan stays CONTENDED where a clean
+  read would flip to QUIET, and both the "regime frozen" and "telemetry degraded" notes appear.
+  `advise_cpu_lane` treats an empty `cpu_free` as **unknown, not zero** (`target_cores: None` rather
+  than silently recommending a stall), and a partial report undercounts, which is the conservative
+  direction. `pick_search_pool` falls back to EF; `stripe` falls back to a single EF weight when
+  nothing is free, so it cannot divide by zero; `recommend_pack` holds the validated pack-5 without
+  a canary measurement; and `eta` returns `None` rather than inventing a rate. `save_state` has a
+  single caller which merges `{**lane_state, ...}`, so the state-clobbering fix an earlier lane made
+  is intact.
+- **Verified:** **107 tests `PYTEST_RC=0`** (`test_allocation` + `test_cluster_cpu_lane_advisor` +
+  `test_cluster_accumulation` + `test_cluster_killswitch` + `test_sentinel`); ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
+**Loop 87 — `src/cluster/bayes_chain.py`: ONE MAJOR (#62) — an interrupted GP chain selected a
+DIFFERENT WINNER than an uninterrupted one. Streak stays 0/30.**
+
+- **★★ #62 (MAJOR) — a failed candidate broke resume determinism for a registered H4 arm.**
+  A candidate whose training fails archives **no `record.json`**, so `_read_candidate` returns
+  `None` — which on a resume is indistinguishable from *"never attempted"*, and the candidate is
+  **RE-TRAINED**. If that retry succeeds, the search sees a different fitness at that index than the
+  original job did, and every subsequent GP proposal diverges from there.
+  **MEASURED end-to-end** on a 14-candidate chain where candidate 6 failed:
+
+  | run | y at index 6 | selected winner |
+  |---|---|---|
+  | original (job 1, candidate 6 failed) | −1e9 | `[0.7746, −0.1899]` |
+  | resumed, before the fix (retried, succeeded) | −0.5067 | **`[0.0902, −0.5119]`** |
+  | resumed, after the fix (sentinel replayed) | −1e9 | `[0.7746, −0.1899]` ✓ |
+
+  So **the winner of a confirmatory H4 arm depended on whether SGE happened to interrupt the job** —
+  which contradicts the file's own docstring ("an already-trained candidate … yields the SAME
+  fitness, so the GP re-derives an identical trajectory") and the project's stated first criterion,
+  *analysis = deterministic archive replay*. The claim was true only for candidates that SUCCEEDED.
+  **Fix:** a `.failed.json` **sidecar** marker — `record_failed_candidate` /
+  `candidate_failed_before` — so an attempted-and-failed candidate replays its sentinel instead of
+  being retried. Deliberately **not** a `record.json`: the results archive keeps its "a record means
+  a completed training" meaning, and nothing downstream (`src/io/results.py`, the analysis) can
+  mistake a failure for a result. Verified after the fix: **zero disagreements and the resumed run
+  reproduces the original winner exactly.**
+  **Both resume paths wired, not just the one under review** — the on-node chain
+  (`bayes_chain.run_bayes_chain`) and the driver-side arm (`campaign.run_family_search_arm`) now
+  share one convention, since otherwise a resume would diverge according to which path ran it. A
+  test asserts both use the helpers and the same `-1e9` sentinel.
+- **Verified CLEAN (do not re-open):** `_out_of_time` is checked **after** the replay lookup, which
+  is correct — a replayed candidate costs nothing and must not be blocked by the deadline; it
+  estimates the next iteration from observed durations and falls back to the caller's
+  `est_iter_secs` so even a job's first iteration is guarded, with the un-passed case documented as
+  recoverable-but-wasteful. Candidate identity is positional (`{arm}-c{i}`), which is sound because
+  the proposal order is reproducible: `bayes_opt_over_template`'s per-iteration rng consumption is
+  unconditional (verified loop 78) and the `#51` winsorize fence is a pure function of the observed
+  `y`, so identical observations give identical GP targets. `_worker_init()` is called so the chain
+  trains under the same BLAS/thread regime as every other task — a determinism-envelope match, not
+  an accident. The `-1e9` sentinel agrees numerically with both sibling paths.
+- **Verified:** **136 tests `PYTEST_RC=0`** (`bayes_chain`, `cluster_campaign`,
+  `run_campaign_cluster`, `cluster_driver`, `dfo_tpe_batch`, `allocation`); ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),

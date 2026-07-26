@@ -213,6 +213,28 @@ def accumulation_report(log_path: str | Path | None = None, *, hours: float = 3.
                        f"re-forecast from ~{round(late)} cores via lanes.plan_lanes")}
 
 
+#: The one verdict that admits a pool. Kept as a module constant so the ADMISSION TEST lives beside
+#: the vocabulary it tests (deep review 2026-07-26, #60) — see :func:`pool_is_usable`.
+USABLE_VERDICT = "RUNNING (USABLE)"
+
+
+def pool_is_usable(verdict: str | None) -> bool:
+    """True only for the ONE verdict that admits a pool — a POSITIVE test, never a word scan.
+
+    ``allocation.usable_pools`` previously admitted U/V on ``"USABLE" in verdict``, a case-sensitive
+    substring of a human-readable sentence written in THIS module. That is fail-OPEN by
+    construction: the negative verdicts happen to spell it lowercase ("NOT usable"), so the gate is
+    correct today, but REPRODUCED 2026-07-26 — a verdict reworded to ``"NOT USABLE"`` or
+    ``"UNUSABLE"`` (the natural way to add emphasis) makes the pool JOIN. That would schedule the
+    campaign onto a pool that never grants, so the jobs pend forever, or onto one we were told we may
+    not use — the exact hazard Audit M1 added the "absent is NOT auto-usable" rule for.
+
+    Matching the positive explicitly cannot fail open on a reworded negation: a new or edited
+    negative verdict simply is not this string, so it is refused by default.
+    """
+    return (verdict or "").strip() == USABLE_VERDICT
+
+
 def probe_verdicts(our_jobs: list[dict], *, pending_hours: float,
                    restricted_after_h: float = 48.0) -> dict[str, str]:
     """The U/V experiment verdict per probe (runbook §10 branch).
@@ -234,7 +256,7 @@ def probe_verdicts(our_jobs: list[dict], *, pending_hours: float,
             verdicts[pool] = f"probe ERROR ({st}) — investigate/resubmit; NOT usable"
         elif st.lower().startswith("r"):
             # Audit m6: case-insensitive so Rr/Rt (running-after-restart) still count as running.
-            verdicts[pool] = "RUNNING (USABLE)"
+            verdicts[pool] = USABLE_VERDICT   # the ONE admitting verdict (see pool_is_usable, #60)
         elif pending_hours >= restricted_after_h:
             verdicts[pool] = "pending>%dh (effectively RESTRICTED)" % int(restricted_after_h)
         else:

@@ -105,7 +105,8 @@ def run_bayes_chain(
         same job and it resumes by archive replay.
     """
     from src.baselines.reward_family import family_bounds
-    from src.cluster.campaign import _family_spec, _read_candidate
+    from src.cluster.campaign import (_family_spec, _read_candidate, candidate_failed_before,
+                                      record_failed_candidate)
     from src.orchestration.parallel import _worker_init
     from src.search.bayes_opt import bayes_opt_over_template
 
@@ -144,6 +145,16 @@ def run_bayes_chain(
         if rec is not None:
             state["completed"] += 1
             return float(rec["fitness"])
+        # A candidate that was ATTEMPTED and FAILED archives no record, so without this marker a
+        # resume cannot tell it apart from "never attempted" and RE-TRAINS it. If the retry then
+        # succeeds, the GP sees a different fitness at this index than the original job did and every
+        # later proposal diverges — MEASURED (deep review #62): an interrupted chain and an
+        # uninterrupted one selected entirely different winners. Replaying the sentinel keeps the
+        # trajectory identical, which is what the docstring above promises and what
+        # "analysis = deterministic archive replay" requires.
+        if candidate_failed_before(arm_root, cid):
+            state["failed"] += 1
+            return _FAILED_FITNESS
         if _out_of_time():
             raise ChainStopped(cid)
 
@@ -158,6 +169,7 @@ def run_bayes_chain(
         rec = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
         if rec is None:
             state["failed"] += 1
+            record_failed_candidate(arm_root, cid, reason="no record after _run_single")
             return _FAILED_FITNESS
         state["completed"] += 1
         return float(rec["fitness"])
