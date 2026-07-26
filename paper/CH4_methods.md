@@ -223,12 +223,17 @@ artefact. The decoupling is unit-tested at the split boundaries.
 
 ## 4.7 Hypotheses and the pre-registered inference plan
 
-Four hypotheses are pre-registered. **H1** (beat-the-human) asks whether the best language-model reward beats the
-maximum over four hand-designed rewards on the sealed leg; because the baselines are selected on the same sealed
-leg they are reported on, H1 carries a comparator data-snoop and is reported as **descriptive only**, not as an
-inferential claim. **H2**, the headline, is the feedback-channel contrast. **H3** asks whether iterative reflection
-beats single-shot best-of-N at matched budget; **H4** asks whether the language-model designer beats the
-random-search and Bayesian-optimisation baselines.
+Four hypotheses are pre-registered. **H1** (beat-the-human) asks whether the LLM-designed reward beats the *best*
+hand-designed reward — the pointwise maximum over the **eleven-name hand-reward canon** (the full standard
+toolkit, not a four-member subset). Naming that maximum by its sealed-leg performance would data-snoop the
+comparator, so H1 is formalised *snoop-free* as an **intersection–union test**: the LLM reward *dominates the
+canon* — it beats every member one-sided at $\alpha$, which is exactly "beats the best" (the best is the maximum),
+while selecting no comparator to snoop. This is registered as a confirmatory node (N6) of the validity tier below
+and is **pending supervisor ratification**; until ratified it is reported descriptively. The deflation asymmetry —
+the searched LLM winner deflated by its candidate multiplicity versus each un-searched hand reward at $N{=}1$ —
+keeps the human bar conservative either way. **H2**, the headline, is the feedback-channel contrast. **H3** asks
+whether iterative reflection beats single-shot best-of-N at matched budget; **H4** asks whether the language-model
+designer beats the random-search and Bayesian-optimisation baselines.
 
 **H2 is two co-primary intersection–union tests.** *H2-RA* asks whether the distributional arm matches the
 comparison arms on risk-adjusted return (a Sharpe contrast); *H2-Tail* asks whether it improves the realised left
@@ -286,8 +291,12 @@ CVaR*, so equivalence is judged against the effect's own tail magnitude rather t
 We further flag the CVaR leg as the **lowest-power member** of the H2 family: tail statistics estimated on
 multi-year windows carry the widest sampling variance, so the H2-Tail intersection–union test is the most likely to
 land in the inconclusive region, and we read a tail non-rejection as bounded equivalence only when it clears the
-CVaR-scaled margin [`du2017backtesting`; `bauer2025equal`]. Cross-hypothesis multiplicity is handled by treating H1–H4 as separate
-pre-registered estimands with a reported Bonferroni-across-four sensitivity rather than a single forced family.
+CVaR-scaled margin [`du2017backtesting`; `bauer2025equal`]. Cross-hypothesis multiplicity is handled, in the operative default, by treating the four hypotheses as separate
+pre-registered estimands with a reported Bonferroni sensitivity rather than a single forced family; a registered
+candidate — a graphical-multiplicity **validity tier** [`bretz2009graphical`] that promotes H3, H4, the structure
+control, and H1-as-N6 above the H2 co-primaries under strong family-wise control, activated only on upstream
+rejection — supersedes this default on supervisor ratification, at a disclosed α-split cost to the headline (the
+full weighted graph is registered in the pre-registration).
 
 The design's defensive logic, distributed across §§4.5–4.7, is consolidated in Table 4.1: each row names a
 threat to the validity of the headline (H2) inference and the specific, pre-registered design feature that
@@ -313,7 +322,7 @@ falsifiable test in which a *null* is informative rather than uninterpretable.
 | *Within-path* variance understating uncertainty (anti-conservative inference) | The **winner-seed ladder** (up to n = 568) with a per-seed rliable interquartile mean and a paired stratified bootstrap |
 | A non-rejection misread as a *failure* rather than a bounded *equivalence* | A pre-registered **TOST equivalence** margin ($\pm0.05$ Deflated-Sharpe units) against the SESOI |
 | **Forking paths** / post-hoc goalpost-moving | A **SHA-256 freeze** of the full design before the sealed leg, plus an append-only deviations log |
-| **Cross-hypothesis** multiplicity (H1–H4) | A reported **Bonferroni-across-four** sensitivity over the separate estimands |
+| **Cross-hypothesis** multiplicity (H1–H4) | Separate pre-registered estimands + a reported **Bonferroni** sensitivity (operative default); a registered graphical **validity tier** supersedes on ratification |
 
 ## 4.8 Pre-registration, provenance and reproducibility
 
