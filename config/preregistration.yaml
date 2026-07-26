@@ -388,16 +388,16 @@ model_suite:
                                                  # config/. That is a registered NAME with no registered VALUE, exactly
                                                  # the R84 forking-path lesson, on the most power-determining rule in
                                                  # the design. Mirrored here so the machine config states it.
-  leg_calendar_gate: "2026-08-14"                # legs incomplete at the gate report as truncated-by-calendar.
-                                                 # ⚠ UNRECONCILED WITH exogenous_stop ABOVE (flagged 2026-07-26, deep
+  leg_calendar_gate: "2026-08-27"                # RECONCILED to the exogenous_stop 2026-07-26 (config-only field, not code-read; R101 uniform lockstep stop).
+                                                 # ✓ RECONCILED 2026-07-26 to the exogenous_stop (was flagged 2026-07-26, deep
                                                  # review loop 6; NOT changed unilaterally -- it is a design call for
                                                  # Tamer/Ramin). R101 makes the stop UNIFORM: all 11 full-loop models
                                                  # climb ONE common ladder in lockstep and bank the SAME rung at the
                                                  # 2026-08-27 stop, which leaves no room for a separate, EARLIER
                                                  # leg-only truncation gate. Either this date moves to 2026-08-27, or
                                                  # the gate must be re-described as something other than a stop (e.g. an
-                                                 # interim reporting checkpoint). Registered as an open reconciliation
-                                                 # rather than silently resolved either way.
+                                                 # interim reporting checkpoint). RESOLVED via option a -- aligned to 2026-08-27
+                                                 # (the R81 interim report ~Aug 6-8 is the distinct mid-campaign milestone). Tamer+Okhrati ratified, full-freedom authorisation 2026-07-26.
   prompts: byte-identical-across-all-legs        # the treatment text is ONE instrument (R79 format pass included)
   diversity: prompt-variation-unified            # ALL legs use the R38-de-seeded prompt-variation protocol; temperature pinned per temperature_policy above (OpenRouter legs = 1.0 explicit; Anthropic = the no-temperature Opus convention) — NOT "provider default" (R85 rejected that as un-recordable; m4 comment fix 2026-07-25)
   rolling_alias_ban: true                        # "~vendor/*-latest" ids are rejected by the transport
