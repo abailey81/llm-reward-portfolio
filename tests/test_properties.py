@@ -5,10 +5,17 @@ Where the rest of the suite checks *examples* (this input -> that output), this 
 Hypothesis. Three reasons this matters for the dissertation specifically:
 
 1. **The CVaR estimator is the headline tail statistic**, and the theory (Chapter 3) leans on CVaR
-   being a *coherent* risk measure. A coherent risk measure is translation-equivariant, positively
-   homogeneous and monotone; here we *prove the implementation satisfies those axioms* over thousands
-   of generated samples — i.e. the code realises the object the theory assumes, not merely a function
-   that happens to agree on a few fixtures.
+   being a *coherent* risk measure. Artzner, Delbaen, Eber & Heath (1999) give **FOUR** axioms:
+   translation equivariance, positive homogeneity, monotonicity, and **SUB-ADDITIVITY**. Here we
+   *prove the implementation satisfies those axioms* over thousands of generated samples — i.e. the
+   code realises the object the theory assumes, not merely a function that happens to agree on a few
+   fixtures.
+
+   ⚠ Corrected 2026-07-26 (deep review, loop 6): this paragraph previously enumerated only the first
+   THREE axioms, and sub-additivity was untested anywhere in ``tests/``. That is the one axiom the
+   whole argument turns on — it is precisely what CVaR has and VaR lacks, and it is the reason
+   Chapter 3 can use CVaR as a coherent risk measure at all. A measure-theoretic examiner checks it
+   first. ``test_cvar_subadditivity`` below now covers it.
 2. **Metamorphic relations** (scale-invariance of Sharpe, sqrt-time annualisation, sign reflection)
    catch whole classes of bug that example tests miss, with no need for a known ground-truth output.
 3. **Reproducibility**: the Hypothesis profile is *derandomised* (tests/conftest.py), so any failing
@@ -66,6 +73,43 @@ def _nondegenerate(r: np.ndarray, *, min_std: float = 1e-2) -> bool:
 # CVaR — the coherent-risk axioms (ties directly to the Chapter-3 theory)      #
 # --------------------------------------------------------------------------- #
 class TestCVaRCoherenceAxioms:
+    @settings(max_examples=200)
+    @given(
+        x=arrays(np.float64, 60, elements=st.floats(-0.2, 0.2, allow_nan=False, allow_infinity=False)),
+        y=arrays(np.float64, 60, elements=st.floats(-0.2, 0.2, allow_nan=False, allow_infinity=False)),
+        alpha=st.sampled_from([0.05, 0.10, 0.25, 0.50]),
+    )
+    def test_cvar_subadditivity(self, x: np.ndarray, y: np.ndarray, alpha: float) -> None:
+        """SUB-ADDITIVITY — the fourth Artzner axiom, and the one the whole theory turns on.
+
+        Diversification may not increase risk: for a risk measure rho, rho(X+Y) <= rho(X) + rho(Y).
+        This is exactly what CVaR has and VaR lacks (CLAUDE.md: "VaR fails SUBADDITIVITY
+        specifically"), and it is why Chapter 3 may treat CVaR as coherent.
+
+        SIGN CONVENTION: ``bootstrap.cvar`` returns the SIGNED lower-tail mean of RETURNS (more
+        negative = worse), so the risk measure is rho(X) = -cvar(X) and sub-additivity becomes
+
+            cvar(X + Y) >= cvar(X) + cvar(Y).
+
+        WHY IT HOLDS FOR THIS ESTIMATOR, exactly and not just asymptotically: ``cvar`` is the mean of
+        the worst k = ceil(alpha*T) observations, i.e. (1/k)*min over k-subsets S of sum_{i in S} z_i.
+        Let S* be the minimising subset for X+Y. Then
+            k*cvar(X+Y) = sum_{S*}(x+y) = sum_{S*}x + sum_{S*}y >= min_S sum_S x + min_S sum_S y,
+        because S* is merely *a* feasible k-subset for each term. Equality holds iff one subset is
+        worst for both. So the property is exact for equal-length finite samples, and a tiny
+        floating-point tolerance is all that is needed.
+
+        Added 2026-07-26 (deep review, loop 6): the module previously enumerated only three of the
+        four axioms and never tested this one.
+        """
+        assume(np.all(np.isfinite(x)) and np.all(np.isfinite(y)))
+        lhs = cvar(x + y, alpha)
+        rhs = cvar(x, alpha) + cvar(y, alpha)
+        assert lhs >= rhs - 1e-12, (
+            f"CVaR sub-additivity violated at alpha={alpha}: cvar(X+Y)={lhs!r} < "
+            f"cvar(X)+cvar(Y)={rhs!r} — the estimator would not be a coherent risk measure"
+        )
+
     @given(r=_returns(min_size=1))
     def test_alpha_one_equals_mean(self, r: np.ndarray) -> None:
         """CVaR at alpha=1 averages the WHOLE sample -> it is exactly the mean."""

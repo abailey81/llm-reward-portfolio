@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import multiprocessing as mp
 
@@ -93,6 +94,54 @@ def test_str_format_dunder_escape_rejected() -> None:
     assert ast_gate(
         "import numpy as np\ndef reward(w,r,pw,pr,info):\n    return float(pr-0.5*float(np.var(r))),{},None"
     ) is True
+
+
+def test_docstring_is_exempt_from_the_format_field_scan() -> None:
+    """A DOCSTRING documenting the components dict must not cost the candidate (2026-07-26 review).
+
+    The format-field literal scan is defence-in-depth against a format TEMPLATE smuggling attribute
+    access inside a string. A docstring can never be that template — reaching one needs ``__doc__``,
+    a dunder the gate already rejects — so scanning docstrings was pure false-positive cost. It was an
+    EXPENSIVE false positive: ``prompts/initial_generation.txt`` shows the author the literal example
+    ``{"port_ret": float(port_ret)}``, so a reward whose docstring documents its own components dict
+    matched ``[.\\[]`` inside braces and the whole PAID candidate was discarded for its prose.
+    """
+    # The exact shape the initial-generation prompt primes the model to produce.
+    assert ast_gate(
+        'def reward(weights, returns, prev_weights, port_ret, info):\n'
+        '    """Return (total, {"cvar_05": -0.03, "ret": 0.1}, state)."""\n'
+        '    return float(port_ret), {"ret": float(port_ret)}, None\n'
+    ) is True
+    # Indexing and decimals inside docstring braces are likewise harmless prose.
+    assert ast_gate(
+        'def reward(w, r, pw, pr, info):\n    """Uses {r[0]} and the grid {0.1, 0.2}."""\n'
+        '    return 0.0, {}, None\n'
+    ) is True
+    # Module-level and class docstrings get the same exemption.
+    assert ast_gate('"""Module note {a.b}."""\ndef reward(*a):\n    return 0.0, {}, None\n') is True
+
+
+def test_format_field_scan_still_blocks_non_docstring_strings() -> None:
+    """The docstring exemption must NOT widen the hole: every real template is still rejected."""
+    # A bare string statement is NOT a docstring (it is not the first statement of the body).
+    assert ast_gate(
+        'def reward(w, r, pw, pr, info):\n    x = 1\n    """{0.__class__}"""\n    return 0.0, {}, None\n'
+    ) is False
+    # An assigned template, the classic escape, and the format() builtin all still reject.
+    assert ast_gate(
+        'def reward(w, r, pw, pr, info):\n    t = "{0.__class__.__mro__[1]}"\n    return 0.0, {}, None\n'
+    ) is False
+    assert ast_gate(
+        'def reward(w, r, pw, pr, info):\n    return "{0.__class__}".format(w), {}, None\n'
+    ) is False
+    assert ast_gate(
+        'def reward(w, r, pw, pr, info):\n    return format(w, "{0.__class__}"), {}, None\n'
+    ) is False
+    # A docstring exemption must not leak to a SECOND string literal in the same function.
+    assert ast_gate(
+        'def reward(w, r, pw, pr, info):\n    """Fine {a.b} prose."""\n'
+        '    t = "{0.__class__}"\n    return 0.0, {}, None\n'
+    ) is False
 
 
 def test_date_reference_rejected() -> None:
@@ -710,3 +759,81 @@ def test_handshake_fixture_roundtrips_through_the_blob(rng: np.random.Generator)
     reset_failure_flag()
     total, _components, _state = safe_call(fn, *fixture)
     assert np.isclose(total, float(np.sum(fixture[0] * fixture[1])))
+
+
+# ============================================================================ #
+# The SandboxEnvironmentError CONTRACT, enforced repo-wide (deep review 2026-07-26, loop 2)
+# ============================================================================ #
+def _except_handler_names(handler: ast.ExceptHandler) -> set[str]:
+    """Bare exception NAMES caught by one ``except`` clause (``Name`` or ``Tuple`` of ``Name``)."""
+    t = handler.type
+    if t is None:
+        return {"<bare>"}
+    nodes = t.elts if isinstance(t, ast.Tuple) else [t]
+    out: set[str] = set()
+    for n in nodes:
+        if isinstance(n, ast.Name):
+            out.add(n.id)
+        elif isinstance(n, ast.Attribute):
+            out.add(n.attr)
+    return out
+
+
+def test_sandbox_environment_error_is_caught_before_sandbox_error_everywhere():
+    """EVERY ``except SandboxError`` must be preceded, in the SAME try, by ``SandboxEnvironmentError``.
+
+    ``SandboxEnvironmentError`` subclasses ``SandboxError`` (src/sandbox/executor.py) precisely so that
+    legacy handlers keep working — but its docstring makes the contract explicit: *callers that
+    permanently ledger a rejection must catch this FIRST*, because a starved spawn environment is an
+    ENVIRONMENT failure, not a candidate defect.
+
+    The 2026-07-26 deep review found the contract documented but VIOLATED at two of the three ledgering
+    call sites: ``src/orchestration/parallel.py::train_candidate`` set ``failed_validation = True`` —
+    poisoning a good, PAID candidate into the frozen reject set that ``--resume`` replays — and
+    ``scripts/run_campaign.py::_reinstantiate_frozen_winner`` raised ``ValueError``, which turns a
+    transient starvation into a DETERMINISTIC exit-3 on every resume of the sealed test leg, blaming
+    the frozen winner. ``src/llm/loop.py`` alone had it right.
+
+    This is a whole-repo structural lock rather than one test per call site, so a NEW handler added
+    later cannot reintroduce the defect silently.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    offenders: list[str] = []
+    for path in sorted([*(root / "src").rglob("*.py"), *(root / "scripts").rglob("*.py")]):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:  # pragma: no cover - a syntactically broken file fails elsewhere
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Try):
+                continue
+            seen_env = False
+            for h in node.handlers:
+                names = _except_handler_names(h)
+                if "SandboxEnvironmentError" in names:
+                    seen_env = True
+                    continue
+                if "SandboxError" in names and not seen_env:
+                    offenders.append(f"{path.relative_to(root).as_posix()}:{h.lineno}")
+    assert not offenders, (
+        "these `except SandboxError` handlers are not preceded by `except SandboxEnvironmentError` "
+        "in the same try, so a starved spawn environment would be permanently ledgered as a "
+        f"candidate rejection: {offenders}"
+    )
+
+
+def test_inline_fallback_counter_starts_at_zero_and_is_readable():
+    """The no-timeout inline fallback is COUNTED, not silent (deep review 2026-07-26, loop 2).
+
+    ``validate_once`` degrades to ``_validate_inline`` — which takes no timeout at all — whenever a
+    killable child cannot be spawned. That degradation used to be completely silent, so on a
+    commit-/handle-starved box the sandbox could drop its only wall-clock timeout with no log line,
+    no counter and no field on the record. The counter is the auditable signal; this locks in that it
+    exists and is exported.
+    """
+    from src.sandbox.executor import inline_fallback_count
+
+    n = inline_fallback_count()
+    assert isinstance(n, int) and n >= 0

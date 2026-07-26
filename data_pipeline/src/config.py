@@ -17,7 +17,10 @@ def load(name: str) -> dict:
     path = CONFIG_DIR / f"{name}.yaml"
     if not path.exists():
         raise FileNotFoundError(f"no such config: {path}")
-    with open(path) as f:
+    # Explicit UTF-8 — never the platform locale codec (deep-review 2026-07-26, loop 1): a
+    # locale-decoded YAML silently mojibakes every non-ASCII byte, so the LOADED config would
+    # differ between machines. Mirrors the same fix in src/utils/config.py::load_config.
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

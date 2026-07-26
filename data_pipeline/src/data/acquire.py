@@ -187,7 +187,7 @@ class PullJournal:
         return any(e["chunk_id"] == cid and e["status"] == "frozen" for e in self.entries())
 
     def mark(self, cid: str, status: str, **extra) -> None:
-        with self._lock, open(self.path, "a") as f:
+        with self._lock, open(self.path, "a", encoding="utf-8") as f:
             f.write(json.dumps({"chunk_id": cid, "status": status,
                                 "ts_utc": datetime.now(timezone.utc).isoformat(),
                                 **extra}, sort_keys=True, default=str) + "\n")

@@ -355,13 +355,22 @@ def train_candidate(spec: dict) -> dict:
 
         kind = spec["reward_kind"]
         if kind == "source":
-            from src.sandbox.executor import SandboxError, validate_once
+            from src.sandbox.executor import SandboxEnvironmentError, SandboxError, validate_once
 
             src = spec["reward"]
             out["reward_source"] = src
             out["reward_hash"] = hashlib.sha256(src.encode("utf-8")).hexdigest()
             try:
                 reward_fn = validate_once(src, _FIXTURE)
+            except SandboxEnvironmentError:
+                # CONTRACT (src/sandbox/executor.py::SandboxEnvironmentError): a STARVED spawn
+                # environment is NOT a candidate defect, and any site that permanently ledgers a
+                # rejection must catch it FIRST. Marking `failed_validation` here would poison a
+                # good, PAID candidate into the frozen reject set that ``--resume`` replays — the
+                # exact failure src/llm/loop.py:531-539 was written to prevent. Fail LOUD instead so
+                # the supervisor relaunches and ``--resume`` re-attempts this one on a freed box.
+                # (deep-review 2026-07-26, loop 2 — the contract was documented but unhonoured here.)
+                raise
             except SandboxError as exc:
                 out["error"] = f"sandbox: {exc}"
                 out["failed_validation"] = True

@@ -37,7 +37,11 @@ def manifest_entries() -> list[dict]:
         raise FileNotFoundError(
             f"manifest not found at {MANIFEST_JSONL} — cannot run a physical inventory (R4)"
         )
-    entries = [json.loads(line) for line in MANIFEST_JSONL.read_text().splitlines() if line.strip()]
+    entries = [
+        json.loads(line)
+        for line in MANIFEST_JSONL.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     if not entries:
         raise ValueError(
             f"manifest at {MANIFEST_JSONL} yielded zero entries — refusing to report a vacuous "

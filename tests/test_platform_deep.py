@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import yaml
 
 import src.io.results as results_mod
 import src.utils.logging as logmod
@@ -321,11 +322,63 @@ class TestConfigLoading:
             assert len(cfg) > 0, f"{path.stem}.yaml loaded empty"
 
     def test_load_config_suffix_optional_and_cached(self) -> None:
-        """'regimes' and 'regimes.yaml' resolve identically; lru_cache returns the SAME object."""
+        """'regimes' and 'regimes.yaml' resolve identically; lru_cache returns the SAME object.
+
+        ``cache_clear()`` first (added 2026-07-26, deep review): without it the two suffix spellings
+        are SEPARATE cache keys, so if ``config/regimes.yaml`` changes on disk between the two calls
+        — which really happened when a config was edited mid-suite — one key holds the pre-edit parse
+        and the other the post-edit parse, and ``a == b`` fails for a reason unrelated to what this
+        test is about.
+        """
+        load_config.cache_clear()
         a = load_config("regimes")
         b = load_config("regimes.yaml")
         assert a == b
         assert load_config("regimes") is a  # memoised
+
+    def test_every_config_loads_as_utf8_not_the_platform_locale(self) -> None:
+        """Every config/*.yaml must load EXACTLY as its on-disk UTF-8 bytes parse.
+
+        Regression lock for the CRITICAL defect found by the 2026-07-26 deep-review loop 1:
+        ``load_config`` used ``path.open()``, i.e. the platform LOCALE codec. On the Windows
+        development box (locale cp1251) that silently mis-decoded every non-ASCII byte, so 30+
+        registered ``config/preregistration.yaml::model_suite`` values (and
+        ``config/m2_models.yaml::core`` / ``excluded_by_design``) came back with U+2014 "—"
+        mojibake'd to "вЂ”" — the LOADED design of record differed from the file on disk AND
+        differed between machines, which breaks the protocol layer of the reproducibility claim.
+        Bytes undefined in the locale codec (e.g. U+2605) raised UnicodeDecodeError outright.
+
+        This assertion fails on ANY machine whose locale codec is not UTF-8 if the explicit
+        ``encoding="utf-8"`` is ever dropped again.
+
+        ``cache_clear()`` first: ``load_config`` is ``lru_cache``d, so an entry memoised BEFORE a
+        config file changed on disk would make this compare a stale parse against current bytes and
+        fail for a reason that has nothing to do with encoding. (Observed for real: editing configs
+        while the suite was running turned both this test and the pre-existing
+        ``test_load_config_suffix_optional_and_cached`` RED. Clearing keeps the test measuring the
+        DECODE path, which is what it is for.)
+        """
+        load_config.cache_clear()
+        for path in sorted(config_dir().glob("*.yaml")):
+            on_disk = yaml.safe_load(path.read_bytes().decode("utf-8")) or {}
+            assert dict(load_config(path.stem)) == on_disk, (
+                f"{path.name} did not load as UTF-8 — load_config must pass encoding='utf-8' "
+                "explicitly, never the platform locale codec"
+            )
+
+    def test_load_config_preserves_non_ascii_characters_verbatim(self) -> None:
+        """A known non-ASCII config VALUE survives loading byte-for-byte (companion to the sweep above).
+
+        Explicit and self-describing so the failure message names the actual corruption: the em-dash
+        must be U+2014, never its cp1251 mis-decode. Uses a registered ``model_suite`` string, i.e.
+        part of the design of record, not an incidental comment.
+
+        ``cache_clear()`` for the same reason as the sweep above: measure the decode, not the cache.
+        """
+        load_config.cache_clear()
+        note = load_config("preregistration")["model_suite"]["served_variant_disclosure"]
+        assert "—" in note, "the em-dash in a registered model_suite value was not preserved"
+        assert "вЂ”" not in note, "cp1251 mis-decode of U+2014 leaked into a loaded config value"
 
     def test_unknown_config_raises_filenotfound_listing_available(self) -> None:
         with pytest.raises(FileNotFoundError) as exc:

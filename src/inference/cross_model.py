@@ -23,6 +23,22 @@ generations? — reuses the SQ1 estimator), and :func:`capability_regression` (r
 capability anchor; primary = the pre-declared external composite, secondary = the M2 reading
 score). Everything here is deterministic under its seed and DISJOINT from the m=6 confirmatory
 machinery — nothing gates H1–H4.
+
+⚠ NOT YET WIRED (verified 2026-07-26, deep review loop 4 — do not read this docstring as describing
+an executed path). A repo-wide import search over ``src/`` and ``scripts/`` finds **no production
+caller** of this module or of :mod:`src.inference.leg_aggregate`; the only references are docstrings
+and comments (``src/viz/figures.py``, ``scripts/analyze_campaign.py``, ``scripts/run_campaign_cluster.py``)
+plus ``src/inference/contamination.py``'s own unrelated ``cross_model_disagreement``. The functions
+below and their unit tests are real and pass — but a unit-tested module is not a wired one, which is
+exactly the failure Amendment R16 fixed for ``h2_conjunction`` ("implemented and unit-tested but
+previously unwired, so the documented headline test never actually ran").
+
+This matters because :func:`pooled_bound` is registered as *the* cross-model bounded-effect statement
+(R86, ``config/preregistration.yaml: synthesis_exactness.pooled_bound``) and **R101 reframed the
+headline around it**. Tracked as write-time obligation **row 34** in
+``docs/V2_WRITE_TIME_REGISTRY.md``, which also records the two acceptable ways to close it (wire it
+with an end-to-end test, or amend the register to withdraw the claim) and the latent
+per-period-vs-annualised floor-unit trap in ``leg_aggregate`` that only bites on wiring.
 """
 
 from __future__ import annotations

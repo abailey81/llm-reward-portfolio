@@ -18,6 +18,17 @@ Scope discipline (why this is safe on a frozen, pre-registered design):
   "medium" default) as the confirmatory headline, (b) reuse the already-frozen SESOI as the ROPE, and
   (c) ALWAYS report a robustness curve over ``R_GRID`` — the null is "supported" only if it survives the
   band. TOST itself has NO prior and is immune to this; the BF is the complement, not the replacement.
+- ⚠ **GAP, disclosed 2026-07-26 (deep review, loop 7): the pin is PROSE-ONLY and therefore OUTSIDE the
+  freeze gate.** ``r``, ``R_GRID`` and ``bf_threshold`` are pinned in ``PREREGISTRATION.md`` as required
+  above, but ``config/preregistration.yaml`` carries NO corresponding key (verified: zero ``jzs`` /
+  ``prior`` / ``bf_threshold`` entries in the machine mirror). ``scripts/freeze.py``'s prose<->YAML
+  assertions can only check fields that exist on BOTH sides, so this particular "MUST be PINNED"
+  requirement is enforced by convention, not by the gate — unlike the SESOI, the equivalence margin or
+  the m=6 family, all of which ARE machine-mirrored and asserted. The hash still binds the prose (the
+  ``PREREGISTRATION.md`` bytes are hashed), so the VALUE cannot change silently post-freeze; what is
+  missing is the cross-file agreement check that would catch the CODE drifting from the prose. Closing
+  it properly means mirroring these three values into the YAML and adding an assertion — a small,
+  clearly-scoped change, deliberately not made unilaterally here because it adds a registered field.
 
 References
 ---------

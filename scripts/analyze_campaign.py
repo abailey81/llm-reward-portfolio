@@ -412,7 +412,12 @@ def _pbo_ranked_on_sharpe(
         combos = list(_it.combinations(all_block_ids, half))
     else:
         if rng is None:
-            rng = np.random.default_rng()
+            # Seeded fallback (deep review 2026-07-26, loop 6): this was an UNSEEDED
+            # ``default_rng()`` in a repo whose contract is byte-identical replay, and it disagreed
+            # with ``src/inference/overfitting.py`` which uses ``default_rng(0)``. Dead on the
+            # production path (the caller passes ``max_combinations=n_full``, taking the exhaustive
+            # branch) but a latent determinism hole; matched to the reference implementation.
+            rng = np.random.default_rng(0)
         seen: set[tuple[int, ...]] = set()
         block_arr = np.arange(s)
         while len(seen) < max_combinations:
@@ -1311,7 +1316,32 @@ def _seed_scores(
         v = _test_returns(r)
         if v is None:
             continue
-        out[int(r["seed"])] = float(score_fn(v))
+        _seed = int(r["seed"])
+        _score = float(score_fn(v))
+        # Duplicate (arm, seed) handling (deep review 2026-07-26; loop 6 introduced the guard, loop 13
+        # refined it). This ORIGINALLY assigned unconditionally, so two records for one arm+seed silently
+        # kept the LAST one — and every headline estimator is PAIRED on the seed, so a silently-dropped
+        # record shifts a paired difference with nothing in the output to say it happened.
+        #
+        # But an UNCONDITIONAL raise is too brittle to ship: `src/io/results.py::load_all` de-duplicates
+        # nothing, and `--resume` / winner re-runs can legitimately write a SECOND run directory for a
+        # seed that already has a record. Hard-failing the whole analysis at the last step on a benign
+        # re-write would be a worse trade than the bug it prevents.
+        #
+        # So: AGREEING duplicates (idempotent re-write, archive replay) pass silently; DISAGREEING
+        # duplicates raise, because that is exactly the case where last-wins picked one number
+        # arbitrarily and changed a paired estimate.
+        _prior = out.get(_seed)
+        if _prior is not None and not (
+            _prior == _score or (math.isnan(_prior) and math.isnan(_score))
+        ):
+            raise ValueError(
+                f"CONFLICTING duplicate test records for arm={arm!r} seed={_seed}: scores "
+                f"{_prior!r} and {_score!r}. The per-seed score map can only keep one, so a "
+                "seed-paired estimator would silently use whichever was written last. Deduplicate the "
+                "run archive (or fix the writer) before analysing; identical duplicates are fine."
+            )
+        out[_seed] = _score
     return out
 
 
@@ -6667,7 +6697,13 @@ def main() -> None:
         winner_n_trials = int(load_config("campaign").get("candidates_per_arm", 1) or 1)
         # Eval-span END from config (the frozen single source), NOT a hardcoded date (no-hardcoding audit).
         _span = load_config("inference").get("splits", {}).get("evaluation", {}).get("span", [None, "2026-06-30"])
-        panel = load_gold_panel(phase="development", end=str(_span[1])).panel
+        # Checksum-verified against the frozen manifest (2026-07-26 review): this panel feeds the
+        # BENCHMARK-FLOOR exhibit (H1/T0), a confirmatory-bearing quantity, and every other path that
+        # reads real gold for a confirmatory purpose already verifies (run_campaign.py:1474,
+        # run_campaign_cluster.py:113, parallel.py:291, test_leg.py:202). Analysis must not be the one
+        # place that scores the campaign against an UNVERIFIED panel. A mismatch raises and is reported
+        # by the handler below as a loud, named SKIP rather than a silently-wrong floor.
+        panel = load_gold_panel(phase="development", end=str(_span[1]), verify_checksum=True).panel
     except Exception as _floor_exc:  # noqa: BLE001 - floor is best-effort; records-only analysis always runs
         # P7 (2026-07-13 audit): was a SILENT blanket except — the benchmark-floor exhibit vanished
         # without a word when campaign_summary.json was absent (the cluster mirror never had one).

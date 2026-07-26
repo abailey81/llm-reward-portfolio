@@ -274,3 +274,42 @@ def test_snapshot_text_appends_sentinel_line(tmp_path: Path, monkeypatch) -> Non
     monkeypatch.setattr(monitor, "sentinel_summary_line", lambda _rd: "SENTINEL OK — all checks OK")
     text = monitor.snapshot_text(st, tmp_path)
     assert "SENTINEL OK" in text
+
+
+def test_every_anthropic_billed_leg_resolves_to_a_price() -> None:
+    """Structural lock: EVERY `provider: anthropic` leg must price in BOTH Anthropic tables.
+
+    Added 2026-07-26 (deep review, loop 9) after `claude-sonnet-5` — a seated, ANTHROPIC-BILLED leg
+    (`config/legs.yaml`: provider anthropic, ANTHROPIC_API_KEY) with a registered per-leg price of
+    [2.00, 10.00] — was found MISSING from `src/llm/cost.py::PRICES_PER_MTOK` and
+    `scripts/monitor.py::_PRICES_PER_MTOK`. Both match by SUBSTRING, and no key was a substring of
+    "claude-sonnet-5", so every sonnet-5 call booked $0.00 — under-reporting spend on the one key with a
+    real funded balance in the REPORTED cost summary and on the LIVE monitor dashboard. (The R83 advisory
+    ledger is a SEPARATE table -- legs.yaml::planning_prices -- which DOES price sonnet-5 and is already
+    locked by test_leg_transport::test_planning_prices_cover_all_legs, so the 80%/100% spend WARNINGS are
+    unaffected: this is a reporting/monitoring defect, not a spend-guard failure.) The 2026-07-24 sweep
+    fixed this same class for opus-5 and missed sonnet-5; the only existing price test pins
+    claude-sonnet-4-6, the leg R92 REMOVED.
+
+    Asserted STRUCTURALLY (derived from legs.yaml) rather than as a fixed list, so seating a new
+    Anthropic leg without pricing it fails here instead of silently costing $0.
+    """
+    import yaml
+
+    from src.llm.cost import _price as cost_price
+
+    legs_path = Path(__file__).resolve().parents[1] / "config" / "legs.yaml"
+    legs = (yaml.safe_load(legs_path.read_text(encoding="utf-8")) or {}).get("legs") or []
+    anthropic = [leg for leg in legs if str(leg.get("provider", "")).lower() == "anthropic"]
+    assert anthropic, "expected at least one anthropic-billed leg in config/legs.yaml"
+
+    unpriced = [
+        (leg.get("label"), leg.get("model"))
+        for leg in anthropic
+        if cost_price(str(leg.get("model"))) is None
+        or monitor._resolve_price(str(leg.get("model"))) is None
+    ]
+    assert not unpriced, (
+        "these ANTHROPIC-billed legs resolve to NO price, so their calls book $0.00 and the reported "
+        f"spend under-states the funded key: {unpriced}"
+    )

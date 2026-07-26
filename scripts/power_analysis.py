@@ -65,8 +65,14 @@ The pairing correlation ρ (swept; default conservative)
 The paired test gains power when the two arms' per-seed scores are POSITIVELY correlated across the
 shared seed (a "lucky" seed lifts both arms, so the paired difference has lower variance). The true ρ
 is unknown pre-campaign, so :func:`simulate_power` takes ``rho`` and the design sweeps
-ρ∈{0, 0.3, 0.5, 0.7}. The **default ρ=0 is conservative**: it assumes pairing buys NO variance
-reduction, so the reported headline MDE is the WORST case over ρ; any real ρ>0 only shrinks it.
+ρ∈{-0.141, 0, 0.3, 0.5, 0.7} (the negative point is the MEASURED pilot value). ⚠ CORRECTED
+2026-07-26 (deep review, loop 5): ρ=0 is NOT the conservative worst case for THIS design. Since
+σ_D = σ_seed·√(2(1-ρ)), a NEGATIVE ρ gives MORE paired variance than ρ=0, and the pilot measured
+ρ = -0.141 (σ_seed 0.244 → σ_D 0.3686, matching the registered 0.369, vs only 0.3451 at ρ=0). So
+ρ=0 UNDERSTATES σ_D and hence the MDE by ~7% here — it is ANTI-conservative, and the previously
+shipped sweep never exercised a negative ρ, so no reported row covered the actual design point.
+The honest statement: any real ρ>0 shrinks the MDE, any ρ<0 inflates it, and the MEASURED ρ is
+the row to read.
 
 Null framing (pre-committed; PREREGISTRATION §10 R12)
 ----------------------------------------------------
@@ -96,7 +102,8 @@ Flags
   --alpha          Family significance level before the selection penalty (0.05).
   --sigma-seed     Seed-to-seed σ of the per-seed score within an arm (CLEAN PILOT INPUT). Omit to use
                    the flagged directional upper-bound proxy from the prototype (``DIRECTIONAL_SIGMA_SEED``).
-  --rho            Pairing correlation across the shared seed (default 0.0, conservative).
+  --rho            Pairing correlation across the shared seed (default 0.0; NOT the worst case —
+                   the measured pilot value is -0.141, which inflates sigma_D; see the module note).
   --sesoi          Smallest effect size of interest (FROZEN: read from config; PREREGISTRATION §10 R12).
   --equiv-margin   Symmetric TOST equivalence margin (FROZEN: read from config).
   --n-seeds        Override the per-arm winner seed count n_seeds (default: from config; headline 30).
@@ -347,14 +354,16 @@ class PowerConfig:
     for API/back-compat and to drive the SECONDARY regime-stratified bound; the realized paired sample
     size used by :func:`simulate_power` is :attr:`n_paired`. For the HEADLINE design,
     :func:`main` sets ``n_regimes=1, folds=1`` so ``n_paired == seeds == n_seeds`` (regimes do not inflate
-    the paired n). ``rho`` is the pairing correlation across the shared seed (default 0.0, conservative).
+    the paired n). ``rho`` is the pairing correlation across the shared seed (default 0.0 — NOT
+    conservative: the measured pilot rho is -0.141, and rho<0 INFLATES sigma_D; see the module note).
     """
 
     n_regimes: int
     seeds: int = DESIGN_N_SEEDS
     folds: int = 1
     sigma_dsr: float = DIRECTIONAL_SIGMA_SEED  # seed-to-seed σ of the per-seed score (Sharpe units)
-    rho: float = 0.0  # pairing correlation across the shared seed (0 = conservative, no cancellation)
+    rho: float = 0.0  # pairing correlation across the shared seed (0 = no cancellation; NOT the worst
+                      # case — measured pilot rho = -0.141 inflates sigma_D; module note, loop 5)
     target_power: float = 0.80
     alpha: float = 0.05
     n_comparisons: int = FROZEN_FAMILY_M  # frozen testing-family size (config), not a hardcoded 6
@@ -729,13 +738,13 @@ def _rho_sweep_table(
         "|---|---|---|---|---|",
     ]
     for rho in rhos:
-        print(f"    rho = {rho:.1f} ...")
+        print(f"    rho = {rho:.3f} ...")
         c = replace(cfg, rho=float(rho))
         m80 = minimum_detectable_effect(replace(c, target_power=0.80), effect_max=effect_max, effect_points=effect_points)
         m90 = minimum_detectable_effect(replace(c, target_power=0.90), effect_max=effect_max, effect_points=effect_points)
         flag = " *(default, conservative)*" if rho == 0.0 else ""
         lines.append(
-            f"| {rho:.1f}{flag} | {_fmt(m80['mde'])} | {_fmt(m80['mde_sigma_units'], 2)} | "
+            f"| {rho:.3f}{flag} | {_fmt(m80['mde'])} | {_fmt(m80['mde_sigma_units'], 2)} | "
             f"{_fmt(m90['mde'])} | {_fmt(m90['mde_sigma_units'], 2)} |"
         )
     return "\n".join(lines)
@@ -931,7 +940,8 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 ## Result (computed at the directional σ_seed — pilot field flagged)
 - [x] Realized PAIRED sample size **n_seeds = {cfg.seeds}** (per-arm winners; Amendment D2 5→30).
 - [{'x' if not cfg.sigma_is_placeholder else ' '}] Seed-to-seed σ of the per-seed score (Sharpe units): **σ_seed = {_fmt(cfg.sigma_dsr)}**{sigma_flag}
-- [x] Pairing correlation across the shared seed: **ρ = {cfg.rho:.1f}** *(default 0.0 = conservative; swept below)*
+- [x] Pairing correlation across the shared seed: **ρ = {cfg.rho:.3f}** *(default 0.0; NOT the worst case — the
+      MEASURED pilot ρ is -0.141 and ρ<0 INFLATES σ_D; swept below, including the measured point)*
 - [{'x' if reached else ' '}] Minimum detectable effect at {cfg.target_power:.0%} power: {mde_clause}
 - [x] Per-test alpha (PRIMARY rule above): **α = {a_eff:.4f}** *(one-sided IUT leg at α; multiplicity is the live BH/RW, not a fixed Šidák-α_eff — R37)* {'' if cfg.iut_one_sided else '— this run uses the Šidák-m two-sided rule as primary'}
 - [x] Independent-regime count from `src/regimes/definition.py`: **N = {cfg.n_regimes}**{n_note} — REPORTED for the SECONDARY regime-stratified analyses; it does **not** enter the headline paired n.
@@ -945,7 +955,7 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 at which the realized rliable paired test (`paired_seed_difference_test`, IQM statistic) rejects H0 with
 probability ≥ **target power = {cfg.target_power:.2f}**, at the per-test alpha of the PRIMARY rule (α = {a_eff:.4f}):
 
-    Δ_MDE = min {{ Δ ≥ 0 : Power(Δ | n_seeds = {cfg.seeds}, σ_seed = {_fmt(cfg.sigma_dsr)}, ρ = {cfg.rho:.1f}, α = {a_eff:.4f}) ≥ {cfg.target_power:.2f} }}
+    Δ_MDE = min {{ Δ ≥ 0 : Power(Δ | n_seeds = {cfg.seeds}, σ_seed = {_fmt(cfg.sigma_dsr)}, ρ = {cfg.rho:.3f}, α = {a_eff:.4f}) ≥ {cfg.target_power:.2f} }}
 
 estimated by Monte-Carlo ({cfg.n_sims} sims/grid-point, {cfg.n_boot} bootstrap reps/test) over the REAL test.
 For the power simulation the bootstrap two-sided p is converted in-direction (p_one = p_two/2 when the
@@ -955,8 +965,11 @@ rule (`pvalue_one_sided_greater`), exact here because the simulation draws symme
 {sidak_section}
 ## Pairing-correlation (ρ) sensitivity — headline MDE table
 The paired test gains power as the two arms' per-seed scores correlate across the shared seed (ρ>0
-cancels the common "lucky-seed" variance). ρ is unknown pre-campaign, so we sweep it; the **default ρ=0
-is the conservative worst case** (no cancellation), and any real ρ>0 only shrinks the MDE. The ρ-sweep
+cancels the common "lucky-seed" variance). ⚠ **ρ=0 is NOT the conservative worst case here** (corrected
+2026-07-26): σ_D = σ_seed·√(2(1-ρ)), so a NEGATIVE ρ inflates the paired variance, and the pilot
+MEASURED ρ = -0.141 (σ_D 0.3686 vs 0.3451 at ρ=0 — ρ=0 understates the MDE by ~7%). The sweep now
+includes the measured negative point; read THAT row as the design's operating point. Any real ρ>0
+shrinks the MDE; any ρ<0 inflates it. The ρ-sweep
 table uses the PRIMARY decision rule above.
 
 {rho_table}
@@ -968,9 +981,14 @@ across seeds at 80% power they report δ=0.5 → N≈100, δ=1 → N≈20, δ=2 
 SAC-vs-TD3 case needed N≈10–15 at δ≈0.93). At our **N={cfg.seeds}** the simulated 80%-power MDE is ≈ {_fmt(mde_sig, 2)} σ_seed
 (δ≈{_fmt(mde_sig, 2)}), squarely in that envelope. Colas flag the *two-sample* bootstrap as anti-conservative
 below N≈50; ours is the **paired/one-sample** variant (it cancels the common variance) and the simulated
-null rejection is ≤ alpha_eff (conservative), not inflated — see the power curve's effect=0 row.
+null rejection is close to alpha_eff — see the power curve's effect=0 row. ⚠ CORRECTED 2026-07-26
+(deep review, loop 5): this previously asserted the null rejection is "≤ alpha_eff (conservative), not
+inflated". Measured at production settings (statistic=iqm, n_boot=2000, n=30, 6,000 reps, MC SE 0.0028)
+the real size is **0.0573 two-sided / 0.0613 one-sided at α=0.05** — mildly ABOVE nominal, so the
+"conservative" direction was wrong. Small in absolute terms, but each IUT leg is decided at α=0.05 and
+the joint IUT inherits the same drift; report the measured value rather than claiming conservatism.
 
-## Computed power curve (σ_seed = {_fmt(cfg.sigma_dsr)}, ρ = {cfg.rho:.1f}, n_seeds = {cfg.seeds})
+## Computed power curve (σ_seed = {_fmt(cfg.sigma_dsr)}, ρ = {cfg.rho:.3f}, n_seeds = {cfg.seeds})
 {power_table}
 
 ## Sharpe ↔ validation-DSR reconciliation (T2.5)
@@ -1042,7 +1060,8 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 ## Acceptance boxes
 - [x] A committed analysis re-derived against the REAL paired test, with MDE@80%/90% + an explicit trial count (this file).
 - [x] PRIMARY decision rule = {'one-sided IUT leg at α = ' + f'{cfg.alpha:.2f}' + ' (multiplicity = live BH/RW, R37)' if cfg.iut_one_sided else 'two-sided Šidák-m = ' + str(cfg.n_comparisons)}; conservative Šidák-m={cfg.n_comparisons} sensitivity reported (α_eff = {sidak_a:.4f}).
-- [x] Pairing correlation ρ swept {{0, 0.3, 0.5, 0.7}}; default ρ=0 conservative.
+- [x] Pairing correlation ρ swept {{-0.141, 0, 0.3, 0.5, 0.7}} — including the MEASURED pilot ρ;
+      ρ=0 is NOT the worst case (ρ<0 inflates σ_D). Corrected 2026-07-26.
 - [{'x' if not cfg.sigma_is_placeholder else ' '}] σ_seed filled from the clean pilot (currently the **directional upper-bound proxy**).
 - [{'x' if reached else ' '}] Target power {cfg.target_power:.0%} reached at Δ_MDE (currently at the directional σ_seed).
 - [x] SESOI + TOST margin recorded (FROZEN; PREREGISTRATION §10 R12); pre-committed null framing stated.
@@ -1241,9 +1260,21 @@ def _load_design_from_config() -> _DesignInfo:
 
         loaded = load_gold_panel()
         panel = getattr(loaded, "panel", loaded)
-    except Exception:  # pragma: no cover - gold is licensed / may be absent
+    except Exception as _gold_exc:  # pragma: no cover - gold is licensed / may be absent
         from src.data.synthetic import make_synthetic_panel
 
+        # LOUD, not silent (2026-07-26 review). The fallback itself is correct and deliberate — gold is
+        # licensed, so an external reproducer legitimately has none — but it was SILENT, and the regime
+        # count derived here is a DESIGN INPUT to the power analysis (hence the seed ladder). Substituting
+        # an 8-asset synthetic panel for the 963-name gold without a word means an operator could read a
+        # regime count off synthetic data and never know. Same fix P7 applied to analyze_campaign's
+        # benchmark floor: name the exception, keep going.
+        print(
+            f"[power_analysis] gold panel UNAVAILABLE ({type(_gold_exc).__name__}: {_gold_exc}) — "
+            "falling back to a SYNTHETIC panel for the regime count; this is a stand-in, not the "
+            "executed design input. Provide the licensed gold to compute it on real data.",
+            flush=True,
+        )
         panel = make_synthetic_panel(n_assets=8, n_days=2_000, seed=0)
 
     n_regimes_detected = regime_count_on_panel(panel, regimes_cfg)
@@ -1377,7 +1408,7 @@ def main() -> None:
         f"  sigma_seed = {cfg.sigma_dsr:.3f}"
         + ("  (DIRECTIONAL upper-bound proxy — prototype)" if sigma_is_placeholder else "  (from --sigma-seed)")
     )
-    print(f"  rho = {cfg.rho:.1f}  (default 0.0 = conservative; sweeping {{0,0.3,0.5,0.7}})")
+    print(f"  rho = {cfg.rho:.3f}  (default 0.0 is NOT the worst case; sweeping {{-0.141,0,0.3,0.5,0.7}})")
     a_eff = float(cfg.alpha) if iut_one_sided else selection_aware_alpha(cfg.alpha, cfg.n_comparisons)
     a_sidak = selection_aware_alpha(cfg.alpha, cfg.n_comparisons)
     if iut_one_sided:
@@ -1415,7 +1446,7 @@ def main() -> None:
                   f"{_fmt(mde_sidak['mde'], 4)} Sharpe ({_fmt(mde_sidak['mde_sigma_units'], 2)} sigma_seed)")
 
     print("  [sweep 4/4] rho sensitivity table (4 rho x 2 target powers) ...")
-    rho_table = _rho_sweep_table(cfg, (0.0, 0.3, 0.5, 0.7), float(args.effect_max), int(args.effect_points))
+    rho_table = _rho_sweep_table(cfg, (-0.141, 0.0, 0.3, 0.5, 0.7), float(args.effect_max), int(args.effect_points))
     n_trials = int(design["n_trials"])
     print(f"  trial count = {n_trials}")
 

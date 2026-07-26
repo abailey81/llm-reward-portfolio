@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import logging
 import math
 import re
 import sys
@@ -180,7 +181,7 @@ _ALLOWED_ATTRS: frozenset[str] = frozenset(
 # which the AST gate cannot see because it inspects Attribute NODE names, not string contents — a proven
 # dunder-walking RCE/info-disclosure escape (critical-review 2026-06-20). Reward code is pure numeric and
 # never needs string formatting; ``_FORMAT_FIELD_RE`` below is a defence-in-depth scan of string literals.
-_FORMAT_FIELD_RE = __import__("re").compile(r"\{[^{}]*[.\[][^{}]*\}")  # a replacement field with attr/index access
+_FORMAT_FIELD_RE = re.compile(r"\{[^{}]*[.\[][^{}]*\}")  # a replacement field with attr/index access
 
 def _safe_import(
     name: str,
@@ -267,7 +268,27 @@ _LAST_CALL_FAILED: bool = False
 # parallel workers are separate processes with their own module globals). Concurrent rollouts inside
 # one process would interleave the counts — scope these per-thread/per-env before ever doing that.
 _SAFE_DEFAULT_COUNT: int = 0
+_LOG = logging.getLogger(__name__)
+
 _CALL_COUNT: int = 0
+
+#: How many times ``validate_once`` had to DEGRADE to the no-timeout inline path because a killable
+#: child could not be spawned. Previously that degradation was completely silent (deep-review
+#: 2026-07-26, loop 2): on a commit-/handle-starved box ``Process.start()`` raises OSError, the
+#: fallback fires, and the candidate is then validated with NO wall-clock timeout at all — an
+#: infinite-loop reward hangs the worker forever, with no log line, no monitor anomaly and no field
+#: on the record to say the timeout was skipped. It is now counted, logged at ERROR, and stamped on
+#: the returned callable as ``fn.validated_inline``. Read via :func:`inline_fallback_count`.
+_INLINE_FALLBACK_COUNT: int = 0
+
+
+def inline_fallback_count() -> int:
+    """Number of no-timeout inline validation fallbacks taken in this process (see the module note).
+
+    A nonzero value means at least one candidate was validated WITHOUT the wall-clock timeout, which
+    a campaign audit should surface rather than discover from a hung worker.
+    """
+    return _INLINE_FALLBACK_COUNT
 
 
 class SandboxError(Exception):
@@ -510,6 +531,24 @@ def ast_gate(src: str) -> bool:
     except SyntaxError:
         return False
 
+    # DOCSTRINGS are exempt from the format-field scan in check 5 below (2026-07-26 review). The scan
+    # is defence-in-depth against a format TEMPLATE smuggling attribute access inside a string literal,
+    # but a docstring can never BE that template: reaching one requires ``fn.__doc__`` / ``__doc__``,
+    # both dunders already rejected by checks 2-3. Scanning them was pure false-positive cost, and an
+    # expensive one — the initial-generation prompt shows the author the literal example
+    # ``{"port_ret": float(port_ret)}``, so a reward whose docstring documents its own components dict
+    # (e.g. ``Returns (total, {"cvar_05": -0.03}, state)``) matched the regex and the whole PAID
+    # candidate was discarded for its prose, not its logic. Every non-docstring string is still scanned.
+    _docstrings: set[int] = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+        and isinstance(node.body[0].value.value, str)
+    }
+
     for node in ast.walk(tree):
         # 1. Imports must be inside the numpy allowlist.
         if isinstance(node, ast.Import):
@@ -564,7 +603,7 @@ def ast_gate(src: str) -> bool:
         #    string LITERAL with a replacement field that does attribute/index access, which the Attribute
         #    walk above cannot see — e.g. '{0.__class__.__mro__[1].__subclasses__}'.format(x)).
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if _FORMAT_FIELD_RE.search(node.value):
+            if id(node) not in _docstrings and _FORMAT_FIELD_RE.search(node.value):
                 return False
 
     return True
@@ -638,9 +677,29 @@ def validate_once(src: str, fixture: Any, timeout_s: float = 2.0) -> RewardFn:
                        args=(src, pickle.dumps(fixture), q), daemon=True)
     try:
         proc.start()
-    except (AssertionError, OSError, RuntimeError):  # pragma: no cover - spawn-failure fallback (only inside a daemonic worker); the inline path is covered directly via _validate_inline tests
-        # Cannot spawn here (e.g. inside a daemonic worker) -> inline fallback (no timeout).
-        return _validate_inline(src, fixture)
+    except (AssertionError, OSError, RuntimeError) as _spawn_exc:  # pragma: no cover - spawn-failure fallback (only inside a daemonic worker); the inline path is covered directly via _validate_inline tests
+        # Cannot spawn a killable child (inside a daemonic worker, or the box is commit-/handle-
+        # starved) -> inline fallback, which has NO wall-clock timeout: an infinite-loop reward on
+        # this path hangs the worker forever. The degradation is legitimate (a daemonic worker
+        # genuinely cannot spawn) but was previously SILENT — no log, no counter, no field on the
+        # record — so a starved box could quietly drop the sandbox's only real timeout
+        # (deep-review 2026-07-26, loop 2). It is now counted, logged at ERROR, and stamped on the
+        # returned callable so a campaign audit can find it instead of a hung worker.
+        global _INLINE_FALLBACK_COUNT
+        _INLINE_FALLBACK_COUNT += 1
+        _LOG.error(
+            "sandbox validation DEGRADED to the inline path (NO wall-clock timeout): could not "
+            "spawn a killable child (%s: %s). This is expected inside a daemonic worker, but on a "
+            "commit-/handle-starved box it means this candidate was validated without a timeout. "
+            "Inline fallbacks so far in this process: %d.",
+            type(_spawn_exc).__name__, _spawn_exc, _INLINE_FALLBACK_COUNT,
+        )
+        _fn = _validate_inline(src, fixture)
+        try:
+            _fn.validated_inline = True  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 - a non-writable callable must not break validation
+            pass
+        return _fn
 
     timed_out_phase: str | None = None
     status, message = "error", "validation child ended without a verdict"

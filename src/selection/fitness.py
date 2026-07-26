@@ -10,7 +10,9 @@ Algorithm (FINAL_PLAN F.4 / B.7):
   - Compute the validation Deflated Sharpe (F.11 / src/inference/deflated_sharpe.py)
     on the realized validation returns, using `n_trials` for the expected-max
     Sharpe correction under guided search.
-  - Optionally subtract lam * |validation-CVaR(5%)| per the pre-registered fitness.
+  - Optionally subtract lam * |validation-CVaR(alpha)| per the pre-registered fitness,
+    where alpha comes from config (``inference.yaml: fitness.alpha``), NOT a literal.
+    The registered lam is 0.0 (R22), so this penalty branch is INERT in the campaign.
   - Never touch the candidate reward's own scalar value -- the fitness depends ONLY
     on realized returns.
 
@@ -49,8 +51,8 @@ def held_out_fitness(
         Must be ``"val"``; any other value raises ``ValueError`` (selection
         lives on the validation split, audit B-2/B-3).
     lam:
-        Optional weight on ``|validation-CVaR(5%)|`` (pre-registered fitness);
-        ``0`` disables the penalty.
+        Optional weight on ``|validation-CVaR(alpha)|`` (pre-registered fitness);
+        ``0`` — the REGISTERED value (R22) — disables the penalty entirely.
     rng:
         Accepted for interface symmetry; the fitness is deterministic given the
         returns and is not used.
@@ -64,12 +66,18 @@ def held_out_fitness(
         population variance over ALL an arm's candidates is only knowable once
         the arm finishes -- see ``scripts/analyze_campaign.py: winner_dsr``),
         not inside the per-candidate loop.
+    cvar_alpha:
+        Tail level for the optional CVaR penalty. ``None`` (the default) reads
+        ``inference.yaml: fitness.alpha`` — and ONLY when ``lam != 0``, so the
+        registered ``lam == 0`` hot path never touches config.
 
     Returns
     -------
     float
         ``deflated_sharpe_ratio(returns, n_trials, var_sr=var_sr)
-        - lam * |cvar(returns, 0.05)|``.
+        - lam * |cvar(returns, cvar_alpha)|`` — the penalty term is dropped when
+        ``lam == 0`` (the registered value) and treated as 0 when the CVaR is
+        non-finite.
 
     Raises
     ------

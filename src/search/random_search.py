@@ -75,7 +75,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 
 from src.baselines.reward_family import WEIGHT_KEYS, family_bounds, params_to_source
-from src.sandbox.executor import SandboxError, ast_gate, validate_once
+from src.sandbox.executor import SandboxEnvironmentError, SandboxError, ast_gate, validate_once
 from src.utils.config import DotDict
 
 __all__ = ["random_search_over_code", "sample_reward_source", "code_grid"]
@@ -279,6 +279,15 @@ def random_search_over_code(
 
         try:
             reward = validate_once(source, fixture)
+        except SandboxEnvironmentError:
+            # CONTRACT (src/sandbox/executor.py::SandboxEnvironmentError): a starved spawn
+            # environment is NOT a defect of the sampled source. `continue`-ing here would be
+            # especially damaging on THIS path: the skip does not consume a budget unit, so a
+            # persistently starved box spins up to `max_attempts` (>= 1000) times and then returns a
+            # SHORT archive — silently breaking H4a's matched-budget control rather than failing.
+            # Fail loud instead; the supervisor relaunches and --resume replays the archive.
+            # (deep-review 2026-07-26, loop 2 — found by the repo-wide handler-order contract test.)
+            raise
         except SandboxError:
             # Should not happen for the gate-clean grammar; skip without
             # consuming a budget unit if it ever does.

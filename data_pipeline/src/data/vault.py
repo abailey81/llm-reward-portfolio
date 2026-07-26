@@ -141,12 +141,14 @@ def freeze(
             "run_id": run_id,
             "vendor": provenance.get("vendor"),
         }
+        # Explicit UTF-8 on every provenance write (deep-review 2026-07-26, loop 1): these records
+        # are the reproducibility chain, so their bytes must not depend on the writer's locale.
         sidecar.write_text(json.dumps({**record, "provenance": provenance}, indent=2,
-                                      sort_keys=True, default=str))
+                                      sort_keys=True, default=str), encoding="utf-8")
         _manifest_jsonl().parent.mkdir(parents=True, exist_ok=True)
-        with open(_manifest_jsonl(), "a") as f:
+        with open(_manifest_jsonl(), "a", encoding="utf-8") as f:
             f.write(json.dumps(record, sort_keys=True) + "\n")
-        with open(_legacy_checksums(), "a") as f:                   # legacy line format
+        with open(_legacy_checksums(), "a", encoding="utf-8") as f:  # legacy line format
             f.write(f"{digest}  {record['relpath']}  frozen={_utcnow()[:10]}\n")
     return FrozenArtifact(path, record["relpath"], digest, record["rows"], record["cols"])
 
@@ -197,7 +199,7 @@ def record_lineage(output: FrozenArtifact, inputs: list[FrozenArtifact | dict],
             return {"relpath": a.relpath, "sha256": a.sha256}
         return {"relpath": a["relpath"], "sha256": a["sha256"]}
     _lineage_jsonl().parent.mkdir(parents=True, exist_ok=True)
-    with open(_lineage_jsonl(), "a") as f:
+    with open(_lineage_jsonl(), "a", encoding="utf-8") as f:
         f.write(json.dumps({
             "output": _ref(output), "inputs": [_ref(i) for i in inputs],
             "stage": stage, "params": params or {}, "recorded_utc": _utcnow(),

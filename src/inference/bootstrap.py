@@ -51,7 +51,31 @@ extension whose size is likewise certified empirically by ``null_calibration``
 
 ``null_calibration`` repeatedly applies a difference test under a true null and
 reports the empirical rejection rate at the 5% level together with the raw
-p-values, certifying that the test machinery is correctly sized (audit C-7).
+p-values (audit C-7).
+
+⚠ WHAT "CERTIFIED" DOES AND DOES NOT MEAN — MEASURED 2026-07-26 (deep review, loop 5).
+The word "certified" above and at the call sites below was an overstatement, and is
+corrected here rather than left to a referee. The size was measured directly at
+PRODUCTION settings (``paired_seed_difference_test``, ``statistic=iqm``, ``n_boot=2000``,
+n=30 paired seeds, 6,000 replications under an exchangeable Gaussian null; Monte-Carlo
+SE at nominal = 0.0028)::
+
+    two-sided rejection at alpha=0.05 : 0.0573
+    one-sided rejection at alpha=0.05 : 0.0613
+
+So the test is **mildly ANTI-conservative — about 2.6 (two-sided) and 4.0 (one-sided)
+Monte-Carlo SEs ABOVE nominal — not "correctly sized" and not "<= alpha"**. The drift is
+the re-centred basic bootstrap's own approximation error at n=30, not an IQM artefact
+(it persists with ``statistic=np.mean`` and at n=100). It is small in absolute terms, but
+each IUT leg is decided at alpha=0.05, so the joint IUT inherits roughly the same drift,
+and every claim in the register that the simulated null rejection is "conservative" points
+the WRONG WAY. Report the measured value; do not claim exactness.
+
+Note also that the fast in-suite guards in ``tests/test_inference.py`` are SMOKE bounds at
+n_reps=160 (where the Monte-Carlo SE is about 0.019), not size certifications: a bound of
+0.12-0.15 sits several SEs above nominal and cannot realistically fail. They catch a
+grossly broken test, which is what a fast test should do — the number above is the
+measurement.
 
 FINAL_PLAN refs
 ---------------

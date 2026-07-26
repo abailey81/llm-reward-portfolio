@@ -26,7 +26,11 @@ PRICES_PER_MTOK: dict[str, tuple[float, float]] = {
     "opus-4-8": (5.0, 25.0),  # retained: M2 generation-pair partner + legacy
     "opus-4-7": (5.0, 25.0),
     "opus-4-6": (5.0, 25.0),
-    "sonnet-4-6": (3.0, 15.0),
+    "sonnet-5": (2.0, 10.0),  # seated leg (R90/R92), ANTHROPIC-billed. Introductory pricing through
+                              # 2026-08-31 (covers the campaign window), standard $3/$15 after — mirrors
+                              # config/legs.yaml. ADDED 2026-07-26 (deep review, loop 9): it was ABSENT
+                              # from both Anthropic price tables, so every sonnet-5 call booked $0.00.
+    "sonnet-4-6": (3.0, 15.0),  # legacy: the sonnet-4.6 LEG was removed by R92; kept for archived calls
     "haiku-4-5": (1.0, 5.0),
 }
 CACHE_WRITE_MULT = 1.25  # cached-write input tokens bill at 1.25x base input (5-min ephemeral)

@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts import freeze  # noqa: E402
@@ -109,8 +110,11 @@ def test_verify_live_returns_full_status():
     # + the 2026-07-05 hardening trio (search-splits cross-assert, R38 prompt tail-neutrality, and the
     # bound-file existence assert on the real root) -> 20 checks. The canonical hash is UNCHANGED by
     # these (guards are code, never hashed content).
-    # 20 v1 checks + the v2 leg-roster guard (R80/R82) = 21 on the live repo.
-    assert len(status.checks) == 21
+    # 20 v1 checks + the v2 leg-roster guard (R80/R82) = 21, + the confirmatory-author guard added by
+    # the 2026-07-26 deep review (loop 12: config/llm.yaml is NOT hashed, so the EXECUTED reward-author
+    # could drift from the registered one with --check still green) = 22 on the live repo.
+    assert len(status.checks) == 22
+    assert any("confirmatory_author:" in c for c in status.checks)
     assert any("leg roster (v2):" in c for c in status.checks)
     assert any("executed arms:" in c for c in status.checks)
     assert any("h1_baselines" in c for c in status.checks)
@@ -143,13 +147,28 @@ _FROZEN_ARMS = [
 
 
 def _write_campaign_yaml(root: Path, arms: list[str]) -> None:
-    # Mini campaign.yaml carries the frozen §18 h1_baselines family too (the H1 guard fail-louds on a
-    # campaign.yaml that OMITS the family once the prereg yaml declares it — audit H-L2, 2026-07-02).
+    """Write a mini campaign.yaml that AGREES with the mini root's frozen prereg on every bound field.
+
+    Every value the cross-file guards bind (h1_baselines / candidates_per_arm / train_steps_per_candidate
+    / seeds) is DERIVED from the mini root's own ``config/preregistration.yaml`` rather than hardcoded.
+    Hardcoding re-broke this fixture whenever the frozen design legitimately moved (2026-07-26: the H1
+    canon expanded 4 -> 11 and the stale literal made `test_matching_executed_configs_pass` RED even though
+    the live repo was consistent). Deriving keeps the POSITIVE case honest — it exercises "matching configs
+    verify" against whatever is actually frozen — while the negative cases below still write explicit
+    drifted values, so the guards' fail-loud behaviour stays covered.
+    """
+    yml = freeze.load_yaml(root)
     (root / "config" / "campaign.yaml").write_text(
-        "arms: [" + ", ".join(arms) + "]\ncandidates_per_arm: 30\n"
-        "train_steps_per_candidate: 400000\n"  # R77 (2026-07-18): B* = the measured knee
-        "h1_baselines: [raw_return, return_minus_variance, return_minus_cvar, differential_sharpe]\n"
-        "seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}\n",  # E1 ladder — matches the frozen prereg
+        yaml.safe_dump(
+            {
+                "arms": list(arms),
+                "candidates_per_arm": int(yml["matched_budget"]),
+                "train_steps_per_candidate": int(yml["train_steps_per_candidate"]),
+                "h1_baselines": [str(b) for b in yml["h1_baselines"]],
+                "seeds": yml["seeds"],
+            },
+            sort_keys=False,
+        ),
         encoding="utf-8",
     )
 
@@ -177,10 +196,16 @@ def test_executed_arms_guard_skips_when_configs_absent(mini: Path):
 
 def test_h1_baselines_guard_present_on_live():
     """The live repo carries the frozen §18 family in BOTH prereg yaml and campaign.yaml; the guard AGREES."""
-    line = freeze.assert_h1_baselines_match(freeze.load_yaml(REPO), REPO)
+    live = freeze.load_yaml(REPO)
+    line = freeze.assert_h1_baselines_match(live, REPO)
     assert line is not None and "h1_baselines" in line
-    for name in ("raw_return", "return_minus_variance", "return_minus_cvar", "differential_sharpe"):
+    # EVERY frozen canon member must appear in the agreed line — not just the original four. Pinning a
+    # 4-name subset let the canon silently shrink back without failing (the family is the H1/N6 comparator).
+    canon = [str(b) for b in live["h1_baselines"]]
+    assert len(canon) >= 4
+    for name in canon:
         assert name in line
+    assert f"n={len(canon)}" in line
 
 
 def test_h1_baselines_guard_skips_when_campaign_absent(mini: Path):
@@ -762,3 +787,30 @@ def test_leg_guard_fails_on_rolling_alias(tmp_path: Path):
 
     with pytest.raises(Exception, match="rolling alias"):
         freeze.assert_leg_roster_match(_y.safe_load(ali), _legs_root(tmp_path, legs))
+
+
+def test_confirmatory_author_guard_binds_the_executed_author_to_the_register():
+    """The EXECUTED reward-author must equal the FROZEN ``confirmatory_author`` — and drift must RAISE.
+
+    Regression lock for the gap found by the 2026-07-26 deep review (loop 12):
+    ``model_suite.confirmatory_author`` is hash-bound, but what the campaign actually CALLS is
+    ``config/llm.yaml: model_snapshot``, and ``config/llm.yaml`` is NOT one of ``_BOUND_CONFIGS`` — so it
+    is not hashed. ``scripts/freeze.py`` referenced ``confirmatory_author`` nowhere, and while
+    ``scripts/preflight.py`` cross-checks the two EXECUTED mirrors against each other, neither was ever
+    compared to the REGISTERED value. Both executed copies could therefore drift together and leave
+    ``freeze.py --check`` green, silently changing which model the reported result generalises to.
+
+    Both directions are asserted, because a guard that cannot fail is not a guard.
+    """
+    live = freeze.load_yaml(REPO)
+    line = freeze.assert_confirmatory_author_match(live, REPO)
+    assert line is not None and "confirmatory_author" in line
+
+    drifted = {"model_suite": {"confirmatory_author": "claude-opus-4-8-NOT-THE-EXECUTED-ONE"}}
+    with pytest.raises(freeze.FreezeConsistencyError, match="confirmatory_author"):
+        freeze.assert_confirmatory_author_match(drifted, REPO)
+
+
+def test_confirmatory_author_guard_skips_when_unregistered():
+    """No ``confirmatory_author`` in the prereg yaml (pre-migration checkout) -> skip, never a false RED."""
+    assert freeze.assert_confirmatory_author_match({}, REPO) is None

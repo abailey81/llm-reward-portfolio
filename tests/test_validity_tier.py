@@ -51,7 +51,14 @@ def test_snooped_h1_excluded_but_h1_is_confirmatory_node_n6_via_iut():
     assert n6["method"] == "intersection_union_over_canon"       # berger1982iut: beat-all <=> beat-best, no selection
     assert n6["comparator"] == "full_11name_hand_reward_canon"   # the FULL canon (not a 4-subset)
     assert "selection" not in n6                                 # NO comparator selected -> nothing to snoop (dissolved)
-    assert n6["endpoint"] == "deflated_sharpe"
+    assert n6["endpoint"] == "sharpe_annualized", (
+        "N6 must register the endpoint the code actually computes. It previously registered "
+        "deflated_sharpe while scripts/analyze_campaign.py built the IUT legs from annualised "
+        "Sharpe; a DSR endpoint would score the winner against an E[max SR] benchmark of ~0.83 "
+        "annualised (n_trials=30) and each hand reward against 0.0 (n_trials=1), i.e. different "
+        "nulls per arm, and the winner would lose every leg even at an equal true Sharpe "
+        "(deep review 2026-07-26, loop 5)."
+    )
 
 
 def test_every_tier_node_is_reachable_from_the_headline():

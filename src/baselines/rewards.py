@@ -35,20 +35,42 @@ The ``reward_state`` slot is what makes online/recursive rewards expressible
 without hidden globals — it is the *only* legal place to keep memory between
 steps, which keeps every reward replayable and auditable (audit B-4).
 
-Reward canon (FINAL_PLAN F.6)
------------------------------
-    raw_return            : the bare portfolio return (myopic baseline).
-    return_minus_variance : return penalized by a variance proxy.
-    return_minus_cvar     : return penalized by tail risk (CVaR).
-    differential_sharpe   : differential (online) Sharpe ratio (Moody, Wu, Liao & Saffell 1998;
-                            Moody & Saffell 2001), STATEFUL via ``reward_state``.
+Reward canon (FINAL_PLAN F.6; EXPANDED 4 -> 11 on 2026-07-26)
+--------------------------------------------------------------
+The canon is :data:`REWARD_CANON` at the foot of this module. Since the 2026-07-26
+expansion it **IS** the registered H1 / N6 comparator family — there is no longer a
+"frozen four" subset distinct from a wider secondary panel::
+
+    config/preregistration.yaml::h1_baselines
+      == config/campaign.yaml::h1_baselines          (bound by scripts/freeze.py::assert_h1_baselines_match)
+      == config/eureka_loop.yaml::baseline_rewards   (bound by tests/test_baselines.py)
+      == REWARD_CANON.keys()
+
+    raw_return                  : the bare portfolio return (myopic, risk-NEUTRAL floor).
+    return_minus_variance       : return penalized by a variance proxy.
+    return_minus_cvar           : return penalized by tail risk (CVaR).
+    differential_sharpe         : differential (online) Sharpe ratio (Moody, Wu, Liao & Saffell 1998;
+                                  Moody & Saffell 2001), STATEFUL via ``reward_state``.
+    differential_downside_ratio : the DOWNSIDE companion of the above (Moody & Saffell 2001,
+                                  eqs. 19-24), STATEFUL.
+    mean_variance_utility       : Markowitz quadratic utility r - 0.5*lambda*var (Markowitz 1952).
+    return_minus_drawdown       : running log-wealth drawdown penalty (Chekhlov et al. 2005), STATEFUL.
+    return_minus_downside       : Sortino downside semi-deviation (Sortino & van der Meer 1991).
+    return_minus_turnover       : transaction-cost / turnover penalty (Garleanu & Pedersen 2013).
+    log_growth                  : growth-optimal Kelly log return (Kelly 1956; Thorp 1971).
+    volatility_scaled_return    : volatility-TARGETED return (Zhang, Zohren & Roberts 2020).
 
 Tests (tests/test_baselines.py)
 -------------------------------
     - test_rewards_obey_contract: each reward returns (total, components, state)
       under the contract.
-    - test_differential_sharpe_sequence: differential_sharpe reproduces a
-      hand-computed A/B/eta update sequence.
+    - test_differential_sharpe_sequence / test_differential_downside_ratio_sequence:
+      the two STATEFUL rewards reproduce hand-computed update sequences.
+    - test_differential_downside_ratio_asymmetry: DDR penalizes downside asymmetrically.
+    - test_secondary_panel_config_matches_reward_canon: the config list == REWARD_CANON
+      in BOTH directions (so a name can never drift out of the registered family).
+    - test_volatility_scaled_return_targets_volatility,
+      test_return_minus_variance_penalizes_volatility, test_return_minus_cvar_runs.
 """
 
 from __future__ import annotations
@@ -286,8 +308,12 @@ def differential_sharpe(
 # =========================================================================== #
 # Extended canon (block B8): more published / canonical reward designs run as   #
 # HAND-CRAFTED BASELINES so the LLM-discovered rewards are compared not only to  #
-# scalar-feedback LLM rewards but to the standard literature designs. These are  #
-# SECONDARY baselines (additive), NOT part of the frozen H2 family.              #
+# scalar-feedback LLM rewards but to the standard literature designs.            #
+# ★ 2026-07-26: these are NO LONGER "secondary" — the H1 canon was expanded      #
+# 4 -> 11, so every member below is part of the registered H1/N6 comparator      #
+# family. They remain DISJOINT from the H2 arm roster (config/arms.yaml): H2     #
+# contrasts FEEDBACK arms, H1/N6 contrasts the LLM winner against these HUMAN    #
+# rewards. The m=6 fed vector and H2's multiplicity are untouched.               #
 # =========================================================================== #
 def differential_downside_ratio(
     weights: Any,

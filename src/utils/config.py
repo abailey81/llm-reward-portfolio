@@ -60,7 +60,17 @@ def load_config(name: str) -> DotDict:
     if not path.is_file():
         available = sorted(p.stem for p in config_dir().glob("*.yaml"))
         raise FileNotFoundError(f"no config '{stem}.yaml' in {config_dir()}; available: {available}")
-    with path.open() as fh:
+    # encoding="utf-8" is MANDATORY, not cosmetic (deep-review 2026-07-26, loop 1 — CRITICAL).
+    # ``path.open()`` uses the platform's LOCALE codec, so on a non-UTF-8 machine every non-ASCII
+    # byte in a config file is silently mis-decoded. Measured on the Windows box (locale cp1251):
+    # 30+ registered ``config/preregistration.yaml::model_suite`` values came back with "—"
+    # mojibake'd to "вЂ”" (and ``config/m2_models.yaml::core``/``excluded_by_design`` likewise) —
+    # i.e. the LOADED design of record differed from the file on disk, and differed BETWEEN
+    # machines, breaking the protocol layer of the reproducibility claim. Some byte sequences
+    # (e.g. U+2605) are undefined in cp1251 and raise UnicodeDecodeError outright, so the failure
+    # mode ranges from silent corruption to a hard crash. ``scripts/freeze.py`` already reads every
+    # bound artifact as explicit UTF-8 bytes, which is why the canonical hash was never affected.
+    with path.open(encoding="utf-8") as fh:
         data = yaml.safe_load(fh) or {}
     return DotDict(data)
 

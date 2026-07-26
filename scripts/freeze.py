@@ -671,6 +671,55 @@ _TRAIN_STEPS_CONFIGS: tuple[str, ...] = (
 )
 
 
+
+def assert_confirmatory_author_match(yml: dict[str, Any], root: Path) -> str | None:
+    """Cross-file guard: the EXECUTED reward-author must equal the FROZEN ``confirmatory_author``.
+
+    Same not-in-the-hash-so-assert pattern as the arm-roster / H1-family / B* / seeds guards, and added
+    for the same reason (deep review 2026-07-26, loop 12). ``model_suite.confirmatory_author`` is inside
+    the hash, but what the campaign actually CALLS is ``config/llm.yaml: model_snapshot`` (mirrored in
+    ``config/campaign.yaml: llm.model_snapshot``) -- and **config/llm.yaml is not one of the bound
+    configs**, so it is not hashed. ``scripts/preflight.py`` already checks the two EXECUTED mirrors
+    against EACH OTHER, but nothing compared either to the REGISTERED value, so both could drift together
+    and leave ``--check`` green. The author is common to every arm (not a treatment), so a drift does not
+    break identification -- it silently changes WHICH MODEL the reported result generalises to, which is
+    precisely what the registration exists to pin (cf. R102's own migration note).
+
+    Returns the checked-summary line, or ``None`` when the prereg yaml declares no
+    ``confirmatory_author`` (pre-migration checkouts) or ``config/llm.yaml`` is absent (minimal roots).
+    """
+    registered = (yml.get("model_suite") or {}).get("confirmatory_author")
+    if registered is None:
+        return None
+    llm_path = root / "config" / "llm.yaml"
+    if not llm_path.exists():
+        return None
+    llm = yaml.safe_load(llm_path.read_text(encoding="utf-8")) or {}
+    executed = llm.get("model_snapshot")
+    _require(
+        isinstance(executed, str) and executed,
+        "config/llm.yaml declares no usable 'model_snapshot' (the executed reward-author the campaign calls)",
+    )
+    _require(
+        str(executed) == str(registered),
+        f"executed reward-author config/llm.yaml model_snapshot={executed!r} != frozen prereg "
+        f"model_suite.confirmatory_author={registered!r}; the confirmatory author may only change by a "
+        "dated amendment (cf. R102), never by an un-hashed config edit",
+    )
+    # The campaign.yaml mirror is optional, but if present it must agree too (preflight checks this pair
+    # as well; binding it HERE means a drift is caught at the gate, not only at pre-flight).
+    camp_path = root / "config" / "campaign.yaml"
+    if camp_path.exists():
+        camp = yaml.safe_load(camp_path.read_text(encoding="utf-8")) or {}
+        mirror = (camp.get("llm") or {}).get("model_snapshot")
+        if mirror is not None:
+            _require(
+                str(mirror) == str(registered),
+                f"config/campaign.yaml llm.model_snapshot={mirror!r} != frozen prereg "
+                f"model_suite.confirmatory_author={registered!r}",
+            )
+    return f"confirmatory_author: config/llm.yaml (+campaign.yaml mirror) == frozen prereg ({registered})"
+
 def assert_train_steps_match(yml: dict[str, Any], root: Path) -> str | None:
     """Cross-file guard (batch-6 M1, 2026-07-03): the EXECUTED B* must equal the FROZEN prereg B*.
 
@@ -1067,6 +1116,11 @@ def verify(root: Path | None = None) -> FreezeStatus:
     h1_check = assert_h1_baselines_match(yml, root)
     if h1_check is not None:
         checks.append(h1_check)
+    # Confirmatory-author guard (deep review 2026-07-26, loop 12): config/llm.yaml is NOT hashed, so the
+    # EXECUTED reward-author could drift from the registered one with --check still green.
+    author_check = assert_confirmatory_author_match(yml, root)
+    if author_check is not None:
+        checks.append(author_check)
     # B* guard (batch-6 M1): the executed per-candidate budget must equal the frozen prereg B*; same
     # not-in-the-hash-so-assert pattern (campaign.yaml/algos.yaml are un-hashed compute knobs).
     steps_check = assert_train_steps_match(yml, root)

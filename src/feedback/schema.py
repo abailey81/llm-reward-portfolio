@@ -57,6 +57,20 @@ _TAIL_INTRO = "Realized-return tail diagnostics (training period):"
 #: block); plain placebo is the coarse block-presence control. Both roles + this intro-text confound are
 #: disclosed in the write-up, and both caveats are CONSERVATIVE for a null (they make controls easier to
 #: beat, so they cannot manufacture the predicted equivalence).
+#:
+#: ⚠ COMPLETED 2026-07-26 (deep review, loop 8) — the sentence above is TRUE but DIRECTIONAL, and the
+#: missing half sits on a load-bearing branch. "Conservative for a null" says the tell cannot manufacture
+#: a TIE. It says nothing about a REJECTION — and H2 is a 3-leg intersection-union test that REQUIRES
+#: `distributional > placebo` to reject. On that branch the direction inverts: the "ignore this block"
+#: tell plausibly SUPPRESSES any format/anchoring response in the plain-placebo arm, so part of a
+#: distributional-over-placebo win could be the tell rather than the tail CONTENT. Two things keep this
+#: bounded rather than fatal, and both must be stated wherever the leg is reported: (1) the registered
+#: a-priori prediction (PREREGISTRATION.md §1a) is the NULL branch, which is exactly the branch the
+#: conservativeness argument covers; and (2) the tell-free control `placebo_shuffled` — same
+#: `_TAIL_INTRO`, real values DERANGED, byte-length matched — carries no such instruction, which is
+#: precisely why it, and not plain placebo, is the structure control promoted to node N5. So the
+#: content-over-format claim rests on the tell-free arm; the plain-placebo leg is the coarser
+#: block-presence control and should never be the sole evidence for a content claim.
 _PLACEBO_INTRO = "Reference constants (inert; no diagnostic content):"
 
 #: Ordered (field-id, label) pairs composing the distributional tail block. The
@@ -92,6 +106,19 @@ _SKEW_LO, _SKEW_HI = -1.0, 1.0
 #: carried zero ordinal information).
 _MASS_LO, _MASS_HI = 0.0, 0.10
 
+#: Fields whose VALUE FALLS as tail RISK RISES (a more negative CVaR; a more negative — i.e. longer —
+#: left-tail skew). Their positional decile is INVERTED so that on ALL SIX lines a HIGHER decile means
+#: MORE tail risk. Without this the tag meant OPPOSITE things on different lines of the SAME block:
+#: a clearly risky tail rendered as "CVaR 1%: decile 1/10" beside "left-tail mass: decile 9/10", both
+#: denoting "worst" (2026-07-26 review). That defeats the device's whole purpose — the decile exists to
+#: give a coarse ORDINAL framing an LLM can compare WITHOUT float arithmetic, so a direction that flips
+#: between lines is worse than no tag, and it biases the numeracy-bottleneck leg
+#: (``responsiveness.legible_format_responsiveness_differential``) toward a spurious null.
+#: ``left_tail_mass`` is a probability that RISES with risk, so it alone keeps its positional decile.
+_DECILE_INVERTED_FIELDS: frozenset[str] = frozenset(
+    {"cvar_05", "cvar_10", "cvar_25", "cvar_01", "robust_skew"}
+)
+
 
 def _decile(value: float, lo: float, hi: float) -> int:
     """Bucket ``value`` into a 1..10 decile of [lo, hi] (clamped); deterministic ordinal legibility tag."""
@@ -125,7 +152,10 @@ def _legible_line(field_id: str, label: str, value: float) -> str:
         lo, hi = _MASS_LO, _MASS_HI
     else:
         lo, hi = _RANK_LO, _RANK_HI
-    line = f"  {label}: {_legible_value(field_id, value)}  (decile {_decile(value, lo, hi)}/10)"
+    decile = _decile(value, lo, hi)
+    if field_id in _DECILE_INVERTED_FIELDS:
+        decile = 11 - decile  # 1..10 -> 10..1: a HIGHER decile always means MORE tail risk
+    line = f"  {label}: {_legible_value(field_id, value)}  (decile {decile}/10)"
     if field_id == "cvar_01":
         line += _HIGH_VARIANCE
     return line

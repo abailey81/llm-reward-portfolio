@@ -157,11 +157,13 @@ def test_m3_served_provider_adjudicated_against_pin(tmp_path: Path):
     'verified'. Previously served_provider was archived but never adjudicated."""
     good = "```python\ndef reward(w, r, p, pr, i):\n    return float(pr), {}, None\n```"
     leg = dict(_LEG, provider_pin={"only": ["siliconflow"], "allow_fallbacks": False})
-    fake_ok = _FakeTransport([good] * 3); fake_ok.last_served_provider = "siliconflow"
+    fake_ok = _FakeTransport([good] * 3)
+    fake_ok.last_served_provider = "siliconflow"
     s_ok = run_leg_gates(leg, tmp_path / "ok", which=("compliance",), n_compliance=3,
                          transport_factory=lambda lg: fake_ok)
     assert s_ok["provider_roundtrip"].startswith("verified")
-    fake_bad = _FakeTransport([good] * 3); fake_bad.last_served_provider = "someone-else"
+    fake_bad = _FakeTransport([good] * 3)
+    fake_bad.last_served_provider = "someone-else"
     s_bad = run_leg_gates(leg, tmp_path / "bad", which=("compliance",), n_compliance=3,
                           transport_factory=lambda lg: fake_bad)
     assert s_bad["provider_roundtrip"].startswith("MISROUTE")

@@ -1595,3 +1595,35 @@ def test_load_campaign_records_skips_h3_singleshot_subtrees(tmp_path: Path) -> N
     assert "distributional-s0-distributional-g0-c0" in ids
     assert "distributional-s0-distributional-g0-c99" not in ids
     assert len(records) == 1
+
+
+# --------------------------------------------------------------------------- #
+# Duplicate (arm, seed) handling in _seed_scores (deep review 2026-07-26)      #
+# --------------------------------------------------------------------------- #
+def _dup_rec(arm: str, seed: int, vals: list[float]) -> dict:
+    """Minimal frozen-winner TEST record: _test_returns reads metrics['test_returns']."""
+    return {"arm": arm, "seed": seed, "metrics": {"test_returns": list(vals)}}
+
+
+def test_seed_scores_allows_agreeing_duplicate_records() -> None:
+    """An IDENTICAL duplicate (arm, seed) must NOT fail the analysis.
+
+    `src/io/results.py::load_all` de-duplicates nothing, and `--resume` / winner re-runs can legitimately
+    write a SECOND run directory for a seed that already has a record. Loop 6 of the deep review made ANY
+    duplicate raise; loop 13 refined that, because hard-failing a valid campaign analysis at the last step
+    on a benign re-write is a worse trade than the bug it prevents.
+    """
+    recs = [_dup_rec("winner", 1, [0.01, -0.02, 0.03]), _dup_rec("winner", 1, [0.01, -0.02, 0.03])]
+    out = AC._seed_scores(recs, "winner", lambda v: float(np.mean(v)))
+    assert set(out) == {1}
+
+
+def test_seed_scores_raises_on_conflicting_duplicate_records() -> None:
+    """A DISAGREEING duplicate must fail loud — this is the case last-wins silently got wrong.
+
+    Every headline estimator is PAIRED on the seed, so arbitrarily keeping whichever record was written
+    last would shift a paired difference with nothing in the output to say it happened.
+    """
+    recs = [_dup_rec("winner", 1, [0.01, 0.01, 0.01]), _dup_rec("winner", 1, [0.99, 0.99, 0.99])]
+    with pytest.raises(ValueError, match="CONFLICTING duplicate test records"):
+        AC._seed_scores(recs, "winner", lambda v: float(np.mean(v)))
