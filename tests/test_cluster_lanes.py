@@ -151,20 +151,23 @@ def test_threading_pushes_the_cpu_saturation_point_out():
     assert cpu_saturation_cores(568, chain_threads=8) == pytest.approx(4460, rel=0.05)
 
 
-def test_TPE_would_become_the_longest_chain_if_seated_confirmatorily():
-    """The H4 DFO comparators are REPORT-ONLY today, so they are excluded by default. But
-    `tpe_over_template` drives Optuna with `study.optimize`, which is FULLY sequential (30 steps) —
-    longer than GP-EI's 25. Modelled explicitly so seating it is a decision, not a surprise."""
+def test_batching_TPE_keeps_it_OFF_the_critical_path():
+    """TPE drove Optuna with `study.optimize` (one trial at a time) = a 30-step serial chain,
+    LONGER than GP-EI's 25. Now that `campaign.run_family_search_arm` passes `batch_eval_fn`, the
+    startup trials go as ONE array and the chain is 30-10 = 20 — so `bayes_opt` (25) is once again
+    the longest, and including the DFO arms no longer lengthens the critical path at all."""
+    from src.cluster.lanes import _BAYES_SERIAL_STEPS, _TPE_SERIAL_STEPS
+
+    assert _TPE_SERIAL_STEPS == 20, "TPE's serial chain must reflect the WIRED batched reality"
+    assert _TPE_SERIAL_STEPS < _BAYES_SERIAL_STEPS, "batched TPE must no longer be the long pole"
+
     default = plan_lanes(rung=568, cpu_cores=2000, chain_threads=8)
     with_dfo = plan_lanes(rung=568, cpu_cores=2000, chain_threads=8, include_dfo=True)
 
-    assert with_dfo.critical_chain_days > default.critical_chain_days
-    # 30 serial steps vs bayes' 25, at the 8-thread rate
-    assert with_dfo.critical_chain_days == pytest.approx(30 / 25 * default.critical_chain_days,
-                                                         rel=1e-6)
-    # ...and it is still absorbed: the throughput term dominates at realistic core counts
-    assert with_dfo.binding == "throughput"
+    # bayes (25) still dominates, so the DFO arms are fully absorbed
+    assert with_dfo.critical_chain_days == pytest.approx(default.critical_chain_days, rel=1e-9)
     assert with_dfo.makespan_days == pytest.approx(default.makespan_days, rel=1e-9)
+    assert with_dfo.binding == "throughput"
 
 
 def test_plan_renders_the_binding_constraint_for_an_operator():

@@ -885,9 +885,56 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
         state["accepted"].append(r)
         return float(r["fitness"])
 
+    def template_eval_batch(coeffs_list: Any) -> list[float]:
+        """Evaluate a WHOLE batch concurrently as ONE cluster array (TPE's startup phase).
+
+        TPE's ``n_startup`` trials come from Optuna's RANDOM sampler and depend on no observed
+        value, so dispatching them together is a pure DISPATCH change with identical results — it
+        cuts TPE's SERIAL chain from the full budget (30) to ``budget - n_startup`` (~20), which
+        matters because a serial chain is the campaign's critical path (``src/cluster/lanes.py``).
+        Candidate ids stay contiguous with the sequential phase via the shared ``state["i"]``, and
+        archived candidates replay for free so resume is unaffected.
+        """
+        coeffs_list = [list(c) for c in coeffs_list]
+        idx0 = state["i"]
+        state["i"] = idx0 + len(coeffs_list)
+        cids = [f"{arm}-c{idx0 + j}" for j in range(len(coeffs_list))]
+
+        fresh = []
+        for cid, coeffs in zip(cids, coeffs_list):
+            if resume and _read_candidate(cid, arm, arm_root, k_seeds, base_seed) is not None:
+                continue                      # already archived -> replayed below, no retraining
+            fresh.append((cid, coeffs))
+        if fresh:
+            _bkw_b: dict[str, Any] = {}
+            if run.search_h_rt:
+                _bkw_b["h_rt_call"] = run.search_h_rt
+            if run.search_poll_secs:
+                _bkw_b["poll_call"] = run.search_poll_secs
+            specs = [s for cid, coeffs in fresh for s in _family_specs(cid, "coeffs", coeffs)]
+            run.run_batch(specs, f"{arm}_startup", pool=run.pool_confirmatory,
+                          pack=run.pack, priority=priority, **_bkw_b)
+
+        out: list[float] = []
+        for cid in cids:
+            r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
+            if r is None:
+                state["failed"] += 1
+                out.append(-1e9)              # the same sentinel the sequential path feeds
+            else:
+                state["accepted"].append(r)
+                out.append(float(r["fitness"]))
+        return out
+
+    # Only TPE accepts a batch evaluator; passing it to GP-EI / CMA-ES / random_search would
+    # TypeError (and CMA-ES already dispatches a whole population per generation).
+    _opt_kwargs: dict[str, Any] = {"rng": np.random.default_rng(opts["seed"])}
+    if arm == "tpe":
+        _opt_kwargs["batch_eval_fn"] = template_eval_batch
+
     over_template_optimizer(arm)(
         template_eval, family_bounds(opts.get("proto_cfg")), {"matched_budget": n},
-        rng=np.random.default_rng(opts["seed"]),
+        **_opt_kwargs,
     )
     return _summary(arm, state["accepted"], state["failed"], n)
 

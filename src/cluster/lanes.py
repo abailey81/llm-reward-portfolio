@@ -141,13 +141,16 @@ _LLM_CHAIN_GENERATIONS = 6        # K=5 candidates/generation x 6 = the 30-candi
 #:   points come from Optuna's RANDOM sampler and depend on no observed value, so the results are
 #:   IDENTICAL (proven by ``tests/test_dfo_tpe_batch.py``, which asserts the same points, order,
 #:   scores and winner as the sequential path). Pure dispatch; matched budget untouched.
-#:   ⚠ **The value below stays 30 — the CONSERVATIVE number — because the cluster driver does not
-#:   yet PASS ``batch_eval_fn``.** Wire that at GO-prep and this becomes ~21. Modelling the
-#:   shorter chain before the wiring exists would be claiming a speed-up we do not have.
+#:   ✅ **WIRED 2026-07-26** — ``campaign.run_family_search_arm`` now passes ``batch_eval_fn`` for
+#:   the ``tpe`` arm, dispatching the startup trials as ONE cluster array. So the SERIAL chain is
+#:   ``budget - n_startup`` = **30 - 10 = 20**, and the value below is 20 (the measured reality,
+#:   not an aspiration). This also restores ``bayes_opt`` (25) as the longest DFO chain.
+#:   NB the LAPTOP path (``orchestration/parallel.py``) stays sequential — harmless, because
+#:   batching does not change results, so LAPTOP<->CLUSTER parity is preserved either way.
 #: * **CMA-ES ≈ 4 serial generations.** ``es.ask()`` proposes a whole population per generation
 #:   (parallel within a generation), so at budget 30 with the default popsize ~9 it is ~4 steps —
 #:   never the binding chain.
-_TPE_SERIAL_STEPS = 30
+_TPE_SERIAL_STEPS = 20   # budget 30 - n_startup 10, now BATCHED on the cluster path
 _CMA_SERIAL_GENERATIONS = 4
 _SEARCH_TRAININGS = 1_740         # 7x30 core + 30 H3 + 10 legs x 5 arms x 30
 _TEST_UNITS_PER_RUNG = 69         # 7 core arms + 50 leg arms + 11 H1 canon + 1 H3
