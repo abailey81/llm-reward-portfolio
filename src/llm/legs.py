@@ -85,6 +85,17 @@ def transport_kwargs(leg: dict[str, Any]) -> dict[str, Any]:
         kwargs["temperature"] = float(leg["temperature"])
     if provider == "anthropic":
         return kwargs  # id + max_tokens only; no extra_body on the native transport
+    if provider == "vllm_selfhost":
+        # The A5 self-hosted vLLM leg: reuse the OpenAI transport (base_url from VLLM_BASE_URL) but NOT
+        # the OpenRouter aggregator extras (provider routing / quantization filter / usage-cost) -- vLLM
+        # ignores or rejects them. The ONLY extra is the reasoning pin, enforced at REQUEST level via
+        # Qwen3's chat template (verified: chat_template_kwargs enable_thinking; request-level overrides
+        # the server default), pinned EXPLICITLY so it is reproducible AND verifiable from the archived
+        # response (empty reasoning_content / reasoning_tokens=0 closes the R85 round-trip).
+        reasoning = leg.get("reasoning") or {}
+        if "enabled" in reasoning:
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": bool(reasoning["enabled"])}}
+        return kwargs
 
     extra: dict[str, Any] = {}
     routing: dict[str, Any] = {}

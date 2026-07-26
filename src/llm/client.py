@@ -615,6 +615,11 @@ _OPENAI_COMPAT_BASE_URL: dict[str, str | None] = {
     # international endpoint; a personal WORKSPACE endpoint overrides at build time via
     # ``DASHSCOPE_BASE_URL`` in the gitignored .env, so no personal workspace URL is committed.
     "dashscope": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    # 2026-07-26 (A5, the self-hosted leg): a vLLM server on Myriad, OpenAI-compatible. NO default
+    # URL -- the served node:port is known only at serve time, so build_transport REQUIRES VLLM_BASE_URL
+    # and fails loud if unset (else it would silently hit the real OpenAI endpoint). HF-commit-pinned,
+    # bf16 = the lineage's first fully-pinned author (repro permanence; R85 round-trip via reasoning_tokens).
+    "vllm_selfhost": None,
 }
 
 #: Default env-var holding each provider's API key (overridable via ``cfg.api_key_env``).
@@ -625,10 +630,11 @@ _DEFAULT_KEY_ENV: dict[str, str] = {
     "deepseek": "DEEPSEEK_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "dashscope": "DASHSCOPE_API_KEY",
+    "vllm_selfhost": "VLLM_API_KEY",  # non-empty dummy; vLLM ignores it unless served with --api-key
 }
 
 #: Providers the registry can build a real transport for (Pass A uses the keyless stub instead).
-PROVIDERS: tuple[str, ...] = ("anthropic", "openai", "gemini", "deepseek", "openrouter", "dashscope")
+PROVIDERS: tuple[str, ...] = ("anthropic", "openai", "gemini", "deepseek", "openrouter", "dashscope", "vllm_selfhost")
 
 
 def default_key_env(provider: str) -> str:
@@ -686,6 +692,16 @@ def build_transport(
             import os as _os
 
             base_url = _os.environ.get("DASHSCOPE_BASE_URL", base_url)
+        if provider == "vllm_selfhost":
+            # No default endpoint (see the registry): the served vLLM node:port is only known at serve
+            # time (the Myriad allocation), so REQUIRE it from the env and FAIL LOUD -- an unset
+            # VLLM_BASE_URL would silently route to the real OpenAI endpoint (wrong model + real spend).
+            base_url = os.environ.get("VLLM_BASE_URL")
+            if not base_url:
+                raise RuntimeError(
+                    "provider 'vllm_selfhost' requires VLLM_BASE_URL (the served node:port, e.g. "
+                    "http://<node>:8000/v1) in the environment; refusing the default OpenAI endpoint."
+                )
         return make_openai_transport(
             model,
             key_env,
