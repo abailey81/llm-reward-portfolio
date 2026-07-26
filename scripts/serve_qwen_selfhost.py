@@ -18,7 +18,7 @@ WHY this closes the gap closed / aggregator-served models cannot (Stefan #1/#3; 
     serving-NODE provenance the driver-side ``capture_env`` cannot see.
 
 Usage (on the GPU node):
-    python -m scripts.serve_qwen_selfhost --leg qwen3.5-9b-selfhost --port 8000
+    python -m scripts.serve_qwen_selfhost --leg qwen3.5-9b --port 8000   # serves Qwen/Qwen3.5-9B@<pin> in bf16
 then, for the campaign driver:  export VLLM_BASE_URL=http://<node>:8000/v1  VLLM_API_KEY=<key>
 ``--dry-run`` prints the exact command + writes the manifest WITHOUT launching (CI / off-GPU safe).
 """
@@ -98,7 +98,13 @@ def _versions() -> dict[str, Any]:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Serve the pinned bf16 Qwen self-host leg (A5).")
-    p.add_argument("--leg", default="qwen3.5-9b-selfhost", help="leg label in config/legs.yaml")
+    p.add_argument("--leg", default="qwen3.5-9b",
+                   help="leg in config/legs.yaml whose hf_pin (repo@commit) weights to self-host (bf16)")
+    p.add_argument("--dtype", default="bfloat16",
+                   help="served numeric variant: bf16 self-hosts the ACTUAL weights, distinct from an "
+                        "aggregator leg's fp8 -- this is what lets us claim the bf16 weights authored")
+    p.add_argument("--served-model-name", dest="served_model_name", default=None,
+                   help="the vLLM served id the client requests (default: the leg label)")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--manifest", default=None, help="where to write served-manifest.json")
     p.add_argument("--dry-run", action="store_true",
@@ -106,19 +112,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = p.parse_args(argv)
 
     from src.llm.legs import leg_by_label
+    # A reproducibility DEMONSTRATION (not a full-loop campaign leg): self-host the SAME hash-pinned
+    # weights an existing leg records, at bf16 -- so it never enters the 10-leg model_suite roster and
+    # cannot dilute the R101 lockstep seed rung (which would cost confirmatory power). freeze stays green.
     leg = leg_by_label(args.leg)
-    if str(leg.get("provider")) != "vllm_selfhost":
-        raise SystemExit(f"leg {args.leg!r} is provider {leg.get('provider')!r}, not vllm_selfhost")
     hf = leg.get("hf_pin") or {}
     repo, commit = hf.get("repo"), hf.get("commit")
     if not repo or not commit:
         raise SystemExit(f"leg {args.leg!r} needs hf_pin.repo + hf_pin.commit (R85: the enforceable pin)")
-    dtype = (leg.get("quantizations") or ["bfloat16"])[0]
+    dtype = args.dtype
     enable_thinking = bool((leg.get("reasoning") or {}).get("enabled", False))
 
     import os
-    api_key = os.environ.get(str(leg.get("api_key_env", "VLLM_API_KEY")))
-    served_name = str(leg["model"])
+    api_key = os.environ.get("VLLM_API_KEY")
+    served_name = args.served_model_name or args.leg
 
     cmd = build_serve_command(repo, commit, dtype, served_name, args.port,
                               enable_thinking=enable_thinking, api_key=api_key)
