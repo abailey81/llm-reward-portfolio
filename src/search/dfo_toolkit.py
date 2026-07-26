@@ -1,6 +1,6 @@
 """CMA-ES and TPE search over the reward-template coefficients — the derivative-free-optimization (DFO)
 toolkit that completes the H4 comparator beyond random-search + GP-EI (``hansen2001cmaes``; ``bergstra2011tpe``
-via ``akiba2019optuna``), spanning the three dominant DFO paradigms (model-free / evolution-strategy /
+via ``akiba2019optuna``), spanning the four principal DFO families (model-free / surrogate-model / evolution-strategy /
 density-ratio).
 
 These are **drop-in siblings** of ``bayes_opt.random_search_over_template`` / ``bayes_opt_over_template``: the
