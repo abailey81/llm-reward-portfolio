@@ -654,3 +654,28 @@ failures** — observed twice on 2026-07-26: `WinError 1455 (paging file too sma
 `test_agents_deep` SAC/TQC constructions. Both passed on isolated re-run. **A red suite here can be
 a FALSE red: always re-run the failing test alone before treating it as a regression** — and never
 the reverse (never assume green without the unpiped `PYTEST_RC`).
+
+### 11.11 ★★★★ WHAT THE SENTINEL NOW WATCHES ON THE LANE — and what each alert means
+
+`scripts/sentinel.py --watch outputs/campaign` runs five CPU-lane checks alongside its existing 20
+(`src/cluster/campaign_health.py`). They are **independently opt-in on their inputs**, so a laptop or
+pre-launch run gets none of them and raises no false alarm. **Do not build a second monitor — read
+this one.**
+
+| check | what it means when it fires | the action |
+|---|---|---|
+| `capacity_accumulation` **WARN** | concurrency plateaued **below 50 %** of the forecast after the ~3 h accumulation window | the forecast was a model, this is the **measurement** — re-forecast the reachable rung from the observed number and plan against it. Do NOT re-forecast while it still reads *climbing* |
+| `chain_progress` **WARN / CRIT** | a **strictly serial** search chain (`bayes_opt` 25 steps, `tpe` 20) has not advanced in 14 h / 28 h | check the CHAIN job (`bayes_chain.py`), **not** the test flood — the flood looks healthy either way, and the makespan floor slips a day per day |
+| `host_failure_concentration` **WARN** | a node is failing ≥50 % of its tasks (e.g. no `apptainer` → `rc=127`) | exclude it: `-l h=!<host>`, or the run keeps feeding it work. Invisible to any global failure rate |
+| `rung_forecast` **INFO** | the rung reachable by the pre-registered Aug-27 stop at the **observed** rate, and how many trainings short the next rung is | planning readout only. The stop is exogenous (calendar) — **never** stop or continue because of this number |
+| `determinism_homogeneity` **CRITICAL** | the scored leg is on **more than one substrate** (CPU/CUDA, or 1/8 threads) | a **validity** failure, not a slowdown: quarantine the minority substrate and re-run it. This is the one alert that must stop the lane |
+
+**Where each input comes from** (nothing is invented; a missing input switches its check off):
+capacity ← `outputs/myriad_telemetry.jsonl` (keep the advisor's `--watch` running, or the check has
+nothing to read) · chain progress + elapsed ← the archive's `record.json` mtimes · host attribution ←
+`<mirror>/ledger/*.epilogue.jsonl`, mirrored by the driver's own pull · the stop + the rung ladder ←
+`config/preregistration.yaml` (`model_suite.exogenous_stop`, `seeds.tiers`) · **the capacity forecast
+← `lane_expected_cores` in `outputs/allocation_state.json`, written whenever the advisor runs.**
+
+> **GO-day consequence:** run `python scripts/allocation_advisor.py` at least once at launch. Until
+> it does, `capacity_accumulation` can only REPORT the measurement, never judge it against a target.
