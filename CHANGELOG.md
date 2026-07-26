@@ -478,8 +478,81 @@ test-ordering bug (isolation alone could not have distinguished the two). Record
 §11.10: **re-run a failing test alone before calling it a regression — and never the reverse.**
 
 **OPEN, for Tamer:** ① **ratify 1 → 8 threads on the chain arms** (pre-freeze; the determinism
-envelope) ② **Ramin: CPU as a randomised device block** ③ commit/stash the untracked work
-④ FEATURE/BUILD to action `SESSION_TASK_DISPATCH` T5-a (batch TPE's startup trials, 30 → ~21).
+envelope) ② **Ramin: CPU as a randomised device block** ③ ~~commit/stash the untracked work~~
+**DONE — committed `8c5a022`** (see the monitoring section below) ④ FEATURE/BUILD to action
+`SESSION_TASK_DISPATCH` T5-a (batch TPE's startup trials, 30 → ~21).
+
+### ★★★★ CAMPAIGN MONITORING — the five CPU-lane failures the sentinel could not see (commit `8c5a022`)
+
+> Tamer: *"when we start the campaign we would try to take as much as Myriad would let us take …
+> implement a lot of very precise, and accurate and advanced monitorings for the campaign run. And I
+> would need you to make the system to be prepared for any scenario when we start the campaign run."*
+
+**Method — inventory before building** (CLAUDE.md "reuse before you write"). `scripts/sentinel.py`
+already covers 20 invariants (disk · RAM · GPU temp · silent hang · gate-failure rate · NaN rate ·
+divergence · reward-scale drift · API errors · driver lease · queue health · completion stall ·
+unit coverage · error taxonomy · three CUSUM drift checks · disk forecast), and `scripts/monitor.py`
+covers state/staleness/anomalies/token-spend/ntfy. **Nothing was duplicated.** What none of them
+could see is the CPU lane itself — so the gap, not the volume, defined the build.
+
+**THE FIVE (`src/cluster/campaign_health.py`, 230 lines, PURE + independently opt-in).** Each
+returns the sentinel's own `HealthCheck`, so they compose into the existing report, severity
+aggregation and alerting rather than forming a second, parallel monitor. Every one is a failure
+that would otherwise be **SILENT** — the machine fine, the test flood streaming, every existing
+check green:
+
+| # | check | the silent failure it catches | severity |
+|---|---|---|---|
+| 1 | `capacity_accumulation` | the plan's ONE unmeasured assumption — that ~8.5 h tasks ACCUMULATE far past the 636 cores measured with 20-min probes. A low plateau after the ~3 h grace window means the reachable rung falls, and it must surface on **day one**, not at the Aug-27 stop | WARN |
+| 2 | `chain_progress` | makespan = `max(work/capacity, longest serial chain)`, so `bayes_opt`'s 25 and TPE's 20 **strictly serial** steps FLOOR the campaign. A stalled chain slips the finish date a day per day while every other indicator stays green | WARN → CRITICAL at 28 h idle |
+| 3 | `host_failure_concentration` | ONE bad node silently eating tasks — measured for real: `node-d00a-230` had no `apptainer` → `rc=127` on every task routed to it. 40 dead tasks among 4,000 is a **1 % global rate every aggregate check passes** | WARN |
+| 4 | `rung_forecast` | planning against a stale model instead of the observed rate — how a campaign discovers on the last day that it banked a lower rung than the write-up assumed | INFO |
+| 5 | `determinism_homogeneity` | a device/thread MIX inside the SCORED leg. CPU/CUDA and 1/8-thread are not bit-identical, so a mix confounds every paired contrast — a **validity** failure, not a slowdown | **CRITICAL** |
+
+**Thresholds are anchored on measurement, not guessed:** the chain-stall bounds come from the
+measured step cost (~8.5 h at 1 thread, ~3.1 h at the ratified 8), so 14 h is already several missed
+steps and 28 h is unambiguously stuck; the capacity grace window comes from the measured dispatch
+rate (~3.3 jobs/min against ~8.5 h jobs ⇒ ~2–3 h to accumulate).
+
+**Three wiring fixes — without them the checks are a library nobody calls:**
+1. **`poll.sync_epilogue_ledgers`** mirrors `{remote_root}/ledger` onto the driver. The ledger is a
+   **SIBLING** of the outputs root `pull_archive` walks, so it was **never transferred** — the
+   driver was blind to every task that died WITHOUT archiving anything (walltime kill, node failure,
+   missing apptainer), which is precisely what the ledger, `killswitch.classify_task_deaths` and the
+   bad-node check exist for. Rides the shared pull's rate-limited window; **size-guarded** (the files
+   are append-only, so a finished array's ledger is never re-sent) and **whole-file** rather than a
+   byte-offset tail (array tasks append CONCURRENTLY, so an offset tail can split a line and leave a
+   permanently torn local row). Best-effort and swallowed: forensics may never fail the transport.
+2. **`integrity.env_label_census`** reads `record.json` directly instead of via `load_all`, which is
+   **all-or-nothing by design** — right for the fail-loud S6 gate, fatal for a live monitor, where a
+   single half-written record would take homogeneity monitoring dark mid-campaign. The label
+   normalisation was extracted to `integrity.record_env_label` and is now **shared** with
+   `_test_census`, so the live verdict and the gate verdict can never disagree — the one that
+   disagreed would be the one deciding whether a paired contrast is valid.
+3. **`allocation_advisor`** records the CPU target it *already computes* as `lane_expected_cores` —
+   the one lane input derivable from neither the archive nor the pre-registration. It also now
+   **carries unrelated state forward**: `save_state` REPLACES the file, so a single advisor cycle
+   would have erased the lane facts and silently switched the capacity check back off.
+
+**No launch-day step that can be forgotten.** The stop date and the rung ladder are read from the
+**pre-registration** (`model_suite.exogenous_stop` + `seeds.tiers` costed through
+`lanes.total_trainings`), not re-declared at GO. Verified live: **31.3 d to the stop**, ladder
+`{30:3930, 100:8900, 189:15219, 279:21609, 340:25940, 403:30413, 568:42128}`. Elapsed time falls
+back to the earliest archived record when GO recorded no start — an under-report of ~one training
+that only ever **delays** a warning, never manufactures one.
+
+**Verification (run, not asserted):** `PYTEST_RC=0` over **233 tests** (`campaign_health` 33 ·
+`campaign_lane_gather` 18 · `sentinel` · `cluster_lanes` · `killswitch` · `ledger` ·
+`cluster_adapter` · `cluster_campaign` · `monitor_dashboard`). `scripts/sentinel.py outputs/campaign`
+run **live** → `capacity_accumulation` and `rung_forecast` report INFO and the three archive-derived
+checks are correctly ABSENT (a laptop/pre-launch run gets no false alarms). The two wiring tests
+assert the sync lands in `<mirror>/ledger` — exactly where the gatherer looks — and that a failing
+sync still returns the pull's count.
+
+**Commit hygiene under four concurrent sessions:** `src/cluster/campaign.py` also carried another
+session's uncommitted "vacuous-truth guard" hunk. Only **my two hunks** were staged (via a filtered
+patch through `git apply --cached`); their work remains untouched in the working tree. Staging was
+wiped once mid-commit by a concurrent session and re-done atomically.
 
 ## [2026-07-26] — OVERNIGHT DEEP-REVIEW LOOPS (review session; three sessions ran concurrently — this one is REVIEW)
 
@@ -488,6 +561,67 @@ envelope) ② **Ramin: CPU as a randomised device block** ③ commit/stash the u
 > **The loop ledger — every finding, its first-hand verification, its fix and its evidence — is `docs/DEEP_REVIEW_LOOPS_2026-07-26.md`.** This block is the narrative summary. **Nothing was frozen:** only `scripts/freeze.py --check` (read-only gate mode) was ever run; it stayed RC=0 throughout while the canonical hash moved with each authorized pre-freeze edit, exactly as expected.
 >
 > **Concurrency:** two other sessions were editing this repo throughout (one reviewing code, one building). Protocol adopted: surgical string-replacement edits that fail loudly rather than clobber; `git log` / `git status` re-checked around every batch; hot files left alone. One consequence is recorded honestly under Verification.
+
+### ✅✅ ROW 34 CLOSED (the review half) — `leg_aggregate` was not merely UNWIRED, it was **UNWIREABLE**
+
+Row 34 recorded `cross_model`/`leg_aggregate` as built, unit-tested and without a production caller,
+while `pooled_bound` is the registered cross-model bounded-effect statement (R86) that **R101 made a
+headline component**. Assessing it for wiring surfaced **two independent defects, both of which fail
+SILENTLY into the same fabricated result**: every leg excluded, the pooled bound computed over **zero**
+legs, and an artifact reading *"all legs failed the T0 floor"* — a plausible, publishable-looking
+sentence that would have been entirely an artefact of the bug. That is worse than a crash, and it is
+the exact failure class this review exists to catch.
+
+**Defect 1 — ARCHIVE LAYOUT (fatal; the module could never read a real archive).** `per_seed_series`
+called `load_run(f"{arm}-s{seed}", root)`, assuming a FLAT `root/<arm>-s<seed>`. The real archive is
+**two-level**: the campaign hands `write_run` an ARM-level root (`src/cluster/run_one.py:108`), giving
+`test_<sfx>/<arm>/<arm>-s<seed>/` — **verified first-hand on disk**, not from a docstring
+(`outputs/campaign_dryrun/test/distributional/distributional-s0`). Because
+`leg_results_for_synthesis` passes ONE root for BOTH contrasted arms, the flat assumption was not just
+wrong but **unsatisfiable**: no single `root` resolves `distributional-s0` and `scalar-s0` when they
+live in sibling arm directories. Every leg would have raised `FileNotFoundError`, been caught by the
+module's own broad leg-failure handler, and reported `t0_floor_pass: False`. **Why a green suite proved
+nothing:** `tests/test_leg_aggregate.py::_write_leg` wrote that same flat shape — code and fixture
+agreed with each other and *both* disagreed with the only layout that will ever exist. Fixed to
+`root/<arm>`; the fixture now mirrors the producer.
+
+**Defect 2 — SHARPE UNIT (the √252 trap row 34 itself flagged, now closed).** The per-seed Sharpe was
+per-period, `ddof=1` (`rets.mean()/rets.std(ddof=1)`), while `floor_sharpe` — and every other Sharpe in
+the stack — is the annualised, `ddof=0` `bootstrap.sharpe_ratio`. **MEASURED: 15.88× mismatch**
+(√252 = 15.87). Passing the real floor would have compared ≈0.04 against ≈0.6 and failed the floor for
+every leg. Fixed by delegating to the canonical estimator, which removes **both** mismatches
+(annualisation *and* ddof) and leaves exactly **one** Sharpe definition in the codebase. The CVaR
+arrays that actually feed the pooled bound are untouched.
+
+**Verification — mutation-tested, not merely green.** Reverting *either* fix turns
+`tests/test_leg_aggregate.py` **RED** (run, observed, then restored). Two new locks:
+`test_flat_layout_is_refused_loudly` and `test_sharpe_is_the_canonical_annualised_estimator`. Ruff
+clean; **253 inference tests pass**; a repo-wide search confirms the blast radius is tests-only — no
+production consumer exists, which is precisely what row 34 asserted.
+
+**What is LEFT, and to whom.** The leg root is now **deterministically derivable** — no convention needs
+inventing: `run_campaign_cluster.resolve_leg_override` forces `--root-suffix leg_<sanitized label>`,
+applied as `test_subdir = test_<sfx>`, so `leg_roots[label] = <output_dir>/test_leg_<sanitized label>`,
+and `leg_results_for_synthesis` output already matches `cross_model`'s input contract. **One open
+decision blocks the wiring and it is science, not plumbing:** what supplies `floor_sharpe`? The
+docstring says "the T0 naive-benchmark floor", but `analyze_campaign.benchmark_floor` gates on **DSR
+against the benchmark suite**, not a raw Sharpe threshold — different quantities. Handed to
+FEATURE/BUILD (plumbing) and RAMIN/TAMER (the floor decision) in
+`docs/SESSION_TASK_DISPATCH_2026-07-26.md`, with the requirement that whatever is chosen be
+**annualised ddof=0** and guarded against an implausibly small (per-period) value so the trap cannot
+return through the front door. **⚠ Register contingency stated plainly:** if the wiring is not
+completed before freeze, row 34 closure **(b) — withdraw the pooled-bound claim — becomes MANDATORY**,
+since a registered statement with no executable path is exactly the failure R16 already fixed once for
+`h2_conjunction`.
+
+**Commit hygiene note (honest record).** The first commit attempt used `git add -A` and captured
+**1,777** files — three of mine plus the in-flight work of three concurrent sessions. Caught
+immediately on inspection, corrected with a **soft** reset (never `--hard`, so no working tree content
+could be lost), and re-committed as exactly **3 files** (`23ed4ee`). Verified afterwards: the
+over-broad commit is orphaned in the reflog and **not reachable from HEAD**, was never pushed, all
+1,771 other-lane files remain intact and uncommitted, and the author is Tamer with **no AI-attribution
+trailer**. Recorded rather than quietly fixed, because `git add -A` under four concurrent sessions is a
+repeatable hazard, not a one-off slip.
 
 ### ✅ Loop 1 — a CRITICAL cross-platform config-corruption defect (plus 7 more of the same class)
 
@@ -2492,7 +2626,520 @@ existing tests run as verification: **24 passed, `PYTEST_RC=0`**.
 - **`_validate` is fail-loud too** — a missing required field raises `KeyError` naming the field
   (observed: `run record is missing required field 'fold'`).
 
-### 📋 SESSION SUMMARY — deep code-review loops 44-64 (2026-07-26, the CODE-REVIEW lane)
+**Loop 65 — `src/backtest/metrics.py` + the rf question: CLEAN (streak 4/30). ⚠ A STALE MEMORY CORRECTED.**
+
+The lead lens was the one that would misstate every reported number: **does the risk-free rate actually
+reach the headline Sharpe?** It does. This matters beyond the level — since `SR = (mean − rf)/sd`,
+omitting rf shifts each arm by `rf/sd_i`, which biases the cross-arm CONTRAST toward the
+lower-volatility arm unless volatilities match. No code changed.
+
+- **★ R20 is PARTIALLY done — and I initially recorded it as DONE, which was WRONG. Corrected here
+  before it propagated.** The accurate position, verified three ways:
+  * **rf IS threaded into the performance-suite Sharpe.** `analyze_campaign.py:4011` passes
+    `risk_free=rfd` into `compute_metrics`, which computes `excess = r − rf_scalar` and takes the
+    Sharpe on `excess`; it accepts a scalar OR a per-period series, reducing a series to its mean with
+    the justification recorded in-code (the numerator is `mean(r) − mean(rf)`, exact under the mean).
+  * **rf is NOT in the DSR — R20's DSR half is genuinely still OPEN.** The headline
+    `held_out_fitness` calls `deflated_sharpe_ratio(r, …)` on the RAW series, and the market block
+    calls `deflated_sharpe_ratio(m, 1)` on raw `m` (l.4003) while reporting `sharpe` on EXCESS `m −
+    rf_mean` (l.4000). **Those two numbers sit side by side in one dict on DIFFERENT conventions** —
+    the same misreading trap critical-review #14 closed for the Sharpe pair, still present for the DSR.
+  * **`cash_daily_rate = 0.0` is a REGISTERED frozen value**, not an oversight —
+    `config/environment.yaml` ("R20. 0.0 = legacy") mirrored by `preregistration.yaml:342`
+    `idle_cash_daily_rate: 0.0` ("frozen value 0").
+  **Deliberately NOT changed:** R20 itself states these "move the reported DSR numbers, so stage them
+  carefully"; it is pre-registration-relevant and belongs to Tamer/Okhrati as an amendment, not to a
+  review lane. **Flagged for Tamer** — the excess-Sharpe-beside-raw-DSR pairing is the part a reader
+  could misread. **The project memory listing R20 as pending was CORRECT and is left intact.**
+- **Verified LIVE, not assumed:** `load_risk_free_daily` returns `available=True`, `source=DGS3MO`,
+  366 daily values over 2020, `annual_pct_mean = 0.3618%`, daily mean `1.428e-05` — and
+  `1.428e-05 × 252 ≈ 0.36%` reconciles with the reported annual figure. The market proxy is likewise
+  available (366 returns).
+- **The market and winner Sharpes share ONE rf convention — a past review already caught this.** The
+  comment at l.3994-3996 records critical-review #14 (2026-06-20): routing the market Sharpe through
+  the same excess-return convention as `winner_vs_market`, "else one is raw, one rf-adjusted". A
+  side-by-side pair on mixed conventions would have been a genuine misreading trap; it is closed.
+- **An unavailable rf is NOT silent** — the emitted `market_reference` records
+  `"rf_source": … else "none"` and `rf_annual_pct_mean`, and `rf_source` is RENDERED into the report
+  (`analyze_campaign.py:5468`: `**Market reference** (EW universe; rf={mr.get('rf_source')} …`). So a
+  zero-rf run would be visible to a reader rather than passing as an excess-return Sharpe.
+- **The "degenerate input yields finite sentinels" docstring claim VERIFIED by execution** across six
+  inputs (empty, single, all-zeros, constant, one NaN, one inf): every metric finite, nothing raised,
+  no NaN or inf anywhere. And an EMPTY series returns only `{n_periods}` rather than 36 fabricated
+  zeros — the same anti-fabrication discipline as the archive layer and `audit_reproducibility`.
+
+**Loop 66 — the MECHANISM kernel (`src/inference/responsiveness.py`), now HEADLINE-critical: CLEAN (streak 5/30).**
+
+R101 reframed the headline onto the mechanism story, and a past audit had already found a real kernel
+bug here (M13), so this was re-derived rather than trusted. No code changed; the instrument tests were
+run as verification: **40 passed, `PYTEST_RC=0`**.
+
+- **The kernel is NUMERICALLY EXACT — re-derived, not assumed.** `responsiveness()`'s Spearman
+  coefficient matches `scipy.stats.spearmanr` to **`dz = 0.00e+00`** on four independent cases (strong
+  positive monotone, strong negative monotone, pure noise, integer-valued `m`). That is the M13-class
+  check — recompute the arithmetic against an independent implementation — and it passes exactly.
+- **The null behaves correctly.** Pure noise returned `coef=+0.1428` with CI `[−0.099, +0.366]`
+  spanning zero and **`responsive=False`**; the strong cases returned CIs excluding zero. The bootstrap
+  is doing real work rather than rubber-stamping.
+- **The `ci_reliable` gate (P7b) is a genuinely subtle guard.** Integer-valued `m` (a construct COUNT)
+  makes many case-resamples collapse to a constant column, whose coefficient is dropped — so a
+  percentile CI built from too few survivors is untrustworthy, and `responsive` is forced False in
+  that case. That is the same "never claim a result on absent evidence" discipline as the #28 fix.
+- **A directional concern, RESOLVED by honest labelling.** The `responsive` flag is
+  direction-AGNOSTIC (`ci_low > 0 or ci_high < 0`) while the registration says
+  `predicted_direction: positive_if_channel_acts` — and the prototype measured responsiveness
+  NEGATIVE (~−0.05). A consumer reading `responsive=True` as "the channel acts" would misread a
+  negative coefficient. It cannot happen here: the single rendering site states the criterion in the
+  label itself — `"RESPONSIVE (CI excludes 0)"` — and the signed `coef` is reported alongside. Same
+  label-at-point-of-use discipline the three Sharpe conventions follow.
+- **The notebook carries DRIFT GUARDS on the headline instrument:** `assert not sq1['responsive']`
+  ("the seeded null must read as a null") and, across the fingerprint rows, "prototype depth cannot
+  support a responsive verdict; a flip here means drift". The headline claim is protected by an
+  executable assertion, not prose.
+- **"A SENSITIVITY, never the primary" is STRUCTURALLY enforced, not merely intended.** The
+  disattenuation (`lambda_att = Var(signal)/(Var(signal)+Var(noise))`) appears in exactly ONE file,
+  `scripts/fed_delta_snr.py`; no other module consumes it, `preregistration.yaml:314` registers the
+  exhibit as report-only, and `bank_gate.py` runs it as an exhibit rather than a gate input. The
+  disattenuated figure has no path into a primary statistic.
+
+**Loop 67 — `src/feedback/schema.py`, THE MANIPULATED VARIABLE: CLEAN (streak 6/30).**
+
+This module IS the treatment, so it is the most identification-critical code in the repo. Everything
+below was verified by EXECUTION. No code changed; **63 passed, `PYTEST_RC=0`**.
+
+- **The fed vector is exactly the registered six fields** — `cvar_05`, `cvar_10`, `cvar_25`, `cvar_01`,
+  `left_tail_mass`, `robust_skew`. Nothing extra, so there is no treatment leakage of the kind the
+  identification principle forbids.
+- **The arms are STRICTLY NESTED, and identification is therefore structural rather than asserted.**
+  `scalar` renders the header ALONE; `scalar_cvar5` renders header + ONE CVaR-5% line; `distributional`
+  renders header + all six. Verified: the scalar block is a byte-exact PREFIX of the distributional
+  block. Every arm shares an identical header, so the contrast is tail-SPECIFICITY and nothing else —
+  and the ladder is simultaneously the R87 dose gradient.
+- **`placebo_shuffled` (R32) is a correct structure-vs-content control — proven over 500 seeds.**
+  **0 fixed points in 500/500 seeds** (a true derangement every time: no value ever left in its own
+  label slot), **0 seeds with a differing multiset** (the marginal set of numbers is preserved
+  exactly), and byte-identical output for a repeated seed. It keeps the same header, intro, labels and
+  even the CVaR-1% high-variance annotation, so only the label→value MAPPING — the tail shape — is
+  broken. The implementation earns this: it draws up to 64 random permutations and accepts the first
+  with no fixed point, falling back to `np.roll(order, 1)`, which is a guaranteed derangement.
+- **Block LENGTH cannot confound the arms:** distributional, `placebo_shuffled` and `placebo` all
+  render **8 lines**, and the inert placebo is documented as matched within ±15% of character length.
+- **The decile direction (#8, fixed in loop 5) RE-DERIVED and correct.** For the inverted `cvar_05`,
+  values −0.001 / −0.020 / −0.090 map to deciles 1 / 2 / **8** — a worse tail gives a HIGHER decile —
+  and for the non-inverted `left_tail_mass`, 0.001 / 0.050 / 0.300 map to 1 / 6 / **10**. Both
+  conventions therefore agree on a single scale: **higher decile always means more tail risk**, across
+  all six fields.
+- **★ A false finding of my own, caught before it was reported.** My first derangement check printed
+  "139 fixed points over 300 seeds", which looked like a broken control. It was my TEST that was
+  broken: `left_tail_mass` renders as `+0.062` with a leading `+`, which my `(-?\d+\.\d+)` regex could
+  not match, so I compared misaligned 5- against 6-element lists. Printing the actual rendered blocks
+  exposed it immediately; the corrected extraction gives 0/500. **Second time this session that
+  printing the real artifact killed a scary-looking number before it reached the ledger.**
+
+**Loop 68 — `src/arms/factory.py`, the OTHER identification surface: finding #35 (stale fact) fixed (streak → 0).**
+
+Loop 67 proved the fed BLOCK is correctly nested; this file decides which arm gets which block and
+whether anything else differs between arms. **73 passed, `PYTEST_RC=0`.**
+
+- **★ Identification is guaranteed by the TYPE, not by a check — the strongest form available.** The
+  `Arm` dataclass carries exactly five fields: `name`, `feedback_kind`, `is_llm`, `search_kind`,
+  `candidate_budget`. **There is no field that could hold a per-arm agent config, env config, prompt,
+  or seed** — a per-arm override is not merely forbidden, it is UNREPRESENTABLE. Measured across the
+  real 9-arm roster, the only fields that differ are `name`, `feedback_kind`, `is_llm` and
+  `search_kind`; **`candidate_budget` is identical for all nine**, so the H4a matched-budget invariant
+  holds structurally too. This extends loop 46's finding (`resolve_agent_kwargs` takes no arm
+  argument) from the agent to the env and the prompt: none of them can vary by arm because the arm
+  has nowhere to put them.
+- **Finding #35 — a STALE ROSTER FACT, hours old, in the identification-critical factory.**
+  `build_arm`'s docstring said "the **two** search arms (`random_search`, `bayes_opt`)". R108's 7→9
+  reconciliation added the H4 DFO portfolio, so there are now **four** (`+ cma_es`, `+ tpe`). Verified
+  live: `config/arms.yaml` declares 9 arms and `all_arms()` returns all 9, with `feedback` and
+  `search` keys mutually exclusive so no arm can carry both. **The code was never wrong** — it reads
+  the `arms:` table dynamically — but the docstring is the natural place a reader looks for "what are
+  the arms", and **a hand-typed roster lagging a canon change is exactly what caused the capacity
+  lane's launch-breaking defect** (four launch paths still naming the OLD 4 H1 baselines after the
+  canon went 4→11). Corrected, and annotated so the config is named as the authoritative roster.
+  "Five LLM arms" elsewhere in the file is still accurate and was left alone; `all_arms`'s docstring
+  is correctly generic ("every arm declared in the config").
+- **Verified CLEAN in the same pass:** `assert_fixed_agent_across_arms` resolves ONE agent config for
+  the whole real roster and returns it (shared kwargs + `candidate_budget: 30`). It is called only
+  from tests — the #24 shape — but that is legitimate here: it checks a property the type system
+  already guarantees, and the tests exercise it against the live `all_arms()` roster rather than a
+  fixture. `shuffle_seed_from_id` is deterministic for a given candidate id and distinct across
+  candidates, so `placebo_shuffled`'s derangement is per-candidate and replayable.
+
+**Loop 69 — STALE-COUNT class sweep (the #35 class): finding #36 — 8 operative sites fixed, 1 flagged (streak stays 0).**
+
+#35 was the second instance of "a hand-typed count lags a canon change" (the first caused the capacity
+lane's launch-breaking 4-vs-11 H1 defect), so it was swept as a class across `src/`, `scripts/` and
+`config/`. R108's 7→9 arm reconciliation and the H1 canon's 4→11 expansion had left prose stale in
+eight operative places. **183 passed, `PYTEST_RC=0`; the edited PS1 launcher re-parses with 0 errors.**
+
+- **Discipline applied first: HISTORY IS NOT STALE.** The CHANGELOG, dated observations, and *measured
+  past results* were excluded from the sweep by construction. Two residual "7 arms"/"two search arms"
+  hits were verified as history and deliberately LEFT: `build_notebook_results.py:620` reports a
+  measured PROTOTYPE result ("all 40 … entropy 0.0 bits" — rewriting it would falsify a result), and
+  `freeze.py:325` is the historical rationale for the V1 drift guard.
+- **The two highest-risk fixes.** `config/arms.yaml`'s own header said "The seven arms" while the file
+  DECLARED NINE — the authoritative roster contradicting itself, one loop after I annotated it as
+  authoritative. And `scripts/install_onstart_task.ps1` — a **LAUNCHER**, on the reboot-recovery path —
+  named "7 arms + 4 H1 baselines", i.e. BOTH stale counts, in the comment an operator reads when
+  resuming a campaign. Both corrected, and both now say the counts are for the operator only and must
+  be resolved from config rather than hand-typed.
+- **A paper-facing correction that was more than a count.** The results notebook's design box said
+  "**Seven arms**, one varying ingredient. Every arm shares the identical environment, agent (SAC),
+  **search protocol**, and budget". Once four of the nine ARE search arms, "every arm shares the search
+  protocol" is simply false — varying it at a matched budget IS the H4 comparison. Rewritten to nine
+  arms, with the identification claim correctly SCOPED to the five LLM arms (which is exactly what
+  loops 67-68 verified: the five feedback arms are strictly nested and share everything else, while
+  the four search arms carry no feedback block at all).
+- **Five further docstrings corrected** — `agents/evaluator.py` ("matched compute across all seven
+  arms"), `viz/figures.py` ("the 7 arms pile into one blob"), `analyze_campaign.py` ×2 ("All seven
+  arms persist" / "all seven arms write it"), and the live `cluster/campaign.py` C4-sweep docstring,
+  which now also records that `sweep_units` is BUILT from the passed `arms`/`baseline_names` and never
+  from a hand-typed count. **In every case the CODE was already correct and data-driven** — the risk
+  is only that a human copies the stale prose.
+- **⚠ FLAGGED FOR TAMER / the capacity lane, deliberately NOT fixed — `power_analysis.py`
+  `ASSURANCE_SWEEP_UNITS: int = 12`.** That constant encodes "7 arms + 4 H1 baselines + the H3 winner
+  = 12"; both inputs have changed, so the design-consistent value is `9 + 11 + 1 = 21` — or **71**, if
+  it should track the capacity lane's corrected work model ("1,800 search + **71n** test" = 9 core +
+  10 legs×5 + 11 H1 + 1 H3). **It is genuinely ambiguous which semantics are intended, and getting it
+  wrong would put a confidently-wrong number into a planning tool**, so it is not a review-lane call.
+  Severity is contained: `recommend_assurance_target` has **no production caller** (tests and one
+  analysis doc only), and the campaign's live timeline comes from `cluster/lanes.py`, which IS current
+  (`_SEARCH_TRAININGS = 1_800  # 9x30 core …`).
+
+**Loop 70 — the #36 class in `docs/` + `paper/`: finding #37 — 6 operative sites fixed, 6 flagged (streak stays 0).**
+
+Loop 69 swept `src/`/`scripts/`/`config/`; this finishes the class in the documents an OPERATOR reads
+at GO and an EXAMINER reads in the thesis. Same triage — operative prose fixed, history untouched.
+
+- **First, a check that could have inverted everything — and didn't.** The preflight doc says the
+  campaign reads its arms from `config/campaign.yaml`. If THAT still listed 7, the docs would have
+  been right and the CONFIG stale, which is a far more serious defect. Verified: **`campaign.yaml` and
+  `arms.yaml` both declare the same 9 arms, with zero set-difference in either direction.** The config
+  layer is consistent; only prose was stale.
+- **FIXED — 6 operative sites, all plain counts or self-contained arithmetic:** `CAMPAIGN_RUNBOOK.md`
+  ×3 (**the GO-day runbook** — the "7-arm core", "7 arms x 30 candidates -> 7 winners", and the
+  H2-family-guard line), both `CAMPAIGN_SPEC_*.md` notes ("the campaign uses 7 arms incl.
+  `placebo_shuffled`"), and `CAMPAIGN_preflight.md`. The runbook's lineage note now reads "after R32
+  added `placebo_shuffled` **and R108 added the `cma_es`/`tpe` DFO portfolio**", preserving the
+  history rather than erasing it. Re-swept: **0 residual stale counts** in those four files.
+- **⚠ FLAGGED, deliberately NOT fixed — these change ARITHMETIC or a CLAIM, not just a count.**
+  `CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md:246` ("Search 7C = **210** = 7 arms x 30 x 1 seed + Winners
+  7S = **210** + H1 baselines 4S = **120**") and `COMPUTE_AND_TRAINING_TIME.md:43,55,65` carry derived
+  TOTALS that feed the compute model — and the capacity lane already owns the corrected model
+  ("1,800 search + 71n test"), so recomputing them here risks contradicting the authority.
+  `DEEP_H4.md:35` ("All seven arms evaluate the same number of candidate rewards") is an H4 CLAIM
+  whose search roster just DOUBLED 2 -> 4, and `DEEP_H3.md:111` enumerates the arms by name — both
+  need a design-lane rewrite, not a digit swap. Same for `ADVANCEMENT_AND_CLEANUP_PLAN.md:41`.
+- **⚠ `paper/_build/dissertation.md` is STALE while the SOURCE chapters are CLEAN** — five "seven
+  arms" hits appear only in the GENERATED build (including the glossary and the design section),
+  and grepping `paper/` excluding `_build/` returns nothing. **The source is correct; the build simply
+  predates the roster change**, which means the last PDF render is older than R108. Not a source
+  defect and not a review-lane edit — but the PDF is the graded artifact, so it needs a rebuild.
+- **Dated audit / corpus-mining / deep-sweep documents were excluded by construction** and left
+  untouched: they record what was true when written.
+
+**Loop 71 — `src/feedback/measurement.py`, the treatment's VALUES: CLEAN (streak 1/30).**
+
+Loop 67 verified the treatment's STRUCTURE (which fields, which arms); this verifies the NUMBERS that
+fill it. No code changed; **50 passed, `PYTEST_RC=0`**.
+
+- **★ The estimator switch is ARM-BLIND BY CONSTRUCTION — the same identification-by-type argument as
+  the `Arm` dataclass.** No entry point on the estimator path takes an arm or feedback argument:
+  `fit(train_realized_returns)`, `_evt_cvar(alpha)`, `_empirical_cvar(alpha)`, and the fed entry point
+  `tail_stats()` **takes no arguments at all**. The EVT-vs-empirical choice is keyed on the ALPHA
+  LEVEL (`EVT_ALPHA_CUTOFF`), so an arm-dependent estimator — which would be a genuine confound in the
+  fed numbers — is unrepresentable rather than merely avoided.
+- **The residual risk was already anticipated and instrumented.** `_evt_cvar` CAN fall back to
+  empirical per candidate when a tail is degenerate or out-of-region (`exceed_frac` is data-dependent),
+  and since candidates differ across arms that fallback RATE could in principle differ too. The module
+  does not leave this silent: it keeps a process-level registry of the estimator path taken at each fed
+  headline level, and a level whose paths contain more than one distinct estimator flags the switch.
+  **Verified working:** three deliberately dissimilar distributions (heavy-tail t(3), thin normal,
+  near-degenerate) all logged `alpha=0.05: ['evt','evt','evt']`, and the detection predicate
+  (`len(set(paths)) > 1`) is what would surface a mix. This is the #28 discipline applied preemptively.
+- **The fed numbers re-derived against independent implementations.** The EVT-path fed CVaR-5% tracks
+  the canonical empirical estimator to ~6e-6 on t(3) and ~5.7e-5 on a normal — consistent with the
+  file's own honest note that UPOT was validated only at n in [5e3, 5e4] and alpha in {0.998, 0.999},
+  whereas this study runs n ~ 2960 at alpha in {0.05, 0.01}, so "a faithful UPOT would NO-OP". The
+  correction is small, and the module SAYS so rather than implying precision it does not have.
+- **The `ceil(alpha*T)` house convention is EXACTLY shared with `src.inference.bootstrap.cvar`** —
+  forcing the empirical path gives differences of `0.00e+00` (or ~1e-18 float-mean rounding) across
+  alpha in {0.05, 0.10, 0.25, 0.01} and n in {2960, 500, **37**}. The odd n=37 case is the one that
+  would expose a ceil-vs-floor mismatch, and it matches exactly. This extends the "cvar proven 4-way
+  identical" result of loops 15-24 to the FED path, so the treatment values and the inference layer
+  cannot silently diverge on tail-index convention.
+- **Degenerate input handled gracefully:** a near-constant series returns finite, sensible statistics
+  (`cvar_05 = +0.000500` — correctly POSITIVE for an all-positive series, `left_tail_mass = 0.0000`)
+  with no raise and no NaN.
+
+**Loop 72 — `src/llm/loop.py`, where the treatment is APPLIED: CLEAN (streak 2/30).**
+
+Loops 67/71 verified the treatment's structure and values; this verifies the loop that applies it —
+building each prompt, gating each candidate, and deciding what carries forward. No code changed;
+**77 passed, `PYTEST_RC=0`**.
+
+- **★ The file contains ZERO arm-conditional logic.** Every occurrence of `arm` is a docstring, a
+  comment, or a variable name — there is no `if arm == …` anywhere, and the system prompt is
+  explicitly annotated "arm-agnostic". The arm enters solely through the feedback block built by
+  `schema.build_block`, which is exactly what the identification principle requires.
+- **The reflection carry-over rule is ARM-BLIND.** The M5 rule reflects on the generation's BEST
+  candidate via a plain `_rec.val_fitness > gen_best_fitness` comparison. The carried CONTENT is
+  arm-specific by design (it is the treatment); the SELECTION RULE is identical across arms, so the
+  dose ladder cannot be confounded by a per-arm carry policy.
+- **★ A sandbox-rejected candidate DOES consume its draw — enforced by the loop bound, not by
+  bookkeeping.** The candidate loop is `for cidx in range(candidates_per_gen)`, so the count is
+  outcome-INDEPENDENT: every arm gets exactly `generations x candidates_per_gen` draws however many
+  are rejected. This is why a low-yield leg (qwen3.5-9b gate-passes ~17%) still spends its full
+  matched budget and simply yields fewer usable candidates — "a failing leg is a finding", structurally
+  enforced. Budget ACCRUAL was separately hardened by F15 (ultrareview 2026-07-02): `run_loop` accrues
+  the ACTUAL draws rather than the even-split PLAN, which over-stated whenever
+  `budget % generations != 0`.
+- **Resume reproduces the search exactly, including its failures.** The replay cache re-plays an
+  already-archived candidate "success OR sandbox-failure" instead of re-calling the LLM — so the
+  rejected draws are replayed too, the feedback-block carry is identical, and the same winner emerges
+  at zero API/GPU cost.
+- **`_was_fed_tail` IS the M13 fix, and it works — verified across all six arms.** It decides from the
+  ARCHIVED PROMPT (what the designer actually saw) rather than the candidate's own `feedback_block`,
+  because the old block-first read let a candidate's own block — which is fed to the NEXT generation —
+  leak it into the fed set. Measured: `distributional` raw **True**, `distributional` LEGIBLE **True**
+  (confirming loop 67's claim that the legible rendering keeps the exact label substrings),
+  `placebo_shuffled` **True** and `scalar_cvar5` **True** (both genuinely show tail-labelled lines),
+  `scalar` **False**, `placebo` **False**, and a generation-0 base prompt **False** — the M13
+  behaviour itself.
+
+**Loop 73 — `src/llm/client.py` remainder (retry · determinism · caching): CLEAN (streak 3/30).**
+
+Loops 13/50 covered the transport and spend paths; this covers what remained. The review pass itself
+found no defect — **80 passed, `PYTEST_RC=0`** — but it DID surface one open gap, which Tamer then
+directed be closed rather than merely disclosed (see the amended bullet below and loop 74). The
+"CLEAN" verdict therefore describes the review finding, not a no-change loop.
+
+- **★ Lead lens CLOSED: a retry CANNOT produce an unrecorded model/provider swap.** The concern was
+  real — R85/R103 capture `served_model`/`served_provider` precisely because a provider can route a
+  call elsewhere, and a silent mid-retry swap would break the archive-replay guarantee. It cannot
+  happen: `response = transport(system, user)` calls the RETRY-WRAPPED transport, and
+  `served_model`/`served_provider`/`stop_reason`/`usage` are read **after** it returns, so the archived
+  values are the FINAL ones. Whatever a retry lands on is what gets archived.
+- **The temperature-reject list is correct AND substring-safe — the R102 campaign-killer verified.**
+  A missing `opus-5` would have HTTP-400'd every confirmatory call. Measured across seven real model
+  ids: `claude-opus-5` and `claude-opus-5-20260115` reject temperature (True), `claude-opus-4-8` /
+  `-4-7` True, **`claude-opus-4-5` False** — i.e. the `opus-5` entry does NOT collide with the
+  `opus-4-5` id, which is exactly the substring hazard the fix called out — and `claude-sonnet-4-6`
+  (which honours temperature) and the qwen slug are both False. Diversity for the temperature-rejecting
+  confirmatory author therefore comes from prompt variation, matching `loop._diversity_directive`.
+- **The prompt-cache lever is honestly disclosed as INERT, not quietly claimed.** The `cache_control`
+  marker sits below the cacheable-prefix floor (Opus 4.8's 4096, Sonnet 4.6's 2048; Opus 5 shares the
+  4.7-family tokenizer), so it is "a SILENT NO-OP on both campaign + prototype" and the ADR-016
+  shared-context lever "is inert on the confirmatory author" — with the wasted spend quantified rather
+  than hand-waved.
+- **Finding #38 — `served_model` was RECORDED but never CHECKED (the #28 shape). NOW CLOSED.**
+  ⚠ This bullet originally read "NOTED for Tamer, deliberately NOT built". Tamer's instruction —
+  *"please ultrathink always, dont just honestly disclose, try to fix and close the gaps"* — makes
+  that the wrong call, and it has been rewritten to record the FIX.
+  **Why the naive check really would be wrong (this part stands):** `config/llm.yaml` documents that
+  OpenRouter routes a slug to a concrete snapshot, so `served != requested` BY DESIGN
+  (`…a35b` -> `…a35b-07-25`); an equality assertion would fire on every correct call.
+  **What the actual risk is:** not that served differs from requested, but that served differs from
+  ITSELF *mid-run*. R71 quotes ONE served snapshot in the write-up as the reproducibility anchor; if
+  the provider re-routes at call 400 of 600, that quoted anchor silently describes only the first
+  segment and the candidate set becomes MIXED-MODEL — undetectable after the fact.
+  **The fix (`src/llm/client.py`):** a served-model registry mirroring `measurement.py`'s
+  `fed_estimator_log` idiom — `_record_served_model` / `served_model_log()` /
+  `reset_served_model_log()`, wired into `complete()` AFTER the retry-wrapped transport returns (so it
+  observes the final routing). Stable serving is silent; the FIRST divergence per requested id logs a
+  loud, actionable `llm_served_model_SWITCHED` warning naming both snapshots, once — never a flood.
+  This needs no pre-registration change because it asserts nothing about WHICH snapshot is correct; it
+  only makes an undetectable event detectable. Verified live: two stable calls -> one entry, no
+  warning; a mid-run swap -> exactly one warning and
+  `{'claude-opus-5': ['…-20260115', '…-20260320']}` exposed for audit.
+  Meanwhile the requested side stays pinned: the freeze gate binds `llm.yaml model_snapshot` to the
+  registered `confirmatory_author`.
+- **Process note (second occurrence):** `pytest` on a non-existent path returns **RC=4, not a pass** —
+  `tests/test_llm_client.py` does not exist; the real files are `test_llm_transport.py`,
+  `test_llm_stop_reason_and_cost.py`, `test_llm_deep.py`, `test_spend_ledger.py`. Re-run against the
+  real paths before reporting any green.
+
+**Loop 74 — GAP-CLOSING PASS (streak RESET to 0/30; code changed). Findings #38-#41.**
+
+> Tamer, 2026-07-26: *"please ultrathink always, dont just honestly disclose, try to fix and close
+> the gaps"*. A behavioural correction to this lane: items I had parked as "noted for Tamer" or "a
+> design call, not the review lane's" were re-examined, and the ones I could close correctly, I
+> closed. This loop is the sweep of that parked list. **Every one is now fixed + regression-tested;
+> `PYTEST_RC=0` on all affected suites; `ruff` clean on all nine touched files.**
+
+- **#38 — served-model stability registry.** Documented in the amended loop-73 bullet above.
+  Regression test: `test_llm_deep.py::test_served_model_registry_is_silent_when_stable_and_loud_on_a_mid_run_swap`
+  — asserts stable serving is SILENT, a swap warns exactly ONCE, both snapshots are exposed, and the
+  registry is per-requested-id. **80 -> 81 tests, `PYTEST_RC=0`.**
+- **★ #39 (MAJOR) — `ASSURANCE_SWEEP_UNITS` was a STALE PLANNING CONSTANT: 12 against a true 21.**
+  `scripts/power_analysis.py` hardcoded the literal `12`, documented as "7 arms + 4 H1 baselines +
+  the H3 winner". **BOTH inputs had since changed** — R108 took the roster 7 -> 9, and the H1 canon
+  expanded 4 -> 11 — so the true sweep width is `9 + 11 + 1 = 21`. The constant was **43% low, with
+  no signal**. This is not cosmetic: `recommend_assurance_target` divides the calendar by this width
+  to pick the seed rung, and it is consulted **at G1, on the number the canary measures**. Measured
+  impact at 13 trainings/h over 25 days — stale `12` recommends **n=403 (95% confidence)**; the true
+  `21` says **nothing above the n=30 floor fits** (`floor_only=True`). It would have promised a rung
+  the calendar cannot deliver, at exactly the moment that decision is made. Same class as #26-#28,
+  #30: *an instrument confidently reporting a target it never measured.*
+  **Fix:** replaced by `assurance_sweep_units()`, DERIVED from the live rosters
+  (`campaign.yaml: arms` + `preregistration.yaml: h1_baselines` + 1), which is this module's own
+  stated discipline (`_frozen_inference`: "code reads config, never hardcodes") and closes the
+  staleness permanently rather than for one value. It **raises** rather than falling back — a silent
+  default would reinstate the very failure it replaces. `sweep_units` now defaults to `None` and
+  resolves inside the call (no import-time config read), rejects non-positive values, and is
+  **echoed in the returned dict** so any plan can be audited after the fact.
+  The existing behaviour test now PINS `sweep_units=12` explicitly: it exercises the SELECTION LOGIC,
+  and letting it inherit the config-derived default would make a legitimate roster change fail an
+  unrelated test while silently asserting a config value it does not own. New test
+  `test_assurance_sweep_units_is_derived_from_config_not_hardcoded` covers the derivation itself.
+  **`PYTEST_RC=0`** (the stale value made the old test FAIL first — `assert (None == 0.95)` — which is
+  how the real magnitude was confirmed rather than argued).
+- **★ #40 (MAJOR) — the watcher read a VANISHED state file as "healthy", losing every later alert.**
+  `scripts/monitor.py::alert_reason` returned `None` (= healthy) whenever `st is None`. That conflates
+  two different states: *before* the run writes its first `progress.json`, absent means "not started
+  yet" and silence is right; *after* a state has once been read, absent means the file **vanished** —
+  deleted, truncated, or a write that failed on a full disk. In that case the watcher reports healthy
+  **forever** and silently swallows every subsequent stall/error/done push — precisely the overnight
+  hours the push notification exists for. I had parked this as "a design call for Tamer"; it is not,
+  because the two meanings are distinguishable.
+  **Fix:** a LATCH-ONCE-SEEN parameter `state_seen`, raising the new reason `"state_lost"`, wired to a
+  live latch in `main` that is set BEFORE the check (a first read is never itself "lost") — a
+  parameter nobody sets would be exactly the fictional-pin failure mode. `build_alert` now
+  distinguishes "VANISHED mid-run" from "no progress.json yet" so the operator knows which they have.
+  Default `state_seen=False` keeps the legacy assertion `alert_reason(None, …) is None` true.
+  **31 tests, `PYTEST_RC=0`.**
+- **#41 — vacuous-truth guard on a zero-unit campaign.** `run_campaign_cluster.py:976` scored the run
+  with `all(r.get("ok") for r in results.values())`; **`all({})` is `True`**, so an empty results dict
+  would print "ALL OK", write `all_arms_tested: true`, and **exit 0 for a campaign that tested
+  nothing** — indistinguishable in the archive from a complete one. Not reachable from the CLI today
+  (`--arms` uses `nargs="+"`), so this is latent, not live; but it is the same vacuous-truth class
+  already swept in loops 46/57, and `run_campaign_on_cluster` is a public library function.
+  **Fix at both ends:** the library now REFUSES a zero-unit call (`arms=[]` *and* no baselines) with a
+  named `ValueError` — the guard fires on zero UNITS, not zero arms, because a baselines-only run is
+  structurally legitimate — and the launcher's score is now `bool(results) and all(...)` so the exit
+  code can never claim success for a no-op. Regression test asserts both, and pins
+  `all({}) is True` as the documented reason the guard exists. **71 tests, `PYTEST_RC=0`.**
+- **Honest scope note.** The remaining parked items are genuinely NOT this lane's and stay open for
+  Tamer: the FREEZE itself (R94, fires with his GO), the OpenRouter top-up, R101 GO-prep launcher
+  propagation, the legacy `Co-Authored-By` trailers (needs a history rewrite + force-push), the R20
+  DSR/rf amendment (pre-registration-relevant), and the stale `paper/_build/` render. These are
+  decisions or irreversible operations, not gaps I can close correctly on my own.
+
+**Loop 75 — `src/baselines/rewards.py`, the LITERATURE-FORM lens: math CLEAN, 3 stale-fact defects
+(#42-#44). Streak stays 0/30.**
+
+Loop 9 reviewed this module for *numerical robustness* (contract, guards, finiteness, determinism)
+and closed CLEAN — but its own checklist item (d), **"each matches its cited literature form"**, never
+appeared in that CLOSED entry. That was the real coverage gap, and the one that matters most here:
+finiteness tests cannot catch a member whose FORMULA is wrong, and N6's intersection-union p-value is
+the MAX over all 11 legs, so one mis-specified member propagates straight into a confirmatory claim.
+
+- **★ The math is CORRECT — and proven by execution, not by reading.** All 11 members check out
+  against their citations (Markowitz `r − ½λσ²`; Sortino semi-deviation; Gârleanu–Pedersen one-way L1
+  turnover `½Σ|w−w_prev|`; Kelly `log(1+r)`; Chekhlov log-wealth drawdown; Zhang–Zohren–Roberts vol
+  targeting). The two STATEFUL ones were verified decisively: a differential reward is BY DEFINITION
+  `dS/dη` at η→0, so I numerically differentiated the underlying ratio and compared.
+  **DSR worst relative error 3.90e-07, DDR 3.61e-07 over 2,000 random states**, with both DDR branches
+  (R>0 and R≤0) exercised — i.e. consistent with central-difference truncation at h=1e-7, so both
+  implement the Moody–Saffell derivative exactly. I also re-derived DDR by hand:
+  `[DD2(R−½A) − ½A·min(R,0)²] / DD2^{3/2}` collapses to precisely the code's two branches, and all
+  four worked-example steps in the docstring reproduce to the digits shown.
+- **★ #42 (MINOR, but in a CONFIRMATORY comparator) — `differential_downside_ratio`'s docstring
+  asserted the OPPOSITE of the pre-registration.** It read *"SECONDARY panel member … NOT part of the
+  frozen H1 four (multiplicity unchanged)"* — true when written, left behind by the 4 → 11 expansion.
+  Verified false against every live source: `REWARD_CANON == preregistration.yaml h1_baselines ==
+  campaign.yaml h1_baselines == eureka_loop.yaml baseline_rewards`, all n=11, DDR present in all four;
+  `n6_h1_confirmatory_node` + `h1_canon_expansion_4_to_11` are both in `ratification_completed`
+  (R108, ratified 2026-07-26). The same file's own header already said "there is no longer a 'frozen
+  four'", so the module contradicted itself. Nothing numerical can catch this — the function computes
+  correctly either way — which is exactly why it survived loop 9.
+  **Fixed** with a "Registered status (CORRECTED)" block that also gets the multiplicity nuance right:
+  adding legs does NOT inflate alpha (an IUT is level-alpha for free, Berger 1982) but DOES make N6
+  strictly harder to reject. So the old parenthetical was right about FWER and wrong about membership
+  — the membership claim is what made it dangerous.
+- **#43 (NIT) — `REWARD_CANON`'s own comment still called it "the secondary … baseline comparison".**
+  It is now the registered H1 family and the comparator set of confirmatory node N6. Corrected.
+- **#44 (MINOR, doc) — `docs/DEEP_H1.md` carried NO supersession marker.** A dossier devoted entirely
+  to H1, dated 2026-06-25, asserting in the present tense that `h1_baselines` is the four-name list
+  and that H1 is descriptive-only — while its sibling `docs/CAMPAIGN_benchmarks.md` had already been
+  given an explicit *"supersedes the counts in this dossier"* banner. Added the same style of dated
+  banner naming the live state (11-canon, N6 confirmatory, IUT) and the authoritative sources.
+  **Dated analysis deliberately NOT rewritten** — its design reasoning is exactly why the IUT was
+  adopted, and destroying dated history to make a document look current would be the wrong fix.
+- **Deliberately NOT touched (checked, then left alone per the LEAVE-ALONE discipline):**
+  `config/llm.yaml:62-65` and `CAMPAIGN_DESIGN_AND_EXECUTION_PLAN.md:255,291` say "secondary panel"
+  about the **multi-model** panel — a different concept, not the reward canon; `eureka_loop.yaml:36`
+  was already corrected; `CAMPAIGN_benchmarks.md`'s stale counts sit under its existing supersession
+  banner; `DISSERTATION_COMPLETE_BRIEF_FOR_RAMIN_2026-07-21.md` is a dated deliverable. Four true
+  positives out of ten grep hits — the rest are correct as they stand.
+- **Regression guard, proven to discriminate.** New
+  `test_no_canon_member_docstring_denies_its_registered_H1_membership` asserts no canon member's
+  docstring denies its H1/N6 membership. Because a guard that cannot fail is the very defect class
+  this loop keeps finding, I verified it both ways: fed the ORIGINAL pre-fix text it flags all three
+  phrases; fed the corrected text it returns clean. **21 tests, `PYTEST_RC=0`;** ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
+**Loop 76 — `src/baselines/strategies.py`, the benchmark ALLOCATORS (never reviewed as a unit).
+4 findings (#45-#48). Streak stays 0/30.**
+
+These are the ladder the PAPER reports the agent against, so a defect here mis-states a *reported
+comparison* rather than a training signal. Verified coverage first (my loop-75 lesson): the loop log
+mentions `strategies.py` only in my own plan line — genuinely un-reviewed, unlike last loop's target.
+
+- **★ #45 + #46 (MINOR) — TWO allocators documented the exact footgun that was REMOVED from them.**
+  `minimum_variance` said "The unconstrained GMV solution is projected onto the long-only simplex";
+  `maximum_diversification` said "the unconstrained solution is `w ∝ Σ^{-1}σ`, projected onto the
+  long-only simplex". Both describe the Euclidean-projection approach deleted on 2026-06-20 *because
+  it collapses to a single asset* — the module's own note calls it "the footgun … gone", and for
+  max-diversification a single asset gives diversification ratio 1.0, the WORST possible value for
+  that objective. Each docstring contradicted an inline comment a few lines below it
+  (`minimum_variance:399` "CONSTRAINED long-only GMV"; `maximum_diversification:512` "NOT a
+  projection of the unconstrained Σ^{-1}σ"). The CODE has been correct throughout — only the prose
+  lagged, and it advertised the degenerate behaviour as the design.
+- **#47 (MINOR) — the module docstring's "Allocator canon" listed 5 of 10.** The whole block-B8
+  extension was missing, including **`min_cvar`** — the Rockafellar-Uryasev tail-optimal allocator,
+  i.e. precisely the benchmark a tail-risk examiner would look for ("does the LLM's tail-aware reward
+  beat the allocator that optimises that very tail?"). Now lists all ten, points at `STRATEGY_CANON`
+  as authoritative, and records that the nine gate names are the canon minus `spy_buy_and_hold`.
+- **#48 (MINOR, latent hardening — honestly labelled) — two SLSQP solvers ignored `res.success`.**
+  `scipy.optimize.minimize` returns `res.x` whether or not it converged, and an unconverged iterate
+  renormalises into a perfectly valid-looking simplex vector. **Measured consequence: on a forced
+  `maxiter=1` solve the reported "GMV" had 60.2× the optimal portfolio SD** — silently, as a headline
+  benchmark. The sibling `_long_only_min_cvar` in the SAME module already gates on `res.success`; the
+  two QPs did not, so this is an observable internal inconsistency, not speculation.
+  **But I could NOT trigger it: 500 adversarial solves — 300 singular (T<n) covariances and 200 with
+  vols spanning 8 orders of magnitude at ρ=0.999 — all converged.** So this is hardening that makes a
+  failure detectable-by-fallback, NOT a live-bug fix, and it is recorded that way rather than dressed
+  up. Behaviour on every reachable input is unchanged.
+- **Checked and CLEARED (no finding):** the docstring claim that `spy_buy_and_hold` is excluded from
+  the benchmark gate is TRUE (`_BENCHMARK_NAMES` = 9 = canon − spy, so 1/N is not double-counted);
+  all three docstring-named tests exist; `_quasi_diag`/`_recursive_bisection` are correct López de
+  Prado (the sibling-pairing `clusters[i+1]` cannot IndexError — clusters with `len>1` each yield
+  exactly 2 children, so the list length is always even); **look-ahead is structurally impossible** —
+  `WeightPolicy` reconstructs the window from the agent's OWN observation
+  (`obs[:lookback*N]` == `returns[t-lookback:t]`), already pinned by `test_campaign_inference.py:426`.
+- **★ I CAUGHT MY OWN GUARD BEING VACUOUS — the lesson of the loop.** My new projection-docstring test
+  passed, so I checked it against the ORIGINAL text as loop 75 taught: it flagged
+  `maximum_diversification` but **MISSED `minimum_variance`**, because there the phrase straddled a
+  line break ("projected onto the\n    long-only simplex") and a naive substring test cannot see it.
+  A guard that cannot fail is the exact defect class this loop keeps finding — in my own test this
+  time. Fixed by collapsing whitespace before matching, then re-verified: both originals now caught,
+  both corrected docstrings pass. **The same latent hole existed in the loop-75 guard** (it happened
+  to match, but would break under any future re-wrap) — closed there too, sweeping the class.
+- **New coverage (genuinely uncovered, not padding):** `test_strategies_return_simplex` used ONE
+  well-conditioned window, so the delisted-name branches every covariance allocator carries
+  (`_live_mask`, the `nl==0`/`nl==1` early returns) were never exercised — despite the module noting
+  that EVERY 2020-2026 window holds ≥1 zero-variance name under `liquidate_to_cash`. New test drives
+  all 10 allocators over 6 degenerate panels (all-dead, one-live, mixed-dead, perfectly collinear,
+  T=1, N=1) asserting finite non-negative simplex weights, **plus the substantive guarantee: a dead
+  name never absorbs the book.** All pass — the guards genuinely work.
+- **Verified:** **48 tests `PYTEST_RC=0`** (`test_baselines.py` + `test_campaign_inference.py`, the
+  benchmark consumer); ruff clean; `freeze.py --check` RC=0, read-only, `freeze_hash: null`.
+
+### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),
 > and *"document absolutely everything from this session in details"* (→ this block).
@@ -2519,6 +3166,9 @@ sharing a name** — binding them would have been a self-inflicted defect.
 | 32 | 54 | MAJOR | the Phase-0 gate's **`m` (min/50k) — the planning number recorded in DECISION_LOG** — timed warmup too: reported 16.12 vs a true 24.54 min/50k, **understating the campaign's sizing input by 34%** | FIXED (steady-state window; + test) |
 | 33 | 59 | LATENT | `lookback_days = 0` built an env whose observation read `vix[-1]` — the panel's FINAL row, i.e. **the FUTURE** (negative-index aliasing; the clamp bounded only the upper side) | FIXED (refuse at construction; + test) |
 | 34 | 61 | LATENT (masked) | a non-finite action silently poisoned the rollout — NaN obs fed back to the agent while `safe_call` substituted a 0.0 reward, so training LOOKED healthy; the `port_growth <= 0.0` guard cannot catch NaN | FIXED (validate at the action boundary; + tests) |
+| 35 | 68 | STALE FACT | `build_arm`'s docstring still named "the **two** search arms" hours after R108's 7→9 reconciliation added `cma_es`/`tpe` — the same hand-typed-roster-lags-canon class that caused a launch-breaking defect in another lane | FIXED (corrected + config named authoritative) |
+| 36 | 69 | STALE FACT (×8) | the #35 CLASS swept: R108's 7→9 and the H1 4→11 canon left stale counts in 8 operative places — incl. **`config/arms.yaml`'s own header** ("seven arms" while declaring nine), a **LAUNCHER** on the reboot-recovery path ("7 arms + 4 H1 baselines"), and paper-facing notebook prose that also wrongly claimed *every* arm shares the search protocol | FIXED (8 sites; 1 flagged, 2 correctly left as history) |
+| 37 | 70 | STALE FACT (×6) | the same class in `docs/` — the **GO-day runbook** ×3, both `CAMPAIGN_SPEC_*` notes and the preflight doc still said 7 arms; config verified CONSISTENT (campaign.yaml == arms.yaml == 9) so only prose was stale | FIXED (6 sites; 6 flagged incl. a **stale `paper/_build` render** whose sources are clean) |
 
 **Two loops CLEAN, with the reasons recorded so they are never re-swept:** loop 45 (`data/validation.py`
 — the NaT concern REFUTED by execution: `d2 - INT64_MIN` overflows to a negative gap, so it IS caught)
