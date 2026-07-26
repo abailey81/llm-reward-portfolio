@@ -371,3 +371,50 @@ def test_pull_archive_mirrors_reject_markers_incrementally(tmp_path):
     assert permanent_reject_ids(tmp_path) == {"c1"}
     # idempotent second pull — both diffs empty, nothing fetched
     assert pull_archive("/r/out", tmp_path, runner=runner, fetch=fetch) == 0
+
+
+def test_remote_home_refuses_a_noisy_resolution_instead_of_building_a_garbage_root():
+    """A login banner must not end up inside the remote root (deep review #63).
+
+    ``remote_home`` resolved ``$HOME`` through a LOGIN shell (``sh -lc``), which sources the profile
+    files — and on a shared HPC those routinely echo module-load or notice lines to STDOUT. The
+    validation was ``startswith("/")`` alone, which is asymmetric and fails OPEN: ``.strip()`` clears
+    the ends, so banner text BEFORE the path was refused, but banner text AFTER it left "/" at
+    position 0 and was ACCEPTED. REPRODUCED — ``home='/home/ucestes\nWelcome to Myriad!'`` expanded
+    to ``'/home/ucestes\nWelcome to Myriad!/Scratch/run'``.
+
+    That garbage root goes straight into the jobscript's ``#$ -wd``, which is exactly the 2026-07-11
+    incident this helper exists to prevent: an invalid ``-wd`` puts the whole array in ``Eqw`` at
+    dispatch, where UCL's cleanup deletes it with NO qacct record — a traceless loss. A submission
+    that cannot resolve its own root must fail LOUD."""
+    import pytest
+
+    from src.cluster.submit import expand_remote, remote_home
+
+    def _runner(out: str):
+        return lambda cmd: out
+
+    # the clean case still works, and expands correctly
+    home = remote_home(_runner("/home/ucestes\n"))
+    assert home == "/home/ucestes"
+    assert expand_remote("~/Scratch/run", home) == "/home/ucestes/Scratch/run"
+
+    # every noisy resolution is REFUSED rather than silently becoming a root
+    for bad in ("/home/ucestes\nWelcome to Myriad!\n",     # banner AFTER — the fail-open case
+                "Loading modules...\n/home/ucestes\n",     # banner BEFORE
+                "/home/ucestes\n\n[NOTICE] maintenance\n",  # MOTD with a blank line
+                "/home/uce stes\n",                        # embedded whitespace
+                "home/ucestes\n",                          # not absolute
+                "\n", ""):                                 # empty
+        with pytest.raises(RuntimeError, match=r"remote \$HOME"):
+            remote_home(_runner(bad))
+
+    # and the noise SOURCE is removed too: a NON-login shell (profiles are not sourced)
+    seen: list[list[str]] = []
+
+    def _capture(cmd):
+        seen.append(list(cmd))
+        return "/home/ucestes\n"
+
+    remote_home(_capture)
+    assert seen[0][:2] == ["sh", "-c"], f"remote_home must not use a login shell: {seen[0]}"

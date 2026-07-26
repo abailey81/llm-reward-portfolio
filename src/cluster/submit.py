@@ -76,9 +76,26 @@ def remote_home(runner: Runner) -> str:
     against the real remote home via this helper + :func:`expand_remote`.
     """
     # The runner quotes each word, so $HOME must be evaluated by an explicit remote shell.
-    home = runner(["sh", "-lc", 'printf %s "$HOME"']).strip()
-    if not home.startswith("/"):
-        raise RuntimeError(f"could not resolve the remote $HOME (got {home!r})")
+    # `-c`, NOT `-lc` (deep review 2026-07-26, #63): a LOGIN shell sources the profile files, and on
+    # a shared HPC those routinely echo module-load / notice lines to STDOUT. `$HOME` is set by
+    # sshd/login before any profile runs, so a non-login shell resolves it just as well and removes
+    # the noise source entirely.
+    home = runner(["sh", "-c", 'printf %s "$HOME"']).strip()
+    # Validate it is ONE plausible absolute path. The previous check was `startswith("/")` alone,
+    # which is asymmetric and fails OPEN: `.strip()` clears the ends, so banner text BEFORE the path
+    # was correctly refused, but banner text AFTER it left "/" at position 0 and was ACCEPTED —
+    # REPRODUCED, yielding home='/home/ucestes\nWelcome to Myriad!' and an expanded root of
+    # '/home/ucestes\nWelcome to Myriad!/Scratch/run'. That garbage root goes straight into the
+    # jobscript's `#$ -wd` directive, which is precisely the 2026-07-11 incident this helper exists
+    # to prevent: an invalid -wd puts the whole array in Eqw at dispatch, where UCL's cleanup
+    # deletes it with NO qacct record. Fail LOUD instead — a submission that cannot resolve its own
+    # root must never proceed.
+    if not home.startswith("/") or len(home.splitlines()) != 1 or any(c.isspace() for c in home):
+        raise RuntimeError(
+            f"could not resolve a single clean remote $HOME (got {home!r}). If the login profile "
+            "prints to stdout, silence it or fix the account's shell startup — the resolved home "
+            "becomes the jobscript's -wd, and an invalid -wd is dispatch-time Eqw with no trace."
+        )
     return home
 
 

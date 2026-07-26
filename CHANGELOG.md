@@ -3738,6 +3738,53 @@ DIFFERENT WINNER than an uninterrupted one. Streak stays 0/30.**
   `run_campaign_cluster`, `cluster_driver`, `dfo_tpe_batch`, `allocation`); ruff clean;
   `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
 
+**Loop 88 — `src/cluster/submit.py`: ONE finding (#63) — the remote-root resolver fails OPEN on a
+login banner, which is the 2026-07-11 incident's own failure mode. `src/cluster/` is now FULLY
+reviewed. Streak stays 0/30.**
+
+- **★ #63 — `remote_home` accepted a `$HOME` polluted by profile output, and the asymmetry is the
+  tell.** It resolved the remote home through a **LOGIN** shell (`sh -lc`), which sources the profile
+  files — and on a shared HPC those routinely echo module-load or notice lines to **stdout**. The
+  validation was `startswith("/")` alone. Because `.strip()` only clears the ends, banner text
+  **before** the path was correctly refused, but banner text **after** it left `/` at position 0 and
+  was **ACCEPTED**. REPRODUCED:
+
+  ```
+  home = '/home/ucestes\nWelcome to Myriad!'
+  expand_remote("~/Scratch/run") = '/home/ucestes\nWelcome to Myriad!/Scratch/run'
+  ```
+
+  That garbage root goes straight into the jobscript's `#$ -wd` directive — **which is precisely the
+  2026-07-11 incident this helper was written to prevent**: an invalid `-wd` puts the whole array in
+  `Eqw` at dispatch, where UCL's cleanup deletes it with **no `qacct` record**, i.e. a traceless
+  loss. The guard existed for exactly this and let exactly this through.
+  **Fixed at both ends:** the shell is now **non-login** (`sh -c`), removing the noise source —
+  `$HOME` is set by sshd from the passwd entry before any profile runs, so a login shell buys
+  nothing here; and the result must now be a **single, whitespace-free absolute path**, so any
+  residual noise fails LOUD with a message naming the consequence. A submission that cannot resolve
+  its own root must never proceed.
+  **A pinned test had to be updated, and I checked it was safe first.** `test_cluster_adapter.py`
+  asserted the exact argv `["sh", "-lc", …]`. The docs do record that a login shell is required — but
+  in the **jobscript** (`#!/bin/bash -l` loads the module system), not for reading `$HOME`; and the
+  test's own docstring gives the reason for a shell as **quoting**, not login-ness. So `-l` was
+  incidental here. Pin updated with that reasoning recorded, plus a new case asserting a
+  banner-polluted resolution fails loud.
+- **Verified CLEAN (do not re-open):** this module is otherwise well-hardened and every lens came
+  back clean. `ssh_runner` `shlex.quote`s **every** argv word (the V10 fix — ssh joins with spaces
+  and the remote shell re-splits) and runs `check=True` with a pinned utf-8 decode, so a non-zero rc
+  can never read as success; `parse_job_id` **fails loud** rather than returning a sentinel, so a
+  garbled qsub reply cannot masquerade as a submitted job; `push_batch` sanitises the batch name,
+  `shlex.quote`s the remote root, checks the local `tar` exit code as well as ssh's, and is
+  idempotent — and a torn push cannot start a wrong training because `read_spec` fail-CLOSES on a
+  missing index or sha mismatch, so partial arrival is caught at the moment of use; `expand_remote`
+  refuses `~user` forms rather than guessing. Swept the class: **no other login-shell remote read
+  exists** anywhere in the cluster layer.
+- **Process note (fourth occurrence):** `pytest` on a non-existent path returns **RC=4, not a pass** —
+  there is no `tests/test_jobscript.py`; the jobscript tests live in `test_cluster_adapter.py` and
+  `test_cluster_killswitch.py`. Caught because RC is read from the log rather than assumed.
+- **Verified:** **177 tests `PYTEST_RC=0`** across seven cluster suites; ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),

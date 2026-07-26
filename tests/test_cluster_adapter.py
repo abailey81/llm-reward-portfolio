@@ -188,9 +188,18 @@ def test_expand_remote_and_remote_home():
         return "/home/ucestes\n"
 
     assert remote_home(fake_runner) == "/home/ucestes"
-    assert calls == [["sh", "-lc", 'printf %s "$HOME"']]
+    # `-c`, NOT `-lc` (deep review 2026-07-26, #63). A LOGIN shell is required in the JOBSCRIPT
+    # (`#!/bin/bash -l` loads the module system — MYRIAD_DEEP_RESEARCH §5), but NOT here: `$HOME`
+    # is set by sshd from the passwd entry before any profile runs, and sourcing the profile only
+    # adds a stdout noise source — module-load/notice lines that a shared HPC routinely prints.
+    # The reason this needs a shell at all is QUOTING (see the docstring above), not login-ness.
+    assert calls == [["sh", "-c", 'printf %s "$HOME"']]
     with pytest.raises(RuntimeError, match="remote \\$HOME"):
         remote_home(lambda _cmd: "garbage")
+    # a resolution polluted by a trailing banner must FAIL LOUD, not become the remote root: it
+    # would land in the jobscript's `#$ -wd`, and an invalid -wd is dispatch-time Eqw with no trace
+    with pytest.raises(RuntimeError, match="remote \\$HOME"):
+        remote_home(lambda _cmd: "/home/ucestes\nWelcome to Myriad!\n")
 
 
 def test_write_jobscript_forces_lf_endings(tmp_path):
