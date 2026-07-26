@@ -163,7 +163,7 @@ inference:
       decision: one_sided_both_legs_content_over_format
       gates_h2: false                           # DISJOINT from the frozen m=6 union — reported, NEVER a gate
     dsr_effective_n: {key: dsr_effective_n, report_only: true}   # R30 — sequential-reflective correlation sensitivity
-    cross_hypothesis_multiplicity: {key: cross_hypothesis_multiplicity, stance: separate_estimands_bonferroni_4_sensitivity}  # R31
+    cross_hypothesis_multiplicity: {key: cross_hypothesis_multiplicity, stance: separate_estimands_bonferroni_4_sensitivity}  # R31 = the CURRENT DEFAULT; R105 registers a conjunctive-validity graphical-FWER UPGRADE (inference.validity_tier) that supersedes this ON supervisor ratification before the freeze
     delisting_band:                             # R33 — the delisting-return sensitivity band (DATA-level; DISJOINT)
       key: delisting_band
       panel: univ4                              # the Shumway panel carrying the 333 delisting cells (NOT the headline — univ5 is, R73); band overwrites
@@ -175,6 +175,35 @@ inference:
       metrics: [cvar_05, cvar_01]               # pooled tail recomputed per d (DATA-level, NO policy re-run)
       report_only: true
       gates_h2: false                           # DISJOINT from the frozen m=6 union — reported, NEVER a gate
+  validity_tier:                                # R105 (2026-07-26, A3): the DESIGNED graphical-multiplicity confirmatory tier. Full design + 7 fragility guards: docs/VALIDITY_TIER_DESIGN_2026-07-26.md
+    status: registered_pending_supervisor_ratification   # DESIGNED + registered; SUPERSEDES the R31 separate-estimands stance ONLY on Tamer/Ramin/Okhrati sign-off before the GO-day freeze (R94). Until ratified, R31 is the disclosed operative default.
+    method: graphical_bretz_maurer_brannath_posch_2009    # bretz2009graphical; a shortcut for a closed test (marcus1976closed) -> strong FWER at alpha
+    alpha: 0.05
+    fwer_control: strong                        # H2 IUT internals UNTOUCHED (berger1982iut); the graph governs cross-hypothesis alpha-flow ONLY
+    claim: conjunctive_validity                 # "validated: reward-content matters (H2) AND is CONTENT-not-format (N5) AND iteration helps (H3) AND beats search (H4)"
+    supersedes_on_ratification: cross_hypothesis_multiplicity   # the R31 separate-estimands / Bonferroni-4 stance
+    scope: confirmatory_opus_arm_at_achieved_rung              # single confirmatory look on Opus; the 10 legs stay report-only (R101); m=6 fed-vector + identification UNTOUCHED
+    nodes:
+      N1_h2_tail:   {test: h2_tail_iut,        metric: cvar,   level: 0.05, direction: one_sided_dist_better}
+      N2_h2_ra:     {test: h2_ra_iut_or_tost,  metric: sharpe, direction: one_sided_dist_better, equivalence: tost_0.05_dsr}  # TOST IS an IUT (bergerhsu1996equivalence) -> a valid node p-value; our predicted tail-win + Sharpe-equivalence activates the tier
+      N3_h3:        {test: h3_iterative_gt_singleshot, direction: one_sided, endpoint: per_seed_iqm}
+      N4_h4:        {test: h4_llm_gt_search_iut, comparators: [random_search, bayes_opt], direction: one_sided}   # IUT over the 2 comparators -> one valid p-value
+      N5_structure: {test: distributional_gt_placebo_shuffled, metric: cvar, level: 0.05, direction: one_sided_content_over_format, arm_b: placebo_shuffled}   # 2026-07-26 UPGRADE: the tail effect is CONTENT not FORMAT (deepens the mechanism headline); forking-path-clean (never ran in the 6-arm prototype)
+    initial_weights: {N1_h2_tail: 0.5, N2_h2_ra: 0.5, N3_h3: 0.0, N4_h4: 0.0, N5_structure: 0.0}   # ALL alpha on the headline; the tier (N3/N4/N5) activates ONLY on upstream success -> ZERO headline power cost
+    edges:                                      # alpha recycled on ANY rejection (superiority OR equivalence); each node's out-edges sum to <= 1. WEIGHTS/TOPOLOGY ratification-pending.
+      N1_h2_tail:   {N2_h2_ra: 0.34, N4_h4: 0.33, N5_structure: 0.33}   # tail confirmed -> RA co-primary + search + content-over-format
+      N2_h2_ra:     {N1_h2_tail: 0.5, N3_h3: 0.5}                       # RA confirmed -> tail (co-primary) + iteration
+      N3_h3:        {N4_h4: 1.0}
+      N4_h4:        {N3_h3: 0.5, N5_structure: 0.5}
+      N5_structure: {N3_h3: 0.5, N4_h4: 0.5}
+    primary_rule: bonferroni_weighted_graph              # referee-proof under any dependence
+    sensitivity: [romano_wolf_graph, bh_fdr_over_m6]     # retained power sensitivity + cross-metric disclosure (benjamini1995fdr, romanowolf2005stepwise)
+    excludes: [H1_beat_human]                   # H1 = descriptive-only (comparator data-snoop); NEVER a confirmatory node
+    forking_path_guard: "the ENTIRE graph (nodes/weights/edges/tests/directions/endpoints) is FROZEN before the sealed leg; topology principled + symmetric (headline-first; H3<->H4 symmetric), NOT engineered around any prototype outcome; no prototype number enters the dissertation"
+    ratification_pending: [conjunctive_claim, graphical_primary_vs_bh_primary, alpha_allocation, n5_structure_node, n6_h1_desnoop_candidate]   # supervisor sign-off before the GO-day freeze (R94)
+    candidate_upgrades:                         # 2026-07-26 upgrade analysis (docs/VALIDITY_TIER_DESIGN_2026-07-26.md #upgrade-analysis)
+      n6_h1_desnoop: "H1 (beat-the-human) is descriptive-only ONLY because the 4 hand-rewards are max-selected on the sealed leg (a test-set snoop). FIX: select best-of-4 on VAL (pinned argmax) + score on the sealed test (both sides val-selected) -> a confirmatory-eligible node N6. Registered as a CANDIDATE (tangential to the feedback-channel headline; the de-snoop changes H1's definition -> ratification)."
+    source: docs/VALIDITY_TIER_DESIGN_2026-07-26.md
 
 contamination: {blinding: anonymized_arrays, stratify: training_cutoff, second_model: open_weights_diff_cutoff}
 # SPLIT C (ADR-044 RATIFIED 2026-07-01; EXECUTED 2026-07-02 with the univ5 rebuild + the settled

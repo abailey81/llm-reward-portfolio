@@ -1,0 +1,149 @@
+# A3 — the graphical-multiplicity VALIDITY TIER (2026-07-26, R105)
+
+**Goal (Stefan's arms directive + Tamer's A3):** promote the two search/design control hypotheses — **H3**
+(iterative reflection > single-shot best-of-N) and **H4** (the LLM designer > random-search / Bayesian-opt)
+— from *report-only* (`secondary_families`) into a **well-powered CONFIRMATORY validity tier**, *advanced,
+sophisticated, and non-fragile*, WITHOUT costing the H2 headline any power and WITHOUT weakening the frozen
+H2 intersection–union logic. This makes the arms a coherent validity story: **the LLM-in-the-loop
+reward-design method is validated as a package — the reward CONTENT matters (H2), iteration helps (H3), and
+it beats naive search (H4).**
+
+Backed by first-hand-verified cites (added to `refs.bib` 2026-07-26): `bretz2009graphical` (the framework),
+`berger1982iut` (IUT = the correction; also *repairs* the previously-uncited "Berger 1982" at CH4:231),
+`marcus1976closed` (closure ⇒ strong FWER), `bergerhsu1996equivalence` (TOST *is* an IUT — lets equivalence
+and superiority share one graph), `benjamini1995fdr` + `romanowolf2005stepwise` (the retained sensitivity).
+
+## The construction (a single weighted directed graph ABOVE the existing structure)
+A Bretz–Maurer–Brannath–Posch (2009) graph governs only **cross-hypothesis α-flow**; it does **not** touch
+any node's internals — each H2 co-primary stays an IUT whose size ≤ α by Berger (1982). Because a graphical
+procedure is a shortcut for a closed test (Marcus–Peritz–Gabriel 1976), the whole family enjoys **strong
+FWER control at α = 0.05 under arbitrary dependence**.
+
+**Nodes** (each supplies exactly ONE valid level-α p-value — the only requirement, which is what lets test
+types mix):
+- **N1 = H2-Tail** — the CVaR-5% IUT (max of its three one-sided leg p-values). The scientific headline.
+- **N2 = H2-RA** — the Sharpe IUT *and* the ±0.05-DSR TOST equivalence. TOST is itself an IUT
+  (`bergerhsu1996equivalence`), so its p-value is a valid node p-value and mixes into the same graph with
+  no error inflation — critical, because our predicted result is a **tail win + a Sharpe equivalence**.
+- **N3 = H3** — iterative > single-shot best-of-N (one-sided superiority).
+- **N4 = H4** — LLM designer > {random-search, Bayesian-opt}; itself an IUT over the two comparators, so it
+  stays one valid p-value.
+
+**Initial α-allocation (pre-specified):** `w(N1)=0.5, w(N2)=0.5, w(N3)=0, w(N4)=0`. ALL α starts on the two
+headline co-primaries; the validity tier (N3, N4) is **activated only by upstream success** — the defining
+feature of a confirmatory tier and precisely why it costs the H2 headline **zero power** vs the current
+design. Rationale for 0.5/0.5: co-primary symmetry (neither H2 leg is privileged); rationale for 0 on the
+tier: the headline must earn the right to spend α downstream.
+
+**Edges (recycle α on ANY rejection — superiority or equivalence alike):**
+- `N1 → {N2: 0.5, N4: 0.5}` — a confirmed tail headline frees α to confirm the method beats search.
+- `N2 → {N1: 0.5, N3: 0.5}` — a confirmed RA-equivalence (or RA-superiority) frees α to confirm iteration helps.
+- `N3 ↔ N4` (weight 1 each way) — the two tier nodes recycle exhausted α to each other.
+
+**The predicted-null path is a first-class α source (non-obvious, load-bearing).** α flows on *rejection*,
+and a **TOST rejection = "equivalence proven."** So our predicted outcome — a CVaR-5% tail win (N1 rejects)
++ a Sharpe *equivalence* (N2's TOST rejects) — activates the tier legitimately; we are **not** stranded when
+the Sharpe superiority is, as predicted, a tie. This is why `bergerhsu1996equivalence` is load-bearing.
+
+**Primary rule = the Bonferroni-weighted graph** (valid under any dependence; referee-proof). **Sensitivity
+= a Romano–Wolf / resampling graph** (recovers the correlation-induced power our shared-seed design earns);
+plus **BH-FDR over the m=6 union** as the disclosed cross-metric sensitivity. This is a strict Pareto
+improvement over the current "Bonferroni-over-4" sensitivity (CH4:275,301) — Bonferroni is the weakest member
+of the very family the graph generalises.
+
+## Scope + interaction with R101 (must stay consistent)
+The tier governs the **single confirmatory look on the Opus arm** at the Aug-27 achieved rung (H2/H3/H4 are
+properties of the confirmatory reward-design process, not per-leg). The 10 replication legs remain
+**report-only** (R101); the pooled cross-model bounded-effect + per-leg BH-FDR are unchanged. The tier does
+NOT alter the m=6 fed-vector family or the identification principle.
+
+## Fragility guards (a statistician / Okhrati will probe these — pre-answered)
+1. **FORKING-PATH on promotion — the #1 guard.** The prototype hinted at outcomes (H3 unsupported, H4 clean),
+   so choosing to promote H3/H4 and the graph topology *after* seeing that would be a forking path. GUARD:
+   the ENTIRE graph — nodes, initial weights, edge weights, each node's test definition, one-sided
+   directions, and the single endpoint per node — is **FROZEN in the pre-registration BEFORE the sealed
+   leg**. No prototype number enters the dissertation, and the topology is **principled and symmetric**
+   (headline-first; H3↔H4 symmetric), NOT engineered around any expected outcome. Disclosed as such.
+2. **"Separate estimands vs one family."** The graph is justified iff we make the **conjunctive validity
+   claim** ("the method is validated: reward-content matters AND iteration helps AND it beats search"). We
+   make exactly that claim (Stefan's arms directive); stated explicitly so the graph is necessary, not
+   gratuitous. A failing tier node (e.g. H3 not confirmed) is an honest confirmatory FINDING ("iteration
+   does not help here — a boundary of the method"), not a design failure.
+3. **IUT/TOST conservativeness → power.** IUTs and TOST have size ≤ α but are conservative away from the
+   least-favourable boundary. GUARD: each node's power/MDE is reported separately; H3/H4 are single
+   one-sided tests (less conservative than the H2 IUTs), so the tier is not the power-limiting element.
+4. **Edge semantics must be scientifically coherent across test types.** Each edge is justified in words;
+   comparator sets kept straight (H2 = within-LLM channel vs scalar/placebo; H4 = LLM vs external search) so
+   "equivalence to scalar" and "superiority over search" never read as contradictory.
+5. **Hidden endpoint-multiplicity inside H3/H4.** Each tier node pre-specifies ONE endpoint (or is an
+   explicit IUT over its endpoints) — no silent Sharpe-and-CVaR double test.
+6. **Consonance / Simes.** Bonferroni-based weights are consonant by construction and keep the closed-test
+   equivalence; the parametric/Romano-Wolf upgrade is a disclosed sensitivity only.
+7. **α-allocation is a free parameter** — justified above (headline-priority + co-primary symmetry), argued
+   not asserted (Stefan criterion 4).
+
+## Judgment calls surfaced for Tamer / Ramin / Okhrati ratification (pre-freeze, reversible)
+- **The conjunctive-validity framing** (chosen; makes the graph necessary) — confirm it is the intended claim.
+- **Whether the graphical-FWER tier is the PRIMARY rule** (this design) **or Okhrati prefers the current
+  BH-FDR primary with the graph as a sensitivity** — flagged; either is a one-line switch here.
+- **The α-allocation** 0.5/0.5-headline / 0-tier — confirm.
+These are registered as the design of record but explicitly marked for supervisor ratification before the
+GO-day freeze (the freeze executes with the campaign-run approval, R94).
+
+## Report-only / descriptive-only elements — the systematic UPGRADE ANALYSIS (Tamer, 2026-07-26)
+Directive: ultrathink on the priorities and, *where the priorities genuinely allow*, upgrade report-only /
+descriptive-only elements — but never at the cost of identification, the frozen H2 logic, forking-path
+discipline, or Okhrati's depth-over-breadth. Each element below is judged against that bar.
+
+**UPGRADE — promoted into the confirmatory tier (priorities allow):**
+- **H3 (iteration > single-shot)** → node **N3**. Done above.
+- **H4 (LLM designer > search)** → node **N4**. Done above.
+- **Structure control / `placebo_shuffled` (content-over-format)** → **NEW node N5** (this amendment). The
+  strongest additional upgrade: it is a *mechanism* claim (the tail effect comes from the fed CONTENT, not
+  merely from the presence of a six-number block), so promoting it **DEEPENS the originality headline**
+  (Okhrati: depth + originality) and is exactly the "control that isolates the effect" Stefan named. It is
+  already a frozen arm (no re-authoring), it is **forking-path-clean** (the 6-arm prototype never ran
+  `placebo_shuffled`, so no prototype signal informs it), and it enters DOWNSTREAM of the H2 headline
+  (activate-on-upstream), so it costs the headline zero power. N5 makes the conjunctive claim strictly
+  stronger: *reward-content matters (H2) AND it is the content not the format (N5) AND iteration helps (H3)
+  AND it beats naive search (H4).*
+
+**CANDIDATE — upgradeable only after a de-snoop fix (registered, ratification-pending):**
+- **H1 (beat-the-human)** is descriptive-only *solely* because the four hand-designed baselines are
+  max-selected on the same sealed leg they are scored on (a test-set snoop → no valid p-value). That snoop
+  is FIXABLE without new data: select the **best-of-four human rewards on the VALIDATION split** (a pinned
+  argmax-over-4, mirroring the winner-selection protocol), then contrast the LLM's val-selected winner
+  against that single val-selected human champion **on the sealed test**. Both sides are then selected on
+  val and scored on test → the contrast is clean and confirmatory-eligible. This would add a node
+  **N6 = "the method beats hand-crafted human rewards."** Registered here as a CANDIDATE, not yet a node,
+  because (i) it is tangential to the feedback-channel headline (Okhrati depth-over-breadth), and (ii) the
+  de-snoop is a genuine change to H1's definition that a supervisor should ratify. Flagged for ratification.
+
+**KEEP report-only — upgrading would VIOLATE the priorities or is infeasible (stated, not defaulted):**
+- **`factor_attribution` (BAB/low-vol pre-empt)** — a robustness DEFENCE ("your edge is just a known
+  factor"), not a hypothesis; a confirmatory version would be gratuitous breadth.
+- **`delisting_band`, `cost_sweep`, `dsr_effective_n`** — DATA/parameter sensitivities (no policy re-run);
+  they answer "is the result robust to X", not "is there an effect". Report-only is correct.
+- **`capability_gradient`** — the primary SWE-bench anchor is DEAD (2/10 legs); it cannot be upgraded, and
+  the honest move is to DOWN-RANK it to the two within-family pair-DiDs (Qwen-9B↔27B, Haiku↔Opus) — a
+  separate fix, not a promotion.
+- **The M2 psychometric module (R96)** — a registered-but-not-activated P2-paper extension; activation is
+  Tamer's write-time decision, not a confirmatory-tier node.
+- **The mechanism sub-experiments (named-vs-blinded, legible-vs-raw; SQ1–SQ3)** — these ARE the depth
+  headline and are best served as RICH descriptive/mediation analyses (Okhrati rewards the insight, not a
+  p-value); the one plausibly-confirmatory piece, SQ1 responsiveness, already carries a positive control and
+  is kept descriptive by design so the mechanism story stays a detective story, not a test battery.
+- **The per-model H2 contrasts (R101 BH-FDR secondary)** — R101 (Okhrati's seed-parity) already set
+  pooled-primary + per-model-FDR-secondary; promoting per-model to primary is the "11 independent
+  confirmatory tests" alternative that R101 flagged as *Okhrati's* call, not a unilateral upgrade.
+
+**Net:** two upgrades already in the tier (H3, H4) + one strong new one (N5 structure/content-over-format,
+implemented) + one ratification-pending candidate (N6 H1, de-snooped). Everything else stays report-only
+for a stated priority reason. This is "upgrade where it deepens the confirmatory validity story at zero
+headline cost; keep report-only where it is a sensitivity, a defence, a dead anchor, or a depth-analysis."
+
+## Reproduce / verify
+`config/preregistration.yaml: inference.validity_tier` (the machine-readable graph) + `PREREGISTRATION.md`
+R105 + `tests/test_validity_tier.py` (graph well-formed: node p-value validity, per-node out-edge weights
+sum ≤ 1, initial weights sum to α-allocation, H1 excluded). The analysis implementation reuses
+`src/inference/multiple_testing.py` (`benjamini_hochberg`, `romano_wolf`) as node/sensitivity procedures.
