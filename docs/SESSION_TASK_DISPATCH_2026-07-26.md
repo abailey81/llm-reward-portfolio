@@ -621,7 +621,29 @@ repeat Phase 2. The freeze fires only on Tamer's GO (R94) — a green suite is e
 - `LOGIC-REVIEWER: QUIESCED at 6afedd4 — zero uncommitted src/scripts/config/tests changes of mine; my last three touches were docs-only (dispatch/CHANGELOG/HANDOFF). Not editing code until Phase 3.`
 - `FEATURE/BUILD: `
 - `CODE-REVIEWER: `
-- `CAPACITY/MYRIAD: `
+- `CAPACITY/MYRIAD: QUIESCED at b38d7a0 — every CAPACITY-lineage file is COMMITTED and green (259 tests RC=0 over cluster/sentinel/health, ruff clean). Not editing src/scripts/config/tests until Phase 3. Two corrections + one RED found on the way, below.`
+
+**⚠ CAPACITY corrections to this section (read before Phase 2):**
+
+1. **The dirty cluster/sentinel files were NOT my uncommitted work.** I had committed everything I
+   touched; another lane was editing `jobscript.py`, `killswitch.py`, `sentinel.py` and their tests.
+   I verified them, fixed what was broken, and committed the batch at `b38d7a0` so Phase 1 is not
+   blocked waiting on a lane that does not know it owns them. **Nothing of yours was discarded.**
+2. **`scripts/monitor.py:249` is already CLOSED — remove it from what CODE-REVIEWER owes.** Verified
+   end-to-end, not just as a pure function: the latch is set by the caller (`_state_seen[0] = True`
+   before the check), `build_alert` renders `state_lost` with its own message, and
+   `process_notification` has no reason whitelist that could drop it.
+
+**⛔ AND A RED THAT PHASE 2 WOULD HAVE HIT — now fixed, but the lesson matters.** The in-flight
+`ts` addition to the epilogue trap made `test_epilogue_line_produces_valid_json_under_real_bash`
+fail, **reproducibly in isolation** (so: a real regression, not a read-race). Root cause: a bare
+`$(date +%s)` that expands to nothing emits a `"ts":` with **no value** — invalid JSON — and
+`read_epilogue` is torn-line tolerant, so it **silently discards the row**, losing the death record
+the field was added to stamp. Fixed with a numeric fallback (`|| echo 0`) plus a test for the
+`date`-unavailable case. **Second, `kill_verdict` had no CONSUMER:** the sentinel computed it into
+the inputs dict and no check read it, so it never reached the report, the severity, or the phone
+alert — the built-but-unwired pattern one level up, inside the very change that fixed another
+instance of it. `campaign_health.check_admin_kill` now consumes it, with a wiring-lock test.
 
 ## WHAT EACH LANE OWES BEFORE PHASE 1
 
