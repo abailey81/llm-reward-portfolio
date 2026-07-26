@@ -191,7 +191,15 @@ def training_core_hours(train_steps: int = 400_000,
 
 
 def total_trainings(rung: int) -> int:
-    """Total trainings to complete the campaign at seed rung ``n``: ``1,740 + 69n``."""
+    """Total trainings to complete the campaign at seed rung ``n``: ``1,800 + 71n``.
+
+    ⚠ The formula in this docstring read ``1,740 + 69n`` until 2026-07-26 — STALE since the DFO arms
+    landed, and wrong by 1,196 trainings at n=568 (40,932 vs the true 42,128, which is the value the
+    registered ladder actually carries). Not cosmetic: this is the function the whole campaign is
+    planned from, and the ``69`` hid the fact that the **11-member H1 canon sits in the per-rung
+    denominator** — precisely the question amendment R111 had to answer. The CONSTANTS were correct
+    throughout; only the prose drifted.
+    """
     if rung < 0:
         raise ValueError(f"rung must be >= 0, got {rung}")
     return _SEARCH_TRAININGS + _TEST_UNITS_PER_RUNG * int(rung)

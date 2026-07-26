@@ -41,10 +41,13 @@ two are different things and must not be confused.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
+
+_LOG = logging.getLogger(__name__)
 
 __all__ = [
     "KillVerdict",
@@ -70,7 +73,8 @@ __all__ = [
 #: and the administrative-kill retreat below.
 #:
 #: Note the arithmetic that makes this uncontroversial: the campaign's total work is FIXED
-#: (1,740 + 69n trainings), so total core-hours are the same however fast we take them — 636 cores
+#: (1,800 + 71n trainings — corrected 2026-07-26 from a stale "1,740 + 69n"; see
+#: :func:`lanes.total_trainings`), so total core-hours are the same however fast we take them — 636 cores
 #: x 23.4 d ~= 337k core-h vs 2,560 x 5.8 d ~= 356k. Going faster does not consume more of Myriad;
 #: it consumes the same amount in a shorter window, and UCL's own criterion explicitly permits
 #: impact that is *"not of long duration"*. What the rate buys is schedule robustness: at 636 cores
@@ -117,6 +121,10 @@ class KillVerdict:
         The evidence counts behind the verdict.
     new_core_cap : int or None
         The reduced self-imposed concurrency cap (``None`` when no change is required).
+    n_undated : int
+        Rows excluded because they carry no usable ``ts`` and so cannot be placed in the burst
+        window (#56). Non-zero means the admin-kill detector ran DEGRADED on this input — surfaced
+        rather than hidden, because under-detecting is the error that costs Myriad access.
     """
 
     classification: str
@@ -125,15 +133,43 @@ class KillVerdict:
     n_deaths: int = 0
     n_hosts: int = 0
     new_core_cap: int | None = None
+    n_undated: int = 0
 
 
-def _recent(events: Iterable[dict[str, Any]], now: float, window: float) -> list[dict[str, Any]]:
-    out = []
+def _recent(
+    events: Iterable[dict[str, Any]], now: float, window: float
+) -> tuple[list[dict[str, Any]], int]:
+    """``(rows inside the window, n_undated)`` — an UNDATED row is never called recent.
+
+    ⚠ This previously admitted a row whose ``ts`` was missing (``ts is None or ...``), which made the
+    window INERT on real data: the jobscript's epilogue line emitted ``task/host/gpu/rc/secs`` and no
+    timestamp at all, so EVERY death ever written counted as "within 300s". MEASURED (deep review
+    2026-07-26, #56): 12 ordinary failures scattered over 20 DAYS across 6 hosts were classified
+    ``admin_kill`` -> ``retreat``, which halves the core cap AND writes the incident file that blocks
+    all submission until a human clears it. Over a 23-day campaign that false positive was close to
+    certain.
+
+    Burstiness is inherently temporal, so a row we cannot place in time is not evidence of a burst
+    and is EXCLUDED. But excluding it silently would trade a false positive for a false NEGATIVE on
+    the one guard protecting Myriad access, so the count is returned and reported by the caller
+    (same discipline as the loop-80 extrapolation counter: never fabricate, always make the gap
+    visible). The emitter now stamps ``ts``; this keeps a legacy or torn ledger degrading LOUDLY.
+    """
+    out: list[dict[str, Any]] = []
+    n_undated = 0
     for e in events:
         ts = e.get("ts")
-        if ts is None or float(ts) >= now - window:
+        if ts is None:
+            n_undated += 1
+            continue
+        try:
+            fresh = float(ts) >= now - window
+        except (TypeError, ValueError):
+            n_undated += 1
+            continue
+        if fresh:
             out.append(e)
-    return out
+    return out, n_undated
 
 
 def classify_task_deaths(
@@ -174,9 +210,26 @@ def classify_task_deaths(
     only a multi-host burst that survives both filters is called an administrative kill.
     """
     now = time.time() if now is None else float(now)
-    deaths = [e for e in _recent(events, now, window_secs) if int(e.get("rc", 0) or 0) != 0]
+    in_window, n_undated = _recent(events, now, window_secs)
+    if n_undated:
+        # Loud, because the alternative to a false positive here is a false NEGATIVE on the guard
+        # that protects Myriad access (#56). An undated ledger means the burst detector is BLIND.
+        _LOG.warning(
+            "killswitch_UNDATED_EPILOGUE_ROWS: %d of %d rows carry no usable 'ts' and were EXCLUDED "
+            "from the %.0fs burst window — the admin-kill detector is degraded for those rows. "
+            "Ensure the jobscript epilogue stamps 'ts' (it does since 2026-07-26); a legacy ledger "
+            "written before that will under-detect.",
+            n_undated, len(list(events)) if not isinstance(events, Sequence) else len(events),
+            window_secs,
+        )
+    deaths = [e for e in in_window if int(e.get("rc", 0) or 0) != 0]
     if not deaths:
-        return KillVerdict("ok", "continue", "no task deaths in the window")
+        return KillVerdict(
+            "ok", "continue",
+            "no task deaths in the window"
+            + (f" ({n_undated} undated rows excluded — detector degraded)" if n_undated else ""),
+            n_undated=n_undated,
+        )
 
     if h_rt_secs:
         non_walltime = [e for e in deaths

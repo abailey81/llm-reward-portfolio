@@ -18,6 +18,15 @@ matched_budget: 30
 # 189 point-estimate power / 279 (80%) / 340 (90%) / 403 (95%, primary target) / 568 (99%). Stopping
 # tier is EXOGENOUS (measured throughput vs deadline, never results) -> the single look is preserved.
 seeds: {mode: tiered, tiers: [30, 100, 189, 279, 340, 403, 568]}
+# R111 (2026-07-26): the H1 hand-reward CANON climbs the ladder with every other test unit, so N6's
+# effective n EQUALS the achieved rung. Registered explicitly because R108 promoted N6 from
+# report-only to CONFIRMATORY, and the floor-30 ruling it would otherwise inherit was taken while it
+# was still report-only. Load-bearing fact: each IUT leg tests on the seed INTERSECTION of winner and
+# baseline (scripts/analyze_campaign.py ~5796-5806), so canon depth CAPS N6 — pinning it at 30 would
+# leave a confirmatory node 4.35x less sensitive than its siblings (MDE 0.1675 vs 0.0385 annualised
+# Sharpe). Already costed: src/cluster/lanes._TEST_UNITS_PER_RUNG = 71 = 9 core + 50 leg + 11 canon + 1
+# H3, and total_trainings(568) = 42,128 matches this ladder exactly.
+canon_seed_depth: climbs_with_ladder    # NOT pinned to the 30-seed floor; n(N6) == achieved rung
 
 tail_diagnostic_set:                  # measured on TRAINING returns; empirical body + EVT tails
   cvar_levels: [0.25, 0.10, 0.05, 0.01]   # cvar_01 retained but FLAGGED high-variance (B-7)
