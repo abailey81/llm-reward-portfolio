@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-26"
-  head: "08a3706"
+  head: "990e5ca"
   frozen: false
   legs_n: 10
   amendments_through: R110
-  suite_status: "exit 0 (dependent-suite certification: 233 + 3 sweeps, every test file importing a changed module)"
+  suite_status: "exit 0 (150 test files, 4 foreground chunks, 2026-07-26 18:38)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
