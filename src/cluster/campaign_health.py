@@ -52,8 +52,141 @@ __all__ = [
     "check_authoring_health",
     "check_unreadable_records",
     "check_arm_progress_symmetry",
+    "check_seed_replication",
+    "check_arm_differentiation",
+    "check_duplicate_units",
+    "check_test_window_consistency",
     "MEASURED_AUTHORING_YIELD",
 ]
+
+
+def check_seed_replication(digest_by_arm: dict[str, dict[int, str]]) -> HealthCheck:
+    """FAKE PRECISION — the most dangerous silent failure in the whole design.
+
+    Every confidence interval, every p-value and the entire seed ladder rest on one assumption:
+    different seeds produce genuinely DIFFERENT runs. If seeding broke — a seed never threaded into
+    SAC, a cached env reused, a resume replaying one record under many ids — then n=568 is really
+    n=1, and the analysis reports beautifully tight intervals computed from copies of a single
+    trajectory. Nothing else in the system would notice: those records are present, complete,
+    finite, non-degenerate and internally consistent. The failure passes every test of looking
+    wrong, which is exactly why it needs its own.
+
+    Effect-blind: it digests each seed's realized returns WITHIN one arm and asks only "are these
+    the same numbers twice", never whether they are good.
+    """
+    if not digest_by_arm:
+        return HealthCheck("seed_replication", INFO, "no per-seed records yet", {})
+    offenders: dict[str, int] = {}
+    checked = 0
+    for arm, by_seed in digest_by_arm.items():
+        if len(by_seed) < 2:
+            continue
+        checked += 1
+        counts = Counter(by_seed.values())
+        dupes = sum(c - 1 for c in counts.values() if c > 1)
+        if dupes:
+            offenders[arm] = dupes
+    if not checked:
+        return HealthCheck("seed_replication", INFO, "need >=2 seeds in some arm to compare", {})
+    if offenders:
+        return HealthCheck("seed_replication", CRITICAL,
+                           f"IDENTICAL results across DIFFERENT seeds in {sorted(offenders)} — the "
+                           "replication is FAKE, so every interval computed from it is fiction (n "
+                           "is effectively 1). This is a seeding or resume defect and it cannot be "
+                           "repaired after the fact",
+                           {"duplicate_seed_pairs": offenders, "arms_checked": checked})
+    return HealthCheck("seed_replication", OK,
+                       f"every seed produced a distinct run across {checked} arm(s)",
+                       {"arms_checked": checked})
+
+
+def check_arm_differentiation(reward_hash_by_seed: dict[int, dict[str, str]],
+                              llm_arms: tuple[str, ...] = (
+                                  "distributional", "scalar", "placebo", "scalar_cvar5",
+                                  "placebo_shuffled")) -> HealthCheck:
+    """Did the ARM MANIPULATION actually reach the model? The study's identification, checked.
+
+    Arms differ in exactly one thing: the feedback block the reward-designer sees. If two arms end
+    up with the IDENTICAL authored reward source, then for those arms the experiment was not run —
+    the same reward was trained twice under two labels and any contrast between them is
+    structurally zero.
+
+    Deliberately reported as something to VERIFY rather than as an effect, because two very
+    different causes produce it and only a human can tell them apart: (a) a WIRING defect where the
+    fed block never varied, which is a bug to fix before more compute is spent; or (b) the model
+    genuinely wrote the same code from different feedback, which is a mechanism OBSERVATION for the
+    write-up. This check does not pretend to distinguish them — it says "verify the fed blocks
+    differed", which keeps it effect-blind (it inspects the INPUT, never the outcome).
+    """
+    if not reward_hash_by_seed:
+        return HealthCheck("arm_differentiation", INFO, "no reward hashes recorded yet", {})
+    collisions: list[str] = []
+    seeds_checked = 0
+    for seed, by_arm in sorted(reward_hash_by_seed.items()):
+        pairs = {a: h for a, h in by_arm.items() if a in llm_arms and h}
+        if len(pairs) < 2:
+            continue
+        seeds_checked += 1
+        seen: dict[str, str] = {}
+        for arm, h in sorted(pairs.items()):
+            if h in seen:
+                collisions.append(f"seed {seed}: {seen[h]} and {arm} share one reward source")
+            else:
+                seen[h] = arm
+    if not seeds_checked:
+        return HealthCheck("arm_differentiation", INFO,
+                           "need >=2 LLM arms at a common seed to compare", {})
+    if collisions:
+        return HealthCheck("arm_differentiation", CRITICAL,
+                           f"{len(collisions)} arm pair(s) trained on an IDENTICAL reward source: "
+                           + "; ".join(collisions[:3])
+                           + " — VERIFY the fed feedback blocks actually differed. If the config is "
+                             "right this is a mechanism observation, not a bug; if it is not, the "
+                             "manipulation never reached the model and those contrasts are void",
+                           {"collisions": collisions[:10], "seeds_checked": seeds_checked})
+    return HealthCheck("arm_differentiation", OK,
+                       f"every LLM arm carries a distinct reward source across {seeds_checked} "
+                       "seed(s)", {"seeds_checked": seeds_checked})
+
+
+def check_duplicate_units(unit_counts: dict[str, int]) -> HealthCheck:
+    """One (arm, seed) archived twice — silent double-counting in every paired statistic."""
+    if not unit_counts:
+        return HealthCheck("duplicate_units", INFO, "no units archived yet", {})
+    dupes = {k: v for k, v in unit_counts.items() if v > 1}
+    if dupes:
+        return HealthCheck("duplicate_units", CRITICAL,
+                           f"{len(dupes)} (arm, seed) unit(s) archived MORE THAN ONCE "
+                           f"{sorted(dupes)[:4]} — the paired estimators double-count them and the "
+                           "seed alignment every CRN contrast relies on is broken",
+                           {"duplicates": dict(sorted(dupes.items())[:8])})
+    return HealthCheck("duplicate_units", OK,
+                       f"all {len(unit_counts)} (arm, seed) units are unique", {})
+
+
+def check_test_window_consistency(lengths_by_arm: dict[str, set]) -> HealthCheck:
+    """Every scored record must cover the SAME window, or the numbers are not comparable.
+
+    A record whose return series is a different length was evaluated over a different period, so its
+    Sharpe and CVaR sit on a different footing and pooling them silently mixes two experiments.
+    """
+    if not lengths_by_arm:
+        return HealthCheck("test_window_consistency", INFO, "no scored records yet", {})
+    seen: set = set()
+    for v in lengths_by_arm.values():
+        seen |= set(v)
+    if not seen:
+        return HealthCheck("test_window_consistency", INFO, "no return series recorded", {})
+    if len(seen) > 1:
+        odd = {a: sorted(v) for a, v in lengths_by_arm.items() if len(set(v)) > 1}
+        return HealthCheck("test_window_consistency", CRITICAL,
+                           f"scored records span {len(seen)} DIFFERENT return lengths "
+                           f"{sorted(seen)[:5]} — those records were evaluated over different "
+                           "windows, so their Sharpe and CVaR are not comparable and must not be "
+                           "pooled", {"lengths": sorted(seen)[:8],
+                                      "arms_with_mixed_lengths": dict(list(odd.items())[:5])})
+    return HealthCheck("test_window_consistency", OK,
+                       f"every scored record covers the same {sorted(seen)[0]}-step window", {})
 
 
 #: MEASURED executable yield per author (2026-07-26, live gates: archived responses re-run through

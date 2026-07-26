@@ -642,7 +642,8 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
                 "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity", "authoring_health",
-                "unreadable_records", "arm_progress")):
+                "unreadable_records", "arm_progress", "seed_digests",
+                "reward_hash_by_seed", "unit_counts", "scored_lengths")):
         return []
     from src.cluster import campaign_health as ch
 
@@ -664,6 +665,14 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("seed_digests") is not None:
+        out.append(ch.check_seed_replication(g("seed_digests")))
+    if g("reward_hash_by_seed") is not None:
+        out.append(ch.check_arm_differentiation(g("reward_hash_by_seed")))
+    if g("unit_counts") is not None:
+        out.append(ch.check_duplicate_units(g("unit_counts")))
+    if g("scored_lengths") is not None:
+        out.append(ch.check_test_window_consistency(g("scored_lengths")))
     if g("unreadable_records") is not None:
         nu, nt, ex = g("unreadable_records")
         out.append(ch.check_unreadable_records(nu, nt, ex))
@@ -1231,6 +1240,53 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
             lane["unreadable_records"] = (n_bad, n_total, bad_examples)
         if len(per_arm_prog) >= 3:
             lane["arm_progress"] = per_arm_prog
+    except Exception:  # noqa: BLE001
+        pass
+
+    # RESULT MEANINGFULNESS (2026-07-27) over the SCORED records only — the failures that produce a
+    # perfectly healthy-looking archive whose numbers mean nothing: replication that is fake (every
+    # interval then fiction), arms that never actually differed (the contrast structurally zero),
+    # a unit archived twice (silent double-counting), and records scored over different windows.
+    try:
+        import hashlib
+
+        scored_roots = [p for p in [camp_root / "test", *sorted(camp_root.glob("test_leg_*"))]
+                        if p.is_dir()]
+        digest_by_arm: dict[str, dict[int, str]] = {}
+        hash_by_seed: dict[int, dict[str, str]] = {}
+        unit_counts: dict[str, int] = {}
+        lengths: dict[str, set] = {}
+        for sroot in scored_roots:
+            for rec_path in sroot.rglob("record.json"):
+                if any(x.startswith(".pull_tmp") for x in rec_path.parts):
+                    continue
+                try:
+                    rec = json.loads(rec_path.read_text(encoding="utf-8"))
+                except Exception:  # noqa: BLE001 — counted by the readability check above
+                    continue
+                arm, seed = rec.get("arm"), rec.get("seed")
+                if arm is None or seed is None:
+                    continue
+                seed = int(seed)
+                key = f"{sroot.name}/{arm}-s{seed}"
+                unit_counts[key] = unit_counts.get(key, 0) + 1
+                rets = (rec.get("metrics", {}) or {}).get("test_returns")
+                if isinstance(rets, list) and rets:
+                    lengths.setdefault(str(arm), set()).add(len(rets))
+                    digest = hashlib.sha1(
+                        ",".join(f"{float(x):.12g}" for x in rets).encode()).hexdigest()
+                    digest_by_arm.setdefault(f"{sroot.name}/{arm}", {})[seed] = digest
+                rh = rec.get("reward_source_hash")
+                if rh:
+                    hash_by_seed.setdefault(seed, {})[str(arm)] = str(rh)
+        if digest_by_arm:
+            lane["seed_digests"] = digest_by_arm
+        if hash_by_seed:
+            lane["reward_hash_by_seed"] = hash_by_seed
+        if unit_counts:
+            lane["unit_counts"] = unit_counts
+        if lengths:
+            lane["scored_lengths"] = lengths
     except Exception:  # noqa: BLE001
         pass
 

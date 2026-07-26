@@ -498,3 +498,72 @@ def test_too_few_arms_SKIPS_rather_than_guessing():
 
     assert check_arm_progress_symmetry({"a": {"n_records": 1, "hours_since_last": 99}}).severity \
         == "INFO"
+
+
+# --- 10. MEANINGLESS results: the archive looks perfect and the numbers are fiction -------------
+
+def test_FAKE_replication_is_caught_though_every_record_looks_perfect():
+    """The worst failure in the design: if seeding broke, n=568 is really n=1 and every interval is
+    fiction. Those records are present, complete, finite and internally consistent — they fail no
+    other check in the system."""
+    from src.cluster.campaign_health import check_seed_replication
+
+    c = check_seed_replication({"distributional": {0: "digestA", 1: "digestA", 2: "digestB"}})
+    assert c.severity == "CRITICAL"
+    assert "FAKE" in c.detail and "effectively 1" in c.detail
+
+
+def test_genuinely_distinct_seeds_are_OK():
+    from src.cluster.campaign_health import check_seed_replication
+
+    assert check_seed_replication({"d": {0: "a", 1: "b", 2: "c"}}).severity == "OK"
+
+
+def test_one_seed_alone_cannot_be_judged():
+    from src.cluster.campaign_health import check_seed_replication
+
+    assert check_seed_replication({"d": {0: "a"}}).severity == "INFO"
+
+
+def test_arms_sharing_ONE_reward_source_means_the_experiment_did_not_run():
+    """If two arms trained on identical reward code, the contrast between them is structurally
+    zero — the manipulation never reached the model."""
+    from src.cluster.campaign_health import check_arm_differentiation
+
+    c = check_arm_differentiation({0: {"distributional": "h1", "scalar": "h1"}})
+    assert c.severity == "CRITICAL"
+    assert "VERIFY the fed feedback blocks" in c.detail
+
+
+def test_the_collision_check_asks_to_VERIFY_rather_than_declaring_a_bug():
+    """Two causes produce it — a wiring defect, or the model genuinely writing the same code from
+    different feedback (a mechanism observation). The check must not pretend to tell them apart."""
+    from src.cluster.campaign_health import check_arm_differentiation
+
+    c = check_arm_differentiation({0: {"distributional": "h", "placebo": "h"}})
+    assert "mechanism observation" in c.detail and "if it is not" in c.detail
+
+
+def test_the_SAME_arm_repeating_its_hash_across_seeds_is_EXPECTED():
+    """Every seed of an arm trains the SAME frozen winner, so an identical hash there is correct —
+    alarming on it would fire on every healthy campaign."""
+    from src.cluster.campaign_health import check_arm_differentiation
+
+    c = check_arm_differentiation({0: {"distributional": "h1"}, 1: {"distributional": "h1"}})
+    assert c.severity != "CRITICAL"
+
+
+def test_a_duplicated_unit_would_double_count_in_every_paired_statistic():
+    from src.cluster.campaign_health import check_duplicate_units
+
+    c = check_duplicate_units({"test/scalar-s3": 2, "test/scalar-s4": 1})
+    assert c.severity == "CRITICAL" and "double-count" in c.detail
+    assert check_duplicate_units({"test/scalar-s4": 1}).severity == "OK"
+
+
+def test_records_scored_over_DIFFERENT_windows_must_not_be_pooled():
+    from src.cluster.campaign_health import check_test_window_consistency
+
+    c = check_test_window_consistency({"distributional": {1571}, "scalar": {900}})
+    assert c.severity == "CRITICAL" and "not comparable" in c.detail
+    assert check_test_window_consistency({"a": {1571}, "b": {1571}}).severity == "OK"
