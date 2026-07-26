@@ -50,6 +50,7 @@ __all__ = [
     "make_env_builder",
     "rollout_port_returns",
     "rollout_port_series",
+    "rollout_port_diagnostics",
     "Window",
 ]
 
@@ -150,6 +151,74 @@ def rollout_port_series(env: PortfolioEnv, policy: Any) -> dict[str, np.ndarray]
         "gross": np.asarray(gross, dtype=float),
         "turnover": np.asarray(turnover, dtype=float),
         "net": np.asarray(net, dtype=float),
+    }
+
+
+def rollout_port_diagnostics(env: PortfolioEnv, policy: Any) -> dict[str, Any]:
+    """Deterministically roll ``policy`` through ``env``; return the FULL per-step diagnostic set.
+
+    A strict superset of :func:`rollout_port_series`: it additionally collects the per-step portfolio
+    ``info['weights']`` (the post-action simplex allocation) and ``info['components']`` (the reward
+    decomposition) the env already emits every step. These are **pure reads of already-computed values**
+    — the rollout adds no randomness and changes no arithmetic — so this is determinism-safe, report-only
+    capture (CLAUDE.md determinism envelope). It is used ONLY on the sealed test leg's frozen winner, to
+    archive the exposure / allocation diagnostics the equity, drawdown and allocation figures need: a
+    frozen, replay-only campaign can only ever plot a metric it LOGGED at run time (M1/M1b/M3,
+    ``docs/METRICS_AND_FIGURES_COMPLETENESS_2026-07-26.md``).
+
+    Returns
+    -------
+    dict[str, Any]
+        ``{"gross", "turnover", "net"}`` exactly as :func:`rollout_port_series`, plus
+        ``"weights"`` — a ``(T, N)`` float array of per-step allocations (``None`` if the env emits
+        none) — and ``"components"`` — a list of the per-step ``info['components']`` (``None`` if the
+        env emits none). ``net`` is identical to the other two rollouts step-for-step.
+    """
+    from src.sandbox.executor import reset_failure_flag, safe_call_count, safe_default_count
+
+    reset_failure_flag()
+    obs, _info = env.reset()
+    gross: list[float] = []
+    turnover: list[float] = []
+    net: list[float] = []
+    weights: list[np.ndarray] = []
+    components: list[Any] = []
+    any_weights = False
+    any_components = False
+    done = False
+    while not done:
+        action, _state = policy.predict(obs, deterministic=True)
+        obs, _reward, terminated, truncated, info = env.step(np.asarray(action).ravel())
+        gross.append(float(info["gross"]))
+        turnover.append(float(info["turnover"]))
+        net.append(float(info["port_ret"]))
+        w = info.get("weights")
+        if w is not None:
+            any_weights = True
+            weights.append(np.asarray(w, dtype=float).ravel())
+        comp = info.get("components")
+        if comp is not None:
+            any_components = True
+        components.append(comp)
+        done = bool(terminated or truncated)
+    n_sd = safe_default_count()  # whole-window count, not last-call (R66): surfaces partial failures
+    if n_sd:
+        n_call = safe_call_count()
+        _LOG.warning(
+            "reward substituted SAFE_DEFAULT on %d/%d rollout steps (%.1f%%); candidate degraded (R66)",
+            n_sd, n_call, 100.0 * n_sd / max(n_call, 1),
+        )
+    # A (T, N) matrix only when every step emitted an equal-length weight vector (the fixed env always
+    # does); otherwise fall back to None so a mismatched/absent emission never raises here.
+    weights_arr: np.ndarray | None = None
+    if any_weights and len({int(a.size) for a in weights}) == 1 and weights[0].size:
+        weights_arr = np.asarray(weights, dtype=float)
+    return {
+        "gross": np.asarray(gross, dtype=float),
+        "turnover": np.asarray(turnover, dtype=float),
+        "net": np.asarray(net, dtype=float),
+        "weights": weights_arr,
+        "components": components if any_components else None,
     }
 
 
@@ -258,6 +327,27 @@ class EnvBundle:
                 "run_campaign's frozen-winner evaluation builds a test bundle)"
             )
         return rollout_port_series(self._env(self.test_window), policy)
+
+    def test_diagnostics(self, policy: Any) -> dict[str, Any]:
+        """Realized held-out TEST diagnostics (net/gross/turnover + weights + components) — INFERENCE ONLY.
+
+        The full-diagnostic superset of :meth:`test_series` (``net`` is identical), adding the per-step
+        allocation ``weights`` and reward ``components`` so the sealed-leg record can archive the
+        exposure / allocation figures' data (M1/M1b/M3). Subject to the SAME seal: a bundle without a
+        ``test_window`` raises, so the test leg stays unreachable during selection.
+
+        Raises
+        ------
+        RuntimeError
+            If this bundle has no ``test_window`` (every selection/search bundle).
+        """
+        if self.test_window is None:
+            raise RuntimeError(
+                "test split sealed until final inference: this EnvBundle has no "
+                "test_window (selection must never touch the 2020-2026 test leg; only "
+                "run_campaign's frozen-winner evaluation builds a test bundle)"
+            )
+        return rollout_port_diagnostics(self._env(self.test_window), policy)
 
 
 def make_env_builder(

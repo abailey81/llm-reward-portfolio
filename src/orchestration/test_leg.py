@@ -39,6 +39,33 @@ __all__ = ["build_test_record", "evaluate_winners_on_test_parallel"]
 _LOG = get_logger(__name__)
 
 
+def _summarize_components(components: Any) -> dict[str, float] | None:
+    """Per-key MEAN of a list of per-step reward-component dicts (M3). Best-effort; ``None`` if not dict-shaped.
+
+    ``info['components']`` is whatever the reward/env emits per step; when it is a list of dicts of numeric
+    values we archive the per-component mean over the test path (a tiny summary — the reward-decomposition
+    figure's source). Anything else (or any error) returns ``None`` — a capture miss is never a crash."""
+    try:
+        sums: dict[str, float] = {}
+        counts: dict[str, int] = {}
+        for step in components:
+            if not isinstance(step, dict):
+                continue
+            for k, v in step.items():
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    continue
+                if not np.isfinite(fv):
+                    continue
+                sums[k] = sums.get(k, 0.0) + fv
+                counts[k] = counts.get(k, 0) + 1
+        summary = {k: sums[k] / counts[k] for k in sums if counts[k] > 0}
+        return summary or None
+    except Exception:  # noqa: BLE001 — a summariser failure must never crash a sealed-leg seed
+        return None
+
+
 def _arm_env_fingerprint(arm_root: Path, label: str, seed: int) -> Any:
     """ONE content-hashed env snapshot per TEST arm -> ``{label, env_json_sha256}`` (2026-07-06).
 
@@ -92,6 +119,9 @@ def build_test_record(
     train_safe_default_count: int | None = None,
     train_safe_call_count: int | None = None,
     device: str | None = None,
+    test_exposure: dict[str, Any] | None = None,
+    test_alloc: dict[str, Any] | None = None,
+    test_components: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the ONE archive record for a ``(winner, seed)`` TEST run.
 
@@ -134,6 +164,17 @@ def build_test_record(
         # real run) — recording it makes any heterogeneous run attributable post-hoc instead of
         # undetectable from the archive.
         metrics["device"] = str(device)
+    # M1/M1b/M3 (2026-07-26): report-only diagnostics of the FROZEN-winner test path, riding inside
+    # ``metrics`` like ``test_gross`` (no schema change). They are the data the equity/drawdown/exposure/
+    # allocation figures need — and a frozen, replay-only campaign can only plot what it logged. All are
+    # OPTIONAL (a record lacking them just renders those figures for the winners that DO carry them) and
+    # come from a determinism-safe post-hoc reduction of the already-rolled test trajectory.
+    if test_exposure is not None:
+        metrics["test_exposure"] = test_exposure   # M1: per-step Herfindahl / effective-N / max / top-5
+    if test_alloc is not None:
+        metrics["test_alloc"] = test_alloc         # M1b: top-K monthly allocation snapshots (heatmap source)
+    if test_components is not None:
+        metrics["test_components"] = test_components  # M3: per-component mean of the reward decomposition
 
     return {
         "run_id": f"{arm}-s{int(seed)}",
@@ -282,7 +323,30 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
         train_sd_count = getattr(policy, "train_safe_default_count", None)
         train_call_count = getattr(policy, "train_safe_call_count", None)
 
-        if hasattr(bundle, "test_series"):  # B4 once-only; prefer the gross/turnover superset
+        # B4 once-only test touch. Prefer the full-diagnostics superset (net/gross/turnover + per-step
+        # weights + reward components): net/gross/turnover are BYTE-IDENTICAL to test_series (the same
+        # deterministic rollout — same predict/step sequence), and the extra per-step reads let the sealed
+        # record archive the exposure/allocation figures' data (M1/M1b/M3). Every summariser call is
+        # BEST-EFFORT — a capture failure must never crash a sealed-leg seed (an irreplaceable unit) — so
+        # it degrades cleanly to net/gross/turnover only.
+        test_exposure = test_alloc = test_components = None
+        if hasattr(bundle, "test_diagnostics"):
+            diag = bundle.test_diagnostics(policy)
+            test_returns = diag["net"]
+            test_gross = diag["gross"]
+            test_turnover = diag["turnover"]
+            try:
+                from src.inference.exposure import alloc_snapshots, exposure_series
+
+                w = diag.get("weights")
+                if w is not None:
+                    test_exposure = exposure_series(w)
+                    test_alloc = alloc_snapshots(w)
+                if diag.get("components") is not None:
+                    test_components = _summarize_components(diag.get("components"))
+            except Exception:  # noqa: BLE001 — diagnostics capture must never crash the sealed leg
+                test_exposure = test_alloc = test_components = None
+        elif hasattr(bundle, "test_series"):
             series = bundle.test_series(policy)
             test_returns = series["net"]
             test_gross = series["gross"]
@@ -305,6 +369,9 @@ def _test_seed_worker(spec: dict[str, Any]) -> dict[str, Any]:
             train_safe_default_count=train_sd_count,  # R66 per-seed training-substitution audit
             train_safe_call_count=train_call_count,
             device=str(device),  # S6: sealed-leg device attribution (homogeneity auditable)
+            test_exposure=test_exposure,  # M1: per-step concentration series
+            test_alloc=test_alloc,        # M1b: allocation-heatmap snapshots
+            test_components=test_components,  # M3: reward-component means
         )
         if str(device).startswith("cuda"):
             torch.cuda.empty_cache()
