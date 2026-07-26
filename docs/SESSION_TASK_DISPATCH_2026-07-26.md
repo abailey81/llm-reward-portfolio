@@ -816,3 +816,75 @@ contingency is no longer triggered by a missing input** — only by the wiring n
 **Rows 1–4 are green and verified. Row 5 is one call site. Rows 7–9 are not ours to close.** So the
 correct sentence is *"everything in our hands is green; the campaign is gated on Tamer's top-up,
 Ramin's nod, and the freeze that fires with GO"* — **not** *"cleared for launch"*.
+
+---
+
+## 🧪 FROM CAPACITY/MYRIAD → ALL SESSIONS — LIVE MODEL-SUITE + SELF-HOST TEST (2026-07-26, `86ee018`)
+
+Tamer asked for the Qwen-9B host to be tried and **every** model tested "deeply and strictly … no
+surprises", explicitly warning to **avoid data leakage**. All 10 legs were exercised against the LIVE
+APIs. Spend: **$1.44** of the OpenRouter balance (**$0.73 left — the +$15 top-up is still open**).
+
+### LEAKAGE — audited BEFORE the first call, clean at source
+Reconstructed every payload the harness sends. **Compliance/smoke** carry only `prompts/system.txt` +
+`initial_generation.txt` with a STUB interface line. **The contamination screen's arrays are
+synthetic** — `np.random.default_rng(20260721).standard_normal(30)*0.012` plus a `linspace` canary.
+**Nothing from `data/gold/` crosses the wire**; no tickers, no dates, no RICs, no test-window returns.
+(The only regex hits were `risk-` matching an `sk-` credential pattern.)
+
+### THE HEADLINE: format compliance OVERSTATES usable yield
+`leg_gates --only compliance` scores *"`extract_reward_source` succeeded and the source contains
+`def reward(`"*. That is the right registered metric, but it does not mean the code RUNS. Every
+archived response was re-run through the **real AST gate** and **12 contract steps**, faithful to
+`PortfolioEnv.step` (state round-tripped via `info["reward_state"]`, read-only input arrays):
+
+| leg | compliance (registered) | AST-gated | **executes 12 steps** |
+|---|---|---|---|
+| **qwen3.5-9b** | **1.00** (10/10) | 20/20 | **5/20 — 75 % crash** |
+| nemotron-3-super | 1.00 | 18/18 | 16/18 |
+| deepseek-v4-pro | (partial run) | 16/16 | 14/16 |
+| qwen3.6-27b | 1.00 | **23/24** (1 AST-REJECTED) | 23/24 |
+| glm-5.2 | **0.60** | 15/15 | 15/15 |
+| gemini-3.5-flash · gpt-5.6-luna · haiku-4.5 · sonnet-5 | 1.00 | all | all |
+
+**qwen3.5-9b passes the registered gate perfectly and 75 % of its rewards crash on step 1.** Root
+cause is ONE conceptual error in 6 spellings: it mishandles `reward_state is None` at reset —
+`info.get("reward_state", {})` returns `None`, because the key EXISTS with value `None`, so the
+default never applies; then `len()/.copy()/.get()` on `None` raises. The system prompt does state
+*"or None at reset"*, and all 20/20 of its functions DID reference risk — so it understands the
+finance and fails the stateful-contract edge case. Every larger model handles it.
+**Consequence:** the campaign is SAFE (the env's `safe_call` substitutes SAFE_DEFAULT and flags the
+candidate — a degraded score, never a crash), but **the write-up's authoring-reliability table must
+report EXECUTABLE yield, not format compliance,** or it overstates the weak leg by 4×. This also
+RESTORES the capability-gradient bottom anchor on the correct metric (memory records ~17 % gate-pass;
+the current gate says 100 %; true executable yield ≈ 25 %).
+
+### ⛔ glm-5.2 — an UN-REMEDIATED instance of the R103 bug class, in the frozen roster
+6/10 compliance. Every failure identical: `stop=length`, `out_tok=4096`, **`reasoning_tokens
+3900–4222`** → the whole budget consumed by hidden reasoning, `content_len=0`. This is exactly what
+R103 fixed for qwen (disable thinking) and gemini (cap 2048→8192) — **glm has neither remedy**: no
+reasoning pin, `max_tokens: 4096`. Both remedies were tested live:
+
+| remedy | result | output tokens | rel. cost |
+|---|---|---|---|
+| **A — `reasoning:{enabled:false}` @4096** | ✅ authored | 537 (0 reasoning) | **1×** |
+| B — raise cap to 8192 | ✅ authored | 4874 (4550 reasoning) | ~9× |
+
+**Recommend A**: it works, is ~9× cheaper, and matches the pending **R104** uniform-reasoning-off
+direction (GLM *accepts* the disable pin — no 400, unlike gemini). **NOT applied unilaterally**: it
+edits the registered `model_suite`, so it needs an amendment row like R103 had. **→ TAMER/RAMIN.**
+
+### ✅ Verified good (no surprises)
+All 10 legs smoke OK — keys, routes, model ids live. **All 5 `hf_pin` commits resolve exactly on the
+HF API** (the permanence anchor is real, not fictional). `gpt-5.6-luna`'s previously UNVERIFIED
+reasoning pin **resolved to verified** (818 reasoning tokens on a real authoring call — exactly as the
+gate predicted a trivial smoke could not). gemini's R103 cap fix **holds at 8192**.
+⚠ **nemotron latency is spiky** — typically ~13 s/call but with repeated **2–3 minute** stalls.
+
+### T3 / A5 SELF-HOST — still NOT executed, and here is the honest reason
+`vllm serve` bf16 needs ~18 GB. **Measured on this box: 6.1 GB VRAM, 15.6 GB RAM (6.2 free), and
+vllm/transformers/huggingface_hub are not installed.** It cannot run here in VRAM *or* RAM — the docs
+were right. What WAS done: the dry-run emits the correct pin-enforcing argv, the jobscript is
+`bash -n` clean, and **the offline-weights defect was found and fixed** (see `86ee018`) — without it
+the Myriad serve would have died *after* the GPU allocation was granted. **Execution still needs a
+GPU allocation; it is otherwise turnkey.**
