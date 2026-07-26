@@ -53,6 +53,14 @@ echo "[serve_qwen] driver: export VLLM_BASE_URL=${ENDPOINT}"
 
 # Serve inside the pinned Apptainer image if provided (--nv exposes the GPU); else host venv.
 if [ -n "${VLLM_SIF:-}" ]; then
+  # APPTAINER-PRESENCE GUARD (2026-07-26), mirroring src/cluster/jobscript.py. /usr/bin/apptainer is
+  # MISSING on some nodes (measured: node-d00a-230), and the venv python lives INSIDE the .sif, so a
+  # missing container burns the granted GPU slot with a bare rc=127 and no diagnosis. Fail NAMED.
+  command -v apptainer >/dev/null 2>&1 || {
+    echo "FATAL apptainer missing on $(hostname) - cannot start the vLLM container" >&2; exit 127; }
+  [ -f "${VLLM_SIF}" ] || {
+    echo "FATAL VLLM_SIF not found: ${VLLM_SIF} (stage the image on a shared path first)" >&2
+    exit 127; }
   exec apptainer exec --nv "${VLLM_SIF}" \
     python -m scripts.serve_qwen_selfhost --leg "${VLLM_LEG}" --port "${VLLM_PORT}"
 else

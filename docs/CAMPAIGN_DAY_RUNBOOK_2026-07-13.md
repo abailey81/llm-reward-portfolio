@@ -679,3 +679,63 @@ nothing to read) · chain progress + elapsed ← the archive's `record.json` mti
 
 > **GO-day consequence:** run `python scripts/allocation_advisor.py` at least once at launch. Until
 > it does, `capacity_accumulation` can only REPORT the measurement, never judge it against a target.
+
+### 11.12 ★★★★ SELF-HOSTING QWEN-9B ON MYRIAD (A5) — the exact procedure, and the three traps
+
+The A5 anchor is `qwen3.5-9b` served **bf16** from its **HF-commit-pinned** weights, so the pin is
+ENFORCED at serve time (`vllm serve --revision <commit>`) rather than advisory. This is the leg that
+closes the experiment-layer reproducibility gap closed models cannot (Stefan #3). It is **turnkey but
+not yet executed** — the only missing input is a GPU allocation.
+
+**PICK THE POOL FIRST — this is not a preference, it is a fit constraint.**
+Qwen3.5-9B in bf16 is **~18 GB of weights**, plus KV cache and activations.
+
+| pool | GPU | verdict |
+|---|---|---|
+| **U / V** | 4× A100-**80G** | ✅ **USE THIS.** Fits easily, and measured **less contended for us than EF** (probe_u on `node-u00a-001` and probe_v on `node-v00a-002` both placed while the EF control sat queued through a ~2.7k-qw jam) |
+| L | 4× A100-**40G** | ✅ fallback |
+| **EF (default)** | 2× V100 @ **16G *or* 32G** | ⚠ **DO NOT DEFAULT HERE.** The class is not known until the job lands, and a **16 GB V100 cannot load an 18 GB model** |
+
+`serve_qwen_selfhost.py` now PREFLIGHTS this and refuses a too-small GPU with the pool to resubmit
+onto, instead of letting vLLM die on a CUDA OOM after the allocation was already granted.
+
+**THE PROCEDURE**
+
+```bash
+# 1. LOGIN NODE (has internet) — stage the pinned revision into a SHARED HF_HOME, once (~18 GB).
+export HF_HOME=$HOME/Scratch/hf
+python -m scripts.serve_qwen_selfhost --prestage --leg qwen3.5-9b
+
+# 2. Submit the serve onto an A100 pool. h_rt=48h is ample (a floor-30 leg is an inference burst).
+qsub -ac allow=U -l h_rt=48:00:00 \
+     -v VLLM_LEG=qwen3.5-9b,VLLM_PORT=8000,VLLM_API_KEY=<any-non-empty>,VLLM_SIF=<vllm.sif>,HF_HOME=$HOME/Scratch/hf \
+     scripts/serve_qwen_jobscript.sh
+
+# 3. Discover the endpoint the job wrote, then point the harness at it.
+cat serve-endpoint-<JOB_ID>.txt          # -> http://<node>:8000/v1
+export VLLM_BASE_URL=http://<node>:8000/v1  VLLM_API_KEY=<same>
+python -m scripts.selfhost_author_test --served-model-name qwen3.5-9b --n 20
+```
+
+**THE THREE TRAPS, all now guarded — each one would have burned the granted allocation:**
+
+1. **No internet on compute nodes.** `vllm serve --revision` DOWNLOADS when the revision is not
+   cached, so without step 1 the job starts, stalls, and dies on a network error that blames vLLM.
+   The jobscript now exports `HF_HUB_OFFLINE=1` and the serve preflights the cache, refusing early
+   and printing the exact `--prestage` command. An **empty** snapshot dir does not count as staged
+   (an interrupted download would otherwise re-create the silent failure).
+2. **The GPU may be too small** — see the pool table above; now preflighted.
+3. **`/usr/bin/apptainer` is missing on some nodes** (measured: `node-d00a-230` → `rc=127`, because
+   the venv python lives INSIDE the `.sif`). The training jobscript has guarded this since 2026-07-10;
+   the SERVE jobscript now does too, and also checks the `.sif` actually exists.
+
+**MEASURE ITS RELIABILITY FRESH — do not inherit the API number.** The OpenRouter leg is **fp8 via
+SiliconFlow**; this anchor is **bf16**. Different served variant ⇒ different behaviour, so run
+`selfhost_author_test.py` and report what IT measures. Useful comparators from 2026-07-26: the fp8
+API leg scores **1.00** on the registered format-compliance gate but only **~25 %** of its rewards
+survive 12 contract steps — so report the **executable** yield for the self-host too, not the gate
+number.
+
+**Scope note (deliberate):** the self-host is a reproducibility DEMONSTRATION, not an 11th
+full-loop leg. It stays off the R101 lockstep seed ladder, so it costs no confirmatory power and the
+freeze gate's leg-roster cross-check (n=10) stays green.

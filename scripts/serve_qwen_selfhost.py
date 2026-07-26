@@ -77,6 +77,59 @@ def preflight_weights(hf_home: str | Path | None, repo: str, commit: str) -> tup
                    "succeed on a compute node.")
 
 
+#: bf16 bytes per parameter, and the headroom vLLM needs beyond raw weights (KV cache + activations
+#: + its ~0.9 default `gpu_memory_utilization`). Deliberately conservative: refusing a serve that
+#: WOULD have fitted costs one resubmission, while attempting one that cannot fit costs the whole
+#: granted allocation and produces an OOM traceback that blames vLLM rather than the GPU class.
+_BYTES_PER_PARAM_BF16 = 2
+_VRAM_HEADROOM = 1.25
+
+
+def required_vram_gb(param_count_b: float = 9.0) -> float:
+    """GB of VRAM the pinned bf16 model needs, with serving headroom."""
+    return param_count_b * _BYTES_PER_PARAM_BF16 * _VRAM_HEADROOM
+
+
+def preflight_vram(total_vram_gb: float | None, param_count_b: float = 9.0) -> tuple[bool, str]:
+    """Will the pinned bf16 weights actually FIT on the GPU this job was placed on?
+
+    THE FAILURE THIS PREVENTS. Myriad's default EF pool is `2x V100` at **16G or 32G** and the class
+    is not verified until the job lands (dossier §pools). A 9B model in bf16 is ~18 GB, so a 16 GB
+    V100 cannot hold it — vLLM would die with a CUDA OOM *after* the scarce GPU allocation was
+    granted, and the log would blame vLLM rather than the GPU class. The A100-80G U/V pools were
+    measured LESS contended for us than EF (probe_u/probe_v both placed while the EF control was
+    still queued), so they are both the safe and the fast choice for this serve.
+    """
+    need = required_vram_gb(param_count_b)
+    if total_vram_gb is None:
+        return True, (f"GPU VRAM not detectable — proceeding, but this serve needs ~{need:.0f} GB "
+                      "and a 16 GB V100 cannot hold it")
+    if total_vram_gb + 1e-9 < need:
+        return False, (f"GPU has {total_vram_gb:.0f} GB VRAM but the pinned bf16 weights need "
+                       f"~{need:.0f} GB. Resubmit onto an A100 pool, e.g. "
+                       "`qsub -ac allow=U ...` (A100-80G; U/V measured less contended than EF), "
+                       "or `-ac allow=L` (A100-40G). EF may place a 16 GB V100, which cannot "
+                       "load this model.")
+    return True, f"GPU VRAM {total_vram_gb:.0f} GB >= the ~{need:.0f} GB the bf16 weights need"
+
+
+def _detect_vram_gb() -> Optional[float]:  # pragma: no cover (GPU node)
+    try:
+        import torch  # type: ignore
+        if torch.cuda.is_available():
+            return torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=30)
+        if out.returncode == 0 and out.stdout.strip():
+            return float(out.stdout.strip().splitlines()[0]) / 1024.0
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 def prestage(repo: str, commit: str) -> int:  # pragma: no cover (network; run on a login node)
     """Download EXACTLY the pinned revision into HF_HOME. Login-node step; needs internet."""
     try:
@@ -202,8 +255,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # PREFLIGHT before we consume the GPU allocation: refuse to start a serve whose weights are not
     # already on disk, because on a compute node the download it would attempt cannot succeed.
     ok, why = preflight_weights(os.environ.get("HF_HOME"), repo, commit)
-    print(f"[serve_qwen_selfhost] preflight: {why}", file=sys.stderr)
-    if not ok and not args.skip_preflight:
+    print(f"[serve_qwen_selfhost] preflight weights: {why}", file=sys.stderr)
+    vram_ok, vram_why = preflight_vram(_detect_vram_gb())
+    print(f"[serve_qwen_selfhost] preflight vram   : {vram_why}", file=sys.stderr)
+    if not (ok and vram_ok) and not args.skip_preflight:
         raise SystemExit(2)
     return subprocess.call(cmd)  # pragma: no cover (GPU-node launch)
 

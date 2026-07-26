@@ -96,3 +96,47 @@ def test_the_jobscript_exports_the_OFFLINE_env_the_preflight_depends_on():
     sh = Path("scripts/serve_qwen_jobscript.sh").read_text(encoding="utf-8")
     assert "HF_HUB_OFFLINE" in sh and "HF_HOME" in sh
     assert "export HF_HOME" in sh
+
+
+# --- VRAM class guard (2026-07-26) ------------------------------------------------------------
+# Myriad's default EF pool is 2x V100 at 16G OR 32G, unverified until the job lands. A 9B bf16 model
+# is ~18 GB, so a 16 GB V100 cannot load it — and the OOM would arrive AFTER the scarce GPU
+# allocation was granted, blaming vLLM rather than the GPU class.
+
+def test_a_16GB_V100_is_REFUSED_with_the_pool_to_use():
+    from scripts.serve_qwen_selfhost import preflight_vram
+
+    ok, why = preflight_vram(16.0)
+    assert not ok
+    assert "16 GB" in why and "allow=U" in why      # names the remedy, not just the problem
+
+
+def test_a_32GB_V100_and_the_A100_pools_are_ACCEPTED():
+    from scripts.serve_qwen_selfhost import preflight_vram
+
+    for gb in (32.0, 40.0, 80.0):
+        ok, _ = preflight_vram(gb)
+        assert ok, f"{gb} GB should hold a 9B bf16 model"
+
+
+def test_an_UNDETECTABLE_gpu_does_not_block_the_serve():
+    """A probe failure is not evidence of a too-small GPU; refusing on it would strand a good run."""
+    ok, why = __import__("scripts.serve_qwen_selfhost", fromlist=["x"]).preflight_vram(None)
+    assert ok and "not detectable" in why
+
+
+def test_the_required_vram_covers_weights_PLUS_serving_headroom():
+    """Raw bf16 weights are ~18 GB; vLLM also needs KV cache + activations, so the bar is higher."""
+    from scripts.serve_qwen_selfhost import required_vram_gb
+
+    assert required_vram_gb(9.0) > 9.0 * 2, "must exceed raw weight bytes"
+
+
+def test_the_serve_jobscript_guards_a_missing_apptainer():
+    """A missing .sif burned a granted slot with a bare rc=127 on the training path (node-d00a-230);
+    the serve path must fail NAMED for the same reason."""
+    from pathlib import Path
+
+    sh = Path("scripts/serve_qwen_jobscript.sh").read_text(encoding="utf-8")
+    assert "command -v apptainer" in sh and "exit 127" in sh
+    assert "VLLM_SIF not found" in sh
