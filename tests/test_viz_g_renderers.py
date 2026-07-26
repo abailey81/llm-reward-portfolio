@@ -1,0 +1,97 @@
+"""Tests for the corpus-standard figure additions (2026-07-26): G1-G5.
+
+G1 performance_profile · G2 probability_of_improvement (the other two rliable-quartet members) ·
+G3 return_tail_distribution · G4 equity_drawdown · G5 allocation_heatmap. Headless (Agg); each asserts the
+renderer returns a structurally valid, non-empty figure on already-computed inputs.
+"""
+from __future__ import annotations
+
+import matplotlib
+
+matplotlib.use("Agg")
+
+import numpy as np
+import pytest
+
+from src.inference.exposure import alloc_snapshots
+from src.viz.figures import (
+    allocation_heatmap,
+    equity_drawdown,
+    performance_profile,
+    probability_of_improvement,
+    return_tail_distribution,
+)
+
+_ARMS = ("distributional", "scalar", "placebo")
+
+
+def _scores():
+    rng = np.random.default_rng(0)
+    return {a: rng.normal(0.0, 1.0, size=30) for a in _ARMS}
+
+
+def test_performance_profile_structure():
+    fig = performance_profile(_scores())
+    ax = fig.axes[0]
+    # one line per arm; all fractions within [0, 1]
+    assert len(ax.lines) == len(_ARMS)
+    for ln in ax.lines:
+        y = ln.get_ydata()
+        assert y.min() >= -1e-9 and y.max() <= 1.0 + 1e-9
+    lo, hi = ax.get_ylim()
+    assert lo <= 0.0 and hi >= 1.0
+
+
+def test_performance_profile_empty_scores_no_raise():
+    fig = performance_profile({"scalar": np.array([])})
+    assert fig.axes  # renders (flat-zero profile), never raises
+
+
+def test_probability_of_improvement_accepts_scalar_and_ci():
+    fig = probability_of_improvement({"distributional": (0.55, 0.40, 0.70), "scalar": 0.50})
+    ax = fig.axes[0]
+    assert ax.get_xlim() == (0.0, 1.0)
+    # the 0.5 no-effect reference line is present
+    assert any(abs(ln.get_xdata()[0] - 0.5) < 1e-9 for ln in ax.lines if len(ln.get_xdata()) == 2
+               and ln.get_xdata()[0] == ln.get_xdata()[1])
+
+
+def test_return_tail_distribution_marks_alpha():
+    rng = np.random.default_rng(1)
+    r = {a: rng.normal(0.0004, 0.01, size=500) for a in _ARMS}
+    fig = return_tail_distribution(r, alpha=0.05)
+    ax = fig.axes[0]
+    assert "α=0.05" in ax.get_title(loc="left")
+    assert len(ax.lines) >= len(_ARMS)  # an ECDF per arm (+ the alpha reference line)
+
+
+def test_equity_drawdown_two_panels_and_benchmark():
+    rng = np.random.default_rng(2)
+    r = {a: rng.normal(0.0003, 0.01, size=250) for a in _ARMS}
+    fig = equity_drawdown(r, benchmark=rng.normal(0.0002, 0.011, size=250))
+    assert len(fig.axes) == 2
+    assert fig.axes[0].get_yscale() == "log"
+    # market + 3 arms = 4 equity lines on the top panel
+    assert len(fig.axes[0].lines) == len(_ARMS) + 1
+
+
+def test_equity_drawdown_handles_nan_returns():
+    r = {"scalar": np.array([0.01, np.nan, -0.02, 0.03])}
+    fig = equity_drawdown(r)                       # NaNs coerced to 0.0, never raises
+    assert len(fig.axes) == 2
+
+
+def test_allocation_heatmap_from_snapshots():
+    rng = np.random.default_rng(3)
+    w = rng.dirichlet(np.ones(8), size=200)        # (T=200, N=8) simplex weights
+    alloc = alloc_snapshots(w, top_k=5, n_snapshots=24)
+    fig = allocation_heatmap(alloc, asset_labels={i: f"A{i}" for i in range(8)})
+    ax = fig.axes[0]
+    assert ax.images                               # an imshow heatmap was drawn
+    # rows = top-K assets + the 'other' residual row
+    assert ax.get_yticklabels()[-1].get_text() == "other"
+
+
+def test_allocation_heatmap_empty_is_graceful():
+    fig = allocation_heatmap({"asset_idx": [], "steps": [], "weights": [], "other": []})
+    assert fig.axes  # a placeholder panel, never raises

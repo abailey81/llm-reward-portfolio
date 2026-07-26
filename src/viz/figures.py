@@ -4,7 +4,7 @@ Designed for a corroborated NULL — every figure visualises equivalence/overlap
 
 * :func:`equivalence_forest`     — TOST intervals vs the ±SESOI band, both co-primary legs (F6).
 * :func:`rliable_intervals`      — per-arm IQM + stratified-bootstrap CIs, the canonical RL-eval figure.
-* :func:`risk_return_clouds`     — the collapsed (CVaR, Sharpe) frontier: the 7 arms pile into one blob.
+* :func:`risk_return_clouds`     — the collapsed (CVaR, Sharpe) frontier: the 9 arms pile into one blob.
 * :func:`evidence_for_null`      — Bayes-factor gauge + Model-Confidence-Set strip (evidence FOR H0).
 * :func:`reward_code_similarity` — AST-distance clustered heatmap: the placebo writes the same code.
 * :func:`controls_overlay`       — treatment-vs-controls per-seed rainclouds piling onto one band (F7).
@@ -55,6 +55,11 @@ __all__ = [
     "responsiveness_scatter",
     "learning_curves",
     "delisting_robustness",
+    "performance_profile",
+    "probability_of_improvement",
+    "return_tail_distribution",
+    "equity_drawdown",
+    "allocation_heatmap",
 ]
 
 _LEG_LABEL = {"sharpe": "H2-RA: Sharpe", "cvar": "H2-Tail: CVaR-5%"}
@@ -744,4 +749,198 @@ def ten_winners_exhibit(
                     color=OKABE_ITO["grey"], va="top")
     fig.suptitle(title, fontsize=11, x=0.02, ha="left")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
+    return fig
+
+
+# --------------------------------------------------------------------------- #
+# Corpus-standard additions (2026-07-26): the rliable quartet's other two      #
+# members (G1/G2) + the risk-lens/finance staples (G3/G4/G5). All report-only, #
+# all take already-computed arrays, all honest-null by construction.           #
+# --------------------------------------------------------------------------- #
+def performance_profile(
+    scores_by_arm: Mapping[str, np.ndarray],
+    *,
+    n_points: int = 100,
+    title: str = "Performance profiles (run-score distributions; Agarwal 2021)",
+) -> Any:
+    """Run-score distribution per arm: the fraction of seeds scoring above a shared threshold τ (G1).
+
+    ``scores_by_arm``: ``{arm: per-seed score array}``. The second member of the rliable quartet after
+    :func:`rliable_intervals`; robust to the heavy tails our data has. Overlapping profiles across arms are
+    the visual signature of a null (no arm stochastically dominates)."""
+    import matplotlib.pyplot as plt
+
+    pooled = np.concatenate(
+        [np.asarray(v, dtype=float).ravel() for v in scores_by_arm.values()] or [np.zeros(1)]
+    )
+    pooled = pooled[np.isfinite(pooled)]
+    lo, hi = (float(pooled.min()), float(pooled.max())) if pooled.size else (0.0, 1.0)
+    if hi <= lo:
+        hi = lo + 1.0
+    taus = np.linspace(lo, hi, int(max(2, n_points)))
+    fig, ax = plt.subplots(figsize=(5.8, 4.0))
+    for arm, s in scores_by_arm.items():
+        st = arm_style(arm)
+        s = np.asarray(s, dtype=float).ravel()
+        s = s[np.isfinite(s)]
+        frac = np.array([float(np.mean(s > t)) for t in taus]) if s.size else np.zeros_like(taus)
+        ax.plot(taus, frac, color=st["color"], lw=2.0, label=arm,
+                ls=("--" if st["hatch"] else "-"), zorder=3)
+    ax.set_xlabel("score threshold τ")
+    ax.set_ylabel("fraction of seeds with score > τ")
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_title(title, fontsize=10, loc="left")
+    ax.legend(loc="best", ncol=2, fontsize=7)
+    return fig
+
+
+def probability_of_improvement(
+    prob_by_arm: Mapping[str, Any],
+    *,
+    baseline_label: str = "scalar",
+    title: str = "Probability of improvement over the baseline (0.5 = no effect)",
+) -> Any:
+    """Per-arm P(arm > baseline) with a CI, against the 0.5 no-effect line (G2; rliable A.28/29).
+
+    ``prob_by_arm``: ``{arm: p}`` or ``{arm: (p, lo, hi)}``. Points clustered on 0.5 with CIs spanning it
+    are the null signature; a point whose whole CI sits above 0.5 is a genuine improvement."""
+    import matplotlib.pyplot as plt
+
+    arms = list(prob_by_arm)
+    fig, ax = plt.subplots(figsize=(5.4, 0.5 + 0.42 * max(1, len(arms))))
+    for y, arm in enumerate(arms):
+        st = arm_style(arm)
+        v = prob_by_arm[arm]
+        if isinstance(v, (tuple, list, np.ndarray)) and len(v) == 3:
+            p, lo, hi = (float(v[0]), float(v[1]), float(v[2]))
+        else:
+            p = lo = hi = float(v)
+        ax.plot([lo, hi], [y, y], color=st["color"], lw=2.4, solid_capstyle="round", zorder=3)
+        ax.plot([p], [y], marker=st["marker"], ms=7, color=st["color"], markeredgecolor="black",
+                markeredgewidth=0.4, zorder=4)
+    ax.axvline(0.5, color="0.4", lw=0.9, ls="--", zorder=1)  # no improvement
+    ax.set_yticks(range(len(arms)))
+    ax.set_yticklabels(arms)
+    ax.set_ylim(-0.6, len(arms) - 0.4)
+    ax.invert_yaxis()
+    ax.set_xlim(0.0, 1.0)
+    ax.set_xlabel(f"P(arm > {baseline_label})")
+    ax.set_title(title, fontsize=10, loc="left")
+    return fig
+
+
+def return_tail_distribution(
+    returns_by_arm: Mapping[str, np.ndarray],
+    *,
+    alpha: float = 0.05,
+    title: str = "Realized return distributions (left tail annotated)",
+) -> Any:
+    """Per-arm ECDF of realized returns with the α-quantile (VaR) marked and the left tail shaded (G3).
+
+    ``returns_by_arm``: ``{arm: realized per-step return array}`` (a representative winner or pooled seeds).
+    The risk story made visible — where a CVaR/tail claim lives (Tail-Safe / RAMAC archetype). Overlapping
+    left tails = the tail-feedback channel did not move the downside."""
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(6.0, 4.2))
+    var_min = np.inf
+    for arm, r in returns_by_arm.items():
+        st = arm_style(arm)
+        r = np.sort(np.asarray(r, dtype=float).ravel())
+        r = r[np.isfinite(r)]
+        if r.size == 0:
+            continue
+        ecdf = np.arange(1, r.size + 1) / r.size
+        ax.plot(r, ecdf, color=st["color"], lw=1.8, label=arm, ls=("--" if st["hatch"] else "-"), zorder=3)
+        var = float(np.quantile(r, alpha))
+        var_min = min(var_min, var)
+        ax.plot([var], [alpha], marker=st["marker"], ms=6, color=st["color"],
+                markeredgecolor="black", markeredgewidth=0.4, zorder=4)
+    ax.axhline(alpha, color="0.5", ls=":", lw=0.9, zorder=1)
+    if np.isfinite(var_min):
+        ax.axvspan(ax.get_xlim()[0], var_min, color=OKABE_ITO["vermillion"], alpha=0.06, zorder=0)
+    ax.set_xlabel("realized return")
+    ax.set_ylabel("empirical CDF")
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_title(f"{title}  (α={alpha:g} VaR marked)", fontsize=10, loc="left")
+    ax.legend(loc="lower right", ncol=2, fontsize=7)
+    return fig
+
+
+def equity_drawdown(
+    returns_by_arm: Mapping[str, np.ndarray],
+    *,
+    benchmark: np.ndarray | None = None,
+    title: str = "Growth of 1 and drawdown over the sealed test",
+) -> Any:
+    """Equity curve (log growth of 1) + underwater drawdown per arm on the sealed test (G4).
+
+    ``returns_by_arm``: ``{arm: per-step realized return array}``; ``benchmark`` an optional per-step
+    market series (drawn in grey). The finance staple (EIIE / FinRL-DeepSeek / Sood); overlapping curves =
+    no arm outperforms out of sample."""
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(2, 1, figsize=(6.6, 5.0), sharex=True,
+                             gridspec_kw={"height_ratios": [2.0, 1.0]})
+    top, bot = axes[0], axes[1]
+
+    def _plot(name: str, r: np.ndarray, color: str, ls: str = "-", lw: float = 1.6, z: int = 3) -> None:
+        r = np.asarray(r, dtype=float).ravel()
+        r = np.where(np.isfinite(r), r, 0.0)
+        eq = np.cumprod(1.0 + r)
+        top.plot(eq, color=color, lw=lw, ls=ls, label=name, zorder=z)
+        peak = np.maximum.accumulate(eq)
+        dd = np.where(peak > 0, eq / peak - 1.0, 0.0)
+        bot.plot(dd, color=color, lw=max(0.9, lw - 0.4), ls=ls, zorder=z)
+
+    if benchmark is not None:
+        _plot("market", benchmark, OKABE_ITO["grey"], ls=":", lw=1.2, z=2)
+    for arm, r in returns_by_arm.items():
+        st = arm_style(arm)
+        _plot(arm, r, st["color"], ls=("--" if st["hatch"] else "-"))
+    top.set_yscale("log")
+    top.set_ylabel("growth of 1 (log)")
+    top.set_title(title, fontsize=10, loc="left")
+    top.legend(loc="best", ncol=2, fontsize=7)
+    bot.set_ylabel("drawdown")
+    bot.set_xlabel("test step")
+    bot.axhline(0.0, color="0.5", lw=0.7, zorder=1)
+    return fig
+
+
+def allocation_heatmap(
+    alloc: Mapping[str, Any],
+    *,
+    asset_labels: Mapping[int, str] | None = None,
+    title: str = "Allocation over time (top holdings)",
+) -> Any:
+    """Heatmap of the top-K holdings' weights over time + a residual 'other' row (G5).
+
+    ``alloc``: the dict from :func:`src.inference.exposure.alloc_snapshots`
+    (``{asset_idx, steps, weights (S×K), other}``). The learned-policy exhibit (Cartea/Coache/RAMAC);
+    a sequential (not categorical) colourmap is correct here — viridis is colourblind-safe."""
+    import matplotlib.pyplot as plt
+
+    idx = list(alloc.get("asset_idx", []))
+    steps = list(alloc.get("steps", []))
+    weights = np.asarray(alloc.get("weights", []), dtype=float)
+    other = np.asarray(alloc.get("other", []), dtype=float)
+    fig, ax = plt.subplots(figsize=(6.8, 0.32 * (len(idx) + 1) + 1.4))
+    if weights.ndim != 2 or weights.size == 0:
+        ax.text(0.5, 0.5, "no allocation snapshots", ha="center", va="center", transform=ax.transAxes)
+        ax.set_axis_off()
+        return fig
+    mat = np.vstack([weights.T, other[None, :]])  # (K+1, S): rows = top-K assets then 'other'
+    im = ax.imshow(mat, aspect="auto", cmap="viridis", vmin=0.0,
+                   vmax=float(max(1e-3, np.nanmax(mat))), origin="upper")
+    row_labels = [(asset_labels.get(a, str(a)) if asset_labels else str(a)) for a in idx] + ["other"]
+    ax.set_yticks(range(len(row_labels)))
+    ax.set_yticklabels(row_labels, fontsize=6.5)
+    n_x = len(steps)
+    xt = np.linspace(0, n_x - 1, min(6, n_x)).round().astype(int) if n_x else []
+    ax.set_xticks(list(xt))
+    ax.set_xticklabels([str(steps[i]) for i in xt], fontsize=7)
+    ax.set_xlabel("test step")
+    ax.set_title(title, fontsize=10, loc="left")
+    fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02, label="weight")
     return fig
