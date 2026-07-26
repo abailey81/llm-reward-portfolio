@@ -74,3 +74,28 @@ curves (F9). Static `[NOW]` schematics are ENGINE-BUILT (`src/viz/schematics.py`
 F2 `prediction_branch`, F4 `splits_timeline`); F1, F2 and F4 are all engine-built, tested, and rendered to `outputs/figures/`. F3 stylised facts IS engine-built (`src/viz/eda.py::build_f3`, 2026-07-02; see
 the F3 row above) and rendered 2026-07-02 from the ACTIVE **univ5** Split-C train window (excess kurtosis
 15.25; empirical/Normal CVaR crossover ×0.84→×1.66; stress co-crash 19.7%).
+
+## 2026-07-26 additions — corpus-standard figures (G1–G5) + tables (G7–G9) + the capture layer
+
+Added after a deep sweep of ~20 lineage/finance papers' figure/table archetypes + the rliable / Ten-Simple-
+Rules standards (`docs/METRICS_AND_FIGURES_COMPLETENESS_2026-07-26.md`). All report-only, engine-built + tested.
+
+| # | Title | What it shows | Renderer (`src.viz.figures`) | Status |
+|---|---|---|---|---|
+| G1 | Performance profiles | per-arm run-score distribution P(score>τ) — the 2nd rliable-quartet member; overlap = null | `performance_profile` | **[NOW engine / CAMPAIGN data]** |
+| G2 | Probability of improvement | per-arm P(arm>baseline)+CI vs the 0.5 no-effect line (rliable A.28/29) | `probability_of_improvement` | **[NOW engine / CAMPAIGN data]** |
+| G3 | Return / tail distribution | per-arm realized-return ECDF with the α-VaR marked + left tail shaded (the risk story) | `return_tail_distribution` | **[NOW engine / CAMPAIGN data]** |
+| G4 | Equity + drawdown | log growth-of-1 + underwater drawdown over the sealed test (finance staple) | `equity_drawdown` | **[NOW engine / CAMPAIGN data]** |
+| G5 | Allocation heatmap | top-K holdings' weights over time + 'other' residual (learned-policy exhibit) | `allocation_heatmap` (from `exposure.alloc_snapshots`) | **[NOW engine / CAMPAIGN data]** |
+
+| # | Title | What it shows | Source | Status |
+|---|---|---|---|---|
+| G7 | Fixed agent+training+env config | every held-fixed knob (SAC, B*=400k, seed ladder, env) — reproducibility artifact | `docs/PAPER_TABLES_G7_G9_2026-07-26.md` (from config, verified) | **[NOW]** |
+| G8 | Novelty matrix | us vs Eureka/Text2Reward/DrEureka/REvolve/CARD/DLM/GIFT/ELfolio/RD-Agent × the 5 conjunctive-cell dims | same doc (corpus-verified) | **[NOW]** |
+| G9 | Frozen-prompt reference | the 3 hash-bound prompts + the single-substitution identification hinge | same doc + `prompts/` | **[NOW]** |
+
+**Capture layer (M1–M4, pre-freeze, determinism-safe; `docs/METRICS_AND_FIGURES_COMPLETENESS_2026-07-26.md`).**
+The frozen-winner TEST record now archives (inside `metrics{}`, report-only, best-effort): `test_exposure`
+(M1), `test_alloc` (M1b → G5), `test_components` (M3), `train_curve` (M2 → F9). These are the data G3/G4/G5 +
+F9 need — a frozen, replay-only campaign can only plot what it logged. Byte-exact determinism verified
+(`scripts/reproduce_synthetic.py --check` reproduces the golden with the recorders attached).

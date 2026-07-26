@@ -85,6 +85,16 @@ REQUIRED_FIELDS: tuple[str, ...] = (
 #: (parallel). ``scripts/analyze_campaign.py`` stacks those vectors per arm into the
 #: CSCV performance matrix. It is OPTIONAL (a record that lacks it is skipped with a
 #: logged warning) so the schema stays back-compatible with every existing writer.
+#:
+#: 2026-07-26 (M1/M1b/M2/M3) — report-only, determinism-safe RUN DIAGNOSTICS additionally ride inside
+#: ``metrics`` on the frozen-winner TEST record (same pattern as ``test_gross``; no schema change), so the
+#: replay-only campaign records the data the equity/drawdown/exposure/allocation/learning-curve figures
+#: need (a frozen run can only plot what it logged):
+#:   - ``metrics['test_exposure']``   : per-step Herfindahl / effective-N / max / top-5 concentration (M1)
+#:   - ``metrics['test_alloc']``      : top-K-by-mean monthly allocation snapshots for the heatmap (M1b)
+#:   - ``metrics['test_components']`` : per-component mean of the reward decomposition over the test path (M3)
+#:   - ``metrics['train_curve']``     : this seed's downsampled training curve (critic/actor loss + return, M2)
+#: All are OPTIONAL + best-effort (a capture miss never crashes an irreplaceable sealed seed).
 OPTIONAL_FIELDS: tuple[str, ...] = (
     "frozen",
     "test_returns",
