@@ -417,3 +417,40 @@ per-period-vs-annualised floor trap) — that one is entirely yours.
   formula and value untouched; documentation accuracy only.
 - **T1 remains OPEN and is the last correctness item before GO** — still flagged HIGH as both a ~2.5×
   speed lever and a correctness defect.
+
+---
+
+## ✅✅ ROW 36 IS **FULLY CLOSED** — rule + assembly + WIRED + locked. FEATURE/BUILD: nothing left here.
+
+Tamer said finish, so I completed the call site too rather than hand you a one-liner.
+
+**Critically: I VERIFIED the node paths against the producing code instead of trusting docstrings — and
+4 of the 6 first-guess paths were WRONG.** Anyone wiring this from the docstrings alone would have
+produced a silently-degraded verdict. The verified map is now in `NODE_SOURCES` and documented in the
+module header:
+
+| node | source (verified) | rule |
+|---|---|---|
+| N1_h2_tail | `out["h2"]["tail_legs"][*]["pvalue_one_sided"]` | MAX over legs (IUT) |
+| N2_h2_ra | `out["h2"]["legs"][*]["pvalue_one_sided"]` | MAX over legs (IUT) |
+| N3_h3 | `out["h3"]["difference"]["pvalue_one_sided"]` | single test *(was guessed top-level — wrong)* |
+| N4_h4 | `out["h4"]["tests"][*]["pvalue_one_sided"]` | MAX over legs *(key is `tests`, not `legs`)* |
+| N5_structure | `out["h2_structure"]["cvar"]["pvalue_one_sided"]` | single test — **cvar**, per the registered node's `metric: cvar` *(container was `h2_structure`, not `structure_control`)* |
+| N6_h1 | `out["h1_beat_human"]["iut"]["iut_pvalue"]` | **already** the MAX over the canon, gated on `all_baselines_present` *(container was `h1_beat_human`; no need to re-derive the max)* |
+
+**What landed**
+
+- `scripts/analyze_campaign.py` — `out["validity_tier"] = tier_verdict(out)`, placed AFTER every node
+  producer (h2 · h3 · h4 · h2_structure · h1_beat_human) and wrapped so plumbing can never kill the
+  report. The Bonferroni-over-4 block above it is **kept as the disclosed sensitivity**, not the gate.
+- `tests/test_validity_tier_assembly.py` — **9 tests**, including
+  `test_analyze_campaign_WIRES_the_ratified_rule`, which FAILS if the call site is deleted **or moved
+  before a producer**. That lock exists because row 36 was exactly the R16 failure recurring: a
+  unit-tested module nothing invokes.
+- N6 honours `all_baselines_present`, so a missing canon member yields `untestable` rather than a
+  cheaper dominance claim.
+
+**Still yours: row 34** (`cross_model` / `leg_aggregate` wiring, with the per-period-vs-annualised
+√252 floor trap). Unchanged, and genuinely untouched by me.
+
+**Still CODE-REVIEWER's: T1** — now the ONLY correctness item left before GO.

@@ -5341,6 +5341,21 @@ def analyze(
     except Exception as exc:  # noqa: BLE001 - a report-only sensitivity must never break the headline
         out["cross_hypothesis_multiplicity"] = {"status": "error", "reason": str(exc)[:200]}
 
+    # ★ THE RATIFIED PRIMARY DECISION RULE (R108, 2026-07-26): the graphical (Bretz-Maurer-Brannath-Posch
+    # 2009) alpha-propagation over the six confirmatory nodes. This SUPERSEDES R31's separate-estimands
+    # stance — the Bonferroni-over-4 block ABOVE is retained as the disclosed SENSITIVITY, not the gate.
+    # Placed here because it needs every node's producer to have run (h2, h3, h4, h2_structure,
+    # h1_beat_human). The graph is READ from config/preregistration.yaml, never hardcoded, so the
+    # executed rule cannot drift from the frozen one (forking_path_guard). Fail-safe: a node whose
+    # p-value cannot be located is reported `untestable` and can never reject — a shape mismatch shows
+    # up in the artifact instead of producing a confidently wrong confirmatory verdict.
+    try:
+        from src.inference.validity_tier import tier_verdict
+
+        out["validity_tier"] = tier_verdict(out)
+    except Exception as exc:  # noqa: BLE001 - never let the primary rule's plumbing kill the whole report
+        out["validity_tier"] = {"status": "error", "reason": str(exc)[:200]}
+
     # Mechanism multiplicity (forking-paths) — a Bonferroni/BH-across-mechanism-legs SENSITIVITY over the
     # report-only SQ1/SQ2/SQ3 diagnostics (responsiveness, mediation, AST permutation, McNemar, Mahalanobis,
     # legible-format, regime), mirroring the cross-hypothesis Bonferroni-across-4. Report-only, DISJOINT;
