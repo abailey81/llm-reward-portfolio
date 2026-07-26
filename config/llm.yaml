@@ -27,8 +27,16 @@ max_tokens: 8192                            # R102 (2026-07-24): raised 4096 -> 
 
 # Matched-compute budget (the property that licenses the comparative claim). Same for ALL arms.
 candidate_budget_total: 30                  # total reward candidates per arm (set via scoping tree)
-generations: 6                              # multi-generation reflection (H3 single-shot uses 1)
-candidates_per_generation: 5                # = budget / generations
+# ⚠ NON-AUTHORITATIVE MIRRORS (2026-07-26 review). The EXECUTED search width comes from
+# config/campaign.yaml (`generations: 6`, `candidates_per_arm: 30`); the campaign computes
+# candidates-per-generation itself in src/orchestration/parallel.py:996 (`candidates // generations`
+# = 5) and never reads this file — `config/llm.yaml` has exactly ONE consumer repo-wide,
+# scripts/smoke_qwen.py. Editing the two keys below therefore changes NOTHING about the campaign.
+# `candidates_per_generation` is additionally a DEAD key name: src/llm/loop.py reads
+# `candidates_per_gen` (note the abbreviation) and defaults it to 1, so nothing anywhere reads the
+# spelling below. Change the search width in config/campaign.yaml, not here.
+generations: 6                              # MIRROR of campaign.yaml `generations` (H3 single-shot uses 1)
+candidates_per_generation: 5                # MIRROR/DEAD KEY — = candidates_per_arm / generations
 
 # N3 contamination control (ADR-033): an open-weights, different-cutoff model whose H2 ORDERING is
 # replicated on a separate corpus. ADR-033 names Llama-4 (official Aug-2024 cutoff, commit-pinned);

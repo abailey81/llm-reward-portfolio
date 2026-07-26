@@ -148,7 +148,7 @@ degrades gracefully and never crashes.
 
 ## 5. EXACT run command(s) for the real campaign
 
-The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml` (7 arms · 30 candidates ·
+The campaign reads arms/seeds/candidates/steps/author from `config/campaign.yaml` (9 arms · 30 candidates ·
 30 seeds · 50k steps · Opus 5 · `pass: B`). Pick ONE launch line by the search-parallelism decision.
 
 ### Recommended n_gpu = 3 (the laptop ceiling; `--gpu >= 4` is refused by run_campaign)

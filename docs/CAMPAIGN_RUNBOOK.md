@@ -41,7 +41,7 @@ the laptop TEST-leg ceiling is **n_gpu = 3** GPU workers (proven-safe 2–3; VRA
 worker (RAM-bound); **`--gpu` and `--search-gpu` ≥ 4 are REFUSED by the CLI** (`run_campaign.py` raises
 `SystemExit`; `preflight.check_vram` FAILs it) because n_gpu=4 OOMs the 6 GiB RTX-4050 VRAM ceiling.
 **Compute — authoritative source `docs/COMPUTE_AND_TRAINING_TIME.md`
-(post-amendment D2, winner seeds 5→30; 7 arms after R32 added `placebo_shuffled`):** the **7-arm core
+(post-amendment D2, winner seeds 5→30; 9 arms after R32 added `placebo_shuffled` and R108 added the `cma_es`/`tpe` DFO portfolio):** the **9-arm core
 ≈ 600 runs** (210 search + 210 winner-test + 120 H1 + 60 H3) ≈ **2.6 days on the laptop at n_gpu=3**
 (⚠ HISTORICAL 50k/30-seed estimate — the real campaign is **~23 days** at B\*=200k + the ~350-seed
 σ_D-driven amendment; see the superseded-wall-clock note in §4 below) / **~13 h on a rented 4090; ~180 GPU-hr** — consistent with the "Estimated wall-clock — core
@@ -50,7 +50,7 @@ scope/time grounds (there is **no GPU-hour cap** — `hard_budget_gpu_hours` was
 GPU-hr figures are estimates, not a limit). The run-count recorded at freeze **is** the DSR trial count, so take it from the COMPUTE doc, not a
 round number. `run_campaign.py` writes to `outputs/campaign/{search,frozen,test}` and
 `campaign_summary.json`. The campaign reward-author is **Claude Opus 5** (`config/campaign.yaml`,
-`pass: B`, `provider: anthropic`, `ANTHROPIC_API_KEY`); 7 arms × 30 candidates (search) → 7 winners
+`pass: B`, `provider: anthropic`, `ANTHROPIC_API_KEY`); 9 arms × 30 candidates (search) → 9 winners
 × 30 seeds (test).
 
 > **Two confirmatory invariants that dominate the grade (do not violate):**
@@ -334,7 +334,7 @@ driver `preload()`s pyarrow before torch (gold-parquet ABI guard) and `load_env(
 ```
 **GO/NO-GO (launch sanity, first ~2 min):** the banner shows `steps=200000` (the frozen B\*, R74 — NOT
 the legacy 50k; a `steps=50000` banner is the mis-configuration to catch), `provider=anthropic`,
-`candidates=30`, all 7 arms (the **frozen H2-family guard** raises `SystemExit` if the arms drift from
+`candidates=30`, all 9 arms (the **frozen H2-family guard** raises `SystemExit` if the arms drift from
 the pre-registered contrast family — that is a hard stop, fix `config/campaign.yaml` arms). The
 `outputs/campaign/{search,frozen,test}` dirs are created and `progress.json` appears. If the banner
 prints the wrong steps/provider/arms, **kill it immediately** — do not let a mis-configured paid run

@@ -128,7 +128,7 @@ n_gpu=3 ~4.2 GiB (68 %) — both comfortable. This reinforces n_gpu=2 and caps t
 
 ### Will it OOM? Survive 27 h?
 
-> **NOTE:** Phase-1 prototype used 6 arms; the campaign uses 7 arms incl. `placebo_shuffled` (R54). See PREREGISTRATION §3.
+> **NOTE:** Phase-1 prototype used 6 arms; the campaign uses 9 arms incl. `placebo_shuffled` (R54) and the `cma_es`/`tpe` DFO portfolio (R108). See PREREGISTRATION §3.
 
 The "~27 h" total = SEARCH (6 arms × 30 cand × ~53k steps ≈ **13–15 h**, agg 178–222 steps/s) + the
 already-built TEST leg (6 arms × 30 seeds × ~53k ≈ another ~13–15 h). The pool that must survive

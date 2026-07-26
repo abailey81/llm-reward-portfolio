@@ -4,7 +4,7 @@
 `src/orchestration/{parallel.py,test_leg.py}`, `src/utils/monitoring.py`, `scripts/monitor.py`.
 **Author:** SRE audit, 2026-06-24. **Mode:** read-only audit → apply-ready spec. I did **not** edit code.
 
-> **NOTE:** Phase-1 prototype used 6 arms; the campaign uses 7 arms incl. `placebo_shuffled` (R54). See PREREGISTRATION §3.
+> **NOTE:** Phase-1 prototype used 6 arms; the campaign uses 9 arms incl. `placebo_shuffled` (R54) and the `cma_es`/`tpe` DFO portfolio (R108). See PREREGISTRATION §3.
 > **NOTE (2026-07-02, Split C / univ5 — ADR-044/051, R73):** the sealed leg is now **2020–2026H1 on univ5**
 > (train 2005–2016 / val 2017–2019); the "sealed 2018-2025 leg" in the quoted code comments below reflects
 > `run_campaign.py` as read on 2026-06-24 and is kept verbatim as audit evidence. Also since applied:

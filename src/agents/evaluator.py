@@ -7,7 +7,7 @@ Bayesian-optimization-over-template; ``src/search/*``) were written against an i
 the repo never built the adapter that turns "a reward function" into "the fixed SAC
 agent's validation Deflated Sharpe" (adversarial-review finding **C1**). Without it the
 search arms would either run on toy closures (scientifically void) or crash, and the
-"matched compute across all seven arms" property that licenses the H4 comparison
+"matched compute across all NINE arms" (R108 7 -> 9) property that licenses the H4 comparison
 (PREREGISTRATION §3) would not actually hold.
 
 This module is that adapter. ``evaluate_reward`` runs the IDENTICAL

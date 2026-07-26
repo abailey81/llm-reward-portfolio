@@ -76,7 +76,10 @@ if ($Myriad) {
     # are the tiered C-ladder over the frozen 7-arm roster; override with -CampaignArgs. The supervisor
     # (and, redundantly, the entry) append --resume so re-entry replays the archive — never re-bills.
     if (-not $PSBoundParameters.ContainsKey('CampaignArgs')) {
-        # The FROZEN roster (config/campaign.yaml): 7 arms + 4 H1 baselines. A reboot-recovery MUST resume
+        # The FROZEN roster: 9 arms (config/arms.yaml, R108's 7 -> 9 with the H4 DFO portfolio) + the
+        # 11-member H1 canon (config/preregistration.yaml h1_baselines, expanded 4 -> 11). Counts are
+        # stated here for the operator ONLY — resolve them from config, never hand-type a roster: a
+        # stale hand-typed list is what caused the 4-vs-11 launch defect. A reboot-recovery MUST resume
         # the complete, correct campaign — a wrong default would resume an incomplete/broken roster.
         # --tiered means the config seed schema (the E1 ladder [0..567]) drives the tiers; --seeds is
         # ignored here. Kept at the full ladder as a belt-and-suspenders default in case --tiered is dropped.

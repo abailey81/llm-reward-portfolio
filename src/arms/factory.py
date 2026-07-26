@@ -141,7 +141,11 @@ def build_arm(name: str, cfg: Any = None) -> Arm:
     name : str
         Arm identifier. One of the five LLM arms (``distributional``,
         ``scalar``, ``placebo``, ``scalar_cvar5``, ``placebo_shuffled``) or the
-        two search arms (``random_search``, ``bayes_opt``).
+        FOUR search arms (``random_search``, ``bayes_opt``, ``cma_es``, ``tpe``).
+        The search roster grew 2 -> 4 with the H4 DFO portfolio (R108, the 7 -> 9
+        arm reconciliation); this list is a convenience only — the authoritative
+        roster is the ``arms:`` table in ``config/arms.yaml``, which this function
+        reads dynamically, so a stale list here can never restrict what is built.
     cfg : DotDict or dict or None, optional
         Arms configuration carrying ``matched_budget`` and the ``arms`` table.
         When ``None`` (default), ``config/arms.yaml`` is loaded.
