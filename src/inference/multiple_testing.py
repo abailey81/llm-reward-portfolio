@@ -16,6 +16,9 @@ Methods
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 
 import numpy as np
 
@@ -117,3 +120,153 @@ def romano_wolf(
         else:
             break
     return reject
+
+
+# --------------------------------------------------------------------------- #
+# The RATIFIED primary rule: graphical alpha-propagation (Bretz et al. 2009)   #
+# --------------------------------------------------------------------------- #
+def graphical_alpha_propagation(
+    pvalues: dict[str, float | None],
+    weights: dict[str, float],
+    edges: dict[str, dict[str, float]],
+    alpha: float = 0.05,
+) -> dict[str, Any]:
+    """Sequentially-rejective graphical multiple test (Bretz, Maurer, Brannath & Posch 2009).
+
+    THE REGISTERED PRIMARY DECISION RULE. ``config/preregistration.yaml:
+    inference.validity_tier`` declares ``method: graphical_bretz_maurer_brannath_posch_2009`` and
+    ``primary_rule: bonferroni_weighted_graph``, ratified 2026-07-26 (R108) — which SUPERSEDED R31's
+    separate-estimands stance. Until this function existed the pipeline could not execute the rule it
+    is registered to run (deep review 2026-07-26, write-time registry row 36): the analysis computed
+    only the Bonferroni-over-4 mirror, i.e. the *superseded* stance.
+
+    Because a graphical procedure is a shortcut for a CLOSED test (Marcus, Peritz & Gabriel 1976), the
+    whole family enjoys **strong FWER control at ``alpha`` under arbitrary dependence** — which is why
+    the H2 co-primaries may be tested at ``w_i·alpha`` without any further leg correction inside each
+    IUT (Berger 1982 already makes each node's max-p a valid level-alpha p-value).
+
+    Algorithm (eq. (2)-(3) of Bretz et al. 2009). With index set ``J`` of not-yet-rejected nodes:
+
+      1. reject any ``j in J`` with ``p_j <= w_j * alpha``; if none, stop;
+      2. propagate the rejected node's weight   ``w_l += w_j * g_jl``            for ``l in J\{j}``;
+      3. re-wire                                ``g_lk = (g_lk + g_lj*g_jk) / (1 - g_lj*g_jl)``
+         (``0`` when ``g_lj*g_jl >= 1``; ``g_ll = 0``), drop ``j`` from ``J``, and repeat.
+
+    **The rejected SET is invariant to the order** in which simultaneously-rejectable nodes are taken —
+    a property of the closed-test shortcut, exercised directly by
+    ``tests/test_graphical_alpha.py::test_rejected_set_is_order_invariant``. This implementation
+    nevertheless picks a DETERMINISTIC order (smallest p first, ties broken by the caller's node order)
+    so a run is byte-reproducible.
+
+    Parameters
+    ----------
+    pvalues:
+        Node p-value per node id. ``None``/NaN means the node was NOT TESTABLE (e.g. an arm with too
+        few shared seeds). Such a node can never reject and is reported under ``untestable`` — it is
+        NOT silently treated as a passing test.
+    weights, edges:
+        The graph. **Callers must READ these from the registered config, never hardcode them** — the
+        graph is declared FROZEN by ``validity_tier.forking_path_guard``, and a hardcoded copy is
+        exactly the executed-vs-registered drift the arm-roster / ``h1_baselines`` /
+        ``confirmatory_author`` freeze guards exist to prevent. Use :func:`registered_alpha_graph`.
+    alpha:
+        Family-wise error rate. The registered value is 0.05.
+
+    Returns
+    -------
+    dict
+        ``{"alpha", "rejected" (in rejection order), "not_rejected", "untestable",
+        "local_alpha" (the level each node was finally tested at), "steps" (the audit trail),
+        "any_rejected"}``.
+    """
+    nodes = list(weights)
+    if set(nodes) != set(edges) or not set(pvalues) >= set(nodes):
+        raise ValueError(
+            f"graph/p-value node sets disagree: weights={sorted(weights)}, edges={sorted(edges)}, "
+            f"pvalues={sorted(pvalues)}"
+        )
+    if not 0.0 < alpha < 1.0:
+        raise ValueError(f"alpha must be in (0, 1); got {alpha}")
+    w = {n: float(weights[n]) for n in nodes}
+    if any(v < -1e-12 for v in w.values()):
+        raise ValueError(f"negative initial weight in {w}")
+    if sum(w.values()) > 1.0 + 1e-9:
+        raise ValueError(f"initial weights must sum to <= 1; got {sum(w.values())}")
+    g = {a: {b: float(edges.get(a, {}).get(b, 0.0)) for b in nodes} for a in nodes}
+    for a in nodes:
+        g[a][a] = 0.0
+        if sum(g[a].values()) > 1.0 + 1e-9:
+            raise ValueError(f"out-edges of {a!r} must sum to <= 1; got {sum(g[a].values())}")
+
+    def _p(n: str) -> float:
+        v = pvalues.get(n)
+        if v is None:
+            return float("nan")
+        return float(v)
+
+    untestable = [n for n in nodes if not np.isfinite(_p(n))]
+    live = [n for n in nodes if n not in untestable]
+    rejected: list[str] = []
+    steps: list[dict[str, Any]] = []
+    local_alpha = {n: w[n] * alpha for n in nodes}
+
+    while True:
+        # Deterministic choice among ALL simultaneously-rejectable nodes (the final set is invariant).
+        candidates = [n for n in live if _p(n) <= w[n] * alpha + 1e-15]
+        if not candidates:
+            break
+        j = min(candidates, key=lambda n: (_p(n), nodes.index(n)))
+        steps.append({
+            "rejected": j, "p": _p(j), "local_alpha": w[j] * alpha,
+            "weights_before": {n: w[n] for n in live},
+        })
+        rejected.append(j)
+        live.remove(j)
+        # (2) propagate the rejected node's weight along its out-edges
+        for leaf in live:
+            w[leaf] += w[j] * g[j][leaf]
+        # (3) re-wire the surviving graph
+        new_g = {a: {b: 0.0 for b in live} for a in live}
+        for a in live:
+            for b in live:
+                if a == b:
+                    continue
+                denom = 1.0 - g[a][j] * g[j][a]
+                new_g[a][b] = (g[a][b] + g[a][j] * g[j][b]) / denom if denom > 1e-15 else 0.0
+        for a in live:
+            for b in live:
+                g[a][b] = new_g[a][b]
+        w[j] = 0.0
+        for n in live:
+            local_alpha[n] = w[n] * alpha
+
+    return {
+        "alpha": float(alpha),
+        "rejected": rejected,
+        "not_rejected": [n for n in nodes if n not in rejected and n not in untestable],
+        "untestable": untestable,
+        "local_alpha": local_alpha,
+        "steps": steps,
+        "any_rejected": bool(rejected),
+    }
+
+
+def registered_alpha_graph(root: Any = None) -> tuple[dict[str, float], dict[str, dict[str, float]], float]:
+    """Read the FROZEN alpha-graph from ``config/preregistration.yaml`` — never hardcode it.
+
+    Returns ``(initial_weights, edges, alpha)`` exactly as registered under
+    ``inference.validity_tier``. Reading rather than copying is the point: the graph is declared FROZEN
+    by ``forking_path_guard``, so a hardcoded duplicate would be executed-vs-registered drift of the
+    kind the freeze gate's cross-file guards exist to catch.
+    """
+    import yaml
+
+    if root is None:
+        root = Path(__file__).resolve().parents[2]
+    cfg = yaml.safe_load((Path(root) / "config" / "preregistration.yaml").read_text(encoding="utf-8"))
+    tier = cfg["inference"]["validity_tier"]
+    return (
+        {str(k): float(v) for k, v in tier["initial_weights"].items()},
+        {str(a): {str(b): float(v) for b, v in (d or {}).items()} for a, d in tier["edges"].items()},
+        float(tier["alpha"]),
+    )

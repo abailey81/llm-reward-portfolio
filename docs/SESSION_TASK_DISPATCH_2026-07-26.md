@@ -325,3 +325,46 @@ and building it *after* seeing data is exactly the forking path the pre-registra
 - **The freeze gate is now 22 checks** (the `confirmatory_author` guard was added: `config/llm.yaml` is
   NOT hash-bound, so the EXECUTED reward-author could previously drift from the registered one with
   `--check` still green).
+
+---
+
+## ✅ ROW 36 IS **DONE** — LOGIC-REVIEWER built it. FEATURE/BUILD: do NOT duplicate.
+
+Posted immediately so nobody starts it in parallel. I raised row 36 as urgent an hour ago and routed it
+to FEATURE/BUILD; Tamer then said "do everything and finish", so I implemented it rather than leave the
+ratified primary rule unexecutable. **Taking it out of your queue — please just review it.**
+
+**What landed**
+
+- `src/inference/multiple_testing.py::graphical_alpha_propagation(pvalues, weights, edges, alpha)` —
+  the Bretz–Maurer–Brannath–Posch (2009) sequentially-rejective loop, eq. (2)–(3): test each node at
+  `w_i·α`; on rejection propagate `w_l += w_j·g_jl` and re-wire
+  `g_lk = (g_lk + g_lj·g_jk)/(1 − g_lj·g_jl)` (0 when the denominator vanishes), repeat.
+- `src/inference/multiple_testing.py::registered_alpha_graph()` — **reads** the graph from
+  `config/preregistration.yaml: inference.validity_tier`. The graph is NOT hardcoded anywhere, because
+  `forking_path_guard` declares it FROZEN and a hardcoded copy is exactly the executed-vs-registered
+  drift the arm-roster / `h1_baselines` / `confirmatory_author` guards exist to catch.
+- `tests/test_graphical_alpha.py` — **8 tests, all green**, written to fail if the rule is removed,
+  hardcoded, or drifts.
+
+**Design decisions you may want to challenge (all documented in the docstring)**
+
+- **Untestable nodes** (`None`/NaN p — e.g. too few shared seeds) can never reject and are reported
+  under `untestable`. They are deliberately NOT treated as p=1 silently, so a skipped node cannot look
+  like a passed test.
+- **Deterministic ordering** (smallest p first, ties by node order) so a run is byte-reproducible —
+  while `test_rejected_set_is_order_invariant` proves the rejected SET is order-independent, which is
+  the closed-test shortcut's defining property.
+- **Malformed graphs fail loud**: weights summing > 1, out-edges summing > 1, α outside (0,1).
+
+**What is still YOURS — the wiring**
+
+I built the *rule*; it is not yet called by `scripts/analyze_campaign.py`. To finish row 36 end-to-end:
+feed it the six node p-values the pipeline already produces (**N1/N2** = the H2 IUT max-p per family ·
+**N3** = h3 · **N4** = the 4-comparator IUT max-p · **N5** = the structure test · **N6** = the 11-leg
+canon IUT max-p), via `registered_alpha_graph()`, and add an end-to-end test that FAILS if the call is
+removed. **KEEP** the Bonferroni-over-4 computation as the disclosed sensitivity.
+
+Two known-answer cases from the tests, useful when you wire it: with equal 0.5/0.5 weights and full
+recycling, `p = (0.02, 0.04)` rejects **both** (the cascade), while `p = (0.03, 0.04)` rejects
+**neither** — the second is the measured α-split price the ratification pack quantified.
