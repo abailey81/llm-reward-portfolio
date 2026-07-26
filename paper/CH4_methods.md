@@ -178,7 +178,7 @@ block matched to the distributional block in length and field-count; **scalar_cv
 single CVaR-5% number; and **placebo_shuffled** receives the distributional block's exact structure with the tail
 *values deranged*. Two non-language-model search baselines complete the design: **random_search** samples reward
 code from a shared parametric family, and **bayes_opt** performs Gaussian-process expected-improvement optimisation
-over the family's coefficients [`snoek2012practical`]. The control ladder is constructed to defend named threats to
+over the family's coefficients [`snoek2012practical`]. So that H4 cannot be dismissed as a comparison against weak search, the identical family is additionally optimised — at the same matched budget and shared seed — by two further derivative-free optimisers reported descriptively: **CMA-ES**, the evolution-strategy standard for low-dimensional continuous problems [`hansen2001cmaes`], and the density-ratio **tree-structured Parzen estimator** [`bergstra2011tpe`] (via Optuna [`akiba2019optuna`]). Random search, Gaussian-process expected improvement, CMA-ES and TPE together span the principal families of derivative-free optimisation — model-free sampling, surrogate-model Bayesian optimisation, evolution strategies and density-ratio estimation — so the designer is measured against best-in-class numerical optimisation of the identical reward family; whether it beats or merely matches the strongest optimiser is reported in full. The control ladder is constructed to defend named threats to
 construct validity [`shadish2002experimental`]: the placebo isolates the effect of *receiving any feedback* from
 the effect of its *content* (a demand/placebo confound); scalar_cvar5 isolates *multi-level tail shape* from *any
 single downside number*; and placebo_shuffled — structurally identical, informationally destroyed — isolates the
@@ -233,7 +233,7 @@ and is **pending supervisor ratification**; until ratified it is reported descri
 the searched LLM winner deflated by its candidate multiplicity versus each un-searched hand reward at $N{=}1$ —
 keeps the human bar conservative either way. **H2**, the headline, is the feedback-channel contrast. **H3** asks
 whether iterative reflection beats single-shot best-of-N at matched budget; **H4** asks whether the language-model
-designer beats the random-search and Bayesian-optimisation baselines.
+designer beats numerical search over the identical reward family — its confirmatory node (N4) is the pre-registered intersection–union test over the two standard baselines, random search and Gaussian-process optimisation, with the stronger CMA-ES and TPE optimisers (§4.5) reported descriptively rather than as further conjunction legs, so the registered confirmatory family is unchanged.
 
 **H2 is two co-primary intersection–union tests.** *H2-RA* asks whether the distributional arm matches the
 comparison arms on risk-adjusted return (a Sharpe contrast); *H2-Tail* asks whether it improves the realised left
