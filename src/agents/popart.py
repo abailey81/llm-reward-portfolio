@@ -199,6 +199,23 @@ class PopArtRewardScaler(gym.Wrapper):  # type: ignore[misc]
         self.epsilon = float(epsilon)
         self.min_scale = float(min_scale)
         self.warmup = int(warmup)
+        # Fail loud on a knob that would SILENTLY disable the scaler (2026-07-26 deep review). All four
+        # are config-reachable (``popart_beta``/``popart_min_scale``/``popart_warmup``, via ``wrap_popart``),
+        # and every out-of-range value degrades to the IDENTITY without ever raising: ``beta=0`` freezes
+        # ``sq_ema`` at 0 so ``sigma`` pins at the floor; ``beta>1`` can drive ``sq_ema`` negative -> NaN
+        # ``sigma`` -> ``_scale``'s backstop returns the floor; ``min_scale<=0`` voids BOTH the identity
+        # guarantee and the div-by-zero floor. Each of those logs ``sigma_max == min_scale``, which is
+        # INDISTINGUISHABLE from the healthy sub-unit reading the R48 cross-arm audit expects — a mistyped
+        # knob would corrupt the audit instrument rather than fail. Reject at the boundary instead.
+        # (NaN fails every comparison below, so it raises here too.)
+        if not 0.0 < self.beta <= 1.0:
+            raise ValueError(f"popart beta must be in (0, 1]; got {self.beta!r}")
+        if not (self.min_scale > 0.0 and np.isfinite(self.min_scale)):
+            raise ValueError(f"popart min_scale must be finite and > 0; got {self.min_scale!r}")
+        if not (self.epsilon > 0.0 and np.isfinite(self.epsilon)):
+            raise ValueError(f"popart epsilon must be finite and > 0; got {self.epsilon!r}")
+        if self.warmup < 0:
+            raise ValueError(f"popart warmup must be >= 0; got {self.warmup!r}")
         self.sq_ema: float = 0.0
         self.count: int = 0
         # Realised-scale audit trail (T2.4): the cross-arm distribution of these is what makes the

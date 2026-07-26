@@ -329,3 +329,35 @@ def test_popart_prevents_critic_explosion_on_pathological_reward(synthetic_panel
         f"expected divergence without PopArt to dwarf the PopArt run: "
         f"without={without_popart:.3g} vs with={with_popart:.3g}"
     )
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "offender"),
+    [
+        ({"beta": 0.0}, "beta"),
+        ({"beta": 1.5}, "beta"),
+        ({"beta": float("nan")}, "beta"),
+        ({"min_scale": 0.0}, "min_scale"),
+        ({"min_scale": -1.0}, "min_scale"),
+        ({"epsilon": 0.0}, "epsilon"),
+        ({"warmup": -1}, "warmup"),
+    ],
+)
+def test_popart_rejects_knobs_that_would_silently_disable_it(kwargs: dict, offender: str) -> None:
+    """A config-reachable knob outside its valid range must RAISE, not degrade to the identity.
+
+    ``beta=0`` freezes ``sq_ema`` at 0; ``beta>1`` can drive it negative (-> NaN sigma -> ``_scale``'s
+    backstop); ``min_scale<=0`` voids BOTH the identity guarantee and the div-by-zero floor. Each of
+    those silently pins ``sigma`` at the floor and so logs ``sigma_max == min_scale`` — INDISTINGUISHABLE
+    from a healthy sub-unit run, meaning the R48 cross-arm scale audit would read clean while PopArt was
+    in fact off. These knobs are reachable from config via ``wrap_popart`` (``popart_beta`` etc.), so the
+    rejection has to happen at the constructor boundary.
+    """
+    with pytest.raises(ValueError, match=offender):
+        PopArtRewardScaler(_ScriptedRewardEnv([0.5, 0.5]), **kwargs)
+
+
+def test_popart_accepts_the_documented_defaults_and_test_range() -> None:
+    """Positive control for the guard above: the shipped defaults and the values the suite uses pass."""
+    for kwargs in ({}, {"min_scale": 1e-12}, {"beta": 1.0}, {"beta": 0.5, "warmup": 5}):
+        assert PopArtRewardScaler(_ScriptedRewardEnv([0.5, 0.5]), **kwargs) is not None
