@@ -3459,6 +3459,199 @@ finding (#54) — a PAPER-FACING table named a dead file as the frozen reflectio
 - **Verified:** **63 tests `PYTEST_RC=0`** (`test_prompts` + `test_freeze`); ruff clean;
   `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
 
+**Loop 82 — `src/viz/eda.py` (the motivating F3 EDA): the numbers REPRODUCE EXACTLY and the figure is
+snoop-clean; ONE latent finding (#55). Streak stays 0/30.**
+
+Okhrati's revealed grading function explicitly rewards "motivate the method with the data", so this
+figure is load-bearing for the Data chapter. It was the largest zero-mention file left (560 lines).
+
+- **★ EVERY RECORDED F3 FACT REPRODUCES — recomputed from the live gold panel, not trusted:**
+
+  | recorded fact (memory, Split-C univ5) | recomputed 2026-07-26 |
+  |---|---|
+  | skew **POSITIVE** +0.21 ("never claim negative") | **+0.2096** ✓ |
+  | excess kurtosis 15.25 | **15.2486** ✓ |
+  | −5σ ratio ×10,393 | **×10,393** (9 days vs 0.00087 expected) ✓ |
+  | co-crash 19.7% | **19.75%** stress vs 3.33% calm ✓ |
+
+  Window: 2005-01-03 → 2016-12-30, 3,021 sessions × 30 names — the **TRAIN split only**
+  (`build_f3` uses `phase="development"`), with that window baked into the figure footnote, so the
+  motivating EDA is snoop-clean by construction and says so on its face.
+- **★ A strong internal consistency check, worth recording.** Under cross-sectional independence the
+  co-crash fraction should average the 5% crash quantile on every day. Measured: ~10% stress days at
+  19.75% and ~90% calm days at 3.33% ⇒ **0.1×19.75 + 0.9×3.33 = 4.95% ≈ 5%**. The decomposition
+  reconciles to its own null, which is what makes "diversification fails in the tail" a measured
+  claim rather than an assertion.
+- **#55 (MINOR, latent) — panel (c) hardcoded the word "top-decile" against a public parameter.**
+  `fig_stylised_facts` exposes `stress_quantile` (and `scripts/build_notebook_results.py` imports the
+  function directly), so a caller passing 0.95 would have had a top-**5%** set annotated as a
+  *decile*. The sibling panel (d) already rendered its own `crash_quantile` dynamically — the figure
+  disagreed with itself. Now derived from the parameter (`top-{1−q:.0%}`), matching panel (d).
+  **The published render was never wrong** — `build_f3` uses the 0.90 default, a true decile — so
+  this is a latent inconsistency, and is labelled as such rather than inflated.
+- **Verified CLEAN, no finding (do not re-open):** **no RNG anywhere in the module** — deterministic
+  by construction, and the existing suite already pins that; `rolling_realized_vol` is window-end
+  aligned with **no look-ahead**, and `stylised_fact_stats` excludes the first `vol_window−1` days
+  from BOTH calm and stress rather than silently binning them as calm (a genuinely careful
+  off-by-one); the −kσ counts are one-sided lower-tail against `norm.cdf(−k)` with a **NaN** ratio
+  when nothing is observed (no fabricated zero); `normal_cvar` is the correct closed-form Gaussian
+  lower-tail mean in the repo's signed convention; per-name crash thresholds use each name's own
+  ALIVE days so a zero-filled delisted name cannot dilute the fraction; and every figure annotation
+  is drawn from the single `stylised_fact_stats` dict rather than recomputed.
+  **Checked and NOT claimed:** the episode shading clamps to `min(e+1, size−1)`, which would collapse
+  to zero width only for a single-day episode on the very last session — **measured: no such episode
+  exists at either q=0.90 or q=0.95**, so it is an untriggerable edge case, not a defect.
+- **Verified:** **39 tests `PYTEST_RC=0`** (`test_viz_eda` + `test_viz`); the new guard discriminates
+  (the pre-fix string "top-decile days" fails the `top-10%` assertion); ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+
+**Loop 83 — `src/cluster/killswitch.py`: ONE MAJOR finding (#56) — the admin-kill detector's time
+window was INERT on every real ledger, so benign attrition would have halted the campaign.
+Streak stays 0/30.**
+
+The highest-consequence un-reviewed file: it guards Myriad access, and its own docstring states the
+asymmetry — a false negative costs the account, a false positive costs run-hours.
+
+- **★★ #56 (MAJOR) — a whole campaign's scattered failures read as one 300-second burst.**
+  `_recent` admitted any row whose timestamp was missing (`if ts is None or float(ts) >= …`), and the
+  jobscript's epilogue trap emitted **`task/host/gpu/rc/secs` and no `ts` at all**. So on every real
+  ledger the burst window was inert: every death ever written counted as "within 300s".
+  **MEASURED on the exact shape the emitter produces — 12 ordinary failures spread over 20 DAYS
+  across 6 hosts classified `admin_kill` → `retreat`.** The same 12 events, correctly timestamped,
+  classify `ok` → `continue`. In production a `retreat` halves the core cap **and** writes
+  `MYRIAD_KILL_INCIDENT.json`, which blocks ALL submission until a human clears it — so over a
+  23-day campaign (≥8 deaths across ≥4 hosts is near-certain benign attrition) the killswitch would
+  have stopped the run unattended, and the operator would have found a "STOP submitting, do NOT
+  requeue, alert a human" incident describing an administrative kill that never happened.
+  **Fixed at BOTH ends, because either alone is wrong:**
+  * `jobscript.py` now stamps `"ts":$(date +%s)` in the epilogue trap — the root cause. Verified by
+    rendering: the trap stays single-quoted with `EXIT` intact, and the expanded line parses as JSON
+    with an integer `ts` and the original five fields unchanged.
+  * `_recent` no longer treats an undated row as recent (burstiness is inherently temporal, so a row
+    that cannot be placed in time is not evidence of a burst) — but it **counts** them and the caller
+    **warns loudly**, with the count exposed as `KillVerdict.n_undated`. Excluding them silently
+    would have traded a false positive for a false NEGATIVE on the one guard protecting Myriad
+    access. Same discipline as loop 80's extrapolation counter: never fabricate, always make the gap
+    visible. A non-numeric `ts` counts as undated rather than raising.
+  **Detection is preserved:** a genuine burst (10 deaths / 5 hosts in 200s) still returns
+  `admin_kill` → `retreat` with the cap cut 636 → 318.
+- **Verified CLEAN (do not re-open):** `incident_blocks_submission` is properly **fail-SAFE** — an
+  unreadable or corrupt incident file BLOCKS, explicitly documented, which is the loop-74 #40 lesson
+  already applied correctly here; `write_incident` is atomic (tmp + `replace`); `retreat_cap` is
+  monotone non-increasing with a floor, and nothing in the module ever raises the cap — only a human
+  clearing the file does; the classifier's ORDER is right (walltime deaths removed first, then
+  single-host concentration, and only a multi-host survivor is called administrative), so a badly
+  sized `h_rt` cannot masquerade as an admin action. `clear_incident` writes non-atomically, but a
+  torn write leaves the file unreadable ⇒ BLOCKED, which is the safe direction — noted, not "fixed".
+- **Process note (third occurrence):** `pytest` on a non-existent path returns **RC=4, not a pass** —
+  the files are `tests/test_cluster_killswitch.py` and `tests/test_cluster_submit_poll_ledger.py`.
+  Caught because RC is read from the log rather than assumed.
+- **Verified:** **130 tests `PYTEST_RC=0`** across the five cluster suites; ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+- ⚠ **The FULL SUITE is overdue and was NOT run** — it needs Tamer's explicit permission under the
+  machine-load rule, and he has not answered. Absence of an answer is not permission, so the
+  affected suites were run instead and the full run remains outstanding.
+
+**Loop 84 — `src/cluster/poll.py` + the killswitch's wiring: ONE MAJOR (#57) — the automated
+Myriad-access guard had NO production call site. Streak stays 0/30.**
+
+Loop 83 fixed the admin-kill detector's window. This loop asked the obvious follow-up — who feeds it —
+and the answer was nobody.
+
+- **★★ #57 (MAJOR) — a submission gate that nothing could ever trip.** `poll.sync_epilogue_ledgers`
+  documents TWO consumers of the epilogue rows: the bad-node check and
+  `killswitch.classify_task_deaths`. Exhaustive search of the repo (excluding tests) found the
+  classifier referenced **only** by its own definition, its `__all__` entry, and two docstrings —
+  **no call site**. `killswitch.write_incident` likewise had **no caller outside its own module**.
+  Meanwhile the GATE, `incident_blocks_submission`, IS wired at `cluster/campaign.py:272`.
+
+  | component | wired? |
+  |---|---|
+  | ledger transport `sync_epilogue_ledgers` | ✅ campaign.py:222 |
+  | bad-node check `host_task_counts` | ✅ sentinel.py:1158 |
+  | **admin-kill detector `classify_task_deaths`** | ❌ **never — no caller** |
+  | **`write_incident`** (creates the block) | ❌ **no caller** |
+  | gate `incident_blocks_submission` | ✅ campaign.py:272 |
+
+  So the incident file could only ever appear if a human wrote it by hand: the automated
+  access-preservation killswitch **could not fire**. This is the "instrument that reports success
+  while measuring nothing" theme at its most consequential — a carefully built, well-tested,
+  well-reasoned safety system that is never invoked. Loop 83's #56 fix had been improving a detector
+  nothing called.
+  **Fix, split deliberately along the risk line.** DETECTION is now wired in `scripts/sentinel.py`,
+  computed from rows the sentinel **already reads** for the bad-node check — so it is a pure data
+  addition to a read-only watcher, with no control-flow change. The verdict lands in the lane report
+  as `kill_verdict` with `enforced: False`. **ENFORCEMENT is deliberately NOT wired:** calling
+  `write_incident` blocks all submission until a human clears it — it can halt a 23-day campaign —
+  and starting to do that unprompted is an operator decision, not something a review lane or a
+  read-only watcher should switch on. Flagged for Tamer with the exact call site.
+- **#58 (coverage gap, flagged not tuned) — the burst window is narrower than the ledger refresh.**
+  `killswitch.WINDOW_SECS = 300` s, but the epilogue sync rides the driver's pull loop, which sleeps
+  `poll_secs = 600` s (`driver.py:415/605`; `min_pull_interval = 60` s is a rate LIMIT, not a
+  cadence). So a genuine burst that happened 300–600 s before evaluation is present in the freshly
+  synced ledger yet has already aged out of the window — it would never be classified. This is a
+  false NEGATIVE on the guard the module says protects the account. I have **not** changed
+  `WINDOW_SECS` or `MIN_DEATHS`: those are policy thresholds on an access guard, and widening the
+  window also widens the false-positive surface. Reported with both numbers so the trade-off is
+  Tamer's, not mine.
+- **Verified CLEAN in `poll.py` (do not re-open):** `sync_epilogue_ledgers` **cannot double-count** —
+  it does a whole-file `tmp.replace(target)`, not an append, so a re-pulled ledger overwrites rather
+  than duplicates (the docstring explains why: array tasks append concurrently, so an offset tail
+  could tear a line, whereas a whole-file copy is always internally consistent). This mattered more
+  after #56: duplicated rows would now share a timestamp and could manufacture a phantom burst — they
+  cannot. A torn `cat` **self-heals**, because the size mismatch forces a re-fetch on the next poll,
+  and `read_epilogue` skips torn lines rather than misparsing them. The Windows CRLF hazard is
+  handled explicitly (`newline=""`), without which the skip-if-unchanged test would never fire again.
+- **Verified:** **131 tests `PYTEST_RC=0`** (`test_sentinel` + three cluster suites); ruff clean;
+  `freeze.py --check` RC=0, read-only, `freeze_hash: null` — nothing frozen.
+- ⚠ **FULL SUITE still NOT run** — requested at loops 82 and 83, still unanswered. Absence of an
+  answer is not permission under the machine-load rule, so it remains outstanding.
+
+**Loop 85 — `src/cluster/telemetry.py`: ONE finding (#59) — the GO-day accumulation canary read its
+own UTC timestamps as LOCAL, truncating the window by an hour. Streak stays 0/30.**
+
+- **★ #59 — a UTC/local mismatch inside the instrument that sets the seed rung on GO day.**
+  `collect` stamps every frame `time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())` — UTC, with the
+  `Z` saying so. `accumulation_report` read it back with **`time.mktime`**, which interprets its
+  struct as **LOCAL** time. Measured: a **−3600 s** shift under BST (`DST active: True`), which
+  covers the entire campaign window, so every frame read back an hour older than it was.
+  **MEASURED through the real function** on 18 frames written 10 minutes apart across exactly 3.0 h:
+
+  | | as coded (`mktime`) | after fix (`timegm`) | truth |
+  |---|---|---|---|
+  | frames in window | **12** | **18** | 18 |
+  | `early_mean_cores` | **250** | **150** | 150 |
+  | climb ratio late/early | 1.64 | 2.60 | — |
+
+  A third of the window was silently discarded, and `early_mean_cores` — **the number the operator
+  re-forecasts the reachable rung from** — was 67% high. The verdict thresholds are 1.15/0.85, so a
+  33% truncation can flip `climbing` ↔ `plateaued` outright; and because the check needs ≥6
+  slot-bearing frames, it reports "insufficient — keep the watcher running" during the first hour of
+  a GO-day watch when the data already exists. Fixed with `calendar.timegm` (UTC in, UTC out).
+- **★ WHY IT SURVIVED — the test fixture encoded the same misconception as the code.**
+  `_write_log` in `tests/test_cluster_accumulation.py` wrote `time.localtime()` under a `Z` label,
+  which **exactly cancelled** the reader's local-time bug. The tests passed while production —
+  which uses the correct `gmtime` — was an offset out. The fixture now matches the real writer, so
+  this class is visible to the suite at all. That is the more valuable half of this fix: a green
+  test that shares the code's wrong assumption is not evidence.
+- **Class swept repo-wide:** every other `mktime` (`utils/journal.py:82`, `scripts/monitor.py:126`)
+  parses a **non-`Z`** format, and `journal.py` documents that it deliberately writes LOCAL and reads
+  LOCAL for same-machine comparison — consistent, not a bug. Every other `Z`-suffixed writer
+  (`spend_ledger.py`, `leg_gates.py`, `freeze.py`) has no `mktime` reader. **#59 was the only
+  instance.**
+- **Verified CLEAN (do not re-open):** `collect` is genuinely well-hardened — **per-section rc
+  sentinels** (a failed middle command can no longer parse as "legitimately empty"), a missing
+  sentinel reported as "transport truncated?", `rc ∉ {0,1}` flagged (rc=1 is legal for `qstat` with
+  no jobs), and every exception captured into `Snapshot.errors` rather than raised — and those
+  errors are genuinely consumed, since `allocation.py:239/265` freezes on the last known plan and
+  annotates "telemetry degraded" rather than letting a dead feed flip a decision. Telemetry writes
+  only to `outputs/myriad_telemetry.jsonl` and `outputs/allocation_state.json`, **siblings of the
+  campaign archive, never inside it**, so the monitor cannot mutate what it measures. Log growth is
+  bounded in practice (~3.3k small frames over 23 days at a 10-minute cadence).
+- **Verified:** **102 tests `PYTEST_RC=0`** (`test_cluster_accumulation` + `test_campaign_health` +
+  `test_allocation` + `test_sentinel`); ruff clean; `freeze.py --check` RC=0, read-only,
+  `freeze_hash: null` — nothing frozen.
+
 ### 📋 SESSION SUMMARY — deep code-review loops 44-73 (2026-07-26, the CODE-REVIEW lane)
 
 > Tamer, this session: *"stop fucking crushing my laptop"* (→ the standing machine-load rule below),
