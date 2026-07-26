@@ -218,3 +218,40 @@ def test_build_f3_on_real_train_window(tmp_path: Path) -> None:
     assert stats["n_assets"] == 30 and stats["n_days"] > 2_000
     assert stats["excess_kurtosis"] > 0.5  # the motivating fact itself
     assert stats["co_crash_stress_mean"] > stats["co_crash_calm_mean"]
+
+
+def test_stress_band_label_FOLLOWS_the_quantile_parameter() -> None:
+    """Panel (c)'s stress-band label must be derived from ``stress_quantile``, not hardcoded.
+
+    Regression for a real config-vs-label defect (deep review loop 82, #55): the annotation read
+    "top-decile days" as a fixed word while ``stress_quantile`` is a PUBLIC argument of
+    ``fig_stylised_facts`` (which ``scripts/build_notebook_results.py`` imports directly). A caller
+    passing 0.95 therefore had a top-5% set labelled a decile. The sibling panel (d) already rendered
+    its own ``crash_quantile`` dynamically, so the figure disagreed with itself.
+
+    The paper-facing render was never wrong — ``build_f3`` uses the 0.90 default, a true decile — so
+    this pins a latent inconsistency, not a published error."""
+    panel = _make_panel()
+
+    def _panel_c_text(q: float) -> str:
+        fig = E.fig_stylised_facts(panel, stress_quantile=q)
+        try:
+            return " ".join(t.get_text() for t in fig.axes[2].texts)
+        finally:
+            plt.close(fig)
+
+    decile = _panel_c_text(0.90)
+    assert "top-10%" in decile, f"expected the decile band to render as top-10%; got: {decile!r}"
+
+    ventile = _panel_c_text(0.95)
+    assert "top-5%" in ventile, f"expected the 0.95 band to render as top-5%; got: {ventile!r}"
+    assert "decile" not in ventile.lower(), (
+        "a top-5% stress set is still being called a 'decile' — the label is hardcoded again"
+    )
+    # and panel (d) keeps deriving its own quantile (the sibling this now matches)
+    fig = E.fig_stylised_facts(panel, crash_quantile=0.10)
+    try:
+        d_text = " ".join(t.get_text() for t in fig.axes[3].texts)
+        assert "10%" in d_text
+    finally:
+        plt.close(fig)

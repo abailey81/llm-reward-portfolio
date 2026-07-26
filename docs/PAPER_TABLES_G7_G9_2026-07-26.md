@@ -72,9 +72,24 @@ exact author instructions are permanent. Reproduced verbatim in the appendix; th
 |---|---|---|---|
 | System | `prompts/system.txt` | Persona + the reward-function contract (signature, sandbox rules, return type) | **No** — byte-identical across all arms |
 | Initial generation | `prompts/initial_generation.txt` | First-candidate task prompt (design a reward from the task description) | **No** |
-| Reflection | `prompts/reflection.txt` | The iterate prompt: prior reward + **the feedback block** + revise instruction | **Only the feedback block** — the single manipulated variable (multi-level tail vector vs scalar vs placebo) |
+| Reflection | **in code**: `src/llm/loop.py::_REFLECTION_PREAMBLE` (+ `schema.build_block`) | The iterate prompt: a fixed two-sentence preamble + **the feedback block** | **Only the feedback block** — the single manipulated variable (multi-level tail vector vs scalar vs placebo) |
 
-**The identification hinge (state explicitly in CH4).** Every arm shares byte-identical `system.txt` +
-`initial_generation.txt` + `reflection.txt` **scaffold**; arms differ ONLY in the feedback block spliced into
-the reflection prompt. That single-substitution design is what makes any downstream difference attributable to
-the feedback *content* (audit A-1). The full verbatim prompts appear in Appendix [X].
+> ⚠ **CORRECTED 2026-07-26 (deep code-review loop 81, finding #54).** This row previously named
+> `prompts/reflection.txt` and listed it as frozen. **That file is DEAD** — no runtime path loads it
+> (verified: no `.py` in the repo reads it), and `scripts/freeze.py` **deliberately EXCLUDES** it from
+> `_BOUND_TREATMENT` for exactly that reason (see its own comment). The reflection turn is composed at
+> run time from the in-code `_REFLECTION_PREAMBLE` (`src/llm/loop.py`, verbatim: *"Reflect on the
+> previous candidate's results and propose an improved reward function. Feedback from the previous
+> candidate:"*) plus the per-arm block from `src/feedback/schema.py::build_block`. Publishing the old
+> row would have shown an examiner a prompt file the model never received — and promised it "verbatim
+> in the appendix". **The appendix must reproduce the in-code preamble, not `reflection.txt`.**
+> ⚠ Note also that the frozen set is `arms.yaml` + `system.txt` + `initial_generation.txt`; the
+> reflection preamble lives in Python source and is therefore **NOT hash-bound**. It is identical
+> across arms (so identification is unaffected) and version-controlled, but whether to add it to
+> `_BOUND_TREATMENT` is a pre-registration decision, not a documentation fix — flagged, not actioned.
+
+**The identification hinge (state explicitly in CH4).** Every arm shares a byte-identical scaffold —
+`system.txt` + `initial_generation.txt` (both frozen) + the in-code `_REFLECTION_PREAMBLE`; arms differ
+ONLY in the feedback block spliced into the reflection prompt. That single-substitution design is what
+makes any downstream difference attributable to the feedback *content* (audit A-1). The full verbatim
+prompts — including the in-code preamble — appear in Appendix [X].

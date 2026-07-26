@@ -27,6 +27,22 @@ The two discrete dims (``cvar_alpha``, ``window``) are FIXED for the continuous-
     r = w_return*net_return + w_log*log1p(net_return)
         - w_turnover*turnover - w_drawdown*drawdown
         - w_cvar*max(0, -CVaR_alpha) - w_vol*sigma
+
+Conventions (stated explicitly — loop 79, finding #52; Stefan's criterion 5 "clarity of what is
+measured"). These were previously left implicit, and the config comment asserted the WRONG one:
+
+    turnover : the **TWO-WAY** L1 change ``sum|w - w_prev|``, range ``[0, 2]`` (MEASURED 2.0 for a
+               fully disjoint rebalance). ⚠ This DIFFERS from the H1 canon member
+               ``rewards.py::return_minus_turnover``, which uses the ONE-WAY ``0.5*sum|w - w_prev|``
+               in ``[0, 1]`` (Garleanu-Pedersen). Both are legitimate; they are simply not the same
+               quantity, and each family's weight absorbs the factor of 2. Do not "harmonise" one to
+               the other without a pre-registration amendment — the H4 box is registered.
+    drawdown : LOG-wealth shortfall from the running peak (``peak - cum``), >= 0.
+    CVaR     : mean of the worst ``ceil(alpha * n)`` returns in the rolling window — the stack-wide
+               convention (``inference.bootstrap.cvar`` / ``measurement._empirical_cvar``); only a
+               genuine loss is penalised, via ``max(0, -CVaR)``.
+    sigma    : rolling ``np.std(..., ddof=0)`` — a penalty SCALE, not an estimator (same deliberate
+               choice as ``rewards.py::return_minus_variance``).
 """
 from __future__ import annotations
 

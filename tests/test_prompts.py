@@ -88,3 +88,54 @@ def test_loop_sends_injected_prompts(tmp_path) -> None:
     system_sent, initial_sent = rec.prompts[0]
     assert system_sent == ps.system
     assert "reward(weights, returns, prev_weights, port_ret, info)" in initial_sent
+
+
+def test_ARM_SHARED_prompts_are_TAIL_NEUTRAL() -> None:
+    """The construct-validity hinge: nothing shown to EVERY arm may pre-load the tail concepts.
+
+    H2's effect is the MARGINAL value of tail-specificity. That reading only holds if the text every
+    arm sees is tail-NEUTRAL — if the base prompt already said "minimise CVaR", the distributional
+    arm's block would be redundant rather than informative, and a null would be uninterpretable.
+    The claim was verified once by hand (construct-validity audit) but never pinned, so a later
+    prompt edit could silently dissolve the identification (deep review loop 81).
+
+    Tail-neutral does NOT mean risk-neutral: the shared text deliberately says "optimise
+    RISK-ADJUSTED performance" and names an online Sharpe, which is exactly why the SCALAR arm is the
+    right control — it supplies the scalar the base prompt already gestures at. What must be absent
+    is the tail-SPECIFIC vocabulary that only the distributional block supplies."""
+    import re
+
+    from src.llm.loop import _REFLECTION_PREAMBLE
+
+    ps = build_prompt_set(load_config("environment"), 30)
+    shared = {
+        "system.txt": ps.system,
+        "initial_generation.txt (rendered)": ps.initial,
+        "_REFLECTION_PREAMBLE": _REFLECTION_PREAMBLE,
+    }
+    # the six fed statistics' vocabulary + its close synonyms
+    tail_terms = (
+        "cvar", "conditional value at risk", "expected shortfall", "shortfall",
+        "tail", "left tail", "downside", "drawdown", "skew", "kurtosis",
+        "quantile", "percentile", "worst case", "worst-case", "var at", "sortino",
+    )
+    offenders: list[str] = []
+    for name, txt in shared.items():
+        low = " ".join(txt.lower().split())
+        for term in tail_terms:
+            if re.search(r"\b" + re.escape(term), low):
+                offenders.append(f"{name}: {term!r}")
+    assert not offenders, (
+        "ARM-SHARED prompt text contains tail-SPECIFIC vocabulary, which would pre-load the "
+        f"manipulated variable and dissolve H2's identification: {offenders}"
+    )
+
+    # and the deliberate risk-adjusted framing IS present (the scalar arm's control validity)
+    assert re.search(r"risk[- ]adjusted", ps.system, re.I), (
+        "the shared system prompt must still ask for RISK-ADJUSTED performance — that is what makes "
+        "the scalar arm a fair control rather than a straw man"
+    )
+    # the anonymisation contract: no dates anywhere in what the model sees
+    assert not re.search(r"\b(19|20)\d{2}\b|\d{4}-\d{2}-\d{2}", ps.system + ps.initial), (
+        "a date leaked into the prompts (N3 anonymisation contract)"
+    )

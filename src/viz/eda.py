@@ -424,8 +424,13 @@ def fig_stylised_facts(
     ax.text(
         0.03, 0.96,
         (
+            # Render the stress band FROM the parameter (deep review 2026-07-26, #55): this read
+            # "top-decile" as a hardcoded word while ``stress_quantile`` is a public argument, so a
+            # caller passing 0.95 would have had a top-5% set labelled a decile. Panel (d) already
+            # renders its own ``crash_quantile`` dynamically — this now matches it. The paper-facing
+            # render was never wrong (``build_f3`` uses the 0.90 default = a true decile).
             f"{stats['n_stress_episodes']} stress episodes hold all "
-            f"{stats['n_stress_days']} top-decile days;  longest "
+            f"{stats['n_stress_days']} top-{1.0 - stress_quantile:.0%} vol days;  longest "
             f"{stats['longest_episode_days']} sessions"
         ),
         transform=ax.transAxes, va="top", fontsize=7.5,

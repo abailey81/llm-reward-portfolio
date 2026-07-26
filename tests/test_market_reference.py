@@ -135,3 +135,60 @@ def test_real_ff_factors_present() -> None:
     ff = load_ff_factors(dates)
     assert ff.available and "Mkt-RF" in ff.factors
     assert np.isfinite(ff.factors["Mkt-RF"]).all()
+
+
+def test_forward_fill_past_the_source_end_is_COUNTED_and_WARNED_not_silent(tmp_path, caplog) -> None:
+    """A stale raw pull must be detectable, not silently extrapolated (deep review #53, loop 80).
+
+    The forward-fill that correctly bridges a publication gap also extends the LAST value past the end
+    of the source file for as long as the target axis runs. That is not hypothetical: this module's
+    own ``_REFRESHED_RAW`` note records it happening once (the Momentum refresh had no mapping, so
+    attribution "silently used the canonical file ending 2026-04-30 and forward-filled the test
+    window's tail with a constant"). A mapping was added; no DETECTOR was, so the condition recurred —
+    MEASURED on the live repo, the French dailies end 2026-05-29 against a frozen test window running
+    to 2026-06-30, leaving 21 of 1631 sessions (1.3%) of the factor ladder on repeated values with
+    ``available=True``. The values are deliberately unchanged (inventing factor data would be worse);
+    this pins that the condition is now COUNTED and LOGGED."""
+    import logging
+
+    import pandas as pd
+
+    from src.data.market_reference import load_ff_factors, load_risk_free_daily
+
+    # a source that stops 5 sessions before the target axis ends
+    src_dates = pd.bdate_range("2024-01-01", periods=20)
+    tgt_dates = pd.bdate_range("2024-01-01", periods=25).values
+
+    raw = tmp_path
+    pd.DataFrame({"observation_date": src_dates, "DGS3MO": np.linspace(4.0, 5.0, 20)}).to_csv(
+        raw / "fred_macro.csv", index=False
+    )
+    with caplog.at_level(logging.WARNING):
+        rf = load_risk_free_daily(tgt_dates, raw_dir=raw)
+    assert rf.available is True
+    assert rf.n_extrapolated == 5, f"expected 5 extrapolated sessions, got {rf.n_extrapolated}"
+    assert rf.last_observation == str(src_dates[-1])[:10]
+    assert "market_reference_EXTRAPOLATED" in caplog.text
+    # the carried value really is the last real one, repeated (no future read, no invention)
+    assert rf.daily[-1] == rf.daily[-5]
+
+    # FULLY-COVERED source -> silent, zero count (the guard must not cry wolf)
+    caplog.clear()
+    pd.DataFrame({"observation_date": pd.bdate_range("2024-01-01", periods=25),
+                  "DGS3MO": np.linspace(4.0, 5.0, 25)}).to_csv(raw / "fred_macro.csv", index=False)
+    with caplog.at_level(logging.WARNING):
+        rf_ok = load_risk_free_daily(tgt_dates, raw_dir=raw)
+    assert rf_ok.n_extrapolated == 0
+    assert "market_reference_EXTRAPOLATED" not in caplog.text
+
+    # a factor set is only as fresh as its STALEST column
+    ff_dates = pd.bdate_range("2024-01-01", periods=20)
+    ff = pd.DataFrame({"Date": ff_dates, "Mkt-RF": 0.001, "SMB": 0.001, "HML": 0.001})
+    ff.loc[ff.index[-4:], "SMB"] = np.nan          # SMB stops 4 sessions earlier than the rest
+    ff.to_csv(raw / "french_F-F_Research_Data_Factors_daily.csv", index=False)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        fr = load_ff_factors(tgt_dates, raw_dir=raw)
+    assert fr.available is True
+    assert fr.last_observation == str(ff_dates[-5])[:10], "the stalest column must govern"
+    assert fr.n_extrapolated == 9, f"5 beyond the file + 4 stale SMB rows; got {fr.n_extrapolated}"

@@ -3,8 +3,12 @@
 Implementation: the frozen tail-diagnostic set is **measured off-critic** by
 `src/feedback/measurement.py` (`ReturnDistribution`, empirical body + EVT/GPD tails) and **serialized** into
 the per-arm feedback block by `src/feedback/schema.py` (`build_block`). Both are unit-tested. The block is
-rendered into the reflection prompt at runtime by the Eureka loop (`src/llm/loop.py`); the live A-set
-template is `prompts/reflection.txt` (it carries the `{ARM_BLOCK}` marker that `build_block` fills).
+rendered into the reflection prompt at runtime by the Eureka loop (`src/llm/loop.py`), which appends the
+block directly to the in-code `_REFLECTION_PREAMBLE` — there is no template file in that path.
+⚠ **CORRECTED 2026-07-26 (deep review loop 81, #54):** this sentence previously said "the live A-set
+template is `prompts/reflection.txt` (it carries the `{ARM_BLOCK}` marker that `build_block` fills)".
+`reflection.txt` is DEAD — no runtime path loads it, its `{ARM_BLOCK}` marker is never substituted, and
+`scripts/freeze.py` excludes it from the bound treatment files for that reason.
 
 **Source of the distribution (off-critic — audit A-1).** The statistics are measured **directly from the
 realized portfolio simple (arithmetic, per-step) returns**, NOT read off any agent critic. They are computed on the **training-period**

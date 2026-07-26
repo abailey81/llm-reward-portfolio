@@ -64,10 +64,32 @@ reward_family:                   # H4 SHARED six-primitive space (ADR-010; PRERE
   # alone (see docs/DEEP_H4.md §1). Weights sampled UNIFORM over [low, high]; ranges sized so each
   # term can reach ~ +/-0.02 per step (parity with daily net-return scale ~0.01). Changing ranges
   # post-freeze = deviation.
+  #
+  # ⚠ TURNOVER CONVENTION — CORRECTED 2026-07-26 (deep review loop 79, finding #52). This comment
+  # previously read "(one-way, in [0, 1])". That is NOT what the code computes:
+  # src/baselines/reward_family.py uses the TWO-WAY sum|w - w_prev|, which is MEASURED at 2.0 for a
+  # fully disjoint rebalance, i.e. range [0, 2]. Note the sibling H1 member
+  # rewards.py::return_minus_turnover DOES use the one-way 0.5*sum|.| (measured 1.0 on the same
+  # input, Garleanu-Pedersen convention) — the two families genuinely differ, which is exactly why
+  # the stale comment was so easy to believe.
+  # CONSEQUENCE for the sizing rationale above: at w_turnover = 0.02 the term reaches 0.02 x 2.0 =
+  # 0.04 per step, TWICE the ~+/-0.02 figure quoted there (one-way would give exactly 0.02). Every
+  # other term does meet it.
+  #
+  # ★ RATIFIED 2026-07-26 (Tamer: "I give you full freedom and ratify"; deep review #52). The range
+  # STAYS at [0, 0.02]; the RATIONALE is corrected instead. Reasoning: the "~+/-0.02 per step" line
+  # is a SIZING HEURISTIC (make each primitive able to matter at the daily-return scale ~0.01), not
+  # a constraint the design depends on. w_turnover is a weight the optimiser TUNES over the whole
+  # range, so a 2x wider reach costs nothing and excludes nothing — whereas halving `high` to 0.01
+  # would NARROW a registered search space, potentially excluding a genuinely better member, to
+  # satisfy a sentence. Changing the science to match the prose is the wrong direction; the prose is
+  # what was inaccurate. So: the turnover primitive can reach ~+/-0.04 per step BY DESIGN, twice the
+  # other five, which is a deliberate allowance for the one term whose natural scale is a [0,2] L1
+  # distance rather than a daily return. Nothing about H4's identification or matched budget changes.
   weights:
     w_return:   {low: 0.0, high: 2.0}     # * net_return
     w_log:      {low: 0.0, high: 2.0}     # * log1p(net_return)
-    w_turnover: {low: 0.0, high: 0.02}    # * turnover (one-way, in [0, 1])
+    w_turnover: {low: 0.0, high: 0.02}    # * turnover — TWO-WAY sum|w - w_prev|, in [0, 2] (see note below)
     w_drawdown: {low: 0.0, high: 0.1}     # * drawdown level (in [0, 1])
     w_cvar:     {low: 0.0, high: 5.0}     # * max(0, -rolling CVaR_alpha)
     w_vol:      {low: 0.0, high: 2.0}     # * rolling std of net returns

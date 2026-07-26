@@ -355,3 +355,62 @@ def test_bayes_opt_resume_reproduces_gp_trajectory() -> None:
     assert [h["score"] for h in out_b["history"]] == [h["score"] for h in out_a["history"]]
     np.testing.assert_allclose(out_b["best_coeffs"], out_a["best_coeffs"])
     assert out_b["best_score"] == out_a["best_score"]
+
+
+def test_one_failed_candidate_does_not_destroy_the_GP_surrogate() -> None:
+    """A ``-1e9`` failure sentinel must not poison GP-EI for the rest of the arm (deep review #51).
+
+    Both production evaluators score a failed candidate ``-1e9`` (``cluster/campaign.py``, which also
+    counts ``state["failed"]``, and ``orchestration/parallel.py``). CMA-ES and TPE are rank-based and
+    shrug it off; a GP with ``normalize_y=True`` does not — one sentinel among ~12 observations drives
+    the target std to ~2.8e8 and collapses every genuine candidate into ~4e-10 normalised units, so the
+    surrogate can no longer tell good coefficients from bad. That degraded a REGISTERED confirmatory H4
+    arm to worse-than-random for its remaining budget, and did so asymmetrically — biasing the H4
+    beat-the-max comparison against ``bayes_opt`` alone."""
+    from src.search.bayes_opt import _winsorize_for_surrogate, bayes_opt_over_template
+
+    # 1. The surrogate-target guard itself.
+    good = np.linspace(0.05, 0.25, 12)
+    assert np.array_equal(_winsorize_for_surrogate(good), good), "clean targets must pass through untouched"
+    assert np.array_equal(_winsorize_for_surrogate(np.full(8, 0.3)), np.full(8, 0.3)), "zero MAD -> unchanged"
+
+    poisoned = good.copy()
+    poisoned[4] = -1e9
+    fixed = _winsorize_for_surrogate(poisoned)
+    assert np.isfinite(fixed).all()
+    assert fixed[4] < np.delete(fixed, 4).min(), "the failed candidate must remain strictly the worst"
+    assert np.array_equal(np.delete(fixed, 4), np.delete(poisoned, 4)), "only the outlier may move"
+    # the whole point: the retained points must span a usable range once standardised
+    assert (fixed.max() - fixed.min()) / fixed.std() < 1e3
+
+    # 2. End-to-end: an arm whose 3rd candidate fails must still optimise.
+    def objective(x: np.ndarray) -> float:
+        return float(-((x[0] - 0.3) ** 2) - ((x[1] + 0.1) ** 2))
+
+    calls = {"n": 0}
+
+    def failing_eval(x: np.ndarray) -> float:
+        calls["n"] += 1
+        return -1e9 if calls["n"] == 3 else objective(x)   # the production failure sentinel
+
+    bounds = [(-1.0, 1.0), (-1.0, 1.0)]
+    res = bayes_opt_over_template(
+        failing_eval, bounds, {"matched_budget": 18}, n_init=5,
+        rng=np.random.default_rng(0),
+    )
+    assert res["n_evaluated"] == 18, "the matched budget must still be consumed exactly"
+    # the winner is chosen on RAW scores, so the failed candidate can never be selected
+    assert res["best_score"] > -1.0
+    assert res["best_coeffs"] is not None
+
+    # Judge the GP-GUIDED picks, not best-of-all: `best_score` also covers the 5 random init points,
+    # and a lucky init masks a dead surrogate — measured, the best-of-all assertion still passed with
+    # the bug present, so it would have been a vacuous guard. The guided phase IS the arm's value, and
+    # it separates cleanly: across seeds 0-4 the best guided pick was -0.195..-0.500 with the bug and
+    # -0.003..-0.086 with the fix.
+    guided = [h["score"] for h in res["history"] if h.get("source") == "bo"]
+    assert len(guided) == 13
+    assert max(guided) > -0.15, (
+        f"the GP-guided phase collapsed after one failed candidate (best guided {max(guided):.5f}); "
+        "the surrogate was poisoned by the -1e9 sentinel"
+    )

@@ -135,6 +135,41 @@ def _expected_improvement(
     return np.maximum(ei, 0.0)
 
 
+def _winsorize_for_surrogate(y: np.ndarray, n_mad: float = 10.0) -> np.ndarray:
+    """Floor catastrophic outliers in the GP's TRAINING TARGETS only (deep review 2026-07-26, #51).
+
+    WHY. Both production evaluators score a FAILED candidate with the sentinel ``-1e9``
+    (``cluster/campaign.py`` — which also counts ``state["failed"]`` — and ``orchestration/
+    parallel.py``). CMA-ES and TPE are rank-based, so an extreme value is merely "last" and costs
+    them nothing. A GP is NOT: with ``normalize_y=True`` the targets are standardised by their own
+    mean/std, so ONE sentinel among ~12 observations gives std ~2.8e8 and collapses every genuine
+    candidate into a span of ~4e-10 normalised units — numerically identical to the surrogate.
+    MEASURED on a smooth 6-D objective: the posterior mean range blew out from [0.018, 0.161] to
+    [-1.1e9, 1.1e8], and the EI-selected point fell from a true value of 0.0662 to -0.0813 (best
+    achievable 0.1934). One failed training therefore degraded GP-EI to worse-than-random for the
+    REST of the arm — silently, and asymmetrically, since the other three H4 optimisers are immune.
+    That skews the H4 beat-the-max comparison against ``bayes_opt`` specifically.
+
+    WHAT. A median/MAD fence at ``n_mad`` deviations, applied ONLY to the surrogate's targets:
+    ``x_obs``/``y_obs``/``history`` and the returned winner are untouched, so the archive, the
+    matched budget, the reported ``best_score`` and the rng consumption are all bit-identical. The
+    fence is deliberately permissive — 10 MAD is ~6.7 sigma for Gaussian data — so genuine variation
+    is never clipped; only a value no real fitness could take is pulled in, and it still sorts BELOW
+    every retained point, preserving its rank as the worst candidate.
+
+    A zero MAD (at least half the observations identical) leaves the array unchanged: there is no
+    robust scale to build a fence from, and a GP fitted to a constant has no signal to protect.
+    """
+    if y.size < 3:
+        return y
+    med = float(np.median(y))
+    mad = float(np.median(np.abs(y - med)))
+    if not (mad > 0.0):
+        return y
+    fence = med - float(n_mad) * mad
+    return np.maximum(y, fence) if np.any(y < fence) else y
+
+
 def random_search_over_template(
     template_eval_fn: Callable[[np.ndarray], float],
     bounds: Sequence[Sequence[float]],
@@ -321,7 +356,7 @@ def bayes_opt_over_template(
 
     for _ in range(n_remaining):
         X = np.asarray(x_obs, dtype=float)
-        y = np.asarray(y_obs, dtype=float)
+        y = _winsorize_for_surrogate(np.asarray(y_obs, dtype=float))
 
         gp = GaussianProcessRegressor(
             kernel=kernel,

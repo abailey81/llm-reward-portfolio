@@ -27,10 +27,13 @@ caller crashes. Any change to the RF/benchmark CONVENTION is pre-registration-re
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+_LOG = logging.getLogger(__name__)
 
 __all__ = [
     "RiskFreeResult",
@@ -75,40 +78,107 @@ def _raw_path(raw_dir: Path | str, canonical: str) -> Path:
 class RiskFreeResult:
     """Per-session risk-free decimal returns aligned to a date axis, + provenance."""
 
-    def __init__(self, daily: np.ndarray, *, available: bool, source: str, annual_pct_mean: float) -> None:
+    def __init__(
+        self, daily: np.ndarray, *, available: bool, source: str, annual_pct_mean: float,
+        last_observation: str | None = None, n_extrapolated: int = 0,
+    ) -> None:
         self.daily = daily
         self.available = available
         self.source = source
         self.annual_pct_mean = annual_pct_mean
+        #: Provenance of the forward-fill (deep review #53): the last REAL observation and how many
+        #: target sessions fall beyond it (those carry a constant, not data). 0 == fully covered.
+        self.last_observation = last_observation
+        self.n_extrapolated = int(n_extrapolated)
 
 
 class MarketProxyResult:
     """Per-session market-proxy decimal returns aligned to a date axis, + provenance."""
 
-    def __init__(self, returns: np.ndarray, *, available: bool, column: str) -> None:
+    def __init__(
+        self, returns: np.ndarray, *, available: bool, column: str,
+        last_observation: str | None = None, n_extrapolated: int = 0,
+    ) -> None:
         self.returns = returns
         self.available = available
         self.column = column
+        #: See :class:`RiskFreeResult` (deep review #53). Reachable here: the ACTIVE ``univ5`` proxy
+        #: covers the frozen window exactly (0), but legacy suffixes end 2025-12-31 — so a run under
+        #: ``LLM_RP_GOLD_SUFFIX=univ3`` (the documented delisting-band 0% end) would otherwise carry
+        #: ~123 constant market sessions with no signal.
+        self.last_observation = last_observation
+        self.n_extrapolated = int(n_extrapolated)
 
 
 class FactorResult:
     """Per-session Fama-French factor decimals (columns Mkt-RF/SMB/HML), + provenance."""
 
-    def __init__(self, factors: dict[str, np.ndarray], *, available: bool) -> None:
+    def __init__(
+        self, factors: dict[str, np.ndarray], *, available: bool,
+        last_observation: str | None = None, n_extrapolated: int = 0,
+    ) -> None:
         self.factors = factors
         self.available = available
+        #: See :class:`RiskFreeResult` — the last real observation across the loaded factor columns
+        #: and how many target sessions are forward-filled beyond it (deep review #53).
+        self.last_observation = last_observation
+        self.n_extrapolated = int(n_extrapolated)
 
 
-def _aligned_series(frame: pd.DataFrame, col: str, dates: np.ndarray) -> tuple[np.ndarray, bool]:
-    """Reindex ``frame[col]`` onto ``dates`` (forward-filled, no future read). Returns (values, ok)."""
+def _aligned_series(
+    frame: pd.DataFrame, col: str, dates: np.ndarray
+) -> tuple[np.ndarray, pd.Timestamp | None]:
+    """Reindex ``frame[col]`` onto ``dates`` (forward-filled, no future read).
+
+    Returns ``(values, last_observation)`` where ``last_observation`` is the timestamp of the last
+    REAL (non-NaN) source value. Target dates beyond it are EXTRAPOLATED — a constant carried
+    forward — which is what :func:`_extrapolated_after` exists to count and report.
+
+    The second element used to be a hardcoded ``True`` "ok" flag that no caller could ever act on
+    (deep review 2026-07-26, #53): a status that is always success is not a status. Every call site
+    discarded it, so returning the real provenance instead is free.
+    """
     d = pd.DatetimeIndex(pd.to_datetime(np.asarray(dates)))
     s = pd.to_numeric(frame[col], errors="coerce")
     s.index = pd.DatetimeIndex(pd.to_datetime(frame.index if frame.index.name else frame.iloc[:, 0]))
     # Restrict to <= each target date then forward-fill so a gap reads the LAST KNOWN value, never a
     # future publication; leading gaps (before the first observation) fall back to 0.0.
     s = s[~s.index.duplicated(keep="last")].sort_index()
+    real = s.dropna()
+    last_obs = real.index.max() if not real.empty else None
     aligned = s.reindex(s.index.union(d)).ffill().reindex(d)
-    return aligned.to_numpy(dtype=float), True
+    return aligned.to_numpy(dtype=float), last_obs
+
+
+def _extrapolated_after(dates: np.ndarray, last_obs: pd.Timestamp | None, label: str) -> int:
+    """Count target dates BEYOND the last real observation, and warn loudly if there are any.
+
+    WHY THIS EXISTS (deep review 2026-07-26, #53). The forward-fill that correctly bridges a
+    publication gap ALSO silently extends the last known value past the end of the source file, for
+    as long as the target axis runs. That is not hypothetical: this module's own ``_REFRESHED_RAW``
+    note records it happening once already (the Momentum refresh had no mapping, so attribution
+    "silently used the canonical file ending 2026-04-30 and forward-filled the test window's tail
+    with a constant"). The fix then was a new mapping — but nothing was added to DETECT a recurrence,
+    so the same condition returned: MEASURED 2026-07-26, the French dailies end 2026-05-29 while the
+    frozen test window runs to 2026-06-30, leaving **21 of 1631 test sessions (1.3%)** of the
+    factor ladder regressing against repeated values, with ``available=True`` and no signal anywhere.
+
+    This does NOT change any value — inventing factor data would be worse. It makes the condition
+    VISIBLE, exactly as ``rf_source`` already is, so a stale pull is caught by audit rather than
+    believed. Callers surface the count on their result object; the log line names the fix.
+    """
+    if last_obs is None:
+        return 0
+    d = pd.DatetimeIndex(pd.to_datetime(np.asarray(dates)))
+    n = int((d > last_obs).sum())
+    if n:
+        _LOG.warning(
+            "market_reference_EXTRAPOLATED %s: %d of %d target sessions fall AFTER the last real "
+            "observation (%s) and carry a CONSTANT forward-filled value. Refresh the raw pull and "
+            "add it to _REFRESHED_RAW; until then these sessions are not real data.",
+            label, n, d.size, str(last_obs)[:10],
+        )
+    return n
 
 
 def load_risk_free_daily(
@@ -128,11 +198,15 @@ def load_risk_free_daily(
     fm = fm.set_index(date_col)
     if source not in fm.columns:
         return RiskFreeResult(np.zeros(n), available=False, source=source, annual_pct_mean=0.0)
-    annual_pct, _ok = _aligned_series(fm, source, dates)
+    annual_pct, last_obs = _aligned_series(fm, source, dates)
+    n_extra = _extrapolated_after(dates, last_obs, f"risk_free[{source}]")
     annual_pct = np.nan_to_num(annual_pct, nan=0.0)  # leading gap -> 0
     daily = np.power(1.0 + annual_pct / 100.0, 1.0 / TRADING_DAYS_PER_YEAR) - 1.0
     return RiskFreeResult(
-        daily.astype(float), available=True, source=source, annual_pct_mean=float(np.nanmean(annual_pct))
+        daily.astype(float), available=True, source=source,
+        annual_pct_mean=float(np.nanmean(annual_pct)),
+        last_observation=(str(last_obs)[:10] if last_obs is not None else None),
+        n_extrapolated=n_extra,
     )
 
 
@@ -165,9 +239,16 @@ def load_market_proxy_returns(
     # ``_aligned_series`` directly because this parquet stores dates in an UNNAMED DatetimeIndex, which
     # its column-0 index heuristic would misread as the value column (fix: market-proxy ffill).
     s = s[~s.index.duplicated(keep="last")].sort_index()
+    real = s.dropna()
+    last_obs = real.index.max() if not real.empty else None
+    n_extra = _extrapolated_after(dates, last_obs, f"market_proxy[{suffix}:{col}]")
     aligned = s.reindex(s.index.union(d)).ffill().reindex(d)
     # nan_to_num now only catches a genuine LEADING gap (a target date before the first observation).
-    return MarketProxyResult(np.nan_to_num(aligned.to_numpy(dtype=float), nan=0.0), available=True, column=col)
+    return MarketProxyResult(
+        np.nan_to_num(aligned.to_numpy(dtype=float), nan=0.0), available=True, column=col,
+        last_observation=(str(last_obs)[:10] if last_obs is not None else None),
+        n_extrapolated=n_extra,
+    )
 
 
 def load_ff_factors(dates: np.ndarray, *, raw_dir: Path | str = _RAW_DIR) -> FactorResult:
@@ -179,8 +260,20 @@ def load_ff_factors(dates: np.ndarray, *, raw_dir: Path | str = _RAW_DIR) -> Fac
     date_col = "Date" if "Date" in ff.columns else ff.columns[0]
     ff = ff.set_index(date_col)
     out: dict[str, np.ndarray] = {}
+    last_seen: pd.Timestamp | None = None
     for col in ("Mkt-RF", "SMB", "HML"):
         if col in ff.columns:
-            vals, _ = _aligned_series(ff, col, dates)
+            vals, last_obs = _aligned_series(ff, col, dates)
             out[col] = np.nan_to_num(vals, nan=0.0)  # already decimals in the French daily file
-    return FactorResult(out, available=bool(out)) if out else FactorResult({}, available=False)
+            # the EARLIEST last-observation across columns governs: a factor set is only as fresh as
+            # its stalest member, since the regression uses them jointly
+            if last_obs is not None and (last_seen is None or last_obs < last_seen):
+                last_seen = last_obs
+    if not out:
+        return FactorResult({}, available=False)
+    n_extra = _extrapolated_after(dates, last_seen, "ff_factors[Mkt-RF/SMB/HML]")
+    return FactorResult(
+        out, available=True,
+        last_observation=(str(last_seen)[:10] if last_seen is not None else None),
+        n_extrapolated=n_extra,
+    )
