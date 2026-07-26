@@ -237,7 +237,16 @@ Inference is **per-seed and aggregate-robust**, following the reinforcement-lear
 [`agarwal2021rliable`]: each arm is re-run at the pre-registered **winner-seed ladder** (Amendment E1; a
 cumulative tiered schedule up to n = 568, primary target 403, with an exogenous stopping tier), each seed's score is reduced to an
 interquartile mean, and contrasts are tested by a paired stratified bootstrap over shared seeds, carrying the
-across-seed variance rather than the anti-conservative within-path variance. The realised left tail is
+across-seed variance rather than the anti-conservative within-path variance. The shared seeds are a
+common-random-number *matching* device [`glasserman2004monte`; `glasserman1992guidelines`]: every arm
+trains through the identical seed battery, so a per-seed lucky draw cannot masquerade as a between-arm
+effect — a benefit that holds regardless of the pairing correlation's sign. Common random numbers
+*additionally* shrink the paired-difference variance only where the arms' per-seed scores are positively
+correlated; the $\sigma_D$ pilot measured that correlation at $\rho \approx +0.47$ on the CVaR-5% tail leg
+(a realised reduction — the leg is conclusive by $n=30$) but at $\rho \approx -0.14$ on the Sharpe leg (not
+distinguishable from zero, a slight inflation). We therefore report the paired variance *as measured* and
+power the seed ladder to the realised $\sigma_D$, never to an assumed reduction: the correlation is
+exploited where it exists and never over-claimed. The realised left tail is
 additionally examined by an Expected-Shortfall scoring comparison on the jointly-elicitable Fissler–Ziegel (FZ0)
 loss [`fisslerziegelgneiting2015`; `patton2019dynamic`]. We implement this as a **two-sided Diebold–Mariano
 equal-accuracy test** of the FZ0 loss differential (a stationary-bootstrap null with a closed-form
