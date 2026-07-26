@@ -952,12 +952,12 @@ disclosed as the executed variant of those weights, OpenRouter legs pin temperat
 round-trip-evidenced by the gate smoke's archived usage. **⚠ R101 (2026-07-24) retired the
 legs-behind-the-core ordering:** all 11 full-loop models now run in PARALLEL at EQUAL winner-re-run
 priority, and the queue order survives only for search/floor ordering, never as seed privilege. The
-exogenous stop is the UNIFORM calendar stop **2026-08-27** (R100/R101). ⚠ **UNRECONCILED, flagged for
+exogenous stop is the UNIFORM calendar stop **2026-08-27** (R100/R101). ✓ **RESOLVED 2026-07-26 (R108 Tamer+Okhrati ratify, full-freedom authorisation): the earlier gate is ALIGNED to 2026-08-27 (option a). Historical flag retained for
 Tamer/Ramin:** `config/preregistration.yaml` still carries a separate earlier leg gate
 (`leg_calendar_gate: 2026-08-14`, `leg_gate_timestamp: 2026-08-14T23:59:00Z`), which predates R101's
 "now UNIFORM" stop; whether that earlier gate survives as a distinct truncation-reporting device or
 should move to 2026-08-27 is a design decision, not a typo, so it is surfaced rather than silently
-changed (deep review loop 6). Kimi K3 and KAT-Coder are rule-driven Stage-2 triggers only.
+changed (deep review loop 6) -- NOW RESOLVED to 2026-08-27 (leg_calendar_gate + leg_gate_timestamp both aligned). Kimi K3 and KAT-Coder are rule-driven Stage-2 triggers only.
 
 **Why.** (i) External validity: the single-family limitation (B.3.1) becomes a measured
 cross-model result. (ii) Reproducibility permanence: five open-weight legs, hash-pinned (K3 joins the open class by the pre-declared rule on its 2026-07-27 weights release), give the

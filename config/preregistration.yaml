@@ -452,7 +452,7 @@ model_suite:
                                              # parenthetical "opus = v1 convention unchanged" is FALSE since
                                              # R102 — the confirmatory Opus author runs at max_tokens 8192
                                              # (config/llm.yaml), NOT this 4096 leg pin.
-  leg_gate_timestamp: "2026-08-14T23:59:00Z"     # the calendar gate, made exact
+  leg_gate_timestamp: "2026-08-27T23:59:00Z"     # RECONCILED 2026-07-26 to the uniform stop (was Aug-14; aligned with leg_calendar_gate under R101)
   synthesis_exactness:                           # closes the ambiguities a referee could exploit
     sign_count_statistic: cvar_leg_contrast      # the tail (CVaR-5%) dist-vs-scalar sign — the Sharpe leg is predicted-tie for every model, so counting it would count noise
     leg_inclusion_criterion: "a leg enters the sign count ONLY if its winners clear the T0 naive-benchmark floor in BOTH contrasted arms; failing legs report in the reliability table as authoring/search failures (a finding), never as votes"
