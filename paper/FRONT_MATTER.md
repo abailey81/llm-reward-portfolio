@@ -137,7 +137,7 @@ feedback helps but *where* the channel acts or breaks.
 
 We isolate the feedback channel as the sole manipulated variable: five LLM arms share one fixed soft
 actor–critic agent, one matched candidate budget and identical prompts, differing *only* in the feedback
-block; two non-LLM search baselines bound the procedure. The design is **pre-registered and
+block; four non-LLM search baselines (the H4 optimiser portfolio) bound the procedure. The design is **pre-registered and
 cryptographically frozen** before a sealed 2020–2026 test leg, with the signal *fed* on the training split,
 candidates *selected* on a tail-blind validation Deflated Sharpe, and the hypothesis *tested* on empirical
 conditional value-at-risk over the sealed split — a three-way decoupling so any effect is attributable to
@@ -195,7 +195,7 @@ above.]
 | T2 | Intersection–union test results (H2-RA, H2-Tail) + ES backtest |
 | T3 | Robustness (delisting band, cost sweep, PBO, DSR, factor attribution) |
 | T4 | Secondary hypotheses (H1, H3, H4) |
-| T5 | Arms specification (the seven arms; single manipulated variable) |
+| T5 | Arms specification (the nine arms; single manipulated variable) |
 
 *(Figures F5–F9 and Tables T1–T4 are confirmatory-campaign outputs and remain placeholders until the frozen run completes; F1–F4 and T5 are buildable now from the frozen panel and design files.)*
 
@@ -215,7 +215,7 @@ above.]
 | Large language model (LLM) | The AI text model (here Claude) that authors the reward code and revises it from feedback. |
 | Reflection loop | The generate → train → measure → feed-back → revise cycle in which the LLM improves its reward code. |
 | Feedback block | The short text of performance numbers shown to the LLM after each attempt; *the only thing that differs between arms*. |
-| Arm | One experimental condition (e.g. tail-fed vs scalar-fed); seven arms in the confirmatory study. |
+| Arm | One experimental condition (e.g. tail-fed vs scalar-fed); nine arms in the confirmatory study (five language-model + four search-optimiser). |
 | Placebo / structure-shuffled placebo | Control arms whose feedback carries no genuine information (constants, or real numbers scrambled across labels), isolating information content from format. |
 | VaR (Value-at-Risk) | The loss threshold that is exceeded only α% of the time (e.g. the worst-5% cutoff). |
 | CVaR / Expected Shortfall | The *average* loss in that worst-α% tail — the study's central risk measure. |

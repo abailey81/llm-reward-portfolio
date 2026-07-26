@@ -171,12 +171,12 @@ revises the code. The loop runs six generations of five candidates under a match
 arm, reflecting on the generation's best candidate. The study uses a single model family throughout, so claims are
 scoped to that family rather than to "language models" in general (Chapter 7).
 
-There are **seven arms**. The five language-model arms are identical in every respect — same agent, budget,
+There are **nine arms** — five language-model arms and the four-optimiser H4 search portfolio. The five language-model arms are identical in every respect — same agent, budget,
 prompts, selection and evaluation — and differ *only* in the feedback block: **distributional** receives the full
 six-component tail vector; **scalar** receives only the held-out risk-adjusted score; **placebo** receives an inert
 block matched to the distributional block in length and field-count; **scalar_cvar5** receives the scalar plus a
 single CVaR-5% number; and **placebo_shuffled** receives the distributional block's exact structure with the tail
-*values deranged*. Two non-language-model search baselines complete the design: **random_search** samples reward
+*values deranged*. Four non-language-model search baselines — the confirmatory **H4 optimiser portfolio** {`random_search`, `bayes_opt`, `cma_es`, `tpe`} — complete the design: **random_search** samples reward
 code from a shared parametric family, and **bayes_opt** performs Gaussian-process expected-improvement optimisation
 over the family's coefficients [`snoek2012practical`]. Because no single black-box optimiser dominates across evaluation budgets — Bayesian methods lead at small budgets while evolution strategies overtake them only after many hundreds of evaluations [`raponi2024lowbudget`; `shahriari2016bo`] — pitting the designer against any single optimiser would be a cherry-pick. The identical family is therefore optimised, at the same matched budget and shared seed, by a *portfolio* spanning the principal derivative-free paradigms: model-free sampling (random search [`bergstra2012randomsearch`]), surrogate-model Bayesian optimisation (GP expected-improvement, above), evolution strategies (CMA-ES [`hansen2001cmaes`]) and density-ratio estimation (TPE [`bergstra2011tpe`; `akiba2019optuna`]); budget-inappropriate methods — differential evolution, simulated annealing, particle swarm, and multi-fidelity Hyperband/BOHB — are excluded with cause [`storn1997de`; `kirkpatrick1983sa`; `kennedy1995pso`; `li2018hyperband`]. The comparator is the pointwise *maximum* over this portfolio: the designer is measured against the best result any standard numerical method attains at the matched budget, robust to which optimiser leads at that budget. The control ladder is constructed to defend named threats to
 construct validity [`shadish2002experimental`]: the placebo isolates the effect of *receiving any feedback* from
@@ -338,7 +338,7 @@ falsifiable test in which a *null* is informative rather than uninterpretable.
 
 ## 4.8 Pre-registration, provenance and reproducibility
 
-The full design — hypotheses, the seven arms, the candidate and seed budgets, the splits and embargo, the frozen
+The full design — hypotheses, the nine arms, the candidate and seed budgets, the splits and embargo, the frozen
 tail-diagnostic set, the benchmark suite and the analysis plan — is recorded in a pre-registration document and
 frozen by a SHA-256 hash over the declaration files before the sealed leg is evaluated; the campaign driver refuses
 to run against an unfrozen or drifted design. Any post-freeze departure is recorded in an append-only deviations

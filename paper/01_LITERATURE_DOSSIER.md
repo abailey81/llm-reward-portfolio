@@ -522,7 +522,7 @@ effect T→M→Y**; the negative prototype finding = **inconsistent mediation / 
 
 ### J.6 Model Confidence Set + conditional predictive ability (reframes the whole results chapter)
 - **Hansen–Lunde–Nason 2011** "The Model Confidence Set" *Econometrica* 79(2):453–497, DOI 10.3982/ECTA5771
-  [VERIFIED] — takes the loss matrix you already have, returns "the 90% MCS of the 7 arms is {…}", **natively
+  [VERIFIED] — takes the loss matrix you already have, returns "the 90% MCS of the 9 arms is {…}", **natively
   family-wise-error-controlled (retires the conjunction-BH double-correction worry)**. ⚠ use the **range statistic
   T_R** only (a corrigendum withdrew T_max). **Giacomini–White 2006** *Econometrica* 74(6):1545–1578 (conditional
   predictive ability — regime-by-regime, preserves estimation error); West 1996; Hansen SPA 2005; Diebold 2015
@@ -641,7 +641,7 @@ implicit/unbounded LLM search that PBO/DSR can't fully deflate)
 | 1★ | **Reward-distance matrix (EPIC+STARC)** over 239 programs → "different objective vs just shaping" | STARC ICLR'24 | answers the central question with a regret-bounded number |
 | 2★ | **QD reward-search diversity** (coverage/QD-score/novelty-over-generations) | Pugh 2016 | turns diversity concern → measured result; hardens H4 |
 | 3★ | **Hierarchical Bayesian re-analysis** (arm,seed) + Probability of Direction | Gelman-Hill-Yajima 2012 | multiplicity-by-construction; robustness to BH+IUT |
-| 4★ | **Model Confidence Set** of the 7 arms | Hansen-Lunde-Nason 2011 | family-wise-controlled set; retires conjunction-BH worry |
+| 4★ | **Model Confidence Set** of the 9 arms | Hansen-Lunde-Nason 2011 | family-wise-controlled set; retires conjunction-BH worry |
 | 5★ | **Triangulated null**: BF01 + ROPE-in-HDI + TOST under severity | Dienes 2014, Mayo 2018 | makes the null *publishable* |
 | 6★ | **Mediation analysis** of responsiveness (ACME + ρ + E-value) | Imai 2010, O'Rourke 2018 | causal spine; rescues the negative responsiveness |
 | 7 | **Synthetic-null falsification** (re-run pipeline on null markets) | Theiler 1992, Nikolopoulos 2026 | proves not-a-mining-artifact; novelty hook |

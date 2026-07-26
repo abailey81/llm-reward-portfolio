@@ -32,7 +32,7 @@ from Chapter 6):
 | **H2-RA** — risk-adjusted (Sharpe IUT) | tie: no Sharpe edge under $\lambda{=}0$ selection, regardless of channel | *[from §6]* |
 | **H2-Tail** — tail outcome (CVaR-5% IUT) | Null branch — a tie or a TOST-bounded interval; the prototype's negative responsiveness predicts no separation | *[from §6]* |
 | **H3** — iterative vs single-shot | hypothesis under test (no frozen directional prediction; frozen H0: multi-generation <= single-shot at a matched budget) | *[from §6]* |
-| **H4** — LLM vs uninformed search | hypothesis under test (no frozen directional prediction): the LLM designer vs (a) random-search over reward code and (b) Bayesian optimisation over the shared template's coefficients | *[from §6]* |
+| **H4** — LLM vs the best black-box optimiser | confirmatory (node N4, ratified 2026-07-26): the LLM designer beats — or at least matches — the pointwise maximum over the optimiser portfolio {random-search, GP-EI, CMA-ES, TPE} of the shared reward family at matched budget (a snoop-free intersection–union test, the mirror of H1) | *[from §6]* |
 | **SQ1** — responsiveness | authored code moves weakly or negatively with the fed tail ($\le 0$) — the chain's first link | *[from §6]* |
 | **SQ2** — transmission | little realised-tail movement given code movement (the chain is severed upstream) | *[from §6]* |
 | **SQ3** — specificity | any response is not specific to genuine tail information (placebo-matched) | *[from §6]* |

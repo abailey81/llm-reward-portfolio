@@ -137,8 +137,9 @@ best-of-N at matched budget; reported as a TOST-bounded equivalence against the 
 
 - TOST equivalence: `[FROM CAMPAIGN: bound vs SESOI]` → `[FROM CAMPAIGN: EQUIVALENT / INCONCLUSIVE / NON-EQ]`.
 
-**H4 — LLM vs random-search / bayes-opt (matched compute).** Whether the LLM designer beats the random-search and
-Gaussian-process expected-improvement baselines at the matched 30-candidate budget.
+**H4 — LLM vs the best black-box optimiser (matched compute).** Whether the LLM designer beats the pointwise
+maximum over the optimiser portfolio {random-search, GP-EI, CMA-ES, TPE} at the matched 30-candidate budget —
+the confirmatory beat-the-best intersection–union test (node N4), decided superiority-or-non-inferiority.
 
 - `[FROM CAMPAIGN: LLM vs random_search]`; `[FROM CAMPAIGN: LLM vs bayes_opt]`.
 

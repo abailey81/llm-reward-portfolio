@@ -90,7 +90,7 @@ feedback helps but *where* the channel acts or breaks.
 
 We isolate the feedback channel as the sole manipulated variable: five LLM arms share one fixed soft
 actor–critic agent, one matched candidate budget and identical prompts, differing *only* in the feedback
-block; two non-LLM search baselines bound the procedure. The design is **pre-registered and
+block; four non-LLM search baselines (the H4 optimiser portfolio) bound the procedure. The design is **pre-registered and
 cryptographically frozen** before a sealed 2020–2026 test leg, with the signal *fed* on the training split,
 candidates *selected* on a tail-blind validation Deflated Sharpe, and the hypothesis *tested* on empirical
 conditional value-at-risk over the sealed split — a three-way decoupling so any effect is attributable to
@@ -213,7 +213,7 @@ CVaR crossover ×0.84→×1.66, co-crash 3.3%→19.7%) supersede any pre-Split-C
 were the old 2005–2014 window; a superseded IQN brief is older still).
 
 **Gated on you (cannot be done from here):** run `freeze.py` (1 command → makes the pre-registered-null
-claim literally true; the freeze hash recorded by `scripts/freeze.py` at freeze time); run the confirmatory campaign on the GPU (with the 7 arms
+claim literally true; the freeze hash recorded by `scripts/freeze.py` at freeze time); run the confirmatory campaign on the GPU (with the 9 arms
 incl. `placebo_shuffled`, σ_max logging, the learning-curve convergence ladder, and the delisting band
 reported); obtain the supervisor's written sign-off on the proposal-pivot disclosure before the
 "with my supervisor's agreement" sentence enters the PDF.
