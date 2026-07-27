@@ -71,6 +71,51 @@ Nothing else is recoverable and nothing else needs to be.
 OpenRouter); 0 tracked files missing repo-wide. ~2.9 GB of sandbox scratch removed afterwards, each
 directory checked for reparse points BEFORE any recursive delete.
 
+**★ THE BLAST RADIUS, MEASURED FROM THE FILESYSTEM'S OWN RECORD — NOT INFERRED.** `_LINK_DIRS =
+("data", "outputs")`, so **`outputs/` was junctioned too and was destroyed with `data/`**. Rather than
+estimate what that cost, the NTFS **USN change journal** was dumped and parsed: it timestamps every
+delete, and the incident is unmistakable — **6,005 deletes in the single minute `7/27/2026 01:56`**,
+3,194 distinct names. Checked against disk now: **2,712 names back (84.9%), 482 still absent.** Those
+482, classified rather than lumped together:
+
+| absent | category | status |
+|---:|---|---|
+| 21 | certification-worktree internals + `.lock` files | **deleted BY DESIGN** — not a loss |
+| 122 | per-run generated job scripts (`.sh`) + `.log`/`.err` | regenerated per launch |
+| 134 | campaign/search dry-run + rehearsal artifacts | re-runnable |
+| 34 | LLM leg-gate archives (`leg_gates_2026072*`, per-model `.jsonl`) | **re-measurable, never byte-reproducible** |
+| 23 | rehearsals / probes / timing runs | re-runnable measurements |
+| 146 | mixed run output (pack probes, `fed_delta_snr`, learning curves, `bank_gate_logs`) | re-runnable |
+| 2 | `allocation_state.json`, one preview PNG | accumulated state / regenerable |
+
+**WHAT WAS FULLY RECOVERED IN `outputs/`:** the 795 tracked files (git); `prototype_repeat/` (654
+files, from the D: backup); and **the entire figure suite regenerated deterministically — 43 files**,
+covering every figure the journal listed as deleted (`F3_stylised_facts`, `F4_splits_timeline`,
+`F_equivalence_forest`, `F_evidence_for_null`, `F_reward_code_similarity`, `F_risk_return_clouds`,
+`F_rliable_intervals`, the 3-D suite and the GIFs). **F3 rebuilt from the REAL train window
+reproduced the recorded EDA facts exactly — co-crash 19.7%, CVaR(0.01) −5.58%/day, 19 stress
+episodes — an independent confirmation that the restored panel is the right data**, arrived at
+through the analysis code rather than through a checksum.
+
+**WHAT IS GONE, STATED PLAINLY.** The untracked run output written between the backup (~2026-07-10)
+and the deletion is not in git, not in the backup, and not on this machine — a PC-wide sweep of both
+drives confirmed no other copy exists. `.gitignore` never covered `outputs/p6ladder`,
+`outputs/leg_gates_*`, `outputs/probes`, `outputs/spend_ledger.jsonl` or `outputs/allocation_state.json`;
+they were simply never committed, so they lived only on disk. **The SCIENTIFIC FINDINGS survive** —
+the R112 10/10 per-leg compliance, the qwen3.5-9b 5/20-executable capability floor, and the measured
+per-model yields are recorded in `docs/SESSION_TASK_DISPATCH_2026-07-26.md`, the CHANGELOG, and
+`MEASURED_AUTHORING_YIELD` in `src/cluster/campaign_health.py`. What is lost is the RAW ARCHIVES
+behind them. Re-running the gates costs OpenRouter credits and, because LLM calls are
+non-deterministic, would produce equivalent evidence but **never byte-identical files**.
+`spend_ledger.jsonl` is a historical accumulation and cannot be reconstructed from the repo at all.
+The one remaining route to literal byte-identical recovery is an NTFS undelete (`winfr`), which is
+not installed and needs Store install + admin — Tamer's call, and worth attempting soon since every
+further write to C: lowers the odds.
+
+**NOT A CAMPAIGN BLOCKER:** the campaign has not launched, and its critical input — the frozen gold
+panel — is restored and byte-verified. The lost artifacts are pre-launch validation output whose
+conclusions are already recorded in tracked files.
+
 ## [2026-07-27] — ★★★★ LAUNCH-READINESS PASS: THE FED SCALAR WAS QUANTISED FLAT (#87) · THE COST LEDGER'S LOOK-AHEAD CLOSED (P6/#92) · THE PRE-LAUNCH GATE'S OWN LOAD-SENSITIVITY FIXED (#75) — deep review loop 117
 
 > Tamer: *"make everything flawless in the code and etc, and do what you have said, make everything
