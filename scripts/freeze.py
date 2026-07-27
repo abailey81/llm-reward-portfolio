@@ -255,10 +255,12 @@ def canonical_bytes(root: Path | None = None) -> bytes:
 def canonical_hash(root: Path | None = None) -> str:
     """SHA-256 hex digest of :func:`canonical_bytes` (the frozen design hash).
 
-    Covers up to EIGHT files in fixed order — prose, freeze-state-stripped prereg yaml, the
-    three bound configs (inference/environment/data), then the three bound treatment files
-    (arms.yaml + prompts/system.txt + prompts/initial_generation.txt), each only if present;
-    see the module docstring, ``_BOUND_CONFIGS`` and ``_BOUND_TREATMENT`` (R62, 2026-06-28).
+    Covers up to NINE files in fixed order — prose, freeze-state-stripped prereg yaml, the
+    three bound configs (inference/environment/data), then the four bound treatment files
+    (arms.yaml + prompts/system.txt + prompts/initial_generation.txt + src/feedback/schema.py),
+    each only if present; see the module docstring, ``_BOUND_CONFIGS`` and ``_BOUND_TREATMENT``
+    (R62, 2026-06-28; widened EIGHT -> NINE by #97 on 2026-07-27, which bound the fed-text
+    RENDERER — ``arms.yaml`` binds WHICH block an arm gets, this binds HOW its numbers are shown).
     """
     return sha256_bytes(canonical_bytes(root))
 
