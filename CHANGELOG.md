@@ -978,6 +978,39 @@ unguarded hop is **NAME → IMPLEMENTATION**: adding a benchmark to both the con
 distinct from #102 in that the failure would CRASH rather than silently omit, and is recoverable by
 fixing the name and re-running the replay-only analysis. **25 tests green, ruff clean.**
 
+### #106 — three stale/hardcoded counts in the H2 + N6 surfaces (LOW severity, stated plainly)
+
+Loop 127 ran the #100 EMITTER lens repo-wide, hunting the exact shape that made #100 a live defect: a
+hardcoded per-item branch or count inside a markdown emitter. **The headline emitter itself is
+clean** — `_h2_iut_table` iterates `legs` with no hardcoded counts and no per-item literal branch, and
+its `_flag` is correctly THREE-state (`n/a` when `None`, never collapsed to `False`). The repo-wide
+grep for the `X if item == "literal" else Y` anti-pattern returned exactly one hit, and it is a
+legitimate status branch (`:3279`), not a per-item one.
+
+Three real-but-minor stale counts, all from expansions this review has already tracked:
+
+| site | said | truth |
+|---|---|---|
+| `h2_markdown` BH heading (**EMITTED**) | hardcoded `m=6` | now `m={fam['n_family']}` |
+| `beat_human_baseline` docstring | "the **8** allocators in `benchmark_floor`" | 9 since `min_cvar` |
+| `beat_human_baseline` docstring | the "best of the **four**" | the 11-name canon (R105/R108) |
+
+**Honest severity, per the self-check carried from loop 126.** Two are docstring-only and reach no
+output — verified by grepping the emitted strings specifically. The third IS emitted, but was
+*currently consistent* (`m` **is** 6), so **no reported number was ever wrong**. What made it worth
+fixing is not a hypothetical: the hardcoded `m=6` sat **one line above** a DERIVED
+`m={int(fam.get('n_family', 0))}` — the same quantity written twice, adjacent, one of them frozen. A
+family change would have made the report contradict itself in consecutive lines. Deriving it removes
+the possibility rather than guarding against it, so this adds **no new test surface**.
+
+Verified by rendering: `n_family=6` → "m=6"; `n_family=8` → "m=8". **133 tests green, ruff clean.**
+
+**Applying the loop-126 self-check honestly:** this loop found no live defect, and I am recording that
+plainly rather than inflating three count corrections into something larger. The emitter lens was the
+right place to look — it is where #100 lived — and it came back essentially clean, which is itself the
+result. Four of the last seven findings have now been "correct but unguarded/stale"; the lens is
+converging and future loops should weight PASS A depth over further invariant sweeps.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

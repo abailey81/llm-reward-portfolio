@@ -5452,7 +5452,12 @@ def h2_markdown(h2: dict[str, Any]) -> str:
     if fam.get("tests"):
         out += [
             "",
-            "### Sensitivity — Benjamini-Hochberg over the m=6 union (REPORTED, NOT the gate; R25)",
+            # ⚠ 2026-07-27 (#106): this heading hardcoded "m=6" ONE LINE above the DERIVED
+            # `m={n_family}` below it — the same quantity, one written twice. Currently consistent
+            # (m IS 6), but a family change would make the report contradict itself in adjacent
+            # lines. Derived now, so it cannot.
+            f"### Sensitivity — Benjamini-Hochberg over the m={int(fam.get('n_family', 0))} union "
+            "(REPORTED, NOT the gate; R25)",
             "",
             f"BH q={float(fam.get('q', 0.05)):.2f}, m={int(fam.get('n_family', 0))}. The headline gate is "
             "the two IUTs above; this FDR set is reported as a robustness sensitivity (DEEP_H2 §3.3-B).",
@@ -5583,10 +5588,12 @@ def beat_human_baseline(
       * the LLM ``winner_arm`` was SEARCHED, so its Deflated Sharpe is deflated by its OWN search
         multiplicity (``winner_n_trials``, e.g. 30 candidates) — the same N the headline winner-DSR uses;
       * each ``baseline_<name>`` is UN-SEARCHED (a fixed hand reward), so its DSR is deflated by N=1 — like
-        the 8 allocators in :func:`benchmark_floor`. This asymmetry FAVOURS the baselines (a higher human
+        the 9 allocators in :func:`benchmark_floor` (8 until `min_cvar` was added; corrected 2026-07-27,
+        #106). This asymmetry FAVOURS the baselines (a higher human
         bar), i.e. it is CONSERVATIVE for H1.
 
-    Best-baseline IDENTITY selected on VALIDATION (DEEP_H1 T-REF data-snoop fix): the "best of the four"
+    Best-baseline IDENTITY selected on VALIDATION (DEEP_H1 T-REF data-snoop fix): the "best of the
+    canon" (FOUR until the R105/R108 expansion to the ELEVEN-name canon; corrected 2026-07-27, #106)
     is an order statistic, so choosing it on the SAME sealed-test data the win is reported on data-snoops
     the comparator's identity (White 2000). When the baseline records carry a validation signal, the best
     baseline is picked by its VALIDATION score — in ONE unit chosen all-or-nothing for the whole baseline
