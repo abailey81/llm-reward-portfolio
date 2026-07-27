@@ -175,6 +175,7 @@ def build_cluster_run(
     search_pack: int | None = None,
     search_h_rt: str | None = None,
     search_poll_secs: float | None = None,
+    search_threads: int | None = None,
     device: str = "cuda",
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
@@ -357,7 +358,11 @@ def build_cluster_run(
         # R107 is CPU-ONLY by construction (CPU_CHAIN_THREADS imported just above): on the GPU lane the card does the arithmetic, so extra
         # CPU threads buy nothing and would inflate the core request on precisely the pools where
         # CORES are the binding scheduling constraint. `run_batch` enforces the same guard.
-        search_threads=(CPU_CHAIN_THREADS if device == "cpu" else 1),
+        # None = the REGISTERED value, so code and register agree by default (the R85 rule).
+        # An explicit override is how an operator DECLINES the trade after measuring it -- and it
+        # must be paired with an amendment, or the register is fiction again.
+        search_threads=(int(search_threads) if search_threads is not None
+                        else (CPU_CHAIN_THREADS if device == "cpu" else 1)),
     )
 
 

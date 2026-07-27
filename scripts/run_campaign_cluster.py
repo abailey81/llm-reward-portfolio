@@ -406,6 +406,15 @@ def build_parser() -> argparse.ArgumentParser:
                         "chunked arrays have no tail to hold, every part immediately eligible. "
                         "Campaign launch uses --chunk-tasks 1 (task = a pack-5 bundle). Default "
                         "None = one array per round (legacy).")
+    p.add_argument("--search-threads", type=int, default=None, metavar="N",
+                   help="Intra-op threads per SEARCH/chain training (R107). Default None = the "
+                        "REGISTERED value (lanes.CPU_CHAIN_THREADS) on the CPU lane, so code and "
+                        "register agree. ⚠ MEASURED 2026-07-27: at the real workload 8 threads give "
+                        "15.4 steps/s = 1.93/core vs 13.0/core at 1 thread, so R107's 2.72x is "
+                        "really ~1.18x -- and running the 1,800-training search leg at 8 threads "
+                        "costs ~88,500 EXTRA core-hours, +24.6% on the whole campaign, to buy a "
+                        "1.18x latency gain on chains that only bind above 1,685 cores. Pass 1 to "
+                        "decline that trade (and amend R107 to match).")
     p.add_argument("--poll-secs", type=float, default=600.0)
     p.add_argument("--max-author-calls", type=int, default=None, help="Hard authoring spend cap.")
     p.add_argument("--allow-unfrozen", action="store_true",
@@ -928,6 +937,7 @@ def main(argv: list[str] | None = None) -> int:
         seed_pool_blocks=(parse_seed_pool_blocks(args.seed_pool_blocks)
                           if args.seed_pool_blocks else None),
         batch_tag=(args.batch_tag or None),
+        search_threads=args.search_threads,
         search_pack=args.search_pack, search_h_rt=search_h_rt,
         search_poll_secs=args.search_poll_secs, device=args.device,
     )

@@ -34,7 +34,7 @@ _TEMPLATE = """#!/bin/bash -l
 #$ -l mem={mem_per_core}
 #$ -l tmpfs={tmpfs}
 #$ -l h_rt={h_rt}
-{pool_line}#$ -notify
+{pool_line}{excl_line}#$ -notify
 #$ -r y
 #$ -p {priority}
 #$ -t 1-{n_tasks} -tc {tc}
@@ -112,6 +112,7 @@ def render_jobscript(
     apptainer_sif: str | None = None,
     device: str = "cuda",
     entry_module: str = "src.cluster.run_one",
+    exclude_hosts: list[str] | None = None,
 ) -> str:
     """Return the §14.6 jobscript text for one array batch.
 
@@ -247,6 +248,16 @@ def render_jobscript(
         if device == "cpu" else ""
     )
     pool_line = f"#$ -ac allow={pool}\n" if (pool and (device == "cuda" or pool not in ("", "EF"))) else ""
+    # BAD-NODE FENCE (2026-07-27, found live). A node that fails a job in SECONDS is always FREE, so
+    # the scheduler keeps feeding it work and it keeps destroying it — a job vacuum. Observed:
+    # `node-d00a-230` has no apptainer and ate 3 of our jobs inside an hour, each dying at the
+    # container guard (exit 127). It is self-healing (no record is written, so resume re-runs the
+    # spec) but pure waste, and across 42,128 trainings one such node can eat a great many slots.
+    # SGE's `hostname` is a requestable HOST complex, so a negated conjunction fences them off —
+    # verified accepted by the scheduler before wiring this. None/empty renders NOTHING, so the
+    # default jobscript is byte-identical to before.
+    _ex = [h.strip() for h in (exclude_hosts or []) if h and h.strip()]
+    excl_line = ("#$ -l h=" + "&".join(f"!{h}" for h in _ex) + "\n") if _ex else ""
     if apptainer_sif is None:
         env_line = f"source {venv}/bin/activate"
         launcher = "python"
@@ -277,6 +288,7 @@ def render_jobscript(
         hold_line=hold_line, pack=pack, cores=cores, mem_per_core=mem_per_core,
         tmpfs=tmpfs, h_rt=h_rt, env_line=env_line, launcher=launcher,
         repo_root=repo_root.rstrip("/"), gpu_line=gpu_line, pool_line=pool_line,
+        excl_line=excl_line,
         apptainer_guard=apptainer_guard, entry_module=entry_module,
         cpu_lane_guard=cpu_lane_guard,
     )

@@ -353,3 +353,26 @@ def test_an_EXPLICIT_tc_still_wins_on_both_lanes():
         js = render_jobscript("b", 40_000, "/h/llmrp", "/gold", pool=pool, device=device,
                               pack=1, cores=1, tc=12)
         assert _tc_of(js) == 12
+
+
+def test_bad_node_fence_is_opt_in_and_leaves_the_default_BYTE_IDENTICAL():
+    """A node that fails a job in SECONDS is always free, so the scheduler keeps feeding it work and
+    it keeps destroying it -- a job vacuum. Found live 2026-07-27: `node-d00a-230` has no apptainer
+    and ate 3 jobs inside an hour, each dying at the container guard. Self-healing (no record, so
+    resume re-runs) but pure waste across 42,128 trainings."""
+    from src.cluster.jobscript import render_jobscript
+
+    base = dict(pool="d", device="cpu", pack=1, cores=1)
+    plain = render_jobscript("b", 4, "/h/llmrp", "/gold", **base)
+    fenced = render_jobscript("b", 4, "/h/llmrp", "/gold",
+                              exclude_hosts=["node-d00a-230", "node-x-1"], **base)
+
+    assert not [ln for ln in plain.splitlines() if ln.startswith("#$ -l h=")],         "the default must render NO host constraint"
+    assert "#$ -l h=!node-d00a-230&!node-x-1" in fenced.splitlines()
+    # and nothing else moves
+    assert plain.splitlines() == [ln for ln in fenced.splitlines()
+                                  if not ln.startswith("#$ -l h=")]
+    # empty / whitespace entries are ignored rather than emitting a broken directive
+    assert not [ln for ln in render_jobscript("b", 4, "/h/llmrp", "/gold",
+                                              exclude_hosts=["", "  "], **base).splitlines()
+                if ln.startswith("#$ -l h=")]
