@@ -554,7 +554,7 @@ def named_vs_blinded_structural(
     """
     from itertools import combinations
 
-    from src.inference.reward_code_distance import canonical_shapes, jaccard
+    from src.inference.reward_code_distance import canonical_shapes, has_structure, jaccard
 
     named = [str(s) for s in named_sources]
     blinded = [str(s) for s in blinded_sources]
@@ -568,19 +568,34 @@ def named_vs_blinded_structural(
 
     nshapes = [canonical_shapes(s, depth) for s in named]
     bshapes = [canonical_shapes(s, depth) for s in blinded]
-    # Exclude unparseable (empty-AST) sources BEFORE any similarity: jaccard(empty, empty) == 1.0, so a
-    # pair of unparseable rewards would score as "perfectly structurally locked", inflating paired_mean and
-    # corrupting the re-pairing permutation null (mirrors the P7c fix in
-    # reward_code_distance.reward_code_structure_report; audit 2026-07-02). A seed is usable only when BOTH
-    # its named and blinded programs parse to a non-empty shape set.
-    usable = [i for i in range(n) if nshapes[i] and bshapes[i]]
+    # Exclude STRUCTURELESS sources BEFORE any similarity: jaccard(empty, empty) == 1.0, so a pair of
+    # them would score as "perfectly structurally locked", inflating paired_mean and corrupting the
+    # re-pairing permutation null (mirrors the P7c fix in
+    # reward_code_distance.reward_code_structure_report; audit 2026-07-02).
+    #
+    # ⚠ WIDENED 2026-07-27 (deep review #117). The test was `nshapes[i] and bshapes[i]`, i.e. NON-EMPTY
+    # only — which catches an UNPARSEABLE source (`canonical_shapes` returns the empty set) but NOT an
+    # EMPTY or comment-only one: `ast.parse("")` succeeds and walks exactly one bodiless `Module`, so
+    # its shape-set is the TRUTHY singleton {"Module"} (MEASURED: "" / "# comment" / whitespace all
+    # return {'Module'}, and jaccard between two of them is 1.0). Such a pair therefore survived the
+    # very filter written to remove it. `reward_taxonomy._signature` already guards `shapes <=
+    # {"Module"}`; this module did not — the same defect fixed in one place and not the other.
+    #
+    # It biased EVERY output toward the reassuring answer, which is why it matters on a CONTAMINATION
+    # instrument: a degenerate pair contributes 1.0 to `paired` but only ~1/|shapes| to `within` (vs a
+    # real program) and to the re-pairing null — so paired_mean inflates, within_blinded_mean deflates,
+    # `structural_gap` grows from both ends, `data_locked` biases TRUE and `p_random_pairing_matches`
+    # biases SMALL, i.e. straight toward "evidence AGAINST structural contamination". And empty
+    # authored code is MEASURED here, not hypothetical (the 2026-07-25 unpinned-thinking finding had
+    # several legs author empty code at the frozen config).
+    usable = [i for i in range(n) if has_structure(nshapes[i]) and has_structure(bshapes[i])]
     n_unparseable = n - len(usable)
     if len(usable) < 2:
         return {
             "status": "no_data",
             "reason": (
-                f"fewer than 2 usable paired seeds after excluding unparseable sources "
-                f"({n_unparseable} of {n} pairs unparseable)"
+                f"fewer than 2 usable paired seeds after excluding STRUCTURELESS sources "
+                f"({n_unparseable} of {n} pairs unparseable, empty or comment-only)"
             ),
             "n_unparseable_pairs": int(n_unparseable),
         }

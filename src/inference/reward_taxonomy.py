@@ -48,7 +48,7 @@ from typing import Any
 
 import numpy as np
 
-from src.inference.reward_code_distance import canonical_shapes, jaccard
+from src.inference.reward_code_distance import canonical_shapes, has_structure, jaccard
 
 __all__ = [
     "CONSTRUCTS",
@@ -142,7 +142,7 @@ def _signature(source: str, depth: int) -> frozenset[str] | None:
     and glue into a fake "empty program" kind. A program with no AST body has no structure to classify.
     """
     shapes = canonical_shapes(source, depth)
-    if not shapes or shapes <= {"Module"}:
+    if not has_structure(shapes):  # #117: ONE definition of the P7c predicate, in reward_code_distance
         return None
     return shapes
 

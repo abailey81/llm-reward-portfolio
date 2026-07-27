@@ -851,3 +851,55 @@ def test_garch_evt_fhs_independent_marginals_runs_the_gpd_samplers() -> None:
     rng = np.random.default_rng(SEED)
     out = garch_evt_fhs(panel, n_paths=6, horizon=200, preserve_cross_section=False, rng=rng)
     assert out.shape == (6, 200, 2) and np.all(np.isfinite(out))
+
+
+def test_EMPTY_and_comment_only_rewards_are_excluded_not_scored_as_perfectly_locked() -> None:
+    """#117 (2026-07-27): the structureless filter caught unparseable sources but not EMPTY ones.
+
+    `named_vs_blinded_structural` excludes sources with no AST structure because
+    `jaccard(empty, empty) == 1.0` would score two non-programs as "perfectly structurally locked".
+    The test was `nshapes[i] and bshapes[i]` -- NON-EMPTY only. That catches an UNPARSEABLE source
+    (`canonical_shapes` returns the empty set) but NOT an empty or comment-only one: `ast.parse("")`
+    succeeds and walks one bodiless `Module`, so its shape-set is the TRUTHY singleton `{"Module"}`.
+    Such a pair survived the very filter written to remove it. `reward_taxonomy._signature` already
+    guarded `shapes <= {"Module"}`; this module did not.
+
+    Why the direction matters on a CONTAMINATION instrument: a degenerate pair contributes 1.0 to
+    `paired` but only ~1/|shapes| to `within_blinded` and to the re-pairing null, so `paired_mean`
+    inflates, `within_blinded_mean` deflates, `structural_gap` grows from both ends, `data_locked`
+    biases TRUE and `p_random_pairing_matches` biases SMALL -- every output tilts toward "evidence
+    AGAINST structural contamination". Empty authored code is measured in this project, not
+    hypothetical.
+    """
+    import numpy as _np
+
+    from src.inference.contamination import named_vs_blinded_structural
+    from src.inference.reward_code_distance import canonical_shapes, jaccard
+
+    # The premise, asserted so the test explains itself if canonical_shapes ever changes.
+    assert canonical_shapes("", 4) == {"Module"}, "empty source no longer yields the Module singleton"
+    assert bool(canonical_shapes("", 4)) is True, "the old non-empty test would not have caught this"
+    assert jaccard(canonical_shapes("", 4), canonical_shapes("# c\n", 4)) == 1.0
+
+    real = [
+        f"def reward(w, r, p, pr, i):\n    x = float(pr) - {c} * float(np.std(r))\n    return x, {{}}, None\n"
+        for c in (0.1, 0.2, 0.3, 0.4)
+    ]
+    # Three genuine paired seeds + one seed whose BOTH programs are structureless.
+    named = [*real[:3], ""]
+    blinded = [*real[:3], "# the model returned only a comment\n"]
+
+    res = named_vs_blinded_structural(named, blinded, rng=_np.random.default_rng(0), n_perm=200)
+    assert res["status"] == "ok"
+    assert res["n_unparseable_pairs"] == 1, "the empty/comment-only pair was not excluded"
+    assert res["n_seeds"] == 3, "the degenerate pair still entered the similarity computation"
+
+    # And it must not be scored as perfect agreement: compare against the same call WITHOUT the
+    # degenerate pair -- the excluded run must be identical, i.e. the pair contributed nothing.
+    clean = named_vs_blinded_structural(
+        real[:3], real[:3], rng=_np.random.default_rng(0), n_perm=200
+    )
+    assert res["paired_mean"] == clean["paired_mean"], (
+        "paired_mean still moved when a structureless pair was present -- it is being scored, and "
+        "jaccard=1.0 on two non-programs inflates the structural-lock evidence"
+    )

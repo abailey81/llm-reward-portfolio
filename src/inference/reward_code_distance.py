@@ -30,7 +30,8 @@ from typing import Any
 
 import numpy as np
 
-__all__ = ["canonical_shapes", "jaccard", "structural_similarity", "reward_code_structure_report"]
+__all__ = ["canonical_shapes", "has_structure", "jaccard", "structural_similarity",
+           "reward_code_structure_report"]
 
 
 def _shape(node: ast.AST, depth: int) -> str:
@@ -68,8 +69,39 @@ def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
     return len(a & b) / union if union else 0.0
 
 
+#: A bodiless ``Module`` is what ``ast.parse`` yields for an EMPTY, whitespace- or comment-only
+#: source — it parses fine, so its shape-set is the TRUTHY singleton ``{"Module"}`` rather than the
+#: empty set an unparseable source gives.
+_MODULE_ONLY: frozenset[str] = frozenset({"Module"})
+
+
+def has_structure(shapes: frozenset[str] | set[str]) -> bool:
+    """Does this shape-set carry any program structure to compare? (the P7c predicate, ONE definition)
+
+    False for BOTH degenerate cases: an unparseable source (empty set) and an empty / whitespace- /
+    comment-only one (``{"Module"}``). Both matter because :func:`jaccard` returns **1.0** for two
+    empty sets by the trivial-set convention and **1.0** for two ``{"Module"}`` singletons by ordinary
+    set identity — so either pair reads as "maximally similar" and inflates whatever
+    within-condition / paired mean it lands in.
+
+    Introduced 2026-07-27 (deep review #117) because this predicate existed in THREE places and was
+    wrong in two: :func:`reward_code_structure_report` below and
+    ``contamination.named_vs_blinded_structural`` both tested only for the empty set, while
+    ``reward_taxonomy._signature`` correctly tested ``shapes <= {"Module"}``. Same pattern, same
+    consequence (a fabricated structural-similarity signal), fixed in one file and not the others —
+    so the predicate is defined ONCE here, in the module that owns ``canonical_shapes``, and imported
+    by the rest.
+    """
+    return bool(shapes) and not set(shapes) <= _MODULE_ONLY
+
+
 def structural_similarity(src_a: str, src_b: str, depth: int = 4) -> float:
-    """Identifier- and literal-invariant structural similarity of two reward sources (Jaccard of shapes)."""
+    """Identifier- and literal-invariant structural similarity of two reward sources (Jaccard of shapes).
+
+    ⚠ A raw primitive: it does NOT screen structureless sources, so two empty/comment-only programs
+    score 1.0. Callers that AGGREGATE similarities must filter with :func:`has_structure` first (see
+    #117); the two in-repo aggregators do.
+    """
     return jaccard(canonical_shapes(src_a, depth), canonical_shapes(src_b, depth))
 
 
@@ -98,9 +130,10 @@ def reward_code_structure_report(
     -------
     dict
         ``{within_mean, across_mean, difference, p_value, n_within_pairs, n_across_pairs, n_unparseable,
-        per_condition}``. ``n_unparseable`` counts sources EXCLUDED because they yielded an empty AST
-        signature (unparseable) — they are dropped, not scored as similarity-1.0, so two malformed rewards
-        cannot inflate the within-condition mean (P7c).
+        per_condition}``. ``n_unparseable`` counts sources EXCLUDED as STRUCTURELESS — an empty AST
+        signature (unparseable) OR a bodiless ``Module`` (empty / whitespace / comment-only, widened
+        #117) — they are dropped, not scored as similarity-1.0, so two non-programs cannot inflate the
+        within-condition mean (P7c).
         ``difference = within_mean - across_mean`` (> 0 = the LLM clusters code structure by condition);
         ``p_value`` is the one-sided permutation probability that a random re-labelling reaches the observed
         difference. Report-only and directional — it never enters the inferential result.
@@ -116,7 +149,15 @@ def reward_code_structure_report(
     for cond, srcs in arm_sources.items():
         for s in srcs:
             sh = canonical_shapes(s, depth)
-            if not sh:  # unparseable / empty signature -> exclude (would inflate within-similarity)
+            # WIDENED 2026-07-27 (deep review #117). This was `if not sh` — NON-EMPTY only, which
+            # catches an UNPARSEABLE source but NOT an EMPTY or comment-only one: `ast.parse("")`
+            # succeeds and walks one bodiless `Module`, so its shape-set is the TRUTHY singleton
+            # {"Module"} and `jaccard` between two of them is 1.0. Those pairs therefore survived the
+            # filter and produced exactly the "false structural clustering by condition" the comment
+            # above warns about. `reward_taxonomy._signature` already guarded `shapes <= {"Module"}`;
+            # this site and `contamination.named_vs_blinded_structural` did not — one pattern, three
+            # call sites, two of them wrong until swept.
+            if not has_structure(sh):  # no AST body -> no structure to cluster on (P7c)
                 n_unparseable += 1
                 continue
             labels.append(cond)

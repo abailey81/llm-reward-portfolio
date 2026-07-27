@@ -1395,6 +1395,80 @@ files this is worth stating plainly rather than quietly fixing.
 **Verified:** `test_cross_model` + `test_leg_aggregate` + `test_audit_regressions` +
 `test_analyze_mechanism_wiring` → **84 passed, `PYTEST_RC=0`**; ruff clean.
 
+### ★★★ #117 — the structureless-source filter missed EMPTY programs, in 2 of its 3 call sites
+
+`named_vs_blinded_structural` excludes sources with no AST structure, and says why: *"jaccard(empty,
+empty) == 1.0, so a pair of unparseable rewards would score as 'perfectly structurally locked',
+inflating paired_mean and corrupting the re-pairing permutation null."* The test it used was
+`nshapes[i] and bshapes[i]` — **NON-EMPTY only**. That catches an unparseable source (`canonical_shapes`
+returns the empty set) but not an EMPTY or comment-only one. MEASURED: `ast.parse("")` succeeds and
+walks one bodiless `Module`, so `canonical_shapes("")`, `canonical_shapes("# comment")` and
+`canonical_shapes("   ")` all return the **TRUTHY singleton `{"Module"}`**, and `jaccard` between two
+of them is **1.0**. Such pairs survived the very filter written to remove them.
+
+**Every output tilted toward the reassuring answer — on a CONTAMINATION instrument.** A degenerate
+pair contributes 1.0 to `paired` but only ~1/|shapes| to `within_blinded` and to the re-pairing null,
+so `paired_mean` inflates, `within_blinded_mean` deflates, and `structural_gap` grows from both ends.
+Quantified on a fixture with **no real structural signal whatsoever** (all genuine pairs identical),
+where two empty programs alone produce:
+
+| | pre-#117 | fixed |
+|---|---|---|
+| `within_blinded_mean` | 0.5714 | 1.0000 |
+| `structural_gap` | **+0.4286** | 0.0000 |
+| `p_random_pairing_matches` | **0.0395** | 1.0000 |
+
+i.e. the old code reports **p ≈ 0.04 — "the same-seed pairing is distinctly tighter than chance,
+evidence AGAINST structural contamination"** — manufactured entirely by two non-programs.
+(`paired_mean` shows no inflation in this particular fixture only because it was already saturated at
+1.0; with realistic sub-1.0 pairs it inflates too.) **Reachable, not hypothetical:** empty authored
+code is a measured phenomenon here — the 2026-07-25 unpinned-thinking finding had several legs author
+empty code at the frozen config, and per-model gate-pass rates as low as ~17-20 % are recorded.
+
+**Swept every call site rather than fixing the one I found** — and the sweep is what made this
+worth the loop. `canonical_shapes` has three consumers: `reward_taxonomy._signature` guarded
+`shapes <= {"Module"}` **correctly**; `contamination.named_vs_blinded_structural` and
+`reward_code_distance.reward_code_structure_report` **both** tested only for the empty set. One
+pattern, three sites, two wrong — and the second one is the R68 within-vs-across-condition clustering
+report, whose own comment likewise warns of "a false 'structural clustering by condition'" it was not
+preventing. Fixed by defining the predicate **ONCE**, as `has_structure()` in the module that owns
+`canonical_shapes`, and importing it at all three sites (genuine 3-site duplication, so the
+abstraction earns its place). `structural_similarity` is documented as the raw primitive that does
+NOT screen — callers that aggregate must filter.
+
+**Verified:** 438 passed across every test touching `contamination` / `reward_code_distance` /
+`reward_taxonomy` / `named_vs_blinded` / `structural_similarity`, `PYTEST_RC=0`; ruff clean. New
+regression test asserts the premise (`canonical_shapes("") == {"Module"}` and that the OLD non-empty
+test would not have caught it), the exclusion, and that a structureless pair now moves `paired_mean`
+by exactly nothing.
+
+### PASS A — `contamination.py`: the statistics verified, no defect in the inference
+
+Read in full. The primary TOST is correct against Schuirmann/Lakens: `p_lower = sf((d̄−low)/se)`,
+`p_upper = cdf((d̄−high)/se)`, `p_tost = max(...)`, and `equivalent` decided by 90 % CI containment
+(the TOST↔CI duality at α=0.05). The three-way outcome — equivalent / **decisively_different** /
+underpowered — correctly prevents the dangerous misreading of `all_equivalent=False` as contamination
+when the design simply cannot resolve equivalence, and does NOT mis-flag a genuinely contaminated
+coefficient as underpowered. I re-derived the achieved-power formula independently rather than trust
+it: for a true null, equivalence requires |d̄| < δ − h with d̄ ~ N(0, (h/t_crit)²), giving exactly the
+implemented `2Φ(t_crit(δ/h − 1)) − 1`. The Mahalanobis permutation is sound (within-seed sign-flip
+exchangeability; the ddof bias in the pooled covariance is a constant that cancels under permutation,
+so the p-value is unaffected; `+1` convention). McNemar switches to the exact binomial below 25
+discordant pairs. No finding in the inference itself.
+
+### PASS B — docstrings that CLAIM registered status, checked against the register: CLEAN
+
+#116 showed this is the highest-value stale-fact class here, so it was run systematically: 38 lines in
+`src/` + `scripts/` assert "frozen spec" / "verbatim" / "registered value". Most are "verbatim" in the
+copying sense; the checkable ones assert a specific registered VALUE, and all three verify —
+`benjamini_hochberg(q=0.05)` matches `inference.yaml: multiplicity.q`, `graphical_alpha_propagation`
+and `romano_wolf` `alpha=0.05` match "the registered value is 0.05", and `held_out_fitness`'s
+"`0` — the REGISTERED value (R22)" matches `fitness.lambda_cvar: 0.0`. The two hits on queue priority
+(`PRIORITY_STAGE1 = -100`, legs at −200..−280, `PRIORITY_RUNG_BASE = -300`) are an internally
+consistent intra-user ladder (−100 IS above −200), and the rendered jobscript runs at `#$ -p 0`;
+the standing tension with the never-lower-priority rule is **already open as #96** and was not
+re-raised.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
