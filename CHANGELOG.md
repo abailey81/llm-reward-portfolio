@@ -3,6 +3,39 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27] — ★★★★ STRICT REPRODUCIBILITY VERIFIED LAYER BY LAYER (Tamer's #1 / Stefan's #3) — and my own R106 change failed the repo's rule until fixed
+
+> Tamer: *"ensure the deep and strict reproducibility of this dissertation."* Verified by RUNNING each
+> layer, not by asserting it — and the first thing audited was my own work.
+
+**★ THE DEFECT I INTRODUCED, found by auditing R106 against the repo's own rule.** CLAUDE.md is
+explicit: *"if you add a knob that can vary across records, you MUST also make it visible in the
+archive in the same change."* R106 added a `thinking` pin — and **the archive recorded only what the
+provider SERVED** (`served_model`, `served_provider`, `usage`, `stop_reason`). Nothing recorded what
+was **ASKED FOR**. Two consequences: an independent replayer had to open `config/legs.yaml` at the
+frozen commit to learn the decoding configuration (a second artifact, and a chain that holds only
+while the freeze cross-check does); and under a disable pin, `reasoning_tokens > 0` was
+**indistinguishable from "the pin was never sent."** Both transports now expose `request_pins` and
+`LLMClient` archives them per call — the R85/R103 lesson (*a pin nobody can verify is fictional*)
+applied to the request side. **Verified end-to-end on live calls:** `gemini-2.5-flash` archives
+`{max_tokens 16384, extra_body{reasoning{enabled:false}}}` beside served `provider=Google,
+reasoning_tokens=0`; `haiku-4.5` archives `{max_tokens 16384, thinking{type:disabled}}` beside
+`thinking_blocks=0`. A transport declaring no pins archives **`None`, never an invented default** —
+fabricating a plausible config would be worse than recording nothing, and that is its own test.
+
+**THE THREE LAYERS, EACH RUN:**
+
+| layer | verification | result |
+|---|---|---|
+| **analysis = deterministic archive replay** | `scripts/audit_reproducibility.py` | **7 pass / 1 warn / 0 fail** — python pinned 3.11.9, 94-line lockfile, 4 determinism knobs, seeds declared, LLM archive-replay on, **gold panel SHA-256 re-verified against the manifest** (`7cf5d98843c5…`). The single WARN is `frozen=false`, legitimate pre-GO. |
+| **protocol = re-runnable by anyone** | `scripts/reproduce_synthetic.py` run **twice**, outputs byte-diffed | **RC=0 both times, output BYTE-IDENTICAL** — keyless, no licensed data, same winner `distributional-g0-c0` at seed 12345 |
+| **experiment = open-weight, hash-pinned** | `legs.yaml` × the registered `model_suite` | **5 open legs carry repo + commit HF pins** (MIT · MIT · Apache-2.0 · Apache-2.0 · NVIDIA-Open). The 5 closed legs carry none — **honest, not a gap**: no HF pin exists for a closed model, which is exactly the permanence argument the open suite was added to make. |
+
+**PLUS the determinism envelope, now genuinely complete for the pins R106 introduced:** every one of
+the 11 models has its reasoning pin **round-trip verified** (8 by measured 0 reasoning tokens, 3 by
+thinking-block absence), and the request side is archived alongside — so a violation is
+**detectable by audit from the archive alone**, which is what the envelope rule actually demands.
+
 ## [2026-07-27] — ★★★★★ R106: A RATIFIED DESIGN DECISION HAD NEVER BEEN IMPLEMENTED — uniform reasoning-off + matched caps, landed at last (and the record that lost it, repaired)
 
 > Tamer: *"we have agreed to turn thinking off for absolutely all models, and test them to be 1.0 very
