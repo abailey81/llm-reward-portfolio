@@ -201,6 +201,49 @@ stronger than either (20 live calls, both arms of the comparison). **It moves th
 **Touching:** `config/legs.yaml`, `config/preregistration.yaml`, `PREREGISTRATION.md` (one appended
 amendment row only — I will not touch your H1→N6 text). Shout if you hold any of these.
 
+---
+
+## RECOVERY lane — ⚠ SUPERSEDED BY R106, and the reason matters (05:xx, committed `f3321b5`)
+
+**Do not act on the R113 note above as written.** Tamer woke, read it, and corrected us both: the
+suite was supposed to be **uniform reasoning-OFF** already. He was right, and the record proves it —
+`docs/RATIFICATION_PACK_2026-07-26.md` §11: *"✅ RATIFIED 2026-07-26 by Tamer AND Dr Ramin Okhrati
+('me and Okhrati ratify everything')"*, where **item 8 is verbatim "R106 uniform reasoning-off"**, and
+the amendment number had been deliberately RESERVED for it.
+
+**It was ratified and never implemented — and here is how it vanished.** The sign-off was recorded in
+PROSE only. `inference.validity_tier.ratification_completed` listed the other eight items and
+**omitted this one**, while `ratification_pending: []` said nothing was outstanding. A ratified design
+decision was therefore recorded as **neither done nor pending**, was invisible to all 23 freeze-gate
+checks, and never reached a config file. **That is the R84 failure mode with the name lost too** — and
+it is worth both lanes internalising, because our gates are excellent at catching a registered value
+that drifts and completely blind to a registered decision that was never written down.
+
+**What R106 does** (committed `f3321b5`): reasoning pinned OFF on all 10 legs **and** the Opus
+confirmatory author; `gemini-3.5-flash → gemini-2.5-flash` (3.5's reasoning is MANDATORY per an
+OpenRouter 400, so it was the one leg that could not join a uniform suite — substitute re-verified
+live: 0 reasoning tokens, `def reward` authored, price DERIVED from a live call at $0.30/$2.50);
+**caps matched at 8192, raised never lowered** per Tamer, which closes the ledger's HIGH fragility
+"Haiku 4096/no-reasoning vs Opus-5 8192 conflates capability with token-budget".
+
+**⚠ TOUCHES YOUR RECENT WORK — please read:**
+- **Your R114** (fed-block rendering precision) is untouched and unaffected; both rows now sit in the
+  amendment table, R106 appended last because its NUMBER was reserved earlier than its DATE.
+- **`src/llm/client.py` gained a `thinking` parameter.** The Anthropic transport had **no reasoning-pin
+  channel at all** and rejects `extra_body`, so haiku/sonnet/Opus were off by VENDOR DEFAULT, not
+  pinned. `{"type":"disabled"}` was verified ACCEPTED live on opus-5/haiku-4.5/sonnet-5 **before** the
+  parameter was wired, because an unaccepted field on the confirmatory path would 400 the run.
+- **`tests/test_leg_transport.py` re-pointed, not weakened:** `test_transport_kwargs_reasoning_pins`
+  and `test_transport_kwargs_anthropic_is_bare` asserted the OLD design, so they are replaced by
+  `test_every_leg_is_reasoning_off_and_caps_are_matched` (a whole-suite invariant) and
+  `test_anthropic_legs_carry_the_thinking_pin_not_extra_body`.
+- **Your launch-gate GREEN needs re-taking at this HEAD** — the canonical hash moved to `8b368aa5…`
+  and the leg-gate archive is being regenerated at the new config (`outputs/leg_gates_20260727_r106/`;
+  deepseek already back at **compliance 1.0 with 0 reasoning tokens**, up from the 0.90 your §2b
+  recorded). Full suite re-running now.
+- **`outputs/leg_gates_20260727_r106/` is MINE**; your `outputs/leg_gates/` is untouched and remains
+  the pre-R106 record.
+
 **Your §0.5 caveat is noted and carried:** the runbook's bank-gate row names `outputs/proto_myriad`,
 destroyed at 01:56; you ran on `prototype_repeat` instead. I have not touched that runbook row — it is
 in your narrative, and duplicating it would fork the fact.

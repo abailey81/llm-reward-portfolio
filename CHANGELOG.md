@@ -3,6 +3,80 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27] — ★★★★★ R106: A RATIFIED DESIGN DECISION HAD NEVER BEEN IMPLEMENTED — uniform reasoning-off + matched caps, landed at last (and the record that lost it, repaired)
+
+> Tamer: *"we have agreed to turn thinking off for absolutely all models, and test them to be 1.0 very
+> strictly. The conditions must be uniform… I swear we have turned the thinking off for all models
+> except gemini, since it didn't allow to change, we have subbed the model with 2.5 flash."* He was
+> right about every part of it, and **none of it was in the executed config.**
+
+**THE DECISION EXISTED AND WAS SIGNED OFF.** `docs/RATIFICATION_PACK_2026-07-26.md` §11:
+*"✅ RATIFIED 2026-07-26 by Tamer AND Dr Ramin Okhrati ('me and Okhrati ratify everything')"* — and
+item **8** of that pack's table is verbatim *"R106 uniform reasoning-off"*. The amendment number had
+been **deliberately reserved** for it (`CAMPAIGN_DAY_RUNBOOK`: *"R106 is deliberately RESERVED for
+Ramin's uniform-reasoning-off call, hence the jump to R107"*). The gemini substitute was verified the
+day before (*"disables reasoning (0 tokens) + meaningful risk-aware code + 83 % sandbox gate-pass —
+resolves gemini-3.5-flash's mandatory-reasoning problem"*).
+
+**★ HOW IT WAS LOST — the defect worth naming.** The sign-off was recorded **in prose only**.
+`inference.validity_tier.ratification_completed` listed the other eight items and **omitted this
+one**, while `ratification_pending: []` declared nothing outstanding. So a ratified design decision
+was recorded as **neither done nor pending**, was invisible to all 23 freeze-gate checks, and never
+reached a config file. That is this project's own **R84 failure mode** ("a registered NAME requires a
+registered VALUE") — with the *name* lost as well. It surfaced only because Tamer said the suite was
+already uniform and the config disagreed.
+
+**WHAT THE SUITE ACTUALLY WAS** (measured from the gate archive, not read off labels): only **4 of 10**
+legs pinned off (qwen pair R103, glm+kimi R112). **haiku-4.5 and sonnet-5 carried NO reasoning key at
+all** — off by *vendor default*, which is not a pin, and is precisely how R102 came to assert "Opus 5
+runs adaptive thinking by default" in the registration while the live test proved it FALSE. And **four
+legs were genuinely thinking**: deepseek `{mode: pro}` up to **4096** reasoning tokens/call (the entire
+budget), gemini-3.5-flash **4864**, nemotron **1259** (no key set → provider default), gpt-5.6-luna
+`{effort: low}` **920**.
+
+**WHY OFF — the science, not the plumbing.** The **masking confound**: a reasoning scratchpad can
+silently reformat the fed floats before the model reads them, contaminating the **numeracy-bottleneck
+headline**, which is the paper's central mechanism claim. Uniformity is also what makes a ten-model
+capability gradient a capability *gradient*. Reliability points the same way — **every leg that ever
+ran with reasoning ON has been measured truncating**: qwen 0.0/10, glm 0.6, kimi 0.8, gemini 0.1,
+deepseek 0.9.
+
+**THE ONE SUBSTITUTION.** `gemini-3.5-flash → gemini-2.5-flash`: 3.5's reasoning is MANDATORY
+(OpenRouter 400, *"cannot be disabled"*), so it was the single leg that could not join a uniform-off
+suite, and keeping it would have forced a permanent exception to the ratified design. **Re-verified
+live before the swap**: id resolves, served by Google, **reasoning_tokens 0** under the disable pin,
+`stop=stop`, 802 output tokens, `def reward` authored. Its price was **DERIVED from a live call rather
+than quoted** — a 9-in/1-out completion billed $5.2e-06, solving exactly at **$0.30/$2.50 per MTok**
+(~5× cheaper on output than 3.5-flash).
+
+**CAPS MATCHED AT 8192 — RAISED, NEVER LOWERED** (Tamer: *"try not to lower the cap if you can"*). The
+per-class scheme and its three exceptions (R97a kimi · R103 gemini · R113 deepseek — each a
+gate-evidence bump on a leg whose hidden reasoning ate the budget) collapse into ONE number for every
+leg and the Opus author. This closes the evidence ledger's **HIGH** fragility *"Haiku (4096, no
+reasoning) vs Opus-5 (8192) → the DiD conflates capability with token-budget/thinking"*: with unequal
+caps a capability contrast is not a capability contrast. **Cost is unaffected** — billing is on tokens
+GENERATED, not on the cap, and reasoning-off completions are *shorter* (measured 1,210–2,969 output
+tokens on the already-off legs).
+
+**★ CODE WAS REQUIRED, because a pin with no channel is fictional.** The Anthropic transport took **no
+reasoning parameter at all** and REJECTS `extra_body`, so haiku/sonnet/Opus had no way to carry one.
+`make_anthropic_transport` + `build_transport` now accept `thinking`; `src/llm/legs.py` maps
+`reasoning:{enabled:false} → thinking:{type:disabled}`; and **both** authoring paths
+(`src/cluster/campaign.py`, `src/orchestration/parallel.py`) plus `run_campaign_cluster.py` thread it —
+without that last hop the registered pin would have been **silently dropped at authoring time**, which
+is the exact class of bug R85/R103 exist to prevent. `{"type":"disabled"}` was **VERIFIED ACCEPTED
+live on claude-opus-5, claude-haiku-4-5 and claude-sonnet-5 BEFORE the parameter was wired** (an
+unaccepted field on the confirmatory path would 400 the run), then verified **end-to-end** through the
+real leg → `transport_kwargs` → `build_transport` → live call.
+
+**R113 IS SUPERSEDED IN ITS REASONING** (its 8192 is kept as headroom): it raised deepseek's cap
+*specifically to preserve* `{mode: pro}` — and R106 turns that pin off, so the justification no longer
+holds even though the value does. Recorded rather than quietly dropped.
+
+**VERIFIED:** `freeze.py --check` **RC=0, 23/23** incl. the leg-roster + output-cap cross-checks ·
+canonical hash recomputed · `frozen: false` · 99 tests across leg-transport/freeze/leg-gates/
+validity-tier · committed **`f3321b5`**.
+
 ## [2026-07-27] — ★★★★ R113: THE PRE-LAUNCH GATE'S `leg_readiness` FAIL HAD A CAUSE, AND IT WAS A CONFIG DEFECT — deepseek was losing 20% of its authoring calls to hidden reasoning
 
 > Overnight, Tamer asleep. The review lane's readiness doc recorded `deepseek-v4-pro=0.9` as *the
