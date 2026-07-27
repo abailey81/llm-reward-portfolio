@@ -705,6 +705,59 @@ so ratification state may change freely provided the analysis follows it. It ins
 ASSIGNMENTS, so prose quoting the old value as history is fine. Verified to discriminate: the old line
 trips it, the new one does not. 112 tests green, `PYTEST_RC=0`.
 
+### ★★ #100 — the H4 report never followed the family's 2 → 4 expansion
+
+Loop 121 PASS A took the two remaining CONFIRMATORY code paths in `analyze_campaign.py`.
+
+**VERIFIED CLEAN first (do not re-derive).** The H2 direction logic is correct, and the CVaR sign
+hazard (theory-register M1) does NOT manifest: `cvar()` returns the SIGNED conditional mean
+(measured: −0.0200 for a mild tail vs −0.2000 for a severe one, so **higher = better**),
+`effect = stat(a) − stat(b)` (measured: +1.0 when a > b), and `direction_ok = effect > 0` therefore
+reads "a better" for BOTH metrics. `_iut_supported` requires `len(legs) == len(H2_CONTRASTS)`, and a
+missing leg fails CLOSED. H4's `all_ran = len(tests) == n_tests` gates `all_supported`, so a skipped
+control can never produce a false "beats the best of the portfolio" — the same guard N6 has.
+
+**What was stale.** H4 grew from 2 contrasts to 4 on 2026-07-26 (+`cma_es`/`tpe`) and the REPORT never
+followed. Eight sites, six in `h4_markdown` and two in docs:
+
+| site | said | truth |
+|---|---|---|
+| `:6041` | "NOT supported (one or **both** legs)" | four legs |
+| `:6046` | "**Two** pre-registered difference tests" | four |
+| `:6051` | "Own **2-test** family" | 4-test |
+| `:6052` | "Bonferroni-over-**2**", fallback `α=0.025` | over-4, α/4 = **0.0125** |
+| `:6054` | table header "reject (Bonf-**2**)" | Bonf-4 |
+| **`:6060`** | **`"in-family ref" if test=="h4a" else "fixed-template ref"`** | **see below** |
+| `DISSERTATION_MASTER_OVERVIEW.md:936` | "Bonferroni-over-2", legs (a)+(b) only | over-4, four legs |
+| `RIGOUR_LEDGER.md:58` | "H4 = Bonferroni-over-2" | over-4 |
+
+The **arithmetic was always right** — `bonf_alpha = alpha / n_tests` has been α/4 throughout — so no
+computed number was wrong. What was wrong is the reported *description* of the multiplicity, off by a
+factor of two in a confirmatory node's table that feeds the paper.
+
+**`:6060` is the substantive one.** `_H4_REFERENCE_FRAMING` carries a DISTINCT label per leg (h4c =
+"CMA-ES-over-template reference (evolution-strategy DFO)", h4d = "TPE-over-template reference
+(density-ratio DFO)") and `:2189` already attaches the right one to every test row — but the emitter
+ignored that field and used a two-way branch, so **both CMA-ES and TPE were reported under h4b's
+Bayes-opt framing**. Since the entire point of that map (T3.4(b), DEEP_H4 §1.2) is that H4 reads as
+procedure-vs-richness with each control's framing stated, the table actively misdescribed two of the
+four confirmatory legs. Verified by rendering: the H4C/H4D rows now show their own labels.
+
+**Why the existing guard never caught it — the more useful lesson.**
+`test_h4_reports_procedure_vs_richness_reference_framing` exists precisely to check the reference
+framing, and it passed throughout. It supplies only `random_search` and `bayes_opt` records, so h4c
+and h4d are **always SKIPPED inside it**: its coverage stayed frozen in the 2-leg era while the family
+doubled. It also asserted the *abbreviations* (`"in-family ref"`) rather than the authoritative field
+its own docstring names. Both corrected, with the reason recorded in the test.
+
+All counts are now DERIVED from `n_tests`/`H4_CONTRASTS` and the label is read from the authoritative
+per-test field, so the next expansion cannot re-stale the report. New guard
+`test_h4_markdown_derives_its_counts_and_uses_the_authoritative_reference_labels` exercises the FULL
+four-leg set and asserts each leg carries its own framing. **124 tests green, `PYTEST_RC=0`, ruff
+clean.** (One residual "2-test family" string survives in
+`docs/SELF_IMPROVEMENT_LOOP_LOG_2026-07-08.md` and is left alone: it is dated 2026-07-08, before the
+expansion, and is accurate as history.)
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

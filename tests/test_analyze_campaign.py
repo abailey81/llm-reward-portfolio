@@ -777,7 +777,16 @@ def test_h4_reports_procedure_vs_richness_reference_framing() -> None:
     assert "fixed-parametric-template" in by_id["h4b"]["reference"]
     md = AC.h4_markdown(h4)
     assert "procedure-vs-richness" in md or "procedure" in md
-    assert "in-family ref" in md and "fixed-template ref" in md
+    # #100 (2026-07-27): these were ``"in-family ref"`` / ``"fixed-template ref"`` — the ABBREVIATIONS
+    # the emitter hardcoded via ``"in-family ref" if test == "h4a" else "fixed-template ref"``. That
+    # two-way branch mislabelled BOTH h4c (CMA-ES) and h4d (TPE) with h4b's Bayes-opt framing, and this
+    # test could never see it: it supplies only random_search and bayes_opt records, so h4c/h4d are
+    # always SKIPPED here and its coverage stayed frozen at the 2-leg era. The emitter now reads the
+    # authoritative per-test ``reference`` field, so assert on THAT — matching this test's own
+    # docstring and its ``by_id[...]["reference"]`` checks above. Full 4-leg coverage lives in
+    # ``test_h4_markdown_derives_its_counts_and_uses_the_authoritative_reference_labels``.
+    assert "in-family random-search reference" in md
+    assert "fixed-parametric-template reference" in md
     assert "equiv" in md.lower()  # the TOST column header from (a)
 
 
@@ -1633,3 +1642,48 @@ def test_seed_scores_raises_on_conflicting_duplicate_records() -> None:
     recs = [_dup_rec("winner", 1, [0.01, 0.01, 0.01]), _dup_rec("winner", 1, [0.99, 0.99, 0.99])]
     with pytest.raises(ValueError, match="CONFLICTING duplicate test records"):
         AC._seed_scores(recs, "winner", lambda v: float(np.mean(v)))
+
+
+# --- #100: the H4 report must track the REALISED contrast set, not a hardcoded 2 --------------
+
+def test_h4_markdown_derives_its_counts_and_uses_the_authoritative_reference_labels():
+    """The H4 family grew 2 -> 4 on 2026-07-26 (+cma_es/tpe) and the emitter did not follow.
+
+    Two independent defects, both in a CONFIRMATORY node's reported table:
+      * every count was hardcoded to 2 — "Two pre-registered difference tests", "Own 2-test family",
+        "Bonferroni-over-2", a "Bonf-2" column header, and a fallback ``alpha`` default of 0.025
+        (= alpha/2) — while the CODE had been correcting over 4 all along. The arithmetic was right;
+        the reported description of the multiplicity was wrong by a factor of two.
+      * the reference column was ``"in-family ref" if test == "h4a" else "fixed-template ref"``, a
+        two-way branch that mislabelled BOTH h4c (CMA-ES) and h4d (TPE) with h4b's Bayes-opt framing,
+        even though ``_H4_REFERENCE_FRAMING`` carries a distinct label for each and it is already
+        attached to every test row.
+
+    Pins the PROPERTIES (counts derived from the realised set; labels taken from the authoritative
+    field) so a future expansion cannot silently re-stale the report.
+    """
+    from scripts.analyze_campaign import H4_CONTRASTS, _H4_REFERENCE_FRAMING, h4_markdown
+
+    n = len(H4_CONTRASTS)
+    tests = [
+        {"test": tid, "a": a, "b": b, "reference": _H4_REFERENCE_FRAMING.get(tid, ""),
+         "effect": 0.01, "pvalue_one_sided": 0.02, "reject_one_sided": True,
+         "reject_one_sided_bonferroni": False, "equivalence": {"equivalent": True},
+         "verdict": "beats", "n_seeds": 30}
+        for tid, a, b in H4_CONTRASTS
+    ]
+    md = h4_markdown({
+        "status": "ok", "winner_arm": "distributional", "alpha": 0.05, "n_tests": n,
+        "bonferroni_alpha": 0.05 / n, "equiv_margin": 0.05, "tests": tests, "skipped": [],
+        "all_supported": True, "all_supported_bonferroni": False, "all_equivalent": True,
+    })
+
+    assert f"Bonferroni-over-{n}" in md, "the reported Bonferroni count does not match the family size"
+    assert f"Bonf-{n}" in md, "the table header's Bonferroni count is stale"
+    assert f"Own {n}-test family" in md, "the family size in the prose is stale"
+    assert "Bonferroni-over-2" not in md and "Bonf-2)" not in md
+
+    # Each leg must carry ITS OWN framing, not a neighbour's.
+    for tid, _a, _b in H4_CONTRASTS:
+        lead = _H4_REFERENCE_FRAMING[tid].split(" \u2014 ")[0].split(" -- ")[0]
+        assert lead in md, f"{tid} is missing its authoritative reference label ({lead!r})"

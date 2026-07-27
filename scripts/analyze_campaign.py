@@ -6038,26 +6038,35 @@ def h4_markdown(h4: dict[str, Any]) -> str:
     if not h4 or h4.get("status") != "ok":
         reason = (h4 or {}).get("reason", "not computed")
         return f"## H4 — LLM vs search controls (DEEP_H4) — n/a\n\n{reason}\n"
-    verdict = "SUPPORTED" if h4.get("all_supported") else "NOT supported (one or both legs)"
+    verdict = "SUPPORTED" if h4.get("all_supported") else "NOT supported (one or more legs)"
+    # ⚠ 2026-07-27 (deep review loop 121, #100): every count below is now DERIVED from the realised
+    # test set. The H4 family grew 2 -> 4 on 2026-07-26 (+cma_es/tpe) and this emitter was never
+    # updated, so the REPORTED table described a 2-test family with an alpha/2 Bonferroni while the
+    # code had already been correcting over 4. Deriving stops it re-staling on the next expansion.
+    _n_h4 = int(h4.get("n_tests") or len(H4_CONTRASTS))
+    _bonf = float(h4.get("bonferroni_alpha", float(h4.get("alpha", 0.05)) / max(_n_h4, 1)))
     margin = h4.get("equiv_margin", 0.05)
     out = [
         f"## H4 — did the LLM reward-designer beat the search controls? — {verdict}",
         "",
-        f"Two pre-registered difference tests on the sealed test leg (per-seed Sharpe → IQM → paired "
+        f"{_n_h4} pre-registered difference tests on the sealed test leg (per-seed Sharpe → IQM → paired "
         f"bootstrap, one-sided), mirroring H2-RA, EACH with a ±{margin:g} TOST equivalence bound (T3.4 a). "
         "Read as **procedure-vs-richness**, not a nested horse-race: H4a = the IN-FAMILY random-search "
         "REFERENCE (same 6-term family the LLM authors over, R28) → isolates PROCEDURE at matched richness; "
         "H4b = the fixed-parametric-template reference → open-ended language vs fixed family (DEEP_H4 §1.2). "
-        "NEITHER asserts 'better optimiser over an identical space'. Own 2-test family (NOT the m=6 H2 "
-        f"family); a Bonferroni-over-2 (α={h4.get('bonferroni_alpha', 0.025):.3f}) sensitivity is shown.",
+        f"NEITHER asserts 'better optimiser over an identical space'. Own {_n_h4}-test family (NOT the "
+        f"m=6 H2 family); a Bonferroni-over-{_n_h4} (α={_bonf:.4f}) sensitivity is shown.",
         "",
-        "| test | contrast | reference | effect (Sharpe IQM) | p (1-sided) | reject | reject (Bonf-2) | "
+        f"| test | contrast | reference | effect (Sharpe IQM) | p (1-sided) | reject | reject (Bonf-{_n_h4}) | "
         f"equiv ±{margin:g} | verdict | n_seeds |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for t in h4.get("tests", []):
         eq = t.get("equivalence", {})
-        ref = "in-family ref" if t["test"] == "h4a" else "fixed-template ref"
+        # Use the AUTHORITATIVE per-test label (_H4_REFERENCE_FRAMING, attached at the test row) rather
+        # than a hardcoded 2-way branch, which mislabelled BOTH h4c (CMA-ES) and h4d (TPE) as the
+        # h4b Bayes-opt framing. Keep only the leading clause so the table cell stays readable.
+        ref = (t.get("reference") or t["test"]).split(" — ")[0].split(" -- ")[0]
         out.append(
             f"| {t['test'].upper()} | {t['a']}>{t['b']} | {ref} | {t['effect']:+.4f} | "
             f"{t['pvalue_one_sided']:.4f} | {t['reject_one_sided']} | "
@@ -6071,7 +6080,7 @@ def h4_markdown(h4: dict[str, Any]) -> str:
     out += [
         "",
         f"All H4 tests reject one-sided: **{h4.get('all_supported')}** "
-        f"(Bonferroni-over-2: {h4.get('all_supported_bonferroni')}); all ran legs equivalence-bounded "
+        f"(Bonferroni-over-{_n_h4}: {h4.get('all_supported_bonferroni')}); all ran legs equivalence-bounded "
         f"within ±{margin:g}: **{h4.get('all_equivalent')}** (the bankable H4 null).",
         "",
     ]

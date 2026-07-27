@@ -933,7 +933,7 @@ tracking signature beyond content-free reflection." Report-only, outside the fro
 **H4 — LLM vs uninformed search.** (a) vs `random_search` — widened (R28) to sample the *same*
 six-primitive reward family as BO, so a positive H4a is not a grammar-richness artefact; (b) vs
 `bayes_opt` — GP + Matérn-2.5 Expected Improvement over the fixed template, matched budget.
-**Bonferroni-over-2** within the family; each leg has its own ±0.05 TOST bound. Scope disclosure: the
+Two further legs were added 2026-07-26: (c) vs `cma_es` — CMA-ES over the same template (evolution-strategy DFO) — and (d) vs `tpe` — TPE over the template (density-ratio DFO), so the all-supported conjunction is the CONFIRMATORY N4 beat-the-MAX IUT over {random, GP-EI, CMA-ES, TPE}. **Bonferroni-over-4** within the family (α/4 = 0.0125; corrected 2026-07-27, #100 — this said over-2 after the family grew); each leg has its own ±0.05 TOST bound. Scope disclosure: the
 LLM authors strictly-richer free-form code, so a positive H4 = "open-ended language + procedure," not
 procedure alone.
 
