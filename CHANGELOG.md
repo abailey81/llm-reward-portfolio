@@ -160,6 +160,48 @@ trainings ≈ 104 steps/s aggregate vs 16.4 for one 8-thread training). The max-
 now MEASURED: **1 thread per training, packed 8 per job.** Ledger row carries the decision options;
 the 1-thread control arm (6 jobs) pins the denominator.
 
+### ★★★ BREAKING THE 8.9-DAY SERIAL CAP: PUT THE 3 DFO COMPARATOR CHAINS ON GPU (proposal)
+
+Tamer pushed on the cap; he was right that there is a way. Makespan is
+`max(work/cores, longest serial chain)`, and the chain term is a HARD FLOOR that NO number of cores
+can touch. At 1 CPU thread it is **8.90 d**, which caps useful capacity at **1,685 cores** — past
+that, every extra core buys nothing, which directly contradicts the standing take-everything-Myriad-
+offers directive.
+
+| configuration | serial pole | throughput-bound up to |
+| --- | --- | --- |
+| all chains on CPU (today's plan) | 8.90 d | 1,685 cores |
+| `bayes_opt` ONLY on GPU | 7.12 d | 2,106 — **TPE becomes the pole** (a trap `lanes.py` already flags) |
+| **all 3 DFO chains on GPU** | **2.14 d** | **7,021 cores** |
+
+**Cost: 71 GPU-hours total, ~27 h wall on 3 GPUs** (23 were free at the probe). Makespan at 5,000
+cores: 8.90 d -> **3.00 d**. Chain depths: bayes 25 serial, tpe 20, cma_es 20, LLM reflection 6;
+per-training 8.55 h CPU vs 1.09 h at the G1 GPU anchor.
+
+**WHY IT PASSES AN INTEGRITY TEST THAT OTHER SPEED-UPS FAIL — the argument is inverted in our
+DISFAVOUR.** `bayes_chain.py` refuses q-EI / raised `n_init` / reduced budget because each "would
+make our own hypothesis look better": batch BO is LESS sample-efficient than sequential GP-EI, so it
+WEAKENS the control the LLM must beat. **GPU does the opposite.** It changes float reduction order
+only, and it applies to the three CLASSICAL optimisers that are our CONTROLS — a cleaner, faster
+search can only make them HARDER to beat. Conservative for us, not favourable.
+
+Covered by ratified principle: **R108** admits the device as a NUISANCE BLOCK with comparison units
+kept device-homogeneous; **R107**'s own logic is that a search-leg change alters only WHICH candidate
+is selected, never a measured quantity. **The sealed TEST leg — every scored contrast, all CRN
+pairing — stays uniformly 1-thread CPU and is untouched.**
+
+**IT ALSO RESOLVES R107 CLEANLY.** Rather than amend a headline number that does not reproduce
+(2.72x registered, ~1.18x measured), REPLACE the lever: GPU buys 8.90 -> 2.14 d where threads buy
+8.90 -> 7.52 d, and the 8-thread config is ~6.7x less core-efficient besides.
+
+**DELIBERATELY EXCLUDED: the LLM reflection chains stay on CPU.** Those are OUR arms, and
+accelerating our own hypothesis is precisely the asymmetry the integrity rule guards against — so
+the remaining 2.14 d pole is accepted rather than optimised away.
+
+**STATUS: PROPOSAL ONLY.** A search-leg determinism-envelope change is Tamer's ratification, never a
+lane's unilateral action. Verify GPU queue latency first (historically hours-to-days); disclose in
+CH4 as an executed-config choice. Full row in `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md`.
+
 ### TWO DEFECTS FOUND AND FIXED WHILE RUNNING IT
 
 **1. A cluster training was a BLACK BOX.** `verbose: 0` and nothing else writes to stdout, so a
