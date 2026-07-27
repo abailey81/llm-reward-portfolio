@@ -103,10 +103,61 @@ def verify_data(worktree: Path) -> list[str]:
     return [p for p in _DATA_PROBES if not (worktree / p).exists()]
 
 
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+
+
+def _is_reparse_point(p: Path) -> bool:
+    """True for a junction or symlink. ``is_symlink()`` alone MISSES Windows junctions."""
+    try:
+        st = os.lstat(p)
+    except OSError:
+        return False
+    if getattr(st, "st_file_attributes", 0) & _FILE_ATTRIBUTE_REPARSE_POINT:
+        return True
+    return p.is_symlink()
+
+
+def unlink_reparse_points(root: Path) -> list[str]:
+    """Remove every junction/symlink under ``root`` LINK-ONLY, before any recursive delete.
+
+    ⚠ THIS EXISTS BECAUSE IT ALREADY HAPPENED (2026-07-27). A previous version junctioned the real
+    ``data/`` into the worktree and then cleaned up with ``shutil.rmtree(worktree)``. On Windows a
+    junction is NOT a symlink, ``rmtree`` walks straight through it, and the cleanup DELETED THE
+    REAL DATA DIRECTORY — 1,179 tracked files (restored from git) and ~1.2 GB of untracked data
+    including the gold panel (not in git, and not recoverable locally).
+
+    ``os.rmdir`` on a junction removes the LINK and never touches the target, so every link must be
+    severed before anything recursive runs. This is called before BOTH ``git worktree remove`` and
+    ``shutil.rmtree`` — either can follow a reparse point.
+    """
+    removed: list[str] = []
+    if not root.exists():
+        return removed
+    for dirpath, dirnames, _files in os.walk(root, topdown=True):
+        for d in list(dirnames):
+            p = Path(dirpath) / d
+            if _is_reparse_point(p):
+                try:
+                    os.rmdir(p)          # LINK ONLY — never recursive, never touches the target
+                    removed.append(str(p))
+                except OSError:
+                    pass
+                dirnames.remove(d)       # do NOT descend into it under any circumstances
+    return removed
+
+
+def destroy_worktree(path: Path) -> None:
+    """Remove a worktree SAFELY: sever links first, then delete. Order is not optional."""
+    unlink_reparse_points(path)
+    git("worktree", "remove", "--force", str(path), check=False)
+    unlink_reparse_points(path)          # git may have recreated/left one
+    if path.exists():
+        shutil.rmtree(path, ignore_errors=True)
+
+
 def make_worktree(commit: str, path: Path) -> Path:
     if path.exists():
-        git("worktree", "remove", "--force", str(path), check=False)
-        shutil.rmtree(path, ignore_errors=True)
+        destroy_worktree(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     git("worktree", "add", "--detach", str(path), commit)
     linked = [d for d in _LINK_DIRS if _link(REPO / d, path / d)]
@@ -168,8 +219,10 @@ def certify(commit: str, *, quick: bool = False) -> dict[str, Any]:
                                                   "-p", "no:warnings", "--no-header"],
                                   wt, log_dir, timeout=10800))
     finally:
-        git("worktree", "remove", "--force", str(wt), check=False)
-        shutil.rmtree(wt, ignore_errors=True)
+        # NEVER a bare rmtree here: the worktree contains junctions to the REAL data, and both
+        # rmtree and `git worktree remove` follow them on Windows. This exact cleanup destroyed
+        # the data directory once already (2026-07-27).
+        destroy_worktree(wt)
 
     failed = [s["name"] for s in steps if s["returncode"] != 0]
     cert = {
