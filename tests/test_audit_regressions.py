@@ -478,3 +478,83 @@ def test_every_tracked_text_blob_is_stored_LF_as_gitattributes_requires() -> Non
         "lets a doubled-CR working tree normalise back onto it, so the corruption becomes invisible "
         f"to `git status` (this is exactly how #111 survived a month): {offenders}"
     )
+
+
+def test_no_module_claims_to_be_UNWIRED_while_a_production_caller_imports_it() -> None:
+    """Whole-repo lock on wiring claims going stale (deep review 2026-07-27, #115).
+
+    This class has bitten twice, in both directions, and each time the cost was scientific rather
+    than cosmetic. Amendment R16 fixed `h2_conjunction`, which was "implemented and unit-tested but
+    previously unwired, so the documented headline test never actually ran". Then #115 found the
+    mirror image: `src/inference/cross_model.py` -- which implements `pooled_bound`, the R86/R101
+    REGISTERED cross-model bounded-effect statement -- carried a prominent "NOT YET WIRED ... no
+    production caller ... do not read this docstring as describing an executed path" warning that was
+    true when written (2026-07-26) and made false the SAME DAY by the wiring change. The write-time
+    register's row 34 was corrected; the module's own docstring was not.
+
+    Why that is harmful rather than untidy: row 34's two closure routes are "wire it" or "WITHDRAW
+    THE REGISTERED CLAIM", so a writer trusting the docstring could have withdrawn a claim that is in
+    fact executable, after the compute was already spent.
+
+    The rule asserted here: a module may not leave an UNCORRECTED "no production caller" claim while
+    `src/` or `scripts/` actually imports it. The converse (claiming wired while unwired) is the R16
+    failure and is already covered where it matters by the end-to-end wiring tests.
+
+    ⚠ The correction marker is load-bearing, and its first run is why. A bare regex for the claim
+    flagged `cross_model.py` even AFTER the #115 fix, because the corrected docstring QUOTES the old
+    wording as dated history -- which is this repo's standard supersession style and a discipline
+    worth protecting, not penalising. A lock that fires on faithful history-keeping would be worked
+    around by deleting the history, which is strictly worse than no lock. So the rule is: an unwired
+    claim plus a real caller is an offence UNLESS the docstring also carries the affirmative
+    `✅ WIRED` marker, i.e. the module has explicitly recorded its own correction. That targets DRIFT
+    (a claim nobody revisited), which is the actual failure mode, rather than deliberate deception,
+    which no structural lock can catch anyway.
+    """
+    import ast as _ast
+    import re as _re
+
+    root = Path(__file__).resolve().parents[1]
+    claim = _re.compile(
+        r"not\s+yet\s+wired|no\s+production\s+caller|never\s+wired|built\s+but\s+unwired",
+        _re.IGNORECASE,
+    )
+
+    def _imported_modules(path: Path) -> set[str]:
+        try:
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:  # pragma: no cover - a broken file fails elsewhere
+            return set()
+        names: set[str] = set()
+        for node in _ast.walk(tree):
+            if isinstance(node, _ast.ImportFrom) and node.module:
+                names.add(node.module)
+            elif isinstance(node, _ast.Import):
+                names.update(a.name for a in node.names)
+        return names
+
+    # Every module imported anywhere in production code (src/ + scripts/), excluding self-imports.
+    production: dict[str, set[str]] = {}
+    for path in sorted([*(root / "src").rglob("*.py"), *(root / "scripts").rglob("*.py")]):
+        for mod in _imported_modules(path):
+            production.setdefault(mod, set()).add(path.relative_to(root).as_posix())
+
+    offenders: list[str] = []
+    for path in sorted((root / "src").rglob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        try:
+            doc = _ast.get_docstring(_ast.parse(text)) or ""
+        except SyntaxError:  # pragma: no cover
+            continue
+        if not claim.search(doc) or "✅ WIRED" in doc:
+            continue  # no claim, or the module has recorded its own correction (see the docstring)
+        rel = path.relative_to(root).as_posix()
+        dotted = rel[: -len(".py")].replace("/", ".")
+        callers = {c for c in production.get(dotted, set()) if c != rel}
+        if callers:
+            offenders.append(f"{rel} claims to be unwired but is imported by {sorted(callers)}")
+
+    assert not offenders, (
+        "these modules' docstrings claim they have no production caller while production code "
+        "imports them; a registered claim can be withdrawn on the strength of such a sentence "
+        f"(exactly the #115 hazard): {offenders}"
+    )

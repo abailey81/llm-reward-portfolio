@@ -310,7 +310,9 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     withdraw the registered claim.**
     > ✅ **CLOSED BY ROUTE (a) — WIRED. This row's blocker text below is STALE (verified first-hand,
     > deep review loop 114, 2026-07-27).** Re-running this row's own stated import search now returns
-    > production hits, not zero: `scripts/analyze_campaign.py:4873-4875` does
+    > production hits, not zero: `scripts/analyze_campaign.py` (in `analyze()`, the block commented
+    > "WIRED 2026-07-26" — cited by SYMBOL not line number, which had already drifted from
+    > `4873-4875` to `4900-4902` as later review loops added lines above it) does
     > `from src.inference.leg_aggregate import cross_model_synthesis` and **calls** it
     > (`out["cross_model"] = cross_model_synthesis(root)`), which chains to `cross_model`'s
     > `permutation_test` / `pooled_bound` / `sign_count` (`leg_aggregate.py:219`). The row's required

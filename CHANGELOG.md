@@ -1316,6 +1316,85 @@ escape content in the fix itself), verified to **0 lone CRs** with the escape te
 Not a repo defect and it changes no code, but it is recorded because the rule exists for a reason and
 I proved it the expensive way.
 
+### ★★ #115 — the module implementing the R86/R101 registered headline said it was NOT WIRED. It is.
+
+`src/inference/cross_model.py` opened with a prominent warning: *"⚠ NOT YET WIRED (verified
+2026-07-26, deep review loop 4 — do not read this docstring as describing an executed path). A
+repo-wide import search over `src/` and `scripts/` finds **no production caller** of this module or of
+`src.inference.leg_aggregate`."* Re-running that exact search returns production hits:
+`scripts/analyze_campaign.py` imports `leg_aggregate.cross_model_synthesis` and CALLS it
+(`out["cross_model"] = cross_model_synthesis(root)`), which chains into this module's `sign_count` /
+`permutation_test` / `pooled_bound`. The call site's own comment reads **"WIRED 2026-07-26"** — the
+same day the docstring's claim was written. `docs/V2_WRITE_TIME_REGISTRY.md` row 34 **was** corrected
+(it carries a "CLOSED BY ROUTE (a) — WIRED" box). The fact was fixed in the register and never
+followed into the CODE — the exact inverse of #107's lesson.
+
+**This was actively harmful, not untidy.** `pooled_bound` is registered as *the* cross-model
+bounded-effect statement (R86) and **R101 reframed the headline around it**. Row 34's two closure
+routes are "wire it" or "**WITHDRAW the registered claim**" — so a writer trusting this docstring could
+have withdrawn a claim that is in fact executable, after the compute was spent. The same paragraph
+also warned of a "latent per-period-vs-annualised floor-unit trap in `leg_aggregate` that only bites
+on wiring"; that trap was fixed in the same 2026-07-26 change. Corrected, with the superseded wording
+kept as dated history.
+
+### ★★ #116 — the registered permutation test's docstring described the statistic the register REJECTS
+
+Same module, same drift, one function down — and this one touches the inferential procedure itself.
+`permutation_test`'s docstring says *"(frozen spec verbatim)"* and then: *"Statistic: the number of
+included legs whose mean flipped diff is positive."* `config/preregistration.yaml`
+(`synthesis_exactness.permutation_test`) registers something else: *"STATISTIC = the **POOLED MEAN**
+difference over included legs … refined pre-freeze 2026-07-21 — a sign-COUNT statistic is
+**near-powerless** under joint flips with correlated legs, unanimity being routine under that null;
+the sign count remains the DESCRIPTIVE layer."*
+
+**The CODE is correct** (`observed = float(mat.mean())`, with an inline comment recording the
+refinement) — it was only the docstring that stayed on the superseded statistic while claiming
+verbatim fidelity to the frozen spec. A write-up trusting it would have reported the method as a
+sign-count test, i.e. as precisely the procedure the register rejects as near-powerless. Since
+Stefan's criterion 5 is "CLARITY OF WHAT IS MEASURED", a wrong statistic name in the registered
+analysis's own documentation is a publication-grade defect. Corrected.
+
+**Verified the statistic empirically while there, rather than trusting either text.** With 9 legs ×
+30 seeds: `observed_statistic == mat.mean()` exactly; and the joint-flip scheme's central claim — that
+it holds size under cross-leg dependence — measures out at **empirical size 0.047 with HIGHLY
+CORRELATED legs and 0.055 near-independent, against a nominal α=0.05 over 600 replicates** (Monte
+Carlo SE ≈ 0.009, so both within ~0.6 SE), with **power 0.995** against a +8e-4 shift. The registered
+design does what it claims.
+
+### A structural lock — and why its first version was wrong
+
+This class has now bitten twice in opposite directions: R16 (`h2_conjunction` claimed wired, was not,
+so "the documented headline test never actually ran") and #115 (claimed unwired, was wired). Added a
+whole-repo lock in `test_audit_regressions.py`: no `src/` module may leave an uncorrected "no
+production caller" claim while `src/` or `scripts/` imports it.
+
+**Its first run failed — on my own fix.** A bare regex flagged `cross_model.py` even after correction,
+because the corrected docstring QUOTES the old wording as dated history, which is this repo's standard
+supersession style and a discipline worth protecting. A lock that fires on faithful history-keeping
+gets worked around by deleting the history, which is strictly worse than no lock. So the rule now
+keys on the repo's own affirmative `✅ WIRED` marker: an unwired claim plus a real caller is an offence
+UNLESS the module has explicitly recorded its own correction. That targets DRIFT — a claim nobody
+revisited, the actual failure mode — rather than deliberate deception, which no structural lock
+catches anyway. **Proven falsifiable:** removing the marker makes it fire naming the file; restoring
+it passes.
+
+### Also fixed, and a mistake of mine worth recording
+
+`docs/V2_WRITE_TIME_REGISTRY.md` row 34 cited `analyze_campaign.py:4873-4875`; the real location had
+drifted to `4900-4902` **because my own loops added lines above it**. Re-cited by SYMBOL (the block
+commented "WIRED 2026-07-26") so it cannot drift again — the representation-level fix, not another
+number to maintain.
+
+⚠ **My error:** during the falsifiability probe I used `git checkout -- src/inference/cross_model.py`
+to undo a temporary one-token edit, which reverted the **entire uncommitted #115 fix** to HEAD. Caught
+immediately (the lock kept failing), re-applied, and re-verified. The probe was then redone restoring
+from an **in-memory copy** instead, confirmed byte-identical. `git checkout --` is not an undo for a
+file that carries uncommitted work; on a repo where a careless recursive command already cost 6,005
+files this is worth stating plainly rather than quietly fixing.
+
+**Verified:** `test_cross_model` + `test_leg_aggregate` + `test_audit_regressions` +
+`test_analyze_mechanism_wiring` → **84 passed, `PYTEST_RC=0`**; ruff clean.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

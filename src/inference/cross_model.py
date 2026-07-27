@@ -24,21 +24,36 @@ capability anchor; primary = the pre-declared external composite, secondary = th
 score). Everything here is deterministic under its seed and DISJOINT from the m=6 confirmatory
 machinery — nothing gates H1–H4.
 
-⚠ NOT YET WIRED (verified 2026-07-26, deep review loop 4 — do not read this docstring as describing
-an executed path). A repo-wide import search over ``src/`` and ``scripts/`` finds **no production
-caller** of this module or of :mod:`src.inference.leg_aggregate`; the only references are docstrings
-and comments (``src/viz/figures.py``, ``scripts/analyze_campaign.py``, ``scripts/run_campaign_cluster.py``)
-plus ``src/inference/contamination.py``'s own unrelated ``cross_model_disagreement``. The functions
-below and their unit tests are real and pass — but a unit-tested module is not a wired one, which is
-exactly the failure Amendment R16 fixed for ``h2_conjunction`` ("implemented and unit-tested but
-previously unwired, so the documented headline test never actually ran").
+✅ WIRED — and this paragraph is the correction of a stale warning (deep review #115, 2026-07-27).
+:func:`pooled_bound` is registered as *the* cross-model bounded-effect statement (R86,
+``config/preregistration.yaml: synthesis_exactness.pooled_bound``) and **R101 reframed the headline
+around it**, so whether it has an executable route to a number is load-bearing. It does:
+``scripts/analyze_campaign.py`` imports ``leg_aggregate.cross_model_synthesis`` and CALLS it
+(``out["cross_model"] = cross_model_synthesis(root)``), which chains into this module's
+:func:`sign_count` / :func:`permutation_test` / :func:`pooled_bound` via the import inside
+``cross_model_synthesis``. The end-to-end test exists and also locks the anti-fabrication states:
+``tests/test_leg_aggregate.py`` ("the production wiring (row 34)"), including
+``test_no_leg_archives_is_MISSING_DATA_not_a_null_effect`` and
+``test_a_missing_T0_floor_is_a_MISSING_INPUT_not_a_result``.
 
-This matters because :func:`pooled_bound` is registered as *the* cross-model bounded-effect statement
-(R86, ``config/preregistration.yaml: synthesis_exactness.pooled_bound``) and **R101 reframed the
-headline around it**. Tracked as write-time obligation **row 34** in
-``docs/V2_WRITE_TIME_REGISTRY.md``, which also records the two acceptable ways to close it (wire it
-with an end-to-end test, or amend the register to withdraw the claim) and the latent
-per-period-vs-annualised floor-unit trap in ``leg_aggregate`` that only bites on wiring.
+⚠ HISTORY, kept because the correction matters more than the claim: until 2026-07-27 this docstring
+opened "NOT YET WIRED … no production caller … do not read this docstring as describing an executed
+path". That was TRUE when written (2026-07-26, deep review loop 4) and was made FALSE the same day by
+the wiring change, which did not update it. ``docs/V2_WRITE_TIME_REGISTRY.md`` row 34 WAS corrected
+(it carries a "CLOSED BY ROUTE (a) — WIRED" box, left open rather than ticked because discharging an
+obligation is Tamer's call) — so the fact was fixed in the register and never followed into the CODE,
+the exact inverse of the #107 lesson. The stale text was actively harmful, not merely untidy: row
+34's two closure routes are "wire it" or "WITHDRAW the registered claim", so a writer trusting this
+docstring could have withdrawn a claim that is in fact executable, after the compute was spent. The
+same paragraph also warned of a "latent per-period-vs-annualised floor-unit trap in ``leg_aggregate``
+that only bites on wiring" — that trap was fixed in the same 2026-07-26 change (``per_seed_series``
+delegates to the canonical ``bootstrap.sharpe_ratio``, removing the annualisation and ddof
+discrepancies together).
+
+The R16 precedent the old text invoked still stands as the reason to check: ``h2_conjunction`` was
+"implemented and unit-tested but previously unwired, so the documented headline test never actually
+ran". A unit-tested module is not a wired one — which is why the wiring above is asserted by an
+end-to-end test rather than by this sentence.
 """
 
 from __future__ import annotations
@@ -106,8 +121,20 @@ def permutation_test(
 
     Null: no content effect in any leg. Scheme: one Bernoulli(1/2) flip PER SEED PER REP, applied
     to every included leg's diff at that seed simultaneously — cross-leg dependence induced by the
-    shared seeds/panel is thereby preserved under the null. Statistic: the number of included legs
-    whose mean flipped diff is positive (dist-safer). One-sided p toward the registered direction.
+    shared seeds/panel is thereby preserved under the null. Statistic: **the POOLED MEAN difference
+    over the included legs** (the multivariate paired sign-flip test). One-sided p toward the
+    registered direction (dist-safer), add-one corrected.
+
+    ⚠ This sentence read "Statistic: the number of included legs whose mean flipped diff is positive"
+    until 2026-07-27 (deep review #116). That is the SUPERSEDED statistic: the register was refined
+    pre-freeze on 2026-07-21 to the pooled mean precisely because a sign-COUNT is near-powerless here
+    (under joint per-seed flips with highly correlated legs, unanimity is routine under the null), and
+    the sign count was demoted to the DESCRIPTIVE layer in :func:`sign_count`. The refinement landed
+    in ``config/preregistration.yaml`` (``synthesis_exactness.permutation_test``) and in the CODE
+    below — which computes ``mat.mean()`` and has always been correct — but not in this docstring,
+    which meanwhile claimed to be the "frozen spec verbatim". The stale wording mattered because it
+    described the inferential statistic of a registered analysis: a write-up trusting it would have
+    reported the method as a sign-count test, i.e. as the exact procedure the register rejects.
     """
     included = _included(leg_results)
     if not included:
