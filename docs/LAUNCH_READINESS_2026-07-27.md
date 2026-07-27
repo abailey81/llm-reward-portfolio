@@ -30,6 +30,12 @@ decision or an operator action — none is a code defect.**
 - **Full suite: 2,726 passed · 3 skipped · 0 failed · `PYTEST_RC=0`** — unpiped, RC written INTO the
   log, **pinned `--randomly-seed=20260727`** so the certification is itself reproducible (this closes
   the long-standing #68 caveat that the previous green was shuffle-seed dependent).
+- **Run TWICE, identically** (the second pass with `-rs` for runbook item 2), so the green is
+  reproducible rather than a single lucky ordering. **The skip report was READ, not counted** — the
+  runbook is explicit that skips are fail-safe but must be inspected, after a 2026-07-13 transient
+  once made 66 tests skip silently. All three are the SAME permanent platform skip:
+  `tests/test_sandbox.py:392`, `:667`, `:686` — *"POSIX 'resource' module unavailable (Windows)"*.
+  Exactly the 3 the runbook expects; nothing is hiding behind a skip.
 - `ruff src scripts tests` **RC=0** · `check_citations.py` **RC=0** · `build_paper.py` **RC=0**
   (8 chapters + 1 appendix; word-budget tests pass).
 - `freeze.py --check` **RC=0, 23/23, `freeze_hash: null`** — correctly STILL UNFROZEN.
