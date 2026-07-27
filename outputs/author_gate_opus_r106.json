@@ -1,0 +1,93 @@
+{
+  "model": "claude-opus-5",
+  "max_tokens": 16384,
+  "thinking": {
+    "type": "disabled"
+  },
+  "compliance_rate": 1.0,
+  "compliance_n": 10,
+  "thinking_blocks_observed": 0,
+  "cost_usd": 0.84065,
+  "calls": [
+    {
+      "i": 0,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 3186,
+      "thinking_blocks": 0,
+      "cost": 0.08072
+    },
+    {
+      "i": 1,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 3602,
+      "thinking_blocks": 0,
+      "cost": 0.09112
+    },
+    {
+      "i": 2,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 3021,
+      "thinking_blocks": 0,
+      "cost": 0.07659
+    },
+    {
+      "i": 3,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 2475,
+      "thinking_blocks": 0,
+      "cost": 0.06295
+    },
+    {
+      "i": 4,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 3602,
+      "thinking_blocks": 0,
+      "cost": 0.09112
+    },
+    {
+      "i": 5,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 3337,
+      "thinking_blocks": 0,
+      "cost": 0.0845
+    },
+    {
+      "i": 6,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 2548,
+      "thinking_blocks": 0,
+      "cost": 0.06477
+    },
+    {
+      "i": 7,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 4294,
+      "thinking_blocks": 0,
+      "cost": 0.10842
+    },
+    {
+      "i": 8,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 4013,
+      "thinking_blocks": 0,
+      "cost": 0.10139
+    },
+    {
+      "i": 9,
+      "stop": "end_turn",
+      "compliant": true,
+      "out": 3120,
+      "thinking_blocks": 0,
+      "cost": 0.07907
+    }
+  ]
+}

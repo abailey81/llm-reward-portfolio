@@ -77,6 +77,93 @@ holds even though the value does. Recorded rather than quietly dropped.
 canonical hash recomputed · `frozen: false` · 99 tests across leg-transport/freeze/leg-gates/
 validity-tier · committed **`f3321b5`**.
 
+### ★★ THE 11th MODEL — the confirmatory author had NEITHER a registered cap NOR a pin (`599c61b`)
+
+Tamer, reading the 10-leg result: *"why only 10 legs, didn't we have 11? 11 including opus"*. Correct,
+and the gap was real. **`leg_gates` iterates `config/legs.yaml` (the 10 replication legs); the
+confirmatory author is configured separately in `config/campaign.yaml` and had therefore never been
+through a compliance gate at all.** Two defects, both on the most important model in the study:
+
+1. **`max_tokens` was ABSENT from the executed block** → `campaign.py:402` fell back to its **4096**
+   default. R102 raised the Opus cap to 8192 but recorded it **only in `config/llm.yaml`, which has NO
+   code consumer for the author** — so the registered value and the executed value had silently
+   disagreed since R102. **This was not theoretical:** the 10-call live gate at the corrected config
+   produced **5,008 and 6,412 output tokens** on two calls — **both would have TRUNCATED at 4096**.
+   The confirmatory author would have lost **~20 % of its reward candidates** — deepseek's exact
+   failure rate — with every gate green, *because nothing gated it*.
+2. **`thinking` was ABSENT** → Opus ran on the vendor default. Measured off (which is why nothing was
+   corrupted), but a default is not a pin, and R102's "adaptive thinking BY DEFAULT" claim was itself
+   disproved by live test. R106 is uniform reasoning-off across **all 11** models; the author is the 11th.
+
+**Both are now set in the block that actually executes**, and a new preflight check
+`check_author_pin_mirror` FAILs on an absent cap, an absent pin, or a divergence between the two files —
+**absence is a FAIL, not a warning**, because an absent key does not mean "default", it means the
+executed value is invisible to the registration. This is the same guard `check_model_consistency`
+already gives the model id and `check_budget_mirror` the step count; the cap simply never had one.
+
+**THE 11th MODEL, GATED LIVE at the R106 config:** `compliance 1.00 (10/10)` · `0/10` truncated ·
+`0` thinking blocks · pin verified via content blocks · **$0.9453**
+(`outputs/author_gate_opus_r106.json`).
+
+### ★ FINAL STATE — ALL ELEVEN MODELS AT STRICT 1.0, PINS ROUND-TRIP VERIFIED
+
+| # | model | compliance | pin round-trip |
+|---:|---|---|---|
+| 1 | **claude-opus-5** (CONFIRMATORY) | **1.0** | verified via content blocks |
+| 2–11 | deepseek-v4-pro · gemini-2.5-flash · glm-5.2 · gpt-5.6-luna · haiku-4.5 · kimi-k3 · nemotron-3-super · qwen3.5-9b · qwen3.6-27b · sonnet-5 | **1.0** each | 8 by measured 0 reasoning tokens; haiku + sonnet via content blocks (Anthropic reports no token field) |
+
+Uniform reasoning-off · uniform cap · every pin evidenced, none assumed.
+
+### ★ THE UNIFORM CAP RAISED 8192 → 16384, set from measurement (`a2cece1`)
+
+Tamer: *"what do you think of raising the cap for everyone just to stay safe?"* The measurement says
+yes — **because of exactly one model**. At 8192 with reasoning off, ten of eleven used **7–32 %** of
+the cap; the **confirmatory Opus author used 78 %** (6,412 tokens on a 10-call gate) — inside the
+54–82 % *marginal-by-construction* band deepseek's truncation defined, on a maximum over ten samples,
+and Opus authors far longer code than the open legs. Matched caps means everyone moves together, and
+that is free: billing is on tokens **generated**, so legs at 7–32 % cost nothing more.
+
+**VERIFIED ACCEPTED LIVE ON ALL 11 MODELS BEFORE THE CHANGE** — providers cap output at different
+ceilings and a rejection on the confirmatory path would 400 the run. (Worth recording: the probe first
+reported three Anthropic models REJECTED, and that was the **probe's** bug — it read `last_cost_usd`,
+which that transport does not expose, so the *reporting* line raised after the call had already
+succeeded. Fixed, re-run, 11/11.)
+
+**AND THE OBVIOUS OBJECTION, TESTED RATHER THAN ASSUMED:** does a bigger cap simply invite longer
+generations? **No.** Re-gated at 16384, Opus produced max **4,294** / mean **3,320** — *lower* than at
+8192 (max 6,412 / mean 3,738). Utilisation **78 % → 26 %**. Compliance 1.00, 0 truncated, pin verified.
+The cap is a ceiling, not a target.
+
+### ★★ R106 WAS HALF-APPLIED — the launcher still named the substituted leg (`2fbc9fb`)
+
+Sweeping for stale references found the rename had **not** reached three places that name legs by
+LABEL outside `legs.yaml` and the registration — and every gate stayed green, because **nothing
+checked them**:
+
+| file | consequence |
+|---|---|
+| `scripts/mode_d_launch.ps1` | the **ratified launch path's queue** — would have launched a leg that no longer exists |
+| `scripts/mode_d_supervisor.ps1` | the priority ladder + the `legN` tag map |
+| `MEASURED_AUTHORING_YIELD` | keyed on the old label → the running leg never matches → `_DEFAULT_YIELD` silently applies and the **earliest-warning authoring alarm is mis-calibrated for that leg** |
+
+**The real defect is the missing lock, not the three stale strings.** A label is a cross-file contract
+and nothing asserted it, so a substitution could be — and was — half-applied invisibly. One test now
+binds all three to `model_suite.queue_order`, **verified falsifiable** (it extracts 10 legs, not an
+empty list that would trivially pass, and returns False against the pre-R106 launcher). Both PS1 files
+re-validated ASCII-only with `Parser::ParseFile` 0 errors. Cluster dry-run **RC=0** on the core roster
+**and** on the substituted leg (resolves to `openrouter/google/gemini-2.5-flash`, suffix
+`leg_gemini_2_5_flash`). Priority values deliberately untouched — the −200..−290 ladder is the review
+lane's open #96 for Tamer; only the LABEL was mine to fix.
+
+### FINAL CERTIFICATION AT THIS HEAD
+
+`pytest` **2,751 passed / 3 skipped / 0 failed / 0 errors, `PYTEST_RC=0`** (pinned seed, unpiped) — and
+the 3 skips were **READ** per runbook §1.2, not merely counted: `test_sandbox.py:392/667/686`, all
+*"POSIX 'resource' module unavailable (Windows)"*, the permanent set. The "licensed data not present"
+skips did **not** fire, independently re-confirming the restored panel. `freeze --check` **RC=0, 23/23**,
+`frozen: false`. `pretrain_validate` **RC=0, FAIL=0**, self-test **9/9 falsifiable**. `preflight`
+`author_pin_mirror` OK.
+
 ## [2026-07-27] — ★★★★ R113: THE PRE-LAUNCH GATE'S `leg_readiness` FAIL HAD A CAUSE, AND IT WAS A CONFIG DEFECT — deepseek was losing 20% of its authoring calls to hidden reasoning
 
 > Overnight, Tamer asleep. The review lane's readiness doc recorded `deepseek-v4-pro=0.9` as *the
