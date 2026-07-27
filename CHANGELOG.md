@@ -88,6 +88,48 @@ archive; that runbook row should be updated at GO.
 4. **R114** fed-precision accept/revert · **#96** the −200..−290 priority ladder vs the
    never-lower-priority rule (review lane's).
 
+## [2026-07-27] — ★★★ THE COMMIT-HEADROOM FLOOR WAS SIZED FOR A WORKLOAD WE NO LONGER RUN — calibrated to measurement (`79c1e65`)
+
+> Tamer: *"whatever my laptop can give, adapt"* — after asking, fairly, **"why do you need my laptop,
+> I thought we run absolutely everything on myriad?"**
+
+**THE ANSWER TO THAT QUESTION, because it is worth recording:** all TRAINING is on Myriad, but the
+laptop is the **DRIVER and the AUTHOR**. It submits the arrays, polls every 600 s, pulls the archives
+back — and **every LLM call is made laptop-side** (`src/cluster/run_one.py:113`: *"authoring is
+laptop-side so the job's result lacks it"*). The nodes receive reward CODE that was already written on
+the laptop. Reassuringly, the runbook's contract holds: **"RUNNING ARRAYS ON MYRIAD ARE NEVER AFFECTED
+by laptop-side outages"** — the driver tolerates a 12 h transport outage and the supervisor relaunches
+on any nonzero exit. And per the G0/G1 certification, *"compute nodes have outbound internet.
+Architecture is flexible; the laptop-driver design still stands but is not forced"* — so authoring is
+laptop-side **by choice** (it would mean shipping API keys to the cluster), not by necessity.
+
+**THE DEFECT.** `check_commit_headroom` used a **hardcoded 6.0 GB** floor for every scenario, while the
+sibling `check_ram` scales as `n_gpu × 2.2 + 3.0`. Once the campaign moved to Myriad the two disagreed
+about the same workload: at `--gpu 0` RAM correctly relaxed to 3.0 GB while commit still demanded 6.0,
+**failing the gauntlet on a workload that does not exist.** The 6.0 was never a measurement of the
+driver — it was a margin chosen after the 2026-07-18 forensic incident in which a leak drove headroom
+to **0.37 GB** and every spawned child stalled for minutes in the numpy/MKL DLL load.
+
+**MEASURED** (whole process tree, sampled at 20 Hz from outside): cluster driver dry-run **0.54 GB**
+over 2 processes (core and leg alike) · **spawned validation child 1.33 GB** over 4 — the process class
+the incident actually hurt · freeze-gate child 0.02 GB. **So the laptop's driver role peaks at ~1.3 GB
+and the old floor was ~4.5× that.**
+
+**THE FIX IS NOT A WEAKENING**, which is the half that matters: the floor now uses the SAME shape as
+`check_ram`, so at **n_gpu=2 — where the laptop really does train — it RISES to 7.4 GB from the flat
+6.0**, and at n_gpu=0 it is 3.0 GB, still a **2.25× margin** over the measured 1.33 GB peak. The tests
+assert both directions precisely because only the second one shows this was a correction rather than a
+bar lowered to make a number go green, plus a test that the commit and RAM floors can never again
+disagree at any `n_gpu`.
+
+**AND THE OTHER LAPTOP-SIDE CAPACITY NOBODY HAD COSTED — disk.** Every archive is pulled BACK to the
+laptop, yet `preflight` only checked a flat 5 GB floor sized for the laptop-training era. Projected
+from the **largest** measured per-record footprint (171 KB, from four real archives — not the mean):
+**2.89 GB at the full 568 rung** across the core plus all ten legs, against **34 GB free**. Disk is not
+a constraint.
+
+**Consequence:** on the cluster path the gauntlet's only remaining FAIL is the freeze.
+
 ## [2026-07-27] — ★★★★ STRICT REPRODUCIBILITY VERIFIED LAYER BY LAYER (Tamer's #1 / Stefan's #3) — and my own R106 change failed the repo's rule until fixed
 
 > Tamer: *"ensure the deep and strict reproducibility of this dissertation."* Verified by RUNNING each
