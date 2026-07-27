@@ -42,7 +42,8 @@ BATCH = "p6ladder"
 
 
 def build_specs(remote_root: str, local_out: str, budgets: list[int],
-                device: str = "cuda", threads: int = 1) -> list[dict[str, Any]]:
+                device: str = "cuda", threads: int = 1,
+                seeds: list[int] | None = None) -> list[dict[str, Any]]:
     """Search-leg specs via the campaign's own assembly (one assemble per budget).
 
     ``device``/``threads`` STAMP THE EXECUTION ENVELOPE (2026-07-27). This script builds its own
@@ -69,7 +70,7 @@ def build_specs(remote_root: str, local_out: str, budgets: list[int],
             source = Path(path).read_text(encoding="utf-8")
             if not source.strip():
                 raise ValueError(f"empty reward source: {path}")
-            for seed in SEEDS:
+            for seed in (seeds if seeds is not None else SEEDS):
                 o = dict(opts)
                 o["seed"] = int(seed)
                 cid = f"{label}-b{budget}-s{seed}"
@@ -103,12 +104,13 @@ def _auto_h_rt(budgets: list[int]) -> str:
 
 def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, cores: int,
                 budgets: list[int], batch: str, device: str = "cuda",
-                threads: int = 1) -> Path:
+                threads: int = 1, seeds: list[int] | None = None) -> Path:
     """Write task_N.json + the jobscript into the local batch dir; return it."""
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
 
-    specs = build_specs(remote_root, local_out, budgets, device=device, threads=threads)
+    specs = build_specs(remote_root, local_out, budgets, device=device, threads=threads,
+                        seeds=seeds)
     # THREADS ARE COUPLED TO CORES, always. 8 threads on a 1-core allocation is oversubscription
     # and measurably slower than 1 thread, so the request can never be raised independently.
     cores = max(int(cores), int(threads))
@@ -122,12 +124,14 @@ def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, c
 
 
 def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str, cores: int,
-           budgets: list[int], batch: str, device: str = "cuda", threads: int = 1) -> str:
+           budgets: list[int], batch: str, device: str = "cuda", threads: int = 1,
+           seeds: list[int] | None = None) -> str:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
     batch_dir = build_batch(remote_root, gold_dir, local_out, pool=pool, cores=cores,
-                            budgets=budgets, batch=batch, device=device, threads=threads)
+                            budgets=budgets, batch=batch, device=device, threads=threads,
+                            seeds=seeds)
     prepare_remote(remote_root, [batch], runner)
     push_batch(batch_dir, f"{remote_root.rstrip('/')}/specs", host=host)
     job = qsub(f"{remote_root.rstrip('/')}/specs/{batch}/{batch}.sh", runner)
@@ -224,6 +228,11 @@ def main() -> int:
                         "fires the jobscript CUDA_VISIBLE_DEVICES guard, and STAMPS every spec so "
                         "the archive records what actually ran (this script builds its own specs "
                         "and so bypasses the campaign's device injection).")
+    p.add_argument("--seeds", default=None, metavar="S",
+                   help="Comma-separated CRN seeds (default 0,1,2 = the R77 rule's n). Widening "
+                        "costs NO wall-clock (every cell is an independent core) and tightens the "
+                        "knee interval: at n=3 the rule fires on mean/SE=2.93 but a genuine 95% "
+                        "t-interval spans zero; n=10 excludes it.")
     p.add_argument("--threads", type=int, default=1,
                    help="Intra-op BLAS/torch threads per training (R107; 8 = the measured optimum "
                         "for a SEQUENTIAL leg, 16 is measurably SLOWER). The job core request is "
@@ -253,10 +262,12 @@ def main() -> int:
             from src.cluster.submit import expand_remote, remote_home, ssh_runner
             remote_root = expand_remote(remote_root, remote_home(ssh_runner(args.host)))
 
+    _seeds = ([int(x) for x in str(args.seeds).split(',') if x.strip()]
+              if args.seeds else None)
     if args.build_only:
         build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
                     cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
-                    device=args.device, threads=args.threads)
+                    device=args.device, threads=args.threads, seeds=_seeds)
         return 0
     if args.submit and args.singles:
         submit_singles(remote_root, args.gold_dir, args.output_dir, host=args.host,
@@ -268,7 +279,7 @@ def main() -> int:
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
                pool=args.pool, cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
-               device=args.device, threads=args.threads)
+               device=args.device, threads=args.threads, seeds=_seeds)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)
