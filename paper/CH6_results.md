@@ -109,26 +109,32 @@ Figure 6.5 (Bayesian null-evidence gauge, MCS membership) — manifest F-E; Tabl
 
 This section reports H1, H3 and H4, each scoped exactly as pre-registered.
 
-**H1 — beat-the-human (descriptive only).** Whether the best LLM reward beats the maximum over four hand-designed
-rewards on the sealed leg. We report this in the Eureka "beat-the-human-baseline" tradition, but it carries a
-**data-snooping bias that we make explicit and refuse to launder into an inferential claim**, for two reasons
-that push in *opposite* directions:
+**H1 — the designed reward dominates the hand-reward canon (confirmatory, node N6).** Whether the best LLM
+reward beats the *best* human-crafted reward. The obvious way to ask that question is not usable: naming which
+hand-reward is "best" by its sealed-test result is precisely the comparator data-snoop of White (2000)
+[`white2000reality`], and it is what forced an earlier framing of H1 to a descriptive observation. The registered
+formulation dissolves the problem instead of disclosing it. Because the best member of a family is its pointwise
+**maximum**, "beats the best" is logically identical to "beats **every** member" — so H1 is tested as an
+**intersection–union test** [`berger1982iut`] over the *full eleven-name hand-reward canon*: the node rejects only
+if the designed reward beats all eleven, each one-sided at level $\alpha$, with the IUT $p$-value the **maximum**
+of the eleven leg $p$-values. Nothing is selected, so there is nothing to snoop; the test is level-$\alpha$ for
+free, conservative, and uses the same inference tool as the H2 co-primaries. Comparing against the entire standard
+toolkit rather than one incumbent baseline is, to our knowledge, a first in this lineage, where Eureka, Text2Reward
+and REvolve each contest a single hand-written reward [`ma2024eureka`; `xie2024text2reward`; `hazra2025revolve`].
 
-- *(i) Comparator selection on the sealed leg (anti-conservative for the baseline).* The comparator is the
-  **maximum** over four hand-designed rewards evaluated on the very leg it is then reported on. Taking a maximum
-  over several candidates on the test sample inflates the comparator's apparent performance by the usual
-  selection (multiple-comparisons) mechanism — it borrows the most favourable test-set noise. This biases the
-  comparison **against** our H1 claim (it makes the human baseline look better than a held-out estimate would),
-  so it is *conservative* for "the LLM beats the human" and *anti-conservative* for the baseline itself.
-- *(ii) Un-tuned baselines (favourable to our claim).* The hand-designed rewards are fixed, un-tuned reference
-  specifications, not the output of a matched hyper-parameter search; any gap is therefore **not** a like-for-like
-  optimisation comparison, and this bias runs the *other* way — it flatters the LLM.
+One asymmetry remains and is disclosed rather than dissolved: the hand-designed rewards are fixed, un-tuned
+reference specifications, not the output of a matched search, so any gap is not a like-for-like optimisation
+comparison and the bias **flatters the designed reward**. It is bounded in the conservative direction by the
+selection structure on the other side — the designed reward is the survivor of a thirty-candidate search whose
+scores are deflated for that multiplicity, while each hand-reward is a single un-searched specification — so the
+human bar sits conservatively high. Dominating it anyway is therefore a strong result, and failing to dominate it
+is an informative one.
 
-Because these two biases are of unknown relative magnitude, the **net sign is unidentified**, and H1 is therefore
-reported as a **descriptive observation only**: it is excluded from the frozen `m=6` multiplicity family, never
-enters any TOST/IUT decision, and no *p*-value is attached to it. It is context for the headline mechanism result,
-not evidence for it. (The clean, pre-registered, inference-bearing comparisons are H2/H3/H4, which select on the
-validation leg and are scored once on the sealed leg.)
+H1/N6 carries $\alpha$ only on upstream rejection (initial weight zero in the graph of §4.7), so promoting it
+costs the headline nothing. It is reported with the full **dominance profile** rather than a bare verdict —
+per hand-reward: significantly beaten, statistically tied, or lost, with effect sizes — because "dominates nine of
+eleven, ties the deflated-Sharpe specification, loses to none" is a more mature and more useful statement than a
+binary. [FROM CAMPAIGN: the IUT verdict, the max-leg $p$, and the eleven-row dominance profile.]
 
 - `[FROM CAMPAIGN: best-LLM vs max-baseline on sealed leg, descriptive — gap and direction only, no test]`.
 

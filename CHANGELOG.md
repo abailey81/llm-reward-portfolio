@@ -368,6 +368,114 @@ The commit was then staged with **explicit paths only**, and asserted to contain
    "7h-cold before touching them". `tests/test_certify_worktree_safety.py` is likewise left untracked
    for its own lane to commit.
 
+### LOOP 118 — three more findings, all the same class as #87
+
+- **#93 — `rollout_port_diagnostics` could return a SILENTLY MISALIGNED weights matrix.**
+  `weights.append` is conditional on the step emitting one; `net.append` is not. A PARTIALLY-emitting
+  env therefore produced a short matrix that satisfied the remaining guard clauses (all rows
+  equal-length, non-empty) and was returned as if aligned. REPRODUCED: weights `(4, 3)` against net
+  `(5,)`, pairing row *k* with step *k+1*. These diagnostics are archived on the SEALED TEST LEG and
+  are the only source for the exposure / allocation / drawdown figures, which a replay-only campaign
+  cannot recompute — so the error would have been undetectable after the fact. Length agreement is now
+  required; two regression tests (partial emission → `None`; full emission → still `(T, N)`).
+  Unreachable with `PortfolioEnv`, but tolerating non-standard envs is this guard's entire purpose.
+- **#94 — `make_env_builder`'s `lookback` purge parameter was UNDOCUMENTED and defaults to `0`,**
+  which silently degrades the R18 inter-split purge from `max(embargo, lookback)` to embargo-only —
+  the exact regression the guard exists to catch. All SEVEN call sites verified to pass it (so the
+  guard is armed everywhere in practice), and it is now documented with "**Pass it.**"
+- **#95 — the power doc asserted its own numbers were PROVISIONAL on the run that made them final.**
+  `power_analysis.py` hardcoded five provenance strings to the placeholder case, so
+  `CAMPAIGN_power.md` — the document that JUSTIFIES the seed count — kept emitting *"computed at the
+  directional σ_seed — pilot field flagged"*, *"re-run … to finalise the TBD fields"*, *"ρ = -0.140
+  (default 0.0 …)"*, *"reached at Δ_MDE (currently at the directional σ_seed)"* and a prominent
+  blockquote *"Pilot-dependent fields … are **directional**"* — all FALSE on a run invoked with the
+  measured pilot σ. The doc went stale the instant a reader did what it instructs. The script already
+  tracked `sigma_is_placeholder` (it drives the checkbox two lines below the heading), so the heading
+  contradicted a flag the same function was computing. All five are now input-aware; BOTH branches
+  regression-checked (measured → "**FINAL** … nothing here is directional"; placeholder → still warns).
+
+**Self-inflicted defect, caught and recorded:** the #95 fix was first attempted through a bash heredoc
+carrying `\n` escapes — the exact hazard the repo's own rules forbid ("heredocs never carry
+backslash/escape content; use Write/Edit"). The escape became a real newline and left an unterminated
+string literal. Caught immediately by the `ast.parse` check that followed, repaired with `Edit`, and
+restructured to need no escapes at all.
+
+### POST-INCIDENT DATA VERIFICATION — `data/` and `outputs/` proven intact FIVE independent ways
+
+Prompted by Tamer after the junction incident. The manifest was FIRST confirmed byte-identical to git
+HEAD, so it predates the deletion and cannot be a manifest regenerated over corrupt data:
+
+| Check | Result |
+|---|---|
+| SHA-256 vs the frozen manifest | **1,170 / 1,170 VERIFIED · 0 missing · 0 corrupt** |
+| Manifest COVERAGE | complete — the 1,182 "uncovered" files are exactly 1,170 `.provenance.json` sidecars (1:1), 4 `.gitkeep`, 6 manifest/readme files. **Zero real data files unverified** |
+| `scripts/verify_inventory.py` | **RC=0**, `checksum_failures: []` (independent of my sweep) |
+| `scripts/archive_integrity.py verify` | `outputs/prototype` matches sealed root `e46f02c9…` (**239 records**); `outputs/sigma_pilot` matches `d3d5980d…` (**30 records** — the σ_D data behind σ_seed = 0.244) |
+| `scripts/verify_gold.py` | **PASS** — univ5 vs univ3 overlap 5,283 × 953, **0 changed cells**, +123 rows / +10 cols (the documented lineage) |
+| `outputs/` vs git HEAD | 795/795 tracked present, **0 diff** — the restore was byte-exact |
+
+Functional confirmation beyond hashes: `load_gold_panel(verify_checksum=True, validate=True)` succeeds;
+the raw panel reads **5,406 × 963, 2005-01-03 → 2026-06-30**; and the reference series the incident
+report named as destroyed are all live — `DGS3MO available=True, n=3021, finite, last_obs 2026-06-30,
+n_extrapolated=0`, `market_ew` ✓, FF factors ✓. The 1.39 M NaNs in the raw panel are expected for a
+survivorship-free PIT panel (unlisted/delisted cells), and the only zero-byte files under `data/` are
+the four `.gitkeep` markers.
+
+**SEMANTIC verification — the F3 facts reproduce EXACTLY.** A first attempt failed and was reported as
+unverified; the cause was using the wrong estimator, not the data. F3 is computed on the **equal-weight
+PORTFOLIO series** (`src/viz/eda.py::stylised_fact_stats`, Fisher/bias-corrected), not on pooled
+per-asset cells. Re-run through the repo's own function on the RESTORED panel:
+
+| statistic | recomputed | recorded |
+|---|---|---|
+| skewness | **+0.2096** | +0.21 |
+| excess kurtosis | **15.2486** | 15.25 |
+| −5σ observed-vs-Normal | **10,392.92** | 10,393 |
+
+So the data is not merely byte-identical to the frozen hashes — it regenerates the documented stylised
+facts to four significant figures. Note on reading that third row: **"−5σ ×10,393" is the
+observed-vs-Normal probability RATIO, not a count of exceedances** (the count is 9). Checked every
+occurrence in `paper/` and `docs/` — all of them already use the `×` ratio notation correctly
+(`DISSERTATION_MASTER_OVERVIEW.md:197` "≈ ×10⁴ more frequent (×10,393)"), so there is no prose defect
+here; the misreading was the reviewer's, and it is recorded so the next reader does not repeat it.
+
+### ★★ A HAZARD BIGGER THAN THE INCIDENT — `git clean -xfd` destroys the licensed data
+
+Measured by DRY RUN (`git clean -xfdn`, nothing executed): **1,264 paths would be removed, including
+`data/gold/returns_panel_univ5.parquet` (the FROZEN HEADLINE PANEL) and all 1,085 `data/raw` files.**
+Cause: `data/gold/*`, `data/raw/*`, `data/clean/*`, `data/staged/*` are **gitignored**, so the licensed
+Refinitiv gold is invisible to git and `-x` sweeps precisely those ignored paths. Nothing guarded this.
+A standing rule is now in `CLAUDE.md` beside the `git add -A` one, extended by another lane with the
+correction that a STALE backup (`D:\llm_rp_predefender_backup\`, 2026-07-01) does exist and is what
+made the incident recoverable.
+
+**A FRESH, VERIFIED BACKUP WAS TAKEN** (the stale one predates the 2026-07-10 attribution rewrite and
+holds no current `outputs/`): `D:\llm_rp_backup_2026-07-27\`, 3,858 files, 1.14 GB, copied with
+`robocopy /XJ` so it cannot recurse a junction — then **verified against the same frozen manifest:
+1,170 / 1,170 sha256 match, 0 missing, 0 corrupt.** An unverified backup is not a backup.
+
+**The junction survives and is CORRECT:** `data_pipeline/data → data` is the documented ADR-022
+vault-root repair (`DATASHEET_v1.md`, `.vscode/settings.json`) — do NOT remove it. Per the other lane's
+reproduced analysis, `shutil.rmtree` is SAFE on a junction (CPython treats a name-surrogate reparse
+point as a link); **`git worktree remove --force` is what destroyed the data**, and that path is now
+guarded by `unlink_reparse_points` + three tests.
+
+### PERMANENT LOSS — the only thing that did not come back
+
+`outputs/leg_gates_*`, `p6ladder` and `spend_ledger*` are absent from disk, from git, AND from the
+stale backup. Consequences, assessed rather than assumed:
+- The campaign **writes** a fresh `spend_ledger` (`run_campaign_cluster.py:704`), so it does not block
+  a launch; only the historical spend total against the $30 advisory ceiling is lost.
+- `pretrain_validate` scans `outputs/leg_gates*`, so **two of its eight checks went inert** —
+  `leg_readiness` and `executable_yield` both returned **SKIP**. The gate reported `FAIL=0` while two
+  AUTHORING checks were not exercised at all. It degrades HONESTLY (SKIP, never a false PASS — the
+  empty-input branch is explicit at `check_executable_yield:230`), so this is a data loss, not a code
+  defect. But `FAIL=0` is not the same as verified, and the per-model AUTHORING-RELIABILITY table is a
+  REGISTERED deliverable (industry feedback point 5) whose underlying evidence was destroyed.
+- **Remediated by re-running `scripts/leg_gates.py --all` (~$1-2 on the advisory ledger)**, which
+  restores both checks, regenerates the table's evidence, re-runs the registered contamination screen,
+  and rebuilds the spend ledger.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

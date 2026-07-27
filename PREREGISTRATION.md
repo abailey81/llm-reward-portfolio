@@ -40,9 +40,16 @@ test span, across seeds and the candidate population — NOT the cross-section o
   `run_campaign._baseline_winner_record` archives baselines with `val_fitness = NaN`. The remaining
   disclosed bias is that the baselines are **un-tuned** (L16; DEEP_H1) — which runs in FAVOUR of the
   LLM and is stated as such — and "is the search worth it?" is still routed to H4.
-  **Status:** reported **descriptive / report-only** under the operative R31 default, and registered
-  as confirmatory node **N6** of the validity tier pending supervisor ratification (R105;
-  `config/preregistration.yaml: validity_tier`). The snooped max-over-the-sealed-test reading is
+  **Status: CONFIRMATORY — node N6 of the validity tier, RATIFIED 2026-07-26 by Tamer and Okhrati
+  (R108).** `config/preregistration.yaml: inference.validity_tier.status: ratified`, with
+  `ratification_pending: []` and both `n6_h1_confirmatory_node` and `h1_canon_expansion_4_to_11` in
+  `ratification_completed`; the graphical tier therefore SUPERSEDES the R31 separate-estimands default,
+  which is no longer operative. *(Prose corrected 2026-07-27, deep review loop 118: this bullet still
+  read "descriptive / report-only … pending supervisor ratification" a day after the sign-off, so the
+  hash-bound prose contradicted the ratified config — the exact "freeze must not hash a claim the code
+  contradicts" failure the note below warns about. Reconciled with `paper/CH6_results.md` §6.4,
+  `paper/CH7` verdict table, `paper/APPENDIX_B` B.6.5 and `paper/FIGURE_TABLE_MANIFEST` T4 in the same
+  pass.)* The snooped max-over-the-sealed-test reading is
   explicitly excluded (`validity_tier.excludes: [H1_snooped_test_max]`); wherever the descriptive
   max panel is still reported it stays labelled snooped-descriptive.
   *(Corrected 2026-07-02: the previous text asserted unconditional validation-selection, which the

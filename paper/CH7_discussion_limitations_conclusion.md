@@ -28,7 +28,7 @@ from Chapter 6):
 
 | Question | Pre-registered prediction | Verdict |
 |---|---|---|
-| **H1** — beat hand-designed baselines | descriptive only; excluded from the $m{=}6$ family (both-direction bias caveat) | *[from §6]* |
+| **H1** — dominate the hand-reward canon | confirmatory (node N6): an IUT over all eleven hand-rewards — snoop-free, since dominating the canon selects no comparator | *[from §6]* |
 | **H2-RA** — risk-adjusted (Sharpe IUT) | tie: no Sharpe edge under $\lambda{=}0$ selection, regardless of channel | *[from §6]* |
 | **H2-Tail** — tail outcome (CVaR-5% IUT) | Null branch — a tie or a TOST-bounded interval; the prototype's negative responsiveness predicts no separation | *[from §6]* |
 | **H3** — iterative vs single-shot | hypothesis under test (no frozen directional prediction; frozen H0: multi-generation <= single-shot at a matched budget) | *[from §6]* |

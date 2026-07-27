@@ -781,6 +781,39 @@ def render_markdown(
         else ""
     )
     mde_flag = " *(at the directional σ_seed; re-run with the clean pilot σ)*" if cfg.sigma_is_placeholder else ""
+    # ⚠ 2026-07-27 (deep review, loop 118, #95): the provenance strings below were HARDCODED to the
+    # placeholder case, so the generated doc kept asserting "computed at the directional σ_seed — pilot
+    # field flagged" and "re-run … to finalise the TBD fields" even on a run invoked with the MEASURED
+    # pilot σ — i.e. it went stale the moment a reader did what it instructs. The script already tracks
+    # `sigma_is_placeholder` (it drives the checkbox and `sigma_flag`), so the heading contradicted a
+    # flag the same function was computing. This matters because CAMPAIGN_power.md is the document that
+    # justifies the seed count: a reader who trusted the heading would read the design's real, measured
+    # power as provisional. Same defect class as #87 — a rendered claim that does not track its input.
+    result_heading = (
+        "## Result (computed at the directional σ_seed — pilot field flagged)"
+        if cfg.sigma_is_placeholder
+        else "## Result (computed at the MEASURED clean-pilot σ_seed and ρ)"
+    )
+    purpose_tail = (
+        "Committed\nbefore the Phase-1 freeze; re-run with the clean seeds-on-winners pilot σ to finalise the TBD fields."
+        if cfg.sigma_is_placeholder
+        else "Committed\nbefore the Phase-1 freeze and RE-RUN at the measured seeds-on-winners pilot σ — no TBD fields remain."
+    )
+    pilot_caveat = (
+        "> Pilot-dependent fields (σ_seed and therefore Δ_MDE) are **directional** until the seeds-on-winners "
+        "pilot runs; re-run `scripts/power_analysis.py --sigma-seed <pilot value>` to finalise this file "
+        "before the freeze."
+        if cfg.sigma_is_placeholder
+        else "> Pilot-dependent fields (σ_seed and therefore Δ_MDE) are **FINAL**: this file was generated at "
+        "the MEASURED seeds-on-winners pilot σ, so nothing here is directional. Re-run only if the pilot "
+        "is redone."
+    )
+    # ρ's caveat must describe the ρ actually used, not the CLI default.
+    rho_note = (
+        "default 0.0; NOT the worst case — the"
+        if abs(cfg.rho) < 1e-12
+        else "MEASURED, not the 0.0 default; ρ<0 is NOT the benign case — the"
+    )
 
     grid = np.asarray(mde["grid"], dtype=float)
     powers = np.asarray(mde["power"], dtype=float)
@@ -917,8 +950,7 @@ buffers exactly that proxy error."""
 
 **Purpose.** Decide whether the planned design can detect a realistic H2 effect before spending compute,
 and be honest in the dissertation about how much power the test has. A non-rejection of H2 is reported
-as a **bounded effect**, NOT an underpowered failure — see "Pre-committed null framing" below. Committed
-before the Phase-1 freeze; re-run with the clean seeds-on-winners pilot σ to finalise the TBD fields.
+as a **bounded effect**, NOT an underpowered failure — see "Pre-committed null framing" below. {purpose_tail}
 
 ## The test this powers (the realized headline — PREREGISTRATION §10 R16)
 The frozen inference unit is `per_seed_iqm_paired_seed_bootstrap`. Concretely: each per-arm winner is
@@ -937,10 +969,10 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 - [x] Per-test alpha the PRIMARY MDE used: **α = {a_eff:.4f}**.
 - [x] Conservative BH-over-6 sensitivity (Šidák-m={cfg.n_comparisons}, two-sided): **α_eff = {sidak_a:.4f}** *(reported below, never deleted)*.
 
-## Result (computed at the directional σ_seed — pilot field flagged)
+{result_heading}
 - [x] Realized PAIRED sample size **n_seeds = {cfg.seeds}** (per-arm winners; Amendment D2 5→30).
 - [{'x' if not cfg.sigma_is_placeholder else ' '}] Seed-to-seed σ of the per-seed score (Sharpe units): **σ_seed = {_fmt(cfg.sigma_dsr)}**{sigma_flag}
-- [x] Pairing correlation across the shared seed: **ρ = {cfg.rho:.3f}** *(default 0.0; NOT the worst case — the
+- [x] Pairing correlation across the shared seed: **ρ = {cfg.rho:.3f}** *({rho_note}
       MEASURED pilot ρ is -0.141 and ρ<0 INFLATES σ_D; swept below, including the measured point)*
 - [{'x' if reached else ' '}] Minimum detectable effect at {cfg.target_power:.0%} power: {mde_clause}
 - [x] Per-test alpha (PRIMARY rule above): **α = {a_eff:.4f}** *(one-sided IUT leg at α; multiplicity is the live BH/RW, not a fixed Šidák-α_eff — R37)* {'' if cfg.iut_one_sided else '— this run uses the Šidák-m two-sided rule as primary'}
@@ -1049,8 +1081,8 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 
 ## Method
 1. Label regimes; count independent blocks (`independent_regime_count`). → N (reported; secondary only).
-2. From the **seeds-on-winners pilot** (TBD), estimate σ_seed = seed-to-seed SD of the per-seed score
-   within an arm. Until then use the prototype directional upper bound. → σ_seed.
+2. From the **seeds-on-winners pilot**{' (TBD)' if cfg.sigma_is_placeholder else ' (RUN)'}, estimate σ_seed = seed-to-seed SD of the per-seed score
+   within an arm.{' Until then use the prototype directional upper bound.' if cfg.sigma_is_placeholder else ''} → σ_seed.
 3. Monte-Carlo: under a grid of true effects, draw n_seeds correlated per-seed score pairs (per-arm SD
    σ_seed, pairing ρ) and reject via the REAL `paired_seed_difference_test` at alpha_eff. → power curve.
 4. Report Δ_MDE at {cfg.target_power:.0%} (and 90%) power across ρ∈{{0,0.3,0.5,0.7}}; if the budget does not
@@ -1062,12 +1094,11 @@ documented caveat that the *effective* trial count is ill-defined under guided s
 - [x] PRIMARY decision rule = {'one-sided IUT leg at α = ' + f'{cfg.alpha:.2f}' + ' (multiplicity = live BH/RW, R37)' if cfg.iut_one_sided else 'two-sided Šidák-m = ' + str(cfg.n_comparisons)}; conservative Šidák-m={cfg.n_comparisons} sensitivity reported (α_eff = {sidak_a:.4f}).
 - [x] Pairing correlation ρ swept {{-0.141, 0, 0.3, 0.5, 0.7}} — including the MEASURED pilot ρ;
       ρ=0 is NOT the worst case (ρ<0 inflates σ_D). Corrected 2026-07-26.
-- [{'x' if not cfg.sigma_is_placeholder else ' '}] σ_seed filled from the clean pilot (currently the **directional upper-bound proxy**).
-- [{'x' if reached else ' '}] Target power {cfg.target_power:.0%} reached at Δ_MDE (currently at the directional σ_seed).
+- [{'x' if not cfg.sigma_is_placeholder else ' '}] σ_seed filled from the clean pilot{' (currently the **directional upper-bound proxy**)' if cfg.sigma_is_placeholder else ' (**done** — measured pilot σ)'}.
+- [{'x' if reached else ' '}] Target power {cfg.target_power:.0%} reached at Δ_MDE{' (currently at the directional σ_seed)' if cfg.sigma_is_placeholder else ' (at the measured pilot σ)'}.
 - [x] SESOI + TOST margin recorded (FROZEN; PREREGISTRATION §10 R12); pre-committed null framing stated.
 
-> Pilot-dependent fields (σ_seed and therefore Δ_MDE) are **directional** until the seeds-on-winners pilot
-> runs; re-run `scripts/power_analysis.py --sigma-seed <pilot value>` to finalise this file before the freeze.
+{pilot_caveat}
 """
 
 

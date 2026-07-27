@@ -192,8 +192,16 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
 - **B.6.4 Pre-registration provenance.** The frozen design was refined in light of a *directional, non-confirmatory*
   prototype; the sealed leg was never touched in that process. The freeze is timestamped before the confirmatory
   run, and the directional pilot is disclosed as corroborating, not causal, to the design.
-- **B.6.5 H1 descriptive-only.** The beat-the-human comparator is selected on the same sealed leg it is reported on
-  (a data-snoop); H1 carries no inferential claim and is marked descriptive throughout.
+- **B.6.5 H1's comparator asymmetry (the snoop is dissolved; the tuning gap is not).** An earlier framing of H1
+  selected the "best" hand-reward as the maximum over the canon *on the sealed leg it is then reported on* — a
+  comparator data-snoop (White 2000) that confined H1 to a descriptive observation. The registered design removes
+  it by construction rather than by caveat: because the best member of a family is its pointwise maximum, "beats
+  the best" is equivalent to "beats every member", so H1 is an intersection–union test over the full eleven-name
+  canon and **selects nothing**. *Residual, disclosed:* the hand-rewards are un-tuned single specifications while
+  the designed reward survives a thirty-candidate search, so the comparison is not like-for-like and the asymmetry
+  flatters the designed reward — bounded in the conservative direction by the search-multiplicity deflation
+  applied to the designed side but not to the humans. Reported with the per-baseline dominance profile so the
+  reader sees the margin on every leg, not a binary.
 - **B.6.6 The prototype is not evidence.** A single-seed Sonnet prototype (≈18 h) shaped engineering and
   directional expectations only; no prototype number appears anywhere in the results or informs any
   confirmatory conclusion.
