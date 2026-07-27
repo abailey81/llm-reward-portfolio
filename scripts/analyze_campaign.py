@@ -5599,7 +5599,7 @@ def beat_human_baseline(
         a sensitivity, not the headline;
       * ``winner_dsr`` / ``best_baseline_dsr`` — the median-per-seed DSR comparison (consistent with the
         floor gate's robust winner-DSR), deflated by ``winner_n_trials`` (LLM) vs N=1 (baseline).
-      * ``iut`` — N6 (``validity_tier``, ratification-pending): the SNOOP-FREE intersection-union test of
+      * ``iut`` — N6 (``validity_tier``, RATIFIED R108 2026-07-26): the SNOOP-FREE intersection-union test of
         whether the LLM reward DOMINATES the hand-reward canon — does it beat EVERY member one-sided at
         ``alpha_one_sided`` (== beat the *best* human, since best = max and beat-max ⟺ beat-all; berger1982iut)?
         Carries ``iut_pvalue`` (= the MAX over the per-baseline one-sided leg p-values), ``dominates_canon``
@@ -5787,7 +5787,7 @@ def beat_human_baseline(
             np.median([deflated_sharpe_ratio(np.asarray(v, dtype=float).ravel(), 1) for v in best_base_vecs])
         )
 
-    # --- N6 (validity_tier, ratification-pending): does the LLM reward DOMINATE the hand-reward canon? ---
+    # --- N6 (validity_tier, RATIFIED R108 2026-07-26): does the LLM reward DOMINATE the hand-reward canon? ---
     # The intuitive claim "the LLM beats the BEST human-crafted reward" made PRECISE and SNOOP-FREE. The best
     # human is the pointwise MAX over the canon, and (LLM > max) <=> (LLM beats EVERY member); so requiring the
     # LLM to beat all N baselines — each one-sided at alpha — is an INTERSECTION-UNION TEST (Berger 1982): the
@@ -5797,8 +5797,9 @@ def beat_human_baseline(
     # val-roll the val-select framing needed (the campaign archives val_fitness=NaN). Reuses the SAME paired
     # per-seed bootstrap as the H2 legs (paired_seed_difference_test over shared seeds, iqm statistic) so H1
     # and the headline share one inference tool. Conservative by design (the searched LLM's DSR is deflated by
-    # N=winner_n_trials, each hand reward by N=1 — the human bar is conservatively HIGH). Report-only until the
-    # validity tier is ratified; the per-baseline dominance PROFILE is the honest structure beneath the binary.
+    # N=winner_n_trials, each hand reward by N=1 — the human bar is conservatively HIGH). CONFIRMATORY since
+    # R108 (2026-07-26) ratified the validity tier; the per-baseline dominance PROFILE is the honest
+    # structure beneath the binary.
     from src.inference.bootstrap import iqm as _iqm, paired_seed_difference_test as _paired_test
     _iut_rng = rng if rng is not None else np.random.default_rng(0)
     _w_seed = _seed_scores(records, head, _sr)                # winner arm: {seed -> annualized test Sharpe}
@@ -5848,7 +5849,14 @@ def beat_human_baseline(
         "dominance_profile": iut_legs,                # per-baseline effect + one-sided p + verdict (the honest structure)
         "note": ("dominance is certifiable ONLY when every canon member has >= 2 shared test seeds; a missing or "
                  "under-seeded member sets all_baselines_present=false -> report-only, never a dominance claim"),
-        "status": "registered_pending_supervisor_ratification (validity_tier N6)",
+        # ⚠ 2026-07-27 (deep review loop 120, #99): this field said
+        # "registered_pending_supervisor_ratification" — STALE since R108 (2026-07-26) recorded
+        # `inference.validity_tier.status: ratified` with `ratification_pending: []` and
+        # `n6_h1_confirmatory_node` in `ratification_completed`, signed off by Tamer AND Okhrati.
+        # It is write-only metadata (nothing branches on it), but it lands in the ARCHIVED result
+        # JSON that feeds the write-up, so a replay-only campaign would have reported its own
+        # confirmatory node as un-ratified. Same stale-fact class as #84.
+        "status": "ratified (validity_tier N6; R108 2026-07-26, Tamer + Okhrati)",
     }
 
     return {
@@ -5892,7 +5900,7 @@ def beat_human_baseline(
             if (winner_dsr is not None and best_baseline_dsr is not None) else None
         ),
         "baselines": per_baseline,
-        # N6 (validity_tier, ratification-pending): the snoop-free IUT — does the LLM reward DOMINATE the
+        # N6 (validity_tier, RATIFIED R108): the snoop-free IUT — does the LLM reward DOMINATE the
         # entire hand-reward canon (== beat the best human, made precise)? + the per-baseline dominance profile.
         "iut": iut_block,
     }
@@ -5966,7 +5974,7 @@ def h1_beat_human_markdown(h1: dict[str, Any]) -> str:
             f"{_f(e.get('median_sharpe'))} | {_f(e.get('val_sharpe'))} |"
         )
 
-    # N6 (validity_tier, ratification-pending): the snoop-free IUT — does the LLM reward DOMINATE the canon?
+    # N6 (validity_tier, RATIFIED R108): the snoop-free IUT — does the LLM reward DOMINATE the canon?
     iut = h1.get("iut") or {}
     if iut.get("n_testable"):
         dom = iut.get("dominates_canon")

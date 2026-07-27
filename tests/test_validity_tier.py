@@ -88,3 +88,46 @@ def test_n5_is_the_content_over_format_upgrade():
     n5 = _tier()["nodes"]["N5_structure"]
     assert n5["arm_b"] == "placebo_shuffled"
     assert n5["direction"] == "one_sided_content_over_format"
+
+
+# --- #99: the ANALYSIS must not contradict the ratified config about its own node status ---------
+
+def test_analysis_does_not_report_N6_as_ratification_pending_when_the_config_says_ratified():
+    """A stale status string in the analysis lands in the ARCHIVED result JSON, not just a comment.
+
+    `scripts/analyze_campaign.py` emits an `iut_block` for node N6 (H1 dominates the hand-reward
+    canon) carrying a `status` field. That field read
+    ``"registered_pending_supervisor_ratification"`` for a day after **R108 (2026-07-26)** recorded
+    ``inference.validity_tier.status: ratified`` with ``ratification_pending: []`` and
+    ``n6_h1_confirmatory_node`` in ``ratification_completed``, signed off by Tamer AND Okhrati.
+
+    Nothing branches on the field, so no computed number was wrong — but a replay-only campaign
+    would have archived a result that describes its own CONFIRMATORY node as un-ratified, and the
+    write-up reads that archive. Same stale-fact class as #84, which was reconciled across `paper/`
+    and `PREREGISTRATION.md` but not across `scripts/`.
+
+    Guards the AGREEMENT, not a literal string, so ratification state may change freely provided the
+    analysis follows it.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    cfg = yaml.safe_load((root / "config" / "preregistration.yaml").read_text(encoding="utf-8"))
+    tier_status = str(cfg["inference"]["validity_tier"].get("status", "")).strip().lower()
+
+    src = (root / "scripts" / "analyze_campaign.py").read_text(encoding="utf-8")
+    # Only STATUS ASSIGNMENTS count; prose that quotes the old value as history is fine.
+    emitted = [
+        ln.strip() for ln in src.splitlines()
+        if '"status"' in ln and ":" in ln and not ln.strip().startswith("#")
+    ]
+    stale = [ln for ln in emitted if "pending" in ln.lower() and "ratifi" in ln.lower()]
+
+    if tier_status == "ratified":
+        assert not stale, (
+            "config/preregistration.yaml says inference.validity_tier.status: ratified, but "
+            f"analyze_campaign.py still EMITS a pending-ratification status: {stale} — the archived "
+            "result would describe a ratified confirmatory node as un-ratified"
+        )

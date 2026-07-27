@@ -667,6 +667,44 @@ measurement rather than reported — recorded here so a later loop does not re-r
   prints RAW COUNTS instead of a percentage; and the OK branch uses `.1%` precisely where sub-1%
   resolution is the informative thing.
 
+### ★ #99 — the ANALYSIS still called its own confirmatory node "ratification-pending"
+
+Loop 120 PASS A opened `scripts/analyze_campaign.py` (6,801 lines — the largest unread surface, and
+the file that computes every reported number), starting at the confirmatory core.
+
+**The IUT maths is correct and better-guarded than expected.** `_iut_p = max(...)` at every site
+(Berger 1982 — a `min` there would have been catastrophically anti-conservative across H1/H2/H4). The
+anti-conservative failure mode I went looking for — silently dropping an untestable canon member from
+the max — **does not exist**: `_all_present` requires every member testable and `_dominates` ANDs it,
+so a missing or under-seeded member forces `all_baselines_present=false` and no dominance claim, which
+the block's own `note` documents.
+
+**What IS stale:** six sites still described N6 as awaiting sign-off, contradicting
+`config/preregistration.yaml:227` `inference.validity_tier.status: ratified` with
+`ratification_pending: []` and `n6_h1_confirmatory_node` in `ratification_completed` — **R108,
+2026-07-26, signed off by Tamer AND Okhrati.** Five are comments/docstrings. The sixth is not:
+
+```
+"status": "registered_pending_supervisor_ratification (validity_tier N6)",
+```
+
+That is a **value written into the archived result JSON**, so a replay-only campaign would have
+shipped a result describing its own CONFIRMATORY node as un-ratified — and the write-up reads that
+archive. Verified first that nothing branches on the field (no reader, no test asserts it), so no
+computed number was ever wrong; severity is integrity/consistency, not arithmetic.
+
+**This is the #84 class, and the gap was in MY OWN loop-118 sweep:** that reconciliation covered
+`paper/` and `PREREGISTRATION.md` and stopped there. `scripts/` was never swept. Recorded because the
+lesson is about the sweep, not the file — when a ratified fact changes, the reconciliation has to
+follow the fact into CODE, not just prose.
+
+All six corrected. New guard
+`test_analysis_does_not_report_N6_as_ratification_pending_when_the_config_says_ratified` pins the
+AGREEMENT between the config's ratification state and what the analysis emits — not a literal string —
+so ratification state may change freely provided the analysis follows it. It inspects only `"status"`
+ASSIGNMENTS, so prose quoting the old value as history is fine. Verified to discriminate: the old line
+trips it, the new one does not. 112 tests green, `PYTEST_RC=0`.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
