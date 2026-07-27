@@ -280,7 +280,12 @@ MEASURED_AUTHORING_YIELD: dict[str, float] = {
     "nemotron-3-super": 0.89,  # 16/18
     "qwen3.6-27b": 0.96,      # 23/24
     "glm-5.2": 0.90,          # 9/10 post-R112
-    "kimi-k3": 1.00, "gemini-3.5-flash": 1.00, "gpt-5.6-luna": 1.00,
+    "kimi-k3": 1.00, "gpt-5.6-luna": 1.00,
+    # R106 (2026-07-27): the leg was SUBSTITUTED gemini-3.5-flash -> gemini-2.5-flash (3.5's
+    # reasoning is mandatory, so it could not join the uniform reasoning-off suite). Keyed on the
+    # OLD label this dict would never match the running leg, `_DEFAULT_YIELD` would silently
+    # apply, and the earliest-warning authoring alarm would be mis-calibrated for it.
+    "gemini-2.5-flash": 1.00,
     "haiku-4.5": 1.00, "sonnet-5": 1.00,
 }
 #: Opus-class default for anything unmeasured (the core campaign's confirmatory author).

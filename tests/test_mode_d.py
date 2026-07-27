@@ -217,3 +217,55 @@ def test_canary_failure_still_aborts_loud_with_zero_authoring(monkeypatch, tmp_p
             frozen_root=tmp_path / "f", review_gate=False, canary_baselines=["raw_return"],
         )
     assert authored == []                             # ZERO Opus authoring on a failed canary
+
+
+# --------------------------------------------------------------------------- #
+# R106: the LAUNCHER's roster must not drift from the registration             #
+# --------------------------------------------------------------------------- #
+def test_every_launcher_and_monitor_roster_matches_the_registered_queue_order():
+    """The lock that was missing when R106 renamed a leg — and its absence bit immediately.
+
+    R106 substituted `gemini-3.5-flash` -> `gemini-2.5-flash` (3.5's reasoning is MANDATORY, so it
+    could not join the uniform reasoning-off suite). The registration, `config/legs.yaml` and the
+    transport layer were all updated and every gate stayed green — because NOTHING checked the three
+    places that name legs by LABEL outside those files:
+
+      * `scripts/mode_d_launch.ps1`      — the RATIFIED launch path's queue. A stale label here
+                                           launches a leg that no longer exists.
+      * `scripts/mode_d_supervisor.ps1`  — the priority ladder and the legN tag map.
+      * `MEASURED_AUTHORING_YIELD`       — keyed on the old label the running leg never matches, so
+                                           `_DEFAULT_YIELD` silently applies and the earliest-warning
+                                           authoring alarm is mis-calibrated for that leg.
+
+    A label is a cross-file contract. Assert it in ONE place so the next substitution cannot be
+    half-applied.
+    """
+    import re
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    queue = yaml.safe_load(
+        (root / "config" / "preregistration.yaml").read_text(encoding="utf-8")
+    )["model_suite"]["queue_order"]
+
+    launch = (root / "scripts" / "mode_d_launch.ps1").read_text(encoding="utf-8")
+    listed = re.search(r"\$lines = @\((.*?)\)", launch, re.S).group(1)
+    launch_legs = [m for m in re.findall(r'"([^"]+)"', listed) if m not in ("core", "h3")]
+    assert launch_legs == queue, (
+        f"mode_d_launch.ps1 queue drifted from the registration:\n  launcher={launch_legs}\n"
+        f"  registered={queue}")
+
+    sup = (root / "scripts" / "mode_d_supervisor.ps1").read_text(encoding="utf-8")
+    for block in ("legPriority", "legTag"):
+        body = re.search(rf"\${block} = @\{{(.*?)\}}", sup, re.S).group(1)
+        keys = re.findall(r'"([^"]+)"\s*=', body)
+        assert sorted(keys) == sorted(queue), (
+            f"mode_d_supervisor.ps1 ${block} drifted: {sorted(set(keys) ^ set(queue))}")
+
+    from src.cluster.campaign_health import MEASURED_AUTHORING_YIELD
+
+    missing = [leg for leg in queue if leg not in MEASURED_AUTHORING_YIELD]
+    assert not missing, (
+        f"MEASURED_AUTHORING_YIELD has no entry for {missing} — the authoring-health alarm would "
+        "silently fall back to the default rate for those legs")
