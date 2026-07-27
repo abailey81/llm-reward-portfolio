@@ -109,6 +109,28 @@ _BOUND_CONFIGS: tuple[str, ...] = (
 #: ``src/llm/prompts._REFLECTION_PREAMBLE`` + ``src/feedback/schema.build_block``) and is archived (R63).
 #: The IN-CODE treatment surface (``schema.build_block``, the preamble) is pinned by the git SHA recorded
 #: at the freeze, not by this content hash. A file absent on a minimal test root is skipped.
+#:
+#: ⚠⚠ 2026-07-27 (deep review, loop 118, #97) — THAT LAST SENTENCE OVERSTATES THE PROTECTION, and the
+#: gap it hides is the same class as the R62 one the paragraph above celebrates closing. VERIFIED by
+#: reading every use: ``git_commit()`` is called EXACTLY ONCE in this file (line ~1334) and only to
+#: WRITE the decision-log entry. **No check anywhere compares a recorded SHA against HEAD** — grep for
+#: an assert on it returns nothing, and none of the 23 gate checks is a SHA check. So the git SHA is
+#: RECORDED, never VERIFIED: `--check` cannot detect a post-freeze edit to ``src/feedback/schema.py``.
+#: The pin is therefore ARCHIVAL (you could look the SHA up afterwards), not ENFORCED.
+#:
+#: Why this specifically matters: ``schema.build_block`` RENDERS the fed text, so it IS the manipulated
+#: variable, not a wrapper around it. Finding #87 (same review) proved the point empirically — changing
+#: ONE format string in that file decided whether the scalar arm received a usable signal at all
+#: (`{metric:.2f}` made 55 % of real rendered headers read literally "0.00"). Pre-freeze that was a
+#: legitimate fix; POST-freeze the identical edit would pass this gate silently. ``arms.yaml`` binds
+#: WHICH block each arm gets; nothing binds HOW its numbers are rendered.
+#:
+#: NOT fixed here, deliberately: adding ``src/feedback/schema.py`` to ``_BOUND_TREATMENT`` is a one-line
+#: change that closes it completely and costs nothing while ``frozen: false`` (the hash moves freely
+#: pre-freeze) — but it WIDENS THE FREEZE ENVELOPE, which is a design decision for Tamer, and the
+#: recovery lane independently reached the same "Tamer's call, not a lane's" conclusion. Raised in
+#: `docs/LAUNCH_READINESS_2026-07-27.md`. What IS fixed here is the false claim of protection: a comment
+#: asserting a guard that does not exist is worse than no comment, because it stops the next reader looking.
 _BOUND_TREATMENT: tuple[str, ...] = (
     "config/arms.yaml",               # the per-arm feedback spec (the manipulated variable's wiring)
     "prompts/system.txt",             # the reward-design contract shown to every arm
