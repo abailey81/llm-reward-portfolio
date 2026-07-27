@@ -95,7 +95,18 @@ def transport_kwargs(leg: dict[str, Any]) -> dict[str, Any]:
     if leg.get("temperature") is not None:
         kwargs["temperature"] = float(leg["temperature"])
     if provider == "anthropic":
-        return kwargs  # id + max_tokens only; no extra_body on the native transport
+        # R106 (2026-07-27) uniform reasoning-off. The native transport takes no ``extra_body``, so an
+        # Anthropic leg could carry NO reasoning pin at all and was reasoning-off only by VENDOR
+        # DEFAULT — not a pin, and R102's "Opus 5 runs adaptive thinking by default" claim was proved
+        # empirically FALSE, which is exactly how an unpinned default drifts from the registration.
+        # ``reasoning: {enabled: false}`` in legs.yaml now maps to Anthropic's own ``thinking`` field
+        # so the disable is REQUESTED. VERIFIED ACCEPTED live on opus-5 / haiku-4.5 / sonnet-5 before
+        # this mapping was added. Anything other than an explicit disable is left to the provider
+        # default rather than guessed at — we only translate what we have verified.
+        reasoning = leg.get("reasoning")
+        if isinstance(reasoning, dict) and reasoning.get("enabled") is False:
+            kwargs["thinking"] = {"type": "disabled"}
+        return kwargs  # id + max_tokens (+ the verified thinking disable); no extra_body
     if provider == "vllm_selfhost":
         # The A5 self-hosted vLLM leg: reuse the OpenAI transport (base_url from VLLM_BASE_URL) but NOT
         # the OpenRouter aggregator extras (provider routing / quantization filter / usage-cost) -- vLLM

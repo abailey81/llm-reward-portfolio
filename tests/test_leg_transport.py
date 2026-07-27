@@ -17,7 +17,8 @@ from src.llm.legs import leg_by_label, load_legs, transport_kwargs  # noqa: E402
 REPO = Path(__file__).resolve().parents[1]
 QUEUE = ["deepseek-v4-pro", "glm-5.2", "qwen3.6-27b", "qwen3.5-9b", "haiku-4.5",
          "gpt-5.6-luna", "nemotron-3-super", "sonnet-5",  # R90/R92: sonnet-4.6 removed, sonnet-5 stays
-         "gemini-3.5-flash", "kimi-k3"]  # R95
+         "gemini-2.5-flash", "kimi-k3"]  # R95; R106 (2026-07-27): 3.5-flash -> 2.5-flash (3.5's
+                                         # reasoning is MANDATORY, so it could not join uniform-off)
 
 
 # --------------------------------------------------------------------------- #
@@ -78,25 +79,51 @@ def test_planning_prices_cover_all_legs():
 # --------------------------------------------------------------------------- #
 def test_transport_kwargs_openrouter_assembles_extra_body():
     kw = transport_kwargs(leg_by_label("qwen3.6-27b"))
-    assert kw["provider"] == "openrouter" and kw["max_tokens"] == 4096
+    assert kw["provider"] == "openrouter" and kw["max_tokens"] == 8192   # R106 uniform cap
     eb = kw["extra_body"]
     assert eb["provider"] == {"only": ["siliconflow"], "allow_fallbacks": False,
                               "quantizations": ["fp8"]}
     assert eb["usage"] == {"include": True}  # per-call cost for the advisory ledger
 
 
-def test_transport_kwargs_reasoning_pins():
-    # 2026-07-23 gate catch: the provider RENAMED the mode values (think-high -> pro); the pin
-    # migrated in both bound files (same registered vendor-default mode, new API name).
-    assert transport_kwargs(leg_by_label("deepseek-v4-pro"))["extra_body"]["reasoning"] == {
-        "mode": "pro"}
-    luna = transport_kwargs(leg_by_label("gpt-5.6-luna"))
-    assert luna["extra_body"]["reasoning"] == {"effort": "low"} and luna["max_tokens"] == 2048
+def test_every_leg_is_reasoning_off_and_caps_are_matched():
+    """R106 (ratified 2026-07-26 by Tamer + Okhrati, implemented 2026-07-27): UNIFORM conditions.
+
+    Two invariants, and the second matters as much as the first. **Reasoning off everywhere** removes
+    the masking confound (a reasoning scratchpad can silently reformat the fed floats, which would
+    contaminate the numeracy headline) — and every leg that ever ran with reasoning ON has been
+    measured truncating: qwen 0.0/10, glm 0.6, kimi 0.8, gemini 0.1, deepseek 0.9. **Matched caps**
+    close the ledger's HIGH fragility "Haiku (4096, no reasoning) vs Opus-5 (8192) — the DiD
+    conflates capability with token-budget/thinking": with unequal caps a capability contrast is not
+    a capability contrast.
+    """
+    legs = load_legs()["legs"]
+    caps, not_off = set(), []
+    for leg in legs:
+        caps.add(leg["max_tokens"])
+        kw = transport_kwargs(leg)
+        if leg["provider"] == "anthropic":
+            off = kw.get("thinking") == {"type": "disabled"}
+        else:
+            off = (kw.get("extra_body") or {}).get("reasoning") == {"enabled": False}
+        if not off:
+            not_off.append(leg["label"])
+    assert not not_off, f"R106 violated — leg(s) not pinned reasoning-off: {not_off}"
+    assert caps == {8192}, f"R106 violated — caps are not matched: {sorted(caps)}"
 
 
-def test_transport_kwargs_anthropic_is_bare():
-    kw = transport_kwargs(leg_by_label("sonnet-5"))
-    assert kw["provider"] == "anthropic" and "extra_body" not in kw
+def test_anthropic_legs_carry_the_thinking_pin_not_extra_body():
+    """The Anthropic transport REJECTS extra_body, so `thinking` is the only pin channel it has.
+
+    Before R106 these legs carried no reasoning key at all — reasoning-off by VENDOR DEFAULT, not by
+    pin. That is exactly how R102's "Opus 5 runs adaptive thinking by default" came to be asserted in
+    the registration and proved empirically false.
+    """
+    for label in ("sonnet-5", "haiku-4.5"):
+        kw = transport_kwargs(leg_by_label(label))
+        assert kw["provider"] == "anthropic"
+        assert "extra_body" not in kw, f"{label}: extra_body is rejected by that transport"
+        assert kw["thinking"] == {"type": "disabled"}, f"{label}: reasoning pin missing"
 
 
 def test_loader_rejects_alias_and_missing_fields(tmp_path: Path):

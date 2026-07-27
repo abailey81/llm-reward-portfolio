@@ -404,6 +404,9 @@ def _build_cluster_author(arm: str, opts: dict, arm_root: Path) -> tuple[Any, An
             # v2 legs: the registered OpenRouter pins (provider/quantization/reasoning + usage-cost)
             # must survive into the cluster author — parity with parallel._drive_llm_arm.
             extra_body=opts.get("extra_body") or None,
+            # R106: the ANTHROPIC equivalent of those pins. extra_body is rejected on that transport,
+            # so without this an Anthropic leg's registered reasoning-off would silently not be sent.
+            thinking=opts.get("thinking") or None,
         )
     diversity = bool(opts.get("diversity_prompt_variation", False))
     prompts = build_prompt_set(opts["env_cfg"], opts["n_assets"])

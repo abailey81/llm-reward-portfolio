@@ -470,6 +470,11 @@ def resolve_leg_override(label: str, explicit_root_suffix: str | None) -> tuple[
     }
     if tk.get("extra_body"):
         llm_cfg["extra_body"] = tk["extra_body"]
+    # R106: the Anthropic legs' reasoning pin travels as ``thinking`` (that transport rejects
+    # extra_body). Dropping it here would strip the registered reasoning-off from haiku/sonnet at
+    # authoring time — the leg would run on the vendor default while the registration said otherwise.
+    if tk.get("thinking"):
+        llm_cfg["thinking"] = tk["thinking"]
     suffix = "leg_" + _re.sub(r"[^a-z0-9_]", "_", str(label).lower())
     if explicit_root_suffix and explicit_root_suffix != suffix:
         raise SystemExit(

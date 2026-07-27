@@ -15,15 +15,19 @@ temperature: 1.0                            # Eureka diversity (ADR-016): K cand
                                             #   prototype Sonnet 4.6 uses temp=1.0, campaign Opus 5 uses prompt-variation
                                             #   — the Opus lane REJECTS temperature, so client.py drops it, R85/R102)
 top_p: 1.0
-max_tokens: 8192                            # R102 (2026-07-24): raised 4096 -> 8192 for the Opus 5 swap. Opus 5 runs
-                                            #   ADAPTIVE THINKING BY DEFAULT (Opus 4.8 ran WITHOUT thinking when the
-                                            #   `thinking` field is omitted), and max_tokens caps thinking + response
-                                            #   TOGETHER -> at 4096 the authored reward code can be truncated mid-function.
-                                            #   Exactly the R97a failure already observed on the always-on-thinking
-                                            #   kimi-k3 leg (5/10 compliance calls truncated at 4096 -> bumped to 8192);
-                                            #   this applies that remedy to the confirmatory author BEFORE it can bite.
-                                            #   Raising the CAP costs nothing per se (billing is on generated tokens);
-                                            #   the real cost delta is the thinking tokens themselves (R83 ledger tracks it).
+thinking: {type: disabled}                  # ★ R106 (2026-07-27) UNIFORM REASONING-OFF, ratified 2026-07-26 (Tamer +
+                                            #   Okhrati, pack item 8). The confirmatory author is now PINNED off rather
+                                            #   than off-by-vendor-default. VERIFIED ACCEPTED live on claude-opus-5
+                                            #   (also haiku-4.5 / sonnet-5) before the parameter was wired, because an
+                                            #   unaccepted field here would 400 the confirmatory path.
+max_tokens: 8192                            # R102 (2026-07-24): raised 4096 -> 8192 for the Opus 5 swap; RETAINED by
+                                            #   R106 as the uniform cap shared with all 10 legs (never lowered).
+                                            #   ⚠ R102's STATED REASON WAS FALSE and is corrected here (evidence ledger
+                                            #   row 123): it claimed "Opus 5 runs ADAPTIVE THINKING BY DEFAULT", but the
+                                            #   live test showed Opus 5 emits NO thinking block when the field is
+                                            #   omitted, so the cap was never protecting against thinking. The bump is
+                                            #   kept on its own merits (headroom + matched caps), not on that premise.
+                                            #   Raising the CAP costs nothing per se (billing is on generated tokens).
 
 # Matched-compute budget (the property that licenses the comparative claim). Same for ALL arms.
 candidate_budget_total: 30                  # total reward candidates per arm (set via scoping tree)

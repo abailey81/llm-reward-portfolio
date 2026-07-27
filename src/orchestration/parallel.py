@@ -979,6 +979,9 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
             max_tokens=int(opts.get("max_tokens") or 4096),
             max_retries=int(opts.get("max_retries") or 6),
             extra_body=opts.get("extra_body") or None,
+            # R106: the ANTHROPIC equivalent of the extra_body pins (that transport rejects
+            # extra_body), so a registered reasoning-off actually reaches the API.
+            thinking=opts.get("thinking") or None,
         )
 
     diversity = bool(opts.get("diversity_prompt_variation", False))

@@ -505,6 +505,7 @@ class _AnthropicTransport:
         max_tokens: int,
         cache_system: bool,
         retrying: Any,
+        thinking: dict[str, Any] | None = None,
         fallback_key_env: str | None = None,
         client_factory: Any = None,  # Callable[[str], client]; injectable for tests
     ) -> None:
@@ -514,6 +515,12 @@ class _AnthropicTransport:
         self._max_tokens = max_tokens
         self._cache_system = cache_system
         self._retrying = retrying
+        #: R106 uniform reasoning-off. ``None`` = send nothing (the pre-R106 behaviour, byte-identical).
+        #: A dict is passed straight through as Anthropic's ``thinking`` field, so the disable is
+        #: REQUESTED rather than inherited from a vendor default — R102 asserted "Opus 5 runs adaptive
+        #: thinking by default" and the live test proved that FALSE, which is precisely how an
+        #: unpinned default silently diverges from the registration.
+        self._thinking = thinking
         self._fallback_key_env = fallback_key_env
         self._client_factory = client_factory
         self._failed_over = False
@@ -561,6 +568,8 @@ class _AnthropicTransport:
         }
         if self._temperature is not None:
             kwargs["temperature"] = self._temperature
+        if self._thinking is not None:
+            kwargs["thinking"] = self._thinking
 
         def _call() -> Any:
             return self._client.messages.create(**kwargs)
@@ -590,6 +599,7 @@ def make_anthropic_transport(
     max_tokens: int = 4096,
     cache_system: bool = True,
     max_retries: int = 6,
+    thinking: dict[str, Any] | None = None,
 ) -> Transport:
     """Create a real Anthropic-backed transport, lazily importing ``anthropic`` (ADR-033 primary).
 
@@ -651,6 +661,10 @@ def make_anthropic_transport(
         max_tokens=max_tokens,
         cache_system=cache_system,
         retrying=_make_retrying(max_retries),
+        # R106: ``{"type": "disabled"}`` VERIFIED ACCEPTED live on claude-opus-5, claude-haiku-4-5
+        # and claude-sonnet-5 (2026-07-27) before this parameter was added, because an unaccepted
+        # field here would 400 the CONFIRMATORY author path.
+        thinking=thinking,
         # Automatic key failover (2026-07-19): <primary>_FALLBACK, e.g. ANTHROPIC_API_KEY_FALLBACK.
         # Read lazily at failover time, so adding it to .env mid-run needs no rebuild.
         fallback_key_env=f"{api_key_env}_FALLBACK",
@@ -712,6 +726,7 @@ def build_transport(
     max_tokens: int = 4096,
     max_retries: int = 6,
     extra_body: dict[str, Any] | None = None,
+    thinking: dict[str, Any] | None = None,
 ) -> Transport:
     """Single, centralized real-transport factory — provider dispatch lives in ONE place.
 
@@ -742,8 +757,12 @@ def build_transport(
                 "extra_body (OpenRouter routing/reasoning prefs) is not supported on the "
                 "anthropic transport — leg pins for Anthropic models are id+max_tokens only."
             )
+        # R106: ``thinking`` is the Anthropic-native equivalent of the OpenRouter ``reasoning`` pin —
+        # the ONLY way an Anthropic leg can carry one, since extra_body is rejected above. Without it
+        # these legs were reasoning-off by VENDOR DEFAULT, which is not a pin.
         return make_anthropic_transport(
-            model, key_env, temperature=temperature, max_tokens=max_tokens, max_retries=max_retries
+            model, key_env, temperature=temperature, max_tokens=max_tokens,
+            max_retries=max_retries, thinking=thinking,
         )
     if provider in _OPENAI_COMPAT_BASE_URL:
         base_url = _OPENAI_COMPAT_BASE_URL[provider]

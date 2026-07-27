@@ -14,9 +14,9 @@ legs:
     provider: openrouter
     model: deepseek/deepseek-v4-pro
     api_key_env: OPENROUTER_API_KEY
-    reasoning: {mode: pro}                 # pinned EXPLICITLY (provider RENAMED the value 2026-07-23: think-high -> pro, caught by the gate 400; same registered mode, new vendor name) (vendor default; OR pass-through undocumented — R85: the smoke archives reasoning-token usage as round-trip evidence; a silent ignore still yields the vendor-default think-high, i.e. the registered mode)
+    reasoning: {enabled: false}            # R106 (2026-07-27) UNIFORM REASONING-OFF — ratified 2026-07-26 by Tamer + Okhrati (pack item 8) and implemented here. Was {mode: pro}: MEASURED 2/10 authoring calls truncated at 4096 with one spending the ENTIRE budget on hidden reasoning (ZERO tokens for code). R113 raised the cap to 8192 to PRESERVE that pin; R106 SUPERSEDES that reasoning — the pin itself goes off, so the suite is comparable and the masking confound (a reasoning scratchpad can silently reformat the fed floats, contaminating the numeracy headline) is removed
     temperature: 1.0                       # R85 uniform decoding pin
-    max_tokens: 4096
+    max_tokens: 8192                       # R106 uniform cap (see the class pin). RETAINED from R113 as headroom — never lowered
     hf_pin: {repo: deepseek-ai/DeepSeek-V4-Pro, commit: b5968e9190ef611bbf34a7229255be88a0e937c1}   # retrieved 2026-07-22, official HF API   # R85: filled from the official HF card at gate time
     gate: contamination_screen             # fallback: glm-5.2 absorbs this seat
   - label: glm-5.2
@@ -25,7 +25,7 @@ legs:
     api_key_env: OPENROUTER_API_KEY
     reasoning: {enabled: false}            # R112 (2026-07-26) repro-gate FIX, same class as R103: GLM reasons by DEFAULT and ~40% of authoring calls spent the ENTIRE 4096 budget on hidden reasoning -> stop_reason=length, reasoning_tokens 3900-4222, EMPTY code (MEASURED 6/10 compliance). Disable VERIFIED live: 537 output tokens, 0 reasoning, code authored (raising the cap to 8192 also worked but cost ~9x). A DISABLE pin: leg_gates verifies ~0 reasoning tokens served
     temperature: 1.0
-    max_tokens: 4096
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
     hf_pin: {repo: zai-org/GLM-5.2, commit: b4734de4facf877f85769a911abafc5283eab3d9}   # retrieved 2026-07-22, official HF API
   - label: qwen3.6-27b
     provider: openrouter
@@ -35,7 +35,7 @@ legs:
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.5-9b (the served artifact is the fp8 variant of the pinned weights — model_suite.served_variant_disclosure)
     reasoning: {enabled: false}            # R103 (2026-07-25) repro-gate FIX: siliconflow serves Qwen3 in THINKING mode by default, burning the whole output budget on hidden reasoning -> EMPTY authored code (0.4/10 compliance at the frozen config). Disabling thinking VERIFIED 0.4->1.0. A DISABLE pin: leg_gates verifies ~0 reasoning tokens served (client.py now captures reasoning_tokens). PAIR INVARIANT: identical reasoning config across the qwen pair
     temperature: 1.0
-    max_tokens: 4096
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
     hf_pin: {repo: Qwen/Qwen3.6-27B, commit: 6a9e13bd6fc8f0983b9b99948120bc37f49c13e9}   # retrieved 2026-07-22, official HF API
   - label: qwen3.5-9b
     provider: openrouter
@@ -45,44 +45,43 @@ legs:
     quantizations: [fp8]                   # pair invariant: SAME provider + quant as qwen3.6-27b
     reasoning: {enabled: false}            # R103 (2026-07-25) repro-gate FIX: siliconflow serves Qwen3 in THINKING mode by default -> the whole output budget goes to hidden reasoning -> EMPTY authored code (0/10 compliance at the frozen config). Disabling thinking VERIFIED 0.0->1.0. A DISABLE pin: leg_gates verifies ~0 reasoning tokens served. PAIR INVARIANT: identical reasoning config across the qwen pair
     temperature: 1.0
-    max_tokens: 4096
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
     hf_pin: {repo: Qwen/Qwen3.5-9B, commit: c202236235762e1c871ad0ccb60c8ee5ba337b9a}   # retrieved 2026-07-22, official HF API
   - label: haiku-4.5
     provider: anthropic
     model: claude-haiku-4-5-20251001       # dated snapshot — best-pinned leg after Opus
     api_key_env: ANTHROPIC_API_KEY
-    max_tokens: 4096                       # Anthropic legs: no temperature param (the Opus convention; prompt-variation diversity)
+    reasoning: {enabled: false}            # R106: Anthropic legs carried NO reasoning key, so they were off by VENDOR DEFAULT rather than pinned - and R102's 'Opus 5 runs adaptive thinking by default' was proved empirically FALSE, which is exactly how an unpinned default diverges from the registration. Mapped to Anthropic's thinking:{type:disabled} by src/llm/legs.py; VERIFIED ACCEPTED live on opus-5/haiku-4.5/sonnet-5 before the mapping was added
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
   - label: gpt-5.6-luna
     provider: openrouter
     model: openai/gpt-5.6-luna
     api_key_env: OPENROUTER_API_KEY
-    reasoning: {effort: low}               # pinned (R82: bounds hidden-reasoning billing; documented OpenRouter key — round-trip evidenced by the smoke's reasoning-token usage)
+    reasoning: {enabled: false}            # R106: was {effort: low} (an ENABLE pin, MEASURED 920 reasoning tokens/call). Off for uniformity + the masking confound
     temperature: 1.0                       # GPT-5-family models may reject/fix temperature — smoke discloses per R85 policy
-    max_tokens: 2048
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
   - label: nemotron-3-super
     provider: openrouter
     model: nvidia/nemotron-3-super-120b-a12b
     api_key_env: OPENROUTER_API_KEY
+    reasoning: {enabled: false}            # R106: no reasoning key was set, so the PROVIDER DEFAULT applied - MEASURED 1259 reasoning tokens/call, i.e. this leg was silently thinking
     temperature: 1.0
-    max_tokens: 4096
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
     hf_pin: {repo: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16, commit: d51eab0d1f979ebc26b546e634a04f450d99158e}   # retrieved 2026-07-22, official HF API
   - label: sonnet-5
     provider: anthropic
     model: claude-sonnet-5                 # R90/R92: the LATEST-GENERATION seat (released 2026-06-30); the generation-pair instrument is now the conditional Opus pair (R91/R92)
     api_key_env: ANTHROPIC_API_KEY
-    max_tokens: 4096
-  - label: gemini-3.5-flash
+    reasoning: {enabled: false}            # R106: see haiku-4.5 - was off by vendor default, now PINNED
+    max_tokens: 8192                       # R106 uniform cap (never lowered; matched across every leg so the capability contrasts are not confounded by budget)
+  - label: gemini-2.5-flash
     provider: openrouter
-    model: google/gemini-3.5-flash
+    model: google/gemini-2.5-flash         # R106 (2026-07-27) SUBSTITUTION: gemini-3.5-flash -> gemini-2.5-flash. 3.5-flash's reasoning is MANDATORY (OpenRouter 400: "Reasoning is mandatory for this endpoint and cannot be disabled", verified 2026-07-25), so it was the ONE leg that could not join a uniform-off suite. The substitute was VERIFIED 2026-07-25 (disables reasoning, meaningful risk-aware code, 83% sandbox gate-pass) and RE-VERIFIED live 2026-07-27 before this swap: id resolves, served by Google, reasoning_tokens 0 under the disable pin, stop=stop, 802 output tokens, `def reward` authored. Keeping 3.5-flash would have forced a permanent exception to the ratified uniform-off design
     api_key_env: OPENROUTER_API_KEY
+    reasoning: {enabled: false}            # R106: the whole point of the substitution — this leg CAN disable, and the disable ROUND-TRIPS (0 reasoning tokens measured)
     temperature: 1.0
-    max_tokens: 8192                       # R103 (2026-07-25) repro-gate FIX: was 2048 -> mandatory (non-disablable) thinking consumed the whole cap -> EMPTY authored code (0.1/10). Reasoning CANNOT be disabled here (OpenRouter 400: "Reasoning is mandatory for this endpoint and cannot be disabled"), so the lever is BUDGET (the R97a-kimi pattern): 2048->8192 VERIFIED 0.1->1.0
+    max_tokens: 8192                       # R106 uniform cap (never lowered; retained from the R103 3.5-flash bump as headroom)
     role: stretch                          # truncates SECOND at the calendar gate (kimi-k3, last in queue, truncates first — R95)
-    # NO disable key (R85/R103): OpenRouter returns "Reasoning is mandatory for this endpoint and
-    # cannot be disabled" (verified 2026-07-25) -> thinking runs at provider default, DISCLOSED, and
-    # max_tokens is sized to fit thinking + code. The smoke archives reasoning-token usage + served
-    # provider as the record of what was served (the client.py reasoning-token capture is now
-    # IMPLEMENTED per R103, so the round-trip evidence is real, not merely claimed).
 
   - label: kimi-k3
     provider: openrouter
@@ -105,5 +104,6 @@ planning_prices:
   claude-sonnet-5: [2.00, 10.00]           # introductory pricing through 2026-08-31 (covers the campaign window); standard $3/$15 after
   openai/gpt-5.6-luna: [1.00, 6.00]
   nvidia/nemotron-3-super-120b-a12b: [0.08, 0.45]
-  google/gemini-3.5-flash: [1.50, 9.00]
+  google/gemini-2.5-flash: [0.30, 2.50]    # R106 (2026-07-27): DERIVED from a live call, not quoted — a 9-in/1-out completion billed $5.2e-06, which solves EXACTLY at $0.30 in / $2.50 out per MTok. ~5x cheaper than 3.5-flash on output, and reasoning-off makes the completions shorter too
+  google/gemini-3.5-flash: [1.50, 9.00]    # RETAINED post-R106: no longer a campaign leg (mandatory reasoning), kept so the M2 survey + any historical archive row can still be priced
   moonshotai/kimi-k3-20260715: [3.00, 15.00]  # verified on OpenRouter 2026-07-22; always-on thinking -> the priciest leg (~$5-11 expected at the 8192 cap, worst ~$22 at caps; R97a); the compliance gate measures real output economics
