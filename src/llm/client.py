@@ -165,6 +165,15 @@ class ProvenanceRecord:
     request_id: str | None = None
     served_model: str | None = None
     served_provider: str | None = None
+    #: R106 (2026-07-27) — the REQUEST side of the round trip, so the archive is SELF-DESCRIBING.
+    #: Everything above records what the provider SERVED; nothing recorded what was ASKED FOR. An
+    #: independent replayer therefore had to consult `config/legs.yaml` at the frozen commit to learn
+    #: the decoding configuration — a second artifact, and a chain that only holds while the freeze
+    #: cross-check does. Recording the pins per call closes that: `reasoning_tokens > 0` under a
+    #: disable pin now distinguishably means "pin sent and IGNORED", where before it was
+    #: indistinguishable from "pin never sent". Exactly the R85/R103 lesson (a pin nobody can verify
+    #: is fictional) applied to the request side.
+    request_pins: dict[str, Any] | None = None
 
 
 def _warn_if_incomplete(stop_reason: str | None, model: str) -> None:
@@ -290,6 +299,15 @@ class _OpenAITransport:
         # {"effort"/"mode": ...}}), and {"usage": {"include": true}} (per-call cost for the R83
         # advisory ledger) — all ride the OpenAI SDK's ``extra_body`` passthrough.
         self._extra_body = dict(extra_body) if extra_body else None
+        #: R106: the decoding configuration this transport actually sends, archived per call so
+        #: the replay archive is self-describing. ``extra_body`` is where the OpenRouter legs'
+        #: provider / quantization / reasoning pins live, so this is exactly the set a replayer
+        #: needs in order to tell 'pin sent and ignored' from 'pin never sent'.
+        self.request_pins: dict[str, Any] = {
+            "max_tokens": self._max_tokens,
+            "temperature": temperature,
+            "extra_body": self._extra_body,
+        }
         self.last_usage: dict[str, Any] | None = None
         self.last_stop_reason: str | None = None
         self.last_request_id: str | None = None
@@ -521,6 +539,13 @@ class _AnthropicTransport:
         #: thinking by default" and the live test proved that FALSE, which is precisely how an
         #: unpinned default silently diverges from the registration.
         self._thinking = thinking
+        #: R106: the decoding configuration this transport actually sends, archived per call so the
+        #: replay archive is self-describing (see ProvenanceRecord.request_pins).
+        self.request_pins: dict[str, Any] = {
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "thinking": thinking,
+        }
         self._fallback_key_env = fallback_key_env
         self._client_factory = client_factory
         self._failed_over = False
@@ -1016,6 +1041,9 @@ class LLMClient:
                 request_id=request_id,
                 served_model=served_model,
                 served_provider=served_provider,
+                # R106: what was REQUESTED, beside what was served. Absent on a transport that does
+                # not declare pins (stubs/fakes) -> None, never a fabricated default.
+                request_pins=getattr(transport, "request_pins", None),
             )
         )
         self._record_spend(transport, usage)

@@ -597,3 +597,51 @@ def test_non_billing_errors_never_rotate(monkeypatch):
         t = _mk_transport(primary, lambda key: (_ for _ in ()).throw(AssertionError("must not rotate")))
         with pytest.raises(_FakeApiError):
             t("s", "u")
+
+
+# --------------------------------------------------------------------------- #
+# R106: the archive must record the REQUEST, not only what was served          #
+# --------------------------------------------------------------------------- #
+def test_archive_records_the_request_pins_so_a_replayer_needs_no_second_artifact() -> None:
+    """Strict reproducibility (Tamer's #1 / Stefan's #3): the replay archive must stand ALONE.
+
+    Every archived field described what the provider SERVED (served_model, served_provider, usage,
+    stop_reason). Nothing recorded what was ASKED FOR, so an independent replayer had to open
+    `config/legs.yaml` at the frozen commit to learn the decoding configuration — a second artifact,
+    and a chain that only holds while the freeze cross-check does.
+
+    It also collapsed a distinction that matters: under a disable pin, `reasoning_tokens > 0` was
+    indistinguishable from "the pin was never sent". With the request recorded, those are now
+    different observations. This is the R85/R103 lesson (a pin nobody can verify is fictional)
+    applied to the request side.
+    """
+    from dataclasses import asdict
+
+    from src.llm.client import LLMClient
+
+    client = _FakeClient()
+    transport = _transport(client, thinking={"type": "disabled"})
+    archive: list = []
+    LLMClient({"model": "claude-sonnet-4-6"}, transport=transport, archive=archive).complete("S", "U")
+
+    rec = asdict(archive[0])
+    pins = rec["request_pins"]
+    assert pins is not None, "the archive does not record what was requested"
+    assert pins["thinking"] == {"type": "disabled"}      # the R106 pin, per call
+    assert pins["max_tokens"] == 4096
+    assert "temperature" in pins
+
+
+def test_request_pins_are_absent_not_fabricated_when_a_transport_declares_none() -> None:
+    """A stub/fake with no pins must archive None — never an invented default.
+
+    Fabricating a plausible-looking config would be worse than recording nothing: it would make the
+    archive assert a decoding configuration that was never sent.
+    """
+    from dataclasses import asdict
+
+    from src.llm.client import FakeTransport, LLMClient
+
+    archive: list = []
+    LLMClient({"model": "m"}, transport=FakeTransport("x"), archive=archive).complete("S", "U")
+    assert asdict(archive[0])["request_pins"] is None
