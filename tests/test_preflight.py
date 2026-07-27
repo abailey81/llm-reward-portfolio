@@ -178,3 +178,48 @@ def test_probe_wiring_uses_campaign_model_and_classifies(monkeypatch) -> None:
     assert probe.status == pf.FAIL                       # a dead key is a NO-GO at t0
     assert seen["model"] == "claude-opus-5"              # the pinned campaign snapshot (R102), not a hardcode
     assert seen["key_env"] == "ANTHROPIC_API_KEY"
+
+
+# --------------------------------------------------------------------------- #
+# R106: the confirmatory author's cap + reasoning pin                          #
+# --------------------------------------------------------------------------- #
+def test_author_pin_mirror_catches_the_absent_cap_that_actually_happened() -> None:
+    """The exact defect found 2026-07-27, and it is the reason this check exists.
+
+    R102 raised the Opus cap 4096 -> 8192 and recorded it ONLY in config/llm.yaml, which has no code
+    consumer for the author. config/campaign.yaml's llm block is what the campaign executes, and it
+    had no max_tokens at all, so campaign.py fell back to its 4096 default. MEASURED consequence: in
+    a 10-call live gate the confirmatory author emitted 5,008 and 6,412 output tokens on two calls —
+    both would have TRUNCATED at 4096, i.e. ~20% of the most important model's reward candidates lost
+    silently, with every gate green.
+
+    ABSENCE must FAIL, not warn: an absent key does not mean "default", it means the executed value
+    is invisible to the registration.
+    """
+    good = {"max_tokens": 8192, "thinking": {"type": "disabled"}}
+    assert pf.check_author_pin_mirror(good, good).status == pf.PASS
+
+    # the real bug: cap present in llm.yaml, ABSENT in the executed block
+    absent_cap = pf.check_author_pin_mirror({"thinking": {"type": "disabled"}}, good)
+    assert absent_cap.status == pf.FAIL and "ABSENT" in absent_cap.detail
+
+    # R106 requires the pin on all 11 models; the author is the 11th
+    absent_pin = pf.check_author_pin_mirror({"max_tokens": 8192}, good)
+    assert absent_pin.status == pf.FAIL and "thinking" in absent_pin.detail
+
+    # and a silent divergence between the two files must not pass either
+    drifted = pf.check_author_pin_mirror({"max_tokens": 4096, "thinking": {"type": "disabled"}}, good)
+    assert drifted.status == pf.FAIL and "mismatch" in drifted.detail
+
+
+def test_author_pin_mirror_matches_the_shipped_config() -> None:
+    """Not just the logic — the config we actually ship must satisfy it (R106: 8192 + disabled)."""
+    import yaml
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    camp = yaml.safe_load((root / "config" / "campaign.yaml").read_text(encoding="utf-8"))["llm"]
+    llmy = yaml.safe_load((root / "config" / "llm.yaml").read_text(encoding="utf-8"))
+    assert pf.check_author_pin_mirror(camp, llmy).status == pf.PASS
+    assert camp["max_tokens"] == 8192                      # matched with all 10 legs
+    assert camp["thinking"] == {"type": "disabled"}        # uniform reasoning-off, 11th model

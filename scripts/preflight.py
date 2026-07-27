@@ -218,6 +218,41 @@ def check_model_consistency(campaign_model: object, llm_model: object) -> Check:
                  f"model_snapshot consistent across campaign/llm: {campaign_model!r}")
 
 
+def check_author_pin_mirror(campaign_llm: dict, llm_yaml: dict) -> Check:
+    """R106 (2026-07-27): the confirmatory author's CAP and REASONING PIN must be present and agree.
+
+    Found the hard way. ``config/campaign.yaml``'s ``llm`` block is what the campaign EXECUTES
+    (``run_campaign_cluster.py`` reads it into ``llm_cfg``); ``config/llm.yaml`` has no code consumer
+    for the author. R102 raised the Opus cap 4096 -> 8192 and recorded it **only in llm.yaml**, so
+    ``campaign.py`` fell back to its 4096 default and the confirmatory author ran at a value the
+    registration did not state — silently, since ``check_model_consistency`` mirrors the model id and
+    nothing mirrored the cap. Same shape as the budget-mirror failure that check already guards.
+
+    ABSENCE is a FAIL, not a warning: an absent key does not mean "default", it means the executed
+    value is invisible to the registration. The pin is likewise required — R106 is uniform
+    reasoning-off across all 11 models, and the author is the 11th.
+    """
+    c_tok, l_tok = campaign_llm.get("max_tokens"), llm_yaml.get("max_tokens")
+    c_think, l_think = campaign_llm.get("thinking"), llm_yaml.get("thinking")
+    if c_tok is None:
+        return Check("author_pin_mirror", FAIL,
+                     "campaign.yaml llm.max_tokens is ABSENT — the author silently runs on the code "
+                     "default (4096), not on any registered value; set it (R106: 8192)")
+    if c_think is None:
+        return Check("author_pin_mirror", FAIL,
+                     "campaign.yaml llm.thinking is ABSENT — the confirmatory author runs on the "
+                     "vendor default, unpinned (R106 requires {type: disabled} on all 11 models)")
+    if l_tok is not None and int(c_tok) != int(l_tok):
+        return Check("author_pin_mirror", FAIL,
+                     f"author max_tokens mismatch: campaign.yaml={c_tok!r} != llm.yaml={l_tok!r} — "
+                     "reconcile BOTH (campaign.yaml is what executes)")
+    if l_think is not None and dict(c_think) != dict(l_think):
+        return Check("author_pin_mirror", FAIL,
+                     f"author thinking mismatch: campaign.yaml={c_think!r} != llm.yaml={l_think!r}")
+    return Check("author_pin_mirror", PASS,
+                 f"author cap+pin registered and mirrored: max_tokens={c_tok}, thinking={c_think}")
+
+
 def check_generations_mirror(
     campaign_generations: object, llm_generations: object, h3_generations: object
 ) -> Check:
@@ -587,6 +622,10 @@ def _gather_and_check(n_gpu: int, min_disk_gb: float, *, provider: str, api_prob
         checks.append(check_generations_mirror(
             (camp.get("llm") or {}).get("generations"), llm_cfg.get("generations"),
             (camp.get("llm") or {}).get("h3_singleshot_generations")))
+        # R106 (2026-07-27): the author's CAP + REASONING PIN. R102's 8192 lived only in llm.yaml,
+        # which no code reads for the author, so the confirmatory run silently used campaign.py's
+        # 4096 default — the same drift this block already guards for the model id and generations.
+        checks.append(check_author_pin_mirror(camp.get("llm") or {}, llm_cfg))
     except Exception as exc:  # noqa: BLE001 - a probe failure must not abort the gauntlet
         checks.append(Check("model_mirror", WARN, f"model-mirror probe failed: {exc}"))
 
