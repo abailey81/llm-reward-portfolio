@@ -1292,3 +1292,66 @@ may train on inputs — irrelevant to legs, which all use paid routes, and accep
 synthetic/derived probe stimuli); (2) the separate open question in
 `docs/RELEASE_REPRODUCIBILITY_CHECKLIST.md` (whether raw derived return SERIES may be published
 in the public deposit) is about publication, not authoring, and is unaffected by this addendum.
+
+---
+
+## ADR-061
+
+**The reasoning-effort axis: OFF stays, the ablation stays OPTIONAL and UNREGISTERED
+(Tamer, 2026-07-27).**
+
+**Context.** Asked whether the dissertation should run with model reasoning on or off, and whether
+off could become an ablation later. Two things surfaced while researching it.
+
+**(1) Reasoning-OFF is the right call and is already ratified.** Amendment **R106** (ratified
+2026-07-26 by Tamer *and* Dr Okhrati as item 8 of the ratification pack; implemented 2026-07-27) pins
+`reasoning: {enabled:false}` at a matched 8192 cap across all ten legs **and the Opus confirmatory
+author**. The decisive argument is treatment integrity, not plumbing: a reasoning scratchpad can
+silently **re-render the fed floats before the model reads them**, so the experimenter loses control
+of the manipulated variable — and the rendered precision *is* part of the estimand (R114). It is
+specifically fatal to the SQ3b legibility differential, whose identification requires that only the
+framing varies: if the scratchpad legibilises the "raw" condition, raw-vs-legible attenuates toward a
+**spurious null**. Uniformity is also what makes the ten-model capability gradient a capability
+gradient (the ledger's HIGH-fragility row: unequal caps + mixed thinking make a DiD conflate
+capability with token budget). Reliability agrees — every leg ever measured with reasoning ON was
+truncating (qwen 0.0/10, glm 0.6, kimi 0.8, gemini 0.1, deepseek 0.9).
+
+**(2) A designed axis had silently vanished — recorded here so it cannot vanish again.**
+**ADR-039 specified a reasoning-effort sweep** as *the* mechanism/responsiveness axis
+(`DECISIONS.md`: "the mechanism / responsiveness axis is a **reasoning-effort sweep** (GPT-5.5
+`none→xhigh`)", called "sharper and more novel"). It appears **nowhere** in
+`config/preregistration.yaml` or `PREREGISTRATION.md`, and `scripts/m2_survey.py` has **no** reasoning
+or effort handling. It never became a registered value or a line of code, and R106's uniform pin now
+forecloses it unless deliberately re-opened. This is the same failure mode R106 itself repaired for
+the uniform-off call — a decision living in prose that never reached a config — recurring on a
+different item.
+
+**Decision.** Reasoning stays **OFF** (R106 unchanged, ratification intact). A reasoning-effort
+ablation is **NOT pre-registered**; it is an **OPTIONAL, best-effort extra** to be run only if
+calendar and budget allow after the floor bank. Registering it was recommended and declined: a
+registered obligation must be either discharged or withdrawn by dated amendment, and Tamer elected
+not to carry that commitment.
+
+**Consequence, stated plainly.** Because it is unregistered, if it is run after campaign data exists
+it is **POST-HOC and must be reported as exploratory**, never as confirmatory, and it cannot be
+presented as a pre-specified test. That is the accepted cost of keeping it optional.
+
+**If it is revisited, the worked design is:** one leg with graded effort (deepseek-v4-pro is the
+best-evidenced — R113 measured it ON at 8192 with 0/10 truncated, compliance 1.0 and 3,465 tokens of
+headroom for code), the `distributional` arm only, the floor rung (30 seeds), the same per-seed
+reference tail block (`run_subexperiment._reference_tail_block`), scored as an SQ1 responsiveness
+differential on the existing `legible_format_responsiveness_differential` bootstrap. **Authoring-only
+— no training compute**, ~120 calls, well under $1, and therefore incapable of competing with the
+seed rung. The natural implementation is a third mode beside `run_subexperiment.py --mode
+named|legible`. R106 already wired the reasoning parameter through every provider path, so turning it
+back on for one leg is a config flip, not new code.
+
+**Framing note for the write-up.** Because most of these models reason by default (deepseek
+`{mode:pro}`, gemini-3.5 mandatory, nemotron provider-default), reasoning-off is a pin *imposed* by
+this design — so the confirmatory campaign runs the **lesioned** configuration and the headline is
+measured on it. That is defensible and well-argued (treatment integrity), but it must be stated by us
+first, not discovered by a reviewer: *"we deliberately disable inference-time reasoning to retain
+control of the rendered stimulus."* The obvious challenge — that the numeracy bottleneck could be an
+artefact of disabling chain-of-thought, which the cited NUMCoT (arXiv:2406.02864) literature makes
+salient — is currently answered by design rationale alone, not by measurement. That is the known,
+accepted gap this ADR leaves open.
