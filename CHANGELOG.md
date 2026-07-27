@@ -67,6 +67,30 @@ recover the **13 ladder cells** `node-d00a-230` ate before the fence existed (`-
 `--exclude-hosts`; the ladder has NO driver loop, so a failed cell is lost unless resubmitted), then
 rebuild F11.
 
+### THE DOCUMENTATION SET, AND HOW IT IS WIRED TOGETHER (Tamer, 2026-07-27: *"document everything in the changelogs and the handoff, and reference this and other docs in the handoff as well"*)
+
+The failure mode this closes is the R106 one in documentary form: a fact that exists **somewhere** but
+is reachable from **nowhere** a fresh session actually reads. So every artifact from this lane is now
+reachable in at most two hops from `docs/HANDOFF.md`, the canonical entrypoint.
+
+| Doc | What it owns | Reached from |
+| --- | --- | --- |
+| **`docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md`** | **the launch itself** — §1 command + per-flag justification · §2 what you get and when · §3 the two RETRACTIONS · §4 what was measured · §5/§5b verified vs **NOT** verified · §6 live cluster · §7 outstanding · §8 gotchas · §9 Tamer's items | HANDOFF §1 **top prose row** · §3 authority map (new "★ Launch — THE ENTRY POINT" row) · §5 first-action 3 · the machine block's `suite_status` · `memory/session-current-focus.md` |
+| `CHANGELOG.md` **[2026-07-27c]** (this block) | the narrative of the launch-gate session | HANDOFF §1 top row header |
+| `CHANGELOG.md` **[2026-07-27b]** | the capacity lane: R107 wired, cluster re-synced, two artifact caps killed | HANDOFF §1 top row header |
+| `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md` | every load-bearing decision → rationale · evidence GRADE · fragility — **incl. the R107-retraction row** | HANDOFF §3 (new owner row) |
+| `PREREGISTRATION.md` §13-continued | the full R106–R114 amendment rows | HANDOFF §1 Amendments row (corrected R101 → **R114**) · §4 ledger |
+
+**Three stale facts fixed on sight while doing it** (zero-defect rule): ① HANDOFF §1's Amendments row
+still said *"through **R101**"* while the machine block said R114 and nine further amendments had
+landed — corrected, with the two that carry standing warnings named explicitly (**R106** ratified-but-
+never-implemented; **R107** ratified-and-UNTESTED, *do not amend*). ② §3's "Launch mechanics" row
+pointed only at runbook §10 MODE D, which describes the **laptop-driver GPU-pool** path — it now yields
+to the launch-ready doc for substrate and flags, and both rows say which is which rather than leaving a
+fresh session to discover the conflict at GO. ③ §5's first-action 3 sent a fresh session straight to
+`mode_d_launch.ps1`; it now reads the launch doc first and names **Tamer** as the one who runs
+`scripts/freeze.py` (R94), which the step had left implicit.
+
 ## [2026-07-27b] — ★★★★★ CAPACITY LANE · R107 WIRED, THE CLUSTER RE-SYNCED, TWO ARTIFACT CAPS KILLED
 
 > Continues the session above. Driven by Tamer's standing instruction to take the maximum Myriad can
