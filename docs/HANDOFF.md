@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-27"
-  head: "0d074e0"
+  head: "3e3c458"
   frozen: false
   legs_n: 10
   amendments_through: R112
-  suite_status: "exit 0 (2,726 passed / 3 skipped / 0 failed, pinned seed 20260727, 2026-07-27)"
+  suite_status: "exit 0 (loop-129 targeted: 172 passed; full suite due ~loop 133)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
