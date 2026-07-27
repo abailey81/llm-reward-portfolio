@@ -587,8 +587,13 @@ def assert_remote_gold(runner: Any, gold_dir: str, *, real_spend: bool) -> dict[
     suffix = gold_suffix()
     required = [f"{stem}_{suffix}.parquet" for stem in
                 ("returns_panel", "cash_features", "splits", "top30_selection")]
+    # ``ssh_runner`` takes an ARGV LIST and shlex-quotes each element (submit.ssh_runner); handing
+    # it a plain string makes Python iterate the CHARACTERS and quote each one, so the remote sees
+    # `m k d i r ' ' - p ...` and returns 127. Caught by the live rehearsal 2026-07-28 — the unit
+    # tests could not see it because their fake runners accepted any object. `bash -c <script>` is
+    # the form that docstring documents.
     quoted = " ".join(f"'{gold_dir}/{n}'" for n in required)
-    out = runner(f"sha256sum {quoted} 2>&1 || true")
+    out = runner(["bash", "-c", f"sha256sum {quoted} 2>&1 || true"])
     seen: dict[str, str] = {}
     for line in str(out).splitlines():
         parts = line.split()
@@ -677,7 +682,8 @@ def assert_no_foreign_remote_records(runner: Any, remote_outputs_root: str,
         if next(_P(local_archive_root).joinpath(_r).rglob("record.json"), None) is not None:
             return 0                               # a genuine resume: this line's mirror is present
     quoted = " ".join(f"'{remote_outputs_root}/{r}'" for r in roots)
-    out = runner(f"find {quoted} -name record.json 2>/dev/null | wc -l || true")
+    # argv LIST, not a string — see the note in assert_remote_gold.
+    out = runner(["bash", "-c", f"find {quoted} -name record.json 2>/dev/null | wc -l || true"])
     try:
         n = int(str(out).strip().splitlines()[-1])
     except (ValueError, IndexError):
@@ -1237,7 +1243,9 @@ def main(argv: list[str] | None = None) -> int:
     # One idempotent mkdir removes the whole class. (The campaign's own root already exists, so this
     # is insurance for a fresh --remote-root, e.g. every rehearsal.)
     _rr = args.remote_root.rstrip("/")
-    ssh_runner(args.host)(f"mkdir -p '{_rr}/outputs' '{_rr}/ledger' '{_rr}/specs' '{_rr}/logs'")
+    # argv LIST, not a string — see the note in assert_remote_gold.
+    ssh_runner(args.host)(
+        ["bash", "-c", f"mkdir -p '{_rr}/outputs' '{_rr}/ledger' '{_rr}/specs' '{_rr}/logs'"])
     _LOG.info("remote working roots ensured under %s", _rr)
 
     # ---- PRECONDITION 2: the licensed gold must BE there, at the FROZEN bytes ---- #

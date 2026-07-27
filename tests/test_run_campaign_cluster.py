@@ -485,7 +485,33 @@ def test_resolve_cluster_baselines_refuses_explicit_baselines_on_a_leg():
         rcc.resolve_cluster_baselines(_frozen_h1_family(), tiered=True, leg="glm-5.2")
 
 
-# ── 2026-07-27: the remote gold precondition ────────────────────────────────────────────────────
+# ── 2026-07-27/28: the remote preconditions ─────────────────────────────────────────────────────
+
+def _runner(reply: str):
+    """A fake ssh runner that ENFORCES the real contract.
+
+    ⚠ WHY THIS EXISTS. The first versions of these preconditions called ``runner("<shell string>")``.
+    ``submit.ssh_runner`` takes an **argv LIST** and ``shlex.quote``s each element, so a string makes
+    Python iterate its CHARACTERS and quote each one — the cluster received
+    ``m k d i r ' ' - p ...`` and returned 127. Every unit test passed, because the fakes were
+    ``_runner("...")`` and accepted any object at all. A live rehearsal caught it; a test should
+    have. A fake that is laxer than the thing it stands in for tests nothing about the seam.
+    """
+    def _run(cmd):
+        assert isinstance(cmd, list), f"ssh_runner takes an argv LIST, got {type(cmd).__name__}"
+        assert all(isinstance(c, str) for c in cmd), f"argv elements must be str: {cmd!r}"
+        return reply
+    return _run
+
+
+def test_the_fake_runner_enforces_the_argv_contract():
+    """Guard the guard: the fake must reject a bare string, or it cannot catch the real defect."""
+    import pytest
+
+    with pytest.raises(AssertionError, match="argv LIST"):
+        _runner("x")("sha256sum /a/b")
+
+
 
 def test_assert_remote_gold_refuses_an_empty_gold_dir_on_a_real_spend_run():
     """``--gold-dir`` defaults to ``~/Scratch/llmrp/inputs``, which exists on Myriad and is EMPTY;
@@ -495,12 +521,12 @@ def test_assert_remote_gold_refuses_an_empty_gold_dir_on_a_real_spend_run():
     import pytest
 
     with pytest.raises(SystemExit, match="GOLD PANEL NOT ON THE CLUSTER"):
-        rcc.assert_remote_gold(lambda cmd: "sha256sum: No such file or directory",
+        rcc.assert_remote_gold(_runner("sha256sum: No such file or directory"),
                                "/nope/gold", real_spend=True)
 
 
 def test_assert_remote_gold_is_advisory_off_the_real_spend_path():
-    assert rcc.assert_remote_gold(lambda cmd: "", "/nope/gold", real_spend=False) == {}
+    assert rcc.assert_remote_gold(_runner(""), "/nope/gold", real_spend=False) == {}
 
 
 # ── 2026-07-27: no FOREIGN records under the confirmatory roots ─────────────────────────────────
@@ -526,7 +552,7 @@ def test_foreign_remote_records_refuse_a_fresh_real_spend_launch(tmp_path):
     empty_local.mkdir()
     with pytest.raises(SystemExit, match="ALREADY EXIST under the confirmatory archive roots"):
         rcc.assert_no_foreign_remote_records(
-            lambda cmd: "8", "/remote/outputs", str(empty_local),
+            _runner("8"), "/remote/outputs", str(empty_local),
             ["search", "test", "frozen"], real_spend=True)
 
 
@@ -539,7 +565,7 @@ def test_a_genuine_resume_is_not_blocked_by_its_own_records(tmp_path):
     rec.mkdir(parents=True)
     (rec / "record.json").write_text("{}", encoding="utf-8")
     assert rcc.assert_no_foreign_remote_records(
-        lambda cmd: "8", "/remote/outputs", str(local),
+        _runner("8"), "/remote/outputs", str(local),
         ["search", "test", "frozen"], real_spend=True) == 0
 
 
@@ -556,7 +582,7 @@ def test_the_local_check_is_scoped_to_THIS_lines_roots(tmp_path):
     # the CORE line's records exist; a LEG line starting now is still a fresh run for ITS roots
     with pytest.raises(SystemExit, match="ALREADY EXIST under the confirmatory archive roots"):
         rcc.assert_no_foreign_remote_records(
-            lambda cmd: "3", "/remote/outputs", str(local),
+            _runner("3"), "/remote/outputs", str(local),
             ["search_leg_glm_5_2", "test_leg_glm_5_2", "frozen_leg_glm_5_2"], real_spend=True)
 
 
@@ -564,7 +590,7 @@ def test_a_clean_remote_root_passes(tmp_path):
     local = tmp_path / "campaign_cluster"
     local.mkdir()
     assert rcc.assert_no_foreign_remote_records(
-        lambda cmd: "0", "/remote/outputs", str(local),
+        _runner("0"), "/remote/outputs", str(local),
         ["search", "test", "frozen"], real_spend=True) == 0
 
 
@@ -582,7 +608,7 @@ def test_a_line_that_has_already_SUBMITTED_is_never_treated_as_fresh(tmp_path):
     local = tmp_path / "campaign_cluster"
     (local / "batches" / "leg1_distributional_g0").mkdir(parents=True)
     assert rcc.assert_no_foreign_remote_records(
-        lambda cmd: "25", "/remote/outputs", str(local),
+        _runner("25"), "/remote/outputs", str(local),
         ["search_leg_glm_5_2"], real_spend=True, batch_tag="leg1") == 0
 
 
@@ -595,7 +621,7 @@ def test_another_lines_batches_do_not_excuse_a_fresh_line(tmp_path):
     (local / "batches" / "c1_distributional_g0").mkdir(parents=True)
     with pytest.raises(SystemExit, match="ALREADY EXIST under the confirmatory archive roots"):
         rcc.assert_no_foreign_remote_records(
-            lambda cmd: "25", "/remote/outputs", str(local),
+            _runner("25"), "/remote/outputs", str(local),
             ["search_leg_glm_5_2"], real_spend=True, batch_tag="leg1")
 
 
@@ -610,7 +636,7 @@ def test_the_foreign_record_probe_fails_CLOSED_when_it_cannot_see(tmp_path):
     local.mkdir()
     with pytest.raises(SystemExit, match="REFUSING rather than assuming clean"):
         rcc.assert_no_foreign_remote_records(
-            lambda cmd: "ssh: connect to host myriad port 22: Connection timed out",
+            _runner("ssh: connect to host myriad port 22: Connection timed out"),
             "/remote/outputs", str(local), ["search", "test", "frozen"], real_spend=True)
 
 
@@ -618,7 +644,7 @@ def test_foreign_records_are_advisory_off_the_real_spend_path(tmp_path):
     local = tmp_path / "campaign_cluster"
     local.mkdir()
     assert rcc.assert_no_foreign_remote_records(
-        lambda cmd: "8", "/remote/outputs", str(local),
+        _runner("8"), "/remote/outputs", str(local),
         ["search", "test", "frozen"], real_spend=False) == 8
 
 
@@ -634,4 +660,4 @@ def test_assert_remote_gold_refuses_bytes_that_differ_from_the_frozen_manifest()
              ("returns_panel", "cash_features", "splits", "top30_selection")]
     fake = "\n".join(f"{'0' * 64}  /g/{n}" for n in names)
     with pytest.raises(SystemExit, match="DOES NOT MATCH THE FROZEN MANIFEST"):
-        rcc.assert_remote_gold(lambda cmd: fake, "/g", real_spend=True)
+        rcc.assert_remote_gold(_runner(fake), "/g", real_spend=True)
