@@ -245,10 +245,24 @@ def build(md_only: bool, out: Path | None) -> int:
 #: S13 (2026-07-06): editorial placeholders/markers that must NEVER reach the submitted PDF. The
 #: --final gate greps the ASSEMBLED deliverable for them and refuses; ~40 legitimately live in the
 #: chapters today as fill-at-campaign contracts.
+#: ⚠ 2026-07-26/27 (deep review, loops 107-108, #85/#86): the marker vocabulary is NOT closed — chapters
+#: invent their own wording, and anything the gate does not know ships silently. MEASURED, three distinct
+#: spellings of the SAME fill-at-campaign marker across the assembled chapters:
+#:   `FRONT_MATTER.md:149,161`  "[RESULT — campaign slot.]"                        (the original)
+#:   `CH7_…conclusion.md:40`    "[Result — finalise from the confirmatory campaign.]"
+#:   `CH1_introduction.md:156`  "[Result — to be finalised from the confirmatory campaign.]"
+#: Loop 107 added the CH7 spelling as a LITERAL; loop 108 found that was still too narrow — "finalise"
+#: does not match "finalised", so CH1 §1.4's prototype-sourced result paragraph (in the INTRODUCTION)
+#: stayed invisible. Replaced with a FAMILY pattern: a bracketed Result/RESULT marker followed, within the
+#: same brackets, by "campaign" or "slot". That covers all three spellings and any future one.
+#: The case-insensitivity is SCOPED to this alternative — making the whole regex case-insensitive would
+#: make "FROM CAMPAIGN" match the ordinary prose phrase "from the campaign", firing on legitimate
+#: sentences and training the operator to ignore the gate.
 _PLACEHOLDER_RE = re.compile(
     r"FROM CAMPAIGN|Compile note|Status: structural scaffold|WORD COUNT: fill"
     r"|RESULT — campaign slot|CONFIRM AT COMPILE|INSERT AT SUBMISSION|TAMER: pick at compile"
     r"|\[from §6\]|\[in/out\]"
+    r"|(?i:\[results?\b[^\]]{0,80}(?:campaign|slot))"
 )
 
 

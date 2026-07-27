@@ -1,0 +1,12 @@
+{
+  "leg": "qwen3.5-9b",
+  "served_model_name": "qwen3.5-9b",
+  "hf_repo": "Qwen/Qwen3.5-9B",
+  "hf_commit": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "served_dtype": "bfloat16",
+  "reasoning_enabled": false,
+  "port": 8000,
+  "vllm_version": null,
+  "torch_version": "2.6.0+cu124",
+  "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU"
+}

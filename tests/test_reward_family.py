@@ -21,6 +21,59 @@ def test_family_bounds_shape_and_order() -> None:
     assert tuple(b[2]) == (0.0, 0.02)  # w_turnover
 
 
+def test_h4_search_box_is_identical_in_all_three_sources() -> None:
+    """#77: the H4 search box is TRIPLICATED, every copy claims to mirror the others, and nothing
+    enforced it — on a CONFIRMATORY node.
+
+    The three copies are ``config/prototype.yaml: reward_family.weights``,
+    ``config/eureka_loop.yaml: reward_family.weights``, and
+    ``src/baselines/reward_family._DEFAULT_BOUNDS``. Each carries a comment asserting the mirror
+    ("mirrors eureka_loop.yaml", "Frozen ranges (mirror config/eureka_loop.yaml…)"), yet the only
+    enforced eureka mirror in the repo is R97's ``baseline_rewards``
+    (``tests/test_baselines.py::test_secondary_panel_config_matches_reward_canon``).
+
+    Why it matters: H4 is the beat-the-max IUT — free-form LLM code versus the BEST member of this
+    fixed parametric family. The BOX defines what "best member" means, so drift silently redefines the
+    comparator and hence the H4 verdict. And the LIVE source is NOT the documented one: every campaign
+    consumer reads **prototype.yaml** (``run_campaign.py:674``, ``run_campaign_cluster.py:160``,
+    ``run_prototype.py:529/613``), while ``reward_family.py``'s own docstring points at
+    ``eureka_loop.yaml`` — so editing the authoritative-LOOKING file would change nothing that runs.
+    Neither YAML is in freeze's ``_BOUND_CONFIGS``, so drift also leaves ``--check`` green.
+
+    ⚠ NOT closed by this test, and NOT mine to decide: the numeric ranges appear NOWHERE in the frozen
+    pre-registration (``config/preregistration.yaml`` has no ``reward_family``; PREREGISTRATION.md R28
+    registers the six primitives and the fixed ``cvar_alpha=0.05``/``window=20`` in prose, but not the
+    weight box). Registering them is a design decision for Tamer/Ramin; this test only locks the three
+    live copies to each other.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    from src.baselines.reward_family import _DEFAULT_BOUNDS
+
+    root = Path(__file__).resolve().parents[1]
+
+    def _box(rel: str) -> dict[str, tuple[float, float]]:
+        cfg = yaml.safe_load((root / rel).read_text(encoding="utf-8"))
+        weights = cfg["reward_family"]["weights"]
+        return {k: (float(v["low"]), float(v["high"])) for k, v in weights.items()}
+
+    proto = _box("config/prototype.yaml")
+    eureka = _box("config/eureka_loop.yaml")
+    code = {k: (float(lo), float(hi)) for k, (lo, hi) in _DEFAULT_BOUNDS.items()}
+
+    assert set(proto) == set(WEIGHT_KEYS), "prototype.yaml box does not cover exactly the six weights"
+    assert proto == eureka, (
+        "config/prototype.yaml (the LIVE H4 box every campaign consumer reads) has drifted from "
+        f"config/eureka_loop.yaml (the documented one): {proto} vs {eureka}"
+    )
+    assert proto == code, (
+        "the code fallback src/baselines/reward_family._DEFAULT_BOUNDS has drifted from the YAML box "
+        f"the campaign actually searches: {code} vs {proto}"
+    )
+
+
 def test_family_bounds_reads_cfg() -> None:
     cfg = {"reward_family": {"weights": {"w_return": {"low": 0.5, "high": 1.5}}}}
     b = family_bounds(cfg)

@@ -99,6 +99,16 @@ def responsiveness(
         return {"status": "no_data", "reason": "x and m must be equal-length paired arrays"}
     if x.size < 3:
         return {"status": "no_data", "reason": "need >= 3 paired rows"}
+    # Non-finite is checked BEFORE constancy (deep review 2026-07-26, #71). ``np.ptp`` of an array holding
+    # a NaN is NaN, and ``NaN == 0`` is False — so the degeneracy guard below could not fire on exactly the
+    # degenerate input it exists to reject. MEASURED: an all-NaN ``x`` returned ``status="ok"`` with
+    # ``coef=NaN``, and a single NaN returned ``status="ok"`` with ``coef=NaN`` plus a percentile CI built
+    # from only the ~34% of resamples that happened to dodge the NaN row — a real-looking interval around an
+    # unusable point estimate. Callers gate on ``status``, so advertising success here is the harm; report
+    # no_data instead. Deliberately NOT "drop the non-finite rows": choosing a filtering policy would change
+    # what this registered SQ1 statistic is computed over, which is a design decision, not a bug fix.
+    if not (np.isfinite(x).all() and np.isfinite(m).all()):
+        return {"status": "no_data", "reason": "non-finite value in x or m"}
     if np.ptp(x) == 0 or np.ptp(m) == 0:
         return {"status": "no_data", "reason": "degenerate (constant) x or m"}
     if rng is None:
@@ -182,6 +192,18 @@ def legible_format_responsiveness_differential(
     n_boot_valid = int(diff.size)
     ci_low, ci_high = (float(v) for v in np.percentile(diff, [2.5, 97.5]))
     differential = float(leg["coef"] - raw["coef"])
+    # P7b, propagated (deep review 2026-07-26, #72). ``responsiveness`` gates its own verdict on the
+    # valid-replicate fraction (``responsive = ci_reliable and ...``); this differential asserted
+    # ``legibility_helps`` with NO such gate, even though it had both conditions' ``ci_reliable`` flags in
+    # hand. MEASURED: with one non-finite row in the legible condition, this returned ``status="ok"``,
+    # ``differential=NaN`` and a ``legibility_helps`` verdict computed from 678/2000 SELF-SELECTED
+    # replicates — the ones that happened to dodge the bad row — while ``leg["ci_reliable"]`` was already
+    # False. The differential's CI inherits both conditions' degenerate-resample problem, so it inherits
+    # their reliability gate too, and reports the flag so a reader can see it.
+    ci_reliable = bool(
+        leg["ci_reliable"] and raw["ci_reliable"]
+        and n_boot_valid >= MIN_BOOT_VALID_FRACTION * int(n_boot)
+    )
     return {
         "status": "ok",
         "coef_legible": float(leg["coef"]),
@@ -189,7 +211,9 @@ def legible_format_responsiveness_differential(
         "differential": differential,
         "ci_low": ci_low,
         "ci_high": ci_high,
-        "legibility_helps": bool(ci_low > 0.0),  # one-sided sense: legibility RAISES responsiveness
+        # one-sided sense: legibility RAISES responsiveness — but never claimed off an untrustworthy CI
+        "legibility_helps": bool(ci_reliable and ci_low > 0.0),
+        "ci_reliable": ci_reliable,
         "method": method,
         "n_boot_valid": n_boot_valid,
         "legible": leg,

@@ -327,7 +327,7 @@ sub-σ-algebra coarsening. A subtlety a probabilist would probe (M7): the garbli
 limit of Blackwell post-processing, *not* added stochastic noise.
 
 **The nesting is literal in code** (`src/feedback/schema.py`): every arm's block begins with the
-identical header `"Your previous reward scored: {metric:.2f} (validation Deflated Sharpe)."`; the
+identical header `"Your previous reward scored: {metric:.6f} (validation Deflated Sharpe)."`; the
 scalar arm gets the header **alone**, the distributional arm the *same* header ⊕ the six tail lines.
 The scalar arm's information set is byte-level a coordinate projection of the distributional arm's.
 (A disclosed refinement: as statistics of a single sample the header scalar is *held-out* while the
@@ -777,7 +777,7 @@ arms differ **only** in `feedback_kind`:
 
 | Arm | Fed each reflection | What the contrast isolates |
 |---|---|---|
-| **distributional** | Header (`"Your previous reward scored: {x:.2f} (validation Deflated Sharpe)."`) + intro + the **full six-line tail set** (CVaR 5/10/25/1% — 1% annotated "(high-variance estimate)" — left-tail mass, left-tail skew) | The treatment (H2) |
+| **distributional** | Header (`"Your previous reward scored: {x:.6f} (validation Deflated Sharpe)."`) + intro + the **full six-line tail set** (CVaR 5/10/25/1% — 1% annotated "(high-variance estimate)" — left-tail mass, left-tail skew) | The treatment (H2) |
 | **scalar** | Header **only** | Does *any* tail information beat a bare performance number? |
 | **placebo** | Header + *"Reference constants (inert; no diagnostic content):"* + six `reference value i: +0.000` lines, matched in line count and ±15% character length | **Tokens/block-presence control**: dist > placebo ⇒ information, not prompt length. The "inert" labelling is a disclosed, deliberate tell — without it, six 0.000 lines would read as *real* diagnostics of a riskless distribution (active misinformation, a worse confound); conservative for the null. |
 | **scalar_cvar5** | Header + **exactly one** downside line (`CVaR 5%`) | **Tail-shape vs any-downside-number**: dist > scalar_cvar5 ⇒ the multi-level *shape* matters beyond a single downside statistic. |
@@ -795,7 +795,7 @@ One line each: *dist > scalar* = value of tail information; *> placebo* = inform
 example:
 
 ```
-Your previous reward scored: 0.83 (validation Deflated Sharpe).
+Your previous reward scored: 0.830000 (validation Deflated Sharpe).
 Realized-return tail diagnostics (training period):
   CVaR 5%:  -0.041
   CVaR 10%: -0.029

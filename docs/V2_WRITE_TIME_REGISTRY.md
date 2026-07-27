@@ -307,8 +307,27 @@ during the writing month; the pre-submission sweep verifies zero open rows.
 
 ## The registered cross-model synthesis is BUILT BUT UNWIRED (2026-07-26 deep review, loop 4 — verified first-hand; MUST close before the headline is written)
 34. **Wire `src/inference/cross_model.py` + `src/inference/leg_aggregate.py` into the analysis, or
-    withdraw the registered claim.** VERIFIED by a repo-wide import search (`src/` + `scripts/`,
-    excluding `tests/`): **no production code imports either module.** The only hits are
+    withdraw the registered claim.**
+    > ✅ **CLOSED BY ROUTE (a) — WIRED. This row's blocker text below is STALE (verified first-hand,
+    > deep review loop 114, 2026-07-27).** Re-running this row's own stated import search now returns
+    > production hits, not zero: `scripts/analyze_campaign.py:4873-4875` does
+    > `from src.inference.leg_aggregate import cross_model_synthesis` and **calls** it
+    > (`out["cross_model"] = cross_model_synthesis(root)`), which chains to `cross_model`'s
+    > `permutation_test` / `pooled_bound` / `sign_count` (`leg_aggregate.py:219`). The row's required
+    > end-to-end test exists and is stronger than asked: `tests/test_leg_aggregate.py:202+` ("the
+    > production wiring (row 34)") locks the caller **and its anti-fabrication states** —
+    > `test_no_leg_archives_is_MISSING_DATA_not_a_null_effect` and
+    > `test_a_missing_T0_floor_is_a_MISSING_INPUT_not_a_result`.
+    > **The "also check when closing" unit trap was ALSO fixed in the same change**: `leg_aggregate`
+    > now delegates to the canonical `bootstrap.sharpe_ratio`, removing the annualisation AND ddof
+    > discrepancies at once; the in-code comment records that the old per-period/ddof=1 form would have
+    > compared ~0.04 against a ~0.6 floor, failing EVERY leg and yielding "a plausible-looking, wholly
+    > fabricated scientific outcome". **53 passed, `PYTEST_RC=0`** (`test_leg_aggregate` +
+    > `test_cross_model` + `test_analyze_mechanism_wiring`) at pinned `--randomly-seed=22`.
+    > **Left OPEN rather than ticked — recording an obligation as discharged is Tamer's call.**
+    VERIFIED by a repo-wide import search (`src/` + `scripts/`,
+    excluding `tests/`): **no production code imports either module [AS OF THE ROW'S WRITING — see the
+    box above].** The only hits are
     `src/inference/contamination.py`'s own, unrelated `cross_model_disagreement` (same word,
     different function), a docstring in `src/viz/figures.py:536`, a comment in
     `scripts/analyze_campaign.py:4996`, and a docstring in `scripts/run_campaign_cluster.py:337`.
@@ -337,7 +356,16 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     latent unit trap that only bites on wiring — fix it in the same change.
 
 ## The FZ0/DM backtest does not corroborate H2-Tail (2026-07-26 deep review, loop 4 — verified; PREREGISTRATION §1 H2 already corrected)
-35. **Rename `corroborates_h2_tail` and restate the exhibit as a calibration diagnostic.** As wired in
+35. **Rename `corroborates_h2_tail` and restate the exhibit as a calibration diagnostic.**
+    > ✅ **DONE — the rename has landed, with a regression guard (verified first-hand, deep review loop
+    > 114, 2026-07-27).** `scripts/analyze_campaign.py:2754` carries the in-place note *"⚠ RENAMED
+    > 2026-07-26 (deep review row 35): this was `corroborates_h2_tail`"*, and
+    > `tests/test_analyze_mechanism_wiring.py:338-341` asserts `"corroborates_h2_tail" not in leg` — so
+    > the misleading key cannot silently return. A repo-wide search over `src/` + `scripts/` finds the
+    > old name ONLY in that explanatory comment and that guard. **Left OPEN rather than ticked** (the
+    > row also asks that the EXHIBIT be restated as a calibration diagnostic in the write-up, which is
+    > prose and therefore Tamer's; the code half is complete). Original analysis preserved below.
+    As wired in
     `scripts/analyze_campaign.py`, both (VaR, ES) forecasts are FZ0-scored against ONE series — the
     distributional arm's own test path — while forecast 1 comes from that same arm's pooled
     validation returns and forecast 2 from the comparator's. A strictly consistent scoring rule then
@@ -354,9 +382,26 @@ during the writing month; the pre-submission sweep verifies zero open rows.
 
 ## ⛔ THE RATIFIED PRIMARY DECISION RULE HAS NO IMPLEMENTATION (2026-07-26 deep review — top pre-results blocker)
 36. **Implement the graphical (Bretz–Maurer–Brannath–Posch 2009) α-propagation, or the confirmatory
-    inference cannot be computed as registered.** VERIFIED by repo-wide search over `src/` + `scripts/`
+    inference cannot be computed as registered.**
+    > ✅ **NOW IMPLEMENTED — this row's BLOCKER text below is STALE (verified first-hand, deep review
+    > loop 113, 2026-07-27).** Re-running this row's own stated search over `src/` + `scripts/` now
+    > returns **many** hits, not zero: `src/inference/multiple_testing.py:128
+    > graphical_alpha_propagation()` (full sequentially-rejective loop, documented as a shortcut for the
+    > closed test, Marcus–Peritz–Gabriel 1976) + `:254 registered_alpha_graph()`;
+    > `src/inference/validity_tier.py` assembles the six confirmatory node p-values and runs the ratified
+    > rule, stamping `method: graphical_bretz_maurer_brannath_posch_2009` /
+    > `registered_rule: bonferroni_weighted_graph`; and `scripts/analyze_campaign.py:5357` wires it as
+    > "★ THE RATIFIED PRIMARY DECISION RULE (R108)". It is genuinely tested, not a stub:
+    > `tests/test_graphical_alpha.py` (8 tests, incl. order-invariance of the rejected set) —
+    > **`test_graphical_alpha` + `test_validity_tier` = 14 passed, `PYTEST_RC=0`** at pinned
+    > `--randomly-seed=22`. Leaving the "zero hits / cannot be computed" text uncorrected would tell a
+    > reader the registered primary inference is unavailable, which is no longer true and could prompt
+    > duplicated work or a needless campaign delay. **Left OPEN rather than marked CLOSED: declaring a
+    > binding obligation discharged is Tamer's call, not a reviewer's.** The original assessment is kept
+    > verbatim below as the historical record of why the row was raised.
+    VERIFIED by repo-wide search over `src/` + `scripts/`
     (excluding tests) for `bretz|graphical|weighted_graph|alpha_graph|alpha_propagat|alpha_recycl`:
-    **zero hits.** `src/inference/multiple_testing.py` provides only `benjamini_hochberg` and
+    **zero hits [AS OF THE ROW'S WRITING — see the box above].** `src/inference/multiple_testing.py` provides only `benjamini_hochberg` and
     `romano_wolf`. `tests/test_validity_tier.py` only YAML-lints the graph (weights sum, edge sums,
     reachability) — it executes nothing.
     **Why this is now a BLOCKER when it previously was not.** Until 2026-07-26 the tier was

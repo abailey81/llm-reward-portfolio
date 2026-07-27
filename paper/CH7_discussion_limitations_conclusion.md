@@ -143,10 +143,12 @@ change the objectives it discovers? The instrument feeds a language-model reward
 tail off-critic while holding the agent fixed; the protocol submits the resulting comparison to a frozen,
 family-wise-controlled, pre-registered test with placebo and structure-shuffled controls; and the theory bounds
 what an optimal user of that feedback could achieve and states the conditions under which a bounded realisation
-attains it. The empirical finding is a pre-registered boundary condition — that, under tail-blind selection and at
-the studied budget, multi-level tail-risk feedback did not change the tested model's risk-sensitive reward code in
-the value-adding direction — which the theory predicts and the mechanism analyses localise. A clean, controlled
-null on a question the field has answered only by optimistic demonstration is the contribution: it replaces a
+attains it. The *registered prediction* — the branch the theory anticipates and the design is built to bank — is a
+boundary condition: that, under tail-blind selection and at the studied budget, multi-level tail-risk feedback does
+not change the tested model's risk-sensitive reward code in the value-adding direction, an outcome the mechanism
+analyses are constructed to localise. [FROM CAMPAIGN: state the realised H2-RA and H2-Tail verdicts here, and, if
+either departs from the registered prediction, say so plainly and in the same sentence.] A clean, controlled
+verdict on a question the field has answered only by optimistic demonstration is the contribution: it replaces a
 plausible intuition with a calibrated measurement, and it leaves a reusable, pre-registered instrument with which
 the conditions identified here — a tail-rewarded selector, a demonstrably responsive designer, a converged agent,
 and a second model family — can each be tested in turn.

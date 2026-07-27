@@ -22,7 +22,19 @@ from typing import Any
 
 import numpy as np
 
-__all__ = ["benjamini_hochberg", "romano_wolf"]
+#: ⚠ 2026-07-27 (deep review, loop 113, #90): this list omitted the module's most important members.
+#: `graphical_alpha_propagation` + `registered_alpha_graph` implement the R108-RATIFIED PRIMARY
+#: confirmatory decision rule (`primary_rule: bonferroni_weighted_graph`), which SUPERSEDED R31 — yet the
+#: declared public API still advertised only the two multiplicity helpers that the ratified rule replaced
+#: as primary. Runtime was unaffected (`validity_tier.py:43` imports both explicitly, bypassing `__all__`),
+#: but a star-import, an API-doc generator, or a re-export audit would all have concluded the primary rule
+#: is not public. Same stale-index class as #88.
+__all__ = [
+    "benjamini_hochberg",
+    "romano_wolf",
+    "graphical_alpha_propagation",
+    "registered_alpha_graph",
+]
 
 
 def benjamini_hochberg(pvals: np.ndarray, q: float = 0.05) -> np.ndarray:

@@ -96,7 +96,9 @@ def test_verify_live_returns_full_status():
         assert status.recorded_hash == status.hash  # recorded == recomputed (no drift)
     else:
         assert status.recorded_hash is None
-    # FIFTEEN frozen checks on the LIVE repo: the 6 original + the 3 2026-06-24 amendments
+    # The frozen-check ledger on the LIVE repo (the running total is asserted below — this opening
+    # carried a stale "FIFTEEN" while the narrative already accumulated past 20; deep review loop 97):
+    # the 6 original + the 3 2026-06-24 amendments
     # (lambda/tf32/reflect) + the §3 arm-roster prose guard + the V1 cross-file executed-arms guard
     # (campaign.yaml/arms.yaml rosters == frozen prereg arms) + the §18 h1_baselines cross-file guard
     # (audit H-L2, 2026-07-02) + the data_panel.headline == config/data.yaml gold.suffix cross-check
@@ -112,8 +114,13 @@ def test_verify_live_returns_full_status():
     # these (guards are code, never hashed content).
     # 20 v1 checks + the v2 leg-roster guard (R80/R82) = 21, + the confirmatory-author guard added by
     # the 2026-07-26 deep review (loop 12: config/llm.yaml is NOT hashed, so the EXECUTED reward-author
-    # could drift from the registered one with --check still green) = 22 on the live repo.
-    assert len(status.checks) == 22
+    # could drift from the registered one with --check still green) = 22, + the EXECUTED tf32 mirror
+    # added by the deep review (loop 97: config/prototype.yaml is NOT hashed, yet run_campaign builds
+    # the campaign agent_cfg from it and train_agent applies agent.tf32 to torch's allow_tf32 on EVERY
+    # leg — so the executed float32 matmul precision could diverge from the frozen R23 amendment with
+    # --check still green, and TF32 is in no per-record provenance either) = 23 on the live repo.
+    assert len(status.checks) == 23
+    assert any("tf32 EXECUTED mirror" in c for c in status.checks)
     assert any("confirmatory_author:" in c for c in status.checks)
     assert any("leg roster (v2):" in c for c in status.checks)
     assert any("executed arms:" in c for c in status.checks)
@@ -666,6 +673,30 @@ def test_search_splits_drift_raises(tmp_path):
         'data:\n  val_end: "2019-12-31"\n  train_end: "2016-12-31"\n', encoding="utf-8"
     )
     assert "search splits" in freeze.assert_search_splits_match(tmp_path)
+
+
+def test_executed_tf32_mirror_guard(tmp_path):
+    """#76: the R23 gate asserted the FROZEN side only (prereg agent_numerics.tf32 + the prose naming
+    it). The side that actually RUNS was unguarded: ``config/prototype.yaml`` is not in
+    _BOUND_CONFIGS, yet run_campaign builds the campaign agent_cfg from it and train_agent applies
+    ``agent.tf32`` to torch's allow_tf32 for EVERY leg -- so the executed float32 matmul arithmetic
+    could be flipped post-freeze without moving the canonical hash, and TF32 appears in no per-record
+    provenance, so an audit could not see it either."""
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    assert freeze.assert_executed_tf32_matches_frozen(tmp_path) is None  # neither file -> skipped
+    cfg.joinpath("preregistration.yaml").write_text(
+        "agent_numerics:\n  tf32: true\n", encoding="utf-8"
+    )
+    assert freeze.assert_executed_tf32_matches_frozen(tmp_path) is None  # executed side absent -> skipped
+
+    cfg.joinpath("prototype.yaml").write_text("agent:\n  tf32: true\n", encoding="utf-8")
+    line = freeze.assert_executed_tf32_matches_frozen(tmp_path)
+    assert line is not None and "EXECUTED mirror" in line       # agreement -> reported, not silent
+
+    cfg.joinpath("prototype.yaml").write_text("agent:\n  tf32: false\n", encoding="utf-8")
+    with pytest.raises(freeze.FreezeConsistencyError, match="prototype.yaml agent.tf32"):
+        freeze.assert_executed_tf32_matches_frozen(tmp_path)
 
 
 def test_bound_files_exist_real_root_only(tmp_path):

@@ -14,9 +14,10 @@ Algorithm sketch (FINAL_PLAN F.1, Part B.2):
   - Reward-timing (audit C-5): the asset-return vector r_t = panel.returns[t] is
     realized *after* the action is taken. gross = w[:N] @ r_t.
   - Transaction cost = c * turnover with half-L1-DRIFTED turnover (docs/environment_spec_v1.md):
-    turnover = 0.5 * ||w - w_tilde||_1 where w_tilde = w_prev * (1+r_t) / (w_prev @ (1+r_t))
-    is the previous weights DRIFTED by realized returns (cash grows at 1.0); c from the
-    cost grid (headline 10 bps). info["turnover"] is emitted for logging sidecars.
+    turnover = 0.5 * ||w - w_held||_1 where w_held is the book the agent ACTUALLY carries
+    into step t — the previous target drifted by the return that target earned, r_{t-1}
+    (cash grows at 1 + cash_daily_rate); c from the cost grid (headline 10 bps).
+    info["turnover"] is emitted for logging sidecars.
   - Portfolio return port_ret = gross - cost; log-wealth += log1p(port_ret).
   - reward_fn(w, r_t, w_prev, port_ret, info) -> (total, components, reward_state).
     The agent optimizes `total`; `components` are logged; `reward_state` is
@@ -214,6 +215,10 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         # runtime state (set in reset)
         self.t: int = self.start
         self.w_prev: np.ndarray = np.full(n_act, 1.0 / n_act, dtype=np.float64)
+        # The book the agent actually HOLDS into the next decision: w_prev drifted by the
+        # return w_prev earned. Distinct from w_prev (the raw prior TARGET) — the cost ledger
+        # trades against the held book, the reward contract still receives the target (#92).
+        self.w_held: np.ndarray = np.full(n_act, 1.0 / n_act, dtype=np.float64)
         self.reward_state: object = None
         self.log_wealth: float = 0.0
 
@@ -257,6 +262,8 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         n_act = self.N + 1
         self.t = self.start
         self.w_prev = np.full(n_act, 1.0 / n_act, dtype=np.float64)
+        # Nothing has drifted yet at the opening decision, so the held book IS the target.
+        self.w_held = np.full(n_act, 1.0 / n_act, dtype=np.float64)
         self.reward_state = None
         self.log_wealth = 0.0
         return self._obs(), {}
@@ -321,27 +328,50 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         r_t = np.array(self.panel.returns[self.t], dtype=np.float64, copy=True)
 
         # Half-L1-DRIFTED turnover (docs/environment_spec_v1.md "Dynamics & accounting").
-        # Between the previous trade and this one the held weights DRIFT by realised
-        # returns, so the agent only trades — and only pays cost on — the gap between
-        # the new target w and the *drifted* prior weights w_tilde, not the raw w_prev.
-        # growth[i] = 1 + r_t[i] for the N risky assets; the cash sleeve grows at 1 + cash_daily_rate
-        # (default 0.0 -> grows at 1.0, the legacy behaviour; R20).
-        growth = np.ones(self.N + 1, dtype=np.float64)
-        growth[: self.N] = 1.0 + r_t
-        growth[self.N] = 1.0 + self.cash_daily_rate
-        port_growth = float(self.w_prev @ growth)
-        if port_growth <= 0.0:
-            raise FloatingPointError(
-                f"non-positive portfolio growth {port_growth!r} at t={self.t}: drifted "
-                "weights are undefined (a -100% combined move wiped the portfolio)"
-            )
-        w_tilde = self.w_prev * growth / port_growth
-        turnover = 0.5 * float(np.abs(w - w_tilde).sum())
+        # The agent only trades — and only pays cost on — the gap between the new target w and
+        # the book it ACTUALLY carries into step t (`self.w_held`): the previous target drifted
+        # by the return that target earned, r_{t-1}.
+        #
+        # ⚠ 2026-07-27 (deep review loop 117, #92 — closes the P6 finding raised 2026-07-04 and
+        # never dispositioned). This drifted `self.w_prev` by r_t, the CURRENT step's return.
+        # That applied one r_t under two mutually exclusive execution times: `gross` below has
+        # the NEW weights w earning r_t (the trade settles BEFORE r_t), while the drift had the
+        # PRE-trade book already absorbing r_t (the trade settles after it). w_prev never earned
+        # r_t — it earned r_{t-1}, which drifted nothing. The consequence was a genuine
+        # contemporaneous look-ahead in the cost ledger: reaching zero turnover required setting
+        # w = drift(w_prev, r_t), a function of the UNOBSERVED r_t, so a pure buy-and-hold policy
+        # was unreachable and was charged 0.139 %/yr — 0.0082 Sharpe-equivalent, 16 % of the 0.05
+        # SESOI — that it could neither avoid nor predict. Carrying `w_held` makes the no-trade
+        # target OBSERVABLE (a function of w_prev and the r_{t-1} row already inside the
+        # observation window) and charges exactly zero for it.
+        #
+        # MEASURED on the gold panel at the headline 10 bps before changing anything: the
+        # left-tail contamination P6 alleged is NOT present — CVaR-5% moves 0.005 % relative,
+        # mean cost on down days 0.0440 bp vs 0.0437 bp corrected, and corr(cost, same-day
+        # return) is +0.0415 here vs +0.0515 corrected, i.e. the old ledger was marginally LESS
+        # coupled, not more. So this is a look-ahead correction, not a results correction, and
+        # it is common-mode across all 7 arms and all 9 benchmarks (one shared env).
+        turnover = 0.5 * float(np.abs(w - self.w_held).sum())
 
         # Gross = risky leg (w·r_t) + the cash sleeve's money-market return (w_cash · cash_daily_rate).
         gross = float(w[: self.N] @ r_t) + float(w[self.N]) * self.cash_daily_rate
         cost = self.cost * turnover
         port_ret = gross - cost
+
+        # The book that actually EARNS r_t is the POST-trade w, so both the wipeout guard and
+        # next step's drift key off `w @ growth` — identically `1 + gross` on the simplex. The
+        # guard previously tested `w_prev @ growth`, the growth of a book that is NOT the one
+        # holding through day t. growth[i] = 1 + r_t[i] for the N risky assets; the cash sleeve
+        # grows at 1 + cash_daily_rate (default 0.0 -> grows at 1.0, the legacy behaviour; R20).
+        growth = np.ones(self.N + 1, dtype=np.float64)
+        growth[: self.N] = 1.0 + r_t
+        growth[self.N] = 1.0 + self.cash_daily_rate
+        port_growth = float(w @ growth)
+        if port_growth <= 0.0:
+            raise FloatingPointError(
+                f"non-positive portfolio growth {port_growth!r} at t={self.t}: the drifted "
+                "book is undefined (a -100% combined move wiped the portfolio)"
+            )
         # Clip port_ret > -1 before log1p, mirroring the baseline rewards (src/baselines/rewards.py (the log1p clip sites)):
         # a <= -100% step (>=100% combined loss after cost) gives log1p(<=-1) = -inf/NaN. This makes the
         # accumulation consistent with the port_growth <= 0.0 raise above (which already rejects a drifted
@@ -397,6 +427,8 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         info["log_wealth"] = self.log_wealth
 
         self.w_prev = w
+        # The post-trade book holds through day t, so it is what the agent carries into t+1.
+        self.w_held = w * growth / port_growth
         self.t += 1
         # The window edge is data EXHAUSTION (a time limit), not an absorbing MDP state, so it is a
         # Gymnasium *truncation* (final-audit fix). Mechanism (corrected 2026-07-03, verified against the

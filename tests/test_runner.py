@@ -66,18 +66,19 @@ def test_rollout_is_deterministic(synthetic_panel: Panel, env_cfg) -> None:
 def test_uniform_policy_returns_match_panel_mean(synthetic_panel: Panel, env_cfg) -> None:
     """A uniform (zero-logit -> softmax) policy's net return matches a closed form EVERY step.
 
-    The policy outputs the SAME uniform target ``w = 1/(N+1)`` at every step, so the
-    pre-trade weights ``w_prev`` are uniform on every step (the reset weights are uniform
-    too). Therefore each step is structurally identical — there is NO special first step:
+    The policy outputs the SAME uniform target ``w = 1/(N+1)`` at every step, but the book it
+    HOLDS between trades drifts with the return that book earned, so it must trade back to
+    uniform each step and pays cost on exactly that gap:
         gross[t]    = mean over assets of returns[t] * N/(N+1)   (uniform over N risky + cash)
-        w_tilde[t]  = uniform * (1+r_t,cash=1) / portfolio_growth   (held weights DRIFT)
-        turnover[t] = 0.5 * |uniform - w_tilde[t]|.sum()           (small, NONZERO under drift)
+        w_held[t]   = uniform drifted by r_{t-1}, the return the previous target EARNED
+        turnover[t] = 0.5 * |uniform - w_held[t]|.sum()          (0 at the opening step)
         port_ret[t] = gross[t] - cost * turnover[t]
-    Under the half-L1-DRIFTED cost (ADR / docs/environment_spec_v1.md) the held uniform
-    weights drift between trades, so there is ongoing turnover every step — the old
-    'zero turnover after t0' assumption is wrong. We assert the full net series against
-    this closed form to 1e-12, a strong check that the rollout reads realised returns and
-    applies the drifted cost correctly.
+    Under the half-L1-DRIFTED cost (docs/environment_spec_v1.md) the held uniform weights
+    drift between trades, so there is ongoing turnover every step after the first — the old
+    'zero turnover after t0' assumption is wrong. The OPENING step is free, because nothing
+    has drifted yet at reset; before #92 the ledger drifted by the contemporaneous ``r_t``
+    and charged even that first step. Asserting the full net series to 1e-12 checks that the
+    rollout reads realised returns and applies the drifted cost at the right INDEX.
     """
     from src.env.portfolio_env import PortfolioEnv
 
@@ -92,19 +93,23 @@ def test_uniform_policy_returns_match_panel_mean(synthetic_panel: Panel, env_cfg
     r = synthetic_panel.returns[lookback:].astype(np.float64)  # (steps, N)
 
     gross = r.mean(axis=1) * (n / n_act)
-    # Drift the uniform pre-trade weights by realized returns (cash element grows at 1.0).
+    # Drift the uniform book by the returns IT earned (cash element grows at 1.0). Row k of
+    # `w_held_next` is the book carried into step k+1, so step k trades against row k-1 (#92).
     growth = np.ones((r.shape[0], n_act), dtype=np.float64)
     growth[:, :n] = 1.0 + r
-    port_growth = growth @ uniform  # uniform is constant -> w_prev @ growth per step
-    w_tilde = uniform[None, :] * growth / port_growth[:, None]
-    turnover = 0.5 * np.abs(uniform[None, :] - w_tilde).sum(axis=1)
+    port_growth = growth @ uniform  # uniform is constant -> w @ growth per step
+    w_held_next = uniform[None, :] * growth / port_growth[:, None]
+    turnover = np.empty(r.shape[0], dtype=np.float64)
+    turnover[0] = 0.0  # opening step: the reset book has not drifted yet
+    turnover[1:] = 0.5 * np.abs(uniform[None, :] - w_held_next[:-1]).sum(axis=1)
     expected_net = gross - env.cost * turnover
 
     # Closed form holds on EVERY step (including the first) to machine precision.
     assert np.allclose(rets, expected_net, atol=1e-12, rtol=0.0)
     # Sanity: drift really does induce nonzero ongoing turnover (so this is not the
-    # degenerate zero-cost case the old test silently assumed).
+    # degenerate zero-cost case the old test silently assumed) — but the opening step is free.
     assert turnover.max() > 0.0
+    assert turnover[0] == 0.0
 
 
 def test_disjoint_split_guard() -> None:
@@ -177,3 +182,70 @@ def test_train_val_embargo_guard(synthetic_panel: Panel, env_cfg) -> None:
     lookback = int(env_cfg["state"]["lookback_days"])
     with pytest.raises(ValueError, match="embargo"):
         make_env_builder(synthetic_panel, env_cfg, (lookback, 300), (310, 400), embargo=21)
+
+
+# --- #93: the diagnostics matrix must never be returned SILENTLY MISALIGNED -------------------
+
+class _PartialWeightsEnv:
+    """An env that emits ``info['weights']`` on every step EXCEPT the first.
+
+    ``rollout_port_diagnostics`` guards against absent and mismatched-length weight emissions
+    precisely so a non-standard env cannot break it. Partial emission is that same condition, and
+    it used to slip through: ``weights.append`` is conditional while ``net.append`` is not, so the
+    matrix came back one row short of the return series and paired step k of one with step k+1 of
+    the other.
+    """
+
+    def __init__(self, n_steps: int = 5, n_act: int = 3) -> None:
+        self.n_steps, self.n_act, self.t = n_steps, n_act, 0
+
+    def reset(self):
+        self.t = 0
+        return np.zeros(self.n_act), {}
+
+    def step(self, action):
+        self.t += 1
+        info = {"gross": 0.01, "turnover": 0.02, "port_ret": 0.008, "components": None}
+        if self.t > 1:
+            info["weights"] = np.full(self.n_act, 1.0 / self.n_act)
+        return np.zeros(self.n_act), 0.0, False, self.t >= self.n_steps, info
+
+
+class _ConstPolicy:
+    def __init__(self, n_act: int = 3) -> None:
+        self.n_act = n_act
+
+    def predict(self, obs, deterministic=True):
+        return np.zeros(self.n_act), None
+
+
+def test_partial_weight_emission_yields_None_not_a_misaligned_matrix() -> None:
+    """#93: a short weights matrix must be REFUSED, not returned as though it were aligned.
+
+    These diagnostics are archived on the SEALED TEST LEG's frozen winner and are the only source
+    for the exposure / allocation / drawdown figures — a replay-only campaign cannot recompute
+    them, so an off-by-one pairing would be undetectable after the fact.
+    """
+    from src.env.runner import rollout_port_diagnostics
+
+    out = rollout_port_diagnostics(_PartialWeightsEnv(), _ConstPolicy())
+    assert out["net"].shape[0] == 5
+    assert out["weights"] is None, (
+        f"partial emission returned a {out['weights'].shape} matrix against a "
+        f"{out['net'].shape} return series — silently misaligned"
+    )
+
+
+def test_full_weight_emission_still_yields_an_ALIGNED_matrix() -> None:
+    """The guard must not over-fire: a fully-emitting env still gets its (T, N) matrix."""
+    from src.env.runner import rollout_port_diagnostics
+
+    class _FullEnv(_PartialWeightsEnv):
+        def step(self, action):
+            obs, r, term, trunc, info = super().step(action)
+            info["weights"] = np.full(self.n_act, 1.0 / self.n_act)
+            return obs, r, term, trunc, info
+
+    out = rollout_port_diagnostics(_FullEnv(), _ConstPolicy())
+    assert out["weights"] is not None
+    assert out["weights"].shape == (out["net"].shape[0], 3)

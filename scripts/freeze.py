@@ -888,6 +888,43 @@ def assert_prompt_tail_neutrality(root: Path) -> str | None:
     return f"prompt tail-neutrality: {len(present)} base prompt(s) carry none of {n_tokens} tail tokens (R38)"
 
 
+def assert_executed_tf32_matches_frozen(root: Path) -> str | None:
+    """The EXECUTED float32 matmul precision must equal the frozen ``agent_numerics.tf32`` (R23).
+
+    The R23 gate above asserts the PREREG's own ``agent_numerics.tf32`` and that the prose names the
+    amendment — both on the frozen side. Nothing checked the side that actually runs:
+    ``config/prototype.yaml`` is NOT in ``_BOUND_CONFIGS``, yet ``run_campaign`` builds the campaign's
+    ``agent_cfg`` from it (``run_prototype._agent_cfg``, verified 2026-07-26 to carry the ``tf32`` key
+    through), and ``train_agent`` applies it to ``torch.backends.cuda.matmul.allow_tf32`` +
+    ``cudnn.allow_tf32`` for EVERY training leg (serial / SEARCH / TEST). So the executed float32 matmul
+    arithmetic could be flipped post-freeze without moving the canonical hash and without tripping
+    ``--check`` — and TF32 is recorded in NO per-record provenance (``env_fingerprint`` carries python /
+    platform / git / packages only), so the divergence would also be invisible to audit. That is exactly
+    the "a pin nobody can verify is FICTIONAL" failure the determinism envelope forbids, and exactly the
+    not-in-the-hash-so-assert gap :func:`assert_search_splits_match` closes for the split windows.
+
+    Returns the checked-summary line, or ``None`` when either side is absent (a minimal test root).
+    """
+    proto_path = root / "config" / "prototype.yaml"
+    prereg_path = root / "config" / "preregistration.yaml"
+    if not (proto_path.exists() and prereg_path.exists()):
+        return None
+    frozen = ((yaml.safe_load(prereg_path.read_text(encoding="utf-8")) or {})
+              .get("agent_numerics") or {}).get("tf32")
+    executed = ((yaml.safe_load(proto_path.read_text(encoding="utf-8")) or {})
+                .get("agent") or {}).get("tf32")
+    if frozen is None or executed is None:
+        return None
+    _require(
+        bool(executed) is bool(frozen),
+        f"config/prototype.yaml agent.tf32 ({executed!r}) != the frozen agent_numerics.tf32 "
+        f"({frozen!r}). The campaign's agent_cfg is built from prototype.yaml, so the EXECUTED float32 "
+        "matmul precision would differ from the frozen R23 design while the canonical hash still "
+        "matched — prototype.yaml is deliberately NOT in _BOUND_CONFIGS. Reconcile before freezing.",
+    )
+    return f"agent_numerics.tf32 EXECUTED mirror: config/prototype.yaml agent.tf32 {executed} == frozen {frozen} (R23)"
+
+
 def assert_search_splits_match(root: Path) -> str | None:
     """The executed SEARCH/sub-experiment split boundaries must equal the frozen data.yaml splits.
 
@@ -1138,6 +1175,9 @@ def verify(root: Path | None = None) -> FreezeStatus:
     # 2026-07-05 hardening (map P23 + construct-validity + existence): three further not-in-the-hash
     # guards — the executed search-split boundaries, the R38 tail-neutrality of the two base prompts,
     # and (real roots only) the existence of every hash-bound file before the hash is trusted.
+    tf32_mirror_check = assert_executed_tf32_matches_frozen(root)
+    if tf32_mirror_check:
+        checks.append(tf32_mirror_check)
     splits_check = assert_search_splits_match(root)
     if splits_check is not None:
         checks.append(splits_check)

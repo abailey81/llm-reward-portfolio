@@ -242,8 +242,12 @@ def test_calmar_equals_cagr_over_maxdd() -> None:
     rng = np.random.default_rng(21)
     r = rng.standard_normal(750) * 0.01 + 0.0005
     m = compute_metrics(r)
-    if m["max_drawdown"] > 1e-12:
-        assert m["calmar"] == pytest.approx(m["cagr"] / m["max_drawdown"], rel=1e-12, abs=1e-12)
+    # The fixture must actually reach the regime under test (deep review 2026-07-26, #73 pattern): this
+    # test's ONLY assertion sits under the guard, so a fixture that produced no drawdown would assert
+    # nothing and still pass. The zero-drawdown branch is covered by the sibling test below. MEASURED for
+    # seed 21: max_drawdown = 0.2517.
+    assert m["max_drawdown"] > 1e-12, "fixture drifted: no drawdown, so this test would assert nothing"
+    assert m["calmar"] == pytest.approx(m["cagr"] / m["max_drawdown"], rel=1e-12, abs=1e-12)
 
 
 def test_calmar_zero_when_no_drawdown() -> None:

@@ -335,3 +335,62 @@ def test_vectorized_fast_path_small_n_and_nonfinite_gate() -> None:
     )
     for key in ("pvalue", "effect", "ci_low", "ci_high"):
         assert gated[key] == loop[key]
+
+
+def test_every_text_read_and_write_in_the_repo_pins_encoding_utf8() -> None:
+    """Whole-repo structural lock on the encoding rule (deep review 2026-07-26, loop 96).
+
+    `src/utils/config.py::load_config` documents the confirmed CRITICAL finding: `path.open()` uses the
+    PLATFORM LOCALE codec, so on the cp1251 Windows box 30+ registered `preregistration.yaml`
+    `model_suite` values came back with "—" mojibake'd to "вЂ”" -- i.e. the LOADED design of record
+    differed from the file on disk, and differed BETWEEN machines, breaking the PROTOCOL layer of the
+    reproducibility claim. Some sequences (U+2605) are undefined in cp1251 and raise outright, so the
+    failure ranges from silent corruption to a hard crash.
+
+    That was fixed at the ONE site where it bit. Every text read/write in the repo is in fact compliant
+    (215/215 measured), but nothing STOPPED a new file from reintroducing it -- and the sibling
+    whole-repo lock in `tests/test_sandbox.py` (the `except SandboxError` ordering rule) proved its worth
+    on 2026-07-26 by catching exactly that in a brand-new untracked script. This is the same kind of
+    structural lock, for the same kind of documented-critical rule.
+
+    Binary I/O is exempt (no codec applies) and `os.open`/`os.fdopen` are file-descriptor APIs, not text
+    APIs -- both exclusions are load-bearing: without them the scan reports four false positives
+    (`Path.open("rb")` puts the mode in the FIRST positional arg, unlike builtin `open(path, mode)`).
+    """
+    import ast as _ast
+
+    root = Path(__file__).resolve().parents[1]
+    offenders: list[str] = []
+    for path in sorted([*(root / "src").rglob("*.py"), *(root / "scripts").rglob("*.py")]):
+        try:
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:  # pragma: no cover - a syntactically broken file fails elsewhere
+            continue
+        for node in _ast.walk(tree):
+            if not isinstance(node, _ast.Call):
+                continue
+            is_attr = isinstance(node.func, _ast.Attribute)
+            name = node.func.attr if is_attr else getattr(node.func, "id", "")
+            if name not in ("read_text", "write_text", "open"):
+                continue
+            if is_attr and isinstance(node.func.value, _ast.Name) and node.func.value.id == "os":
+                continue  # os.open / os.fdopen take flags + an fd, not a text codec
+            if "encoding" in {kw.arg for kw in node.keywords}:
+                continue
+            if name == "open":
+                mode_idx = 0 if is_attr else 1  # Path.open(mode) vs builtin open(path, mode)
+                mode = ""
+                if len(node.args) > mode_idx and isinstance(node.args[mode_idx], _ast.Constant):
+                    mode = str(node.args[mode_idx].value)
+                for kw in node.keywords:
+                    if kw.arg == "mode" and isinstance(kw.value, _ast.Constant):
+                        mode = str(kw.value.value)
+                if "b" in mode:
+                    continue  # binary: no codec applies
+            offenders.append(f"{path.relative_to(root).as_posix()}:{node.lineno} ({name})")
+
+    assert not offenders, (
+        "these TEXT reads/writes do not pin encoding='utf-8', so on a non-UTF-8 locale they decode "
+        "through the platform codepage -- the confirmed mojibake failure that made the loaded design "
+        f"of record differ between machines: {offenders}"
+    )

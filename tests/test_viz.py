@@ -48,6 +48,45 @@ def test_iqm_and_bootstrap_ci_deterministic_and_ordered() -> None:
     assert S.iqm_bootstrap_ci(np.array([0.7])) == (0.7, 0.7, 0.7)
 
 
+def test_iqm_bootstrap_ci_counts_finite_points_not_raw_slots() -> None:
+    """#69: the too-few-points guard must count USABLE points, or it fails on the very case
+    ``iqm``'s non-finite filtering exists for.
+
+    Before the fix, ``[1.0, nan]`` returned ``(1.0, nan, nan)``: raw size 2 cleared the guard, then every
+    resample of a 1-finite array could draw only NaNs and ``np.quantile`` propagated it. Matplotlib draws
+    NO error bar for a NaN interval, so in the headline ``F_rliable_intervals`` panel an arm whose seeds
+    were mostly lost rendered as a bare point -- visually the most PRECISE arm on the chart.
+    """
+    for contaminated in (
+        np.array([1.0, np.nan]),
+        np.array([1.0, np.nan, np.nan]),
+        np.array([1.0, np.inf]),          # inf is non-finite too, not just NaN
+    ):
+        assert S.iqm_bootstrap_ci(contaminated) == (1.0, 1.0, 1.0)
+
+    # All non-finite -> NaN throughout (nothing to report), and no crash.
+    assert all(np.isnan(v) for v in S.iqm_bootstrap_ci(np.array([np.nan, np.nan])))
+
+    # Enough finite points -> a REAL interval, never the degenerate collapse (the fix must not
+    # over-trigger: verify the legitimate case, not only the misfire).
+    point, lo, hi = S.iqm_bootstrap_ci(np.concatenate([np.linspace(0, 1, 12), [np.nan, np.nan]]), seed=1)
+    assert np.isfinite(lo) and np.isfinite(hi) and lo < hi
+    assert lo <= point <= hi
+
+
+def test_arm_style_returns_a_copy_so_a_caller_cannot_repaint_the_suite() -> None:
+    """#70: the known-arm branch handed back the module-global dict while the unknown-arm branch
+    built a fresh one, so a caller could not tell whether mutating the result was safe."""
+    original = S.ARM_STYLE["scalar"]["color"]
+    got = S.arm_style("scalar")
+    assert got is not S.ARM_STYLE["scalar"]
+    got["color"] = "#FF00FF"
+    assert S.ARM_STYLE["scalar"]["color"] == original, "mutating the result repainted the global style"
+    assert S.arm_style("scalar")["color"] == original
+    # the values themselves are unchanged by the copy
+    assert S.arm_style("scalar") == {"color": original, "marker": "s", "hatch": None}
+
+
 def test_equivalence_band_draws_span_and_zero_line() -> None:
     fig, ax = plt.subplots()
     S.equivalence_band(ax, 0.05, orient="v")

@@ -16,8 +16,9 @@ hardening it produced.
 
 The prototype instantiated the full pipeline of Chapter 4 at reduced scale: six arms (four language-model arms —
 *distributional*, *scalar*, *placebo*, *scalar_cvar5* — plus the two search baselines *random_search* and
-*bayes_opt*; the confirmatory study's seventh arm, the structure-shuffled *placebo_shuffled* control, was added
-only later in hardening and so did not run in the prototype), the Claude Sonnet 4.6 reward-designer,
+*bayes_opt*; the confirmatory study's structure-shuffled *placebo_shuffled* control was added only later in
+hardening, as were the *cma_es* and *tpe* optimisers that complete the H4 portfolio, so none of the three ran
+in the prototype), the Claude Sonnet 4.6 reward-designer,
 a 25,000-step training budget, a single training seed, and the development splits. It ran to completion across all
 arms at a matched candidate budget, archived every prompt, authored reward and feedback block, and produced the
 full analysis stack (per-arm fitness, reward-program forensics, and the overfitting diagnostics). The headline

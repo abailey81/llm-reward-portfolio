@@ -22,6 +22,27 @@ the SAME `paired_seed_difference_test`, so the simulated size + small-n behaviou
 - [x] Per-test alpha the PRIMARY MDE used: **α = 0.0500**.
 - [x] Conservative BH-over-6 sensitivity (Šidák-m=6, two-sided): **α_eff = 0.0085** *(reported below, never deleted)*.
 
+> ## ✅ 2026-07-27 — RE-RUN AT THE MEASURED PILOT INPUTS (#78 closed; deep review loop 117)
+>
+> The table below was computed at the **directional upper-bound proxy** σ_seed = 0.360 and ρ = 0.000,
+> both of which the pilots have since MEASURED. Re-run as
+> `python scripts/power_analysis.py --sigma-seed 0.244 --rho -0.14`:
+>
+> | input | old (proxy) | **measured** |
+> |---|---|---|
+> | σ_seed | 0.360 (prototype dispersion) | **0.244** (σ_D pilot) |
+> | ρ | 0.000 (assumed) | **−0.140** (measured; ρ<0 INFLATES σ_D, so 0.0 was NOT conservative) |
+> | **Δ_MDE @ 80 % power** | 0.067 Sharpe | **0.0473 Sharpe** (0.19 σ_seed) |
+> | **Δ_MDE in DSR units** | — | **0.031 validation-DSR** |
+> | vs SESOI = 0.050 DSR | — | **MDE ≤ SESOI — the design IS adequately powered at n_seeds = 568** |
+>
+> **This is the decision-relevant result:** at the measured inputs the study resolves an effect
+> *smaller* than the SESOI, so the pre-registered **INCONCLUSIVE branch (MDE > SESOI) does not fire**
+> and the bounded-equivalence verdict is bankable at the registered seed count. The proxy was
+> pessimistic — it overstated σ_seed by 48 % — so the earlier "equivalence unreachable at small n"
+> framing applies to *small* n, not to the registered n = 568. Numbers below are retained as dated
+> history at the proxy inputs; do not quote them as the design's power.
+
 ## Result (computed at the directional σ_seed — pilot field flagged)
 - [x] Realized PAIRED sample size **n_seeds = 568** (per-arm winners; Amendment D2 5→30).
 - [ ] Seed-to-seed σ of the per-seed score (Sharpe units): **σ_seed = 0.360** **(DIRECTIONAL upper-bound proxy — prototype dispersion; replace with the seeds-on-winners pilot σ)**

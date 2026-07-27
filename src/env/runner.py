@@ -208,10 +208,26 @@ def rollout_port_diagnostics(env: PortfolioEnv, policy: Any) -> dict[str, Any]:
             "reward substituted SAFE_DEFAULT on %d/%d rollout steps (%.1f%%); candidate degraded (R66)",
             n_sd, n_call, 100.0 * n_sd / max(n_call, 1),
         )
-    # A (T, N) matrix only when every step emitted an equal-length weight vector (the fixed env always
+    # A (T, N) matrix only when EVERY step emitted an equal-length weight vector (the fixed env always
     # does); otherwise fall back to None so a mismatched/absent emission never raises here.
+    #
+    # ⚠ 2026-07-27 (deep review, loop 118, #93): the `len(weights) == len(net)` clause was missing, and
+    # without it this guard failed in the wrong direction under the exact condition it exists for.
+    # `weights.append` is conditional on the step emitting one, while `net.append` is not — so a
+    # PARTIALLY-emitting env yielded a SHORT matrix that satisfied both remaining clauses (all collected
+    # rows equal-length, non-empty) and was returned as if aligned. REPRODUCED: an env emitting weights
+    # on 4 of 5 steps returned weights (4, 3) against net (5,), i.e. row k of the matrix is step k+1 of
+    # the return series. That silently off-by-one pairing feeds the SEALED TEST LEG's exposure,
+    # allocation and drawdown figures, which a replay-only campaign cannot recompute. Unreachable with
+    # `PortfolioEnv` (it emits on every step) — but this guard's whole purpose is tolerating envs that
+    # do not, so "the real env is fine" is not the property it claims. Length-agreement is the invariant.
     weights_arr: np.ndarray | None = None
-    if any_weights and len({int(a.size) for a in weights}) == 1 and weights[0].size:
+    if (
+        any_weights
+        and len(weights) == len(net)
+        and len({int(a.size) for a in weights}) == 1
+        and weights[0].size
+    ):
         weights_arr = np.asarray(weights, dtype=float)
     return {
         "gross": np.asarray(gross, dtype=float),
@@ -387,6 +403,14 @@ def make_env_builder(
         Optional per-unit-turnover cost OVERRIDE in bps (the ``costs.grid_bps`` robustness
         sweep). ``None`` (default) -> the config headline cost, so every existing caller is
         unchanged; when given, every env the returned builder makes is priced at ``cost_bps``.
+    lookback : int, default 0
+        The FEATURE lookback (``state.lookback_days``), enforced as part of the inter-split
+        purge: the guard below requires ``max(embargo, lookback)`` sessions between splits,
+        because an embargo shorter than the lookback still lets the downstream window's first
+        observations read prior-split returns (R18). **Pass it.** The ``0`` default exists only
+        to preserve the legacy embargo-only signature, and silently degrades the purge to
+        embargo-only — undocumented until 2026-07-27 (deep review, loop 118, #94), though all
+        seven call sites were verified to pass it, so the guard is armed everywhere in practice.
 
     Returns
     -------

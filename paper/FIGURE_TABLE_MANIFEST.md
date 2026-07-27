@@ -7,7 +7,7 @@
 > Cross-references: methods design in `CH4_methods.md`; results placeholders in `CH6_results.md`; prediction table
 > in `02_CHAPTER_theory.md` §3.7.
 
-## Figures (~9)
+## Figures
 
 | # | Title | What it shows | Data source | Chapter | Status |
 |---|---|---|---|---|---|
@@ -26,8 +26,22 @@
 | F13 | Capability-gradient scatter (v2) | Per-leg SQ1 responsiveness vs the pre-declared external capability composite (M2 score = secondary axis option); the two family pairs (Qwen 9B↔27B open, Haiku↔Opus closed) connected as within-family segments; Spearman ρ annotated; the registered monotone prediction read directly off the picture. Engine-built `capability_gradient` (2026-07-21). | `[CAMPAIGN]` + `capability_regression`. | 6 (§6.8) | **[CAMPAIGN]** |
 | F14 | Authoring-reliability heatmap (v2) | Models × reliability metrics (format compliance, sandbox pass, violation taxonomy share, refusal/truncation, code diversity) as an annotated rate heatmap — the practitioner's "which models write executable objective code" picture. Engine-built `reliability_heatmap` (2026-07-21). | `[CAMPAIGN]` ledger + pre-launch compliance baselines (`leg_gates`). | 6 (§6.7) | **[CAMPAIGN]** |
 | F15 | Ten-winners annotated code exhibit (v2) | One winning reward program per model, side-by-side monospace panels with tail-construct lines highlighted — the qualitative "what do different model families write" exhibit (per-model taxonomy made visible). Engine-built `ten_winners_exhibit` (2026-07-21). | `[CAMPAIGN]` winner archives. | 6 (§6.7) | **[CAMPAIGN]** |
+| F16 | Reward-code embedding (3-D) | Classical-MDS (Torgerson) embedding of the pairwise AST-distance matrix over authored winners, coloured by arm — shows whether reward PROGRAMS cluster by arm (content) or cut across it (the mechanism's structural signature). Engine-built `viz.advanced.reward_embedding_3d`. | `[CAMPAIGN]` winner sources → `reward_code_distance`. | **TBD — placement is Tamer's call** | **[CAMPAIGN]** |
+| F17 | Search landscape (CVaR × generation × Sharpe, 3-D) | Per-candidate search trajectories in (CVaR, Sharpe) across generations — the optimisation dynamics converging onto the shared null neighbourhood. Engine-built `viz.advanced.risk_return_generation_3d`. | `[CAMPAIGN]` per-candidate archive. | **TBD — placement is Tamer's call** | **[CAMPAIGN]** |
+| F18 | Search-evolution keyframes | Cumulative generation-by-generation keyframes of the same search (the static, print-safe counterpart to the supplementary GIF). Engine-built `viz.advanced.search_evolution_keyframes`. | `[CAMPAIGN]` per-candidate archive. | **TBD — placement is Tamer's call** | **[CAMPAIGN]** |
+| F19 | Delisting-band robustness (figure) | The headline contrasts re-estimated across the delisting band $d\in\{0,-30,-55,-100\}\%$ with CIs, shown against the ±SESOI corridor — the FIGURE counterpart to T3's table row. Engine-built `viz.figures.delisting_robustness`. | `[CAMPAIGN]` archive re-scored per band. | **TBD — placement is Tamer's call** | **[CAMPAIGN]** |
 
-## Tables (~6)
+> **⚠ F16–F19 added 2026-07-26 (deep review loop 101, finding #79) — INVENTORY RECONCILIATION ONLY.**
+> `scripts/make_figures.py` already BUILDS all four (`render_advanced` emits F16/F17/F18; `render_all`
+> emits F19), and its module docstring states the two static 3-D figures "go IN the PDF" — yet the
+> manifest, whose stated job is enumerating "the figures and tables the dissertation needs", listed none
+> of them, so no chapter cross-referenced them. They would have been silently dropped from the PDF, or
+> inserted without the manifest ID/cross-reference discipline. These rows record only what the engine
+> DEMONSTRABLY produces; the **chapter placement — and whether F18/F19 belong in the body, an appendix,
+> or supplementary material at all — is a writing decision left to Tamer**, deliberately not made here.
+> (Numbering follows this file's own "numbering is indicative; reconcile at compile" convention.)
+
+## Tables
 
 | # | Title | What it shows | Data source | Chapter | Status |
 |---|---|---|---|---|---|

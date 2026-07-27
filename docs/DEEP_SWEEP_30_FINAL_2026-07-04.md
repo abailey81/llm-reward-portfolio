@@ -28,6 +28,22 @@ These are the substantive findings. None flips the pre-registered **bounded-effe
 (several are *conservative* for it), but each is examiner-catchable and most touch **hash-bound** files, so they
 must be settled before the freeze locks them in.
 
+> **✅ 2026-07-27 — row 2 (P6, cost-ledger look-ahead) is CLOSED. Do not re-open.** Fixed pre-data
+> and pre-freeze in `src/env/portfolio_env.py` (deep review loop 117, #92): the env now carries the
+> held book as state and drifts by r_{t−1}, so a no-trade policy costs exactly zero. The remedy
+> recorded in this row ("carry drifted holdings `w_held` as env state; update the 2 convention-locking
+> tests; revert the spec note") was followed in full, plus a third convention-locking test found since
+> (`test_port_ret_and_cost_are_env_computed_not_reward_reported`) and `tests/test_runner.py`'s
+> multi-step series lock. `docs/environment_spec_v1.md` is now v1.2 and v1.1 is withdrawn.
+>
+> Two claims in row 2 were MEASURED and are **refuted** — recorded here so the numbers are not
+> inherited: the disclosure was **not** "~10× understated" (measured 0.0385 bp/step against v1.1's
+> "hundredths of a bp/step", so v1.1 was right), and the ledger did **not** fatten the left tail or
+> hit the flee-to-cash arm hardest (CVaR-5% moves 0.005 % relative; mean cost on down days 0.0440 bp
+> vs 0.0437 bp corrected; corr(cost, same-day return) was *lower* under the old ledger). What was real
+> is the look-ahead itself: zero turnover required knowing the unobserved r_t, so buy-and-hold paid a
+> measured 0.139 %/yr (0.0082 Sharpe-equivalent, 16 % of SESOI). See the v1.2 note in the spec.
+
 | # | Probe | Issue | Why it matters | Suggested action |
 |---|-------|-------|----------------|------------------|
 | 1 | **P5** | **Reward-scale confound, instruments blind.** PopArt's `min_scale=1.0` is a one-sided shrink → identity for any reward with RMS≤1 (the operative regime); so `sigma_max==1.0` (the "no scale confound" signal, in 6 docstrings + a test) is vacuous there, and the `popart=False` falsifier is a *bitwise no-op* for sub-unit rewards. Scale is unarchived, so mediation has no covariate; it's plausibly entangled with the treatment (CVaR-in-bps-fed → ~1e-2 rewards; Sharpe-scalar-fed → O(1)). | Conservative for the equivalence headline (scale can only push arms apart), but a real threat to the **mechanism** kernel + any H2-Tail claim; exactly what an RL+risk examiner probes. | **APPLIED (instrumentation):** expose unclamped `raw_rms` in PopArt + archive per-candidate; correct the 6 docstrings + the test. **RECORD (design, yours):** (a) a true affine-invariance control (retrain a frozen winner's reward ×{1e-2,1e2}); (b) whether to lower `min_scale`; (c) add `raw_rms` as a mediation covariate; (d) extend the T2.4 disclosure. |

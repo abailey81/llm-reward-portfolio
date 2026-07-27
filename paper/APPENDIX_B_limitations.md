@@ -56,6 +56,28 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   program-level contrast — but by the report-only mechanism kernel (responsiveness, mediation and the program
   taxonomy, §6.5), which is computed across *all* authored candidates and so does sample the authoring step; the
   two are reported as such.
+- **B.2.7 The plain placebo announces its own inertness.** The inert block is introduced to the designer as
+  "Reference constants (inert; no diagnostic content):" — it does not merely carry uninformative numbers, it
+  *instructs the model to disregard them*. The wording is deliberate: six zero-valued lines without it would read
+  as genuine diagnostics reporting a degenerate, riskless return distribution, which is active misinformation
+  rather than truthful zero-information. The consequence is directional and is stated on both branches. For the
+  registered *null* prediction the tell is conservative — it can only make the control easier to match, never
+  manufacture a tie. On the *rejection* branch the sign inverts: an instruction to ignore the block plausibly
+  suppresses any format or anchoring response, so part of a distributional-over-placebo win could reflect the
+  tell rather than the tail *content*. *Mitigation:* the content claim is carried by `placebo_shuffled` — same
+  intro line, real values deranged across their labels, byte-length matched, and carrying no such instruction —
+  which is precisely why that arm and not plain placebo is the structure control promoted to node N5. Plain
+  placebo is the coarser block-presence control and is never the sole evidence for a content claim.
+- **B.2.8 Numeric resolution of the fed signal is a design parameter.** What the designer can perceive is bounded
+  not by the measured statistics but by the precision at which they are *rendered into text*, and that rendering
+  is part of the manipulation rather than an implementation detail. Both renderings were therefore set against
+  the empirical distribution of the quantities they carry rather than by convention: the shared scalar header
+  resolves the median observed fitness to three significant figures, and the six-line tail vector resolves better
+  than 97% of genuinely-different value pairs on every field. *Residual:* rendering precision is a discrete
+  design choice that was fixed pre-registration and not itself varied, so this study cannot separate "the model
+  cannot use tail information" from "the model cannot use tail information *at this resolution*"; the legibility
+  arm varies the *framing* of the same numbers (units and ordinal deciles) but not their precision, and a
+  precision ladder is named as future work (B.7).
 
 ## B.3 The manipulation and the designer
 - **B.3.1 Single confirmatory author.** The *confirmatory* verdicts rest on one frontier model (Opus 5, which

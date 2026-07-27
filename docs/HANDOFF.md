@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-07-26"
-  head: "99674ab"
+  regenerated_utc: "2026-07-27"
+  head: "394408d"
   frozen: false
   legs_n: 10
-  amendments_through: R111
-  suite_status: "exit 0 (full suite, 4 foreground chunks, 2026-07-26 code-review lane)"
+  amendments_through: R112
+  suite_status: "exit 0 (2,718 passed / 3 skipped / 0 failed, seed 20260727, 2026-07-27)"
   gate_checks: 21
   backup_branch: backup-2026-07-21
 ```
@@ -77,7 +77,7 @@ handoff_state:
 | Launch mechanics | `docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md` — §2.0 GO sequence · §9 legs · **§10 MODE D** (the one command) |
 | Myriad scheduler + hardware truth | `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` (live-probed formula, pools, two-regime chunking doctrine, dead ends, the ★ priority rule) |
 | The live allocation system | `src/cluster/telemetry.py` + `src/cluster/allocation.py` (sensors + brain) · `scripts/allocation_advisor.py` (CLI/--watch; runbook §2.0 step 5) — ADVISORY-only; at GO its values supersede the supervisor's embedded defaults (step 4 precedence note) |
-| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–33; none may silently drop) |
+| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–**36**, verified complete with no gaps 2026-07-27; none may silently drop) |
 | The optional M2 module | `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (R96) |
 | Prose drafts awaiting wiring | `paper/DRAFTS_communication_build_2026-07-12.md` (D1–D10) |
 | The writing plan | `docs/WRITEUP_95PLUS_PLAYBOOK.md` (under the raised bar; registry rows 19–24) |

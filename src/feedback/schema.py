@@ -23,14 +23,14 @@ Arms (FINAL_PLAN B.5 / F.3) and their block content:
     "responds to a plausible-looking numeric table" (the Gupta-Hartford format-vs-content threat).
 
 Worked example (distributional block, from FINAL_PLAN F.3):
-    Your previous reward scored: 0.83 (validation Deflated Sharpe).
+    Your previous reward scored: 0.830000 (validation Deflated Sharpe).
     Realized-return tail diagnostics (training period):
-      CVaR 5%:  -0.041
-      CVaR 10%: -0.029
-      CVaR 25%: -0.016
-      CVaR 1%:  -0.067  (high-variance estimate)
-      left-tail mass: 0.061
-      left-tail skew: -0.38
+      CVaR 5%: -0.0410
+      CVaR 10%: -0.0290
+      CVaR 25%: -0.0160
+      CVaR 1%: -0.0670  (high-variance estimate)
+      left-tail mass: +0.0610
+      left-tail skew: -0.3800
 
 Audit refs: A-1 (feedback channel is the contribution), B-5 (matched-structure arms),
 B-7 (CVaR-1% flagged high-variance in the rendered text).
@@ -43,7 +43,39 @@ import hashlib
 import numpy as np
 
 #: Header line carrying the scalar metric (shared by every arm).
-_HEADER = "Your previous reward scored: {metric:.2f} (validation Deflated Sharpe)."
+#:
+#: ⚠ 2026-07-27 (deep review, loop 117, #87): this rendered at ``{metric:.2f}`` and was QUANTISED
+#: FLAT. This is the SCALAR arm's ENTIRE feedback content, and the scalar arm is the primary
+#: comparator for H2 — so the resolution of this one number decides whether that arm receives a
+#: signal at all. MEASURED on the archive before changing it:
+#:   * 591 real rendered headers -> **7 distinct strings**, and **328 of them (55.5 %) read
+#:     literally "0.00"**;
+#:   * 1,363 archived fitness values have **median 0.000914** — an order of magnitude BELOW the
+#:     0.01 quantisation step, so the MEDIAN candidate was reported to the designer as scoring
+#:     exactly zero;
+#:   * at ``.2f`` only **52.8 %** of genuinely-different candidate pairs were DISTINGUISHABLE, i.e.
+#:     the scalar arm could not tell apart nearly half of all candidate pairs;
+#:   * the quantisation step (0.01) was 20 % of the SESOI (0.05) and ~11x the median value itself.
+#: That is not a scalar-feedback arm, it is a near-constant-string arm, and it would have turned the
+#: headline H2 contrast into "tail feedback vs almost no feedback" while making SQ1 responsiveness
+#: unmeasurable for the scalar arm BY CONSTRUCTION.
+#:
+#: ``.6f`` renders 387 distinct values with **100.0 %** of different pairs distinguishable. Two
+#: reasons for a FIXED-POINT format specifically, both load-bearing:
+#:   1. ``scripts/analyze_campaign.py::_FED_SCALAR_RE`` and ``src/inference/information_gap.py::
+#:      _SCALAR_RE`` parse this number back out with ``\\d+(?:\\.\\d+)?``, which does NOT match
+#:      scientific notation. ``.3g`` scores similarly (99.9 %) but emits ``1.11e-05`` for 225 of the
+#:      1,363 values, and BOTH regexes would have silently captured only the mantissa — corrupting
+#:      the responsiveness analysis rather than failing loudly.
+#:   2. It gives the header ~3 significant figures at the median, MATCHING the relative precision the
+#:      distributional block already has (``_fmt`` renders CVaR at ``.3f`` on values ~0.016). Equal
+#:      relative resolution across arms is an IDENTIFICATION requirement, not a preference: if one
+#:      arm can resolve its fed numbers and another cannot, a measured responsiveness difference is
+#:      partly a rendering artifact rather than a content effect (matched-structure arms, audit B-5).
+#: Shared by every arm, so the change is common-mode and cannot shift a between-arm contrast. Made
+#: PRE-FREEZE and pre-data; `prompts/reflection.txt` carries only the `{SCALAR_METRIC}` placeholder,
+#: so no hash-bound prompt file is touched. ⚠ TREATMENT-SURFACE CHANGE — flagged to Tamer.
+_HEADER = "Your previous reward scored: {metric:.6f} (validation Deflated Sharpe)."
 
 #: Intro line preceding the tail block in the distributional arm.
 _TAIL_INTRO = "Realized-return tail diagnostics (training period):"
@@ -54,9 +86,25 @@ _TAIL_INTRO = "Realized-return tail diagnostics (training period):"
 #: reporting a degenerate (riskless) return distribution, i.e. active MISinformation, a strictly worse
 #: confound than the disclosed "ignore this" instruction. The tell-free structure control is
 #: placebo_shuffled (same _TAIL_INTRO, real deranged values, byte-length-matched to the distributional
-#: block); plain placebo is the coarse block-presence control. Both roles + this intro-text confound are
-#: disclosed in the write-up, and both caveats are CONSERVATIVE for a null (they make controls easier to
-#: beat, so they cannot manufacture the predicted equivalence).
+#: block); plain placebo is the coarse block-presence control. Both caveats are CONSERVATIVE for a null
+#: (they make controls easier to beat, so they cannot manufacture the predicted equivalence).
+#:
+#: ⚠ CORRECTED 2026-07-26 (deep review, loop 102, #80). This block previously asserted that the two roles
+#: AND this intro-text confound "are disclosed in the write-up". VERIFIED FALSE: the paper describes the
+#: placebo's ROLE (`CH4_methods.md:176` "receives an inert block"; :182 "isolates the effect of receiving
+#: any feedback from the effect of its content") but NOWHERE states that the block ANNOUNCES its own
+#: inertness to the model, nor the rejection-branch consequence spelled out below. Searched
+#: `paper/*.md` for the tell, the "inert" wording caveat, "Reference constants" and "ignore this" — no
+#: hit outside an unrelated drafts file. The disclosure is DRAFTED and handed to Tamer (writing is his
+#: call, not the reviewer's); until it lands in `APPENDIX_B_limitations.md` / the CH6 placebo leg, this
+#: comment must NOT claim the write-up carries it.
+#:
+#: ✅ CLOSED 2026-07-27 (loop 117, #80). It has LANDED: `paper/APPENDIX_B_limitations.md` **B.2.7 "The
+#: plain placebo announces its own inertness"** states the tell itself, the deliberate reason for the
+#: wording, BOTH branch directions (conservative for the registered null, sign-inverted on a rejection),
+#: and the `placebo_shuffled` mitigation. The write-up now carries what this comment describes, so the
+#: paragraph below is accurate as written. B.2.8 additionally discloses the fed signal's numeric
+#: RESOLUTION as a design parameter (the #87 finding).
 #:
 #: ⚠ COMPLETED 2026-07-26 (deep review, loop 8) — the sentence above is TRUE but DIRECTIONAL, and the
 #: missing half sits on a load-bearing branch. "Conservative for a null" says the tell cannot manufacture
@@ -89,8 +137,33 @@ _HIGH_VARIANCE = "  (high-variance estimate)"
 
 
 def _fmt(value: float) -> str:
-    """Deterministic fixed-precision number formatting (RAW renderer — the close-small-float vector)."""
-    return f"{value:+.3f}"
+    """Deterministic fixed-precision number formatting (RAW renderer — the close-small-float vector).
+
+    ⚠ 2026-07-27 (deep review, loop 117, #87b): raised `.3f` -> `.4f`. This vector IS the treatment,
+    and `src/inference/information_gap.py` imports this very function to reconstruct the FED RENDERED
+    values for the responsiveness analysis — so whatever this quantises away is invisible to both the
+    designer and the mechanism audit that is the study's intellectual headline. Measured on the
+    archive (597-768 raw values per field), the fraction of genuinely-different value pairs that were
+    DISTINGUISHABLE once rendered:
+
+        field            .3f     .4f
+        cvar_01         95.5%   99.5%
+        cvar_05         88.9%   99.0%
+        cvar_10         84.2%   98.2%
+        cvar_25         73.8%   97.5%   <- a quarter of all differences were invisible
+        left_tail_mass  92.0%   99.5%
+        robust_skew     98.9%   99.8%
+
+    `cvar_25` was the weak point: its `.3f` step is 7.0 % of its own median (-0.01427), so within a
+    reflection chain the designer was often shown "no change" where there had been one — attenuating
+    exactly the dose-response SQ1 is built to measure, and biasing toward the registered NULL. `.4f`
+    keeps every value human-plausible (-0.0143 reads as 1.43 %) while removing the loss; `.5f` was
+    rejected as false precision on a sampling-noisy estimator. Unlike the `_HEADER` change this
+    repairs an attenuation rather than a degeneracy — the block was never flat — but it is the same
+    defect class and the same equal-relative-resolution argument (matched-structure arms, audit B-5).
+    ⚠ TREATMENT-SURFACE CHANGE — flagged to Tamer alongside the `_HEADER` change.
+    """
+    return f"{value:+.4f}"
 
 
 #: Decile-rank reference grid (legible rendering only). A line's value is bucketed into a 1..10 decile by

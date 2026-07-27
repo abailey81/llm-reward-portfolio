@@ -66,9 +66,18 @@ _INCOMPLETE_STOP_REASONS: frozenset[str] = frozenset({"max_tokens", "refusal", "
 # cacheable-prefix floor (Opus 4.8's was 4096, Sonnet 4.6's 2048; Opus 5 shares the 4.7-family tokenizer).
 # So the ``cache_control`` marker on the system block below is a SILENT NO-OP on both campaign + prototype
 # models: caching cannot engage regardless of placement. It is left in place (harmless; would engage on a
-# future model with a lower floor or a larger contract) and disclosed in the write-up — the ADR-016
-# "shared-context cache lever" is inert on the confirmatory author. The wasted spend is trivial (~188k
-# prefix tokens over ~210 calls ~= $0.94), so no request restructuring is warranted.
+# future model with a lower floor or a larger contract). The ADR-016 "shared-context cache lever" is
+# therefore inert on the confirmatory author. The wasted spend is trivial (~188k prefix tokens over ~210
+# calls ~= $0.94), so no request restructuring is warranted.
+#
+# ⚠ CORRECTED 2026-07-26 (deep review, loop 103, #81). This said the no-op was "disclosed in the
+# write-up". It is recorded in the INTERNAL docs (`docs/DISSERTATION_MASTER_OVERVIEW.md:771`) but appears
+# in NO chapter of the dissertation — searched `paper/*.md` for cache / caching / cache_control / ADR-016:
+# zero hits. "Write-up" means the dissertation throughout this repo, so the claim was wrong. The natural
+# home is CH6's cost slot (`CH6_results.md:43/51` already reserve `[FROM CAMPAIGN: hours / $]` and the
+# spend-vs-ceiling line, and `CH4_methods.md:121` promises them), where it explains a small part of the
+# realised API cost. Minor, but the cost/compute reporting is a binding supervisor item, so it is flagged
+# rather than silently left as a false claim about the paper.
 
 __all__ = [
     "Transport",

@@ -57,3 +57,26 @@ def test_validation_errors() -> None:
         model_confidence_set({"a": np.zeros(30), "b": np.zeros(20)})  # mismatched lengths
     with pytest.raises(ValueError):
         model_confidence_set({"a": np.zeros(1), "b": np.zeros(1)})  # < 2 seeds
+
+
+def test_non_finite_scores_raise_a_clear_error_naming_the_arm() -> None:
+    """#74: the FOURTH precondition. The three above are validated with a clear message; a non-finite
+    per-seed score was not, and it does not degrade gracefully — it reached ``arch.bootstrap.MCS`` and
+    surfaced as ``IndexError: index 0 is out of bounds for axis 0 with size 0`` from inside the
+    dependency (MEASURED). ``analyze_campaign`` wraps this block in a broad ``except`` that stores
+    ``str(exc)`` as the block's reason, so that opaque message would be all an operator got for a whole
+    registered analysis.
+    """
+    rng = np.random.default_rng(0)
+    good = {a: 0.5 + rng.normal(0, 0.1, 20) for a in ("distributional", "scalar", "placebo")}
+
+    for bad_value in (np.nan, np.inf, -np.inf):
+        scores = {a: v.copy() for a, v in good.items()}
+        scores["scalar"][7] = bad_value
+        with pytest.raises(ValueError, match=r"non-finite.*scalar"):
+            model_confidence_set(scores, size=0.10, reps=200, seed=1)
+
+    # The guard must not over-trigger: all-finite input still computes (verify the LEGITIMATE case).
+    res = model_confidence_set(good, size=0.10, reps=200, seed=1)
+    assert res["status"] == "ok"
+    assert set(res["included"]) | set(res["excluded"]) == set(good)

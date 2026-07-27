@@ -142,7 +142,7 @@ cryptographically frozen** before a sealed 2020–2026 test leg, with the signal
 candidates *selected* on a tail-blind validation Deflated Sharpe, and the hypothesis *tested* on empirical
 conditional value-at-risk over the sealed split — a three-way decoupling so any effect is attributable to
 the channel rather than to a self-grading estimator. The performance contrast is decided by co-primary
-intersection–union tests against the scalar and placebo comparators, with a structure-shuffled (deranged-tail) control reported alongside; the mechanism is read off a
+intersection–union tests against the scalar, placebo and scalar_cvar5 comparators, with a structure-shuffled (deranged-tail) control reported alongside; the mechanism is read off a
 responsiveness statistic, a fed→code→outcome mediation, and an identifier-invariant test of whether the
 model *uses* the tail content or merely echoes its surface.
 

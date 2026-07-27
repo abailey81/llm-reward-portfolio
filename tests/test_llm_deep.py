@@ -276,18 +276,28 @@ def test_frozen_tail_key_set_is_exactly_the_six() -> None:
 
 
 def test_build_block_accepts_a_correct_tail_stats_dict_and_round_trips() -> None:
-    """A well-formed tail dict renders, and every value is recoverable (3-dp) from the text —
-    a round-trip of the H2 payload through the prompt-facing string."""
+    """A well-formed tail dict renders, and every value is recoverable from the text — a round-trip
+    of the H2 payload through the prompt-facing string.
+
+    The expected strings come from ``schema._fmt`` rather than a hardcoded precision. This test
+    duplicated ``+.3f`` and so silently asserted a PRECISION it was not written to test: when #87b
+    raised the renderer to ``.4f`` (because ``cvar_25`` at ``.3f`` left a quarter of genuinely
+    different values indistinguishable) this failed on formatting alone, while the round-trip
+    property it exists to check was never in doubt. Deriving from ``_fmt`` keeps it testing the
+    round-trip and lets the treatment's resolution be set where it is reasoned about.
+    """
     block = schema.build_block("distributional", 0.83, TAIL_STATS)
     for _fid, label in schema._DIST_FIELDS:
         assert label in block
-    # Recover the rendered numbers and check they equal the +.3f of the fed values.
+    # Recover the rendered numbers and check they equal the renderer's output for the fed values.
     rendered = {
         ln.split(":", 1)[0].strip(): ln.split(":", 1)[1].strip().split()[0]
         for ln in block.splitlines() if ln.startswith("  ")
     }
-    assert rendered["CVaR 5%"] == f"{TAIL_STATS['cvar_05']:+.3f}"
-    assert rendered["left-tail skew"] == f"{TAIL_STATS['robust_skew']:+.3f}"
+    assert rendered["CVaR 5%"] == schema._fmt(TAIL_STATS["cvar_05"])
+    assert rendered["left-tail skew"] == schema._fmt(TAIL_STATS["robust_skew"])
+    # And the rendered text really does round-trip back to the fed value at the renderer's precision.
+    assert float(rendered["CVaR 5%"]) == pytest.approx(TAIL_STATS["cvar_05"], abs=5e-5)
 
 
 def test_build_block_rejects_missing_field_short_block() -> None:

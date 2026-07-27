@@ -246,8 +246,12 @@ def test_too_few_generations_no_data() -> None:
 
 
 def test_degenerate_rendered_scalar_is_flagged_not_fabricated() -> None:
-    # every fed scalar quantizes to the SAME 2-dp header value -> rendered redundancy 0 BY CONSTRUCTION
-    scalars = [0.0004 * (g + 1) for g in range(8)]  # all render as "0.00"
+    # Every fed scalar quantises to the SAME rendered header value -> rendered redundancy 0 BY
+    # CONSTRUCTION. Values updated for the `.6f` header (#87): under the old `.2f` this fixture used
+    # 0.0004*(g+1), which is exactly the collapse #87 removed — those now render distinctly, and the
+    # measured median archived fitness (0.000914) is no longer reported to the designer as "0.00".
+    # Sub-resolution values keep the DEGENERATE condition this guard exists to detect.
+    scalars = [1e-9 * (g + 1) for g in range(8)]  # all render as "0.000000"
     records = _chain_records("distributional", scalars, [_tail_of(0.1 + 0.1 * g) for g in range(8)])
     out = information_gap(records, n_boot=200, rng=np.random.default_rng(7))
     ch = out["arms"]["distributional"]["channels"]["fed_rendered"]

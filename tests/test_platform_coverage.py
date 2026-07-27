@@ -314,11 +314,52 @@ _TAIL = {
 }
 
 
+def test_the_fed_scalar_resolves_differences_well_below_the_SESOI():
+    """#87: the scalar arm's ENTIRE signal is this one number, so its RESOLUTION is the treatment.
+
+    At the previous ``.2f`` the median archived fitness (0.000914) rendered as "0.00"; 328 of 591
+    real rendered headers were that identical string, and only 52.8 % of genuinely-different
+    candidate pairs were distinguishable. That makes the primary H2 comparator degenerate by
+    construction and SQ1 responsiveness unmeasurable for it. Candidates differing by a SESOI — or a
+    tenth of one — must render DIFFERENTLY.
+    """
+    from src.feedback.schema import build_block
+
+    sesoi = 0.05
+    base = 0.000914  # the measured median archived fitness
+    assert build_block("scalar", base, None) != build_block("scalar", base + sesoi, None)
+    assert build_block("scalar", base, None) != build_block("scalar", base + sesoi / 10, None)
+    # and it must resolve the MODE of the distribution, where .2f collapsed everything to "0.00"
+    assert build_block("scalar", 0.0009, None) != build_block("scalar", 0.0011, None)
+
+
+def test_the_fed_scalar_never_renders_in_scientific_notation():
+    """#87: fixed-point is load-bearing, because two parsers read this number back out.
+
+    ``scripts/analyze_campaign.py::_FED_SCALAR_RE`` and ``src/inference/information_gap.py::
+    _SCALAR_RE`` both match ``\\d+(?:\\.\\d+)?``, which does not accept an exponent. A ``.3g``-style
+    format scores similarly on discrimination but emits ``1.11e-05`` for small values, and both
+    regexes would silently capture the MANTISSA ALONE — corrupting the responsiveness analysis
+    instead of failing loudly.
+    """
+    import re
+
+    from src.feedback.schema import build_block
+
+    parser = re.compile(r"Your previous reward scored:\s*([+-]?\d+(?:\.\d+)?)\s")
+    for v in (0.0, 1e-7, 1.11e-05, 0.000914, 0.4988, 1.0):
+        block = build_block("scalar", v, None)
+        m = parser.search(block)
+        assert m is not None, f"{v!r} rendered unparseably: {block!r}"
+        assert float(m.group(1)) == pytest.approx(v, abs=5e-7), (
+            f"{v!r} did not round-trip through the parser: {block!r}")
+
+
 def test_build_block_scalar_and_distributional():
     from src.feedback.schema import build_block
 
     s = build_block("scalar", 0.83, None)
-    assert s == "Your previous reward scored: 0.83 (validation Deflated Sharpe)."
+    assert s == "Your previous reward scored: 0.830000 (validation Deflated Sharpe)."
 
     d = build_block("distributional", 0.83, _TAIL)
     lines = d.splitlines()
@@ -580,24 +621,31 @@ def test_env_no_vix_no_prev_weights_obs_dim(small_panel, env_cfg):
 def test_env_port_growth_wipeout_raises(env_cfg):
     from src.env.portfolio_env import PortfolioEnv
 
-    # The `port_growth <= 0` guard (portfolio_env.py ~296-300) fires when the DRIFTED prior allocation is
-    # wiped by a combined -100% move. The softmax projection always keeps a strictly-positive CASH sleeve, so
-    # the wipeout is only reachable with a ZERO-CASH prior weight — set that directly and put a -100% move on
-    # both risky assets at the current index, then a single step must raise.
+    # The `port_growth <= 0` guard fires when the book that actually HOLDS through the step is wiped by
+    # a combined -100% move. Since #92 it keys off the POST-trade book (`w @ growth`, identically
+    # `1 + gross`) rather than the prior one — the prior book is not the one earning r_t.
+    #
+    # That makes the reachability condition precise: the guard can only fire when the projection admits
+    # a ZERO-CASH allocation, because the cash sleeve grows at 1.0 and contributes `w_cash > 0` to the
+    # sum. Under `softmax` a wipeout is therefore mathematically IMPOSSIBLE (every weight is strictly
+    # positive), so this uses the other frozen projection, `l1_normalize_of_clipped` (audit C-8), which
+    # clips at zero and can put the whole book in risky assets.
     T, N = 40, 2
     rng = np.random.default_rng(0)
     returns = rng.standard_normal((T, N)) * 0.005
     vix = np.full(T, 0.2)
     dates = np.arange("2005-01-03", T, dtype="datetime64[D]")
     panel = Panel(returns=returns, vix=vix, dates=dates, asset_ids=np.arange(N))
-    cfg = {**env_cfg, "state": {**env_cfg["state"], "realized_vol_windows": [5]}}
+    cfg = {**env_cfg,
+           "state": {**env_cfg["state"], "realized_vol_windows": [5]},
+           "action": {**env_cfg.get("action", {}), "projection": "l1_normalize_of_clipped"}}
     env = PortfolioEnv(panel, cfg, _const_reward)
     env.reset(seed=0)
     t0 = env.t
-    panel.returns[t0, :] = -1.0                      # both risky assets -100% on this step
-    env.w_prev = np.array([0.5, 0.5, 0.0], dtype=float)  # zero-cash prior ⇒ drifted growth collapses to 0
+    panel.returns[t0, :] = -1.0  # both risky assets -100% on this step
+    # Clipped+L1-normalised -> [0.5, 0.5, 0.0]: an all-risky, zero-cash book on a -100% day.
     with pytest.raises(FloatingPointError, match="non-positive portfolio growth"):
-        env.step(np.array([50.0, 50.0, -50.0], dtype=float))
+        env.step(np.array([1.0, 1.0, -1.0], dtype=float))
 
 
 def test_env_T_property(small_panel, env_cfg):

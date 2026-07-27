@@ -6,6 +6,10 @@ not "does it pass on good input" but "is every check FALSIFIABLE".
 """
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from scripts.pretrain_validate import (
     FAIL,
     PASS,
@@ -37,6 +41,56 @@ def test_the_self_test_covers_every_check_the_gate_can_emit():
     assert len(SELF_TEST_CASES) == len(emitted), (
         f"{len(emitted)} check functions but {len(SELF_TEST_CASES)} self-test cases — "
         f"an unproven check exists: {sorted(emitted)} vs {sorted(covered)}")
+
+
+# --- #75: contention must never masquerade as a candidate verdict ------------------------------
+
+def test_a_starved_sandbox_is_NOT_counted_as_a_rejected_candidate(monkeypatch):
+    """The SAFETY check must refuse to certify rather than certify on evidence it never gathered.
+
+    ``SandboxEnvironmentError`` SUBCLASSES ``SandboxError``, so ``_gather_sandbox``'s
+    ``except SandboxError`` counted a starved spawn as a successful rejection: on a contended box
+    the gate reported "rejected 3/3 known-bad sources" having evaluated none of them. Observed
+    live — this script returned RC=1 across 21 review loops and RC=0 on a quiet box with its bytes
+    unchanged. A false GREEN on a defence proof is strictly worse than a false red.
+    """
+    import scripts.pretrain_validate as PV
+    import src.sandbox.executor as EX
+
+    def starved(*_a, **_k):
+        raise EX.SandboxEnvironmentError("spawn environment is starved")
+
+    monkeypatch.setattr(EX, "validate_once", starved)
+    with pytest.raises(EX.SandboxEnvironmentError):
+        PV._gather_sandbox()
+
+
+def test_a_starved_sandbox_does_NOT_depress_the_per_model_yield(monkeypatch, tmp_path):
+    """The same swallow reported contention as a per-model AUTHORING failure.
+
+    ``_gather_executable_yield`` computes the per-model authoring-compliance statistic the launch
+    decision reads, and a low yield is exactly the signal an operator would act on. Counting a
+    starved spawn as a non-yielding candidate turns an infrastructure failure into a model finding.
+    """
+    import scripts.pretrain_validate as PV
+    import src.sandbox.executor as EX
+
+    gates = tmp_path / "leg_gates"
+    gates.mkdir()
+    (gates / "some_model.jsonl").write_text(
+        json.dumps({
+            "gate": "compliance",
+            "response": "```python\ndef reward(w, r, p, pr, info):\n    return 0.0, {}, None\n```",
+        }) + "\n",
+        encoding="utf-8",
+    )
+
+    def starved(*_a, **_k):
+        raise EX.SandboxEnvironmentError("spawn environment is starved")
+
+    monkeypatch.setattr(EX, "validate_once", starved)
+    with pytest.raises(EX.SandboxEnvironmentError):
+        PV._gather_executable_yield(gates)
 
 
 # --- the failure classes this repo has actually suffered ---------------------------------------

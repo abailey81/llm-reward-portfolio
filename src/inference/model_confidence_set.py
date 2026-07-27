@@ -79,6 +79,20 @@ def model_confidence_set(
     n_seeds = cols[0].size
     if n_seeds < 2:
         raise ValueError("need >= 2 paired per-seed scores per arm")
+    # The FOURTH precondition, added 2026-07-26 (deep review, #74). The three above are validated with a
+    # clear message; a non-finite score was not, and it does not degrade gracefully — it reaches
+    # ``arch.bootstrap.MCS`` and surfaces as ``IndexError: index 0 is out of bounds for axis 0 with size
+    # 0`` from inside the dependency (MEASURED, one NaN in one arm). The analysis caller wraps this block
+    # in a broad ``except`` that records ``str(exc)`` as the block's reason, so that opaque message is
+    # what an operator would be left with for a whole registered report-only analysis. LATENT, not live:
+    # ``analyze_campaign._test_returns`` rejects any record whose test series is non-finite, so no
+    # production path can currently deliver a NaN score here — this closes the contract gap, it does not
+    # fix an observed failure.
+    unusable = [a for a, c in zip(arms, cols) if not np.isfinite(c).all()]
+    if unusable:
+        raise ValueError(
+            f"non-finite per-seed score(s) in arm(s) {unusable}; MCS needs finite scores for every arm"
+        )
 
     scores = np.column_stack(cols)  # (n_seeds, n_arms)
     losses = -scores if higher_is_better else scores

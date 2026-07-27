@@ -46,8 +46,15 @@ ARM_STYLE: dict[str, dict[str, Any]] = {
 
 
 def arm_style(arm: str) -> dict[str, Any]:
-    """Style dict for an arm; a neutral default for any unrecognised label (never raises)."""
-    return ARM_STYLE.get(arm, {"color": OKABE_ITO["black"], "marker": "o", "hatch": None})
+    """Style dict for an arm; a neutral default for any unrecognised label (never raises).
+
+    Returns a COPY (deep review 2026-07-26, #70). The two branches used to disagree: the unknown-arm
+    default was built fresh per call, while a known arm handed back the module-global ``ARM_STYLE``
+    entry itself — so ``arm_style("scalar")["color"] = ...`` silently repainted that arm in every
+    later figure. A caller could not tell which branch it got, and this module's whole purpose is that
+    the per-arm style is FIXED across the suite; handing out a mutable reference to it contradicts that.
+    """
+    return dict(ARM_STYLE.get(arm, {"color": OKABE_ITO["black"], "marker": "o", "hatch": None}))
 
 
 def apply_house_style() -> None:
@@ -113,8 +120,22 @@ def iqm(x: np.ndarray) -> float:
 
 
 def iqm_bootstrap_ci(x: np.ndarray, *, reps: int = 2000, alpha: float = 0.05, seed: int = 0) -> tuple[float, float, float]:
-    """(IQM, lo, hi) with a percentile bootstrap CI over seeds. Deterministic via ``seed``."""
+    """(IQM, lo, hi) with a percentile bootstrap CI over seeds. Deterministic via ``seed``.
+
+    Non-finite values are dropped BEFORE the too-few-points guard (deep review 2026-07-26, #69). The
+    guard used to read the RAW ``x.size`` while :func:`iqm` filters non-finite values — so it failed in
+    exactly the case the 2026-07-05 finite-filtering was added for. MEASURED: ``[1.0, nan]`` returned
+    ``point=1.0`` with ``lo=hi=nan``, because every bootstrap resample of a 1-finite array can draw only
+    NaNs, ``iqm`` then returns NaN, and ``np.quantile`` propagates it. Matplotlib silently draws NO error
+    bar for a NaN interval, so an arm whose seeds were mostly lost rendered in the headline
+    ``F_rliable_intervals`` figure as a BARE POINT — visually the most precise arm on the panel. The
+    declared contract for too-few-points is the degenerate triple (pinned by
+    ``tests/test_viz.py``: ``iqm_bootstrap_ci([0.7]) == (0.7, 0.7, 0.7)``), which the NaN path violated.
+    Filtering first also makes the resamples NaN-free, so the figure's CI now matches the inference
+    layer's, which bootstraps the finite values too.
+    """
     x = np.asarray(x, dtype=float).ravel()
+    x = x[np.isfinite(x)]  # count USABLE points, not raw slots — the guard below depends on it
     point = iqm(x)
     if x.size < 2:
         return point, point, point

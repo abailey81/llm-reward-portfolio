@@ -96,25 +96,31 @@ def test_reward_state_round_trips_via_info(env: PortfolioEnv) -> None:
 
 
 def test_cost_is_half_l1_drifted_turnover() -> None:
-    """cost == 0.5 * c * |w - w_tilde|_1 and info['turnover'] match a hand-computed example.
+    """cost == 0.5 * c * |w - w_held|_1 and info['turnover'] match a hand-computed example.
 
     Half-L1-DRIFTED transaction cost (docs/environment_spec_v1.md "Dynamics & accounting"):
-    the previous (uniform) weights DRIFT by the realized returns before the agent trades,
-    so the agent pays cost only on the gap to the *drifted* weights, and on the ONE-WAY
-    (½) turnover. A 2-risky-asset + cash panel with a known first-traded return row and a
-    known action lets us pin cost and info['turnover'] to the closed form at 1e-12.
+    the book the agent HOLDS has already drifted by the return it earned (r_{t-1}) before
+    the agent trades, so cost is paid only on the gap to that drifted book, and on the
+    ONE-WAY (½) turnover.
+
+    TWO steps are needed to exercise the drift at all: step 1 establishes a position out of
+    the uniform reset book, that position drifts through r0, and step 2 trades against the
+    drifted result. The two return rows are deliberately far apart in size so the assertion
+    is DECISIVE about the index — drifting by the contemporaneous row r1 instead of the
+    earned row r0 (the #92 look-ahead this test used to lock in) misses by far more than
+    the 1e-12 tolerance.
     """
     cfg = load_config("environment")
     lookback = int(cfg["state"]["lookback_days"])
     n = 2  # two risky assets + cash -> n_act = 3
-    t = lookback + 1  # one row of returns after the start step exists
+    t = lookback + 2  # two tradeable rows
 
-    # Deterministic panel; only the FIRST traded row (index `lookback`) matters for the
-    # single step we take. Give the two risky assets distinct, hand-checkable returns.
     rng = np.random.default_rng(0)
     returns = rng.standard_normal((t, n)) * 1e-3
-    r0 = np.array([0.10, -0.05], dtype=np.float64)  # the first-traded return row
+    r0 = np.array([0.10, -0.05], dtype=np.float64)  # earned by the step-1 book
+    r1 = np.array([-0.02, 0.03], dtype=np.float64)  # realized during step 2
     returns[lookback] = r0
+    returns[lookback + 1] = r1
     panel = Panel(
         returns=returns,
         vix=np.full(t, 20.0),
@@ -127,21 +133,27 @@ def test_cost_is_half_l1_drifted_turnover() -> None:
     env = PortfolioEnv(panel, cfg, _port_ret_reward, start=lookback, end=t)
     env.reset(seed=0)
 
-    # A known raw action; the env softmax-projects it -> the same w we recompute here.
-    action = np.array([2.0, -1.0, 0.5], dtype=np.float64)
-    w = project_simplex(action, env.projection)
+    # Known raw actions; the env softmax-projects them -> the same w we recompute here.
+    action1 = np.array([2.0, -1.0, 0.5], dtype=np.float64)
+    action2 = np.array([-0.5, 1.5, 0.25], dtype=np.float64)
+    w1 = project_simplex(action1, env.projection)
+    w2 = project_simplex(action2, env.projection)
 
-    # Closed-form half-L1-DRIFTED turnover from the UNIFORM reset weights.
-    w_prev = np.full(n + 1, 1.0 / (n + 1), dtype=np.float64)  # reset state
-    growth = np.array([1.0 + r0[0], 1.0 + r0[1], 1.0], dtype=np.float64)  # cash grows at 1.0
-    port_growth = float(w_prev @ growth)
-    w_tilde = w_prev * growth / port_growth
-    expected_turnover = 0.5 * float(np.abs(w - w_tilde).sum())
+    # Step 1: nothing has drifted yet, so the held book is the uniform reset book.
+    w_reset = np.full(n + 1, 1.0 / (n + 1), dtype=np.float64)
+    _o, _r, _te, _tr, info1 = env.step(action1)
+    assert info1["turnover"] == pytest.approx(0.5 * float(np.abs(w1 - w_reset).sum()), abs=1e-12)
+    assert info1["gross"] == pytest.approx(float(w1[:n] @ r0), abs=1e-12)
+
+    # Step 2: w1 held through day 0, so it drifted by r0 — the return it actually earned.
+    growth0 = np.array([1.0 + r0[0], 1.0 + r0[1], 1.0], dtype=np.float64)  # cash grows at 1.0
+    w_held = w1 * growth0 / float(w1 @ growth0)
+    expected_turnover = 0.5 * float(np.abs(w2 - w_held).sum())
     expected_cost = c * expected_turnover
-    expected_gross = float(w[:n] @ r0)
+    expected_gross = float(w2[:n] @ r1)
     expected_port_ret = expected_gross - expected_cost
 
-    _obs, _reward, _term, _trunc, info = env.step(action)
+    _obs, _reward, _term, _trunc, info = env.step(action2)
 
     assert info["turnover"] == pytest.approx(expected_turnover, abs=1e-12)
     assert info["cost"] == pytest.approx(expected_cost, abs=1e-12)
@@ -149,43 +161,87 @@ def test_cost_is_half_l1_drifted_turnover() -> None:
     assert info["port_ret"] == pytest.approx(expected_port_ret, abs=1e-12)
     # The drift makes turnover STRICTLY less than the naive full-undrifted L1 (the old bug),
     # confirming both the ½ factor and the drift are applied (not just one of them).
-    naive_full_l1 = float(np.abs(w - w_prev).sum())
-    assert expected_turnover < naive_full_l1
+    assert expected_turnover < float(np.abs(w2 - w1).sum())
+    # DECISIVE on the INDEX (#92): drifting by the contemporaneous row r1 is a materially
+    # different charge, so this test can no longer pass under the look-ahead ledger.
+    growth1 = np.array([1.0 + r1[0], 1.0 + r1[1], 1.0], dtype=np.float64)
+    w_lookahead = w1 * growth1 / float(w1 @ growth1)
+    turnover_lookahead = 0.5 * float(np.abs(w2 - w_lookahead).sum())
+    assert abs(turnover_lookahead - expected_turnover) > 1e-6
 
 
 def test_turnover_is_zero_when_target_equals_drifted_weights() -> None:
-    """If the agent's target IS the drifted previous weights, turnover (and cost) are 0.
+    """Targeting the book you already hold costs exactly nothing — buy-and-hold is free.
 
-    This isolates the drift term: holding (not trading) means w == w_tilde, so the
-    half-L1-drifted turnover is exactly 0 even though w != w_prev (the raw, undrifted
-    full-L1 model would wrongly charge a cost here).
+    This isolates the drift term: not trading means w == w_held, so the half-L1-drifted
+    turnover is exactly 0 even though w != w_prev (the raw, undrifted full-L1 model would
+    wrongly charge a cost here).
+
+    It is also the property #92 RESTORED. The held book is a function of w_prev and the
+    already-observed row r_{t-1}, so a policy can compute this target and hit it; under the
+    previous drift-by-r_t ledger the zero-turnover target depended on the unobserved
+    contemporaneous return, so buy-and-hold was unreachable at any price and paid a measured
+    0.139 %/yr floor it could neither avoid nor predict.
     """
     cfg = load_config("environment")
     lookback = int(cfg["state"]["lookback_days"])
     n = 2
-    t = lookback + 1
+    t = lookback + 2
     rng = np.random.default_rng(1)
     returns = rng.standard_normal((t, n)) * 1e-3
     r0 = np.array([0.20, 0.08], dtype=np.float64)
     returns[lookback] = r0
+    returns[lookback + 1] = np.array([-0.11, 0.04], dtype=np.float64)
     panel = Panel(returns=returns, vix=np.full(t, 20.0), dates=np.arange(t), asset_ids=np.arange(n))
 
     env = PortfolioEnv(panel, cfg, _port_ret_reward, start=lookback, end=t)
     env.reset(seed=0)
 
-    # The drifted uniform weights — feed them through softmax^{-1} is awkward, so instead
-    # set w_prev so that the *target* uniform action lands exactly on the drift. Simpler:
-    # compute the drifted weights and hand the env an action whose softmax equals them is
-    # not generally possible; instead verify the identity directly via the closed form by
-    # choosing the action = logits = log(w_tilde) (softmax(log p) == p for p on the simplex).
-    w_prev = np.full(n + 1, 1.0 / (n + 1), dtype=np.float64)
-    growth = np.array([1.0 + r0[0], 1.0 + r0[1], 1.0], dtype=np.float64)
-    w_tilde = w_prev * growth / float(w_prev @ growth)
-    action = np.log(w_tilde)  # softmax(log w_tilde) == w_tilde exactly
+    # Step 1 establishes a position; softmax(log p) == p pins it exactly on the simplex.
+    w1 = np.array([0.5, 0.3, 0.2], dtype=np.float64)
+    env.step(np.log(w1))
 
-    _obs, _reward, _term, _trunc, info = env.step(action)
+    # It drifted by the return it EARNED, r0. Target exactly that -> no trade, no cost.
+    growth0 = np.array([1.0 + r0[0], 1.0 + r0[1], 1.0], dtype=np.float64)
+    w_held = w1 * growth0 / float(w1 @ growth0)
+
+    _obs, _reward, _term, _trunc, info = env.step(np.log(w_held))
     assert info["turnover"] == pytest.approx(0.0, abs=1e-12)
     assert info["cost"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_cost_ledger_has_no_contemporaneous_look_ahead() -> None:
+    """Corrupting returns[t] must not move the turnover charged at step t (#92).
+
+    The OBSERVATION's no-look-ahead property is tested adversarially in
+    ``tests/test_env_nolookahead.py``; the COST LEDGER was the unguarded flank, and the
+    paper's no-look-ahead claim (CH4) is scoped to the observation only. Until #92 the
+    charged turnover was a function of ``returns[t]`` itself — the contemporaneous row the
+    agent cannot see when it acts — so an identical policy paid a different price depending
+    on a return that had not been revealed yet. Only ``gross`` may depend on ``returns[t]``.
+    """
+    cfg = load_config("environment")
+    lookback = int(cfg["state"]["lookback_days"])
+    n = 2
+    t = lookback + 2
+
+    def turnover_under(second_row: np.ndarray) -> float:
+        rng = np.random.default_rng(7)
+        returns = rng.standard_normal((t, n)) * 1e-3
+        returns[lookback] = np.array([0.05, -0.02], dtype=np.float64)
+        returns[lookback + 1] = second_row
+        panel = Panel(
+            returns=returns, vix=np.full(t, 20.0), dates=np.arange(t), asset_ids=np.arange(n)
+        )
+        env = PortfolioEnv(panel, cfg, _port_ret_reward, start=lookback, end=t)
+        env.reset(seed=0)
+        env.step(np.array([2.0, -1.0, 0.5], dtype=np.float64))
+        _o, _r, _te, _tr, info = env.step(np.array([-0.5, 1.5, 0.25], dtype=np.float64))
+        return float(info["turnover"])
+
+    benign = turnover_under(np.array([0.01, 0.01], dtype=np.float64))
+    violent = turnover_under(np.array([-0.60, 0.45], dtype=np.float64))
+    assert benign == pytest.approx(violent, abs=1e-15)
 
 
 # --- V15a: untrusted reward must NOT corrupt SHARED env state across steps/candidates ---
@@ -541,10 +597,9 @@ def test_port_ret_and_cost_are_env_computed_not_reward_reported() -> None:
     action = np.array([2.0, -1.0, 0.5], dtype=np.float64)
     w = project_simplex(action, env.projection)
     c = float(cfg["costs"]["headline_bps"]) * 1e-4
-    w_prev = np.full(n + 1, 1.0 / (n + 1), dtype=np.float64)
-    growth = np.array([1.0 + r0[0], 1.0 + r0[1], 1.0], dtype=np.float64)
-    w_tilde = w_prev * growth / float(w_prev @ growth)
-    expected_turnover = 0.5 * float(np.abs(w - w_tilde).sum())
+    # One step from reset: nothing has drifted yet, so the held book is the uniform book (#92).
+    w_held = np.full(n + 1, 1.0 / (n + 1), dtype=np.float64)
+    expected_turnover = 0.5 * float(np.abs(w - w_held).sum())
     expected_cost = c * expected_turnover
     expected_gross = float(w[:n] @ r0)
     expected_port_ret = expected_gross - expected_cost
@@ -567,9 +622,9 @@ def test_non_finite_action_is_refused_not_silently_trained_on(env: PortfolioEnv,
     Demonstrated before the guard existed (deep review 2026-07-26): ``step(nan_action)`` did NOT
     raise -- it produced ``port_ret=NaN``, fed a NaN OBSERVATION back to the agent, and ``safe_call``
     substituted a SAFE_DEFAULT reward of 0.0, so training looked healthy while the policy learned
-    from poison. The ``port_growth <= 0.0`` wipeout guard cannot catch this: NaN comparisons are
-    always False, and on the first such step ``port_growth`` is still computed from the previous
-    FINITE weights, so it is never even reached.
+    from poison. The ``port_growth <= 0.0`` wipeout guard cannot catch this: ``port_growth`` is
+    ``w @ growth`` on an all-NaN ``w``, hence NaN, and every NaN comparison is False (since #92 the
+    guard keys off the post-trade book, so it sees the poison and still cannot act on it).
 
     ``one_inf`` is included deliberately: the softmax turns ANY single non-finite entry into an
     ALL-NaN weight vector, because ``max(a)`` is ``inf`` and ``inf - inf`` NaNs the max element

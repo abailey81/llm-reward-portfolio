@@ -62,9 +62,14 @@ the left tail would be indefensible. Instead, the Shumway surcharge is retained 
 pooled test CVaR-5% moves by only about two percent in relative terms (of order a tenth of a percentage point),
 leaving the hypothesis ordering invariant.
 
-**State features.** The agent's cash-row state carries three leakage-safe volatility/regime features — 20-day
-realised volatility, the 20-day/60-day volatility ratio, and the VIX close — following the tail-feature
-construction of Sood et al. [`sood2023deep`]. All rolling statistics are computed on returns through $t{-}1$ (an
+**State features.** The observation is a flat concatenation
+$[\,r_{t-60:t}\ \|\ \mathrm{vol}_{20}\ \|\ \mathrm{vol}_{60}\ \|\ \mathrm{VIX}_{t-1}\ \|\ 1\ \|\ w_{t-1}\,]$: the
+strictly-past 60-day window of per-asset simple daily returns; per-asset realised volatility at two horizons (the
+sample standard deviation of those same strictly-past returns over 20 and 60 sessions, computed inside the
+environment); the VIX close knowable at $t$; a constant cash-row marker; and the previous weights — in total
+$60N + 2N + 1 + 1 + (N{+}1) = 1{,}893$ features at $N=30$. Including realised volatility at more than one horizon
+follows the tail-feature motivation of Sood et al. [`sood2023deep`], though the two horizons enter as separate
+per-asset features rather than as a ratio. All rolling statistics are computed on returns through $t{-}1$ (an
 explicit one-step shift), and the VIX value at row $t$ is the $t{-}1$ close, so every feature at a decision is a
 function of strictly prior information. No security identifiers or calendar dates ever enter the agent's
 observation or any reward (the arrays are anonymised to integer indices), which both prevents date/ticker leakage
@@ -75,9 +80,17 @@ and is a precondition of the untrusted-code sandbox (§4.5).
 The agent is a Soft Actor–Critic learner [`haarnoja2018sac`; `haarnoja2019applications`] — which curbs value
 overestimation with the clipped double-Q (twin-critic minimum) introduced by TD3 [`fujimoto2018td3`] — implemented in
 Stable-Baselines3 [`raffin2021sb3`], held byte-identically fixed across all arms — it is the constant against which
-the feedback channel is varied. It observes the lookback window of asset returns plus the cash-row regime features
-and outputs portfolio weights over the thirty assets and a cash position via a softmax simplex parameterisation
-(long-only, fully invested). The softmax image is the *open* simplex, so an exact all-cash corner is provably
+the feedback channel is varied. It observes the lookback window of asset returns plus the realised-volatility and
+VIX features described above, and outputs portfolio weights over the thirty assets and a cash position via a
+softmax simplex parameterisation (long-only, fully invested). Trading is costly, and the accounting is explicit.
+Between decisions the book the agent holds *drifts* with the returns that book earned, so at step $t$ it is charged
+only on the turnover it actually trades: $c\cdot\tfrac12\lVert w_t - \tilde w_t\rVert_1$, where $\tilde w_t$ is the
+previous target drifted by $r_{t-1}$ and $c$ is ten basis points at the headline setting (swept over
+$\{0,5,10,25,50\}$ bps as a registered robustness check). The realised portfolio return is $w_t\cdot r_t$ net of
+that charge, and wealth compounds on the net figure. Dating the drift at $t{-}1$ rather than $t$ is not a
+bookkeeping detail: charging against a book drifted by the *contemporaneous* return would make the cost a function
+of information the agent cannot hold when it acts, and would price a pure buy-and-hold policy at an unavoidable
+0.14% per year rather than at zero. The softmax image is the *open* simplex, so an exact all-cash corner is provably
 unreachable [`gaopavel2017softmax`]; we adopt this conventional parameterisation [`jiang2017eiie`] and treat the
 unreachable corner as a disclosed limitation, reporting how close the trained policy approaches cash in stress
 states and citing the corner-reaching alternatives (Dirichlet policies, simplex decomposition) as future work
