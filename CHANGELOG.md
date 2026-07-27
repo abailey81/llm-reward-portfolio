@@ -3,6 +3,91 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27] — ★★★★★ RECOVERY/CAPACITY LANE — SESSION SUMMARY · **READ THIS FIRST IF YOU ARE STARTING THE CAMPAIGN**
+
+> Overnight session, 01:00–13:00 BST, running concurrently with the REVIEW lane (see
+> `docs/LANE_COORDINATION_2026-07-27.md`). Began as data recovery after the 01:56 junction incident and
+> ended by landing a **ratified design decision that had never been implemented**. Everything below is
+> committed; the detailed narrative for each item is in its own block further down this file.
+
+### 1. WHAT STATE THE CAMPAIGN IS IN (verified at `bf7dabe`, all observed)
+
+| gate | result |
+|---|---|
+| `freeze.py --check` | **RC=0, 23/23**, canonical `e9f2caa462f7`, **`frozen: false`** (correct pre-GO) |
+| `pretrain_validate.py` | **RC=0, FAIL=0**, WARN=1 (the designed low-yield capability finding); self-test **9/9 falsifiable** |
+| `preflight.py --gpu 0` | **13 OK / 1 FAIL** — the FAIL is **`freeze`, and nothing else** |
+| full suite | **2,757 passed / 3 skipped / 0 failed**, `PYTEST_RC=0`, skips READ (all permanent POSIX-only) |
+| `data/` | **1,170 / 1,170 SHA-256 verified, 0 corrupt, 0 missing** |
+| cluster dry-run | RC=0 on the core roster **and** on the substituted leg |
+| all **11** models | reasoning-OFF, caps matched **16384**, **strict compliance 1.0**, every pin round-trip verified |
+
+**The ONLY thing standing between this repo and a launch is Tamer's freeze (GO step 1, R94).**
+
+### 2. WHERE THE EVIDENCE LIVES (the launching session will need these paths)
+
+| artifact | path | note |
+|---|---|---|
+| leg gates (authoritative) | `outputs/leg_gates_20260727_r106/` | the 10 legs at the R106 config |
+| Anthropic legs (block evidence) | `outputs/leg_gates_20260727_r106b/` | haiku + sonnet re-gated after the `thinking_blocks` evidence path landed |
+| **the 11th model** | `outputs/author_gate_opus_r106.json` | the Opus author — `leg_gates` does NOT cover it |
+| bank-gate rehearsal | `outputs/bank_gate_logs/REHEARSAL_*/` | RC=0 COMPLETE |
+| the deletion record | `docs/INCIDENT_2026-07-27_DELETED_FILES.txt` | committed before the USN journal wrapped |
+| ⚠ **SUPERSEDED — do not read** | `outputs/leg_gates/` (pre-R106) · `outputs/leg_gates_20260727_r113/` (deepseek with reasoning ON) · `outputs/_superseded_partial_leg_gates_20260727/` (a killed duplicate run) | **VERIFIED they cannot win**: the validator takes newest-per-leg AND now filters to the registered roster, so every leg resolves to r106/r106b |
+
+### 3. WHAT WAS LOST AND CANNOT BE RECOVERED (do not go looking)
+
+A **full PC sweep of both volumes** (every file indexed by name, all 8,177 archives opened, VS Code
+local history, OneDrive, recycle bin, shadow copies) found **no further copies anywhere**. Recovered:
+1,170/1,170 data files byte-identical, `outputs/` tracked files, `prototype_repeat`, the whole figure
+suite regenerated. **Permanently lost**: untracked run output written between the 2026-07-01 backup and
+the deletion — `p6ladder/` (the B\* ladder RAW archive), `spend_ledger.jsonl` (the original),
+`myriad_telemetry.jsonl`, `proto_myriad/` (which the runbook's §0.5 rehearsal names), probe/rehearsal
+dirs. **The FINDINGS survive** in tracked files — critically `outputs/tables/bstar_rule_verdict.json`
+holds R77's complete per-seed evidence, so the B\* decision is fully defensible; only the raw
+trainings behind it are gone. **§0.5 caveat: the bank-gate rehearsal was re-run on
+`outputs/prototype_repeat`, NOT the pm2 archive the runbook names** — same machinery, different
+archive; that runbook row should be updated at GO.
+
+### 4. OPERATIONAL FACTS THE LAUNCHING SESSION MUST KNOW
+
+1. **Sleep is now DISABLED on AC** (`standby-timeout-ac 0`, hibernate 0). It was **5 minutes** — it
+   would have suspended the driver within minutes of launch. Reverse with
+   `powercfg /change standby-timeout-ac 5`. Battery behaviour unchanged.
+2. **The laptop is the DRIVER and the AUTHOR, not a trainer.** All training is on Myriad, but **every
+   LLM call is made laptop-side** (`src/cluster/run_one.py:113`). Running arrays are NEVER affected by
+   laptop outages (runbook §6.5); the driver tolerates a 12 h transport outage and the supervisor
+   relaunches on any nonzero exit.
+3. **The commit-headroom check is now workload-scaled** (see its own block below). On the cluster path
+   (`--gpu 0`) the floor is 3.0 GB, MEASURED against a 1.33 GB peak. If it FAILs at launch, close the
+   other Claude sessions and VS Code — that alone recovers ~5 GB.
+4. **Disk is not a constraint**: worst-case pulled archives at the full 568 rung = **2.89 GB** against
+   34 GB free (projected from the largest measured per-record footprint, not the mean).
+5. **Spend so far tonight: $2.12** across 297 live gate/probe calls. The campaign itself has spent nothing.
+
+### 5. CLOSED THIS SESSION (do not re-raise)
+
+- **R106** — uniform reasoning-off + matched caps, ratified 2026-07-26 and never implemented. Landed.
+- **The dropped ratification record** — item 8 was in neither `ratification_completed` nor
+  `ratification_pending`. Repaired.
+- **The confirmatory author's missing cap + pin** — was silently running at the 4096 code default;
+  measured, ~20 % of its authoring calls would have truncated. Fixed + guarded by
+  `check_author_pin_mirror`.
+- **The console-codepage crash class** — 11 scripts, locked by 4 tests.
+- **The half-applied rename** — launcher, supervisor, authoring-health map + a falsifiable roster lock.
+- **The freeze-envelope gap I raised** — CLOSED BY THE REVIEW LANE (`bf400e1`): `_BOUND_TREATMENT` now
+  includes `src/feedback/schema.py`, so the hash-bound set is **9 files**, not 8.
+- **Two evidence-ledger fragilities** — the closed-capability-pair confound (HIGH) and the Opus
+  thinking contradiction (MED).
+
+### 6. STILL OPEN — ALL TAMER'S, NONE MINE
+
+1. **THE FREEZE** — GO step 1 (R94). No lane may do it; none has.
+2. **Anthropic balance ≥ $35.**
+3. **VPN + cluster sync + the `GIT_COMMIT` marker** (runbook §0.4/§1.5) — needs his VPN.
+4. **R114** fed-precision accept/revert · **#96** the −200..−290 priority ladder vs the
+   never-lower-priority rule (review lane's).
+
 ## [2026-07-27] — ★★★★ STRICT REPRODUCIBILITY VERIFIED LAYER BY LAYER (Tamer's #1 / Stefan's #3) — and my own R106 change failed the repo's rule until fixed
 
 > Tamer: *"ensure the deep and strict reproducibility of this dissertation."* Verified by RUNNING each
