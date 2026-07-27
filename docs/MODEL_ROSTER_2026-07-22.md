@@ -88,6 +88,42 @@ smoke + contamination screen + distinct base model + not an orchestrator.
 
 ## 7. The money (advisory R83; realized per-call cost is the authority)
 
+⚠ **RECOMPUTED 2026-07-27 (post-R106). The 07-22 table below is SUPERSEDED — read this one.** Two
+things invalidated it: **R106 raised every cap to 16384**, including the Opus author, which had been
+silently executing at the argparse-default **4096** and therefore emitting TRUNCATED completions; and
+the roster said "7 legs" on OpenRouter when there are **8** (haiku-4.5 and sonnet-5 are the two
+Anthropic legs; `gemini-3.5-flash` → the cheaper `gemini-2.5-flash`).
+
+Call counts, from the registered config rather than assumed: **Opus = 5 LLM arms × 30 candidates + 30
+(H3 single-shot) = 180 calls** (the 4 DFO arms carry `llm: False` and make none); **each leg = 2 arms
+× 30 = 60 calls**.
+
+| Bucket | Expected | High | Worst-at-caps |
+|---|---|---|---|
+| Anthropic (Opus 180 + Haiku 60 + Sonnet-5 60) | **$18.34** | $23.60 | $89.77 |
+| OpenRouter (8 legs × 60 = 480 calls) | **$1.38** | $4.13 (×3) – $6.88 (×5) | — |
+| **Whole study (campaign only, no M2)** | **~$20** | ~$28–31 | — |
+
+**Basis, all first-hand:** Opus mean **$0.084065/call** over the **10 live calls** in
+`outputs/author_gate_opus_r106.json` (mean output **3,320** tok, max 4,294, **every call `end_turn`**
+— no truncation, compliance 1.0); Haiku/Sonnet scaled from that output size at their registered
+$1/$5 and $2/$10 per MTok; OpenRouter from the **287 real calls** in `outputs/spend_ledger*.jsonl`.
+
+**Why Expected ROSE from ~$10 to ~$18 while nothing got more expensive per token:** the old figure was
+sized on Opus completions truncated at 4096. R106 lets it finish, so it now bills ~3.3k output tokens
+per call instead of ~1.5k. This is the cost of a **defect being fixed**, not of a price change.
+
+**WORST-AT-CAPS IS NOT A FUNDING TARGET.** Raising a cap costs nothing by itself — billing is on
+tokens GENERATED — and all 10 measured calls stopped naturally at ~3.3k against a 16.4k ceiling. The
+$89.77 column assumes every one of 300 calls maxes out, which no measurement supports.
+
+Top-up guidance: **Anthropic ≥ $35** (unchanged — it survives the recomputation: 1.9× on expected,
+$11 clear of the high band) · **OpenRouter ≥ $25 only if the M2 survey is activated; the campaign
+alone needs single digits** (+ the do-not-log toggle). Under R83 the ledger **pauses, never wastes**,
+so a mid-run top-up is legitimate rather than a lost run.
+
+<details><summary>SUPERSEDED 2026-07-22 table (kept for the record)</summary>
+
 | Bucket | Expected | Worst-at-caps |
 |---|---|---|
 | Anthropic key (Opus + Haiku + Sonnet-5) | ~$10 | ~$27 |
@@ -95,6 +131,8 @@ smoke + contamination screen + distinct base model + not an orchestrator.
 | **Whole study** | **~$28** | ~$57 (never realistically reached; under-funding pauses, never wastes) |
 
 Top-up guidance: **Anthropic ≥ $35 · OpenRouter ≥ $25** (+ the do-not-log toggle).
+
+</details>
 
 ---
 *Provenance: every pin verified this week (HF API retrievals 2026-07-22 for the five weights
