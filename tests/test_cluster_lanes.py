@@ -309,3 +309,32 @@ def test_a_task_with_MIXED_thread_counts_fails_LOUD():
     assert _task_threads([{}, {}]) == 1                      # absent key = the 1-thread default
     with pytest.raises(ValueError, match="MIXED thread counts"):
         _task_threads([{"threads": 8}, {"threads": 1}])
+
+
+def test_a_packed_CPU_task_does_NOT_get_its_device_overwritten_with_cuda():
+    """DevicePool hands each spec a device TOKEN and ``submit_with`` does
+    ``{**spec, "device": token}`` -- it OVERWRITES the spec. Every ``n_gpu`` token is the literal
+    string "cuda", and ``run_task`` built the pool as ``n_gpu=pack, n_cpu=0``, so a packed CPU-lane
+    job silently turned every ``device="cpu"`` spec into a CUDA one -- defeating the campaign
+    injection, the bayes_chain stamp AND the ladder stamp at the very last step.
+
+    Only pack>1 is affected (pack=1 runs inline, no pool), which is why it survived: the CPU lane
+    has only ever run at pack=1. It matters now because PACKING is the lever for holding a high core
+    count, so the throughput plan depends on this path being right.
+    """
+    from src.cluster.run_one import _task_device
+
+    assert _task_device([{"device": "cpu"}] * 5) == "cpu"
+    assert _task_device([{"device": "cuda"}] * 5) == "cuda"
+    assert _task_device([{}, {}]) == "cuda"          # absent = the historical default
+
+
+def test_a_task_with_MIXED_devices_fails_LOUD():
+    """Every CRN comparison unit must be device-homogeneous; half a job on another substrate is
+    exactly the inhomogeneity the S6 audit cannot see once the records are written."""
+    import pytest
+
+    from src.cluster.run_one import _task_device
+
+    with pytest.raises(ValueError, match="MIXED devices"):
+        _task_device([{"device": "cpu"}, {"device": "cuda"}])

@@ -224,6 +224,34 @@ def _task_threads(specs: list[dict[str, Any]]) -> int:
     return max(1, seen.pop() if seen else 1)
 
 
+def _task_device(specs: list[dict[str, Any]]) -> str:
+    """The SUBSTRATE for this task, read from the specs (deep review, 2026-07-27).
+
+    Mirrors :func:`_task_threads`, and exists for the same reason: ``DevicePool`` hands each spec a
+    device TOKEN and ``submit_with`` does ``{**spec, "device": token}`` — it OVERWRITES whatever the
+    spec said. The pool was constructed as ``n_gpu=pack, n_cpu=0``, and every ``n_gpu`` token is the
+    literal string ``"cuda"``, so on the CPU lane a packed job silently replaced ``device="cpu"``
+    with ``"cuda"`` on every one of its specs. The campaign's device injection, this morning's
+    ``bayes_chain`` stamp and the ladder's stamp were all defeated at the last step by the pool.
+
+    Only the pack>1 path is affected (pack=1 runs inline and never builds a pool), which is exactly
+    why it survived: the CPU lane has only ever been exercised at pack=1. It matters now because
+    PACKING is the main lever for holding a high core count — one placement doing ``pack``
+    trainings — so the campaign's throughput plan depends on this path being correct.
+
+    Homogeneous by construction (one array = one dispatch decision); FAIL LOUD on a mix rather than
+    let half a job train on a different substrate.
+    """
+    seen = {str(s.get("device") or "cuda") for s in specs}
+    if len(seen) > 1:
+        raise ValueError(
+            f"MIXED devices in one task: {sorted(seen)}. The device is part of the determinism "
+            "envelope (CPU is not bit-identical to CUDA) and every CRN comparison unit must be "
+            "device-HOMOGENEOUS. Split these into separate batches."
+        )
+    return seen.pop() if seen else "cuda"
+
+
 def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
     """Execute a task payload (dict = one spec; list = a pack). Returns all result rows.
 
@@ -287,7 +315,14 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
         return rows
     # submit_with routes each spec to its LEG worker (the pool injects the device token); a pack is
     # homogeneous in practice (one array = one leg), but per-spec routing keeps mixed packs correct.
-    with DevicePool(n_gpu=min(pack, len(to_run)), n_cpu=0,
+    # Size the pool's tokens to the SPECS' substrate, not to a hardcoded n_gpu (2026-07-27). Every
+    # `n_gpu` token is the literal string "cuda" and `submit_with` stamps it OVER the spec's own
+    # device, so `n_gpu=pack, n_cpu=0` silently turned every packed CPU-lane training into a CUDA
+    # one. See `_task_device`.
+    _dev = _task_device(to_run)
+    _slots = min(pack, len(to_run))
+    with DevicePool(n_gpu=(0 if _dev == "cpu" else _slots),
+                    n_cpu=(_slots if _dev == "cpu" else 0),
                     init_threads=_task_threads(to_run)) as pool:
         futs = {pool.submit_with(_worker_for(s), dict(s)): s for s in to_run}
         for fut in as_completed(futs):
