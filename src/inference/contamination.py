@@ -844,6 +844,7 @@ def cross_model_disagreement(
     centroid_l2 = float(np.linalg.norm(mean_a - mean_b))
     per_coeff: list[dict[str, Any]] = []
     abs_ds: list[float] = []
+    undefined: list[str] = []
     na, nb = A.shape[0], B.shape[0]
     for k in range(n_coeffs):
         va, vb = float(np.var(A[:, k], ddof=1)), float(np.var(B[:, k], ddof=1))
@@ -851,20 +852,48 @@ def cross_model_disagreement(
             ((na - 1) * va + (nb - 1) * vb) / max(1, (na + nb - 2))
         )
         md = float(mean_a[k] - mean_b[k])
-        d = float(md / pooled_sd) if pooled_sd > 0 else (0.0 if md == 0 else float("inf"))
+        # SCALE-AWARE degeneracy (deep review #118, 2026-07-27). This tested `pooled_sd > 0`, i.e.
+        # EXACT zero — but a coefficient that is CONSTANT across seeds in both models does not
+        # generally give an exactly-zero variance: `np.var` subtracts a mean that is one ulp off the
+        # repeated value, so 12 copies of 0.05 give var 5.3e-35 (sd 7.2e-18) while 12 copies of 1.0
+        # give EXACTLY 0 (MEASURED). The old guard therefore fired only when the constant happened to
+        # be exactly representable: `lam=1.0` took the degenerate branch (d = inf, excluded from the
+        # summaries below) while `cvar_alpha=0.05` took the NORMAL branch and produced a finite
+        # d ~ 7.6e15 that passed `isfinite` and entered them — the identical situation handled two
+        # opposite ways, decided by float representability. And the constants an LLM actually emits in
+        # reward code (0.05, 0.01, 0.1) are exactly the NON-representable ones, so the fragile path was
+        # the likely one. The consequence was a corrupted headline: one such column drove `mean_abs_d`
+        # — the average cross-model disagreement — to ~2.5e15 in a MEASURED reproduction.
+        scale = max(abs(float(mean_a[k])), abs(float(mean_b[k])), 1.0)
+        degenerate = pooled_sd <= 1e-12 * scale
+        if degenerate:
+            # No within-model variation in EITHER model: the standardised difference is 0 when the two
+            # constants agree and genuinely unbounded when they differ. `inf` is the honest value.
+            d = 0.0 if abs(md) <= 1e-12 * scale else float("inf")
+        else:
+            d = float(md / pooled_sd)
         per_coeff.append(
             {"name": names[k], "mean_a": float(mean_a[k]), "mean_b": float(mean_b[k]),
-             "mean_diff": md, "cohens_d": d, "pooled_sd": pooled_sd}
+             "mean_diff": md, "cohens_d": d, "pooled_sd": pooled_sd,
+             "degenerate_zero_variance": bool(degenerate)}
         )
         if np.isfinite(d):
             abs_ds.append(abs(d))
+        else:
+            undefined.append(names[k])
     finite = np.asarray(abs_ds, dtype=float)
     return {
         "status": "ok",
         "centroid_l2": centroid_l2,
         "per_coefficient": per_coeff,
+        # Summaries are over the FINITE d's, so an unbounded one cannot swamp them — but the omission
+        # is REPORTED, never silent: `n_undefined_d` counts coefficients that are constant within both
+        # models yet differ BETWEEN them, which is a decisive disagreement, not a missing one. Reading
+        # `max_abs_d` without it would understate cross-model divergence (#118).
         "max_abs_d": float(finite.max()) if finite.size else float("nan"),
         "mean_abs_d": float(finite.mean()) if finite.size else float("nan"),
+        "n_undefined_d": len(undefined),
+        "undefined_d_coefficients": undefined,
         "n_seeds_a": int(na),
         "n_seeds_b": int(nb),
     }

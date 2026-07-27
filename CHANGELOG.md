@@ -1469,6 +1469,79 @@ consistent intra-user ladder (−100 IS above −200), and the rendered jobscrip
 the standing tension with the never-lower-priority rule is **already open as #96** and was not
 re-raised.
 
+### ★★ #118 — a zero-variance guard that fired or not depending on float representability
+
+`cross_model_disagreement` computed `d = md / pooled_sd if pooled_sd > 0 else (0.0 if md == 0 else
+inf)` — a test for EXACT zero. But a coefficient that is CONSTANT across seeds in both models does
+not generally produce an exactly-zero variance: `np.var` subtracts a mean that is one ulp off the
+repeated value. MEASURED:
+
+| constant | `np.var(full(12, x), ddof=1)` | exactly zero? |
+|---|---|---|
+| `0.05` | 5.253e-35 (sd 7.2e-18) | **no** |
+| `0.1` | 2.027e-34 | **no** |
+| `1.0` | 0.0 | yes |
+| `50.0` | 0.0 | yes |
+
+So the guard fired only when the constant happened to be float-exact, and the SAME situation was
+handled two opposite ways: `lam = 1.0` took the degenerate branch (`d = inf`, excluded from the
+summaries) while `cvar_alpha = 0.05` took the normal branch and yielded a **finite** `d ≈ 7.6e15`
+that passed the `isfinite` filter and entered them. The constants an LLM actually writes into reward
+code — `0.05`, `0.01`, `0.1` — are precisely the non-representable ones, so the fragile path was the
+likely one.
+
+**The damage was to the headline number.** `mean_abs_d` is the average cross-model disagreement, the
+whole point of this robustness triangulation. Reproduced on a 3-coefficient fixture where one column
+is constant in both models: **`mean_abs_d = 2.5e15`, `max_abs_d = 7.6e15`** — uninterpretable. After
+the fix the same fixture gives **`mean_abs_d = 0.7085`** with the degenerate column reported rather
+than hidden.
+
+Fixed with a **scale-aware** degeneracy test (`pooled_sd <= 1e-12 * max(|mean_a|, |mean_b|, 1)`), so
+representability no longer decides the branch, and — following this module's own "surface the
+omission" discipline (`n_unparseable`, `underpowered`, `executed=False`) — the exclusion is now
+REPORTED via `n_undefined_d` / `undefined_d_coefficients`. That matters because a coefficient both
+models hold constant at DIFFERENT values is a **decisive** disagreement, not a missing one; summarising
+only the finite d's without saying so understates cross-model divergence. Verified across all three
+cases: non-representable and float-exact constants now behave identically (`d = inf`,
+`n_undefined_d = 1`), and two models agreeing on the same constant correctly gives `d = 0`.
+
+### PASS B — the duplicated-convention sweep: CLEAN (the CVaR tail-count, verified not assumed)
+
+#117's lesson was that the payoff is in the DUPLICATE, so this swept conventions implemented in more
+than one file. The CVaR tail-count `k = max(1, ceil(alpha*T))` exists in five places
+(`bootstrap.cvar`, `leg_aggregate.empirical_cvar`, `reward_family`, `measurement` ×2) — and
+`baselines/rewards.py::return_minus_cvar`, a member of the **frozen 11-member H1/N6 canon**, uses a
+different form: a type-7 quantile threshold, with a comment claiming `#{r <= Q(alpha)} =
+floor((n-1)a)+1 == ceil(n*a)` **"at essentially every n"**. That hedge is exactly the shape of a
+latent inequality, so it was checked rather than trusted:
+
+* **The identity holds exactly** — 0 counterexamples over α ∈ {0.01, 0.05, 0.10, 0.25} and n = 2…3000
+  in floating point. "Essentially every n" is in fact every n in the usable range.
+* **Ties**, the only other divergence route, are immaterial. An all-cash agent's exact zeros sit
+  ABOVE the lower tail, so the two estimators agree bit-for-bit (measured at 20 and 40 tied zeros);
+  a fully-flat window selects 50 elements instead of 3 but both give CVaR = 0. Divergence needs exact
+  ties STRICTLY INSIDE the tail — constructible (0.0042 on a −0.067 CVaR) but observed **0 times in
+  200,000** simulated 50-return windows of continuous returns.
+
+No finding; recorded so a later loop does not re-derive it.
+
+### PASS A — the rest of `contamination.py`: no further defect
+
+`named_vs_blinded_oos_gap`, `post_cutoff_persistence` and `contamination_report` read in full. The
+three-way outcome is mirrored consistently into the OOS-gap leg, and `post_cutoff_persistence`
+correctly makes its underpower caveat machine-readable (`underpowered` = the CI includes zero, so a
+non-significant result cannot be read as persistence). One fragility examined and deliberately left:
+both legs do `out.update({k: float(v) for k, v in res.items()})` over the bootstrap's return, which
+would raise on a non-scalar key — `named_vs_blinded_oos_gap` must `pop("draws")` first for exactly
+that reason. Verified the current contract is all-floats with no key collisions, and a blanket
+`float()` that fails LOUD on a future non-scalar addition is the behaviour this repo wants.
+`contamination_report` degrades honestly on every leg, and its unexecuted-second-model disclosure
+names the pinned model, the config key and the reason. **`src/inference/` is now fully covered.**
+
+**Verified:** 180 passed across every test touching `contamination` / `cross_model` /
+`reward_code_distance`, `PYTEST_RC=0`; ruff clean. Both pre-existing infinite-`d` tests still pass
+alongside the new one.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

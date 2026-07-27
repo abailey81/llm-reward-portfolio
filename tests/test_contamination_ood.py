@@ -903,3 +903,58 @@ def test_EMPTY_and_comment_only_rewards_are_excluded_not_scored_as_perfectly_loc
         "paired_mean still moved when a structureless pair was present -- it is being scored, and "
         "jaccard=1.0 on two non-programs inflates the structural-lock evidence"
     )
+
+
+def test_cross_model_cohens_d_handles_a_constant_coefficient_the_same_way_whatever_its_float() -> None:
+    """#118 (2026-07-27): the zero-variance guard tested EXACT zero, so it fired value-dependently.
+
+    `cross_model_disagreement` computed `d = md / pooled_sd if pooled_sd > 0 else (0 or inf)`. But a
+    coefficient that is CONSTANT across seeds in both models does not generally give an exactly-zero
+    variance: `np.var` subtracts a mean one ulp off the repeated value, so 12 copies of 0.05 give
+    var 5.3e-35 (sd 7.2e-18) while 12 copies of 1.0 give EXACTLY 0 (measured). The guard therefore
+    fired only when the constant happened to be float-exact:
+
+      * `lam = 1.0`   -> degenerate branch, d = inf, EXCLUDED from the summaries;
+      * `cvar_alpha = 0.05` -> normal branch, d ~ 7.6e15, FINITE, so it entered them.
+
+    The identical situation, handled two opposite ways, decided by float representability -- and the
+    constants an LLM actually writes (0.05, 0.01, 0.1) are exactly the non-representable ones. The
+    damage was to the headline: one such column drove `mean_abs_d`, the average cross-model
+    disagreement, to ~2.5e15.
+
+    Pins all three behaviours: representable and non-representable constants are treated the SAME,
+    an unbounded d never swamps the summaries, and the exclusion is REPORTED (`n_undefined_d`) rather
+    than silent -- a constant-but-different coefficient is a DECISIVE disagreement, not a missing one.
+    """
+    import numpy as _np
+
+    from src.inference.contamination import cross_model_disagreement
+
+    rng = _np.random.default_rng(0)
+    n = 12
+
+    def _run(const_a: float, const_b: float):
+        A = _np.column_stack([_np.full(n, const_a), rng.normal(1.0, 0.2, n)])
+        B = _np.column_stack([_np.full(n, const_b), rng.normal(1.1, 0.2, n)])
+        return cross_model_disagreement(A, B, coefficient_names=["const", "other"])
+
+    non_exact = _run(0.05, 0.01)   # np.var != 0 exactly
+    exact = _run(1.0, 2.0)         # np.var == 0 exactly
+
+    for label, res in (("non-representable", non_exact), ("float-exact", exact)):
+        d = res["per_coefficient"][0]["cohens_d"]
+        assert _np.isinf(d), f"{label} constant column did not yield an unbounded d (got {d!r})"
+        assert res["per_coefficient"][0]["degenerate_zero_variance"] is True
+        assert res["n_undefined_d"] == 1 and res["undefined_d_coefficients"] == ["const"], (
+            f"{label}: the decisive constant-but-different coefficient was dropped SILENTLY"
+        )
+        assert _np.isfinite(res["max_abs_d"]) and _np.isfinite(res["mean_abs_d"])
+        assert abs(res["mean_abs_d"]) < 10.0, (
+            f"{label}: a degenerate column swamped mean_abs_d ({res['mean_abs_d']:.3g}) -- the "
+            "average cross-model disagreement is meaningless"
+        )
+
+    # Agreement on the SAME constant is agreement, not an undefined difference.
+    same = _run(0.05, 0.05)
+    assert same["per_coefficient"][0]["cohens_d"] == 0.0
+    assert same["n_undefined_d"] == 0
