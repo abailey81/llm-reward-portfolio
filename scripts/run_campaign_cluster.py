@@ -337,7 +337,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "contended. 'cpu' = no GPU request, no pool pin, 1 core/training: ~14 "
                         "steps/s/core but the d pool alone is 10,584 cores and 636 concurrent were "
                         "measured, so it is the lane for the embarrassingly-parallel TEST flood "
-                        "(93-97% of all trainings). Device homogeneity is enforced per CONTRAST, "
+                        "(93-97%% of all trainings). Device homogeneity is enforced per CONTRAST, "
                         "so a GPU search + CPU test split is legitimate — see the dossier §0-PRE.")
     p.add_argument("--pack", type=int, default=1, help="§15 GPU packing (concurrent trainings/job).")
     p.add_argument("--apptainer-sif", default="~/python311.sif",
@@ -418,7 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "register agree. ⚠ MEASURED 2026-07-27: at the real workload 8 threads give "
                         "15.4 steps/s = 1.93/core vs 13.0/core at 1 thread, so R107's 2.72x is "
                         "really ~1.18x -- and running the 1,800-training search leg at 8 threads "
-                        "costs ~88,500 EXTRA core-hours, +24.6% on the whole campaign, to buy a "
+                        "costs ~88,500 EXTRA core-hours, +24.6%% on the whole campaign, to buy a "
                         "1.18x latency gain on chains that only bind above 1,685 cores. Pass 1 to "
                         "decline that trade (and amend R107 to match).")
     p.add_argument("--poll-secs", type=float, default=600.0)

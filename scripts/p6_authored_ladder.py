@@ -271,7 +271,7 @@ def main() -> int:
     p.add_argument("--seeds", default=None, metavar="S",
                    help="Comma-separated CRN seeds (default 0,1,2 = the R77 rule's n). Widening "
                         "costs NO wall-clock (every cell is an independent core) and tightens the "
-                        "knee interval: at n=3 the rule fires on mean/SE=2.93 but a genuine 95% "
+                        "knee interval: at n=3 the rule fires on mean/SE=2.93 but a genuine 95%% "
                         "t-interval spans zero; n=10 excludes it.")
     p.add_argument("--threads", type=int, default=1,
                    help="Intra-op BLAS/torch threads per training (R107; 8 = the measured optimum "
