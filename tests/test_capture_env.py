@@ -28,7 +28,14 @@ def test_gold_panel_provenance_records_active_suffix(monkeypatch) -> None:
 def test_capture_env_includes_gold_panel_block() -> None:
     """capture_env() carries the C1 gold_panel provenance + the bumped schema tag."""
     env = capture_env.capture_env(seed=0)
-    assert env["schema"] == "capture_env/2"
+    assert env["schema"] == "capture_env/3"   # /3 records the APPLIED tf32 (2026-07-27)
+    # TF32 is a REGISTERED design parameter and the largest precision lever in the stack (~10-bit
+    # vs 23-bit matmul mantissa, on the ~97%-of-runtime gradient update). freeze.py verified the
+    # CONFIG; nothing recorded what was IN FORCE at training time, so the pin was unverifiable at
+    # the execution boundary -- the R85 "a pin nobody can verify is FICTIONAL" failure. It is also
+    # CUDA-only, so it differs silently between the GPU pilots and the CPU campaign lane.
+    for _k in ("matmul_allow_tf32", "cudnn_allow_tf32", "float32_matmul_precision"):
+        assert _k in env["torch_cuda"], f"applied TF32 field {_k!r} is not archived"
     assert "gold_panel" in env
     assert "suffix" in env["gold_panel"]
 

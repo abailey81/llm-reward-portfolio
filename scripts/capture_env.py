@@ -133,6 +133,27 @@ def _torch_cuda() -> dict[str, Any]:
         num_interop_threads = int(torch.get_num_interop_threads())
     except Exception:  # noqa: BLE001
         num_threads = num_interop_threads = None
+    # TF32 — the APPLIED value (deep review, 2026-07-27). By the same principle as the thread counts
+    # above: ``agent_numerics.tf32`` is a REGISTERED design parameter and ``freeze.py``'s
+    # ``assert_executed_tf32_matches_frozen`` verifies the CONFIG mirrors the register — but nothing
+    # recorded what was actually IN FORCE when a training ran, so the pin was verified at the config
+    # boundary and unverifiable at the execution boundary. That is the R85 failure mode ("a pin
+    # nobody can verify is FICTIONAL") on the single largest precision lever in the stack: TF32
+    # rounds matmul inputs to ~10 explicit mantissa bits versus float32's 23, and it dominates
+    # because ~97 % of per-training time is the SAC gradient update. It is also process-global and
+    # CUDA-ONLY, so it silently differs between the GPU pilots and the CPU campaign lane — recording
+    # it is what makes that difference auditable instead of inferred. ``float32_matmul_precision``
+    # is the modern API ('highest' | 'high' | 'medium'); the two ``allow_tf32`` booleans are the
+    # backend flags ``_apply_tf32`` actually sets.
+    try:
+        tf32 = {
+            "matmul_allow_tf32": bool(torch.backends.cuda.matmul.allow_tf32),
+            "cudnn_allow_tf32": bool(torch.backends.cudnn.allow_tf32),
+            "float32_matmul_precision": str(torch.get_float32_matmul_precision()),
+        }
+    except Exception:  # noqa: BLE001 - older torch lacks one of these getters
+        tf32 = {"matmul_allow_tf32": None, "cudnn_allow_tf32": None,
+                "float32_matmul_precision": None}
     return {
         "available": True,
         "torch_version": torch.__version__,
@@ -142,6 +163,7 @@ def _torch_cuda() -> dict[str, Any]:
         "deterministic_algorithms_enabled": deterministic,
         "num_threads": num_threads,
         "num_interop_threads": num_interop_threads,
+        **tf32,
     }
 
 
@@ -186,7 +208,7 @@ def capture_env(seed: int | None = None) -> dict[str, Any]:
         ``gold_panel`` (the active suffix + panel SHA-256s, C1), ``seed`` and ``schema``.
     """
     fp = dict(env_fingerprint())  # canonical core — NOT re-implemented here
-    fp["schema"] = "capture_env/2"  # +gold_panel provenance (C1)
+    fp["schema"] = "capture_env/3"  # /2 +gold_panel (C1); /3 +APPLIED tf32 (2026-07-27)
     fp["seed"] = seed
     fp["pip_freeze"] = _pip_freeze()
     fp["nvidia_smi"] = _nvidia_smi()
