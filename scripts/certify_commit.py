@@ -79,7 +79,15 @@ def _link(src: Path, dst: Path) -> bool:
     if not src.is_dir():
         return False
     try:
-        if dst.exists() and not dst.is_symlink():
+        # This read ``dst.exists() and not dst.is_symlink()``, which cannot see a junction (that is
+        # the whole lesson below). MEASURED 2026-07-27: it was not destructive — CPython 3.11's
+        # rmtree refuses to descend a junction, so the call failed and ``ignore_errors`` swallowed
+        # it — but it then left a stale link in place and returned True, i.e. reported success
+        # without relinking. ``os.rmdir`` severs the LINK deterministically instead of relying on
+        # rmtree's version-dependent junction handling.
+        if _is_reparse_point(dst):
+            os.rmdir(dst)
+        elif dst.exists():
             shutil.rmtree(dst, ignore_errors=True)
         if dst.exists():
             return True
@@ -122,13 +130,22 @@ def unlink_reparse_points(root: Path) -> list[str]:
 
     ⚠ THIS EXISTS BECAUSE IT ALREADY HAPPENED (2026-07-27). A previous version junctioned the real
     ``data/`` into the worktree and then cleaned up with ``shutil.rmtree(worktree)``. On Windows a
-    junction is NOT a symlink, ``rmtree`` walks straight through it, and the cleanup DELETED THE
-    REAL DATA DIRECTORY — 1,179 tracked files (restored from git) and ~1.2 GB of untracked data
-    including the gold panel (not in git, and not recoverable locally).
+    junction is NOT a symlink, and the cleanup DELETED THE REAL DATA DIRECTORY — 1,179 tracked files
+    (restored from git) and ~1.2 GB of untracked data including the gold panel (not in git).
 
-    ``os.rmdir`` on a junction removes the LINK and never touches the target, so every link must be
-    severed before anything recursive runs. This is called before BOTH ``git worktree remove`` and
-    ``shutil.rmtree`` — either can follow a reparse point.
+    ⚠ WHICH CALL DID IT — corrected 2026-07-27 after reproducing all three on this box (Python
+    3.11.9, Git for Windows). The original incident note blamed ``shutil.rmtree``; that is WRONG,
+    and the distinction matters because believing it leaves the real hazard unguarded:
+
+      * ``shutil.rmtree`` — on the junction ITSELF or on a PARENT containing one: SAFE here.
+        CPython treats a name-surrogate reparse point as a link and removes it without descending.
+      * ``git worktree remove --force`` — **DESTRUCTIVE**. Git's own recursive removal follows the
+        junction and deletes the target. This is what destroyed the data, and it is why severing
+        must happen BEFORE the git call, not merely before the Python one.
+
+    ``os.rmdir`` on a junction removes the LINK and never touches the target, so every link is
+    severed before anything recursive runs — git or Python. Locked by
+    ``tests/test_certify_worktree_safety.py``, which reproduces the loss against a REAL worktree.
     """
     removed: list[str] = []
     if not root.exists():

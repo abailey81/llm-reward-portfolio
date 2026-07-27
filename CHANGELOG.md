@@ -3,6 +3,74 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27] — ★★★★ FULL DATA RECOVERY AFTER THE CERTIFY-WORKTREE DELETION: 1,170/1,170 FILES RESTORED AND SHA256-VERIFIED · THE INCIDENT'S ROOT CAUSE WAS MISATTRIBUTED AND IS NOW CORRECTED
+
+> Tamer: *"restore everything back … absolutely everything, I dont care how, but you must restore"*,
+> *"everything must be strictly exactly the same as the files you deleted"*, *"please check very deeply
+> my pc as well"*. The certification worktree teardown had destroyed `data/`. This session restored
+> **every one of the 1,170 files, each proven byte-identical by SHA256**, and then found that the
+> recorded cause of the loss was wrong.
+
+**OUTCOME — COMPLETE, AND PROVEN, NOT ASSERTED.** `data/` = 2,351 files / 1,187.4 MB; `outputs/` =
+1,450 files / 20.1 MB. Every file declared by a tracked `.provenance.json` is present and its SHA256
+matches the recorded value: **1,170 verified, 0 corrupt, 0 missing.** Independently confirmed by the
+repo's own `scripts/verify_gold.py` (univ5-vs-univ3 overlap: 5,283 x 953, **0 changed cells**,
+max |delta| 0.000e+00) and by `load_gold_panel()` loading cleanly (development window, 3,021 x 30).
+
+**FOUR RECOVERY ROUTES, IN ORDER OF WHAT THEY COST.**
+1. **Tracked files** — `git restore data/` (1,179 files). No shadow copies or restore points existed
+   on this box (`vssadmin`: none; `Get-ComputerRestorePoint`: none), so git was the only free route.
+2. **An off-machine backup** — a full-disk sweep found `D:\llm_rp_predefender_backup\` (2026-07-01),
+   holding the frozen `returns_panel_univ5.parquet` **and** the whole of `outputs/`, which was
+   otherwise unrecoverable. 278 data files + 654 output files restored from it.
+3. **Content-addressed recovery (12 files)** — several lost intermediates record the SAME sha256 as
+   an artifact that survived (at those stages the pipeline copies rather than transforms), so they
+   were restored by matching the recorded hash to a surviving blob and re-verifying after the copy.
+4. **Deterministic regeneration (6 files)** — the rest were rebuilt by RE-RUNNING the real pipeline
+   in isolated sandboxes with their own data roots, so the write-once vault could never touch the
+   verified repo data. **Bytes were copied back ONLY on a SHA256 match**, so each is a proof of
+   byte-identity, not a plausible substitute. No Refinitiv pull was needed — the raw vault survived.
+   - `pit_membership_200411_202606.parquet` — reproduced `extend_universe_2026`'s reconstruct+SPLICE
+     offline; validation gates re-passed (Lehman in 2008H1 / out 2008Q4; Tesla out 2019 / in 2021).
+   - `staged_mcap_refinitiv_univ5{,s}`, `shumway_audit_log_univ5s` — `build_universe` re-run; the
+     sandbox rebuild reproduced the full 963 x 5,406 panel from raw.
+   - `integrity_report_univ3s` — re-run in a **pre-x26 sandbox** (raw without the 2026 pulls, manifest
+     filtered, membership ending 2025-12), because `build_universe` consumes `pit_entries[-1]` and
+     today's inputs would silently build a different artifact.
+   - `shumway_audit_log_univ4` — needed the CODE AS IT WAS. Today's code emits 4 columns where the
+     original has 9: ADR-051's observed-terminal recovery (2026-07-01) post-dates univ4 (frozen
+     2026-06-25T01:54Z) and now recovers every terminal, so no surcharge rows are emitted. Rebuilt
+     from commit `780ee05` in the **pre-rewrite history bundle** (same policy string as univ4's
+     sidecar, same declared 9-column schema, M&A gate still latent — which is exactly why univ4 was
+     M&A-contaminated), minus the one `reason_class` field that commit added. Byte-identical.
+
+**★ THE ROOT CAUSE WAS WRONG — CORRECTED.** The incident (commit `6fb0335`) recorded that
+`shutil.rmtree` walked through the junction. **Measured on this box (Python 3.11.9 + Git for Windows):
+it does not.** CPython treats a name-surrogate reparse point as a link and refuses to descend it —
+whether you rmtree the junction itself or a parent containing one. Reproducing against a REAL git
+worktree shows the destructive call is **`git worktree remove --force`**: git's own recursive removal
+follows the junction and deletes the target. This matters because the wrong diagnosis leaves the real
+hazard unguarded — someone would treat the git call as safe. `destroy_worktree` already severs links
+before BOTH calls, so the fix was correct for the wrong stated reason; the reason is now right.
+Verified end-to-end: unsevered `git worktree remove` destroys the target, `destroy_worktree` does not.
+
+**LOCKED BY TESTS** (`tests/test_certify_worktree_safety.py`, 6 pass):
+`test_git_worktree_remove_follows_a_junction_and_destroys_the_target` reproduces the actual loss, and
+`test_destroy_worktree_severs_first_so_the_real_data_survives` proves the guard stops it.
+`_link` also now severs an existing junction with `os.rmdir` instead of `dst.is_symlink()` +
+`shutil.rmtree` — **measured as non-destructive**, so this is a correctness fix (the old form left a
+stale link and returned True, reporting success without relinking), NOT a second data-loss bug; the
+test and comment say so explicitly rather than overstating it.
+
+**PC-WIDE SWEEP (Tamer asked for it explicitly).** Both fixed drives searched for every marker file,
+plus repo-shaped directories and the recycle bin. **No further copies exist**: the only real ones are
+the repo itself and `D:\llm_rp_predefender_backup`; every other hit is a 0-byte pytest fixture.
+Nothing else is recoverable and nothing else needs to be.
+
+**ALSO CONFIRMED INTACT:** `.env` with all 8 keys (Refinitiv x3, FRED, Anthropic, DashScope x2,
+OpenRouter); 0 tracked files missing repo-wide. ~2.9 GB of sandbox scratch removed afterwards, each
+directory checked for reparse points BEFORE any recursive delete.
+
 ## [2026-07-27] — ★★★★ LAUNCH-READINESS PASS: THE FED SCALAR WAS QUANTISED FLAT (#87) · THE COST LEDGER'S LOOK-AHEAD CLOSED (P6/#92) · THE PRE-LAUNCH GATE'S OWN LOAD-SENSITIVITY FIXED (#75) — deep review loop 117
 
 > Tamer: *"make everything flawless in the code and etc, and do what you have said, make everything
