@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 __all__ = ["run_task", "main"]
+
+_LOG = logging.getLogger("cluster.run_one")
 
 
 def _worker_for(spec: dict[str, Any]) -> Any:
@@ -62,6 +65,43 @@ def _write_reject_marker(result: dict[str, Any], spec: dict[str, Any]) -> None:
     os.replace(tmp, d / f"{rid}.json")
 
 
+def _resolved_device(spec: dict[str, Any]) -> str:
+    """The device this training ACTUALLY used, not the one the spec asked for (deep review, 2026-07-27).
+
+    The S6 sealed-leg audit works by comparing env-fingerprint labels: a CPU/GPU mix shows two
+    distinct labels and is flagged. That only works if the label records what RAN. It previously
+    recorded ``spec.get("device", "cuda")`` — the REQUEST — and the two differ in a case that is
+    live on the CPU lane:
+
+      * ``opts`` carries NO ``device`` key at all (its keys are train_steps…window), and
+        ``parallel._spec`` does not add one, so every spec the **bayes_opt GP chain** builds on-node
+        (``bayes_chain._chain_specs`` → ``_family_spec`` → ``_spec``) reaches ``_run_single``
+        WITHOUT a device and is defaulted to ``"cuda"`` there. ``campaign``'s explicit injection
+        (``specs = [{**s, "device": device} …]``) fires only for specs IT builds, and only when
+        ``device != "cuda"`` — the chain runs as its own job and never passes through it.
+      * A CPU-lane job requests no GPU at all (``jobscript``: ``gpu_line`` is empty for
+        ``device == "cpu"``), so that ``"cuda"`` request finds no device and torch falls back to CPU.
+
+    The training therefore ran on CPU while the label said ``dev=cuda`` — the audit would have been
+    reading a fiction, and on a node where a GPU *was* visible it would have missed a genuine mix.
+    Resolving against ``torch.cuda.is_available()`` makes the label true in both cases: an honest
+    ``cpu`` when the request fell back, and a real ``cuda`` when it did not — so a mix is flagged
+    because it happened, not because a default was guessed.
+
+    Falls back to the requested string if torch cannot be imported (never break archival over a
+    label).
+    """
+    requested = str(spec.get("device", "cuda"))
+    if not requested.startswith("cuda"):
+        return requested
+    try:
+        import torch
+
+        return requested if torch.cuda.is_available() else "cpu"
+    except Exception:  # noqa: BLE001 - a label must never sink the archival of a finished training
+        return requested
+
+
 def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
     """Archive an OK result via the LEG-appropriate path — the SAME atomic ``write_run`` the local
     paths use (search: ``parallel._archive``; test: ``test_leg`` record → ``write_run`` under the
@@ -99,7 +139,7 @@ def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
             # the CRN pairing that every paired contrast rests on. Stamp the RESOLVED device into
             # the label the C3 label-census compares: a mixed run now shows two distinct labels and
             # is flagged, instead of passing silently.
-            _dev = str(spec.get("device", "cuda"))
+            _dev = _resolved_device(spec)
             _lbl = f"{_lbl}|dev={_dev}" if _lbl else f"dev={_dev}"
             node_fp = _run_env_fp(
                 arm_root, str(rec["run_id"]),
@@ -134,6 +174,22 @@ def _already_archived(spec: dict[str, Any]) -> bool:
 def _run_single(spec: dict[str, Any]) -> dict[str, Any]:
     """One training through the certified LEG worker; archives on success; returns the result row."""
     spec = dict(spec)
+    # ⚠ 2026-07-27 (deep review): this default is REACHABLE and it is SILENT. `opts` carries no
+    # `device` key (its keys are train_steps…window) and `parallel._spec` adds none, so every spec
+    # the bayes_opt GP chain builds on-node arrives here WITHOUT one and is defaulted to "cuda" —
+    # campaign's explicit injection fires only for specs IT builds, and only when device != "cuda".
+    # The default is LEFT AS IS (changing it would alter the GPU path, and resolving it to "cuda if
+    # available" would let a CPU-lane job seize a GPU it never requested — the one impairment
+    # `lanes.py` refuses by construction). Instead it is made VISIBLE: the archived fingerprint now
+    # records the RESOLVED device (`_resolved_device`), so a fallback is labelled `cpu` honestly and
+    # a genuine mix is FLAGGED by the S6 audit rather than passing silently, and this logs the
+    # default so it is greppable in the job log.
+    if "device" not in spec:
+        _LOG.info(
+            "spec %r carries no 'device'; defaulting to 'cuda' (the archived fingerprint records the "
+            "RESOLVED device, so a CPU fallback is labelled honestly)",
+            spec.get("run_id") or spec.get("candidate_id"),
+        )
     spec.setdefault("device", "cuda")  # the job's cgroup-exclusive GPU
     if _already_archived(spec):
         return {"ok": True, "candidate_id": spec.get("candidate_id"),

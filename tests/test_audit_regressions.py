@@ -594,3 +594,73 @@ def test_the_reward_sees_EXACTLY_the_documented_info_keys_and_not_the_caller_one
     # The CALLER's info is the richer one, and src/env/runner.py depends on exactly these.
     for k in ("turnover", "cost", "gross", "port_ret", "components", "log_wealth"):
         assert k in info, f"the returned info lost {k!r}, which src/env/runner.py reads"
+
+
+def test_the_archived_device_label_records_what_RAN_not_what_the_spec_asked_for() -> None:
+    """2026-07-27: the S6 sealed-leg homogeneity audit was reading a request, not a fact.
+
+    The audit works by comparing env-fingerprint labels -- a CPU/GPU mix shows two distinct labels
+    and is flagged. That only holds if the label records what RAN. It recorded
+    `spec.get("device", "cuda")`, the REQUEST, and the two diverge on a live path:
+
+      * `opts` carries NO `device` key (its keys are train_steps...window) and `parallel._spec` adds
+        none, so every spec the bayes_opt GP chain builds on-node (`bayes_chain._chain_specs` ->
+        `_family_spec` -> `_spec`) reaches `run_one._run_single` WITHOUT one and is defaulted to
+        "cuda" there. `campaign`'s explicit injection fires only for specs IT builds, and only when
+        device != "cuda"; the chain runs as its own job and never passes through it.
+      * A CPU-lane job requests no GPU at all (`jobscript`: gpu_line is empty for device == "cpu"),
+        so that "cuda" request finds nothing and torch falls back to CPU.
+
+    Net: the training ran on CPU while the label said `dev=cuda`. The audit would have compared a
+    fiction, and on a node where a GPU *was* visible it would have missed a genuine mix. Resolving
+    against `torch.cuda.is_available()` makes it true in both directions.
+    """
+    import src.cluster.run_one as _run_one
+
+    # An explicit CPU spec is never second-guessed.
+    assert _run_one._resolved_device({"device": "cpu"}) == "cpu"
+
+    class _FakeTorch:
+        class cuda:  # noqa: N801 - mirrors torch's attribute layout
+            @staticmethod
+            def is_available() -> bool:
+                return False
+
+    real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+
+    def _fake_import(name, *a, **k):  # noqa: ANN001, ANN202
+        if name == "torch":
+            return _FakeTorch
+        return real_import(name, *a, **k)
+
+    import builtins
+
+    builtins.__import__ = _fake_import
+    try:
+        # THE DEFECT: the chain's spec (no device key) and an explicit cuda request must BOTH label
+        # as cpu when no GPU exists -- otherwise the homogeneity audit compares a request, not a run.
+        assert _run_one._resolved_device({}) == "cpu", (
+            "a spec with no device still labels 'cuda' when no GPU exists -- the S6 audit is reading "
+            "the request, so a CPU fallback is invisible and a real mix is indistinguishable from it"
+        )
+        assert _run_one._resolved_device({"device": "cuda"}) == "cpu"
+    finally:
+        builtins.__import__ = real_import
+
+    # And with a GPU genuinely present, a cuda request stays cuda (so a real mix is still flagged).
+    class _FakeTorchGpu:
+        class cuda:  # noqa: N801
+            @staticmethod
+            def is_available() -> bool:
+                return True
+
+    def _fake_import_gpu(name, *a, **k):  # noqa: ANN001, ANN202
+        if name == "torch":
+            return _FakeTorchGpu
+        return real_import(name, *a, **k)
+
+    builtins.__import__ = _fake_import_gpu
+    try:
+        assert _run_one._resolved_device({}) == "cuda"
+    finally:
+        builtins.__import__ = real_import

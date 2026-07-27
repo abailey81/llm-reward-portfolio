@@ -61,7 +61,7 @@ else
   export LLM_RP_GOLD_STAGED_DIR="{gold_dir}"
 fi
 export TORCH_HOME="$TMPDIR/torch"
-{env_line}
+{cpu_lane_guard}{env_line}
 # Make `src` importable: the job's -wd is {remote_root} (Scratch, where logs/specs/outputs live),
 # but the CODE is at {repo_root} and the venv does NOT pip-install the repo, so without this
 # `python -m src.cluster.run_one` dies with ModuleNotFoundError on EVERY task. $HOME auto-binds
@@ -205,6 +205,21 @@ def render_jobscript(
     # A CPU lane requests no GPU and pins no GPU pool; pass `pool` explicitly to pin a CPU node
     # type (D/B/T) if a contrast ever needs CPU-model homogeneity beyond the seed-block scheme.
     gpu_line = "" if device == "cpu" else "#$ -l gpu=1\n"
+    # CPU LANE: make the GPU UNREACHABLE, don't just decline to request it (deep review 2026-07-27).
+    # Two live paths would otherwise put CUDA into a CPU campaign. (1) `opts` carries no `device`
+    # key and `parallel._spec` adds none, so every spec the bayes_opt GP chain builds on-node
+    # arrives at `run_one._run_single` without one and is defaulted to "cuda" there — campaign's
+    # explicit injection fires only for specs IT builds. (2) A CPU job lands on a node that may
+    # still expose GPUs, so `torch.cuda.is_available()` can be True even though we requested none,
+    # and taking that card is exactly the impairment of other users `lanes.py` refuses by
+    # construction. Emptying CUDA_VISIBLE_DEVICES makes the substrate a property of the JOB rather
+    # than of every spec remembering to say so: torch sees no device, the chain's "cuda" default
+    # falls back to CPU, and `run_one._resolved_device` then labels it honestly as cpu so the S6
+    # homogeneity audit compares what RAN. Illegal state made unrepresentable, rather than guarded.
+    cpu_lane_guard = (
+        'export CUDA_VISIBLE_DEVICES=""   # CPU lane: no GPU requested, so none may be used\n'
+        if device == "cpu" else ""
+    )
     pool_line = f"#$ -ac allow={pool}\n" if (pool and (device == "cuda" or pool not in ("", "EF"))) else ""
     if apptainer_sif is None:
         env_line = f"source {venv}/bin/activate"
@@ -237,6 +252,7 @@ def render_jobscript(
         tmpfs=tmpfs, h_rt=h_rt, env_line=env_line, launcher=launcher,
         repo_root=repo_root.rstrip("/"), gpu_line=gpu_line, pool_line=pool_line,
         apptainer_guard=apptainer_guard, entry_module=entry_module,
+        cpu_lane_guard=cpu_lane_guard,
     )
 
 
