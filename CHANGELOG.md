@@ -758,6 +758,45 @@ clean.** (One residual "2-test family" string survives in
 `docs/SELF_IMPROVEMENT_LOOP_LOG_2026-07-08.md` and is left alone: it is dated 2026-07-08, before the
 expansion, and is accurate as history.)
 
+### ★ #101 — the N6 confirmatory guard was frozen at 4 of the 11 registered canon members
+
+Loop 122 turned #100's lesson into a LENS — *when a roster grows, check its guard tests actually
+EXERCISE the new members* — and applied it to every family that has expanded. It paid immediately.
+
+**PASS A first, clean.** `collect_family_pvalues._one_sided` builds every p-value the confirmatory
+legs consume, and it is correct: it uses the DIRECT `pvalue_one_sided_greater`, **not** `p_two / 2`.
+The docstring states exactly why that matters — the halving equals the true tail only under a
+symmetric bootstrap and mis-states it under any skew of the CVaR-5% difference, which "could flip the
+co-primary tail leg at alpha" (R64 / DEEP_AUDIT 2026-06-28). `reject_one` requires direction AND
+significance; short-seed contrasts land in `skipped`, never fabricated.
+
+**PASS B — the roster sweep.** Arms (7→9) are well covered: `placebo_shuffled` and `scalar_cvar5`
+appear 64 and 63 times across `tests/`. All 11 canon names appear somewhere in `tests/` (they are
+individually tested as reward functions). But the **N6 dominance IUT** — a CONFIRMATORY node — is
+exercised only through `_H1_BASELINES`, the **four** pre-expansion names, while
+`config/preregistration.yaml: h1_baselines` registers **eleven** since the 2026-07-26 R105/R108
+expansion. The node's behaviour at its registered comparator size was never run.
+
+**Verified there is NO production defect before claiming one.** Exercised `beat_human_baseline`
+manually at the full registered canon: `n_baselines=11`, `n_testable=11`, `all_baselines_present=True`,
+`dominates_canon=True`, 11 profile rows, IUT p = the max leg p. The code is roster-agnostic and
+correct. So this closes a **guard**, not a bug — but it is the identical shape to #100, where a test
+whose coverage stayed frozen at 2 legs let a real mislabelling of h4c/h4d survive. A test that never
+runs the new members cannot fail on them.
+
+Two guards added, both reading the canon from the FROZEN CONFIG so a future expansion is picked up
+automatically instead of silently narrowing coverage again:
+- `test_n6_iut_is_exercised_at_the_FULL_registered_canon` — spans all 11, asserts every member appears
+  exactly once in the dominance profile (none silently dropped) and that the IUT p IS the max leg p.
+- `test_n6_refuses_dominance_when_a_registered_canon_member_is_MISSING` — drops one member and
+  requires `all_baselines_present=False` and `dominates_canon=False`. This is the anti-conservative
+  failure the guard exists to prevent (claiming the LLM "beats the best human" without having faced
+  one of them), and at the 4-name subset it was only ever exercised at a quarter of the registered
+  breadth.
+
+Also asserts `_H1_BASELINES` is a SUBSET of the registered canon, so the fast-path tests cannot drift
+onto names the design no longer registers. **99 tests green, `PYTEST_RC=0`, ruff clean.**
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

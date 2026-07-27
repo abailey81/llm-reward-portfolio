@@ -1687,3 +1687,73 @@ def test_h4_markdown_derives_its_counts_and_uses_the_authoritative_reference_lab
     for tid, _a, _b in H4_CONTRASTS:
         lead = _H4_REFERENCE_FRAMING[tid].split(" \u2014 ")[0].split(" -- ")[0]
         assert lead in md, f"{tid} is missing its authoritative reference label ({lead!r})"
+
+
+# --- #101: the N6 IUT must be exercised at the REGISTERED canon size, not a frozen subset -------
+
+def test_n6_iut_is_exercised_at_the_FULL_registered_canon() -> None:
+    """The confirmatory N6 node must be guarded at the size it actually runs at.
+
+    The hand-reward canon was expanded **4 -> 11** on 2026-07-26 (R105/R108), but every N6 guard here
+    uses ``_H1_BASELINES`` — the four pre-expansion names — so the node's behaviour at its REGISTERED
+    comparator size was never exercised. That is the same shape as #100, where a guard whose coverage
+    stayed frozen at 2 legs let a real mislabelling of h4c/h4d survive: a test that never runs the new
+    members cannot fail on them.
+
+    No production defect was found (the code is roster-agnostic and was verified correct at 11), so
+    this closes the GUARD, not a bug. The canon is read from the frozen config rather than hardcoded,
+    so a future expansion is picked up automatically instead of silently narrowing coverage again.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    canon = yaml.safe_load((root / "config" / "preregistration.yaml").read_text(encoding="utf-8"))["h1_baselines"]
+    assert len(canon) >= len(_H1_BASELINES), "the registered canon shrank below the legacy test set"
+    assert set(_H1_BASELINES) <= set(canon), "the fast-path test names are no longer registered members"
+
+    records = _seeded_test_records("distributional", mu=0.010)
+    for i, name in enumerate(canon):
+        records += _seeded_test_records(f"baseline_{name}", mu=0.001, seed0=100 * (i + 1))
+
+    h1 = AC.beat_human_baseline(records, baseline_names=canon, winner_arm="distributional",
+                                rng=np.random.default_rng(0))
+    iut = h1["iut"]
+    assert iut["n_baselines"] == len(canon), "the IUT did not span the whole registered canon"
+    assert iut["n_testable"] == len(canon)
+    assert iut["all_baselines_present"] is True
+    assert len(iut["dominance_profile"]) == len(canon), "a canon member is missing from the profile"
+    # Every member appears exactly once, so none is silently dropped from the conjunction.
+    assert sorted(lg["baseline"] for lg in iut["dominance_profile"]) == sorted(canon)
+    # The LLM beats all of them here, so the IUT p is the MAX leg p and dominance holds.
+    assert iut["dominates_canon"] is True
+    assert iut["iut_pvalue"] == max(lg["pvalue_one_sided"] for lg in iut["dominance_profile"])
+
+
+def test_n6_refuses_dominance_when_a_registered_canon_member_is_MISSING() -> None:
+    """Drop ONE member: the conjunction must go un-certifiable, not quietly succeed on the rest.
+
+    This is the anti-conservative failure the ``all_baselines_present`` guard exists to prevent, and
+    at the 4-name subset it was only ever exercised at a quarter of the registered breadth.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    canon = yaml.safe_load((root / "config" / "preregistration.yaml").read_text(encoding="utf-8"))["h1_baselines"]
+
+    records = _seeded_test_records("distributional", mu=0.010)
+    for i, name in enumerate(canon[:-1]):          # the LAST registered member never ran
+        records += _seeded_test_records(f"baseline_{name}", mu=0.001, seed0=100 * (i + 1))
+
+    iut = AC.beat_human_baseline(records, baseline_names=canon, winner_arm="distributional",
+                                 rng=np.random.default_rng(0))["iut"]
+    assert iut["n_baselines"] == len(canon)
+    assert iut["n_testable"] == len(canon) - 1
+    assert iut["all_baselines_present"] is False
+    assert iut["dominates_canon"] is False, (
+        "dominance was certified while a registered canon member was never compared — the LLM would "
+        "be claimed to beat 'the best human' without having faced one of them"
+    )
