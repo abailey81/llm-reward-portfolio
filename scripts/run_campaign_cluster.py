@@ -529,6 +529,8 @@ def resolve_cluster_baselines(baselines: list[str] | None, *, tiered: bool) -> l
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # a console codepage must never kill the launcher (src/utils/console.py)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # Load .env -> os.environ so the authoring key (ANTHROPIC_API_KEY / OPENROUTER_API_KEY) is available
     # to the LAPTOP-side driver that authors before shipping specs (parity with run_campaign.py:2111).

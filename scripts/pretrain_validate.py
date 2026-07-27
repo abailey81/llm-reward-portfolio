@@ -580,6 +580,8 @@ def _gather_executable_yield(gates_dir: Path) -> dict[str, tuple[int, int]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # src/utils/console.py — a console codepage must never kill a gate
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--gates-dir", default="outputs/leg_gates_20260726_r112")

@@ -33,7 +33,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
 
-
 def step(cmd: list[str], name: str, log_dir: Path, *, tolerate: bool) -> bool:
     print(f"\n=== [bank_gate] {name} ===\n    $ {' '.join(cmd)}")
     res = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, encoding="utf-8",
@@ -59,6 +58,12 @@ def step(cmd: list[str], name: str, log_dir: Path, *, tolerate: bool) -> bool:
 
 def main() -> int:
     from src.utils.config import cfg_get, load_config
+    from src.utils.console import make_console_safe
+
+    # ⚠ OBSERVED 2026-07-27: this runsheet died with UnicodeEncodeError while PRINTING a log tail —
+    # ``step`` reads subprocess output with errors="replace" (U+FFFD) and the console here is cp1251.
+    # The POST-CAMPAIGN analysis, killed by a codepage. See src/utils/console.py.
+    make_console_safe()
 
     p = argparse.ArgumentParser(description="The bank-gate runsheet, sequenced fail-fast.")
     p.add_argument("--archive", required=True, help="Campaign archive root (local mirror).")

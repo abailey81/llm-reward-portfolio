@@ -1380,6 +1380,8 @@ def _print_check(status: FreezeStatus) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # a console codepage must never kill GO step 1 (src/utils/console.py)
     args = build_parser().parse_args(argv)
     root = repo_root()
 

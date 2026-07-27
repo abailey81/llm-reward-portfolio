@@ -242,6 +242,8 @@ def assess_seed(root: str | Path, seed: int | None = None) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # src/utils/console.py — the earliest-warning check must not die printing
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("root", help="campaign archive root (e.g. outputs/campaign_cluster)")

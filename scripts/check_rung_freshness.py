@@ -102,6 +102,8 @@ def resolve_achieved(explicit: int | None, achieved_json: Path) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # src/utils/console.py
     repo = Path(__file__).resolve().parents[1]
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--achieved", type=int, default=None,

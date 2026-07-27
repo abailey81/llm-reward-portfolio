@@ -162,6 +162,8 @@ def bank(root: str | Path, rung: int, *, counts: dict[str, int],
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # src/utils/console.py — it prints a captured analyze_campaign tail
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("root")

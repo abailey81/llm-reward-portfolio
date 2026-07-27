@@ -312,6 +312,8 @@ def run_leg_gates(
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # src/utils/console.py — these gates cost real money; never lose one to a codepage
     p = argparse.ArgumentParser(description="Pre-launch per-leg gates (smoke/compliance/screen).")
     p.add_argument("--leg", help="One leg label from config/legs.yaml.")
     p.add_argument("--all", action="store_true", help="Run every leg in queue order.")

@@ -635,6 +635,8 @@ def _gather_and_check(n_gpu: int, min_disk_gb: float, *, provider: str, api_prob
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # src/utils/console.py — a console codepage must never kill the GO gate
     ap = argparse.ArgumentParser(description="Pre-flight GO/NO-GO gauntlet for the campaign run.")
     ap.add_argument("--gpu", type=int, default=2, help="planned concurrent GPU workers (n_gpu)")
     ap.add_argument("--min-disk-gb", type=float, default=5.0)

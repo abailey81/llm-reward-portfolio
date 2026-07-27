@@ -1437,6 +1437,8 @@ def _emit_transitions(report: HealthReport, last: dict[str, str],
 
 
 def main(argv: list[str] | None = None) -> int:
+    from src.utils.console import make_console_safe
+    make_console_safe()   # the monitor runs for the WHOLE campaign (src/utils/console.py)
     ap = argparse.ArgumentParser(description="Campaign health sentinel (read-only invariant monitor).")
     ap.add_argument("run_dir", help="Campaign output dir (e.g. outputs/campaign).")
     ap.add_argument("--watch", action="store_true", help="Poll on an interval instead of a single check.")
