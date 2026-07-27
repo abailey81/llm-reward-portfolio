@@ -24,18 +24,24 @@ New-Item -ItemType Directory -Force $outDir | Out-Null
 
 # THE LAUNCH LINE — must stay in lockstep with docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md §2.
 $py = Join-Path $repo ".venv\Scripts\python.exe"   # ABSOLUTE (2026-07-18 drill: a relative path can fail to resolve and PS tries module-autoload)
+# NO --arms and NO --baselines: under --tiered the launcher RESOLVES both from the frozen config
+# (resolve_cluster_arms / resolve_cluster_baselines) and refuses a partial list before ssh. This
+# line hand-typed SEVEN arms and was still doing so after R108 took the roster to NINE, so it would
+# have silently dropped cma_es and tpe and made confirmatory node N4 unsatisfiable - the same drift
+# that hit --baselines when the H1 canon went 4 -> 11. Never hand-type a frozen list here again.
+#
+# CPU LANE (2026-07-27): this line was GPU-only (--pool EF plus a GPU --seed-pool-blocks stripe),
+# which the launcher now REFUSES together with --device cpu. Flags mirror mode_d_supervisor.ps1's
+# $cpuLane; read that file's header for the justification of each one.
 $args = @(
   "scripts/run_campaign_cluster.py", "--tiered",
-  "--arms", "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled",
-            "random_search", "bayes_opt",
-  # NO --baselines: under --tiered the launcher resolves the FROZEN config h1_baselines family
-  # (resolve_cluster_baselines). This line used to hand-mirror the H1 four and DRIFTED when the
-  # canon expanded 4 -> 11 on 2026-07-26 - it would have run a subset, breaking the N6 IUT and
-  # mis-sizing the C0 canary. Never hand-type a frozen list here again.
   "--pass-mode", "B", "--llm-from", "campaign",
-  "--pack", "5", "--cores-per-training", "1", "--pool", "EF",
-  "--seed-pool-blocks", "EF:0-14,L:15-29,EF:30-64,L:65-99,EF:100-143,L:144-188,EF:189-233,L:234-278,EF:279-308,L:309-339,EF:340-370,L:371-402,EF:403-484,L:485-567",
-  "--batch-tag", "c1", "--poll-secs", "180", "--chunk-tasks", "1",
+  "--device", "cpu", "--pool", "d",
+  "--pack", "4", "--cores-per-training", "1",
+  "--search-pack", "1", "--search-threads", "8",
+  "--chunk-tasks", "1", "--exclude-hosts", "node-d00a-230",
+  "--gold-dir", "/acfs/users/ucestes/gold",
+  "--batch-tag", "c1", "--poll-secs", "180", "--search-poll-secs", "45",
   "--output-dir", $outDir, "--resume"
 )
 

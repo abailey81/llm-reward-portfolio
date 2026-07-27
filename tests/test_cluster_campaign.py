@@ -461,6 +461,42 @@ def test_run_campaign_tiered_c_ladder_canary_priorities_pair_and_sweep(tmp_path)
     assert ids == {f"distributional-s{k}" for k in range(4)}
 
 
+def test_run_campaign_tiered_runs_a_LEG_shape_with_no_h1_canon(tmp_path):
+    """THE R101 LOCKSTEP SHAPE (2026-07-27): a replication leg climbing the SAME tier ladder as the
+    core, with the five LLM feedback arms and — deliberately — NO H1 canon and NO canary.
+
+    Legs were previously pinned at ``--seeds 0-29``, the ``leg_seed_tier: 30`` floor that R101
+    explicitly retired, so this combination had never been exercised. It matters that
+    ``baseline_names=None`` is genuinely supported end-to-end and not merely tolerated by the
+    argument parser: the eleven H1 rewards are HAND-designed and model-INDEPENDENT, so attaching
+    them per-leg would train the entire H1 leg ten more times over and let a leg archive masquerade
+    as an H1 replication the design never registered. With no baselines there is also no canary
+    (``canary_baselines`` falls to None), which is correct — the canary exists to protect Opus spend
+    on the core line, and it must not become a per-leg barrier.
+    """
+    fake = FakeCluster(tmp_path)
+    run = _run(tmp_path, fake)
+    _inject_select_freeze(run)
+    leg_arms = ["distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled"]
+    out = run_campaign_tiered(
+        leg_arms, lambda a: _opts(generations=1, candidates=2),
+        {"mode": "tiered", "tiers": [2, 4]}, run,
+        test_leg_kwargs=_test_leg_kwargs(), frozen_root=tmp_path / "frozen_leg_glm_5_2",
+        h2_arms=("distributional", "scalar"),
+        baseline_names=None, canary_baselines=None,
+        review_gate=False,
+    )
+    assert out["ok"], out
+    assert out["n_tiers"] == 2 and out["tier_sizes"] == [2, 2]
+    names = {c[0] for c in fake.calls}
+    assert "canary" not in names, "a leg must not run the C0 canary (it guards Opus spend)"
+    assert not any(n.startswith("baseline") for n in names), (
+        "a leg must not train the H1 hand-reward canon")
+    # every priority is full fair-share standing or the registered -100 rung; never a leg ladder
+    assert all(c[4] >= -100 for c in fake.calls), (
+        "R101 retired the -200..-290 leg priority ladder; no leg batch may sit below the rung value")
+
+
 def test_run_campaign_tiered_gate_holds_then_approval_resumes(tmp_path):
     """The review gate under an EXPLICIT manual hold (``hold_at_gate=True``): the ladder STOPS after
     the C3 floor with the EFFECT-BLIND integrity report written even though execution health is

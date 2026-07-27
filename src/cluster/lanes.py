@@ -71,6 +71,7 @@ from dataclasses import dataclass, field
 
 __all__ = [
     "CPU_STEPS_PER_S_PER_CORE",
+    "CPU_PLANNING_STEPS_PER_SEC",
     "GPU_PACK1_STEPS_PER_S",
     "SERIAL_CHAIN_STEPS",
     "CONFIRMATORY_CPU_POOLS",
@@ -86,6 +87,25 @@ __all__ = [
 #: ~600-core load (mean 14.19 steps/s raw; ``learning_starts: 1000`` makes 1/12 of a 12k bench
 #: gradient-free). Flat across footprints 1-28 workers.
 CPU_STEPS_PER_S_PER_CORE = 13.0
+
+#: ★ CPU WALLTIME-PLANNING FLOOR -- the rate every ``h_rt`` request on the CPU lane is sized from.
+#: DELIBERATELY BELOW the measured 13.0 above: that is a MEAN over completed jobs, and a walltime
+#: request must survive the TAIL. Evidence for the tail being heavy, in order of discovery
+#: (2026-07-27): a 102 steps/s GPU-era anchor, then a co-tenanted node at 51, then a ladder cell
+#: h_rt-KILLED at its full 6 h (``qacct failed=37``, ``ru_wallclock 21,612``) implying that node
+#: sustained UNDER 37 -- two successive downward surprises. 10.0 prices the measured 13.0 with
+#: ~30 % co-tenancy margin and is conservative for the 8-thread chain regime too (15.4 measured).
+#:
+#: ONE OWNER, deliberately (HANDOFF §3 authority map). This constant lives here and is imported by
+#: BOTH CPU walltime estimators -- ``scripts/p6_authored_ladder._auto_h_rt`` and
+#: ``scripts/run_campaign_cluster.autosize_h_rt``. It was defined in the ladder alone until
+#: 2026-07-27, and the campaign launcher consequently sized 400k CPU tasks at 6 h against a real
+#: 8.55 h -- i.e. every task SIGKILLed. A second copy is how that recurs; there is now no copy.
+#:
+#: ``h_rt`` is a LIMIT, not a reservation. Over-asking costs only backfill position, and walltime
+#: was MEASURED irrelevant to placement (an 11 h request placed as fast as a 50 min one, 15/15);
+#: under-asking costs the whole job. Asymmetric loss -> price the floor, not the mean.
+CPU_PLANNING_STEPS_PER_SEC = 10.0
 
 #: One GPU, ONE training (pack=1) -- the latency figure, not a throughput figure. From the
 #: launcher's own measured curve (``run_campaign_cluster.autosize_h_rt::_agg_clean``) and confirmed

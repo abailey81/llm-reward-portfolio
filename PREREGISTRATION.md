@@ -948,7 +948,10 @@ DeepSeek V4-Pro (MIT; contamination-screen gate, GLM-5.2 absorbing on failure), 
 the open family pair Qwen3.6-27B + Qwen3.5-9B (Apache; one provider, one quantization), Haiku 4.5
 (the closed capability pair's floor, vs Opus), GPT-5.6 Luna (cross-vendor closed; effort-low,
 2k cap), Nemotron 3 Super (NVIDIA Open Model License; major portions of training data published),
-Sonnet 5 (the latest-generation seat, R90/R92), Gemini 3.5 Flash (stretch), and Kimi K3 (R95:
+Sonnet 5 (the latest-generation seat, R90/R92), **Gemini 2.5 Flash** (**R106**: substituted for
+Gemini 3.5 Flash, whose reasoning is MANDATORY — OpenRouter returns *"Reasoning is mandatory for
+this endpoint and cannot be disabled"* — so it was the one leg that could not join the ratified
+uniform reasoning-OFF suite; the substitute was re-verified live before the swap), and Kimi K3 (R95:
 the canonical dated slug via OpenRouter; always-on thinking disclosed; the vendor-promised
 2026-07-27 open weights upgrade it to open-class by the pre-declared rule; last in queue —
 truncates first). Per R85, every open-weight leg

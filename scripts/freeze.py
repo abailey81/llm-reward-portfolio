@@ -22,9 +22,12 @@ two MUTABLE ``frozen``/``freeze_hash`` lines so the hash is INVARIANT to the fre
                       + b"\n" + norm(config/data.yaml)             # if present  ┘
                       + b"\n" + norm(config/arms.yaml)             # if present  ┐ _BOUND_TREATMENT
                       + b"\n" + norm(prompts/system.txt)           # if present  │ (the manipulated
-                      + b"\n" + norm(prompts/initial_generation.txt) # if present┘  variable itself)
+                      + b"\n" + norm(prompts/initial_generation.txt) # if present│  variable itself)
+                      + b"\n" + norm(src/feedback/schema.py)       # if present  ┘  (#97/R114: the
+                      #   RENDERER. The designer never sees a float, it sees a STRING, so the
+                      #   rendered precision IS part of the stimulus and must be bound with it.
 
-i.e. **prose, THEN the freeze-state-stripped prereg yaml, THEN the three bound configs, THEN the three
+i.e. **prose, THEN the freeze-state-stripped prereg yaml, THEN the three bound configs, THEN the four
 bound treatment files** (see ``_BOUND_CONFIGS`` + ``_BOUND_TREATMENT``) — each joined by a single ``\n``
 (LF) record separator. The bound configs are the EXECUTED knobs the campaign reads (splits/embargo/
 lookback/family); the bound treatment is the per-arm feedback spec + the two loaded prompts (the
@@ -162,7 +165,26 @@ _ARM_ROSTER_CONFIGS: tuple[str, ...] = (
 DECISION_LOG = "docs/DECISION_LOG.md"
 
 #: The annotated/signed git tag stamped at the freeze.
-FREEZE_TAG = "prereg-v1.0"
+#: The git tag + OpenTimestamps proof name for THIS freeze.
+#:
+#: ⚠ **v2.0, changed 2026-07-27 at the launch gate, and the change is load-bearing.** The value was
+#: ``prereg-v1.0``, and that tag ALREADY EXISTS in this repository from the 2026-07-18 v1.0 freeze
+#: that R78/ADR-059 later lifted. Two silent failures followed from that, both verified:
+#:
+#: 1. ``_git_tag_signed`` is best-effort by design, so ``git tag -s`` AND its ``git tag -a``
+#:    fallback would both have failed with "tag already exists" and the freeze would have reported
+#:    ``"tag SKIPPED"`` — i.e. the v2 design would have had **no git provenance anchor at all**,
+#:    while the freeze receipt in ``DECISION_LOG.md`` still named a tag pointing at the OLD design.
+#: 2. ``_ots_stamp`` writes ``docs/<FREEZE_TAG>.sha256``, so it would have **OVERWRITTEN**
+#:    ``docs/prereg-v1.0.sha256`` — a committed artifact holding v1.0's digest ``ce5db62c…`` — with
+#:    the v2 digest, under the v1 name. The one file whose entire job is to prove which bytes were
+#:    registered when would have been made to attest the wrong thing.
+#:
+#: A pre-registration proof that is absent, or that quietly re-labels a superseded one, is worse
+#: than no proof: it is the reproducibility claim (Stefan's criterion 3) failing at exactly the
+#: point it is supposed to hold. The v1.0 tag and its ``.sha256`` stay untouched as the historical
+#: record of a freeze that was lifted pre-data.
+FREEZE_TAG = "prereg-v2.0"
 
 #: The marker line in ``docs/DECISION_LOG.md`` whose body the freeze fills (ADR-005 slot).
 _DECISION_LOG_FREEZE_HEADER = "### FREEZE — pre-registration content hash"

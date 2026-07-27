@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import subprocess
 from importlib import metadata
 from pathlib import Path
@@ -76,6 +77,54 @@ def _pip_freeze() -> dict[str, str]:
             continue
         out[str(name).lower()] = dist.version
     return dict(sorted(out.items()))
+
+
+def _cpu_identity() -> dict[str, Any]:
+    """The PROCESSOR the training actually ran on — vendor, model string, and core count.
+
+    ⚠ WHY THIS EXISTS (2026-07-27, launch-gate catch). The confirmatory campaign moved to the CPU
+    lane, and on that lane the archive recorded **nothing about the CPU**. ``env_fingerprint``'s only
+    platform field is ``platform.platform()`` — kernel and glibc, no processor — and the whole
+    device-homogeneity apparatus keys on the GPU: ``integrity._record_device`` reads only
+    ``env.json -> nvidia_smi.gpus[0]``, so on a CPU node it returns ``"<absent>"``, which
+    ``write_integrity_report`` treats as a WILDCARD. The result was a gate that reports
+    ``crn_pair_device_consistent`` GREEN no matter what silicon the pair ran on.
+
+    That is not a hypothetical risk on this cluster. ``src.cluster.lanes.EXCLUDED_CPU_POOLS``
+    excludes the ``t`` pool precisely because AMD EPYC (Zen4) selects different oneDNN kernels,
+    giving a different float reduction order and **breaking the CRN bit-exactness every paired
+    contrast in this design rests on** — and the only thing keeping us off it is an ``-ac allow=``
+    token whose effect on the CPU lane had never been submitted, let alone verified. So the one
+    failure that would invalidate the headline comparison silently was also the one failure no
+    recorded field could reveal.
+
+    CLAUDE.md's determinism envelope, rule 3, is explicit: *"RECORDED, not merely chosen — a pin
+    nobody can verify is FICTIONAL ... If you add a knob that can vary across records, you MUST also
+    make it visible in the archive in the same change."* A substrate whose microarchitecture can
+    vary across records is exactly such a knob. With this field an Intel/AMD mix becomes a
+    detectable, post-hoc-auditable fact instead of an invisible one.
+
+    Best-effort and never raising: ``/proc/cpuinfo`` on Linux (the cluster), ``platform`` elsewhere.
+    """
+    out: dict[str, Any] = {
+        "machine": platform.machine(),
+        "processor": platform.processor() or None,
+        "logical_cores": os.cpu_count(),
+    }
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                key, _, val = line.partition(":")
+                key = key.strip().lower()
+                if key == "model name" and "model_name" not in out:
+                    out["model_name"] = val.strip()
+                elif key == "vendor_id" and "vendor_id" not in out:
+                    out["vendor_id"] = val.strip()
+                if "model_name" in out and "vendor_id" in out:
+                    break
+    except OSError:
+        pass  # not Linux (the laptop/CI) — platform fields above are the record
+    return out
 
 
 def _nvidia_smi() -> dict[str, Any]:
@@ -208,9 +257,13 @@ def capture_env(seed: int | None = None) -> dict[str, Any]:
         ``gold_panel`` (the active suffix + panel SHA-256s, C1), ``seed`` and ``schema``.
     """
     fp = dict(env_fingerprint())  # canonical core — NOT re-implemented here
-    fp["schema"] = "capture_env/3"  # /2 +gold_panel (C1); /3 +APPLIED tf32 (2026-07-27)
+    # /2 +gold_panel (C1); /3 +APPLIED tf32; /4 +cpu (2026-07-27 — the CPU lane recorded NO
+    # processor identity, so an Intel/AMD microarchitecture mix, which breaks CRN bit-exactness,
+    # was undetectable by audit; see _cpu_identity).
+    fp["schema"] = "capture_env/4"
     fp["seed"] = seed
     fp["pip_freeze"] = _pip_freeze()
+    fp["cpu"] = _cpu_identity()
     fp["nvidia_smi"] = _nvidia_smi()
     fp["torch_cuda"] = _torch_cuda()
     fp["determinism_env"] = {k: os.environ.get(k) for k in _DETERMINISM_ENV_KEYS}

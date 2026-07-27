@@ -31,6 +31,12 @@ from typing import Any
 
 _LOG = logging.getLogger("run_campaign_cluster")
 
+#: The pre-2026-07-27 ``--arms`` argparse default, kept ONLY for the non-tiered rehearsal/probe/D1
+#: paths that relied on it. It is deliberately NOT the frozen roster: the headline is ``--tiered``
+#: and resolves the roster from config, so anything reaching this constant is by definition not the
+#: confirmatory campaign. See :func:`resolve_cluster_arms`.
+_LEGACY_DEFAULT_ARMS = ("distributional", "scalar")
+
 
 def _parse_seeds(spec: str) -> list[int]:
     """Parse ``--seeds`` as a comma list and/or ``a-b`` inclusive ranges (e.g. ``0-402`` or ``0,1,5``)."""
@@ -265,8 +271,15 @@ def _write_campaign_summary(output_dir: str | Path, inputs: dict[str, Any], *,
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Run the headline campaign on UCL Myriad.")
-    p.add_argument("--arms", nargs="+", default=["distributional", "scalar"],
-                   help="Arms to run (the frozen roster at GO; default is the two headline arms).")
+    p.add_argument("--arms", nargs="+", default=None,
+                   help="Arms to run. NORMALLY OMIT IT: under --tiered the frozen "
+                        "config/campaign.yaml roster is resolved automatically, and under --leg "
+                        "the five LLM feedback arms are; a hand-typed list is a copy of a frozen "
+                        "value and DRIFTS (it still said 7 after R108 took the roster to 9, which "
+                        "would have made confirmatory node N4 unsatisfiable). If passed under "
+                        "--tiered it must be EXACTLY the frozen roster. Omitted on any other path "
+                        "keeps the historical two-arm default, with a warning. See "
+                        "resolve_cluster_arms().")
     p.add_argument("--baselines", nargs="*", default=None,
                    help="H1 hand-designed baseline REWARD_CANON names (fixed rewards, no search; "
                         "flood the pool from minute 0). NORMALLY OMIT IT: under --tiered the frozen "
@@ -499,18 +512,310 @@ def resolve_leg_override(label: str, explicit_root_suffix: str | None) -> tuple[
     return llm_cfg, str(tk["provider"]), suffix
 
 
-def autosize_h_rt(pack: int, train_steps: int) -> str:
-    """Walltime default for a pack-``pack`` task at ``train_steps``: the measured clean aggregate
-    curve at its WORST (x0.5 contention) + 1200 s overhead + 30% margin, rounded up to whole hours
-    (unit-testable — the 2026-07-18 defaults-class sweep found the inline version sized on a stale
-    hardcoded 200k)."""
+def autosize_h_rt(pack: int, train_steps: int, *, device: str = "cuda") -> str:
+    """Walltime default for a pack-``pack`` task at ``train_steps``, **per SUBSTRATE**.
+
+    ``cuda`` — the measured clean aggregate curve at its WORST (x0.5 contention) + 1200 s overhead
+    + 30 % margin, rounded up to whole hours (unit-testable — the 2026-07-18 defaults-class sweep
+    found the inline version sized on a stale hardcoded 200k).
+
+    ``cpu`` — **LANE-AWARE (2026-07-27, launch-gate catch).** The GPU branch was the ONLY branch,
+    and it is wrong on CPU in both of its terms, in the same direction:
+
+    1. **The rate.** ``_agg_clean`` is a GPU aggregate-throughput curve. A CPU training runs at the
+       registered ``CPU_STEPS_PER_S_PER_CORE`` (13.0), so it must be priced off the CPU planning
+       floor, not off a card.
+    2. **The pack term.** ``x int(pack)`` models GPU TIME-SLICING, where packed trainings share one
+       device and the task's wall grows with the pack. On the CPU lane ``pack N`` +
+       ``cores_per_training 1`` is N INDEPENDENT trainings on N OWN cores (the 2026-07-27
+       packing-is-not-threading correction), so the task's wall is ONE training's wall, flat in
+       pack. Multiplying by pack does not make the CPU estimate conservative — it makes it wrong in
+       a way that happens to cancel part of the rate error, and only part of it.
+
+    MEASURED consequence of the old formula, which is why this is a launch-blocker and not a tidy-up:
+    ``autosize_h_rt(4, 400_000)`` returned ``"6:0:0"`` while a 400k CPU training needs **8.55 h** at
+    the registered 13.0 steps/s and **6.11 h** even at the fastest rate ever observed (18.2). EVERY
+    task of the confirmatory campaign would have been SIGKILLed at its walltime having archived
+    nothing — the ``p6ext800/1600`` incident class, at campaign scale. (``docs/
+    CAMPAIGN_LAUNCH_READY_2026-07-27.md`` §8 asserts "``_auto_h_rt`` is lane-aware now"; that fix
+    landed in ``scripts/p6_authored_ladder.py`` only, and this entry point never got it.)
+
+    The rate used is :data:`src.cluster.lanes.CPU_PLANNING_STEPS_PER_SEC` — deliberately the SAME
+    object the ladder sizes from, so the two CPU walltime estimators cannot drift apart again.
+    ``h_rt`` is a LIMIT, not a reservation: over-asking costs only backfill position (and walltime
+    was measured IRRELEVANT to placement — an 11 h request placed as fast as a 50 min one, 15/15),
+    whereas under-asking costs the entire job.
+    """
+    if str(device) == "cpu":
+        from src.cluster.lanes import CPU_PLANNING_STEPS_PER_SEC
+
+        secs = (int(train_steps) / float(CPU_PLANNING_STEPS_PER_SEC) + 1200.0) * 1.3
+        return f"{int(secs // 3600) + 1}:0:0"
     _agg_clean = {1: 102.0, 2: 133.0, 3: 220.0, 4: 240.0, 5: 253.0, 8: 257.0}
     agg = 0.5 * _agg_clean.get(int(pack), 253.0)
     secs = (int(train_steps) * int(pack) / agg + 1200.0) * 1.3
     return f"{int(secs // 3600) + 1}:0:0"
 
 
-def resolve_cluster_baselines(baselines: list[str] | None, *, tiered: bool) -> list[str] | None:
+def assert_remote_gold(runner: Any, gold_dir: str, *, real_spend: bool) -> dict[str, str]:
+    """Prove the LICENSED GOLD PANEL is on the cluster, at the right bytes, BEFORE anything is
+    submitted. Returns ``{basename: sha256}`` for what was verified.
+
+    THE DEFECT THIS CLOSES (2026-07-27 launch gate). ``--gold-dir`` defaults to
+    ``~/Scratch/llmrp/inputs``. That directory exists on Myriad and is **EMPTY** — the licensed gold
+    actually lives on ACFS at ``/acfs/users/ucestes/gold`` (which is what ``p6_authored_ladder``
+    passes, and why the ladder works). Nothing checked. Worse, the jobscript deliberately
+    ``mkdir -p``s the bind source so Apptainer cannot FATAL on a missing mount (a fix for a
+    different bug), so an empty gold dir produces a *successful container start* and then a loader
+    failure on EVERY task — thousands of core-hours of uniform, late, per-task failure with no
+    single loud cause. Gold absence must fail ONCE, at t0, on the laptop.
+
+    It also closes the matching REPRODUCIBILITY hole: the LAPTOP-side panel is checksum-verified
+    (``load_gold_panel(verify_checksum=True)``) and the REMOTE one never was, even though the remote
+    copy is the one every training actually reads. A wrong-but-present panel is worse than an absent
+    one — it produces plausible numbers. We therefore compare the remote SHA-256 against the frozen
+    manifest (``data/manifest/checksums.txt`` via :func:`src.data.loaders._expected_sha256`), which
+    is the same authority the laptop loader uses, so both ends assert the same bytes.
+
+    Non-fatal (WARN) when ``real_spend`` is False: rehearsals and ``--synthetic`` runs legitimately
+    need no gold.
+    """
+    from pathlib import Path as _P
+
+    from src.data.loaders import _expected_sha256, gold_suffix
+
+    suffix = gold_suffix()
+    required = [f"{stem}_{suffix}.parquet" for stem in
+                ("returns_panel", "cash_features", "splits", "top30_selection")]
+    quoted = " ".join(f"'{gold_dir}/{n}'" for n in required)
+    out = runner(f"sha256sum {quoted} 2>&1 || true")
+    seen: dict[str, str] = {}
+    for line in str(out).splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and len(parts[0]) == 64:
+            seen[_P(parts[1]).name] = parts[0].lower()
+    missing = [n for n in required if n not in seen]
+    if missing:
+        msg = (f"GOLD PANEL NOT ON THE CLUSTER: {missing} absent from --gold-dir {gold_dir!r}. "
+               f"Every training would start its container and then fail in the loader. The "
+               f"licensed gold is staged on ACFS (e.g. /acfs/users/<user>/gold) — pass that path "
+               f"as --gold-dir, or stage the panel into this one.")
+        if real_spend:
+            raise SystemExit(msg)
+        _LOG.warning("%s (non-fatal: not a real-spend run)", msg)
+        return seen
+    drifted = []
+    for name, got in sorted(seen.items()):
+        want = _expected_sha256(_P("data") / "gold" / name)
+        if want and want.lower() != got:
+            drifted.append(f"{name}: remote {got[:12]} != frozen {want[:12]}")
+    if drifted:
+        msg = ("REMOTE GOLD DOES NOT MATCH THE FROZEN MANIFEST — the cluster would train on a "
+               f"DIFFERENT panel than the design registers: {drifted}")
+        if real_spend:
+            raise SystemExit(msg)
+        _LOG.warning("%s (non-fatal: not a real-spend run)", msg)
+    else:
+        _LOG.info("remote gold VERIFIED at %s — %d files, sha256 == the frozen manifest (%s)",
+                  gold_dir, len(seen), ", ".join(f"{n}:{s[:8]}" for n, s in sorted(seen.items())))
+    return seen
+
+
+def assert_no_foreign_remote_records(runner: Any, remote_outputs_root: str,
+                                     local_archive_root: str, roots: list[str], *,
+                                     real_spend: bool, batch_tag: str | None = None) -> int:
+    """Refuse to start a FRESH campaign on top of records this campaign did not create.
+
+    THE DEFECT THIS CLOSES (2026-07-27, found by inspecting the cluster rather than the code).
+    ``~/Scratch/llmrp/outputs/search/`` — the CORE LINE's confirmatory search root — held **8
+    records from probe runs on 2026-07-24/25**, with run_ids in exactly the campaign's namespace:
+    ``distributional-g0-c0..c4`` (the COMPLETE generation-0 candidate set for that arm, since
+    ``candidates=30 / generations=6`` gives 5 per generation) plus ``scalar-g0-c2..c4``.
+
+    What would have happened, quietly: the driver's first act is a pull; ``pull_archive`` mirrors
+    those records into the local archive; ``pending_specs`` then sees those run_ids as ALREADY
+    ARCHIVED; and ``run_search_arm`` under ``--resume`` REPLAYS an archived candidate instead of
+    authoring a new one. The confirmatory search leg would have adopted three-day-old probe
+    candidates — authored under a different config, possibly by the stub — as its own generation 0,
+    and reflected on them. Nothing would have failed. The records look valid, because they ARE
+    valid records; they are just not this experiment's.
+
+    Every existing guard misses it. The F2 guard checks the LOCAL directory and only when
+    ``--resume`` is ABSENT — and the confirmatory launch correctly passes ``--resume`` on every
+    line, because that is what makes a driver death survivable. So on the one path the campaign
+    actually uses, neither side was checked.
+
+    THE DISCRIMINATOR, and why it has no false positives: a genuine resume has already mirrored its
+    own remote records locally, so ``local == 0 and remote > 0`` can only mean the remote records
+    were produced by something else. A fresh run starts with an empty local archive by definition;
+    a resumed run does not.
+
+    ⚠ THE SECOND HALF OF THE DISCRIMINATOR, and the reason it is not just the local-record test.
+    There is a window in which the local-record test alone would produce a FALSE POSITIVE that
+    wedges a line permanently: this line submits, its records land REMOTELY, and the driver dies
+    before its next pull mirrors them. The supervisor relaunches (that is its whole job), the guard
+    now sees ``local == 0 and remote > 0``, refuses, and the supervisor relaunches again — forever,
+    at 600 s intervals, on records the line produced ITSELF. So a line that has ever SUBMITTED is
+    never treated as fresh: ``local_batch_root/<batch_tag>_*`` is written by ``write_specs`` before
+    any qsub, so its existence is proof that the remote records under these roots can be this
+    line's own. Both halves are needed — the local-record test alone false-positives, and the
+    batch-dir test alone would go inert for a line that shares an output dir with eleven others.
+    """
+    import re as _re
+    from pathlib import Path as _P
+
+    # (a) HAS THIS LINE EVER SUBMITTED? If so it is not a fresh launch, whatever the mirror says.
+    _tag = _re.sub(r"[^A-Za-z0-9_]", "_", str(batch_tag or "core"))
+    if next(_P(local_archive_root).joinpath("batches").glob(f"{_tag}_*"), None) is not None:
+        return 0
+
+    # (b) Scoped to THIS line's roots, deliberately. All twelve MODE-D lines share one
+    # --output-dir, so a whole-directory check would go inert for every line that starts after the
+    # first one wrote a record — and the legs start an hour behind the core by design (the canary
+    # shield). Per-root scoping keeps the discriminator meaningful for each line independently.
+    for _r in roots:
+        if next(_P(local_archive_root).joinpath(_r).rglob("record.json"), None) is not None:
+            return 0                               # a genuine resume: this line's mirror is present
+    quoted = " ".join(f"'{remote_outputs_root}/{r}'" for r in roots)
+    out = runner(f"find {quoted} -name record.json 2>/dev/null | wc -l || true")
+    try:
+        n = int(str(out).strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        # FAIL CLOSED on a real-spend run. This repository's own 2026-07-26 review named
+        # "fail-open-on-ABSENT-evidence" as one of three recurring bug CLASSES (#28/#29): a check
+        # that cannot see is not a check that passed. Silence here means we do not know whether the
+        # confirmatory roots are clean, and the failure this guards against is the SILENT adoption
+        # of foreign rewards into the confirmatory search leg — the one class of error that yields a
+        # plausible result rather than an obvious one. A transient ssh hiccup costing one relaunch
+        # is the cheaper mistake by a wide margin.
+        msg = (f"could not determine whether {remote_outputs_root} holds foreign records "
+               f"(unparseable probe output: {str(out)[:200]!r}). REFUSING rather than assuming "
+               f"clean — re-run once the cluster answers, or sweep the roots by hand.")
+        if real_spend:
+            raise SystemExit(msg)
+        _LOG.warning("%s (non-fatal: not a real-spend run)", msg)
+        return 0
+    if not n:
+        return 0
+    msg = (
+        f"{n} record(s) ALREADY EXIST under the confirmatory archive roots on the cluster "
+        f"({remote_outputs_root}) while the local archive {local_archive_root!r} is EMPTY. A fresh "
+        f"campaign cannot have produced them, so they are FOREIGN — left over from a probe, a "
+        f"rehearsal or an earlier run. The driver resumes from the ARCHIVE, so it would mirror "
+        f"them and then ADOPT any whose run_id matches one of its own candidates, silently "
+        f"substituting foreign rewards into the confirmatory search leg. Move them aside on the "
+        f"cluster first, e.g.\n"
+        f"    ssh <host> \"cd {remote_outputs_root} && mv search _quarantined_$(date -u "
+        f"+%Y%m%dT%H%M%SZ)\"\n"
+        f"(MOVE, never delete — they are evidence.) Then relaunch."
+    )
+    if real_spend:
+        raise SystemExit(msg)
+    _LOG.warning("%s (non-fatal: not a real-spend run)", msg)
+    return n
+
+
+def frozen_arm_roster() -> list[str]:
+    """The registered arm roster, read from the hash-bound configs — never hand-typed.
+
+    ``config/arms.yaml`` calls itself "THE AUTHORITATIVE ROSTER"; ``config/campaign.yaml`` mirrors
+    it and ``freeze.py::assert_executed_arms_match`` pins BOTH against the pre-registration. So the
+    frozen truth is a config read, and any list typed into a launcher is a copy that can rot.
+    """
+    from src.utils.config import cfg_get, load_config
+
+    roster = [str(a) for a in (cfg_get(load_config("campaign"), "arms", []) or [])]
+    if not roster:
+        raise SystemExit("config/campaign.yaml has no `arms` roster — arm set unresolved")
+    return roster
+
+
+def llm_arm_roster() -> list[str]:
+    """The five LLM feedback arms, DERIVED from ``config/arms.yaml`` rather than hand-listed.
+
+    A replication leg runs "the identical five LLM arms" (``model_suite``); the four DFO arms carry
+    ``llm: false`` and author nothing, so they belong to the core line only. Deriving the split from
+    the authoritative table means seating a sixth feedback arm cannot silently miss the legs.
+    """
+    from src.utils.config import cfg_get, load_config
+
+    table = cfg_get(load_config("arms"), "arms", {}) or {}
+    frozen = frozen_arm_roster()
+    llm = [a for a in frozen if not (isinstance(table.get(a), dict)
+                                     and table[a].get("llm") is False)]
+    if not llm:
+        raise SystemExit("config/arms.yaml resolved ZERO LLM arms — roster unreadable")
+    return llm
+
+
+def resolve_cluster_arms(arms: list[str] | None, *, tiered: bool,
+                         leg: str | None = None) -> list[str]:
+    """Resolve the arm roster for a cluster launch — the DRIFT-PROOF path (2026-07-27).
+
+    THE DEFECT THIS CLOSES, and it is the SAME one ``resolve_cluster_baselines`` closed for H1 the
+    day before. ``--arms`` was taken VERBATIM with an argparse default of ``["distributional",
+    "scalar"]``, and **nothing anywhere validated it against the frozen roster** —
+    ``freeze.py::assert_executed_arms_match`` compares *config to pre-registration*, never *CLI to
+    config*. Measured consequence at the 2026-07-27 launch gate: the ratified MODE-D core line
+    (``scripts/mode_d_supervisor.ps1``), the runbook §2 line, ``campaign_supervisor.ps1`` and
+    ``install_onstart_task.ps1`` ALL hand-typed a roster that still said **7** after R108 took it to
+    **9**, so ``cma_es`` and ``tpe`` — two of the four comparators of the CONFIRMATORY node N4 —
+    would never have been trained, and N4's beat-the-max IUT (``p = max`` over the portfolio) would
+    have been permanently unsatisfiable. The launch-ready doc's own command was worse: omitting the
+    flag ran **two** arms. ``install_onstart_task.ps1`` even carries a comment saying "never
+    hand-type a roster" directly above a hand-typed roster of seven.
+
+    Semantics, chosen so every existing non-headline caller keeps working unchanged:
+
+    - ``--leg`` -> the five LLM feedback arms (``llm_arm_roster``), whatever is passed. A leg runs
+      no DFO arm and no H1 canon; passing anything else is refused rather than silently narrowed.
+    - omitted on the headline ``--tiered`` path -> the FROZEN roster from config.
+    - omitted on any other path -> the historical two-arm default, with a LOUD warning (rehearsals,
+      probes and the D1 curve levels rely on it; a real-spend run cannot reach here because the
+      headline is ``--tiered``).
+    - provided -> every name must be a known arm, and on ``--tiered`` the list must be EXACTLY the
+      frozen roster (set equality). A partial roster is refused up front, before ssh or any spend.
+    """
+    frozen = frozen_arm_roster()
+    if leg:
+        want = llm_arm_roster()
+        if arms is not None and set(arms) != set(want):
+            raise SystemExit(
+                f"--leg {leg!r} runs the five LLM feedback arms ({want}); got {sorted(arms)}. "
+                f"A leg authors with its own pinned model and runs no DFO arm and no H1 canon — "
+                f"omit --arms and let it resolve.")
+        return list(want)
+    if arms is None:
+        if tiered:
+            return list(frozen)
+        _LOG.warning(
+            "--arms omitted on a NON-tiered run: falling back to the historical two-arm default "
+            "%s. The confirmatory campaign is --tiered and resolves the frozen %d-arm roster; if "
+            "you meant the headline, pass --tiered.", _LEGACY_DEFAULT_ARMS, len(frozen))
+        return list(_LEGACY_DEFAULT_ARMS)
+    from src.arms.factory import all_arms
+
+    # ``all_arms()`` yields Arm OBJECTS, not names — comparing a str against them silently makes
+    # every name "unknown" (and then blows up sorting them). Key on the name attribute, and fall
+    # back to the object itself so a future plain-string factory keeps working.
+    known = {str(getattr(a, "name", a)) for a in all_arms()}
+    unknown = [a for a in arms if a not in known]
+    if unknown:
+        raise SystemExit(f"--arms: unknown arm(s) {unknown}; valid: {sorted(known)}")
+    if tiered:
+        missing = sorted(set(frozen) - set(arms))
+        extra = sorted(set(arms) - set(frozen))
+        if missing or extra:
+            raise SystemExit(
+                f"--arms must be the FROZEN roster ({len(frozen)} arms; "
+                f"freeze.py::assert_executed_arms_match pins config/arms.yaml + "
+                f"config/campaign.yaml against the pre-registration). missing={missing} "
+                f"unexpected={extra}. Omit the flag to use the frozen roster.")
+    return [str(a) for a in arms]
+
+
+def resolve_cluster_baselines(baselines: list[str] | None, *, tiered: bool,
+                              leg: str | None = None) -> list[str] | None:
     """Resolve the H1 hand-reward family for a cluster launch — the DRIFT-PROOF path.
 
     The laptop driver has always taken H1 from the FROZEN config and REFUSES a hand-typed list on
@@ -531,10 +836,24 @@ def resolve_cluster_baselines(baselines: list[str] | None, *, tiered: bool) -> l
       ``--root-suffix`` re-search invocations rely on);
     - provided -> every name must be a ``REWARD_CANON`` key AND the list must be exactly the frozen
       family (set equality). A partial family is refused up front, before ssh or any spend.
+    - **``--leg`` -> ALWAYS None, even under ``--tiered`` (2026-07-27).** The H1 canon is eleven
+      HAND-DESIGNED rewards; they contain no LLM-authored code, so they are model-INDEPENDENT and
+      belong to the core line exactly once. Attaching them to a leg would train 11 x (the achieved
+      rung) identical baseline units per leg — ~10x the entire H1 leg in wasted compute — and would
+      let a leg's archive masquerade as an H1 replication that the design never registered. This
+      branch is what makes ``--leg --tiered`` (R101 lockstep: every model climbs the SAME ladder)
+      safe to run at all.
     """
     from src.utils.config import cfg_get, load_config
 
     frozen = [str(b) for b in (cfg_get(load_config("campaign"), "h1_baselines", []) or [])]
+    if leg:
+        if baselines:
+            raise SystemExit(
+                f"--leg {leg!r} does not run the H1 hand-reward canon: those eleven rewards are "
+                f"hand-designed and model-INDEPENDENT, so they belong to the core line once. Drop "
+                f"--baselines.")
+        return None
     if baselines is None:
         return list(frozen) if (tiered and frozen) else None
 
@@ -670,6 +989,13 @@ def main(argv: list[str] | None = None) -> int:
         args.generations = int(_h3cg(_camp_llm, "h3_singleshot_generations", 1) or 1)
         _LOG.info("C5 H3 single-shot: arms forced to ['distributional'], generations=%d",
                   args.generations)
+    else:
+        # ARM ROSTER (2026-07-27): resolved from the FROZEN config, never from an argparse mirror.
+        # Placed after the H3 block so C5's deliberately-forced single arm is not overwritten, and
+        # before assembly so the spend cap, the divisibility check and the dry-run all see the
+        # roster that will actually run. See resolve_cluster_arms() for the drift this closes.
+        args.arms = resolve_cluster_arms(args.arms, tiered=bool(args.tiered), leg=args.leg)
+        _LOG.info("arms RESOLVED (%d): %s", len(args.arms), " ".join(args.arms))
 
     # 2026-07-19 (35-agent audit, CONFIRMED major): the LLM_RP_GOLD_SUFFIX env var silently
     # OUTRANKS the freeze-bound config/data.yaml gold.suffix (loaders.gold_suffix precedence), so a
@@ -815,7 +1141,8 @@ def main(argv: list[str] | None = None) -> int:
     # originally sat after the dry-run return — live for real launches, dead for dry-runs).
     # 2026-07-26: widened from a name check to full frozen-family resolution — see
     # resolve_cluster_baselines() for why a hand-typed partial list was a launch-breaking defect.
-    _resolved_baselines = resolve_cluster_baselines(args.baselines, tiered=bool(args.tiered))
+    _resolved_baselines = resolve_cluster_baselines(args.baselines, tiered=bool(args.tiered),
+                                                    leg=args.leg)
     # DEVICE COHERENCE (2026-07-26, added WITH the CPU lane so the lane cannot create an
     # incoherent run). --seed-pool-blocks stripes seeds across GPU POOLS (EF/L/U/V) to keep every
     # CRN pair device-homogeneous; under --device cpu those pool names denote nothing the job
@@ -861,9 +1188,15 @@ def main(argv: list[str] | None = None) -> int:
                             or 0)
             if not _dr_steps:
                 raise SystemExit("--search-pack: B* unresolved — refusing to size the search lane")
-            _LOG.info("dry-run: MODE-D search lane OK — pack=%d h_rt=%s (bursts pack=%d)%s",
-                      args.search_pack, autosize_h_rt(int(args.search_pack), _dr_steps),
-                      args.pack, "; pipelined rungs ON" if args.pipeline_rungs else "")
+            # device= is NOT optional here (2026-07-27): the dry-run is the operator's only offline
+            # look at the walltime, and without it this line printed the GPU-curve number for a CPU
+            # launch — an instrument quietly reporting a value the real run would not use. It is
+            # the same omission, in the same file, that made the real sizing kill every job.
+            _LOG.info("dry-run: MODE-D search lane OK — pack=%d h_rt=%s (bursts pack=%d h_rt=%s)%s",
+                      args.search_pack,
+                      autosize_h_rt(int(args.search_pack), _dr_steps, device=args.device),
+                      args.pack, autosize_h_rt(int(args.pack), _dr_steps, device=args.device),
+                      "; pipelined rungs ON" if args.pipeline_rungs else "")
         stub = "/home/USER"
         return _dry_run(inputs, list(args.arms),
                         remote_root=expand_remote(args.remote_root, stub),
@@ -884,10 +1217,53 @@ def main(argv: list[str] | None = None) -> int:
             args.apptainer_sif = expand_remote(args.apptainer_sif, home)
         _LOG.info("remote '~' paths expanded against home=%s", home)
 
+    # ══════════════════════════════════════════════════════════════════════════════════════════
+    # PRE-SUBMISSION PRECONDITIONS (2026-07-27 launch gate). All three run exactly ONCE, here, on
+    # the laptop, after '~' expansion and before build_cluster_run — i.e. before a single qsub.
+    # Each closes a failure that was silent, uniform and LATE: discovered per-task, thousands of
+    # times, hours in, with no single loud cause.
+    # ══════════════════════════════════════════════════════════════════════════════════════════
+    _real_spend = args.pass_mode.upper() == "B" and not args.synthetic
+
+    # ---- PRECONDITION 1: the remote working roots must EXIST before the driver's first poll ---- #
+    # COLD-START DEADLOCK (2026-07-27): the driver's first action every cycle is a pull, and
+    # `poll.remote_completed_dirs` runs `find <remote_outputs_root> -name record.json`, which GNU
+    # find exits 1 on for a MISSING directory -> CalledProcessError -> RuntimeError, which is in
+    # `driver._TRANSPORT_ERRORS`, so the driver sleeps and retries. The only code that CREATES that
+    # directory is `prepare_remote`, which lives inside `submit_batch` — i.e. AFTER the pull it can
+    # never reach. On a virgin remote root the driver would poll for the full 12 h transport-outage
+    # budget and then die having submitted NOTHING. `remote_completed_dirs`' own docstring asserts
+    # "prepare_remote pre-creates outputs/", and that ordering does not hold on a cold start.
+    # One idempotent mkdir removes the whole class. (The campaign's own root already exists, so this
+    # is insurance for a fresh --remote-root, e.g. every rehearsal.)
+    _rr = args.remote_root.rstrip("/")
+    ssh_runner(args.host)(f"mkdir -p '{_rr}/outputs' '{_rr}/ledger' '{_rr}/specs' '{_rr}/logs'")
+    _LOG.info("remote working roots ensured under %s", _rr)
+
+    # ---- PRECONDITION 2: the licensed gold must BE there, at the FROZEN bytes ---- #
+    assert_remote_gold(ssh_runner(args.host), args.gold_dir, real_spend=_real_spend)
+
+    # ---- PRECONDITION 3: no FOREIGN records under THIS run's archive roots ---- #
+    # The three namespaces mirror how the roots are actually built below (--leg forces
+    # root_suffix=leg_<label>, so every leg line is covered by the middle branch).
+    if args.h3_singleshot:
+        _roots = [f"{b}_h3_singleshot" for b in ("search", "test", "frozen")]
+    elif args.root_suffix:
+        _roots = [f"{b}_{args.root_suffix}" for b in ("search", "test", "frozen")]
+    else:
+        _roots = ["search", "test", "frozen"]
+    assert_no_foreign_remote_records(
+        ssh_runner(args.host), f"{args.remote_root.rstrip('/')}/outputs", args.output_dir, _roots,
+        real_spend=_real_spend, batch_tag=args.batch_tag,
+    )
+
     # ---- 2026-07-13 pre-spend audit: safe DEFAULTS for the two silent money sinks ---- #
     # (a) Spend cap: --max-author-calls defaulted to None = the spend_guard was a NO-OP on an
     #     unattended run. Default it to 2x the structural authoring bound + slack, logged.
-    _LLM_ARMS = {"distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled"}
+    #     The LLM-arm set is DERIVED from config/arms.yaml (2026-07-27), not hand-listed: a
+    #     hand-listed copy of a frozen roster is exactly the drift resolve_cluster_arms() closes,
+    #     and here it would silently mis-size the spend cap if a feedback arm were ever seated.
+    _LLM_ARMS = set(llm_arm_roster())
     if args.max_author_calls is None and args.pass_mode.upper() == "B" and args.provider != "stub":
         n_llm = len(set(args.arms) & _LLM_ARMS)
         args.max_author_calls = max(30, 2 * n_llm * int(args.candidates) + 60)
@@ -910,9 +1286,9 @@ def main(argv: list[str] | None = None) -> int:
         if not steps:
             raise SystemExit("h_rt autosize: B* unresolved (campaign.yaml "
                              "train_steps_per_candidate missing) — refusing to guess a walltime")
-        args.h_rt = autosize_h_rt(int(args.pack), steps)
-        _LOG.info("walltime DEFAULTED: h_rt=%s (steps=%d, pack=%d); override with --h-rt",
-                  args.h_rt, steps, args.pack)
+        args.h_rt = autosize_h_rt(int(args.pack), steps, device=args.device)
+        _LOG.info("walltime DEFAULTED: h_rt=%s (steps=%d, pack=%d, device=%s); override with --h-rt",
+                  args.h_rt, steps, args.pack, args.device)
 
     # MODE-D phase-adaptive packing (2026-07-21): search waves (the 6-deep reflection critical
     # path) run at --search-pack with a MATCHING auto-sized tight walltime — short low-pack
@@ -924,7 +1300,7 @@ def main(argv: list[str] | None = None) -> int:
                         or _cfg_get(_load_config("campaign"), "train_steps_per_candidate", 0) or 0)
         if not _sp_steps:
             raise SystemExit("--search-pack: B* unresolved — refusing to size the search walltime")
-        search_h_rt = autosize_h_rt(int(args.search_pack), _sp_steps)
+        search_h_rt = autosize_h_rt(int(args.search_pack), _sp_steps, device=args.device)
         _LOG.info("MODE-D search lane: pack=%d h_rt=%s (bursts stay pack=%d h_rt=%s)",
                   args.search_pack, search_h_rt, args.pack, args.h_rt)
 

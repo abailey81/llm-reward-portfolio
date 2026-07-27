@@ -1212,7 +1212,22 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
                 "n_deaths": verdict.n_deaths,
                 "n_hosts": verdict.n_hosts,
                 "n_undated": verdict.n_undated,
-                "enforced": False,  # detection only — no incident file is written from here
+                # ⚠ SCOPE, corrected 2026-07-27. This field used to read "no incident file is
+                # written from here", which was true of the SENTINEL and false of the SYSTEM: the
+                # DRIVER does enforce (campaign._enforce_kill_switch writes the incident and
+                # campaign.py's submission gate then blocks every batch). An operator reading
+                # "enforced: False" beside a retreat verdict would conclude nothing had happened,
+                # while the campaign was already halted. Renamed to say exactly what it means.
+                "enforced_by_this_watcher": False,
+                "enforced_by_the_driver": True,
+                "note": ("this watcher is READ-ONLY; the driver enforces independently via "
+                         "_enforce_kill_switch -> MYRIAD_KILL_INCIDENT.json, which blocks ALL "
+                         "submission until killswitch.clear_incident() is called by a human"),
+                # The watcher classifies WITHOUT h_rt_secs, so its verdict is deliberately the more
+                # pessimistic of the two: it cannot tell a walltime kill from an administrative one
+                # and will say admin_kill for both. The driver, which knows the walltime it
+                # requested, is the authority. Treat a watcher retreat as "go and look".
+                "discriminator": "no h_rt_secs available to this watcher",
             }
 
     # ARCHIVE READABILITY + PER-ARM PROGRESS (2026-07-27), computed in ONE pass over the records.

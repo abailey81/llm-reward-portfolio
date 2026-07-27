@@ -83,11 +83,17 @@ if ($Myriad) {
         # the complete, correct campaign — a wrong default would resume an incomplete/broken roster.
         # --tiered means the config seed schema (the E1 ladder [0..567]) drives the tiers; --seeds is
         # ignored here. Kept at the full ladder as a belt-and-suspenders default in case --tiered is dropped.
-        $CampaignArgs = "--tiered " +
-            "--arms distributional scalar placebo scalar_cvar5 placebo_shuffled random_search bayes_opt " +
-            # NO --baselines: --tiered resolves the FROZEN config h1_baselines family. The old
-            # hand-mirrored H1 four DRIFTED at the 2026-07-26 canon expansion (4 -> 11).
-            "--seeds 0-567"
+        # 2026-07-27: the --arms list is GONE, not corrected. It said SEVEN under a comment saying
+        # NINE - the drift this very comment warns about, in the file that warns about it. Both the
+        # roster and the H1 canon are now RESOLVED from the frozen config by the launcher
+        # (resolve_cluster_arms / resolve_cluster_baselines), which also REFUSES a partial list
+        # before ssh. A reboot-recovery therefore cannot resume a subset of the design.
+        # CPU-lane substrate flags mirror mode_d_supervisor.ps1's $cpuLane.
+        $CampaignArgs = "--tiered --pass-mode B --llm-from campaign " +
+            "--device cpu --pool d --pack 4 --cores-per-training 1 " +
+            "--search-pack 1 --search-threads 8 --chunk-tasks 1 " +
+            "--exclude-hosts node-d00a-230 --gold-dir /acfs/users/ucestes/gold " +
+            "--batch-tag c1 --poll-secs 180 --search-poll-secs 45"
     }
     $inner = "`"$pythonExe`" `"$supervisor`" --no-preflight --campaign `"$clusterEntry`" -- $CampaignArgs --resume"
 } else {

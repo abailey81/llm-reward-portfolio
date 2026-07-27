@@ -100,11 +100,14 @@ PLANNING_STEPS_PER_SEC = 25.0  # planning FLOOR, revised DOWN 2026-07-13: job 77
 #: UNDER-SIZES every CPU rung: at the registered 13.0 steps/s/core a 400k training needs 8.5 h but
 #: would be granted 7 h, and 1.6M needs 34.2 h against 24 h — i.e. EVERY budget except 100k would be
 #: SIGKILLed at the walltime, having produced nothing. Caught before submitting the ladder, and it
-#: is also why the gate probe survived only because it happened to run 60k. 10.0 prices the measured
-#: 13.0 with ~30 % co-tenancy margin, and is conservative for the 8-thread regime too (measured 15.4
-#: steps/s on 2026-07-27). h_rt is a LIMIT, not a reservation: the only cost of generosity is
-#: slightly worse backfill placement, whereas the cost of under-sizing is the whole job.
-CPU_PLANNING_STEPS_PER_SEC = 10.0
+#: is also why the gate probe survived only because it happened to run 60k.
+#:
+#: ⚠ IMPORTED, NOT REDEFINED (2026-07-27, second catch). This value was defined HERE and nowhere
+#: else, so ``run_campaign_cluster.autosize_h_rt`` — the CONFIRMATORY launcher — never received the
+#: lane-aware fix and would have sized every 400k campaign task at 6 h against a real 8.55 h. The
+#: constant now has ONE owner (``src.cluster.lanes``) and both estimators read it, so the two CPU
+#: walltime paths cannot diverge again. The rationale for the value lives with the definition.
+from src.cluster.lanes import CPU_PLANNING_STEPS_PER_SEC  # noqa: E402  (documented re-export)
 
 
 def _auto_h_rt(budgets: list[int], device: str = "cuda") -> str:

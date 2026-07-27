@@ -3,7 +3,290 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27d] — ⛔ **THE LAUNCH GATE CAUGHT TEN DEFECTS. THE "LAUNCH-READY" COMMAND WOULD HAVE DESTROYED THE CAMPAIGN.**
+
+> **Tamer gave the GO. Instead of launching, this session re-derived the launch from first
+> principles and found that the documented command does not run the confirmatory campaign — and
+> that four independent defects behind it would each, alone, have wasted the run.** Nothing was
+> frozen and nothing was submitted until every one was fixed and proven fixed BY EXECUTION.
+>
+> The governing lesson, and it is the same one this repository keeps re-learning at a new layer:
+> **the freeze gate compares config to pre-registration, and the suite compares code to code, but
+> NOTHING compared the command line, the walltime, or the data path to anything at all.** Every
+> defect below lived in that gap, and every one of them was invisible to 2,779 passing tests, to
+> `freeze --check` 23/23, and to `pretrain_validate` FAIL=0.
+
+### THE FOUR THAT WOULD EACH HAVE DESTROYED THE RUN
+
+**① The documented launch command is a SUBSTRATE FRAGMENT, not a launch command.**
+`docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md` §1 carries every *machine* flag and no *science* flag, so
+argparse defaults govern. Proven by running it: `[dry-run] wiring valid — 2 arms, 568 seeds`.
+`--arms` defaulted to **2** of the frozen **9**; `--pass-mode` to `A` and `--provider` to `stub`, so
+**the keyless stub designer would have authored every reward and no LLM call would ever have been
+made** — the manipulated variable of the entire dissertation, absent; and without `--tiered` there is
+no C0 canary, no C-ladder, no review gate, and `resolve_cluster_baselines` returns `None`, skipping
+the whole 11-name H1 canon and making node N6 unsatisfiable. Every guard written to prevent exactly
+this (the F1 stub refusal, the `LLM_RP_GOLD_SUFFIX` refusal, the design-override refusal, the spend
+cap) is `pass_mode == "B"`-conditioned and therefore silently inert under the documented command.
+
+**② `autosize_h_rt` was not lane-aware: EVERY training would have been SIGKILLed inside 6 hours.**
+MEASURED: `autosize_h_rt(4, 400_000) == "6:0:0"`, against **8.55 h** needed at the registered 13.0
+steps/s/core and **6.11 h** even at the fastest rate ever observed (18.2). The function took no
+`device` and priced everything off `_agg_clean`, a GPU aggregate-throughput curve — wrong in BOTH
+terms on CPU: the rate is a card's, and the `× pack` factor models GPU TIME-SLICING when CPU packing
+is N independent trainings on N own cores (the packing-is-not-threading correction, applied here for
+the first time). §8 of the launch doc asserts "`_auto_h_rt` is lane-aware now"; that fix had landed
+in `scripts/p6_authored_ladder.py` **only**, and the confirmatory launcher never received it. The
+constant now has ONE owner — `src.cluster.lanes.CPU_PLANNING_STEPS_PER_SEC` — imported by both
+estimators, so the two CPU walltime paths cannot diverge again. CPU now grants **15:0:0** (1.76× the
+registered-rate need); the CUDA branch is byte-identical, locked by test.
+
+**③ The licensed gold panel is not where the launcher looks.**
+`--gold-dir` defaults to `~/Scratch/llmrp/inputs`. That directory exists on Myriad and is **EMPTY** —
+the panel lives on ACFS at `/acfs/users/ucestes/gold` (which is why the p6 ladder works and nobody
+noticed). No launch document mentions the flag. And the jobscript deliberately `mkdir -p`s the bind
+source (a fix for a *different* bug), so Apptainer starts cleanly and every task then dies in the
+loader: thousands of core-hours of uniform, late, per-task failure with no single loud cause. New
+`assert_remote_gold()` runs ONCE, on the laptop, before any qsub, and requires the panel to be
+present **and** sha256-identical to the frozen manifest — closing the matching reproducibility hole
+that the laptop-side panel was checksum-verified while the remote copy every training actually reads
+never was. Verified live: `returns_panel_univ5.parquet` = `7cf5d988…`, byte-identical to the frozen
+headline panel.
+
+**④ Those mass walltime kills would then have HALTED the whole campaign.**
+`campaign._enforce_kill_switch` called `classify_task_deaths` **without `h_rt_secs`**, and that
+function applies its walltime discriminator only `if h_rt_secs:`. The discriminator was therefore
+DEAD and every walltime kill counted as *administrative-kill* evidence. ~142 concurrently-dispatched
+tasks dying at their limit, on distinct hosts, within minutes is precisely the ≥8-deaths / ≥4-hosts /
+≤300 s shape that writes `MYRIAD_KILL_INCIDENT.json` and blocks **every** subsequent submission until
+a human clears it by hand (and `clear_incident` has no CLI). A sizing bug would have become a total,
+silent campaign halt **that looked like a correctly-working safety system**. DEMONSTRATED: 12
+walltime kills classified `admin_kill`/**retreat** before the fix and `walltime`/**requeue** after,
+with a genuine `qdel` burst still retreating. The threshold is the LARGEST of the two walltimes,
+deliberately — the conservative direction under the killswitch's own asymmetry.
+
+### THE LAUNCHER ITSELF COULD NOT HAVE RUN
+
+**⑤ All ten leg lines would have died at argv parsing.** `mode_d_supervisor.ps1` passed
+`--priority -200…-290`, and finding #96 had already made a negative priority a hard `SystemExit`
+unless `--allow-deprioritise` is given. Each line would have exited non-zero and been relaunched
+forever at 600 s backoff. The ladder is independently **RETIRED BY R101** (all 11 full-loop models at
+EQUAL standing) and contradicts Tamer's absolute never-deprioritise rule. No launcher passes
+`--priority` now: the default 0 IS full fair-share standing.
+
+**⑥ Every line was GPU-only.** `--pool EF` plus a GPU `--seed-pool-blocks EF:…,L:…` stripe, which the
+launcher REFUSES together with `--device cpu` by design. The ratified launcher could not start on the
+lane it was meant to launch.
+
+**⑦ R101 lockstep was never implemented.** Legs were pinned at `--seeds 0-29` — the `leg_seed_tier:30`
+floor R101 explicitly retired. Every line now climbs the SAME registered ladder; legs run `--tiered`
+with the five LLM arms and, correctly, NO H1 canon (those eleven rewards are hand-designed and
+model-INDEPENDENT, so they belong to the core line exactly once; attaching them per-leg would have
+duplicated the entire H1 leg ten times over).
+
+**⑧ The arm roster was hand-typed as SEVEN in four launch paths** (`mode_d_supervisor.ps1`,
+`campaign_supervisor.ps1`, `install_onstart_task.ps1`, runbook §2) after R108 took it to **NINE** —
+dropping `cma_es` and `tpe`, two of the four comparators of confirmatory node N4, whose p is the MAX
+over the portfolio. `install_onstart_task.ps1` carried a comment reading *"never hand-type a roster"*
+directly above a hand-typed roster of seven. New `resolve_cluster_arms()` resolves the frozen roster
+under `--tiered` and the five LLM arms under `--leg`, refusing anything partial before ssh — the
+exact fix `resolve_cluster_baselines` received for H1 the day before, which `--arms` never got.
+
+### ⑨ THE MOST DANGEROUS ONE, BECAUSE IT WOULD HAVE PRODUCED A PLAUSIBLE RESULT
+
+**The campaign's remote archive root already held EIGHT records from probe runs three days earlier,
+under the CORE LINE's confirmatory search root, with run_ids in exactly the campaign's namespace.**
+Found by inspecting the cluster rather than the code — nothing in the repository could have revealed
+it.
+
+`~/Scratch/llmrp/outputs/search/` contained `distributional-g0-c0 … c4` and `scalar-g0-c2 … c4`,
+dated 2026-07-24/25. At `candidates=30 / generations=6` the campaign authors exactly **5 candidates
+per generation**, so the COMPLETE generation-0 candidate set for `distributional` was already
+"present". The driver's first act is a pull; `pending_specs` then reads those run_ids as already
+archived; and `run_search_arm` under `--resume` **replays an archived candidate instead of authoring
+one**. The confirmatory search leg would have adopted foreign probe rewards as its own generation
+zero and reflected on them. **Nothing would have failed.** The records are valid records — they are
+simply not this experiment's.
+
+Every existing guard misses it, and for a coherent reason: the F2 guard checks the LOCAL directory
+and only when `--resume` is ABSENT, while every confirmatory line correctly passes `--resume`,
+because that is what makes a driver death survivable. On the one path the campaign actually uses,
+neither side was checked.
+
+**Actions.** The 8 records were **MOVED, never deleted**, to
+`_quarantined_precampaign_search_20260727T224427Z`. All **36** archive roots the twelve lines will
+write to (core + h3 + 10 legs × search/test/frozen) were then swept: the rest are clean;
+`search_leg_qwen3_5_9b` exists but is empty. New `assert_no_foreign_remote_records()` refuses a
+real-spend launch when the LOCAL archive is empty but the REMOTE confirmatory roots are not —
+a discriminator that cannot false-positive, because a genuine resume has by definition already
+mirrored its own records locally.
+
+### ⑩ A DEFECT I INTRODUCED MYSELF, IN THE GUARD FOR ⑨, CAUGHT BEFORE IT COULD FIRE
+
+Recorded because it is the more instructive half of ⑨. The first version of
+`assert_no_foreign_remote_records` refused whenever the LOCAL archive was empty and the REMOTE
+roots were not. There is a window in which that describes a perfectly HEALTHY line: it submits, its
+records land remotely, and the driver dies before its next pull mirrors them. The supervisor
+relaunches — that is its entire job — the guard refuses, and it relaunches again. **Forever, at
+600 s intervals, over records the line produced itself.** A safety check that bricks the thing it
+protects is worse than no check, and this one would have done it to a leg at 4 a.m. with no
+operator awake.
+
+The discriminator now has TWO halves and needs both. A line that has ever SUBMITTED is never
+treated as fresh — `write_specs` creates `batches/<batch_tag>_<name>/` before any qsub, so its
+existence proves the remote records under these roots can be the line's own. And the local-record
+test stays scoped PER LINE, because all twelve share one `--output-dir` and the core's batches must
+not vouch for a leg that has never run. Both halves are pinned by test, including the negative case
+that another line's batches do not excuse a fresh one.
+
+The same review pass also made the probe FAIL CLOSED when it cannot parse the cluster's answer:
+this repository's own 2026-07-26 review named *fail-open-on-ABSENT-evidence* as one of three
+recurring bug CLASSES (#28/#29), and a check that cannot see is not a check that passed.
+
+### TWO THINGS SETTLED BY EXPERIMENT, NOT BY ARGUMENT
+
+**`-ac allow=d` genuinely constrains placement — and is load-bearing for the science.** It had never
+been submitted on the CPU lane (the ladder always ran the `EF` default, which renders no pool line),
+so it was an open question whether the JSV would reject it or ignore it. Controlled A/B, submitted
+simultaneously: WITH the token, tasks landed on `node-d00a-155` and `node-d00a-156`; the control
+WITHOUT it landed on `node-b00a-011`. So the token works — and without it nothing keeps us off the
+AMD `t` pool, whose different oneDNN kernels change float reduction order and break the CRN
+bit-exactness every paired contrast rests on. Both arms: Intel Xeon Gold 6240, apptainer present. The
+probe also reproduced the array serialisation (`qw` on task 1, `hqw` on 2–6), re-validating
+`--chunk-tasks 1`.
+
+**R107's registered 8 threads are USABLE, and the "decline it" recommendation is withdrawn.** Job
+cores are `max(cores_per_training, threads) × pack`. The launch doc rejected 8 threads because that
+gave an unplaceable 32-core request — but the arithmetic assumed a UNIFORM pack. Running the search
+lane at `--search-pack 1` makes the same 8 threads an **8-core** job, which places in ~19 min. Two
+SEARCH batches (`{arm}_search`, `{arm}_startup`) were still sizing on the test flood's pack and are
+fixed to take the search lane's; both are BARRIERS despite looking like bursts (nothing reflects, and
+no ask/tell step proceeds, until every candidate in the wave lands), so their cost is one training's
+LATENCY — exactly where the register says to spend threads. Result: the registered
+`chain_thread_count: 8` is honoured with **no amendment** (R107 stands, its retracted "refutation"
+untouched), and the two strictly-serial chains that floor the whole campaign — the 6-step reflection
+chain and `bayes_opt`'s 25-step GP chain — get the measured 2.72×. **H4 moves from ~6.4 d to ~2.4 d.**
+
+### THE PROVENANCE ANCHOR WOULD HAVE BEEN LOST, AND THE OLD ONE FALSIFIED
+
+`FREEZE_TAG` was `prereg-v1.0` — **a tag that already exists** from the 2026-07-18 freeze R78 later
+lifted. `_git_tag_signed` is best-effort, so both `git tag -s` and its `-a` fallback would have
+failed with "tag already exists" and the freeze would have reported `"tag SKIPPED"`: the v2 design
+would have had **no git provenance anchor at all**. Worse, `_ots_stamp` writes
+`docs/<FREEZE_TAG>.sha256`, so it would have **OVERWRITTEN** the committed `docs/prereg-v1.0.sha256`
+(holding v1.0's digest `ce5db62c…`) with the v2 digest, under the v1 name — the one artifact whose
+entire job is to prove which bytes were registered when, made to attest the wrong thing. Now
+`prereg-v2.0`; the v1.0 tag and its proof file stay untouched as the record of a freeze lifted
+pre-data.
+
+### THE CPU LANE RECORDED NO PROCESSOR IDENTITY (a determinism-envelope hole)
+
+CLAUDE.md's determinism envelope, rule 3: *a knob that can vary across records MUST be visible in the
+archive in the same change.* The confirmatory lane moved to CPU and the archive recorded **nothing**
+about the CPU: `env_fingerprint`'s only platform field is `platform.platform()` (kernel + glibc), and
+`integrity._record_device` reads only `nvidia_smi.gpus[0]` — which on a CPU node returns
+`"<absent>"`, a value the integrity report treats as a **WILDCARD**. So `crn_pair_device_consistent`
+was green whatever silicon a pair ran on, and the one failure that would invalidate the headline
+comparison was also the one no recorded field could reveal. `capture_env` schema **/4** now records
+vendor, model string and core count, so an Intel/AMD mix is a detectable, post-hoc-auditable fact.
+
+### ALSO FIXED (each would have been FROZEN as-is)
+
+* **`fed_rendering` had no drift guard.** R114 registered the rendered precision of the fed block —
+  the designer sees a STRING, so quantization is part of the stimulus — but nothing compared the
+  registered numbers to what `schema.py` emits. The freeze binds the file, making a POST-freeze edit
+  detectable, while a PRE-freeze mismatch would simply have been sealed. `tests/test_fed_rendering_pin.py`
+  now asserts header decimals, tail decimals, fixed-point notation, legible-resolution parity, and
+  that the named binder really is in `_BOUND_TREATMENT`.
+* **`PREREGISTRATION.md` §14 still named "Gemini 3.5 Flash"** while the config runs `gemini-2.5-flash`
+  (R106 substituted it because 3.5's reasoning is MANDATORY). §14 declares itself "the design of
+  record for the suite, so it must describe NOW" — the freeze would have hashed a prose claim the
+  config contradicts. Gate check 23 compares `legs.yaml` to the yaml mirror only; prose leg labels
+  are unchecked.
+* **Ten stale "caps matched at 8192" notes** inside the hash-bound `config/preregistration.yaml`,
+  against eleven registered `output_cap_tokens: 16384` (R106 raised them the same day). A registered
+  VALUE contradicted by its own registered PROSE, ten times over, about to be frozen.
+* **Three self-contradictions in the same file**: an `edges:` comment saying "ratification-pending"
+  beside `ratification_pending: []`; `n6_h1_dominates_canon` still ending "Registered as CANDIDATE …
+  -> ratification" in the same paragraph that records it ADOPTED as confirmatory node N6; and a
+  mangled splice `# R108Until ratified, R31 is the disclosed operative default.` on the ratification
+  stamp itself.
+* **`campaign_monitor.sh` watched 2 of 12 lines** — its `qstat` filter matched `c1_|h3ss_` only, so
+  the ten replication legs produced no rows, and **silence is that script's own signal for HEALTHY**:
+  ten dead driver lines would have looked exactly like ten healthy ones.
+* **`sentinel.py` reported `"enforced": False`** beside a retreat verdict. True of the watcher, FALSE
+  of the system — the driver enforces. Split into `enforced_by_this_watcher` /
+  `enforced_by_the_driver` with the discriminator caveat stated.
+* **`freeze.py`'s canonical-bytes diagram listed 8 inputs**, omitting `src/feedback/schema.py` added
+  by #97 — in the docstring that calls itself "the single definition of that order".
+* **The dry-run's own walltime readout** printed the GPU-curve number for a CPU launch: the same
+  omission, in the same file, that made the real sizing kill every job.
+
+### LAPTOP RESOURCE GOVERNANCE (Tamer, 2026-07-28: *"full freedom including the laptop resource governing"*)
+
+The laptop is the DRIVER and the AUTHOR for the whole campaign — all twelve lines and every LLM call
+are laptop-side — so for ~23 days it must not run out of commit, sleep, spin down its disk, or
+reboot. Measured first, then acted on; each change is reversible and recorded here.
+
+* **⚠ COMMIT HEADROOM WAS THE REAL CONSTRAINT, and it would have bound.** Measured: committed
+  **18.95 GB against a 21.64 GB limit** — **2.69 GB** spare, while twelve driver processes want
+  ~6.5 GB at the measured 0.54 GB each. The page file was Windows-managed at 6 GB on **C:**, the
+  same volume the campaign archive fills, so relief would have come by growing into the archive's
+  space, under pressure, mid-run. FIXED by adding an explicit **16 GB (max 28 GB) page file on D:**
+  — same NVMe device, but 65.8 GB free — and CAPPING C:'s at 8 GB so it can never eat the archive
+  volume. **Commit limit 21.64 → 37.64 GB, headroom 2.69 → 18.68 GB, effective immediately with no
+  reboot.** Disk cost: D: 65.8 → 49.8 GB free; C: unchanged at 32 GB.
+* **Windows Update pause extended 2026-08-26 → 2026-09-10.** The old expiry fell ONE DAY before the
+  registered exogenous stop (2026-08-27), i.e. a forced patch reboot was permitted during the final
+  rung. No reboot is currently pending.
+* **Disk spin-down disabled** (`DISKIDLE` 30 min → never, AC and DC) and **automatic-maintenance
+  wake disabled**. Sleep and hibernate were already 0/never; the active scheme is Turbo.
+* **Nothing was closed.** With 18.68 GB of headroom the supply side solves it, so VS Code, the
+  terminals and the other sessions were left alone — reclaiming ~120 MB of browser would have
+  disturbed Tamer's environment for no measurable gain.
+
+**To revert:** re-enable automatic page-file management
+(`Set-CimInstance` on `Win32_ComputerSystem`, `AutomaticManagedPagefile=$true`) and delete the D:
+entry; `powercfg /change standby-timeout-ac 5`; reset the update-pause keys under
+`HKLM:\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings`.
+
+### NO AMENDMENT NUMBER IS REQUIRED — AND THAT IS PROVEN, NOT ASSERTED
+
+The canonical hash moved (`e9f2caa462f7` → `4f90ecc47cc6`), because two hash-bound files were
+edited. **No registered VALUE moved.** Verified by PARSING rather than by reading a diff: loading
+`config/preregistration.yaml` at HEAD and in the working tree and walking both structures
+recursively gives **exactly ONE** parsed difference, inside the narrative documentation string
+`inference.validity_tier.candidate_upgrades.n6_h1_dominates_canon`, whose stale trailing sentence
+still called node N6 a "CANDIDATE" in the same paragraph that records it ADOPTED. Independently:
+**zero non-string leaves changed** — not one number, flag, list or name. The ten "caps matched at
+8192" corrections do not appear at all, because they are YAML COMMENTS and comments are not values.
+
+So every edit either ENFORCES an already-registered decision (the arm roster, R107's thread count)
+or CORRECTS prose that misdescribed one (the caps, the Gemini label, the ratification tags). Minting
+an amendment for a non-change would itself be noise. The hash moves because it covers the file's
+BYTES — which is precisely what it is for, and why the freeze recomputes it at GO rather than
+expecting a previously-recorded value.
+
+### VERIFICATION
+
+New locks: `tests/test_launch_gate_regressions.py` (11) · `tests/test_fed_rendering_pin.py` (5) ·
++13 in `tests/test_run_campaign_cluster.py` · +6 in `tests/test_mode_d.py`, which now also assert
+that NO launcher passes `--priority`, carries a GPU seed stripe, or hand-types a frozen roster, and
+that every one passes `--gold-dir`. All three line shapes (core / h3 / leg) dry-run RC=0 **from
+PowerShell**, on arguments EXTRACTED from the launcher rather than retyped. All seven campaign PS1s
+`Parser::ParseFile` clean; the rewritten ones are ASCII-only and BOM-less. `freeze --check` RC=0
+(canonical hash moved to `4f90ecc47cc6…`, as a pre-freeze design edit must). `ruff check src scripts
+tests` RC=0.
+
+---
+
 ## [2026-07-27c] — ★★★★★ **CAMPAIGN IS LAUNCH-READY.** ALL GATES PASSED · READ `docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md`
+
+> ⚠ **SUPERSEDED IN ITS CENTRAL CLAIM by `[2026-07-27d]` above.** The gates this block reports were
+> genuinely green, and the 14 defects it records were genuinely fixed — but "LAUNCH-READY" was
+> false: the command it publishes runs a 2-arm, stub-authored, non-tiered job, and four further
+> defects behind it would each have destroyed the campaign. Read it as the record of the work, not
+> as an instruction. **Do not run the command in this block.**
 
 > The single source of truth for launching is **`docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md`** — the
 > command, every flag justified by a measurement taken today, what is and is NOT verified, the live

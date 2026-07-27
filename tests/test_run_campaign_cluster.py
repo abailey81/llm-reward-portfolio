@@ -338,9 +338,11 @@ def test_canary_guard_rejects_unknown_name_in_dry_run():
     and would have failed only after ssh/submit)."""
     import pytest
 
+    # --arms is OMITTED (2026-07-27): under --tiered it now resolves the frozen 9-arm roster, and
+    # a partial list is refused earlier than this guard. The test's subject is the CANARY name, so
+    # let the roster resolve and keep the misspelling as the only thing under test.
     with pytest.raises(SystemExit, match="unknown REWARD_CANON key"):
-        rcc.main(["--dry-run", "--synthetic", "--tiered", "--arms", "distributional",
-                  "--canary", "raw_retrun"])
+        rcc.main(["--dry-run", "--synthetic", "--tiered", "--canary", "raw_retrun"])
 
 
 def test_baselines_guard_accepts_full_canon_in_dry_run():
@@ -399,3 +401,237 @@ def test_resolve_cluster_baselines_still_rejects_unknown_names_first():
 
     with pytest.raises(SystemExit, match="unknown REWARD_CANON key"):
         rcc.resolve_cluster_baselines(["not_a_real_reward"], tiered=True)
+
+
+# ── 2026-07-27: the SAME drift-proofing, applied to --arms (see resolve_cluster_arms) ───────────
+
+def _frozen_arm_roster() -> list[str]:
+    from src.utils.config import cfg_get, load_config
+
+    return [str(a) for a in (cfg_get(load_config("campaign"), "arms", []) or [])]
+
+
+def test_resolve_cluster_arms_tiered_omitted_uses_the_frozen_nine():
+    frozen = _frozen_arm_roster()
+    assert len(frozen) == 9, "R108 took the roster 7 -> 9 (the H4 DFO portfolio: +cma_es, +tpe)"
+    assert rcc.resolve_cluster_arms(None, tiered=True) == frozen
+
+
+def test_resolve_cluster_arms_refuses_the_drifted_seven():
+    """THE REGRESSION LOCK: the exact 7-arm list that FOUR launch paths hand-typed after R108 took
+    the roster to 9 (mode_d_supervisor, campaign_supervisor, install_onstart_task, runbook §2).
+    Running it leaves cma_es and tpe untrained, and confirmatory node N4 — whose p is the MAX over
+    the four-optimiser portfolio — is then permanently unsatisfiable."""
+    import pytest
+
+    drifted = ["distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled",
+               "random_search", "bayes_opt"]
+    with pytest.raises(SystemExit, match="must be the FROZEN roster"):
+        rcc.resolve_cluster_arms(drifted, tiered=True)
+
+
+def test_resolve_cluster_arms_refuses_the_old_two_arm_argparse_default():
+    """The launch-ready doc's command omitted --arms entirely; the old default was these two, so
+    the documented launch would have run 2 of 9 arms with every gate green."""
+    import pytest
+
+    with pytest.raises(SystemExit, match="must be the FROZEN roster"):
+        rcc.resolve_cluster_arms(["distributional", "scalar"], tiered=True)
+
+
+def test_resolve_cluster_arms_leg_gets_exactly_the_five_llm_arms():
+    got = rcc.resolve_cluster_arms(None, tiered=True, leg="deepseek-v4-pro")
+    assert len(got) == 5 and set(got) <= set(_frozen_arm_roster())
+    for dfo in ("random_search", "bayes_opt", "cma_es", "tpe"):
+        assert dfo not in got, f"a leg must not run the DFO arm {dfo}"
+
+
+def test_resolve_cluster_arms_refuses_a_wrong_arm_set_on_a_leg():
+    import pytest
+
+    with pytest.raises(SystemExit, match="runs the five LLM feedback arms"):
+        rcc.resolve_cluster_arms(["distributional"], tiered=True, leg="glm-5.2")
+
+
+def test_llm_arm_roster_is_derived_from_the_authoritative_table():
+    """arms.yaml calls itself THE AUTHORITATIVE ROSTER; the LLM/DFO split must come from its own
+    ``llm: false`` markers, so seating a sixth feedback arm cannot silently miss the legs."""
+    from src.utils.config import cfg_get, load_config
+
+    table = cfg_get(load_config("arms"), "arms", {}) or {}
+    expected = [a for a in _frozen_arm_roster()
+                if not (isinstance(table.get(a), dict) and table[a].get("llm") is False)]
+    assert rcc.llm_arm_roster() == expected
+
+
+def test_resolve_cluster_arms_non_tiered_omitted_keeps_the_legacy_default():
+    """Rehearsals, probes and the D1 curve levels rely on it; the headline cannot reach this branch
+    because the headline is --tiered."""
+    assert rcc.resolve_cluster_arms(None, tiered=False) == list(rcc._LEGACY_DEFAULT_ARMS)
+
+
+def test_resolve_cluster_baselines_never_attaches_the_h1_canon_to_a_leg():
+    """The eleven H1 rewards are HAND-designed and model-INDEPENDENT, so they belong to the core
+    line exactly once. Attaching them per-leg would duplicate the whole H1 leg ten times over and
+    let a leg archive masquerade as an H1 replication the design never registered. This branch is
+    what makes ``--leg --tiered`` (R101 lockstep) safe to run at all."""
+    assert rcc.resolve_cluster_baselines(None, tiered=True, leg="glm-5.2") is None
+
+
+def test_resolve_cluster_baselines_refuses_explicit_baselines_on_a_leg():
+    import pytest
+
+    with pytest.raises(SystemExit, match="does not run the H1 hand-reward canon"):
+        rcc.resolve_cluster_baselines(_frozen_h1_family(), tiered=True, leg="glm-5.2")
+
+
+# ── 2026-07-27: the remote gold precondition ────────────────────────────────────────────────────
+
+def test_assert_remote_gold_refuses_an_empty_gold_dir_on_a_real_spend_run():
+    """``--gold-dir`` defaults to ``~/Scratch/llmrp/inputs``, which exists on Myriad and is EMPTY;
+    the licensed panel lives on ACFS. The jobscript deliberately ``mkdir -p``s the bind source (a
+    fix for a different bug), so the container starts happily and every task then dies in the
+    loader — uniform, late, per-task failure with no single loud cause."""
+    import pytest
+
+    with pytest.raises(SystemExit, match="GOLD PANEL NOT ON THE CLUSTER"):
+        rcc.assert_remote_gold(lambda cmd: "sha256sum: No such file or directory",
+                               "/nope/gold", real_spend=True)
+
+
+def test_assert_remote_gold_is_advisory_off_the_real_spend_path():
+    assert rcc.assert_remote_gold(lambda cmd: "", "/nope/gold", real_spend=False) == {}
+
+
+# ── 2026-07-27: no FOREIGN records under the confirmatory roots ─────────────────────────────────
+
+def test_foreign_remote_records_refuse_a_fresh_real_spend_launch(tmp_path):
+    """FOUND ON THE CLUSTER, NOT IN THE CODE. ``~/Scratch/llmrp/outputs/search/`` — the core line's
+    confirmatory search root — held 8 records from probe runs three days earlier, with run_ids in
+    exactly the campaign's namespace: ``distributional-g0-c0..c4`` (the COMPLETE generation-0
+    candidate set for that arm, since candidates=30 / generations=6 gives 5 per generation) plus
+    ``scalar-g0-c2..c4``.
+
+    The driver's first act is a pull; ``pending_specs`` would then see those run_ids as already
+    archived; and ``run_search_arm`` under ``--resume`` REPLAYS an archived candidate rather than
+    authoring one. The confirmatory search leg would have silently adopted foreign rewards as its
+    own generation 0 and reflected on them. Nothing would have failed — the records are valid, they
+    are simply not this experiment's.
+
+    Every existing guard misses it: the F2 guard checks the LOCAL dir and only when ``--resume`` is
+    ABSENT, while every confirmatory line correctly passes ``--resume``."""
+    import pytest
+
+    empty_local = tmp_path / "campaign_cluster"
+    empty_local.mkdir()
+    with pytest.raises(SystemExit, match="ALREADY EXIST under the confirmatory archive roots"):
+        rcc.assert_no_foreign_remote_records(
+            lambda cmd: "8", "/remote/outputs", str(empty_local),
+            ["search", "test", "frozen"], real_spend=True)
+
+
+def test_a_genuine_resume_is_not_blocked_by_its_own_records(tmp_path):
+    """THE DISCRIMINATOR, and why it cannot false-positive: a genuine resume has already mirrored
+    its own remote records locally. ``local == 0 and remote > 0`` can therefore only mean the remote
+    records came from something else."""
+    local = tmp_path / "campaign_cluster"
+    rec = local / "search" / "distributional" / "distributional-g0-c0"
+    rec.mkdir(parents=True)
+    (rec / "record.json").write_text("{}", encoding="utf-8")
+    assert rcc.assert_no_foreign_remote_records(
+        lambda cmd: "8", "/remote/outputs", str(local),
+        ["search", "test", "frozen"], real_spend=True) == 0
+
+
+def test_the_local_check_is_scoped_to_THIS_lines_roots(tmp_path):
+    """All twelve MODE-D lines share one --output-dir, and the legs start an hour behind the core
+    by design (the canary shield). A whole-directory check would therefore go inert for every line
+    that starts after the first one wrote a record — so each line must be judged on ITS OWN roots."""
+    import pytest
+
+    local = tmp_path / "campaign_cluster"
+    core_rec = local / "search" / "distributional" / "distributional-g0-c0"
+    core_rec.mkdir(parents=True)
+    (core_rec / "record.json").write_text("{}", encoding="utf-8")
+    # the CORE line's records exist; a LEG line starting now is still a fresh run for ITS roots
+    with pytest.raises(SystemExit, match="ALREADY EXIST under the confirmatory archive roots"):
+        rcc.assert_no_foreign_remote_records(
+            lambda cmd: "3", "/remote/outputs", str(local),
+            ["search_leg_glm_5_2", "test_leg_glm_5_2", "frozen_leg_glm_5_2"], real_spend=True)
+
+
+def test_a_clean_remote_root_passes(tmp_path):
+    local = tmp_path / "campaign_cluster"
+    local.mkdir()
+    assert rcc.assert_no_foreign_remote_records(
+        lambda cmd: "0", "/remote/outputs", str(local),
+        ["search", "test", "frozen"], real_spend=True) == 0
+
+
+def test_a_line_that_has_already_SUBMITTED_is_never_treated_as_fresh(tmp_path):
+    """THE WEDGE THIS PREVENTS, which the local-record test alone would have CAUSED.
+
+    Window: a line submits, its records land REMOTELY, and the driver dies before its next pull
+    mirrors them locally. The supervisor relaunches — that is its entire job — the guard sees
+    ``local == 0 and remote > 0``, refuses, and the supervisor relaunches again. Forever, at 600 s
+    intervals, over records the line produced ITSELF. A safety check that bricks the thing it
+    protects is worse than no check.
+
+    ``write_specs`` creates ``batches/<batch_tag>_<name>/`` BEFORE any qsub, so its existence is
+    proof that remote records under these roots can be this line's own."""
+    local = tmp_path / "campaign_cluster"
+    (local / "batches" / "leg1_distributional_g0").mkdir(parents=True)
+    assert rcc.assert_no_foreign_remote_records(
+        lambda cmd: "25", "/remote/outputs", str(local),
+        ["search_leg_glm_5_2"], real_spend=True, batch_tag="leg1") == 0
+
+
+def test_another_lines_batches_do_not_excuse_a_fresh_line(tmp_path):
+    """The batch-dir test must be per-LINE too: twelve lines share one --output-dir, so the core
+    line's batches must not vouch for a leg that has never submitted."""
+    import pytest
+
+    local = tmp_path / "campaign_cluster"
+    (local / "batches" / "c1_distributional_g0").mkdir(parents=True)
+    with pytest.raises(SystemExit, match="ALREADY EXIST under the confirmatory archive roots"):
+        rcc.assert_no_foreign_remote_records(
+            lambda cmd: "25", "/remote/outputs", str(local),
+            ["search_leg_glm_5_2"], real_spend=True, batch_tag="leg1")
+
+
+def test_the_foreign_record_probe_fails_CLOSED_when_it_cannot_see(tmp_path):
+    """A check that cannot see is not a check that passed. This repository's own 2026-07-26 review
+    named fail-open-on-ABSENT-evidence as one of three recurring bug CLASSES (#28/#29), and the
+    failure this guard prevents is the SILENT adoption of foreign rewards — the one class of error
+    that yields a plausible result rather than an obvious one."""
+    import pytest
+
+    local = tmp_path / "campaign_cluster"
+    local.mkdir()
+    with pytest.raises(SystemExit, match="REFUSING rather than assuming clean"):
+        rcc.assert_no_foreign_remote_records(
+            lambda cmd: "ssh: connect to host myriad port 22: Connection timed out",
+            "/remote/outputs", str(local), ["search", "test", "frozen"], real_spend=True)
+
+
+def test_foreign_records_are_advisory_off_the_real_spend_path(tmp_path):
+    local = tmp_path / "campaign_cluster"
+    local.mkdir()
+    assert rcc.assert_no_foreign_remote_records(
+        lambda cmd: "8", "/remote/outputs", str(local),
+        ["search", "test", "frozen"], real_spend=False) == 8
+
+
+def test_assert_remote_gold_refuses_bytes_that_differ_from_the_frozen_manifest():
+    """A wrong-but-PRESENT panel is worse than an absent one: it produces plausible numbers. The
+    laptop loader has always checksum-verified; the remote copy every training actually reads never
+    was."""
+    import pytest
+
+    from src.data.loaders import gold_suffix
+
+    names = [f"{s}_{gold_suffix()}.parquet" for s in
+             ("returns_panel", "cash_features", "splits", "top30_selection")]
+    fake = "\n".join(f"{'0' * 64}  /g/{n}" for n in names)
+    with pytest.raises(SystemExit, match="DOES NOT MATCH THE FROZEN MANIFEST"):
+        rcc.assert_remote_gold(lambda cmd: fake, "/g", real_spend=True)

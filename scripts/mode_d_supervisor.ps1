@@ -1,20 +1,60 @@
-# MODE-D LINE SUPERVISOR (2026-07-21) - one self-healing driver line (core OR one leg).
+# MODE-D LINE SUPERVISOR - one self-healing driver line (core, h3, or one replication leg).
 #
-# The mode-D campaign runs TWELVE driver lines concurrently (the Opus core + 10 replication legs;
-# see docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md s.10). Each line gets its own supervisor instance
-# (this script) with the same self-healing contract as campaign_supervisor.ps1: relaunch on any
-# nonzero exit (the driver is idempotent - archive-truth resume, P12 lock auto-break, no
-# authoring re-billed); running arrays on Myriad are never affected by a laptop-side death.
+# The mode-D campaign runs TWELVE driver lines concurrently (the Opus core + the H3 floor unit +
+# 10 replication legs; docs/CAMPAIGN_DAY_RUNBOOK_2026-07-13.md s.10). Each line gets its own
+# supervisor instance (this script): relaunch on any nonzero exit, because the driver is idempotent
+# (archive-truth resume, P12 lock auto-break, no authoring re-billed) and running arrays on Myriad
+# are never affected by a laptop-side death.
 #
-# USAGE (normally via mode_d_launch.ps1, which spawns all ten):
+# USAGE (normally via mode_d_launch.ps1, which spawns all twelve):
 #   powershell -ExecutionPolicy Bypass -File scripts\mode_d_supervisor.ps1 -Line core
 #   powershell -ExecutionPolicy Bypass -File scripts\mode_d_supervisor.ps1 -Line deepseek-v4-pro
 # Stop everything deliberately: create outputs\campaign_cluster\STOP_CAMPAIGN (shared, checked
 # between attempts by every line), or Ctrl+C individual windows.
+#
+# =====================================================================================
+# REWRITTEN 2026-07-27 (the launch gate). The previous version could not have run this
+# campaign. Every item below was verified against the code before being changed:
+#
+#  1. IT WAS GPU-ONLY. Every line passed "--pool EF" and a GPU "--seed-pool-blocks EF:...,L:..."
+#     stripe. The confirmatory lane is now CPU (R107/R108), and run_campaign_cluster REFUSES
+#     "--device cpu" together with "--seed-pool-blocks" by design - a CPU job pins no pool, so the
+#     stripe would assert a device stratification the run does not have. The launcher could not
+#     start on the lane it was meant to launch.
+#
+#  2. THE CORE LINE HAND-TYPED 7 OF THE FROZEN 9 ARMS. cma_es and tpe - two of the four
+#     comparators of CONFIRMATORY node N4 - were missing, exactly the drift that hit --baselines
+#     when the H1 canon went 4 -> 11. The roster is no longer typed here at all: omitting --arms
+#     under --tiered makes the launcher resolve the frozen config roster (resolve_cluster_arms),
+#     and passing a partial list is now refused before ssh.
+#
+#  3. EVERY LEG LINE WOULD HAVE DIED AT ARGV PARSING. They passed "--priority -200".."-290", and
+#     finding #96 made a negative priority a hard SystemExit unless --allow-deprioritise is given.
+#     All ten lines would have exited non-zero and this supervisor would have relaunched them
+#     forever at 600s backoff. The ladder is also RETIRED BY R101 (all 11 full-loop models run at
+#     EQUAL standing), and Tamer's standing rule is that our jobs never sit below full fair-share.
+#     So no line passes --priority at all now: the default is 0, which is what R101 requires.
+#
+#  4. R101 LOCKSTEP WAS NEVER IMPLEMENTED. Legs were pinned at "--seeds 0-29", the leg_seed_tier:30
+#     floor that R101 explicitly retired. Every line now climbs the SAME registered ladder
+#     [30,100,189,279,340,403,568]: the core and the legs via --tiered, H3 across the full seed
+#     range in one line instead of the old manual "re-run later at 0-567" step.
+#
+#  5. THE GOLD PANEL WAS NOT WHERE THE LAUNCHER LOOKS. --gold-dir defaults to
+#     ~/Scratch/llmrp/inputs, which exists on Myriad and is EMPTY; the licensed panel is on ACFS.
+#     Passed explicitly below and verified sha256-against-the-frozen-manifest at launch.
+# =====================================================================================
 
 param(
     [Parameter(Mandatory = $true)][string]$Line,
-    [int]$StaggerSecs = 0
+    [int]$StaggerSecs = 0,
+    # The ACFS path holding the licensed gold. Verified at launch by assert_remote_gold(): the
+    # panel must be present AND its sha256 must equal the frozen manifest, or the run refuses.
+    [string]$GoldDir = "/acfs/users/ucestes/gold",
+    # Nodes fenced off. A node that fails a job in SECONDS is always free, so the scheduler keeps
+    # feeding it work: a job vacuum. node-d00a-230 has no apptainer and ate 13 ladder cells.
+    # EXTEND THIS if the sentinel's host_failure_concentration check fires, then restart the line.
+    [string]$ExcludeHosts = "node-d00a-230"
 )
 
 $ErrorActionPreference = "Continue"
@@ -29,64 +69,85 @@ $logFile  = Join-Path $outDir ("supervisor_{0}.log" -f $safe)
 
 $py = Join-Path $repo ".venv\Scripts\python.exe"   # ABSOLUTE (2026-07-18 drill)
 
-# The five LLM arms every replication leg runs (model_suite: "the identical five LLM arms").
-$legArms = @("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
-# Queue order + the -p ladder (-200..-290): must match model_suite.queue_order exactly.
-$legPriority = @{
-  "deepseek-v4-pro" = -200; "glm-5.2" = -210; "qwen3.6-27b" = -220; "qwen3.5-9b" = -230;
-  "haiku-4.5" = -240; "gpt-5.6-luna" = -250; "nemotron-3-super" = -260;
-  "sonnet-5" = -270; "gemini-2.5-flash" = -280; "kimi-k3" = -290
-}
-$legTag = @{
+# Queue order - the ORDER only (R101 retired the priority ladder; these are all equal now).
+# Must match config/preregistration.yaml model_suite.queue_order exactly; tests/test_mode_d.py
+# locks the labels across files.
+$legTag = [ordered]@{
   "deepseek-v4-pro" = "leg1"; "glm-5.2" = "leg2"; "qwen3.6-27b" = "leg3"; "qwen3.5-9b" = "leg4";
   "haiku-4.5" = "leg5"; "gpt-5.6-luna" = "leg6";
   "nemotron-3-super" = "leg7"; "sonnet-5" = "leg8"; "gemini-2.5-flash" = "leg9"; "kimi-k3" = "leg10"
 }
 
+# ---------------------------------------------------------------------------------------------
+# THE CPU-LANE SUBSTRATE FLAGS, shared by EVERY line so no line can drift from another.
+# Each one is backed by a measurement taken 2026-07-27; see docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md
+# s.4 and the R107 register.
+#
+#   --device cpu            the confirmatory lane. GPUs are not reachable at our priority floor
+#                           (a GPU probe sat queued 42 min with 24 advertised free).
+#   --pool d                294 nodes x 36 = 10,584 Intel Xeon cores. The t pool (AMD EPYC) is
+#                           excluded by lanes.EXCLUDED_CPU_POOLS: different oneDNN kernels change
+#                           float reduction order and would break CRN bit-exactness.
+#   --pack 4                4 INDEPENDENT trainings per job, ONE CORE EACH, so 100% efficient
+#                           (packing is not threading). 4-core jobs place in ~6 min; 1,000 jobs x 4
+#                           = the 4,000-core ceiling that max_u_jobs allows.
+#   --cores-per-training 1  the test flood is throughput work: 8 separate 1-thread trainings give
+#                           ~104 steps/s aggregate against ~35 for one 8-thread training.
+#   --search-pack 1         the SEARCH lane runs one training per job so that, at 8 threads, the
+#   --search-threads 8      job asks for max(1,8) x 1 = 8 cores (places in ~19 min) instead of
+#                           8 x 4 = 32 (past the placement cliff). 8 threads is the REGISTERED
+#                           chain_thread_count (R107, ratified; NEVER exceed 8, 16 is slower), and
+#                           it is worth ~2.7x on the two things that gate everything: the 6-step
+#                           reflection chain and bayes_opt's 25-step serial GP chain.
+#   --chunk-tasks 1         arrays are SERIALISED by policy (tasks 2..n sit in hqw) and pending
+#                           tails have twice been PURGED outright. One job per task, no tail.
+#   --poll-secs 180         burst cadence.
+#   --search-poll-secs 45   chain cadence: every chain handoff pays up to one poll of notice, and
+#                           the BO chain has 25 of them.
+#   NO --priority           default 0 = full fair-share standing (R101 + Tamer's absolute rule).
+#   NO --seed-pool-blocks   refused on the CPU lane, and correctly so.
+#   NO --arms / --baselines resolved from the FROZEN config; a hand-typed list drifts.
+# ---------------------------------------------------------------------------------------------
+$cpuLane = @(
+  "--device", "cpu", "--pool", "d",
+  "--pack", "4", "--cores-per-training", "1",
+  "--search-pack", "1", "--search-threads", "8",
+  "--chunk-tasks", "1",
+  "--exclude-hosts", $ExcludeHosts,
+  "--gold-dir", $GoldDir,
+  "--poll-secs", "180", "--search-poll-secs", "45",
+  "--output-dir", $outDir, "--resume"
+)
+
 if ($Line -eq "h3") {
-    # THE H3 FLOOR UNIT (2026-07-21b): the 12-unit tier math includes the H3 single-shot control,
-    # previously a MANUAL post-headline invocation - the last human dependency on every rung bank.
-    # No reflection chain (all 30 candidates author at once), so the floor unit lands ~L+1.
-    # SEEDS 0-29 ONLY here: the full-ladder H3 completion re-runs later with --seeds 0-567 --resume
-    # at rung priority (runbook s.10) so H3 rung seeds never jump the legs in the registered queue.
+    # THE H3 FLOOR UNIT: the pre-registered single-shot control (generations=1, no reflection),
+    # same candidate budget and agent config. Its own invocation, archived to disjoint
+    # *_h3_singleshot/ roots. --tiered is refused here by design (C5 vs C1-C4), so R101 lockstep is
+    # expressed as the FULL seed range in ONE line rather than the old "0-29 now, 0-567 later"
+    # two-step, which was a manual dependency on every rung bank.
     $driverArgs = @(
       "scripts/run_campaign_cluster.py", "--h3-singleshot",
-      "--seeds", "0-29", "--pass-mode", "B", "--llm-from", "campaign",
-      "--pack", "5", "--search-pack", "2", "--search-poll-secs", "45",
-      "--cores-per-training", "1", "--pool", "EF",
-      "--seed-pool-blocks", "EF:0-14,L:15-29",
-      "--batch-tag", "h3", "--poll-secs", "180", "--chunk-tasks", "1",
-      "--output-dir", $outDir, "--resume"
-    )
+      "--seeds", "0-567", "--pass-mode", "B", "--llm-from", "campaign",
+      "--batch-tag", "h3ss"
+    ) + $cpuLane
 } elseif ($Line -eq "core") {
-    # THE CORE LINE - the s.2 canonical line + the mode-D levers (search lane pack-2, pipelined rungs).
+    # THE CORE LINE - the frozen 9-arm roster (RESOLVED, never typed) + the frozen 11-name H1 canon
+    # (also resolved), climbing the registered assurance ladder with the rungs pipelined.
     $driverArgs = @(
       "scripts/run_campaign_cluster.py", "--tiered",
-      "--arms", "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled",
-                "random_search", "bayes_opt",
-      # NO --baselines: under --tiered the launcher resolves the FROZEN config h1_baselines family
-      # (resolve_cluster_baselines). This line hand-mirrored the H1 four and DRIFTED when the canon
-      # expanded 4 -> 11 on 2026-07-26; MODE D would have launched a SUBSET of the registered
-      # family. Never hand-type a frozen list here again.
-      "--pass-mode", "B", "--llm-from", "campaign",
-      "--pack", "5", "--search-pack", "2", "--search-poll-secs", "45", "--pipeline-rungs",
-      "--cores-per-training", "1", "--pool", "EF",
-      "--seed-pool-blocks", "EF:0-14,L:15-29,EF:30-64,L:65-99,EF:100-143,L:144-188,EF:189-233,L:234-278,EF:279-308,L:309-339,EF:340-370,L:371-402,EF:403-484,L:485-567",
-      "--batch-tag", "c1", "--poll-secs", "180", "--chunk-tasks", "1",
-      "--output-dir", $outDir, "--resume"
-    )
-} elseif ($legPriority.ContainsKey($Line)) {
+      "--pass-mode", "B", "--llm-from", "campaign", "--pipeline-rungs",
+      "--batch-tag", "c1"
+    ) + $cpuLane
+} elseif ($legTag.Contains($Line)) {
+    # A REPLICATION LEG - the identical five LLM feedback arms authored by this leg's pinned model,
+    # archived under leg_<label>/ (forced by --leg). It carries NO H1 canon (those eleven rewards
+    # are hand-designed and model-INDEPENDENT, so they belong to the core line exactly once) and no
+    # DFO arm. Under R101 it climbs the SAME ladder as the core, at the SAME priority.
     $driverArgs = @(
-      "scripts/run_campaign_cluster.py", "--leg", $Line,
-      "--arms") + $legArms + @(
-      "--seeds", "0-29", "--pass-mode", "B",
-      "--priority", [string]$legPriority[$Line],
-      "--pack", "5", "--search-pack", "2", "--search-poll-secs", "45",
-      "--cores-per-training", "1", "--pool", "EF",
-      "--seed-pool-blocks", "EF:0-14,L:15-29",
-      "--batch-tag", $legTag[$Line], "--poll-secs", "180", "--chunk-tasks", "1",
-      "--output-dir", $outDir, "--resume"
-    )
+      "scripts/run_campaign_cluster.py", "--leg", $Line, "--tiered",
+      "--pass-mode", "B",
+      "--batch-tag", $legTag[$Line]
+    ) + $cpuLane
 } else {
     Write-Host ("unknown line '{0}' - use 'core', 'h3', or a leg label from config/legs.yaml" -f $Line)
     exit 2
@@ -99,8 +160,8 @@ function Log([string]$msg) {
 }
 
 if ($StaggerSecs -gt 0) {
-    # Poll staggering: ten lines polling qstat/rsync in lockstep would burst the login node -
-    # offset each line's start so the 180s poll phases spread out.
+    # Poll staggering: twelve lines polling qstat/rsync in lockstep would burst the login node -
+    # offset each line's start so the poll phases spread out.
     Log ("staggering start by {0}s" -f $StaggerSecs)
     Start-Sleep -Seconds $StaggerSecs
 }

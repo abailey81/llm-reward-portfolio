@@ -232,7 +232,7 @@ def build_cluster_run(
             try:
                 sync_epilogue_ledgers(f"{remote_root.rstrip('/')}/ledger",
                                       Path(local_archive_root) / "ledger", runner)
-                _enforce_kill_switch(local_archive_root)
+                _enforce_kill_switch(local_archive_root, _h_rt_seconds(h_rt, search_h_rt))
             except Exception:  # noqa: BLE001 — observability never breaks the run
                 pass
         except BaseException as exc:
@@ -579,7 +579,32 @@ def _load_failures(fail_ledger: Path) -> dict[str, dict]:
     return cached
 
 
-def _enforce_kill_switch(local_archive_root: str | Path) -> None:
+def _h_rt_seconds(*values: str | None) -> float | None:
+    """Largest of the given ``H:M:S`` walltime requests, in seconds (``None`` if none parse).
+
+    LARGEST, deliberately. It feeds :func:`killswitch.classify_task_deaths`'s walltime
+    discriminator, which calls a death "walltime-proximate" when it ran >= 90 % of ``h_rt_secs``.
+    A LARGER threshold classifies FEWER deaths as walltime kills, i.e. leaves more of them on the
+    admin-kill path — the conservative direction under the killswitch's own stated asymmetry (a
+    false positive costs hours a human can undo; a false negative costs the account). It is also
+    the walltime that governs ~97 % of tasks, the test flood.
+    """
+    best: float | None = None
+    for v in values:
+        if not v:
+            continue
+        try:
+            h, m, s = (int(x) for x in str(v).split(":"))
+        except ValueError:
+            continue
+        secs = float(h * 3600 + m * 60 + s)
+        if secs > 0 and (best is None or secs > best):
+            best = secs
+    return best
+
+
+def _enforce_kill_switch(local_archive_root: str | Path,
+                         h_rt_secs: float | None = None) -> None:
     """Classify the mirrored epilogue rows and, on a RETREAT verdict, write the incident file.
 
     RATIFIED 2026-07-26 (Tamer: *"I give you full freedom and ratify"*; deep review #57). The
@@ -593,6 +618,18 @@ def _enforce_kill_switch(local_archive_root: str | Path) -> None:
     THE ASYMMETRY (killswitch's own docstring): a false positive costs a few hours on a run with ~7
     days of slack and is undone by a human clearing one file; a false negative costs the account. So
     this enforces — but only on evidence it can trust:
+
+    ⚠ **``h_rt_secs`` IS LOAD-BEARING, and it was missing until 2026-07-27.** ``classify_task_deaths``
+    only applies its walltime discriminator ``if h_rt_secs:``; this function called it with nothing,
+    so the discriminator was DEAD and **every walltime kill counted as admin-kill evidence**. That
+    is not a theoretical gap: the same launch-gate review found ``autosize_h_rt`` sizing CPU tasks at
+    6 h against a real 8.55 h need, i.e. a campaign in which ~142 concurrently-dispatched tasks would
+    all die at their walltime, on distinct hosts, within minutes of each other — the exact shape
+    (>= 8 deaths, >= 4 hosts, <= 300 s) that writes ``MYRIAD_KILL_INCIDENT.json`` and hard-blocks
+    EVERY subsequent submission until a human clears it by hand. A sizing bug would have become a
+    total, silent campaign halt, and the retreat would have looked like a correctly-working safety
+    system. The two defects were fixed together, and this one stays fixed even if a walltime is ever
+    mis-sized again.
 
     * ``n_undated > 0`` ⇒ **do NOT enforce.** Undated rows are exactly the #56 false-positive shape
       (a whole campaign's scattered failures read as one burst). A ledger written by a jobscript
@@ -615,7 +652,7 @@ def _enforce_kill_switch(local_archive_root: str | Path) -> None:
         rows.extend(read_epilogue(p))
     if not rows:
         return
-    verdict = classify_task_deaths(rows)
+    verdict = classify_task_deaths(rows, h_rt_secs=h_rt_secs)
     if verdict.n_undated:
         _LOG.warning(
             "killswitch NOT enforced: %d undated epilogue rows (a pre-`ts` jobscript or torn "
@@ -990,8 +1027,19 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
             # R107: pass threads ONLY when raised, so the 1-thread path is byte-identical (and
             # the ``run_batch`` seam keeps its pre-R107 signature for every existing caller).
             _sekw = {"threads": run.search_threads} if run.search_threads > 1 else {}
-            run.run_batch(specs, f"{arm}_search", pool=run.pool_confirmatory, pack=run.pack,
-                          priority=priority, **_sekw)
+            # SEARCH-LANE PACK (2026-07-27). This is a SEARCH batch, so it takes the search lane's
+            # pack exactly like the LLM chain at run_llm_search does — it did not, and that was the
+            # whole reason R107's 8 threads looked unusable. Job cores are
+            # ``max(cores_per_training, threads) x pack``, so 8 threads against the TEST flood's
+            # pack (4) asks for 32 cores: under the 36-core exclusivity refusal, so not caught, but
+            # far past the measured placement cliff (8-core ~19 min, 16-core never placed in 28).
+            # With the search lane at pack 1 the same request is 8 cores — placeable — which is
+            # what ``--search-pack`` exists for. It also matters that this batch is NOT throughput
+            # work despite looking like a burst: the generation is a BARRIER (nothing reflects
+            # until every candidate lands), so the wave's cost is ONE training's latency, which is
+            # precisely where the register says to spend threads.
+            run.run_batch(specs, f"{arm}_search", pool=run.pool_confirmatory,
+                          pack=(run.search_pack or run.pack), priority=priority, **_sekw)
         accepted, failed = [], 0
         for cid in cids:
             r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
@@ -1072,8 +1120,12 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
             if run.search_threads > 1:                    # R107 (search/chain leg only); the
                 _bkw_b["threads"] = run.search_threads    # 1-thread default is byte-identical
             specs = [s for cid, coeffs in fresh for s in _family_specs(cid, "coeffs", coeffs)]
+            # SEARCH-LANE PACK (2026-07-27), same reasoning as the ``{arm}_search`` batch above:
+            # these are the DFO startup design points, a BARRIER before the strictly-sequential
+            # ask/tell loop, so the wave costs one training's latency and must not be sized against
+            # the test flood's pack (8 threads x pack 4 = an unplaceable 32-core request).
             run.run_batch(specs, f"{arm}_startup", pool=run.pool_confirmatory,
-                          pack=run.pack, priority=priority, **_bkw_b)
+                          pack=(run.search_pack or run.pack), priority=priority, **_bkw_b)
 
         out: list[float] = []
         for cid in cids:

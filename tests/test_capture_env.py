@@ -28,7 +28,16 @@ def test_gold_panel_provenance_records_active_suffix(monkeypatch) -> None:
 def test_capture_env_includes_gold_panel_block() -> None:
     """capture_env() carries the C1 gold_panel provenance + the bumped schema tag."""
     env = capture_env.capture_env(seed=0)
-    assert env["schema"] == "capture_env/3"   # /3 records the APPLIED tf32 (2026-07-27)
+    assert env["schema"] == "capture_env/4"   # /3 applied tf32; /4 the CPU identity (2026-07-27)
+    # /4: the confirmatory lane moved to CPU and the archive recorded NOTHING about the processor.
+    # env_fingerprint's only platform field is platform.platform() (kernel + glibc), and
+    # integrity._record_device reads only nvidia_smi.gpus[0] -- which on a CPU node returns
+    # "<absent>", a value the integrity report treats as a WILDCARD. So crn_pair_device_consistent
+    # was green whatever silicon the pair ran on, while lanes.EXCLUDED_CPU_POOLS excludes the AMD
+    # pool precisely because a different microarchitecture changes float reduction order and breaks
+    # the CRN bit-exactness every paired contrast rests on. Now auditable after the fact.
+    assert "cpu" in env, "the processor identity must reach the archived env"
+    assert env["cpu"].get("machine"), "no machine architecture recorded"
     # TF32 is a REGISTERED design parameter and the largest precision lever in the stack (~10-bit
     # vs 23-bit matmul mantissa, on the ~97%-of-runtime gradient update). freeze.py verified the
     # CONFIG; nothing recorded what was IN FORCE at training time, so the pin was unverifiable at

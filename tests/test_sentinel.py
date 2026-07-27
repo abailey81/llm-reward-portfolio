@@ -504,9 +504,18 @@ def test_admin_kill_verdict_is_COMPUTED_from_the_mirrored_ledger(tmp_path: Path)
     submission GATE (``incident_blocks_submission``) WAS wired in ``cluster/campaign.py``. The result
     was a gate nothing could trip: the automated Myriad-access guard could not fire at all.
 
-    Detection is now computed here from rows the sentinel already reads. ENFORCEMENT is deliberately
-    NOT wired (``enforced: False``) — writing the incident file blocks all submission until a human
-    clears it, i.e. it can halt a 23-day campaign, which is an operator decision."""
+    Detection is now computed here from rows the sentinel already reads. THIS WATCHER never
+    enforces — writing the incident file blocks all submission until a human clears it, i.e. it can
+    halt a 23-day campaign.
+
+    ⚠ 2026-07-27: the reported field was renamed from ``enforced: False``, which was true of the
+    WATCHER and FALSE of the SYSTEM. The DRIVER does enforce (``campaign._enforce_kill_switch``
+    writes the incident, and the submission gate at the top of that module then blocks every
+    batch), so an operator reading "enforced: False" beside a retreat verdict would have concluded
+    nothing had happened while the campaign was already halted. Both facts are now stated
+    separately, along with the caveat that this watcher classifies WITHOUT a walltime and so cannot
+    tell a walltime kill from an administrative one — the driver, which knows the walltime it
+    requested, is the authority."""
     camp = tmp_path / "campaign"
     ledger = camp / "ledger"
     ledger.mkdir(parents=True)
@@ -526,7 +535,13 @@ def test_admin_kill_verdict_is_COMPUTED_from_the_mirrored_ledger(tmp_path: Path)
     assert kv is not None, "the sentinel does not compute an admin-kill verdict at all"
     assert kv["classification"] == "admin_kill" and kv["action"] == "retreat"
     assert kv["n_deaths"] == 10 and kv["n_hosts"] == 5 and kv["n_undated"] == 0
-    assert kv["enforced"] is False, "the read-only watcher must NOT enforce (no incident write)"
+    assert kv["enforced_by_this_watcher"] is False, "the read-only watcher must NOT enforce"
+    assert kv["enforced_by_the_driver"] is True, (
+        "the report must say plainly that the DRIVER enforces, or a retreat verdict reads as "
+        "harmless when the campaign is in fact already blocked")
+    assert "no h_rt_secs" in kv["discriminator"], (
+        "this watcher classifies without a walltime and so cannot separate a walltime kill from an "
+        "administrative one — that caveat must travel with the verdict")
 
     # the bad-node sibling still works alongside it
     assert lane.get("host_failures")

@@ -257,11 +257,15 @@ def test_every_launcher_and_monitor_roster_matches_the_registered_queue_order():
         f"  registered={queue}")
 
     sup = (root / "scripts" / "mode_d_supervisor.ps1").read_text(encoding="utf-8")
-    for block in ("legPriority", "legTag"):
-        body = re.search(rf"\${block} = @\{{(.*?)\}}", sup, re.S).group(1)
-        keys = re.findall(r'"([^"]+)"\s*=', body)
-        assert sorted(keys) == sorted(queue), (
-            f"mode_d_supervisor.ps1 ${block} drifted: {sorted(set(keys) ^ set(queue))}")
+    # 2026-07-27: ``$legPriority`` is GONE, not renamed. R101 (Okhrati's seed-parity directive)
+    # retired the -200..-290 ladder — all 11 full-loop models run at EQUAL standing — and finding
+    # #96 made a negative --priority a hard SystemExit, so every leg line would have died at argv
+    # parsing and this supervisor would have relaunched it forever at 600 s backoff. Only the
+    # label->batch-tag map survives, and it is still the cross-file contract.
+    body = re.search(r"\$legTag = \[ordered\]@\{(.*?)\}", sup, re.S).group(1)
+    keys = re.findall(r'"([^"]+)"\s*=', body)
+    assert sorted(keys) == sorted(queue), (
+        f"mode_d_supervisor.ps1 $legTag drifted: {sorted(set(keys) ^ set(queue))}")
 
     from src.cluster.campaign_health import MEASURED_AUTHORING_YIELD
 
@@ -269,3 +273,84 @@ def test_every_launcher_and_monitor_roster_matches_the_registered_queue_order():
     assert not missing, (
         f"MEASURED_AUTHORING_YIELD has no entry for {missing} — the authoring-health alarm would "
         "silently fall back to the default rate for those legs")
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# 2026-07-27 LAUNCH GATE — the launcher invariants. Every one of these was VIOLATED by the
+# ratified launcher on the day of the confirmatory launch, and none of them was covered by a test.
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+def _strip_ps_comments(src: str) -> str:
+    """Drop whole-line PowerShell comments.
+
+    These invariants are about what the launcher EXECUTES, not what it documents — and the headers
+    of these files deliberately quote the very flags being banned in order to explain why. Matching
+    raw text would make the explanation itself a test failure, which is how a lock stops being
+    maintained. Whole-line only: a trailing ``#`` inside a quoted argument is not a comment, and no
+    launcher line here carries one.
+    """
+    return "\n".join(ln for ln in src.splitlines() if not ln.lstrip().startswith("#"))
+
+
+def _launcher_sources() -> dict[str, str]:
+    root = Path(__file__).resolve().parents[1]
+    return {name: _strip_ps_comments((root / "scripts" / name).read_text(encoding="utf-8"))
+            for name in ("mode_d_supervisor.ps1", "campaign_supervisor.ps1",
+                         "install_onstart_task.ps1")}
+
+
+def test_no_launcher_ever_lowers_our_queue_priority():
+    """Tamer's standing rule is ABSOLUTE: never lower the SGE priority of our jobs, EVER. R101
+    independently retired the -200..-290 leg ladder, and #96 made a negative --priority a hard
+    refusal — so a launcher that still passed one would simply die at argv parsing, forever, under
+    a supervisor that treats a nonzero exit as a crash to retry."""
+    for name, src in _launcher_sources().items():
+        assert "--priority" not in src, (
+            f"{name} passes --priority; the default 0 IS full fair-share standing (R101)")
+        assert "--allow-deprioritise" not in src, (
+            f"{name} would opt in to deprioritisation — never for the confirmatory campaign")
+
+
+def test_no_launcher_mixes_the_cpu_lane_with_gpu_pool_striping():
+    """``--device cpu`` + ``--seed-pool-blocks`` is refused by the launcher BY DESIGN: a CPU job
+    pins no pool, so the stripe would assert a device stratification the run does not have, and CPU
+    and CUDA are not bit-identical. Every line carried the GPU stripe, so the launcher could not
+    start on the lane it was meant to launch."""
+    for name, src in _launcher_sources().items():
+        assert "--seed-pool-blocks" not in src, f"{name} still carries the GPU seed stripe"
+        assert "--pool EF" not in src and '"--pool", "EF"' not in src, (
+            f"{name} still pins the GPU pool EF")
+        assert "--device" in src and "cpu" in src, f"{name} does not select the CPU lane"
+
+
+def test_no_launcher_hand_types_a_frozen_roster():
+    """The roster and the H1 canon are RESOLVED from the frozen config. A hand-typed copy is what
+    drifted to 7-of-9 arms (killing node N4) and, a day earlier, to 4-of-11 baselines."""
+    for name, src in _launcher_sources().items():
+        assert "--arms" not in src, (
+            f"{name} hand-types --arms; omit it so resolve_cluster_arms() reads the frozen roster")
+        assert "--baselines" not in src, f"{name} hand-types --baselines"
+
+
+def test_every_launcher_passes_the_acfs_gold_directory():
+    """``--gold-dir`` defaults to ~/Scratch/llmrp/inputs, which exists on Myriad and is EMPTY."""
+    for name, src in _launcher_sources().items():
+        assert "--gold-dir" in src, (
+            f"{name} relies on the --gold-dir default, which points at an empty directory")
+
+
+def test_the_search_lane_is_configured_so_eight_threads_can_place():
+    """Job cores are ``max(cores_per_training, threads) * pack``. The registered chain thread count
+    is 8 (R107), so the search lane must run at pack 1 (8 cores, ~19 min to place) rather than
+    inheriting the test flood's pack (32 cores, past the placement cliff)."""
+    src = _launcher_sources()["mode_d_supervisor.ps1"]
+    assert '"--search-pack", "1"' in src and '"--search-threads", "8"' in src
+
+
+def test_the_monitor_watches_every_mode_d_line_not_just_the_core():
+    """The monitor filtered on c1_/h3ss_ only, so under MODE D it watched 2 of 12 lines and
+    reported the other ten as nothing — and silence is this script's own signal for HEALTHY."""
+    root = Path(__file__).resolve().parents[1]
+    mon = (root / "scripts" / "campaign_monitor.sh").read_text(encoding="utf-8")
+    assert "leg" in mon.split("qstat")[1].split("\n")[0], (
+        "campaign_monitor.sh's qstat filter does not match the leg batch tags")

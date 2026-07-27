@@ -25,6 +25,12 @@ $lines = @(
   "haiku-4.5", "gpt-5.6-luna", "nemotron-3-super", "sonnet-5", "gemini-2.5-flash", "kimi-k3"
 )
 
+# 2026-07-27: the priority ladder this header describes is RETIRED BY R101 (Okhrati's seed-parity
+# directive: all 11 full-loop models run at EQUAL standing, climbing ONE common ladder in lockstep).
+# No line passes --priority any more; the default 0 is full fair-share standing, which is also
+# Tamer's absolute never-deprioritise rule. The substrate is the CPU lane, not the GPU pools - see
+# the rewritten header of mode_d_supervisor.ps1 for the five defects that change closed.
+
 $i = 0
 foreach ($line in $lines) {
     $stagger = if ($line -eq "core") { 0 } else { 3600 + $i * 20 }   # CANARY SHIELD: legs start
