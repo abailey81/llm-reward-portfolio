@@ -1672,6 +1672,62 @@ The pattern worth keeping: in all three correct cases the *commit marker* is wri
 **Verified:** `test_provisional_bank` + `test_console_safety` + `test_sandbox` + `test_results_io` →
 **104 passed, `PYTEST_RC=0`** (3 skips = the known POSIX-`resource` Windows skips); ruff clean.
 
+### #120 — `step()` documented an interface the reward does not receive
+
+`PortfolioEnv.step`'s docstring said the reward is invoked with `info` "(which also carries the
+realized `turnover`)". It does not. `reward_info` is shallow-copied from `info` BEFORE `safe_call`,
+at which point the only keys are `weights` / `prev_weights` / `reward_state`; `turnover`, `cost`,
+`gross`, `port_ret`, `components` and `log_wealth` are attached to the RETURNED `info` afterwards,
+for the CALLER — `src/env/runner.py` reads `gross`/`turnover`, which is the correct consumer.
+
+**Verified nothing is broken before deciding severity.** No reward in the repo reads those keys (the
+frozen canon's `return_minus_turnover` computes its own `0.5*sum|w - prev_weights|`), and the
+authoring prompt advertises only `info["reward_state"]` — so the trap is not baited for the LLM
+authors either. What makes the sentence worth correcting rather than shrugging at is the failure mode
+behind it: `safe_call` SWALLOWS the resulting `KeyError` and substitutes `SAFE_DEFAULT`, so a reward
+reaching for `info["turnover"]` would score a constant **0.0 every step** and read as a bad reward
+DESIGN rather than a broken one — i.e. it would be silently attributed to the model's authoring
+quality, which is precisely the quantity this study measures. Corrected, and the interface is now
+pinned by a test asserting BOTH directions: exactly `{weights, prev_weights, reward_state}` reach the
+reward, and the caller's six keys survive on the returned dict.
+
+Also recorded while there: the canon baseline's turnover basis (`w - prev_weights`, target-to-target)
+is deliberately NOT the env's charged basis (`w - w_held`, actually traded — the #92 correction). A
+hand reward defines its own objective, and this divergence predates #92, so it is a documented
+property, not a defect.
+
+### PASS A — the rest of `portfolio_env.py`: CLEAN
+
+`project_simplex` is correct (max-subtracted softmax; clip-then-L1 with an all-zero → uniform
+fallback; unknown kind raises), and its real limitation is documented with unusual honesty — the
+frozen softmax maps onto the OPEN simplex so it can never reach a true 100 %-cash corner, which damps
+exactly the flee-to-cash response a tail-averse agent wants. Correctly identified as common-mode
+across every arm, hence a shared ceiling rather than an H2 confound. The `step()` body holds up: the
+non-finite-action guard fails loud at the boundary (NaN weights cannot reach the wipeout guard, whose
+comparisons would all be False), the V15a read-only/detached-copy discipline blocks in-place writes
+through the untrusted boundary, `w_held = w * growth / port_growth` is the correct post-trade drift,
+and the window edge is reported as a Gymnasium *truncation* — with the SB3 mechanism (DummyVecEnv
+synthesising `TimeLimit.truncated`, the buffer sampling `dones * (1 - timeouts)`) traced to file and
+line, so the value bootstrap is not zeroed at every window edge.
+
+### PASS B — "can a resume treat an INCOMPLETE unit as complete?": CLEAN, four predicates
+
+Extending loop 136's writer lens to the READERS of partial state. Every completeness predicate keys
+on an atomic commit marker, and the one non-atomic marker is safe because of WHERE it is written:
+
+* `run_one._already_archived` (the cluster path the campaign actually runs) — keys on `record.json`,
+  and returns **False** when it cannot determine completeness, i.e. it re-runs rather than skips. The
+  safe direction.
+* `run_subexperiment._condition_complete` — counts `record.json` files, and its `-`-terminated prefix
+  correctly avoids the `s1`/`s11` collision.
+* `run_prototype`'s `COMPLETE` marker — checked by `.exists()` alone, but written as the **last
+  statement** of `run_arm`, so a crash mid-marker-write still reads complete *correctly* (the work
+  was already done). No false-complete window.
+* `provisional_bank.already_banked` — tolerant reader over the look log.
+
+**Verified:** the 11 test files touching `portfolio_env` / `PortfolioEnv` / `env.runner` →
+**165 passed, `PYTEST_RC=0`**; ruff clean.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

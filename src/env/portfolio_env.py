@@ -279,8 +279,23 @@ class PortfolioEnv(gym.Env):  # type: ignore[misc]
         the half-L1-DRIFTED turnover cost (``0.5 * ||w - w_tilde||_1``; see the
         module docstring and ``docs/environment_spec_v1.md``), log-wealth is
         accumulated, and the injected reward is invoked with the stateful
-        ``reward_state`` round-tripped through ``info`` (which also carries the
-        realized ``turnover``).
+        ``reward_state`` round-tripped through ``info``.
+
+        ⚠ WHAT THE REWARD'S ``info`` ACTUALLY CONTAINS (corrected 2026-07-27, deep review #120).
+        This said the reward's ``info`` "also carries the realized ``turnover``". It does NOT.
+        ``reward_info`` is shallow-copied from ``info`` BEFORE :func:`safe_call`, at which point the
+        only keys are ``weights`` / ``prev_weights`` / ``reward_state``; ``turnover``, ``cost``,
+        ``gross``, ``port_ret``, ``components`` and ``log_wealth`` are attached to the RETURNED
+        ``info`` AFTERWARDS, for the CALLER (``src/env/runner.py`` reads ``gross``/``turnover`` —
+        the correct consumer). No reward in the repo depends on them and the authoring prompt
+        advertises only ``info["reward_state"]``, so nothing is broken — but the distinction is
+        load-bearing for anyone writing a new reward, because :func:`safe_call` SWALLOWS the
+        resulting ``KeyError`` and substitutes ``SAFE_DEFAULT``: a reward reaching for
+        ``info["turnover"]`` would score a constant 0.0 every step and read as a bad reward DESIGN
+        rather than a broken one. A reward that wants turnover must compute it, as the frozen canon's
+        ``return_minus_turnover`` does (``0.5*sum|w - prev_weights|``) — which is the
+        target-to-target change, deliberately NOT the env's charged basis ``0.5*sum|w - w_held|``
+        (see the #92 note in the body); a hand reward defines its own objective.
 
         Returns
         -------

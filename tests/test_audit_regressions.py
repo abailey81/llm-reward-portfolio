@@ -558,3 +558,39 @@ def test_no_module_claims_to_be_UNWIRED_while_a_production_caller_imports_it() -
         "imports them; a registered claim can be withdrawn on the strength of such a sentence "
         f"(exactly the #115 hazard): {offenders}"
     )
+
+
+def test_the_reward_sees_EXACTLY_the_documented_info_keys_and_not_the_caller_ones() -> None:
+    """#120 (2026-07-27): `step`'s docstring claimed the reward's `info` carries `turnover`.
+
+    It does not. `reward_info` is shallow-copied from `info` BEFORE `safe_call`, so the reward sees
+    only `weights` / `prev_weights` / `reward_state`; `turnover`, `cost`, `gross`, `port_ret`,
+    `components` and `log_wealth` are attached to the RETURNED info afterwards, for the caller
+    (`src/env/runner.py` reads `gross`/`turnover` -- the correct consumer).
+
+    Nothing is broken today: no reward in the repo reads those keys, and the authoring prompt
+    advertises only `info["reward_state"]`. The reason to PIN it is the failure mode if it ever
+    drifts -- `safe_call` swallows a KeyError and substitutes SAFE_DEFAULT, so a reward reaching for
+    `info["turnover"]` scores a constant 0.0 every step and reads as a bad reward DESIGN rather than
+    a broken one. That is silent, and it would be attributed to the LLM's authoring quality.
+
+    Asserts BOTH directions: what the reward gets, and what the caller gets.
+    """
+    seen: dict = {}
+
+    def _probe(weights, returns, prev_weights, port_ret, info):  # noqa: ANN001
+        seen.update({"keys": set(info), "has_state": "reward_state" in info})
+        return float(port_ret), {"pnl": float(port_ret)}, None
+
+    cfg = load_config("environment")
+    env = PortfolioEnv(_vix_panel(prelagged=True, n_days=90), cfg, _probe)
+    env.reset()
+    _obs, _r, _term, _trunc, info = env.step(np.full(env.N + 1, 1.0 / (env.N + 1)))
+
+    assert seen["keys"] == {"weights", "prev_weights", "reward_state"}, (
+        f"the reward's info keys changed to {sorted(seen['keys'])}; if a caller-only key was added "
+        "before safe_call, or reward_state was dropped, stateful rewards break silently"
+    )
+    # The CALLER's info is the richer one, and src/env/runner.py depends on exactly these.
+    for k in ("turnover", "cost", "gross", "port_ret", "components", "log_wealth"):
+        assert k in info, f"the returned info lost {k!r}, which src/env/runner.py reads"
