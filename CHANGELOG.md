@@ -584,6 +584,47 @@ a **loud runtime WARNING** now fires on any negative `--priority`, naming the ru
 run will sit below full fair-share standing — verified by triggering it (`--dry-run --priority -200`
 still RC=0, warning emitted). The conflict can no longer happen silently; the decision is his.
 
+### ★★ #98 — the LEGIBLE arm carried LESS INFORMATION than the raw one (a confound in a registered leg)
+
+PASS B of loop 118 applied the #87 lens — *measure every rendered number against the distribution it
+is meant to convey* — to the one rendering surface it had not reached: the LEGIBILITY renderer
+(`_legible_value`). The legibility leg
+(`responsiveness.legible_format_responsiveness_differential`) asks whether re-rendering the SAME
+numbers more legibly changes the designer's responsiveness, so its identification requires that **only
+the framing vary**. Measured on the archive, fraction of genuinely-different value pairs still
+DISTINGUISHABLE once rendered:
+
+| field | raw `.4f` | legible BEFORE | legible AFTER |
+|---|---|---|---|
+| cvar_01 / 05 / 10 / 25 | 99.5 / 98.9 / 98.2 / 97.5 % | **identical** (integer bps) | unchanged |
+| **robust_skew** | **99.8 %** (277 distinct) | **88.7 %** (14 distinct, `+.2f`) | **99.8 %** (`+.4f`) |
+| **left_tail_mass** | **99.4 %** (54 distinct) | **91.6 %** (18 distinct, `.1f%`) | **99.4 %** (`.2f%`) |
+
+`robust_skew` at `+.2f` collapsed **277 distinct values to 14**. So for two of the six fields the
+legible arm was strictly information-poorer, and any measured "legibility effect" was partly
+information LOSS — biased toward a **spurious null**, which is the exact direction this module already
+guards against for the decile tag (`_DECILE_INVERTED_FIELDS`). Fixed to exact parity, verified by
+measurement; the legibility DEVICE is preserved (percent units for mass; integer bps untouched).
+
+**Two things worth recording beyond the fix.** First, the four CVaR fields needed nothing *only
+because* #87b had raised the raw renderer from `.3f` to `.4f` — integer bps is a 1e-4 step, so before
+#87b the LEGIBLE arm was **10× FINER** than the raw arm on every CVaR line, i.e. the same confound ran
+the other way and was larger. #87b is therefore load-bearing for this leg, not just for #87's.
+Second, `robust_skew`'s legible form is now identical to its raw form, which is correct rather than a
+bug: it is already a small dimensionless number with no unit transformation that aids comparison, so
+for that one field the legibility manipulation is carried entirely by the decile tag.
+
+New test `test_legible_rendering_has_RESOLUTION_PARITY_with_the_raw_rendering` pins the PROPERTY, not
+the format strings, so either renderer may be retuned provided they stay matched. Verified to
+DISCRIMINATE: under the old `+.2f` the assertion fails by 2,075 pairs. 126 tests green, `PYTEST_RC=0`.
+⚠ THIRD TREATMENT-SURFACE CHANGE — joins the `_HEADER`/`_fmt` pair as ONE decision for Tamer.
+
+**PASS A, clean:** `src/search/random_search.py` — deterministic default RNG (the documented
+reproducibility footgun), an `ast_gate` invariant assert, and `SandboxEnvironmentError` caught FIRST
+and re-raised with the right reasoning: a `continue` there does NOT consume a budget unit, so a
+starved box would spin to `max_attempts` and return a SHORT archive, silently breaking H4a's
+matched-budget control. The #75 class, already correctly handled here.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

@@ -204,13 +204,41 @@ def _decile(value: float, lo: float, hi: float) -> int:
 
 def _legible_value(field_id: str, value: float) -> str:
     """The LEGIBLE rendering of one tail value: integer basis points for the CVaR levels, a percent
-    for the ``left_tail_mass`` probability (P21 fix), a 2-dp dimensionless number for ``robust_skew``.
+    for the ``left_tail_mass`` probability (P21 fix), a dimensionless number for ``robust_skew``.
     Basis points (value*1e4, rounded to int) lift the close small floats (e.g. -0.0410 -> -410 bps)
-    out of the LLM's float-comparison failure regime."""
+    out of the LLM's float-comparison failure regime.
+
+    ⚠ 2026-07-27 (deep review, loop 118, #98) — RESOLUTION PARITY WITH THE RAW RENDERING IS AN
+    IDENTIFICATION REQUIREMENT HERE, and two fields did not have it. The legibility leg
+    (``responsiveness.legible_format_responsiveness_differential``) asks whether re-rendering the SAME
+    numbers more legibly changes the designer's responsiveness, so ONLY the framing may vary — if the
+    legible arm also carries LESS INFORMATION, a measured "legibility effect" is partly information
+    loss. Measured on the archive against the raw ``_fmt`` (.4f), fraction of genuinely-different value
+    pairs still DISTINGUISHABLE once rendered:
+
+        field            raw .4f   legible BEFORE   legible AFTER
+        cvar_01/05/10/25  99.5 %    99.5 %  (bps)    unchanged     <- already exact parity
+        robust_skew       99.8 %    88.7 %  (+.2f)   99.8 %  (+.4f)
+        left_tail_mass    99.4 %    91.6 %  (.1f%)   99.4 %  (.2f%)
+
+    `robust_skew` at ``+.2f`` collapsed 277 distinct values to 14. The direction of that bias is the
+    one this module already warns about for the decile tag (see ``_DECILE_INVERTED_FIELDS``): less
+    information in the legible arm pushes the numeracy-bottleneck leg toward a SPURIOUS NULL.
+
+    The four CVaR fields needed nothing — integer bps is a 1e-4 step, which is exactly ``.4f`` — and
+    they only reached parity because #87b raised the raw renderer from ``.3f`` to ``.4f``. Before that
+    the LEGIBLE arm was 10x FINER than the raw arm on every CVaR line, i.e. the confound ran the other
+    way and was larger. Recorded because it makes #87b load-bearing for this leg, not just for #87's.
+
+    Note ``robust_skew``'s legible form is now identical to its raw form. That is correct, not a bug:
+    it is already a small dimensionless number with no unit transformation that aids comparison, so for
+    that one field the legibility manipulation is carried entirely by the decile tag.
+    ⚠ TREATMENT-SURFACE CHANGE — flagged to Tamer with the `_HEADER`/`_fmt` pair.
+    """
     if field_id == "robust_skew":
-        return f"{float(value):+.2f}"
+        return f"{float(value):+.4f}"
     if field_id == "left_tail_mass":
-        return f"{float(value) * 100.0:.1f}%"
+        return f"{float(value) * 100.0:.2f}%"
     return f"{int(round(float(value) * 1e4)):+d} bps"
 
 

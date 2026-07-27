@@ -142,3 +142,47 @@ def test_placebo_shuffled_requires_tail_stats_and_seed() -> None:
         build_block("placebo_shuffled", METRIC, None, shuffle_seed=1)
     with pytest.raises(ValueError, match="shuffle_seed"):
         build_block("placebo_shuffled", METRIC, TAIL_STATS)
+
+
+# --- #98: the LEGIBLE rendering must not carry less information than the RAW one ----------------
+
+def test_legible_rendering_has_RESOLUTION_PARITY_with_the_raw_rendering() -> None:
+    """The legibility leg varies FRAMING; it must not also vary how much information is carried.
+
+    ``responsiveness.legible_format_responsiveness_differential`` asks whether re-rendering the SAME
+    numbers more legibly changes the designer's responsiveness. That identification only holds if the
+    legible arm resolves the same distinctions the raw arm does — otherwise a measured "legibility
+    effect" is partly information loss, biasing the numeracy-bottleneck leg toward a spurious null
+    (the same direction this module already guards for the decile tag).
+
+    Measured on the archive before the fix: ``robust_skew`` at ``+.2f`` collapsed 277 distinct values
+    to 14 (99.8 % -> 88.7 % of pairs distinguishable) and ``left_tail_mass`` at ``.1f%`` lost 7.8
+    points. The four CVaR fields were already at parity because integer bps IS a 1e-4 step — but only
+    since #87b raised the raw renderer to ``.4f``; before that the legible arm was 10x FINER.
+
+    Pins the PROPERTY, not the format strings, so either renderer may be retuned as long as they stay
+    matched.
+    """
+    import numpy as np
+
+    from src.feedback.schema import _DIST_FIELDS, _fmt, _legible_value
+
+    rng = np.random.default_rng(0)
+    # Values in the real observed bands (CVaR ~ -0.06..-0.01, mass ~ 0.01..0.05, skew ~ -0.15..0.05).
+    bands = {
+        "cvar_01": (-0.09, -0.03), "cvar_05": (-0.06, -0.015),
+        "cvar_10": (-0.045, -0.01), "cvar_25": (-0.03, -0.005),
+        "left_tail_mass": (0.005, 0.06), "robust_skew": (-0.15, 0.05),
+    }
+    for field_id, _label in _DIST_FIELDS:
+        lo, hi = bands[field_id]
+        xs = rng.uniform(lo, hi, size=300)
+        raw = [_fmt(x) for x in xs]
+        leg = [_legible_value(field_id, x) for x in xs]
+        raw_pairs = sum(1 for i in range(len(xs)) for j in range(i + 1, len(xs)) if raw[i] != raw[j])
+        leg_pairs = sum(1 for i in range(len(xs)) for j in range(i + 1, len(xs)) if leg[i] != leg[j])
+        assert leg_pairs >= raw_pairs, (
+            f"{field_id}: the LEGIBLE rendering distinguishes {leg_pairs} value pairs but the RAW one "
+            f"distinguishes {raw_pairs} — the legible arm is carrying LESS information, so the "
+            f"legibility contrast is confounded by resolution"
+        )
