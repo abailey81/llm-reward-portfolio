@@ -272,7 +272,7 @@ MSYS_NO_PATHCONV=1 python scripts/run_campaign_cluster.py --leg deepseek-v4-pro 
     --batch-tag leg1 --poll-secs 180 --chunk-tasks 1 \
     --output-dir outputs/campaign_cluster --resume
 # Queue (frozen): deepseek-v4-pro -> glm-5.2 -> qwen3.6-27b -> qwen3.5-9b -> haiku-4.5
-#              -> gpt-5.6-luna -> nemotron-3-super -> sonnet-5 -> gemini-3.5-flash -> kimi-k3  (R90/R92/R95)
+#              -> gpt-5.6-luna -> nemotron-3-super -> sonnet-5 -> gemini-2.5-flash -> kimi-k3  (R90/R92/R95)
 # Per leg: change --leg and --batch-tag (leg2, leg3, ...). No --baselines (H1 is core-only);
 # no --tiered (legs are floor-tier by design). Priority -200 = legs only backfill idle GPUs.
 ```

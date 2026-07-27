@@ -177,7 +177,7 @@ avoidance (Gelman & Loken 2014), reported via TOST equivalence — not a bare p>
   weakness; contamination is handled by structural blinding (anonymised arrays, no tickers/dates) and
   cutoff-stratified evaluation. A cross-family + open-weights model **panel** (Opus 5 confirmatory + the 10 open-weight replication
   legs — `deepseek-v4-pro`, `glm-5.2`, `qwen3.6-27b`, `qwen3.5-9b`, `haiku-4.5`, `gpt-5.6-luna`,
-  `nemotron-3-super`, `sonnet-5`, `gemini-3.5-flash`, `kimi-k3`; R95) is **already registered** in
+  `nemotron-3-super`, `sonnet-5`, `gemini-2.5-flash`, `kimi-k3`; R95/R106) is **already registered** in
   `config/preregistration.yaml: model_suite`; GPT-5.5 was rejected.
 - **Survivorship & delisting bias.** Honestly disclosed and since sharpened (ADR-051, 2026-07-02):
   the observed-terminal audit recovered the realised terminal for all 333 dead names from the vendor

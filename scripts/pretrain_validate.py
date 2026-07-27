@@ -435,6 +435,19 @@ def _gather(gates_dir: Path) -> dict[str, Any]:
             leg, mt = row.get("leg", p.stem), p.stat().st_mtime
             if leg not in latest or mt > latest[leg][0]:
                 latest[leg] = (mt, row)
+    # R106 (2026-07-27): validate EXACTLY the registered roster, never whatever the archive happens to
+    # contain. The substitution gemini-3.5-flash -> gemini-2.5-flash left a verdict for the RETIRED leg
+    # in the pre-R106 archive, and this gate reported "all 11 legs" — counting a leg that will never
+    # run. Benign that time (it passed), but a retired leg's stale verdict must never be able to fail
+    # the gate for a leg the campaign does not execute, nor pad the readiness count. The registration
+    # is the authority on which legs exist; the archive is only evidence about them.
+    roster = [str(x.get("label")) for x in (prereg.get("model_suite", {}).get("legs") or [])
+              if isinstance(x, dict) and x.get("label")]
+    if roster:
+        retired = sorted(set(latest) - set(roster))
+        if retired:
+            g["retired_legs_ignored"] = retired
+        latest = {leg: v for leg, v in latest.items() if leg in roster}
     sums = [row for _mt, row in latest.values()]
     g["leg_summaries"] = sums
     g["leg_verdict_sources"] = len(search_dirs)
