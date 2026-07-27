@@ -1612,6 +1612,66 @@ leg-roster guard verifying `config/legs.yaml == frozen model_suite`, and the can
 (`d5e31bb…`) — correct, since `legs.yaml` is an executed knob bound by the assert rather than by the
 hash. **Tamer's open decision #2 should be considered discharged by that lane, not by this one.**
 
+### #119 — the banking commit did not use the crash-safe write the repo standardised for it
+
+`src/io/results.py::write_run` goes to real lengths for atomicity, and says why: *"a plain `open('w')
++ json.dump` killed mid-write leaves a TRUNCATED `record.json`"* — sidecars fsynced first, then a temp
+sibling + fsync + `os.replace` as the commit point. `scripts/provisional_bank.py::bank()` wrote its
+payload with a plain `path.write_text(...)`: the exact pattern that writer abandoned.
+
+**Stated at its true severity, which is lower than the archive case.** Nothing could be bricked by a
+truncation here: the payloads have **no programmatic reader** (the only one is `already_banked`, over
+`look_log.jsonl`, and it tolerates a torn line), so I could not demonstrate a failure and am not
+claiming one. What makes it worth the one line is *what the file is* — it carries
+`EXOGENEITY_ATTESTATION` and records that a **LOOK was taken at the data** in a sequential design, and
+it is the artifact that goes to the supervisors in the R81 interim report. A half-written attestation
+is precisely the artifact that should not be able to exist, and the repo already owns the pattern that
+makes it impossible. Fixed by mirroring `write_run` (temp + fsync + `os.replace`; `os` was not
+imported and was added). Verified end-to-end: payload written atomically, no stray `.tmp`, parses with
+its attestation intact, look-log appended, `already_banked` correct — and a deliberately planted torn
+`.tmp` is ignored by the `rung_*_PROVISIONAL.json` glob.
+
+### PASS A — the sandbox EXECUTION half (the AST gate was probed in loop 135): CLEAN
+
+The runtime side is where a reward actually runs, and it holds up under measurement:
+
+* **The exception contract is airtight.** Eight malformed candidates — no `reward` defined, wrong
+  arity, a bare float return, a raising reward, NaN total, non-dict components — every one raises
+  `SandboxError`, **no leaked exception type**, while a benign reward and a 3-element **list** return
+  both pass (the latter matching the documented 2026-07-19 fix). Note the harness itself had to be a
+  real file: `multiprocessing`'s spawn context re-imports `__main__`, so a heredoc probe makes the
+  child die on `<stdin>` — and the sandbox correctly classified that as `SandboxEnvironmentError`
+  ("child did not reach 'ready'"), never as a candidate rejection, which is exactly the R-designed
+  distinction.
+* **The timeout genuinely fires.** An infinite-loop reward is rejected in **3.17 s** against a 2.0 s
+  budget (the balance is the graceful-then-forceful teardown) — the cross-platform killable child
+  works, which matters because `signal.SIGALRM` was a silent no-op on Windows.
+* **No resource leak.** 25 consecutive validations moved OS handles **223 → 223** and threads
+  **19 → 19**, with zero inline fallbacks. My `mp.Queue`-leak hypothesis is measured FALSE and is not
+  reported as a finding.
+* **`__import__` is in `SAFE_BUILTINS`** (it must be, to service the allowed `import numpy`) — so the
+  question is whether it can be reached. It cannot: the gate blocks the **name**, not merely the call.
+  Six smuggling routes — bare load, alias-then-call, hidden in a list, hidden in a dict, a
+  default-argument, and a comprehension — **all blocked**, while a benign `f = float` alias passes.
+
+### PASS B — the new lens: does a crash BETWEEN steps leave state that reads as SUCCESS?
+
+Applied to every multi-step writer on the campaign's critical path. Three of four were already
+correct, and correct for the right reasons:
+
+| writer | order-of-operations | reader tolerance |
+|---|---|---|
+| `results.write_run` | sidecars fsynced FIRST, `record.json` the atomic commit point | `.json.tmp` ignored by `load_all` |
+| `llm.spend_ledger` | open-append-close per call | torn final line skipped **with a warning** |
+| `parallel` failures.jsonl | best-effort append+flush, never crashes the arm | torn line → "that one candidate regenerates" |
+| `provisional_bank` | **plain `write_text`** → **#119** | look-log reader tolerant |
+
+The pattern worth keeping: in all three correct cases the *commit marker* is written last and the
+*reader* assumes tearing. That is the shape to check first in any future writer.
+
+**Verified:** `test_provisional_bank` + `test_console_safety` + `test_sandbox` + `test_results_io` →
+**104 passed, `PYTEST_RC=0`** (3 skips = the known POSIX-`resource` Windows skips); ruff clean.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

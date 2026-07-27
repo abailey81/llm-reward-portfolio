@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -152,7 +153,23 @@ def bank(root: str | Path, rung: int, *, counts: dict[str, int],
         if r.returncode != 0:
             payload["analysis_stderr_tail"] = (r.stderr or "")[-800:]
     path = out_dir / f"rung_{rung:04d}_{stamp}_PROVISIONAL.json"
-    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    # ATOMIC commit, mirroring src/io/results.py::write_run (deep review #119, 2026-07-27). This was a
+    # plain ``path.write_text(...)`` — the exact pattern that writer abandoned, in its words: "a plain
+    # open('w') + json.dump killed mid-write leaves a TRUNCATED record.json". Here the stakes are lower
+    # (no code reads these payloads — the only programmatic reader is ``already_banked``, over
+    # ``look_log.jsonl``, and it tolerates a torn line), so nothing could be BRICKED by a truncation.
+    # But this file is an INTEGRITY artifact: it carries EXOGENEITY_ATTESTATION and records that a LOOK
+    # was taken at the data in a sequential design, and it is what goes to the supervisors in the R81
+    # interim report. A half-written attestation is exactly the artifact that must not exist, and the
+    # repo already has the one-line pattern that makes it impossible. Temp sibling + fsync + os.replace
+    # (atomic on Windows and POSIX within a directory); a crash now leaves either no file or a complete
+    # one, and a stray ``.tmp`` is ignored by the ``rung_*_PROVISIONAL.json`` glob.
+    tmp_path = path.with_suffix(".json.tmp")
+    with tmp_path.open("w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, default=str)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp_path, path)
     with (out_dir / LOOK_LOG).open("a", encoding="utf-8") as fh:
         fh.write(json.dumps({"utc": stamp, "rung": rung, "git_commit": payload["git_commit"],
                              "records_per_arm": counts, "file": path.name,
