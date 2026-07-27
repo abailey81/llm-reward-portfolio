@@ -1130,6 +1130,113 @@ diff-SE, i.e. false precision.
 **Verified:** `test_schema` + `test_responsiveness` + `test_subexperiment` + `test_analyze_campaign` +
 `test_llm_deep` → **172 passed, `PYTEST_RC=0`**; ruff clean on all three edited modules.
 
+### ★★★ #111 — a month-old `\r\r\n` corruption in the SELECTION METRIC's module that `git status` could not see
+
+Loop 130's PASS B generalised #108's sweep — *an interface that advertises what it does not do* — from
+randomness knobs to any accepted-but-ignored parameter. Triaging the 36 hits meant reading
+`src/inference/deflated_sharpe.py`, and `grep` said `deflated_sharpe_ratio` was at line 160 while
+Python's AST said **319**. The file has only 272 lines. That discrepancy was the finding.
+
+**MEASURED:** the working-tree file held **272 LF and 544 CR** — every line ended `\r\r\n`. Python's
+universal-newline decoding turns each of those into TWO line breaks, so the module reported **544
+lines** and every Python-emitted line number for it — tracebacks, pytest failure locations, coverage,
+AST tooling — pointed at a line that does not exist in the file anyone reads. Nothing was numerically
+wrong; DSR computed correctly throughout. What was wrong is that the debugging surface of the
+**selection metric** (`held_out_fitness`'s core, the H2 endpoint) had been lying for a month
+(working-tree mtime **2026-06-28**, a month before today and before this review run began — not
+self-inflicted).
+
+**Why it survived a month is the part worth keeping.** `git status` reported the file CLEAN. Git's
+clean filter rewrites `\r\n` → `\n`, so a `\r\r\n` working tree normalises to exactly `\r\n` — and
+this was **the ONE file in the repo (of ~22k tracked) whose index blob still stored CRLF**, measured
+with `git ls-files --eol`. `.gitattributes` declares `* text=auto eol=lf`, and its own comment states
+the purpose: *"eliminates CRLF/LF churn and **the doubled-CR artifacts on Windows checkouts**, so
+diffs and the pre-registration freeze hash are byte-stable across platforms."* The file predated that
+normalisation and was never re-normalised — so the single file that escaped the rule is precisely the
+one where the corruption it was written to prevent became **undetectable**. Doubling was invisible;
+any other corruption would have shown as a diff.
+
+**Fixed** by restoring the committed bytes behind a gate that content must be identical after
+stripping CRs, then normalising the blob (`i/crlf` → `i/lf`, the whole diff being line endings). Both
+line-ending repairs are provably semantics-free: **`ast.dump(parse(HEAD)) == ast.dump(parse(now))`**
+for each. Python's line count and `wc`'s now agree at 272, and `deflated_sharpe_ratio` reports at 160
+from both. A sibling one-byte issue surfaced and was fixed: `scripts/verify_inventory.py` was the only
+tracked source file lacking a final newline.
+
+**Two structural locks added**, in `test_audit_regressions.py` beside the existing whole-repo
+encoding lock: one asserting no `src`/`scripts`/`tests` file carries doubled CRs *or* any line-break
+that makes Python's numbering disagree with the bytes (the harm asserted directly, so it also catches
+U+2028/U+2029/NEL/VT/FF), and one asserting no tracked blob is stored CRLF (the root cause). The first
+was **proven falsifiable**: planting a `\r\r\n` file made it fail with that file named, and it passed
+again once removed. Its first run also caught a genuine false-positive in my own check — a missing
+trailing newline is a *different* (cosmetic) class and must not be reported as a numbering divergence,
+so the check now accounts for it rather than conflating the two.
+
+### #112 — an invalid escape sequence in the REGISTERED PRIMARY DECISION RULE's docstring
+
+A `DeprecationWarning: invalid escape sequence '\{'` had been surfacing on every suite run. Traced to
+`src/inference/multiple_testing.py:163`, inside `graphical_alpha_propagation` — the
+Bretz–Maurer–Brannath–Posch (2009) α-propagation that `config/preregistration.yaml` registers as THE
+PRIMARY DECISION RULE. The docstring writes the algorithm's set difference as ``l in J\{j}``; `\{` is
+not a recognised escape, which is a DeprecationWarning today, a SyntaxWarning on 3.12, and is slated
+to become a **SyntaxError**. Exactly one backslash exists in the whole 48-line docstring, so the
+minimal correct fix is a raw docstring (`r"""`). Verified the rendered text is unchanged (the
+set-difference notation still reads `J\{j}`) and that repo-wide invalid escape sequences are now **0**.
+
+### #113 — the H4a comparator's docstring described plumbing that does not exist
+
+`random_search_over_code`'s first positional parameter `env_builder` was documented as *"Forwarded to
+the injected `fitness_fn` when it accepts an environment; otherwise unused"*. That conditional was
+never true under ANY condition: `env_builder` occurs exactly twice in the module — the signature and
+that sentence — and the single call is `fitness_fn(reward)`, one argument. Nor is it signature parity
+with the sibling H4 searchers, which was the other plausible justification: `bayes_opt` and
+`dfo_toolkit` (cma_es / tpe) do not take the parameter at all. Nothing is broken today because the
+production and test `fitness_fn`s are closures that have already bound their environment — but H4a is
+a registered N4 comparator, and a maintainer writing a new `fitness_fn` that expects an environment
+argument on the strength of that sentence would get a one-argument call. Corrected to state what the
+code does; the parameter is retained so the production call site keeps its positional shape.
+
+### PASS B triage COMPLETE — 36 accepted-but-ignored parameters, and the rule that separates them
+
+Enumerated and worked the whole list rather than sampling. **33 are legitimate contract conformance**
+— the fixed `(weights, returns, prev_weights, info)` reward signature (11 canon rewards), the
+`(panel, cfg)` strategy contract (9 allocators), Gymnasium's `reset(options)`, SB3's
+`predict(obs, deterministic)` on a benchmark-strategy shim. **Three are documented-honest** and were
+deliberately left alone, and they establish the repo's own precedent: `held_out_fitness` ("Accepted
+for interface symmetry… is not used"), `deflated_sharpe_ratio.periods_per_year` ("Retained for
+signature compatibility; the DSR is computed on the non-annualized per-period Sharpe"), and
+`collect_family_pvalues.sharpe_p` ("retained for signature stability but no longer applies") — plus
+`supervisor.resume_command`, which both documents *and* `del`s its `attempt`. One made a false claim
+(#113). One — `assemble_cluster_inputs(arms=…)` — is genuinely redundant (the caller uses `args.arms`
+directly) but asserts nothing false, so it is recorded as triaged rather than churned.
+
+**The operating rule this yields:** an ignored parameter is a defect only when something *depends* on
+it — a stochastic estimator behind it (#108) or a docstring claiming it is used (#113). Otherwise it
+is contract conformance, and the correct action is to say so, not to remove it.
+
+### PASS A — `src/inference/reward_taxonomy.py` (525 lines): CLEAN
+
+Deep-read in full. Determinism is genuinely established rather than asserted: ids sorted before
+clustering, union-find rooted at the smaller index so components are id-order canonical, medoid ties
+broken by strict `>` over ascending index, kind ids zero-padded to the corpus's own kind count so
+sorted composition tables order correctly at ≥100 kinds, and `_shannon_bits` normalises IEEE negative
+zero so a single-kind arm renders `0.000` and the JSON stays byte-stable. The P7c empty-AST rule is
+correctly *extended* — `ast.parse("")` yields the non-empty singleton `{"Module"}`, which would score
+Jaccard 1.0 against another empty program and glue them into a fake kind, so `_signature` rejects
+`shapes <= {"Module"}` and not merely the empty set. The threshold sweep computes the similarity
+matrix once and re-thresholds it, so every threshold sees an identical id set and the partitions are
+directly comparable. Honest fallbacks throughout (singleton medoid similarity is `None`, never a
+fabricated 1.0; entropy of an arm with no classified program is `None`, not `0.0`). No finding.
+
+**FULL SUITE (due this loop; last was loop 123): `PYTEST_RC=0`.** Run unpiped to a log at pinned
+`--randomly-seed=20260727` and read back: progress reaches **[100%]** over **2,745** marks whose
+non-dot characters are exactly `sss` — **2,742 passed / 3 skipped / 0 failed / 0 errors**. That
+reconciles exactly with loop 123's 2,736 passed plus the 6 tests added since (3 in loops 124-126, 1 in
+loop 129, 2 in loop 130). The 3 skips were confirmed, not assumed, as the known permanent
+`tests/test_sandbox.py` POSIX-`resource` platform skips (lines 392/667/686). ⚠ Recorded honestly: the
+log contains **no `N passed` summary line** — the verdict above is read from the progress stream, the
+100% marker and the captured RC.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

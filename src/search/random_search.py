@@ -213,9 +213,19 @@ def random_search_over_code(
     Parameters
     ----------
     env_builder : Any
-        Callable building a fresh training/eval environment. Forwarded to the
-        injected ``fitness_fn`` when it accepts an environment; otherwise unused
-        (the tests inject a closure that scores a reward directly).
+        ACCEPTED AND NOT USED — retained only so the production call site keeps
+        its positional shape. ⚠ This said "Forwarded to the injected
+        ``fitness_fn`` when it accepts an environment" until 2026-07-27 (deep
+        review #113); that was never true under ANY condition. ``env_builder``
+        occurs exactly twice in this module — this signature and this docstring —
+        and the single call is ``fitness_fn(reward)``, one argument, so no
+        environment is ever passed on. In production (``run_prototype.py``) and
+        in the tests alike, ``fitness_fn`` is a closure that has ALREADY bound
+        its environment, which is why nothing was broken by the gap between the
+        claim and the code. Nor is it signature parity with the sibling H4
+        searchers: ``bayes_opt`` and ``dfo_toolkit`` (cma_es / tpe) do not take
+        this parameter at all. Do not write a ``fitness_fn`` that expects an
+        environment argument on the strength of the old sentence.
     fitness_fn : Callable[[reward], float]
         Maps a validated reward callable to a held-out fitness score. In
         production this trains the fixed headline agent on the candidate reward

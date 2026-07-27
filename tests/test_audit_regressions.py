@@ -394,3 +394,87 @@ def test_every_text_read_and_write_in_the_repo_pins_encoding_utf8() -> None:
         "through the platform codepage -- the confirmed mojibake failure that made the loaded design "
         f"of record differ between machines: {offenders}"
     )
+
+
+def test_no_source_file_carries_the_git_invisible_doubled_CR_corruption() -> None:
+    """Whole-repo structural lock on `\r\r\n` line endings (deep review 2026-07-27, #111).
+
+    MEASURED: `src/inference/deflated_sharpe.py` sat in the working tree with 272 LF and **544 CR** --
+    every line ended `\r\r\n` -- for roughly a month (working-tree mtime 2026-06-28). Python decodes
+    that as TWO line breaks, so the module reported **544 lines** and `deflated_sharpe_ratio` at line
+    **319**, while `grep`, `wc` and every editor saw 272 lines and line **160**. Nothing was
+    numerically wrong; what broke is that every Python-emitted line number for the SELECTION metric's
+    module -- tracebacks, pytest failure locations, coverage, AST tooling -- pointed at a line that
+    does not exist in the file anyone reads. It cost real time in the loop that found it.
+
+    The reason it survived a month is the part worth locking: `git status` reported the file CLEAN.
+    Git's clean filter rewrites `\r\n` -> `\n`, so a `\r\r\n` working tree normalises to exactly
+    `\r\n` -- and this was the ONE file in the repo whose index blob still stored CRLF (measured via
+    `git ls-files --eol`: 1 of ~22k). So the corruption was invisible precisely BECAUSE the file had
+    escaped the `.gitattributes` LF normalisation, which the sibling test below now pins. Doubling was
+    undetectable; any other corruption would have shown up as a diff.
+
+    `.gitattributes` was itself written to prevent this -- "eliminates CRLF/LF churn and the doubled-CR
+    artifacts on Windows checkouts, so diffs and the pre-registration freeze hash are byte-stable
+    across platforms" -- so this asserts a rule the repo already declares but could not enforce.
+    """
+    root = Path(__file__).resolve().parents[1]
+    offenders: list[str] = []
+    for sub in ("src", "scripts", "tests"):
+        for path in sorted((root / sub).rglob("*.py")):
+            raw = path.read_bytes()
+            rel = path.relative_to(root).as_posix()
+            if b"\r\r" in raw:
+                offenders.append(f"{rel} (doubled CR: LF={raw.count(chr(10).encode())} CR={raw.count(chr(13).encode())})")
+                continue
+            # The HARM, asserted directly: Python's view of the line numbering must match the bytes.
+            # Catches the exotic separators `str.splitlines` honours but `\n`-counting tools do not
+            # (U+2028/U+2029, NEL, VT, FF) as well as the doubled-CR case above.
+            n_python = len(path.read_text(encoding="utf-8").splitlines())
+            # A file with no trailing newline holds one FEWER `\n` than it has lines, and every editor
+            # agrees with Python there -- that is the POSIX final-newline convention, a different (and
+            # merely cosmetic) issue, so it must not be reported as a line-numbering divergence.
+            n_bytes = raw.count(b"\n") + (1 if raw and not raw.endswith(b"\n") else 0)
+            if n_python != n_bytes:
+                offenders.append(f"{rel} (python sees {n_python} lines, the bytes hold {n_bytes})")
+
+    assert not offenders, (
+        "these files carry line breaks that make Python's line numbers disagree with grep/wc/editors, "
+        "so every traceback, coverage report and AST tool points at a line the reader cannot find "
+        f"-- and `git status` cannot see it: {offenders}"
+    )
+
+
+def test_every_tracked_text_blob_is_stored_LF_as_gitattributes_requires() -> None:
+    """The ROOT CAUSE of #111, pinned: `.gitattributes` says `* text=auto eol=lf`, so no blob may be CRLF.
+
+    `src/inference/deflated_sharpe.py` was the single file (of ~22k tracked) whose index blob still held
+    CRLF -- it predated the `.gitattributes` normalisation and was never re-normalised. That is what
+    made the doubled-CR corruption invisible to `git status`, because the clean filter maps a
+    `\r\r\n` working tree onto exactly that CRLF blob. Normalising the blob removes the hiding place,
+    and this keeps it removed. The declared purpose of the rule is freeze-hash byte-stability across
+    platforms, so a CRLF blob is also a latent reproducibility hazard the moment the freeze envelope
+    widens (cf. the open #97 freeze-envelope gap).
+    """
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "--eol"], cwd=root, capture_output=True, text=True, timeout=120
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - git absent (e.g. sdist install)
+        pytest.skip("git unavailable; the blob-encoding rule cannot be checked from a source tree")
+    if out.returncode != 0:  # pragma: no cover - not a git checkout
+        pytest.skip("not a git checkout; the blob-encoding rule cannot be checked")
+
+    offenders = [
+        line.split("\t")[-1].strip()
+        for line in out.stdout.splitlines()
+        if line.startswith("i/crlf")
+    ]
+    assert not offenders, (
+        "these tracked blobs are stored CRLF although .gitattributes declares `eol=lf`; a CRLF blob "
+        "lets a doubled-CR working tree normalise back onto it, so the corruption becomes invisible "
+        f"to `git status` (this is exactly how #111 survived a month): {offenders}"
+    )

@@ -143,7 +143,7 @@ def graphical_alpha_propagation(
     edges: dict[str, dict[str, float]],
     alpha: float = 0.05,
 ) -> dict[str, Any]:
-    """Sequentially-rejective graphical multiple test (Bretz, Maurer, Brannath & Posch 2009).
+    r"""Sequentially-rejective graphical multiple test (Bretz, Maurer, Brannath & Posch 2009).
 
     THE REGISTERED PRIMARY DECISION RULE. ``config/preregistration.yaml:
     inference.validity_tier`` declares ``method: graphical_bretz_maurer_brannath_posch_2009`` and
