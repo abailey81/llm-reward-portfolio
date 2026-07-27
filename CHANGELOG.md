@@ -476,6 +476,56 @@ stale backup. Consequences, assessed rather than assumed:
   restores both checks, regenerates the table's evidence, re-runs the registered contamination screen,
   and rebuilds the spend ledger.
 
+### LAUNCH-READINESS GAUNTLET — every runnable gate, executed (Tamer asleep, "close absolutely all gaps")
+
+| Gate | Result |
+|---|---|
+| **FULL SUITE** (pinned `--randomly-seed=20260727`, unpiped, RC in the log) | **2,726 passed · 3 skipped · 0 failed · `PYTEST_RC=0`** |
+| `ruff src scripts tests` | **RC=0** |
+| `check_citations.py` | **RC=0** (clean on dangling + verify-in-use) |
+| `build_paper.py` | **RC=0** — 8 chapters + 1 appendix assemble; word-budget tests pass |
+| `freeze.py --check` | **RC=0, 23/23, `freeze_hash: null`** — STILL UNFROZEN |
+| **`run_campaign_cluster.py --dry-run` with the FULL 9-arm frozen roster** | **RC=0** — 9 arms, 568 seeds, 5 candidates/gen, windows `((60,3021),(3081,3775),(3835,5406))`, jobscript renders |
+| **`crash_rehearsal.py`** | **PASS/RC=0** — control == reference (**this environment is verified deterministic**), killed at 1 record + resume == uninterrupted run, **science fields byte-identical** |
+| **KILL-STORM** (the runbook's "optional belt-and-braces", run anyway) | **k=2, k=3, k=5 all PASS/RC=0** — resume from ANY point reproduces the 6-record archive byte-identically |
+| **`pretrain_validate.py --self-test`** | **9/9 checks PROVEN FALSIFIABLE** (each handed a known-bad input and required to FAIL) |
+| `first_seed_sanity.py` | **proven falsifiable** — RC=2 `GARBAGE: wall_clock is 0.0 → nothing was trained` on the dry-run archive; honest `no_records` on a non-campaign layout |
+| `verify_inventory` · `archive_integrity` · `verify_gold` | RC=0 · sealed roots matched · PASS |
+
+**The rendered Myriad jobscript was READ, not merely counted.** It carries `#$ -p 0` (full fair-share
+standing, per the absolute priority rule), `-notify`, `-r y`, absolute `-wd`/`-o`, the `mkdir -p` that
+fixed the 2026-07-24 live "rc=255 on every dispatch" crash, TMPDIR gold staging with an ACFS fallback,
+and the `PYTHONPATH` export that fixed the per-task `ModuleNotFoundError`. Separately, the renderer
+**refuses** a `$HOME`-relative `remote_root` with the exact reason (SGE `-wd`/`-o` expand neither `~`
+nor `$HOME`; an invalid `-wd` sends the whole array to Eqw) — a guard that fails loud, verified by
+triggering it.
+
+**`preflight.py` says NO-GO — and three of three reasons are correctly NOT code defects.** `ram` and
+`commit` failed on a snapshot taken while THIS session was running five heavy python jobs and four
+Claude sessions were resident (measured: commit-free 3.31 GB; the top consumers were the verification
+jobs themselves, and the known ArmouryCrate leaker was not even in the top 12) — transient and
+self-inflicted, not a property of the box. `freeze` failed because `frozen: false`, which is Tamer's
+GO step 1. Confirmed by reading the call graph that **`preflight.py` is NOT invoked by
+`run_campaign_cluster.py`** (only referenced in a comment), so laptop RAM cannot block a Myriad launch.
+⚠ Operational note earned from #75: the final gate runs must be done on a QUIET box, or the
+spawn-starvation that made #75 flake will produce load-dependent readings again.
+
+### ★ #96 — the tooling actively invites violating an ABSOLUTE standing rule (raised, NOT resolved)
+
+Tamer's rule (CLAUDE.md, "MYRIAD PRIORITY — ABSOLUTE"): *"NEVER lower the SGE/queue priority of any of
+our jobs, EVER."* But `run_campaign_cluster.py --priority` accepts any int with **no guard**, and this
+script's own help text instructs the operator to pass **`-200`** (the `--leg` help) and **`-300`** (the
+ladder re-run) per runbook §14.3. A deprioritised array in a 23-day queue also works directly against
+the standing CAMPAIGN-SPEED priority.
+
+Mitigating and stated precisely: the **default resolves to 0** (`args.priority if args.priority is not
+None else 0`), and the rendered jobscript confirms `#$ -p 0`, so **the confirmatory launch is safe as
+configured**. The conflict is between the runbook's documented ladder and the absolute rule, and only
+Tamer can arbitrate it. Refusing outright would break a documented workflow while he is unavailable, so
+a **loud runtime WARNING** now fires on any negative `--priority`, naming the rule and stating that the
+run will sit below full fair-share standing — verified by triggering it (`--dry-run --priority -200`
+still RC=0, warning emitted). The conflict can no longer happen silently; the decision is his.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

@@ -540,6 +540,25 @@ def main(argv: list[str] | None = None) -> int:
     load_env()
     args = build_parser().parse_args(argv)
 
+    # ★ MYRIAD PRIORITY — ABSOLUTE (Tamer, 2026-07-24; CLAUDE.md): "NEVER lower the SGE/queue
+    # priority of any of our jobs, EVER. No `qalter -p <negative>`, no deprioritize, ever — our work
+    # always sits at full fair-share standing." The DEFAULT here is already 0 (line ~974), so the
+    # confirmatory launch is safe. But `--priority` accepts any int with NO guard, and this file's own
+    # help text instructs operators to pass `-200` (the --leg help) and `-300` (the ladder re-run) per
+    # runbook §14.3 — so the tooling actively invites the one thing the standing rule forbids, and a
+    # deprioritised array in a 23-day queue also works directly against the standing CAMPAIGN-SPEED
+    # priority. Refusing outright would break a documented workflow while Tamer is unavailable to
+    # arbitrate, so this makes the conflict IMPOSSIBLE TO HIT SILENTLY and leaves the call to him
+    # (deep review, loop 118, #96 — raised, not resolved).
+    if args.priority is not None and args.priority < 0:
+        _LOG.warning(
+            "NEGATIVE SGE PRIORITY REQUESTED (--priority %d). Tamer's standing rule is ABSOLUTE: never "
+            "lower our queue priority, EVER (CLAUDE.md 'MYRIAD PRIORITY — ABSOLUTE'). Runbook §14.3's "
+            "ladder and this script's own --leg/--priority help contradict that rule; the rule wins "
+            "unless Tamer says otherwise. Proceeding because refusing would break a documented path — "
+            "but this run will sit BELOW full fair-share standing in the queue.", args.priority,
+        )
+
     # Capture which design values the CALLER set explicitly, BEFORE any programmatic forcing
     # (the H3 block below sets args.generations itself — that must not read as a caller override).
     _explicit_design = {name: getattr(args, name) is not None
