@@ -888,6 +888,50 @@ dropping `tpe` fails it and the message names the missing comparator. If a fifth
 registered without updating the tuple, N4 would quietly claim to beat "the best optimiser" while never
 facing it. **101 tests green, ruff clean.**
 
+### PASS A — PBO/CSCV read in full: CLEAN, and it empirically validated #102
+
+`campaign_pbo` + `src/inference/overfitting.pbo` are the PRIMARY overfitting diagnostic and had never
+been read. Every property checked holds:
+
+- **The CSCV maths is right.** `best = argmax(is_perf)` (higher = better); ranks assigned ascending so
+  a higher rank is better OOS; `omega = rank / (n_cfg + 1)` keeps the value strictly inside (0, 1) so
+  the logit can never blow up; and `lam < 0` ⟺ `rank < (n+1)/2` ⟺ strictly below the OOS median rank,
+  matching the documented Bailey convention (an exact median tie deliberately does NOT count as
+  overfit). The manual tie-averaging loop compares against the run's FIRST element, which is correct
+  on sorted data.
+- **PBO is deterministic.** `campaign_pbo` passes `max_combinations = math.comb(16, 8) = 12,870`, so
+  `n_total <= max_combinations` always and the random-subsample branch is unreachable — explicitly so
+  the headline PBO can never become seed-dependent. Verified: `rng` is unused on the real path.
+- **The NaN hazard has no live route.** `np.argmax` on a vector containing NaN returns the NaN's
+  index, which would make that candidate perpetually "IS-best" and rank it last OOS — understating
+  PBO. Traced it: `_val_returns` rejects any candidate whose vector is not wholly finite
+  (`not np.all(np.isfinite(arr)) -> None`), logged as skipped, and `campaign_pbo` is the ONLY caller
+  of `pbo()`. Confirmed by execution: a NaN candidate among three yields a `(20, 2)` all-finite matrix.
+- **#102 validated empirically.** With `cma_es` holding 1 candidate and `tpe` none, `campaign_pbo`
+  returns `status="skipped"` **with a reason** for both and **all nine registered arms get a row** —
+  the visibility #102 restored (before it, those two produced no row at all). No crash path: `n_cfg<2`,
+  `t_val<n_blocks` and a defensive `except ValueError` all degrade to a reasoned skip.
+
+### ★ #104 — a fed tail field could be added without deciding its decile DIRECTION
+
+PASS B continued the tautology lens onto `schema._DECILE_INVERTED_FIELDS`. It partitions the six fed
+fields into "higher = MORE risk" (kept positional) and "higher = LESS risk" (inverted so a higher
+decile always means worse). It is currently CORRECT — a strict subset of `_DIST_FIELDS`, with
+`left_tail_mass` the sole non-inverted field, exactly matching the documented rationale ("a
+probability that RISES with risk … alone keeps its positional decile").
+
+**Nothing guarded it.** The module already records the consequence in its own comment: a direction
+that flips between lines is "worse than no tag" and "biases the numeracy-bottleneck leg
+(`responsiveness.legible_format_responsiveness_differential`) toward a spurious null". The fed set is
+frozen and triple-guarded (loop 124), but those guards catch an ADDED field — not a field added
+*without classifying its direction*. That is the same unguarded-invariant class as #103.
+
+New `test_every_tail_field_has_a_DELIBERATE_decile_direction` asserts the partition is TOTAL, so any
+change to the fed vector fails until the direction is decided on purpose. Verified to DISCRIMINATE: a
+hypothetical unclassified 7th field trips it. **45 tests green, ruff clean.**
+(`_BOUND_RELPATHS` — the other constant on the audit list — lives in an external Claude Code hook, not
+this repo; noted as out of scope rather than chased.)
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

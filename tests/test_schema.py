@@ -186,3 +186,36 @@ def test_legible_rendering_has_RESOLUTION_PARITY_with_the_raw_rendering() -> Non
             f"distinguishes {raw_pairs} — the legible arm is carrying LESS information, so the "
             f"legibility contrast is confounded by resolution"
         )
+
+
+def test_every_tail_field_has_a_DELIBERATE_decile_direction() -> None:
+    """A tail field with an unclassified decile direction silently reverses the legibility device.
+
+    `_DECILE_INVERTED_FIELDS` partitions the six fed fields into "higher value = MORE tail risk"
+    (kept positional) and "higher value = LESS tail risk" (inverted so a higher decile always means
+    worse). The module already records what goes wrong when that partition is incomplete: a direction
+    that flips between lines is "worse than no tag", and it "biases the numeracy-bottleneck leg
+    (``responsiveness.legible_format_responsiveness_differential``) toward a spurious null".
+
+    Nothing guarded it. The tail set itself is frozen and triple-guarded (see
+    `test_deep_p23_cvar_levels_reconcile` and `test_llm_deep::test_frozen_tail_key_set_is_exactly_the_six`),
+    but those catch an ADDED field — not a field added *without* classifying its direction. This
+    asserts the partition is TOTAL, so any change to the fed vector fails here until the direction is
+    decided on purpose (#104, 2026-07-27; same unguarded-invariant class as #103).
+    """
+    from src.feedback.schema import _DECILE_INVERTED_FIELDS, _DIST_FIELDS
+
+    fields = {fid for fid, _label in _DIST_FIELDS}
+    assert _DECILE_INVERTED_FIELDS <= fields, (
+        f"_DECILE_INVERTED_FIELDS names fields that are not fed: "
+        f"{sorted(_DECILE_INVERTED_FIELDS - fields)}"
+    )
+    # The partition must be TOTAL: every fed field is classified one way or the other, and the only
+    # NON-inverted field is the one whose value rises with risk (a left-tail probability).
+    non_inverted = fields - _DECILE_INVERTED_FIELDS
+    assert non_inverted == {"left_tail_mass"}, (
+        f"unclassified decile direction for {sorted(non_inverted - {'left_tail_mass'})} — a fed field "
+        "was added or renamed without deciding whether a HIGHER value means more or less tail risk. "
+        "Inverting is the default (CVaR/skew fall as risk rises); only a probability that RISES with "
+        "risk keeps its positional decile."
+    )
