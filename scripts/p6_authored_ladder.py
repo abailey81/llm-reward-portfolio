@@ -141,7 +141,8 @@ def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: 
 
 def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str,
                    cores: int, budgets: list[int], batch: str,
-                   exclude: set[str], skip_done: bool) -> list[str]:
+                   exclude: set[str], skip_done: bool, device: str = "cuda",
+                   threads: int = 1, seeds: list[int] | None = None) -> list[str]:
     """Submit each (winner, budget, seed) spec as its OWN 1-task array (2026-07-13 recovery).
 
     WHY: the scheduler's serialization policy holds an array's tail tasks (``snx=1``) and has
@@ -156,7 +157,12 @@ def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
-    specs = build_specs(remote_root, local_out, budgets)
+    # device/threads/seeds MUST be threaded here too (2026-07-27). This path was missed when
+    # ``submit``/``build_batch`` gained them, which would have shipped cuda-default, 1-thread
+    # specs from the very entry point the serialization policy forces us to use.
+    specs = build_specs(remote_root, local_out, budgets, device=device, threads=threads,
+                        seeds=seeds)
+    cores = max(int(cores), int(threads))   # threads are ALWAYS coupled to the core request
     done: set[str] = set()
     if skip_done:
         for rec_path in Path(local_out).glob("search/**/record.json"):
@@ -174,7 +180,7 @@ def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str
         batch_dir = Path(local_out) / "batches" / name
         write_specs([spec], batch_dir)
         h_rt = _auto_h_rt([int(spec.get("train_steps") or max(budgets))])
-        js = render_jobscript(name, 1, remote_root, gold_dir, pool=pool, pack=1,
+        js = render_jobscript(name, 1, remote_root, gold_dir, pool=pool, pack=1, device=device,
                               cores=cores, h_rt=h_rt, apptainer_sif="$HOME/python311.sif")
         write_jobscript(js, batch_dir / f"{name}.sh")
     prepare_remote(remote_root, names, runner)
@@ -274,7 +280,8 @@ def main() -> int:
                        pool=args.pool, cores=args.cores_per_task, budgets=budgets,
                        batch=args.batch_name,
                        exclude={x.strip() for x in args.exclude.split(",") if x.strip()},
-                       skip_done=bool(args.skip_done))
+                       skip_done=bool(args.skip_done), device=args.device,
+                       threads=args.threads, seeds=_seeds)
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
