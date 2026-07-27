@@ -588,3 +588,31 @@ def test_analyze_produces_benchmark_floor_when_panel_supplied(tmp_path) -> None:
     # records-only path (no panel) must NOT produce a floor or robustness (default behaviour preserved)
     records_only = AC.analyze(tmp_path, n_blocks=4)
     assert "benchmark_floor" not in records_only and "h2_rf_robustness" not in records_only
+
+
+def test_every_registered_benchmark_has_a_callable_implementation() -> None:
+    """A registered benchmark NAME with no implementation crashes the whole ladder.
+
+    `benchmark_floor` builds its strategy map with
+    ``{name: getattr(_strat, name) for name in _BENCHMARK_NAMES}``. A registered name with no
+    attribute raises `AttributeError` and takes the ENTIRE ladder down — including the T0 floor the
+    replication-leg filter is pinned to (R84).
+
+    Failing loudly there is the RIGHT behaviour, not a bug: it is the "registered NAME with no
+    registered VALUE" class that `pretrain_validate.check_registered_nodes_computable` exists to catch
+    for validity-tier nodes. Nothing did it for benchmarks, so the discovery point was analysis time
+    rather than pre-launch. Loop 123 verified `_BENCHMARK_NAMES` matches `config: benchmarks`, so the
+    remaining unguarded hop is NAME -> IMPLEMENTATION: adding a benchmark to both the config and the
+    tuple (satisfying that guard) while forgetting the function would pass every existing check.
+
+    Currently correct — all nine resolve — so this closes the guard, not a live defect (#105).
+    """
+    from src.baselines import strategies as _strat
+
+    missing = [n for n in AC._BENCHMARK_NAMES if not hasattr(_strat, n)]
+    assert not missing, (
+        f"registered benchmark(s) with no implementation in src/baselines/strategies.py: {missing} — "
+        "benchmark_floor's getattr would raise and take the whole ladder, and the T0 floor, with it"
+    )
+    not_callable = [n for n in AC._BENCHMARK_NAMES if not callable(getattr(_strat, n))]
+    assert not not_callable, f"registered benchmark(s) present but not callable: {not_callable}"

@@ -932,6 +932,52 @@ hypothetical unclassified 7th field trips it. **45 tests green, ruff clean.**
 (`_BOUND_RELPATHS` — the other constant on the audit list — lives in an external Claude Code hook, not
 this repo; noted as out of scope rather than chased.)
 
+### PASS B — the writer↔analysis contract: CLEAN (a real mismatch traced and cleared)
+
+`src/io/results.py` declares 11 REQUIRED and 5 OPTIONAL record fields. `test_returns` is OPTIONAL
+while the ENTIRE confirmatory inference (H2 legs, N6 IUT, H4) is computed from per-seed test scores —
+so the lens asked whether a record the analysis needs can be written without it. Three results:
+
+- **Optional is CORRECT at schema level**: the record type is shared by search candidates (which
+  legitimately have no test vector) and frozen-winner TEST records (which do).
+- **A genuine reader/writer LOCATION mismatch was traced and cleared.** Most readers accept either
+  `metrics["test_returns"]` or top-level `record["test_returns"]`, but `leg_aggregate.py:82` indexes
+  `rec["metrics"]["test_returns"]` directly with NO fallback — a `KeyError` if the writer chose the
+  other location. `test_leg.py` writes it in **BOTH** places (`:146` inside `metrics`, `:197` at top
+  level, explicitly "back-compatible with the results schema"), so the un-fallbacked reader is
+  satisfied. Deliberate duplication, not drift.
+- `_seed_scores` handles the remaining hazard well: records with no test vector are skipped, and for
+  duplicate `(arm, seed)` **agreeing** duplicates pass while **disagreeing** ones RAISE — with the
+  reasoning that last-wins would silently shift a PAIRED estimate while an unconditional raise would
+  be too brittle for `--resume`/winner re-runs.
+
+### PASS A — the benchmark ladder + cost repricing: CLEAN
+
+Strategies derive from the (loop-123-guarded) `_BENCHMARK_NAMES`; every benchmark is rolled through an
+identically-constructed `PortfolioEnv` on the same window with a `_passthrough` reward, so the ladder
+measures the env's own `port_ret` and all nine are costed identically. `turn[np.isfinite(turn)]` guards
+the turnover mean, with a `0.0` fallback on an empty array. The cost units are right:
+`mean_turnover × bps×1e-4 × 252 × 100` = per-step fraction → annual → percent. And `headline_bps` is
+read from the SAME cfg the env costs with (no `cost_bps` override on this path), so the reported
+annual-cost column cannot describe a different cost than the one `net` was actually charged.
+
+### ★ #105 — a registered benchmark with no implementation would take the whole ladder down
+
+`benchmark_floor` builds `{name: getattr(_strat, name) for name in _BENCHMARK_NAMES}`. A registered
+name with no attribute raises `AttributeError` and takes the ENTIRE ladder — including the **T0 floor
+the replication-leg filter is pinned to (R84)**. Failing loudly is the RIGHT behaviour; the gap is that
+nothing checked it BEFORE the analysis.
+
+This is exactly the class `pretrain_validate.check_registered_nodes_computable` exists for — "a
+registered NAME with no registered VALUE", the R84 lesson — but that gate covers validity-tier NODES,
+not benchmarks. Loop 123 verified `_BENCHMARK_NAMES` matches `config: benchmarks`, so the remaining
+unguarded hop is **NAME → IMPLEMENTATION**: adding a benchmark to both the config and the tuple
+(satisfying that guard) while forgetting the function would pass every existing check.
+
+**No live defect** — all nine resolve to callables, verified. Closes the guard, like #103/#104, and
+distinct from #102 in that the failure would CRASH rather than silently omit, and is recoverable by
+fixing the name and re-running the replay-only analysis. **25 tests green, ruff clean.**
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
