@@ -587,7 +587,18 @@ class _AnthropicTransport:
         self.last_request_id = getattr(message, "_request_id", None)
         self.last_served_model = getattr(message, "model", None)
         _warn_if_incomplete(self.last_stop_reason, self._model)
-        parts = [blk.text for blk in message.content if getattr(blk, "type", None) == "text"]
+        blocks = list(message.content)
+        # R106 round-trip evidence for ANTHROPIC. Anthropic's usage object carries NO
+        # ``reasoning_tokens`` field, so the OpenRouter-style token round-trip is UNMEASURABLE here and
+        # the gate correctly refuses to claim a disable pin "verified" on absent evidence. But the
+        # response itself IS observable: extended thinking arrives as ``thinking`` content blocks, so
+        # their COUNT is a direct measurement of whether thinking actually ran. Recorded rather than
+        # inferred — and deliberately NOT written into ``reasoning_tokens``, which would fabricate a
+        # token count we did not measure.
+        if isinstance(self.last_usage, dict):
+            self.last_usage["thinking_blocks"] = sum(
+                1 for blk in blocks if getattr(blk, "type", None) == "thinking")
+        parts = [blk.text for blk in blocks if getattr(blk, "type", None) == "text"]
         return "".join(parts)
 
 

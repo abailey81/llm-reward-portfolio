@@ -128,7 +128,41 @@ def test_last_usage_captured_after_call() -> None:
         "output_tokens": 4,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 8,
+        # R106: Anthropic reports NO reasoning_tokens, so the count of `thinking` CONTENT BLOCKS is
+        # the only direct evidence a disable pin took effect. Recorded per call; 0 here because the
+        # fake response carries a text block only.
+        "thinking_blocks": 0,
     }
+
+
+def test_thinking_blocks_are_counted_so_a_disable_pin_can_be_adjudicated() -> None:
+    """R106: the evidence that REPLACES reasoning_tokens on Anthropic, which reports none.
+
+    It has to track reality in BOTH directions — a counter stuck at 0 would rubber-stamp every
+    disable pin as "verified", which is precisely the fictional-pin failure the three-state verdict
+    exists to prevent.
+    """
+    t = _transport(_FakeClient())
+    t("S", "U")
+    assert t.last_usage["thinking_blocks"] == 0        # text-only response -> thinking did NOT run
+
+    thinking = _FakeClient(blocks=[_Block("scratchpad...", "thinking"), _Block("answer")])
+    t2 = _transport(thinking)
+    out = t2("S", "U")
+    assert t2.last_usage["thinking_blocks"] == 1       # a thinking block IS seen when present
+    assert out == "answer"                             # and thinking is never mistaken for the answer
+
+
+def test_thinking_pin_is_sent_only_when_requested() -> None:
+    """R106 must be inert unless asked for: omitting the pin has to leave the request byte-identical
+    to the pre-R106 behaviour, or every existing archived call would become non-comparable."""
+    client = _FakeClient()
+    _transport(client)("S", "U")
+    assert "thinking" not in client.calls[0]
+
+    pinned = _FakeClient()
+    _transport(pinned, thinking={"type": "disabled"})("S", "U")
+    assert pinned.calls[0]["thinking"] == {"type": "disabled"}
 
 
 def test_usage_dict_none_when_message_has_no_usage() -> None:

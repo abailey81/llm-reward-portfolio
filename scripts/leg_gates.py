@@ -133,6 +133,10 @@ def run_leg_gates(
 
     reasoning_seen: list[int] = []   # reasoning-token counts across calls -> pin round-trip verdict
     providers_seen: list[str] = []   # served providers across calls -> provider round-trip verdict (m3)
+    #: R106: Anthropic reports NO reasoning_tokens, so the token round-trip is unmeasurable there.
+    #: Extended thinking arrives as ``thinking`` CONTENT BLOCKS, and their count IS observable — the
+    #: only direct evidence available for those legs that a disable pin actually took effect.
+    thinking_blocks_seen: list[int] = []
 
     def _call(system: str, user: str, gate: str) -> str:
         text = transport(system, user)
@@ -154,6 +158,9 @@ def run_leg_gates(
         _rt = (usage or {}).get("reasoning_tokens")
         if _rt is not None:
             reasoning_seen.append(int(_rt))
+        _tb = (usage or {}).get("thinking_blocks")
+        if _tb is not None:
+            thinking_blocks_seen.append(int(_tb))
         if served_provider:
             providers_seen.append(str(served_provider))
         with rows_path.open("a", encoding="utf-8") as fh:
@@ -262,7 +269,22 @@ def run_leg_gates(
         disabling = isinstance(reasoning_pin, dict) and reasoning_pin.get("enabled") is False
         measured = max_rt is not None            # did ANY call return a reasoning_tokens field?
         reasoned = bool(max_rt and max_rt > 0)   # a POSITIVE reasoning-token count was measured
-        if not measured:
+        # R106: a provider that reports no reasoning_tokens (Anthropic) can still be adjudicated when
+        # it exposes thinking CONTENT BLOCKS — their absence across every call is direct evidence the
+        # disable took effect. Strictly weaker than a token count, so it says so in the verdict, and
+        # it is only ever accepted for a DISABLE pin: absence of thinking blocks cannot prove an
+        # ENABLE pin functioned.
+        blocks_measured = bool(thinking_blocks_seen)
+        max_tb = max(thinking_blocks_seen) if blocks_measured else None
+        summary["thinking_blocks_observed"] = max_tb
+        if not measured and disabling and blocks_measured and max_tb == 0:
+            rt_verdict = (f"verified via content blocks (reasoning disabled; 0 thinking blocks in "
+                          f"{len(thinking_blocks_seen)} response(s); this provider reports no "
+                          "reasoning_tokens, so block absence is the available evidence)")
+        elif not measured and disabling and blocks_measured:
+            rt_verdict = (f"IGNORED->review (reasoning-DISABLE pinned but {max_tb} thinking block(s) "
+                          "returned)")
+        elif not measured:
             rt_verdict = ("UNVERIFIED->review (no reasoning_tokens field returned by the provider — "
                           "the pin's effect cannot be confirmed from the archive)")
         elif disabling:
