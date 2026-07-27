@@ -135,6 +135,17 @@ _BOUND_TREATMENT: tuple[str, ...] = (
     "config/arms.yaml",               # the per-arm feedback spec (the manipulated variable's wiring)
     "prompts/system.txt",             # the reward-design contract shown to every arm
     "prompts/initial_generation.txt", # the generation-0 instruction shown to every arm
+    # ✅ #97 CLOSED 2026-07-27 on Tamer's "close all gaps" (raised loop 118; previously left open
+    # because widening the envelope was his call). ``schema.build_block`` RENDERS the fed text, so it
+    # IS the manipulated variable, not a wrapper around it — ``arms.yaml`` binds WHICH block each arm
+    # gets, and until now NOTHING bound HOW its numbers are rendered. The git-SHA "pin" the comment
+    # above once relied on is ARCHIVAL, never verified: no gate check compares a recorded SHA to HEAD.
+    # Finding #87 proved the stakes empirically — changing ONE format string in this file decided
+    # whether the scalar arm received a usable signal at all (`{metric:.2f}` made 55 % of real
+    # rendered headers read literally "0.00"). Pre-freeze that was a legitimate fix; POST-freeze the
+    # identical edit would have passed the gate silently. Binding it costs nothing while
+    # ``frozen: false`` (the hash moves freely) and makes the treatment surface tamper-evident.
+    "src/feedback/schema.py",         # RENDERS the fed numbers — the treatment surface itself (#97)
 )
 
 #: Executed configs whose ``arms`` roster must AGREE with the frozen prereg roster (V1 cross-file guard,

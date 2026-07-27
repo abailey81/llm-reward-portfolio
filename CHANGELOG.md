@@ -3,6 +3,50 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27] — ★★★★ R113: THE PRE-LAUNCH GATE'S `leg_readiness` FAIL HAD A CAUSE, AND IT WAS A CONFIG DEFECT — deepseek was losing 20% of its authoring calls to hidden reasoning
+
+> Overnight, Tamer asleep. The review lane's readiness doc recorded `deepseek-v4-pro=0.9` as *the
+> strictness policy working* — correct, but it stops one question short. **It is not a capability
+> property of the model; it is a budget-config defect, and it is fixable.** This is the
+> R97a/R103/R112 bug class, un-remediated for the last remaining leg.
+
+**MEASURED AT THE REGISTERED 4096** — read from the review lane's completed archive rather than
+re-billing the provider (n=10 authoring calls). `stop_reason=length` on **2/10**, with reasoning
+tokens `3378, 2775, 2196, 709, 2800, 2593, `**`4096`**`, 1124, `**`3515`**`, 2935`. On one call the
+model's **registered** reasoning mode consumed the **ENTIRE 4096 budget, leaving ZERO tokens for the
+reward function** — verbatim the GLM-5.2 signature R112 documents. The decisive detail is that the
+*passing* calls burn **54–82%** of budget, so 4096 was marginal **BY CONSTRUCTION**, not unlucky —
+exactly the kimi-k3 finding under R97a ("a PASSING call used 7004, so the cap was marginal").
+
+**REMEDY VERIFIED LIVE BEFORE ADOPTION**, through the SAME `run_leg_gates` machinery with only
+`max_tokens` changed (n=10, `outputs/_probe_deepseek_8192/`): **`stop_reason=length` 0/10**,
+`compliance_rate` **0.9 → 1.0**, max reasoning **4727** leaving **3,465 tokens of headroom**, and two
+probe calls (`output_tokens` 5167 and 4163) **exceeded the old 4096 cap** — i.e. they are precisely
+the calls that truncate at the registered value, so the 2/10 rate REPRODUCES rather than being noise.
+**Cost unchanged: $0.0444 per 10 calls** (you pay for tokens generated, not for the cap).
+
+**WHY BUDGET AND NOT `{enabled:false}`.** Unlike glm-5.2/kimi-k3 under R112 — whose thinking was an
+unregistered provider default — this leg's `reasoning_pin: pro-explicit-nee-think-high` is a
+**REGISTERED design parameter** on the reasoning-effort axis. Disabling it would alter the registered
+design; raising the cap preserves it. That is the R97a/R103 pattern, and both were likewise
+session-applied cap bumps on gate evidence.
+
+**NOW GENUINELY BOUND, where before it was not.** deepseek's `model_suite` row previously carried no
+`output_cap_tokens`, so its cap fell to the *unbound* class default in `max_tokens_pins`. The row now
+carries `output_cap_tokens: 8192`, which is the value `freeze.py:1084` actually enforces against
+`legs.yaml`. Verified there is exactly ONE enforcement path: `max_tokens_pins` has **no code reader
+at all** (documentation), `output_cap_tokens` is read only by the freeze gate — so two readers cannot
+drift apart.
+
+**VERIFIED:** `freeze.py --check` **RC=0, 23/23 OK, 0 failures**, leg-roster + output-cap cross-check
+green, canonical hash recomputed (`d5e31bbe…`), `frozen: false` · 135 tests across every
+freeze/leg/prereg test file · `pretrain_validate --self-test` **9/9 checks proven falsifiable** at
+this HEAD. Registered as amendment **R113** with the full measurement both ways.
+
+**CONSEQUENCE:** the pre-launch gate's `leg_readiness` FAIL was a **real defect surfacing through the
+strict 1.0 floor, not a false alarm** — the floor did its job, and the right response was to diagnose
+it rather than to accept it as policy. One of the two leg flags routed to Tamer is now closed.
+
 ## [2026-07-27] — ★★★ A CONSOLE CODEPAGE KILLED THE POST-CAMPAIGN RUNSHEET · the whole class closed (11 scripts) · and two live CROSS-LANE COLLISIONS caught
 
 > Overnight, Tamer asleep, instruction: *"coordinate with other claude code session, close absolutely
@@ -1727,6 +1771,85 @@ on an atomic commit marker, and the one non-atomic marker is safe because of WHE
 
 **Verified:** the 11 test files touching `portfolio_env` / `PortfolioEnv` / `env.runner` →
 **165 passed, `PYTEST_RC=0`**; ruff clean.
+
+### ★★★ CLOSE-OUT (2026-07-27, ~11:2x) — Tamer: "stop the loops, close all gaps, make it 100% ready"
+
+The overnight deep-review loop is **ENDED at loop 138** (it ran 117→138 this session; findings #75–#121).
+This block is the close-out: what was closed, what is verified, and the one thing left that is his alone.
+
+**THE AUTOMATED LAUNCH GATE IS NOW GREEN.**
+
+| gate | result |
+|---|---|
+| **FULL SUITE** (pinned `--randomly-seed=20260727`, unpiped to a log, read back) | **2,747 passed / 3 skipped / 0 failed / 0 errors, `PYTEST_RC=0`** — [100%], 2,750 marks, non-dot chars exactly `sss` |
+| `scripts/pretrain_validate.py` | **`RC=0`, FAIL=0**, WARN=1 |
+| `scripts/freeze.py --check` | **`RC=0`, 23/23**, `freeze_hash: null` (UNFROZEN — no lane freezes) |
+| 9-arm cluster dry-run, 568 seeds | **`RC=0`** — windows `((60,3021),(3081,3775),(3835,5406))`, jobscript renders |
+
+The suite count reconciles exactly: loop 130's 2,745 marks + the 5 tests added in loops 131-137 = 2,750.
+The 3 skips are the known permanent POSIX-`resource` Windows skips. The single remaining WARN is
+`executable_yield`, which the gate's own text says to **report as a capability finding, not fix** — it is
+the numeracy-bottleneck science.
+
+**`leg_readiness` went FAIL → PASS during this close-out**: "all 10 legs at/above the 100% floor, pins and
+providers round-tripped". That is the other lane's **R113** landing (deepseek-v4-pro cap 4096→8192, because
+its REGISTERED reasoning mode was consuming the whole budget — one call left ZERO tokens for code;
+0/10 truncated at 8192, compliance 0.90→1.00). Their artifact appeared in `outputs/leg_gates_20260727_r113/`
+mid-close-out and the gate picked it up. Not this lane's work; verified read-only, no re-run, no spend.
+
+#### #96 CLOSED — a negative `--priority` is now REFUSED by default
+
+The guard was a WARNING that proceeded, explicitly because "refusing would break a documented path while
+Tamer is unavailable to arbitrate". He is available and said close the gaps, so the default is now refusal
+and runbook §14.3's report-only ladder survives behind an explicit `--allow-deprioritise` — the same shape
+as `--allow-unfrozen`. A typo can no longer park the CONFIRMATORY campaign below full fair-share standing in
+a 23-day queue. **Both paths verified**: `--priority -200` → `RC=1` refused with the rule quoted;
+`--priority -200 --allow-deprioritise` → warns loudly, dry-run `RC=0`, wiring valid.
+
+#### #97 CLOSED — the treatment RENDERER is now hash-bound (⚠ the canonical hash moved)
+
+`src/feedback/schema.py` added to `_BOUND_TREATMENT`: 8 → **9** hash-bound files. `arms.yaml` bound WHICH
+block each arm gets; **nothing bound HOW its numbers were rendered**, and the git-SHA "pin" that gap leaned
+on is archival — no gate check compares a recorded SHA to HEAD. #87 proved the stakes empirically (one
+format string decided whether the scalar arm received a usable signal at all). Pinned by a test.
+
+```
+  canonical SHA-256: d5e31bbec703bcb6425c232bf987b9389f7cbfdbdd0de2075630c44d93acbc6c   (before)
+  canonical SHA-256: 7cb748fd65ebd824fdc4aa543f0c550f21c4eca9716c4285d6b49731c3d85a9f   (now)
+```
+
+Costs nothing while `frozen: false` and makes the treatment surface tamper-evident from the moment of GO.
+
+#### The 6 canary flags: ADJUDICATED, not merely reported → `docs/CANARY_SCREEN_ADJUDICATION_2026-07-27.md`
+
+The gate archives every response *"for human review"*. That review is now done, by reading all six.
+**It is 4 genuine confabulations + 2 false-positive flags**, not "6 flagged":
+
+* **CONFABULATED** on a synthetic arithmetic sequence that matches no episode — `haiku-4.5` ("This is
+  **Black Monday, October 19, 1987**… Dow Jones"), `kimi-k3` ("The **2010 Flash Crash**… E-mini S&P 500"),
+  `nemotron-3-super` ("COVID-19-driven sell-off… March 2020"), `qwen3.5-9b` ("the **NASDAQ Composite**").
+* **CORRECT REFUSAL, flagged in error** — `sonnet-5` ("I can't reliably identify… artificially generated")
+  and `qwen3.6-27b` ("hypothetical or synthetic… real market returns do not follow such precise arithmetic
+  progressions"). The keyword rule cannot separate *asserting* an episode from *denying* one.
+* `deepseek-v4-pro` is **UNVERIFIED, not flagged** — its screen answers were TRUNCATED by the same 4096 cap
+  R113 fixed; re-adjudicate from the r113 artifacts.
+
+⚠ Recorded because it is the same trap from the other side: an automated classifier written *for that
+document* scored `haiku-4.5` and `kimi-k3` as refusals, because their confabulations contain the word
+"stylized". Its output was discarded and all six read by hand. **Keyword scoring cannot do this job in
+either direction — which is exactly why the gate routes to a human.** Do not report "6 of 10 flagged" as a
+contamination measure; the adjudicated split is the finding, and the 4 confabulations are citable in their
+own right.
+
+#### Loop 138's own review, before the close-out
+
+PASS B, the concurrency lens: the sandbox counters (`_LAST_CALL_FAILED`, `_SAFE_DEFAULT_COUNT`,
+`_CALL_COUNT`) are process-level globals, so the question was whether reused workers race on them. They do
+not: `parallel.py` uses `ProcessPoolExecutor` with `mp.get_context("spawn")`, so every candidate gets its own
+process and its own copy; the `ThreadPoolExecutor` is arm-drivers in the parent only. The reset-then-measure
+discipline is correct everywhere (`train_agent` resets immediately before `learn`, `_training_substitution_counts`
+reads immediately after), and the one historical bug of this class — counters "zeroed UNREAD by the first
+evaluation rollout" — is fixed and documented. No finding.
 
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 

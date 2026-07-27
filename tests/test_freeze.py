@@ -546,6 +546,16 @@ def test_live_hash_binds_arms_and_prompts():
     assert "prompts/system.txt" in freeze._BOUND_TREATMENT
     assert "prompts/initial_generation.txt" in freeze._BOUND_TREATMENT
     assert "config/arms.yaml" in freeze._BOUND_TREATMENT
+    # #97 CLOSED 2026-07-27: schema.build_block RENDERS the fed numbers, so it IS the treatment
+    # surface -- arms.yaml binds WHICH block an arm gets, this binds HOW its numbers are rendered.
+    # Until it was bound, a post-freeze edit to one format string could change what every arm is fed
+    # with --check still green (finding #87 was exactly such an edit: `{metric:.2f}` made 55% of real
+    # rendered headers read literally "0.00"). The git-SHA "pin" that gap once leaned on is archival,
+    # never verified -- no gate check compares a recorded SHA to HEAD.
+    assert "src/feedback/schema.py" in freeze._BOUND_TREATMENT, (
+        "the fed-text RENDERER is no longer hash-bound; a post-freeze edit to it would change the "
+        "manipulated variable without tripping the freeze gate (#97)"
+    )
 
 
 # --------------------------------------------------------------------------- #

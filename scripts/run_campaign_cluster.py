@@ -422,7 +422,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--priority", type=int, default=None,
                    help="SGE -p override for THIS invocation's arrays (default: the mode's "
                         "ladder value — confirmatory 0/-100; report-only invocations should "
-                        "pass -200 per §14.3).")
+                        "pass -200 per §14.3). A NEGATIVE value is REFUSED unless "
+                        "--allow-deprioritise is also given (#96).")
+    p.add_argument("--allow-deprioritise", action="store_true",
+                   help="Explicitly permit a NEGATIVE --priority. Required by #96 because Tamer's "
+                        "standing rule is that our jobs never sit below full fair-share standing; "
+                        "the only sanctioned use is a report-only §14.3 invocation. NEVER pass this "
+                        "for the confirmatory campaign.")
     p.add_argument("--h3-singleshot", action="store_true",
                    help="C5 (P4 closed 2026-07-13): run the pre-registered H3 SINGLE-SHOT control "
                         "on the cluster — the distributional arm at generations=1 (no reflection), "
@@ -552,13 +558,26 @@ def main(argv: list[str] | None = None) -> int:
     # priority. Refusing outright would break a documented workflow while Tamer is unavailable to
     # arbitrate, so this makes the conflict IMPOSSIBLE TO HIT SILENTLY and leaves the call to him
     # (deep review, loop 118, #96 — raised, not resolved).
+    # RESOLVED 2026-07-27 (#96 closed on Tamer's "close all gaps"). The warning below used to PROCEED,
+    # because refusing would have broken runbook §14.3's documented report-only ladder while he was
+    # unavailable to arbitrate. He is available and the standing rule is ABSOLUTE, so the default is
+    # now REFUSAL and the documented path survives behind an explicit opt-in — the same shape as
+    # `--allow-unfrozen`. A typo or a copied command line can no longer silently park the CONFIRMATORY
+    # campaign below full fair-share standing in a 23-day queue (which also works against the standing
+    # CAMPAIGN-SPEED priority); deprioritising now requires stating that you mean it.
+    if args.priority is not None and args.priority < 0 and not args.allow_deprioritise:
+        raise SystemExit(
+            f"REFUSING --priority {args.priority}: Tamer's standing rule is ABSOLUTE — never lower our "
+            "queue priority, EVER (CLAUDE.md 'MYRIAD PRIORITY — ABSOLUTE'). Full fair-share standing is "
+            "-p 0. Runbook §14.3's report-only ladder is the ONLY sanctioned exception; if that is what "
+            "you are launching, pass --allow-deprioritise to say so explicitly. NEVER pass it for the "
+            "confirmatory campaign."
+        )
     if args.priority is not None and args.priority < 0:
         _LOG.warning(
-            "NEGATIVE SGE PRIORITY REQUESTED (--priority %d). Tamer's standing rule is ABSOLUTE: never "
-            "lower our queue priority, EVER (CLAUDE.md 'MYRIAD PRIORITY — ABSOLUTE'). Runbook §14.3's "
-            "ladder and this script's own --leg/--priority help contradict that rule; the rule wins "
-            "unless Tamer says otherwise. Proceeding because refusing would break a documented path — "
-            "but this run will sit BELOW full fair-share standing in the queue.", args.priority,
+            "NEGATIVE SGE PRIORITY (--priority %d) accepted ONLY because --allow-deprioritise was "
+            "given. This run will sit BELOW full fair-share standing. This must be a report-only "
+            "§14.3 invocation, never the confirmatory campaign.", args.priority,
         )
 
     # Capture which design values the CALLER set explicitly, BEFORE any programmatic forcing
