@@ -567,3 +567,67 @@ def test_records_scored_over_DIFFERENT_windows_must_not_be_pooled():
     c = check_test_window_consistency({"distributional": {1571}, "scalar": {900}})
     assert c.severity == "CRITICAL" and "not comparable" in c.detail
     assert check_test_window_consistency({"a": {1571}, "b": {1571}}).severity == "OK"
+
+
+# --- 11. the two catastrophic invariants nothing re-verified during a run ----------------------
+
+def test_a_mid_run_design_change_is_CRITICAL():
+    """freeze --check is a PRE-LAUNCH step. After launch nothing re-verified it, so an edit to a
+    hash-bound file splits the campaign into records answering different questions — and you cannot
+    tell afterwards which record belongs to which design."""
+    from src.cluster.campaign_health import check_design_drift
+
+    c = check_design_drift(True, "abc123def456", "zzz999yyy888")
+    assert c.severity == "CRITICAL"
+    assert "DIFFERENT pre-registered questions" in c.detail
+
+
+def test_a_matching_hash_is_OK():
+    from src.cluster.campaign_health import check_design_drift
+
+    assert check_design_drift(True, "abc123", "abc123").severity == "OK"
+
+
+def test_PRE_FREEZE_drift_is_silent_because_the_hash_legitimately_moves():
+    """Before GO the canonical hash changes with every legitimate design edit. Alarming there would
+    make the check pure noise from the first day."""
+    from src.cluster.campaign_health import check_design_drift
+
+    assert check_design_drift(False, None, "anything").severity == "INFO"
+
+
+def test_an_UNVERIFIABLE_freeze_is_a_WARNING_not_a_pass():
+    """An invariant that cannot be checked is not an invariant that holds."""
+    from src.cluster.campaign_health import check_design_drift
+
+    assert check_design_drift(True, None, "abc").severity == "WARN"
+
+
+def test_silent_seed_misalignment_is_caught_before_it_eats_the_power():
+    """The analysis intersects seeds without warning, so a lagging arm shrinks the effective n with
+    no error and no visible change — the campaign reports 340 while the contrast ran on 240."""
+    from src.cluster.campaign_health import check_seed_alignment
+
+    c = check_seed_alignment({"a": set(range(340)), "b": set(range(240))})
+    assert c.severity == "CRITICAL"
+    assert "silently lost" in c.detail and c.evidence["common"] == 240
+
+
+def test_a_small_lag_WARNS_rather_than_screaming():
+    from src.cluster.campaign_health import check_seed_alignment
+
+    c = check_seed_alignment({"a": set(range(100)), "b": set(range(90))})
+    assert c.severity == "WARN"
+
+
+def test_perfectly_aligned_arms_are_OK():
+    from src.cluster.campaign_health import check_seed_alignment
+
+    assert check_seed_alignment({"a": set(range(50)), "b": set(range(50))}).severity == "OK"
+
+
+def test_arms_sharing_NO_seed_cannot_be_compared_at_all():
+    from src.cluster.campaign_health import check_seed_alignment
+
+    c = check_seed_alignment({"a": {0, 1, 2}, "b": {7, 8, 9}})
+    assert c.severity == "CRITICAL" and "NO common seed" in c.detail

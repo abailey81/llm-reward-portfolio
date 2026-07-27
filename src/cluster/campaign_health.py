@@ -56,8 +56,88 @@ __all__ = [
     "check_arm_differentiation",
     "check_duplicate_units",
     "check_test_window_consistency",
+    "check_design_drift",
+    "check_seed_alignment",
     "MEASURED_AUTHORING_YIELD",
 ]
+
+
+def check_design_drift(frozen: bool, recorded_hash: str | None,
+                       current_hash: str | None) -> HealthCheck:
+    """Is the campaign STILL running the design that was frozen? Verified continuously, not once.
+
+    ``freeze.py --check`` is a pre-launch step. After launch nothing re-verifies it, so an edit to
+    any hash-bound file mid-campaign — a stray fix, a concurrent session, a well-meant "small"
+    config change — silently splits the run in two: records before the edit were produced under the
+    frozen design and records after it were not. The archive stays complete and healthy-looking, and
+    the resulting dataset answers no single pre-registered question.
+
+    This is unrecoverable in the worst way: you cannot tell afterwards which records belong to which
+    design unless the drift was caught while it happened. Checking every poll costs one hash.
+
+    Pre-freeze (``frozen`` False) this is deliberately silent — the hash MOVES with every legitimate
+    design edit before GO, and alarming on that would make the check noise from the start.
+    """
+    if not frozen:
+        return HealthCheck("design_drift", INFO,
+                           "pre-freeze: the canonical hash moves with every legitimate design edit "
+                           "until GO, so drift is not meaningful yet", {"frozen": False})
+    if not recorded_hash or not current_hash:
+        return HealthCheck("design_drift", WARN,
+                           "frozen, but a hash is unavailable — drift cannot be verified, and an "
+                           "unverifiable invariant is not a held one",
+                           {"recorded": bool(recorded_hash), "current": bool(current_hash)})
+    if recorded_hash != current_hash:
+        return HealthCheck("design_drift", CRITICAL,
+                           f"THE FROZEN DESIGN CHANGED MID-RUN: recorded {recorded_hash[:12]} vs "
+                           f"current {current_hash[:12]} — records produced before and after the "
+                           "edit answer DIFFERENT pre-registered questions. Stop, identify the "
+                           "edited hash-bound file, and decide explicitly (revert, or register a "
+                           "dated amendment and note which records precede it)",
+                           {"recorded": recorded_hash, "current": current_hash})
+    return HealthCheck("design_drift", OK,
+                       f"the running design still matches the freeze ({recorded_hash[:12]})",
+                       {"hash": recorded_hash})
+
+
+def check_seed_alignment(seed_sets: dict[str, set], *, warn_loss: float = 0.05) -> HealthCheck:
+    """Are the arms actually PAIRED on the same seeds? Silent power loss, otherwise.
+
+    Every headline contrast is paired on common random numbers, and the analysis takes the seed
+    INTERSECTION of the arms it compares (``analyze_campaign._common``). That is the correct thing
+    to do, but it is SILENT: if one arm falls behind or loses seeds, the intersection shrinks and the
+    effective n drops without any error, any warning, or any visible change. The campaign reports
+    "n=340" while the contrast actually ran on 240 — and the confidence intervals widen for a reason
+    nobody can see.
+
+    Effect-blind: pure set arithmetic over seed identifiers, never a value.
+    """
+    usable = {a: set(s) for a, s in seed_sets.items() if s}
+    if len(usable) < 2:
+        return HealthCheck("seed_alignment", INFO,
+                           f"need >=2 arms with seeds to compare, have {len(usable)}", {})
+    common = set.intersection(*usable.values())
+    widest = max(len(s) for s in usable.values())
+    if not widest:
+        return HealthCheck("seed_alignment", INFO, "no seeds recorded yet", {})
+    loss = 1.0 - (len(common) / widest)
+    missing = {a: sorted(set.union(*usable.values()) - s)[:6]
+               for a, s in usable.items() if s != set.union(*usable.values())}
+    if not common:
+        return HealthCheck("seed_alignment", CRITICAL,
+                           "the arms share NO common seed — every paired contrast is empty, so "
+                           "nothing can be compared at all",
+                           {"per_arm_counts": {a: len(s) for a, s in usable.items()}})
+    if loss > warn_loss:
+        return HealthCheck("seed_alignment", WARN if loss < 0.25 else CRITICAL,
+                           f"paired contrasts will run on {len(common)} common seeds although the "
+                           f"deepest arm has {widest} — {loss:.0%} of the sample is silently lost to "
+                           "misalignment, and the analysis intersects without warning",
+                           {"common": len(common), "widest": widest, "loss": round(loss, 3),
+                            "missing_by_arm": {k: v for k, v in list(missing.items())[:5]}})
+    return HealthCheck("seed_alignment", OK,
+                       f"arms aligned on {len(common)} common seeds (deepest {widest})",
+                       {"common": len(common), "widest": widest})
 
 
 def check_seed_replication(digest_by_arm: dict[str, dict[int, str]]) -> HealthCheck:

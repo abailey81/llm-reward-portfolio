@@ -643,7 +643,8 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
                ("accumulation_report", "chain_progress", "host_attempts",
                 "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity", "authoring_health",
                 "unreadable_records", "arm_progress", "seed_digests",
-                "reward_hash_by_seed", "unit_counts", "scored_lengths")):
+                "reward_hash_by_seed", "unit_counts", "scored_lengths",
+                "freeze_state", "seed_sets")):
         return []
     from src.cluster import campaign_health as ch
 
@@ -665,6 +666,11 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("freeze_state") is not None:
+        frozen, rec_h, cur_h = g("freeze_state")
+        out.append(ch.check_design_drift(frozen, rec_h, cur_h))
+    if g("seed_sets") is not None:
+        out.append(ch.check_seed_alignment(g("seed_sets")))
     if g("seed_digests") is not None:
         out.append(ch.check_seed_replication(g("seed_digests")))
     if g("reward_hash_by_seed") is not None:
@@ -1243,6 +1249,21 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
     except Exception:  # noqa: BLE001
         pass
 
+    # DESIGN DRIFT (2026-07-27): re-verify the freeze EVERY poll, not once before launch. An edit to
+    # a hash-bound file mid-run splits the campaign into records answering different questions, and
+    # nothing else would notice. One hash per poll.
+    try:
+        import yaml as _yaml
+
+        from freeze import canonical_hash  # scripts/ is on sys.path for the sentinel
+
+        prereg = _yaml.safe_load(
+            (Path(__file__).resolve().parents[1] / "config" / "preregistration.yaml").read_text(encoding="utf-8"))
+        lane["freeze_state"] = (bool(prereg.get("frozen")),
+                                prereg.get("freeze_hash"), canonical_hash())
+    except Exception:  # noqa: BLE001 — unverifiable is reported by the check itself, never guessed
+        pass
+
     # RESULT MEANINGFULNESS (2026-07-27) over the SCORED records only — the failures that produce a
     # perfectly healthy-looking archive whose numbers mean nothing: replication that is fake (every
     # interval then fiction), arms that never actually differed (the contrast structurally zero),
@@ -1255,6 +1276,7 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
         digest_by_arm: dict[str, dict[int, str]] = {}
         hash_by_seed: dict[int, dict[str, str]] = {}
         unit_counts: dict[str, int] = {}
+        seed_sets: dict[str, set] = {}
         lengths: dict[str, set] = {}
         for sroot in scored_roots:
             for rec_path in sroot.rglob("record.json"):
@@ -1270,6 +1292,7 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
                 seed = int(seed)
                 key = f"{sroot.name}/{arm}-s{seed}"
                 unit_counts[key] = unit_counts.get(key, 0) + 1
+                seed_sets.setdefault(f"{sroot.name}/{arm}", set()).add(seed)
                 rets = (rec.get("metrics", {}) or {}).get("test_returns")
                 if isinstance(rets, list) and rets:
                     lengths.setdefault(str(arm), set()).add(len(rets))
@@ -1287,6 +1310,8 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
             lane["unit_counts"] = unit_counts
         if lengths:
             lane["scored_lengths"] = lengths
+        if len(seed_sets) >= 2:
+            lane["seed_sets"] = seed_sets
     except Exception:  # noqa: BLE001
         pass
 
