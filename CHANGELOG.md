@@ -3,6 +3,70 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27c] — ★★★★★ **CAMPAIGN IS LAUNCH-READY.** ALL GATES PASSED · READ `docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md`
+
+> The single source of truth for launching is **`docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md`** — the
+> command, every flag justified by a measurement taken today, what is and is NOT verified, the live
+> cluster state, outstanding tasks, and the two claims I retracted. This block is the narrative.
+
+### THE COMMAND
+
+```
+python scripts/run_campaign_cluster.py   --device cpu --pool d --pack 4 --cores-per-training 1   --search-threads 1 --chunk-tasks 1 --exclude-hosts node-d00a-230
+```
+
+### GATES — all passed, all observed
+
+FULL SUITE **2,775 passed / 3 skipped / 0 failed, RC=0** on `1b8aec5` (cluster synced to the same) ·
+`freeze.py --check` **RC=0** with `freeze_hash: null`, UNTOUCHED (R94 is Tamer's alone) · golden
+reproduction **RC=0** after the training path was touched · **the full campaign path on CPU including
+the TEST LEG at RC=0** (12 records: 4 search + 8 test, valid science, `|dev=cpu`, sealed window
+`[5536,7800)`) · packed execution completed at **pack 4 AND pack 8** (two concurrent trainings per job
+proven by 162 interleaved heartbeat lines) · **packed provenance fixed and verified on a real cluster
+record** (`OMP_NUM_THREADS: 1`) · **graceful degradation observed** — killed jobs were marked
+`exhausted`, the run continued, winners were selected, and the shortfall was signalled by exit code.
+
+### THE NUMBER THAT MATTERS
+
+**~18.2 steps/s** measured on the 100k ladder cells (startup amortised) => a 400k training is
+**~6.1 h**, ~40 % FASTER than the registered 13.0 planning constant. So: **H1/H2 headline ~1.5 d ·
+full 568 ladder for every arm but H4 ~2.7 d · H4 ~6.4 d** (Tamer has explicitly accepted H4
+trailing, since each rung is a complete study and he can write from the first).
+
+### CEILING, SETTLED
+
+`cores = jobs x pack`; `max_u_jobs = max_aj_instances = 1000`. pack 4 -> 4,000 (job-capped);
+pack 8 -> 4,800 (cluster-capped: ~5,800 free minus the 1,000-core courtesy reserve). Throughput stops
+binding at **7,021 cores**, above which the 6-step LLM chain floors everything at 1.53 d. pack 8 buys
+~0.45 d and places 3x slower, so **pack 4 is the recommendation**.
+
+### ⚠ TWO OF MY OWN CLAIMS RETRACTED (see `f443442`) — DO NOT REBUILD ON THEM
+
+1. **R107 is UNTESTED, not refuted — DO NOT AMEND IT.** The '8-thread' arm ran against cluster code
+   `a4f903c`, whose `_worker_init()` takes no thread argument; and my corroboration misread SGE's
+   `smp` **SLOT-seconds** as CPU utilisation. Tamer's blanket ratification permission was explicitly
+   DECLINED on this point: "untested" is not grounds for amending a registered value.
+2. **Packing is NOT threading** (Tamer caught this). `pack N` + `cores_per_training 1` = N
+   independent trainings at one core each, 100 % efficient — unlike 8 threads on ONE training (34 %).
+   I also twice declared a shape "unplaceable" after only ~5 and ~12 minutes; **8-core places in ~19**.
+
+### DEFECTS FIXED TODAY (14, nearly all found by RUNNING things, not reasoning)
+
+cluster **437 commits stale** · GPU-era `h_rt` floor that would have **SIGKILLed every CPU rung above
+100k** · `--cores-per-task` defaulting to 2 (half of every core-hour) · `DevicePool` overwriting
+`device=cpu` with a **CUDA token** · SEARCH leg archiving **blank device labels** · trainings being a
+**black box** (0-byte logs; heartbeat added) · threads x pack = an **unplaceable 64-core request** ·
+`node-d00a-230` eating **13 jobs** (fence added) · `submit_singles` missing the device/threads wiring ·
+**packed jobs archiving the PARENT's thread environment** instead of the trainer's.
+
+### STILL RUNNING (none of it gates the launch)
+
+~155 jobs of side-work. `~/Scratch/p6cpu` = the p6 ladder (5 budgets x 10 seeds x 2 winners) which
+restores **F11** and gives B\* substrate evidence at n=10; ~30 h for the 1.6M rung. Outstanding:
+recover the **13 ladder cells** `node-d00a-230` ate before the fence existed (`--skip-done` +
+`--exclude-hosts`; the ladder has NO driver loop, so a failed cell is lost unless resubmitted), then
+rebuild F11.
+
 ## [2026-07-27b] — ★★★★★ CAPACITY LANE · R107 WIRED, THE CLUSTER RE-SYNCED, TWO ARTIFACT CAPS KILLED
 
 > Continues the session above. Driven by Tamer's standing instruction to take the maximum Myriad can

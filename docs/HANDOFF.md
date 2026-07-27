@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-27"
-  head: "f443442"
+  head: "1b8aec5"
   frozen: false
   legs_n: 10
   amendments_through: R114
-  suite_status: "exit 0 (2,775 passed / 3 skipped, 2026-07-27 launch-gate session)"
+  suite_status: "exit 0 (2,775 passed / 3 skipped) — LAUNCH-READY, see docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md"
   gate_checks: 21
   backup_branch: backup-2026-07-27
 ```
