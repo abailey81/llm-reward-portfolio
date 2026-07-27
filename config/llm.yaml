@@ -20,7 +20,10 @@ thinking: {type: disabled}                  # ★ R106 (2026-07-27) UNIFORM REAS
                                             #   than off-by-vendor-default. VERIFIED ACCEPTED live on claude-opus-5
                                             #   (also haiku-4.5 / sonnet-5) before the parameter was wired, because an
                                             #   unaccepted field here would 400 the confirmatory path.
-max_tokens: 8192                            # R102 (2026-07-24): raised 4096 -> 8192 for the Opus 5 swap; RETAINED by
+max_tokens: 16384                            # R106 uniform cap (2026-07-27), raised 8192 -> 16384 because the
+                                            #   confirmatory author measured 78% utilisation at 8192 (6412 tokens of
+                                            #   8192 on a 10-call gate) - the marginal-by-construction band. R102's
+                                            #   4096 -> 8192 is superseded; that value was ALSO
                                             #   R106 as the uniform cap shared with all 10 legs (never lowered).
                                             #   ⚠ R102's STATED REASON WAS FALSE and is corrected here (evidence ledger
                                             #   row 123): it claimed "Opus 5 runs ADAPTIVE THINKING BY DEFAULT", but the

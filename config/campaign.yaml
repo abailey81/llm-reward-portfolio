@@ -78,13 +78,13 @@ llm:
   #   * max_tokens was ABSENT here -> `campaign.py:402` fell back to its 4096 default, so the
   #     confirmatory author was running at 4096 while R102 recorded 8192 in llm.yaml. The registered
   #     value and the executed value had silently disagreed since R102 -- the R84 failure mode, in the
-  #     one place it matters most. Set to 8192: the R102 value AND the R106 uniform cap, so the author
+  #     one place it matters most. Set to the R106 UNIFORM CAP (16384) so the author matches all 10
   #     matches all 10 legs and the capability contrasts are not confounded by budget.
   #   * thinking was ABSENT -> Opus ran on the vendor default. Measured OFF (which is why nothing was
   #     corrupted), but a default is not a pin, and R102's "adaptive thinking BY DEFAULT" claim was
   #     itself disproved by live test. `{type: disabled}` VERIFIED ACCEPTED live on claude-opus-5.
   # Both are now cross-checked against llm.yaml by preflight so they can never diverge silently again.
-  max_tokens: 8192
+  max_tokens: 16384
   thinking: {type: disabled}
   # Opus 5 REJECTS the `temperature` parameter, so within-generation diversity comes from prompt
   # variation, NOT temperature (uniform across arms -> not an H2 confound; src/llm/loop.py).

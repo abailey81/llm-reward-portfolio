@@ -196,7 +196,7 @@ def test_author_pin_mirror_catches_the_absent_cap_that_actually_happened() -> No
     ABSENCE must FAIL, not warn: an absent key does not mean "default", it means the executed value
     is invisible to the registration.
     """
-    good = {"max_tokens": 8192, "thinking": {"type": "disabled"}}
+    good = {"max_tokens": 16384, "thinking": {"type": "disabled"}}
     assert pf.check_author_pin_mirror(good, good).status == pf.PASS
 
     # the real bug: cap present in llm.yaml, ABSENT in the executed block
@@ -204,7 +204,7 @@ def test_author_pin_mirror_catches_the_absent_cap_that_actually_happened() -> No
     assert absent_cap.status == pf.FAIL and "ABSENT" in absent_cap.detail
 
     # R106 requires the pin on all 11 models; the author is the 11th
-    absent_pin = pf.check_author_pin_mirror({"max_tokens": 8192}, good)
+    absent_pin = pf.check_author_pin_mirror({"max_tokens": 16384}, good)
     assert absent_pin.status == pf.FAIL and "thinking" in absent_pin.detail
 
     # and a silent divergence between the two files must not pass either
@@ -221,5 +221,5 @@ def test_author_pin_mirror_matches_the_shipped_config() -> None:
     camp = yaml.safe_load((root / "config" / "campaign.yaml").read_text(encoding="utf-8"))["llm"]
     llmy = yaml.safe_load((root / "config" / "llm.yaml").read_text(encoding="utf-8"))
     assert pf.check_author_pin_mirror(camp, llmy).status == pf.PASS
-    assert camp["max_tokens"] == 8192                      # matched with all 10 legs
+    assert camp["max_tokens"] == 16384                      # matched with all 10 legs
     assert camp["thinking"] == {"type": "disabled"}        # uniform reasoning-off, 11th model

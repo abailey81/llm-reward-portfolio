@@ -79,7 +79,7 @@ def test_planning_prices_cover_all_legs():
 # --------------------------------------------------------------------------- #
 def test_transport_kwargs_openrouter_assembles_extra_body():
     kw = transport_kwargs(leg_by_label("qwen3.6-27b"))
-    assert kw["provider"] == "openrouter" and kw["max_tokens"] == 8192   # R106 uniform cap
+    assert kw["provider"] == "openrouter" and kw["max_tokens"] == 16384   # R106 uniform cap
     eb = kw["extra_body"]
     assert eb["provider"] == {"only": ["siliconflow"], "allow_fallbacks": False,
                               "quantizations": ["fp8"]}
@@ -109,7 +109,7 @@ def test_every_leg_is_reasoning_off_and_caps_are_matched():
         if not off:
             not_off.append(leg["label"])
     assert not not_off, f"R106 violated — leg(s) not pinned reasoning-off: {not_off}"
-    assert caps == {8192}, f"R106 violated — caps are not matched: {sorted(caps)}"
+    assert caps == {16384}, f"R106 violated — caps are not matched: {sorted(caps)}"
 
 
 def test_anthropic_legs_carry_the_thinking_pin_not_extra_body():
