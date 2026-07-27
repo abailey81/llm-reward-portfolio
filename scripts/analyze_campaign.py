@@ -142,8 +142,20 @@ __all__ = [
 
 _LOG = logging.getLogger(__name__)
 
-#: The seven pre-registered arms (PREREGISTRATION §3). PBO is reported for each that carries
-#: enough candidates with validation vectors; others are reported as skipped.
+#: The NINE pre-registered arms (PREREGISTRATION §3 "The nine arms"; `config/arms.yaml`). PBO is
+#: reported for each that carries enough candidates with validation vectors; others are reported as
+#: skipped.
+#:
+#: ⚠ 2026-07-27 (deep review, loop 123, #102): this listed SEVEN — `cma_es` and `tpe` were never added
+#: when the roster grew 7 -> 9 on 2026-07-26 (the same expansion as #100's H4 2 -> 4) — while the
+#: comment cited "PREREGISTRATION §3" as its authority, and §3's own heading reads "The nine arms".
+#: This constant is the DEFAULT for five analyses: `campaign_pbo` (the PRIMARY overfitting
+#: diagnostic), `campaign_pbo_dsr`, `winner_dsr`, `compute_accounting` and
+#: `model_confidence_set_report` (the MCS, whose COMPOSITION depends on which arms are entered). An
+#: arm missing from this tuple produces no row AT ALL — not even a "skipped" row — so two registered
+#: arms were silently invisible to all five, leaving no trace in the output.
+#: Guarded by `test_ARMS_matches_the_frozen_arms_yaml_roster`, mirroring the config-vs-code assertion
+#: that already keeps `_BENCHMARK_NAMES` honest.
 ARMS: tuple[str, ...] = (
     "distributional",
     "scalar",
@@ -152,6 +164,8 @@ ARMS: tuple[str, ...] = (
     "placebo_shuffled",
     "random_search",
     "bayes_opt",
+    "cma_es",
+    "tpe",
 )
 
 
@@ -546,7 +560,8 @@ def winner_dsr(
     records : list of dict
         All per-candidate run records (``src.io.results.load_all``); split by ``arm``.
     arms : sequence of str, optional
-        Arms to report (default: the six pre-registered arms). An arm with fewer than two
+        Arms to report (default: the NINE pre-registered arms — said "six" until 2026-07-27, #102).
+        An arm with fewer than two
         candidates carrying a usable validation vector is reported as skipped (a single
         candidate has no cross-trial dispersion -- ``ddof=1`` variance is undefined).
     periods_per_year : int

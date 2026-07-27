@@ -1757,3 +1757,35 @@ def test_n6_refuses_dominance_when_a_registered_canon_member_is_MISSING() -> Non
         "dominance was certified while a registered canon member was never compared — the LLM would "
         "be claimed to beat 'the best human' without having faced one of them"
     )
+
+
+def test_ARMS_matches_the_frozen_arms_yaml_roster() -> None:
+    """`ARMS` is the DEFAULT arm set for five analyses — it must not drift from the frozen roster.
+
+    #102 (2026-07-27): it listed SEVEN. `cma_es` and `tpe` were never added when the roster grew
+    7 -> 9 on 2026-07-26, while the constant's own comment cited "PREREGISTRATION §3" as authority —
+    and §3's heading reads "The nine arms". Because an arm absent from this tuple produces no row AT
+    ALL (not even a "skipped" row), two registered arms were silently invisible to `campaign_pbo` (the
+    PRIMARY overfitting diagnostic), `campaign_pbo_dsr`, `winner_dsr`, `compute_accounting` and
+    `model_confidence_set_report` — whose MCS composition depends on which arms are entered.
+
+    The pre-existing guard could not catch it: `assert set(out) == set(AC.ARMS)` derives the
+    expectation from the SAME constant, so it is satisfied by any value. This asserts against the
+    frozen config instead, mirroring the config-vs-code check that already keeps `_BENCHMARK_NAMES`
+    honest.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    cfg = yaml.safe_load((root / "config" / "arms.yaml").read_text(encoding="utf-8"))
+    entries = cfg.get("arms", cfg) if isinstance(cfg, dict) else cfg
+    registered = [e["name"] if isinstance(e, dict) else e for e in entries]
+
+    assert set(AC.ARMS) == set(registered), (
+        f"analyze_campaign.ARMS drifted from config/arms.yaml — missing "
+        f"{sorted(set(registered) - set(AC.ARMS))}, extra {sorted(set(AC.ARMS) - set(registered))}. "
+        "An arm absent from ARMS is invisible to PBO/DSR/MCS, with no skipped row to reveal it."
+    )
+    assert list(AC.ARMS) == list(registered), "ARMS order drifted from the frozen roster"

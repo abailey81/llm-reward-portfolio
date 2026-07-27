@@ -571,7 +571,8 @@ def test_analyze_produces_benchmark_floor_when_panel_supplied(tmp_path) -> None:
     result = AC.analyze(tmp_path, n_blocks=4, panel=panel, cfg=cfg, test_window=test_window, winner_n_trials=40)
     floor = result.get("benchmark_floor")
     assert floor and "benchmarks" in floor
-    assert set(floor["benchmarks"]) == set(AC._BENCHMARK_NAMES)        # all 8 allocators rolled
+    assert set(floor["benchmarks"]) == set(AC._BENCHMARK_NAMES)        # every registered allocator rolled (the ladder grew 8 -> 9 when min_cvar was added;
+        # the assertion is derived from _BENCHMARK_NAMES, so only this count was stale)
     assert floor.get("gate") and floor["gate"]["winner_n_trials"] == 40  # winner deflated by the budget (#17)
     assert floor["gate"]["winner_dsr_method"] == "median_per_seed"  # robust per-seed gate, NOT seed-mean (#2)
     md = AC.benchmark_floor_markdown(floor)

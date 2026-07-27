@@ -797,6 +797,54 @@ automatically instead of silently narrowing coverage again:
 Also asserts `_H1_BASELINES` is a SUBSET of the registered canon, so the fast-path tests cannot drift
 onto names the design no longer registers. **99 tests green, `PYTEST_RC=0`, ruff clean.**
 
+### ★★ #102 — two REGISTERED arms were invisible to five analyses, including the MCS and PBO
+
+Loop 123 ran the roster lens (from #100/#101) across every unswept registered set, then read the
+PBO/DSR block. The lens found its third and worst instance.
+
+**`scripts/analyze_campaign.py: ARMS` listed SEVEN.** `cma_es` and `tpe` were never added when the
+roster grew **7 → 9** on 2026-07-26 — the same expansion that produced #100's H4 2 → 4 — while the
+constant's own comment cited *"PREREGISTRATION §3"* as its authority. **§3's heading reads "## 3. The
+nine arms (matched compute)."** The constant cited the very section that contradicted it.
+`config/arms.yaml` (freeze-bound, roster-checked by `_ARM_ROSTER_CONFIGS`) also registers nine.
+
+`ARMS` is the DEFAULT for **five** analyses: `campaign_pbo` (which `winner_dsr`'s own docstring calls
+**the PRIMARY overfitting diagnostic**), `campaign_pbo_dsr`, `winner_dsr`, `compute_accounting`, and
+`model_confidence_set_report` — **the MCS, whose composition depends on which arms are entered.**
+
+**Why it left no trace.** The constant's comment promises that arms lacking data "are reported as
+skipped". That holds only for arms IN the tuple. An arm absent from it produces **no row at all —
+not even a skipped row**, so two registered arms were silently missing from all five outputs with
+nothing to reveal the omission.
+
+**The pre-existing guard could not catch it, for the third time.**
+`test_analyze_campaign.py:251` asserts `set(out) == set(AC.ARMS)` — it derives the expectation from
+the SAME constant, so it is satisfied by *any* value of `ARMS`. This is now the third instance of the
+frozen-guard pattern (#100: coverage froze at 2 legs; #101: at 4 of 11 canon members; #102: a guard
+that tautologically re-derives the thing it guards).
+
+Fixed to the registered nine, order-identical to `config/arms.yaml`, plus
+`test_ARMS_matches_the_frozen_arms_yaml_roster` asserting **config-vs-code** — mirroring the check
+that already keeps `_BENCHMARK_NAMES` honest (verified this loop: config == code, 9/9, and enforced).
+`winner_dsr`'s docstring said "the six pre-registered arms" — a third distinct count in one file —
+also corrected. **124 tests green in the affected suites, ruff clean.**
+
+### PASS A / PASS B — what was verified CLEAN this loop
+
+- **The DSR annualisation claim is TRUE, measured.** `winner_dsr` documents `periods_per_year` as
+  "annualization-invariant; kept for symmetry". Verified: DSR is bit-identical across
+  `periods_per_year ∈ {1, 12, 52, 252}`. No hidden dependence.
+- **Benchmark ladder:** `config/preregistration.yaml: benchmarks` == `_BENCHMARK_NAMES`, **identical
+  and order-identical**, 9/9 named in tests, and the invariant IS enforced
+  (`assert set(bench) == set(AC._BENCHMARK_NAMES)`). This is the pattern #102's new guard copies.
+- **Leg suite:** all 10 registered legs appear in `tests/`.
+- **NOT findings — dated history, correctly preserved.** `docs/CAMPAIGN_benchmarks.md` and
+  `docs/DEEP_BENCH_T0.md` say "8 allocators"; both are explicitly dated first-hand verification
+  records (`**Date:** 2026-06-24 … it stands as an allocator-correctness record`) predating the
+  `min_cvar` addition, and the former carries its own update blockquote. Recorded so a later loop does
+  not mistake them for staleness. One live-file count *was* stale — a `# all 8 allocators rolled`
+  comment on a correctly-DERIVED assertion — fixed on sight, below the finding bar.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
