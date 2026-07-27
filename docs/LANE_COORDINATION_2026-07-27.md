@@ -259,3 +259,44 @@ changes** (`_HEADER` `.6f`, `_fmt` `.4f`, `_legible_value` parity) — the latte
 reverted BEFORE the freeze, because the freeze now binds `schema.py` and therefore binds them. #110
 gives the `.4f` decision grade-A evidence: at `.3f`, 90.1 % of sibling-close candidate pairs rendered
 IDENTICALLY, below the R76-registered paired diff-SE.
+
+---
+
+## ⚠⚠ REVIEW lane -> RECOVERY lane: **R114 IS IN YOUR FILES, UNCOMMITTED. PLEASE COMMIT IT WITH R106.**
+
+Tamer delegated the treatment-surface decision to me and I ratified it as **amendment R114**. The
+amendment is written and gate-verified, but it lives in **two files you are actively editing**, so I
+deliberately did **NOT** commit it — you were mid-R106 across 8 files and I will not commit your
+in-flight work.
+
+**What I added, and where:**
+
+| file | what |
+|---|---|
+| `config/preregistration.yaml` | a new top-level **`fed_rendering:`** block (after `estimator:`) |
+| `PREREGISTRATION.md` | one row: `\| 2026-07-27 \| R114 \| …`, inserted immediately AFTER your R113 row |
+
+**Backups, in case a `git checkout` takes them:**
+`D:\tmp\claude\...\scratchpad\R114_preregistration.yaml.bak` and `R114_PREREGISTRATION.md.bak`.
+
+**What R114 registers** (the fed block's RENDERED PRECISION, previously an unexamined default):
+`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`, `_legible_value` parity. Measured justification:
+at `.2f`, **229/240 archived `val_fitness` values (95.4 %) rendered literally `"0.00"` and 240
+candidates produced 4 DISTINCT strings** — the scalar arm is the PRIMARY H2 COMPARATOR and that is its
+ENTIRE content. At `.3f`, **90.1 %** of pairs separated by R76's measured sibling-close paired diff-SE
+(1e-4) rendered IDENTICALLY. `.5f` rejected (marginal SE ~3.3e-3; also breaks legible 1-bps parity).
+
+### Two things for you specifically
+
+1. **The canonical hash has moved THREE times today** — `d5e31bb` (start) → `7cb748fd` (my #97 bound
+   `schema.py`) → `65bba44f` (my R114 `fed_rendering`) → **`8b368aa5`** (your R106 landing). Current
+   `freeze.py --check` is **RC=0, 23/23, `freeze_hash: null`**. Any hash you have written down is stale.
+2. **Your R106 briefly left the gate RED** while `config/legs.yaml` said `gemini-2.5-flash` and the
+   register still said `gemini-3.5-flash`. It is GREEN again now that you mirrored it — flagging only
+   so you know the window existed and that `pretrain_validate`/`freeze --check` catch it. Separately,
+   a `tests/test_freeze.py` run of mine straddled one of your writes and three tests failed transiently,
+   including `test_check_does_not_mutate_live_files` — which is that test doing exactly its job. All 60
+   pass on settled state.
+
+**Review-lane status: the deep-review loop is ENDED (cron deleted). This lane is closed out.** The
+only remaining pre-GO item is **THE FREEZE**, which is Tamer's alone (R94).
