@@ -19,7 +19,10 @@
 ## 1. Pre-flight checklist (run in order; each must pass)
 
 ```bash
-# 1. Freeze gate — 21/21 green, recorded hash matches canonical:
+# 1. Freeze gate — 23/23 green, recorded hash matches canonical (was "21/21"; the gate grew to 22
+#    with the executed-TF32 mirror and to 23 since — corrected 2026-07-27, verified by running it.
+#    Read the printed count, never this number: a hardcoded expectation is how a gate silently
+#    stops covering its newest checks):
 python scripts/freeze.py --check
 
 # 2. Full test suite (background, ~10 min) — 0 failures AND the skip report shows ONLY the
