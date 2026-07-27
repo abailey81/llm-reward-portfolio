@@ -40,7 +40,24 @@ T0_FLOOR_SEEDS = list(range(30))
 
 
 def empirical_cvar(returns: np.ndarray, alpha: float = 0.05) -> float:
-    """Mean of the worst ``ceil(alpha*T)`` signed returns (house convention: more negative = worse)."""
+    """Mean of the worst ``ceil(alpha*T)`` signed returns (house convention: more negative = worse).
+
+    Numerically this IS ``bootstrap.cvar`` — verified 2026-07-27 (deep review #114) over 4,000 random
+    draws with NaN/-inf injected: max absolute difference 2.8e-17, i.e. summation order alone
+    (``np.partition`` vs ``np.sort`` over the same k smallest). It is kept separate for the ONE
+    behaviour it deliberately does not share: an all-non-finite input RAISES here, where the canonical
+    returns NaN — this module's whole contract is that absence fails loud rather than propagating a
+    quiet NaN into a registered cross-model bound.
+
+    ``alpha`` is validated on the same terms as the canonical (#114). It previously was not, so
+    ``alpha=0`` returned the single worst return (``k = max(1, 0)``) and ``alpha>1`` silently returned
+    the mean of everything — a wrong CVaR rather than an error, in the one module that otherwise fails
+    loud on every missing input. Not reachable from production today (``cross_model_synthesis`` does
+    not expose ``alpha``; the default 0.05 is what runs), but ``per_seed_series`` and
+    ``leg_results_for_synthesis`` both take it as a public parameter.
+    """
+    if not (0.0 < float(alpha) <= 1.0):
+        raise ValueError(f"empirical_cvar: alpha must lie in (0, 1]; got {alpha!r}")
     arr = np.asarray(returns, dtype=float)
     arr = np.sort(arr[np.isfinite(arr)])  # row 30c: strip non-finite (mirrors bootstrap.cvar);
     if arr.size == 0:                     # -inf would otherwise poison the tail mean silently
@@ -111,8 +128,8 @@ def t0_floor_sharpe(core_test_root: str | Path,
         the EQUAL-WEIGHT benchmark's mean per-seed Sharpe over the common floor seeds 0-29,
         computed from the shared core baseline records
 
-so this function is a faithful transcription of that sentence and nothing more. ``equal_weight`` is
-    the canonical naive allocator, and the CORE baseline records are deliberately the source: every
+    so this function is a faithful transcription of that sentence and nothing more. ``equal_weight``
+    is the canonical naive allocator, and the CORE baseline records are deliberately the source: every
     leg is filtered against the SAME floor, which is what makes the filter arm-symmetric and keeps
     the permutation test's size intact.
 

@@ -1237,6 +1237,85 @@ loop 129, 2 in loop 130). The 3 skips were confirmed, not assumed, as the known 
 log contains **no `N passed` summary line** — the verdict above is read from the progress stream, the
 100% marker and the captured RC.
 
+### #114 — the one fail-loud module that silently accepted a malformed `alpha`
+
+`leg_aggregate` states its contract in the module docstring: *"Missing seeds fail LOUD (a silent
+subset would quietly change the paired estimator); a wholly missing arm marks the leg failed."* Every
+input in it is guarded that way — except one. `empirical_cvar` validated its RETURNS (raising on an
+all-non-finite series) but never its `alpha`, while the canonical `bootstrap.cvar` raises on anything
+outside `(0, 1]`. MEASURED: `empirical_cvar(np.arange(10.0), 0.0)` returned **0.0** — `alpha=0` falls
+through `k = max(1, ceil(0 * T)) == 1` and yields the single worst return; `alpha > 1` returns the mean
+of the whole series. A wrong CVaR presented as a right one, feeding a registered cross-model bound.
+
+Not reachable from production today — `cross_model_synthesis` does not expose `alpha`, so the default
+0.05 is what runs — but `per_seed_series` and `leg_results_for_synthesis` both take it as a public
+parameter, and this module is the one whose entire discipline is that a malformed input fails loud.
+Fixed by mirroring the canonical's validation exactly, with a regression test.
+
+**The more valuable result was the clearance that came with it.** The module deliberately delegates
+Sharpe to `bootstrap.sharpe_ratio` so that *"there is exactly ONE Sharpe definition in the codebase"*
+(a prior fix, after a units mismatch would have failed every leg) — yet it computes CVaR **itself**.
+That is the same shape as the defect it already fixed once, so it had to be checked rather than
+assumed. VERIFIED over 4,000 random draws with NaN and −inf injected: max absolute difference between
+`empirical_cvar` and `bootstrap.cvar` is **2.8e-17** — summation order alone (`np.partition` vs
+`np.sort` over the same k smallest). There is no semantic dual definition. The one behavioural
+divergence is deliberate and now pinned by test: an all-non-finite input RAISES here and returns NaN
+in the canonical, because a quiet NaN must not propagate into a registered bound. Both are left
+alone — delegating would cost the fail-loud property for a last-ULP concern.
+
+### PASS A — the `headroom` caller + producer↔emitter contract: CLEAN (one candidate REFUTED)
+
+Loop 130 noted that a clean module can still have a defective caller (#108), so `headroom.py`'s caller
+was audited rather than the module. A key-level diff of the producer against
+`validation_headroom_markdown` initially reported `dsr` and `pooled` as **read but never emitted** —
+which would have meant the §2a micro-anchor table rendering its entire DSR half as em-dashes and never
+emitting a pooled row. **Refuted on verification:** my scan only collected dict-literal keys, and both
+are set by subscript assignment (`entry["dsr"] = …`, `out["pooled"] = …`). Proved the contract
+end-to-end on a synthetic corpus instead — `selection_rule`, `pooled` and every per-arm `dsr` present,
+and every markdown row carries exactly 9 pipes (header, separator, data, skipped and pooled alike),
+with `_leg` contributing exactly 3 cells in all branches including its `None` fallback.
+
+### PASS B — the freeze machinery, probed on the #111 lens ("facts two tools disagree about"): CLEAN
+
+Two probes, both aimed at the highest-stakes machinery in the repo, both coming back sound. Recorded
+because a clearance here is worth as much as a finding.
+
+**(a) The not-in-the-hash-so-ASSERT coverage.** `config/campaign.yaml`, `prototype.yaml`, `llm.yaml`
+and `legs.yaml` are deliberately NOT hash-bound (compute knobs must stay amendable post-freeze), so
+each design-defining value they carry is instead ASSERTED equal to the frozen side. Every one of the
+13 assert functions is genuinely wired into `verify()` (checked, per the #103 lesson that a defined
+guard is not a running guard). The residual worry was structural: each mirror is
+`if check is not None: checks.append(check)` and each returns `None` when its file is absent — so a
+deleted config would silently REMOVE a check while the gate still passed, which is not hypothetical in
+a session that lost 6,005 files. **Already closed:** `tests/test_freeze.py` pins both
+`len(status.checks) == 23` and the presence of 8 named checks, so a vanishing mirror fails the suite.
+Live `freeze.py --check`: **RC=0, 23/23, `freeze_hash: null` (still UNFROZEN, as required).**
+
+**(b) B\* — the number a silent divergence would hurt most.** `run_prototype._agent_cfg` falls back to
+`prototype.yaml`'s `train_steps_per_candidate: 25000` whenever its `train_steps` argument is `None`,
+and `assemble_cluster_inputs` accepts `train_steps: int | None` — so the campaign inheriting 25k
+instead of the ratified 400k (R77), a 16× shortfall, is a structurally reachable shape. **Both drivers
+are already hardened, and the fix is complete on both:** the cluster path resolves `None` from
+`campaign.yaml` AND cross-checks it against the pre-registered B\*, exiting loud on mismatch; the
+laptop path reads it as a REQUIRED key (`camp["train_steps_per_candidate"]`, not `.get`) and inherits
+the same frozen-vs-executed check through `enforce_freeze` → `freeze.verify()` →
+`assert_train_steps_match`. Both carry comments recording that this exact bug bit once and was fixed.
+
+Also verified rather than assumed: `cross_model_synthesis`'s production call site passes NO `seeds`, so
+the R84 T0 floor is computed over the registered floor seeds 0-29, not over whatever ladder a caller
+happens to hold.
+
+### ⚠ Process note — I hit the exact hazard I had just spent a loop documenting
+
+The loop-130 state-file update was written through a heredoc carrying `\r` escape content, violating
+the repo's own standing rule (*"heredocs never carry backslash/escape content — use Write/Edit"*). The
+escapes were interpreted, injecting **11 real CR characters** into the durable review-state file and
+splitting the `CLEAN_STREAK` line mid-sentence — the same corruption class as #111, self-inflicted,
+in the file that is supposed to survive context compaction. Repaired with a `chr()`-only script (no
+escape content in the fix itself), verified to **0 lone CRs** with the escape text correctly restored.
+Not a repo defect and it changes no code, but it is recorded because the rule exists for a reason and
+I proved it the expensive way.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

@@ -269,3 +269,41 @@ def test_leg_roots_are_discovered_by_the_layout_the_launcher_actually_writes(tmp
     (tmp_path / "test").mkdir()                       # the CORE leg must not be mistaken for one
     (tmp_path / "search").mkdir()
     assert sorted(discover_leg_roots(tmp_path)) == ["qwen3.5-9b"]
+
+
+def test_empirical_cvar_rejects_an_out_of_range_alpha_like_the_canonical_does() -> None:
+    """#114 (2026-07-27): `empirical_cvar` validated its returns but never its `alpha`.
+
+    `bootstrap.cvar` raises on `alpha` outside `(0, 1]`. This one did not, so `alpha=0` fell through
+    `k = max(1, ceil(0 * T)) == 1` and returned the SINGLE WORST return, and `alpha > 1` returned the
+    mean of the whole series — a wrong CVaR presented as a right one, in the module whose entire
+    contract is that a missing or malformed input fails LOUD rather than propagating quietly into a
+    registered cross-model bound. Not reachable from `cross_model_synthesis` (it does not expose
+    `alpha`), but `per_seed_series` and `leg_results_for_synthesis` both take it publicly.
+
+    Also pins the equivalence that justifies keeping two implementations at all: for a VALID alpha
+    this must agree with the canonical to floating-point noise, the only deliberate divergence being
+    the all-non-finite input, which raises here and returns NaN there.
+    """
+    import numpy as _np
+    import pytest as _pytest
+
+    from src.inference.bootstrap import cvar as _canonical
+    from src.inference.leg_aggregate import empirical_cvar as _emp
+
+    series = _np.asarray([-0.09, -0.04, -0.01, 0.0, 0.02, 0.05, 0.11], dtype=float)
+
+    for bad in (0.0, -0.05, 1.5, 2.0):
+        with _pytest.raises(ValueError, match="alpha must lie"):
+            _emp(series, bad)
+
+    for good in (0.01, 0.05, 0.25, 1.0):
+        assert _emp(series, good) == _pytest.approx(_canonical(series, good), abs=1e-15), (
+            "empirical_cvar diverged from the canonical bootstrap.cvar on a valid alpha — the "
+            "cross-model synthesis would be computing a DIFFERENT CVaR from the headline"
+        )
+
+    # The one deliberate divergence, pinned so it is never 'tidied' into silence.
+    assert _np.isnan(_canonical(_np.asarray([]), 0.05))
+    with _pytest.raises(ValueError, match="no finite returns"):
+        _emp(_np.asarray([_np.nan, _np.inf]), 0.05)
