@@ -15,7 +15,15 @@ see the SAME block (best-of-previous feedback), so parsed blocks are DEDUPLICATE
 the observation unit is one distinct fed block ≈ one generation. Two channels are reported:
 
 * ``fed_rendered`` — the values exactly as the LLM saw them, parsed back out of the rendered text (the
-  header scalar at 2 dp, the tail lines at 3 dp). This is the REGISTERED channel and the only one in
+  header scalar at 6 dp, the tail lines at 4 dp — ⚠ these were 2 dp / 3 dp until 2026-07-27; the
+  precisions are NOT cosmetic here because "render-precision quantization is part of the estimand"
+  below, so raising them MOVED this channel's quantization floor. #87 measured the old header at
+  `.2f` rendering 328 of 591 archived headers as literally "0.00" — i.e. the `scalar_degenerate`
+  branch below was the LIVE case, not a defensive one — and #98 raised `_fmt` to `.4f` so the legible
+  and raw arms carry equal resolution. Parsing is precision-AGNOSTIC by construction (both regexes
+  accept any decimal count, and the ``fed_underlying`` match re-renders through the live
+  ``schema._fmt``), so only this description needed correcting; no behaviour changed). This is the
+  REGISTERED channel and the only one in
   which the ``placebo_shuffled`` calibration floor is meaningful (its rendered vector's label↔value
   linkage is destroyed by the candidate-seeded derangement; its ARCHIVED metrics keep the true linkage).
   Render-precision quantization is part of the estimand here (the same legibility phenomenon SQ3 probes):

@@ -1011,6 +1011,48 @@ right place to look — it is where #100 lived — and it came back essentially 
 result. Four of the last seven findings have now been "correct but unguarded/stale"; the lens is
 converging and future loops should weight PASS A depth over further invariant sweeps.
 
+### PASS A — `attribution.py`: the `alpha_hurdle_t` dead-rule disclosure CLEARED
+
+`config/preregistration.yaml:96` self-discloses that `alpha_hurdle_t: 3.0` (the Harvey–Liu–Zhu hurdle)
+is **REGISTERED BUT NOT WIRED**, with the conditional "either wire it before any ABSOLUTE-alpha claim
+is made, or withdraw it by amendment". Loop 128 checked both halves:
+
+- **Still accurate.** A repo-wide search finds NO consumer of `alpha_hurdle_t` in `src/`, `scripts/`
+  or `tests/` — the disclosure holds a day after its 2026-07-26 verification.
+- **No ABSOLUTE-alpha claim is made anywhere**, so the dead rule is currently harmless exactly as its
+  own conditional says. `factor_alpha` has exactly ONE consumer (`:394`, inside `_alpha`), which feeds
+  `difference_in_alpha`; `attribution_markdown` reports the **difference** ("distributional minus the
+  comparator", column "alpha diff (ann)") in its own declared BH family disjoint from the frozen m=6;
+  and **`alpha_t` is never rendered into any report** — it exists only in the returned dict. The
+  registered scope is `absolute_alpha_claims_only`, and a paired between-arm difference on shared
+  seeds is not an absolute-alpha claim, so the hurdle correctly does not bind.
+
+### ★ #107 — my own #87/#98 renderer changes left a stale precision where precision IS the estimand
+
+`src/inference/information_gap.py`'s module docstring described the REGISTERED `fed_rendered` channel
+as parsing "the header scalar at **2 dp**, the tail lines at **3 dp**". #87 raised the header to `.6f`
+and #98 raised `_fmt` to `.4f` — and I did not sweep the consumers' documentation. This is the inverse
+of #99's lesson: there, a ratified fact had not been followed into CODE; here, a CODE change was not
+followed into the docs of the module that consumes it.
+
+It matters more than a typo because that same docstring states **"render-precision quantization is part
+of the estimand here"**. The `fed_rendered` channel deliberately measures what the LLM SAW, quantization
+included — so raising the precisions MOVED this channel's quantization floor, and the file defining the
+estimand described the wrong one.
+
+**Behaviour verified UNAFFECTED, end-to-end.** Both regexes are precision-agnostic by construction
+(`([+-]?\d+(?:\.\d+)?)` accepts any decimal count) and the `fed_underlying` match re-renders through the
+**live `schema._fmt`** (`:187`), so it tracks whatever precision is current. Confirmed by execution: the
+header round-trips as `0.000914` (the exact median archived fitness from #87) and all six tail
+components parse exactly at `.4f`. **33 tests green, ruff clean.**
+
+**A load-bearing claim of mine also verified rather than left as an assertion.** #87's writeup argued
+the campaign "would have FLAGGED the degeneracy rather than fabricating a redundancy number". The
+module's own documentation states exactly that: a fed scalar that quantizes to a constant is flagged
+`scalar_degenerate` and the vector is then "fully non-redundant BY CONSTRUCTION (redundancy 0; a
+constant explains nothing)". And #87's measurement — 328 of 591 archived headers rendering literally
+"0.00" — means that branch was the **LIVE** case, not a defensive one. The claim holds.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
