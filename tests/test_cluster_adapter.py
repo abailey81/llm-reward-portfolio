@@ -309,3 +309,47 @@ def test_run_one_routes_the_test_leg_to_the_sealed_worker_with_node_env_fp(monke
     assert ro.main(["--spec", str(tmp_path / "t" / "task_1.json")]) == 0
     assert len(written) == 1 and written[0]["run_id"] == "distributional-s0"
     assert written[0]["env_fingerprint"] == "NODE-fp"  # driver label overridden by the node capture
+
+
+# --- -tc is LANE-AWARE: a GPU pool width must never govern a CPU array (2026-07-27) -----------
+
+def _tc_of(js: str) -> int:
+    line = next(ln for ln in js.splitlines() if " -t " in ln and "-tc " in ln)
+    return int(line.split("-tc ")[1].split()[0])
+
+
+def test_cuda_lane_keeps_the_pool_width_throttle_UNCHANGED():
+    """Regression guard: 38 IS the right number on cuda -- it is the EF/V100 pool width, a real
+    physical limit. The lane-aware default must not disturb the GPU path at all."""
+    from src.cluster.jobscript import render_jobscript
+
+    js = render_jobscript("b", 40_000, "/h/llmrp", "/gold", pool="EF", device="cuda")
+    assert _tc_of(js) == 38
+
+
+def test_cpu_lane_does_NOT_self_throttle_to_a_gpu_count():
+    """38 is a GPU COUNT. On the CPU lane the d pool alone is 10,584 cores and ~5,800 sat free at
+    the 2026-07-27 probe, so a 38-wide throttle would cap the campaign at ~0.7% of the machine.
+
+    Inert under the documented launch config (``--chunk-tasks 1`` renders one-task arrays, where a
+    throttle of 38 on ``-t 1-1`` does nothing) -- but ``--chunk-tasks`` DEFAULTS TO None, and that
+    legacy path submits the whole round as ONE array, where 38 would silently become the campaign's
+    concurrency ceiling. The real governors are max_u_jobs and killswitch.plan_footprint, both of
+    which are designed for the job and reserve capacity for other users; this one was not.
+    """
+    from src.cluster.jobscript import render_jobscript
+
+    js = render_jobscript("b", 40_000, "/h/llmrp", "/gold", pool="d", device="cpu",
+                          pack=1, cores=1)
+    assert _tc_of(js) == 40_000, "the CPU lane must not impose a throttle of its own"
+
+
+def test_an_EXPLICIT_tc_still_wins_on_both_lanes():
+    """The lane-aware value is a DEFAULT, not a policy -- an operator who asks for a throttle
+    (e.g. to stand down under contention) must still get exactly the one they asked for."""
+    from src.cluster.jobscript import render_jobscript
+
+    for device, pool in (("cuda", "EF"), ("cpu", "d")):
+        js = render_jobscript("b", 40_000, "/h/llmrp", "/gold", pool=pool, device=device,
+                              pack=1, cores=1, tc=12)
+        assert _tc_of(js) == 12

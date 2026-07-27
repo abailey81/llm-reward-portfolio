@@ -99,7 +99,7 @@ def render_jobscript(
     gold_dir: str,
     *,
     pool: str = "EF",
-    tc: int = 38,
+    tc: int | None = None,
     priority: int = 0,
     hold_jid: str | None = None,
     pack: int = 1,
@@ -149,6 +149,32 @@ def render_jobscript(
     device = str(device).lower()
     if device not in ("cuda", "cpu"):
         raise ValueError(f"device must be 'cuda' or 'cpu', got {device!r}")
+    # ``-tc`` IS LANE-AWARE (deep review, 2026-07-27). The historical default was a literal 38 —
+    # "the full pool width" of EF/V100, i.e. a GPU-COUNT. On the CPU lane that number governs
+    # nothing real: the d pool alone is 10,584 cores and ~5,800 sat free at the 2026-07-27 probe,
+    # so a 38-wide throttle would be a self-imposed cap of ~0.7 % of the machine. It is INERT under
+    # the documented launch config (``--chunk-tasks 1`` renders one-task arrays, where a throttle
+    # of 38 on ``-t 1-1`` does nothing) — but ``--chunk-tasks`` DEFAULTS TO None, and that legacy
+    # path submits the whole round as ONE array, where 38 silently becomes the concurrency ceiling
+    # for the entire campaign. A latent footgun, and exactly the class of artifact-read-as-law that
+    # produced the "96-core ceiling" (a 12-job probe) and cost us weeks of wrong planning.
+    # So: cuda keeps the pool width; cpu imposes NO throttle of its own, because a renderer has no
+    # business inventing a capacity policy out of a GPU count.
+    #
+    # ⚠ BE PRECISE ABOUT WHAT THEN GOVERNS — an earlier draft of this comment claimed
+    # ``killswitch.plan_footprint`` as a governor, which is FALSE and is the R85 failure mode
+    # ("a pin nobody can verify is FICTIONAL"). ``plan_footprint`` is ADVISORY ONLY: its sole
+    # caller is ``allocation.advise_cpu_lane`` (the GO-day advisor a human reads), and NOTHING in
+    # the submission path consults it. What actually governs is ``max_u_jobs`` (1000 array jobs)
+    # and SGE fair-share, which arbitrates our entitlement against every other user before it
+    # dispatches anything — so removing this throttle cannot starve the cluster, it can only stop
+    # us from starving OURSELVES. What is genuinely NOT enforced is the stated 1000-core courtesy
+    # RESERVE; that policy lives only in the advisor's printout. Tracked in
+    # docs/EVIDENCE_AND_FRAGILITY_LEDGER.md; the enforcement point is the SUBMIT layer (which can
+    # query live capacity), never this function, which stays a pure deterministic renderer.
+    # An explicit ``tc`` always wins, and is how an operator enforces a stand-down.
+    if tc is None:
+        tc = 38 if device == "cuda" else max(1, int(n_tasks))
     if priority > 0:
         raise ValueError("SGE -p only accepts <= 0 for users (self-deprioritization)")
     # PATH CONTRACT (2026-07-11 rehearsal incident — see the module docstring). Fail LOUD here,
