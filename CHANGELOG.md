@@ -130,6 +130,56 @@ already correct (fail fast, NO record written, resume re-runs because no result 
 is a wasted slot, never a corrupted result. Now a known quantity instead of scattered mystery
 failures diagnosed mid-campaign against 42,000 jobs.
 
+### ★★★ THE FIRST FULL TRAINING EVER COMPLETED ON THE MYRIAD CPU LANE — AND IT REFUTES R107's 2.72x
+
+**IT WORKS.** `p6scal-b60000-s1` and `p6dist-b60000-s1` completed: 60,000 steps on the REAL `univ5`
+gold panel, `train_safe_call_count: 60000` with **`train_safe_default_count: 0`** (the authored
+reward evaluated 60,000 times, zero fallbacks), real `val_fitness`, real `tail_stats`, PopArt scale
+recorded. The CPU lane produces valid science. **This had never been tested** — the 148
+capacity-probe jobs ran a SYNTHETIC panel for 2,500 steps with no archiving.
+
+**THE MEASUREMENT (n=2, tight):**
+
+| cell | wall | rate @ 8 threads |
+| --- | --- | --- |
+| `p6dist-b60000-s1` | 3,729 s = 62.2 min | **16.1 steps/s** |
+| `p6scal-b60000-s1` | 3,624 s = 60.4 min | **16.6 steps/s** |
+
+**~16.4 steps/s at 8 threads = 2.05 steps/s PER CORE**, against the registered **13.0 steps/s/core
+at 1 thread**. So the thread speed-up is ~**1.26x, not R107's 2.72x** — and `qstat` confirmed a
+sustained **8.0x CPU parallelism** throughout, so the threads were genuinely engaged; this is not a
+mis-set thread count. R107's bench ran on the `b` pool with a SYNTHETIC profile at 02:30–04:30 UTC;
+this is `d`, the real panel, shared nodes at 13–27/36 load, Monday evening.
+
+**WHAT IT BREAKS:** the chain becomes ~7.0 d not 3.3 d; the 4,584-core crossover is far too high;
+and "the GPU dependency disappears entirely" no longer follows from its own evidence.
+**WHAT IT DOES NOT BREAK:** the campaign's constant (13.0 steps/s/core at 1 thread -> 8.55 h per
+400k training -> 23.6 d) is untouched — the 8-thread config is confined to the SEARCH/chain leg.
+**WHAT IT SETTLES:** threads are ~**6.3x less core-efficient than packing** (8 cores as 8 one-thread
+trainings ≈ 104 steps/s aggregate vs 16.4 for one 8-thread training). The max-throughput shape is
+now MEASURED: **1 thread per training, packed 8 per job.** Ledger row carries the decision options;
+the 1-thread control arm (6 jobs) pins the denominator.
+
+### TWO DEFECTS FOUND AND FIXED WHILE RUNNING IT
+
+**1. A cluster training was a BLACK BOX.** `verbose: 0` and nothing else writes to stdout, so a
+job's log stayed 0 bytes from dispatch to completion — live, that made "slow" and "stuck"
+indistinguishable for an hour on the first CPU run, with 8.5 h trainings and 42,128 of them ahead.
+Added a progress heartbeat emitted from the EXISTING read-only curve recorder at its EXISTING
+cadence (no new callback, no new hook frequency, nothing new in the determinism envelope; the
+branch draws no randomness and touches neither model nor env). `flush=True` is load-bearing —
+stdout is block-buffered into the log file, the same trap that hung the 2026-07-02 ladder launch.
+**Verified: the golden reproduction ran RC=0 with 332 heartbeat lines**, i.e. determinism intact
+after touching the training path.
+
+**2. The SEARCH leg archived a BLANK env-fingerprint label.** Caught by reading the first record:
+`env_fingerprint: {'env_json_sha256': '…', 'label': ''}` for a training that definitely ran on CPU.
+`_archive_result` stamps the resolved device only in its `leg == "test"` branch; the search branch
+calls `_archive` -> `_run_env_fp`, which reads `opts["env_fp"]` — a key search specs do not carry.
+The S6 homogeneity audit compares LABELS, so an unlabelled record is one it cannot check at all.
+Harmless while search was GPU-only; the CPU lane makes a real cross-substrate mix possible in
+exactly the leg that decides WHICH candidate wins. Both legs now stamp the same way.
+
 ### ★ THE 636-CORE FIGURE IS A CEILING, NOT A SUSTAINED RATE (Tamer's question, answered with data)
 
 Tamer asked why we were queueing now when the 2026-07-26 probe got cores immediately and ramped to

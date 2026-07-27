@@ -55,6 +55,7 @@ unset would run a DIFFERENT warmup than the gate proved).
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Callable
 
 import numpy as np
@@ -206,6 +207,7 @@ def _make_curve_recorder(record_every: int) -> Any:
         def __init__(self) -> None:
             super().__init__()
             self.record_every = max(1, int(record_every))
+            self._t0 = time.monotonic()   # heartbeat only; never read by training
             self.curve: dict[str, list[float]] = {
                 "step": [], "critic_loss": [], "actor_loss": [], "ent_coef": [], "return": [],
             }
@@ -228,6 +230,21 @@ def _make_curve_recorder(record_every: int) -> Any:
                 self.curve["return"].append(
                     float(np.mean([e.get("r", float("nan")) for e in ep])) if ep else float("nan")
                 )
+                # ── PROGRESS HEARTBEAT (2026-07-27) ────────────────────────────────────────────
+                # A cluster training was a BLACK BOX: `verbose: 0` and nothing else writes to
+                # stdout, so a job's log stayed 0 bytes from dispatch until it finished. Live on
+                # 2026-07-27 that made "slow" and "stuck" indistinguishable for an hour on the very
+                # first CPU-lane run — and the campaign's trainings are ~8.5 h each, 42,128 of them.
+                # Emitted from the EXISTING read-only recorder at its EXISTING cadence, so no new
+                # callback, no new hook frequency, and nothing new in the determinism envelope:
+                # this branch draws no randomness and touches neither model nor env.
+                # ``flush=True`` is load-bearing — stdout is block-buffered when redirected to the
+                # jobscript's log file, so an unflushed print would be invisible for hours, which
+                # is the same block-buffering trap that hung the 2026-07-02 ladder launch.
+                el = time.monotonic() - self._t0
+                print(f"[train] step {int(self.num_timesteps)}/{int(self.locals.get('total_timesteps') or 0)} "
+                      f"elapsed {el:.0f}s rate {(self.num_timesteps / el if el > 0 else 0):.1f} steps/s",
+                      flush=True)
             return True
 
     return _TrainCurveRecorder()

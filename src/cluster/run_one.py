@@ -155,6 +155,18 @@ def _archive_result(result: dict[str, Any], spec: dict[str, Any]) -> None:
         # ``_drive_llm_arm`` does (which sets ``r["prompt"]`` before archiving).
         if spec.get("prompt") and not result.get("prompt"):
             result = {**result, "prompt": spec["prompt"]}
+        # DEVICE STAMP FOR THE SEARCH LEG TOO (2026-07-27). The test branch above stamps the
+        # RESOLVED device into the env-fingerprint label; this branch never did. `_archive` passes
+        # the spec to `_run_env_fp`, which reads `opts["env_fp"]` — a key search specs do not carry
+        # — so EVERY search record archived a BLANK label. Observed live on the first CPU-lane run:
+        # `env_fingerprint: {'env_json_sha256': '…', 'label': ''}` for a training that definitely
+        # ran on CPU. The asymmetry mattered less while search was GPU-only, but the CPU lane makes
+        # a genuine cross-substrate mix possible in the very leg that decides WHICH candidate wins,
+        # and an unlabelled record cannot be audited for it at all. Same one-line convention as the
+        # test leg so the C3 label census sees one vocabulary across both legs.
+        _dev = _resolved_device(spec)
+        _lbl = str(spec.get("env_fp") or "")
+        spec = {**spec, "env_fp": (f"{_lbl}|dev={_dev}" if _lbl else f"dev={_dev}")}
         _archive(result, spec["arm"], spec, spec["archive_root"], int(spec.get("generation", 0)))
 
 

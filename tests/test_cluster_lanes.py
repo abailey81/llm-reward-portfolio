@@ -338,3 +338,31 @@ def test_a_task_with_MIXED_devices_fails_LOUD():
 
     with pytest.raises(ValueError, match="MIXED devices"):
         _task_device([{"device": "cpu"}, {"device": "cuda"}])
+
+
+def test_BOTH_legs_stamp_the_device_into_the_env_fingerprint_label():
+    """The S6 homogeneity audit compares env-fingerprint LABELS, so an unlabelled record is one it
+    cannot check. The test leg stamped the resolved device; the SEARCH leg did not, because
+    `_archive` -> `_run_env_fp` reads `opts["env_fp"]` and search specs carry no such key. Observed
+    live on the first CPU-lane run: a training that definitely ran on CPU archived
+    `label: ''`. Both legs must now speak one vocabulary."""
+    from src.cluster import run_one
+
+    captured = {}
+
+    def _fake_archive(result, arm, opts, archive_root, generation=0):
+        captured["env_fp"] = opts.get("env_fp")
+
+    import src.orchestration.parallel as _par
+    orig = _par._archive
+    _par._archive = _fake_archive
+    try:
+        run_one._archive_result(
+            {"ok": True, "candidate_id": "c0"},
+            {"leg": "search", "arm": "a", "archive_root": "/tmp/x", "device": "cpu",
+             "seed": 0, "generation": 0},
+        )
+    finally:
+        _par._archive = orig
+
+    assert captured["env_fp"] == "dev=cpu", f"search leg archived {captured['env_fp']!r}"
