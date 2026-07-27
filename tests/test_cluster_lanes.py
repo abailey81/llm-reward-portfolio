@@ -366,3 +366,26 @@ def test_BOTH_legs_stamp_the_device_into_the_env_fingerprint_label():
         _par._archive = orig
 
     assert captured["env_fp"] == "dev=cpu", f"search leg archived {captured['env_fp']!r}"
+
+
+def test_ladder_walltime_is_LANE_AWARE_or_every_cpu_rung_is_SIGKILLED():
+    """`PLANNING_STEPS_PER_SEC = 25` is a GPU-era floor. At the registered 13.0 steps/s/core a 400k
+    CPU training needs 8.5 h but would have been granted 7 h, and 1.6M needs 34.2 h against 24 h --
+    EVERY budget except 100k would have died at the walltime having produced nothing. Caught before
+    submitting the ladder; the gate probe survived only because it happened to run 60k."""
+    import importlib.util as u
+    import sys
+    from pathlib import Path as _P
+
+    root = _P(__file__).resolve().parents[1]
+    sys.argv = ["x"]
+    spec = u.spec_from_file_location("p6", root / "scripts" / "p6_authored_ladder.py")
+    m = u.module_from_spec(spec)
+    spec.loader.exec_module(m)
+
+    for budget in (200_000, 400_000, 800_000, 1_600_000):
+        cpu_h = int(m._auto_h_rt([budget], "cpu").split(":")[0])
+        real_h = budget / 13.0 / 3600.0        # lanes.CPU_STEPS_PER_S_PER_CORE
+        assert cpu_h > real_h, f"{budget}: h_rt {cpu_h}h <= real {real_h:.1f}h -> job would be killed"
+    # the GPU lane must be untouched
+    assert m._auto_h_rt([400_000], "cuda") == "7:0:0"

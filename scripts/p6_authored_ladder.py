@@ -96,15 +96,32 @@ PLANNING_STEPS_PER_SEC = 25.0  # planning FLOOR, revised DOWN 2026-07-13: job 77
 # cost of generosity is backfill placement, and these report-only rungs prefer certainty.
 
 
-def _auto_h_rt(budgets: list[int]) -> str:
-    """Walltime = slowest rung at the WORST measured rate + overhead, x1.3, floored at 3 h."""
-    hours = max(3.0, (max(budgets) / PLANNING_STEPS_PER_SEC + 900) / 3600.0 * 1.3)
+#: CPU planning FLOOR (2026-07-27). ``PLANNING_STEPS_PER_SEC = 25`` above is a GPU-era number and
+#: UNDER-SIZES every CPU rung: at the registered 13.0 steps/s/core a 400k training needs 8.5 h but
+#: would be granted 7 h, and 1.6M needs 34.2 h against 24 h — i.e. EVERY budget except 100k would be
+#: SIGKILLed at the walltime, having produced nothing. Caught before submitting the ladder, and it
+#: is also why the gate probe survived only because it happened to run 60k. 10.0 prices the measured
+#: 13.0 with ~30 % co-tenancy margin, and is conservative for the 8-thread regime too (measured 15.4
+#: steps/s on 2026-07-27). h_rt is a LIMIT, not a reservation: the only cost of generosity is
+#: slightly worse backfill placement, whereas the cost of under-sizing is the whole job.
+CPU_PLANNING_STEPS_PER_SEC = 10.0
+
+
+def _auto_h_rt(budgets: list[int], device: str = "cuda") -> str:
+    """Walltime = slowest rung at the WORST planning rate + overhead, x1.3, floored at 3 h.
+
+    LANE-AWARE (2026-07-27): a CPU rung is ~7.8x slower per training than the GPU anchor this
+    function was written against, so the rate must follow the substrate or the job is killed.
+    """
+    rate = CPU_PLANNING_STEPS_PER_SEC if device == "cpu" else PLANNING_STEPS_PER_SEC
+    hours = max(3.0, (max(budgets) / rate + 900) / 3600.0 * 1.3)
     return f"{int(hours) + (1 if hours % 1 else 0)}:0:0"
 
 
 def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, cores: int,
                 budgets: list[int], batch: str, device: str = "cuda",
-                threads: int = 1, seeds: list[int] | None = None) -> Path:
+                threads: int = 1, seeds: list[int] | None = None,
+                h_rt: str | None = None) -> Path:
     """Write task_N.json + the jobscript into the local batch dir; return it."""
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
@@ -117,21 +134,23 @@ def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, c
     batch_dir = Path(local_out) / "batches" / batch
     n = write_specs(specs, batch_dir)  # strict-JSON guard runs here
     js = render_jobscript(batch, n, remote_root, gold_dir, pool=pool, pack=1, device=device,
-                          cores=cores, h_rt=_auto_h_rt(budgets), apptainer_sif="$HOME/python311.sif")
+                          cores=cores, h_rt=(h_rt or _auto_h_rt(budgets, device)),
+                          apptainer_sif="$HOME/python311.sif")
     write_jobscript(js, batch_dir / f"{batch}.sh")
-    print(f"[p6] built {n} specs + jobscript at {batch_dir} (h_rt {_auto_h_rt(budgets)})")
+    print(f"[p6] built {n} specs + jobscript at {batch_dir} "
+          f"(h_rt {h_rt or _auto_h_rt(budgets, device)}, device {device}, {cores} cores)")
     return batch_dir
 
 
 def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str, cores: int,
            budgets: list[int], batch: str, device: str = "cuda", threads: int = 1,
-           seeds: list[int] | None = None) -> str:
+           seeds: list[int] | None = None, h_rt: str | None = None) -> str:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
     batch_dir = build_batch(remote_root, gold_dir, local_out, pool=pool, cores=cores,
                             budgets=budgets, batch=batch, device=device, threads=threads,
-                            seeds=seeds)
+                            seeds=seeds, h_rt=h_rt)
     prepare_remote(remote_root, [batch], runner)
     push_batch(batch_dir, f"{remote_root.rstrip('/')}/specs", host=host)
     job = qsub(f"{remote_root.rstrip('/')}/specs/{batch}/{batch}.sh", runner)
@@ -142,7 +161,8 @@ def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: 
 def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str,
                    cores: int, budgets: list[int], batch: str,
                    exclude: set[str], skip_done: bool, device: str = "cuda",
-                   threads: int = 1, seeds: list[int] | None = None) -> list[str]:
+                   threads: int = 1, seeds: list[int] | None = None,
+                   h_rt_override: str | None = None) -> list[str]:
     """Submit each (winner, budget, seed) spec as its OWN 1-task array (2026-07-13 recovery).
 
     WHY: the scheduler's serialization policy holds an array's tail tasks (``snx=1``) and has
@@ -179,7 +199,8 @@ def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str
         names.append(name)
         batch_dir = Path(local_out) / "batches" / name
         write_specs([spec], batch_dir)
-        h_rt = _auto_h_rt([int(spec.get("train_steps") or max(budgets))])
+        h_rt = h_rt_override or _auto_h_rt(
+            [int(spec.get("train_steps") or max(budgets))], device)
         js = render_jobscript(name, 1, remote_root, gold_dir, pool=pool, pack=1, device=device,
                               cores=cores, h_rt=h_rt, apptainer_sif="$HOME/python311.sif")
         write_jobscript(js, batch_dir / f"{name}.sh")
@@ -234,6 +255,10 @@ def main() -> int:
                         "fires the jobscript CUDA_VISIBLE_DEVICES guard, and STAMPS every spec so "
                         "the archive records what actually ran (this script builds its own specs "
                         "and so bypasses the campaign's device injection).")
+    p.add_argument("--h-rt", default=None, metavar="H:M:S",
+                   help="Override the auto walltime. AUTO is lane-aware (CPU floor 10 steps/s, "
+                        "GPU 25) -- the GPU-era 25 UNDER-SIZED every CPU rung and would have "
+                        "SIGKILLed 200k/400k/800k/1.6M. Use this only to tighten for backfill.")
     p.add_argument("--seeds", default=None, metavar="S",
                    help="Comma-separated CRN seeds (default 0,1,2 = the R77 rule's n). Widening "
                         "costs NO wall-clock (every cell is an independent core) and tightens the "
@@ -273,7 +298,7 @@ def main() -> int:
     if args.build_only:
         build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
                     cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
-                    device=args.device, threads=args.threads, seeds=_seeds)
+                    device=args.device, threads=args.threads, seeds=_seeds, h_rt=args.h_rt)
         return 0
     if args.submit and args.singles:
         submit_singles(remote_root, args.gold_dir, args.output_dir, host=args.host,
@@ -281,12 +306,12 @@ def main() -> int:
                        batch=args.batch_name,
                        exclude={x.strip() for x in args.exclude.split(",") if x.strip()},
                        skip_done=bool(args.skip_done), device=args.device,
-                       threads=args.threads, seeds=_seeds)
+                       threads=args.threads, seeds=_seeds, h_rt_override=args.h_rt)
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
                pool=args.pool, cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
-               device=args.device, threads=args.threads, seeds=_seeds)
+               device=args.device, threads=args.threads, seeds=_seeds, h_rt=args.h_rt)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)
