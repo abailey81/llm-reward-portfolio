@@ -1053,6 +1053,83 @@ module's own documentation states exactly that: a fed scalar that quantizes to a
 constant explains nothing)". And #87's measurement — 328 of 591 archived headers rendering literally
 "0.00" — means that branch was the **LIVE** case, not a defensive one. The claim holds.
 
+### ★★ #108 — the MCS accepted an `rng`, ignored it, and bootstrapped at a hardcoded seed
+
+Loop 129 opened by applying the #107 lens (*sweep the consumers of anything you change*) as a
+repo-wide AST sweep for the inverse failure: a **randomness knob a function accepts and never uses**.
+Two hits in our own code, both report-only blocks in `analyze_campaign.py`, and they are NOT the same
+severity — which is the point worth recording.
+
+`model_confidence_set_report` took `rng: np.random.Generator | None`, defaulted it, and then ran
+`arch`'s **1,000-replicate MCS bootstrap at a hardcoded `seed=0`** regardless. MEASURED on a 9-arm
+12-seed fixture: `rng=default_rng(0)` and `rng=default_rng(999_999)` returned **bit-identical**
+reports. The failure mode is not a wrong number — the campaign number was always the registered
+`seed=0` pin — it is that a **bootstrap-sensitivity re-run silently reports zero bootstrap noise**.
+There IS noise: threading the seed properly, the elimination p-values move by ~0.005-0.016 between
+seeds (`distributional` 0.002 → 0.007; the tie group 0.821 → 0.805). This is the same class CLAUDE.md
+already names from R85 — *a pin nobody can verify is FICTIONAL* — inverted: a knob silently ignored.
+
+**Fixed** by replacing the lying `rng` with a real `seed: int = 0`, threaded to the estimator. `0` IS
+the R69-registered pin, so the campaign output is **unchanged** — verified: the default is
+byte-identical to explicit `seed=0`, while `seed=12345` now genuinely moves the report.
+
+The second hit, `bayesian_null_report_block`, is **benign and was left functionally alone**:
+`src.inference.bayes_null` is analytic end to end (closed-form JZS Bayes factor; the HDI runs on
+supplied draws; there is no sampler), so there is no randomness to steer. It now says so, following
+the honest precedent already set by `src.selection.fitness.held_out_fitness` — which likewise ignores
+its `rng` but *documents* it ("Accepted for interface symmetry… is not used"). That contrast is the
+lesson: an ignored knob is only a defect when the thing behind it is actually stochastic.
+
+**Verified:** `test_analyze_campaign` + `test_model_confidence_set` + `test_analyze_mechanism_wiring`
+→ **129 passed, `PYTEST_RC=0`**; ruff clean. New test
+`test_the_MCS_bootstrap_seed_is_a_REAL_knob_and_its_default_IS_the_registered_pin` asserts both halves
+— a SPY that the caller's seed reaches the estimator (structural, survives an `arch` that made the
+noise vanish) and that a different seed actually moves the output (behavioural).
+
+### #109 — the #107 lens paid out again: a stale premise under a live calibration constant
+
+`run_subexperiment._reference_tail_block` justified its fallback jitter scale with "the RAW rendering
+prints **3 decimals**, so a narrow jitter can QUANTIZE two seeds' cvar values to the same string".
+#98 moved `schema._fmt` to `.4f`. **The constant is still correct and is now MORE conservative** —
+over its clamp the `cvar_05` fallback spans ~0.041, which is ~410 quantization steps at 1e-4 versus
+~41 at the old 1e-3 — so the fix is to the reasoning, not the value. Corrected in place.
+
+**Two things VERIFIED rather than assumed while there.** (1) The pre-spend **PROOF-OF-FEED guard**
+(`if "CVaR 5%" not in prompts["initial"]: raise`) still fires correctly under BOTH renderings — the
+legible renderer keeps the label and changes only the value, confirmed by rendering both blocks.
+(2) `_condition_seed_cells` takes `rows[0][0]` on the documented assertion that x is cell-constant;
+that invariant is **enforced upstream**, not merely assumed — the runner computes `ref_block` once per
+`(condition, seed)` and injects it into the whole K-candidate slate. No guard needed.
+
+### ★★ #110 — the fed renderer, measured against the REGISTERED signal scale (evidence for Tamer)
+
+Rendering both conditions surfaced something larger than a comment fix. #98's argument for `.4f` was
+**relative** (the legible arm must not out-resolve the raw arm). The **absolute** question — can this
+renderer carry the difference it exists to convey? — has a registered, measured answer that had never
+been put against it. Amendment **R76** (2026-07-11, pre-freeze/pre-data) measured the paired
+candidate-to-candidate diff-SE of a fed CVaR-5% at **1e-4 (sibling-close books) to 8e-4 (structurally
+different books)**. Rendering pairs separated by exactly those deltas (200k draws, grid phase uniform
+as across real candidates), the fraction reaching the designer as the **SAME STRING**:
+
+| paired delta (R76) | `.3f` (the old renderer) | `.4f` (live) |
+|---|---|---|
+| 1e-4 — sibling-close | **90.1 % identical** | 0.0 % |
+| 3e-4 — typical | **70.1 % identical** | 0.0 % |
+| 8e-4 — distant books | **20.2 % identical** | 0.0 % |
+
+The old quantization step (1e-3) was **larger than the entire registered paired-difference range**.
+And this is a claim about the SCIENCE, not the fidelity: R76 registers an **A2 (numeric illegibility)
+vs A5 (rational insensitivity)** adjudication, and A5's premise is that the designer SEES a small
+delta and defensibly discounts it as estimation noise. At `.3f` the modal sibling-close comparison had
+**no delta on the page at all** — a third state the registered ladder does not name, under which an
+SQ1-null is uninterpretable between A2, A5 and "nothing was shown". Recorded at the point of decision
+(`schema.py::_fmt`) and at Tamer's decision point (`LANE_COORDINATION_2026-07-27.md`), so the pending
+accept-or-revert is evidence-based. `.5f` stays rejected — 1e-5 is ~30x below the tightest paired
+diff-SE, i.e. false precision.
+
+**Verified:** `test_schema` + `test_responsiveness` + `test_subexperiment` + `test_analyze_campaign` +
+`test_llm_deep` → **172 passed, `PYTEST_RC=0`**; ruff clean on all three edited modules.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

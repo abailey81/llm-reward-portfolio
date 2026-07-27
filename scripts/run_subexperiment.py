@@ -398,9 +398,17 @@ def _reference_tail_block(collab: dict, seed: int, *, legible: bool) -> str:
         # deterministically JITTERED per seed: cross-seed variation in the fed content is what the
         # SQ3b responsiveness statistic correlates against, so a seed-constant fallback would make
         # the instrument degenerate by construction even on a degraded run.
-        # Jitter scale 0.25 (clamped): the RAW rendering prints 3 decimals, so a narrow jitter can
-        # QUANTIZE two seeds' cvar values to the same string (the numeracy thesis biting its own
-        # fixture) and degenerate the raw condition's x.
+        # Jitter scale 0.25 (clamped): a narrow jitter can QUANTIZE two seeds' cvar values to the
+        # same rendered string (the numeracy thesis biting its own fixture) and degenerate the raw
+        # condition's x. ⚠ This said "the RAW rendering prints 3 decimals" until 2026-07-27 (deep
+        # review #109) — #98 moved ``schema._fmt`` to ``.4f``, so the raw resolution is now 1e-4, not
+        # 1e-3. The 0.25 stands and is now MORE conservative: over the clamp the cvar_05 fallback
+        # spans ~0.041 (≈410 quantization steps at 1e-4, vs ≈41 at the old 1e-3), so the degeneracy
+        # this scale defends against is an order of magnitude further away than when it was chosen.
+        # The renderer change also gave the two conditions EXACT RESOLUTION PARITY — raw 1e-4 ≡
+        # legible 1 bps ≡ 0.01% on every one of the six fields (rendered and checked 2026-07-27) —
+        # which is what keeps this an ENCODING ablation: before #98 the legible condition resolved
+        # 10x finer than raw, so a positive differential was confounded by extra INFORMATION.
         jit = np.clip(np.random.default_rng(int(seed)).normal(1.0, 0.25, size=6), 0.5, 1.5)
         base = {"cvar_05": -0.0410, "cvar_10": -0.0296, "cvar_25": -0.0173,
                 "cvar_01": -0.0575, "left_tail_mass": 0.021, "robust_skew": -0.08}

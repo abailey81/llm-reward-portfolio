@@ -2830,8 +2830,12 @@ def bayesian_null_report_block(
     from src.inference.bayes_null import bayesian_null_report
     from src.inference.bootstrap import cvar, iqm, sharpe_ratio
 
-    if rng is None:
-        rng = np.random.default_rng(0)
+    # ``rng`` is accepted for call-shape symmetry with the sibling report blocks and is NOT used: this
+    # estimator is ANALYTIC end to end (the JZS Bayes factor is closed-form and the HDI is taken on the
+    # supplied draws — ``src.inference.bayes_null`` contains no sampler), so there is no randomness to
+    # steer. Stated explicitly, mirroring ``src.selection.fitness.held_out_fitness``; the twin case in
+    # ``model_confidence_set_report`` was NOT benign (its bootstrap is real) and was fixed in #108.
+    del rng
     margin = float(sesoi) if sesoi is not None else _frozen_equiv_margin()
     frac = float(tail_margin_fraction)
 
@@ -2907,7 +2911,7 @@ def model_confidence_set_report(
     arms: tuple[str, ...] = ARMS,
     cvar_level: float = 0.05,
     size: float = 0.10,
-    rng: np.random.Generator | None = None,
+    seed: int = 0,
 ) -> dict[str, Any]:
     """Report-only Model Confidence Set over the arms on their per-seed Sharpe + CVaR (Hansen et al. 2011).
 
@@ -2920,13 +2924,21 @@ def model_confidence_set_report(
     degrades to ``status="error"`` (via the caller's guard) rather than breaking the headline. DISJOINT block
     (no family-tuple keys). ``status="skipped"`` when < 2 arms share >= 2 common seeds.
 
+    ``seed`` pins the MCS bootstrap (R69 registers the level and the seed as PINNED; ``0`` IS that
+    registered pin, so the default reproduces the campaign number exactly). It is a REAL knob —
+    changing it re-resamples — which is the point: a bootstrap-sensitivity re-run must actually move
+    the p-values. This parameter was an ``rng: np.random.Generator`` until 2026-07-27 (deep review
+    #108) that the body accepted, defaulted and then NEVER USED: the MCS ran at a hardcoded
+    ``seed=0`` whatever the caller passed, so re-running with a different generator returned
+    BIT-IDENTICAL p-values (measured) and would have invited the false conclusion that this
+    1,000-rep bootstrap is insensitive to resampling. Contrast
+    ``src.selection.fitness.held_out_fitness``, which also ignores its ``rng`` but says so in its
+    docstring AND is genuinely deterministic — the honest form of the same shape.
+
     Returns ``{"status", "sharpe": {...mcs...}, "tail": {level, ...mcs...}}``.
     """
     from src.inference.bootstrap import cvar, sharpe_ratio
     from src.inference.model_confidence_set import model_confidence_set
-
-    if rng is None:
-        rng = np.random.default_rng(0)
 
     def _mcs(score_fn: Callable[[np.ndarray], float]) -> dict[str, Any]:
         per_arm = {arm: _seed_scores(records, arm, score_fn) for arm in arms}
@@ -2937,7 +2949,7 @@ def model_confidence_set_report(
         if len(common) < 2:
             return {"status": "skipped", "reason": "< 2 shared seeds across the arms"}
         arm_scores = {arm: np.array([per_arm[arm][s] for s in common], dtype=float) for arm in per_arm}
-        return model_confidence_set(arm_scores, size=size, seed=0)
+        return model_confidence_set(arm_scores, size=size, seed=int(seed))
 
     sharpe_mcs = _mcs(sharpe_ratio)
     tail_mcs = _mcs(lambda v: cvar(v, float(cvar_level)))
@@ -4953,7 +4965,7 @@ def analyze(
     # degrades to status="error" (this guard) when absent. Report-only, DISJOINT; never gates.
     try:
         out["model_confidence_set"] = model_confidence_set_report(
-            records, cvar_level=headline_cvar_level(cvar_levels), rng=np.random.default_rng(0)
+            records, cvar_level=headline_cvar_level(cvar_levels), seed=0
         )
     except Exception as exc:  # noqa: BLE001 - a report-only MCS (arch-optional) must never break the headline
         out["model_confidence_set"] = {"status": "error", "reason": str(exc)[:200], "executed": False}

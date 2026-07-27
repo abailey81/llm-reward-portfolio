@@ -1791,6 +1791,60 @@ def test_ARMS_matches_the_frozen_arms_yaml_roster() -> None:
     assert list(AC.ARMS) == list(registered), "ARMS order drifted from the frozen roster"
 
 
+def test_the_MCS_bootstrap_seed_is_a_REAL_knob_and_its_default_IS_the_registered_pin() -> None:
+    """#108 (2026-07-27): `model_confidence_set_report` took an `rng` it silently ignored.
+
+    The block ran `arch`'s 1,000-rep MCS bootstrap at a HARDCODED `seed=0` whatever the caller
+    passed, so a bootstrap-sensitivity re-run — `rng=default_rng(999_999)` — returned BIT-IDENTICAL
+    p-values (measured) and would have invited the false conclusion that the MCS carries no
+    resampling noise. It does: at 1,000 reps the elimination p-values move by ~0.005-0.016 between
+    seeds. The knob is now a real `seed`, and `0` (the R69-registered pin) is its default, so the
+    campaign number is unchanged.
+
+    Two assertions, because either alone is weak: the SPY pins the contract structurally (the seed
+    must reach the estimator) even if a future `arch` made the noise vanish, and the BEHAVIOURAL half
+    proves the threading actually bites rather than merely being passed somewhere harmless.
+    """
+    pytest.importorskip("arch")
+
+    gen = np.random.default_rng(7)
+    records = [
+        {"run_id": f"{arm}-{s}", "arm": arm, "seed": s, "fold": 0,
+         "metrics": {"test_returns": [float(x) for x in gen.normal(4e-4 + 4e-5 * i, 0.011, 260)]}}
+        for i, arm in enumerate(AC.ARMS)
+        for s in range(12)
+    ]
+
+    seen: list[int] = []
+    real = AC.model_confidence_set_report
+
+    import src.inference.model_confidence_set as MCS_MOD
+
+    original = MCS_MOD.model_confidence_set
+
+    def _spy(arm_scores, **kw):  # type: ignore[no-untyped-def]
+        seen.append(kw.get("seed"))
+        return original(arm_scores, **kw)
+
+    MCS_MOD.model_confidence_set = _spy  # type: ignore[assignment]
+    try:
+        default = real(records)
+        pinned = real(records, seed=0)
+        moved = real(records, seed=12345)
+    finally:
+        MCS_MOD.model_confidence_set = original  # type: ignore[assignment]
+
+    assert seen, "the report never reached src.inference.model_confidence_set"
+    assert seen[:2] == [0, 0], f"the DEFAULT seed is not the registered R69 pin of 0; saw {seen[:2]}"
+    assert 12345 in seen, f"the caller's seed never reached the estimator; seeds seen: {seen}"
+
+    assert default == pinned, "the default no longer reproduces the registered seed=0 campaign number"
+    assert moved != default, (
+        "changing the MCS bootstrap seed left the report BIT-IDENTICAL — the seed is being ignored "
+        "again, so a resampling-sensitivity check would silently report zero bootstrap noise"
+    )
+
+
 def test_H4_CONTRASTS_matches_the_registered_N4_comparator_portfolio() -> None:
     """H4 is DELIBERATELY outside the frozen-family guard, so its roster needs its own.
 

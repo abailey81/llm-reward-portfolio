@@ -105,6 +105,18 @@ same machinery, **not** the archive the runbook names. That runbook row needs up
 
 - **The treatment surface is live and uncommitted-in-spirit:** `_HEADER` `.2f`→`.6f` and `_fmt`
   `.3f`→`.4f` change what every arm is fed. Tamer must accept or revert **before** the freeze.
+  **Quantified 2026-07-27 (#110) so the decision is evidence-based, not aesthetic.** Amendment R76
+  (2026-07-11, pre-freeze/pre-data) MEASURED the paired candidate-to-candidate diff-SE of a fed
+  CVaR-5% at **1e-4 (sibling-close) to 8e-4 (distant books)**. Rendering pairs separated by exactly
+  those deltas (200k draws), the fraction reaching the designer as the SAME STRING was **90.1 % /
+  70.1 % / 20.2 %** at `.3f` (deltas 1e-4 / 3e-4 / 8e-4) versus **0.0 %** at `.4f` — the old
+  quantization step, 1e-3, was larger than the ENTIRE registered paired-difference range. This is a
+  science argument, not a fidelity one: R76 registers an **A2 (illegibility) vs A5 (rational
+  insensitivity)** adjudication whose A5 branch presumes the designer SEES a small delta and
+  defensibly discounts it. At `.3f` the modal sibling-close comparison had no delta on the page at
+  all — a third state the registered ladder does not name, under which an SQ1-null cannot be
+  attributed to A2, A5, or "nothing was shown". Reverting to `.3f` reinstates that confound;
+  keeping `.4f` costs a treatment-surface delta that is still pre-data and pre-freeze.
 - **⚠ FREEZE-ENVELOPE GAP (raising for both lanes):** `src/feedback/schema.py` renders the fed text but
   is **NOT** among the 8 hash-bound files. The freeze binds `arms.yaml` + the prompts, so a post-freeze
   edit to that renderer would change the treatment **without tripping the freeze gate** — and finding

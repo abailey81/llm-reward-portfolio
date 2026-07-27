@@ -162,6 +162,32 @@ def _fmt(value: float) -> str:
     repairs an attenuation rather than a degeneracy — the block was never flat — but it is the same
     defect class and the same equal-relative-resolution argument (matched-structure arms, audit B-5).
     ⚠ TREATMENT-SURFACE CHANGE — flagged to Tamer alongside the `_HEADER` change.
+
+    **The absolute justification, measured against the REGISTERED signal scale (#110, 2026-07-27).**
+    The argument above and in #98 is a RELATIVE one (the legible arm must not out-resolve the raw
+    arm). The absolute question is whether this renderer can carry the difference it exists to
+    convey. Amendment **R76** (2026-07-11, pre-freeze/pre-data) measured that quantity on the univ5
+    train window: the marginal sampling SE of a fed CVaR-5% level is ~0.0033, but candidates are
+    PAIRED on the common market path, so the paired diff-SE is **1e-4 (sibling-close books) to 8e-4
+    (structurally different books)**. Rendering candidate pairs separated by exactly those deltas
+    (200k draws, grid phase uniform as it is across real candidates), the fraction that reach the
+    designer as the SAME STRING:
+
+    | paired delta (R76) | `.3f` (the old renderer) | `.4f` (this one) |
+    |---|---|---|
+    | 1e-4 — sibling-close  | **90.1 % identical** | 0.0 % |
+    | 3e-4 — typical        | **70.1 % identical** | 0.0 % |
+    | 8e-4 — distant books  | **20.2 % identical** | 0.0 % |
+
+    So at `.3f` the quantization step (1e-3) was LARGER than the entire registered paired-difference
+    range, and the modal sibling-close comparison was erased before the designer ever saw it. That
+    matters for the SCIENCE, not just the fidelity: R76 registers an A2 (numeric illegibility) vs A5
+    (rational insensitivity) adjudication, and A5's premise is that the designer SEES a small delta
+    and defensibly discounts it as noise. At `.3f` there was frequently no delta on the page at all —
+    a third state the registered ladder does not name, in which the instrument erases its own
+    stimulus and an SQ1-null is uninterpretable between A2, A5 and "nothing was shown". `.4f`
+    resolves every R76 delta scale; `.5f` remains rejected as false precision (1e-5 is ~30x below the
+    tightest paired diff-SE).
     """
     return f"{value:+.4f}"
 
