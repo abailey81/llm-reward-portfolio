@@ -55,19 +55,52 @@ def git(*args: str, cwd: Path | None = None, check: bool = True) -> str:
     return (r.stdout or "").strip()
 
 
+#: Artifacts that MUST resolve inside the worktree, or data-dependent tests fail for infrastructure
+#: reasons and the whole certification becomes untrustworthy. Verified, never assumed.
+_DATA_PROBES = ("data/raw/fred_macro_x26.csv",)
+
+
 def _link(src: Path, dst: Path) -> bool:
-    """Junction a gitignored dir into the worktree (no admin needed on Windows; symlink elsewhere)."""
-    if dst.exists() or not src.is_dir():
-        return dst.exists()
+    """Point the worktree's ``dst`` at the real ``src`` directory, REPLACING any checked-out copy.
+
+    ⚠ THE BUG THIS FIXES (2026-07-27), found when the first certification produced a false red.
+    ``data/`` is TRACKED (1,179 files), so ``git worktree add`` creates it — but ~1.2 GB of the
+    content underneath is GITIGNORED and therefore absent. The previous version returned True
+    whenever ``dst.exists()``, so it reported ``linked: ['data']`` while the files tests actually
+    need were still missing: a function claiming success without verifying the thing it claims,
+    which is the exact failure class this repo keeps finding. Every data-dependent test then failed,
+    and those failures looked like code defects.
+
+    Replacing the directory is correct because the MAIN repo holds both the tracked and the ignored
+    files, so the junction is complete where a copy would be 1.2 GB. The tradeoff is deliberate and
+    small: data files are taken from the working tree rather than from the certified commit, which
+    matters only if the data itself changed — and this gate certifies CODE.
+    """
+    if not src.is_dir():
+        return False
     try:
+        if dst.exists() and not dst.is_symlink():
+            shutil.rmtree(dst, ignore_errors=True)
+        if dst.exists():
+            return True
         if os.name == "nt":
             subprocess.run(["cmd", "/c", "mklink", "/J", str(dst), str(src)],
                            capture_output=True, check=True)
         else:
             dst.symlink_to(src, target_is_directory=True)
         return True
-    except Exception:  # noqa: BLE001 — tests needing the data then fail LOUDLY, which is honest
+    except Exception:  # noqa: BLE001 — reported by the probe below, never silently assumed
         return False
+
+
+def verify_data(worktree: Path) -> list[str]:
+    """Which required artifacts are NOT reachable in the worktree? Empty means good to run.
+
+    Without this the harness cannot tell an INFRASTRUCTURE failure from a CODE failure, and a
+    missing data link would be reported as a red suite — the most misleading thing a launch gate
+    can do.
+    """
+    return [p for p in _DATA_PROBES if not (worktree / p).exists()]
 
 
 def make_worktree(commit: str, path: Path) -> Path:
@@ -77,7 +110,16 @@ def make_worktree(commit: str, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     git("worktree", "add", "--detach", str(path), commit)
     linked = [d for d in _LINK_DIRS if _link(REPO / d, path / d)]
+    missing = verify_data(path)
     print(f"[certify] worktree at {path} ({commit[:12]}); linked: {linked or 'none'}")
+    if missing:
+        # Refuse rather than run: a suite that fails because its DATA is unreachable produces a red
+        # that looks exactly like a code defect, and acting on that red is worse than not running.
+        raise SystemExit(
+            f"[certify] ABORT — required data is not reachable in the worktree: {missing}. "
+            "The suite would fail for infrastructure reasons and the reds would be indistinguishable "
+            "from code defects.")
+    print(f"[certify] data verified reachable: {list(_DATA_PROBES)}")
     return path
 
 
