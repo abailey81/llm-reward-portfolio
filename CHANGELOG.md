@@ -3,6 +3,64 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27] — ★★★ A CONSOLE CODEPAGE KILLED THE POST-CAMPAIGN RUNSHEET · the whole class closed (11 scripts) · and two live CROSS-LANE COLLISIONS caught
+
+> Overnight, Tamer asleep, instruction: *"coordinate with other claude code session, close absolutely
+> all gaps, make us 100% ready."* The code landed inside commit `3db75c5` (see the collision note
+> below — its message describes the other lane's work, not this); the narrative lives here.
+
+**THE DEFECT — OBSERVED, NOT HYPOTHESISED.** Running the §0.5 bank-gate rehearsal, `scripts/bank_gate.py`
+died with `UnicodeEncodeError` **while printing a log tail** — not while analysing anything. `step()`
+reads subprocess output with `errors="replace"`, which injects **U+FFFD**, and this box's console is
+**cp1251**, which has no mapping for it. That is the analysis which runs AFTER a 23-day campaign,
+killed by a console codepage: the most expensive possible moment in the project to lose.
+
+**MEASURED, NOT GUESSED.** A checker scored every launch-critical script on the two real crash sources
+(literal un-encodable characters; U+FFFD from a replace-read). **Ten were unguarded** — including
+**`freeze.py` (GO step 1)**, **`run_campaign_cluster.py` (the launcher)** and **`sentinel.py` (runs for
+the whole campaign)**. cp1251 *does* map the em-dash, which is exactly why this hid so long: only the
+rarer glyphs (`★ → ≥ ⚠`) and U+FFFD bite. The checker then **crashed with the same error while printing
+its own findings** — as direct a demonstration of the class as one could ask for.
+
+**THE FIX.** `src/utils/console.py::make_console_safe`, called from `main()` in **eleven** scripts —
+**never at import**, because several are imported by `run_campaign.py` and by the suite, and mutating a
+global stream as an import side effect would surprise every importer and every capturing test. The
+encoding choice matches the idiom already inline in `analyze_campaign`/`monitor`/`build_paper`/
+`allocation_advisor`/`resume_brief`; those five predate the helper and are **deliberately left alone
+rather than churned**. Five copies becoming fourteen is what earns a helper.
+
+**LOCKED BY `tests/test_console_safety.py` (4 pass).** A behavioural check that the helper can never
+itself raise (hostile stream with no `reconfigure`; one that raises); a check that it really sets
+`errors="replace"`, **reproducing the `UnicodeEncodeError` first** so the test is anchored to the real
+failure; a structural lock over the launch-critical set with a stated reason per entry; and a self-test
+proving the guard-detector can go red. **The structural lock immediately caught an eleventh script the
+manual sweep missed — `provisional_bank.py`, which prints a captured `analyze_campaign` tail every N
+seeds during the run.**
+
+**VERIFIED:** bank-gate rehearsal **RC=0 COMPLETE** (it crashed before the fix) · `freeze --check` RC=0
+with the em-dash now rendering correctly instead of as `�` · console suite 4/4 · 133 tests across the
+suites covering every edited file · all 11 guards confirmed present at HEAD.
+
+**★ TWO CROSS-LANE COLLISIONS CAUGHT — both are standing lessons.**
+1. **DOUBLE-SPEND.** Both lanes independently launched `leg_gates.py --all` (theirs → `outputs/leg_gates`
+   03:35, mine → `outputs/leg_gates_20260727_r112` 03:44), each billing OpenRouter for the same 10
+   legs. Caught by reading their coordination commit. **Theirs won** — started first, declared in
+   `docs/LANE_COORDINATION_2026-07-27.md`, and further along; mine was killed and its partial output
+   moved to `outputs/_superseded_partial_leg_gates_20260727/` so the validator's `leg_gates*` glob
+   cannot serve a stale half-verdict. *Rule: before starting anything that spends money or takes
+   minutes, read the coordination doc first.*
+2. **THE GIT INDEX IS SHARED STATE.** This lane staged 14 files; the other lane ran `git commit`
+   moments later and **committed them under its own message** (`3db75c5` "handoff + cursor"). Nothing
+   was lost — all 176 insertions and all 11 guards verified present at HEAD — but the history now
+   describes the change misleadingly, which is why this entry exists. *Rule: with concurrent sessions,
+   stage and commit ATOMICALLY (`git commit -- <paths>`), never leave an index staged.*
+
+**§0.5 PRECONDITION RESTORED, with a caveat stated rather than hidden:** the runbook verifies it via
+`bank_gate.py --archive outputs/proto_myriad --rehearsal`, and `outputs/proto_myriad` was destroyed in
+the 01:56 incident and is unrecoverable. The rehearsal was therefore run on the surviving
+`outputs/prototype_repeat` (240 records) — it exercises the same runsheet machinery, but it is NOT the
+pm2 archive the runbook names, and the runbook row should be updated at GO.
+
 ## [2026-07-27] — ★★★★ FULL DATA RECOVERY AFTER THE CERTIFY-WORKTREE DELETION: 1,170/1,170 FILES RESTORED AND SHA256-VERIFIED · THE INCIDENT'S ROOT CAUSE WAS MISATTRIBUTED AND IS NOW CORRECTED
 
 > Tamer: *"restore everything back … absolutely everything, I dont care how, but you must restore"*,
