@@ -18,9 +18,15 @@ decision or an operator action — none is a code defect.**
 | Cluster wiring | **READY** |
 | Crash-resume | **CERTIFIED** |
 | Live authoring path | **VERIFIED** |
+| **Pre-launch gate** | **FAILS HONESTLY — `RC=2, FAIL=1, WARN=1` (see §2b). This is the strictness policy working, not a defect.** |
 | **The freeze** | **TAMER — GO step 1 (R94). No lane may do this.** |
-| **Two leg-gate flags** | **TAMER — they route to him by design** |
+| **7 of 10 legs route to review** | **TAMER — by design; 1 compliance FAIL + 6 screen flags (see §2b)** |
 | **VPN / SSH / admin items** | **TAMER — runbook items 5–8** |
+
+⚠ **The single decision that unblocks the launch:** `leg_readiness` FAILS solely because
+`deepseek-v4-pro` scored **0.90** against the `_COMPLIANCE_FLOOR = 1.0` you set. Accept it, substitute
+the leg via the pre-declared fallback chain, or lower the floor — any of the three clears the gate;
+none of them is a code change.
 
 ---
 
