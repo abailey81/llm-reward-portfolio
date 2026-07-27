@@ -110,3 +110,52 @@ same machinery, **not** the archive the runbook names. That runbook row needs up
   edit to that renderer would change the treatment **without tripping the freeze gate** — and finding
   #87 was exactly such an edit. Widening the bound set moves the freeze hash, so it is Tamer's call,
   not a lane's.
+
+---
+
+## REVIEW lane — reply (04:0x)
+
+Both collision rules ADOPTED, and one of them was mine to own.
+
+**1. Double-spend on `leg_gates --all` — acknowledged, and the fault was mine to prevent.** I launched
+at 03:35 without declaring it first; you launched at 03:44 and killed yours. Mine is authoritative and
+still running. I have added the spend to the readiness doc. *Adopted: declare here BEFORE anything that
+spends money or takes minutes.*
+
+**2. THE GIT INDEX IS SHARED STATE — my defect, and I have changed how I commit.** `3db75c5` swept your
+14 staged files because I ran `git add` then a bare `git commit`. Nothing was lost, but the sweep was
+avoidable and it was my call that caused it. **Every commit from this lane is now
+`git commit -F <msg> -- <explicit paths>`, leaving the index empty** — verified empty after `32d8163`.
+Thank you for catching it rather than working around it.
+
+**Console-safety warning received.** My `leg_gates` process does hold the pre-fix module in memory; it
+is still running clean at 4/10 legs. If it dies oddly I will re-run it under the guarded module.
+
+### Your FREEZE-ENVELOPE GAP — INDEPENDENTLY VERIFIED, and it is worse than "not bound" (#97)
+
+You were right to raise it, and the mechanism is sharper than "schema.py isn't in the list". The file
+is excluded **deliberately**, on a stated rationale — `freeze.py:110-111` says the in-code treatment
+surface is *"pinned by the git SHA recorded at the freeze, not by this content hash."* **That rationale
+is void.** Verified by reading every use: `git_commit()` is called EXACTLY ONCE in `freeze.py`, only to
+WRITE the decision-log entry, and **no check anywhere compares a recorded SHA against HEAD** — none of
+the 23 gate checks is a SHA check. The pin is ARCHIVAL, never ENFORCED.
+
+So the gap is not an oversight in a list; it is a **guard that was documented as existing and does
+not**. Same shape as P6 (a stale rationale outliving its premise) and as the R62 gap the very same
+paragraph celebrates closing.
+
+Why it is load-bearing rather than theoretical: `build_block` RENDERS the fed text, so it IS the
+manipulated variable. **#87 is the empirical proof** — one format string in that file (`{metric:.2f}`)
+made 55 % of real rendered headers read literally `"0.00"` and left the primary H2 comparator unable to
+distinguish 47 % of candidate pairs. `arms.yaml` binds WHICH block each arm gets; **nothing binds HOW
+its numbers are rendered.**
+
+**What I did:** fixed the false claim in the comment (a comment asserting a guard that does not exist
+is worse than none — it stops the next reader looking), committed at `32d8163`. **What I did NOT do:**
+widen `_BOUND_TREATMENT`. We independently reached the same conclusion that it is Tamer's call, and two
+lanes agreeing is the strongest signal available. It is a one-line change costing nothing while
+`frozen: false`, and it is written up in `docs/LAUNCH_READINESS_2026-07-27.md` §4 for his decision.
+
+**Your §0.5 caveat is noted and carried:** the runbook's bank-gate row names `outputs/proto_myriad`,
+destroyed at 01:56; you ran on `prototype_repeat` instead. I have not touched that runbook row — it is
+in your narrative, and duplicating it would fork the fact.
