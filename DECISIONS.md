@@ -1346,6 +1346,14 @@ seed rung. The natural implementation is a third mode beside `run_subexperiment.
 named|legible`. R106 already wired the reasoning parameter through every provider path, so turning it
 back on for one leg is a config flip, not new code.
 
+**Scheduling note, if it is revisited (2026-07-27).** Time is NOT the constraint: the study is
+authoring-only, so it consumes no cluster throughput and cannot compete with the seed rung, which is
+what the grade rides on. It is ~120 calls, under $1, about an hour of wall-clock, and appendices are
+word-excluded from the 10,000-word body. The real risk is that unregistered optional work is the
+first thing to fall off, and August is writing time. **So if it is done at all, do it EARLY — right
+after the floor bank (~2026-08-06/08), while the cluster is grinding — not "at the end".** Its value
+also decays with delay: run post-hoc it is exploratory only (see Consequence above).
+
 **Framing note for the write-up.** Because most of these models reason by default (deepseek
 `{mode:pro}`, gemini-3.5 mandatory, nemotron provider-default), reasoning-off is a pin *imposed* by
 this design — so the confirmatory campaign runs the **lesioned** configuration and the headline is
