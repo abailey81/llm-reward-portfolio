@@ -118,3 +118,46 @@ def test_budget_curve_exhibit_marks_bstar():
                                800_000: {0: 0.21, 1: 0.20}}}
     fig = budget_curve_exhibit(grid, b_star=400_000)
     assert fig.axes  # renders a panel per winner with the B* marker
+
+
+_VERDICT_FIXTURE = {
+    "winners": {
+        "p6dist": {
+            "400000": {"paired_diffs_s0_s1_s2": [0.079, 0.114, 0.242], "mean": 0.1449,
+                       "se": 0.0494, "ratio_mean_over_se": 2.93, "fires": True},
+            "800000": {"paired_diffs_s0_s1_s2": [0.104, 0.131, 0.249], "mean": 0.1610,
+                       "se": 0.0444, "ratio_mean_over_se": 3.62, "fires": True},
+        }
+    }
+}
+
+
+def test_budget_ascent_exhibit_plots_the_VERDICT_values_not_absolute_levels():
+    """F11-fallback: the archive behind the absolute curve was destroyed 2026-07-27, so the exhibit
+    must be reconstructible from the git-tracked verdict alone — and must plot exactly its numbers."""
+    from src.viz.figures import budget_ascent_exhibit
+
+    fig = budget_ascent_exhibit(_VERDICT_FIXTURE, b_star=400_000)
+    ax = fig.axes[0]
+    thick = [ln for ln in ax.get_lines() if ln.get_linewidth() > 2]
+    assert thick, "the paired-mean line must be drawn"
+    # baseline pinned at 0 (a seed differenced against itself), then the verdict means in order
+    assert [round(float(y), 4) for y in thick[0].get_ydata()] == [0.0, 0.1449, 0.1610]
+
+
+def test_budget_ascent_exhibit_draws_one_thin_line_per_CRN_SEED():
+    """The per-seed fan-out is the honest part of R77's disclosure — it must not be averaged away."""
+    from src.viz.figures import budget_ascent_exhibit
+
+    ax = budget_ascent_exhibit(_VERDICT_FIXTURE).axes[0]
+    thin = [ln for ln in ax.get_lines() if abs(ln.get_linewidth() - 0.9) < 1e-9]
+    assert len(thin) == 3  # == len(paired_diffs_s0_s1_s2)
+
+
+def test_budget_ascent_exhibit_anchors_the_baseline_at_the_declared_budget():
+    """The 200k baseline is 0 BY CONSTRUCTION, so it must appear on the axis as the leftmost rung —
+    captioning it as a measurement would overclaim data the destroyed archive no longer supports."""
+    from src.viz.figures import budget_ascent_exhibit
+
+    ax = budget_ascent_exhibit(_VERDICT_FIXTURE, baseline=200_000).axes[0]
+    assert [t.get_text() for t in ax.get_xticklabels()][0] == "200k"

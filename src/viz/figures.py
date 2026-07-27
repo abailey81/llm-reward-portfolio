@@ -42,6 +42,7 @@ _LOG = logging.getLogger(__name__)
 
 __all__ = [
     "budget_curve_exhibit",
+    "budget_ascent_exhibit",
     "capability_gradient",
     "cross_leg_forest",
     "reliability_heatmap",
@@ -551,6 +552,67 @@ def budget_curve_exhibit(
         ax.set_title(w, fontsize=9, loc="left")
         ax.legend(loc="upper left", fontsize=7)
     axes[0].set_ylabel("validation DSR (selection metric)")
+    fig.suptitle(title, fontsize=10, x=0.02, ha="left")
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    return fig
+
+
+def budget_ascent_exhibit(
+    verdict: Mapping[str, Any],
+    *,
+    b_star: int = 400_000,
+    baseline: int = 200_000,
+    title: str = ("The pre-committed B* rule as measured: paired ascent over "
+                  "200k (±SE), 3 CRN seeds"),
+) -> Any:
+    r"""F11-fallback (2026-07-27): the R77 ascent curve drawn from the SURVIVING verdict artifact.
+
+    :func:`budget_curve_exhibit` needs ABSOLUTE per-seed validation-DSR levels, which lived only in
+    ``outputs/p6ladder/search`` — destroyed 2026-07-27, absent from git and from the backup. This
+    renderer reconstructs the load-bearing content from the git-TRACKED
+    ``outputs/tables/bstar_rule_verdict.json``, which preserves, per winner per budget, the three
+    CRN-paired differences against the 200k baseline plus their mean and SE.
+
+    What it shows FAITHFULLY: the rule's own quantity (paired ascent over 200k), the knee (the
+    distributional winner's jump to B\* then near-flat 800k/1.6M), the SE bars the 2× rule is
+    defined against, and the per-seed fan-out. What it CANNOT show, and must not be captioned as
+    showing: the absolute DSR levels, or the 100k rung — both are gone with the archive. The
+    baseline sits at exactly 0 by construction (a seed differenced against itself), which is a
+    definition, not a measurement, and is drawn hollow to say so.
+
+    ``verdict``: the parsed ``bstar_rule_verdict.json`` (``{"winners": {label: {budget_str: {...}}}}``).
+    """
+    import matplotlib.pyplot as plt
+
+    winners = list(verdict["winners"].keys())
+    fig, axes = plt.subplots(1, len(winners), figsize=(6.4 * len(winners) / 2 + 3.0, 3.6))
+    if len(winners) == 1:
+        axes = [axes]
+    for ax, w in zip(axes, winners):
+        per_b = verdict["winners"][w]
+        budgets = [baseline] + sorted(int(b) for b in per_b)
+        n_seeds = len(next(iter(per_b.values()))["paired_diffs_s0_s1_s2"])
+        for i in range(n_seeds):  # thin lines: the honest per-seed fan-out
+            ys = [0.0] + [per_b[str(b)]["paired_diffs_s0_s1_s2"][i] for b in budgets[1:]]
+            ax.plot(budgets, ys, color="0.55", lw=0.9, marker="o", ms=2.5, zorder=2)
+        means = [0.0] + [per_b[str(b)]["mean"] for b in budgets[1:]]
+        errs = [0.0] + [per_b[str(b)]["se"] for b in budgets[1:]]
+        ax.errorbar(budgets, means, yerr=errs, color=OKABE_ITO["blue"], lw=2.4, marker="o",
+                    ms=5, capsize=3, zorder=4, label="paired mean ± SE")
+        ax.plot([baseline], [0.0], marker="o", ms=6, mfc="white",
+                mec=OKABE_ITO["blue"], zorder=5)  # hollow: 0 by construction, not measured
+        ax.axhline(0.0, color="0.75", lw=0.8, zorder=1)
+        ax.axvline(b_star, color=OKABE_ITO["vermillion"], lw=1.4, ls="--", zorder=1)
+        ax.text(b_star, ax.get_ylim()[1], "  B*", color=OKABE_ITO["vermillion"],
+                fontsize=8, va="top")
+        ax.set_xscale("log")
+        ax.set_xticks(budgets)
+        ax.set_xticklabels([f"{b//1000}k" if b < 1_000_000 else f"{b/1e6:g}M" for b in budgets],
+                           fontsize=7)
+        ax.set_xlabel("training budget (steps, log scale)")
+        ax.set_title(w, fontsize=9, loc="left")
+        ax.legend(loc="upper left", fontsize=7)
+    axes[0].set_ylabel(f"paired Δ validation DSR vs {baseline//1000}k")
     fig.suptitle(title, fontsize=10, x=0.02, ha="left")
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     return fig
