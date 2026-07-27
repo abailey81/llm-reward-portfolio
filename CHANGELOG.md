@@ -829,6 +829,14 @@ that already keeps `_BENCHMARK_NAMES` honest (verified this loop: config == code
 `winner_dsr`'s docstring said "the six pre-registered arms" — a third distinct count in one file —
 also corrected. **124 tests green in the affected suites, ruff clean.**
 
+**REPO-WIDE GREEN, POST-#102 and OBSERVED:** **2,736 passed · 3 skipped · 0 failed ·
+`PYTEST_RC=0`** — unpiped, `-rs`, pinned `--randomly-seed=20260727`, RC read from the log. The three
+skips are the permanent platform ones (`test_sandbox.py:392/:667/:686`, "POSIX 'resource' module
+unavailable"). The earlier run in this loop (2,735) started BEFORE the `ARMS` change and certified only
+the pre-change tree; it is superseded. The **+1 delta is exactly**
+`test_ARMS_matches_the_frozen_arms_yaml_roster`, so the guard — and the nine-arm roster it protects —
+is what the green covers.
+
 ### PASS A / PASS B — what was verified CLEAN this loop
 
 - **The DSR annualisation claim is TRUE, measured.** `winner_dsr` documents `periods_per_year` as
