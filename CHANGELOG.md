@@ -625,6 +625,48 @@ and re-raised with the right reasoning: a `continue` there does NOT consume a bu
 starved box would spin to `max_attempts` and return a SHORT archive, silently breaking H4a's
 matched-budget control. The #75 class, already correctly handled here.
 
+### LOOP 119 — CLEAN (zero findings). `CLEAN_STREAK` 0 → 1
+
+First clean loop of the run. Both passes completed and one plausible candidate was REFUTED by
+measurement rather than reported — recorded here so a later loop does not re-raise it.
+
+**PASS A — the last never-read modules, all clean.**
+- `dfo_toolkit.tpe_over_template` (H4 is CONFIRMATORY under N4, so TPE carries the same inferential
+  weight as CMA-ES). Matched budget holds exactly (`n_batched + remaining == budget`). The batch
+  startup path hand-rolls its own history append rather than going through `_evaluate`, so those were
+  compared line by line: same index convention, `on_evaluated` fires only for FRESH work, identical
+  history dict and `source`. The docstring's byte-identity claim is genuinely TESTED —
+  `test_batching_returns_IDENTICAL_results_to_the_sequential_path` asserts the same evaluated points,
+  best score, best coeffs AND the full history sequence, alongside budget exactness, cache/resume,
+  fresh-only checkpointing, the 1:1 mismatch guard, and that batching actually shortens the chain.
+- `src/data/pipeline.py` — NOT dead code, as the absence of production callers first suggested: it is
+  the **keyless reproducibility artifact** (the "protocol = re-runnable by anyone" layer), a
+  synthetic-source reference implementation of the 13-stage PIT pipeline, deterministic and per-stage
+  hashed, exercised by two test files. The real gold comes from the separate `data_pipeline/` stack.
+- `scripts/build_gold.py` — a deferred stub, and it does the right thing: `raise SystemExit(...)`,
+  **RC=1 verified by running it**. A no-op that refuses to report success.
+
+**PASS B — the resolution lens on the live monitoring surface, clean.**
+- **A candidate finding was RAISED AND REFUTED.** `campaign_health.MEASURED_AUTHORING_YIELD`
+  calibrates a streak detector via `(1-p)^k < 1e-3`, so an OPTIMISTIC yield makes the alarm fire
+  EARLIER than designed — the exact false-alarm behaviour its own comment says it exists to prevent.
+  This session's fresh `leg_gates` run appeared to contradict three entries (qwen3.6-27b table 0.96 vs
+  fresh 8/10; deepseek 0.88 vs 7/9; qwen3.5-9b 0.25 vs 2/10). **Quantified before reporting**, and it
+  does not survive: POOLING the fresh n=10 with the table's n=16-24 (rather than letting a small
+  sample overwrite a larger one) gives `k(table) == k(pooled)` for every leg except
+  `nemotron-3-super`, where the table is CONSERVATIVE (allows more failures — the safe direction), and
+  every per-window false-alarm probability lands at or below the 1e-3 design tolerance (max 0.0013).
+  **The table is correctly calibrated and the fresh data independently confirms it.** Recorded as a
+  non-finding so it is not re-raised. (It is also the CAPACITY lane's file; had it been real it would
+  have been reported to them, not edited here.)
+- The `.0%` renderings in `sentinel.py` / `campaign_health.py` are safe **by threshold construction**,
+  and the code already anticipates the #87 failure mode: severity is decided from the RAW rate, not
+  the rendered string; the lowest alarming rate at every site is ≥ 2 % (`nan_rate` crit 0.10,
+  `divergence` warn 0.05, `api_errors` warn 0.05), so no alarming state can render "0%"; the one
+  branch that can fire at arbitrarily low rates (`nan_rate` WARN on `n_nonfinite > 0`) deliberately
+  prints RAW COUNTS instead of a percentage; and the OK branch uses `.1%` precisely where sub-1%
+  resolution is the informative thing.
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
