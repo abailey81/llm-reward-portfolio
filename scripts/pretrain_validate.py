@@ -493,8 +493,8 @@ def _gather_sandbox() -> dict[str, Any]:
     import numpy as np
 
     from src.orchestration.parallel import _FIXTURE
-    from src.sandbox.executor import (SandboxError, candidate_failed, reset_failure_flag,
-                                      safe_call, validate_once)
+    from src.sandbox.executor import (SandboxEnvironmentError, SandboxError, candidate_failed,
+                                      reset_failure_flag, safe_call, validate_once)
 
     bads = [
         "def reward(w, r, p, pr, info):\n    return info['reward_state']['n'], {}, None\n",
@@ -505,6 +505,16 @@ def _gather_sandbox() -> dict[str, Any]:
     for src in bads:
         try:
             validate_once(src, _FIXTURE)
+        except SandboxEnvironmentError:
+            # CONTRACT (src/sandbox/executor.py::SandboxEnvironmentError), mirroring
+            # src/orchestration/parallel.py:365: a STARVED spawn environment is NOT a candidate
+            # verdict. SandboxEnvironmentError SUBCLASSES SandboxError, so the handler below
+            # counted it as `rejected` — and this is a SAFETY check, so on a contended box the
+            # gate certified "rejected 3/3 known-bad sources" having never actually evaluated
+            # them. A false GREEN on a defence proof is strictly worse than a false red. Raise:
+            # the caller turns this into a FAIL verdict naming the starvation, so the gate
+            # REFUSES to certify rather than mis-certifying (#75, 2026-07-27).
+            raise
         except SandboxError:
             rejected += 1
         except Exception:  # noqa: BLE001
@@ -519,7 +529,8 @@ def _gather_sandbox() -> dict[str, Any]:
 
 
 def _gather_executable_yield(gates_dir: Path) -> dict[str, tuple[int, int]]:
-    from src.sandbox.executor import SandboxError, extract_reward_source, validate_once
+    from src.sandbox.executor import (SandboxEnvironmentError, SandboxError,
+                                      extract_reward_source, validate_once)
 
     from src.orchestration.parallel import _FIXTURE
 
@@ -552,6 +563,13 @@ def _gather_executable_yield(gates_dir: Path) -> dict[str, tuple[int, int]]:
             try:
                 validate_once(src, _FIXTURE)
                 ok += 1
+            except SandboxEnvironmentError:
+                # Same contract as _gather_sandbox (#75): contention is not a candidate defect.
+                # Swallowing it here silently DEPRESSES the per-model authoring-compliance rate
+                # this function exists to compute — an infrastructure failure reported as a model
+                # finding, inside the script that gates the launch, where a low yield is exactly
+                # the signal an operator would act on. Fail loud; re-run on a freed box.
+                raise
             except SandboxError:
                 pass
             except Exception:  # noqa: BLE001
