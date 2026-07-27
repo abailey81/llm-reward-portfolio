@@ -202,6 +202,36 @@ the remaining 2.14 d pole is accepted rather than optimised away.
 lane's unilateral action. Verify GPU queue latency first (historically hours-to-days); disclose in
 CH4 as an executed-config choice. Full row in `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md`.
 
+### ⚠ MY OWN METHODOLOGICAL ERROR: THE R107 CONTROL ARM WAS INVALID (recorded deliberately)
+
+The 8-thread measurement (15.4 steps/s, n=4) is sound. The **1-thread control I submitted to pair
+against it was not**, and the "1.18x" figure derived from it is therefore weaker than it was
+presented as.
+
+**THE ERROR.** I submitted the control with the same rewards, seeds, budget AND ARCHIVE ROOT as the
+8-thread arm — so the same `candidate_id`s. `run_one._already_archived` correctly saw those run_ids
+already archived and SKIPPED every job. The evidence is unambiguous: the t1ctl logs are **85 bytes**
+(an epilogue line and nothing else) and the jobs exited immediately, while the only records under
+`~/Scratch/cpugate` remain the five written by the 8-thread arm. **The control produced no data.**
+
+So the ratio 15.4/13.0 compares a measured numerator against the REGISTERED 13.0 — a figure taken
+at 02:30–04:30 UTC on a bench profile, i.e. NOT a matched arm. The direction is very likely right,
+but it is not the controlled two-arm comparison I described to Tamer.
+
+**WHY IT IS RECORDED RATHER THAN QUIETLY FIXED.** The whole point of today was catching registered
+values that do not survive contact with reality; replacing one unverified number (R107's 2.72x)
+with another unverified number would repeat the failure in the opposite direction. The R107
+AMENDMENT is therefore deliberately NOT written until the corrected control returns.
+
+**THE FIX.** Resubmitted 19:52 with a SEPARATE archive root (`~/Scratch/ctl1thr`) so the idempotency
+guard cannot skip it, plus the bad-node fence. Lands ~21:10.
+
+**THE DECISION DOES NOT DEPEND ON IT.** `--search-threads 1` is settled by arithmetic that holds
+under EVERY assumption including R107's own: on a fixed core budget, 1 thread yields 637
+trainings/day vs 93 at the measured 8-thread rate — and **214 even if R107's 2.72x were fully real**,
+still ~2.9x worse than 1 thread. Threads trade 8 cores for a ~16% latency gain, which is the wrong
+trade for 42,128 independent trainings. Independently, 8-core jobs were measured NOT to place.
+
 ### TWO DEFECTS FOUND AND FIXED WHILE RUNNING IT
 
 **1. A cluster training was a BLACK BOX.** `verbose: 0` and nothing else writes to stdout, so a
