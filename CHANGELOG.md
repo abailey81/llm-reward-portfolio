@@ -771,6 +771,27 @@ stale backup. Consequences, assessed rather than assumed:
 - **Remediated by re-running `scripts/leg_gates.py --all` (~$1-2 on the advisory ledger)**, which
   restores both checks, regenerates the table's evidence, re-runs the registered contamination screen,
   and rebuilds the spend ledger.
+- **`p6ladder`'s consequence, assessed 2026-07-27 (this entry originally listed the directory but
+  assessed only `leg_gates`/`spend_ledger`).** `outputs/p6ladder/search` is the per-seed archive
+  behind amendment **R77** (B\* = 400,000). Two registered things depend on it and BOTH are now
+  broken, verified by running them rather than by inspection:
+  - `scripts/apply_bstar_rule.py` — the reproduction path R77's own row names — exits
+    `INCOMPLETE cell p6dist b=100000: seeds []` (`ARCHIVE = outputs/p6ladder/search`, line 20). A
+    stated reproduction path that errors out is the R85 failure mode.
+  - **F11, the R77 MANDATORY curve exhibit** (`src/viz/figures.py:512` `budget_curve_exhibit`),
+    needs `{winner: {budget: {seed: val_dsr}}}` — ABSOLUTE per-seed validation-DSR levels, which
+    lived only in that archive.
+  **What SURVIVES:** `outputs/tables/bstar_rule_verdict.json` is git-TRACKED (which is why
+  `git clean` could not touch it) and holds every load-bearing number — the paired diffs, means,
+  SEs and 2.9-5.4x ratios the rule fired on. So **B\* itself is not in doubt and this is not a
+  launch blocker**; what is lost is the ability to re-derive it and to draw the full 5-point 16x
+  curve (the verdict holds only paired DIFFERENCES vs 200k at 400k/800k/1.6M — the 100k and 200k
+  absolute levels are gone).
+  **Remediation, costed from the measured constants** (`lanes.CPU_STEPS_PER_S_PER_CORE = 13.0`):
+  regenerating the ladder on the CPU lane is 5 budgets x 3 CRN seeds x 2 winners = 18.6M steps =
+  **397.4 core-hours = 0.110 % of the 360,068 core-hour campaign**, 34.2 h wall on the 1.6M rung —
+  and it simultaneously re-derives B\* on the substrate the campaign actually executes on. Full
+  row in `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md`. NEEDS TAMER'S GO (cluster submission).
 
 ### LAUNCH-READINESS GAUNTLET — every runnable gate, executed (Tamer asleep, "close absolutely all gaps")
 
