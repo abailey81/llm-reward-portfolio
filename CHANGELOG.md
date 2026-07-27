@@ -90,12 +90,75 @@ At a SUSTAINED 636 cores the full rung-568 ladder takes 23.6 d and fits the wind
 truncates to rung 403. **636 was our PEAK, not our sustained rate** — so capacity is insurance against
 truncating the ladder, not merely a way to finish early.
 
-### STILL OPEN
+### LIVE OPS — THE CPU GATE WAS SUBMITTED, AND IT EARNED ITS KEEP ON THE FIRST JOB
 
-The CPU launch gate has NOT been run: no full-length 400k training with the REAL gold panel has ever
-completed on the Myriad CPU lane (the 148 capacity-probe jobs used `bench_compute.py`, which builds a
-SYNTHETIC panel, 2,500 steps, no archiving). That remains the one thing worth holding a launch for.
-`p6_authored_ladder.py` still needs `--device`/`--threads` before it can serve as that gate.
+The gate exists because no full-length training with the REAL gold panel had EVER completed on the
+Myriad CPU lane — the 148 capacity-probe jobs ran `bench_compute.py`, which builds a **SYNTHETIC**
+panel at 2,500 steps with no archiving. Three findings came out of running it, in order.
+
+**1. `--seeds` added to the ladder + the CPU gate built and verified cell-by-cell.** 60k steps (past
+the 50k buffer cap, so peak RSS is exercised), REAL `univ5` gold, `synthetic=False`, `buffer=50000`,
+Split-C windows, `device=cpu`, `threads=8`, cores coupled to 8. Every cell inspected BEFORE
+submission, then re-verified ON THE CLUSTER after push.
+
+**2. ⚠ ARRAY SERIALIZATION IS ACTIVE — the first submission was the wrong SHAPE.** Job 26963 (one
+6-task array) came back `qw` on task 1 and **`hqw` on tasks 2-6**: Myriad holds an array's tail
+(`snx=1`), so it would have run SERIALLY, not concurrently. `submit_singles`' own docstring records
+that this policy has **twice PURGED pending tails outright** (rehearsal arrays 07-08; the
+p6ext800b/1600b tails 07-13, `qacct` confirming tasks 2-6 left no trace). Cancelled and resubmitted
+as 6 INDEPENDENT single-task jobs (27012, 27016-27020) — all six `qw`, none held. **This is the
+mechanism that actually limits our concurrency, and it validates the campaign's `--chunk-tasks 1`
+launch config.** It is NOT `-tc`, and it is NOT fair-share.
+
+**3. `submit_singles` was the one path that had been missed** — and it is the path the scheduler
+FORCES us to use. It still called `build_specs(remote_root, local_out, budgets)` positionally, so it
+would have shipped cuda-default, 1-thread specs. Fixed; all three `build_specs` call sites now thread
+device/threads/seeds and couple cores to threads (`a7f3c9d`).
+
+**4. ★ A BAD NODE, FOUND BY THE FIRST JOB: `node-d00a-230` HAS NO APPTAINER.**
+`FATAL apptainer missing on node-d00a-230 — cannot start the containerized venv` (exit 127). The
+jobscript's guard caught it and failed LOUD rather than dying cryptically — the guard working as
+designed. **A wrong first diagnosis was caught before it was acted on:** the obvious read was "it is
+a module and we forgot to `module load` it", which would have been a one-line fix. `module show
+apptainer` proves the module only sets `APPTAINER_CACHEDIR`/`APPTAINER_TMPDIR` — it does **NOT**
+provide the binary, which lives at `/usr/bin/apptainer`. Loading it would have fixed NOTHING. The
+binary is genuinely absent on that machine. There is **no requestable complex** for it either
+(`qconf -sc` has no apptainer/singularity/container entry), so it cannot be requested away.
+**Scope: node-specific, not pool-wide** — the other jobs cleared the container start and ran.
+**Campaign impact:** over 42,128 trainings we will land on bad nodes repeatedly; the behaviour is
+already correct (fail fast, NO record written, resume re-runs because no result exists), so the cost
+is a wasted slot, never a corrupted result. Now a known quantity instead of scattered mystery
+failures diagnosed mid-campaign against 42,000 jobs.
+
+### ★ THE 636-CORE FIGURE IS A CEILING, NOT A SUSTAINED RATE (Tamer's question, answered with data)
+
+Tamer asked why we were queueing now when the 2026-07-26 probe got cores immediately and ramped to
+~636. The comparison is **not like-for-like, and both differences flatter the old number**:
+
+* **TIME OF DAY.** That probe ran **02:30–04:30 UTC** — the cluster's quietest window. The gate was
+  submitted at **16:09 UTC on a Monday**, with **2,269 pending / 2,312 running** cluster-wide.
+* **JOB LENGTH — the bigger one.** The probe ran `bench_compute.py` at its default **2,500 steps
+  ≈ 3 min/job**. The campaign's trainings are **8.5 h**. A 3-minute job backfills into almost any
+  gap; an 8.5-hour job needs the scheduler to commit an 8.5-hour window. Structurally harder.
+
+**Why it matters:** every campaign timeline is computed from a SUSTAINED core count, and 636 has been
+used as that number — including in a planning table shown to Tamer. From `lanes.total_trainings` +
+`training_core_hours`: **636 sustained -> the full 568 ladder in 23.6 d; 500 sustained -> truncation
+to rung 403.** A ~20 % shortfall costs a whole assurance rung, and the shortfall is plausible exactly
+because the measurement conditions were the friendliest possible.
+
+**Resolution:** the gate is the first measurement at the REAL shape (real gold, daytime, normal
+contention, long jobs) — despite 2,269 jobs ahead of us, the first placed in ~5 min and all six were
+running within ~12 min. The wide run that follows yields the per-node throughput DISTRIBUTION, which
+is what the makespan actually depends on. Until then 636 is a CEILING and must not be re-quoted as
+sustained. Full row in `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md`.
+
+**Cluster capacity context measured at submission:** ~5,802 cores free, but **2,318 jobs pending
+cluster-wide** — idle cores are not "ours", SGE arbitrates by fair-share, and our priorities climbed
+0.00000 -> 2.19-3.39 within minutes, which is how one job placed in ~5 min. A verified idle `d` node
+(`node-d97a-001`) had 36 cores free, 1.465 T tmpfs (we request 15 G) and 160 G memory (we request
+32 G), so our resource SHAPE fits with enormous margin; 294 d-nodes x 36 = 10,584 cores, matching the
+documented pool size exactly.
 
 ## [2026-07-27] — ★★★★★ RECOVERY/CAPACITY LANE — SESSION SUMMARY · **READ THIS FIRST IF YOU ARE STARTING THE CAMPAIGN**
 
