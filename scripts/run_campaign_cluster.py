@@ -406,6 +406,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "chunked arrays have no tail to hold, every part immediately eligible. "
                         "Campaign launch uses --chunk-tasks 1 (task = a pack-5 bundle). Default "
                         "None = one array per round (legacy).")
+    p.add_argument("--exclude-hosts", default=None, metavar="H1,H2",
+                   help="Comma-separated nodes to FENCE OFF. A node that fails a job in SECONDS "
+                        "is always free, so the scheduler keeps feeding it work and it keeps "
+                        "destroying it -- a job vacuum. Live 2026-07-27: node-d00a-230 has no "
+                        "apptainer and ate 5 of our jobs in ~40 min. Self-healing (resume re-runs "
+                        "the spec) but pure waste across 42,128 trainings.")
     p.add_argument("--search-threads", type=int, default=None, metavar="N",
                    help="Intra-op threads per SEARCH/chain training (R107). Default None = the "
                         "REGISTERED value (lanes.CPU_CHAIN_THREADS) on the CPU lane, so code and "
@@ -938,6 +944,8 @@ def main(argv: list[str] | None = None) -> int:
                           if args.seed_pool_blocks else None),
         batch_tag=(args.batch_tag or None),
         search_threads=args.search_threads,
+        exclude_hosts=([h.strip() for h in args.exclude_hosts.split(',') if h.strip()]
+                       if args.exclude_hosts else None),
         search_pack=args.search_pack, search_h_rt=search_h_rt,
         search_poll_secs=args.search_poll_secs, device=args.device,
     )

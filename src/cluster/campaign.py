@@ -176,6 +176,7 @@ def build_cluster_run(
     search_h_rt: str | None = None,
     search_poll_secs: float | None = None,
     search_threads: int | None = None,
+    exclude_hosts: list[str] | None = None,
     device: str = "cuda",
 ) -> ClusterRun:
     """Wire a production :class:`ClusterRun` over :func:`src.cluster.driver.run_batch`.
@@ -307,6 +308,8 @@ def build_cluster_run(
             specs = [{**s, "device": device} for s in specs]
         if apptainer_sif:
             _jk["apptainer_sif"] = apptainer_sif
+        if exclude_hosts:
+            _jk["exclude_hosts"] = list(exclude_hosts)
         #  * threads (R107, wired 2026-07-27): the intra-op BLAS/torch thread count for THIS batch.
         #    Like `device` it must reach BOTH the specs (so `run_one._task_threads` pins the worker)
         #    AND the jobscript (so SGE actually grants the cores) — threads without matching cores
