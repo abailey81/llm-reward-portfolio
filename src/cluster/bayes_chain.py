@@ -71,6 +71,7 @@ def run_bayes_chain(
     archive_root: str | Path,
     spec_archive_root: str | Path,
     k_seeds: int = 1,
+    device: str | None = None,
     deadline_secs: float | None = None,
     est_iter_secs: float | None = None,
     clock: Any = time.monotonic,
@@ -88,6 +89,12 @@ def run_bayes_chain(
         Where per-candidate specs are recorded (mirrors ``run.search_spec_root()``).
     k_seeds : int
         ``search_seeds_per_candidate`` (B-A2). 1 = the byte-identical single-seed default.
+    device : str, optional
+        ``"cpu"`` / ``"cuda"`` — the SUBSTRATE stamped onto every spec this chain builds. Pass the
+        SAME value the job requested: it is part of the determinism envelope (CPU is not
+        bit-identical to CUDA), so a mislabelled spec both mis-archives the fingerprint and can
+        split one arm's search across two arithmetics. ``None`` leaves the spec bare and lets
+        ``run_one`` apply its ``"cuda"`` default — correct ONLY on a GPU job. See ``_chain_specs``.
     deadline_secs : float, optional
         Wall budget. ``None`` = run to completion (use only when the walltime genuinely fits).
     est_iter_secs : float, optional
@@ -162,7 +169,7 @@ def run_bayes_chain(
 
         it0 = clock()
         for spec in _chain_specs(arm, cid, list(coeffs), opts, spec_archive_root,
-                                 k_seeds, base_seed, _family_spec):
+                                 k_seeds, base_seed, _family_spec, device):
             run_one._run_single(spec)          # the certified worker: trains AND archives
         state["durations"].append(clock() - it0)
 
@@ -201,14 +208,32 @@ def run_bayes_chain(
 
 
 def _chain_specs(arm: str, cid: str, coeffs: list, opts: dict, spec_archive_root: str | Path,
-                 k_seeds: int, base_seed: int, family_spec: Any) -> list[dict[str, Any]]:
-    """Per-candidate specs — identical in shape to ``campaign._family_specs`` (k-seed aware)."""
+                 k_seeds: int, base_seed: int, family_spec: Any,
+                 device: str | None = None) -> list[dict[str, Any]]:
+    """Per-candidate specs — identical in shape to ``campaign._family_specs`` (k-seed aware).
+
+    ``device`` STAMPS THE SUBSTRATE (deep review, 2026-07-27). Without it these specs carry no
+    ``device`` key at all — ``opts`` has none (its keys are train_steps…window) and
+    ``parallel._spec`` adds none — so they reach ``run_one._run_single`` bare and are defaulted
+    there to ``"cuda"``. The driver-side path never has this problem because ``campaign`` injects
+    the device onto the specs IT builds; the chain builds its own ON-NODE and bypasses that
+    entirely. On the CPU lane the request would find no GPU and fall back, so the training ran on
+    CPU while the archived fingerprint said ``dev=cuda``; on a node that DID expose a GPU it would
+    have taken one the job never requested, splitting this arm's search across two arithmetics.
+    LATENT today — the chain-in-one-job entry is built and unit-tested but NOT WIRED (nothing
+    constructs a chain spec or selects ``entry_module="src.cluster.bayes_chain"``, so ``bayes_opt``
+    currently runs as array-of-1 jobs through the driver, which does inject the device). That is
+    precisely why it is fixed now: the defect would go live SILENTLY the moment the latency
+    optimisation is switched on, and switching it on is what ``lanes.py``'s Lane 1 plan calls for.
+    """
     from src.search.multiseed import candidate_seed_ids
 
     out = []
     for run_id, seed in candidate_seed_ids(cid, k_seeds, base_seed):
         s = family_spec(arm, "coeffs", coeffs, run_id, opts, str(spec_archive_root))
         s["seed"] = seed
+        if device:
+            s["device"] = str(device)
         if k_seeds > 1:
             s["emit_train_returns"] = True     # the k-seed FED tail is TRAIN-window (B-A2)
         out.append(s)
@@ -238,6 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         archive_root=cfg["archive_root"],
         spec_archive_root=cfg["spec_archive_root"],
         k_seeds=int(cfg.get("k_seeds", 1)),
+        device=cfg.get("device"),   # the substrate, threaded from the chain spec (2026-07-27)
         deadline_secs=cfg.get("deadline_secs"),
         est_iter_secs=cfg.get("est_iter_secs"),
     )

@@ -65,6 +65,21 @@ def _patch_chain(monkeypatch, *, archive: dict, per_iter_secs: float = 0.0,
     return trained
 
 
+def _spec_spy(monkeypatch):
+    """Record every spec the chain hands the worker, preserving ``_patch_chain``'s fake behaviour."""
+    from src.cluster import run_one
+
+    inner = run_one._run_single
+    seen: list[dict] = []
+
+    def _spy(spec):
+        seen.append(dict(spec))
+        return inner(spec)
+
+    monkeypatch.setattr("src.cluster.run_one._run_single", _spy)
+    return seen
+
+
 def _opts(candidates: int = 12, seed: int = 7) -> dict:
     return {"candidates": candidates, "seed": seed, "proto_cfg": None}
 
@@ -221,6 +236,61 @@ def test_cli_entry_point_reads_a_chain_spec_and_exits_zero(monkeypatch, tmp_path
     assert rc == 0
     out = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert out["status"] == "complete" and out["completed"] == 4
+
+
+# --- the determinism envelope: the substrate must be STAMPED, never defaulted ----------------
+
+def test_device_is_stamped_onto_EVERY_spec_the_chain_builds(monkeypatch, tmp_path):
+    """On the CPU lane the chain must hand the worker specs that SAY cpu.
+
+    The chain builds its specs ON-NODE, bypassing the driver-side injection (``campaign.py``) that
+    stamps the device on every spec elsewhere. Without this, each spec reaches
+    ``run_one._run_single`` bare and is defaulted there to ``"cuda"``: the archive would record
+    ``dev=cuda`` for a training that actually ran on CPU, and on a node that DID expose a GPU the
+    job would seize a card it never requested. Both break the device homogeneity that the CRN
+    pairing of every paired contrast rests on.
+    """
+    _patch_chain(monkeypatch, archive={})
+    seen = _spec_spy(monkeypatch)
+    run_bayes_chain(_opts(6), archive_root=tmp_path, spec_archive_root=tmp_path / "s",
+                    device="cpu")
+    assert len(seen) == 6
+    assert {s.get("device") for s in seen} == {"cpu"}, "a spec escaped without the substrate"
+
+
+def test_device_is_stamped_on_EVERY_SEED_of_a_multi_seed_candidate(monkeypatch, tmp_path):
+    """``k_seeds > 1`` fans one candidate into several trainings — each is its own comparison unit,
+    so a per-candidate stamp would not be enough."""
+    _patch_chain(monkeypatch, archive={})
+    seen = _spec_spy(monkeypatch)
+    run_bayes_chain(_opts(4), archive_root=tmp_path, spec_archive_root=tmp_path / "s",
+                    k_seeds=3, device="cpu")
+    assert len(seen) == 12
+    assert all(s.get("device") == "cpu" for s in seen)
+
+
+def test_omitting_device_leaves_the_spec_BARE_so_run_one_keeps_its_default(monkeypatch, tmp_path):
+    """Back-compat: no device requested => no key invented, so the existing GPU path is unchanged."""
+    _patch_chain(monkeypatch, archive={})
+    seen = _spec_spy(monkeypatch)
+    run_bayes_chain(_opts(3), archive_root=tmp_path, spec_archive_root=tmp_path / "s")
+    assert seen and all("device" not in s for s in seen)
+
+
+def test_cli_entry_point_threads_device_from_the_chain_spec(monkeypatch, tmp_path, capsys):
+    """The substrate must survive the JSON boundary — the on-node job is launched from a spec FILE,
+    so a parameter that ``main()`` never reads is a parameter the campaign can never actually set."""
+    _patch_chain(monkeypatch, archive={})
+    seen = _spec_spy(monkeypatch)
+    spec = tmp_path / "chain.json"
+    spec.write_text(json.dumps({
+        "opts": _opts(3), "arm": "bayes_opt", "device": "cpu",
+        "archive_root": str(tmp_path), "spec_archive_root": str(tmp_path / "s"), "k_seeds": 1,
+    }), encoding="utf-8")
+
+    assert bayes_chain.main(["--spec", str(spec), "--pack", "1"]) == 0
+    capsys.readouterr()
+    assert seen and all(s.get("device") == "cpu" for s in seen)
 
 
 def test_chain_module_never_reaches_for_the_scheduler():
