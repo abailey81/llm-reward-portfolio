@@ -130,6 +130,40 @@ already correct (fail fast, NO record written, resume re-runs because no result 
 is a wasted slot, never a corrupted result. Now a known quantity instead of scattered mystery
 failures diagnosed mid-campaign against 42,000 jobs.
 
+### ⚠⚠ RETRACTION (2026-07-27, ~21:00): R107 WAS NEVER TESTED — READ THIS BEFORE THE SECTION BELOW
+
+The section below claims the CPU gate REFUTED R107's 2.72x and measured ~1.18-1.26x. **That claim is
+WITHDRAWN. The instrument was invalid and R107 remains UNTESTED.**
+
+**THE ERROR.** The "8-thread" arm was submitted at 16:58 against cluster code **`a4f903c`**, whose
+`_worker_init()` takes **no thread argument** and hardcodes 1 — confirmed by
+`git show a4f903c:src/orchestration/parallel.py`. The R107 wiring was committed at 16:43 but only
+DEPLOYED at ~18:55. **That arm therefore ran at ONE thread.**
+
+**AND THE CORROBORATION WAS ALSO WRONG.** I claimed `qstat` proved the threads were engaged
+("sustained 8.06x CPU parallelism"). SGE's `cpu` field on an `smp` PE reports **SLOT-seconds, not CPU
+consumption**: 8 slots x 46 min = **6:08** against the observed **`cpu=06:10:56`**. I read an
+ALLOCATION figure as a UTILISATION figure, which is precisely the kind of unvalidated-instrument
+error that produced the defects this session exists to catch.
+
+**WITHDRAWN:** 1.26x, 1.18x, "8 threads = 1.93 steps/s per core", "the chain is 7.5 d not 3.3 d",
+and "R107's headline number does not reproduce".
+
+**WHAT SURVIVES — and it is better evidence than what it replaces.** Both arms ran at 1 thread, so
+the gate yields **n=9 of the 1-THREAD rate on the real workload**: 13.0, 13.1, 13.2, 14.0, 14.6,
+14.9, 16.1, 16.1, 16.6 -> **mean ~14.6 steps/s, ~12 % ABOVE the registered 13.0.** The campaign's
+core planning constant is CONSERVATIVE, which is the right direction to be wrong in.
+
+**THE LAUNCH CONFIG IS UNCHANGED.** `--search-threads 1` rests on two grounds that do NOT depend on
+any thread measurement: (i) the throughput arithmetic holds at ANY speed-up including R107's own
+2.72x — on a fixed core budget 8 threads consume 8 cores for at most a modest latency gain, which is
+the wrong trade for 42,128 independent trainings; and (ii) **8-core jobs were measured NOT TO PLACE**
+(1-core 10/10 vs 8-core 0/10), a property of the CORE REQUEST and wholly independent of threads.
+
+**DO NOT AMEND R107.** "Untested" is not grounds for changing a registered value. Testing it properly
+would require submitting 8-thread work against the NOW-deployed code — but 8-core jobs do not place,
+so the question is moot for this campaign.
+
 ### ★★★ THE FIRST FULL TRAINING EVER COMPLETED ON THE MYRIAD CPU LANE — AND IT REFUTES R107's 2.72x
 
 **IT WORKS.** `p6scal-b60000-s1` and `p6dist-b60000-s1` completed: 60,000 steps on the REAL `univ5`
