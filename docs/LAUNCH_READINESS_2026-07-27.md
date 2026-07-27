@@ -90,6 +90,48 @@ decision or an operator action — none is a code defect.**
 
 ---
 
+## 2b. THE LEG GATES COMPLETED — and the launch gate now HONESTLY FAILS
+
+`leg_gates.py --all` finished **10/10, RC=0, $0.81** (112 calls on the R83 advisory ledger). Every
+pinned transport is live (`smoke: True` on all ten) and format compliance is 1.0 on nine of ten.
+
+**`pretrain_validate.py` therefore moved from a green-LOOKING `FAIL=0` with two inert SKIPs to a real
+verdict — `RC=2, FAIL=1, WARN=1`.** That is the re-run paying for itself: the two checks that were
+measuring nothing are now measuring, and they do not pass.
+
+| check | before (data destroyed) | now |
+|---|---|---|
+| `leg_readiness` | SKIP | **FAIL** — "below the 100% compliance floor: `['deepseek-v4-pro=0.9']`" |
+| `executable_yield` | SKIP | **WARN** — low yield, "a capability finding, report it as such" |
+
+**Neither is a code defect.** The FAIL is Tamer's MAXIMUM-STRICTNESS policy operating exactly as
+written (`_COMPLIANCE_FLOOR = 1.0`; ANY sub-perfect leg flags for review, never a silent pass), and
+the WARN is the design telling us to report a capability result rather than mistake it for
+unreliability. Both route to Tamer, and the pre-declared fallback chain decides.
+
+**The destroyed per-model authoring evidence is REGENERATED, and it REPRODUCES the recorded finding:**
+
+| leg | executable yield (fresh) | recorded before the deletion |
+|---|---|---|
+| **qwen3.5-9b** | **2/10 = 20.0%** | ~17% — the capability-gradient BOTTOM anchor |
+| qwen3.6-27b | 8/10 = 80.0% | ~83% |
+| deepseek-v4-pro | 7/9 = 77.8% | — |
+| glm-5.2 | 9/10 = 90.0% | — |
+| gemini-3.5-flash, gpt-5.6-luna, haiku-4.5, kimi-k3, nemotron-3-super, sonnet-5 | 10/10 = 100% | — |
+
+The numeracy-bottleneck gradient survives on fresh calls — **equivalent, never byte-identical**, since
+LLM generation is non-deterministic (exactly as the recovery lane predicted). Note the headline
+distinction the design insists on: `qwen3.5-9b` scores **1.0 on FORMAT compliance** while yielding
+**20% executable** code. Format compliance is not executability, and reporting the former as
+reliability is the error `check_executable_yield` exists to prevent.
+
+**The contamination screen flagged 7 of 10 legs**, which needs a human read rather than a count. By
+probe family: **canary 6**, identification 2, continuation 2. The canary is a FABRICATED sequence, so
+"recognising" it is a confabulation flag — six of ten doing so is either a genuine and reportable
+observation about these models or a too-loose keyword rule, and only reading the archived responses
+settles it. `deepseek-v4-pro` is different again: **no flags, but two probes UNUSABLE on length**, so
+its screen is `review+UNVERIFIED` — the instrument could not measure, which is not the same as a pass.
+
 ## 3. STILL RUNNING AT THE TIME OF WRITING
 
 | Job | Purpose | What to do when it lands |
