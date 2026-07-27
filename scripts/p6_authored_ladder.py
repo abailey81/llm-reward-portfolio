@@ -121,7 +121,7 @@ def _auto_h_rt(budgets: list[int], device: str = "cuda") -> str:
 def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, cores: int,
                 budgets: list[int], batch: str, device: str = "cuda",
                 threads: int = 1, seeds: list[int] | None = None,
-                h_rt: str | None = None) -> Path:
+                h_rt: str | None = None, exclude_hosts: list[str] | None = None) -> Path:
     """Write task_N.json + the jobscript into the local batch dir; return it."""
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
@@ -134,6 +134,7 @@ def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, c
     batch_dir = Path(local_out) / "batches" / batch
     n = write_specs(specs, batch_dir)  # strict-JSON guard runs here
     js = render_jobscript(batch, n, remote_root, gold_dir, pool=pool, pack=1, device=device,
+                          exclude_hosts=exclude_hosts,
                           cores=cores, h_rt=(h_rt or _auto_h_rt(budgets, device)),
                           apptainer_sif="$HOME/python311.sif")
     write_jobscript(js, batch_dir / f"{batch}.sh")
@@ -144,13 +145,14 @@ def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, c
 
 def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str, cores: int,
            budgets: list[int], batch: str, device: str = "cuda", threads: int = 1,
-           seeds: list[int] | None = None, h_rt: str | None = None) -> str:
+           seeds: list[int] | None = None, h_rt: str | None = None,
+           exclude_hosts: list[str] | None = None) -> str:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
     batch_dir = build_batch(remote_root, gold_dir, local_out, pool=pool, cores=cores,
                             budgets=budgets, batch=batch, device=device, threads=threads,
-                            seeds=seeds, h_rt=h_rt)
+                            seeds=seeds, h_rt=h_rt, exclude_hosts=exclude_hosts)
     prepare_remote(remote_root, [batch], runner)
     push_batch(batch_dir, f"{remote_root.rstrip('/')}/specs", host=host)
     job = qsub(f"{remote_root.rstrip('/')}/specs/{batch}/{batch}.sh", runner)
@@ -162,7 +164,8 @@ def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str
                    cores: int, budgets: list[int], batch: str,
                    exclude: set[str], skip_done: bool, device: str = "cuda",
                    threads: int = 1, seeds: list[int] | None = None,
-                   h_rt_override: str | None = None) -> list[str]:
+                   h_rt_override: str | None = None,
+                   exclude_hosts: list[str] | None = None) -> list[str]:
     """Submit each (winner, budget, seed) spec as its OWN 1-task array (2026-07-13 recovery).
 
     WHY: the scheduler's serialization policy holds an array's tail tasks (``snx=1``) and has
@@ -202,6 +205,7 @@ def submit_singles(remote_root: str, gold_dir: str, local_out: str, *, host: str
         h_rt = h_rt_override or _auto_h_rt(
             [int(spec.get("train_steps") or max(budgets))], device)
         js = render_jobscript(name, 1, remote_root, gold_dir, pool=pool, pack=1, device=device,
+                              exclude_hosts=exclude_hosts,
                               cores=cores, h_rt=h_rt, apptainer_sif="$HOME/python311.sif")
         write_jobscript(js, batch_dir / f"{name}.sh")
     prepare_remote(remote_root, names, runner)
@@ -255,6 +259,11 @@ def main() -> int:
                         "fires the jobscript CUDA_VISIBLE_DEVICES guard, and STAMPS every spec so "
                         "the archive records what actually ran (this script builds its own specs "
                         "and so bypasses the campaign's device injection).")
+    p.add_argument("--exclude-hosts", default=None, metavar="H1,H2",
+                   help="Comma-separated nodes to FENCE OFF. A node that fails in SECONDS is "
+                        "always free, so the scheduler keeps feeding it work -- a job vacuum. "
+                        "Live 2026-07-27: node-d00a-230 has no apptainer and ate 13 jobs in ~90 "
+                        "min. The ladder has NO driver loop, so each such job is a LOST cell.")
     p.add_argument("--h-rt", default=None, metavar="H:M:S",
                    help="Override the auto walltime. AUTO is lane-aware (CPU floor 10 steps/s, "
                         "GPU 25) -- the GPU-era 25 UNDER-SIZED every CPU rung and would have "
@@ -295,10 +304,13 @@ def main() -> int:
 
     _seeds = ([int(x) for x in str(args.seeds).split(',') if x.strip()]
               if args.seeds else None)
+    _excl = ([h.strip() for h in str(args.exclude_hosts).split(',') if h.strip()]
+             if args.exclude_hosts else None)
     if args.build_only:
         build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
                     cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
-                    device=args.device, threads=args.threads, seeds=_seeds, h_rt=args.h_rt)
+                    device=args.device, threads=args.threads, seeds=_seeds, h_rt=args.h_rt,
+                    exclude_hosts=_excl)
         return 0
     if args.submit and args.singles:
         submit_singles(remote_root, args.gold_dir, args.output_dir, host=args.host,
@@ -306,12 +318,14 @@ def main() -> int:
                        batch=args.batch_name,
                        exclude={x.strip() for x in args.exclude.split(",") if x.strip()},
                        skip_done=bool(args.skip_done), device=args.device,
-                       threads=args.threads, seeds=_seeds, h_rt_override=args.h_rt)
+                       threads=args.threads, seeds=_seeds, h_rt_override=args.h_rt,
+                       exclude_hosts=_excl)
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
                pool=args.pool, cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
-               device=args.device, threads=args.threads, seeds=_seeds, h_rt=args.h_rt)
+               device=args.device, threads=args.threads, seeds=_seeds, h_rt=args.h_rt,
+               exclude_hosts=_excl)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)
