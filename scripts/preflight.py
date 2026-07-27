@@ -53,20 +53,45 @@ def check_ram(total_gb: float, avail_gb: float, n_gpu: int) -> Check:
     return Check("ram", PASS, f"{avail_gb:.1f} GB available, n_gpu={n_gpu} needs ~{need:.1f} GB")
 
 
-def check_commit_headroom(avail_gb: float | None, min_gb: float = 6.0) -> Check:
+def check_commit_headroom(avail_gb: float | None, n_gpu: int | None = None,
+                          min_gb: float | None = None) -> Check:
     """Windows COMMIT-CHARGE headroom (2026-07-18 forensics): with system commit exhausted
     (the 8-day ArmouryCrate.UserSessionHelper leak held 7.6 GB; avail fell to 0.37 GB), every
     spawned process stalls for MINUTES loading the numpy/MKL DLLs while Windows grows the
     pagefile — validation children then miss even generous graces and the driver wedges.
-    RAM-available does NOT catch this (commit is RAM+pagefile, capped by C: free space)."""
+    RAM-available does NOT catch this (commit is RAM+pagefile, capped by C: free space).
+
+    ⚠ CALIBRATED 2026-07-27 (Tamer: *"whatever my laptop can give, adapt"*). The floor was a
+    HARDCODED 6.0 regardless of workload, while the sibling :func:`check_ram` scales as
+    ``n_gpu * 2.2 + 3.0``. That mattered once the campaign moved to Myriad: on a cluster run the
+    laptop TRAINS NOTHING — it only drives (submit/poll/pull) and authors — so RAM correctly relaxed
+    to 3.0 GB while commit still demanded 6.0, failing the gauntlet on a workload that does not exist.
+
+    MEASURED on this box, sampling the whole process tree at 20 Hz from outside:
+      * cluster driver (dry-run, core AND a leg): peak **0.54 GB**, 2 processes
+      * spawned validation child (the class the incident actually hurt): peak **1.33 GB**, 4 processes
+      * freeze-gate child: 0.02 GB
+    So the laptop's driver role needs ~1.3 GB at peak, and 6.0 was ~4.5x that.
+
+    The floor now uses the SAME shape as ``check_ram`` so the two can never disagree about the
+    workload again. Note this makes the check **STRICTER where the laptop really does train**
+    (n_gpu=2 -> 7.4 GB, up from the flat 6.0) and honest where it does not (n_gpu=0 -> 3.0 GB, still
+    a 2.25x margin over the measured 1.33 GB peak). ``min_gb`` remains overridable for callers that
+    want the legacy flat floor.
+    """
     if avail_gb is None:
         return Check("commit", WARN, "commit-charge telemetry unavailable (non-Windows?)")
+    if min_gb is None:
+        min_gb = (n_gpu * _PER_WORKER_GB + _OS_RESERVE_GB) if n_gpu is not None else 6.0
     if avail_gb < min_gb:
         return Check("commit", FAIL,
-                     f"only {avail_gb:.1f} GB system commit available (< {min_gb:.0f}); child "
-                     f"spawns will stall — find the leaker (Get-Process | sort PrivateMemorySize64;"
-                     f" the known one is ArmouryCrate.UserSessionHelper) and/or grow the pagefile")
-    return Check("commit", PASS, f"{avail_gb:.1f} GB system commit available (>= {min_gb:.0f})")
+                     f"only {avail_gb:.1f} GB system commit available (< {min_gb:.1f} for "
+                     f"n_gpu={n_gpu}); child spawns will stall — close other apps, find the leaker "
+                     f"(Get-Process | sort PrivateMemorySize64; the known one is "
+                     f"ArmouryCrate.UserSessionHelper), and/or grow the pagefile")
+    return Check("commit", PASS,
+                 f"{avail_gb:.1f} GB system commit available (>= {min_gb:.1f} for n_gpu={n_gpu}; "
+                 "measured driver peak 1.3 GB on the cluster path)")
 
 
 def check_vram(free_mb: float | None, n_gpu: int) -> Check:
@@ -534,7 +559,7 @@ def _gather_and_check(n_gpu: int, min_disk_gb: float, *, provider: str, api_prob
         checks.append(check_ram(total, avail, n_gpu))
     except Exception as exc:  # noqa: BLE001
         checks.append(Check("ram", WARN, f"ram probe failed (psutil?): {exc}"))
-    checks.append(check_commit_headroom(_commit_avail_gb()))
+    checks.append(check_commit_headroom(_commit_avail_gb(), n_gpu))
     checks.append(check_vram(_free_vram_mb(), n_gpu))
 
     # retry layer (C1): tenacity must be importable or every API call is single-attempt.

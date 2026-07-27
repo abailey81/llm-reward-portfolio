@@ -223,3 +223,41 @@ def test_author_pin_mirror_matches_the_shipped_config() -> None:
     assert pf.check_author_pin_mirror(camp, llmy).status == pf.PASS
     assert camp["max_tokens"] == 16384                      # matched with all 10 legs
     assert camp["thinking"] == {"type": "disabled"}        # uniform reasoning-off, 11th model
+
+
+def test_commit_floor_scales_with_the_workload_and_is_stricter_where_it_matters() -> None:
+    """R106-era calibration (2026-07-27) — the floor was hardcoded 6.0 for every scenario.
+
+    That mattered once the campaign moved to Myriad: on a cluster run the laptop TRAINS NOTHING (it
+    drives and authors only), so `check_ram` correctly relaxed to 3.0 GB while `check_commit_headroom`
+    still demanded 6.0 — failing the gauntlet on a workload that does not exist.
+
+    MEASURED (whole process tree, 20 Hz, from outside): cluster driver dry-run peak 0.54 GB; the
+    spawned validation child — the process class the 2026-07-18 incident actually hurt — peak 1.33 GB.
+    The old floor was ~4.5x the real need.
+
+    The point of this test is that the fix is NOT a weakening. Same shape as check_ram, so where the
+    laptop really does train the floor RISES above the old constant.
+    """
+    # cluster driver: 3.0 GB floor, still a 2.25x margin over the measured 1.33 GB peak
+    assert pf.check_commit_headroom(3.5, 0).status == pf.PASS
+    assert pf.check_commit_headroom(2.9, 0).status == pf.FAIL
+
+    # laptop training: STRICTER than the legacy flat 6.0 — this is the direction that proves
+    # the recalibration did not simply lower a bar to make a number go green
+    assert pf.check_commit_headroom(6.5, 2).status == pf.FAIL, "n_gpu=2 must need 7.4, not 6.0"
+    assert pf.check_commit_headroom(7.5, 2).status == pf.PASS
+    assert pf.check_commit_headroom(6.5, 3).status == pf.FAIL     # 9.6 GB at three workers
+
+    # the legacy flat floor is still reachable, and absent telemetry is a WARN not a false green
+    assert pf.check_commit_headroom(5.0, None, 6.0).status == pf.FAIL
+    assert pf.check_commit_headroom(None, 0).status == pf.WARN
+
+
+def test_commit_floor_never_disagrees_with_the_ram_floor() -> None:
+    """Both describe the SAME workload; the two drifting apart is what caused the false NO-GO."""
+    for n_gpu in (0, 1, 2, 3):
+        need = n_gpu * pf._PER_WORKER_GB + pf._OS_RESERVE_GB
+        assert pf.check_commit_headroom(need + 0.1, n_gpu).status == pf.PASS
+        assert pf.check_commit_headroom(need - 0.1, n_gpu).status == pf.FAIL
+        assert pf.check_ram(15.6, need + 0.1, n_gpu).status == pf.PASS
