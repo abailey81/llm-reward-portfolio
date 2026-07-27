@@ -853,6 +853,41 @@ is what the green covers.
   not mistake them for staleness. One live-file count *was* stale — a `# all 8 allocators rolled`
   comment on a correctly-DERIVED assertion — fixed on sight, below the finding bar.
 
+### ★ #103 — H4 is deliberately outside the frozen-family guard, and nothing replaced it
+
+Loop 124 ran the TAUTOLOGY audit sharpened by #102: *does each roster guard assert against an
+INDEPENDENT source of truth, or against the same constant the code uses?* Applied to every
+registered set.
+
+**The audit's best result is what it CLEARED.** The fed tail vector — the manipulated variable, and
+the file that produced #87 and #98 — is guarded three ways, and none of them is tautological:
+`test_deep_p23_cvar_levels_reconcile` asserts **`code == config/inference.yaml: alpha_grid` ==
+`config/preregistration.yaml: tail_diagnostic_set.cvar_levels`** (a genuine 3-way config↔code
+reconcile), and `test_llm_deep` pins `FROZEN_TAIL_KEYS` as an **independent literal** — explicitly "so
+a silent rename/reorder of the frozen design fails this test loudly" — then cross-checks the LIVE
+estimator's emitted keys against it. `_DIST_FIELDS` matches the registered set exactly (4 cvar levels
++ 2 extras = 6). **This is the pattern the rest of the repo should copy.**
+
+`H2_CONTRASTS` is also protected, transitively but genuinely: it matches the registered
+`h2_ra`/`h2_tail` members exactly, and `assert_realized_family_matches_frozen` is **wired on the real
+path** (`analyze_campaign.py:1579`, inside `collect_family_pvalues`) — not a #57-class dead gate — so
+a drift would stop the realized tests matching the frozen family and raise.
+
+**The gap is H4.** `h4_search_controls` writes a DISJOINT key *precisely* "so
+``assert_realized_family_matches_frozen`` never sees it" — correct, and it is what keeps the frozen
+m=6 family clean. But **nothing was put in its place**, leaving the CONFIRMATORY N4 node's comparator
+portfolio unguarded, on the one constant that has ALREADY grown once (#100 caught H4 expanding 2 → 4
+with the report left behind). The registered source exists and was never compared to:
+`inference.validity_tier.nodes.N4_h4.comparators = [random_search, bayes_opt, cma_es, tpe]`.
+
+**No live defect** — verified `H4_CONTRASTS`' b-side equals the registered portfolio, order-identical,
+and every leg has a `_H4_REFERENCE_FRAMING` label. This closes the guard, exactly as #101 did. New
+`test_H4_CONTRASTS_matches_the_registered_N4_comparator_portfolio` asserts config-vs-code and that no
+leg lacks a framing label (the #100 failure mode one step upstream). Verified to DISCRIMINATE:
+dropping `tpe` fails it and the message names the missing comparator. If a fifth optimiser were ever
+registered without updating the tuple, N4 would quietly claim to beat "the best optimiser" while never
+facing it. **101 tests green, ruff clean.**
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across

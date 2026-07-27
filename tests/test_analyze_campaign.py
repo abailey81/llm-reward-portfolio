@@ -1789,3 +1789,41 @@ def test_ARMS_matches_the_frozen_arms_yaml_roster() -> None:
         "An arm absent from ARMS is invisible to PBO/DSR/MCS, with no skipped row to reveal it."
     )
     assert list(AC.ARMS) == list(registered), "ARMS order drifted from the frozen roster"
+
+
+def test_H4_CONTRASTS_matches_the_registered_N4_comparator_portfolio() -> None:
+    """H4 is DELIBERATELY outside the frozen-family guard, so its roster needs its own.
+
+    `assert_realized_family_matches_frozen` runs on the real path and transitively protects
+    `H2_CONTRASTS`: if it drifted, the realized tests would stop matching the frozen family and it
+    would raise. H4 is deliberately excluded from that mechanism — `h4_search_controls` writes a
+    DISJOINT key precisely "so ``assert_realized_family_matches_frozen`` never sees it" and the m=6
+    family stays clean — but nothing was put in its place, leaving the CONFIRMATORY N4 node's
+    comparator portfolio unguarded.
+
+    That is the #102 gap (ARMS drifted 7 vs 9 with only a tautological test) on the node whose
+    constant has ALREADY grown once: #100 caught H4 expanding 2 -> 4 with the report left behind.
+    The registered source is ``inference.validity_tier.nodes.N4_h4.comparators`` — "beat the MAX of
+    the {random, GP-EI, CMA-ES, TPE} portfolio". If a fifth optimiser arm were registered and this
+    tuple not updated, N4 would quietly claim to beat "the best optimiser" while never facing it.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    from scripts.analyze_campaign import H4_CONTRASTS, _H4_REFERENCE_FRAMING
+
+    root = Path(__file__).resolve().parents[1]
+    pre = yaml.safe_load((root / "config" / "preregistration.yaml").read_text(encoding="utf-8"))
+    registered = list(pre["inference"]["validity_tier"]["nodes"]["N4_h4"]["comparators"])
+    coded = [b for _tid, _a, b in H4_CONTRASTS]
+
+    assert coded == registered, (
+        f"H4_CONTRASTS drifted from the registered N4 portfolio: code={coded}, "
+        f"registered={registered}. N4 is the confirmatory beat-the-MAX IUT, so a comparator missing "
+        "here is one the LLM is never tested against while the claim still says 'the best'."
+    )
+    # Every leg must have a reference-framing label, or the H4 table falls back to a bare test id
+    # for that row — the #100 failure mode, one step upstream.
+    missing = [tid for tid, _a, _b in H4_CONTRASTS if not _H4_REFERENCE_FRAMING.get(tid)]
+    assert not missing, f"H4 legs with no _H4_REFERENCE_FRAMING label: {missing}"
