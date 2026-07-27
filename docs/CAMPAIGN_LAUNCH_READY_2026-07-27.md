@@ -134,7 +134,10 @@ archiving). The campaign runs 6.1 h jobs at all hours. **Never re-quote 636 as s
 
 ## 5. WHAT IS VERIFIED (evidence, not assertion)
 
-* **Full suite: 2,775 passed / 3 skipped / 0 failed / RC=0** on `1b8aec5`.
+* **Full suite: 2,779 passed / 3 skipped / 0 failed / RC=0** on `3e2e9b1` (re-run after the
+  `--help` fixes; **cluster re-synced to the same commit and the tree diff PROVED clean**, §8).
+  Reconciles exactly against the earlier 2,775: `+2` from `1b8aec5` (packed provenance) `+2` from
+  the new `tests/test_cli_help_strings.py`. No unexplained delta.
 * **`freeze.py --check` RC=0**, `freeze_hash: null` — nothing frozen.
 * **Golden reproduction RC=0** after the training path was touched (heartbeat) — determinism intact.
 * **Full campaign path on CPU: rehearsal RC=0** — search leg -> winner selection -> **TEST LEG** ->
@@ -194,8 +197,32 @@ write-up needs, and it is ~4 % of a 4,000-core campaign.
 ## 8. OPERATIONAL GOTCHAS LEARNED THE HARD WAY (2026-07-27)
 
 * **Deploy to the cluster with a FILE, not the runbook's pipe.** `git archive HEAD | ssh myriad tar -x`
-  is corrupted by PowerShell (binary stream). Build the tar, `scp`, extract remotely, then write
-  `GIT_COMMIT`. The cluster was found **437 commits stale** at the start of this session.
+  is corrupted by PowerShell (binary stream). The cluster was found **437 commits stale** at the start
+  of this session. ⚠ **I hit this AGAIN at 22:0x after writing this bullet** — running the runbook's
+  pipe from PowerShell produced `tar: This does not look like a tar archive` and a dozen
+  `Skipping to next header`. **Verified recovery, and the recipe to use instead** (Bash tool, never
+  PowerShell):
+
+  ```bash
+  git archive --format=tar HEAD -o /tmp/deploy.tar
+  sha256sum /tmp/deploy.tar                       # compare with the remote one below
+  scp /tmp/deploy.tar myriad:~/deploy.tar
+  ssh myriad "sha256sum ~/deploy.tar"             # MUST match, byte-for-byte
+  ssh myriad "tar -xf ~/deploy.tar -C ~/llmrp && rm -f ~/deploy.tar"
+  git rev-parse HEAD | ssh myriad "cat > ~/llmrp/GIT_COMMIT"
+  ```
+
+  **Then PROVE the tree is right rather than assuming** — a corrupt extract can leave residue:
+  compare `git ls-tree -r --name-only HEAD` against a remote `find` (exclude `outputs/ data/ .venv/
+  archive/ __pycache__ GIT_COMMIT`), `LC_ALL=C sort` **both** sides (the remote locale collates
+  differently and `comm` silently misreports otherwise), and diff in **both** directions. Done at
+  `3e2e9b1`: **627/627 present, zero missing, zero extra**, and `src/cluster/run_one.py` deployed
+  sha256 == HEAD's. The failed pipe left no residue.
+* **Do not compile-check the deployed tree with the login node's `python3` — it is 3.6.8** and dies on
+  a walrus operator in `src/cluster/telemetry.py:390` that is perfectly valid. The jobs run 3.11
+  inside the container, and `~/venvs/llmrp/bin/python` is NOT executable from the login node by design
+  (the venv is built inside the image because RHEL7 glibc is too old for the cu124 wheels). A
+  `SyntaxError` from that interpreter is an artifact, not a defect.
 * **`_auto_h_rt` is lane-aware now.** The old 25 steps/s floor was a GPU-era constant and would have
   **SIGKILLed every CPU rung above 100k** (400k needed 8.5 h, was granted 7 h).
 * **A training used to be a BLACK BOX** — `verbose: 0` and 0-byte logs until completion. A heartbeat

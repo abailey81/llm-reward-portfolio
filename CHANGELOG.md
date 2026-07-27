@@ -17,7 +17,9 @@ python scripts/run_campaign_cluster.py   --device cpu --pool d --pack 4 --cores-
 
 ### GATES — all passed, all observed
 
-FULL SUITE **2,775 passed / 3 skipped / 0 failed, RC=0** on `1b8aec5` (cluster synced to the same) ·
+FULL SUITE **2,779 passed / 3 skipped / 0 failed, RC=0** on `3e2e9b1` (cluster re-synced to the same
+and the deployed tree PROVEN clean — see the late-fix sub-block below; the figure reconciles exactly
+against the earlier 2,775: +2 packed-provenance tests in `1b8aec5`, +2 in `test_cli_help_strings.py`) ·
 `freeze.py --check` **RC=0** with `freeze_hash: null`, UNTOUCHED (R94 is Tamer's alone) · golden
 reproduction **RC=0** after the training path was touched · **the full campaign path on CPU including
 the TEST LEG at RC=0** (12 records: 4 search + 8 test, valid science, `|dev=cpu`, sealed window
@@ -66,6 +68,54 @@ restores **F11** and gives B\* substrate evidence at n=10; ~30 h for the 1.6M ru
 recover the **13 ladder cells** `node-d00a-230` ate before the fence existed (`--skip-done` +
 `--exclude-hosts`; the ladder has NO driver loop, so a failed cell is lost unless resubmitted), then
 rebuild F11.
+
+### ⚠ LATE FIX — THE CAMPAIGN LAUNCHER COULD NOT PRINT ITS OWN `--help` (`3e2e9b1`)
+
+Found by typing the thing a human types first. `python scripts/run_campaign_cluster.py --help` raised
+`TypeError: %o format: an integer is required, not dict`. argparse **%-formats help strings**
+(`_expand_help`: `self._get_help_string(action) % params`), so a bare `%` followed by a conversion
+character is a live format directive. Two prose percentages had silently become directives:
+
+| CLI | text | becomes | error |
+| --- | --- | --- | --- |
+| `run_campaign_cluster.py` | `"93-97% of all trainings"` | `% o` = space-flagged octal | `TypeError` |
+| `p6_authored_ladder.py` | `"a genuine 95% " "t-interval"` | `% t` | `ValueError` |
+
+The second is the script needed for the outstanding F11 ladder recovery, and **both strings were help
+text added earlier the same day**. Escaped to `%%`; both now exit 0.
+
+**The class was invisible to 2,775 tests by construction** — the error is raised only at
+`format_help()` time and nothing in the suite types `--help`. So `tests/test_cli_help_strings.py`
+walks the **AST** of every argparse CLI in the repo (all `scripts/*.py` **plus**
+`src/cluster/run_one.py`, the entry point on every node, and `src/cluster/bayes_chain.py`) and flags
+any `help=` literal argparse would try to interpret. Static rather than 57 subprocesses that each
+import torch. **My first scanner was wrong** — a lookahead matched the *second* `%` of an escaped pair
+in `"20%% of the work"`; the shipped version consumes `%%` as one atom, and a second test reconstructs
+both real defects **and** both legitimate forms (`%%`, `%(default)s`) so the guard is falsifiable
+rather than vacuously green.
+
+**Swept all 57 argparse CLIs: 55 clean, the 2 above were the only real failures.** Three others failed
+only under the cp1251 capture pipe and print fine in the real PowerShell console (utf-8, cp 65001) —
+**verified in PowerShell, not assumed**.
+
+**Cluster re-synced to `3e2e9b1` — and the sync itself went wrong first.** Running the runbook's
+`git archive HEAD | ssh myriad tar -x` **from PowerShell** corrupted the binary stream
+(`tar: This does not look like a tar archive`). Recovery was file-based and verified at every step:
+tar built locally, sha256 compared **on both ends byte-for-byte**, extracted remotely (RC=0),
+`GIT_COMMIT` written. Then the tree was **proved** rather than assumed: `git ls-tree` vs a remote
+`find`, both `LC_ALL=C sort`ed (the remote locale collates differently and `comm` silently misreports
+otherwise), diffed in **both** directions → **627/627 present, 0 missing, 0 extra** (the one extra
+name was a 3-day-old login-node helper, not residue), and `src/cluster/run_one.py`'s deployed sha256
+== HEAD's. The failed pipe left nothing behind. Recipe + the trap now in the launch doc §8, along with
+a second trap: the login node's `python3` is **3.6.8** and reports a bogus `SyntaxError` on a valid
+walrus operator in `src/cluster/telemetry.py:390` — jobs run 3.11 inside the container.
+
+**Also verified this pass, first-hand rather than from a prior claim:** all 14 records of the pack-4
+rehearsal loaded through the **canonical read path** (`src/io/results.py::load_run`, which verifies
+`env_json_sha256`) → **14 ok / 0 fail**, every training record carrying its **own** `env.json` with
+`OMP_NUM_THREADS: 1` / `torch num_threads: 1` (so the driver-side `_env/` fallback, which holds the
+laptop's 10 threads, is never consulted for a training), `|dev=cpu` on every record, and the sealed
+window `campaign:<arm>:test[5536,7800)` correct. **Pack 4 is verified end-to-end, not asserted.**
 
 ### THE DOCUMENTATION SET, AND HOW IT IS WIRED TOGETHER (Tamer, 2026-07-27: *"document everything in the changelogs and the handoff, and reference this and other docs in the handoff as well"*)
 
