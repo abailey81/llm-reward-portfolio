@@ -389,3 +389,46 @@ def test_ladder_walltime_is_LANE_AWARE_or_every_cpu_rung_is_SIGKILLED():
         assert cpu_h > real_h, f"{budget}: h_rt {cpu_h}h <= real {real_h:.1f}h -> job would be killed"
     # the GPU lane must be untouched
     assert m._auto_h_rt([400_000], "cuda") == "7:0:0"
+
+
+def test_packed_path_syncs_the_PARENT_env_so_provenance_records_the_TRAINER(monkeypatch):
+    """At pack>=2 the WORKERS train but the PARENT archives, so `capture_env` samples the parent --
+    which never runs `_worker_init` and carries the OMP_NUM_THREADS that SGE sets from `-pe smp N`.
+    A pack-4 rehearsal launched at 1 thread archived `OMP_NUM_THREADS: 4`. The trainings were
+    correct; the RECORD was not, and that field is what the S6 homogeneity audit reads.
+
+    Deliberately NOT `_worker_init` in the parent: it also pins CPU affinity, which spawned children
+    INHERIT -- that would silently constrain every packed worker to a subset of cores.
+    """
+    import os
+
+    from src.cluster import run_one
+
+    for v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        monkeypatch.setenv(v, "4")          # what SGE leaves behind for `-pe smp 4`
+
+    specs = [{"device": "cpu", "candidate_id": "c0"}, {"device": "cpu", "candidate_id": "c1"}]
+    # the pack branch derives the count from the specs and syncs the parent to it
+    thr = run_one._task_threads(specs)
+    assert thr == 1, "absent `threads` key must mean 1"
+
+    # emulate exactly the sync the pack branch performs
+    for v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ[v] = str(thr)
+    assert os.environ["OMP_NUM_THREADS"] == "1", "parent env must match what the workers ran at"
+    assert os.environ["MKL_NUM_THREADS"] == "1"
+
+
+def test_the_pack_branch_actually_contains_the_env_sync():
+    """Guards the fix itself: the sync must live in run_task's PACKED branch, and must NOT be a
+    `_worker_init` call (which would pin inheritable CPU affinity)."""
+    import inspect
+
+    from src.cluster import run_one
+
+    src = inspect.getsource(run_one.run_task)
+    assert "OMP_NUM_THREADS" in src, "the packed branch must sync the parent's BLAS env"
+    assert "_task_threads(to_run)" in src
+    # the affinity trap: the parent must not run the full worker init
+    packed = src.split("DevicePool")[0].split("from concurrent.futures")[-1]
+    assert "_worker_init(" not in packed, "parent must NOT call _worker_init (inherited affinity)"

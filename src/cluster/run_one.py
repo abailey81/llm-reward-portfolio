@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -333,6 +334,30 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
     # one. See `_task_device`.
     _dev = _task_device(to_run)
     _slots = min(pack, len(to_run))
+    # PROVENANCE PARITY FOR THE PACKED PATH (2026-07-27, found by the pack-4 rehearsal).
+    # At pack>=2 the WORKERS train but the PARENT archives, so `_archive` -> `_run_env_fp` ->
+    # `capture_env` samples the PARENT's environment. The parent never runs `_worker_init`, and SGE
+    # sets `OMP_NUM_THREADS` from the `-pe smp N` slot count — so a run launched at 1 thread archived
+    # `OMP_NUM_THREADS: 4, torch num_threads: 4`. The trainings were CORRECT (heartbeat ~12.2 steps/s
+    # each, consistent with 1 thread); the RECORD was not. That field is exactly what the S6
+    # homogeneity audit reads to rule out a heterogeneous determinism envelope, so a knowingly-false
+    # value must not ship. Proven by contrast: the pack-1 rehearsal recorded OMP=1 correctly, because
+    # inline archiving happens in the same process `_worker_init` initialised.
+    #
+    # Deliberately NOT `_worker_init(...)` here: that also calls `_apply_cpu_placement()`, and a
+    # spawned child INHERITS CPU affinity — pinning the parent could silently constrain every packed
+    # worker to a subset of cores. Only the fields `capture_env` reads are synced, with no affinity,
+    # no preload and no allocator change. The value is well-defined because `_task_threads` FAILS
+    # LOUD on a mixed task, so every spec in this job shares one thread count.
+    _thr = _task_threads(to_run)
+    for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        os.environ[_v] = str(_thr)
+    try:
+        import torch as _torch
+
+        _torch.set_num_threads(_thr)
+    except Exception:  # noqa: BLE001 - provenance parity must never sink a finished training
+        pass
     with DevicePool(n_gpu=(0 if _dev == "cpu" else _slots),
                     n_cpu=(_slots if _dev == "cpu" else 0),
                     init_threads=_task_threads(to_run)) as pool:
