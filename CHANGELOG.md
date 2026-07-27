@@ -1542,6 +1542,76 @@ names the pinned model, the config key and the reason. **`src/inference/` is now
 `reward_code_distance`, `PYTEST_RC=0`; ruff clean. Both pre-existing infinite-`d` tests still pass
 alongside the new one.
 
+### ✅ LOOP 135 — CLEAN. No defect found. (`CLEAN_STREAK` 0 → 1; loop 119 was the only other)
+
+A clean loop is only worth anything if the pass was genuinely hard, so the evidence is recorded rather
+than the verdict. Nothing was changed in the codebase this loop — it is read-and-probe only.
+
+**PASS A — `src/feedback/measurement.py` (688 lines): the estimator that PRODUCES the manipulated
+variable.** #87/#98 touched how the six fed numbers are RENDERED; this is the first deep read of how
+they are COMPUTED. Read in full and probed four ways:
+
+* **The EVT closed forms are correct** against the standard POT results —
+  `VaR = u + (β/ξ)[(α/F_u)^(−ξ) − 1]`, `ES = (VaR + β − ξu)/(1 − ξ)`, and the ξ→0 exponential limit
+  `ES = VaR + β` — with the right loss→signed-return flip. The fallback ladder
+  (`degenerate_fit` / `alpha_gt_exceed_frac` / `xi_ge_1` / `xi_le_-0.5`) is a single source of truth
+  shared by the estimator and the audit log.
+* **The fed vector is internally COHERENT despite mixing estimators.** cvar_01/05 route to EVT and
+  cvar_10/25 to empirical, so monotonicity is not guaranteed by construction — it has to be measured.
+  Over **400 realistic heavy-tailed fits at the executed T=2,961**:
+  **0 violations** of `cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25`.
+* **A documented claim verified rather than trusted.** The docstring says the executed Split-C window
+  gives ~149 / ~30 exceedances; the train window is 60→3021 = 2,961 sessions, and ⌈0.05·2961⌉ = 149,
+  ⌈0.01·2961⌉ = 30 — **exact**, and the resulting reliability tiers (cvar_01 "medium" at exactly 30,
+  the rest "high") match the Belzile–Davison thresholds as written.
+* **The estimator-switch audit's scoping holds.** `FED_HEADLINE_CVAR_LEVELS = (0.05,)` audits only
+  cvar_05, yet cvar_01 is also EVT-routed and data-dependent. Measured over **1,500 fits**: zero
+  fallbacks at either level, so no cross-candidate flip is available to go unlogged. The
+  `_suppress_fed_estimator_record` flag (which prevents a bootstrap warning-storm) was checked to be
+  initialised in `__init__`, honoured in `cvar()`, and set only on replicates — a guard that guards.
+
+**PASS A — `src/reward/contract.py` + the untrusted-code boundary.** `validate_signature` correctly
+rejects `*args`/`**kwargs`/keyword-only and demands the exact five names in order. Its docstring
+claims the sandbox "rejects anything outside this set" — the #113/#117 cross-module-claim pattern, so
+it was verified: `executor.py` **imports** `ALLOWED_IMPORTS` from `contract.py` and enforces it, one
+definition, no duplicate to drift, pinned by `test_utils.py`. Then an **18-vector adversarial probe**
+of the AST gate with routes not in the existing test list: `().__class__` subclass walk, `getattr`
+indirection, `__import__`, `eval`/`exec`/`compile`, a lambda-hidden import, f-string attribute access,
+`np.__loader__.load_module`, `globals()`, `open()`, `str.format`, a nested-function import and a
+decorator — **all blocked**, with the benign numeric reward passing. Two surprises, both resolving
+safe: `from numpy import linalg` is blocked (the gate is STRICTER than the allowlist root implies),
+and `type(...)` passes — but every pivot off it (`__subclasses__`, `__bases__`, `mro`, `__mro__`,
+`__dict__`) is blocked by the attribute allowlist, which is exactly the defence the module says it
+relies on. `type()` reaching the gate is therefore not a demonstrated vulnerability and is NOT
+reported as one; the property that makes it inert is already pinned by `test_sandbox.py`'s
+`().__class__` cases, so no near-duplicate test was added.
+
+**PASS B — the duplicated-convention sweep (`ddof`, annualisation): CLEAN, measured.** Every
+`std`/`var` call in `src/` was enumerated. `bootstrap.sharpe_ratio` uses **ddof=0** and
+`deflated_sharpe._sample_moments` uses **ddof=1** — but both DOCUMENT their choice ("the population
+(ddof=0) standard deviation"; the unbiased form standard for Bailey–López de Prado PSR), both carry
+the identical P0-1 relative near-zero guard, and they are different statistics (an annualised
+descriptive scalar vs a per-period input to a probability) that are never compared. The gap is
+0.017 % at T=2,961. Annualisation: **252 is the only constant in `src/`** — the 360/250 greps are
+prose about core-hours and telemetry.
+
+### ⓘ Observed, NOT this lane's work — the other lane closed one of Tamer's open decisions
+
+While checking the tree I found `PREREGISTRATION.md`, `config/preregistration.yaml`, `config/legs.yaml`
+and the coordination doc modified with mtimes inside the last two minutes — a live buffer, so it was
+left strictly untouched and NOT committed. The content is **amendment R113 (2026-07-27)**, which
+resolves **`deepseek-v4-pro`, the single item that was failing `pretrain_validate` (RC=2)**: its
+`output_cap_tokens` moves 4096 → 8192 because at 4096 the leg's REGISTERED reasoning mode truncated
+2/10 authoring calls — one spending the entire budget on hidden reasoning, leaving zero tokens for
+code — with passing calls burning 54-82 %. Verified live at 8192: **0/10 truncated, compliance
+0.90 → 1.00**, max reasoning 4,727 (3,465 headroom), cost unchanged. The lever is the BUDGET, not
+`{enabled: false}`, precisely because that reasoning mode is a registered parameter.
+
+Confirmed read-only that their edit is coherent: `freeze.py --check` → **RC=0, 23/23**, with the
+leg-roster guard verifying `config/legs.yaml == frozen model_suite`, and the canonical hash UNCHANGED
+(`d5e31bb…`) — correct, since `legs.yaml` is an executed knob bound by the assert rather than by the
+hash. **Tamer's open decision #2 should be considered discharged by that lane, not by this one.**
+
 ### ⚠ OPEN — Tamer's call, NOT the review lane's
 
 1. **The two TREATMENT-surface changes** (`_HEADER` `.2f`→`.6f`, `_fmt` `.3f`→`.4f`). Common-mode across
