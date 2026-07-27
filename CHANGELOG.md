@@ -3,6 +3,100 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-27b] — ★★★★★ CAPACITY LANE · R107 WIRED, THE CLUSTER RE-SYNCED, TWO ARTIFACT CAPS KILLED
+
+> Continues the session above. Driven by Tamer's standing instruction to take the maximum Myriad can
+> offer and cap the campaign at nothing. Four findings, three fixes, one self-correction.
+
+### THE HEADLINE: R107 was ratified, modelled, and never executed
+
+`parallel._worker_init` pinned `OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS = "1"` and
+`torch.set_num_threads(1)` **unconditionally, with no config gate**, while `lanes.CPU_CHAIN_THREADS = 8`
+fed the makespan planner through `allocation.advise_cpu_lane`. So the planner believed the `bayes_opt`
+GP-EI chain took **3.3 d** and the code made it **8.9 d**; the core crossover — beyond which extra cores
+buy nothing — sat at **1,685 instead of 4,584**. `jobscript.py:186` even asserted the opposite of R107
+in a comment. Measured with `lanes.plan_lanes(rung=568)`: at 636 cores both regimes give the same
+23.59 d (throughput-bound), so the gap cost NOTHING at our historical footprint and everything at the
+capacity we are now chasing — the 2026-07-27 probe found **~5,802 cores free** cluster-wide.
+
+**Why the existing test could not see it:** `test_cluster_lanes.py:119` compared
+`lanes.CPU_CHAIN_THREADS` to the REGISTERED `chain_thread_count` — two DECLARATIONS. Nothing compared
+either to EXECUTION. The new `test_worker_init_ACTUALLY_APPLIES_the_thread_count_it_is_given` runs
+`_worker_init(n)` in a SUBPROCESS (the function mutates process-global torch state) and asserts
+`torch.get_num_threads()`. **Proven falsifiable:** reverting `_worker_init` to its hardcoded form makes
+it fail with `torch.get_num_threads()=1, asked for 8`.
+
+**The wiring, end to end:** `_worker_init(threads=1)` applies what it is given · `run_one._task_threads`
+reads it from the spec and FAILS LOUD on a mixed-thread task (one job must train under one float
+reduction order, or the S6 homogeneity audit cannot tell the records apart) · `DevicePool(init_threads=)`
+carries it to the packed path via initargs · `bayes_chain` passes `CPU_CHAIN_THREADS` ·
+`campaign.run_batch(threads=)` injects it onto specs **and raises the job core request in the same
+expression** — threads without matching cores is oversubscription and measurably SLOWER than 1 thread,
+so the two can never be set independently · `ClusterRun.search_threads` resolves from the DEVICE at
+build time, so the registered value cannot drift from the executed one by a forgotten flag.
+
+**Scope discipline:** SEARCH/chain leg only, exactly as R107 was ratified. The TEST leg — every scored
+contrast, all CRN pairing — never passes `threads` and stays uniformly 1. CPU-only by construction. And
+`threads` is passed ONLY when > 1, so the whole 1-thread path is byte-identical to the certified one
+(this also fixed 6 tests that broke when the kwarg reached their `FakeCluster` doubles — the fix was to
+stop sending it on the default path, not to loosen the doubles).
+
+### THE CLUSTER WAS RUNNING 4-DAY-OLD CODE — 437 COMMITS BEHIND
+
+`~/llmrp` was deployed at `127d5789` (2026-07-23). **Every config file had changed since**, including
+`preregistration.yaml`, `campaign.yaml`, `arms.yaml`, `legs.yaml`. None of the day's fixes were on it.
+A validation run would have exercised the wrong code and a launch would have run a design nobody had
+audited. This is runbook step 0.4 and it had simply not been done. Now synced to `a4f903c` with
+`GIT_COMMIT` stamped, and the fixes verified PRESENT on the cluster (`_resolved_device` x3,
+`cpu_lane_guard` x3, lane-aware `tc`, the bayes_chain device stamp). **Runbook note:** its one-liner
+(`git archive HEAD | ssh myriad tar -x`) must NOT be used from PowerShell, which corrupts the binary
+stream — build the tar to a file, `scp`, extract remotely.
+
+### `-tc 38`: A GPU POOL WIDTH GOVERNING A CPU ARRAY
+
+`render_jobscript` hardcoded `tc: int = 38`, documented as "the full pool width" — the EF/V100 GPU
+COUNT. Now lane-aware: cuda keeps 38 (a real physical limit), cpu imposes nothing, an explicit `tc`
+always wins. GPU path verified byte-identical.
+
+**⚠ SELF-CORRECTION, RECORDED DELIBERATELY.** I first reported this as a live defect costing 395 days,
+and told Tamer so. **That was wrong.** The documented launch config passes `--chunk-tasks 1`, which
+renders ONE-TASK arrays (`-t 1-1`), where a throttle of 38 does nothing. I concluded before checking the
+chunking. The real issue is narrower: `--chunk-tasks` DEFAULTS TO None, and that legacy path submits a
+round as one array where 38 would silently become the ceiling. A footgun, not a crisis. My derived
+"~75-concurrent-jobs plateau = 2 x 38" theory is also dead.
+
+### THE COURTESY RESERVE IS STATED POLICY WITH NO MECHANISM
+
+Found while auditing whether removing `-tc 38` left the CPU lane without a brake.
+`killswitch.plan_footprint` — the pressure-scaled share clamped by `FREE_CORE_RESERVE = 1000`, the
+guarantee that makes the 8192-core ceiling defensible — is **ADVISORY ONLY**. Its sole caller is
+`allocation.advise_cpu_lane`, the GO-day advisor a human reads; no submission path consults it. SGE
+fair-share still arbitrates before dispatch, so this cannot starve other users — the honest statement
+is that the throttle was stopping us starving OURSELVES. An earlier draft of my own code comment
+asserted `plan_footprint` as a governor; that claim was FALSE and is corrected in the code, not merely
+noted here. Enforcement belongs at the submit layer, which can query live capacity; `render_jobscript`
+stays a pure deterministic renderer. Tracked in the ledger.
+
+### CLUSTER STATE VERIFIED (all observed, not assumed)
+
+Gold `univ5` panel + provenance JSONs at `/acfs/users/ucestes/gold` · `python311.sif` · venv ·
+`~/Scratch` writable with **1,010 GB** free · queue EMPTY · `max_u_jobs = 1000` · the only RQS
+(`slowemdown`) is DISABLED and scoped to another user · **13,048 cores total, ~5,802 free**.
+`plan_footprint(free=5802, pending=300)` would target **4,802 cores**. Nothing is capping us.
+
+### WHAT THIS MEANS FOR THE LADDER
+
+At a SUSTAINED 636 cores the full rung-568 ladder takes 23.6 d and fits the window; at 500 sustained it
+truncates to rung 403. **636 was our PEAK, not our sustained rate** — so capacity is insurance against
+truncating the ladder, not merely a way to finish early.
+
+### STILL OPEN
+
+The CPU launch gate has NOT been run: no full-length 400k training with the REAL gold panel has ever
+completed on the Myriad CPU lane (the 148 capacity-probe jobs used `bench_compute.py`, which builds a
+SYNTHETIC panel, 2,500 steps, no archiving). That remains the one thing worth holding a launch for.
+`p6_authored_ladder.py` still needs `--device`/`--threads` before it can serve as that gate.
+
 ## [2026-07-27] — ★★★★★ RECOVERY/CAPACITY LANE — SESSION SUMMARY · **READ THIS FIRST IF YOU ARE STARTING THE CAMPAIGN**
 
 > Overnight session, 01:00–13:00 BST, running concurrently with the REVIEW lane (see

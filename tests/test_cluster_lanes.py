@@ -251,3 +251,61 @@ def test_the_two_thread_regimes_are_BOTH_reachable_and_clearly_labelled():
     assert ratified == pytest.approx(4584, rel=0.03)
     assert cpu_saturation_cores(568) == pytest.approx(one_thread)   # the default IS the old regime
     assert "the default is NOT the campaign" in cpu_saturation_cores.__doc__
+
+
+# --- the gap that let R107 sit unexecuted for a day: nothing tested CONSTANT vs EXECUTION -------
+
+def test_worker_init_ACTUALLY_APPLIES_the_thread_count_it_is_given():
+    """R107 was ratified, modelled, and never EXECUTED — `_worker_init` pinned "1" unconditionally
+    while `CPU_CHAIN_THREADS = 8` fed the makespan planner. A registry-vs-constant test existed and
+    could not see it, because both halves it compared were declarations.
+
+    This one runs the executor. In a SUBPROCESS, because `_worker_init` mutates process-global
+    torch/env state (and `set_num_interop_threads` is settable only once), so asserting in-process
+    would both pollute the suite and pass for the wrong reason.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path as _P
+
+    root = _P(__file__).resolve().parents[1]
+    for n in (1, 8):
+        # One semicolon-joined line: no newline escapes, so nothing here can be mangled by a
+        # shell/heredoc on the way into the file (a repo rule, learned the hard way).
+        code = (
+            "import sys; sys.path.insert(0, r'{root}'); "
+            "from src.orchestration.parallel import _worker_init; "
+            "_worker_init({n}); "
+            "import os, torch; "
+            "print(torch.get_num_threads(), os.environ['OMP_NUM_THREADS'], "
+            "os.environ['MKL_NUM_THREADS'])"
+        ).format(root=root, n=n)
+        out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                             timeout=300)
+        assert out.returncode == 0, out.stderr
+        got_torch, got_omp, got_mkl = out.stdout.strip().split()
+        assert int(got_torch) == n, f"torch.get_num_threads()={got_torch}, asked for {n}"
+        assert got_omp == str(n) and got_mkl == str(n), f"BLAS env not pinned: {out.stdout!r}"
+
+
+def test_the_default_thread_count_is_1_so_every_pre_R107_caller_is_UNCHANGED():
+    """The TEST leg — every scored contrast, all CRN pairing — must stay at one arithmetic. A
+    default of anything but 1 would silently re-thread the entire campaign."""
+    import inspect
+
+    from src.orchestration.parallel import _worker_init
+
+    assert inspect.signature(_worker_init).parameters["threads"].default == 1
+
+
+def test_a_task_with_MIXED_thread_counts_fails_LOUD():
+    """One job must train every spec under one float-reduction order. A mixed task would archive
+    records the S6 homogeneity audit could not tell apart — so it is refused, not silently pinned."""
+    import pytest
+
+    from src.cluster.run_one import _task_threads
+
+    assert _task_threads([{"threads": 8}, {"threads": 8}]) == 8
+    assert _task_threads([{}, {}]) == 1                      # absent key = the 1-thread default
+    with pytest.raises(ValueError, match="MIXED thread counts"):
+        _task_threads([{"threads": 8}, {"threads": 1}])

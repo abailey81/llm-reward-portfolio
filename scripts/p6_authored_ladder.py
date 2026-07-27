@@ -41,8 +41,19 @@ REWARDS = {  # label -> archived authored winner (Sonnet prototype, val-fitness 
 BATCH = "p6ladder"
 
 
-def build_specs(remote_root: str, local_out: str, budgets: list[int]) -> list[dict[str, Any]]:
-    """Search-leg specs via the campaign's own assembly (one assemble per budget)."""
+def build_specs(remote_root: str, local_out: str, budgets: list[int],
+                device: str = "cuda", threads: int = 1) -> list[dict[str, Any]]:
+    """Search-leg specs via the campaign's own assembly (one assemble per budget).
+
+    ``device``/``threads`` STAMP THE EXECUTION ENVELOPE (2026-07-27). This script builds its own
+    specs, so it bypasses the choke point in ``campaign.run_batch`` where the driver injects both
+    onto everything it dispatches. Unstamped, each spec reaches ``run_one`` bare and is defaulted
+    to ``device="cuda"`` / 1 thread -- which on the CPU lane means the archived fingerprint would
+    say ``dev=cuda`` for a training that ran on CPU, and on a node exposing a GPU the job would
+    take a card it never requested. Same defect class as the bayes_chain one fixed the same day.
+    ⚠ ``threads`` MUST be matched by the job core request (see ``build_batch``): threads without
+    cores is oversubscription and SLOWER than 1 thread.
+    """
     from scripts.run_campaign_cluster import assemble_cluster_inputs
     from src.cluster.campaign import _search_spec
 
@@ -62,9 +73,17 @@ def build_specs(remote_root: str, local_out: str, budgets: list[int]) -> list[di
                 o = dict(opts)
                 o["seed"] = int(seed)
                 cid = f"{label}-b{budget}-s{seed}"
-                specs.append(_search_spec(label, source, cid, o,
-                                          f"P6 authored-winner ladder ({path})", 0,
-                                          f"{remote_root}/outputs/search"))
+                spec = _search_spec(label, source, cid, o,
+                                    f"P6 authored-winner ladder ({path})", 0,
+                                    f"{remote_root}/outputs/search")
+                # Stamp the envelope onto the SPEC (never into ``opts``, which is the agent config
+                # and is hashed into the run identity). ``device`` is always stamped so the archive
+                # records what ran; ``threads`` only when raised, so the 1-thread path stays
+                # byte-identical to every spec the campaign itself builds.
+                spec["device"] = device
+                if int(threads) > 1:
+                    spec["threads"] = int(threads)
+                specs.append(spec)
     return specs
 
 
@@ -83,15 +102,19 @@ def _auto_h_rt(budgets: list[int]) -> str:
 
 
 def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, cores: int,
-                budgets: list[int], batch: str) -> Path:
+                budgets: list[int], batch: str, device: str = "cuda",
+                threads: int = 1) -> Path:
     """Write task_N.json + the jobscript into the local batch dir; return it."""
     from src.cluster.jobscript import render_jobscript, write_jobscript
     from src.cluster.spec_io import write_specs
 
-    specs = build_specs(remote_root, local_out, budgets)
+    specs = build_specs(remote_root, local_out, budgets, device=device, threads=threads)
+    # THREADS ARE COUPLED TO CORES, always. 8 threads on a 1-core allocation is oversubscription
+    # and measurably slower than 1 thread, so the request can never be raised independently.
+    cores = max(int(cores), int(threads))
     batch_dir = Path(local_out) / "batches" / batch
     n = write_specs(specs, batch_dir)  # strict-JSON guard runs here
-    js = render_jobscript(batch, n, remote_root, gold_dir, pool=pool, pack=1,
+    js = render_jobscript(batch, n, remote_root, gold_dir, pool=pool, pack=1, device=device,
                           cores=cores, h_rt=_auto_h_rt(budgets), apptainer_sif="$HOME/python311.sif")
     write_jobscript(js, batch_dir / f"{batch}.sh")
     print(f"[p6] built {n} specs + jobscript at {batch_dir} (h_rt {_auto_h_rt(budgets)})")
@@ -99,12 +122,12 @@ def build_batch(remote_root: str, gold_dir: str, local_out: str, *, pool: str, c
 
 
 def submit(remote_root: str, gold_dir: str, local_out: str, *, host: str, pool: str, cores: int,
-           budgets: list[int], batch: str) -> str:
+           budgets: list[int], batch: str, device: str = "cuda", threads: int = 1) -> str:
     from src.cluster.submit import prepare_remote, push_batch, qsub, ssh_runner
 
     runner = ssh_runner(host)
     batch_dir = build_batch(remote_root, gold_dir, local_out, pool=pool, cores=cores,
-                            budgets=budgets, batch=batch)
+                            budgets=budgets, batch=batch, device=device, threads=threads)
     prepare_remote(remote_root, [batch], runner)
     push_batch(batch_dir, f"{remote_root.rstrip('/')}/specs", host=host)
     job = qsub(f"{remote_root.rstrip('/')}/specs/{batch}/{batch}.sh", runner)
@@ -196,6 +219,15 @@ def main() -> int:
     p.add_argument("--output-dir", default="outputs/p6ladder")
     p.add_argument("--pool", default="EF")
     p.add_argument("--cores-per-task", type=int, default=2)
+    p.add_argument("--device", default="cuda", choices=("cuda", "cpu"),
+                   help="Training SUBSTRATE. 'cpu' requests no GPU, drops the pool pin and --nv, "
+                        "fires the jobscript CUDA_VISIBLE_DEVICES guard, and STAMPS every spec so "
+                        "the archive records what actually ran (this script builds its own specs "
+                        "and so bypasses the campaign's device injection).")
+    p.add_argument("--threads", type=int, default=1,
+                   help="Intra-op BLAS/torch threads per training (R107; 8 = the measured optimum "
+                        "for a SEQUENTIAL leg, 16 is measurably SLOWER). The job core request is "
+                        "raised to match automatically -- threads without cores is slower than 1.")
     p.add_argument("--budgets", default=",".join(str(b) for b in BUDGETS),
                    help="Comma list of step budgets (extension rungs, e.g. 800000,1600000).")
     p.add_argument("--batch-name", default=BATCH, help="SGE batch name (extension arrays need their own).")
@@ -223,7 +255,8 @@ def main() -> int:
 
     if args.build_only:
         build_batch(remote_root, args.gold_dir, args.output_dir, pool=args.pool,
-                    cores=args.cores_per_task, budgets=budgets, batch=args.batch_name)
+                    cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
+                    device=args.device, threads=args.threads)
         return 0
     if args.submit and args.singles:
         submit_singles(remote_root, args.gold_dir, args.output_dir, host=args.host,
@@ -234,7 +267,8 @@ def main() -> int:
         return 0
     if args.submit:
         submit(remote_root, args.gold_dir, args.output_dir, host=args.host,
-               pool=args.pool, cores=args.cores_per_task, budgets=budgets, batch=args.batch_name)
+               pool=args.pool, cores=args.cores_per_task, budgets=budgets, batch=args.batch_name,
+               device=args.device, threads=args.threads)
         return 0
     if args.pull:
         pull_and_summarize(remote_root, args.output_dir, host=args.host)

@@ -204,6 +204,26 @@ def _run_single(spec: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _task_threads(specs: list[dict[str, Any]]) -> int:
+    """The intra-op thread count for this task, read from the specs (R107 wiring, 2026-07-27).
+
+    Absent key = 1, which is the TEST leg and every pre-R107 caller — so the default path is
+    byte-unchanged. A task's specs all come from one batch and therefore one dispatch decision, so
+    a MIXED thread count means a spec-construction bug upstream. Fail LOUD rather than silently
+    pinning one of them: threads are part of the determinism envelope, and a job that trained half
+    its specs under a different float reduction order would archive records the S6 homogeneity
+    audit could not distinguish from clean ones (the same blindness the ``device`` stamp fixed).
+    """
+    seen = {int(s.get("threads", 1) or 1) for s in specs}
+    if len(seen) > 1:
+        raise ValueError(
+            f"MIXED thread counts in one task: {sorted(seen)}. Threads are part of the determinism "
+            "envelope (multi-threaded BLAS reorders float reductions), so one job must train every "
+            "spec under ONE regime. Split these into separate batches."
+        )
+    return max(1, seen.pop() if seen else 1)
+
+
 def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
     """Execute a task payload (dict = one spec; list = a pack). Returns all result rows.
 
@@ -219,7 +239,7 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
         # two node paths share one environment contract (BLAS threads=1, alloc conf, preload).
         from src.orchestration.parallel import _worker_init
 
-        _worker_init()
+        _worker_init(_task_threads(specs))
         # 2026-07-26 review: the inline path ALSO needs the `-r y` idempotency skip the pack branch
         # below applies. `#$ -r y` (jobscript.py:38) makes SGE re-execute the WHOLE task after a node
         # failure, and `pack=1` — which routes HERE — is the DEFAULT (jobscript.py:94,
@@ -267,7 +287,8 @@ def run_task(payload: Any, pack: int = 1) -> list[dict[str, Any]]:
         return rows
     # submit_with routes each spec to its LEG worker (the pool injects the device token); a pack is
     # homogeneous in practice (one array = one leg), but per-spec routing keeps mixed packs correct.
-    with DevicePool(n_gpu=min(pack, len(to_run)), n_cpu=0) as pool:
+    with DevicePool(n_gpu=min(pack, len(to_run)), n_cpu=0,
+                    init_threads=_task_threads(to_run)) as pool:
         futs = {pool.submit_with(_worker_for(s), dict(s)): s for s in to_run}
         for fut in as_completed(futs):
             s = futs[fut]

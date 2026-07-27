@@ -222,12 +222,37 @@ def _apply_cpu_placement() -> None:
         pass
 
 
-def _worker_init() -> None:
-    """ProcessPoolExecutor initializer: pin threads BEFORE any heavy import (research §2/§3)."""
+def _worker_init(threads: int = 1) -> None:
+    """ProcessPoolExecutor initializer: pin threads BEFORE any heavy import (research §2/§3).
+
+    ``threads`` is the INTRA-OP BLAS/torch thread count for this worker, and it is the execution
+    half of amendment **R107** (2026-07-27 wiring). R107 ratified 1 -> 8 threads on the SEARCH/chain
+    leg on a measured 2.72x single-training speed-up (jobs 17784/17836), and `lanes.CPU_CHAIN_THREADS
+    = 8` has been feeding the makespan planner ever since — but this function pinned "1"
+    unconditionally, so the ratified value was MODELLED and never EXECUTED. The planner believed the
+    `bayes_opt` GP-EI chain took 3.3 d; the code made it 8.9 d, and the crossover where extra cores
+    stop helping sat at 1,685 rather than 4,584. That gap is invisible to a registry-vs-constant
+    test, which is why one existed and still missed it; see the constant-vs-EXECUTION test.
+
+    ⚠ THREADS ARE PART OF THE DETERMINISM ENVELOPE. Multi-threaded BLAS changes the ORDER of float
+    reductions, so an 8-thread training is NOT bit-identical to a 1-thread one. R107 confines the
+    change to the SEARCH/chain leg: every SCORED comparison (H1/H2/H3/H4, every paired contrast,
+    all CRN pairing) lives on the uniformly 1-thread TEST leg, so threads change only WHICH
+    candidate is selected, never a measured quantity. **The default is therefore 1** — every
+    existing caller keeps today's exact behaviour, and 8 is opt-in per batch.
+
+    ⚠ THREADS MUST BE MATCHED BY CORES. 8 threads on a 1-core SGE allocation is oversubscription
+    and is SLOWER than 1 thread, so any caller raising this MUST raise the job's core request in
+    the same change (``cores = threads x pack``). The two are one decision, never two.
+
+    Interop threads stay at 1: R107 benched the intra-op axis only, and an unbenched second axis
+    is exactly the kind of unregistered envelope change this docstring exists to prevent.
+    """
     import os
 
+    n = max(1, int(threads))
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
-        os.environ[var] = "1"
+        os.environ[var] = str(n)
     _apply_cpu_placement()  # 2026-07-06: P-core pinning + EcoQoS-off (config-gated; result-neutral)
     os.environ.setdefault(
         "PYTORCH_CUDA_ALLOC_CONF", "max_split_size_mb:128,garbage_collection_threshold:0.8"
@@ -239,9 +264,9 @@ def _worker_init() -> None:
 
     import torch
 
-    torch.set_num_threads(1)
+    torch.set_num_threads(n)
     try:
-        torch.set_num_interop_threads(1)
+        torch.set_num_interop_threads(1)  # deliberately NOT scaled — see the docstring
     except Exception:  # noqa: BLE001 - only settable once
         pass
 
@@ -524,6 +549,7 @@ class DevicePool:
         n_cpu: int,
         max_tasks_per_child: int | None = None,
         initializer: Any = _DEFAULT_INIT,
+        init_threads: int = 1,
     ) -> None:
         self.n_gpu = max(0, int(n_gpu))
         self.n_cpu = max(0, int(n_cpu))
@@ -546,10 +572,16 @@ class DevicePool:
         _init: Callable[[], object] | None = (
             _worker_init if initializer is _DEFAULT_INIT else initializer
         )
+        # ``init_threads`` reaches the worker as initargs (R107 wiring, 2026-07-27) so the packed
+        # path honours the same thread regime as the inline one. Only passed when the initializer
+        # actually takes it -- a test-supplied bare initializer takes no arguments, and handing it
+        # initargs would raise inside the worker, where the traceback is far from the cause.
+        _initargs = (int(init_threads),) if _init is _worker_init else ()
         self._ex = ProcessPoolExecutor(
             max_workers=self.n_gpu + self.n_cpu,
             mp_context=ctx,
             initializer=_init,
+            initargs=_initargs,
             max_tasks_per_child=None if max_tasks_per_child is None else int(max_tasks_per_child),
         )
 

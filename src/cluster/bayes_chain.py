@@ -114,15 +114,24 @@ def run_bayes_chain(
     from src.baselines.reward_family import family_bounds
     from src.cluster.campaign import (_family_spec, _read_candidate, candidate_failed_before,
                                       record_failed_candidate)
+    from src.cluster.lanes import CPU_CHAIN_THREADS
     from src.orchestration.parallel import _worker_init
     from src.search.bayes_opt import bayes_opt_over_template
 
     import numpy as np
 
-    # The SAME environment contract every normal task gets (BLAS threads=1, pyarrow preload, thread
-    # pinning). Without it this path would train under a different thread/alloc regime than the rest
-    # of the campaign — a determinism-envelope difference, which is exactly what must not happen.
-    _worker_init()
+    # The SAME environment contract every normal task gets (pyarrow preload, thread pinning, alloc
+    # conf). Without it this path would train under a different thread/alloc regime than the rest of
+    # the campaign — a determinism-envelope difference, which is exactly what must not happen.
+    #
+    # THREADS: ``CPU_CHAIN_THREADS`` (R107 wiring, 2026-07-27). This IS the leg R107 was ratified
+    # for — 25 STRICTLY serial GP-EI trainings, the campaign's longest sequential path, where cost
+    # is pure LATENCY and aggregate throughput is worthless. At the measured 2.72x the chain falls
+    # from 8.9 d to ~3.3 d, which is what moves the core crossover from 1,685 to 4,584. The TEST leg
+    # is untouched at 1 thread (``_task_threads`` defaults to 1), so every SCORED contrast keeps one
+    # arithmetic. ⚠ The job must request ``CPU_CHAIN_THREADS`` CORES to match, or this is
+    # oversubscription and SLOWER than 1 thread — see ``_worker_init``.
+    _worker_init(CPU_CHAIN_THREADS)
 
     arm_root = Path(archive_root) / arm
     budget = max(1, int(opts["candidates"]))

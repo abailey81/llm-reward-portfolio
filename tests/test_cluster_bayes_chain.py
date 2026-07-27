@@ -38,7 +38,9 @@ def _patch_chain(monkeypatch, *, archive: dict, per_iter_secs: float = 0.0,
     fail_cids = fail_cids or set()
     trained: list[str] = []
 
-    monkeypatch.setattr("src.orchestration.parallel._worker_init", lambda: None)
+    # Accepts the thread count the chain now passes (R107 wiring, 2026-07-27): the chain calls
+    # ``_worker_init(CPU_CHAIN_THREADS)``, so a zero-arg double would mask the real signature.
+    monkeypatch.setattr("src.orchestration.parallel._worker_init", lambda *a, **k: None)
 
     def _fake_read(cid, arm, arm_root, k_seeds, base_seed):
         return archive.get(cid)

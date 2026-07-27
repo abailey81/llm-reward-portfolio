@@ -114,6 +114,15 @@ class ClusterRun:
     # at this faster cadence; burst arrays keep the run-level poll (login-node kindness: fast
     # polling only while small chain batches are outstanding). None = legacy.
     search_poll_secs: float | None = None
+    # SEARCH-LEG THREAD COUNT — amendment R107, wired 2026-07-27. This is the EXECUTION half of a
+    # value that was ratified, fed to the makespan planner via ``lanes.CPU_CHAIN_THREADS``, and
+    # never actually applied: ``_worker_init`` pinned 1 thread unconditionally, so the planner
+    # believed the bayes_opt GP-EI chain took 3.3 d while the code made it 8.9 d, and the core
+    # crossover sat at 1,685 instead of 4,584. Resolved from the DEVICE at build time (see
+    # ``build_cluster_run``) rather than left to a CLI flag, so the registered value cannot drift
+    # from the executed one again by omission. The TEST leg never passes it: R107's scope is the
+    # SEARCH/chain leg only, so every scored contrast keeps one float-reduction order.
+    search_threads: int = 1
 
     # C5 (P4 closed 2026-07-13): the H3 single-shot control runs through a ``dataclasses.replace``d
     # ClusterRun whose subdirs are the ``*_h3_singleshot`` names — the headline and H3 archives are
@@ -254,7 +263,7 @@ def build_cluster_run(
 
     def run_batch(specs: list[dict], name: str, *, pool: str = "EF", pack: int = pack,
                   priority: int = 0, h_rt_call: str | None = None,
-                  poll_call: float | None = None) -> dict:
+                  poll_call: float | None = None, threads: int = 1) -> dict:
         # batch_tag (2026-07-11d, BUG FIX): the driver's double-submit guard matches queued jobs by
         # NAME across the user's WHOLE queue, so two concurrent runs sharing arm names (e.g. a
         # rehearsal's `distributional_g0` and the prototype's) COLLIDE — the later run silently
@@ -297,8 +306,25 @@ def build_cluster_run(
             specs = [{**s, "device": device} for s in specs]
         if apptainer_sif:
             _jk["apptainer_sif"] = apptainer_sif
-        if cores_per_training:
-            _jk["cores"] = int(cores_per_training) * int(pack)
+        #  * threads (R107, wired 2026-07-27): the intra-op BLAS/torch thread count for THIS batch.
+        #    Like `device` it must reach BOTH the specs (so `run_one._task_threads` pins the worker)
+        #    AND the jobscript (so SGE actually grants the cores) — threads without matching cores
+        #    is oversubscription and measurably SLOWER than 1 thread, so the two move together at
+        #    this single choke point and can never be set independently.
+        #    CPU-ONLY BY CONSTRUCTION: on the GPU lane the card does the arithmetic, so extra CPU
+        #    threads buy nothing and would inflate the core request on exactly the pools where
+        #    CORES (not GPUs) are the binding scheduling constraint — i.e. it would HURT placement.
+        #    Callers pass `threads=CPU_CHAIN_THREADS` on the SEARCH/chain leg only; the TEST leg
+        #    keeps the default 1, so every scored contrast stays on one arithmetic (R107's scope).
+        #    The SPEC carries the count (never `_jk`): `_worker_init` sets the BLAS env vars inside
+        #    the worker process BEFORE torch is imported, which is the only point where they bind.
+        #    The jobscript's job is solely to REQUEST the matching cores.
+        eff_threads = max(1, int(threads)) if device == "cpu" else 1
+        if eff_threads > 1:
+            specs = [{**s, "threads": eff_threads} for s in specs]
+        if cores_per_training or eff_threads > 1:
+            per_training = max(int(cores_per_training or 1), eff_threads)
+            _jk["cores"] = per_training * int(pack)
         # MODE-D: a per-call h_rt (search waves at a lower pack need a TIGHTER walltime than the
         # run-level pack-5 sizing — short requests are prime backfill) overrides the run-level one.
         if h_rt_call:
@@ -319,6 +345,8 @@ def build_cluster_run(
     # F7 (agent audit): `if max_author_calls` treated an EXPLICIT 0 as "uncapped" — the exact
     # inverse of the operator's intent ("forbid authoring"). None = uncapped; 0 = forbid.
     author_guard = spend_guard(max_author_calls) if max_author_calls is not None else (lambda: None)
+    from src.cluster.lanes import CPU_CHAIN_THREADS
+
     return ClusterRun(
         run_batch=run_batch, spec_archive_root=remote_outputs_root,
         read_root=Path(local_archive_root), pool_confirmatory=pool_confirmatory,
@@ -326,6 +354,10 @@ def build_cluster_run(
         author_guard=author_guard, seed_pool_blocks=seed_pool_blocks, pull=shared_pull,
         search_pack=search_pack, search_h_rt=search_h_rt,
         search_poll_secs=search_poll_secs,
+        # R107 is CPU-ONLY by construction (CPU_CHAIN_THREADS imported just above): on the GPU lane the card does the arithmetic, so extra
+        # CPU threads buy nothing and would inflate the core request on precisely the pools where
+        # CORES are the binding scheduling constraint. `run_batch` enforces the same guard.
+        search_threads=(CPU_CHAIN_THREADS if device == "cpu" else 1),
     )
 
 
@@ -832,6 +864,8 @@ def run_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool = Fals
                 _skw["h_rt_call"] = run.search_h_rt
             if run.search_poll_secs:
                 _skw["poll_call"] = run.search_poll_secs
+            if run.search_threads > 1:                   # R107 (search/chain leg only); the
+                _skw["threads"] = run.search_threads     # 1-thread default stays byte-identical
             run.run_batch(specs, f"{arm}_g{gen}", pool=run.pool_confirmatory,
                           pack=(run.search_pack or run.pack), priority=priority, **_skw)
 
@@ -945,8 +979,11 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
         ]
         if fresh:
             specs = [s for cid, src in fresh for s in _family_specs(cid, "source", src)]
+            # R107: pass threads ONLY when raised, so the 1-thread path is byte-identical (and
+            # the ``run_batch`` seam keeps its pre-R107 signature for every existing caller).
+            _sekw = {"threads": run.search_threads} if run.search_threads > 1 else {}
             run.run_batch(specs, f"{arm}_search", pool=run.pool_confirmatory, pack=run.pack,
-                          priority=priority)
+                          priority=priority, **_sekw)
         accepted, failed = [], 0
         for cid in cids:
             r = _read_candidate(cid, arm, arm_root, k_seeds, base_seed)
@@ -985,6 +1022,8 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
             _bkw["h_rt_call"] = run.search_h_rt
         if run.search_poll_secs:
             _bkw["poll_call"] = run.search_poll_secs   # 30 chain steps x up to 180s notice = ~1h+
+        if run.search_threads > 1:                     # R107 (search/chain leg only); the
+            _bkw["threads"] = run.search_threads       # 1-thread default stays byte-identical
         run.run_batch(_family_specs(cid, "coeffs", list(coeffs)), f"{arm}_c{i}",
                       pool=run.pool_confirmatory, pack=(run.pack if k_seeds > 1 else 1),
                       priority=priority, **_bkw)
@@ -1022,6 +1061,8 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
                 _bkw_b["h_rt_call"] = run.search_h_rt
             if run.search_poll_secs:
                 _bkw_b["poll_call"] = run.search_poll_secs
+            if run.search_threads > 1:                    # R107 (search/chain leg only); the
+                _bkw_b["threads"] = run.search_threads    # 1-thread default is byte-identical
             specs = [s for cid, coeffs in fresh for s in _family_specs(cid, "coeffs", coeffs)]
             run.run_batch(specs, f"{arm}_startup", pool=run.pool_confirmatory,
                           pack=run.pack, priority=priority, **_bkw_b)
