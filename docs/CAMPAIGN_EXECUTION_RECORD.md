@@ -22,7 +22,7 @@ confirmatory H2 headline has not started (§3.1).**
 | gold panel | `returns_panel` sha256 `7cf5d98843c53cd6…` | stamped in every record; matches the frozen manifest |
 | arms (core) | 9 — `distributional`, `scalar`, `placebo`, `scalar_cvar5`, `placebo_shuffled`, `random_search`, `bayes_opt`, `cma_es`, `tpe` | `config/campaign.yaml` |
 | H1 baselines | 11 | `config/campaign.yaml` |
-| candidates per arm | 30 (5 per generation × 6 generations) | `config/campaign.yaml` |
+| candidates per arm | **30** — `config/campaign.yaml`. The "6 generations of 5" split is EMPIRICALLY observed (g0…g5 present in the live archive), not read from a top-level config key |
 | seed ladder (R101) | 30 → 100 → 189 → 279 → 340 → 403 → **568** | `config/campaign.yaml` |
 | replication legs | 10 models × 5 LLM arms | live archive roots |
 
