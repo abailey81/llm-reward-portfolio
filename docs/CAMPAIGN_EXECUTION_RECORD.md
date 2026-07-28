@@ -6,10 +6,22 @@ inferred silently. Where a fact is inferred rather than observed, it says so. Op
 `CHANGELOG.md` (items ①–⑳ of the 2026-07-28 block); this document is the narrative the dissertation
 draws on.
 
-**Status at 2026-07-28 11:41 UTC:** running, T+10.6 h, 12/12 lines alive, freeze intact, suite green.
-No relaunch performed and none warranted (§8). **★ THE CONFIRMATORY H2 HEADLINE IS NOW LIVE** — the
-canary gate cleared at 11:39:43 UTC (`ok: True, completed: 90`), the C0 analysis-smoke gate passed, and
-`claude-opus-5` began authoring the five core LLM arms at 11:40 UTC.
+**Status at 2026-07-28 13:00 UTC: RUN 1 HALTED at T+11.9 h. A defect in the driver invalidated the
+LLM search on every line; a clean relaunch is required.** All 12 lines were stopped deliberately at
+~12:35 UTC. The freeze is INTACT and unaffected — the defect is in driver transport/bookkeeping code,
+not in the frozen design (`freeze.py --check` RC=0, canonical hash still
+`4f90ecc47cc6a779…`). §11 is the incident account; §12 is the relaunch plan. Everything below §11
+that describes RUN 1 as healthy is retained as the *dated* record of what was believed at the time,
+with the retractions marked inline.
+
+> **The one-paragraph version.** `driver.run_batch` decided which candidates were permanently
+> rejected with a MIRROR-WIDE lookup over the single output tree that all twelve supervised lines
+> share, keyed on the bare candidate id (`scalar-g1-c0`) that every line reuses. So one line's reject
+> marker silently condemned every other line's identically-named candidate — never submitting it,
+> never judging it, and ledgering it so no resume would retry it. Measured: **439 of 498 abandonments
+> (88 %) were spurious**, **402 of them caused by `qwen3.5-9b` alone** — the deliberately weakest
+> model in the suite — and **36 of 36 on the confirmatory `claude-opus-5` core line**. The search was
+> not merely slowed; on most lines it was sterilised.
 
 ---
 
@@ -118,6 +130,16 @@ touched them.
 arms under `claude-opus-5`**, i.e. the confirmatory H2 contrast is now authoring. The 10 legs work
 through their 5 arms **sequentially**: `scalar` is 9–15 records deep and all 7 frozen winners so far
 are `scalar`, with the other four arms behind it.
+
+### 3.1 THE TRANSPORT CONSTRAINT — ⚠ THE DIAGNOSIS BELOW IS WRONG; SEE §11.1
+
+> ⛔ **RETRACTED 2026-07-28 12:15 UTC.** The claim in this subsection that "two of the three failing
+> operations scale with the archive so this worsens as the campaign grows" is **empirically false**.
+> Measured on the live cluster: the `find` over the whole outputs tree returns 703 records in
+> **0.046 s**, and `qstat -r` completes in **2 s** (and in ~2.5 s even at 16 concurrent). Neither is
+> archive-bound at any plausible scale. The real cause was a **resource leak in our own driver**
+> (§11.1), and the real scaling variable was our own connection fan-out, not the archive. The text
+> below is kept as the dated record of a wrong diagnosis that a later session must not build on.
 
 ### 3.1 THE TRANSPORT CONSTRAINT — it blocked the gate for 78 min, then self-healed
 
@@ -289,6 +311,15 @@ sandbox in seconds, before training starts.
 
 ## 6. FINDINGS THAT BELONG IN THE WRITE-UP
 
+> ⛔ **(a) AND (c) ARE RETRACTED (2026-07-28 13:00 UTC) — see §11.4.** Both rest on
+> reject-counts-by-generation, and the collision defect made those counts an artefact: from g3
+> onward essentially every line's candidates were condemned by `qwen3.5-9b`'s markers rather than
+> judged on their own merits, and `qwen3.5-9b` reaches the deep generations FASTEST precisely
+> because its own candidates fail fast. The apparent "reflection depth drives failure" gradient is
+> therefore confounded with "the weakest model gets to g4/g5 first and poisons everyone". The text
+> is preserved verbatim below as the dated record of a claim I made and withdrew; it must NOT enter
+> the dissertation unless it reproduces on RUN 2 data.
+
 **(a) Reflection depth drives state-contract violation — the mechanism finding.**
 The frozen system prompt states the contract explicitly:
 `info["reward_state"] carries YOUR state across steps (or None at reset)`, and the validation fixture
@@ -415,3 +446,203 @@ is defensible, but detection-plus-remediation achieves the same outcome (re-run 
 without a post-data protocol change and without inviting the "you changed the rules mid-run"
 objection. The pre-registration is silent on a threshold; that silence is now a *documented* gap
 rather than an unnoticed one.
+
+---
+
+## 11. RUN 1 POST-MORTEM — the two defects, both in OUR code, both found by measurement
+
+Session of 2026-07-28 11:50–13:00 UTC. Every number below was measured on the live system before any
+change was made; each fix carries a regression test PROVEN to fail against the pre-fix code.
+
+### 11.1 The transport degradation was a resource leak in our own driver, not the cluster
+
+**What was believed** (§3.1): a cluster/transport constraint that "scales with the archive" and had
+"self-healed".
+
+**What was measured.** The failing operations are not archive-bound at all — the `find` over the
+entire remote outputs tree returns 703 records in **0.046 s**, and `qstat -r` completes in **2 s**
+(≈2.5 s even at 16 concurrent). Yet the driver logs carried **1,904 genuine 300-second timeouts**,
+and the failure rate was climbing monotonically:
+
+| hour (BST) | 02 | 04 | 07 | 09 | 11 | 12 |
+|---|---|---|---|---|---|---|
+| timeout rate | 5.2 % | 6.8 % | 10.8 % | 33.6 % | 39.4 % | **55.3 %** |
+| good poll cycles / h | 962 | 1,446 | 1,202 | 444 | 377 | **224** |
+
+**The cause.** `poll._default_fetch` (and its twin `submit.push_batch`) placed `proc.wait()` AFTER
+the `try/finally`, so any exception on the consuming side skipped it and left the `ssh` child running
+forever. A stalled pull raises `TimeoutExpired` by construction, so the leak fired on exactly the path
+that mattered. Found live: **13 leaked children — 8 of them pulls still running 1.1–6.7 h past their
+own 3600 s timeout** — each holding an established session (and a remote `tar`) on the SHARED UCL
+login node. Login-node session pressure is what makes the NEXT pull stall, so this is a positive
+feedback loop: precisely why the rate rose monotonically, and why nothing in the environment needed to
+change for it to worsen.
+
+**Proof of causation, not correlation.** Reaping the 13 leaked children and changing nothing else took
+the failure rate from **53.3 % to 16.3 % in the very next 10-minute bucket**, and the driver's worst
+failure counter from **62/240 to 36/240**.
+
+**Fixed** in `submit.reap` plus both call sites; four regression tests, every one verified to FAIL
+against the pre-fix code.
+
+**Two methodological notes worth keeping.** (i) My first three probes measured the WRONG ssh client —
+Git Bash's OpenSSH 10.2p1 rather than the `C:\Windows\System32\OpenSSH` 9.5p2 that Python actually
+resolves — so they characterised a real but irrelevant phenomenon (MaxStartups random early drop:
+~29 % of connections refused at fan-out 48, but refused in 0.1 s and therefore harmless).
+(ii) The obvious client-side remedy, `ConnectionAttempts` / `ConnectTimeout`, was A/B-tested over
+three paired rounds BEFORE being applied and is **REFUTED** — 8/72 failures in the control against
+9/72 in the treatment. It was not adopted. Both are recorded because the tempting fix was the wrong
+one, and because the same session had already retracted one diagnosis for exactly this reason.
+
+### 11.2 ★ THE RUN-INVALIDATING DEFECT — one line's reject marker condemned every other line's candidate
+
+**The mechanism.** `driver.run_batch` resolved permanent rejects with
+`permanent_reject_ids(local_archive_root)`. `local_archive_root` is the ONE tree all twelve supervised
+lines share (`outputs/campaign_cluster` — it is where `driver_status/` and `ledger/` live). That
+function walks `**/_rejects/*.json` and keys on the **bare candidate id** (`scalar-g1-c0`), and
+**every line reuses that id scheme**. So a marker written by any line condemned the identically-named
+candidate of all eleven others — without submitting it, without judging it, and ledgered as permanent
+so that no resume would ever retry it.
+
+**This is the same defect class the 2026-07-19 35-agent audit called "CONFIRMED critical" and fixed
+for `pending_specs`**, where completion truth was scoped to each spec's own archive sub-root precisely
+to stop run-id collisions from fabricating an H3 null. Reject truth was left mirror-wide. The
+asymmetry between the two is the whole bug.
+
+**Measured damage, whole archive, before any change:**
+
+| | abandonments | own-marker (legitimate) | FOREIGN marker (spurious) |
+|---|---|---|---|
+| **core line (`claude-opus-5`, the confirmatory H2 headline)** | 36 | **0** | **36 (100 %)** |
+| h3 single-shot | 4 | 0 | 4 |
+| the 10 replication legs | 458 | 59 | 399 |
+| **TOTAL** | **498** | **59** | **439 (88 %)** |
+
+Marker owners responsible for the spurious kills: **`qwen3.5-9b` 402**, `qwen3.6-27b` 47,
+`haiku-4.5` 16, `gpt-5.6-luna` 8, `deepseek-v4-pro` 8, `nemotron-3-super` 7, `glm-5.2` 6.
+
+**The irony that makes this a write-up point.** `qwen3.5-9b` is in the suite *deliberately*, as the
+capability-gradient bottom anchor; its ~17 % authoring gate-pass is a registered FINDING, not a fault.
+Its 47 entirely legitimate rejects sterilised the search of all eleven other lines, including the
+frontier confirmatory model. A design feature became, through one unscoped lookup, a global failure.
+
+**Fixed** by `poll.permanently_rejected_specs`, which scopes reject truth through the same
+`spec_local_root` helper that completion truth now uses, so the two can never again disagree about
+which archive a spec belongs to. Two regression tests, both verified to fail pre-fix, assert the
+collision in both directions: a foreign marker must not condemn, an own marker still must.
+
+### 11.3 Why RUN 1 cannot be salvaged for the LLM arms
+
+1. **The confirmatory headline authored nothing usable.** Every one of the 36 core candidates was
+   discarded unrun. `scalar` burned generations g0, g1, g2 and g3 in about 35 minutes with **zero**
+   completions — and the Eureka loop reflects on the PREVIOUS generation's results, so g4 and g5 would
+   have been authored from an empty history. The search *process*, not merely its output, is invalid.
+2. **The eight frozen leg winners are contaminated by selection.** Each was chosen as
+   `max(val_fitness)` from a candidate pool that had been non-randomly truncated by a different
+   model's failures. That is a deviation from the registered selection protocol and is not repairable
+   after the fact.
+3. **The generation ladders are corrupted on every line**, and the spurious rows are ledgered
+   permanent, so a plain `--resume` would inherit the damage rather than repair it.
+
+**What is genuinely uncontaminated** — and this is why the relaunch is cheap — are the 330 scored
+H1-baseline test records and the four derivative-free arms (`random_search`, `tpe`, `bayes_opt`,
+`cma_es`). Those rewards are hand-defined or algorithmic rather than LLM-authored, and the audit found
+**zero** spurious abandonments among them. They are nonetheless being DISCARDED in the relaunch (§12):
+retaining them would save under a day of a four-day run while handing a reviewer a question we do not
+need to answer.
+
+### 11.4 What this retracts from the "findings already established"
+
+* **§6(a) "reflection depth drives state-contract violation" — RETRACTED.** The by-generation reject
+  gradient is exactly what the collision manufactures: `qwen3.5-9b` reaches g4/g5 first (its own
+  candidates fail fast), writes markers there, and those markers then kill every other line's g4/g5.
+  The damage audit shows `scalar-g4` and `scalar-g5` spuriously wiped five-for-five on nearly every
+  leg. The claim may yet be true; it is simply not evidenced by RUN 1.
+* **§6(c) "per-model authoring reliability" — RETRACTED as a rate.** The node-side reject *reasons*
+  remain genuine (those candidates really did run and fail), but every denominator is wrong, because
+  most candidates were never submitted at all.
+* **§7(2) "search depth is effectively 4 generations, not 6" — RETRACTED**, same cause.
+* **§6(b) (ratio-form baselines are numerically fragile) and §5 (execution-quality evidence) STAND.**
+  Both concern H1 baselines and scored test records, which the defect never touched. The weight
+  simplex holding exactly across 15,312 snapshots, the identical 1571-step window on all records, and
+  the `differential_sharpe` / `differential_downside_ratio` fallback concentration are unaffected.
+
+---
+
+## 12. RUN 2 — the relaunch plan
+
+**Shape.** A clean relaunch into a FRESH output root, with the RUN 1 tree preserved untouched as the
+evidence base for §11 — it is the primary artefact behind a disclosure the dissertation will carry.
+Nothing carries over: no purge logic to get wrong, and no retained-record question for a reviewer.
+
+**Preconditions, in order.**
+
+1. Both fixes committed with their falsifiable regression tests, full suite green, and
+   `freeze.py --check` RC=0 with the canonical hash unmoved. **The freeze does not move and must
+   not** — neither defect lives in a hash-bound file, so RUN 2 executes the SAME pre-registered design
+   under `4f90ecc47cc6a779…`. This is a re-execution, not a redesign, and therefore not a forking
+   path.
+2. Re-deploy the driver-side fixes. The node-side tree does not change: `poll.py` and `driver.py` are
+   laptop-side, so the `deployed-archive:ce27dfc…` provenance stamp is unaffected.
+3. **⚠ Top up the Anthropic balance — the one thing that can kill RUN 2 mid-flight.** See §12.1.
+4. **Fence RUN 1's still-running cluster jobs — do NOT drain them.** 161 were still running at the
+   halt. They are fenced for free by the fresh root: they archive into RUN 1's Scratch tree and
+   RUN 2 never reads it, and `_enforce_kill_switch` reads `<root>/ledger`, so a fresh root also
+   means RUN 1's task deaths are invisible to RUN 2's killswitch. Draining them by `qdel` would do
+   the opposite of help — it replays exactly the mass-death-across-many-hosts signature that
+   produced the 01:00 admin-kill incident and hard-blocked submission, and it forfeits the queue
+   reservations. Capacity is not a reason either: the job cap is 1,000 and RUN 1 holds 161, so
+   RUN 2 can submit alongside them from the start.
+
+### 12.1 The budget, and why it is too tight to launch on
+
+The $30 ceiling is ADVISORY (R83 warns, never refuses). The **binding** constraint is the real
+Anthropic balance: if it empties mid-run, `claude-opus-5` stops authoring and the confirmatory
+headline dies silently. Projected from measured per-call cost and measured GENUINE (post-fix) reject
+rates:
+
+| | |
+|---|---|
+| RUN 2 projected LLM spend, all providers | **$24.00** |
+| of which Anthropic (opus-5 core $12.57 + h3 $2.58 + sonnet-5 $2.70 + haiku-4.5 $0.87) | **$18.72** |
+| Anthropic funded (recorded) | $30.91 |
+| Anthropic already billed, all ledgers, all time (measured) | $9.14 |
+| Anthropic remaining | **$21.77** |
+| **margin after RUN 2** | **$3.06 (14 %)** |
+
+RUN 1's own spend of $12.92 bought nothing recoverable on the LLM arms, and $6.07 of it was burnt
+directly on candidates the collision discarded unrun. A ~$20 top-up before launch is cheap insurance
+on the single irreplaceable component of the dissertation.
+
+*The earlier projection in §3.2 (≈$19.53 all-in) was too low for two reasons now corrected: it omitted
+the h3 single-shot line, which also authors on `claude-opus-5`, and it assumed exactly one authoring
+call per candidate.*
+
+### 12.1a The fresh root must be REMOTE as well as local — and it already is supported
+
+RUN 1's 161 in-flight jobs archive into `~/Scratch/llmrp/outputs`. If RUN 2 shared that remote root,
+its archive-truth resume would ADOPT their records — the identical hazard the 2026-07-27 launch gate
+caught when 8 foreign probe records sat in the confirmatory search root. So RUN 2 must move BOTH:
+
+* `--remote-root ~/Scratch/llmrp2` (the flag exists, defaults to `~/Scratch/llmrp`, and
+  `run_campaign_cluster.py:1244` already documents a fresh remote root as a supported mode)
+* `--output-dir outputs/campaign_cluster_run2`
+
+Neither the deployed code tree (`~/llmrp`) nor the licensed gold (`--gold-dir` on ACFS) moves, so the
+`deployed-archive:ce27dfc…` provenance stamp and the gold sha256 are unchanged — RUN 2 is the same
+code on the same data under the same frozen hash.
+
+**One edit is required before launch:** `scripts/mode_d_supervisor.ps1:64` hardcodes
+`$outDir = "outputs\campaign_cluster"` and passes no `--remote-root`. Both must become parameters
+threaded from `mode_d_launch.ps1`. (ASCII-only + `Parser::ParseFile`-validated, per the standing PS1
+rule.)
+
+### 12.2 What RUN 2 should do better, operationally
+
+* Run the persistent leaked-ssh reaper until every line is confirmed to be on the fixed code — the fix
+  is in the file, but a running driver keeps the code it imported at start.
+* Watch the **spurious-abandonment counter directly**: with the fix in place, every
+  `permanent_node_reject` must trace to a marker under the line's OWN sub-root. A single foreign one
+  is a regression and should stop the run.
+* Keep the makespan expectation from §4 unchanged — it was never the problem, and none of it is
+  retracted.

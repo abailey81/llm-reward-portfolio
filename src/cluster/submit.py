@@ -20,7 +20,7 @@ from typing import Callable
 
 __all__ = [
     "ssh_runner", "ssh_base", "push_batch", "qsub", "submit_marker", "parse_job_id",
-    "sanitize_name", "prepare_remote", "remote_home", "expand_remote",
+    "sanitize_name", "prepare_remote", "remote_home", "expand_remote", "reap",
 ]
 
 Runner = Callable[[list[str]], str]
@@ -35,6 +35,36 @@ _JOB_ID_RE = re.compile(r"Your job(?:-array)? (\d+)")
 #  * StrictHostKeyChecking=accept-new — auto-trust the host key on FIRST connect (no yes/no prompt
 #                               to wedge the driver) while still REFUSING a CHANGED key (MITM guard).
 _SSH_OPTS = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new"]
+
+
+def reap(proc: subprocess.Popen, *, grace: float) -> None:
+    """Wait ``grace`` seconds for a clean exit, then KILL — the child cannot outlive this call.
+
+    2026-07-28 LEAK FIX, found live at T+11 h of the confirmatory run. Both tar-over-ssh pipes in
+    this package (:func:`push_batch` here, ``poll._default_fetch`` on the pull side) placed their
+    ``proc.wait()`` AFTER the ``try/finally``. Any exception on the consuming side therefore
+    skipped the wait entirely and left the child running forever — and a stalled pull raises
+    ``TimeoutExpired`` by construction, so the leak fired on exactly the path that mattered.
+
+    This is not tidiness. Each leaked ``ssh`` holds an established session on the SHARED UCL login
+    node plus a remote ``tar``, and login-node session pressure is what makes the NEXT pull stall:
+    a positive feedback loop. Measured on the live campaign at T+11 h — 13 leaked children, 8 of
+    them pulls still running 1.1-6.7 h past their own 3600 s timeout, against a driver transport
+    failure rate climbing monotonically 5.2 % -> 55.3 % over ten hours while successful poll cycles
+    fell from 1,446/h to 224/h.
+
+    ``grace`` is deliberately asymmetric at the call sites: generous on the success path, where the
+    peer has already finished writing and its true exit status is still wanted, and short on the
+    failure path, where waiting is the very cost being eliminated.
+    """
+    try:
+        proc.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        try:
+            proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:  # pragma: no cover — kill() not honoured is unreachable
+            pass
 
 
 def ssh_base(host: str = "myriad") -> list[str]:
@@ -138,12 +168,18 @@ def push_batch(batch_dir: str | Path, remote_specs_root: str, *, host: str = "my
     # connection; tar.wait() catches a local read failure.
     remote_cmd = "mkdir -p " + shlex.quote(root) + " && tar -xf - -C " + shlex.quote(root)
     tar = subprocess.Popen(["tar", "-cf", "-", name], stdout=subprocess.PIPE, cwd=str(src.parent))
+    drained = False
     try:
         subprocess.run([*ssh_base(host), remote_cmd], stdin=tar.stdout, check=True, timeout=1800)
+        drained = True
     finally:
+        # Same 2026-07-28 leak as the pull side: `tar.wait()` used to sit AFTER the try/finally,
+        # so a failed ssh skipped it and left the local tar unreaped. Milder here (the child is
+        # local and usually dies of SIGPIPE) but identical in kind — see `poll.reap`.
         if tar.stdout is not None:
             tar.stdout.close()
-    if tar.wait(timeout=300) != 0:
+        reap(tar, grace=300.0 if drained else 10.0)
+    if tar.returncode != 0:
         raise subprocess.CalledProcessError(tar.returncode, f"tar -cf - {name} (local)")
 
 

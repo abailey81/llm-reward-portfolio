@@ -54,14 +54,28 @@ param(
     # Nodes fenced off. A node that fails a job in SECONDS is always free, so the scheduler keeps
     # feeding it work: a job vacuum. node-d00a-230 has no apptainer and ate 13 ladder cells.
     # EXTEND THIS if the sentinel's host_failure_concentration check fires, then restart the line.
-    [string]$ExcludeHosts = "node-d00a-230"
+    [string]$ExcludeHosts = "node-d00a-230",
+    # RUN GENERATION (added 2026-07-28, after RUN 1 was invalidated by the cross-line reject-marker
+    # collision - docs/CAMPAIGN_EXECUTION_RECORD.md s.11.2). A clean re-execution needs a fresh
+    # archive on BOTH sides, and BOTH were hardcoded here:
+    #   OutDir     - the LOCAL mirror. Also the root every line's driver_status/ and ledger/ live
+    #                under, and the root the killswitch reads, so a fresh one also means the
+    #                previous run's task deaths are invisible to the new run's admin-kill detector.
+    #   RemoteRoot - the SCRATCH working root. This one is not optional: the previous run's jobs
+    #                keep archiving into it for hours after a halt, and archive-truth resume would
+    #                ADOPT their records - the exact hazard the 2026-07-27 launch gate caught with
+    #                8 foreign probe records in the confirmatory search root.
+    # The deployed code tree (~/llmrp) and the licensed gold (-GoldDir, on ACFS) do NOT move, so
+    # provenance stamps and the gold sha256 are unchanged: same code, same data, same frozen hash.
+    [string]$OutDir = "outputs\campaign_cluster",
+    [string]$RemoteRoot = "~/Scratch/llmrp"
 )
 
 $ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
-$outDir   = "outputs\campaign_cluster"
+$outDir   = $OutDir
 $stopFile = Join-Path $outDir "STOP_CAMPAIGN"
 New-Item -ItemType Directory -Force $outDir | Out-Null
 $safe     = ($Line -replace "[^a-zA-Z0-9_-]", "_")
@@ -118,6 +132,7 @@ $cpuLane = @(
   "--chunk-tasks", "1",
   "--exclude-hosts", $ExcludeHosts,
   "--gold-dir", $GoldDir,
+  "--remote-root", $RemoteRoot,
   "--poll-secs", "180", "--search-poll-secs", "45",
   "--output-dir", $outDir, "--resume"
 )

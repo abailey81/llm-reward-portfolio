@@ -3,6 +3,160 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-28b] RUN 1 HALTED — two defects in our own driver, one of them run-invalidating
+
+**Session 11:47–13:30 UTC. Handover session: picked up the live confirmatory campaign at T+11.7 h,
+verified it first-hand rather than trusting the handoff, and found two defects. The second
+invalidated the LLM search on every one of the twelve lines. All lines were stopped deliberately at
+~12:35 UTC; a clean relaunch is required. The FREEZE IS INTACT and does not move — neither defect
+lives in a hash-bound file.** Full narrative for the write-up:
+`docs/CAMPAIGN_EXECUTION_RECORD.md` §11 (post-mortem) and §12 (relaunch plan).
+
+### ① Handover verification — the state was as reported, and then it was not
+
+12/12 lines alive, 4 monitors alive (`mode_d_watchdog`, `sentinel --watch`, `campaign_backup`,
+`allocation_advisor`), 598 records / 330 scored, freeze hash re-derived and MATCHING, kill incident
+`cleared: true`. So the handoff's picture was accurate as of 11:47. The two defects below were not
+visible in any counter that anyone was watching — which is the point worth carrying into the
+write-up: every instrument reported health while the science was being destroyed.
+
+### ② The transport diagnosis in the record was WRONG — and the real cause was ours
+
+CAMPAIGN_EXECUTION_RECORD §3.1 said the failing operations "scale with the archive" and would
+"recur and worsen". Measured live, they do not: the `find` over the entire remote outputs tree
+returns 703 records in **0.046 s**, `qstat -r` in **2 s** (~2.5 s even at 16 concurrent). Neither
+is archive-bound at any plausible scale.
+
+What was real: **1,904 genuine 300-second timeouts** in the driver logs, with a monotonically
+climbing failure rate — 5.2 % (02:00 BST) → 10.8 % (07:00) → 33.6 % (09:00) → **55.3 % (12:00)** —
+while successful poll cycles fell from 1,446/h to 224/h.
+
+**Root cause: `poll._default_fetch` and `submit.push_batch` both placed `proc.wait()` AFTER their
+`try/finally`, so any exception on the consuming side skipped it and left the `ssh` child running
+forever.** A stalled pull raises `TimeoutExpired` by construction, so the leak fired on exactly the
+path that mattered. Found live: **13 leaked children, 8 of them pulls still running 1.1–6.7 h past
+their own 3600 s timeout**, each holding an established session (and a remote `tar`) on the SHARED
+UCL login node — which is what makes the NEXT pull stall. A positive feedback loop, and the reason
+nothing in the environment had to change for the rate to keep rising.
+
+**Causation demonstrated, not asserted:** reaping the 13 leaked children and changing nothing else
+took the failure rate from **53.3 % to 16.3 % in the very next 10-minute bucket**, and the driver's
+worst failure counter from **62/240 to 36/240**.
+
+FIXED: new `submit.reap(proc, grace=...)` called from a `finally` at both sites, with an asymmetric
+grace (generous on the success path where the peer's true exit status is still wanted, short on the
+failure path where waiting is the cost being removed). A killed peer on the success path now raises
+rather than mirroring a short archive. **4 regression tests, every one verified to FAIL against the
+pre-fix code** (checked out HEAD, ran, restored — files confirmed byte-identical afterwards).
+
+**Two methodological notes, recorded because the tempting fix was the wrong one.** (i) My first
+three probes measured the WRONG ssh client — Git Bash's OpenSSH 10.2p1, not the
+`C:\Windows\System32\OpenSSH` 9.5p2 that Python resolves — and so characterised a real but
+irrelevant phenomenon (MaxStartups random early drop: ~29 % of connections refused at fan-out 48,
+but refused in 0.1 s, therefore harmless). (ii) The obvious client-side remedy,
+`ConnectionAttempts` / `ConnectTimeout`, was A/B tested over three paired rounds BEFORE being
+applied and is **REFUTED** — 8/72 control failures against 9/72 treatment. Not adopted.
+`~/.ssh/config` was never touched.
+
+### ③ ★ THE RUN-INVALIDATING DEFECT — one line's reject marker condemned every other line's candidate
+
+Chasing why the confirmatory core line was logging `5 permanent node reject(s) abandoned` for whole
+generations, I found: the rejected sources were **valid Python that defines `reward`** (33/33,
+3,512–5,297 chars — so not truncation, not the R106 author-cap hole); there were **zero** reject
+markers for them on the node; and **zero** node log directories, i.e. those jobs never ran at all.
+
+**Root cause.** `driver.run_batch` resolved permanent rejects with
+`permanent_reject_ids(local_archive_root)`. `local_archive_root` is the ONE tree all twelve lines
+share (`outputs/campaign_cluster` — where `driver_status/` and `ledger/` live). That function walks
+`**/_rejects/*.json` and keys on the **bare candidate id** (`scalar-g1-c0`), which **every line
+reuses**. One line's marker therefore condemned the identically-named candidate of all eleven
+others — never submitting it, never judging it, and ledgering it permanent so no resume would retry
+it.
+
+**This is the same defect class the 2026-07-19 35-agent audit called "CONFIRMED critical" and fixed
+for `pending_specs`**, where completion truth was scoped to each spec's own archive sub-root
+precisely to stop run-id collisions fabricating an H3 null. Reject truth was left mirror-wide. The
+asymmetry between the two IS the bug.
+
+**Measured damage over the whole archive, before any change:**
+
+| | abandonments | own-marker (legitimate) | FOREIGN (spurious) |
+|---|---|---|---|
+| core line — the confirmatory H2 headline, `claude-opus-5` | 36 | **0** | **36 (100 %)** |
+| h3 single-shot | 4 | 0 | 4 |
+| the 10 replication legs | 458 | 59 | 399 |
+| **TOTAL** | **498** | **59** | **439 (88 %)** |
+
+Culprit markers: **`qwen3.5-9b` 402**, `qwen3.6-27b` 47, `haiku-4.5` 16, `gpt-5.6-luna` 8,
+`deepseek-v4-pro` 8, `nemotron-3-super` 7, `glm-5.2` 6. `qwen3.5-9b` is in the suite DELIBERATELY as
+the capability-gradient bottom anchor — its ~17 % authoring gate-pass is a registered FINDING, not a
+fault — and its 47 entirely legitimate rejects sterilised the search of all eleven other lines,
+including the frontier confirmatory model.
+
+FIXED: `poll.permanently_rejected_specs`, scoping reject truth through the same new
+`poll.spec_local_root` helper that completion truth now uses, so the two can never again disagree
+about which archive a spec belongs to. **2 regression tests, both verified to FAIL pre-fix**,
+asserting the collision in both directions (a foreign marker must not condemn; an own marker still
+must) plus the transient-marker and no-`archive_root` legacy paths.
+
+**Exhaustiveness sweep:** every `rglob`/`glob` over an archive root in `src/cluster` was checked.
+`pull_archive` keys on relative PATHS (safe); `pending_specs` is sub-root scoped (fixed 2026-07-19);
+`campaign.py`'s `completed_run_ids(run.test_read())` is scoped; `driver._ledgered_run_ids` is
+per-batch. `permanent_reject_ids` was the ONE unscoped consumer.
+
+### ④ Why RUN 1 cannot be salvaged for the LLM arms
+
+The confirmatory headline authored nothing usable — 36/36 core candidates discarded unrun, `scalar`
+burning g0→g3 in ~35 minutes with ZERO completions, and since the Eureka loop reflects on the
+previous generation's results, g4/g5 would have been authored from an empty history. The *process*
+is invalid, not just the output. The 8 frozen leg winners were selected as `max(val_fitness)` from
+pools non-randomly truncated by another model's failures — a deviation from the registered selection
+protocol that cannot be repaired after the fact. And the spurious rows are ledgered permanent, so a
+plain `--resume` would inherit the damage.
+
+Genuinely uncontaminated: the 330 scored H1-baseline test records and the four derivative-free arms
+(`random_search`, `tpe`, `bayes_opt`, `cma_es`) — hand-defined or algorithmic rewards, with **zero**
+spurious abandonments in the audit. They are being discarded anyway: retaining them saves under a
+day of a four-day run while handing a reviewer a question we do not need to answer.
+
+### ⑤ RETRACTIONS forced on the "findings already established"
+
+* **"Reflection depth drives state-contract violation" (record §6a) — RETRACTED.** The
+  by-generation reject gradient is exactly what this collision manufactures: `qwen3.5-9b` reaches
+  g4/g5 FIRST (its own candidates fail fast), writes markers there, and those markers then kill every
+  other line's g4/g5 — the audit shows `scalar-g4`/`scalar-g5` spuriously wiped five-for-five on
+  nearly every leg. The claim may still be true; it is simply not evidenced by RUN 1.
+* **"Per-model authoring reliability" (§6c) — RETRACTED as a rate.** The node-side reject *reasons*
+  are genuine; every denominator is wrong.
+* **"Search depth is effectively 4 generations, not 6" (§7.2) — RETRACTED**, same cause.
+* **STANDS: §6b (ratio-form baselines numerically fragile) and §5 (execution-quality evidence)** —
+  both concern H1 baselines and scored test records, which the defect never touched.
+
+### ⑥ The budget is the binding constraint on RUN 2, and it is too tight
+
+The $30 ceiling is ADVISORY (R83 warns, never refuses). The real constraint is the Anthropic
+balance: if it empties mid-run, `claude-opus-5` stops authoring and the headline dies silently.
+Projected from measured per-call cost and measured GENUINE (post-fix) reject rates: **RUN 2 needs
+$24.00 all providers, $18.72 of it Anthropic**, against **$21.77 remaining** ($30.91 recorded as
+funded, $9.14 measured as billed across every ledger this project has written) — a **$3.06 (14 %)
+margin**. RUN 1 spent $12.92 and bought nothing recoverable on the LLM arms; $6.07 of that went
+directly on candidates the collision discarded unrun.
+
+**⚠ FOR TAMER: top up Anthropic by ~$20 before RUN 2.** Also corrected: the record's earlier
+≈$19.53 projection omitted the h3 single-shot line, which also authors on `claude-opus-5`, and
+assumed one authoring call per candidate.
+
+### ⑦ State at session end
+
+* All 12 supervisor and 24 driver processes stopped cleanly (0 remaining, verified). The
+  `mode_d_watchdog` was stopped FIRST so it could not resurrect them.
+* Cluster jobs submitted before the halt keep running and archiving to Scratch — nothing completed
+  is lost, and RUN 1's tree is preserved untouched as the evidence base for the post-mortem.
+* Monitors left running: `sentinel --watch`, `campaign_backup`, `allocation_advisor`, plus a new
+  persistent leaked-ssh reaper (retire it once every line is confirmed on the fixed code).
+* `freeze.py --check` **RC=0**, canonical `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd`
+  MATCHES the recorded freeze hash. `ruff` clean on every changed file.
+
 ## [2026-07-28] — ★ **THE CONFIRMATORY CAMPAIGN IS FROZEN AND RUNNING** · live-ops log of the first hour
 
 **FROZEN** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd` at 2026-07-28T00:05:13Z,

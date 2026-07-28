@@ -25,14 +25,22 @@
 # Stop it the same way everything else stops: create outputs\campaign_cluster\STOP_CAMPAIGN.
 
 param(
-    [int]$IntervalSecs = 300
+    [int]$IntervalSecs = 300,
+    # RUN GENERATION (2026-07-28) - these MUST be passed whenever the campaign runs on a non-default
+    # root, and they must match mode_d_launch.ps1 exactly. Before this parameter existed the
+    # watchdog restarted every dead line with the supervisor's DEFAULTS, so under a fresh-root run
+    # a single restart would have silently pointed that line back at the PREVIOUS run's local mirror
+    # and Scratch root - mixing two runs' archives, which is the same class of silent cross-run
+    # contamination that invalidated RUN 1 (docs/CAMPAIGN_EXECUTION_RECORD.md s.11.2).
+    [string]$OutDir = "outputs\campaign_cluster",
+    [string]$RemoteRoot = "~/Scratch/llmrp"
 )
 
 $ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
-$outDir   = "outputs\campaign_cluster"
+$outDir   = $OutDir
 $stopFile = Join-Path $outDir "STOP_CAMPAIGN"
 $log      = Join-Path $outDir "watchdog.log"
 New-Item -ItemType Directory -Force $outDir | Out-Null
@@ -50,7 +58,8 @@ function WLog([string]$m) {
     Add-Content -Path $log -Value $l
 }
 
-WLog ("started; watching {0} lines every {1}s" -f $lines.Count, $IntervalSecs)
+WLog ("started; watching {0} lines every {1}s (out={2}, remote={3})" -f `
+    $lines.Count, $IntervalSecs, $OutDir, $RemoteRoot)
 
 while ($true) {
     if (Test-Path $stopFile) { WLog "STOP_CAMPAIGN present - watchdog exiting."; break }
@@ -67,7 +76,8 @@ while ($true) {
             Start-Process powershell -ArgumentList @(
                 "-ExecutionPolicy", "Bypass",
                 "-File", (Join-Path $repo "scripts\mode_d_supervisor.ps1"),
-                "-Line", $d, "-StaggerSecs", "0"
+                "-Line", $d, "-StaggerSecs", "0",
+                "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
             )
             WLog ("  restarted {0}" -f $d)
             Start-Sleep -Seconds 3

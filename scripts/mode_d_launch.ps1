@@ -14,6 +14,19 @@
 # Monitoring: bash scripts/campaign_monitor.sh + the sentinel watch the shared mirror as usual;
 # per-line logs at outputs\campaign_cluster\supervisor_<line>.log.
 
+param(
+    # RUN GENERATION (2026-07-28). RUN 1 was invalidated by the cross-line reject-marker collision
+    # (docs/CAMPAIGN_EXECUTION_RECORD.md s.11.2). A clean re-execution needs a fresh archive on
+    # BOTH sides - the local mirror AND the Scratch working root, because the halted run's jobs
+    # keep archiving remotely for hours and archive-truth resume would adopt their records.
+    # Defaults reproduce RUN 1's paths exactly, so an unparameterised call is unchanged.
+    # RUN 2 is launched as:
+    #   powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1 `
+    #     -OutDir outputs\campaign_cluster_run2 -RemoteRoot ~/Scratch/llmrp2
+    [string]$OutDir = "outputs\campaign_cluster",
+    [string]$RemoteRoot = "~/Scratch/llmrp"
+)
+
 $ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
@@ -41,8 +54,10 @@ foreach ($line in $lines) {
     Start-Process powershell -ArgumentList @(
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $repo "scripts\mode_d_supervisor.ps1"),
-        "-Line", $line, "-StaggerSecs", [string]$stagger
+        "-Line", $line, "-StaggerSecs", [string]$stagger,
+        "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
     )
     $i += 1
 }
-Write-Host ("mode-D: {0} supervised lines started. STOP file: outputs\campaign_cluster\STOP_CAMPAIGN" -f $lines.Count)
+Write-Host ("mode-D: {0} supervised lines started (out={1}, remote={2}). STOP file: {3}" -f `
+    $lines.Count, $OutDir, $RemoteRoot, (Join-Path $OutDir "STOP_CAMPAIGN"))

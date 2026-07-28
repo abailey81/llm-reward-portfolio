@@ -27,7 +27,12 @@ from typing import Any, Callable
 
 from src.cluster.jobscript import render_jobscript, write_jobscript
 from src.cluster.ledger import requeue_specs
-from src.cluster.poll import pending_specs, permanent_reject_ids, pull_archive, spec_run_id
+from src.cluster.poll import (
+    pending_specs,
+    permanently_rejected_specs,
+    pull_archive,
+    spec_run_id,
+)
 from src.cluster.spec_io import write_specs
 from src.cluster.submit import prepare_remote, push_batch, qsub, sanitize_name, ssh_runner
 
@@ -422,8 +427,14 @@ def _run_batch_unlocked(
         # retry is provably futile, so burning MAX_RETRIES requeue rounds (queue wait + h_rt
         # each) on it wasted 2 rounds per reject. Ledgered in the same permanent-JSONL shape as
         # retries_exhausted, so resume + bank-gate accounting see it identically.
-        perm = permanent_reject_ids(local_archive_root)
-        dead_now = [s for s in pending if spec_run_id(s) in perm]
+        # 2026-07-28: this MUST be the sub-root-scoped form. `local_archive_root` is the ONE tree
+        # all twelve supervised lines share, and reject markers are keyed on the bare candidate id
+        # (`scalar-g1-c0`), which every line reuses — so the old mirror-wide
+        # `permanent_reject_ids(local_archive_root)` let ONE line's marker permanently abandon
+        # every OTHER line's identically-named candidate without ever submitting it. Measured
+        # live: 439 of 498 abandonments spurious, including 36 of 36 on the confirmatory core.
+        # See `poll.permanently_rejected_specs`.
+        dead_now = permanently_rejected_specs(pending, local_archive_root)
         if dead_now:
             ledger_path.parent.mkdir(parents=True, exist_ok=True)
             with ledger_path.open("a", encoding="utf-8") as fh:

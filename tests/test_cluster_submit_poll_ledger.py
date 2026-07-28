@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 
 import pytest
 
@@ -418,3 +419,207 @@ def test_remote_home_refuses_a_noisy_resolution_instead_of_building_a_garbage_ro
 
     remote_home(_capture)
     assert seen[0][:2] == ["sh", "-c"], f"remote_home must not use a login shell: {seen[0]}"
+
+
+# --------------------------------------------------------------------------------------------
+# 2026-07-28 TRANSPORT-LEAK REGRESSION (found live at T+11 h of the confirmatory campaign).
+#
+# Both tar-over-ssh pipes placed `proc.wait()` AFTER their try/finally, so any exception on the
+# consuming side skipped it and left the child running forever. Measured on the live driver: 13
+# leaked children, 8 of them pulls still alive 1.1-6.7 h past their own 3600 s timeout, each
+# holding a session on the SHARED UCL login node -- which is what makes the NEXT pull stall.
+# These tests FAIL against the pre-fix code, which is the only reason to trust them.
+# --------------------------------------------------------------------------------------------
+
+
+class _FakeProc:
+    """A child that ignores `wait(timeout=...)` until someone actually kills it."""
+
+    def __init__(self, stdout=None):
+        self.stdout = stdout
+        self.returncode = None
+        self.killed = False
+        self.waits: list[float | None] = []
+
+    def wait(self, timeout=None):
+        self.waits.append(timeout)
+        if self.returncode is None:
+            raise subprocess.TimeoutExpired(cmd="fake", timeout=timeout or 0)
+        return self.returncode
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+
+    def poll(self):
+        return self.returncode
+
+
+def test_reap_kills_a_child_that_outlives_its_grace_and_returns_promptly():
+    from src.cluster.submit import reap
+
+    stuck = _FakeProc()
+    reap(stuck, grace=0.5)
+    assert stuck.killed, "reap must KILL a child that ignores its grace period"
+    assert stuck.waits[0] == 0.5, "the caller's grace must be honoured before killing"
+
+    # a child that exits cleanly inside the grace is never killed
+    clean = _FakeProc()
+    clean.returncode = 0
+    reap(clean, grace=300.0)
+    assert not clean.killed
+
+
+def test_failed_pull_reaps_its_ssh_child_instead_of_leaking_it(tmp_path, monkeypatch):
+    """THE campaign defect: a stalled pull raises TimeoutExpired, and the ssh child was orphaned."""
+    import io
+
+    from src.cluster import poll as _poll
+
+    created: list[_FakeProc] = []
+
+    def fake_popen(argv, stdout=None):
+        p = _FakeProc(stdout=io.BytesIO(b"TARBYTES"))
+        created.append(p)
+        return p
+
+    def fake_run(argv, stdin=None, check=None, timeout=None, cwd=None):
+        # exactly what a stalled transfer does to the consuming side
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=timeout or 0)
+
+    monkeypatch.setattr(_poll.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(_poll.subprocess, "run", fake_run)
+
+    fetch = _poll._default_fetch("myriad", "/home/u/Scratch/llmrp/outputs")
+    with pytest.raises(subprocess.TimeoutExpired):
+        fetch(["test/arm/arm-s1"], tmp_path)
+
+    assert len(created) == 1
+    assert created[0].killed, "the ssh child MUST be reaped when the pull fails, never leaked"
+    # and the failure-path grace is short: waiting is the cost being eliminated
+    assert created[0].waits[0] == 10.0
+
+
+def test_failed_push_reaps_its_local_tar_child_instead_of_leaking_it(tmp_path, monkeypatch):
+    """Same defect on the push side (milder: the child is local, but identical in kind)."""
+    import io
+
+    from src.cluster import submit as _submit
+
+    created: list[_FakeProc] = []
+
+    def fake_popen(argv, stdout=None, cwd=None):
+        p = _FakeProc(stdout=io.BytesIO(b"TARBYTES"))
+        created.append(p)
+        return p
+
+    def fake_run(argv, stdin=None, check=None, timeout=None):
+        raise subprocess.CalledProcessError(255, argv)
+
+    monkeypatch.setattr(_submit.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(_submit.subprocess, "run", fake_run)
+
+    batch = tmp_path / "c1_search"
+    batch.mkdir()
+    (batch / "task_1.json").write_text("{}")
+    with pytest.raises(subprocess.CalledProcessError):
+        _submit.push_batch(batch, "/home/u/Scratch/llmrp/specs")
+
+    assert len(created) == 1
+    assert created[0].killed, "the local tar MUST be reaped when the push fails, never leaked"
+
+
+def test_a_pull_whose_ssh_had_to_be_killed_fails_loud_rather_than_mirroring_short(tmp_path, monkeypatch):
+    """A reap that had to KILL means a torn stream; it must never be reported as a good pull."""
+    import io
+
+    from src.cluster import poll as _poll
+
+    created: list[_FakeProc] = []
+
+    def fake_popen(argv, stdout=None):
+        p = _FakeProc(stdout=io.BytesIO(b"TARBYTES"))
+        created.append(p)
+        return p
+
+    def fake_run(argv, stdin=None, check=None, timeout=None, cwd=None):
+        return None  # the local tar "succeeded" but the remote side never exited
+
+    monkeypatch.setattr(_poll.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(_poll.subprocess, "run", fake_run)
+
+    fetch = _poll._default_fetch("myriad", "/home/u/Scratch/llmrp/outputs")
+    with pytest.raises(subprocess.CalledProcessError):
+        fetch(["test/arm/arm-s1"], tmp_path)
+    assert created[0].killed and created[0].waits[0] == 300.0
+
+
+def test_one_lines_reject_marker_cannot_condemn_another_lines_candidate(tmp_path):
+    """2026-07-28 REGRESSION, reproduced from the live confirmatory campaign.
+
+    All twelve supervised lines share ONE `local_archive_root`, and search candidate ids
+    (`scalar-g1-c0`) are reused verbatim by every line. The driver resolved permanent rejects
+    mirror-wide, so `search_leg_qwen3_5_9b`'s markers -- the weakest model in the suite -- silently
+    abandoned the confirmatory `claude-opus-5` line's identically-named candidates WITHOUT
+    submitting them: 439 of 498 abandonments were spurious, 36 of 36 on the core line.
+
+    Completion truth was already sub-root scoped by the 2026-07-19 audit; this asserts reject
+    truth uses the SAME scoping, in both directions (a foreign marker must not condemn, an own
+    marker still must).
+    """
+    from src.cluster.poll import permanently_rejected_specs
+
+    def marker(root: str, run_id: str, permanent: bool = True) -> None:
+        d = tmp_path / root / "_rejects"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{run_id}.json").write_text(
+            json.dumps({"run_id": run_id, "permanent": permanent}), encoding="utf-8"
+        )
+
+    def spec(remote_sub: str, cid: str) -> dict:
+        # cluster shape: archive_root is the REMOTE sub-root, mirrored under local_root by basename
+        return {"candidate_id": cid, "archive_root": f"/home/u/Scratch/llmrp/outputs/{remote_sub}"}
+
+    # the weakest leg genuinely rejected these; the core line never did
+    marker("search_leg_qwen3_5_9b", "scalar-g1-c0")
+    marker("search_leg_qwen3_5_9b", "scalar-g1-c1")
+    # and the core line has one genuine reject of its own
+    marker("search", "scalar-g1-c4")
+
+    core = [spec("search", f"scalar-g1-c{i}") for i in range(5)]
+    dead = permanently_rejected_specs(core, tmp_path)
+    dead_ids = {s["candidate_id"] for s in dead}
+    assert dead_ids == {"scalar-g1-c4"}, (
+        "only the core's OWN marker may condemn a core candidate; a foreign line's marker for the "
+        f"same id must be invisible -- got {sorted(dead_ids)}"
+    )
+
+    # symmetric: the leg's own markers still condemn the leg's own candidates
+    leg = [spec("search_leg_qwen3_5_9b", f"scalar-g1-c{i}") for i in range(5)]
+    leg_dead = {s["candidate_id"] for s in permanently_rejected_specs(leg, tmp_path)}
+    assert leg_dead == {"scalar-g1-c0", "scalar-g1-c1"}
+
+    # a TRANSIENT marker is a diagnostic, never an abandonment
+    marker("search", "scalar-g1-c2", permanent=False)
+    assert {s["candidate_id"] for s in permanently_rejected_specs(core, tmp_path)} == {"scalar-g1-c4"}
+
+    # a spec with no archive_root keeps the legacy mirror-wide behaviour
+    legacy = [{"candidate_id": "scalar-g1-c0"}]
+    assert {s["candidate_id"] for s in permanently_rejected_specs(legacy, tmp_path)} == {"scalar-g1-c0"}
+
+
+def test_reject_truth_and_completion_truth_resolve_the_same_archive(tmp_path):
+    """The two must never disagree about which archive a spec belongs to -- that asymmetry IS the
+    2026-07-28 defect. Asserts both go through `spec_local_root`."""
+    from src.cluster.poll import spec_local_root
+
+    s = {"candidate_id": "scalar-g1-c0", "archive_root": "/home/u/Scratch/llmrp/outputs/search"}
+    assert spec_local_root(s, tmp_path) == tmp_path / "search"
+
+    # local/pack run: archive_root IS the local record dir
+    local = tmp_path / "packroot"
+    local.mkdir()
+    assert spec_local_root({"archive_root": str(local)}, tmp_path) == local
+
+    # no archive_root: mirror-wide fallback
+    assert spec_local_root({}, tmp_path) == tmp_path

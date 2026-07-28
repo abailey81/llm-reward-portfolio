@@ -29,7 +29,9 @@ __all__ = [
     "remote_reject_files",
     "completed_run_ids",
     "permanent_reject_ids",
+    "permanently_rejected_specs",
     "pending_specs",
+    "spec_local_root",
     "spec_run_id",
     "sync_epilogue_ledgers",
 ]
@@ -168,7 +170,7 @@ def _default_fetch(host: str, remote_outputs_root: str) -> Fetch:
     leaving a silently short mirror. The remote side is POSIX-quoted; the local tar runs with
     cwd=staging (no -C: Windows bsdtar/GNU-tar path-flavor quirks).
     """
-    from src.cluster.submit import ssh_base
+    from src.cluster.submit import reap, ssh_base
 
     root = remote_outputs_root.rstrip("/")
 
@@ -178,15 +180,23 @@ def _default_fetch(host: str, remote_outputs_root: str) -> Fetch:
             + " ".join(shlex.quote(p) for p in relpaths)
         )
         ssh = subprocess.Popen([*ssh_base(host), remote_cmd], stdout=subprocess.PIPE)
+        drained = False
         try:
             subprocess.run(
                 ["tar", "-xf", "-"], stdin=ssh.stdout, check=True, timeout=3600,
                 cwd=str(staging),
             )
+            drained = True
         finally:
+            # Close our read end FIRST (that is what breaks the remote tar's pipe and lets ssh
+            # exit on its own), then guarantee the reap — see :func:`reap` for why the unreaped
+            # child was doing real damage rather than being untidy.
             if ssh.stdout is not None:
                 ssh.stdout.close()
-        if ssh.wait(timeout=300) != 0:
+            reap(ssh, grace=300.0 if drained else 10.0)
+        if ssh.returncode != 0:
+            # Reached only when tar consumed the whole stream, so a nonzero code here (including
+            # the -9 of a reap that had to kill) means a torn transfer and must fail LOUD.
             raise subprocess.CalledProcessError(ssh.returncode, "ssh tar -cf - (remote)")
 
     return _fetch
@@ -333,6 +343,29 @@ def permanent_reject_ids(local_root: str | Path) -> set[str]:
     return ids
 
 
+def spec_local_root(spec: dict[str, Any], local_root: str | Path) -> Path:
+    """The LOCAL archive sub-root a spec's own run_ids live under.
+
+    Extracted 2026-07-28 so completion truth (:func:`pending_specs`) and reject truth
+    (:func:`permanently_rejected_specs`) resolve a spec's archive by ONE rule. They disagreed
+    before — completions were sub-root scoped by the 2026-07-19 audit and rejects were not — and
+    that asymmetry is exactly what let one line's reject marker condemn another line's candidate.
+
+    ``archive_root`` means two things by substrate. In a CLUSTER run it is the REMOTE sub-root
+    path, whose basename (``test`` / ``test_h3_singleshot`` / ``search`` / ``search_<suffix>``) is
+    what the pull mirrors under ``local_root``. In a LOCAL/pack run ``run_one`` archives straight
+    to ``archive_root``, so it IS the local record directory. Distinguish by existence. A spec
+    with no ``archive_root`` falls back to the mirror-wide root (unchanged legacy behaviour).
+    """
+    local_root = Path(local_root)
+    ar = str(spec.get("archive_root", ""))
+    if ar and Path(ar).is_dir():
+        return Path(ar)                    # local/pack run: records live at archive_root itself
+    if ar:
+        return local_root / Path(ar).name  # cluster run: remote sub-root mirrored under local_root
+    return local_root                      # no archive_root: mirror-wide (legacy behaviour)
+
+
 def spec_run_id(spec: dict[str, Any]) -> str:
     """The run_id a spec will archive under (search: candidate_id; test: run_id)."""
     rid = spec.get("run_id") or spec.get("candidate_id")
@@ -370,16 +403,47 @@ def pending_specs(
     done_by_root: dict[str, set[str]] = {}
     out: list[dict[str, Any]] = []
     for s in all_specs:
-        ar = str(s.get("archive_root", ""))
-        if ar and Path(ar).is_dir():
-            root = Path(ar)                       # local/pack run: records live at archive_root itself
-        elif ar:
-            root = local_root / Path(ar).name     # cluster run: remote sub-root mirrored under local_root
-        else:
-            root = local_root                     # no archive_root: mirror-wide (legacy behaviour)
+        root = spec_local_root(s, local_root)
         key = str(root)
         if key not in done_by_root:
             done_by_root[key] = completed_run_ids(root)
         if spec_run_id(s) not in done_by_root[key]:
+            out.append(s)
+    return out
+
+
+def permanently_rejected_specs(
+    all_specs: list[dict[str, Any]], local_root: str | Path
+) -> list[dict[str, Any]]:
+    """The specs a PERMANENT node-side reject marker condemns — scoped to each spec's OWN sub-root.
+
+    2026-07-28, found live at T+11.5 h of the confirmatory run. This is the SAME defect the
+    2026-07-19 35-agent audit called "CONFIRMED critical" and fixed for :func:`pending_specs`,
+    left open in its sibling: the driver resolved rejects with a MIRROR-WIDE
+    ``permanent_reject_ids(local_archive_root)``, and ``local_archive_root`` is the ONE tree all
+    twelve supervised lines share. Reject markers are keyed on the BARE candidate id
+    (``scalar-g1-c0``) and EVERY line reuses that scheme, so one line's marker abandoned every
+    other line's identically-named candidate — silently, WITHOUT SUBMITTING IT, and permanently
+    (the row is ledgered so no resume ever retries it).
+
+    MEASURED on the live archive before the fix: of 498 abandonments across the twelve lines,
+    **439 (88 %) were spurious** — condemned by a foreign marker, never submitted, never judged.
+    402 of those trace to a single line, ``search_leg_qwen3_5_9b``, the deliberately weakest model
+    in the suite, whose 47 legitimate rejects sterilised the search of all eleven other lines.
+    The confirmatory ``claude-opus-5`` core line was hit 36 times out of 36, i.e. every core
+    candidate abandoned so far was killed by another model's failure.
+
+    Scoping is by the same rule as completion truth, so the two can never disagree about which
+    archive a spec belongs to.
+    """
+    local_root = Path(local_root)
+    perm_by_root: dict[str, set[str]] = {}
+    out: list[dict[str, Any]] = []
+    for s in all_specs:
+        root = spec_local_root(s, local_root)
+        key = str(root)
+        if key not in perm_by_root:
+            perm_by_root[key] = permanent_reject_ids(root)
+        if spec_run_id(s) in perm_by_root[key]:
             out.append(s)
     return out

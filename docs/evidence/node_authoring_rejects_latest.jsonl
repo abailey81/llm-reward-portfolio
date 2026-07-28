@@ -11,6 +11,7 @@
 {"failed": "distributional-g2-c2", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "distributional-g2-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "distributional-g2-c4", "error": "sandbox: reward returned a non-finite total"}
+{"failed": "distributional-g3-c1", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "placebo-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'rolling_mean' where it is not associated with a value\")"}
 {"failed": "placebo-g0-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'mean_ret' where it is not associated with a value\")"}
 {"failed": "placebo_shuffled-g0-c0", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
@@ -19,6 +20,7 @@
 {"failed": "placebo_shuffled-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'var_r' where it is not associated with a value\")"}
 {"failed": "placebo_shuffled-g0-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'dd_penalty' where it is not associated with a value\")"}
 {"failed": "placebo_shuffled-g0-c4", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'r_list' where it is not associated with a value\")"}
+{"failed": "placebo_shuffled-g1-c3", "error": "sandbox: reward crashed during validation: ValueError('shapes (31,) and (30,) not aligned: 31 (dim 0) != 30 (dim 0)')"}
 {"failed": "scalar_cvar5-g0-c0", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'turnover' where it is not associated with a value\")"}
 {"failed": "scalar_cvar5-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'mean_ret' where it is not associated with a value\")"}
 {"failed": "scalar_cvar5-g0-c1", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
