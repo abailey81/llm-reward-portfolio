@@ -19,7 +19,7 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-28"
-  head: "72425ff"
+  head: "af01e61"
   frozen: true
   legs_n: 10
   amendments_through: R114
