@@ -216,6 +216,80 @@ itself fires only on Tamer's explicit word. RUN 1's 161 residual cluster jobs ar
 to drain rather than `qdel`-ed — draining would replay the mass-death signature that produced the
 01:00 admin-kill incident, and the fresh root fences them for free.
 
+### ⑪ A SECOND cross-line collision — the review gate's approval and report
+
+Having found one unqualified filename in the shared root, I swept for others. There was one more,
+and it is worse than a cosmetic clash. `read_root` is shared by all twelve supervised lines, and the
+C3 review gate put TWO unqualified files in it:
+
+* **`TIER1_APPROVED` was ONE file for twelve gates, and passing the gate CONSUMES it** (`unlink`, so
+  the next passage needs its own approval). An approval granted after reviewing line A's report could
+  therefore be eaten by whichever line reached its gate first — **that** line proceeding to the
+  expensive C4 sweep on a review it never had, while line A still stopped. Five leg lines *did* stop
+  at this gate during RUN 1, so the path was live, not theoretical.
+* **`tier1_integrity.json` was likewise one file**, rewritten by every line, so the report a reviewer
+  read was whichever line wrote last — and the gate's staleness test (approval mtime ≥ report mtime)
+  raced against OTHER lines' writes, silently invalidating legitimate approvals.
+
+Confirmed on the RUN 1 archive: exactly one `tier1_integrity.json`/`.md` for all twelve lines. Both
+now scoped by a new `ClusterRun.line_tag()` derived from the archive sub-root that already keeps
+lines disjoint. **The rename fails CLOSED** — a pre-existing unqualified `TIER1_APPROVED` is now
+ignored, so a gate stops rather than passing unreviewed — and `write_integrity_report` REQUIRES
+`line_tag` rather than defaulting, so a run object that cannot identify its line fails loud instead
+of silently writing the old shared name. 3 regression tests, all proven to FAIL pre-fix.
+
+**THE SWEEP IS COMPLETE, and the negative result is recorded so it is not re-audited.** Every other
+write into the shared root was already scoped: pull staging per-PID (the 2026-07-22 audit),
+`campaign_summary` root-suffixed, `batches/` `driver_status/` `ledger/` `spend_ledger_*`
+tag-prefixed, archive sub-roots disjoint by construction, `pull_archive` keyed on relative PATHS.
+`permanent_reject_ids` and these two gate files were the ONLY unscoped consumers.
+
+> **The pattern, for CH4.** All three defects are one shape: *a resource shared by twelve concurrent
+> lines, keyed by an identifier that is only unique within one line.* The codebase had already been
+> audited for exactly this — the 2026-07-19 and 2026-07-22 audits each caught an instance and left a
+> comment saying so — and it still shipped two more. That is a statement about testing concurrent
+> systems, not about carelessness: ~2,800 tests all exercise ONE line, so no test could see a
+> collision that requires twelve.
+
+### ⑫ The "300 s ssh timeout" is not an ssh timeout — a fifth misreporting instrument
+
+RUN 2 kept logging `timed out after 300 seconds` with the leak fixed, so I measured where the time
+actually goes instead of believing the message.
+
+| what | measured |
+|---|---|
+| the remote command | `qstat -r` **1.2 s** (3 consecutive) · `find` over the whole outputs tree **0.046 s** · `mkdir -p` trivial |
+| the login node | load **3.4**, 67 users, only **5** of our sessions |
+| the client | sustained 8-concurrent A/B, Windows OpenSSH 9.5p2 vs Git 10.2p1 — **80/80 ok on both**, worst case 6.0 s vs 2.5 s |
+| **the ssh children** | **55 samples over 3 min: 8 distinct children, NOT ONE aged past 10 s** |
+
+…while the driver logged a 300 s timeout roughly every five minutes on ops as trivial as `mkdir -p`,
+and the timeouts arrive **exactly 300 s apart** — a retry period, not a population of independent
+stalls. **So the wait is in the PARENT** (`subprocess.run`'s pipe reader never observing EOF) **and
+the log message misattributes it to the remote command.** Fifth instrument in this project found to
+report something other than what it measures; the campaign was correct every time.
+
+The mechanism is **NOT yet identified**, so the response is an honest BOUND rather than a cure: the
+driver ssh timeout drops 300 s → **120 s** (~20× the measured worst-case real latency), returning a
+parked batch thread to work 2.5× sooner. Logged as an open question. **Two remedies tested and NOT
+adopted:** `ConnectionAttempts`/`ConnectTimeout` (A/B, three paired rounds, 8/72 control vs 9/72
+treatment — refuted) and ssh multiplexing (unusable regardless — the server's `MaxSessions` default
+of 10 would cap us BELOW the ~40 concurrent ops twelve lines need).
+
+### ⑬ Both earlier fixes CONFIRMED under production load
+
+* **The leak fix.** RUN 1 accumulated 13 leaked ssh children and climbed 5.2 % → 55.3 % over ten
+  hours. RUN 2 holds at **5–6 live children with `reaped=0`** across consecutive reaper cycles — the
+  leak is gone, not merely reduced.
+* **The watchdog root-scoping fix, validated for real.** The core line was deliberately stopped at
+  14:35 local to reload the fixed code; the watchdog logged `DEAD lines: core` and restarted it
+  **with the RUN 2 roots** inside its 300 s cycle. A `verify_roots` sweep then confirmed 12/12
+  supervisors and every monitor on the correct roots, **0 on the old ones**.
+
+**Certification:** full suite **2,855 passed / 3 skipped / 0 failed, PYTEST_RC=0** (reconciles
+exactly as the previous 2,852 plus the three gate tests) · ruff clean · `freeze --check` RC=0 with
+the canonical hash unmoved · commit `2d70e6b`, pushed.
+
 ## [2026-07-28] — ★ **THE CONFIRMATORY CAMPAIGN IS FROZEN AND RUNNING** · live-ops log of the first hour
 
 **FROZEN** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd` at 2026-07-28T00:05:13Z,

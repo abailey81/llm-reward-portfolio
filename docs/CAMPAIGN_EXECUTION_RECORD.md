@@ -722,3 +722,88 @@ powershell -ExecutionPolicy Bypass -File scripts\campaign_backup.ps1 `
 python scripts/sentinel.py outputs/campaign_cluster_run2 --watch --interval 300
 python scripts/allocation_advisor.py --host myriad --watch 900 --archive-root outputs/campaign_cluster_run2
 ```
+
+---
+
+## 13. AFTER THE RELAUNCH — what the sweep found, and where the 300 s actually goes
+
+Written 2026-07-28 14:45 UTC, RUN 2 at T+1.8 h. Two further findings, both from continuing to
+measure rather than from reading code.
+
+### 13.1 A SECOND cross-line collision — the review gate
+
+Having found one unqualified filename in a shared root, the obvious question is whether there are
+others. There was one more, and it is worse than a cosmetic clash. `read_root` is shared by all
+twelve supervised lines, and the C3 review gate put two unqualified files in it:
+
+* **`TIER1_APPROVED` was ONE file for twelve gates — and passing the gate CONSUMES it** (`unlink`,
+  so the next passage needs its own approval). An approval granted after reviewing line A's report
+  could therefore be eaten by whichever line reached its gate first: **that** line proceeding to the
+  expensive C4 sweep on a review it never had, while line A still stopped. Five leg lines *did* stop
+  at this gate during RUN 1, so the path was live, not theoretical.
+* **`tier1_integrity.json` was likewise one file**, rewritten by every line. The report a reviewer
+  read was whichever line wrote last, and the gate's staleness test — approval mtime ≥ report mtime
+  — raced against *other* lines' report writes, silently invalidating legitimate approvals.
+
+Confirmed on the RUN 1 archive: exactly one `tier1_integrity.json`/`.md` existed for all twelve
+lines. Both are now scoped by a new `ClusterRun.line_tag()`, derived from the archive sub-root that
+already keeps lines disjoint. The rename **fails closed** — a pre-existing unqualified
+`TIER1_APPROVED` is now ignored, so a gate stops rather than passing unreviewed.
+
+**The sweep is complete, and the negative result is worth recording so it is not re-audited.** Every
+other write into the shared root was already scoped: pull staging is per-PID (the 2026-07-22 audit
+caught that one), `campaign_summary` is root-suffixed, `batches/` `driver_status/` `ledger/` and
+`spend_ledger_*` are tag-prefixed, the archive sub-roots are disjoint by construction, and
+`pull_archive` keys on relative PATHS rather than ids. `permanent_reject_ids` and these two gate
+files were the *only* unscoped consumers.
+
+> **The pattern, for CH4.** All three defects are one shape: *a resource shared by twelve concurrent
+> lines, keyed by an identifier that is only unique within one line.* The codebase had been audited
+> for exactly this (the 2026-07-19 and 2026-07-22 audits each caught an instance and left a comment
+> saying so) — and it still shipped two more. That is a statement about concurrent-system testing,
+> not about carelessness: ~2,800 tests all exercise ONE line, so no test could see a collision that
+> requires twelve.
+
+### 13.2 The "300 s ssh timeout" is not an ssh timeout
+
+RUN 2 kept logging `timed out after 300 seconds` even with the leak fixed, so I measured where the
+time actually goes rather than assuming the message.
+
+| what | measured |
+|---|---|
+| the remote command | `qstat -r` **1.2 s** (3 consecutive), `find` over the whole outputs tree **0.046 s**, `mkdir -p` trivial |
+| the login node | load **3.4**, 67 users, only **5** of our sessions |
+| the client | sustained 8-concurrent A/B, Windows OpenSSH 9.5p2 vs Git 10.2p1: **80/80 ok on both**, worst case 6.0 s vs 2.5 s |
+| **the ssh children themselves** | **55 samples over 3 min: 8 distinct children, NOT ONE aged past 10 s** |
+
+…while the driver logged a 300 s timeout roughly every five minutes, on ops as trivial as
+`mkdir -p`. The timeouts also arrive *exactly 300 s apart*, which is a retry period, not a
+population of independent stalls.
+
+**So the wait is happening in the PARENT — `subprocess.run`'s pipe reader never observing EOF — and
+the log message misattributes it to the remote command.** This is the fifth instrument in this
+project found to report something other than what it measures, and the campaign was correct every
+time.
+
+The exact parent-side mechanism is **not yet identified**, so the response is an honest BOUND rather
+than a cure: the driver ssh timeout drops 300 s → **120 s**, about 20× the measured worst-case real
+latency, returning a parked batch thread to work 2.5× sooner. Recorded as an open question rather
+than a solved one.
+
+**Two remedies were tested and NOT adopted**, because the tempting fix was the wrong one both times:
+`ConnectionAttempts`/`ConnectTimeout` client hardening (A/B over three paired rounds: 8/72 control
+vs 9/72 treatment — refuted), and ssh multiplexing (unusable regardless: the server's `MaxSessions`
+default of 10 would cap us *below* the ~40 concurrent ops the twelve lines need).
+
+### 13.3 The leak fix, confirmed under production load
+
+RUN 1 accumulated 13 leaked ssh children and climbed from 5.2 % to 55.3 % transport failures over
+ten hours. RUN 2, on the fixed code, holds at **5–6 live ssh children with `reaped=0`** across
+consecutive reaper cycles — the leak is gone, not merely reduced.
+
+### 13.4 The watchdog fix, validated in production
+
+The watchdog's own root-scoping fix was exercised for real: the core line was deliberately stopped
+at 14:35 (local) to reload the fixed code, and the watchdog detected `DEAD lines: core` and
+restarted it **with the RUN 2 roots**, inside its 300 s cycle. A `verify_roots` sweep then confirmed
+12/12 supervisors and every monitor on the correct roots, **0 on the old ones**.
