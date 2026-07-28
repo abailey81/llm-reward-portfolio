@@ -28,6 +28,20 @@ from __future__ import annotations
 import numpy as np
 
 
+class NoEligibleWinnerError(RuntimeError):
+    """Every candidate in an arm failed the R115 winner-eligibility execution floor.
+
+    Distinct from "the arm produced no candidates" (which the selector reports by returning
+    ``None``): here candidates EXIST but not one of them ran its authored reward for enough of its
+    training to represent the arm. The two demand different responses, so they must not collapse
+    into one signal.
+
+    Subclasses ``RuntimeError`` so existing broad handlers keep working. Lives here rather than in
+    ``scripts/run_campaign.py`` so the cluster orchestrator can catch it by TYPE without importing
+    the scripts module — matching on an error message would be brittle.
+    """
+
+
 def held_out_fitness(
     returns: np.ndarray,
     n_trials: int,

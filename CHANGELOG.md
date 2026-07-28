@@ -290,6 +290,72 @@ of 10 would cap us BELOW the ~40 concurrent ops twelve lines need).
 exactly as the previous 2,852 plus the three gate tests) · ruff clean · `freeze --check` RC=0 with
 the canonical hash unmoved · commit `2d70e6b`, pushed.
 
+### ⑭ ★ THE v2.1 RE-FREEZE — R115, the winner-eligibility execution floor
+
+**RUN 2 was halted at T+1.3 h and the pre-registration LIFTED and re-frozen** to close a selection
+validity hole while it was still free to close. Amendment **R115**, decision record **ADR-062**,
+narrative `docs/CAMPAIGN_EXECUTION_RECORD.md` §14.
+
+**The hole.** Selection was `max(val_fitness)` with **no execution-quality condition**.
+`train_safe_default_count` — the steps on which the authored reward RAISED and the neutral R66
+fallback stood in — was archived, reported, and gated nothing. So a candidate whose reward executed
+on only part of its training could be frozen as an arm's winner, and the sealed leg would then
+RE-TRAIN that reward and inherit the contamination. That is an **identification hole**, not a data
+nuisance: H2 requires the arms to differ ONLY in the authored reward, and in the limit the contrast
+becomes the R66 fallback measured against itself.
+
+**Measured** over the full RUN 1 archive — 613 records carrying the counter, superseding an earlier
+136-candidate snapshot that saw only two severe cases: **594 clean · 16 trace (<1 %, worst 0.41 %) ·
+3 SEVERE** — `qwen3.6-27b/scalar-g1-c4` **53.66 %**, `qwen3.5-9b/distributional-g1-c2` **50.02 %**,
+`glm-5.2/placebo_shuffled-g0-c0` **39.40 %** (the third is new to this census). All open-weight legs;
+**zero frozen winners contaminated**. But across ~55 arm-instances at least one contaminated winner
+is not a remote prospect, which is why detection alone was judged insufficient.
+
+**RUN 1's search was void; this measurement is not.** `train_safe_default_count` is a per-training
+execution statistic of a candidate that ACTUALLY RAN, while the collision only decided which
+candidates were *allowed* to run.
+
+**Why lifting the freeze was legitimate — the project's own ADR-059 test.** At the moment of the
+lift: RUN 1 was invalidated by a DEFECT rather than by its results and is discarded wholesale; RUN 2
+held **ZERO** records; the sealed 2020–2026 test leg was untouched; and decisively **no arm contrast
+of any kind had ever been computed** — only H1 baselines ever had scored records, so no ranking
+existed to steer toward. The forking-paths sin is POST-DATA change; this is the discipline working.
+The window shut permanently once Opus began authoring real candidates, so the
+registered-by-construction option existed ONLY at that moment.
+
+**The rule.** Eligible iff `train_safe_default_count / train_safe_call_count < 0.10`; winner is
+`max(val_fitness)` among the eligible; an arm with no eligible candidate **FAILS LOUD** rather than
+promoting the least-bad contaminated one.
+* **Effect-blind by construction** — reads an execution counter, never `val_fitness`/`test_sharpe`/
+  `test_cvar`. A test asserts this by inspecting the function source, so it is enforced, not promised.
+* **Threshold-insensitive, not tuned** — worst trace 0.41 %, mildest severe 39.40 %, a **96× empty
+  gap**, so any value in ~1–35 % partitions identically.
+* **Honest caveat, stated not hidden** — RUN 1 motivated the rule's EXISTENCE, not its VALUE; the
+  insensitivity is what makes that checkable.
+* **Cannot drift silently** — the value lives in the hash-bound prereg and is read from there, so any
+  change moves the canonical hash and fails `freeze --check`. Stronger than a mirror check, which is
+  why no new gate check was added.
+
+**⚠ THE LAUNCH-GATE GUARD EARNED ITS KEEP.** The full suite came back **RC=1** with one failure:
+`test_the_freeze_tag_is_not_one_that_already_exists`. `FREEZE_TAG` was still `prereg-v2.0`, so
+freezing would have hit the exact failure that guard documents — `git tag` reporting "tag SKIPPED",
+leaving v2.1 with **no provenance anchor at all**, and `_ots_stamp` **OVERWRITING**
+`docs/prereg-v2.0.sha256`, the attestation for the bytes RUN 1 and RUN 2 actually executed, with the
+v2.1 digest under the v2.0 name. Bumped to `prereg-v2.1`; v2.0's tag and digest stay untouched.
+*(Note for the record: the background task reported "exit code 0" while pytest's real RC was 1 — the
+wrapper's code, not pytest's. The unpiped-RC rule caught it, exactly as it was written to.)*
+
+**The freeze chain, all preserved:** v1.0 `ce5db62c` (frozen 07-18, lifted 07-20 ADR-059/R78) →
+`ccf2e76f` (07-22, lifted same day R93/R94) → **v2.0 `4f90ecc47cc6a779…`** (frozen 07-28T00:05Z, ran
+RUN 1 + RUN 2, both discarded, lifted 07-28 R115/ADR-062) → **v2.1 `3ca6f01ab7724d47…`** (the design
+RUN 3 executes).
+
+**Verified before freezing:** `freeze.py --check` **RC=0, 23/23** with the new canonical hash and
+`freeze_hash: null` correctly reported as not-yet-frozen · ruff clean · 7 new R115 tests, **4 proven
+to FAIL** against the pre-R115 selector (the other three assert unchanged behaviour and correctly
+pass either way), `scripts/run_campaign.py` restored byte-identical after the falsifiability check ·
+the launch-gate module green at 11/11 after the tag bump.
+
 ## [2026-07-28] — ★ **THE CONFIRMATORY CAMPAIGN IS FROZEN AND RUNNING** · live-ops log of the first hour
 
 **FROZEN** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd` at 2026-07-28T00:05:13Z,

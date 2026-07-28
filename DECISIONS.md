@@ -1363,3 +1363,58 @@ control of the rendered stimulus."* The obvious challenge — that the numeracy 
 artefact of disabling chain-of-thought, which the cited NUMCoT (arXiv:2406.02864) literature makes
 salient — is currently answered by design rationale alone, not by measurement. That is the known,
 accepted gap this ADR leaves open.
+
+## ADR-062 — Winner-eligibility contamination: a dated effect-blind REMEDIATION rule, and a deliberate refusal to move the frozen hash (2026-07-28)
+
+**Context.** `train_safe_default_count` records the training steps on which the authored reward
+RAISED and the neutral R66 fallback stood in. It is archived and reported, but it does **not** gate
+selection — the winner is `max(val_fitness)`. So a candidate whose reward executed on only half its
+steps can be frozen, and the sealed test leg then RE-TRAINS that reward and inherits the
+contamination. Under H2 that is not cosmetic: it would confound the arm contrast with execution
+quality, when the identification argument requires the arms to differ ONLY in the authored reward.
+The frozen pre-registration is silent on any inclusion threshold.
+
+**Evidence (re-derived over the full RUN 1 archive, 613 records carrying the counter — superseding
+an earlier 136-candidate snapshot).** 594 clean · 16 trace (<1 %) · **3 SEVERE**:
+`qwen3.6-27b/scalar-g1-c4` 53.66 %, `qwen3.5-9b/distributional-g1-c2` 50.02 %,
+`glm-5.2/placebo_shuffled-g0-c0` 39.40 % — all open-weight legs, and **zero frozen winners carried
+any fallback**. The RUN 1 *search* was invalidated by the cross-line reject collision, but this
+measurement is unaffected: it is a per-training execution statistic of a candidate that actually
+ran, and the collision only decided which candidates were allowed to run.
+
+**Decision.** Do **NOT** amend the pre-registration. Instead:
+1. **Detection stands and is enforced.** `check_winner_execution_quality` raises **CRITICAL** at
+   ≥10 % fallback and WARN at ≥0.1 %, and is wired into `scripts/sentinel.py:702`, which runs every
+   poll. A dedicated always-on guard surfaces it immediately rather than only in a log.
+2. **A dated, effect-blind REMEDIATION rule, pre-committed here BEFORE any RUN 2 winner exists**
+   (RUN 2 launched 12:59 UTC and held zero LLM-arm records at the time of writing): *if a frozen
+   winner is flagged at ≥10 % fallback, that unit is re-run with the offending candidate excluded
+   from selection, and the exclusion is reported.* The rule keys ONLY on an execution counter —
+   never on `val_fitness`, `test_sharpe`, `test_cvar` or any performance quantity — so it is
+   structurally incapable of being steered toward an outcome, and no outcome existed when it was
+   written.
+3. **Disclose the gap plainly** in CH4/CH7: the pre-registration is silent, we found the gap during
+   execution, and this is the dated handling rule.
+
+**Alternatives, and why they lose.**
+* *Amend + re-freeze.* `config/preregistration.yaml` is hash-bound, so any amendment MOVES the
+  canonical hash `4f90ecc47cc6a779…` **after launch** — the anchor stamped into every record and the
+  external dated commitment. That forces either a RUN 2 restart or a two-hash archive, and obliges
+  the write-up to explain a post-launch change to a pre-registration, which is the single most
+  scrutinised act in a pre-registered study. It would trade a large reproducibility asset (Stefan's
+  criterion 3, "THE critical point": one unbroken hash from launch to analysis) for a small rigour
+  gain on a gap that is already detected within one poll at a 0.49 % per-candidate base rate with
+  **zero** occurrences across a full 12-hour run. That creates a bigger fragility than it closes.
+* *Report-only.* Rejected as a lazy hedge under the publication-grade rule: it would leave a live
+  path by which a contaminated reward reaches the confirmatory leg, with no committed remedy.
+
+**Why the threshold is defensible.** `severe=0.10` is threshold-INSENSITIVE, not tuned. The observed
+distribution is strongly bimodal — worst trace 0.41 %, mildest severe 39.40 %, a **96× empty gap** —
+so any threshold between ~1 % and ~35 % partitions the data identically. Honest caveat: RUN 1's data
+motivated the rule's EXISTENCE; it did not set its VALUE, and the insensitivity is what makes that
+distinction verifiable rather than merely asserted.
+
+**Consequences.** The frozen design runs unmodified from launch to analysis and its hash stays
+unbroken. The residual risk is explicit: across ~55 arm-instances the chance that at least one winner
+is contaminated is non-trivial, so the guard is expected to matter at least once — and when it fires,
+the response is already written down rather than invented on the spot.

@@ -86,6 +86,12 @@ class ClusterRun:
     author_guard: Callable[[], None] = field(default_factory=lambda: (lambda: None))
     # SELECT/FREEZE are injected (default = the real run_campaign ones, resolved lazily) so the
     # pipeline is testable with fakes and reuses the certified selection rule in production.
+    # ⚠ R115 (2026-07-28): the REGISTERED winner-eligibility execution floor lives in
+    # `run_campaign.select_winner`. Injecting a custom selector therefore BYPASSES a
+    # pre-registered design rule — silently. The one live reason to inject in production is the
+    # k>1 multiseed selector this file already warns about (`search_seeds_per_candidate > 1`;
+    # currently 1, so the default is used and the floor applies). ANY replacement must re-apply
+    # `run_campaign._winner_eligible`, or the amendment becomes registered-but-inert.
     select_winner: Callable[[Any], Any] | None = None
     freeze_winner: Callable[..., Any] | None = None
     # P11 (2026-07-13 audit): the shared throttled pull, exposed so resume paths can refresh the
@@ -1330,6 +1336,35 @@ def _refuse_winner_swap(arm: str, winner: dict[str, Any], frozen_root: str | Pat
             "Investigate; delete the frozen record ONLY with an explicit, dated decision.")
 
 
+def _select_eligible_winner(
+    select: Callable[[Any], Any], arm_search_root: Any, label: str
+) -> tuple[Any, str | None]:
+    """Select an arm's winner, turning the R115 all-contaminated case into a REASON, not a crash.
+
+    Returns ``(winner_or_None, reason_or_None)``; ``reason`` is set only when R115 rejected every
+    candidate.
+
+    2026-07-28: R115 made ``select_winner`` raise when NO candidate clears the execution floor. That
+    must not propagate here. :func:`run_arm_pipeline` documents that it "never raises for a 'no
+    winner' arm", and nothing wraps the three selection sites — so an uncaught raise would kill the
+    arm, the supervisor would relaunch the line into the same error, and an unattended multi-day run
+    would sit in a 600 s hot loop.
+
+    Degrading is not the same as hiding. The reason is DISTINCT from ``no_winner`` (candidates
+    existed; none was eligible — a different diagnosis needing a different response), it is logged at
+    ERROR, and the incompleteness is caught downstream by construction: a missing arm makes
+    ``present != expected`` in the integrity census, so ``health_ok`` goes false and the C3 review
+    gate STOPS the line before the expensive C4 sweep.
+    """
+    from src.selection.fitness import NoEligibleWinnerError
+
+    try:
+        return select(arm_search_root), None
+    except NoEligibleWinnerError as exc:
+        _LOG.error("[%s] R115 winner-eligibility: %s", label, exc)
+        return None, "no_eligible_winner"
+
+
 def _resolve_select_freeze(run: ClusterRun) -> tuple[Callable[[Any], Any], Callable[..., Any]]:
     """The SELECT/FREEZE callables — injected on ``run`` for tests, else the certified
     ``run_campaign`` implementations (imported via the codebase's scripts-on-path pattern)."""
@@ -1374,10 +1409,11 @@ def run_arm_pipeline(
 
     arm_search_root = run.search_read() / arm  # SELECT reads ONLY the search sub-root
     _guard_k_seed_selector(opts, run)  # P15: max-single-seed select is WRONG under k>1
-    winner = select_winner(arm_search_root)
+    winner, _r115 = _select_eligible_winner(select_winner, arm_search_root, arm)
     if winner is None:
-        _LOG.warning("[%s] search produced no winner — no test leg", arm)
-        return {"arm": arm, "ok": False, "reason": "no_winner", "search": search}
+        _LOG.warning("[%s] search produced no %swinner — no test leg",
+                     arm, "ELIGIBLE " if _r115 else "")
+        return {"arm": arm, "ok": False, "reason": _r115 or "no_winner", "search": search}
 
     env_fp = winner.get("env_fingerprint") or f"cluster:{arm}:frozen"
     _refuse_winner_swap(arm, winner, frozen_root)  # P5 (hoisted 2026-07-19): non-tiered path too
@@ -1446,11 +1482,12 @@ def run_h3_singleshot_on_cluster(
     search = run_search_arm(arm, h3_opts, h3_run, resume=resume, priority=h3_prio)
     select_winner, freeze_winner = _resolve_select_freeze(run)
     _guard_k_seed_selector(h3_opts, h3_run)  # P15: max-single-seed select is WRONG under k>1
-    winner = select_winner(h3_run.search_read() / arm)
+    winner, _r115 = _select_eligible_winner(select_winner, h3_run.search_read() / arm, "h3ss")
     if winner is None:
-        _LOG.warning("[h3ss] single-shot search produced no winner — no test leg")
+        _LOG.warning("[h3ss] single-shot search produced no %swinner — no test leg",
+                     "ELIGIBLE " if _r115 else "")
         return {"arm": "distributional_singleshot", "ok": False,
-                "reason": "no_winner", "search": search}
+                "reason": _r115 or "no_winner", "search": search}
     winner.setdefault("reward_source", "")
     # Laptop-parity provenance string (run_h3_singleshot freezes with exactly this fingerprint).
     env_fp = winner.get("env_fingerprint") or "campaign:distributional_singleshot"
@@ -1676,9 +1713,9 @@ def run_campaign_tiered(
                     return {"arm": arm, "ok": False, "reason": "canary_failed_no_authoring"}
             search = run_search_arm(arm, opts, run, resume=resume, priority=prio)
         _guard_k_seed_selector(opts, run)  # P15: max-single-seed select is WRONG under k>1
-        winner = select_winner(run.search_read() / arm)
+        winner, _r115 = _select_eligible_winner(select_winner, run.search_read() / arm, arm)
         if winner is None:
-            return {"arm": arm, "ok": False, "reason": "no_winner", "search": search}
+            return {"arm": arm, "ok": False, "reason": _r115 or "no_winner", "search": search}
         winner.setdefault("reward_source", "")
         _, freeze_winner = _resolve_select_freeze(run)
         env_fp = winner.get("env_fingerprint") or f"cluster:{arm}:frozen"

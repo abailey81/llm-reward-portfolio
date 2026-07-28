@@ -724,14 +724,29 @@ def check_winner_execution_quality(winners: dict[str, dict[str, Any]], *,
     neutral 0.0 fallback stood in (R66). It is archived, and summed into the integrity report — but
     it does **not** gate selection: the winner is ``max(val_fitness)``. So a candidate whose reward
     executed on half its steps can win, and the sealed test leg then RE-TRAINS that same reward and
-    inherits the same contamination. Measured 2026-07-28 across 136 search candidates: 127 clean,
-    3 at <0.1 %, 4 at 0.1-1 %, and 2 SEVERE — ``qwen3.6-27b/scalar-g1-c4`` at 53.7 %
-    (214,649/400,000) and ``qwen3.5-9b/distributional-g1-c2`` at 50.0 %.
+    inherits the same contamination.
 
-    The frozen pre-registration is SILENT on an inclusion threshold, and adding one is a DESIGN
-    decision requiring a dated amendment — not a monitor's call. So this check does not gate
-    anything; it makes the event VISIBLE within one poll, while a winner can still be re-run. That
-    is the difference between a disclosed limitation and a result nobody can defend.
+    CENSUS, re-derived 2026-07-28 over the FULL RUN 1 archive (613 records carrying the counter,
+    superseding an earlier 136-candidate snapshot that reported only two severe cases): **594 clean,
+    16 trace (<1 %), 3 SEVERE** — ``qwen3.6-27b/scalar-g1-c4`` 53.66 % (214,649/400,000),
+    ``qwen3.5-9b/distributional-g1-c2`` 50.02 %, ``glm-5.2/placebo_shuffled-g0-c0`` 39.40 %. All
+    three are open-weight legs, and **zero frozen winners carried any fallback**. Note the RUN 1
+    search was invalidated by the cross-line reject collision, but THIS measurement is unaffected:
+    it is a per-training execution statistic of a candidate that actually ran, and the collision
+    only decided which candidates were allowed to run.
+
+    ``severe=0.10`` is deliberately threshold-INSENSITIVE rather than tuned. The observed
+    distribution is strongly bimodal — the worst trace case is 0.41 % and the mildest severe case is
+    39.40 %, a **96x empty gap** — so any threshold between ~1 % and ~35 % partitions the data
+    identically. The verdict therefore does not depend on where in that gap the line is drawn, which
+    is the property that makes it defensible.
+
+    The frozen pre-registration is SILENT on an inclusion threshold, and adding one post-launch
+    would move the hash-bound canonical design — a far larger cost than the gap it closes. So this
+    check does not gate anything; it makes the event VISIBLE at CRITICAL within one poll, while the
+    unit can still be re-run under the dated, effect-blind remediation rule pre-committed in
+    ``DECISIONS.md`` (2026-07-28, before any RUN 2 winner existed). That is the difference between a
+    disclosed limitation and a result nobody can defend.
 
     ``winners`` maps a label -> ``{"candidate_id": str, "safe_default_count": int,
     "safe_call_count": int}``.

@@ -184,7 +184,17 @@ DECISION_LOG = "docs/DECISION_LOG.md"
 #: than no proof: it is the reproducibility claim (Stefan's criterion 3) failing at exactly the
 #: point it is supposed to hold. The v1.0 tag and its ``.sha256`` stay untouched as the historical
 #: record of a freeze that was lifted pre-data.
-FREEZE_TAG = "prereg-v2.0"
+#:
+#: 2026-07-28 → ``prereg-v2.1``. The v2.0 freeze (``4f90ecc4…``, 00:05Z) was LIFTED PRE-DATA the same
+#: day to register the R115 winner-eligibility execution floor (ADR-062), so the design re-freezes
+#: under a NEW tag. Bumping this is not bookkeeping: leaving it at ``prereg-v2.0`` reproduces the
+#: exact failure the block above documents — the tag already exists, so the freeze would report
+#: "tag SKIPPED" leaving v2.1 with NO provenance anchor, and ``_ots_stamp`` would OVERWRITE
+#: ``docs/prereg-v2.0.sha256`` (which holds v2.0's digest, the attestation for the bytes RUN 1 and
+#: RUN 2 actually executed) with the v2.1 digest under the v2.0 name. The guard in
+#: ``tests/test_launch_gate_regressions.py::test_the_freeze_tag_is_not_one_that_already_exists``
+#: caught precisely this before the freeze ran. v2.0's tag and .sha256 stay untouched as history.
+FREEZE_TAG = "prereg-v2.1"
 
 #: The marker line in ``docs/DECISION_LOG.md`` whose body the freeze fills (ADR-005 slot).
 _DECISION_LOG_FREEZE_HEADER = "### FREEZE — pre-registration content hash"

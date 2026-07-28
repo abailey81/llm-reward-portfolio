@@ -61,6 +61,7 @@ import signal
 import sys
 import threading
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 
@@ -705,13 +706,78 @@ def select_winner(arm_archive_root: str | Path) -> dict[str, Any] | None:
 
     This path NEVER constructs a test-window bundle: selection lives wholly on the
     validation split (the seal in ``EnvBundle.test_returns`` holds structurally).
+
+    **R115 (2026-07-28) — WINNER-ELIGIBILITY EXECUTION FLOOR.** A candidate is eligible only if its
+    authored reward ACTUALLY RAN: ``train_safe_default_count / train_safe_call_count`` must be below
+    the registered ``fitness.winner_max_fallback_frac``. Without it, a candidate whose reward raised
+    on much of its training could be frozen on ``val_fitness`` alone, and the sealed leg would
+    RE-TRAIN that reward and inherit the contamination — confounding an H2 arm contrast with
+    execution quality when identification requires the arms to differ ONLY in the authored reward.
+    The filter reads an EXECUTION counter and never a performance quantity, so it is effect-blind by
+    construction. Records carrying no counters are eligible (nothing is guessed at). If every
+    candidate is contaminated the arm FAILS LOUD rather than silently promoting one.
     """
     from src.io.results import load_all  # EXPLICIT: collides with src.utils.config.load_all
 
     records = load_all(arm_archive_root)
     if not records:
         return None
-    return max(records, key=lambda r: r.get("metrics", {}).get("val_fitness", float("-inf")))
+    eligible = [r for r in records if _winner_eligible(r)]
+    if not eligible:
+        from src.selection.fitness import NoEligibleWinnerError
+
+        worst = max((_fallback_frac(r) or 0.0) for r in records)
+        raise NoEligibleWinnerError(
+            f"R115 winner-eligibility floor: all {len(records)} candidate(s) under "
+            f"{arm_archive_root} exceed the registered fallback ceiling "
+            f"({_winner_fallback_ceiling():.2%}; worst {worst:.2%}). Their authored rewards did not "
+            "actually run, so none may represent this arm — re-run the arm rather than promoting a "
+            "contaminated winner."
+        )
+    return max(eligible, key=lambda r: r.get("metrics", {}).get("val_fitness", float("-inf")))
+
+
+@lru_cache(maxsize=1)
+def _winner_fallback_ceiling() -> float:
+    """The registered R115 ceiling, read from the pre-registration (never hardcoded).
+
+    Cached: selection calls this once per candidate, and re-parsing the pre-registration per record
+    would be pure waste. The value is frozen design, so it cannot change within a run.
+    """
+    import yaml
+
+    from src.utils.config import repo_root  # the canonical root resolver
+
+    yml = yaml.safe_load(
+        (repo_root() / "config" / "preregistration.yaml").read_text(encoding="utf-8")
+    )
+    frac = ((yml or {}).get("fitness") or {}).get("winner_max_fallback_frac")
+    if frac is None:
+        raise KeyError(
+            "fitness.winner_max_fallback_frac is missing from config/preregistration.yaml — R115 "
+            "registers a NAME and a VALUE together (the R84 lesson); refusing to select a winner "
+            "against an unregistered floor"
+        )
+    return float(frac)
+
+
+def _fallback_frac(record: dict) -> float | None:
+    """Fraction of training steps that fell back to the R66 safe default, or None if uncounted."""
+    m = record.get("metrics", {}) or {}
+    calls = m.get("train_safe_call_count")
+    try:
+        calls = int(calls or 0)
+    except (TypeError, ValueError):
+        return None
+    if calls <= 0:
+        return None                       # no counters -> says nothing; never guessed at
+    return int(m.get("train_safe_default_count") or 0) / calls
+
+
+def _winner_eligible(record: dict) -> bool:
+    """R115: did this candidate's AUTHORED reward actually run for enough of its training?"""
+    frac = _fallback_frac(record)
+    return True if frac is None else frac < _winner_fallback_ceiling()
 
 
 def _reinstantiate_frozen_winner(reward_source: str | None) -> Any:

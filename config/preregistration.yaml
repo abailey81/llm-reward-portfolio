@@ -1,8 +1,8 @@
 # Machine-readable mirror of PREREGISTRATION.md. FROZEN at end of Phase 1; scripts/freeze.py hashes
 # it into docs/DECISION_LOG.md and asserts it agrees with the prose record. Changes after freeze
 # require a dated amendment entry.
-frozen: true                        # R94 (2026-07-22, Tamer): the 07-22 freeze (ccf2e76f, R93) LIFTED same-day PRE-DATA — the freeze executes TOGETHER WITH the full-campaign-run approval (GO-sequence step 1), never before it; all R93 evidence (HF pins, anchor values, conditional windows) RETAINED as completed preparation. (Earlier chain: v1.0 ce5db62c frozen 07-18, lifted 07-20 ADR-059/R78.)
-freeze_hash: 4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd                    # ccf2e76f records preserved as history (commit 30ae72b, bundle prereg_bundle_ccf2e76f.zip); re-stamped fresh at the GO
+frozen: false                       # R115 UNFREEZE (2026-07-28, Tamer): v2.0 (4f90ecc4, frozen 07-28T00:05Z, tag prereg-v2.0) LIFTED **PRE-DATA** to register the winner-eligibility execution floor. Condition met exactly as ADR-059: the first execution attempt (RUN 1) was invalidated by a driver defect and is DISCARDED WHOLESALE, RUN 2 held ZERO records, and NO arm contrast of any kind had ever been computed (only H1 baselines had scored records). The sealed 2020-2026 test leg is untouched. All v2.0 records preserved as history: tag prereg-v2.0, docs/prereg-v2.0.sha256. (Chain: v1.0 ce5db62c frozen 07-18 -> lifted 07-20 ADR-059/R78; 07-22 ccf2e76f R93 lifted same-day R94; v2.0 frozen 07-28T00:05Z -> lifted 07-28 R115/ADR-062.)
+freeze_hash: null                   # v2.0 hash was 4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd (preserved in docs/prereg-v2.0.sha256 + tag prereg-v2.0); re-stamped by the v2.1 freeze
 phase0_smoke_passed_log_id: "DECISION_LOG.md#PHASE-0 (GREEN 2026-06-17)"   # precondition MET (P2; CPU m≈18.9/25.9)
 
 hypotheses: [H1, H2, H3, H4]          # H2 headline; secondary = SAC-vs-TQC critic
@@ -74,6 +74,22 @@ fitness:
   metric: validation_deflated_sharpe  # reward-independent (audit B-3)
   lambda_cvar: 0.0                     # optional -lambda * validation CVaR
   selection_split: val
+  # R115 (2026-07-28) — WINNER-ELIGIBILITY EXECUTION FLOOR. Selection was max(val_fitness) with NO
+  # execution-quality condition, so a candidate whose authored reward RAISED on much of its training
+  # (the R66 neutral fallback standing in, counted by `train_safe_default_count`) could be frozen —
+  # and the sealed leg then RE-TRAINS that reward and inherits the contamination. Under H2 that
+  # confounds the arm contrast with EXECUTION QUALITY, when identification requires the arms to
+  # differ ONLY in the authored reward. A candidate is ELIGIBLE iff
+  #     train_safe_default_count / train_safe_call_count < winner_max_fallback_frac
+  # and the winner is max(val_fitness) among the eligible. If an arm has NO eligible candidate the
+  # run FAILS LOUD rather than silently promoting a contaminated one.
+  # EFFECT-BLIND BY CONSTRUCTION: reads an execution counter only — never val_fitness, test_sharpe,
+  # test_cvar or any performance quantity — so it cannot be steered toward an outcome, and none
+  # existed when it was registered.
+  # THRESHOLD-INSENSITIVE, not tuned: over 613 counter-carrying records the distribution is strongly
+  # bimodal — worst trace 0.41 %, mildest severe 39.40 %, a 96x EMPTY GAP — so any value in ~1-35 %
+  # partitions the data identically. See PREREGISTRATION.md R115 and ADR-062.
+  winner_max_fallback_frac: 0.10
 
 loop: {runs: once, cpcv_on: winners, per_candidate_budget: fixed}   # audit B-3, B-5
 # R74 (2026-07-02): B* from the Split-C convergence pilot — R70's extend-until-converged criterion is

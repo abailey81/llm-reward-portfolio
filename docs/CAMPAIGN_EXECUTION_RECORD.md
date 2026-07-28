@@ -807,3 +807,105 @@ The watchdog's own root-scoping fix was exercised for real: the core line was de
 at 14:35 (local) to reload the fixed code, and the watchdog detected `DEAD lines: core` and
 restarted it **with the RUN 2 roots**, inside its 300 s cycle. A `verify_roots` sweep then confirmed
 12/12 supervisors and every monitor on the correct roots, **0 on the old ones**.
+
+---
+
+## 14. THE v2.1 RE-FREEZE — closing the selection-validity hole while it was still free to close
+
+**2026-07-28, ~14:15 UTC.** RUN 2 was halted at T+1.3 h and the pre-registration LIFTED and re-frozen
+to register a **winner-eligibility execution floor** (amendment **R115**, decision record
+**ADR-062**). This section exists because a post-launch change to a pre-registration is the single
+most scrutinised act in a pre-registered study, and it must be defensible on the page, not just in
+the repo.
+
+### 14.1 The hole
+
+Selection was `max(val_fitness)` with **no execution-quality condition**. `train_safe_default_count`
+recorded the steps on which the authored reward RAISED and the neutral R66 fallback stood in — it was
+archived and reported, and gated nothing. So a candidate whose reward executed on only part of its
+training could be frozen as an arm's winner, and the sealed leg would then **re-train that same
+reward** and inherit the contamination.
+
+That is not a data-quality nuisance; it is an **identification hole**. H2 requires the arms to differ
+ONLY in the authored reward. A winner that trained half on the R66 fallback confounds the arm
+contrast with execution quality — and in the limit the contrast becomes the fallback measured
+against itself.
+
+**Measured** over the full RUN 1 archive (613 records carrying the counter; this supersedes an
+earlier 136-candidate snapshot that saw only two severe cases):
+
+| band | n | detail |
+|---|---|---|
+| clean (0 fallback steps) | **594** | |
+| trace (<1 %) | **16** | worst **0.41 %** (1,650/400,000) |
+| **SEVERE (≥1 %)** | **3** | `qwen3.6-27b/scalar-g1-c4` **53.66 %** · `qwen3.5-9b/distributional-g1-c2` **50.02 %** · `glm-5.2/placebo_shuffled-g0-c0` **39.40 %** |
+
+All three are open-weight legs, and **zero frozen winners carried any fallback**. But across ~55
+arm-instances the chance that at least one winner is contaminated is **not** negligible, which is why
+detection alone was judged insufficient.
+
+### 14.2 Why the RUN 1 measurement is still usable
+
+RUN 1's *search* was invalidated by the cross-line reject collision (§11.2). This measurement is
+unaffected, and the distinction is exact: `train_safe_default_count` is a **per-training execution
+statistic of a candidate that actually ran**, while the collision only decided which candidates were
+*allowed* to run. Nothing about the counter depends on the selection that was broken.
+
+### 14.3 Why this is PRE-DATA, on the project's own established test
+
+ADR-059 (the v1.0 unfreeze) set the standard: *"The forking-paths/pre-registration sin is POST-DATA
+design change; a documented, dated, PRE-DATA revision … is the pre-registration discipline working as
+intended."* At the moment of the lift:
+
+* RUN 1's search was invalidated by a **defect**, not by its results, and is **discarded wholesale** —
+  no RUN 1 result enters any analysis;
+* **RUN 2 held ZERO records** (verified: the run-2 tree contained no `record.json` at all);
+* the sealed 2020–2026 test leg was **untouched** by any LLM arm;
+* and decisively — **NO arm contrast of any kind had ever been computed.** Only H1 baselines ever had
+  scored records, so no ranking, no effect and no ordering existed that a rule could be steered
+  toward. §5 recorded that property as "effect-blind" *before* this amendment was contemplated.
+
+That window closed permanently once `claude-opus-5` began authoring candidates with real
+`val_fitness` values, so the registered-by-construction option existed **only** at this moment. It
+was taken.
+
+### 14.4 The rule, and why it cannot be gamed
+
+A candidate is **eligible** iff `train_safe_default_count / train_safe_call_count < 0.10`; the winner
+is `max(val_fitness)` **among the eligible**; an arm with **no** eligible candidate **fails loud**
+rather than silently promoting the least-bad contaminated one.
+
+* **Effect-blind by construction.** The filter reads an execution counter and never `val_fitness`,
+  `test_sharpe`, `test_cvar` or any performance quantity. A test asserts this by inspecting the
+  function source, so the property is enforced rather than promised.
+* **Threshold-insensitive, not tuned.** The distribution is strongly bimodal — worst trace 0.41 %,
+  mildest severe 39.40 %, a **96× empty gap** — so any value in ~1–35 % partitions the data
+  identically. 0.10 sits in that gap.
+* **Honest caveat, stated not hidden.** RUN 1's data motivated the rule's EXISTENCE; it did not set
+  its VALUE. The insensitivity above is what makes that distinction verifiable rather than merely
+  asserted.
+* **Common-mode.** The floor applies identically to every arm and every leg, so every contrast is
+  affected identically; it changes only whether a candidate whose reward *did not actually run* may
+  represent its arm.
+* **Cannot drift silently.** The value lives in the hash-bound `config/preregistration.yaml` and is
+  read from there at selection time — so any change to it moves the canonical hash and fails
+  `freeze --check`. That is a stronger guarantee than a mirror check.
+
+### 14.5 The freeze chain, preserved
+
+`freeze.py` **forbids re-freezing** by design ("post-freeze changes go through a dated amendment"), so
+this went through the documented lift: `frozen: true → false`, `freeze_hash → null`, amend, then a
+fresh freeze. Every prior record survives as history — tags `prereg-v1.0`, `prereg-freeze-ce5db62c`,
+**`prereg-v2.0`**, and `docs/prereg-v2.0.sha256`. The chain now reads:
+
+| version | hash | frozen | fate |
+|---|---|---|---|
+| v1.0 | `ce5db62c` | 2026-07-18 | lifted 07-20 pre-data (ADR-059/R78) |
+| — | `ccf2e76f` | 2026-07-22 | lifted same day (R93/R94) |
+| **v2.0** | `4f90ecc47cc6a779…` | 2026-07-28 00:05Z | **lifted 07-28 pre-data (R115/ADR-062)** — RUN 1 + RUN 2 ran under it; both discarded |
+| **v2.1** | `3ca6f01ab7724d47…` | 2026-07-28 | the design RUN 3 executes |
+
+**Verified at the lift:** `freeze.py --check` **RC=0, 23/23** with the new canonical hash recomputed
+and `freeze_hash: null` correctly reported as not-yet-frozen; ruff clean; the R115 tests proven to
+FAIL against the pre-R115 selector (4 of 7 — the other three assert unchanged behaviour and correctly
+pass either way), with `scripts/run_campaign.py` restored byte-identical afterwards.
