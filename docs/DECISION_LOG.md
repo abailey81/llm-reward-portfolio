@@ -84,6 +84,16 @@ ADR-028 (cross-platform sandbox timeout; `SIGALRM` was a Windows no-op), stub im
 
 ### FREEZE-DONE — pre-registration content hash recorded (2026-07-28)
 **Decision:** PREREGISTRATION.md + config/preregistration.yaml FROZEN.
+- **Content hash (SHA-256):** `3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f`
+- **Frozen at (UTC):** 2026-07-28T15:17:19Z
+- **Git commit:** `b9c2be5439550a913519ef4d54f482d0f1fa3b24`
+- **Phase-0 precondition:** met (see the PHASE-0 GREEN entry above).
+- **Tag:** `prereg-v2.1` (signed; OpenTimestamps proof beside it if `ots` was present).
+**Status:** frozen; any post-freeze change requires a dated, user-approved amendment.
+
+
+### FREEZE-DONE — pre-registration content hash recorded (2026-07-28)
+**Decision:** PREREGISTRATION.md + config/preregistration.yaml FROZEN.
 - **Content hash (SHA-256):** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd`
 - **Frozen at (UTC):** 2026-07-28T00:05:13Z
 - **Git commit:** `0f6221be65c7616ccf1874c9a2331209eeeb1bcb`
