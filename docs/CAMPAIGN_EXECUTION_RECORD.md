@@ -13,7 +13,25 @@ INTACT and unaffected — the defect is in driver transport/bookkeeping code, no
 §12 is the relaunch plan. Everything below §11 that describes RUN 1 as healthy is retained as the
 *dated* record of what was believed at the time, with the retractions marked inline.
 
-> **★ RUN 2 LAUNCHED 2026-07-28 12:59:01 UTC** into fresh roots (`outputs/campaign_cluster_run2`,
+> **★★ RUN 3 LAUNCHED 2026-07-28 15:19:27 UTC — the run of record.** Roots
+> `outputs/campaign_cluster_run3` + `~/Scratch/llmrp3`, under the **v2.1** freeze
+> `3ca6f01ab7724d47…` (tag `prereg-v2.1`, seal commit `b9c2be5`). Gates: full suite **2,866 passed /
+> 3 skipped / 0 failed** with the source-tree hash recorded IDENTICAL before and after ·
+> `freeze --check` **RC=0, recorded hash MATCHES** · preflight **14/14, VERDICT GO** · `--dry-run`
+> **RC=0 on all five** line invocations (core, h3, three legs) · every one of the 16 live processes
+> verified on the RUN 3 roots, **0 on the old ones**. Verified in the first two minutes: remote tree
+> created under `/home/ucestes/Scratch/llmrp3`, gold sha256 re-verified against the frozen manifest,
+> `h_rt=15:0:0`, the C0 canary shield running, and arrays submitting (`c1_tpe_startup` 10,
+> `c1_bayes_opt_startup` 5, `c1_cma_es_c0` 1). **~970 cores were freed for it** by draining 118
+> campaign jobs from the two discarded runs — the 20 `p6cpu` B\*-ladder jobs that feed figure F11
+> were identified and deliberately PRESERVED. Guards armed on the new root: collision guard
+> (`0 spurious`) + transport-degradation guard. **STOP LEVER:**
+> `outputs\campaign_cluster_run3\STOP_CAMPAIGN`.
+>
+> ⛔ **RUN 2 (below) is SUPERSEDED** — halted at T+1.3 h to register R115; it ran under v2.0 and
+> produced zero records. RUN 1 is invalidated (§11). Both trees are preserved as evidence.
+
+> **RUN 2 LAUNCHED 2026-07-28 12:59:01 UTC** into fresh roots (`outputs/campaign_cluster_run2`,
 > `~/Scratch/llmrp2`) after the 20-item pre-relaunch gate passed (§12.3). Verified in the first
 > two minutes: all 12 supervised lines up, the core driver carrying BOTH new roots, the remote tree
 > created under `/home/ucestes/Scratch/llmrp2`, **the licensed gold re-verified sha256-equal to the

@@ -356,6 +356,37 @@ to FAIL** against the pre-R115 selector (the other three assert unchanged behavi
 pass either way), `scripts/run_campaign.py` restored byte-identical after the falsifiability check ·
 the launch-gate module green at 11/11 after the tag bump.
 
+### ⑮ ★★ RUN 3 LAUNCHED 15:19:27 UTC under the v2.1 freeze — the run of record
+
+Roots `outputs/campaign_cluster_run3` + `~/Scratch/llmrp3`; design `3ca6f01ab7724d47…` (tag
+`prereg-v2.1`, seal commit `b9c2be5`, pushed to origin as the external dated anchor).
+
+**Gates, every one executed rather than assumed:** full suite **2,866 passed / 3 skipped / 0
+failed** with the source-tree hash recorded **IDENTICAL before and after** the run ·
+`freeze --check` **RC=0, recorded hash MATCHES** · preflight **14/14, VERDICT GO** · `--dry-run`
+**RC=0 on all five** line invocations (core, h3, three legs) · all 16 live processes verified on the
+RUN 3 roots, **0 on the old ones**.
+
+**Live within two minutes:** remote tree created under `/home/ucestes/Scratch/llmrp3`, gold sha256
+re-verified against the frozen manifest, `h_rt=15:0:0`, the C0 canary shield running, and arrays
+submitting (`c1_tpe_startup` 10, `c1_bayes_opt_startup` 5, `c1_cma_es_c0` 1). Guards re-armed on the
+new root — the RUN 2 guards were STOPPED first, because they were reporting healthy against a
+**halted** tree, which is exactly the "instrument measuring nothing" pattern this project keeps
+hitting.
+
+**~970 cores freed for it.** 118 campaign jobs belonging to the two discarded runs were drained
+(slots 990 → 20). ⚠ **20 jobs named `l1601`–`l1620` were NOT campaign jobs**: traced to
+`Scratch/p6cpu`, submitted 2026-07-27 — the p6 B\*-ladder recovery cells that feed figure F11 and are
+still an open handoff item. A blanket `qdel -u ucestes` would have destroyed them silently, so the
+deletion was done by explicit job id instead. Verified afterwards that no driver was alive to observe
+the deaths, and that the only incident file (RUN 1's) is `cleared: true` and structurally unreachable
+from RUN 3's fresh root.
+
+**The run ledger now reads:** RUN 1 invalidated by the cross-line reject collision (§11) · RUN 2
+halted at T+1.3 h to register R115, zero records produced · **RUN 3 is the run of record.** Both
+earlier trees are preserved as evidence, RUN 1 additionally mirrored to
+`D:\llm_rp_archive_mirror\campaign_cluster_run1_FINAL`.
+
 ## [2026-07-28] — ★ **THE CONFIRMATORY CAMPAIGN IS FROZEN AND RUNNING** · live-ops log of the first hour
 
 **FROZEN** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd` at 2026-07-28T00:05:13Z,
