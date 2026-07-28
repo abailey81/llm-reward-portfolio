@@ -236,7 +236,34 @@ remedy is post-hoc and lossless: mine `~/Scratch/llmrp/logs/*/*.o` at analysis t
 `candidate_id`, exactly as done here. ⚠ **Scratch is purge-eligible** — those logs are currently the
 only home of this evidence, so the mining must happen before any purge, not at write-up time.
 
-State at 06:05 UTC: **all 12 lines alive, 12 tags active, 27 records, ~470 jobs, worst
+**⑨ THE SANITY GATE WAS BLIND TO EVERY REPLICATION LEG — and fixing it immediately found two
+contaminated records** (`16b6450`, 06:12 UTC). `assess_seed`/`assess_recent` gathered `test`,
+`search` and `test_leg_*` — but **not `search_leg_*`**. For most of a campaign the search legs are
+the ONLY leg records that exist (test legs come later), so the gate was reading **6 of 29 records**
+and reporting a clean pass. That is the same failure direction as ②: **a PARTIAL pass reads exactly
+like a FULL pass.** Fixed both gather sites; locked by
+`test_search_leg_records_are_ASSESSED_not_silently_skipped`, **proven falsifiable** — with the fix
+reverted the test fails with `search-leg records were not gathered at all`.
+
+Coverage went 6 → 31 records assessed, and two previously-invisible **SUSPECT** records surfaced at
+once:
+
+| leg | run | authored reward fell back |
+|---|---|---|
+| `deepseek-v4-pro` | `scalar-g1-c1` | 135 / 400,000 steps = 0.034 % |
+| `haiku-4.5` | `scalar-g1-c3` | 1,650 / 400,000 steps = 0.413 % |
+
+i.e. the authored reward raised on a small fraction of steps and the safe default stood in, so those
+candidates' fitness reflects a HYBRID reward. **Severity, assessed honestly rather than alarmed:
+both are `search_leg_*` records, and a search record only decides WHICH candidate wins — never a
+scored quantity** (the same argument R107 rests on). So this can cost search QUALITY, not validity.
+⚠ **The standing watch that matters: the identical signal on a `test_leg_*` or `test` record would
+be materially more serious**, because that is where every scored contrast lives. The frozen
+pre-registration is **SILENT** on a `train_safe_default_count` inclusion threshold — that is a real
+gap, it is Tamer's call and not a lane's, and it must be settled BEFORE test-leg records exist
+rather than after (deciding it once contaminated test records are in hand is a forking path).
+
+State at 06:12 UTC: **all 12 lines alive, 12 tags active, 29 records, ~470 jobs, worst
 consecutive-failure counter 5-7 against the fatal bound of 240, no active kill incident.**
 
 ### STILL OPEN, FOR TAMER
