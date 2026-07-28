@@ -111,8 +111,14 @@ is `docs/CAMPAIGN_EXECUTION_RECORD.md` §18 — work it to a verdict, all of it,
 - **Monitor absolutely everything very closely** — the process, the results, and whether the results
   are meaningful. Not just "are jobs running".
 - **Document everything continuously, in parallel** — `CHANGELOG.md` + `docs/HANDOFF.md` §1 + the
-  cursor + `docs/CAMPAIGN_EXECUTION_RECORD.md`, **even in a session with no commits**. Tamer uses this
-  for the write-up.
+  cursor + `docs/CAMPAIGN_EXECUTION_RECORD.md`, **even in a session with no commits**. ⚠ **Read the
+  ★★★ "THE DOCUMENTATION IS WRITE-UP RAW MATERIAL" block in `CLAUDE.md`** (added 2026-07-28 at
+  Tamer's instruction). The record is **the primary source CH4/CH6/CH7 are written from** — anything
+  undocumented is lost to the dissertation. It binds you to three things: **(a) past · present ·
+  future** in every session; **(b) every mistake from every run, INCLUDING YOUR OWN**, each with root
+  cause · how it was found · the fix · the lesson (canonical form: record §20, D1–D9 + P1–P10);
+  **(c) write it as it happens**, recording the evidence — the command, the count, the log line — not
+  just the conclusion.
 - **Address Tamer by name at the start of every message.**
 
 ### Hard prohibitions — violating any of these is a defect
