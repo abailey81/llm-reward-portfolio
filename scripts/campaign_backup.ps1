@@ -22,15 +22,26 @@
 
 param(
     [int]$IntervalSecs = 900,
-    [string]$MirrorRoot = "D:\llm_rp_archive_mirror\campaign_cluster",
-    [string]$Remote = "myriad"
+    [string]$MirrorRoot = "",
+    [string]$Remote = "myriad",
+    # RUN GENERATION (2026-07-28). Both roots were hardcoded, which would have silently broken the
+    # RUN 2 relaunch three ways: the mirror would have kept copying the HALTED run's tree and never
+    # touched RUN 2 (leaving the irreplaceable new archive with no off-machine copy at all), the
+    # node-log harvest would have read RUN 1's Scratch, and the harvest OVERWRITES its output file,
+    # so RUN 2's rows would have destroyed the RUN 1 evidence that the post-mortem in
+    # docs/CAMPAIGN_EXECUTION_RECORD.md s.11 rests on. The evidence filename is now root-scoped so
+    # the two runs cannot collide. Defaults reproduce RUN 1's paths exactly.
+    [string]$SrcRoot = "outputs\campaign_cluster",
+    [string]$RemoteRoot = "~/Scratch/llmrp"
 )
 
 $ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
-$src      = Join-Path $repo "outputs\campaign_cluster"
+$src      = Join-Path $repo $SrcRoot
+$runTag   = Split-Path $SrcRoot -Leaf
+if (-not $MirrorRoot) { $MirrorRoot = Join-Path "D:\llm_rp_archive_mirror" $runTag }
 $stopFile = Join-Path $src "STOP_CAMPAIGN"
 $log      = Join-Path $src "backup.log"
 $evidence = Join-Path $repo "docs\evidence"
@@ -84,8 +95,8 @@ while ($true) {
     #    The ledger row degrades to a generic message because the reject marker is mirrored back by
     #    a LATER pull, so these logs are not a duplicate of anything we already hold.
     try {
-        $out = Join-Path $evidence "node_authoring_rejects_latest.jsonl"
-        $cmd = "grep -h '\`"failed\`"' ~/Scratch/llmrp/logs/*/*.o 2>/dev/null | sort -u"
+        $out = Join-Path $evidence ("node_authoring_rejects_{0}.jsonl" -f $runTag)
+        $cmd = "grep -h '\`"failed\`"' {0}/logs/*/*.o 2>/dev/null | sort -u" -f $RemoteRoot
         $rows = & ssh $Remote $cmd 2>$null
         if ($rows -and $rows.Count -gt 0) {
             Set-Content -Path $out -Value $rows -Encoding utf8

@@ -419,7 +419,9 @@ re-ship invalid source.
 2. **Mine the node logs for true reject reasons.** The ledger row degrades to a generic
    `cluster training failed` because the node's reject marker is mirrored back by a LATER pull (the
    P9 race). The node logs are the authoritative source and are harvested every 15 min into
-   `docs/evidence/node_authoring_rejects_latest.jsonl` — **Scratch is purge-eligible, so this must
+   `docs/evidence/node_authoring_rejects_<run-root>.jsonl` (RUN 1's is the committed
+   `…_latest.jsonl`; the harvester became root-scoped on 2026-07-28 so RUN 2 cannot overwrite it)
+   — **Scratch is purge-eligible, so this must
    not wait until write-up.**
 3. **Re-run the substrate census over the FULL archive** at analysis time. A second distinct
    substrate signature is the tripwire and must be investigated, never averaged over.
@@ -584,7 +586,9 @@ Nothing carries over: no purge logic to get wrong, and no retained-record questi
    path.
 2. Re-deploy the driver-side fixes. The node-side tree does not change: `poll.py` and `driver.py` are
    laptop-side, so the `deployed-archive:ce27dfc…` provenance stamp is unaffected.
-3. **⚠ Top up the Anthropic balance — the one thing that can kill RUN 2 mid-flight.** See §12.1.
+3. ~~Top up the Anthropic balance~~ **RESOLVED — no top-up needed.** Console balances confirmed by
+   Tamer: Anthropic **$31.96**, OpenRouter **$19.31**, against a projected $18.72 / $5.28. See §12.1
+   for why the earlier "14 % margin, too tight" reading was wrong.
 4. **Fence RUN 1's still-running cluster jobs — do NOT drain them.** 161 were still running at the
    halt. They are fenced for free by the fresh root: they archive into RUN 1's Scratch tree and
    RUN 2 never reads it, and `_enforce_kill_switch` reads `<root>/ledger`, so a fresh root also
@@ -601,18 +605,22 @@ Anthropic balance: if it empties mid-run, `claude-opus-5` stops authoring and th
 headline dies silently. Projected from measured per-call cost and measured GENUINE (post-fix) reject
 rates:
 
-| | |
-|---|---|
-| RUN 2 projected LLM spend, all providers | **$24.00** |
-| of which Anthropic (opus-5 core $12.57 + h3 $2.58 + sonnet-5 $2.70 + haiku-4.5 $0.87) | **$18.72** |
-| Anthropic funded (recorded) | $30.91 |
-| Anthropic already billed, all ledgers, all time (measured) | $9.14 |
-| Anthropic remaining | **$21.77** |
-| **margin after RUN 2** | **$3.06 (14 %)** |
+| | projected need | balance (Tamer, console, 2026-07-28) | margin |
+|---|---|---|---|
+| **Anthropic** (opus-5 core $12.57 + h3 $2.58 + sonnet-5 $2.70 + haiku-4.5 $0.87) | **$18.72** | **$31.96** | **$13.24 (41 %)** |
+| **OpenRouter** (the six open-weight legs) | **$5.28** | **$19.31** | **$14.03 (73 %)** |
+| total | $24.00 | $51.27 | |
 
-RUN 1's own spend of $12.92 bought nothing recoverable on the LLM arms, and $6.07 of it was burnt
-directly on candidates the collision discarded unrun. A ~$20 top-up before launch is cheap insurance
-on the single irreplaceable component of the dissertation.
+**No top-up is required; the budget is not a constraint on RUN 2.** An earlier version of this
+section put the Anthropic margin at 14 % and called it too tight to launch on. That was wrong, and
+the reason is worth keeping: it derived "remaining" as *recorded funding minus ledgered spend*, and
+**the ledger is an ESTIMATE** — every row is stamped `estimated-from-planning-prices`, i.e. computed
+from the price table rather than read back from the provider. The console balance is ground truth and
+the derived figure was $10 pessimistic. **Lesson for the write-up's cost reporting: quote the ledger
+as an estimate, never as billed spend, and reconcile it against the console at least once.**
+
+RUN 1's own $12.92 bought nothing recoverable on the LLM arms, and $6.07 of it was burnt directly on
+candidates the collision discarded unrun.
 
 *The earlier projection in §3.2 (≈$19.53 all-in) was too low for two reasons now corrected: it omitted
 the h3 single-shot line, which also authors on `claude-opus-5`, and it assumed exactly one authoring
@@ -646,3 +654,63 @@ rule.)
   is a regression and should stop the run.
 * Keep the makespan expectation from §4 unchanged — it was never the problem, and none of it is
   retracted.
+
+### 12.3 THE PRE-RELAUNCH GATE — every item verified by running it (2026-07-28 13:55 UTC)
+
+Tamer's instruction was that everything be flawless *before* the relaunch, so nothing below is
+asserted from reading code; each row names what was executed and what it returned.
+
+| # | check | how | result |
+|---|---|---|---|
+| 1 | full test suite | `pytest tests/ -q`, redirected not piped | **2,852 passed / 3 skipped / 0 failed, PYTEST_RC=0** |
+| 2 | the 6 new regression tests are FALSIFIABLE | checked out HEAD, re-ran, restored | **all 6 FAIL pre-fix**; the three source files restored byte-identical (hashes compared) |
+| 3 | the collision fix on REAL data | replayed `permanently_rejected_specs` over the RUN 1 archive | condemns **59**, rescues **439** — reproduces the independent damage audit **exactly** |
+| 4 | freeze integrity after every edit | `freeze.py --check` | **RC=0**, canonical `4f90ecc47cc6a779…` **MATCHES** the recorded hash |
+| 5 | lint | `ruff check src scripts tests` | **All checks passed** |
+| 6 | pre-flight gauntlet | `preflight.py --gpu 0` | **14/14 OK, VERDICT: GO** (incl. gold checksum, author pin `max_tokens=16384 thinking=disabled`, freeze) |
+| 7 | RUN 2 wiring, core line | `--dry-run` on the fresh roots | **DRY-RUN OK** — 9 arms resolved from frozen config, 568 seeds, 7 tiers, jobscript renders |
+| 8 | RUN 2 wiring, leg lines | `--dry-run` for deepseek-v4-pro, qwen3.5-9b, kimi-k3 | **RC=0 each** — 5 arms, 568 seeds |
+| 9 | RUN 2 wiring, h3 line | `--dry-run --h3-singleshot` | **RC=0** — 1 arm, 30 candidates/gen |
+| 10 | node-side code is untouched | AST import graph from `run_one` | **NONE** of poll/driver/submit is reachable → no re-deploy, `deployed-archive` stamp unchanged |
+| 11 | the deployed tree is still the frozen one | `cat ~/llmrp/GIT_COMMIT` | **`ce27dfc5fb7503e8673b544e5498cd20ce34de64`** — the seal commit, 2,710 files present |
+| 12 | RUN 2's remote root is clean | `ls ~/Scratch/llmrp2` | **does not exist** — no adopted state possible |
+| 13 | licensed gold reachable | `ls /acfs/users/ucestes/gold` | present; checksum re-verified locally by check 6 |
+| 14 | cluster venv | `ls ~/venvs/llmrp/bin/python` | OK |
+| 15 | capacity | `qstat -u ucestes`, Scratch `du` | RUN 1's 161 jobs draining; 243 MB used of Scratch; job cap 1,000 |
+| 16 | all campaign PS1 scripts | `Parser::ParseFile` + byte scan | **0 parse errors, 0 non-ASCII, no BOM** on all four |
+| 17 | no leaked ssh children remain | the reaper's own log | `ssh_total=0 reaped=0` for consecutive cycles |
+| 18 | RUN 1 is fully stopped | process inventory | **0 supervisors, 0 drivers**; monitors deliberately left up |
+| 19 | RUN 1 evidence preserved | record count + git | **621 records** on disk, untouched; reject evidence committed |
+| 20 | budget | Tamer's console | Anthropic **$31.96** / OpenRouter **$19.31** vs $18.72 / $5.28 needed |
+
+**Four defects were found and fixed by this gate itself** — they would each have damaged RUN 2
+silently, and none was visible from reading the launch command:
+
+1. `mode_d_watchdog.ps1` restarted dead lines with the supervisor's DEFAULT roots, so under a
+   fresh-root run ONE restart would have pointed that line back at RUN 1's local mirror and Scratch
+   root. The watchdog restarts lines every 300 s, so this was near-certain to fire.
+2. `campaign_backup.ps1` hardcoded `outputs\campaign_cluster`, so the only off-machine copy of the
+   irreplaceable RUN 2 archive would have kept mirroring the halted run and never touched RUN 2.
+3. The same script harvested node logs from RUN 1's Scratch and **overwrote** its output file, so
+   RUN 2's rows would have destroyed the RUN 1 reject evidence this post-mortem rests on. The
+   filename is now root-scoped.
+4. `mode_d_supervisor.ps1` passed no `--remote-root` at all, so RUN 2 would have shared RUN 1's
+   Scratch tree and its archive-truth resume would have adopted the halted run's records.
+
+### 12.4 THE RUN 2 LAUNCH COMMAND
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1 `
+  -OutDir outputs\campaign_cluster_run2 -RemoteRoot ~/Scratch/llmrp2
+```
+
+Then, with the SAME roots (each defaults to RUN 1's paths, so passing them is not optional):
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\mode_d_watchdog.ps1 `
+  -IntervalSecs 300 -OutDir outputs\campaign_cluster_run2 -RemoteRoot ~/Scratch/llmrp2
+powershell -ExecutionPolicy Bypass -File scripts\campaign_backup.ps1 `
+  -SrcRoot outputs\campaign_cluster_run2 -RemoteRoot ~/Scratch/llmrp2
+python scripts/sentinel.py outputs/campaign_cluster_run2 --watch --interval 300
+python scripts/allocation_advisor.py --host myriad --watch 900 --archive-root outputs/campaign_cluster_run2
+```

@@ -157,6 +157,65 @@ assumed one authoring call per candidate.
 * `freeze.py --check` **RC=0**, canonical `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd`
   MATCHES the recorded freeze hash. `ruff` clean on every changed file.
 
+### ⑧ THE PRE-RELAUNCH GATE — and the four further defects it caught
+
+Tamer: *"I need you to ensure absolutely everything is strictly absolutely flawless before the
+relaunch."* So RUN 2 was gated by a 20-item battery, every item EXECUTED rather than reasoned about.
+The full table is `docs/CAMPAIGN_EXECUTION_RECORD.md` §12.3; the launch command is §12.4.
+
+**Headline results.** Full suite **2,852 passed / 3 skipped / 0 failed, PYTEST_RC=0**; the 6 new
+regression tests all proven to FAIL pre-fix; the collision fix replayed over the REAL RUN 1 archive
+condemns 59 and rescues 439, reproducing the independent damage audit exactly; `freeze --check`
+**RC=0** with the canonical hash unmoved; `ruff` clean; `preflight --gpu 0` **14/14 OK, VERDICT GO**;
+`--dry-run` **RC=0 on all three line types** (core 9 arms, three legs at 5 arms, h3 at 30
+candidates/gen) against the fresh RUN 2 roots.
+
+**Provenance proven, not assumed.** An AST import-graph walk from `run_one` (the NODE entrypoint)
+shows **none** of `poll` / `driver` / `submit` is transitively reachable, so this session's fixes are
+laptop-side only: RUN 2 needs no re-deploy and keeps the SAME `deployed-archive` stamp. Confirmed on
+the cluster — `~/llmrp/GIT_COMMIT` reads `ce27dfc5fb7503e8673b544e5498cd20ce34de64`, the seal commit,
+2,710 files present. `~/Scratch/llmrp2` does not exist, so RUN 2 can adopt nothing.
+
+**FOUR MORE DEFECTS, each of which would have silently damaged RUN 2** — and none visible from
+reading the launch command:
+
+1. **`mode_d_watchdog.ps1` restarted dead lines with the supervisor's DEFAULT roots.** It restarts
+   every 300 s, so under a fresh-root run ONE restart would have pointed that line back at RUN 1's
+   local mirror and Scratch tree. Near-certain to fire. Now takes `-OutDir`/`-RemoteRoot`.
+2. **`campaign_backup.ps1` hardcoded `outputs\campaign_cluster`** — the only off-machine copy of the
+   irreplaceable RUN 2 archive would have kept mirroring the HALTED run and never touched RUN 2.
+3. **The same script's node-log harvest read RUN 1's Scratch and OVERWRITES its output file**, so
+   RUN 2's rows would have destroyed the RUN 1 reject evidence the post-mortem rests on. The
+   filename is now root-scoped (`node_authoring_rejects_<run-root>.jsonl`).
+4. **`mode_d_supervisor.ps1` passed no `--remote-root` at all**, so RUN 2 would have shared RUN 1's
+   Scratch tree and its archive-truth resume would have adopted the halted run's records — the exact
+   hazard the 2026-07-27 launch gate caught with 8 foreign probe records.
+
+All four PS1 files re-validated: **0 parse errors, 0 non-ASCII bytes, no BOM**, and the new
+parameters confirmed present on each script's parameter surface.
+
+### ⑨ BUDGET — my own $21.77 figure was wrong, and the reason matters for the write-up
+
+Item ⑥ called the Anthropic margin 14 % and "too tight to launch on", recommending a top-up.
+**Tamer's console balances: Anthropic $31.96, OpenRouter $19.31** — against $18.72 and $5.28
+projected, i.e. **41 % and 73 % margins. No top-up is needed and the budget does not constrain
+RUN 2.**
+
+The error is instructive rather than merely embarrassing: I derived "remaining" as *recorded funding
+minus ledgered spend*, and **the ledger is an ESTIMATE** — every row is stamped
+`estimated-from-planning-prices`, computed from the price table rather than read back from the
+provider. The derived figure was $10 pessimistic. **Write-up consequence (Raad/Stefan point 2 asks
+for cost to be reported prominently): quote the ledger as an ESTIMATE, never as billed spend, and
+reconcile it against the console at least once before publication.**
+
+### ⑩ RUN 2 IS PREPARED AND WAITING ON TAMER'S GO
+
+Everything is staged: fixes committed (`04c8428`), handoff corrected (`0a59e13`), launch path
+parameterised and dry-run green, remote side clean, budget clear. Per the standing order the launch
+itself fires only on Tamer's explicit word. RUN 1's 161 residual cluster jobs are deliberately left
+to drain rather than `qdel`-ed — draining would replay the mass-death signature that produced the
+01:00 admin-kill incident, and the fresh root fences them for free.
+
 ## [2026-07-28] — ★ **THE CONFIRMATORY CAMPAIGN IS FROZEN AND RUNNING** · live-ops log of the first hour
 
 **FROZEN** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd` at 2026-07-28T00:05:13Z,
