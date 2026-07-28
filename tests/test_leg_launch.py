@@ -159,6 +159,80 @@ def test_ledger_failure_never_breaks_the_call(tmp_path, monkeypatch) -> None:
     assert llm.complete("s", "u") == "ok"                         # the paid call survives
 
 
+# ---- the author call sites must THREAD the provider, not just be capable of recording it -------------- #
+# 2026-07-28, found by reading RUNs 1-3's ledgers rather than the code: every one of the 1,361 rows was
+# stamped `provider: "anthropic"`, including rows whose `model` is plainly an OpenRouter id
+# (`deepseek/deepseek-v4-pro`, `google/gemini-2.5-flash`, `qwen/qwen3.5-9b`, `z-ai/glm-5.2`, ...).
+#
+# ROUTING WAS NEVER WRONG — `build_transport` is called with the real `opts["provider"]`, so the legs
+# genuinely reached OpenRouter and no recorded result is affected. What was wrong is the LABEL: both
+# production authors constructed `LLMClient({"model": ..., "spend_ledger": ...})` with no `provider`
+# key, so `client.py`'s `cfg_get(cfg, "provider", "anthropic")` DEFAULT was stamped onto every row.
+#
+# The defect survived because `test_realized_cost_recorded_per_call` above passes `provider` in
+# explicitly: it proves the client records whatever it is GIVEN, while production gave it nothing.
+# That is the gap these two tests close — one behavioural, one structural across both call sites.
+def test_cluster_author_stamps_the_real_provider_not_the_anthropic_default(monkeypatch, tmp_path) -> None:
+    """`_build_cluster_author` must hand the LEG's provider to the client, not leave the default."""
+    from src.cluster import campaign as CC
+
+    monkeypatch.setattr("src.llm.client.build_transport",
+                        lambda provider, model, key_env=None, **kw: _MetaTransport(
+                            cost=0.5, usage={"input_tokens": 3, "output_tokens": 4}))
+    monkeypatch.setattr("src.llm.prompts.build_prompt_set", lambda env, n: {"system": "s"})
+
+    ledger = tmp_path / "spend.jsonl"
+    opts = {"pass_mode": "B", "provider": "openrouter", "model": "deepseek/deepseek-v4-pro",
+            "api_key_env": "OPENROUTER_API_KEY", "temperature": None, "max_tokens": 4096,
+            "max_retries": 6, "seed": 0, "diversity_prompt_variation": False,
+            "extra_body": None, "env_cfg": {}, "n_assets": 30, "spend_ledger": str(ledger)}
+    llm, _, _ = CC._build_cluster_author("distributional", opts, tmp_path)
+
+    assert llm.provider == "openrouter", (
+        f"cluster author stamped provider={llm.provider!r} for an OpenRouter leg — the "
+        "spend ledger will mis-attribute the cost to Anthropic"
+    )
+    llm.complete("s", "u")
+    (row,) = _rows(ledger)
+    assert row["provider"] == "openrouter" and row["model"] == "deepseek/deepseek-v4-pro"
+
+
+def test_both_production_authors_pass_provider_into_the_client_cfg() -> None:
+    """Structural lock across BOTH author call sites.
+
+    The behavioural test above can only reach one of them; `parallel._drive_llm_arm` runs a whole
+    arm and is far too heavy to instantiate here. So assert on the AST instead: every `LLMClient(`
+    construction in the two production authors must pass a cfg mapping containing "provider".
+    Checking the parsed syntax rather than a source substring keeps it robust to formatting.
+    """
+    import ast
+
+    repo = Path(__file__).resolve().parents[1]
+    sites = [repo / "src" / "cluster" / "campaign.py",
+             repo / "src" / "orchestration" / "parallel.py"]
+
+    checked = 0
+    for path in sites:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "LLMClient"):
+                continue
+            assert node.args, f"{path.name}:{node.lineno}: LLMClient called with no cfg argument"
+            cfg = node.args[0]
+            assert isinstance(cfg, ast.Dict), (
+                f"{path.name}:{node.lineno}: expected a literal cfg dict to inspect"
+            )
+            keys = {k.value for k in cfg.keys if isinstance(k, ast.Constant)}
+            assert "provider" in keys, (
+                f"{path.name}:{node.lineno}: LLMClient cfg omits 'provider' {sorted(keys)} — "
+                "client.py falls back to its 'anthropic' default and every ledger row for a "
+                "non-Anthropic leg is mis-attributed"
+            )
+            checked += 1
+    assert checked == 2, f"expected exactly 2 production LLMClient sites, found {checked}"
+
+
 def test_estimate_cost_math_and_unpriced_none() -> None:
     assert estimate_cost_usd("claude-opus-4-8", 100_000, 10_000) == pytest.approx(
         0.1 * 5.00 + 0.01 * 25.00)

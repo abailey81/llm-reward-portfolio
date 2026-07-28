@@ -1481,3 +1481,234 @@ on the old path.**
 3. **The 1,000-job / 4,000-core saturation** — never observed on this account. RUN 3 held 365 jobs /
    827 slots. Past rung 30 it should saturate; if it does not, the makespan model is wrong and the
    forecast needs redoing from the measurement, not the model.
+
+---
+
+## 22. THE RUN 4 PRE-LAUNCH SESSION — what a fresh pass found that the handoff did not
+
+Written 2026-07-28 evening by the session Tamer designated to "prepare deeply and launch". The
+handoff was accurate and the gate it prescribed was the right gate. What follows is what re-running
+every item **by execution** turned up anyway — one new machine defect, three corrections to recorded
+figures, and one guard that would have watched nothing.
+
+**The method that produced all of it is the same one §20.3 names:** measure the running system.
+Every item below came from reading the RUN 1–3 *archives* and the *live cluster*, not from reading
+code or trusting the previous session's summary.
+
+### 22.1 D10 — the spend ledger mis-attributed EVERY non-Anthropic call
+
+| | |
+|---|---|
+| **what** | All **1,361** spend rows across RUNs 1–3 are stamped `provider: "anthropic"` — including rows whose `model` is plainly an OpenRouter id: `deepseek/deepseek-v4-pro` (147), `openai/gpt-5.6-luna` (175), `google/gemini-2.5-flash` (149), `qwen/qwen3.6-27b` (124), `nvidia/nemotron-3-super-120b-a12b` (108), `moonshotai/kimi-k3-20260715` (99), `qwen/qwen3.5-9b` (94), `z-ai/glm-5.2` (59) |
+| **root cause** | Both production authors — `campaign._build_cluster_author` and `parallel._drive_llm_arm` — construct `LLMClient({"model": …, "spend_ledger": …})` with **no `provider` key**, so `client.py:952`'s `cfg_get(cfg, "provider", "anthropic")` **default** was stamped on every row |
+| **NOT affected** | **Routing.** `build_transport` is called with the real `opts["provider"]`, so the legs genuinely reached OpenRouter. No API call went to the wrong vendor, no model is misidentified (`model` is correct throughout), and **no recorded scientific result is touched** |
+| **IS affected** | Cost attribution **by provider** — a reported artifact. Any per-provider cost table would have charged ~$5 of OpenRouter spend to Anthropic, and a budget monitor keyed on provider would track the wrong balance |
+| **how found** | computing the provider split of RUNs 1–3 to check the RUN 4 headroom, and noticing that a run using eleven models across two vendors reported **one** vendor |
+| **why it survived** | `test_realized_cost_recorded_per_call` asserts `row["provider"] == "openrouter"` — but it **passes `provider` in explicitly**. It proves the client records what it is GIVEN, while production gave it nothing. A mechanism test over a call-site defect |
+| **fix** | `"provider": opts["provider"]` threaded at both sites, with two tests: one behavioural (`_build_cluster_author` → `llm.provider`, then a real ledger row) and one **structural AST lock** asserting every production `LLMClient(` cfg carries the key, since `_drive_llm_arm` is too heavy to instantiate. **Both proven to FAIL against the pre-fix code** with the exact diagnostics they were written to give |
+| **freeze** | **UNMOVED** — `3ca6f01ab7724d47…` still MATCHES. Neither file is hash-bound, so RUN 4 executes the identical registered v2.1 design |
+
+**The lesson, and it generalises past this bug:** *a unit test that supplies the input the production
+call site forgets cannot detect that the call site forgot it.* Test the wiring, not only the widget.
+This is the same shape as D1 (tests exercise one line; the defect needs twelve) and R106 (a ratified
+decision that reached no config): **our tests check that a value is honoured, and are blind to a
+value never passed.**
+
+### 22.2 Corrections to figures recorded in §19
+
+Each was found by re-deriving the number rather than restating it. None changes RUN 3's verdict —
+the fixes held, 0 spurious abandonments stands — but the record must be right.
+
+| § | recorded | actual | why the difference |
+|---|---|---|---|
+| 19.1 | "881 INFO · 41 WARNING · **0 ERROR** across all twelve driver logs" | **7,776 INFO · 798 WARNING · 1 ERROR** | The driver logs carry **two** logging formats (`\| WARNING \|` and `TIMESTAMP WARNING logger:`). The recorded count matched only the first. The single ERROR is in the *second* format, which is why it read as zero |
+| 19.1 | "41 transport warnings, **max 2 consecutive**" | **647 timeout events, max 5 consecutive** (621 at the 120 s bound) | same cause; the timeout WARNINGs are nearly all in the uncounted format |
+| 19.1 | "0 ERROR" | the 1 ERROR is **legitimate** | it is `driver.py:446` announcing the ONE genuine, correctly-scoped permanent reject on `leg5` (haiku) — the system reporting a real event, not a fault |
+
+**What this changes for RUN 4.** RUN 3's transport was materially noisier than recorded: ~15 timeout
+events per line per hour, each costing up to 120 s of a batch thread. That is D9, still fully
+present, and it remains throughput-only — no recorded number depends on reconciliation latency. It
+also means the `ssh_timeout_diagnostic` will fire early and often, so **D9 should be settled within
+the first hour of RUN 4** rather than eventually.
+
+### 22.3 The collision guard would have watched nothing
+
+The `collision_guard` was written against `batches/*/*.permanent.jsonl`. The real path is
+`driver.py:346` → **`batches/<base_name>.permanent.jsonl`**, flat. The glob matched zero files, so
+the guard reported `ledgered_abandonments=0 foreign=0` on the RUN 1 archive — **a clean bill of
+health for the run the defect invalidated.**
+
+It was caught only by **falsifying the guard against data where the defect is known to exist**. With
+the path corrected the guard reports, on RUN 1, `ledgered_abandonments=498 foreign=439` — **exactly**
+the 498 abandonments and 439 spurious ones the independent damage audit measured and the fix replay
+rescues. Three independent routes now agree on 439. On RUN 3 it reports 1 abandonment, 1 marker,
+`foreign=0`.
+
+> **A monitor is code, and unfalsified code is unverified code.** A guard that cannot fire is worse
+> than no guard: it manufactures confidence. Every guard here was run against RUN 1 (defect present)
+> and RUN 3 (defect absent) before being trusted.
+
+### 22.4 The deployed tree — the inherited claim was true, but narrower than it read
+
+§12.3 item 10 recorded "**NONE** of poll/driver/submit is reachable → no re-deploy". Recomputing the
+AST import closure from `run_one` confirms that clause exactly — but three **changed** files *are*
+reachable: `src/llm/client.py`, `src/llm/spend_ledger.py`, `src/selection/fitness.py`. The
+conclusion survives for a more precise reason:
+
+* all three diffs are **purely additive** (a new kwarg, a new ledger field, a new exception class);
+* `held_out_fitness` — the only fitness symbol `train_candidate` imports — is **unchanged**; R115
+  added `NoEligibleWinnerError`, a class, touching no code path;
+* `LLMClient` is imported only inside `_drive_llm_arm`, which is **laptop-side** and which `run_one`
+  never calls.
+
+**The tree was refreshed anyway, and this is the reasoning.** RUN 3 was halted for exactly one
+thing: processes a commit behind their own repository. A behaviour-equivalence *argument* is weaker
+than byte identity, and every RUN 4 record stamps `deployed-archive:<sha>` as its code provenance —
+so a stale tree means a reviewer gets two answers to "what code produced this?".
+
+* **Before refreshing, the deploy was verified to have ZERO drift** from its stated commit: a full
+  2,645-file sha256 manifest against `git archive ce27dfc5`. (A first attempt reported 214 differing
+  files; that was the comparison hashing the **Windows working tree** — CRLF — against `git archive`
+  LF blobs. A surprising negative result is a claim about your script first.)
+* Refreshed by `rsync` from a staged `git archive HEAD`, which writes each file to a temp name and
+  **renames it into place** — atomic on POSIX, so the 20 running `l16xx` ladder jobs could only ever
+  see a whole old file or a whole new one. `--delete` deliberately not used.
+* Old tree backed up to `~/llmrp_backup_ce27dfc5.tar.gz` (8.0 M) first.
+* **After: `DIFFER=0  MISSING=0`** across all 2,648 tracked files; `GIT_COMMIT` stamped
+  `b445f4e3450017d9643525261841b1ca497f8962`; `run_one` re-verified importable inside the container;
+  **all 20 ladder jobs still running.**
+
+### 22.5 Gate 14 was passing on a check that could not fail
+
+§12.3 item 14 verified the cluster venv with `ls ~/venvs/llmrp/bin/python` → "OK". That path is a
+**dangling symlink on the login node** (→ `/usr/local/bin/python`, which exists only *inside* the
+Apptainer container), and `ls` succeeds on a dangling symlink. Re-done by **executing** it:
+
+```
+apptainer exec ~/python311.sif ~/venvs/llmrp/bin/python -V   -> Python 3.11.15
+  numpy 1.26.4 · torch 2.6.0+cu124 · sb3 2.8.0 · gymnasium 1.2.3 · pandas 2.3.3
+PYTHONPATH=~/llmrp ... -c "import src.cluster.run_one"       -> RUN_ONE_IMPORT_OK
+```
+
+### 22.6 The RUN 4 budget headroom, recomputed
+
+The record quotes Anthropic **$31.96** / OpenRouter **$19.31** from Tamer's console at ~13:55 —
+which **pre-dates RUN 3** (16:19–19:45). Subtracting RUN 3's ledgered spend:
+
+| provider | quoted | − RUN 3 | available | projected | margin |
+|---|---|---|---|---|---|
+| Anthropic | $31.96 | $3.81 | **$28.15** | $18.72 | **50 %** |
+| OpenRouter | $19.31 | $0.00 | **$19.31** | $5.28 | **266 %** |
+
+⚠ Two caveats, both material. **(1)** Because of D10 the ledger's provider split is not usable as
+recorded — the table above charges all of RUN 3 to Anthropic, which is the *conservative* direction
+(true Anthropic spend was lower, so real headroom is larger). **(2)** §12.1's standing rule applies:
+**the ledger is an ESTIMATE**, every row stamped `estimated-from-planning-prices` or `realized`, and
+it once ran $10 pessimistic against the console. Quote it as an estimate, never as billed spend.
+
+### 22.7 The pre-launch gate as re-executed
+
+Every item run fresh; nothing inherited.
+
+| # | check | result |
+|---|---|---|
+| 1 | full suite | **2,870 passed · 3 skipped · 0 failed**, `PYTEST_RC=0` read from the log; tree hash `b95d7564…` identical both ends. *(Re-certified after the D10 fix — see §22.8.)* |
+| 2 | new tests falsifiable | both D10 tests **FAIL** against pre-fix code with their intended diagnostics |
+| 3 | collision fix on real data | guard replay: RUN 1 `foreign=439` of 498 — matches the independent audit exactly |
+| 4 | freeze | `--check` **RC=0**, `3ca6f01ab7724d47…` **MATCHES**, and still matches after the D10 fix |
+| 5 | lint | `ruff check src scripts tests` → All checks passed |
+| 6 | pre-flight | `preflight.py --gpu 0` → **14/14 OK, VERDICT: GO** |
+| 7–9 | wiring | `--dry-run` **RC=0 on all five** line invocations against the RUN 4 roots: core 9 arms/568 seeds/7 tiers, h3 1 arm/30 candidates, three legs 5 arms each. Tier sizes `[30,70,89,90,61,63,165]` sum to **568** and are exactly the increments of the registered ladder |
+| 10 | node-side closure | recomputed and **refined** — see §22.4 |
+| 11 | deployed tree | full manifest: 0 drift from `ce27dfc5`, then **refreshed to HEAD**, `DIFFER=0 MISSING=0` |
+| 12 | RUN 4 remote root | `~/Scratch/llmrp4` **VIRGIN** (re-checked after the dry runs — they left no side effects on either root) |
+| 13 | licensed gold | 10 files on ACFS; checksum verified locally by check 6 |
+| 14 | cluster venv | **executed**, not `ls`-ed — see §22.5 |
+| 15 | capacity | 20 jobs (all `l16xx`), `max_u_jobs 1000`, 1,010 G free on Scratch |
+| 16 | campaign PS1s | all four: **0 parse errors, 0 non-ASCII bytes, no BOM** |
+| 17 | leaked ssh | login-node process table: **no orphans**; 0 campaign processes locally |
+| 18 | prior runs stopped | 0 campaign processes (inventory excluding `$PID`) |
+| 19 | evidence preserved | RUN 1 **621 records** intact, RUN 2 and RUN 3 trees untouched |
+| 20 | budget | see §22.6 |
+
+### 22.8 Two entries in the §18.2 open-defect register are STALE — both are already closed
+
+Re-checked rather than carried forward. Overstating an open risk is its own inaccuracy (P8).
+
+| # | register says | actual |
+|---|---|---|
+| **K** | "`stop_reason` not persisted to the structured spend ledger … deferred to the next natural restart" | **CLOSED.** It landed in `18dead8`; §19.2 records it as one of the three fixes that halted RUN 3. The register was written before that commit and never updated. RUN 4 is the first run where the field exists — `truncation_guard` asserts every ledger row carries it, and treats an absent key as a STALE-DRIVER stop condition |
+| **N** | "174 legacy `Co-Authored-By` trailers in pre-2026-07-26 history … needs a history rewrite + force-push" | **CLOSED.** Measured across **all 565 commits on every local ref: 0** attribution trailers. The 2026-07-26 rewrite held. The 36 commit bodies that merely contain the string "claude" are references to `CLAUDE.md`, to the model id `claude-opus-5` (the research *subject*), and to the removal work itself — none is an authorship claim |
+
+**One cosmetic residue, and it is Tamer's call, not mine:** 2 of the 565 commits carry the author
+name `abailey81` against Tamer's own email `t.ates232004@gmail.com` (`a3f6963`, `0e080dc` — the
+2026-06 repo-unification pair). Not a Claude attribution; an old local `user.name`. Fixing it means
+another history rewrite + force-push on a shared branch, so it is surfaced and left alone.
+
+### 22.9 R115 and the arm contrast, re-derived rather than restated
+
+Two load-bearing claims were reproduced from scratch, because a conclusion this central should not
+rest on a previous session's summary of it.
+
+**R115 is wired at every site and is effect-blind.** `select_winner` filters on
+`train_safe_default_count / train_safe_call_count` against a ceiling **read from the
+pre-registration** (`_winner_fallback_ceiling`, never hardcoded), records with no counters stay
+eligible, and if every candidate is contaminated it raises `NoEligibleWinnerError` rather than
+promoting one. `campaign.py:1370` catches it by TYPE → `no_eligible_winner`, distinct from
+`no_winner`.
+
+**The arms differ exactly as H2 claims.** Calling `build_block` with one fixed input set:
+
+| arm | tail numbers | block |
+|---|---|---|
+| `scalar` | **0** | the scalar DSR alone (67 chars) |
+| `scalar_cvar5` | **1** | + `CVaR 5%: -0.0480` (86) |
+| `distributional` | **6** | the full tail block (275) |
+| `placebo` | 0 real | six inert `+0.0000` reference constants (293) |
+| `placebo_shuffled` | 6, **deranged** | set-equal to `distributional`, **not** text-identical (275) |
+
+All six shuffled values moved off their own labels — a **true derangement**, not a partial shuffle.
+The only number `placebo` shares with `distributional` is the scalar DSR itself, which every arm
+receives by design, so there is **no tail leak**. The three six-line blocks are 275/293/275 chars,
+keeping token count controlled across the contrast that matters.
+
+### 22.10 Certification of the D10 fix
+
+Recorded separately because the §22.7 row-1 certification pre-dates the fix and must not be read as
+covering it.
+
+| check | result |
+|---|---|
+| full suite | **2,872 passed · 3 skipped · 0 failed**, `PYTEST_RC=0` read from the log |
+| count reconciliation | 2,870 **+ exactly the 2 new tests** = 2,872 — no test silently lost or added |
+| source-tree hash | `17ce5fc5…`, **identical before and after** the run (366 files) — nothing moved mid-certification (P5) |
+| falsifiability | both new tests **FAIL** against the pre-fix code, with the diagnostics they were written to emit |
+| lint | `ruff check src scripts tests` → All checks passed |
+| freeze | `--check` RC=0, `3ca6f01ab7724d47…` **MATCHES** — the fix touches no hash-bound file |
+| blast radius | the archived `ProvenanceRecord` uses `self.model` and transport-derived fields and **never** `self.provider`, so `llm_calls.jsonl` and every candidate record are byte-unchanged in shape. Only the spend ledger's `provider` field changes, and only for the eight OpenRouter legs — the `anthropic` lines were already writing the correct value |
+| stub path | `default_key_env` is total (a `.get` with a fallback, no raise), and `api_key_env` is consumed only in the lazy-transport branch production never reaches, so a `provider: "stub"` cfg cannot break Pass-A |
+
+### 22.11 Further verification, beyond the inherited gate
+
+Run because the instruction was to be certain, not to be finished. Each is an INDEPENDENT
+re-derivation of something already believed true — the point is a second route to the same answer,
+not a second reading of the same claim.
+
+| what | how | result |
+|---|---|---|
+| **the licensed gold the CLUSTER reads** | sha256 of all four ACFS panel files vs the frozen manifest | **all four MATCH** (`7cf5d988…`, `18fcb242…`, `fe8cb27b…`, `8a16557c…`). The old default's decoy dir `~/Scratch/llmrp/inputs` confirmed **empty** |
+| **the Anthropic key is live** | `scripts/author_smoke.py` | **OK in 2.4 s**, `claude-opus-5` — the confirmatory seat answers |
+| **the OpenRouter key is live AND the R106 pin round-trips** | `leg_gates.py --leg gemini-2.5-flash --only smoke` (output to scratchpad, so it cannot contaminate gate resolution) | `smoke_ok: true`, **`reasoning_tokens: 0`**, `pin_roundtrip: verified` |
+| **CRN — a chatty reward cannot shift agent init** | resolve kwargs, burn 1,000 draws on numpy-legacy + numpy-Generator + `random` + torch, resolve again | **byte-identical**; `seed` IS inside the SB3 kwargs; seed 8 ≠ seed 7 (guards against a vacuous test). Also re-confirms `train_steps=400000`, `buffer_size=50000`, `learning_starts=1000` live |
+| **the leg roster across all four files that name it** | prereg `queue_order` vs `legs.yaml` vs `mode_d_launch.ps1` vs `mode_d_supervisor.ps1` | **all four identical**, `leg1..leg10` in order, 12 launcher lines — the R106 drift mode is closed |
+| **the shared-root collision surface** | enumerated every path built from the shared archive root, then checked the real archives | **1,874 artifacts across two twelve-line runs (RUN 1 `batches/ledger/driver_status` = 776/417/150, RUN 3 = 463/10/58): every single one line-tagged, ZERO exceptions.** Empirical closure, stronger than the code-reading argument |
+| **the killswitch cannot inherit RUN 1's incident** | `incident_blocks_submission(root)` reads `<root>/MYRIAD_KILL_INCIDENT.json` | root-scoped; RUN 4's root is fresh. (RUN 1's incident file still sits in its own tree) |
+| **the watchdog cannot poison a fresh-root run** | read `mode_d_watchdog.ps1:76-81` | it passes **both** `-OutDir` and `-RemoteRoot` on every restart — the D4 fix is real |
+| **freeze anchors** | `docs/prereg-v2.1.sha256`, `docs/prereg-v2.0.sha256`, both tags | v2.1 anchor matches the live hash; **v2.0's anchor preserved un-overwritten**; both tags present **on origin** (`prereg-v2.1` → seal `b9c2be5`), so the external anchor claim holds |
+| **attribution hygiene** | all 565 commits on every local ref | **0** `Co-Authored-By`/"Generated with" trailers. The 36 bodies containing "claude" reference `CLAUDE.md`, the model id, or the removal work itself |
+
+**Launch ordering, stated because getting it wrong duplicates every line.** The launcher must run
+BEFORE the watchdog. The watchdog restarts any line whose `mode_d_supervisor` process is missing, so
+starting it first would spawn twelve supervisors that the launcher would then duplicate. All twelve
+supervisor processes exist immediately at launch — it is the *supervisor* that sleeps through the leg
+stagger, not the launcher — so launcher → verify 12 up → watchdog is safe.

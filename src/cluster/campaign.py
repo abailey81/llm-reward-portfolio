@@ -469,7 +469,14 @@ def _build_cluster_author(arm: str, opts: dict, arm_root: Path) -> tuple[Any, An
     diversity = bool(opts.get("diversity_prompt_variation", False))
     prompts = build_prompt_set(opts["env_cfg"], opts["n_assets"])
     llm = LLMClient(
-        {"model": model, "spend_ledger": opts.get("spend_ledger")}, transport=transport,
+        # 2026-07-28: `provider` MUST be threaded. The transport above is built from the real
+        # opts["provider"], so routing was always correct — but this cfg used to carry only
+        # model+spend_ledger, and client.py resolves `cfg_get(cfg, "provider", "anthropic")`, so
+        # every spend row for the eight OpenRouter legs was stamped "anthropic". Measured across
+        # RUNs 1-3: all 1,361 rows said anthropic, including models like `deepseek/deepseek-v4-pro`.
+        # Cost attribution by provider is a reported artifact, so a wrong label is a real defect.
+        {"model": model, "provider": opts["provider"],
+         "spend_ledger": opts.get("spend_ledger")}, transport=transport,
         archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"),
     )
     return llm, prompts, diversity

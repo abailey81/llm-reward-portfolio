@@ -1023,7 +1023,12 @@ def _drive_llm_arm(arm: str, pool: DevicePool, opts: dict, archive_root: str) ->
     # "w" dump lost the whole arm's call provenance (incl. the R71 served_model reproducibility anchor,
     # which config/llm.yaml requires recorded at the FIRST live call) on any mid-arm crash.
     llm = LLMClient(
-        {"model": model, "spend_ledger": opts.get("spend_ledger")},
+        # 2026-07-28: `provider` threaded here for the same reason as in the cluster author
+        # (src/cluster/campaign.py) — omitting it let client.py fall back to its "anthropic"
+        # default, mis-attributing every OpenRouter leg's cost in the spend ledger. Routing was
+        # never affected: the transport above is built from the real opts["provider"].
+        {"model": model, "provider": opts["provider"],
+         "spend_ledger": opts.get("spend_ledger")},
         transport=transport,
         archive=JsonlArchiveSink(Path(arm_root) / "llm_calls.jsonl"),
     )

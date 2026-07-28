@@ -3,6 +3,98 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-28d] RUN 4 PRE-LAUNCH — the gate re-executed, and what re-executing it found
+
+**The session Tamer designated to "prepare deeply and launch". The handoff was accurate and its gate
+was the right gate; running every item by EXECUTION rather than inheriting it still turned up one new
+machine defect, three wrong figures in the record, a guard that watched nothing, and a gate check that
+could not fail.** Full detail: `docs/CAMPAIGN_EXECUTION_RECORD.md` **§22**.
+
+### ① D10 — the spend ledger mis-attributed every non-Anthropic call
+
+All **1,361** spend rows across RUNs 1–3 are stamped `provider: "anthropic"` — including rows whose
+`model` is plainly an OpenRouter id (`deepseek/deepseek-v4-pro`, `openai/gpt-5.6-luna`,
+`google/gemini-2.5-flash`, `qwen/qwen3.5-9b`, `z-ai/glm-5.2`, …). Both production authors construct
+`LLMClient({"model": …, "spend_ledger": …})` with **no `provider` key**, so `client.py`'s
+`cfg_get(cfg, "provider", "anthropic")` DEFAULT was written to every row.
+
+**Routing was never wrong** — `build_transport` receives the real `opts["provider"]`, so the legs
+genuinely reached OpenRouter and **no recorded scientific result is affected**. What is affected is
+cost attribution by provider, which is a reported artifact.
+
+Fixed at both sites with two tests **proven to FAIL first**: one behavioural, one a structural AST
+lock asserting every production `LLMClient(` cfg carries the key. **Freeze hash UNMOVED**
+(`3ca6f01ab7724d47…` still MATCHES) — neither file is hash-bound, so RUN 4 executes the identical
+registered v2.1 design.
+
+> **The lesson:** `test_realized_cost_recorded_per_call` already asserted `row["provider"] ==
+> "openrouter"` — but it *passes `provider` in explicitly*. A unit test that supplies the input the
+> production call site forgets cannot detect that the call site forgot it. Same shape as D1 (tests
+> exercise one line, the defect needs twelve) and R106 (a ratified decision that reached no config):
+> **our tests check that a value is honoured and are blind to a value never passed.**
+
+### ② Three corrected figures in §19 — RUN 3 was noisier than recorded
+
+The driver logs carry **two** logging formats; the recorded counts matched only one.
+
+| recorded | actual |
+|---|---|
+| 881 INFO · 41 WARNING · **0 ERROR** | **7,776 INFO · 798 WARNING · 1 ERROR** |
+| "41 transport warnings, max **2** consecutive" | **647 timeout events, max 5 consecutive** (621 at the 120 s bound) |
+| "0 ERROR" | the 1 ERROR is **legitimate** — `driver.py:446` announcing the one genuine, correctly-scoped `leg5` reject |
+
+RUN 3's verdict is unchanged (the fixes held; 0 spurious abandonments stands), but D9 is far more
+present than "41 warnings" suggested — ~15 timeout events per line per hour. Consequence for RUN 4:
+the `ssh_timeout_diagnostic` should fire early, so **D9 can be settled in the first hour** rather than
+eventually.
+
+### ③ The collision guard would have watched nothing
+
+It globbed `batches/*/*.permanent.jsonl`; the real path is flat — `batches/<base>.permanent.jsonl`
+(`driver.py:346`). It matched zero files and gave the RUN 1 archive **a clean bill of health for the
+run the defect invalidated**. Caught only by falsifying it against data where the defect is known to
+exist. Corrected, it reports RUN 1 `ledgered_abandonments=498 foreign=439` — **exactly** the
+independent damage audit's numbers — and RUN 3 `foreign=0`. **Three independent routes now agree on
+439.** Every guard was run against RUN 1 (defect present) and RUN 3 (defect absent) before being
+trusted: *a guard that cannot fire manufactures confidence.*
+
+### ④ The cluster deploy — claim narrowed, then made moot
+
+The inherited "`run_one` imports none of poll/driver/submit/campaign → no re-deploy" is **true**, but
+three *changed* files ARE reachable (`llm/client.py`, `llm/spend_ledger.py`, `selection/fitness.py`).
+The conclusion survives for a sharper reason: all three diffs are purely additive, `held_out_fitness`
+(the only fitness symbol the node path uses) is unchanged, and `LLMClient` is imported only inside the
+laptop-side `_drive_llm_arm`.
+
+**Refreshed to HEAD anyway** — RUN 3 was halted for precisely this ambiguity, and every record stamps
+`deployed-archive:<sha>` as its provenance. Verified zero drift from `ce27dfc5` first (full 2,645-file
+sha256 manifest), backed up, then `rsync`-ed from a staged `git archive HEAD` — atomic per-file rename,
+so the 20 running `l16xx` ladder jobs could only see whole files. **After: `DIFFER=0 MISSING=0`, all 20
+ladder jobs still running.** *(A first manifest attempt reported 214 differences: it hashed the Windows
+CRLF working tree against `git archive`'s LF blobs. A surprising negative result is a claim about your
+script first.)*
+
+### ⑤ Gate 14 was passing on a check that could not fail
+
+It verified the cluster venv with `ls ~/venvs/llmrp/bin/python` — a **dangling symlink** on the login
+node (it resolves only inside the Apptainer container), and `ls` succeeds on those. Re-done by
+executing it: Python 3.11.15, torch 2.6.0, sb3 2.8.0, and `import src.cluster.run_one` OK.
+
+### ⑥ Gate results
+
+Full suite **2,870 passed / 3 skipped / 0 failed**, `PYTEST_RC=0` read from the log with the tree hash
+identical both ends (and re-certified after the D10 fix) · `freeze --check` RC=0 MATCHES · `ruff` clean
+· `preflight --gpu 0` **14/14 GO** · `--dry-run` RC=0 on **all five** line invocations, tier sizes
+`[30,70,89,90,61,63,165]` summing to 568 · `~/Scratch/llmrp4` **VIRGIN** and unaffected by the dry runs
+· all four PS1s 0 parse errors / 0 non-ASCII / no BOM · 0 campaign processes · 20 ladder jobs preserved.
+
+**Budget, recomputed** — the quoted console figures pre-date RUN 3, so subtracting it: Anthropic
+**$28.15** available vs $18.72 projected (**50 %** margin), OpenRouter **$19.31** vs $5.28 (**266 %**).
+Conservative, since D10 charges all of RUN 3 to Anthropic; and the ledger is an **estimate**, never
+billed spend.
+
+---
+
 ## [2026-07-28c] RUN 3 HALTED, RUN 4 PREPARED — the fixes proven under twelve-line load, then handed off unlaunched
 
 **Session close 19:45–21:00 UTC. Tamer's instruction: do everything up to but NOT including the
