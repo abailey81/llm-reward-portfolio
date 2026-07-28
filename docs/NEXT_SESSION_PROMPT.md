@@ -157,6 +157,22 @@ self-healing.
    mirrored by a later pull). The backup loop does this every 15 min.
 5. Keep documenting continuously.
 
+## 10b. THE ANTHROPIC KEY — watch it, do not let it surprise you
+
+FOUR lines bill the Anthropic key and one of them is the CONFIRMATORY arm:
+  c1    Opus, CORE confirmatory   18 calls  $1.47  ->  ~$12.3 projected ($0.0814/call x 150)
+  h3ss  Opus, H3 single-shot      30 calls  $2.58  ->  ~$2.6 (appears complete)
+  leg8  sonnet-5                  90 calls  $1.61  ->  ~$8   (only ~1 of 5 arms done)
+  leg5  haiku-4.5                 90 calls  $0.51  ->  ~$2.5 (only ~1 of 5 arms done)
+  TOTAL                                     $6.17  ->  ~$25.4 projected
+
+BALANCE: $34.84 (Tamer, 2026-07-28). Headroom ~$9.4 — COMFORTABLE. Tamer monitors and tops up.
+
+Watch it anyway, because if it ever ran dry the line that stops is c1 — the H2 headline — and it
+would fail SILENTLY (R83: the ledger warns at 80%/100% but NEVER refuses a call). The leg figures are
+extrapolated from ~1 arm each and carry the widest uncertainty in the handoff; re-read them from the
+ledger rather than trusting the extrapolation. OpenRouter carries no exposure (~$2.50 for six legs).
+
 ## 11. THE ONE DECISION STILL MINE
 
 `train_safe_default_count` is archived but **never gates winner selection** (winner =

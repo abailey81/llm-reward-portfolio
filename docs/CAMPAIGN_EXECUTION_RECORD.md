@@ -174,6 +174,36 @@ code does not implement.
 rate is ~15–20 calls per arm mid-run, so the true total will land near this figure but should be
 re-read from the ledger at write-up time rather than quoted from here.
 
+#### THE ANTHROPIC KEY — the binding balance, and why it is the one to watch
+
+The $30 figure is a TOTAL-spend ceiling across all providers. The number that can actually stop the
+campaign is the **Anthropic key balance**, because FOUR lines bill it and one of them is the
+confirmatory arm:
+
+| line | calls | spent | arms done | projected at 5 arms |
+|---|---|---|---|---|
+| `c1` — **Opus, CORE confirmatory** | 18 | $1.47 | authoring now | **~$12.3** (150 calls × $0.0814) |
+| `h3ss` — Opus, H3 single-shot | 30 | $2.58 | appears complete | ~$2.6 |
+| `leg8` — sonnet-5 | 90 | $1.61 | ~1 of 5 | **~$8** |
+| `leg5` — haiku-4.5 | 90 | $0.51 | ~1 of 5 | ~$2.5 |
+| | | **$6.17 now** | | **≈ $25.4 projected** |
+
+**BALANCE: $34.84** (confirmed by Tamer, 2026-07-28), against a projected **≈ $25.4**. Headroom
+**≈ $9.4**, and Tamer monitors and tops up. **This is comfortable — it is a WATCH item, not a risk.**
+
+**Why it is nonetheless the balance to watch.** If this key were ever to run dry, the line that stops
+is `c1` — the H2 headline, which began only at 11:40 UTC. Everything else running is replication or
+comparator work. And it would fail SILENTLY by design: R83's ledger warns at 80 %/100 % but **never
+refuses a call**, so no hard gate would catch it. The OpenRouter key carries no such exposure (all
+six of those legs together are ~$2.50).
+
+**Correction to my own earlier figure:** I first projected "≈ $19.53 total", which UNDERSTATED the
+Anthropic exposure because it counted only the core line's Opus cost and omitted the four remaining
+arms on each of the two Anthropic-billed replication legs (`leg8` sonnet-5, `leg5` haiku-4.5). The
+table above is the corrected basis. Note the leg figures are extrapolated from ~1 arm each and carry
+the widest uncertainty of anything in this document — re-read them from the ledger rather than
+trusting the extrapolation.
+
 ---
 
 ## 4. WHAT WILL HAPPEN (future) — the forecast and why
