@@ -36,6 +36,23 @@ _JOB_ID_RE = re.compile(r"Your job(?:-array)? (\d+)")
 #                               to wedge the driver) while still REFUSING a CHANGED key (MITM guard).
 _SSH_OPTS = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new"]
 
+#: Wall-clock bound on ONE driver ssh call. Lowered 300 -> 120 on 2026-07-28 after measuring where
+#: the 300 s "timeouts" actually go.
+#:
+#: MEASURED, on the live RUN 2 driver: over 55 samples in three minutes, only 8 distinct ssh
+#: children existed and **not one ever aged past 10 s** — while the driver logged a 300 s timeout
+#: roughly every five minutes, on ops as trivial as `mkdir -p`. The remote side is not the cause
+#: either (`qstat -r` 1.2 s, `find` over the whole outputs tree 0.046 s, login-node load 3.4), nor
+#: is the client (sustained 8-concurrent A/B of Windows OpenSSH 9.5p2 vs Git's 10.2p1: 80/80 ok on
+#: both, worst case 6.0 s). So the wait is happening in the PARENT — `subprocess.run`'s pipe
+#: reader never observing EOF — and the log message misattributes it to the remote command.
+#:
+#: The exact parent-side mechanism is NOT yet identified, so this is a BOUND, not a cure: it caps
+#: the cost of each event at 120 s instead of 300 s and returns the batch thread to work 2.5x
+#: sooner. 120 s is ~20x the measured worst-case real latency, so it cannot truncate a legitimate
+#: call. The pull path is unaffected (it uses its own Popen with a 3600 s budget for a bulk tar).
+_RUNNER_TIMEOUT_SECS = 120.0
+
 
 def reap(proc: subprocess.Popen, *, grace: float) -> None:
     """Wait ``grace`` seconds for a clean exit, then KILL — the child cannot outlive this call.
@@ -89,7 +106,7 @@ def ssh_runner(host: str = "myriad") -> Runner:
         # thread on any non-ASCII byte. errors="replace" keeps a stray byte from ever killing a pull.
         out = subprocess.run(
             [*ssh_base(host), remote], capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=300, check=True,
+            encoding="utf-8", errors="replace", timeout=_RUNNER_TIMEOUT_SECS, check=True,
         )
         return out.stdout
     return _run

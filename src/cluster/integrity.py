@@ -300,6 +300,12 @@ def write_integrity_report(
 ) -> tuple[dict[str, Any], Path, Path]:
     """Write the effect-blind integrity report (JSON + MD) under ``out_dir`` (default: read_root).
 
+    2026-07-28: the filenames are scoped by ``run.line_tag()``. ``read_root`` is shared by all
+    twelve supervised lines, so the previous unqualified ``tier1_integrity.json`` was ONE file that
+    every line overwrote — the report a reviewer read was whichever line wrote last, and the review
+    gate's staleness check (approval mtime vs report mtime) raced against other lines' writes. The
+    RUN 1 archive confirms it: a single report existed for all twelve lines.
+
     Returns ``(report, json_path, md_path)``. Every GATE check is a COUNT or a CENSUS — never a
     statistic of a performance metric — so the auto-proceed decision is effect-blind. When
     ``winners`` is given, an additional **SEALED-SAFE SELECTION** section carries each arm's chosen
@@ -365,7 +371,7 @@ def write_integrity_report(
             for arm, w in winners.items()
         }
 
-    json_path = out_root / "tier1_integrity.json"
+    json_path = out_root / f"tier1_integrity_{run.line_tag()}.json"
     json_path.write_text(json.dumps(report, indent=1, sort_keys=True), encoding="utf-8")
 
     lines = ["# Tier-1 (C3 design floor) integrity report", "", _BLIND_HEADER, ""]
@@ -392,6 +398,6 @@ def write_integrity_report(
     lines += ["", "Gate proceeds AUTOMATICALLY on green health (no manual wait). It stops only on a "
               "real execution problem, or when `--hold-at-gate` is set — then create `TIER1_APPROVED` "
               "next to this report and re-run with `--resume`."]
-    md_path = out_root / "tier1_integrity.md"
+    md_path = out_root / f"tier1_integrity_{run.line_tag()}.md"
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report, json_path, md_path

@@ -149,6 +149,18 @@ class ClusterRun:
     def test_spec_root(self) -> str:
         return f"{self.spec_archive_root.rstrip('/')}/{self.test_subdir}"
 
+    def line_tag(self) -> str:
+        """This LINE's identity, for per-line files that live in the SHARED output root.
+
+        2026-07-28, found while sweeping for further instances of the cross-line collision that
+        invalidated RUN 1. `read_root` is shared by all twelve supervised lines, so ANY unqualified
+        filename under it is a collision waiting to happen. The archive sub-roots
+        (``search`` / ``search_leg_<model>`` / ``search_h3_singleshot``) are already the mechanism
+        that keeps lines disjoint, so they are the natural per-line key here too.
+        """
+        sub = str(self.search_subdir)
+        return sub[len("search_"):] if sub.startswith("search_") else sub
+
 
 def build_cluster_run(
     *,
@@ -1742,7 +1754,21 @@ def run_campaign_tiered(
     # execution defect is found (a short/incomplete unit or device inhomogeneity), or (b) Tamer set an
     # explicit ``hold_at_gate`` to eyeball the effect-blind report first. Either stop is released by
     # creating ``<read_root>/TIER1_APPROVED`` and re-running with ``resume=True``.
-    approval = Path(run.read_root) / "TIER1_APPROVED"
+    # 2026-07-28 CROSS-LINE COLLISION FIX (same class as the reject-marker defect that invalidated
+    # RUN 1). Both of these files live in `read_root`, which ALL TWELVE supervised lines share, and
+    # both were unqualified. Two distinct failures followed:
+    #   * `TIER1_APPROVED` was ONE file for twelve gates, and the passage CONSUMES it (unlink). An
+    #     approval granted after reviewing line A's report could therefore be eaten by whichever
+    #     line reached its gate first, letting THAT line proceed to the expensive C4 sweep on a
+    #     review it never had, while line A still stopped.
+    #   * `tier1_integrity.json` was likewise one file, rewritten by every line — so the report a
+    #     reviewer read was whichever line wrote last, and the staleness comparison below
+    #     (approval mtime vs report mtime) raced against OTHER lines' report writes, silently
+    #     invalidating legitimate approvals.
+    # Verified on the RUN 1 archive: exactly one tier1_integrity.json/.md existed for all twelve
+    # lines. Both are now scoped by `run.line_tag()`. Note the rename fails CLOSED: a pre-existing
+    # unqualified TIER1_APPROVED is now ignored, so the gate stops rather than passing unreviewed.
+    approval = Path(run.read_root) / f"TIER1_APPROVED_{run.line_tag()}"
     if review_gate:
         from src.cluster.integrity import write_integrity_report
 
@@ -1751,7 +1777,7 @@ def run_campaign_tiered(
         # An approval counts only if it postdates the report THE REVIEWER SAW — i.e. the report
         # file as it existed BEFORE this run regenerates it (regeneration always postdates any
         # legitimate approval, so comparing against the fresh report would reject everything).
-        _prior_report = Path(run.read_root) / "tier1_integrity.json"
+        _prior_report = Path(run.read_root) / f"tier1_integrity_{run.line_tag()}.json"
         approved = False
         if approval.exists():
             if _prior_report.exists() and approval.stat().st_mtime >= _prior_report.stat().st_mtime:

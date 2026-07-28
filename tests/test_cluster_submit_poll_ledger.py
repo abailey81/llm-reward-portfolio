@@ -623,3 +623,30 @@ def test_reject_truth_and_completion_truth_resolve_the_same_archive(tmp_path):
 
     # no archive_root: mirror-wide fallback
     assert spec_local_root({}, tmp_path) == tmp_path
+
+
+def test_the_driver_ssh_timeout_is_bounded_well_below_the_old_300s(monkeypatch):
+    """2026-07-28: the 300 s bound was 50x the measured worst-case real latency, and MEASURED on
+    the live driver the wait was not in the ssh call at all (no child ever aged past 10 s while
+    300 s timeouts were being logged). The bound is what caps the damage, so it is pinned here:
+    generous against real latency, but not so generous that a parked thread idles for five
+    minutes."""
+    from src.cluster import submit as _submit
+
+    assert 60.0 <= _submit._RUNNER_TIMEOUT_SECS <= 180.0, _submit._RUNNER_TIMEOUT_SECS
+
+    captured: dict[str, object] = {}
+
+    def fake_run(argv, **kw):
+        captured.update(kw)
+
+        class R:
+            stdout = "ok"
+
+        return R()
+
+    monkeypatch.setattr("src.cluster.submit.subprocess.run", fake_run)
+    assert _submit.ssh_runner("h")(["qstat", "-r"]) == "ok"
+    assert captured["timeout"] == _submit._RUNNER_TIMEOUT_SECS, (
+        "ssh_runner must use the module bound, not a hardcoded literal"
+    )

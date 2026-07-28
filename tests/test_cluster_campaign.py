@@ -800,6 +800,12 @@ def test_crn_pair_device_consistency_replaces_per_unit_homogeneity(tmp_path):
             return tmp_path / "search"
         def test_read(self):
             return tmp_path / "test"
+        def line_tag(self):
+            # 2026-07-28: the report filename is per-LINE now (read_root is shared by all twelve
+            # supervised lines). The double must carry it too — `write_integrity_report` requires
+            # it rather than defaulting, so a run object that cannot identify its line fails LOUD
+            # instead of silently writing back to the old shared filename.
+            return "search"
 
     census = _test_census(tmp_path / "test" / "distributional", "distributional", [0, 1])
     assert census["per_seed_device"] == {"0": "Tesla V100-PCIE-32GB", "1": "NVIDIA A100-PCIE-40GB"}
@@ -1041,3 +1047,82 @@ def test_zero_unit_campaign_is_refused_not_scored_as_all_ok(tmp_path) -> None:
             baseline_names=[],
         )
     assert all({}) is True, "the vacuous truth this guard exists to defeat"
+
+
+# --------------------------------------------------------------------------------------------
+# 2026-07-28: the SECOND cross-line collision, found by sweeping for more instances of the
+# reject-marker defect that invalidated RUN 1. `read_root` is shared by all twelve supervised
+# lines, so any UNQUALIFIED filename under it collides. The review gate had two.
+# --------------------------------------------------------------------------------------------
+
+
+def _run_for(search_subdir: str, read_root):
+    from src.cluster.campaign import ClusterRun
+
+    return ClusterRun(
+        run_batch=lambda specs, name, **kw: {"ok": True},
+        spec_archive_root="/home/u/Scratch/llmrp/outputs",
+        read_root=Path(read_root),
+        search_subdir=search_subdir,
+        test_subdir=search_subdir.replace("search", "test", 1),
+    )
+
+
+def test_line_tag_is_distinct_for_every_supervised_line(tmp_path):
+    """The twelve lines must never resolve to the same tag, or per-line files re-collide."""
+    subdirs = [
+        "search",                      # the confirmatory core
+        "search_h3_singleshot",        # the H3 floor unit
+        "search_leg_deepseek_v4_pro", "search_leg_glm_5_2", "search_leg_qwen3_6_27b",
+        "search_leg_qwen3_5_9b", "search_leg_haiku_4_5", "search_leg_gpt_5_6_luna",
+        "search_leg_nemotron_3_super", "search_leg_sonnet_5", "search_leg_gemini_2_5_flash",
+        "search_leg_kimi_k3",
+    ]
+    tags = [_run_for(s, tmp_path).line_tag() for s in subdirs]
+    assert len(set(tags)) == len(subdirs), f"line_tag collides: {sorted(tags)}"
+    assert _run_for("search", tmp_path).line_tag() == "search"
+    assert _run_for("search_leg_kimi_k3", tmp_path).line_tag() == "leg_kimi_k3"
+
+
+def test_the_review_gates_approval_and_report_are_per_line_not_shared(tmp_path):
+    """One line's approval must not be consumable by another line's gate.
+
+    Before the fix both `TIER1_APPROVED` and `tier1_integrity.json` were single files in the
+    SHARED read_root. The approval passage CONSUMES the file (unlink), so an approval granted
+    after reviewing line A's report could be eaten by whichever line reached its gate first --
+    that line proceeding to the expensive C4 sweep on a review it never had, while line A still
+    stopped. The RUN 1 archive showed exactly one report for all twelve lines.
+    """
+    core = _run_for("search", tmp_path)
+    leg = _run_for("search_leg_qwen3_5_9b", tmp_path)
+
+    core_approval = Path(core.read_root) / f"TIER1_APPROVED_{core.line_tag()}"
+    leg_approval = Path(leg.read_root) / f"TIER1_APPROVED_{leg.line_tag()}"
+    assert core_approval != leg_approval, "two lines share ONE approval file"
+
+    core_report = Path(core.read_root) / f"tier1_integrity_{core.line_tag()}.json"
+    leg_report = Path(leg.read_root) / f"tier1_integrity_{leg.line_tag()}.json"
+    assert core_report != leg_report, "two lines overwrite ONE integrity report"
+
+    # approving the LEG must leave the CORE gate unapproved, and vice versa
+    leg_approval.write_text("ok", encoding="utf-8")
+    assert leg_approval.exists() and not core_approval.exists()
+
+
+def test_integrity_report_filenames_carry_the_line_tag(tmp_path, monkeypatch):
+    """The writer and the gate must agree on the path, or the staleness check reads a file that
+    is never written and every approval is rejected as stale."""
+    from src.cluster import integrity as _integ
+
+    run = _run_for("search_leg_sonnet_5", tmp_path)
+    (tmp_path / "search_leg_sonnet_5").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "test_leg_sonnet_5").mkdir(parents=True, exist_ok=True)
+
+    _report, json_path, md_path = _integ.write_integrity_report(
+        run, arms=[], h2_arms=[], baseline_names=[], core_seeds=[0],
+        opts_for=lambda a: {"candidates": 0, "search_seeds_per_candidate": 1},
+    )
+    assert json_path.name == "tier1_integrity_leg_sonnet_5.json", json_path.name
+    assert md_path.name == "tier1_integrity_leg_sonnet_5.md", md_path.name
+    # and it is exactly the path the gate's staleness check consults
+    assert json_path == Path(run.read_root) / f"tier1_integrity_{run.line_tag()}.json"
