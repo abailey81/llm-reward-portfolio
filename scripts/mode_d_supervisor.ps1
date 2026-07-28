@@ -66,6 +66,9 @@ $stopFile = Join-Path $outDir "STOP_CAMPAIGN"
 New-Item -ItemType Directory -Force $outDir | Out-Null
 $safe     = ($Line -replace "[^a-zA-Z0-9_-]", "_")
 $logFile  = Join-Path $outDir ("supervisor_{0}.log" -f $safe)
+# The DRIVER's own stdout/stderr, kept separate from the supervisor's few lines so a 23-day
+# driver log never buries the relaunch history that says whether the line is healthy.
+$driverLog = Join-Path $outDir ("driver_{0}.log" -f $safe)
 
 $py = Join-Path $repo ".venv\Scripts\python.exe"   # ABSOLUTE (2026-07-18 drill)
 
@@ -177,7 +180,18 @@ while ($attempt -lt $maxAttempts) {
     Log ("attempt {0}: launching the driver" -f $attempt)
     $rc = -1
     try {
-        & $py @driverArgs
+        # CAPTURE THE DRIVER'S OWN OUTPUT (2026-07-28, added during the launch itself).
+        # Without this the driver's stdout/stderr goes only to the spawned console window, so its
+        # WARNINGs are unreadable to anyone not sitting at the machine. That gap bit immediately:
+        # within the first hour the heartbeat reported "N consecutive pull/ops failures" and the
+        # driver had logged the exact exception behind it -- to a window nobody can read. For a
+        # 23-day unattended run the diagnosis has to survive in a file. Tee, not redirect, so the
+        # console still shows it live.
+        # Out-File -Encoding utf8, NOT Tee-Object: PowerShell 5.1's Tee writes UTF-16LE, which
+        # makes every grep/Select-String over the log return nothing (each character separated by a
+        # NUL byte). A log you cannot search is not a log. The console copy is not worth having --
+        # nobody reads the spawned window, which is the whole reason this redirect exists.
+        & $py @driverArgs 2>&1 | Out-File -FilePath $driverLog -Encoding utf8 -Append
         if ($null -ne $LASTEXITCODE) { $rc = $LASTEXITCODE }
     } catch {
         Log ("driver INVOCATION failed before start: {0}" -f $_.Exception.Message)

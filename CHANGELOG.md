@@ -3,6 +3,81 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-28] — ★ **THE CONFIRMATORY CAMPAIGN IS FROZEN AND RUNNING** · live-ops log of the first hour
+
+**FROZEN** `4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd` at 2026-07-28T00:05:13Z,
+tag `prereg-v2.0` → `0f6221b`, seal commit `ce27dfc`. Verified by **RE-DERIVATION**: a fresh
+`canonical_hash()` over the nine bound files matches the recorded value, and `enforce_freeze` — which
+had correctly refused every launch all session — now reports *"design FROZEN … (no drift)"*. The
+sentinel independently confirms the seal held into execution (`design_drift: the running design
+still matches the freeze`). ⚠ No OpenTimestamps proof (the client crashes on Windows: tested, then
+uninstalled with the environment verified restored — zero pinned packages moved) and the tag is
+ANNOTATED, not signed. **The write-up must not imply otherwise**; the re-derivable hash is the
+anchor, and it trusts no key. External dated record: commit + tag pushed to `origin`.
+
+**LAUNCHED** `scripts\mode_d_launch.ps1` → 12 supervised lines, core at T+0, 11 staggered ~1 h behind
+the canary shield. **Zero deaths across all twelve.** Deploy proven at the frozen commit: 630/630
+files byte-identical to their committed blobs.
+
+### LIVE-OPS FINDINGS IN THE FIRST HOUR (three of them mine)
+
+**① The stall mechanism: a partial submission + the alive-guard.** `submit_batch` pushes and qsubs
+ONE part per pending unit under `--chunk-tasks 1` (240 H1 units = 60 parts). A run of transport
+failures aborted several rounds PARTWAY, and the driver's alive-guard — `if alive_names: alive_seen
+= True` gates submission entirely — then blocked the parts that never went out until the already-
+submitted ones fully drain, **~7 hours away**. Jobs sat static at 126 while `rounds` stayed 0 with
+parts visibly queued. Not a bug in either half; a bad interaction that only appears when a round
+fails midway.
+
+**② The transport failures were SELF-INFLICTED.** I quarantined the stale artifacts (below) *after*
+launching, moving 13 remote directories out from under drivers that were mid-pull — exactly what
+fails a `find`-then-`tar` pull. Ruled out by testing rather than reasoning: ssh contention (8/8
+concurrent, 1.7 s), `push_batch`, `prepare_remote`, `qsub` (a manual submit accepted), **40/40 rapid
+qsubs** (no rate limit), and permanent poisoning of the shared-pull state (`last_error` *is* cleared
+on success). The warning cleared once I stopped mutating the remote. **The lesson: quarantine
+BEFORE launch.** The stale ledgers were visible in my pre-launch sweep — I checked the confirmatory
+roots for *record* collisions and never checked the ledger directory for *undated rows*.
+
+**③ The killswitch was INERT, and the archive was full of archaeology.** `_enforce_kill_switch`
+refuses to enforce whenever any epilogue row lacks a `ts` (`if verdict.n_undated: return`, the #56
+false-positive guard). Every ledger in the archive was pre-campaign, written by probes whose
+jobscripts predate the `ts` fix — so all 29 rows were undated and the guard that protects continued
+**Myriad access** was switched off by history. 111 stale records had also been mirrored in. Checked
+the science risk FIRST: `pending_specs` is scoped per archive sub-root (its docstring names the
+H3-null-fabrication hazard that scoping prevents), so `a100_probe/scalar/scalar-g0-c0` could never
+be confused with `search/scalar/scalar-g0-c0` — **noise, not contamination**. Quarantined both ends,
+MOVED never deleted; the detector is armed again and the archive is a clean slate.
+
+**④ Five ORPHANED drivers from a previous session had been running for six hours** — zero jobs, empty
+remote root, stuck in `pull_outage`: spinning on **exactly the cold-start deadlock fixed earlier the
+same day**, in processes that predate the fix. Killed.
+
+**⑤ MY ERROR, recorded because it cost cluster time.** Recovering the stranded parts, I checked
+"already queued?" against `qstat` output — which **truncates job names to 10 characters**, so
+`c1_baselines_p01` was compared with `c1_baselin` and almost every part looked unsubmitted. **129
+went out where ~77 were genuinely stranded**, creating ~52 duplicates. Harmless to the science —
+same spec means same seed, same reward, same frozen config, so it is deterministic by construction
+and the archive holds one record per run_id — but ~52 needless trainings. Cleaned up by keeping the
+LOWEST job id per name (the driver's own submission, which its alive-guard tracks) and deleting the
+rest. **Net outcome: the complete first wave of 129 parts is submitted** — baselines 60/60, canary
+23/23, random_search 30/30, tpe 10/10, bayes 5/5, cma_es 1/1 — against 52 before the recovery.
+
+**⑥ The driver was unobservable.** Its stdout went only to a spawned console window, so the exception
+behind ⑴ was unreadable to anyone not sitting at the machine. The supervisor now writes
+`driver_<line>.log` — via `Out-File -Encoding utf8`, **not** `Tee-Object`, because PowerShell 5.1's
+Tee writes UTF-16LE and every `grep` over it returns nothing. A log you cannot search is not a log.
+
+### STILL OPEN, FOR TAMER
+
+* **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
+  (R88, runbook §14.3) submits them below the H2 pair — visible in the queue as baselines 1.817 vs
+  canary 2.012. That is a REGISTERED design element, but it sits against the standing absolute rule
+  that our jobs never sit below full fair-share standing, and the #96 guard covers only the CLI flag,
+  not the tiered function's internal ladder. Harmless while everything places; it bites under
+  contention. **Not changed mid-run** — a registered scheduling design is not a lane's unilateral call.
+
+---
+
 ## [2026-07-27d] — ⛔ **THE LAUNCH GATE CAUGHT ELEVEN DEFECTS. THE "LAUNCH-READY" COMMAND WOULD HAVE DESTROYED THE CAMPAIGN.**
 
 > **Tamer gave the GO. Instead of launching, this session re-derived the launch from first
