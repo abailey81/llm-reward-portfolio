@@ -1011,3 +1011,76 @@ healthy sentinel — the failure is invisible by construction. RUN 3 therefore r
 **reflection-starvation guard**: of the candidates at generation > 0, what fraction were shown a
 reflection block? It reports the per-arm breakdown when that fraction falls below 80 %, so the
 mechanism degrading is now an alert rather than a discovery made months later at write-up.
+
+---
+
+## 16. WHY CANDIDATES GET REJECTED — separating the FINDING from a DEFECT
+
+Asked directly during RUN 3 ("why do these errors appear?"), and it deserves a precise answer,
+because two things that look identical in a log must never be conflated.
+
+### 16.1 The rejects are the phenomenon under study, not a fault
+
+A live RUN 3 example:
+
+```
+{"failed": "scalar-g0-c1",
+ "error": "sandbox: reward crashed during validation:
+           UnboundLocalError('cannot access local variable rolling_std ...')"}
+```
+
+An LLM wrote Python with a genuine bug. **That is what this dissertation measures.** The per-model
+AUTHORING-RELIABILITY table is a registered deliverable (Raad/Stefan point 5 — "which models write
+executable objective code at all"), and the numeracy-bottleneck thesis is the paper's central
+mechanism claim. Removing these failures would erase the measurement, exactly as §6(a) already says
+of the state-contract rejects: *it must not be "fixed"*.
+
+The cost is negligible and was measured on RUN 1: a reject is caught by the sandbox **in seconds,
+before training starts** — 73 rejected/aborted tasks came to 1.50 core-hours against 1,626, i.e.
+**0.092 % of all compute**.
+
+### 16.2 The question that actually mattered: is it OUR machinery?
+
+A **truncated** completion is indistinguishable from a model that cannot write the code — both
+surface as `source defines no callable named 'reward'`. So truncation does not merely lose a
+candidate: it **contaminates the reliability table itself**. This is not hypothetical. R106 exists
+because the confirmatory author had no registered cap and fell back to 4096 while Opus emits
+5,008–6,412-token completions, so ~20 % of its candidates would have truncated **silently** and been
+scored as authoring failures.
+
+Tested directly on RUN 3 against the registered 16,384 cap:
+
+| line | calls | max out | p95 | % of cap |
+|---|---|---|---|---|
+| **leg7 `nemotron`** | 25 | **14,454** | 1,360 | **88.2 %** |
+| h3ss (`claude-opus-5`) | 30 | 4,584 | 3,631 | 28.0 % |
+| every other line | 25 each | ≤ 3,691 | ≤ 2,864 | ≤ 22.5 % |
+
+**No truncation is occurring.** Every reject observed is the MODEL, not our machinery — so the
+authoring-reliability numbers RUN 3 produces are clean measurements of capability.
+
+### 16.3 One live fragility this exposed, now guarded
+
+`nemotron` produced a single **14,454-token** completion against a p95 of **1,360** — a ~10×
+rambling outlier sitting **11.8 % below the cap**. It did not truncate. But if one ever exceeds
+16,384, that model's reliability figure would be contaminated by OUR cap rather than its capability,
+and it would look exactly like a model failure.
+
+That is not a defect today, so the response is a guard rather than a change: RUN 3 runs a
+**truncation guard** that alerts when any completion exceeds 95 % of the cap and names the line. The
+alternative — trusting an 11.8 % margin on a distribution with a 10× outlier already in it — is the
+kind of unexamined assumption this project has repeatedly found to be false.
+
+### 16.4 The discriminator, for the write-up
+
+When the reliability table is written, each reject class must be attributed correctly:
+
+| reject class | attribution |
+|---|---|
+| `reward crashed during validation: <Exception>` | **the model** — a genuine bug in authored code |
+| `invalid return` | **the model** — contract violation |
+| `source defines no callable named 'reward'` | **ambiguous** — the model produced prose/nothing, OR our cap truncated it. Resolve by the completion's `tokens_out` against the cap; only a completion well below the cap is attributable to the model |
+| `NoneType` at reset (state contract) | **the model** — the registered §6(a) mechanism finding |
+
+The `tokens_out` field in the spend ledger is what makes that third row resolvable at all, which is
+why it is worth saying explicitly here rather than leaving it to be re-derived later.
