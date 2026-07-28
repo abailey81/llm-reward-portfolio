@@ -1128,3 +1128,91 @@ When the reliability table is written, each reject class must be attributed corr
 
 The `tokens_out` field in the spend ledger is what makes that third row resolvable at all, which is
 why it is worth saying explicitly here rather than leaving it to be re-derived later.
+
+---
+
+## 17. IDENTIFICATION-VALIDITY AUDIT — the five load-bearing assumptions, verified by EXECUTION
+
+Run 2026-07-28, RUN 3 at T+3 h, against the standing requirement that this work be publishable. Each
+item below is something a referee can and should attack, and each was checked by RUNNING it rather
+than by reading the code that implements it. Two of the five were checked because I suspected a
+defect; both cleared, and the negative results are recorded here so they are not re-litigated.
+
+### 17.1 The arms differ EXACTLY as H2 claims — the dose-response ladder plus two orthogonal controls
+
+`schema.build_block` was called for all five LLM arms with **identical** inputs (fitness 0.066737 and
+one fixed tail vector) and the rendered text diffed:
+
+| arm | what the designer sees | role |
+|---|---|---|
+| `scalar` | the fitness line only | **0** tail numbers — the H2 comparator |
+| `scalar_cvar5` | fitness + `CVaR 5%: -0.0296` | **1 of 6** — the dose-response midpoint |
+| `distributional` | fitness + all six tail statistics | the treatment |
+| `placebo` | fitness + six lines reading `reference value N: +0.0000`, labelled *"Reference constants (inert; no diagnostic content)"* | identical STRUCTURE, **zero information** |
+| `placebo_shuffled` | fitness + the **same six numbers permuted onto the wrong labels** | real numbers, **destroyed information** |
+
+Checks, all PASS:
+
+1. all five arms render **distinct** blocks;
+2. `placebo` contains **none** of `distributional`'s tail numbers (no information leak into the
+   control);
+3. `placebo_shuffled` carries the **same multiset** of numbers in a **different order** (set-equal
+   TRUE, text-identical FALSE) — so it controls for *having real numbers* while destroying *what
+   they mean*;
+4. `scalar` contains **no** tail vocabulary at all (cvar/tail/skew/downside/drawdown);
+5. `scalar_cvar5` is a **strict subset** of `distributional` (1 number vs 6).
+
+This is the identification: a monotone information ladder (0 → 1 → 6) with a **structure** control
+and a **content** control isolating the two ways a "tail effect" could be spurious.
+
+### 17.2 CRN pairing holds — and it survives a reward that consumes RNG
+
+Every paired contrast (H1's IUT, H2's arm differences) subtracts arm A's score from arm B's at the
+SAME seed and attributes the difference to the reward. That is valid only if everything else at that
+seed is identical.
+
+**The subtle risk, stated because it is not obvious.** `_test_seed_worker` runs
+`set_global_seed(seed)` → `validate_once(reward_source)` → build env → `make_agent_trainer(cfg, seed)`.
+`validate_once` **executes the authored reward** on a fixture, and an authored reward is free to call
+`np.random`. If the agent were initialised from the ambient global RNG, an arm whose reward draws and
+an arm whose reward does not would begin training from **different network weights at the same
+seed** — and every paired p-value in the dissertation would be wrong in a way no downstream check
+could see.
+
+**Verified it cannot happen.** `resolve_agent_kwargs(cfg, seed)` places the seed **into the SB3 model
+kwargs** (`seed: 7`), so the model re-seeds at construction. Demonstrated directly: drawing 1,000
+random numbers between the global seeding and the resolution leaves the resolved seed — and the
+entire kwargs dict — **byte-identical**. The agent's initialisation is therefore arm-independent by
+construction.
+
+### 17.3 B1 matched budget — the sealed leg really does train at B\*
+
+The search specs carry `train_steps: 400000`, but the **test/sealed specs carry `None`** at both the
+top level and inside `agent_cfg`, which raises the obvious question of whether the scored leg
+silently falls back to a smaller default (the agent block's own default is 50,000 — an 8× shortfall
+that would invalidate every scored record).
+
+**It does not.** `train_safe_call_count` records one reward call per training step, so it reveals the
+budget actually executed. Across **330 of 330 scored records: exactly 400,000.** The `None` is
+resolved downstream from the registered configuration, and B1's matched budget holds in fact, not
+merely in intent.
+
+### 17.4 The mechanism pipeline reads what the designer SAW
+
+Covered in §15.2: `information_gap.py` (the originality kernel) reads `r.get("prompt")` first, and
+the prompt is embedded in the record itself — 241 records carry a non-empty one, exactly matching the
+241 `prompt.txt` sidecars. The empty `feedback_block` field is a redundancy, not a gap.
+
+### 17.5 No truncation is contaminating the authoring-reliability finding
+
+Covered in §16: `0` provider-confirmed `llm_incomplete_completion` events across RUN 1, RUN 2 and
+RUN 3, with the worst completion at 88.2 % of the registered 16,384 cap. Every observed reject is
+attributable to the MODEL, so the reliability table measures capability rather than our budget.
+
+---
+
+**What this audit does NOT cover, stated plainly rather than implied:** the statistical machinery
+(DSR, PBO, the BH-FDR family, the IUT nodes) and the data layer (PIT correctness,
+survivorship-freeness, the embargo) were audited in earlier sessions and are not re-verified here.
+This section covers only the five assumptions that connect the *running campaign* to the *claims* —
+the layer where this session has repeatedly found silent defects.
