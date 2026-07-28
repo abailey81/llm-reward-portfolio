@@ -103,9 +103,29 @@ is `docs/CAMPAIGN_EXECUTION_RECORD.md` §18 — work it to a verdict, all of it,
 
 - **0 % tolerance** for failures, issues, inconsistencies, gaps, loose ends. Not 0.1 % — **0 %**.
 - **This is intended for PUBLICATION.** Every element must survive adversarial peer review.
-- **Ultrathink very deeply and extensively on every non-trivial step.** Work accurately and surgically.
-- **ALWAYS VERIFY — never assert what you have not run and observed.** Read `PYTEST_RC` **from the
-  log**, never a pipe's or a wrapper's exit code. A check that prints "OK" is not verification.
+- **ACCURATE · SURGICAL · ALWAYS-ULTRATHINK · ALWAYS-VERIFY-INCLUDING-YOUR-OWN-WORK** (Tamer,
+  2026-07-28; also a ★★★ block in `CLAUDE.md`). His words: *"work very accurately and surgically, and
+  always ultrathink and verify everything. Everything must be strictly flawless. it has to always
+  verify everything, including its work."* Four duties:
+  1. **ACCURATE** — every number/path/flag/hash/count is the REAL one, read from the real artifact at
+     the moment of writing. No remembered values, no "about". Cite the evidence beside the claim.
+  2. **SURGICAL** — smallest correct diff, nothing incidental, no hash-bound file without the
+     unfreeze→amend→re-freeze protocol. Read the target and one nearby example first; re-read your
+     OWN diff afterwards for what a compiler cannot catch. Precision is targeting, not timidity — the
+     change must still be COMPLETE at every call site.
+  3. **ALWAYS ULTRATHINK** — what could be wrong, what would falsify it, what the strongest
+     counterargument is. The first plausible answer is a hypothesis, not a conclusion.
+  4. **ALWAYS VERIFY, INCLUDING YOUR OWN WORK** — re-run the check AFTER the change · read
+     `PYTEST_RC` from the LOG, never a pipe's or a wrapper's exit code · prove a new test can FAIL
+     against the pre-fix code · **a surprising NEGATIVE result is a claim about your script first** ·
+     re-derive load-bearing conclusions instead of trusting your earlier statement of them · use a
+     FRESH auditor subagent for substantial multi-file work, because **the author must not grade
+     their own work** · **overstating a risk is as inaccurate as understating one** — verify in both
+     directions. A check that prints "OK" is not verification.
+
+  **The failure mode this exists to stop:** a confident, well-written, plausible claim that was never
+  actually run. It survives review by *sounding* verified. The concrete case ledger is record §20.2
+  (P1–P10) — ten of the previous session's own errors, each one caught only by re-checking.
 - **Never be lazy.** Enumerate the full scope of any multi-part task and complete all of it; re-sweep
   at the end to *prove* nothing was dropped.
 - **Monitor absolutely everything very closely** — the process, the results, and whether the results
