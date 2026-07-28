@@ -185,9 +185,31 @@ def check_training_happened(wall_clock: Any) -> Signal:
 
 
 def assess_record(record: dict[str, Any]) -> list[Signal]:
-    """Every effect-blind sanity signal for ONE archived record."""
+    """Every effect-blind sanity signal for ONE archived record.
+
+    ⚠ SEARCH RECORDS CARRY ``val_returns``, TEST RECORDS CARRY ``test_returns`` (fixed 2026-07-28,
+    live, on the campaign's very first archived record). This read only ever looked for
+    ``test_returns``, so every SEARCH record — the kind that lands FIRST, hours before any test
+    record exists — resolved to an empty array and was reported as
+    ``GARBAGE: the record carries NO realized returns``.
+
+    That mattered more than a cosmetic mislabel. The first record of the confirmatory campaign
+    (``tpe-c0``) raised a CRITICAL "stop and diagnose before more compute is spent" alert while
+    being, on inspection, perfectly healthy: **694 val_returns** (exactly the registered
+    ``track_length``), ``train_safe_default_count: 0``, ``dev=cpu``. Hundreds of search records
+    follow it, so the alarm would have cried wolf on every one — and an operator who learns to
+    ignore a CRITICAL is an operator who will ignore the real one. This repository's own review
+    history names "instruments reporting success while measuring nothing" as a recurring class;
+    this is its mirror image, an instrument reporting FAILURE while reading the wrong field.
+
+    Prefer ``test_returns`` (the scored leg, which is what this instrument was written for) and fall
+    back to ``val_returns`` so a search record is judged on the returns it actually has. Every
+    downstream check stays effect-blind: none of them reads a performance value or compares arms.
+    """
     m = record.get("metrics", {}) or {}
-    rets = np.asarray(m.get("test_returns", record.get("test_returns", [])) or [], dtype=float)
+    _raw = (m.get("test_returns") or record.get("test_returns")
+            or m.get("val_returns") or record.get("val_returns") or [])
+    rets = np.asarray(_raw, dtype=float)
     return [
         check_provenance(record),
         check_training_happened(record.get("wall_clock")),
