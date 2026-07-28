@@ -1992,6 +1992,31 @@ limit configured on the dashboard, which is an account-side setting no session c
 **Exposure:** the confirmatory H2 headline runs on the core Opus line and is untouched. What is at
 risk is R101's **cross-model replication panel** — 6 of 10 legs — if the cap is not lifted.
 
+### 23.14b THE GATE GAP THIS EXPOSED — and why the fix is DEFERRED, not done
+
+**Root cause, read off the provider rather than inferred:** `GET /api/v1/key` reports
+`limit = 10`, `usage = 10.0294`, `limit_remaining = 0`. The key carries its own **$10 spending cap**,
+which is independent of the account balance ($17.97 at the time). RUN 4's own OpenRouter spend was
+**$0.3158** — so the cap was already ~fully consumed by RUNs 1–3 *before this launch started*.
+
+**The gap.** The pre-launch gate proved the key **worked** — a live `leg_gates --only smoke` call on
+`gemini-2.5-flash` returned `smoke_ok: true` with the reasoning pin verified. It never asked how much
+**headroom** the key had left. A key can be simultaneously valid and out of budget, and only the
+first was tested. Same shape as the other gaps this session found: the mechanism was checked, the
+*wiring around it* was not.
+
+**The fix — a `preflight` check that queries `/api/v1/key` and FAILS when remaining headroom is
+below the projected leg spend — is DEFERRED to the next natural restart, deliberately.**
+`scripts/preflight.py` is inside the `src scripts config prompts` pathspec, so editing it mid-run
+would make the §23.9 drift test return a file and put RUN 4 in the very state that halted RUN 3. The
+check protects *future* launches and does nothing for this one, so deferring costs nothing.
+Relaxing the drift test to admit a change I wanted to make would be the wrong trade, and is the exact
+habit this project keeps having to correct.
+
+**PENDING (next restart):** add `check_provider_headroom` to `preflight.py` — for every configured
+provider, query the key's remaining budget and FAIL if it is under the registered projection
+($18.72 Anthropic / $5.28 OpenRouter). Absence of the field must WARN, never silently pass.
+
 ### 23.15 MY OWN INSTRUMENT WAS WRONG — the qstat column shift
 
 Reported "164 / 292 slots" to Tamer; the allocation advisor said **1,520**. The advisor was right.
