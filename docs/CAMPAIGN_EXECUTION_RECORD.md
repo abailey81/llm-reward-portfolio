@@ -2050,6 +2050,50 @@ Either outcome is publishable execution evidence, and it is free — it happens 
 raised. **Record the timeout rate immediately before and after the legs recover**; the `before`
 number is in this table.
 
+### 23.14d D12 and D13 — two defects the recovery exposed, both DEFERRED, both real
+
+Raising the OpenRouter key cap to $100 recovered all six legs (usage moved $10.029 → $10.103,
+$89.90 remaining; calls resumed on every parked leg). It also surfaced two genuine defects that the
+block had been masking.
+
+**D12 — a line whose every arm crashed reports `LINE COMPLETE`.**
+The supervisor logged `driver exited 0 - LINE COMPLETE (or gate stop handled)` and **exited**, for six
+legs that had produced nothing. Traced to `run_campaign_cluster.py:1403`: when the C3 review gate
+stops on RED execution health, the driver `return 0` — deliberately, so a gate stop does not hot-loop
+the supervisor. The gate itself behaved **correctly and failed CLOSED** (it did not advance to C4).
+What is wrong is that "finished successfully" and "stopped awaiting human review" are **the same exit
+code**, so the supervisor cannot tell them apart and treats a produced-nothing line as done.
+
+*What actually saved the run was the watchdog*, which restarts dead lines every 300 s — which is why
+the legs recovered when the cap was raised, but by a different mechanism than the supervisor loop.
+Without the watchdog, six legs would have sat silently "complete" with zero output until analysis.
+Same shape as D7 (`res.get("ok", True)`): **a fail-open turns a total failure into a clean finish.**
+
+**D13 — a provider response with no `choices` kills the arm instead of retrying.**
+`client.py:346` does `choice = response.choices[0]` unguarded; when OpenRouter returned a body whose
+`choices` was `None`, that raised `TypeError: 'NoneType' object is not subscriptable`, which the
+tenacity retry classifier — duck-typed on HTTP status — does not treat as transient, so it propagated
+and crashed the arm pipeline. Observed **twice, on `nemotron-3-super` only**, of ten legs in two
+hours; that leg is authoring normally again (33 calls). Over a 30-day run across eleven providers
+this shape will recur.
+
+**Both fixes are DEFERRED to the next natural restart, for the reason in §23.9:** `client.py` is the
+authoring hot path every line uses, and editing it mid-run would create source drift from the running
+processes — the RUN 3 condition. Neither is run-stopping: D12 is compensated by the watchdog, and
+D13 is rare and self-heals through the same route.
+
+**PENDING (next restart), now three items:**
+
+1. `check_provider_headroom` in `preflight.py` (§23.14b);
+2. **D12** — give a gate stop its own exit code (e.g. 3) distinct from success, and have
+   `mode_d_supervisor.ps1` log and treat it as *awaiting review* rather than *complete*;
+3. **D13** — guard `response.choices`: treat an empty/None `choices` as a RETRYABLE transport fault
+   with a named error, never an unhandled `TypeError`.
+
+*This is also the first thing the rebuilt watcher caught on its own: the `kinds=[…]` digest fired
+within minutes of `TypeError:` appearing, having stayed silent through 300 repeats of the known 403.
+That is exactly the behaviour it was rebuilt for.*
+
 ### 23.15 MY OWN INSTRUMENT WAS WRONG — the qstat column shift
 
 Reported "164 / 292 slots" to Tamer; the allocation advisor said **1,520**. The advisor was right.
