@@ -208,14 +208,44 @@ def check_reward_scale_drift(raw_rms_by_arm: dict[str, float], *, ratio_warn: fl
     if len(vals) < 2:
         return HealthCheck("reward_scale", INFO, "need >= 2 arms' raw_rms for a drift check",
                            {"n_arms": len(vals)})
-    hi, lo = max(vals.values()), min(vals.values())
+    # SPLIT hand-designed BASELINES from AUTHORED arms (2026-07-28). The H1 canon contains
+    # ratio-form rewards whose scale is a FIXED property of the formula, not drift: measured live,
+    # `baseline_differential_downside_ratio` sits at raw_rms 28,774 and `baseline_differential_sharpe`
+    # at 16,324 while every other arm is 0.015-2.33. Pooling them made the check report a 5.0e5x
+    # ratio CRITICAL on EVERY poll for the whole campaign — a permanent alarm that can never clear,
+    # which is the cry-wolf failure that teaches an operator to ignore the one alert that matters.
+    #
+    # This is a REFINEMENT, not a suppression, and it moves detection power to where the confound
+    # actually lives: the P5 concern is that a reward scale differing across the TREATMENT arms
+    # entangles with the manipulated variable. Those arms are the AUTHORED ones. A registered
+    # baseline's fixed scale cannot drift and cannot entangle with anything — it is reported as
+    # standing context instead. If ANY authored arm drifts, this still fires exactly as before.
+    authored = {a: v for a, v in vals.items() if not a.startswith("baseline")}
+    base = {a: v for a, v in vals.items() if a.startswith("baseline")}
+
+    def _ratio(d: dict[str, float]) -> float:
+        return (max(d.values()) / min(d.values())) if len(d) >= 2 and min(d.values()) > 0 else 1.0
+
+    b_ratio = _ratio(base)
+    b_note = (f"; baselines span {b_ratio:.0f}x (registered ratio-form rewards — fixed by formula, "
+              "reported as context)") if len(base) >= 2 else ""
+    if len(authored) < 2:
+        return HealthCheck("reward_scale", INFO,
+                           f"need >= 2 AUTHORED arms' raw_rms for a drift check "
+                           f"(have {len(authored)}){b_note}",
+                           {"n_authored": len(authored), "baseline_ratio": b_ratio, "by_arm": vals})
+    hi, lo = max(authored.values()), min(authored.values())
     ratio = hi / lo if lo > 0 else float("inf")
-    ev = {"max": hi, "min": lo, "ratio": ratio, "by_arm": vals}
+    ev = {"max": hi, "min": lo, "ratio": ratio, "authored": authored,
+          "baseline_ratio": b_ratio, "baselines": base}
     if ratio >= ratio_crit:
-        return HealthCheck("reward_scale", CRITICAL, f"cross-arm reward-scale ratio {ratio:.0f}x", ev)
+        return HealthCheck("reward_scale", CRITICAL,
+                           f"AUTHORED-arm reward-scale ratio {ratio:.0f}x{b_note}", ev)
     if ratio >= ratio_warn:
-        return HealthCheck("reward_scale", WARN, f"cross-arm reward-scale ratio {ratio:.0f}x", ev)
-    return HealthCheck("reward_scale", OK, f"cross-arm reward-scale ratio {ratio:.1f}x", ev)
+        return HealthCheck("reward_scale", WARN,
+                           f"AUTHORED-arm reward-scale ratio {ratio:.0f}x{b_note}", ev)
+    return HealthCheck("reward_scale", OK,
+                       f"AUTHORED-arm reward-scale ratio {ratio:.1f}x{b_note}", ev)
 
 
 def check_api_error_rate(n_api_errors: int, n_api_calls: int, *, warn: float = 0.05,

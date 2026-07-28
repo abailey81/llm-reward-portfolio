@@ -527,6 +527,43 @@ of arms was computed.
 This also discharges the ⑫(a) worry: the two huge-reward-scale baselines did **not** produce
 degenerate policies, so the 5.0e5 reward-scale ratio is a CH4 disclosure item, not a broken training.
 
+### ⑯ ★ ONE ROOT CAUSE EXPLAINS TWO SEPARATE ANOMALIES: ratio-form baselines are numerically fragile
+
+Chasing the last permanently-firing alert produced a genuine mechanism finding rather than just a
+monitor fix.
+
+**The monitor fix first.** `reward_scale` reported `cross-arm ratio 5.0e5x` CRITICAL on EVERY poll and
+could never clear, because the H1 canon contains ratio-form rewards whose scale is FIXED by their
+formula. Pooling them with the authored arms made a registered, unchangeable property look like
+drift. Split into AUTHORED vs BASELINE: the P5 confound the check exists for is a scale difference
+across the TREATMENT arms (a registered baseline's fixed scale cannot drift and cannot entangle with
+the manipulated variable). Live result: **`OK — AUTHORED-arm ratio 1.2x; baselines span 437,099x
+(reported as context)`**. Detection power MOVED, not removed — a test asserts an authored arm at
+1e-2 vs 1e4 still fires CRITICAL.
+
+**Then the finding.** Scored-leg fallback contamination is **perfectly concentrated in exactly the
+same two arms**:
+
+| arm | contaminated scored records | worst | raw_rms |
+|---|---|---|---|
+| `baseline_differential_sharpe` | **5/30 (16.7 %)** | 1 step | 16,324 |
+| `baseline_differential_downside_ratio` | **4/30 (13.3 %)** | 2 steps | 28,774 |
+| the other **9 of 11** H1 arms | **0** | — | 0.015-2.33 |
+
+**Two symptoms, one cause.** Both arms are DIFFERENTIAL/RATIO forms whose denominator approaches
+zero (early training, or a low-variance window). A near-zero denominator simultaneously (i) inflates
+the reward magnitude by 4-5 orders and (ii) occasionally raises, so the R66 safe-default stands in
+for that step. Nothing else in the canon shows either symptom. That converts two separately-alarming
+observations into ONE explained numerical property of a specific reward family.
+
+**Scientific impact: negligible in magnitude, valuable in explanation.** The worst case is **2
+fallback steps out of 400,000 (0.0005 %)**, so no scored record is meaningfully contaminated (cf. the
+50 %+ SEARCH-leg cases in ⑫(b), which are a different matter). But the mechanism is a clean CH4 /
+Limitations disclosure: it explains the P5 reward-scale spread with a cause rather than a hand-wave,
+and it is a concrete, quantified statement about the numerical robustness of hand-designed
+ratio-form objectives — the exact comparators H1 tests against. **Not a defect to fix:** these are
+REGISTERED baselines, and their fragility is a property worth reporting, not engineering away.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`

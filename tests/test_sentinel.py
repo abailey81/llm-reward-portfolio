@@ -88,6 +88,36 @@ def test_check_reward_scale_drift_p5_confound() -> None:
     assert S.check_reward_scale_drift({"a": 1e-2, "b": 1e4}).severity == S.CRITICAL
 
 
+def test_registered_BASELINE_scales_do_not_raise_a_permanent_alarm() -> None:
+    """The H1 canon holds ratio-form rewards whose scale is FIXED by their formula.
+
+    Measured live 2026-07-28: `baseline_differential_downside_ratio` 28,774 and
+    `baseline_differential_sharpe` 16,324 against 0.015-2.33 for every other arm. Pooling them made
+    this check report 5.0e5x CRITICAL on EVERY poll for the whole campaign -- an alarm that can never
+    clear, which is precisely what trains an operator to ignore the alert that matters.
+    """
+    live = {"baseline_differential_downside_ratio": 28_773.8,
+            "baseline_differential_sharpe": 16_324.2,
+            "baseline_raw_return": 0.0730,
+            "bayes_opt": 0.3105, "tpe": 0.1960, "cma_es": 0.2740, "random_search": 0.2852}
+    c = S.check_reward_scale_drift(live)
+    assert c.severity == S.OK, "a registered baseline's fixed scale must not read as drift"
+    assert "baselines span" in c.detail, "the baseline spread must still be REPORTED as context"
+
+
+def test_an_AUTHORED_arm_drifting_is_STILL_critical() -> None:
+    """Detection power must move to the treatment arms, not disappear."""
+    drifted = {"baseline_differential_sharpe": 16_324.2,   # registered, ignored for the verdict
+               "distributional": 1e-2, "scalar": 1e4}      # authored -> the real P5 confound
+    c = S.check_reward_scale_drift(drifted)
+    assert c.severity == S.CRITICAL and "AUTHORED" in c.detail
+
+
+def test_fewer_than_two_AUTHORED_arms_says_so_rather_than_guessing() -> None:
+    c = S.check_reward_scale_drift({"baseline_a": 1.0, "baseline_b": 20_000.0, "scalar": 0.3})
+    assert c.severity == S.INFO and "AUTHORED" in c.detail
+
+
 def test_check_api_error_rate() -> None:
     assert S.check_api_error_rate(0, 0).severity == S.INFO
     assert S.check_api_error_rate(1, 100).severity == S.OK
