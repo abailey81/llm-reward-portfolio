@@ -1874,7 +1874,7 @@ predates the report it claims to approve is IGNORED) and **consumed on passage**
 gate passage needs its own explicit approval. Both are per-line since the D5 fix; an unqualified
 `TIER1_APPROVED` is now ignored rather than silently passing an unreviewed line.
 
-### 23.8b ⚠ READ BEFORE APPLYING THE "PROCESSES A COMMIT BEHIND" RULE TO RUN 4
+### 23.9 ⚠ READ BEFORE APPLYING THE "PROCESSES A COMMIT BEHIND" RULE TO RUN 4
 
 RUN 3 was halted because **CODE** fixes landed after its drivers started. That rule must not be
 applied mechanically to RUN 4, because the situation is different in the way that matters.
@@ -1889,7 +1889,7 @@ as it happens — not a code drift.
 `git rev-parse HEAD`.** If that returns nothing, the run is executing exactly the code it claims to.
 If it returns a source file, apply the RUN 3 rule and stop.
 
-### 23.9 Certification of the D11 fix — the tree that actually launches
+### 23.10 Certification of the D11 fix — the tree that actually launches
 
 | check | result |
 |---|---|
@@ -1900,7 +1900,32 @@ If it returns a source file, apply the RUN 3 rule and stop.
 | freeze | `--check` RC=0, `3ca6f01ab7724d47…` **MATCHES** — neither changed file is hash-bound, so RUN 4 runs the identical registered v2.1 design |
 | production-code footprint, whole session | **two `provider` kwargs** (D10, `campaign.py` + `parallel.py`) and **one filter block** (D11, `killswitch.py`). Everything else is tests, one standalone monitoring script, and documentation |
 
-### 23.10 The sentinel's global gate-failure rate is expected to sit at WARN/CRIT — that is not a fault
+### 23.11 HOW TO DEPLOY TO THE CLUSTER — the full-tree extract is the wrong tool
+
+Operational, and it will recur. The deploy path documented everywhere is
+`git archive HEAD | ssh myriad tar -x -C ~/llmrp`. On a **contended login node** that is impractical:
+extracting the 2,649-file tree was moving **~40 files/minute** (94 files in the first minutes), i.e.
+an hour-plus, while the whole point was to update **five** files. The first refresh of the night ran
+to completion only because the node happened to be quieter.
+
+**What to do instead when the deployed commit is already close to HEAD:**
+
+1. `git diff --name-only <deployed-sha> HEAD` — usually a handful of files.
+2. Copy those paths out of an extracted `git archive HEAD` (**not** the working tree — on Windows it
+   is checked out CRLF and every text file would mismatch the LF blobs the cluster holds; a first
+   manifest attempt reported 214 spurious differences for exactly this reason).
+3. `tar` just those, ship, extract to a staging dir, and `mv` each into place — a rename within one
+   filesystem is atomic, so a running job's lazy import sees a whole file either way.
+4. Stamp `GIT_COMMIT` atomically (temp + `mv`).
+5. **Prove it the same way a full deploy is proven**: re-run the full sha256 manifest against
+   `git archive HEAD` and require `DIFFER=0 MISSING=0`. The shortcut is in HOW the bytes get there,
+   never in whether they are verified.
+
+Killing the half-finished extract was safe because it dies **before** its rsync stage: verified after
+the kill that `GIT_COMMIT` still read the old sha and the file count was unchanged, i.e. the deploy
+tree had not been touched at all.
+
+### 23.12 The sentinel's global gate-failure rate is expected to sit at WARN/CRIT — that is not a fault
 
 `check_gate_failure_rate` (warn 10 %, crit 40 %) was calibrated on the prototype's ~2.5 %, which was
 **one strong model**. Across an eleven-model capability gradient containing a deliberate ~17 %-pass
