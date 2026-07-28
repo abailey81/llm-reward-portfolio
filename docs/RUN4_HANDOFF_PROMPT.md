@@ -123,9 +123,24 @@ is `docs/CAMPAIGN_EXECUTION_RECORD.md` §18 — work it to a verdict, all of it,
      their own work** · **overstating a risk is as inaccurate as understating one** — verify in both
      directions. A check that prints "OK" is not verification.
 
-  **The failure mode this exists to stop:** a confident, well-written, plausible claim that was never
-  actually run. It survives review by *sounding* verified. The concrete case ledger is record §20.2
-  (P1–P10) — ten of the previous session's own errors, each one caught only by re-checking.
+  5. **ALWAYS VERIFY THAT IT IS CORRECT AND LOGICAL — not merely that it RAN.** A green check proves
+     execution, not truth. After every result, interrogate the result itself: **sanity-check
+     magnitude, sign and units** (the prototype's "tail signal" was REFUTED on a wrong-unit error
+     that had passed every test) · **cross-check against an INDEPENDENT route** — two agreeing
+     derivations are evidence, one derivation repeated is not (the reject fix was accepted only
+     because a replay condemned exactly 59 and rescued exactly 439, matching an independent audit) ·
+     **check INTERNAL CONSISTENCY across the whole record** — code, config, tests, CHANGELOG,
+     HANDOFF, the record, the paper must agree on every shared fact · **check the CONCLUSION FOLLOWS
+     from the evidence** — does the data support the claim or merely fail to contradict it? · **check
+     the result is MEANINGFUL, not just green** — does it cohere with what the design predicts, and
+     if not, WHY not: is that a finding or a bug? **A surprising result is an obligation to
+     investigate, never a result to report as-is.**
+
+  **Two failure modes this exists to stop.** First: a confident, well-written, plausible claim that
+  was never actually run. Second, subtler: a claim that WAS run, whose output was accepted without
+  asking whether it makes sense. Both survive review by *sounding* verified, and on work headed for
+  publication either is fatal. The concrete case ledger is record §20.2 (P1–P10) — ten of the
+  previous session's own errors, each caught only by re-checking.
 - **Never be lazy.** Enumerate the full scope of any multi-part task and complete all of it; re-sweep
   at the end to *prove* nothing was dropped.
 - **Monitor absolutely everything very closely** — the process, the results, and whether the results
