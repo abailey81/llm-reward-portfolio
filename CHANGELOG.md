@@ -143,8 +143,33 @@ genuinely not started rather than merely being assumed idle. Anthropic-billed sp
 (h3ss Opus $2.58 across 30 calls, sonnet-5 $1.23, haiku-4.5 $0.40) of **$5.98 total** against the
 $30 advisory ceiling. Core authoring remains the largest pending spend event.
 
-State at 05:48 UTC: **all 12 lines alive, 12 tags active, 21 records, ~470 jobs (288 running), worst
-consecutive-failure counter 7 against the fatal bound of 240, no active kill incident.**
+**⑦ THE DETERMINISM ENVELOPE IS VERIFIED ON LIVE CAMPAIGN DATA — not asserted (05:58 UTC).** Audited
+the provenance of all 23 records then in the archive. Every one is device-homogeneous
+(`env_fingerprint.label = dev=cpu`, 23/23) and every one carries the **SAME `env.json` hash**
+(`67f11a81e91b62d8`, 23/23). Because `capture_env/4` now records
+`cpu.model_name = "Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz"` and `vendor_id`, that single shared
+hash is no longer merely "same software" — it **PROVES CPU-model homogeneity across every node we
+have landed on**, which is exactly the property CRN paired-contrast bit-exactness rests on and which
+the S6 homogeneity audit was previously blind to. The `-ac allow=d` node-class constraint is
+delivering hardware uniformity, and it is now DETECTABLE by audit rather than improbable by
+assumption — the "recorded, not merely chosen" rule paying for itself on day one.
+
+The same records independently confirm two things the launch gate was built to guarantee:
+`git_commit = deployed-archive:ce27dfc5fb7503e8673b544e5498cd20ce34de64` (every record provably
+produced by the FROZEN seal commit) and
+`gold_panel.manifest_sha256.returns_panel = 7cf5d98...` (every training read the correct licensed
+gold panel — the `assert_remote_gold` precondition earning its place). Also stamped and uniform:
+`deterministic_algorithms_enabled: true`, `cuda_available: false`, `nvidia_smi.available: false`,
+`OMP/MKL_NUM_THREADS=8`, `CUBLAS_WORKSPACE_CONFIG=":4096:8"`, `schema: capture_env/4`,
+`python 3.11.15`, `numpy 1.26.4`. Arms represented: distributional 11, scalar 6, bayes_opt 4,
+cma_es 1, tpe 1 — i.e. **both the H2 contrast pair and the H4 optimiser comparators are producing.**
+
+NOTE for the record: the fixed 8-thread BLAS setting is part of the FROZEN envelope, not an ops
+detail. It is safe here precisely because it is IDENTICAL across every record (one env hash), so no
+comparison unit mixes reduction orders; it must not be re-tuned mid-campaign for speed.
+
+State at 05:58 UTC: **all 12 lines alive, 12 tags active, 23 records, ~470 jobs (288 running), worst
+consecutive-failure counter 5-7 against the fatal bound of 240, no active kill incident.**
 
 ### STILL OPEN, FOR TAMER
 
