@@ -208,6 +208,22 @@ counts by generation: g0 79, g1 44, g2 39. `qwen3.5-9b` is the one leg whose fai
 correctly labelled (`node reject: sandbox: ...` — 36 of them), and its ~17 % gate-pass is the
 pre-measured capability-gradient bottom anchor behaving exactly as predicted.
 
+*AN OPEN DISCREPANCY — flagged honestly rather than explained away.* `qwen3.6-27b` measured
+**5/6 = 83 % sandbox gate-pass on 2026-07-25** yet has produced **0 records** so far. My first
+explanation was that the 83 % had been a mere FORMAT check — and that is **WRONG**, so it is recorded
+here as wrong rather than quietly dropped. Two different gates exist and the distinction matters:
+`leg_gates.py:200-207` compliance IS purely syntactic (`re.search(r"def\s+reward\s*\(", src)`, no
+execution), but the 83 % figure did **not** come from it — it came from `validate_once` RUNNING the
+authored reward on the production `_FIXTURE`, i.e. already a runtime gate. So the discrepancy is
+**real and NOT yet explained.** Candidate causes, none yet tested: (a) `validate_once` exercises a
+small stub fixture while the campaign validates on production shapes, so shape/dtype-dependent bugs
+would pass one and fail the other; (b) **n=6 is a tiny sample** — 5/6 carries a 95 % interval of
+roughly 36-99 %, so "83 %" was never a precise quantity; (c) the campaign prompts carry live fed
+feedback (R114 rendering) that the pre-launch draws did not. **Do not report the pre-launch
+per-model rates as campaign-predictive until this is resolved** — that is now a named write-up
+obligation, not a background curiosity. Honesty note: the 0-record figure is a SNAPSHOT with
+candidates still in flight and must be reported as an interval, never as a final per-model rate.
+
 *A REAL defect found in passing — P9 diagnosability races the pull.* The node writes a
 `_rejects/<run_id>.json` marker so the ledger row can carry the node's ACTUAL error; `campaign.py`
 reads it at `arm_root.parent/_rejects/`. But the marker is mirrored back by a LATER pull, so by the
