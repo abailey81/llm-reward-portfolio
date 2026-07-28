@@ -727,8 +727,8 @@ python scripts/allocation_advisor.py --host myriad --watch 900 --archive-root ou
 
 ## 13. AFTER THE RELAUNCH — what the sweep found, and where the 300 s actually goes
 
-Written 2026-07-28 14:45 UTC, RUN 2 at T+1.8 h. Two further findings, both from continuing to
-measure rather than from reading code.
+Written 2026-07-28 13:50 UTC, RUN 2 at T+0.9 h. Two further findings, both from continuing to
+measure rather than from reading code. **Certified after both fixes: full suite 2,856 passed / 3 skipped / 0 failed, PYTEST_RC=0** (reconciles exactly as 2,852 + 3 gate tests + 1 timeout test), ruff clean, freeze hash unmoved.
 
 ### 13.1 A SECOND cross-line collision — the review gate
 
