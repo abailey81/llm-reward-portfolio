@@ -179,7 +179,11 @@ def _default_fetch(host: str, remote_outputs_root: str) -> Fetch:
             "tar -C " + shlex.quote(root) + " -cf - "
             + " ".join(shlex.quote(p) for p in relpaths)
         )
-        ssh = subprocess.Popen([*ssh_base(host), remote_cmd], stdout=subprocess.PIPE)
+        # stdin=DEVNULL (2026-07-28): ssh forwards stdin to the remote command unless told not to,
+        # and this pull is the LONGEST-LIVED ssh the driver spawns (3600 s budget), so it is the one
+        # most likely to sit holding an inherited handle. Correct practice for unattended ssh.
+        ssh = subprocess.Popen([*ssh_base(host), remote_cmd], stdout=subprocess.PIPE,
+                               stdin=subprocess.DEVNULL)
         drained = False
         try:
             subprocess.run(

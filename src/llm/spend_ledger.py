@@ -89,6 +89,7 @@ def record_spend(
     tokens_in: int | None = None,
     tokens_out: int | None = None,
     note: str = "",
+    stop_reason: str | None = None,
 ) -> float:
     """Append one call's realized cost; return the new cumulative total (USD).
 
@@ -109,6 +110,14 @@ def record_spend(
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
         "note": note,
+        # 2026-07-28: the provider's own completion verdict, persisted STRUCTURALLY. A value in
+        # client._INCOMPLETE_STOP_REASONS ({max_tokens, refusal, length, content_filter}) means the
+        # completion was CUT OFF — which arrives at the sandbox as "source defines no callable named
+        # 'reward'", i.e. indistinguishable from a model that could not write the code. Without this
+        # field the per-model AUTHORING-RELIABILITY table (a registered deliverable) cannot separate
+        # "the model failed" from "our cap truncated it", and attribution degrades to grepping
+        # driver logs. It was previously captured by the client and only WARN-logged.
+        "stop_reason": stop_reason,
     }
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row) + "\n")

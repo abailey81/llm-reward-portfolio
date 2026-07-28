@@ -1076,6 +1076,12 @@ class LLMClient:
             record_spend(
                 self.spend_ledger, provider=self.provider, model=self.model,
                 cost_usd=float(cost), tokens_in=t_in, tokens_out=t_out, note=note,
+                # 2026-07-28: persist the provider's completion verdict alongside the cost. A
+                # truncated completion (stop_reason in _INCOMPLETE_STOP_REASONS) reaches the sandbox
+                # as "defines no callable named 'reward'" — identical to a model that could not
+                # write the code — so without this the authoring-reliability table cannot separate
+                # a MODEL failure from OUR cap. Previously only WARN-logged.
+                stop_reason=getattr(transport, "last_stop_reason", None),
             )
         except Exception as exc:  # noqa: BLE001 — advisory ledger: warn (rate-limited), never raise
             self._n_ledger_failures += 1

@@ -164,15 +164,23 @@ def test_ssh_runner_requotes_for_the_remote_shell(monkeypatch):
 
     captured: dict[str, list[str]] = {}
 
-    def fake_run(argv, **kw):
+    class _P:
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return "ok", ""
+
+        def poll(self):
+            return 0
+
+        def kill(self):
+            pass
+
+    def fake_popen(argv, **kw):
         captured["argv"] = argv
+        return _P()
 
-        class R:
-            stdout = "ok"
-
-        return R()
-
-    monkeypatch.setattr("src.cluster.submit.subprocess.run", fake_run)
+    monkeypatch.setattr("src.cluster.submit.subprocess.Popen", fake_popen)
     from src.cluster.submit import ssh_runner
 
     cmd = ["bash", "-c", "printf '%s\\n' 'a b' > /r/m.sh && qsub /r/m.sh"]
@@ -200,7 +208,7 @@ def test_push_batch_is_tar_over_ssh_not_rsync(tmp_path, monkeypatch):
         def wait(self, timeout=None):
             return 0
 
-    def fake_popen(argv, stdout=None, cwd=None):
+    def fake_popen(argv, stdout=None, cwd=None, stdin=None):
         calls["tar"] = (argv, cwd)
         return _FakeTar()
 
@@ -478,7 +486,7 @@ def test_failed_pull_reaps_its_ssh_child_instead_of_leaking_it(tmp_path, monkeyp
 
     created: list[_FakeProc] = []
 
-    def fake_popen(argv, stdout=None):
+    def fake_popen(argv, stdout=None, stdin=None):
         p = _FakeProc(stdout=io.BytesIO(b"TARBYTES"))
         created.append(p)
         return p
@@ -508,7 +516,7 @@ def test_failed_push_reaps_its_local_tar_child_instead_of_leaking_it(tmp_path, m
 
     created: list[_FakeProc] = []
 
-    def fake_popen(argv, stdout=None, cwd=None):
+    def fake_popen(argv, stdout=None, cwd=None, stdin=None):
         p = _FakeProc(stdout=io.BytesIO(b"TARBYTES"))
         created.append(p)
         return p
@@ -537,7 +545,7 @@ def test_a_pull_whose_ssh_had_to_be_killed_fails_loud_rather_than_mirroring_shor
 
     created: list[_FakeProc] = []
 
-    def fake_popen(argv, stdout=None):
+    def fake_popen(argv, stdout=None, stdin=None):
         p = _FakeProc(stdout=io.BytesIO(b"TARBYTES"))
         created.append(p)
         return p
@@ -637,16 +645,108 @@ def test_the_driver_ssh_timeout_is_bounded_well_below_the_old_300s(monkeypatch):
 
     captured: dict[str, object] = {}
 
-    def fake_run(argv, **kw):
-        captured.update(kw)
+    class _P:
+        returncode = 0
 
-        class R:
-            stdout = "ok"
+        def communicate(self, timeout=None):
+            captured["timeout"] = timeout
+            return "ok", ""
 
-        return R()
+        def poll(self):
+            return 0
 
-    monkeypatch.setattr("src.cluster.submit.subprocess.run", fake_run)
+        def kill(self):
+            pass
+
+    monkeypatch.setattr("src.cluster.submit.subprocess.Popen", lambda argv, **kw: _P())
     assert _submit.ssh_runner("h")(["qstat", "-r"]) == "ok"
     assert captured["timeout"] == _submit._RUNNER_TIMEOUT_SECS, (
         "ssh_runner must use the module bound, not a hardcoded literal"
     )
+
+
+def test_ssh_runner_runs_unattended_with_no_inherited_stdin(monkeypatch):
+    """2026-07-28: `ssh` forwards stdin to the remote command unless told not to, and the old
+    `capture_output=True` form left stdin INHERITED from the driver — whose own stdin is a pipe from
+    the supervisor's `| Out-File`. An A/B showed no measurable effect on the stall, so this is not a
+    cure; it is simply how ssh should be run unattended, and it removes a class of hazard for free."""
+    seen: dict[str, object] = {}
+
+    class _P:
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return "ok", ""
+
+        def poll(self):
+            return 0
+
+        def kill(self):
+            pass
+
+    def fake_popen(argv, **kw):
+        seen.update(kw)
+        seen["argv"] = argv
+        return _P()
+
+    monkeypatch.setattr("src.cluster.submit.subprocess.Popen", fake_popen)
+    from src.cluster.submit import ssh_runner
+
+    assert ssh_runner("h")(["qstat", "-r"]) == "ok"
+    assert seen["stdin"] is subprocess.DEVNULL, "ssh must not inherit the driver's stdin"
+    assert seen["stdout"] is subprocess.PIPE and seen["stderr"] is subprocess.PIPE
+
+
+def test_ssh_runner_records_whether_the_child_had_ALREADY_EXITED_on_timeout(monkeypatch, caplog):
+    """The diagnostic that will localise the phantom 300 s stall if it recurs.
+
+    Seven hypotheses have been tested and refuted. Rather than guess an eighth, the runner records
+    the one fact that settles it: was the child already dead when the timeout fired? `poll()` is
+    consulted BEFORE the kill, so a non-None returncode proves the wall-clock was spent in the
+    PARENT waiting on the pipe — which no remote-side or cluster-side investigation could show.
+    """
+    import logging
+
+    class _P:
+        returncode = None
+
+        def communicate(self, timeout=None):
+            if timeout is not None:
+                raise subprocess.TimeoutExpired(cmd="ssh", timeout=timeout)
+            return "", ""
+
+        def poll(self):
+            return 0        # the child ALREADY EXITED
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr("src.cluster.submit.subprocess.Popen", lambda argv, **kw: _P())
+    from src.cluster.submit import ssh_runner
+
+    with caplog.at_level(logging.WARNING, logger="src.cluster.submit"):
+        with pytest.raises(subprocess.TimeoutExpired):
+            ssh_runner("h")(["mkdir", "-p", "/x"])
+    joined = " ".join(r.getMessage() for r in caplog.records)
+    assert "ssh_timeout_diagnostic" in joined
+    assert "child_already_exited=True" in joined, (
+        "the diagnostic must state whether the child was already dead — that is the whole point"
+    )
+
+
+def test_the_spend_ledger_persists_the_providers_stop_reason(tmp_path):
+    """A truncated completion reaches the sandbox as 'defines no callable named reward', identical
+    to a model that could not write the code. Without a STRUCTURED stop_reason the per-model
+    authoring-reliability table cannot separate a MODEL failure from OUR cap."""
+    from src.llm.spend_ledger import record_spend
+
+    led = tmp_path / "spend.jsonl"
+    record_spend(led, provider="anthropic", model="claude-opus-5", cost_usd=0.01,
+                 tokens_in=10, tokens_out=20, note="realized", stop_reason="max_tokens")
+    row = json.loads(led.read_text(encoding="utf-8").splitlines()[0])
+    assert row["stop_reason"] == "max_tokens"
+
+    # and a normal completion still records the field (as None) so the schema is uniform
+    record_spend(led, provider="anthropic", model="claude-opus-5", cost_usd=0.01)
+    row2 = json.loads(led.read_text(encoding="utf-8").splitlines()[1])
+    assert "stop_reason" in row2 and row2["stop_reason"] is None

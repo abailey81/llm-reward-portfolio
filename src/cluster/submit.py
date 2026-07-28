@@ -12,11 +12,15 @@ are pre-submitted with ZERO driver latency (§14.3); job ids parsed from Grid En
 """
 from __future__ import annotations
 
+import logging
 import re
 import shlex
 import subprocess
+import time
 from pathlib import Path
 from typing import Callable
+
+_LOG = logging.getLogger(__name__)
 
 __all__ = [
     "ssh_runner", "ssh_base", "push_batch", "qsub", "submit_marker", "parse_job_id",
@@ -101,14 +105,48 @@ def ssh_runner(host: str = "myriad") -> Runner:
 
     def _run(cmd: list[str]) -> str:
         remote = " ".join(shlex.quote(c) for c in cmd)
+        argv = [*ssh_base(host), remote]
         # encoding is PINNED to utf-8 (not the OS locale): the cluster emits utf-8, but a non-utf-8
         # Windows console (e.g. cp1251 on a Russian-locale laptop) would otherwise crash the reader
         # thread on any non-ASCII byte. errors="replace" keeps a stray byte from ever killing a pull.
-        out = subprocess.run(
-            [*ssh_base(host), remote], capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=_RUNNER_TIMEOUT_SECS, check=True,
+        #
+        # stdin=DEVNULL (2026-07-28): `ssh` READS stdin to forward it to the remote command unless
+        # told otherwise, and `capture_output=True` leaves stdin INHERITED from the driver — whose
+        # own stdin is a pipe from the supervisor's `| Out-File`. An A/B at fan-out 40 showed no
+        # measurable difference, so this is not the cure for the stall below; it is simply the
+        # correct way to run ssh unattended, and it removes a whole class of hazard for free.
+        t0 = time.monotonic()
+        proc = subprocess.Popen(
+            argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+            text=True, encoding="utf-8", errors="replace",
         )
-        return out.stdout
+        try:
+            out, err = proc.communicate(timeout=_RUNNER_TIMEOUT_SECS)
+        except subprocess.TimeoutExpired:
+            # ── THE DIAGNOSTIC THAT LOCALISES THE STALL ────────────────────────────────────────
+            # Seven hypotheses for the phantom timeout have been tested and refuted (archive size,
+            # qmaster, MaxStartups, the ssh client, GIL starvation, inherited stdin, pipe-handle
+            # inheritance). Rather than guess an eighth, record the ONE fact that settles it: had
+            # the child ALREADY EXITED when the timeout fired? `poll()` is checked BEFORE the kill,
+            # so a non-None returncode proves the wait was on the PIPE, not on the command — which
+            # no amount of remote-side or cluster-side investigation could ever show.
+            rc = proc.poll()
+            elapsed = time.monotonic() - t0
+            _LOG.warning(
+                "ssh_timeout_diagnostic cmd=%r elapsed=%.1fs child_already_exited=%s "
+                "child_returncode=%r — if child_already_exited is True the wall-clock was spent in "
+                "the PARENT waiting on the pipe, not on the remote command",
+                cmd[:2], elapsed, rc is not None, rc,
+            )
+            proc.kill()
+            try:
+                proc.communicate(timeout=30)
+            except subprocess.TimeoutExpired:  # pragma: no cover — kill() not honoured
+                pass
+            raise
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, argv, output=out, stderr=err)
+        return out
     return _run
 
 
