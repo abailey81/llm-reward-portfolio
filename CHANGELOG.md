@@ -472,6 +472,61 @@ itself was correct in every case.
 The RAM fix landed after that run and is test-only (7/7 green in-module); a final confirming pass
 over every commit was run rather than inferring the result.
 
+### ⑭ ★ CAPACITY VERDICT: THE CAMPAIGN IS DESIGN-PACED, NOT RESOURCE-LIMITED (2026-07-28 09:45-10:00 UTC)
+
+Tamer's directive is to use the maximum Myriad can offer and land as fast as possible. Every
+candidate lever was MEASURED. **Five were tested; all five are already optimal or immaterial.** This
+is recorded so no future session burns effort re-chasing speed that does not exist.
+
+| lever | measurement | verdict |
+|---|---|---|
+| `tmpfs=15G` request | gold staged is **71 MB**; d-nodes advertise **1.1-1.3 TB** tmpfs | immaterial — excludes no node |
+| `-p -100` on H1/non-H2 | ALL queued jobs sit at normalised priority **~1.809** (spread 0.0008); the `-100` families (`random_search` 11, `baselines` 10, `tpe_startup` 7) were RUNNING while `-p 0` leg jobs queued | immaterial — Myriad's formula is fair-share dominated, the POSIX offset is noise |
+| `-ac allow=d` node pin | d-class = **294 hosts / 10,584 cores = 81 %** of the whole cluster (355 / 13,048); we hold **1,482 = 14 %** of it | immaterial — we are nowhere near exhausting the class we are pinned to, and relaxing it would sacrifice the CPU-model homogeneity CRN rests on |
+| `max_u_jobs` cap | **277 jobs of 1,000**; total pending across all 33 running batches = **181 tasks**, 55 already queued | not binding — we are WORK-limited, nothing is held back |
+| SGE reservation | `qalter -R y` REJECTED (`jsv_allowed_mod ... does not allow: R`) — but inspection shows **`reserve: y` already set** | already enabled by UCL's JSV; the lever was already pulled |
+
+**Two corrections to my own reasoning, both caught by verifying instead of assuming.** (i) I first read
+the absent `-R y` in our jobscripts as "no reservation requested" — the job's ACTUAL attributes show
+`reserve: y`, so the runbook was right and I was wrong. (ii) I measured chain "step-to-step gaps" from
+record mtimes and nearly reported a queue overhead from them — those are PULL timestamps, and
+`bayes_opt`'s five records are its PARALLEL startup points, not serial steps. Per-step queue cost is
+**not yet measurable** because the serial phase has only just begun (`c5` = step 1 of 25).
+
+**What actually paces the run.** Work is released by the frozen design — the R101 rung ladder
+(rung 30 now), the search generation barrier, and the serial DFO chains. The critical path is
+**`bayes_opt`: 25 serial steps x 3.59 h measured = 89.8 h = 3.7 d**, and a serial chain is IMMUNE to
+additional cores by construction. Queue placement costs a median **78 min** (max 493 min), which is
+ordinary contention on a shared cluster at full fair-share standing; self-elevation above fair share
+requires RC/admin, which Tamer has ruled out. **Conclusion: the cluster is already giving us
+everything we can consume; more cores would idle.** Measured throughput is **~125 scored units/h =
+59 % of the 211/h ceiling** implied by 1,710 cores at 8.09 h per scored training.
+
+Storage cleared as a run-killer in the same pass: remote Scratch holds **303 MB on a 1 TB filesystem
+with 1,010 GB free (2 %)**; at 0.32 MB/record the full 11,360-record ladder needs ~3.6 GB.
+
+### ⑮ ★ THE RESULTS ARE MEANINGFUL — construct validity verified on live scored data
+
+Tamer asked for the RESULTS to be checked, not just the machinery. Done, and **structurally
+effect-blind**: only the 11 BASELINE comparators have scored records so far — no treatment arm does —
+so no arm contrast is computable and this audit cannot preview the confirmatory verdict. No ranking
+of arms was computed.
+
+| quantity | observed (n=268-319 scored records) | verdict |
+|---|---|---|
+| test window | **1571 steps on all 268** | identical -> paired contrasts valid |
+| `test_sharpe` | -0.910 … +1.421 (median -0.243), **all finite** | plausible band; no absurd values |
+| `test_cvar05` | -0.0344 … -0.0161, **all <= 0** | correct sign for a loss quantile |
+| daily sigma | 0.0075-0.0144 -> **~12-23 % annualised** | textbook equity-portfolio volatility |
+| max daily move | 4.5 % - 18.2 % | consistent with the 2020-26 test window |
+| degenerate (parked in cash) | **0** | no collapsed policies |
+| turnover | 0.0000-1.0000, **0 violations** | exactly the [0,1] bound for a long-only simplex rebalance |
+| effective N | 1.000-30.859 (median 4.03), **0 violations** | inside [1,31]; concentration is plausible for risk-sensitive long-only |
+| **weights** | **15,312 snapshots: most-negative 0.000e+00, worst \|sum-1\| 0.000e+00** | the long-only simplex holds EXACTLY |
+
+This also discharges the ⑫(a) worry: the two huge-reward-scale baselines did **not** produce
+degenerate policies, so the 5.0e5 reward-scale ratio is a CH4 disclosure item, not a broken training.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
