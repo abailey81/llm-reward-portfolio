@@ -7,6 +7,7 @@ instead of leaving a check switched off.
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -305,3 +306,36 @@ def test_elapsed_falls_back_to_the_earliest_record_when_GO_recorded_no_start(tmp
     os.utime(d / "record.json", (old, old))
     lane = _gather_campaign_lane(tmp_path, {"now": time.time()})
     assert lane["lane_hours_in"] == pytest.approx(12.0, abs=0.1)
+
+
+def test_lane_elapsed_IGNORES_quarantined_and_staging_records(tmp_path, monkeypatch):
+    """The lane-start fallback dated the campaign from a QUARANTINED pre-campaign record.
+
+    Records are quarantined precisely because they belong to an EARLIER run, and moving a file
+    preserves its mtime -- so `rglob("record.json")` dated the lane four days early, reported ~95 h
+    elapsed against a real 4.8 h, and deflated every derived rate ~20x. Live consequence
+    (2026-07-28): `rung_forecast` announced "162 done at 1.7/h => rung 0" while the archive was
+    completing ~180 records/h. A throughput number that wrong invites the wrong intervention on a
+    frozen design.
+    """
+    import time as _t
+
+    from src.cluster import telemetry as _T
+    monkeypatch.setattr(_T, "load_state", lambda *a, **k: {}, raising=True)
+
+    now = _t.time()
+    old, recent = now - 95 * 3600, now - 4.8 * 3600
+
+    stale = tmp_path / "_quarantined_precampaign_20260724T000000Z" / "test" / "a" / "s0"
+    _write_record(stale, env_fingerprint={"label": "e|dev=cpu"})
+    os.utime(stale / "record.json", (old, old))
+
+    live = tmp_path / "test" / "a" / "s1"
+    _write_record(live, env_fingerprint={"label": "e|dev=cpu"})
+    os.utime(live / "record.json", (recent, recent))
+
+    lane = _gather_campaign_lane(tmp_path, {"now": now})
+    hours = lane.get("lane_hours_in")
+    assert hours is not None
+    assert 4.0 < hours < 6.0, (
+        f"lane dated from the quarantined record: {hours:.1f} h (expected ~4.8 h)")

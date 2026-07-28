@@ -1111,12 +1111,29 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         camp = load_config("campaign")
         arms = list(camp.get("arms") or [])
         cpa = int(camp.get("candidates_per_arm") or 0)
-        seeds = list(camp.get("seeds") or [])
+        # NOT `list(...)`: under the tiered schema this is a MAPPING, and coercing it here silently
+        # collapses it to its two KEYS before the shape test below can ever see it.
+        seeds = camp.get("seeds") or []
         baselines = list(camp.get("h1_baselines") or [])
         if arms and cpa:
             out["expected_search_units"] = len(arms) * cpa
-        if arms and seeds:
-            out["expected_test_units"] = (len(arms) + len(baselines)) * len(seeds)
+        # TIERED SEEDS (R101). `campaign.seeds` is a MAPPING `{mode: tiered, tiers: [30..568]}`, not
+        # a list of seed ids — so `len(seeds)` counted the two dict KEYS and the expectation came out
+        # as (9 arms + 11 baselines) x 2 = 40. Live at 2026-07-28 that produced
+        # `coverage_test WARN: test has 168 units for 40 expected (duplicates or config drift)`,
+        # i.e. a permanent false "config drift" warning from the moment the scored leg passed 40
+        # units. The module comment already anticipated this ("must switch to summing each arm's own
+        # seed count") — the tiered schema has now landed, so this is that switch. The DESIGN target
+        # is the deepest rung; progress against it is honest, whereas the first rung would flip to a
+        # false "complete" the moment rung 30 filled.
+        n_seeds = 0
+        if isinstance(seeds, dict):
+            tiers = [int(t) for t in (seeds.get("tiers") or []) if str(t).lstrip("-").isdigit()]
+            n_seeds = max(tiers) if tiers else 0
+        elif seeds:
+            n_seeds = len(seeds)
+        if arms and n_seeds:
+            out["expected_test_units"] = (len(arms) + len(baselines)) * n_seeds
         out.setdefault("expected_arms", len(arms))
     except Exception:  # noqa: BLE001 — config unavailable -> the coverage checks degrade to INFO
         pass
@@ -1194,7 +1211,18 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
     # finishes), which only ever DELAYS a warning; it never manufactures one.
     started = state.get("lane_started_utc")
     if started is None:
-        mtimes = [p.stat().st_mtime for p in camp_root.rglob("record.json")] \
+        # EXCLUDE quarantined and in-flight staging (2026-07-28). This fallback dates the lane from
+        # the EARLIEST archived record, and `rglob` swept `_quarantined_precampaign_*` too — records
+        # deliberately set aside precisely BECAUSE they belong to an earlier run, and whose mtimes a
+        # move preserves. That dated the lane 2026-07-24 instead of 2026-07-28, reporting ~95 h
+        # elapsed against a real 4.8 h and deflating every derived rate ~20x. Live consequence:
+        # `rung_forecast` announced "162 done at 1.7/h -> rung 0 (next rung 30 needs 2,538 more)"
+        # while the archive was actually completing ~180 records/h and still accelerating — i.e. the
+        # monitor said the campaign could not reach its FIRST seed rung when it was on track to pass
+        # it comfortably. A throughput number that wrong invites exactly the wrong intervention on a
+        # frozen design, so it is worse than no number at all.
+        mtimes = [p.stat().st_mtime for p in camp_root.rglob("record.json")
+                  if not any(part.startswith(("_quarantined", ".pull_tmp")) for part in p.parts)] \
             if camp_root.is_dir() else []
         started = min(mtimes) if mtimes else None
     if started is not None:
@@ -1285,7 +1313,14 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
         per_arm_prog: dict[str, dict[str, Any]] = {}
         now_e = float(out.get("now") or time.time())
         for rec_path in camp_root.rglob("record.json"):
-            if any(x.startswith(".pull_tmp") for x in rec_path.parts):
+            # `_quarantined*` as well as `.pull_tmp` (2026-07-28). Quarantined records belong to an
+            # EARLIER run and a move preserves their mtimes, so counting them made two arms look
+            # permanently stalled: `arm_progress_symmetry` reported CRITICAL "placebo (16 records,
+            # silent 66.4h)" on a campaign that was 7.7 h OLD — the 16 were 2026-07-25 leftovers set
+            # aside at 00:23. THIRD instrument to trip on this (lane elapsed and the record census
+            # were the others), so it is a pattern, not a one-off: anything walking the archive must
+            # exclude BOTH the in-flight staging and the deliberately-set-aside past.
+            if any(x.startswith((".pull_tmp", "_quarantined")) for x in rec_path.parts):
                 continue
             n_total += 1
             try:

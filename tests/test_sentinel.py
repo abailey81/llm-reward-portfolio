@@ -586,3 +586,25 @@ def test_a_GENUINELY_nonfinite_record_is_still_flagged() -> None:
     got = S._primary_metric({"val_fitness": float("nan"), "test_sharpe": float("nan")}, search=True)
     assert got is not None and not math.isfinite(got)
     assert S._primary_metric({}, search=False) is None
+
+
+def test_expected_test_units_uses_the_TIERED_seed_ladder_not_the_dict_keys() -> None:
+    """`campaign.seeds` is a MAPPING `{mode: tiered, tiers: [...]}` under R101.
+
+    `len(seeds)` counted its two KEYS, so the expectation was (9 arms + 11 baselines) x 2 = 40 and
+    `coverage_test` warned "168 units for 40 expected (duplicates or config drift)" -- a permanent
+    false drift warning from the moment the scored leg passed 40 units.
+    """
+    def expected(seeds, n_arms=9, n_baselines=11):
+        n = 0
+        if isinstance(seeds, dict):
+            tiers = [int(x) for x in (seeds.get("tiers") or []) if str(x).lstrip("-").isdigit()]
+            n = max(tiers) if tiers else 0
+        elif seeds:
+            n = len(seeds)
+        return (n_arms + n_baselines) * n if n else None
+
+    tiered = {"mode": "tiered", "tiers": [30, 100, 189, 279, 340, 403, 568]}
+    assert expected(tiered) == 20 * 568, "must use the deepest rung, not the dict keys"
+    assert expected([0, 1, 2]) == 20 * 3, "the legacy list form still works"
+    assert expected({}) is None and expected([]) is None
