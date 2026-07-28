@@ -27,6 +27,11 @@
 {"failed": "scalar_cvar5-g0-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'state' where it is not associated with a value\")"}
 {"failed": "scalar_cvar5-g0-c3", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "scalar_cvar5-g0-c4", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
+{"failed": "scalar_cvar5-g1-c0", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar_cvar5-g1-c1", "error": "sandbox: reward crashed during validation: NameError(\"name 'gross_ret' is not defined\")"}
+{"failed": "scalar_cvar5-g1-c2", "error": "sandbox: reward crashed during validation: ValueError('shapes (31,) and (30,) not aligned: 31 (dim 0) != 30 (dim 0)')"}
+{"failed": "scalar_cvar5-g1-c3", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
+{"failed": "scalar_cvar5-g1-c4", "error": "sandbox: reward crashed during validation: ValueError('operands could not be broadcast together with shapes (60,) (30,) ')"}
 {"failed": "scalar-g0-c0", "error": "sandbox: source defines no callable named 'reward'"}
 {"failed": "scalar-g0-c1", "error": "sandbox: source defines no callable named 'reward'"}
 {"failed": "scalar-g0-c2", "error": "sandbox: source defines no callable named 'reward'"}
