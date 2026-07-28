@@ -6,9 +6,10 @@ inferred silently. Where a fact is inferred rather than observed, it says so. Op
 `CHANGELOG.md` (items ①–⑳ of the 2026-07-28 block); this document is the narrative the dissertation
 draws on.
 
-**Status at 2026-07-28 11:36 UTC:** running, T+10.5 h, 12/12 lines alive, freeze intact. No relaunch
-performed and none warranted (§8). **One ACTIVE risk: the transport is blocking the canary gate, so the
-confirmatory H2 headline has not started (§3.1).**
+**Status at 2026-07-28 11:41 UTC:** running, T+10.6 h, 12/12 lines alive, freeze intact, suite green.
+No relaunch performed and none warranted (§8). **★ THE CONFIRMATORY H2 HEADLINE IS NOW LIVE** — the
+canary gate cleared at 11:39:43 UTC (`ok: True, completed: 90`), the C0 analysis-smoke gate passed, and
+`claude-opus-5` began authoring the five core LLM arms at 11:40 UTC.
 
 ---
 
@@ -72,16 +73,27 @@ an admin-kill and used to BLOCK submission. Consequences, measured:
 
 **02:00 → 11:30 — steady execution.** 580 records, 12/12 lines alive continuously, spend $7.19.
 
-**10:21 UTC — the canary reached 88/90 and has NOT advanced since.** Its cluster work is COMPLETE
-(23 epilogue `rc=0`, 0 jobs remaining, final part reported `{"n": 4, "ok": 4}` after
-`step 400000/400000 … rate 11.1 steps/s`), so the 2 outstanding units are a RECONCILIATION problem,
-not a compute one. The blocker is transport — see §3.1. **The five CORE LLM arms have therefore
-authored nothing at all, and the confirmatory H2 headline has not started.**
+**10:21 → 11:39 UTC — THE CANARY STALL, and its resolution.** The canary reached 88/90 at 10:21 and
+did not advance for ~78 min. Its cluster work was already COMPLETE (23 epilogue `rc=0`, 0 jobs
+remaining, final part `{"n": 4, "ok": 4}` after `step 400000/400000 … rate 11.1 steps/s`), so the two
+outstanding units were a RECONCILIATION problem, not a compute one — the blocker was transport
+(§3.1). **It self-healed:** two consecutive pull failures, then success.
 
-> ⚠ **Correction of record.** An earlier version of this document stated the gate cleared at 11:21.
-> That was wrong on two counts: the driver log is LOCAL time (BST = UTC+1), so `11:21` is `10:21 UTC`;
-> and my watcher fired a false "reconciled" because it coerced a `pull_outage` heartbeat's
-> `pending: None` to `0`. Both are recorded in CHANGELOG item ㉑.
+**11:39:43 UTC — THE CANARY GATE CLEARED.** `[c1_canary] batch complete: {'ok': True, 'completed':
+90}`, immediately followed by `[C0] analysis-smoke: all canary records parse + full seed …`. The C0
+gate passed.
+
+**11:40 UTC — ★ THE CONFIRMATORY H2 HEADLINE BEGAN.** `spend_ledger_c1.jsonl` was created and
+`claude-opus-5` began authoring the five core LLM arms (first 2 calls, $0.1397). Until this moment the
+confirmatory arms had produced NOTHING — which is precisely why the kill incident (§2) could not have
+touched them.
+
+> ⚠ **Correction of record.** An earlier version of this document stated the gate cleared at 11:21 on
+> the strength of my own watcher. That was wrong twice over: the driver log is LOCAL time (BST =
+> UTC+1), so `11:21` was `10:21 UTC`; and the watcher coerced a `pull_outage` heartbeat's
+> `pending: None` to `0` and announced a false reconciliation. The gate actually cleared at 11:39:43
+> UTC, verified three independent ways (driver log `ok: True, completed: 90`; the C0 analysis-smoke
+> line; the c1 spend ledger appearing). Recorded in CHANGELOG item ㉑.
 
 ---
 
@@ -98,11 +110,12 @@ authored nothing at all, and the confirmatory H2 headline has not started.**
 | test suite | `PYTEST_RC=0`, zero FAILED/ERROR |
 
 **Phase.** The core line is running its 4 derivative-free comparator arms (`random_search` 25 records,
-`tpe` 7, `bayes_opt` 6, `cma_es` 1) and all 11 H1 baselines. **The 5 core LLM arms have not started —
-they remain behind the canary gate.** The 10 legs are working through their 5 arms **sequentially** —
-`scalar` is 9–15 records deep and all 7 frozen winners so far are `scalar`, with the other four behind.
+`tpe` 7, `bayes_opt` 6, `cma_es` 1), all 11 H1 baselines, and — **since 11:40 UTC — the five core LLM
+arms under `claude-opus-5`**, i.e. the confirmatory H2 contrast is now authoring. The 10 legs work
+through their 5 arms **sequentially**: `scalar` is 9–15 records deep and all 7 frozen winners so far
+are `scalar`, with the other four arms behind it.
 
-### 3.1 THE ACTIVE RISK — transport is blocking the confirmatory gate
+### 3.1 THE TRANSPORT CONSTRAINT — it blocked the gate for 78 min, then self-healed
 
 Measured from the core driver log:
 
@@ -124,9 +137,17 @@ reset by peer`. The remaining levers are lower polling frequency or fewer concur
 which require a line restart — now CHEAP, because hundreds of completed trainings mean re-authoring
 replays from the archive rather than re-billing Opus.
 
-**Held, not acted on:** the campaign is still progressing (583 records, 12/12 lines), the failure
-counter self-heals on success (59/240), and a restart injects a burst of startup probes — the exact
-load that is failing. A watcher escalates if the gate does not clear within 2 h.
+**The judgement call, and its outcome.** A 12-line restart with slower polling was the available
+remedy, and it had become CHEAP (re-authoring now replays from the archive). It was deliberately NOT
+taken: the campaign was still progressing, the counter self-heals on success, and a restart injects a
+burst of startup probes — the exact load that was failing. **The gate then cleared on its own at
+11:39:43 UTC**, vindicating the hold. The lesson for the write-up is that the driver's retry
+discipline absorbed a 78-minute transport outage on the critical path without intervention or data
+loss.
+
+⚠ **The constraint has NOT gone away.** Two of the three failing operations scale with archive size,
+so it will recur and worsen as the campaign grows toward 40,328 units. It is bounded by the driver's
+240-consecutive-failure / 12-hour limits (currently 60/240), and the remedy remains available.
 
 ---
 
