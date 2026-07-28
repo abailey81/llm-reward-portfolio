@@ -553,3 +553,32 @@ def test_admin_kill_verdict_is_COMPUTED_from_the_mirrored_ledger(tmp_path: Path)
     )
     lane_ok = S._gather_campaign_lane(camp, {})
     assert lane_ok["kill_verdict"]["classification"] == "ok"
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# PRIMARY-METRIC SELECTION (the 2026-07-28 false CRITICAL on a healthy baseline)
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+def test_a_test_leg_baseline_with_nan_val_fitness_is_NOT_counted_nonfinite() -> None:
+    """`m.get("val_fitness", m.get("test_sharpe"))` never fell back: the key is PRESENT-but-nan.
+
+    Test-leg BASELINE records have no validation-selected winner, so `val_fitness` is legitimately
+    nan while `test_sharpe` is a perfectly good score. The H1 canon is 11 baselines across every
+    seed rung, so the old expression would have pinned the sentinel to a permanent CRITICAL exactly
+    as the scored leg fills up.
+    """
+    m = {"val_fitness": float("nan"), "test_sharpe": -0.19}
+    assert S._primary_metric(m, search=False) == -0.19
+
+
+def test_search_records_still_score_on_val_fitness() -> None:
+    assert S._primary_metric({"val_fitness": 0.5, "test_sharpe": 0.1}, search=True) == 0.5
+
+
+def test_a_GENUINELY_nonfinite_record_is_still_flagged() -> None:
+    """Detection power preserved: this must never become a blanket suppression."""
+    import math
+
+    got = S._primary_metric({"val_fitness": float("nan"), "test_sharpe": float("nan")}, search=True)
+    assert got is not None and not math.isfinite(got)
+    assert S._primary_metric({}, search=False) is None

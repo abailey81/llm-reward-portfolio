@@ -463,15 +463,26 @@ def check_record_sanity(summary: dict[str, Any] | None) -> HealthCheck:
     if not n:
         return HealthCheck("record_sanity", INFO,
                            str(summary.get("note", "no records yet")), {})
+    def _who(rows: list[dict[str, Any]]) -> str:
+        """Name the offending records by their ACTUAL ``run_id``.
+
+        This used to synthesize ``f"{arm}-s{seed}"``, which was wrong twice over (found live
+        2026-07-28 07:00Z): every search record of an arm shares one seed, so four DISTINCT
+        candidates all rendered as the single string ``scalar-s0`` — indistinguishable — and that
+        shape is the TEST-leg naming convention, so a search-leg warning read as a scored-leg one.
+        Diagnosing four identical labels cost real time; the run_id is right there in the row.
+        """
+        return ", ".join(str(r.get("run_id") or f"{r.get('arm')}-s{r.get('seed')}") for r in rows[:4])
+
     if bad:
-        who = ", ".join(f"{b.get('arm')}-s{b.get('seed')}" for b in bad[:4])
+        who = _who(bad)
         why = (bad[0].get("reasons") or ["?"])[0]
         return HealthCheck("record_sanity", CRITICAL,
                            f"{len(bad)}/{n} recent record(s) are GARBAGE ({who}) — e.g. {why}. "
                            "These are void, not slow: stop and diagnose before more compute is "
                            "spent producing them", {"garbage": bad[:8], "n_assessed": n})
     if sus:
-        who = ", ".join(f"{s.get('arm')}-s{s.get('seed')}" for s in sus[:4])
+        who = _who(sus)
         return HealthCheck("record_sanity", WARN,
                            f"{len(sus)}/{n} recent record(s) look SUSPECT ({who}) — partial "
                            "fallback contamination or missing execution counters",

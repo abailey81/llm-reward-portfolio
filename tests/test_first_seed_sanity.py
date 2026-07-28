@@ -119,8 +119,27 @@ def test_ABSENT_counters_are_SUSPECT_never_silently_OK():
     assert check_reward_actually_ran(None, None).status == SUSPECT
 
 
-def test_zero_wall_clock_means_nothing_trained():
+def test_zero_wall_clock_with_NO_reward_calls_means_nothing_trained():
+    """The genuine catch, preserved: no time AND no evidence of training is GARBAGE."""
     assert check_training_happened(0).status == GARBAGE
+    assert check_training_happened(0, 0).status == GARBAGE
+    assert check_training_happened(0, None).status == GARBAGE
+
+
+def test_an_UNTIMED_but_TRAINED_record_is_OK_not_garbage():
+    """`test_leg.py` hardcodes `wall_clock: 0.0` on EVERY test-leg record.
+
+    Judging on the timer alone condemned the whole SCORED leg — the 2026-07-28 06:53Z sentinel
+    CRITICAL on `baseline_return_minus_cvar-s24`, a record with 400,000 reward calls, a full
+    train_curve and real test returns. The clock is provenance; the reward calls are proof.
+    """
+    s = check_training_happened(0.0, 400_000)
+    assert s.status == OK and "prove training ran" in s.detail
+
+    rec = _rec("baseline_return_minus_cvar", 24,
+               np.random.default_rng(7).standard_normal(300) * 0.01)
+    rec["wall_clock"] = 0.0
+    assert verdict(assess_record(rec)) == OK, "an untimed but trained test record must not be GARBAGE"
 
 
 def test_a_record_with_no_provenance_is_GARBAGE(tmp_path: Path):

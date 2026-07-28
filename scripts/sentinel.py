@@ -744,6 +744,45 @@ _RECORD_CACHE: dict[str, tuple[int, int, dict[str, Any]]] = {}
 _MIRROR_ROOT = Path("D:/llm_rp_archive_mirror")
 
 
+def _primary_metric(m: dict[str, Any], *, search: bool) -> float | None:
+    """The record's PRIMARY score, chosen by stage — the `check_nan_rate` numerator's input.
+
+    Two things were wrong with the previous one-liner ``m.get("val_fitness", m.get("test_sharpe"))``,
+    both found live at 2026-07-28 06:53Z when the sentinel raised CRITICAL on a HEALTHY baseline:
+
+    1. ``dict.get(k, default)`` falls back only when the key is ABSENT. Test-leg baseline records
+       carry ``val_fitness`` PRESENT-but-``nan``, so the fallback never fired and a record with a
+       perfectly good ``test_sharpe: -0.190`` was counted as non-finite.
+    2. The primary metric is stage-dependent. On the SEARCH leg ``val_fitness`` IS the score (it
+       selects winners). On the TEST leg the scored quantity is ``test_sharpe``, and ``val_fitness``
+       is merely inherited from the winner — legitimately absent for BASELINE arms, which have no
+       validation-selected winner at all.
+
+    This matters beyond one alert: the H1 canon is 11 baseline comparators across every seed rung, so
+    the old expression would have pinned the sentinel to a permanent CRITICAL exactly as the scored
+    leg fills up — the cry-wolf failure mode that makes an operator ignore the one alert that counts.
+
+    Detection power is PRESERVED, not suppressed: if no candidate is finite, the first PRESENT value
+    is returned so a genuinely NaN-scored record still counts as non-finite.
+    """
+    import math
+
+    order = ("val_fitness", "test_sharpe") if search else ("test_sharpe", "val_fitness")
+    first_present: float | None = None
+    for key in order:
+        if key not in m:
+            continue
+        try:
+            v = float(m[key])
+        except (TypeError, ValueError):
+            continue
+        if first_present is None:
+            first_present = v
+        if math.isfinite(v):
+            return v
+    return first_present
+
+
 def _scan_records(camp_root: Path) -> dict[str, Any]:
     """One cached pass over the archive's records -> the rate/scale check inputs (S17, 2026-07-06).
 
@@ -769,7 +808,7 @@ def _scan_records(camp_root: Path) -> dict[str, Any]:
                 else:
                     rec = json.loads(rec_path.read_text(encoding="utf-8", errors="replace"))
                     m = rec.get("metrics") or {}
-                    metric = m.get("val_fitness", m.get("test_sharpe"))
+                    metric = _primary_metric(m, search=stage == "search")
                     scale = m.get("popart_scale")
                     raw_rms = None
                     if isinstance(scale, dict):

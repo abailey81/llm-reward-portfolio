@@ -172,15 +172,34 @@ def check_provenance(record: dict[str, Any]) -> Signal:
                   {})
 
 
-def check_training_happened(wall_clock: Any) -> Signal:
-    """A record that appeared without spending time did not train."""
+def check_training_happened(wall_clock: Any, safe_call_count: Any = None) -> Signal:
+    """A record that appeared without spending time did not train — UNLESS it is simply untimed.
+
+    ``src/orchestration/test_leg.py`` builds every TEST-leg record with a hardcoded
+    ``"wall_clock": 0.0``. Judging on the timer alone therefore condemns the entire SCORED leg as
+    GARBAGE — which is what happened at 2026-07-28 06:53Z, when the sentinel raised CRITICAL on
+    ``baseline_return_minus_cvar-s24``, a record carrying ``train_safe_call_count: 400000``, a full
+    ``train_curve`` and real test returns. So judge on EVIDENCE OF TRAINING and treat the clock as
+    what it is: provenance, not proof. A record with no time AND no reward calls is still GARBAGE —
+    that catch is preserved, because absence of evidence must not read as evidence of health.
+    """
     try:
         secs = float(wall_clock)
     except (TypeError, ValueError):
         return Signal("training_happened", SUSPECT, "wall_clock is not a number", {})
+    try:
+        steps = int(safe_call_count) if safe_call_count is not None else 0
+    except (TypeError, ValueError):
+        steps = 0
     if secs <= 0:
+        if steps > 0:
+            return Signal("training_happened", OK,
+                          f"untimed (wall_clock {secs}; test-leg records hardcode 0.0) but "
+                          f"{steps:,} reward calls prove training ran",
+                          {"wall_clock": secs, "safe_call_count": steps})
         return Signal("training_happened", GARBAGE,
-                      f"wall_clock is {secs} — nothing was trained", {"wall_clock": secs})
+                      f"wall_clock is {secs} and no reward calls — nothing was trained",
+                      {"wall_clock": secs})
     return Signal("training_happened", OK, f"training took {secs:.0f}s", {"wall_clock": secs})
 
 
@@ -212,7 +231,7 @@ def assess_record(record: dict[str, Any]) -> list[Signal]:
     rets = np.asarray(_raw, dtype=float)
     return [
         check_provenance(record),
-        check_training_happened(record.get("wall_clock")),
+        check_training_happened(record.get("wall_clock"), m.get("train_safe_call_count")),
         check_returns_finite(rets),
         check_returns_nondegenerate(rets),
         check_returns_plausible(rets),

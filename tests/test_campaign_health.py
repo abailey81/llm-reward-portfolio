@@ -631,3 +631,25 @@ def test_arms_sharing_NO_seed_cannot_be_compared_at_all():
 
     c = check_seed_alignment({"a": {0, 1, 2}, "b": {7, 8, 9}})
     assert c.severity == "CRITICAL" and "NO common seed" in c.detail
+
+
+def test_record_sanity_names_records_by_run_id_not_a_synthesized_label() -> None:
+    """Four DISTINCT search candidates all rendered as one string `scalar-s0` (found 2026-07-28).
+
+    Search records of an arm share a seed, so `f"{arm}-s{seed}"` collapsed them into an
+    indistinguishable list -- and that shape is the TEST-leg naming convention, so a search-leg
+    warning read as a scored-leg one. The operator must be able to tell WHICH record to open.
+    """
+    from src.cluster.campaign_health import check_record_sanity
+
+    sus = [{"run_id": "scalar-g1-c1", "arm": "scalar", "seed": 0, "reasons": ["partial fallback"]},
+           {"run_id": "scalar-g1-c3", "arm": "scalar", "seed": 0, "reasons": ["partial fallback"]}]
+    c = check_record_sanity({"n_assessed": 55, "garbage": [], "suspect": sus})
+    assert c.severity == "WARN"
+    assert "scalar-g1-c1" in c.detail and "scalar-g1-c3" in c.detail
+    assert "scalar-s0" not in c.detail
+
+    # A row without a run_id still degrades gracefully rather than raising.
+    c2 = check_record_sanity({"n_assessed": 9, "garbage": [],
+                              "suspect": [{"arm": "scalar", "seed": 0, "reasons": ["x"]}]})
+    assert "scalar-s0" in c2.detail
