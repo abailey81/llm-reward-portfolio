@@ -3,6 +3,102 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-28e] D11 — FIXING D1 ARMED A RUN-STOPPER, and only the archive could show it
+
+**The most consequential pre-launch finding. RUN 4 would have hit this within hours, overnight, on
+the weakest leg — and the symptom would have been "the campaign stopped submitting and will not
+restart".** Full detail: `docs/CAMPAIGN_EXECUTION_RECORD.md` **§23**.
+
+### The defect
+
+`killswitch.classify_task_deaths` counts **every** `rc != 0` epilogue row as a task death. Eight
+deaths across four hosts in 300 s ⇒ `admin_kill` → `retreat`, which writes
+`MYRIAD_KILL_INCIDENT.json`; `incident_blocks_submission` then raises on **every batch of all twelve
+lines** until a human clears the file.
+
+But `run_one.main` ends `return 0 if n_ok == len(rows) else 1`, and its own comment says a sandbox
+reject "surfaced as a bare rc=1". **An LLM writing reward code that fails the sandbox — the
+phenomenon this study exists to measure — produces exactly the detector's admin-kill signature:**
+fast (~5 s), multi-host, bursty.
+
+### Why fixing D1 made it worse, not better
+
+RUN 1's worst 300 s burst of `rc=1` deaths was **7 across 6 hosts** — *one under* `MIN_DEATHS=8`,
+already past `MIN_DISTINCT_HOSTS=4`. RUN 1 only stayed under the threshold **because it was broken**:
+the cross-line reject collision abandoned **439 of 498 candidates unsubmitted**, so only ~12 % of the
+candidate flow ever reached a node. With D1 fixed the full flow runs and the reject stream gets
+several times denser. Per leg on the real archive: `qwen3_5_9b` **47 rejects / 2 records = 96 %**
+(measured gate-pass ~17 %, i.e. by design) against deepseek 3 %, sonnet/kimi/gemini 0 %.
+
+### The division-of-labour hole
+
+`ledger.host_task_counts` **already excludes** rc=1 from the bad-node detector
+(`_NOT_A_NODE_FAULT_RC`), deferring such codes to "the killswitch, which already owns them" — and the
+killswitch counted rc=1 as an unexplained death. **Neither owner treated it as what it is:** our own
+application verdict on the model's code.
+
+### The fix cannot weaken the detector, and that is the point
+
+`_APPLICATION_EXIT_RC = {1}` is filtered before the burst test. **An administrative `qdel` cannot
+produce rc=1** — it terminates by signal (137/143) or the job never starts (126/127); a clean `1`
+comes only from our own `return 1`. So it carries no evidence about administrative action in either
+direction, and counting it could only ever produce false positives. Transient application failures
+stay handled (driver retries → `retries_exhausted`; permanent ones leave a `_rejects` marker), and
+exclusion is **never silent** — a `killswitch_APPLICATION_EXITS_EXCLUDED` WARNING names the count and
+host spread, so a mass self-inflicted failure remains greppable. (It fires from the **shared** pull
+path, throttled to `min_pull_interval` 60 s and shared across all twelve lines, and the 300 s window
+means it can only speak about the last five minutes — so it is occasional, not a stream.)
+
+### Falsification
+
+Three new tests, all proven to FAIL pre-fix, file then restored **byte-identically** (sha256 compared
+both ends). The key failure message was the diagnosis itself: *"a burst of authoring rejects was
+classified 'admin_kill'/'retreat' — this hard-blocks submission on every line until a human
+intervenes"*; the masking test failed `assert 40 == 10`. The pre-existing
+`test_any_nonzero_rc_counts_as_a_death` was **corrected, not deleted** — it still asserts retreat for
+137/143/127/255/126, and rc=1 moved to a test asserting the opposite. The constants' own stale
+premise (*"8 tasks dying across 4 nodes inside 5 minutes has no benign explanation"*) was rewritten,
+because there is now a documented benign explanation and it is a registered deliverable.
+
+### The live guards are now IN THE REPO — `scripts/campaign_guards.py`
+
+The handoff told the next session to copy the monitors "into your own scratchpad rather than
+depending on the old path". That instruction is a symptom: **a standing monitor that exists only in
+one operator's temp directory is not a standing monitor** — and these guards are the only detector
+for the defect class that invalidated RUN 1, because every unit test exercises a single line.
+
+Six guards behind one entry point (exit 2 = stop the run): `collision` (every ledgered
+`permanent_node_reject` traces to its OWN sub-root) · `reflection` (D2's starvation floor) ·
+`truncation` (0 truncations AND every spend row carries `stop_reason`, so a pre-`18dead8` driver is
+caught immediately) · `transport` (both log formats, timeout depth, the D9 diagnostic) · `rejects`
+(per-model rate against each model's own measured baseline — the FINDING/DEFECT discriminator) ·
+`status`. Falsified against real archives and re-verified after every edit: RUN 1 → **RC=2,
+`foreign=439`**; RUN 3 → **RC=0**.
+
+### Two related things checked and CLEARED (recorded so they are not re-worried)
+
+* **The authoring spend cap is correctly calibrated.** `author_guard()` fires once per candidate
+  SLOT, not per retry — a rejected candidate is ledgered and "stays abandoned", it does not
+  re-author. So calls ≈ 150 per leg against a default cap of `2 × 5 arms × 30 + 60 = 360` (2.4×
+  headroom); RUN 1's busiest line used 125. A high reject rate does **not** multiply authoring calls.
+* **Two monitoring inputs are root-level and carry RUN 1–3's data** — `telemetry.py` hardcodes
+  `outputs/allocation_state.json` and `outputs/myriad_telemetry.jsonl` at the OUTPUTS root, not the
+  run root. The telemetry log holds 34 samples spanning 00:16 → 18:36 (all three runs) and the state
+  file a GPU-era plan with `lane_expected_cores: 2438`. They feed `capacity_accumulation`, which
+  divides measured cores by that declared forecast — so over foreign samples it is not loud, it is
+  **confidently wrong**, and it is precisely the check that answers RUN 4's one open operational
+  question (does the account saturate to ~1,000 jobs / ~4,000 cores?). Advisory only and rewritten by
+  the advisor's first 900 s cycle, so **archived aside at launch** (renamed, never deleted — they are
+  RUN 1–3 evidence) rather than code-changed.
+* **The sentinel's global `check_gate_failure_rate` will sit at WARN/CRIT all run, and that is not a
+  fault.** Its 10 %/40 % thresholds were calibrated on the prototype's ~2.5 % — *one strong model*.
+  Across an eleven-model gradient containing a deliberate ~17 %-pass anchor the aggregate stays above
+  warn. It is advisory and blocks nothing, so the code is left alone rather than churned before
+  launch; the per-model reject view (`run4_watch.py <root> rejects`) is what carries signal, flagging
+  a leg only when it does far worse than **its own** measured baseline.
+
+---
+
 ## [2026-07-28d] RUN 4 PRE-LAUNCH — the gate re-executed, and what re-executing it found
 
 **The session Tamer designated to "prepare deeply and launch". The handoff was accurate and its gate

@@ -1612,7 +1612,7 @@ Every item run fresh; nothing inherited.
 
 | # | check | result |
 |---|---|---|
-| 1 | full suite | **2,870 passed · 3 skipped · 0 failed**, `PYTEST_RC=0` read from the log; tree hash `b95d7564…` identical both ends. *(Re-certified after the D10 fix — see §22.8.)* |
+| 1 | full suite | **2,870 passed · 3 skipped · 0 failed**, `PYTEST_RC=0` read from the log; tree hash `b95d7564…` identical both ends. *(This certification PRE-DATES the D10 fix — the one covering it is §22.10, and the one covering D11 is §23.10.)* |
 | 2 | new tests falsifiable | both D10 tests **FAIL** against pre-fix code with their intended diagnostics |
 | 3 | collision fix on real data | guard replay: RUN 1 `foreign=439` of 498 — matches the independent audit exactly |
 | 4 | freeze | `--check` **RC=0**, `3ca6f01ab7724d47…` **MATCHES**, and still matches after the D10 fix |
@@ -1706,9 +1706,188 @@ not a second reading of the same claim.
 | **the watchdog cannot poison a fresh-root run** | read `mode_d_watchdog.ps1:76-81` | it passes **both** `-OutDir` and `-RemoteRoot` on every restart — the D4 fix is real |
 | **freeze anchors** | `docs/prereg-v2.1.sha256`, `docs/prereg-v2.0.sha256`, both tags | v2.1 anchor matches the live hash; **v2.0's anchor preserved un-overwritten**; both tags present **on origin** (`prereg-v2.1` → seal `b9c2be5`), so the external anchor claim holds |
 | **attribution hygiene** | all 565 commits on every local ref | **0** `Co-Authored-By`/"Generated with" trailers. The 36 bodies containing "claude" reference `CLAUDE.md`, the model id, or the removal work itself |
+| **the laptop survives a 30-day run** | registry pause expiry vs the exogenous stop | Windows Update paused to **2026-09-10**, i.e. **14 days past the Aug-27 stop**; `RebootPending=False`; sleep disabled on AC. A forced reboot mid-run would kill all twelve drivers, so the window must be covered end to end — it is |
+| **the STOP lever's real scope** | read every consumer | `STOP_CAMPAIGN` is honoured by the supervisors, watchdog and backup, and **NOT by a running driver**. It is a "do not restart" lever, not an instant brake: a full halt is STOP file → kill watchdogs → supervisors → drivers, in that order (§19.3). Worth knowing precisely *before* needing it in a hurry |
 
 **Launch ordering, stated because getting it wrong duplicates every line.** The launcher must run
 BEFORE the watchdog. The watchdog restarts any line whose `mode_d_supervisor` process is missing, so
 starting it first would spawn twelve supervisors that the launcher would then duplicate. All twelve
 supervisor processes exist immediately at launch — it is the *supervisor* that sleeps through the leg
 stagger, not the launcher — so launcher → verify 12 up → watchdog is safe.
+
+---
+
+## 23. D11 — FIXING D1 ARMED A RUN-STOPPER, AND ONLY THE ARCHIVE COULD SHOW IT
+
+**This is the most consequential finding of the pre-launch session, and RUN 4 would have hit it in
+the first hours, overnight, on the weakest leg.**
+
+### 23.1 The defect
+
+`killswitch.classify_task_deaths` counts **every** epilogue row with `rc != 0` as a task death. If
+≥ 8 deaths land across ≥ 4 distinct hosts inside a 300 s window and none is walltime-proximate, the
+verdict is `admin_kill` → `retreat`: it writes `MYRIAD_KILL_INCIDENT.json`, and
+`incident_blocks_submission` then raises on **every batch of every one of the twelve lines** until a
+human clears the file.
+
+But `run_one.main` ends with `return 0 if n_ok == len(rows) else 1`, and its own comment records
+that a sandbox/contract reject "surfaced as a bare rc=1". **So an LLM writing reward code that fails
+the sandbox — the phenomenon this study exists to measure — produces exactly the signature the
+detector calls an administrative qdel:** fast (≈5 s), multi-host, bursty.
+
+### 23.2 Why it is worse AFTER the D1 fix, not better
+
+| | |
+|---|---|
+| RUN 1's worst 300 s burst of `rc=1` deaths | **7 deaths across 6 hosts** — ONE under `MIN_DEATHS=8`, already past `MIN_DISTINCT_HOSTS=4` |
+| how much of RUN 1 actually reached a node | **61 %.** 621 records + 59 genuine rejects = **680 of ~1,119** candidate slots; the collision suppressed **439 (39 %)** *unsubmitted and unjudged* |
+| therefore | RUN 1 sat one death under the threshold **because it was broken**. Fixing D1 restores the full flow — **~1.65× the candidate stream** — so the reject burst gets denser and the threshold is crossed |
+| the dominant source | `qwen3.5-9b`, measured gate-pass ~17 % ⇒ ~83 % reject **by design**; it produced 47 of RUN 1's 60 markers |
+
+Measured on the real archive, per leg: `qwen3_5_9b` **47 rejects / 2 records = 96 %**, against
+deepseek 3 %, gpt-luna 3 %, haiku 7 %, nemotron 9 %, glm 20 %, qwen3.6-27b 26 %, and sonnet / kimi /
+gemini at 0 %. The capability gradient is the finding; the detector was reading it as an outage.
+
+### 23.3 The division-of-labour hole that hid it
+
+`ledger.host_task_counts` **already excludes** `rc=1` from the bad-node detector
+(`_NOT_A_NODE_FAULT_RC = {1, 126, 137, 143, 152}`), with a comment deferring such codes to
+"`killswitch.classify_task_deaths`, which already owns them". The killswitch, in turn, counted
+`rc=1` as an unexplained death. **Neither owner treated it as what it is** — our own application
+verdict on the model's code.
+
+### 23.4 The fix, and why it cannot weaken the detector
+
+`_APPLICATION_EXIT_RC = {1}` is filtered out of the death population before the burst test.
+
+This is not a trade-off. **An administrative `qdel` cannot produce `rc=1`**: it terminates by signal
+(`rc` 137/143) or the job never starts (126/127). A clean `1` can only come from our own
+`return 1`, so it carries no evidence about administrative action in either direction — including it
+could only ever generate false positives. Transient application failures remain fully handled: the
+driver retries them and ledgers `retries_exhausted`, and permanent ones leave a `_rejects` marker.
+
+Excluded is **not** silent: a `killswitch_APPLICATION_EXITS_EXCLUDED` WARNING names the count and
+host spread, so a mass self-inflicted failure — the one signal that would otherwise fall between the
+two detectors — stays greppable.
+
+*(On its frequency, checked rather than assumed: an earlier draft of this section called the warning
+"rate-limited", which it is not — there is no throttle in the code. It fires from `_enforce_kill_switch`,
+which runs on the **shared** pull path, itself throttled to `min_pull_interval` 60 s and shared across
+all twelve lines rather than per-line. Combined with the 300 s window, that means it can only speak
+about rejects from the last five minutes, and rejects arrive in bursts at generation boundaries with
+~8 h of training between them. So it is naturally occasional, not a stream. The wording was corrected
+rather than a throttle added, because adding one would have meant editing source during a running
+certification — the P5 rule — to fix a problem the measurement says does not exist.)*
+
+### 23.5 Falsification
+
+Three new tests, all proven to FAIL against the pre-fix code, then the file restored
+**byte-identically** (sha256 compared before and after):
+
+| test | pre-fix result |
+|---|---|
+| a burst of authoring rejects is NOT an admin kill | **FAILED**: `classified 'admin_kill'/'retreat' — this hard-blocks submission on every line until a human intervenes` |
+| rejects must not be counted as evidence alongside a real kill | **FAILED**: `assert 40 == 10` — the 30 rejects were being counted with the 10 genuine signal deaths |
+| the exclusion is logged, never silent | **FAILED**: no such warning existed |
+
+**And then re-verified against the REAL epilogue rows, not fixtures** — replaying RUN 1's actual
+deaths through the fixed classifier:
+
+| replay | verdict |
+|---|---|
+| all **50 real `rc=1` rejects**, across **37 hosts**, packed into one 300 s window (the shape a denser RUN 4 flow produces) | **`ok` / `continue`** — "no infrastructure task deaths in the window (50 application exit(s) excluded)". Pre-fix this is unambiguously an admin kill: 50 ≥ 8 deaths, 37 ≥ 4 hosts |
+| the real **24 `rc=126` deaths across 23 hosts** (the previous session's own `qdel`) | **`admin_kill` / `retreat`** — the detector still detects |
+| both together | `admin_kill`, **`n_deaths=24`, not 74** — rejects do not pad the evidence for a genuine kill |
+
+The pre-existing `test_any_nonzero_rc_counts_as_a_death` was **corrected, not deleted**: it keeps
+asserting retreat for 137/143/127/255/126, and `rc=1` moved to a test asserting the opposite. The
+stale premise in the constants' own comment — *"8 tasks dying across 4 nodes inside 5 minutes has no
+benign explanation"* — was rewritten, because there is now a documented benign explanation and it is
+a registered deliverable.
+
+### 23.6 The guards now live IN THE REPO — `scripts/campaign_guards.py`
+
+§21.4 told the next session to "copy them into your own scratchpad rather than depending on the old
+path". That instruction is a symptom: **a standing monitor that exists only in one operator's temp
+directory is not a standing monitor**, and the guards are the only detector for the defect class
+that invalidated RUN 1. So they are committed.
+
+Six guards, one entry point, exit code 2 = stop-the-run:
+
+| guard | asserts |
+|---|---|
+| `collision` | every ledgered `permanent_node_reject` traces to a marker in its OWN sub-root |
+| `reflection` | ≥80 % of generation>0 candidates were actually shown a reflection block (D2) |
+| `truncation` | 0 provider-confirmed truncations **and** every spend row carries `stop_reason` (a missing key = a driver running pre-`18dead8` code — the ambiguity that halted RUN 3) |
+| `transport` | log levels across BOTH formats, timeout events, worst consecutive-failure depth, and the `ssh_timeout_diagnostic` verdict that settles D9 |
+| `rejects` | per-model reject rate against each model's **own** measured baseline — the FINDING/DEFECT discriminator |
+| `status` | records, authored rewards, and spend by line (the canary shield shows as `c1 = $0.00`) |
+
+Falsified against real data before being trusted, and re-verified after every edit: on the RUN 1
+archive `collision` returns **RC=2 with `foreign=439`**; on RUN 3 it returns **RC=0**.
+
+### 23.7 Two monitoring inputs are ROOT-LEVEL and carry the previous runs' data
+
+The same shared-state class as D1/D5/D11, found by asking where each monitor's inputs come from:
+
+```
+telemetry.py:352  _STATE_PATH = <repo>/outputs/allocation_state.json
+telemetry.py:353  _LOG_PATH   = <repo>/outputs/myriad_telemetry.jsonl
+```
+
+Both are **hardcoded at the outputs root**, not scoped by run root, and both hold RUN 1–3 data:
+`myriad_telemetry.jsonl` carries **34 samples spanning 00:16 → 18:36 on 2026-07-28** (all three
+runs), and `allocation_state.json` holds a GPU-era plan (`search_pool: "L"`,
+`seed_pool_blocks: "L:0-19,EF:20-29,…"`) with `lane_expected_cores: 2438`.
+
+**Consequence, and why it matters more than it looks.** These feed `capacity_accumulation`, which
+divides the measured late-mean cores by the DECLARED forecast. Computed over foreign samples and
+against a foreign forecast, that verdict is simply wrong — and it is exactly the check §21.5 item 3
+relies on to answer the one open operational question RUN 4 exists to settle: *does the account
+actually saturate to ~1,000 jobs / ~4,000 cores?* A polluted input does not make the monitor loud,
+it makes it **confidently wrong**.
+
+**Not a code change.** Both files are advisory, feed no submission decision, and the advisor rewrites
+`allocation_state.json` on its first 900 s cycle. **Both are archived aside at launch** (renamed,
+never deleted — they are RUN 1–3 evidence) so RUN 4's capacity measurement starts from zero.
+
+### 23.8 EXPECTED OPERATIONAL EVENT — weak legs may stop at the C3 review gate
+
+Not a defect; recorded so it is not mistaken for one at 2 a.m. The C3 gate reads **only**
+`health_ok = all_complete and crn_consistent and not mixed_winner_units` — an effect-blind
+execution-health census (hashes and completeness, never a performance value). A line whose arm
+produced **no eligible winner** can leave a test unit incomplete, and the gate then **stops that line
+before the expensive C4 sweep** and waits for an explicit human approval.
+
+That is the conservative, correct behaviour, and on the weakest legs it is a plausible outcome of
+the study rather than a machine fault: `qwen3.5-9b` archived **2 records against 47 rejects** in
+RUN 1. **A leg that cannot author a usable reward is a FINDING**, and R115 adds `no_eligible_winner`
+as a distinct outcome from `no_winner`.
+
+**To clear it:** read `tier1_integrity_<line_tag>.md`, then create
+`<read_root>/TIER1_APPROVED_<line_tag>` — the file is **staleness-checked** (an approval that
+predates the report it claims to approve is IGNORED) and **consumed on passage** (`unlink`), so each
+gate passage needs its own explicit approval. Both are per-line since the D5 fix; an unqualified
+`TIER1_APPROVED` is now ignored rather than silently passing an unreviewed line.
+
+### 23.9 Certification of the D11 fix — the tree that actually launches
+
+| check | result |
+|---|---|
+| full suite | **2,875 passed · 3 skipped · 0 failed**, `PYTEST_RC=0` read from the log |
+| count reconciliation | 2,870 (pre-D10) → **2,872** (+2 D10 tests) → **2,875** (+3 D11 tests). The parametrised `rc` case kept 5 params — `1` was swapped for `126`, not removed — and adding `scripts/campaign_guards.py` added NO case, because `test_cli_help_strings` loops over the CLI paths inside one test rather than parametrising them. **Predicted 2,875 before running it; got 2,875** |
+| source-tree hash | `86cfe11e…` (367 files), **identical before and after** — nothing moved mid-certification (P5) |
+| lint | `ruff check src scripts tests` → All checks passed |
+| freeze | `--check` RC=0, `3ca6f01ab7724d47…` **MATCHES** — neither changed file is hash-bound, so RUN 4 runs the identical registered v2.1 design |
+| production-code footprint, whole session | **two `provider` kwargs** (D10, `campaign.py` + `parallel.py`) and **one filter block** (D11, `killswitch.py`). Everything else is tests, one standalone monitoring script, and documentation |
+
+### 23.10 The sentinel's global gate-failure rate is expected to sit at WARN/CRIT — that is not a fault
+
+`check_gate_failure_rate` (warn 10 %, crit 40 %) was calibrated on the prototype's ~2.5 %, which was
+**one strong model**. Across an eleven-model capability gradient containing a deliberate ~17 %-pass
+anchor, the aggregate will sit above warn for the whole run. It is **advisory** — it blocks nothing —
+so the code is left alone rather than churned before launch, but the interpretation rule matters: a
+permanently-on CRITICAL is how an operator learns to ignore a panel. **Read the per-model reject
+rates instead** (`run4_watch.py <root> rejects`), which flag a leg only when it does far worse than
+its own measured baseline. `qwen3.5-9b` at ~83 % reject is the study working; `deepseek` at 83 %
+would be the study broken.

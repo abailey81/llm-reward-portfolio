@@ -175,10 +175,56 @@ def test_killswitch_is_PURE_and_cannot_touch_the_cluster():
                 f"dynamic execution ({node.func.id}) would defeat the purity guarantee")
 
 
-@pytest.mark.parametrize("rc", [1, 137, 143, 127, 255])
-def test_any_nonzero_rc_counts_as_a_death(rc):
+@pytest.mark.parametrize("rc", [137, 143, 127, 255, 126])
+def test_any_nonzero_INFRASTRUCTURE_rc_counts_as_a_death(rc):
+    """Signal deaths, failed starts and unknown codes all still retreat.
+
+    2026-07-28: ``rc=1`` was REMOVED from this list, deliberately, and the case it used to assert
+    now has its own test below asserting the OPPOSITE. That is a corrected assumption, not a
+    weakened test — see ``test_a_burst_of_authoring_rejects_is_not_an_admin_kill``.
+    """
     v = classify_task_deaths(_deaths(30, hosts=10, secs=60, rc=rc), now=NOW, h_rt_secs=3000)
     assert v.classification == "admin_kill"
+
+
+def test_a_burst_of_authoring_rejects_is_not_an_admin_kill():
+    """rc=1 is OUR OWN verdict on the LLM's reward code — the phenomenon under study.
+
+    ``run_one.main`` returns 1 when any row fails, so a sandbox/contract reject surfaces as a bare
+    rc=1 after a few seconds. On the weaker legs those are frequent BY DESIGN (``qwen3.5-9b``'s
+    measured gate-pass rate is ~17 %), and a generation's worth lands fast, across many hosts — the
+    exact shape this detector calls an administrative qdel.
+
+    Without this exclusion the campaign writes ``MYRIAD_KILL_INCIDENT.json`` and hard-blocks
+    submission on ALL twelve lines until a human clears it. MEASURED on the RUN 1 archive: the worst
+    300 s rc=1 burst was 7 deaths across 6 hosts — one under ``MIN_DEATHS`` — and only 61 % of RUN 1's
+    candidate slots ever reached a node (680 of ~1,119); the cross-line reject collision suppressed
+    439 (39 %) UNSUBMITTED. Fixing that makes the flow ~1.65x denser, so the threshold WOULD be
+    crossed.
+    """
+    v = classify_task_deaths(_deaths(30, hosts=10, secs=5, rc=1), now=NOW, h_rt_secs=3000)
+    assert v.classification == "ok" and v.action == "continue", (
+        f"a burst of authoring rejects was classified {v.classification!r}/{v.action!r} — this "
+        "hard-blocks submission on every line until a human intervenes"
+    )
+    assert "application exit" in v.reason
+
+
+def test_application_exits_do_not_mask_a_real_admin_kill_in_the_same_window():
+    """The exclusion must be surgical: real infrastructure deaths alongside rejects still retreat."""
+    events = _deaths(30, hosts=10, secs=5, rc=1) + _deaths(10, hosts=5, secs=60, rc=137)
+    v = classify_task_deaths(events, now=NOW, h_rt_secs=3000)
+    assert v.classification == "admin_kill" and v.action == "retreat"
+    assert v.n_deaths == 10, "the rejects must not be counted as evidence of an administrative kill"
+
+
+def test_application_exits_are_logged_even_though_they_are_excluded(caplog):
+    """Excluded must never mean invisible — a mass self-inflicted failure has to stay greppable."""
+    with caplog.at_level("WARNING"):
+        classify_task_deaths(_deaths(12, hosts=5, secs=5, rc=1), now=NOW, h_rt_secs=3000)
+    # getMessage() applies the lazy %-args the logger was called with; formatting them by hand
+    # here raised TypeError on a record whose args are a tuple.
+    assert any("APPLICATION_EXITS_EXCLUDED" in r.getMessage() for r in caplog.records)
 
 
 # --- the proactive footprint governor -------------------------------------------------------

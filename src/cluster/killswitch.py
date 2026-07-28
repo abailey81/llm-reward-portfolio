@@ -95,7 +95,10 @@ INCIDENT_FILENAME = "MYRIAD_KILL_INCIDENT.json"
 
 #: Deaths must be at least this many, within :data:`WINDOW_SECS`, across at least
 #: :data:`MIN_DISTINCT_HOSTS` hosts, before we call it an administrative kill. Tuned to retreat
-#: readily: 8 tasks dying across 4 nodes inside 5 minutes has no benign explanation.
+#: readily: 8 INFRASTRUCTURE tasks dying across 4 nodes inside 5 minutes has no benign explanation.
+#: (2026-07-28: "infrastructure" is load-bearing in that sentence — see :data:`_APPLICATION_EXIT_RC`.
+#: There IS a benign explanation for 8 *application* exits in that window, and it is a registered
+#: deliverable of this study.)
 MIN_DEATHS = 8
 MIN_DISTINCT_HOSTS = 4
 WINDOW_SECS = 300.0
@@ -103,6 +106,33 @@ WINDOW_SECS = 300.0
 #: A death is "walltime-proximate" (i.e. an expected h_rt kill, not an admin kill) if the task ran
 #: for at least this fraction of its requested walltime.
 WALLTIME_FRACTION = 0.9
+
+#: Exit codes that are an APPLICATION verdict, not an infrastructure death — excluded from the
+#: administrative-kill burst test.
+#:
+#: ``run_one.main`` ends with ``return 0 if n_ok == len(rows) else 1``, and its own comment records
+#: that a sandbox/contract reject "surfaced as a bare rc=1". An LLM writing a reward that fails the
+#: sandbox is THE PHENOMENON UNDER STUDY — ``qwen3.5-9b``'s measured ~17 % gate-pass rate makes such
+#: rejects frequent BY DESIGN — and a batch of them lands fast, on many hosts at once, which is
+#: precisely the shape this detector calls an administrative qdel.
+#:
+#: MEASURED on the RUN 1 archive: the worst 300 s burst of rc=1 deaths was **7 across 6 hosts** —
+#: ONE death under ``MIN_DEATHS`` and already past ``MIN_DISTINCT_HOSTS``. And only **61 %** of
+#: RUN 1's candidate slots ever reached a node — 621 records + 59 genuine rejects = 680 of ~1,119 —
+#: because the cross-line reject collision suppressed **439 (39 %)** UNSUBMITTED and unjudged. With
+#: that defect fixed the flow is ~**1.65x** denser, so the threshold would be crossed — writing
+#: ``MYRIAD_KILL_INCIDENT.json`` and hard-blocking submission on all twelve lines until a human
+#: clears it. Fixing one defect unmasked the next.
+#:
+#: Excluding rc=1 cannot weaken admin-kill detection, and that is the point rather than a trade-off:
+#: an administrative ``qdel`` terminates by SIGNAL (rc 137/143) or the job never starts (rc 126/127);
+#: a clean ``1`` can only be produced by our own ``return 1``. It therefore carries no evidence about
+#: administrative action in either direction. ``ledger.host_task_counts`` already reached the same
+#: conclusion for the bad-node detector (``_NOT_A_NODE_FAULT_RC``) and deferred rc=1 to "the
+#: killswitch" — which was counting it as an unexplained death. Neither owner treated it as what it
+#: is. Transient application failures remain fully handled elsewhere: the driver retries them and
+#: ledgers ``retries_exhausted``, and permanent ones leave a ``_rejects`` marker.
+_APPLICATION_EXIT_RC: frozenset[int] = frozenset({1})
 
 
 @dataclass(frozen=True)
@@ -223,10 +253,34 @@ def classify_task_deaths(
             window_secs,
         )
     deaths = [e for e in in_window if int(e.get("rc", 0) or 0) != 0]
+
+    # 2026-07-28: drop APPLICATION exits before the burst test. A sandbox/contract reject is our own
+    # `run_one` returning 1 — the LLM-authoring failure this study MEASURES, not a cluster event —
+    # and a batch of them is fast, multi-host and bursty, i.e. shaped exactly like an administrative
+    # qdel. See `_APPLICATION_EXIT_RC` for the measurement (RUN 1's worst rc=1 burst: 7 deaths / 6
+    # hosts, one under the threshold, with 88 % of candidates never even submitted).
+    app_exits = [e for e in deaths if int(e.get("rc", 0) or 0) in _APPLICATION_EXIT_RC]
+    if app_exits:
+        deaths = [e for e in deaths if int(e.get("rc", 0) or 0) not in _APPLICATION_EXIT_RC]
+        # Excluded, never silent: a mass self-inflicted failure must stay VISIBLE even though it is
+        # not an admin kill. This is the one signal that would otherwise vanish between two
+        # detectors, since ledger.host_task_counts already ignores rc=1 as "not a node fault".
+        _LOG.warning(
+            "killswitch_APPLICATION_EXITS_EXCLUDED: %d task(s) in the %.0fs window exited rc in %s "
+            "across %d host(s) — these are OUR OWN application verdicts (sandbox/contract rejects: "
+            "run_one returns 1 when a row fails), NOT infrastructure deaths, so they are excluded "
+            "from the administrative-kill test. Expected and frequent by design on the weaker legs. "
+            "If this count is large AND records are not accumulating, the problem is the authoring "
+            "path, not the cluster.",
+            len(app_exits), window_secs, sorted(_APPLICATION_EXIT_RC),
+            len({e.get("host") for e in app_exits}),
+        )
+
     if not deaths:
         return KillVerdict(
             "ok", "continue",
-            "no task deaths in the window"
+            "no infrastructure task deaths in the window"
+            + (f" ({len(app_exits)} application exit(s) excluded)" if app_exits else "")
             + (f" ({n_undated} undated rows excluded — detector degraded)" if n_undated else ""),
             n_undated=n_undated,
         )
