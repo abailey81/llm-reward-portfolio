@@ -1216,3 +1216,75 @@ attributable to the MODEL, so the reliability table measures capability rather t
 survivorship-freeness, the embargo) were audited in earlier sessions and are not re-verified here.
 This section covers only the five assumptions that connect the *running campaign* to the *claims* —
 the layer where this session has repeatedly found silent defects.
+
+---
+
+## 18. THE OPEN-DEFECT REGISTER — every known issue, its state, and the evidence
+
+Compiled 2026-07-28 by working the FULL list rather than the interesting parts: this session's own
+findings plus every item still marked open in the handoff from earlier review lanes. Each row says
+what was actually run. Nothing here is "believed fine".
+
+### 18.1 CLOSED — verified fixed or not applicable
+
+| # | issue | state | evidence |
+|---|---|---|---|
+| A | **Cross-line reject collision** (killed RUN 1) | **FIXED** | `permanently_rejected_specs` scopes by sub-root; replayed over the real RUN 1 archive it condemns exactly 59 and rescues 439, matching an independent audit; 2 falsifiable tests; live collision guard reports **0 spurious** on RUN 3 |
+| B | **C3 gate's `TIER1_APPROVED` + `tier1_integrity.json` shared across 12 lines** | **FIXED** | scoped by `ClusterRun.line_tag()`, fails CLOSED; 3 falsifiable tests |
+| C | **ssh child leaked on every failed pull** | **FIXED** | `submit.reap` at both sites; 4 falsifiable tests; RUN 3 holds 0–6 live children with `reaped=0` vs RUN 1's 13 accumulating |
+| D | **watchdog / backup / supervisor hardcoded RUN 1's roots** | **FIXED** | all take `-OutDir`/`-RemoteRoot`; watchdog restart verified live on the RUN 3 roots; harvest is root-scoped (`node_authoring_rejects_campaign_cluster_run3.jsonl` confirmed separate) |
+| E | **R115 raise broke `run_arm_pipeline`'s no-raise contract** | **FIXED** | `NoEligibleWinnerError` caught at all 3 sites → `no_eligible_winner`, distinct from `no_winner`; C3 gate catches the incompleteness |
+| F | **#52 H4 turnover space two-way vs a one-way rationale** | **CLOSED, ratified 2026-07-26** | the range STAYS [0, 0.02]; the *prose* was corrected. Narrowing a registered search space to satisfy a sizing heuristic would be changing the science to fit the documentation |
+| G | **`monitor.py` absent state file reads healthy forever** | **ALREADY FIXED** | LATCH-ONCE-SEEN (`state_seen`, 2026-07-26) distinguishes "not started" from "vanished" |
+| H | **#58 killswitch window vs ledger freshness** | **NOT APPLICABLE at our configuration** | window 300 s > `--poll-secs` 180 s > `min_pull_interval` 60 s, so the ledger is always fresher than the window. The false-negative needed the 600 s default we do not use |
+| I | **Malformed batch result judged fail-OPEN** | **FIXED this session** | `res.get("ok", True)` → `False` at both sites, ending a genuine disagreement with the launcher's `bool(out.get("ok"))`; every producer sets `ok` today so behaviour is provably unchanged; pinned by a test |
+
+### 18.2 OPEN — with the exposure stated exactly
+
+| # | issue | exposure | why it is not closed |
+|---|---|---|---|
+| J | **The 300 s "ssh timeout" mechanism is UNIDENTIFIED** | throughput only — **no effect on any recorded number** | see §18.3 |
+| K | **`stop_reason` not persisted to the structured spend ledger** | attribution of a truncation is a driver-log grep, not a field join | the event has **never occurred** (0 across three runs) and the fix edits the authoring hot path all 12 lines use, mid-run. Deferred to the next natural restart |
+| L | **Factor ladder forward-fills 21 of 1,631 test sessions** | **report-only**; headline unaffected | **unfixable by re-pulling** — French has not published past 2026-05-29. Verified by running the real loaders: `load_ff_factors` n_extrapolated **21**, `load_market_proxy_returns` **0**, `load_risk_free_daily` **0** |
+| M | **Tag is annotated, not signed; no OpenTimestamps proof** | external anchor is the commit + tag on origin | no GPG key; the OTS client crashes on Windows. Already disclosed; the write-up must not imply otherwise |
+| N | **174 legacy `Co-Authored-By` trailers in pre-2026-07-26 history** | attribution hygiene | needs a history rewrite + force-push on a shared branch — Tamer's call, never unilateral |
+
+> **On (L), the analysis-time obligation.** The factor-attribution ladder must be computed over
+> sessions with REAL factor data (through 2026-05-29) or report the 21 extrapolated sessions
+> explicitly. The guard `_extrapolated_after` already logs the exact count and exposes it on the
+> result object, so this is a reporting discipline, not a detection problem. **The headline Sharpe is
+> clean**: the risk-free series resolves through `_REFRESHED_RAW` to `fred_macro_x26.csv` and returns
+> **0** extrapolated sessions.
+
+### 18.3 (J) THE TRANSPORT STALL — five hypotheses tested, five refuted, and why it does not touch the science
+
+This is the one genuinely unexplained defect, so the honest thing is to state exactly what is known,
+what was eliminated, and why it is nonetheless not a threat to the result.
+
+**What is established.** The driver logs `timed out after 300 seconds`, arriving *exactly* 300 s
+apart, on operations as trivial as `mkdir -p`.
+
+| hypothesis | test | verdict |
+|---|---|---|
+| the archive grew too large | `find` over the whole remote outputs tree | **REFUTED** — 0.046 s for 703 records |
+| SGE qmaster congestion | 16 concurrent `qstat -r` | **REFUTED** — 14/16 ok at ~2.5 s |
+| OpenSSH `MaxStartups` drops | fan-out ramp to 48 | **REAL but IRRELEVANT** — ~29 % refused, all in 0.1 s, never a timeout |
+| the ssh client | sustained 8-concurrent A/B, Windows 9.5p2 vs Git 10.2p1 | **REFUTED** — 80/80 ok on both |
+| GIL starvation from ~60 threads | 60 threads × 12 rounds of a LOCAL `echo` | **REFUTED** — 720 calls, max 0.599 s, 0 timeouts |
+| inherited stdin (ssh reads it without `-n`) | A/B, inherited vs `stdin=DEVNULL`, fan-out 40 × 3 | **REFUTED** — no difference in stalls |
+
+And decisively: sampling every 3 s for 3 minutes found **8 ssh children, not one aged past 10 s**,
+while the driver was logging 300 s timeouts. **The wall-clock is spent in the PARENT and the message
+misattributes it to the remote command.**
+
+**Why it does not threaten the result.** A stalled poll delays *reconciliation*, never computation:
+the cluster job runs to completion regardless, writes its record, and the next poll picks it up. No
+recorded number depends on how quickly the driver noticed. The measured consequence is throughput —
+and the compounding version of it (the leak, item C) *is* fixed and proven: RUN 1 climbed 5.2 % →
+55.3 % over ten hours; RUN 3 sits at **4 %** with a flat failure counter.
+
+**What was done rather than guessed.** The bound was lowered 300 s → **120 s** (~20× the measured
+worst-case real latency), which returns a parked batch thread to work 2.5× sooner. That is an honest
+bound, not a cure, and it is labelled as such. The remaining hypothesis worth testing at the next
+restart is Windows pipe-handle inheritance across concurrently-spawned children — a known CPython
+race that would produce exactly this signature (child exits, parent's reader never sees EOF).

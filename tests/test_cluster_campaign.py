@@ -1126,3 +1126,28 @@ def test_integrity_report_filenames_carry_the_line_tag(tmp_path, monkeypatch):
     assert md_path.name == "tier1_integrity_leg_sonnet_5.md", md_path.name
     # and it is exactly the path the gate's staleness check consults
     assert json_path == Path(run.read_root) / f"tier1_integrity_{run.line_tag()}.json"
+
+
+def test_a_baselines_result_without_ok_FAILS_CLOSED_not_open():
+    """2026-07-28: `res.get("ok", True)` made a result dict missing `ok` count as SUCCESS, while the
+    launcher judged the same value with `bool(out.get("ok"))` — i.e. FAILURE. The two layers
+    disagreed and the campaign side took the fail-OPEN direction, where an unreported failure
+    proceeds to freeze a winner and run the sealed leg.
+
+    Every producer sets `ok` explicitly today, so this pins the DEFAULT rather than live behaviour —
+    which is the point: it is the same class as #26 (vacuous-truth-on-empty) and #28/#29
+    (fail-open-on-absent-evidence), each of which shipped because an absent value was read as good
+    news.
+    """
+    import inspect
+
+    from src.cluster import campaign
+
+    src = inspect.getsource(campaign)
+    assert 'res.get("ok", True)' not in src, (
+        "a missing 'ok' must not default to success — that is the fail-open direction, and it "
+        "disagrees with run_campaign_cluster's bool(out.get('ok'))"
+    )
+    assert src.count('res.get("ok", False)') >= 2, (
+        "both the tiered and non-tiered baseline paths must fail closed"
+    )

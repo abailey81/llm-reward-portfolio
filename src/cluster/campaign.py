@@ -1558,7 +1558,15 @@ def run_campaign_on_cluster(
             key = futs[fut]
             try:
                 res = fut.result()
-                results[key] = res if key != "__baselines__" else {"ok": res.get("ok", True),
+                # FAIL CLOSED on a missing `ok` (2026-07-28). This defaulted to True, so a result
+                # dict without `ok` counted as SUCCESS — and the launcher judges the same value with
+                # `bool(out.get("ok"))`, i.e. FAILURE. The two layers disagreed, and the campaign
+                # side took the fail-OPEN direction: an unreported failure here proceeds to freeze a
+                # winner and run the sealed leg. Every producer sets `ok` explicitly today (verified
+                # across all return sites), so this changes NOTHING now; it removes a fail-open
+                # default in the class this project has already been bitten by three times
+                # (#26 vacuous-truth-on-empty, #28/#29 fail-open-on-absent-evidence).
+                results[key] = res if key != "__baselines__" else {"ok": res.get("ok", False),
                                                                     "test": res}
             except Exception as exc:  # noqa: BLE001 — one unit's failure must not sink the campaign
                 _LOG.exception("[%s] pipeline crashed", key)
@@ -1756,7 +1764,8 @@ def run_campaign_tiered(
                 if key == "__canary__":
                     out["results"]["canary"] = res
                 elif key == "__baselines__":
-                    core_results[key] = {"ok": res.get("ok", True), "test": res}
+                    # FAIL CLOSED, same reasoning as the non-tiered path above (2026-07-28).
+                    core_results[key] = {"ok": res.get("ok", False), "test": res}
                 else:
                     core_results[key] = res
             except Exception as exc:  # noqa: BLE001 — one unit must not sink the ladder
