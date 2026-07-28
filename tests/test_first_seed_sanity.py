@@ -160,6 +160,26 @@ def test_a_broken_first_seed_is_caught_end_to_end(tmp_path: Path):
     assert "reward_actually_ran" in names and "returns_nondegenerate" in names
 
 
+def test_search_leg_records_are_ASSESSED_not_silently_skipped(tmp_path: Path):
+    """A campaign spends most of its life with `search_leg_*` as the ONLY leg records that exist.
+
+    The gate used to gather `test`, `search` and `test_leg_*` only, so every replication leg was
+    invisible to it -- 23 of the 29 records live at 2026-07-28 06:10Z, and precisely where the
+    authoring failures concentrate. A broken search-leg record must FAIL the gate, not be skipped:
+    skipping reads as a clean bill of health, which is the dangerous direction.
+    """
+    rng = np.random.default_rng(11)
+    write_run(_rec("distributional", 0, rng.standard_normal(300) * 0.01),
+              tmp_path / "search_leg_deepseek_v4_pro" / "distributional")
+    write_run(_rec("scalar", 0, np.full(300, 0.0), sd=390_000),   # crashed reward + flat line
+              tmp_path / "search_leg_deepseek_v4_pro" / "scalar")
+
+    out = assess_seed(tmp_path)
+    assert out["status"] != "no_records", "search-leg records were not gathered at all"
+    assert len(out["records"]) == 2
+    assert out["verdict"] == GARBAGE, "a broken search-leg record must fail the gate"
+
+
 def test_it_reports_the_FIRST_seed_by_default(tmp_path: Path):
     rng = np.random.default_rng(5)
     for seed in (3, 7):

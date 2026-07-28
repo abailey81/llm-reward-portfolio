@@ -233,7 +233,12 @@ def assess_seed(root: str | Path, seed: int | None = None) -> dict[str, Any]:
 
     base = Path(root)
     roots = [p for p in (base / "test", base / "search") if p.is_dir()]
+    # `search_leg_*` too, NOT just `test_leg_*`: for most of a campaign the ONLY leg records that
+    # exist are search-leg ones (the test legs come later), so omitting them left this gate blind to
+    # every replication leg -- 23 of the archive's 29 records at 2026-07-28 06:10Z, and precisely
+    # where the authoring failures concentrate.
     roots += [p for p in sorted(base.glob("test_leg_*")) if p.is_dir()]
+    roots += [p for p in sorted(base.glob("search_leg_*")) if p.is_dir()]
     records: list[dict[str, Any]] = []
     for r in roots:
         for arm_dir in sorted(p for p in r.iterdir() if p.is_dir()):
@@ -312,7 +317,8 @@ def assess_recent(root: str | Path, limit: int = 300) -> dict[str, Any]:
     """
     base = Path(root)
     paths: list[Path] = []
-    for r in [base / "test", base / "search", *sorted(base.glob("test_leg_*"))]:
+    for r in [base / "test", base / "search",
+              *sorted(base.glob("test_leg_*")), *sorted(base.glob("search_leg_*"))]:
         if r.is_dir():
             paths.extend(p for p in r.rglob("record.json")
                          if not any(x.startswith(".pull_tmp") for x in p.parts))
