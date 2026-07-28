@@ -965,10 +965,26 @@ other file. It is left as-is deliberately: populating the field means editing no
 forces a re-deploy and would move the `deployed-archive` stamp mid-run, a real cost for a duplicate
 of something already archived.
 
-> **ANALYSIS-TIME OBLIGATION.** Every fed-block analysis — the mechanism chapter, the
-> surface-echo-vs-genuine-use audit, any "what did the model actually see" claim — must read
-> **`prompt.txt`**. Reading `record.json["feedback_block"]` returns empty strings and would silently
-> conclude the designer was shown nothing.
+> **ANALYSIS-TIME OBLIGATION — and it is ALREADY MET by the shipped pipeline.** Every fed-block
+> analysis must read the **prompt**, not `feedback_block`. Verified rather than assumed:
+> `src/inference/information_gap.py` (the mechanism module — the surface-echo-vs-genuine-use audit,
+> i.e. the originality kernel) already does exactly that: `fed_text = str(r.get("prompt") or "")`,
+> with `feedback_block` retained only as a legacy fallback for pre-Rank-14 archives. That ordering
+> was fixed on 2026-07-05 (M14) for an independent and better reason — a record's own
+> `feedback_block` is the block built FROM that candidate and fed to the NEXT generation, so a
+> block-first read computed the redundancy on an off-by-one-generation sequence and defeated the
+> sibling de-duplication.
+>
+> And the prompt is genuinely there: `load_run` embeds `prompt` IN the record (`prompt.txt` is a
+> byte-verified sidecar, so "analysis never depends on a separate file"). Measured on RUN 1: **241
+> records carry a non-empty embedded prompt** — exactly the count of `prompt.txt` files — while the
+> 380 without one are the family/DFO search arms and sealed test records, which legitimately have no
+> authored prompt.
+>
+> So this is a **verified negative**, recorded so it is not re-investigated: the shipped mechanism
+> analysis is safe. The warning applies only to any ad-hoc analysis written later that reaches for
+> `feedback_block` because the schema advertises it — that path returns empty strings and would
+> silently conclude the designer was shown nothing.
 
 ### 15.3 ★ The collision did not merely discard candidates — it disabled the reflection loop
 
