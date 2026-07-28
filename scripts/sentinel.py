@@ -641,7 +641,7 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     g = inputs.get
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
-                "rung_targets", "env_fp_labels", "kill_verdict", "record_sanity", "authoring_health",
+                "rung_targets", "env_fp_labels", "substrate_fields", "kill_verdict", "record_sanity", "authoring_health",
                 "unreadable_records", "arm_progress", "seed_digests",
                 "reward_hash_by_seed", "unit_counts", "scored_lengths",
                 "freeze_state", "seed_sets")):
@@ -666,6 +666,8 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             rung_targets=g("rung_targets")))
     if g("env_fp_labels") is not None:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
+    if g("substrate_fields") is not None:
+        out.append(ch.check_substrate_fields(g("substrate_fields")))
     if g("freeze_state") is not None:
         frozen, rec_h, cur_h = g("freeze_state")
         out.append(ch.check_design_drift(frozen, rec_h, cur_h))
@@ -1429,11 +1431,18 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
     # device/thread mix inside the scored leg breaks the CRN pairing every paired contrast needs.
     test_root = camp_root / "test"
     if test_root.is_dir():
-        from src.cluster.integrity import env_label_census
+        from src.cluster.integrity import env_label_census, substrate_field_census
 
-        census = env_label_census([p for p in sorted(test_root.iterdir()) if p.is_dir()])
+        arm_dirs = [p for p in sorted(test_root.iterdir()) if p.is_dir()]
+        census = env_label_census(arm_dirs)
         if census:
             lane["env_fp_labels"] = census
+        # The label carries only `dev=`; CPU MODEL and thread regime live in env.json and are what
+        # actually fix float reduction order. Measured 2026-07-28: the search leg already held a
+        # Xeon Gold 6240/6140 mix, so `-ac allow=d` does not pin one microarchitecture.
+        sub = substrate_field_census(arm_dirs)
+        if sub:
+            lane["substrate_fields"] = sub
     return lane
 
 

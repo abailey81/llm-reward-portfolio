@@ -147,12 +147,25 @@ def _write_record(d: Path, **fields) -> None:
     (d / "record.json").write_text(json.dumps({"run_id": d.name, **fields}), encoding="utf-8")
 
 
-def test_an_EMPTY_run_dir_yields_no_ARCHIVE_derived_inputs_so_those_checks_stay_off(tmp_path):
+def test_an_EMPTY_run_dir_yields_no_ARCHIVE_derived_inputs_so_those_checks_stay_off(tmp_path,
+                                                                                    monkeypatch):
     """A monitor that guesses is worse than one that is silent: absent artifacts must leave the
     checks switched OFF, not fed with defaults. (The rung ladder and the stop are pre-registered
     CONFIG facts, so they are present independently of any run dir — and the forecast built on them
-    reports INFO until the first training completes.)"""
+    reports INFO until the first training completes.)
+
+    ``load_state`` is stubbed because the allocation state is DECLARED-AT-GO, not archive-derived,
+    and it lives at a fixed repo path rather than under ``camp_root``. Once the real campaign
+    launched it began returning ``lane_expected_cores``, so this test started failing on live repo
+    state while asserting something about an EMPTY DIRECTORY — a test-isolation fault, not a code
+    fault (verified 2026-07-28 by reverting the day's changes and reproducing the failure).
+    """
+    from src.cluster import telemetry as _T
     from scripts.sentinel import evaluate_health
+
+    # Patched at its DEFINING module: `_gather_campaign_lane` imports it inside the function body,
+    # so binding a stub onto `scripts.sentinel` would never be seen.
+    monkeypatch.setattr(_T, "load_state", lambda *a, **k: {}, raising=True)
 
     lane = _gather_campaign_lane(tmp_path, {"now": time.time()})
     assert "chain_progress" not in lane and "host_attempts" not in lane
@@ -205,7 +218,9 @@ def test_ONE_half_written_record_does_not_take_the_live_census_dark(tmp_path):
     torn.mkdir(parents=True)
     (torn / "record.json").write_text('{"env_fingerprint": {"lab', encoding="utf-8")
     lane = _gather_campaign_lane(tmp_path, {"now": time.time()})
-    assert lane["env_fp_labels"] == {"e|dev=cpu": 1}
+    # Keyed on the SUBSTRATE, not the whole label: the label also carries arm identity, so a
+    # leg-wide census keyed on it made every ARM read as a distinct environment (2026-07-28).
+    assert lane["env_fp_labels"] == {"dev=cpu": 1}
 
 
 def test_the_homogeneity_census_covers_the_SCORED_leg_only(tmp_path):
@@ -216,7 +231,23 @@ def test_the_homogeneity_census_covers_the_SCORED_leg_only(tmp_path):
     assert "env_fp_labels" not in _gather_campaign_lane(tmp_path, {"now": time.time()})
     _write_record(tmp_path / "test" / "llm_tail" / "s1", env_fingerprint={"label": "e|dev=cpu"})
     lane = _gather_campaign_lane(tmp_path, {"now": time.time()})
-    assert lane["env_fp_labels"] == {"e|dev=cpu": 1}
+    assert lane["env_fp_labels"] == {"dev=cpu": 1}
+
+
+def test_two_ARMS_on_one_substrate_are_HOMOGENEOUS_not_a_mix(tmp_path):
+    """The regression that made this check fire by CONSTRUCTION on any multi-arm scored leg.
+
+    Real labels embed the arm (`campaign:<arm>:test[3835,5406)|dev=cpu`), so censusing whole labels
+    reported "8 distinct environments" for 8 arms sitting on one CPU model -- CRITICAL, with a
+    remedy line ("quarantine the minority substrate and re-run it") that would have destroyed good
+    scored records.
+    """
+    _write_record(tmp_path / "test" / "arm_a" / "s0",
+                  env_fingerprint={"label": "campaign:arm_a:test[3835,5406)|dev=cpu"})
+    _write_record(tmp_path / "test" / "arm_b" / "s0",
+                  env_fingerprint={"label": "campaign:arm_b:test[3835,5406)|dev=cpu"})
+    lane = _gather_campaign_lane(tmp_path, {"now": time.time()})
+    assert lane["env_fp_labels"] == {"dev=cpu": 2}, "two arms on one CPU are ONE substrate"
 
 
 def test_the_capacity_FORECAST_survives_an_advisor_cycle_and_reaches_the_check(tmp_path,

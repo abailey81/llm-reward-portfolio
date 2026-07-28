@@ -132,6 +132,84 @@ def record_env_label(record: dict[str, Any]) -> str:
     return label
 
 
+def substrate_field_census(arm_roots: list[Path] | list[str]) -> dict[str, int]:
+    """Leg-wide ``{substrate signature: count}`` read from the per-run ``env.json`` siblings.
+
+    WHY THIS EXISTS AS WELL AS :func:`env_label_census` (2026-07-28). The env LABEL carries only the
+    DEVICE (``|dev=cpu``). The properties that actually fix float reduction order — **CPU model**,
+    thread counts, BLAS settings — live in ``env.json`` and are invisible to the label. They are
+    also invisible to ``env_json_sha256``, because that digest includes the run's ``seed``, so two
+    records on identical hardware hash differently and two records on DIFFERENT hardware cannot be
+    told apart by it either. The hash is provenance; it is not a substrate key.
+
+    That gap is not hypothetical. On 2026-07-28 the SEARCH leg held 116 records on an
+    ``Intel Xeon Gold 6240`` and **1 on a Gold 6140** — different microarchitectures, so
+    ``-ac allow=d`` confines placement to the d-class WITHOUT guaranteeing one CPU model. On the
+    search leg that is a tolerable nuisance (it changes only WHICH candidate is selected). On the
+    SCORED leg it would silently confound every paired contrast, and nothing was watching for it.
+
+    Missing/unreadable ``env.json`` is counted under ``"<no env.json>"`` rather than skipped: a
+    record whose substrate cannot be established is a real gap and must stay visible.
+    """
+    counts: dict[str, int] = {}
+    for root in arm_roots:
+        p = Path(root)
+        if not p.is_dir():
+            continue
+        for rec_path in p.rglob("record.json"):
+            if any(part.startswith(".pull_tmp") for part in rec_path.parts):
+                continue
+            env_path = rec_path.parent / "env.json"
+            try:
+                env = json.loads(env_path.read_text(encoding="utf-8"))
+                if not isinstance(env, dict):
+                    raise ValueError("env.json is not an object")
+            except (OSError, ValueError):
+                counts["<no env.json>"] = counts.get("<no env.json>", 0) + 1
+                continue
+            cpu = env.get("cpu") if isinstance(env.get("cpu"), dict) else {}
+            det = (env.get("determinism_env")
+                   if isinstance(env.get("determinism_env"), dict) else {})
+            tc = env.get("torch_cuda") if isinstance(env.get("torch_cuda"), dict) else {}
+            sig = (f"cpu={cpu.get('model_name')}"
+                   f" | omp={det.get('OMP_NUM_THREADS')}"
+                   f" | torch_threads={tc.get('num_threads')}"
+                   f" | cuda={tc.get('cuda_available')}")
+            counts[sig] = counts.get(sig, 0) + 1
+    return counts
+
+
+def record_substrate_key(record: dict[str, Any]) -> str:
+    """The SUBSTRATE portion of a record's env label — the leg-wide homogeneity key.
+
+    :func:`record_env_label` returns the label whole, and the label carries IDENTITY as well as
+    substrate::
+
+        campaign:baseline_return_minus_cvar:test[3835,5406)|dev=cpu     (test leg)
+        dev=cpu                                                          (search leg)
+
+    Keying a LEG-WIDE census on that string makes every distinct ARM look like a distinct
+    substrate. Found live 2026-07-28: the sentinel reported ``test leg is NOT substrate-homogeneous:
+    8 distinct environments`` when all 107 scored records were ``dev=cpu`` on one CPU model — the
+    "8 environments" were 8 arm NAMES. That is not merely noisy: the check is CRITICAL and its
+    remedy line reads "quarantine the minority substrate and re-run it", so acting on it would have
+    destroyed perfectly good scored records. It also fires by CONSTRUCTION on any multi-arm leg,
+    i.e. always, which is the cry-wolf failure that trains an operator to ignore the real one.
+
+    ``_test_census`` is unaffected because it censuses ONE arm at a time, where the identity prefix
+    is constant — which is exactly why this survived until the leg-wide census met a second arm.
+
+    A label with no ``dev=`` token keys as ``dev=<unrecorded>`` rather than being treated as
+    equivalent to a stamped one: missing provenance is a real difference and must stay visible.
+    A ``capture-failed`` label is preserved whole, since it is a capture fault, not a substrate.
+    """
+    label = record_env_label(record)
+    if label.startswith("capture-failed"):
+        return label
+    tail = label.rsplit("|", 1)[-1].strip()
+    return tail if tail.startswith("dev=") else "dev=<unrecorded>"
+
+
 def env_label_census(arm_roots: list[Path] | list[str]) -> dict[str, int]:
     """Leg-wide ``{env label: count}`` across archive roots — the LIVE homogeneity census.
 
@@ -159,7 +237,7 @@ def env_label_census(arm_roots: list[Path] | list[str]) -> dict[str, int]:
                 continue
             if not isinstance(rec, dict):
                 continue
-            lbl = record_env_label(rec)
+            lbl = record_substrate_key(rec)   # SUBSTRATE, not identity — see record_substrate_key
             counts[lbl] = counts.get(lbl, 0) + 1
     return counts
 

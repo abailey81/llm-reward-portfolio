@@ -653,3 +653,62 @@ def test_record_sanity_names_records_by_run_id_not_a_synthesized_label() -> None
     c2 = check_record_sanity({"n_assessed": 9, "garbage": [],
                               "suspect": [{"arm": "scalar", "seed": 0, "reasons": ["x"]}]})
     assert "scalar-s0" in c2.detail
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# SUBSTRATE HOMOGENEITY (the 2026-07-28 false CRITICAL + the real Gold 6240/6140 mix)
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+def test_substrate_key_strips_ARM_IDENTITY_from_the_label() -> None:
+    """The env label carries identity AND substrate; keying a leg-wide census on it made every
+    ARM look like a distinct environment (8 arms -> "8 distinct environments", CRITICAL, with a
+    remedy line telling the operator to quarantine and re-run perfectly good scored records)."""
+    from src.cluster.integrity import record_substrate_key
+
+    def k(lbl: str) -> str:
+        return record_substrate_key({"env_fingerprint": {"label": lbl}})
+
+    assert k("campaign:baseline_return_minus_cvar:test[3835,5406)|dev=cpu") == "dev=cpu"
+    assert k("campaign:baseline_raw_return:test[3835,5406)|dev=cpu") == "dev=cpu"
+    assert k("dev=cpu") == "dev=cpu"                      # search-leg bare form
+    assert k("campaign:x:test[0,1)|dev=cuda") == "dev=cuda"
+    # Missing provenance is a REAL difference and must stay visible, not silently equal a stamped one.
+    assert k("sigma_pilot:r:test[3835,5406)") == "dev=<unrecorded>"
+    # A capture fault is not a substrate.
+    assert k("capture-failed: OSError").startswith("capture-failed")
+
+
+def test_a_REAL_device_mix_is_still_CRITICAL() -> None:
+    from src.cluster.campaign_health import check_determinism_homogeneity
+
+    assert check_determinism_homogeneity({"dev=cpu": 100}).severity == "OK"
+    assert check_determinism_homogeneity({"dev=cpu": 100, "dev=cuda": 3}).severity == "CRITICAL"
+
+
+def test_substrate_fields_catches_a_CPU_MODEL_mix_the_device_label_cannot() -> None:
+    """Measured live: the search leg held 116 records on a Xeon Gold 6240 and 1 on a 6140.
+
+    Both are `dev=cpu`, so the label-based check is blind to it by construction.
+    """
+    from src.cluster.campaign_health import check_substrate_fields
+
+    one = {"cpu=Intel(R) Xeon(R) Gold 6240 | omp=1 | torch_threads=1 | cuda=False": 132}
+    assert check_substrate_fields(one).severity == "OK"
+
+    mixed = {"cpu=Intel(R) Xeon(R) Gold 6240 | omp=8 | torch_threads=8 | cuda=False": 108,
+             "cpu=Intel(R) Xeon(R) Gold 6140 | omp=8 | torch_threads=8 | cuda=False": 1}
+    c = check_substrate_fields(mixed)
+    assert c.severity == "CRITICAL" and "6140" in c.detail
+
+    # A thread-regime mix is equally fatal to CRN and equally invisible to the label.
+    threads = {"cpu=X | omp=1 | torch_threads=1 | cuda=False": 50,
+               "cpu=X | omp=8 | torch_threads=8 | cuda=False": 2}
+    assert check_substrate_fields(threads).severity == "CRITICAL"
+
+
+def test_records_without_env_json_are_WARN_not_silently_OK() -> None:
+    from src.cluster.campaign_health import check_substrate_fields
+
+    c = check_substrate_fields({"<no env.json>": 12})
+    assert c.severity == "WARN" and "unverifiable" in c.detail
+    assert check_substrate_fields({}).severity == "INFO"

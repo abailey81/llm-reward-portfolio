@@ -47,6 +47,7 @@ __all__ = [
     "check_host_failure_concentration",
     "check_rung_forecast",
     "check_determinism_homogeneity",
+    "check_substrate_fields",
     "check_admin_kill",
     "check_record_sanity",
     "check_authoring_health",
@@ -681,6 +682,39 @@ def check_rung_forecast(*, completed_trainings: int, elapsed_hours: float,
     return HealthCheck("rung_forecast", sev, detail,
                        {"rate_per_hour": round(rate, 2), "projected": round(projected),
                         "reachable_rung": top, "next_rung": nxt})
+
+
+def check_substrate_fields(census: dict[str, int], *, scope: str = "test leg") -> HealthCheck:
+    """Is the SCORED leg on ONE CPU model and ONE thread regime? The device label cannot answer this.
+
+    Consumes :func:`src.cluster.integrity.substrate_field_census`. ``check_determinism_homogeneity``
+    keys on the env LABEL, which carries only ``dev=cpu`` — so an Intel/AMD or Skylake/Cascade-Lake
+    mix, or a 1-vs-8 thread mix, passes it silently. Those are precisely the differences that change
+    float reduction order and therefore break the CRN pairing every paired contrast rests on.
+
+    Live evidence this is needed (2026-07-28): the SEARCH leg was found holding 116 records on a
+    Xeon Gold 6240 and 1 on a Gold 6140, so ``-ac allow=d`` does NOT pin a single CPU model.
+
+    CRITICAL rather than WARN, on the same reasoning as the device check: a substrate mix inside the
+    scored leg is a VALIDITY failure, and it is only fixable while there is still time to re-run.
+    """
+    counts = Counter({str(k): int(v) for k, v in (census or {}).items() if int(v) > 0})
+    total = sum(counts.values())
+    if not total:
+        return HealthCheck("substrate_fields", INFO, "no env.json substrate data yet", {})
+    if len(counts) == 1:
+        only = next(iter(counts))
+        sev = WARN if only == "<no env.json>" else OK
+        detail = (f"{total} scored record(s) carry NO env.json — substrate unverifiable"
+                  if only == "<no env.json>"
+                  else f"{scope} on ONE substrate across {total} records ({only})")
+        return HealthCheck("substrate_fields", sev, detail, {"n_records": total})
+    top = counts.most_common()
+    return HealthCheck("substrate_fields", CRITICAL,
+                       f"{scope} spans {len(counts)} SUBSTRATES — CPU model / thread regime differ, "
+                       "so float reduction order is not identical and CRN pairing is confounded: "
+                       + " || ".join(f"{sig} x{n}" for sig, n in top[:3]),
+                       {"distinct": len(counts), "counts": dict(top[:6])})
 
 
 def check_determinism_homogeneity(env_label_census: dict[str, int], *,
