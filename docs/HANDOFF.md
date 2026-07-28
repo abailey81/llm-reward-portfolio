@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-28"
-  head: "4e164f4"
+  head: "a4f0511"
   frozen: true
   legs_n: 10
   amendments_through: R114
-  suite_status: "in progress (post-monitor-fix certification)"
+  suite_status: "exit 0 (PYTEST_RC=0, zero FAILED/ERROR) - FROZEN 4f90ecc47cc6a779, H2 HEADLINE LIVE 2026-07-28"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```

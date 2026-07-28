@@ -1,0 +1,58 @@
+﻿{"failed": "cpuspeedtest-c0", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "distributional-g0-c0", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "distributional-g0-c1", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "distributional-g0-c2", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "distributional-g0-c3", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "distributional-g0-c4", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "distributional-g1-c1", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
+{"failed": "distributional-g1-c3", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "distributional-g1-c4", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "distributional-g2-c0", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'turnover' where it is not associated with a value\")"}
+{"failed": "distributional-g2-c2", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "distributional-g2-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "distributional-g2-c4", "error": "sandbox: reward returned a non-finite total"}
+{"failed": "placebo-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'rolling_mean' where it is not associated with a value\")"}
+{"failed": "placebo-g0-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'mean_ret' where it is not associated with a value\")"}
+{"failed": "placebo_shuffled-g0-c0", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
+{"failed": "placebo_shuffled-g0-c0", "error": "sandbox: reward crashed during validation: ZeroDivisionError('float division by zero')"}
+{"failed": "placebo_shuffled-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'std_val' where it is not associated with a value\")"}
+{"failed": "placebo_shuffled-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'var_r' where it is not associated with a value\")"}
+{"failed": "placebo_shuffled-g0-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'dd_penalty' where it is not associated with a value\")"}
+{"failed": "placebo_shuffled-g0-c4", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'r_list' where it is not associated with a value\")"}
+{"failed": "scalar_cvar5-g0-c0", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'turnover' where it is not associated with a value\")"}
+{"failed": "scalar_cvar5-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'mean_ret' where it is not associated with a value\")"}
+{"failed": "scalar_cvar5-g0-c1", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
+{"failed": "scalar_cvar5-g0-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'state' where it is not associated with a value\")"}
+{"failed": "scalar_cvar5-g0-c3", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar_cvar5-g0-c4", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
+{"failed": "scalar-g0-c0", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "scalar-g0-c1", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "scalar-g0-c2", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "scalar-g0-c3", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "scalar-g0-c4", "error": "sandbox: source defines no callable named 'reward'"}
+{"failed": "scalar-g1-c0", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g1-c1", "error": "sandbox: reward crashed during validation: ValueError('matmul: Input operand 1 has a mismatch in its core dimension 0, with gufunc signature (n?,k),(k,m?)->(n?,m?) (size 31 is different from 30)')"}
+{"failed": "scalar-g1-c2", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g1-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g1-c4", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
+{"failed": "scalar-g2-c0", "error": "sandbox: reward crashed during validation: NameError(\"name 'components' is not defined\")"}
+{"failed": "scalar-g2-c0", "error": "sandbox: reward crashed during validation: NameError(\"name 'vol' is not defined\")"}
+{"failed": "scalar-g2-c1", "error": "sandbox: reward crashed during validation: NameError(\"name 'hasattr' is not defined\")"}
+{"failed": "scalar-g2-c1", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g2-c2", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g2-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g2-c4", "error": "sandbox: reward crashed during validation: TypeError(\"can't multiply sequence by non-int of type 'float'\")"}
+{"failed": "scalar-g3-c0", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g3-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g3-c4", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g3-c4", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'step_count' where it is not associated with a value\")"}
+{"failed": "scalar-g4-c0", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g4-c1", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g4-c2", "error": "sandbox: reward crashed during validation: ValueError('all the input arrays must have same number of dimensions, but the array at index 0 has 1 dimension(s) and the array at index 1 has 2 dimension(s)')"}
+{"failed": "scalar-g4-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "scalar-g4-c4", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g5-c0", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
+{"failed": "scalar-g5-c1", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
+{"failed": "scalar-g5-c2", "error": "sandbox: reward crashed during validation: IndexError('index 0 is out of bounds for axis 0 with size 0')"}
+{"failed": "scalar-g5-c3", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
+{"failed": "scalar-g5-c4", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
