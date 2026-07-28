@@ -263,8 +263,65 @@ pre-registration is **SILENT** on a `train_safe_default_count` inclusion thresho
 gap, it is Tamer's call and not a lane's, and it must be settled BEFORE test-leg records exist
 rather than after (deciding it once contaminated test records are in hand is a forking path).
 
-State at 06:12 UTC: **all 12 lines alive, 12 tags active, 29 records, ~470 jobs, worst
-consecutive-failure counter 5-7 against the fatal bound of 240, no active kill incident.**
+**⑩ ★ THE SENTINEL RAISED CRITICAL ON A PERFECTLY HEALTHY RECORD — THREE DEFECTS IN THE ALARM PATH**
+(`af6fed6`, 06:53-07:03 UTC). At 06:53 the watcher fired two CRITICALs:
+`nan_rate 11% of records carry a non-finite score` and `record_sanity 1/9 recent record(s) are
+GARBAGE (baseline_return_minus_cvar-s24) — wall_clock is 0.0 — nothing was trained`. **All three
+components of that alert were wrong, and the record was fine.** It carried
+`train_safe_call_count: 400000`, a full `train_curve`, 1,571 finite test returns,
+`test_sharpe: -0.190` and **0 fallbacks**. This is the FIRST record of the SCORED leg — so the alarm
+path was about to fail exactly where it matters most.
+
+**(a) `wall_clock` is provenance, not proof.** `src/orchestration/test_leg.py:193` builds EVERY
+test-leg record with a hardcoded `"wall_clock": 0.0`. `check_training_happened` returned GARBAGE for
+any `secs <= 0`, so **every scored record the campaign will ever produce was destined to be
+condemned**. Now judged on EVIDENCE of training (`train_safe_call_count`), with the genuine catch
+PRESERVED: no time AND no reward calls is still GARBAGE. Verified on the real record (OK on all six
+signals) and on a control with the call count zeroed (still GARBAGE).
+
+**(b) `dict.get(k, default)` does not fall back on a PRESENT-but-`nan` key.** The sentinel scored
+records with `m.get("val_fitness", m.get("test_sharpe"))`. Test-leg BASELINE records have no
+validation-selected winner, so `val_fitness` is present and `nan` — the fallback never fired and a
+record with a perfectly good `test_sharpe` counted as non-finite. Worse, the primary metric is
+STAGE-dependent: `val_fitness` IS the score on the search leg, but the scored quantity on the test
+leg is `test_sharpe`. Replaced with `_primary_metric(m, search=...)`, which prefers the
+stage-appropriate finite value and — deliberately — **still returns a non-finite value when nothing
+finite exists, so genuine NaN pathology is caught, not suppressed.** This mattered beyond one alert:
+**the H1 canon is 11 baseline comparators across every seed rung**, so the old expression would have
+pinned the sentinel to a PERMANENT CRITICAL as the scored leg fills — the cry-wolf failure that
+teaches an operator to ignore the one alert that counts.
+
+**(c) The warning named four different records with one identical, wrong label.** `check_record_sanity`
+rendered offenders as `f"{arm}-s{seed}"`. Every search record of an arm shares a seed, so four
+DISTINCT candidates all printed as `scalar-s0` — indistinguishable — and `{arm}-s{seed}` is the
+TEST-leg convention, so a search-leg warning read as a scored-leg one. That cost real diagnostic time
+chasing test-leg contamination that did not exist. Now named by actual `run_id`.
+
+**What the corrected instrument then reported, which is the useful part.** The four SUSPECT records
+are `scalar-g1-c2` (1,508/400,000 = 0.4 %), `scalar-g1-c2` on another leg (3/400,000), `scalar-g1-c3`
+(1,650/400,000 = 0.4 %) and `scalar-g1-c1` (135/400,000) — **all SEARCH-leg**, so the ⑨ severity
+assessment stands unchanged and **the standing watch for TEST-leg contamination is still CLEAN**
+(the one test record has 0 fallbacks). Post-fix sentinel: **0 CRITICAL**, with
+`design_drift OK (still matches the freeze 4f90ecc47cc6)`, `determinism_homogeneity OK`,
+`test_window_consistency OK (every scored record covers the same 1,571-step window)`,
+`duplicate_units OK`, `unreadable_records OK (all 268 parsed)`, `chain_progress OK (bayes_opt 5/25,
+tpe 1/20, cma_es 1/4)`. Also found and fixed: **TWO independent sentinel instances were running**
+(a duplicate from an earlier restart); consolidated to one.
+
+⚠ **Two WARNs left standing, deliberately, for Tamer:** `archive mirror is 539 h stale`
+(`D:/llm_rp_archive_mirror` has not been refreshed for ~22 days — the campaign's irreplaceable
+output is NOT being mirrored, which after the 2026-07-27 deletion incident deserves a decision, not
+a silent fix), and `transport degrading (16 consecutive pull/ops failures)` — the known ssh
+saturation, still far from the 240 bound.
+
+**THE PATTERN WORTH NAMING: four of tonight's ten findings were defects in the INSTRUMENTS, not the
+campaign** (②, ⑨, and ⑩a/b/c). Every one failed in the same direction — reporting confidence it had
+not earned, or panic it could not justify — and every one was invisible until real records arrived.
+A monitoring stack certified against fixtures is not certified until it has seen production data.
+
+State at 07:03 UTC: **all 12 lines alive, 12 tags active, 56 records (9 archive roots incl. the
+first `test/` record), worst consecutive-failure counter 17 against the fatal bound of 240, spend
+$5.99, no active kill incident, 0 sentinel CRITICAL.**
 
 ### STILL OPEN, FOR TAMER
 
