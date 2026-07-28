@@ -1874,6 +1874,21 @@ predates the report it claims to approve is IGNORED) and **consumed on passage**
 gate passage needs its own explicit approval. Both are per-line since the D5 fix; an unqualified
 `TIER1_APPROVED` is now ignored rather than silently passing an unreviewed line.
 
+### 23.8b ⚠ READ BEFORE APPLYING THE "PROCESSES A COMMIT BEHIND" RULE TO RUN 4
+
+RUN 3 was halted because **CODE** fixes landed after its drivers started. That rule must not be
+applied mechanically to RUN 4, because the situation is different in the way that matters.
+
+**RUN 4's executing code is `b9e6df5` on BOTH sides** — the laptop drivers started from it, and the
+cluster tree was verified byte-identical to it (`DIFFER=0 MISSING=0` over 2,649 files) *before*
+launch. Commits after `b9e6df5` on this branch are **documentation only** (`docs/HANDOFF.md`,
+`docs/CAMPAIGN_EXECUTION_RECORD.md`, `CHANGELOG.md`), which is the standing obligation to document
+as it happens — not a code drift.
+
+**The test to apply is therefore `git diff <running-sha> HEAD -- src scripts config prompts`, not
+`git rev-parse HEAD`.** If that returns nothing, the run is executing exactly the code it claims to.
+If it returns a source file, apply the RUN 3 rule and stop.
+
 ### 23.9 Certification of the D11 fix — the tree that actually launches
 
 | check | result |
