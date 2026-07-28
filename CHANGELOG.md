@@ -701,7 +701,19 @@ separate.
 never-ran rows, or it will understate every model. The discriminator is stated above; the node logs
 that support it are harvested every 15 min into `docs/evidence/`.
 
-### ⑳ `driver_status` STALENESS IS NOT A LIVENESS SIGNAL — and I raised a false alarm on it twice
+### ⑳ ⛔ **RETRACTED — THIS ITEM WAS WRONG (see ㉑).** The premise was a TIMEZONE misread.
+
+> **Do not cite this item.** It concluded that `driver_status` staleness is not a liveness signal,
+> from an apparent contradiction between a 3,696 s stale `wall_ts` and driver-log lines "96 s ago".
+> **The driver log is in LOCAL time (BST = UTC+1), not UTC** (confirmed: `date` local 12:33 vs UTC
+> 11:33). Log `11:21:22` is therefore `10:21:22 UTC` — which MATCHES `wall_ts` exactly. There was no
+> contradiction, `driver_status` was accurate, and the canary really WAS stalled. The corrected
+> analysis is item ㉑. Retained rather than deleted because the reasoning error is instructive: a
+> timezone assumption silently inverted a diagnosis.
+
+<details><summary>Original (incorrect) text, kept for the record</summary>
+
+#### `driver_status` STALENESS IS NOT A LIVENESS SIGNAL — and I raised a false alarm on it twice
 
 Chasing the canary produced one more instrument correction. `c1_canary` read **3,696 s stale** in
 `driver_status`, which I twice flagged as a possibly-wedged thread gating the entire confirmatory
@@ -728,6 +740,60 @@ re-chase it, and so the fix can ride a NATURAL restart boundary if one occurs.
 **Tally for the session: this is the 12th monitoring defect, and the pattern has not varied once —
 every single one reported something other than what it claimed to measure, and the CAMPAIGN was
 correct in every case.**
+
+</details>
+
+### ㉑ ★★★ THE TRANSPORT IS NOW BLOCKING THE CONFIRMATORY GATE — three of my own errors, corrected
+
+This item supersedes ⑳ and corrects two further mistakes of mine. It also changes an earlier
+operational judgement on the evidence.
+
+**ERROR 1 — timezone.** The driver logs are LOCAL (BST = UTC+1). I read them as UTC and concluded
+`driver_status` was lying about staleness. It was not: log `11:21:22` = `10:21:22 UTC` = exactly the
+`wall_ts` it appeared to contradict. **Item ⑳ is retracted.** `driver_status` is accurate, and the
+per-batch heartbeat IS a usable signal.
+
+**ERROR 2 — my own watcher fired a FALSE milestone.** `canary_watch.sh` read
+`int(d.get("pending") or 0)`, which turns the `pull_outage` heartbeat's `pending: None` into `0`, so
+it announced "CANARY reconciled (pending=0)" — and I reported that clearance to Tamer. **The gate had
+NOT cleared** (driver log: `88/90 done, 2 pending`). Fixed: `None` now means UNKNOWN, never zero, and
+reconciliation is only believed from a phase that actually reports counts.
+
+**ERROR 3 — the OpenSSH version in the earlier note was wrong**, and so was the conclusion drawn from
+it. This host runs **OpenSSH_10.2p1**, not 9.5p2. I therefore RE-TESTED multiplexing rather than
+inherit the assumption. Result, measured on an isolated socket with the drivers untouched: the master
+socket IS created but the session fails —
+`mux_client_request_session: read from master failed: Connection reset by peer / Failed to connect to
+new control master`. **Multiplexing is genuinely unavailable**; the earlier conclusion was right for
+the wrong reason. (My "5 concurrent reuses in 105 ms" was meaningless — backgrounded subshells that
+`wait` does not track — and is not counted as evidence.)
+
+**THE ACTUAL FINDING: the ssh saturation has escalated from annoyance to BLOCKER.** Measured, from the
+core driver log:
+
+```
+[c1_canary] pull failed: ssh ... "find .../outputs -path '*/_rejects/*.json' -type f"
+                          timed out after 300 seconds
+[c1_canary] pull failed: ['tar', '-xf', '-'] timed out after 3600.0 seconds
+[c1_random_search_search] queue op failed (8 consecutive, 56 min): 'qstat -r' timed out
+```
+
+The canary has been stuck at **88/90 for 74 minutes** — its cluster work is COMPLETE (23 epilogue
+`rc=0`, 0 jobs remaining) and the blocker is purely transport. Because the canary gates all five CORE
+LLM arms, **the confirmatory H2 headline cannot start while this persists.** Two of the three failing
+operations scale with the archive (`find` over the whole outputs tree, and `tar` of the pull), so this
+gets WORSE as the campaign grows — it is not a transient to wait out indefinitely.
+
+**Why the earlier "do not fix mid-run" judgement no longer holds.** It rested on the cost of a restart
+being ~$13 of Opus re-authoring because no training had completed. That cost is now GONE — hundreds of
+trainings have completed, so `_archived_source` replays from the archive and re-authoring is free.
+Meanwhile the cost of inaction has risen from "slower submission" to "the headline is blocked".
+
+**Not yet acted on, deliberately.** The campaign IS still progressing (583 records, all 12 lines, and
+the counter self-heals on success at 59/240), the failed `tar` had just retried, and a 12-line restart
+under a degraded transport ADDS a burst of startup probes — the exact load that is failing. The
+decision point is whether the canary reconciles on its next successful pull. A corrected watcher now
+escalates if it does not clear within 2 h, with the measured evidence attached.
 
 ### STILL OPEN, FOR TAMER
 
