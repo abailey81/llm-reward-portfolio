@@ -155,6 +155,27 @@ so it will recur and worsen as the campaign grows toward 40,328 units. It is bou
 
 ---
 
+### 3.2 LLM SPEND — measured and projected (report this prominently; Raad/Stefan point 2)
+
+| | |
+|---|---|
+| spend to date | **$7.69** |
+| Opus core authoring (the confirmatory arm) | 6 calls, $0.4931 — **mean $0.0822/call** |
+| projection for the core line | 5 LLM arms × 30 candidates = 150 calls ≈ **$12.33** |
+| **projected campaign total** | **≈ $19.53** against the **$30** advisory ceiling |
+| headroom | ≈ $10.47 |
+
+The ceiling is **advisory, not enforcing** (R83): `src/llm/spend_ledger.py` captures per-call cost and
+warns at 80 %/100 % but **never refuses a call** — the exogenous stops that actually protect the design
+are the seed-rung rule and the leg calendar gate. The write-up must not claim a hard spend gate the
+code does not implement.
+
+*Caveat on the projection:* it assumes 150 authoring calls for the core line. The observed per-leg
+rate is ~15–20 calls per arm mid-run, so the true total will land near this figure but should be
+re-read from the ledger at write-up time rather than quoted from here.
+
+---
+
 ## 4. WHAT WILL HAPPEN (future) — the forecast and why
 
 **The makespan is `max(serial chain, fill)`.**
