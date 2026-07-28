@@ -602,6 +602,52 @@ telemetry curve shows (1,452 → 1,448 → 1,424 → 1,398 slots; queued 55 → 
 while work is pending, THAT is the moment to investigate — and it is the only capacity question left
 worth asking. Nothing before then is actionable, because the design has no more work to release.
 
+### ⑱ COMPLETENESS AUDIT — "nothing falls out, including science" (Tamer, 2026-07-28 11:05 UTC)
+
+Enumerated every unit the campaign must produce and checked each against the live archive, rather
+than trusting aggregate counts.
+
+**① THE CONFIRMATORY HEADLINE HAS NOT STARTED.** All FIVE core LLM arms (`distributional`, `scalar`,
+`placebo`, `scalar_cvar5`, `placebo_shuffled`) have **0 search records** — they are gated behind the
+canary. The four DFO arms ARE running (`random_search` 25, `tpe` 7, `bayes_opt` 6, `cma_es` 1), and
+all 11 H1 baselines are producing. So H2 — the study's headline contrast — is entirely downstream of
+one gate, which makes that gate the single most important object in the run.
+
+**② THE CANARY IS COMPLETE ON THE CLUSTER, BUT THE DRIVER HAD NOT RECONCILED.** Verified directly:
+**23 x rc=0** across canary parts, and the last part `c1_canary_p11` reported
+`{"task": ".../task_1.json", "n": 4, "ok": 4}` after `step 400000/400000 elapsed 36163s rate 11.1
+steps/s` (10.05 h on `node-d00a-031`). It finished **104 s AFTER** the driver's last status write, so
+`driver_status` still read `done=88, pending=2` with a **~41 min stale heartbeat** against a 180 s
+poll. The WORK is done; only the bookkeeping lagged. A dedicated watcher now fires either when the
+gate resolves or — if it has not resolved in 90 min — raises that the c1 driver's canary thread is
+WEDGED, because a wedged thread there means the headline arms never start at all.
+
+**③ NOTHING HANGS ON AN UNAUTHORABLE ARM — the loop advances, verified.** The live failure ledgers
+show generations climbing THROUGH total failure: `qwen3.5-9b` `{g0:15, g1:9, g2:5, g3:5, g4:5, g5:5}`
+and `deepseek-v4-pro` `{g0:20, g1:7, g2:5, g3:3, g4:5, g5:5}` — both reached **g5, the last
+generation**. A model that cannot author does not stall the campaign; it yields a FAILING LEG, which
+is the registered capability-gradient finding. This closes the open worry that a starved leg could
+block the R101 ladder indefinitely.
+
+**④ TWO STARVED LEGS, both expected.** `qwen3.5-9b` (1 record across 5 arms; 36 sandbox rejects) is
+the pre-measured **bottom anchor** of the capability gradient — the numeracy-bottleneck thesis in
+action, and a finding rather than a fault. `glm-5.2` is genuinely slow (25 LLM calls in 9 h vs 69-100
+for its peers; 1 batch live). Both are PROGRESSING, neither is stuck.
+
+**⑤ LEGS PROCESS ARMS SEQUENTIALLY.** Across legs, `scalar` sits 9-15 records deep while
+`placebo`/`scalar_cvar5`/`placebo_shuffled` are at 0-5, and **every one of the 7 frozen winners so far
+is `scalar`**. That is ordering, not loss: each leg must work through 5 arms, so leg searches have
+~4 arms still to go. It is the reason the ladder cannot yet advance past rung 30, and it is why
+utilisation is correctly low (item ⑰).
+
+**⑥ `pull_outage` IS A HANDLED STATE.** Two `leg4` batches sit in phase `pull_outage` with FRESH
+heartbeats (27 s, 344 s) — the transport degradation is a named, actively-retried condition in the
+driver, not a crash. `h3ss` is running one batch with 25 pending and a 21 s heartbeat; its 0 records
+are simply the ~8-10 h training latency, not a fault.
+
+**Nothing is falling out.** The only true single point of failure identified is the canary gate, and
+it is now explicitly instrumented rather than assumed.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
