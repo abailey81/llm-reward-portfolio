@@ -447,6 +447,31 @@ though it stays archived and reported. It is defensible precisely because it is 
 and can be fixed BEFORE any winner is frozen; leaving it is the fragility a reviewer snaps with
 "your winning reward only executed half the time." The frozen pre-registration is silent on this.
 
+### ⑬ A TEST THAT MEASURED THE LAPTOP INSTEAD OF THE THRESHOLDS (2026-07-28 09:18 UTC, `a9db4de`)
+
+Chasing the suite to green surfaced one more of the same family.
+`test_ram_warn_and_critical_fire_at_thresholds` passed alone and passed in-module, and failed only
+inside the FULL suite — the worst shape a failure can take, because it looks like flakiness and
+invites a retry. **Root cause, reproduced deterministically:** the monitor samples the REAL machine's
+RAM on every flush, and WARN/CRITICAL share ONE 60 s cooldown stamp (`_last_ram_ts`). When the host
+crosses `_RAM_PCT_CRIT` (92 %) — which 12 drivers + pytest + the editor did during this campaign, the
+sentinel having measured 89 % and rising — the sampler fires `ram_pressure_critical` FIRST, stamps
+the cooldown, and the test's explicit WARN call is silently swallowed. Verified by construction:
+`CRIT` then `WARN` inside the window leaves `ram_pressure_warn` absent.
+
+So the test asserted the machine's incidental memory pressure rather than the thresholds it names.
+Fixed by zeroing the stamp before the explicit call, and a SECOND test now pins the suppression
+mechanism itself (`test_a_HOST_fired_critical_must_not_swallow_the_warn_assertion`) so the flake
+cannot quietly return and so the workaround can be dropped if that behaviour ever changes.
+
+**This is the same failure family as items ②, ⑨, ⑩ and ⑪ — a check whose result depended on
+something other than what it claimed to measure.** Five distinct instruments today; the campaign
+itself was correct in every case.
+
+**Suite:** the authoritative run at `9abbac6` exited `PYTEST_RC=0` with ZERO `FAILED`/`ERROR` lines.
+The RAM fix landed after that run and is test-only (7/7 green in-module); a final confirming pass
+over every commit was run rather than inferring the result.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
