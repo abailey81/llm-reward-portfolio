@@ -927,3 +927,87 @@ fresh freeze. Every prior record survives as history — tags `prereg-v1.0`, `pr
 and `freeze_hash: null` correctly reported as not-yet-frozen; ruff clean; the R115 tests proven to
 FAIL against the pre-R115 selector (4 of 7 — the other three assert unchanged behaviour and correctly
 pass either way), with `scripts/run_campaign.py` restored byte-identical afterwards.
+
+---
+
+## 15. THE COLLISION ALSO SILENTLY DISABLED THE REFLECTION LOOP — and the fed block is where you think it isn't
+
+Found 2026-07-28 ~16:30 UTC while verifying, on RUN 3, that the manipulated variable actually
+varies. It does — but checking it surfaced two things the earlier post-mortem had not.
+
+### 15.1 Construct validity HOLDS: the fed tail vector really is delivered
+
+Sampled from the live archive, a `distributional` reflection prompt reads:
+
+```
+Reflect on the previous candidate's results and propose an improved reward function.
+Feedback from the previous candidate:
+Your previous reward scored: 0.066737 (validation Deflated Sharpe).
+Realized-return tail diagnostics (training period):
+  CVaR 5%: -0.0296      CVaR 10%: -0.0216     CVaR 25%: -0.0129
+  CVaR 1%: -0.0530  (high-variance estimate)
+  left-tail mass: +0.0230        left-tail skew: -0.0547
+```
+
+That is the manipulated variable, in the prompt, at the `.4f` precision R114 registered. The
+construct-validity hinge holds from both sides now: the base prompts are tail-NEUTRAL (pinned by an
+existing test) **and** the fed block carries the six-scalar tail vector the tail arms are defined by.
+
+### 15.2 ⚠ The fed block is NOT in `record.json["feedback_block"]` — read `prompt.txt`
+
+**Measured: all 621 RUN 1 records carry an EMPTY `feedback_block`,** at every generation. The field
+exists in the record schema and the cluster path never populates it (`parallel.py` writes `""`
+literally). The fed block is archived in the candidate's **`prompt.txt`**, which contains
+`REFLECTION_PREAMBLE + prev_block` verbatim.
+
+This is a provenance REDUNDANCY gap, not a science gap — nothing is lost, it is simply stored in the
+other file. It is left as-is deliberately: populating the field means editing node-side code, which
+forces a re-deploy and would move the `deployed-archive` stamp mid-run, a real cost for a duplicate
+of something already archived.
+
+> **ANALYSIS-TIME OBLIGATION.** Every fed-block analysis — the mechanism chapter, the
+> surface-echo-vs-genuine-use audit, any "what did the model actually see" claim — must read
+> **`prompt.txt`**. Reading `record.json["feedback_block"]` returns empty strings and would silently
+> conclude the designer was shown nothing.
+
+### 15.3 ★ The collision did not merely discard candidates — it disabled the reflection loop
+
+`run_search_arm` builds each generation's prompt as
+
+```python
+user = prompts.initial if prev_block is None else f"{_REFLECTION_PREAMBLE}\n{prev_block}"
+```
+
+and `prev_block` is set **only** when that generation produced an accepted candidate
+(`if best is not None:`). So a generation that completes **nothing** leaves `prev_block` as `None`,
+and the NEXT generation authors from the **INITIAL** prompt — with no error, no warning, and a
+perfectly normal-looking record.
+
+That is exactly what the cross-line reject collision caused. Measured on the RUN 1 archive:
+
+| | |
+|---|---|
+| archived `prompt.txt` files | **241** |
+| carrying the reflection preamble | **10 (4 %)** |
+| arms that ever reflected | **`distributional` only** |
+
+**So RUN 1's "six-generation reflective search" was, in fact, repeated independent draws from the
+same initial prompt for essentially every arm.** The reflection loop is the mechanism H2 exists to
+study, and the collision switched it off silently while every counter stayed green.
+
+This is a materially stronger statement of the damage than "the search was sterilised", and it
+closes the last question about salvage: even the candidates that DID complete were, in most arms,
+not products of the registered reflective process at all.
+
+It also retro-explains §6(a) more completely. The retracted "reflection depth drives state-contract
+violation" gradient was not merely confounded by which candidates were allowed to run — for most
+arms **there was no reflection depth**, because generation g was authored from the same prompt as
+generation 0.
+
+### 15.4 A monitoring gap, now closed
+
+Nothing watched this. A starved reflection loop produces valid-looking records, a green suite, and a
+healthy sentinel — the failure is invisible by construction. RUN 3 therefore runs a
+**reflection-starvation guard**: of the candidates at generation > 0, what fraction were shown a
+reflection block? It reports the per-arm breakdown when that fraction falls below 80 %, so the
+mechanism degrading is now an alert rather than a discovery made months later at write-up.
