@@ -197,6 +197,16 @@ comparator work. And it would fail SILENTLY by design: R83's ledger warns at 80 
 refuses a call**, so no hard gate would catch it. The OpenRouter key carries no such exposure (all
 six of those legs together are ~$2.50).
 
+**★ WHY LLM SPEND CANNOT RUN AWAY — state this in the write-up.** Spend is bounded by the SEARCH
+phase, **not** by the seed ladder. Authoring happens once per arm (30 candidates); the rungs
+100 → 568 then re-test the ALREADY-FROZEN winner at more seeds with **zero new LLM calls**. So cost
+is front-loaded: once every arm has a frozen winner, LLM spend goes to **zero** and only compute
+continues for the remaining ~3–4 days. Verified burn shape: `c1` went 18 → 39 calls in 15 min
+(~1.4 calls/min, $0.0844/call), i.e. ~79 min and ~$9.4 remaining to reach ~150 calls ≈ $12.66 — on
+projection. `h3ss` has been idle 637 min (complete). This is the honest cost band Raad/Stefan asked
+to see reported prominently, and it compares favourably with the lineage (RD-Agent <$10,
+AI-Scientist <$15/paper).
+
 **Correction to my own earlier figure:** I first projected "≈ $19.53 total", which UNDERSTATED the
 Anthropic exposure because it counted only the core line's Opus cost and omitted the four remaining
 arms on each of the two Anthropic-billed replication legs (`leg8` sonnet-5, `leg5` haiku-4.5). The
