@@ -48,6 +48,7 @@ __all__ = [
     "check_rung_forecast",
     "check_determinism_homogeneity",
     "check_substrate_fields",
+    "check_winner_execution_quality",
     "check_admin_kill",
     "check_record_sanity",
     "check_authoring_health",
@@ -713,6 +714,56 @@ def check_rung_forecast(*, completed_trainings: int, elapsed_hours: float,
     return HealthCheck("rung_forecast", sev, detail,
                        {"rate_per_hour": round(rate, 2), "projected": round(projected),
                         "reachable_rung": top, "next_rung": nxt})
+
+
+def check_winner_execution_quality(winners: dict[str, dict[str, Any]], *,
+                                   severe: float = 0.10, warn: float = 0.001) -> HealthCheck:
+    """Did a FALLBACK-CONTAMINATED candidate get frozen as a winner and promoted to the scored leg?
+
+    ``train_safe_default_count`` records the steps on which the authored reward RAISED and the
+    neutral 0.0 fallback stood in (R66). It is archived, and summed into the integrity report — but
+    it does **not** gate selection: the winner is ``max(val_fitness)``. So a candidate whose reward
+    executed on half its steps can win, and the sealed test leg then RE-TRAINS that same reward and
+    inherits the same contamination. Measured 2026-07-28 across 136 search candidates: 127 clean,
+    3 at <0.1 %, 4 at 0.1-1 %, and 2 SEVERE — ``qwen3.6-27b/scalar-g1-c4`` at 53.7 %
+    (214,649/400,000) and ``qwen3.5-9b/distributional-g1-c2`` at 50.0 %.
+
+    The frozen pre-registration is SILENT on an inclusion threshold, and adding one is a DESIGN
+    decision requiring a dated amendment — not a monitor's call. So this check does not gate
+    anything; it makes the event VISIBLE within one poll, while a winner can still be re-run. That
+    is the difference between a disclosed limitation and a result nobody can defend.
+
+    ``winners`` maps a label -> ``{"candidate_id": str, "safe_default_count": int,
+    "safe_call_count": int}``.
+    """
+    rows = []
+    for label, w in sorted((winners or {}).items()):
+        calls = int(w.get("safe_call_count") or 0)
+        if calls <= 0:
+            continue                      # no counters -> says nothing; never guessed at
+        frac = int(w.get("safe_default_count") or 0) / calls
+        rows.append((frac, label, str(w.get("candidate_id") or "?")))
+    if not rows:
+        return HealthCheck("winner_execution_quality", INFO,
+                           "no frozen winner carries execution counters yet", {})
+    rows.sort(reverse=True)
+    worst_frac, worst_label, worst_cid = rows[0]
+    ev = {"n_winners": len(rows),
+          "worst": {"leg": worst_label, "candidate_id": worst_cid, "fallback_frac": round(worst_frac, 6)}}
+    if worst_frac >= severe:
+        return HealthCheck("winner_execution_quality", CRITICAL,
+                           f"a CONTAMINATED candidate was frozen as a winner: {worst_label} "
+                           f"{worst_cid} fell back on {worst_frac:.1%} of training steps. The scored "
+                           "leg will re-train this reward and inherit the contamination — re-run "
+                           "that unit or disclose it; do not let it enter the confirmatory result "
+                           "unexamined", ev)
+    if worst_frac >= warn:
+        return HealthCheck("winner_execution_quality", WARN,
+                           f"frozen winner {worst_label} {worst_cid} fell back on "
+                           f"{worst_frac:.2%} of steps (minor, but it enters the scored leg)", ev)
+    return HealthCheck("winner_execution_quality", OK,
+                       f"all {len(rows)} frozen winner(s) executed cleanly "
+                       f"(worst fallback {worst_frac:.4%})", ev)
 
 
 def check_substrate_fields(census: dict[str, int], *, scope: str = "test leg") -> HealthCheck:

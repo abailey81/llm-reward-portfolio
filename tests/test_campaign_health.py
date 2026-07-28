@@ -737,3 +737,44 @@ def test_a_REAL_broken_node_is_still_caught() -> None:
 
     _, failed = host_task_counts([{"host": "bad", "rc": 127} for _ in range(5)])
     assert failed["bad"] == 5
+
+
+def test_a_CONTAMINATED_frozen_winner_is_CRITICAL() -> None:
+    """Selection is `max(val_fitness)` and ignores `train_safe_default_count` entirely.
+
+    So a candidate whose authored reward raised on half its steps can be frozen as the winner, and
+    the sealed leg then RE-TRAINS that reward and inherits the contamination. Measured 2026-07-28:
+    two search candidates sat at 50.0% and 53.7%. This does not GATE anything -- the pre-registration
+    is silent on a threshold and adding one is a dated-amendment decision -- but the event must be
+    visible while the unit can still be re-run.
+    """
+    from src.cluster.campaign_health import check_winner_execution_quality
+
+    c = check_winner_execution_quality({
+        "qwen3_6_27b": {"candidate_id": "scalar-g1-c4",
+                        "safe_default_count": 214_649, "safe_call_count": 400_000}})
+    assert c.severity == "CRITICAL" and "53.7%" in c.detail
+
+
+def test_clean_frozen_winners_are_OK_and_missing_counters_say_nothing() -> None:
+    from src.cluster.campaign_health import check_winner_execution_quality
+
+    clean = {f"leg{i}": {"candidate_id": f"scalar-g3-c{i}",
+                         "safe_default_count": 0, "safe_call_count": 400_000} for i in range(5)}
+    c = check_winner_execution_quality(clean)
+    assert c.severity == "OK" and "5 frozen winner" in c.detail
+
+    # A winner with NO counters must not be guessed at in either direction.
+    assert check_winner_execution_quality(
+        {"a": {"candidate_id": "x", "safe_default_count": 0, "safe_call_count": 0}}
+    ).severity == "INFO"
+    assert check_winner_execution_quality({}).severity == "INFO"
+
+
+def test_a_MINOR_winner_contamination_still_surfaces_as_WARN() -> None:
+    from src.cluster.campaign_health import check_winner_execution_quality
+
+    c = check_winner_execution_quality({
+        "haiku": {"candidate_id": "scalar-g1-c3",
+                  "safe_default_count": 1_650, "safe_call_count": 400_000}})
+    assert c.severity == "WARN"

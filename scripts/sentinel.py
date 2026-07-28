@@ -641,7 +641,7 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
     g = inputs.get
     if not any(inputs.get(k) is not None for k in
                ("accumulation_report", "chain_progress", "host_attempts",
-                "rung_targets", "env_fp_labels", "substrate_fields", "kill_verdict", "record_sanity", "authoring_health",
+                "rung_targets", "env_fp_labels", "substrate_fields", "frozen_winners", "kill_verdict", "record_sanity", "authoring_health",
                 "unreadable_records", "arm_progress", "seed_digests",
                 "reward_hash_by_seed", "unit_counts", "scored_lengths",
                 "freeze_state", "seed_sets")):
@@ -668,6 +668,8 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
         out.append(ch.check_determinism_homogeneity(g("env_fp_labels")))
     if g("substrate_fields") is not None:
         out.append(ch.check_substrate_fields(g("substrate_fields")))
+    if g("frozen_winners") is not None:
+        out.append(ch.check_winner_execution_quality(g("frozen_winners")))
     if g("freeze_state") is not None:
         frozen, rec_h, cur_h = g("freeze_state")
         out.append(ch.check_design_drift(frozen, rec_h, cur_h))
@@ -1482,6 +1484,44 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
         sub = substrate_field_census(arm_dirs)
         if sub:
             lane["substrate_fields"] = sub
+
+    # FROZEN WINNERS -> the execution quality of the SEARCH candidate each came from. Selection is
+    # `max(val_fitness)` and does NOT consider `train_safe_default_count`, so a reward that executed
+    # on half its steps can be promoted into the sealed leg (measured 2026-07-28: two candidates at
+    # 50.0% and 53.7%). The frozen winner record is a MANIFEST and carries no counters of its own,
+    # so the quality must be joined back from the source candidate by `candidate_id`.
+    quality: dict[tuple[str, str], tuple[int, int]] = {}
+    for rec_path in camp_root.rglob("record.json"):
+        parts = rec_path.relative_to(camp_root).parts
+        if not parts or any(x.startswith((".pull_tmp", "_quarantined")) for x in parts):
+            continue
+        if not (parts[0] == "search" or parts[0].startswith("search_leg")):
+            continue
+        try:
+            r = json.loads(rec_path.read_text(encoding="utf-8"))
+            m = r.get("metrics") or {}
+        except Exception:  # noqa: BLE001 - a torn record must not blind the check
+            continue
+        leg = parts[0].replace("search_leg_", "") if parts[0] != "search" else "core"
+        quality[(leg, str(r.get("run_id")))] = (int(m.get("train_safe_default_count") or 0),
+                                                int(m.get("train_safe_call_count") or 0))
+    winners: dict[str, dict[str, Any]] = {}
+    for wroot in sorted(camp_root.glob("frozen*")):
+        if not wroot.is_dir():
+            continue
+        leg = wroot.name.replace("frozen_leg_", "") if wroot.name != "frozen" else "core"
+        for rec_path in sorted(wroot.rglob("record.json")):
+            if any(x.startswith(".pull_tmp") for x in rec_path.parts):
+                continue
+            try:
+                r = json.loads(rec_path.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                continue
+            cid = str(r.get("candidate_id") or "")
+            dc, cc = quality.get((leg, cid), (0, 0))
+            winners[leg] = {"candidate_id": cid, "safe_default_count": dc, "safe_call_count": cc}
+    if winners:
+        lane["frozen_winners"] = winners
     return lane
 
 
