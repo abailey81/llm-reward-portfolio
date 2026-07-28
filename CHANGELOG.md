@@ -564,6 +564,44 @@ and it is a concrete, quantified statement about the numerical robustness of han
 ratio-form objectives — the exact comparators H1 tests against. **Not a defect to fix:** these are
 REGISTERED baselines, and their fragility is a property worth reporting, not engineering away.
 
+### ⑰ ★★★ THE MAKESPAN, RE-DERIVED — and a 3.5x UNDER-COUNT in my own earlier estimate, corrected
+
+I earlier told Tamer the ladder was **11,360 units** and would land in ~6-8 days. **That was the CORE
+LINE ONLY.** Under R101 all eleven models climb the same ladder, and each of the ten replication legs
+runs its own five arms. The true total at rung 568:
+
+* core `c1`: (9 arms + 11 H1 baselines) x 568 = **11,360**
+* 10 legs x 5 arms x 568 = **28,400**  ← dominates, and was missing from the estimate
+* h3 single-shot: **568**
+* **TOTAL = 40,328 scored units = 326,254 core-hours** at the measured 8.09 h/scored-training
+
+**This changes the whole speed question, and it makes the answer PRECISE:**
+
+| cores held | fill time | makespan = max(chain, fill) |
+|---|---|---|
+| 1,400 (held today) | 9.7 d | **9.7 d** |
+| 2,000 | 6.8 d | 6.8 d |
+| **4,000** — pack 4 x the 1,000-job cap | 3.4 d | **3.7 d** (chain becomes binding) |
+| 6,000 | 2.3 d | 3.7 d |
+| 8,000 — what pack 8 would give | 1.7 d | 3.7 d — **NO GAIN** |
+
+**The `bayes_opt` serial chain (25 x 3.59 h = 3.7 d) is the floor, and ~4,000 cores is exactly where
+the fill stops being the constraint.** So: **pack 4 x 1,000 jobs is precisely the right configuration
+and raising pack buys NOTHING** — the earlier instinct to double it was wrong, and the arithmetic
+says so. The only thing that matters is ACTUALLY REACHING ~4,000 cores during the fill phase; at
+today's 1,400 the run would take 9.7 d instead of 3.7 d.
+
+**Why utilisation is low right now, and why it self-corrects.** There are **71 scored units per seed**
+(20 core + 50 leg + 1 h3). The rung 30→100 step alone therefore releases **70 x 71 = 4,970 units =
+1,243 jobs at pack 4 — more than the 1,000-job cap.** Every rung from 100 upward saturates on its own.
+Today's 1,398 slots and 7-deep queue are the rung-30 transient plus incomplete searches, exactly as the
+telemetry curve shows (1,452 → 1,448 → 1,424 → 1,398 slots; queued 55 → 41 → 28 → 7).
+
+**THE ONE OPERATIONAL TARGET, therefore:** once the searches finish and the ladder advances past rung
+30, we must SATURATE to ~1,000 jobs / ~4,000 cores. If utilisation plateaus materially below that
+while work is pending, THAT is the moment to investigate — and it is the only capacity question left
+worth asking. Nothing before then is actionable, because the design has no more work to release.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
