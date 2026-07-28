@@ -648,6 +648,59 @@ are simply the ~8-10 h training latency, not a fault.
 **Nothing is falling out.** The only true single point of failure identified is the canary gate, and
 it is now explicitly instrumented rather than assumed.
 
+### ⑲ ★★★ THE AUTHORING-FAILURE STRUCTURE, RESOLVED — and a wrong inference of mine, corrected
+
+Tamer challenged the word "failure" and authorised an unfreeze/relaunch if needed. That challenge was
+right, and chasing it to the bottom resolved TWO open questions and produced a publishable finding.
+**Conclusion up front: NO relaunch and NO unfreeze are warranted, and the reason is decisive.**
+
+**① THE 83 %→0 % DISCREPANCY (open since item ⑧) IS CLOSED — it was an ARTIFACT.** Yield by
+generation shows g0 uniformly terrible across EVERY model (nemotron 0/15, qwen3.6-27b 0/16,
+gpt-5.6-luna 1/16, sonnet-5 3/18, deepseek 7/27, gemini 13/29) and then jumping to ~56-62 % at g1 for
+all of them. Capability differences do not behave like that; a systematic event does — and g0 is
+exactly the wave that ran during the **kill-incident window**, when submission was blocked and jobs
+never ran (128 of the g0 `cluster training failed` rows). **`qwen3.6-27b`'s true yield is g1 56 %,
+g2 44 %, g3 80 % — fully consistent with its 5/6 = 83 % pre-campaign measurement.** The apparent
+collapse was incident-window non-runs being counted as authoring failures.
+
+**② A DEFECT I HYPOTHESISED AND THEN REFUTED — recorded because the reasoning matters.** g4/g5 showed
+0/5 yield on all 8 legs with `rounds=0` batches and no local batch dirs, which looked like a TRANSPORT
+FAILURE silently voiding whole generations — a defect that would have justified a relaunch. **The
+driver log refutes it outright:** `09:14:18 ERROR [leg8_leg_sonnet_5_scalar_g4] 5 permanent node
+reject(s) abandoned`. The specs WERE built, the jobs DID run, and the node sandbox rejected all five
+PERMANENTLY, so the driver correctly abandoned them rather than re-shipping invalid source (the P3
+guard). The generic `cluster training failed` label is the already-documented **P9 marker race** (item
+⑧), not a lost submission. I nearly recommended a 12-hour relaunch on an inference the evidence kills;
+the log is authoritative and the inference was wrong.
+
+**③ THE REAL FINDING: REFLECTION DEPTH DRIVES STATE-CONTRACT VIOLATION.** Node-side reject class by
+generation: g0 `no reward fn` 10 + `UnboundLocal` 9 (empty/truncated completions); **g1 NoneType 7/8 ·
+g2 NoneType 5 · g3 NoneType 3 · g4 NoneType 4/5 · g5 bad-return 3**. The frozen system prompt states
+the contract explicitly — `info["reward_state"] carries YOUR state across steps (or None at reset)` —
+and our fixture mirrors production reset exactly. So as the Eureka loop reflects, models write
+progressively more STATEFUL rewards, and stateful code trips the documented None-at-reset case on the
+first call. **By g4/g5 essentially every candidate fails this way.** Every frozen winner therefore
+comes from **g1-g3** (`scalar-g1-c0`, `g2-c4`, `g3-c1`, `g3-c2`): the search CONVERGES by g3 and the
+last two generations contribute nothing.
+
+That is a concrete, quantified failure mode of LLM-in-the-loop reward design — the reflection
+mechanism itself pushes models into a code pattern they handle unreliably. It belongs in the
+mechanism chapter, and it is exactly the kind of insight the study exists to produce. **It must NOT
+be "fixed":** the prompt is freeze-bound, and softening it would erase the signal being measured.
+
+**④ WHY NO RELAUNCH — the decisive argument.** The kill incident polluted the legs' g0, but **the five
+CORE LLM arms (the confirmatory H2 headline) have not authored a single candidate yet** — they sit
+behind the canary. The headline is therefore *pristine and untouched* by the incident. The legs are
+REPLICATION (secondary), their winners came from CLEAN post-incident generations g1-g3, and the
+incident-affected rows are ANALYTICALLY IDENTIFIABLE (g0 + `cluster training failed` + absent from the
+node logs = never ran). Relaunching would discard ~12 h and ~$7, re-run the same models under the same
+frozen prompt, and reproduce the same pattern — while gaining nothing the analysis cannot already
+separate.
+
+⚠ **CARRY THIS TO ANALYSIS TIME:** the per-model authoring-reliability table MUST exclude g0
+never-ran rows, or it will understate every model. The discriminator is stated above; the node logs
+that support it are harvested every 15 min into `docs/evidence/`.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
