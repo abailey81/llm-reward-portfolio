@@ -306,7 +306,7 @@ UCL's JSV — `qalter -R y` is refused as a modification). Recorded so the findi
 
 Relaunch permission was granted and the case was examined seriously. **The decisive argument:** at the
 moment of the incident the five CORE LLM arms — the confirmatory H2 headline — had authored **zero**
-candidates. They sit behind the canary, which cleared only at 11:21. **The headline is therefore
+candidates. They sat behind the canary, which cleared only at 11:39:43 UTC. **The headline is therefore
 pristine and untouched.** The legs are replication (secondary); their winners came from clean
 post-incident generations g1–g3; and the incident-affected rows are analytically identifiable (§9).
 A relaunch would discard ~10 h and ~$7, re-run the same models under the same frozen prompt, and
