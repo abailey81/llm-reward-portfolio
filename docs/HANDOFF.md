@@ -18,13 +18,13 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-07-27"
-  head: "3e2e9b1"
-  frozen: false
+  regenerated_utc: "2026-07-28"
+  head: "ce27dfc"
+  frozen: true
   legs_n: 10
   amendments_through: R114
-  suite_status: "exit 0 (2,779 passed / 3 skipped) — LAUNCH-READY, see docs/CAMPAIGN_LAUNCH_READY_2026-07-27.md"
-  gate_checks: 21
+  suite_status: "exit 0 (2,823 passed / 3 skipped) — FROZEN 4f90ecc47cc6a779 and LAUNCHED 2026-07-28"
+  gate_checks: 23
   backup_branch: backup-2026-07-27
 ```
 

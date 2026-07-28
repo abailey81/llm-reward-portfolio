@@ -68,7 +68,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--suite-status", required=True,
                     help='e.g. "exit 0 (11th certification)" — the one fact the script cannot '
                          "derive (run the suite first; verify-then-claim).")
-    ap.add_argument("--gate-checks", type=int, default=21)
+    ap.add_argument("--gate-checks", type=int, default=None,
+                    help="Omit: the count is DERIVED by running freeze.verify(). It defaulted to a "
+                         "hardcoded 21 while the gate actually had 23, so every regenerated block "
+                         "under-reported it — the same hardcoded-mirror class as the 7-vs-9 arm "
+                         "roster and the 4-vs-11 H1 canon. A count nobody derives is a count that "
+                         "rots.")
     ap.add_argument("--backup-branch", default=None,
                     help="Omit to carry the previous block's value forward.")
     args = ap.parse_args(argv)
@@ -83,7 +88,15 @@ def main(argv: list[str] | None = None) -> int:
         # default silently recorded a stale branch name when omitted).
         prev = re.search(r"backup_branch:\s*(\S+)", m.group(0))
         backup_branch = prev.group(1) if prev else "UNKNOWN-pass---backup-branch"
-    block = render_block(live_facts(), args.suite_status, args.gate_checks, backup_branch)
+    gate_checks = args.gate_checks
+    if gate_checks is None:
+        # DERIVE it, read-only. `verify()` never writes; `do_freeze` is the only write path.
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from freeze import repo_root as _rr
+        from freeze import verify as _verify
+        gate_checks = len(_verify(_rr()).checks)
+    block = render_block(live_facts(), args.suite_status, gate_checks, backup_branch)
     # lambda replacement: block is raw text, NOT a regex template (audit 2026-07-22: a backslash
     # in --suite-status, e.g. a quoted Windows path, was interpreted as a regex escape — silent
     # corruption or re.error).
