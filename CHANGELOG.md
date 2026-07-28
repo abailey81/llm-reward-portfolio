@@ -3,7 +3,7 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
-## [2026-07-27d] — ⛔ **THE LAUNCH GATE CAUGHT TEN DEFECTS. THE "LAUNCH-READY" COMMAND WOULD HAVE DESTROYED THE CAMPAIGN.**
+## [2026-07-27d] — ⛔ **THE LAUNCH GATE CAUGHT ELEVEN DEFECTS. THE "LAUNCH-READY" COMMAND WOULD HAVE DESTROYED THE CAMPAIGN.**
 
 > **Tamer gave the GO. Instead of launching, this session re-derived the launch from first
 > principles and found that the documented command does not run the confirmatory campaign — and
@@ -221,6 +221,54 @@ vendor, model string and core count, so an Intel/AMD mix is a detectable, post-h
   by #97 — in the docstring that calls itself "the single definition of that order".
 * **The dry-run's own walltime readout** printed the GPU-curve number for a CPU launch: the same
   omission, in the same file, that made the real sizing kill every job.
+
+### ⑪ THE LIVE REHEARSAL EARNED ITS KEEP: ALL THREE NEW PRECONDITIONS WERE BROKEN, AND EVERY UNIT TEST PASSED
+
+`src.cluster.submit.ssh_runner` takes an argv **LIST** and `shlex.quote`s each element. All three
+preconditions added above called it with a plain shell **STRING**, so Python iterated the
+CHARACTERS and quoted each one. The cluster received
+
+```
+m k d i r ' ' - p ' ' ''"'"'' / h o m e / u c e s t e s / ...
+```
+
+and returned **exit 127**. The very first line of the campaign would have died on its very first
+precondition, and all twelve lines would have relaunched into it forever at 600 s backoff. Fixed to
+the form that function's own docstring documents: `runner(["bash", "-c", script])`.
+
+**The deeper defect was in the TESTS, and it is the one worth remembering.** Twelve unit tests
+covered these preconditions and every one passed, because each fake was `lambda cmd: "..."` — it
+accepted any object at all. **A fake laxer than the thing it stands in for tests nothing about the
+seam it stands on.** Replaced with a `_runner()` helper that ENFORCES the contract (asserts an argv
+list of `str`), plus a test asserting the fake itself rejects a bare string — otherwise the guard
+silently stops guarding the moment someone simplifies it.
+
+### THE REHEARSAL: EVERY NEW MECHANISM PROVEN ON THE REAL CLUSTER
+
+Re-run through the real PowerShell launch path (Git Bash mangles POSIX paths via MSYS conversion;
+the launcher is PowerShell, which does not — and the existing `gold_dir` guard caught that too):
+
+```
+remote working roots ensured under /home/ucestes/Scratch/rehearse6
+remote gold VERIFIED at /acfs/users/ucestes/gold — 4 files, sha256 == the frozen manifest
+   (returns_panel_univ5.parquet:7cf5d988 == the frozen headline panel)
+walltime DEFAULTED: h_rt=1:0:0 (steps=2000, pack=4, device=cpu)
+MODE-D search lane: pack=1
+submitted → trained 2000/2000 → epilogue {"ok": 1}
+```
+
+and the archived record proves everything at once:
+
+| field | value | what it proves |
+| --- | --- | --- |
+| `schema` | `capture_env/4` | the new provenance schema is deployed and in use |
+| `determinism_env` | `OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS = 8` | the thread pin reaches the worker |
+| `torch num_threads` | **8** | ★ **R107 OBSERVED EXECUTING FOR THE FIRST TIME.** The earlier attempt ran against cluster code whose `_worker_init` hardcoded 1 — which is why that "refutation" was retracted at `f443442`. Register and execution now agree, on evidence |
+| `cpu` | `Intel(R) Xeon(R) Gold 6240, GenuineIntel, 36 cores` | a microarchitecture mix is now auditable |
+| `env_fingerprint.label` | `dev=cpu` | the substrate is recorded |
+| `val_fitness` / `train_safe_default_count` | `0.2125` / **0** | valid science, zero reward fallbacks |
+
+Cluster left clean: 0 rehearsal jobs remaining, the 74 p6-ladder jobs untouched.
 
 ### LAPTOP RESOURCE GOVERNANCE (Tamer, 2026-07-28: *"full freedom including the laptop resource governing"*)
 

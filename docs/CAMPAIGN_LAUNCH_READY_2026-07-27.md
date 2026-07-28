@@ -126,6 +126,24 @@ in `tests/test_run_campaign_cluster.py` / `tests/test_mode_d.py`.
 **Before launching, `python scripts/freeze.py` (R94).** As of this writing: `frozen: false`,
 `freeze_hash: null`, `freeze.py --check` **RC=0**.
 
+### 0.45 THE LIVE REHEARSAL — every new mechanism PROVEN on the cluster (2026-07-28)
+
+Run through the real PowerShell launch path, synthetic panel + stub author (zero spend, disjoint
+`rehearse6` namespace). It also **caught a defect the entire unit suite missed**: all three new
+preconditions called `ssh_runner` with a shell STRING when it takes an argv LIST and
+`shlex.quote`s each element, so the cluster received `m k d i r ' ' - p ...` and returned **127**.
+The twelve tests covering them passed because each fake was `lambda cmd: "..."` and accepted any
+object — *a fake laxer than the thing it stands in for tests nothing about the seam it stands on.*
+The fakes now enforce the argv contract.
+
+| what the archived record shows | proves |
+| --- | --- |
+| `torch num_threads: 8`, `OMP/MKL/OPENBLAS/NUMEXPR = 8` | ★ **R107 observed EXECUTING for the first time.** The earlier attempt ran against cluster code whose `_worker_init` hardcoded 1 — which is why that "refutation" was retracted (`f443442`). Register and execution now agree on evidence |
+| `remote gold VERIFIED — sha256 == the frozen manifest` | the ACFS panel is the frozen headline panel (`returns_panel_univ5.parquet:7cf5d988`) |
+| `schema: capture_env/4`, `cpu: Intel Xeon Gold 6240, GenuineIntel` | a CRN-breaking microarchitecture mix is now auditable |
+| `env_fingerprint.label: dev=cpu` · `h_rt` sized from the CPU floor · search lane `pack=1` | the lane, the walltime and the search/test split are all as designed |
+| `val_fitness 0.2125`, `train_safe_default_count 0` | valid science, zero reward fallbacks |
+
 ### 0.5 THE GO SEQUENCE, in order, with what each step must show
 
 | # | step | pass condition |
