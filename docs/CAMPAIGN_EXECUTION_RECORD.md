@@ -1465,9 +1465,13 @@ virgin · no stale `STOP_CAMPAIGN`.
 
 `close_watch` (180 s) · `collision_guard` (**stop the run** on a single foreign reject) ·
 `reflection_guard` (<80 % of generation>0 candidates shown a reflection block = the mechanism is
-starving) · `transport_guard` · `truncation_guard` · `sentinel --watch`. The scripts live in the
-previous session's scratchpad — **copy them into the new session's scratchpad rather than depending
-on the old path.**
+starving) · `transport_guard` · `truncation_guard` · `sentinel --watch`.
+
+> ⚠ **SUPERSEDED 2026-07-28 — this row used to end "the scripts live in the previous session's
+> scratchpad; copy them into the new session's scratchpad rather than depending on the old path."**
+> That instruction was a symptom, not a solution. The guards now live IN THE REPO as
+> **`scripts/campaign_guards.py`** (§23.6), so there is nothing to copy and nothing to lose:
+> `python scripts/campaign_guards.py outputs/campaign_cluster_run4 all`, exit 2 = stop the run.
 
 ### 21.5 What RUN 4 must watch that RUN 3 could not
 
