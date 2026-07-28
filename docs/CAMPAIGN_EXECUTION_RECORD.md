@@ -7,12 +7,20 @@ inferred silently. Where a fact is inferred rather than observed, it says so. Op
 draws on.
 
 **Status at 2026-07-28 13:00 UTC: RUN 1 HALTED at T+11.9 h. A defect in the driver invalidated the
-LLM search on every line; a clean relaunch is required.** All 12 lines were stopped deliberately at
-~12:35 UTC. The freeze is INTACT and unaffected — the defect is in driver transport/bookkeeping code,
-not in the frozen design (`freeze.py --check` RC=0, canonical hash still
-`4f90ecc47cc6a779…`). §11 is the incident account; §12 is the relaunch plan. Everything below §11
-that describes RUN 1 as healthy is retained as the *dated* record of what was believed at the time,
-with the retractions marked inline.
+LLM search on every line.** All 12 lines were stopped deliberately at ~12:35 UTC. The freeze is
+INTACT and unaffected — the defect is in driver transport/bookkeeping code, not in the frozen design
+(`freeze.py --check` RC=0, canonical hash still `4f90ecc47cc6a779…`). §11 is the incident account;
+§12 is the relaunch plan. Everything below §11 that describes RUN 1 as healthy is retained as the
+*dated* record of what was believed at the time, with the retractions marked inline.
+
+> **★ RUN 2 LAUNCHED 2026-07-28 12:59:01 UTC** into fresh roots (`outputs/campaign_cluster_run2`,
+> `~/Scratch/llmrp2`) after the 20-item pre-relaunch gate passed (§12.3). Verified in the first
+> two minutes: all 12 supervised lines up, the core driver carrying BOTH new roots, the remote tree
+> created under `/home/ucestes/Scratch/llmrp2`, **the licensed gold re-verified sha256-equal to the
+> frozen manifest**, `h_rt=15:0:0`, and the C0 canary shield running so no frontier spend is at risk
+> until the production path is proven. RUN 1's residual jobs drain alongside, fenced by the disjoint
+> roots. A dedicated collision guard now asserts every `permanent_node_reject` traces to its own
+> sub-root and is reporting `0 spurious`.
 
 > **The one-paragraph version.** `driver.run_batch` decided which candidates were permanently
 > rejected with a MIRROR-WIDE lookup over the single output tree that all twelve supervised lines
