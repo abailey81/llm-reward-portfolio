@@ -168,7 +168,59 @@ NOTE for the record: the fixed 8-thread BLAS setting is part of the FROZEN envel
 detail. It is safe here precisely because it is IDENTICAL across every record (one env hash), so no
 comparison unit mixes reduction orders; it must not be re-tuned mid-campaign for speed.
 
-State at 05:58 UTC: **all 12 lines alive, 12 tags active, 23 records, ~470 jobs (288 running), worst
+**⑧ ★ THE LLM LEGS ARE FAILING ~86 % OF CANDIDATES — AND IT IS THE SCIENCE, NOT A BUG.** (06:05 UTC)
+The archive showed **27 records against 162 `cluster training failed` ledger rows**, and four legs
+(`glm-5.2`, `nemotron-3-super`, `qwen3.5-9b`, `qwen3.6-27b`) with **zero** records. Chased to ground
+because at face value it looked like the campaign was burning compute and LLM spend for nothing.
+
+*The dangerous hypothesis, tested and KILLED first.* `cluster training failed (a seed
+sandbox-rejected or exhausted retries)` is emitted at `campaign.py:932` as the DEFAULT when
+`_read_candidate` finds no local record and no `_rejects` marker. That admits a second, far worse
+cause: **the record exists on the cluster and simply had not been PULLED yet** — which, given the
+known ssh saturation, would mean transport was silently discarding successful science and would have
+INVERTED the decision not to fix multiplexing mid-run. **Tested directly against the remote
+archive**: for `deepseek/distributional`, local holds `g1-c0/c2/c4` and the remote holds *exactly*
+`g1-c0/c2/c4` — the seven "failed" candidates have no record and no directory on the cluster either.
+**The pull is not dropping anything; the ssh decision stands.**
+
+*The real cause, read from the node logs.* Task exit codes across all epilogue ledgers: **rc=1 (30),
+rc=0 (28), rc=126 (24 — the historical qdel kills, already accounted for)**. The rc=1 logs say it
+outright:
+
+* `sandbox: reward crashed during validation: UnboundLocalError("cannot access local variable 'turnover' where it is not associated with a value")` (deepseek-v4-pro)
+* `sandbox: reward crashed during validation: NameError("name 'vol' is not defined")` (qwen3.6-27b)
+
+Full node-side census (**n=40 campaign candidates**; the raw harvest held 41 lines, one of which was
+a pre-campaign `cpuspeedtest-c0` probe and is EXCLUDED — counting it would have inflated the
+"defines no reward" bucket from 10 to 11): **27 reward crashed during validation · 10 source defines
+no `reward` · 3 reward did not return a valid value**; the crash exceptions are **TypeError 12,
+AttributeError 7, NameError 3, UnboundLocalError 2, ValueError 2, IndexError 1**. Preserved against
+Scratch purge at `docs/evidence/node_authoring_rejects_2026-07-28T0605Z.jsonl`. These are genuine Python defects in
+LLM-authored reward code, and **the sandbox is rejecting them exactly as designed** — fail-loud, no
+silent default. This IS the registered **per-model authoring-reliability** deliverable (Raad/Stefan
+point 5: "which models write executable objective code at all — free from the ledger") and the
+NUMERACY-BOTTLENECK headline, observed live at scale rather than asserted.
+
+*The arithmetic reconciles*, which is what turns this from a guess into an account: 162 ledger rows
+≈ **79 g0 rows from the kill-incident window** (submission was blocked, so those jobs never ran —
+historical, already recovered) **+ ~41 genuine node-side rejects in g1/g2** + the remainder. Failure
+counts by generation: g0 79, g1 44, g2 39. `qwen3.5-9b` is the one leg whose failures were ALREADY
+correctly labelled (`node reject: sandbox: ...` — 36 of them), and its ~17 % gate-pass is the
+pre-measured capability-gradient bottom anchor behaving exactly as predicted.
+
+*A REAL defect found in passing — P9 diagnosability races the pull.* The node writes a
+`_rejects/<run_id>.json` marker so the ledger row can carry the node's ACTUAL error; `campaign.py`
+reads it at `arm_root.parent/_rejects/`. But the marker is mirrored back by a LATER pull, so by the
+time the candidate is ledgered the marker usually is not there yet — and the row degrades to the
+generic message. Evidence: `search_leg_qwen3_6_27b/_rejects/` holds `scalar-g2-c0.json`, and
+`scalar-g2-c0` is precisely the `NameError` crash above, yet its ledger row reads
+`cluster training failed`. **Consequence is diagnosability, NOT correctness** — no candidate is
+mis-scored and no record is lost. **Not changed mid-run** (it is in the frozen archive path); the
+remedy is post-hoc and lossless: mine `~/Scratch/llmrp/logs/*/*.o` at analysis time and join on
+`candidate_id`, exactly as done here. ⚠ **Scratch is purge-eligible** — those logs are currently the
+only home of this evidence, so the mining must happen before any purge, not at write-up time.
+
+State at 06:05 UTC: **all 12 lines alive, 12 tags active, 27 records, ~470 jobs, worst
 consecutive-failure counter 5-7 against the fatal bound of 240, no active kill incident.**
 
 ### STILL OPEN, FOR TAMER
