@@ -2017,6 +2017,39 @@ habit this project keeps having to correct.
 provider, query the key's remaining budget and FAIL if it is under the registered projection
 ($18.72 Anthropic / $5.28 OpenRouter). Absence of the field must WARN, never silently pass.
 
+### 23.14c D9 — RUN 4 HAS ZERO TRANSPORT TIMEOUTS, AND WHY THAT IS NOT YET EVIDENCE
+
+| | RUN 3 | RUN 4 @ T+2h |
+|---|---|---|
+| `timed out after …` | **647** over 3 h 26 m (~190/h) | **0** |
+| `ssh_timeout_diagnostic` | 0 (predates the instrument) | **0** — nothing to diagnose |
+| worst consecutive failures | 5 | **1**, self-healed |
+
+The tempting reading is that `stdin=DEVNULL` — the one substantive transport change since RUN 3 —
+cured D9. **That reading is not supported, and the confound is large and obvious:** the six legs
+parked on the OpenRouter cap crash during **authoring, before any cluster submission**, so they issue
+**no ssh operations at all**. RUN 4 is currently running ~**6** ssh-active lines against RUN 3's
+**12**. D9's entire signature was load- and concurrency-shaped, so halving the fan-out is a more
+parsimonious explanation than the fix working.
+
+It also cuts against prior evidence: the 2026-07-28 session A/B-tested `stdin=DEVNULL` at fan-out
+40 × 3, found **no difference**, and shipped it labelled "hygiene, explicitly NOT the cure" (§18.3).
+One uncontrolled contrast should not overturn a controlled null — that is how the prototype's
+"directional tail signal" and the R107 "refutation" both went wrong.
+
+**★ THE OPPORTUNITY.** Restoring the legs creates a genuine natural experiment on D9 that no offline
+probe could stage: **identical code, ssh-active lines 6 → 12, everything else held constant.**
+
+* timeouts **stay near zero at 12 lines** ⇒ real evidence `stdin=DEVNULL` mattered, and the earlier
+  A/B was underpowered (40 × 3 bursts cannot reproduce twelve drivers polling for hours);
+* timeouts **return to ~190/h at 12 lines** ⇒ the fix is confirmed inert and D9 is a
+  CONCURRENCY effect, which sharpens the remaining hypothesis (the parent-side pipe-handle race)
+  and tells us the lever is fan-out, not the ssh invocation.
+
+Either outcome is publishable execution evidence, and it is free — it happens the moment the cap is
+raised. **Record the timeout rate immediately before and after the legs recover**; the `before`
+number is in this table.
+
 ### 23.15 MY OWN INSTRUMENT WAS WRONG — the qstat column shift
 
 Reported "164 / 292 slots" to Tamer; the allocation advisor said **1,520**. The advisor was right.
