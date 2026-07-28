@@ -543,8 +543,12 @@ def test_admin_kill_verdict_is_COMPUTED_from_the_mirrored_ledger(tmp_path: Path)
         "this watcher classifies without a walltime and so cannot separate a walltime kill from an "
         "administrative one — that caveat must travel with the verdict")
 
-    # the bad-node sibling still works alongside it
-    assert lane.get("host_failures")
+    # The bad-node sibling still reads the SAME mirrored ledger (that is the point of the pairing)…
+    assert lane.get("host_attempts"), "the bad-node consumer is not being fed the ledger at all"
+    # …but it must NOT blame these hosts: rc=137 is a KILL, owned and classified by the killswitch.
+    # Attributing kills to hosts turned one cluster-wide event into a fleet of phantom bad nodes,
+    # and the remedy for a bad node is to EXCLUDE it — so the false positive costs real capacity.
+    assert not lane.get("host_failures"), "an admin kill is not a node fault"
 
     # and a benign ledger yields a benign verdict, not a false alarm
     (ledger / "arr.epilogue.jsonl").write_text(

@@ -672,7 +672,11 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
         frozen, rec_h, cur_h = g("freeze_state")
         out.append(ch.check_design_drift(frozen, rec_h, cur_h))
     if g("seed_sets") is not None:
-        out.append(ch.check_seed_alignment(g("seed_sets")))
+        # Pass the CURRENT rung target so alignment is judged near completion, not mid-fill: arms
+        # complete seeds at different rates and a partial intersection is meaningless until then.
+        _rt = g("rung_targets") or {}
+        _target = max((int(k) for k in _rt), default=None) if isinstance(_rt, dict) else None
+        out.append(ch.check_seed_alignment(g("seed_sets"), target_seeds=_target))
     if g("seed_digests") is not None:
         out.append(ch.check_seed_replication(g("seed_digests")))
     if g("reward_hash_by_seed") is not None:

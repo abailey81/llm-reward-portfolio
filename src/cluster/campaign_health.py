@@ -101,7 +101,8 @@ def check_design_drift(frozen: bool, recorded_hash: str | None,
                        {"hash": recorded_hash})
 
 
-def check_seed_alignment(seed_sets: dict[str, set], *, warn_loss: float = 0.05) -> HealthCheck:
+def check_seed_alignment(seed_sets: dict[str, set], *, warn_loss: float = 0.05,
+                         target_seeds: int | None = None) -> HealthCheck:
     """Are the arms actually PAIRED on the same seeds? Silent power loss, otherwise.
 
     Every headline contrast is paired on common random numbers, and the analysis takes the seed
@@ -124,6 +125,21 @@ def check_seed_alignment(seed_sets: dict[str, set], *, warn_loss: float = 0.05) 
     loss = 1.0 - (len(common) / widest)
     missing = {a: sorted(set.union(*usable.values()) - s)[:6]
                for a, s in usable.items() if s != set.union(*usable.values())}
+    # STILL FILLING? Arms complete seeds at different rates, so mid-fill the intersection is
+    # legitimately small or empty and says nothing about final alignment. Live at 2026-07-28 08:16Z
+    # the eight baseline arms held 4-18 seeds each with genuinely disjoint sets (one arm on
+    # [6,7,8,9], another on [22,23,24,25]) and this check reported CRITICAL "the arms share NO
+    # common seed" — factually true, operationally meaningless, and days early. It is a REAL check
+    # for the END of a leg, so the finding is downgraded while filling rather than deleted: an arm
+    # that never catches up must still be caught, which the WARN below does.
+    filling = target_seeds is not None and widest < 0.9 * int(target_seeds)
+    if filling:
+        return HealthCheck("seed_alignment", INFO,
+                           f"leg still FILLING ({widest}/{int(target_seeds)} seeds on the deepest "
+                           f"arm): {len(common)} common so far. Arms complete seeds at different "
+                           "rates, so alignment is only meaningful near the rung target",
+                           {"common": len(common), "widest": widest,
+                            "target_seeds": int(target_seeds)})
     if not common:
         return HealthCheck("seed_alignment", CRITICAL,
                            "the arms share NO common seed — every paired contrast is empty, so "
@@ -408,7 +424,22 @@ def check_arm_progress_symmetry(per_arm: dict[str, dict[str, Any]], *,
     nothing and is correctly ignored.
 
     ``per_arm`` maps arm -> ``{"n_records": int, "hours_since_last": float}``.
+
+    SERIAL-CHAIN ARMS ARE EXCLUDED (2026-07-28). ``bayes_opt``/``tpe``/``cma_es`` advance ONE
+    training per chain step (~8.5 h at 1 thread), while the LLM legs fan out five candidates per
+    generation and emit a record every ~0.2 h. Judged against those siblings a chain arm is
+    permanently "behind AND silent" — by construction, not by fault — which is exactly what fired
+    live: ``ARM STALLED: cma_es (1 records, silent 4.0h vs peers ~0.2h); tpe (1 records, silent
+    4.2h)`` while both were verifiably running with fresh heartbeats and live jobs. The differential
+    premise ("siblings share the same hour and scheduler") holds only among arms with the same
+    PARALLELISM, so the chains are judged instead by :func:`check_chain_progress`, whose 14 h/28 h
+    thresholds are anchored on that measured step cost. Excluding them here removes a duplicate,
+    mis-calibrated alarm rather than removing coverage. Names come from ``lanes.SERIAL_CHAIN_STEPS``
+    so the two checks cannot disagree about which arms are chains.
     """
+    from src.cluster.lanes import SERIAL_CHAIN_STEPS
+
+    per_arm = {a: s for a, s in per_arm.items() if a not in SERIAL_CHAIN_STEPS}
     active = {a: s for a, s in per_arm.items() if int(s.get("n_records", 0) or 0) >= 0}
     if len(active) < min_arms:
         return HealthCheck("arm_progress_symmetry", INFO,

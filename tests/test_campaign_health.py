@@ -712,3 +712,28 @@ def test_records_without_env_json_are_WARN_not_silently_OK() -> None:
     c = check_substrate_fields({"<no env.json>": 12})
     assert c.severity == "WARN" and "unverifiable" in c.detail
     assert check_substrate_fields({}).severity == "INFO"
+
+
+def test_sandbox_rejects_and_qdel_kills_are_NOT_blamed_on_the_NODE() -> None:
+    """`node-d00a-229` was flagged 3/5 on 2026-07-28 while it had completed three full trainings.
+
+    Its non-zero exits were two `rc=1` sandbox rejects (5 s and 20 s -- bad authored code, which
+    fails on every node) and two `rc=126` from our own qdel. The remedy for this WARN is to EXCLUDE
+    the host, so a false positive costs a healthy 36-core node in a capacity-bound campaign.
+    """
+    from src.cluster.ledger import host_task_counts
+
+    rows = [{"host": "n1", "rc": 0}, {"host": "n1", "rc": 0}, {"host": "n1", "rc": 0},
+            {"host": "n1", "rc": 1}, {"host": "n1", "rc": 1},
+            {"host": "n1", "rc": 126}, {"host": "n1", "rc": 126}]
+    attempts, failed = host_task_counts(rows)
+    assert attempts["n1"] == 7
+    assert failed.get("n1", 0) == 0, "task-level and kill exits are not node faults"
+
+
+def test_a_REAL_broken_node_is_still_caught() -> None:
+    """rc=127 is the measured signature of the case this detector exists for (no apptainer)."""
+    from src.cluster.ledger import host_task_counts
+
+    _, failed = host_task_counts([{"host": "bad", "rc": 127} for _ in range(5)])
+    assert failed["bad"] == 5

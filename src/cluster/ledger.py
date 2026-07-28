@@ -90,6 +90,29 @@ def read_epilogue(path: str | Path) -> list[dict[str, Any]]:
     return rows
 
 
+#: Exit codes that are NOT evidence of a broken NODE, and so must not be attributed to one.
+#:
+#: The bad-node detector asks one question: *is this host eating work that would have SUCCEEDED
+#: somewhere else?* Two large classes of non-zero exit answer "no", and counting them produced a
+#: false accusation on 2026-07-28 (``node-d00a-229`` flagged at 3/5 while it had in fact completed
+#: three full trainings of 11,000-12,400 s):
+#:
+#: * ``1`` — APPLICATION level. The dominant cause by far is the sandbox rejecting LLM-authored
+#:   reward code (measured: failures at 5 s and 20 s on that same host, against 40 such rejects
+#:   campaign-wide). That code fails identically on every node; it is the authoring-reliability
+#:   FINDING, not infrastructure.
+#: * ``126``/``137``/``143``/``152`` — KILL signatures (SIGKILL/SIGTERM/SIGXCPU and the shell's
+#:   "cannot execute"). These are admin kills, walltime kills and our own ``qdel``\ s, and they are
+#:   already owned and classified by ``killswitch.classify_task_deaths``. Double-counting them here
+#:   turns one cluster event into a fleet of phantom bad nodes.
+#:
+#: Everything else still counts — crucially ``127``, the measured signature of the real case this
+#: detector was built for (``node-d00a-230`` had no ``apptainer`` and returned rc=127 in ~1 s).
+#: Acting on a false positive is not harmless: the remedy is to EXCLUDE the host, which would have
+#: removed a healthy 36-core node from a capacity-bound campaign.
+_NOT_A_NODE_FAULT_RC: frozenset[int] = frozenset({1, 126, 137, 143, 152})
+
+
 def host_task_counts(epilogue_rows: list[dict[str, Any]]) -> tuple[dict[str, int], dict[str, int]]:
     """``(attempts_by_host, failures_by_host)`` from epilogue rows — the bad-node detector's input.
 
@@ -110,6 +133,6 @@ def host_task_counts(epilogue_rows: list[dict[str, Any]]) -> tuple[dict[str, int
             rc = int(row.get("rc"))
         except (TypeError, ValueError):
             continue          # unparseable rc is unknown, NOT a failure
-        if rc != 0:
+        if rc != 0 and rc not in _NOT_A_NODE_FAULT_RC:
             failed[host] = failed.get(host, 0) + 1
     return attempts, failed
