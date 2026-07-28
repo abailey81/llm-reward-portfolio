@@ -67,6 +67,31 @@ behind ⑴ was unreadable to anyone not sitting at the machine. The supervisor n
 `driver_<line>.log` — via `Out-File -Encoding utf8`, **not** `Tee-Object`, because PowerShell 5.1's
 Tee writes UTF-16LE and every `grep` over it returns nothing. A log you cannot search is not a log.
 
+**⑧ SSH SATURATION IS THE REAL SCALING LIMIT, and it is deliberately NOT fixed mid-run.**
+The recurring "transport degrading" warnings resolve to **`TimeoutExpired` on the ssh calls
+themselves**, at the driver's 300 s timeout. Twelve lines with ~5 batch threads each is up to ~60
+concurrent ssh sessions against ONE login node — far past the 8-way test that passed cleanly
+pre-launch (8/8 in 1.7 s). So the honestly-flagged "1,000 jobs / 4,000 cores has never been
+observed" risk surfaced as **login-node saturation, not cluster capacity**.
+
+**Left alone on purpose, and that is the disciplined call rather than the lazy one.** The worst
+consecutive counter across all 69 batches is **5 against a fatal bound of 240** (or 12 h), every
+counter resets on success, jobs keep growing, and `rounds=1` shows the legs advancing to generation
+g1. Against that:
+
+* the obvious fix — ssh connection multiplexing — is a `~/.ssh/config` change that takes effect for
+  **all twelve lines simultaneously**, and Windows OpenSSH 9.5p2 *accepts* `ControlMaster` while
+  never having genuinely implemented it, so a failure would break the entire campaign in one move;
+* the alternative — restarting lines with slower polling — costs **RE-AUTHORING**, which is real
+  money right now (~$13 of Opus for the core line) because no training has completed to populate
+  the replay cache (`_archived_source` reads the archived RECORD);
+* and the next submission wave is not needed for ~7 h, so the current cost of slower submission
+  is **zero**.
+
+Trading a bounded, self-healing annoyance for an unbounded risk on a frozen, running confirmatory
+campaign is a bad trade. **Recommendation: consider multiplexing at a NATURAL restart boundary,
+once trainings have completed and re-authoring is free.**
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
