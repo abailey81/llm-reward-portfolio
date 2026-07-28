@@ -1,8 +1,8 @@
 # Machine-readable mirror of PREREGISTRATION.md. FROZEN at end of Phase 1; scripts/freeze.py hashes
 # it into docs/DECISION_LOG.md and asserts it agrees with the prose record. Changes after freeze
 # require a dated amendment entry.
-frozen: false                        # R94 (2026-07-22, Tamer): the 07-22 freeze (ccf2e76f, R93) LIFTED same-day PRE-DATA — the freeze executes TOGETHER WITH the full-campaign-run approval (GO-sequence step 1), never before it; all R93 evidence (HF pins, anchor values, conditional windows) RETAINED as completed preparation. (Earlier chain: v1.0 ce5db62c frozen 07-18, lifted 07-20 ADR-059/R78.)
-freeze_hash: null                    # ccf2e76f records preserved as history (commit 30ae72b, bundle prereg_bundle_ccf2e76f.zip); re-stamped fresh at the GO
+frozen: true                        # R94 (2026-07-22, Tamer): the 07-22 freeze (ccf2e76f, R93) LIFTED same-day PRE-DATA — the freeze executes TOGETHER WITH the full-campaign-run approval (GO-sequence step 1), never before it; all R93 evidence (HF pins, anchor values, conditional windows) RETAINED as completed preparation. (Earlier chain: v1.0 ce5db62c frozen 07-18, lifted 07-20 ADR-059/R78.)
+freeze_hash: 4f90ecc47cc6a779d63b74fdaa9667f967473365863fb615401694131ca136fd                    # ccf2e76f records preserved as history (commit 30ae72b, bundle prereg_bundle_ccf2e76f.zip); re-stamped fresh at the GO
 phase0_smoke_passed_log_id: "DECISION_LOG.md#PHASE-0 (GREEN 2026-06-17)"   # precondition MET (P2; CPU m≈18.9/25.9)
 
 hypotheses: [H1, H2, H3, H4]          # H2 headline; secondary = SAC-vs-TQC critic
