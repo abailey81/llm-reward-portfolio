@@ -1900,6 +1900,21 @@ If it returns a source file, apply the RUN 3 rule and stop.
 | freeze | `--check` RC=0, `3ca6f01ab7724d47…` **MATCHES** — neither changed file is hash-bound, so RUN 4 runs the identical registered v2.1 design |
 | production-code footprint, whole session | **two `provider` kwargs** (D10, `campaign.py` + `parallel.py`) and **one filter block** (D11, `killswitch.py`). Everything else is tests, one standalone monitoring script, and documentation |
 
+### 23.10b RUN 4's LAUNCH TIME, and a correction I had to make to my own record
+
+**RUN 4 launched 2026-07-28 21:01 UTC** — supervisors up at **21:08:58 UTC**, first driver line
+21:08:59 UTC. Legs and h3 wake +3620 s, i.e. **~22:09 UTC**.
+
+I first wrote "22:01 UTC" into the cursor, the HANDOFF row and a commit message. That is **22:01
+BST**, one hour late in UTC. The driver and supervisor logs stamp LOCAL time and the machine is on
+BST (UTC+1) — which is lesson #4 in §20's own list, recorded there because *"a previous session
+retracted an entire analysis over this"*. I made the same mistake within an hour of reading it.
+
+Corrected in the cursor and in HANDOFF §1; commit messages `9a620dc` and this section carry the
+correction rather than being rewritten. **Every `T+` figure quoted for RUN 4 is anchored to
+21:01 UTC**, and the cursor now carries the timezone caution inline so the next reader cannot
+inherit the error.
+
 ### 23.11 HOW TO DEPLOY TO THE CLUSTER — the full-tree extract is the wrong tool
 
 Operational, and it will recur. The deploy path documented everywhere is
