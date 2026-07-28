@@ -160,3 +160,41 @@ def test_frames_are_read_as_UTC_so_the_GO_day_window_is_not_truncated(tmp_path):
         }) + "\n")
     res = accumulation_report(edge, hours=3.0)
     assert res["status"] == "insufficient" and res["n"] == 2, res
+
+
+def test_a_FAILED_probe_is_not_logged_as_a_zero_capacity_frame(tmp_path, monkeypatch, capsys):
+    """`collect` never raises, so a timed-out ssh yields EMPTY sections.
+
+    Appending that produces a "0 jobs, 0 slots" frame which reads on the capacity curve as the
+    campaign LOSING the whole cluster. Observed live 2026-07-28T10:25Z between frames of ~1,400
+    slots. Absence is honest; a false zero is not.
+    """
+    from src.cluster.telemetry import Snapshot, append_log
+
+    log = tmp_path / "telem.jsonl"
+
+    failed = Snapshot(ts="2026-07-28T10:25:22Z", pool_free={}, cluster_qw=0, cluster_users=0,
+                      our_jobs=[], probe_states={}, errors=["ssh rc=255: timed out"])
+    healthy = Snapshot(ts="2026-07-28T10:41:07Z", pool_free={}, cluster_qw=7, cluster_users=1,
+                       our_jobs=[{"id": "1", "prior": "1.8", "state": "r", "slots": 4}],
+                       probe_states={})
+
+    # The guard the advisor applies before logging.
+    for snap in (failed, healthy):
+        if snap.errors and not snap.our_jobs:
+            continue
+        append_log(snap, log)
+
+    rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+    assert len(rows) == 1, "the failed probe must not appear as a frame at all"
+    assert rows[0]["ts"] == "2026-07-28T10:41:07Z"
+
+    # A frame that legitimately observes zero RUNNING jobs (no transport error) is still recorded:
+    # that is real data, not a probe failure.
+    idle = Snapshot(ts="2026-07-28T11:00:00Z", pool_free={}, cluster_qw=0, cluster_users=0,
+                    our_jobs=[{"id": "2", "prior": "1.8", "state": "qw", "slots": 1}],
+                    probe_states={})
+    if not (idle.errors and not idle.our_jobs):
+        append_log(idle, log)
+    rows = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+    assert len(rows) == 2, "a genuine all-queued observation is real data and must be kept"

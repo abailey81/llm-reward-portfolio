@@ -72,7 +72,18 @@ def main(argv: list[str] | None = None) -> int:
         # RESTRICTED transition can actually fire mid-watch.
         probe_age = args.probe_age_hours + (_time.time() - watch_started) / 3600.0
         snap = collect(args.host, probe_age_hours=probe_age)
-        append_log(snap)
+        # NEVER log a frame whose PROBE FAILED (2026-07-28). `collect` captures transport errors and
+        # never raises, so a timed-out ssh returns a Snapshot with EMPTY sections — which appends as
+        # "0 jobs, 0 slots" and reads on the capacity curve as a total capacity COLLAPSE. Observed
+        # live at 2026-07-28T10:25Z during a transport wobble, sitting between frames of ~1,400
+        # slots. `accumulation_report` already filters to slot-bearing frames, so the forecast was
+        # safe — but a human reading the curve sees the campaign lose the cluster. Absence is honest;
+        # a false zero is not. The failure is still surfaced on stdout, so it is never silent.
+        if snap.errors and not snap.our_jobs:
+            print(f"[telemetry] probe FAILED ({snap.errors[0][:120]}) — frame NOT logged; a false "
+                  "zero would read as a capacity collapse")
+        else:
+            append_log(snap)
         rate = args.rate
         pool_vram = None
         if args.archive_root:
