@@ -92,6 +92,60 @@ Trading a bounded, self-healing annoyance for an unbounded risk on a frozen, run
 campaign is a bad trade. **Recommendation: consider multiplexing at a NATURAL restart boundary,
 once trainings have completed and re-authoring is free.**
 
+### OVERNIGHT WATCH (01:08 → 06:00 UTC) — the first science, and three instrument defects found by watching
+
+**① THE FIRST RECORDS ARE VALID.** `first_seed_sanity` (execution-quality only — it reads no
+performance value and compares no arm, so it cannot preview the result or spend the single
+confirmatory look) returned **OK on all six seed-0 records**: `bayes_opt-c0/c1/c2/c4`, `cma_es-c0`,
+`tpe-c0`. Three of those arms — `bayes_opt`, `cma_es`, `tpe` — are the H4 optimiser comparators that
+were MISSING from every launch path before the gate session, and whose absence would have left
+confirmatory node N4 permanently unsatisfiable. They are now running and archiving correctly.
+Trainings hold **14.5–15.2 steps/s**, above the registered planning figure of 13.0.
+
+**② THE SANITY INSTRUMENT ITSELF WAS BROKEN, and it failed in the dangerous direction** (`af01e61`).
+`assess_record` read only `test_returns`, but SEARCH records carry `val_returns` — so every search
+record scored **GARBAGE** on an empty array. The first firing produced a false CRITICAL on a
+perfectly healthy `tpe-c0` (694 val_returns, 0 fallbacks). A monitor that cries wolf on healthy
+records is worse than no monitor: it trains the operator to ignore it on the night it is finally
+right. Fixed to fall back `test_returns → val_returns` at both the metrics and record level.
+
+**③ DRIVER LOGS ARE NOT A LIVENESS INSTRUMENT — HEARTBEATS ARE.** Five lines (`h3`, `glm-5.2`,
+`qwen3.5-9b`, `nemotron-3-super`, `kimi-k3` — the five LARGEST stagger offsets, started 02:08–02:12)
+have a supervisor log but **no `driver_*.log` at all**, three hours in, while their seven peers wrote
+~130 KB each. That looks exactly like five dead lines. **It is not.** All five have live jobs on the
+cluster (h3ss 25, leg10 35, leg7 30, leg4 16, leg2 5) and all twelve drivers report **fresh
+heartbeats in `driver_status/*.json` (0–193 s)**. The missing logs are a stdout-redirect artifact on
+the last-staggered lines, nothing more. Separately, `driver_core.log` is **UTF-16LE** — core is the
+one line never restarted, so it still holds the original launcher's `Tee-Object` handle from before
+the `Out-File -Encoding utf8` fix. **The rule this establishes: liveness is judged from
+`driver_status` heartbeats and the live queue, NEVER from the presence or size of a text log.** The
+twelve `supervisor_*.log` files were checked and are all UTF-8, so the dead-line detector that greps
+them for the exit marker is sound.
+
+**④ MY OWN WATCH SCRIPT MIS-COUNTED THE ARCHIVE.** A `.pull_tmp.7156` root appeared in the record
+census: a pull stages records in a temp dir and then MOVES them into the real archive root, so
+counting it both double-counts and makes the archive look like it grew when nothing completed.
+Excluded `.pull_tmp*` alongside `_quarantined`. Recorded because a monitoring number that drifts
+from the truth is the same class of defect as ②.
+
+**⑤ `glm-5.2` IS A SLOW AUTHOR, and that is an R101 lockstep risk worth naming.** In the same
+window its peers made 69–95 LLM calls, `leg2` made **25** ($0.118), and it submitted its first batch
+only ~3 h 15 m after launch (1 batch / 5 jobs against peers' 9–10 batches / 30–35 jobs). It is
+progressing, not stuck. But under **R101 every model climbs the SAME ladder in lockstep**, so a
+persistently slow author does not merely lag — it sets the rung the whole campaign reaches by the
+exogenous stop. Flagged for the morning decision; NOT acted on mid-run. (`qwen3.5-9b`'s low job
+count is a different and EXPECTED phenomenon: its ~17 % gate-pass rate is the measured
+capability-gradient bottom anchor, and a failing leg is a finding, not a fault.)
+
+**⑥ THE CANARY GATE IS HOLDING, VERIFIABLY.** The core confirmatory line `c1` appears **nowhere in
+the spend ledger — zero LLM calls**, which is the positive evidence that Opus core authoring has
+genuinely not started rather than merely being assumed idle. Anthropic-billed spend is **$4.21**
+(h3ss Opus $2.58 across 30 calls, sonnet-5 $1.23, haiku-4.5 $0.40) of **$5.98 total** against the
+$30 advisory ceiling. Core authoring remains the largest pending spend event.
+
+State at 05:48 UTC: **all 12 lines alive, 12 tags active, 21 records, ~470 jobs (288 running), worst
+consecutive-failure counter 7 against the fatal bound of 240, no active kill incident.**
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
