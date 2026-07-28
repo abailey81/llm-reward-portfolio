@@ -1288,3 +1288,196 @@ worst-case real latency), which returns a parked batch thread to work 2.5× soon
 bound, not a cure, and it is labelled as such. The remaining hypothesis worth testing at the next
 restart is Windows pipe-handle inheritance across concurrently-spawned children — a known CPython
 race that would produce exactly this signature (child exits, parent's reader never sees EOF).
+
+---
+
+## 19. RUN 3 — what it PROVED, and why it was nonetheless halted
+
+RUN 3 was launched on the v2.1 freeze at **16:19:30** and halted at **19:45:45** on 2026-07-28 —
+**3 h 26 min** of twelve-line operation. It was never intended to be the confirmatory run; it was the
+*evidence* that the RUN 1 fixes work under real twelve-line concurrency, which no single-line test can
+show. Every number below was harvested from the archive after the halt, not read off a monitor.
+
+### 19.1 What it measured
+
+| quantity | RUN 3 | what it proves |
+|---|---|---|
+| lines up | **12 / 12** for the whole 3 h 26 min | the root-scoped launch path is sound |
+| task specs submitted | **405** | real cluster load, not a smoke test |
+| records archived | 9 (+ 9 authored `reward.py`) | the write path is intact end to end |
+| LLM calls | **280** across all 11 models | the authoring path is live on every leg |
+| `stop_reason` | 80 `end_turn` + 200 `stop`, **0 truncated** | the 16,384 cap is not clipping anyone |
+| **spurious abandonments** | **0** | ← **the RUN 1 killer is dead** |
+| reject markers, whole archive | **1**, in its own sub-root | nothing to collide with, and correctly scoped |
+| driver log levels, all 12 lines | 881 INFO · 41 WARNING · **0 ERROR** | no line ever entered a bad state |
+| transport warnings | 41, **max 2 consecutive**, always self-healed | vs RUN 1's monotonic climb to 55 % |
+| core-line spend | **$0.00** | the canary shield held — the confirmatory seat never paid |
+| leg spend | **$3.81** | within projection |
+
+The **0 spurious abandonments** figure is the one that matters. RUN 1 abandoned 439 candidates that
+had never been submitted or judged; RUN 3, on identical concurrency, abandoned none. That is the fix
+demonstrated rather than argued.
+
+### 19.2 Why it was halted anyway
+
+Three driver fixes landed in commit `18dead8` **after** RUN 3's drivers had already started, so its
+running processes carried the older code:
+
+1. `stdin=DEVNULL` on all three ssh spawn sites,
+2. the `ssh_timeout_diagnostic` that will localise the stall on its next occurrence,
+3. structural `stop_reason` persistence in the spend ledger.
+
+The evidence is visible in the archive: RUN 3's `spend_ledger_*.jsonl` rows carry **no** `stop_reason`
+field at all (the truncation evidence above comes from `llm_calls.jsonl`, which the client has always
+written), and **0** `ssh_timeout_diagnostic` lines appear in any driver log. A run whose processes are
+a commit behind its own repository is exactly the ambiguity Tamer's standing instruction forbids.
+So RUN 3 was stopped and RUN 4 will start on the complete fix set, with every line running code that
+matches HEAD.
+
+### 19.3 How it was halted (and what was deliberately preserved)
+
+Order matters — the watchdog restarts dead lines every 300 s, so it dies first:
+
+1. `STOP_CAMPAIGN` written into `outputs/campaign_cluster_run3/`;
+2. **watchdogs killed first** (2), verified 0 remaining;
+3. 12 supervisors → 24 drivers → backup → 2 sentinels → 2 advisors, verified **0 remaining**;
+4. on the cluster: **342 campaign jobs deleted by explicit job ID**, and the **20 `l16xx` p6-ladder
+   jobs preserved** — confirmed by a post-delete `qstat` showing exactly 20 jobs, all `l16xx`. A
+   blanket `qdel -u ucestes` would have destroyed the B\*-ladder recovery cells that feed figure F11.
+
+### 19.4 The three-run spend, from the ledgers
+
+| run | LLM calls | spend | core (Opus) line |
+|---|---|---|---|
+| RUN 1 | 925 | **$11.65** | $4.19 (c1) + $2.58 (h3ss) |
+| RUN 2 | 156 | **$1.29** | $0.00 — no `c1` ledger was ever created |
+| RUN 3 | 280 | **$3.81** | $0.00 c1; $2.51 h3ss |
+| **total** | **1,361** | **$16.75** | |
+
+The pattern worth knowing before RUN 4: **the canary shield works** — across two relaunches the
+confirmatory `c1` line never spent a cent, because it does not author until its canary clears. The
+recurring relaunch cost is the **h3 single-shot** (~$2.5 per launch, Opus), which re-authors from
+scratch every time. Budget three relaunches' worth of h3ss, not three campaigns' worth.
+
+---
+
+## 20. THE COMPLETE CROSS-RUN POST-MORTEM — every mistake, its cause, its fix, its lesson
+
+Written at Tamer's explicit instruction (2026-07-28): *"make sure you document everything from all
+previous runs, so we know mistakes and etc."* This is the consolidated ledger — **machine defects and
+my own process errors together**, because the second kind cost real time and would otherwise vanish
+from the record. Nothing here is softened.
+
+### 20.1 The defects that were IN THE MACHINE
+
+| # | defect | run(s) | root cause | how it was found | fix | lesson |
+|---|---|---|---|---|---|---|
+| **D1** | **Cross-line reject-marker collision** — 439 of 498 abandonments (88 %) spurious, **36/36 on the confirmatory core**, 402 traced to `qwen3.5-9b` alone | RUN 1 (**fatal**) | `driver.run_batch` resolved permanent rejects with a **mirror-wide** `permanent_reject_ids(local_archive_root)`; markers are keyed on the bare candidate id (`scalar-g1-c0`), which **all twelve lines reuse** | measurement, not inspection: counted abandonments per line and asked why the weakest model's rejects were killing the strongest model's candidates | `poll.permanently_rejected_specs` + `poll.spec_local_root`, scoping to each spec's OWN sub-root; replayed over the real RUN 1 archive it condemns exactly **59** and rescues exactly **439** | **A resource shared by N concurrent lines, keyed by an id unique only within ONE line, is a collision waiting to happen.** ~2,870 tests all exercise a single line, so no test could see it |
+| **D2** | **Reflection starvation** — only **10 of 241** archived prompts carried the reflection preamble, all `distributional` | RUN 1 | a *consequence* of D1: `prev_block` is set only when a generation produces an accepted candidate, so wiped generations made the next generation fall back to the **initial** prompt | audited the archived prompts directly rather than trusting the loop's design | fixed by D1 | **A bug can silently disable the mechanism under study.** H2's whole object is the reflection loop; it was off and nothing alarmed. Hence the standing `reflection_guard` monitor |
+| **D3** | **Leaked ssh children** — 13 alive, 8 of them 1.1–6.7 h past their own 3600 s timeout; transport failures climbed **5.2 % → 55.3 %** over ten hours | RUN 1 | both tar-over-ssh pipes put `proc.wait()` **after** the `try/finally`, so a failed pull returned without reaping | process-table sampling during a degradation, then a causal test: reaping the 13 took failures **53.3 % → 16.3 %** and the counter 62 → 36/240 | `submit.reap(proc, grace=…)` at both sites, `drained` flag distinguishing the two grace periods | **Degradation that compounds over hours is a leak until proven otherwise.** And: prove causation by *acting* on the suspect, not by correlating |
+| **D4** | **Watchdog, backup and supervisor hardcoded RUN 1's roots** | RUN 1→2 | paths were literals, not parameters. The watchdog was worst: it restarted dead lines with **defaults** every 300 s, so a relaunch on new roots would have been silently poisoned by lines pointed at the old ones | caught while planning the RUN 2 relaunch — *before* it could do damage | `-OutDir` / `-RemoteRoot` (and `-SrcRoot`) on every entrypoint; defaults still reproduce RUN 1 exactly, so nothing silently changed meaning | **An automatic restarter is a second launcher.** Anything that can start a line must take the same parameters as the thing that started it |
+| **D5** | **C3 gate collision** — `TIER1_APPROVED` and `tier1_integrity.json` were single SHARED files, and passing the gate **CONSUMES** the approval (`unlink`) | latent in RUN 1–2 | same class as D1: one file, twelve writers | found by sweeping for *every other* instance of D1's pattern instead of stopping at the one that hurt | scoped by `ClusterRun.line_tag()`, and now fails **CLOSED** | **When you find one instance of a defect class, enumerate the whole class.** One line could have eaten another's approval and walked into C4 unreviewed |
+| **D6** | **No execution-quality floor on winner selection** — a candidate whose authored reward RAISED on half its steps (R66 fallback standing in) could be frozen and re-trained by the sealed leg | latent, all runs | selection was `max(val_fitness)`, full stop | the identification-validity audit: H2 requires arms to differ **only** in the authored reward — a 53 % fallback candidate is not the arm it claims to be | **R115**, registered pre-data under a fresh **v2.1** freeze: eligible iff `train_safe_default_count / train_safe_call_count < 0.10` | **An identification hole is a defect even when no test fails.** Measured over 613 records: 594 clean, 16 trace (<1 %), **3 severe** (53.66 %, 50.02 %, 39.40 %) |
+| **D7** | **Fail-OPEN on a malformed batch result** — `res.get("ok", True)` | latent | a default that assumes success | code read during the D1 sweep | → `False` at both sites | **Never default a health check to healthy.** Every producer sets `ok` today, so behaviour is provably unchanged — which is exactly when it is free to fix |
+| **D8** | **`stop_reason` captured but only WARN-logged** | all runs | it was never given a structured home | asked how the per-model authoring-reliability table would distinguish "the model failed" from "our cap truncated it" — and found it could not | persisted on every `record_spend` row, `None` included | **A field that exists only in a log line does not exist for analysis.** Truncation arrives at the sandbox as `defines no callable named 'reward'` — identical to genuine model failure |
+| **D9** | **The 300 s transport stall** | all runs | **UNIDENTIFIED** — seven hypotheses tested and refuted (§18.3) | 55 process samples over 3 min: 8 ssh children, **none aged past 10 s**, while 300 s timeouts were being logged → **the wait is in the PARENT** | bounded 300 → **120 s**; `ssh_timeout_diagnostic` installed to settle it on the next occurrence | **Bound what you cannot yet explain, instrument it, and say plainly that it is unexplained.** It affects reconciliation latency only — no recorded number depends on it |
+
+### 20.2 The mistakes that were MINE — process errors, and what they cost
+
+Recorded because the next session inherits the habits, not just the code.
+
+| # | what I got wrong | how it surfaced | the rule it produced |
+|---|---|---|---|
+| P1 | Measured the **wrong ssh client** — probed with Git Bash OpenSSH 10.2p1 while the drivers use `C:\Windows\System32\OpenSSH` 9.5p2 | the A/B came out meaningless | **Reproduce the exact call path**, binary included, before drawing a conclusion from a probe |
+| P2 | Proposed `ConnectionAttempts`/`ConnectTimeout` as the transport fix | A/B tested over 3 paired rounds **before** applying: 8/72 control vs 9/72 treatment — **refuted** | **The tempting fix is often wrong.** Test it before you ship it; a plausible mechanism is not evidence |
+| P3 | Reported a process as **GONE** when it was alive — PowerShell hashtable keyed by `UInt32`, looked up with `Int32` | re-ran with explicit `[int]` casts and got the opposite answer | **A negative result from a script you just wrote is a claim about your script first** |
+| P4 | Said the suite was green when **`PYTEST_RC=1`** — read the background wrapper's exit code, not pytest's | caught on re-read of the log | **Always read `PYTEST_RC` from the log.** Never a pipe's or a wrapper's exit code |
+| P5 | Produced a **false RED** in `test_cluster_bayes_chain` by editing `campaign.py` *during* a certification run — line numbers shifted under `inspect.getsource` | the failure did not reproduce on a clean re-run | **Never edit source during certification.** Record a source-tree hash **before and after** every run and require them identical |
+| P6 | **Introduced a crash path** with R115 — a bare `raise` broke `run_arm_pipeline`'s documented "never raises for a no-winner arm" and would have hot-looped the supervisor at 600 s | found by reading the contract of the function I had just changed | **When you add a raise, re-read every caller's contract.** A fix that changes failure semantics is a new defect |
+| P7 | Reported **"41 extrapolated sessions"** for the factor ladder — read the canonical raw file instead of the refreshed one the loader actually resolves | running the real loaders gave **21/1631** | **Run the loader, do not read the file it might have used** |
+| P8 | **Overstated** §15.2's analysis obligation as UNMET when `information_gap.py` had read `prompt` first since the M14 fix (2026-07-05) | re-checked the source before writing it into the record | **Overstating an open risk is its own inaccuracy.** Verify, then state — in both directions |
+| P9 | Put backtick/escape content in a bash heredoc **twice**, against a standing rule; the shell mangled it | verified nothing was corrupted (freeze hash matched), then redid it via the Write tool | **Structured file edits go through Write/Edit, never a shell heredoc** |
+| P10 | A PowerShell process filter matched **my own shell** — the search string was in my own command line — so it killed itself, reported exit 255, and then reported "1 watchdog remaining" that was the next shell counting itself | the count did not fall to 0 no matter how many kills ran | **Any process query that greps command lines must exclude `$PID`**, or it will find and kill itself and lie about the result |
+
+### 20.3 The single structural lesson
+
+**All three collisions (D1, D5, and the 2026-07-19 `pending_specs` case the earlier audit fixed) are
+one shape:** a resource shared by twelve concurrent lines, keyed by an identifier that is unique only
+*within* one line. The suite cannot see it because every test exercises one line. The only reliable
+detector is a **live invariant** — hence the standing `collision_guard`, which asserts that every
+`permanent_node_reject` traces to its own sub-root and treats a single foreign one as a stop-the-run
+regression.
+
+**The second lesson, aimed at the write-up:** every one of D1–D9 was found by *measuring the running
+system* — counting abandonments per line, sampling the process table, replaying the archive, running
+the real loaders. None was found by reading code alone. That is worth a sentence in CH4's execution
+narrative, and it is the honest answer to "how do you know the campaign machinery was correct?"
+
+---
+
+## 21. RUN 4 — the launch-ready state, handed to a fresh session
+
+RUN 4 is **prepared but deliberately NOT launched**: Tamer's instruction is that a new session takes
+it from there, prepares deeply, and launches. This section is the state that session inherits.
+
+### 21.1 Certified state at handoff
+
+| item | value | how verified |
+|---|---|---|
+| freeze | **v2.1 `3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f`**, tag `prereg-v2.1` | `freeze.py --check` → RC=0, recorded hash **MATCHES** |
+| full suite | **2,870 passed · 3 skipped · 0 failed** | `PYTEST_RC=0` read **from the log**; source-tree hash `cc3f758b…` recorded **identical before and after** the run |
+| lint | clean | `ruff check src scripts tests` → All checks passed |
+| HEAD | `18dead8`, pushed to `origin/backup-2026-07-28` | `git rev-parse` + remote head confirmed |
+| cluster deploy | `~/llmrp` = `ce27dfc5fb7503e8673b544e5498cd20ce34de64` | **no re-deploy needed** — every fix is laptop-side (`run_one` imports none of `poll`/`driver`/`submit`/`campaign`) |
+| cluster jobs | **20**, all `l16xx` p6-ladder | post-halt `qstat` |
+| local processes | **0** campaign processes | inventory excluding `$PID` |
+| budget | Anthropic $31.96 · OpenRouter $19.31 (Tamer's console, 2026-07-28); $16.75 consumed across RUNs 1–3 | RUN 4 projection ≈ $18.72 / $5.28 |
+
+### 21.2 The launch commands — both root flags are MANDATORY
+
+Every entrypoint **defaults to RUN 1's paths**, so omitting a flag silently rejoins the old run:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1 `
+  -OutDir outputs\campaign_cluster_run4 -RemoteRoot ~/Scratch/llmrp4
+```
+
+then, with the **same** roots:
+
+```
+scripts\mode_d_watchdog.ps1 -IntervalSecs 300 -OutDir outputs\campaign_cluster_run4 -RemoteRoot ~/Scratch/llmrp4
+scripts\campaign_backup.ps1 -SrcRoot outputs\campaign_cluster_run4 -RemoteRoot ~/Scratch/llmrp4
+python scripts/sentinel.py outputs/campaign_cluster_run4 --watch --interval 300
+python scripts/allocation_advisor.py --host myriad --watch 900 --archive-root outputs/campaign_cluster_run4
+```
+
+**STOP LEVER**: create `outputs\campaign_cluster_run4\STOP_CAMPAIGN`.
+
+### 21.3 The pre-launch gate — §12.3's 20 items, every one EXECUTED
+
+Re-run rather than inherited, because the repository moved since §12.3 was written: full suite with
+`PYTEST_RC=0` read from the log and a tree hash identical both ends · `freeze --check` RC=0 with the
+hash MATCHING · `ruff` clean · `preflight --gpu 0` 14/14 GO · `--dry-run` RC=0 on **all five** line
+invocations · every process verified on the RUN 4 roots and **0 on the old ones** · the remote root
+virgin · no stale `STOP_CAMPAIGN`.
+
+### 21.4 Monitors to re-arm on the RUN 4 root
+
+`close_watch` (180 s) · `collision_guard` (**stop the run** on a single foreign reject) ·
+`reflection_guard` (<80 % of generation>0 candidates shown a reflection block = the mechanism is
+starving) · `transport_guard` · `truncation_guard` · `sentinel --watch`. The scripts live in the
+previous session's scratchpad — **copy them into the new session's scratchpad rather than depending
+on the old path.**
+
+### 21.5 What RUN 4 must watch that RUN 3 could not
+
+1. **`ssh_timeout_diagnostic`** — the first occurrence settles D9. If `child_already_exited=True`, the
+   wall-clock was spent in the parent's pipe read and the remaining hypothesis (Windows pipe-handle
+   inheritance) is confirmed; if `False`, the remote command genuinely hung and the search moves
+   cluster-side.
+2. **`stop_reason` in the spend ledger** — RUN 4 is the first run where the field exists. It should be
+   `end_turn`/`stop` throughout; anything in `{max_tokens, length, refusal, content_filter}` means our
+   cap is contaminating the authoring-reliability finding and must be reported as such.
+3. **The 1,000-job / 4,000-core saturation** — never observed on this account. RUN 3 held 365 jobs /
+   827 slots. Past rung 30 it should saturate; if it does not, the makespan model is wrong and the
+   forecast needs redoing from the measurement, not the model.

@@ -3,6 +3,99 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-28c] RUN 3 HALTED, RUN 4 PREPARED — the fixes proven under twelve-line load, then handed off unlaunched
+
+**Session close 19:45–21:00 UTC. Tamer's instruction: do everything up to but NOT including the
+launch, so a fresh session prepares deeply and launches RUN 4 itself. This block records what RUN 3
+proved, why it was halted anyway, the complete cross-run mistakes ledger, and the exact state the
+next session inherits.** Full narrative: `docs/CAMPAIGN_EXECUTION_RECORD.md` **§19** (RUN 3), **§20**
+(the complete cross-run post-mortem — machine defects *and* my own process errors), **§21** (RUN 4
+launch-ready state). The handoff prompt itself is `docs/RUN4_HANDOFF_PROMPT.md`.
+
+### ① RUN 3 proved the RUN 1 fixes under real twelve-line concurrency
+
+3 h 26 min of twelve-line operation (16:19:30 → 19:45:45), harvested from the archive after the halt:
+
+| quantity | RUN 3 | what it proves |
+|---|---|---|
+| lines up | **12 / 12** throughout | the root-scoped launch path is sound |
+| task specs submitted | **405** | real cluster load, not a smoke test |
+| **spurious abandonments** | **0** | ← **the RUN 1 killer is dead** |
+| reject markers, whole archive | **1**, in its own sub-root | correctly scoped |
+| driver log levels, 12 lines | 881 INFO · 41 WARNING · **0 ERROR** | no line ever entered a bad state |
+| transport warnings | 41, **max 2 consecutive**, always self-healed | vs RUN 1's monotonic climb to 55 % |
+| LLM calls / truncations | 280 / **0** (80 `end_turn`, 200 `stop`) | the 16,384 cap clips no one |
+| core-line spend | **$0.00** | the canary shield held |
+
+RUN 1 abandoned 439 candidates that were never submitted or judged; RUN 3, on identical concurrency,
+abandoned none. That is the fix demonstrated rather than argued.
+
+### ② …and was halted anyway, because its processes were a commit behind its own repository
+
+Three fixes landed in `18dead8` **after** RUN 3's drivers started: `stdin=DEVNULL` on all three ssh
+spawn sites, the `ssh_timeout_diagnostic`, and structural `stop_reason` persistence. The archive shows
+it plainly — RUN 3's `spend_ledger_*.jsonl` rows carry **no** `stop_reason` field, and **0**
+`ssh_timeout_diagnostic` lines appear in any driver log. A run whose processes do not match HEAD is
+exactly the ambiguity the standing instruction forbids, so RUN 4 starts on the complete fix set.
+
+### ③ The halt, and what was deliberately preserved
+
+Watchdog first (it restarts dead lines every 300 s), then supervisors → drivers → backup → monitors:
+`STOP_CAMPAIGN` written · 2 watchdogs killed · 12 supervisors · 24 drivers · 1 backup · 2 sentinels ·
+2 advisors → **0 campaign processes remaining**. On the cluster, **342 campaign jobs deleted by
+explicit job ID** and the **20 `l16xx` p6-ladder jobs preserved** (post-delete `qstat`: exactly 20
+jobs, all `l16xx`). A blanket `qdel -u ucestes` would have destroyed the B\*-ladder recovery cells
+feeding figure F11 — the reason job deletion is always by explicit id here.
+
+### ④ The final fix batch — `18dead8`, certified before it shipped
+
+`stop_reason` persisted structurally on every `record_spend` row (a truncated completion reaches the
+sandbox as `defines no callable named 'reward'` — indistinguishable from a model that could not write
+the code, so without the field the per-model authoring-reliability table cannot separate a MODEL
+failure from OUR cap) · `stdin=DEVNULL` on all three ssh spawn sites (an A/B at fan-out 40 showed **no**
+effect on the stall — this is hygiene, explicitly **not** the cure) · `ssh_runner` moved from
+`subprocess.run` to `Popen` so that on timeout it consults `poll()` **before** killing and logs
+`child_already_exited`, the one fact that settles where the 300 s goes.
+
+Four existing tests were adapted to the `Popen` shape with **assertions unchanged** — exact argv
+reconstruction, the timeout bound coming from the module constant, and the reap-on-failure invariants
+all still assert exactly what they did. **Verified: 2,870 passed / 3 skipped / 0 failed,
+`PYTEST_RC=0` read from the log, source-tree hash `cc3f758b…` recorded IDENTICAL before and after the
+run** (the P5 lesson: editing source mid-certification once produced a false RED). `ruff` clean.
+`freeze --check` RC=0, canonical hash unmoved — every fix is driver-side, so RUN 4 executes the SAME
+v2.1 design.
+
+### ⑤ The complete cross-run mistakes ledger (record §20) — at Tamer's explicit instruction
+
+Nine machine defects **D1–D9** (cross-line reject collision · reflection starvation · leaked ssh
+children · hardcoded roots · the C3 gate collision · the missing execution-quality floor → R115 ·
+fail-open batch results · unpersisted `stop_reason` · the unidentified 300 s stall) each with root
+cause, how it was found, the fix, and the lesson. Plus **ten of my own process errors P1–P10** —
+measuring the wrong ssh client, proposing a fix that A/B testing then refuted, a false "GONE" from a
+`UInt32`/`Int32` lookup, claiming green on a wrapper's exit code, a false RED from editing during
+certification, introducing a crash path with R115, misreading the factor loader, overstating an open
+risk, breaking the no-heredoc rule twice, and a process filter that matched and killed my own shell.
+
+**The structural lesson:** all three collisions are ONE shape — a resource shared by twelve
+concurrent lines, keyed by an identifier unique only *within* one line. ~2,870 tests all exercise a
+single line, so no test can see it; the only reliable detector is a **live invariant**, which is what
+`collision_guard` is. **The second lesson, for CH4:** every one of D1–D9 was found by *measuring the
+running system*, none by reading code alone.
+
+### ⑥ Three-run spend, from the ledgers
+
+RUN 1 $11.65 (925 calls) · RUN 2 $1.29 (156) · RUN 3 $3.81 (280) → **$16.75 total**. The canary shield
+means the confirmatory `c1` line spent **$0.00** across both relaunches; the recurring relaunch cost is
+the **h3 single-shot** (~$2.5 per launch, Opus), which re-authors from scratch every time.
+
+### ⑦ State handed over
+
+FROZEN at **v2.1 `3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f`** (tag
+`prereg-v2.1`) · HEAD `18dead8` pushed to `origin/backup-2026-07-28` · cluster deploy `~/llmrp` =
+`ce27dfc5` needs **no re-deploy** (every fix is laptop-side; `run_one` imports none of
+`poll`/`driver`/`submit`/`campaign`) · 20 p6-ladder jobs alive, 0 campaign jobs, 0 campaign processes ·
+Anthropic $31.96 / OpenRouter $19.31, RUN 4 projected ≈ $18.72 / $5.28.
+
 ## [2026-07-28b] RUN 1 HALTED — two defects in our own driver, one of them run-invalidating
 
 **Session 11:47–13:30 UTC. Handover session: picked up the live confirmatory campaign at T+11.7 h,
