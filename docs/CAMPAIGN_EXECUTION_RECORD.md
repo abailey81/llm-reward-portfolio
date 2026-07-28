@@ -1900,7 +1900,7 @@ If it returns a source file, apply the RUN 3 rule and stop.
 | freeze | `--check` RC=0, `3ca6f01ab7724d47…` **MATCHES** — neither changed file is hash-bound, so RUN 4 runs the identical registered v2.1 design |
 | production-code footprint, whole session | **two `provider` kwargs** (D10, `campaign.py` + `parallel.py`) and **one filter block** (D11, `killswitch.py`). Everything else is tests, one standalone monitoring script, and documentation |
 
-### 23.10b RUN 4's LAUNCH TIME, and a correction I had to make to my own record
+### 23.11 RUN 4's LAUNCH TIME, and a correction I had to make to my own record
 
 **RUN 4 launched 2026-07-28 21:01 UTC** — supervisors up at **21:08:58 UTC**, first driver line
 21:08:59 UTC. Legs and h3 wake +3620 s, i.e. **~22:09 UTC**.
@@ -1915,7 +1915,7 @@ correction rather than being rewritten. **Every `T+` figure quoted for RUN 4 is 
 21:01 UTC**, and the cursor now carries the timezone caution inline so the next reader cannot
 inherit the error.
 
-### 23.11 HOW TO DEPLOY TO THE CLUSTER — the full-tree extract is the wrong tool
+### 23.12 HOW TO DEPLOY TO THE CLUSTER — the full-tree extract is the wrong tool
 
 Operational, and it will recur. The deploy path documented everywhere is
 `git archive HEAD | ssh myriad tar -x -C ~/llmrp`. On a **contended login node** that is impractical:
@@ -1940,7 +1940,75 @@ Killing the half-finished extract was safe because it dies **before** its rsync 
 the kill that `GIT_COMMIT` still read the old sha and the file count was unchanged, i.e. the deploy
 tree had not been touched at all.
 
-### 23.12 The sentinel's global gate-failure rate is expected to sit at WARN/CRIT — that is not a fault
+### 23.13 RUN 4 LIVE LOG — the first two hours
+
+Recorded as it happened, per the standing documentation rule. All times UTC.
+
+| T+ | event |
+|---|---|
+| 0h00 | launched 21:01; supervisors up 21:08:58; 12/12 lines |
+| 0h00 | `remote gold VERIFIED … sha256 == the frozen manifest` — the fatal launch check, passed live |
+| 0h16 | 149 jobs, **20** granted cores; C0 canary = 90 trainings in 23 arrays (`3 units × 30 core seeds`, `ceil(90/4)` at pack 4) |
+| **1h00** | **legs + h3 woke on schedule**; all 12 driver logs present |
+| 1h07 | **six OpenRouter legs crashed all five arms** — external blocker, §23.14 |
+| 1h15 | 249 jobs, **56** granted cores |
+| 1h22 | **76** granted cores, **1,424 cores' worth queued** |
+
+**Both of this session's fixes CONFIRMED IN PRODUCTION at the leg wake** — the first live evidence either could get:
+
+* **D10.** The spend ledger now stamps `openrouter` for `gpt-5.6-luna` / `gemini-2.5-flash` /
+  `glm-5.2` / `deepseek-v4-pro` / `nemotron` / `qwen`×2 / `kimi`, and `anthropic` for
+  `claude-haiku-4-5` / `claude-sonnet-5` / `claude-opus-5`. Across RUNs 1–3 **all 1,361 rows said
+  `anthropic`**. Per-provider cost attribution exists for the first time.
+* **`stop_reason`.** **166 of 166 rows carry the field, 0 missing** — the `truncation_guard`'s
+  stale-driver condition satisfied, which RUN 4 is the first run able to test at all. Values:
+  108 `stop`, 57 `end_turn`, **1 `error`** (`glm-5.2` served by Alibaba; the archived response is a
+  COMPLETE reward function and `cost_usd` 0.0, so it is a provider status quirk, not a truncation —
+  `error` is not in `_INCOMPLETE_STOP_REASONS` and is correctly not flagged).
+
+### 23.14 EXTERNAL BLOCKER — the OpenRouter key hit a spending limit, six legs parked
+
+```
+403  "Key limit exceeded (total limit). Manage it …"      x25
+402  "This request requires more credits, or fewer …"      x5
+```
+
+**Not a code defect.** Down: `deepseek-v4-pro`, `glm-5.2`, `qwen3.6-27b`, `qwen3.5-9b`,
+`nemotron-3-super`, `kimi-k3` (5 of 5 arms each). Healthy: `core` + `h3` (Opus), `haiku-4.5`,
+`sonnet-5`, and — notably — `gpt-5.6-luna` and `gemini-2.5-flash`, which are ALSO OpenRouter.
+
+**The diagnostic that identifies it as a KEY CAP rather than an empty balance:** OpenRouter had spent
+**$0.3158 across 109 calls** at the time of the block, against a quoted $19.31 balance. A balance
+that large cannot produce a 402/403 at $0.32 — so the binding constraint is the per-key spending
+limit configured on the dashboard, which is an account-side setting no session can change.
+
+**Why it is a safe holding pattern rather than an incident**, each checked rather than assumed:
+
+1. the legs crashed **during authoring, BEFORE any cluster submission** — zero junk jobs queued;
+2. relaunch is **bounded** — 600 s supervisor backoff, 2 attempts at the time of writing;
+3. **402/403 calls are not billed**, so parked legs burn nothing;
+4. they **auto-recover** the instant the cap is lifted — the supervisor loop is built for exactly this.
+
+**Exposure:** the confirmatory H2 headline runs on the core Opus line and is untouched. What is at
+risk is R101's **cross-model replication panel** — 6 of 10 legs — if the cap is not lifted.
+
+### 23.15 MY OWN INSTRUMENT WAS WRONG — the qstat column shift
+
+Reported "164 / 292 slots" to Tamer; the allocation advisor said **1,520**. The advisor was right.
+
+`qstat -u` is **state-dependent**: a RUNNING row carries a queue field (`NF=10`, `$8`=queue,
+`$9`=slots) and a QUEUED row does **not** (`NF=9`, `$8`=slots, `$9`=`ja-task-ID`). Summing `$9` for
+both reads the **array task-ID as a slot count** for every queued job. The *granted-cores* figures
+were computed off running rows and were correct throughout; only the totals were garbage.
+
+**The lesson is the one this project keeps relearning:** the disagreement between two instruments is
+what exposed it. A single instrument reporting confidently would have been believed. Corrected
+figures now distinguish **granted** (computing) from **queued** (demand lodged) — and the corrected
+picture is materially better than the wrong one implied: at T+1h22m, 76 cores computing with
+**1,424 cores' worth already queued**, so the constraint is SGE's grant rate against a 2,445-job
+cluster backlog, not our submission rate.
+
+### 23.16 The sentinel's global gate-failure rate is expected to sit at WARN/CRIT — that is not a fault
 
 `check_gate_failure_rate` (warn 10 %, crit 40 %) was calibrated on the prototype's ~2.5 %, which was
 **one strong model**. Across an eleven-model capability gradient containing a deliberate ~17 %-pass
