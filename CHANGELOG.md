@@ -88,6 +88,47 @@ RUN 1 $11.65 (925 calls) · RUN 2 $1.29 (156) · RUN 3 $3.81 (280) → **$16.75 
 means the confirmatory `c1` line spent **$0.00** across both relaunches; the recurring relaunch cost is
 the **h3 single-shot** (~$2.5 per launch, Opus), which re-authors from scratch every time.
 
+### ⑦b Two standing rules added to `CLAUDE.md` at Tamer's instruction
+
+**(a) "THE DOCUMENTATION IS WRITE-UP RAW MATERIAL"** — *"add to claude md to always document
+absolutely everything as this would help me for the write up."* The rule existed; what it lacked was
+the WHY, and the why changes what it demands. If the record is the primary source CH4/CH6/CH7 are
+written from, anything undocumented is **lost to the dissertation**, not merely untidy. Three binding
+obligations: **past · present · future** every session · **every mistake from every run, including my
+own**, each with root cause / how found / fix / lesson (canonical form: record §20) · **write it as it
+happens**, recording the evidence — the command, the count, the log line — not just the conclusion.
+Scoped explicitly as *additive to* ★ STRICT ASSESSMENT · SIGNAL OVER NOISE so it cannot be read as a
+licence to pad.
+
+**(b) "ACCURATE · SURGICAL · ALWAYS-ULTRATHINK · ALWAYS-VERIFY-INCLUDING-YOUR-OWN-WORK"** — *"work
+very accurately and surgically, and always ultrathink and verify everything… it has to always verify
+everything, including its work"*, then *"make sure it also always verifies that everything is correct
+and logical."* Five duties. Duties 1–3 (accurate / surgical / ultrathink) largely restate what was
+scattered across the brief; **duties 4 and 5 are new and are the ones that kept failing**:
+
+- **④ verify your OWN work** — re-run the check AFTER the change · read `PYTEST_RC` from the LOG ·
+  prove a new test can FAIL against the pre-fix code · **a surprising NEGATIVE result is a claim about
+  your script first** · re-derive load-bearing conclusions rather than trusting your earlier statement
+  of them · use a FRESH auditor for substantial multi-file work, because **the author must not grade
+  their own work** · **overstating a risk is as inaccurate as understating one**.
+- **⑤ verify it is CORRECT AND LOGICAL, not merely that it RAN** — a green check proves execution, not
+  truth. Sanity-check magnitude/sign/units (the prototype "tail signal" passed every test and was
+  later REFUTED on a wrong-unit error) · cross-check via an **independent route** (the reject fix was
+  accepted only because a replay condemned exactly 59 and rescued exactly 439, matching an independent
+  audit) · check **internal consistency across the whole record** (2,866 in one file and 2,870 in
+  another is a defect) · check the **conclusion follows** from the evidence · check the result is
+  **meaningful, not just green** — *a surprising result is an obligation to investigate, never a
+  result to report as-is.*
+
+**Two failure modes, not one:** a plausible claim that was never run, and — subtler — a claim that WAS
+run whose output was accepted without asking whether it makes sense. Both survive review by *sounding*
+verified. Case ledger: record §20.2, P1–P10.
+
+⚠ **`CLAUDE.md` is deliberately UNTRACKED here** (commit *"Keep the internal operating brief out of
+the published artifact"*), so it is laptop-local with no backup. Rather than force-add a file excluded
+on purpose, both rules are carried in full in the **tracked** `docs/RUN4_HANDOFF_PROMPT.md` and in the
+standing memories, so a session that never sees `CLAUDE.md` still inherits them.
+
 ### ⑦ State handed over
 
 FROZEN at **v2.1 `3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f`** (tag
