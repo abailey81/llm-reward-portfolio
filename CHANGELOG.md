@@ -701,6 +701,34 @@ separate.
 never-ran rows, or it will understate every model. The discriminator is stated above; the node logs
 that support it are harvested every 15 min into `docs/evidence/`.
 
+### ⑳ `driver_status` STALENESS IS NOT A LIVENESS SIGNAL — and I raised a false alarm on it twice
+
+Chasing the canary produced one more instrument correction. `c1_canary` read **3,696 s stale** in
+`driver_status`, which I twice flagged as a possibly-wedged thread gating the entire confirmatory
+headline. **Its own driver log refutes that outright** — polls at 10:52 / 10:55 / 11:13 / 11:21
+advancing **86 → 87 → 88 done, 2 pending**, i.e. working normally 96 s before I called it stale.
+
+**Cause, read from the code.** `src/cluster/driver.py` emits a heartbeat at exactly FOUR points:
+`pulling i/n` (329), `pull_outage` (408), `done` (448), and the per-cycle `running` (592). A cycle
+that logs progress and then `continue`s early NEVER REACHES 592, so `wall_ts` ages while the batch is
+demonstrably alive. The docstring's "called once per cycle" is therefore accurate only for cycles
+that run to completion.
+
+**Consequence, scoped honestly.** The sentinel uses the UNION (freshest mtime across all files) as
+the whole-driver deadman — that remains valid, since any live batch refreshes it. What is invalid is
+PER-BATCH staleness, which is what my watch script reported and what I reasoned from. Fixed in the
+watch instrument: it now prints the oldest `running` heartbeat with an explicit note that this is
+NOT liveness, and names the DRIVER LOG as the authoritative source.
+
+**Deliberately NOT fixed in the deployed driver.** Making 592 unconditional would need a redeploy and
+a 12-line restart on a healthy running campaign, to buy monitoring accuracy only — no science is
+affected. The workaround (read the log) is free and exact. Recorded here so the next session does not
+re-chase it, and so the fix can ride a NATURAL restart boundary if one occurs.
+
+**Tally for the session: this is the 12th monitoring defect, and the pattern has not varied once —
+every single one reported something other than what it claimed to measure, and the CAMPAIGN was
+correct in every case.**
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
