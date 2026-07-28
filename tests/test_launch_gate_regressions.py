@@ -171,9 +171,33 @@ def test_the_freeze_tag_is_not_one_that_already_exists() -> None:
 
     existing = subprocess.run(["git", "tag"], cwd=_ROOT, capture_output=True, text=True,
                               check=False).stdout.split()
-    assert FREEZE_TAG not in existing, (
-        f"FREEZE_TAG {FREEZE_TAG!r} already exists as a git tag — the freeze would produce no new "
-        f"anchor and would overwrite docs/{FREEZE_TAG}.sha256")
+    digest = _ROOT / "docs" / f"{FREEZE_TAG}.sha256"
+
+    if FREEZE_TAG in existing:
+        # POST-FREEZE (from 2026-07-28). The tag now exists BECAUSE this freeze created it, so a
+        # bare "must not exist" assertion inverts into failing precisely when the thing it guards
+        # has succeeded. The invariant it actually protects is COLLISION: that the tag does not
+        # belong to a DIFFERENT, earlier freeze whose digest file would then be overwritten and made
+        # to attest the wrong bytes. That is checked directly — the digest must exist and must carry
+        # the CURRENT canonical hash, which a stale tag from another freeze could not.
+        import sys
+        sys.path.insert(0, str(_ROOT / "scripts"))
+        import freeze as _f
+
+        assert digest.is_file(), (
+            f"tag {FREEZE_TAG!r} exists but docs/{FREEZE_TAG}.sha256 does not — the freeze left no "
+            "digest to attest which bytes were registered")
+        body = digest.read_text(encoding="utf-8")
+        current = _f.canonical_hash()
+        assert current in body, (
+            f"tag {FREEZE_TAG!r} exists but docs/{FREEZE_TAG}.sha256 does NOT carry the current "
+            f"canonical hash {current[:12]} — the tag attests a DIFFERENT freeze, which is exactly "
+            "the collision this guards against")
+    else:
+        assert FREEZE_TAG not in existing, (
+            f"FREEZE_TAG {FREEZE_TAG!r} already exists as a git tag — the freeze would produce no "
+            f"new anchor and would overwrite docs/{FREEZE_TAG}.sha256")
+
     assert (_ROOT / "docs" / "prereg-v1.0.sha256").is_file(), (
         "the v1.0 proof must survive as the historical record of a freeze that was lifted pre-data")
 

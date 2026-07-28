@@ -323,6 +323,130 @@ State at 07:03 UTC: **all 12 lines alive, 12 tags active, 56 records (9 archive 
 first `test/` record), worst consecutive-failure counter 17 against the fatal bound of 240, spend
 $5.99, no active kill incident, 0 sentinel CRITICAL.**
 
+### ⑪ ★★★ THE MONITORING STACK WAS LYING IN BOTH DIRECTIONS — EIGHT DEFECTS, ONE OF THEM CAMPAIGN-DEFINING (2026-07-28 08:15-09:00 UTC)
+
+Tamer returned and asked for every gap closed to a 0 %-failure standard. Working the sentinel's four
+CRITICALs to ground found that **the campaign was healthy and the INSTRUMENTS were not.** Every
+finding below is a fix to the watcher, not to the run — the run has been correct throughout.
+
+**THE ONE THAT MATTERED MOST: the campaign was reported as unable to reach its FIRST seed rung.**
+`rung_forecast` said `162 done at 1.7/h -> ~1,392 by the stop => rung 0 (next rung 30 needs 2,538
+more)`. Under R101 the rung reached by the exogenous stop IS the result's depth, so that number
+reads as "this campaign fails". It was wrong by ~100x. `lane_started_utc` is unset, so the elapsed
+time falls back to the earliest archived record — and the walk swept
+`_quarantined_precampaign_*`, records deliberately set aside BECAUSE they belong to an earlier run,
+whose mtimes a move preserves. The lane was therefore dated 2026-07-24 (~95 h) instead of
+2026-07-28 (~4.8 h). Corrected, the same instrument reports **`174 done at 35.7/h -> ~25,527 by the
+stop => rung 279`**, and even that is conservative: measured directly from record mtimes the archive
+is completing **~180-196 records/h and still accelerating** (50/h over 6 h, 128/h over 2 h, 196/h
+over the last 30 min — the classic ramp signature, since no training can finish before ~8.5 h).
+**A throughput number that wrong invites exactly the wrong intervention on a frozen design, so it
+was worse than no number at all.**
+
+**The same quarantine blind spot, in two more places.** `arm_progress_symmetry` reported
+`ARM STALLED: placebo (16 records, silent 66.4h)` on a campaign 7.7 h old — the 16 were 2026-07-25
+leftovers. Independently confirmed clean: **zero** records older than the 01:08 launch sit in any
+live root, so nothing foreign has been adopted by the archive-truth resume. THIRD instrument to trip
+on this, so it is a pattern: anything walking the archive must exclude both the in-flight staging
+(`.pull_tmp`) and the deliberately-set-aside past (`_quarantined`).
+
+**`determinism_homogeneity` fired BY CONSTRUCTION and its remedy was destructive.** It reported
+`test leg is NOT substrate-homogeneous: 8 distinct environments` when all 107 scored records were
+`dev=cpu` on one CPU model. The env label is `campaign:<arm>:test[3835,5406)|dev=cpu` — it carries
+IDENTITY as well as substrate, so a leg-wide census keyed on it makes every ARM a new environment.
+Any multi-arm scored leg fires it, forever. Its message says *"quarantine the minority substrate and
+re-run it"*, so acting on it would have destroyed good scored records. Now keyed on
+`record_substrate_key` (the `dev=` token); a genuine CPU/CUDA mix is still CRITICAL.
+
+**★ AND THAT FIX EXPOSED A REAL SUBSTRATE RISK THE OLD CHECK COULD NEVER SEE.** The label carries
+only the DEVICE. CPU MODEL and thread regime — the things that actually fix float reduction order —
+live in `env.json`, and are invisible to `env_json_sha256` too, because that digest includes the
+run's **seed** (30 seeds ⇒ 30 hashes on identical hardware). Measured: the SEARCH leg holds **108
+records on an Intel Xeon Gold 6240 and 1 on a Gold 6140** — different microarchitectures, so
+`-ac allow=d` confines placement to the d-class WITHOUT pinning a CPU model (we place ~5.4 % of
+tasks on `d00b`, and Myriad exposes no schedulable CPU-model complex — `qhost` cannot even
+distinguish them, both being 36-core/2-socket). **The SCORED leg is currently clean: 132/132 on one
+substrate (`cpu=Xeon Gold 6240 | omp=1 | torch_threads=1`).** New `substrate_field_census` +
+`check_substrate_fields` make a scored-leg mix CRITICAL and detectable within one poll; the remedy
+(quarantine the minority unit, re-run it) is cheap for a handful of records and impossible to apply
+if discovered at the post-hoc S6 audit. Detect-and-remediate was chosen over pre-emptively
+restarting twelve healthy lines, which is the larger risk.
+
+**A healthy node was being framed.** `host_failure_concentration` flagged `node-d00a-229` at 3/5.
+Its epilogue rows: **three full successful trainings (11,014-12,367 s)**, two `rc=1` at **5 s and
+20 s** (sandbox rejects of bad authored code — node-INDEPENDENT), and two `rc=126` from my own
+`qdel` during the earlier kill incident. `host_task_counts` counted every non-zero rc as a node
+fault. The remedy for this WARN is to EXCLUDE the host, so a false positive costs a healthy 36-core
+node in a capacity-bound campaign. Now excludes application-level (`1`) and kill signatures
+(`126/137/143/152`, already owned by `classify_task_deaths`) while preserving `127` — the measured
+signature of the real case this detector was built for. Live result: **`no bad node (0/239 failures
+across 128 hosts)`**.
+
+**`coverage_test` compared against a nonsense denominator.** It warned
+`test has 168 units for 40 expected (duplicates or config drift)`. Under the tiered R101 schema
+`campaign.seeds` is a MAPPING `{mode, tiers:[30..568]}`, and the code did `list(camp.get("seeds"))`
+— collapsing it to its two KEYS, giving `(9 arms + 11 baselines) x 2 = 40`. A permanent false
+"config drift" warning from the moment the scored leg passed 40 units. (My first fix failed because
+the `list(...)` coercion upstream destroyed the shape before my test could see it — caught by
+re-running rather than trusting the edit.) Now `test: 174/11,360 (2 %)`, INFO.
+
+`seed_alignment` reported `the arms share NO common seed` — literally true mid-fill (arms held 4-18
+of 568 seeds with genuinely disjoint sets) and days early. Now gated on maturity: INFO while
+FILLING, and the real end-of-leg check preserved. `arm_progress_symmetry` also excluded the serial
+DFO chains, which advance one ~8.5 h training per step against LLM legs emitting a record every
+~0.2 h — they are judged instead by `check_chain_progress`, whose 14 h/28 h thresholds are anchored
+on that measured cost.
+
+**A test-isolation fault was making the suite RED on live state**, unrelated to any of the above and
+verified pre-existing by reverting the day's work: `_gather_campaign_lane` reads the DECLARED-at-GO
+allocation state from a fixed repo path, so once the campaign launched, a test asserting an EMPTY
+directory yields no inputs began failing on `expected_cores: 2562`.
+
+**Capacity, measured rather than assumed (Tamer's speed directive).** We hold **1,710 cores across
+265 running jobs**, with only **63 queued** and 328 jobs against a 1,000 cap; the sole cluster
+resource quota targets a different user. **We are SUBMISSION-limited, not capacity-limited** — the
+release rate is set by the frozen design (the R101 rung ladder, the 6-deep reflection barrier, and
+the serial DFO chains), not by anything Myriad is withholding. More cores would idle. The honest
+consequence: at ~180 records/h against a 279+ rung forecast, throughput is not the binding
+constraint it was feared to be, and the remaining lever is protecting capacity we already hold
+(no stalls, no wasted jobs, no falsely-excluded nodes) rather than acquiring more.
+
+**THE ARCHIVE HAD NO SECOND COPY.** Mirroring is a driver `--mirror` feature the twelve MODE-D lines
+were launched without, so `D:\llm_rp_archive_mirror` sat **541 h stale** while the campaign wrote
+300+ unregenerable records (LLM calls are non-deterministic: a lost record is lost science). New
+`scripts/campaign_backup.ps1` backs it up from OUTSIDE the campaign — no restart, nothing touched —
+and is **deliberately APPEND-ONLY**: robocopy `/MIR` would propagate DELETIONS into the backup,
+which is precisely the 2026-07-27 failure this guards against. It also harvests the node-side
+authoring-reject rows (**54 and growing**) that live only on purge-eligible Scratch, and stamps the
+marker the sentinel stats so the freshness signal is driven by the actual copy. Verified: parity
+297/297 records, rc<8, `mirror` WARN cleared.
+
+### ⑫ TWO GENUINE CRITICALS REMAIN — both are SCIENCE, and both are Tamer's call
+
+**(a) `reward_scale`: a 5.0e5x cross-arm ratio, concentrated in TWO H1 baselines.** Measured
+`raw_rms_max`: `baseline_differential_downside_ratio` **28,773.8** and `baseline_differential_sharpe`
+**16,324.2**, against 0.015-2.33 for every other arm. Both are DIFFERENTIAL/RATIO forms whose
+denominators approach zero early in training. This is the P5 confound the check exists to surface: a
+reward-scale difference is a latent entropy-regularisation difference entangled with the arm.
+Integrity note, stated plainly: H1 is a snoop-free INTERSECTION-UNION test over all 11 comparators,
+so the binding constraint is the STRONGEST baseline — a poorly-scaled baseline that underperforms
+does NOT flatter our claim. It is a disclosure item for CH4/Limitations, not a threat to the verdict.
+
+**(b) Fallback contamination can WIN a search, and nothing stops it.** Of 136 search candidates with
+execution counters: **127 clean, 3 at <0.1 %, 4 at 0.1-1 %, and 2 SEVERE** —
+`qwen3.6-27b/scalar-g1-c4` at **53.7 %** (214,649/400,000) and `qwen3.5-9b/distributional-g1-c2` at
+**50.0 %** (200,094/400,000). `train_safe_default_count` is archived and summed into the integrity
+report but **never gates selection**: the winner is `max(val_fitness)`. So a candidate whose authored
+reward executed on half its steps can win, and the sealed test leg would then re-train that same
+reward and inherit the same contamination. Both severe cases sit in weak open-weight legs (the
+capability gradient behaving exactly as predicted), **NOT** in the core Opus confirmatory line.
+**RECOMMENDATION (Tamer's ratification required, NOT taken unilaterally):** register a dated
+amendment adding an EFFECT-BLIND execution-quality eligibility floor — a candidate with
+`train_safe_default_count / train_safe_call_count` above a stated threshold is ineligible to WIN,
+though it stays archived and reported. It is defensible precisely because it is blind to performance
+and can be fixed BEFORE any winner is frozen; leaving it is the fragility a reviewer snaps with
+"your winning reward only executed half the time." The frozen pre-registration is silent on this.
+
 ### STILL OPEN, FOR TAMER
 
 * **`-p -100` on the non-H2 arms and the H1 canon.** The C1–C3 ladder inside `run_campaign_tiered`
