@@ -19,13 +19,13 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-28"
-  head: "ce27dfc"
+  head: "72425ff"
   frozen: true
   legs_n: 10
   amendments_through: R114
-  suite_status: "exit 0 (2,823 passed / 3 skipped) — FROZEN 4f90ecc47cc6a779 and LAUNCHED 2026-07-28"
+  suite_status: "exit 0 (2,823 passed / 3 skipped) — FROZEN 4f90ecc47cc6a779, LAUNCHED + RUNNING 2026-07-28"
   gate_checks: 23
-  backup_branch: backup-2026-07-27
+  backup_branch: backup-2026-07-28
 ```
 
 | Fact | Value |
