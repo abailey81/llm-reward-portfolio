@@ -1082,10 +1082,38 @@ rambling outlier sitting **11.8 % below the cap**. It did not truncate. But if o
 16,384, that model's reliability figure would be contaminated by OUR cap rather than its capability,
 and it would look exactly like a model failure.
 
-That is not a defect today, so the response is a guard rather than a change: RUN 3 runs a
-**truncation guard** that alerts when any completion exceeds 95 % of the cap and names the line. The
-alternative — trusting an 11.8 % margin on a distribution with a 10× outlier already in it — is the
-kind of unexamined assumption this project has repeatedly found to be false.
+That is not a defect today, and the considered answer is **NOT to raise the cap**. Four reasons,
+each verified rather than assumed:
+
+1. **The cap is HASH-BOUND.** `model_suite.max_tokens_pins` lives in `config/preregistration.yaml`,
+   inside the canonical hash — so raising it means unfreeze → re-freeze → **discard RUN 3 and
+   relaunch as RUN 4**. That price was worth paying once, for R115's identification hole; paying it
+   again for an event that has never occurred would be poor judgement.
+2. **16,384 is already the verified ceiling across all eleven providers.** R106 tested acceptance
+   LIVE on every model precisely because "a provider that capped lower would 400 the confirmatory
+   path". Raising further risks a **400 on the confirmatory path** — categorically worse than one
+   truncated leg completion.
+3. **Caps must be MATCHED** (R106: "with unequal caps a capability contrast is not a capability
+   contrast"), so `nemotron` cannot be raised alone; all eleven would move and all eleven would need
+   re-verifying live.
+4. **It has never happened, and it would not be silent if it did.**
+   `client._warn_if_incomplete` fires on any `stop_reason` in {`max_tokens`, `refusal`, `length`,
+   `content_filter`}, and `run_campaign_cluster` configures the root logger at INFO, so the event
+   lands in the ARCHIVED driver log. Measured across RUN 1, RUN 2 and RUN 3: **0 occurrences** of
+   `llm_incomplete_completion`.
+
+So a truncated candidate is **identifiable** and can be reported as **cap-limited** rather than an
+authoring failure — the reliability table stays clean either way. The response is therefore to WATCH
+the definitive signal rather than buy headroom: the truncation guard now alerts on
+`llm_incomplete_completion` appearing in the driver logs (the provider saying so outright) as well
+as on the token margin (a heuristic that only ever approximates it).
+
+⚠ **One residual, recorded rather than fixed.** `stop_reason` is captured by the client and logged,
+but is NOT persisted into the structured spend ledger on the cluster path — so attribution at
+analysis time is a driver-log grep, not a field join. Fixing that means editing the authoring hot
+path that all twelve lines use, during a live run, for an event that has never occurred: the risk of
+the edit exceeds the risk it removes. Worth doing at the next natural restart, and noted here so the
+choice is a decision rather than an oversight.
 
 ### 16.4 The discriminator, for the write-up
 

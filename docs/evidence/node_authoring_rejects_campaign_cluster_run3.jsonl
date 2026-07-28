@@ -1,0 +1,1 @@
+﻿{"failed": "scalar-g0-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'rolling_std' where it is not associated with a value\")"}
