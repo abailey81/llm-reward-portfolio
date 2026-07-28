@@ -97,15 +97,19 @@ touched them.
 
 ---
 
-## 3. WHAT IS RUNNING NOW (present, 11:30 UTC)
+## 3. WHAT IS RUNNING NOW
+
+**Snapshot at 2026-07-28 11:41 UTC** (these counters move continuously; the live view comes from
+`scripts/sentinel.py` and the watch instruments, not from this table):
 
 | | |
 |---|---|
 | lines | 12/12 alive since launch |
-| records | **580** — 330 scored, 39 core search, 204 leg search, 7 frozen winners |
-| cores held | ~1,400 (rung-30 transient; see §4) |
-| spend | **$7.19** of the $30 advisory ceiling ($4.70 Anthropic) |
-| failure counter | 57 / 240 fatal bound (self-healing; resets on success) |
+| records | **586** — 330 scored, 41 core search, 208 leg search, 7 frozen winners |
+| cores held | ~1,400 (the rung-30 transient; see §4 for why this is correct, not a shortfall) |
+| spend | **$7.34** of the $30 advisory ceiling ($4.70 Anthropic + the first Opus core calls) |
+| Opus core authoring | **LIVE** — `claude-opus-5`, 2 calls, $0.1397 |
+| failure counter | 60 / 240 fatal bound (self-healing; resets on success) |
 | freeze | intact — `design_drift OK` every poll |
 | test suite | `PYTEST_RC=0`, zero FAILED/ERROR |
 
