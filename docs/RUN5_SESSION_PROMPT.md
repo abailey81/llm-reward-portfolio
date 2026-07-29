@@ -652,6 +652,15 @@ days past the Aug-27 stop.
 4. **Weak legs may stop at the C3 review gate** — that is DESIGNED. Clear with
    `TIER1_APPROVED_<line_tag>` after reading the integrity report (staleness-checked, consumed on use).
 5. **§24.6's turnover question** — testable from `test_turnover`, already captured.
+5b. **⚠ §26.3's DIFFERENTIAL ARM ATTRITION — registered PRE-DATA, and the one to keep watching.** An
+   author-side AST reject is ledgered `permanent` and the candidate is **never replaced**, so the arm
+   permanently searches fewer than its registered 30. Asymmetric attrition handicaps an arm in H2's
+   `max(val_fitness)`, and **3 of the first 5 rejects are `placebo`, a CONTROL** — biasing the
+   contrast TOWARD a false positive for our own hypothesis. At n=5 this is chance-consistent, so
+   **no claim is made** — but run `python docs/ops/arm_coverage.py <root>` every update and watch the
+   `[attrition]` line as generations accumulate. The obligation (per-arm accepted-candidate counts +
+   an equal-*k* sensitivity analysis) is registered at record **§9 item 4**. Do NOT "fix" it by
+   re-authoring rejects — that would alter the registered candidate budget mid-run.
 6. **R107's 2.72× thread speedup looks optimistic** — observed ~2.03× on n=2. Re-measure when more
    search-lane records land; it feeds the makespan's chain term.
 7. Register items **L** (factor ladder 21/1631, report-only), **M** (tag annotated not signed),

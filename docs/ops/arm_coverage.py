@@ -60,6 +60,32 @@ def coverage(root: Path) -> dict[str, set[str]]:
     return seen
 
 
+def attrition(root: Path) -> dict[str, int]:
+    """{arm: author-side rejects} from every `failures.jsonl` in the run.
+
+    WHY THIS IS HERE (2026-07-29). A candidate rejected by the author-side AST gate is ledgered
+    `permanent: True` and **never replaced** — `run_search_arm` does `failed += 1; continue`, and on
+    resume P8 refuses to re-ship a permanent row. So the arm simply searches over FEWER candidates
+    than the registered 30.
+
+    That is fine when it is symmetric across arms, and an IDENTIFICATION problem when it is not:
+    H2 compares `max(val_fitness)` over each arm's candidates, and fewer draws lowers the expected
+    maximum. Differential attrition therefore imposes a systematic handicap on whichever arm loses
+    more candidates — and if that arm is a CONTROL (`placebo`, `placebo_shuffled`), the bias runs
+    TOWARD a false positive for the hypothesis. Reported here so the per-arm counts are visible
+    continuously rather than reconstructed at analysis time.
+
+    Effect-blind: reads `candidate_id` and the reject reason only, never a performance field.
+    """
+    out: dict[str, int] = defaultdict(int)
+    for led in root.glob("search*/*/failures.jsonl"):
+        arm = led.parent.name
+        for line in led.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                out[arm] += 1
+    return out
+
+
 def main(argv: list[str]) -> int:
     root = Path(argv[1] if len(argv) > 1 else "outputs/campaign_cluster_run4")
     seen = coverage(root)
@@ -84,6 +110,20 @@ def main(argv: list[str]) -> int:
         else:
             print(f"[arm_coverage] {line:<5} ok  {len(got & want)}/{len(want)} arms submitted")
     print("[arm_coverage] VERDICT:", "ALL LINES FULL" if rc == 0 else "*** AN ARM IS MISSING ***")
+
+    # --- B1 matched-budget watch: author-side attrition, per ARM ------------------------------- #
+    att = attrition(root)
+    total = sum(att.values())
+    if total:
+        worst = max(att.values())
+        spread = worst - min(att.get(a, 0) for a in LEG_ARMS)
+        print(f"[attrition] author-side rejects total={total} "
+              f"by arm: {dict(sorted(att.items(), key=lambda kv: -kv[1]))}")
+        print(f"[attrition] max-min across the five arms = {spread} candidate(s). "
+              "These are NEVER replaced, so this is the per-arm search-width handicap. "
+              "Report it; do not silently average over it.")
+    else:
+        print("[attrition] no author-side rejects yet — arms are budget-matched")
     return rc
 
 

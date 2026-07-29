@@ -452,6 +452,18 @@ re-ship invalid source.
 3. **Re-run the substrate census over the FULL archive** at analysis time. A second distinct
    substrate signature is the tripwire and must be investigated, never averaged over.
 4. **Report effective search depth and effective candidate count**, not the registered figures.
+   **⚠ EXTENDED 2026-07-29 (§26.3), registered PRE-DATA — do this PER ARM, not just per line.** An
+   author-side AST reject is ledgered `permanent` and the candidate is **never replaced**, so an arm
+   permanently searches fewer than its registered 30. Symmetric attrition is harmless; ASYMMETRIC
+   attrition is an identification threat, because H2 compares `max(val_fitness)` over each arm's
+   candidates and fewer draws lower the expected maximum — so the arm losing more candidates is
+   systematically handicapped. **At g0 three of the five rejects are `placebo`, a CONTROL**, and
+   handicapping a control biases the contrast TOWARD a false positive for our own hypothesis.
+   Therefore: (a) **report the per-arm accepted-candidate count beside every H2 contrast**, never
+   averaged over; and (b) **if attrition is materially asymmetric, run the pre-committed sensitivity
+   analysis** — recompute the contrast on the first *k* accepted candidates per arm, *k* = the
+   per-arm minimum, so all arms are compared at equal search width, and report both. Monitored live
+   by `docs/ops/arm_coverage.py` (the repo's `rejects` guard watches per-MODEL rates only).
 5. **Report wall-clock compute** (Okhrati docks for its absence): measured 8.09 h per scored
    training, 3.59 h per chain step, 326,254 core-hours for the full ladder.
 
@@ -1398,6 +1410,9 @@ Recorded because the next session inherits the habits, not just the code.
 | P8 | **Overstated** §15.2's analysis obligation as UNMET when `information_gap.py` had read `prompt` first since the M14 fix (2026-07-05) | re-checked the source before writing it into the record | **Overstating an open risk is its own inaccuracy.** Verify, then state — in both directions |
 | P9 | Put backtick/escape content in a bash heredoc **twice**, against a standing rule; the shell mangled it | verified nothing was corrupted (freeze hash matched), then redid it via the Write tool | **Structured file edits go through Write/Edit, never a shell heredoc** |
 | P10 | A PowerShell process filter matched **my own shell** — the search string was in my own command line — so it killed itself, reported exit 255, and then reported "1 watchdog remaining" that was the next shell counting itself | the count did not fall to 0 no matter how many kills ran | **Any process query that greps command lines must exclude `$PID`**, or it will find and kill itself and lie about the result |
+| **P11** *(2026-07-29, successor session)* | Planned to `qdel` leg7's 14 queued jobs as part of the D14 recovery. **The deletion would have been the WRONG action** — `spec_run_id` returns the candidate_id, not a source hash, so those jobs archive under exactly the run_ids the restarted driver waits for; deleting them would have forfeited 8 h 44 m of queue position and reservations for no benefit | reading `spec_run_id` and `batch_jobs_in_queue` before acting, rather than after | **Verify the mechanism a destructive step depends on BEFORE taking it.** The harness classifier happened to block the command too, but the plan was already wrong on the merits — do not let a tool guardrail be what saves a decision |
+| **P12** *(2026-07-29, successor session)* | Wrote the cursor update through `python -c` inside a bash command whose string contained **backticks**; bash expanded them before Python saw the text, silently blanking four passages (`import numpy as np`, `placebo`, the guard path, `metrics`) — **the same class as P9, against the same standing rule** | re-read the written file immediately instead of trusting the "cursor updated" success message | **A zero-exit write is not a correct write.** Structured content goes through Write/Edit; if a shell must be used, read the artifact back before believing it |
+| **P13** *(2026-07-29, successor session)* | Read record fields with a flat `record.get('test_sharpe')` and got `None` for every seed, which read as "all baseline records are empty" | the numbers contradicted `science_sanity.py`, which had just reported real Sharpes from the same files — the metrics are nested under `metrics` | **When your reader disagrees with a working reader, your reader is the defect.** A surprising negative is a claim about the accessor first |
 
 ### 20.3 The single structural lesson
 
@@ -2484,3 +2499,167 @@ since launch.
 model `claude-opus-5`, provider correctly stamped `anthropic` (the D10 fix working in production),
 every row `stop_reason: end_turn` — no truncations, no refusals — at ≈\$0.09 per call for
 **\$1.6736** on the core line. Campaign spend total **\$5.6301**.
+
+---
+
+## 26. THE COMPLETENESS SWEEP — applying D14's lesson to every other dimension
+
+Written 2026-07-29 09:30 UTC (T+12 h 20 m). D14 taught that a green guard reports what a component
+is DOING, never what it has STOPPED doing. So rather than accept the post-recovery all-green, every
+other completeness dimension of the run was enumerated and checked. **One new identification concern
+was found, and it is registered here PRE-DATA.**
+
+### 26.1 First, auditing my own intervention
+
+Killing and restarting leg7 could have re-submitted the three healthy arms alongside their still-queued
+jobs — the P4 write-race class, two live jobs writing one record. It did not:
+
+```
+leg7 jobs on the cluster after the restart: 24
+  distributional 5 · placebo 4 · scalar_cvar5 5   (the original 14, untouched)
+  scalar 5 · placebo_shuffled 5                   (the 10 new ones)
+```
+
+Every `_pNN` appears exactly once. `batch_jobs_in_queue` saw the live jobs and polled instead of
+submitting, exactly as the driver's design law promises. **The intervention added 10 jobs and
+duplicated nothing.**
+
+### 26.2 A 4-vs-5 candidate shortfall — reconciled exactly
+
+The audit found five `(line, arm)` cells that had shipped **4** candidates where the other 45 shipped
+**5**: leg1 `placebo`, leg4 `distributional`, leg4 `scalar_cvar5`, leg4 `placebo`, leg7 `placebo`.
+
+The driver logs carried **no reject line** for leg1 or leg7, which looked like silent loss. It was
+not — and the misleading step is worth recording. The author-side gate does not log; it writes a row
+to `<arm>/failures.jsonl`:
+
+```python
+if not ast_gate(src) or not defines_reward(src):
+    failed += 1
+    _ledger_failure(fail_ledger, {... "permanent": True, "error": "author_reject: ..."})
+    continue
+```
+
+Reading those ledgers gives **exactly five rows for exactly five shortfalls** — a complete
+reconciliation, nothing lost silently:
+
+| line | arm | candidate | reason |
+|---|---|---|---|
+| leg1 `deepseek-v4-pro` | placebo | `placebo-g0-c1` | `ast_gate (unsafe construct)` |
+| leg4 `qwen3.5-9b` | distributional | `distributional-g0-c1` | `ast_gate (unsafe construct)` |
+| leg4 `qwen3.5-9b` | scalar_cvar5 | `scalar_cvar5-g0-c0` | `ast_gate (unsafe construct)` |
+| leg4 `qwen3.5-9b` | placebo | `placebo-g0-c3` | `ast_gate (unsafe construct)` |
+| leg7 `nemotron-3-super` | placebo | `placebo-g0-c2` | `ast_gate (unsafe construct)` |
+
+**The gate is correct, not over-firing.** The rejected deepseek source opens
+`def reward(...): import numpy as np` — an in-function import, which is exactly the RCE vector the
+AST gate exists to block (the from-import hole closed in the 13-agent audit). The models are writing
+imports the reward contract does not permit; the gate catches it at zero cost, spawn-free. This is
+the per-model authoring-reliability phenomenon the dissertation already measures, working as designed.
+
+### 26.3 ⚠ THE CONCERN THIS EXPOSED — differential author-side attrition across ARMS (registered PRE-DATA)
+
+A rejected candidate is **never replaced.** `run_search_arm` does `failed += 1; continue`, and on
+resume P8 refuses to re-ship a row marked `permanent`. So the arm searches over **fewer than the
+registered 30 candidates**, permanently.
+
+That is harmless when it is symmetric across arms. It is an **identification problem when it is
+not**, and the direction is the dangerous one:
+
+> H2 compares `max(val_fitness)` over each arm's candidates. Fewer draws lowers the expected
+> maximum. Differential attrition is therefore a systematic handicap on whichever arm loses more
+> candidates — and **three of the five rejects so far are `placebo`, a CONTROL arm.** Handicapping a
+> control biases the contrast **toward** a false positive for our own hypothesis.
+
+**The honest statistical position, stated now rather than after the data.** Five rejects is far too
+few to claim an arm effect: under a uniform null across five arms, the probability that some arm
+draws ≥3 of 5 is ≈0.25–0.29, i.e. entirely consistent with chance. It is also confounded with model
+identity — `qwen3.5-9b`, the registered capability-gradient bottom anchor, contributes 3 of the 5.
+The one detail that keeps it worth watching is that `placebo`'s three rejects come from **three
+different models** (deepseek, qwen3.5-9b, nemotron), which is marginally more suggestive of an arm
+effect than a model effect. **No claim is being made. A measurement obligation is being registered.**
+
+**What is registered, PRE-DATA, so that raising it later cannot be a forking path:**
+
+1. **Report the per-arm accepted-candidate count** alongside every H2 contrast. If the arms are not
+   budget-matched in candidates, the reader must see it — never averaged over silently.
+2. **If attrition is materially asymmetric at analysis time, run the pre-committed sensitivity
+   analysis:** recompute the H2 contrast on the first *k* accepted candidates per arm, where *k* is
+   the minimum across arms, so every arm is compared at equal search width. Report both.
+3. **No design change is made now.** Compensating by re-authoring rejects would alter the registered
+   candidate budget mid-run and is refused.
+
+This is measurable from data already being captured — every rejection is ledgered with its arm,
+candidate id and reason — so it needs no design change, exactly like §24.6's turnover question.
+
+**It is now monitored continuously.** `docs/ops/arm_coverage.py` reports per-arm attrition and the
+max−min spread on every run, so the asymmetry is visible as it develops rather than reconstructed at
+the end. Note the existing `rejects` guard watches per-MODEL rates only; the arm dimension — the one
+that bears on identification — was unmonitored.
+
+### 26.4 The sentinel's one open WARN, run to ground: a documented warm-up guard
+
+`sentinel_events.jsonl` carried an un-investigated warning:
+
+```
+record_sanity WARN — 1/105 recent record(s) look SUSPECT (baseline_differential_sharpe-s1)
+                     — partial fallback contamination or missing execution counters
+```
+
+Read correctly (the metrics are **nested under `metrics`**, not top-level — a first flat accessor
+returned `None` for every field and would have been reported as "all records empty"), the counters
+say:
+
+| seed | `train_safe_call_count` | `train_safe_default_count` | fraction |
+|---|---|---|---|
+| s1 | 400,000 | **1** | 0.00025 % |
+| s5 | 400,000 | **1** | 0.00025 % |
+| the other nine | 400,000 | 0 | 0 |
+
+**Cause, confirmed from the implementation rather than assumed.** `differential_sharpe` is the one
+STATEFUL baseline; it initialises `A_0 = B_0 = 0`, so at the first step the denominator is literally
+`(B - A²)^1.5 = 0`. The docstring says so explicitly — *"warm-up returns D = 0 / a sentinel until
+B − A² > 0"*, *"denom = (0 - 0) ** 1.5 = 0 → warm-up: D_1 = 0 (guarded)"*. The safe wrapper counts
+that single guarded step as one default substitution. Hence exactly **one call in four hundred
+thousand**, on exactly the reward that has a zero-denominator initialisation, varying by seed with
+the first return draw. (Cf. R65, the earlier DSR `n ≤ 1` edge.)
+
+**Verdict: a TRUE-POSITIVE alarm with a benign, by-design cause.** It is 0.00025 %, against R115's
+eligibility floor of 10 % — a factor of 40,000 — and far below even the worst "trace" case (0.41 %)
+in the R115 threshold-insensitivity analysis. It also does not touch eligibility at all: R115 governs
+LLM-authored candidate selection, and this is a hand-written H1 comparator, always included.
+**The check is left exactly as it is** — it is cheap, correct, and weakening a check to quiet a
+known-benign signature is precisely the thing this project refuses to do. The signature is documented
+here so it is recognised, not re-investigated.
+
+### 26.5 Everything else, checked and clean
+
+| dimension | result |
+|---|---|
+| arms per line | **12/12 lines at full roster** (h3ss single-arm by design) |
+| epilogues | **32 rows, every one `rc=0`** |
+| the 11 H1 baselines | **all 11 present**, exactly the frozen canon |
+| core `c1` LLM arms | **all five authoring** post-canary — the confirmatory H2 arm is fully underway |
+| DFO family arms | `random_search`, `bayes_opt`, `cma_es`, `tpe` all submitting |
+| provider attribution (D10) | **correct on all 12 lines** — `anthropic` for c1/h3ss/leg5-haiku/leg8-sonnet, `openrouter` for the other eight |
+| killswitch incident | RUN 4's root is **clean**; the one `MYRIAD_KILL_INCIDENT.json` on disk belongs to **RUN 1** and is demonstrably not blocking anything — 399 RUN 4 jobs are live |
+| sentinel | 49 distinct checks, **3 non-OK total**: one benign launch-time `UNKNOWN`, the capacity WARN below, and §26.4 |
+| disk | C: 32 GB free (70 % used) · D: 50 GB free (87 % used) — adequate, worth watching on D: |
+| freeze / drift | `3ca6f01a…` **MATCHES** · drift **0 files** |
+
+### 26.6 The capacity WARN — an independent instrument agreeing with the ETA model
+
+```
+capacity_accumulation WARN — plateaued at ~406 cores = 23% of the 1750 forecast
+                             RE-FORECAST the reachable rung from this number
+```
+
+The sentinel reached this conclusion from the accumulation curve; `stage_eta.py` reaches the same one
+from the registered `plan_lanes` makespan model. **Two independent routes agree**, which is the
+standard this project holds cross-checks to. At the measured 448 cores the ladder banks **rung 403 by
+08-22** and **rung 568 lands 08-31, missing the Aug-27 stop**; 830 cores would land 568 on 08-15.
+
+**Capacity is the campaign's single binding operational risk** — not correctness. It is improving
+(208 → 408 → 448 cores, and 568's ETA moved 09-03 → 08-31 within the hour) because ~8.5 h tasks
+accumulate rather than appear at once, which is precisely the flow-equilibrium the capacity
+measurement predicted. It must be reported in every update with the per-rung ETAs.

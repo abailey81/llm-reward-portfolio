@@ -110,6 +110,68 @@ model): rung 30 → **08-01** · 100 → **08-05** · 189 → **08-11** · 279 �
 **Cores are the binding lever**, and the account is currently holding roughly half the modelled
 capacity.
 
+### ⑧ THE COMPLETENESS SWEEP — D14's lesson applied to every other dimension (record §26)
+
+D14 proved a green guard reports what a component is DOING, never what it has STOPPED doing. So
+every other completeness dimension was enumerated and checked rather than inferred from the
+post-recovery all-green.
+
+**My own intervention, audited first.** Restarting leg7 could have re-submitted the three healthy
+arms beside their still-queued jobs (the P4 write-race class). It did not: 24 leg7 jobs, every
+`_pNN` exactly once — the original 14 untouched plus the 10 new. `batch_jobs_in_queue` polled
+instead of submitting, exactly as the design law promises.
+
+**A 4-vs-5 candidate shortfall, reconciled exactly.** Five `(line, arm)` cells shipped 4 candidates
+where 45 shipped 5. No reject line appears in the driver logs — because the author-side gate does
+not log, it writes to `<arm>/failures.jsonl`. Those ledgers hold **exactly five rows for exactly five
+shortfalls**: leg1 placebo, leg4 distributional/scalar_cvar5/placebo, leg7 placebo, all
+`author_reject: ast_gate (unsafe construct)`. **The gate is right** — the rejected deepseek source
+opens `def reward(...): import numpy as np`, the in-function import that is exactly the RCE vector
+the gate exists to block. Nothing lost silently; this is the authoring-reliability finding working
+as designed.
+
+**⚠ THE CONCERN IT EXPOSED, registered PRE-DATA (§26.3).** A rejected candidate is **never
+replaced** (`failed += 1; continue`; P8 refuses to re-ship a `permanent` row), so the arm
+permanently searches fewer than its registered 30. Symmetric attrition is harmless; **asymmetric
+attrition is an identification threat** — H2 compares `max(val_fitness)` over each arm's candidates,
+so fewer draws lower the expected maximum and handicap that arm. **Three of the five rejects are
+`placebo`, a CONTROL** — and handicapping a control biases the contrast TOWARD a false positive for
+our own hypothesis.
+
+Stated honestly: n=5 is far too few to claim an arm effect (under a uniform null, P(some arm ≥3 of
+5) ≈ 0.25–0.29), and it is confounded with model identity (`qwen3.5-9b`, the registered bottom
+anchor, contributes 3). The one detail keeping it live is that placebo's three come from **three
+different models**. **No claim made; a measurement obligation registered** — record §9 item 4 now
+requires the per-arm accepted-candidate count beside every H2 contrast, plus a pre-committed
+equal-*k* sensitivity analysis if attrition is materially asymmetric. No design change: re-authoring
+rejects would alter the registered budget mid-run and is refused. Now monitored continuously by
+`docs/ops/arm_coverage.py` (the repo's `rejects` guard watches per-MODEL rates only).
+
+**The sentinel's one open WARN, run to ground.** `record_sanity` flagged
+`baseline_differential_sharpe-s1` for "partial fallback contamination". Read correctly — the metrics
+are **nested under `metrics`**; a first flat accessor returned `None` for every field and would have
+been reported as "all records empty" — it is **1 default call in 400,000 (0.00025 %)**, on s1 and s5
+only. Cause confirmed from the implementation, not assumed: DSR initialises `A_0 = B_0 = 0`, so the
+first step's denominator is literally `(B − A²)^1.5 = 0`, and the docstring states the guard
+outright. **True-positive alarm, benign by-design cause** — 40,000× below R115's 10 % floor, below
+even the worst 0.41 % "trace" case, and irrelevant to eligibility (R115 governs LLM-authored
+candidates; this is a hand-written H1 comparator). **The check is left untouched**; weakening a check
+to quiet a known-benign signature is exactly what this project refuses.
+
+**Everything else clean:** 12/12 lines at full arm roster · 32 epilogues all `rc=0` · **all 11 H1
+baselines present** · **all five core LLM arms authoring** post-canary · DFO family all submitting ·
+provider attribution correct on all 12 lines · RUN 4's killswitch root clean (the incident file on
+disk is RUN 1's, and 399 live jobs prove nothing is blocked) · 49 sentinel checks with 3 non-OK, all
+explained · disk C: 32 GB / D: 50 GB free · freeze MATCHES · drift 0.
+
+**Capacity — two independent instruments agree.** The sentinel's `capacity_accumulation` WARN
+("plateaued at ~406 cores = 23 % of the 1750 forecast") and `stage_eta.py`'s `plan_lanes` model reach
+the same conclusion by different routes. At the measured 448 cores the ladder banks **rung 403 by
+08-22**; **rung 568 lands 08-31 and misses the Aug-27 stop**; 830 cores would land it 08-15.
+**Capacity is the campaign's single binding operational risk — not correctness** — and it is
+improving (208 → 408 → 448; 568's ETA moved 09-03 → 08-31 within the hour) as ~8.5 h tasks
+accumulate.
+
 ## [2026-07-29] RUN 4 IS LIVE AND HEALTHY — the launch night, end to end
 
 **Session close ~07:15 UTC, T+10 h. RUN 4 launched 2026-07-28 21:01 UTC and is running.** This block
