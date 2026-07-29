@@ -47,6 +47,19 @@
    case, I can top up both"*
 10. *"I just raised key cap to 100"*
 11. *"sharpe is negative? Are you sure that sicence cheks out and the campaign working as it should?"*
+12. *"I want to pass this chat into the new fresh claude code chat, exactly the same way it was
+    passed to you, like remember the first prompt. So I need you to document absolutely everything in
+    all docs, including changelogs, handoffs and etc and etc, make sure you dont miss anything,
+    include absolutely everything. and then write a detailed prompt, identical to what was very first
+    prompt for you... grant the new sesssion all the rights, everything that was granted to you, tell
+    it how we communicate remotely, what to follow and etc... The transition must be extremely smooth,
+    and it should feel like the session never endeded, the next session must have absolutely 0 gaps in
+    its knowledge. Ultrathink very deeply and extensivelly"*
+13. *"make sure the new session would be absolutely aware of absolutely everything that happened
+    herere, this run, in previous sessions and in previous runs as well, everything . It must have an
+    absolute context"*
+14. *"Please dont forget to add the priorities, everything I have been telling you here, and
+    everything else, teh transition must be smooth"*
 
 **Items 3 and 4 are STANDING REPORTING DUTIES**: every update must carry the campaign timeline, CPU
 cores in use, jobs in progress, **and each stage's current ETA**. Item 11 is the model for how he
@@ -98,6 +111,114 @@ reads your work — *he was right and I was over-claiming*. Expect to be checked
 | **inline `git commit -m "…"` in PowerShell** | quotes/parens break it repeatedly. **Write the message to a file and use `git commit -F <file>`** |
 | pull Refinitiv data from Bash | the sandbox blocks it — PowerShell + `.venv-lseg` only |
 | a process query that greps command lines without excluding `$PID` | it matches and kills your own shell, then lies |
+
+---
+
+## §1b. ⚠ THE PRIORITIES AND BINDING STANDARDS — reproduced here because CLAUDE.md IS UNTRACKED
+
+**`CLAUDE.md` is deliberately NOT in git** (commit: *"Keep the internal operating brief out of the
+published artifact"*). It is laptop-local. **A session that reads only the repository will never see
+any of the following**, so the load-bearing parts are reproduced here verbatim. If `CLAUDE.md` is
+present on the machine, read it in full as well — this is a safety net, not a replacement.
+
+### ★★★ THE PRIORITIES — the absolute, overriding north star
+
+> **Every decision — design, model, theory, writing, scope, tooling — is measured against these. When
+> anything trades off against them, THEY WIN. Non-negotiable, and the highest priority in the file.**
+>
+> 1. **MAXIMISE THE GRADE → a 95 %+ FLOOR, as close to 100 % as humanly possible** (UCL distinction
+>    top band). *"Good enough", "competent", "solid" are NOT the target — the ceiling is.*
+> 2. **WORLD-CLASS, CUTTING-EDGE, PUBLISHABLE** — a genuine frontier-grade contribution
+>    (TMLR-and-up / ICAIF-main), the kind of work a leading lab would put its name on. **Not** a
+>    workshop demo, **not** a competent-student exercise.
+> 3. **VERY DEEP** — depth, intuition, mechanism and genuine originality over breadth and textbook
+>    machinery; the insight that earns the top band and survives Okhrati's scrutiny.
+> 4. **CORPUS-GROUNDED + GENUINELY NOVEL** — lean HEAVILY on the 196+ first-hand-read paper corpus
+>    (cite-and-USE, not cite-and-wave), and keep the conjunctive novelty cell genuinely novel,
+>    protected by dated sweeps every 2–3 weeks plus a MANDATORY pre-submission sweep.
+>
+> These four are **inseparable**. **Default to the most ambitious option that is rigorous and honest;
+> never trade depth, quality, or ambition for convenience, speed, or "it's fine".** When unsure ask:
+> *does this make the work world-class and push it toward 100 %?* If not, do better.
+
+**⚠ 2026 GRADE-INFLATION ADJUSTMENT (supervisor-confirmed 2026-07-21):** the bar was RAISED this year
+— *last year's distinction ≈ this year's merit*. Every dimension needs UNAMBIGUOUS distinction
+evidence, and **communication is the binding constraint**.
+
+### ★★★★ REPRODUCIBILITY — "THE SINGLE MOST IMPORTANT POINT OF THIS DISSERTATION"
+
+> Reproducibility **outranks speed, convenience and cleverness**, and it is the criterion the work
+> will be judged on. **A result that cannot be reproduced is not a result.**
+
+Three layers must GENUINELY hold, never merely be claimed: **analysis** = deterministic archive
+replay · **protocol** = re-runnable by anyone (keyless golden path) · **experiment** = open-weight,
+hash-pinned, self-hosted legs. **THE DETERMINISM ENVELOPE is the operative rule:** anything that
+changes floating-point arithmetic is part of the frozen design (this is why the `t` pool is excluded
+— AMD vs Intel kernels change reduction order and would break CRN bit-exactness).
+
+*RUN 4 supplied live evidence for this: it reproduced RUN 1's `baseline_raw_return` to four decimal
+places across a full re-execution, days apart, on different nodes.*
+
+### ★★★ THE FIVE DUTIES — accurate · surgical · always-ultrathink · always-verify (incl. your own work)
+
+> Tamer's words: *"work very accurately and surgically, and always ultrathink and verify everything.
+> Everything must be strictly flawless. It has to always verify everything, including its work."*
+> **The standing bar is STRICTLY FLAWLESS — 0 %, not 0.1 %.**
+
+1. **ACCURATE.** Every number, path, flag, hash and count is the REAL one, read from the real artifact
+   *at the moment of writing*. No approximations presented as measurements, no remembered values, no
+   "about". **If it is stated, it was observed** — cite the command/count/log line beside the claim.
+2. **SURGICAL.** Smallest correct diff; no drive-by refactor; never touch a hash-bound file outside
+   the unfreeze→amend→re-freeze protocol. Read the target and one nearby example first; **re-read your
+   own diff** afterwards for what a compiler cannot catch. Precision is targeting, not timidity — the
+   change must still be COMPLETE at every call site.
+3. **ALWAYS ULTRATHINK.** Before acting on anything non-trivial: what could be wrong, what would
+   falsify it, what the strongest counterargument is. **The first plausible answer is a hypothesis.**
+4. **ALWAYS VERIFY — INCLUDING YOUR OWN WORK.** Nothing is done until it was RUN and observed. Read
+   `PYTEST_RC` from the LOG, never a wrapper's exit code. Prove a new test FAILS against the pre-fix
+   code. **A surprising negative result is a claim about your script first.** Use a fresh auditor for
+   substantial work — *the author must not grade their own work*. **Overstating a risk is as
+   inaccurate as understating one.**
+5. **VERIFY IT IS CORRECT AND LOGICAL, not merely that it RAN.** A green check proves execution, not
+   truth. Sanity-check magnitude/sign/units; cross-check via an INDEPENDENT route; check internal
+   consistency across the whole record; check the conclusion actually follows. **A surprising result
+   is an obligation to investigate, never a result to report as-is.**
+
+> *This session is a case study in duty 5. I reported "the science checks out" having verified only
+> invariants; Tamer challenged it and was right. **Invariants holding ≠ results being sound.***
+
+### ★★★ OTHER BINDING STANDING RULES
+
+* **ZERO-DEFECT, FIX-ON-SIGHT** — leave no gaps, bugs, inconsistencies or stale statements. If you
+  suppress something deliberately, flag it.
+* **NEVER MISS ANYTHING — EXHAUSTIVE COMPLETENESS.** Enumerate the FULL scope of any multi-part task
+  and complete ALL of it; never sample. Anything added mid-stream joins the scope. **Re-sweep at the
+  end to PROVE nothing was dropped.**
+* **PLANS ACCUMULATE — NEVER DROP PRIOR WORK.** A new instruction ADDS to the standing set; it does
+  not replace it.
+* **STRICT ASSESSMENT · SIGNAL OVER NOISE.** After ultrathinking, assess STRICTLY and add ONLY what
+  serves the priorities. Depth over breadth. **Leave alone what is already sufficient.**
+* **PUBLICATION-GRADE BACKBONE — NO LAZY HEDGES.** Every element gets publication-strength backbone
+  and grade-A evidence. **Never soften a claim to report-only merely to protect a result** — find the
+  framing that is simultaneously strongest AND least fragile.
+* **MAXIMUM STRICTNESS — QA GATES AT 1.0.** Every quality/compliance gate runs at full strictness.
+* **STRICT CONTINUOUS DOCUMENTATION + ALWAYS-RESUME.** Document EVERYTHING, in full detail, ALWAYS —
+  in `CHANGELOG.md` and `docs/HANDOFF.md` §1 — **even in a session with no commits**. Name in-flight
+  state precisely. At the start of every session, resume from HANDOFF §1 + the cursor + the latest
+  CHANGELOG, say *"Resuming from: … — next: …"*, and **CONTINUE mid-stream — never restart cold.**
+* **THE DOCUMENTATION IS WRITE-UP RAW MATERIAL.** The record is the primary source CH4/CH6/CH7 are
+  written from, so anything undocumented is **lost to the dissertation**, not merely untidy. Past,
+  present and future every session; every mistake with root cause / how found / fix / lesson; and
+  **write it as it happens**, recording the evidence, not just the conclusion.
+* **STEFAN'S 5 CRITERIA** (industrial supervisor, binding evaluation lens, each must be *deeply
+  justified*): real gap · principled, elegant, non-fragile method · **reproducibility ("THE CRITICAL
+  POINT")** · honest, well-communicated results · genuine contribution.
+* **THE FOUR AUTHORITIES** are strict binding law: Tamer · Okhrati (academic) · Stefan (industry) ·
+  the pre-registration. One owner per truth — see `docs/HANDOFF.md` §3.
+* **MYRIAD PRIORITY IS ABSOLUTE** — never lower the SGE priority of any of our jobs.
+* **CAMPAIGN-SPEED PRIORITY** — drive the training wall-clock to its global minimum using the best
+  pools/packing, **without ever cutting the science**.
+* **Address Tamer by name at the start of every message.**
 
 ---
 
@@ -391,6 +512,69 @@ the FINDING/DEFECT discriminator) · `status`.
 `stage_eta.py` (per-rung ETAs from the registered model), `science_sanity.py` (**stage-aware** —
 test-leg records score on `test_sharpe`, search on `val_fitness`), `Send-Remote.ps1` (base64 ssh
 transport — the naive pipe corrupts payloads), `openrouter_key_info.py`.
+
+---
+
+## §8b. OPERATING THE LIVE RUN — stopping, restarting, and the exact commands
+
+### The STOP lever, and what it really does
+
+```
+outputs\campaign_cluster_run4\STOP_CAMPAIGN        <- create this file
+```
+
+**It stops RESTARTS, not a running driver.** It is honoured by the supervisors, the watchdog and the
+backup — **not** by a driver already mid-batch. A FULL halt is an ORDERED sequence, and the order
+matters because the watchdog revives dead lines every 300 s:
+
+1. write `STOP_CAMPAIGN` into the run root;
+2. **kill the watchdogs FIRST** (else they resurrect everything you kill next), verify 0 remain;
+3. kill the 12 supervisors → then the drivers → then backup, sentinels, advisors;
+4. on the cluster, delete campaign jobs **by explicit job ID only** — **NEVER `qdel -u ucestes`**,
+   which would destroy the surviving `l16xx` p6-ladder cells that feed figure F11.
+
+Every process query MUST exclude `$PID`, or it matches and kills your own shell and then misreports
+what is left (P10).
+
+### Relaunching (only if a relaunch is genuinely required)
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1 `
+  -OutDir outputs\campaign_cluster_runN -RemoteRoot ~/Scratch/llmrpN
+```
+
+**BOTH root flags are mandatory** — every entrypoint defaults to RUN 1's paths, and omitting one
+silently rejoins a halted run whose archive-truth resume would adopt its records. Then, with the SAME
+roots: `mode_d_watchdog.ps1 -IntervalSecs 300`, `campaign_backup.ps1 -SrcRoot`,
+`sentinel.py <root> --watch --interval 300`, `allocation_advisor.py --host myriad --watch 900
+--archive-root <root>`.
+
+**ORDER: launcher FIRST, then verify 12 supervisors are up, THEN the watchdog.** Starting the
+watchdog first spawns twelve supervisors that the launcher then duplicates.
+
+### The daily commands you will actually use
+
+```
+python scripts/campaign_guards.py outputs/campaign_cluster_run4 all    # exit 2 = stop the run
+git diff --name-only b9e6df5 HEAD -- src scripts config prompts        # MUST stay empty
+python scripts/freeze.py --check                                       # RC=0 + hash MATCHES
+ssh myriad "qstat -u ucestes | tail -n +3 | wc -l"                     # cluster jobs
+```
+
+### The C3 review gate — an EXPECTED event, not a fault
+
+A weak leg may stop at the C3 gate awaiting human approval; the gate reads only **execution health**
+(effect-blind) and **fails CLOSED**. To clear it: read `tier1_integrity_<line_tag>.md`, then create
+`<read_root>/TIER1_APPROVED_<line_tag>`. The approval is **staleness-checked** (one predating the
+report it claims to approve is IGNORED) and **consumed on passage**, so each passage needs its own.
+
+### If the laptop reboots or the session dies
+
+**The campaign survives a session death** — it is independent processes. It does **not** survive a
+laptop reboot: re-launch the supervisors on the SAME roots with `--resume` (archive-truth resume
+re-authors only what is missing, so nothing is double-billed). The laptop must stay **home, plugged
+in, awake and online**: sleep is disabled on AC and Windows Update is paused to **2026-09-10**, 14
+days past the Aug-27 stop.
 
 ---
 
