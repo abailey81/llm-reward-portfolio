@@ -2094,6 +2094,49 @@ D13 is rare and self-heals through the same route.
 within minutes of `TypeError:` appearing, having stayed silent through 300 repeats of the known 403.
 That is exactly the behaviour it was rebuilt for.*
 
+### 23.14e D9's BASELINE WAS WRONG — RUN 3 did not fail at a constant rate, it DEGRADED
+
+Before drawing anything from RUN 4's zero timeouts, I checked whether RUN 3's 647 were uniform in
+time. **They were not**, and this changes the whole comparison.
+
+| RUN 3, 30-min bucket (launch 16:19:30) | transport failures |
+|---|---|
+| 16:00 | 8 |
+| 16:30 | 11 |
+| 17:00 | 6 — **only ~25 through T+70m** |
+| **17:30** | **84 ← the ramp begins, ~T+70m** |
+| 18:00 | 166 |
+| **18:30** | **217 ← peak** |
+| 19:00 | 172 |
+| 19:30 | 134 |
+| **total** | **1,018 transport WARNINGs / 647 `timed out after` over 3 h 26 m** |
+
+**D9 in RUN 3 was a DEGRADATION that began ~70 minutes in and escalated ~10×, not a flat failure
+probability.** That shape is itself evidence: it matches the leaked-ssh-child mechanism (D3), which
+compounds as children accumulate, and is inconsistent with a constant per-operation failure rate.
+
+**What this did to my analysis.** I had set `H_inert` at "~190/hour uniformly", so at T+47 min it
+predicted ~148 against RUN 4's 0 — an apparently decisive contrast. The correct like-for-like at
+T+47 min is **RUN 3 ~15–20 vs RUN 4 zero**: better, but nowhere near decisive, **because RUN 4 had
+not yet reached the point where RUN 3's problem started.** Calling it at the planned 60-minute
+checkpoint would have announced a result read off the flat part of the curve.
+
+**The corrected schedule, with the phase named at every checkpoint so a number cannot be read out of
+context:**
+
+| checkpoint | RUN 3 had | meaning |
+|---|---|---|
+| T+47m | ~15–20 | pre-ramp; not informative |
+| **T+68m (observed)** | ~25 | **RUN 4: 5 transport fails, 0 timeouts** |
+| **T+70m** | the ramp begins | **the real test starts** |
+| T+120m | 250+ | a genuine discriminator |
+| T+206m | 647 timeouts / 1,018 fails | full-window comparison |
+
+**Conclusion deferred to at least T+120m, preferably T+206m.** This is the third time this session
+that checking a figure against a second source changed the answer — and it is the same lesson §20.3
+draws for the machine defects: the ones that mattered were found by MEASURING, not by reasoning about
+what ought to be true.
+
 ### 23.15 MY OWN INSTRUMENT WAS WRONG — the qstat column shift
 
 Reported "164 / 292 slots" to Tamer; the allocation advisor said **1,520**. The advisor was right.
