@@ -1,0 +1,168 @@
+# Assessment of the "Getting every criterion into the top band" feedback (2026-07-30)
+
+**Verdict: high quality, and it should be adopted almost in full.** It reads the IFTE0008 rubric
+correctly, identifies communication as the binding axis, and its highest-value recommendations are
+free of the word count. Four of its factual claims are wrong or stale and are corrected below; one of
+its central premises has been overtaken by events in our favour. Nothing in it conflicts with the
+frozen design.
+
+This document is the assessment and the implementation plan. It does not replace
+`docs/WRITEUP_95PLUS_PLAYBOOK.md` — it sharpens and extends it.
+
+---
+
+## 1. FOUR MATERIAL CORRECTIONS (verified first-hand, not inferred)
+
+### 1.1 ⚠ "Switch on the psychometric module. Ten dollars, no compute, already specified and built."
+
+**Specified: yes, in full. BUILT: NO.** Verified by search — no source in `src/`, `scripts/` or
+`tests/` matches `2afc`, `graded.delta`, `jnd`, `delta_75` or `psychometric`. The only related file is
+`scripts/m2_survey.py`, which is the separate ~25-model reading-link survey, not the threshold ladder.
+
+The specification itself says so: *"The stimulus builder rides the existing `scripts/m2_survey.py`
+harness (**a gate-week build task if activated**…)"*. So the action is **build the 2AFC ladder harness,
+test it, then spend the money** — engineering time plus API cost, not a switch.
+
+**And the cost is probably not \$10.** R96 registers TWO axes — `axis_a` (per-model δ-75 thresholds,
+~\$8-12) and `axis_b` (the ecosystem census, ~\$15-25) — under a single `activation` key whose
+integrity clause reads *"**If activated, every estimand above reports in full**"*. On the conservative
+reading, activation commits us to **both axes, ≈\$23-37**, not \$10. **This must be resolved in
+writing before any spend**, because it changes the cost threefold. Options: (a) activate both and
+budget for it; (b) amend R96 to make the axes independently activatable, dated and recorded *before*
+seeing any result, which preserves the anti-forking guarantee.
+
+**Assessment of the underlying advice: correct and important.** It is the single largest available
+move on Criterion 3, for exactly the reason given — it converts the mechanism claim from an inference
+("we think the model could not read the numbers") into a measured threshold with the campaign's own
+fed deltas overlaid. The spec's own overlay estimand is precisely that. And it is **safely
+deferrable**: the spec confirms it is *"equally runnable post-campaign since the module needs no GPU
+and no frozen quantity."*
+
+### 1.2 ⚠ "The configuration comment says the universe rotates per date and the code selects once."
+
+**Not reproduced as stated; the code is PIT-clean.** `config/prototype.yaml` reads
+`phase: development  # dev top-30 (2005 selection)` — consistent with select-once, not a claim of
+rotation. `top30_selection_univ5.parquet` holds *"the point-in-time top-30 RICs"* keyed by window, and
+`load_gold_panel` loads *"one window's point-in-time top-30"*. **There is no look-ahead.**
+
+But the instinct is right and there are two real items:
+* **A dangling cross-reference** — the comment points at *"the PIT-simplification caveat above"* and no
+  such caveat exists in the file. `config/` is inside the live-run drift pathspec, so this is
+  registered for the next restart, not edited now.
+* **An undisclosed limitation** — the traded universe is a single point-in-time selection held fixed
+  across train, validation and the sealed test; it does not rotate. That is legitimate and is what the
+  missing caveat was meant to say. **Now bounded empirically** — see §1.3.
+
+### 1.3 ★ The §24 benchmark was not like-for-like — and fixing it STRENGTHENS the result
+
+Auditing the above exposed a confound the feedback did not catch. §24's passive proxy (+0.773 Sharpe,
++166 %) is `market_ew` over the **whole univ5 panel (953 RICs)**, while the agent trades **30** names.
+Measured on the same 1,631 sealed sessions:
+
+| benchmark | Sharpe (raw) | Sharpe (excess of rf) | cumulative |
+|---|---|---|---|
+| **EW buy-and-hold, the SAME 30 traded assets** | **+0.8170** | +0.6473 | +122.01 % |
+| `market_ew` proxy, univ5 panel (953) | +0.7732 | +0.6489 | +166.00 % |
+
+The like-for-like line is **stronger**, and risk-adjusted the two are within 0.0016. **Universe
+staleness is not the explanation; the over-trading conclusion survives on a same-universe
+comparator.** Full detail: record §29. Consequence for the write-up: state the absolute result against
+the same-30 benchmark, which pre-empts the objection rather than inviting it.
+
+**Also fixed by that audit:** every reported Sharpe is the **RAW** annualised figure —
+`sharpe_ratio(returns, periods_per_year=252)` takes no risk-free argument. The comparison is
+convention-consistent, but excess-of-rf differs materially (+0.773 → +0.649), so the convention must be
+stated explicitly (Stefan's criterion 5; the standing R20 item).
+
+### 1.4 The schedule premise is superseded — in our favour
+
+The feedback calls the schedule *"the most likely way this ends badly"*, on the premise that the
+campaign runs to **27 August** leaving one day of slack. **That premise no longer holds.** Cores have
+gone 20 → 208 → 448 → **1,328**, and at that capacity the full registered ladder (n=568) completes
+**~9 August** — 18 days inside the stop (record §27). The critical path is now the **document**, not
+the compute, which is exactly the conclusion the feedback reaches for other reasons.
+
+Minor arithmetic note: *"score 95 on the three research criteria and 75 on communication and you
+average 90"* is right ((95×3+75)/4 = 90). But *"to reach 95 overall, communication has to reach roughly
+92"* holds only if the research criteria are ~96; at 95/95/95 communication must itself be **95**. The
+practical instruction — communication must reach the top band — is unaffected.
+
+Also imprecise: communication is not *"currently zero"*. CH1-CH3 are drafted to publication standard;
+what is unwritten is Results, Discussion, Conclusion and the presentation pass.
+
+---
+
+## 2. AN UNMET REGISTERED OBLIGATION THE FEEDBACK INDEPENDENTLY REDISCOVERED
+
+The feedback recommends a dated preprint and *"depositing the frozen protocol with its hash"*. That is
+**already a registered obligation** and it appears **UNMET**:
+
+> `config/preregistration.yaml` → `freeze_day_checklist_additions.public_deposit`: *"at the v2 freeze:
+> deposit the prereg bundle PUBLICLY (OSF or Zenodo, DOI'd) — the public timestamp anchor referees can
+> verify"*
+
+The v2.1 freeze executed, but open-defect register item **M** still records the external anchor as
+only *"the commit + tag on origin"*, with no DOI. I found no evidence of an OSF/Zenodo deposit.
+**This is a registered freeze-day item that was silently skipped** — precisely the class CLAUDE.md says
+may never be dropped. It is cheap to discharge and it is the strongest available answer to the rubric's
+publishability yardstick, because it is a third-party timestamp a marker can verify in seconds.
+
+---
+
+## 3. WHAT THE FEEDBACK GETS RIGHT AND WE SHOULD ADOPT
+
+Ranked by value per unit of effort. Everything marked **free** costs no words (tables, figures,
+appendices and the abstract are all excluded from the 10,000).
+
+| # | action | why it earns the band | cost |
+|---|---|---|---|
+| A1 | **Literature positioning matrix** — neighbours × dimensions (who authors the reward, what the feedback contains, agent fixed?, risk-sensitive?, preregistered?), our row last with the empty cells filled | converts the novelty claim from prose into a three-second visual; makes the gap undeniable | **free** |
+| A2 | **Design decisions table** — choice / alternatives considered / why / what it costs | Criterion 2 is titled *reasoning to answer them*; a justified method with its cost visible is what "exemplary" means | **free** |
+| A3 | **Scale-and-difficulty appendix table** — components, tests, models, trainings, seed re-runs, campaign lines, pipeline stages, off-the-shelf vs written | Criterion 3 is normalised *given difficulty*; a marker cannot weight difficulty they cannot see | **free** |
+| A4 | **Numbered contributions with evidence attached**, and the **turnover result promoted to a named contribution** with its own results section | gives the significance marker something to point at; §29 now makes it a like-for-like, positive, counter-intuitive, reproducible sealed-test result | low |
+| A5 | **Lead with the preregistration-absence limb** of the originality claim | the band says *unquestionable*; "no preregistration anywhere in the automated-reward-design literature" is a claim about a PRACTICE — verifiable, and undefeatable by naming an adjacent paper. Strictly stronger than the empty-cell claim, which is disputable by construction | low |
+| A6 | **Quality-control-record appendix** — the four launches, ~115 amendments and the defect log, framed analytically as the machinery that caught errors *before* they reached confirmatory data | same facts, opposite effect; presented chronologically they read as a troubled project | low |
+| A7 | **RQ stated identically three times** (boxed in intro, head of methodology, answered verbatim in conclusion) | Criterion 2 marks legibility of purpose first | trivial |
+| A8 | **"The null is the finding" on page one**; **interpretive summary at the head of Results** | a marker who reaches the discussion still thinking it failed will not revise; the orientation paragraph is presentation, so it costs nothing in registered terms | trivial |
+| A9 | **Wider-context subsection (~300 words)** — the numeracy bottleneck as a constraint on *any* automated optimisation loop that feeds a model numbers, stated outside finance | Criterion 1's *"and its wider context"* clause is currently unclaimed | low |
+| A10 | **Mayoian severity paragraph** into the theory chapter | the amendment where we corrected Popperian → Mayoian error-statistical severity is the best single piece of evidence for original interpretation, and it currently lives in a config comment | low |
+| A11 | **Faultless-data pass** — units on axes, standalone captions, consistent decimals, notation table, every figure referenced, no table needing prose to parse | this phrase *is* the 80→90 band boundary on a quarter of the mark | medium |
+| A12 | **Public DOI deposit + dated preprint** (§2) | discharges a registered obligation and answers the publishability yardstick with a checkable artefact | low |
+
+**Corroborations — the feedback independently reached conclusions already in our plan**, which is
+reassuring rather than new: the literature review as a converging argument rather than a survey (our
+playbook's "CH2-as-argument"); the null as a corroborated prediction; depth over breadth; the 16-section
+order; reporting wall-clock compute. Where it agrees with Okhrati's revealed grading function, it
+agrees for the right reasons.
+
+---
+
+## 4. THE ONE THING TO TREAT WITH CARE
+
+The feedback's closing logic — *"if the format intervention recovers responsiveness, low-to-mid
+nineties; if it nulls, high eighties"* — is sound but must not become a reason to prefer one outcome.
+Our standing rule is that a predicted null is bankable and must never be spun. The psychometric module
+is worth building **because it measures rather than infers**, whichever way it falls; that is exactly
+the reason the R96 all-or-nothing clause exists. Build it for the measurement, not for the hoped-for
+direction.
+
+---
+
+## 5. IMPLEMENTATION ORDER (respecting the live-run drift invariant)
+
+`paper/` and `docs/` are **outside** the drift pathspec and can be written now.
+`src/ scripts/ config/ prompts/` **cannot** be touched while the run is live.
+
+**Now → 8 Aug (writing, no results needed):** A1, A2, A7, A5, A9, A10, and the ~5,900 words of
+introduction / literature review / data / methodology. Resolve the R96 activation-scope question in
+writing (§1.1) and discharge A12.
+
+**At the next natural restart (deferred, registered):** the `config/prototype.yaml` dangling-caveat fix
+(§1.2), plus the four already-registered code items in `docs/DEFERRED_FIXES_RUN4.md` (D12, D13, D14,
+preflight headroom).
+
+**6-9 Aug (data lands ~9 Aug, not 27 Aug):** A4, A8, A3, A6; write every figure script against
+floor-tier data so the final pass is a regeneration, not a build — the feedback's single best schedule
+instruction, and now with three weeks of slack instead of one day.
+
+**Post-headline:** build and run the psychometric module; A11 as the final pass; abstract last.

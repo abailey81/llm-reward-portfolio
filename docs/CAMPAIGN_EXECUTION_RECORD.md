@@ -2901,3 +2901,78 @@ the sentinel's highest outstanding severity, so a CRITICAL cannot hide behind si
 **The lesson, and it is the same shape as D14:** an alarm that fires into a file nobody reads is
 indistinguishable from an alarm that never fired. Detection is not monitoring until the verdict is
 routed somewhere a decision gets made.
+
+---
+
+## 29. THE §24 BENCHMARK WAS NOT LIKE-FOR-LIKE — MEASURED, AND THE CONCLUSION SURVIVES STRONGER
+
+Written 2026-07-30 01:30 UTC. §24 compared the H1 baselines against a passive proxy at **+0.773
+Sharpe / +166 % cumulative** and concluded the agents over-trade. Auditing the universe-selection path
+exposed a confound in that comparison, so it was **measured rather than argued**. The conclusion holds,
+and the comparator is now defensible.
+
+### 29.1 The confound
+
+`load_market_proxy_returns` reads `market_proxy_<suffix>.parquet` = **`market_ew` over the whole univ5
+panel (953 RICs)**. The agent trades **30 assets** — the point-in-time top-30 materialised in
+`top30_selection_univ5.parquet`. So §24 compared a **broad 953-name market** against agents restricted
+to **30 names selected once at the development-window start**. Part of the gap could have been universe
+composition rather than reward design, and a referee would raise exactly that.
+
+### 29.2 The like-for-like measurement
+
+Equal-weighted, daily-rebalanced buy-and-hold of **the same 30 assets the agent trades**, over the
+same sealed window (**1,631 sessions from 2020-01-01**, matching §24's n exactly), risk-free
+`DGS3MO`, `n_extrapolated=0`:
+
+| benchmark | Sharpe (raw) | Sharpe (excess of rf) | cumulative |
+|---|---|---|---|
+| **EW buy-and-hold, the SAME 30 traded assets** | **+0.8170** | +0.6473 | **+122.01 %** |
+| `market_ew` proxy, univ5 panel (953 RICs) | +0.7732 | +0.6489 | +166.00 % |
+
+**The confound is refuted.** The like-for-like benchmark is not weaker but **stronger** on the raw
+convention (+0.817 vs +0.773), and risk-adjusted the two are almost identical (+0.6473 vs +0.6489, a
+gap of 0.0016). Universe staleness is therefore **not** the explanation for the negative agent
+Sharpes, and §24's over-trading conclusion stands on a same-universe comparator.
+
+### 29.3 The write-up consequence — a better sentence, and a stated convention
+
+The absolute claim should now be made against the like-for-like line, because it pre-empts the
+objection instead of inviting it:
+
+> Over the sealed 2020-2026 window, an equal-weighted buy-and-hold of **the same thirty assets the
+> agent trades** returns **+0.817 Sharpe (+122.0 % cumulative)**, while ten of the eleven
+> expert-designed reward baselines return **−0.171 to −0.325**. The broad-panel proxy (+0.773,
+> +166.0 %) gives the same verdict, so the result is not an artefact of universe selection.
+
+**⚠ The Sharpe convention must be stated explicitly.** `inference.bootstrap.sharpe_ratio(returns,
+periods_per_year=252)` takes **no risk-free argument**, so every reported `test_sharpe` — agents and
+proxy alike — is the **RAW** annualised Sharpe. §24's +0.773 is therefore the raw figure and the
+comparison is convention-consistent. But the excess-of-rf figures differ materially (the proxy drops
++0.773 → +0.649 at a 2.92 % mean risk-free), so a table that silently mixes the two would be a real
+defect. This connects to the standing R20 item ("thread rf into the headline Sharpe") and to Stefan's
+criterion 5 (state the formulas, units and sign conventions).
+
+### 29.4 The universe-selection audit that found it — and what is and is NOT a fault
+
+The audit was triggered by external feedback asserting *"the configuration comment says the universe
+rotates per date and the code selects once on the first trading day."* Checked directly:
+
+* **Not reproduced as stated.** `config/prototype.yaml` says `phase: development  # dev top-30 (2005
+  selection)`, which is CONSISTENT with select-once, not a claim of rotation.
+* **The code is PIT-CLEAN.** `top30_selection_univ5.parquet` holds *"the point-in-time top-30 RICs"*,
+  keyed by window (`phase` ∈ {`development`, `walk_forward`}), and `load_gold_panel` loads *"one
+  window's point-in-time top-30"*. The table carries **1 development row and 8 walk_forward rows**;
+  the headline design uses the single development window. **There is no look-ahead.**
+* **One real defect, minor:** that comment references *"the PIT-simplification caveat above"* and
+  **no such caveat exists in the file** — a dangling cross-reference. `config/` is inside the drift
+  pathspec, so it is registered for the next restart, not edited now.
+* **One real LIMITATION to disclose:** the traded universe is a single point-in-time selection held
+  fixed across train, validation and the sealed test, so it does not rotate intra-window. That is
+  PIT-legitimate and it is what the missing caveat was meant to say. §29.2 now bounds its consequence
+  empirically — the same-30 benchmark behaves like the broad market — which converts the limitation
+  from a hand-wave into a measured statement.
+
+**The lesson.** An external claim was wrong in its specifics and right in its instinct. Checking it
+rather than either accepting or dismissing it produced a stronger benchmark, an explicit convention,
+and a bounded limitation. That is the value of verifying feedback instead of implementing it.
