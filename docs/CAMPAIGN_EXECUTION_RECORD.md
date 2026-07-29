@@ -2137,6 +2137,70 @@ that checking a figure against a second source changed the answer — and it is 
 draws for the machine defects: the ones that mattered were found by MEASURING, not by reasoning about
 what ought to be true.
 
+### 23.14f ★ D9 VERDICT — the unexplained stall is GONE, and the earlier "refutation" was wrong
+
+**RUN 4's full-window result against RUN 3, both at twelve ssh-active lines, identical poll
+configuration (`--poll-secs 180 --search-poll-secs 45`):**
+
+| | RUN 3 (206 min) | RUN 4 (209 min) |
+|---|---|---|
+| `timed out after …` | **647** | **0** |
+| transport failures | **1,018** | **18** |
+| worst consecutive | 5 | **1** |
+| poll cycles performed | 6,094 | **13,113** |
+| poll rate | 29.6/min | **38.6/min** |
+| **failures per 1,000 polls** | **167.0** | **1.4** |
+
+**RUN 4 did more than twice the transport work and failed at 1/119th the rate.**
+
+**Every confound I could construct was tested and eliminated:**
+
+* *fan-out* — both arms at 12 ssh-active lines (the after-arm began only when the 12th line reached
+  submission, 23:18:34Z);
+* *doing less work* — refuted decisively: RUN 4 performed **13,113** poll cycles to RUN 3's 6,094;
+* *measuring the flat part of the curve* — refuted: RUN 3's failures were not uniform but a
+  degradation beginning ~T+70 min (§23.14e); RUN 4 ran the whole 209 min through and past that onset
+  with **zero** timeouts and no upward inflection;
+* *the timeout bound* — **not the variable**: RUN 3 already ran the 120 s bound (621 of its timeouts
+  are logged "after 120.0 seconds").
+
+**What actually differs in the transport path** between RUN 3's code (`879d07f`) and RUN 4's
+(`b9e6df5`), read from the diff rather than recalled:
+
+```
+submit.py : subprocess.run(...)  ->  subprocess.Popen(..., stdin=subprocess.DEVNULL, ...)
+poll.py   : Popen([...], stdout=PIPE)  ->  Popen([...], stdout=PIPE, stdin=subprocess.DEVNULL)
+```
+
+i.e. **stdin closed on the ssh spawn sites, plus the `run`→`Popen` restructuring.** Nothing else in
+the transport changed.
+
+**Therefore §18.3's conclusion must be revised.** It recorded `stdin=DEVNULL` as *"hygiene,
+explicitly NOT the cure"* on the strength of an A/B at fan-out 40 × 3 that found no difference. That
+A/B was **underpowered by construction**: D9 is a DEGRADATION that takes ~70 minutes of sustained
+twelve-line polling to appear, and a burst of 120 operations cannot reproduce a failure mode whose
+defining feature is that it grows over hours.
+
+**Mechanism — consistent, but a hypothesis, not a proof.** The previous session established
+decisively that *"the wall-clock is spent in the PARENT"* (55 samples: 8 ssh children, none aged past
+10 s, while 300 s timeouts were being logged) and could not explain it. Inherited standard handles
+across many concurrently-spawned Windows children fit that signature exactly — a parent read that
+never observes EOF because another child still holds a duplicate of the pipe's write end, so the
+child exits while the parent waits. Closing stdin removes one of those inherited handles. **This is
+now the leading explanation rather than an established one**, and the honest write-up says so.
+
+**⚠ THE LIMIT, stated because it will not go away with more data:** this is a NATURAL EXPERIMENT —
+one run against one prior run, on a shared cluster whose background load we do not control. A
+quieter login node tonight cannot be fully excluded. What the evidence *does* establish is that the
+recorded conclusion ("not the cure") is no longer supported, and that a 119× difference in
+failures-per-unit-work is far outside anything the earlier probes could produce.
+
+**For CH4:** D9 moves from *"the one genuinely unexplained defect"* to *"a degradation traced to
+inherited standard handles on concurrently-spawned ssh children, fixed by closing stdin, with the
+fix's earlier refutation shown to be an artefact of an underpowered burst test."* That is a stronger
+execution-quality story than a clean run would have produced — and it was obtained for free from an
+incident (six legs parked on a spending cap) that looked purely like a setback.
+
 ### 23.15 MY OWN INSTRUMENT WAS WRONG — the qstat column shift
 
 Reported "164 / 292 slots" to Tamer; the allocation advisor said **1,520**. The advisor was right.
