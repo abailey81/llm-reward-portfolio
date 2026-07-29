@@ -2663,3 +2663,123 @@ standard this project holds cross-checks to. At the measured 448 cores the ladde
 (208 → 408 → 448 cores, and 568's ETA moved 09-03 → 08-31 within the hour) because ~8.5 h tasks
 accumulate rather than appear at once, which is precisely the flow-equilibrium the capacity
 measurement predicted. It must be reported in every update with the per-rung ETAs.
+
+---
+
+## 27. T+26 h CHECKPOINT — CAPACITY STOPPED BEING THE CONSTRAINT
+
+Written 2026-07-29 23:15 UTC (T+26 h 06 m). This section exists because the T+11 h capacity warning
+turned out to be a transient, and the campaign's binding constraint has MOVED. Recording the turn is
+as important as recording the numbers.
+
+### 27.1 The core count tripled, exactly as the flow model predicted
+
+| time | cores computing |
+|---|---|
+| T+0 | ~20 |
+| T+10 h | 208 |
+| T+11 h | 408 → 448 |
+| **T+26 h** | **1,328** (166 running jobs, all 8-slot; 832 cores still queued) |
+
+At T+11 h the sentinel warned *"plateaued at ~406 cores = 23 % of the 1750 forecast"*, and I reported
+that rung 568 would miss the Aug-27 stop. **Both were correct AT THE TIME and both are now
+superseded.** The capacity measurement of 2026-07-26 predicted precisely this: concurrency is a FLOW
+equilibrium (`concurrent = dispatch_rate × duration`), so ~8.5 h tasks ACCUMULATE rather than appear
+at once. A plateau observed 11 h into a run whose tasks take 8.5 h is a measurement taken before the
+equilibrium was reached. **The lesson: do not forecast a flow equilibrium from inside its transient.**
+
+### 27.2 The ladder now COMPLETES — the design is realised, not truncated
+
+`stage_eta.py 1320 2000`, from the registered `plan_lanes` model:
+
+| rung | 30 | 100 | 189 | 279 | 340 | 403 | **568** |
+|---|---|---|---|---|---|---|---|
+| ETA @1,320 cores | 08-01 | 08-01 | 08-01 | 08-03 | 08-04 | 08-06 | **08-09** |
+| binding | chain | chain | chain | throughput | throughput | throughput | throughput |
+
+**The full registered ladder (n=568) lands ~2026-08-09 — 18 days inside the Aug-27 exogenous stop.**
+This was thought unreachable: the pre-GO expectation was truncation at n≈142, and even the
+2026-07-26 max-capacity note put n=568 at 23.9 d (~Aug 19-20). **The registered design will be
+completed at full assurance rather than truncated**, which is the single largest improvement to the
+result's strength available to this campaign.
+
+### 27.3 The constraint has MOVED to the serial reflection chain
+
+The model now reports rungs 30/100/189 as **`critical_chain`**-bound, not throughput-bound, at a
+floor of **3.27 days that is immune to additional cores**. That floor is the frozen 6-deep reflection
+chain: each generation must wait for the previous generation's ~8 h trainings before it can reflect.
+
+**Measured, and it matches:** the core line reached generation 2 of 6 in ~26 h ⇒ ~13 h per generation
+⇒ 6 generations ≈ 78 h ≈ **3.25 d**, against the model's 3.27 d. Two independent routes agree.
+
+Generation state at this checkpoint: `c1` core **g2** · leg5/leg9 **g2** · leg1/2/3/6/7/8 **g1** ·
+leg10 **g0** (slow, not stuck — `scalar` at 4/5 done) · leg4 **g4** (racing through generations
+because its candidates are being rejected, not because it is fast) · h3ss **g0**, which is COMPLETE
+for it by design (`h3_singleshot_generations: 1`).
+
+### 27.4 Therefore: the throughput hunt is OVER, and further core-chasing is refused
+
+**Saturation is ~4,584 cores at rung 568.** Going 1,328 → 2,000 cores moves rung 568 from 08-09 to
+08-05 — buying 4 days of slack on top of 18 already held. The marginal core is now worth
+approximately nothing.
+
+Every remaining "speed" lever costs science and is REFUSED under the determinism envelope:
+
+| lever | why refused |
+|---|---|
+| add the `t` pool | AMD vs Intel changes float reduction order ⇒ breaks CRN bit-exactness |
+| multi-thread BLAS · `torch.compile` · fp16/tf32 · fused Adam | change reduction order ⇒ break determinism (and ~97 % of time is already the SAC gradient update) |
+| reduced ranking budget for search | changes SELECTION ⇒ changes the science |
+| fewer generations / shorter B\* | frozen design |
+| GPU pools for the CPU lane | for this tiny-MLP workload the CPU lane already beats the A100 and is schedulable |
+
+**The honest conclusion: the campaign-speed priority has been SATISFIED, not abandoned.** Cores went
+from a believed 96-core ceiling to 1,328 measured — and the binding constraint is now a frozen
+design parameter, which is exactly where a well-run campaign's critical path should end up.
+
+### 27.5 The strategic consequence — the slack belongs to the WRITE-UP
+
+With data complete ~Aug 9 and the deadline 1 Sep, **the critical path to the grade is no longer
+compute; it is the document.** That is not a reallocation of convenience: the 2026 grade-inflation
+adjustment names **communication as the binding constraint**, and the four UCL dimensions are scored
+with the WEAKEST capping the mark. Eighteen days of slack spent on more cores buys a result we
+already have; spent on CH4/CH6/CH7 it buys the dimension most likely to cap the grade.
+
+### 27.6 Attrition update — grown, but located, and within registered baselines
+
+Author-and-node-side rejects have gone 5 → **44** since §26.3, and the arm skew has REVERSED
+(`scalar` 24, `distributional` 16, `placebo` 3, `scalar_cvar5` 1). Decomposed by line, it is
+concentrated, not diffuse:
+
+| line | rejects | verdict |
+|---|---|---|
+| **qwen3.5-9b** | **36 (82 %)** | 92 % rate vs its **own registered ~83 % baseline** — the capability-gradient BOTTOM ANCHOR behaving as designed |
+| gemini-2.5-flash | 3 | 6 % vs expected ~17 % — better than baseline |
+| **c1 (CORE / Opus)** | **2**, both on `scalar` | the only entry that touches the confirmatory result |
+| deepseek / haiku / nemotron | 1 each | within baseline |
+
+The `rejects` guard — the FINDING/DEFECT discriminator — returns **ok** for every model against its
+own baseline. So this is the registered finding, not a defect.
+
+**What still matters, and it is unchanged:** the confirmatory core line has lost 2 `scalar`
+candidates and 0 `distributional`. `scalar` is the primary H2 comparator, so the handicap again runs
+**toward** a false positive for our own hypothesis. §26.3's obligation stands exactly as registered —
+report per-arm accepted-candidate counts beside every H2 contrast, and run the pre-committed equal-*k*
+sensitivity analysis if the asymmetry is material. **Two candidates in thirty is small; it is not
+zero, and it will be reported rather than averaged over.**
+
+Reason mix has also diversified: 15 author-side (13 `ast_gate`, 2 no-reward-binding) and 29
+**node-side** sandbox rejects (`reward crashed during validation`: TypeError, AttributeError,
+UnboundLocalError, NameError, ValueError, KeyError, or a non-unpackable return). Node rejects fail
+fast, so the wasted cluster time is negligible.
+
+### 27.7 Integrity at this checkpoint
+
+505 records · spend **\$8.1550** of ~\$24 · **0 transport timeouts** · six guards **RC=0** · arm
+coverage **ALL LINES FULL** · 12/12 lines · freeze `3ca6f01a…` **MATCHES** · drift **0 files** ·
+329 ERROR lines, all still the single closed 22:14→23:11 UTC key-cap incident of launch night.
+
+**On the tracking channel:** `docs/RUN4_STATUS.md` has been auto-pushed every 5 minutes without a
+gap for 26 h (verified: last push 23:00 UTC, T+25 h 51 m). What is NOT autonomous is the session
+speaking into the chat — it acts only when invoked. The file channel is the durable one by design;
+if periodic chat updates are wanted, that needs an explicit interval loop.
