@@ -4,6 +4,9 @@
 pushed to GitHub, so it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md).
 
+
+Message from the user: Please dont forget to read remote_control.md, I have left a message there but you did not read. Please also always confirm here that 
+
 | | |
 |---|---|
 | elapsed | **T+13h18m** (launched 2026-07-28 21:08 UTC) |
