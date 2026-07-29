@@ -109,6 +109,51 @@ one above it passes; a response with no limit field WARNs.
 
 ---
 
+## 4. D14 — a PARTIAL arm failure must not be silent (found live, 2026-07-29)
+
+**Files:** `src/cluster/campaign.py` (`run_campaign_tiered`) and `scripts/campaign_guards.py`
+**Seen:** `nemotron-3-super` (leg7) ran **8 h 29 m with 3 of its 5 arms**, having lost `scalar` and
+`placebo_shuffled` to D13. Full narrative + evidence in `CAMPAIGN_EXECUTION_RECORD.md` §25.
+
+**The asymmetry.** When EVERY arm crashes, the line exits, the supervisor logs `LINE COMPLETE` and
+the watchdog revives it 300 s later — six lines did exactly that 10× each on launch night and all
+recovered. When only SOME arms crash, the survivors keep the process alive, `run_campaign_tiered`
+never returns, no supervisor exit fires, no watchdog revive triggers, and the dead arms are stranded
+for the life of the process. **The louder failure is the safe one.**
+
+`_arm_core`'s `except` is deliberate ("one unit must not sink the ladder") and is right for
+throughput. What is missing is any reconciliation afterwards.
+
+### 4a. Detection (do this one regardless — it is pure monitoring)
+
+Add an `arm_coverage` guard to `campaign_guards.py`: per `(line, arm)`, assert every leg line has
+submitted ≥1 batch for all five LLM arms, reading the **`batches/` registry** — NOT the archive
+directory listing, which is misleading: leg7's dead arms had populated `search_.../<arm>/`
+directories because the authoring succeeded and was billed, and only the submission died. Must know
+`h3ss` is single-arm by design and `c1`'s LLM arms are canary-gated. Effect-blind (counts only).
+
+**A working, falsified implementation is committed at `docs/ops/arm_coverage.py`** — port it into
+`campaign_guards.py` at the restart. It lives under `docs/` deliberately: `scripts/` is inside the
+drift pathspec and the run is live, whereas `docs/` is not, so the detector could be armed
+immediately without breaking the invariant. It was proven to FAIL on the live bad state
+(`leg7 MISSING ['placebo_shuffled','scalar']`, exit 2) and then to PASS once leg7 recovered
+(`ALL LINES FULL`, exit 0) — falsified in both directions before being trusted.
+
+Run it beside the repo guards until it is ported:
+`python docs/ops/arm_coverage.py outputs/campaign_cluster_run4`
+
+### 4b. Repair (the durable fix)
+
+Either retry a crashed arm inside the tiered pass, or make a pass that ends with any `ok: False`
+arm exit **non-zero** so the supervisor relaunches the line — recovery must not depend on a human
+noticing. ⚠ This interacts with D12 above: `core_ok` is already computed and currently does not
+influence the exit code. Decide the two together, and check every consumer of the exit code.
+
+**Test (must FAIL first):** a tiered run where one arm raises and the others succeed returns
+non-zero / re-attempts the failed arm; and the guard exits 2 on a registry missing one leg-arm.
+
+---
+
 ## Applying, at the next restart
 
 1. apply 1 → 3 above, each with its falsifiable test proven to FAIL against the current code first;

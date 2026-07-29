@@ -408,21 +408,40 @@ not now.
 
 ---
 
-## §5. LIVE STATE (2026-07-29 07:15 UTC, T+10 h — verify it yourself, don't trust it)
+## §5. LIVE STATE (2026-07-29 08:00 UTC, T+11 h — verify it yourself, don't trust it)
 
 | item | value |
 |---|---|
 | launched | **2026-07-28 21:01 UTC** (supervisors up 21:08:58). ⚠ **logs are LOCAL = BST = UTC+1** |
-| lines | **12/12** (core, h3, 10 legs) |
-| records | **83** · epilogues **23, every one rc=0** |
-| canary | **78/90** — clears soon; it gates ALL core Opus authoring |
-| cores computing | ~208, with ~2,600 queued |
-| spend | **$3.9564** (anthropic $3.07 / openrouter $0.89) of ~$24 projected |
+| lines | **12/12** (core, h3, 10 legs) — **all 5 arms each**, verified by `arm_coverage.py` |
+| records | **99+** and climbing |
+| canary | ★ **CLEARED 07:30:32 UTC** (`completed: 90`, `ok: True`, analysis-smoke passed) — **core Opus authoring is RELEASED and the confirmatory arm has begun** |
+| core Opus | 20 calls, `claude-opus-5`, provider correctly `anthropic`, all `end_turn`, **$1.6736** |
+| cores computing | **408** (366 jobs, 81 running), **2,280 cores queued** |
+| spend | **$5.6301** of ~$24 projected |
 | transport timeouts | **0** |
 | freeze | `3ca6f01ab7724d47…` **MATCHES**, tag `prereg-v2.1` |
 | running sha | **`b9e6df5`** · drift **0 files** |
 | budget | Anthropic **$24.64**, OpenRouter **$17.97** + key cap raised to **$100** |
 | stop | **2026-08-27**, 28 days |
+
+**★ PER-STAGE ETAs at the measured 408 cores** (`stage_eta.py 408 830`, from the registered
+`plan_lanes` model — Tamer's standing reporting requirement):
+
+| rung | 30 | 100 | 189 | 279 | 340 | 403 | 568 |
+|---|---|---|---|---|---|---|---|
+| ETA @408 cores | 08-01 | 08-05 | 08-11 | 08-16 | 08-20 | **08-24** | **09-03 ✗ misses** |
+| ETA @830 cores | 08-01 | 08-01 | 08-04 | 08-07 | 08-09 | 08-10 | 08-15 ✓ |
+
+**Cores are the binding lever** — at 408 the ladder banks rung 403 and 568 misses the stop by a week.
+
+**⚠ D14 (§25 of the record) — the newest defect, and the one a fresh session must understand.**
+leg7 lost two arms to D13 and ran **8 h 44 m on 3 of 5 arms while all six guards said green**.
+**Total failure is LOUD and self-healing; PARTIAL failure is SILENT.** Recovered 07:55:23 UTC by
+restarting the line only. **Run `arm_coverage.py` alongside the repo guards — they do not detect
+this.** And note: the archive directory listing LIES (a dead arm still has a populated
+`search_.../<arm>/` dir, because the authoring succeeded and was billed); only `batches/` shows work
+actually shipped.
 
 **Expected rhythm — so you can tell "running" from "correct":** each line authors generation 0
 (25 calls/leg, 30 for h3ss), then **waits ~8 h** for training results before generation 1 can reflect.
@@ -507,11 +526,29 @@ the FINDING/DEFECT discriminator) · `status`.
 
 **Every guard was FALSIFIED before being trusted** — fires on the RUN 1 archive, silent on RUN 3.
 
-**In the scratchpad (re-create if lost):** `close_watch.sh` (change-only watcher, keyed on error
-**KINDS** not counts), `publish_status.sh`, `status_report.sh` + `remote_status.sh` (the dashboard),
-`stage_eta.py` (per-rung ETAs from the registered model), `science_sanity.py` (**stage-aware** —
-test-leg records score on `test_sharpe`, search on `val_fitness`), `Send-Remote.ps1` (base64 ssh
-transport — the naive pipe corrupts payloads), `openrouter_key_info.py`.
+> **⚠ THE SIX GUARDS HAVE A HOLE, PROVEN LIVE 2026-07-29 (D14, record §25).** Not one of them asks
+> whether a line still HOLDS ITS ARMS. All six returned green for **8 h 44 m** while leg7 ran with 3
+> of its 5 arms — missing `scalar`, the H2 contrast partner. **Always run `python docs/ops/arm_coverage.py <root>` beside
+> them.** Until D14's fix lands, `campaign_guards.py all` returning RC=0 does NOT mean the run is
+> whole.
+
+**Committed (durable): `docs/ops/arm_coverage.py`** (⭐ per-`(line, arm)` batch-submission
+coverage — the D14 detector; reads the `batches/` REGISTRY, never the archive directory listing,
+which lies; effect-blind; exit 2 on a missing arm; falsified exit 2 → exit 0 across leg7's recovery).
+It sits under `docs/` on purpose: `scripts/` is inside the drift pathspec and the run is live.
+
+**In the scratchpad (re-create if lost):**
+`close_watch.sh` (change-only watcher, keyed on error **KINDS** not counts), `publish_status.sh` +
+`publish_loop.sh` (the 5-minute phone status push), `remote_watch.sh` (fires only when Tamer's
+instruction block actually changes), `status_report.sh` + `remote_status.sh` (the dashboard),
+`stage_eta.py` (per-rung ETAs from the registered model — takes `<measured_cores> [modelled_cores]`),
+`science_sanity.py` (**stage-aware** — test-leg records score on `test_sharpe`, search on
+`val_fitness`), `Send-Remote.ps1` (base64 ssh transport — the naive pipe corrupts payloads),
+`openrouter_key_info.py`.
+
+⚠ **`qdel` is blocked by the harness safety classifier** (found 2026-07-29). If a cluster job genuinely
+must be deleted, it is Tamer's call — surface it, and never route around the block. In the D14 case
+this turned out to be fortunate: the deletion would have been the WRONG action (§25.4).
 
 ---
 
@@ -602,11 +639,16 @@ days past the Aug-27 stop.
 
 ## §10. OPEN THREADS — pick these up
 
-1. **The canary clears at 90/90** → core Opus authoring releases → the confirmatory H2 arm begins.
-   **Watch the first `c1` spend appear**; until then `spend_ledger_c1.jsonl` should not exist.
-2. **Capacity**: cores climbed 20 → 208 over ten hours. **At 208 the full ladder does not finish by
-   Aug-27.** Report cores + per-rung ETAs every update (`stage_eta.py`). If it stalls, say so.
-3. **Apply `docs/DEFERRED_FIXES_RUN4.md`** at the next natural restart — not before.
+1. ✅ **DONE 07:30:32 UTC — the canary cleared 90/90 and core Opus authoring released.** The
+   confirmatory H2 arm is now running (20 calls, `claude-opus-5`, $1.6736). **Next:** watch the first
+   `c1` search records land and score, and confirm the H2 arms stay budget-matched.
+2. **Capacity is THE lever**: cores 20 → 208 → **408**. At 408 the ladder banks **rung 403 (08-24)**
+   and **568 misses the Aug-27 stop (09-03)**; 830 cores would land 568 on 08-15. Report cores +
+   per-rung ETAs every update (`stage_eta.py 408 830`). If it stalls, say so.
+3. **Apply `docs/DEFERRED_FIXES_RUN4.md`** at the next natural restart — not before. It is now
+   **four** items: D13, D12, preflight headroom, and **D14** (§4 — the arm-coverage guard plus the
+   durable repair; D12 and D14 must be decided together, since both hinge on the exit code).
+   ⚠ **D13 is no longer hypothetical — it fired twice in production and cost leg7 two arms.**
 4. **Weak legs may stop at the C3 review gate** — that is DESIGNED. Clear with
    `TIER1_APPROVED_<line_tag>` after reading the integrity report (staleness-checked, consumed on use).
 5. **§24.6's turnover question** — testable from `test_turnover`, already captured.

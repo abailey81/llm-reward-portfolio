@@ -2304,3 +2304,183 @@ lower turnover, not because tail information per se helped.
 `test_turnover` is captured on every record, so **this is testable from data already being collected**
 — no design change needed. Raised now, pre-data, so that asking it later cannot be a forking path.
 
+
+---
+
+## 25. D14 — A PARTIAL ARM FAILURE IS SILENT AND DOES NOT SELF-HEAL
+
+Written 2026-07-29 08:00 UTC (T+10 h 51 m) by the successor session, from the live archive. The
+session began by re-executing the inherited state rather than trusting it, and the first thing that
+did not reconcile was a guard reporting `ok` beside 302 `ERROR` lines.
+
+### 25.1 The 302 crashes were ONE incident, and it is closed
+
+`campaign_guards.py all` returned RC=0 with every guard green, while the driver logs carried **302
+ERROR lines**. Green guards beside 302 errors is exactly the shape duty 5 exists for, so the errors
+were decomposed rather than accepted.
+
+All 302 are the same message — `core pipeline crashed` — and all 302 fall inside a single
+**57-minute window, 2026-07-28 22:14:31 → 23:11:25 UTC**. Nothing has crashed in the 8.5 h since.
+By exception type:
+
+| n | exception | cause |
+|---|---|---|
+| 295 | `openai.PermissionDeniedError` 403 | `Key limit exceeded (total limit)` — the OpenRouter **per-key spending cap**, not the account balance |
+| 5 | `openai.APIStatusError` 402 | `This request requires more credits` (kimi-k3) |
+| 2 | `TypeError: 'NoneType' object is not subscriptable` | **D13**, firing for the first time in production |
+
+Six lines were hit — leg1 `deepseek-v4-pro` (50), leg2 `glm-5.2` (50), leg3 `qwen3.6-27b` (50),
+leg4 `qwen3.5-9b` (50), leg7 `nemotron-3-super` (52), leg10 `kimi-k3` (50) — i.e. exactly the
+OpenRouter-routed lines. The four Anthropic/other lines and the core were untouched.
+
+**Root cause and closure.** The key's cap was exhausted mid-run; **Tamer raised it to \$100** and the
+403s stop dead at 23:02 UTC. This is the incident behind his message *"I just raised key cap to
+100"*. It is closed, and the deferred preflight fix (`check_provider_headroom`, DEFERRED_FIXES §3)
+is precisely the check that would have caught it before launch: **the key smoke-tested green while
+its cap was already spent.**
+
+### 25.2 The asymmetry — why five lines recovered and one did not
+
+Each of the six lines died and was revived **ten times** between 22:14 and 23:07 UTC (11 supervisor
+launches, 10 `LINE COMPLETE` exits — D12 firing repeatedly). Every one recovered. That recovery is
+worth stating precisely, because it is what made the seventh case invisible:
+
+> When **every** arm of a line crashes, `run_campaign_tiered` returns, the driver exits, the
+> supervisor logs `LINE COMPLETE`, and the watchdog revives the line 300 s later with `--resume`.
+> **A total failure is LOUD and SELF-HEALING.**
+
+leg7 was different. Its final revival started at **23:07:15 UTC** — *after* the 403 window closed —
+and in that process the D13 `TypeError` killed exactly two arm pipelines: `placebo_shuffled` at
+23:11:13 and `scalar` at 23:11:25. The other three arms survived. So:
+
+> When **some** arms crash, the surviving arms keep the process alive. `run_campaign_tiered` never
+> returns, the supervisor never sees an exit, the watchdog never sees a dead line, and the crashed
+> arms are stranded for the entire life of the process. **A partial failure is SILENT and does NOT
+> self-heal.**
+
+`_arm_core` is deliberately written so that "one unit must not sink the ladder" — the `except` that
+logs `core pipeline crashed` keeps the other arms running. That is correct for throughput and wrong
+for recovery, and nothing downstream reconciles the difference.
+
+**leg7 therefore ran 8 h 29 m (23:11 → 07:40 UTC) with 3 of its 5 arms**, and would have continued
+to the Aug-27 stop that way. `sweep_units` is built as `[(a, winners[a]) for a in arms if a in
+winners]`, so the two dead arms would have been excluded from the C4 sweep as well — the leg would
+have produced a complete-looking 3-arm result.
+
+**The scientific cost, had it stood.** The missing arms were `scalar` — the H2 contrast partner for
+`distributional` — and `placebo_shuffled`, the structure control. A leg without `scalar` cannot
+answer the confirmatory question at all. This was not a throughput problem; it was one replication
+leg silently ceasing to be evidence.
+
+### 25.3 Triple-confirmed before acting, because the archive listing lies
+
+Three independent routes were used, and the obvious one is misleading:
+
+| route | leg7 result |
+|---|---|
+| batch submissions in the driver log | 3 arms ever submitted |
+| **`search_leg_nemotron_3_super/` directory listing** | **all 5 arm directories present — MISLEADING** |
+| `batches/` registry (work actually shipped) | `scalar` **0** batches, `placebo_shuffled` **0**; every healthy leg has 5–6 per arm |
+
+The archive directory exists for the dead arms because **the authoring succeeded and was billed** —
+`llm_calls.jsonl` holds 6 calls for `scalar` and 5 for `placebo_shuffled` — and only the submission
+that follows it died. An arm can look fully present in the archive and have shipped nothing. Any
+future check must read the batch registry, not the directory listing.
+
+### 25.4 The fix that was WRONG, and the verification that caught it
+
+The first plan was: delete leg7's 14 queued cluster jobs by explicit ID, then restart the line so it
+resubmits cleanly. **That plan was wrong and would have destroyed work.**
+
+`spec_run_id` returns `spec["run_id"] or spec["candidate_id"]` — the run_id is the **candidate
+identity**, not a hash of the authored reward source. Consequently the already-queued jobs archive
+under exactly the run_ids the restarted driver will be waiting for: `pending_specs` is satisfied by
+them, and no double-training occurs. Deleting them would have forfeited **8 h 29 m of queue position
+and reservations for no benefit whatever** — and CLAUDE.md's own rule already says the reservation is
+worth more than the resubmission.
+
+The double-submit guard was checked too, against trap #1 (`qstat` truncates names to 10 characters):
+`batch_jobs_in_queue` uses `qstat -r` and parses `Full jobname:` precisely so an exact-name guard
+cannot silently never match. It is sound.
+
+**So the correct action was the smaller one: restart the line and touch nothing on the cluster.**
+This is recorded because the wrong plan was stopped by verifying a load-bearing mechanism rather
+than by intuition — the same discipline that produced §24.
+
+### 25.5 What was actually done, and the evidence
+
+1. **07:40:23 UTC** — killed leg7's driver (PID 30392, verified against its command line as
+   `nemotron-3-super` before signalling; its venv launcher 25416 exited with it). The supervisor
+   (PID 27256) was deliberately left alive: it logged
+   `driver exited -1 - relaunching in 600s; Myriad arrays unaffected`.
+2. **The 14 queued leg7 jobs were left in place**, per §25.4. Nothing was deleted on the cluster.
+3. **07:50:23 UTC** — the supervisor logged `attempt 2: launching the driver`, relaunching the line
+   with the identical argument vector including `--resume`. All five arms re-entered, re-authored,
+   and shipped.
+
+**RECOVERY CONFIRMED 07:55:23 UTC** — `scalar` submitted as 5 arrays
+(`37208 37211 37213 37215 37216`) and `placebo_shuffled` alongside it. The arm-coverage guard went
+from exit 2 to **`leg7 ok 5/5 arms submitted` / `VERDICT: ALL LINES FULL`** — which also completes
+the guard's falsification: it fires on the bad state and is silent on the good one. Total exposure
+**8 h 44 m** (23:11:25 → 07:55:23 UTC), and nothing was lost: the two arms had shipped no training,
+so only their authoring (11 nemotron calls, well under a cent) was spent twice.
+
+Post-recovery sweep, all re-run: drift **empty** · `freeze --check` **MATCHES** · all six guards
+**RC=0** · arm coverage **ALL LINES FULL** · 12 supervisors · 24 driver processes · watchdog,
+backup, sentinel and advisor all alive. ⚠ One instrument correction en route: a first
+`Where-Object … .Count` process query printed *empty* for the watchdog and would have been reported
+as a dead watchdog; re-querying with `@(...)` and `-like` showed **PID 31500 alive since 22:09:16
+UTC**. That is the P10 class again — *a process query is a claim about your filter before it is a
+claim about the machine* — and it is logged here because it was caught by re-checking, not by luck.
+
+No source file, config, prompt, or frozen artefact was touched. `git diff --name-only b9e6df5 HEAD
+-- src scripts config prompts` stayed **empty** throughout, and `freeze.py --check` returns RC=0 with
+`3ca6f01ab7724d47…` **MATCHES**.
+
+### 25.6 The detector that did not exist
+
+Every one of the six repo guards reported `ok` for the whole 8 h 29 m. None of them asks whether a
+line still holds its arms. That gap is now covered by an **arm-coverage guard** which reads the
+`batches/` registry per (line, arm), is effect-blind (submission counts only, never a performance
+field), and knows that `h3ss` is single-arm by design and that `c1`'s LLM arms are canary-gated.
+
+It was **falsified before being trusted**, on the live bad state:
+
+```
+[arm_coverage] leg7  MISSING ['placebo_shuffled', 'scalar']  (has ['distributional', 'placebo', 'scalar_cvar5'])
+[arm_coverage] VERDICT: *** AN ARM IS MISSING ***   EXIT=2
+```
+
+It correctly passed h3ss at 1/1 and every other leg at 5/5. It lives in the session scratchpad for
+now because `scripts/` is inside the drift pathspec and the run is live; its permanent home in
+`campaign_guards.py` is registered in `docs/DEFERRED_FIXES_RUN4.md`.
+
+**D14 joins D12 and D13 as a deferred code fix**: the durable repair is for a crashed arm to be
+retried within the tiered pass, or for a line that finishes with a failed arm to exit non-zero so
+the supervisor relaunches it — not for recovery to depend on a human noticing.
+
+### 25.7 The structural lesson — a third instance of the same shape
+
+D1, D5 and the `pending_specs` case were one shape: *a resource shared across concurrent lines,
+keyed by an identifier unique only within one line*. D14 is a different shape, and it is worth
+naming separately because the detection strategy differs:
+
+> **The failure that kills a component LOUDLY is the safe one. The failure that degrades a component
+> while leaving it alive is the dangerous one, because every liveness signal keeps reporting
+> health.** leg7 was writing INFO lines, polling batches, holding cluster jobs and returning green on
+> six guards, for eight and a half hours, while missing 40 % of its science.
+
+The operational consequence is a rule, not a patch: **monitor COMPLETENESS, not just liveness.**
+Counting what a component is doing will never reveal what it has stopped doing.
+
+### 25.8 The milestone this session also caught — the canary cleared
+
+At **07:30:32 UTC** the C0 canary completed: `[c1_canary] batch complete: {'ok': True, 'completed':
+90 …}` followed by `[C0] analysis-smoke: all canary records parse + full seed coverage`. That
+released the core line's Opus authoring, which had been held at exactly \$0.00 by the canary shield
+since launch.
+
+**The confirmatory H2 arm has begun.** First evidence, read from `spend_ledger_c1.jsonl`: 20 calls,
+model `claude-opus-5`, provider correctly stamped `anthropic` (the D10 fix working in production),
+every row `stop_reason: end_turn` — no truncations, no refusals — at ≈\$0.09 per call for
+**\$1.6736** on the core line. Campaign spend total **\$5.6301**.
