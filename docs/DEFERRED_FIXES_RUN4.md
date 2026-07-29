@@ -154,6 +154,49 @@ non-zero / re-attempts the failed arm; and the guard exits 2 on a registry missi
 
 ---
 
+## 5. D15 — the watchdog must carry `-ExcludeHosts` (found 2026-07-30, worked around live)
+
+**File:** `scripts/mode_d_watchdog.ps1`
+**Seen:** the substrate fence (`node-d00b-024`, record §28) was applied to all 12 supervisors, and the
+watchdog would have **silently undone it** on the next revival.
+
+**The defect.** The watchdog's param block carries only `IntervalSecs`, `OutDir`, `RemoteRoot`. It
+revives a dead line with `Start-Process … mode_d_supervisor.ps1 -Line … -OutDir … -RemoteRoot …` and
+**never passes `ExcludeHosts`**, so the revived line falls back to the supervisor's default fence
+(`node-d00a-230` alone) and loses the substrate fence.
+
+This is **exactly the D4 shape, one parameter later** — and the file's own comment already warns about
+it for the other two: *"Before this parameter existed the watchdog restarted every dead line with the
+supervisor's DEFAULTS."* **An automatic restarter is a second launcher and must take every parameter
+the thing that started the line took.**
+
+**Becomes:**
+```powershell
+    # The substrate/host fence. MUST be passed through on revival: a revived line that silently
+    # reverts to the default fence re-opens the very inhomogeneity the fence was added to close
+    # (record s.28). Same reasoning as OutDir/RemoteRoot above.
+    [string]$ExcludeHosts = "node-d00a-230",
+```
+and in the revival call:
+```powershell
+                "-Line", $d, "-StaggerSecs", "0",
+                "-ExcludeHosts", $ExcludeHosts,
+                "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
+```
+
+**Test (must FAIL first):** a `test_mode_d.py` assertion that the watchdog's revival argument vector
+contains `-ExcludeHosts`, and that its value is threaded from the parameter rather than defaulted.
+
+**Live workaround in force NOW:** `docs/ops/watchdog_fenced.ps1` — a faithful copy that carries the
+parameter, running in place of the repo watchdog (which is retired for the duration). It sits under
+`docs/` because `scripts/` is inside the drift pathspec. **Retire the workaround and restore the repo
+watchdog the moment this fix lands.**
+
+⚠ Audit the OTHER launchers for the same omission when applying: `mode_d_launch.ps1` and
+`campaign_backup.ps1` were fixed for roots in D4, but were not checked for the fence.
+
+---
+
 ## Applying, at the next restart
 
 1. apply 1 → 3 above, each with its falsifiable test proven to FAIL against the current code first;

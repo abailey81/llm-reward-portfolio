@@ -2976,3 +2976,58 @@ rotates per date and the code selects once on the first trading day."* Checked d
 **The lesson.** An external claim was wrong in its specifics and right in its instinct. Checking it
 rather than either accepting or dismissing it produced a stronger benchmark, an explicit convention,
 and a bounded limitation. That is the value of verifying feedback instead of implementing it.
+
+### 28.7 THE REMEDIATION, EXECUTED AND VERIFIED (2026-07-30 00:40-00:50 UTC)
+
+Tamer authorised the fix explicitly. Executed as a ROLLING relaunch, one line at a time, so the blast
+radius was bounded and each step was verified before the next.
+
+**1. Pilot on leg4 (`qwen3.5-9b`)** — chosen because it held only 3 records against 36 rejects, so it
+had the least in-flight value at risk. Process subtree killed by PID descent (not text matching), then
+relaunched. Verified the parameter actually propagated:
+`--exclude-hosts node-d00a-230,node-d00b-024` in the new driver command line.
+
+**2. The chain verified end-to-end BEFORE the rollout**, because a silently-failing exclusion is the
+defect class this project keeps finding:
+
+| link | evidence |
+|---|---|
+| supervisor param | `[string]$ExcludeHosts = "node-d00a-230"`, and its own comment says *"EXTEND THIS … then restart the line"* — the sanctioned procedure |
+| CLI parse | `metavar="H1,H2"`; `[h.strip() for h in args.exclude_hosts.split(',') if h.strip()]` |
+| SGE render | `"&".join(f"!{h}")` → `-l h=!a&!b`, a negated conjunction the comment records as *"verified accepted by the scheduler"* |
+
+**3. Rolling relaunch of the remaining 11 lines.** All subtrees killed cleanly
+(`old-remaining=0` on every line), all relaunched. Post-state: **12 supervisors up, 12 carrying the
+fence, 0 without it, no duplicate lines, 24 driver processes, all 12 drivers logging within 90 s.**
+
+**4. ⚠ A gap in my own fix, caught and closed.** The watchdog revives dead lines and its param block
+has **no `ExcludeHosts`** — so the first revival would have silently reverted that line to the default
+fence and re-opened the inhomogeneity. **That is the D4 shape one parameter later**, and the file's own
+comment warns about it for `OutDir`/`RemoteRoot`. Because `scripts/` is drift-fenced, the repo watchdog
+was retired and replaced by `docs/ops/watchdog_fenced.ps1` — a faithful copy carrying the parameter,
+validated **0 non-ASCII bytes / 0 parser errors** per the standing PS1 rule. The permanent fix is
+registered as DEFERRED_FIXES §5. **Had I stopped at "12 supervisors fenced", the fix would have decayed
+silently on the next line death.**
+
+**5. The four contaminated records quarantined, not deleted.** Each `env.json` was re-checked for
+`6140` immediately before the move (a record that did not say 6140 would have been REFUSED), and they
+were moved to the session scratchpad rather than removed, so nothing is unrecoverable. Archive-truth
+resume now re-runs those four run_ids, and with the 6140 fenced they can only land on a 6240.
+
+**6. THE VALIDITY FAILURE IS CLOSED.** Re-running the full census over all 522 training records:
+
+```
+=== UNITS THAT MIX SUBSTRATES: 0 (this is the CRN validity failure) ===
+  NONE - every comparison unit is internally homogeneous
+```
+
+And the proof that the fence is live in submitted work, not merely in a command line — a jobscript
+written *after* the relaunch:
+
+```
+leg1_leg_deepseek_v4_pro_distributional_g2_p01.sh :  #$ -l h=!node-d00a-230&!node-d00b-024
+```
+
+**"Every scored record ran on one CPU model" is now true BY CONSTRUCTION for all future work**, rather
+than an argument that Skylake and Cascade Lake probably dispatch the same GEMM kernel. That distinction
+is the whole point: the determinism envelope is a design property, not a probabilistic one.
