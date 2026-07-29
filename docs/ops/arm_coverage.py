@@ -27,6 +27,7 @@ costs a leg its H2 contrast.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from collections import defaultdict
@@ -86,6 +87,43 @@ def attrition(root: Path) -> dict[str, int]:
     return out
 
 
+_SEVERITY_RANK = {"OK": 0, "INFO": 0, "UNKNOWN": 1, "WARN": 2, "CRITICAL": 3}
+
+
+def sentinel_worst(root: Path) -> list[tuple[str, str, str, str]]:
+    """The sentinel's OUTSTANDING non-OK verdicts, worst first.
+
+    WHY THIS IS HERE (2026-07-30, D15). The sentinel raised **CRITICAL `substrate_fields`** — a
+    scored-leg CPU-model mix, i.e. a CRN validity failure — and it sat unread for TEN HOURS, because
+    `campaign_guards.py all` returned RC=0 throughout (substrate homogeneity is not one of its six
+    guards) and the sentinel writes only to `sentinel_events.jsonl`. An alarm that fires into a file
+    nobody reads is indistinguishable from an alarm that never fired.
+
+    Only the LATEST verdict per check is reported: the sentinel re-runs every check on each pass, so
+    an old WARN that has since gone OK must not keep shouting.
+    """
+    path = root / "sentinel_events.jsonl"
+    if not path.is_file():
+        return []
+    latest: dict[str, tuple[str, str, str, str]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        # NARROW on purpose. This was `except Exception`, and because `json` was not imported the
+        # resulting NameError was swallowed on EVERY line — so the guard printed "no outstanding
+        # non-OK verdicts" while a CRITICAL substrate verdict was live. A torn final line is the only
+        # tolerable failure here; a programming error must propagate loudly (P14).
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        check = str(r.get("check", "?"))
+        latest[check] = (str(r.get("severity", "?")), check,
+                         str(r.get("ts", "?")), str(r.get("detail", ""))[:190])
+    out = [v for v in latest.values() if _SEVERITY_RANK.get(v[0], 1) > 0]
+    return sorted(out, key=lambda v: -_SEVERITY_RANK.get(v[0], 1))
+
+
 def main(argv: list[str]) -> int:
     root = Path(argv[1] if len(argv) > 1 else "outputs/campaign_cluster_run4")
     seen = coverage(root)
@@ -124,6 +162,18 @@ def main(argv: list[str]) -> int:
               "Report it; do not silently average over it.")
     else:
         print("[attrition] no author-side rejects yet — arms are budget-matched")
+
+    # --- route the sentinel's outstanding verdicts somewhere a decision gets made (D15) --------- #
+    worst = sentinel_worst(root)
+    if not worst:
+        print("[sentinel] no outstanding non-OK verdicts")
+    else:
+        for sev, check, ts, detail in worst:
+            print(f"[sentinel] {sev:<8} {check:<26} {ts}  {detail}")
+        if any(s == "CRITICAL" for s, *_ in worst):
+            print("[sentinel] *** A CRITICAL VERDICT IS OUTSTANDING — this is a VALIDITY issue, "
+                  "not a slowdown. Do not treat six green guards as a clean run. ***")
+            rc = 2
     return rc
 
 

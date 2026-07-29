@@ -1413,6 +1413,8 @@ Recorded because the next session inherits the habits, not just the code.
 | **P11** *(2026-07-29, successor session)* | Planned to `qdel` leg7's 14 queued jobs as part of the D14 recovery. **The deletion would have been the WRONG action** — `spec_run_id` returns the candidate_id, not a source hash, so those jobs archive under exactly the run_ids the restarted driver waits for; deleting them would have forfeited 8 h 44 m of queue position and reservations for no benefit | reading `spec_run_id` and `batch_jobs_in_queue` before acting, rather than after | **Verify the mechanism a destructive step depends on BEFORE taking it.** The harness classifier happened to block the command too, but the plan was already wrong on the merits — do not let a tool guardrail be what saves a decision |
 | **P12** *(2026-07-29, successor session)* | Wrote the cursor update through `python -c` inside a bash command whose string contained **backticks**; bash expanded them before Python saw the text, silently blanking four passages (`import numpy as np`, `placebo`, the guard path, `metrics`) — **the same class as P9, against the same standing rule** | re-read the written file immediately instead of trusting the "cursor updated" success message | **A zero-exit write is not a correct write.** Structured content goes through Write/Edit; if a shell must be used, read the artifact back before believing it |
 | **P13** *(2026-07-29, successor session)* | Read record fields with a flat `record.get('test_sharpe')` and got `None` for every seed, which read as "all baseline records are empty" | the numbers contradicted `science_sanity.py`, which had just reported real Sharpes from the same files — the metrics are nested under `metrics` | **When your reader disagrees with a working reader, your reader is the defect.** A surprising negative is a claim about the accessor first |
+| **P14** *(2026-07-30)* | Wrote a guard to surface the sentinel's outstanding verdicts; it printed **"no outstanding non-OK verdicts" while a CRITICAL substrate verdict was live.** `json` was never imported, so `json.loads` raised `NameError` on every line — and my own `except Exception: continue` swallowed it | the output contradicted a direct read of the same file, which showed `latest substrate_fields = 'CRITICAL'` | **A broad `except` around a parse turns a programming error into a false ALL-CLEAR.** Catch `json.JSONDecodeError` only; let NameError/AttributeError propagate. A monitoring guard that can silently pass is worse than no guard — and this is the rule CLAUDE.md already states ("never swallow an exception") violated in the act of building a safety net |
+| **P15** *(2026-07-30)* | Reported the new guard as `EXIT=0` when its real exit code was **2** — `$?` was read after `\| tail -12`, so it reported *tail's* status | re-ran without the pipe and with `PIPESTATUS[0]`, which gave 2 | **The same lesson as reading `PYTEST_RC` from the log: `$?` after a pipe is the LAST command's code.** Never verify an exit code through a pipeline |
 
 ### 20.3 The single structural lesson
 
@@ -2783,3 +2785,119 @@ coverage **ALL LINES FULL** · 12/12 lines · freeze `3ca6f01a…` **MATCHES** �
 gap for 26 h (verified: last push 23:00 UTC, T+25 h 51 m). What is NOT autonomous is the session
 speaking into the chat — it acts only when invoked. The file channel is the durable one by design;
 if periodic chat updates are wanted, that needs an explicit interval loop.
+
+---
+
+## 28. D15 — A CRITICAL SUBSTRATE ALARM SAT UNEXAMINED FOR 10 HOURS, AND THE FIX IS ONE HOST
+
+Written 2026-07-30 00:30 UTC (T+27 h). The sentinel raised **CRITICAL `substrate_fields`** at
+2026-07-29 12:34 UTC. Nobody looked at it for ten hours, including me — my T+11 h sweep read the
+sentinel and found only three non-OK events, and this one arrived afterwards. **It strikes at the
+determinism envelope, which is the single most important point of this dissertation**, so it is
+recorded in full.
+
+### 28.1 What the alarm said, and what is actually true
+
+```
+CRITICAL substrate_fields :: test leg spans 2 SUBSTRATES - CPU model / thread regime differ,
+so float reduction order is not identical and CRN pairing is confounded:
+cpu=Intel(R) Xeon(R) Gold 6240 @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False x275
+|| cpu=Intel(R) Xeon(R) Gold 6140 @ 2.30GHz | omp=1 | torch_threads=1 | cuda=False x1
+```
+
+A full census over all 509 training records (⚠ counting only directories with a real `record.json` —
+see §28.2) gives three signatures, of which **two are BY DESIGN**:
+
+| n | signature | what it is |
+|---|---|---|
+| 326 | `Xeon-6240 \| omp=1 \| threads=1 \| deterministic_algos=False \| tf32=False \| precision=highest` | the **TEST lane** (1 thread, as registered) |
+| 179 | `Xeon-6240 \| omp=8 \| threads=8 \| deterministic_algos=True \| tf32=True \| precision=high` | the **SEARCH lane** (8 threads, R107) |
+| **4** | `Xeon-6140 \| omp=1 \| ` *(test-lane regime otherwise identical)* | **the contamination** |
+
+The test/search difference is a LANE difference, not a mixed comparison unit, which is exactly why
+`check_substrate_fields` is scoped per leg. **Exactly one comparison unit out of ~40 is internally
+mixed:**
+
+> `test/baseline_volatility_scaled_return` — **26 records on the 6240, 4 on the 6140 (seeds 14, 15,
+> 16, 17)**. Every search leg and every other H1 baseline is homogeneous.
+
+### 28.2 Two false leads I generated, both caught by checking
+
+**(a) "11 records ran on the laptop."** My first census reported an `AMD64 / 16-logical-core`
+signature on 11 baselines, which would have been a far worse finding — laptop-computed scored
+records. It was **my instrument**: those are `<unit>/_env/env.json`, the unit-level provenance
+captured by the SUBMITTING laptop, and **none of them has a `record.json`.** Verified on all 11. The
+sentinel's "2 substrates" was right and my "3" was wrong. Counting a provenance directory as a
+training is the P13 class again.
+
+**(b) "d00b is the 6140 class — exclude the whole hostgroup."** RUN 4's only 6140 host is
+`node-d00b-024`, and hostgroups `@d00a`/`@d00b` exist, so the naming looked like a hardware split.
+**REFUTED against the RUN 1 archive: `node-d00b-015`, `-021`, `-022`, `-025` are all 6240.** Acting on
+the hypothesis would have excluded ~18 % of capacity for no benefit. The lesson is the standing one:
+*a pattern inferred from one observation is a hypothesis, and the archive was sitting there to test
+it against.*
+
+### 28.3 The actual scope — one host, established across every run on disk
+
+Joining `(batch part, task) → host` from the epilogue ledgers with `run_id → cpu.model_name` from
+`env.json`, across RUNs 1-4 (**112 hosts observed, 0 hosts ever reporting two CPU models**, so the
+map is self-consistent):
+
+| CPU model | hosts |
+|---|---|
+| **Xeon Gold 6140** | **1 — `node-d00b-024`** |
+| Xeon Gold 6240 | 111 |
+
+Historical incidence: **RUN 1 = 1 of 612 records (0.16 %)** · RUN 3 = 0 of 9 · **RUN 4 = 4 of 509
+(0.8 %)**. Rare, but recurring across runs, and the project had already seen it once — the
+`check_substrate_fields` docstring records *"the SEARCH leg was found holding 116 records on a Xeon
+Gold 6240 and 1 on a Gold 6140, so `-ac allow=d` does NOT pin a single CPU model."*
+
+**And Myriad gives no way to request a CPU generation.** `qconf -sc` has no `cpu_model`/`cpu_type`
+complex; `arch` is `lx-amd64` for both; the `cpu` complex is a load metric. Verified directly. So the
+only mechanism that can pin the substrate is **host exclusion by name** — which is precisely why the
+scope mattering being *one host* is the whole story.
+
+### 28.4 Severity — real, bounded, and not touching the confirmatory result
+
+**What it does NOT touch.** H2 — the confirmatory hypothesis — compares the LLM arms, all of whose
+records are homogeneous on the 6240 in both lanes. The affected unit is one H1 baseline, and it is
+**not the binding one**: the H1 "human bar" is the max over the panel, set by
+`return_minus_turnover` at **+1.161**, while `volatility_scaled_return` sits at **−0.221**. So even a
+perturbation of its four seeds cannot move the H1 bar.
+
+**A free check with honestly-stated power.** The four 6140 Sharpes (−0.221, +0.230, −0.099, −0.487)
+all fall inside the 6240 range (−0.651 … +0.305), and their mean is well within one SD of it. That
+**rules out a gross error only**: seed-to-seed SD is 0.246, orders of magnitude larger than any
+floating-point reduction-order effect, so this test has **no power** against a subtle difference and
+must not be reported as evidence of equivalence.
+
+**What it WOULD have become.** Left alone, at 0.2-0.8 % of the ~40,000 trainings still to come, this
+scatters ~80-350 mixed records across units that DO matter, including H2's test leg. That is the real
+exposure, and it is why the project's own code calls this *"a VALIDITY failure, and it is only
+fixable while there is still time to re-run."* **There are 18 days of slack. This is that time.**
+
+### 28.5 The remediation, and why it is cheap
+
+1. **Prevent** — add `node-d00b-024` to `--exclude-hosts` (currently `node-d00a-230` alone), so every
+   future jobscript carries `-l h=!node-d00a-230,node-d00b-024`. **Cost: 1 host of 112 (~0.9 %).**
+   It is a CLI argument, not a code change, so the drift invariant is untouched. Requires a rolling
+   per-line relaunch, because the supervisor holds the argument vector.
+2. **Remediate** — re-run `baseline_volatility_scaled_return` seeds 14-17 on the pinned substrate
+   (delete the four records; archive-truth resume re-submits them). Four trainings.
+3. **Measure, for the write-up** — the reproducibility-grade move is to make the claim TRUE BY
+   CONSTRUCTION ("every scored record ran on one CPU model") rather than argue a Skylake-vs-Cascade-
+   Lake GEMM path is probably identical. A 6140-vs-6240 bit-comparison at short horizon is a cheap
+   and genuinely interesting datum, but it is a bonus, not the fix.
+
+### 28.6 The monitoring gap this exposed
+
+The alarm existed, fired correctly, and was **CRITICAL** — and still went unread for ten hours,
+because nothing forces the sentinel's verdict into the operator's face. `campaign_guards.py` returned
+`RC=0` throughout, since substrate homogeneity is not among its six guards. **A CRITICAL that only a
+human reading a JSONL will notice is not a control.** `docs/ops/arm_coverage.py` now also surfaces
+the sentinel's highest outstanding severity, so a CRITICAL cannot hide behind six green guards again.
+
+**The lesson, and it is the same shape as D14:** an alarm that fires into a file nobody reads is
+indistinguishable from an alarm that never fired. Detection is not monitoring until the verdict is
+routed somewhere a decision gets made.
