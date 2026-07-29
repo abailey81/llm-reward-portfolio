@@ -2227,3 +2227,80 @@ permanently-on CRITICAL is how an operator learns to ignore a panel. **Read the 
 rates instead** (`run4_watch.py <root> rejects`), which flag a leg only when it does far worse than
 its own measured baseline. `qwen3.5-9b` at ~83 % reject is the study working; `deepseek` at 83 %
 would be the study broken.
+
+---
+
+## 24. THE FIRST SCIENCE OF RUN 4 — and the question Tamer asked that reframed it
+
+Written 2026-07-29 ~07:00 UTC, T+10 h, from 83 archived records. **This section exists because Tamer
+challenged a claim of mine that was too glib**, and the challenge produced the campaign's first real
+finding. That sequence is worth preserving as much as the numbers.
+
+### 24.1 What I said, and why it was over-claimed
+
+At T+8 h I reported that the science "checks out". What I had actually verified were **invariants** —
+every training ran the registered 400,000 steps, no reward fell back to the R66 default, every record
+carried a return series, and no arm was degenerate. Those held, and still hold.
+
+Tamer's reply — *"sharpe is negative? Are you sure that science checks out and the campaign working
+as it should?"* — was correct to push. **Invariants holding is not the same as results being sound**,
+and a mean test Sharpe of −0.23 deserved the scrutiny rather than the reassurance I gave it.
+
+### 24.2 The benchmark I had not computed
+
+| | test Sharpe (2020–2026 sealed window) |
+|---|---|
+| **passive market proxy** | **+0.773** (cumulative **+166.0 %**, n=1,631 sessions) |
+| 10 of the 11 H1 baselines | **−0.171 to −0.325** |
+| **`baseline_return_minus_turnover`** | **+1.161** — mean over 30 seeds, range +0.922 → +1.421, **100 % of seeds positive** |
+
+A long-only agent, over a market that rose 166 %, is **losing on a risk-adjusted basis** — unless its
+reward explicitly prices turnover, in which case it *beats* the market.
+
+### 24.3 The mechanism this implies
+
+**The agents over-trade, and transaction costs consume the return.** The only reward that charges for
+churn is the only one that wins, and it wins on every seed — a 100 % positive rate against 10–33 % for
+every other baseline. That is not a subtle contrast, and it is the kind of result that is
+*interpretable* rather than merely observed.
+
+Note which rewards it beats: this is not naive-loses-to-sophisticated. `differential_sharpe`,
+`mean_variance_utility`, `return_minus_cvar` and `return_minus_drawdown` are all risk-aware and all
+negative. **Pricing risk is not enough; pricing TRADING is what matters here.**
+
+### 24.4 Why this is a finding and not a defect — the decisive check
+
+**RUN 4 reproduces RUN 1 to four decimal places on the same seeds:**
+
+```
+baseline_raw_return   RUN 1 : n=30  mean=-0.3064  min=-0.8435  max=+0.2600  frac>0=10%
+baseline_raw_return   RUN 4 : n=30  mean=-0.3064  min=-0.8435  max=+0.2600  frac>0=10%
+```
+
+Identical across a full re-execution, on different nodes, days apart. **CRN and determinism hold
+exactly**, which is simultaneously the reproducibility anchor and the evidence that the negative
+Sharpes are a property of the design rather than an artefact of this run.
+
+### 24.5 What it does and does not threaten
+
+**Does NOT threaten H2.** The confirmatory hypothesis compares ARMS — `distributional` vs `scalar` vs
+`scalar_cvar5` vs the two placebos — under an identical budget, identical seeds and identical
+everything-but-the-fed-block. A level effect common to all arms leaves that contrast well posed.
+
+**DOES change what the write-up must say.** The absolute story is *"RL portfolio agents under-perform
+passive holding on this universe unless the reward prices turnover"*, and CH4/CH6 must state that
+plainly rather than report only the arm contrast. Reporting a relative result while silently omitting
+that the absolute level is negative against a +166 % market would be the kind of omission that
+survives review by not being mentioned.
+
+### 24.6 ⚠ An open question for the analysis, flagged BEFORE the data is in
+
+If turnover cost dominates outcomes this strongly, then **the turnover term may be the principal axis
+of variation an LLM-authored reward can exploit** — which bears directly on how H2's result should be
+interpreted. A distributional arm that "wins" might be winning because its fed block nudges it toward
+lower turnover, not because tail information per se helped.
+
+`w_turnover` is a registered H4 search dimension (range [0, 0.02], ratified 2026-07-26), and
+`test_turnover` is captured on every record, so **this is testable from data already being collected**
+— no design change needed. Raised now, pre-data, so that asking it later cannot be a forking path.
+

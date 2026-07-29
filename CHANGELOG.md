@@ -3,6 +3,98 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-29] RUN 4 IS LIVE AND HEALTHY — the launch night, end to end
+
+**Session close ~07:15 UTC, T+10 h. RUN 4 launched 2026-07-28 21:01 UTC and is running.** This block
+is the whole night in one place; the narrative is `docs/CAMPAIGN_EXECUTION_RECORD.md` **§22-§24**, and
+the incoming session's brief is **`docs/RUN5_SESSION_PROMPT.md`**.
+
+### ① Live state at handover
+
+12/12 lines up · **83 records** · 23 epilogues, **every one rc=0** · canary **78/90** · 334 LLM calls
+· spend **$3.9564** of ~$24 projected · **0 transport timeouts** · guards green · freeze
+`3ca6f01a…` MATCHES · HEAD's code == the running sha (`b9e6df5`, drift 0 files) · 28 days to the
+Aug-27 stop.
+
+### ② FOUR defects found, two fixed before launch and two documented during the run
+
+* **D10** — every one of 1,361 spend rows across RUNs 1-3 stamped `provider: anthropic`, including
+  the eight OpenRouter legs. Both authors built `LLMClient` without `provider`, so client.py's
+  DEFAULT was written. Routing was never wrong; **cost attribution was**. FIXED + verified live.
+* **D11** — `killswitch.classify_task_deaths` counts EVERY `rc != 0` as a task death, and an
+  authoring reject exits `rc=1` in ~5 s. Eight across four hosts in 300 s ⇒ a FALSE `admin_kill` ⇒
+  `MYRIAD_KILL_INCIDENT.json` ⇒ **submission hard-blocked on all twelve lines until a human clears
+  it**. RUN 1's worst burst was 7/6 — one under — and it only stayed under *because the collision
+  suppressed 39 % of candidates*. **Fixing D1 armed this.** FIXED.
+* **D12** — a line whose every arm crashed reported `LINE COMPLETE`: the C3 gate stop returns 0, so
+  "finished" and "awaiting review" share an exit code. Only the watchdog kept six legs alive.
+  **DEFERRED.**
+* **D13** — `client.py:346` does `response.choices[0]` unguarded; an OpenRouter body with
+  `choices: None` raised `TypeError`, which the status-duck-typed retry classifier will not retry.
+  **DEFERRED.**
+
+Both deferrals are deliberate: those files are inside the drift pathspec and editing them mid-run is
+the RUN 3 condition. Full patches, tests and apply-order: **`docs/DEFERRED_FIXES_RUN4.md`**.
+
+### ③ ★ D9 RESOLVED — the campaign's one unexplained defect
+
+| | RUN 3 (206 min) | RUN 4 (209 min) |
+|---|---|---|
+| timeouts | **647** | **0** |
+| transport failures | **1,018** | **18** |
+| poll cycles | 6,094 | **13,113** |
+| **failures / 1,000 polls** | **167.0** | **1.4** |
+
+RUN 4 did **more than twice the work** and failed at **1/119th the rate**, at the same twelve-line
+fan-out. Confounds eliminated: fan-out (both 12), less-work (refuted), flat-part-of-curve (refuted —
+RUN 3 *ramped* from ~T+70 min and RUN 4 ran past that onset flat), the 120 s bound (RUN 3 already had
+it). The only transport diff is **`stdin=subprocess.DEVNULL`**. **§18.3's "hygiene, explicitly NOT
+the cure" is WITHDRAWN** — that A/B (fan-out 40×3) was underpowered against a degradation with a
+70-minute onset. Mechanism is the leading explanation, not proven; and it is a natural experiment.
+
+### ④ THE FIRST SCIENCE, and the question that reframed it
+
+Market proxy over the sealed 2020-2026 window: **Sharpe +0.773, +166.0 % cumulative.** Ten of eleven
+H1 baselines: **−0.171 to −0.325**. The exception is **`return_minus_turnover` at +1.161 with 100 %
+of seeds positive**. ⇒ **the agents over-trade and bleed to costs; only the reward that prices
+turnover wins.** Notably it beats risk-aware rewards (`differential_sharpe`, `mean_variance_utility`,
+`return_minus_cvar`) — **pricing risk is not enough; pricing TRADING is.**
+
+**RUN 4 reproduces RUN 1 to four decimal places** on the same seeds (`raw_return` n=30 mean −0.3064,
+min −0.8435, max +0.2600, frac>0 10 % — identical), so determinism holds and this is a property of
+the design, not of the run. H2's arm contrast is unaffected (a level effect common to all arms), but
+the write-up must state the absolute result plainly. **§24.6 raises, pre-data, that turnover may be
+the principal axis an LLM-authored reward can exploit** — testable from `test_turnover`, already
+captured.
+
+### ⑤ An external blocker, cleared
+
+The OpenRouter key carried its own **$10 per-key cap** (separate from the $17.97 balance), already
+spent by RUNs 1-3. Six legs parked on 403 for ~1 h, burning nothing (rejected calls are unbilled) and
+submitting nothing. Diagnosed by querying `GET /api/v1/key`, not guessed. Tamer raised it to $100;
+all six recovered. **Gate gap recorded:** the pre-launch check proved the key WORKED, never that it
+had HEADROOM — `check_provider_headroom` is pending.
+
+### ⑥ Remote observability, for a campaign that outlives any session
+
+**`docs/RUN4_STATUS.md`** auto-regenerates and pushes every 5 min (elapsed, lines, jobs, **cores
+computing**, records, spend, timeouts, guard verdict) — readable from a phone. **`docs/REMOTE_CONTROL.md`**
+is edited on GitHub to send instructions back to the live session, which polls, acts, and logs what it
+did. Both branches (`backup-2026-07-28`, `myriad-cluster-and-tier-system`) are kept in sync.
+
+### ⑦ My own errors, recorded because the next session inherits the habits
+
+Four instruments wrong (qstat column shift — queued rows have `NF=9` so `$9` is the task-id; a digest
+keyed on error COUNTS that fired every cycle on a triaged 403; a monitor cadence bug; a hand-computed
+epoch), one fabricated precision ("~12 % of candidates" for what was 61 %), one **timezone error**
+(recording the launch as 22:01 UTC when the logs are BST — the record's own lesson #4), one baseline
+miscalibrated as uniform when RUN 3's failures actually **ramped**, one schema error (applying the
+search-record shape to test-leg records and flagging healthy NaNs), and one over-claim ("the science
+checks out") that Tamer correctly challenged. **Every one surfaced by a number failing to reconcile
+against a second source — none by re-reading code.**
+
+---
+
 ## [2026-07-28e] D11 — FIXING D1 ARMED A RUN-STOPPER, and only the archive could show it
 
 **The most consequential pre-launch finding. RUN 4 would have hit this within hours, overnight, on
