@@ -1,4 +1,4 @@
-# RUN 4 — LIVE STATUS
+# RUN 4 -- LIVE STATUS
 
 **Auto-generated 2026-07-29 00:34 UTC -- T+3h25m.** Refreshed by the live session and
 pushed to GitHub, so it is readable from a phone. To send an instruction back, edit
@@ -18,8 +18,8 @@ pushed to GitHub, so it is readable from a phone. To send an instruction back, e
 
 ## What to expect next
 
-* first records land when the C0 canary's ~8 h trainings finish (**~05:08–07:08 UTC, 29 Jul**)
-* the canary clearing is what releases the core line's Opus authoring — core spend stays $0 until then
+* first records land when the C0 canary's ~8 h trainings finish (**~05:08-07:08 UTC, 29 Jul**)
+* the canary clearing is what releases the core line's Opus authoring -- core spend stays $0 until then
 * exogenous stop **2026-08-27**
 
 ## If something looks wrong
@@ -28,4 +28,4 @@ The campaign is independent of the Claude session: supervisors relaunch, the wat
 lines every 300 s, the sentinel watches health. **Stop lever:** create the file
 `outputs\campaign_cluster_run4\STOP_CAMPAIGN` (or ask via REMOTE_CONTROL.md).
 
-Full narrative: [CAMPAIGN_EXECUTION_RECORD.md](CAMPAIGN_EXECUTION_RECORD.md) §22–§23.
+Full narrative: [CAMPAIGN_EXECUTION_RECORD.md](CAMPAIGN_EXECUTION_RECORD.md) section 22-section 23.
