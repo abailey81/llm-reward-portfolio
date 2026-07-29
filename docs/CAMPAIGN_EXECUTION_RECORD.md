@@ -3031,3 +3031,71 @@ leg1_leg_deepseek_v4_pro_distributional_g2_p01.sh :  #$ -l h=!node-d00a-230&!nod
 **"Every scored record ran on one CPU model" is now true BY CONSTRUCTION for all future work**, rather
 than an argument that Skylake and Cascade Lake probably dispatch the same GEMM kernel. That distinction
 is the whole point: the determinism envelope is a design property, not a probabilistic one.
+
+### 28.8 TWO CORRECTIONS TO MY OWN REMEDIATION (2026-07-30 00:50-01:10 UTC)
+
+Both were found by re-verifying after acting, not before. Both are recorded because the first cost the
+run a line for four minutes and the second would have quietly corrupted the archive.
+
+**(a) The rolling relaunch stranded `.driver.lock` files, and PID RECYCLING made the guard fire.**
+
+Four minutes after the relaunch, `glm-5.2` was down: **all five of its arm pipelines had crashed** and
+the C3 gate then stopped RED (`ALL UNITS COMPLETE: False` — correctly, since nothing had completed).
+The exception:
+
+```
+RuntimeError: another driver (pid 25872) is already running batch
+'leg2_leg_glm_5_2_distributional_g1.driver.lock' - refusing to double-drive
+(double requeues would corrupt the retry accounting).
+If that pid is NOT a driver, delete <lockfile> and relaunch.
+```
+
+**PID 25872 was leg2's old driver, which I had killed — and Windows had RECYCLED the PID to a
+`conhost.exe`.** The P12 anti-double-drive lock tests whether the recorded PID *exists*, not whether it
+is *a driver*, so a recycled PID reads as a live owner. Verified: no orphaned drivers existed anywhere
+(zero python processes running `run_campaign_cluster` with a dead parent), so this was purely a false
+positive — and the guard's own error text anticipates it.
+
+Remediated with a validated cleaner that deletes a lock **only** when its recorded PID is provably not
+a live campaign driver (gone, or recycled to a non-driver), and **keeps** it otherwise — erring toward
+keeping locks, because deleting one held by a live driver is the corruption the lock exists to prevent.
+**22 stale locks cleared, 38 correctly kept.** `glm-5.2` was revived by the fenced watchdog at
+00:53:03, resumed polling, and **zero pipeline crashes have occurred across any line since**.
+
+> **The operational lesson: on Windows a rolling driver restart must clear stale per-batch locks as part
+> of the procedure.** Killing the process is not enough, and PID liveness is not PID identity. This also
+> registers a fix candidate: the lock guard should record and verify an owner FINGERPRINT (pid + start
+> time, or the command line), not a bare pid.
+
+**(b) ⚠ Quarantining the four 6140 records LOCALLY did nothing — the archive is a MIRROR.**
+
+I moved the four contaminated records out of the local archive and the census duly reported
+`UNITS THAT MIX SUBSTRATES: 0`. **Five minutes later it reported 1 again, with the same unit and the
+same four records.** The local archive is a *mirror pulled from* `~/Scratch/llmrp4`; verified directly,
+the remote still held all 30 records with `cpu=6140` on s14-s17, and the next `pull_archive` simply
+restored them. **A local delete cannot remove an archived record.**
+
+**And on reflection the deletion was the wrong instrument anyway.** Two of this project's own laws
+point the other way — *"THE ARCHIVE IS THE ONLY TRUTH"*, and *"results replay from the archive, they
+cannot be regenerated"* — while `check_substrate_fields` asks for a **re-run**, not a removal. Deleting
+confirmatory records to make a census go green is exactly the shape of intervention that should never be
+invisible.
+
+**The correct remediation is an EXPERIMENT, not a deletion.** Re-run seeds 14-17 on a 6240 into a
+SEPARATE root and compare against the archived 6140 values bit-for-bit:
+
+* **identical** ⇒ the Skylake/Cascade-Lake difference is numerically inert for this stack. Nothing is
+  deleted, the archive stays complete, and we report a *measured* equivalence — the strongest available
+  outcome, and a genuinely interesting reproducibility datum.
+* **different** ⇒ we have proof the substrate matters, and the four records are then replaced under a
+  documented, effect-blind rule.
+
+The decision rule is **effect-blind and pre-dated**: records are selected for re-run by
+`env.json → cpu.model_name` alone, under the register's standing obligation that *"a second distinct
+substrate signature is the tripwire and must be investigated, never averaged over"* — which predates
+this session, and the sentinel's CRITICAL fired on substrate before any value was inspected.
+
+**Current true state:** the archive is complete (30 records, 4 of them 6140, all mirrored on both
+sides); the fence is live so **no future** submission can land on the 6140; the pre-fence queued
+backlog is the only remaining exposure and it drains. The local quarantine copies are retained in the
+session scratchpad purely as a backup and are no longer load-bearing.
