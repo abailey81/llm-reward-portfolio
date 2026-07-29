@@ -1,16 +1,16 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-29 08:29 UTC -- T+11h20m.** Refreshed by the live session and
+**Auto-generated 2026-07-29 08:34 UTC -- T+11h25m.** Refreshed by the live session and
 pushed to GitHub, so it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md).
 
 | | |
 |---|---|
-| elapsed | **T+11h20m** (launched 2026-07-28 21:08 UTC) |
+| elapsed | **T+11h25m** (launched 2026-07-28 21:08 UTC) |
 | lines up | **12 / 12** |
-| cluster jobs | **398** (88 running) |
-| **cores computing** | **468** |
-| records archived | **111** |
+| cluster jobs | **397** (87 running) |
+| **cores computing** | **464** |
+| records archived | **113** |
 | LLM calls | 383 |
 | spend (ledger estimate) | **$6.2027** |
 | transport timeouts | **0** |
