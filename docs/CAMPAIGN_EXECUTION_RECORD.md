@@ -4439,13 +4439,29 @@ responds to the tail information it is shown.** Those are different questions, a
 ours: by moving state and reward together it forecloses the attribution our whole design exists to
 make. It is, in other words, the strongest available *motivation* for our identification constraint.
 
-**Consequences, registered:**
-1. **GIFT must be cited and positioned in CH2** — as the nearest neighbour and as the concrete instance
-   of "the field is already having LLMs write reward code for portfolio RL, without an identification
-   strategy". Citing it strengthens the framing; omitting it would look like we missed it.
-2. It joins **ELfolio** on the scoop-watch. Neither is a scoop.
-3. One sentence for CH7: the practitioner-facing contrast — a system paper optimises the interface, a
-   controlled study tells you which channel the effect came through.
+**Consequences, registered — and ⚠ THE FIRST ONE WAS WRONG, corrected 2026-07-30 15:55 UTC:**
+
+1. ~~"GIFT must be cited and positioned in CH2 — omitting it would look like we missed it."~~
+   **FALSE, and I asserted it without checking `paper/` first.** GIFT is **already cited** as
+   `wu2026gift` — in `paper/refs.bib` (full 13-author entry, correct arXiv id) and in **CH2 §2.2**,
+   where it is called *"the freshest finance neighbour"* and characterised **more precisely than my own
+   term-count analysis managed**: that its reward authorship is *constrained rather than open-ended*
+   (the model may only select, transform and compose penalties from a **registered library of
+   portfolio-risk rules**, with parameters clipped before execution), that it *co-varies the state*,
+   and that its refinement loop feeds *generic rollout diagnostics* rather than a tail vector.
+   AlgoEvolve (`sharma2026algoevolve`) and ELfolio (`zeng2025elfolio`) are likewise already in place.
+   **The corpus work was ahead of the sweep.**
+   > **The process lesson, which is the useful part:** two minutes of `grep` over `paper/` would have
+   > prevented a wrong claim propagating into the record, the CHANGELOG, the cursor and the HANDOFF.
+   > **Check the artifact before declaring a gap in it.** Filed with P1–P15.
+2. **What the sweep is actually worth, restated honestly:** it re-verified the conjunctive cell against
+   fresh searches and found nothing new that threatens it; it produced an **independent first-hand
+   corroboration** of CH2's existing characterisation of GIFT (two analysts, different methods, same
+   conclusion — exactly the evidence an examiner would want behind a novelty claim); and it reset a
+   cadence clock that had expired by 32 days.
+3. GIFT joins **ELfolio** on the scoop-watch. Neither is a scoop.
+4. One sentence available for CH7: the practitioner-facing contrast — a system paper optimises the
+   interface, a controlled study tells you which channel the effect came through.
 
 ### 41.4 The rest of the sweep
 

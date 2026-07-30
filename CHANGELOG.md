@@ -3,6 +3,14 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-30e-CORRECTION] GIFT was already cited — my claim that it needed adding was wrong
+
+Asserted in `[2026-07-30e]` item 5 that GIFT "must now be cited and positioned in CH2". FALSE:
+`wu2026gift` is already in `paper/refs.bib` (full 13-author entry, correct arXiv id) and in CH2
+§2.2 as "the freshest finance neighbour", characterised MORE precisely than my own term-count
+analysis managed. The corpus work was ahead of the sweep. Lesson: check the artifact before
+declaring a gap in it. Record §41 carries the full correction.
+
 ## [2026-07-30f] THE ROUTE TO 4,000 CORES, COMPUTED — AND THE RESTART QUESTION ANSWERED
 
 **PAST.** `[2026-07-30e]` proved the memory lever safe and staged it. Tamer then asked two questions:
