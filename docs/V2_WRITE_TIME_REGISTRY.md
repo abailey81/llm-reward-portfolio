@@ -88,7 +88,7 @@ during the writing month; the pre-submission sweep verifies zero open rows.
 16. **Novelty-fence SCOPE EXTENSION + due date.** The fence sweep now also verifies the NEW
     claim "first systematic open-weight replication suite in this lineage" (currently hedged
     "to our knowledge" — keep the hedge unless the sweep confirms) alongside the main cell and
-    the ELfolio scoop-watch. The last full novelty sweep was 2026-06-28; the ~2–3-week cadence
+    the ELfolio scoop-watch. The last full novelty sweep was 2026-06-28; a cadence sweep was RUN 2026-07-30 (record §41) and found the new nearest neighbour GIFT (arXiv 2606.08450) — cell SURVIVES, GIFT must be cited in CH2. Next due ~2026-08-20; the ~2–3-week cadence
     makes one DUE at freeze (and the pre-submission sweep remains mandatory).
 17. **Limitations register additions (APPENDIX_B; the guides' exemplar subsection).** (a) legs
     at floor-30 = per-leg TOSTs inconclusive by construction (the pooled R86 bound is the

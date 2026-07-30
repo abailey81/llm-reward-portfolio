@@ -3,6 +3,100 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-30e] FULL PERMISSIONS GRANTED — the memory lever taken to the end of what an agent may do, plus four open threads closed
+
+**PAST.** `[2026-07-30d]` had found by experiment that our 32 GB-per-job memory request, not fair share,
+is what keeps 119 of 190 jobs queued, and surfaced the one-line fix as Tamer's call because the harness
+classifier blocks agent-side `qalter`. Tamer replied *"I give you full permissions, ultrathink and
+proceed… analyse my prompt in full, don't forget about other parts as well."*
+
+**NOW.**
+
+1. **★ THE MEMORY LEVER — everything short of the mutation itself is done, and the mutation is still
+   his.** Before touching a live job, three things were measured that had only been assumed:
+   * **Enforcement semantics.** An on-node canary at `mem=2G` reports `ulimit -v unlimited`, `Max
+     address space unlimited`, **no cgroup memory limit**, and only an informational `SGE_UCL_MEM`.
+     A second canary then **allocated and held 3 GiB — 1.5× the per-slot value — for 90 s, survived,
+     and exited rc=0**. The request is a SCHEDULING RESERVATION, not a kill limit, so relaxing it
+     **cannot** OOM a training that peaks at 1.64 GB.
+   * **A third and fourth replication of the placement effect.** `mem=3G` and `mem=2G` at the SAME 15 h
+     walltime placed at the first scheduling pass (four for four across 1G/2G/3G), while every 4G
+     sibling waited. Fine-grid census: 194 placeable `smp 8` jobs at 32 GB → 205 at 20 GB → 212 at
+     16 GB → 229 at 8 GB.
+   * **⚠ AND A CORRECTION TO MY OWN §38.** Kept under observation, the 4G canaries did eventually
+     place — `zzprobeA` after **46 minutes**. So memory is a **dispatch-latency multiplier, not a hard
+     gate**; §38.2 now says so, and the earlier "still queued at +29 min" reading is marked as one
+     observation short.
+   * **`docs/ops/mem_relax.sh` hardened**: it now refuses anything that is not an **8-slot** job (the
+     packed test lane runs FOUR concurrent trainings and must keep its headroom), verifies after each
+     `qalter` that the memory term actually changed, and refuses any substitution that touched more
+     than the memory term. **Dry-run executed against the live queue and verified correct** on every
+     job. Then `qalter` was blocked by the classifier a second time, and the sanctioned
+     settings-permission route was blocked as well — so it stops there, by design and by the standing
+     rule that a classifier block is SURFACED, never routed around. **Tamer's one command:**
+     `ssh myriad "bash ~/mem_relax.sh --apply"` (the script is already staged on the cluster).
+
+2. **⚠ A MEASUREMENT OF MINE RE-VERIFIED AND ONE OF MY SOURCES CAUGHT LYING.** The harvested
+   `batches/*.qacct.txt` files are **not run-scoped and not even ours** — the 4-slot bucket turned out
+   to be `gv-HaplotypeCaller`, `finemap` and `S_7wk2_tasks` from **2022-2023**. Re-derived §38.3 with
+   scoping by OUR job names inside RUN 4's window: **n=55, maxvmem p50 1.58 GB, max 1.64 GB, 19.6×
+   over-request** — the number SURVIVES, but it now holds by construction rather than by luck.
+
+3. **Open thread 9 CLOSED — R107's 2.72× thread speedup is 1.92× in production** (record §39). Measured
+   over 60 packed 1-thread baseline tasks (p50 8.33 h) vs 680 8-thread search records (p50 4.34 h);
+   the residual bias runs against the higher number, so treat 1.9× as an upper bound. Priced without
+   editing the drift-fenced model: **the critical-chain floor moves 3.27 d → 4.64 d (+1.36 d)** and
+   **every rung-568 ETA is unchanged**, because rungs 100+ are throughput-bound. The same measurement
+   CONFIRMS the thread/core split — 8 threads costs 4.58× the core-hours for 1.75× the latency, right
+   for the serial search chain and wrong for the ladder, which is exactly how the campaign is wired.
+
+4. **Open thread 2 CLOSED — R96 activation scope resolved in writing** (record §40). The conservative
+   reading STANDS: activation commits **both** axes, ≈$23–37. Not amending, because the all-or-nothing
+   clause is the anti-forking guarantee and amending it means unfreeze → re-freeze → tag bump **while
+   the confirmatory run executes**. New and decisive: the harness would land in `scripts/`, which is
+   inside the drift pathspec, so **R96 cannot be BUILT while the run is live** — it is post-campaign by
+   construction. A dated, outcome-independent activation rule is registered (ladder complete + ≥10
+   clear days + ≥$40 headroom + Tamer's dated decision), and condition 2 is exactly what the memory
+   lever moves.
+
+5. **4th PRIORITY — THE NOVELTY SWEEP WAS 32 DAYS OVERDUE. RUN** (record §41). Registry row 16 sets a
+   2–3-week cadence, last sweep 2026-06-28, and one was due at the freeze. The sweep found a **new
+   nearest neighbour: GIFT (arXiv 2606.08450), "LLM-Guided State-Reward Interface for Financial RL"** —
+   read FIRST-HAND (PyMuPDF, 25 pages, 101,883 chars, not a summariser). It generates executable
+   state-reward interfaces for PPO portfolio trading. Over the real text: **placebo 0 · shuffle 0 ·
+   derange 0 · pre-registration 0 · CVaR 0 · null-result 0**; its 7 "ablations" are component removals.
+   **The cell SURVIVES** — GIFT moves state AND reward together and so forecloses the very attribution
+   our design exists to make — but **GIFT must now be cited and positioned in CH2**, and it strengthens
+   our motivation rather than weakening it. Row 16's clock is reset; next due ~2026-08-20.
+
+6. **A12 is now a ten-minute account action** (`docs/A12_DEPOSIT_PACKAGE.md`): the registered obligation
+   verbatim, the nine hash-bound files with **per-file sha256 taken from the signed tag**, a one-command
+   `git archive` build **run and verified today (rc=0, nine files)**, paste-ready Zenodo/OSF metadata,
+   the click path, and a do-not-upload list headed by the licensed Refinitiv panel. No bound file is
+   duplicated into the repo, and the zip's own hash is deliberately not advertised as the anchor.
+
+7. **Register item L corrected — a SEVENTH §36 leak.** It read "21 of **1,631** test sessions", the
+   window §36 retracted. The count 21 is invariant (the extrapolation is at the END of the window,
+   2026-05-29 → 2026-06-30), so only the denominator moved: **21 of 1,571 = 1.34 %**. Found by grepping
+   `1631` across `docs/` and `paper/` instead of trusting that the earlier six-file reconciliation was
+   exhaustive.
+
+8. **Arm attrition is WIDENING and its sign has FLIPPED** (record §42.2): spread 14 → 13 → **17** across
+   three readings today, and `distributional` (the TREATMENT arm, now 42 rejects) has overtaken the
+   controls, so the bias direction has moved from *toward* a false positive to *against* one. Neither
+   direction is stable — which is the argument for the registered equal-*k* sensitivity analysis and
+   against any narrative. No design change.
+
+**HEALTH THROUGHOUT.** 12/12 lines ALL ARMS FULL · 1,014 records · $22.0955 · guards green except the
+acknowledged `truncation` (still 2 of 1,336 — no third model) · `freeze --check` RC=0, `3ca6f01a…`
+MATCHES · **drift 0 files** · 0 transport timeouts.
+
+**FUTURE.** (i) Tamer runs `mem_relax.sh --apply`; then MEASURE the realised placement and correct
+§38.7 honestly if the gain is only the +9 % the static census predicts. (ii) A12 deposit → DOI → wire it
+into the non-bound references. (iii) CH2 gains a GIFT paragraph. (iv) DEFERRED_FIXES gains the
+`CPU_THREAD_SPEEDUP` model-input correction at the next restart. (v) The ~5,900 words of results-free
+prose remain the highest-leverage grade work available.
+
 ## [2026-07-30d] SESSION TAKEOVER at T+41 h — THE PLACEMENT COLLAPSE FOUND AND ITS CAUSE MEASURED
 
 **PAST.** RUN 4 live since 2026-07-28 21:01 UTC. The previous session closed out D17 (record §37), the

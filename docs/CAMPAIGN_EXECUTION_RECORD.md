@@ -1277,7 +1277,7 @@ what was actually run. Nothing here is "believed fine".
 |---|---|---|---|
 | ~~J~~ | ~~**The 300 s "ssh timeout" mechanism is UNIDENTIFIED**~~ → **RESOLVED 2026-07-29, §23.14f** | — | **RUN 4: 0 timeouts / 18 transport failures over 209 min at 12 lines, against RUN 3's 647 / 1,018 — while performing MORE than twice the poll work (13,113 vs 6,094 cycles), i.e. 1.4 vs 167.0 failures per 1,000 polls.** The one transport change is `stdin=subprocess.DEVNULL` on the ssh spawn sites. ⚠ §18.3's "hygiene, explicitly NOT the cure" is **WITHDRAWN** — that A/B (fan-out 40 × 3) was underpowered by construction against a degradation with a ~70-minute onset. Mechanism (inherited standard handles on concurrent Windows children) is the leading explanation, **not proven**; and it is a natural experiment, so a quieter cluster night cannot be fully excluded |
 | ~~K~~ | ~~**`stop_reason` not persisted to the structured spend ledger**~~ → **CLOSED, landed in `18dead8`** | — | **RUN 4 is the first run carrying the field: 166/166 spend rows had it at the leg wake, 0 missing.** `campaign_guards.py truncation` now treats an absent key as a STALE-DRIVER stop condition |
-| L | **Factor ladder forward-fills 21 of 1,631 test sessions** | **report-only**; headline unaffected | **unfixable by re-pulling** — French has not published past 2026-05-29. Verified by running the real loaders: `load_ff_factors` n_extrapolated **21**, `load_market_proxy_returns` **0**, `load_risk_free_daily` **0** |
+| L | **Factor ladder forward-fills 21 of 1,571 test sessions (1.34 %)** — ⚠ **DENOMINATOR CORRECTED 2026-07-30**, was written "21 of 1,631" against the window §36 retracted | **report-only**; headline unaffected | **unfixable by re-pulling** — French has not published past 2026-05-29. Verified by running the real loaders: `load_ff_factors` n_extrapolated **21**, `load_market_proxy_returns` **0**, `load_risk_free_daily` **0**. The COUNT is invariant to the correction because the extrapolation sits at the END of the window (2026-05-29 → 2026-06-30 ≈ 21 sessions), which both windows share; only the denominator moved, 1.29 % → **1.34 %**. Any factor-ladder table in the PDF must use the **1,571**-session window |
 | M | **Tag is annotated, not signed; no OpenTimestamps proof** | external anchor is the commit + tag on origin | no GPG key; the OTS client crashes on Windows. Already disclosed; the write-up must not imply otherwise |
 | N | **174 legacy `Co-Authored-By` trailers in pre-2026-07-26 history** | attribution hygiene | needs a history rewrite + force-push on a shared branch — Tamer's call, never unilateral |
 
@@ -4091,17 +4091,28 @@ which ones the scheduler takes.** Six `sleep`-only jobs, no campaign involvement
 
 | canary | `-pe smp` | `h_rt` | `mem`/slot | job total | outcome |
 |---|---|---|---|---|---|
-| `zzprobeA` | 8 | 15:00:00 | 4G | 32 GB | **queued** (still queued at **+29 min**) |
+| `zzprobeA` | 8 | 15:00:00 | 4G | 32 GB | **queued 46 min**, then placed at the 15:49 pass |
 | `zzprobeB` | 8 | 0:30:00 | 4G | 32 GB | ran at the next pass |
 | `zzprobeC` | 1 | 15:00:00 | 4G | 4 GB | ran at the next pass |
 | `zzrt02` | 8 | 2:00:00 | 4G | 32 GB | ran at the next pass |
-| `zzrt04/08/12` | 8 | 4/8/12 h | 4G | 32 GB | **queued** (all three still queued at **+24 min**) |
+| `zzrt04/08/12` | 8 | 4/8/12 h | 4G | 32 GB | `zzrt04` **queued 41 min** then placed; `08`/`12` still queued at 41 min |
+| **`zzsem3g`** | **8** | **15:00:00** | **3G** | **24 GB** | **RAN at the next pass** (submitted 14:46, placed 14:49) |
+| **`zzsem2g`** | **8** | **15:00:00** | **2G** | **16 GB** | **RAN at the next pass**, `node-d00a-122` |
 | **`zzmem1`** | **8** | **15:00:00** | **1G** | **8 GB** | **RAN at the next pass, `node-d00a-011`** |
 | **`zzmem2`** | **8** | **15:00:00** | **2G** | **16 GB** | **RAN at the next pass, `node-d00a-126`** |
 
 `zzprobeA` and `zzmem2` differ in exactly one field. **The discriminator is the MEMORY request.**
 It is not fair share (the same user, the same tickets, the same instant, the same scheduling pass),
 not the slot count (8 slots placed fine at 2G), and not the walltime alone (15 h placed fine at 2G).
+
+**⚠ REFINED at 14:49 UTC, and the refinement matters.** Kept under observation, `zzprobeA` (4G) DID
+eventually place — after **46 minutes** — as did `zzrt04` after 41 minutes, while `zzrt08`, `zzrt12`
+and `zzsem4g` were still queued. So the memory request is **not a hard gate; it is a LATENCY
+multiplier**: every low-memory canary (1G, 2G, 3G — **four for four**) placed at the FIRST scheduling
+pass after submission, while every 4G canary needed several passes or is waiting still. That is the
+same phenomenon the campaign lives with — our real jobs do start, after a ~2.7 h wait — and it is what
+the fix actually buys: **not eligibility, but time-to-dispatch.** The earlier reading ("still queued at
++29 min", implying a block) was one observation short; this is the corrected one.
 
 ### 38.3 The measurement that makes it actionable: a 19.5x over-request
 
@@ -4210,3 +4221,294 @@ prompts` is empty and stays empty.**
 * The six canary jobs are named `zzprobe*` / `zzrt*` / `zzmem*` and are `sleep`-only; four were still
   queued at the time of writing and will run for 20-30 s whenever they place. They are NOT campaign
   jobs and must not be counted as such; `qdel` is likewise blocked, and they self-terminate anyway.
+
+---
+
+## 39. R107'S 2.72x THREAD SPEEDUP, RE-MEASURED IN PRODUCTION — IT IS 1.9x, AND THE COST IS 1.4 DAYS
+
+Written 2026-07-30 14:50 UTC. Open thread 9 of the RUN6 handoff asked for this explicitly (*"R107's
+2.72x thread speedup looks optimistic — observed ~2.03x on n=2. Re-measure as records land."*). There
+are now 740 usable timings, so it can be settled.
+
+### 39.1 Two lanes, one workload, a direct comparison
+
+The campaign runs the SAME 400,000-step training two ways, which makes the thread question directly
+measurable from our own artifacts rather than from a bench:
+
+| lane | flags | threads | timing source |
+|---|---|---|---|
+| LLM search | `--search-pack 1 --search-threads 8` | **8** | `record.json → wall_clock`, n=680, `env.json` confirms `OMP_NUM_THREADS=8` |
+| H1 baselines | `--pack 4 --cores-per-training 1` | **1** | `ledger/c1_baselines_pNN.epilogue.jsonl → secs`, n=60 (4 concurrent trainings on 4 cores, so task seconds = per-training seconds) |
+
+| | 1 thread | 8 threads |
+|---|---|---|
+| min | 7.07 h | 2.79 h |
+| **p50** | **8.33 h** | **4.34 h** |
+| mean | 8.39 h | 4.80 h |
+| max | 9.85 h | 12.20 h |
+
+**Measured speedup: 1.92x by median, 1.75x by mean.** `src/cluster/lanes.py` models
+`CPU_THREAD_SPEEDUP[8] = 2.72`, from an isolated steps/s bench (8-core box, 21.5 → 60.0 steps/s). The
+field value is **~30 % lower**, and the earlier n=2 observation of ~2.03x was closer to the truth than
+the registered constant.
+
+**Why the bench was optimistic:** production nodes are shared 36-core machines. An 8-thread training
+loses memory bandwidth and last-level cache to co-tenants in a way an idle bench cannot show. The
+sequential-execution alternative is arithmetically ruled out: if the packed lane's four trainings ran
+one after another, a 1-thread training would be 8.33/4 ≈ 2.1 h, i.e. *faster* than the 8-thread lane,
+which is impossible.
+
+**Direction of the residual bias, stated:** the packed lane's four trainings share one node's cache,
+so the 1-thread figure is if anything INFLATED, which would make the true speedup **lower** than
+1.92x, not higher. Treat 1.9x as an upper bound.
+
+### 39.2 What it costs — quantified against the registered model, without touching it
+
+`lanes.py` is inside the drift pathspec, so nothing was edited. The constant was monkey-patched in a
+throwaway analysis to price the error:
+
+| rung | modelled 2.72x | field 1.92x | delta |
+|---|---|---|---|
+| 30 | 3.27 d → 08-01 (critical chain) | 4.64 d → 08-02 (critical chain) | **+1.36 d** |
+| 100 … 568 @560 cores | unchanged | unchanged | **0.00 d** |
+| 189 @1,500 cores | 3.61 d (throughput) | 4.64 d (critical chain) | +1.02 d |
+| **568** (either core count) | 26.79 d → 08-24 / 10.00 d → 08-07 | identical | **0.00 d** |
+
+**The critical-chain floor is 3.27 d as modelled and 4.64 d as measured.** The error is real and it is
+bounded: it costs about **1.4 days at the front of the ladder and nothing at the back**, because every
+rung from 100 upward is throughput-bound, where the thread constant does not enter. **No reported
+rung-568 ETA in this record or in any status push is affected.**
+
+### 39.3 What it CONFIRMS — the thread/core split is the right design
+
+The same measurement priced the other direction:
+
+| | core-hours per training |
+|---|---|
+| 1 thread | **8.39** |
+| 8 threads | **38.41** (4.58x more) |
+
+So 8 threads buys 1.75x less latency for 4.58x more core-hours. That is exactly the right trade on the
+**latency-bound** search chain — six serial generations where a generation cannot start until the
+previous one returns, and where idle cores cannot be spent — and exactly the wrong trade on the
+**throughput-bound** ladder. The campaign is configured precisely that way (`--search-threads 8` for
+the chain, `--pack 4 --cores-per-training 1` for the ladder). **The design is confirmed by this
+measurement even as the constant behind it is corrected.**
+
+### 39.4 Registered consequences
+
+1. **`CPU_THREAD_SPEEDUP[8]` should become 1.92 (field), with the 2.72 bench value kept as a comment
+   naming the conditions under which it was true.** `lanes.py` is drift-fenced, so this joins
+   `docs/DEFERRED_FIXES_RUN4.md` as a restart-time change; it is a MODEL INPUT, not a behaviour change
+   — nothing about what the campaign computes moves.
+2. **Any prose quoting a 2.72x thread speedup must be corrected** before it reaches the PDF; the
+   honest sentence is *"a bench measured 2.72x on an idle node; in production, across 740 trainings,
+   it is 1.9x"* — which is a better sentence anyway, because it is ours and it is measured at scale.
+3. The `critical_chain` floor quoted anywhere as **3.27 d** should be quoted as **~4.6 d measured**.
+
+---
+
+## 40. R96 — THE ACTIVATION-SCOPE QUESTION, RESOLVED IN WRITING BEFORE ANY SPEND
+
+Written 2026-07-30 14:55 UTC. Open thread 2 required this to be settled **in writing, before any
+money is spent**, because the conservative reading of the registered clause triples the cost.
+
+### 40.1 The question
+
+R96 registers the optional M2 psychometric module with two axes — **Axis A** (per-model δ-75 JND
+thresholds from a 2AFC fit, plus the fed-delta overlay; ~$8–12) and **Axis B** (the ~100–130-base
+ecosystem census; ~$15–25) — under a single `activation` key whose integrity clause reads *"If
+activated, every estimand above reports in full."* On the conservative reading, activating commits
+**both** axes, ≈**$23–37**, not the ~$10 the module is casually quoted at.
+
+### 40.2 The resolution, and what it rests on
+
+**The conservative reading STANDS. Activation means both axes.** We are not amending the clause.
+
+* The clause's purpose is an **anti-forking guarantee**: it stops anyone reporting the flattering
+  estimands and quietly dropping the rest once results exist. Splitting the axes now would weaken
+  exactly the property that makes the module credible, and it would do so for a **budget** reason —
+  the wrong reason to touch a pre-registration.
+* Amending R96 is not cheap procedurally either: it means **unfreeze → amend → re-freeze → bump
+  `FREEZE_TAG`**, moving an anchor that 1,000+ live records and every status artifact currently cite
+  as `3ca6f01a…`, **while the confirmatory run is executing**. For an OPTIONAL, NOT-ACTIVATED module
+  that is a plainly bad trade.
+* If a future run wants independently-activatable axes, that is a **design change for that run**, made
+  before its freeze. Registered here as such.
+
+### 40.3 The binding constraint nobody had priced: it cannot be BUILT while the run is live
+
+The module is **specified but not built** — no source matches `2afc`, `jnd`, `delta_75` or
+`psychometric`, and the spec itself calls the stimulus builder *"a gate-week build task if
+activated"*. The harness belongs in `scripts/` (beside `scripts/m2_survey.py`), and **`scripts/` is
+inside the drift pathspec**: adding a file there while RUN 4 executes breaks the §3 invariant that has
+held all run. So R96 is **post-campaign-or-restart by construction**, not a switch that can be flipped
+now. This was not stated anywhere before; it decides the calendar question on its own.
+
+### 40.4 The decision rule — dated, outcome-independent, and conditional on the calendar
+
+Recorded **before any R96 datum exists** (nothing built, no stimulus generated, no API call made), so
+it cannot be a forking path:
+
+> **ACTIVATE R96 (both axes) only if ALL of the following hold when the campaign ends:**
+> 1. the confirmatory ladder has reached its terminal rung and H2 is scored — the dissertation's own
+>    artifact comes first, always;
+> 2. **≥ 10 clear days** remain before the 1 Sep submission after the write-up's own critical path,
+>    since the module needs a build, a test, a run and a write-up of its own;
+> 3. **≥ $40** of combined API headroom remains, i.e. the $23–37 range plus margin, with the campaign's
+>    own needs already covered;
+> 4. Tamer records the activation decision and its date, per R96's own write-time clause.
+>
+> **Otherwise: leave it registered-not-activated and SAY SO in the limitations appendix** — a
+> registered, priced, deliberately-declined extension is a strength in a pre-registered study, not a
+> gap. The A5 "rational insensitivity" account remains available as a named ex-ante stance (R76's
+> resolvability anchor already supplies the calibration), stated as an inference rather than a
+> measured threshold, which is exactly how it is currently written.
+
+### 40.5 Why this coupling to §38 matters
+
+Condition 2 is the one the memory-placement lever moves. At today's 560 cores the ladder reaches rung
+568 on **08-24**, leaving ~7 days to submission — condition 2 FAILS and R96 stays dormant. If the
+§38 relaxation lands the ladder on **08-07**, ~24 days remain, and R96 becomes genuinely available.
+**The capacity work and the strongest available Criterion-3 move are therefore the same decision seen
+from two ends**, which is worth knowing before either is judged on its own.
+
+---
+
+## 41. THE OVERDUE NOVELTY SWEEP — RUN 2026-07-30, AND THE CELL SURVIVES WITH A NEW NEAREST NEIGHBOUR
+
+Written 2026-07-30 15:05 UTC. `docs/V2_WRITE_TIME_REGISTRY.md` row 16 sets a **2–3-week cadence** and
+records the last full sweep as **2026-06-28**; it also says one was **due at the freeze** (2026-07-28).
+Both clocks had expired — 32 days — and nobody had noticed, because the sweep is a calendar obligation
+with no alarm attached to it. Run now.
+
+### 41.1 Method
+
+Three targeted searches plus a **first-hand full-text read** of the one hit that mattered (PyMuPDF over
+the actual PDF, 25 pages, 101,883 characters — not a summariser's paraphrase, per the grade-A evidence
+standard). Scope per row 16: the main conjunctive cell, the ELfolio scoop-watch, and the hedged
+"first systematic open-weight replication suite in this lineage" claim.
+
+### 41.2 The new nearest neighbour — GIFT (arXiv 2606.08450)
+
+*"GIFT: LLM-Guided State-Reward Interface for Financial Reinforcement Learning"*, Wu, Zhang et al.,
+June 2026. **This is the closest published work to our cell that has ever appeared, and it did so
+after the last sweep.** Read first-hand, it is:
+
+* an LLM that generates **executable state-reward interfaces** for **PPO** portfolio trading, via three
+  components — Factor-guided State Enhancement, Risk-rule-guided Reward Shaping, Diagnostic-guided
+  Refinement — with the interface frozen before evaluation and no LLM queries at test time;
+* evaluated on rolling windows, Dow-30-centred, against Pure PPO / Fixed Indicators / Fixed Reward /
+  Fixed State-Reward / Free-form LLM baselines;
+* aimed explicitly at **improving out-of-sample risk-adjusted performance**.
+
+**Term counts over the real text, which is what settles the overlap question:**
+
+| term | hits |
+|---|---|
+| `placebo` | **0** |
+| `shuffl` / `derange` | **0 / 0** |
+| `pre-regist` / `preregist` | **0 / 0** |
+| `CVaR` / `conditional value` | **0 / 0** |
+| `null result` | **0** |
+| `ablation` | 7 — all **component removal** (drop DGR / FSE / RRS), i.e. engineering ablations |
+| `PPO` | 194 |
+
+### 41.3 Why the cell survives — and the differences are the substantive ones
+
+| | GIFT | ours |
+|---|---|---|
+| what varies | **state AND reward together** (FSE + RRS + DGR) | **only the reward**, by construction — the identification principle |
+| the manipulation | none on the information fed to the LLM | the fed block itself: `distributional` / `scalar` / `scalar_cvar5` / `placebo` / `placebo_shuffled` |
+| controls | component removal | a **placebo** with neutral labels and a **deranged-label** control, verified 102/102 |
+| risk object | Sharpe / Sortino / Calmar | **CVaR-5 % as a co-primary** (H2-Tail), plus the tail diagnostic set |
+| epistemics | exploratory, performance-framed | **pre-registered**, with a registered bounded-effect null, an effect-blind execution floor (R115) and matched budgets |
+| agent / data | PPO, Dow-30, rolling windows | SAC + PopArt, survivorship-free PIT `univ5` (953 RICs), sealed 2020-03-30 → 2026-06-30 |
+| model panel | one designer LLM | **eleven** models climbing one seed ladder in lockstep (R101), a deliberate capability gradient |
+
+**GIFT asks whether an LLM-designed interface makes money. We ask whether the LLM's authored reward
+responds to the tail information it is shown.** Those are different questions, and GIFT cannot answer
+ours: by moving state and reward together it forecloses the attribution our whole design exists to
+make. It is, in other words, the strongest available *motivation* for our identification constraint.
+
+**Consequences, registered:**
+1. **GIFT must be cited and positioned in CH2** — as the nearest neighbour and as the concrete instance
+   of "the field is already having LLMs write reward code for portfolio RL, without an identification
+   strategy". Citing it strengthens the framing; omitting it would look like we missed it.
+2. It joins **ELfolio** on the scoop-watch. Neither is a scoop.
+3. One sentence for CH7: the practitioner-facing contrast — a system paper optimises the interface, a
+   controlled study tells you which channel the effect came through.
+
+### 41.4 The rest of the sweep
+
+* **ELfolio** (*Intelligent Computing*) — status unchanged: evolutionary strategy generation for
+  portfolio optimisation, not reward-code authorship for an RL agent, no information manipulation.
+* **AlgoEvolve** (2026) — LLM-driven evolutionary search over *trading strategies*, performance-framed
+  (+23 % Sharpe claimed). Adjacent, not overlapping; one line in CH2 at most.
+* The **tail-aware LLM-RL** line (TACO, arXiv 2607.07976; RiskPO; ARES) is about credit assignment
+  **inside LLM post-training** — same vocabulary, different object. No overlap.
+* **Tail-Safe Hedging** (arXiv 2510.04555) — risk-sensitive RL with a white-box safety layer, **no LLM
+  in the reward-authoring loop**.
+* **No** pre-registered study of LLM reward authorship with placebo/derangement controls was found.
+* **No** open-weight multi-model replication suite in this lineage was found → the hedged claim keeps
+  its hedge and **survives**.
+
+### 41.5 Cadence
+
+**This sweep is dated 2026-07-30 and resets row 16's clock; the next is due ~2026-08-20, and the
+pre-submission sweep remains MANDATORY and separate.** The lesson worth keeping: the cadence expired
+by 32 days because it lives in a registry row nothing checks. It is now also named in the handoff's
+open threads, which is where a session actually looks.
+
+---
+
+## 42. LOOSE ENDS CLOSED IN THE SAME PASS
+
+### 42.1 Register item L carried the retracted benchmark window — a seventh §36 leak
+
+Item L read *"factor ladder forward-fills 21 of **1,631** test sessions"*. **1,631 is the window §36
+retracted**; the agents trade **1,571**. Checked rather than assumed: the extrapolation sits at the END
+of the window (French has not published past 2026-05-29, and 2026-05-29 → 2026-06-30 is ≈21 sessions),
+which both windows share, so **the count 21 is invariant and only the denominator moved: 1.29 % →
+1.34 %**. Item L is corrected in place with the reasoning attached, and any factor-ladder table in the
+PDF must use the 1,571-session window. §36 reconciled six files; this is the seventh, found by grepping
+`1631` across `docs/` and `paper/` rather than trusting that the earlier sweep was exhaustive.
+
+The other `1631` hits are correctly quarantined: three carry an explicit ⚠ SUPERSEDED banner, one is
+the P7 process-error entry (a dated record of what was measured at the time — history, not a live
+claim), and the rest are in dated handoff briefs.
+
+### 42.2 Differential arm attrition is GROWING, and its direction has flipped
+
+`docs/ops/arm_coverage.py`, three readings today:
+
+| time (UTC) | rejects by arm | spread |
+|---|---|---|
+| 13:40 | scalar 37 · distributional 36 · placebo 27 · placebo_shuffled 25 · scalar_cvar5 23 | 14 |
+| 14:10 | scalar 38 · distributional 36 · placebo_shuffled 28 · placebo 27 · scalar_cvar5 25 | 13 |
+| **14:55** | **distributional 42** · scalar 38 · placebo_shuffled 29 · placebo 27 · scalar_cvar5 25 | **17** |
+
+Two things matter. **The spread is widening** (13 → 17 in under an hour of campaign time), so the
+equal-*k* sensitivity analysis registered at §9 item 4 is not a formality — it will carry real weight.
+And **the sign of the bias has flipped**: §26.3 recorded placebo (a CONTROL) leading, which biases
+*toward* a false positive for our hypothesis; `distributional` — the treatment arm — now leads, which
+biases *against* it. **Neither direction is stable, which is precisely why the remedy is a
+pre-committed sensitivity analysis and not a narrative.** Still no design change: re-authoring a reject
+would alter the registered candidate budget mid-run.
+
+### 42.3 A12 is now a ten-minute account action, not an open project
+
+`docs/A12_DEPOSIT_PACKAGE.md` assembles the whole deposit: the registered obligation verbatim, the nine
+hash-bound files with their **per-file sha256 taken from the signed tag**, a one-command
+`git archive` build (run and verified today, rc=0, nine files), paste-ready Zenodo/OSF metadata, the
+click path, and an explicit do-not-upload list (the licensed Refinitiv panel above all). No bound file
+is duplicated into the repo — the bundle is produced from the tag, so what is deposited is provably the
+frozen design. **The zip's own hash is deliberately NOT advertised as the anchor** (`git archive` is not
+byte-stable across git versions); the per-file hashes and the canonical freeze hash are.
+
+### 42.4 Health at the same instant
+
+12/12 lines ALL ARMS FULL · **1,014 records** · **$22.0955** · six guards green except the acknowledged
+`truncation` (still **2** of 1,336 calls — no third model, so its re-triage trigger has not fired
+again) · `freeze --check` RC=0, hash MATCHES · **drift 0** · 0 transport timeouts · per-model reject
+rates all at or below their own baselines except the registered `qwen3_5_9b` bottom anchor (87 %).

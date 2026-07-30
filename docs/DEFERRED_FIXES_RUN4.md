@@ -379,9 +379,52 @@ does `qdel`).
 
 ---
 
+## 9. `CPU_THREAD_SPEEDUP[8]` IS A BENCH NUMBER; PRODUCTION SAYS 1.92x (found 2026-07-30)
+
+**File:** `src/cluster/lanes.py` (`CPU_THREAD_SPEEDUP = {1: 1.00, 2: 1.57, 4: 2.23, 8: 2.72, 16: 2.11}`)
+**Evidence:** record §39 - 60 packed 1-thread baseline tasks (p50 8.33 h) against 680 8-thread search
+records (p50 4.34 h) on the SAME 400,000-step training: **1.92x by median, 1.75x by mean**, versus the
+modelled 2.72x taken from an isolated steps/s bench.
+
+**Now:** the ladder model's `critical_chain` term is computed with 2.72, making the floor 3.27 d.
+
+**Becomes:** the field value, with the bench value preserved as a comment naming the conditions under
+which it held.
+
+```python
+#: 2026-07-30 (record §39): the 2.72x came from an ISOLATED bench (8-core box, 21.5 -> 60.0 steps/s).
+#: In production, across 740 timed trainings on shared 36-core nodes, 8 threads is **1.92x by median /
+#: 1.75x by mean** - co-tenants take memory bandwidth an idle bench never loses. The packed lane's own
+#: four-way sharing biases the 1-thread figure UP, so 1.92 is an upper bound. Bench values kept for
+#: provenance: {1: 1.00, 2: 1.57, 4: 2.23, 8: 2.72, 16: 2.11}.
+CPU_THREAD_SPEEDUP = {1: 1.00, 2: 1.45, 4: 1.75, 8: 1.92, 16: 1.55}   # field-measured at 8; others scaled
+```
+
+**Falsifiable test** (must FAIL against the current code first):
+
+```python
+def test_chain_thread_speedup_is_the_field_value_not_the_bench_value():
+    """The ladder model must use the production speedup, not the idle-node bench.
+
+    Regression for record §39: at 2.72x the critical-chain floor reports 3.27 d; the measured 1.92x
+    puts it at 4.64 d. Quoting the optimistic floor understates the front of the ladder by ~1.4 days.
+    """
+    assert 1.8 <= lanes.CPU_THREAD_SPEEDUP[8] <= 2.0
+    p = lanes.plan_lanes(rung=30, cpu_cores=100_000, chain_threads=8)
+    floor = float(p["makespan_days"] if isinstance(p, dict) else p.makespan_days)
+    assert 4.3 <= floor <= 5.0, f"critical-chain floor {floor:.2f} d looks like the bench number"
+```
+
+**⚠ SCOPE:** this is a MODEL INPUT, not a behaviour change - nothing the campaign computes moves, only
+what we PREDICT about it. No rung-568 ETA changes (rungs 100+ are throughput-bound); the correction
+costs ~1.36 d at rung 30 and at the early rungs when cores are plentiful. Any prose quoting "2.72x" or
+a "3.27 d critical-chain floor" must be corrected before it reaches the PDF.
+
+---
+
 ## Applying, at the next restart
 
-1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, and the §38 memory sizing - EIGHT items), each with its falsifiable test proven to FAIL against the current code first;
+1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, the §38 memory sizing and the §39 speedup constant - NINE items), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;
