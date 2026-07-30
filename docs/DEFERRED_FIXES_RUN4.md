@@ -247,11 +247,71 @@ STOPS the line at the gate until a human clears it. That is the correct default 
 but it turns a silent pass into a hard stop — so it must land together with the host-fencing mechanism
 (`--exclude-hosts`, already used for `node-d00b-024`) so the stop is rare rather than routine.
 
+
+## 7. D17 — the safe-default must not clear the reward's state (found 2026-07-30)
+
+**Severity: MEDIUM for the science, HIGH for the instrument.** It does not touch any confirmatory
+result — R115 excludes every affected record, effect-blind, and no breach sits on line `c1` — but it
+biases the per-model authoring-reliability measurement, which is a *reported* result, and it makes a
+recoverable authoring defect unrecoverable.
+
+**The defect.** `safe_call` (`src/sandbox/executor.py:779`) substitutes
+`(SAFE_DEFAULT, {}, None)` on failure. The third element is the reward's own `reward_state`, so every
+failure also *erases the reward's memory*. A stateful reward with a cold-start branch is then pinned in
+a limit cycle — cold-start call succeeds, main-path call raises, state cleared, repeat — for the whole
+400,000-step budget. Full mechanism, evidence and archive-wide exposure: execution record §37;
+disclosed as limitation B.8.7; probe `docs/ops/probe_safe_default_cycle.py`.
+
+Measured: 2 of the 9 breaching records are rewards whose main path is *sound* and whose only defect is
+a one-step warm-up boundary. With state preserved they fail on 1.0–1.75 % of calls; as shipped they
+fail on 50 %.
+
+**The fix.** On failure, hand the reward back the state it had going in, rather than `None`:
+
+```python
+# in safe_call, at the except site
+except Exception:
+    _LAST_CALL_FAILED = True
+    _SAFE_DEFAULT_COUNT += 1
+    prior = args[4].get("reward_state") if len(args) > 4 and isinstance(args[4], dict) else None
+    return (SAFE_DEFAULT, {}, prior)
+```
+
+**Why the prior state and not `None`.** A failed call produced *no* new state, so the last valid state
+is the one that went in — returning it is the semantically accurate choice, and it lets a reward whose
+defect was transient recover on the next call. `None` asserts something stronger and false: that the
+reward has no usable history.
+
+**The counter-argument, and why it does not win.** Preserving state could propagate a corrupt state
+forever, so a reward that poisons its own state would fail on every subsequent call instead of
+alternating. That is the *correct* outcome: it reports 100 % rather than 50 %, which is the honest
+severity, and R115 excludes it either way. The shipped behaviour does not avoid that failure — it
+merely disguises it as a 50 % figure that reads like partial success.
+
+**Do NOT apply live.** `src/` is drift-fenced for the duration of the confirmatory run and
+`safe_call`'s substitution semantics sit inside the frozen determinism envelope. Changing a
+reward-evaluation semantic mid-campaign would invalidate every record written before the change.
+
+**Tests to write with the fix** (each must be shown to FAIL against the pre-fix code):
+
+1. A reward that raises only on its second call, given a cold-start branch, reaches its third call
+   under the fix and does not under it — asserting the failure count is 1, not `n_steps / 2`.
+2. A reward that poisons its own state reports ~100 % defaults under the fix, not ~50 % — the
+   severity-honesty property.
+3. `reward_state` identity: after a failure the object handed to the next call `is` the object handed
+   to the failed call.
+
+**Also fix at the same time — the validation blind spot.** `validate_once` runs the reward exactly
+once, from a cold-start state, i.e. precisely the call that succeeds in this cycle. It cannot see the
+defect *by construction*. Extend it to call the reward at least three times, threading the returned
+state, so a state-transition failure surfaces at validation rather than after an 8-hour training. This
+is the cheaper half of the fix and catches the whole class.
+
 ---
 
 ## Applying, at the next restart
 
-1. apply 1 → 3 above, each with its falsifiable test proven to FAIL against the current code first;
+1. apply EVERY fix above (D12, preflight headroom, D14, D15, D16, D17), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;

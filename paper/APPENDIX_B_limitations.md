@@ -206,6 +206,15 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   directional expectations only; no prototype number appears anywhere in the results or informs any
   confirmatory conclusion.
 
+## B.7 Future work (from the disclosed limitations)
+A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a
+corner-reaching action parameterisation (B.4.4); a second, open-weights model family and a second universe/period
+(B.3.1, B.4.1); a reward-distance
+(EPIC/STARC beyond the reported differential) deep-dive, Quality-Diversity search diversity, and a
+hierarchical-Bayesian re-analysis. (The Model-Confidence-Set comparison, the triangulated
+Bayesian-and-frequentist null evidence, mediation, and the regime-conditional and synthetic-null exhibits
+are BUILT instruments reported in Chapter 6 — they are results slots, not future work.)
+
 ## B.8 Executed-run limitations (RUN 4, added 2026-07-30 from the live execution record)
 
 These are limitations of the run that was *executed*, discovered during execution and disclosed rather
@@ -252,11 +261,36 @@ than absorbed. Each states its direction of bias where known.
   Registered as a deferred code fix; disclosed here because the gate currently promises more than it
   verifies.
 
-## B.7 Future work (from the disclosed limitations)
-A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a
-corner-reaching action parameterisation (B.4.4); a second, open-weights model family and a second universe/period
-(B.3.1, B.4.1); a reward-distance
-(EPIC/STARC beyond the reported differential) deep-dive, Quality-Diversity search diversity, and a
-hierarchical-Bayesian re-analysis. (The Model-Confidence-Set comparison, the triangulated
-Bayesian-and-frequentist null evidence, mediation, and the regime-conditional and synthetic-null exhibits
-are BUILT instruments reported in Chapter 6 — they are results slots, not future work.)
+- **B.8.7 The safe-default fallback resets reward state, turning a transient authoring bug into a
+  permanent one — and the fallback FRACTION is not a severity measure.** On failure `safe_call`
+  substitutes `(SAFE_DEFAULT, {}, None)`, the `None` including the reward's own state. A stateful
+  reward with a cold-start branch therefore enters a limit cycle: the cold-start call succeeds and
+  returns state, the next call takes the main path and raises, the harness clears the state, and the
+  pattern repeats indefinitely. The observed fraction is set by the reset period —
+  `period = warm-up calls + 1` — and **not** by the severity of the defect, which is why seven
+  records spanning **five different models, three arms and five different exceptions**
+  (`UnboundLocalError`, ambiguous truth value, non-finite, `ZeroDivisionError`, `IndexError`) all
+  report a bit-identical **199,932 / 400,000 = 49.983 %**, and one with a three-call warm-up reports
+  exactly **133,333 / 400,000 = 33.333 %**. Two consequences, both disclosed rather than repaired,
+  because `src/` is drift-fenced for the duration of the confirmatory run: **(i)** 49.98 % must never
+  be read as "trained half on a valid reward" — such a reward never once executed its intended logic;
+  **(ii)** where the *only* defect is at the warm-up boundary, the harness converts a one-step
+  transient into a permanent 50 % failure and biases that model's measured authoring reliability
+  **downward**. Replay of all nine breaching records (`docs/ops/probe_safe_default_cycle.py`)
+  classifies **2 as harness-trapped** (`haiku_4_5`, `nemotron_3_super` — 1.0–1.75 % failure once
+  state is preserved), **6 as genuinely broken** (98–100 %), and **1 inconclusive** (its failure does
+  not reproduce under synthetic returns). The probe uses synthetic returns and a random policy, so the
+  counterfactual fractions are indicative rather than the campaign's own; what it establishes firmly
+  is the cycle mechanism, which reproduces the archived fractions to within 0.08 pp. Direction of
+  bias: **against** the affected models — it understates their authoring reliability. No confirmatory
+  result is affected: R115 excludes all nine from winner eligibility, effect-blind, and **zero
+  breaches sit on the core confirmatory line**. Deferred fix D17.
+
+- **B.8.8 The R115 execution floor is a knife-edge for one record.** Of 979 scored records, 935 are
+  entirely clean, 29 fall below 1 %, six sit in the 1–10 % band and **are scored**, and nine breach.
+  The worst sub-floor record, `qwen3_5_9b/placebo/placebo-g2-c2`, sits at **39,986 / 400,000 =
+  9.9965 %** — **14 calls** below exclusion. The floor is a pre-registered, effect-blind threshold and
+  therefore stands as written; the honest disclosure is that a threshold this close to a record makes
+  that one candidate's eligibility arbitrary in practice, and a sensitivity analysis re-running the
+  selector at floors of 5 % and 20 % is reported alongside the headline.
+

@@ -127,7 +127,7 @@ appendices and the abstract are all excluded from the 10,000).
 | A1 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_literature_positioning.md`.** **Literature positioning matrix** — neighbours × dimensions (who authors the reward, what the feedback contains, agent fixed?, risk-sensitive?, preregistered?), our row last with the empty cells filled | converts the novelty claim from prose into a three-second visual; makes the gap undeniable | **free** |
 | A2 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_design_decisions.md`.** **Design decisions table** — choice / alternatives considered / why / what it costs | Criterion 2 is titled *reasoning to answer them*; a justified method with its cost visible is what "exemplary" means | **free** |
 | A3 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_scale_and_difficulty.md`.** **Scale-and-difficulty appendix table** — components, tests, models, trainings, seed re-runs, campaign lines, pipeline stages, off-the-shelf vs written | Criterion 3 is normalised *given difficulty*; a marker cannot weight difficulty they cannot see | **free** |
-| A4 | ⚠ **BLOCKED ON §36 UNTIL REWRITTEN — see the note below the table.** **Numbered contributions with evidence attached**, and the **turnover result promoted to a named contribution** with its own results section | gives the significance marker something to point at; §29 now makes it a like-for-like, positive, counter-intuitive, reproducible sealed-test result | low |
+| A4 | ✅ **DELIVERED 2026-07-30 → `paper/sections/CH1_contributions.md`, written in the §36-CORRECTED form (see §6).** **Numbered contributions with evidence attached**, and the **turnover result promoted to a named contribution** with its own results section | gives the significance marker something to point at; §29 now makes it a like-for-like, positive, counter-intuitive, reproducible sealed-test result | low |
 | A5 | **Lead with the preregistration-absence limb** of the originality claim | the band says *unquestionable*; "no preregistration anywhere in the automated-reward-design literature" is a claim about a PRACTICE — verifiable, and undefeatable by naming an adjacent paper. Strictly stronger than the empty-cell claim, which is disputable by construction | low |
 | A6 | **Quality-control-record appendix** — the four launches, ~115 amendments and the defect log, framed analytically as the machinery that caught errors *before* they reached confirmatory data | same facts, opposite effect; presented chronologically they read as a troubled project | low |
 | A7 | **RQ stated identically three times** (boxed in intro, head of methodology, answered verbatim in conclusion) | Criterion 2 marks legibility of purpose first | trivial |
@@ -178,7 +178,7 @@ instruction, and now with three weeks of slack instead of one day.
 
 ---
 
-## 6. ⚠ THE FEEDBACK'S NUMBERS PREDATE RECORD §36 — A4 MUST NOT BE WRITTEN AS SPECIFIED
+## 6. ⚠ THE FEEDBACK'S NUMBERS PREDATE RECORD §36 — A4 WAS NOT WRITTEN AS SPECIFIED [RESOLVED 2026-07-30]
 
 Added 2026-07-30 after the benchmark-window correction.
 
@@ -213,6 +213,14 @@ That is a **better** contribution claim than "beats the market": it is counter-i
 record. Any figure it quotes must be re-derived from the records before it enters the PDF, per
 analysis-time obligation 8 (windows come from `record.metrics.test_returns`, never a panel date filter).
 
+**RESOLUTION (2026-07-30).** A4 was subsequently written in the corrected form above and delivered as
+`paper/sections/CH1_contributions.md`. Verified by grep before marking it delivered: the retracted
+figures (`0.817`, `+122`, `0.773`, `+166 per cent`) appear in **none** of the new artefacts except as
+explicitly banned strings in the presentation checklist, and C3 states the window as
+`2020-03-30 -> 2026-06-30` with the corrected `+1.283` comparator.
+
+---
+
 
 ---
 
@@ -223,14 +231,14 @@ analysis-time obligation 8 (windows come from `record.metrics.test_returns`, nev
 | A1 literature positioning matrix | ✅ delivered 2026-07-30 | `paper/tables/T_literature_positioning.md` |
 | A2 design decisions with alternatives + cost | ✅ delivered 2026-07-30 | `paper/tables/T_design_decisions.md` |
 | A3 scale and difficulty | ✅ delivered 2026-07-30 | `paper/tables/T_scale_and_difficulty.md` |
-| A4 numbered contributions | ⚠ framing rewritten in §6; table itself pending | — |
+| A4 numbered contributions | ✅ delivered 2026-07-30 — C1–C4 evidenced, C5 marked PENDING; carries the §36-corrected figures (verified: no retracted number present) | `paper/sections/CH1_contributions.md` |
 | A5 lead with the pre-registration limb | ✅ built into A1's "what the matrix shows" §2 | `T_literature_positioning.md` |
 | A6 quality-control record appendix | DELIVERED 2026-07-30 | `paper/appendices/A_quality_control_record.md` |
-| A7 RQ stated identically 3× | pending (write-time) | — |
-| A8 null-is-the-finding p1 + results orientation | pending (write-time) | — |
+| A7 RQ stated identically 3× | ✅ delivered 2026-07-30 — canonical form taken **verbatim** from the existing CH1 §1.2, not reformulated | `paper/sections/RQ_canonical_and_framing.md` |
+| A8 null-is-the-finding p1 + results orientation | ✅ delivered 2026-07-30 — plus the three unfamiliar ideas taught in one sentence each | `paper/sections/RQ_canonical_and_framing.md` |
 | A9 wider-context subsection | DELIVERED 2026-07-30 - **rebuilt on MEASURED findings; see the departure note in section 8** | `paper/sections/CH7_wider_context.md` |
 | A10 Mayoian severity into the theory chapter | DELIVERED 2026-07-30 | `paper/sections/CH3_severity_paragraph.md` |
-| A11 faultless-data presentation pass | pending (needs the figures to exist) | — |
+| A11 faultless-data presentation pass | ✅ delivered 2026-07-30 — the checklist itself; **walk it once the figures are final** | `paper/PRESENTATION_CHECKLIST.md` |
 | A12 public DOI deposit + preprint | pending — **needs Tamer** (an account action) | — |
 
 **Two things A2 and A3 added that the feedback did not ask for, and which are worth more than what it
@@ -277,3 +285,30 @@ Lakens et al. (2018) and Campbell & Gustafson (2018). The feedback's *instructio
 belongs in the **theory chapter**, because Criterion 1 marks original interpretation from the literature
 review, references and discussion rather than from a protocol appendix - but the artefact was written from
 R61's actual text rather than reconstructed from a comment.
+
+---
+
+## 9. THREE ARTEFACTS THE FEEDBACK ASKED FOR THAT ALREADY EXISTED
+
+Checked before building, which changed the work. **None was rebuilt; two were extended.**
+
+| the feedback asks for | already existed | action taken |
+|---|---|---|
+| a notation table | `paper/NOMENCLATURE.md` — 52 lines, symbols + definitions + first use + an explicit sign convention | **left alone**; it already satisfies the requirement |
+| a limitations register | `paper/APPENDIX_B_limitations.md` — 216 lines, grouped by validity type, each item with direction of bias and mitigation | **extended** with §B.8, the six executed-run limitations it was missing entirely |
+| a figure/table manifest | `paper/FIGURE_TABLE_MANIFEST.md` — numbered, with NOW/CAMPAIGN status | **extended** with T10–T17 and S1–S4 |
+
+Rebuilding any of them would have been a defect rather than diligence: expanding what needs no expansion
+is precisely the failure the LEAVE-ALONE discipline exists to prevent. The *gaps* in them were real, and
+are now closed.
+
+## 10. WHAT REMAINS, AND WHO OWNS IT
+
+| item | owner | note |
+|---|---|---|
+| **C5 — the confirmatory answer** | the campaign | the slot is intentionally empty until the sealed test is scored; listed so the structure is visible, not to bank a result in advance |
+| **A12 — public OSF/Zenodo DOI deposit** | **Tamer** | a *registered* freeze-day obligation (`freeze_day_checklist_additions.public_deposit`) that appears UNMET; an account action, and the cheapest available answer to the rubric's publishability yardstick |
+| the psychometric module (R96) | **Tamer's dated decision** | specified but **NOT built**; its all-or-nothing clause may commit BOTH axes (~$23–37, not $10) — resolve in writing before any spend |
+| the single carrying figure | contingent | psychometric overlay if the module lands; otherwise the named fallback (baseline Sharpe distribution ordered by turnover), buildable from already-archived data |
+| walking the presentation checklist | write-time | once, when the figures are final — an unticked box is a defect, not a preference |
+| the ~5,900 words of prose that need no results | write-time | intro / literature / data / methodology; the tables above now carry the comparisons, so the prose does not have to |

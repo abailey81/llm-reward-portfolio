@@ -3925,3 +3925,131 @@ a defect surfaced from a reconciliation failure rather than from inspection.
 
 **Registered as an analysis-time obligation:** every benchmark in the write-up derives its window from
 `record.metrics.test_returns`, and the reported window is stated as `2020-03-30 → 2026-06-30, n=1571`.
+
+
+---
+
+## 37. THE 49.983 % THAT APPEARED FIVE TIMES — A FAIL-SAFE THAT MANUFACTURES A LIMIT CYCLE
+
+**Found 2026-07-30, live, by noticing an impossible coincidence rather than by any alarm firing.**
+
+### 37.1 What was noticed, and why it could not be chance
+
+`science_watch.py` listed nine R115 floor breaches. Seven of them read **exactly the same fraction**:
+
+| unit | defaults / calls | fraction |
+|---|---|---|
+| `qwen3_6_27b/scalar/scalar-g1-c4` | 199,932 / 400,000 | 49.9830 % |
+| `qwen3_6_27b/scalar/scalar-g2-c4` | 199,932 / 400,000 | 49.9830 % |
+| `qwen3_6_27b/placebo_shuffled/placebo_shuffled-g0-c4` | 199,932 / 400,000 | 49.9830 % |
+| `qwen3_5_9b/scalar/scalar-g3-c2` | 199,932 / 400,000 | 49.9830 % |
+| `qwen3_5_9b/distributional/distributional-g3-c3` | 199,932 / 400,000 | 49.9830 % |
+| `nemotron_3_super/distributional/distributional-g4-c3` | 199,932 / 400,000 | 49.9830 % |
+| `haiku_4_5/distributional/distributional-g1-c3` | 199,932 / 400,000 | 49.9830 % |
+| `deepseek_v4_pro/scalar_cvar5/scalar_cvar5-g0-c4` | 133,333 / 400,000 | 33.3332 % |
+| `kimi_k3/distributional/distributional-g2-c2` | 399,912 / 400,000 | 99.9780 % |
+
+**Five different models, three different arms, one bit-identical integer.** Independent authoring
+defects do not agree to the call. So the fraction was not being set by the defect — something shared
+was setting it, and the only shared thing is *our* harness. Per the standing rule, a surprising
+number is a claim about our own code before it is a claim about the world.
+
+### 37.2 The mechanism, established causally rather than by inspection
+
+Two plausible hypotheses were killed by evidence before the right one was found, which is worth
+recording because both were reasonable:
+
+- **"`reward_state` is shared across vectorised sub-envs, so interleaving corrupts it"** — this would
+  have explained 1/2 and 1/3 neatly (`n_envs` of 2 and 3, and CLAUDE.md records exactly those pack
+  widths). **REFUTED:** `src/env/portfolio_env.py:222` holds `reward_state` as a per-instance
+  attribute, so state is threaded correctly per sub-env.
+- **"the vector width differs between the 1/2 and the 1/3 records"** — **REFUTED:** all four sampled
+  records carry a byte-identical `determinism_env` (CPU lane, empty `CUDA_VISIBLE_DEVICES`, omp=8).
+
+The actual cause is in `safe_call` (`src/sandbox/executor.py:779`). On failure it substitutes
+**(SAFE_DEFAULT, empty components, None)** — and that `None` is *the reward's own state*. So for any
+stateful reward with a cold-start branch:
+
+    call 0: state=None -> cold-start branch -> SUCCEEDS, returns state
+    call 1: state set  -> main path         -> RAISES
+            harness substitutes             -> state := None
+    call 2: state=None -> cold-start branch -> SUCCEEDS      ... forever
+
+**period = (calls needed to leave the cold-start branch) + 1.** A two-call warm-up gives 1/2; the
+deepseek reward's `if n < 3:` gives 1/3. The fraction is a property of the *reset period*, not of the
+defect — which is precisely why five unrelated exceptions produce one number:
+
+| model | the actual exception |
+|---|---|
+| `qwen3_6_27b` | `UnboundLocalError: cannot access local variable 'turnover_count'` |
+| `qwen3_5_9b` | `ValueError: truth value of an array with more than one element is ambiguous` |
+| `haiku_4_5` | non-finite total — `np.std(ddof=1)` on a one-element downside slice returns `nan` |
+| `nemotron_3_super` | `ZeroDivisionError: float division by zero` |
+| `deepseek_v4_pro` | `IndexError: invalid index to scalar variable` (slicing `np.log(0.8)`) |
+
+**Causal confirmation.** `docs/ops/probe_safe_default_cycle.py` replays each archived reward twice —
+once with the shipped reset, once preserving state across failure. The shipped path reproduces the
+archived fractions to within **0.08 pp** and shows the literal alternation `.X.X.X.X`; preserving
+state collapses it. The reset is therefore the cause, not a correlate.
+
+### 37.3 The finding that matters — a fail-safe that makes a transient defect permanent
+
+| record | shipped | state preserved | verdict |
+|---|---|---|---|
+| `haiku_4_5/distributional-g1-c3` | 50.00 % | **1.75 %** | **TRAPPED** — harness-amplified |
+| `nemotron_3_super/distributional-g4-c3` | 50.00 % | **1.00 %** | **TRAPPED** — harness-amplified |
+| `qwen3_5_9b/distributional-g3-c3` | 50.00 % | 99.00 % | genuinely broken |
+| `qwen3_6_27b` (three records) | 50.00 % | 99.00 % | genuinely broken |
+| `deepseek_v4_pro/scalar_cvar5-g0-c4` | 33.25 % | 98.00 % | genuinely broken |
+| `kimi_k3/distributional-g2-c2` | 100.00 % | 100.00 % | genuinely broken |
+| `qwen3_5_9b/scalar-g3-c2` | 0.00 % | 0.00 % | **INCONCLUSIVE** — does not reproduce |
+
+For `haiku_4_5` and `nemotron_3_super` the reward's main path is **sound**; the only defect is at a
+one-step warm-up boundary (a `ddof=1` standard deviation of a single element; a division by a value
+that is zero only at `n=2`). Because the harness clears state on every failure, those rewards can
+never *reach* `n=3` — they are trapped at the boundary for all 400,000 steps. **A fail-safe designed
+to contain a bad reward converted a nearly-correct reward into a permanently broken one.**
+
+**⚠ SELF-CORRECTION.** My first classifier labelled `qwen3_5_9b/scalar-g3-c2` "TRAPPED" purely because
+its preserved fraction fell below the floor — but its *shipped* fraction was also 0.00 %, i.e. the
+failure never reproduced under synthetic returns, so that record says nothing either way. The probe now
+requires the shipped failure to reproduce before it classifies, and reports INCONCLUSIVE otherwise.
+The counts are **2 trapped / 6 broken / 1 inconclusive**, not 3 / 6.
+
+### 37.4 Scope of exposure across the whole archive
+
+| safe-default fraction | records | status |
+|---|---|---|
+| exactly 0 | **935** | clean |
+| 0 < f < 1 % | 29 | scored |
+| 1 % to under 10 % | **6** | **scored — these enter the science** |
+| 10 % or more | 9 | R115-excluded, effect-blind |
+
+**Zero breaches sit on the core confirmatory line `c1`.** The worst sub-floor record,
+`qwen3_5_9b/placebo/placebo-g2-c2`, is at **39,986 / 400,000 = 9.9965 %** — **14 calls** below
+exclusion. That knife-edge is disclosed (B.8.8) with a 5 %/20 % floor sensitivity analysis; the floor
+itself is pre-registered and effect-blind, so it stands as written.
+
+### 37.5 What was NOT done, deliberately
+
+**No code was changed.** `src/` is drift-fenced for the duration of the confirmatory run — the
+invariant `git diff --name-only b9e6df5 HEAD -- src scripts config prompts` must stay empty — and
+`safe_call`'s substitution semantics are part of the frozen determinism envelope. Altering a
+reward-evaluation semantic mid-campaign would invalidate every record written before the change. This
+is therefore a **disclosed limitation (B.8.7) plus a deferred fix (D17)**, not a live repair.
+
+### 37.6 The three consequences for the write-up
+
+1. **The safe-default fraction is not a severity measure, and must never be reported as one.**
+   "49.98 % fallback" reads as *half the reward worked*. It means the opposite: the reward never once
+   executed its intended logic. Any prose treating the fraction as a proportion of success is wrong.
+2. **Per-model authoring reliability is biased downward for warm-up-sensitive rewards.** Two of the
+   nine breaching records belong to models whose code was essentially correct. The bias runs *against*
+   the affected models, so the reliability figures for `haiku_4_5` and `nemotron_3_super` are
+   conservative — the safe direction for our own claims, and it must still be stated.
+3. **It is a genuine, reportable mechanism result about LLM-in-the-loop harness design.** A
+   containment fail-safe interacted with an authored warm-up branch to produce a stable limit cycle
+   that no single-step validation could detect: `validate_once` runs the reward *once*, from a
+   cold-start state — which is exactly the call that succeeds. The defect is invisible to one-shot
+   validation **by construction**. That belongs in CH7's practitioner's checklist: *validate a
+   stateful reward across a state transition, never on a single cold call.*

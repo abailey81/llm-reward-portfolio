@@ -117,11 +117,15 @@ def main(argv: list[str]) -> int:
     print("\n--- SCORED-RECORD INVARIANTS ---")
     print(f"  records whose train_safe_call_count != 400,000 : {steps_bad}")
     print(f"  R115 floor breaches (>=10% safe-default)        : {len(r115)}")
-    for st, ar, rid, f in r115[:8]:
+    # Print EVERY breach. A cap here silently hid the 9th breach on 2026-07-30 while the count
+    # line said 9 — and a hidden breach could have been on the CORE confirmatory line, which is
+    # the one place it would change a scientific conclusion. If a cap is ever reintroduced, it
+    # MUST report how many rows it dropped.
+    for st, ar, rid, f in r115:
         line = "c1(CORE)" if st == "search" else st.replace("search_leg_", "")
         print(f"      {line}/{ar}/{rid}  {f:.2%}")
     print(f"  impossible/non-finite scores                    : {len(impossible)}")
-    for s in impossible[:5]:
+    for s in impossible:
         print(f"      {s}")
 
     # --- Does any breach BIND? (the only R115 fact that changes a scientific conclusion) ---------
