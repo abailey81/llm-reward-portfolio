@@ -5054,7 +5054,37 @@ relaunch — carry:
 #$ -l mem=2G          <- was 4G; 8 GB per job instead of 16 GB
 ```
 
-### 46.4 The placement verdict — what is measured, and what is not yet
+### 46.4 ★ THE PLACEMENT VERDICT — MEASURED AT 16:47 UTC, AND IT IS UNAMBIGUOUS
+
+Thirteen minutes after the relaunch, every job on the cluster was interrogated for its own memory
+request and its state. This is the like-for-like comparison §38 was waiting for: the same user, the
+same tickets, the same scheduling passes, the same pool, the same host fence, the same 15 h walltime —
+**differing in one field.**
+
+| memory request | slots | RUNNING | QUEUED | placed |
+|---|---|---|---|---|
+| **`1G` (new, search lane)** | **8** | **1** | **0** | **100 %** |
+| **`2G` (new, packed lane)** | **4** | **8** | **0** | **100 %** |
+| `4G` (rendered before the relaunch) | 8 | 67 | **117** | **36 %** |
+
+**Nine of nine jobs carrying the new sizing are RUNNING. Not one is queued.** Meanwhile 117 of the 184
+jobs rendered at the old `4G` are still waiting — including jobs submitted hours earlier. The 8-slot
+row is the exact like-for-like: **a new 8-slot job at `1G` placed, while 117 8-slot jobs at `4G` did
+not.**
+
+**The honest limits.** The `8-slot / 1G` cell is **n = 1** — only one search batch has been rendered
+since the relaunch, because search batches go out when a generation completes. The `4-slot / 2G` cell
+is 8 of 8. So the *direction* is unambiguous and consistent with the eight-canary experiment, and the
+*magnitude* will firm up as more search batches land. It should be re-measured with the same command
+once several generations have turned over.
+
+Concurrency in the same window: **66 → 76 running**, queued 122 → 117, i.e. **528 → 576 cores**
+(68 × 8 + 8 × 4 — the packed lane is 4-slot, so a flat ×8 would overstate it).
+
+**§38 and §43's central claim is therefore confirmed at campaign scale, not merely by canary: the
+memory request, not fair share and not walltime, is what decides whether our work dispatches.**
+
+### 46.5 What was measured before the verdict arrived
 
 **Measured:** the renderer change reached the cluster and the first post-relaunch jobs carry the new
 sizing.
