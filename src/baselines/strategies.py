@@ -75,10 +75,21 @@ def spy_buy_and_hold(returns: Any, cfg: Any = None) -> np.ndarray:
     therefore NOT the actual S&P 500 / SPY — it returns the same 1/N weights as :func:`equal_weight`,
     so it is a DUPLICATE of the DeMiguel floor, not a distinct market benchmark. It is consequently
     **excluded from the frozen benchmark gate** (``_BENCHMARK_NAMES`` in ``analyze_campaign``) to avoid
-    double-counting 1/N. A genuine market benchmark (SPX total-return, or a cap-weighted index of the
-    PIT universe) is a documented **gated data addition** — it needs a non-anonymized data pull.
+    double-counting 1/N.
 
-    Retained as a back-compatible alias only; prefer :func:`equal_weight`.
+    ⚠ **UPDATED 2026-07-30 — the last sentence of this paragraph used to read "a genuine market
+    benchmark … is a documented gated data addition — it needs a non-anonymized data pull". THAT IS
+    NO LONGER TRUE, and had not been true since 2026-07-01**, when the `.SPXTR` total-return series
+    was pulled from Refinitiv and frozen with provenance into ``data/raw/rf_spxtr.csv``. It then sat
+    unloaded for a month while two separate docstrings described it as a limitation. The cap-weighted
+    market line is now available as
+    :func:`src.data.market_reference.load_spx_total_return`, and on the agents' own 1,571-session
+    sealed axis it returns **+213.3 % cumulative, Sharpe +1.1302** — reported alongside the
+    equal-weight proxy (+1.1656) rather than in place of it, because they measure different things.
+
+    Retained as a back-compatible alias only; prefer :func:`equal_weight`. The name is kept because
+    it is a registry key several call sites match on, and the honest description above is what a
+    reader gets on inspection — but **this function is not, and never was, SPY.**
 
     FINAL_PLAN F.6 (benchmark allocators).
     """

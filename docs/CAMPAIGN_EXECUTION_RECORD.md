@@ -5078,6 +5078,29 @@ is 8 of 8. So the *direction* is unambiguous and consistent with the eight-canar
 *magnitude* will firm up as more search batches land. It should be re-measured with the same command
 once several generations have turned over.
 
+> ### ⚠ RE-MEASURED AT 17:59 UTC — THE EFFECT IS REAL BUT SMALLER THAN THE FIRST SNAPSHOT SAID
+>
+> This is the correction the paragraph above promised, and it is owed at the first larger sample.
+>
+> | memory | slots | running | queued | **placed** |
+> |---|---|---|---|---|
+> | **`1G` (new)** | 8 | **12** | **11** | **52 %** |
+> | `2G` (new) | 4 | 8 | 0 | 100 % |
+> | `4G` (old) | 8 | 54 | 112 | **33 %** |
+>
+> **The new 8-slot sizing places at 52 %, the old at 33 % — an advantage, not the 100 % the n=1 and
+> n=5 readings implied.** Both earlier snapshots were true as counts and misleading as rates: with one
+> and then five jobs in the cell, "all of them placed" was small-sample optimism, and I reported it as
+> a verdict. At n=23 the honest statement is **a materially better placement rate, on a sample still
+> too small to put a confidence interval on.**
+>
+> **And total cores have NOT yet risen**: 74 running / 123 queued ≈ **560 cores**, the same band as
+> before the relaunch. That is expected and it must be said plainly — **112 jobs rendered at the old
+> `4G` are still queued and cannot be changed** (`qalter -l` is forbidden, §45), so they continue to
+> occupy our queue position and drain slowly. The fix reaches the campaign only as those are replaced.
+> **The prediction that follows is falsifiable: cores should climb as the 4G backlog empties. If they
+> do not, the fix is worth less than §38 and §43 claim, and this record will say so.**
+
 Concurrency in the same window: **66 → 76 running**, queued 122 → 117, i.e. **528 → 576 cores**
 (68 × 8 + 8 × 4 — the packed lane is 4-slot, so a flat ×8 would overstate it).
 
@@ -5174,3 +5197,126 @@ effect is undertraining and the claim must be weakened accordingly.
 
 **Registered as an analysis-time obligation. It is not a defence of the result — it is the check that
 decides which of two very different papers we are writing.**
+
+---
+
+## 48. THE S&P 500 WAS ON DISK ALL ALONG — A DOCUMENTED LIMITATION THAT WAS NOT ONE
+
+Written 2026-07-30 18:05 UTC. Tamer: *"on benchmarks, don't we have S&P 500 and etc? I have told you
+to add them, there were supposed to be."* He was right, and the finding is worse than a missing
+feature: **we documented a limitation we did not have.**
+
+### 48.1 What was actually on disk
+
+| | |
+|---|---|
+| file | `data/raw/rf_spxtr.csv` (5,285 sessions, 2005-01-03 → 2025-12-31) + `rf_spxtr_x26.csv` (2026-01-02 → 2026-06-30) |
+| what | **`.SPXTR` — the S&P 500 TOTAL-RETURN index**, cap-weighted |
+| provenance | Refinitiv `get_history`, universe `.SPXTR`, **frozen 2026-07-01T22:33:23Z**, library versions stamped |
+| loaded by | **NOTHING.** `grep -rn "rf_spxtr\|spxtr" src/ scripts/ --include=*.py` returned zero hits |
+
+Meanwhile **two** docstrings described a cap-weighted index as unavailable:
+
+* `src/data/market_reference.py`: *"a cap-weighted SPX-TR remains a documented limitation."*
+* `src/baselines/strategies.py`: *"A genuine market benchmark (SPX total-return …) is a documented
+  **gated data addition** — it needs a non-anonymized data pull."*
+
+The pull had happened **a month earlier**. Both sentences were false from 2026-07-01 onward, and both
+survived precisely because they *sound* like diligence. **A "documented limitation" is a factual claim
+about the world and must be re-verified against the disk before it is written, exactly like any other
+claim.** Filed with the process errors: this was found because Tamer asked, not because any check of
+ours caught it — and none of our checks looks for *stale humility*.
+
+### 48.2 What was built
+
+`load_spx_total_return()` in `src/data/market_reference.py`, mirroring the existing RF / market-proxy
+/ Fama-French loaders (same alignment contract, same provenance fields, same graceful degradation to
+`available=False` on a synthetic-only install, since the pull is licensed and not in git).
+
+**Two design points that are easy to get wrong and are pinned by tests:**
+
+1. **The two files are CONCATENATED, not preferred.** Unlike `_REFRESHED_RAW`, where a refresh
+   *replaces* a canonical file, the base pull ends 2025-12-31 and `_x26` carries 2026 — the sealed
+   window is covered only by both. Reading either alone silently truncates the test window, which is
+   the same class of error that produced the §36 retraction.
+2. **The files store a LEVEL, so the level is forward-filled onto the panel axis FIRST and the return
+   is differenced SECOND.** The other order — differencing on the source axis then forward-filling the
+   *returns* — would repeat a return on any non-publication session, booking the same market move
+   twice. `test_spxtr_differences_the_ALIGNED_level_not_the_source_level` fails on that mistake by
+   construction.
+
+Five unit tests plus one real-data test. **Falsified before trusted:** with the loader stashed, the
+suite fails at import; with it, all pass.
+
+### 48.3 The number, on the AGENTS' OWN axis
+
+⚠ **I reached for `pd.bdate_range` first and got 1,632 sessions — the §36 error, in the same session
+that quotes §36.** Caught before publishing it. Analysis obligation 8 is unambiguous: the window comes
+from the records, never a calendar filter. Rebuilt from the panel index truncated to the record
+length: **1,571 sessions, 2020-03-30 → 2026-06-30**, matching the records exactly.
+
+**The cross-check that validates the axis:** on that reconstruction the equal-weight proxy returns
+**Sharpe +1.1656 / +274.1 %** — reproducing §36's independently recorded figures to four decimal
+places. The S&P number therefore rests on a verified axis.
+
+| benchmark, same 1,571 sessions | Sharpe (rf=0) | cumulative | ann. vol |
+|---|---|---|---|
+| EW-30, same assets (buy & hold) | **+1.2825** | +183.3 % | — |
+| equal-weight universe proxy | **+1.1656** | +274.1 % | 19.8 % |
+| **S&P 500 total return (`.SPXTR`)** | **+1.1302** | **+213.3 %** | **17.6 %** |
+| best hand-written reward (`return_minus_turnover`) | +1.1609 mean / +1.1533 median | — | — |
+
+`.SPXTR` provenance on the real data: `last_observation = 2026-06-30`, **`n_extrapolated = 0`** — the
+sealed window is fully covered, no forward-filled tail.
+
+### 48.4 What this changes about the headline — stated carefully
+
+§36 recorded *"no reward beats passive, even gross"*, benchmarked against the two equal-weight lines.
+With the cap-weighted index now in the table the picture is **more nuanced, and must not be
+over-claimed**:
+
+* `return_minus_turnover` at **+1.1609** sits **above** `.SPXTR` at **+1.1302** and **below** both
+  equal-weight benchmarks (+1.1656, +1.2825).
+* **That gap is NOT significant.** The across-seed sd is 0.114 over n=30, so SE ≈ 0.021 and the
+  0.031 difference is t ≈ 1.5 — **statistically indistinguishable from the S&P 500.** The correct
+  sentence is *"ties the cap-weighted index, loses to equal weight"*, never *"beats the S&P 500"*.
+* One assumption to close before the PDF: both sides here are Sharpe at **rf = 0**. Threading the
+  risk-free rate into the headline Sharpe is registered as R20 and still pending; until it lands, the
+  comparison is like-for-like only because BOTH sides omit rf.
+
+**Why adding a benchmark that is harder is the right move:** equal weight tilts small and rebalances,
+so it is not what a reader means by "the market". Reporting the cap-weighted index alongside it — when
+it narrows rather than widens our advantage — is the version an examiner can trust.
+
+### 48.5 The restart that was NOT done, and why that is the right call
+
+The §46 sequence ends in a driver restart, so the reflex here was to repeat it. **Two measurements
+say no.**
+
+**COST, measured rather than guessed.** I told Tamer a restart costs "cents to a dollar" in lost
+in-flight authoring. Measured across the two restarts today: Anthropic spend went **$18.67 -> $21.20**,
+and the projected total moved **$20.90 -> $23.83** against $28.15 available. **That is ~$1.25 per
+restart, and the margin fell from 26 % to 15 %.** My estimate was wrong by an order of magnitude and
+is corrected here.
+
+**NECESSITY, proven rather than asserted.** `docs/ops/import_closure.py` walks the static import graph
+from the two entry points that actually execute -- `scripts/run_campaign_cluster.py` (the driver) and
+`src/cluster/run_one.py` (the on-node trainer) -- following first-party imports transitively:
+
+```
+first-party modules reachable: 193
+NOT reachable: src.baselines.strategies
+NOT reachable: src.data.market_reference
+VERDICT: the executed experiment is untouched; no restart is needed for correctness.
+```
+
+**So the committed HEAD now differs from the running sha `c99716e` in exactly two ANALYSIS-layer files
+that the running processes provably never import.** The drift invariant's PURPOSE -- guaranteeing that
+what executes matches what was certified -- is intact; only its literal one-line form is not, and the
+prover is committed so the next session can re-check the claim in one command rather than trust this
+paragraph.
+
+**The rule this establishes, worth keeping:** the drift test should be read as *"does the change reach
+the executing closure?"*, and when the answer is no, the correct action is to record the proof and
+re-base at the next natural restart -- not to spend $1.25 and ten minutes of every line's polling to
+make a `git diff` look tidy.

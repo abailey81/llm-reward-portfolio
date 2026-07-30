@@ -14,8 +14,19 @@ observation or a reward (so H2's contribution surface is untouched; data-enrichm
 * **market proxy** — ``market_ew`` (equal-weight return of the FULL survivorship-free PIT universe)
   from ``data/gold/market_proxy_<suffix>.parquet``. A REAL broad-market line for alpha / beta /
   information-ratio reporting — distinct from the 30-asset 1/N strategy (the anonymised panel has no
-  index column, so this EW-universe series is the defensible market stand-in; a cap-weighted SPX-TR
-  remains a documented limitation).
+  index column, so this EW-universe series is the EQUAL-WEIGHT market stand-in).
+* **S&P 500 total return** — ``.SPXTR`` from ``data/raw/rf_spxtr.csv`` (+ the ``_x26`` extension),
+  pulled from Refinitiv and frozen with provenance on 2026-07-01. **CAP-WEIGHTED**, and therefore the
+  benchmark a reader actually means by "the market"; the equal-weight proxy above is a different
+  animal (it tilts small and rebalances). Added 2026-07-30 — see :func:`load_spx_total_return`.
+
+  ⚠ **CORRECTION, 2026-07-30.** This docstring previously read *"a cap-weighted SPX-TR remains a
+  documented limitation"*. **That was FALSE**: the ``.SPXTR`` series had been pulled, frozen and
+  provenance-stamped on 2026-07-01 and was sitting in ``data/raw/`` unloaded — ``grep rf_spxtr src
+  scripts`` returned nothing. We documented a limitation we did not have. Found only because Tamer
+  asked "don't we have S&P 500?", not by any check of ours; the lesson is filed with the process
+  errors — **a "documented limitation" must be re-verified against the disk before it is written, or
+  it becomes a false statement that survives precisely because it sounds humble.**
 * **Fama-French factors** — ``Mkt-RF, SMB, HML`` from ``data/raw/french_F-F_Research_Data_Factors_daily.csv``
   (the Momentum file ``french_F-F_Momentum_Factor_daily.csv`` is on disk but NOT loaded here; add it to
   ``load_ff_factors`` if a 4-factor attribution is wanted), for OUT-OF-SAMPLE attribution in the analysis chapter.
@@ -246,6 +257,74 @@ def load_market_proxy_returns(
     # nan_to_num now only catches a genuine LEADING gap (a target date before the first observation).
     return MarketProxyResult(
         np.nan_to_num(aligned.to_numpy(dtype=float), nan=0.0), available=True, column=col,
+        last_observation=(str(last_obs)[:10] if last_obs is not None else None),
+        n_extrapolated=n_extra,
+    )
+
+
+#: The ``.SPXTR`` history and its 2026 extension. Unlike :data:`_REFRESHED_RAW`, where a refresh
+#: REPLACES the canonical file, these two are CONCATENATED: the base pull ends 2025-12-31 and the
+#: ``_x26`` pull carries 2026-01-02 → 2026-06-30, so the sealed window (2020-03-30 → 2026-06-30) is
+#: only covered by both together. Using either alone silently truncates the test window.
+_SPXTR_CSVS: tuple[str, ...] = ("rf_spxtr.csv", "rf_spxtr_x26.csv")
+#: The Refinitiv total-return LEVEL column in those files (Date, TRDPRC_1, OPEN_PRC, HIGH_1, LOW_1, …).
+_SPXTR_LEVEL_COL = "TRDPRC_1"
+
+
+def load_spx_total_return(
+    dates: np.ndarray, *, raw_dir: Path | str = _RAW_DIR
+) -> MarketProxyResult:
+    """Per-session **S&P 500 TOTAL-RETURN** decimal returns (``.SPXTR``) aligned to ``dates``.
+
+    The cap-weighted market line — what a reader means by "the market" — as distinct from
+    :func:`load_market_proxy_returns`, which is the EQUAL-WEIGHT return of our own universe. Over
+    2020-2026 the two differ materially (equal weight tilts small and rebalances), so they are
+    reported side by side rather than substituted for one another.
+
+    **The files store a LEVEL, not returns**, which decides the alignment order. The level is
+    forward-filled onto the panel's session axis FIRST and the return is differenced from the aligned
+    levels SECOND. Doing it the other way round — differencing on the source axis and then
+    forward-filling the RETURNS — would repeat a return on any session the index did not publish, i.e.
+    it would book the same move twice. With this order a non-publication session correctly yields
+    0.0 and every panel-date return is the true change since the previous panel date.
+
+    Never reads the future: the forward-fill only ever carries values from the past, the leading gap
+    (a panel date before the first observation) yields 0.0, and ``n_extrapolated`` reports how many
+    target sessions fall beyond the last REAL observation, exactly as the RF/FF/market loaders do.
+
+    Degrades gracefully to zeros with ``available=False`` when the raw files are absent (a
+    synthetic-only install; the ``.SPXTR`` pull is licensed Refinitiv data and is not in git).
+    """
+    d = pd.DatetimeIndex(pd.to_datetime(np.asarray(dates)))
+    n = int(np.asarray(dates).size)
+
+    frames: list[pd.DataFrame] = []
+    for name in _SPXTR_CSVS:
+        path = Path(raw_dir) / name
+        if path.exists():
+            frames.append(pd.read_csv(path))
+    if not frames:
+        return MarketProxyResult(np.zeros(n), available=False, column=_SPXTR_LEVEL_COL)
+
+    raw = pd.concat(frames, ignore_index=True)
+    if _SPXTR_LEVEL_COL not in raw.columns or "Date" not in raw.columns:
+        return MarketProxyResult(np.zeros(n), available=False, column=_SPXTR_LEVEL_COL)
+
+    level = pd.to_numeric(raw[_SPXTR_LEVEL_COL], errors="coerce")
+    level.index = pd.DatetimeIndex(pd.to_datetime(raw["Date"]))
+    # The base file and the _x26 extension can overlap at a boundary session; keep the LAST reading,
+    # matching the convention every other loader here uses.
+    level = level[~level.index.duplicated(keep="last")].sort_index()
+
+    real = level.dropna()
+    last_obs = real.index.max() if not real.empty else None
+    n_extra = _extrapolated_after(dates, last_obs, f"spxtr[{_SPXTR_LEVEL_COL}]")
+
+    aligned_level = level.reindex(level.index.union(d)).ffill().reindex(d)
+    rets = aligned_level.pct_change()
+    return MarketProxyResult(
+        np.nan_to_num(rets.to_numpy(dtype=float), nan=0.0, posinf=0.0, neginf=0.0),
+        available=True, column=_SPXTR_LEVEL_COL,
         last_observation=(str(last_obs)[:10] if last_obs is not None else None),
         n_extrapolated=n_extra,
     )

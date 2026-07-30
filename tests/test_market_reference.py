@@ -17,6 +17,7 @@ from src.data.market_reference import (
     load_ff_factors,
     load_market_proxy_returns,
     load_risk_free_daily,
+    load_spx_total_return,
 )
 
 from src.data.loaders import gold_suffix
@@ -192,3 +193,99 @@ def test_forward_fill_past_the_source_end_is_COUNTED_and_WARNED_not_silent(tmp_p
     assert fr.available is True
     assert fr.last_observation == str(ff_dates[-5])[:10], "the stalest column must govern"
     assert fr.n_extrapolated == 9, f"5 beyond the file + 4 stale SMB rows; got {fr.n_extrapolated}"
+
+
+# --------------------------------------------------------------------------- #
+# .SPXTR — the CAP-WEIGHTED market line (added 2026-07-30)                     #
+#                                                                             #
+# The data had been pulled, frozen with provenance on 2026-07-01 and left      #
+# UNLOADED for a month, while the module docstring called a cap-weighted index #
+# "a documented limitation". These tests exist so that cannot recur silently.  #
+# --------------------------------------------------------------------------- #
+def _write_spxtr(raw: Path, dates: list[str], levels: list[float], name: str) -> None:
+    """Write a minimal Refinitiv-shaped .SPXTR csv (Date + the TRDPRC_1 level column)."""
+    pd.DataFrame({"Date": dates, "TRDPRC_1": levels}).to_csv(raw / name, index=False)
+
+
+def test_spxtr_absent_is_zero_and_flagged(tmp_path: Path) -> None:
+    """A synthetic-only install has no licensed pull: degrade, never crash."""
+    res = load_spx_total_return(np.array(["2020-01-02", "2020-01-03"], dtype="datetime64[D]"),
+                               raw_dir=tmp_path)
+    assert res.available is False
+    assert res.returns.tolist() == [0.0, 0.0]
+
+
+def test_spxtr_concatenates_the_base_and_the_2026_extension(tmp_path: Path) -> None:
+    """The base pull ends 2025-12-31 and `_x26` carries 2026 — the sealed window needs BOTH.
+
+    Reading either file alone silently truncates the test window, which is exactly the class of
+    error that produced the section-36 benchmark-window retraction.
+    """
+    _write_spxtr(tmp_path, ["2025-12-30", "2025-12-31"], [100.0, 101.0], "rf_spxtr.csv")
+    _write_spxtr(tmp_path, ["2026-01-02", "2026-01-05"], [102.0, 103.0], "rf_spxtr_x26.csv")
+    dates = np.array(["2025-12-31", "2026-01-02", "2026-01-05"], dtype="datetime64[D]")
+    res = load_spx_total_return(dates, raw_dir=tmp_path)
+    assert res.available is True
+    assert res.last_observation == "2026-01-05", "the extension must extend the history"
+    assert res.n_extrapolated == 0
+    # 101 -> 102 -> 103
+    assert res.returns[1] == pytest.approx(102.0 / 101.0 - 1.0)
+    assert res.returns[2] == pytest.approx(103.0 / 102.0 - 1.0)
+
+
+def test_spxtr_differences_the_ALIGNED_level_not_the_source_level(tmp_path: Path) -> None:
+    """THE ORDER-OF-OPERATIONS TEST — the one that matters.
+
+    The files store a LEVEL. If a future edit differences on the SOURCE axis and then forward-fills
+    the RETURNS, a session the index did not publish would REPEAT the previous return, booking the
+    same market move twice. Forward-filling the LEVEL first and differencing second makes a
+    non-publication session correctly 0.0.
+
+    Here 2026-01-06 is missing from the source, so: 100 -> 110 (+10%), then a flat session (0.0),
+    then 110 -> 121 (+10%). A repeat-the-return implementation would give +10% on the flat session
+    and fail this test.
+    """
+    _write_spxtr(tmp_path, ["2026-01-05", "2026-01-07", "2026-01-08"], [100.0, 110.0, 121.0],
+                 "rf_spxtr.csv")
+    dates = np.array(["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08"], dtype="datetime64[D]")
+    res = load_spx_total_return(dates, raw_dir=tmp_path)
+    assert res.returns[0] == pytest.approx(0.0), "leading gap: no prior level, so 0.0"
+    assert res.returns[1] == pytest.approx(0.0), "a non-publication session must NOT repeat a return"
+    assert res.returns[2] == pytest.approx(0.10)
+    assert res.returns[3] == pytest.approx(121.0 / 110.0 - 1.0)
+
+
+def test_spxtr_never_reads_the_future_and_counts_the_extrapolated_tail(tmp_path: Path) -> None:
+    """Sessions beyond the last real observation carry a constant level (=> 0.0 return) and are COUNTED.
+
+    Same provenance contract as the RF/FF/market loaders (deep review #53): a forward-filled tail is
+    not data, and the caller must be able to see how much of it there is.
+    """
+    _write_spxtr(tmp_path, ["2026-01-05", "2026-01-06"], [100.0, 105.0], "rf_spxtr.csv")
+    dates = np.array(["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08"], dtype="datetime64[D]")
+    res = load_spx_total_return(dates, raw_dir=tmp_path)
+    assert res.last_observation == "2026-01-06"
+    assert res.n_extrapolated == 2, "two target sessions fall beyond the last real observation"
+    assert res.returns[2] == pytest.approx(0.0)
+    assert res.returns[3] == pytest.approx(0.0)
+
+
+def test_spxtr_prefers_the_last_reading_on_an_overlapping_boundary(tmp_path: Path) -> None:
+    """The base file and the extension can both carry the boundary session; keep the LAST."""
+    _write_spxtr(tmp_path, ["2025-12-31"], [100.0], "rf_spxtr.csv")
+    _write_spxtr(tmp_path, ["2025-12-31", "2026-01-02"], [200.0, 220.0], "rf_spxtr_x26.csv")
+    dates = np.array(["2025-12-31", "2026-01-02"], dtype="datetime64[D]")
+    res = load_spx_total_return(dates, raw_dir=tmp_path)
+    assert res.returns[1] == pytest.approx(0.10), "220/200 - 1, i.e. the extension's reading won"
+
+
+@pytest.mark.skipif(not Path("data/raw/rf_spxtr.csv").exists(),
+                    reason="licensed .SPXTR pull not present (synthetic-only install)")
+def test_spxtr_real_pull_covers_the_sealed_window() -> None:
+    """On the real install the pull must span the sealed window 2020-03-30 -> 2026-06-30."""
+    dates = pd.bdate_range("2020-03-30", "2026-06-30").to_numpy()
+    res = load_spx_total_return(dates)
+    assert res.available is True
+    assert res.n_extrapolated == 0, (
+        f"the .SPXTR pull stops at {res.last_observation}, leaving {res.n_extrapolated} "
+        "forward-filled sessions in the sealed window — re-pull before reporting it")
