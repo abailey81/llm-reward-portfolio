@@ -47,6 +47,17 @@ preprint-coordinate issues. **Do not cite a published coordinate that is not act
 | `RockafellarUryasev-CVaR` (on disk) | 1999 working paper. | Use published J. Risk 2(3):21–41 (2000) coords (already YELLOW above). |
 | `FisslerZiegel` (on disk) | arXiv version. | AoS 44(4):1680–1707 (already VERIFIED above). |
 
+**NEW 2026-07-30 — one dangling source found while auditing the H1 canon's provenance (Tamer asked
+"where did the 11 human rewards come from, is that verified and legit").** `src/baselines/rewards.py`
+attributes `log_growth` to *"Kelly 1956; **Thorp 1971**"*, and **Thorp is in NEITHER `paper/refs.bib`
+NOR any chapter** (0 hits in both). Kelly IS present. Impact is bounded — it is a **code docstring**,
+not prose, so it cannot produce a dangling key in the submitted PDF — but the attribution is currently
+unsourced. **Fix either way before submission:** add Thorp (1971), *"Portfolio Choice and the Kelly
+Criterion"*, in Ziemba & Vickson (eds), verified first-hand; or drop the name from the docstring and
+let Kelly 1956 carry it alone. Every OTHER member of the canon resolves to a graded, dated-verified
+entry (e.g. `chekhlov2005drawdown` — *"Grade A. Source for return_minus_drawdown. VERIFIED
+2026-07-26."*).
+
 **VERIFIED first-hand (formula + coordinates, render-confirmed) — safe to cite once published coords above are reconciled:**
 Moody & Saffell DSR (Dₜ update Eqs 14–16, IEEE TNN 12(4), 2001) · Markowitz E-V (J. Finance 7(1):77–91, 1952) ·
 Rockafellar-Uryasev CVaR auxiliary `F_β` · Jiang EIIE `r=ln(μ_t y_t·w_{t−1})` (arXiv:1706.10059) · DeMiguel
