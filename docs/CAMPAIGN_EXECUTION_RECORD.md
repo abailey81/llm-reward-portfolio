@@ -466,6 +466,12 @@ re-ship invalid source.
    by `docs/ops/arm_coverage.py` (the repo's `rejects` guard watches per-MODEL rates only).
 5. **Report wall-clock compute** (Okhrati docks for its absence): measured 8.09 h per scored
    training, 3.59 h per chain step, 326,254 core-hours for the full ladder.
+8. **⚠ EVERY BENCHMARK TAKES ITS WINDOW FROM THE RECORDS, never from a panel date filter** (§36).
+   The agents trade the **1,571** sessions from **2020-03-30**, not the 1,631 from 2020-01-02 — the
+   60-session production-lookback purge (R18) silently contains the COVID crash, and including it
+   understates every benchmark by ~0.47 Sharpe. Derive the window from
+   `record.metrics.test_returns` and state it as `2020-03-30 → 2026-06-30, n=1571`. Corrected
+   like-for-like buy-and-hold: **+1.2825** (EW-30) and **+1.1656** (market_ew).
 7. **Re-run `docs/ops/verify_arm_manipulation.py` on the CORE line (`search/`)** once `placebo` and
    `placebo_shuffled` reach generation > 0 there (§34.4). The archive verification of those two arms
    currently rests on the ten legs; the confirmatory line must carry its own evidence. Also re-verify
@@ -2263,6 +2269,8 @@ would be the study broken.
 
 ## 24. THE FIRST SCIENCE OF RUN 4 — and the question Tamer asked that reframed it
 
+> **⚠ SUPERSEDED IN PART BY §36 (2026-07-30).** The benchmark figures in this section were computed over 1,631 sessions from 2020-01-02, but the agents traded only the **1,571** sessions from **2020-03-30** (the 60-session production-lookback purge, R18). The corrected like-for-like buy-and-hold is **+1.2825 Sharpe / +183.3 %** (not +0.817/+122 %) and the market proxy is **+1.1656 / +274.1 %** (not +0.773/+166 %). Consequently **no reward beats passive holding, even gross** — including `return_minus_turnover`. The cost-wedge and reward-content findings are unaffected. Read §36 before quoting any number here.
+
 Written 2026-07-29 ~07:00 UTC, T+10 h, from 83 archived records. **This section exists because Tamer
 challenged a claim of mine that was too glib**, and the challenge produced the campaign's first real
 finding. That sequence is worth preserving as much as the numbers.
@@ -2920,6 +2928,8 @@ routed somewhere a decision gets made.
 
 ## 29. THE §24 BENCHMARK WAS NOT LIKE-FOR-LIKE — MEASURED, AND THE CONCLUSION SURVIVES STRONGER
 
+> **⚠ SUPERSEDED IN PART BY §36 (2026-07-30).** The benchmark figures in this section were computed over 1,631 sessions from 2020-01-02, but the agents traded only the **1,571** sessions from **2020-03-30** (the 60-session production-lookback purge, R18). The corrected like-for-like buy-and-hold is **+1.2825 Sharpe / +183.3 %** (not +0.817/+122 %) and the market proxy is **+1.1656 / +274.1 %** (not +0.773/+166 %). Consequently **no reward beats passive holding, even gross** — including `return_minus_turnover`. The cost-wedge and reward-content findings are unaffected. Read §36 before quoting any number here.
+
 Written 2026-07-30 01:30 UTC. §24 compared the H1 baselines against a passive proxy at **+0.773
 Sharpe / +166 % cumulative** and concluded the agents over-trade. Auditing the universe-selection path
 exposed a confound in that comparison, so it was **measured rather than argued**. The conclusion holds,
@@ -3389,6 +3399,8 @@ guard proves execution, never truth — and the thing most worth watching is the
 
 ## 32. THE NEGATIVE SHARPE, RESOLVED EXACTLY — A 1.07-SHARPE TRANSACTION-COST WEDGE
 
+> **⚠ SUPERSEDED IN PART BY §36 (2026-07-30).** The benchmark figures in this section were computed over 1,631 sessions from 2020-01-02, but the agents traded only the **1,571** sessions from **2020-03-30** (the 60-session production-lookback purge, R18). The corrected like-for-like buy-and-hold is **+1.2825 Sharpe / +183.3 %** (not +0.817/+122 %) and the market proxy is **+1.1656 / +274.1 %** (not +0.773/+166 %). Consequently **no reward beats passive holding, even gross** — including `return_minus_turnover`. The cost-wedge and reward-content findings are unaffected. Read §36 before quoting any number here.
+
 Written 2026-07-30 11:30 UTC. **Tamer challenged the negative Sharpe for the second time, and for the
 second time he was right to.** The first challenge (§24) produced the turnover finding as an inference.
 This one produces it as an **exact decomposition**, cross-validated to machine precision. The result
@@ -3830,3 +3842,86 @@ threshold-INSENSITIVE across a 96× empty gap; this is the mechanism that gap pr
 discussion as a transferable lesson for anyone scoring LLM-authored code — *audit execution, not only
 outcome, because a partial failure flatters the outcome.* It also earns a row in the "what each test
 defends against" table.
+
+---
+
+## 36. ⚠ CORRECTION — THE BENCHMARK WINDOW WAS WRONG BY 60 SESSIONS, AND TWO HEADLINE CLAIMS FAIL
+
+Written 2026-07-30 13:00 UTC. **This section retracts two claims: one of mine (§32.4) and one inherited
+from §24.2 that I endorsed and built upon.** Both were wrong for the same reason, and the corrected
+picture is less flattering but considerably more defensible.
+
+### 36.1 The error
+
+Records carry **1,571** test sessions. My §29/§32 benchmarks were computed over **1,631** — every panel
+session from 2020-01-02. The difference is exactly **60**, which is the **production lookback purge**
+(R18): `loaders.py` records that the lookback of 60 dominates the 21-session embargo floor, so execution
+begins 60 sessions after the window opens.
+
+**The agents' first traded session is 2020-03-30.** My benchmark therefore included 2020-01-02 →
+2020-03-27 — **the COVID crash** — which the agents never traded. That penalised the benchmark and
+flattered the comparison.
+
+### 36.2 The corrected numbers
+
+| benchmark | WRONG window (1,631, from 01-02) | **CORRECT window (1,571, from 03-30)** |
+|---|---|---|
+| EW buy-and-hold, same 30 assets | +0.8170 raw / +122.0 % | **+1.2825 raw / +183.3 %** |
+| `market_ew` proxy (953 RICs) | +0.7732 raw / +166.0 % | **+1.1656 raw / +274.1 %** |
+
+### 36.3 What FAILS
+
+**(a) §32.4 claim 1 — RETRACTED.** I wrote that the gross Sharpes were "comparable to the +0.817
+same-universe buy-and-hold, and four baselines EXCEED it". Against the corrected benchmark:
+
+> **0 of 11 baselines beat the buy-and-hold, even GROSS of all transaction costs.** Gross Sharpes span
+> +0.8173 … +1.1747; the buy-and-hold is +1.2825. Not one exceeds it.
+
+**(b) §24.2's framing — RETRACTED.** §24 said a long-only agent loses "unless its reward explicitly
+prices turnover, in which case it *beats* the market." It does not:
+
+> **`return_minus_turnover` nets +1.1606 against a buy-and-hold of +1.2825.** It comes closest by a
+> wide margin over the other ten, and it is the only reward that stays positive — but it **does not beat
+> passive holding.**
+
+### 36.4 What SURVIVES, and is stronger for the correction
+
+* **Reward content dominates outcomes.** Same agent, data, 400,000-step budget, seeds and sealed window;
+  changing only the reward moves the result from **−0.3063 to +1.1606**. The effect is enormous and
+  entirely unaffected by which benchmark window is used.
+* **The transaction-cost wedge is exact:** mean gross **+0.9628** vs mean net **−0.1071**, a **1.07
+  Sharpe** wedge from ~79 % daily turnover at the registered 10 bps (20.0 %/yr). Cross-validated to
+  1.4e-17 against the env's own `test_gross`. Window-independent.
+* **Every design has real gross signal** (+0.82 … +1.17 Sharpe). These are not incompetent policies.
+* **Pricing turnover is what preserves that signal**: turnover 0.0077 vs ~0.89, retaining 98.8 % of
+  gross Sharpe versus losing all of it.
+
+### 36.5 The corrected headline, which is a better claim
+
+> Over the sealed 2020-03-30 → 2026-06-30 window an equal-weighted buy-and-hold of the same thirty
+> assets returns **+1.283** Sharpe. Ten of eleven expert-designed rewards return **−0.17 … −0.33** net;
+> the eleventh, which charges for trading, returns **+1.161**. Gross of transaction costs every design
+> earns **+0.82 … +1.17**, so all carry real signal — but **none beats passive holding even before
+> costs**, and all but one surrender that signal entirely to a 20 %/year turnover drag.
+
+This is a **more interesting and more honest** result than "turnover-pricing beats the market". It says
+two things a practitioner can use: RL adds nothing over passive holding on this universe, and the
+dominant failure mode is *cost*, not *signal*. It also sits far more safely with a referee, because the
+weaker claim cannot be overturned by re-deriving the benchmark — which is exactly how this error was
+found.
+
+### 36.6 How it was found, and the lesson
+
+Not by re-reading my own analysis. By verifying an unrelated property — the PIT/leakage boundaries —
+and noticing that `len(test_returns) = 1571` did not equal the 1,631 sessions my benchmark had used. **A
+number that did not reconcile against a second source.** That is the fourth time in this campaign that
+a defect surfaced from a reconciliation failure rather than from inspection.
+
+> **The lesson for the write-up:** any external benchmark must be computed on the EXACT session index
+> the agents traded, taken from the records themselves, never re-derived from the panel by date filter.
+> The purge is 60 sessions and it silently contains a regime event. `docs/ops/cost_decomposition.py`
+> uses each record's own `test_returns`/`test_gross`, so it was never affected; only the free-standing
+> benchmark comparison was.
+
+**Registered as an analysis-time obligation:** every benchmark in the write-up derives its window from
+`record.metrics.test_returns`, and the reported window is stated as `2020-03-30 → 2026-06-30, n=1571`.
