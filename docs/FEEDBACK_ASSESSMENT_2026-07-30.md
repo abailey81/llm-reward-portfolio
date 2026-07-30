@@ -125,8 +125,8 @@ appendices and the abstract are all excluded from the 10,000).
 | # | action | why it earns the band | cost |
 |---|---|---|---|
 | A1 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_literature_positioning.md`.** **Literature positioning matrix** — neighbours × dimensions (who authors the reward, what the feedback contains, agent fixed?, risk-sensitive?, preregistered?), our row last with the empty cells filled | converts the novelty claim from prose into a three-second visual; makes the gap undeniable | **free** |
-| A2 | **Design decisions table** — choice / alternatives considered / why / what it costs | Criterion 2 is titled *reasoning to answer them*; a justified method with its cost visible is what "exemplary" means | **free** |
-| A3 | **Scale-and-difficulty appendix table** — components, tests, models, trainings, seed re-runs, campaign lines, pipeline stages, off-the-shelf vs written | Criterion 3 is normalised *given difficulty*; a marker cannot weight difficulty they cannot see | **free** |
+| A2 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_design_decisions.md`.** **Design decisions table** — choice / alternatives considered / why / what it costs | Criterion 2 is titled *reasoning to answer them*; a justified method with its cost visible is what "exemplary" means | **free** |
+| A3 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_scale_and_difficulty.md`.** **Scale-and-difficulty appendix table** — components, tests, models, trainings, seed re-runs, campaign lines, pipeline stages, off-the-shelf vs written | Criterion 3 is normalised *given difficulty*; a marker cannot weight difficulty they cannot see | **free** |
 | A4 | ⚠ **BLOCKED ON §36 UNTIL REWRITTEN — see the note below the table.** **Numbered contributions with evidence attached**, and the **turnover result promoted to a named contribution** with its own results section | gives the significance marker something to point at; §29 now makes it a like-for-like, positive, counter-intuitive, reproducible sealed-test result | low |
 | A5 | **Lead with the preregistration-absence limb** of the originality claim | the band says *unquestionable*; "no preregistration anywhere in the automated-reward-design literature" is a claim about a PRACTICE — verifiable, and undefeatable by naming an adjacent paper. Strictly stronger than the empty-cell claim, which is disputable by construction | low |
 | A6 | **Quality-control-record appendix** — the four launches, ~115 amendments and the defect log, framed analytically as the machinery that caught errors *before* they reached confirmatory data | same facts, opposite effect; presented chronologically they read as a troubled project | low |
@@ -212,3 +212,38 @@ That is a **better** contribution claim than "beats the market": it is counter-i
 **Standing lesson for every remaining artefact:** the feedback was written against the pre-correction
 record. Any figure it quotes must be re-derived from the records before it enters the PDF, per
 analysis-time obligation 8 (windows come from `record.metrics.test_returns`, never a panel date filter).
+
+
+---
+
+## 7. DELIVERY LOG
+
+| action | status | artefact |
+|---|---|---|
+| A1 literature positioning matrix | ✅ delivered 2026-07-30 | `paper/tables/T_literature_positioning.md` |
+| A2 design decisions with alternatives + cost | ✅ delivered 2026-07-30 | `paper/tables/T_design_decisions.md` |
+| A3 scale and difficulty | ✅ delivered 2026-07-30 | `paper/tables/T_scale_and_difficulty.md` |
+| A4 numbered contributions | ⚠ framing rewritten in §6; table itself pending | — |
+| A5 lead with the pre-registration limb | ✅ built into A1's "what the matrix shows" §2 | `T_literature_positioning.md` |
+| A6 quality-control record appendix | pending | — |
+| A7 RQ stated identically 3× | pending (write-time) | — |
+| A8 null-is-the-finding p1 + results orientation | pending (write-time) | — |
+| A9 wider-context subsection | pending | — |
+| A10 Mayoian severity into the theory chapter | pending | — |
+| A11 faultless-data presentation pass | pending (needs the figures to exist) | — |
+| A12 public DOI deposit + preprint | pending — **needs Tamer** (an account action) | — |
+
+**Two things A2 and A3 added that the feedback did not ask for, and which are worth more than what it
+did ask for:**
+
+1. **A2 makes the SELF-HANDICAPS explicit and bold.** The feedback spotted one (long-only removes the
+   natural route from tail-awareness to tail-protection). Auditing the design surfaced a **second**: the
+   `max(val_DSR)` selector embeds skew/kurtosis, so it is not perfectly tail-blind and therefore
+   **narrows the contrast under test, biasing against a measured distributional advantage** (the m13
+   self-disclosure, already written and now surfaced into the table). A design that makes its own
+   prediction *harder* to confirm is the strongest rigour signal available, and there are now two of
+   them in one scannable column.
+2. **A3's difficulty section names what a count cannot convey** — executing untrusted generated code
+   42,128 times; holding an identification claim across twelve concurrent lines where three defects
+   shared one shape that **no unit test could see** (all 2,875 exercise a single line); and bit-exact
+   determinism as a frozen design constraint rather than an aspiration.
