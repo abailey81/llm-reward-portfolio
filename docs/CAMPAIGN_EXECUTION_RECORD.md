@@ -466,6 +466,10 @@ re-ship invalid source.
    by `docs/ops/arm_coverage.py` (the repo's `rejects` guard watches per-MODEL rates only).
 5. **Report wall-clock compute** (Okhrati docks for its absence): measured 8.09 h per scored
    training, 3.59 h per chain step, 326,254 core-hours for the full ladder.
+7. **Re-run `docs/ops/verify_arm_manipulation.py` on the CORE line (`search/`)** once `placebo` and
+   `placebo_shuffled` reach generation > 0 there (§34.4). The archive verification of those two arms
+   currently rests on the ten legs; the confirmatory line must carry its own evidence. Also re-verify
+   the DERANGEMENT and the block-LENGTH parity from the archive, neither of which §34 claims.
 6. **⚠ EXCLUDE TRUNCATED CALLS FROM EVERY AUTHORING-RELIABILITY DENOMINATOR** (registered 2026-07-30,
    §30). A call returning `stop_reason == "length"` hit **our own 16,384-token output cap** (R106,
    matched across all eleven models), so the candidate it produced failed for an INSTRUMENT reason,
@@ -3616,3 +3620,105 @@ the pending-depth census and by the 80 % placement rate: a drained *pipeline*, n
 Acknowledged with the re-triage trigger that matters — **concurrency falling while the queued backlog
 is DEEP** would be a genuine placement failure; concurrency falling with 28 queued is simply us running
 out of work to ask for.
+
+---
+
+## 34. H2'S CONSTRUCT VALIDITY, VERIFIED AGAINST THE REAL ARCHIVE FOR THE FIRST TIME
+
+Written 2026-07-30 12:00 UTC. Every prior verification of the arm manipulation was performed by calling
+`schema.build_block` directly — i.e. it proved **the code would produce the right thing**. Nobody had
+verified that **the run did**. Those are different claims and only the second is evidence. Since H2's
+entire construct validity is the assertion that *only* the fed feedback block differs across arms, this
+was the largest unverified load-bearing claim in the campaign.
+
+### 34.1 The result
+
+Read from `record.json: prompt` — the prompt as actually archived at authoring time — across **every
+line**, restricted to reflection prompts (a generation-0 prompt carries no fed block by design):
+
+| arm | reflection prompts | required tail labels | observed | verdict |
+|---|---|---|---|---|
+| `scalar` | 102 | 0 | 0 | OK |
+| `scalar_cvar5` | 27 | 1 | 1 | OK |
+| `distributional` | 101 | 6 | 6 | OK |
+| `placebo` | 20 | 0 tail + **6 inert constants** | 0 tail, 6 inert, all `+0.0000` | OK |
+| `placebo_shuffled` | 23 | 6 | 6 | OK |
+
+**273 reflection prompts checked. ZERO arm-property violations. Placebo inert-constant assertion:
+20/20 pass.** And the construct-validity hinge specifically: **0 of 102 `scalar` prompts carry any tail
+label** — the tail-blindness the whole design rests on holds in the archive, not merely in the code.
+
+A real `distributional` block, as archived:
+
+```
+Realized-return tail diagnostics (training period):
+  CVaR 5%: -0.0268      CVaR 1%: -0.0467  (high-variance estimate)
+  CVaR 10%: -0.0198     left-tail mass: +0.0223
+  CVaR 25%: -0.0118     left-tail skew: -0.0457
+```
+
+### 34.2 A design subtlety I had wrong, and which is better than I assumed
+
+My first checker expected `placebo` to carry the six tail LABELS with zeroed values, and duly reported
+a MISMATCH on four legs. **Inspecting a real prompt showed my expectation was wrong, not the run:**
+
+```
+Reference constants (inert; no diagnostic content):
+  reference value 1: +0.0000
+  ... reference value 6: +0.0000
+```
+
+`placebo` carries six inert constants under **neutral labels**, with no mention of tails at all. **That
+is a stronger control than same-labels-zero-values would be**, and the distinction matters for the
+write-up:
+
+* **`placebo`** matches the block's SHAPE and token count while removing the semantic hint entirely —
+  so it isolates *"six numbers are present"* from *"six TAIL numbers are present"*. Same-labels-zeroed
+  would still have told the model that tail statistics are a thing worth attending to.
+* **`placebo_shuffled`** keeps the real labels AND real values but destroys their correspondence — so it
+  isolates *"the tail STRUCTURE is usable"* from *"tail-ish numbers are present"*.
+
+Together they are a two-level control: one removes semantics, the other removes only the mapping. That
+is a sharper design than the record previously described, and it is worth stating explicitly in CH4
+because a reviewer will ask what each placebo controls for.
+
+### 34.3 Two apparent violations that were the SAME finding, independently confirmed
+
+The cross-line sweep initially flagged 2 violations, **both on `qwen3.5-9b`**:
+`scalar_cvar5-g3-c4` and `placebo-g2-c2`, each with no fed block at generation > 0.
+
+**Both are reflection-STARVED, not manipulation failures.** Their archived prompts are the INITIAL
+prompt (2,602 chars, *"Here is the environment interface and the reward contract…"*), because
+`prev_block` is set only when the previous generation yields an **accepted** candidate — and
+qwen3.5-9b rejects at 91 %.
+
+> **This independently reproduces §31.1.** The `reflection` guard reports `qwen3_5_9b: 5/7`, i.e. two
+> gen>0 candidates without a reflection block. This sweep, using a completely different route (the
+> archived prompt text rather than the guard's own accounting), finds **exactly those two records**.
+> Two instruments, one answer — which is the cross-check standard this project holds.
+
+And it sharpens the finding into something publishable: **below some authoring reliability, a
+reflection loop does not degrade — it cannot run at all**, because reflection requires a prior success
+to reflect on. The capability gradient therefore has a floor at which the studied mechanism switches
+off entirely, and `qwen3.5-9b` is sitting on it.
+
+### 34.4 What this closes, and the honest remainder
+
+**Closed:** the manipulation is real in the archive on 273 prompts across all twelve lines; `scalar` is
+tail-blind; `placebo` is inert; `placebo_shuffled` carries the full six with no obvious identity
+mapping.
+
+**Honest remainder, stated rather than glossed:**
+
+* The **derangement** itself (that no value sits on its own label) is verified at BUILD time by
+  `schema.build_block`'s own test, not here. This sweep can only detect an obvious identity mapping —
+  values come from different training runs, so an exact cross-arm match is weak evidence either way. I
+  have NOT independently re-verified the derangement from the archive and do not claim to have.
+* Block LENGTHS (the 67/86/275/293/275-character token control) were not re-measured here; the counts
+  above verify content, not byte-exact length parity.
+* `placebo`/`placebo_shuffled` on the **core line** have not yet reached generation > 0, so their
+  archive verification currently rests on the ten legs. It should be re-run on `search/` once the core
+  reaches those generations — added to the analysis-time obligations.
+
+`docs/ops/verify_arm_manipulation.py` is committed so this is re-runnable, and it now counts
+reflection-starved records separately rather than mis-reporting them as violations.
