@@ -4091,11 +4091,11 @@ which ones the scheduler takes.** Six `sleep`-only jobs, no campaign involvement
 
 | canary | `-pe smp` | `h_rt` | `mem`/slot | job total | outcome |
 |---|---|---|---|---|---|
-| `zzprobeA` | 8 | 15:00:00 | 4G | 32 GB | **queued** (still queued at +9 min) |
+| `zzprobeA` | 8 | 15:00:00 | 4G | 32 GB | **queued** (still queued at **+29 min**) |
 | `zzprobeB` | 8 | 0:30:00 | 4G | 32 GB | ran at the next pass |
 | `zzprobeC` | 1 | 15:00:00 | 4G | 4 GB | ran at the next pass |
 | `zzrt02` | 8 | 2:00:00 | 4G | 32 GB | ran at the next pass |
-| `zzrt04/08/12` | 8 | 4/8/12 h | 4G | 32 GB | **queued** |
+| `zzrt04/08/12` | 8 | 4/8/12 h | 4G | 32 GB | **queued** (all three still queued at **+24 min**) |
 | **`zzmem1`** | **8** | **15:00:00** | **1G** | **8 GB** | **RAN at the next pass, `node-d00a-011`** |
 | **`zzmem2`** | **8** | **15:00:00** | **2G** | **16 GB** | **RAN at the next pass, `node-d00a-126`** |
 
