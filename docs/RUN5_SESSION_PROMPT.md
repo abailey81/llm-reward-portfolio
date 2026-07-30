@@ -478,7 +478,7 @@ proven; and it is a **natural experiment**, so a quieter cluster night cannot be
 
 | | test Sharpe, sealed 2020–2026 |
 |---|---|
-| **passive market proxy** | **+0.773** (+166.0 % cumulative) |
+| **passive market proxy** | ⚠ **CORRECTED (record §36): +1.1656 Sharpe / +274.1 %** over the agents' ACTUAL 1,571-session window (2020-03-30 →). The **+0.773 / +166.0 %** figure used 1,631 sessions from 2020-01-02 and wrongly included the COVID crash the agents never traded (the 60-session R18 purge). Like-for-like EW-30 same assets: **+1.2825 / +183.3 %**. **No reward beats passive, even gross.** |
 | 10 of 11 H1 baselines | **−0.171 … −0.325** |
 | **`return_minus_turnover`** | **+1.161, 100 % of seeds positive** |
 

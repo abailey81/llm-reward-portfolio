@@ -2,9 +2,16 @@
 
 WHY (2026-07-30, Tamer's challenge — the second time he has pushed on this and the second time it
 was the right thing to push on). Ten of eleven H1 baselines score test Sharpe -0.171..-0.325 over a
-sealed window in which an equal-weighted buy-and-hold of the SAME thirty assets returned +0.817 Sharpe
-/ +122 %. A long-only agent losing money on a rising asset base is not obviously sensible, and
-"transaction costs" is an assertion until it is an arithmetic.
+sealed window in which an equal-weighted buy-and-hold of the SAME thirty assets returned
+**+1.2825 Sharpe / +183.3 %**. A long-only agent losing money on a rising asset base is not obviously
+sensible, and "transaction costs" is an assertion until it is an arithmetic.
+
+⚠ CORRECTED 2026-07-30 (record s.36): the earlier +0.817 / +122 % figure was computed over 1,631
+sessions from 2020-01-02, but the agents traded only the 1,571 sessions from 2020-03-30 -- the
+60-session production-lookback purge (R18), which silently contains the COVID crash. THIS SCRIPT was
+never affected, because it reads each record's OWN `test_returns` / `test_gross` series rather than
+re-deriving a window from the panel; only the free-standing benchmark comparison was wrong. That is
+exactly why analysis-time obligation 8 now requires every benchmark window to come from the records.
 
 THE METHOD IS REGISTERED, NOT INVENTED HERE. `config/preregistration.yaml` line 338 states the exact
 repricing identity — `net_c = gross - bps*1e-4*turnover` — and notes it is EXACT because the cost is

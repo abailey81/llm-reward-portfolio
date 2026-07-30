@@ -55,6 +55,14 @@ But the instinct is right and there are two real items:
 
 ### 1.3 ★ The §24 benchmark was not like-for-like — and fixing it STRENGTHENS the result
 
+> **⚠ THE NUMBERS IN THIS SUBSECTION ARE SUPERSEDED BY RECORD §36 AND BY §6 BELOW.** They were
+> computed over 1,631 sessions from 2020-01-02; the agents traded only the **1,571** sessions from
+> **2020-03-30** (the 60-session production-lookback purge, R18, which silently contains the COVID
+> crash). Corrected: EW-30 **+1.2825 / +183.3 %**, market_ew **+1.1656 / +274.1 %**, and **no reward
+> beats passive holding even gross**. The *conclusion* of this subsection still stands — universe
+> staleness is not the explanation and the over-trading finding survives on a same-universe
+> comparator — but every FIGURE here must be read from §6. Do not quote this table.
+
 Auditing the above exposed a confound the feedback did not catch. §24's passive proxy (+0.773 Sharpe,
 +166 %) is `market_ew` over the **whole univ5 panel (953 RICs)**, while the agent trades **30** names.
 Measured on the same 1,631 sealed sessions:
