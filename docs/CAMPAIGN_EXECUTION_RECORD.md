@@ -3380,3 +3380,125 @@ series). It is read-only and exits 2 on an inert search, a broken invariant, or 
 
 **The lesson, and it is Tamer's:** monitoring process health is not monitoring the experiment. A green
 guard proves execution, never truth — and the thing most worth watching is the output.
+
+---
+
+## 32. THE NEGATIVE SHARPE, RESOLVED EXACTLY — A 1.07-SHARPE TRANSACTION-COST WEDGE
+
+Written 2026-07-30 11:30 UTC. **Tamer challenged the negative Sharpe for the second time, and for the
+second time he was right to.** The first challenge (§24) produced the turnover finding as an inference.
+This one produces it as an **exact decomposition**, cross-validated to machine precision. The result
+does not weaken the science — it completes it.
+
+### 32.1 The question, stated fairly
+
+Ten of eleven H1 baselines score test Sharpe **−0.171 … −0.325** over the sealed 2020-26 window, while
+an equal-weighted buy-and-hold of **the same thirty assets** returns **+0.817 Sharpe / +122 %** (§29).
+A long-only agent losing money on a rising asset base is not obviously sensible, and "transaction
+costs" is an assertion until it is an arithmetic.
+
+### 32.2 First, the artefact hypothesis — ELIMINATED
+
+The most likely *artefact* explanation was policy sampling noise: SAC is stochastic, and if scoring
+rolled out sampled actions, the weights would jitter every step, generating turnover that is an
+evaluation artefact rather than learned behaviour. **Ruled out by reading the code:**
+`src/env/runner.py` calls `policy.predict(obs, deterministic=True)` at every rollout site (lines 87,
+137, 190) and its module docstring states the policy "is rolled out greedily". Test-time actions are
+the policy MEAN. **The turnover is the learned deterministic policy's own behaviour.**
+
+### 32.3 The decomposition, by a REGISTERED method
+
+`config/preregistration.yaml` (the `cost_sweep` block) registers the exact repricing identity —
+**`net_c = gross − bps·1e-4·turnover`**, noted as EXACT because the cost is charged linearly, which is
+why the 0/5/10/25/50 bps sweep can reprice **without retraining**. `config/environment.yaml` sets
+`headline_bps: 10`, and the env charges it on the **half-L1-drifted turnover** `0.5·||w − w_held||₁`.
+
+Crucially, the env already exposes `gross`, and **every record archives a `test_gross` series** — so the
+gross Sharpe does not need reconstructing, and reconstructing it anyway gives an independent check:
+
+> **CROSS-VALIDATION: max |(net + cost·turnover) − test_gross| = 1.388e-17 across all 330 records.**
+> Machine epsilon. The identity and the archive agree exactly, by two independent routes.
+
+| unit | NET Sharpe | GROSS Sharpe | turnover / period | cost drag /yr |
+|---|---|---|---|---|
+| differential_downside_ratio | −0.1710 | **+1.0874** | 0.8517 | 21.5 % |
+| differential_sharpe | −0.1973 | **+1.0461** | 0.8527 | 21.5 % |
+| log_growth | −0.2009 | **+0.9313** | 0.8945 | 22.5 % |
+| mean_variance_utility | −0.3002 | **+0.8173** | 0.8927 | 22.5 % |
+| raw_return | −0.3063 | **+0.8200** | 0.8935 | 22.5 % |
+| return_minus_cvar | −0.3248 | **+0.9344** | 0.8818 | 22.2 % |
+| return_minus_downside | −0.2023 | **+0.9663** | 0.8845 | 22.3 % |
+| return_minus_drawdown | −0.1991 | **+1.0276** | 0.7802 | 19.7 % |
+| **return_minus_turnover** | **+1.1606** | **+1.1747** | **0.0077** | **0.2 %** |
+| return_minus_variance | −0.2151 | **+0.9157** | 0.8924 | 22.5 % |
+| volatility_scaled_return | −0.2212 | **+0.8699** | 0.9068 | 22.9 % |
+| **MEAN** | **−0.1071** | **+0.9628** | 0.7944 | **20.0 %** |
+
+### 32.4 What this establishes
+
+1. **The policies have real gross skill.** Mean gross Sharpe **+0.9628** — comparable to the +0.817
+   same-universe buy-and-hold, and four baselines EXCEED it. These are not incompetent policies.
+2. **The negative net result is entirely a cost phenomenon.** ~79 % of the portfolio is reallocated
+   every session, and at the registered 10 bps that is a **20.0 %/year** drag against an asset base
+   compounding at roughly 13 %/year. **Negative net returns are not merely explicable — they are
+   arithmetically forced.**
+3. **The cost wedge is 1.07 Sharpe units** (+0.9628 → −0.1071), and it is not uniform: it is
+   proportional to turnover, which is what makes the contrast decisive.
+4. **`return_minus_turnover` is the mechanism, not an anomaly.** Its turnover is **116× lower**
+   (0.0077 vs ~0.89), so it retains **98.8 %** of its gross Sharpe (+1.1747 → +1.1606) while every
+   other reward surrenders all of theirs. The reward that prices trading is the only one whose gross
+   skill survives contact with the cost model.
+5. **The high turnover is a genuine consequence of the objective, not a defect** — established by the
+   contrast itself: the agent demonstrably CAN hold a near-static allocation (0.008 turnover) when the
+   reward asks it to. Nothing in the environment forces churn; the untaxed objectives simply have no
+   reason to avoid it.
+
+### 32.5 Why this matters to the dissertation
+
+**It independently demonstrates the thesis premise on the H1 canon.** Same agent, same data, same
+400,000-step budget, same seeds, same sealed window — the ONLY thing that varies is the reward's
+content, and it moves the result from −0.31 to +1.16. That is *H2's logic* (reward content dominates
+outcomes) evidenced on the hand-written comparators, before H2's own contrast is even scored.
+
+It also converts what would read as a weak absolute result ("our agents lose money") into a precise,
+interpretable, counter-intuitive finding: **expert-designed risk-aware rewards have skill and then
+give all of it away to costs, because pricing RISK is not pricing TRADING.** Four of the losers
+(`differential_sharpe`, `mean_variance_utility`, `return_minus_cvar`, `return_minus_drawdown`) are
+explicitly risk-aware, and all four are net-negative with gross Sharpes between +0.82 and +1.03.
+
+**Reporting duty:** the write-up must state net AND gross side by side with the turnover column. Net
+alone invites the objection; the pair pre-empts it and makes the mechanism visible in one table. The
+method is report-only and registered, so this costs nothing in pre-registration terms.
+
+### 32.6 The 4,000-core target — measured, and honestly bounded
+
+Tamer asked to push capacity to 4,000 cores. Measured state:
+
+| | |
+|---|---|
+| pool `d` total capacity | **9,432 cores** across 262 nodes |
+| our current footprint | **960 cores** (120 running jobs) — 10.2 % of the pool |
+| our queued backlog | **28 jobs** |
+
+**We are not limited by Myriad. We are limited by our own demand.** With only 28 jobs queued, the
+scheduler would give us more if we had more work to place — and we do not, because the SEARCH phase is
+**chain-bound by design**: six generations must run in series, each waiting on the previous
+generation's ~8.5 h trainings. That is the registered `critical_chain` floor of 3.27 days, not a
+scheduling failure.
+
+**Levers checked and their verdicts:**
+
+| lever | verdict |
+|---|---|
+| `tmpfs=15G` narrowing node eligibility | **VOID — 262 of 262 d-pool nodes qualify.** Checked rather than assumed; "optimising" it would have gained nothing |
+| widen beyond `-ac allow=d` | **REFUSED — this is the CRN guarantee.** The `t` pool is AMD; mixing microarchitectures breaks bit-exact reduction order, which is exactly the D15 failure we just spent a day fencing |
+| raise concurrency during search | **IMPOSSIBLE without cutting science** — more candidates per generation, or parallel generations, would alter the frozen design or destroy the reflection chain that IS the object of study |
+| `-tc` array throttling | **not binding** — `--chunk-tasks 1` emits `-t 1-1 -tc 1`, one task per array, so no cap |
+
+**So the route to 4,000 cores is to reach the C4 sweep, not to change a scheduling parameter.** The
+sweep submits all assurance blocks at once under a descending priority ladder over ~42,128 trainings —
+demand becomes deep and placement, not work generation, becomes the constraint. We have already
+achieved **1,584 cores** at peak, which is 2.5× the previously *measured* 636-core ceiling, so the
+account's headroom is clearly well above what the old probe suggested. 4,000 is credible in the sweep;
+it is not achievable during a serial reflection chain, and claiming otherwise would be arithmetic
+theatre.
