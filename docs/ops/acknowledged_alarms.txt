@@ -44,3 +44,33 @@ silent_hang:UNKNOWN
 # ⚠ RE-TRIAGE IMMEDIATELY IF the per-model guard ever flags a STRONG model above its own baseline:
 # that would be the systemic fault this check is actually looking for.
 gate_failure_drift:WARN
+
+# reward_scale WARN — "AUTHORED-arm reward-scale ratio 154x; baselines span 437099x (registered
+# ratio-form rewards - fixed by formula, reported as context)". TRIAGED 2026-07-30: benign BY DESIGN,
+# and the check's own detail says it is context rather than a fault. The huge baseline span is a
+# FORMULA property - the H1 canon deliberately mixes difference-form rewards (return_minus_*) with
+# RATIO-form ones (differential_sharpe, volatility_scaled_return, differential_downside_ratio), whose
+# magnitudes are not commensurable by construction. It cannot bias the agent because the critic is
+# scale-INVARIANT: PopArt value-target normalisation is ON (`popart: true` in both config/algos.yaml
+# and config/prototype.yaml) and VERIFIED live - 59 of 59 sampled records carry a non-null
+# `popart_scale`. Reward magnitude is therefore absorbed, not learned against.
+reward_scale:WARN
+
+# --- REPO GUARD verdicts (campaign_guards.py), prefix "guard:" ---
+#
+# guard:truncation CRITICAL — ONE of 1,099 LLM calls returned stop_reason `length`, i.e. it hit our
+# own 16,384-token output cap: leg7 `nvidia/nemotron-3-super-120b-a12b`, 2026-07-30T08:22:49Z,
+# $0.0149. The guard is RIGHT that this contaminates the authoring-reliability finding - a candidate
+# that failed because OUR cap truncated it is an instrument artefact, not evidence the model cannot
+# write executable reward code.
+# SCOPE, measured: 1 of 1,099 calls run-wide (0.09%); within leg7, 1 of 114 calls, so 10 of
+# nemotron's 11 rejects are GENUINE and only 1 is instrument-induced. No other line has any.
+# WHY ACKNOWLEDGED RATHER THAN FIXED: the cap is REGISTERED (R106 - caps matched at 16,384 across all
+# eleven models, which is the property that makes the cross-model comparison fair), so it must NOT be
+# raised mid-run; and the spend ledger is append-only, so this verdict can never return to green. The
+# handling is an ANALYSIS-TIME obligation (record s.9): exclude `stop_reason == "length"` rows from
+# every authoring-reliability denominator, or report them separately. That is detectable precisely
+# because `stop_reason` is persisted on every row (the 18dead8 fix earning its keep).
+# ⚠ RE-TRIAGE IF the truncated-call count rises materially or appears on a SECOND model: one verbose
+# outlier is an artefact, a pattern would mean the matched cap is too low to measure some models at all.
+guard:truncation

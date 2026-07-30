@@ -466,6 +466,16 @@ re-ship invalid source.
    by `docs/ops/arm_coverage.py` (the repo's `rejects` guard watches per-MODEL rates only).
 5. **Report wall-clock compute** (Okhrati docks for its absence): measured 8.09 h per scored
    training, 3.59 h per chain step, 326,254 core-hours for the full ladder.
+6. **⚠ EXCLUDE TRUNCATED CALLS FROM EVERY AUTHORING-RELIABILITY DENOMINATOR** (registered 2026-07-30,
+   §30). A call returning `stop_reason == "length"` hit **our own 16,384-token output cap** (R106,
+   matched across all eleven models), so the candidate it produced failed for an INSTRUMENT reason,
+   not because the model cannot write executable reward code. Counting it as a model failure biases
+   that model's measured reliability downward. **First occurrence: 1 of 1,099 calls run-wide —
+   `nvidia/nemotron-3-super-120b-a12b` on leg7, 2026-07-30T08:22:49Z.** Within leg7 that is 1 of 114
+   calls, so **10 of nemotron's 11 rejects are genuine and exactly 1 is instrument-induced.** Report
+   the truncated count alongside every per-model rate, or exclude it and say so. Detectable only
+   because `stop_reason` is persisted on every ledger row (the `18dead8` fix). The cap itself must NOT
+   be raised mid-run: the matched cap is the property that makes the cross-model comparison fair.
 
 ---
 
@@ -3150,3 +3160,103 @@ effect-blind rule.
 have been the wrong action on the merits (§25.4), and this one forces an archive deletion to be an
 explicit human decision rather than an agent's. Recorded as evidence that the guardrail is working with
 the grain of the project's own archive-truth law, not against it.
+
+---
+
+## 30. TWO NEW ALARMS, CAUGHT BY THE CONTINUOUS WATCHER WITHIN ONE POLL
+
+Written 2026-07-30 08:45 UTC (T+35 h 45 m). The watcher armed twenty minutes earlier paid for itself
+immediately: it surfaced a **guard escalation from RC=0 to RC=2** and a new sentinel WARN, both inside
+one polling interval. Under the previous regime — a human remembering to run the guards — the RC=2
+would have waited for the next manual check. That is exactly how D15 lost ten hours.
+
+### 30.1 `[truncation] CRITICAL` — one call hit OUR cap, and that contaminates a finding
+
+```
+llm_calls=1099 truncated=1 worst_completion=100.0%_of_cap
+stop_reasons={'end_turn': 315, 'stop': 779, 'error': 4, 'length': 1}
+*** TRUNCATION: our cap is contaminating the authoring-reliability finding
+```
+
+Located exactly: **leg7, `nvidia/nemotron-3-super-120b-a12b`, 2026-07-30T08:22:49Z, $0.0149** — the
+single row in the entire run carrying `stop_reason: length`.
+
+**Why the guard is right.** The per-model authoring-reliability table measures whether a model can
+write executable reward code. A candidate that failed because **our own 16,384-token cap cut it off**
+is an instrument artefact, and scoring it as a model failure biases that model downward.
+
+**Scope, measured rather than assumed:** 1 of **1,099** calls run-wide (0.09 %); within leg7, 1 of
+**114** calls — so **10 of nemotron's 11 rejects are genuine and exactly 1 is instrument-induced.** No
+other line has a single truncation.
+
+**Handled as an ANALYSIS obligation, not a code change** (§9 item 6). The cap is REGISTERED (R106 —
+matched at 16,384 across all eleven models), and that *matching* is the property that makes the
+cross-model comparison fair, so it must NOT be raised mid-run. And the spend ledger is append-only, so
+this verdict **can never return to green**. The obligation: exclude `stop_reason == "length"` rows from
+every reliability denominator, or report them separately. Detectable only because `stop_reason` is
+persisted on every row — the `18dead8` fix earning its keep long after landing.
+
+**⚠ Re-triage trigger:** a rising truncation count, or a truncation on a SECOND model. One verbose
+outlier is an artefact; a pattern would mean the matched cap is too low to measure some models at all,
+which is a design problem rather than a reporting one.
+
+### 30.2 `reward_scale WARN` — benign, and VERIFIED benign rather than assumed
+
+> *"AUTHORED-arm reward-scale ratio 154x; baselines span 437099x (registered ratio-form rewards —
+> fixed by formula, reported as context)"*
+
+The 437,099× baseline span is a **formula property**: the H1 canon deliberately mixes difference-form
+rewards (`return_minus_*`) with RATIO-form ones (`differential_sharpe`, `volatility_scaled_return`,
+`differential_downside_ratio`), whose magnitudes are not commensurable by construction. It cannot bias
+the agent because the critic is scale-INVARIANT — and that was **checked, not assumed**: `popart: true`
+in both `config/algos.yaml` and `config/prototype.yaml`, and **59 of 59 sampled records carry a
+non-null `popart_scale`**. Reward magnitude is absorbed by PopArt value-target normalisation, not
+learned against. The check's own detail says it is context; it is.
+
+### 30.3 The spend projection — it fits, but the headroom is thin
+
+Projected from each line's realised cost and the generation it has reached (h3ss is single-shot, so its
+cost is already final):
+
+| | projected to generation 5 |
+|---|---|
+| **total** | **$25.93** (spent $17.85 at T+35 h) |
+| anthropic-side (c1 $12.46 · h3ss $4.97 · leg8 $3.06 · leg5 $0.74) | **$21.23** vs a stated balance of **$24.64** — ≈14 % headroom |
+| openrouter-side (all eight legs) | **$4.70** vs $17.97 plus the $100 key cap — ample |
+| R83 advisory ceiling | $30 — the projection is under it, and R83 never refuses a call |
+
+**Two honest caveats.** The projection assumes cost scales linearly per generation, but reflection
+prompts GROW (each carries the previous block), so later generations cost more per call — $21.23 is
+likely an under-estimate. And **a further rolling relaunch costs ≈$4.7**, because h3ss and the core line
+re-author from scratch on Opus; that alone would consume the entire Anthropic headroom.
+
+> **Operating rule adopted: no further relaunch unless a validity issue demands it.** The D15 relaunch
+> was worth its price. A second one for convenience would not be. I under-estimated the first at
+> "$3-4" precisely by forgetting that h3ss re-authors every launch — a trap the handoff had already
+> written down, and which I read.
+
+### 30.4 The monitoring upgrade this forced
+
+`guards_rc` alone was about to become useless: the truncation verdict is permanent, so RC would read 2
+forever and **mask every future guard failure** — the identical masking problem the sentinel ack file
+was built to solve, one layer down. Three changes:
+
+* the watcher now tracks the **named set of failing guards**, not just the exit code, so a NEW guard
+  failing changes the state signature and is reported with a `(NEW)` tag;
+* the ack file gained a `guard:` prefix namespace, and `guard:truncation` is acknowledged with its
+  measured scope and its re-triage trigger;
+* `mix > 0` no longer double-counts the acknowledged `substrate_fields` verdict — the same fact was
+  counted twice, which pinned the header at ALERT permanently, and **a label that never changes carries
+  no information.**
+
+**Falsified in both directions before being trusted:** with all conditions triaged it reads `[ok]`;
+with one acknowledgement removed it reads `[ALERT]` and tags that verdict `(NEW)`; restored, `[ok]`.
+
+### 30.5 One thing now on WATCH, not yet an alarm
+
+`nemotron-3-super`'s reject rate has risen **14 % → 28 %** (11 of 29 records), and only one of those
+rejects is the truncation. Unlike qwen3.5-9b (92 % against a registered ~83 % baseline) and
+gemini-2.5-flash / qwen3.6-27b (both BELOW their ~17 % baselines), **nemotron has no registered
+per-model baseline**, so the `rejects` guard cannot discriminate finding from defect for it. Recorded as
+a watch item: if it keeps climbing, the honest report is a measured rate without a prior expectation —
+neither a pass nor a fail.

@@ -23,6 +23,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -125,15 +126,36 @@ def snapshot(root: Path) -> tuple[str, list[str]]:
     kinds = _crash_kinds(root)
     sent = _sentinel(root)
 
-    rc = subprocess.run([sys.executable, "scripts/campaign_guards.py", str(root), "all"],
-                        capture_output=True, text=True).returncode
+    # Capture WHICH guards are non-ok, not just the exit code. The truncation guard went CRITICAL on
+    # 2026-07-30 over a single `stop_reason: length` row and can never go green again (the spend ledger
+    # is append-only), so `guards_rc` is now PERMANENTLY 2. An rc alone would therefore mask every
+    # future guard failure — the same masking problem the sentinel ack file solves. Tracking the named
+    # verdict set means a NEW guard failing changes the signature and is reported.
+    proc = subprocess.run([sys.executable, "scripts/campaign_guards.py", str(root), "all"],
+                          capture_output=True, text=True)
+    rc = proc.returncode
+    bad_guards = sorted({
+        m.group(1)
+        for m in re.finditer(r"^\[(\w+)\]\s+(?!ok\b)(\w+)", proc.stdout or "", re.MULTILINE)
+    })
+    ack_guards = {g.split(":", 1)[1] for g in ack if g.startswith("guard:")}
+    unack_guards = [g for g in bad_guards if g not in ack_guards]
 
     unack = [v for v in sent if f"{v[1]}:{v[0]}" not in ack]
-    alert = (rc != 0) or (sups != EXPECTED_LINES and sups >= 0) or mix > 0 or bool(unack)
+    # `mix > 0` and the sentinel's `substrate_fields` verdict are the SAME FACT. Counting both would
+    # pin the header at ALERT for as long as D15's four records sit in the archive, and a label that
+    # never changes carries no information — the very alarm-fatigue failure this file exists to stop.
+    # So an acknowledged substrate verdict suppresses the mix contribution; a mix appearing while
+    # substrate_fields is NOT acknowledged still alerts.
+    mix_alerts = mix > 0 and "substrate_fields:CRITICAL" not in ack
+    alert = (bool(unack_guards) or (sups != EXPECTED_LINES and sups >= 0)
+             or mix_alerts or bool(unack))
 
     lines: list[str] = []
     head = "ALERT" if alert else "ok"
-    lines.append(f"[{head}] guards_rc={rc} supervisors={sups}/{EXPECTED_LINES} "
+    gtxt = ",".join(f"{g}{'' if g in ack_guards else '(NEW)'}" for g in bad_guards) or "none"
+    lines.append(f"[{head}] guards_rc={rc} bad_guards={gtxt} "
+                 f"supervisors={sups}/{EXPECTED_LINES} "
                  f"substrate_mixed_units={mix} crash_kinds={len(kinds)}")
     for sev, check, detail in sent:
         tag = "(ack)" if f"{check}:{sev}" in ack else "(NEW)"
@@ -142,7 +164,7 @@ def snapshot(root: Path) -> tuple[str, list[str]]:
         lines.append("   crash kinds: " + ", ".join(f"{k}x{v}" for k, v in kinds.most_common(6)))
 
     sig = hashlib.sha256(
-        json.dumps([rc, sups, mix, sorted(kinds), [(s, c) for s, c, _ in sent]],
+        json.dumps([rc, bad_guards, sups, mix, sorted(kinds), [(s, c) for s, c, _ in sent]],
                    sort_keys=True).encode()
     ).hexdigest()[:16]
     return sig, lines
