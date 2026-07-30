@@ -225,11 +225,11 @@ analysis-time obligation 8 (windows come from `record.metrics.test_returns`, nev
 | A3 scale and difficulty | ✅ delivered 2026-07-30 | `paper/tables/T_scale_and_difficulty.md` |
 | A4 numbered contributions | ⚠ framing rewritten in §6; table itself pending | — |
 | A5 lead with the pre-registration limb | ✅ built into A1's "what the matrix shows" §2 | `T_literature_positioning.md` |
-| A6 quality-control record appendix | pending | — |
+| A6 quality-control record appendix | DELIVERED 2026-07-30 | `paper/appendices/A_quality_control_record.md` |
 | A7 RQ stated identically 3× | pending (write-time) | — |
 | A8 null-is-the-finding p1 + results orientation | pending (write-time) | — |
-| A9 wider-context subsection | pending | — |
-| A10 Mayoian severity into the theory chapter | pending | — |
+| A9 wider-context subsection | DELIVERED 2026-07-30 - **rebuilt on MEASURED findings; see the departure note in section 8** | `paper/sections/CH7_wider_context.md` |
+| A10 Mayoian severity into the theory chapter | DELIVERED 2026-07-30 | `paper/sections/CH3_severity_paragraph.md` |
 | A11 faultless-data presentation pass | pending (needs the figures to exist) | — |
 | A12 public DOI deposit + preprint | pending — **needs Tamer** (an account action) | — |
 
@@ -247,3 +247,33 @@ did ask for:**
    42,128 times; holding an identification claim across twelve concurrent lines where three defects
    shared one shape that **no unit test could see** (all 2,875 exercise a single line); and bit-exact
    determinism as a frozen design constraint rather than an aspiration.
+
+
+---
+
+## 8. TWO PLACES WHERE THE FEEDBACK IS WRONG ON A DETAIL, RECORDED SO THE ERROR IS NOT INHERITED
+
+**(a) A9 as specified would assert an unmeasured claim - DEPARTED FROM DELIBERATELY.** The feedback
+proposes building the wider-context subsection around *"language models cannot reliably use small
+numerical differences."* That is this study's registered **hypothesis** about the capability gradient, not
+a result: the psychometric module that would supply a measured per-model detection threshold is
+**specified (R96) but NOT BUILT**, and H2's confirmatory contrast is not yet scored. Writing it as
+delivered would assert a conclusion from an inference - the exact move this project's standards forbid,
+and the first thing a referee would attack.
+
+The delivered subsection is therefore built on **three findings that ARE measured**, each generalising
+past finance on its own: (1) outcome scoring cannot separate a working generated artefact from a
+half-broken one propped up by a fallback, so any pipeline accepting machine-generated code on results
+alone is blind exactly where contamination is most attractive; (2) a reflection loop needs a prior success
+to reflect on, so the capability threshold for self-improvement is "good enough to succeed once", not
+"good enough to improve"; (3) ten expert objectives all carried signal and all lost it to one unpriced
+friction, so sophistication in the modelled quantity does not substitute for pricing the dominant real
+cost. The numeracy paragraph is **pre-written and HELD**, to insert only if the measurement lands.
+
+**(b) A10's source is not "a config comment".** The feedback says the Popperian -> Mayoian correction
+*"right now lives in a config comment"*. It is in fact registered amendment **R61** (2026-06-28) with a
+full statement in `PREREGISTRATION.md` section 1a, citing Rubin (2025, *Synthese*), Gelman & Loken (2014),
+Lakens et al. (2018) and Campbell & Gustafson (2018). The feedback's *instruction* still stands - it
+belongs in the **theory chapter**, because Criterion 1 marks original interpretation from the literature
+review, references and discussion rather than from a protocol appendix - but the artefact was written from
+R61's actual text rather than reconstructed from a comment.
