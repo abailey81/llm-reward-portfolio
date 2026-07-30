@@ -3260,3 +3260,123 @@ gemini-2.5-flash / qwen3.6-27b (both BELOW their ~17 % baselines), **nemotron ha
 per-model baseline**, so the `rejects` guard cannot discriminate finding from defect for it. Recorded as
 a watch item: if it keeps climbing, the honest report is a measured rate without a prior expectation —
 neither a pass nor a fail.
+
+---
+
+## 31. THE FIRST DEEP RESULTS ANALYSIS — AND R115 CAUGHT IN THE ACT
+
+Written 2026-07-30 09:15 UTC (T+36 h). Tamer's criticism was correct and is the reason this section
+exists: the continuous watcher I had armed monitored **process health** — guards, supervisors,
+substrate, crash kinds, sentinel verdicts — and said nothing whatever about whether the SCIENCE was
+sensible. A campaign can be perfectly healthy and producing meaningless numbers. Two anomalies had
+also been noted in passing rather than investigated. Both are resolved below, and analysing the
+results properly produced the strongest single piece of evidence yet for the R115 amendment.
+
+### 31.1 The anomalies I had waved past
+
+**(a) Reflection fell from 100 % to 99.2 % — and it is entirely one model.** `255/257`, and the
+per-line split is decisive: every line is 100 % except **`qwen3_5_9b: 5/7`**. This is D2's *mechanism*
+without D2's *defect*. `prev_block` is set only when a generation yields an **accepted** candidate, and
+qwen3.5-9b rejects at 91 %. So there is genuinely nothing to reflect on — the model's own capability,
+not our bug (D2 was the same symptom caused by the collision spuriously rejecting valid candidates).
+
+> **This is a FINDING worth stating in the write-up.** Below some authoring reliability, reflection does
+> not merely degrade — **it cannot run at all**, because a reflection loop needs a prior success to
+> reflect on. The capability gradient therefore has a floor at which the studied mechanism switches
+> off entirely. That is a sharper claim about automated-design loops than "weaker models do worse".
+
+**(b) Cores fell 1,584 → 1,288 → ~984 and I asserted the Aug-7 ETA still held without re-deriving it.**
+Re-derived: the queue is **not** empty (154 jobs, 123 running, 31 queued at the time of checking), and
+the falling concurrency is the **search phase being chain-bound by design** — the registered model
+already reports rungs ≤189 as `critical_chain`-bound at a 3.27 d floor, and **no line has entered the
+C4 sweep yet** (the core is at generation 3 of 6). The sweep is the throughput-hungry phase and it is
+still ahead of us. So the ETA rests on the model, not on observed saturation, and I should have said so.
+
+### 31.2 R115 BINDS — observed in the live confirmatory run
+
+The scored-record audit found **7 records breaching the R115 execution floor** (`safe_default /
+safe_call ≥ 0.10`), six of them at a strikingly consistent **49.98 %**:
+
+| line | arm | candidate | val_fitness | fallback |
+|---|---|---|---|---|
+| deepseek-v4-pro | scalar_cvar5 | `scalar_cvar5-g0-c4` | +0.000000 | 33.33 % |
+| haiku-4.5 | distributional | `distributional-g1-c3` | +0.012493 | 49.98 % |
+| **qwen3.5-9b** | **distributional** | **`distributional-g3-c3`** | **+0.233582** | **49.98 %** |
+| qwen3.5-9b | scalar | `scalar-g3-c2` | +0.002924 | 49.98 % |
+| qwen3.6-27b | placebo_shuffled | `placebo_shuffled-g0-c4` | +0.000250 | 49.98 % |
+| qwen3.6-27b | scalar | `scalar-g1-c4` | +0.000168 | 49.98 % |
+| qwen3.6-27b | scalar | `scalar-g2-c4` | +0.000394 | 49.98 % |
+
+Testing each breacher against the best ELIGIBLE candidate in its own arm — the question of whether the
+floor actually *changed a selection* — gives **one case where it did**:
+
+```
+qwen3_5_9b  distributional   breacher=+0.233582   best_eligible=+0.000124   -> *** R115 BINDS ***
+```
+
+**Without R115, `distributional-g3-c3` would have been frozen as that arm's winner and re-trained by
+the sealed test leg** — beating the best eligible candidate by a factor of ~1,900. Its fitness would
+have entered the analysis as the achievement of an LLM-authored reward. And note **which arm**:
+`distributional`, the treatment arm of H2. The bias would have run **in favour of our own hypothesis**.
+
+**Stated honestly: on the other six it did not bind** — those breachers had lower fitness than an
+eligible sibling anyway, so exclusion changed nothing. And the frozen qwen `scalar` winner
+(`scalar-g4-c2`, fallback 0.00 %) was already eligible. R115 is insurance that has now been needed
+exactly once, which is the accurate claim and not "R115 saved the campaign".
+
+### 31.3 WHY that candidate collapsed — a mechanism finding, verified line by line
+
+`distributional-g3-c3`: **199,932 of 400,000 calls (49.98 %) returned a value the safe wrapper replaced
+with the R66 default.** The reward is 6,303 characters, opens with a nine-line docstring explaining how
+it "distinguishes itself", passes the AST safety gate, and **conforms to the return contract**
+(`return float(total_reward), components, info["reward_state"]` — the required
+`tuple[float, dict[str, float], object]`). It is not obviously broken. The defect is one line:
+
+```python
+window = rs["window_returns"][-1+1:] + [recent_ret]   # Shift and append
+```
+
+It does **neither**, for two independent reasons:
+
+* **`[-1+1:]` is `[0:]`** — the slice is the WHOLE array, so nothing shifts;
+* **`rs["window_returns"]` is a numpy array** (`np.zeros(WINDOW_SIZE)` at initialisation), and
+  `ndarray + [x]` is **element-wise broadcast addition**, not list concatenation. So `recent_ret` is
+  added to all twenty slots instead of being appended as a new observation.
+
+Confirmed exhaustively: there is **no** `np.append`, `np.concatenate` or `np.roll` on the window
+anywhere in the source. The rolling window is therefore never populated as intended, and a later line
+compounds it by applying the builtin `max()` to a multi-element array
+(`max(np.abs(rs["window_returns"]), 0.0001)`), which raises on any array of length > 1.
+
+> **This is the mechanism story the dissertation wants, and it is fully evidenced.** An LLM-authored
+> reward that is syntactically valid, passes the safety gate, honours the return contract, runs all
+> 400,000 steps without stopping the pipeline, and **scores the highest fitness in its arm** — while
+> roughly half of the reward signal the agent actually optimised was the harness's DEFAULT, because a
+> line commented "Shift and append" performs a no-op slice and a numpy broadcast.
+>
+> **Fitness cannot detect this. Only an execution-quality audit can.** That is precisely R115's
+> rationale, registered PRE-DATA on the ADR-059 test, and it is now demonstrated rather than argued.
+
+### 31.4 What the results otherwise show, at 912 records
+
+* **The search is genuinely searching** — every arm shows real spread; no arm is inert (a zero spread
+  would have meant the loop was doing nothing).
+* **`baseline_return_minus_turnover` holds at mean +1.1609 over n=30, spread 0.4995**, against ten
+  baselines at −0.171 … −0.325. §24/§29's finding is stable as records accumulate.
+* **The reflection chain is advancing**: `distributional` g0:80 g1:46 g2:36 g3:12 g4:3;
+  `scalar` g0:51 g1:41 g2:35 g3:21 g4:1. Generation 4 of 6 reached.
+* **Invariants hold**: 0 records deviate from the registered 400,000 steps; 0 non-finite fitness values.
+* **H2 arms are differentiating on SEARCH fitness** (`distributional` mean +0.0481 n=29 vs `scalar`
+  +0.0095 n=20) — but this is IN-SAMPLE selection fitness, not the sealed test, and it is **not** a
+  result. Recorded only to note the loop is discriminating, not to hint at an outcome.
+
+### 31.5 The structural fix — the watcher now watches the SCIENCE
+
+`docs/ops/science_watch.py` is added and armed alongside the health watcher. Every poll it asks: is
+the search searching (zero spread ⇒ inert loop); is the reflection chain advancing and where can it
+not run at all; do the arms differentiate; do the scored-record invariants still hold (400k steps,
+return series present, the R115 floor); and are there impossible numbers (non-finite fitness, empty
+series). It is read-only and exits 2 on an inert search, a broken invariant, or an impossible value.
+
+**The lesson, and it is Tamer's:** monitoring process health is not monitoring the experiment. A green
+guard proves execution, never truth — and the thing most worth watching is the output.
