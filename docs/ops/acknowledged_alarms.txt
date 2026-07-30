@@ -74,3 +74,18 @@ reward_scale:WARN
 # ⚠ RE-TRIAGE IF the truncated-call count rises materially or appears on a SECOND model: one verbose
 # outlier is an artefact, a pattern would mean the matched cap is too low to measure some models at all.
 guard:truncation
+
+# capacity_accumulation WARN — "concurrency DECLINING to ~1016 cores; check for a kill event, a
+# drained queue, or a cluster-wide load spike". TRIAGED 2026-07-30 by MEASUREMENT: none of the three
+# suspected causes. It is the GENERATION DRAIN, and it is a data dependency rather than a fault.
+# Measured across 56 arm-slots: pending depth 5 on 14 slots, 4 on 4, 3 on 8, 2 on 6, and **1 on 24** —
+# average 2.61 in flight against a design peak of 5, i.e. ~52% utilisation. An arm submits 5 candidates
+# and cannot author generation g+1 until ALL of g returns, so every generation drains 5 -> 1 before the
+# next begins. Sum of pending (146) matches the scheduler's submitted total (143) almost exactly, and
+# the scheduler is placing 115 of 143 (80%) — so Myriad is MEETING our demand; we are simply not asking
+# for more, because there is nothing more to ask for during a serial reflection chain.
+# ⚠ The search phase is LATENCY-bound, not throughput-bound: its length is 6 x (training + authoring),
+# so extra cores would sit IDLE and would not shorten it. Cores become decisive at C4 (39,760 trainings
+# at rung 568). RE-TRIAGE IF concurrency declines while the QUEUED backlog is deep — that would be a
+# genuine placement failure rather than a drained pipeline.
+capacity_accumulation:WARN

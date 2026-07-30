@@ -197,6 +197,58 @@ watchdog the moment this fix lands.**
 
 ---
 
+## 6. D16 — the C3 gate's `health_ok` does NOT see a SUBSTRATE mix (found 2026-07-30)
+
+**File:** `src/cluster/integrity.py` ~line 360 (`write_integrity_report`)
+**Found while checking whether D15's four 6140 records would stall C4 at the review gate.**
+
+**The defect.** The gate's stop message says it fires on *"a REAL execution defect (a short/incomplete
+unit or **device inhomogeneity**)"*, and the gate reads exactly one field:
+
+```python
+"health_ok": bool(all_complete and crn_consistent and not mixed_winner_units),
+```
+
+`crn_consistent` is computed from `seed_devices`, i.e. the **device label** (`cpu` / `cuda`) only. And
+`device_homogeneous_everywhere` — the nearest thing to a substrate check — is explicitly annotated
+*"informational under seed-pool blocks"* and is **not** a gate input.
+
+**So the one inhomogeneity that ACTUALLY occurred in RUN 4 — a Xeon Gold 6140 mixed into a unit whose
+other 26 records ran on 6240s — passes the gate silently.** `check_substrate_fields` already exists in
+`campaign_health.py` and rates exactly this CRITICAL, but it is wired into the SENTINEL, not into the
+gate. The gate therefore promises a check it does not perform.
+
+Two mitigating facts, so the exposure is stated honestly: this is why C4 will **not** stall on D15
+(good for the timeline), and the sentinel does catch it (which is how D15 was found at all). The
+defect is that the *blocking* control is blind to it while an *advisory* one is not.
+
+**Becomes:** fold the substrate census into the gate verdict, so the blocking control checks the same
+thing the advisory one does.
+
+```python
+# 2026-07-30 (D16): `crn_consistent` keys on the DEVICE label only, so an Intel/AMD or
+# Skylake/Cascade-Lake mix — the exact thing that happened in RUN 4 — passed a gate whose own stop
+# message claims to catch "device inhomogeneity". The substrate census is what makes the promise true.
+from src.cluster.integrity import substrate_field_census
+_sub = substrate_field_census(...)           # same census check_substrate_fields consumes
+substrate_homogeneous = len({k for k, v in _sub.items() if v > 0}) <= 1
+report["verdict"]["substrate_homogeneous"] = substrate_homogeneous
+report["verdict"]["health_ok"] = bool(
+    all_complete and crn_consistent and not mixed_winner_units and substrate_homogeneous
+)
+```
+
+**Test (must FAIL first):** an integrity report built over a unit holding two distinct CPU-model
+signatures returns `health_ok = False`; one holding a single signature returns True; and a device-only
+mix still fails as before (no regression).
+
+⚠ **Consequence to weigh before applying:** with this in place, a single stray record on an odd node
+STOPS the line at the gate until a human clears it. That is the correct default for a validity failure,
+but it turns a silent pass into a hard stop — so it must land together with the host-fencing mechanism
+(`--exclude-hosts`, already used for `node-d00b-024`) so the stop is rare rather than routine.
+
+---
+
 ## Applying, at the next restart
 
 1. apply 1 → 3 above, each with its falsifiable test proven to FAIL against the current code first;

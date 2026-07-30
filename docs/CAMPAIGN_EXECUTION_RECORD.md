@@ -3502,3 +3502,117 @@ achieved **1,584 cores** at peak, which is 2.5× the previously *measured* 636-c
 account's headroom is clearly well above what the old probe suggested. 4,000 is credible in the sweep;
 it is not achievable during a serial reflection chain, and claiming otherwise would be arithmetic
 theatre.
+
+---
+
+## 33. WHY WE ARE "ONLY" ASKING FOR ~900 CORES — THE ARITHMETIC, AND THE ONE LEVER I DECLINED
+
+Written 2026-07-30 11:25 UTC. Tamer pressed twice on why we are not demanding all of Myriad. The
+answer is measured, not asserted, and it changes what "speeding up" even means.
+
+### 33.1 Myriad is not refusing us — we are not asking
+
+| | |
+|---|---|
+| pool `d` capacity | **9,432 cores** across 262 nodes |
+| we have SUBMITTED | **143 jobs** |
+| the scheduler is RUNNING | **115** (80 % placement) — 28 queued is our *entire* unmet demand |
+| cores held | ~**900-960** |
+
+**The scheduler is meeting 80 % of everything we ask for.** There is no refusal to fight, no priority to
+raise, no pool to widen. The question is why we only ask for 143.
+
+### 33.2 The design's own ceiling in the SEARCH phase, and the generation drain
+
+Peak possible concurrency during search is **12 lines × 5 arms × 5 candidates = 300 jobs = 2,400
+cores** (each search job is one training on 8 threads, per R107). We are at 143 — 48 % of our own
+ceiling. **Measured cause**, across 56 tracked arm-slots:
+
+| pending depth | arm-slots |
+|---|---|
+| 5 (generation just submitted) | 14 |
+| 4 | 4 |
+| 3 | 8 |
+| 2 | 6 |
+| **1 (waiting on one straggler)** | **24** |
+
+Average **2.61 in flight against a peak of 5**. Sum of pending = 146, against 143 submitted per the
+scheduler — the two agree, so the accounting is sound.
+
+**The cause is a data dependency, not a bubble.** An arm cannot author generation *g+1* until **all**
+of generation *g* returns, because the reflection block is built from those results. So every
+generation drains 5 → 1 before the next begins, and average utilisation is ~52 % by construction.
+Proceeding on 4 of 5 would change what the model is shown, i.e. change the science.
+
+Note the design already fixes the *avoidable* version of this: MODE-D submits all C4 assurance blocks
+at once precisely to avoid "forfeit[ing] capacity during every block's drain". The search chain is the
+case that cannot be pipelined away.
+
+### 33.3 THE POINT THAT REFRAMES "SPEED UP": the search phase is LATENCY-bound
+
+**Extra cores during search would sit idle.** The search phase's duration is
+6 × (training ≈ 8.5 h + authoring), i.e. the registered `critical_chain` floor of **3.27 days** — a
+function of chain depth, not of core count. Handing us 2,400 cores instead of 900 would leave ~1,500
+idle and finish at exactly the same time.
+
+Cores become decisive only at **C4**, whose demand is enormous:
+
+| rung | 30 | 100 | 189 | 279 | 340 | 403 | 568 |
+|---|---|---|---|---|---|---|---|
+| trainings | 2,100 | 7,000 | 13,230 | 19,530 | 23,800 | 28,210 | **39,760** |
+
+The core line is at **generation 4 of 6**, so search ends in roughly a day, and **the 4,000-core push
+matters from ~1 August**. Peak achieved so far is **1,584 cores**, already 2.5× the previously
+*measured* 636-core ceiling, so the account's headroom is clearly far above the old probe.
+
+### 33.4 The one genuine lever — and why I am NOT taking it unilaterally
+
+There IS a real overlap available. **The eleven H1 baselines need no LLM winner**, so their ladder
+(seeds 30 → 568 = 11 × 538 = **5,918 trainings**) does not depend on the reflection chain at all. It
+could be computed NOW on the ~1,500 idle cores — roughly **50,300 core-hours, about 25 h at 2,000
+cores** — and archive-truth resume would then find those records already present and skip them when C4
+reaches that rung. Same specs, same seeds, same code, same fenced substrate: **no science changes, only
+when the arithmetic happens.** It would remove a large slice of C4's critical path.
+
+**I am not doing it, and the reason is the priority ordering Tamer himself set.** It requires a
+**non-campaign writer in the confirmatory archive**. That is the exact hazard the 2026-07-27 launch
+gate caught (8 foreign probe records in the confirmatory search root, which archive-truth resume would
+have ADOPTED), and a variant of the shared-resource class that invalidated RUN 1. If C4 began while
+those out-of-band jobs were still running, two writers would target one run_id — the P4 write-race.
+
+> **Campaign quality outranks campaign speed.** Trading a 25-hour saving for any probability of
+> archive corruption is the wrong trade when we already finish ~20 days inside the stop. Registered
+> here as a **design improvement for a future run** — pipeline the winner-independent units (H1
+> baselines, and the DFO arms) ahead of the reflection chain *inside the campaign's own driver*, where
+> the per-batch lock and the resume diff make it safe by construction.
+
+If Tamer wants the saving now, the decision is his and the risk is stated above.
+
+### 33.5 D16 — found while checking whether D15 would stall C4
+
+Checking whether the four 6140 records would trip the C3 review gate revealed that **they will not —
+and that this is itself a defect.** The gate reads exactly one field:
+
+```python
+"health_ok": bool(all_complete and crn_consistent and not mixed_winner_units)
+```
+
+`crn_consistent` is computed from the **device label** (`cpu`/`cuda`) only, and
+`device_homogeneous_everywhere` is explicitly *"informational … not a gate input"*. So the gate whose
+stop message promises to catch *"device inhomogeneity"* is **blind to a CPU-model mix** — the one
+inhomogeneity that actually occurred. `check_substrate_fields` rates exactly this CRITICAL, but it is
+wired into the SENTINEL, not the gate: **the advisory control sees it and the blocking control does
+not.** Registered as DEFERRED_FIXES §6 with its test and a warning that it must land alongside host
+fencing, or a single stray record would turn into a routine hard stop.
+
+Two honest mitigations: this is *why* C4 will not stall on D15 (good for the timeline), and the
+sentinel is what caught D15 in the first place.
+
+### 33.6 The capacity WARN, triaged by measurement
+
+The sentinel raised *"concurrency DECLINING to ~1016 cores — check for a kill event, a drained queue, or
+a cluster-wide load spike"*. **None of the three.** It is the generation drain of §33.2, confirmed by
+the pending-depth census and by the 80 % placement rate: a drained *pipeline*, not a drained *queue*.
+Acknowledged with the re-triage trigger that matters — **concurrency falling while the queued backlog
+is DEEP** would be a genuine placement failure; concurrency falling with 28 queued is simply us running
+out of work to ask for.
