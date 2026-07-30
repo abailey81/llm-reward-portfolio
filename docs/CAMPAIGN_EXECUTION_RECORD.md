@@ -4155,6 +4155,14 @@ actually ran 42,025 s = 11.7 h. `h_rt` is right-sized; cutting it to 12 h would 
 trainings mid-run, destroying records and burning the queue position that produced them. Registered
 here so no future session re-proposes it: **the walltime is not slack, the memory is.**
 
+**And the walltime turned out not to be the lever anyway.** Followed to completion, the four 4G
+canaries at 4 h, 8 h, 12 h and 15 h all placed **within three minutes of each other** — 14:51:20,
+14:52:56, 14:53:05 and 14:51:21 — i.e. they were released by the same scheduling window irrespective of
+their walltime, after waits of 43–46 minutes. Only the 2 h job was quick (5 min). So across the eight
+canaries the ordering is unambiguous: **memory dominates, walltime barely registers between 4 h and
+15 h, and a single slot is trivially placeable.** That is a cleaner result than the first reading, and
+it removes the walltime option entirely rather than merely declining it.
+
 ### 38.5 What this corrects in §33
 
 * §33.1's "the scheduler is meeting 80 % of everything we ask for" was true at 12:19 and is **false
