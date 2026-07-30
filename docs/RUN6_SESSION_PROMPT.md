@@ -399,7 +399,12 @@ lane beats an A100 and is actually schedulable. **Claude Council DEACTIVATED** a
 
 ## §3. ⚠⚠ THE SINGLE MOST IMPORTANT RULE FOR A LIVE RUN
 
-**RUN 4's executing code is `b9e6df5` on BOTH sides** — the laptop drivers started from it, and the cluster
+> **⚠ RE-BASED 2026-07-30 (record §46): the running sha is now `c99716e`.** The certified memory
+> relaunch (renderer sized from the measured peak → search `mem=1G`, test lane `mem=2G`) restarted the
+> twelve drivers, so the drift baseline moved with them. **A relaunch does not violate the invariant
+> below — it re-bases it.** Use `c99716e` in the test; the paragraph is preserved as written.
+
+**RUN 4's executing code was `b9e6df5` on BOTH sides** — the laptop drivers started from it, and the cluster
 tree was verified byte-identical (`DIFFER=0 MISSING=0` over 2,649 files) before launch.
 
 **DO NOT EDIT ANYTHING UNDER `src/`, `scripts/`, `config/`, `prompts/` WHILE THE RUN IS LIVE.**
@@ -407,7 +412,7 @@ tree was verified byte-identical (`DIFFER=0 MISSING=0` over 2,649 files) before 
 **The test is:**
 
 ```
-git diff --name-only b9e6df5 HEAD -- src scripts config prompts     # MUST be empty
+git diff --name-only c99716e HEAD -- src scripts config prompts     # MUST be empty
 ```
 
 **Not** `git rev-parse HEAD`. Documentation commits on top are expected, correct, and required — only
@@ -691,7 +696,7 @@ clearing (last time: 22 cleared, 38 correctly kept).
 python scripts/campaign_guards.py outputs/campaign_cluster_run4 all    # exit 2 = stop the run
 python docs/ops/arm_coverage.py                                        # D14 — guards cannot see this
 python docs/ops/science_watch.py                                       # the science invariants
-git diff --name-only b9e6df5 HEAD -- src scripts config prompts        # MUST stay empty
+git diff --name-only c99716e HEAD -- src scripts config prompts        # MUST stay empty
 python scripts/freeze.py --check                                       # RC=0 + hash MATCHES
 python docs/ops/stage_eta.py <measured_cores>                          # per-rung ETAs
 ssh myriad "qstat -u ucestes | awk 'NR>2 && \$5==\"r\" {c+=\$9} END {print c+0}'"   # running slots

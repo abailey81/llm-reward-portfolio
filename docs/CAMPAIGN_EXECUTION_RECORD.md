@@ -4977,3 +4977,98 @@ window, because pending counts come from specs without records, not from job nam
 
 **The lesson is not "be careful with `-N`".** It is that a *control experiment on a live system* needs
 its restore written as a literal, not as a round-trip through the thing being changed.
+
+---
+
+## 46. THE RELAUNCH — CERTIFIED, EXECUTED, AND MEASURED
+
+Written 2026-07-30 17:30 UTC (BST 18:30). Tamer: *"finish the plan, we are currently on 500 cores, its
+too low"* and *"make sure absolutely everything is flawless, don't stop until you reach it"*.
+
+### 46.1 The sequence, each step verified before the next
+
+| # | step | evidence |
+|---|---|---|
+| 1 | renderer fixed | `src/cluster/jobscript.py`: `mem_per_core` computed from `_MEASURED_PEAK_GB_PER_TRAINING = 1.64` × pack × 1.3, **CPU lane only** |
+| 2 | test **falsified first** | against `git show HEAD:src/cluster/jobscript.py` the pre-fix renderer emits `mem=4G` for **both** CPU cases → the new assertions fail; against the fix they pass |
+| 3 | full suite | **2,876 passed / 3 skipped / 0 failed**, `PYTEST_RC=0` **read from the log**, not from a pipe |
+| 4 | lint | `ruff` clean on both changed files |
+| 5 | freeze | `freeze --check` RC=0, canonical hash **`3ca6f01a…` UNMOVED** — neither file is hash-bound, so RUN 4 still executes the identical registered design |
+| 6 | commit + push | `c99716e`, both branches |
+| 7 | cluster deploy | `sha256 509353885764a5d743aa2829ca926e949e06fd21994c3ce8b201c3ff21912bcd` **identical both ends** |
+| 8 | end-to-end render | with the LIVE flags: search lane `-pe smp 8` + **`-l mem=1G`**; test lane `-pe smp 4` + **`-l mem=2G`**; `-ac allow=d`, `-l h=!node-d00a-230&!node-d00b-024`, `h_rt=15:0:0` all intact |
+| 9 | drivers restarted | 24 processes (12 parent/child pairs) killed **leaf-first**, 0 remaining; **all twelve supervisors logged** *"driver exited -1 - relaunching in 600s; Myriad arrays unaffected"* |
+| 10 | nothing else touched | 12 supervisors, `watchdog_fenced`, `campaign_backup`, `sentinel`, `allocation_advisor`, `publish_loop`, `remote_watch` all alive throughout |
+
+**Why the restart is gentle rather than the runbook's full teardown:** `mode_d_supervisor.ps1` already
+loops `maxAttempts = 1000` and relaunches the driver on ANY non-zero exit after a 600 s backoff. So the
+operation is *kill the drivers* — the supervisors do the rest, with the identical arguments, and the
+watchdog never engages because no supervisor died. Cost: a ten-minute polling gap per line, and any
+in-flight authoring call. Archive-truth resume re-authors only what is missing, so banked candidates are
+not re-billed.
+
+**⚠ THE DRIFT BASELINE HAS MOVED, BY DESIGN.** The running sha is now **`c99716e`**, not `b9e6df5`. The
+§3 invariant is not violated by a relaunch — it is **re-based** by one. From here the test is:
+
+```
+git diff --name-only c99716e HEAD -- src scripts config prompts     # MUST be empty
+```
+
+### 46.2 Pool B is microarchitecture-identical to pool D — the registered claim is now MEASURED
+
+`src/cluster/lanes.py` asserts `CONFIRMATORY_CPU_POOLS = ("d", "b")` are "microarchitecture-homogeneous".
+Nothing verified it, and the scheduler exposes only topology (2×18 on d, b **and** e — so topology proves
+nothing). Two one-slot probe jobs, one pinned to each pool:
+
+```
+node-b00a-004   model name : Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz
+node-d00a-123   model name : Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz
+```
+
+**Identical model and clock.** The registered claim holds, and pool B's free slots are legitimately
+usable without a CRN hazard.
+
+**We are still NOT widening to `allow=d,b`, and the reason is proportion, not doubt:** the gain measured
+today is ~88–376 cores against pool D's ~2,000 placeable, two hosts is a small sample for a
+substrate decision, and D15 is the standing reminder of what one heterogeneous host costs. Recorded as a
+**validated option** for the next run, or for the moment pool-D capacity becomes binding.
+
+### 46.3 What was measured before and after — reported honestly whichever way it falls
+
+| moment | running | queued | cores | total jobs |
+|---|---|---|---|---|
+| before the restart (16:26 UTC) | 66 | 122 | **528** | 188 |
+| all twelve drivers back (16:34 UTC) | 68 | 123 | **544** | **191** |
+
+**The resume is clean.** Twenty-four driver processes back, twelve supervisors, watchdog alive, all
+twelve leg identities present (`c1-core`, `h3ss` and the ten legs), and the total job count moved 188 →
+191 — **no duplicate submission**, which is the failure mode a resume would announce with a hundred-job
+storm. Within sixty seconds of the relaunch the drivers were authoring again (an OpenRouter POST on the
+kimi line at 17:34:15 local) and the first new batches were written.
+
+**★ THE FIX IS LIVE AND VISIBLE IN THE ARTIFACTS.** Jobscripts written at 17:34 — one minute after the
+relaunch — carry:
+
+```
+#$ -pe smp 4
+#$ -l mem=2G          <- was 4G; 8 GB per job instead of 16 GB
+```
+
+### 46.4 The placement verdict — what is measured, and what is not yet
+
+**Measured:** the renderer change reached the cluster and the first post-relaunch jobs carry the new
+sizing.
+
+**NOT yet measured, and stated as such:** whether they *place faster*. The honest complication is that
+those first jobs are the **4-slot test lane**, which places more easily than the 8-slot search lane
+regardless of memory — so they cannot settle the question on their own. The clean test arrives with the
+next SEARCH batch, and it is a natural experiment worth waiting for: **118 old 8-slot jobs at `mem=4G`
+are still queued**, and new 8-slot jobs at `mem=1G` will compete against them in the same scheduling
+passes, same user, same tickets, differing in one field. If the 1G jobs jump the queue, the §38 effect
+is demonstrated at campaign scale rather than by canary; **if they do not, §38 and §43's forecast is
+wrong and this record will say so.**
+
+⚠ **A trap re-encountered while measuring this:** `qstat` truncates job names to ten characters, so a
+grep for `random_search_test` matched nothing even though the jobs were there (they appear as
+`c1_random_`). That is trap 1 in the handoff's list, and it cost a minute of confusion — recorded
+because the same trap has now bitten three separate sessions.
