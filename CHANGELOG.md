@@ -3,6 +3,86 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-30b] D17 — a fail-safe that manufactures a limit cycle; feedback delivery closed out
+
+**PAST.** The session resumed mid-task with A4/A7/A8/A11 artefacts written but uncommitted, and the
+`FEEDBACK_ASSESSMENT` delivery log still reading "pending" for all four. RUN 4 live at ~975 records,
+12/12 lines fenced, drift 0, freeze MATCHES.
+
+**NOW — what was done, in order.**
+
+1. **Committed A4/A7/A8/A11** (`62658ab`), pushed to both branches. The delivery-log update that was
+   meant to accompany it **crashed before writing** — a `UnicodeEncodeError` printing `⚠` to a cp1251
+   console — so the artefacts were committed while the log still said "pending". Caught by checking
+   rather than assuming, and repaired: the log is now complete, plus new §9 (three artefacts that
+   already existed and were extended rather than rebuilt) and §10 (what remains, and who owns it).
+   Before marking A4 delivered I grepped its artefact to confirm it carries the **§36-corrected**
+   figures — that verification was the entire point of §6, so asserting it would have been worthless.
+
+2. **D17 — the finding of the session.** `science_watch` listed nine R115 breaches and seven read
+   **exactly 199,932 / 400,000 = 49.9830 %** across **five models, three arms, five different
+   exceptions**. Independent authoring defects do not agree to the call, so the fraction was not being
+   set by the defect. Root cause: `safe_call` substitutes `(SAFE_DEFAULT, {}, None)` on failure, and
+   that `None` is the reward's own `reward_state` — so every failure erases the reward's memory and a
+   stateful reward with a cold-start branch is pinned in a limit cycle for all 400,000 steps.
+   `period = warm-up calls + 1`, so a two-call warm-up gives 1/2 and deepseek's `if n < 3` gives
+   exactly 1/3 = 133,333/400,000. **The fraction encodes the reset period, not the severity.**
+
+   Two reasonable hypotheses were **refuted by evidence first** and are recorded: shared `reward_state`
+   across vectorised sub-envs (`portfolio_env.py:222` holds it per instance) and a differing vector
+   width between the 1/2 and 1/3 records (byte-identical `determinism_env`).
+
+   **Established causally, not by inspection:** `docs/ops/probe_safe_default_cycle.py` replays every
+   archived reward twice — shipped reset vs state preserved. Shipped reproduces the archived fractions
+   to within **0.08 pp** with literal `.X.X.X.X` alternation; preserving state collapses it.
+
+   **The consequence that matters:** for `haiku_4_5` and `nemotron_3_super` the reward's main path is
+   *sound* — the only defect is a one-step warm-up boundary — and they fail **1.0–1.75 %** with state
+   preserved versus **50 %** as shipped. A fail-safe meant to contain a bad reward converted a
+   nearly-correct reward into a permanently broken one, biasing those models' measured authoring
+   reliability **downward**. Verdicts over all nine: **2 trapped / 6 genuinely broken / 1 inconclusive**.
+
+   **Exposure bounded and measured:** 935 of 979 records entirely clean, 29 under 1 %, **six in the
+   1–10 % band that ARE scored**, nine excluded effect-blind. **Zero breaches on the core confirmatory
+   line `c1`.** Separately disclosed: the floor is a knife-edge for `qwen3_5_9b/placebo/placebo-g2-c2`
+   at 39,986/400,000 = **9.9965 %**, fourteen calls below exclusion.
+
+   Landed as record **§37** + limitation **B.8.7/B.8.8** + deferred fix **D17** (`af64bbd`). **No code
+   changed** — `src/` is drift-fenced and `safe_call`'s semantics are inside the frozen determinism
+   envelope; changing a reward-evaluation semantic mid-campaign would invalidate every earlier record.
+   D17 also names the blind spot that hid it: `validate_once` calls the reward **once, from a cold
+   start** — precisely the call that succeeds — so the defect is invisible to one-shot validation *by
+   construction*. It must thread state across ≥3 calls.
+
+3. **Three of my own defects fixed on sight.** (a) `science_watch.py` printed `r115[:8]` while the
+   count line said 9 — a **silent truncation** hiding the ninth breach, which could have been on the
+   confirmatory line; cap removed, with a comment forbidding reintroduction without reporting dropped
+   rows. (b) `APPENDIX_B` printed **B.8 before B.7** — an ordering defect I introduced; B.8 moved after
+   B.7 rather than renumbering, because five external docs cite "B.7 Future work". (c) The
+   `DEFERRED_FIXES` closing checklist said "apply 1 → 3 above" while the register now runs to §7.
+   Also self-corrected in the record: my first classifier called `qwen3_5_9b/scalar-g3-c2` TRAPPED when
+   its shipped failure had not reproduced at all — the probe now requires reproduction before
+   classifying, and the counts are 2/6/1, not 3/6.
+
+4. **Concurrency question answered with evidence.** The sentinel warned that concurrency was declining.
+   Measured: 82 jobs / **656 slots** running, 89 queued, **no `Eqw`**. The cluster is nearly **empty**
+   (most queues ~11,644 slots free) and **345 hosts** satisfy our `snx=1, tmpfs=15G, batch=true`
+   request, so we are **not** contention- or eligibility-limited. `qquota` is empty and
+   `max_u_jobs = 1000` is not binding. The constraint is **fair-share entitlement**, consistent with the
+   previously measured ~636-core equilibrium. No legitimate lever remains: self-elevation is forbidden,
+   priority must never be lowered, and an RC request is Tamer's declined decision. `max_reservation=20`
+   cluster-wide also means most of our 89 queued jobs hold no reservation.
+
+**Live state at close of this block.** 12/12 lines fenced · 979 records · spend **$20.93** · guards
+RC=0 · drift **0** · freeze **MATCHES** · one outstanding CRITICAL sentinel verdict (`record_sanity`,
+the `kimi_k3` garbage record — genuinely broken, R115-excluded, acknowledged).
+
+**FUTURE — next actions.** (i) A12 public OSF/Zenodo DOI deposit **needs Tamer** (account action, a
+registered freeze-day obligation). (ii) Resolve the R96 psychometric activation scope in writing before
+any spend — the all-or-nothing clause may commit both axes (~$23–37, not $10). (iii) Deferred fixes
+D12/D14/D16/**D17**/preflight headroom apply only at a natural restart, never live. (iv) Continue the
+2-minute monitoring cadence; rung 568 ETA ~Aug 7.
+
 ## [2026-07-29b] D14 — leg7 was running with 3 of 5 arms, and every guard said green
 
 **Successor session, T+10 h 30 m → T+11 h. No source, config, prompt or frozen artefact was touched;
