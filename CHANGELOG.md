@@ -3,6 +3,82 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-30f] THE ROUTE TO 4,000 CORES, COMPUTED — AND THE RESTART QUESTION ANSWERED
+
+**PAST.** `[2026-07-30e]` proved the memory lever safe and staged it. Tamer then asked two questions:
+use the maximum possible cores, preferably 4k+; and *do we need to restart the campaign or something
+else?*
+
+**NOW — record §43 answers both, from the repo's own model rather than from assertion.**
+
+1. **4,000 IS THE SATURATION POINT, not an arbitrary target.** `stage_eta.py` over
+   `src/cluster/lanes.plan_lanes`: rung 568 lands 08-24 at 560 cores · 08-07 at 1,500 · 08-04 at 2,400
+   · **08-01 at 4,000** · 08-01 at 8,000 — where it is **critical-chain bound and more cores buy
+   NOTHING**. Tamer's number is exactly right, and it is also where asking for more stops being
+   defensible.
+
+2. **4,000 is UNREACHABLE during the search phase, by design.** The registered budget is 30 candidates
+   = 6 generations x 5, so peak concurrency is 12 lines x 5 arms x 5 candidates = **300 jobs x 8 slots
+   = 2,400 cores**, and the measured generation drain (2.61 in flight against a peak of 5) puts the
+   realistic figure near 1,500. **4,000 is a C4 property.**
+
+3. **★ THE ARITHMETIC THAT MAKES MEMORY THE ENABLER OF 4,000 CORES.** The hard cap is
+   `max_u_jobs = maxujobs = 1000` (verified live; we hold 189). C4 runs `--pack 4
+   --cores-per-training 1`, so **1,000 jobs x 4 cores = exactly 4,000 cores — no pack change needed**.
+   But each job also RESERVES memory:
+
+   | per-slot | per job | 1,000 jobs reserve | pool-d free | feasible |
+   |---|---|---|---|---|
+   | **4G (today)** | 16 GB | **16 TB** | **11.7-12.1 TB** | **NO — caps us near ~2,900 cores** |
+   | **2G** | 8 GB | 8 TB | 11.7-12.1 TB | yes, and 1.29x the measured 6.2 GB peak |
+
+   **So the memory right-sizing is the PRECONDITION for 4,000 cores, not a queue-time nicety.**
+
+4. **THE RESTART ANSWER: no campaign restart; ONE driver relaunch at the search→C4 boundary** (~1–2
+   days out, the core line is at generation 4–5 of 6). It re-renders memory at 2G/slot so C4 can hold
+   ~1,000 jobs, and lands the nine deferred fixes. It changes **nothing that can move a number** — not
+   the freeze, the archive, the records, the spend, the threads, the pool or the fence — and costs the
+   `h3ss` re-author, **~$2.50**, with the `c1` canary shield keeping the confirmatory line at $0.00.
+   Not now (C4 hasn't started, and a mid-generation restart risks re-submitting live specs); not later
+   (jobs already submitted would carry the old request).
+
+5. **TWO LEVERS CONSIDERED AND DECLINED, with reasons.** (a) Raising the test pack 4→8 for 8,000 cores
+   — mechanically sound and substrate-neutral (`pack N` + `cores_per_training 1` is N independent
+   1-thread trainings, and `autosize_h_rt`'s CPU branch confirms the task wall is flat in pack), but
+   **the model says 8,000 buys nothing** while doubling a task failure's blast radius. (b)
+   Pre-computing the H1 baseline ladder out of band (§33.4) — now declined for a second, sharper
+   reason: SGE's functional policy splits a USER's tickets across that user's jobs, so ~700 extra
+   non-critical jobs would **dilute the confirmatory chain's own priority** — slowing the critical path
+   to fill capacity C4 will consume anyway.
+
+6. **⚠ A DEFECT IN MY OWN DEFERRED FIX, CAUGHT BY MEASURING INSTEAD OF INFERRING.** `DEFERRED_FIXES §8`
+   originally sized memory at **4x** the per-training peak. For the pack-4 test lane that computes
+   **6.8G per slot — LARGER than the 4G it replaces** — i.e. it would have made placement worse while
+   looking like a fix. Re-derived from a direct `qacct` measurement of our own `c1_baselines_pNN`
+   tasks (**5.86–6.16 GB**, ~1.55 GB per single-threaded training; wall 7.9–9.2 h, independently
+   corroborating §39's 8.33 h) the rule is now **1.3x on the measured per-lane peak**, which lands on
+   **2G/slot for both lanes**. The section carries the wrong version and why it was wrong.
+
+7. **FULL HEALTH SWEEP, every dimension first-hand** (§43.6): 12/12 lines ALL ARMS FULL · 1,022 records
+   · $22.18 · freeze MATCHES · **drift 0** · 6 guards green but the acknowledged truncation ·
+   `science_watch` RC=0 · **Scratch 274 MB of 1 TB (2 %)** · gold on ACFS intact · **0 `Eqw`** ·
+   killswitch file absent · `STOP_CAMPAIGN` absent · backup current (1,022 records mirrored at 16:14) ·
+   laptop sleep AND hibernate `0x0` on AC, up 97.8 h, Windows Update paused to 2026-09-10, C: 31.2 GB
+   free · **OpenRouter $3.51 of $19.31**.
+   * **THE C3 GATE IS NOT A BLOCKER — open thread 6 closed.** Six `tier1_integrity_*` reports exist,
+     all from launch night, and **no driver carries `--hold-at-gate`**; the report itself states *"Gate
+     proceeds AUTOMATICALLY on green health (no manual wait)"*. The all-zero tables in them are a T+3 h
+     snapshot, not a stall.
+   * **THE BUDGET WORRY WAS MINE, AND MEASURING KILLED IT.** Mid-sweep I formed the view that Anthropic
+     headroom was thin. Measured: **$18.67 spent, $2.23 per authoring generation, ~1 generation left,
+     and C4 needs NO LLM calls at all → projected ~$20.90 against $28.15 available, a 26 % margin.**
+     Recorded because the worry nearly became a reported risk.
+
+**FUTURE.** (i) Tamer: `ssh myriad "bash ~/mem_relax.sh --apply"` for the live half. (ii) At the
+search→C4 boundary: the rolling driver relaunch with `mem=2G` + the nine deferred fixes — that is the
+step that unlocks 4,000 cores. (iii) Then MEASURE the achieved concurrency against the 1,000-job cap
+and report it honestly, whichever way it falls.
+
 ## [2026-07-30e] FULL PERMISSIONS GRANTED — the memory lever taken to the end of what an agent may do, plus four open threads closed
 
 **PAST.** `[2026-07-30d]` had found by experiment that our 32 GB-per-job memory request, not fair share,

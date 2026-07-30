@@ -326,18 +326,39 @@ pool whose nodes carry 5.2 GB per core; 54 of the 106 pool-d hosts with free slo
 operator never has to edit source to re-size it:
 
 ```python
-# 2026-07-30 (record §38): size the memory request from the MEASURED footprint, not a round number.
-# maxvmem over n=55 completed 8-slot RUN-4 search jobs: p50 1.57 GB, max 1.64 GB -- i.e. ~1.7 GB per
-# CONCURRENT TRAINING, not per slot. The old flat "4G per slot" asked 32 GB for a job that peaks at
-# 1.64 GB (19.5x), and on Myriad memory - not slots - is the scarce consumable, so the over-ask was
-# the binding placement constraint. Keep >= 4x headroom over the measured peak.
-_MEASURED_PEAK_GB_PER_TRAINING = 1.7
+# 2026-07-30 (record §38, §43): size the memory request from the MEASURED footprint, not a round
+# number. Measured on RUN 4's own tasks, per LANE:
+#   search lane, pack 1 on 8 slots : maxvmem p50 1.57 GB, max 1.64 GB   (n=55)
+#   test lane,   pack 4 on 4 slots : maxvmem 5.86-6.16 GB               (exit-0 c1_baselines_pNN)
+# i.e. ~1.55-1.64 GB per CONCURRENT TRAINING, and the job's need scales with the PACK, not the slot
+# count. The old flat "4G per slot" asked 32 GB for a search job that peaks at 1.64 GB (19.5x); on
+# Myriad memory - not slots - is the scarce consumable, so the over-ask was the binding placement
+# constraint, AND at C4 it makes the 1,000-job cap unreachable (1,000 x 16 GB = 16 TB against 11.7-12.1 TB
+# of free pool-d memory).
+#
+# ⚠ AN EARLIER DRAFT OF THIS FIX USED A 4x HEADROOM. That is wrong in the direction that matters: for
+# the pack-4 test lane it computes 6.8G per slot, i.e. LARGER than the 4G it replaces, which would
+# have made placement worse while appearing to fix it. Caught by measuring the pack-4 peak instead of
+# inferring it. The rule below is 1.3x on the MEASURED per-lane peak, which lands on 2G per slot for
+# both lanes: 8 GB per search job (4.9x its 1.64 GB) and 8 GB per test job (1.29x its 6.2 GB).
+_MEASURED_PEAK_GB_PER_TRAINING = 1.64
 if mem_per_core is None:
     concurrent = max(1, int(pack))                 # packed trainings share the job's memory
-    need_gb = _MEASURED_PEAK_GB_PER_TRAINING * concurrent * 4.0   # 4x headroom
+    need_gb = _MEASURED_PEAK_GB_PER_TRAINING * concurrent * 1.3     # 1.3x on the measured peak
     per_slot = max(1.0, need_gb / max(1, int(cores)))
-    mem_per_core = f"{per_slot:.0f}G"
+    mem_per_core = f"{max(1, round(per_slot)):d}G"
 ```
+
+**Sanity table for the two live lanes (this is what the rule must produce):**
+
+| lane | pack | cores | measured peak | rule output | request | headroom |
+|---|---|---|---|---|---|---|
+| search | 1 | 8 | 1.64 GB | `1G`/slot | 8 GB | 4.9x |
+| test (C4) | 4 | 4 | 6.2 GB | `2G`/slot | 8 GB | 1.29x |
+
+At `2G` the C4 reservation for 1,000 concurrent jobs is **8 TB against 11.7-12.1 TB of free pool-d
+memory** — feasible; at the current `4G` it is **16 TB**, which is not. **This fix is therefore the
+precondition for the 4,000-core target, not merely a queue-time improvement** (record §43.3).
 
 and in `scripts/run_campaign_cluster.py`:
 
