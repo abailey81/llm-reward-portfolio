@@ -1,0 +1,46 @@
+# ACKNOWLEDGED SENTINEL VERDICTS — one "check:severity" per line.
+#
+# An entry here means: INVESTIGATED, UNDERSTOOD, and consciously accepted for now, with the reason
+# recorded. `campaign_watch.py` reports these as (ack) and does not raise the alert level; anything
+# NOT listed here is reported as (NEW) and DOES alert.
+#
+# The point is alarm hygiene. D15 survived ten hours because a CRITICAL sat in a JSONL beside six
+# green guards. The countermeasure is not to lower the bar but to make the KNOWN quiet so the NEW is
+# loud. Never add a line here to silence something you have not run to ground — an unjustified entry
+# re-creates exactly the failure this file exists to prevent.
+#
+# Remove an entry the moment its underlying condition is resolved.
+
+# D15 (record s.28). Four `baseline_volatility_scaled_return` records (seeds 14-17) trained on the
+# one Xeon Gold 6140 host in the estate, node-d00b-024, while the unit's other 26 ran on 6240s.
+# TRIAGED: the fence (-l h=!node-d00a-230&!node-d00b-024) is live on all 12 lines and verified in
+# newly-written jobscripts, so no FUTURE record can land there. H2 is untouched (every LLM-arm record
+# is homogeneous) and the affected baseline is not the binding H1 max. OPEN: the bit-comparison
+# experiment that decides whether the four archived records are replaced or kept with a measured
+# equivalence. Remove this line when that experiment resolves.
+substrate_fields:CRITICAL
+
+# record_sanity WARN (record s.26.4). `baseline_differential_sharpe-s1` and -s5 each show exactly ONE
+# safe-default call in 400,000 (0.00025%), caused by DSR's documented zero-denominator warm-up
+# (A_0 = B_0 = 0, so the first step's denominator is literally (B - A^2)^1.5 = 0). True-positive
+# alarm, benign by design, 40,000x below R115's 10% floor, and irrelevant to eligibility because R115
+# governs LLM-authored candidates while this is a hand-written H1 comparator. Check deliberately left
+# untouched: weakening it to quiet a known-benign signature is what this project refuses to do.
+record_sanity:WARN
+
+# silent_hang UNKNOWN — emitted once at 2026-07-28 22:09:17, at launch, with detail "no progress
+# artifact to age-check". A start-up state, not a stall: there was nothing to age-check yet.
+silent_hang:UNKNOWN
+
+# gate_failure_drift WARN (CUSUM 0.21 > 0.15). TRIAGED 2026-07-30. The check is a CUSUM on the
+# AGGREGATE gate-failure rate against target 0, and its sibling's docstring reads "a rising rate is an
+# early sign of a systemic authoring fault". It is NOT systemic here — it is a MIXTURE artefact:
+#   qwen3.5-9b  41 of 54 rejects (76%), 92% rate vs its OWN registered ~83% baseline
+#   gemini-2.5-flash 6% vs ~17% · qwen3.6-27b 11% vs ~17% · gpt/haiku/kimi/sonnet 0%
+# i.e. every strong model is AT OR BELOW its expected rate, and the drift is the deliberate
+# capability-gradient BOTTOM ANCHOR doing exactly what it was selected to do (a registered FINDING,
+# not a fault). The aggregate CUSUM cannot see that decomposition; the per-model `rejects` guard —
+# which scores each model against its own baseline — is the authority, and it returns ok.
+# ⚠ RE-TRIAGE IMMEDIATELY IF the per-model guard ever flags a STRONG model above its own baseline:
+# that would be the systemic fault this check is actually looking for.
+gate_failure_drift:WARN
