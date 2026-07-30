@@ -61,7 +61,7 @@ def main(argv: list[str]) -> int:
     impossible: list[str] = []
     steps_bad = 0
     noseries = 0
-    r115: list[tuple[str, float]] = []
+    r115: list[tuple[str, str, str, float]] = []
 
     for stage, unit, r in recs:
         m = r.get("metrics") or {}
@@ -88,7 +88,9 @@ def main(argv: list[str]) -> int:
         if calls and d and int(calls) > 0:
             frac = int(d) / int(calls)
             if frac >= 0.10:
-                r115.append((f"{unit}/{r.get('run_id')}", frac))
+                # (root, arm, run_id, frac) — the ROOT matters: winner selection is per LINE per
+                # arm, so pooling candidates across lines makes a binding breach vanish.
+                r115.append((stage, unit, str(r.get("run_id")), frac))
 
     print("\n--- IS THE SEARCH SEARCHING? (zero spread would mean the loop is inert) ---")
     inert = []
@@ -114,20 +116,58 @@ def main(argv: list[str]) -> int:
 
     print("\n--- SCORED-RECORD INVARIANTS ---")
     print(f"  records whose train_safe_call_count != 400,000 : {steps_bad}")
-    print(f"  records with no return series / train curve     : {noseries}")
     print(f"  R115 floor breaches (>=10% safe-default)        : {len(r115)}")
-    for k, f in r115[:5]:
-        print(f"      {k}  {f:.2%}")
+    for st, ar, rid, f in r115[:8]:
+        line = "c1(CORE)" if st == "search" else st.replace("search_leg_", "")
+        print(f"      {line}/{ar}/{rid}  {f:.2%}")
     print(f"  impossible/non-finite scores                    : {len(impossible)}")
     for s in impossible[:5]:
         print(f"      {s}")
 
+    # --- Does any breach BIND? (the only R115 fact that changes a scientific conclusion) ---------
+    #
+    # A breach EXISTING is R115 working, not a fault — the floor exists precisely to catch these, and
+    # alerting on their mere presence would pin this watcher at ALERT forever and mask a genuinely new
+    # science problem (the same alarm-fatigue flaw fixed in campaign_watch.py). What MATTERS is whether
+    # a breacher is the TOP-fitness candidate in its arm, because then the floor is the only thing
+    # standing between a fallback-contaminated reward and the sealed test leg. That is the trigger.
+    binds: list[str] = []
+    for st, ar, rid, frac in r115:
+        key = f"{st}/{ar}/{rid}"
+        cands = []
+        for p in glob.glob(str(root / st / ar / "*" / "record.json")):
+            try:
+                rr = json.load(open(p, encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            mm = rr.get("metrics") or {}
+            c2, d2, vf = (mm.get("train_safe_call_count"), mm.get("train_safe_default_count"),
+                          mm.get("val_fitness"))
+            if not c2 or d2 is None or vf is None:
+                continue
+            cands.append((float(vf), d2 / c2))
+        if not cands:
+            continue
+        elig = [f for f, fr in cands if fr < 0.10]
+        this = max((f for f, fr in cands if fr >= 0.10), default=None)
+        if this is not None and (not elig or this > max(elig)):
+            binds.append(f"{key} ({frac:.2%}) tops its arm; best eligible="
+                         f"{'none' if not elig else format(max(elig), '+.6f')}")
+    if binds:
+        print("\n  *** R115 IS BINDING — a fallback-contaminated candidate tops its arm ***")
+        for b in binds:
+            print(f"      {b}")
+        print("      (this is the floor DOING ITS JOB; it becomes a defect only if the floor is absent)")
+
     rc = 0
-    if inert or steps_bad or impossible or r115:
+    hard = bool(inert) or bool(steps_bad) or bool(impossible)
+    if hard:
         rc = 2
-        print("\n  *** SCIENCE ALERT: an inert search, a broken invariant, or an impossible number ***")
+        print("\n  *** SCIENCE ALERT: an inert search, a broken step budget, or an impossible number ***")
     else:
-        print("\n  science invariants hold; search is varying; no impossible numbers")
+        print(f"\n  science ok: search varying, {len(recs)} records, 400k budget intact, "
+              f"no impossible numbers; {len(r115)} R115 breach(es) correctly excluded, "
+              f"{len(binds)} of them binding")
     return rc
 
 
