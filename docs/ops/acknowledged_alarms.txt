@@ -89,3 +89,19 @@ guard:truncation
 # at rung 568). RE-TRIAGE IF concurrency declines while the QUEUED backlog is deep — that would be a
 # genuine placement failure rather than a drained pipeline.
 capacity_accumulation:WARN
+
+# record_sanity CRITICAL — "1/300 recent record(s) are GARBAGE (distributional-g2-c2): the authored
+# reward failed on 399912/400000 steps (100%) and the agent trained mostly [on the default]".
+# TRIAGED 2026-07-30, and it is a TRUE POSITIVE that is correctly handled twice over.
+# LOCATED: the record is on the kimi-k3 LEG, not the confirmatory core (the core's own
+# distributional-g2-c2 is clean at 0.0000% fallback). Its fallback is 99.978% and its val_fitness is
+# 7.82e-06, i.e. essentially zero -- so it is excluded by R115 (>= 10% floor) AND would never have been
+# selected on fitness anyway.
+# THE SCIENTIFIC POINT, which is why this alarm is worth keeping loud: compare it with the qwen3.5-9b
+# case at 49.98% fallback, whose val_fitness was +0.2336 -- the HIGHEST in its arm. A FULLY broken
+# reward scores nothing and is self-limiting; a PARTIALLY broken reward can score BEST, because the
+# harness default silently does half the work. That asymmetry is exactly why an execution-quality floor
+# is necessary and why fitness alone cannot substitute for it.
+# ⚠ RE-TRIAGE IMMEDIATELY IF such a record appears on the CORE line, or if any high-fallback record
+# tops its arm on a line whose winner has not yet been frozen.
+record_sanity:CRITICAL

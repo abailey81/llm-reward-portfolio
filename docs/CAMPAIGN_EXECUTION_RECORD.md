@@ -3722,3 +3722,111 @@ mapping.
 
 `docs/ops/verify_arm_manipulation.py` is committed so this is re-runnable, and it now counts
 reflection-starved records separately rather than mis-reporting them as violations.
+
+---
+
+## 35. CONSTRUCT VALIDITY COMPLETED — AND WHY A HALF-BROKEN REWARD IS MORE DANGEROUS THAN A FULLY BROKEN ONE
+
+Written 2026-07-30 12:30 UTC. §34 verified the fed-block CONTENT and left three items honestly open:
+the derangement, the block-length token control, and the core line's placebo arms. Two of the three are
+now closed from the archive, and the third is precisely bounded. A new CRITICAL arriving mid-analysis
+then produced the sharpest argument for R115 the campaign has yielded.
+
+### 35.1 The derangement is REAL and ACTIVE — a structural test needing no external data
+
+§34.4 recorded that the derangement (no fed value sitting on its own label) rested on
+`schema.build_block`'s unit test rather than on the run. It no longer does.
+
+**The test.** A genuine tail vector is MONOTONE in the CVaR ladder, because the tail sets are nested:
+
+```
+CVaR 1%  <=  CVaR 5%  <=  CVaR 10%  <=  CVaR 25%
+```
+
+That is a mathematical property of the estimator, not a modelling assumption, so it must hold in every
+`distributional` block. If `placebo_shuffled` carries the same values permuted OFF their own labels,
+the permutation will in general break the ordering. Measured across the whole archive:
+
+| arm | blocks | monotone | rate |
+|---|---|---|---|
+| `distributional` | 102 | **102** | **100.0 %** |
+| `placebo_shuffled` | 24 | **0** | **0.0 %** |
+
+```
+distributional  : CVaR 1%=-0.0467  CVaR 5%=-0.0268  CVaR 10%=-0.0198  CVaR 25%=-0.0118   (monotone)
+placebo_shuffled: CVaR 1%=-0.0182  CVaR 5%=-0.0360  CVaR 10%=-0.0109  CVaR 25%=-0.0252   (scrambled)
+```
+
+**100 % versus 0 % is as clean a separation as this kind of test can give.** The distributional side also
+double-checks the estimator itself: 102/102 monotone means the tail vector is being computed and
+labelled correctly, which is a prerequisite the design would otherwise simply assume.
+
+⚠ **Stated with its exact strength:** this is a NECESSARY-condition test. A permutation could preserve
+monotonicity by coincidence, so a 0 % rate is strong evidence the derangement is applied to every block
+while it does not *prove* each is a derangement in the combinatorial sense. That claim remains
+`schema.build_block`'s to own. What is now established is that the run behaves as the design requires.
+
+### 35.2 The token control: all five registered block lengths confirmed EXACTLY
+
+The registered figures (§2.1) are 67 / 86 / 275 / 293 / 275 characters. Measured from the archived
+prompts, with **zero variance within any arm**:
+
+| arm | blocks | observed | registered | |
+|---|---|---|---|---|
+| `scalar` | 103 | **[67]** | 67 | EXACT |
+| `scalar_cvar5` | 28 | **[86]** | 86 | EXACT |
+| `distributional` | 103 | **[275]** | 275 | EXACT |
+| `placebo` | 20 | **[293]** | 293 | EXACT |
+| `placebo_shuffled` | 24 | **[275]** | 275 | EXACT |
+
+Every block in every arm is byte-identical in length to the registered value. **`distributional` and
+`placebo_shuffled` are both exactly 275** — perfect parity between the treatment and its structural
+control, so token count cannot possibly confound that contrast. `placebo` is 18 characters longer
+(293), a registered asymmetry arising from the neutral "reference value N" wording; at roughly four
+characters per token that is ~4 tokens in a ~900-token prompt, i.e. **0.5 %**, and it is disclosed rather
+than discovered.
+
+### 35.3 The third item, bounded rather than glossed
+
+`placebo` and `placebo_shuffled` on the **CORE (Opus) line** still have **0** reflection prompts — the
+core is at `scalar` 13, `scalar_cvar5` 1, `distributional` 9. So those two arms' archive evidence rests
+on the ten legs, and the confirmatory line must carry its own once it reaches those generations. Already
+registered as analysis-time obligation 7; re-run `verify_arm_manipulation.py` and `verify_derangement.py`
+against `search/` then.
+
+### 35.4 ★ THE SHARPEST ARGUMENT FOR R115 THE CAMPAIGN HAS PRODUCED
+
+Mid-analysis the sentinel raised a **new CRITICAL**:
+
+```
+record_sanity: 1/300 recent record(s) are GARBAGE (distributional-g2-c2) — the authored reward
+failed on 399912/400000 steps (100%) and the agent trained mostly [on the default]
+```
+
+Located: the **kimi-k3 leg** (the core's own `distributional-g2-c2` is clean at 0.0000 %).
+**99.978 % fallback**, and `val_fitness = 7.82e-06` — essentially zero. R115 excludes it, and its
+fitness would have excluded it anyway. My own `science_watch` independently registered it as the 8th
+R115 breach and correctly did NOT mark it as binding — two instruments, one answer.
+
+**But put it beside the qwen3.5-9b case and the pattern is the finding:**
+
+| fallback | val_fitness | rank in its arm | self-limiting? |
+|---|---|---|---|
+| **99.98 %** (kimi-k3) | 7.8e-06 — essentially zero | bottom | **YES** — a fully broken reward earns nothing |
+| **49.98 %** (qwen3.5-9b) | **+0.2336** | **TOP, by ~1,900×** | **NO** — a half-broken reward can score BEST |
+
+> **The dangerous failure is not the broken reward — it is the PARTIALLY broken one.** A reward that
+> fails on every call produces a worthless policy and eliminates itself on fitness. A reward that fails
+> on *half* its calls lets the harness's default silently do half the work, and the resulting blend can
+> outscore every honestly-authored candidate in its arm. Fitness cannot distinguish that blend from
+> genuine authored skill, because fitness is exactly the quantity the blend optimises well.
+
+That is R115's rationale, and it is now evidenced rather than argued: **an execution-quality floor is
+not redundant with a performance metric, because the performance metric is blind precisely where the
+contamination is most attractive.** The floor was registered PRE-DATA on the ADR-059 test and shown
+threshold-INSENSITIVE across a 96× empty gap; this is the mechanism that gap protects.
+
+**For the write-up:** this belongs in the methods chapter as the justification for R115 and in the
+discussion as a transferable lesson for anyone scoring LLM-authored code — *audit execution, not only
+outcome, because a partial failure flatters the outcome.* It also earns a row in the "what each test
+defends against" table.
