@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-30"
-  head: "af64bbd"
+  head: "d88b22e"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "not re-run this block (docs + ops only; src untouched, drift 0)"
+  suite_status: "not re-run this block (docs + docs/ops only; src untouched, drift 0)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```

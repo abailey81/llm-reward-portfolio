@@ -466,16 +466,6 @@ re-ship invalid source.
    by `docs/ops/arm_coverage.py` (the repo's `rejects` guard watches per-MODEL rates only).
 5. **Report wall-clock compute** (Okhrati docks for its absence): measured 8.09 h per scored
    training, 3.59 h per chain step, 326,254 core-hours for the full ladder.
-8. **⚠ EVERY BENCHMARK TAKES ITS WINDOW FROM THE RECORDS, never from a panel date filter** (§36).
-   The agents trade the **1,571** sessions from **2020-03-30**, not the 1,631 from 2020-01-02 — the
-   60-session production-lookback purge (R18) silently contains the COVID crash, and including it
-   understates every benchmark by ~0.47 Sharpe. Derive the window from
-   `record.metrics.test_returns` and state it as `2020-03-30 → 2026-06-30, n=1571`. Corrected
-   like-for-like buy-and-hold: **+1.2825** (EW-30) and **+1.1656** (market_ew).
-7. **Re-run `docs/ops/verify_arm_manipulation.py` on the CORE line (`search/`)** once `placebo` and
-   `placebo_shuffled` reach generation > 0 there (§34.4). The archive verification of those two arms
-   currently rests on the ten legs; the confirmatory line must carry its own evidence. Also re-verify
-   the DERANGEMENT and the block-LENGTH parity from the archive, neither of which §34 claims.
 6. **⚠ EXCLUDE TRUNCATED CALLS FROM EVERY AUTHORING-RELIABILITY DENOMINATOR** (registered 2026-07-30,
    §30). A call returning `stop_reason == "length"` hit **our own 16,384-token output cap** (R106,
    matched across all eleven models), so the candidate it produced failed for an INSTRUMENT reason,
@@ -488,6 +478,16 @@ re-ship invalid source.
    be raised mid-run: the matched cap is the property that makes the cross-model comparison fair.
 
 ---
+7. **Re-run `docs/ops/verify_arm_manipulation.py` on the CORE line (`search/`)** once `placebo` and
+   `placebo_shuffled` reach generation > 0 there (§34.4). The archive verification of those two arms
+   currently rests on the ten legs; the confirmatory line must carry its own evidence. Also re-verify
+   the DERANGEMENT and the block-LENGTH parity from the archive, neither of which §34 claims.
+8. **⚠ EVERY BENCHMARK TAKES ITS WINDOW FROM THE RECORDS, never from a panel date filter** (§36).
+   The agents trade the **1,571** sessions from **2020-03-30**, not the 1,631 from 2020-01-02 — the
+   60-session production-lookback purge (R18) silently contains the COVID crash, and including it
+   understates every benchmark by ~0.47 Sharpe. Derive the window from
+   `record.metrics.test_returns` and state it as `2020-03-30 → 2026-06-30, n=1571`. Corrected
+   like-for-like buy-and-hold: **+1.2825** (EW-30) and **+1.1656** (market_ew).
 
 ## 10. OPEN DECISION FOR TAMER
 

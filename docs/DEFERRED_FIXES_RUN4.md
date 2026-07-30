@@ -311,7 +311,7 @@ is the cheaper half of the fix and catches the whole class.
 
 ## Applying, at the next restart
 
-1. apply EVERY fix above (D12, preflight headroom, D14, D15, D16, D17), each with its falsifiable test proven to FAIL against the current code first;
+1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17 - SEVEN items), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;

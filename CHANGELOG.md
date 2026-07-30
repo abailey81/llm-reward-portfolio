@@ -3,6 +3,61 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-30c] SESSION HANDOFF — RUN6 prompt written, and the ops tooling made durable
+
+**PAST.** The session had just closed out D17 (record §37), the A1–A11 feedback delivery, and the
+CHANGELOG/HANDOFF/cursor for `[2026-07-30b]`. RUN 4 live at T+40 h, 12/12 lines, drift 0.
+
+**NOW — the handoff, at Tamer's instruction** (*"pass this chat into the new fresh claude code chat…
+the next session must have absolutely 0 gaps in its knowledge… make sure it desnt miss anything"*).
+
+1. **`docs/RUN6_SESSION_PROMPT.md` written** — the successor brief, modelled section-for-section on
+   `RUN5_SESSION_PROMPT.md` (which it supersedes but does not replace on disk, being still accurate as
+   dated history). Eleven sections: Tamer's instructions verbatim including all fifteen from this
+   session · the full standing rights and the ten hard prohibitions · the priorities and five duties
+   reproduced in full **because `CLAUDE.md` is untracked and a repo-only reader would never see them** ·
+   the complete project history with **D1–D17** and **P1–P15** · the live-run drift rule · the read
+   order · the verified live state with per-rung ETAs · everything this session found · the two remote
+   channels · the monitoring stack · operating commands · **nineteen** traps · open threads · first
+   actions.
+
+2. **THE OPS TOOLING WAS NOT DURABLE — a real gap, now closed.** `stage_eta.py`, `science_sanity.py`,
+   `publish_status.sh`, `publish_loop.sh`, `remote_watch.sh`, `close_watch.sh`, `run4_watch.py`,
+   `status_report.sh`, `remote_status.sh`, `spend_split.py`, `openrouter_key_info.py` and
+   `Send-Remote.ps1` lived **only in a session-specific scratchpad** (`34588ab9…`, a dead session)
+   that would have been garbage-collected. The previous prompt even said "re-create if lost". They are
+   now committed under `docs/ops/` — deliberately not `scripts/`, which is inside the drift pathspec.
+   `stage_eta.py` matters most: Tamer's standing reporting duty depends on it.
+
+   **Three carried hardcoded dead-session paths and would have silently broken.** `close_watch.sh`
+   pointed at a scratchpad `run4_watch.py` (also made durable), `publish_loop.sh` at a scratchpad
+   `publish_status.sh` plus a scratchpad log, and `science_sanity.py`'s docstring claimed it lived in
+   the scratchpad. All repaired to resolve relative to their own directory, then **verified by running
+   them from the new location** — `publish_status.sh` published a real status line, `stage_eta.py` and
+   `science_sanity.py` produced correct output.
+
+3. **Three defects found while verifying my own handoff document.**
+   - The deferred-fixes register has **SEVEN** items, not six — I had omitted **D13** both from the
+     prompt and from the closing checklist line I edited earlier the same day. Corrected in both.
+   - Record **§9's items ran 1,2,3,4,5,8,7,6** — I appended obligations 6/7/8 out of order. Reordered
+     so they ascend.
+   - Every cross-reference in the prompt was then checked against the filesystem: all thirteen `paper/`
+     artefacts exist, all eleven cited record sections exist, and `§9 item 4` is indeed the
+     differential-attrition obligation.
+
+**Verified state at handoff.** 12/12 lines · **993 records** · spend **$21.42** · **600 cores** (82 jobs
+running, 89 queued, no `Eqw`) · 12 supervisors + `watchdog_fenced` ×1 · guards green except the
+acknowledged `truncation` CRITICAL · drift **0** · freeze `3ca6f01a…` **MATCHES** · both remote channels
+(`publish_loop`, `remote_watch`) confirmed alive.
+
+**★ At 600 cores the full ladder now reaches rung 568 on 08-22 — INSIDE the Aug-27 stop, with 5 days to
+spare.** The previous brief had 408 cores putting it at 09-03, a week past. Cores remain the lever.
+
+**FUTURE — what the next session owns.** (i) **A12 needs Tamer** — the registered OSF/Zenodo DOI
+deposit. (ii) **R96 psychometric scope** must be settled in writing before spend (~$23–37, not $10).
+(iii) The seven deferred fixes apply only at a natural restart. (iv) ~5,900 words of results-independent
+prose are writable now. (v) Keep both remote channels armed and report timeline · cores · jobs · ETAs.
+
 ## [2026-07-30b] D17 — a fail-safe that manufactures a limit cycle; feedback delivery closed out
 
 **PAST.** The session resumed mid-task with A4/A7/A8/A11 artefacts written but uncommitted, and the
