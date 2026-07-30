@@ -444,7 +444,7 @@ order in **`docs/DEFERRED_FIXES_RUN4.md`**: **D13**, D12, preflight headroom, D1
 | lines | **12/12**, all 5 arms each — verified by `arm_coverage.py` (**ALL LINES FULL**) |
 | records | **993** and climbing · `authored_rewards` = records |
 | spend | **$21.42** (c1 $10.65 · h3ss $4.97 · legs $5.80) of ~$24–28 projected |
-| cores computing | **600** (82 jobs running, 89 queued, **no `Eqw`**) |
+| cores computing | **~552** and fluctuating 550-660 as tasks turn over: 69 running array TASKS x 8 slots (+483 `SLAVE` rows), 106 queued, **no `Eqw`**. Count it with `qstat -t`, not `qstat` — see §9b |
 | supervisors | **12** · watchdog **`watchdog_fenced` ×1** (the D15 workaround) · backup, sentinel, allocation advisor all up |
 | guards | `collision` `reflection` `transport` `rejects` `status` **ok** · **`truncation` CRITICAL — ACKNOWLEDGED** (1 nemotron call hit our own 16,384 cap; excluded from the reliability denominator, cap deliberately NOT raised mid-run) |
 | freeze | `3ca6f01a…` **MATCHES** · drift **0 files** |
@@ -452,8 +452,8 @@ order in **`docs/DEFERRED_FIXES_RUN4.md`**: **D13**, D12, preflight headroom, D1
 | budget | Anthropic **$24.64**, OpenRouter **$17.97**, key cap **$100** — ⚠ *last confirmed by Tamer 07-29; re-check* |
 | stop | **2026-08-27** (27.4 days remaining) |
 
-**★ PER-STAGE ETAs at the measured 600 cores** (`python docs/ops/stage_eta.py 600` — Tamer's standing
-reporting requirement):
+**★ PER-STAGE ETAs at ~600 cores** (`python docs/ops/stage_eta.py <cores>` — Tamer's standing reporting
+requirement; re-run it with YOUR measured number, the table below is illustrative):
 
 | rung | 30 | 100 | 189 | 279 | 340 | 403 | **568** |
 |---|---|---|---|---|---|---|---|
@@ -748,6 +748,79 @@ double-billed).
 
 ---
 
+## §9b. ★★★ THE CORE-COUNT INVESTIGATION — TAMER'S TOP PRIORITY, HANDED TO YOU UNFINISHED
+
+**Tamer's standing target is 4,000+ cores. We are at ~552.** He has asked repeatedly (*"why are we
+asking for so low"*, *"we were aiming for 4k+, please ultarthink"*). **This is your highest-priority
+operational task.** Everything below was measured first-hand, and the previous session's FIRST answer
+was **WRONG** — that correction is the most useful thing in this section.
+
+### What was measured (2026-07-30, all first-hand)
+
+| fact | value | how |
+|---|---|---|
+| our running cores | **552** — 69 master tasks × 8 slots, plus 483 `SLAVE` rows | `qstat -t -u ucestes` |
+| our queued trainings | **106** | same |
+| **pool-d total** | **9,432 cores** over **262 hosts** | `qhost`, cols `NCPU=$3`, `LOAD=$7` |
+| **pool-d loaded** | 5,251 | same |
+| **pool-d FREE** | **4,181 cores — 44.3 % idle** | same |
+| hosts with ≥8 contiguous free slots | **150** → room for **327 more `smp 8` tasks = 2,616 cores** | same |
+| scheduler verdict on a queued job | **"found possible assignment with 8 slots"** | `qalter -w p <jobid>` (verify-only; sets nothing) |
+
+### What was RULED OUT, each with evidence
+
+* **NOT fair-share.** The previous session concluded *"fair-share limited"* and that was **WRONG**.
+  `qalter -w p` reports a queued job is schedulable **right now**.
+* **NOT a per-user quota.** `qquota -u ucestes` is **empty**; `max_u_jobs = 1000` while we hold ~175.
+* **NOT tmpfs or snx.** Hosts advertise `tmpfs=1500G`, `snx=10000`, `slots=36` — our `tmpfs=15G`
+  request allows ~100 jobs per host, not the 2 we observe.
+* **NOT our own `-tc`.** `src/cluster/jobscript.py:178` sets `tc = max(1, int(n_tasks))` on the CPU
+  lane — the **full** array width, so we impose no per-array concurrency cap.
+* **NOT host exclusions.** Only two hosts are fenced: `!node-d00a-230 & !node-d00b-024`.
+* **NOT "the cluster is empty" either.** An earlier reading of `qstat -g c` counted the *same* free
+  slots once per queue instance and wildly overstated headroom. **Use `qhost` filtered to pool-d
+  hostnames** (`/^node-d00[ab]/`), never `qstat -g c`.
+* ⚠ **Two column traps burned the previous session here.** `qhost` is
+  `HOST ARCH NCPU NSOC NCOR NTHR LOAD …` — summing `$4`/`$5` gives *sockets* and *cores*, not cores and
+  load, and yields nonsense like "524 cores over 262 hosts". And in `qstat -t`, blank-state rows are
+  **`SLAVE` slots of parallel jobs**, not queued work.
+
+### THE ACTUAL CONSTRAINT — and where to look
+
+**We only have ~175 trainings in flight.** Even if every queued task dispatched instantly that is
+175 × 8 = **1,400 cores** — nowhere near 4,000. **The cap is how much work WE generate, not what the
+cluster will give us.** Reaching 4,000+ needs roughly **500 concurrent `smp 8` tasks**.
+
+The structural reason is the **reflection loop**: 12 lines × 5 arms = 60 chains, and generation *g+1*
+cannot start until generation *g*'s trainings return (~8 h). But *within* a generation the available
+parallelism is large — at rung 30 a full generation is 5 candidates × 30 seeds × 60 chains, far more
+than 175 tasks. **So the question to answer is: what limits how many specs are submitted concurrently
+per batch?** Start at `src/cluster/` (the driver's batch/submission policy) and
+`run_campaign_cluster.py` — **READ ONLY while the run is live.**
+
+### The constraints on any fix — read before acting
+
+1. **`src/`, `scripts/`, `config/`, `prompts/` are DRIFT-FENCED while RUN 4 is live** (§3). A change to
+   submission policy is a **restart-time** change, and a relaunch costs the `h3ss` re-author (~$2.5,
+   the `c1` canary shield keeps the confirmatory line at $0.00). Weigh that against the gain and **put
+   the arithmetic in front of Tamer** rather than deciding silently.
+2. **Never lower priority. Never self-elevate. Never `qdel -u ucestes`** — delete by explicit job ID only.
+3. **Deeper packing must not break CRN.** Every comparison unit stays substrate-**homogeneous**, and
+   `-pe smp 8` with `OMP_NUM_THREADS=8` sits **inside the frozen determinism envelope** — **do not
+   change the thread count to fit more jobs.** More cores must come from **more concurrent tasks**,
+   never from different arithmetic.
+4. Saturation from the registered model is **~4,584 cores** at rung 568; beyond that more cores buy
+   nothing, and the **critical-chain floor is 3.27 d**, immune to any core count.
+
+### Why it is worth doing
+
+At **552** cores the ladder reaches rung 568 on **08-22**; the model puts **830** cores at **08-15**.
+More rungs banked = a stronger result = the grade. **Report cores and per-rung ETAs in every update**
+(`python docs/ops/stage_eta.py <cores>`). If you find the lever, bring Tamer the measurement and the
+cost, then act — do not re-litigate a permission he has already granted (§9 trap 11).
+
+---
+
 ## §10. OPEN THREADS — pick these up
 
 1. **⚠ A12 — the public OSF/Zenodo DOI deposit NEEDS TAMER.** A **registered** freeze-day obligation
@@ -760,8 +833,11 @@ double-billed).
 3. **Apply `docs/DEFERRED_FIXES_RUN4.md` at the next natural restart — never live.** **Seven** items: **D13**, D12,
    preflight headroom, D14, D15, D16, **D17**. D12 and D14 must be decided together (both hinge on the exit
    code). Each needs its falsifiable test **proven to FAIL against the current code first**.
-4. **Capacity reporting is a standing duty** — cores + per-rung ETAs in every update. At 600 cores the full
-   ladder lands **08-22**, inside the stop. If it degrades, say so immediately.
+4. **★★★ RAISE THE CORE COUNT TOWARD 4,000+ — see §9b, Tamer's top priority, handed over unfinished.**
+   2,616 cores of pool-d headroom are free RIGHT NOW and the scheduler says our queued work is
+   dispatchable; the cap is how much work WE generate. **Capacity reporting is a standing duty** — cores +
+   per-rung ETAs in every update. At ~600 cores the ladder lands rung 568 on **08-22**, inside the
+   Aug-27 stop. If it degrades, say so immediately.
 5. **§26.3 differential arm attrition** — watch the `[attrition]` line every update as generations
    accumulate. Currently a 14-candidate spread. Do not "fix" it.
 6. **Watch for the C3 review gate** on weak legs — DESIGNED, not a fault.
