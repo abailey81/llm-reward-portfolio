@@ -116,10 +116,10 @@ appendices and the abstract are all excluded from the 10,000).
 
 | # | action | why it earns the band | cost |
 |---|---|---|---|
-| A1 | **Literature positioning matrix** — neighbours × dimensions (who authors the reward, what the feedback contains, agent fixed?, risk-sensitive?, preregistered?), our row last with the empty cells filled | converts the novelty claim from prose into a three-second visual; makes the gap undeniable | **free** |
+| A1 | ✅ **DELIVERED 2026-07-30 → `paper/tables/T_literature_positioning.md`.** **Literature positioning matrix** — neighbours × dimensions (who authors the reward, what the feedback contains, agent fixed?, risk-sensitive?, preregistered?), our row last with the empty cells filled | converts the novelty claim from prose into a three-second visual; makes the gap undeniable | **free** |
 | A2 | **Design decisions table** — choice / alternatives considered / why / what it costs | Criterion 2 is titled *reasoning to answer them*; a justified method with its cost visible is what "exemplary" means | **free** |
 | A3 | **Scale-and-difficulty appendix table** — components, tests, models, trainings, seed re-runs, campaign lines, pipeline stages, off-the-shelf vs written | Criterion 3 is normalised *given difficulty*; a marker cannot weight difficulty they cannot see | **free** |
-| A4 | **Numbered contributions with evidence attached**, and the **turnover result promoted to a named contribution** with its own results section | gives the significance marker something to point at; §29 now makes it a like-for-like, positive, counter-intuitive, reproducible sealed-test result | low |
+| A4 | ⚠ **BLOCKED ON §36 UNTIL REWRITTEN — see the note below the table.** **Numbered contributions with evidence attached**, and the **turnover result promoted to a named contribution** with its own results section | gives the significance marker something to point at; §29 now makes it a like-for-like, positive, counter-intuitive, reproducible sealed-test result | low |
 | A5 | **Lead with the preregistration-absence limb** of the originality claim | the band says *unquestionable*; "no preregistration anywhere in the automated-reward-design literature" is a claim about a PRACTICE — verifiable, and undefeatable by naming an adjacent paper. Strictly stronger than the empty-cell claim, which is disputable by construction | low |
 | A6 | **Quality-control-record appendix** — the four launches, ~115 amendments and the defect log, framed analytically as the machinery that caught errors *before* they reached confirmatory data | same facts, opposite effect; presented chronologically they read as a troubled project | low |
 | A7 | **RQ stated identically three times** (boxed in intro, head of methodology, answered verbatim in conclusion) | Criterion 2 marks legibility of purpose first | trivial |
@@ -166,3 +166,41 @@ floor-tier data so the final pass is a regeneration, not a build — the feedbac
 instruction, and now with three weeks of slack instead of one day.
 
 **Post-headline:** build and run the psychometric module; A11 as the final pass; abstract last.
+
+
+---
+
+## 6. ⚠ THE FEEDBACK'S NUMBERS PREDATE RECORD §36 — A4 MUST NOT BE WRITTEN AS SPECIFIED
+
+Added 2026-07-30 after the benchmark-window correction.
+
+The feedback's highest-value contribution action (A4) instructs: *"promote the turnover finding to a
+named contribution. Ten of eleven expert designed rewards lose money risk adjusted on a market that
+gained **166 per cent** … and the one that charges for trading **wins** on every seed."*
+
+**Both of those are now retracted (record §36).** The benchmarks were computed over 1,631 sessions from
+2020-01-02, but the agents traded only the **1,571** sessions from **2020-03-30** — the 60-session
+production-lookback purge (R18), which silently contains the COVID crash. Corrected:
+
+| | as the feedback has it | **corrected (agents' own window)** |
+|---|---|---|
+| market proxy | +166 % | **+274.1 %** (Sharpe +1.1656) |
+| EW-30 same assets | (+122 %, Sharpe +0.817) | **+183.3 %** (Sharpe **+1.2825**) |
+| does turnover-pricing beat passive? | "wins" | **NO — +1.1606 vs +1.2825** |
+
+**Writing A4 verbatim would have embedded a retracted claim in the dissertation.** The corrected framing
+is stronger anyway, and it is what A4 should say:
+
+> Ten of eleven expert-designed rewards return −0.17 … −0.33 net over the sealed window; the eleventh,
+> which charges for trading, returns +1.161. **Gross** of transaction costs every design earns +0.82 …
+> +1.17, so all carry real signal — but **none beats an equal-weighted buy-and-hold of the same thirty
+> assets (+1.283), even before costs**, and all but one surrenders that signal entirely to a 20 %/year
+> turnover drag.
+
+That is a **better** contribution claim than "beats the market": it is counter-intuitive, positive
+(a mechanism, not just a null), reproducible, computed by a REGISTERED report-only method, and — decisively
+— it cannot be overturned by a referee re-deriving the benchmark, which is exactly how the error surfaced.
+
+**Standing lesson for every remaining artefact:** the feedback was written against the pre-correction
+record. Any figure it quotes must be re-derived from the records before it enters the PDF, per
+analysis-time obligation 8 (windows come from `record.metrics.test_returns`, never a panel date filter).
