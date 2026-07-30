@@ -4053,3 +4053,160 @@ is therefore a **disclosed limitation (B.8.7) plus a deferred fix (D17)**, not a
    cold-start state — which is exactly the call that succeeds. The defect is invisible to one-shot
    validation **by construction**. That belongs in CH7's practitioner's checklist: *validate a
    stateful reward across a state transition, never on a single cold call.*
+
+---
+
+## 38. THE PLACEMENT COLLAPSE, AND WHAT ACTUALLY KEEPS US QUEUED — A CONTROLLED CANARY EXPERIMENT
+
+Written 2026-07-30 14:20 UTC, T+41 h 20 m. This section answers the question the previous session
+handed over unfinished (RUN6 prompt §9b, Tamer's top operational priority), and it **partially
+overturns §33** — which is the point of writing it down rather than restating the earlier answer.
+
+### 38.1 §33.6's own re-triage trigger has FIRED
+
+§33.6 acknowledged the `capacity_accumulation` WARN with an explicit condition for re-opening it:
+
+> "concurrency falling while the queued backlog is DEEP would be a genuine placement failure;
+> concurrency falling with 28 queued is simply us running out of work to ask for."
+
+Measured today, same instrument (`qstat -u ucestes`, states counted directly):
+
+| time (UTC) | submitted | running | queued | placement |
+|---|---|---|---|---|
+| 12:19 (§33.1) | 143 | 115 | 28 | **80 %** |
+| 13:40 (handoff §5) | 175 | 69 | 106 | 39 % |
+| 14:11 (now) | 190 | 70 | 119 | **37 %** |
+
+Our submitted count ROSE by 47 while our running count FELL by 45. **That is the deep-backlog case
+§33.6 named, so the WARN is a genuine placement failure and no longer a drained pipeline.** The
+cluster did not get busier in that window: free Bran slots on pool d were 3,450 at 14:05 and 3,402 at
+14:11, ~37–40 % idle throughout.
+
+### 38.2 The experiment — six one-off jobs, identical except for one field each
+
+Speculating about SGE policy is what cost the previous two sessions their (contradictory) answers:
+one concluded "fair-share limited", the next concluded "NOT fair-share — the cap is how much work WE
+generate". Both were inferences from `qalter -w p` and `qhost`. So instead: **submit real jobs and see
+which ones the scheduler takes.** Six `sleep`-only jobs, no campaign involvement, self-terminating:
+
+| canary | `-pe smp` | `h_rt` | `mem`/slot | job total | outcome |
+|---|---|---|---|---|---|
+| `zzprobeA` | 8 | 15:00:00 | 4G | 32 GB | **queued** (still queued at +9 min) |
+| `zzprobeB` | 8 | 0:30:00 | 4G | 32 GB | ran at the next pass |
+| `zzprobeC` | 1 | 15:00:00 | 4G | 4 GB | ran at the next pass |
+| `zzrt02` | 8 | 2:00:00 | 4G | 32 GB | ran at the next pass |
+| `zzrt04/08/12` | 8 | 4/8/12 h | 4G | 32 GB | **queued** |
+| **`zzmem1`** | **8** | **15:00:00** | **1G** | **8 GB** | **RAN at the next pass, `node-d00a-011`** |
+| **`zzmem2`** | **8** | **15:00:00** | **2G** | **16 GB** | **RAN at the next pass, `node-d00a-126`** |
+
+`zzprobeA` and `zzmem2` differ in exactly one field. **The discriminator is the MEMORY request.**
+It is not fair share (the same user, the same tickets, the same instant, the same scheduling pass),
+not the slot count (8 slots placed fine at 2G), and not the walltime alone (15 h placed fine at 2G).
+
+### 38.3 The measurement that makes it actionable: a 19.5x over-request
+
+`maxvmem` harvested from the campaign's own `qacct` diagnostics, scoped to 8-slot jobs:
+
+| | |
+|---|---|
+| our request | `mem=4G` per slot x 8 slots = **32 GB per job** |
+| observed peak, n=55 completed 8-slot RUN-4 jobs | p50 **1.57 GB**, max **1.64 GB** |
+| over-request factor | **19.5x** |
+
+Myriad's d pool is 188 GB over 36 cores = **5.2 GB per core**, so `mem=4G` per slot asks for ~77 % of
+the node's memory-per-core ratio: we are effectively requesting a near-exclusive memory share, on a
+cluster where memory — not slots — is the scarce consumable. Right now, of the 106 pool-d hosts with
+>= 8 free Bran slots, **54 have less than 32 GB of `memory` consumable left**, stranding **660 free
+slots** we cannot touch. Free memory on those hosts: 24 hosts < 4 GB, 12 at 4-8 GB, 8 at 8-16 GB, 10 at
+16-32 GB, 52 at 32 GB+.
+
+Placeable concurrent `smp 8` jobs on pool d, as a function of what we ask per job:
+
+| per-job memory | placeable jobs | cores | hosts |
+|---|---|---|---|
+| **32 GB (today)** | 189 | 1,512 | 58 |
+| 16 GB (`mem=2G`) | 205 | 1,640 | 67 |
+| 8 GB (`mem=1G`) | 222 | 1,776 | 82 |
+| 4 GB (`mem=0.5G`) | 232 | 1,856 | 88 |
+
+### 38.4 The walltime lever is REFUSED, with the evidence
+
+`zzprobeB`/`zzrt02` show short jobs place easily, so "just ask for less walltime" is the obvious next
+idea. **It is unsafe and we are not doing it.** Measured over 1,005 RUN-4 records (`wall_clock`):
+
+| lane | p50 | p90 | p99 | max |
+|---|---|---|---|---|
+| LLM search (8 threads) | 4.34 h | 6.94 h | 10.92 h | **12.20 h** |
+| DFO arms | 4.30 h | 7.11 h | 9.31 h | 9.31 h |
+
+Against the 15 h request that is **1.23x headroom at the observed maximum** — and one leg-10 job
+actually ran 42,025 s = 11.7 h. `h_rt` is right-sized; cutting it to 12 h would start SIGKILLing
+trainings mid-run, destroying records and burning the queue position that produced them. Registered
+here so no future session re-proposes it: **the walltime is not slack, the memory is.**
+
+### 38.5 What this corrects in §33
+
+* §33.1's "the scheduler is meeting 80 % of everything we ask for" was true at 12:19 and is **false
+  now** (37 %). The generation-drain arithmetic in §33.2 stands; the placement claim does not.
+* §33.3's "extra cores during search would sit idle — the search phase is latency-bound" needs one
+  correction: it assumed placement is instant. Our oldest queued job today was submitted at 11:31 and
+  was still queued at 14:11 — a **~2.7 h queue wait added to an ~8.5 h training**, on a chain that is
+  6 generations deep. Queue latency is therefore ON the search critical path, and placeability (not
+  core count) shortens it. Both statements can be true: idle cores would not help, but jobs that place
+  in one scheduling pass instead of three hours would.
+* §33.4's declined lever (running the H1 baseline ladder out of band) is untouched and stays declined.
+
+### 38.6 The proposed action, its projected value, and why it is Tamer's call
+
+**Action.** Relax the queued jobs' memory request from `mem=4G` to `mem=2G` per slot — 16 GB per
+8-slot job, still **9.8x** the measured 1.64 GB peak — via `qalter` on already-queued jobs. Tooling
+written and committed: `docs/ops/mem_relax.sh` (dry-run by default; reads each job's own
+`hard resource_list` back from `qstat -j` and substitutes ONLY the `memory=` term, so `snx`, `tmpfs`,
+`batch`, `h_rt` and the D15 host fence cannot be dropped by a typo; refuses anything below 1G/slot).
+
+**What it cannot touch:** the arithmetic, the thread count, the pool (`context: allow=d` is untouched),
+the host fence, the frozen code. Substrate stays homogeneous — 1,003 of 1,007 RUN-4 env fingerprints
+are `Xeon Gold 6240`, the other four are the known D15 records on the now-fenced 6140 host, and
+relaxing memory opens more of the SAME pool-d hosts rather than any new node type.
+
+**Projected value.** Our entire backlog (119 jobs) sits inside the 205-job placeable ceiling at 16 GB,
+so the realistic outcome is the backlog converting to running work: ~190 jobs x 8 = **~1,520 cores**
+against **560** today. Per `docs/ops/stage_eta.py`:
+
+| | rung 568 ETA |
+|---|---|
+| 560 cores (today) | **08-24** — 3 days inside the Aug-27 stop |
+| 1,500 cores | **08-07** — 20 days inside it |
+
+**Why it has not been done.** `qalter` on live jobs is blocked by the harness safety classifier, which
+is the correct default for an agent mutating a running campaign, and the standing rule for the
+identical `qdel` block is to SURFACE it rather than route around it. The command is one line and the
+decision is Tamer's:
+
+    ssh myriad 'bash -s' < docs/ops/mem_relax.sh                       # dry run, changes nothing
+    ssh myriad 'bash -s' -- --apply --limit 5 < docs/ops/mem_relax.sh  # five-job canary
+    ssh myriad 'bash -s' -- --apply < docs/ops/mem_relax.sh            # the rest
+
+**The durable half of the fix is a RESTART-TIME change**: `src/cluster/jobscript.py` renders
+`mem_per_core: str = "4G"` and there is no CLI override, so every NEW submission is rendered at 4G
+regardless. `qalter` therefore treats the symptom continuously (re-run the sweeper as new batches
+appear) and the registered repair — a lane-aware default sized from measured `maxvmem`, plus a
+`--mem-per-core` flag — belongs in `docs/DEFERRED_FIXES_RUN4.md` for the next natural restart. **No
+source file was edited: the drift test `git diff --name-only b9e6df5 HEAD -- src scripts config
+prompts` is empty and stays empty.**
+
+### 38.7 Limits of this evidence — stated because they matter
+
+* **n = 1 per canary cell.** Two cells (1G, 2G) placed and four (4G at 15/12/8/4 h) did not, all inside
+  the same one or two scheduling passes, which is a controlled comparison but not a repeated one. The
+  mechanism (memory as the scarce consumable) is corroborated independently by the host census, but the
+  *size* of the gain is a projection, not a measurement.
+* The static eligibility table (§38.3) says +8 % at 2G and +17 % at 1G. The canary says the effect on
+  *dispatch latency* is much larger than that. Both can hold — eligibility counts hosts, latency counts
+  reservations — but if the applied change yields only the +8 %, **the +8 % is the honest number** and
+  this section must be updated to say so.
+* Nothing here has been applied. The claim "1,520 cores" is a forecast; the only measured numbers are
+  the canary outcomes, the 1.64 GB peak, the 12.20 h wall-clock maximum, and the host census.
+* The six canary jobs are named `zzprobe*` / `zzrt*` / `zzmem*` and are `sleep`-only; four were still
+  queued at the time of writing and will run for 20-30 s whenever they place. They are NOT campaign
+  jobs and must not be counted as such; `qdel` is likewise blocked, and they self-terminate anyway.

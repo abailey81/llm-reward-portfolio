@@ -309,9 +309,79 @@ is the cheaper half of the fix and catches the whole class.
 
 ---
 
+## 8. THE MEMORY REQUEST IS 19.5x THE MEASURED PEAK, AND IT IS WHAT KEEPS US QUEUED (found 2026-07-30, worked around live)
+
+**File:** `src/cluster/jobscript.py` (`mem_per_core: str = "4G"`, rendered into `#$ -l mem={mem_per_core}`)
+plus `scripts/run_campaign_cluster.py` (no CLI override exists).
+**Evidence:** record §38 — a six-job canary in which the ONLY field that decided placement was the
+memory request (`smp 8 / h_rt 15h / mem 4G` stayed queued; the same job at `mem 2G` and `mem 1G` ran at
+the next scheduling pass), plus `maxvmem` p50 1.57 GB / max **1.64 GB** over n=55 completed 8-slot
+RUN-4 jobs against a **32 GB** per-job request.
+
+**Now:** every job on both lanes asks `4G` per slot. The 8-slot search lane therefore asks 32 GB, on a
+pool whose nodes carry 5.2 GB per core; 54 of the 106 pool-d hosts with free slots have under 32 GB of
+`memory` consumable left, stranding 660 free slots.
+
+**Becomes:** a lane-aware default sized from the measured footprint, plus an explicit override so an
+operator never has to edit source to re-size it:
+
+```python
+# 2026-07-30 (record §38): size the memory request from the MEASURED footprint, not a round number.
+# maxvmem over n=55 completed 8-slot RUN-4 search jobs: p50 1.57 GB, max 1.64 GB -- i.e. ~1.7 GB per
+# CONCURRENT TRAINING, not per slot. The old flat "4G per slot" asked 32 GB for a job that peaks at
+# 1.64 GB (19.5x), and on Myriad memory - not slots - is the scarce consumable, so the over-ask was
+# the binding placement constraint. Keep >= 4x headroom over the measured peak.
+_MEASURED_PEAK_GB_PER_TRAINING = 1.7
+if mem_per_core is None:
+    concurrent = max(1, int(pack))                 # packed trainings share the job's memory
+    need_gb = _MEASURED_PEAK_GB_PER_TRAINING * concurrent * 4.0   # 4x headroom
+    per_slot = max(1.0, need_gb / max(1, int(cores)))
+    mem_per_core = f"{per_slot:.0f}G"
+```
+
+and in `scripts/run_campaign_cluster.py`:
+
+```python
+p.add_argument("--mem-per-core", default=None, metavar="NG",
+               help="SGE per-slot memory request (default: sized from the measured per-training "
+                    "peak, >=4x headroom). Raise it only with a maxvmem measurement in hand.")
+```
+
+**Falsifiable test** (must FAIL against the current code first):
+
+```python
+def test_memory_request_is_sized_from_the_measured_peak_not_a_flat_4g():
+    """An 8-slot single-training search job must not ask 32 GB when it peaks at 1.64 GB.
+
+    Regression for record §38: the flat `4G` per slot made the job need a 32 GB window on a pool
+    whose nodes carry 5.2 GB/core, which is what held 119 of our 190 jobs in `qw` while 3,400 slots
+    sat free. The bound below keeps >=4x headroom over the measured peak and stays well under the
+    per-node ratio.
+    """
+    js = render_jobscript("t", 1, "/r", "/g", device="cpu", pack=1, cores=8)
+    mem = re.search(r"^#\$ -l mem=(\d+)G", js, re.M).group(1)
+    assert 1 <= int(mem) <= 2, f"per-slot memory {mem}G: sized from a round number, not the measurement"
+    # and the packed test lane must still cover its 4 concurrent trainings
+    js4 = render_jobscript("t", 1, "/r", "/g", device="cpu", pack=4, cores=4)
+    mem4 = int(re.search(r"^#\$ -l mem=(\d+)G", js4, re.M).group(1))
+    assert mem4 * 4 >= 4 * 1.7 * 2, "packed lane must keep >=2x headroom over 4 x 1.7 GB"
+```
+
+**Live workaround, already in place:** `docs/ops/mem_relax.sh` — `qalter`s the memory term of
+already-queued jobs to 2G/slot, reading each job's own `hard resource_list` back from `qstat -j` so the
+`snx` / `tmpfs` / `batch` / `h_rt` terms and the D15 host fence are carried across verbatim. It is
+dry-run by default and must be re-run as new batches are submitted, because the renderer keeps
+producing 4G. **It is an operator action** (the harness classifier blocks agent-side `qalter`, as it
+does `qdel`).
+
+**⚠ Do NOT confuse this with the walltime.** `h_rt=15h` against a measured 12.20 h maximum training is
+1.23x headroom and is NOT slack; cutting it would SIGKILL long trainings. Record §38.4.
+
+---
+
 ## Applying, at the next restart
 
-1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17 - SEVEN items), each with its falsifiable test proven to FAIL against the current code first;
+1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, and the §38 memory sizing - EIGHT items), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;

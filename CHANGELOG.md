@@ -3,6 +3,88 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-30d] SESSION TAKEOVER at T+41 h — THE PLACEMENT COLLAPSE FOUND AND ITS CAUSE MEASURED
+
+**PAST.** RUN 4 live since 2026-07-28 21:01 UTC. The previous session closed out D17 (record §37), the
+A1–A11 feedback delivery, and wrote `docs/RUN6_SESSION_PROMPT.md`, handing over ONE unfinished task as
+top priority: *why are we at ~552 cores when the target is 4,000?* Its answer (§9b) was "the cap is how
+much work WE generate", which reversed the session before it ("fair-share limited"). Both were
+inferences from `qalter -w p` and `qhost`, and **both are now superseded by measurement.**
+
+**NOW — this session, in order.**
+
+1. **LIVE STATE RE-VERIFIED FIRST-HAND, nothing taken on trust.** 12/12 lines and all 5 arms each
+   (`arm_coverage.py`: ALL LINES FULL) · **1,002 records** · spend **$21.94** · `freeze --check` RC=0
+   with `3ca6f01a…` MATCHES · **drift 0 files** against `b9e6df5` · transport timeouts **0** · six
+   guards otherwise green · `science_watch` RC=0 (search varying, 400k budget intact on every scored
+   record, 9 R115 breaches correctly excluded, 1 binding) · 12 supervisors + `watchdog_fenced` +
+   backup + sentinel + advisor all alive · both remote channels (`publish_loop.sh`, `remote_watch.sh`)
+   still running from the previous session and pushing every 5 minutes.
+
+2. **★ THE CORE-COUNT QUESTION, ANSWERED BY EXPERIMENT (record §38).** §33.6 had registered the exact
+   condition for re-opening the capacity WARN — *"concurrency falling while the queued backlog is
+   DEEP"*. **It has fired:** placement went **80 % (115 running / 28 queued, 12:19 UTC) → 37 % (70
+   running / 119 queued, 14:11 UTC)** while pool-d stayed ~37-40 % idle. Rather than speculate about
+   SGE policy a third time, six `sleep`-only canary jobs were submitted, identical except one field:
+
+   | canary | slots | `h_rt` | `mem`/slot | outcome |
+   |---|---|---|---|---|
+   | `zzprobeA` | 8 | 15 h | 4G | **queued** |
+   | `zzmem2` | 8 | 15 h | **2G** | **ran at the next pass** |
+   | `zzmem1` | 8 | 15 h | **1G** | **ran at the next pass** |
+   | `zzprobeB` / `zzrt02` | 8 | 0.5 h / 2 h | 4G | ran |
+   | `zzrt04` / `zzrt08` / `zzrt12` | 8 | 4 / 8 / 12 h | 4G | queued |
+   | `zzprobeC` | 1 | 15 h | 4G | ran |
+
+   **The discriminator is the MEMORY request** — same user, same tickets, same scheduling pass. Not
+   fair share, not the slot count, not the walltime alone.
+
+3. **THE MEASUREMENT THAT MAKES IT ACTIONABLE.** `maxvmem` from the campaign's own harvested `qacct`,
+   scoped to 8-slot jobs: p50 **1.57 GB**, max **1.64 GB** (n=55) against a **32 GB** request
+   (`mem=4G` × 8 slots) — a **19.5× over-ask** on a pool carrying 5.2 GB per core. Right now 54 of the
+   106 pool-d hosts with ≥8 free slots have under 32 GB of `memory` consumable left, **stranding 660
+   free slots**. Placeable `smp 8` jobs: 189 at 32 GB → 205 at 16 GB → 222 at 8 GB.
+
+4. **THE WALLTIME LEVER REFUSED, WITH EVIDENCE.** Short canaries place easily, so "ask for less
+   walltime" is the obvious next move and it is **unsafe**: over 1,005 records the LLM-search lane runs
+   p50 4.34 h / p99 10.92 h / **max 12.20 h** against the 15 h request — 1.23× headroom. Cutting it
+   would SIGKILL long trainings. Registered so it is never re-proposed.
+
+5. **WHAT WAS SHIPPED.** `docs/ops/mem_relax.sh` — relaxes the memory term of already-queued jobs to
+   2G/slot (16 GB/job, still **9.8×** the measured peak), dry-run by default, reading each job's own
+   `hard resource_list` back from `qstat -j` and substituting ONLY `memory=`, so `snx`/`tmpfs`/`batch`/
+   `h_rt` and the **D15 host fence** are carried across verbatim and cannot be lost to a typo; refuses
+   anything below 1G/slot. Record **§38** (7 sub-sections incl. an explicit limits-of-evidence
+   paragraph). **`docs/DEFERRED_FIXES_RUN4.md` §8** — the durable restart-time repair (lane-aware
+   `mem_per_core` sized from the measured peak + a `--mem-per-core` flag) with its falsifiable test.
+
+6. **⚠ THE ACTION IS TAMER'S CALL.** Agent-side `qalter` is blocked by the harness safety classifier,
+   exactly as `qdel` is, and the standing rule is to SURFACE the block rather than route around it. The
+   projection: the whole 119-job backlog fits inside the 205-job ceiling at 16 GB, so ~190 × 8 =
+   **~1,520 cores** against 560 today, and `stage_eta.py` puts rung 568 at **08-07 instead of 08-24**.
+   That projection is a forecast; the canary outcomes, the 1.64 GB peak and the host census are the
+   measurements.
+
+7. **`guard:truncation` RE-TRIAGED — its own second-model trigger fired.** A second `length` row
+   appeared (leg10 `kimi-k3`, 11:19:39Z, 16,384 tokens, $0.2475), so the count is **2 of 1,311 calls
+   (0.15 %) across two models**, both OpenRouter legs, **none on `c1`**. kimi-k3's gate-reject rate is
+   0 % over 46 records, so the truncation cost at most one candidate. Cap stays at 16,384 (R106 — the
+   matched cap is what makes the cross-model comparison fair). New trigger: a **third** model, any
+   model above ~1 % of its own calls, or any `length` row on `c1`.
+
+8. **SUBSTRATE RE-CONFIRMED while checking that widening placement is safe:** 1,003 of 1,007 RUN-4 env
+   fingerprints are `Xeon Gold 6240`; the other four are the known D15 records on the now-fenced 6140
+   host. Relaxing memory opens more of the SAME pool-d hosts and introduces no new node type.
+   `OMP_NUM_THREADS` splits 677 × 8 (search lane) / 330 × 1 (packed baseline lane), as designed.
+
+**FUTURE.** (i) Tamer's decision on `mem_relax.sh` — the single highest-value operational lever
+available, worth ~17 days on the rung-568 ETA if the projection holds; re-run it as new batches are
+submitted, because the renderer keeps producing 4G. (ii) If applied, MEASURE the realised placement and
+correct §38.7 honestly if the gain is only the +8 % the static table predicts. (iii) A12 (the OSF/Zenodo
+DOI deposit) still needs Tamer. (iv) R96 psychometric scope still to be resolved in writing before
+spend. (v) DEFERRED_FIXES is now **EIGHT** items, all restart-only. (vi) `git diff --name-only b9e6df5
+HEAD -- src scripts config prompts` is **empty** and every change this session landed in `docs/`.
+
 ## [2026-07-30c] SESSION HANDOFF — RUN6 prompt written, and the ops tooling made durable
 
 **PAST.** The session had just closed out D17 (record §37), the A1–A11 feedback delivery, and the

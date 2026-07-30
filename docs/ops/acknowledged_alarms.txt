@@ -73,6 +73,22 @@ reward_scale:WARN
 # because `stop_reason` is persisted on every row (the 18dead8 fix earning its keep).
 # ⚠ RE-TRIAGE IF the truncated-call count rises materially or appears on a SECOND model: one verbose
 # outlier is an artefact, a pattern would mean the matched cap is too low to measure some models at all.
+#
+# ── RE-TRIAGED 2026-07-30 14:00 UTC: THE SECOND-MODEL TRIGGER ABOVE HAS FIRED. ──
+# A second `length` row appeared: leg10 `moonshotai/kimi-k3-20260715`, 2026-07-30T11:19:39Z,
+# tokens_in=581, tokens_out=16384 (exactly the cap), $0.2475. Run-wide the count is now **2 of 1,311
+# calls (0.15 %)**, on two models, both OpenRouter legs, and **none on the confirmatory core line c1**.
+# VERDICT: still an artefact, not a pattern, and the handling is unchanged — but the honest reading is
+# now "two verbose outliers on two models", not "one". Supporting evidence that it is not a capability
+# signal: kimi-k3's gate-reject rate is 0 % across 46 records, i.e. the truncated call did not become a
+# rejected candidate, so the cap has cost us at most one candidate on one leg. nemotron's own rate
+# (21 %) is unchanged by removing its single truncated call.
+# THE CAP STAYS AT 16,384: it is registered (R106) and matching it across all eleven models is exactly
+# what makes the cross-model comparison fair; raising it mid-run would break that, and the spend ledger
+# is append-only so this verdict can never return green.
+# ⚠ RE-TRIAGE AGAIN IF a THIRD model truncates, if any single model exceeds ~1 % of its own calls, or
+# if a `length` row ever appears on `c1` — any of those would mean the matched cap is biting the
+# measurement rather than clipping an outlier.
 guard:truncation
 
 # capacity_accumulation WARN — "concurrency DECLINING to ~1016 cores; check for a kill event, a
