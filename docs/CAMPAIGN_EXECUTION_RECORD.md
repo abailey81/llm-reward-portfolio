@@ -4811,12 +4811,26 @@ denominator, `x / (std + 1e-8)` — so a denominator collapse multiplies the rew
 scale. **REFUTED as a discriminator:** the idiom is in **8 of 8** high-RMS programs, but also in **7 of
 8** low-RMS controls. It is ubiquitous defensive coding and explains nothing on its own.
 
-**The leading explanation, stated as such and not as a finding:** the magnitude is *data*-determined
-rather than *program*-determined. `969,619.5 × 1e-8 = 0.0096962` — a ~0.97 % single-step portfolio
-return, entirely plausible on this panel. So the number is a shared data-scale quantity divided by the
-conventional epsilon at a step where the denominator collapses, and the seventh-figure differences are
-the different policies' slightly different weights at that step. **Not proven; the probe that would
-prove it is a replay of those eight rewards against the same rollout, which belongs at analysis time.**
+**The leading explanation, and then a decisive test of it.** The magnitude looks *data*-determined
+rather than *program*-determined: `969,619.5 × 1e-8 = 0.0096962`, a ~0.97 % single-step portfolio
+return, entirely plausible on this panel — i.e. a shared data-scale quantity divided by the
+conventional epsilon at a step where the denominator collapses, with the seventh-figure differences
+coming from the different policies' weights at that step.
+
+**Tested, and it holds: all EIGHT records in the cluster carry `1e-8`, and only `1e-8`** — across three
+models and five arms, with no other epsilon convention among them. Two of the eight use it in an
+explicit division. Together with the arithmetic agreeing to five significant figures, that moves this
+from "leading explanation" to **strongly supported**. The remaining step, registered as analysis
+obligation 11, is a replay of those rewards against a common rollout.
+
+**⚠ AND ONE OVER-EAGER INFERENCE OF MY OWN, WITHDRAWN.** The audit also reported a grouping at
+`raw_rms_max ≈ 9,696.2`, exactly 100× smaller, and I read it as the same mechanism with a `1e-6`
+epsilon (`0.0096962 / 1e-6 = 9,696.2`). **It is not.** That group carries mixed conventions
+(`1e-4`, `1e-6`, `1e-8`, `1e-12`) and **two of its seven members are hand-written
+`baseline_differential_sharpe` records with no epsilon at all** — whose RMS naturally spans 2,433 (p50)
+to 16,320 (max), so ~9,696 sits inside its ordinary range. The "two clusters exactly 100× apart"
+reading was an artefact of my own binning, and is withdrawn. **One cluster is explained; the other was
+never a cluster.**
 
 **What it does NOT do is threaten H2:** the phenomenon appears in all five arms and on three different
 models, i.e. it is arm-symmetric like §44.4's PopArt split. What it IS is a genuine, reportable
