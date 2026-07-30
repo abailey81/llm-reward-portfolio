@@ -443,9 +443,52 @@ a "3.27 d critical-chain floor" must be corrected before it reaches the PDF.
 
 ---
 
+## 10. D18 — one record at two paths, and ~20 recursive consumers count it twice (found 2026-07-30)
+
+**Files:** `src/cluster/poll.py` (the transfer's destination join) and every consumer that discovers
+records with `rglob("record.json")` — `scripts/sentinel.py` (8 sites), `src/cluster/integrity.py` (2,
+one of which feeds the C3 gate's completeness table), `src/cluster/telemetry.py`, `src/cluster/poll.py`,
+`scripts/provisional_bank.py`, `scripts/resume_audit.py`, `scripts/first_seed_sanity.py`.
+
+**Evidence:** record §44.6. `search_leg_haiku_4_5/scalar/scalar-g1-c3/record.json` and
+`…/scalar-g1-c3/scalar-g1-c3/record.json` carry an identical `reward_source_hash`, an identical
+metrics dict and an **identical mtime** — one write landing at two paths, not a second training. It is
+the only such pair in 1,025 records.
+
+**Impact, bounded:** the confirmatory analysis is safe twice over — `analyze_campaign.py` dedupes by
+`run_id` and its walker is depth-limited to `<root>/<leg>/<arm>/<candidate>/record.json` — but every
+recursive consumer counts the candidate twice. Today that is +1 on a count of 1,025; a systematic
+version would inflate the completeness checks the C3 gate reads.
+
+**Becomes:** (a) fix the destination join so a path already ending in `<run_id>` is not extended by it
+again; (b) make the recursive consumers dedupe:
+
+```python
+# 2026-07-30 (D18): the archive can contain the SAME record at two paths (a destination computed as
+# <dest>/<run_id> where <dest> already ended in <run_id>). Discovery must be by run_id, not by file,
+# or every count silently gains a phantom record.
+seen: dict[str, Path] = {}
+for rec_path in root.rglob("record.json"):
+    try:
+        rid = json.loads(rec_path.read_text(encoding="utf-8")).get("run_id")
+    except Exception:
+        continue
+    if rid and rid not in seen:
+        seen[rid] = rec_path
+```
+
+**Falsifiable test (must FAIL first):** build a temp archive containing one record written at both
+`<arm>/<rid>/record.json` and `<arm>/<rid>/<rid>/record.json`; assert the discovery helper returns
+**one** record and that the integrity report's `present` count is 1, not 2.
+
+**⚠ DO NOT delete the duplicate file** (trap 18): the archive is a mirror and `pull_archive` restores
+it. The fix is in the discovery and the join, not in the filesystem.
+
+---
+
 ## Applying, at the next restart
 
-1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, the §38 memory sizing and the §39 speedup constant - NINE items), each with its falsifiable test proven to FAIL against the current code first;
+1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, the §38 memory sizing, the §39 speedup constant and D18 - TEN items), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;

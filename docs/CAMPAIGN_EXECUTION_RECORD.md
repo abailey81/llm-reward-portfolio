@@ -489,6 +489,30 @@ re-ship invalid source.
    `record.metrics.test_returns` and state it as `2020-03-30 → 2026-06-30, n=1571`. Corrected
    like-for-like buy-and-hold: **+1.2825** (EW-30) and **+1.1656** (market_ew).
 
+9. **⚠ REPORT THE POPART ENGAGEMENT RATE BESIDE THE H1 FAMILY COMPARISON** (registered 2026-07-30,
+   §44.4). `popart_min_scale: 1.0` means `sigma = max(1.0, raw_rms)`, and PopArt is therefore **inert
+   on 50.3 % of the archive** (515 of 1,024 records pinned at the floor), systematically by reward
+   family: 3 of 11 baselines engaged, all four DFO arms pinned, the five LLM arms 62–67 % engaged.
+   **H2 is protected by symmetry** — the engaged fraction is uniform across the five arms — but **H1
+   is not**: whether a baseline's magnitude was normalised is perfectly predicted by ratio-form vs
+   difference-form. Any H1 statement must carry this, and the claim "PopArt makes the critic
+   scale-invariant" must NOT be made unqualified. The floor is a deliberate guard against σ→0
+   amplification, not a defect.
+
+10. **⚠ DEDUPE RECORDS BY `run_id` BEFORE ANY AGGREGATION** (registered 2026-07-30, §44.6 / D18).
+   One record exists at two paths (`…/scalar-g1-c3/record.json` and
+   `…/scalar-g1-c3/scalar-g1-c3/record.json`, identical hash, metrics and mtime).
+   `scripts/analyze_campaign.py` already dedupes by run_id AND is depth-limited, so the confirmatory
+   path is safe — but ~20 `rglob("record.json")` consumers (sentinel, integrity, telemetry, poll)
+   count it twice. Any NEW analysis must dedupe explicitly rather than inherit the protection.
+
+11. **Replay the eight 969,619.5-RMS rewards against a common rollout** (registered 2026-07-30,
+   §44.5) to settle whether their shared magnitude is a denominator collapse on shared data — the
+   leading explanation, arithmetically consistent (`969,619.5 × 1e-8 = 0.0096962`, a plausible
+   single-step return) but **not proven**. The epsilon-idiom hypothesis was tested and REFUTED as a
+   discriminator (present in 8/8 high-RMS programs and 7/8 low-RMS controls). Arm-symmetric, so it
+   does not threaten H2; it is a mechanism observation for CH6/CH7.
+
 ## 10. OPEN DECISION FOR TAMER
 
 **Winner-eligibility floor.** `train_safe_default_count` is archived and reported but **never gates
@@ -4674,3 +4698,171 @@ checking budgets I formed the view that Anthropic headroom was "thin" and about 
 it — $2.23 per generation, one generation left, and **C4 requires no LLM calls at all** — shows a
 comfortable 26 % margin. The worry was arithmetic done in my head; the number is arithmetic done on the
 ledger. The second is the one that counts.
+
+---
+
+## 44. THE DEEP RESULTS AUDIT — OPENING 1,026 RECORDS AND ASKING WHETHER WHAT IS INSIDE THEM IS COHERENT
+
+Written 2026-07-30 16:10 UTC, T+43 h 09 m, on Tamer's instruction to *"very deeply and strictly analyse
+the results as well always… make sure they are logical, and meaningful and correct, not some garbage"*.
+
+Every check this session up to here had been an EXECUTION check. The standing lesson is that a previous
+session reported *"the science checks out"* having verified only invariants, and Tamer was right to
+challenge it. So this pass opens the records themselves. It is **effect-blind**: nothing below reads a
+performance field except to confirm it is finite.
+
+### 44.1 What came back CLEAN, and it is not a small list
+
+| check | result |
+|---|---|
+| `reward_source_hash == sha256(reward_source)` | **0 mismatches in 1,026 records** |
+| required fields present (`arm`, `run_id`, `seed`, `generation`, `metrics`, `reward_source`) | **0 missing** |
+| `generation` in 0–5, `seed` in 0–567 | **0 out of range** |
+| non-finite metric values | **0** (excluding the baselines' legitimate `val_fitness = nan`) |
+| `wall_clock` values repeated more than twice | **none** — no cloned records |
+| PopArt invariant `sigma_max == max(1.0, raw_rms_max)` | **holds on all 1,025 records carrying it** |
+| records with no `prompt` | 332 = the 330 baselines (no LLM) + the 2 `frozen_leg` winners (re-trainings, not authoring) — **all legitimate** |
+
+### 44.2 CONSTRUCT VALIDITY, re-derived from every prompt in the archive
+
+§34–§35 verified 273 prompts. This re-derives the manipulation from **all 643 LLM-arm prompts now in
+the archive**, by counting decimal numbers in each prompt's fed block:
+
+| arm | prompts | decimal-count histogram |
+|---|---|---|
+| `distributional` | 201 | **6** in 120 · 0 in 81 |
+| `scalar` | 179 | **1** in 127 · 0 in 52 |
+| `scalar_cvar5` | 95 | **2** in 46 · 0 in 49 |
+| `placebo` | 82 | **6** in 34 · 0 in 48 |
+| `placebo_shuffled` | 86 | **6** in 35 · 0 in 51 |
+
+Two facts fall straight out. **The zero-decimal bucket is exactly the generation-0 population** — 81 vs
+`science_watch`'s g0 count of 80 for `distributional`, 52 vs 51 for `scalar`, 48 vs 47 for `placebo`,
+51 vs 51 for `placebo_shuffled`. Generation 0 has no prior results, so there is nothing to feed; the
+manipulation exists from g1 onward, exactly as registered. **And every post-g0 prompt carries its arm's
+registered number count**: 6 tail values for `distributional`, 1 performance number for `scalar`, 2 for
+`scalar_cvar5` (performance + CVaR-5 %), 6 neutral-labelled values for `placebo`, 6 deranged for
+`placebo_shuffled`. **Zero `scalar` prompts mention a tail statistic.**
+
+This is an independent re-verification, over 2.4× the earlier sample, by a different method (numeric
+counting rather than block-length matching). **The manipulation is intact at generation 5.**
+
+### 44.3 AUTHORED-PROGRAM DIVERSITY — the search is genuinely searching
+
+| arm | records | distinct programs | unique |
+|---|---|---|---|
+| `distributional` | 201 | 200 | 100 % |
+| `scalar` | 179 | 177 | 99 % |
+| `placebo` | 82 | 82 | 100 % |
+| `scalar_cvar5` | 95 | 95 | 100 % |
+| `placebo_shuffled` | 86 | 86 | 100 % |
+
+**Programs authored identically under DIFFERENT arms: 0.** Two things follow. There is no mode collapse
+onto a canned reward — the loop is producing genuinely new programs at generation 5. And no arm is
+silently receiving another arm's prompt: byte-identical code across arms would have been the signature
+of a feed mix-up, and there is none.
+
+### 44.4 ⚠ POPART IS ON, BUT IT IS ENGAGED ON ONLY HALF THE RECORDS — and the acknowledged triage overstates it
+
+`config/algos.yaml` sets `popart_min_scale: 1.0`, so `sigma = max(1.0, raw_rms)`. **Measured over the
+1,024 records carrying `popart_scale`:**
+
+| | |
+|---|---|
+| engaged (`sigma_max > 1.0`) | **509 (49.7 %)** |
+| **pinned at the 1.0 floor — PopArt inert** | **515 (50.3 %)** |
+
+and the split is **systematic by reward family**, not random:
+
+| family | engaged / pinned |
+|---|---|
+| `baseline_differential_sharpe`, `differential_downside_ratio`, `return_minus_drawdown` | **30 / 0** each |
+| the other eight H1 baselines | **0 / 30** each |
+| the four DFO arms (`random_search`, `bayes_opt`, `cma_es`, `tpe`) | **0 / 53** |
+| the five LLM arms | ≈ **2 : 1** engaged, uniformly (65.5 %, 65.2 %, 67.1 %, 67.4 %, 62.1 %) |
+
+**Why this matters.** `docs/ops/acknowledged_alarms.txt` triages the `reward_scale` WARN on the claim
+that *"the critic is scale-INVARIANT: PopArt value-target normalisation is ON and VERIFIED live — 59 of
+59 sampled records carry a non-null `popart_scale`"*. **Carrying the field proves the mechanism is
+INSTRUMENTED, not that it ACTED.** For half the archive σ never leaves its floor, so reward magnitude
+is *not* absorbed there. The triage is corrected in place.
+
+**What survives, and it is the important half.** Within the five LLM arms the engaged fraction is
+62–67 % — **uniform across the contrast** — so the property is arm-symmetric and cannot confound H2.
+Where it is NOT symmetric is H1: three of eleven baselines are normalised and eight are not, perfectly
+predicted by whether the reward is ratio-form (RMS in the thousands) or difference-form (RMS ~0.02–0.07).
+**Registered as an analysis-time obligation:** report the PopArt engagement rate beside the H1 family
+comparison, and state that the floor — not a bug, a deliberate guard against σ→0 amplification — leaves
+small-magnitude rewards unnormalised.
+
+Measured magnitudes, which make the 437,099× span concrete: `differential_downside_ratio` p50 **3,186**
+· `differential_sharpe` p50 **2,433** · `return_minus_drawdown` 2.05 · `return_minus_turnover` 0.92 ·
+the other eight baselines **0.02–0.07** · the LLM arms p50 ≈ 2.0–2.6.
+
+### 44.5 The 969,619.5 coincidence — investigated by the D17 method, and my own hypothesis REFUTED
+
+Eight records across **three different models** (`nemotron-3-super`, `qwen3.6-27b`, `sonnet-5`), **five
+different arms** and **eight different source hashes** report `raw_rms_max` ≈ **969,619.5**, agreeing to
+seven significant figures and differing beyond (…4832, …4984, …4991, …5398, …5571, …5769, …6750). D17
+was found exactly this way, so it was investigated rather than reported.
+
+**Hypothesis tested:** the models independently wrote the same defensive idiom — a small epsilon in a
+denominator, `x / (std + 1e-8)` — so a denominator collapse multiplies the reward by 1e8 and pins its
+scale. **REFUTED as a discriminator:** the idiom is in **8 of 8** high-RMS programs, but also in **7 of
+8** low-RMS controls. It is ubiquitous defensive coding and explains nothing on its own.
+
+**The leading explanation, stated as such and not as a finding:** the magnitude is *data*-determined
+rather than *program*-determined. `969,619.5 × 1e-8 = 0.0096962` — a ~0.97 % single-step portfolio
+return, entirely plausible on this panel. So the number is a shared data-scale quantity divided by the
+conventional epsilon at a step where the denominator collapses, and the seventh-figure differences are
+the different policies' slightly different weights at that step. **Not proven; the probe that would
+prove it is a replay of those eight rewards against the same rollout, which belongs at analysis time.**
+
+**What it does NOT do is threaten H2:** the phenomenon appears in all five arms and on three different
+models, i.e. it is arm-symmetric like §44.4's PopArt split. What it IS is a genuine, reportable
+observation about LLM-authored reward code — *a numerical guard, not the economics, can set a reward's
+scale* — and it belongs in the mechanism chapter beside D17.
+
+### 44.6 D18 — one record exists at two paths, and ~20 recursive consumers count it twice
+
+`search_leg_haiku_4_5/scalar/scalar-g1-c3/record.json` **and**
+`search_leg_haiku_4_5/scalar/scalar-g1-c3/scalar-g1-c3/record.json` — identical `reward_source_hash`,
+identical metrics dict, **identical mtime**. One write landing at two paths (a destination computed as
+`<dest>/<run_id>` where `<dest>` already ended in `<run_id>`), not a second training. It is the only
+one in the archive: the duplicate scan is over `(root, run_id)` and returns exactly this pair.
+
+**Impact, bounded honestly:**
+* **The confirmatory analysis is SAFE — twice over.** `scripts/analyze_campaign.py` dedupes by run_id
+  (`seen.setdefault(str(rec.get("run_id")), rec)`) and its walker is depth-limited to the documented
+  `<root>/<leg>/<arm>/<candidate>/record.json` shape, so a fourth-level copy is not even traversed.
+* **Monitoring IS affected:** `rglob("record.json")` appears in `sentinel.py` (8 sites),
+  `integrity.py` (2 — which feeds the C3 gate's completeness table), `poll.py`, `telemetry.py`,
+  `provisional_bank.py`, `resume_audit.py` and others. Every one counts this candidate twice. Today
+  that is +1 on a count of 1,025; a systematic version would inflate completeness checks.
+* **Do NOT delete it** (trap 18): the archive is a mirror and `pull_archive` restores. The durable fix
+  is to dedupe by `run_id` in the recursive consumers and to fix the destination join in the transfer.
+
+Registered as **D18** in `docs/DEFERRED_FIXES_RUN4.md`.
+
+### 44.7 Two false alarms of my own, recorded because they nearly became reported risks
+
+1. **"driver_core.log — NO TIMESTAMP PARSED."** My liveness checker required `\s+\w+` after the
+   timestamp, which does not match the confirmatory line's `… | INFO    | …` format. **A liveness
+   checker that goes blind on the most important line** is the exact defect class this audit exists to
+   find. Fixed to match the timestamp and nothing after it; all twelve logs then read fresh (< 0.5 min).
+2. **"45 PopArt INVARIANT BREAKS."** My tolerance was absolute 1e-9; σ is a streaming estimate and
+   `raw_rms_max` a recorded one, and they agree to ~1e-9 **relative**. At the correct tolerance the
+   invariant holds on **all 1,025** records. Overstating a risk is as inaccurate as understating one.
+
+### 44.8 Liveness, measured rather than assumed
+
+All twelve driver logs are fresh (**< 0.5 min**), and record production in the last six hours is spread
+across every line: `search` (c1) 20 · kimi 23 · deepseek 16 · sonnet 16 · gemini 15 · nemotron 15 ·
+gpt-luna 11 · haiku 11 · qwen3.6 11 · glm 10 · qwen3.5 6. The two roots with nothing new are `test`
+(the 330 baselines, finished) and `search_h3_singleshot` — the latter checked and healthy: **29
+records, all seed 0, one arm**, i.e. the single-shot floor's own search, not a stalled 568-seed ladder.
+
+**One placement consequence worth naming:** `leg4` (`qwen3.5-9b`) currently holds **14 queued jobs and
+ZERO running**, and `leg10` 20 queued against 1 running, while `c1` holds 11 running. A whole line can
+sit at zero concurrency under the current memory request — which is the §38 problem expressed per line
+rather than in aggregate.

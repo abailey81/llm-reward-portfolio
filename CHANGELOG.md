@@ -11,6 +11,77 @@ Asserted in `[2026-07-30e]` item 5 that GIFT "must now be cited and positioned i
 analysis managed. The corpus work was ahead of the sweep. Lesson: check the artifact before
 declaring a gap in it. Record §41 carries the full correction.
 
+## [2026-07-30g] THE DEEP RESULTS AUDIT — 1,026 RECORDS OPENED, AND FOUR THINGS FOUND
+
+**PAST.** Every check to this point had been an EXECUTION check. Tamer: *"very deeply and strictly
+analyse the results as well always… make sure they are logical, and meaningful and correct, not some
+garbage."* The standing lesson is that a previous session called the science sound having verified only
+invariants.
+
+**NOW — record §44, effect-blind throughout (no performance field is read except to confirm it is finite).**
+
+1. **CLEAN, and it is not a small list.** `reward_source_hash == sha256(reward_source)` on **all 1,026
+   records, 0 mismatches** · 0 missing required fields · 0 out-of-range generations/seeds · 0 non-finite
+   metrics · no `wall_clock` repeated more than twice (no cloned records) · the PopArt invariant
+   `sigma_max == max(1.0, raw_rms_max)` holds on **all 1,025** records carrying it · the 332
+   prompt-less records are exactly the 330 baselines plus the 2 `frozen_leg` winners.
+
+2. **★ CONSTRUCT VALIDITY RE-DERIVED FROM EVERY PROMPT IN THE ARCHIVE** (643 LLM-arm prompts vs §34's
+   273, by a different method — counting decimals rather than matching block lengths).
+   `distributional` **6** numbers · `scalar` **1** · `scalar_cvar5` **2** · `placebo` **6** neutral ·
+   `placebo_shuffled` **6** deranged, and **zero `scalar` prompts mention a tail statistic**. The
+   zero-decimal bucket is EXACTLY the generation-0 population (81 vs g0=80, 52 vs 51, 48 vs 47, 51 vs
+   51) — g0 has no prior results to feed, so the manipulation begins at g1, as registered.
+   **The manipulation is intact at generation 5.**
+
+3. **AUTHORED-PROGRAM DIVERSITY — the loop is genuinely searching.** 99–100 % of programs are unique
+   within every arm (200/201, 177/179, 82/82, 95/95, 86/86) and **0 programs are byte-identical across
+   arms** — no mode collapse, and no arm is silently receiving another's prompt.
+
+4. **⚠ POPART IS ON BUT ENGAGED ON ONLY HALF THE ARCHIVE, AND THE ACKNOWLEDGED TRIAGE OVERSTATED IT.**
+   `popart_min_scale: 1.0` ⇒ `sigma = max(1.0, raw_rms)`. Measured: **509 engaged / 515 PINNED at the
+   floor (50.3 % inert)**, systematically by reward family — 3 of 11 baselines engaged, **all four DFO
+   arms pinned**, the five LLM arms 62–67 %. Carrying a non-null `popart_scale` proves the mechanism is
+   INSTRUMENTED, not that it ACTED. **H2 is protected by symmetry** (the engaged fraction is uniform
+   across the five arms); **H1 is not** — the split is perfectly predicted by ratio-form vs
+   difference-form rewards (`differential_downside_ratio` RMS p50 **3,186**, `differential_sharpe`
+   **2,433**, eight others **0.02–0.07**). `acknowledged_alarms.txt` corrected in place; registered as
+   analysis obligation **9**.
+
+5. **THE 969,619.5 COINCIDENCE — investigated by the D17 method, and MY OWN HYPOTHESIS REFUTED.** Eight
+   records across three models, five arms and eight source hashes share `raw_rms_max` ≈ 969,619.5 to
+   seven significant figures. Hypothesis: a shared `x / (std + 1e-8)` idiom pins the scale. **Refuted as
+   a discriminator** — the idiom is in 8/8 high-RMS programs *and* 7/8 low-RMS controls. Leading
+   explanation, stated as such: the magnitude is DATA-determined (`969,619.5 × 1e-8 = 0.0096962`, a
+   plausible ~0.97 % single-step return), i.e. a denominator collapse on shared data. Arm-symmetric, so
+   it does not threaten H2; registered as obligation **11** (replay to settle it) and as a mechanism
+   observation for CH6/CH7: **a numerical guard, not the economics, can set a reward's scale**.
+
+6. **D18 — one record exists at TWO paths.** `…/scalar-g1-c3/record.json` and
+   `…/scalar-g1-c3/scalar-g1-c3/record.json`: identical hash, identical metrics, **identical mtime** —
+   one write, two destinations. The confirmatory analysis is safe twice over (`analyze_campaign.py`
+   dedupes by `run_id` and its walker is depth-limited), but **~20 `rglob("record.json")` consumers
+   count it twice**, including the `integrity.py` completeness table the C3 gate reads. Registered as
+   DEFERRED_FIXES **§10** with its test; **not deleted** (trap 18 — the archive is a mirror).
+
+7. **TWO FALSE ALARMS OF MY OWN, recorded because they nearly became reported risks.** (a) My liveness
+   checker reported "NO TIMESTAMP PARSED" for **`driver_core.log` — the confirmatory line** — because it
+   required `\\s+\\w+` after the timestamp and that log uses `… | INFO | …`. A liveness checker blind on
+   the most important line is exactly the defect class this audit hunts. (b) I reported "45 PopArt
+   invariant breaks" using an ABSOLUTE 1e-9 tolerance against a streaming estimator that agrees to 1e-9
+   RELATIVE; at the correct tolerance there are **zero**. Overstating a risk is as inaccurate as
+   understating one.
+
+8. **LIVENESS, measured.** All twelve driver logs fresh (**< 0.5 min**) and every line produced records
+   in the last six hours (kimi 23, c1 20, deepseek 16, sonnet 16, …). `search_h3_singleshot` checked
+   rather than assumed: **29 records, all seed 0, one arm** — the single-shot floor's own search, not a
+   stalled ladder. ⚠ **`leg4` holds 14 queued jobs and ZERO running**, `leg10` 20 queued against 1
+   running — the §38 placement problem expressed per line: a whole line can sit at zero concurrency.
+
+**FUTURE.** (i) The two capacity actions stand unchanged (Tamer's `mem_relax.sh --apply`; the
+search→C4 relaunch at `mem=2G`). (ii) Obligations 9–11 are now in the register. (iii) DEFERRED_FIXES is
+**TEN** items.
+
 ## [2026-07-30f] THE ROUTE TO 4,000 CORES, COMPUTED — AND THE RESTART QUESTION ANSWERED
 
 **PAST.** `[2026-07-30e]` proved the memory lever safe and staged it. Tamer then asked two questions:
