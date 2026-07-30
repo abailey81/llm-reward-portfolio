@@ -94,6 +94,38 @@ def test_jobscript_cpu_lane_sizes_one_core_per_packed_training():
     assert "#$ -pe smp 32" in render_jobscript("b", 1, "/r", "/i", pack=8)  # cuda lane unchanged
 
 
+def test_jobscript_cpu_memory_is_sized_from_the_measured_peak_not_a_flat_4g():
+    """The CPU lane's memory request must come from the MEASURED footprint, and scale with the PACK.
+
+    Regression for record §38/§43. The flat ``mem=4G`` per slot asked 32 GB for an 8-slot search job
+    whose measured peak is 1.64 GB (n=55, qacct scoped to our own RUN-4 tasks). On Myriad memory, not
+    slots, is the scarce consumable, so that over-request was the binding placement constraint: eight
+    canary jobs identical except one field showed a 15 h 8-slot job waiting 43-46 min at ``mem=4G``
+    and placing at the FIRST scheduling pass at 1G/2G/3G. It is also what makes the C4 target
+    unreachable -- 1,000 jobs (the ``max_u_jobs`` cap, = 4,000 cores at 4 cores each) would reserve
+    16 TB against ~12 TB of free pool-d memory at 4G, and 8 TB at 2G.
+
+    A previous draft of the fix used a 4x headroom, which computes 6.8G/slot for the pack-4 lane --
+    LARGER than the 4G it replaced. Hence the explicit per-lane expectations below.
+    """
+    # search lane: one training on eight threads -> 1G/slot = 8 GB/job, 4.9x the 1.64 GB peak
+    search = render_jobscript("s", 1, "/r", "/i", device="cpu", pack=1, cores=8)
+    assert "#$ -l mem=1G" in search, search.splitlines()[3]
+
+    # packed test lane: four concurrent trainings on four cores -> 2G/slot = 8 GB/job, 1.29x the
+    # measured 5.86-6.16 GB peak. NOT below it: a request under the real footprint is dishonest even
+    # though Myriad enforces the value as a reservation rather than a limit.
+    packed = render_jobscript("t", 1, "/r", "/i", device="cpu", pack=4, cores=4)
+    assert "#$ -l mem=2G" in packed, packed.splitlines()[3]
+
+    # the GPU lane is deliberately untouched -- the measurement was made on CPU tasks
+    assert "#$ -l mem=4G" in render_jobscript("g", 1, "/r", "/i", pack=3)
+
+    # an explicit value always wins
+    assert "#$ -l mem=7G" in render_jobscript(
+        "x", 1, "/r", "/i", device="cpu", pack=1, cores=8, mem_per_core="7G")
+
+
 def test_jobscript_gpu_lane_is_byte_unchanged_by_the_cpu_build():
     """Regression lock: adding the CPU lane must not alter a single GPU-lane directive."""
     js = render_jobscript("s1_search", 630, "/home/u/Scratch/llmrp", "/acfs/users/u/llmrp-inputs",

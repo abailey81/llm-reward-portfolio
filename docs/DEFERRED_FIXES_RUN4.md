@@ -388,7 +388,14 @@ def test_memory_request_is_sized_from_the_measured_peak_not_a_flat_4g():
     assert mem4 * 4 >= 4 * 1.7 * 2, "packed lane must keep >=2x headroom over 4 x 1.7 GB"
 ```
 
-**Live workaround, already in place:** `docs/ops/mem_relax.sh` — `qalter`s the memory term of
+**⚠⚠ STATUS CHANGED 2026-07-30 16:05 — THIS FIX WAS APPLIED, NOT DEFERRED, and the "live workaround"
+below is DEAD.** `jsv_allowed_mod = ac,h,i,e,o,j,M,N,p,w` has no `l`, so `qalter -l` is rejected
+site-wide and a queued job's memory request is immutable (record §45). The renderer change is therefore
+the ONLY delivery mechanism; it is implemented in `src/cluster/jobscript.py`, its test was falsified
+against the pre-fix code, and it ships via the driver relaunch. Everything below is the specification
+it was built from.
+
+~~**Live workaround, already in place:** `docs/ops/mem_relax.sh` — `qalter`s the memory term of~~
 already-queued jobs to 2G/slot, reading each job's own `hard resource_list` back from `qstat -j` so the
 `snx` / `tmpfs` / `batch` / `h_rt` terms and the D15 host fence are carried across verbatim. It is
 dry-run by default and must be re-run as new batches are submitted, because the renderer keeps

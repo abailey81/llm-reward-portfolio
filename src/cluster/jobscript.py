@@ -91,6 +91,14 @@ RC=$?
 exit $RC
 """
 
+#: Peak resident footprint of ONE concurrent 400k-step training, in GB, MEASURED on RUN 4's own tasks
+#: (2026-07-30, record §38.3/§43.3): ``maxvmem`` p50 1.57 / max **1.64** over n=55 completed 8-slot
+#: search tasks, and 5.86-6.16 GB over the pack-4 ``c1_baselines_pNN`` tasks (= ~1.55 GB each). The
+#: job's need therefore scales with the PACK, not with the slot count. Sized from the archive rather
+#: than assumed, and the scoping matters: the harvested ``qacct`` files also contain other users'
+#: accounting from 2022-23, so an unscoped read gives a number that is not ours.
+_MEASURED_PEAK_GB_PER_TRAINING = 1.64
+
 
 def render_jobscript(
     name: str,
@@ -104,7 +112,7 @@ def render_jobscript(
     hold_jid: str | None = None,
     pack: int = 1,
     cores: int | None = None,
-    mem_per_core: str = "4G",
+    mem_per_core: str | None = None,
     tmpfs: str = "15G",
     h_rt: str | None = None,
     venv: str = "$HOME/venvs/llmrp",
@@ -221,6 +229,47 @@ def render_jobscript(
             "2026-07-26 (job cpucurve_d, '-pe smp 36', queued 2+ days). Use <= 35 (35 still gets "
             "97% of a node); 8 places best. See docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md §0-PRE M2."
         )
+    # MEMORY IS SIZED FROM THE MEASUREMENT, NOT FROM A ROUND NUMBER (2026-07-30; record §38, §43).
+    #
+    # The old flat ``mem_per_core = "4G"`` asked 32 GB for an 8-slot search job whose measured peak is
+    # 1.64 GB — a 19.5x over-request — and on Myriad MEMORY, not slots, is the scarce consumable. Two
+    # consequences, both measured:
+    #   * DISPATCH LATENCY. Eight one-off canary jobs, identical except one field: at ``mem=4G`` an
+    #     8-slot 15 h job waited 43-46 min; at 1G/2G/3G the same job placed at the FIRST scheduling
+    #     pass, four times out of four. Walltime was NOT the discriminator (4/8/12/15 h all placed in
+    #     the same window), which independently reproduces the 15/15 result already recorded in
+    #     ``autosize_h_rt``'s docstring.
+    #   * THE C4 CEILING. ``max_u_jobs = maxujobs = 1000``. At 4 cores/job that is exactly the 4,000
+    #     cores at which the registered makespan model saturates — but 1,000 jobs x 16 GB = 16 TB of
+    #     reservation against ~12 TB of free pool-d memory, i.e. unreachable. At 2G/slot it is 8 TB.
+    #     **This sizing is the precondition for the 4,000-core target, not a queue-time nicety.**
+    #
+    # MEASURED FOOTPRINTS (our own jobs, qacct scoped by job name inside RUN 4's window — the
+    # harvested files also contain OTHER USERS' accounting, so the scoping is load-bearing):
+    #   search lane, pack 1 on 8 slots : maxvmem p50 1.57 GB, max 1.64 GB   (n=55)
+    #   test lane,   pack 4 on 4 slots : maxvmem 5.86-6.16 GB               (c1_baselines_pNN, exit 0)
+    # i.e. ~1.55-1.64 GB per CONCURRENT TRAINING, so the need scales with the PACK, not the slots.
+    #
+    # ⚠ AN EARLIER DRAFT OF THIS FIX USED A 4x HEADROOM, which computes 6.8G/slot for the pack-4 lane
+    # — LARGER than the 4G it replaces, i.e. it would have made placement worse while looking like a
+    # fix. Caught by measuring the pack-4 peak instead of inferring it. 1.3x on the measured peak
+    # lands on 1G/slot for the search lane (8 GB/job, 4.9x its 1.64 GB) and 2G/slot for the packed
+    # lane (8 GB/job, 1.29x its 6.2 GB).
+    #
+    # ENFORCEMENT, probed on-node: with ``mem=2G`` a job sees ``ulimit -v unlimited``, ``Max address
+    # space unlimited``, no cgroup memory limit and only an informational ``SGE_UCL_MEM``; a canary
+    # then held 3 GiB — 1.5x the per-slot value — for 90 s and exited rc=0. The request is a
+    # SCHEDULING RESERVATION, not a kill limit. An explicit ``mem_per_core`` always wins.
+    #
+    # SCOPED TO THE CPU LANE ON PURPOSE. The footprints above were measured on CPU tasks, and the
+    # campaign is CPU-only; the ``cuda`` branch keeps its historical ``4G`` so this change cannot move
+    # a lane it was not measured on (and the GPU-lane render test keeps asserting exactly that).
+    if mem_per_core is None:
+        if device == "cpu":
+            _need_gb = _MEASURED_PEAK_GB_PER_TRAINING * max(1, int(pack)) * 1.3
+            mem_per_core = f"{max(1, int(round(_need_gb / max(1, int(cores))))):d}G"
+        else:
+            mem_per_core = "4G"
     h_rt = h_rt if h_rt is not None else ("3:0:0" if pack == 1 else "1:30:0")
     from src.cluster.submit import sanitize_name
 

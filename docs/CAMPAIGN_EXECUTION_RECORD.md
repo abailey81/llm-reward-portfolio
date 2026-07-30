@@ -4221,6 +4221,12 @@ against **560** today. Per `docs/ops/stage_eta.py`:
 | 560 cores (today) | **08-24** — 3 days inside the Aug-27 stop |
 | 1,500 cores | **08-07** — 20 days inside it |
 
+> **⚠⚠ SUPERSEDED BY §45 (2026-07-30 16:05) — THIS RECOMMENDATION IS NOT ACTIONABLE.** UCL's
+> `jsv_allowed_mod = ac,h,i,e,o,j,M,N,p,w` contains no `l`, so `qalter -l` is rejected site-wide and a
+> queued job's memory request cannot be changed by anyone. The measured diagnosis below is untouched;
+> only the DELIVERY MECHANISM was wrong. The fix moved into the renderer and ships via a driver
+> relaunch. The paragraph is preserved exactly as it was written.
+
 **Why it has not been done.** `qalter` on live jobs is blocked by the harness safety classifier, which
 is the correct default for an agent mutating a running campaign, and the standing rule for the
 identical `qdel` block is to SURFACE it rather than route around it. The command is one line and the
@@ -4647,10 +4653,15 @@ search chain finishes and C4 begins — which is ~1–2 days away (the core line
 | why not NOW | C4 has not started, so the change would buy nothing today, and a mid-generation restart risks re-submitting specs whose jobs are still running |
 | why not LATER | after C4 begins, every job already submitted carries the old request, and re-rendering mid-C4 means another relaunch |
 
-**Between now and then, the live half of the same fix is `docs/ops/mem_relax.sh`** — it `qalter`s the
+> **⚠⚠ SUPERSEDED BY §45: THERE IS NO LIVE HALF.** `qalter -l` is forbidden site-wide
+> (`jsv_allowed_mod` has no `l`), so a queued job's request is immutable and `mem_relax.sh` cannot
+> work. The relaunch is therefore the ONLY delivery mechanism, and it moved from "at the boundary" to
+> **now**, on Tamer's instruction. The sentence below is preserved as written.
+
+~~**Between now and then, the live half of the same fix is `docs/ops/mem_relax.sh`** — it `qalter`s the
 already-queued jobs to 2G and recovers the search phase's own placement, worth roughly 600 → ~1,500
 cores while the chain finishes. It needs Tamer's hand because the harness classifier blocks agent-side
-`qalter` (and blocked the settings route too).
+`qalter` (and blocked the settings route too).~~
 
 ### 43.5 Two levers considered and DECLINED, with the reasons
 
@@ -4880,3 +4891,89 @@ records, all seed 0, one arm**, i.e. the single-shot floor's own search, not a s
 ZERO running**, and `leg10` 20 queued against 1 running, while `c1` holds 11 running. A whole line can
 sit at zero concurrency under the current memory request — which is the §38 problem expressed per line
 rather than in aggregate.
+
+---
+
+## 45. ⚠ THE `qalter` LEVER DOES NOT EXIST — THE SITE FORBIDS IT, AND I RECOMMENDED IT THREE TIMES
+
+Written 2026-07-30 16:05 UTC. Tamer said *"so do it yourself, I give you full permissions"*, the
+harness allowed the command, it ran — **and every one of the five `qalter` calls failed.**
+
+### 45.1 The measurement that ends it
+
+```
+$ qalter -l mem=2G 45433
+rejected due to jsv_allowed_mod configuration which does not allow: l_hard
+rc=1
+
+$ qalter -N zzname_test 45433
+modified job name of job 45433
+rc=0
+
+$ qconf -sconf | grep jsv
+jsv_url          /opt/geassist/bin/policyjsv
+jsv_allowed_mod  ac,h,i,e,o,j,M,N,p,w
+```
+
+`jsv_allowed_mod` is UCL's allow-list of `qalter` switches. It contains `ac h i e o j M N p w` and
+**does not contain `l`**. The control experiment is in the same output: `-N` (job name) is on the list
+and succeeded, `-l` (resource list) is not and was rejected. **The memory request of an
+already-queued job cannot be changed on Myriad — not by me, not by Tamer, not by anyone without RC
+privileges.**
+
+### 45.2 What that invalidates, stated plainly
+
+`docs/ops/mem_relax.sh` cannot work. **§38.6 and §43.4's "run this one line" recommendation was not
+actionable**, and it was made three times across §38, §43, the CHANGELOG, the HANDOFF, the cursor and
+`docs/REMOTE_CONTROL.md`. Every one of those places now carries a pointer here.
+
+**The root of the error is precise and worth naming.** I verified the *substitution logic* — the dry
+run printed a correct before/after for every one of 122 jobs — and inferred from that that the
+operation would work. **A dry run that deliberately does not call the mutating command cannot discover
+a policy that forbids the mutation.** The check I did not do was one line: `qconf -sconf | grep
+jsv_allowed_mod`. Filed with P1–P15: **when a plan depends on a privileged operation, test the
+PERMISSION before building the tooling around it, not after.**
+
+The measured facts underneath the recommendation are untouched and stand: the 19.5× over-request
+(n=55, scoped), the eight-canary dispatch experiment, the absence of any enforced memory limit, the
+1,000-job × 16 TB arithmetic. **What was wrong was the delivery mechanism, not the diagnosis.**
+
+### 45.3 The only remaining path, and it is the one being taken
+
+Since a queued job's request is immutable, the value can only be changed for **new** submissions —
+which means changing what the renderer emits, which means a **driver relaunch**. That is
+`docs/DEFERRED_FIXES_RUN4.md` §8, and it moves from "at the next natural restart" to **now**, because
+Tamer's instruction is explicit (*"finish the plan, we are currently on 500 cores, its too low"*) and
+because the alternative lever has just been proven not to exist.
+
+Applied in `src/cluster/jobscript.py`: `mem_per_core` defaults to `None` and is computed from the
+MEASURED per-training footprint, scaled by the pack, **scoped to the CPU lane** so the GPU branch and
+its existing render test are untouched:
+
+| lane | pack | cores | measured peak | rendered | per job | headroom |
+|---|---|---|---|---|---|---|
+| search | 1 | 8 | 1.64 GB | **`mem=1G`** | 8 GB | 4.9× |
+| test (C4) | 4 | 4 | 6.2 GB | **`mem=2G`** | 8 GB | 1.29× |
+| GPU | any | any | not measured | `mem=4G` | unchanged | — |
+
+**The test was falsified before it was trusted**: run against `git show HEAD:src/cluster/jobscript.py`
+the pre-fix renderer emits `mem=4G` for **both** CPU cases, so the new assertions fail; against the fix
+they pass, and the whole 24-test adapter suite passes with them.
+
+**⚠ This is a deliberate, temporary break of the §3 drift invariant.** `git diff b9e6df5 HEAD -- src
+scripts config prompts` is no longer empty, and that is what a relaunch *is*: the invariant is not
+violated by a restart, it is **re-based** by one. The sequence must be completed — certify, deploy,
+relaunch — and the new running sha becomes the new baseline. Leaving it half-done would be the actual
+defect.
+
+### 45.4 A process error of mine, inside the same fifteen minutes
+
+The diagnostic that proved `-N` is permitted **renamed a live campaign job** (`45433`,
+`leg5_leg_haiku_4_5_distributional_g4_p02` → `zzname_test`) and my restore command silently failed,
+because it read the name back *after* the rename and helpfully restored `zzname_test` onto itself.
+Caught in the same output, restored explicitly within ~90 seconds (`rc=0`, name verified back), and the
+driver was unaffected — `[leg5_leg_haiku_4_5_distributional_g4] 0/5 done, 5 pending` straddles the
+window, because pending counts come from specs without records, not from job names.
+
+**The lesson is not "be careful with `-N`".** It is that a *control experiment on a live system* needs
+its restore written as a literal, not as a round-trip through the thing being changed.

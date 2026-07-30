@@ -11,6 +11,80 @@ Asserted in `[2026-07-30e]` item 5 that GIFT "must now be cited and positioned i
 analysis managed. The corpus work was ahead of the sweep. Lesson: check the artifact before
 declaring a gap in it. Record §41 carries the full correction.
 
+## [2026-07-30h] THE `qalter` LEVER DOES NOT EXIST — AND THE REAL FIX WAS APPLIED INSTEAD
+
+**PAST.** `[2026-07-30f]` recommended, three times and in five documents, that Tamer run
+`ssh myriad "bash ~/mem_relax.sh --apply"` to relax the memory request of 122 queued jobs. He replied
+*"so do it yourself, I give you full permissions"*, and then *"finish the plan, we are currently on
+500 cores, its too low"*.
+
+**NOW.**
+
+1. **★ THE COMMAND RAN, AND ALL FIVE `qalter` CALLS FAILED.** The harness allowed it this time; UCL did
+   not:
+
+   ```
+   qalter -l mem=2G 45433   ->  rejected due to jsv_allowed_mod configuration
+                                which does not allow: l_hard          rc=1
+   qalter -N zzname_test 45433 ->  modified job name of job 45433     rc=0   (the CONTROL)
+   qconf -sconf | grep jsv  ->  jsv_allowed_mod  ac,h,i,e,o,j,M,N,p,w        (no `l`)
+   ```
+
+   **A queued job's memory request is immutable on Myriad — for me, for Tamer, for anyone without RC
+   privileges.** `docs/ops/mem_relax.sh` now refuses to run and is kept only as evidence; §38.6, §43.4,
+   DEFERRED_FIXES §8 and `docs/REMOTE_CONTROL.md` all carry the correction.
+
+2. **THE ROOT OF MY ERROR, NAMED PRECISELY.** I verified the *substitution logic* — the dry run printed
+   a correct before/after for all 122 jobs — and inferred that the operation would work. **A dry run
+   that deliberately does not call the mutating command cannot discover a policy that forbids the
+   mutation.** The missing check was one line: `qconf -sconf | grep jsv_allowed_mod`. Filed with
+   P1–P15: **when a plan depends on a privileged operation, test the PERMISSION before building the
+   tooling around it.** The measured diagnosis is untouched — the 19.5× over-request (n=55, scoped),
+   the eight-canary dispatch experiment, the absent enforcement, the 1,000-job × 16 TB arithmetic.
+   **Only the delivery mechanism was wrong.**
+
+3. **★ SO THE FIX WAS MOVED INTO THE RENDERER AND APPLIED.** `src/cluster/jobscript.py`:
+   `mem_per_core` now defaults to `None` and is computed from the MEASURED per-training footprint
+   (`_MEASURED_PEAK_GB_PER_TRAINING = 1.64`), scaled by the pack, **scoped to the CPU lane** so the GPU
+   branch and its existing render test are untouched:
+
+   | lane | pack | cores | measured peak | renders | per job | headroom |
+   |---|---|---|---|---|---|---|
+   | search | 1 | 8 | 1.64 GB | **`mem=1G`** | 8 GB | 4.9× |
+   | test (C4) | 4 | 4 | 6.2 GB | **`mem=2G`** | 8 GB | 1.29× |
+   | GPU | — | — | not measured | `mem=4G` | unchanged | — |
+
+4. **THE TEST WAS FALSIFIED BEFORE IT WAS TRUSTED.** Run against `git show HEAD:src/cluster/jobscript.py`
+   the pre-fix renderer emits `mem=4G` for **both** CPU cases, so the new assertions fail; against the
+   fix they pass. The 24-test adapter suite passes with them. `ruff` clean. **`freeze --check` RC=0 with
+   `3ca6f01a…` UNMOVED** — neither file is hash-bound, so RUN 4 continues to execute the identical
+   registered design.
+
+5. **⚠ THE DRIFT INVARIANT IS DELIBERATELY BROKEN, AND THE SEQUENCE MUST BE COMPLETED.** A relaunch does
+   not violate §3's invariant, it **re-bases** it: the new running sha becomes the new baseline. Leaving
+   it half-applied would be the actual defect.
+
+6. **THE RELAUNCH IS GENTLER THAN THE RUNBOOK'S FULL TEARDOWN, because the supervisor already does it.**
+   `mode_d_supervisor.ps1` loops with `maxAttempts = 1000` and relaunches the driver on ANY non-zero
+   exit after a 600 s backoff. So the operation is: **kill the twelve driver processes only** — the
+   supervisors relaunch them ten minutes later with the identical arguments and the new renderer. No
+   supervisor teardown, no watchdog interaction, no `.driver.lock` surgery (the supervisor header
+   documents P12 lock auto-break). Cost: a ten-minute gap per line, plus any in-flight authoring call.
+
+7. **A PROCESS ERROR OF MINE IN THE SAME QUARTER-HOUR.** The diagnostic that proved `-N` is permitted
+   **renamed a live campaign job** (45433, `leg5_leg_haiku_4_5_distributional_g4_p02` → `zzname_test`)
+   and my restore silently failed, because it read the name back *after* the rename. Caught in the same
+   output, restored explicitly within ~90 s (rc=0, verified), driver unaffected — its pending counts
+   straddle the window unchanged, because pending is computed from specs without records, not from job
+   names. **Lesson: a control experiment on a live system needs its restore written as a literal, not
+   as a round-trip through the thing being changed.**
+
+**FUTURE.** Deploy `jobscript.py` to the cluster for byte-identity (it is laptop-side code — the
+rendered `.sh` travels with each batch, and `run_one` does not import it — so this is about
+reproducibility, not function), kill the twelve drivers, verify twelve come back and that a newly
+rendered jobscript carries `mem=1G`, then **measure the realised placement and report it honestly,
+whichever way it falls.**
+
 ## [2026-07-30g] THE DEEP RESULTS AUDIT — 1,026 RECORDS OPENED, AND FOUR THINGS FOUND
 
 **PAST.** Every check to this point had been an EXECUTION check. Tamer: *"very deeply and strictly
