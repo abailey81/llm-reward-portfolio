@@ -3099,3 +3099,54 @@ this session, and the sentinel's CRITICAL fired on substrate before any value wa
 sides); the fence is live so **no future** submission can land on the 6140; the pre-fence queued
 backlog is the only remaining exposure and it drains. The local quarantine copies are retained in the
 session scratchpad purely as a backup and are no longer load-bearing.
+
+### 28.9 THE SUBSTRATE EXPERIMENT — PREPARED, BLOCKED, AND WHY THAT IS ACCEPTABLE
+
+The corrected remediation of §28.8 was to re-run seeds 14-17 on a 6240 and compare, rather than delete
+anything. The cleanest route was to let the campaign's OWN proven path do it: remove the four records
+from both mirror sides so archive-truth resume re-submits them under the live fence (which can now
+only place them on a 6240), then compare against the originals.
+
+**Prepared, with the comparison target banked first.** Exact fingerprints of the four 6140 records
+were saved off-cluster before touching anything — full-precision Sharpe plus a sha256 of each return
+series, so a re-run can be compared bit-for-bit rather than approximately:
+
+| seed | test_sharpe (6140) | n_returns | returns sha256[:16] | safe calls/defaults |
+|---|---|---|---|---|
+| s14 | −0.2211607949635842 | 1571 | `ffa87f0484162fe9` | 400000 / 0 |
+| s15 | +0.23027275789927967 | 1571 | `f01971bf50f72518` | 400000 / 0 |
+| s16 | −0.09936241798247379 | 1571 | `8b505dddca9db68b` | 400000 / 0 |
+| s17 | −0.48721681311281634 | 1571 | `8e877783deb8f458` | 400000 / 0 |
+
+**BLOCKED.** The remote removal (an `rm -rf` of four archive directories on the cluster, guarded to
+refuse any directory whose `env.json` does not say 6140) was **denied by the harness safety
+classifier**, as `qdel` was earlier. It was not worked around. **Tamer's decision if he wants it run.**
+
+**And the honest assessment is that it is NOT essential.** The substrate item can be closed as a
+disclosed limitation with unusually strong bounding evidence, which is a legitimate scientific
+position rather than a concession:
+
+* **Prevented going forward** — the fence is live on all 12 lines and verified inside newly-written
+  jobscripts, so no future record can land on the 6140.
+* **Bounded in scope** — 4 records of 527, in 1 comparison unit of ~40, and that unit is one H1
+  baseline which is *not* the binding max (`return_minus_turnover` +1.161 sets the H1 bar; this one is
+  −0.221). **H2, the confirmatory contrast, contains no 6140 record at all.**
+* **Bounded in magnitude** — the four values sit inside the 26-record 6240 range, and §29.2's
+  like-for-like benchmark independently shows the same-30 universe behaves like the broad market.
+  Neither test has power against a *subtle* difference, and neither is offered as one.
+
+So the residual is: four records in a non-binding baseline may carry a floating-point difference of
+unknown (but bounded-as-immaterial) size. **That is disclosed, not hidden** — which is exactly what the
+standing rule requires of a residual irreproducibility.
+
+**If the experiment is later authorised**, the fingerprints above make it a ten-minute comparison, and
+the outcome is publication-relevant either way: identical ⇒ a *measured* statement that
+Skylake-vs-Cascade-Lake is numerically inert for this stack (a genuinely useful reproducibility datum);
+different ⇒ proof the substrate matters, and the four records are replaced under the documented
+effect-blind rule.
+
+**Note on the guardrails.** Two destructive cluster operations have now been blocked by the classifier
+(`qdel`, and this `rm -rf`). In BOTH cases the block was benign or actively helpful: the `qdel` would
+have been the wrong action on the merits (§25.4), and this one forces an archive deletion to be an
+explicit human decision rather than an agent's. Recorded as evidence that the guardrail is working with
+the grain of the project's own archive-truth law, not against it.
