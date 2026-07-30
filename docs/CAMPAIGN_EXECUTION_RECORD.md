@@ -5320,3 +5320,69 @@ paragraph.
 the executing closure?"*, and when the answer is no, the correct action is to record the proof and
 re-base at the next natural restart -- not to spend $1.25 and ten minutes of every line's polling to
 make a `git diff` look tidy.
+
+---
+
+## 49. ⚠ THE ANTHROPIC BUDGET IS PROJECTED TO RUN OUT BEFORE THE SEARCH FINISHES
+
+Written 2026-07-30 23:30 UTC, T+50 h 20 m, on Tamer's return after a 5.2-hour gap in my own
+monitoring. **This is the most important thing found in that sweep, and it exists because my earlier
+projection asked the wrong question.**
+
+### 49.1 The number
+
+| | |
+|---|---|
+| Anthropic spent (c1 + h3ss + haiku leg + sonnet leg) | **$22.15** |
+| still to author (14 arm-generations on `c1`, 15 on `leg8`, 12 on `leg5`) | **$15.11** |
+| **projected total** | **$37.27** |
+| credited available (quoted $31.96 − RUN 3's $3.81) | **$28.15** |
+| **MARGIN** | **−$9.12** |
+
+**If the key runs dry, the CONFIRMATORY line stops.** That is the single failure the campaign cannot
+absorb: every other line is a replication leg, but `c1` is the registered confirmatory author
+(`claude-opus-5`, R102).
+
+### 49.2 The error in my earlier projection, named exactly
+
+At 18:05 I reported *"projected ~$20.90 against $28.15 available, a 26 % margin"* and called the
+budget worry "measured away". **That projection asked "which generations exist anywhere in this
+line's root?"**, saw g0…g5 all present on `c1`, and concluded the core line had finished authoring.
+
+**Authoring is per (line, ARM), not per line.** `c1` reads
+`dist=g3  scal=g5  placebo=g1  scalar_cvar5=g1  placebo_shuffled=g1` — its `scalar` arm reached the
+final generation while its three CONTROL arms sit at g1, with **14 arm-generations still to author**.
+The per-root maximum hid all of it.
+
+**This is the third time in two days that a heuristic of mine produced a too-optimistic number** (the
+others: PopArt "0 records carry it" from a type assumption, and the n=1 placement rate read as 100 %).
+The pattern is the same each time — **an aggregate that answers a slightly different question than the
+one asked, reported as if it answered the right one.**
+
+### 49.3 What is NOT claimed
+
+* **$28.15 is a LEDGER ESTIMATE, not a balance reading.** It is the 2026-07-28 console quote minus
+  RUN 3's spend. Only Tamer can read the real balance, and the true figure could be either side of it.
+* The spend ledger itself is an estimate (tokens × planning prices for Anthropic), which is why R83
+  registered it as advisory and *"never refuses"*.
+* h3ss is correctly excluded: it is the single-shot line, authors once at g0 by design, and its
+  earlier "5 generations left" was an artefact of the same per-line assumption.
+
+### 49.4 The action, and its urgency
+
+**Tamer: check the real Anthropic console balance and top up if it is short.** The search phase has
+roughly two more days to run (§49.5), so this is not an emergency tonight — but it must not be
+discovered by a 403 on the confirmatory line at generation 3 of the placebo arm.
+
+Also registered: **`scripts/preflight.py` has no provider-headroom check** — it is already
+`docs/DEFERRED_FIXES_RUN4.md` §3, written before launch, and this is precisely the failure it was
+written to prevent. It fires at launch, not mid-run; a mid-run headroom watch belongs in the sentinel.
+
+### 49.5 The related timeline correction
+
+I have twice told Tamer the search finishes "in about a day", quoting the leading arms at g4–g5. **That
+was wrong for the reason above**: a line finishes when its SLOWEST arm finishes, and I said so in the
+same breath as quoting the fastest. Measured across all twelve lines, every line's slowest arm is at
+**g0 or g1** — the controls (`placebo`, `placebo_shuffled`, `scalar_cvar5`) trail the treatment arms by
+four to five generations. At roughly 8 h of training per generation plus queue wait, **C4 begins in
+about two days, not one.**

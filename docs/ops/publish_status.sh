@@ -135,6 +135,11 @@ statistical assumption is confirmed by live data.
 
 ## Needs Tamer
 
+* **!! ANTHROPIC BUDGET -- PROJECTED SHORTFALL ~\$9.** Spent \$22.15 of a credited \$28.15; the
+  authoring still to come (14 arm-generations on the core line, 15 on sonnet, 12 on haiku) projects
+  **\$15.11 more = \$37.27 total**. If the key runs dry the CONFIRMATORY line stops, which is the one
+  thing the campaign cannot absorb. **Please check the real console balance and top up.** Our figure is
+  a ledger ESTIMATE, not a balance reading -- record section 49.
 * **A12 -- the public OSF/Zenodo DOI deposit** (about 10 minutes; everything is staged in
   docs/A12_DEPOSIT_PACKAGE.md). A registered freeze-day obligation that is currently unmet.
 

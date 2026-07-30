@@ -27,13 +27,16 @@
 {"failed": "distributional-g3-c4", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'tail_gap' where it is not associated with a value\")"}
 {"failed": "distributional-g4-c0", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'risk_term' where it is not associated with a value\")"}
 {"failed": "distributional-g4-c1", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "distributional-g4-c1", "error": "sandbox: reward crashed during validation: ValueError('operands could not be broadcast together with shapes (31,) (30,) ')"}
 {"failed": "distributional-g4-c2", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "distributional-g4-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'total' where it is not associated with a value\")"}
 {"failed": "distributional-g4-c4", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'history' where it is not associated with a value\")"}
+{"failed": "distributional-g5-c0", "error": "sandbox: reward crashed during validation: ValueError('shapes (31,) and (30,) not aligned: 31 (dim 0) != 30 (dim 0)')"}
 {"failed": "distributional-g5-c1", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "distributional-g5-c1", "error": "sandbox: reward crashed during validation: ValueError('operands could not be broadcast together with shapes (31,) (30,) ')"}
 {"failed": "distributional-g5-c2", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
 {"failed": "distributional-g5-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
+{"failed": "distributional-g5-c3", "error": "sandbox: reward crashed during validation: ValueError('operands could not be broadcast together with shapes (30,) (31,) ')"}
 {"failed": "distributional-g5-c4", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'current_cvar' where it is not associated with a value\")"}
 {"failed": "placebo-g0-c0", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "placebo-g0-c1", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
@@ -51,6 +54,7 @@
 {"failed": "placebo-g2-c1", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "placebo-g2-c3", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "placebo-g2-c4", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'copy'\")"}
+{"failed": "placebo-g2-c4", "error": "sandbox: reward crashed during validation: ValueError('shapes (31,) and (30,) not aligned: 31 (dim 0) != 30 (dim 0)')"}
 {"failed": "placebo-g3-c0", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "placebo-g3-c2", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "placebo-g3-c4", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
@@ -61,8 +65,10 @@
 {"failed": "placebo_shuffled-g1-c0", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "placebo_shuffled-g1-c0", "error": "sandbox: reward crashed during validation: ValueError('shapes (31,) and (30,) not aligned: 31 (dim 0) != 30 (dim 0)')"}
 {"failed": "placebo_shuffled-g1-c2", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'downside' where it is not associated with a value\")"}
+{"failed": "placebo_shuffled-g1-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "placebo_shuffled-g1-c3", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
 {"failed": "placebo_shuffled-g1-c4", "error": "sandbox: reward crashed during validation: NameError(\"name 'lengths' is not defined\")"}
+{"failed": "placebo_shuffled-g1-c4", "error": "sandbox: reward did not return an unpackable (total, components, state)"}
 {"failed": "placebo_shuffled-g2-c0", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
 {"failed": "placebo_shuffled-g2-c1", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "placebo_shuffled-g2-c3", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
@@ -110,12 +116,14 @@
 {"failed": "scalar-g2-c4", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "scalar-g3-c0", "error": "sandbox: reward crashed during validation: KeyError('return_entropy_product')"}
 {"failed": "scalar-g3-c0", "error": "sandbox: reward crashed during validation: ValueError('operands could not be broadcast together with shapes (31,) (30,) ')"}
+{"failed": "scalar-g3-c1", "error": "sandbox: reward crashed during validation: TypeError(\"'float' object cannot be interpreted as an integer\")"}
 {"failed": "scalar-g3-c1", "error": "sandbox: reward crashed during validation: UnboundLocalError(\"cannot access local variable 'steps' where it is not associated with a value\")"}
 {"failed": "scalar-g3-c3", "error": "sandbox: reward crashed during validation: NameError(\"name 'object' is not defined\")"}
 {"failed": "scalar-g3-c4", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
 {"failed": "scalar-g3-c4", "error": "sandbox: reward crashed during validation: ValueError('operands could not be broadcast together with shapes (31,) (30,) ')"}
 {"failed": "scalar-g4-c1", "error": "sandbox: reward crashed during validation: ValueError('shapes (31,) and (30,) not aligned: 31 (dim 0) != 30 (dim 0)')"}
 {"failed": "scalar-g4-c3", "error": "sandbox: reward crashed during validation: TypeError(\"argument of type 'NoneType' is not iterable\")"}
+{"failed": "scalar-g4-c4", "error": "sandbox: reward crashed during validation: NameError(\"name 'downsidedown' is not defined\")"}
 {"failed": "scalar-g5-c0", "error": "sandbox: reward crashed during validation: AttributeError(\"'NoneType' object has no attribute 'get'\")"}
 {"failed": "scalar-g5-c1", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object does not support item assignment\")"}
 {"failed": "scalar-g5-c1", "error": "sandbox: reward crashed during validation: TypeError(\"'NoneType' object is not subscriptable\")"}
