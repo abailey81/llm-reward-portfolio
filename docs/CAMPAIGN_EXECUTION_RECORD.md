@@ -5102,3 +5102,75 @@ wrong and this record will say so.**
 grep for `random_search_test` matched nothing even though the jobs were there (they appear as
 `c1_random_`). That is trap 1 in the handoff's list, and it cost a minute of confusion — recorded
 because the same trap has now bitten three separate sessions.
+
+---
+
+## 47. "WHY ARE THE BASELINES SO WEAK?" — MEASURED, AND THE ANSWER IS 22 % A YEAR IN COSTS
+
+Written 2026-07-30 17:20 UTC. Tamer asked the right question of the H1 result: ten of eleven
+hand-written rewards produce NEGATIVE net Sharpe, and none beats buy-and-hold. Is that the literature
+being bad, our implementation being bad, or something broken?
+
+### 47.1 The decisive measurement
+
+`test_turnover` is a per-session series (n = 1,571) on every record. Its mean, per baseline, against the
+registered cost model (`proportional_turnover`, `headline_bps: 10`, turnover = ½·L1(wₜ − w̃) — the
+standard one-way definition):
+
+| reward | turnover / day | cost / day | **cost / year** | net Sharpe |
+|---|---|---|---|---|
+| `volatility_scaled_return` | 0.9083 | 9.08 bps | **22.9 %** | −0.228 |
+| `log_growth` | 0.8946 | 8.95 bps | 22.5 % | −0.215 |
+| `return_minus_variance` | 0.8934 | 8.93 bps | 22.5 % | −0.226 |
+| `mean_variance_utility` | 0.8931 | 8.93 bps | 22.5 % | −0.302 |
+| `raw_return` | 0.8924 | 8.92 bps | 22.5 % | −0.274 |
+| `return_minus_downside` | 0.8871 | 8.87 bps | 22.4 % | −0.249 |
+| `return_minus_cvar` | 0.8813 | 8.81 bps | 22.2 % | −0.388 |
+| `differential_sharpe` | 0.8536 | 8.54 bps | 21.5 % | −0.217 |
+| `differential_downside_ratio` | 0.8510 | 8.51 bps | 21.4 % | −0.173 |
+| `return_minus_drawdown` | 0.7751 | 7.75 bps | 19.5 % | −0.218 |
+| **`return_minus_turnover`** | **0.0075** | **0.08 bps** | **0.2 %** | **+1.153** |
+
+**Ten of the eleven rebalance 78–91 % of the portfolio EVERY DAY.** That is roughly **220× annual
+turnover**, against the 1–5× a real quant equity strategy runs. At a perfectly ordinary 10 bps it costs
+**~22 % of capital a year.** No strategy survives that, and the ranking of the ten is essentially noise
+around a common failure.
+
+The one reward that prices trading turns over **119× less** and is the only positive result. The
+arithmetic also closes: a ~22 % annual cost against ~20 % annual volatility is ≈1.1 Sharpe of drag —
+which is exactly the **1.07-Sharpe gross-to-net wedge** §32 measured independently by repricing.
+
+### 47.2 So the answer is: the REWARDS are faithful; the AGENT is unconstrained
+
+Nothing in ten of the eleven rewards, and nothing in the environment, penalises trading. An SAC policy
+on a 31-dimensional simplex therefore re-optimises the entire portfolio every session, because it has
+no reason not to. **The finding is not "these published rewards are bad" — it is "a cost-blind
+objective produces a cost-blind policy, and at realistic costs that is fatal."** That is the RL analogue
+of DeMiguel, Garlappi & Uppal (2009), where 1/N beats optimised portfolios out of sample.
+
+### 47.3 Three genuine weaknesses, owned rather than defended
+
+1. **The canon has LOW DIVERSITY on the dimension that turns out to dominate.** Only **1 of 11** rewards
+   prices trading; the other ten fail for the *same single reason*. So H1's eleven legs are not eleven
+   independent bars — they are one cost-aware reward and ten cost-blind ones. The IUT is still valid
+   (dominating all eleven is dominating the best), but the *informativeness* of ten of the legs is low,
+   and the write-up must say so rather than present eleven as eleven.
+2. **The environment does not constrain turnover.** A practitioner would add a turnover cap or action
+   smoothing. We deliberately did not, because the reward is the object of study — but that choice
+   amplifies the failure mode and belongs in the limitations, stated as a design consequence.
+3. **The headline is CONDITIONAL ON THE COST ASSUMPTION**, and the registered sweep
+   `grid_bps: [0, 5, 10, 25, 50]` exists precisely for this. At 0 bps the mean GROSS Sharpe is **+0.96**
+   — the sign of the whole table flips. **The cost sweep is not an appendix nicety here; it is the
+   sensitivity that decides the headline**, and it must be reported beside it.
+
+### 47.4 The one open question this raises, and how to settle it
+
+**Is 0.89 daily turnover a CONVERGED behaviour or an UNDERTRAINED one?** A policy still jittering at
+400,000 steps would produce exactly this signature. The two are distinguishable from data we already
+hold: `train_curve` is on every record, and turnover is a per-session series, so the test is whether
+turnover DECLINES across training and across the seed ladder's longer runs. If it plateaus, 0.89 is what
+a cost-blind optimum looks like and the finding stands as stated. If it is still falling, part of the
+effect is undertraining and the claim must be weakened accordingly.
+
+**Registered as an analysis-time obligation. It is not a defence of the result — it is the check that
+decides which of two very different papers we are writing.**
