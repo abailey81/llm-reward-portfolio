@@ -493,9 +493,32 @@ it. The fix is in the discovery and the join, not in the filesystem.
 
 ---
 
+## 11. C4 LAUNCH FLAG — `--pack 8` (decided 2026-07-31, record §50)
+
+**Not a code fix: a LAUNCH FLAG for the C4-boundary restart.** The twelve supervisors currently pass
+`--pack 4 --cores-per-training 1`. At the boundary they take `--pack 8 --cores-per-training 1`.
+
+**Why:** pack 8 reaches the 4,000-core saturation point with **500** concurrent jobs where pack 4
+needs **1,000** — and 1,000 is a cap we have never approached (peak observed: 204). Across every job
+count we have actually seen, pack 8 halves the rung-568 makespan. It is insurance against the
+exogenous 2026-08-27 stop truncating the top rung, which is the rung the power analysis was built on.
+
+**Why it is safe:** pack is OUTSIDE the determinism envelope. Pack-mates run in separate spawned
+processes via `DevicePool`'s `ProcessPoolExecutor`, each initialised with the same thread/alloc/preload
+contract, so pack size cannot reach any training's arithmetic — verified structurally and empirically
+(330 packed CPU baselines in this run, all `device='cpu'`, all `OMP_NUM_THREADS=1`).
+
+**Conditions:** validate on the FIRST line to reach C4 before the other eleven follow; fall back to
+pack 4 and record it if that line misbehaves.
+
+**Also fix at the same time:** `_task_device`'s docstring in `src/cluster/run_one.py` claims *"the CPU
+lane has only ever been exercised at pack=1"* — falsified by this run's 330 packed CPU baselines.
+
+---
+
 ## Applying, at the next restart
 
-1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, the §38 memory sizing, the §39 speedup constant and D18 - TEN items), each with its falsifiable test proven to FAIL against the current code first;
+1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, the §38 memory sizing, the §39 speedup constant, D18 and the §50 pack flag - ELEVEN items), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;

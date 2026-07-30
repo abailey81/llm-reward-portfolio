@@ -5386,3 +5386,122 @@ same breath as quoting the fastest. Measured across all twelve lines, every line
 **g0 or g1** — the controls (`placebo`, `placebo_shuffled`, `scalar_cvar5`) trail the treatment arms by
 four to five generations. At roughly 8 h of training per generation plus queue wait, **C4 begins in
 about two days, not one.**
+
+---
+
+## 50. DECISION — C4 RUNS AT `--pack 8`, AND THE REASON IS RISK, NOT SPEED
+
+Written 2026-07-31 00:05 UTC. Tamer challenged the earlier "pack 8 buys nothing" conclusion with a
+structural argument, then asked for a decision reasoned from the priorities. **He was right and the
+conclusion is reversed.** This section records the decision, the evidence, and — first — the
+reproducibility analysis, because reproducibility outranks speed and therefore had to be settled
+before any timing argument was allowed to matter.
+
+### 50.1 FIRST QUESTION: is `pack` inside the determinism envelope?
+
+The envelope doctrine is explicit — *anything that changes floating-point arithmetic is part of the
+frozen design*. So the decision is forbidden outright unless packing is arithmetically neutral.
+
+**It is neutral, on two independent grounds.**
+
+**Structural.** `run_task(pack>1)` executes the pack via `DevicePool`, a `ProcessPoolExecutor` whose
+spawn **initializer** (`_worker_init`) pins BLAS threads *before any heavy import*. Pack-mates are
+therefore **separate OS processes**, each with an identical environment contract — no shared torch
+global state, no shared RNG, no shared allocator. Pack size cannot reach the arithmetic of any single
+training.
+
+**Empirical.** The pack>1 CPU path is not theoretical: **330 baseline records in this very run were
+produced at `pack 4`**, and every one is stamped `device='cpu'` with `OMP_NUM_THREADS=1`. The path is
+exercised and correct.
+
+Two fail-loud guards defend the envelope at the task boundary: `_task_threads` raises on a mixed
+thread count, `_task_device` raises on a mixed device, each with the reasoning that "one job must
+train every spec under ONE regime".
+
+> ⚠ **A stale claim found in passing.** `_task_device`'s docstring says *"the CPU lane has only ever
+> been exercised at pack=1"*. It was written 2026-07-27; this run's 330 packed CPU baselines have
+> falsified it since. Harmless, but it is exactly the class of stale statement that §48 caught in the
+> SPX-TR limitation — logged for correction at the next restart.
+
+**Consequence for H1:** the comparison will span `pack 4` (the rung-30 baselines, already banked) and
+`pack 8` (C4). Because pack is outside the envelope, this is a configuration difference and not a
+confound — **but it is disclosed rather than assumed**, and the argument above is the disclosure.
+
+### 50.2 SECOND QUESTION: what does pack 8 actually buy?
+
+The earlier analysis compared the two configurations **at the 1,000-job cap**, where they tie, and
+concluded "no gain". That is evaluating at the single most optimistic point. **The cap is a ceiling,
+not a promise: we have never held more than 204 concurrent jobs.** Evaluated across the range we might
+plausibly achieve, at the corrected 1.92× chain speedup:
+
+| concurrent jobs | pack 4 cores | makespan | pack 8 cores | makespan | **pack 8 saves** |
+|---|---|---|---|---|---|
+| 200 | 800 | 18.75 d | 1,600 | 9.38 d | **9.4 d** |
+| 300 | 1,200 | 12.50 d | 2,400 | 6.25 d | 6.3 d |
+| 400 | 1,600 | 9.38 d | 3,200 | 4.69 d | 4.7 d |
+| **500** | 2,000 | 7.50 d | **4,000** | **4.64 d** | **2.9 d** |
+| 750 | 3,000 | 5.00 d | 6,000 | 4.64 d | 0.4 d |
+| 1,000 | 4,000 | 4.64 d | 6,144 (mem-capped) | 4.64 d | 0 |
+
+**Pack 8 is equal-or-better at every job count and dramatically better at every count we have actually
+observed.** It reaches saturation with **500** jobs where pack 4 needs **1,000**.
+
+### 50.3 THE COUNTER-EFFECT, measured so the trade is honest
+
+Wider jobs need more contiguous free slots, so they place on fewer hosts. Measured on pool d at
+2026-07-31 00:00 UTC:
+
+| job width | placeable jobs | placeable cores |
+|---|---|---|
+| 4 slots | 458 | **1,832** |
+| 8 slots | 192 | 1,536 |
+| 16 slots | 93 | 1,488 |
+| 24 slots | 47 | 1,128 |
+
+Pack 8 costs roughly **20 % packing efficiency** to buy **2× cores per job**. Net clearly favourable.
+**Pack 16 is declined**: it keeps buying job-count headroom but the placement curve is falling, and it
+would be two doublings away from the only pack size with production evidence behind it.
+
+**The blast-radius objection dissolves under arithmetic.** A failed task wastes 8 trainings instead of
+4 — but at pack 8 there are half as many tasks, so at any per-task failure rate the *expected* wasted
+compute is identical. Wall-clock is flat in pack on the CPU lane, so exposure time is unchanged too.
+
+### 50.4 THE DECISION, and why the priorities point here
+
+**C4 runs `--pack 8 --cores-per-training 1`.** Memory renders at 2G/slot = 16 GB/job (1.29× the
+measured 12.4 GB footprint of 8 concurrent trainings); 500 such jobs reserve 7.8 TB against ~12 TB
+free, so the configuration that reaches saturation also fits.
+
+**The justification is risk, not speed, and that distinction matters.** In the *mean* case — if we
+hold ~1,000 jobs — the two configurations finish on the same day and this decision is worth nothing.
+The case it protects against is the *tail*: if C4's achieved concurrency comes in at 200–400 jobs, as
+every observation to date suggests it might, pack 4 takes 9–19 days against an **exogenous 2026-08-27
+stop**, leaving no margin for a stall, a node outage or a re-run — while pack 8 takes 4.7–9.4.
+
+That is a grade argument, not a convenience one. **The seed ladder's top rung is what the power
+analysis was built on** (n=568 at the registered SESOI), and the σ = 0.250 measured live confirms that
+sizing. Losing the top rung to the calendar would cost statistical power on the confirmatory
+comparison — the one thing the whole design exists to deliver. **Buying insurance against that, at
+zero cost to arithmetic, is the priority-consistent choice.**
+
+**Two conditions attached, so this is not a blind commitment:**
+1. **Set it at the C4-boundary restart**, which is already scheduled for the ten deferred fixes — so
+   it costs no extra restart, no extra re-authoring, and no extra budget.
+2. **Validate on the FIRST line to reach C4.** Lines finish search at different times, so the leader
+   gives a real reading of achieved concurrency and per-task behaviour before the other eleven follow.
+   If it misbehaves, the remaining lines fall back to pack 4 and the record says so.
+
+### 50.5 What is NOT changing, and why
+
+| lever | decision | reason |
+|---|---|---|
+| threads (8 on search) | **unchanged** | frozen envelope; 680 records already at OMP=8 |
+| threads (1 at C4) | **unchanged** | 16 threads is **7.6× worse per core**; 330 baselines are at OMP=1 and H1 compares against them |
+| pool `d` → `d,b` | **declined** | more hosts do not create work; the binding constraint is job count, not host availability |
+| candidates per arm | **untouchable** | registered (30 = 6 generations × 5) |
+| SGE priority | **untouchable** | self-elevation forbidden; lowering ours forbidden |
+| restart now | **declined** | the C4 boundary restart carries everything; a restart costs ~$1.25 of a budget already $9 short |
+
+**The honest summary: after this decision there is no remaining compute lever that does not change the
+science.** The campaign's calendar is set by a 4.64-day serial chain and by the control arms' remaining
+generations, and the two open items are both Tamer's — the Anthropic top-up and the A12 deposit.
