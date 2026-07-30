@@ -113,3 +113,29 @@ The frozen-winner TEST record now archives (inside `metrics{}`, report-only, bes
 (M1), `test_alloc` (M1b → G5), `test_components` (M3), `train_curve` (M2 → F9). These are the data G3/G4/G5 +
 F9 need — a frozen, replay-only campaign can only plot what it logged. Byte-exact determinism verified
 (`scripts/reproduce_synthetic.py --check` reproduces the golden with the recorders attached).
+
+### Tables added 2026-07-30 (built; all excluded from the word count)
+
+| # | Title | What it shows | Source file | Chapter | Status |
+|---|---|---|---|---|---|
+| T10 | Literature positioning matrix | 9 neighbours x 6 dimensions with our row last; the pre-registration column is the lead claim | `paper/tables/T_literature_positioning.md` | CH2 | **BUILT** |
+| T11 | Design decisions | choice / alternatives / rationale / **cost**, incl. two rows that bias AGAINST our own hypothesis | `paper/tables/T_design_decisions.md` | CH4 | **BUILT** |
+| T12 | Scale and difficulty | components, tests, models, trainings, core-hours, off-the-shelf vs written | `paper/tables/T_scale_and_difficulty.md` | Appendix | **BUILT** |
+| T13 | The nine arms | feedback content per arm + the role each control plays | `paper/tables/T_arms_and_hypotheses.md` | CH4 | **BUILT** |
+| T14 | Environment specification | 30+cash, PIT selection, 60-session lookback, simplex, 10 bps | same file | CH4 | **BUILT** |
+| T15 | Confirmatory decision rules | the six nodes N1-N6 with direction and equivalence backstop | same file | CH4 | **BUILT** |
+| T16 | Model suite with pins | 11 models, HF commit pins, reasoning off, caps matched at 16,384 | `paper/tables/T_models_and_reward_canon.md` | CH4 | **BUILT** |
+| T17 | The eleven-reward canon | each objective with its literature source; the turnover row carries a result | same file | CH4 | **BUILT** |
+
+### Prose sections added 2026-07-30
+
+| Ref | Title | Purpose | Source file |
+|---|---|---|---|
+| S1 | Numbered contributions C1-C5 | each claim with its evidence and section; C5 marked PENDING | `paper/sections/CH1_contributions.md` |
+| S2 | Severity paragraph | pre-registration does not confer Popperian severity (R61) | `paper/sections/CH3_severity_paragraph.md` |
+| S3 | Wider context | three MEASURED findings that generalise past finance | `paper/sections/CH7_wider_context.md` |
+| S4 | Quality-control record | the machinery, organised analytically not chronologically | `paper/appendices/A_quality_control_record.md` |
+
+⚠ **Reconcile at compile:** numbering above is provisional (T10+ to avoid colliding with T1-T3 already
+listed). The existing `paper/NOMENCLATURE.md` already satisfies the notation-table requirement and
+`paper/APPENDIX_B_limitations.md` the limitations register — **neither was rebuilt**, both were extended.

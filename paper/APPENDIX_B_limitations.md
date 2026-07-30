@@ -206,6 +206,52 @@ value-overestimation/divergence pathology that motivated the clipped double-Q es
   directional expectations only; no prototype number appears anywhere in the results or informs any
   confirmatory conclusion.
 
+## B.8 Executed-run limitations (RUN 4, added 2026-07-30 from the live execution record)
+
+These are limitations of the run that was *executed*, discovered during execution and disclosed rather
+than absorbed. Each states its direction of bias where known.
+
+- **B.8.1 One substrate inhomogeneity, fenced and bounded.** Four `baseline_volatility_scaled_return`
+  records (seeds 14-17) trained on a Xeon Gold 6140 while the unit's other 26 ran on a Gold 6240, so
+  float reduction order is not guaranteed identical within that unit. *Scope:* 4 of 527 records, 1 of ~40
+  comparison units; **H2 contains no such record**, and the affected baseline is not the binding H1
+  maximum (`return_minus_turnover` +1.161 sets that bar; this one is -0.221). *Mitigation:* the single
+  6140 host in the estate (`node-d00b-024`) is fenced from all twelve lines, verified in newly-written
+  jobscripts, so no future record can land there. *Residual:* those four records may carry a
+  floating-point difference of unknown but bounded-as-immaterial size. Myriad exposes no requestable
+  CPU-model complex, so host-name exclusion is the only available mechanism.
+- **B.8.2 One authoring call truncated by our own output cap.** 1 of 1,099 LLM calls returned
+  `stop_reason: length` against the registered 16,384-token cap (`nemotron-3-super`). *Direction:* biases
+  that model's measured authoring reliability **downward**, since the failure is an instrument artefact
+  rather than an inability. *Mitigation:* `stop_reason` is persisted on every ledger row, so truncated
+  calls are excluded from every reliability denominator or reported separately. The cap is **not** raised
+  mid-run: matched caps across all eleven models are what make the cross-model comparison fair.
+- **B.8.3 Author-side rejects are never replaced, so arms are not exactly budget-matched in candidates.**
+  A candidate failing the AST gate is ledgered `permanent` and not re-authored, so an arm searches over
+  fewer than its registered 30. *Direction:* the arm losing more candidates is handicapped, because
+  selection is `max(val_fitness)` and fewer draws lower the expected maximum. On the confirmatory line the
+  losses are 2 on `scalar` and 0 on `distributional` — i.e. **biasing toward** our own hypothesis.
+  *Mitigation:* per-arm accepted-candidate counts are reported beside every H2 contrast, and a
+  pre-committed equal-*k* sensitivity analysis (k = the per-arm minimum) is run if the asymmetry is
+  material.
+- **B.8.4 The sealed window is the purge-adjusted one, and conflating it understates every benchmark.**
+  Execution begins **2020-03-30**, 60 sessions after the panel's 2020-01-02, because the production
+  lookback of 60 dominates the 21-session embargo floor. The purge silently removes the COVID crash. An
+  earlier benchmark computed over the panel's 1,631 sessions rather than the traded **1,571** understated
+  the passive comparator by ~0.47 Sharpe and **retracted two headline claims**. *Mitigation:* every
+  benchmark derives its window from `record.metrics.test_returns` and states it as
+  `2020-03-30 -> 2026-06-30, n = 1571`.
+- **B.8.5 Reflection cannot run at all on the bottom-anchor model.** `prev_block` is set only when a
+  generation yields an accepted candidate, so `qwen3.5-9b` (91% reject rate) received the initial prompt
+  instead of a reflection prompt for 2 of its 7 generation>0 candidates. *This is reported as a finding,
+  not repaired:* below some authoring reliability a reflection loop does not degrade gracefully, it fails
+  to start, because it requires a prior success to reflect on.
+- **B.8.6 The C3 review gate does not check substrate homogeneity.** Its stop message promises to catch
+  "device inhomogeneity", but `health_ok` keys on the device label (`cpu`/`cuda`) only, so a CPU-**model**
+  mix passes it silently — the blocking control is blind to what the advisory sentinel does catch.
+  Registered as a deferred code fix; disclosed here because the gate currently promises more than it
+  verifies.
+
 ## B.7 Future work (from the disclosed limitations)
 A tail-rewarded ($\lambda>0$) selection variant (B.1.2); the reason-gated delisting re-pull univ4r (B.4.2); a
 corner-reaching action parameterisation (B.4.4); a second, open-weights model family and a second universe/period
