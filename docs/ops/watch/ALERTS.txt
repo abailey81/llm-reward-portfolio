@@ -12,3 +12,163 @@ arms  IUT pools dist=317 scal=281 plac=141 scv5=126 (shuf=123)  spread=2.516x
 info  budget anthropic  spent $28.4158 (+0.1220 this cycle)  + to author $10.6799  = projected $39.0957
 info  budget openrouter spent $6.3558 (+0.0000 this cycle)  + to author $3.4489  = projected $9.8047
 2026-07-31T13:49:21Z  ATTN  records=1389 (+0)  spend=$34.7716  guards=2  arms_full=10/10  budget=2  stalest=7.7m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T14:24:45Z  rc=2  [CHANGED] =====
+RED   UNCOMMITTED changes under src/scripts/config/prompts: M src/cluster/jobscript.py — the drift diff compares COMMITS and cannot see these. Commit or revert before trusting drift=0.
+ATTN  CORE-LINE arm depth 2.80x — scalar_cvar5=10 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.44x across H2's IUT arms (distributional=319 vs scalar_cvar5=131). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1424/ra=1424  r115=12 BINDING  popart engaged=715/pinned=688  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=282 plac=144 scv5=131 (shuf=127)  spread=2.435x
+info  budget anthropic  spent $28.8128 (+0.0000 this cycle)  + to author $9.5153  = projected $38.3282
+info  budget openrouter spent $6.3558 (+0.0000 this cycle)  + to author $3.3239  = projected $9.6797
+2026-07-31T14:24:33Z  RED  records=1402 (+1)  spend=$35.1687  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T14:48:51Z  rc=1  [CHANGED] =====
+ATTN  CORE-LINE arm depth 2.80x — scalar_cvar5=10 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.38x across H2's IUT arms (distributional=319 vs scalar_cvar5=134). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1435/ra=1435  r115=12 BINDING  popart engaged=723/pinned=691  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=282 plac=150 scv5=134 (shuf=129)  spread=2.381x
+info  budget anthropic  spent $28.8128 (+0.0000 this cycle)  + to author $9.4522  = projected $38.2650
+info  budget openrouter spent $6.3558 (+0.0000 this cycle)  + to author $2.9499  = projected $9.3057
+2026-07-31T14:48:40Z  ATTN  records=1413 (+0)  spend=$35.1687  guards=2  arms_full=10/10  budget=2  stalest=4.3m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T15:50:29Z  rc=1  [STILL PRESENT (hourly heartbeat)] =====
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.28x across H2's IUT arms (distributional=319 vs scalar_cvar5=140). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1461/ra=1461  r115=12 BINDING  popart engaged=738/pinned=701  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=284 plac=162 scv5=140 (shuf=135)  spread=2.279x
+info  budget anthropic  spent $30.3167 (+0.0721 this cycle)  + to author $10.0875  = projected $40.4042
+info  budget openrouter spent $6.7418 (+0.0125 this cycle)  + to author $3.0611  = projected $9.8029
+2026-07-31T15:50:17Z  ATTN  records=1438 (+2)  spend=$37.0586  guards=2  arms_full=10/10  budget=2  stalest=1.1m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T16:14:41Z  rc=1  [CHANGED] =====
+ATTN  *** docs/REMOTE_CONTROL.md CHANGED -- READ IT NOW, before anything else ***
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.26x across H2's IUT arms (distributional=319 vs scalar_cvar5=141). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1465/ra=1465  r115=12 BINDING  popart engaged=741/pinned=701  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=286 plac=162 scv5=141 (shuf=136)  spread=2.262x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $10.2575  = projected $40.9711
+info  budget openrouter spent $6.7463 (+0.0000 this cycle)  + to author $3.0630  = projected $9.8092
+2026-07-31T16:14:28Z  ATTN  records=1441 (+0)  spend=$37.4598  guards=2  arms_full=10/10  budget=2  stalest=3.3m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T16:16:54Z  rc=1  [CHANGED] =====
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.26x across H2's IUT arms (distributional=319 vs scalar_cvar5=141). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1465/ra=1465  r115=12 BINDING  popart engaged=741/pinned=701  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=286 plac=162 scv5=141 (shuf=136)  spread=2.262x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $10.2575  = projected $40.9711
+info  budget openrouter spent $6.7463 (+0.0000 this cycle)  + to author $3.0630  = projected $9.8092
+2026-07-31T16:16:41Z  ATTN  records=1441 (+0)  spend=$37.4598  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T17:01:13Z  rc=1  [CHANGED] =====
+ATTN  *** docs/REMOTE_CONTROL.md CHANGED -- READ IT NOW, before anything else ***
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.23x across H2's IUT arms (distributional=319 vs scalar_cvar5=143). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1470/ra=1470  r115=12 BINDING  popart engaged=744/pinned=703  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=286 plac=163 scv5=143 (shuf=138)  spread=2.231x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $10.2575  = projected $40.9711
+info  budget openrouter spent $6.8233 (+0.0000 this cycle)  + to author $3.0960  = projected $9.9192
+2026-07-31T17:01:01Z  ATTN  records=1446 (+0)  spend=$37.5368  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T17:03:25Z  rc=1  [CHANGED] =====
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.23x across H2's IUT arms (distributional=319 vs scalar_cvar5=143). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1470/ra=1470  r115=12 BINDING  popart engaged=744/pinned=703  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=286 plac=163 scv5=143 (shuf=138)  spread=2.231x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $10.2575  = projected $40.9711
+info  budget openrouter spent $6.8233 (+0.0000 this cycle)  + to author $3.0960  = projected $9.9192
+2026-07-31T17:03:13Z  ATTN  records=1446 (+0)  spend=$37.5368  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T18:05:06Z  rc=1  [STILL PRESENT (hourly heartbeat)] =====
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.17x across H2's IUT arms (distributional=319 vs scalar_cvar5=147). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1484/ra=1484  r115=12 BINDING  popart engaged=750/pinned=710  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=288 plac=166 scv5=147 (shuf=143)  spread=2.17x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $8.5073  = projected $39.2209
+info  budget openrouter spent $6.9215 (+0.0000 this cycle)  + to author $2.7842  = projected $9.7057
+2026-07-31T18:04:53Z  ATTN  records=1459 (+2)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=1.1m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T18:11:46Z  rc=2  [CHANGED] =====
+RED   STALE DRIVER LOCK(S) held by a REUSED pid: leg4_leg_qwen3_5_9b_h2_pair_test.driver.lock (pid 34216 is sleep.exe, NOT a driver). The driver's staleness check tests pid EXISTENCE, not pid IDENTITY, so it will refuse to start that batch forever. Verify no live driver owns it, then delete the lock file (D20).
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.17x across H2's IUT arms (distributional=319 vs scalar_cvar5=147). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1485/ra=1485  r115=12 BINDING  popart engaged=750/pinned=711  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=288 plac=166 scv5=147 (shuf=143)  spread=2.17x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $8.5073  = projected $39.2209
+info  budget openrouter spent $6.9215 (+0.0000 this cycle)  + to author $2.7842  = projected $9.7057
+2026-07-31T18:11:32Z  RED  records=1460 (+1)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0  sci=OK  r115=12B  cores=728  auto-cycle
+
+===== 2026-07-31T18:13:59Z  rc=1  [CHANGED] =====
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.17x across H2's IUT arms (distributional=319 vs scalar_cvar5=147). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1485/ra=1485  r115=12 BINDING  popart engaged=750/pinned=711  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=288 plac=166 scv5=147 (shuf=143)  spread=2.17x
+info  budget anthropic  spent $30.7136 (+0.0000 this cycle)  + to author $8.5073  = projected $39.2209
+info  budget openrouter spent $6.9215 (+0.0000 this cycle)  + to author $2.7842  = projected $9.7057
+2026-07-31T18:13:47Z  ATTN  records=1460 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T19:15:47Z  rc=1  [STILL PRESENT (hourly heartbeat)] =====
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.04x across H2's IUT arms (distributional=319 vs scalar_cvar5=156). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1513/ra=1513  r115=12 BINDING  popart engaged=766/pinned=723  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=291 plac=174 scv5=156 (shuf=150)  spread=2.045x
+info  budget anthropic  spent $31.0687 (+0.2357 this cycle)  + to author $8.3436  = projected $39.4123
+info  budget openrouter spent $6.9681 (+0.0000 this cycle)  + to author $2.7762  = projected $9.7443
+2026-07-31T19:15:35Z  ATTN  records=1488 (+2)  spend=$38.0367  guards=2  arms_full=10/10  budget=2  stalest=0.5m  drift=0  sci=OK  r115=12B  auto-cycle
+
+===== 2026-07-31T19:22:28Z  rc=1  [CHANGED] =====
+ATTN  R115 execution-floor breaches rose 12 -> 13 since the previous cycle -- identify the new one and confirm it is the known mechanism, not a new failure
+ATTN  CORE-LINE arm depth 2.33x — scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.03x across H2's IUT arms (distributional=319 vs scalar_cvar5=157). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1519/ra=1519  r115=13 BINDING  popart engaged=767/pinned=728  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=292 plac=177 scv5=157 (shuf=151)  spread=2.032x
+info  budget anthropic  spent $31.2866 (+0.0000 this cycle)  + to author $8.2132  = projected $39.4998
+info  budget openrouter spent $6.9694 (+0.0000 this cycle)  + to author $2.7768  = projected $9.7461
+2026-07-31T19:22:15Z  ATTN  records=1494 (+5)  spend=$38.2559  guards=2  arms_full=10/10  budget=2  stalest=0.6m  drift=0  sci=OK  r115=13B  auto-cycle
+
+===== 2026-07-31T19:24:41Z  rc=1  [CHANGED] =====
+Traceback (most recent call last):
+  File "C:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio\docs\ops\cycle.py", line 630, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio\docs\ops\cycle.py", line 624, in main
+    print(ln)
+  File "C:\Users\User\AppData\Local\Programs\Python\Python311\Lib\encodings\cp1251.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2605' in position 6: character maps to <undefined>
+
+===== 2026-07-31T19:35:43Z  rc=2  [CHANGED] =====
+RED   â˜… C4 BOUNDARY REACHED on frozen_leg_qwen3_5_9b (5/5 arms frozen). This is the ONLY window for `--pack 8` (DEFERRED_FIXES 11) and for the other outstanding deferred fixes. It needs a SUPERVISOR restart, not a driver relaunch -- the flag is bound in mode_d_supervisor.ps1's argument array at supervisor start. Without it C4 runs at half the cores, and at the 2026-07-31 core count rung 568 lands 08-30, missing the stop.
+ATTN  CORE-LINE arm depth 2.33x â€” scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio â€” not the pooled one â€” is what biases H2's IUT legs. Record Â§56.6.
+ATTN  ARM DEPTH IMBALANCE 2.01x across H2's IUT arms (distributional=319 vs scalar_cvar5=159). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record Â§56; the pre-registered remedy is the equal-k sensitivity analysis (Â§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1525/ra=1525  r115=13 BINDING  popart engaged=770/pinned=729  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=294 plac=178 scv5=159 (shuf=152)  spread=2.006x
+info  budget anthropic  spent $31.2866 (+0.0000 this cycle)  + to author $8.2132  = projected $39.4998
+info  budget openrouter spent $6.9694 (+0.0000 this cycle)  + to author $2.7254  = projected $9.6948
+2026-07-31T19:35:31Z  RED  records=1498 (+0)  spend=$38.2559  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0  sci=OK  r115=13B  auto-cycle
+
+===== 2026-07-31T19:37:55Z  rc=2  [CHANGED] =====
+RED   â˜… C4 BOUNDARY REACHED on frozen_leg_qwen3_5_9b (5/5 arms frozen) -- the seed ladder has begun on that line. âœ” `--pack 8` IS ALREADY LIVE (Â§58, applied 2026-07-31 by a rolling supervisor restart; VERIFIED 2026-07-31 19:35 UTC on all 24 driver command lines, and visible in the C4 job names as 4 packs for 30 seeds, e.g. `..._test_p01..p04`). *** DO NOT RESTART THE SUPERVISORS FOR PACK 8 -- IT IS DONE. *** What REMAINS at this boundary is the outstanding DEFERRED_FIXES (1-7, 9, 10, 12, 13; 8 and 11 are APPLIED) -- each needs a driver relaunch, so weigh them against disturbing a live ladder rather than applying them as a batch. Record Â§74.
+ATTN  *** docs/REMOTE_CONTROL.md CHANGED -- READ IT NOW, before anything else ***
+ATTN  CORE-LINE arm depth 2.33x â€” scalar_cvar5=12 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio â€” not the pooled one â€” is what biases H2's IUT legs. Record Â§56.6.
+ATTN  ARM DEPTH IMBALANCE 2.01x across H2's IUT arms (distributional=319 vs scalar_cvar5=159). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record Â§56; the pre-registered remedy is the equal-k sensitivity analysis (Â§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1525/ra=1525  r115=13 BINDING  popart engaged=770/pinned=729  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=319 scal=294 plac=178 scv5=159 (shuf=152)  spread=2.006x
+info  budget anthropic  spent $31.2866 (+0.0000 this cycle)  + to author $8.2132  = projected $39.4998
+info  budget openrouter spent $6.9694 (+0.0000 this cycle)  + to author $2.7254  = projected $9.6948
+2026-07-31T19:37:43Z  RED  records=1498 (+0)  spend=$38.2559  guards=2  arms_full=10/10  budget=2  stalest=0.8m  drift=0  sci=OK  r115=13B  auto-cycle

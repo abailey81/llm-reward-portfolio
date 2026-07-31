@@ -8792,3 +8792,28 @@ one becomes blocking. **The register is unchanged and nothing is dropped.**
 C4 **in flight on 1 of 12 lines** · core line 3/5 frozen · drift **0** · freeze `3ca6f01a…` MATCHES ·
 `sci=OK` · **0** transport timeouts · ~1,498 records · $38.26 · the monitor **can now deliver its own
 alerts** · `--pack 8` live and proven on real C4 jobs.
+
+### 74.7 ⚠ THE RED IS NOW STANDING — DO NOT "FIX" IT BY ACKNOWLEDGING IT
+
+The cycle will read **RED for as long as any line sits at 5/5 frozen winners**, because the C4 boundary
+is a *state*, not an event. A permanent RED is normally the alarm-fatigue failure this project fights
+(§53 removed exactly that from the budget check), so the temptation will be to add
+`c4_boundary` to `acknowledged_alarms.txt`. **Do not.**
+
+**It must stay loud, and the noise is already handled correctly:**
+
+* **It fires ONCE PER LINE, and the next one is the one that matters.** The alert names the lines
+  (`frozen_leg_qwen3_5_9b`), so when the **CORE** line reaches 5/5 the alert **CONTENT CHANGES**.
+* **`cycle_loop.sh` dedupes on the md5 of the alert set with digits normalised** (`sed -E
+  's/[0-9]+/N/g'`) — and the discriminating token here is a **line NAME, not a digit**, so a new line
+  joining produces a genuinely different signature and a fresh `ALERTS.txt` entry. A standing condition
+  otherwise appears once plus an hourly heartbeat.
+* **Acknowledging it would silence the core line's arrival** — the single event the whole C4 procedure
+  exists for, and the one that should trigger the deferred-fix relaunch (§74.5).
+
+**So: RED here means "at least one line is at C4", it is TRUE, and it is doing its job.** Confirm the
+line list each time it changes; act when `frozen` (the core line) appears in it.
+
+**Evidence the delivery path is repaired end to end:** occurrences of `C4 BOUNDARY REACHED` in
+`docs/ops/watch/ALERTS.txt` went from **0** (the whole time the boundary had been live) to **2** within
+minutes of the §74.2 fix, written by the production loop rather than by a manual run.
