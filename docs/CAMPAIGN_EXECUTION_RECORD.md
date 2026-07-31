@@ -11085,8 +11085,37 @@ is exactly the event the detector exists to catch.
 ### 91.5 WHAT THIS CHANGES FOR THE BOUNDARY DECISION
 
 * **The core line is FURTHER from C4 than believed** — 2 of 5 LLM arms, not 3. `scalar_cvar5` remains the
-  binding arm, but `placebo` and `placebo_shuffled` are also unfrozen. **The ~19-31 h estimate in the
-  brief was computed against the wrong count and should be re-derived**, not carried forward.
+  binding arm, but `placebo` and `placebo_shuffled` are also unfrozen.
+
+> #### ⛔ 91.5a — I OVERSTATED THIS, AND THE CORRECTION IS PART OF THE FINDING
+>
+> The bullet above originally continued: *"**The ~19-31 h estimate in the brief was computed against the
+> wrong count and should be re-derived**, not carried forward."* **That was wrong, and I re-derived it
+> rather than leave the claim standing.** The brief's ETA was computed from **the binding arm's
+> GENERATION DEPTH** (`scalar_cvar5` at generation 3 of 6), which is **correct** — not from the
+> frozen-marker count. The marker miscount corrupts the *narrative* ("3/5 frozen"), not the *arithmetic*.
+> **Overstating a risk is as inaccurate as understating one**, so this is corrected in place.
+>
+> **The re-derivation, measured from the archive's own generation timestamps:**
+>
+> ```
+>   arm                gens remaining   g1->g2 gap   g2->g3 gap (POST-FIX)
+>   scalar_cvar5             2.4          26.0 h          6.6 h
+>   placebo                  2.0          20.3 h         10.8 h
+>   placebo_shuffled         2.2          25.0 h          6.9 h
+> ```
+>
+> **⚠ AND A TRAP I NEARLY WALKED INTO.** My first estimator averaged the **last two** inter-generation
+> gaps, giving ~16 h/gen and an ETA of **31-39 h**. That average straddles two different regimes: the
+> **g1→g2** gaps (20-26 h) span the **priority-starvation period §54 diagnosed and fixed**, and are not
+> representative of anything current. The **g2→g3** gaps — **6.6, 10.8, 6.9 h, mean ≈ 8.1 h/gen** — are
+> the recovered rate, and they reproduce the brief's stated *"7-11 h/gen, post-§54-fix"* almost exactly.
+> **A rate averaged across a regime change is a different quantity from the rate you were asked for** —
+> the P-series shape again, caught before it was reported.
+>
+> **Honest projection at the recovered rate: the line completes on its slowest arm, `scalar_cvar5`, in
+> ~16-26 h — consistent with, and marginally more optimistic than, the brief's 19-31 h.** The brief's
+> number stands. **Carry it forward; only the "3/5" framing was wrong.**
 * **The deferred-fix batch (items 1-7, 9, 10, 12, 13, 14 + the new item 15) still waits for the CORE
   line**, exactly as §75.1 and §12.1 say. Nothing about that changes — the detector's job is to say when,
   and it can now say it truthfully.
