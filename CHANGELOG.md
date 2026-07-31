@@ -3,6 +3,62 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31g] ★★★ RETRACTION — §60 IS FALSE. `tmpfs` WAS NEVER A CONSTRAINT, AND THE "11 OF 348" WAS A UNIT-BLIND PARSE
+
+**State before:** RUN 4 live, T+68 h, 12/12 lines, 1,449 records, drift 0, `sci=OK`, cores 736. §63.4
+had recorded the §60 tmpfs prediction as "not supported but PROVISIONAL", because cores had risen
+560 → 744 during the session in the direction that would vindicate it.
+
+**What happened.** Pursuing that provisional qualifier rather than banking it — and re-verifying my own
+measurement when a number looked wrong — showed the premise itself was a measurement error. **§60's
+headline is retracted in full (record §64).**
+
+**FOUR INDEPENDENT ROUTES, all agreeing:**
+
+1. **Direct capacity.** `qhost -F tmpfs` with correct unit handling over 294 `node-d` hosts: min free
+   **1,218.6 G**, p50 1,344.5 G, max 1,500.2 G; per-host capacity `tmpfs=1500G`. **294 of 294 have
+   ≥15 G free.** At the OLD 15 G request a host could take **81–100** of our jobs on tmpfs grounds. We
+   run ~93 *in total*.
+2. **Falsification on the live queue.** `tmpfs=15G`: **52 running of 52 = 100 %**. `tmpfs=1G`: 40
+   running of 141 = **28.4 %**. Every 15 G job is running and **zero are queued** — and since a queued
+   job's resources are immutable (§45), an eligibility-blocked 15 G job would still be in `qw`.
+3. **Exact root-cause reproduction.** `qhost` prints `hc:tmpfs=1.293T`; `awk '{v=$1+0}'` reads
+   **1.293**. Measured: **348 hosts report `hc:tmpfs` — matching §60's denominator exactly — 340 print
+   `T`, 8 print `G`, and a unit-blind `>=15` test passes 10 of 348**, reproducing §60's "11 of 348" to
+   within three hours' drift.
+4. **§60 contradicted itself on its own data.** It claimed 11 hosts could host a 15 G job while
+   reporting 1.18 jobs/node across ~60 hosts *all then requesting 15 G*. **No external measurement was
+   needed to falsify it — only reading its two numbers against each other.**
+
+**What is retracted vs kept.** The 216× over-request is real and `tmpfs` is genuinely a consumable —
+both TRUE. "Only 11 of 348 hosts qualified", "it capped us at 1.18 jobs/node", and "fixing it gives
+2–4 jobs/node and ~1,320 cores" are **FALSE**. **The 1 G setting is NOT reverted** — it is honest and
+harmless, and undoing it would mean a second live intervention to reverse a harmless one. Only the
+reasoning is withdrawn.
+
+**Consequences.** The **"four self-inflicted throttles" headline is THREE** (§38 memory, §54/§57
+priority, and §58 pack which is a C4 optimisation still untested in production). §60 drove a **live
+driver relaunch** (24 processes killed) and a running-sha change on the basis of a parse error; the
+intervention was harmless but the reasoning was never verified before acting. **Cores rising 560 → 744
+now has no verified cause** and is explicitly left open rather than re-attributed.
+
+**THE METHODOLOGICAL LESSON.** Sorting the four interventions by *evidence type*: §38 had a **controlled
+dispatch experiment** (8 canaries, one field varied) — held. §54/§57 had **direct observation plus a
+prediction verified to 3 dp** — held. §60 had **a parsed aggregate from one command and no experiment**
+— failed. **An ops change that touches the live campaign now requires a dispatch experiment, not an
+eligibility count.**
+
+**P33 logged: I made the identical unit error twenty minutes earlier** ("mean free tmpfs = 1.4 G" when
+the truth is ~1.4 **TB**), caught only because a host's configured capacity contradicted it. **Three
+occurrences of this class in one session (P31 `$NF`, P32 the 431k free-slot count, P33 this), all in
+`qstat`/`qhost` output** — now a standing rule: never parse an SGE size field with bare `$1+0`; parse
+the suffix explicitly, refuse to guess a missing unit, and sanity-check every capacity number against a
+known total before speaking it.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §64 · `docs/RUN8_SESSION_PROMPT.md` (§8 table row, §9(1),
+the dead-levers table — all three corrected in place). **No code change, no relaunch; `RUNNING_SHA`
+stays `50b6e07`, drift 0.**
+
 ## [2026-07-31f] RUN 8 — THE STATUS PAGE HAD BEEN DEAD FOR TWO DAYS, AND AN UNDOCUMENTED PROCESS-KILLER WAS RUNNING ON THE LIVE CAMPAIGN
 
 **State before:** RUN 4 live, T+67 h 27 m, 12/12 lines, ~1,468 records, $37.47, freeze `3ca6f01a…`

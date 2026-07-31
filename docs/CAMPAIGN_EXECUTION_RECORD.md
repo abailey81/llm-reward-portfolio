@@ -7411,3 +7411,142 @@ The analysis-time exclusion now covers three models rather than one. Full entry 
 **0** transport timeouts · records ~1,470 · spend ~$37.50 · cores 592–608 · R115 12 breaches, **0 on
 the core line** · cycle cadence machine-enforced and current · both remote channels live, and the
 outbound one is now **actually publishing what it was upgraded to publish**.
+
+---
+
+## §64. ★★★ RETRACTION — §60 IS FALSE. `tmpfs` WAS NEVER A CONSTRAINT, AND THE "11 OF 348" WAS A UNIT-BLIND PARSE (2026-07-31)
+
+**This retracts the headline of §60 and downgrades one of the "four self-inflicted throttles" to a
+false positive.** It was found by pursuing §63.4's provisional negative rather than banking it, and by
+re-verifying my *own* measurement when a number looked wrong — which is how the error surfaced at all.
+
+### §64.1 What §60 claimed
+
+> *"`tmpfs` was a 216× over-request. It is a CONSUMABLE: 15 G reserved to stage 71 MB, so only
+> **11 of 348** pool-d hosts qualified and we ran **1.18 jobs per node** on 36-slot machines."*
+
+It drove a renderer change (15G → 1G), a **driver relaunch on the live campaign** (24 processes
+killed), and a running-sha change `f5014ce → 50b6e07`. It was handed to RUN 8 as an open prediction:
+eligible hosts 11 → 348, jobs/node 1.18 → 2–4, cores → ~1,320.
+
+### §64.2 FOUR INDEPENDENT ROUTES, ALL AGREEING: the claim is false
+
+**(1) Direct capacity measurement.** `qhost -F tmpfs` with **correct unit handling** over all 294
+`node-d` hosts:
+
+```
+  min free tmpfs   1218.6 G      hosts with >=  1G free : 294 of 294 (100%)
+  p50 free tmpfs   1344.5 G      hosts with >= 15G free : 294 of 294 (100%)
+  mean             1380.7 G
+  max              1500.2 G
+```
+
+Per-host capacity is `tmpfs=1500G` (`qconf -se node-d00a-005`). **At the OLD 15 G request a host could
+take 81–100 of our jobs on tmpfs grounds; at 1 G, 1,218–1,500.** We run ~93. tmpfs had **81× headroom
+at the request being called a throttle**.
+
+**(2) A falsification test on the live queue.** If 15 G made hosts ineligible, 15 G jobs would be stuck
+in `qw`. Cross-tabulating our 193 live jobs by state × request:
+
+```
+  state=r   tmpfs=15G  ->  52 jobs        tmpfs=15G : 52 running of  52 = 100.0% running
+  state=r   tmpfs=1G   ->  40 jobs        tmpfs=1G  : 40 running of 141 =  28.4% running
+  state=qw  tmpfs=1G   -> 101 jobs
+```
+
+**Every 15 G job is running; there are ZERO queued 15 G jobs.** The *queued* cohort is entirely the
+"fixed" 1 G jobs. This is not a survivorship artefact: a queued job's resource request is **immutable**
+(§45 — `qalter -l` is forbidden site-wide), so any 15 G job blocked on eligibility would still be
+sitting in `qw` today. None is.
+
+**(3) EXACT ROOT-CAUSE REPRODUCTION.** `qhost -F tmpfs` prints `hc:tmpfs=1.293T` — **terabytes**. A
+bare `awk '{v=$1+0}'` parses `"1.293T"` as **1.293**, silently discarding three orders of magnitude, so
+a host with 1.3 **TB** free scores as having 1.3 **G** free and fails a `>= 15` test. Measured on the
+live estate:
+
+```
+  hosts reporting hc:tmpfs :  348 total   ->  340 print "T",  8 print "G"
+  hosts passing a UNIT-BLIND ">= 15" test :  10 of 348
+```
+
+**The denominator 348 matches §60 exactly, and the unit-blind numerator reproduces its "11" to within
+three hours' drift** (the 8 G-printing hosts are the near-idle ones at ~1500.2 G, which pass a naive
+`>=15` because their *numeral* exceeds 15). The true answer is **348 of 348**.
+
+**(4) §60 CONTRADICTED ITSELF ON ITS OWN DATA, and this is the check that should have caught it at the
+time.** It asserted only **11** hosts could host a 15 G job while simultaneously reporting **1.18 jobs
+per node across ~60 hosts, all of them then requesting 15 G**. Sixty hosts were demonstrably hosting
+15 G jobs while the claim said eleven could. **No external measurement was needed to falsify this — only
+reading the two numbers in the same paragraph against each other.**
+
+### §64.3 What is true, what is retracted
+
+| §60 claim | verdict |
+|---|---|
+| 15 G reserved to stage 71 MB is a ~216× over-request | **TRUE** — wasteful, and 1 G is the honest request |
+| `tmpfs` is a per-JOB consumable (`qconf -sc`) | **TRUE** |
+| only 11 of 348 pool-d hosts qualified | **FALSE** — 348 of 348; unit-blind parse |
+| it capped us at 1.18 jobs/node on 36-slot machines | **FALSE** — density is set by the scheduler spreading ~93 jobs over 294 hosts |
+| fixing it would give 2–4 jobs/node and ~1,320 cores | **FALSE** — measured 1.240 jobs/node, and see §64.4 |
+
+**The setting is NOT being reverted.** 1 G is still ~14× the 71 MB actually staged, it is more honest
+than 15 G, and reverting would mean a second live-campaign intervention to undo a harmless one. The
+*change* was harmless; the *reasoning* was wrong, and only the reasoning is retracted.
+
+### §64.4 Then why did cores rise 560 → 744 during this session?
+
+**Not tmpfs — and I do not have a verified cause, so I am not going to invent one.** Over ~1.4 h cores
+went 560 → 608 → 696 → 744 while **jobs/node went 1.18 → 1.26 → 1.240**, i.e. essentially flat. The
+rise is entirely **more hosts used** (65 → 75) at constant density, i.e. **more of our jobs placing**,
+not denser packing. Candidate causes, none yet isolated: the §54/§57 priority correction continuing to
+work through a queue whose backlog was built at `-p -100`; ordinary cluster churn as other users' jobs
+end; and our own submission rate. **§63.4's "provisional" qualifier is now resolved in the direction of
+the negative: the tmpfs hypothesis is dead, and the core rise needs its own explanation.**
+
+### §64.5 THE METHODOLOGICAL LESSON, and it is the valuable part
+
+Four ops interventions were made on this campaign. Sorting them by **evidence type**, not by
+plausibility:
+
+| § | claim | evidence | held up? |
+|---|---|---|---|
+| §38 | memory 19.5× over-request | **controlled experiment** — 8 canaries identical but for one field; 4 G stayed queued, 2 G/1 G ran immediately | **YES** |
+| §54 | we submitted at `-p -100` | **direct observation + verified prediction** — `prior` 1.811 vs others' 2.000-2.082; requeue predicted 1,888 → 545 outranked, verified to 3 dp | **YES** |
+| §57 | requeue is safe pre-dispatch | **verified prediction** | **YES** |
+| **§60** | **tmpfs capped host eligibility** | **a parsed aggregate from one command, no experiment** | **NO** |
+
+**The two claims backed by controlled experiments held. The one backed by a parsed aggregate did not.**
+This is §2.7's pattern — *"a striking number is a hypothesis about your own instrument until the
+confound is ruled out"* — recurring at the level of an intervention rather than a report, and it cost a
+live driver relaunch. **The rule this earns: an ops change that touches the live campaign requires a
+DISPATCH EXPERIMENT (submit canaries differing in exactly the one field), not an eligibility count.
+§38 already established that method; §60 did not use it.**
+
+### §64.6 P33 — and I made the SAME unit error, twenty minutes before finding this one
+
+Chasing §63.4 I ran the identical bare-`awk` parse and reported to myself *"mean free tmpfs = 1.4 G,
+hosts with ≥15G = 0 of 294"*. **The true value is ~1.4 TERABYTES.** It was caught only because I went
+on to read a host's configured capacity (`tmpfs=1500G`) and the two numbers could not both be true.
+Nothing was published from it. **Three occurrences of the same class in one session (P31 `$NF`, P32 the
+431k free-slot count, P33 this) all in `qstat`/`qhost` output** — which is now a strong enough pattern
+to be a standing rule:
+
+> **Never parse an SGE size/quantity field with bare `awk '{v=$1+0}'`.** SGE emits suffixed values
+> (`1.293T`, `840.5G`, `512M`) and multi-shape rows (a running `qstat -u` line has one more field than
+> a queued one). Parse the suffix explicitly and refuse to guess a missing unit — *absent is not the
+> same as a default*. Every capacity number must be sanity-checked against a known total (~21,600
+> cores, 1,500 G tmpfs/host) **before it is spoken**.
+
+### §64.7 Consequences for the brief and the registers
+
+* `docs/RUN8_SESSION_PROMPT.md` §8/§9(1) describe §60 as a live finding and an open prediction. **Both
+  are superseded by this section.** The "FOUR self-inflicted throttles" headline is **three** (§38,
+  §54/§57 as one lever, and §58 which is a C4 optimisation that is inert during search and remains
+  untested in production).
+* `DEFERRED_FIXES_RUN4.md` item 8 (memory) stands. Item 11 (`--pack 8`) is untouched by this.
+* **No code change and no relaunch.** `RUNNING_SHA` stays `50b6e07`; drift remains 0.
+* **Still genuinely open and now the honest answer to "are we at maximum":** during SEARCH we are
+  bounded by the experiment's own shape (§43 — 300-job ceiling, generation drain 2.61 in flight against
+  a design peak of 5), not by the cluster. Cores become decisive at **C4**, where 1,000 jobs against
+  294 hosts forces density above 3.4/host — and at 1,500 G/host tmpfs, *that* is comfortably fine at
+  either request size.

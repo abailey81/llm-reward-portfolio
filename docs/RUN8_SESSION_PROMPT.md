@@ -560,7 +560,7 @@ results, the **cycle log** (so the cadence is auditable), a generated **Budget**
 | **§57** | 103 legacy jobs requeued (safe by P13: a `qdel` **before dispatch** requeues WITHOUT a retry bump). **Prediction verified to 3 dp**: prior → 2.008–2.022, outranked-by **1,888 → 545**. |
 | **§58** | **`--pack 8`** applied to all 12 lines by a **rolling watchdog-driven SUPERVISOR restart**, canaried on `qwen3.5-9b`. Inert during search; doubles trainings-per-job at C4. |
 | **§59** | **D20** — **pid reuse** defeated the driver lock (`psutil.pid_exists` tests EXISTENCE, not IDENTITY) and stranded the h3 line with every guard green. Detector armed; mechanism fix is deferred 13. |
-| **§60** | ★★★ **`tmpfs` was a 216× over-request.** It is a **consumable**: 15 G reserved to stage **71 MB**, so only **11 of 348** pool-d hosts qualified and we ran **1.18 jobs per node** on 36-slot machines. Fixed to 1 G (CPU lane; GPU byte-unchanged). **Effect NOT yet verified — see §9.** |
+| **§60** | ⛔ **RETRACTED 2026-07-31 — SEE RECORD §64.** Claimed: *"`tmpfs` was a 216× over-request… only **11 of 348** pool-d hosts qualified and we ran 1.18 jobs/node."* **The over-request is real; the throttle is NOT.** "11 of 348" is a **unit-blind parse** — `qhost` prints `1.293T` and `$1+0` reads `1.293`. Truth: **348/348 hosts have ≥15 G free** (min 1,218 G = 81× headroom at the old request); **52/52 of our 15 G jobs are RUNNING** while 101/141 1 G jobs queue. Setting stays 1 G (harmless); reasoning retracted. **Throttle count: FOUR → THREE.** |
 
 **Earlier sessions, still binding:** D17 (a fail-safe that manufactures a limit cycle) · §36 (the
 benchmark window was wrong; always rebuild the session axis from the panel, 1,571 not 1,632) ·
@@ -697,7 +697,18 @@ reach C4**, then roll the rest. Re-base the running sha.
 
 ## §9. ★★★ THE OPEN QUESTIONS — YOUR FIRST REAL WORK
 
-**(1) The §60 tmpfs prediction is UNVERIFIED and may be WRONG.**
+**(1) ✅ ANSWERED 2026-07-31 BY RUN 8 — AND §60 IS **FALSE**. SEE RECORD §64. DO NOT RE-RUN THIS ITEM.**
+The prediction was not merely unverified; the *premise* was a measurement error. `qhost -F tmpfs` prints
+**terabytes** (`hc:tmpfs=1.293T`) and a bare `awk '{v=$1+0}'` reads that as **1.293**, so hosts with
+1.3 TB free scored as having 1.3 G free. Measured correctly: **348 of 348 hosts have ≥15 G free** (min
+1,218 G, i.e. **81× headroom at the OLD 15 G request**), the unit-blind test reproduces §60's "11 of 348"
+exactly, **every one of our 15 G jobs is RUNNING (52/52) while 101 of 141 1 G jobs sit queued**, and §60
+contradicted itself on its own data (it claimed 11 hosts could take a 15 G job while reporting ~60 hosts
+doing exactly that). tmpfs was **never** a constraint. The setting stays at 1 G (harmless and honest);
+only the reasoning is retracted. **The "FOUR self-inflicted throttles" headline is THREE.** Full
+retraction, root-cause proof and the methodological lesson: **record §64**.
+
+**(1-original, retained for provenance) The §60 tmpfs prediction is UNVERIFIED and may be WRONG.**
 Predicted: eligible hosts 11 → 348, jobs/node 1.18 → 2–4, cores → ~1,320.
 Measured 1 h later: **120 jobs at 1 G, 61 still at 15 G, jobs/node 1.25, hosts-with-2-jobs 7 → 14.**
 The doubling is real evidence; the aggregate has not moved because **the 61 jobs still at 15 G are
@@ -798,7 +809,7 @@ accept it.** The corrected ledger:
 
 | lever | RUN-4 verdict | TRUTH as of 2026-07-31 |
 |---|---|---|
-| `tmpfs` sizing | "dead — nodes advertise 1.1–1.3 TB; we stage 71 MB" | **WRONG — §60.** `tmpfs` is a **consumable**, so the per-node total, not the disk, is what binds. A **15 G** ask to stage 71 MB is a **216× over-request** that qualified only **11 of 348 hosts** and held us to **1.18 jobs on 36-slot nodes**. Now `1G` on CPU. **Effect still UNVERIFIED.** |
+| `tmpfs` sizing | "dead — nodes advertise 1.1–1.3 TB; we stage 71 MB" | ⛔ **THE ORIGINAL ASSESSMENT WAS RIGHT AND §60'S REBUTTAL WAS WRONG — record §64.** `tmpfs` IS a consumable, but per-host capacity is **1,500 G** with **≥1,218 G free on all 348 hosts**, so a 15 G ask had **81× headroom** and bound nothing. §60's "11 of 348" was a **unit-blind parse** of `1.293T`. Now `1G` on CPU (honest, but it bought nothing). **This row is the cautionary case: a correct "dead lever" call was overturned by a bad measurement, and the overturn cost a live driver relaunch.** |
 | `-p -100` | "dead — everything sits at identical normalised priority ~1.809" | **WRONG — §54.** `weight_priority = 4.0`, so POSIX `-p` is a first-class term. **1,888 of 2,395** pending jobs outranked us and **120 of 124** stuck jobs were CONTROL arms — i.e. the throttle had reached H2's IUT legs. Now `0` everywhere, enforced by a test. |
 | `-ac allow=d` | dead — we use 14 % of a class that is 81 % of the cluster | still true |
 | raising `max_u_jobs` | dead — we used 277–365 of 1,000 | still true (but it BINDS at C4) |
