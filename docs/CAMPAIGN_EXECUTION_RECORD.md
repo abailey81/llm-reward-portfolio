@@ -9902,3 +9902,139 @@ never replaced.** The gap is:
   is implemented (75.3);
 * **and rooted in a real instrument limitation** that is now measured, registered, and slated for CH7
   rather than quietly absorbed.
+
+---
+
+## 85. SESSION CLOSE (RUN 8) — STATE, EVERY FINDING, AND WHAT THE NEXT SESSION MUST RE-CHECK
+
+**Handover written 2026-07-31 21:20 UTC, T+72 h 11 m.** Brief for the successor:
+**`docs/RUN9_SESSION_PROMPT.md`**.
+
+### 85.1 LIVE STATE AT HANDOVER — verified first-hand, not carried forward
+
+```
+  lines           : 12 / 12, all arms full on the 10 leg lines
+  records         : 1,525            spend : $38.79
+  cores           : 896  (112 jobs running, 89 queued)
+  freeze          : 3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f  MATCHES
+  drift           : 0   (commit AND working tree, both tested)
+  sci             : OK  (0 leaks / 0 cross-arm / 0 hash / 0 non-finite)
+  transport       : 0 timeouts  -- and the counter that reports it now WORKS (76)
+  R115            : 13 breaches, 0 on the core line, 1 binding (winner already frozen, clean)
+  RUNNING_SHA     : 50b6e07   UNCHANGED ALL SESSION -- no src/scripts/config/prompts edit, no relaunch
+  cadence         : 30 s configured, ~42 s realised, machine-enforced, `sweep=` on every line
+  C4              : BEGUN on frozen_leg_qwen3_5_9b (5/5).  CORE line 3/5, still searching.
+  core arm depth  : dist 28 | scalar 27 | placebo 18 | scalar_cvar5 12 | placebo_shuffled 16
+  record          : 9,904 lines / 85 sections   registry: 45 rows   deferred fixes: 14
+```
+
+### 85.2 EVERYTHING THIS SESSION FOUND — the complete list
+
+**FIXED (7):**
+
+| # | what | where |
+|---|---|---|
+| 1 | **Tamer's status page was DEAD FOR TWO DAYS** — RUN 6 upgraded the publisher into the repo but never switched the running loop; a 76-line scratchpad copy kept publishing the launch-night page while the commit stream looked healthy | 63.1 |
+| 2 | **An undocumented ssh process-killer** had run 3 days on the live campaign, past its own retirement condition, logging counts but never identities | 63.2 |
+| 3 | **It was killing LIVE ssh** — caught a 6-second-old child flagged `orphan` because its parent shell had exited. **No age guard on the orphan branch.** Fixed + falsification-tested | 68.1, 73.3 |
+| 4 | **`cycle.py` crashed printing its own C4 alert** (cp1251 vs `★`; the loop pipes stdout, so the crashing path was the ONLY production path). **The C4 alert count in ALERTS.txt was ZERO** | 74.2 |
+| 5 | **"transport timeouts: 0" was structurally zero** — it counted a string `src/` never emits. On Tamer's phone for the whole campaign | 76.2 |
+| 6 | **My own first fix for it was ALSO structurally zero** (`bc` is not installed). Caught only by falsification-testing the fix | 76.3 |
+| 7 | **`science_watch`'s "impossible score" check was half-implemented** — the docstring promised range checks, only NaN/inf was written. `val_fitness` drives winner selection | 77.2 |
+
+**RETRACTED (1):** **60 is FALSE.** `tmpfs` was never a constraint; "11 of 348 hosts" was a unit-blind
+parse (`qhost` prints `1.293T`, `$1+0` reads `1.293`). Truth: 348/348 with 81x headroom; 52/52 of our
+15 G jobs were RUNNING. **"Four self-inflicted throttles" is THREE.** Propagated to every document (73.1). **64**
+
+**CORRECTED (2):** **44.4's** explanation of the H1 PopArt split — it is **MAGNITUDE**, not functional
+form (`volatility_scaled_return` is ratio-form and 0 % engaged; `return_minus_drawdown` is
+difference-form and 100 %) — **75.5**. And **my own 69.4 token count**, 690 field-sites vs **29,130**
+actual tokens — **69.6**.
+
+**VERIFIED (the science, all independently, none by re-running the monitor):**
+
+| claim | result | § |
+|---|---|---|
+| all 8 `sci=OK` invariants | zero violations over 1,474 records; hash chain intact end to end | 69 |
+| **CVaR monotonicity** (added — a mathematical identity) | 0 violations / 1,114 | 69.2 |
+| **the tail instrument vs its own inputs** | **Spearman = 1.0000** on 360 records; ratio band reproduces R27's registered bias | 72 |
+| construct validity | scalar arm **0 tail leaks** / 227 prompts | 66 |
+| **effective search width** | **99.9 %** — the exploration directive works; E[max] rests on real draws | 71.2 |
+| **the IDENTIFICATION PRINCIPLE** | seeds/folds identical 282/282; base prompts 281/282; env varies only by an FP-irrelevant kernel patch on 0.9 %, NOT arm-correlated | **80** |
+| **the STRUCTURE CONTROL** | `placebo_shuffled` deranged **107/107**, with `distributional` **226/226 verbatim** as the positive control | **81** |
+| R115 | proven load-bearing end to end — the one breach topping its arm has a clean frozen winner | 67.2 |
+| monitoring stack | 8 instruments falsification-tested; `arm_coverage` (the D14 cover), `reflection`, `transport` verdict all fire correctly | 79 |
+
+**NEW SCIENCE (5):** equal-*k* run for the first time — **17 of 55 pools (30.9 %) change winner**, and
+on the core line the treatment falls 0.22510 → 0.16813 while comparators do not move, exactly 56's
+predicted direction (**75.3**) · fitness is **heavy-tailed**, winner 300-700x the median, corroborating
+47 from a different quantity (**71.3**) · **winner selection is sometimes a coin flip** (max/2nd 1.00 to
+396) — the quantitative answer to "why so many seeds?" (**71.4**) · **77 % of R115 breaches are the D17
+harness-trap**, not the model (**71.5 / 73.6**) · **★ 19 of 20 rejections violate an UNSTATED rule** —
+`np` IS provided but the prompt never says so (**84**).
+
+**REGISTERED (5 new obligations):** 42 RFC-8259 JSON at packaging · 43 D17 partition before any
+reliability figure · 44 winner-separation exhibit · 45 three-way rejection taxonomy + the contract
+limitation · **DEFERRED FIX 14** the second always-zero timeout counter.
+
+### 85.3 ⚠ MY OWN ERRORS — EIGHT FALSE ALARMS, ALL CAUGHT BEFORE REPORTING
+
+**This is the most useful thing in the section, and the successor should expect to repeat it.**
+
+| # | I claimed | the truth |
+|---|---|---|
+| P31 | "75 running slots" | `$NF` is the ja-task-id, not slots. True: 608 |
+| P32 | "431,382 free slots" | **P30 RECURRING.** `qstat -f` lists each host under ~35 queues. Discarded on an order-of-magnitude check |
+| P33 | "mean free tmpfs = 1.4 G" | **1.4 TERABYTES.** The same unit bug that produced 60 |
+| P34 | "349 extra paths, 12 divergent copies" | my key omitted `seed`; the test lane runs 30 seeds per baseline |
+| P35 | "602 off-spec, H2 AT RISK" then "0 leaks" | v1 read the wrong field AND counted gen 0; v2 matched internal names that never appear in a prompt. **A reassuring null from an instrument that cannot fire** |
+| P38 | five guards "blind" | all five plants were off-target: wrong input, wrong field, or below the threshold |
+| — | "the arms are asked different questions" | 5 distinct bases = 5 CANDIDATE INDICES, not arms (80.3) |
+| — | "~12 candidates vanished untracked" | the gate reads `failures.jsonl`, not `_rejects/` (83.2) |
+
+**THE THREE TELLS THAT CAUGHT EVERY ONE:**
+
+1. **A CLEAN BASELINE THAT ALREADY READS THE FAILING VALUE PROVES NOTHING.**
+2. **THREE FAILURES IN A ROW IS A BROKEN HARNESS, NOT THREE BROKEN COMPONENTS.**
+3. **A CLEAN 0 % OR 100 % MEANS SUSPECT THE SPECIFICATION, NOT THE SUBJECT.** Real defects are
+   partial and messy.
+
+**And the standing rule they earned:** *read the predicate before planting the violation, and build a
+POSITIVE CONTROL into every falsification test.* Every valid test this session had one; every false
+alarm lacked one.
+
+### 85.4 WHAT THE NEXT SESSION MUST RE-CHECK IN MY WORK
+
+**Nothing here is protected. Tamer's instruction is explicit that I may have erred.**
+
+1. **64's retraction of 60.** I refuted a recorded finding on four routes. If any is wrong, 60 stands
+   and the "three throttles" count is wrong again. Re-run `docs/ops/free_capacity.py`.
+2. **75.1's argument that the deferred fixes cannot be applied.** It rests on `safe_call` being on the
+   live training path (`src/env/portfolio_env.py:429`). **Verify that line still says what I say it
+   says.** If I am wrong, eleven fixes are being withheld for no reason.
+3. **80's identification verdict.** I called a kernel-patch difference benign. If a kernel patch can
+   move FP arithmetic on this stack, that conclusion is wrong.
+4. **84's claim that 19 of 20 rejections violate an unstated rule.** Re-grep
+   `prompts/initial_generation.txt`. If it DOES state the contract, my root cause is wrong.
+5. **The equal-*k* implementation** (`docs/ops/equal_k_sensitivity.py`). It truncates on registered
+   order and applies R115 at both widths. **Check both, and check the k it picks per line.**
+6. **The `science_watch` range bounds I added.** [0,1] for `val_fitness`, |20| for `test_sharpe`.
+   If either is wrong, I have introduced a false-positive source into the science verdict.
+7. **The cadence change.** `INTERVAL=30`, `SSH_EVERY=30`. If the login-node reasoning is wrong we are
+   either rude or under-sampling.
+
+### 85.5 THE HONEST OPEN LIST
+
+**Not fixable now, and why:** the 11 deferred fixes + item 14 — applying them mid-campaign would break
+deterministic archive replay (75.1); the prompt contract (84.4) — hash-bound and would break
+identification; **D9 remains UNIDENTIFIED** (diagnostic sound and correctly wired, never fired).
+
+**Fixable but not fixed:** the 560→896 core rise has no verified cause; four guards
+(`collision`, `rejects`, `status`, `truncation`) and the sentinel's 17 checks are **UNTESTED, not
+verified**.
+
+**Needs Tamer:** the **A12 DOI deposit** (~10 min, staged in `docs/A12_DEPOSIT_PACKAGE.md`).
+
+**The real binding constraint:** **CH6 has 66 placeholder markers, CH7 is thin, and 45 registry rows
+are open.** The grade comes from the PDF alone. The campaign is healthy and self-running; the
+write-up is not.
