@@ -518,7 +518,17 @@ lane has only ever been exercised at pack=1"* — falsified by this run's 330 pa
 
 ## Applying, at the next restart
 
-1. apply EVERY fix above (D13, D12, preflight headroom, D14, D15, D16, D17, the §38 memory sizing, the §39 speedup constant, D18 and the §50 pack flag - ELEVEN items), each with its falsifiable test proven to FAIL against the current code first;
+> ⚠ **THE COUNT: eleven items are documented here, but only TEN are still to apply.** Item **8 (the
+> §38 memory sizing) WAS APPLIED LIVE on 2026-07-30** and shipped by the driver relaunch (record §46) —
+> its own status block says so, but this checklist still listed it, and step 1 below demands each fix be
+> applied "with its falsifiable test proven to FAIL against the current code first". **Item 8's test
+> cannot fail any more, because the fix is in.** Corrected 2026-07-31 after re-deriving the renderer's
+> output first-hand: `pack=1,cores=8 → 1G/slot`, `pack=4,cores=4 → 2G/slot`, and `pack=8,cores=8 →
+> 2G/slot = 16 GB/job` — which is exactly the sanity table above and exactly the 7.8 TB-at-500-jobs
+> figure §50.4's pack-8 feasibility argument rests on. Leave item 8 in place as the specification it
+> was built from; do NOT re-apply it, and do NOT expect its test to fail.
+
+1. apply the TEN outstanding fixes above (D13, D12, preflight headroom, D14, D15, D16, D17, the §39 speedup constant, D18 and the §50 pack flag — item 8 is ALREADY LIVE, see the note above), each with its falsifiable test proven to FAIL against the current code first;
 2. full suite, `PYTEST_RC` read from the log, source-tree hash identical both ends;
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;

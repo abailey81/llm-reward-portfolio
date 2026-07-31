@@ -315,6 +315,14 @@ Full detail in `docs/CAMPAIGN_EXECUTION_RECORD.md` §20, §23, §25, §28, §37,
 | §39 | `CPU_THREAD_SPEEDUP[8]` is a bench number; production says **1.92×** | **deferred (9)** |
 | §50 | C4 launch flag `--pack 8` | **deferred (11)** |
 
+⚠ **CORRECTED 2026-07-31: the document holds ELEVEN items but only TEN are still to apply** — item 8
+(the §38 memory sizing) was APPLIED LIVE on 2026-07-30 and shipped by the driver relaunch (§46), yet
+the apply-checklist still listed it while demanding each fix have "its falsifiable test proven to FAIL
+against the current code first". Item 8's test cannot fail any more. Verified by re-deriving the
+renderer first-hand: `pack=1,cores=8 → 1G/slot`, `pack=4,cores=4 → 2G/slot`, `pack=8,cores=8 →
+2G/slot = 16 GB/job` = **7.8 TB at 500 jobs against ~12 TB free**, which independently confirms §50.4's
+pack-8 feasibility arithmetic.
+
 **`docs/DEFERRED_FIXES_RUN4.md` now holds ELEVEN items, all to be carried by the C4-boundary
 restart.** Read it in full before that restart, and validate on the first line to reach C4 before
 rolling the rest.
