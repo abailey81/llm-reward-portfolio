@@ -9182,3 +9182,37 @@ script (P35), the C4 alert (74.2), a health counter (76.2), my own fix for that 
 one invariant found half-implemented (77.2).** Every one of them was silent and reassuring. The single
 defence that worked, every time, was the same: **construct the condition the check exists to catch, and
 require the check to fire on it.**
+
+### 77.5 MONITORING CADENCE RAISED TO 30 SECONDS (Tamer, 2026-07-31)
+
+`INTERVAL` 120 -> **30** in `docs/ops/cycle_loop.sh`. Three things were done rather than just flipping
+the number, and the honest arithmetic matters:
+
+**1. THE REAL CADENCE IS ~42 s, NOT 30 s, AND THAT IS SAID PLAINLY.** The loop is
+`run; sleep INTERVAL` -- sequential, never overlapping -- and the sweep itself takes **~12 s**
+(measured: 12.7 s no-ssh, 11.0 s with-ssh). So 30 s of sleep yields ~42 s between cycles and the duty
+cycle rises from ~9 % to ~29 %. **Verified realised: gaps of 43, 41, 42 s against the previous 132 s.**
+Headroom checked before the change -- laptop CPU **2 %** across 16 logical cores.
+
+**2. `SSH_EVERY` WAS SCALED 10 -> 30, DELIBERATELY.** The cluster read polls a **SHARED LOGIN NODE**,
+and this file's own note says a 2-minute ssh poll would be rude. Leaving it at 10 while cutting the
+interval 4x would have **tripled our polling of a resource other researchers depend on**. 30 x ~42 s
+keeps the cluster read at ~20 minutes, exactly where it was. Cluster numbers move on the hour; the
+PROCESS and RESULTS checks are the ones worth doing more often, and those are now ~3x faster.
+
+**3. IT WILL LENGTHEN AT C4, AND THAT IS NOT A FAULT.** The 12 s is dominated by `science_watch` and
+`results_audit`, which each open **every** record. At the full seed ladder (~39,760 trainings) the
+sweep becomes minutes and the cadence turns sweep-bound rather than sleep-bound. Cycles cannot overlap,
+so nothing breaks. **Do not "fix" that by sampling the archive** -- reading every record every cycle is
+the property that makes `sci=OK` mean anything (77).
+
+⚠ **A PROCESS ERROR DURING THE RESTART, caught and corrected.** Killing the old loop, I parsed
+`ps -ef | grep ... | awk '{print $2}'` and got the literal string `-n` -- because **my own grep pattern
+matched my own command line** (the P10 trap, third appearance this session). The kill silently failed
+and **two loops ran concurrently for ~90 s**. Detected by explicitly listing every matching process
+with its parentage rather than trusting a count, then killed by verified pid. **Final state confirmed:
+exactly ONE loop (pid 139265, ppid=1, detached).** The lesson is the same one that keeps recurring:
+`wc -l` on a self-matching filter is not a count, it is a coincidence.
+
+Stale "2-minute cycle" wording updated in `publish_status.sh` (both the heading and the lapse warning)
+and republished.

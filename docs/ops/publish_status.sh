@@ -117,7 +117,7 @@ import os, time
 p='docs/ops/watch/CYCLE_LOG.md'
 print(int((time.time()-os.path.getmtime(p))/60) if os.path.exists(p) else -1)" 2>/dev/null || echo "-1")
 if [ "$cage" -lt 0 ]; then cnote="no cycle log yet"
-elif [ "$cage" -gt 10 ]; then cnote="**last monitoring cycle was $cage min ago -- the 2-minute cadence has lapsed**"
+elif [ "$cage" -gt 10 ]; then cnote="**last monitoring cycle was $cage min ago -- the 30-second cadence has lapsed**"
 else cnote="last monitoring cycle $cage min ago"; fi
 
 cat > docs/RUN4_STATUS.md <<EOF
@@ -206,7 +206,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 2-minute cycle ($cnote)
+## Monitoring -- the 30-second cycle ($cnote)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched

@@ -32,8 +32,27 @@ set -u
 
 cd "$(dirname "$0")/../.." || exit 1
 
-INTERVAL="${INTERVAL:-120}"     # seconds between cycles -- Tamer's standing order is 2 minutes
-SSH_EVERY="${SSH_EVERY:-10}"    # read the cluster every Nth cycle (10 x 120 s = 20 min)
+# ── CADENCE ─────────────────────────────────────────────────────────────────────────────────────
+# 2026-07-31: Tamer raised the cadence from 2 minutes to 30 SECONDS. Two things must be said honestly
+# about what that actually delivers, because the loop is `run; sleep INTERVAL` (sequential, never
+# overlapping):
+#
+#   * THE SWEEP ITSELF TAKES ~12 s (measured: 12.7 s without ssh, 11.0 s with). So INTERVAL=30 gives a
+#     REAL cadence of ~42 s, not 30 s, and the duty cycle rises from ~9 % to ~29 %. Verified safe:
+#     laptop CPU was 2 % with 16 logical cores at the time of the change.
+#   * IT WILL LENGTHEN AS THE ARCHIVE GROWS. The 12 s is dominated by science_watch + results_audit,
+#     which each open every record. At C4's full seed ladder (~39,760 trainings) the sweep will take
+#     minutes and the effective cadence will be sweep-bound, not sleep-bound. That is NOT a fault --
+#     cycles cannot overlap -- but do not expect 30 s to survive C4, and do not "fix" it by sampling
+#     the archive: reading every record every cycle is the property that makes `sci=OK` mean anything.
+#
+# ⚠ SSH_EVERY IS SCALED WITH IT, DELIBERATELY. The cluster read is a poll of a SHARED LOGIN NODE, and
+# this file's own note says a 2-minute ssh poll would be rude. Leaving SSH_EVERY=10 while cutting the
+# interval 4x would have tripled our polling of a resource other researchers share. 30 x ~42 s keeps
+# the cluster read at ~20 minutes, exactly where it was. The cluster numbers move on the hour; the
+# PROCESS and RESULTS checks are the ones worth doing more often, and those are now 4x faster.
+INTERVAL="${INTERVAL:-30}"      # seconds between cycles -- Tamer, 2026-07-31 (was 120)
+SSH_EVERY="${SSH_EVERY:-30}"    # cluster read every Nth cycle (30 x ~42 s = ~20 min, unchanged)
 
 WATCH="docs/ops/watch"
 ALERTS="$WATCH/ALERTS.txt"
