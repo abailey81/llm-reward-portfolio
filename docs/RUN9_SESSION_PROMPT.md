@@ -24,28 +24,37 @@ analysis. **The loop is not the problem. The SESSION forgetting to look at it is
 
 ## THE RULE — non-negotiable, no exceptions, for the entire session
 
-> **AT MOST EVERY 2 MINUTES OF WALL-CLOCK WORK, YOU READ THE CYCLE LOG. Every time. Between every
-> substantial tool call. While thinking. While writing. While auditing. Without being asked.**
+**Tamer first said "every 2 minutes", then corrected himself: *"I was wrong about every 2 min, make
+whatever was the best, 30 secs I guess."* He is right, and the best rule is not a clock at all.**
+
+**WHY NO CLOCK.** You cannot reliably track wall-clock time while a tool call is running. Any rule of
+the form "every N seconds" requires you to ESTIMATE elapsed time — and that estimation is precisely
+what failed for three consecutive sessions. It is an intention, not a mechanism.
+
+> ### ★ THE RULE: READ THE CYCLE LOG ON THE **FIRST TOOL CALL OF EVERY BATCH, EVERY TURN.**
+> **No exceptions. No clock. No judgement about whether "enough time has passed".**
 
 ```bash
-tail -3 docs/ops/watch/CYCLE_LOG.md      # age MUST be < 2 min. This is the check.
-cat docs/ops/watch/ALERTS.txt | tail -20 # anything here needed a human
+tail -3 docs/ops/watch/CYCLE_LOG.md      # ALWAYS first. Newest line must be < ~2 min old.
+tail -20 docs/ops/watch/ALERTS.txt       # anything here needed a human
 ```
 
-**Practical discipline that actually works** (RUN 8's failure was intent without mechanism):
+**This is STRICTER than every 30 seconds in practice** — turns come faster than that during real work —
+**and it cannot be forgotten**, because it is bound to an action you are already taking rather than to
+a timer you cannot see.
 
-* **Interleave it.** Any time you are about to run 2+ tool calls in a row, put a `tail -3` on the FIRST
-  one. It costs nothing and it is the whole difference.
-* **A long analysis is NOT an excuse — it is exactly when the gap opens.** RUN 8's lapses all happened
-  mid-deep-dive.
-* **Never let a tool call return without checking whether the cycle moved.** If the log's newest line
-  is older than ~2 minutes, the loop is dead — restart it immediately:
+* **Interleave it.** About to run 2+ tool calls? The `tail -3` goes on the FIRST one. It costs nothing
+  and it is the entire difference between monitoring and intending to monitor.
+* **A long analysis is NOT an excuse — it is exactly when the gap opens.** Every RUN 8 lapse happened
+  mid-deep-dive, while the loop was running perfectly.
+* **If the newest line is older than ~2 minutes, the LOOP IS DEAD.** Restart it immediately:
   `nohup bash docs/ops/cycle_loop.sh > /dev/null 2>&1 &`
-* **Report the cadence to Tamer in your messages.** "cycle 0.8 min old" in your status lines makes the
-  discipline auditable rather than asserted — which is the standard everything else here is held to.
+* **Report the cadence in your messages to Tamer** — "cycle 0.8 min old" makes the discipline
+  AUDITABLE rather than asserted, which is the standard everything else here is held to.
 
-**The loop is machine-enforced at `INTERVAL=30` (realised ~42 s, because the sweep itself takes ~12 s).
-Your job is to READ it, not to produce it. But reading it is YOUR job and nobody will remind you.**
+**The loop itself is machine-enforced at `INTERVAL=30`** (realised ~42 s, because the sweep takes
+~12 s — record 78 analysed this and concluded 30 is right; the interval was never the real lever).
+**Your job is to READ it, not to produce it — and nobody will remind you.**
 
 ---
 
