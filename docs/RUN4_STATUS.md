@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-31 18:09 UTC -- T+69h00m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-07-31 18:14 UTC -- T+69h05m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+69h00m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+69h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1485** |
+| records archived | **1486** |
 | LLM calls / spend | 2384 / **$37.6351** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
@@ -21,21 +21,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **197** (92 running, 105 queued) |
-| **cores computing** | **736** |
+| cluster jobs | **196** (90 running, 106 queued) |
+| **cores computing** | **720** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung              @736 cores              @830 cores   binding
+ rung              @720 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            3.3 d  08-01            3.3 d  08-01   critical_chain
-  100            4.3 d  08-02            3.8 d  08-01   throughput
-  189            7.4 d  08-05            6.5 d  08-04   throughput
-  279           10.5 d  08-08            9.3 d  08-07   throughput
-  340           12.6 d  08-10           11.1 d  08-09   throughput
-  403           14.7 d  08-12           13.0 d  08-10   throughput
-  568           20.4 d  08-18           18.1 d  08-15   throughput
+  100            4.4 d  08-02            3.8 d  08-01   throughput
+  189            7.5 d  08-05            6.5 d  08-04   throughput
+  279           10.7 d  08-08            9.3 d  08-07   throughput
+  340           12.8 d  08-10           11.1 d  08-09   throughput
+  403           15.0 d  08-12           13.0 d  08-10   throughput
+  568           20.8 d  08-18           18.1 d  08-15   throughput
 ```
 
 ## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
@@ -51,7 +51,7 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 | scalar | g5 of 5 | 288 |
 | placebo | g5 of 5 | 166 |
 | scalar_cvar5 | g5 of 5 | 147 |
-| placebo_shuffled | g5 of 5 | 143 |
+| placebo_shuffled | g5 of 5 | 144 |
 
 ## Results so far
 
@@ -87,12 +87,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-07-31T17:58:16Z  ATTN  records=1455 (+0)  spend=$37.548  guards=2  arms_full=10/10  budget=2  stalest=0.8m  drift=0  sci=OK  r115=12B  auto-cycle
-2026-07-31T18:00:29Z  ATTN  records=1457 (+2)  spend=$37.565  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:02:41Z  ATTN  records=1457 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:04:53Z  ATTN  records=1459 (+2)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=1.1m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:07:06Z  ATTN  records=1459 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:09:19Z  ATTN  records=1459 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T18:11:32Z  RED  records=1460 (+1)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0  sci=OK  r115=12B  cores=728  auto-cycle
+2026-07-31T18:13:47Z  ATTN  records=1460 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
