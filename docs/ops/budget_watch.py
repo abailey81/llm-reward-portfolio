@@ -55,6 +55,18 @@ LINES: dict[str, tuple[str, str, bool]] = {
 
 #: Credited headroom, in USD. LEDGER ESTIMATES from the 2026-07-28 console quotes minus RUN 3's spend
 #: — NOT balance readings. Only Tamer can read the real balance; update these when he does.
+#:
+#: ⚠ KNOWN IMPRECISION IN THE ANTHROPIC FIGURE, measured 2026-07-31, deliberately NOT "corrected".
+#: 28.15 was derived as (the $31.96 quote) − (RUN 3's $3.8136). But RUN 3 predates the D10 fix, so
+#: EVERY row in its ledgers is stamped `provider: anthropic`, including the eight OpenRouter legs.
+#: Re-attributing RUN 3 by line gives a TRUE Anthropic portion of **$3.1023** (c1 $0, h3ss $2.5107,
+#: leg8 $0.4479, leg5 $0.1437) and $0.7114 on OpenRouter — so this constant understates the credit by
+#: about $0.71 IF the $31.96 quote was taken before RUN 3 ran, and is right if it was taken after.
+#: That timing is not recorded anywhere, so changing the number would trade a documented imprecision
+#: for an undocumented guess. It stays as written, with the arithmetic above stated instead — and it
+#: is moot in practice: Tamer holds the balance and the top-up decision (his instruction 2026-07-31),
+#: so the credit side of this comparison is owner-held and stale by design. The SPEND and PROJECTION
+#: columns are ours and are measured; the CREDIT column is an estimate and is labelled as one.
 CREDIT = {"anthropic": 28.15, "openrouter": 19.31}
 
 
@@ -112,26 +124,35 @@ def main() -> int:
     print()
     worst = 0
     for provider, credit in CREDIT.items():
-        s, l = per_provider_spent[provider], per_provider_left[provider]
-        total, margin = s + l, credit - s - l
+        s, left_usd = per_provider_spent[provider], per_provider_left[provider]
+        total, margin = s + left_usd, credit - s - left_usd
         frac = margin / credit if credit else 0.0
+        # The verdict is stated against the CREDIT ESTIMATE, and says so. It used to read
+        # "*** SHORTFALL ***", which asserts a fact about a balance this script cannot see — and on
+        # 2026-07-31 Tamer's answer was that he watches the balance himself and tops up as needed.
+        # An alarm raised against an unobservable quantity is the alarm-hygiene failure the whole
+        # acknowledged-alarms discipline exists to prevent, so the wording now matches what is
+        # actually known. The arithmetic and the exit codes are unchanged.
         if margin < 0:
-            state, code = "*** SHORTFALL ***", 2
+            state, code = "over the credit ESTIMATE (owner-watched)", 2
         elif frac < WARN_FRACTION:
-            state, code = "TIGHT", 1
+            state, code = "near the credit ESTIMATE", 1
         else:
             state, code = "comfortable", 0
         worst = max(worst, code)
-        print("%-11s spent $%6.2f  + still to author $%6.2f  = $%6.2f   credited $%6.2f   "
-              "margin $%+7.2f (%+.0f%%)  %s"
-              % (provider, s, l, total, credit, margin, 100 * frac, state))
+        # 4 dp, not 2: Tamer's instruction of 2026-07-31 is "I watch the balance -- just make sure you
+        # PRECISELY monitor it as well", and at 2 dp a single cycle's spend rounds to zero, so the
+        # per-cycle delta the monitor reports would be structurally blind to the thing being watched.
+        print("%-11s spent $%8.4f  + still to author $%8.4f  = $%8.4f   credited $%8.4f   "
+              "margin $%+9.4f (%+.0f%%)  %s"
+              % (provider, s, left_usd, total, credit, margin, 100 * frac, state))
 
     print()
     print("NOTE: credits are LEDGER ESTIMATES from the 2026-07-28 console quotes, not balance")
     print("      readings. C4 needs no LLM calls, so authoring is the whole remaining exposure.")
     if worst == 2:
-        print("ACTION: top up before the projected shortfall is reached. If a key runs dry mid-run the")
-        print("        line stops — and for `c1` that is the CONFIRMATORY author.")
+        print("OWNER: Tamer watches the real balance and tops up as needed (2026-07-31). The figure to")
+        print("       track is `still to author` on anthropic - the CONFIRMATORY line's exposure.")
     return worst
 
 

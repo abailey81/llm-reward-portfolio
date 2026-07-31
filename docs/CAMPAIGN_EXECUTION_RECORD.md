@@ -1479,6 +1479,7 @@ Recorded because the next session inherits the habits, not just the code.
 | P24 | A diagnostic **renamed live job 45433** to `zzname_test`, and the restore **silently failed** | read the name back afterwards; restored explicitly, rc=0, driver unaffected | **Read the value back after any mutation of live state.** A command that returns 0 has not necessarily done what you asked |
 | P25 | Let a **5.2-hour monitoring gap** open on a live campaign | Tamer: *"Why did you stop monitoring deeply?"* | **The cadence is the job.** This produced the 2-minute standing order and `docs/ops/cycle.py` |
 | P26 | Reported **`GUARDS_RC=0`** from `… \| tail -20; echo $?` | that is **`tail`'s** exit code. The guards were rc=2 (on acknowledged verdicts, so the campaign was fine — the *report* was not). Surfaced by `cycle.py`, which reads the real code via `subprocess.run` | **A pipe's exit code is the last command's.** Same family as P4, two months later — which is why it is written down again |
+| P27 | Tried to append record **§53 through a bash heredoc containing backticks**; the shell refused it (`unexpected EOF`) | the append never executed and the record was verified intact at 5,697 lines immediately after — **no corruption**, unlike the previous session's cursor | **Prose containing code spans NEVER goes through a shell** — Write tool, then concatenate. This is **trap 1**, written down in three places, and the *fourth* violation across sessions. The lesson is not "escape more carefully"; it is that reaching for the fastest tool instead of the correct one is itself the defect |
 
 **Added 2026-07-31 — the sixteen self-corrections of the 2026-07-30/31 session.** They share one shape, and naming it is worth more than any individual row: **an aggregate (or an exit code) that answered a slightly different question from the one being asked, reported as if it answered the right one.** A striking number is a hypothesis about your own instrument until the confound is ruled out.
 
@@ -3981,7 +3982,7 @@ a defect surfaced from a reconciliation failure rather than from inspection.
 
 ---
 
-## 37. THE 49.983 % THAT APPEARED FIVE TIMES — A FAIL-SAFE THAT MANUFACTURES A LIMIT CYCLE
+## 37. THE 49.983 % THAT APPEARED SEVEN TIMES ACROSS FIVE MODELS — A FAIL-SAFE THAT MANUFACTURES A LIMIT CYCLE
 
 **Found 2026-07-30, live, by noticing an impossible coincidence rather than by any alarm firing.**
 
@@ -5695,3 +5696,222 @@ had to reach 568 *because* the RA node gets no pairing benefit.
 * My first pass at "seeds needed" used `sigma_seed` where the paired test needs `sigma_D`, and ignored
   the Šidák/graphical multiplicity — it produced an answer roughly 4× too optimistic. Corrected here,
   and recorded because the registered ladder is right and the back-of-envelope was not.
+
+---
+
+## 53. THE MONITOR LEARNED TO READ THE RESULTS, AND THE BUDGET STOPPED BEING AN ALARM
+
+Written 2026-07-31 01:15 UTC, T+52 h 07 m, in the first hour of the RUN 7 session. Two instructions
+from Tamer arrived while the handover was still being read, and both change the monitoring contract
+rather than the campaign.
+
+### 53.1 What he said, and what each instruction actually demands
+
+> *"The budget is fine, cross it out, I will just top up whenever needed, I watch the balance. Just
+> make sure you precisely monitor it as well."*
+
+> *"when you monitor, very deeply and strictly check not only the processes, they must be
+> 1000000% accurate and logical and meaningful as well, but also the results, they must be very
+> logical, correct and meaningful."*
+
+The first is not "stop watching the budget" — it is a **transfer of ownership**. The balance and the
+top-up decision are his; the measurement stays ours, and must get *more* precise, not less.
+
+The second names a real gap, and it is worth stating precisely because the gap was structural rather
+than accidental. Checks 1–8 of `docs/ops/cycle.py` were **all process**: is it running, is it
+placing, is it spending, is it drifting. Every one of them can be green while the archive fills with
+meaningless numbers. That is the standing rule — *a green check proves execution, never truth* —
+applied to the monitor itself.
+
+### 53.2 The budget, downgraded from RED to a reported number, and why that is the accurate move
+
+`budget_watch.py` compared a projection we can measure against a credit we cannot see. Its verdict
+line read `*** SHORTFALL ***`, and `cycle.py` escalated it to RED **every cycle**.
+
+The escalation was unsound independently of Tamer's instruction. `CREDIT["anthropic"] = 28.15` is a
+LEDGER ESTIMATE from a 2026-07-28 console quote (§49.3), and Tamer tops up ad hoc — so the credit
+side of the comparison is *stale by design*. **Raising a permanent alarm against an unobservable
+quantity is exactly the alarm-hygiene failure `acknowledged_alarms.txt` exists to prevent**, and it is
+how D15 survived ten hours: a RED that can never clear trains the operator to ignore RED.
+
+What changed:
+
+* `cycle.py` reports the per-provider projection as `info` and no longer escalates on it. The RED
+  budget line is gone; the numbers are printed every cycle and stored in `STATE.json`.
+* `budget_watch.py`'s verdict now says what is actually known — `over the credit ESTIMATE
+  (owner-watched)` — instead of asserting a shortfall in a balance it cannot read. Arithmetic and exit
+  codes unchanged.
+* Its per-provider print went from **2 dp to 4 dp**. At 2 dp a single cycle's spend rounds to zero, so
+  the per-cycle delta the monitor reports would have been structurally blind to the thing Tamer asked
+  to be watched *precisely*. First cycle after the change: `anthropic +$0.0992`.
+* `publish_status.sh` replaces a hand-typed "NEEDS TAMER — PROJECTED SHORTFALL ~$9" bullet with a
+  **generated** Budget section. That bullet still quoted `$15.11` of remaining authoring after the
+  real figure had moved to `$13.47`; a number typed by hand into a page that regenerates every five
+  minutes is a stale fact waiting to be read off a phone.
+
+### 53.3 ⚠ A measured imprecision in the credit constant, recorded rather than "fixed"
+
+Chasing the number honestly turned up a real defect in how `28.15` was derived, and the resolution is
+to *document* it rather than change it — which is the interesting part.
+
+`28.15 = $31.96 (quote) − $3.8136 (RUN 3's spend)`. But **RUN 3 predates the D10 fix, so every row in
+its ledgers is stamped `provider: anthropic`, including the eight OpenRouter legs.** Re-attributing
+RUN 3 by line:
+
+| line | true provider | RUN 3 spend |
+|---|---|---|
+| `h3ss` | anthropic | $2.5107 |
+| `leg8` (sonnet-5) | anthropic | $0.4479 |
+| `leg5` (haiku-4.5) | anthropic | $0.1437 |
+| `c1` | anthropic | $0.0000 (canary shield held) |
+| the eight OpenRouter legs | openrouter | $0.7114 |
+| | **true anthropic portion** | **$3.1023** |
+
+So the constant understates the Anthropic credit by ~$0.71 **if** the $31.96 quote was taken before
+RUN 3 ran, and is correct if it was taken after. **That timing is recorded nowhere.** Changing the
+value would trade a documented imprecision for an undocumented guess, so the arithmetic is written
+into the constant's docstring and the value stands. It is moot in practice now that the balance is
+owner-held — but the *reasoning* is the point: the honest move on an unresolvable input is to expose
+it, not to pick the flattering branch.
+
+### 53.4 THE RESULTS LAYER — the monitor now opens the archive every two minutes
+
+Both science tools were **measured** before designing around them, because the whole reason the
+previous session's cadence slipped was friction:
+
+| tool | wall-clock | verdict now |
+|---|---|---|
+| `docs/ops/science_watch.py` | **1.79 s** | rc 0 |
+| `docs/ops/results_audit.py` | **1.84 s** | rc 0 |
+
+At under two seconds each there is no case for tiering, sampling, or "run it a few times a day".
+**Both now run on EVERY cycle**, which takes the sweep from ~7 s to ~11 s — still an order of
+magnitude inside the two-minute cadence. Fourteen quantities are extracted into `STATE.json` and
+diffed against the previous cycle, because on a live run the dangerous event is rarely a bad absolute
+value; it is a value that **moved**.
+
+**Eight are hard validity invariants** — non-zero on any of them turns the cycle RED, and each carries
+the hypothesis it would destroy:
+
+| quantity | what a non-zero reading would mean |
+|---|---|
+| `ra_scalar_leaks` | a SCALAR-arm prompt contains a tail statistic — **H2's manipulation has leaked** |
+| `ra_cross_arm_shared` | an authored program is identical across two arms — the arms are no longer independent draws |
+| `ra_hash_mismatch` | `reward_source_hash != sha256(reward_source)` — an archived reward is not the one that ran, so it cannot be replayed |
+| `ra_non_finite` | a non-finite metric is archived and will propagate into the analysis |
+| `ra_out_of_range` | a generation or seed outside the registered range |
+| `sw_impossible` | an impossible/non-finite score in a scored record |
+| `sw_budget_breaches` | `train_safe_call_count != 400,000` — the registered training budget was not honoured |
+| `ra_popart_breaks` | the PopArt invariant `sigma_max == max(floor, raw_rms_max)` is broken |
+
+The rest escalate on **change**: R115 execution-floor breaches, duplicate `(root, run_id)` pairs (D18
+baseline is 1), and the *arrival* of an R115 BINDING condition.
+
+Two design decisions are worth recording because both encode a lesson already paid for:
+
+1. **Extraction fails LOUD.** If a regex stops matching — because a tool's output format changed —
+   the cycle says `could NOT parse <fields> ... these checks are BLIND until fixed; absent is not the
+   same as zero`. A monitor that silently stops monitoring is worse than no monitor, and that is
+   precisely how the liveness checker went blind on `driver_core.log` (P9).
+2. **The verdict is published.** Each `CYCLE_LOG.md` line now carries `sci=OK` (or the broken
+   invariants by name) and `r115=<n>[B]`, and `publish_status.sh` pushes those lines to Tamer's phone.
+   "I monitored the results" becomes a checkable claim rather than an assertion — the same standard
+   the rest of the project is held to.
+
+**Falsified before being trusted.** A test harness stubbed both tools' output and confirmed the
+control produces **nothing**, while each of the eight invariants, the `results_audit rc=2` path, a
+rising R115 count, and a total output-format change **each fire exactly one correctly-worded
+escalation**. A check that cannot fail verifies nothing.
+
+### 53.5 A monotonicity invariant, added because the precision change exposed the absence of one
+
+Widening the budget print to 4 dp made the first cross-format comparison read **`openrouter
+−$0.0034`** — a *negative* spend delta. It was a harmless artefact (a 2 dp prior against a 4 dp
+current) and it self-cleared the next cycle. But it exposed a real hole: **nothing in the cycle
+asserted that a decrease is impossible**, so a genuine one would have printed just as quietly.
+
+The archive and the spend ledgers are both append-only. Neither count can fall. A decrease means
+records were deleted, a ledger was truncated, or the monitor is pointed at a different root than it
+was last cycle — each of which invalidates every number in the same report. It is therefore RED, not
+ATTN, and it is falsified in all four cells (both rise → silent; records fall; spend falls; both fall).
+
+### 53.6 What the first green cycles say about the run itself
+
+The results layer's opening reading, and it is a clean one:
+
+    sci  records sw=1196/ra=1196  r115=9 BINDING  popart engaged=598/pinned=590
+         leaks=0 cross-arm=0 hash=0 non-finite=0
+
+**Construct validity is intact** (0 scalar-arm tail leaks over 1,196 records), **no program is shared
+across arms**, every `reward_source_hash` verifies, and no metric is non-finite. The nine R115
+breaches are the registered nine of §37 — unchanged, with the same seven-at-49.983 % D17 signature.
+
+`cycle.py` now returns **rc=0** for the first time in this run's history: the only thing that had been
+holding it at RED was the budget comparison against an unobservable credit.
+
+### 53.7 Three smaller things fixed on sight in the same pass
+
+1. **§37's heading said the 49.983 % fraction "APPEARED FIVE TIMES"** while its own table lists
+   **seven** rows (across five models), and `results_audit`'s anomaly hunt independently reports
+   `(0.49983, 7)`. The heading is now "APPEARED SEVEN TIMES ACROSS FIVE MODELS". It matters because
+   CH4/CH7 are written *from this file*, and "five" was the count of models, not of occurrences.
+2. **Repo-wide `ruff` was NOT clean**, against records that repeatedly certify "ruff clean" — three
+   errors, all in `docs/ops/` tooling written after the last certification (`E741` an ambiguous `l` in
+   `budget_watch.py`, two `F401` unused imports in `run4_watch.py` and `science_watch.py`). None is in
+   `src/`, `scripts/`, `config/` or `prompts/`, so no certification claim about the *source tree* is
+   falsified and the drift fence is untouched. All three fixed; repo-wide `ruff check .` now passes,
+   and all three tools re-run green afterwards.
+3. **Three record counts were in circulation** — 1,176, 1,177 and 1,185 — and the difference is a
+   denominator, exactly the §20.2 pattern. Reconciled by measurement: `campaign_guards` counts
+   **depth-4** records (`<root>/<arm>/<unit>/record.json`); the science tools glob **all** depths. The
+   extras are **eight `frozen/*-winner/record.json` freeze markers** (`wall_clock 0.0`, `val_fitness`
+   only — declarations, not trainings) plus **one depth-5 path**, the known D18 duplicate. The counts
+   were never in conflict; they answer different questions, and now say so.
+
+### 53.8 A state fact the handover brief did not carry: eight arm-searches are FINISHED
+
+Chasing the extra records surfaced live state worth recording. Eight arms have completed their search
+and frozen a winner — `frozen/scalar-winner` (g2) and `frozen/random_search-winner` (g0) on the
+**confirmatory core line**, plus winners on the gemini, haiku, nemotron and qwen3.5-9b legs. The
+winner's generation is simply where `max(val_fitness)` fell, not where the search stopped.
+
+One looked premature and was run to ground rather than assumed: **`frozen_leg_qwen3_5_9b/scalar-winner`
+is at g4 while that arm's `left` column still showed one generation to go.** The driver log settles
+it — `[leg4_leg_qwen3_5_9b_scalar_g5] batch complete: {'ok': False, 'completed': 0, 'total': 5,
+'exhausted': [all five candidates]}`. Generation 5 *ran* and returned **nothing acceptable**, so the
+best candidate is g4's and the freeze is correct. qwen3.5-9b holds **14 records from ~150 attempts**;
+it is the registered capability-gradient bottom anchor behaving exactly as selected.
+
+A side-effect worth noting for anyone reading the projection: `budget_watch` infers "generations left"
+from the maximum generation *reached*, so for a starved leg whose final generation yielded no records
+it **overstates** the remaining authoring. The error is conservative and the leg's absolute cost is
+$0.05, so it is recorded, not chased.
+
+**Also confirmed, and it corrects the brief's "the seed ladder has not started":** the LLM-arm C4 has
+not, but **rung 30 of the test stage is largely complete** — all eleven H1 canon baselines are at
+**30/30 seeds** (330 records) and `random_search` is at **12/30**.
+
+### 53.9 ⚠ MY OWN PROCESS ERROR THIS SESSION (P27)
+
+**I wrote this very section through a bash heredoc containing backticks and the shell refused it**
+(`unexpected EOF while looking for matching`). No file was corrupted — the append never executed and
+the record was verified intact at 5,697 lines immediately afterwards — but the rule I broke is
+**trap 1**, written down in three places, and it is the *fourth* violation of the same rule across
+sessions: the previous session corrupted the cursor file the same way twenty minutes after quoting
+the rule.
+
+Root cause: I reached for the fastest tool rather than the correct one, on content I had just spent
+ten minutes making sure was accurate. **The lesson is not "escape more carefully" — it is that prose
+containing code spans NEVER goes through a shell.** Write it with the Write tool, then concatenate,
+which is what was done. The one-line rule, restated: *if the text contains a backtick or a backslash,
+the shell must never see it.*
+
+### 53.10 What is NOT changed, and why
+
+* **No file under `src/`, `scripts/`, `config/` or `prompts/` was touched.** Everything here is in
+  `docs/ops/`, which the drift invariant does not fence and which the drivers do not import. The drift
+  test still shows the same two analysis-layer files, unchanged.
+* **No campaign process was restarted, killed or reconfigured.** The twelve supervisors, the watchdog,
+  the sentinel and both remote channels were untouched throughout.
+* **`acknowledged_alarms.txt` gained nothing.** The budget was not silenced by acknowledgement — it
+  was moved to the correct severity, which is a different and more honest operation.

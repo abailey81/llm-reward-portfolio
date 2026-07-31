@@ -72,6 +72,14 @@ cores=$(echo "$CL" | grep '^cores=' | cut -d= -f2); cores=${cores:-?}
 etas=$(python docs/ops/stage_eta.py "${cores:-0}" 2>/dev/null | sed -n '3,12p')
 etas=${etas:-"  (eta model unavailable this cycle)"}
 
+# BUDGET, read LIVE every publish. Tamer holds the balance and the top-up decision (his instruction,
+# 2026-07-31: "the budget is fine, I will just top up whenever needed, I watch the balance -- just
+# make sure you precisely monitor it"). So this reports the current figures instead of asking him for
+# anything, and it is generated rather than typed: the previous hand-written bullet still quoted
+# $15.11 of remaining authoring after the real figure had moved to $13.47.
+bud=$(python docs/ops/budget_watch.py 2>/dev/null | grep -E '^(anthropic|openrouter) ' | sed 's/^/  /')
+bud=${bud:-"  (budget projection unavailable this cycle)"}
+
 # THE 2-MINUTE MONITORING CYCLE (2026-07-31, Tamer's standing order). docs/ops/cycle.py runs the
 # whole sweep and appends one line per cycle to docs/ops/watch/CYCLE_LOG.md. Publishing the last few
 # lines makes the cadence CHECKABLE from his phone -- "monitored continuously" stops being a claim
@@ -151,7 +159,17 @@ statistical assumption is confirmed by live data.
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
-from, and your instruction channel. One line is written per cycle; the last six:
+from, and your instruction channel.
+
+**Since 2026-07-31 it also checks the RESULTS, not just the processes** (your instruction). Every
+cycle opens the archive: the fed block is re-derived from every LLM-arm prompt (a scalar-arm prompt
+carrying a tail number would mean the manipulation had leaked), authored programs are checked for
+duplication across arms, every reward's source hash is re-computed, and the scored-record invariants
+(400,000 steps, the R115 execution floor, no impossible numbers) are re-tested. Four of those are
+hard validity invariants and turn the cycle RED on any non-zero reading; the rest are reported with
+their movement since the previous cycle. The \`sci=\` token on each line below is that verdict, and
+\`r115=\` is the execution-floor breach count (\`B\` = a contaminated candidate currently tops its arm,
+which is the floor doing its job). One line is written per cycle; the last six:
 
 \`\`\`
 $cyc
@@ -161,13 +179,24 @@ Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, 
 Acknowledged-and-understood alarms are deliberately kept quiet so a NEW one is loud -- the reasoning
 for each is in docs/ops/acknowledged_alarms.txt.
 
+## Budget -- reported, yours to act on
+
+You said you watch the balance and will top up when needed, so this is a report, not a request. Live
+figures this publish (spend is measured from the ledgers; "still to author" is projected at each
+line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring is the whole
+remaining exposure):
+
+\`\`\`
+$bud
+\`\`\`
+
+The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
+reading -- only your console knows the truth, which is exactly why this no longer raises an alarm.
+The number to watch is **still to author** on \`anthropic\`: that is the confirmatory line's remaining
+exposure. Detail: record section 49.
+
 ## Needs Tamer
 
-* **!! ANTHROPIC BUDGET -- PROJECTED SHORTFALL ~\$9.** Spent \$22.15 of a credited \$28.15; the
-  authoring still to come (14 arm-generations on the core line, 15 on sonnet, 12 on haiku) projects
-  **\$15.11 more = \$37.27 total**. If the key runs dry the CONFIRMATORY line stops, which is the one
-  thing the campaign cannot absorb. **Please check the real console balance and top up.** Our figure is
-  a ledger ESTIMATE, not a balance reading -- record section 49.
 * **A12 -- the public OSF/Zenodo DOI deposit** (about 10 minutes; everything is staged in
   docs/A12_DEPOSIT_PACKAGE.md). A registered freeze-day obligation that is currently unmet.
 
