@@ -3,6 +3,78 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31f] RUN 8 — THE STATUS PAGE HAD BEEN DEAD FOR TWO DAYS, AND AN UNDOCUMENTED PROCESS-KILLER WAS RUNNING ON THE LIVE CAMPAIGN
+
+**State before:** RUN 4 live, T+67 h 27 m, 12/12 lines, ~1,468 records, $37.47, freeze `3ca6f01a…`
+matching, drift 0 on both the commit and working-tree tests, `sci=OK`, cycle cadence machine-enforced
+and current. Tamer's instruction waiting in the inbound channel.
+
+**Tamer:** *"Make sure absolutely everything is strictly flawless, also to the run4_status dont forget
+to add teh cores active, and current eta's as well. Ultrathink."*
+
+**① HIS INSTRUCTION WAS ALREADY MEANT TO BE SATISFIED, AND WAS NOT — the page was two days stale.**
+The RUN 7 log claimed the cores+ETAs requirement was *"implemented and still true"*. The published
+`docs/RUN4_STATUS.md` was the launch-night eight-scalar page, still projecting *"first records land
+~05:08-07:08 UTC, 29 Jul"* against 1,468 archived records — no ETAs, stage, results, budget or cycle
+log. **Root cause:** RUN 6 upgraded the publisher *into the repo* (217 lines) and wrote a repo-side
+loop, but never switched the running loop over; it kept executing a 76-line copy from an older
+session's scratchpad, which emitted the *same commit-message shape*, so a healthy-looking commit
+stream stood in for a live page for ~26 h. Confirmed rather than inferred: repo copy greps 6/6 for
+`stage_eta|budget_watch|CYCLE_LOG|Needs Tamer`, scratchpad copy **0/6**. Fixed — old loop stopped by
+explicit pid, repo publisher test-run in the foreground (17.7 s) and inspected before being trusted,
+`docs/ops/publish_loop.sh` armed detached. **Lesson: an upgrade that is not the thing being executed
+is not deployed** — the same distinction as §3's drift rule and "instrumented ≠ engaged".
+
+**② SWEEPING FOR THE SAME CLASS FOUND AN UNDOCUMENTED PROCESS-KILLER.** `reaper_loop.ps1`, running
+three days from a *third* session's scratchpad, absent from the §8c expected stack, killing `ssh.exe`
+on the live campaign. Built for the **RUN 2** leak; its own header sets a retirement condition that
+has been met since launch (`reap()` verified present in running sha `50b6e07` at
+`src/cluster/submit.py:61`). Measured: **917 cycles, 17 with a kill; 13 of them during live RUN 4**,
+clustered on consecutive cycles. **Its log recorded only a count, never an identity**, so nothing
+could distinguish genuine orphans from **live archive transfers**, and its orphan test is the D20 bug
+class in mirror image (pid existence ≠ identity). Neither guess was taken: replaced with
+`docs/ops/ssh_reaper.ps1` (repo, ASCII-clean, parser-clean) which **defaults to DRY RUN** and logs
+pid/age/ppid/parent-name/parent-start/cmdline for every candidate before deciding. Sound parts kept
+(the 3600 s stale-tar rule re-verified against `poll.py:190`). **Not** claimed as a D9 cause — 13 kills
+in three days cannot produce a systematic signature.
+
+**③ §9(3) CLOSED — `h_rt` and `snx` audited, both clean.** `h_rt` is `consumable=NO` in `qconf -sc`,
+so it reserves nothing (corroborating the docstring's 15/15 placement measurement). `snx` is a per-job
+consumable of `tmpfs`'s exact shape — worth checking — but `qhost -F snx` gives **10,000 per host**
+against our 1 per job, and `qquota -u ucestes` is empty. A **pack-8 walltime scare was chased and
+dismissed**: `autosize_h_rt` is flat in pack, which is *correct* because `campaign.py:347-349` scales
+`cores = max(cores_per_training, threads) × pack`, confirmed in the live supervisor's own arguments
+(C4 pack-mates run OMP=1 → 8 cores). The four-term resource request is now fully audited.
+
+**④ §9(1) — THE §60 tmpfs PREDICTION IS NOT SUPPORTED.** Predicted jobs/node 1.18 → 2-4 and ~1,320
+cores; measured **1.26** and **592-608** (+6-9 %, not +136 %). Worse for the hypothesis, the mechanism
+looks mis-diagnosed: pool d has **294 hosts / 10,584 cores** (cross-validated against the supervisor's
+own comment) against ~82 running jobs, so ~1 job/node is arithmetic, not a throttle. Recorded as a
+correct *hygiene* fix, **not** the core-count lever it was written up as. Residual confound stated:
+55 of 187 jobs still hold 15 G.
+
+**⑤ §9(2) — arm ratio measured by two independent routes.** Core line (the confirmatory pool; legs are
+report-only under R80): dist 28 / scalar 27 / placebo 13 / scv5 12 / shuffled 12 = **2.33×**, matching
+`cycle.py`'s own alert to the digit. **Closing: §56.6's 3.11× → 2.33×.** ⚠ The RUN 8 brief's §5 figure
+of **"1.90×"** reconciles with **no** measured quantity (pooled spread 2.23×, max/min 2.31×,
+treatments/controls 1.49×) and is flagged unverified.
+
+**⑥ A QUIET ALARM'S OWN TRIGGER HAD FIRED, UNCHECKED.** `guard:truncation` said re-triage on a third
+model; last evaluated at 1,311 calls, now 2,361. Re-run: **4 rows on 3 models** — nemotron 0.93 %,
+kimi-k3 0.48 %, **qwen3.6-27b 0.49 % (the third)**. Still an artefact because the *rate* is flat
+(0.09 → 0.15 → 0.17 % against rising volume), **zero on the confirmatory line**, cap stays at 16,384
+(R106). Nemotron at 0.93 % flagged as the nearest live edge.
+
+**⑦ P31-P32 — own instrument errors logged.** `$NF` on `qstat -u` returned the ja-task-id not slots
+(75 "slots" for 75 jobs; true value 608). **P30 RECURRED**: `qstat -f | node-d` gave "431,382 free
+slots" on a ~21,600-core cluster — discarded on the order-of-magnitude check and re-derived from
+distinct hosts. Also hit the documented backslash-in-heredoc trap.
+
+**Files:** `docs/ops/ssh_reaper.ps1` (new) · `docs/CAMPAIGN_EXECUTION_RECORD.md` §63 ·
+`docs/ops/acknowledged_alarms.txt` (truncation re-triage) · `docs/REMOTE_CONTROL.md` (LOG) ·
+`docs/RUN4_STATUS.md` (now generated by the upgraded publisher). **No `src/ scripts/ config/ prompts/`
+change — drift remains 0 and no relaunch was required.**
+
 ## [2026-07-31e] RUN-8 BRIEF AUDITED AGAINST ALL FOUR PRIOR BRIEFS — AND A DEFECT FOUND IN MY OWN MONITORS
 
 **State before:** RUN 4 live, T+67 h, 12/12 lines, 1,442 search records, $37.47 spent, freeze

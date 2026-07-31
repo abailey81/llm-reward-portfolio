@@ -7171,3 +7171,232 @@ side by side revealed that the real hole was the other half of the predicate.
 a mistake as well."* This entry is what that looks like in practice. **Two of the eight brief
 corrections above are corrections to MY OWN brief** (D9 mislabelled fixed; P-numbers mis-resolving),
 and the monitor defect was mine. Audit the RUN 7 session's work — it is §11 of the brief for a reason.
+
+---
+
+## §63. RUN 8 — A TWO-DAY-DEAD STATUS PAGE, AN UNDOCUMENTED PROCESS-KILLER, AND THE RESOURCE AUDIT CLOSED (2026-07-31)
+
+**Session opened 16:35 UTC, T+67 h 27 m.** Live state re-verified first-hand before anything else:
+`cycle_loop.sh` alive (last line 16:34:45Z, 1 min old), drift **0** on both the commit and the
+working-tree test, 12 supervisors + 24 drivers + watchdog + sentinel + backup all on **repo** paths,
+`sci=OK`, freeze `3ca6f01a…` matching.
+
+### §63.1 ★ TAMER'S INSTRUCTION, AND THE DEFECT IT EXPOSED — the status page had been dead for two days
+
+His inbound instruction was waiting in `docs/REMOTE_CONTROL.md`:
+
+> *"Make sure absolutely everything is strictly flawless, also to the run4_status dont forget to add
+> teh cores active, and current eta's as well. Ultrathink"*
+
+The RUN 7 log entry in that same file says his standing cores+ETAs requirement was *"implemented and
+still true"*. **It was not true, and this is the fifth time his scepticism has overturned a session's
+claim.** The published `docs/RUN4_STATUS.md` was the launch-night eight-scalar page, still telling him
+*"first records land when the C0 canary's ~8 h trainings finish (~05:08-07:08 UTC, 29 Jul)"* — a
+two-day-old projection, printed while 1,468 records sat in the archive. **No ETAs, no stage table, no
+results, no cycle log, no budget section.**
+
+**ROOT CAUSE — and it is a clean instance of a defect class worth naming.** The RUN 6 session
+*upgraded* the publisher into the repo on 2026-07-30 (`docs/ops/publish_status.sh`, 217 lines, with
+ETAs/stage/results/budget/cycle-log) **and** wrote a repo-side loop (`docs/ops/publish_loop.sh`) — but
+**never swapped the running loop over**. The live loop was a scratchpad script from session
+`f003fd66` which executed a *further* scratchpad copy from session `34588ab9`: 76 lines, zero of the
+rich sections. Two artefacts' worth of work delivered **zero effect for ~26 hours**, and the commit
+messages kept scrolling past (`status: T+67h24m - 12/12 lines, 600 cores…`) because the OLD publisher
+emitted the same commit-message shape. **A green commit stream was standing in for a live page.**
+
+**HOW IT WAS CONFIRMED, not inferred** (the P11 trap is exactly "verify the substitution, infer the
+permission"): the repo publisher greps 6/6 for `stage_eta|budget_watch|CYCLE_LOG|Needs Tamer`; the
+scratchpad copy greps **0/6**.
+
+**FIX.** Old loop stopped by explicit pid after an identity re-check; repo publisher test-run once in
+the foreground (17.7 s, well inside its 300 s period) and its output inspected before being trusted;
+`docs/ops/publish_loop.sh` armed detached. The page now carries **cores computing = 592** and the
+**per-rung ETA block** (rung 30 → 08-01 … rung 568 → 08-23 at held cores, against a 08-27 stop), plus
+stage, results, monitoring cadence, generated budget and "Needs Tamer".
+
+**THE LESSON, which generalises past this file:** *an upgrade that is not the thing being executed is
+not deployed.* The repo was correct for 26 hours and the user saw none of it. Any future ops change
+must end by verifying the RUNNING process, not the file on disk — the same distinction as §3's drift
+rule (a committed sha is not a running sha) and the same as "instrumented ≠ engaged" (§44 PopArt).
+
+### §63.2 ★ AN UNDOCUMENTED PROCESS-KILLER HAD BEEN RUNNING ON THE LIVE CAMPAIGN FOR THREE DAYS
+
+Sweeping for *other* instances of the §63.1 class (scratchpad-executed code diverging from the repo)
+found `remote_watch.sh` byte-identical to its repo copy and all twelve supervisors, the watchdog and
+the backup on repo paths — **but turned up a process not in the §8c expected stack at all**:
+`reaper_loop.ps1`, running from a *third* session's scratchpad (`535705c5`), interval 300 s.
+
+It kills `ssh.exe` processes. Its own header states its retirement condition: *"RETIRE THIS once every
+line has been restarted onto the fixed code."* **That condition has been met since RUN 4 launched** —
+`reap()` is present in the running sha `50b6e07` (`src/cluster/submit.py:61`, called from
+`src/cluster/poll.py:200` and `:236`), and all twelve lines have been relaunched onto it four times
+over (§46, §54, §58, §60). It was built on 2026-07-28 for the **RUN 2** transport leak.
+
+**MEASURED, denominators stated: 917 cycles logged, 17 with a kill.** The four large ones
+(reaped=23/3/9/20) are all **pre-RUN-4** — the leak it was built for. **Thirteen single kills happened
+during live RUN 4**, and they cluster on consecutive cycles (08:45/08:50/08:55, 09:41/09:46,
+14:11/14:16/14:21 on 07-31). A genuine one-off orphan is killed once and gone; repeated single kills
+on consecutive cycles mean something is *repeatedly* presenting as reapable.
+
+**Its log records only a COUNT, never an identity.** So the archive cannot answer the only question
+that matters: were those genuine orphans, or **live transport children whose parent lookup failed** —
+which would mean we have been silently killing archive pulls on a confirmatory run.
+
+**Its orphan test is the D20 bug class in mirror image**: `$byPid.ContainsKey($o.ParentProcessId)`
+tests whether *some* process holds that pid, and a pid is not an identity.
+
+**WHAT WAS DONE, and deliberately NOT done.** Killing it blind and keeping it blind are both guesses.
+Written instead: `docs/ops/ssh_reaper.ps1` (repo, version-controlled, ASCII-clean, `Parser::ParseFile`
+clean) which **defaults to DRY RUN** and logs the full identity of every candidate — pid, age, ppid,
+parent name, parent start time, whether it is a tar pull, and the truncated command line — *before*
+deciding. Nothing is killed unless `-Apply` is passed. Dry run carries no regression risk because the
+in-code `reap()` already covers the leak. The old reaper was stopped by explicit pid after an identity
+re-check; the new one is live in dry run.
+
+**Sound parts kept:** the 3600 s stale-tar rule is correct and was re-verified against the running
+code (`poll.py:190 timeout=3600`; the submit-side push uses 1800 s), so an ssh older than 3600 s is
+genuinely past any parent timeout. The summary line keeps the old format so the two logs concatenate
+for trend analysis, and retirement check 17 still reads it.
+
+**NOT over-claimed:** the reaper is **not** a plausible cause of D9. D9's signature is systematic, and
+13 kills in three days is far too rare to produce it. Recorded as a candidate for the armed
+`ssh_timeout_diagnostic` to *test*, not as a finding. (Over-alarming is as inaccurate as
+under-alarming — §56.7.)
+
+**First 3 dry-run cycles: 0 candidates**, consistent with the retired reaper's last ~27 cycles at
+`reaped=0`. **NEXT SESSION: if the dry-run log accumulates cycles with 0 candidates, retire the reaper
+entirely and delete this process from the stack. If a CANDIDATE line ever appears, read its identity
+fields — that is the evidence three days of counting could not produce.**
+
+### §63.3 ★ §9(3) CLOSED — `h_rt` and `snx` audited; BOTH CLEAN. The four-term request is now fully audited.
+
+The brief handed over that §38 fixed *one* term of a four-term resource request, §60 found the second
+was a 216× over-request, and **two had never been examined**. Both are now measured, and the answer is
+a clean negative on each — which is a result, not an absence of one.
+
+**`h_rt` — cannot be a throttle.** `qconf -sc` gives `h_rt TIME <= YES **NO** 0:0:0 0`: the
+**consumable field is NO**, so h_rt reserves nothing, unlike `tmpfs` (`JOB 10G`) and memory. This
+corroborates the measurement already in `autosize_h_rt`'s docstring — *"walltime was measured
+IRRELEVANT to placement — an 11 h request placed as fast as a 50 min one, 15/15"*. Over-asking costs
+only backfill position.
+
+**A pack-8 scare, chased down and dismissed.** `autosize_h_rt`'s CPU branch is **flat in pack**, which
+looks wrong the moment §58 doubled the pack — more trainings, same walltime. It is **correct**, and
+deliberately so (the 2026-07-27 "packing-is-not-threading" correction): on the CPU lane `pack N` is N
+independent trainings on N *own* cores, so the task's wall is one training's wall. The premise holds
+only if cores scale with pack, and they do — `campaign.py:347-349` renders
+`cores = max(cores_per_training, threads) × pack`. Confirmed in the live supervisor's own argument
+array (`mode_d_supervisor.ps1:128-141`): C4 runs `--pack 8 --cores-per-training 1` with pack-mates at
+**OMP=1**, so `cores = 8` — placeable, not the 64 a naive reading gives. Memory is likewise
+pack-invariant: `_need_gb ∝ pack` divided by `cores ∝ pack`, so the pack cancels. **No defect.**
+
+**`snx` — not a throttle, by four orders of magnitude.** It IS applied to every one of our jobs
+(`qstat -j` on live queued job 55732: `snx=1,tmpfs=1G,memory=1G,batch=true,h_rt=54000`) even though the
+renderer never requests it — it arrives as the complex's default. `qconf -sc` gives
+`snx INT <= YES **JOB** 1 0` (a per-job consumable, exactly `tmpfs`'s shape, which is why it was worth
+checking), but `qhost -F snx` gives **`hc:snx=10000` per host** against our 1 per job. `qquota -u
+ucestes` is **empty** — no resource quota binds us at all.
+
+**Incidental confirmation from the same probe:** the live queued job carries `tmpfs=1G` and
+`memory=1G`, i.e. the §60 and §38 renderer fixes are demonstrably reaching newly-submitted jobs.
+
+### §63.4 ⚠ §9(1) — THE §60 tmpfs PREDICTION IS **NOT SUPPORTED** BY THE EVIDENCE SO FAR
+
+The brief was explicit: *"MEASURE IT… If jobs/node has not risen well above ~1.25, the hypothesis is
+WRONG and §60 must say so."*
+
+**Measured 16:45 UTC.** Cohort: **132 of 187 jobs at `tmpfs=1G`, 55 still holding 15G** (61 an hour
+earlier — draining). Packing: **65 hosts / 82 running jobs = 1.26 jobs per node**; 48 hosts with one
+job, **17 with two** (7 → 14 → 17 across the three readings).
+
+**Verdict, stated honestly in both directions.** §60 predicted jobs/node 1.18 → **2–4** and cores →
+**~1,320**. Realised: **1.26** and **592–608**. The 2-job bucket is rising monotonically and every bit
+of the growth sits there, so *an* effect is real — but it is **+6–9 % on cores, not the +136 %
+predicted**, an order of magnitude short. **§60's headline is not supported.**
+
+**AND THE MECHANISM ITSELF NOW LOOKS MIS-DIAGNOSED, which matters more than the magnitude.** Pool d
+has **294 distinct hosts / 10,584 cores** (independently cross-validated: it matches the supervisor's
+own `--pool d  294 nodes x 36` comment exactly). We run ~82 jobs. **With 294 hosts and 82 jobs, a
+scheduler that prefers idle nodes yields ~1 job/node by construction — that is not a throttle, it is
+arithmetic.** Roughly 117 pool-d hosts currently look able to take an 8-core job, against 109 of ours
+queued; so the queued jobs are not blocked on *host eligibility*, which is the thing tmpfs governs.
+
+This is consistent with §43 and the `capacity_accumulation` triage: during SEARCH the ceiling is
+structural (12 lines × 5 arms × 5 candidates = 300 jobs, and the generation drain measured 2.61 in
+flight against a design peak of 5), so **core count during search is bounded by the experiment's
+shape, not by the cluster.** §60 remains a correct *hygiene* fix — a 216× over-request is indefensible
+regardless — but it should be recorded as such, **not as the core-count lever it was written up as**.
+
+**Residual confound, stated so the next session can close it properly:** 55 of 187 jobs (29 %) still
+hold 15 G and block their hosts. The clean re-measure is due when that cohort reaches zero.
+
+### §63.5 §9(2) — the arm ratio, and a handover figure that does not reconcile
+
+**Core line (`search/`, unsuffixed — the CONFIRMATORY pool, and the only one that biases H2's IUT legs
+since the ten legs are report-only under R80):** distributional **28**, scalar **27**, placebo **13**,
+scalar_cvar5 **12**, placebo_shuffled **12** → **2.33×**. Measured by direct `find` and **matching
+`cycle.py`'s own independently-computed alert to the digit** — two routes, one answer.
+
+**It IS closing on the axis that matters:** §56.6's core-line **3.11× → 2.33×**. The imbalance is
+against *placebo* and *scalar_cvar5*, not scalar (28 vs 27).
+
+**Pooled:** dist 319 / scalar 286 / placebo 163 / scv5 143 / shuffled 138. Note two legitimate
+denominators here, and conflating them is the §20.2 error class: `cycle.py`'s `spread` is
+**dist ÷ scalar_cvar5 = 2.23×**, while **max ÷ min = 319/138 = 2.31×**. Both correct, different
+questions.
+
+**⚠ THE BRIEF'S §5 FIGURE OF "1.90× (from 2.21×) — closing" DOES NOT RECONCILE WITH ANY MEASURED
+QUANTITY.** Live pooled spread was **2.262×** in `ALERTS.txt` one cycle after the brief was written,
+core-line **2.33×**; treatments-vs-controls gives 1.49×; max/min gives 2.31×. Nothing yields 1.90.
+**Treat §5's arm-ratio row as unverified.** The trajectory that IS evidenced, by two independent
+routes, is core-line **3.11× → 2.33×**.
+
+**As a completion clock:** the core line needs `accounted == 30` per arm for the C3 gate to release
+C4, and it fails closed (§56.7). At 28/27 on the treatments and 12–13 on the controls, the core line's
+control arms are under half way — that, not the calendar, is what gates C4.
+
+### §63.6 The `guard:truncation` re-triage — ITS OWN TRIGGER HAD FIRED, unchecked
+
+`acknowledged_alarms.txt` requires each quiet alarm to carry a re-triage trigger. The truncation entry
+said: *re-triage if a THIRD model truncates, if any model exceeds ~1 % of its own calls, or if a
+`length` row appears on `c1`.* It was last evaluated at **1,311** calls; volume had since grown ~80 %
+to **2,361**. **A trigger nobody re-runs is decoration**, so it was re-run.
+
+**Trigger 1 has FIRED.** Four `length` rows on **three** models: nemotron **2 of 215 (0.93 %)**,
+kimi-k3 **1 of 209 (0.48 %)**, and the new third — **qwen/qwen3.6-27b, 1 of 205 (0.49 %)**.
+
+**Still an artefact, and the reason is the RATE, not the count.** Across three evaluations: count
+1 → 2 → 4 while calls went 1,099 → 1,311 → 2,361, i.e. **0.09 % → 0.15 % → 0.17 %**. A roughly constant
+low rate against rising volume is a background population of verbose outliers; a cap that was "too
+small to measure some models" would show a rate *rising* with volume or concentrating in one model.
+Neither holds. **Zero `length` rows on the confirmatory core line — trigger 3 has not fired**, so
+H1/H2 are untouched. **Nearest live edge: nemotron at 0.93 % is within a whisker of the 1 % trigger.**
+The cap stays at 16,384 (registered R106; matching it is what makes the cross-model comparison fair).
+The analysis-time exclusion now covers three models rather than one. Full entry appended in
+`docs/ops/acknowledged_alarms.txt`.
+
+### §63.7 P31–P32 — MY OWN instrument errors this session, logged under the same rule as everyone else's
+
+* **P31.** Summed `$NF` over `qstat -u` output to count running slots and got **75** — which is the
+  *job count*, because the running rows carry a trailing `ja-task-ID` field, so `$NF` is the task id,
+  not the slots column. Caught immediately because "75 slots on 75 jobs" is too round to be real; the
+  correct parse (explicit column) gives **608**. **Exactly the §2.7 pattern: an aggregate that answered
+  a slightly different question.** Nothing was reported before it was corrected.
+* **P32.** Summed free slots from `qstat -f` filtered on `node-d` and got **431,382 free slots** on a
+  ~21,600-core cluster. **This is P30 reproducing almost to the digit** (the RUN 7 session got
+  431,226). Cause: `qstat -f` lists each host under ~35 queue instances, so the filter multi-counts —
+  12,182 "queue instances" for ~294 hosts. **Discarded on the order-of-magnitude check and re-derived
+  from distinct hosts** (294 × 36 = 10,584), which then cross-validated against the supervisor's own
+  comment. That P30 recurred in a different session on a different command is the argument for a
+  standing rule: **any free-capacity number must be sanity-checked against ~21,600 total cores before
+  it is spoken.**
+* Also hit the documented **backslash-in-heredoc** trap (a `p.replace('\\','/')` inside `python - <<PY`
+  arrived as an unterminated string). Fixed by using the Write tool, which is what the prohibition in
+  the brief already says to do. **Fourth-plus occurrence of this class across sessions.**
+
+### §63.8 State at close of this entry
+
+12/12 lines · drift **0** (commit and working tree) · freeze `3ca6f01a…` matching · `sci=OK` ·
+**0** transport timeouts · records ~1,470 · spend ~$37.50 · cores 592–608 · R115 12 breaches, **0 on
+the core line** · cycle cadence machine-enforced and current · both remote channels live, and the
+outbound one is now **actually publishing what it was upgraded to publish**.

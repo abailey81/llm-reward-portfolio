@@ -102,6 +102,30 @@ reward_scale:WARN
 # ⚠ RE-TRIAGE AGAIN IF a THIRD model truncates, if any single model exceeds ~1 % of its own calls, or
 # if a `length` row ever appears on `c1` — any of those would mean the matched cap is biting the
 # measurement rather than clipping an outlier.
+#
+# ── ★ THE THIRD-MODEL TRIGGER HAS FIRED. Re-triaged 2026-07-31 17:0x UTC, RUN 8 (record §62.5). ──
+# Checked because the entry above was last evaluated at 1,311 calls and volume had since grown ~80 %;
+# a trigger nobody re-runs is decoration. Measured over all 2,361 ledger rows:
+#   nvidia/nemotron-3-super-120b-a12b   2 of 215 own calls = 0.93 %
+#   moonshotai/kimi-k3-20260715         1 of 209 own calls = 0.48 %
+#   qwen/qwen3.6-27b                    1 of 205 own calls = 0.49 %   <-- THE THIRD MODEL
+# Run-wide 4 of 2,361 = 0.17 %.
+# VERDICT: STILL AN ARTEFACT, and the reason is the RATE, not the count. Across three evaluations the
+# count has grown 1 -> 2 -> 4 while calls grew 1,099 -> 1,311 -> 2,361, i.e. 0.09 % -> 0.15 % -> 0.17 %.
+# A roughly CONSTANT low rate against rising volume is a background population of verbose outliers;
+# an instrument that was "too small to measure some models at all" would show a rate RISING with
+# volume, or concentrate in one model. Neither holds.
+# WHAT DID CHANGE, and it is the honest reading: the affected set is now THREE models rather than two,
+# so the analysis-time exclusion (drop `stop_reason == "length"` from every authoring-reliability
+# denominator, or report it separately) is more load-bearing than when it covered one leg. All three
+# are OpenRouter REPORT-ONLY legs (R80).
+# ✔ THE ONE THAT MATTERS IS STILL CLEAN: zero `length` rows on the confirmatory core line `c1`, so
+# H2/H1 are untouched. Trigger 3 has NOT fired.
+# ⚠ NEAREST LIVE EDGE: nemotron at 0.93 % is within a whisker of the 1 %-of-own-calls trigger. If it
+# crosses, that IS the "cap is biting this model" signal and the per-model reliability figure for
+# nemotron must be reported with the truncated calls excluded and the exclusion stated in the text.
+# THE CAP STAYS AT 16,384 (registered R106; matching it across all eleven models is what makes the
+# cross-model comparison fair, and the ledger is append-only so this verdict cannot return green).
 guard:truncation
 
 # capacity_accumulation WARN — "concurrency DECLINING to ~1016 cores; check for a kill event, a
