@@ -493,7 +493,15 @@ it. The fix is in the discovery and the join, not in the filesystem.
 
 ---
 
-## 11. C4 LAUNCH FLAG — `--pack 8` (decided 2026-07-31, record §50)
+## 11. C4 LAUNCH FLAG — `--pack 8` — ✅ **APPLIED 2026-07-31, record §58** (decided §50)
+
+> **CLOSED.** Applied ahead of the C4 boundary via a rolling watchdog-driven SUPERVISOR restart
+> (not a driver relaunch — PowerShell binds the supervisor's argument array at supervisor start).
+> Canaried on `qwen3.5-9b`, then rolled to all twelve lines; the watchdog revived every line
+> within 40 s with the D15 host fence intact. Verified: **24 driver processes, all `--pack 8`**,
+> zero at pack 4. INERT until C4 (`--search-pack` is still 1). RUNNING_SHA re-based to `f5014ce`,
+> drift and working tree both clean. **Do NOT re-apply at the restart.**
+
 
 **Not a code fix: a LAUNCH FLAG for the C4-boundary restart.** The twelve supervisors currently pass
 `--pack 4 --cores-per-training 1`. At the boundary they take `--pack 8 --cores-per-training 1`.

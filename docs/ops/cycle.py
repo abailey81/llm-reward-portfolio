@@ -81,11 +81,13 @@ ROOT = REPO / "outputs" / "campaign_cluster_run4"
 REMOTE = REPO / "docs" / "REMOTE_CONTROL.md"
 ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 
-# The commit the LIVE drivers were launched from -- re-based 2026-07-31 by the PRIORITY relaunch
-# (CAMPAIGN_EXECUTION_RECORD section 54; the previous re-base was c99716e, the section 46 memory
-# relaunch). Change this ONLY when the drivers are actually relaunched; it is the reference for the
-# drift invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "2a072df"
+# The commit the LIVE drivers were launched from -- re-based 2026-07-31 by the PACK-8 rolling
+# SUPERVISOR restart (record section 58). Lineage of re-bases: c99716e (section 46, memory) ->
+# 2a072df (section 54, priority) -> f5014ce (section 58, pack 8). This one moved the SUPERVISORS,
+# not just the drivers, because PowerShell binds their argument array at supervisor start.
+# Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
+# invariant and a wrong value here silently disarms that check.
+RUNNING_SHA = "f5014ce"
 DRIFT_PATHS = ("src", "scripts", "config", "prompts")
 
 # A driver log older than this means its line has stopped writing -- the D14 failure mode, where the

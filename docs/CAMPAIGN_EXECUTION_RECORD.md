@@ -6683,3 +6683,96 @@ calendar. That is the harm — and §54's fix plus §57's requeue address it dir
 to the confirmatory claim **before checking whether the gate that stands between it and the claim
 already blocks it**. The check took four greps. A finding is not finished at "this could bias X" — it
 is finished at "and here is what currently stops it, or here is why nothing does."
+
+---
+
+## 58. `--pack 8` IS LIVE ON ALL TWELVE LINES — A ROLLING SUPERVISOR RESTART, DRIVEN BY THE WATCHDOG
+
+Written 2026-07-31 ~11:10 UTC. **DEFERRED_FIXES item 11 is closed, ahead of the C4 boundary rather
+than at it.**
+
+### 58.1 Why it could not wait for the boundary
+
+§57.4's re-forecast at the cores actually held: **rung 568 lands 08-30 — MISSING the 2026-08-27
+exogenous stop** — and `--pack 8` roughly halves the C4 makespan (§50). The plan of record was "apply
+it at the C4-boundary restart". That plan had a hole: **the boundary is the only window, and hitting
+it requires someone to be watching at the moment the first line reaches 5/5 frozen winners.** Missing
+it means C4 runs at half the cores for its entire duration, with no error and no alarm.
+
+### 58.2 The three things that had to be true, each verified rather than assumed
+
+**1. `--pack` is CLI-only.** `argparse` default is 1 with **no config fallback**
+(`run_campaign_cluster.py:355`), and the C4 sweep reads `run.pack` (`campaign.py:1262`, `:1270`). So
+it can only come from new launch arguments — there is no config file to edit.
+
+**2. Therefore it needs a SUPERVISOR restart, not a driver relaunch.** `--pack 4` lives in the
+`$cpuLane` argument array of `scripts/mode_d_supervisor.ps1`, and PowerShell binds that array when the
+**supervisor** starts. A supervisor relaunching its driver re-passes the array it already holds. The
+two previous relaunches (§46, §54) moved only drivers and would NOT have picked this up.
+
+**3. But it does NOT need the full `mode_d_launch.ps1` teardown** — the operation §42 warns about,
+where a mistyped launch resolved to 2 arms of 9 with a stub provider. `docs/ops/watchdog_fenced.ps1`
+detects a dead LINE by the **absence of a `mode_d_supervisor` process** and revives it with
+`Start-Process` on the `.ps1` **read from disk**, passing `-Line -StaggerSecs -ExcludeHosts -OutDir
+-RemoteRoot` — the complete parameter set (D4/D15 already fixed that). **So editing the file and
+killing a supervisor yields a rolling restart driven by the watchdog: the same pattern as the driver
+relaunch, one level up.**
+
+**And one safety property cleared first.** `_acquire_driver_lock` (`driver.py:224–254`) stores the
+owner pid and, on collision, checks `psutil.pid_exists` — **breaking a stale lock automatically**
+("crash-resume stays one-command — no manual lock cleanup after a kill"). So a SIGKILLed driver leaves
+no blocking lock. That is why §54's relaunch was clean, and it independently confirms the glm-5.2
+incident of 2026-07-30 was two genuinely **live** drivers, not a stale file.
+
+### 58.3 The canary, then the roll
+
+**Canary: `qwen3.5-9b`** — the registered capability-gradient bottom anchor and the lowest-value line
+in the campaign, which is exactly what a canary should be. Supervisor killed **first** (so nothing
+would relaunch its driver), then the driver leaf-first; the other eleven untouched. The watchdog
+logged `DEAD lines: qwen3.5-9b` / `restarted qwen3.5-9b (fence=node-d00a-230,node-d00b-024)` — **the
+D15 host fence carried through** — and the revived drivers came up carrying `--pack 8
+--search-pack 1`, polling batches normally with no new crash or lock error.
+
+**Then the remaining eleven, in one pass.** All twelve supervisors and their pack-4 drivers killed;
+the watchdog revived **all twelve within 40 seconds** (supervisors 0 → 6 → 12, drivers → 26).
+
+**Verified after:** `--pack 8 : 24 driver procs`, **zero** remaining at pack 4; all twelve line tags
+present; and the entire protected stack alive throughout — watchdog, sentinel, allocation advisor,
+`publish_loop`, `remote_watch`, `campaign_backup` and the 2-minute `cycle_loop`.
+
+### 58.4 Why this is safe for the science, and inert for the running phase
+
+* **`--pack` is INERT during SEARCH.** `run_search_arm` takes `pack=(run.search_pack or run.pack)`
+  and `--search-pack` is 1, so every line is still searching exactly as before. The change bites only
+  at C4, where `run_test_leg` takes `run.pack`.
+* **Outside the determinism envelope.** Pack-mates are separate spawned processes under
+  `DevicePool`'s `ProcessPoolExecutor` with `OMP=1`; 330 packed CPU baselines in this run already
+  exercise the path (§50.1). Pack changes scheduling, not arithmetic.
+* **Same job width, twice the work.** 8 trainings on 8 slots instead of 4 on 4 — so the placement
+  profile is unchanged while trainings per placed job doubles. Memory renders **2G/slot = 16 GB/job**
+  (checked against the renderer), so 500 concurrent jobs reserve 7.8 TB against ~12 TB free.
+* **Drift re-based, not violated.** `RUNNING_SHA` is now **`f5014ce`** — lineage `c99716e` (§46,
+  memory) → `2a072df` (§54, priority) → `f5014ce` (§58, pack 8). `git diff --name-only f5014ce HEAD
+  -- src scripts config prompts` is EMPTY, and so is `git status --porcelain` over the same paths.
+
+### 58.5 ⚠ TWO OF MY OWN MEASUREMENT ERRORS IN THE SAME OPERATION
+
+**The dirty-tree check I added an hour earlier caught me.** Immediately after editing
+`mode_d_supervisor.ps1` the cycle went **RED**: *"UNCOMMITTED changes under
+src/scripts/config/prompts: M scripts/mode_d_supervisor.ps1 — the drift diff compares COMMITS and
+cannot see these."* That check exists because an independent auditor found the hole that same hour,
+and it fired correctly on its **first real use**, against its own author. The file was committed
+before the roll proceeded.
+
+**And a PowerShell counting error nearly caused a false alarm.** My verification printed
+`WATCHDOG alive:` with an empty value, which reads as zero — i.e. "nothing will revive the twelve
+supervisors I just killed". The watchdog was alive the whole time: `.Count` on a **single** object in
+PowerShell returns nothing unless the expression is wrapped in `@()`. Same family as the "431,226 free
+slots" parse (P30) — *the instrument is a hypothesis before the world is* — and the cost of not
+checking would have been a panicked manual relaunch of a campaign that was already recovering.
+
+**Also caught and cleared in the same pass:** the pull-failure warnings visible across every line are
+**two distinct classes, both benign** — 838 × SSH `exit status 255` (transient login-node) and 212 ×
+`WinError 183` (a local rename over an existing file, i.e. **the record was already pulled**, so the
+"failure" is redundant work and never lost data). The transport guard rates both `ok` with
+`worst_consecutive=2, timeout_events=0`. Counted by class here for the first time.
