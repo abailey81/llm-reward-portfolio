@@ -51,3 +51,38 @@ analysis executes. If you are not certain which side of the line a query sits on
 ---
 
 *(new entries below)*
+
+### F-0001 [2026-07-31T10:30Z] Winner selection is provably correct on all 15 frozen winners
+GRADE: A
+EVIDENCE: independent re-derivation from `outputs/campaign_cluster_run4` (own script, not
+`analyze_campaign`): for each `frozen*/<arm>-winner/record.json`, recomputed
+`max(val_fitness)` over the arm's search candidates restricted to `train_safe_default_count /
+train_safe_call_count < 0.10` (R115). **MATCH 15 / MISMATCH 0**, agreeing to < 1e-12 on every arm.
+Eligible-vs-total counts show R115 actively excluding: haiku 27/28, nemotron 18/19, qwen3.5-9b 3/4
+and 2/3, all others n/n.
+CONFOUND CHECKED: the obvious failure would be re-deriving with the SAME code that wrote the winner,
+which would agree by construction. This used a standalone script reading only the archive JSON, and
+applied the R115 filter independently rather than trusting any stored eligibility flag. A second
+confound — that the frozen record merely copies a stored winner id — is ruled out because the match
+is on the VALUE of `val_fitness` recomputed as a maximum over the candidate set, not on an id.
+EFFECT-BLIND: yes. `val_fitness` is the VALIDATION selector, not a sealed-test outcome; no test-leg
+quantity was read.
+FALSIFIER: any frozen winner whose `val_fitness` is not the maximum over its arm's R115-eligible
+candidates, or a winner drawn from an ineligible candidate.
+DESTINATION: CH4 (the selection machinery is verified, not merely specified) + operations record.
+
+### F-0002 [2026-07-31T10:30Z] Two of H2's three IUT comparator pools are ~half the treatment pool
+GRADE: A
+EVIDENCE: record §56. Accepted candidates over the eleven full search lines (excluding
+`search_h3_singleshot`): `distributional` 272, `scalar` 262, `placebo` 131, `scalar_cvar5` 120 —
+against a registered budget of 30 per (line, arm). Mean generations completed: treatment 5.59 vs
+control 2.52. `PREREGISTRATION.md` line 94 defines the null for both co-primaries as
+"distributional ≤ scalar (and ≤ placebo, ≤ scalar_cvar5)", i.e. a 3-leg IUT.
+CONFOUND CHECKED: the imbalance could reflect differential AUTHORING failure rather than differential
+scheduling. Ruled out by the mechanism being independently established (§54): the three affected arms
+were submitted at `-p -100` while the two treatment arms rode at `-p 0`, measured job-by-job on the
+live queue (120 of 124 stuck jobs were the control arms). Reject rates do not explain a 2.2x gap.
+EFFECT-BLIND: yes. Counts of accepted candidates and generation depth only; no arm's outcome read.
+FALSIFIER: the pools converging to parity as the controls complete their remaining generations —
+which is the expected and desired outcome, tracked against `docs/ops/watch/ARM_BASELINE.json`.
+DESTINATION: CH4 limitations + the equal-k sensitivity (write-time registry row 37) + CH7.
