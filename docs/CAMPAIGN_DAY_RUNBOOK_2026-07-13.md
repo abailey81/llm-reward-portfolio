@@ -1,5 +1,13 @@
 # CAMPAIGN-DAY RUNBOOK — the single, final launch sequence (2026-07-13)
 
+> ⚠ **STALE AS OF 2026-07-31 — DO NOT COPY THE `--priority` FLAGS BELOW.** The intra-user `-p`
+> ladder is RETIRED (record §54): every job now goes out at `-p 0`, and `run_campaign_cluster.py`
+> **hard-exits** on a negative `--priority` unless `--allow-deprioritise` is also passed (finding
+> #96). Following any `--priority -200/-300/-310` instruction in this runbook will therefore
+> abort the launch rather than deprioritise it. Flagged by an independent auditor; the commands
+> are left in place as dated history, but the flag must be dropped when running them.
+
+
 > **This document is the campaign.** Every command below is final, copy-paste, and carries the
 > ratified flags (CHANGELOG [2026-07-13] delegated ratifications). If a command here disagrees
 > with an older doc, THIS document wins. Substrate: **UCL Myriad** (Tamer's directive); the

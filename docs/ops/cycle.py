@@ -281,7 +281,31 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
             f"mode_d_supervisor.ps1's argument array at supervisor start. Without it C4 runs at half "
             f"the cores, and at the 2026-07-31 core count rung 568 lands 08-30, missing the stop.")
 
-    # ARM DEPTH -- the check that would have caught §56 three days earlier.
+    # ★ CORE-LINE ARM DEPTH -- the ratio that actually gates the CONFIRMATORY claim.
+    #
+    # ⚠ CORRECTION 2026-07-31, found by an independent auditor (record §56.6). The pooled 11-line
+    # ratio below is NOT the confirmatory quantity. Winner selection is per (line, arm), and the ten
+    # `search_leg_*` roots are REPORT-ONLY (R80) — the confirmatory H2 IUT draws from the Opus core
+    # line `search/` ALONE. Measured the same minute: pooled says 2.22x on the worst leg, the core
+    # line says **3.11x** (`scalar_cvar5` 9 candidates against `distributional` 28). Reporting only
+    # the pooled figure understated the confirmatory threat by ~40 %.
+    core_pools: dict[str, int] = {}
+    for arm in ("distributional", "scalar", "placebo", "scalar_cvar5"):
+        core_pools[arm] = sum(1 for _ in (ROOT / "search" / arm).glob("*/record.json"))
+    got["core_line_pools"] = core_pools
+    if all(core_pools.values()):
+        c_hi, c_lo = max(core_pools.values()), min(core_pools.values())
+        got["core_arm_spread"] = round(c_hi / c_lo, 3)
+        if c_hi / c_lo >= _ARM_SPREAD_ATTN:
+            worst = min(core_pools, key=lambda k: core_pools[k])
+            attention.append(
+                f"CORE-LINE arm depth {c_hi / c_lo:.2f}x — {worst}={c_lo} against {c_hi}. This is the "
+                f"CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled "
+                f"one — is what biases H2's IUT legs. Record §56.6.")
+    else:
+        got["core_arm_spread"] = None
+
+    # ARM DEPTH, pooled across all eleven lines -- context, not the confirmatory quantity.
     pools = {k: got.get(k) for k in _IUT_ARMS if isinstance(got.get(k), int) and got.get(k)}
     if len(pools) == len(_IUT_ARMS):
         lo_k, lo = min(pools.items(), key=lambda kv: kv[1])
@@ -409,6 +433,17 @@ def main() -> int:
     # 7. drift vs the RUNNING sha, not vs HEAD
     _, drift_out = _run(["git", "diff", "--name-only", RUNNING_SHA, "HEAD", "--", *DRIFT_PATHS])
     drift = [ln for ln in drift_out.splitlines() if ln.strip() and not ln.startswith("<")]
+    # ⚠ ...AND the working tree. `git diff <sha> HEAD` compares two COMMITS and is therefore blind to
+    # an applied-but-uncommitted edit to `src/` — which would read as zero drift while the drivers ran
+    # something else entirely. Found by an independent auditor 2026-07-31; the tree was clean, so this
+    # closes a hole rather than a live exposure. An uncommitted change to a drift-fenced path is MORE
+    # dangerous than a committed one, not less, because nothing else in the repo records it.
+    _, dirty_out = _run(["git", "status", "--porcelain", "--", *DRIFT_PATHS])
+    dirty = [ln.strip() for ln in dirty_out.splitlines() if ln.strip() and not ln.startswith("<")]
+    if dirty:
+        alerts.append(f"UNCOMMITTED changes under {'/'.join(DRIFT_PATHS)}: {', '.join(dirty[:4])}"
+                      f"{' …' if len(dirty) > 4 else ''} — the drift diff compares COMMITS and cannot "
+                      f"see these. Commit or revert before trusting drift=0.")
 
     # 8. records + spend, and the DELTA that actually tells you whether it is moving
     _, st_out = _run([sys.executable, "scripts/campaign_guards.py",

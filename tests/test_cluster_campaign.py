@@ -501,6 +501,14 @@ def test_run_campaign_tiered_runs_a_LEG_shape_with_no_h1_canon(tmp_path):
     # on Myriad, so any negative value sinks us beneath every other user on the cluster — it cannot
     # express an intra-user ordering, which is what R88 assumed it did. Tamer's standing rule is
     # absolute: never lower the SGE priority of any of our jobs, ever.
+    # ⚠ ANTI-VACUITY, added 2026-07-31 after an independent auditor hunted exactly this. `assert not
+    # offenders` over an EMPTY `fake.calls` passes silently — and so would the two neighbouring
+    # assertions above it, i.e. three checks would go quiet together. Today that is blocked only
+    # TRANSITIVELY: with zero batches no records are written, `select` returns None, and
+    # `run_arm_pipeline` returns ok=False, so `assert out["ok"]` above dies first. That guard is
+    # undocumented and incidental — any future early-return or resume path that yields ok=True with
+    # zero submissions re-opens the hole. Pin it directly.
+    assert fake.calls, "no batch was submitted — the -p invariant below would pass vacuously"
     offenders = [(c[0], c[4]) for c in fake.calls if c[4] < 0]
     assert not offenders, f"batches submitted below full fair-share standing: {offenders}"
 

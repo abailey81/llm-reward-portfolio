@@ -6571,3 +6571,58 @@ Two mitigations are now in place:
    the gate auto-proceeds — no manual wait."* No `TIER1_APPROVED_*` file is needed unless health goes
    RED. (D16 remains true — the gate's `health_ok` is blind to a substrate mix — which is why C4 will
    not stall on the D15 records either.)
+
+### 56.6 ⚠ CORRECTION — I REPORTED THE POOLED RATIO; THE CONFIRMATORY ONE IS WORSE
+
+Found 2026-07-31 by an **independent read-only auditor** commissioned specifically to try to break
+§54 and §56. It broke this, and the correction runs **against** my own framing — I understated the
+threat.
+
+**The error.** §56.2 reported the candidate pools **pooled over all eleven search lines** (272 / 262 /
+131 / 120 → 2.08× and 2.27×). But **winner selection is per `(line, arm)`**, and the ten
+`search_leg_*` roots are **REPORT-ONLY** (R80: *"9 report-only legs … the confirmatory core is
+UNCHANGED"*). The confirmatory H2 IUT therefore draws from the Opus core line `search/` **alone**.
+
+**Re-measured on the core line, and cross-checked on the R115-ELIGIBLE pools** — which is the right
+denominator, because the winner is `max(val_fitness)` over *eligible* candidates, not archived ones:
+
+| arm | core line, archived | core line, **R115-eligible** | ratio to `distributional` |
+|---|---|---|---|
+| `distributional` | 28 | **28** | — |
+| `scalar` | 27 | **27** | 1.04× |
+| `placebo` | 13 | **13** | **2.15×** |
+| `scalar_cvar5` | **9** | **9** | **3.11×** |
+
+Pooled, for contrast: 1.04× / 2.04× / **2.22×** on eligible pools.
+
+**So the worst confirmatory leg is 3.11×, not 2.27×.** Reporting the pooled figure made the threat to
+the confirmatory claim look roughly **40 % smaller than it is**, and `scalar_cvar5` on the core line
+has **nine** candidates — not a shrunken pool but a nearly empty one, against a registered budget of
+thirty.
+
+**One open question from the auditor is now closed.** It flagged that the archived pool is an *upper
+bound* on the selection pool, since R115 excludes some records, and that arm-correlated exclusion
+could move the ratio either way. Measured: on the core line **archived == eligible for all four arms**
+(28/27/13/9), so R115 exclusion is *not* arm-correlated there and the ratio is unaffected. Pooled, it
+shifts the figures by under 2 %.
+
+**What changes as a result:**
+
+* `docs/ops/cycle.py` now reports the **core-line** ratio as its own alert, ahead of the pooled one,
+  with the R80 reason stated in the message — the pooled number is context, the core-line number is
+  the confirmatory quantity.
+* Write-time registry row 37 (the equal-k sensitivity) is unchanged in substance but **more urgent**:
+  at k = 9 on the core line, an equal-k IUT is not a robustness garnish, it is close to the only
+  honest comparison available if the controls do not catch up.
+* §56.1–56.5 stand as written for the **pooled/instrument** picture; this subsection supersedes their
+  ratios wherever a *confirmatory* claim is being made.
+
+**The lesson, and it is one I have now paid for twice in two days.** §49 mis-projected the budget by
+asking "which generations exist anywhere in this line's root?" instead of per `(line, ARM)`. This is
+the identical shape one level up: I asked "how many candidates exist anywhere in the campaign?"
+instead of **per line, on the line that actually decides the claim**. Pooling across report-only
+replicates dilutes precisely the signal the confirmatory line is meant to carry.
+
+**And the meta-lesson: the auditor earned its cost on its first outing.** The finding that mattered
+most was not one of the four defects it confirmed but the one place where my own number flattered my
+own conclusion — which is exactly what an author cannot reliably see in their own work.
