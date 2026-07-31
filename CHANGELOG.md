@@ -29,12 +29,19 @@ required artefacts are **written but UNWIRED** (`RQ_canonical_and_framing` 1,053
 required for conformance **and** delivers **5,002 of the ~10,177 words** that must leave the body; §0.1
 the **four-criteria aggregation rule is UNKNOWN** and our own two documents contradict each other,
 neither citing a source (posture: assume the harshest — **do not "resolve" it by picking a side**); and
-**§14.1 the novelty sweep MISSED a neighbour — RDA (arXiv:2606.01672, June 2026)**, an LLM authoring
+**§14.1 [⚠ THE "SWEEP MISSED IT" FRAMING IS RETRACTED — see `[2026-07-31s]`; RDA was already in
+refs.bib as `@inproceedings{lee2026rda}` (RLC 2026) AND already cited in CH2. What stands is the
+paper's relevance, below] RDA (arXiv:2606.01672, June 2026)**, an LLM authoring
 reward code for **Soft Actor-Critic** whose stated contribution is that Eureka-style loops rely on
 *"coarse numerical metrics"* and should be **enriched** — our argument's exact shape on a semantic axis
 instead of a distributional one. It does not close our cell, but *"enriching the feedback channel"* is
-**no longer ours as an idea**, and the process defect (a **finance-weighted** sweep) must be fixed
-**before the mandatory pre-submission sweep, ~20 Aug**. **§0.2 and §0.3 VERIFIED FIRST-HAND before
+**no longer ours as an idea** — and **that narrowing is the real deliverable, unaffected by the
+retraction above**. ⚠ **The "finance-weighted sweep" process defect and its ~20 Aug deadline are
+WITHDRAWN: there was no missed sweep.** What remains is smaller — neither RDA nor LEARN-Opt is a
+**T10 matrix ROW**, and T10 omits papers without a first-hand dossier entry *by design*, so their
+absence may be deliberate. **The lesson this session kept re-learning: check the artefact before
+declaring a gap in it — one `grep` would have stopped it, and I propagated the false version into
+four documents first.** **§0.2 and §0.3 VERIFIED FIRST-HAND before
 relaying** — all four word counts match exactly, all four are absent from `build_paper.py`, and theory
 and prototype are confirmed at `build_paper.py:64` and `:66`. **The §12.8/§14 citations were NOT
 re-verified** and the brief says so: this project has a documented history of a fabricated bib entry
@@ -229,14 +236,37 @@ dominant Sharpe variance is the policy's own seed-specific churn path, which is 
 
 Six searches run to **break** the claim, two candidates fetched and read.
 
-- **⚠ OUR 2026-07-30 SWEEP MISSED A NEIGHBOUR.** **RDA — "Reward Design Agent for Reinforcement
-  Learning"** (arXiv:2606.01672, **June 2026**): an LLM writes executable reward code, the agent is
+- **⚠⚠ RETRACTED SAME DAY — "our sweep missed RDA" IS FALSE.** This bullet originally claimed the
+  2026-07-30 sweep missed **RDA** (arXiv:2606.01672). **It did not.** Verified by `grep` at session
+  close: RDA was **already in `paper/refs.bib`** as `@inproceedings{lee2026rda}` with the *better*
+  venue **Reinforcement Learning Conference (RLC) 2026**, **and already cited in
+  `CH2_related_work.md`**. **LEARN-Opt likewise.** A prior session found and recorded both correctly.
+  ⚠ **The false claim propagated into the cursor and into record s.86.1 before it was caught — both
+  corrected.** **The real, much smaller finding:** RDA and LEARN-Opt are cited in CH2 prose but are not
+  **rows in the T10 positioning matrix** — and T10's own sourcing rule says papers lacking a first-hand
+  dossier entry are *"DELIBERATELY OMITTED rather than filled in from memory"*, so their absence may be
+  **deliberate**. The action is to write their dossier entries, then add the rows — **not** to "fix a
+  missed sweep". The sweep-scope widening (arXiv **by date**, not finance-weighted) remains worth doing
+  on its own merits, but it is **no longer evidenced by a miss**.
+- **The RDA content stands and is unchanged:** an LLM writes executable reward code, the agent is
   **SAC**, feedback is **VLM visual/semantic** trajectory analysis plus numerical statistics; robotics
   only, not risk-sensitive, not finance, not pre-registered. **Their stated contribution — enriching
   reward design beyond *"coarse numerical metrics"* — has the same argument shape as ours.** It
   corroborates our premise (the *channel* is the bottleneck) while narrowing our claim: **we can no
-  longer claim novelty for "enriching the feedback channel" as an idea.** The sweep missed it because
-  the sweep is **finance-weighted**; it must cover the reward-design lineage on arXiv **by date**.
+  longer claim novelty for "enriching the feedback channel" as an idea.**
+- **⚠ A DEFECT I INTRODUCED AND THEN FIXED.** Appending my own entries created **two DUPLICATE bib keys**
+  (`lee2026rda`, `cardenoso2025learnopt`), and my arXiv-only RDA entry would have **degraded** the
+  existing RLC-2026 venue. Caught by running a duplicate-key check on my own edit. **Fixed:** duplicates
+  removed, the verified notes **grafted onto the canonical (better) entries**. Re-verified: **277
+  entries, 0 duplicates, brace balance 0, `check_citations.py` clean — 0 dangling, 0 verify-in-use.**
+  Net genuinely-new entries this session: **3** (QRM, URDP, RF-Agent), plus 2 enriched.
+- **P42 (new; NOT P36 — the P-series collides across the three 2026-07-31 sessions, RUN 8 used P31–P41).
+  THREE TIMES IN ONE SESSION I DECLARED A GAP IN AN ARTEFACT WITHOUT GREPPING FOR IT FIRST** — the four
+  `paper/sections/` files, then RDA, then LEARN-Opt. A standing rule already covers this exact failure
+  (*"check the artifact before declaring a gap in it"* — the GIFT lesson). **The check costs one
+  command.** Worse, the sweep-miss version of the error **propagated to two other documents** before it
+  was caught, which is the real cost: a false claim about our own process is a claim a marker could
+  check.
 - **Also to enter T10:** LEARN-Opt (★ quote its *"automated reward design is a high-variance problem…
   requiring a multi-run approach"* as external corroboration of limitation B.2.6), RF-Agent
   (arXiv:2602.23876), URDP (arXiv:2507.02256 — re-verified, still not a neighbour), QRM
