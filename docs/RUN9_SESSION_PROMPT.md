@@ -517,16 +517,97 @@ edits. `cycle.py` checks both.
 **A relaunch RE-BASES this. Two procedures, both proven:**
 * **Driver-only relaunch** (§46, §54, §60) — for anything the driver *imports*. Kill the 24 driver
   processes leaf-first; the 12 supervisors relaunch after a 600 s backoff.
-* **Rolling SUPERVISOR restart** (§58) — only when the change is in the supervisor's *argument array*
-  (e.g. `--pack`). Edit the `.ps1`, kill a supervisor, `watchdog_fenced.ps1` revives it. Canary one line.
+* **Rolling SUPERVISOR restart** (§58) — only when the change is in the supervisor's *argument array*,
+  because PowerShell binds that array at SUPERVISOR START, not at driver relaunch. The array lives in
+  **`scripts/mode_d_supervisor.ps1`** (this is where `--pack 8 --cores-per-training 1 --search-pack 1
+  --search-threads 8` are set). Edit the `.ps1`, kill ONE supervisor, and `docs/ops/watchdog_fenced.ps1`
+  revives it from disk with the full parameter set. **Canary one line before rolling the rest.**
+  ⚠ `--pack` is NOT a supervisor command-line argument — checking the supervisors' own command lines
+  returns a misleading "0 of 12". **Check the DRIVER command lines** (RUN 8 trap, §74.4).
 
 **After any relaunch: update `RUNNING_SHA` in `docs/ops/cycle.py` AND `docs/HANDOFF.md` in the same
 change.**
 
 ---
 
-# §7. READ THESE, IN THIS ORDER
+# §7. THE ENVIRONMENT, THE MECHANICS, AND WHAT TO READ
 
+## §7.1 ★ THE ENVIRONMENT — read this before your first command, it will save you two mistakes
+
+> ### ⚠ **THE REPO IS A SUBDIRECTORY OF THE WORKING DIRECTORY.**
+> The session opens in **`c:\Users\User\Desktop\dissertation_papers`**, but everything lives in
+> **`c:\Users\User\Desktop\dissertation_papers\llm-reward-portfolio`**.
+> **RUN 8 hit this on its very first command and again mid-session** (the Bash cwd does not always
+> persist). **Start every Bash call that matters with:**
+> ```bash
+> cd /c/Users/User/Desktop/dissertation_papers/llm-reward-portfolio
+> ```
+
+| fact | value |
+|---|---|
+| python | **3.11.9**, and the venv is **already active** — `python` resolves to `…/llm-reward-portfolio/.venv/Scripts/python.exe` |
+| current branch | **`myriad-cluster-and-tier-system`** |
+| **push to BOTH** | `git push -q origin HEAD:backup-2026-07-28` **and** `git push -q origin HEAD:myriad-cluster-and-tier-system` — every commit, both branches |
+| the session cursor | `C:\Users\User\.claude\projects\c--Users-User-Desktop-dissertation-papers\memory\session-current-focus.md` (outside the repo) |
+| scratch files | use the session scratchpad, never `/tmp` — and note **Git Bash `/tmp` ≠ Python's `/tmp`**; a file written by a shell redirect may be invisible to a Python script. Use absolute scratchpad paths. |
+| shells | **Bash and PowerShell are BOTH available and take DIFFERENT syntax.** PowerShell 5.1 has no `&&`, no ternary, no `bc`. |
+
+**Encoding gotchas that cost RUN 8 real time:**
+
+* **`bc` IS NOT INSTALLED.** Use `awk '{s+=$1} END{print s+0}'` for arithmetic in shell.
+* **Some `docs/ops` scripts print non-ASCII.** If one dies with `UnicodeEncodeError` under a pipe,
+  prefix it: `PYTHONIOENCODING=utf-8 python docs/ops/…`. (`cycle.py` was permanently fixed, §74.2 —
+  but your own scripts will hit it.)
+* **`.ps1` files must be pure ASCII**, validated with `Parser::ParseFile`.
+* **Never put backticks or backslashes in a bash heredoc.** Write the file with the Write tool, then
+  `cat >>`. Five violations across sessions.
+
+**Commands you will use constantly:**
+
+```bash
+tail -3 docs/ops/watch/CYCLE_LOG.md                       # THE monitoring check (§0.1)
+python scripts/freeze.py --check                          # must print [MATCHES]
+git status --porcelain -- src scripts config prompts      # drift: must be EMPTY
+git diff --name-only 50b6e07 HEAD -- src scripts config prompts   # drift: must be EMPTY
+python scripts/update_handoff.py --suite-status "…"       # then REVIEW §1's prose rows
+git commit -F <file>                                      # multi-line messages; NEVER inline -m in PowerShell
+```
+
+## §7.2 THE PEOPLE, THE PAPER, AND THE PLAN
+
+* **Dr Ramin Okhrati** — UCL supervisor and **first marker**. "Dr", never "Prof". A measure-theoretic
+  probabilist working on coherent risk, offline RL/CQL, LLM risk. **His six duties are in §3.**
+* **Stefan** — industry supervisor; **his five criteria are in §3**, and reproducibility is his #3
+  ("THE critical point").
+* **Raad** — Head of AI R&D, NatWest; the open-weights / one-frontier / cost-discipline feedback
+  (ADR-059, R78) that triggered the v2 redesign.
+* **A second marker from ANY discipline** also grades the PDF — communication is a named rubric risk.
+
+**The paper** lives in `paper/`: `CH1_introduction` · `CH2_related_work` · `02_CHAPTER_theory` ·
+`CH4_methods` (39 KB, **finishable now — needs no results**) · `CH5_prototype` ·
+`CH6_results` (**66 placeholder markers**) · `CH7_discussion_limitations_conclusion` (thin) ·
+`APPENDIX_B_limitations` · `FRONT_MATTER` · `FIGURE_TABLE_MANIFEST` · `NOMENCLATURE`.
+
+**TWO write-time authorities, and you must read BOTH before drafting anything:**
+* **`docs/WRITEUP_95PLUS_PLAYBOOK.md`** — HOW to write (CH2-as-argument, the mechanism detective
+  story, the 10k distillation, the prereg-skeleton Results).
+* **★ `docs/GRADE_95_MASTER_PLAN.md`** (661 lines, written 2026-07-31, status **ACTIVE**) — WHAT to
+  write and in what order. It consolidates the marking criteria, the IFTE0008 guidelines, every
+  supervisor feedback strand and the exemplar calibration into one action register targeting 95%+ on
+  **each of the four criteria independently**. It says of itself that it *"is checked at every
+  write-time step alongside the four authorities in CLAUDE.md"*. **RUN 8 found it referenced in NO
+  other document** — brief, CHANGELOG, HANDOFF and memory all missed it — and committed it for that
+  reason. Do not plan write-up work without it. Its §12 (the supervisor research programme) and §14
+  (the adversarial novelty assessment) are the two sections with consequences outside the write-up.
+
+**Skills available:** `engineering-standards` (testing/reliability checklist) ·
+`security-practices` (the sandbox, untrusted code, credentials) · `verifying-citations` (run before
+any PDF compile or citation edit).
+
+## §7.3 READ THESE, IN THIS ORDER
+
+0. **This file.** Then, before any WRITE-UP work (not needed for campaign ops):
+   `docs/GRADE_95_MASTER_PLAN.md` + `docs/WRITEUP_95PLUS_PLAYBOOK.md`.
 1. `docs/HANDOFF.md` §1 — the ★★★★★ START HERE row.
 2. `memory/session-current-focus.md` — the `▶ NOW` cursor.
 3. `CLAUDE.md` — priorities (untracked; §3 above is the backup).
@@ -717,6 +798,44 @@ saturation point; and we already held **1,664 cores for 14 h** *with both thrott
 **CH6 has 66 placeholder markers. CH7 is thin. 45 registry rows are open.** The grade comes from the
 **submitted PDF alone** (no viva). The campaign is healthy and self-running; the document is not.
 **CH4 (methods) can be finished today — it needs no results.**
+
+**★ AND THE MASTER PLAN CHANGES THE SHAPE OF THAT WORK — read `docs/GRADE_95_MASTER_PLAN.md` before
+estimating it.** Four of its findings are load-bearing and appear in no other document:
+
+* **§0.2 — four required artefacts are WRITTEN but UNWIRED.** `paper/sections/`
+  `RQ_canonical_and_framing.md` (1,053 w), `CH7_wider_context.md` (756 w), `CH1_contributions.md`
+  (951 w) and `CH3_severity_paragraph.md` (757 w) are **absent from
+  `scripts/build_paper.py::ASSEMBLY`**. So the dominant remaining work is **assembly and
+  presentation, not authoring** — which is a much better position than "66 placeholders" suggests.
+* **§0.3 — two chapters are not sections the guidelines permit.** The required structure has no
+  Theory and no Prototype section, yet `02_CHAPTER_theory.md` (4,000 w) and `CH5_prototype.md`
+  (1,402 w) are both in `ASSEMBLY`. Relocating them to appendices is required for conformance **and**
+  delivers 5,002 of the ~10,177 words that must come out of the body.
+* **§0.1 — we do NOT know how the four criteria are aggregated**, and our own two internal documents
+  contradict each other on it, neither citing a source. The plan's posture is to **assume the
+  harshest rule** (all four must independently reach the target). Do not "fix" that contradiction by
+  picking a side; it is unresolved on purpose.
+* **★ §14.1 — THE NOVELTY SWEEP MISSED A NEIGHBOUR, and this one has a DEADLINE.** The plan reports
+  **RDA ("Reward Design Agent", arXiv:2606.01672, June 2026)**: an LLM authoring executable reward
+  code for **Soft Actor-Critic** — our own fixed algorithm — whose stated contribution is that
+  Eureka-style loops rely on *"coarse numerical metrics"* and should be **enriched**. That is our
+  argument's exact shape, along a semantic/visual axis instead of a distributional one. It does not
+  close our cell (robotics, not risk-sensitive, not finance, no pre-registration) but it means **we
+  can no longer claim novelty for "enriching the feedback channel" as an idea** — and we must narrow
+  that ourselves before a referee does. The **process defect** is that the 2026-07-30 sweep was
+  **finance-weighted**; the fix (§14.4 N-A4) is to sweep the reward-design lineage on arXiv **by
+  date**, and it is due **before the mandatory pre-submission sweep, ~20 Aug**. Three sibling actions
+  ride with it: **N-A1** reorder the contributions by DURABILITY not topical appeal; **N-A2** promote
+  the placebo-controlled identification design to a **named, numbered contribution** (the plan argues
+  it is more novel than the topic, and *"no prior work in this lineage runs a placebo"* is a more
+  checkable sentence than *"the cell is empty"*); **N-A3** add RDA/LEARN-Opt/RF-Agent/QRM to T10 with
+  cite-and-distinguish sentences.
+
+⚠ **AND AUDIT IT TOO — the plan is RUN-8-era work and is NOT exempt from §14.** Its §12.8 and §14
+  citations say "verified first-hand", but **RUN 8 did not re-verify them when wiring the document
+  in**, and this project has a documented history of a fabricated bib entry passing an audit. Before
+  any of it reaches the PDF, verify **arXiv:2606.01672 and every §12.8 citation form** first-hand
+  against the real record — the `verifying-citations` skill exists for exactly this.
 
 **Also open:** the **A12 DOI deposit needs Tamer** (~10 min, staged in `docs/A12_DEPOSIT_PACKAGE.md`) ·
 the **R81 interim report pack** (~2026-08-06/08, registered in the pre-registration; Tamer said on
