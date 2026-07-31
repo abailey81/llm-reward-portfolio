@@ -113,7 +113,29 @@ def render_jobscript(
     pack: int = 1,
     cores: int | None = None,
     mem_per_core: str | None = None,
-    tmpfs: str = "15G",
+    #: 2026-07-31 (record §60): 15G -> 1G. **`tmpfs` is a CONSUMABLE** (`qconf -sc`:
+    #: `tmpfs  scratch  MEMORY  <=  YES  JOB  10G`), so the request is RESERVED per job and a node
+    #: can host only `total_tmpfs / request` of our jobs no matter how many slots are free.
+    #: MEASURED on the live estate 2026-07-31:
+    #:   * what we actually stage: the ACFS gold dir is **71 MB** (plus a small TORCH_HOME)
+    #:   * what we asked: **15G** -- a **216x** over-request
+    #:   * pool-d hosts with >=15G tmpfs free: **11 of 348**; with >=1G free: **348 of 348**
+    #:   * consequence, measured directly: our 60 running jobs sat on **51 distinct hosts, 1.18 jobs
+    #:     per node**, on 36-slot nodes where FOUR 8-slot jobs fit. Slots were never the limit --
+    #:     our own scratch reservation was.
+    #: This is the §38 memory defect one consumable over: a round number nobody had measured against
+    #: the thing it reserves. Sized here from the measurement with ~14x headroom over the staged
+    #: bytes, which is also exactly the value that clears the eligibility cliff (2G already drops us
+    #: back to 11 hosts).
+    #: SAFE BY CONSTRUCTION, not merely by margin: the jobscript stages gold with
+    #: `if cp ...; then export LLM_RP_GOLD_STAGED_DIR=...`, so a copy that does not fit simply falls
+    #: back to reading the ACFS input dir (see the staging comment above). An undersized tmpfs
+    #: therefore degrades I/O; it cannot fail a training. And tmpfs is outside the determinism
+    #: envelope -- it changes where bytes are read from, never the arithmetic.
+    #: SCOPED TO THE CPU LANE, following §38's precedent: the measurement was made on pool-d CPU
+    #: tasks, so the GPU lane keeps its 15G and stays byte-unchanged (there is a regression test that
+    #: asserts exactly that). ``None`` => lane default; an explicit value always wins.
+    tmpfs: str | None = None,
     h_rt: str | None = None,
     venv: str = "$HOME/venvs/llmrp",
     repo_root: str = "$HOME/llmrp",
@@ -270,6 +292,11 @@ def render_jobscript(
             mem_per_core = f"{max(1, int(round(_need_gb / max(1, int(cores))))):d}G"
         else:
             mem_per_core = "4G"
+    # tmpfs, same shape and the same reasoning one consumable over (record §60). See the parameter's
+    # docstring for the measurement: 71 MB staged against a 15G request, which left only 11 of 348
+    # pool-d hosts eligible and pinned us to 1.18 jobs per node where four would fit.
+    if tmpfs is None:
+        tmpfs = "1G" if device == "cpu" else "15G"
     h_rt = h_rt if h_rt is not None else ("3:0:0" if pack == 1 else "1:30:0")
     from src.cluster.submit import sanitize_name
 

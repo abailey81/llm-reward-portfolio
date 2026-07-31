@@ -6,6 +6,7 @@ the G1 on-cluster dry-run acceptance); everything else is exercised for real.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -413,3 +414,23 @@ def test_bad_node_fence_is_opt_in_and_leaves_the_default_BYTE_IDENTICAL():
     assert not [ln for ln in render_jobscript("b", 4, "/h/llmrp", "/gold",
                                               exclude_hosts=["", "  "], **base).splitlines()
                 if ln.startswith("#$ -l h=")]
+
+
+def test_tmpfs_is_sized_from_the_MEASURED_stage_not_a_round_number():
+    """Regression for record §60: `tmpfs` is a CONSUMABLE, so an over-request caps jobs-per-node.
+
+    Measured 2026-07-31: we staged 71 MB of gold and requested 15G — a 216x over-request that made
+    only 11 of 348 pool-d hosts eligible and pinned us to 1.18 jobs per node on 36-slot machines
+    where four 8-slot jobs fit. The bound below keeps a healthy multiple of the staged bytes while
+    staying under the 2G cliff where host eligibility collapses.
+    """
+    js = render_jobscript("t", 1, "/r", "/g", device="cpu", pack=1, cores=8)
+    m = re.search(r"^#\$ -l tmpfs=(\d+)G", js, re.M)
+    assert m, "the jobscript must request tmpfs explicitly"
+    gb = int(m.group(1))
+    assert gb <= 1, (
+        f"tmpfs={gb}G: at 2G or above only 11 of 348 pool-d hosts qualify, which caps us at ~1 job "
+        f"per node regardless of free slots (record §60)"
+    )
+    # ...and still comfortably above the ~71 MB actually staged.
+    assert gb * 1024 >= 71 * 10, f"tmpfs={gb}G leaves under 10x headroom over the 71 MB staged"
