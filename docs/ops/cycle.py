@@ -257,6 +257,30 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
                          "Expected behaviour of the floor; confirm the affected line and that the "
                          "best ELIGIBLE candidate is the one that gets frozen.")
 
+    # ★ C4-BOUNDARY DETECTOR. A line enters the seed ladder once all five of its arms have a frozen
+    # winner. That boundary is the ONLY window in which `--pack 8` can be applied, and applying it is
+    # worth roughly half the rung-568 makespan (§50) -- at the core counts measured on 2026-07-31,
+    # rung 568 lands 08-30 (MISSING the Aug-27 stop) without the extra concurrency.
+    #
+    # ⚠ AND IT IS A HEAVIER OPERATION THAN IT LOOKS. `--pack 4` is hard-coded in the ARGUMENT ARRAY of
+    # `scripts/mode_d_supervisor.ps1`, and PowerShell binds that array when the SUPERVISOR starts --
+    # not when it relaunches a driver. So `--pack 8` requires restarting the twelve SUPERVISORS, which
+    # is the full teardown, not the gentle driver-only relaunch used for §46 and §54. Miss the window
+    # and C4 runs at half the cores for its entire duration.
+    frozen_by_line: dict[str, int] = {}
+    for marker in ROOT.glob("frozen*/*-winner/record.json"):
+        frozen_by_line[marker.parent.parent.name] = frozen_by_line.get(marker.parent.parent.name, 0) + 1
+    got["frozen_winners_by_line"] = frozen_by_line
+    ready = sorted(k for k, v in frozen_by_line.items() if v >= 5)
+    got["lines_at_c4_boundary"] = ready
+    if ready:
+        alerts.append(
+            f"★ C4 BOUNDARY REACHED on {', '.join(ready)} (5/5 arms frozen). This is the ONLY window "
+            f"for `--pack 8` (DEFERRED_FIXES 11) and for the other outstanding deferred fixes. It "
+            f"needs a SUPERVISOR restart, not a driver relaunch -- the flag is bound in "
+            f"mode_d_supervisor.ps1's argument array at supervisor start. Without it C4 runs at half "
+            f"the cores, and at the 2026-07-31 core count rung 568 lands 08-30, missing the stop.")
+
     # ARM DEPTH -- the check that would have caught §56 three days earlier.
     pools = {k: got.get(k) for k in _IUT_ARMS if isinstance(got.get(k), int) and got.get(k)}
     if len(pools) == len(_IUT_ARMS):

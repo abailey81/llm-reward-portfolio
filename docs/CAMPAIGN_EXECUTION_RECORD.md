@@ -6454,3 +6454,120 @@ asserts every arm is SUBMITTING); arm *depth* was not.
 **Registered as a monitoring obligation:** the cycle should watch the per-arm candidate spread, not
 merely per-arm presence. A campaign can have all five arms alive, all guards green, and still be
 accumulating a systematic imbalance between the very populations its headline test compares.
+
+---
+
+## 57. THE REQUEUE — EXECUTED, AND THE PREDICTION VERIFIED TO THREE DECIMALS
+
+Written 2026-07-31 ~10:20 UTC. §54 fixed the `-p` ladder for NEW submissions; §56 showed the damage
+had already reached H2's IUT legs. This section closes the loop: the 109 legacy jobs were requeued at
+full standing, and the effect was measured against a prediction made **before** the change.
+
+### 57.1 Why a prediction was written down first
+
+The whole point of forecasting before acting is that the forecast can then be **wrong in public**.
+Measured at 09:5x UTC, before touching anything:
+
+| | before (`-p -100`) | **predicted** after (`-p 0`) |
+|---|---|---|
+| our `prior` | 1.81216 – 1.82823 | 2.00756 – 2.02363 |
+| pending jobs outranking us | **1,888 of 2,395** | 518 of 2,395 |
+
+The predicted shift is the flag and nothing else: `4.0 × [(0+1023)/2047 − (−100+1023)/2047] = 0.1954`.
+
+### 57.2 The operation
+
+`docs/ops/requeue_legacy_priority.sh --apply`, run once:
+
+```
+queued (qw) jobs found            : 113
+  already at -p 0 (left alone)    :   4
+  legacy negative -p (to requeue) : 109
+  skipped because they had started:   0
+  deleted                         : 103
+```
+
+**Safe by design, not by luck.** `driver.py`'s P13 hardening (2026-07-13) classifies a round that
+leaves **no qacct trace** as "the deleted-pending class (an admin purge / qdel before dispatch)" and
+requeues those specs **without a retry bump**. The driver logs confirmed it within one poll interval,
+45 times over:
+
+```
+(1/3) — the array was purged before dispatch; requeueing 5 spec(s) WITHOUT a retry bump
+```
+
+The `(1/3)` is the evidence-less-drain counter: the driver tolerates three consecutive such drains per
+batch before exhausting loudly, so **one sweep spends one of three** and the operation must not be
+repeated against the same batches. That bound is why the script is dry-run by default and documents
+"ONE pass".
+
+**The one rule that made it safe** is enforced per job, not per sweep: the script re-reads each job's
+state immediately before deleting and skips anything no longer `qw`, because deleting a **dispatched**
+job leaves qacct rows, which the driver reads as attempt evidence and DOES bump the retry counter for
+— and retries are bounded, so a bumped spec can eventually exhaust and be permanently lost (§26.3).
+**0 jobs had started**, so nothing was bumped.
+
+### 57.3 ⚠ A surprising negative, and it was the instrument again
+
+The first post-change reading was **`prior = 0.00000` on every pending job**, with "1,883 of 2,380
+outranking us" — i.e. apparently *worse* than before. Per the standing rule that is a claim about the
+instrument before it is a claim about the world, so it was checked rather than reported:
+
+* the **RUNNING** jobs, which the scheduler had already priced, read **`prior 2.02632`**
+* the pending jobs had been submitted **seconds earlier** (11:09:40)
+* `qconf -ssconf` → **`schedule_interval 0:10:0`**
+
+A freshly submitted job carries `prior 0` until the next scheduling pass. Nothing was wrong; the
+measurement was taken inside a ten-minute blind spot. **Re-measured after one interval:**
+
+| | predicted | **actual** |
+|---|---|---|
+| our `prior` | 2.00756 – 2.02363 | **2.00838 – 2.02160** |
+| pending jobs outranking us | 518 of 2,395 | **545 of 2,385** |
+
+The prediction holds to three decimal places on the priority and to within 5 % on the rank. **We moved
+from being outranked by 1,888 of 2,395 pending jobs to 545 of 2,385** — from the bottom fifth of the
+cluster queue to the top quarter, above `ucemlwh` (2.000), who alone holds 863 pending jobs.
+
+The queue is now **96 pending at `-p 0` and ZERO at `-p -100`**.
+
+### 57.4 What this does NOT yet prove
+
+Cores at the time of writing are **464**, up from 384, and rising slowly rather than stepping. That is
+expected and it is worth stating plainly rather than claiming victory:
+
+* priority governs **queue position**, not instant dispatch — the 545 jobs still ahead of us are real,
+  and our jobs also have to FIT (8 contiguous slots plus memory) on a host as it frees;
+* the requeued specs re-entered with **zero accrued waiting time**, and `weight_waiting_time = 1.0`,
+  so part of the gain is spent buying back age they had already earned;
+* the honest test is the **rate of arm-generation completion on the CONTROL arms over the next
+  several hours**, not the instantaneous core count. That is what §56 actually needs.
+
+**The forecast that matters, re-derived at the measured core counts:** rung 568 lands **08-30 at 456
+cores — MISSING the 2026-08-27 stop** — and 08-19 at 700, 08-12 at 1,000, 08-05 at 2,000. Search-phase
+concurrency is capped by the design (§43), so this understates C4, where the ladder is throughput-bound
+and `--pack 8` doubles cores per placed job. **It nevertheless says plainly that the top rung is not
+safe at today's numbers, and that C4's configuration is what decides it.**
+
+### 57.5 ★ THE C4 WINDOW, and a non-obvious operational fact that would have cost the top rung
+
+`--pack 8` (DEFERRED_FIXES 11) is worth roughly half the rung-568 makespan. It is applied by changing
+`--pack 4` in `scripts/mode_d_supervisor.ps1`.
+
+**PowerShell binds that argument array when the SUPERVISOR starts — not when the supervisor relaunches
+a driver.** So `--pack 8` requires restarting the **twelve supervisors**, i.e. the full teardown, and
+**not** the gentle driver-only relaunch used for §46 and §54. Anyone who assumes "it's just a flag,
+the next driver relaunch picks it up" will find C4 running at half the cores for its entire duration,
+with no error and no alarm.
+
+Two mitigations are now in place:
+
+1. **A C4-boundary detector in `cycle.py`.** A line enters the seed ladder once all five of its arms
+   have a frozen winner; the cycle counts `frozen*/*-winner/record.json` per line and raises a RED
+   alert the moment any line reaches 5/5, naming the supervisor-restart requirement. Falsified both
+   ways (fires at 5/5, silent below).
+2. **The C3 gate will not stall us.** Checked rather than assumed: the supervisor passes **no**
+   `--hold-at-gate`, and the driver's own message states *"on green health without `--hold-at-gate`
+   the gate auto-proceeds — no manual wait."* No `TIER1_APPROVED_*` file is needed unless health goes
+   RED. (D16 remains true — the gate's `health_ok` is blind to a substrate mix — which is why C4 will
+   not stall on the D15 records either.)

@@ -146,4 +146,18 @@ capacity_accumulation:WARN
 # is necessary and why fitness alone cannot substitute for it.
 # ⚠ RE-TRIAGE IMMEDIATELY IF such a record appears on the CORE line, or if any high-fallback record
 # tops its arm on a line whose winner has not yet been frozen.
+#
+# ── THE SPECIFIC RECORD HAS CHANGED. Re-triaged 2026-07-31 (record §53.12). ──
+# The sentinel now reports `scalar-g5-c3` at 234,771/400,000 = 58.69 %, on the glm-5.2 leg — NOT the
+# kimi-k3 record described above. An acknowledgement that names the wrong instance is exactly the rot
+# this file exists to prevent, so both are now covered:
+#   * kimi_k3/distributional-g2-c2   99.98 %  — D17-adjacent, fully broken, self-limiting
+#   * glm_5_2/scalar/scalar-g5-c3    58.69 %  — **NOT D17.** D17 produces RECIPROCALS (1/2 -> 49.983,
+#     1/3 -> 33.333) because its period is the cold-start warm-up plus one; 58.693 % is not a
+#     reciprocal of any integer, so this is a data-dependent failure — the ordinary genuinely-broken
+#     class R115 exists to exclude. The distinction matters for the authoring-reliability finding: a
+#     D17 record is biased AGAINST its own model (§37.6) and this one is not.
+# BOTH are correctly handled: R115-excluded, and NEITHER tops its arm — glm's scalar arm is topped by
+# `scalar-g0-c2` at val_fitness 0.2704 with 0.00000 % fallback, so the floor is not even load-bearing
+# there. Zero breaches on the confirmatory core line; the trigger above has NOT fired.
 record_sanity:CRITICAL
