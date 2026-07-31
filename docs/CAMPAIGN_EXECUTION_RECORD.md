@@ -5983,3 +5983,50 @@ record`, the two agreed on every case that existed when it was written, and the 
 *intent* rather than the *implementation* — so the divergence was invisible to reading and only
 appeared when a new record shape (a frozen winner in the test stage) arrived. **Where a property is
 directly observable, observe it; do not infer it from a correlate that happens to agree today.**
+
+### 53.12 THE AUTOMATED CADENCE PAID FOR ITSELF IN ONE SHIFT — AND THE TWO NEW R115 BREACHES ARE TRIAGED
+
+`cycle_loop.sh` ran **127 unattended cycles over 4 h 29 m** (03:41 → 08:10 UTC) at a mean interval of
+~132 s, with **no gap** — across a window in which the session was otherwise idle and would have
+recorded nothing at all. That is the whole argument for automating it: the previous 2 h 18 m gap and
+this 4 h 29 m window are the same failure mode, and only one of them was covered.
+
+It raised exactly **two** ATTN events in that window, both the same check, and both correct:
+
+    03:57:15Z  R115 execution-floor breaches rose  9 -> 10
+    07:58:14Z  R115 execution-floor breaches rose 10 -> 11
+
+**The alarm's instruction is "identify the new one and confirm it is the known mechanism, not a new
+failure", so that is what was done.**
+
+| new breach | fraction | exact counts | verdict |
+|---|---|---|---|
+| `qwen3_6_27b/scalar/scalar-g4-c4` | **49.983 %** | **199,932 / 400,000** | **D17, known.** *Bit-identical* to the same cell's `g1-c4` and `g2-c4` — the same integer, not merely the same percentage |
+| `glm_5_2/scalar/scalar-g5-c3` | **58.693 %** | 234,771 / 400,000 | **NOT D17.** A genuinely broken reward |
+
+**The second one is the interesting one, and it is worth being precise about why it is *not* the D17
+signature.** D17 produces `1/period` where `period = (calls to leave the cold-start branch) + 1`, so
+its fractions are reciprocals — 1/2 → 49.983 %, 1/3 → 33.333 %. **58.693 % is not a reciprocal of any
+integer.** It is therefore a data-dependent failure — the reward raises on some state-dependent
+condition rather than being trapped alternating at a warm-up boundary — which is the ordinary
+"genuinely broken" class that R115 exists to exclude, not a harness artefact. Recording the
+distinction matters because the two classes mean different things for the authoring-reliability
+finding: a D17 record is biased *against* its model (§37.6), while this one is not.
+
+**Neither breach threatens a scientific conclusion, checked rather than assumed:**
+
+* **Zero breaches on the confirmatory core line `c1`** — the standing re-triage trigger in
+  `acknowledged_alarms.txt` has NOT fired.
+* **Neither tops its arm.** `glm_5_2/scalar`'s best candidate is `scalar-g0-c2` at `val_fitness`
+  **0.2704 with 0.00000 % fallback**; `qwen3_6_27b/scalar`'s is `scalar-g0-c0` at **0.2652, also
+  0.00000 %**. In both cells the best-by-fitness candidate *overall* is already the best **eligible**
+  one, so R115 is not even load-bearing there — it is load-bearing only in the one binding case,
+  `qwen3_5_9b/distributional-g3-c3`, which is unchanged.
+* **Confirmed by an independent route.** `results_audit`'s anomaly hunt, which never reads the R115
+  list, independently reports the repeated-fraction cluster moving **`(0.49983, 7)` → `(0.49983, 8)`**
+  — exactly one new record at the D17 fraction, matching the classification above.
+
+**Alarm hygiene note.** The rising-count check will fire on every future breach, and that is correct:
+each new one genuinely needs the three-line triage above. What it must never become is a count that
+is watched and not read — the moment a breach lands on `c1`, or tops an arm whose winner is not yet
+frozen, it stops being bookkeeping and becomes a validity decision.
