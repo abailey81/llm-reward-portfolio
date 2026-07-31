@@ -7998,3 +7998,116 @@ at C4**, which is where the pack-8 change (§58) and the real capacity question 
 12/12 lines · drift **0** · freeze `3ca6f01a…` MATCHES · `sci=OK` · **0** transport timeouts ·
 ~1,462 records · $37.64 · 720-744 cores · R115 12 breaches, **0 on the core line** · cycle cadence
 current · reaper live in **DRY RUN** on the fixed rule.
+
+---
+
+## §69. EVERY SCIENCE INVARIANT RE-DERIVED INDEPENDENTLY — ALL HOLD; PLUS A REPRODUCIBILITY DEFECT IN 360 FILES (2026-07-31)
+
+**Why.** `sci=OK` asserts **eight** hard validity invariants. §66 independently re-derived **one** of
+them (construct validity). The other seven rested on a single tool's self-report, built by the session
+that also wrote the monitor. This re-derives all of them from the raw archive **without importing or
+invoking `science_watch.py` / `results_audit.py`**, and adds one the monitor does not appear to check
+at all.
+
+**Scope: 1,474 records** (`frozen/` excluded — it holds COPIES — and `.pull_tmp` excluded, D18).
+
+### §69.1 RESULT — every invariant holds, zero violations
+
+| invariant | denominator | violations |
+|---|---|---|
+| `reward_source_hash` == `sha256(reward_source)` | 1,474 | **0** |
+| recorded hash == `sha256(reward.py` on disk`)` | 1,474 | **0** |
+| **CVaR monotonicity** `cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25` | 1,114 | **0** |
+| CVaR sign (left tail of signed returns ≤ 0) | 1,114 | **0** |
+| all `tail_stats` finite | 1,114 | **0** |
+| all `val_returns` finite | 1,114 | **0** |
+| `train_safe_call_count` == **400,000** (the registered step count) | 1,474 | **0** |
+| PopArt `sigma == max(1.0, raw_rms)`, and `*_max ≥ *_last` | 1,474 | **0** |
+| seed within `[0, 567]` | 1,474 | **0** |
+| **no identical program under two different arms** | 1,052 distinct LLM programs | **0** |
+
+**The hash chain is intact end-to-end**: for every record the archived source, the recorded hash, and
+the `reward.py` file on disk agree — so the reward that was scored is provably the reward that was
+authored.
+
+### §69.2 THE CVaR MONOTONICITY CHECK — added here because it guards the core instrument
+
+CVaR at level *α* is the mean of the worst *α*-fraction of returns, so
+**cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25 is a mathematical identity of the estimator**, not a modelling
+assumption. It is worth checking precisely because a violation would be silent and catastrophic: the
+six-scalar tail vector **IS the manipulated variable of H2**, so a broken tail estimator would not
+merely add noise — it would mean the arms differ by something other than what the design says they
+differ by, and no downstream check would catch it.
+
+**Verified on all 1,114 records carrying `tail_stats`: zero violations, and every CVaR non-positive.**
+The instrument is mathematically sound. (This is the same class of guard as §36's session-axis lesson
+and the wrong-unit refutation of the prototype "tail signal" — the tail measurement has burned this
+project before, and it is now checked by identity rather than by trust.)
+
+### §69.3 P36 — one apparent violation, and it was my own scoping error
+
+The first pass reported **330 non-finite `val_fitness`**, which reads as a serious metric defect. It is
+not. **330 = 11 baselines × 30 seeds exactly**, and the decisive split is by lane:
+
+```
+  SEARCH lane : 1,114 records,   0 NaN val_fitness   <- selection is UNCONTAMINATED
+  TEST   lane :   360 records, 330 NaN val_fitness
+```
+
+`val_fitness` is the **validation** Deflated Sharpe used to *select* candidates. **The sealed-test lane
+has no validation step** — its records carry `test_sharpe`, `test_cvar05`, `test_returns`,
+`per_period_pnl`, `test_alloc`, `test_turnover`, `test_exposure` instead. The field is simply
+inapplicable there. **I had applied a search-lane invariant to test-lane records.**
+
+**The check that actually mattered passed: zero NaN `val_fitness` anywhere on the search lane**, so no
+candidate was ever selected on a non-finite fitness.
+
+### §69.4 ⚠ A REAL REPRODUCIBILITY DEFECT — 360 archive files are not valid JSON
+
+Investigating that NaN rather than dismissing it surfaced something genuine.
+
+**`NaN` is not part of JSON.** RFC 8259 admits no `NaN`, `Infinity` or `-Infinity`. Python's
+`json.load` accepts them **by default**, which is exactly why nothing in our pipeline has ever
+complained. Verified directly:
+
+```
+  python json.load (permissive)  : OK
+  python STRICT (RFC 8259 only)  : REJECTED -> non-standard constant: NaN
+```
+
+Go's `encoding/json`, Rust's `serde_json`, JavaScript's `JSON.parse` and R's `jsonlite` all refuse a
+bare `NaN`.
+
+**Scope, measured exactly:**
+
+```
+  files affected : 360     tokens: 690, all `nan` (no Infinity anywhere)
+  fields         : metrics.train_curve.return[]  (360 files)
+                   metrics.val_fitness           (330 files)
+  lanes          : TEST 360   |   SEARCH 0   |   FROZEN 0
+```
+
+**The confirmatory search archive and the frozen winners are already standards-compliant.** Both
+affected fields are inapplicable-or-diagnostic (`train_curve.return` is SB3's rollout return before the
+first episode completes; `val_fitness` is the §69.3 inapplicable case).
+
+**This is NOT a science defect — no reported number is wrong. It IS a reproducibility defect**, and
+reproducibility is Stefan's criterion #3 (*"THE critical point"*) and Tamer's #1. The artifact is meant
+to be re-analysable **by anyone**; a replicator working in R, Go, Rust or JavaScript hits a hard parse
+failure on 360 files **before reaching any science**. That is precisely the kind of avoidable friction
+the three-layer reproducibility claim exists to eliminate.
+
+**Handling — registered as write-time obligation 42, deliberately NOT a driver relaunch.** The fix is a
+**packaging-time transformation** where the archive is exported for the public deposit (A12) and the
+reproducibility layer: emit `null` for an inapplicable or non-finite value, and state the convention in
+the repro checklist so a consumer knows `null` means *not applicable / not finite* rather than zero.
+Relaunching 24 drivers to change a diagnostic field's serialization would be wildly disproportionate,
+and `pull_archive` re-mirrors the remote copy anyway. Validator kept at
+`docs/ops/json_standards_check.py`; the full invariant re-derivation at `docs/ops/invariants_check.py`.
+
+### §69.5 What this closes
+
+**All eight `sci=OK` invariants are now corroborated by an independent route**, not merely trusted —
+§66 did construct validity, §69 does the remaining seven, and both added a check the monitor lacked
+(§66 the base-re-authoring count, §69 CVaR monotonicity). That is the standard this project holds every
+other load-bearing claim to, now applied to the monitor itself.

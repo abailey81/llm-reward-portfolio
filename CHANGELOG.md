@@ -3,6 +3,55 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31l] EVERY SCIENCE INVARIANT RE-DERIVED INDEPENDENTLY — ALL HOLD; PLUS A REPRODUCIBILITY DEFECT IN 360 FILES
+
+**State before:** RUN 4 live, T+69 h 40 m, 1,473 records, drift 0, `sci=OK`. `sci=OK` asserts **eight**
+hard validity invariants; §66 had independently re-derived **one**. The other seven rested on a single
+tool's self-report, written by the session that also built the monitor.
+
+**All seven re-derived from the raw archive over 1,474 records, without importing or invoking
+`science_watch.py` / `results_audit.py`. ZERO violations:** hash == `sha256(reward_source)` **and** ==
+`sha256(reward.py` on disk`)` (1,474) · **CVaR monotonicity** (1,114) · CVaR sign (1,114) · all
+`tail_stats` finite · all `val_returns` finite · `train_safe_call_count == 400,000` (1,474) · PopArt
+`sigma == max(1.0, raw_rms)` and `*_max ≥ *_last` (1,474) · seed ∈ [0,567] · **no identical program under
+two arms** (1,052 distinct programs). **The hash chain is intact end-to-end** — the reward that was
+scored is provably the reward that was authored.
+
+**A check the monitor does not appear to make, added because it guards the core instrument.** CVaR at
+level *α* is the mean of the worst *α*-fraction, so `cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25` is a
+**mathematical identity**, not an assumption. It matters because the six-scalar tail vector **IS H2's
+manipulated variable**: a broken tail estimator would not add noise, it would mean the arms differ by
+something other than what the design says — silently. **Verified on all 1,114 records: zero violations,
+every CVaR non-positive.** (This project has been burned here before — the prototype "tail signal" died
+on a wrong-unit error that passed every test.)
+
+**P36 — the one apparent violation was my own scoping error.** The first pass reported **330 non-finite
+`val_fitness`**. That is 11 baselines × 30 seeds exactly, and the split by lane is decisive: **SEARCH
+1,114 records / 0 NaN** — selection uncontaminated — versus **TEST 330 NaN**, because the sealed-test
+lane has no validation step and carries `test_sharpe`/`test_cvar05`/`test_returns` instead. I had
+applied a search-lane invariant to test-lane records.
+
+**⚠ BUT INVESTIGATING IT SURFACED A REAL REPRODUCIBILITY DEFECT.** **`NaN` is not valid JSON** (RFC 8259
+admits no `NaN`/`Infinity`). Python's `json.load` accepts it **by default**, which is why nothing in our
+pipeline ever complained — verified: `json.loads(..., parse_constant=raise)` **REJECTS** these files, as
+do Go `encoding/json`, Rust `serde_json`, JS `JSON.parse` and R `jsonlite`. Scope measured exactly:
+**360 files, 690 tokens, two fields only** (`metrics.train_curve.return[]` 360, `metrics.val_fitness`
+330), **all on the TEST lane — ZERO on `search/`, ZERO on `frozen/`**, so the confirmatory archive is
+already compliant. **Not a science defect** (both fields are inapplicable-or-diagnostic; no reported
+number is wrong) — **but a reproducibility defect**, and reproducibility is Stefan's criterion #3
+("THE critical point") and Tamer's #1: a replicator in R/Go/Rust/JS hits a hard parse failure on 360
+files *before reaching any science*.
+
+**Handling — registered as write-time obligation 42, deliberately NOT a driver relaunch.** It is a
+**packaging-time** transformation where the archive is exported for the A12 deposit and the
+reproducibility layer: emit `null` for inapplicable/non-finite values and state the convention in the
+repro checklist. Relaunching 24 drivers over a diagnostic field's serialization would be wildly
+disproportionate, and `pull_archive` re-mirrors the remote copy anyway.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §69 · `docs/V2_WRITE_TIME_REGISTRY.md` row 42 ·
+`docs/ops/invariants_check.py` (new) · `docs/ops/json_standards_check.py` (new). **No code change, no
+relaunch; drift 0.**
+
 ## [2026-07-31k] ★★★ THE RETIRED REAPER WAS KILLING **LIVE** ssh PROCESSES — CAUGHT ON CAMERA IN 21 CYCLES
 
 **State before:** RUN 4 live, T+69 h, 1,462 records, drift 0, `sci=OK`, 720-744 cores. §63.2 had

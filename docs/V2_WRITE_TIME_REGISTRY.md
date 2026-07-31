@@ -478,3 +478,79 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     raises attention past a 1.5× spread (live 2.56×, an upper bound — see the denominator note in the
     code), and `docs/ops/watch/ARM_BASELINE.json` snapshots the 2026-07-31 counts so the controls'
     catch-up can be measured rather than assumed.
+
+## Dr Okhrati's supervision feedback, 2026-07-31 (verbatim asks, recorded same day)
+
+> Tamer's report of the conversation: *"it would be important to see the details, like graphs and
+> etc to show how the results change with increasing seeds, so for example 1,2,3,4,5,6,7,8,9 and
+> etc up to the final seed"* · *"logic and reasoning of the results, how we got them, why this or
+> that happened"* · *"explaining final output, what could be done in future to get more expected
+> result"* · *"it's far more interesting to get a very good comprehensive understanding of what
+> happened"* · *"the experimental setup must be very rigorous"* · *"you get the output, and you can
+> explain the output that you got, and why it happened"*.
+
+38. **★ THE SEED-TRAJECTORY EXHIBIT (new; NO existing figure covers it).** A running-estimate curve
+    per unit: the statistic (Sharpe IQM, CVaR-5% IQM, and the H2 paired difference) recomputed on
+    the first n seeds for n = 1..N, with a widening/narrowing CI band, plotted against n. One panel
+    per co-primary; the H2 contrast panel carries the SESOI band so a reader sees the estimate
+    entering (or not entering) the equivalence margin as n grows.
+
+    **Why it is cheap and exact:** the ladder is CUMULATIVE and CRN-paired, so every prefix
+    [0..n) is a valid complete study; the curve is a pure post-hoc recomputation over records that
+    already exist. No extra compute, no extra spend, no design change.
+
+    **Why it is scientifically load-bearing, not decoration — MEASURED 2026-07-31 on the 11-member
+    canon at n=30:** `return_minus_cvar` reads **-0.215 at n=10** and **-0.364 at n=30** (a ~3-SE
+    move), and `raw_return` is the BEST of the ten losers at n=5 (-0.108) but third-WORST at n=30
+    (-0.289). **The rank order is not stable at small n.** The curve is therefore the direct visual
+    justification of the whole assurance ladder and of sigma_seed = 0.244 dominating the effect
+    we are trying to resolve — i.e. it answers "why so many seeds?" with a picture instead of an
+    assertion. Ordering must follow the REGISTERED seed order (never sorted), or the curve becomes
+    a selection artifact.
+
+    Lands as: `src/viz/figures.py::seed_trajectory` + a CH6 figure + one CH4 sentence.
+
+39. **THE "WHY IT HAPPENED" NARRATIVE SPINE (CH6/CH7).** Okhrati's central ask: the output is not
+    the deliverable, the EXPLANATION of the output is. Every headline number gets: what we
+    observed -> the mechanism instrument that speaks to it (SQ1 responsiveness / SQ2 mediation /
+    SQ3 specificity) -> which of the five rival accounts A1-A5 it supports -> what would have to
+    be true for the alternative reading. Much of this exists in the kernel; the obligation is that
+    it is written as a CONTINUOUS ARGUMENT in the body, not as separate report-only exhibits.
+
+40. **"WHAT WOULD GET A MORE EXPECTED RESULT" (CH7, named subsection).** Not generic future work:
+    a costed, prioritised list of the specific interventions the mechanism analysis implies -
+    legible re-rendering, the guided-compare instruction, the R96 threshold measurement, a
+    turnover-constrained agent, a larger fed-delta regime - each stated with the account it would
+    discriminate and the evidence that motivates it.
+
+41. **THE TURNOVER FINDING AS A WORKED "WHY" EXAMPLE (CH6).** The 2026-07-31 canon result is the
+    template Okhrati is asking for: ten of eleven human rewards LOSE money, the one that prices
+    trading returns +1.154 Sharpe, and the mechanism is measured (78-91% of book/day vs 0.8%),
+    not inferred. Write it as the worked example of output -> explanation.
+
+42. **RFC-8259-COMPLIANT JSON IN THE PUBLIC DEPOSIT (A12 / the reproducibility layer).**
+    *Found 2026-07-31 by independent invariant verification; record §69.* **360 archive
+    `record.json` files contain a bare `NaN` token, which is NOT valid JSON** (RFC 8259 admits no
+    `NaN`/`Infinity`). Python's `json.load` accepts it by default, so our own pipeline never
+    notices — but a STRICT parser rejects the file outright, verified with
+    `json.loads(..., parse_constant=raise)`. Go's `encoding/json`, Rust `serde_json`, JavaScript
+    `JSON.parse` and R `jsonlite` all refuse a bare `NaN`.
+
+    **Scope, measured exactly:** 690 tokens in **two fields only** —
+    `metrics.train_curve.return[]` (360 files) and `metrics.val_fitness` (330 files, the 11
+    baselines x 30 seeds where a *validation* fitness is simply inapplicable on the sealed-test
+    lane). **All 360 are on the TEST lane; ZERO on `search/` and ZERO on `frozen/`, so the
+    confirmatory search archive is already standards-compliant.** No `Infinity` anywhere.
+
+    **This is NOT a science defect** — no reported number is wrong; both fields are
+    inapplicable-or-diagnostic. **It IS a reproducibility defect**, and reproducibility is
+    Stefan's criterion #3 ("THE critical point") and Tamer's #1: the artifact is meant to be
+    re-analysable BY ANYONE, and a replicator working in R, Go, Rust or JavaScript hits a hard
+    parse failure on 360 files before reaching any science.
+
+    **Obligation:** the public deposit and the reproducibility layer must emit RFC-8259-compliant
+    JSON — `null` for an inapplicable or non-finite value — and the repro checklist must state the
+    convention so a consumer knows `null` means "not applicable / not finite" rather than zero.
+    **Do NOT fix this by relaunching drivers** (disproportionate, and `pull_archive` re-mirrors the
+    remote copy anyway): it is a PACKAGING-time transformation, applied where the archive is
+    exported. Validator kept at `docs/ops/json_standards_check.py`.
