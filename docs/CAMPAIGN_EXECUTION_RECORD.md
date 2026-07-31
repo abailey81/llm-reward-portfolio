@@ -506,6 +506,15 @@ re-ship invalid source.
    path is safe — but ~20 `rglob("record.json")` consumers (sentinel, integrity, telemetry, poll)
    count it twice. Any NEW analysis must dedupe explicitly rather than inherit the protection.
 
+12. **⚠ TEST THE SPEC-COMPLIANCE -> BEHAVIOUR -> OUTCOME LINK** (registered 2026-07-31, §51). 84.4 %
+   of 762 authored programs price turnover, but two models are conspicuous outliers
+   (gemini-2.5-flash 33.7 %, nemotron-3-super 50.0 %) on the one term §47 shows decides
+   profitability. **Prediction:** programs without a turnover construct produce agents with higher
+   realised turnover and worse net Sharpe. Compute per-MODEL (not per-arm, so it is not H2) on the
+   complete archive. ⚠ Do NOT frame the 84.4 % as the model DISCOVERING the cost term — the prompt
+   states it explicitly; it is compliance, and the comparison against the 11-reward canon is not
+   like-for-like.
+
 11. **Replay the eight 969,619.5-RMS rewards against a common rollout** (registered 2026-07-30,
    §44.5) to settle whether their shared magnitude is a denominator collapse on shared data — the
    leading explanation, arithmetically consistent (`969,619.5 × 1e-8 = 0.0096962`, a plausible
@@ -5505,3 +5514,91 @@ zero cost to arithmetic, is the priority-consistent choice.**
 **The honest summary: after this decision there is no remaining compute lever that does not change the
 science.** The campaign's calendar is set by a 4.64-day serial chain and by the control arms' remaining
 generations, and the two open items are both Tamer's — the Anthropic top-up and the A12 deposit.
+
+---
+
+## 51. WHAT THE MODELS ACTUALLY WROTE — A HEADLINE I NEARLY GOT WRONG, AND THE BETTER ONE UNDERNEATH
+
+Written 2026-07-31 01:00 UTC. Motivated by §47: ten of the eleven PUBLISHED hand-written rewards omit
+any transaction-cost term, and on this panel that omission is fatal. So the question the data forces is
+about the LLM, not the market.
+
+### 51.1 The measurement
+
+Every distinct authored program (**762**, deduplicated by `reward_source_hash`), scored against
+`src/inference/reward_taxonomy.CONSTRUCTS` — the repo's own single source of truth, not a
+re-implementation. Effect-blind: constructs are counted in the SOURCE, no performance field is read,
+and the counts are POOLED across arms, so this is not the registered per-arm SQ1 contrast.
+
+| construct | programs | share | tail-shaped |
+|---|---|---|---|
+| **turnover / transaction cost** | **643** | **84.4 %** | – |
+| rolling_vol | 568 | 74.5 % | – |
+| drawdown | 329 | 43.2 % | TAIL |
+| sortino_downside | 328 | 43.0 % | TAIL |
+| online_sharpe | 281 | 36.9 % | – |
+| herfindahl | 253 | 33.2 % | – |
+| quantile_tail | 102 | 13.4 % | TAIL |
+| cvar | 71 | 9.3 % | TAIL |
+| left_tail_mass | 31 | 4.1 % | TAIL |
+
+Any tail construct at all: **524 of 762 = 68.8 %**.
+
+### 51.2 ⚠ THE HEADLINE I ALMOST PUBLISHED, AND WHY IT IS FALSE
+
+I was one step from writing: *"84 % of LLM-authored rewards price trading, against 9 % of the published
+canon — the model discovers what the literature missed."* It is a good sentence and it is **wrong**.
+
+`prompts/initial_generation.txt` line 7 lists, explicitly, `- turnover/transaction cost.`, and
+`prompts/system.txt` documents `prev_weights` *"(for turnover/cost)"* and `port_ret` as
+*"(gross - cost)"*. **The models are TOLD.** 84.4 % is therefore COMPLIANCE with an instruction, not
+spontaneous discovery, and the comparison against the hand-written canon is not like-for-like: those
+eleven were written to answer a different question, without our prompt in front of them.
+
+**The check that caught it took one grep of the frozen prompts.** It is the third time in two days that
+interrogating a surprising result of my own changed it — after the PopArt "0 records" type assumption
+and the n=1 placement rate read as 100 %. The pattern is consistent enough to name: **a striking number
+is a hypothesis about my own instrument until the confound is ruled out.**
+
+### 51.3 THE FINDING UNDERNEATH, which is better and is ours
+
+Reframed correctly, this is not about market knowledge — it is about **instruction-following on a task
+where non-compliance is catastrophic and quantifiable**:
+
+| line | programs | prices turnover |
+|---|---|---|
+| sonnet-5 | 72 | **100.0 %** |
+| gpt-5.6-luna | 84 | 98.8 % |
+| glm-5.2 | 59 | 96.6 % |
+| h3 single-shot | 29 | 96.6 % |
+| haiku-4.5 | 85 | 95.3 % |
+| deepseek-v4-pro | 73 | 94.5 % |
+| qwen3.6-27b | 60 | 93.3 % |
+| qwen3.5-9b | 14 | 92.9 % |
+| kimi-k3 | 65 | 92.3 % |
+| **core line (`c1`, Opus)** | 76 | 85.5 % |
+| **nemotron-3-super** | 62 | **50.0 %** |
+| **gemini-2.5-flash** | 83 | **33.7 %** |
+
+**Two models ignore an explicit instruction on the one term that decides profitability** — gemini-flash
+in two programs out of three. And §47 measured exactly what that omission costs: a reward without a
+turnover term produces an agent that rebalances 78–91 % of the book daily and bleeds ~22 % of capital a
+year, the difference between **+1.16 and −0.27** Sharpe.
+
+This is a **second axis of authoring quality**, sharper than the one already registered. The existing
+per-model reliability measure asks *does the code RUN* (qwen3.5-9b's 88 % reject rate, the registered
+capability-gradient bottom anchor). This asks *does the code DO WHAT IT WAS TOLD* — and the two
+orderings disagree: qwen3.5-9b is the worst at producing runnable code (92.9 % compliant when it does)
+while gemini-flash produces runnable code that ignores the brief.
+
+### 51.4 Registered as an analysis-time obligation (12)
+
+**The falsifiable prediction:** the programs omitting a turnover term should produce agents with high
+realised turnover and worse net Sharpe, and the models omitting it most often should show it in the
+aggregate. That links CODE → BEHAVIOUR → OUTCOME, which is the SQ2 transmission step the mechanism
+chapter is built on.
+
+**Not computed now, deliberately** — it reads performance fields, and while it is a per-MODEL rather
+than per-ARM statement (so not the H2 contrast), the discipline is to compute it once, at analysis, on
+the complete archive. What is banked here is the code-side half, which is effect-blind and stands on
+its own.
