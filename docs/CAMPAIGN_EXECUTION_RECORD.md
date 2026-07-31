@@ -9619,3 +9619,90 @@ five; 80.3 is the sixth). The pattern is now unambiguous and worth stating as a 
 > defects are usually partial and messy; a perfect zero almost always means the comparison is between
 > the wrong two objects. Every one of these seven was caught by that question, and by building a
 > POSITIVE CONTROL into the test — which is what v2 added and v1 lacked.
+
+---
+
+## 82. WHY `scalar_cvar5` IS BEHIND — 54 WRITTEN IN THE WALL-CLOCK, AND NOTHING CAN SPEED IT UP (2026-07-31)
+
+Tamer: *"why is it so slow? … speed up to an absolute maximum possible."* Measured rather than
+theorised, and the answer is that **it is not slow — it is BEHIND, which is a different thing and has a
+different cure (none).**
+
+### 82.1 ★ THE PER-GENERATION WALL-CLOCK IS AN INDEPENDENT CONFIRMATION OF 54
+
+Core-line hours per generation, from record mtimes:
+
+| arm | per-generation hours | class |
+|---|---|---|
+| distributional | 5.8, 10.8, 7.4, 5.4, 4.2 | TREATMENT |
+| scalar | 4.5, 4.2, 5.9, 4.4, 7.5 | TREATMENT |
+| placebo | 5.1, **20.3**, 10.8 | control |
+| **scalar_cvar5** | 5.8, **26.0** | control |
+| placebo_shuffled | 5.0, **25.0**, 6.9 | control |
+
+**Every one of the three CONTROL arms has exactly one catastrophic 20-26 hour generation. Neither
+TREATMENT arm has any.** That is the `-p -100` priority starvation of 54 — where the three control
+arms were submitted below every other user on the cluster while the two treatment arms rode at 0 —
+appearing independently in the timing data, from a completely different measurement than the `prior`
+values and stuck-job counts that found it.
+
+**And the controls have RECOVERED**: the most recent control generations run at **6.9-10.8 h**, back in
+the treatment arms' range. The 54/57 fix is working, visibly.
+
+### 82.2 It is not slow NOW — it is behind, and the debt is unrecoverable
+
+`scalar_cvar5` lost roughly **20 hours** on generation 1 alone. Because the search is a **serial
+six-generation chain**, that time cannot be made up: generation *g+1* cannot be authored until all five
+candidates of generation *g* return. The arm is simply three generations behind where its siblings are.
+
+**Right now it is running at full parallelism with zero queue delay** — all five generation-3 jobs
+dispatched within 25 minutes of one another and all in state `r`:
+
+```
+  c1_scalar_cvar5_g3_p01 .. p05   all state=r   started 19:17 -> 19:41 UTC
+```
+
+### 82.3 CAN IT BE SPED UP? No — and each route is closed by measurement, not by assumption
+
+| lever | why it cannot help |
+|---|---|
+| more cores | **all five of its jobs are already RUNNING**; nothing is queued or blocked. Cores cannot make a single training finish sooner |
+| more threads per training | 16 threads is **SLOWER** (44.0 vs 55.1 steps/s, measured) **and** thread count is inside the determinism envelope |
+| priority | already fixed; its jobs carry `prior 2.01285`, above the cluster field mean of 1.79 |
+| pack | packing is a C4 lever; the search lane runs `--search-pack 1` by design so that 8 threads ask for 8 cores rather than 32 |
+| running generations in parallel | **the frozen design forbids it** — the reflection chain IS the experiment |
+
+**The campaign is at its maximum for this phase.** 880 cores held, ~300 more jobs placeable if we had
+them to submit, and 89 queued against a structural ceiling.
+
+### 82.4 The corrected ETA — and I have now given three, each from a better model
+
+| estimate | method | why it was wrong |
+|---|---|---|
+| 4.5-6 days | records-needed / recent record rate | the rate includes IDLE time during the generation drain, so it under-states throughput badly |
+| 2.0 days | 3 generations x the arm's MEAN generation time | the mean averages in the 26 h **starvation** generation, which will not recur |
+| **~19-31 h** | 3 generations x the arm's **RECOVERED** rate (7-11 h, post-54-fix, observed on its sibling controls) | the correct model |
+
+**Core line reaches C4 between ~2026-08-01 midday and 2026-08-02 early**, gated entirely by
+`scalar_cvar5`'s remaining generations 3, 4 and 5. Generation 3 began at 19:17 UTC.
+
+**Stating the correction explicitly because it matters more than the number:** a rate computed over a
+window containing structural idle time, and a mean computed over a window containing a one-off
+pathology, are both wrong in predictable directions. The defensible estimate uses the **recovered**
+rate observed on the arms that already passed through the same starvation.
+
+### 82.5 And the gate will pass — verified, not assumed
+
+A concern surfaced while measuring: `scalar_cvar5` shows gen0=5, gen1=**4**, gen2=**3** accepted — so
+with rejects never replaced (26.3) it will finish with ~27 accepted, not 30. **Does the C3 gate's
+`accounted == 30` then block C4 forever?**
+
+**No — checked in the source rather than assumed.** `src/cluster/integrity.py:86`:
+
+```python
+  accounted = len(resolved) + len(failed_cids - resolved)
+```
+
+**It counts ATTEMPTS, not acceptances** — rejects count toward the budget. `scalar_cvar5` has 15
+attempts so far (12 accepted + 3 rejected) and generations 3-5 supply exactly 15 more, reaching
+**30 attempts**. The gate passes. **C4 is not blocked.**
