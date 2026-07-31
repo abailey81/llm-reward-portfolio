@@ -9378,3 +9378,31 @@ built for it.
 
 **That is the honest map.** Seven verified, three areas untested, and the untested ones are named rather
 than quietly assumed sound.
+
+### 79.5 transport_guard VERIFIED — and the always-zero timeout bug found in a SECOND place
+
+**Verdict path VERIFIED by falsification on a real driver log:**
+
+```
+  BASELINE : timeout_events=0  worst_consecutive=2  diagnostics=0   -> ok
+  PLANTED  : one line reading "(12 consecutive"  (the alarm is depth >= 8)
+  RESULT   : worst_consecutive=12 -> rc=2 CRITICAL,
+             "*** consecutive failures reached 12 (RUN 3 worst was 5)"
+```
+
+**My earlier plant (#4 in the P38 list) failed because I injected `ssh_timeout_diagnostic` lines, which
+increment a REPORTED counter but not `worst_consecutive`, which is the sole verdict driver.** Reading
+which variable feeds `rc` is what made the sixth attempt valid.
+
+**★ AND THE BASELINE EXPOSED THE SAME BUG AS 76.2, IN A SECOND PLACE.** `timeout_events=0` on a REAL
+driver log while `worst_consecutive=2` proves the log IS being parsed. The cause is identical: the
+counter searches for `"timed out after"`, **a string nothing in the codebase emits** (the only
+`grep` hit is a retry KEYWORD LIST at `campaign.py:515`). **Two independent components were written
+from the same wrong assumption about the log vocabulary** — which is why a defect found once is worth
+grepping for everywhere rather than fixing in place.
+
+**Impact is bounded: the guard's DECISION is sound** (driven by `worst_consecutive`, which parses a
+real string; and `ssh_timeout_diagnostic` counting is correct). **Only the reported figure is false.**
+**Cannot be fixed now** — `scripts/` is drift-watched — so it is registered as **DEFERRED_FIXES item
+14**, to land with the core-line C4 relaunch. It changes a reported number, not a computed one, so it
+carries none of the deterministic-replay risk that keeps D17 out (75.1).

@@ -657,3 +657,42 @@ program. That closes the detection gap now; this item closes the mechanism at th
 3. `ruff`; `freeze --check` (none of these files is hash-bound, so the hash MUST NOT move);
 4. commit, push, re-deploy the cluster (§23.12's delta method), re-verify `DIFFER=0 MISSING=0`;
 5. only then restart the affected lines.
+
+---
+
+## 14. `transport_guard`'s `timeout_events` COUNTER IS STRUCTURALLY ZERO (found 2026-07-31, record 79.5)
+
+**File:** `scripts/campaign_guards.py`, `transport_guard()` (the `if "timed out after" in line:` branch).
+
+**The defect.** The guard counts transport timeouts by searching driver logs for the literal string
+`"timed out after"`. **Nothing in the codebase emits that string.** `grep -rn "timed out" src/` returns
+exactly ONE hit, and it is a **retry-classification KEYWORD LIST** at `src/cluster/campaign.py:515`,
+not a log message. So `timeout_events=N` can never be non-zero however many timeouts occur.
+
+**This is the SECOND instance of the identical bug.** The same string, with the same
+always-zero consequence, was found on Tamer's status page and fixed there (record 76.2). Both were
+written from the same wrong assumption about the log vocabulary.
+
+**Impact, bounded and measured — the VERDICT is NOT affected.** `transport_guard`'s return code is
+driven solely by `worst_consecutive`, which parses `r"\((\d+) consecutive"` — a string the driver logs
+genuinely DO emit. Verified by falsification on a real driver log: baseline
+`timeout_events=0 worst_consecutive=2` -> ok; planting one `(12 consecutive` line gives
+`worst_consecutive=12` -> **rc=2 CRITICAL**. The `ssh_timeout_diagnostic` counter is also correct (it
+uses the right string and feeds the D9 evidence block). **So only the REPORTED `timeout_events` figure
+is false; the guard's decision is sound.**
+
+**Becomes:** count what a transport timeout actually produces, exactly as the status page now does —
+
+```python
+    if "ssh_timeout_diagnostic" in line or "TimeoutExpired" in line:
+        timeouts += 1
+```
+
+**Falsifiable test (must FAIL first):** append a line containing `ssh_timeout_diagnostic` to a synthetic
+driver log and assert `timeout_events` rises from 0 to 1; against the pre-fix code it stays 0.
+
+⚠ **WHY IT IS DEFERRED RATHER THAN FIXED NOW.** `scripts/` is inside the **drift watch** (record 3):
+editing it — committed or not — makes the drift check permanently non-zero and turns the monitoring
+cycle into a standing alarm for code the drivers never import. The change is safe in itself (it alters
+a REPORTED number, not a computed one, so it does not touch the deterministic-replay argument of 75.1)
+and should go in with the **core-line C4 relaunch** alongside items 1-7, 9, 10, 12, 13.
