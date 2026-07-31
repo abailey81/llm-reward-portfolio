@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-31"
-  head: "fba51da"
+  head: "be175f1"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "2,882 passed / 3 skipped / 0 failed, PYTEST_RC=0 read from the log (2026-07-31); UNCHANGED this session - no file under src/ scripts/ config/ prompts/ was touched"
+  suite_status: "2,882 passed / 3 skipped / 0 failed, PYTEST_RC=0 read from the log (2026-07-31, the priority-fix certification)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
