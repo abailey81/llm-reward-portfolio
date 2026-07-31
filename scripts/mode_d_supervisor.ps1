@@ -125,9 +125,19 @@ $legTag = [ordered]@{
 #   NO --seed-pool-blocks   refused on the CPU lane, and correctly so.
 #   NO --arms / --baselines resolved from the FROZEN config; a hand-typed list drifts.
 # ---------------------------------------------------------------------------------------------
+# --pack 8 (2026-07-31, DEFERRED_FIXES 11 / record sections 50 and 58). C4 ONLY - INERT during
+# search, which uses --search-pack 1 (run_search_arm takes pack=(run.search_pack or run.pack)), so
+# changing it does not touch the running search phase. At C4 run_test_leg takes run.pack, giving 8
+# trainings per 8-slot job instead of 4 per 4-slot job: the SAME job width and therefore the same
+# placement profile, for twice the trainings per placed job. Memory renders 2G/slot = 16 GB/job
+# (verified against the renderer), so 500 concurrent jobs reserve 7.8 TB against ~12 TB free.
+# Pack is OUTSIDE the determinism envelope -- pack-mates are separate spawned processes with
+# OMP=1 (330 packed CPU baselines in this run prove the path) -- so this buys wall-clock without
+# touching arithmetic. Measured justification: at the cores held on 2026-07-31 rung 568 lands
+# 08-30, MISSING the 08-27 exogenous stop; pack 8 roughly halves the C4 makespan.
 $cpuLane = @(
   "--device", "cpu", "--pool", "d",
-  "--pack", "4", "--cores-per-training", "1",
+  "--pack", "8", "--cores-per-training", "1",
   "--search-pack", "1", "--search-threads", "8",
   "--chunk-tasks", "1",
   "--exclude-hosts", $ExcludeHosts,
