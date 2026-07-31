@@ -7768,3 +7768,141 @@ The RUN 7 monitor's tail-leak invariant and this independent re-derivation **agr
 is now a two-route result rather than a single tool's self-report, which is the standard the project
 holds every other load-bearing claim to. The monitor's construct-validity check is **corroborated, not
 merely trusted**.
+
+---
+
+## §67. ALL EIGHT ACKNOWLEDGED ALARMS RE-TRIAGED AGAINST THEIR OWN TRIGGERS — SEVEN CLEAN, ONE RE-SCOPED (2026-07-31)
+
+**Why this section exists.** §63.6 re-triaged `guard:truncation` and found its third-model trigger had
+FIRED unnoticed. **Seven other entries were left unchecked** — which is precisely the "an open item goes
+quiet" failure the record warns about, and the one Tamer has already rebuked twice (*"I am fucking
+tired of repeating myself"*). `acknowledged_alarms.txt` holds **eight** entries; a trigger nobody
+re-runs is decoration. All eight are now worked to a verdict, each derived from the **raw archive**
+rather than by re-running the tool that raised the alarm.
+
+**Scope: 1,461 records** (`frozen/` excluded — it holds COPIES of search records — and `.pull_tmp`
+excluded, D18).
+
+### §67.1 THE VERDICT TABLE
+
+| # | alarm | its own trigger | verdict |
+|---|---|---|---|
+| 1 | `guard:truncation` | a THIRD model truncates / >1 % of own calls / any on `c1` | **FIRED** (§63.6) — 3rd model, still artefact, **0 on core** |
+| 2 | `record_sanity:CRITICAL` | such a record on the CORE line, **or** a high-fallback record topping its arm on a line whose winner is not yet frozen | **NOT fired** — see §67.2 |
+| 3 | `reward_scale:WARN` | (PopArt arm-symmetry is the surviving protection) | **HOLDS, and tightened** — §67.4 |
+| 4 | `record_sanity:WARN` | — | **RE-SCOPED** — under-scoped three ways, §67.3 |
+| 5 | `substrate_fields:CRITICAL` | remove when the bit-comparison experiment resolves | **fence HOLDING** — §67.5 |
+| 6 | `capacity_accumulation:WARN` | concurrency DECLINES while the queued backlog is deep | **NOT fired** — concurrency is *rising* (560 → 744) against a ~101-job backlog |
+| 7 | `silent_hang:UNKNOWN` | recurrence | **NOT recurred** — still stamped `2026-07-28T22:09:17`, i.e. launch |
+| 8 | `gate_failure_drift:WARN` | the per-model guard flags a **STRONG** model above its own baseline | **NOT fired** — §67.6 |
+
+### §67.2 R115 IS NOT JUST PRESENT — IT IS DEMONSTRABLY LOAD-BEARING, AND IT WORKED
+
+Both clauses of the trigger were evaluated separately.
+
+* **Clause 1 — a high-fallback record on the CORE line: ZERO.** 12 R115 breaches exist across the
+  campaign (0.82 % of 1,461 records); **none on the confirmatory line.**
+* **Clause 2 — a breach TOPPING its arm on a line whose winner is not yet frozen: ONE breach tops its
+  arm, and its winner is ALREADY FROZEN to a different candidate.**
+
+```
+  leg_qwen3_5_9b / distributional / distributional-g3-c3
+      fallback 49.98 %   val_fitness 0.2336  (the HIGHEST in its arm)
+      frozen winner = 'distributional-g5-c0'   -> R115 EXCLUDED IT; a clean candidate won
+```
+
+**This is the execution floor catching exactly the case it was designed for, verified end-to-end for
+the first time.** The acknowledged entry had described this candidate as the *reason* R115 is
+necessary — *"a FULLY broken reward scores nothing and is self-limiting; a PARTIALLY broken reward can
+score BEST, because the harness default silently does half the work"* — but nobody had checked
+**whether the frozen winner actually differs from it.** It does. The floor is not decorative: without
+it, a reward that never once executed its intended logic would have been frozen as the winner of its
+arm. (`49.98 %` is the **D17 reciprocal signature** — 1/2 of the steps — not an ordinary broken reward.)
+
+### §67.3 `record_sanity:WARN` WAS UNDER-SCOPED THREE WAYS — re-scoped on measured facts
+
+The entry states the affected set is `baseline_differential_sharpe-s1` and `-s5`, *"each exactly ONE
+safe-default in 400,000"*, and that it is *"irrelevant to eligibility because R115 governs LLM-authored
+candidates while this is a hand-written H1 comparator."* Measured, the set of records with
+`0 < fallback < 1e-4` is **16**, and:
+
+1. **nine** are hand-written baselines, not two (`differential_sharpe` at seeds **1, 5, 9, 21, 24**);
+2. a **second** baseline is affected and unmentioned — `baseline_differential_downside_ratio` (seeds
+   7, 16, 24, 27), and seed 27 shows **two** safe-defaults, so *"exactly ONE"* is wrong too. **This
+   corroborates the stated cause rather than undermining it:** `differential_downside_ratio` is, like
+   `differential_sharpe`, a **ratio-form** reward with the identical zero-denominator warm-up, so it is
+   exactly where a second instance was predicted;
+3. **seven are LLM-AUTHORED** — a class the entry explicitly says is not affected — across six legs
+   (worst: `glm_5_2/scalar-g3-c3`, 15 of 400,000).
+
+**The verdict is unchanged and benign**: worst fraction **0.00375 %**, **2,667× below R115's 10 %
+floor**, **zero on the confirmatory core line**. But the *acknowledgement* was stale, and this file's
+own doctrine is that an acknowledgement naming the wrong instance is the rot it exists to prevent — the
+sibling `record_sanity:CRITICAL` entry had already been re-triaged once for that exact reason.
+Re-scoped in place, with a new trigger (any crossing ~1 %, any on the core line, or a **third**
+ratio-form baseline joining — which would mean the warm-up is systematic across the ratio family
+rather than incidental).
+
+### §67.4 PopArt arm-symmetry — the property that protects H2 — HOLDS, and has TIGHTENED
+
+§44.4 established that PopArt is inert on ~50 % of the archive but that this **cannot confound H2**
+because the engaged fraction is **uniform across the five LLM arms**. Re-measured:
+
+```
+  distributional   63.8 %      placebo            64.2 %
+  scalar           64.2 %      placebo_shuffled   62.9 %
+  scalar_cvar5     61.0 %
+  spread = 3.3 pp     (was 5.3 pp at §44.4: 65.5 / 65.2 / 67.1 / 67.4 / 62.1)
+```
+
+**Still arm-symmetric, and tighter than when first measured.** The H2 protection is intact. (The
+asymmetry that matters remains H1's ratio-form vs difference-form split — analysis-time obligation 9,
+unchanged.)
+
+### §67.5 D15 — the host fence is HOLDING, and every other comparison unit is substrate-homogeneous
+
+```
+  Intel Xeon Gold 6240 : 1,458 records
+  Intel Xeon Gold 6140 :     4 records   <- the FENCED host
+  no CPU recorded      :    17
+```
+
+The four on the 6140 are **exactly the four known** (`baseline_volatility_scaled_return`, seeds
+14–17): **the fence has not leaked a single new record.** Exactly **one** comparison unit spans two CPU
+models — precisely that known unit — so **every other unit is substrate-homogeneous and CRN pairing is
+intact everywhere else.**
+
+The 17 "no CPU" entries are **not training records**: they are per-arm `_env/env.json` metadata written
+**laptop-side** (`machine: AMD64`, 16 logical cores — the ASUS laptop, not a Myriad node), and they
+carry no `record.json`, so they participate in no comparison unit. Checked rather than assumed, because
+"17 records of unknown substrate" would have been a real hole in the homogeneity audit if true.
+
+### §67.6 `gate_failure_drift` — every strong model is at or below its OWN baseline
+
+The trigger is specifically *a **STRONG** model above its own baseline* (the aggregate CUSUM is a known
+mixture artefact). Measured per line:
+
+| line | reject rate | own registered baseline | verdict |
+|---|---|---|---|
+| **core (Opus 5, confirmatory)** | **0.6 %** (1 of 155) | — | essentially perfect |
+| sonnet-5 | 0.0 % | — | at/below |
+| kimi-k3 | 1.0 % | — | at/below |
+| gpt-5.6-luna | 2.4 % | — | at/below |
+| gemini-2.5-flash | 3.0 % | ~17 % | **well below** |
+| haiku-4.5 | 3.5 % | — | at/below |
+| deepseek-v4-pro | 5.8 % | ~0 % | above, but 6 of 103 |
+| qwen3.6-27b | 8.8 % | ~17 % | **below** |
+| glm-5.2 | 10.7 % | — | moderate |
+| nemotron-3-super | 18.0 % | ~21 % | at/below |
+| **qwen3.5-9b** | **84.8 %** | **~83 %** | **at its own baseline — the deliberate bottom anchor** |
+
+**No strong model exceeds its own baseline; the trigger has not fired**, and the entry's diagnosis (the
+drift is qwen3.5-9b's registered capability-gradient anchor, not a systemic authoring fault) is
+re-confirmed on 41 % more data. **The confirmatory line's authoring reliability is 99.4 %.**
+
+### §67.7 What this sweep says overall
+
+**Seven of eight alarms are clean against their own stated triggers; the eighth was benign but stale
+and is now re-scoped.** Nothing here changes a confirmatory quantity. The value is that the *quiet*
+alarms are now quiet **for measured reasons at today's data volume**, not because a previous session
+decided so at half the volume — which is the only sense in which "acknowledged" is honest.

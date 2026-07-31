@@ -26,6 +26,31 @@ substrate_fields:CRITICAL
 # alarm, benign by design, 40,000x below R115's 10% floor, and irrelevant to eligibility because R115
 # governs LLM-authored candidates while this is a hand-written H1 comparator. Check deliberately left
 # untouched: weakening it to quiet a known-benign signature is what this project refuses to do.
+#
+# ── ★ RE-SCOPED 2026-07-31 (RUN 8, record §67.3). THE ENTRY ABOVE WAS UNDER-SCOPED THREE WAYS. ──
+# Re-measured from the raw archive (1,461 records, `frozen/` and `.pull_tmp` excluded). The triage
+# above is CORRECT in mechanism and verdict but names the wrong extent, and a stale acknowledgement is
+# exactly the rot this file exists to prevent (the same failing already re-triaged once below, in
+# record_sanity:CRITICAL):
+#   1. it names TWO records; there are **NINE** hand-written-baseline records with 0 < fallback < 1e-4
+#      (`baseline_differential_sharpe` at seeds 1, 5, 9, 21, 24 -- not just 1 and 5).
+#   2. it names ONE baseline; there are **TWO**. `baseline_differential_downside_ratio` (seeds 7, 16,
+#      24, 27) is affected and is not mentioned at all -- and seed 27 shows **2** safe-defaults, so
+#      "exactly ONE" is also wrong. This CORROBORATES rather than undermines the stated cause:
+#      `differential_downside_ratio` is, like `differential_sharpe`, a RATIO-form reward with the same
+#      zero-denominator warm-up, so it is precisely where a second instance was predicted to appear.
+#   3. it asserts the affected class is hand-written comparators only ("R115 governs LLM-authored
+#      candidates while this is a hand-written H1 comparator"). **SEVEN LLM-AUTHORED records are
+#      affected**, across six legs: glm_5_2/scalar-g3-c3 (15 of 400,000), gemini_2_5_flash/
+#      distributional-g0-c4 (3), nemotron_3_super/placebo_shuffled-g2-c0 (2), qwen3_6_27b/
+#      scalar_cvar5-g0-c3 (2), deepseek_v4_pro/scalar-g0-c2 (1), glm_5_2/scalar_cvar5-g0-c1 (1),
+#      nemotron_3_super/distributional-g5-c4 (1).
+# STILL BENIGN, and the verdict is UNCHANGED: the worst fraction anywhere is **0.00375 %**, i.e.
+# **2,667x below R115's 10 % floor**, and there are **ZERO on the confirmatory core line**. The check
+# stays untouched -- weakening it to quiet a known-benign signature is what this project refuses to do.
+# ⚠ RE-TRIAGE IF any of these crosses ~1 % (three orders of magnitude of headroom would be gone), if
+# one appears on the CORE line, or if a THIRD ratio-form baseline joins -- the last would mean the
+# warm-up is systematic across the ratio family rather than incidental.
 record_sanity:WARN
 
 # silent_hang UNKNOWN — emitted once at 2026-07-28 22:09:17, at launch, with detail "no progress

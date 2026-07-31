@@ -3,6 +3,57 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31j] ALL EIGHT ACKNOWLEDGED ALARMS RE-TRIAGED — SEVEN CLEAN, ONE RE-SCOPED; R115 PROVEN LOAD-BEARING
+
+**State before:** RUN 4 live, T+69 h, 1,462 records, drift 0, `sci=OK`, cores ~744. §63.6 had
+re-triaged **one** of the eight entries in `acknowledged_alarms.txt` and found its trigger had fired
+unnoticed; **seven were left unchecked** — the "an open item goes quiet" failure Tamer has rebuked
+twice. All eight now worked to a verdict over **1,461 records**, each derived from the raw archive
+rather than by re-running the tool that raised the alarm.
+
+**Seven clean, one re-scoped. Nothing changes a confirmatory quantity.**
+
+**★ R115 IS DEMONSTRABLY LOAD-BEARING — verified end-to-end for the first time.** Both clauses of
+`record_sanity:CRITICAL` were evaluated. Clause 1: **zero** high-fallback records on the core line (12
+breaches campaign-wide, 0.82 %). Clause 2: **one breach tops its arm** —
+`leg_qwen3_5_9b/distributional/distributional-g3-c3`, fallback **49.98 %** (the D17 reciprocal
+signature), `val_fitness 0.2336`, the highest in its arm — **and its frozen winner is
+`distributional-g5-c0`, a different, clean candidate.** The acknowledged entry had described this
+candidate as the *reason* the floor is necessary, but nobody had checked **whether the frozen winner
+actually differs from it.** It does: without R115, a reward that never once executed its intended logic
+would have been frozen as its arm's winner.
+
+**`record_sanity:WARN` was UNDER-SCOPED THREE WAYS and is re-scoped on measured facts.** It names two
+records on one baseline; measured, the set with `0 < fallback < 1e-4` is **16**: **nine** baseline
+records (`differential_sharpe` at seeds 1, 5, 9, 21, 24 — not just 1 and 5), a **second, unmentioned
+baseline** (`differential_downside_ratio`, seeds 7/16/24/27, one showing **two** defaults so "exactly
+ONE" is wrong), and **seven LLM-AUTHORED records** — a class the entry explicitly says is unaffected.
+**Verdict unchanged and benign** (worst 0.00375 %, **2,667× below the 10 % floor**, **zero on core**),
+but a stale acknowledgement is the rot this file exists to prevent. Note the second baseline
+*corroborates* the stated cause: it is the other **ratio-form** reward with the same zero-denominator
+warm-up, i.e. exactly where a second instance was predicted. New trigger added (any crossing ~1 %, any
+on core, or a **third** ratio-form baseline joining).
+
+**PopArt arm-symmetry — the property protecting H2 — HOLDS and has TIGHTENED.** Engagement per LLM arm
+63.8 / 64.2 / 61.0 / 64.2 / 62.9 %, **spread 3.3 pp** (was 5.3 pp at §44.4). H2 cannot be confounded by
+PopArt inertness.
+
+**D15 fence HOLDING.** 1,458 records on Xeon 6240, **exactly the four known** on the fenced 6140 — not
+one new leak — and **exactly one** comparison unit spans two CPU models (that known unit), so every
+other unit is substrate-homogeneous and CRN pairing is intact. The 17 "no CPU" entries were checked
+rather than assumed: they are laptop-side `_env/` metadata (`machine: AMD64`, 16 cores), carry no
+`record.json`, and join no comparison unit.
+
+**`gate_failure_drift` NOT fired.** Every strong model sits at or below its own registered baseline
+(gemini-2.5-flash 3.0 % vs ~17 %, qwen3.6-27b 8.8 % vs ~17 %, nemotron 18.0 % vs ~21 %, sonnet-5 0.0 %),
+and qwen3.5-9b at **84.8 % vs its own ~83 %** is the deliberate capability-gradient bottom anchor
+behaving as selected. **The confirmatory core line's authoring reliability is 99.4 % (1 reject in 155).**
+`capacity_accumulation` NOT fired (concurrency *rising*, 560 → 744). `silent_hang` NOT recurred (still
+stamped at launch).
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §67 · `docs/ops/acknowledged_alarms.txt` (`record_sanity:WARN`
+re-scoped) · `docs/ops/retriage_alarms.py` (new, reusable). **No code change, no relaunch; drift 0.**
+
 ## [2026-07-31i] CONSTRUCT VALIDITY RE-DERIVED INDEPENDENTLY — IT HOLDS; AND A NEW QUANTITY NOBODY WAS COUNTING
 
 **State before:** RUN 4 live, T+68 h 40 m, 1,450 records, drift 0, `sci=OK`, cores ~736. The cycle's
