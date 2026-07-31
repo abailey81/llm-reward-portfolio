@@ -3,6 +3,88 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31r] RUN 8 SESSION CLOSE — SEVEN BROKEN INSTRUMENTS, ONE RETRACTION, THE SCIENCE VERIFIED, AND THE HANDOVER
+
+**State at close:** RUN 4 live, **T+72 h 11 m**, 12/12 lines, **1,525 records**, **$38.79**, **896
+cores**, freeze `3ca6f01a…` **MATCHES**, **drift 0** (commit AND working tree), `sci=OK`, **0**
+transport timeouts, R115 13 breaches / **0 on the core line**. **`RUNNING_SHA = 50b6e07`, UNCHANGED
+ALL SESSION — no `src/ scripts/ config/ prompts/` edit and no relaunch.** **C4 has BEGUN** on
+`frozen_leg_qwen3_5_9b` (5/5 frozen winners); the **core line is 3/5 and still searching**. Brief for
+the successor: **`docs/RUN9_SESSION_PROMPT.md`**.
+
+**① SEVEN INSTRUMENTS WERE BROKEN, AND THE DATA WAS CLEAN.** That asymmetry is the session's headline.
+The status page had been **dead for two days** (RUN 6 upgraded the publisher into the repo but never
+switched the running loop; a 76-line scratchpad copy kept publishing the launch-night page while the
+commit stream looked healthy). An **undocumented ssh process-killer** had run three days on the live
+campaign past its own retirement condition — and it was **killing LIVE ssh** (a 6-second-old child
+flagged `orphan` because its parent shell had exited; **no age guard on the orphan branch**).
+`cycle.py` **crashed printing its own C4 alert** (cp1251 vs `★`, and the loop pipes stdout, so the
+crashing path was the ONLY production path) — the C4 alert count in `ALERTS.txt` was **ZERO**.
+**"transport timeouts: 0" was structurally zero**, counting a string `src/` never emits, on Tamer's
+phone for the whole campaign — **and my own first fix for it was also always-zero** (`bc` is not
+installed), caught only by falsification-testing the fix. `science_watch`'s "impossible score" check
+was **half-implemented** — the docstring promised range checks, only NaN/inf was written, and
+`val_fitness` drives winner selection. All fixed and falsification-tested; the second always-zero
+counter (in `transport_guard`) is `scripts/`-resident and therefore **DEFERRED FIX 14**.
+
+**② ★ RETRACTION — §60 IS FALSE.** `tmpfs` was never a constraint. "Only 11 of 348 hosts qualified" was
+a **unit-blind parse**: `qhost` prints `1.293T` and `$1+0` reads `1.293`. Truth on four independent
+routes — **348/348 hosts with 81× headroom**, **52/52 of our 15 G jobs RUNNING** while the "fixed" 1 G
+jobs queued, the unit-blind test reproducing §60's own numerator, and §60 contradicting itself on its
+own data. **"Four self-inflicted throttles" is THREE.** The 1 G setting was kept (honest); only the
+reasoning is withdrawn. Propagated to **every** document — a retraction living in one section while
+three others assert the claim is worse than none.
+
+**③ THE SCIENCE VERIFIED, INDEPENDENTLY, NONE OF IT BY RE-RUNNING THE MONITOR.** All eight `sci=OK`
+invariants re-derived (zero violations, hash chain intact end to end) **plus CVaR monotonicity added**
+— a mathematical identity, 0/1,114. **The tail instrument re-derived against its own inputs at
+Spearman = 1.0000** on 360 records, with the ratio band reproducing R27's registered bias; this is the
+one quantity in the project with a history of failing silently. **Effective search width = 99.9 %** —
+the exploration directive works, so §56's E[max] argument rests on genuinely independent draws.
+**★ THE IDENTIFICATION PRINCIPLE verified end to end** — seeds/folds identical 282/282, base prompts
+281/282, and the only environmental variation is a **kernel patch level** that is FP-irrelevant,
+affects 0.9 % of records and is **not arm-correlated**. **★ THE STRUCTURE CONTROL verified** —
+`placebo_shuffled` **deranged 107/107**, with `distributional` **226/226 verbatim** as the positive
+control.
+
+**④ NEW SCIENCE.** **equal-*k* run for the first time**: 17 of 55 pools (30.9 %) change winner, and on
+the core line the treatment falls 0.22510 → 0.16813 while its comparators do not move — exactly §56's
+predicted direction. Fitness is **heavy-tailed** (winner 300-700× the median), corroborating §47 from a
+different quantity. **Winner selection is sometimes a coin flip** (max/2nd 1.00 to 396) — the
+quantitative answer to "why so many seeds?". **77 % of R115 breaches are the D17 harness-trap**, not
+the model. **★ And 19 of 20 rejections violate an UNSTATED rule**: `np` IS supplied
+(`executor.py:375`) but `prompts/initial_generation.txt` never says so — so the two largest sources of
+"this model wrote bad code" evidence are **our own instrument**.
+
+**⑤ "MAKE 30 CANDIDATES" — INVESTIGATED AND DECLINED, WITH THE DECISION LEFT TO TAMER.** The 2.33× arm
+gap is **~85 % an artifact of one arm being mid-search** (it projects to 1.17× at completion); the
+budget is **already matched at exactly 30 ATTEMPTS** (both completed arms landed on `accounted = 30`);
+**all 20 failures are MODEL failures** with nothing to repair; and replacing rejects would break
+matched-budget (the arm that fails most would get the most draws, and E[max] rises with draws), would
+be a **post-data change to a pre-registered rule**, and would erase real data. Escalated as a
+pre-registration amendment requiring unfreeze → dated row → `DEVIATIONS.md` → re-freeze, if he wants it.
+
+**⑥ ⚠ EIGHT FALSE ALARMS OF MY OWN, all caught before reporting** — `$NF` slot counts, **P30
+recurring** at 431k free slots, a unit-blind tmpfs read (the *same* bug as §60), a D18 alarm from
+omitting `seed`, two construct-validity scripts that could not fire, five off-target guard plants, and
+"12 candidates vanished" (the gate reads `failures.jsonl`, not `_rejects/`). **Three tells caught every
+one:** a clean baseline that already reads the failing value proves nothing; three failures in a row is
+a broken harness; and **a clean 0 % or 100 % means suspect the specification, not the subject**.
+
+**⑦ CADENCE.** 120 s → **30 s** on Tamer's instruction (realised ~42 s; the sweep itself takes ~12 s).
+`SSH_EVERY` scaled 10 → 30 so the **shared login-node** poll stays at ~20 min. And because the sweep is
+**linear in archive size** (~6.3 ms/record → **~250 s at the full rung-568 ladder**), every cycle line
+now carries **`sweep=N.Ns`** and says **`SWEEP-BOUND`** the moment it exceeds the sleep — so a
+"30-second monitor" cannot silently become a five-minute one.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` **§63-§85** · `docs/RUN9_SESSION_PROMPT.md` (new) ·
+`docs/V2_WRITE_TIME_REGISTRY.md` rows **42-45** · `docs/DEFERRED_FIXES_RUN4.md` item **14** ·
+`docs/ops/` **13 new tools** (`equal_k_sensitivity`, `analysis_obligations`, `json_rfc8259_export`,
+`invariants_check`, `tail_instrument_check`, `identification_check`, `structure_control_check`,
+`reject_taxonomy`, `falsify_science_layer`, `falsify_arm_coverage`, `deep_results_{1,2,3}`) ·
+`ssh_reaper.ps1`, `cycle.py`, `cycle_loop.sh`, `publish_status.sh`, `science_watch.py` fixed.
+**No `src/ scripts/ config/ prompts/` change; drift 0 throughout.**
+
 ## [2026-07-31q] ★★★ THE REGISTERED OBLIGATIONS BUILT AND RUN — EQUAL-k MEASURED, AND 44.4 CORRECTED
 
 **State before:** RUN 4 live, T+70 h 50 m, 1,502 records, drift 0, `sci=OK`, C4 in flight on 1 line.
