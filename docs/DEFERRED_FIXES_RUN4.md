@@ -544,6 +544,27 @@ p99 climbs toward 14 h, or if a kill lands on a `c1` candidate that does not rec
 
 ---
 
+## CONSIDERED AND DECLINED — pool widening `d` → `d,b` (measured 2026-07-31, record §57)
+
+Raised again because placement became the binding constraint (§54). **Measured on the live cluster,
+counting only USABLE queue instances (excluding `d`/`a`/`u`/`E` states):**
+
+| pool | usable hosts | free slots | 8-slot jobs placeable | cores |
+|---|---|---|---|---|
+| **d** | 272 | 2,472 | 239 | **1,912** |
+| **b** | 12 | 112 | 10 | **80** |
+
+**Widening adds 80 cores = +4 %.** §46.2 established pool b is microarchitecture-IDENTICAL (both
+`Intel Xeon Gold 6240 @ 2.60GHz`), so there is no CRN hazard in principle — but D15 is the standing
+reminder that **one** heterogeneous host cost four archived records and an open bit-comparison
+experiment, and 12 hosts is a thin sample to bet a substrate claim on for a 4 % gain.
+
+**DECLINED.** Re-open only if pool d's own capacity becomes the binding constraint — it is not; our
+constraint was priority (§54) and is now queue position. Recorded so the option is not re-litigated
+from first principles a third time.
+
+---
+
 ## Applying, at the next restart
 
 > ⚠ **THE COUNT: eleven items are documented here, but only TEN are still to apply.** Item **8 (the

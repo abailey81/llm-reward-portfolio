@@ -1,0 +1,17 @@
+{
+  "utc": "2026-07-31T10:25:16Z",
+  "candidates": {
+    "distributional": 272,
+    "scalar": 265,
+    "scalar_cvar5": 122,
+    "placebo": 132,
+    "placebo_shuffled": 111
+  },
+  "arm_generations_done": {
+    "distributional": 63,
+    "scalar": 60,
+    "scalar_cvar5": 27,
+    "placebo": 31,
+    "placebo_shuffled": 26
+  }
+}
