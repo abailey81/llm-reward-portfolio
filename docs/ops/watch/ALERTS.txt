@@ -1,0 +1,14 @@
+# ALERTS - appended by docs/ops/cycle_loop.sh, DEDUPED BY CONTENT since 2026-07-31.
+# Empty means nothing has needed a human. A standing condition appears once, then once an hour.
+# The pre-dedupe file (106 near-identical entries, almost all the standing arm-depth imbalance)
+# is archived beside this one.
+
+===== 2026-07-31T13:49:33Z  rc=1  [CHANGED] =====
+ATTN  CORE-LINE arm depth 3.11x — scalar_cvar5=9 against 28. This is the CONFIRMATORY pool (the legs are report-only, R80), so this ratio — not the pooled one — is what biases H2's IUT legs. Record §56.6.
+ATTN  ARM DEPTH IMBALANCE 2.52x across H2's IUT arms (distributional=317 vs scalar_cvar5=126). Each arm's winner is max(val_fitness) over its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy is the equal-k sensitivity analysis (§26.3).
+known truncation, record_sanity:CRITICAL, substrate_fields:CRITICAL, silent_hang:UNKNOWN  (acknowledged in docs/ops/acknowledged_alarms.txt -- re-read the entry, each one carries its own RE-TRIAGE trigger)
+sci   records sw=1409/ra=1409  r115=12 BINDING  popart engaged=706/pinned=684  leaks=0 cross-arm=0 hash=0 non-finite=0
+arms  IUT pools dist=317 scal=281 plac=141 scv5=126 (shuf=123)  spread=2.516x
+info  budget anthropic  spent $28.4158 (+0.1220 this cycle)  + to author $10.6799  = projected $39.0957
+info  budget openrouter spent $6.3558 (+0.0000 this cycle)  + to author $3.4489  = projected $9.8047
+2026-07-31T13:49:21Z  ATTN  records=1389 (+0)  spend=$34.7716  guards=2  arms_full=10/10  budget=2  stalest=7.7m  drift=0  sci=OK  r115=12B  auto-cycle

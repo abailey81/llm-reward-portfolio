@@ -573,6 +573,46 @@ from first principles a third time.
 
 ---
 
+## 13. D20 - the driver lock must test pid IDENTITY, not pid EXISTENCE (found live 2026-07-31, record 59)
+
+**File:** `src/cluster/driver.py` (`_acquire_driver_lock`, ~line 224-254).
+**Seen:** the `h3` line stranded indefinitely - 0 drivers, supervisor retrying into the same wall,
+every guard green - because Windows recycled a dead driver's pid onto `OpenConsole.exe` and
+`psutil.pid_exists(pid)` returned True, so the lock was never broken.
+
+**The defect:** `pid_exists` tests EXISTENCE, not IDENTITY. The lock is deliberately self-healing
+("a DEAD owner's lock is broken automatically") and that design is right - it just heals on a
+predicate that pid reuse defeats.
+
+**Becomes:** store the owner's process CREATE-TIME beside the pid, and treat the lock as stale unless
+BOTH match. A reused pid necessarily has a later create-time than the recorded one.
+
+```python
+proc = psutil.Process(os.getpid())
+json.dump({"pid": os.getpid(), "create_time": proc.create_time(), "ts": time.time()}, fh)
+...
+# on collision:
+same = False
+if pid > 0 and psutil.pid_exists(pid):
+    try:
+        same = abs(psutil.Process(pid).create_time() - recorded_create_time) < 1.0
+    except psutil.Error:
+        same = False
+if not same:
+    lock_path.unlink(missing_ok=True)   # stale: dead owner, OR the pid was reused
+```
+
+**Test (must FAIL first):** a lock whose recorded pid is alive but whose recorded create_time does not
+match the live process is BROKEN and re-acquired; one where both match still raises the
+refuse-to-double-drive error.
+
+**Live detector already armed (outside the fence):** `docs/ops/cycle.py` raises RED when any
+`batches/*.driver.lock` has a live owner that is not a python process running
+`run_campaign_cluster`. Falsified on three cases including a pid reused onto a DIFFERENT python
+program. That closes the detection gap now; this item closes the mechanism at the restart.
+
+---
+
 ## Applying, at the next restart
 
 > ⚠ **THE COUNT: eleven items are documented here, but only TEN are still to apply.** Item **8 (the

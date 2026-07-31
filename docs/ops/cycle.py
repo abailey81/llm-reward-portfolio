@@ -422,6 +422,44 @@ def main() -> int:
             info.append(f"budget {prov:<10} spent ${b['spent']:.4f}{delta}  + to author "
                         f"${b['to_author']:.4f}  = projected ${b['projected_total']:.4f}")
 
+    # 5b. ★ STALE DRIVER LOCKS (D20, found live 2026-07-31 — it had stranded the h3 line).
+    #
+    # `_acquire_driver_lock` writes the owner pid and, on collision, breaks the lock only if
+    # `psutil.pid_exists(pid)` is False. **That check cannot survive PID REUSE.** Windows recycled a
+    # dead driver's pid onto `OpenConsole.exe`; `pid_exists` said True, the lock was never broken, and
+    # the h3 line sat refusing to start — 0 drivers, supervisor retrying into the same wall, log going
+    # stale — with every guard green. The driver's own error text anticipates it ("If that pid is NOT
+    # a driver, delete ... and relaunch"), which is precisely the manual step nobody was there to take.
+    #
+    # The right test is not "does the pid exist" but "is the pid A DRIVER". That is cheap to check
+    # here, and it is the difference between a self-healing lock and a silently stranded line.
+    stale_locks: list[str] = []
+    try:
+        import psutil
+        for lk in (ROOT / "batches").glob("*.driver.lock"):
+            try:
+                owner = int(json.loads(lk.read_text(encoding="utf-8")).get("pid", -1))
+            except Exception:                                    # noqa: BLE001 — torn lock = stale
+                stale_locks.append(f"{lk.name} (unreadable)")
+                continue
+            if owner <= 0 or not psutil.pid_exists(owner):
+                continue                                          # the driver's own check handles this
+            try:
+                proc = psutil.Process(owner)
+                cmd = " ".join(proc.cmdline())
+                if "python" not in proc.name().lower() or "run_campaign_cluster" not in cmd:
+                    stale_locks.append(f"{lk.name} (pid {owner} is {proc.name()}, NOT a driver)")
+            except Exception:                                     # noqa: BLE001 — vanished mid-check
+                continue
+    except ImportError:
+        attention.append("psutil unavailable — the stale-lock check is BLIND this cycle")
+    if stale_locks:
+        alerts.append(f"STALE DRIVER LOCK(S) held by a REUSED pid: {', '.join(stale_locks[:3])}"
+                      f"{' …' if len(stale_locks) > 3 else ''}. The driver's staleness check tests "
+                      f"pid EXISTENCE, not pid IDENTITY, so it will refuse to start that batch "
+                      f"forever. Verify no live driver owns it, then delete the lock file (D20).")
+    science_locks = len(stale_locks)
+
     # 6. driver-log freshness
     now = time.time()
     ages = {p.name: round((now - p.stat().st_mtime) / 60.0, 1) for p in sorted(ROOT.glob("driver*.log"))}
@@ -514,6 +552,7 @@ def main() -> int:
         "guards_known_acked": known_guards,
         "sentinel_known_acked": known_sentinel,
         "lines_with_all_arms": full_lines,
+        "stale_driver_locks": science_locks,
         "budget_rc": bud_rc,
         "budget": budget,
         "science": science,

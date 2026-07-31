@@ -40,6 +40,8 @@ ALERTS="$WATCH/ALERTS.txt"
 mkdir -p "$WATCH"
 
 i=0
+last_sig=""        # md5 of the previous cycle's alert lines, timestamps stripped
+last_alert_ts=0    # epoch seconds of the last append, for the hourly heartbeat
 while true; do
     i=$((i + 1))
     if [ $((i % SSH_EVERY)) -eq 0 ]; then
@@ -51,11 +53,28 @@ while true; do
 
     # rc 0 = nothing needs a human. Anything else is recorded where it will be SEEN, with the full
     # cycle output attached -- a bare "RED at 03:38" costs another investigation to interpret.
+    #
+    # ⚠ DEDUPED BY CONTENT (2026-07-31). Appending on every non-zero cycle looked right until a
+    # PERSISTENT condition arrived: the §56 arm-depth imbalance fires every ~2 minutes and will keep
+    # firing for days until the control arms catch up, which had already written 105 near-identical
+    # entries and destroyed the one property this file exists for -- "empty means nothing has needed
+    # a human". That is the same alarm-fatigue failure being fixed everywhere else in this repo, in
+    # the tool built to fix it. A NEW alert must stand out from a standing one.
+    #
+    # So: append only when the SET of alert/attention lines CHANGES, or once an hour regardless (so a
+    # standing condition still leaves a heartbeat and cannot be silently forgotten). Timestamps are
+    # stripped before hashing, since they differ every cycle by construction.
     if [ "$rc" -ne 0 ]; then
-        {
-            printf '\n===== %s  rc=%s =====\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$rc"
-            printf '%s\n' "$out"
-        } >> "$ALERTS"
+        sig=$(printf '%s\n' "$out" | grep -E '^(RED|ATTN)' | sed -E 's/[0-9]+/N/g' | sort | md5sum | cut -d' ' -f1)
+        now=$(date -u +%s)
+        if [ "$sig" != "$last_sig" ] || [ $((now - last_alert_ts)) -ge 3600 ]; then
+            if [ "$sig" = "$last_sig" ]; then hdr="STILL PRESENT (hourly heartbeat)"; else hdr="CHANGED"; fi
+            {
+                printf '\n===== %s  rc=%s  [%s] =====\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$rc" "$hdr"
+                printf '%s\n' "$out"
+            } >> "$ALERTS"
+            last_sig="$sig"; last_alert_ts="$now"
+        fi
     fi
 
     sleep "$INTERVAL"

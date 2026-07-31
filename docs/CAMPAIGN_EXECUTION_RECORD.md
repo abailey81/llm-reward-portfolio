@@ -6776,3 +6776,82 @@ checking would have been a panicked manual relaunch of a campaign that was alrea
 `WinError 183` (a local rename over an existing file, i.e. **the record was already pulled**, so the
 "failure" is redundant work and never lost data). The transport guard rates both `ok` with
 `worst_consecutive=2, timeout_events=0`. Counted by class here for the first time.
+
+---
+
+## 59. D20 — PID REUSE DEFEATED THE DRIVER LOCK AND STRANDED A LINE, WITH EVERY GUARD GREEN
+
+Found 2026-07-31 ~13:50 UTC by watching the `stalest` driver-log figure CLIMB (6.2 → 7.7 → 9.5 min)
+rather than waiting for it to cross the 30-minute alarm threshold. **That is the whole case for close
+monitoring: the alarm would have fired 20 minutes later, and the line had already been down longer
+than that.**
+
+### 59.1 What happened
+
+`docs/ops/cycle.py` reported `stalest=7.7m` and rising. The quietest line was `h3`:
+
+```
+RuntimeError: another driver (pid 30688) is already running batch
+'h3ss_h3ss_distributional_g0.driver.lock' — refusing to double-drive
+(double requeues would corrupt the retry accounting). If that pid is NOT a
+driver, delete ...driver.lock and relaunch.
+```
+
+**pid 30688 was alive — as `OpenConsole.exe`, a Windows Terminal process.** Windows had recycled the
+dead driver's pid onto an unrelated program.
+
+### 59.2 The defect
+
+`_acquire_driver_lock` (`src/cluster/driver.py:224–254`) is deliberately self-healing: it stores the
+owner pid and, on collision, breaks the lock when `psutil.pid_exists(pid)` is False — *"a DEAD owner's
+lock is broken automatically (crash-resume stays one-command — no manual lock cleanup after a
+kill/BSOD)"*. That is good design, and it is exactly why the §54 driver relaunch and the §58 supervisor
+roll were both clean.
+
+**But `pid_exists` tests EXISTENCE, not IDENTITY.** Under pid reuse it returns True for a process that
+is not a driver at all, the lock is never broken, and the batch becomes permanently unstartable. The
+observed state was: **0 h3 drivers, 1 h3 supervisor retrying into the same wall on its 600 s backoff,
+the log going stale, and every one of the six repo guards plus `arm_coverage` reporting green.**
+
+The error message names the remedy — *"If that pid is NOT a driver, delete the lock"* — which is
+precisely the manual step nobody is present to take at 02:00.
+
+### 59.3 ⚠ MY OWN WRONG TEST, corrected in the same pass
+
+My first safety check asked *"are any h3 driver processes alive?"*, got **2**, and refused to touch the
+lock. That is the **wrong question**. The lock's contract is one driver per BATCH, so the question is
+**"is the LOCK'S RECORDED OWNER a driver?"** — and it provably was not. Whether other h3 drivers exist
+elsewhere is irrelevant to whether *this* lock is stale.
+
+Re-tested correctly (owner pid → process name → cmdline), the verdict was unambiguous, the lock was
+removed, and h3 recovered within a minute: a fresh Anthropic call and
+`[h3ss_h3ss_distributional_g0] 0/1 done, 1 pending`, log age back to 0.8 min.
+
+**A full scan settled the scope: 43 driver locks whose owner pid is still alive, 42 of them genuine
+live `python.exe` drivers, exactly ONE stale.** So this was a single stranded batch, not a systemic
+condition — but it was stranded indefinitely.
+
+### 59.4 The fix that could be made now, and the one that cannot
+
+**Now (`docs/ops/`, outside the drift fence):** `cycle.py` gained a stale-lock check. For every
+`batches/*.driver.lock` whose owner pid is alive, it reads the process name and cmdline and raises RED
+if the owner is **not** a python process running `run_campaign_cluster`. Falsified on three cases: a
+real driver (silent), a pid reused onto `OpenConsole.exe` (fires), and a pid reused onto a *different*
+python program (fires — the subtler variant).
+
+**At the next restart (`src/`, drift-fenced) — DEFERRED_FIXES item 13:** make the lock itself
+identity-aware. Storing the pid alone is insufficient; store the process **create-time** beside it
+(`psutil.Process(pid).create_time()`), which is the standard defence — a reused pid necessarily has a
+later create-time than the recorded one, so the lock can distinguish "my owner is alive" from "someone
+else now holds my owner's number". Cheap, exact, and it removes the manual step from the error message.
+
+### 59.5 The lesson
+
+**A self-healing mechanism that heals on the wrong predicate is worse than one that does not heal at
+all**, because it is trusted. The lock was written to make crash-resume one-command, and it does — for
+every failure mode except the one where the operating system quietly reassigns the identifier the
+whole scheme is keyed on.
+
+And operationally: **the signal was a number moving in the right direction for the wrong reason.**
+`stalest` climbing from 6 to 9 minutes is not an alarm, it is a trend, and the alarm threshold was 30.
+Watching trends rather than thresholds is what caught it.
