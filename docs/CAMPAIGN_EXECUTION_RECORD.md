@@ -9083,3 +9083,102 @@ now says the extraction failed.
 **Standing rule, third formulation this session:** *for anything reported to the principal, ask not
 only "is the value right?" but "what does this print when the measurement breaks?" — and require that
 answer to be alarming.*
+
+---
+
+## 77. ★★★ `sci=OK` IS NOW PROVEN FALSIFIABLE — AND ONE INVARIANT WAS ONLY HALF-IMPLEMENTED (2026-07-31)
+
+**The obvious next target.** Three instruments this session were found unable to report (P35, 74.2,
+76.2 — and 76.3, where my own FIX was also unable to report). `sci=OK` is printed on every cycle line
+and on Tamer's status page as *the science verdict*, and **it had never been shown capable of saying
+anything else.**
+
+Record 69 answered *"is the archive sound?"* — yes, every invariant re-derived independently, zero
+violations. It did **not** answer *"would the monitor SEE a violation if one appeared?"* Those are
+different questions, and this session has now seen three instruments that pass the first while failing
+the second.
+
+### 77.1 Method, and a scoping error of mine along the way
+
+A synthetic archive was built from real records (the live archive never touched), a clean baseline
+established, then **one violation planted at a time**, requiring the monitor's reported count to rise.
+
+**My first attempt was scoped wrongly and I nearly recorded a false alarm.** I planted six violations,
+tested only `science_watch.py`, saw four return `rc=0`, and read that as *"the monitor cannot see
+them"*. **Wrong on two counts:** `cycle.py` extracts by **REGEX FROM THE TEXT**, not from the return
+code, and **six of the eight invariants are owned by `results_audit.py`**, not by science_watch — so
+science_watch returning 0 for them is *correct*. Caught by reading `cycle.py`'s extraction table
+(`_SCIENCE_FIELDS`) instead of assuming the architecture.
+
+The corrected test has **two legs, and both must pass or `sci=OK` is not evidence**:
+
+1. **DETECTION** — does the OWNING tool's reported count go non-zero when the invariant is violated?
+2. **EXTRACTION** — does `cycle.py`'s regex for that count actually MATCH the tool's real output?
+   *A perfect detector whose count cycle.py cannot parse is exactly as useless as no detector.*
+
+### 77.2 ★ THE FINDING — the "impossible score" invariant was only half-implemented
+
+**Leg 2 passed for all seven fields**: every one of `cycle.py`'s regexes matches its tool's real output,
+so the extraction contract is sound (the anchoring on distinctive words, rather than line position, is
+doing its job).
+
+**Leg 1 failed on exactly one:** planting `val_fitness = 42.0` left `sw_impossible` at **0**.
+
+The cause is precise. `science_watch.py`'s module docstring has always promised:
+
+> *"**Are there impossible numbers?** NaN/inf fitness, **|Sharpe| absurdities**, empty return series."*
+
+but the implemented test was:
+
+```python
+  if score is None or (isinstance(score, float) and not math.isfinite(score)):
+```
+
+**Only the NaN/inf half existed. The absurdity half was never written.** An out-of-RANGE score passed
+silently.
+
+**Why that is not cosmetic: `val_fitness` DRIVES WINNER SELECTION.** Each arm's winner is
+`max(val_fitness)` over its pool, so an impossible value would simply **win its arm**, and nothing in
+the monitoring stack would say so. Record 69's independent check (which *did* test `0 <= v <= 1`)
+proves none exists today — but the monitor would not have caught one appearing.
+
+### 77.3 The fix, with bounds taken from the live archive so they cannot false-positive
+
+```
+  val_fitness  is a DEFLATED SHARPE RATIO, i.e. a PROBABILITY  -> require 0 <= v <= 1
+      observed over 1,203 records: min 0.000000, max 0.431914   (0.57 of headroom)
+  test_sharpe  is an ANNUALISED SHARPE                          -> require |v| < 20
+      observed over   360 records: min -0.9099,  max 1.4629     (18.5 of headroom)
+```
+
+Out-of-range scores are now counted and tagged `[OUT OF RANGE]` so the cause is legible rather than
+merely counted.
+
+**Verified both ways:**
+
+```
+  LIVE archive (1,534 records) : impossible/non-finite scores = 0   <- no false positives
+  planted val_fitness = 42.0   : sw_impossible 0 -> 1               <- the gap is closed
+```
+
+### 77.4 Final state of the science layer
+
+```
+  STEP 1 EXTRACTION : 7 of 7 cycle.py regexes match their tool's real output
+  STEP 2 DETECTION  : steps != 400,000     DETECTED   0 -> 1
+                      impossible score     DETECTED   0 -> 1   (was MISSED)
+                      hash mismatch        DETECTED   0 -> 1
+                      out-of-range seed    DETECTED   0 -> 1
+                      non-finite metric    DETECTED   0 -> 1
+```
+
+**`sci=OK` is now falsifiable evidence rather than decoration** — it has been shown, by construction,
+that it turns into an alarm when the archive stops deserving it. Harness kept at
+`docs/ops/falsify_science_layer.py` so any future change to either tool can be re-tested in one
+command.
+
+**The count for this session is now four instruments found unable to report** — a construct-validity
+script (P35), the C4 alert (74.2), a health counter (76.2), my own fix for that counter (76.3) — **and
+one invariant found half-implemented (77.2).** Every one of them was silent and reassuring. The single
+defence that worked, every time, was the same: **construct the condition the check exists to catch, and
+require the check to fire on it.**

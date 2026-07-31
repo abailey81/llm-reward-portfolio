@@ -94,8 +94,27 @@ def main(argv: list[str]) -> int:
         val_ok = val is not None and not (isinstance(val, float) and math.isnan(val))
         key = "test_sharpe" if stage == "test" else ("val_fitness" if val_ok else "test_sharpe")
         score = m.get(key)
-        if score is None or (isinstance(score, float) and not math.isfinite(score)):
-            impossible.append(f"{unit}/{r.get('run_id')}: {key}={score!r}")
+        # *** RANGE CHECK ADDED 2026-07-31 (record 77). The module docstring has always promised
+        # "NaN/inf fitness, |Sharpe| ABSURDITIES", but only the NaN/inf half was implemented: the
+        # test was `score is None or not isfinite(score)`, so an out-of-RANGE score passed silently.
+        # FOUND BY FALSIFICATION: planting `val_fitness = 42.0` into a synthetic archive left this
+        # counter at 0. That matters because `val_fitness` DRIVES WINNER SELECTION -- an impossible
+        # value would simply win its arm, and nothing would say so.
+        #
+        # Bounds chosen from the LIVE archive so neither can ever false-positive:
+        #   val_fitness is a DEFLATED SHARPE RATIO, i.e. a PROBABILITY -> [0, 1].
+        #       observed over 1,203 records: min 0.000000, max 0.431914  (0.57 of headroom)
+        #   test_sharpe is an ANNUALISED SHARPE -> |x| < 20 is absurd for any real strategy.
+        #       observed over 360 records: min -0.9099, max 1.4629       (18.5 of headroom)
+        _bad_range = False
+        if isinstance(score, (int, float)) and math.isfinite(score):
+            if key == "val_fitness" and not (0.0 <= float(score) <= 1.0):
+                _bad_range = True          # a probability outside [0,1]
+            elif key == "test_sharpe" and abs(float(score)) >= 20.0:
+                _bad_range = True          # an annualised Sharpe of +/-20 is not physical
+        if score is None or (isinstance(score, float) and not math.isfinite(score)) or _bad_range:
+            impossible.append(f"{unit}/{r.get('run_id')}: {key}={score!r}"
+                              + (" [OUT OF RANGE]" if _bad_range else ""))
         else:
             groups[(stage, unit)].append(float(score))
             g = r.get("generation")
