@@ -6626,3 +6626,60 @@ replicates dilutes precisely the signal the confirmatory line is meant to carry.
 **And the meta-lesson: the auditor earned its cost on its first outing.** The finding that mattered
 most was not one of the four defects it confirmed but the one place where my own number flattered my
 own conclusion — which is exactly what an author cannot reliably see in their own work.
+
+### 56.7 ⚠ DE-ESCALATION — THE ASYMMETRY IS STRUCTURALLY BOUNDED, AND I SHOULD SAY SO
+
+§56 and §56.6 are accurate about the *present* state and I stand by the numbers. But I reported a
+threat without establishing whether the design already contains it, and it does. **Overstating a risk
+is as inaccurate as understating one**, so this subsection states the containment as precisely as it
+stated the threat.
+
+**Two independent structural guarantees, both read from the code rather than assumed:**
+
+**1. C4 cannot start until every arm's search has finished.** `run_campaign_tiered` submits one
+`_arm_core` future per arm into a `ThreadPoolExecutor` and drains them with `as_completed(futs)`
+(`src/cluster/campaign.py:1794–1826`) before the C2 pair test, the C3 gate, and the C4 sweep. There is
+no path that advances to the seed ladder while an arm is still searching. The control arms are not
+"racing" C4 — C4 is waiting for them.
+
+**2. The C3 gate additionally requires the FULL registered candidate budget, per arm.**
+`write_integrity_report` censuses **`for arm in arms`** — the whole roster, not just the arms that
+produced winners (`src/cluster/integrity.py:320–326`) — and
+
+```
+matched_budget_ok = (accounted == expected_candidates)          # integrity.py:93
+accounted        = len(resolved) + len(failed_cids - resolved)  # integrity.py:86
+all_complete     = all(test present == expected) and all(matched_budget_ok)   # :331-333
+health_ok        = all_complete and crn_consistent and not mixed_winner_units # :360
+```
+
+`expected_candidates` is the registered **30**. So an arm sitting at 9 accepted candidates has
+`accounted ≈ 9 ≠ 30` → `matched_budget_ok` False → `all_complete` False → **`health_ok` False → the
+gate STOPS and refuses to release C4**, auto-proceed or not. The gate fails **closed** on exactly the
+condition §56 is about.
+
+**A third, weaker one worth recording:** a crashed arm would leave `present = 0 ≠ expected` in the
+test census, which also drives `health_ok` False. So the D14 shape — an arm silently missing — cannot
+carry through the C4 boundary either, even though `core_ok` is computed and *not* used as the gate
+input (`campaign.py:1843` vs `:1893`). That is a genuine wart — the gate is defended by
+`all_complete`, not by the `ok` flags — but the defence holds.
+
+**So the honest characterisation of §56 is:**
+
+* the asymmetry is **real and currently large** (3.11× on the worst confirmatory leg, `scalar_cvar5`
+  at 9 of 30 on the core line);
+* it is **transient by construction** — the design forces every arm to its full 30-candidate budget
+  before any confirmatory data is generated;
+* it can therefore reach the analysis **only if the campaign is truncated during SEARCH**, and search
+  has one to two days to run against a stop 26 days away;
+* the equal-k sensitivity (registry row 37) is insurance for that truncation case, and remains
+  worth building — but it is insurance, not a repair.
+
+**What was genuinely wrong, and remains wrong, is the OPERATIONAL cost**: the starvation delayed the
+gating arms by roughly three generations each, which delays C4, which is the phase actually racing the
+calendar. That is the harm — and §54's fix plus §57's requeue address it directly.
+
+**The process lesson.** I found a real mechanism, quantified it correctly, and reported it as a threat
+to the confirmatory claim **before checking whether the gate that stands between it and the claim
+already blocks it**. The check took four greps. A finding is not finished at "this could bias X" — it
+is finished at "and here is what currently stops it, or here is why nothing does."
