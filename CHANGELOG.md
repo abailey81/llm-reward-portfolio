@@ -3,6 +3,124 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31u] RUN 9 (OPS LANE) — §84's CAUSE IS **REFUTED**: THIRTEEN PAID CANDIDATES WERE LOST TO A ONE-NAME GAP IN **OUR OWN** ALLOWLIST
+
+> **★ ANNOUNCEMENT TO THE WRITE-UP LANE (per `docs/LANE_COORDINATION_2026-07-31.md` §3 rule 3 —
+> announce a correction BEFORE fanning out).** If any part of `docs/GRADE_95_MASTER_PLAN.md`, CH4, CH7
+> or the limitations rests on record **§84** ("the sandbox contract is never stated in the prompt";
+> "19 of 20 rejections violate an unstated rule"), **that framing is withdrawn and replaced by §87.2.**
+> The corrected finding is *stronger*, not weaker — see the obligations at the end of this entry.
+> No `paper/**` file was touched by the ops lane; the write-up lane owns the propagation.
+
+**Tamer's instruction creating this session:** *"don't tell the new session not to touch anything you
+did… tell it to audit your work too."* Brief §14 names eight items. This entry covers items **2** and
+**4**; the rest are in flight. **Record §87.**
+
+**Live state, re-measured FIRST-HAND rather than carried from the brief** (the brief's own standing
+order): freeze `3ca6f01a…` **[MATCHES]** · **drift 0** on both routes · **1,528 records** counted by
+`find -mindepth 4 -maxdepth 4 -name record.json`, a route independent of `campaign_guards.py` and
+agreeing with it exactly · **$38.7911** summed independently from 2,449 ledger entries · **119 running /
+79 queued** on SGE · full local stack present. **No `src/ scripts/ config/ prompts/` edit, no relaunch,
+`RUNNING_SHA 50b6e07` untouched.**
+
+### ① §14 ITEM 2 — §75.1's DEFERRAL ARGUMENT **HOLDS** (§87.1)
+
+Verified in the code, not in the record: `safe_call` is defined at `src/sandbox/executor.py:779` and
+called at **`src/env/portfolio_env.py:429`, inside `step()`**, on every step of every training. And
+§75.1 does **not** over-generalise from that one fix to fourteen — it states the discriminating test
+explicitly (*"if it changes what a training COMPUTES or which candidates EXIST, it waits"*), and that
+partition checks out against `DEFERRED_FIXES_RUN4.md`'s own file map: only item **7 (D17)** touches
+reward arithmetic. **No fix is being withheld for a bad reason.**
+
+### ② ★★★ §14 ITEM 4 — §84 IS REFUTED ON ITS CAUSE (§87.2)
+
+§84 reported the core line's twenty rejections as **12 × `import numpy as _np`, 7 × `dir()`, 1 crash**
+and concluded *"19 of 20 violate an UNSTATED rule — `np` is provided but the prompt never says so."*
+
+**Both halves are wrong.**
+
+* **`import numpy` was never a rejection cause.** `ALLOWED_IMPORTS = {"numpy","np"}`
+  (`src/reward/contract.py:39`) and gate check 1 allowlists it (`executor.py:589-592`). Probed against
+  the live function: `ast_gate("import numpy as _np\n" + <valid reward>)` → **True**.
+* **The model IS told numpy is in scope.** `prompts/system.txt` — loaded at `src/llm/prompts.py:135`,
+  freeze-bound at `scripts/freeze.py:139` — says verbatim *"numpy only (available as `np`); no imports
+  beyond numpy"*. **§84 grepped one of the two live prompt files.**
+* **The true first-firing check on all twelve is `check2-attribute-NOT-IN-ALLOWLIST: .resize`.** Every
+  one is `pw = np.resize(pw, w.shape)` — the **pure module-level** numpy function returning a NEW
+  array. `_ALLOWED_ATTRS` holds **338 names** including `reshape`, `ravel`, `flatten`, `tile`,
+  `repeat`, `pad`, `concatenate`, `append` — **every sibling**. `resize` is in neither the allowlist nor
+  the banlist. **It is simply absent: an accidental gap, not a security decision.**
+
+**Why RUN 8 could not see it — the instrument, again (rung 4).** `docs/ops/reject_taxonomy.py::diagnose()`
+flagged **any** `ast.Import` node **without consulting `ALLOWED_IMPORTS`**, and **never implemented gate
+check 2's `_ALLOWED_ATTRS` allowlist at all** — the check that in fact fires most often. It was
+structurally incapable of naming the true cause and reported an incidental construct instead. **Fixed:**
+it now mirrors `ast_gate` node-for-node, reports the FIRST firing check, measures the counterfactual, and
+**runs positive controls before printing any verdict** (known-good accepted; an allowlisted numpy import
+accepted; one planted violation per check named correctly; the counterfactual rescues nothing unsafe).
+**The mirror agreed with the live gate on all 232 archived sources — zero disagreements.**
+
+**The corrected campaign-wide taxonomy — 232 archived rejections:**
+
+```
+  157 (67.7 %)  the reward CRASHED on a real observation or broke the return contract
+                -- 98 of them qwen3_5_9b, the deliberate capability BOTTOM anchor.
+                   GENUINE capability signal; corroborates the numeracy-bottleneck story.
+   62 (26.7 %)  AST rejections that STAND -- dir 11, locals 4, globals 1, __import__ 4,
+                   import math 5, scipy 3, np.random.* 11, polyfit/convolve/cummax/...
+   13 ( 5.6 %)  LOST TO THE `resize` OMISSION -- 12 of the 13 on the CORE CONFIRMATORY LINE
+```
+
+**What it does and does NOT invalidate, verified in both directions.** It does **not** break
+identification — the gate is arm-blind and §80 verified the base prompt is byte-identical across arms,
+so which arm reached for `np.resize` is a genuine differential RESPONSE. **But §83.3's *"All twenty are
+the MODEL writing code that fails our gates; not one is an infrastructure loss"* does not survive** and
+is corrected in place (§83's *conclusion* — do not replace rejected candidates — is unaffected).
+**And the direction is unfavourable to us:** core-line losses were distributional **1**, scalar **3**,
+placebo **3**, scalar_cvar5 **3**, shuffled **2**, so projected pools 28/27/25/24/24 would have been
+**29/30/28/27/26** — which **reverses the E[max] advantage on H2's primary leg (dist ≤ scalar)** from
+the treatment to the comparator. Modest, already covered by the pre-registered equal-*k* analysis, and
+stated here first rather than found by a referee.
+
+**NOT fixed in the live gate, and the reason is stronger than drift.** Applied mid-search it would take
+effect from the current generation onward only, so generations 0-2 of an arm would have faced a
+**stricter gate than generations 3-5 of the same arm** — a *within-arm* inconsistency worse than the
+uniform defect. It also changes which candidates exist (§75.1's own test). And for the deposit **the
+gate that is published must be the gate that ran**. Decision: **live gate unchanged; measured,
+disclosed, carried into the analysis and the write-up.**
+
+### ③ A SECOND CORRECTION — §75.3 CONTRADICTS §83.1, AND §83.1 IS RIGHT (§87.3)
+
+§75.3 closes *"at completion k = 30 everywhere and the imbalance vanishes"*. `accounted` counts
+**ATTEMPTS**, not acceptances (`src/cluster/integrity.py:86` — as §83.2 states in the same record), so
+each arm ends with 30 attempts but **24-28 accepted candidates**, and §83.1 projects the spread
+converging to **1.17×, not 1.0**. The imbalance shrinks; it does not vanish. **This strengthens the case
+for the equal-*k* analysis** — it stays live at completion rather than being truncation insurance only.
+
+### ④ OBLIGATIONS THIS CREATES (supersede §84.5) — for the write-up lane
+
+* **ANALYSIS-TIME:** per-model authoring reliability partitions rejections into **(a)** our allowlist gap
+  (13), **(b)** D17 harness traps (§71.5), **(c)** unstated-contract violations (introspection,
+  `np.random`, the attribute allowlist), **(d)** **STATED**-contract violations (`import math`, scipy —
+  the system prompt does forbid these), **(e)** genuine reward-design failures (157). Only **(e)** speaks
+  to capability. `docs/ops/reject_taxonomy.py` computes (a), (c), (d), (e) directly.
+* **CH7 PRACTITIONER'S CHECKLIST (Okhrati D4)** — sharper than §84's *"state the execution contract"*:
+  **audit the execution allowlist against the API you claim to permit.** We *did* state the contract and
+  still lost 13 candidates, because the **prompt's** contract and the **gate's** contract were not the
+  same object. Concrete, costed, generalisable — and checkable, which the original was not.
+* **CH4 / LIMITATIONS:** accepted-candidate counts are a **lower bound**; 13 lost to a safety-irrelevant
+  allowlist gap, 12 on the confirmatory line; arm breakdown and direction of effect as above.
+
+### ⑤ MY OWN ERRORS — the P-series continues at **P43** (grepped both docs; **P42** was highest in use)
+
+**P43** — counted **3,074** records where the authority counts **1,528**: I globbed `-name '*.json'` at
+depth 4 instead of `-name record.json`. Caught by saying the denominator out loud and reading
+`campaign_guards.py:266`'s actual predicate before reporting. **P44** — reported `sentinel=5,
+allocator=2` against an expected 1 each: my `CommandLine -like` filter matched three orphaned
+`tail -f sentinel.log` handles from a **dead session's scratchpad** plus the venv launcher/child pair.
+Caught by printing pid/ppid/creation-time instead of trusting a count. **Both were caught before they
+reached Tamer.**
+
 ## [2026-07-31t] THE HANDOVER GAP-HUNT — AN UNREACHABLE AUTHORITY, AN EIGHTH BROKEN INSTRUMENT, AND FOUR UNDEFINED TERMS
 
 **Tamer's instruction:** *"make sure you ultrathink, and don't miss anything that the next Claude
@@ -102,7 +220,11 @@ inherits the brief's §14 instruction to audit RUN 8.**
 no relaunch, RUNNING_SHA untouched, freeze unmoved.** All campaign analysis below is **effect-blind**:
 baseline and benchmark behaviour only, no treatment arm's sealed-test outcome read or looked at.
 
-**Live state observed at close (2026-07-31 21:35 UTC, T+72h27m):** 12/12 lines · **1,554 records** ·
+**Live state observed at close (2026-07-31 21:35 UTC, T+72h27m):** 12/12 lines · **~~1,554 records~~
+→ SUPERSEDED: the true figure is 1,527** (reconciled by the ops lane in record **s.86.2** — the status
+page used a recursive `find` and counted 27 `frozen*/` markers plus a stale `.pull_tmp` byte-identical
+duplicate, against the cycle log's fixed-depth glob. **NOT a data loss**; this entry read the inflated
+page) ·
 **$38.7911** · 2,449 LLM calls · freeze `3ca6f01a…` MATCHES · drift 0 · `sci=OK` · guards RC=2
 (acknowledged truncation). **26 frozen winners. C4 HAS BEGUN on `frozen_leg_qwen3_5_9b` (5/5).**
 Core line **3/5 and still searching**. **`test_leg_qwen3_5_9b` holds 0 records — no LLM arm has a

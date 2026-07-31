@@ -8924,6 +8924,13 @@ confirmatory IUT (which re-scores on SEALED data across the seed ladder). And **
 vanishes — this analysis is **insurance for the truncation scenario**, which is precisely what it was
 registered as.
 
+> ⛔ **CORRECTED 2026-07-31 (RUN 9, §87.3).** *"k = 30 everywhere and the imbalance vanishes"* is **wrong
+> and contradicts §83.1**. `accounted` counts **ATTEMPTS**, not acceptances (`src/cluster/integrity.py:86`
+> — as §83.2 states in this same record), so at completion each arm has 30 attempts but **24-28 accepted
+> candidates**; §83.1 projects the spread converging to **1.17×, not 1.0**. The imbalance SHRINKS, it does
+> not vanish. **This strengthens rather than weakens the case for the equal-*k* analysis:** it remains
+> live at completion, so it is not merely truncation insurance.
+
 ### 75.4 THE RFC-8259 EXPORTER — and it audited its own finding
 
 `json_rfc8259_export.py` writes a compliant COPY (never in place: the archive is the primary record,
@@ -9769,6 +9776,15 @@ every core-line failure was read:
 ```
 
 **All twenty are the MODEL writing code that fails our gates. Not one is an infrastructure loss.**
+
+> ⛔ **CORRECTED 2026-07-31 (RUN 9, §87.2).** The second sentence is **withdrawn**. Twelve of the twenty
+> were rejected by `check2-attribute-NOT-IN-ALLOWLIST: .resize` — `np.resize(pw, w.shape)`, a **pure**
+> numpy function whose every sibling is allowlisted and which is absent from `_ALLOWED_ATTRS` by
+> omission, not by design. That IS an infrastructure loss in the sense this paragraph uses the term, and
+> it is the *"our gate is over-rejecting safe code → OUR defect"* branch `reject_taxonomy.py` was built
+> to detect but structurally could not. **§83's CONCLUSION IS UNAFFECTED** — do not replace rejected
+> candidates (§83.4-83.6 stand on matched budget and the forking-path argument, neither of which depends
+> on whose fault the rejection was). Only this premise is corrected.
 Nothing was taken from any arm by a defect of ours, so there is nothing to give back.
 
 ### 83.4 WHY REPLACING REJECTS WOULD ACTIVELY DAMAGE THE EXPERIMENT
@@ -9810,6 +9826,23 @@ would convert a bankable pre-registered null into an unbankable one.**
 ---
 
 ## 84. ★★★ WHY THE GAP EXISTS — THE SANDBOX CONTRACT IS NEVER STATED IN THE PROMPT (2026-07-31)
+
+> ### ⛔⛔ THE CAUSE IDENTIFIED IN THIS SECTION IS **REFUTED** — SEE **§87.2** (2026-07-31, RUN 9).
+> **Two claims below are false and are withdrawn:** (i) that the twelve rejections were caused by
+> `import numpy as _np` — `ALLOWED_IMPORTS = {"numpy","np"}` (`src/reward/contract.py:39`) and the live
+> gate **accepts** that import, verified by direct probe; and (ii) that *"the model is never told that
+> numpy is in scope"* — `prompts/system.txt`, which `src/llm/prompts.py:135` loads and the freeze binds,
+> says *"numpy only (available as `np`)"*. §84 grepped **one** of the **two** live prompt files.
+> **The true first-firing check on all twelve is `check2-attribute-NOT-IN-ALLOWLIST: .resize`** — every
+> one is `np.resize(pw, w.shape)`, a pure module-level function whose siblings `reshape/ravel/flatten/
+> tile/repeat/pad/concatenate/append` are ALL in the 338-name `_ALLOWED_ATTRS` while `resize` is neither
+> allowed nor banned, just absent. **They were lost to our own allowlist gap, not to an unstated rule.**
+> `docs/ops/reject_taxonomy.py` could not have seen this: its `diagnose()` flagged any import without
+> consulting `ALLOWED_IMPORTS` and never implemented the `_ALLOWED_ATTRS` check at all. **It is fixed.**
+> **WHAT SURVIVES:** the causal chain of §84.1 (differential rejection × never-replaced = the gap), the
+> §84.3 defence that identification is NOT broken (the gate is arm-blind, §80), and the §84.5 obligations
+> — all four are carried forward and **sharpened** in §87.2.8. **WHAT DOES NOT:** the headline
+> *"19 of 20 violate an unstated rule"* (true count: 7 unstated `dir()`, 12 our own defect, 1 crash).
 
 Tamer: *"why is there even a gap?"* Traced to the root cause, and it is a genuine instrument finding
 that had never been identified.
@@ -10076,7 +10109,7 @@ and §12.4 of the brief.
 | **0.2** | Four required artefacts are **written but UNWIRED**: `RQ_canonical_and_framing.md` (1,053 w), `CH7_wider_context.md` (756 w), `CH1_contributions.md` (951 w), `CH3_severity_paragraph.md` (757 w) are absent from `scripts/build_paper.py::ASSEMBLY` | **the dominant remaining work is ASSEMBLY, not authoring** — a far better position than "66 placeholders" implies |
 | **0.3** | **Theory and Prototype are not permitted sections** under the guidelines, yet `02_CHAPTER_theory.md` (4,000 w) and `CH5_prototype.md` (1,402 w) are both in `ASSEMBLY` | relocating them is **required for conformance** AND delivers **5,002 of the ~10,177 words** that must leave the body |
 | **0.1** | The four-criteria **aggregation rule is UNKNOWN**, and our own two internal documents contradict each other on it, neither citing a source | the posture is *assume the harshest*. **Do not "resolve" the contradiction by picking a side** — it is unresolved on purpose |
-| **★ 14.1** | **The novelty sweep MISSED a neighbour** — RDA (arXiv:2606.01672, June 2026): an LLM authoring executable reward code for **Soft Actor-Critic**, arguing that Eureka-style loops rely on *"coarse numerical metrics"* and should be **enriched** | **our argument's exact shape**, along a semantic axis instead of a distributional one. It does not close our cell (robotics, not risk-sensitive, no pre-registration) but *"enriching the feedback channel"* is **no longer ours as an idea** |
+| **14.1** ⚠ | **RDA** (Lee et al.): an LLM authoring executable reward code for **Soft Actor-Critic**, arguing Eureka-style loops rely on *"coarse numerical metrics"* and should be **enriched**. ⚠ The plan's original framing — *"the sweep MISSED it"* — **is FALSE and was retracted the same day; see §86.6** | **our argument's exact shape**, on a semantic axis instead of a distributional one. It does not close our cell (robotics, not risk-sensitive, no pre-registration) but *"enriching the feedback channel"* is **no longer ours as an idea** — and **that narrowing is unaffected by the retraction** |
 
 **VERIFIED FIRST-HAND before relaying**, because the plan was unaudited RUN-8-era work and this project
 has a documented history of a fabricated bib entry surviving an audit: all four §0.2 word counts match
@@ -10088,10 +10121,15 @@ arXiv:2606.01672 itself. The plan says "verified first-hand"; that claim was **n
 wiring the document in. It must be, via the `verifying-citations` skill, before any of it reaches the
 PDF.
 
-**The process defect the plan names on itself (§14.4 N-A4):** the 2026-07-30 sweep was
-**finance-weighted**, so it found GIFT and missed RDA. The fix — sweep the reward-design lineage on
-arXiv **by date**, not only the finance neighbours — is due **before the mandatory pre-submission sweep
-(~20 Aug)**. Three sibling actions ride with it (N-A1 reorder contributions by DURABILITY; **N-A2
+**⚠ RETRACTED 2026-07-31 22:10Z — the "process defect" recorded here was FALSE.** This paragraph
+originally stated that the 2026-07-30 sweep was finance-weighted and *"missed RDA"*. **It did not.**
+Verified by `grep`: RDA was **already in `paper/refs.bib`** (as `@inproceedings{lee2026rda}`, venue
+**RLC 2026**) **and already cited in `CH2_related_work.md`**; LEARN-Opt likewise. The claim originated
+in the grade session, propagated into this record and into the RUN 9 brief before being caught, and is
+corrected in all four places. **What remains actionable:** both papers are cited in prose but are not
+**T10 rows** — and T10 omits papers without a first-hand dossier entry *by design*, so the action is to
+write those dossier entries and then add the rows. Widening the sweep scope to the reward-design lineage
+on arXiv **by date** stands **on its own merits**, not as a discovered defect. Three sibling actions ride with it (N-A1 reorder contributions by DURABILITY; **N-A2
 promote the placebo-controlled identification design to a named, numbered contribution**; N-A3 add
 RDA/LEARN-Opt/RF-Agent/QRM to T10).
 
@@ -10174,3 +10212,267 @@ control (a token that MUST be absent) is what made the remaining results trustwo
 had already been declared complete once.** That is the honest measure of how hard "nothing missed" is,
 and it is the reason §14 of the brief tells the next session to audit this one rather than trust it.
 Everything in §86 is itself unaudited and inherits that instruction.
+
+---
+
+## 87. ★★★ AUDITING RUN 8 (BRIEF §14) — §84's CAUSE IS WRONG, AND THE TRUE CAUSE IS OUR OWN ALLOWLIST (2026-07-31, RUN 9)
+
+Tamer's instruction creating this session: *"don't tell the new session not to touch anything you did.
+Keep in mind you might have made a mistake as well… tell it to audit your work too."* This section is
+the running verdict register for brief §14. It is appended to as each item is worked, and **nothing in
+it is exempt from the same instruction** — RUN 10 audits this.
+
+**Live state at the start of the audit, re-measured first-hand rather than carried from the brief:**
+freeze `3ca6f01a…` **[MATCHES]** · drift **0** on both routes (`git diff 50b6e07 HEAD` and
+`git status --porcelain`, both empty over `src scripts config prompts`) · **1,528 records** counted by
+`find outputs/campaign_cluster_run4 -mindepth 4 -maxdepth 4 -name record.json`, i.e. by a route
+independent of `campaign_guards.py status` and agreeing with it exactly · spend **$38.7911** summed
+independently from 2,449 `spend_ledger_*.jsonl` entries · **119 running / 79 queued** on SGE ·
+the full local stack present (12 supervisors, 24 drivers, watchdog, sentinel, allocator, backup,
+publisher, remote watcher, cycle loop, ssh reaper).
+
+---
+
+### 87.1 §14 ITEM 2 — §75.1's DEFERRAL ARGUMENT **HOLDS** (verified, not accepted)
+
+The brief summarises §75.1 as *"RUN 8 deliberately did NOT batch-apply the deferred fixes because
+`safe_call` is on the live training path"*. Read as written, that would be an over-generalisation from
+one fix to fourteen — so it was checked at the source rather than in summary.
+
+**The premise is TRUE and was verified in the code, not in the record.** `safe_call` is defined at
+`src/sandbox/executor.py:779` and called at `src/env/portfolio_env.py:429`, inside the environment's
+`step()`, on every step of every training (`src/env/portfolio_env.py:43` imports it;
+`src/agents/trainer.py:155` documents that the executor's counters accumulate exactly one call per
+step). Changing what it returns on failure therefore changes what an archived record replays to.
+
+**And §75.1 does NOT over-generalise — the record is more careful than the brief's summary of it.** It
+states the discriminating test explicitly: *"if it changes what a training COMPUTES or which candidates
+EXIST, it waits. D12/D13/D16 change control flow or the candidate set; D14/D18/D20/§39 do not, but each
+still costs a 24-driver relaunch."* That partition was checked against
+`docs/DEFERRED_FIXES_RUN4.md`'s own file map and is correct: of the fourteen items only **7 (D17)**
+touches reward arithmetic; items 1/2/6 change control flow or which candidates exist; the remainder are
+orchestration, scheduling or monitoring and cost only a relaunch.
+
+**VERDICT: the argument stands. No fix is being withheld for a bad reason.** One refinement worth
+recording: item **3 (preflight)** runs only *before* a campaign and can affect nothing live, so it is
+the single item with zero semantic risk — but it still sits inside the drift pathspec, so it rides with
+the batch regardless. Nothing changes about the plan.
+
+---
+
+### 87.2 ★★★ §14 ITEM 4 — §84 IS **REFUTED** ON ITS CAUSE, AND THE TRUE CAUSE IS A ONE-NAME OMISSION IN OUR OWN ALLOWLIST
+
+§84 reported the core line's twenty rejections as
+
+```
+  12  import numpy as _np      <- an import statement inside the reward body
+   7  dir()                    <- runtime introspection
+   1  (non-AST) sandbox crash
+```
+
+and concluded **"19 of 20 rejections are a violation of an UNSTATED rule"**, on the grounds that `np` is
+provided by the executor but *"`prompts/initial_generation.txt` NEVER SAYS SO."*
+
+**Both halves of that are wrong.**
+
+#### 87.2.1 `import numpy` is not, and never was, a rejection cause
+
+`src/reward/contract.py:39` declares `ALLOWED_IMPORTS: set[str] = {"numpy", "np"}`, and the gate's
+check 1 (`src/sandbox/executor.py:589-592`) accepts any `ast.Import` whose root module is in that set.
+Probed directly against the live function: `ast_gate("import numpy as _np\n" + <a valid reward>)`
+returns **True**. The construct §84 named as the cause of twelve rejections is one the gate is
+explicitly designed to permit.
+
+#### 87.2.2 The model IS told that numpy is in scope
+
+`prompts/system.txt` — loaded at run time by `src/llm/prompts.py:135`, and one of the two prompt files
+bound into the freeze hash (`scripts/freeze.py:139-140`) — says verbatim:
+
+> `- numpy only (available as `np`); no imports beyond numpy; no file/network/OS access; no dates.`
+
+§84 grepped **one** of the two live prompt files. This is the P-series shape again in its purest form:
+a true statement about `initial_generation.txt` reported as a conclusion about *what the model was
+told*. (`prompts/reflection.txt` is the third file in that directory and is explicitly ARCHIVED/DEAD
+per R63 — it is neither loaded nor freeze-bound, which is exactly why the live-vs-dead distinction had
+to be checked rather than assumed.)
+
+#### 87.2.3 THE INSTRUMENT: `docs/ops/reject_taxonomy.py` could not have named the true cause
+
+The tool RUN 8 built for this question had two structural blind spots, and they are the reason a wrong
+answer looked like a measured one:
+
+1. its `diagnose()` flagged **any** `ast.Import` / `ast.ImportFrom` node **without consulting
+   `ALLOWED_IMPORTS`** — so a permitted import was reported as a defect;
+2. it **never implemented gate check 2's `_ALLOWED_ATTRS` allowlist at all** — a 338-name frozenset
+   that rejects any attribute not on it, and the check that in fact fires most often.
+
+So the tool was **structurally incapable of reporting the real cause** and reported an incidental
+construct instead. This is the seventh-plus instance of RUN 8's own meta-lesson — *the next defect is
+more likely in something that watches than in something that computes* — this time inside RUN 8's own
+watching layer.
+
+#### 87.2.4 THE CORRECTED TAXONOMY — method, controls, and result
+
+Two independent routes, neither reusing `diagnose()`:
+
+* **Route A — the archived verdict.** `failures.jsonl` records the `error` string the live pipeline
+  wrote at rejection time. On the core line: **19 × `author_reject: ast_gate (unsafe construct)`**,
+  **1 × `node reject: sandbox: reward crashed during validation: ValueError('operands could not be
+  broadcast together with shapes (31,) vs (30,)')`**. This confirms §84's AST-vs-crash split exactly.
+* **Route B — re-run the REAL gate.** `ast_gate` is imported from `src/sandbox/executor.py` and applied
+  to each archived `reward_source`; a mirror of its walk, node-for-node and in the same `ast.walk`
+  order, names the **FIRST** check that fires (the gate short-circuits, so only the first is causal).
+
+**Positive controls ran before any verdict was printed** — a known-good reward must be accepted by both
+routes; an allowlisted numpy import must be accepted; one planted violation per check
+(`import os`, `from numpy import load`, `.__class__`, `np.load`, `np.resize`, `dir()`) must be named
+correctly; and the counterfactual must rescue none of the genuinely unsafe plants. **All passed.** The
+mirror agreed with the live gate on **all 232** archived sources campaign-wide — zero disagreements.
+
+**The true first-firing checks on the core line:**
+
+```
+  12  check2-attribute-NOT-IN-ALLOWLIST: .resize
+   7  check4-forbidden-call: dir()
+   1  (gate PASSES -- rejected for a NON-AST reason: the broadcast ValueError)
+```
+
+Every one of the twelve is the same construct, printed from the archived source:
+
+```
+  pw = np.resize(pw, w.shape)          (and .size / n_all variants)
+```
+
+`np.resize(a, new_shape)` is the **module-level, pure** numpy function: it returns a NEW array, reads no
+file, touches no FFI, and cannot mutate its input. `_ALLOWED_ATTRS` holds **338 names** and contains
+`reshape`, `ravel`, `flatten`, `tile`, `repeat`, `pad`, `concatenate`, `append`, `zeros_like`,
+`nan_to_num` — **every sibling reshaping operation**. `resize` is in neither `_ALLOWED_ATTRS` nor
+`_BANNED_ATTRS`. **It is simply absent: an accidental gap in an allowlist, not a security decision.**
+
+#### 87.2.5 CAMPAIGN-WIDE — 232 archived rejections, re-derived
+
+```
+  157  (67.7 %)  the reward CRASHED on a real observation or broke the return contract
+                 -- ValueError 31, AttributeError 29, TypeError-not-subscriptable 24,
+                    UnboundLocalError 19, non-unpackable return 13, NameError 11, ...
+                 -- 98 of the 157 are `qwen3_5_9b`, the deliberate capability BOTTOM anchor.
+                    This is genuine capability signal and corroborates the numeracy-bottleneck story.
+   62  (26.7 %)  AST-gate rejections that STAND -- dir() 11, locals() 4, globals() 1,
+                 __import__() 4, `import math` 5, scipy imports 3, np.random.* 11
+                 (seed/randint/normal/randn/default_rng/uniform), polyfit/convolve/cummax/
+                 triu_indices/erfinv/moment/kurtosis, attribute STORES on a state object
+   13  ( 5.6 %)  LOST TO THE `resize` OMISSION -- and 12 of the 13 are on the CORE
+                 CONFIRMATORY LINE, 1 on qwen3_5_9b
+```
+
+The concentration is not an accident: `pw = np.resize(pw, w.shape)` is an idiom of the core line's
+model (Opus 5), so **the damage from our omission falls almost entirely on the confirmatory line**.
+
+#### 87.2.6 WHAT THIS DOES AND DOES NOT INVALIDATE — verified in BOTH directions
+
+**It does NOT break identification, and §84's defence of that is still right.** The gate is arm-blind
+and record 80 verified the base prompt is byte-identical across arms, so which arm happened to reach
+for `np.resize` remains a genuine differential RESPONSE under an identical instruction. **H2 is not
+confounded by this.**
+
+**But §83.3's claim does not survive.** It states: *"All twenty are the MODEL writing code that fails
+our gates. Not one is an infrastructure loss."* Twelve of the twenty are a **pure, safe function
+rejected by an accidental gap in our own allowlist** — which is precisely the *"our gate is
+over-rejecting safe code → that would be OUR defect"* branch that `reject_taxonomy.py`'s own docstring
+was written to detect. **§83.3 is corrected here, not deleted:** its conclusion (do not replace
+rejected candidates) is unaffected and still right for the reasons §83.4-83.6 give; only its premise
+that every rejection is a model failure is withdrawn.
+
+**And the direction is unfavourable to us, which is why it must be disclosed rather than absorbed.**
+Core-line losses to `resize`, by arm:
+
+```
+  distributional  1   scalar 3   placebo 3   scalar_cvar5 3   placebo_shuffled 2
+```
+
+Projected final accepted pools are 28 / 27 / 25 / 24 / 24 (§83.1). Had `resize` been allowlisted they
+would have been **29 / 30 / 28 / 27 / 26** — which **reverses the E[max] advantage on H2's primary leg**
+(`distributional ≤ scalar`) from the treatment to the comparator. The magnitude is modest and the
+pre-registered equal-*k* sensitivity (§26.3, implemented §75.3) already neutralises exactly this class
+of residual, but a self-inflicted asymmetry that happens to favour our own hypothesis is the kind of
+thing a referee finds, and it is stated here first.
+
+#### 87.2.7 IT MUST NOT BE FIXED IN THE LIVE GATE — and the reason is not the drift rule
+
+Adding `resize` to `_ALLOWED_ATTRS` is a genuine REPAIR of our own defect and would ordinarily be
+allowed. It is nevertheless refused, for a reason stronger than drift:
+
+* applied mid-search it would take effect **from the current generation onward only**, so candidates in
+  generations 0-2 of an arm would have faced a **stricter gate** than candidates in generations 3-5 of
+  the same arm — a *within-arm* inconsistency worse than the uniform defect it replaces;
+* it changes **which candidates exist**, which is exactly the test §75.1 sets for "this waits";
+* and for the deposit, the gate that is published must be **the gate that ran**. Silently improving it
+  post hoc would make the released code not the code that produced the archive — a direct hit on
+  reproducibility layer 1, Stefan's criterion #3.
+
+**Decision: the live gate is unchanged. The omission is measured, disclosed, and carried into the
+analysis and the write-up.** If a future clean re-run is ever launched, `resize` (and a review of the
+whole `_ALLOWED_ATTRS` surface against the numpy API) is a pre-freeze fix.
+
+#### 87.2.8 THE OBLIGATIONS THIS CREATES — registered, not left as prose
+
+* **ANALYSIS-TIME (supersedes §84.5's partition).** Per-model authoring reliability partitions
+  rejections into **(a) our own allowlist gap** (`resize`; 13 campaign-wide), **(b) D17 harness traps**
+  (§71.5), **(c) unstated-contract violations** (introspection, `np.random`, the numpy-attribute
+  allowlist), **(d) STATED-contract violations** (`import math`, scipy — the system prompt does forbid
+  these), and **(e) genuine reward-design failures** (the 157 crashes). Only (e) speaks to capability.
+  `docs/ops/reject_taxonomy.py` now computes (a), (c), (d) and (e) directly.
+* **CH7 PRACTITIONER'S CHECKLIST (Okhrati D4).** The recommendation is sharper than §84's *"state the
+  execution contract"*: **audit the execution allowlist against the API you claim to permit, and state
+  the contract in the prompt.** We did state it — and still lost 13 candidates, because the *prompt's*
+  contract and the *gate's* contract were not the same object. That is a concrete, costed, generalisable
+  failure mode for anyone running LLM-authored code in a sandbox, and it is worth more than the generic
+  version.
+* **CH4 / LIMITATIONS.** Disclose that the accepted-candidate count per arm is a **lower bound**, that
+  13 candidates were lost to a safety-irrelevant allowlist gap, that 12 of them were on the confirmatory
+  line, and the arm-level breakdown above with its direction of effect.
+* **STRONGEST-CLAIM NOTE.** The corrected finding is *better* for the dissertation than the original:
+  "our prompt and our sandbox disagreed about what numpy was permitted, and it cost 13 paid candidates"
+  is measurable, mechanistic and checkable, where "the contract is never stated" was neither true nor
+  falsifiable as written.
+
+---
+
+### 87.3 A SECOND, SMALLER CORRECTION — §75.3 AND §83.1 CONTRADICT EACH OTHER, AND §83.1 IS RIGHT
+
+§75.3 closes with: *"the C3 gate requires `accounted == 30` per arm and fails closed, so at completion
+**k = 30 everywhere and the imbalance vanishes**."* `accounted` counts **attempts**, not acceptances
+(`src/cluster/integrity.py:86`, `len(resolved) + len(failed_cids - resolved)`) — as §83.2 itself states.
+So at completion every arm has 30 *attempts* but **24-28 accepted candidates**, and §83.1's own
+projection says the spread converges to **1.17×, not to 1.0**.
+
+The imbalance **shrinks**; it does not vanish. §83.1 is correct and §75.3's closing sentence is not.
+This matters because §75.3 uses it to argue the equal-*k* analysis is "insurance for the truncation
+scenario" only — whereas on the projection it remains live at completion, which is a stronger reason to
+run it, not a weaker one.
+
+---
+
+### 87.4 MY OWN PROCESS ERRORS THIS SESSION — the ledger continues at **P43** (P31-P42 are in use)
+
+The P-series is a shared namespace and both 2026-07-31 sessions allocated from P31 (§86 / cursor).
+`grep`ped both `docs/CAMPAIGN_EXECUTION_RECORD.md` and `CHANGELOG.md` before allocating: **highest in
+use is P42**, so this session starts at **P43**.
+
+| id | error | how it was caught |
+|---|---|---|
+| **P43** | counted **3,074** archive records where the authority counts **1,528** | I globbed `-name '*.json'` at depth 4 instead of `-name record.json`. **The denominator error the P-series keeps producing** — caught by saying the denominator out loud and going to read `campaign_guards.py`'s actual predicate (`root.glob("*/*/*/record.json")`, line 266) before reporting anything |
+| **P44** | reported the process stack as `sentinel=5, allocator=2` against an expected 1 each | my `CommandLine -like` filter matched three orphaned `tail -f sentinel.log` handles from a **dead session's scratchpad** plus the venv launcher/child pair. Caught by printing `ProcessId/ParentProcessId/CreationDate` instead of trusting a count — the same "a filter matches more than you meant" family as the brief's trap 3 |
+
+Both were caught **before** they reached Tamer, by the same rule that catches all of them: *a count is
+not a measurement until you have said what is in the denominator.*
+
+---
+
+### 87.5 WHAT THE CAMPAIGN DID NOT DO DURING THIS AUDIT
+
+**No src / scripts / config / prompts edit. No relaunch. No freeze movement. Drift re-verified 0 after
+the work.** The only repository change is `docs/ops/reject_taxonomy.py` — outside the drift pathspec —
+plus documentation. `RUNNING_SHA` remains `50b6e07`.
+
+---
