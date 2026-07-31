@@ -7675,3 +7675,96 @@ re-run.
   `(generation, candidate index)` order, never by score, reported beside the headline IUT rather than in
   an appendix (§56.3).
 * Registry row 37 stays OPEN and is now backed by a feasibility PASS rather than an assumption.
+
+---
+
+## §66. CONSTRUCT VALIDITY RE-DERIVED INDEPENDENTLY — IT HOLDS; AND A NEW QUANTITY NOBODY WAS COUNTING (2026-07-31)
+
+**Why.** The 2-minute cycle reports `sci=OK`, which includes *"0 scalar-arm tail leaks"*. That check was
+**built by the RUN 7 session**, and the standing rule is that the author must not grade their own work.
+So this re-derives the manipulation's integrity from the raw archive **without importing or invoking
+`science_watch.py` or `results_audit.py`** — agreement between two independent routes is evidence;
+re-running the same tool is an echo.
+
+### §66.1 THE RESULT — construct validity HOLDS, with the instrument proven able to fail
+
+Over **753 generation ≥ 1 search-lane prompts**:
+
+| arm | expected tail labels | observed | verdict |
+|---|---|---|---|
+| distributional | 6 | **6 on all 226** (each of the six labels present 226/226) | OK — **this is the positive control** |
+| scalar | 0 | **0 on all 227** | **OK — ZERO LEAKS** |
+| placebo | 0 | 0 on all 116 | OK |
+| placebo_shuffled | 6 | 6 on all 89 | OK |
+| scalar_cvar5 | 1 | 1 on 93, **0 on 2** | explained in §66.3 |
+
+**ZERO tail numbers reached any tail-free arm. The H2 manipulation is intact.**
+
+### §66.2 THE INSTRUMENT TOOK THREE ITERATIONS, AND THE FIRST TWO WERE WORTHLESS — logged as P35
+
+This is recorded in full because the failure mode is the dangerous one: **two of the three versions
+returned a REASSURING answer while being incapable of detecting the thing they were testing.**
+
+* **v1** read `record.json["feedback_block"]` and counted generation 0. It reported **"602 off-spec
+  records — THE MANIPULATION MAY HAVE LEAKED, H2 IS AT RISK"**. Two bugs: generation 0 has no feedback
+  *by design* (the initial generation is authored from the base prompt), and `feedback_block` is
+  **EMPTY in all 1,031 search-lane records** — the fed block is archived in `prompt.txt` beside the
+  record, which is the artefact §44 actually used. **The tell was that EVERY arm read zero, including
+  `distributional`, which must read six. A uniform zero is a broken extractor, not a broken
+  experiment** — and the standing rule (*a surprising negative is a claim about my own code first*)
+  is what stopped it being reported.
+* **v2** fixed both, but matched **internal field names** (`cvar_05`, `robust_skew`) that never appear
+  in a rendered prompt. It reported **"TAIL LEAKS: 0"** — which looks like the answer we wanted and was
+  **worth nothing**: a check that reads 0 for the arm that HAS the tail cannot see the tail leaking
+  into an arm that must not. **A reassuring null from an instrument that cannot fire is more dangerous
+  than an alarm**, because nothing about it invites a second look.
+* **v3** matches the **real rendered labels**, read from a live prompt rather than assumed —
+  `CVaR 5%`, `CVaR 10%`, `CVaR 25%`, `CVaR 1%`, `left-tail mass`, `left-tail skew` (note `left-tail
+  skew`, not the internal `robust_skew`; and `CVaR 1%` is anchored so it cannot match inside
+  `CVaR 10%`) — and **carries its positive control inside the test**: if `distributional` does not read
+  6, the script prints that the leak result is untrustworthy and exits non-zero rather than reporting a
+  comfortable null.
+
+**The lesson is the pre-existing rule, earned again: *a test that cannot fail verifies nothing.*** It
+is written into `CLAUDE.md` for code; it applies with equal force to a one-off verification script, and
+the natural failure direction is toward false REASSURANCE.
+
+### §66.3 THE TWO OFF-SPEC PROMPTS — investigated to a cause, and it is a NEW measurable quantity
+
+The two `scalar_cvar5` prompts carrying no CVaR number are **not** a leak, a rendering fault, or a
+missing feedback bug. They are **2,602-byte BASE prompts** (*"Here is the environment interface and the
+reward contract"*) where a reflection prompt (~445 bytes, *"Reflect on the previous candidate's
+results"*) was expected. **With no accepted prior candidate to reflect on, the loop re-authors from
+base.** Both are on **`leg_qwen3_5_9b`** — the capability-gradient BOTTOM anchor at a ~92 % reject rate
+— so this is precisely the behaviour that model was selected to exhibit.
+
+**The tail-label check can only SEE this in `scalar_cvar5`** (in `scalar`/`placebo`, zero tail labels
+is the expected reading either way, so a base re-authoring is invisible). So it was counted directly:
+
+```
+  generation>=1 prompts examined : 753
+    reflection prompts           : 750
+    BASE re-authorings           :   3
+    UNCLASSIFIED                 :   0     <- the classification is exhaustive
+```
+
+All three on `leg_qwen3_5_9b` (`placebo-g2-c2`, `scalar_cvar5-g3-c2`, `scalar_cvar5-g3-c4`), i.e.
+**0.4 % of prompts, entirely on one report-only leg (R80)**, and **ZERO on the confirmatory core line.**
+
+**WHY THIS IS WORTH A REGISTERED OBLIGATION rather than a footnote.** A base re-authoring is **not a
+generation-*g* reflection candidate — it is effectively a SINGLE-SHOT candidate sitting inside an
+iterative arm.** That is harmless on a report-only leg, but on the core line it would dilute exactly
+the iterative-vs-single-shot contrast **H3** is built to measure, and **nothing in the campaign counts
+them**. The count is currently 0 where it matters, which is the point of measuring it before it is not.
+
+**ANALYSIS-TIME OBLIGATION (new): report the base-re-authoring count per (line, arm) beside H3, and
+exclude those candidates from any claim about the depth of the reflection chain.** It costs nothing —
+the classification is exhaustive, unambiguous, and computable from `prompt.txt` — and it forecloses a
+reviewer question that would otherwise have no answer.
+
+### §66.4 What this says about `sci=OK`
+
+The RUN 7 monitor's tail-leak invariant and this independent re-derivation **agree**: zero leaks. That
+is now a two-route result rather than a single tool's self-report, which is the standard the project
+holds every other load-bearing claim to. The monitor's construct-validity check is **corroborated, not
+merely trusted**.

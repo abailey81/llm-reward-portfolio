@@ -3,6 +3,55 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31i] CONSTRUCT VALIDITY RE-DERIVED INDEPENDENTLY — IT HOLDS; AND A NEW QUANTITY NOBODY WAS COUNTING
+
+**State before:** RUN 4 live, T+68 h 40 m, 1,450 records, drift 0, `sci=OK`, cores ~736. The cycle's
+`sci=OK` includes "0 scalar-arm tail leaks" — a check **built by the RUN 7 session**, never verified by
+an independent route.
+
+**What was done.** Re-derived the manipulation's integrity from the raw archive **without importing or
+invoking `science_watch.py` / `results_audit.py`**. Two routes agreeing is evidence; re-running the same
+tool is an echo.
+
+**RESULT — construct validity HOLDS.** Over **753 generation ≥ 1 search-lane prompts**: `distributional`
+**6 tail labels on all 226** (each label 226/226 — this is the positive control), `scalar` **0 on all
+227**, `placebo` 0 on all 116, `placebo_shuffled` 6 on all 89. **ZERO tail numbers reached any tail-free
+arm; the H2 manipulation is intact**, now corroborated by two independent routes rather than one tool's
+self-report.
+
+**P35 — the instrument took three iterations and the first two were WORTHLESS, both in the reassuring
+direction.** **v1** read `record.json["feedback_block"]` (EMPTY in all 1,031 search-lane records — the
+fed block lives in `prompt.txt`) and counted generation 0 (no feedback *by design*); it screamed **"602
+off-spec — H2 IS AT RISK"**. The tell: *every* arm read zero including `distributional`, which must read
+six — a uniform zero is a broken extractor, not a broken experiment, and the standing "suspect your own
+script first" rule stopped it being reported. **v2** fixed both but matched **internal field names**
+(`cvar_05`, `robust_skew`) that never appear in a rendered prompt, and reported **"TAIL LEAKS: 0"** —
+the answer we wanted, worth nothing, because a check that reads 0 for the arm that HAS the tail cannot
+see it leaking. **v3** matches the real rendered labels (`CVaR 5%`…`left-tail skew`, with `CVaR 1%`
+anchored so it cannot match inside `CVaR 10%`), read from a live prompt rather than assumed, and
+**carries its positive control inside the test** — if `distributional` ≠ 6 it declares the leak result
+untrustworthy and exits non-zero. **A reassuring null from an instrument that cannot fire is more
+dangerous than an alarm**, because nothing invites a second look.
+
+**A NEW MEASURABLE QUANTITY, found by investigating the one anomaly instead of shrugging.** Two
+`scalar_cvar5` prompts carrying no CVaR number turned out to be **2,602-byte BASE prompts** where a
+~445-byte reflection prompt was expected: with no accepted prior candidate to reflect on, the loop
+re-authors from base. Counted directly across all arms (the tail-label check can only see this in
+`scalar_cvar5`): **753 prompts = 750 reflection + 3 base re-authorings + 0 unclassified**, all three on
+**`leg_qwen3_5_9b`** (the ~92 %-reject bottom anchor, i.e. exactly the behaviour it was selected to
+exhibit), **0.4 % of prompts, entirely report-only (R80), and ZERO on the confirmatory core line.**
+
+**Why that earns a registered obligation rather than a footnote:** a base re-authoring is **not a
+generation-*g* reflection candidate — it is effectively a SINGLE-SHOT candidate inside an iterative
+arm**, which on the core line would dilute exactly the contrast **H3** measures, and **nothing in the
+campaign counts them**. **New analysis-time obligation: report the base-re-authoring count per (line,
+arm) beside H3 and exclude those candidates from any claim about the depth of the reflection chain.**
+The count is 0 where it matters — which is the point of measuring it before it is not.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §66 · `docs/ops/construct_validity_check.py` (new,
+positive-control-carrying) · `docs/ops/base_reauthor_count.py` (new). Both live in `docs/ops/`, outside
+the drift watch. **No code change, no relaunch; drift 0.**
+
 ## [2026-07-31h] THE EQUAL-*k* SENSITIVITY IS IMPLEMENTABLE — FEASIBILITY AUDITED; D18 RE-VERIFIED AND BOUNDED TO ONE RECORD
 
 **State before:** RUN 4 live, T+68 h 30 m, 12/12 lines, 1,449 records, drift 0, `sci=OK`. §9(4) of the

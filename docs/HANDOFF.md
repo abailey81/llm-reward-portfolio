@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-31"
-  head: "58ce6fb"
+  head: "ff52b6f"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 8 live-ops: no src/ change, drift 0; docs + ops only"
+  suite_status: "RUN 8 live-ops: docs+ops only, no src/ change, drift 0"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
