@@ -596,3 +596,28 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     obligation is STRONGER than first stated: of the breaches R115 actually acts on, **roughly three
     quarters are our own harness**, and only **three records in the entire campaign** are genuinely
     broken rewards. State the screen explicitly whenever either figure is quoted.
+
+45. **PARTITION REJECTIONS THREE WAYS BEFORE ANY AUTHORING-RELIABILITY CLAIM, AND STATE THE CONTRACT
+    LIMITATION.** *Found 2026-07-31; record 84.* The AST gate correctly forbids imports and
+    introspection, and `np` IS already supplied to the reward namespace
+    (`src/sandbox/executor.py:375`: `{"np": np, "__builtins__": SAFE_BUILTINS}`). **But
+    `prompts/initial_generation.txt` never says any of this** — grepped for `import`, `numpy`,
+    `available`, `forbidden`, `sandbox`: zero matches. Measured on the core line, **19 of 20
+    rejections violate an UNSTATED rule**: 12 x `import numpy as _np`, 7 x `dir()`. Only **1 of 20**
+    is a genuine reward-design failure (a broadcast-shape crash).
+
+    **This does NOT bias H2** — record 80 verified the base prompt is byte-identical across arms, so
+    every arm faces the same unstated rule and the differential rate is a genuine RESPONSE. **It DOES
+    contaminate the authoring-reliability finding**, compounding with the D17 harness-trap (row 43):
+    between them, the two largest sources of "this model wrote bad code" evidence are OUR OWN
+    INSTRUMENT.
+
+    **Obligations:** (a) partition every rejection into **unstated-contract violation** /
+    **D17 harness-trap** / **genuine design failure**, and let only the third speak to capability;
+    (b) report the accept rate explicitly as a **LOWER BOUND** on what each model could achieve if
+    told the rules; (c) **CH7 practitioner's checklist (Okhrati D4)** — *state the execution contract
+    in the prompt*: naming the provided namespace and the forbidden surface is a one-line change that
+    would have removed ~95 % of our rejections, which is precisely the costed, mechanism-implied
+    intervention D4 asks for. **NOT fixable in-run**: `prompts/` is drift-watched and hash-bound by the
+    freeze (R62), and changing it mid-campaign would break the identification property 80 verified.
+    Tool: `docs/ops/reject_taxonomy.py`.
