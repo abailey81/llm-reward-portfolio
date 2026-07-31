@@ -9806,3 +9806,99 @@ now implemented.
 dated amendment row -> a `DEVIATIONS.md` entry stating that the change was made AFTER observing the
 imbalance -> re-freeze under a new tag -> and a plain statement of it in CH4 and CH7. **Anything less
 would convert a bankable pre-registered null into an unbankable one.**
+
+---
+
+## 84. ★★★ WHY THE GAP EXISTS — THE SANDBOX CONTRACT IS NEVER STATED IN THE PROMPT (2026-07-31)
+
+Tamer: *"why is there even a gap?"* Traced to the root cause, and it is a genuine instrument finding
+that had never been identified.
+
+### 84.1 The causal chain, end to end
+
+1. Every arm receives **exactly 30 attempts** (verified: both completed core arms landed on
+   `accounted = 30`).
+2. Some attempts are rejected by the **AST security gate** before they ever train.
+3. Rejected candidates are **never replaced** (26.3, registered pre-data).
+4. Arms are rejected at **different rates** — treatments 7-10 %, controls 18-20 %.
+5. Therefore arms finish with different accepted counts: 28 vs a projected 24.
+
+**So the gap IS the differential rejection rate.** The question is whether those rejections are
+legitimate. Every archived rejected source was re-run through the REAL gate
+(`failures.jsonl` preserves `reward_source`, so this is fully reconstructable):
+
+```
+  12  import numpy as _np      <- an import statement inside the reward body
+   7  dir()                    <- runtime introspection
+   1  (non-AST) sandbox crash: ValueError, operands could not be broadcast (31,) vs (30,)
+```
+
+### 84.2 ★ THE ROOT CAUSE: the model is judged against rules it is never told
+
+Both constructs are correctly forbidden — imports are the `np.load` pickle-RCE vector the banlist
+exists to close, and `dir`/`globals`/`vars`/`breakpoint` expose the exec namespace. **The gate is
+right.**
+
+**And `np` IS ALREADY PROVIDED.** `src/sandbox/executor.py:375`:
+
+```python
+  namespace: dict[str, Any] = {"np": np, "__builtins__": SAFE_BUILTINS}
+```
+
+So the gate is winnable — a candidate simply uses `np.` without importing, which 1,063 distinct
+programs did successfully.
+
+**But `prompts/initial_generation.txt` NEVER SAYS SO.** Grepped for `import`, `numpy`, `np.`,
+`available`, `must not`, `forbidden`, `sandbox`: **not one match.** The prompt gives the signature and
+says "respond with a single Python code block" — and nothing else. **The model is never told that
+numpy is in scope, that imports are forbidden, or that introspection is blocked.**
+
+**19 of 20 rejections are therefore a violation of an UNSTATED rule.**
+
+### 84.3 What this does and does NOT invalidate
+
+**It does NOT bias H2, and the reason is already proven.** Record **80** verified that the BASE PROMPT
+is byte-identical across arms (281 of 282 matched cells, the one exception being the documented
+re-authoring). **Every arm faces the same unstated rule.** A differential failure rate under an
+identical instruction is therefore a genuine differential RESPONSE — it is data, not a confound.
+
+**It DOES contaminate the authoring-reliability measurement**, and materially. We are partly measuring
+*"did the model guess an unstated constraint?"* rather than *"can the model write a good reward
+function?"* That inflates apparent unreliability for **every** model in the suite, and it compounds
+with the D17 harness-trap already registered (71.5 / registry 43): between them, the two largest
+sources of "this model wrote bad code" evidence are **our own instrument**.
+
+### 84.4 It CANNOT be fixed now, for the same reason D17 cannot
+
+`prompts/` is inside the **drift watch** AND the prompt text is **hash-bound by the freeze** (R62: the
+freeze hash binds the prompts + `arms.yaml` + the inference family). Worse than a drift break: editing
+it mid-campaign would mean candidates authored **before** and **after** the change faced **different
+instructions**, which breaks the identification property 80 just verified. **The same argument that
+keeps D17 out (75.1) keeps this out.**
+
+### 84.5 THE OBLIGATIONS THIS CREATES — registered, not left as prose
+
+* **ANALYSIS-TIME (extends registry 43):** when reporting per-model authoring reliability, partition
+  rejections into (a) **unstated-contract violations** (`import`, `dir`, and the rest of the
+  `_FORBIDDEN_CALLS`/`_BANNED_ATTRS` surface), (b) **D17 harness-traps**, and (c) **genuine reward-design
+  failures**. Only (c) speaks to model capability. On the core line that is **1 of 20**.
+* **CH7 PRACTITIONER'S CHECKLIST (Okhrati D4 — "what would get a more expected result"):** *state the
+  execution contract in the prompt.* Naming the provided namespace and the forbidden surface is a
+  one-line change that would have eliminated ~95 % of our rejections — a concrete, costed intervention
+  the mechanism analysis directly implies, which is exactly what D4 asks for.
+* **CH4 / LIMITATIONS:** disclose that the authored-code accept rate is measured against an unstated
+  contract, and that the accept rate is therefore a **lower bound** on what each model could achieve if
+  told the rules.
+
+### 84.6 The direct answer to "why is there even a gap?"
+
+**Because arms differ in how often they violate a rule nobody told them, and a rejected candidate is
+never replaced.** The gap is:
+
+* **largely temporary** — 2.33x now, ~1.17x when every arm has spent its 30 attempts (83.1);
+* **scientifically valid** — identical prompts across arms make the differential a RESPONSE, not a bias
+  (80);
+* **already covered** — the pre-registered equal-*k* sensitivity exists for exactly this residual, and
+  is implemented (75.3);
+* **and rooted in a real instrument limitation** that is now measured, registered, and slated for CH7
+  rather than quietly absorbed.
