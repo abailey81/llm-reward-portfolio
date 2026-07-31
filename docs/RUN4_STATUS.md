@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-31 16:38 UTC -- T+67h29m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-07-31 16:39 UTC -- T+67h30m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+67h29m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+67h30m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
 | records archived | **1470** |
-| LLM calls / spend | 2357 / **$37.4855** |
+| LLM calls / spend | 2358 / **$37.4881** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -70,7 +70,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 2-minute cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the 2-minute cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -87,12 +87,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-07-31T16:30:00Z  ATTN  records=1443 (+1)  spend=$37.4598  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T16:32:15Z  ATTN  records=1443 (+0)  spend=$37.4661  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T16:32:18Z  ATTN  records=1443 (+0)  spend=$37.4661  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=12B
 2026-07-31T16:34:29Z  ATTN  records=1443 (+0)  spend=$37.4758  guards=2  arms_full=10/10  budget=2  stalest=1.2m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T16:34:45Z  ATTN  records=1443 (+0)  spend=$37.4758  guards=2  arms_full=10/10  budget=2  stalest=1.4m  drift=0  sci=OK  r115=12B
 2026-07-31T16:36:44Z  ATTN  records=1443 (+0)  spend=$37.4758  guards=2  arms_full=10/10  budget=2  stalest=0.8m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T16:38:57Z  ATTN  records=1445 (+2)  spend=$37.4881  guards=2  arms_full=10/10  budget=2  stalest=2.6m  drift=0  sci=OK  r115=12B  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -108,7 +108,7 @@ remaining exposure):
 
 ```
   anthropic   spent $ 30.7136  + still to author $ 10.2575  = $ 40.9711   credited $ 28.1500   margin $ -12.8211 (-46%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  6.7719  + still to author $  3.0740  = $  9.8459   credited $ 19.3100   margin $  +9.4641 (+49%)  comfortable
+  openrouter  spent $  6.7745  + still to author $  3.0751  = $  9.8496   credited $ 19.3100   margin $  +9.4604 (+49%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
