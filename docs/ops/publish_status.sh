@@ -21,7 +21,15 @@ LAUNCH=1785272938   # 2026-07-28 21:08:58 UTC, supervisors up
 EL=$(( ($(date -u +%s) - LAUNCH) / 60 ))
 HM="T+$((EL/60))h$(printf '%02d' $((EL%60)))m"
 
-records=$(find "$ROOT" -name record.json 2>/dev/null | wc -l)
+# COUNT THE SAME WAY THE AUTHORITY DOES. `scripts/campaign_guards.py status` -- which is what the
+# cycle log's `records=` comes from -- counts `root.glob("*/*/*/record.json")`, a FIXED depth. A bare
+# recursive `find` counts 29 more: the `frozen*/` winner markers (depth 3), and a stale
+# `.pull_tmp.<pid>/` partial-pull staging dir (depth 5) holding a byte-identical DUPLICATE of a record
+# that is already in the archive. So for the whole campaign this page showed Tamer a number ~29 higher
+# than the cycle log, with no note that the two count different things, and one of the 29 was a
+# duplicate. Neither number was wrong; they answered different questions while wearing the same label.
+# `-mindepth 4 -maxdepth 4` reproduces the glob exactly (verified: both = 1527 on 2026-07-31).
+records=$(find "$ROOT" -mindepth 4 -maxdepth 4 -name record.json 2>/dev/null | wc -l)
 calls=$(cat "$ROOT"/spend_ledger_*.jsonl 2>/dev/null | wc -l)
 spend=$(cat "$ROOT"/spend_ledger_*.jsonl 2>/dev/null | python -c "
 import sys,json
