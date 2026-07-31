@@ -3,6 +3,57 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31k] ★★★ THE RETIRED REAPER WAS KILLING **LIVE** ssh PROCESSES — CAUGHT ON CAMERA IN 21 CYCLES
+
+**State before:** RUN 4 live, T+69 h, 1,462 records, drift 0, `sci=OK`, 720-744 cores. §63.2 had
+replaced an undocumented `reaper_loop.ps1` (13 kills during live RUN 4, logging only COUNTS) with a
+dry-run version recording full candidate identity, leaving the question open: **genuine orphans, or
+live transports?**
+
+**THE ANSWER ARRIVED, and it is the bad one.** Twenty-one dry-run cycles in:
+
+```
+CANDIDATE reason=orphan pid=33028 age=6s ppid=26516 pname=<gone> istar=False
+    cmd=ssh.exe myriad "qstat -u '*' -s p -pri"
+```
+
+**A LIVE ssh, SIX SECONDS OLD** — the session's own priority query, still running. Its parent shell had
+exited (entirely normal for a short-lived tool invocation), so the bare "parent pid absent" test called
+it an orphan. **The retired reaper would have killed it mid-flight.** Its rule was
+`if ((-not $parentAlive) -or ($isTar -and $age -gt 3600))` — **the age guard applies ONLY to the tar
+branch; the orphan branch has none.**
+
+**This settles §63.2's open question: the 13 RUN-4 kills were almost certainly LIVE short-lived ssh
+commands killed mid-flight**, not dead leftovers — and it explains the signature that made them
+suspicious, since consecutive-cycle clusters are what active ssh usage produces, not what a one-off
+orphan produces.
+
+**FIXED:** the orphan branch now carries the same 3,600 s age floor as the tar branch, and a young
+orphan is logged as `young_orphan_IGNORED` — recorded so the pattern stays visible, never acted on.
+This is what makes `-Apply` safe to exist; until now it was not. ASCII-clean, `Parser::ParseFile`
+clean, self-tested, live instance restarted onto the fixed code.
+
+**NOT over-claimed as a D9 explanation:** a driver's transport ssh has a **live** parent (the python
+driver), so the orphan rule would not fire on it. D9 remains unidentified.
+
+**The methodological point, identical to §64's:** the retired reaper ran three days and produced 917
+lines of `ssh_total=N reaped=M`; **not one could answer the only question that mattered.** One line
+carrying `age`/`ppid`/`pname`/`cmd` answered it immediately. *Instrument for the question you will need
+to ask, not for the number that is easy to print.*
+
+**THE CORE RISE — investigated, three causes ELIMINATED, one left unproven.** From the publisher's own
+5-minute series (46 readings): a **plateau at 560-600**, a **monotone 37-minute climb** (632→744), then
+a **new plateau at 704-744** — a real regime shift, not oscillation (worth stating: my first reading
+compared a trough to a peak, the P28 error). Eliminated: **tmpfs** (§64, refuted); **our submission
+rate** (jobs +8 % vs cores +26 % — the *running fraction* rose, not the count); **a priority change**
+(pending mean `prior` **1.9165** vs the field's **1.7930**, outranked-by **591 of 2,892 = 20.4 %**
+against §57's 22.8 % — flat, no step). **Surviving hypothesis: cluster-side capacity freeing** — recorded
+as unproven, not as the answer, since no historical free-capacity series exists. **And not worth
+over-investing in:** search is latency-bound (§43), so extra cores sit idle; cores matter at C4.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §68 · `docs/ops/ssh_reaper.ps1` (age guard on the orphan
+branch). **No `src/` change, no relaunch; drift 0.**
+
 ## [2026-07-31j] ALL EIGHT ACKNOWLEDGED ALARMS RE-TRIAGED — SEVEN CLEAN, ONE RE-SCOPED; R115 PROVEN LOAD-BEARING
 
 **State before:** RUN 4 live, T+69 h, 1,462 records, drift 0, `sci=OK`, cores ~744. §63.6 had

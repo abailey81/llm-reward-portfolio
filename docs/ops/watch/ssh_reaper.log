@@ -1,0 +1,26 @@
+﻿2026-07-31T16:43:08Z START mode=DRYRUN interval=300s minage=3600s
+2026-07-31T16:43:09Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T16:44:35Z START mode=DRYRUN interval=300s minage=3600s
+2026-07-31T16:44:35Z ssh_total=1 reaped=0 mode=DRYRUN
+2026-07-31T16:49:36Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T16:54:36Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T16:59:36Z ssh_total=1 reaped=0 mode=DRYRUN
+2026-07-31T17:04:36Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T17:09:36Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T17:14:37Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T17:19:37Z ssh_total=6 reaped=0 mode=DRYRUN
+2026-07-31T17:24:37Z ssh_total=6 reaped=0 mode=DRYRUN
+2026-07-31T17:29:37Z ssh_total=1 reaped=0 mode=DRYRUN
+2026-07-31T17:34:37Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T17:39:38Z ssh_total=3 reaped=0 mode=DRYRUN
+2026-07-31T17:44:38Z ssh_total=1 reaped=0 mode=DRYRUN
+2026-07-31T17:49:38Z ssh_total=5 reaped=0 mode=DRYRUN
+2026-07-31T17:54:38Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T17:59:38Z ssh_total=2 reaped=0 mode=DRYRUN
+2026-07-31T18:04:38Z ssh_total=4 reaped=0 mode=DRYRUN
+2026-07-31T18:09:39Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T18:14:39Z ssh_total=0 reaped=0 mode=DRYRUN
+2026-07-31T18:19:39Z CANDIDATE mode=DRYRUN reason=orphan pid=33028 age=6s ppid=26516 pname=<gone> pstart=- istar=False cmd="C:\Program Files\Git\usr\bin\ssh.exe" myriad "qstat -u '*' -s p -pri"
+2026-07-31T18:19:39Z ssh_total=10 reaped=0 mode=DRYRUN
+2026-07-31T18:21:54Z START mode=DRYRUN interval=300s minage=3600s
+2026-07-31T18:21:54Z ssh_total=0 reaped=0 mode=DRYRUN

@@ -7906,3 +7906,95 @@ re-confirmed on 41 % more data. **The confirmatory line's authoring reliability 
 and is now re-scoped.** Nothing here changes a confirmatory quantity. The value is that the *quiet*
 alarms are now quiet **for measured reasons at today's data volume**, not because a previous session
 decided so at half the volume — which is the only sense in which "acknowledged" is honest.
+
+---
+
+## §68. ★★★ THE RETIRED REAPER WAS KILLING **LIVE** ssh PROCESSES — CAUGHT ON CAMERA; AND THE CORE-RISE INVESTIGATED (2026-07-31)
+
+### §68.1 THE INSTRUMENTATION PAID OFF IN 21 CYCLES WHAT 917 CYCLES OF COUNTING COULD NOT
+
+§63.2 replaced an undocumented `reaper_loop.ps1` — which had killed 13 ssh processes during live RUN 4
+while logging only a COUNT, never an identity — with a dry-run version that records the full identity
+of every candidate. The open question was stated explicitly: *were those genuine orphans, or live
+transport children whose parent lookup failed?* **Twenty-one dry-run cycles later, the answer arrived:**
+
+```
+2026-07-31T18:19:39Z CANDIDATE mode=DRYRUN reason=orphan pid=33028 age=6s ppid=26516
+    pname=<gone> pstart=- istar=False
+    cmd="C:\Program Files\Git\usr\bin\ssh.exe" myriad "qstat -u '*' -s p -pri"
+```
+
+**That is a LIVE ssh, SIX SECONDS OLD** — the session's own `qstat` priority query, issued thirty
+seconds earlier and still running. Its parent shell had already exited, which is **entirely normal**
+for a short-lived tool invocation, so the bare "parent pid absent" test classified it as an orphan.
+
+**The retired reaper would have killed it mid-flight.** Its rule (a) was
+`if ((-not $parentAlive) -or ($isTar -and $age -gt 3600)) { Stop-Process -Force }` — **the age guard
+applies ONLY to the tar branch. The orphan branch has none at all.** Any ssh whose parent has exited is
+killed regardless of whether it started an hour ago or a second ago.
+
+**This settles the §63.2 question: the 13 RUN-4 kills were almost certainly LIVE, short-lived ssh
+commands killed mid-flight**, not dead leftovers. It also explains the signature that made them
+suspicious — the consecutive-cycle clusters (08:45/08:50/08:55, 09:41/09:46, 14:11/14:16/14:21) are
+exactly what you get when a session is actively issuing ssh commands during those windows, not what a
+one-off orphan produces.
+
+**A pid whose parent has exited is not a leak. A pid whose parent has exited AND has been sitting
+longer than any parent timeout is.** That distinction is the whole defect.
+
+**FIXED** in `docs/ops/ssh_reaper.ps1`: the orphan branch now carries the **same 3,600 s age floor** as
+the tar branch, and a young orphan is logged as `young_orphan_IGNORED` — **recorded so the pattern
+stays visible, never acted on**. This is what makes `-Apply` safe to exist at all; until now it was
+not. ASCII-clean, `Parser::ParseFile` clean, self-tested, and the live instance was restarted onto the
+fixed code (the previous instance held the old logic in memory).
+
+**NOT over-claimed — this is still NOT a D9 explanation.** A driver's transport ssh has a **LIVE**
+parent (the python driver process), so rule (a) would not fire on it. D9 remains unidentified and the
+`ssh_timeout_diagnostic` remains the instrument that will settle it. The honest statement is narrower
+and still important: **the reaper was killing live ssh work, and we now know it because the tool was
+built to record identity instead of counts.**
+
+**The methodological point, and it is the same one as §64.** The retired reaper ran for three days
+producing 917 lines of `ssh_total=N reaped=M`. **Not one of those lines could answer the only question
+that mattered.** A single line carrying `age`, `ppid`, `pname` and `cmd` answered it immediately.
+*Instrument for the question you will need to ask, not for the number that is easy to print.*
+
+### §68.2 THE CORE RISE — three candidate causes ELIMINATED by measurement, one left unproven
+
+§64.4 left the 560 → 744 core rise explicitly unattributed rather than re-attributing it. Investigated
+properly from the publisher's own 5-minute series (46 readings, T+65h09m → T+69h05m):
+
+```
+  T+65h50m .. T+67h30m   560-600      a PLATEAU (oscillating ~+/-20)
+  T+67h35m .. T+68h12m   632 648 672 696 704 712 720 744    a MONOTONE 37-minute CLIMB
+  T+68h17m .. T+69h05m   704-744      a NEW, HIGHER PLATEAU
+```
+
+**It is a real regime shift, not oscillation** — plateaus on both sides with a clean monotone step
+between them. (Worth stating because my first reading compared a trough to a peak and would have
+over-read a fluctuating series as a trend — the P28 error.)
+
+**Causes eliminated:**
+
+| candidate | test | verdict |
+|---|---|---|
+| the §60 `tmpfs` fix | §64 — 348/348 hosts had 81× headroom at the old request | **REFUTED** |
+| our own submission rate | our total jobs rose 184 → 199 (**+8 %**) while cores rose ~580 → ~730 (**+26 %**) | **insufficient** — the *running fraction* rose, not the job count |
+| a priority change (§54/§57 still landing) | our pending mean `prior` **1.9165** vs the field's **1.7930**, best 2.0116; outranked-by **591 of 2,892 = 20.4 %**, against §57's 545 of 2,395 = 22.8 % | **no step-change** — standing is flat and healthy, slightly improved as a fraction |
+
+**What remains, unproven but consistent: cluster-side capacity freeing** — other users' jobs ending and
+our (now correctly-prioritised) jobs claiming the slots. Our running *fraction* rising while our
+priority standing stayed flat is what that looks like. **I cannot prove it** without a historical
+cluster-wide free-capacity series, which was never collected, so it is recorded as the surviving
+hypothesis and **not** as the answer.
+
+**And the reason not to over-invest in this:** during SEARCH the campaign is **latency-bound, not
+throughput-bound** (§43 — its length is 6 × (training + authoring), and the generation drain measures
+2.61 in flight against a design peak of 5). Extra cores during search sit idle. **Cores become decisive
+at C4**, which is where the pack-8 change (§58) and the real capacity question live.
+
+### §68.3 State
+
+12/12 lines · drift **0** · freeze `3ca6f01a…` MATCHES · `sci=OK` · **0** transport timeouts ·
+~1,462 records · $37.64 · 720-744 cores · R115 12 breaches, **0 on the core line** · cycle cadence
+current · reaper live in **DRY RUN** on the fixed rule.

@@ -74,9 +74,21 @@ while ($true) {
       $parentAlive = ($null -ne $parent)
       $isTar = $o.CommandLine -match 'tar -C .* -cf -'
 
+      # *** THE ORPHAN RULE NEEDS AN AGE GUARD, AND THE RETIRED REAPER HAD NONE. ***
+      # PROVEN BY DIRECT OBSERVATION 2026-07-31T18:19:39Z (record s.68): this loop flagged
+      #   reason=orphan pid=33028 age=6s ppid=26516 pname=<gone> istar=False
+      #   cmd=ssh.exe myriad "qstat -u '*' -s p -pri"
+      # -- a LIVE ssh, SIX SECONDS OLD, issued 30 s earlier by the session itself. Its parent shell
+      # had already exited, which is entirely normal for a short-lived tool invocation, so the bare
+      # "parent pid absent" test called it an orphan. **The retired reaper_loop.ps1 would have KILLED
+      # IT MID-FLIGHT**, and that is what its 13 unexplained RUN-4 kills almost certainly were.
+      # A pid whose parent has exited is not a leak; a pid whose parent has exited AND which has been
+      # sitting for longer than any parent timeout is. So the orphan branch now carries the SAME age
+      # floor as the tar branch. This is what makes -Apply safe to exist at all.
       $reason = $null
-      if (-not $parentAlive) { $reason = 'orphan' }
+      if ((-not $parentAlive) -and $age -gt $MinAgeSecs) { $reason = 'orphan' }
       elseif ($isTar -and $age -gt $MinAgeSecs) { $reason = 'stale_tar' }
+      elseif (-not $parentAlive) { $reason = 'young_orphan_IGNORED' }   # logged, never acted on
       if ($null -eq $reason) { continue }
 
       # IDENTITY FIRST. The whole point of this rewrite: never act on a live campaign without
@@ -92,7 +104,9 @@ while ($true) {
           (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'),
           $mode, $reason, $o.ProcessId, $age, $ppid, $pname, $pstart, $isTar, $cmd)
 
-      if ($Apply) {
+      # `young_orphan_IGNORED` is recorded so the pattern stays VISIBLE, but is never acted on --
+      # it is the exact class the retired reaper was killing.
+      if ($Apply -and $reason -ne 'young_orphan_IGNORED') {
         try { Stop-Process -Id ([int]$o.ProcessId) -Force -ErrorAction Stop; $acted++ } catch { }
       }
     }
