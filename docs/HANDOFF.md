@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-07-31"
-  head: "c8b7574"
+  head: "97b86ac"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 8 handover: docs+ops only, drift 0, C4 begun"
+  suite_status: "not re-run this session (docs-only; no src/scripts/config/prompts change)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
