@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-31 18:14 UTC -- T+69h05m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-07-31 18:20 UTC -- T+69h11m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+69h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+69h11m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1486** |
-| LLM calls / spend | 2384 / **$37.6351** |
+| records archived | **1489** |
+| LLM calls / spend | 2389 / **$37.6375** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **196** (90 running, 106 queued) |
+| cluster jobs | **199** (90 running, 109 queued) |
 | **cores computing** | **720** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -50,8 +50,8 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 | distributional | g5 of 5 | 319 |
 | scalar | g5 of 5 | 288 |
 | placebo | g5 of 5 | 166 |
-| scalar_cvar5 | g5 of 5 | 147 |
-| placebo_shuffled | g5 of 5 | 144 |
+| scalar_cvar5 | g5 of 5 | 148 |
+| placebo_shuffled | g5 of 5 | 145 |
 
 ## Results so far
 
@@ -70,7 +70,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 2-minute cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the 2-minute cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -87,12 +87,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-07-31T18:02:41Z  ATTN  records=1457 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
-2026-07-31T18:04:53Z  ATTN  records=1459 (+2)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=1.1m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:07:06Z  ATTN  records=1459 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:09:19Z  ATTN  records=1459 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T18:11:32Z  RED  records=1460 (+1)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0  sci=OK  r115=12B  cores=728  auto-cycle
 2026-07-31T18:13:47Z  ATTN  records=1460 (+0)  spend=$37.635  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T18:15:59Z  ATTN  records=1462 (+2)  spend=$37.6374  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T18:18:11Z  ATTN  records=1462 (+0)  spend=$37.6374  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -108,7 +108,7 @@ remaining exposure):
 
 ```
   anthropic   spent $ 30.7136  + still to author $  8.5073  = $ 39.2209   credited $ 28.1500   margin $ -11.0709 (-39%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  6.9215  + still to author $  2.7842  = $  9.7057   credited $ 19.3100   margin $  +9.6043 (+50%)  comfortable
+  openrouter  spent $  6.9239  + still to author $  2.7722  = $  9.6961   credited $ 19.3100   margin $  +9.6139 (+50%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
