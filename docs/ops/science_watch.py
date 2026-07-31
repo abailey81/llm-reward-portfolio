@@ -60,7 +60,35 @@ def _records(root: Path) -> list[tuple[str, str, dict]]:
 def main(argv: list[str]) -> int:
     root = Path(argv[1] if len(argv) > 1 else "outputs/campaign_cluster_run4")
     recs = _records(root)
+    # ⚠ SAY WHAT THE NUMBER COUNTS (RUN 9, record §88). This header printed a bare "N records" that
+    # disagreed with the cycle log's `records=` under the SAME word — 1,560 here against 1,532 there,
+    # on the same archive at the same moment. Neither was wrong; they count different things. The
+    # authority (`scripts/campaign_guards.py:266`) globs `*/*/*/record.json`, a FIXED depth, so it sees
+    # only search/test candidates. This tool walks recursively and therefore also picks up the
+    # `frozen*/` WINNER MARKERS, which are byte-identical copies of a record that already exists
+    # canonically. Nothing downstream is harmed (every group they form has n=1 and is skipped, and no
+    # RATE is computed over them) — but §86 was the second time in this campaign that two instruments
+    # reported different numbers under one label, so the composition is now stated rather than implied.
+    # ⚠ The frozen markers sit ONE LEVEL SHALLOWER than a candidate record
+    # (`frozen*/<arm>-winner/record.json`, depth 3, vs `<lane>/<arm>/<cid>/record.json`, depth 4), so
+    # for them it is the UNIT slot (`parts[-3]`) that carries the `frozen*` name while the STAGE slot
+    # holds the archive-root directory. Counting on `stage` returned a flat 0 and was my own error
+    # (P45) — caught because a brand-new counter reading exactly zero is the classic
+    # "a clean 0 % means suspect the specification" tell.
+    _frozen = sum(1 for stage, unit, _ in recs
+                  if stage.startswith("frozen") or unit.startswith("frozen"))
+    # The AUTHORITY's set, computed the authority's way (`scripts/campaign_guards.py:266`) so the two
+    # numbers can be reconciled here instead of by whoever notices they differ. Anything left over is
+    # named rather than absorbed: on 2026-07-31 the remainder was exactly 1 — the known D18
+    # double-nested duplicate at `search_leg_haiku_4_5/scalar/scalar-g1-c3/scalar-g1-c3/`, verified
+    # byte-identical (sha256 803af2e3…) to its canonical twin, deferred-fix item 10.
+    _authority = len([p for p in glob.glob(str(root / "*" / "*" / "*" / "record.json"))
+                      if not any(seg.startswith((".pull_tmp", "_quarantined"))
+                                 for seg in p.replace("\\", "/").split("/"))])
+    _extra = len(recs) - _frozen - _authority
     print(f"=== SCIENCE WATCH: {len(recs)} records under {root} ===")
+    print(f"    reconciliation: {_authority} authority-equivalent (the cycle log's `records=`) "
+          f"+ {_frozen} frozen-winner marker copies + {_extra} deeper-nested duplicate(s)")
 
     # ---- 1 + 3: per-(stage,arm) fitness spread and differentiation -------------------------------
     groups: dict[tuple[str, str], list[float]] = collections.defaultdict(list)
@@ -90,9 +118,28 @@ def main(argv: list[str]) -> int:
         # D15 sit unexamined for ten hours. Selecting on the STAGE, which is what the comment always
         # claimed, is both correct and stable. The NaN check is KEPT as a second-line fallback for a
         # non-test record that somehow lacks val_fitness.
+        #
+        # ⚠⚠ CORRECTED AGAIN 2026-07-31 (RUN 9, record §88). The stage-aware fix above was written as
+        # an EXACT match `stage == "test"` — but `stage` is the SUB-ROOT DIRECTORY NAME (`parts[-4]`
+        # in `_records`), and the archive has THREE test lanes: `test/`, `test_leg_<model>/` and
+        # `test_h3_singleshot/`. Only the first ever matched. So the fix worked for the core line's
+        # test lane and left BOTH the ten report-only legs and the h3 line on the old broken path —
+        # i.e. it repaired the one lane that had already produced records and missed the ten that had
+        # not yet. FALSIFIED on a synthetic archive: a healthy `test_leg_qwen3_5_9b/distributional`
+        # with 30 DISTINCT `test_sharpe` values but the usual constant frozen `val_fitness` was
+        # reported `spread=+0.0000 <== ZERO SPREAD`, raising the SCIENCE ALERT on clean data, while a
+        # genuinely-inert control fired identically — the two were indistinguishable.
+        #
+        # This was LATENT, not yet firing: C4 had begun on `test_leg_qwen3_5_9b` but 0 records had
+        # landed. It would have gone permanently rc=2 on the first one — the alarm-fatigue failure the
+        # comment above exists to prevent, arriving by a different door.
+        #
+        # `startswith("test")` is safe against every sub-root the archive actually contains
+        # (`batches`, `driver_status`, `frozen*`, `ledger`, `search*`, `test*`): nothing but a test
+        # lane begins with "test".
         val = m.get("val_fitness")
         val_ok = val is not None and not (isinstance(val, float) and math.isnan(val))
-        key = "test_sharpe" if stage == "test" else ("val_fitness" if val_ok else "test_sharpe")
+        key = "test_sharpe" if stage.startswith("test") else ("val_fitness" if val_ok else "test_sharpe")
         score = m.get(key)
         # *** RANGE CHECK ADDED 2026-07-31 (record 77). The module docstring has always promised
         # "NaN/inf fitness, |Sharpe| ABSURDITIES", but only the NaN/inf half was implemented: the
@@ -135,19 +182,36 @@ def main(argv: list[str]) -> int:
                 r115.append((stage, unit, str(r.get("run_id")), frac))
 
     print("\n--- IS THE SEARCH SEARCHING? (zero spread would mean the loop is inert) ---")
+    # ⚠ THE CAP IS ON THE DISPLAY, NEVER ON THE CHECK (RUN 9, record §88). This loop used to be
+    # `sorted(...)[:14]`, which capped the ALARM as well as the printout: a zero-spread group sitting
+    # at rank 15 or lower could never be detected, and nothing said so. That is exactly the silent
+    # truncation this same file forbids twelve lines below ("If a cap is ever reintroduced, it MUST
+    # report how many rows it dropped"). Detection now covers EVERY group; only the printout is capped,
+    # and the number withheld is stated.
     inert = []
-    for (stage, unit), v in sorted(groups.items(), key=lambda kv: -len(kv[1]))[:14]:
+    ranked = sorted(groups.items(), key=lambda kv: -len(kv[1]))
+    _shown = 0
+    for (stage, unit), v in ranked:
         if len(v) < 2:
             continue
         spread = max(v) - min(v)
         flag = "  <== ZERO SPREAD" if spread == 0.0 else ""
         if spread == 0.0:
             inert.append(f"{stage}/{unit}")
+        # Print the 14 largest, plus EVERY zero-spread group regardless of rank (an alarm the
+        # operator cannot see is not an alarm).
+        if _shown >= 14 and spread != 0.0:
+            continue
+        _shown += 1
         # Label with the STAGE too. Without it, `search/random_search` and `test/random_search`
         # both printed as bare "random_search" — two rows, same name, different estimands, and
         # working out which one was flagged cost real time.
         print(f"  {stage + '/' + unit:38s} n={len(v):4d} mean={statistics.mean(v):+.4f} "
               f"spread={spread:+.4f}{flag}")
+    _eligible = sum(1 for _, v in ranked if len(v) >= 2)
+    if _eligible > _shown:
+        print(f"  ... {_eligible - _shown} further group(s) CHECKED but not shown "
+              f"(all non-zero spread; {_eligible} groups checked in total)")
 
     print("\n--- REFLECTION CHAIN: generations reached per line, and accepted candidates each ---")
     per_line: dict[str, dict[int, int]] = collections.defaultdict(dict)

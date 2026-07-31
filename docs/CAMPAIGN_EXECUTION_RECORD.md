@@ -10476,3 +10476,146 @@ the work.** The only repository change is `docs/ops/reject_taxonomy.py` — outs
 plus documentation. `RUNNING_SHA` remains `50b6e07`.
 
 ---
+
+---
+
+## 88. ★★★ §14 ITEM 6 — A LATENT RED THAT WOULD HAVE FIRED ON THE FIRST C4 LEG RECORD (2026-07-31, RUN 9)
+
+Brief §14 item 6 asks whether `science_watch`'s new range bounds are *"a new false-positive source in
+the science verdict"*. **The bounds are sound. The stage test beside them is not, and it was about to
+break.**
+
+### 88.1 The bounds themselves are correct — verified against the live archive
+
+| bound | is it right? | evidence |
+|---|---|---|
+| `val_fitness ∈ [0, 1]` | **YES** | `val_fitness` is a **Deflated Sharpe Ratio**, i.e. a probability (`src/inference/deflated_sharpe.py:5`). Observed over 1,201 finite values: **min 3.68e-08, median 7.05e-04, max 0.4319**. Zero outside [0,1]. Not a false-positive source. |
+| `\|test_sharpe\| < 20` | **right in kind, loose in practice** | `test_sharpe` is annualised. Observed over 360 values: **min −0.910, median −0.190, max +1.463**; **zero records exceed even 3.0**. The threshold is 13.7× the observed maximum, so it can only catch a catastrophic corruption. It is nevertheless **well-placed for the one realistic failure mode**: a daily-vs-annualised unit error multiplies by √252 ≈ 15.9, which would push the top of the observed range to ≈23.2 and trip it. It catches the upper part of that error, not all of it. **Not a defect; recorded so the sensitivity is known rather than assumed.** |
+
+### 88.2 ★ THE REAL FINDING — `stage == "test"` matches ONE of the archive's THREE test lanes
+
+`_records()` derives `stage` from the **sub-root directory name** (`parts[-4]`). The archive's test
+lanes are **`test/`**, **`test_leg_<model>/`** (ten of them) and **`test_h3_singleshot/`**. The scorer
+did an **exact** match:
+
+```python
+  key = "test_sharpe" if stage == "test" else ("val_fitness" if val_ok else "test_sharpe")
+```
+
+so only the core line's test lane ever took the `test_sharpe` branch. For every **leg** and for **h3**,
+the code fell through to `val_fitness` — which for a frozen-winner unit is **a constant inherited from
+the freeze and stamped identically into every seed's record**. Spread over 30 seeds is therefore
+**exactly 0.0** → `inert` → `hard` → **`rc = 2`**.
+
+**This is the same defect the in-file comment at lines 77-92 says was fixed.** That fix repaired the
+one lane that had already produced records (`test/`, 360 of them) and left the ten that had not. Its
+own warning names the consequence precisely: *"the alarm would have gone permanently rc=2 the moment
+the seed ladder began — a RED that can never clear, which is the alarm-fatigue failure that let D15 sit
+unexamined for ten hours."*
+
+**It was LATENT, not yet firing.** C4 has begun on `frozen_leg_qwen3_5_9b` (5/5 arms frozen) but
+`test_leg_qwen3_5_9b/` held **0 records** at the time of the audit. It would have gone RED on the first
+one.
+
+#### 88.2.1 FALSIFIED, not reasoned — three fixtures, one of them a positive control
+
+A synthetic archive was built (`mk_stage_fixture.py`) with three units carrying the **same** constant
+frozen `val_fitness = 0.328632` (the real observed value from `test/random_search`):
+
+| | unit | `test_sharpe` | correct verdict |
+|---|---|---|---|
+| **A** | `test/random_search` | 30 distinct values | clean — this lane already worked |
+| **B** | `test_leg_qwen3_5_9b/distributional` | 30 distinct values | clean — same science, different sub-root |
+| **C** | `test_leg_broken/scalar` | **constant** | **must FIRE** — genuinely inert |
+
+**BEFORE the fix:**
+
+```
+  test/random_search                     n=30 mean=+1.0419 spread=+0.8700
+  test_leg_broken/scalar                 n=30 mean=+0.3286 spread=+0.0000  <== ZERO SPREAD
+  test_leg_qwen3_5_9b/distributional     n=30 mean=+0.3286 spread=+0.0000  <== ZERO SPREAD   <-- FALSE
+```
+
+**B and C were indistinguishable** — healthy data and a dead loop produced the identical alarm.
+
+**AFTER the fix** (`stage.startswith("test")`):
+
+```
+  test/random_search                     n=30 mean=+1.0419 spread=+0.8700
+  test_leg_broken/scalar                 n=30 mean=+0.9000 spread=+0.0000  <== ZERO SPREAD
+  test_leg_qwen3_5_9b/distributional     n=30 mean=+1.0419 spread=+0.8700
+```
+
+**rc = 2, from C alone.** Note C's mean moved **0.3286 → 0.9000**: proof the scorer is now reading
+`test_sharpe` rather than the constant, so the surviving alarm is a real one and **the fix did not
+simply disable the check**. `startswith("test")` is safe against every sub-root the archive contains
+(`batches`, `driver_status`, `frozen*`, `ledger`, `search*`, `test*`) — nothing but a test lane begins
+with "test".
+
+**Live archive after the fix: `rc = 0`, `sci` verdict unchanged.** The fix is a pure repair.
+
+### 88.3 A SECOND DEFECT IN THE SAME BLOCK — the cap was on the ALARM, not the display
+
+The inert scan ran `sorted(groups.items(), key=lambda kv: -len(kv[1]))[:14]`, so a zero-spread group at
+rank 15 or lower **could never be detected**, and nothing said so. The live archive has **83 eligible
+groups**: **69 were never examined.** Twelve lines below, this same file forbids exactly that — *"If a
+cap is ever reintroduced, it MUST report how many rows it dropped"* — written about the R115 list while
+the inert scan next to it did precisely what it forbade.
+
+**Fixed:** detection covers **every** group; the printout still shows the 14 largest **plus every
+zero-spread group regardless of rank** (an alarm the operator cannot see is not an alarm), and the
+number withheld is stated: `... 69 further group(s) CHECKED but not shown (all non-zero spread; 83
+groups checked in total)`.
+
+### 88.4 §86's RECONCILIATION WAS INCOMPLETE — a THIRD consumer still disagreed
+
+§86 found the status page and the cycle log reporting different record counts under one label, and
+fixed the publisher. **`science_watch` was a third consumer and was not reconciled:** it printed a bare
+*"1,560 records"* against the cycle log's *"1,532"*, on the same archive at the same moment.
+
+Both were right; they count different things, and now the tool says so. Measured composition:
+
+```
+  1533  authority-equivalent   -- `<lane>/<arm>/<cid>/record.json`, exactly what
+                                  scripts/campaign_guards.py:266 globs (independently
+                                  reproduced: `find -mindepth 4 -maxdepth 4` = 1533)
+  + 27  frozen-winner marker copies at `frozen*/<arm>-winner/record.json` (depth THREE)
+  +  1  the known D18 double-nested duplicate
+  ----
+  1561  what science_watch walks
+```
+
+The header now prints that reconciliation on every run, so the next person does not have to rediscover
+it. **Nothing downstream was harmed:** each frozen marker forms a group of n=1 and is skipped, and no
+rate is computed over them.
+
+**Two side-verifications completed while in there, both confirming RUN 8 first-hand:**
+
+* **D18 (§65.4) VERIFIED.** `search_leg_haiku_4_5/scalar/scalar-g1-c3/record.json` and its self-nested
+  twin `…/scalar-g1-c3/scalar-g1-c3/record.json` are **byte-identical** (sha256 `803af2e302e9feb6…`
+  both). Exactly one such pair campaign-wide, zero on the core line — as §65.4 claimed.
+* **§86's `.pull_tmp.28884` account VERIFIED.** It holds 3 files, 1 of them a `record.json`, staged
+  **2026-07-30 00:42** (stale by ~2 days), and it is a **byte-identical duplicate**
+  (sha256 `180188cb7508ba2e…` both) of `search/random_search/random_search-c11/record.json`. **Left in
+  place, not deleted:** every analysis tool excludes `.pull_tmp` by name, deleting from a live campaign
+  root buys nothing, and the reversible option (quarantine-rename) would still be a live-tree mutation
+  for zero benefit. Registered here so it is a known object rather than a surprise.
+
+### 88.5 MY OWN ERROR IN THIS SECTION — **P45**
+
+My first frozen-marker counter tested `stage.startswith("frozen")` and returned a flat **0** on an
+archive that plainly contains 27 of them. **The frozen markers sit one level SHALLOWER than a candidate
+record** (`frozen*/<arm>-winner/record.json`, depth 3, against `<lane>/<arm>/<cid>/record.json`,
+depth 4), so it is the **unit** slot that carries the `frozen*` name, not the **stage** slot. Caught
+immediately by tell ③ — **a brand-new counter reading exactly zero means suspect the specification, not
+the subject.** Had I trusted it I would have shipped a header asserting "0 frozen markers" into the one
+instrument this section exists to make honest.
+
+### 88.6 WHAT CHANGED, AND WHAT DID NOT
+
+`docs/ops/science_watch.py` only — **outside** the `src scripts config prompts` drift pathspec. **No
+relaunch. Freeze untouched. Drift re-verified 0 after the edit. `RUNNING_SHA 50b6e07` unchanged.** The
+live verdict is unchanged (`rc = 0`, `sci=OK`); what changed is that it will **stay** correct when the
+first leg C4 record lands, instead of going permanently red on healthy data.
+
+---
