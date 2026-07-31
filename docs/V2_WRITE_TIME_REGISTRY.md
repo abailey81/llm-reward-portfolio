@@ -588,3 +588,11 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     measured answer to the question a referee will ask, sitting alongside row 38's seed-trajectory
     exhibit (Okhrati's D2). Discovered by us and reported is a rigour exhibit; discovered by a
     referee is a wound. Tool: `docs/ops/deep_results_3.py`.
+
+    **⚠ THRESHOLD CLARIFICATION (2026-07-31, record 73.6).** The 61 % figure above uses a **>= 5 %**
+    fallback screen. **R115's actual eligibility floor is >= 10 %**, and at that floor the split is
+    **10 reciprocal / 3 genuinely broken = 13 total, i.e. 77 % harness-trapped**. Both are correct
+    answers to different questions; **the one that governs eligibility is the 10 % screen**. So the
+    obligation is STRONGER than first stated: of the breaches R115 actually acts on, **roughly three
+    quarters are our own harness**, and only **three records in the entire campaign** are genuinely
+    broken rewards. State the screen explicitly whenever either figure is quoted.

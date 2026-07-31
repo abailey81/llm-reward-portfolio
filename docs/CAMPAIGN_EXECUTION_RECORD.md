@@ -8529,3 +8529,141 @@ is possible.**
 **Nothing is outstanding on the instrument.** The remaining tail-related obligations are analysis-time
 and already registered: report the PopArt engagement rate beside H1 (§44.4), partition D17 records
 before any reliability figure (registry 43), and report the winner-separation distribution (registry 44).
+
+---
+
+## 73. SELF-AUDIT OF THIS SESSION — FOUR PROPAGATION GAPS FOUND IN MY OWN WORK (2026-07-31)
+
+**On Tamer's instruction to guarantee zero gaps and zero inconsistencies, the right target was my own
+session.** Sections 63–72 introduced hundreds of numbers and one **retraction**; the highest residual
+risk was not a wrong measurement but an **unpropagated correction**. A retraction that lives in one
+section while three other documents still assert the retracted claim is worse than no retraction,
+because it manufactures a contradiction and hands the reader a coin-flip.
+
+### 73.1 THE RETRACTION HAD NOT PROPAGATED — four places, all now fixed
+
+Swept mechanically for the retracted §60 claim (`11 of 348`, `1.18 jobs/node`, `216× throttle`):
+
+| # | location | why it mattered | fix |
+|---|---|---|---|
+| 1 | **`docs/HANDOFF.md` §1 START HERE row** | **THE ENTRY POINT** — the first thing any new session reads. It asserted *"FOUR self-inflicted throttles … only 11 of 348 hosts qualified; 1.18 jobs/node"* **and carried it forward as an OPEN prediction to go verify.** A successor would have spent hours re-measuring a refuted hypothesis. | row superseded with an explicit retraction marker; a **new START HERE row** written for RUN 8 state |
+| 2 | **record §60 itself** | 8,500 lines: a reader landing on §60 had **no way to know it is refuted four sections later**. | ⛔ **retraction banner at the heading**, stating the unit bug, the true numbers, what survives, and the methodological lesson |
+| 3 | **`CHANGELOG.md` [2026-07-31d]** | both the entry **heading** (*"FOUR SELF-INFLICTED THROTTLES"*) and its summary **table row** asserted the claim as fact | heading corrected to **~~FOUR~~ THREE** with a pointer; table row struck through and annotated |
+| 4 | **`docs/REMOTE_CONTROL.md`** | **Tamer's own channel.** He had been told four throttles were found and fixed; my later row softened it to *"has not delivered the gain"*, which is **not the same as "the premise was false."** | plain-English correction row: it was three, the fourth was a units bug, nothing is broken, and the lesson |
+
+**Verified by re-sweep: every surviving mention of `11 of 348` / `1.18 jobs` now sits inside text that
+explicitly refutes or supersedes it.**
+
+**⚠ THE PROCESS FAILURE BEHIND (1), AND IT IS MINE.** `scripts/update_handoff.py` regenerates the
+machine block but prints, every single time:
+
+> *"REMINDER: review §1's PROSE rows for anything this session changed (they are hand-maintained)"*
+
+**It printed that after all four of my runs and I did not act on it once.** The tool did its job; I
+treated a regeneration as if it covered the hand-maintained prose. **Lesson: an automated regenerator
+that explicitly tells you what it does NOT cover is naming your next defect.**
+
+### 73.2 Heading format normalised
+
+Sections 62–72 used `## §NN.` while the document's established convention through §61 is `## NN.`
+(§62 introduced the drift and I continued it). **11 top-level and 57 subsection headings normalised.**
+Inline prose references (`record §64`) are the document's *established* style — used since §60 — and
+were deliberately **not** touched. Integrity re-verified afterwards: **8,531 lines, 72 sequential
+top-level headings**.
+
+### 73.3 THE REAPER'S AGE GUARD — proven able to fire, not merely observed quiet
+
+§68 added a 3,600 s age floor to the orphan branch, and the log then showed **zero**
+`young_orphan_IGNORED` lines. **A quiet check is not a working check** — my own standing rule is that
+*a test that cannot fail verifies nothing*, and §66's P35 was exactly a reassuring null from an
+instrument that could not fire.
+
+So the condition was **constructed deliberately**: an `ssh` was spawned whose parent shell then exited,
+producing precisely the young-orphan state the retired reaper killed on. Result:
+
+```
+CANDIDATE mode=DRYRUN reason=young_orphan_IGNORED pid=15952 age=12s ppid=33524
+    pname=<gone> istar=False cmd=ssh.exe myriad "sleep 120"
+ssh_total=3 reaped=0
+```
+
+**A 12-second-old live ssh with a dead parent: correctly classified, visibly logged, and NOT killed.**
+The retired reaper would have killed that exact process. **The branch is reachable, it fires, and it
+refuses to act — falsification-grade rather than observational.**
+
+### 73.4 EVERY RECORD-COUNT DENOMINATOR RECONCILED AT ONE INSTANT
+
+Sections 63–72 quote several different totals (1,052 · 1,064 · 1,066 · 1,461 · 1,474 · 360 …). That is
+only defensible if the **relationships between them hold**; otherwise it is exactly the
+"2,866 in one file, 2,870 in another" defect `CLAUDE.md` names. Measured simultaneously:
+
+```
+  TOTAL record.json on disk (recursive)  : 1,523
+    minus .pull_tmp staging copies       :    -0     (the staging dir has since been cleaned)
+    minus frozen/ winner COPIES          :   -25
+  = LIVE distinct records                : 1,498
+      search lanes                       : 1,138
+      test lanes                         :   360
+      search + test == live              : TRUE  (exact)
+  LLM-arm search records                 : 1,076   (all carry val_returns)
+  test records with returns AND cvar05   :   360   == section 72's denominator, exactly
+```
+
+**Every relationship is exact.** The totals differ across sections because (a) the archive GREW during
+the session — 1,461 → 1,474 → 1,498 — and (b) each section states its own inclusion rule. **Both are
+legitimate; the discipline is that the denominator is stated, and it is.** `cycle.py` (depth-limited,
+guards' view) and the publisher (raw recursive, so it includes `frozen/`) quote different numbers again
+— correct answers to different questions, which is precisely why every section names its own.
+
+### 73.5 What this session did NOT do, stated plainly
+
+* **No `src/ scripts/ config/ prompts/` change and no relaunch** — `RUNNING_SHA` is `50b6e07`
+  throughout, drift 0 on both the commit and working-tree tests at every check.
+* **The equal-*k* implementation was deliberately not written** (§65.2): `scripts/` is drift-watched, so
+  editing it mid-run would make the monitor a permanent alarm for code the drivers never import.
+  Post-C4 work, now backed by a feasibility PASS rather than an assumption.
+* **The RFC-8259 JSON defect was deliberately not fixed by relaunch** (§69.4, registry 42) — it is a
+  packaging-time transformation.
+* **No confirmatory quantity was computed or examined.** Everything in §71–§72 is validation-side,
+  training-period, or an instrument check against the record's own inputs. The sealed-test comparison
+  remains untouched.
+
+### 73.6 A LIVE RED DURING THIS SELF-AUDIT — investigated to a verdict, and it strengthens 71.5
+
+At 19:26 UTC the cycle turned **RED**: `r115=13B`, up from 12. The alert did exactly what it was built
+to do — *"R115 execution-floor breaches rose 12 -> 13 since the previous cycle -- identify the new one
+and confirm it is the known mechanism, not a new failure."*
+
+**Identified and cleared, against both clauses of the `record_sanity:CRITICAL` trigger:**
+
+```
+  new breach : leg_qwen3_5_9b / placebo_shuffled / placebo_shuffled-g5-c3
+  fallback   : 19.99 %      val_fitness 0.0046
+  clause 1   : ON THE CORE LINE -> 0 breaches.  NOT on the confirmatory line.
+  clause 2   : it DOES top its arm -- but its winner is already frozen to
+               `placebo_shuffled-g0-c3`, a DIFFERENT, clean candidate.  R115 excluded it.
+```
+
+**It is a D17 harness-trap, not a broken model.** `19.99 %` sits **1.0e-4** from **1/5**, inside the
+5e-4 reciprocal tolerance — the §37 limit-cycle signature at period 5. **This is the second R115 breach
+this session shown to be caught and correctly handled end to end** (the first, §67.2, was the 49.98 %
+1/2 case).
+
+**⚠ A DENOMINATOR CLARIFICATION THAT REGISTRY ROW 43 NEEDS.** §71.5 reported *"11 of 18 (61 %)"* using a
+**≥ 5 %** fallback screen. **R115's actual eligibility floor is ≥ 10 %.** Re-measured at the floor that
+governs eligibility:
+
+| screen | reciprocal (harness-trapped) | genuinely broken | total | harness share |
+|---|---|---|---|---|
+| ≥ 5 % (§71.5's screen) | 11 | 7 | 18 | 61 % |
+| **≥ 10 % (R115's actual floor)** | **10** | **3** | **13** | **77 %** |
+
+**Both are correct answers to different questions, and the one that matters for eligibility is the
+second.** At the floor that actually excludes candidates, **77 % of R115 breaches are our own harness
+trapping a working reward, and only 3 records in the entire campaign are genuinely broken rewards.**
+That makes registry row 43 stronger, not weaker: the per-model reliability figures are contaminated by
+our instrument in **three quarters** of the cases that R115 acts on.
+
+**Also observed in the same cycle: the arm-depth imbalance has closed to 2.03×** (distributional 319
+vs scalar_cvar5 157), from 2.33× core-line / 2.23× pooled earlier in the session. The controls are
+catching up, which is the §56 clock running the right way.
