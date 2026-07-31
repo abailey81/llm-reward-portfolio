@@ -9,7 +9,16 @@ here is not a bug you fix later; it is a dissertation.
 
 ---
 
-# §0. ★★★★★ THE MONITORING MANDATE — READ THIS BEFORE ANYTHING ELSE
+# §0. ★★★★★ THE TWO THINGS THAT MATTER MOST — READ BEFORE ANYTHING ELSE
+
+**§0.1 is HOW OFTEN you look. §0.2 is HOW you work. Everything after §0 is context; these two are
+method.** Exhortation does not change behaviour — three consecutive sessions were told to "monitor
+constantly" and all three failed. **A checkable procedure does.** Both sections below are procedures,
+not encouragement.
+
+---
+
+## §0.1 THE MONITORING MANDATE
 
 **Tamer's ONE named complaint about the RUN 8 session, in his words when handing over:**
 
@@ -22,7 +31,7 @@ going on? Why did you stop monitoring deeply?"*. RUN 7 let a **2 h 18 m** gap op
 machine-enforced 30-second loop and **still drifted to 10-20 minutes between reads** while doing deep
 analysis. **The loop is not the problem. The SESSION forgetting to look at it is.**
 
-## THE RULE — non-negotiable, no exceptions, for the entire session
+### THE RULE — non-negotiable, no exceptions, for the entire session
 
 **Tamer first said "every 2 minutes", then corrected himself: *"I was wrong about every 2 min, make
 whatever was the best, 30 secs I guess."* He is right, and the best rule is not a clock at all.**
@@ -55,6 +64,81 @@ a timer you cannot see.
 **The loop itself is machine-enforced at `INTERVAL=30`** (realised ~42 s, because the sweep takes
 ~12 s — record 78 analysed this and concluded 30 is right; the interval was never the real lever).
 **Your job is to READ it, not to produce it — and nobody will remind you.**
+
+---
+
+## §0.2 ★ THE OPERATING DOCTRINE — how to work at maximum depth, and how to verify yourself
+
+**Tamer's standing instruction:** *"make sure it always verifies itself many times, ultrathink, and be
+100000% confident… make sure it dives always very very very deep across all dimensions starting with
+the processes, the results and etc, and makes sure everything is very logical and meaningful."*
+
+**This is the method that produced RUN 8's findings. It is not advice — follow it literally.**
+
+### THE DEPTH LADDER — every claim must climb all four rungs
+
+Most work stops at rung 2. **Every one of RUN 8's seven defect discoveries was on rung 4.**
+
+| rung | question | what it catches |
+|---|---|---|
+| **1. EXECUTION** | did it run? | crashes |
+| **2. STRUCTURE** | are the hashes, counts, ranges, invariants right? | corruption |
+| **3. MEANING** | is the magnitude, sign and unit *possible*? does it cohere with everything else known? | the prototype "tail signal" died here — a wrong-unit error that passed every test |
+| **4. ★ THE INSTRUMENT** | **CAN the thing that measured this FAIL? Prove it.** | **7 broken instruments while the data was clean** — a dead status page, an alert that crashed, a counter that could never be non-zero, a range check never written |
+
+**Rung 4 is the one nobody climbs.** A green check proves execution, not truth. **A reassuring null
+from an instrument that cannot fire is more dangerous than an alarm**, because nothing invites a
+second look.
+
+### THE ORDER OF DIVING — processes, then results, then instruments, then science
+
+1. **PROCESSES** — is it running? 12 supervisors, 24 drivers, loops alive, drift 0, freeze matching.
+2. **RESULTS** — are the numbers *structurally* valid? Hashes, step counts, seeds, invariants.
+3. **MEANING** — are they *scientifically possible*? Magnitude, sign, units. Do different quantities
+   agree? (RUN 8: the fitness distribution independently corroborated §47's turnover mechanism.)
+4. **THE INSTRUMENTS** — falsification-test whatever produced the numbers.
+5. **THE SCIENCE ITSELF** — the load-bearing assumptions. (RUN 8: identification §80, the structure
+   control §81, the tail estimator §72. **All three had never been verified before.**)
+
+### THE VERIFICATION DOCTRINE — six concrete techniques
+
+1. **BUILD A POSITIVE CONTROL INTO EVERY TEST.** A test that cannot fail verifies nothing. Before
+   trusting "0 violations", prove the check FIRES on a planted violation. **Every valid RUN 8 test had
+   a positive control; every one of its eight false alarms lacked one.**
+2. **SAY THE DENOMINATOR OUT LOUD BEFORE NAMING THE NUMBER.** Every P-series error in this project
+   was an aggregate answering a slightly different question from the one asked.
+3. **CROSS-CHECK VIA AN INDEPENDENT ROUTE.** Agreement between two derivations is evidence; one
+   derivation repeated is not. Re-running the same tool is an echo, not a check.
+4. **ON A SURPRISING NEGATIVE, SUSPECT YOUR OWN SCRIPT FIRST.** It is a claim about your code before
+   it is a claim about the world.
+5. **READ THE PREDICATE BEFORE PLANTING THE VIOLATION.** Know which variable feeds the verdict, in
+   which field, from which input. Five RUN 8 false alarms were off-target plants.
+6. **THE AUTHOR MUST NOT GRADE THEIR OWN WORK.** For anything load-bearing, re-derive it by a route
+   that does not reuse the original tool.
+
+### ★ THE THREE TELLS — these caught all eight of RUN 8's false alarms
+
+> **① A CLEAN BASELINE THAT ALREADY READS THE FAILING VALUE PROVES NOTHING.**
+> **② THREE FAILURES IN A ROW IS A BROKEN HARNESS, NOT THREE BROKEN COMPONENTS.**
+> **③ A CLEAN 0 % OR 100 % MEANS SUSPECT THE SPECIFICATION, NOT THE SUBJECT.** Real defects are
+> partial and messy; a perfect zero usually means you compared the wrong two objects.
+
+### WHAT "ULTRATHINK" MEANS OPERATIONALLY
+
+* **The first plausible answer is a HYPOTHESIS, not a conclusion.** Before acting: what would falsify
+  this? What is the strongest counterargument? What do the alternatives cost?
+* **A surprising result is an OBLIGATION TO INVESTIGATE, never a result to report as-is.** RUN 8's
+  best findings (§64, §84) came from chasing something that looked slightly wrong.
+* **Overstating a risk is as inaccurate as understating one.** Verify in BOTH directions. RUN 8
+  over-alarmed twice and had to correct itself.
+* **When Tamer pushes back on a number, treat it as evidence.** *His scepticism has overturned a
+  session's analysis SIX times.* He is usually right.
+* **Say "no" when the evidence says no.** Asked *"is everything flawless?"*, the correct answer was
+  an honest **"no, and here is the list"** — he accepted it and asked what remained. **Never
+  reassure.**
+
+**And the one rule that binds all of it: NEVER CLAIM WHAT YOU DID NOT OBSERVE.** If it was not run,
+it is not done. Cite the command, the count, the log line — beside the claim.
 
 ---
 
@@ -472,7 +556,7 @@ change.**
 
 ---
 
-# §9. THE MONITORING CYCLE — mechanics (the MANDATE is §0)
+# §9. THE MONITORING CYCLE — mechanics (the MANDATE is §0.1; the METHOD is §0.2)
 
 `docs/ops/cycle_loop.sh` runs the sweep every ~42 s, detached. **It should already be running.**
 
@@ -689,5 +773,10 @@ now part of the watching layer.
 
 ---
 
-**Start by verifying live state first-hand, say "Resuming from: … — next: …", and CONTINUE. Do not ask
-what to do. Read the cycle log within your first two minutes and every two minutes thereafter.**
+**Start by verifying live state FIRST-HAND — never carry a number forward from this brief without
+re-measuring it. Say "Resuming from: … — next: …" and CONTINUE; do not ask what to do.**
+
+**Read the cycle log on your very first tool call, and on the first call of every batch thereafter
+(§0.1). Climb all four rungs of the depth ladder on every claim (§0.2). Build a positive control into
+every check. Say the denominator out loud. And when something looks slightly wrong — chase it: that is
+where every real finding in this campaign has come from.**
