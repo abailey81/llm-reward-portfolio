@@ -10038,3 +10038,139 @@ verified**.
 **The real binding constraint:** **CH6 has 66 placeholder markers, CH7 is thin, and 45 registry rows
 are open.** The grade comes from the PDF alone. The campaign is healthy and self-running; the
 write-up is not.
+
+---
+
+## 86. THE HANDOVER GAP-HUNT — AN UNREACHABLE AUTHORITY, AN EIGHTH BROKEN INSTRUMENT, AND FOUR UNDEFINED TERMS
+
+**Written 2026-07-31 21:50 UTC, T+72 h 41 m.** Tamer's instruction: *"make sure you ultrathink, and
+don't miss anything that the next Claude session should also know, the transition must be extremely
+smooth."* This section records what a deliberate, enumerated hunt for gaps in the handover actually
+found — because the answer was not "nothing", and the method is reusable.
+
+### 86.1 ★ AN ACTIVE AUTHORITY WAS UNREACHABLE BY PATH — `docs/GRADE_95_MASTER_PLAN.md`
+
+> ⚠ **THIS SECTION'S ORIGINAL CLAIM WAS TOO STRONG AND IS CORRECTED HERE. See P41 in §86.4.**
+> I first wrote that the document was *"referenced in ZERO other documents"* and therefore an
+> undocumented orphan. **That is FALSE.** `CHANGELOG.md [2026-07-31s]` is a long, detailed entry for
+> the **grade session** that produced it — the Okhrati authority block, the supervisor research
+> programme, the adversarial novelty test and four measured findings are all recorded there. **The
+> work was documented; only the FILE was unreachable.**
+
+**What is actually true, stated at the width the evidence supports:** 661 lines, status **ACTIVE**,
+asserting of itself that it *"is checked at every write-time step alongside the four authorities in
+`CLAUDE.md`"* — and **its path is named in no other document** (`grep` over `docs/*.md`,
+`CHANGELOG.md` and the memory index returns nothing), **it was UNTRACKED** (so a fresh clone would
+not have had it at all), and **the RUN 9 brief did not mention it**.
+
+**That is a smaller defect than an undocumented orphan, and still a real one.** A successor reading
+`[2026-07-31s]` learns that a grade analysis happened and what it concluded; it does not learn that
+**a 661-line executable plan exists on disk**, or where. The narrative and the artifact were
+disconnected — and the artifact is the part you act from. Now committed and wired into §7.2, §7.3
+and §12.4 of the brief.
+
+**Four of its findings appear in no other document, and three of them change the shape of the work:**
+
+| § | finding | why it matters |
+|---|---|---|
+| **0.2** | Four required artefacts are **written but UNWIRED**: `RQ_canonical_and_framing.md` (1,053 w), `CH7_wider_context.md` (756 w), `CH1_contributions.md` (951 w), `CH3_severity_paragraph.md` (757 w) are absent from `scripts/build_paper.py::ASSEMBLY` | **the dominant remaining work is ASSEMBLY, not authoring** — a far better position than "66 placeholders" implies |
+| **0.3** | **Theory and Prototype are not permitted sections** under the guidelines, yet `02_CHAPTER_theory.md` (4,000 w) and `CH5_prototype.md` (1,402 w) are both in `ASSEMBLY` | relocating them is **required for conformance** AND delivers **5,002 of the ~10,177 words** that must leave the body |
+| **0.1** | The four-criteria **aggregation rule is UNKNOWN**, and our own two internal documents contradict each other on it, neither citing a source | the posture is *assume the harshest*. **Do not "resolve" the contradiction by picking a side** — it is unresolved on purpose |
+| **★ 14.1** | **The novelty sweep MISSED a neighbour** — RDA (arXiv:2606.01672, June 2026): an LLM authoring executable reward code for **Soft Actor-Critic**, arguing that Eureka-style loops rely on *"coarse numerical metrics"* and should be **enriched** | **our argument's exact shape**, along a semantic axis instead of a distributional one. It does not close our cell (robotics, not risk-sensitive, no pre-registration) but *"enriching the feedback channel"* is **no longer ours as an idea** |
+
+**VERIFIED FIRST-HAND before relaying**, because the plan was unaudited RUN-8-era work and this project
+has a documented history of a fabricated bib entry surviving an audit: all four §0.2 word counts match
+**exactly** (1053/756/951/757) and all four are absent from `build_paper.py`; theory and prototype are
+confirmed in `ASSEMBLY` at `scripts/build_paper.py:64` and `:66`. **§0.2 and §0.3 CONFIRMED.**
+
+**NOT verified, and flagged as such in the brief:** the §12.8 and §14 citation forms, including
+arXiv:2606.01672 itself. The plan says "verified first-hand"; that claim was **not re-tested** when
+wiring the document in. It must be, via the `verifying-citations` skill, before any of it reaches the
+PDF.
+
+**The process defect the plan names on itself (§14.4 N-A4):** the 2026-07-30 sweep was
+**finance-weighted**, so it found GIFT and missed RDA. The fix — sweep the reward-design lineage on
+arXiv **by date**, not only the finance neighbours — is due **before the mandatory pre-submission sweep
+(~20 Aug)**. Three sibling actions ride with it (N-A1 reorder contributions by DURABILITY; **N-A2
+promote the placebo-controlled identification design to a named, numbered contribution**; N-A3 add
+RDA/LEARN-Opt/RF-Agent/QRM to T10).
+
+### 86.2 ★ THE EIGHTH BROKEN INSTRUMENT — two record counts, one label
+
+**The cycle log said 1,527. The status page on Tamer's phone said 1,556. For the entire campaign.**
+Nothing anywhere said they were counting different things.
+
+**Root cause.** `scripts/campaign_guards.py::status` (which feeds the cycle log) counts
+`root.glob("*/*/*/record.json")` — a **fixed depth**. `docs/ops/publish_status.sh` used a **bare
+recursive `find`**. The 29 extra decompose exactly:
+
+```
+  27  frozen*/ winner markers at depth 3      legitimate artifacts, but markers -- not records
+   2  depth-5 entries, one of them a stale .pull_tmp.28884/ partial-pull staging dir
+      (2026-07-30 00:42) holding a BYTE-IDENTICAL duplicate, sha 180188cb7508ba2e, of a
+      record already present in the archive at its proper depth
+```
+
+**Neither number was wrong. They answered different questions while wearing the same label** — which is
+precisely why nothing invited a second look, and is the same failure class as the seven instruments
+found earlier in this session.
+
+**THE SCIENCE WAS NEVER AT RISK.** Every analysis path already excludes `.pull_tmp` **by name** —
+`src/cluster/integrity.py:160` and `:232`, `docs/ops/analysis_obligations.py:51`,
+`construct_validity_check.py:52`, `deep_results_*.py`, `base_reauthor_count.py`. The publisher was the
+**only** consumer that did not.
+
+**Fix:** `-mindepth 4 -maxdepth 4`, which reproduces the authority's glob exactly.
+**Falsification-tested with a POSITIVE CONTROL** — the direct lesson from §76.3, where my own first fix
+for a different counter was itself always-zero: on a controlled tree it excludes the frozen markers and
+the temp duplicate, equals the python glob, and **moves from 3 to 4 when a real record is added**, so it
+is not structurally frozen. Verified live end to end: the published page now reads **1527**, matching
+the cycle log. `docs/ops` is outside `DRIFT_PATHS`, so drift stays 0 and no relaunch is implied.
+
+⚠ **CONSEQUENCE FOR READING THE OLDER RECORD, stated so nobody concludes data was lost.** Every
+figure written before this fix that came from the STATUS PAGE carries the +29 — most visibly
+`CHANGELOG [2026-07-31s]`, which reports **1,554 records** at 21:35 UTC while the cycle log read
+**1,527** at the same moment. **Both are correct as measured**; they are not a loss, a rollback or a
+discrepancy in the archive. Historical entries are left as written (they are dated measurements),
+and this note is the reconciliation. From 2026-07-31 21:48 UTC onward the two agree.
+
+**The stale `.pull_tmp.28884/` is LEFT IN PLACE** — it holds no unique data, it is now invisible to
+every counter, and deleting anything from the campaign archive is Tamer's call, not mine.
+
+### 86.3 FOUR TERMS THE BRIEF USED BUT NEVER DEFINED
+
+An enumerated sweep of the brief's own vocabulary — **with a positive control token that must be absent,
+so a clean result means something** — found four things quoted or relied upon but never explained.
+Added as §7.4: **SESOI** (0.05 validation-DSR units, and **DERIVED not asserted** — R104,
+`config/preregistration.yaml:212`, flagged so nobody "simplifies" it back into a fiat value and undoes
+the fix); **E[max]** (why a winner is a max over a search, why the budget is matched at 30 attempts, and
+therefore the whole basis of §83's refusal of "make 30 candidates"); **the spend figure** (summed from
+`spend_ledger_*.jsonl`; per R83 the ledger WARNS and never refuses — **we are already past the $30
+advisory ceiling and that is NOT an error**, stated plainly so nobody "fixes" it by throttling); and
+**`outputs/allocation_state.json`**.
+
+**Plus one absence named on purpose:** there is **no push-notification channel**. `ntfy` exists only in
+`scripts/monitor.py` and `NTFY_TOPIC` is **unset** (verified). Tamer's phone gets `docs/RUN4_STATUS.md`
+every 5 minutes and nothing else, so anything urgent goes in its **"Needs Tamer"** block. Without this
+written down, a session would hunt for a notifier that was never wired.
+
+### 86.4 ⚠ MY OWN ERRORS IN THIS SECTION'S WORK — the count is now P39–P40
+
+| # | I claimed | the truth |
+|---|---|---|
+| **P39** | nine tokens "missing" from the brief | **four were my checker's exact-string bug** — `IDENTIFICATION PRINCIPLE`, `equal-*k*`, `**3.11.9**` and `frozen_leg_qwen3_5_9b` are all present in different casing or markup. Re-checked case-insensitively **rather than believed**. Only five were real |
+| **P40** | "the cycle loop may have stalled" | it had not — three of my tool calls simply ran faster than the ~42 s cadence. Checked rather than assumed **in both directions**, per the rule that overstating a risk is as inaccurate as understating one |
+| **P41** | *"an ACTIVE authority is referenced in ZERO other documents"* | **overstated.** `CHANGELOG.md [2026-07-31s]` documents the grade session in full — it simply never names the file by **path**. I grepped for a FILENAME and reported a conclusion about whether the WORK was recorded: **the same denominator error the P-series keeps producing** (§86.1 corrected in place). The true, narrower claim — path unreferenced, file untracked, brief silent — still justified the fix, which is why the overstatement was easy to miss: **a wrong reason that reaches the right action is the hardest kind to catch** |
+| — | (my own gap-sweep script) | **crashed with the cp1251 `UnicodeEncodeError` that was defect #4 of this very session** (§74.2). The brief documents `PYTHONIOENCODING=utf-8` for exactly this; I had not applied it to my own tooling |
+
+**The lesson that generalises:** a completeness checker is an instrument, and rung 4 applies to it too.
+My first sweep reported nine misses of which four were false — a **44 % false-positive rate** — and
+would have driven four pointless edits into a handover document had I acted on it directly. The positive
+control (a token that MUST be absent) is what made the remaining results trustworthy.
+
+### 86.5 WHAT THIS MEANS FOR THE SUCCESSOR
+
+**The gap-hunt found a real orphan, a real broken instrument, and four real omissions — after the brief
+had already been declared complete once.** That is the honest measure of how hard "nothing missed" is,
+and it is the reason §14 of the brief tells the next session to audit this one rather than trust it.
+Everything in §86 is itself unaudited and inherits that instruction.

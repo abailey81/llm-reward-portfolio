@@ -595,9 +595,10 @@ git commit -F <file>                                      # multi-line messages;
   write and in what order. It consolidates the marking criteria, the IFTE0008 guidelines, every
   supervisor feedback strand and the exemplar calibration into one action register targeting 95%+ on
   **each of the four criteria independently**. It says of itself that it *"is checked at every
-  write-time step alongside the four authorities in CLAUDE.md"*. **RUN 8 found it referenced in NO
-  other document** — brief, CHANGELOG, HANDOFF and memory all missed it — and committed it for that
-  reason. Do not plan write-up work without it. Its §12 (the supervisor research programme) and §14
+  write-time step alongside the four authorities in CLAUDE.md"*. **Its PATH is named in no other document** and it was **UNTRACKED**; RUN 8 committed it and wired it
+  in. (The *work* is documented — `CHANGELOG.md [2026-07-31s]` covers the grade session in detail; it
+  just never names the file. The narrative and the artifact were disconnected, and the artifact is the
+  part you act from.) Do not plan write-up work without it. Its §12 (the supervisor research programme) and §14
   (the adversarial novelty assessment) are the two sections with consequences outside the write-up.
 
 **Skills available:** `engineering-standards` (testing/reliability checklist) ·
@@ -616,7 +617,11 @@ any PDF compile or citation edit).
 6. `docs/ops/acknowledged_alarms.txt` — every quiet alarm **with its own RE-TRIAGE trigger**.
 7. `docs/V2_WRITE_TIME_REGISTRY.md` — **45 rows; 42-45 are new.**
 8. `docs/ops/watch/FINDINGS.md` · `DEVIATIONS.md` · `docs/REMOTE_CONTROL.md`.
-9. `CHANGELOG.md` — `[2026-07-31f]` … `[2026-07-31r]`.
+9. `CHANGELOG.md` — `[2026-07-31f]` … **`[2026-07-31t]`**. ⚠ **Do NOT stop at `[…r]`.** `[…r]` is
+   the RUN 8 close, but **`[…s]` is a SEPARATE GRADE SESSION that ran afterwards** — it is what
+   wrote Dr Okhrati's six duties into `CLAUDE.md`, researched the supervisor programme,
+   adversarially tested the novelty claim, and produced `docs/GRADE_95_MASTER_PLAN.md`. `[…t]` is
+   the handover gap-hunt (record §86). **Three sessions touched this repo on 2026-07-31, not one.**
 
 ---
 
@@ -706,7 +711,7 @@ section symbol and piece of jargon, use short sentences. That is not dumbing dow
 
 # §11. WHAT RUN 8 DID — and every number is a claim you may overturn
 
-## §11.1 Seven broken instruments found and fixed
+## §11.1 EIGHT broken instruments found and fixed
 
 | § | finding |
 |---|---|
@@ -717,6 +722,7 @@ section symbol and piece of jargon, use short sentences. That is not dumbing dow
 | **76.3** | **My own first fix was ALSO structurally zero** (`bc` is not installed). Caught only by falsification-testing the fix before shipping. |
 | **77.2** | **`science_watch`'s "impossible score" check was half-implemented** — the docstring promised `|Sharpe| absurdities`, only NaN/inf was written. **`val_fitness` drives winner selection.** |
 | **76.4** | One **false-reassuring default** on the status page (`gnames:-none`) fixed. |
+| **★ 86** | **The status page and the cycle log had disagreed about the RECORD COUNT for the whole campaign** — 1,556 vs 1,527 — under the same label, and nothing said they counted different things. `campaign_guards.py status` (which feeds the cycle log) globs a **fixed depth**; the publisher used a bare recursive `find`, picking up 27 `frozen*/` winner markers **and a stale `.pull_tmp.28884/` partial-pull dir holding a byte-identical DUPLICATE**. Fixed to `-mindepth 4 -maxdepth 4`; both now read **1527**. **The science was never at risk** — every analysis tool already excluded `.pull_tmp` by name; the publisher was the only consumer that did not. |
 
 ## §11.2 One retraction, two corrections
 

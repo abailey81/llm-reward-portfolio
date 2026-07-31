@@ -3,6 +3,280 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31t] THE HANDOVER GAP-HUNT — AN UNREACHABLE AUTHORITY, AN EIGHTH BROKEN INSTRUMENT, AND FOUR UNDEFINED TERMS
+
+**Tamer's instruction:** *"make sure you ultrathink, and don't miss anything that the next Claude
+session should also know, the transition must be extremely smooth."* The brief had already been
+declared complete once. A deliberate, enumerated hunt found three more things — which is the honest
+measure of how hard "nothing missed" is. **Record §86.** State unchanged and healthy throughout: 12/12
+lines, **1,527 records**, **$38.79**, **928 cores**, freeze `3ca6f01a…` **MATCHES**, **drift 0**,
+`sci=OK`, **`RUNNING_SHA 50b6e07` untouched** — no `src/ scripts/ config/ prompts/` edit, no relaunch.
+
+**① ★ AN ACTIVE AUTHORITY WAS AN ORPHAN.** `docs/GRADE_95_MASTER_PLAN.md` — **661 lines, status ACTIVE, UNTRACKED, and its
+path named in no other document** — while asserting of itself that it *"is checked at every write-time
+step alongside the four authorities"*. ⚠ **I first wrote that it was referenced NOWHERE and therefore
+an undocumented orphan; that was too strong and is corrected (P41).** `[2026-07-31s]` above documents
+the grade session in full — it simply never names the file. **The work was documented; only the FILE
+was unreachable**, and a successor reading the entry would learn what the analysis concluded but not
+that a **661-line executable plan exists on disk**, or where. The narrative and the artifact were
+disconnected, and **the artifact is the part you act from** — so the successor would still have
+planned the **write-up, the project's actual binding constraint**, without it. Now committed and
+wired into the brief's §7.2, §7.3 and §12.4. **Four of its findings appear nowhere else:** §0.2 four
+required artefacts are **written but UNWIRED** (`RQ_canonical_and_framing` 1,053 w, `CH7_wider_context`
+756 w, `CH1_contributions` 951 w, `CH3_severity_paragraph` 757 w are absent from
+`build_paper.py::ASSEMBLY`) — so **the dominant remaining work is ASSEMBLY, not authoring**; §0.3
+**Theory and Prototype are not permitted sections** yet both are in `ASSEMBLY`, and relocating them is
+required for conformance **and** delivers **5,002 of the ~10,177 words** that must leave the body; §0.1
+the **four-criteria aggregation rule is UNKNOWN** and our own two documents contradict each other,
+neither citing a source (posture: assume the harshest — **do not "resolve" it by picking a side**); and
+**§14.1 the novelty sweep MISSED a neighbour — RDA (arXiv:2606.01672, June 2026)**, an LLM authoring
+reward code for **Soft Actor-Critic** whose stated contribution is that Eureka-style loops rely on
+*"coarse numerical metrics"* and should be **enriched** — our argument's exact shape on a semantic axis
+instead of a distributional one. It does not close our cell, but *"enriching the feedback channel"* is
+**no longer ours as an idea**, and the process defect (a **finance-weighted** sweep) must be fixed
+**before the mandatory pre-submission sweep, ~20 Aug**. **§0.2 and §0.3 VERIFIED FIRST-HAND before
+relaying** — all four word counts match exactly, all four are absent from `build_paper.py`, and theory
+and prototype are confirmed at `build_paper.py:64` and `:66`. **The §12.8/§14 citations were NOT
+re-verified** and the brief says so: this project has a documented history of a fabricated bib entry
+surviving an audit.
+
+**② ★ AN EIGHTH BROKEN INSTRUMENT — two record counts under one label.** The cycle log said **1,527**;
+the status page on Tamer's phone said **1,556**; **for the entire campaign**, and nothing said they
+counted different things. `campaign_guards.py status` globs a **fixed depth**; `publish_status.sh` used
+a **bare recursive `find`**, picking up **27 `frozen*/` winner markers** (markers, not records) and a
+stale **`.pull_tmp.28884/`** partial-pull staging dir from 2026-07-30 00:42 holding a **byte-identical
+duplicate** (sha `180188cb7508ba2e`) of a record already in the archive. **Neither number was wrong —
+they answered different questions while wearing the same label**, which is exactly why nothing invited
+a second look, and is the same failure class as the seven instruments found earlier today. **The
+science was never at risk:** every analysis path already excludes `.pull_tmp` **by name**
+(`integrity.py:160,232`, `analysis_obligations.py:51`, `construct_validity_check`, `deep_results_*`,
+`base_reauthor_count`) — the publisher was the **only** consumer that did not. Fixed to `-mindepth 4
+-maxdepth 4` and **falsification-tested with a POSITIVE CONTROL** (the direct lesson from §76.3, where
+my own first fix for a different counter was itself always-zero): it excludes both artifact classes,
+equals the authority's glob, and **moves 3 → 4 when a real record is added**. Verified live: the
+published page now reads **1527**. The stale dir is **left in place** — no unique data, now invisible
+to every counter, and deleting from the campaign archive is Tamer's call.
+
+**③ FOUR TERMS THE BRIEF USED BUT NEVER DEFINED** → new **§7.4**: **SESOI** (0.05 validation-DSR units
+and **DERIVED not asserted**, R104 — flagged so nobody "simplifies" it back to a fiat value and undoes
+the fix); **E[max]** (why a winner is a max over a search, why the budget is matched at 30 attempts —
+the entire basis of §83's refusal of "make 30 candidates"); **the spend figure** (summed from
+`spend_ledger_*.jsonl`; per R83 the ledger WARNS and never refuses — **we are already past the $30
+advisory ceiling and that is NOT an error**, said plainly so nobody throttles the campaign to "fix"
+it); and `outputs/allocation_state.json`. **Plus one absence named on purpose:** there is **no
+push-notification channel** — `ntfy` lives only in `scripts/monitor.py` and `NTFY_TOPIC` is unset, so
+Tamer's phone gets `RUN4_STATUS.md` and nothing else, and anything urgent goes in its "Needs Tamer"
+block.
+
+**④ ⚠ MY OWN ERRORS — P39, P40, P41, and a self-inflicted crash. P41 is the instructive one:** I grepped for the literal filename `GRADE_95_MASTER_PLAN`, found nothing, and reported that the work was an undocumented orphan — **answering a question about the WORK with evidence about a FILENAME**, the same denominator error the P-series keeps producing. The narrower true claim still justified the fix, which is exactly why it was easy to miss: **a wrong reason that reaches the right action is the hardest kind to catch.** **P39:** my first sweep reported **nine**
+missing tokens; **four were its own exact-string bug** (`IDENTIFICATION PRINCIPLE`, `equal-*k*`,
+`**3.11.9**`, `frozen_leg_qwen3_5_9b` are all present in other casing or markup) — a **44 %
+false-positive rate** that would have driven four pointless edits into the handover had I acted on it.
+Re-checked case-insensitively rather than believed. **P40:** I suspected the cycle loop had stalled; it
+had not — three of my tool calls simply outran the ~42 s cadence. Checked **in both directions**, since
+overstating a risk is as inaccurate as understating one. **And my own sweep script crashed with the
+cp1251 `UnicodeEncodeError` that was defect #4 of this very session** — the brief documents
+`PYTHONIOENCODING=utf-8` for precisely this and I had not applied it to my own tooling. **A
+completeness checker is an instrument, and rung 4 applies to it too**; the positive control (a token
+that MUST be absent) is what made the surviving results trustworthy.
+
+**Also landed:** §6's rolling-supervisor-restart procedure now names **`scripts/mode_d_supervisor.ps1`**
+as the file holding the argument array, with the §74.4 trap attached (`--pack` is not a supervisor
+argument — check the **driver** command lines, not the supervisors').
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` **§86** · `docs/RUN9_SESSION_PROMPT.md` (§6, §7.2, §7.3,
+**§7.4**, §11.1, §12.4 — now 920 lines) · `docs/GRADE_95_MASTER_PLAN.md` (**committed**, was untracked)
+· `docs/ops/publish_status.sh` · `docs/HANDOFF.md` §1. **Everything in §86 is itself unaudited and
+inherits the brief's §14 instruction to audit RUN 8.**
+
+## [2026-07-31s] GRADE SESSION — THE RUBRIC READ FIRST-HAND, THE SUPERVISOR PROGRAMME RESEARCHED, THE NOVELTY CLAIM ADVERSARIALLY TESTED, AND FOUR MEASURED FINDINGS
+
+**Scope.** A write-up/grade session, not an ops session. **No `src/ scripts/ config/ prompts/` edit,
+no relaunch, RUNNING_SHA untouched, freeze unmoved.** All campaign analysis below is **effect-blind**:
+baseline and benchmark behaviour only, no treatment arm's sealed-test outcome read or looked at.
+
+**Live state observed at close (2026-07-31 21:35 UTC, T+72h27m):** 12/12 lines · **1,554 records** ·
+**$38.7911** · 2,449 LLM calls · freeze `3ca6f01a…` MATCHES · drift 0 · `sci=OK` · guards RC=2
+(acknowledged truncation). **26 frozen winners. C4 HAS BEGUN on `frozen_leg_qwen3_5_9b` (5/5).**
+Core line **3/5 and still searching**. **`test_leg_qwen3_5_9b` holds 0 records — no LLM arm has a
+single test record, so no confirmatory contrast is computable and none was attempted.**
+
+### ① NEW BINDING AUTHORITY — Dr Okhrati's 2026-07-31 supervision feedback
+
+Relayed by Tamer with the instruction to follow it strictly. Written into `CLAUDE.md` as a **★★★★**
+block placed ABOVE Stefan's criteria (Okhrati is authority #2), with his words verbatim and **six
+checkable duties**, plus a **campaign-wide scope clause** added on Tamer's follow-up instruction
+(*"everything that I have said should be applicable to the whole campaign, absolutely whole campaign"*).
+Registered as write-time obligations **rows 38–41**.
+
+- **The rule all six reduce to:** *every number arrives with its **mechanism**, its **uncertainty** and
+  its **counterfactual***. A number carrying fewer than all three is not a result.
+- **D1** the account of the output is the deliverable · **D2** show the estimator, not only the estimate
+  (seed trajectories) · **D3** every surprise is an obligation · **D4** "what would get a more expected
+  result" is a named deliverable · **D5** rigour must be VISIBLE in the document · **D6** narrative over
+  enumeration.
+- **D2 carries a discipline, because the figure he asked for is also a trap:** a running-estimate curve
+  invites *"where did it settle?"*, which is the optional-stopping logic the pre-registration forbids.
+  Valid only with (i) seeds in **registered order, never sorted**, (ii) the **exogenous stopping rule in
+  the caption**, (iii) an explicit statement that **no inference was drawn at any prefix**.
+- **Scope clause** names the enumerated surface as the **35 `out["…"]` keys of `analyze_campaign.py`**
+  plus every per-unit measure, every search-stage quantity, the M2 rows and R96's estimands — with
+  `docs/WHY_REGISTER.md` to be **generated** from that key set so a new result cannot escape the standard.
+
+### ② FOUR MEASURED FINDINGS (all effect-blind, all first-hand)
+
+1. **The classical-allocator benchmark table was computed for the first time.** Nine allocators rolled
+   through the identical costed environment over the archive's own window (`[3835,5406)` = 1,571
+   sessions, read from the env fingerprint, never a calendar filter); `gate=None`, no winner passed.
+   `equal_weight` **1.274** … `min_cvar` **0.602**. Cross-check: my costed `equal_weight` (1.274) sits
+   just below §48's uncosted EW-30 buy-and-hold (1.283) — exactly the rebalancing-cost gap.
+2. **The turnover mechanism, corrected.** I predicted the turnover-aware reward would hold a MORE
+   concentrated book (entropy pinned in logit space ⇒ concentrate to shrink `w(1−w)`). **REFUTED:**
+   HHI **0.074 / eff-N 13.5** vs the ten blind rewards' **0.329 / 4.2**. My derivation had the sign
+   wrong — Σw(1−w) = 1 − HHI, so a *diversified* book has MORE Jacobian sensitivity. **The corrected
+   mechanism:** no gradient in the movement dimension ⇒ the policy converges on a near-**argmax**
+   "chase the best few" solution ⇒ argmax over a noisy score rotates completely each day. Concentration
+   is a **symptom** of chasing, not a tool against it.
+3. **The optimiser's curse, quantified.** At the registered 60-day lookback and α=0.05 the CVaR
+   objective is the mean of **3 of 60** observations. In→out-of-sample degradation: `min_cvar` **88 %**
+   · `minimum_variance` **30 %** · `risk_parity` **10 %** · `equal_weight` **4 %** — **monotone in how
+   much estimation the allocator performs.** `min_cvar` is rank 1 in-sample and rank 3 out.
+4. **PopArt engagement mechanism.** The record's *"splits perfectly by ratio-form vs difference-form"*
+   is **imprecise on 2 of 11**. The true predictor is mechanical: σ = max(1.0, RMS) ⇒ **engages iff
+   RMS > 1**. Exactly 3 of 11 do — `differential_downside_ratio` (RMS **5,827**), `differential_sharpe`
+   (**3,223**), `return_minus_drawdown` (**2.02**) — reproducing the record's independently recorded
+   count. What pushes RMS over 1 is an **unbounded term** (a running-vol denominator ×2; an accumulating
+   drawdown ×1), not "being a ratio". **Canon reward magnitudes span five orders of magnitude
+   (0.027 → 5,827)** — a sharper characterisation of the H1 confound than "PopArt is asymmetric".
+
+**★ The unifying account (new):** every link in this pipeline is noise-limited, and three of four are
+now measured — **estimation ≈1:1 · perception UNMEASURED (this is R96) · optimisation 1:15 · measurement
+1:5**. This reframes the study from *"does tail feedback help?"* to *"we instrumented a four-link
+automated-design pipeline end to end; here is the SNR at each link and which binds first"* — a
+**positive quantitative claim**, not a null. It also explains, for the first time, the previously
+unexplained **CRN asymmetry** (ρ_Sharpe −0.007 vs ρ_CVaR +0.076): CRN shares the *market*, but the
+dominant Sharpe variance is the policy's own seed-specific churn path, which is **not** shared.
+
+### ③ MY OWN ERRORS THIS SESSION — recorded, per the standing rule
+
+- **P31 — every number I reported carried no interval**, three messages after writing *"every number
+  arrives with its uncertainty"* into `CLAUDE.md`. Corrected: CIs computed for all twelve canon units.
+  With intervals attached the ten losers **overlap heavily**, which is why the "do not rank them"
+  warning was right and is now evidenced rather than asserted.
+- **P32 — the concentration prediction was refuted by the data** (②.2). Recorded because the refutation
+  is the finding.
+- **P33 — "stateful rewards churn less" was CONFOUNDED with PopArt engagement.** The three stateful
+  rewards *are* the three PopArt-engaged ones; at n=11 units they cannot be separated. The surviving
+  claim is two-factor: **movement pricing ≈110× (0.8 % vs ~85 %); PopArt ≈7 % (82.8 % vs 89.2 %)** —
+  and `return_minus_turnover` is **pinned** (RMS 0.92) yet best, which kills any "pinning causes churn"
+  story.
+- **P34 — I twice reported artefacts as MISSING that exist.** `paper/sections/` holds the canonical RQ,
+  the wider-context subsection, the numbered contributions and the severity paragraph — **written, and
+  simply absent from `build_paper.py::ASSEMBLY`.** Lesson (the same one as the GIFT episode): **check
+  the artifact before declaring a gap in it.**
+- **P35 — I briefed Tamer from a stale status page** (T+61 h, 1,378 records, $31.09) while the live
+  state had moved to T+72 h, 1,554 records, $38.79. ⚠ **Related and more serious: the "0 transport
+  timeouts" repeatedly reported to Tamer was, per `[2026-07-31r]`, a STRUCTURALLY ZERO counter for the
+  whole campaign.** Reassurance from a broken instrument is not reassurance.
+
+### ④ THE RUBRIC AND THE GUIDELINES, READ FIRST-HAND
+
+- **★ The single most important reading:** Communication's two top bands **both** say *"excellent write
+  up"*; the 80–89 band **never mentions data presentation**; the only thing 90–100 adds is
+  **"faultless presentation of data."** **C4's top band is gated on a checklist, not on writing talent**
+  — and it is our weakest criterion.
+- **"wider context"** appears **only** in C1's 90–100 band. **"Faultless" / "entirely" / "unquestionable"**
+  are C2's discriminators. **"Outstanding, not significant"** is C3's.
+- **Neither document states a weighting or aggregation rule**, and our own two internal docs
+  **contradict each other** (`CLAUDE.md`: equally weighted, weakest caps; the alignment doc: "the two
+  highest-weight dimensions"). **Both unsourced.** Operative posture: assume all four must independently
+  reach the target.
+- **Guidelines non-conformances found:** body **20,177 words** against a hard 10,000 with an explicit
+  penalty · **no Data section** (required) · **Theory and Prototype are not permitted sections** ·
+  core ratio **46.8 %** against *"approximately 60 %"* · **Acknowledgements is a STUB** while we use
+  licensed Refinitiv data and UCL Myriad compute, both of which the guidelines name explicitly.
+- ⚠ **Procedural risk raised:** *"It is your responsibility to ensure that any necessary forms are
+  submitted and approved on time"* — the **Ethics / Data Protection forms are UNVERIFIED**.
+- **Exemplar calibration:** the four distinction exemplars run **41–64 pages, ~11–12 k raw words for the
+  entire PDF, 2–14 figures, 4–14 tables, ~25 references**. Our counted body alone is ~2× an entire
+  exemplar; we plan 21 figures and hold 274 bib entries.
+- ⚠ **Captions are NOT in the exclusion list; footnotes ARE** — and we use no footnotes at all.
+
+### ⑤ THE SUPERVISOR PROGRAMME, RESEARCHED FIRST-HAND
+
+- **Raad Khraishi is a researcher in Dr Okhrati's own AIRiskLab** and co-author on **both** anchor
+  papers. The NatWest offline-RL-for-pricing project is the lab's own. **The two feedback streams are
+  one programme, not two** — `CLAUDE.md`'s authority-#2-vs-#3 conflict rule is largely moot.
+- **He is Programme Director of the MSc Banking and Digital Finance** — the IFTE0008 guidelines are his
+  programme's standard, so non-conformance reads worse from him.
+- **Our study sits at the intersection of his three research lines** (convex **dynamic** risk measures
+  — Assa & Okhrati 2017; offline RL/CQL — Khraishi & Okhrati, ICAIF '22; LLM risk behaviour — Hartley
+  et al., Findings of ACL 2025). **This is stated nowhere in the paper.**
+- **★ Hartley et al. (2025), verified first-hand:** LLMs are *"risk-neutral rational agents"*; Openness
+  interventions move risk-propensity; **advanced models show human-like bias patterns while distilled
+  variants show none.** Three consequences: (a) independent support for our **A4 prior-dominance**
+  account; (b) the successor-question sentence (*personality moves risk-propensity — does
+  **information**, and does it reach the **objective the model writes***); (c) ★ **their capability
+  finding supports the CAPACITY account, which CONTRADICTS our pre-registered representational
+  prediction (R87)** — registered before our data, against the nearest prior result, in the first
+  marker's own paper. **Either outcome is now a result.**
+- **Two objections from his exact expertise are NOT pre-written:** **A-11** static-vs-dynamic risk
+  measure / time-consistency (Assa & Okhrati 2017); **A-12** the offline-RL demarcation (he wrote the
+  CQL paper). **A-13** — *"CVaR from 3 observations"* — is now answered by ②.3 and will land well.
+- **Exact citation forms locked** in the plan; the standing misattribution prohibition retained.
+
+### ⑥ NOVELTY, ADVERSARIALLY TESTED — and a sweep defect
+
+Six searches run to **break** the claim, two candidates fetched and read.
+
+- **⚠ OUR 2026-07-30 SWEEP MISSED A NEIGHBOUR.** **RDA — "Reward Design Agent for Reinforcement
+  Learning"** (arXiv:2606.01672, **June 2026**): an LLM writes executable reward code, the agent is
+  **SAC**, feedback is **VLM visual/semantic** trajectory analysis plus numerical statistics; robotics
+  only, not risk-sensitive, not finance, not pre-registered. **Their stated contribution — enriching
+  reward design beyond *"coarse numerical metrics"* — has the same argument shape as ours.** It
+  corroborates our premise (the *channel* is the bottleneck) while narrowing our claim: **we can no
+  longer claim novelty for "enriching the feedback channel" as an idea.** The sweep missed it because
+  the sweep is **finance-weighted**; it must cover the reward-design lineage on arXiv **by date**.
+- **Also to enter T10:** LEARN-Opt (★ quote its *"automated reward design is a high-variance problem…
+  requiring a multi-run approach"* as external corroboration of limitation B.2.6), RF-Agent
+  (arXiv:2602.23876), URDP (arXiv:2507.02256 — re-verified, still not a neighbour), QRM
+  (arXiv:2409.10164 — distributional reward *models*; their distribution is an **output**, ours is an
+  **input to an author**).
+- **★ The honest verdict: our topical novelty is real but fragile; our methodological novelty is
+  durable, and we have been leading with the fragile one.** Tier 1 (durable): **N-1** no
+  pre-registration anywhere in the lineage — an adversarial search returned nothing · **N-2** ★ **the
+  placebo-controlled identification design — nobody in this lineage runs a control; every published
+  system compares *methods*, none isolates *feedback content under a fixed agent***, arguably more novel
+  than our topic and currently buried as methodology · **N-3** the mechanism decomposition with positive
+  controls · **N-4** the measured results · **N-5** the open-weight suite. Tier 2: the conjunctive cell
+  (empty today, disputable by construction, and **crowding fast**). Tier 3 (**not** novel): LLM-writes-
+  reward-code · risk-sensitive portfolio RL with CVaR · LLM+finance RL · **and now "enriching the
+  feedback channel"**.
+- **Action N-A1/N-A2:** reorder the contribution hierarchy **by durability** and **promote the
+  identification design to a numbered contribution**.
+
+### ⑦ ARTEFACTS WRITTEN THIS SESSION
+
+- **`docs/GRADE_95_MASTER_PLAN.md`** (NEW) — §0 three corrected premises · §1 the rubric read exactly ·
+  §2 guidelines conformance · §3 exemplar calibration · §4 artefact state · **§5 the 55-action register
+  across the four criteria** · §6 the structural operation with exact word arithmetic (Phase 1 −5,002,
+  Phase 2 −5,175, closing to exactly 10,000 with core at 61 %) · §7 the adversarial audit (A-1…A-15) ·
+  §8 risks in the plan itself · §9 verification gates · §10 schedule · §11 honest confidence · **§12 the
+  supervisor research programme** · **§13 the deep feedback synthesis** · **§14 the strict novelty
+  assessment**.
+- **`CLAUDE.md`** — the Okhrati D1–D6 block + the campaign-wide scope clause.
+- **`docs/V2_WRITE_TIME_REGISTRY.md`** — rows **38–41**.
+- Scratchpad probes (effect-blind, reproducible): `t0_floor.py` + `t0_floor.json`, `min_cvar_probe.py`.
+
+### ⑧ OPEN AND CARRIED FORWARD
+
+**Ethics/Data-Protection forms UNVERIFIED (risk R-1)** · Okhrati's written pivot-disclosure sign-off ·
+**Kimi K3 open-weights rule R95 FIRED 27 Jul** (weights published one day before launch-GO) — licence
+permissiveness and checkpoint↔snapshot correspondence **still to verify**, `hf_pins_recorded` still
+lacks the entry, amend at the C4 restart · R96 activation decision (objection A-8) · the seed-trajectory
+panel · `WHY_REGISTER.md` · `presentation_lint.py` · `RUBRIC_CONFORMANCE.md` · the sweep-scope fix ·
+Phase 1 restructure not started.
+
 ## [2026-07-31r] RUN 8 SESSION CLOSE — SEVEN BROKEN INSTRUMENTS, ONE RETRACTION, THE SCIENCE VERIFIED, AND THE HANDOVER
 
 **State at close:** RUN 4 live, **T+72 h 11 m**, 12/12 lines, **1,525 records**, **$38.79**, **896
