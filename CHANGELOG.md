@@ -3,6 +3,55 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31p] ★★★ C4 HAS BEGUN — AND THE MONITOR CRASHED TRYING TO ANNOUNCE IT
+
+**State before:** RUN 4 live, T+70 h 20 m, ~1,498 records, drift 0, `sci=OK`. The 2-minute cycle had
+turned **RED** and stayed RED while every visible field looked healthy (`drift=0 sci=OK guards=2`), with
+only `r115` moving 12 → 13. **The obvious reading — "the R115 rise is the RED" — was wrong** (§73.6
+cleared that separately as a D17 1/5 harness-trap). Chasing the verdict to its cause found the real one.
+
+**① THE MONITOR COULD NOT PRINT ITS OWN MOST IMPORTANT ALERT.** `cycle.py` emits alert lines containing
+`★`. On a **terminal** Python picks a UTF-8-capable encoding and all is well; **redirected or piped** it
+falls back to the locale codepage — **`cp1251` here** — which cannot encode U+2605, and `print()` raises
+`UnicodeEncodeError`. Three facts made that catastrophic rather than cosmetic: `cycle_loop.sh` runs the
+cycle via **command substitution** (`out=$(...)`), i.e. a pipe, so **in production the crashing path was
+the ONLY path**; the single `★` line is the **C4-BOUNDARY DETECTOR**, the most important operational
+event in the campaign; and because the loop captures stdout, **what landed in `ALERTS.txt` was a Python
+traceback instead of the alert**. Measured occurrences of the C4 alert text in `ALERTS.txt`: **ZERO**.
+**FIXED** — stdout/stderr reconfigured to UTF-8 with `errors="replace"`, so a rendering limit can
+degrade a *character* but never lose a *message*. Verified through the production pipe path: **exit 2
+(correct RED), full alert text, zero tracebacks**, where the same command previously gave 10 lines of
+traceback and nothing else. **Twin of §66's P35** (a reassuring null from an instrument that cannot
+fire) — same root: **the instrument was never exercised on the path production actually uses.**
+
+**② ★ C4 HAS BEGUN.** `frozen_leg_qwen3_5_9b` has **5/5 frozen winners** and its seed ladder is in
+flight (driver: `0/30 done, 30 pending`; cluster jobs `..._test_p01..p04`). Census: qwen3.5-9b 5/5, core
+**3/5**, eight legs 2/5, two at 1/5. **That the bottom anchor arrives first is coherent:** it is the
+deliberate capability floor with an ~85 % reject rate, rejected candidates are **never replaced**
+(§26.3, registered pre-data), so its arms exhaust their six generations soonest. **The line that
+authored least reaches C4 first.**
+
+**③ ✔ `--pack 8` IS LIVE AT C4 — the window was NOT missed.** All **24 of 24 driver processes** carry
+`--pack 8`; **zero** carry `--pack 4`. **Independent proof in the job names:** `scalar_cvar5_test_p01…
+_p04` = **four packs for 30 seeds** (eight at pack 4). ⚠ **A verification trap worth recording:** my
+first check looked for `--pack 8` on the **supervisor** command lines and found **0 of 12** — the wrong
+process, since `--pack` lives in a hardcoded array *inside* `mode_d_supervisor.ps1` that is passed to
+the **driver**. A "0 of 12" meaning *wrong process* is indistinguishable from one meaning *not applied*.
+**The alert text was therefore CORRECTED**: it still instructed a supervisor restart to apply pack 8 —
+a dangerous no-op on a live campaign — and now states pack 8 is verified live and says **DO NOT
+RESTART THE SUPERVISORS FOR PACK 8**.
+
+**④ THE REMAINING DEFERRED FIXES WERE ASSESSED, NOT BATCH-APPLIED**, for four measured reasons: the
+C4-critical item (pack 8) is done; C4 has begun on **one** line and it is a **report-only** leg while
+the confirmatory core line is still in search at 3/5; every remaining fix costs a drift break plus a
+24-driver relaunch, and eleven at once against a live ladder is large-surface risk with no upside; and
+**D19 — the one that could plausibly bite at C4 — does not**, since §55 measured C4's p99 at **9.85 h**
+against a 15 h wall. **Recommendation carried forward: apply them when the CORE line reaches C4.**
+Nothing dropped.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §74 · `docs/ops/cycle.py` (UTF-8 fix + corrected C4
+alert) · `docs/REMOTE_CONTROL.md`. **No `src/ scripts/ config/ prompts/` change; drift 0.**
+
 ## [2026-07-31o] ★★★ THE TAIL INSTRUMENT VERIFIED AGAINST ITS OWN INPUTS — PERFECT AGREEMENT (Spearman = 1.0000)
 
 **State before:** RUN 4 live, T+70 h 10 m, 1,489 records, drift 0, `sci=OK`, 768 cores. §69 proved the

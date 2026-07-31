@@ -73,6 +73,32 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚠⚠ THE MONITOR MUST NEVER CRASH ON ITS OWN OUTPUT. Found live 2026-07-31 (record §74).
+#
+# THE DEFECT: this script prints alert lines containing non-ASCII markers (★, §, →). When stdout is
+# a TERMINAL, Python picks a UTF-8-capable encoding and everything works. When stdout is REDIRECTED
+# OR PIPED, Python falls back to the locale codepage -- `cp1251` on this machine -- which cannot
+# encode `★` (U+2605), and `print()` raises UnicodeEncodeError. The whole cycle then dies.
+#
+# WHY THAT WAS CATASTROPHIC RATHER THAN COSMETIC: `docs/ops/cycle_loop.sh` runs this via COMMAND
+# SUBSTITUTION -- `out=$(python docs/ops/cycle.py ...)` -- which is a pipe. So in production the
+# crashing path was the ONLY path. And the single line that carries `★` is the **C4-BOUNDARY
+# DETECTOR** -- the most important operational event in the campaign. On 2026-07-31 the boundary
+# was genuinely reached (`frozen_leg_qwen3_5_9b` hit 5/5 frozen winners), the detector fired, the
+# print raised, and what landed in ALERTS.txt was a **Python traceback instead of the alert**.
+# The instrument failed precisely at the moment it mattered.
+#
+# THE FIX: force UTF-8 on stdout/stderr with `errors="replace"`, so a rendering limitation can
+# degrade a CHARACTER but can never lose a MESSAGE. Belt and braces -- `reconfigure` exists on
+# 3.7+, and the guard keeps this safe if stdout is ever a non-reconfigurable stream.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+# ─────────────────────────────────────────────────────────────────────────────
+
 REPO = Path(__file__).resolve().parents[2]
 WATCH = REPO / "docs" / "ops" / "watch"
 STATE_PATH = WATCH / "STATE.json"
@@ -281,11 +307,14 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     got["lines_at_c4_boundary"] = ready
     if ready:
         alerts.append(
-            f"★ C4 BOUNDARY REACHED on {', '.join(ready)} (5/5 arms frozen). This is the ONLY window "
-            f"for `--pack 8` (DEFERRED_FIXES 11) and for the other outstanding deferred fixes. It "
-            f"needs a SUPERVISOR restart, not a driver relaunch -- the flag is bound in "
-            f"mode_d_supervisor.ps1's argument array at supervisor start. Without it C4 runs at half "
-            f"the cores, and at the 2026-07-31 core count rung 568 lands 08-30, missing the stop.")
+            f"★ C4 BOUNDARY REACHED on {', '.join(ready)} (5/5 arms frozen) -- the seed ladder has "
+            f"begun on that line. ✔ `--pack 8` IS ALREADY LIVE (§58, applied 2026-07-31 by a rolling "
+            f"supervisor restart; VERIFIED 2026-07-31 19:35 UTC on all 24 driver command lines, and "
+            f"visible in the C4 job names as 4 packs for 30 seeds, e.g. `..._test_p01..p04`). "
+            f"*** DO NOT RESTART THE SUPERVISORS FOR PACK 8 -- IT IS DONE. *** "
+            f"What REMAINS at this boundary is the outstanding DEFERRED_FIXES (1-7, 9, 10, 12, 13; "
+            f"8 and 11 are APPLIED) -- each needs a driver relaunch, so weigh them against disturbing "
+            f"a live ladder rather than applying them as a batch. Record §74.")
 
     # ★ CORE-LINE ARM DEPTH -- the ratio that actually gates the CONFIRMATORY claim.
     #

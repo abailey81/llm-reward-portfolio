@@ -8667,3 +8667,128 @@ our instrument in **three quarters** of the cases that R115 acts on.
 **Also observed in the same cycle: the arm-depth imbalance has closed to 2.03×** (distributional 319
 vs scalar_cvar5 157), from 2.33× core-line / 2.23× pooled earlier in the session. The controls are
 catching up, which is the §56 clock running the right way.
+
+---
+
+## 74. ★★★ THE C4 BOUNDARY WAS REACHED — AND THE MONITOR CRASHED TRYING TO TELL US (2026-07-31)
+
+**This is the most consequential finding of RUN 8, and it was found only because a RED verdict was
+chased to its cause instead of being read off the log line.**
+
+### 74.1 The symptom, and why it did not look like a defect
+
+At 19:26 UTC the 2-minute cycle turned **RED** and stayed RED across consecutive cycles while every
+field on the line looked healthy: `drift=0 sci=OK guards=2 arms_full=10/10`, with only `r115` moving
+12 → 13. The obvious reading was "the R115 rise is the RED". **It was not** — the R115 rise is an
+*attention* item (§73.6 investigated it separately and cleared it as a D17 1/5 harness-trap).
+
+Running `cycle.py` by hand **in a terminal** printed nothing unusual. Running it **redirected to a
+file** — which is what production does — produced this:
+
+```
+UnicodeEncodeError: 'charmap' codec can't encode character '★' in position 6
+```
+
+### 74.2 THE DEFECT — the monitor could not print its own most important alert
+
+`cycle.py` emits alert lines containing `★`. When stdout is a **terminal**, Python selects a
+UTF-8-capable encoding and all is well. When stdout is **redirected or piped**, Python falls back to
+the locale codepage — **`cp1251` on this machine** — which cannot encode `★` (U+2605), and `print()`
+raises.
+
+**Why that was catastrophic rather than cosmetic — three compounding facts:**
+
+1. **`docs/ops/cycle_loop.sh` runs the cycle via COMMAND SUBSTITUTION** — `out=$(python
+   docs/ops/cycle.py …)` — which is a pipe. **In production, the crashing path was the ONLY path.**
+2. **The single alert carrying `★` is the C4-BOUNDARY DETECTOR** — the most important operational
+   event in the entire campaign, and the one the RUN 8 brief builds a whole procedure around.
+3. **The loop captures stdout**, so when the print raised, **what landed in `ALERTS.txt` was a Python
+   traceback instead of the alert.** Measured: occurrences of the C4 alert text in `ALERTS.txt` =
+   **ZERO**.
+
+**The instrument failed at precisely the moment it mattered, and its failure looked like a bare "RED".**
+
+**FIXED** in `docs/ops/cycle.py` (which is outside the drift watch): stdout and stderr are reconfigured
+to UTF-8 with `errors="replace"`, so **a rendering limitation can now degrade a CHARACTER but can never
+lose a MESSAGE**. Verified by re-running through the production pipe path: **exit 2 (correct RED), the
+full alert text present, zero tracebacks** — where the same command previously produced 10 lines of
+traceback and nothing else.
+
+**THE LESSON, and it generalises past this file.** §66's P35 was *"a reassuring null from an instrument
+that cannot fire"*. **This is its twin and it is worse: an ALARM that cannot be delivered.** Both share
+a root — the instrument was never exercised on the path production actually uses. **Any monitor must be
+tested through the exact I/O path the loop runs it on, not interactively.**
+
+### 74.3 ★ THE EVENT ITSELF — C4 HAS BEGUN
+
+With the alert finally readable:
+
+> **★ C4 BOUNDARY REACHED on `frozen_leg_qwen3_5_9b` (5/5 arms frozen).**
+
+Frozen-winner census across all twelve lines: `frozen_leg_qwen3_5_9b` **5/5**; core `frozen` 3/5; eight
+legs at 2/5; `frozen_leg_nemotron_3_super` and `frozen_h3_singleshot` at 1/5.
+
+**That the bottom anchor arrives first is coherent, not anomalous.** `qwen3.5-9b` is the deliberate
+capability-gradient floor with an ~85 % gate-reject rate and only ~20 accepted candidates. A rejected
+candidate is **never replaced** (§26.3 differential attrition, registered pre-data), so its arms exhaust
+their six generations soonest and freeze first. **The line most likely to reach C4 first is the line
+that authored the least** — a direct, if uncomfortable, consequence of a registered design property.
+
+**C4 is live and healthy on that line**, verified three ways:
+
+```
+  driver log : [leg4_leg_qwen3_5_9b_placebo_test]        0/30 done, 30 pending, round 0
+               [leg4_leg_qwen3_5_9b_scalar_cvar5_test]   0/30 done, 30 pending, round 1
+  cluster    : leg4_leg_qwen3_5_9b_scalar_cvar5_test_p01 .. _p04   (jobs queued/running)
+  archive    : test_leg_qwen3_5_9b/<arm>/ directories created, 0 records yet (ladder in flight)
+```
+
+### 74.4 ✔ `--pack 8` IS LIVE AT C4 — the window was NOT missed, and the proof is in the job names
+
+The alert's stated urgency was that C4 is *"the ONLY window for `--pack 8`"*. **§58 applied it on
+2026-07-31 by a rolling supervisor restart, and it is verified live rather than assumed:**
+
+* **All 24 driver processes carry `--pack 8`; ZERO carry `--pack 4`.** The C4 line's driver shows
+  `--pack 8 --cores-per-training 1 --search-pack 1 --search-threads 8`.
+* **The job names are the independent proof:** `scalar_cvar5_test_p01 … _p04` — **four packs for 30
+  seeds**. At `--pack 4` that would be eight. The packing is demonstrably in effect on real C4 work.
+
+**⚠ A VERIFICATION TRAP WORTH RECORDING.** My first check looked for `--pack 8` on the **supervisor**
+command lines and found **0 of 12**, which reads as "pack 8 is not applied". That was the wrong place:
+`--pack` is not a supervisor parameter — it lives in a hardcoded array *inside* `mode_d_supervisor.ps1`
+that the supervisor passes to the **driver**. **Checking the drivers gives 24 of 24.** A "0 of 12" that
+means "wrong process" is indistinguishable from "0 of 12" that means "not applied", and only looking at
+the actual command line separates them.
+
+**Consequently the alert text itself was CORRECTED**, because it now instructs a dangerous no-op: it
+told the reader to restart the twelve supervisors to apply pack 8, which is done. A stale alert that
+prescribes an unnecessary full teardown of a live campaign is a defect in its own right. It now states
+that pack 8 is live and verified, says **DO NOT RESTART THE SUPERVISORS FOR PACK 8**, and redirects
+attention to what genuinely remains.
+
+### 74.5 What genuinely remains at this boundary — and why it was NOT batch-applied
+
+The brief's C4 procedure is *"apply the remaining deferred fixes (1–7, 9, 10, 12, 13), validate on the
+first line to reach C4, then roll the rest."* **Assessed rather than executed, for four measured
+reasons:**
+
+1. **The C4-CRITICAL item was `--pack 8`, and it is DONE** (§74.4). Nothing else in the register
+   changes C4 throughput.
+2. **C4 has begun on exactly ONE line, and it is the least important one** — a report-only leg (R80)
+   and the deliberate capability floor. The confirmatory core line is at **3/5**, still in search.
+3. **Every remaining fix touches `src/` or `scripts/`**, so each costs a drift break plus a
+   24-driver relaunch. **Applying eleven at once, on a line that is actively running a seed ladder, is
+   the kind of large-surface batch operation that has no upside here** — none of them is blocking, and
+   a mid-ladder disturbance has real cost.
+4. **D19 (the 15 h wall), the one that could plausibly bite at C4, does not:** §55 measured C4's p99 at
+   **9.85 h** against a 15 h wall.
+
+**Recommendation carried forward, not executed:** apply the deferred fixes when the **CORE** line
+reaches C4 — that is the relaunch that actually protects a confirmatory quantity — or individually if
+one becomes blocking. **The register is unchanged and nothing is dropped.**
+
+### 74.6 State at close
+
+C4 **in flight on 1 of 12 lines** · core line 3/5 frozen · drift **0** · freeze `3ca6f01a…` MATCHES ·
+`sci=OK` · **0** transport timeouts · ~1,498 records · $38.26 · the monitor **can now deliver its own
+alerts** · `--pack 8` live and proven on real C4 jobs.
