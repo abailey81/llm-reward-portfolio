@@ -7550,3 +7550,128 @@ to be a standing rule:
   a design peak of 5), not by the cluster. Cores become decisive at **C4**, where 1,000 jobs against
   294 hosts forces density above 3.4/host — and at 1,500 G/host tmpfs, *that* is comfortably fine at
   either request size.
+
+---
+
+## §65. THE EQUAL-*k* SENSITIVITY IS IMPLEMENTABLE — FEASIBILITY AUDITED, AND D18 BOUNDED TO ONE RECORD (2026-07-31)
+
+**Why this was done NOW, while the campaign is still in SEARCH.** §9(4) of the RUN 8 brief carries the
+one §9 item nobody had touched: *the pre-registered equal-*k* sensitivity has no implementation.* §26.3
+registered the obligation **pre-data**:
+
+> *report per-arm accepted-candidate counts beside every H2 contrast + a pre-committed **equal-k
+> sensitivity analysis**.*
+
+and §56.6 made it load-bearing — at a core-line ratio of 2.33× it stops being a robustness garnish and
+becomes, in the brief's own words, *"close to the only honest comparison available if the controls do
+not catch up."*
+
+### §65.1 The gap is real, and it is exactly half of the obligation
+
+Measured over `scripts/analyze_campaign.py`: the H2 sensitivity family is rich —
+`h2_conjunction`, `h2_tost`, `h2_tost_dsr`, `h2_sharpe_rf_robustness`, `h2_structure_control` — and
+`n_candidates` **is** reported per arm in the PBO/DSR tables. So the **reporting** half of §26.3 exists.
+**There is no equal-*k* truncation anywhere in the analysis layer.** The second half does not exist.
+
+### §65.2 Why it was NOT implemented today, which is a deliberate call and not a deferral by neglect
+
+`scripts/` is **inside the drift watch** (§3: `git status --porcelain -- src scripts config prompts`
+must be empty, and so must `git diff 50b6e07 HEAD` over the same paths). Editing
+`scripts/analyze_campaign.py` mid-run — committed or not — makes the drift check non-zero permanently,
+which turns the 2-minute monitor into a standing alarm. That is precisely the alarm-fatigue failure
+this project fights, and it would be self-inflicted, for code the drivers never import and the analysis
+phase does not need until after C4.
+
+**So the correct division is:** implement at the analysis boundary; **prove TODAY that it will still be
+possible then.** That distinction matters because the failure mode is asymmetric — the *code* can be
+written any time, but if the **archive** does not record what equal-*k* needs, the fix lives in the
+ARCHIVER (driver code, needs a relaunch) and becomes **unfixable after the fact**.
+
+### §65.3 THE FEASIBILITY AUDIT — PASS, on every check
+
+Equal-*k* means *truncate every arm to a common k and re-run the IUT at matched draws*. For that to be a
+**sensitivity** rather than a **selection**, the truncation must follow the **registered search order** —
+never the score. (Truncating on score would manufacture exactly the selection effect the analysis exists
+to remove.) So the archive must carry an unambiguous per-`(line, arm)` ordering.
+
+Measured over **1,052 LLM-arm records** (`.pull_tmp` staging paths excluded):
+
+```
+  missing `generation`                       : 0
+  missing `candidate_id`                     : 0
+  candidate_id not matching '<arm>-g<G>-c<I>': 0
+```
+
+**The registered order is fully recoverable. Equal-*k* is implementable with no archiver change and no
+relaunch.** This is the load-bearing result of this section.
+
+**Core-line state, per generation** — which also quantifies §56's starvation more precisely than the
+ratio does:
+
+| arm | n | generations reached | candidates per generation |
+|---|---|---|---|
+| distributional | 28 | 0–5 | 5, 5, 5, 5, 4, 4 |
+| scalar | 27 | 0–5 | 5, 3, 5, 5, 5, 4 |
+| placebo | 13 | 0–2 | 5, 3, 5 |
+| scalar_cvar5 | 12 | 0–2 | 5, 4, 3 |
+| placebo_shuffled | 12 | 0–2 | 5, 4, 3 |
+
+**The controls are three whole generations behind, not merely thinner.** That is a sharper statement of
+the §56 problem than "2.33×": the treatments have completed the six-generation reflection chain the
+design specifies and the controls have not started generations 3–5. The sub-5 cells (a 3 here, a 4
+there) are §26.3's registered differential attrition — a rejected candidate is never replaced.
+
+**Equal-*k* on the core line TODAY would truncate to k = 12.** Recorded as the number, not as a
+recommendation: if search completes, k rises and the sensitivity becomes routine; the figure matters
+only in the truncation scenario §56.7 shows the C3 gate otherwise prevents.
+
+### §65.4 D18 QUANTIFIED AND BOUNDED — one record, byte-identical, ZERO on the confirmatory line
+
+The audit surfaced a duplicate `(generation, index)` key, which located **D18** first-hand:
+
+```
+outputs/campaign_cluster_run4/search_leg_haiku_4_5/scalar/scalar-g1-c3/record.json
+outputs/campaign_cluster_run4/search_leg_haiku_4_5/scalar/scalar-g1-c3/scalar-g1-c3/record.json
+```
+
+A **nested** path doubling — the extraction landed one level deep. Measured:
+
+* **exactly ONE genuinely duplicated record** in the whole archive;
+* both copies **byte-identical** (`sha256 803af2e3…` on each), so a consumer's answer cannot depend on
+  which path it reads — it is a harmless double-count, not divergent data;
+* it sits on the **haiku-4.5 leg**, which is **report-only (R80)**;
+* **ZERO duplicates on the confirmatory core line (`search/`)**.
+
+**The brief's "Confirmatory path SAFE" is therefore VERIFIED first-hand rather than carried on trust**,
+and deferred fix 10's standing instruction (*do NOT delete anything*) is unchanged and correct — with
+identical bytes there is nothing to gain and provenance to lose.
+
+### §65.5 P34 — I nearly reported a data-integrity escalation that was my own wrong key
+
+The first pass of the scope script reported **"13 keys at more than one path, 349 extra paths, 12
+DIVERGENT copies"** — which reads as a serious archive-integrity failure and would have been alarming
+to report.
+
+**It was my own error.** I keyed candidate identity on `(root, arm, candidate_id)` and **omitted
+`seed`**. Twelve of the thirteen "duplicates" are `test/`-lane baselines sitting at **30 paths each —
+because they are the 30 SEEDS**. Verified directly: `baseline_raw_return` has 30 records carrying **30
+distinct seeds**. Of course they "diverge" — different seeds produce different metrics. **348 of the 349
+"extra paths" are legitimate records, and all 12 "divergent copies" are an artefact of my key.**
+
+Caught by asking what the denominator actually meant before writing it down. **This is the third time in
+one session that discipline stopped a false report** (P31 the `$NF` slot count, P32/P33 the unit-blind
+`qstat`/`qhost` parses, P34 this) — and the second time the *striking* number was the wrong one.
+§2.7's rule keeps earning its place: *a striking number is a hypothesis about your own instrument until
+the confound is ruled out.* Note the shape it took here: the alarming reading and the benign reading
+used the **same command** and differed only in the key, which is why it had to be checked rather than
+re-run.
+
+### §65.6 What the next session should do with this
+
+* **The equal-*k* implementation is a POST-C4 task**, and it is now a *mechanical* one — the ordering
+  data is proven present. It belongs beside the other H2 sensitivities in `scripts/analyze_campaign.py`,
+  written at the analysis boundary when `scripts/` is no longer drift-watched.
+* **The truncation rule must be stated before it is run**: first *k* per `(line, arm)` in registered
+  `(generation, candidate index)` order, never by score, reported beside the headline IUT rather than in
+  an appendix (§56.3).
+* Registry row 37 stays OPEN and is now backed by a feasibility PASS rather than an assumption.

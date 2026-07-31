@@ -3,6 +3,57 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31h] THE EQUAL-*k* SENSITIVITY IS IMPLEMENTABLE — FEASIBILITY AUDITED; D18 RE-VERIFIED AND BOUNDED TO ONE RECORD
+
+**State before:** RUN 4 live, T+68 h 30 m, 12/12 lines, 1,449 records, drift 0, `sci=OK`. §9(4) of the
+RUN 8 brief was the one open §9 item nobody had touched: the **pre-registered** equal-*k* sensitivity
+(§26.3, registry row 37) has **no implementation**, and §56.6 had just made it load-bearing.
+
+**The gap is real and is exactly half the obligation.** `scripts/analyze_campaign.py` carries a rich H2
+sensitivity family (`h2_conjunction`, `h2_tost`, `h2_tost_dsr`, `h2_sharpe_rf_robustness`,
+`h2_structure_control`) and **does** report `n_candidates` per arm — so §26.3's *reporting* half exists.
+**There is no equal-*k* truncation anywhere.**
+
+**Why it was NOT implemented today — a deliberate call, not neglect.** `scripts/` is inside the drift
+watch (§3), so editing `analyze_campaign.py` mid-run — committed or not — would make the drift check
+non-zero **permanently** and turn the 2-minute monitor into a standing alarm: self-inflicted alarm
+fatigue, for code the drivers never import and the analysis does not need until after C4. The failure
+mode is asymmetric: the *code* can be written any time, but if the **archive** lacked what equal-*k*
+needs, the fix would live in the archiver (driver code, relaunch) and be **unfixable after the fact**.
+So: implement post-C4; **prove today that it will still be possible.**
+
+**THE FEASIBILITY AUDIT PASSES on every check.** Over **1,052 LLM-arm records**: `missing generation =
+0`, `missing candidate_id = 0`, `candidate_id not matching '<arm>-g<G>-c<I>' = 0`. **The registered
+search order is fully recoverable, so equal-*k* is implementable with no archiver change and no
+relaunch.** (The truncation must follow the registered `(generation, index)` order, never the score —
+truncating on score would manufacture the very selection the analysis exists to remove.)
+
+**A sharper statement of §56 fell out of it.** Core line, candidates per generation: distributional
+`5,5,5,5,4,4` (gens 0–5) · scalar `5,3,5,5,5,4` (0–5) · placebo `5,3,5` · scalar_cvar5 `5,4,3` ·
+placebo_shuffled `5,4,3` (all 0–2). **The controls are three whole generations behind, not merely
+thinner** — the treatments have completed the six-generation reflection chain and the controls have not
+begun generations 3–5. Equal-*k* on the core line today would truncate to **k = 12**.
+
+**D18 RE-VERIFIED INDEPENDENTLY at a 41 % larger archive.** Rebuilt the duplicate detection from
+scratch over 1,449 records / 1,124 keys: **still exactly ONE duplicated record**
+(`search_leg_haiku_4_5/scalar/scalar-g1-c3`, nested), both copies **byte-identical**
+(`sha256 803af2e3…`), on a **report-only** leg, and **ZERO on the confirmatory core line** — so "the
+confirmatory path is SAFE" is now verified first-hand rather than trusted. The defect has **not** become
+systematic as the archive grew, which was the stated worry. Verdict: fix stays deferred, priority LOW
+(+1 on 1,449 = 0.07 %); the falsifiable test and both fix halves are unchanged.
+
+**P34 — a false alarm generated and caught inside that very re-verification.** The first pass reported
+*"13 keys at more than one path, 349 extra paths, 12 DIVERGENT copies"*, which reads as a serious
+archive-integrity failure. **It was my own wrong key:** identity was keyed on
+`(root, arm, candidate_id)` with **`seed` omitted**, and the `test/` lane runs each baseline at **30
+seeds sharing one candidate_id** — verified directly (`baseline_raw_return`: 30 records, **30 distinct
+seeds**). 348 of the 349 "extra paths" are legitimate records and all 12 "divergent copies" are the
+artefact. **Third time this session that checking the denominator stopped a false report** (P31, P32/P33,
+P34), and the trap is now written into deferred fix 10 so the next re-measure cannot repeat it.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §65 · `docs/DEFERRED_FIXES_RUN4.md` item 10
+(re-verification block + the keying trap). **No code change, no relaunch; drift 0.**
+
 ## [2026-07-31g] ★★★ RETRACTION — §60 IS FALSE. `tmpfs` WAS NEVER A CONSTRAINT, AND THE "11 OF 348" WAS A UNIT-BLIND PARSE
 
 **State before:** RUN 4 live, T+68 h, 12/12 lines, 1,449 records, drift 0, `sci=OK`, cores 736. §63.4

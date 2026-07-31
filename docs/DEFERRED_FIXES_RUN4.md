@@ -491,6 +491,33 @@ for rec_path in root.rglob("record.json"):
 **⚠ DO NOT delete the duplicate file** (trap 18): the archive is a mirror and `pull_archive` restores
 it. The fix is in the discovery and the join, not in the filesystem.
 
+**── RE-VERIFIED INDEPENDENTLY 2026-07-31 (RUN 8, record §65.4) at a 41 % LARGER ARCHIVE. ──**
+Re-measured from scratch over **1,449 records / 1,124 distinct `(root, arm, candidate_id)` keys** —
+not by re-reading §44.6, but by rebuilding the duplicate detection from the archive:
+
+* **still exactly ONE duplicated record**, the same `search_leg_haiku_4_5/scalar/scalar-g1-c3` nested
+  pair. The defect has **not** become systematic as the archive grew, which was the stated worry
+  ("a systematic version would inflate the completeness checks the C3 gate reads").
+* both copies **byte-identical** — `sha256 803af2e302e9feb612e87cf8fa9cdc4585191110b156a6a272bca7b18a5e280b`
+  on each. Stronger than §44.6's "identical hash/metrics/mtime": the *files* are identical, so no
+  consumer's answer can depend on which path it happens to read.
+* **ZERO duplicates on the confirmatory core line (`search/`)** — the "confirmatory path SAFE" claim is
+  now VERIFIED first-hand, not carried on trust.
+* it sits on a **report-only leg (R80)**, so it cannot touch a confirmatory quantity even before
+  `analyze_campaign.py`'s two independent protections (`run_id` dedupe + depth-limited walker).
+
+**Verdict: the fix stays DEFERRED and the priority stays LOW** — impact is +1 on a count of 1,449
+(0.07 %), bounded, non-growing, and off the confirmatory path. **The falsifiable test and both fix
+halves above remain the correct work at the C4 boundary**; nothing about them changes.
+
+⚠ **A trap for whoever re-measures this.** Do NOT key candidate identity on
+`(root, arm, candidate_id)` alone: the `test/` lane runs each baseline at **30 seeds**, all sharing one
+`candidate_id`, so that key reports **12 phantom "duplicates" at 30 paths each and 12 "divergent
+copies"** — a 349-path over-count that reads as a serious integrity failure and is purely an artefact
+of the missing `seed` field. That false alarm was generated and caught during this very
+re-verification (**P34**, record §65.5). **Key on `run_id`** — which is exactly what the fix above
+already prescribes.
+
 ---
 
 ## 11. C4 LAUNCH FLAG — `--pack 8` — ✅ **APPLIED 2026-07-31, record §58** (decided §50)
