@@ -202,11 +202,25 @@ frozen, pre-registered one and that it ran without material deviation, before an
 shown."* **The execution ledger that certifies the roster misstates the roster.** A marker checking §6.1
 against the pre-registration finds the discrepancy in the one place designed to prevent exactly that.
 
-**And the document contradicts itself:** `CH7_discussion_limitations_conclusion.md`'s own H4 scorecard row
-names *"the pointwise maximum over the optimiser portfolio {random-search, GP-EI, CMA-ES, TPE}"* — **CH7 is
-correct and matches the pre-registration; CH6 is the stale one.** So this is an internal inconsistency
-between two chapters of the same PDF, not merely a drift from an external document — which is the harder
-kind for a reader to forgive and the easier kind to fix.
+**And the document contradicts itself — CH6 is the SOLE outlier, checked across the whole paper:**
+
+| file | what it says | verdict |
+|---|---|---|
+| `CH4_methods.md:187` | *"There are **nine arms** — five language-model arms and the four-optimiser H4 search portfolio."* | ✅ correct |
+| `CH4_methods.md:354` | *"the **nine arms**, the candidate and seed budgets…"* | ✅ correct |
+| `CH7_…conclusion.md` H4 row | *"the pointwise maximum over the optimiser portfolio {random-search, GP-EI, **CMA-ES**, **TPE**}"* | ✅ correct |
+| **`CH6_results.md:39`** | **"Arms run: 7"**, omitting `cma_es` and `tpe` | ❌ **stale** |
+
+So this is an **internal inconsistency between chapters of the same PDF** — the harder kind for a reader to
+forgive and the easier kind to fix, since **three of the four places are already right** and only §6.1's
+ledger line needs to agree with them.
+
+**A second, adjacent opportunity in the same area (§90's remedy):** `CH4_methods.md:352-360` says the design
+is *"frozen by a SHA-256 hash over the declaration files"* **without naming it**. That is exactly where
+§90's write-up remedy belongs — state the **hash `3ca6f01a…`, the tag `prereg-v2.1`, the seal commit
+`b9c2be5`, the date, and the deviation count (one, logged, effect-blind)** — sourced from
+`config/preregistration.yaml` and `docs/DECISION_LOG.md`, never from `PREREGISTRATION.md`'s own header.
+`docs/A12_DEPOSIT_PACKAGE.md` already does this correctly and is the model to copy.
 
 **Not fixed here — `paper/**` is the write-up lane's.** Announced per the coordination protocol.
 
