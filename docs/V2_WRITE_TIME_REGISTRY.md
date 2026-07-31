@@ -431,3 +431,50 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     exists (a stepdown), but not its GRAPH variant. Lower priority: it is a sensitivity, not the gate.
     **Keep** the Bonferroni-over-4 computation — as a *disclosed sensitivity* it is still valuable, and
     the ratification pack notes Bonferroni is the weakest member of the family the graph generalises.
+
+## ⛔ THE PRE-COMMITTED EQUAL-*k* SENSITIVITY HAS NO IMPLEMENTATION — and §56 just made it load-bearing (2026-07-31)
+
+37. **Implement the equal-*k* sensitivity analysis, and report per-arm accepted-candidate counts
+    beside every H2 contrast.**
+
+    **Registered** at §9 item 4, reaffirmed at **§26.3** and again at **§42** — *"the equal-*k*
+    sensitivity analysis registered at §9 item 4 is not a formality — it will carry real weight."*
+    **Verified 2026-07-31: it exists in NO code.** `grep -rniE "equal.k" src/ scripts/ tests/`
+    returns nothing; it is not in `PREREGISTRATION.md`; and it was **not in this registry**, so the
+    pre-submission sweep that "verifies zero open rows" could never have caught it. That is exactly
+    the **R106 failure mode** — a ratified decision recorded as neither done nor pending, invisible to
+    every gate — and the same shape as row 36 above.
+
+    **Why it is now load-bearing rather than a formality (record §56).** The `-p` ladder (§54) starved
+    the three CONTROL arms, and `PREREGISTRATION.md` line 94 makes each H2 co-primary a **3-leg
+    intersection–union test** whose comparators are `scalar`, **`placebo`** and **`scalar_cvar5`** —
+    two of the three are the starved arms. Measured against the registered 30-candidate budget:
+
+    | arm | role | % of budget | pool vs `distributional` |
+    |---|---|---|---|
+    | `distributional` | treatment | 82 % | — |
+    | `scalar` | treatment | 79 % | 1.04× |
+    | `placebo` | **CONTROL** | **40 %** | **2.08× smaller** |
+    | `scalar_cvar5` | **CONTROL** | **36 %** | **2.27× smaller** |
+
+    Each arm fields `max(val_fitness)` over its accepted candidates and **E[max] rises with n**, so a
+    halved pool fields a systematically weaker comparator and makes that IUT leg **easier to reject
+    than the design intends — biased TOWARD a false positive for our own hypothesis.** If the controls
+    do not fully catch up before the exogenous stop, **this sensitivity is the ONLY pre-registered
+    defence against that criticism**, and a reviewer will ask for it by name.
+
+    **What it must do, minimally:** truncate every arm to a common *k* (the smallest arm's accepted
+    count, and a small ladder of *k* values around it), re-select each arm's winner by
+    `max(val_fitness)` within the truncated pool, re-run both co-primary IUTs, and report the verdict
+    alongside the headline — not in an appendix. Truncation must be **pre-committed and
+    effect-blind**: take the FIRST *k* accepted candidates in generation order, never the best *k*,
+    which would be selection on the outcome.
+
+    **Also required by the same obligation and equally unimplemented:** the per-arm accepted-candidate
+    counts must appear **beside every H2 contrast** in the results, so a reader sees the pool each
+    maximum was taken over without having to ask.
+
+    **Live monitoring is in place meanwhile:** `docs/ops/cycle.py` now reports the per-arm pools and
+    raises attention past a 1.5× spread (live 2.56×, an upper bound — see the denominator note in the
+    code), and `docs/ops/watch/ARM_BASELINE.json` snapshots the 2026-07-31 counts so the controls'
+    catch-up can be measured rather than assumed.
