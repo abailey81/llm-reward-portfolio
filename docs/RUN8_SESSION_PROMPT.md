@@ -56,6 +56,51 @@ load-bearing. See §11.
 * Repeatedly: *"ultrathink very deeply and extensively"*, *"absolutely everything must be strictly
   flawless"*, *"always verify many times"*, *"don't miss anything"*, *"0% defect tolerance"*.
 
+### §0b-EARLIER. Instructions Tamer gave the RUN 5/6 sessions — STILL BINDING, carried forward
+
+**These accumulate. A later instruction augments them; it never replaces them.**
+
+* *"I give you full permissions, ultrathink and proceed. Also please very deeply and extensively
+  analyse my prompt in full, don't forget about other parts as well, everything is super important.
+  Ultrathink, take as much time as you need, make sure absolutely everything is strictly and deeply
+  perfect… make sure you always verify many times, and 100000% confident."*
+* *"Make sure this campaign is absolutely strictly flawless across all dimensions possible and across
+  all angles… With regards to cores, please make sure we use maximum possible cores, preferably 4k or
+  even more… also tell me, do we need to restart the campaign or something else?"*
+* *"Also very deeply and strictly analyse the results as well always, make sure you deeply verify them,
+  and make sure they are logical, and meaningful and correct 10000000000%, not some garbage."*
+* *"ok, so do it yourself, I give you full permissions"* — and later *"so do it yourself"* again.
+  **He does not want to be asked for permission for work he has already authorised.**
+* *"finish the plan, we are currently on 500 cores, its too low"*
+* *"also, addition to the plan, make sure you always in that report doc on github which you update
+  every 5 min, make sure you post detailed updates, and also in the remote control doc, make sure you
+  always look into it for the instructions if I put anything"*
+* *"I am back, whats going on? Why did you stop monitoring deeply?"* ← **the origin of the 2-minute
+  standing order.**
+* *"thats fine, worry about budget, I will top up"* (later superseded in emphasis by the 2026-07-31
+  *"the budget is fine, cross it out… I watch the balance"* — but the underlying grant is the same).
+* *"why do we only have 744 cores? Where are 4k cores? Why aren't we working at the full maximum"*
+* *"so if there are two options you say, why don't we fully exploit them?"* · *"why not use 16 threads
+  then? Why don't we use the maximum possible from myriad"* · *"so do we maximise the speed to an
+  absolute maximum?"*
+* *"if we are at pack 4, there is no guarantee that we can reach 4000 cores, but at pack 8, there is a
+  higher chance of reaching 4000"* ← **he was right; the session's decision was reversed. §50.**
+* *"I want you to ultrathink very deeply and extensively, and make the system very smart and advanced
+  and sophisticated by adding same things like S&P and etc… or maybe you can propose something else
+  as well"*
+* *"We need to make sure we dive extremely deep on both hypotheses"*
+* *"but where did we get these 11 human writing reward functions? Is that something verified and legit
+  and accurate, or you just made it?"* · *"why only 11, do you think that's enough? why not 30-40?"*
+* *"so why are our baselines, and benchmarks so weak?"* · *"so it means they are stupid, and why are
+  they so stupid?"* ← **became a real finding, §47.**
+* *"on benchmarks, don't we have S&P 500 and etc? I have told you to add them, there were supposed to
+  be."* ← **he was right; the data had been on disk unloaded for a month. §48.**
+
+**★ THE PATTERN ACROSS EVERY SESSION: when Tamer challenges a number or an answer, he has been right
+more often than the session has.** §50 (pack 8), §47 (weak baselines), §48 (`.SPXTR`), and §60 (the
+tmpfs cap, from *"why can't we use many cpu cores"*) were all his scepticism overturning an
+analysis. **Treat his push-back as evidence, not as a question to be answered defensively.**
+
 ### §0c. Older standing instructions, still binding
 
 * **Full delegation (2026-07-13).** Act and ratify on his behalf, conditioned on ultrathinking and
@@ -185,6 +230,94 @@ sealed (1,571 sessions). **Exogenous stop 2026-08-27; submission 2026-09-01.**
 
 **R115:** a candidate whose reward falls back to the harness default on ≥10 % of steps is ineligible
 to win. Currently 12 breaches, **none on the core line**, 1 binding.
+
+---
+
+### §2.5 The run ledger
+
+| run | what happened |
+|---|---|
+| RUN 1 | killed at launch — D12/D13 |
+| RUN 2 | killed — a gate stop looked like success |
+| RUN 3 | killed — preflight budget blindness |
+| **RUN 4** | **LIVE since 2026-07-28 21:08 UTC.** Roots `outputs/campaign_cluster_run4` (laptop) + `~/Scratch/llmrp4` (Myriad) |
+
+### §2.6 D1–D20 — every machine defect ever found
+
+Full detail in `docs/CAMPAIGN_EXECUTION_RECORD.md` §20, §23, §25, §28, §37, §38, §44, §55, §59.
+
+| id | defect | state |
+|---|---|---|
+| D1–D11 | pre-RUN-4 defects (transport, gates, archiving, seeding, the RUN-1 reject collision) | fixed pre-launch |
+| **D12** | a gate stop looked like success (`return 0` → supervisor logs LINE COMPLETE) | **deferred (2)** |
+| **D13** | a provider reply with no `choices` raised `TypeError` instead of retrying | **deferred (1)** |
+| **D14** | a PARTIAL arm failure is SILENT — the six repo guards cannot see a missing arm | worked around by `docs/ops/arm_coverage.py`; **deferred (4)** |
+| **D15** | the watchdog did not carry `-ExcludeHosts`; four baseline records landed on a Xeon 6140 | worked around (fence on all 12 lines); bit-comparison experiment OPEN; **deferred (5)** |
+| **D16** | the C3 gate's `health_ok` does not see a SUBSTRATE mix | **deferred (6)** |
+| **D17** | the safe-default clears the reward's state → a manufactured limit cycle | **deferred (7)**, disclosed limitation B.8.7 |
+| **D18** | one record at two paths; ~20 recursive consumers double-count it. **Confirmatory path SAFE** | **deferred (10) — do NOT delete anything** |
+| **D19** | 12 trainings SIGKILLed at the 15 h wall; **the archive is CENSORED and cannot see them** | **deferred (12)**, §55 |
+| **D20** | **pid reuse** defeats the driver lock (`pid_exists` tests EXISTENCE not IDENTITY) | detector armed; **deferred (13)**, §59 |
+| §38 | the memory request was **19.5×** the measured peak | **APPLIED 2026-07-30** (item 8) |
+| §39 | `CPU_THREAD_SPEEDUP[8]` is a bench number; production says **1.92×** | **deferred (9)** |
+| §50 | C4 launch flag `--pack 8` | **APPLIED 2026-07-31** (item 11) |
+| §60 | **`tmpfs` was a 216× over-request** | **APPLIED 2026-07-31** |
+
+**`docs/DEFERRED_FIXES_RUN4.md` holds THIRTEEN items; 8 and 11 are APPLIED — do NOT re-apply them,
+and do NOT expect their tests to fail.**
+
+### §2.7 Process errors — previous sessions' own mistakes (record §20.2, P1–P30)
+
+**Read §20.2 in full.** The highest-value items, because the pattern matters more than any one:
+
+1. Recommended `qalter -l` in five documents — forbidden site-wide. **Verified the SUBSTITUTION and
+   inferred the PERMISSION.**
+2. Projected the LLM budget per **LINE** instead of per **(line, ARM)** → "26 % margin" when the truth
+   was a **−$7.60 shortfall**.
+3. Reported a placement rate of **100 % from n = 1**.
+4. Put **backticks** inside a `bash -c` string; they executed and corrupted a file. **Four violations
+   across sessions.**
+5. Used `pd.bdate_range` (1,632) instead of the records' own **1,571-session axis**.
+6. Claimed "GIFT must be cited in CH2" **without grepping `paper/`**. It already was.
+7. Concluded "pack 8 buys nothing" by evaluating **only at the 1,000-job cap**. Reversed on Tamer's
+   challenge.
+8. Nearly applied a 4× memory headroom that would have made placement **worse**.
+9. A liveness checker went blind on `driver_core.log` — the **confirmatory** line — on a regex.
+10. "PopArt: 0 records carry it" — `popart_scale` is a **dict**.
+11. "PopArt: 45 invariant breaks" — an **absolute** tolerance against a streaming estimator. Truth: zero.
+12. Framed 84.4 % turnover-pricing as discovery — **the prompt lists it explicitly** (`initial_generation.txt:7`).
+13. Used σ_seed where the paired test needs **σ_D** (~4× too optimistic).
+14. Renamed **live job 45433** and the restore **silently failed**.
+15. Let a **5.2-hour** monitoring gap open (RUN 6) — and a **2 h 18 m** one (RUN 7).
+16. Reported `GUARDS_RC=0` that was actually **`tail`'s** exit code.
+17. **(P27)** backticks in a heredoc again — no corruption, but the fourth violation.
+18. **(P28)** reported "384 cores" with a trend and an ETA and **no mechanism**.
+19. **(P29)** misread `submit/**START** at` — for a running job that column is the START time.
+20. **(P30)** reported "431,226 free slots" on a ~21,600-core cluster — a bad `qhost` parse, caught on
+    an order-of-magnitude check and **discarded rather than reported**.
+
+**★ THE PATTERN, and it is the single most useful thing in this document: every one of these was an
+aggregate that answered a slightly different question from the one being asked, reported as if it
+answered the right one.** A striking number is a hypothesis about *your own instrument* until the
+confound is ruled out. **Before you report a number, say out loud what its denominator is.**
+
+### §2.8 Settled decisions — do NOT re-propose
+
+2000-start · options data · more candidates (multiplicity) · restructuring the repo · pydantic ·
+Snowflake · Ray · `torch.compile` (dead on native Windows, no Triton) · a second frontier model ·
+GPT-5.5 (cost) · a weak-model confirmatory seat · lowering job priority · an RC/admin fast-track
+request (Tamer said no) · **16 threads** (regresses to 44.0 steps/s vs 55.1, and thread count is
+inside the determinism envelope) · **pool widening `d`→`d,b`** (measured 2026-07-31: **+4 %**, and it
+reopens the substrate heterogeneity D15 cost us).
+
+### §2.9 Verified-sound — do not re-litigate
+
+Leakage/PIT discipline · the statistics implementation (literature-exact) · the sandbox allowlist
+(from-import RCE closed) · the citation backbone · **construct validity** (re-verified from all 643
+live prompts, §44, and re-checked every cycle since) · the freeze machinery · CRN determinism · the
+arm roster guard · **winner selection** (F-0001: all 15 frozen winners independently re-derived,
+MATCH 15 / MISMATCH 0).
+
 
 ---
 
@@ -324,6 +457,130 @@ benchmark window was wrong; always rebuild the session axis from the panel, 1,57
 validity re-derived from all prompts) · §47 (78–91 %/day turnover ≈ 22 %/yr) · §48 (`.SPXTR` wired;
 **never write "beats the S&P"**) · §51 (84.4 % turnover-pricing is COMPLIANCE, the finding is the
 gradient) · §52 (CRN buys nothing on Sharpe, helps on CVaR — the tail node powers earlier).
+
+---
+
+### §8b. WHAT THE **RUN 6** SESSION FOUND (§38–§52) — still binding, do not rediscover
+
+**§38/§43/§46 — the capacity question, answered by measurement.** Eight canary jobs proved the
+discriminator is the **MEMORY request**, not fair share, not walltime. `maxvmem` p50 **1.57 GB**, max
+**1.64 GB** against a **32 GB** ask = **19.5× over-request**. Fixed in the renderer, certified, deployed,
+shipped by killing the 24 drivers so their supervisors relaunched them (188 → 191 jobs, **no duplicate
+submission**). Confirmed at scale: new-sizing jobs placed at 76 % vs 21 %.
+⚠ **The RUN 7 session then found the SAME defect one consumable over (`tmpfs`, §60) — §38 fixed ONE
+term of a four-term request and nobody swept the siblings. `snx` and `h_rt` remain unaudited.**
+
+**§45 — `qalter -l` is forbidden site-wide.** `jsv_allowed_mod = ac,h,i,e,o,j,M,N,p,w` — no `l`. A
+queued job's resource request is **immutable**; the only lever is the renderer. (RUN 7 added: `qalter
+-p` **upward** is refused too — *"must be operator to increase job priority"*.)
+
+**§43 — the 4,000-core answer.** 4,000 is the **saturation** point. It is **arithmetically impossible
+during SEARCH** (12 lines × 5 arms × 5 candidates = 300 jobs × 8 slots = 2,400 ceiling) and search is
+**LATENCY-bound** anyway — its length is 6 × (training + authoring), so extra cores sit idle. It is
+reachable **at C4**, where `max_u_jobs = 1000`.
+**16 threads REJECTED twice over:** throughput *regresses* to 44.0 steps/s vs 55.1 at 8 (**7.6× worse
+per core**), and thread count is **inside the determinism envelope** with 680+ records at `OMP=8`.
+
+**§44 — the deep results audit, 1,026 records OPENED.** hash == sha256 on all · 0 missing /
+out-of-range / non-finite · **construct validity RE-DERIVED from all 643 LLM prompts and INTACT at
+generation 5** (6 tail scalars / 1 / 2 / 6-neutral / 6-deranged, **0 scalar tail leaks**) · 99–100 %
+unique programs · **0 shared across arms**.
+⚠ **PopArt is INERT on ~50 %** of the archive (`popart_min_scale: 1.0` ⇒ σ = max(1.0, raw_rms)).
+**Instrumented ≠ engaged.** Arm-SYMMETRIC across the five LLM arms so it cannot confound H2, but
+**asymmetric on H1**, which splits by ratio-form vs difference-form reward.
+**Analysis-time obligation 9: report the PopArt engagement rate beside the H1 family comparison.**
+
+**§47 — why the baselines look weak, and it is a FINDING.** The agents rebalance **78–91 % of the book
+EVERY day ≈ 22 %/yr in transaction costs**. `return_minus_turnover` — **119× less turnover** — is the
+**only** reward with a positive Sharpe. **The rewards are faithful; the AGENT is unconstrained.**
+
+**§48 — `.SPXTR` was on disk unloaded for a month.** Two docstrings called a cap-weighted benchmark
+"a documented limitation" while `rf_spxtr.csv` sat in the data directory. Now wired via
+`load_spx_total_return()` (concatenate, forward-fill the LEVEL onto the panel axis **first**, then
+difference — order matters, there is a test). On the agents' own **1,571-session** axis:
+**+1.1302 Sharpe / +213.3 %**. The best reward **ties it and loses to equal weight** (t ≈ 1.5).
+**NEVER write "beats the S&P".**
+
+**§51 — what the models actually wrote.** **84.4 % of 762 programs price turnover — but that is
+COMPLIANCE, not discovery**: `prompts/initial_generation.txt:7` lists it explicitly. The real finding
+is the **capability gradient** (sonnet 100 %, nemotron 50 %, gemini-flash 33.7 %).
+**Analysis-time obligation 12: report the gradient, never the aggregate.**
+
+**§52 — ★ the two H2 co-primaries are NOT equally powered.** Over 55 arm-pairs at 30 shared seeds:
+**Sharpe ρ = −0.007** (CRN pairing buys **nothing**; σ_D = 0.355 ≈ √2 × σ_seed) vs
+**CVaR-5 % ρ = +0.076** (pairing helps ~9 %, noise only **6.1 %** of its own level).
+**Why:** CVaR is driven by the *market's* worst days, which CRN makes the arms SHARE; Sharpe by the
+*policy's own path*, which CRN does not align. So **"bankable on the tail" is an instrument
+measurement, not a design hope, and the tail node reaches its power targets EARLIER in the ladder.**
+σ_seed = 0.244 from the pilot is confirmed live at **0.25**.
+
+**§37 / D17 — the 49.983 % that appeared SEVEN times across FIVE models.** `safe_call` substitutes
+`(SAFE_DEFAULT, {}, None)` on failure — and that `None` is *the reward's own state*, so a stateful
+reward with a cold-start branch is pinned in a limit cycle for all 400,000 steps.
+**period = (calls to leave the cold-start branch) + 1**, which is why five unrelated exceptions produce
+one bit-identical integer. **The safe-default fraction is NOT a severity measure** — "49.98 % fallback"
+means the reward *never once* executed its intended logic. Two of the affected rewards were
+essentially CORRECT and were **trapped** by the harness. Belongs in CH7's practitioner's checklist:
+*validate a stateful reward across a state transition, never on a single cold call.*
+
+**§36 — the benchmark window was wrong by 60 sessions and two headline claims were retracted.**
+**Always rebuild the session axis from the panel (1,571), never from `pd.bdate_range` (1,632).**
+
+**§26.3 — differential arm attrition, registered PRE-DATA.** A rejected candidate is NEVER replaced,
+so an arm permanently searches < 30. **Report per-arm accepted-candidate counts beside every H2
+contrast + run the pre-committed equal-*k* sensitivity.** (RUN 7: that sensitivity has **no
+implementation** — registry row 37 — and §56 made it load-bearing.)
+
+**Novelty:** the conjunctive cell is still EMPTY (triple-confirmed; GIFT `wu2026gift` read first-hand
+and already cited in CH2 §2.2). **The sweep clock resets ~2026-08-20; a pre-submission sweep is
+MANDATORY.**
+
+
+---
+
+## §8c. OPERATING THE LIVE RUN
+
+**The campaign is independent of your session.** Twelve PowerShell supervisors relaunch dead drivers;
+`docs/ops/watchdog_fenced.ps1` revives dead LINES every 300 s (carrying the D15 host fence); a
+17-check sentinel watches health; `publish_loop.sh` and `remote_watch.sh` keep both remote channels
+alive; `cycle_loop.sh` holds the 2-minute cadence. **If your session dies, the campaign continues
+untouched** and a fresh session resumes from `docs/HANDOFF.md` §1.
+
+**The process stack you should see** (verify at session start, and remember `.Count` on a single
+PowerShell object returns nothing — wrap in `@()`):
+12 supervisors · 24 driver processes (12 parent/child pairs) · 1 `watchdog_fenced` · 1 sentinel ·
+1 allocation advisor · 1 `campaign_backup` · 1 `publish_loop` · 1 `remote_watch` · 1 `cycle_loop`.
+
+**THE STOP LEVER** is a file: `outputs/campaign_cluster_run4/STOP_CAMPAIGN`. It stops **restarts**, not
+an already-running driver. A full halt is STOP file → watchdogs → supervisors → drivers → explicit
+`qdel` of job ids.
+
+**RELAUNCHING — two procedures, pick by what you changed:**
+
+| you changed | procedure | proven in |
+|---|---|---|
+| code the **driver imports** (`jobscript.py`, `campaign.py`, `client.py`…) | **kill the 24 driver processes leaf-first**; the 12 supervisors relaunch them after a 600 s backoff | §46, §54, §60 |
+| the supervisor's **argument array** (`--pack`, `--search-threads`, roots…) | **rolling SUPERVISOR restart**: edit the `.ps1`, kill a supervisor, `watchdog_fenced` revives it from disk with the full parameter set. **Canary one line first.** | §58 |
+
+Verify the count moves the way you predicted and that **no line double-submits**. The driver lock is
+self-healing on a dead owner (but see **D20** — it is defeated by pid reuse). **A relaunch RE-BASES the
+running sha** — update §3, `docs/ops/cycle.py`, and `docs/HANDOFF.md` in the same change.
+
+**THE C3 REVIEW GATE IS AN EXPECTED EVENT, NOT A FAULT.** Verified 2026-07-31: the supervisor passes
+**no `--hold-at-gate`**, and the driver's own message states *"on green health without
+`--hold-at-gate` the gate auto-proceeds — no manual wait."* So **no `TIER1_APPROVED_*` file is needed**
+unless health goes RED. `health_ok = all_complete and crn_consistent and not mixed_winner_units`, and
+`all_complete` requires **`accounted == 30` per arm** — which is what structurally bounds §56 (§56.7).
+D16 remains true: the gate is blind to a substrate mix, which is why it will not stall on D15 either.
+
+**A generation drain is normal, not a fault.** Concurrency falls as an arm waits for its last
+candidate — measured average **2.61 in flight against a design peak of 5**. An arm cannot author
+generation *g+1* until ALL of *g* returns.
+
+**AT THE C4 BOUNDARY (`cycle.py` raises RED when any line hits 5/5 frozen winners):** apply the
+remaining deferred fixes (**1–7, 9, 10, 12, 13** — 8 and 11 are DONE), validate on the **first line to
+reach C4**, then roll the rest. Re-base the running sha.
+
 
 ---
 
