@@ -8977,3 +8977,85 @@ corrected; the equal-k remedy is measured rather than hypothetical.
 deterministic replay, which is a worse defect); **D9 remains unidentified**; the 560 → 744 core rise
 has an unproven surviving hypothesis; the A12 DOI deposit needs Tamer; CH6/CH7 are unwritten. **These
 are stated, not hidden.**
+
+---
+
+## 76. ⚠ "TRANSPORT TIMEOUTS: 0" WAS A STRUCTURALLY-ZERO METRIC — AND MY FIRST FIX WAS TOO (2026-07-31)
+
+**Found while discharging the D9 obligation the honest way.** D9 (the unidentified 300 s transport
+stall) is carried as *"BOUNDED, NOT FIXED, and `ssh_timeout_diagnostic` is ARMED to settle it on the
+next occurrence."* By this session's own rule (P35: *a reassuring null from an instrument that cannot
+fire is more dangerous than an alarm*), an armed diagnostic that has never been shown to fire is worth
+nothing. So the wiring was checked rather than trusted.
+
+### 76.1 The diagnostic itself is sound and correctly wired
+
+`src/cluster/submit.py` calls `proc.poll()` **BEFORE** `proc.kill()` inside the
+`except subprocess.TimeoutExpired` branch, so a non-None returncode proves the child had already
+exited — i.e. the wall-clock was spent in the **PARENT waiting on the pipe**, not on the remote
+command. That is exactly the fact that settles D9, and no cluster-side investigation could ever show
+it. `_RUNNER_TIMEOUT_SECS = 120.0`, matching the recorded 300 → 120 reduction. **It has never fired:
+zero `ssh_timeout_diagnostic` lines across every driver log.**
+
+### 76.2 ★ BUT THE STATUS PAGE'S TIMEOUT COUNTER COULD NEVER HAVE REPORTED ONE
+
+`publish_status.sh` computed:
+
+```
+  timeouts=$(grep -h 'timed out after' "$ROOT"/driver_*.log | wc -l)
+```
+
+**Nothing in the codebase emits that string.** `grep -rn "timed out" src/` returns **exactly one hit**,
+and it is a **retry-classification KEYWORD LIST** at `src/cluster/campaign.py:515`, not a log message:
+
+```
+  "overloaded", "timeout", "timed out", "connection",
+```
+
+**So "transport timeouts" was structurally ZERO.** It could not have reported a timeout however many
+occurred — and it has been published to Tamer's phone as a headline health number **on every status
+page for the entire campaign**, and quoted in this record and the session briefs as evidence of health.
+
+**⚠ THE VALUE WAS NEVERTHELESS TRUE, and that must be said plainly.** Verified by three independent
+routes: **0** `ssh_timeout_diagnostic` lines, **0** `TimeoutExpired` occurrences, and **0**
+timeout-shaped lines of any kind in any driver log. **There genuinely have been zero transport
+timeouts.** The defect is that the number was **correct by accident, not by measurement** — the exact
+"a check that cannot fail verifies nothing" failure this project keeps rediscovering, this time in a
+number reported to the principal.
+
+**FIXED** to count what a real timeout actually produces — the D9 diagnostic and the re-raised
+exception name:
+
+```
+  timeouts=$(grep -hcE 'ssh_timeout_diagnostic|TimeoutExpired' "$ROOT"/driver_*.log \
+               | awk '{s+=$1} END{print s+0}')
+```
+
+### 76.3 ★★ AND THE FIRST VERSION OF THAT FIX WAS *ALSO* STRUCTURALLY ZERO
+
+The first attempt summed the per-file counts with `paste -sd+ - | bc`. **`bc` is not installed on this
+machine** (`which bc` → not found), so the pipeline produced empty output and fell through to the
+`:-0` default. **One false-green would simply have replaced another, and it would have looked
+identical on the page.**
+
+**It was caught because the fix was falsification-tested before shipping**, not after: synthetic driver
+logs containing both markers were written to a scratch directory, and the counter was required to
+read **2**. It read **0**. Re-implemented with `awk` (always present) and re-tested:
+
+```
+  synthetic logs containing both markers -> 2   (the counter CAN fire)
+  the real driver logs                   -> 0   (independently corroborated true)
+```
+
+Then published end to end and the rendered page confirmed.
+
+**THE LESSON, and it is the sharpest version of this session's recurring theme.** Three separate
+instruments this session were discovered unable to report: a construct-validity script that could not
+detect a leak (P35), a monitor that could not print its own C4 alert (74.2), and now a health counter
+that could not count. **In every case the output looked reassuring.** The only defence that worked was
+the same one each time: **construct the condition the check exists to catch, and require the check to
+fire on it.** Applied to the fix itself, it caught a second defect that would otherwise have shipped.
+
+**Standing rule earned:** *a metric reported to the principal must be falsification-tested — write the
+failing input, prove the number moves.* An always-zero health metric is worse than no metric, because
+it manufactures confidence.

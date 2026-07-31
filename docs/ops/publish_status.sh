@@ -32,7 +32,28 @@ for l in sys.stdin:
         try: t+=float(json.loads(l).get('cost_usd') or 0)
         except Exception: pass
 print(f'{t:.4f}')" 2>/dev/null || echo "0")
-timeouts=$(grep -h 'timed out after' "$ROOT"/driver_*.log 2>/dev/null | wc -l)
+# TRANSPORT TIMEOUTS.
+# *** FIXED 2026-07-31 (record 76). This counted the literal string 'timed out after', which
+# **NOTHING IN THE CODEBASE EVER EMITS** -- `grep -rn "timed out" src/` finds exactly one hit, and it
+# is a RETRY-CLASSIFICATION KEYWORD LIST in campaign.py:515, not a log message. The counter was
+# therefore STRUCTURALLY ZERO: it could never report a timeout however many occurred, and "transport
+# timeouts: 0" has been shown to Tamer on every status page for the whole campaign as if it were a
+# measurement. (The value happened to be TRUE -- independently verified: zero `ssh_timeout_diagnostic`
+# lines, zero `TimeoutExpired`, zero timeout-ish lines of any kind in any driver log -- but it was
+# correct by accident, not by measurement, which is exactly the "a check that cannot fail verifies
+# nothing" failure this project keeps finding.)
+# It now counts what a real transport timeout ACTUALLY produces: the D9 diagnostic emitted at
+# src/cluster/submit.py on `subprocess.TimeoutExpired` (the 120 s `_RUNNER_TIMEOUT_SECS` path), and
+# the re-raised exception name.
+#
+# *** AND THE FIRST VERSION OF THIS FIX WAS ALSO BROKEN. *** It summed with `paste -sd+ | bc` --
+# and `bc` IS NOT INSTALLED on this machine, so the whole pipeline yielded empty and defaulted to 0.
+# A falsification test (synthetic logs containing both markers -> counter must read 2) caught it
+# BEFORE it shipped; without that test one false-green would simply have replaced another. Summing
+# is done with `awk`, which is always present.
+timeouts=$(grep -hcE 'ssh_timeout_diagnostic|TimeoutExpired' "$ROOT"/driver_*.log 2>/dev/null \
+             | awk '{s+=$1} END{print s+0}')
+timeouts=${timeouts:-0}
 drivers=$(ls "$ROOT"/driver_*.log 2>/dev/null | wc -l)
 guards=$(python scripts/campaign_guards.py "$ROOT" all >/dev/null 2>&1; echo $?)
 gnames=$(python scripts/campaign_guards.py "$ROOT" all 2>/dev/null | grep -E '^\[' | grep -v ' ok$' | sed 's/^\[//;s/\].*//' | tr '\n' ' ')
