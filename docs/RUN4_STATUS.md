@@ -1,31 +1,107 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-31 00:42 UTC -- T+51h33m.** Refreshed by the live session and
-pushed to GitHub, so it is readable from a phone. To send an instruction back, edit
-[docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md).
+**Auto-generated 2026-07-31 00:47 UTC -- T+51h38m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+it is readable from a phone. To send an instruction back, edit
+[docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
+back what it did.
+
+## Health
 
 | | |
 |---|---|
-| elapsed | **T+51h33m** (launched 2026-07-28 21:08 UTC) |
-| lines up | **12 / 12** |
-| cluster jobs | **194** (93 running) |
-| **cores computing** | **720** |
-| records archived | **1175** |
-| LLM calls | 1681 |
-| spend (ledger estimate) | **$26.8418** |
+| elapsed | **T+51h38m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
+| freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
+| records archived | **1177** |
+| LLM calls / spend | 1681 / **$26.8418** |
 | transport timeouts | **0** |
-| guards | **RC=2 -- SEE THE RECORD** |
+| guards | **RC=2**, not green: truncation  |
 
-## What to expect next
+## Compute
 
-* first records land when the C0 canary's ~8 h trainings finish (**~05:08-07:08 UTC, 29 Jul**)
-* the canary clearing is what releases the core line's Opus authoring -- core spend stays $0 until then
-* exogenous stop **2026-08-27**
+| | |
+|---|---|
+| cluster jobs | **192** (93 running, 99 queued) |
+| **cores computing** | **720** |
+
+Per-rung ETAs from the registered model at the cores we actually hold:
+
+```
+ rung              @720 cores              @830 cores   binding
+               makespan / ETA          makespan / ETA
+   30            3.3 d  08-01            3.3 d  08-01   critical_chain
+  100            4.4 d  08-02            3.8 d  08-01   throughput
+  189            7.5 d  08-05            6.5 d  08-04   throughput
+  279           10.7 d  08-08            9.3 d  08-07   throughput
+  340           12.8 d  08-10           11.1 d  08-09   throughput
+  403           15.0 d  08-12           13.0 d  08-10   throughput
+  568           20.8 d  08-18           18.1 d  08-15   throughput
+```
+
+## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
+
+Each line's LLM writes 5 reward programs, each is trained once and scored on validation data, the
+results are fed back, and it writes 5 more. Six rounds. A line finishes when its SLOWEST arm does.
+The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phase and has not started
+-- that is the phase the experiment's answer comes from, and where thousands of cores get used.
+
+| arm | furthest generation | candidates so far |
+|---|---|---|
+| distributional | g5 of 5 | 263 |
+| scalar | g5 of 5 | 230 |
+| placebo | g3 of 5 | 97 |
+| scalar_cvar5 | g3 of 5 | 102 |
+| placebo_shuffled | g2 of 5 | 88 |
+
+## Results so far
+
+Only the 11 hand-written comparison rewards have been scored on sealed data (30 seeds each). **The
+LLM-written rewards have not been tested yet** -- that is the next phase, and it is the actual
+experiment. No hypothesis has been looked at.
+
+| | Sharpe | note |
+|---|---|---|
+| return_minus_turnover | **+1.16** | the only positive one; it is the one that prices trading |
+| the other ten | -0.17 to -0.39 | they rebalance 78-91 pct of the book EVERY day = ~22 pct/yr in costs |
+| S&P 500 total return | +1.13 | cap-weighted, same 1571 sealed sessions |
+| equal-weight universe | +1.17 | |
+| EW-30, same assets | +1.28 | |
+
+Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
+statistical assumption is confirmed by live data.
+
+## Monitoring -- the 2-minute cycle (last monitoring cycle 1 min ago)
+
+Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
+projection, driver-log freshness, the drift check against the sha the live drivers were launched
+from, and your instruction channel. One line is written per cycle; the last six:
+
+```
+2026-07-31T00:36:09Z  RED  records=1162  spend=$26.8419  guards=2  arms_full=10/10  budget=2  stalest=0.6m  drift=2  first run, handover session
+2026-07-31T00:36:16Z  RED  records=1162 (+0)  spend=$26.8419  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=2  second run
+2026-07-31T00:37:07Z  RED  records=1163 (+1)  spend=$26.8419  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=2  acknowledged-ledger filter live
+2026-07-31T00:43:09Z  RED  records=1165 (+2)  spend=$26.8419  guards=2  arms_full=10/10  budget=2  stalest=0.6m  drift=2  wrote RUN7_SESSION_PROMPT.md
+2026-07-31T00:45:58Z  RED  records=1166 (+1)  spend=$26.8419  guards=2  arms_full=10/10  budget=2  stalest=0.4m  drift=2  docs complete, committing
+```
+
+Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
+Acknowledged-and-understood alarms are deliberately kept quiet so a NEW one is loud -- the reasoning
+for each is in docs/ops/acknowledged_alarms.txt.
+
+## Needs Tamer
+
+* **!! ANTHROPIC BUDGET -- PROJECTED SHORTFALL ~$9.** Spent $22.15 of a credited $28.15; the
+  authoring still to come (14 arm-generations on the core line, 15 on sonnet, 12 on haiku) projects
+  **$15.11 more = $37.27 total**. If the key runs dry the CONFIRMATORY line stops, which is the one
+  thing the campaign cannot absorb. **Please check the real console balance and top up.** Our figure is
+  a ledger ESTIMATE, not a balance reading -- record section 49.
+* **A12 -- the public OSF/Zenodo DOI deposit** (about 10 minutes; everything is staged in
+  docs/A12_DEPOSIT_PACKAGE.md). A registered freeze-day obligation that is currently unmet.
 
 ## If something looks wrong
 
-The campaign is independent of the Claude session: supervisors relaunch, the watchdog revives dead
-lines every 300 s, the sentinel watches health. **Stop lever:** create the file
-`outputs\campaign_cluster_run4\STOP_CAMPAIGN` (or ask via REMOTE_CONTROL.md).
+The campaign is independent of the Claude session: supervisors relaunch drivers, the watchdog revives
+dead lines every 300 s, the sentinel watches health. **Stop lever:** create the file
+`outputs\campaign_cluster_run4\STOP_CAMPAIGN` (or just ask via REMOTE_CONTROL.md).
 
-Full narrative: [CAMPAIGN_EXECUTION_RECORD.md](CAMPAIGN_EXECUTION_RECORD.md) section 22-section 23.
+Full narrative: [CAMPAIGN_EXECUTION_RECORD.md](CAMPAIGN_EXECUTION_RECORD.md), newest sections last.
