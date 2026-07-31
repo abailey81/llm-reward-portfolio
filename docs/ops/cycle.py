@@ -91,6 +91,10 @@ DRIFT_PATHS = ("src", "scripts", "config", "prompts")
 # process is alive (so the supervisor never relaunches it) but no longer progressing.
 STALE_DRIVER_MINUTES = 30.0
 
+# Consecutive zero-record cycles before a drought is worth mentioning. At the 2-minute cadence this
+# is ~30 minutes, and it re-states every ZERO_DELTA_CYCLES thereafter rather than every cycle.
+ZERO_DELTA_CYCLES = 15
+
 
 def _utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -340,7 +344,6 @@ def main() -> int:
     if m:
         spend = float(m.group(1))
     d_rec = (records - prev["records"]) if records is not None and isinstance(prev.get("records"), int) else None
-    prev_ts = prev.get("written_utc")
 
     # MONOTONICITY. The archive and the spend ledgers are both APPEND-ONLY, so neither count can ever
     # fall. A decrease is not a slowdown -- it means records were deleted, a ledger was truncated, or
@@ -356,9 +359,16 @@ def main() -> int:
         alerts.append(f"SPEND TOTAL FELL ${prev_spend} -> ${spend}. The spend ledgers are append-only; "
                       f"a decrease means a ledger was truncated, rewritten, or replaced.")
 
-    if d_rec == 0 and prev_ts:
-        attention.append(f"no new record since the previous cycle ({prev_ts}) -- normal for a few "
-                         f"cycles at 4-6 h per training, a stall if it persists across many")
+    # A DROUGHT, not a single quiet cycle. Records land in bursts as packed jobs complete, so at a
+    # 2-minute cadence a zero delta is the COMMON case, not a signal -- raising attention on the first
+    # one filled the alert file with noise the moment the cadence was automated (2026-07-31), which is
+    # the same alarm-hygiene failure being fixed everywhere else in this file. What is diagnostic is a
+    # SUSTAINED drought, so the streak is carried in STATE.json and only a long one speaks.
+    zero_streak = (prev.get("zero_delta_streak") or 0) + 1 if d_rec == 0 else 0
+    if zero_streak and zero_streak % ZERO_DELTA_CYCLES == 0:
+        attention.append(f"no new record for {zero_streak} consecutive cycles "
+                         f"(~{zero_streak * 2} min) -- trainings take 4-6 h so bursts are normal, but "
+                         f"a drought this long is worth confirming against the cluster queue")
 
     # 9. THE RESULTS LAYER -- are the numbers themselves logical, correct and meaningful?
     science = _results_layer(prev, alerts, attention)
@@ -383,6 +393,7 @@ def main() -> int:
         "note": args.note,
         "records": records,
         "records_delta": d_rec,
+        "zero_delta_streak": zero_streak,
         "spend_total_usd": spend,
         "guards_rc": guards_rc,
         "guards_failing": failing,
