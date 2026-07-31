@@ -599,7 +599,15 @@ records 1,443, spend $37.4661, `sci=OK`, drift 0, arm spread improving 2.262× �
 prediction as the 15 G incumbents drain; track the arm ratio toward 1.0; audit `snx` and `h_rt`; the
 write-up.
 
-## [2026-07-31d] RUN 7 SESSION CLOSE — FOUR SELF-INFLICTED THROTTLES FOUND AND FIXED, AND THE HANDOVER
+## [2026-07-31d] RUN 7 SESSION CLOSE — ~~FOUR~~ **THREE** SELF-INFLICTED THROTTLES FOUND AND FIXED, AND THE HANDOVER
+
+> ⛔ **HEADLINE CORRECTED 2026-07-31 (see [2026-07-31g] / record §64).** The fourth "throttle" — §60
+> `tmpfs` — **was not real**. Its "only 11 of 348 hosts qualified" was a unit-blind parse
+> (`qhost` prints `1.293T`; `$1+0` reads `1.293`); measured correctly, **348 of 348 hosts had 81×
+> headroom** and **52 of 52 of our 15 G jobs were RUNNING**. The 1 G setting was kept as honest
+> hygiene; only the reasoning is withdrawn. **The three that stand are §38 (memory), §54/§57
+> (priority) and §58 (pack 8)** — and notably the two backed by controlled dispatch experiments held,
+> while the one backed by a parsed aggregate did not.
 
 **Full narrative: `docs/CAMPAIGN_EXECUTION_RECORD.md` §53–§61. Successor brief:
 `docs/RUN8_SESSION_PROMPT.md`.**
@@ -615,7 +623,7 @@ observe), cores at ~728 and falling, and monitoring that covered only PROCESS he
 | §54 | **SGE `-p -100`** on our own jobs | `weight_priority = 4.0`; our `prior` 1.81 vs others 2.00–2.08; **1,888 of 2,395** pending jobs outranked us; **120 of 124 stuck jobs were CONTROL arms** | all `-p` → 0 |
 | §57 | 109 legacy jobs kept the old `-p` | `qalter -p` upward is **refused by SGE**; requeue is safe by P13 | 103 requeued, prediction verified to 3 dp (**1,888 → 545**) |
 | §58 | C4 would have run at `--pack 4` | worth ~half the rung-568 makespan; needs a **supervisor** restart | rolling watchdog restart, **24 drivers all at pack 8** |
-| §60 | **`tmpfs=15G` for a 71 MB stage** | a **CONSUMABLE**; only **11 of 348** hosts qualified; **1.18 jobs/node** on 36-slot machines | → 1 G (CPU lane; GPU byte-unchanged) |
+| ~~§60~~ ⛔ **RETRACTED — see [2026-07-31g] / record §64** | **`tmpfs=15G` for a 71 MB stage** | ⛔ the eligibility claim below is **FALSE** — *"only 11 of 348 hosts qualified; 1.18 jobs/node"* was a **unit-blind parse** (`qhost` prints `1.293T`, `$1+0` reads `1.293`). Truth: **348/348 hosts, 81× headroom**; **52/52 of our 15 G jobs were RUNNING**. `tmpfs` never throttled anything. | → 1 G kept (honest hygiene, NOT reverted); reasoning withdrawn. **The "four throttles" count above is THREE.** |
 
 **Two defects found by watching trends, not thresholds:**
 * **D19 (§55)** — 12 trainings SIGKILLed at the 15 h wall. **The archive is CENSORED at the wall and

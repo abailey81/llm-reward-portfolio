@@ -6858,7 +6858,30 @@ Watching trends rather than thresholds is what caught it.
 
 ---
 
-## 60. ★★★ `tmpfs` WAS A 216× OVER-REQUEST, AND IT WAS CAPPING US TO ONE JOB PER NODE
+## 60. ⛔ **RETRACTED — SEE §64.** `tmpfs` WAS A 216× OVER-REQUEST, AND IT WAS CAPPING US TO ONE JOB PER NODE
+
+> ## ⛔⛔ THIS SECTION'S HEADLINE IS **FALSE**. RETRACTED 2026-07-31 — THE REFUTATION IS **§64**.
+>
+> **`tmpfs` was NEVER a constraint.** The claim below that *"only **11 of 348** pool-d hosts qualified"*
+> is a **UNIT-BLIND PARSE**: `qhost -F tmpfs` prints **terabytes** (`hc:tmpfs=1.293T`) and a bare
+> `awk '{v=$1+0}'` reads that as **1.293**, so a host with 1.3 **TB** free scored as having 1.3 **G**.
+> Measured correctly: **348 of 348 hosts have ≥15 G free** (minimum **1,218 G** — i.e. **81× headroom at
+> the OLD 15 G request**), and **52 of 52 of our 15 G jobs were RUNNING** while the "fixed" 1 G jobs sat
+> in the queue. The unit-blind test reproduces this section's own "11 of 348" exactly.
+>
+> **It also contradicted itself on its own data:** it claims 11 hosts could host a 15 G job while
+> reporting 1.18 jobs/node across ~60 hosts *all then requesting 15 G*.
+>
+> **WHAT SURVIVES:** the 216× over-request is real and `tmpfs` genuinely is a per-job consumable — so
+> the 15 G → 1 G change is honest hygiene and **was NOT reverted**. **WHAT IS RETRACTED:** the host-
+> eligibility claim, the 1.18-jobs/node claim, and the predicted 2–4 jobs/node and ~1,320 cores.
+> **The "four self-inflicted throttles" headline is THREE** (§38 memory, §54/§57 priority, §58 pack).
+>
+> **METHODOLOGICAL LESSON (§64.5):** §38 and §54 were backed by **controlled dispatch experiments** and
+> held; §60 was backed by **a parsed aggregate with no experiment** and did not. A live-campaign ops
+> change now requires a dispatch experiment, not an eligibility count.
+>
+> *Read the section below as the historical record of what was believed on 2026-07-31, not as fact.*
 
 Found 2026-07-31 ~14:00 UTC, chasing Tamer's question *"why can't we use many CPU cores to finish
 search much quicker?"*. The honest answer turned out not to be "we can't" but **"we could, and one of
@@ -7107,7 +7130,7 @@ session inherits that duty over mine.
 
 ---
 
-## §62. THE RUN-8 BRIEF COMPLETENESS AUDIT, AND A DEFECT IN MY OWN MONITORS (2026-07-31)
+## 62. THE RUN-8 BRIEF COMPLETENESS AUDIT, AND A DEFECT IN MY OWN MONITORS (2026-07-31)
 
 Tamer's instruction: *"please make sure you ultrathink and make sure you dont miss absolutely anything
 relevant from the previous sessions' session prompts as well."* The RUN 8 brief was audited against
@@ -7174,14 +7197,14 @@ and the monitor defect was mine. Audit the RUN 7 session's work — it is §11 o
 
 ---
 
-## §63. RUN 8 — A TWO-DAY-DEAD STATUS PAGE, AN UNDOCUMENTED PROCESS-KILLER, AND THE RESOURCE AUDIT CLOSED (2026-07-31)
+## 63. RUN 8 — A TWO-DAY-DEAD STATUS PAGE, AN UNDOCUMENTED PROCESS-KILLER, AND THE RESOURCE AUDIT CLOSED (2026-07-31)
 
 **Session opened 16:35 UTC, T+67 h 27 m.** Live state re-verified first-hand before anything else:
 `cycle_loop.sh` alive (last line 16:34:45Z, 1 min old), drift **0** on both the commit and the
 working-tree test, 12 supervisors + 24 drivers + watchdog + sentinel + backup all on **repo** paths,
 `sci=OK`, freeze `3ca6f01a…` matching.
 
-### §63.1 ★ TAMER'S INSTRUCTION, AND THE DEFECT IT EXPOSED — the status page had been dead for two days
+### 63.1 ★ TAMER'S INSTRUCTION, AND THE DEFECT IT EXPOSED — the status page had been dead for two days
 
 His inbound instruction was waiting in `docs/REMOTE_CONTROL.md`:
 
@@ -7219,7 +7242,7 @@ not deployed.* The repo was correct for 26 hours and the user saw none of it. An
 must end by verifying the RUNNING process, not the file on disk — the same distinction as §3's drift
 rule (a committed sha is not a running sha) and the same as "instrumented ≠ engaged" (§44 PopArt).
 
-### §63.2 ★ AN UNDOCUMENTED PROCESS-KILLER HAD BEEN RUNNING ON THE LIVE CAMPAIGN FOR THREE DAYS
+### 63.2 ★ AN UNDOCUMENTED PROCESS-KILLER HAD BEEN RUNNING ON THE LIVE CAMPAIGN FOR THREE DAYS
 
 Sweeping for *other* instances of the §63.1 class (scratchpad-executed code diverging from the repo)
 found `remote_watch.sh` byte-identical to its repo copy and all twelve supervisors, the watchdog and
@@ -7268,7 +7291,7 @@ under-alarming — §56.7.)
 entirely and delete this process from the stack. If a CANDIDATE line ever appears, read its identity
 fields — that is the evidence three days of counting could not produce.**
 
-### §63.3 ★ §9(3) CLOSED — `h_rt` and `snx` audited; BOTH CLEAN. The four-term request is now fully audited.
+### 63.3 ★ §9(3) CLOSED — `h_rt` and `snx` audited; BOTH CLEAN. The four-term request is now fully audited.
 
 The brief handed over that §38 fixed *one* term of a four-term resource request, §60 found the second
 was a 216× over-request, and **two had never been examined**. Both are now measured, and the answer is
@@ -7300,7 +7323,7 @@ ucestes` is **empty** — no resource quota binds us at all.
 **Incidental confirmation from the same probe:** the live queued job carries `tmpfs=1G` and
 `memory=1G`, i.e. the §60 and §38 renderer fixes are demonstrably reaching newly-submitted jobs.
 
-### §63.4 ⚠ §9(1) — THE §60 tmpfs PREDICTION IS **NOT SUPPORTED** BY THE EVIDENCE SO FAR
+### 63.4 ⚠ §9(1) — THE §60 tmpfs PREDICTION IS **NOT SUPPORTED** BY THE EVIDENCE SO FAR
 
 The brief was explicit: *"MEASURE IT… If jobs/node has not risen well above ~1.25, the hypothesis is
 WRONG and §60 must say so."*
@@ -7341,7 +7364,7 @@ posture: §60 over-claimed, but the sign of its effect is not yet disproved.** R
 cores when `tmpfs=15G` reaches zero in `qstat -u ucestes -r`, and amend this section either way —
 overstating a refutation is as inaccurate as overstating a fix.
 
-### §63.5 §9(2) — the arm ratio, and a handover figure that does not reconcile
+### 63.5 §9(2) — the arm ratio, and a handover figure that does not reconcile
 
 **Core line (`search/`, unsuffixed — the CONFIRMATORY pool, and the only one that biases H2's IUT legs
 since the ten legs are report-only under R80):** distributional **28**, scalar **27**, placebo **13**,
@@ -7366,7 +7389,7 @@ routes, is core-line **3.11× → 2.33×**.
 C4, and it fails closed (§56.7). At 28/27 on the treatments and 12–13 on the controls, the core line's
 control arms are under half way — that, not the calendar, is what gates C4.
 
-### §63.6 The `guard:truncation` re-triage — ITS OWN TRIGGER HAD FIRED, unchecked
+### 63.6 The `guard:truncation` re-triage — ITS OWN TRIGGER HAD FIRED, unchecked
 
 `acknowledged_alarms.txt` requires each quiet alarm to carry a re-triage trigger. The truncation entry
 said: *re-triage if a THIRD model truncates, if any model exceeds ~1 % of its own calls, or if a
@@ -7386,7 +7409,7 @@ The cap stays at 16,384 (registered R106; matching it is what makes the cross-mo
 The analysis-time exclusion now covers three models rather than one. Full entry appended in
 `docs/ops/acknowledged_alarms.txt`.
 
-### §63.7 P31–P32 — MY OWN instrument errors this session, logged under the same rule as everyone else's
+### 63.7 P31–P32 — MY OWN instrument errors this session, logged under the same rule as everyone else's
 
 * **P31.** Summed `$NF` over `qstat -u` output to count running slots and got **75** — which is the
   *job count*, because the running rows carry a trailing `ja-task-ID` field, so `$NF` is the task id,
@@ -7405,7 +7428,7 @@ The analysis-time exclusion now covers three models rather than one. Full entry 
   arrived as an unterminated string). Fixed by using the Write tool, which is what the prohibition in
   the brief already says to do. **Fourth-plus occurrence of this class across sessions.**
 
-### §63.8 State at close of this entry
+### 63.8 State at close of this entry
 
 12/12 lines · drift **0** (commit and working tree) · freeze `3ca6f01a…` matching · `sci=OK` ·
 **0** transport timeouts · records ~1,470 · spend ~$37.50 · cores 592–608 · R115 12 breaches, **0 on
@@ -7414,13 +7437,13 @@ outbound one is now **actually publishing what it was upgraded to publish**.
 
 ---
 
-## §64. ★★★ RETRACTION — §60 IS FALSE. `tmpfs` WAS NEVER A CONSTRAINT, AND THE "11 OF 348" WAS A UNIT-BLIND PARSE (2026-07-31)
+## 64. ★★★ RETRACTION — §60 IS FALSE. `tmpfs` WAS NEVER A CONSTRAINT, AND THE "11 OF 348" WAS A UNIT-BLIND PARSE (2026-07-31)
 
 **This retracts the headline of §60 and downgrades one of the "four self-inflicted throttles" to a
 false positive.** It was found by pursuing §63.4's provisional negative rather than banking it, and by
 re-verifying my *own* measurement when a number looked wrong — which is how the error surfaced at all.
 
-### §64.1 What §60 claimed
+### 64.1 What §60 claimed
 
 > *"`tmpfs` was a 216× over-request. It is a CONSUMABLE: 15 G reserved to stage 71 MB, so only
 > **11 of 348** pool-d hosts qualified and we ran **1.18 jobs per node** on 36-slot machines."*
@@ -7429,7 +7452,7 @@ It drove a renderer change (15G → 1G), a **driver relaunch on the live campaig
 killed), and a running-sha change `f5014ce → 50b6e07`. It was handed to RUN 8 as an open prediction:
 eligible hosts 11 → 348, jobs/node 1.18 → 2–4, cores → ~1,320.
 
-### §64.2 FOUR INDEPENDENT ROUTES, ALL AGREEING: the claim is false
+### 64.2 FOUR INDEPENDENT ROUTES, ALL AGREEING: the claim is false
 
 **(1) Direct capacity measurement.** `qhost -F tmpfs` with **correct unit handling** over all 294
 `node-d` hosts:
@@ -7479,7 +7502,7 @@ per node across ~60 hosts, all of them then requesting 15 G**. Sixty hosts were 
 15 G jobs while the claim said eleven could. **No external measurement was needed to falsify this — only
 reading the two numbers in the same paragraph against each other.**
 
-### §64.3 What is true, what is retracted
+### 64.3 What is true, what is retracted
 
 | §60 claim | verdict |
 |---|---|
@@ -7493,7 +7516,7 @@ reading the two numbers in the same paragraph against each other.**
 than 15 G, and reverting would mean a second live-campaign intervention to undo a harmless one. The
 *change* was harmless; the *reasoning* was wrong, and only the reasoning is retracted.
 
-### §64.4 Then why did cores rise 560 → 744 during this session?
+### 64.4 Then why did cores rise 560 → 744 during this session?
 
 **Not tmpfs — and I do not have a verified cause, so I am not going to invent one.** Over ~1.4 h cores
 went 560 → 608 → 696 → 744 while **jobs/node went 1.18 → 1.26 → 1.240**, i.e. essentially flat. The
@@ -7503,7 +7526,7 @@ work through a queue whose backlog was built at `-p -100`; ordinary cluster chur
 end; and our own submission rate. **§63.4's "provisional" qualifier is now resolved in the direction of
 the negative: the tmpfs hypothesis is dead, and the core rise needs its own explanation.**
 
-### §64.5 THE METHODOLOGICAL LESSON, and it is the valuable part
+### 64.5 THE METHODOLOGICAL LESSON, and it is the valuable part
 
 Four ops interventions were made on this campaign. Sorting them by **evidence type**, not by
 plausibility:
@@ -7522,7 +7545,7 @@ live driver relaunch. **The rule this earns: an ops change that touches the live
 DISPATCH EXPERIMENT (submit canaries differing in exactly the one field), not an eligibility count.
 §38 already established that method; §60 did not use it.**
 
-### §64.6 P33 — and I made the SAME unit error, twenty minutes before finding this one
+### 64.6 P33 — and I made the SAME unit error, twenty minutes before finding this one
 
 Chasing §63.4 I ran the identical bare-`awk` parse and reported to myself *"mean free tmpfs = 1.4 G,
 hosts with ≥15G = 0 of 294"*. **The true value is ~1.4 TERABYTES.** It was caught only because I went
@@ -7537,7 +7560,7 @@ to be a standing rule:
 > same as a default*. Every capacity number must be sanity-checked against a known total (~21,600
 > cores, 1,500 G tmpfs/host) **before it is spoken**.
 
-### §64.7 Consequences for the brief and the registers
+### 64.7 Consequences for the brief and the registers
 
 * `docs/RUN8_SESSION_PROMPT.md` §8/§9(1) describe §60 as a live finding and an open prediction. **Both
   are superseded by this section.** The "FOUR self-inflicted throttles" headline is **three** (§38,
@@ -7553,7 +7576,7 @@ to be a standing rule:
 
 ---
 
-## §65. THE EQUAL-*k* SENSITIVITY IS IMPLEMENTABLE — FEASIBILITY AUDITED, AND D18 BOUNDED TO ONE RECORD (2026-07-31)
+## 65. THE EQUAL-*k* SENSITIVITY IS IMPLEMENTABLE — FEASIBILITY AUDITED, AND D18 BOUNDED TO ONE RECORD (2026-07-31)
 
 **Why this was done NOW, while the campaign is still in SEARCH.** §9(4) of the RUN 8 brief carries the
 one §9 item nobody had touched: *the pre-registered equal-*k* sensitivity has no implementation.* §26.3
@@ -7566,14 +7589,14 @@ and §56.6 made it load-bearing — at a core-line ratio of 2.33× it stops bein
 becomes, in the brief's own words, *"close to the only honest comparison available if the controls do
 not catch up."*
 
-### §65.1 The gap is real, and it is exactly half of the obligation
+### 65.1 The gap is real, and it is exactly half of the obligation
 
 Measured over `scripts/analyze_campaign.py`: the H2 sensitivity family is rich —
 `h2_conjunction`, `h2_tost`, `h2_tost_dsr`, `h2_sharpe_rf_robustness`, `h2_structure_control` — and
 `n_candidates` **is** reported per arm in the PBO/DSR tables. So the **reporting** half of §26.3 exists.
 **There is no equal-*k* truncation anywhere in the analysis layer.** The second half does not exist.
 
-### §65.2 Why it was NOT implemented today, which is a deliberate call and not a deferral by neglect
+### 65.2 Why it was NOT implemented today, which is a deliberate call and not a deferral by neglect
 
 `scripts/` is **inside the drift watch** (§3: `git status --porcelain -- src scripts config prompts`
 must be empty, and so must `git diff 50b6e07 HEAD` over the same paths). Editing
@@ -7587,7 +7610,7 @@ possible then.** That distinction matters because the failure mode is asymmetric
 written any time, but if the **archive** does not record what equal-*k* needs, the fix lives in the
 ARCHIVER (driver code, needs a relaunch) and becomes **unfixable after the fact**.
 
-### §65.3 THE FEASIBILITY AUDIT — PASS, on every check
+### 65.3 THE FEASIBILITY AUDIT — PASS, on every check
 
 Equal-*k* means *truncate every arm to a common k and re-run the IUT at matched draws*. For that to be a
 **sensitivity** rather than a **selection**, the truncation must follow the **registered search order** —
@@ -7625,7 +7648,7 @@ there) are §26.3's registered differential attrition — a rejected candidate i
 recommendation: if search completes, k rises and the sensitivity becomes routine; the figure matters
 only in the truncation scenario §56.7 shows the C3 gate otherwise prevents.
 
-### §65.4 D18 QUANTIFIED AND BOUNDED — one record, byte-identical, ZERO on the confirmatory line
+### 65.4 D18 QUANTIFIED AND BOUNDED — one record, byte-identical, ZERO on the confirmatory line
 
 The audit surfaced a duplicate `(generation, index)` key, which located **D18** first-hand:
 
@@ -7646,7 +7669,7 @@ A **nested** path doubling — the extraction landed one level deep. Measured:
 and deferred fix 10's standing instruction (*do NOT delete anything*) is unchanged and correct — with
 identical bytes there is nothing to gain and provenance to lose.
 
-### §65.5 P34 — I nearly reported a data-integrity escalation that was my own wrong key
+### 65.5 P34 — I nearly reported a data-integrity escalation that was my own wrong key
 
 The first pass of the scope script reported **"13 keys at more than one path, 349 extra paths, 12
 DIVERGENT copies"** — which reads as a serious archive-integrity failure and would have been alarming
@@ -7666,7 +7689,7 @@ the confound is ruled out.* Note the shape it took here: the alarming reading an
 used the **same command** and differed only in the key, which is why it had to be checked rather than
 re-run.
 
-### §65.6 What the next session should do with this
+### 65.6 What the next session should do with this
 
 * **The equal-*k* implementation is a POST-C4 task**, and it is now a *mechanical* one — the ordering
   data is proven present. It belongs beside the other H2 sensitivities in `scripts/analyze_campaign.py`,
@@ -7678,7 +7701,7 @@ re-run.
 
 ---
 
-## §66. CONSTRUCT VALIDITY RE-DERIVED INDEPENDENTLY — IT HOLDS; AND A NEW QUANTITY NOBODY WAS COUNTING (2026-07-31)
+## 66. CONSTRUCT VALIDITY RE-DERIVED INDEPENDENTLY — IT HOLDS; AND A NEW QUANTITY NOBODY WAS COUNTING (2026-07-31)
 
 **Why.** The 2-minute cycle reports `sci=OK`, which includes *"0 scalar-arm tail leaks"*. That check was
 **built by the RUN 7 session**, and the standing rule is that the author must not grade their own work.
@@ -7686,7 +7709,7 @@ So this re-derives the manipulation's integrity from the raw archive **without i
 `science_watch.py` or `results_audit.py`** — agreement between two independent routes is evidence;
 re-running the same tool is an echo.
 
-### §66.1 THE RESULT — construct validity HOLDS, with the instrument proven able to fail
+### 66.1 THE RESULT — construct validity HOLDS, with the instrument proven able to fail
 
 Over **753 generation ≥ 1 search-lane prompts**:
 
@@ -7700,7 +7723,7 @@ Over **753 generation ≥ 1 search-lane prompts**:
 
 **ZERO tail numbers reached any tail-free arm. The H2 manipulation is intact.**
 
-### §66.2 THE INSTRUMENT TOOK THREE ITERATIONS, AND THE FIRST TWO WERE WORTHLESS — logged as P35
+### 66.2 THE INSTRUMENT TOOK THREE ITERATIONS, AND THE FIRST TWO WERE WORTHLESS — logged as P35
 
 This is recorded in full because the failure mode is the dangerous one: **two of the three versions
 returned a REASSURING answer while being incapable of detecting the thing they were testing.**
@@ -7729,7 +7752,7 @@ returned a REASSURING answer while being incapable of detecting the thing they w
 is written into `CLAUDE.md` for code; it applies with equal force to a one-off verification script, and
 the natural failure direction is toward false REASSURANCE.
 
-### §66.3 THE TWO OFF-SPEC PROMPTS — investigated to a cause, and it is a NEW measurable quantity
+### 66.3 THE TWO OFF-SPEC PROMPTS — investigated to a cause, and it is a NEW measurable quantity
 
 The two `scalar_cvar5` prompts carrying no CVaR number are **not** a leak, a rendering fault, or a
 missing feedback bug. They are **2,602-byte BASE prompts** (*"Here is the environment interface and the
@@ -7762,7 +7785,7 @@ exclude those candidates from any claim about the depth of the reflection chain.
 the classification is exhaustive, unambiguous, and computable from `prompt.txt` — and it forecloses a
 reviewer question that would otherwise have no answer.
 
-### §66.4 What this says about `sci=OK`
+### 66.4 What this says about `sci=OK`
 
 The RUN 7 monitor's tail-leak invariant and this independent re-derivation **agree**: zero leaks. That
 is now a two-route result rather than a single tool's self-report, which is the standard the project
@@ -7771,7 +7794,7 @@ merely trusted**.
 
 ---
 
-## §67. ALL EIGHT ACKNOWLEDGED ALARMS RE-TRIAGED AGAINST THEIR OWN TRIGGERS — SEVEN CLEAN, ONE RE-SCOPED (2026-07-31)
+## 67. ALL EIGHT ACKNOWLEDGED ALARMS RE-TRIAGED AGAINST THEIR OWN TRIGGERS — SEVEN CLEAN, ONE RE-SCOPED (2026-07-31)
 
 **Why this section exists.** §63.6 re-triaged `guard:truncation` and found its third-model trigger had
 FIRED unnoticed. **Seven other entries were left unchecked** — which is precisely the "an open item goes
@@ -7783,7 +7806,7 @@ rather than by re-running the tool that raised the alarm.
 **Scope: 1,461 records** (`frozen/` excluded — it holds COPIES of search records — and `.pull_tmp`
 excluded, D18).
 
-### §67.1 THE VERDICT TABLE
+### 67.1 THE VERDICT TABLE
 
 | # | alarm | its own trigger | verdict |
 |---|---|---|---|
@@ -7796,7 +7819,7 @@ excluded, D18).
 | 7 | `silent_hang:UNKNOWN` | recurrence | **NOT recurred** — still stamped `2026-07-28T22:09:17`, i.e. launch |
 | 8 | `gate_failure_drift:WARN` | the per-model guard flags a **STRONG** model above its own baseline | **NOT fired** — §67.6 |
 
-### §67.2 R115 IS NOT JUST PRESENT — IT IS DEMONSTRABLY LOAD-BEARING, AND IT WORKED
+### 67.2 R115 IS NOT JUST PRESENT — IT IS DEMONSTRABLY LOAD-BEARING, AND IT WORKED
 
 Both clauses of the trigger were evaluated separately.
 
@@ -7819,7 +7842,7 @@ score BEST, because the harness default silently does half the work"* — but no
 it, a reward that never once executed its intended logic would have been frozen as the winner of its
 arm. (`49.98 %` is the **D17 reciprocal signature** — 1/2 of the steps — not an ordinary broken reward.)
 
-### §67.3 `record_sanity:WARN` WAS UNDER-SCOPED THREE WAYS — re-scoped on measured facts
+### 67.3 `record_sanity:WARN` WAS UNDER-SCOPED THREE WAYS — re-scoped on measured facts
 
 The entry states the affected set is `baseline_differential_sharpe-s1` and `-s5`, *"each exactly ONE
 safe-default in 400,000"*, and that it is *"irrelevant to eligibility because R115 governs LLM-authored
@@ -7843,7 +7866,7 @@ Re-scoped in place, with a new trigger (any crossing ~1 %, any on the core line,
 ratio-form baseline joining — which would mean the warm-up is systematic across the ratio family
 rather than incidental).
 
-### §67.4 PopArt arm-symmetry — the property that protects H2 — HOLDS, and has TIGHTENED
+### 67.4 PopArt arm-symmetry — the property that protects H2 — HOLDS, and has TIGHTENED
 
 §44.4 established that PopArt is inert on ~50 % of the archive but that this **cannot confound H2**
 because the engaged fraction is **uniform across the five LLM arms**. Re-measured:
@@ -7859,7 +7882,7 @@ because the engaged fraction is **uniform across the five LLM arms**. Re-measure
 asymmetry that matters remains H1's ratio-form vs difference-form split — analysis-time obligation 9,
 unchanged.)
 
-### §67.5 D15 — the host fence is HOLDING, and every other comparison unit is substrate-homogeneous
+### 67.5 D15 — the host fence is HOLDING, and every other comparison unit is substrate-homogeneous
 
 ```
   Intel Xeon Gold 6240 : 1,458 records
@@ -7877,7 +7900,7 @@ The 17 "no CPU" entries are **not training records**: they are per-arm `_env/env
 carry no `record.json`, so they participate in no comparison unit. Checked rather than assumed, because
 "17 records of unknown substrate" would have been a real hole in the homogeneity audit if true.
 
-### §67.6 `gate_failure_drift` — every strong model is at or below its OWN baseline
+### 67.6 `gate_failure_drift` — every strong model is at or below its OWN baseline
 
 The trigger is specifically *a **STRONG** model above its own baseline* (the aggregate CUSUM is a known
 mixture artefact). Measured per line:
@@ -7900,7 +7923,7 @@ mixture artefact). Measured per line:
 drift is qwen3.5-9b's registered capability-gradient anchor, not a systemic authoring fault) is
 re-confirmed on 41 % more data. **The confirmatory line's authoring reliability is 99.4 %.**
 
-### §67.7 What this sweep says overall
+### 67.7 What this sweep says overall
 
 **Seven of eight alarms are clean against their own stated triggers; the eighth was benign but stale
 and is now re-scoped.** Nothing here changes a confirmatory quantity. The value is that the *quiet*
@@ -7909,9 +7932,9 @@ decided so at half the volume — which is the only sense in which "acknowledged
 
 ---
 
-## §68. ★★★ THE RETIRED REAPER WAS KILLING **LIVE** ssh PROCESSES — CAUGHT ON CAMERA; AND THE CORE-RISE INVESTIGATED (2026-07-31)
+## 68. ★★★ THE RETIRED REAPER WAS KILLING **LIVE** ssh PROCESSES — CAUGHT ON CAMERA; AND THE CORE-RISE INVESTIGATED (2026-07-31)
 
-### §68.1 THE INSTRUMENTATION PAID OFF IN 21 CYCLES WHAT 917 CYCLES OF COUNTING COULD NOT
+### 68.1 THE INSTRUMENTATION PAID OFF IN 21 CYCLES WHAT 917 CYCLES OF COUNTING COULD NOT
 
 §63.2 replaced an undocumented `reaper_loop.ps1` — which had killed 13 ssh processes during live RUN 4
 while logging only a COUNT, never an identity — with a dry-run version that records the full identity
@@ -7959,7 +7982,7 @@ producing 917 lines of `ssh_total=N reaped=M`. **Not one of those lines could an
 that mattered.** A single line carrying `age`, `ppid`, `pname` and `cmd` answered it immediately.
 *Instrument for the question you will need to ask, not for the number that is easy to print.*
 
-### §68.2 THE CORE RISE — three candidate causes ELIMINATED by measurement, one left unproven
+### 68.2 THE CORE RISE — three candidate causes ELIMINATED by measurement, one left unproven
 
 §64.4 left the 560 → 744 core rise explicitly unattributed rather than re-attributing it. Investigated
 properly from the publisher's own 5-minute series (46 readings, T+65h09m → T+69h05m):
@@ -7993,7 +8016,7 @@ throughput-bound** (§43 — its length is 6 × (training + authoring), and the 
 2.61 in flight against a design peak of 5). Extra cores during search sit idle. **Cores become decisive
 at C4**, which is where the pack-8 change (§58) and the real capacity question live.
 
-### §68.3 State
+### 68.3 State
 
 12/12 lines · drift **0** · freeze `3ca6f01a…` MATCHES · `sci=OK` · **0** transport timeouts ·
 ~1,462 records · $37.64 · 720-744 cores · R115 12 breaches, **0 on the core line** · cycle cadence
@@ -8001,7 +8024,7 @@ current · reaper live in **DRY RUN** on the fixed rule.
 
 ---
 
-## §69. EVERY SCIENCE INVARIANT RE-DERIVED INDEPENDENTLY — ALL HOLD; PLUS A REPRODUCIBILITY DEFECT IN 360 FILES (2026-07-31)
+## 69. EVERY SCIENCE INVARIANT RE-DERIVED INDEPENDENTLY — ALL HOLD; PLUS A REPRODUCIBILITY DEFECT IN 360 FILES (2026-07-31)
 
 **Why.** `sci=OK` asserts **eight** hard validity invariants. §66 independently re-derived **one** of
 them (construct validity). The other seven rested on a single tool's self-report, built by the session
@@ -8011,7 +8034,7 @@ at all.
 
 **Scope: 1,474 records** (`frozen/` excluded — it holds COPIES — and `.pull_tmp` excluded, D18).
 
-### §69.1 RESULT — every invariant holds, zero violations
+### 69.1 RESULT — every invariant holds, zero violations
 
 | invariant | denominator | violations |
 |---|---|---|
@@ -8030,7 +8053,7 @@ at all.
 the `reward.py` file on disk agree — so the reward that was scored is provably the reward that was
 authored.
 
-### §69.2 THE CVaR MONOTONICITY CHECK — added here because it guards the core instrument
+### 69.2 THE CVaR MONOTONICITY CHECK — added here because it guards the core instrument
 
 CVaR at level *α* is the mean of the worst *α*-fraction of returns, so
 **cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25 is a mathematical identity of the estimator**, not a modelling
@@ -8044,7 +8067,7 @@ The instrument is mathematically sound. (This is the same class of guard as §36
 and the wrong-unit refutation of the prototype "tail signal" — the tail measurement has burned this
 project before, and it is now checked by identity rather than by trust.)
 
-### §69.3 P36 — one apparent violation, and it was my own scoping error
+### 69.3 P36 — one apparent violation, and it was my own scoping error
 
 The first pass reported **330 non-finite `val_fitness`**, which reads as a serious metric defect. It is
 not. **330 = 11 baselines × 30 seeds exactly**, and the decisive split is by lane:
@@ -8062,7 +8085,7 @@ inapplicable there. **I had applied a search-lane invariant to test-lane records
 **The check that actually mattered passed: zero NaN `val_fitness` anywhere on the search lane**, so no
 candidate was ever selected on a non-finite fitness.
 
-### §69.4 ⚠ A REAL REPRODUCIBILITY DEFECT — 360 archive files are not valid JSON
+### 69.4 ⚠ A REAL REPRODUCIBILITY DEFECT — 360 archive files are not valid JSON
 
 Investigating that NaN rather than dismissing it surfaced something genuine.
 
@@ -8105,7 +8128,7 @@ Relaunching 24 drivers to change a diagnostic field's serialization would be wil
 and `pull_archive` re-mirrors the remote copy anyway. Validator kept at
 `docs/ops/json_standards_check.py`; the full invariant re-derivation at `docs/ops/invariants_check.py`.
 
-### §69.5 What this closes
+### 69.5 What this closes
 
 **All eight `sci=OK` invariants are now corroborated by an independent route**, not merely trusted —
 §66 did construct validity, §69 does the remaining seven, and both added a check the monitor lacked
@@ -8114,14 +8137,14 @@ other load-bearing claim to, now applied to the monitor itself.
 
 ---
 
-## §70. ★★★ "ARE WE USING THE MAXIMUM MYRIAD CAN OFFER?" — MEASURED END TO END, AND THE ANSWER IS EVIDENCED (2026-07-31)
+## 70. ★★★ "ARE WE USING THE MAXIMUM MYRIAD CAN OFFER?" — MEASURED END TO END, AND THE ANSWER IS EVIDENCED (2026-07-31)
 
 **Tamer's founding instruction** — *"use the absolute maximum myriad can offer us to speed up the
 training to an absolute maximum"* — is a standing priority, and the brief flags that *"we are at the
 maximum" has been asserted falsely twice*. So this answers it by MEASUREMENT, at every layer, with the
 sanity bounds stated before any number is believed.
 
-### §70.1 The instrument, and why the obvious command is the wrong one
+### 70.1 The instrument, and why the obvious command is the wrong one
 
 `qstat -f` lists each host under ~35 named queue instances, so filtering on `node-d` multi-counts —
 that is how "431,382 free slots" appeared on a ~21,600-core cluster **twice** (P30, then P32 when I
@@ -8132,7 +8155,7 @@ which is the quantity the scheduler actually decrements. Units are parsed explic
 **Bounds fixed in advance:** pool d = 294 hosts × 36 slots = **10,584 slots**, × ~160 G = **~47 TB**.
 Any total above those is an instrument error, not a discovery.
 
-### §70.2 SEARCH IS NOT CAPACITY-BOUND — 303 placeable against 103 queued
+### 70.2 SEARCH IS NOT CAPACITY-BOUND — 303 placeable against 103 queued
 
 Joint placeability (a job needs **every** constraint satisfied on the **same** host simultaneously:
 8 slots **and** 8 G memory **and** 1 G tmpfs, pool d, minus the D15 fence):
@@ -8155,7 +8178,7 @@ doing exactly what it was built for. **tmpfs blocks ZERO hosts** — §64's retr
 independent way. The only thing limiting the other 206 hosts is other users holding slots, which is
 ordinary competition, not a defect of ours.
 
-### §70.3 C4 — where cores actually matter — has 1.6× MORE capacity than the model can use
+### 70.3 C4 — where cores actually matter — has 1.6× MORE capacity than the model can use
 
 ```
   free pool-d slots now      : 3,365 of 10,584
@@ -8169,7 +8192,7 @@ ordinary competition, not a defect of ours.
 **Measured C4 capacity (~7,176 cores) exceeds the saturation point (~4,584) by 1.6×.** Capacity is not
 the C4 constraint either.
 
-### §70.4 THE EMPIRICAL ANCHOR — 1,664 cores sustained for 14 hours, *with both throttles still on*
+### 70.4 THE EMPIRICAL ANCHOR — 1,664 cores sustained for 14 hours, *with both throttles still on*
 
 The strongest evidence is not a projection, it is something we already did. Over 682 published
 readings the core series is `min 304 · p10 432 · p50 608 · max 1,664`, and:
@@ -8193,7 +8216,7 @@ every other user on the cluster.** Both are now gone: the per-job footprint has 
 at pack 8) and our pending `prior` is **1.9165 against the field's 1.7930**. Both changes push the same
 way, so C4 should comfortably exceed 1,664 — the question is only by how much.
 
-### §70.5 THE DEADLINE, stated as a band and not as an optimistic point
+### 70.5 THE DEADLINE, stated as a band and not as an optimistic point
 
 Rung 568 (the terminal registered rung) against the **2026-08-27** exogenous stop:
 
@@ -8215,7 +8238,7 @@ Rung 568 (the terminal registered rung) against the **2026-08-27** exogenous sto
    whichever rung is reached. The risk is *"we report at rung 403 instead of 568"*, never *"the campaign
    fails"*. **The critical-chain floor of 3.27 d is serial and immune to any number of cores.**
 
-### §70.6 THE VERDICT, and what is left
+### 70.6 THE VERDICT, and what is left
 
 **There is no legitimate speed lever remaining, and this is now measured rather than asserted.**
 Working through every candidate:
@@ -8245,7 +8268,7 @@ even the pessimistic branch yields a valid, pre-registered result.
 
 ---
 
-## §71. ★★★ DEEP RESULTS AUDIT — DOES ANY OF THIS MEAN ANYTHING? (2026-07-31)
+## 71. ★★★ DEEP RESULTS AUDIT — DOES ANY OF THIS MEAN ANYTHING? (2026-07-31)
 
 **Everything verified up to §70 proves the archive is STRUCTURALLY sound** — hashes, step counts,
 seeds, CVaR monotonicity, no cross-arm program reuse, construct validity. **None of it asks whether the
@@ -8257,7 +8280,7 @@ the results as well always … make sure they are logical, and meaningful and co
 sealed-test quantity is touched and no H2/H3 statistic is computed.** These are monitoring observations
 about search dynamics, **not inference**, and none of them may be read as a hypothesis result.
 
-### §71.1 THE MOST DAMAGING POSSIBLE FAILURE — ruled out
+### 71.1 THE MOST DAMAGING POSSIBLE FAILURE — ruled out
 
 **Do different reward programs actually produce different policies?** If two distinct programs produced
 bit-identical validation returns, the reward would not be influencing the agent at all and the whole
@@ -8282,7 +8305,7 @@ at generation 1. Same model, same prompt, functionally identical reward, CRN see
 **That is the determinism guarantee working, not a defect.** It cannot touch winner selection: its
 fitness is 0.000127 against arm maxima of 0.23–0.43.
 
-### §71.2 ★ THE EFFECTIVE SEARCH WIDTH IS THE NOMINAL WIDTH — a load-bearing assumption, never before tested
+### 71.2 ★ THE EFFECTIVE SEARCH WIDTH IS THE NOMINAL WIDTH — a load-bearing assumption, never before tested
 
 The prompt carries an explicit exploration directive (*"propose a reward DISTINCT from the other
 candidates this generation … Do not reuse a design you would give a different candidate index"*). If
@@ -8306,7 +8329,7 @@ real collapse.** Excluding it, **every candidate is an independent design; zero 
 226 units.** The exploration directive works, and §56's E[max] reasoning stands on real independent
 draws.
 
-### §71.3 ★ THE FITNESS DISTRIBUTION IS EXTREMELY HEAVY-TAILED — and that is the interesting science
+### 71.3 ★ THE FITNESS DISTRIBUTION IS EXTREMELY HEAVY-TAILED — and that is the interesting science
 
 | arm | n | min | median | max |
 |---|---|---|---|---|
@@ -8327,7 +8350,7 @@ turnover, and only the few that price it survive. **The heavy tail is the turnov
 in the fitness distribution** — an independent corroboration of §47 from a completely different
 quantity.
 
-### §71.4 ⚠ WINNER SELECTION IS SOMETIMES A COIN FLIP — a real fragility, measured
+### 71.4 ⚠ WINNER SELECTION IS SOMETIMES A COIN FLIP — a real fragility, measured
 
 Across 54 line-arm pools, `max / 2nd-best` ranges from **1.00 to 396**, median **1.41**:
 
@@ -8350,7 +8373,7 @@ comparison does **not** rest on the single-seed validation winner but re-scores 
 to *"why so many seeds?"*, sitting alongside D2's seed-trajectory exhibit, and it should be reported as
 such rather than discovered by a referee.
 
-### §71.5 ★ THE D17 HARNESS-TRAP CLASS IS THE MAJORITY OF "BROKEN" REWARDS — and it contaminates a headline
+### 71.5 ★ THE D17 HARNESS-TRAP CLASS IS THE MAJORITY OF "BROKEN" REWARDS — and it contaminates a headline
 
 §37 established that `safe_call` substitutes `(SAFE_DEFAULT, {}, None)` on failure, and that the `None`
 clears **the reward's own state**, pinning a stateful reward with a cold-start branch into a limit
@@ -8377,7 +8400,7 @@ genuinely-broken before reporting ANY per-model authoring-reliability number, an
 The test is cheap, exact and mechanical (is the fallback fraction within 5e-4 of 1/k for small k?), and
 without it the capability gradient overstates the weakness of every model the harness happened to trap.
 
-### §71.6 THE FED VECTOR CARRIES REAL, RESOLVABLE SIGNAL
+### 71.6 THE FED VECTOR CARRIES REAL, RESOLVABLE SIGNAL
 
 If the six fed scalars barely varied across candidates, there would be nothing for the designer to
 respond to and the A5 rational-insensitivity account would be trivially true. Measured over 1,066
@@ -8398,7 +8421,7 @@ records:
 discounts small deltas as noise), but it removes the strongest trivial version of it: the manipulation
 is not degenerate, and there is genuine information in the block.
 
-### §71.7 THE SEARCH TRAJECTORY — reported as an observation, explicitly NOT as an H3 result
+### 71.7 THE SEARCH TRAJECTORY — reported as an observation, explicitly NOT as an H3 result
 
 Best-so-far validation fitness by generation:
 
@@ -8425,7 +8448,7 @@ Per-generation **median** fitness is flat and noisy throughout (~0.0005–0.002)
    available as *context* for the "why it happened" narrative (Okhrati D1/D3) rather than being
    rediscovered post-hoc and mistaken for evidence.
 
-### §71.8 VERDICT
+### 71.8 VERDICT
 
 **The results are meaningful, internally coherent, and behave the way the design predicts.** Nothing in
 this audit contradicts a registered expectation. Two new analysis-time obligations were generated
@@ -8435,7 +8458,7 @@ that had never been tested — **effective search width = nominal** — is now m
 
 ---
 
-## §72. ★★★ THE TAIL MEASUREMENT INSTRUMENT VERIFIED AGAINST ITS OWN INPUTS — PERFECT AGREEMENT (2026-07-31)
+## 72. ★★★ THE TAIL MEASUREMENT INSTRUMENT VERIFIED AGAINST ITS OWN INPUTS — PERFECT AGREEMENT (2026-07-31)
 
 **This is the deepest available check on the quantity that IS H2's manipulated variable.** §69 proved
 the tail vector is internally coherent (monotone in α, correctly signed). §71 proved it varies enough
@@ -8456,7 +8479,7 @@ the exact data it ran on. No other record type permits it — search-lane `tail_
 CVaR, *not* the empirical mean of the worst 5 %. So an exact digit match is NOT expected. Agreement in
 sign, magnitude and — decisively — **rank across records** is.
 
-### §72.1 RESULT — 360 records, every check clean
+### 72.1 RESULT — 360 records, every check clean
 
 ```
   test-lane records carrying both a series and an archived CVaR : 360
@@ -8469,7 +8492,7 @@ sign, magnitude and — decisively — **rank across records** is.
   4. COHERENCE   CVaR-5% <= VaR-5%                       :  0 violations
 ```
 
-### §72.2 What each line establishes
+### 72.2 What each line establishes
 
 **Spearman = 1.0000, exactly, across 360 records.** The archived measurement rank-orders the records
 identically to a recomputation from their own returns. **There is no remaining possibility that the fed
@@ -8495,7 +8518,7 @@ sessions because `pd.bdate_range` (1,632) had been used instead of the panel's o
 headline claims had to be retracted. The archive is on the correct axis, verified from the records
 themselves.
 
-### §72.3 Why this matters more than it looks
+### 72.3 Why this matters more than it looks
 
 The prototype's "tail signal" was **refuted** on a wrong-unit error that had passed every test in the
 suite (§2.9, and the 13-agent audit). The tail measurement is the single quantity in this project with
