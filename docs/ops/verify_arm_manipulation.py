@@ -70,11 +70,13 @@ def main(argv: list[str]) -> int:
     starved: list[tuple[str, str, str, int]] = []
     scalar_scores: dict[str, set[str]] = collections.defaultdict(set)
 
+    n_records = 0          # every record the glob actually found — the wrong-path discriminator
     for p in glob.glob(str(root / line / "*" / "*" / "record.json")):
         try:
             r = json.load(open(p, encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
+        n_records += 1
         arm, pr = r.get("arm"), r.get("prompt") or ""
         if arm not in EXPECTED_TAIL_COUNT or int(r.get("generation", 0)) == 0:
             continue      # generation 0 has no fed block by design (the initial prompt)
@@ -95,6 +97,45 @@ def main(argv: list[str]) -> int:
             scalar_scores[arm].add(m.group(1))
 
     print(f"=== ARM MANIPULATION, verified against the ARCHIVE ({line}) ===")
+
+    # ⚠ AN EMPTY SCAN MUST NOT REPORT A GREEN VERDICT (RUN 9, record §93).
+    # Until now, scanning ZERO prompts printed "VERDICT: ALL REGISTERED ARM PROPERTIES HOLD IN THE
+    # ARCHIVE" and returned rc=0 — because every per-arm row short-circuits to "no gen>0 prompt yet"
+    # without touching `rc`, and the two killer checks are vacuously satisfied by empty lists. Found
+    # by invoking this tool with a WRONG ROOT (`…/run4/search` instead of `…/run4` + `search`, so the
+    # glob became `…/search/search/*/*` and matched nothing): it answered "all properties hold" while
+    # verifying literally nothing.
+    #
+    # THIS IS THE MOST DANGEROUS PLACE IN THE REPOSITORY FOR THAT FAILURE MODE. This tool certifies
+    # the MANIPULATION H2 rests on — that `scalar` is tail-blind, that `placebo` is inert, that
+    # `placebo_shuffled` is deranged. A reassuring null here, from a purged Scratch, a renamed root or
+    # a mistyped argument, is worse than an alarm, because nothing invites a second look.
+    #
+    # ⚠ AND THE FAIL-LOUD MUST NOT ITSELF FALSE-ALARM (caught in the same session, on my own fix).
+    # A first version returned 2 whenever there were no gen>0 prompts — which fires on
+    # `search_h3_singleshot`, where that state is CORRECT BY DESIGN: H3 is the SINGLE-SHOT arm and
+    # draws its entire 30-candidate budget in ONE generation (PREREGISTRATION §6), so it has 30 g0
+    # records and can never have a gen>0 prompt. Alarming on it would be the alarm-fatigue failure
+    # this repository keeps fixing, introduced by the fix for a different one.
+    #
+    # The discriminator is whether the glob found ANY records at all:
+    #   records found, none at gen>0  -> legitimate (single-shot by design, or not yet at gen 1) -> 0
+    #   NO records found at all       -> the path is wrong / the archive is gone                 -> 2
+    total_prompts = sum(len(v) for v in per_arm.values())
+    if total_prompts == 0:
+        if n_records == 0:
+            print(f"\n*** NOTHING TO VERIFY: 0 records found under {root / line} ***")
+            print("    This is NOT a pass. The root/line arguments are wrong, or the archive is gone.")
+            print("    Usage: verify_arm_manipulation.py [ROOT] [LINE]")
+            print("    — ROOT is the run root (e.g. outputs/campaign_cluster_run4), LINE is a sub-root")
+            print("      (e.g. search, search_leg_kimi_k3). They are SEPARATE arguments, not a path.")
+            return 2
+        print(f"\n    {n_records} record(s) found, none at generation > 0 — nothing to verify YET.")
+        print("    Correct and expected for `search_h3_singleshot` (the SINGLE-SHOT arm draws its")
+        print("    whole budget in one generation by design), and for any line still in generation 0.")
+        print("    NOT a pass and NOT a failure: there is simply no fed block to check.")
+        return 0
+
     print(f"{'arm':20s} {'prompts':>8s} {'tail #':>7s} {'expected':>9s}  verdict")
     for arm in ("scalar", "scalar_cvar5", "distributional", "placebo", "placebo_shuffled"):
         rows = per_arm.get(arm, [])

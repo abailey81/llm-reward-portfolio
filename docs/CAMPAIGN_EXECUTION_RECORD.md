@@ -11227,3 +11227,111 @@ predicate that was right for the case it was written against and silently wrong 
 case.** Four for four, all in the watching layer, all while the data stayed clean.
 
 ---
+
+---
+
+## 93. ★★ ANALYSIS OBLIGATION 7 DISCHARGED ON THE CORE LINE — AND THE TOOL THAT DISCHARGED IT COULD RETURN GREEN ON NOTHING (2026-07-31, RUN 9)
+
+Found by working §9's ANALYSIS-TIME OBLIGATIONS register rather than reading it — the brief's note (12)
+and (13) rebuke: *"drifting into new interesting verification while KNOWN OPEN DEFECTS stay open."*
+
+### 93.1 THE OBLIGATION WAS DUE — its trigger had fired and nobody had run it
+
+**§9 obligation 7** (registered §34.4): *"Re-run `docs/ops/verify_arm_manipulation.py` on the CORE line
+(`search/`) **once `placebo` and `placebo_shuffled` reach generation > 0 there**. The archive
+verification of those two arms currently rests on the ten legs; **the confirmatory line must carry its
+own evidence**."*
+
+**The trigger is met** — on the core line `placebo` has **13** candidates beyond g0 and
+`placebo_shuffled` **11**, both at generation 3. Run for the first time on the confirmatory line:
+
+```
+  arm                   prompts  tail #  expected  verdict
+  scalar                     22     [0]         0  OK
+  scalar_cvar5               10     [1]         1  OK
+  distributional             23     [6]         6  OK
+  placebo                    13     [0]         0  OK
+  placebo_shuffled           11     [6]         6  OK
+
+  scalar prompts carrying ANY tail label            : 0   OK - tail-blind as registered
+  placebo values that are non-zero                  : 0   OK - inert
+  labels matching distributional's own (fixed points): 0
+```
+
+**DISCHARGED, and it PASSES on the line that matters.** H2's construct validity no longer rests on leg
+evidence: **the confirmatory line's own archive shows the manipulation is exactly what was registered**
+— `scalar` is tail-blind over 22 prompts, `placebo` carries six inert constants and zero real tail
+values over 13, `placebo_shuffled` carries six real values with no fixed point over 11. The tool is
+honest that the derangement check is weak evidence (the values come from different training runs), and
+that limitation is retained rather than papered over.
+
+### 93.2 ★ BUT THE TOOL RETURNED **GREEN ON AN EMPTY SCAN** — the fifth instrument defect of the session
+
+My first invocation passed a **joined path** (`…/run4/search`) where the tool takes **two separate
+arguments** (`ROOT` then `LINE`). The glob became `…/search/search/*/*/record.json` and matched
+**nothing**. The tool printed:
+
+```
+  arm                   prompts  tail #  expected  verdict
+  scalar                      0       -         0  no gen>0 prompt yet
+  ... (every arm the same) ...
+  VERDICT: ALL REGISTERED ARM PROPERTIES HOLD IN THE ARCHIVE          rc=0
+```
+
+**It certified the manipulation while verifying literally zero prompts.** Every per-arm row
+short-circuits on an empty list without touching `rc`, and both "silent killer" checks — the tail-leak
+test and the inert test — are **vacuously satisfied by empty lists**.
+
+**This is the single most dangerous place in the repository for that failure mode.** This tool certifies
+the manipulation **H2 rests on**. A reassuring null here — from a mistyped argument, a renamed root, or
+the purge-eligible Scratch that §9 obligation 2 explicitly warns about — is worse than an alarm, because
+nothing invites a second look.
+
+**FIXED, fail-loud:** an empty scan now returns **2** with a usage hint naming the exact mistake I made.
+
+### 93.3 ⚠ AND MY FIX FALSE-ALARMED ON h3 — caught on my own work, in the same pass
+
+The first version returned 2 whenever there were **no gen>0 prompts**. That fires on
+`search_h3_singleshot`, where the state is **CORRECT BY DESIGN**: H3 is the **single-shot** arm and draws
+its entire 30-candidate budget in ONE generation (`PREREGISTRATION.md` §6), so it holds **30 g0 records
+and can never have a gen>0 prompt**. **Alarming on it would have been the alarm-fatigue failure this
+repository keeps fixing, introduced by the fix for a different one.**
+
+**The discriminator is whether the glob found ANY records at all:**
+
+| state | meaning | rc |
+|---|---|---|
+| records found, none at gen>0 | single-shot by design, or not yet at generation 1 | **0** + an explicit "nothing to verify YET" |
+| **no records at all** | the path is wrong or the archive is gone | **2**, fail-loud |
+
+**Four controls, all passing:**
+
+```
+  WRONG ROOT                               RC=2 want=2  PASS
+  CORE LINE                                RC=0 want=0  PASS
+  H3 single-shot (by design no gen>0)      RC=0 want=0  PASS
+  a LEG                                    RC=0 want=0  PASS
+```
+
+### 93.4 THE COUNT IS NOW FIVE, AND THE SHAPE HAS NOT CHANGED ONCE
+
+`reject_taxonomy`'s blind `diagnose()` · `science_watch`'s single-lane stage test · the C4 detector's
+marker count · the anti-flake test that was an instance of its own flake · and now a construct-validity
+certifier that passes on an empty archive. **Five instrument defects, one shape: a predicate correct for
+the case it was written against and silently wrong for the neighbouring case.** All five in the watching
+layer. **The data has been clean throughout.**
+
+**And the sixth was mine, thirty seconds after the fifth** — which is the honest measure of how easy this
+shape is to produce, not just to inherit.
+
+### 93.5 MY PROCESS ERROR — **P48**
+
+Invoked `verify_arm_manipulation.py` with `ROOT/LINE` joined into one path instead of two arguments, and
+received a **green verdict** that I nearly recorded as "obligation 7 discharged". **Caught because a
+table of five arms each reading `0 prompts` under a verdict of ALL PROPERTIES HOLD is the
+clean-zero tell** — the same tell that caught P45 and P47 in this session. **Three times in one session
+the clean zero was the thing that saved the claim.**
+
+`docs/ops/` only — outside the drift pathspec. Drift 0, freeze MATCHES, `RUNNING_SHA 50b6e07` unchanged.
+
+---
