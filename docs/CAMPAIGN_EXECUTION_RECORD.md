@@ -9554,3 +9554,68 @@ This closes the last unverified load-bearing scientific assumption. Combined: th
 present and correct (66), the instrument that produces it is faithful to its inputs (72, Spearman
 1.0000), the arms are otherwise identical (this section), the search is genuinely 5-wide (71.2), and
 every archive invariant holds (69).
+
+---
+
+## 81. ★ THE STRUCTURE CONTROL VERIFIED — `placebo_shuffled` IS GENUINELY DERANGED, 107/107 (2026-07-31)
+
+**Why this matters, and why nobody had checked it.** `placebo_shuffled` is the **structure control**
+(confirmatory node **N5**): it shows the designer the SAME six tail statistics with the SAME
+distribution, in the WRONG places, so that any effect of the distributional arm cannot be dismissed as
+"six numbers appeared in the prompt". **That control only works if the permutation genuinely moves the
+values.** Had the shuffle ever produced the identity — or something near it — the arm would have been
+feeding CORRECT tail statistics while being scored as a control, which would not merely weaken H2 but
+**invert the meaning of N5**. Nothing had ever tested it.
+
+### 81.1 The method, and its POSITIVE CONTROL
+
+Each record's fed block is parsed for the six rendered values and traced to the earlier candidate in
+the same `(line, arm)` whose own `tail_stats` form the same SET. **`distributional` is used as the
+positive control for the linkage**: that arm is fed the six verbatim, so if the tracing is correct it
+must match an earlier candidate EXACTLY and IN ORDER. If that fails, nothing about `placebo_shuffled`
+could be concluded.
+
+```
+  distributional  (POSITIVE CONTROL)         placebo_shuffled  (THE CONTROL ARM)
+    gen>=1 records          : 226              gen>=1 records          : 107
+    fed SET traced          : 226  (100 %)     fed SET traced          : 107  (100 %)
+    fed VERBATIM, in order  : 226              fed VERBATIM, in order  :   0
+    full derangements       :   0              FULL DERANGEMENTS       : 107  (100 %)
+```
+
+**The positive control passes completely** — 226/226 traced and 226/226 verbatim — so the linkage logic
+is proven before the control arm is judged by it.
+
+### 81.2 The result
+
+**The structure control is INTACT and exact:**
+
+1. **It is the REAL six.** 107/107 fed sets match an earlier candidate's actual `tail_stats` — which is
+   precisely what distinguishes `placebo_shuffled` from `placebo` (the latter feeds tail-SHAPED but
+   fabricated numbers, verified separately in 66 as carrying zero real tail keys).
+2. **It is always deranged.** **107 of 107 records have NO fixed point** — not once did a statistic
+   remain in its own slot. Zero records were fed verbatim.
+
+**N5 is a genuine control.** Any difference between `distributional` and `placebo_shuffled` is
+attributable to the ORDERING/ASSIGNMENT of the tail information, not to its presence, magnitude or
+distribution — which is exactly the inference N5 exists to license.
+
+### 81.3 ⚠ A SEVENTH FALSE ALARM OF MINE, caught before reporting
+
+v1 of this check compared each record's fed values against **ITS OWN** `tail_stats` and returned
+**0/107 set matches**, which reads as *"the fed values are not the real six at all"* — an alarming and
+completely wrong conclusion.
+
+**The mis-specification:** the fed block describes **the PREVIOUS candidate's** results — the prompt
+says so in its first line (*"Reflect on the previous candidate's results … Feedback from the previous
+candidate"*). Comparing a candidate's feedback against its own outcome compares across a generation
+boundary. **The tell was 0/107 — a clean zero, not a scattering**, which is the signature of comparing
+the wrong two things rather than of a real defect.
+
+**This is the seventh false alarm I have generated in this session's verification work** (P38 lists
+five; 80.3 is the sixth). The pattern is now unambiguous and worth stating as a rule of its own:
+
+> **When a check returns a CLEAN 0 % or 100 %, suspect the specification before the subject.** Real
+> defects are usually partial and messy; a perfect zero almost always means the comparison is between
+> the wrong two objects. Every one of these seven was caught by that question, and by building a
+> POSITIVE CONTROL into the test — which is what v2 added and v1 lacked.
