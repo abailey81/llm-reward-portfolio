@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-31 19:02 UTC -- T+69h53m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-07-31 19:04 UTC -- T+69h55m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+69h53m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+69h55m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1508** |
+| records archived | **1509** |
 | LLM calls / spend | 2404 / **$37.7085** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
@@ -21,22 +21,47 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **194** (91 running, 103 queued) |
-| **cores computing** | **728** |
+| cluster jobs | **193** (93 running, 100 queued) |
+| **cores computing** | **744** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung              @728 cores              @830 cores   binding
+ rung              @744 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            3.3 d  08-01            3.3 d  08-01   critical_chain
-  100            4.4 d  08-02            3.8 d  08-01   throughput
-  189            7.4 d  08-05            6.5 d  08-04   throughput
-  279           10.6 d  08-08            9.3 d  08-07   throughput
-  340           12.7 d  08-10           11.1 d  08-09   throughput
-  403           14.9 d  08-12           13.0 d  08-10   throughput
-  568           20.6 d  08-18           18.1 d  08-15   throughput
+  100            4.3 d  08-02            3.8 d  08-01   throughput
+  189            7.3 d  08-05            6.5 d  08-04   throughput
+  279           10.3 d  08-08            9.3 d  08-07   throughput
+  340           12.4 d  08-10           11.1 d  08-09   throughput
+  403           14.6 d  08-12           13.0 d  08-10   throughput
+  568           20.2 d  08-18           18.1 d  08-15   throughput
 ```
+
+### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
+
+**Yes, and the limit is our own experiment, not the cluster.** Checked at every layer:
+
+* **Right now (search phase):** there is room on pool d for **303 more of our jobs**, and we only have
+  about **100 waiting**. We are not being held back - we have nothing more to submit. During the search
+  each arm must wait for all 5 of its candidates to finish before it can write the next 5, so the
+  ceiling is the 6-round chain, not the hardware.
+* **Memory and disk block ZERO hosts.** Both were fixed/checked; neither costs us anything now.
+* **At the seed-ladder phase (where cores really matter):** we could place about **900 jobs (~7,200
+  cores)**, and the timing model stops improving past **~4,600 cores** - so we will have about **1.6x
+  more capacity than we can even use**.
+* **We have already proved it:** we held **over 1,000 cores for ~14 hours straight, peaking at 1,664** -
+  and that was while still carrying two problems that have since been fixed (a 19.5x oversized memory
+  request, and a priority setting that put us below every other user). Both are gone, so the ladder
+  should do better than that.
+* **Everything else has been tried and measured:** more threads makes it SLOWER (and would break
+  reproducibility), a wider pool buys 4% but reintroduces a hardware-mixing problem, and priority is
+  already fixed and now above the cluster average.
+
+**Bottom line: buying more hardware cannot make this finish sooner.** The remaining wait is the
+experiment's own serial structure. The seed ladder is tiered (30 -> 189 -> ... -> 568) and the stop date
+is fixed, so if capacity ever fell short we would simply report at a lower rung - a valid, pre-registered
+result, never a failure.
 
 ## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
 
@@ -50,7 +75,7 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 | distributional | g5 of 5 | 319 |
 | scalar | g5 of 5 | 291 |
 | placebo | g5 of 5 | 171 |
-| scalar_cvar5 | g5 of 5 | 154 |
+| scalar_cvar5 | g5 of 5 | 155 |
 | placebo_shuffled | g5 of 5 | 150 |
 
 ## Results so far
@@ -70,7 +95,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 2-minute cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the 2-minute cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
