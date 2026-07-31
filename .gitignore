@@ -97,3 +97,8 @@ outputs/_bytecheck/
 outputs/campaign_dryrun/
 outputs/crash_rehearsal/
 sentinel_events.jsonl
+
+# runtime monitoring state (docs/ops/cycle.py) - must stay untracked so the 5-minute
+# publisher can `git pull --rebase` with a clean tree
+docs/ops/watch/STATE.json
+docs/ops/watch/CYCLE_LOG.md

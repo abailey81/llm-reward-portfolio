@@ -3,6 +3,104 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31] THE HANDOVER — THE 2-MINUTE CYCLE MADE INTO ONE COMMAND, AND A FALSE GREEN FOUND WHILE BUILDING IT
+
+**Context (the PAST).** The session documented in `[2026-07-30/31]` had answered the capacity
+question, shipped the memory fix, run a deep results audit over 1,026 records, banked five science
+findings (§44, §47, §48, §51, §52) and logged fifteen self-corrections. Tamer then asked for the
+session to be handed to a fresh one, exactly as `docs/RUN6_SESSION_PROMPT.md` had been handed to it,
+with **absolutely everything documented and zero gaps** — and named the one thing he did not like:
+
+> *"the only thing that I did not like about you is that you didn't monitor everything constantly,
+> every 2 minutes, the new claude code session should not have that."*
+
+**A brief two-session detour, and why nothing was left behind.** Mid-handover he asked for **two**
+sessions — one operating the campaign, one auditing results — "communicating very closely… working as
+one mechanism". A coordination bus was built for that: a single-writer-per-file mailbox protocol
+(`A_to_B.md` / `B_to_A.md` / `STATE.json` / `FINDINGS.md`), a heartbeat with a peer-down rule, an
+escalation path with a narrowly-scoped condition under which the auditor could pull the stop lever
+itself, and a status page that pasted the auditor's block verbatim so both sessions could publish one
+page with no possibility of clobbering. The single-writer rule was the load-bearing idea: two agents
+running `git commit` in one working tree race on `index.lock` and silently clobber each other, so one
+index owner removes that entire class of failure.
+
+He then reverted to **one** session. The two-session scaffolding was **deleted, not left in place** —
+a mailbox with no peer is dead scaffolding, and the standing rule forbids leaving that behind. What
+survived is what a single session genuinely uses, and it is better than what existed before.
+
+**What was built (the PRESENT).**
+
+**1. `docs/ops/cycle.py` — the whole monitoring sweep as ONE command, ~7 s.** The honest diagnosis of
+the previous session's 5.2-hour gap was *friction*: six separate commands, six output formats, and
+none of them said "nothing changed, carry on". So the cycle is now:
+
+```
+python docs/ops/cycle.py --note "what you are doing"     # ~7 s
+python docs/ops/cycle.py --ssh --note "..."              # + cores/jobs off Myriad
+```
+
+It checks, cheapest first: `docs/REMOTE_CONTROL.md` (hashed — it shouts the cycle Tamer's file
+changes) · the `STOP_CAMPAIGN` lever · `campaign_guards.py … all` · `arm_coverage.py` (the six repo
+guards **cannot** see a missing arm — D14) · `budget_watch.py` · driver-log freshness · drift against
+the **running** sha `c99716e` · records and spend **with the delta since the previous cycle**, which
+is the real health signal because a flat record count across many cycles is a stall. Exit 0 clear /
+1 look / 2 real.
+
+Two design decisions worth recording. **(a) Verdicts are filtered through
+`docs/ops/acknowledged_alarms.txt`.** Four verdicts (`guard:truncation`, sentinel `record_sanity`,
+`substrate_fields`, `silent_hang`) can never return green because the underlying ledgers are
+append-only — so a raw rc=2 every cycle would train the operator to ignore rc=2, which is *precisely*
+how D15 survived ten hours. Known verdicts print as `known`; anything **not** in the ledger is RED.
+**(b) Every cycle appends one line to `docs/ops/watch/CYCLE_LOG.md`**, and `publish_status.sh` now
+publishes the last six lines to Tamer's phone. "I monitored continuously" becomes a *checkable*
+claim rather than an assertion — the same standard everything else in this project is held to.
+
+**2. `docs/ops/watch/`** — `STATE.json` (machine state incl. the previous cycle's counts),
+`CYCLE_LOG.md` (the audit trail), `FINDINGS.md` (the evidence-graded science ledger, seeded with the
+six banked findings and carrying a mandatory `CONFOUND CHECKED:` line and an explicit
+effect-blindness rule), and a `README.md`.
+
+**3. `docs/ops/publish_status.sh`** — the two-session "analyst block" section was replaced with a
+**Monitoring — the 2-minute cycle** section that publishes the cycle log and flags, in bold, when the
+cadence has lapsed by more than 10 minutes. Verified by running the publisher: the section renders,
+the page pushed at T+51 h 28 m.
+
+**4. `docs/RUN7_SESSION_PROMPT.md`** — the successor brief, modelled section-for-section on RUN6:
+Tamer's instructions verbatim (including every message from this session), the full rights grant, the
+hard prohibitions table, the priorities and binding standards reproduced in full **because
+`CLAUDE.md` is untracked and therefore unrecoverable from a clone**, the complete project history,
+D1–D18, the sixteen process errors with the pattern that unites them, the drift rule re-based to
+`c99716e`, live state, the seven §6 findings, both remote channels, §8 (the 2-minute cycle as a hard
+standing order), the ops runbook, the traps list, nine open threads, and first actions.
+
+**5. `docs/HANDOFF.md` §1** — the ★★★★★ START HERE row was regenerated for 2026-07-31 and the old one
+demoted rather than deleted (it carries §38/§45 capacity detail worth keeping). The MONITOR line now
+names `cycle.py`.
+
+**SELF-CORRECTION #16 — a false green, found while building the instrument that found it.** The
+previous session had reported `GUARDS_RC=0` from `python scripts/campaign_guards.py … all 2>&1 | tail
+-20; echo "GUARDS_RC=$?"`. That `$?` is **`tail`'s** exit code, not the guard's. The guards were
+actually **rc=2** — on the acknowledged `truncation` verdict, so nothing was wrong with the campaign,
+but the *reported* fact was wrong and it is exactly the failure mode `CLAUDE.md` warns about ("read
+`PYTEST_RC` from the LOG, never a pipe's exit code"). `cycle.py` reads the real return code via
+`subprocess.run`, which is how it surfaced. **Sixteen self-corrections now, and the pattern is
+unchanged: an aggregate — or in this case an exit code — that answered a slightly different question
+from the one being asked, reported as if it answered the right one.**
+
+**Live state at handover, first-hand (the PRESENT).** 12/12 lines, **ALL LINES FULL** · **1,165
+records** · **$26.8419** · freeze `3ca6f01a…` **MATCHES** · **0** transport timeouts · **~728 cores**
+· all twelve driver logs written within the last minute · guards rc=2 entirely from acknowledged
+verdicts · HEAD `a3169ac` on `myriad-cluster-and-tier-system`, running sha **`c99716e`**, drift =
+the two analysis-layer files proven unreachable across 193 modules.
+
+**What is next (the FUTURE).** (i) **The Anthropic top-up** — $22.15 spent + $13.60 still to author
+against $28.15 credited = **−$7.60**; if that key runs dry the confirmatory line stops, and
+`budget_watch.py` stays rc=2 until it is fixed. (ii) **A12**, the OSF/Zenodo deposit — a registered
+freeze-day obligation, fully staged, needing ~10 minutes of Tamer's own time. (iii) **The C4-boundary
+restart** carrying the eleven deferred fixes including `--pack 8`, validated on the first line to
+reach C4, re-basing the running sha. (iv) **The write-up**, which is where the grade actually is:
+~5,900 words of CH1/CH2/CH3/Methods need no results at all, and the campaign runs itself.
+
 ## [2026-07-30e-CORRECTION] GIFT was already cited — my claim that it needed adding was wrong
 
 Asserted in `[2026-07-30e]` item 5 that GIFT "must now be cited and positioned in CH2". FALSE:
@@ -10,6 +108,182 @@ Asserted in `[2026-07-30e]` item 5 that GIFT "must now be cited and positioned i
 §2.2 as "the freshest finance neighbour", characterised MORE precisely than my own term-count
 analysis managed. The corpus work was ahead of the sweep. Lesson: check the artifact before
 declaring a gap in it. Record §41 carries the full correction.
+
+## [2026-07-30/31] SESSION — THE CAPACITY QUESTION ANSWERED AND FIXED, A DEEP RESULTS AUDIT, AND SIXTEEN SELF-CORRECTIONS (see [2026-07-31])
+
+**PAST.** This session opened by pasting `docs/RUN6_SESSION_PROMPT.md`. RUN 4 was live at T+40 h with
+one task handed over unfinished as top priority: *why are we at ~552 cores when the target is 4,000?*
+
+**NOW — the complete session, in the order it happened.**
+
+### 1. THE CAPACITY INVESTIGATION (record §38, §43, §45, §46, §50)
+
+* **§33.6's own re-triage trigger had FIRED**: placement fell **80 % → 37 %** (115 running/28 queued at
+  12:19 → 70/119 at 14:11) while pool-d sat 37–40 % idle.
+* **Eight `sleep`-only canary jobs, identical except one field**, settled it by experiment rather than a
+  third round of SGE speculation: `smp 8 / h_rt 15 h / mem 4G` waited 43–46 min; the same job at
+  **1G, 2G and 3G placed at the FIRST scheduling pass, four for four**. Walltime was not the
+  discriminator (4/8/12/15 h all placed in one window) — independently reproducing the 15/15 result
+  already in `autosize_h_rt`'s docstring.
+* **The measurement:** `maxvmem` p50 **1.57 GB** / max **1.64 GB** over n=55 of OUR 8-slot RUN-4 tasks
+  (scoped by job name inside the run window — the harvested `qacct` files also hold OTHER USERS'
+  accounting from 2022-23, which invalidated a first pass), against a **32 GB** request = **19.5×**.
+* **The walltime lever REFUSED with evidence**: longest observed training **12.20 h** against the 15 h
+  request. The walltime is not slack; the memory is.
+* **⚠ THE `qalter` LEVER DOES NOT EXIST.** Recommended three times across five documents, then run on
+  Tamer's grant — and rejected: `jsv_allowed_mod = ac,h,i,e,o,j,M,N,p,w` has **no `l`**, so
+  `qalter -l` is forbidden site-wide (control: `qalter -N` succeeded, rc=0). **A queued job's memory
+  request is immutable for anyone.** Root cause named: the dry run verified the SUBSTITUTION and I
+  inferred the PERMISSION; a dry run that never calls the mutating command cannot discover a policy
+  forbidding it. `docs/ops/mem_relax.sh` now refuses to run and is kept as evidence.
+* **THE REAL FIX, APPLIED**: `src/cluster/jobscript.py` now sizes `mem_per_core` from the measured
+  per-training peak × pack × 1.3, **CPU lane only** → search **`mem=1G`**, packed lane **`mem=2G`**,
+  GPU untouched. Test falsified against the pre-fix file first. **Certified: 2,876 passed / 3 skipped /
+  0 failed, `PYTEST_RC=0` from the log; ruff clean; freeze hash `3ca6f01a…` UNMOVED.** Deployed
+  byte-identical; **24 drivers killed leaf-first**, all twelve supervisors relaunched them (188 → 191
+  jobs, no duplicate submission). Drift baseline **re-based to `c99716e`**.
+* **★ CONFIRMED AT SCALE.** Three snapshots of the discriminating measurement (each job interrogated for
+  its own memory request and state): n=1 → 100 %; n=23 → 52 % vs 33 %; **n=85 → 76 % vs 21 %, a 3.6×
+  placement advantage**, cores **528 → 744**.
+
+### 2. THE 4,000-CORE QUESTION, ANSWERED WITH ARITHMETIC (§43, §50)
+
+* 4,000 is the **saturation point**, not an arbitrary target: beyond it the critical chain binds.
+* **4,000 is arithmetically impossible during SEARCH**: 12 lines × 5 arms × 5 candidates = 300 jobs ×
+  8 slots = **2,400 cores maximum**, and the generation drain puts the realistic figure near 1,500.
+* **At C4 it is reachable** — `max_u_jobs = maxujobs = 1000`, and pack 4 × 4 cores = exactly 4,000 —
+  **but only at the new memory sizing**: 1,000 jobs × 16 GB = 16 TB against ~12 TB of free pool-d
+  memory (impossible), versus 8 TB at 2G.
+* **16 threads REJECTED**: the measured curve regresses past 8 (44.0 steps/s at 16 vs 55.1 at 8), it is
+  **7.6× worse per core**, and 330 baselines are already at OMP=1.
+* **★ DECISION REVERSED ON TAMER'S CHALLENGE — C4 runs `--pack 8`** (DEFERRED_FIXES 11). I had compared
+  the configurations **at the 1,000-job cap**, where they tie, and called it no gain. The cap is a
+  ceiling, not a promise: peak observed is **204**. Across the range actually seen, pack 8 halves the
+  makespan (9.4 d saved at 200 jobs, 2.9 d at 500) and reaches saturation with **500** jobs where pack 4
+  needs 1,000. Reproducibility settled FIRST: pack is **outside the determinism envelope** — pack-mates
+  are separate spawned processes via `DevicePool`'s `ProcessPoolExecutor`, verified empirically by 330
+  packed CPU baselines all stamped `device=cpu`, `OMP=1`.
+
+### 3. THE DEEP RESULTS AUDIT (§44) — 1,026 records OPENED, not counted
+
+* **CLEAN:** hash == sha256(source) on all 1,026 · 0 missing fields · 0 out-of-range · 0 non-finite ·
+  no cloned wall-clocks · PopArt invariant holds on all 1,025.
+* **★ CONSTRUCT VALIDITY RE-DERIVED from ALL 643 LLM-arm prompts** (vs §34's 273, by a different
+  method): `distributional` 6 numbers · `scalar` 1 · `scalar_cvar5` 2 · `placebo` 6 neutral ·
+  `placebo_shuffled` 6 deranged · **0 scalar prompts mention a tail statistic** · and the zero-decimal
+  bucket is EXACTLY the generation-0 population. **The manipulation is intact at generation 5.**
+* Program diversity **99–100 % unique per arm, 0 shared across arms**.
+* **⚠ POPART IS INERT ON 50.3 % OF THE ARCHIVE** (`popart_min_scale: 1.0`; 515 of 1,024 pinned),
+  systematically by reward family. The acknowledged `reward_scale` triage claimed scale-invariance
+  because PopArt is ON — **ON is not ENGAGED**. Corrected; analysis obligation **9**.
+* **The 969,619.5 cluster settled**: 8 records, 3 models, 5 arms, **all carrying `1e-8` and only
+  `1e-8`**, and 969,619.5 × 1e-8 = 0.0096962. A numerical guard, not the economics, sets those rewards'
+  scale. Obligation **11**.
+* **D18** — one record at two paths (identical hash, metrics AND mtime). `analyze_campaign` dedupes by
+  run_id and is depth-limited so the confirmatory path is SAFE; ~20 `rglob` consumers count it twice.
+  DEFERRED_FIXES 10; **not deleted** (trap 18).
+* Durable at **`docs/ops/results_audit.py`** (RC=0 live), encoding the three traps that bit the
+  throwaway version.
+
+### 4. FOUR OPEN THREADS CLOSED
+
+* **R107 re-measured (§39): 1.92× in production, not the modelled 2.72×** (60 packed 1-thread tasks vs
+  680 8-thread records). Critical-chain floor **3.27 d → 4.64 d**; **rung-568 ETAs unchanged**. The
+  thread/core split is CONFIRMED by the same data.
+* **R96 resolved in writing (§40)**: both axes or neither (~$23–37); NOT amending (the all-or-nothing
+  clause IS the anti-forking guarantee, and amending needs an unfreeze mid-run); and it **cannot be
+  BUILT while live** — the harness lands in `scripts/`. A dated, outcome-independent activation rule is
+  registered.
+* **The NOVELTY SWEEP was 32 DAYS OVERDUE and is now RUN (§41)**: nearest neighbour **GIFT, arXiv
+  2606.08450**, read FIRST-HAND (25 pp, 101,883 chars) — `placebo` 0, `shuffl`/`derange` 0,
+  `preregist` 0, **`CVaR` 0**. **The conjunctive cell SURVIVES.** Clock reset; next due ~2026-08-20.
+* **A12 staged** to a ten-minute account action (`docs/A12_DEPOSIT_PACKAGE.md`).
+
+### 5. THE S&P 500 WAS ON DISK ALL ALONG (§48)
+
+`data/raw/rf_spxtr.csv` + `rf_spxtr_x26.csv` — `.SPXTR`, pulled from Refinitiv and **frozen with
+provenance on 2026-07-01**, and **loaded by nothing** for a month, while **two** docstrings called a
+cap-weighted index "a documented limitation". Both corrected. `load_spx_total_return()` added, six
+tests, falsified first. On the agents' own **1,571-session** axis (rebuilt from the records — I reached
+for `bdate_range` first and caught the §36 error): **+213.3 % cumulative, Sharpe +1.1302,
+n_extrapolated = 0**, with the axis validated by reproducing §36's proxy Sharpe (+1.1656) to four
+decimals. **The best hand reward (+1.1609) ties the cap-weighted index and loses to equal weight** —
+0.031 against SE 0.021, t ≈ 1.5, so never "beats the S&P 500".
+
+### 6. WHY THE BASELINES LOOK WEAK — MEASURED (§47)
+
+Ten of eleven rebalance **78–91 % of the book EVERY day** — ~220× annual turnover — costing **19–23 %
+of capital a year** at the registered 10 bps. `return_minus_turnover` trades **119× less** (0.0075/day,
+0.2 %/yr) and is the only positive result. Arithmetic closes against §32's independently measured
+1.07-Sharpe wedge. **The rewards are faithful; the agent is unconstrained.** Three weaknesses owned:
+only 1 of 11 prices trading (ten legs fail for the same reason), the environment does not cap turnover,
+and the headline is conditional on the cost assumption (the 0-bps column flips the sign).
+
+### 7. WHAT THE MODELS ACTUALLY WROTE (§51)
+
+762 distinct programs scored against the repo's own taxonomy: **turnover 84.4 %**, rolling-vol 74.5 %,
+drawdown 43.2 %, **CVaR 9.3 %**; any tail construct 68.8 %. **⚠ I was one sentence from publishing "the
+model discovers what the literature missed" — FALSE**: `initial_generation.txt` line 7 lists
+`- turnover/transaction cost.` explicitly. It is COMPLIANCE. The finding underneath is better:
+**nine of eleven lines comply above 92 % (sonnet 100 %) while nemotron sits at 50.0 % and
+gemini-2.5-flash at 33.7 %** — two thirds of gemini's programs ignore an explicit instruction on the
+one term that decides profitability. A second axis of authoring quality that DISAGREES with the
+registered one. Obligation **12**.
+
+### 8. ★ THE TWO H2 CO-PRIMARIES ARE NOT EQUALLY POWERED (§52)
+
+Eleven baselines share the same thirty seeds, so the paired-contrast variance structure is directly
+measurable. Over **55 arm-pairs**:
+
+| | Sharpe (N2 / H2-RA) | CVaR-5 % (N1 / H2-Tail) |
+|---|---|---|
+| rho (median) | **−0.007** | **+0.076** |
+| sigma_seed | 0.2497 | 0.00174 |
+| sigma_D | 0.3551 | 0.00224 |
+| sigma_D/(sigma·√2) | **1.005 — pairing buys NOTHING** | **0.911 — pairing helps ~9 %** |
+| noise vs own level | > 100 % | **6.1 %** |
+
+**The intuition is the contribution:** CVaR is dominated by the market's worst days, which CRN makes the
+arms SHARE; Sharpe is dominated by the policy's own trajectory, which the seed randomises
+independently. So **"bankable on the tail" is now an instrument measurement, not a design assertion**,
+the rung power labels were sized on the Sharpe variance so the tail node reaches its targets EARLIER,
+and a null on the RA node is a statement about a noisy estimand — which is why it carries a TOST arm.
+
+### 9. ⚠ THE ANTHROPIC BUDGET IS PROJECTED SHORT (§49)
+
+**Spent $22.15 + $13.60 still to author = $35.75 against $28.15 credited — a ~$7.6 shortfall.** If the
+key runs dry the CONFIRMATORY line stops. My earlier "$20.90, 26 % margin" was wrong because it asked
+which generations exist anywhere in a line's ROOT; authoring is per (line, **ARM**) — `c1`'s `scalar`
+arm reached g5 while its three CONTROL arms sit at g1, with 14 arm-generations still to write.
+**`docs/ops/budget_watch.py` now watches this** (exit 2 on a projected shortfall) and encodes both
+mistakes. Tamer is topping up.
+
+### 10. THIRTEEN SELF-CORRECTIONS — the pattern matters more than any one
+
+`qalter` recommended without checking `jsv_allowed_mod` · budget projected per-line not per-arm ·
+n=1 placement rate reported as 100 % · a `bash -c` string with backticks EXECUTED them and corrupted
+the cursor · `bdate_range` instead of the records' axis (the §36 error, in the session that quotes §36)
+· "GIFT must be cited" without grepping `paper/` (it already was) · "pack 8 buys nothing" evaluated only
+at the cap · a 4× memory headroom that would have made placement WORSE · a liveness checker blind on
+`driver_core.log` (the CONFIRMATORY line) · PopArt "0 records carry it" from a type assumption · PopArt
+"45 invariant breaks" from an absolute tolerance on a streaming estimator · the 84.4 % "discovery"
+framing (prompt confound) · sigma_seed where the paired test needs sigma_D (~4× too optimistic).
+
+**The single pattern: an aggregate that answers a slightly different question than the one asked,
+reported as if it answered the right one.** Every one was caught by re-interrogating a surprising
+number. **A striking result is a hypothesis about your own instrument until the confound is ruled out.**
+
+### 11. TOOLING SHIPPED
+
+`docs/ops/budget_watch.py` (mid-run headroom, exit 2 on shortfall) · `results_audit.py` (five passes,
+exit 2 only on a hard invariant failure) · `import_closure.py` (proves whether a change reaches the
+executing closure — 193 modules) · `mem_relax.sh` (superseded, refuses to run, kept as evidence) ·
+`publish_status.sh` **rewritten to publish DETAILED status** (stage, compute, per-rung ETAs, results,
+needs-Tamer) after Tamer found it still describing launch night two days later.
+
+**FUTURE.** Tamer: the **Anthropic top-up** and the **A12 deposit**. At the C4 boundary (~2 days): the
+rolling relaunch carrying **eleven** deferred fixes including `--pack 8`. Then: the write-up, where the
+grade is.
 
 ## [2026-07-30h] THE `qalter` LEVER DOES NOT EXIST — AND THE REAL FIX WAS APPLIED INSTEAD
 

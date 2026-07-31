@@ -72,6 +72,20 @@ cores=$(echo "$CL" | grep '^cores=' | cut -d= -f2); cores=${cores:-?}
 etas=$(python docs/ops/stage_eta.py "${cores:-0}" 2>/dev/null | sed -n '3,12p')
 etas=${etas:-"  (eta model unavailable this cycle)"}
 
+# THE 2-MINUTE MONITORING CYCLE (2026-07-31, Tamer's standing order). docs/ops/cycle.py runs the
+# whole sweep and appends one line per cycle to docs/ops/watch/CYCLE_LOG.md. Publishing the last few
+# lines makes the cadence CHECKABLE from his phone -- "monitored continuously" stops being a claim
+# and becomes an audit trail, which is the standard everything else in this project is held to.
+cyc=$(tail -n 6 docs/ops/watch/CYCLE_LOG.md 2>/dev/null)
+cyc=${cyc:-"  (no cycle recorded yet)"}
+cage=$(python -c "
+import os, time
+p='docs/ops/watch/CYCLE_LOG.md'
+print(int((time.time()-os.path.getmtime(p))/60) if os.path.exists(p) else -1)" 2>/dev/null || echo "-1")
+if [ "$cage" -lt 0 ]; then cnote="no cycle log yet"
+elif [ "$cage" -gt 10 ]; then cnote="**last monitoring cycle was $cage min ago -- the 2-minute cadence has lapsed**"
+else cnote="last monitoring cycle $cage min ago"; fi
+
 cat > docs/RUN4_STATUS.md <<EOF
 # RUN 4 -- LIVE STATUS
 
@@ -132,6 +146,20 @@ experiment. No hypothesis has been looked at.
 
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
+
+## Monitoring -- the 2-minute cycle ($cnote)
+
+Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
+projection, driver-log freshness, the drift check against the sha the live drivers were launched
+from, and your instruction channel. One line is written per cycle; the last six:
+
+\`\`\`
+$cyc
+\`\`\`
+
+Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
+Acknowledged-and-understood alarms are deliberately kept quiet so a NEW one is loud -- the reasoning
+for each is in docs/ops/acknowledged_alarms.txt.
 
 ## Needs Tamer
 
