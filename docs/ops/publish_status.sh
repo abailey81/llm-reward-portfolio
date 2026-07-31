@@ -127,6 +127,31 @@ Per-rung ETAs from the registered model at the cores we actually hold:
 $etas
 \`\`\`
 
+### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
+
+**Yes, and the limit is our own experiment, not the cluster.** Checked at every layer:
+
+* **Right now (search phase):** there is room on pool d for **303 more of our jobs**, and we only have
+  about **100 waiting**. We are not being held back - we have nothing more to submit. During the search
+  each arm must wait for all 5 of its candidates to finish before it can write the next 5, so the
+  ceiling is the 6-round chain, not the hardware.
+* **Memory and disk block ZERO hosts.** Both were fixed/checked; neither costs us anything now.
+* **At the seed-ladder phase (where cores really matter):** we could place about **900 jobs (~7,200
+  cores)**, and the timing model stops improving past **~4,600 cores** - so we will have about **1.6x
+  more capacity than we can even use**.
+* **We have already proved it:** we held **over 1,000 cores for ~14 hours straight, peaking at 1,664** -
+  and that was while still carrying two problems that have since been fixed (a 19.5x oversized memory
+  request, and a priority setting that put us below every other user). Both are gone, so the ladder
+  should do better than that.
+* **Everything else has been tried and measured:** more threads makes it SLOWER (and would break
+  reproducibility), a wider pool buys 4% but reintroduces a hardware-mixing problem, and priority is
+  already fixed and now above the cluster average.
+
+**Bottom line: buying more hardware cannot make this finish sooner.** The remaining wait is the
+experiment's own serial structure. The seed ladder is tiered (30 -> 189 -> ... -> 568) and the stop date
+is fixed, so if capacity ever fell short we would simply report at a lower rung - a valid, pre-registered
+result, never a failure.
+
 ## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
 
 Each line's LLM writes 5 reward programs, each is trained once and scored on validation data, the
