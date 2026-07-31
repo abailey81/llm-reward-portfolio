@@ -9059,3 +9059,27 @@ fire on it.** Applied to the fix itself, it caught a second defect that would ot
 **Standing rule earned:** *a metric reported to the principal must be falsification-tested — write the
 failing input, prove the number moves.* An always-zero health metric is worse than no metric, because
 it manufactures confidence.
+
+### 76.4 THE GENERALISATION — every status-page metric falsification-audited
+
+Three instruments unable to report is a pattern, not three coincidences. So **every extraction on
+Tamer's status page was evaluated**, on two questions: does it yield a plausible value now, and **what
+does it do when it FAILS?**
+
+```
+  records   1532   calls 2419   drivers 12   armsfull 10   gnames "truncation"
+  etas      renders the rung table    bud   renders both provider lines
+```
+
+**All produce sane, non-degenerate values.** On failure modes, all but one either fail loudly
+(`etas` and `bud` print "unavailable this cycle"; `armsfull` would collapse to 0, which reads as
+alarming) or cannot silently degrade.
+
+**The one exception, now fixed:** `gnames=${gnames:-none}`. It is printed only when the guards are NOT
+green, so a broken extraction would render **"RC=2, not green: none"** — a contradiction that scans as
+benign. **A default that reads as reassuring is the same defect class as an always-zero counter.** It
+now says the extraction failed.
+
+**Standing rule, third formulation this session:** *for anything reported to the principal, ask not
+only "is the value right?" but "what does this print when the measurement breaks?" — and require that
+answer to be alarming.*

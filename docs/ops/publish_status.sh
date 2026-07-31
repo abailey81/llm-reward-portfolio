@@ -57,7 +57,12 @@ timeouts=${timeouts:-0}
 drivers=$(ls "$ROOT"/driver_*.log 2>/dev/null | wc -l)
 guards=$(python scripts/campaign_guards.py "$ROOT" all >/dev/null 2>&1; echo $?)
 gnames=$(python scripts/campaign_guards.py "$ROOT" all 2>/dev/null | grep -E '^\[' | grep -v ' ok$' | sed 's/^\[//;s/\].*//' | tr '\n' ' ')
-gnames=${gnames:-none}
+# *** 2026-07-31 (record 76.4): the default was `none`, which is FALSE-REASSURING. `gnames` is only
+# printed when the guards are NOT green, so if this extraction ever broke (a wording change in
+# campaign_guards.py) the page would read "RC=2, not green: none" -- a contradiction that scans as
+# benign. An extraction that fails must SAY SO. Audited 2026-07-31: every other extraction on this
+# page either yields a plausible value or fails loudly; this was the only reassuring-on-failure one.
+gnames=${gnames:-"(GUARD-NAME EXTRACTION FAILED -- read campaign_guards.py output directly)"}
 armsfull=$(python docs/ops/arm_coverage.py 2>/dev/null | grep -c '5/5 arms submitted')
 armsfull=${armsfull:-?}
 
