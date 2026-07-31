@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-07-31 17:42 UTC -- T+68h33m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-07-31 17:48 UTC -- T+68h39m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+68h33m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+68h39m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1476** |
+| records archived | **1480** |
 | LLM calls / spend | 2374 / **$37.5464** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
@@ -21,21 +21,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **196** (92 running, 104 queued) |
-| **cores computing** | **736** |
+| cluster jobs | **192** (88 running, 104 queued) |
+| **cores computing** | **704** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung              @736 cores              @830 cores   binding
+ rung              @704 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            3.3 d  08-01            3.3 d  08-01   critical_chain
-  100            4.3 d  08-02            3.8 d  08-01   throughput
-  189            7.4 d  08-05            6.5 d  08-04   throughput
-  279           10.5 d  08-08            9.3 d  08-07   throughput
-  340           12.6 d  08-10           11.1 d  08-09   throughput
-  403           14.7 d  08-12           13.0 d  08-10   throughput
-  568           20.4 d  08-18           18.1 d  08-15   throughput
+  100            4.5 d  08-02            3.8 d  08-01   throughput
+  189            7.7 d  08-05            6.5 d  08-04   throughput
+  279           10.9 d  08-08            9.3 d  08-07   throughput
+  340           13.1 d  08-11           11.1 d  08-09   throughput
+  403           15.4 d  08-13           13.0 d  08-10   throughput
+  568           21.3 d  08-19           18.1 d  08-15   throughput
 ```
 
 ## Stage -- we are in the SEARCH phase (the LLM writing and rewriting rewards)
@@ -49,9 +49,9 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 |---|---|---|
 | distributional | g5 of 5 | 319 |
 | scalar | g5 of 5 | 286 |
-| placebo | g5 of 5 | 165 |
-| scalar_cvar5 | g5 of 5 | 144 |
-| placebo_shuffled | g5 of 5 | 140 |
+| placebo | g5 of 5 | 166 |
+| scalar_cvar5 | g5 of 5 | 145 |
+| placebo_shuffled | g5 of 5 | 142 |
 
 ## Results so far
 
@@ -70,7 +70,7 @@ experiment. No hypothesis has been looked at.
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the 2-minute cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the 2-minute cycle (last monitoring cycle 0 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -87,12 +87,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-07-31T17:29:40Z  ATTN  records=1449 (+0)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
-2026-07-31T17:31:53Z  ATTN  records=1449 (+0)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=12B  auto-cycle
-2026-07-31T17:34:05Z  ATTN  records=1449 (+0)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T17:36:18Z  ATTN  records=1449 (+0)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T17:38:30Z  ATTN  records=1450 (+1)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=12B  auto-cycle
 2026-07-31T17:40:42Z  ATTN  records=1450 (+0)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T17:42:54Z  ATTN  records=1451 (+1)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=1.0m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T17:45:02Z  ATTN  records=1451 (+0)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=12B  auto-cycle
+2026-07-31T17:47:14Z  ATTN  records=1453 (+2)  spend=$37.5464  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=12B  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -107,8 +107,8 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 30.7136  + still to author $ 10.2575  = $ 40.9711   credited $ 28.1500   margin $ -12.8211 (-46%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  6.8328  + still to author $  3.0082  = $  9.8410   credited $ 19.3100   margin $  +9.4690 (+49%)  comfortable
+  anthropic   spent $ 30.7136  + still to author $  9.0282  = $ 39.7417   credited $ 28.1500   margin $ -11.5917 (-41%)  over the credit ESTIMATE (owner-watched)
+  openrouter  spent $  6.8332  + still to author $  2.7464  = $  9.5796   credited $ 19.3100   margin $  +9.7304 (+50%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
