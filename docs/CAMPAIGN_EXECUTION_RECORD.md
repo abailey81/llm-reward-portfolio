@@ -7330,6 +7330,17 @@ regardless — but it should be recorded as such, **not as the core-count lever 
 **Residual confound, stated so the next session can close it properly:** 55 of 187 jobs (29 %) still
 hold 15 G and block their hosts. The clean re-measure is due when that cohort reaches zero.
 
+**⚠ AND THE NEGATIVE VERDICT ABOVE IS PROVISIONAL, IN THE DIRECTION THAT WOULD OVERTURN IT.** Cores
+moved **560 (handover 16:05Z) → 592-608 (16:45Z) → 672-696 (17:00Z)** across this session — a ~24 %
+rise while the 15 G cohort was draining, which is exactly the direction §60 predicts and exactly the
+confound named above. **Do not read §63.4 as a settled refutation.** What is settled is the
+*magnitude* claim (the realised trajectory is nowhere near the predicted 2-4 jobs/node or ~1,320 cores)
+and the *mechanism* objection (294 hosts against ~82 jobs makes ~1 job/node arithmetic). What is NOT
+settled is whether the residual effect is larger than the +6-9 % measured mid-session. **The honest
+posture: §60 over-claimed, but the sign of its effect is not yet disproved.** Re-measure jobs/node and
+cores when `tmpfs=15G` reaches zero in `qstat -u ucestes -r`, and amend this section either way —
+overstating a refutation is as inaccurate as overstating a fix.
+
 ### §63.5 §9(2) — the arm ratio, and a handover figure that does not reconcile
 
 **Core line (`search/`, unsuffixed — the CONFIRMATORY pool, and the only one that biases H2's IUT legs
