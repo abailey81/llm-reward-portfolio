@@ -8242,3 +8242,193 @@ of the registered design, and buying more hardware cannot move either.
 4,584+ cores across the ladder is not guaranteed by a 14-hour precedent at 1,664. **That is a
 measurement to make at the C4 boundary, not a projection to bank now** — and the tiered ladder means
 even the pessimistic branch yields a valid, pre-registered result.
+
+---
+
+## §71. ★★★ DEEP RESULTS AUDIT — DOES ANY OF THIS MEAN ANYTHING? (2026-07-31)
+
+**Everything verified up to §70 proves the archive is STRUCTURALLY sound** — hashes, step counts,
+seeds, CVaR monotonicity, no cross-arm program reuse, construct validity. **None of it asks whether the
+NUMBERS ARE MEANINGFUL.** This does, on Tamer's standing instruction: *"very deeply and strictly analyse
+the results as well always … make sure they are logical, and meaningful and correct, not some garbage."*
+
+**SCOPE DISCIPLINE, stated up front.** Everything below is **VALIDATION-side and training-period**
+(`val_fitness`, `val_returns`, `tail_stats`) — the signals the reflection loop already consumes. **No
+sealed-test quantity is touched and no H2/H3 statistic is computed.** These are monitoring observations
+about search dynamics, **not inference**, and none of them may be read as a hypothesis result.
+
+### §71.1 THE MOST DAMAGING POSSIBLE FAILURE — ruled out
+
+**Do different reward programs actually produce different policies?** If two distinct programs produced
+bit-identical validation returns, the reward would not be influencing the agent at all and the whole
+experiment would measure nothing — and **every check run so far would still pass**, because such a
+record has a valid hash, 400,000 steps, a finite fitness and a monotone CVaR vector.
+
+Over **1,064 LLM-arm records: 1,063 distinct programs, 1,062 distinct outcome series.**
+
+* **0 exactly-constant return series** · **0 near-constant (sd < 1e-12)** · **0 zero fitness** — every
+  policy trades.
+* **Magnitudes are sane**: validation series uniformly 694 sessions; largest |daily return| anywhere
+  **11.1 %**; **0** records above 100 %. CVaR-5 % across 1,064 records: min −12.66 %, **median
+  −2.73 %**, max −0.85 % — entirely plausible for a 30-asset long-only book.
+
+**ONE cross-program outcome collision, and it is correct behaviour.** `nemotron/placebo-g0-c0` and
+`nemotron/scalar-g0-c1` produced bit-identical returns. Read both programs: they are **functionally
+identical, differently written** — `vol = sqrt(var)+eps; mean/vol` versus `std = sqrt(var);
+mean/(std+eps)`, i.e. the same arithmetic, with renamed state keys. Both ran **0/400,000 fallback**, so
+neither was harness-trapped. **At generation 0 there is no feedback block, so `placebo` and `scalar`
+receive the IDENTICAL base prompt and the arms are exchangeable by design** — the manipulation begins
+at generation 1. Same model, same prompt, functionally identical reward, CRN seed ⇒ identical policy.
+**That is the determinism guarantee working, not a defect.** It cannot touch winner selection: its
+fitness is 0.000127 against arm maxima of 0.23–0.43.
+
+### §71.2 ★ THE EFFECTIVE SEARCH WIDTH IS THE NOMINAL WIDTH — a load-bearing assumption, never before tested
+
+The prompt carries an explicit exploration directive (*"propose a reward DISTINCT from the other
+candidates this generation … Do not reuse a design you would give a different candidate index"*). If
+candidates collapsed onto near-identical designs, the **effective** search width would be below K = 5 —
+and that is not cosmetic: **every arm's winner is max(val_fitness) over its pool, so E[max] depends on
+the number of genuinely INDEPENDENT draws.** §56's entire starved-comparator argument is an E[max]
+argument, so it rests on effective n, not submitted n.
+
+Measured over **226 (line, arm, generation) units / 1,049 candidates**, clustering by exact outcome AND
+by pairwise correlation > 0.9999:
+
+```
+  units with a duplicate reward PROGRAM        : 1
+  units with a duplicate OUTCOME (exact)       : 1
+  units with NEAR-duplicate outcomes (r>0.9999): 1
+  effective independent designs                : 1,048 of 1,049  (99.9 %)
+```
+
+**The single collapsing unit is `leg_haiku_4_5/scalar/g1` — which is the D18 record-at-two-paths, not a
+real collapse.** Excluding it, **every candidate is an independent design; zero genuine collapses across
+226 units.** The exploration directive works, and §56's E[max] reasoning stands on real independent
+draws.
+
+### §71.3 ★ THE FITNESS DISTRIBUTION IS EXTREMELY HEAVY-TAILED — and that is the interesting science
+
+| arm | n | min | median | max |
+|---|---|---|---|---|
+| distributional | 307 | 0.00000 | **0.00070** | **0.43191** |
+| scalar | 282 | 0.00000 | 0.00093 | 0.27769 |
+| scalar_cvar5 | 155 | 0.00000 | 0.00066 | 0.38935 |
+| placebo | 170 | 0.00000 | 0.00059 | 0.31181 |
+| placebo_shuffled | 150 | 0.00000 | 0.00055 | 0.35133 |
+
+**The winner is 300–700× the median candidate.** `val_fitness` is the validation **Deflated Sharpe
+Ratio**, a probability, so this reads directly: **the typical LLM-authored reward produces a strategy
+with DSR ≈ 0.0006 — essentially no evidence of skill — while the best produce DSR ≈ 0.3–0.43, i.e. still
+short of confident skill (which needs > 0.9).**
+
+**This coheres exactly with §47's mechanism and is not a surprise once that is in hand**: the agents
+rebalance 78–91 % of the book daily (~22 %/yr in costs), so almost every reward is destroyed by
+turnover, and only the few that price it survive. **The heavy tail is the turnover mechanism showing up
+in the fitness distribution** — an independent corroboration of §47 from a completely different
+quantity.
+
+### §71.4 ⚠ WINNER SELECTION IS SOMETIMES A COIN FLIP — a real fragility, measured
+
+Across 54 line-arm pools, `max / 2nd-best` ranges from **1.00 to 396**, median **1.41**:
+
+```
+  leg_qwen3_5_9b  distributional   n=4   max 0.23358  2nd 0.00059   -> 396x   (decisive)
+  ...
+  leg_nemotron    placebo          n=19  max 0.22536  2nd 0.21750   -> 1.04
+  leg_kimi_k3     distributional   n=30  max 0.30438  2nd 0.29666   -> 1.03
+  core            placebo_shuffled n=12  max 0.26509  2nd 0.25892   -> 1.02
+  leg_haiku_4_5   scalar           n=29  max 0.27769  2nd 0.27686   -> 1.00
+```
+
+**In the tightest pools the top two candidates differ by 0.3 %.** With σ_seed = 0.244 dominating the
+effect we are trying to resolve (and confirmed live at 0.25), **a 0.3 % fitness gap is far inside the
+noise: which candidate is "the winner" there is effectively arbitrary.**
+
+**This is not a defect — it is the justification for the design.** It is precisely why the confirmatory
+comparison does **not** rest on the single-seed validation winner but re-scores winners across the
+**30 → 568 seed ladder on sealed data**. **Write-time value:** this is a measured, quantitative answer
+to *"why so many seeds?"*, sitting alongside D2's seed-trajectory exhibit, and it should be reported as
+such rather than discovered by a referee.
+
+### §71.5 ★ THE D17 HARNESS-TRAP CLASS IS THE MAJORITY OF "BROKEN" REWARDS — and it contaminates a headline
+
+§37 established that `safe_call` substitutes `(SAFE_DEFAULT, {}, None)` on failure, and that the `None`
+clears **the reward's own state**, pinning a stateful reward with a cold-start branch into a limit
+cycle whose period is *(calls to leave the cold-start branch) + 1* — so the fallback fraction lands on a
+**RECIPROCAL** 1/k. Swept across all 18 records with fallback ≥ 5 %:
+
+| class | n | records |
+|---|---|---|
+| **D17 reciprocal (HARNESS-TRAPPED)** | **11** | 8 × **49.983 % (1/2)**, 1 × 33.333 % (1/3), 1 × 9.997 % (1/10), +1 |
+| genuinely broken (non-reciprocal) | 7 | 99.978 %, 58.69 %, 54.55 %, 7.85 %, 7.37 %, 6.46 %, 5.50 % |
+
+**§37 recorded "the 49.983 % appeared SEVEN times across FIVE models"; it is now EIGHT**, across
+haiku-4.5, nemotron-3-super, qwen3.5-9b and **qwen3.6-27b (×4)**.
+
+**THE CONSEQUENCE, and it is a real one for a headline finding.** **61 % of high-fallback records are
+OUR HARNESS trapping an otherwise-working reward, not the model failing to write one.** §37 already
+established these are **biased AGAINST their own model**. Therefore the per-model
+authoring-reliability figures — §51's capability gradient, and the R115 breach counts — are
+**contaminated by our own instrument in the majority of cases**, and `qwen3.6-27b` is the most affected
+(4 of the 8 reciprocal records).
+
+**ANALYSIS-TIME OBLIGATION (new): partition high-fallback records into D17-reciprocal vs
+genuinely-broken before reporting ANY per-model authoring-reliability number, and report the split.**
+The test is cheap, exact and mechanical (is the fallback fraction within 5e-4 of 1/k for small k?), and
+without it the capability gradient overstates the weakness of every model the harness happened to trap.
+
+### §71.6 THE FED VECTOR CARRIES REAL, RESOLVABLE SIGNAL
+
+If the six fed scalars barely varied across candidates, there would be nothing for the designer to
+respond to and the A5 rational-insensitivity account would be trivially true. Measured over 1,066
+records:
+
+| statistic | min | median | max | sd |
+|---|---|---|---|---|
+| cvar_01 | −0.35914 | −0.04910 | −0.01297 | 0.02192 |
+| **cvar_05** | −0.12659 | **−0.02724** | −0.00851 | **0.00888** |
+| cvar_10 | −0.08236 | −0.01996 | −0.00659 | 0.00574 |
+| cvar_25 | −0.05071 | −0.01200 | −0.00378 | 0.00345 |
+| left_tail_mass | 0.00000 | 0.01655 | 0.03647 | 0.00820 |
+| robust_skew | −0.46799 | 0.00834 | 0.59160 | 0.15687 |
+
+**Cross-candidate spread on cvar_05 is sd = 0.0089, against §52's measured PAIRED diff-SE of 1e-4
+(sibling books) to 8e-4 (distant books) — i.e. the fed signal is 10–90× the measurement noise floor.**
+**The fed deltas are resolvable.** That does not settle A5 (which is about whether the *designer*
+discounts small deltas as noise), but it removes the strongest trivial version of it: the manipulation
+is not degenerate, and there is genuine information in the block.
+
+### §71.7 THE SEARCH TRAJECTORY — reported as an observation, explicitly NOT as an H3 result
+
+Best-so-far validation fitness by generation:
+
+| arm | g0 | g1 | g2 | g3 | g4 | g5 | g0 → final |
+|---|---|---|---|---|---|---|---|
+| distributional | 0.30438 | 0.30601 | **0.43191** | 0.43191 | 0.43191 | 0.43191 | +42 % |
+| scalar | 0.27035 | 0.27035 | 0.27035 | 0.27035 | 0.27769 | 0.27769 | +2.7 % |
+| scalar_cvar5 | 0.23199 | 0.23199 | 0.28073 | **0.38935** | 0.38935 | 0.38935 | +68 % |
+| placebo | 0.28912 | 0.28912 | 0.28912 | 0.28912 | 0.31181 | 0.31181 | +7.9 % |
+| placebo_shuffled | 0.35133 | 0.35133 | 0.35133 | 0.35133 | 0.35133 | 0.35133 | **+0 %** |
+
+Per-generation **median** fitness is flat and noisy throughout (~0.0005–0.002) with no monotone trend.
+
+**THREE THINGS MUST BE SAID TOGETHER OR THIS MISLEADS, and the third is the one that matters.**
+
+1. **This is VALIDATION-side, single-seed, pooled across all twelve lines.** The confirmatory H3 test is
+   *iterative vs single-shot, on SEALED data, across the seed ladder, on the `h3ss` line*. **This table
+   is not that test and must never be quoted as though it were.**
+2. **Flatness is EXPECTED even under perfect learning-free search.** Best-of-30 versus best-of-5 is an
+   E[max] question, and E[max] grows slowly in n for a heavy-tailed distribution. Most of the eventual
+   maximum being present by g0 is what best-of-N arithmetic predicts on its own.
+3. **Therefore this is a HYPOTHESIS ABOUT THE INSTRUMENT, not a result about reflection** — and it is
+   registered here as a monitoring observation so that, when H3 is actually run, this trajectory is
+   available as *context* for the "why it happened" narrative (Okhrati D1/D3) rather than being
+   rediscovered post-hoc and mistaken for evidence.
+
+### §71.8 VERDICT
+
+**The results are meaningful, internally coherent, and behave the way the design predicts.** Nothing in
+this audit contradicts a registered expectation. Two new analysis-time obligations were generated
+(**§71.5** the D17 partition before any reliability number; **§71.4** report the winner-separation
+distribution as the quantitative justification for the seed ladder), and one load-bearing assumption
+that had never been tested — **effective search width = nominal** — is now measured and holds at 99.9 %.

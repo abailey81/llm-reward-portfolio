@@ -3,6 +3,73 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31n] ★★★ DEEP RESULTS AUDIT — DO THE NUMBERS MEAN ANYTHING? THEY DO; PLUS TWO NEW ANALYSIS OBLIGATIONS
+
+**State before:** RUN 4 live, T+70 h, 1,488 records, drift 0, `sci=OK`. Everything up to §70 proved the
+archive **structurally** sound; none of it asked whether the numbers are **meaningful**. Tamer's
+standing instruction is explicit that the results must be analysed as strictly as the processes.
+
+**SCOPE: validation-side and training-period only** (`val_fitness`, `val_returns`, `tail_stats`) — the
+signals the reflection loop already consumes. **No sealed-test quantity touched, no H2/H3 statistic
+computed.** Monitoring observations, not inference.
+
+**① THE MOST DAMAGING POSSIBLE FAILURE IS RULED OUT.** If two distinct programs produced bit-identical
+returns, the reward would not be influencing the agent and the experiment would measure nothing — and
+every prior check would still pass. Over **1,064 records: 1,063 distinct programs, 1,062 distinct
+outcomes**; **0 constant, 0 near-constant, 0 zero-fitness** series. Magnitudes sane (max |daily return|
+**11.1 %**, CVaR-5 % median **−2.73 %**). The **one** collision is two *functionally identical* programs
+(`sqrt(var)+eps` vs `sqrt(var)` then `+eps` — same arithmetic) at **generation 0, where there is no
+feedback block and the arms share the base prompt by design**; both ran 0/400,000 fallback. Determinism
+working, not a defect; fitness 0.000127 vs arm maxima 0.23–0.43, so it cannot touch selection.
+
+**② EFFECTIVE SEARCH WIDTH = NOMINAL — a load-bearing assumption, never before tested.** Every arm's
+winner is `max(val_fitness)` over its pool, so **E[max] depends on genuinely INDEPENDENT draws** — and
+§56's whole starved-comparator argument is an E[max] argument. Measured over **226 (line, arm,
+generation) units / 1,049 candidates**, clustering by exact outcome *and* by correlation > 0.9999:
+**1,048 of 1,049 independent (99.9 %)**. The single collapsing unit is the **D18** record-at-two-paths,
+not a real collapse. **Zero genuine collapses. The exploration directive works.**
+
+**③ THE FITNESS DISTRIBUTION IS EXTREMELY HEAVY-TAILED, and it corroborates §47 independently.** Median
+candidate **≈ 0.0006**, best **0.28–0.43** — the winner is **300–700× the median**. `val_fitness` is the
+validation Deflated Sharpe (a probability), so: the typical LLM reward yields *no evidence of skill*,
+the best yield DSR ≈ 0.3–0.43, none reach confident skill. **That is §47's turnover mechanism appearing
+in a completely different quantity** — agents rebalance 78–91 % of the book daily, so only rewards that
+price turnover survive.
+
+**④ ⚠ WINNER SELECTION IS SOMETIMES A COIN FLIP — measured.** Across 54 line-arm pools `max/2nd` ranges
+**1.00 to 396** (median 1.41). In the tightest pools the top two differ by **0.3 %**
+(`haiku/scalar` 0.27769 vs 0.27686) — far inside σ_seed = 0.244. **Not a defect: it is the
+justification for the design**, since the confirmatory comparison re-scores winners across the 30→568
+seed ladder on sealed data rather than trusting the single-seed validation winner. **New obligation:
+report this distribution as the quantitative answer to "why so many seeds?", beside D2's seed-trajectory
+exhibit.**
+
+**⑤ ★ THE D17 HARNESS-TRAP CLASS IS THE MAJORITY OF "BROKEN" REWARDS.** Swept all 18 records with
+fallback ≥ 5 %: **11 are D17 reciprocals** (8 × **49.983 % = 1/2**, 1 × 33.333 %, 1 × 9.997 %) and only
+**7 are genuinely broken**. §37 recorded the 49.983 % signature seven times; it is now **eight**, and
+**qwen3.6-27b accounts for four**. §37 established these records are **biased AGAINST their own model**,
+so **61 % of high-fallback records are OUR HARNESS trapping a working reward** — which means §51's
+capability gradient and the R115 breach counts are contaminated by our own instrument in the majority
+of cases. **New obligation: partition high-fallback records into D17-reciprocal vs genuinely-broken
+before reporting ANY per-model reliability number.** The test is exact and mechanical (within 5e-4 of
+1/k).
+
+**⑥ THE FED VECTOR CARRIES RESOLVABLE SIGNAL.** Cross-candidate sd on `cvar_05` is **0.0089**, against
+§52's measured paired diff-SE of 1e-4–8e-4 — **10–90× the noise floor**. This does not settle A5
+(which is about whether the *designer* discounts small deltas) but removes its trivial version: the
+manipulation is not degenerate.
+
+**⑦ THE SEARCH TRAJECTORY, reported as an observation and explicitly NOT as an H3 result.** Best-so-far
+is largely set by g0 (`placebo_shuffled` **+0 %** g0→g5; `scalar` +2.7 %; `distributional` +42 %).
+**Three things stated together:** it is validation-side/single-seed/pooled, not the H3 test (which is
+sealed-data, seed-ladder, on `h3ss`); **flatness is EXPECTED even under learning-free search**, because
+best-of-30 vs best-of-5 is an E[max] question and E[max] grows slowly on a heavy tail; therefore it is a
+**hypothesis about the instrument**, registered now so it is available as context for the
+"why it happened" narrative rather than being rediscovered post-hoc and mistaken for evidence.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §71 · `docs/ops/deep_results_{1,2,3}.py` (new).
+**No code change, no relaunch; drift 0.**
+
 ## [2026-07-31m] ★★★ "ARE WE AT MYRIAD'S MAXIMUM?" — MEASURED END TO END; NO SPEED LEVER REMAINS
 
 **State before:** RUN 4 live, T+70 h, 1,482 records, drift 0, `sci=OK`, 744 cores. Tamer's founding

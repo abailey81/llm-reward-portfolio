@@ -554,3 +554,37 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     **Do NOT fix this by relaunching drivers** (disproportionate, and `pull_archive` re-mirrors the
     remote copy anyway): it is a PACKAGING-time transformation, applied where the archive is
     exported. Validator kept at `docs/ops/json_standards_check.py`.
+
+43. **PARTITION HIGH-FALLBACK RECORDS BEFORE REPORTING ANY PER-MODEL RELIABILITY NUMBER.**
+    *Found 2026-07-31 by the deep results audit; record §71.5.* Of the **18** records with a
+    safe-default fallback >= 5 %, **11 are the D17 RECIPROCAL class** (8 x **49.983 % = 1/2**,
+    1 x 33.333 % = 1/3, 1 x 9.997 % = 1/10) and only **7 are genuinely broken rewards**. §37
+    established that a D17 record is our HARNESS trapping an otherwise-working reward — the
+    safe-default clears the reward's own state, pinning a stateful reward with a cold-start branch
+    into a limit cycle of period *(calls to leave cold start) + 1*, which is why the fraction lands
+    on a reciprocal — and that such a record is **biased AGAINST its own model**.
+
+    **Consequence: 61 % of "this model wrote a broken reward" evidence is our instrument, not the
+    model.** §51's capability gradient and the R115 breach counts are therefore contaminated in the
+    majority of cases, and **qwen3.6-27b is the most affected (4 of the 8 reciprocal records)** —
+    the model whose measured reject rate (8.8 %) is already well BELOW its registered ~17 % baseline.
+
+    **Obligation:** before any per-model authoring-reliability figure is written, classify each
+    high-fallback record as **D17-reciprocal** (fallback within 5e-4 of 1/k for small k) or
+    **genuinely broken**, report the split, and exclude the D17 class from claims about model
+    capability. The test is exact, mechanical and cheap. Without it the gradient OVERSTATES the
+    weakness of every model the harness happened to trap. Tool: `docs/ops/deep_results_3.py`.
+
+44. **REPORT THE WINNER-SEPARATION DISTRIBUTION AS THE QUANTITATIVE ANSWER TO "WHY SO MANY SEEDS?"**
+    *Found 2026-07-31; record §71.4.* Across 54 line-arm pools, the ratio of the best candidate's
+    validation fitness to the second best ranges from **1.00 to 396**, median **1.41**. In the
+    tightest pools the top two differ by **0.3 %** (`haiku/scalar`: 0.27769 vs 0.27686) — far inside
+    sigma_seed = 0.244 (confirmed live at 0.25). **Which candidate is "the winner" is, in those
+    pools, effectively arbitrary.**
+
+    This is NOT a defect; it is the empirical justification for the design. It is exactly why the
+    confirmatory comparison does not rest on the single-seed validation winner but re-scores winners
+    across the **30 -> 568 seed ladder on sealed data**. Reported as a distribution it becomes a
+    measured answer to the question a referee will ask, sitting alongside row 38's seed-trajectory
+    exhibit (Okhrati's D2). Discovered by us and reported is a rigour exhibit; discovered by a
+    referee is a wound. Tool: `docs/ops/deep_results_3.py`.
