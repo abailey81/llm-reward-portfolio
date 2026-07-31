@@ -6354,3 +6354,103 @@ of containing the failure mode being asked about. The unbiased source existed th
 Before trusting a distribution, ask what would be **missing** from it if the thing you fear were
 happening. If the answer is "exactly the observations that would show it", the instrument is wrong,
 not the world.
+
+---
+
+## 56. ★★★ THE STARVATION REACHED THE CONFIRMATORY RESULT — TWO OF H2'S THREE IUT LEGS ARE UNDER-POWERED COMPARATORS
+
+Written 2026-07-31, immediately after §54. §54 established that our own `-p` ladder starved the three
+CONTROL arms. **This section establishes what that did to the science, and it is worse than a
+slowdown.**
+
+### 56.1 The measured asymmetry
+
+Registered budget: **30 accepted candidates per (line, arm)** — 6 generations × 5 candidates.
+Measured over the eleven full lines:
+
+| arm | role | mean candidates / line | **% of registered budget** |
+|---|---|---|---|
+| `distributional` | treatment | 24.7 | **82 %** |
+| `scalar` | treatment | 23.8 | **79 %** |
+| `placebo` | **CONTROL** | 11.9 | **40 %** |
+| `scalar_cvar5` | **CONTROL** | 10.9 | **36 %** |
+
+Mean generations completed: **TREATMENT 5.59 vs CONTROL 2.52 — a 3.08-generation gap**, median 3.2,
+max 4.0. Every line shows it; it is systematic, not noise.
+
+### 56.2 Why this reaches H2 rather than merely delaying it
+
+`PREREGISTRATION.md` line 94 defines the null for **both** co-primaries:
+
+> **H0 (both): the distributional-feedback arm ≤ the scalar arm (and ≤ placebo, ≤ scalar_cvar5)**
+
+So each co-primary is a **3-leg intersection–union test**, and its three comparators are `scalar`,
+**`placebo`** and **`scalar_cvar5`** — **two of the three are the arms we starved.**
+
+| IUT leg | comparator pool | ratio to `distributional` (272) |
+|---|---|---|
+| vs `scalar` | 262 | **1.04×** — clean |
+| vs `placebo` | 131 | **2.08× smaller** |
+| vs `scalar_cvar5` | 120 | **2.27× smaller** |
+
+**The mechanism is selection, and it is not subtle.** Each arm's frozen winner is
+`max(val_fitness)` over its accepted candidates, and the expectation of a maximum **increases with
+the number of draws**. Halving a comparator's pool systematically weakens the winner it fields. An
+IUT rejects only if `distributional` beats **all three** legs — so two artificially weak comparators
+make two of the three legs **easier to reject than the design intends**.
+
+**The direction is the dangerous one: toward a FALSE POSITIVE for our own hypothesis.** This is the
+same direction §26.3 registered pre-data for a handful of rejected candidates, at a far larger
+magnitude — that was a spread of a few candidates; this is a factor of two on two of three legs.
+
+**Leg 1 is unaffected** (`scalar` at 1.04×), and both treatment arms were at `-p 0` throughout, so the
+`distributional`-vs-`scalar` contrast — the one most readers will regard as the heart of H2 — is
+clean. The damage is confined to the two CONTROL legs, which is precisely where the design places its
+claim that any advantage is *attributable to tail-shape information* rather than to length or to a
+single number.
+
+### 56.3 The response — one operational, one analytical, both already available
+
+**Operational, and it is now urgent for validity rather than for speed.** The controls sit at 2.52 of
+6 generations. Nothing in the design prevents them from reaching 30 candidates; they were prevented
+by our own priority flag, which is now fixed for new submissions. What remains is the **109 legacy
+queued jobs still carrying `-p -100`**, which are overwhelmingly these very arms —
+`docs/ops/requeue_legacy_priority.sh` requeues them at full standing, and it is safe by design (P13:
+a `qdel` before dispatch requeues **without a retry bump**). Search has one to two days left, which
+is enough for the controls to close the gap **if they are given fair placement now**.
+
+**Analytical, and it was pre-registered before any of this happened.** §26.3 registered the
+obligation, pre-data:
+
+> *report per-arm accepted-candidate counts beside every H2 contrast + a pre-committed **equal-k
+> sensitivity analysis**.*
+
+That is exactly the correct remedy: truncate every arm to a common **k** and re-run the IUT, so the
+comparison is made at matched draws. **It is no longer a footnote — it is load-bearing**, and it must
+be reported beside the headline verdict rather than in an appendix. The design anticipated this class
+of threat and already carries its own control; that is what a pre-registration is for.
+
+### 56.4 What is NOT claimed
+
+* **No result is invalidated.** The confirmatory analysis has not been run; the sealed test data is
+  untouched; the single look is still ahead of us. This is a threat to a result we have not yet
+  taken, identified in time to remove it.
+* **No registered quantity changed.** The budget is still 30 per arm; the arms, seeds, α, SESOI and
+  the IUT structure are untouched. The arms are simply behind on it.
+* **The effect size of the bias is not estimated here** and should not be guessed. What is measured
+  is the *pool asymmetry*; how much winner quality it costs depends on the fitness distribution's
+  upper tail, which is an analysis-time question and an effect-blind one until then.
+* `placebo_shuffled` (111 candidates) is not an IUT leg — it serves node **N5_structure** — but it is
+  starved on the same pattern and its node inherits the same caveat.
+
+### 56.5 The lesson
+
+An operational knob reached the confirmatory inference through three hops nobody had drawn end to
+end: **scheduler priority → placement rate → generations completed → candidate pool → the
+expectation of a maximum → an IUT leg's difficulty.** Each hop is individually obvious; the chain was
+not, and no guard watched any link of it. Arm *coverage* was monitored (D14's `arm_coverage.py`
+asserts every arm is SUBMITTING); arm *depth* was not.
+
+**Registered as a monitoring obligation:** the cycle should watch the per-arm candidate spread, not
+merely per-arm presence. A campaign can have all five arms alive, all guards green, and still be
+accumulating a systematic imbalance between the very populations its headline test compares.

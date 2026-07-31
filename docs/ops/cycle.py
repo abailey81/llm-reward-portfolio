@@ -144,7 +144,37 @@ _SCIENCE_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("ra_popart_engaged",   r"engaged\s+(\d+)\s+\(",                                       "ra"),
     ("ra_popart_pinned",    r"pinned at the floor\s+(\d+)\s+\(",                           "ra"),
     ("ra_popart_breaks",    r"invariant sigma_max ==[^:]*:\s*(\d+)",                       "ra"),
+    # Per-arm candidate counts, for the ARM-DEPTH check below. Free: results_audit already prints
+    # them in its diversity pass, so this costs no extra archive walk.
+    ("n_distributional",    r"^\s*distributional\s+records=(\d+)",                         "ra"),
+    ("n_scalar",            r"^\s*scalar\s+records=(\d+)",                                 "ra"),
+    ("n_placebo",           r"^\s*placebo\s+records=(\d+)",                                "ra"),
+    ("n_scalar_cvar5",      r"^\s*scalar_cvar5\s+records=(\d+)",                           "ra"),
+    ("n_placebo_shuffled",  r"^\s*placebo_shuffled\s+records=(\d+)",                       "ra"),
 )
+
+#: ARM DEPTH. The four arms of H2's 3-leg IUT: `distributional` must beat `scalar`, `placebo` AND
+#: `scalar_cvar5` (PREREGISTRATION.md line 94). Each arm's frozen winner is `max(val_fitness)` over
+#: its ACCEPTED candidates, and the expectation of a maximum RISES with the number of draws — so an
+#: arm with half the pool fields a systematically weaker winner and its IUT leg becomes easier to
+#: reject than the design intends, biasing TOWARD a false positive for our own hypothesis.
+#:
+#: This is not hypothetical. On 2026-07-31 the `-p` ladder (§54) had left the two treatment arms at
+#: 82 %/79 % of the registered 30-candidate budget and the two control comparators at 40 %/36 % —
+#: a 2.27x pool asymmetry on one IUT leg (§56). Every guard was green throughout: `arm_coverage.py`
+#: asserts every arm is SUBMITTING, and nothing watched how DEEP each arm had got.
+#: ⚠ DENOMINATOR, stated because this ratio is a monitoring signal and not the reportable figure:
+#: `results_audit` counts records across ALL roots, which includes the `h3ss` single-shot line (a
+#: `distributional`-only line, ~29 records) and the handful of `frozen/*-winner` markers. That
+#: inflates the `distributional` count relative to the others, so the spread printed here is an
+#: UPPER BOUND on the imbalance. The exact search-only figures — 272/262/131/120, a 2.27x worst leg
+#: — are derived in §56 and are the ones to quote. The bound is the right thing for an alarm: it is
+#: conservative in the direction of noticing.
+_IUT_ARMS = ("n_distributional", "n_scalar", "n_placebo", "n_scalar_cvar5")
+#: Ratio of the largest to the smallest IUT-arm pool at which the imbalance is worth a look. Arms
+#: legitimately progress at different rates mid-run, so this is deliberately not a hard failure —
+#: but it must be SEEN every cycle rather than discovered at analysis time.
+_ARM_SPREAD_ATTN = 1.5
 
 #: Non-zero on ANY of these is a validity failure, not a slowdown -- it means the experiment is no
 #: longer measuring what it was registered to measure. Each names the hypothesis it would destroy.
@@ -184,7 +214,11 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     got: dict[str, int | None] = {}
     unparsed: list[str] = []
     for key, pattern, src in _SCIENCE_FIELDS:
-        m = re.search(pattern, text[src])
+        # MULTILINE: several patterns anchor with ``^`` to pin a value to the start of its own line
+        # (so ``scalar`` cannot match inside ``scalar_cvar5``). Without re.M, ``^`` matches only the
+        # start of the whole blob and every one of those patterns silently fails -- which is exactly
+        # what happened when the arm-depth fields were added, and what the fail-loud branch caught.
+        m = re.search(pattern, text[src], re.M)
         if m:
             got[key] = int(m.group(1))
         else:
@@ -222,6 +256,24 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
         attention.append("R115 is now BINDING -- a fallback-contaminated candidate tops its arm. "
                          "Expected behaviour of the floor; confirm the affected line and that the "
                          "best ELIGIBLE candidate is the one that gets frozen.")
+
+    # ARM DEPTH -- the check that would have caught §56 three days earlier.
+    pools = {k: got.get(k) for k in _IUT_ARMS if isinstance(got.get(k), int) and got.get(k)}
+    if len(pools) == len(_IUT_ARMS):
+        lo_k, lo = min(pools.items(), key=lambda kv: kv[1])
+        hi_k, hi = max(pools.items(), key=lambda kv: kv[1])
+        ratio = hi / lo
+        got["arm_pool_spread"] = round(ratio, 3)
+        got["arm_pool_min"] = lo_k[2:]
+        if ratio >= _ARM_SPREAD_ATTN:
+            attention.append(
+                f"ARM DEPTH IMBALANCE {ratio:.2f}x across H2's IUT arms "
+                f"({hi_k[2:]}={hi} vs {lo_k[2:]}={lo}). Each arm's winner is max(val_fitness) over "
+                f"its pool and E[max] rises with n, so a starved comparator makes its IUT leg easier "
+                f"to reject -- biased TOWARD a false positive. Record §56; the pre-registered remedy "
+                f"is the equal-k sensitivity analysis (§26.3).")
+    else:
+        got["arm_pool_spread"] = None
 
     got["science_watch_rc"] = sw_rc
     got["results_audit_rc"] = ra_rc
@@ -457,6 +509,11 @@ def main() -> int:
                 eng=science.get("ra_popart_engaged"), pin=science.get("ra_popart_pinned"),
                 lk=science.get("ra_scalar_leaks"), xa=science.get("ra_cross_arm_shared"),
                 hm=science.get("ra_hash_mismatch"), nf=science.get("ra_non_finite")))
+        lines.append(
+            "arms  IUT pools dist={d} scal={s} plac={p} scv5={c} (shuf={z})  spread={r}x"
+            .format(d=science.get("n_distributional"), s=science.get("n_scalar"),
+                    p=science.get("n_placebo"), c=science.get("n_scalar_cvar5"),
+                    z=science.get("n_placebo_shuffled"), r=science.get("arm_pool_spread")))
         for ln in info:
             lines.append("info  " + ln)
         for ln in lines:
