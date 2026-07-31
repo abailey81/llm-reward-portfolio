@@ -70,6 +70,23 @@ def test_a_HOST_fired_critical_must_not_swallow_the_warn_assertion() -> None:
     WARN and CRITICAL share one `_last_ram_ts`, so a CRITICAL inside the 60 s window suppresses a
     subsequent WARN. That is CORRECT behaviour for the monitor (it exists to stop anomaly spam) and
     is only a problem when a test lets the real machine fire the first one.
+
+    ⚠ FIXED 2026-07-31 (RUN 9, record §92) — THIS TEST WAS VULNERABLE TO THE VERY FLAKE IT PINS,
+    in the mirror direction. Zeroing `_last_ram_ts` protects the test above, whose assertion is
+    "the WARN IS present"; it does NOT protect this one, whose assertion is "the WARN is ABSENT".
+    The monitor samples real machine RAM on construction, and the WARN band (85 %) is a LOWER bar
+    than the CRITICAL band (92 %) — so any host above 85 % puts a REAL `ram_pressure_warn` into
+    `_anomalies` before this test makes a single call, and `not in kinds` can never hold however
+    perfectly the cooldown works. Observed live during this session's full-suite run (the laptop was
+    at 85.5 % with 12 supervisors, 24 drivers and pytest resident):
+
+        WARNING  ANOMALY kind=ram_pressure_warn      detail=ram_pct=85.5% >= 85.0%   <- the HOST
+        ERROR    ANOMALY kind=ram_pressure_critical  detail=ram_pct=92.0% >= 92.0%   <- the test
+        AssertionError: assert 'ram_pressure_warn' not in ['ram_pressure_warn', 'ram_pressure_critical']
+
+    The fix asserts over the anomalies THIS TEST PRODUCED rather than over the monitor's whole
+    history, so no amount of real-machine pressure can reach the assertion. The mechanism being
+    pinned is unchanged and the test still fails if the shared cooldown stops suppressing.
     """
     import tempfile
     from pathlib import Path
@@ -77,6 +94,7 @@ def test_a_HOST_fired_critical_must_not_swallow_the_warn_assertion() -> None:
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
         mon = _monitor(Path(td))
         mon._last_ram_ts = 0.0
+        mon._anomalies.clear()          # discard anything the REAL host fired at construction
         mon._check_resource_anomalies({"gpu_temp": 60, "ram_pct": M._RAM_PCT_CRIT})
         mon._check_resource_anomalies({"gpu_temp": 60, "ram_pct": M._RAM_PCT_WARN})
         kinds = _kinds(mon)

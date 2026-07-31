@@ -11105,3 +11105,96 @@ is holding at three for three, and **all three were in the watching layer while 
 50b6e07` unchanged.**
 
 ---
+
+---
+
+## 92. THE SUITE WAS NOT GREEN — AND THE TEST THAT FAILED EXISTS TO PIN THE FLAKE THAT BROKE IT (2026-07-31, RUN 9)
+
+Run as an end-of-work duty. **`PYTEST_RC=1`.** Recorded because "the suite is green" is exactly the kind
+of claim this project's rules exist to stop being made without looking.
+
+### 92.1 The wrapper said 0; the log said 1
+
+The background command reported **exit 0**. `PYTEST_RC`, read from the log as the standing rule requires
+(P4, P15, P26 — three prior instances of this same family), was **1**:
+
+```
+  FAILED tests/test_monitoring_resources.py::test_a_HOST_fired_critical_must_not_swallow_the_warn_assertion
+```
+
+**One failure out of the full suite; everything else passed.** ⚠ An earlier attempt in the same session
+returned `PYTEST_RC=4` — `--timeout=600` is not a recognised argument here (`pytest-timeout` is not
+installed), so the suite **had not run at all** while the wrapper again reported 0. Both are the same
+lesson at two different severities, and the second one would have been invisible without reading the log.
+
+### 92.2 THE CAUSE — the guard against a flake was vulnerable to that flake, mirrored
+
+`tests/test_monitoring_resources.py` contains two tests about the shared RAM cooldown:
+
+* `test_ram_warn_and_critical_fire_at_thresholds` asserts **"the WARN IS present"**. Its docstring
+  documents the flake in full — *"The monitor samples actual machine RAM on every flush… That is exactly
+  what happened during the 2026-07-28 campaign run (12 drivers + pytest + editor pushed the laptop into
+  the OOM band): the test passed alone and in-module, and failed only inside the full suite."* Its
+  mitigation is `mon._last_ram_ts = 0.0`.
+* `test_a_HOST_fired_critical_must_not_swallow_the_warn_assertion` exists, in its own words, to
+  *"Pin the mechanism itself, so the flake above can never silently return."* It asserts the **opposite**
+  — **"the WARN is ABSENT"** — and applies the **same** `_last_ram_ts = 0.0` mitigation.
+
+**That mitigation does not protect the second assertion.** The monitor samples real machine RAM at
+construction, and the **WARN band (85 %) is a LOWER bar than the CRITICAL band (92 %)** — so a host
+anywhere above 85 % puts a **real** `ram_pressure_warn` into `_anomalies` before the test makes a single
+call, and `"ram_pressure_warn" not in kinds` can never hold however perfectly the cooldown works.
+Zeroing the timestamp changes when things fire; it does not remove what has already fired.
+
+**Caught on camera in the run's own captured log** — note the ordering, which is the opposite of the
+call order and is therefore the tell:
+
+```
+  WARNING  ANOMALY kind=ram_pressure_warn      detail=ram_pct=85.5% >= 85.0%   <- the HOST, at construction
+  ERROR    ANOMALY kind=ram_pressure_critical  detail=ram_pct=92.0% >= 92.0%   <- the test's first call
+  AssertionError: assert 'ram_pressure_warn' not in ['ram_pressure_warn', 'ram_pressure_critical']
+```
+
+**The host really was at 85.5 %**: 12 supervisors, 24 drivers, VS Code and a full pytest run resident on
+a 15.64 GB laptop. Measured again immediately afterwards: **75.8 % used, 3.79 GB free** — transient,
+caused by the suite itself, and nothing to act on. **The monitor's behaviour is CORRECT throughout; only
+the test's isolation was wrong.**
+
+### 92.3 The fix, and the falsification that proves it is not vacuous
+
+Assert over the anomalies **this test produced** rather than over the monitor's whole history:
+
+```python
+  mon._last_ram_ts = 0.0
+  mon._anomalies.clear()          # discard anything the REAL host fired at construction
+```
+
+**Verified both directions, because a test that cannot fail verifies nothing:**
+
+1. **It passes.** `pytest tests/test_monitoring_resources.py -q` → **7 passed, RC=0**.
+2. **It can still FAIL.** With the cooldown deliberately defeated (`_last_ram_ts` re-zeroed between the
+   two calls, simulating the suppression breaking), `ram_pressure_warn` reappears:
+   `kinds = ['ram_pressure_critical', 'ram_pressure_warn']` → **the assertion would fail, correctly.**
+   The mechanism being pinned is still pinned.
+
+### 92.4 SCOPE — why this was safe to fix mid-campaign
+
+`tests/` is **NOT** inside the `src scripts config prompts` drift pathspec, and no driver imports it.
+Verified after the edit: `git status --porcelain -- src scripts config prompts` **empty**, freeze
+`3ca6f01a…` **MATCHES**, `RUNNING_SHA 50b6e07` unchanged. The full suite is re-run after the fix and the
+real `PYTEST_RC` recorded rather than assumed.
+
+### 92.5 THE LESSON, which is not the one it looks like
+
+The obvious reading is "a flaky test". The accurate one is sharper: **a test written specifically to
+guarantee that a known flake could never silently return was itself an instance of that flake.** The
+author correctly identified the mechanism, correctly documented it, correctly fixed the first test — and
+then applied the *same* fix to a test whose assertion needed a *different* one, because the two
+assertions fail for opposite reasons.
+
+**That is the same shape as the other three instrument defects found this session** (`reject_taxonomy`'s
+blind `diagnose()`, `science_watch`'s single-lane stage test, the C4 detector's marker count): **a
+predicate that was right for the case it was written against and silently wrong for the neighbouring
+case.** Four for four, all in the watching layer, all while the data stayed clean.
+
+---

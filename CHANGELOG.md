@@ -210,6 +210,42 @@ kind for a reader to forgive and the easier kind to fix.
 
 **Not fixed here — `paper/**` is the write-up lane's.** Announced per the coordination protocol.
 
+### ⑨ ★ THE C4-BOUNDARY DETECTOR, AND A SUITE THAT WAS NOT GREEN (§91, §92)
+
+**§91 — the C4 alert could have fired EARLY on the CORE line, and was BLIND to h3.** It counted
+`frozen*/<arm>-winner/` markers and fired at ≥5 — right for a leg (five arms), wrong for the core line,
+which runs **nine** (`PREREGISTRATION.md` §3). **It is already miscounting: `frozen/` holds
+`distributional-winner`, `scalar-winner` and `random_search-winner` — an H4 OPTIMISER arm.** So the core
+line is **2 of 5 confirmatory arms frozen, not the 3/5 the brief, the cursor and the status page all
+state**, `placebo` and `placebo_shuffled` are unfrozen too, and **the ~19-31 h estimate was computed
+against the wrong count — re-derive it.** That alert is the trigger for the deferred-fix relaunch, so
+firing it mid-search would invite exactly the relaunch §75.1 argues against, on the confirmatory line.
+The mirror defect: `frozen_h3_singleshot/` runs ONE arm and could never reach 5.
+**Fixed** (count LLM arms only; require all the LLM arms that line actually runs, read from its own
+`search*/`), with a four-scenario positive control in which the two "already correct" cases behave
+identically — so the alarm was not merely quietened. **And it immediately found a true positive:**
+`lines_at_c4_boundary = ['frozen_h3_singleshot', 'frozen_leg_qwen3_5_9b']` — **h3, a confirmatory node
+(N3), has reached its C4 boundary and had been there unannounced.**
+
+**§92 — `PYTEST_RC=1`.** The wrapper reported exit 0; the log said 1 (P4/P15/P26, a fourth time — and an
+earlier attempt returned **RC=4**, `--timeout` being unrecognised, meaning the suite had **not run at
+all** while the wrapper again said 0). The single failure was
+`test_a_HOST_fired_critical_must_not_swallow_the_warn_assertion` — **a test that exists, in its own
+words, to "pin the mechanism itself, so the flake above can never silently return", and which was
+vulnerable to that flake in the mirror direction.** Its sibling asserts "the WARN IS present" and is
+protected by zeroing the cooldown stamp; this one asserts "the WARN is ABSENT", and since the **WARN band
+(85 %) is a LOWER bar than the CRITICAL band (92 %)**, any host above 85 % puts a real
+`ram_pressure_warn` into the list before the test makes a call. The laptop was at **85.5 %** with the
+whole campaign plus pytest resident (75.8 % immediately after — transient, nothing to act on). **The
+monitor is correct; only the test's isolation was wrong.** Fixed by asserting over the anomalies the test
+itself produced, and **falsified**: with the cooldown deliberately defeated the WARN reappears and the
+assertion still fails, so the test is not vacuous. `tests/` is outside the drift pathspec; drift
+re-verified 0, freeze MATCHES.
+
+**FOUR instrument defects this session, all the same shape** — a predicate correct for the case it was
+written against and silently wrong for the neighbouring one — **all in the watching layer, all while the
+data stayed clean.** RUN 8's meta-lesson is holding at four for four.
+
 ## [2026-07-31u] RUN 9 (OPS LANE) — §84's CAUSE IS **REFUTED**: THIRTEEN PAID CANDIDATES WERE LOST TO A ONE-NAME GAP IN **OUR OWN** ALLOWLIST
 
 > **★ ANNOUNCEMENT TO THE WRITE-UP LANE (per `docs/LANE_COORDINATION_2026-07-31.md` §3 rule 3 —
