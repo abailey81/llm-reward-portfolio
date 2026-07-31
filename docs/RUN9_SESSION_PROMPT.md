@@ -654,7 +654,7 @@ in the **"Needs Tamer"** block of that page; there is no way to make his phone b
 | freeze | `3ca6f01a…` **MATCHES** · drift **0** · `RUNNING_SHA 50b6e07` |
 | `sci` | **OK** — 0 leaks / 0 cross-arm / 0 hash / 0 non-finite |
 | R115 | 13 breaches, **0 on the core line**, 1 binding (winner already frozen, clean) |
-| **C4** | **BEGUN on `frozen_leg_qwen3_5_9b` (5/5). CORE line 3/5, still searching.** |
+| **C4** | ⛔ **CORRECTED 2026-07-31 (RUN 9, record §91) — this row said "CORE line 3/5" and that was WRONG.** The core line is **2 of 5** confirmatory arms frozen: `frozen/` holds `distributional-winner`, `scalar-winner` and **`random_search-winner`, which is an H4 OPTIMISER arm, not a feedback arm**. The core line runs **nine** arms (`PREREGISTRATION.md` §3), so marker-counting overstates it. `scalar_cvar5`, `placebo` and `placebo_shuffled` are all unfrozen, and **the ~19-31 h estimate below was computed against the wrong count — re-derive it, do not carry it forward.** **TWO lines are at C4, not one:** `frozen_leg_qwen3_5_9b` (5/5) **and `frozen_h3_singleshot`** (1/1 — a confirmatory node, N3, which had reached its boundary unannounced because the detector required 5 arms and h3 runs one). |
 | core arms | dist **28** · scalar **27** · placebo **18** · scalar_cvar5 **12** · shuffled **16** |
 | cadence | 30 s configured, ~42 s realised, `sweep=` on every line |
 | stop | 26 days · submission 31 days |
@@ -840,17 +840,27 @@ estimating it.** Four of its findings are load-bearing and appear in no other do
   contradict each other on it, neither citing a source. The plan's posture is to **assume the
   harshest rule** (all four must independently reach the target). Do not "fix" that contradiction by
   picking a side; it is unresolved on purpose.
-* **★ §14.1 — THE NOVELTY SWEEP MISSED A NEIGHBOUR, and this one has a DEADLINE.** The plan reports
+* **§14.1 — RDA. ⚠ READ THE RETRACTION AT THE TOP OF §14.1 BEFORE ACTING ON ANY OF IT.** The plan
+  originally reported that the novelty sweep **MISSED** this neighbour and attached a ~20 Aug
+  deadline to fixing the sweep's scope. **THAT CLAIM IS FALSE AND WAS RETRACTED THE SAME DAY, and
+  RUN 8 verified the retraction first-hand rather than trusting it:** RDA is already in
+  `paper/refs.bib:877` as `@inproceedings{lee2026rda}` — with the **better venue, RLC 2026** —
+  and already cited at `paper/CH2_related_work.md:53`; LEARN-Opt likewise
+  (`refs.bib:2369`, `CH2:67`, with a full first-hand dossier note). **The 2026-07-30 sweep found
+  them and a prior session recorded them correctly. There is no missed sweep and no deadline.**
+  The real, much smaller finding is that neither is a **row in the T10 positioning matrix** — and
+  T10's own sourcing discipline says papers lacking a first-hand dossier entry are *"DELIBERATELY
+  OMITTED rather than filled in from memory"*, so their absence **may be deliberate, not an
+  oversight**. The action is to write the dossier entries and then add the rows. **The substantive
+  point about RDA still stands and still matters:** it reports
   **RDA ("Reward Design Agent", arXiv:2606.01672, June 2026)**: an LLM authoring executable reward
   code for **Soft Actor-Critic** — our own fixed algorithm — whose stated contribution is that
   Eureka-style loops rely on *"coarse numerical metrics"* and should be **enriched**. That is our
   argument's exact shape, along a semantic/visual axis instead of a distributional one. It does not
   close our cell (robotics, not risk-sensitive, not finance, no pre-registration) but it means **we
   can no longer claim novelty for "enriching the feedback channel" as an idea** — and we must narrow
-  that ourselves before a referee does. The **process defect** is that the 2026-07-30 sweep was
-  **finance-weighted**; the fix (§14.4 N-A4) is to sweep the reward-design lineage on arXiv **by
-  date**, and it is due **before the mandatory pre-submission sweep, ~20 Aug**. Three sibling actions
-  ride with it: **N-A1** reorder the contributions by DURABILITY not topical appeal; **N-A2** promote
+  that ourselves before a referee does. **That narrowing is the real deliverable, and it is
+  unaffected by the retraction above.** Three sibling actions ride with it: **N-A1** reorder the contributions by DURABILITY not topical appeal; **N-A2** promote
   the placebo-controlled identification design to a **named, numbered contribution** (the plan argues
   it is more novel than the topic, and *"no prior work in this lineage runs a placebo"* is a more
   checkable sentence than *"the cell is empty"*); **N-A3** add RDA/LEARN-Opt/RF-Agent/QRM to T10 with

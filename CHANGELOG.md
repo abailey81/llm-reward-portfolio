@@ -3,6 +3,213 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31v] RUN 9 (OPS LANE) — ALL EIGHT §14 AUDIT ITEMS WORKED TO A VERDICT; A LATENT RED FIXED BEFORE IT FIRED
+
+*(Section ① expands the mid-session announcement in `[2026-07-31u]` below, which was posted
+before acting per the lane-coordination rule; the rest is new.)*
+
+
+> **★ FOR THE WRITE-UP LANE** (`docs/LANE_COORDINATION_2026-07-31.md` — announce before fanning out).
+> **Four items here have write-up consequences and none of them is actionable by me:** the corrected
+> reject taxonomy and its CH4/CH7 obligations (§87.2.8, supersedes §84.5); the §75.3 equal-*k* table
+> correction (§89.4); **§90 — `PREREGISTRATION.md`'s header still says "PRE-FREEZE … awaiting
+> pilots", it is inside the freeze hash, and the remedy is a methods-section sentence, not an edit**;
+> and ⑧ below, **`paper/CH6_results.md:39` states the wrong arm count**.
+> `paper/**` and `V2_WRITE_TIME_REGISTRY.md` untouched by this lane, including your uncommitted
+> `FRONT_MATTER.md` / `refs.bib` buffer, which I deliberately did not commit under you.
+
+**Tamer's instruction creating this session:** *"don't tell the new session not to touch anything you
+did… tell it to audit your work too."* Brief §14 named eight items. **All eight are now worked to a
+verdict: four confirmed, one refuted, one confirmed-with-a-defect-found-and-fixed, one
+tool-correct-record-wrong, one stands-with-an-added-option.** Records **§87–§90**.
+Mid-session Tamer added: *"study absolutely all files very deeply… have absolutely 0 gaps in your
+knowledge"* — begun, and §90 is its first finding; **the remaining scope is named in the cursor.**
+
+**LIVE STATE, RE-MEASURED FIRST-HAND rather than carried from the brief:** 12/12 lines · **1,534
+records** counted by `find -mindepth 4 -maxdepth 4 -name record.json`, a route independent of
+`campaign_guards.py` and agreeing with it exactly · **$38.90** summed independently from 2,449 ledger
+entries · ~976 cores · freeze `3ca6f01a…` **MATCHES** · **drift 0** on both routes · `sci=OK` ·
+**`RUNNING_SHA 50b6e07` UNCHANGED** — no `src/ scripts/ config/ prompts/` edit, no relaunch, no freeze
+movement, hash-bound files untouched.
+
+### ① ★★★ §84 IS REFUTED — 13 PAID CANDIDATES WERE LOST TO A ONE-NAME GAP IN **OUR OWN** ALLOWLIST (§87.2)
+
+§84 reported the core line's twenty rejections as *"12 × `import numpy as _np`, 7 × `dir()`, 1 crash"*
+and concluded *"19 of 20 violate an UNSTATED rule."* **Both halves are wrong.** `ALLOWED_IMPORTS =
+{"numpy","np"}` (`src/reward/contract.py:39`) and the live gate **accepts** that import — probed
+directly. And `prompts/system.txt` (loaded at `src/llm/prompts.py:135`, freeze-bound at
+`scripts/freeze.py:139`) says verbatim *"numpy only (available as `np`); no imports beyond numpy"* —
+**§84 grepped one of the two live prompt files.**
+
+**The true first-firing check on all twelve is `check2-attribute-NOT-IN-ALLOWLIST: .resize`.** Every one
+is `pw = np.resize(pw, w.shape)` — the **pure, module-level** function returning a new array.
+`_ALLOWED_ATTRS` holds **338 names** including `reshape`, `ravel`, `flatten`, `tile`, `repeat`, `pad`,
+`concatenate`, `append` — **every sibling**. `resize` is in neither the allowlist nor the banlist: **an
+accidental gap, not a security decision.** Campaign-wide, re-deriving all 232 rejections:
+**157 (68 %) genuine code failures** (98 of them `qwen3_5_9b`, the deliberate bottom anchor — real
+capability signal), **62 (27 %) AST rejections that stand**, **13 (6 %) lost to our omission — 12 of
+them on the CORE CONFIRMATORY LINE.**
+
+**Why it was invisible:** `docs/ops/reject_taxonomy.py::diagnose()` flagged **any** `ast.Import` without
+consulting `ALLOWED_IMPORTS` and **never implemented gate check 2's `_ALLOWED_ATTRS` allowlist at all**
+— structurally incapable of naming the true cause. **Fixed**; it now mirrors `ast_gate` node-for-node,
+reports the FIRST firing check, measures the counterfactual, and **runs positive controls before
+printing any verdict**. The mirror agreed with the live gate on **all 232** sources, zero disagreements.
+
+**Identification is NOT broken** (arm-blind gate; §80's byte-identical base prompts). **But §83.3's
+*"not one is an infrastructure loss"* does not survive** and is corrected in place — §83's *conclusion*
+is unaffected. **And the direction is unfavourable to us:** core-line losses were distributional **1**
+against scalar 3, placebo 3, scalar_cvar5 3, shuffled 2, so projected pools 28/27/25/24/24 would have
+been **29/30/28/27/26** — **reversing the E[max] advantage on H2's primary leg** from the treatment to
+the comparator. Covered by the pre-registered equal-*k* analysis; **stated here rather than found by a
+referee.** **The live gate is NOT changed:** mid-search it would make generations 0-2 of an arm face a
+stricter gate than generations 3-5, and the deposited gate must be the gate that ran.
+
+### ② ★★★ A LATENT RED THAT WOULD HAVE FIRED ON THE FIRST C4 LEG RECORD (§88)
+
+`science_watch` decides "is the search alive?" from score spread, and must know whether it is reading a
+search or a test record. It asked `stage == "test"` — but `stage` is the **sub-root directory name** and
+the archive has **three** test lanes (`test/`, ten `test_leg_<model>/`, `test_h3_singleshot/`). **Only
+the first ever matched.** Every leg's C4 would have been scored on `val_fitness`, which for a frozen
+winner is a **constant** copied into all 30 seeds → spread 0.0 → `inert` → **permanent rc=2 on healthy
+data**. That is the same failure the in-file comment says it fixed; the fix repaired the one lane that
+already had records and missed the ten that did not. **C4 has begun on `frozen_leg_qwen3_5_9b` and
+`test_leg_qwen3_5_9b/` held 0 records** — it would have gone red on the first one.
+
+**Falsified, not reasoned.** Three synthetic units sharing one constant frozen `val_fitness`:
+**before**, a healthy leg unit and a genuinely-dead one both read `spread=+0.0000`, indistinguishable;
+**after**, the healthy unit reads `+0.8700` and the dead control still fires at `+0.0000` with its mean
+moving `0.3286 → 0.9000` — proof the scorer now reads the right field and that the fix did not simply
+disable the check. Live archive after the fix: `rc = 0`, verdict unchanged.
+
+**Two more defects in the same block.** The inert scan's `sorted(...)[:14]` capped the **ALARM**, not the
+display — **69 of 83 groups were never examined**, silently, twelve lines below the comment forbidding
+exactly that. And **§86's record-count reconciliation missed a third consumer**: `science_watch` printed
+a bare 1,560 against the cycle log's 1,532 under the same word. It now prints the measured composition
+every run — **1533 authority-equivalent + 27 frozen-winner markers + 1 known D18 duplicate = 1561**.
+
+**Two RUN 8 claims confirmed first-hand while in there:** D18 is exactly one pair, byte-identical
+(`803af2e3…` both), zero on the core line; and `.pull_tmp.28884` is a byte-identical duplicate
+(`180188cb…` both) of `random_search-c11`, staged 2026-07-30 00:42. **Left in place** — every tool
+excludes it by name and deleting inside a live campaign root buys nothing.
+
+### ③ THE FIVE CONFIRMATIONS (§87.1, §89.1-89.3)
+
+* **§75.1's deferral argument HOLDS.** `safe_call` verified at `src/env/portfolio_env.py:429` inside
+  `step()`; and §75.1 does **not** over-generalise — its stated test partitions the fourteen items
+  correctly, only item 7 (D17) touching reward arithmetic. **No fix is withheld for a bad reason.**
+* **§64's retraction of §60 CONFIRMED live, two routes.** Correct unit handling: **348 of 348** hosts
+  have ≥15 G free (suffix histogram `{T:340, G:8}`, matching §64 exactly). The unit-blind parse,
+  reproduced deliberately as the positive control: **10 of 348**, reproducing §60's "11". And **4 jobs
+  still request `tmpfs=15G` and ALL FOUR ARE RUNNING** while all **77 queued** are the "fixed" 1 G ones.
+* **The cadence CONFIRMED, measured not asserted:** realised gap over the last ~120 cycles **p50 = 42 s,
+  max 44 s**, exactly the claim. SSH arithmetic checks out (22 min before, 21 min after).
+* **§80's kernel argument CONFIRMED AND STRENGTHENED.** Diffing a `.149` `env.json` against a `.147` one:
+  **exactly ONE top-level key differs** (`platform`); CPU (**Xeon Gold 6240**, 36 cores), glibc, Python
+  3.11.15, torch/CUDA stack, threads and seed **all identical**. **But its second reason does not cover
+  the winners:** with 10 records in 1,534 (0.65 %) arm-correlation is neither detectable nor excludable,
+  and **one frozen winner carries the minority fingerprint** — `frozen_leg_haiku_4_5/scalar-winner`, a
+  report-only leg. Verdict unchanged; it now rests on the first reason, which is conclusive.
+* **⚠ AND A THIRD PLATFORM NOBODY HAD REPORTED — 18 env records say WINDOWS.** All 18 are
+  `<test lane>/<arm>/_env/env.json` **launcher sidecars**, exactly one per lane-arm (12 + 1 + 5 = 18).
+  **No training ran on Windows.** Recorded because any future audit globbing `**/env.json` would see it
+  and conclude a substrate mix — **D16's exact blind spot**.
+
+### ④ THE EQUAL-*k* TOOL IS CORRECT; §75.3's TABLE IS NOT (§89.4)
+
+All three audited predicates check out (registered-order truncation never by score; R115 at both widths;
+`k` = min accepted pool over the five LLM arms, baselines excluded, D18 deduped), and re-running
+reproduces §75.3's headline **exactly** (55 pools, 17 changed, 30.9 %, median 0.07703, max 0.29482).
+
+**The defect is the table.** §75.3 shows four of five core arms under *"two of its three IUT comparators
+do not move"* — and the missing arm is **`placebo`, an IUT comparator**, while the fourth row is
+**`placebo_shuffled`, the N5 structure control, which is not one**. The omitted arm is the one that
+**moves**: `placebo` **0.16658 → 0.10598**, a fall of **0.0606, larger than the treatment's 0.0570**.
+**Verified at k = 12** — the table's own width, via the new `--k` pin — as well as today's k = 15, so it
+is not a timing artefact. The treatment's numbers are **identical at both widths**, a real robustness
+point, recorded as such. Two tool changes: `_quarantined*` now excluded alongside `.pull_tmp` (a later
+quarantine would have silently re-entered a **pre-registered sensitivity**), and **`--k N`** pins the
+width because mid-search `min(pool size)` is a function of elapsed time — **k was 12 in the morning and
+15 in the evening of the same day**, so every reported equal-*k* number must name its k.
+
+### ⑤ RECORD 83 STANDS — WITH A STRONGER ARGUMENT, AND A THIRD OPTION FOR TAMER (§89.5)
+
+Re-examined **with a fact §83 did not have** (12 of the 20 core rejections were our own gap, which by
+§83.3's own criterion makes them repairable in principle). Four of its five reasons are untouched; the
+third is weakened. **And §83 never made the strongest argument: the search is an ITERATIVE reflection
+loop, so a rejected candidate cannot be retro-admitted — its acceptance would have changed the feedback
+that produced generation n+1 and every one after. Replacing a reject is not adding a draw; it is
+re-running the arm.**
+
+**★ A THIRD OPTION IS ESCALATED TO TAMER**, in the shape §83 used — concern stated, evidence shown,
+decision left with him: a post-hoc **REPORT-ONLY sensitivity** that scores the 13 candidates our own
+allowlist wrongly rejected and re-picks each affected arm's winner. **Adds no new draws** (still 30
+attempts per arm) and **does not touch the reflection trajectory**. Direction is **conservative for us**.
+~17 core-hours; **311 eight-slot job slots currently free**; **not before the confirmatory ladder has
+what it needs.** **Default if he does not decide: do nothing and disclose** — already safe.
+
+### ⑥ §90 — THE PRE-REGISTRATION'S OWN HEADER SAYS IT IS NOT FROZEN, AND IT IS INSIDE THE HASH
+
+`PREREGISTRATION.md:3` reads *"**Status:** 🟡 PRE-FREEZE (as of 2026-07-01) — design content RATIFIED;
+awaiting pilots."* The design was frozen as **v2.1 on 2026-07-28** and has been running since.
+`canonical_bytes()` hashes `norm(PREREGISTRATION.md)` **in full**, so **the stale header is inside the
+frozen bytes and cannot be corrected — DO NOT EDIT THIS FILE.**
+
+**Assessed strictly, it is smaller than it first looks, and checking that before writing it is the only
+reason it is not a second P41.** Four things mitigate: the document's **own amendment table** records the
+v2.1 re-freeze (`:1061`, R115); **`docs/prereg-v2.1.sha256` exists** (101 B, 2026-07-28 16:17); the hash
+is in `config/preregistration.yaml:5`, `docs/DECISION_LOG.md:87` and `docs/A12_DEPOSIT_PACKAGE.md`
+twice; and a document **structurally cannot contain its own hash** — `_strip_freeze_state` blanks those
+fields deliberately *"so the hash is INVARIANT to the freeze act"*. **So the defect is exactly one stale
+STATUS LINE contradicting its own amendment table 1,058 lines later** — a communication defect on the
+project's single biggest grade asset, not a scientific one. **Swept all nine hash-bound files: line 3 is
+the only stale status declaration**; every other "pre-freeze" hit is correctly-dated history and must not
+be "fixed". **Remedy is a write-up sentence, handed to the other lane.**
+
+### ⑦ OPS-ASSIGNED WORK COMPLETED, AND MY OWN ERRORS
+
+`docs/DEFERRED_FIXES_RUN4.md` **item 15** adds the write-up lane's four **fenced** tools on their behalf,
+as `LANE_COORDINATION §2` instructs (the `ASSEMBLY` edit → `scripts/build_paper.py:60`;
+`presentation_lint.py`; the `WHY_REGISTER` generator; the seed-trajectory function →
+`src/viz/figures.py`). **All four plan IDs verified first-hand at `GRADE_95_MASTER_PLAN.md:195/197/220/221`
+before queuing** (the P42 rule). They differ from items 1-14: they wait only on the **drift invariant**,
+carry **zero science risk**, and should land in the **same** change at the C4 re-base.
+
+**My own process errors — P43-P47** (grepped both the record and this file; **P42 was highest in use**).
+**P43** a 3,074-vs-1,528 record count from globbing `*.json` instead of `record.json`. **P44** a process
+census inflated by three orphaned `tail -f` handles from a dead session. **P45** a frozen-marker counter
+reading a flat 0 because those markers sit one directory level shallower. **P46** running
+`free_capacity.py` with no stdin and getting an alarming "0 hosts" — **it reads stdin, as its first
+docstring line says**. **P47, the instructive one:** a "winners on the minority kernel" check that
+globbed `env.json` under `frozen*/` and returned a clean **0** — **a check that could not fire**, since
+frozen directories hold `record.json`. Redone properly it found the **one** real case the vacuous version
+had "cleared". **Every one was caught before it reached Tamer**, four of the five by the same tell: **a
+clean zero means suspect the specification, not the subject.**
+
+### ⑧ ★ FOR THE WRITE-UP LANE — `CH6_results.md:39` STATES THE WRONG ARM COUNT (found in the deep read)
+
+> `- Arms run: **7** (distributional, scalar, placebo, scalar_cvar5, placebo_shuffled, random_search, bayes_opt);`
+
+**Nine arms are running. `cma_es` and `tpe` are missing**, and they are not incidental — they are **half of
+H4's confirmatory node N4 portfolio** (*"the pointwise MAXIMUM over {random_search, bayes_opt, cma_es,
+tpe}"*, `PREREGISTRATION.md` §3, whose section title is literally **"The nine arms"**). Confirmed by three
+independent routes: the live archive (`outputs/campaign_cluster_run4/search/` holds exactly **9** arm
+directories — `bayes_opt cma_es distributional placebo placebo_shuffled random_search scalar scalar_cvar5
+tpe`), the frozen pre-registration §3, and §1's H4 definition.
+
+**Why it matters more than a typo:** §6.1's stated job is *"establishes that the reported campaign is the
+frozen, pre-registered one and that it ran without material deviation, before any inferential result is
+shown."* **The execution ledger that certifies the roster misstates the roster.** A marker checking §6.1
+against the pre-registration finds the discrepancy in the one place designed to prevent exactly that.
+
+**And the document contradicts itself:** `CH7_discussion_limitations_conclusion.md`'s own H4 scorecard row
+names *"the pointwise maximum over the optimiser portfolio {random-search, GP-EI, CMA-ES, TPE}"* — **CH7 is
+correct and matches the pre-registration; CH6 is the stale one.** So this is an internal inconsistency
+between two chapters of the same PDF, not merely a drift from an external document — which is the harder
+kind for a reader to forgive and the easier kind to fix.
+
+**Not fixed here — `paper/**` is the write-up lane's.** Announced per the coordination protocol.
+
 ## [2026-07-31u] RUN 9 (OPS LANE) — §84's CAUSE IS **REFUTED**: THIRTEEN PAID CANDIDATES WERE LOST TO A ONE-NAME GAP IN **OUR OWN** ALLOWLIST
 
 > **★ ANNOUNCEMENT TO THE WRITE-UP LANE (per `docs/LANE_COORDINATION_2026-07-31.md` §3 rule 3 —
@@ -419,6 +626,76 @@ Six searches run to **break** the claim, two candidates fetched and read.
 - **`CLAUDE.md`** — the Okhrati D1–D6 block + the campaign-wide scope clause.
 - **`docs/V2_WRITE_TIME_REGISTRY.md`** — rows **38–41**.
 - Scratchpad probes (effect-blind, reproducible): `t0_floor.py` + `t0_floor.json`, `min_cvar_probe.py`.
+
+### ⑧b CONTINUATION — T-SERIES EXECUTED (paper/ only; fence never touched)
+
+**T-1 — THE THEORY DEFECT IS REAL AND WAS WORSE THAN REPORTED.** The playbook flagged §3.3's garbling
+identity as imprecise. **Verified against the code first: it is impossible.** `schema.py:78` makes the
+header a *validation*-split Deflated Sharpe; `:81` makes the tail vector *training*-period. So
+`s = g(\mathbf c)` requires a measurable map from six training-split statistics to a validation-split
+number — **`g` cannot exist.** Rewritten to the **nested** form `E_scalar = Π ∘ E_vec`,
+`Π:(s,c)↦s`, which the renderer makes true **by construction** (`scalar` returns `header`;
+`distributional` returns `[header, intro, six lines]`). **Three gains:** §3.4's disclosed caveat that the
+diagram *"commutes only approximately for the realised, split-mismatched implementation"* **dissolves** —
+`s` is in both observations, so no cross-split inference is demanded; the three information conditions
+become a **Blackwell-ordered chain** `E_scalar ⪯ E_cvar5 ⪯ E_vec`, i.e. a monotone *dose*; and the two
+placebos are now correctly placed **outside** the ordering (format-matched, content-scrambled, not
+garblings). The DSR caveat **survives, restated**: the header is common to both arms and cancels from the
+contrast, so it does not leak differentially — it shrinks the **marginal** information in `c` beyond `s`,
+still biasing against our hypothesis. Downstream Le Cam/DPI re-checked and **intact** (the previously
+fixed M3 direction untouched); §3.8 tightened.
+
+**T-2 — THE OPTIMAL-CONTROL BRIDGE, at the head of §3.1** so it survives the theory relocation as
+retained interpretation. Merton **verified first-hand before citing** (1969 *Rev. Econ. Stat.* 51(3)
+247–257; 1971 *J. Econ. Theory* 3(4) 373–413) and added to `refs.bib` with grade-A notes. The reframe:
+*in optimal control the cost functional is the designer's entire lever; everything downstream is
+optimisation* — so the open questions are **who writes it** and **what measurement of the closed loop
+that writer needs**. The feedback channel becomes **the sensor on a design loop**; "does tail feedback
+help?" becomes an **instrumentation** question. Merton/HJB is the first marker's home ground, delivered
+as intuition not machinery.
+
+**T-5 — CANCELLED; executing it would have been a REGRESSION.** The playbook's un-landed item 1 claims
+*"a grep of CH7 for Mayo/severe finds only 'severed'"*. **Stale.** CH7 §7.1 now carries a full severity
+paragraph citing `mayo2018severetesting` with the three-leg decomposition, at lines 47–56 — **immediately
+before** the *"corroborated prediction"* claim at :58. The claim **is** anchored; CH1's treatment is
+complementary (epistemic basis) not duplicative (CH7 has the operational decomposition). **Sixth instance
+of the pattern, and the first where checking prevented a regression rather than correcting a claim.
+Lesson sharpened: even a trusted owner document can be stale — the artefact, not the plan, is ground truth.**
+
+**THE OPS LANE'S TWO HANDOFFS, WRITTEN UP** (both word-excluded, so zero body cost):
+* **B.8.10** — s.87.2's allowlist gap. `_ALLOWED_ATTRS` omits `resize`; `np.resize` is the pure
+  module-level function and **every sibling reshaping op is allowlisted**, so it is an omission, not a
+  security decision. **13 candidates lost campaign-wide (5.6 %), 12 on the core line.** Core-line losses
+  `distributional` 1 · `scalar` 3 · `placebo` 3 · `scalar_cvar5` 3 · `placebo_shuffled` 2 → pools
+  28/27/25/24/24 where the repair would give **29/30/28/27/26**, **reversing the E[max] advantage on H2's
+  primary leg from the treatment to its comparator**. Gate deliberately **not** repaired mid-run (the
+  deposited gate must be the gate that ran).
+* **B.8.11** — s.90's stale status line, handed to this lane explicitly. Stated at its true size: a
+  status line contradicting its own amendment table 1,058 lines later, **not** a missing freeze;
+  uncorrectable because `canonical_bytes()` hashes the whole file; four independent records carry the
+  re-freeze; and **a document structurally cannot contain its own hash** — `_strip_freeze_state` blanks
+  the freeze fields deliberately so the hash is invariant to the act of freezing.
+
+**★ AND A GAP NEITHER LANE HAD CLOSED — B.8.9.** The §56 **control-arm starvation had NO limitations
+entry at all.** B.8.3 covers unreplaced *rejects*; nothing covered *scheduling*. Now written with the
+measured facts (120 of 124 stuck jobs were control arms; 3.11× worst confirmatory ratio; the
+half-applied R88→R101 amendment as root cause) **and its structural containment** (C4 cannot begin until
+every arm reaches 30; the C3 gate fails closed on `matched_budget_ok`).
+**★ The compounding statement, which is the point:** **three independent causes of pool asymmetry —
+unreplaced rejects, scheduling starvation, and the allowlist gap — ALL currently favour the treatment
+arm.** Unrelated mechanisms, shared direction; the equal-*k* sensitivity is now reported against their
+**combined** effect, not one at a time.
+
+**⚠ TWO DEFECTS I INTRODUCED AND CAUGHT BY VERIFYING MY OWN APPEND (P48):** the new entries collided at
+**B.8.7/B.8.8** (the register already ran to B.8.8), and my compounding cross-reference pointed at
+**B.8.4**, which is the *sealed-window* entry, not the scheduling one. Renumbered to B.8.9–B.8.11 and
+re-pointed at B.8.3. **Verified after: B.8.1–B.8.11 each appear exactly once and every internal
+cross-reference resolves.**
+
+**GATES, all green after the work:** `refs.bib` **279 entries / 0 duplicates / brace 0** ·
+`check_citations` **0 dangling, 0 verify-in-use** · **drift fence INTACT** (`git diff` and
+`git status --porcelain` over `src scripts config prompts` both empty) · body **20,831** (theory
++654 from T-1/T-2; APPENDIX_B additions cost nothing, being word-excluded).
 
 ### ⑧ OPEN AND CARRIED FORWARD
 

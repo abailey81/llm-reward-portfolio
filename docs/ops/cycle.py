@@ -299,15 +299,49 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     # not when it relaunches a driver. So `--pack 8` requires restarting the twelve SUPERVISORS, which
     # is the full teardown, not the gentle driver-only relaunch used for §46 and §54. Miss the window
     # and C4 runs at half the cores for its entire duration.
-    frozen_by_line: dict[str, int] = {}
+    #
+    # ⚠⚠ CORRECTED 2026-07-31 (RUN 9, record §91). THIS COULD FIRE EARLY ON THE **CORE** LINE.
+    # The old predicate counted EVERY `frozen*/<arm>-winner/` marker in a line and fired at >= 5. That
+    # is right for a LEG, which runs only the five LLM arms -- but the CORE line (`frozen/`) also runs
+    # the FOUR H4 optimiser arms (`random_search`, `bayes_opt`, `cma_es`, `tpe`; PREREGISTRATION.md §3,
+    # "The nine arms"), so `frozen/` accumulates up to NINE markers. It can therefore reach 5 with as
+    # few as ONE LLM arm frozen, and it is ALREADY contaminated: at the time of writing `frozen/` held
+    # `distributional-winner`, `random_search-winner`, `scalar-winner` -- reported as "3/5" everywhere,
+    # when the confirmatory count is **2 of 5**.
+    #
+    # WHY IT MATTERS: this alert is the TRIGGER for the deferred-fix relaunch decision -- the one action
+    # §12.1 describes as "the relaunch that protects a confirmatory quantity". Firing it while the core
+    # line's LLM arms are still searching would invite exactly the mid-search relaunch §75.1 argues
+    # against, on the only line whose numbers are confirmatory.
+    #
+    # AND THE OPPOSITE DEFECT, in the same predicate: `frozen_h3_singleshot/` runs ONE arm
+    # (`distributional`), so it can never reach 5 and **the h3 line's boundary was undetectable**.
+    #
+    # THE FIX: count only the five LLM arms' winners, and require ALL the LLM arms that line actually
+    # runs -- read from the line's own `search*` directory rather than assumed, so a roster change
+    # cannot silently re-open this.
+    _LLM_ARMS = ("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")
+    frozen_by_line: dict[str, int] = {}          # LLM-arm winners only (the confirmatory count)
+    all_markers_by_line: dict[str, int] = {}     # every marker, kept for the status line
     for marker in ROOT.glob("frozen*/*-winner/record.json"):
-        frozen_by_line[marker.parent.parent.name] = frozen_by_line.get(marker.parent.parent.name, 0) + 1
+        line = marker.parent.parent.name
+        all_markers_by_line[line] = all_markers_by_line.get(line, 0) + 1
+        if marker.parent.name[: -len("-winner")] in _LLM_ARMS:
+            frozen_by_line[line] = frozen_by_line.get(line, 0) + 1
     got["frozen_winners_by_line"] = frozen_by_line
-    ready = sorted(k for k, v in frozen_by_line.items() if v >= 5)
+    got["frozen_markers_by_line"] = all_markers_by_line
+    ready = []
+    for line, n_frozen in frozen_by_line.items():
+        # How many LLM arms does this line actually run? `frozen_leg_x` <-> `search_leg_x`.
+        search_dir = ROOT / ("search" + line[len("frozen"):])
+        expected = sum(1 for a in _LLM_ARMS if (search_dir / a).is_dir()) if search_dir.is_dir() else 5
+        if expected and n_frozen >= expected:
+            ready.append(line)
+    ready = sorted(ready)
     got["lines_at_c4_boundary"] = ready
     if ready:
         alerts.append(
-            f"★ C4 BOUNDARY REACHED on {', '.join(ready)} (5/5 arms frozen) -- the seed ladder has "
+            f"★ C4 BOUNDARY REACHED on {', '.join(ready)} (every LLM arm frozen) -- the seed ladder has "
             f"begun on that line. ✔ `--pack 8` IS ALREADY LIVE (§58, applied 2026-07-31 by a rolling "
             f"supervisor restart; VERIFIED 2026-07-31 19:35 UTC on all 24 driver command lines, and "
             f"visible in the C4 job names as 4 packs for 30 seeds, e.g. `..._test_p01..p04`). "
