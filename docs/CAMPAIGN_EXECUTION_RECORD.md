@@ -9451,3 +9451,106 @@ leg10 $3.75 …). Not a structurally-fixed metric.
 
 **Eight verified, one dead-and-registered, two areas untested and NAMED.** The untested ones are not
 assumed sound — that distinction is the entire lesson of this session.
+
+---
+
+## 80. ★★★ THE IDENTIFICATION PRINCIPLE VERIFIED END TO END — the claim the whole design rests on (2026-07-31)
+
+**Why this, and why now.** With the monitoring stack falsification-audited (74-79), the remaining
+question is the science itself. And the single load-bearing scientific claim of this experiment is the
+**IDENTIFICATION PRINCIPLE** (`CLAUDE.md`): *"ONLY the reward may vary across arms; any new
+STATE/REWARD input is creep that breaks identification."*
+
+Record 66 verified that the FED BLOCK differs correctly between arms — the manipulation is present.
+**Nothing had ever verified the other half: that everything ELSE is the same.** If it is not, H2
+measures a mixture of the manipulation and whatever else drifted, and no amount of statistical care
+downstream can separate them.
+
+Four things must hold across arms. All four were tested over **1,100 search-lane records** and
+**282 matched `(line, generation, candidate index)` cells**.
+
+### 80.1 SEED and FOLD — perfect
+
+```
+  matched cells with >= 2 arms                : 282
+  cells where SEED differs across arms        :   0   <- CRN pairing intact
+  cells where FOLD differs across arms        :   0   <- same train/val split
+  distinct seeds in the search lane           : [0]
+```
+
+**Zero violations.** Every paired contrast in the design rests on arms facing the same draws and the
+same split; both hold exactly.
+
+### 80.2 ENV FINGERPRINT — two variants, and the difference is a KERNEL PATCH LEVEL
+
+Two distinct `env_json_sha256` values exist campaign-wide. **Investigated rather than flagged**, by
+diffing the two `env.json` files: they differ in **exactly one top-level key**, and it is
+
+```
+  platform:  Linux-3.10.0-1160.147.1.el7...   vs   Linux-3.10.0-1160.149.1.el7...
+```
+
+— a **Linux kernel patch level**, i.e. which node the job landed on. Not a config difference, not a
+data difference, not a library difference.
+
+**This does not threaten identification, for two independent reasons:**
+
+1. **A kernel patch level does not change user-space floating-point arithmetic.** What does — the CPU
+   model, thread count, BLAS parallelism, library versions — is exactly what the determinism envelope
+   governs, and the CPU-model homogeneity is separately verified (67.5: 1,458 records on Xeon 6240,
+   the only exception being D15's known four).
+2. **IT IS NOT ARM-CORRELATED**, which is the property that would actually matter:
+
+   | arm | on kernel .147 | on .149 | share |
+   |---|---|---|---|
+   | distributional | 305 | 2 | 0.7 % |
+   | scalar | 279 | 5 | 1.8 % |
+   | scalar_cvar5 | 162 | 2 | 1.2 % |
+   | placebo | 187 | 0 | 0.0 % |
+   | placebo_shuffled | 157 | 1 | 0.6 % |
+
+   **Ten records of 1,100 (0.9 %) sit on the second kernel, spread roughly proportionally.** There is
+   no arm that systematically drew a different substrate.
+
+⚠ **ONE CONSEQUENCE WORTH RECORDING FOR THE ANALYSIS.** If any homogeneity audit compares
+`env_json_sha256` for **exact** equality, it will report these cells as heterogeneous — a **FALSE
+POSITIVE for a benign kernel patch**. The correct comparison is on the determinism-relevant fields
+(CPU model, thread count, library versions), not on the whole-file hash. Worth knowing before an audit
+raises it as an alarm.
+
+### 80.3 THE BASE PROMPT — 281 of 282 identical, and the one exception is already documented
+
+"The same exam for every student": the arms may differ ONLY in the feedback block appended at
+generation >= 1; the contract text and exploration directive that surround it must be identical.
+Comparing the NON-feedback portion, hashed, across arms within each matched cell:
+
+```
+  matched cells with >= 2 arms   : 282
+  cells where the BASE differs   :   1
+```
+
+The single exception is **`leg_qwen3_5_9b`, generation 3, candidate 2** — and it is the
+**base-prompt re-authoring already identified in 66.3**: with no accepted prior candidate to reflect
+on (that leg rejects ~85 % of what it writes), the loop re-authored from the 2,602-byte base prompt
+instead of a ~445-byte reflection prompt. **Different by construction, on a report-only leg, and
+already registered as an analysis-time obligation.** Not a new defect.
+
+⚠ **AND A FALSE ALARM OF MINE, caught.** My first pass grouped base-prompt hashes **per line** and
+reported "5 distinct bases on every line" — which looks like the arms being asked different questions.
+**It is the number of CANDIDATE INDICES, not arms:** the exploration directive is literally numbered
+`[Exploration directive 1/5 …]`, so the base legitimately differs by index. Comparing **matched
+(gen, idx) cells across arms** — the correct unit — gives 281/282. **The tell was that "5 distinct"
+equalled the candidate budget, not the arm count.**
+
+### 80.4 VERDICT
+
+**The identification principle holds.** Across arms: seeds identical, folds identical, base prompts
+identical (bar one documented case), and the only environmental variation is a kernel patch level that
+is FP-irrelevant, affects 0.9 % of records, and is not arm-correlated. **The arms differ in the
+feedback block and in nothing else that could plausibly move a result** — which is precisely what the
+design claims and what H2 requires.
+
+This closes the last unverified load-bearing scientific assumption. Combined: the manipulation is
+present and correct (66), the instrument that produces it is faithful to its inputs (72, Spearman
+1.0000), the arms are otherwise identical (this section), the search is genuinely 5-wide (71.2), and
+every archive invariant holds (69).
