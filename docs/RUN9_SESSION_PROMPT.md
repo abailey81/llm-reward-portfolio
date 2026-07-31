@@ -862,6 +862,39 @@ estimating it.** Four of its findings are load-bearing and appear in no other do
   any of it reaches the PDF, verify **arXiv:2606.01672 and every §12.8 citation form** first-hand
   against the real record — the `verifying-citations` skill exists for exactly this.
 
+## §12.5 ★ THE GRADE SESSION'S FINDINGS — none of these are anywhere else in this brief
+
+**A SEPARATE session ran on 2026-07-31 after the RUN 8 close** (`CHANGELOG [2026-07-31s]`, cursor
+rewritten 21:40 UTC). It was effect-blind and made no ops change. **Eleven of its substantive findings
+appear ZERO times in this brief** — they live only in that entry and in `docs/GRADE_95_MASTER_PLAN.md`.
+The five with consequences beyond the write-up are lifted here; read the entry for the rest.
+
+* **★ THE TWO SUPERVISOR FEEDBACK STREAMS ARE ONE PROGRAMME.** **Raad Khraishi is in Dr Okhrati's lab
+  and a co-author on both anchor papers**, and **Okhrati is Programme Director of the MSc**. Raad's
+  industry feedback is therefore **not an independent authority** — treating it as a separate stream to
+  be balanced against Okhrati's is a category error. This changes how authority #3 is weighed.
+* **★ HARTLEY ET AL. 2025's CAPABILITY FINDING CONTRADICTS OUR PRE-REGISTERED R87 PREDICTION** — and
+  R87 was registered **pre-data**, against the first marker's **own paper**. This is not a problem to be
+  hidden; registering a prediction that cuts against your examiner's published result and then reporting
+  it honestly is precisely the maturity Okhrati's grading function rewards. **But it must be handled
+  deliberately in the write-up, not discovered by him.**
+* **★ THE RUBRIC'S TOP BAND TURNS ON PRESENTATION.** Both of C4's top bands say *"excellent write up"*;
+  the 80–89 band never mentions data presentation; **the only thing 90–100 adds is "faultless
+  presentation of data"**. So a quarter of the mark is gated on a **checklist** — and it is our weakest
+  criterion. Separately, *"wider context"* appears **only** in C1's top band.
+* **⚠ THE ETHICS / DATA-PROTECTION FORMS ARE UNVERIFIED** and sit outside the writing plan. That is the
+  grade session's own stated NEXT action, and it is cheap. **Do not let it fall between sessions.**
+* **Two examiner objections are still unwritten:** **A-11 time-consistency** and **A-12 offline-RL
+  demarcation** — both from his exact expertise, both currently unanswered in the document.
+
+> ### ⚠ AND A PROCESS DEFECT THAT AFFECTS YOU DIRECTLY: **THE P-SERIES NUMBERS COLLIDE.**
+> The error ledger is a **shared namespace**, and the two 2026-07-31 sessions both allocated from
+> **P31** — RUN 8 used **P31–P41**, the grade session used **P31–P35** for entirely different errors.
+> **Before you log a P-number, grep BOTH `docs/CAMPAIGN_EXECUTION_RECORD.md` and `CHANGELOG.md` for the
+> highest one in use** rather than continuing from whichever document you happen to be reading.
+> Reconciling the existing collision is a real task and is **not** done — it is left explicit rather
+> than silently renumbered, because renumbering an error ledger breaks every inbound reference to it.
+
 **Also open:** the **A12 DOI deposit needs Tamer** (~10 min, staged in `docs/A12_DEPOSIT_PACKAGE.md`) ·
 the **R81 interim report pack** (~2026-08-06/08, registered in the pre-registration; Tamer said on
 2026-07-31 *"don't worry about the interim report"* — **confirm before spending effort on it**).
