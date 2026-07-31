@@ -8104,7 +8104,7 @@ bare `NaN`.
 **Scope, measured exactly:**
 
 ```
-  files affected : 360     tokens: 690, all `nan` (no Infinity anywhere)
+  files affected : 360     field-sites: 690     INDIVIDUAL TOKENS: 29,130   (all `nan`; no Infinity)
   fields         : metrics.train_curve.return[]  (360 files)
                    metrics.val_fitness           (330 files)
   lanes          : TEST 360   |   SEARCH 0   |   FROZEN 0
@@ -8817,3 +8817,163 @@ line list each time it changes; act when `frozen` (the core line) appears in it.
 **Evidence the delivery path is repaired end to end:** occurrences of `C4 BOUNDARY REACHED` in
 `docs/ops/watch/ALERTS.txt` went from **0** (the whole time the boundary had been live) to **2** within
 minutes of the §74.2 fix, written by the production loop rather than by a manual run.
+
+### 69.6 P37 — MY OWN 690-TOKEN FIGURE WAS AN UNDERCOUNT, caught by building the fix
+
+69.4 reported *"690 tokens"* of non-finite JSON. **The true count is 29,130.** Building the exporter
+(`docs/ops/json_rfc8259_export.py`) surfaced it: the exporter counts every individual token, and it
+reported **29,130 across the same 360 files**.
+
+**Root cause, and it is mine.** The original walker carried `return` inside its list branch with the
+comment *"one report per list is enough"* — a deliberate de-duplication that made the number a count of
+**FIELD-SITES**, not of **TOKENS**, while the surrounding prose called it "tokens". Both numbers are
+real and they measure different things: **690 field-sites**, **29,130 individual `NaN` values**. The
+arithmetic reconciles cleanly — 360 files x ~81 NaN entries in each `train_curve.return[]` array
+= ~29,160, less variation = 29,130.
+
+**Nothing downstream changes**: the file count (360), the affected fields (two), the lane
+(test-only, ZERO on `search/` and `frozen/`) and the verdict (a reproducibility defect, not a science
+one) are all unaffected. **Corrected in place** in 69.4, registry row 42 and CHANGELOG [2026-07-31l].
+
+**The lesson is the session's own recurring one, in a new costume:** *say what the denominator is
+before you name the number.* Here the unit itself was wrong — "tokens" for a quantity that was
+counting sites — which is the same class as P31 (`$NF` = task-id, not slots) and P33 (terabytes read as
+gigabytes). **Building the fix is what audited the finding**, which is an argument for implementing a
+registered obligation early rather than at write-up.
+
+---
+
+## 75. THE REGISTERED OBLIGATIONS BUILT AND RUN — AND A CORRECTION TO 44.4 (2026-07-31)
+
+Tamer: *"fix these issues, and absolutely all other issues … do not stop until absolutely everything is
+flawless."* The honest inventory (given to him verbatim) held eleven deferred defects, five open
+analysis obligations, and several unknowns. **This section does the part that can be done safely, and
+proves why the rest must not be done now.**
+
+### 75.1 ★ WHY THE DEFERRED FIXES CANNOT BE APPLIED MID-CAMPAIGN — established by evidence, not caution
+
+The instinct is to relaunch and apply all eleven. **That would introduce a defect strictly worse than
+the ones it fixes**, and the proof is one line:
+
+```
+  src/env/portfolio_env.py:429  ->  total, components, reward_state = safe_call(...)
+```
+
+`safe_call` (`src/sandbox/executor.py:779`) is **on the live training path, inside the environment's
+step function**. D17's fix changes what it returns on failure. Therefore:
+
+* records archived **before** a fix and **after** it would carry **different harness semantics**;
+* the same (reward, seed) pair would **replay to different numbers depending on when it ran**;
+* which **breaks "analysis = deterministic archive replay"** — layer 1 of the three-layer
+  reproducibility statement, Stefan's criterion #3 (*"THE critical point"*) and Tamer's #1.
+
+**A campaign whose harness changed mid-flight is not reproducible, and no defect on the deferred list
+costs as much as that.** D17 is therefore correctly disclosed as limitation B.8.7 and handled at
+ANALYSIS time (registry 43), not fixed. **The same test applies to every remaining item: if it changes
+what a training COMPUTES or which candidates EXIST, it waits.** D12/D13/D16 change control flow or the
+candidate set; D14/D18/D20/§39 do not, but each still costs a 24-driver relaunch, and **C4 has begun on
+only one line — a report-only leg — while the confirmatory core line is still in search at 3/5.**
+
+**The correct boundary is when the CORE line transitions**, because then its search records are
+homogeneous under one semantics and the relaunch protects a confirmatory quantity. **Recorded as the
+plan; nothing dropped.**
+
+### 75.2 WHAT WAS BUILT INSTEAD — five registered obligations, from prose to running code
+
+A registered analysis with no implementation is a promise, not a plan, and the risk it carries is
+discovering at write-up that the archive cannot support it. All are now verified against the live
+archive, in `docs/ops/` (outside the drift watch), ready for a mechanical port post-C4:
+
+| obligation | tool | status |
+|---|---|---|
+| **equal-k sensitivity** (26.3 / registry 37) | `equal_k_sensitivity.py` | **BUILT + RUN** — 75.3 |
+| RFC-8259 export (registry 42) | `json_rfc8259_export.py` | **BUILT + SELF-VALIDATING** — 75.4 |
+| D17 partition (registry 43) | `analysis_obligations.py` (B) | **BUILT + RUN** |
+| winner separation (registry 44) | `analysis_obligations.py` (C) | **BUILT + RUN** |
+| PopArt beside H1 (obligation 9) | `analysis_obligations.py` (D) | **BUILT + RUN — and it CORRECTED 44.4**, 75.5 |
+| per-arm counts (26.3, first half) | `analysis_obligations.py` (A) | **BUILT + RUN** |
+
+### 75.3 ★ THE EQUAL-k SENSITIVITY, RUN FOR THE FIRST TIME — 56's bias is real and measured
+
+Truncation follows the **REGISTERED (generation, index) order, never the score** (truncating on score
+would manufacture the selection it removes), and **R115 eligibility is applied at both widths**.
+
+```
+  pools evaluated                          : 55
+  pools whose WINNER CHANGES under equal-k : 17  (30.9 %)
+  fitness given up by matching the draws   : median 0.077   max 0.295
+```
+
+**Nearly a third of arm-winners are partly an artefact of having searched wider than the comparator.**
+On the **core line** (k = 12) the direction is exactly what 56 predicted:
+
+| core arm | full pool | equal-k | |
+|---|---|---|---|
+| **distributional** (treatment, n=28) | 0.22510 | **0.16813** | **falls 0.057** |
+| scalar (n=27) | 0.22968 | 0.22968 | unchanged |
+| scalar_cvar5 (n=12) | 0.22629 | 0.22629 | unchanged |
+| placebo_shuffled (n=12) | 0.26509 | 0.26509 | unchanged |
+
+The treatment holds 28 draws against comparators at 12, so E[max] favours it; **matching the draws
+removes that advantage and the treatment's winner drops while two of its three IUT comparators do not
+move.** 56 was right to flag it, and the remedy 26.3 registered PRE-DATA is exactly the right one.
+
+**Two limits, stated so this is not over-read.** It is **validation-side selection**, not the
+confirmatory IUT (which re-scores on SEALED data across the seed ladder). And **the C3 gate requires
+`accounted == 30` per arm and fails closed**, so at completion k = 30 everywhere and the imbalance
+vanishes — this analysis is **insurance for the truncation scenario**, which is precisely what it was
+registered as.
+
+### 75.4 THE RFC-8259 EXPORTER — and it audited its own finding
+
+`json_rfc8259_export.py` writes a compliant COPY (never in place: the archive is the primary record,
+it is a mirror `pull_archive` would revert, and this is not a science defect) and **re-parses every
+output with a strict parser, raising if any file still fails**. Exercised: **360 files exported and
+re-validated**.
+
+**It also corrected 69.4 — see 69.6 (P37).** 69.4 reported *"690 tokens"*; the exporter counts
+**29,130**. The original walker de-duplicated per list (*"one report per list is enough"*), making 690
+a count of **field-sites**, not tokens. Both are real, they measure different things, and the
+arithmetic reconciles (360 files x ~81 NaN per `train_curve.return[]`). **Corrected in place**
+everywhere. **Building the registered fix is what audited the finding** — an argument for implementing
+obligations early rather than at write-up.
+
+### 75.5 ★ CORRECTION TO 44.4 — the H1 PopArt split is NOT by functional form
+
+44.4 states the H1 canon *"splits perfectly by ratio-form vs difference-form"*. **Measured
+per-baseline, two of eleven contradict it:**
+
+```
+  baseline_differential_downside_ratio   RATIO       100% engaged
+  baseline_differential_sharpe           RATIO       100% engaged
+  baseline_volatility_scaled_return      RATIO         0% engaged   <-- contradicts
+  baseline_return_minus_drawdown         difference  100% engaged   <-- contradicts
+  the other seven difference-form                      0% engaged
+```
+
+**44.4's COUNT is right — 3 of 11 engage — but its EXPLANATION is wrong.** Verified from the formulas
+in `src/baselines/rewards.py`, since sigma = max(1.0, raw_rms) makes engagement a question of
+**MAGNITUDE**:
+
+* `volatility_scaled_return = port_ret * scale` → daily returns ~1e-3 times an O(1) vol ratio: the
+  magnitude **never approaches 1.0**, so a ratio-form reward stays **pinned**.
+* `return_minus_drawdown = port_ret - lam * drawdown` → `drawdown` is **CUMULATIVE** (running
+  peak-to-trough on log-wealth) and readily exceeds 1.0, so a difference-form reward **engages**.
+
+**Functional form is only a PROXY for magnitude, and it fails wherever a difference carries a
+cumulative term or a ratio has a small numerator.** The obligation is therefore strengthened:
+**report PopArt engagement PER BASELINE, not by form** — H1 compares the LLM winner against the best
+of these eleven, engagement differs across them, and a form-based grouping would mis-state the
+confound for 2 of 11. **The half of 44.4 that protects H2 stands**: across the five LLM arms
+engagement is symmetric at ~3 pp spread.
+
+### 75.6 What is now genuinely closed, and what is honestly not
+
+**CLOSED:** all five registered analysis obligations exist as verified, runnable code; the RFC-8259
+defect has a self-validating exporter; 44.4's explanation is corrected; 69.4's token count is
+corrected; the equal-k remedy is measured rather than hypothetical.
+
+**NOT CLOSED, and deliberately so:** the eleven deferred defects (75.1 — applying them now would break
+deterministic replay, which is a worse defect); **D9 remains unidentified**; the 560 → 744 core rise
+has an unproven surviving hypothesis; the A12 DOI deposit needs Tamer; CH6/CH7 are unwritten. **These
+are stated, not hidden.**

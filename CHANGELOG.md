@@ -3,6 +3,68 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31q] ★★★ THE REGISTERED OBLIGATIONS BUILT AND RUN — EQUAL-k MEASURED, AND 44.4 CORRECTED
+
+**State before:** RUN 4 live, T+70 h 50 m, 1,502 records, drift 0, `sci=OK`, C4 in flight on 1 line.
+Tamer, after being given the honest open-defect inventory: *"fix these issues, and absolutely all other
+issues … do not stop until absolutely everything is flawless."*
+
+**① ★ WHY THE ELEVEN DEFERRED FIXES CANNOT BE APPLIED NOW — established by evidence, not caution.**
+The instinct is to relaunch and apply them all. **That would introduce a defect strictly worse than the
+ones it fixes**, and the proof is one line: `src/env/portfolio_env.py:429` calls `safe_call` — so
+`safe_call` is **on the live training path, inside the environment's step function**. D17's fix changes
+what it returns on failure, therefore records before and after would carry **different harness
+semantics**, and the same (reward, seed) pair would **replay to different numbers depending on when it
+ran**. That **breaks "analysis = deterministic archive replay"** — layer 1 of the reproducibility
+statement, Stefan's criterion #3 and Tamer's #1. **No defect on the list costs as much as that.** The
+same test applies to each item: if it changes what a training COMPUTES or which candidates EXIST, it
+waits. **The correct boundary is when the CORE line transitions** (its search records then homogeneous,
+and the relaunch protects a confirmatory quantity) — C4 has begun on **one report-only leg** while the
+core line is still searching at 3/5.
+
+**② FIVE REGISTERED OBLIGATIONS WENT FROM PROSE TO RUNNING CODE**, verified against the live archive,
+in `docs/ops/` (outside the drift watch), ready for a mechanical port post-C4: equal-*k* (registry 37),
+RFC-8259 export (42), D17 partition (43), winner separation (44), PopArt-beside-H1 (obligation 9), and
+per-arm counts (26.3). **A registered analysis with no implementation is a promise, not a plan.**
+
+**③ ★ THE EQUAL-k SENSITIVITY RUN FOR THE FIRST TIME — §56's bias is real and measured.** Truncating on
+the **registered (generation, index) order, never the score**, with R115 eligibility applied at both
+widths: **17 of 55 pools (30.9 %) change their winner**; median fitness surrendered 0.077, max 0.295.
+On the **core line** (k = 12) the direction is exactly as predicted: **distributional falls 0.22510 →
+0.16813** while scalar (0.22968), scalar_cvar5 (0.22629) and placebo_shuffled (0.26509) **do not move**
+— the treatment holds 28 draws against comparators at 12, so E[max] favours it and matching the draws
+removes the advantage. **Two limits stated:** this is validation-side selection, not the confirmatory
+IUT; and the C3 gate requires `accounted == 30` per arm and **fails closed**, so at completion k = 30
+everywhere — this is **insurance for the truncation scenario**, exactly as registered.
+
+**④ THE RFC-8259 EXPORTER AUDITED ITS OWN FINDING (P37).** It writes a compliant COPY (never in place —
+the archive is the primary record, a mirror `pull_archive` would revert, and this is not a science
+defect) and **re-parses every output strictly, raising if any still fails**: 360 files exported and
+re-validated. It also showed **§69.4's "690 tokens" was an undercount — the true figure is 29,130.** My
+original walker de-duplicated per list, making 690 a count of **field-sites**, not tokens; the
+arithmetic reconciles (360 files × ~81 NaN per `train_curve.return[]`). **Corrected in place** in §69.4,
+registry 42 and CHANGELOG [2026-07-31l]. **Building the registered fix is what audited the finding.**
+
+**⑤ ★ CORRECTION TO §44.4 — the H1 PopArt split is NOT by functional form.** §44.4 states the canon
+*"splits perfectly by ratio-form vs difference-form"*. Measured per-baseline, **two of eleven
+contradict it**: `volatility_scaled_return` is RATIO-form but **0 % engaged**, and
+`return_minus_drawdown` is difference-form but **100 % engaged**. **The COUNT (3 of 11) is right; the
+EXPLANATION is wrong.** Verified from `src/baselines/rewards.py`: since `sigma = max(1.0, raw_rms)`,
+engagement is a question of **MAGNITUDE** — `port_ret * scale` is ~1e-3 and never reaches 1.0, while
+`port_ret - lam*drawdown` carries a **CUMULATIVE** term that readily exceeds it. **Form is only a proxy
+for magnitude and fails wherever a difference carries a cumulative term or a ratio has a small
+numerator.** Obligation strengthened: **report engagement PER BASELINE, not by form** — H1 compares the
+LLM winner against the best of these eleven. **The half of §44.4 that protects H2 stands** (LLM arms
+symmetric at ~3 pp).
+
+**⑥ Honest close.** CLOSED: five obligations as verified code, the RFC-8259 exporter, two corrections
+to the record. **NOT closed and deliberately so:** the eleven deferred defects (①), **D9 still
+unidentified**, the 560 → 744 core rise unproven, the A12 deposit needs Tamer, CH6/CH7 unwritten.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §75 + §69.6 · `docs/ops/equal_k_sensitivity.py`,
+`json_rfc8259_export.py`, `analysis_obligations.py` (all new) · registry row 42 corrected.
+**No `src/ scripts/ config/ prompts/` change; drift 0; no relaunch.**
+
 ## [2026-07-31p] ★★★ C4 HAS BEGUN — AND THE MONITOR CRASHED TRYING TO ANNOUNCE IT
 
 **State before:** RUN 4 live, T+70 h 20 m, ~1,498 records, drift 0, `sci=OK`. The 2-minute cycle had
@@ -253,7 +315,7 @@ applied a search-lane invariant to test-lane records.
 admits no `NaN`/`Infinity`). Python's `json.load` accepts it **by default**, which is why nothing in our
 pipeline ever complained — verified: `json.loads(..., parse_constant=raise)` **REJECTS** these files, as
 do Go `encoding/json`, Rust `serde_json`, JS `JSON.parse` and R `jsonlite`. Scope measured exactly:
-**360 files, 690 tokens, two fields only** (`metrics.train_curve.return[]` 360, `metrics.val_fitness`
+**360 files, 690 field-sites = 29,130 individual tokens, two fields only** (`metrics.train_curve.return[]` 360, `metrics.val_fitness`
 330), **all on the TEST lane — ZERO on `search/`, ZERO on `frozen/`**, so the confirmatory archive is
 already compliant. **Not a science defect** (both fields are inapplicable-or-diagnostic; no reported
 number is wrong) — **but a reproducibility defect**, and reproducibility is Stefan's criterion #3

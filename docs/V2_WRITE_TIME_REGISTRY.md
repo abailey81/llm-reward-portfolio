@@ -536,7 +536,7 @@ during the writing month; the pre-submission sweep verifies zero open rows.
     `json.loads(..., parse_constant=raise)`. Go's `encoding/json`, Rust `serde_json`, JavaScript
     `JSON.parse` and R `jsonlite` all refuse a bare `NaN`.
 
-    **Scope, measured exactly:** 690 tokens in **two fields only** —
+    **Scope, measured exactly:** **29,130 individual non-finite tokens** across **690 field-sites**, in **two fields only** —
     `metrics.train_curve.return[]` (360 files) and `metrics.val_fitness` (330 files, the 11
     baselines x 30 seeds where a *validation* fitness is simply inapplicable on the sealed-test
     lane). **All 360 are on the TEST lane; ZERO on `search/` and ZERO on `frozen/`, so the
