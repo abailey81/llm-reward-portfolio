@@ -5602,3 +5602,77 @@ chapter is built on.
 than per-ARM statement (so not the H2 contrast), the discipline is to compute it once, at analysis, on
 the complete archive. What is banked here is the code-side half, which is effect-blind and stands on
 its own.
+
+---
+
+## 52. THE TWO H2 CO-PRIMARIES ARE NOT EQUALLY POWERED — AND THE TAIL NODE IS THE BETTER INSTRUMENT
+
+Written 2026-07-31 01:30 UTC, on Tamer's instruction to dive extremely deep on both hypotheses. H2 is
+tested as two co-primary nodes in the graphical scheme:
+
+* **N1_h2_tail** — `distributional` beats the others on **CVaR-5 %**, IUT, one-sided, level 0.05
+* **N2_h2_ra** — `distributional` beats on **Sharpe**, or equivalence via TOST at ±0.05 DSR
+
+Both are paired contrasts across shared seeds, so the denominator is the **difference** sd,
+`sigma_D = sqrt(s1² + s2² − 2·rho·s1·s2)`. The pilot measured **rho = −0.14 on Sharpe** — negative,
+meaning common random numbers *inflated* the variance rather than reducing it, which is why the seed
+ladder had to climb to 568. **It had never been measured for the tail estimand.**
+
+Eleven hand-written rewards were trained on the **same thirty seeds**, so both quantities are directly
+measurable from banked data. Effect-blind: this is the correlation structure of the instrument, across
+seeds, within the comparator family — it compares no LLM arm and reads no LLM-arm outcome.
+
+### 52.1 The measurement (55 arm-pairs, 30 shared seeds each)
+
+| | **Sharpe (N2 / H2-RA)** | **CVaR-5 % (N1 / H2-Tail)** |
+|---|---|---|
+| rho, median across pairs | **−0.007** | **+0.076** |
+| rho, p25 … p75 | −0.148 … +0.117 | −0.073 … +0.236 |
+| sigma_seed | 0.2497 | 0.00174 |
+| sigma_D | 0.3551 | 0.00224 |
+| **sigma_D / (sigma·√2)** | **1.005** | **0.911** |
+| verdict | **CRN pairing buys NOTHING** | **CRN pairing helps ~9 %** |
+| noise relative to the estimand's own level | > 100 % | **6.1 %** |
+
+**Two independent facts favour the tail node.** Its estimand is an order of magnitude tighter relative
+to its own scale (6.1 % versus over 100 %), and it is the only one of the two where common random
+numbers actually deliver the variance reduction they exist for.
+
+### 52.2 Why — and the intuition is the point
+
+**CVaR-5 % is dominated by the MARKET's worst days, which the arms SHARE.** Common random numbers put
+every arm on the same market path, so the sessions that populate the left tail are largely the same
+sessions for every reward — hence positive correlation, hence pairing works.
+
+**Sharpe is dominated by the POLICY's own trajectory**, which the seed randomises independently of the
+market path. Two rewards on the same market can hold entirely different books, so their Sharpe ratios
+decorrelate — hence rho ≈ 0, hence pairing buys nothing and `sigma_D` takes the full √2 inflation.
+
+That is a methodological result in its own right, derived from our own data: **common-random-number
+pairing helps for tail functionals and not for ratio functionals in RL portfolio evaluation.** It also
+supplies the mechanism behind a design choice that until now rested on a pilot number — the seed ladder
+had to reach 568 *because* the RA node gets no pairing benefit.
+
+### 52.3 What it means for the two hypotheses
+
+1. **It corroborates, with live data, the registered position that the result is "bankable on the
+   tail".** That was a design assertion; it is now an instrument measurement.
+2. **The rung labels (279 = 80 %, 403 = 95 %, 568 = 99 %) were sized on the SHARPE variance.** Because
+   the tail node is better conditioned, it reaches its power targets EARLIER in the ladder than the RA
+   node does. **Operationally: if the calendar ever forced a stop at, say, rung 340, the tail
+   co-primary would still be well powered while the RA node might not be.** That is a risk-management
+   fact worth having before it is needed, not after.
+3. It sharpens what a null on N2 would MEAN. A non-significant RA node against `sigma_D = 0.355` is a
+   statement about a genuinely noisy estimand, not evidence of no effect — which is precisely why the
+   node carries a TOST equivalence arm rather than only a superiority test.
+
+### 52.4 Limits, stated
+
+* Measured on the **hand-written** comparator family, not the LLM arms. The LLM arms are more
+  heterogeneous, so their pairing structure could differ; this is indicative of the instrument, not a
+  guarantee for the confirmatory contrast.
+* Per-pair rho on n = 30 has SE ≈ 0.19, so individual values are noisy and the range is wide
+  (−0.42 … +0.51). **The median over 55 pairs is the statistic; no single pair should be quoted.**
+* My first pass at "seeds needed" used `sigma_seed` where the paired test needs `sigma_D`, and ignored
+  the Šidák/graphical multiplicity — it produced an answer roughly 4× too optimistic. Corrected here,
+  and recorded because the registered ladder is right and the back-of-envelope was not.
