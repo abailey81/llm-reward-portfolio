@@ -9216,3 +9216,75 @@ exactly ONE loop (pid 139265, ppid=1, detached).** The lesson is the same one th
 
 Stale "2-minute cycle" wording updated in `publish_status.sh` (both the heading and the lapse warning)
 and republished.
+
+---
+
+## 78. THE CADENCE QUESTION ANSWERED BY MEASUREMENT — AND THE REAL PROBLEM IS NOT THE INTERVAL (2026-07-31)
+
+Tamer, after being told 30 s is not cleanly achievable: *"so choose the best one then if 30 seconds is
+not the best."* Answered by measuring rather than preferring.
+
+### 78.1 What the cycle actually costs, and it was not what I assumed
+
+```
+  repo guards      5,610 ms   <-- 58 % of the sweep, the single biggest cost
+  results_audit    2,051 ms
+  science_watch    1,991 ms
+  arm_coverage        97 ms
+```
+
+**I had assumed the science layer dominated. It does not — the six repo guards do.** Measured before
+recommending anything.
+
+**And the response windows that actually bound usefulness:** watchdog **300 s**, supervisor driver
+relaunch **600 s**, and Tamer's instructions already polled every **60 s by an INDEPENDENT loop**
+(`remote_watch.sh`). **Nothing in this campaign auto-remediates faster than 300 s**, so a 42 s cadence
+already carries 7x margin and a 30 s one would carry 10x. **The difference is not observable.**
+
+### 78.2 The recommendation: KEEP 30 s, and do not add a split cadence
+
+Rejected: a two-speed loop (cheap checks fast, guards/science periodic). It would work, but the CPU it
+saves is not a cost that matters — **laptop CPU was 2 % across 16 logical cores** — and it would add a
+second code path to a monitoring stack that has failed **four distinct ways in this session alone**
+(P35, 74.2, 76.2, 76.3). **Complexity here has a measured track record of causing the exact blindness
+it would be added to prevent.**
+
+### 78.3 ★ THE REAL PROBLEM, which no choice of interval fixes
+
+Both heavy layers read **every** record, so the sweep is **LINEAR in archive size**: 9.7 s at 1,534
+records = **6.29 ms/record**. Projected forward:
+
+| archive | sweep | real cadence at INTERVAL=30 |
+|---|---|---|
+| 1,534 (now) | 9.7 s | ~40 s |
+| 6,000 (C4 on ~2 lines) | 37.8 s | ~68 s |
+| 18,000 (C4 on ~6 lines) | 113.3 s | ~143 s |
+| **39,760 (rung 568, registered)** | **250.2 s** | **~280 s** |
+
+**A monitor configured at "30 seconds" will silently be running a ~4.7-minute cadence at full scale,
+and every document, comment and status page would still call it 30 seconds.** That is this session's
+recurring defect in its purest form — **a number that quietly stops being true** — and it is the same
+shape as the always-zero timeout counter (76.2) and the alert that could not print (74.2).
+
+**THE FIX IS NOT TO SAMPLE THE ARCHIVE.** Reading every record every cycle is precisely the property
+that makes `sci=OK` mean anything (77). The fix is to make the degradation **impossible to miss**:
+
+* every cycle line now carries **`sweep=N.Ns`**, the true measured sweep time;
+* the loop passes its own `INTERVAL`, and the moment the sweep exceeds it the line is tagged
+  **`(SWEEP-BOUND: >Ns sleep)`** and an attention item states the REAL cadence in seconds.
+
+**Falsification-tested rather than assumed:** forcing `--interval 1` produced
+`sweep=8.5s(SWEEP-BOUND: >1s sleep)` and the alert *"the REAL cadence is ~9s, not 1s"*. On the normal
+path the token reads `sweep=7.9s` and nothing escalates.
+
+⚠ **A BUG IN MY OWN FIX, caught before shipping.** The first version appended to `attention` **after**
+`verdict` was computed. The exit code would have escalated (it is derived at the end) while the log
+line still read `OK` — **a log that disagrees with its own exit code**, which is worse than no warning.
+Found by checking the ordering in the source instead of assuming it, and moved above the verdict.
+
+### 78.4 Verdict
+
+**INTERVAL stays 30 (realised ~42 s), SSH_EVERY stays 30 (~20 min, protecting the shared login node).**
+The interval was never the lever. What changed is that the monitor now **reports its own cost**, so
+when the cadence degrades at C4 it will say so on every line rather than everyone continuing to call
+it thirty seconds.

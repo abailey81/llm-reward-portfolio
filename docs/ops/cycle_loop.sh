@@ -64,9 +64,9 @@ last_alert_ts=0    # epoch seconds of the last append, for the hourly heartbeat
 while true; do
     i=$((i + 1))
     if [ $((i % SSH_EVERY)) -eq 0 ]; then
-        out=$(python docs/ops/cycle.py --ssh --note "auto-cycle" 2>&1)
+        out=$(python docs/ops/cycle.py --ssh --interval "$INTERVAL" --note "auto-cycle" 2>&1)
     else
-        out=$(python docs/ops/cycle.py --note "auto-cycle" 2>&1)
+        out=$(python docs/ops/cycle.py --interval "$INTERVAL" --note "auto-cycle" 2>&1)
     fi
     rc=$?
 

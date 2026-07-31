@@ -369,7 +369,10 @@ def main() -> int:
     ap.add_argument("--note", default="", help="one line: what you are doing this cycle")
     ap.add_argument("--ssh", action="store_true", help="also read cores/jobs off Myriad")
     ap.add_argument("--quiet", action="store_true", help="print the verdict line only")
+    ap.add_argument("--interval", type=float, default=0.0,
+                    help="the loop's sleep interval, so the sweep can warn when it EXCEEDS it")
     args = ap.parse_args()
+    _t_sweep0 = time.monotonic()
 
     WATCH.mkdir(parents=True, exist_ok=True)
     prev = _prev_state()
@@ -604,6 +607,31 @@ def main() -> int:
     }
     STATE_PATH.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
+    # ── SWEEP DURATION: the cadence is only as fast as the SLOWER of sleep and sweep ──────────────
+    # ADDED 2026-07-31 (record 78). Both heavy layers read EVERY record, so the sweep is LINEAR in
+    # archive size: 9.7 s at 1,534 records = 6.29 ms/record. Projected at the registered rung-568
+    # ladder (~39,760 trainings) the sweep alone is ~250 s, so a loop configured at INTERVAL=30 would
+    # actually run a ~280 s cadence -- and would still be described everywhere as "30 seconds".
+    #
+    # That is this session's recurring defect in its purest form: a number that quietly stops being
+    # true. The cure is NOT to sample the archive (reading every record is what makes `sci=OK` mean
+    # anything, record 77) but to make the degradation impossible to miss: the true sweep time goes on
+    # every cycle line, and the moment it exceeds the configured sleep the line says so.
+    #
+    # ⚠ THIS MUST SIT BEFORE `verdict` IS COMPUTED. My first version appended to `attention` AFTER
+    # that line: the exit code escalated (it is derived at the end) but the verdict token on the LOG
+    # LINE still read OK -- a log that disagrees with its own exit code. Caught by checking the
+    # ordering rather than assuming it.
+    sweep_s = time.monotonic() - _t_sweep0
+    sweep_tok = f"  sweep={sweep_s:.1f}s"
+    if args.interval and sweep_s > args.interval:
+        sweep_tok += f"(SWEEP-BOUND: >{args.interval:.0f}s sleep)"
+        attention.append(
+            f"the sweep now takes {sweep_s:.1f}s, longer than the configured {args.interval:.0f}s "
+            f"sleep -- the REAL cadence is ~{sweep_s + args.interval:.0f}s, not {args.interval:.0f}s. "
+            f"Expected as the archive grows (linear, ~6.3 ms/record). Do NOT fix this by sampling the "
+            f"archive; either re-state the cadence honestly or make the sweep incremental. Record 78.")
+
     verdict = "RED" if alerts else ("ATTN" if attention else "OK")
     # `sci=` is the results layer in one token: OK when every hard invariant reads zero, otherwise the
     # broken ones by name. r115 is carried separately because it is expected to move and its VALUE is
@@ -617,6 +645,7 @@ def main() -> int:
                f"drift={len(drift)}  sci={sci}  r115={science.get('sw_r115_breaches')}"
                f"{'B' if science.get('sw_r115_binding') else ''}"
                + (f"  cores={cores}" if cores else "")
+               + sweep_tok
                + (f"  {args.note}" if args.note else ""))
     with LOG_PATH.open("a", encoding="utf-8") as fh:
         fh.write(summary + "\n")
