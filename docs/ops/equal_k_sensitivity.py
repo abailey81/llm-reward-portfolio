@@ -61,7 +61,12 @@ def load() -> dict[tuple[str, str], list[dict]]:
     seen: set[tuple[str, str, str]] = set()
     for path in glob.glob(os.path.join(ROOT, "search*", "**", "record.json"), recursive=True):
         norm = path.replace("\\", "/")
-        if "/.pull_tmp" in norm:
+        # Exclude BOTH the in-flight staging and the deliberately-set-aside past — the convention
+        # `scripts/sentinel.py:1348` established after three instruments tripped on it. Only
+        # `.pull_tmp` was excluded here; `_quarantined` was not (RUN 9 audit, §89). No such directory
+        # exists today, so nothing measured to date is affected — but a quarantine created later would
+        # have silently re-entered the pool of an analysis that feeds a pre-registered sensitivity.
+        if any(seg.startswith((".pull_tmp", "_quarantined")) for seg in norm.split("/")):
             continue
         try:
             rec = json.load(open(path, encoding="utf-8"))
@@ -102,9 +107,20 @@ def winner(cands: list[dict]) -> dict | None:
 
 
 def main() -> int:
+    # `--k N` pins the common width instead of taking it from the CURRENT pool sizes (RUN 9, §89).
+    # WHY IT EXISTS: mid-search, `min(pool sizes)` is a function of ELAPSED TIME, so this analysis is
+    # a moving snapshot — the core line's k was 12 on 2026-07-31 morning and 15 that evening. Every
+    # reported equal-k number must therefore name the k it was computed at, and any comparison across
+    # dates must PIN it. (Reassuringly, the core line's result is identical at k=12 and k=15:
+    # distributional 0.22510 -> 0.16813 both times.) At write-up the analysis runs at the completion k.
+    k_pin = None
+    if "--k" in sys.argv:
+        k_pin = int(sys.argv[sys.argv.index("--k") + 1])
+
     pools = load()
     lines = sorted({ln for ln, _ in pools})
-    print(f"lines: {len(lines)}   (line, arm) pools: {len(pools)}")
+    print(f"lines: {len(lines)}   (line, arm) pools: {len(pools)}"
+          + (f"   [k PINNED at {k_pin}]" if k_pin else "   [k = min pool size per line, MOVING]"))
     print()
 
     changed_total = full_total = 0
@@ -114,7 +130,7 @@ def main() -> int:
         present = {a: n for a, n in sizes.items() if n}
         if len(present) < 2:
             continue
-        k = min(present.values())
+        k = k_pin if k_pin is not None else min(present.values())
         for arm in ARMS:
             cands = pools.get((ln, arm), [])
             if not cands:

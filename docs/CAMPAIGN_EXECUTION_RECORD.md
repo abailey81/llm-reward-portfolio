@@ -8914,6 +8914,17 @@ On the **core line** (k = 12) the direction is exactly what 56 predicted:
 | scalar_cvar5 (n=12) | 0.22629 | 0.22629 | unchanged |
 | placebo_shuffled (n=12) | 0.26509 | 0.26509 | unchanged |
 
+> ⛔ **THIS TABLE IS INCOMPLETE — CORRECTED 2026-07-31 (RUN 9, §89.4).** It shows four of the five core
+> arms, and the missing one is **`placebo`, one of H2's three IUT comparators**, while the fourth row is
+> filled with `placebo_shuffled`, which is the **N5 structure control and not an IUT comparator**. The
+> omitted arm is the one that **moves**: `placebo` **0.16658 → 0.10598**, a fall of **0.0606** — larger
+> than the treatment's 0.0570, despite a smaller pool. Verified at **k = 12** (this table's own width,
+> pinned via the new `--k` flag) as well as at today's automatic k = 15, so it is not an artefact of
+> when the tool was run. The sentence above the table — *"two of its three IUT comparators do not
+> move"* — is literally true of `scalar` and `scalar_cvar5`, but the table as presented conveys "only
+> the treatment moves", which the data do not support. **The treatment's own numbers are identical at
+> both widths (0.22510 → 0.16813), which is a real robustness point in the analysis's favour.**
+
 The treatment holds 28 draws against comparators at 12, so E[max] favours it; **matching the draws
 removes that advantage and the treatment's winner drops while two of its three IUT comparators do not
 move.** 56 was right to flag it, and the remedy 26.3 registered PRE-DATA is exactly the right one.
@@ -10617,5 +10628,263 @@ instrument this section exists to make honest.
 relaunch. Freeze untouched. Drift re-verified 0 after the edit. `RUNNING_SHA 50b6e07` unchanged.** The
 live verdict is unchanged (`rc = 0`, `sci=OK`); what changed is that it will **stay** correct when the
 first leg C4 record lands, instead of going permanently red on healthy data.
+
+---
+
+---
+
+## 89. §14 ITEMS 1, 3, 5, 7, 8 — FOUR CONFIRMED, ONE REPORTING DEFECT, AND A WINDOWS PLATFORM NOBODY HAD NOTICED (2026-07-31, RUN 9)
+
+Continuing §87's audit register. **Every number below was re-measured; none is carried from the record
+being audited.**
+
+---
+
+### 89.1 §14 ITEM 1 — §64's RETRACTION OF §60 IS **CONFIRMED**, live, by two independent routes
+
+Re-derived on the live estate (`ssh myriad "qhost -F tmpfs"`, parsed with explicit suffix handling and
+with the historical bug deliberately reproduced side by side as the positive control):
+
+```
+  hosts reporting hc:tmpfs : 348      suffix histogram: {'T': 340, 'G': 8}
+
+  ROUTE 1  CORRECT unit handling
+    min 337.0 G   p50 1359.9 G   max 19000.3 G
+    hosts with >=  1 G free : 348 of 348  (100.0 %)
+    hosts with >= 15 G free : 348 of 348  (100.0 %)
+
+  ROUTE 3  the UNIT-BLIND parse (the historical bug)
+    hosts passing a unit-blind ">= 15" test : 10 of 348
+      -- §60 reported 11 of 348; §64 reproduced 10 of 348
+```
+
+**The suffix histogram `{T: 340, G: 8}` matches §64 exactly**, and the unit-blind numerator reproduces
+§60's "11" to within measurement drift. **ROUTE 2 also still holds a day later, with a smaller cohort:**
+of our live jobs, **4 still request `tmpfs=15G` and all 4 are RUNNING**, while all **77 queued** jobs
+are the "fixed" 1 G ones — the same inversion §64 reported, on fresh data.
+
+**VERDICT: §60 is false, §64 is right, "four self-inflicted throttles" is THREE.** Confirmed.
+
+⚠ **A trap for the next person, hit and recorded:** `docs/ops/free_capacity.py` **reads stdin**. Run
+without a pipe it prints `hosts reporting free SLOTS: 0`, which reads exactly like a catastrophic
+finding. Piped correctly it reports **2,963 free slots, 80 of 294 hosts with ≥8 free, 311 eight-slot
+jobs placeable right now, 14.8 TB free memory, 866 C4 jobs placeable on memory alone.** *Suspect your
+own invocation before your own cluster.*
+
+---
+
+### 89.2 §14 ITEM 7 — THE CADENCE CHANGE IS **CONFIRMED**, and the realised figure is measured not asserted
+
+`cycle_loop.sh` claims `INTERVAL=30` yields a **~42 s** realised cadence and that `SSH_EVERY=30` keeps
+the shared-login-node poll at ~20 minutes, "exactly where it was". Both checked:
+
+```
+  realised gap between logged cycles, last ~120 cycles : p50 = 42 s, max = 44 s
+  (whole log, 705 cycles: p50 = 131 s -- the pre-change INTERVAL=120 era, as expected)
+```
+
+**The claim is exact.** The ssh arithmetic also checks out: before, `10 × (120 + 12) = 22 min`; after,
+`30 × (30 + 12) = 21 min`. A `qstat`/`qhost` every ~21 minutes is not rude, and the quantity it reads
+(core count) moves on the hour — while the process and results checks, which are what catch a stall,
+now run 3× more often. **Neither rude nor under-sampled. Reasoning sound, no change needed.**
+
+---
+
+### 89.3 §14 ITEM 3 — §80's KERNEL ARGUMENT IS **CONFIRMED AND STRENGTHENED**, but its second reason does NOT cover the winners
+
+**The decisive check, done first-hand.** Diffing a `.149`-kernel `env.json` against a `.147` one
+directly (rather than trusting §80's statement of the same diff):
+
+```
+  keys only in A: set()      only in B: set()
+  TOP-LEVEL KEYS THAT DIFFER: 1 -> ['platform']
+      .149 = Linux-3.10.0-1160.149.1.el7.x86_64-x86_64-with-glibc2.36
+      .147 = Linux-3.10.0-1160.147.1.el7.x86_64-x86_64-with-glibc2.36
+
+  IDENTICAL across the two:
+      cpu    : Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz, 36 logical cores, x86_64
+      python : 3.11.15
+      torch/CUDA stack, seed, and every other top-level key
+```
+
+**Same CPU, same glibc, same Python, same torch stack, same thread configuration — the kernel patch
+NUMBER is the only difference in the entire environment record.** That is the strongest possible
+evidence for §80's reason (1): there is no mechanism by which this could move user-space floating-point
+arithmetic, because every component that *could* is byte-identical.
+
+**★ BUT §80's reason (2) does not cover what actually matters.** §80 argued the difference is safe
+partly because it "IS NOT ARM-CORRELATED", showing per-arm shares of 0.0-1.8 %. Two problems:
+
+1. **With 10 affected records out of 1,534 (0.65 %), arm-correlation is neither detectable nor
+   excludable** at any useful power. Stated as a positive finding ("it is not arm-correlated") it
+   overreaches; the honest form is *"the exposure is 0.65 % and no correlation is visible in it."*
+2. **The sharp question §80 never asked is whether a SELECTED object sits on the minority kernel** —
+   because a frozen winner is what propagates into C4 and therefore into a reported quantity. It does:
+
+```
+  frozen winners by env fingerprint (27 total):
+     26  19f99f63…  (dev=cpu)
+      1  fa7ff805…  (dev=cpu)   <-- frozen_leg_haiku_4_5/scalar-winner
+```
+
+**One frozen winner carries the minority fingerprint.** It is on `leg_haiku_4_5`, a **report-only leg
+(R80)**, not the confirmatory core line. **The verdict is unchanged** — but it now rests on reason (1)
+alone, which the diff above establishes conclusively, rather than on two independent reasons as §80
+presented it. **Recorded so the argument is load-bearing where it is actually strong.**
+
+#### 89.3.1 ⚠ AND A THIRD PLATFORM NOBODY HAD REPORTED — 18 env records say **WINDOWS**
+
+§80 states *"Two distinct `env_json_sha256` values exist campaign-wide."* True of the search-lane
+**record fingerprints** it measured. **Not true of the `env.json` files on disk**, where there are
+three platform strings:
+
+```
+  1524  Linux-3.10.0-1160.147.1.el7      (search/test candidate records)
+    10  Linux-3.10.0-1160.149.1.el7      (search/test candidate records)
+    18  Windows-10-10.0.26200-SP0        <-- the LAPTOP
+```
+
+**Located and explained, not alarmed at.** All 18 sit at `<test lane>/<arm>/_env/env.json` — a
+**sidecar directory, exactly one per (test lane, arm)**: 12 under `test/` (11 human-canon baselines +
+`random_search`), 1 under `test_h3_singleshot/`, 5 under `test_leg_qwen3_5_9b/`. **Denominator checks
+out at 12 + 1 + 5 = 18.** They are the **local launcher's** environment stamp, written by the Windows
+driver that submits the lane. **No training ran on Windows**: every candidate `record.json` carries a
+Linux fingerprint, and §67.5's CPU-model census (1,458 records on Xeon 6240) is unaffected.
+
+**Why it is recorded anyway:** any future audit that globs `**/env.json` and asks "what platforms does
+this campaign contain?" will find Windows and either raise a false alarm or, worse, conclude a
+substrate mix — which is **D16**'s exact blind spot. The distinction between a *record* fingerprint and
+an on-disk *env file* is now written down.
+
+---
+
+### 89.4 §14 ITEM 5 — `equal_k_sensitivity.py` IS **CORRECT** ON ALL THREE AUDITED PREDICATES; §75.3's TABLE IS NOT
+
+**The tool, checked line by line and re-run:**
+
+| audited predicate | verdict | evidence |
+|---|---|---|
+| truncation follows the REGISTERED order, never the score | **CORRECT** | `pools[key].sort(key=lambda c: c["order"])` with `order = (gen, idx)` parsed from `candidate_id`; the score is never a sort key |
+| R115 eligibility applied at BOTH widths | **CORRECT** | `winner()` filters `c["eligible"]` (`frac < 0.10`) and is called on `cands` **and** `cands[:k]` |
+| the `k` it picks per line | **CORRECT, but MOVING** | `k = min` over the five LLM arms' **accepted** pool sizes; baselines correctly excluded (`ARMS` is the 5 LLM arms); D18 deduped by `(line, arm, cid)` |
+
+Re-run reproduces §75.3's headline **exactly**: `55 pools evaluated, 17 change winner (30.9 %), median
+drop 0.07703, max 0.29482`.
+
+**★ THE DEFECT IS IN §75.3's TABLE, NOT THE TOOL.** §75.3 presents a four-row core-line table —
+`distributional`, `scalar`, `scalar_cvar5`, `placebo_shuffled` — beneath the sentence *"the treatment's
+winner drops while **two of its three IUT comparators** do not move."* **H2's three IUT comparators are
+`scalar`, `placebo` and `scalar_cvar5`.** The table shows two of them, and fills the fourth row with
+**`placebo_shuffled`, which is the N5 structure control and not an IUT comparator at all**. The
+comparator that is missing is the one that **moves**:
+
+```
+  core line          full pool            equal-k              verdict
+  distributional     0.22510 (g5-c1)  ->  0.16813 (g1-c0)      CHANGED  (falls 0.0570)
+  scalar             0.22968 (g2-c0)  ->  0.22968              same
+  scalar_cvar5       0.22629 (g2-c4)  ->  0.22629              same
+  placebo            0.16658 (g3-c3)  ->  0.10598 (g2-c0)      CHANGED  (falls 0.0606)   <-- OMITTED
+  placebo_shuffled   0.26509 (g2-c3)  ->  0.26509              same
+```
+
+**`placebo` falls MORE than the treatment does** (0.0606 against 0.0570) despite having a *smaller*
+pool (18 vs 28) — which is noise in a max statistic, not a contradiction of §56, but it is not the
+clean "only the treatment moves" picture the table conveys.
+
+**Verified at §75.3's own width, not merely at today's.** Today's automatic `k` is **15**
+(`scalar_cvar5` has grown 12 → 15); §75.3 reported k = 12. Pinning k = 12 reproduces the identical
+result — **`placebo` changed at k = 12 as well**, so the omission was not an artefact of when it was
+run. Reassuringly, the treatment's number is **identical at both widths** (0.22510 → 0.16813), which is
+a genuine robustness point in the analysis's favour and is recorded as such.
+
+**Also worth stating plainly:** the ordering is *not* reversed by equal-*k* on the core line. Under
+both the full pool and equal-*k*, the treatment sits **below** `scalar` and `scalar_cvar5` and **above**
+`placebo`, and the `distributional − placebo` gap widens slightly (0.0585 → 0.0622). These are
+**validation-side selection statistics, not the confirmatory contrast** — the IUT re-scores on sealed
+data across the seed ladder — and nothing here is read as an H2 result.
+
+**Two tool changes made (both in `docs/ops/`, outside the drift fence):**
+
+1. **`_quarantined*` is now excluded alongside `.pull_tmp`.** Only the latter was, which is
+   inconsistent with the convention `scripts/sentinel.py:1348` established. No such directory exists
+   today, so no measurement to date is affected — but a quarantine created later would have silently
+   re-entered the pool of a **pre-registered sensitivity analysis**.
+2. **`--k N` pins the common width.** Mid-search, `min(pool size)` is a function of ELAPSED TIME, so
+   this analysis is a **moving snapshot** — the core line's k was 12 in the morning and 15 in the
+   evening of the same day. **Every reported equal-*k* number must therefore name the k it was computed
+   at, and any comparison across dates must pin it.** Default behaviour is unchanged and still prints
+   `[k = min pool size per line, MOVING]` so the caveat is visible on every run.
+
+---
+
+### 89.5 §14 ITEM 8 — RECORD 83's RECOMMENDATION **STANDS**, but its option space was incomplete
+
+§83.5 recommends **not** replacing rejected candidates. Re-examined with fresh eyes **and with a fact
+§83 did not have** — that 12 of the core line's 20 rejections were our own allowlist gap (§87.2), which
+by §83.3's *own* criterion (*"if OUR infrastructure had killed it… that would be a REPAIR"*) makes them
+repairable in principle.
+
+**Four of §83.4's five reasons are untouched by that:**
+
+| § | reason | status |
+|---|---|---|
+| 1 | replacing rejects switches matching from **attempts** to **acceptances**, rewarding the arm that failed most with a better E[max] | **INTACT** — independent of whose fault the rejection was |
+| 2 | it is a **post-data change to a pre-registered rule** (26.3, registered before any data), trivially visible to a referee because it is dated after the observation | **INTACT** — a repair applied after observing the imbalance is still dated after it |
+| 3 | it erases the differential-failure-rate **signal** | **WEAKENED** — §87 shows a large part of that "signal" is `np.resize` idiom choice, not feedback quality. It is still data, but it is now data with a measured decomposition, which is better than the undecomposed version §83 was defending |
+| 4 | the pre-registered remedy (equal-*k*) exists and is built | **INTACT and now verified** at two widths (89.4) |
+| 5 | the pre-registered null is the project's biggest grade asset | **INTACT** |
+
+**And a fifth argument, stronger than any of them, that §83 did not make:** the search is an **iterative
+reflection loop**. A rejected candidate cannot be retro-admitted, because its acceptance would have
+changed the feedback block that produced generation *n+1*, and every generation after it. **Replacing a
+reject is not "adding a draw" — it is re-running the arm.** That alone is decisive for the primary rule.
+
+**VERDICT: do not replace rejected candidates. §83.5 stands, unchanged.**
+
+#### 89.5.1 ★ BUT THERE IS A THIRD OPTION §83 NEVER CONSIDERED — FOR TAMER TO DECIDE
+
+Between "change the rule" (forbidden) and "do nothing" sits a **report-only sensitivity**: after the
+confirmatory analysis is complete, **score the 13 candidates our own allowlist wrongly rejected** and
+re-pick each affected arm's winner, reported purely as a robustness exhibit.
+
+**Why it is not the thing §83.4.1 forbids:** it adds **no new draws** — every arm still spent exactly 30
+attempts — and it does **not** touch the reflection trajectory, because the candidates are scored
+offline and never fed back. It changes nothing primary; it *measures* what our defect cost.
+
+| | |
+|---|---|
+| **for** | turns "13 candidates were lost to our own allowlist gap" from a **stated limitation** into a **measured quantity** — exactly the publication-grade-no-hedges move. Its direction is **conservative for us**: the losses fell 1 on the treatment against 3/3/3/2 on the comparators, so recovering them can only *reduce* the treatment's E[max] advantage on H2's primary leg |
+| **against** | it is post-data; it needs ~12 trainings (~85 min each) which compete with C4; and it requires running a **modified gate**, which must be a separate offline script that never touches the live drivers |
+| **cost** | ~17 core-hours; the cluster currently has **311 eight-slot job slots free**, so it is affordable — but not before the confirmatory ladder has what it needs |
+| **when** | **after** the core line's C4 boundary at the earliest; never during search |
+
+**This is Tamer's call, in the same shape as §83: the concern stated, the evidence shown, the decision
+left with him.** The default if he does not decide is **do nothing and disclose**, which is already
+safe.
+
+---
+
+### 89.6 MY OWN ERRORS IN THIS SECTION — **P46, P47**
+
+| id | error | how it was caught |
+|---|---|---|
+| **P46** | ran `docs/ops/free_capacity.py` with no stdin and got `hosts reporting free SLOTS: 0` | it **reads stdin**. A zero that alarming should never be reported before reading the script that produced it — which is what I did, and the answer was in the module docstring's first line |
+| **P47** | wrote a "frozen winners on the minority kernel" check that globbed `env.json` under `frozen*/` and returned **0** — **a check that could not fire**, because frozen winner directories contain `record.json`, not `env.json` | tell ③ again: a brand-new check reading a clean zero. Redone against the winners' `env_fingerprint` field, and it then found the **one** real case (`frozen_leg_haiku_4_5/scalar-winner`) that the vacuous version had "cleared" |
+
+**P47 is the more instructive.** Had I trusted it, I would have written "no winner is affected" into the
+record — **a false reassurance produced by an instrument that was structurally incapable of finding
+anything**, which is precisely the failure mode this entire audit exists to hunt.
+
+---
+
+### 89.7 STATE AFTER §89
+
+`docs/ops/` only (`equal_k_sensitivity.py`). **No `src/ scripts/ config/ prompts/` edit. No relaunch.
+Freeze `3ca6f01a…` MATCHES. Drift 0. `RUNNING_SHA 50b6e07` unchanged.** `paper/**` untouched — that lane
+belongs to the concurrent write-up session per `docs/LANE_COORDINATION_2026-07-31.md`.
+
+**§14 audit status: items 1, 2, 3, 4, 5, 6, 7, 8 — ALL EIGHT WORKED TO A VERDICT.** Four confirmed
+(1, 3, 7, plus 2), one refuted (4), one confirmed-with-a-defect-found-and-fixed (6), one
+tool-correct-record-wrong (5), one stands-with-an-added-option (8).
 
 ---
