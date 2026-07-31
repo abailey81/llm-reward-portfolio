@@ -8111,3 +8111,134 @@ and `pull_archive` re-mirrors the remote copy anyway. Validator kept at
 §66 did construct validity, §69 does the remaining seven, and both added a check the monitor lacked
 (§66 the base-re-authoring count, §69 CVaR monotonicity). That is the standard this project holds every
 other load-bearing claim to, now applied to the monitor itself.
+
+---
+
+## §70. ★★★ "ARE WE USING THE MAXIMUM MYRIAD CAN OFFER?" — MEASURED END TO END, AND THE ANSWER IS EVIDENCED (2026-07-31)
+
+**Tamer's founding instruction** — *"use the absolute maximum myriad can offer us to speed up the
+training to an absolute maximum"* — is a standing priority, and the brief flags that *"we are at the
+maximum" has been asserted falsely twice*. So this answers it by MEASUREMENT, at every layer, with the
+sanity bounds stated before any number is believed.
+
+### §70.1 The instrument, and why the obvious command is the wrong one
+
+`qstat -f` lists each host under ~35 named queue instances, so filtering on `node-d` multi-counts —
+that is how "431,382 free slots" appeared on a ~21,600-core cluster **twice** (P30, then P32 when I
+repeated it). The correct source is the **host consumable** (`qhost -F <resource>`), one line per host,
+which is the quantity the scheduler actually decrements. Units are parsed explicitly, because a bare
+`$1+0` reads `1.293T` as `1.293` — the exact bug behind §60's false claim (P33).
+
+**Bounds fixed in advance:** pool d = 294 hosts × 36 slots = **10,584 slots**, × ~160 G = **~47 TB**.
+Any total above those is an instrument error, not a discovery.
+
+### §70.2 SEARCH IS NOT CAPACITY-BOUND — 303 placeable against 103 queued
+
+Joint placeability (a job needs **every** constraint satisfied on the **same** host simultaneously:
+8 slots **and** 8 G memory **and** 1 G tmpfs, pool d, minus the D15 fence):
+
+```
+  hosts that could take one of our jobs right now : 86 of 294
+  OUR JOBS PLACEABLE RIGHT NOW                    : 303
+  our jobs actually queued                        : 103
+  first binding constraint on the other 206 hosts : slots 206 | memory 0 | tmpfs 0 | fenced 2
+```
+
+**Capacity for 303 exists; we have 103 waiting. We are not capacity-blocked — we have nothing more to
+submit.** That is the *correct* state during a serial six-generation reflection chain (§43): an arm
+cannot author generation *g+1* until all of *g* returns, so the ceiling is 12 lines × 5 arms × 5
+candidates = 300 jobs and the measured generation drain holds ~2.61 in flight against a design peak
+of 5.
+
+**Two corroborations fall out of the same measurement.** **Memory blocks ZERO hosts** — §38's fix is
+doing exactly what it was built for. **tmpfs blocks ZERO hosts** — §64's retraction confirmed a third
+independent way. The only thing limiting the other 206 hosts is other users holding slots, which is
+ordinary competition, not a defect of ours.
+
+### §70.3 C4 — where cores actually matter — has 1.6× MORE capacity than the model can use
+
+```
+  free pool-d slots now      : 3,365 of 10,584
+  free pool-d memory now     : 15.1 TB
+  C4 job footprint           : pack 8, cores 8, mem 2 G/slot = 16 GB/job   (OMP=1 pack-mates)
+  C4 jobs placeable ON MEMORY: 897              -> ~7,176 cores
+  user job cap               : 1,000
+  makespan-model SATURATION  : ~4,584 cores     -> beyond this, more cores buy NOTHING
+```
+
+**Measured C4 capacity (~7,176 cores) exceeds the saturation point (~4,584) by 1.6×.** Capacity is not
+the C4 constraint either.
+
+### §70.4 THE EMPIRICAL ANCHOR — 1,664 cores sustained for 14 hours, *with both throttles still on*
+
+The strongest evidence is not a projection, it is something we already did. Over 682 published
+readings the core series is `min 304 · p10 432 · p50 608 · max 1,664`, and:
+
+> **we held ≥1,000 cores for 164 consecutive readings — about 14 hours — from T+23h15m to T+37h49m,
+> peaking at 1,664.**
+
+That window is the **test-baseline flood** (11 baselines × 30 seeds + random_search), which is a
+**C4-shaped workload**: many independent jobs submitted at once. It is the best available predictor of
+C4 behaviour, and it was achieved **while both throttles were still active** — verified against commit
+timestamps rather than assumed:
+
+| | |
+|---|---|
+| peak window | 2026-07-29 20:23 → 2026-07-30 10:57 UTC |
+| memory fix `c99716e` (§38/§46) | committed **2026-07-30 17:22** — *after* the window closed |
+| priority fix (§54) | 2026-07-31 — *after* the window closed |
+
+**So 1,664 cores was reached while paying a 19.5× memory over-request AND sitting at `-p -100`, below
+every other user on the cluster.** Both are now gone: the per-job footprint has **halved** (32 GB → 16 GB
+at pack 8) and our pending `prior` is **1.9165 against the field's 1.7930**. Both changes push the same
+way, so C4 should comfortably exceed 1,664 — the question is only by how much.
+
+### §70.5 THE DEADLINE, stated as a band and not as an optimistic point
+
+Rung 568 (the terminal registered rung) against the **2026-08-27** exogenous stop:
+
+| cores held during the ladder | rung-568 makespan | ETA | margin |
+|---|---|---|---|
+| 480 (observed p10-ish) | 31.3 d | **08-29** | **misses** |
+| 600 (observed p50) | 25.0 d | 08-22 | 5 d |
+| 744 (held now) | 20.2 d | 08-18 | 9 d |
+| ≥4,584 (saturation) | 3.3 d | 08-01 | floor |
+
+**⚠ Two things must be said together or the table misleads.**
+
+1. **Those core figures are SEARCH-phase numbers, and search is job-starved by design.** We hold 744
+   because only ~196 jobs exist, not because Myriad will give us no more — §70.2 shows capacity for 303
+   *more* right now and §70.4 shows we have held 1,664. **Quoting today's core count into a C4 makespan
+   model is therefore CONSERVATIVE**, and the 08-18 figure is a floor rather than a forecast.
+2. **The ladder is TIERED and the stop is EXOGENOUS, so "missing" is not a failure mode.** Rungs
+   30 → 189 → 279 → 340 → 403 → 568 are each a valid pre-registered stopping point; the design banks
+   whichever rung is reached. The risk is *"we report at rung 403 instead of 568"*, never *"the campaign
+   fails"*. **The critical-chain floor of 3.27 d is serial and immune to any number of cores.**
+
+### §70.6 THE VERDICT, and what is left
+
+**There is no legitimate speed lever remaining, and this is now measured rather than asserted.**
+Working through every candidate:
+
+| lever | status |
+|---|---|
+| more cores during SEARCH | **impossible** — 303 placeable vs 103 queued; we have nothing more to submit (§70.2) |
+| more cores at C4 | **already 1.6× past saturation** (§70.3); empirically anchored by 1,664 held with both throttles on (§70.4) |
+| memory sizing | **fixed** (§38) — blocks 0 hosts today |
+| `tmpfs` | **never was a constraint** (§64, retracted) |
+| `snx`, `h_rt` | **audited clean** (§63.3) — `h_rt` is not even a consumable |
+| priority | **fixed** (§54/§57) — we sit above the field mean |
+| pack | **8 at C4** (§58); inert during search by construction |
+| threads 8 → 16 | **REFUSED twice over** — throughput *regresses* (44.0 vs 55.1 steps/s) **and** thread count is inside the determinism envelope |
+| pool `d` → `d,b` | **DECLINED** — measured +4 %, and it reopens the D15 substrate heterogeneity |
+| the generation drain (2.61 of 5 in flight) | **the one real inefficiency, and it is the FROZEN DESIGN** — authoring *g+1* from partial results would change the reflection protocol. Not an ops lever; a science change, and refused. |
+
+**The binding constraint is the experiment's own serial structure, not Myriad.** During search that is
+the six-generation reflection chain; at C4 it is the 3.27-day critical-chain floor. Both are properties
+of the registered design, and buying more hardware cannot move either.
+
+**What IS worth watching, and is now the honest open item:** whether C4 actually realises the capacity
+§70.3–§70.4 say is available. Fair-share priority *decreases* as consumption rises, so sustaining
+4,584+ cores across the ladder is not guaranteed by a 14-hour precedent at 1,664. **That is a
+measurement to make at the C4 boundary, not a projection to bank now** — and the tiered ladder means
+even the pessimistic branch yields a valid, pre-registered result.

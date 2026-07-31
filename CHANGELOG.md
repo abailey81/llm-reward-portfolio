@@ -3,6 +3,59 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31m] ★★★ "ARE WE AT MYRIAD'S MAXIMUM?" — MEASURED END TO END; NO SPEED LEVER REMAINS
+
+**State before:** RUN 4 live, T+70 h, 1,482 records, drift 0, `sci=OK`, 744 cores. Tamer's founding
+instruction (*"use the absolute maximum myriad can offer"*) is a standing priority, and the brief warns
+that *"we are at the maximum" has been asserted falsely twice*. Answered by measurement at every layer.
+
+**The instrument first.** `qstat -f` lists each host under ~35 queue instances, which is how "431,382
+free slots" appeared on a ~21,600-core cluster **twice** (P30, then P32 when I repeated it). The correct
+source is the **host consumable** (`qhost -F`), one line per host. Units parsed explicitly — a bare
+`$1+0` reads `1.293T` as `1.293`, the bug behind §60 (P33). Bounds fixed in advance: pool d = 294 × 36 =
+**10,584 slots**, ~**47 TB**.
+
+**① SEARCH IS NOT CAPACITY-BOUND.** Joint placeability (8 slots **and** 8 G memory **and** 1 G tmpfs on
+the *same* host, pool d, minus the D15 fence): **86 hosts, 303 of our jobs placeable RIGHT NOW, against
+103 queued.** We are not blocked — we have nothing more to submit, which is the correct state in a
+serial six-generation chain (§43). **Memory blocks ZERO hosts** (§38's fix working) and **tmpfs blocks
+ZERO hosts** (§64's retraction confirmed a third way); slots block 206, i.e. ordinary competition.
+
+**② C4 HAS 1.6× MORE CAPACITY THAN THE MODEL CAN USE.** Free now: 3,365 slots, 15.1 TB. C4 footprint is
+16 GB/job (pack 8, OMP=1 pack-mates) → **897 jobs placeable on memory ≈ 7,176 cores**, against a
+makespan-model **saturation of ~4,584 cores**. Capacity is not the C4 constraint either.
+
+**③ THE EMPIRICAL ANCHOR — 1,664 cores sustained ~14 h WITH BOTH THROTTLES STILL ON.** Over 682
+published readings: `min 304 · p10 432 · p50 608 · max 1,664`, and we held **≥1,000 cores for 164
+consecutive readings, T+23h15m → T+37h49m** — the test-baseline flood, a **C4-shaped** workload.
+Verified against commit timestamps rather than assumed: that window closed **2026-07-30 10:57**, while
+the memory fix `c99716e` landed **17:22 that day** and the priority fix on 07-31. **So 1,664 was reached
+while paying a 19.5× memory over-request and sitting at `-p -100`, below every other user.** Both are
+gone; the per-job footprint has **halved** and our `prior` is **1.9165 vs the field's 1.7930**. C4 should
+comfortably exceed 1,664.
+
+**④ THE DEADLINE, as a band not a point.** Rung 568 vs the 08-27 stop: @480 cores → 08-29 (misses),
+@600 → 08-22, @744 → 08-18, @saturation → 08-01. **Two caveats stated together or the table misleads:**
+those core figures are **SEARCH-phase and job-starved by design**, so quoting them into a C4 model is
+**conservative** (08-18 is a floor, not a forecast); and **the ladder is TIERED with an EXOGENOUS stop**,
+so the risk is *"report at rung 403 instead of 568"*, never *"the campaign fails"*. The critical-chain
+floor of **3.27 d** is serial and immune to any number of cores.
+
+**⑤ VERDICT — no legitimate speed lever remains, and it is now measured rather than asserted.** More
+cores in search: impossible (nothing to submit). More at C4: already 1.6× past saturation. Memory:
+fixed. `tmpfs`: never was a constraint. `snx`/`h_rt`: audited clean, `h_rt` is not even a consumable.
+Priority: fixed, above field mean. Pack: 8 at C4. Threads 8→16: refused twice over (throughput
+*regresses* 55.1→44.0 steps/s **and** it is inside the determinism envelope). Pool `d`→`d,b`: declined
+(+4 %, reopens D15). **The one real inefficiency is the generation drain (2.61 of 5 in flight) — and that
+is the FROZEN DESIGN, not an ops lever; changing it would alter the reflection protocol.**
+
+**The binding constraint is the experiment's own serial structure, not Myriad.** Honest open item: whether
+C4 *realises* the available capacity, since fair-share priority falls as consumption rises — a
+measurement for the C4 boundary, not a projection to bank now.
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §70 · `docs/ops/joint_capacity.py` (new) ·
+`docs/ops/free_capacity.py` (new). **No code change, no relaunch; drift 0.**
+
 ## [2026-07-31l] EVERY SCIENCE INVARIANT RE-DERIVED INDEPENDENTLY — ALL HOLD; PLUS A REPRODUCIBILITY DEFECT IN 360 FILES
 
 **State before:** RUN 4 live, T+69 h 40 m, 1,473 records, drift 0, `sci=OK`. `sci=OK` asserts **eight**
