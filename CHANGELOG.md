@@ -3,6 +3,68 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31d] RUN 7 SESSION CLOSE — FOUR SELF-INFLICTED THROTTLES FOUND AND FIXED, AND THE HANDOVER
+
+**Full narrative: `docs/CAMPAIGN_EXECUTION_RECORD.md` §53–§61. Successor brief:
+`docs/RUN8_SESSION_PROMPT.md`.**
+
+**Context (the PAST).** The session inherited a healthy RUN 4 at T+51 h with `cycle.py` returning
+**RED on every cycle** (entirely from a budget check comparing a projection against a credit we cannot
+observe), cores at ~728 and falling, and monitoring that covered only PROCESS health.
+
+**What happened (the NOW) — four throttles, all ours:**
+
+| § | throttle | measured | fixed |
+|---|---|---|---|
+| §54 | **SGE `-p -100`** on our own jobs | `weight_priority = 4.0`; our `prior` 1.81 vs others 2.00–2.08; **1,888 of 2,395** pending jobs outranked us; **120 of 124 stuck jobs were CONTROL arms** | all `-p` → 0 |
+| §57 | 109 legacy jobs kept the old `-p` | `qalter -p` upward is **refused by SGE**; requeue is safe by P13 | 103 requeued, prediction verified to 3 dp (**1,888 → 545**) |
+| §58 | C4 would have run at `--pack 4` | worth ~half the rung-568 makespan; needs a **supervisor** restart | rolling watchdog restart, **24 drivers all at pack 8** |
+| §60 | **`tmpfs=15G` for a 71 MB stage** | a **CONSUMABLE**; only **11 of 348** hosts qualified; **1.18 jobs/node** on 36-slot machines | → 1 G (CPU lane; GPU byte-unchanged) |
+
+**Two defects found by watching trends, not thresholds:**
+* **D19 (§55)** — 12 trainings SIGKILLed at the 15 h wall. **The archive is CENSORED at the wall and
+  structurally cannot contain them**; `qacct` is unbiased. All retried, **0 candidates lost**.
+* **D20 (§59)** — **pid reuse** defeated the driver lock (`psutil.pid_exists` tests EXISTENCE, not
+  IDENTITY; a dead driver's pid had been recycled onto `OpenConsole.exe`), stranding the h3 line with
+  every guard green. Caught because `stalest` was *climbing* (6.2 → 9.5 min) under a 30-min threshold.
+
+**★ THE SCIENCE FINDING (§56).** The `-p` starvation reached H2. `PREREGISTRATION.md` line 94 makes
+each co-primary a **3-leg IUT vs `scalar`, `placebo` AND `scalar_cvar5`** — two of the three are the
+starved arms. Since each arm fields `max(val_fitness)` and **E[max] rises with n**, those legs were
+easier to reject: **biased TOWARD a false positive for our own hypothesis.**
+**§56.6 — an independent auditor corrected the session's own headline:** the confirmatory ratio is
+**3.11×** (core line), not the pooled 2.27 × — winner selection is per (line, arm) and the ten legs
+are report-only. **§56.7 — and the session had over-alarmed:** the C3 gate requires
+`accounted == 30` per arm and **fails closed**, so the imbalance cannot reach the analysis unless the
+campaign is truncated mid-search. **Nothing is invalidated; the analysis has not run.**
+
+**MONITORING, rebuilt.** The 2-minute cadence is now **machine-enforced** (`docs/ops/cycle_loop.sh`,
+detached) after the session let a 2 h 18 m gap open — a cadence that depends on remembering is an
+intention. The cycle now also opens the archive **every cycle** (`science_watch` + `results_audit`,
+1.8 s each), with **eight hard validity invariants** that go RED, extraction that **fails loud**, and
+new checks for **arm depth (pooled AND core-line)**, the **C4 boundary**, **stale driver locks**,
+**append-only monotonicity**, and an **uncommitted-tree** drift check. Alerts are **deduped by
+content** after the standing §56 condition wrote 106 near-identical entries.
+
+**Gates:** suite **2,883 passed / 3 skipped / 0 failed**, `PYTEST_RC=0` read from the LOG; `ruff`
+clean repo-wide (three pre-existing `docs/ops` errors fixed); `freeze --check` hash **`3ca6f01a…`
+UNMOVED** throughout. `DEVIATIONS.md` gained its **first post-freeze entry**; write-time registry
+gained **row 37** (the equal-*k* sensitivity, registered three times and **never implemented**).
+
+**⚠ SIX OF THE SESSION'S OWN ERRORS, all recorded (P27–P30 + §56.6, §60.2).** The pattern is the
+standing one — *an aggregate that answers a slightly different question, reported as if it answered
+the right one*. Two claims were killed before reaching Tamer ("5 permanently lost trainings" — all in
+flight; "229 abandoned jobs" — launch-night churn). Two were corrected after reaching him. **His
+scepticism, not the session's analysis, found the tmpfs defect.**
+
+**Next (the FUTURE), all in `docs/RUN8_SESSION_PROMPT.md` §9:** the **§60 tmpfs effect is UNVERIFIED**
+and may be wrong (jobs/node 1.18 → 1.25 so far; the 2-job-host count doubled 7 → 14, but 61 incumbents
+still hold 15 G); the **§56 ratio must reach ~1.0** (2.21× → **1.90×** in 6.7 h, controls +72 vs
+treatments +17); **`snx` and `h_rt` have never been audited** (§38 fixed one term of four, §60 the
+second); equal-*k* must be built; A12 needs Tamer; and **the write-up is where the grade is**.
+
+---
+
 ## [2026-07-31c] ★★★ WE WERE DEPRIORITISING OURSELVES — AND THE ARMS IT STARVED WERE THE CONTROLS
 
 **Narrative, evidence and falsification record: `docs/CAMPAIGN_EXECUTION_RECORD.md` §54.

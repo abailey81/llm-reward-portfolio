@@ -6990,3 +6990,117 @@ sibling, not just the instance that hurt.
 The second lesson is about the earlier answer: **"we are at the structural maximum" is a claim, and
 it needs the same evidence as any other.** I supported it with two real limits (the serial chain and
 placement) and did not ask whether the placement figure was itself something we were causing.
+
+---
+
+## 61. SESSION CLOSE (RUN 7) — STATE, OPEN QUESTIONS, AND WHAT THE NEXT SESSION MUST RE-CHECK
+
+Written 2026-07-31 16:05 UTC, T+66 h 56 m, at handover to the RUN 8 session.
+
+### 61.1 Live state, measured at the moment of writing
+
+| | |
+|---|---|
+| lines | **12 / 12**, ALL ARMS FULL |
+| records | **1,463** (science tools) / 1,440 (guards' depth-4 count) |
+| spend | **$37.46** — anthropic $30.71 + $10.26 still to author; openrouter $6.75 + $3.06 |
+| cluster | **560 cores**, 70 running / 111 queued, 56 hosts |
+| freeze | `3ca6f01a…` **MATCHES** |
+| drift | **0**, working tree clean |
+| RUNNING_SHA | **`50b6e07`** |
+| `sci` | **OK** — 0 tail leaks, 0 cross-arm programs, 0 hash mismatches, 0 non-finite |
+| R115 breaches | 12, **none on the core line**, 1 binding |
+| exogenous stop | 26.3 days · submission 31.3 days |
+
+### 61.2 What this session changed, in one place
+
+| § | change | state |
+|---|---|---|
+| §53 | monitoring covers the **RESULTS**, budget downgraded to owner-watched | live |
+| §54 | **the `-p` ladder retired** — we were deprioritising ourselves below every other user | live |
+| §55 | **D19** — 12 trainings killed at the 15 h wall; archive is censored and cannot see them | recorded, deferred 12 |
+| §56 | **the starvation reached H2's IUT legs** — quantified, monitored | live monitor |
+| §56.6 | ⚠ **my headline was wrong** — the confirmatory ratio is 3.11×, not 2.27× | corrected |
+| §56.7 | ⚠ **and I over-alarmed** — the C3 gate structurally bounds it | corrected |
+| §57 | 103 legacy jobs requeued; prediction verified to 3 dp | done |
+| §58 | **`--pack 8`** live on all 12 lines via a rolling watchdog restart | live |
+| §59 | **D20** — pid reuse defeated the driver lock and stranded the h3 line | fixed + deferred 13 |
+| §60 | **`tmpfs` was a 216× over-request** capping us to ~1 job per node | live, **effect unverified** |
+
+### 61.3 ★ THE TWO THINGS THAT ARE MOVING, AND MUST BE RE-MEASURED
+
+**(a) The §56 arm imbalance is closing — this is the science-critical one.**
+
+| | baseline 09:47Z | now 16:05Z (6.7 h) |
+|---|---|---|
+| `distributional` | 272 | 277 (+5) |
+| `scalar` | 265 | 277 (+12) |
+| `scalar_cvar5` | 122 | **140 (+18)** |
+| `placebo` | 132 | **161 (+29)** |
+| `placebo_shuffled` | 111 | **136 (+25)** |
+| **treatment : control ratio** | **2.21×** | **1.90×** |
+
+Controls gained **+72** against treatments' **+17** — four times the rate. The gap is closing exactly
+as §54/§57 predicted. **It must reach ~1.0 before the C3 gate will release C4** (the gate requires
+`accounted == 30` per arm, §56.7), so this number is both the science check and the search-completion
+clock. Baseline snapshot: `docs/ops/watch/ARM_BASELINE.json`.
+
+**(b) The §60 tmpfs prediction is NOT yet verified, and I am handing it over open.**
+
+| | before | now |
+|---|---|---|
+| jobs at `tmpfs=1G` | 0 | **120** |
+| jobs at `tmpfs=15G` | 186 | **61** |
+| hosts running 2 of our jobs | **7** | **14** |
+| jobs per node | 1.18 | **1.25** |
+| cores | 528 | 560 |
+
+The **2-job-host count doubling (7 → 14)** is real evidence the mechanism works. The aggregate has
+barely moved because **the 61 jobs still at 15 G are RUNNING and hold their reservation until they
+exit** — 4–6 hour trainings. **The honest test is jobs-per-node once that cohort has fully cycled
+out.** If it has not risen well above ~1.25 by then, **the tmpfs hypothesis is wrong and this record
+must say so.** Do not let it stand as a success on the strength of a doubled histogram bucket.
+
+### 61.4 My own errors this session — all recorded, and the next session should assume more exist
+
+P27–P30 are in §20.2. Beyond those, and these matter more because each was a *conclusion*, not a slip:
+
+1. **§56.6 — I reported the POOLED arm ratio (2.27×) as the confirmatory one.** It is per-line: the
+   core line's worst leg is **3.11×**. I understated the threat by ~40 %, and an **independent
+   auditor** found it, not me.
+2. **§56.7 — then I over-alarmed.** I called it a threat to the confirmatory claim without checking
+   whether the C3 gate already blocks it. It does. Four greps would have told me.
+3. **§60 — I asserted "we are at the structural maximum" on cores.** We were not; our own `tmpfs`
+   request was capping us at one job per node. Tamer's scepticism, not my analysis, forced the check.
+4. **§58.5 — a PowerShell `.Count` on a single object** printed an empty watchdog count that reads as
+   zero, right after I had killed twelve supervisors.
+5. **§59.3 — I asked "are any h3 drivers alive?"** when the right question was "is the LOCK'S OWNER a
+   driver". Wrong test, nearly the wrong action.
+
+**The pattern across all five is the standing one: an aggregate that answers a slightly different
+question from the one being asked, reported as if it answered the right one.** The next session should
+treat every number in this record as a claim to be re-derived, including the ones that flatter me.
+
+### 61.5 What is open
+
+| item | who | note |
+|---|---|---|
+| **the §60 tmpfs effect** | next session | measure jobs/node after the 15 G cohort drains; refute if flat |
+| **the §56 ratio → 1.0** | next session | tracks both the science and search completion |
+| **equal-*k* sensitivity** | write-time | registry row **37** — registered, reaffirmed twice, **never implemented** |
+| **deferred fixes 1–7, 9, 10, 12, 13** | C4 restart | items 8 and 11 are APPLIED; do not re-apply |
+| **A12 OSF/Zenodo deposit** | **Tamer**, ~10 min | staged in `docs/A12_DEPOSIT_PACKAGE.md`; registered obligation, unmet |
+| **`snx` and `h_rt` audit** | next session | §60's lesson: §38 fixed ONE term of a four-term request; `tmpfs` was the second; **two remain unexamined** |
+| **the write-up** | next session | ~5,900 words of CH1/CH2/CH3/Methods need no results |
+
+### 61.6 The one instruction that governs the handover
+
+Tamer, at handover: *"please also don't tell the new session not to touch anything you did — keep in
+mind you might have made a mistake as well; one of the biggest priorities of this campaign is the
+quality as well."*
+
+**So nothing in this session is protected.** Every fix, every number, every monitor I built is open to
+being re-derived and overturned. Three of the most consequential findings here were corrections of my
+own earlier claims, and one came from an auditor I commissioned specifically to break my work. That is
+the standard, not an embarrassment — **the author must not grade their own work**, and the next
+session inherits that duty over mine.
