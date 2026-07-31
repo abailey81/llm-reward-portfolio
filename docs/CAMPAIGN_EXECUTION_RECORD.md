@@ -5915,3 +5915,71 @@ the shell must never see it.*
   the sentinel and both remote channels were untouched throughout.
 * **`acknowledged_alarms.txt` gained nothing.** The budget was not silenced by acknowledgement — it
   was moved to the correct severity, which is a different and more honest operation.
+
+### 53.11 ★ THE RESULTS LAYER EARNED ITS KEEP IN ITS FIRST HOUR — AND WHAT IT CAUGHT WAS A TIME BOMB
+
+Twenty minutes after the layer went live, a cycle turned **RED** on `science_watch rc=2`, verdict
+*"an inert search, a broken step budget, or an impossible number"*. Every scored-record invariant read
+clean, so the trigger was in the spread table:
+
+    random_search   n=  30  mean=+0.0232  spread=+0.3286
+    random_search   n=  29  mean=+0.3286  spread=+0.0000   <== ZERO SPREAD
+
+Two rows with the **same printed name** — the table labelled units without their stage — and the
+second one's `mean` was exactly the first one's `spread`. Per the standing rule, a surprising number
+is a claim about our own instrument before it is a claim about the world, so it was measured rather
+than interpreted.
+
+**Measured, and it is a FALSE POSITIVE with a precise cause:**
+
+| group | `val_fitness` | `test_sharpe` | seeds |
+|---|---|---|---|
+| `search/random_search` (n=30) | 30 distinct, **0.0000 … 0.3286** | absent | 1 |
+| `test/baseline_raw_return` (n=30) | **all NaN** | 30 distinct, −0.8435 … 0.2600 | 30 |
+| `test/random_search` (n=29) | **all 0.328632** | 30 distinct, **0.6069 … 1.4629** | 29 |
+
+The scorer's rule was *"use `val_fitness` unless it is NaN, else `test_sharpe`"* — described in its own
+comment as **stage-aware**, which it was not: it was a **NaN probe wearing stage-awareness as a
+label**. The probe happens to work for the hand-written baselines, whose test records carry
+`val_fitness = NaN` so the fallback fires. It **fails for a frozen-winner unit**, because the winner's
+`val_fitness` is a *real* number inherited from the freeze and stamped identically into every seed's
+record. So the check scored 29 records on one constant and called the loop inert — while the same 29
+records' `test_sharpe` spanned **0.6069 … 1.4629 across 29 distinct seeds**. *The science was healthy;
+only the reader was wrong.*
+
+The `mean == spread` coincidence also dissolves, and confirms the diagnosis rather than merely
+co-existing with it: the search's minimum `val_fitness` is **0.0000**, so its spread `max − min`
+equals its max, and the max *is* the winner — the same 0.3286 that was then stamped into every test
+record.
+
+**Why this was worth far more than one false alarm.** Every LLM arm's C4 has exactly this shape: one
+frozen winner retrained across the 30 → 568 ladder. **The moment the seed ladder began in earnest,
+`science_watch` would have gone rc=2 permanently, on every arm.** A RED that can never clear is the
+precise alarm-fatigue failure that let **D15 sit unexamined for ten hours**, and it would have arrived
+at the exact moment the confirmatory data started landing — when a real alarm matters most. It was
+caught **before** C4 only because the results layer runs every cycle instead of a few times a day.
+
+**The fix, and it is the one the docstring always claimed.** Select on the **stage**: `stage == "test"`
+→ `test_sharpe`, otherwise `val_fitness`, with the NaN check kept as a second-line fallback for a
+non-test record that somehow lacks a fitness. The spread table now prints `stage/unit`, because two
+identically-named rows with different estimands cost real time to disentangle.
+
+**Falsified both ways, which is the only reason it is trusted:**
+
+* **The false positive is gone and the real signal is intact** — `test/random_search` now reads
+  `n=29 mean=+0.9192 spread=+0.8560`, and `science_watch` returns **rc=0**.
+* **The detector still detects.** A synthetic archive with one healthy test unit (`test_sharpe`
+  varying across 6 seeds) and one genuinely inert unit (identical `test_sharpe` on all 6) still
+  flags **only** the inert one and still exits **rc=2**. A check that cannot fail verifies nothing —
+  and a check "fixed" by making it quieter is worse than the false positive it removed.
+
+**A third thing fell out of the same disambiguation:** the row that printed as bare `distributional`
+(n=29) is `search_h3_singleshot/distributional` — the single-shot line, not the confirmatory core.
+Correct all along, and now legible.
+
+**The lesson, stated for the write-up.** The defect was not the NaN test; it was that a **proxy was
+documented as the property it approximates**. `val_fitness is NaN` was a stand-in for `this is a test
+record`, the two agreed on every case that existed when it was written, and the comment recorded the
+*intent* rather than the *implementation* — so the divergence was invisible to reading and only
+appeared when a new record shape (a frozen winner in the test stage) arrived. **Where a property is
+directly observable, observe it; do not infer it from a correlate that happens to agree today.**

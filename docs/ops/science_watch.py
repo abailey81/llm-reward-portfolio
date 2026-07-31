@@ -64,11 +64,27 @@ def main(argv: list[str]) -> int:
 
     for stage, unit, r in recs:
         m = r.get("metrics") or {}
-        # test-leg records score on test_sharpe, search on val_fitness (stage-aware, per the
-        # 2026-07-29 lesson that a search-shaped reader reports nan for every test record)
+        # Test-leg records score on test_sharpe, search on val_fitness.
+        #
+        # ⚠ THIS USED TO BE A NaN PROBE PRETENDING TO BE STAGE-AWARE, and it produced a false
+        # "ZERO SPREAD / inert search" alarm on 2026-07-31, the first hour the results layer ran.
+        # The old rule was "use val_fitness unless it is NaN". That happens to work for the HAND-
+        # WRITTEN baselines, whose test records carry val_fitness = nan, so the fallback fires. It
+        # FAILS for a FROZEN-WINNER unit: the winner's val_fitness is a real number inherited from
+        # the freeze and stamped identically into every seed's record, so the fallback never fires
+        # and the check scores 29 records on one constant. MEASURED on test/random_search:
+        # val_fitness = 0.328632 on all 29 (spread 0.0) while test_sharpe ranges 0.6069..1.4629
+        # across 29 distinct seeds — i.e. the science was healthy and only the reader was wrong.
+        #
+        # This mattered beyond one row: EVERY LLM arm's C4 has exactly that shape (one frozen winner,
+        # retrained at 30...568 seeds), so the alarm would have gone permanently rc=2 the moment the
+        # seed ladder began — a RED that can never clear, which is the alarm-fatigue failure that let
+        # D15 sit unexamined for ten hours. Selecting on the STAGE, which is what the comment always
+        # claimed, is both correct and stable. The NaN check is KEPT as a second-line fallback for a
+        # non-test record that somehow lacks val_fitness.
         val = m.get("val_fitness")
-        key = "val_fitness" if val is not None and not (isinstance(val, float) and math.isnan(val)) \
-            else "test_sharpe"
+        val_ok = val is not None and not (isinstance(val, float) and math.isnan(val))
+        key = "test_sharpe" if stage == "test" else ("val_fitness" if val_ok else "test_sharpe")
         score = m.get(key)
         if score is None or (isinstance(score, float) and not math.isfinite(score)):
             impossible.append(f"{unit}/{r.get('run_id')}: {key}={score!r}")
@@ -99,8 +115,11 @@ def main(argv: list[str]) -> int:
         spread = max(v) - min(v)
         flag = "  <== ZERO SPREAD" if spread == 0.0 else ""
         if spread == 0.0:
-            inert.append(unit)
-        print(f"  {unit:38s} n={len(v):4d} mean={statistics.mean(v):+.4f} "
+            inert.append(f"{stage}/{unit}")
+        # Label with the STAGE too. Without it, `search/random_search` and `test/random_search`
+        # both printed as bare "random_search" — two rows, same name, different estimands, and
+        # working out which one was flagged cost real time.
+        print(f"  {stage + '/' + unit:38s} n={len(v):4d} mean={statistics.mean(v):+.4f} "
               f"spread={spread:+.4f}{flag}")
 
     print("\n--- REFLECTION CHAIN: generations reached per line, and accepted candidates each ---")
