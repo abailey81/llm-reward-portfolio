@@ -9406,3 +9406,48 @@ real string; and `ssh_timeout_diagnostic` counting is correct). **Only the repor
 **Cannot be fixed now** — `scripts/` is drift-watched — so it is registered as **DEFERRED_FIXES item
 14**, to land with the core-line C4 relaunch. It changes a reported number, not a computed one, so it
 carries none of the deterministic-replay risk that keeps D17 out (75.1).
+
+### 79.6 An automated "dead string" sweep was attempted and DISCARDED — it was too crude to trust
+
+Having found the same never-emitted literal in two independent components (76.2, 79.5), the obvious
+next move was to sweep every monitor for string matches that can never match. **A tool was written,
+run, and then DISCARDED rather than shipped, because it produced 3 false positives out of 5 findings:**
+
+* `'5/5 arms submitted'` — flagged dead; it is in fact **built at runtime by an f-string**
+  (`f"... {n}/{n} arms submitted"`), so it appears in no source file yet is emitted constantly. My
+  earlier falsification (79.1) had already PROVEN that string works.
+* `'^(anthropic|openrouter) '` and `'ssh_timeout_diagnostic|TimeoutExpired'` — flagged dead; both are
+  **regexes**, which my extractor treated as literals.
+* And it MISCLASSIFIED the one real defect (`'timed out after'`) as "correct, untriggered", because it
+  could not distinguish a string that is **EMITTED** from one merely **MENTIONED** — and that literal
+  appears in source only inside a retry KEYWORD LIST.
+
+**Shipping it would have handed the next session three phantom defects and hidden the real one.** The
+two genuine instances were both found by reading the code by hand; the automated version was worse
+than the manual one. **Recorded rather than deleted silently, because "I tried to automate this and the
+tool was not trustworthy" is a useful fact for whoever considers it next.**
+
+### 79.7 `budget_watch` — checked, sound
+
+Its figures are derived live (`spend_ledger_*.jsonl` summed on `cost_usd`; generations from
+`record.json`), and it emits distinct, moving values per line (c1 $19.92, h3ss $6.45, leg1 $0.57,
+leg10 $3.75 …). Not a structurally-fixed metric.
+
+### 79.8 THE MONITORING STACK, AS IT NOW STANDS
+
+| instrument | status |
+|---|---|
+| science layer — 8 invariants + cycle extraction | **VERIFIED**, one gap found and fixed (77) |
+| `arm_coverage` (the D14 cover) | **VERIFIED** (79.1) |
+| `campaign_guards: reflection` | **VERIFIED** (79.2) |
+| `campaign_guards: transport` (verdict path) | **VERIFIED** (79.5) |
+| status-page metrics | **AUDITED**, one always-zero fixed, one reassuring-default fixed (76) |
+| C4 alert delivery | **FIXED + VERIFIED** (74.2) |
+| ssh reaper age guard | **VERIFIED** (73.3) |
+| `budget_watch` | **CHECKED** (79.7) |
+| `transport`'s `timeout_events` figure | **DEAD — registered as DEFERRED 14**, cannot fix (drift watch) |
+| `campaign_guards`: collision, rejects, status, truncation | **UNTESTED** |
+| sentinel (17 checks) | **UNTESTED** |
+
+**Eight verified, one dead-and-registered, two areas untested and NAMED.** The untested ones are not
+assumed sound — that distinction is the entire lesson of this session.
