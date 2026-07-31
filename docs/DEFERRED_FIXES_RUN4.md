@@ -516,6 +516,34 @@ lane has only ever been exercised at pack=1"* — falsified by this run's 330 pa
 
 ---
 
+## 12. D19 — the search lane's 15 h wall is only 1.12x its p99 (found 2026-07-31, record §55)
+
+**File:** `src/cluster/jobscript.py` (the `h_rt` sizing), CPU **search** lane only.
+**Evidence:** `qacct` over 1,508 finished jobs — **12 SEARCH jobs killed by `failed 37 : qmaster
+enforced h_rt`**, every one at 15.00–15.01 h against the 15.00 h request, spanning nine lines and
+including the confirmatory core and `h3ss`. Search-lane distribution: p50 3.94 h, p90 6.61 h,
+**p99 13.44 h**, max 15.01 h (censored). Test/packed lane: p99 **9.85 h** — comfortable.
+
+**Why the archive never showed this:** a training killed at `h_rt` writes NO record, so `wall_clock`
+over the archive is **censored at the wall** and structurally cannot contain the failure mode. §38.4's
+"longest observed 12.20 h" was measured that way and is unbiased only for jobs that survived.
+
+**Impact is compute, not science:** all 12 are retried or currently retrying and **0 candidates are
+lost** (verified against the live queue, not inferred from `qacct`, which only sees FINISHED jobs).
+Cost ≈ 120 core-hours per kill before it dies, plus the retry.
+
+**NOT applied now, deliberately** (§55.4): 0.85 % loss, all recovered; a longer walltime is HARDER to
+backfill and placement is the binding constraint; it costs another relaunch; and **the problem is
+self-limiting — the tight lane is SEARCH, which ends in 1–2 days, while C4 is the TEST lane at 1.52x
+headroom.**
+
+**At the restart, since the renderer is being touched anyway:** size the search lane's `h_rt` from the
+MEASURED p99 with an explicit margin rather than a round 15 h, and add a falsifiable test asserting
+the search-lane request exceeds the measured p99 by a stated factor. **Re-open sooner** if the search
+p99 climbs toward 14 h, or if a kill lands on a `c1` candidate that does not recover.
+
+---
+
 ## Applying, at the next restart
 
 > ⚠ **THE COUNT: eleven items are documented here, but only TEN are still to apply.** Item **8 (the

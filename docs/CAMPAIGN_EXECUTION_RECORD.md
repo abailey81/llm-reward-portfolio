@@ -6266,3 +6266,91 @@ And the deeper one, which generalises past this defect: **when an amendment supe
 grep for every implementation of that mechanism, not for the flag that names it.** R101 retired the
 ladder; the search that followed found `--priority` in the launcher and stopped there. The constants
 that actually emitted it lived one layer down and survived for ten days.
+
+---
+
+## 55. D19 — TWELVE TRAININGS DIED AT THE WALLTIME WALL, AND THE ARCHIVE CANNOT SEE THEM
+
+Found 2026-07-31 while verifying the §54 relaunch. It is a small loss, it is fully recovered, and it
+is recorded because **the way it was hidden is more interesting than the defect**.
+
+### 55.1 The measurement error that had concealed it
+
+§38.4 refused the walltime lever with this reasoning: *"the longest observed training is 12.20 h
+against the 15 h request (1.23×), so cutting `h_rt` would SIGKILL trainings."* The conclusion was
+right. **The evidence was biased, and biased in a way that hid a live defect.**
+
+`wall_clock` in the archive is measured over **records**, and a training killed at `h_rt` writes **no
+record**. The archive is therefore a *censored* sample, truncated exactly at the wall — it cannot, by
+construction, contain evidence of jobs that hit it. Re-measuring the archive today gives max 14.31 h,
+still under 15, still "safe", still wrong.
+
+`qacct` is the unbiased source: it records every job that finished, including the killed ones.
+
+### 55.2 What it shows
+
+Over the 1,508 of our jobs that finished in the last three days:
+
+| lane | n | p50 | p90 | p99 | max | ≥14.5 h |
+|---|---|---|---|---|---|---|
+| **SEARCH** (8 threads, 1 training) | 1,418 | 3.94 h | 6.61 h | **13.44 h** | **15.01 h** | **12** |
+| TEST/packed (4×1 thread) | 90 | 8.17 h | 9.00 h | 9.85 h | 9.85 h | 0 |
+
+**Twelve SEARCH jobs were terminated by `failed 37 : qmaster enforced h_rt`**, every one at
+15.00–15.01 h against the 15.00 h request. They span nine lines and include the **confirmatory core**
+(`c1_random_search_search_p29`) and `h3ss`. Six of the twelve are CONTROL arms.
+
+The wall sits at only **1.12× the search lane's p99**. That is not headroom, it is a coin-flip for the
+tail — and it is the *opposite* error from the memory request, which was 19.5× oversized.
+
+### 55.3 ⚠ WHAT I NEARLY REPORTED, AND WHY IT WAS WRONG
+
+Cross-referencing each killed job against every attempt under the same name gave: **7 recovered by a
+later successful attempt, 5 with no successful attempt**. I was one step from reporting *"five
+permanently lost trainings, three of them control arms"* — which would have been a serious claim,
+since a lost candidate is permanent attrition (§26.3) and never replaced.
+
+It is false. **`qacct` only sees FINISHED jobs.** Checking the live queue for those five names found
+every one of them **still in flight** — `leg10_kimi_scalar_g0_p04` running, `h3ss_distributional_g0_p29`
+queued, `leg5_haiku_placebo_shuffled_g1_p01` queued, `leg1_deepseek_scalar_cvar5_g1_p05` running. The
+driver's bounded requeue is doing exactly its job.
+
+**The correct statement is: 12 trainings were killed by the wall, all 12 are retried or retrying, and
+0 candidates are lost.** The cost is compute and latency, not science: each kill burns 15 h × 8 slots
+= 120 core-hours before dying, so ~1,440 core-hours plus the retries.
+
+The same discipline applied to a second cohort in the same pass: **229 jobs at `exit_status 143` with
+`failed 0`** looked like a large ongoing abandonment (~3,100 core-hours). Grouped by day they are
+**229 on Jul 28 and zero since** — launch-night recovery churn, already documented in §23 ("six lines
+did this 10× each on launch night and all recovered"). Retracted before it became a claim.
+
+### 55.4 The decision: RECORD IT, DO NOT CHANGE `h_rt` NOW
+
+Raising the wall would eliminate the loss, and `h_rt` is **outside** the determinism envelope — it
+changes when a job is killed, never what it computes. It is still declined, for four reasons that
+compose:
+
+1. **0.85 % of search jobs**, all recovered, zero candidates lost. The blast radius is compute.
+2. **Placement is the binding constraint** (§54), and a longer walltime is *harder* to backfill: a
+   15 h job needs a 15 h window, a 20 h job a 20 h one. Fixing a 0.85 % loss by worsening the
+   constraint that is actually throttling us is a bad trade.
+3. It is a `src/` change, so it costs another relaunch — and one was just spent on §54.
+4. **★ The problem is self-limiting.** The tight lane is SEARCH, and search ends in one to two days.
+   **C4 is the TEST lane, whose p99 is 9.85 h against the same 15 h wall — 1.52× headroom.** The
+   phase that is about to consume the entire remaining campaign is the phase that is comfortably
+   inside the wall.
+
+**Registered as a watch item rather than a fix:** if the search lane's p99 climbs toward 14 h, or if a
+kill lands on a `c1` candidate that does not recover, re-open it. Added to
+`docs/DEFERRED_FIXES_RUN4.md` for the C4-boundary restart, where the renderer is already being
+touched and the marginal cost is zero.
+
+### 55.5 The lesson, and it generalises
+
+**A censored sample cannot testify about the censoring.** The archive was the natural place to look
+for "how long do trainings take", it answered confidently, and its answer was structurally incapable
+of containing the failure mode being asked about. The unbiased source existed the whole time.
+
+Before trusting a distribution, ask what would be **missing** from it if the thing you fear were
+happening. If the answer is "exactly the observations that would show it", the instrument is wrong,
+not the world.
