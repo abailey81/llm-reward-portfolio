@@ -620,6 +620,25 @@ any PDF compile or citation edit).
 
 ---
 
+## §7.4 FOUR THINGS THIS BRIEF USES WITHOUT DEFINING — and where each number really comes from
+
+**Found by an enumerated sweep of the brief's own vocabulary.** You will meet all four in your first
+hour, so they are defined here rather than left to be inferred.
+
+| term / path | what it actually is |
+|---|---|
+| **`SESOI = 0.05`** | the smallest effect size of interest, in **validation-DSR units**, and the thing H2's equivalence backstop is tested against. **It is DERIVED, not asserted** — amendment **R104** (2026-07-25) replaced the fiat value with an economic band; `config/preregistration.yaml:212` holds it, `sesoi_ann_sharpe_equiv: 0.0756` is the annualised-Sharpe equivalent, `docs/SESOI_DERIVATION_2026-07-25.md` is the argument and `tests/test_sesoi_derivation.py` binds the band. **Do not re-assert it as a fiat choice** — that would undo the fix. |
+| **E[max]** | the expected **maximum** of *k* candidate fitnesses. It matters because a winner is a **max over a search**, so an arm that draws more candidates wins by arithmetic alone even with no real advantage — which is why the budget is matched at exactly **30 attempts** per arm and why RUN 8 declined "make 30 candidates" (§83). §56 is the argument; **equal-*k* sensitivity** (`docs/ops/equal_k_sensitivity.py`, §75.3) is the measurement that truncates every pool to a common *k* and re-picks the winner. |
+| **the spend figure** | `$38.79` is summed from **`outputs/campaign_cluster_run4/spend_ledger_*.jsonl`** — one ledger per line (`_c1`, `_leg1`, `_h3ss`, …), written by `src/llm/spend_ledger.py`. Per **R83** the ledger **WARNS at 80 %/100 % and NEVER refuses a call**; the $30 ceiling is **advisory**. The real exogenous stops are the seed-rung rule and the calendar gate. **We are already over the advisory ceiling and that is not an error** — do not "fix" it by throttling. |
+| **`outputs/allocation_state.json`** | the allocator's live state (519 B, rewritten continuously). Read it before any capacity reasoning; do not hand-edit it while lines are running. |
+
+**And one absence worth naming, so you do not hunt for it:** there is **no push-notification channel**.
+`ntfy` appears only in `scripts/monitor.py` and `NTFY_TOPIC` is **unset** — Tamer's phone gets
+`docs/RUN4_STATUS.md` (pushed every 5 min, §10) and nothing else. If something needs him *now*, it goes
+in the **"Needs Tamer"** block of that page; there is no way to make his phone buzz.
+
+---
+
 # §8. LIVE STATE (2026-07-31 21:20 UTC, T+72 h 11 m) — **VERIFY IT YOURSELF**
 
 | | |
