@@ -7104,3 +7104,70 @@ being re-derived and overturned. Three of the most consequential findings here w
 own earlier claims, and one came from an auditor I commissioned specifically to break my work. That is
 the standard, not an embarrassment — **the author must not grade their own work**, and the next
 session inherits that duty over mine.
+
+---
+
+## §62. THE RUN-8 BRIEF COMPLETENESS AUDIT, AND A DEFECT IN MY OWN MONITORS (2026-07-31)
+
+Tamer's instruction: *"please make sure you ultrathink and make sure you dont miss absolutely anything
+relevant from the previous sessions' session prompts as well."* The RUN 8 brief was audited against
+**all four** prior briefs — `RUN4_HANDOFF_PROMPT.md` (30.0 KB), `RUN5_SESSION_PROMPT.md` (45.2 KB),
+`RUN6_SESSION_PROMPT.md` (60.6 KB), `RUN7_SESSION_PROMPT.md` (46.9 KB) — not only against the most
+recent one.
+
+### 62.1 What the audit found missing, and why it went missing
+
+Each successive brief had carried forward the *newest* layer and quietly dropped the oldest. By RUN 8
+the chain had lost its own origin. Restored into `docs/RUN8_SESSION_PROMPT.md`:
+
+| restored | why it is load-bearing |
+|---|---|
+| **§0d** — the two founding instructions, verbatim | contains ***"use the absolute maximum myriad can offer us to speed up the training to an absolute maximum"*** — the ORIGIN of the campaign-speed priority that §38/§54/§58/§60 were all discharging — and ***"monitor… including results… if they make sense and meaningful"***, which is why the results layer exists at all |
+| **§0e** — the 16 numbered RUN 1–4 instructions | the permission to **relaunch and unfreeze** is explicit, repeated (items 1, 2, 7) and still live; and the rebuke at items 12–13 (*"I am tired of repeating myself"*) names the exact failure mode — drifting into new verification while known defects stay open |
+| **§10** — ten further hard-won lessons | incl. **driver logs are BST, everything else UTC** (a whole analysis was once retracted over the hour), and **the FINDING-vs-DEFECT distinction**: an LLM writing buggy reward code is the registered phenomenon; truncation by *our* cap is a defect. Getting it backwards deletes a result or banks an artifact |
+| **§10b** — the capacity-lever ledger | the RUN-4 brief declared five levers "measured and refuted". **Two were wrong** (`tmpfs` §60, `-p` §54). The ledger now carries the corrected verdicts *and* the meta-lesson: "we are at the structural maximum" has been asserted falsely three times |
+| **§2** — H1, H3, H4 spelled out | the brief named the confirmatory nodes N1–N6 and the `h3ss` line but never said what H3 or H4 *test*. A session operating a line must know what it measures |
+| **§2.6** — **D9 corrected** | the table said D1–D11 were "fixed pre-launch". **D9 is not fixed** — the 300 s transport stall is UNIDENTIFIED (seven hypotheses refuted), merely BOUNDED to 120 s, with `ssh_timeout_diagnostic` **armed to settle it on the next occurrence**. A brief that says "fixed" would have a session clear the stall without collecting the evidence |
+| **§2.7** — renumbered to **P11–P30** | the list was locally numbered 1–20 while items 17–20 carried inline `(P27)`–`(P30)`, so cross-references to record §20.2 silently resolved to the wrong entries |
+| **§9(6)** — the write-up spine | SQ1→SQ2→SQ3, the three-link causal chain, accounts A1–A5, and Okhrati's duties D1–D6 with registry rows 38–41 |
+
+### 62.2 ★ The defect I found in my OWN work, and the diagnosis I had to correct
+
+While reconciling two record counts that disagreed (**1442** from `campaign_guards.py status` vs
+**1467** from a raw walk), the denominators turned out to be different and both correct: 1442 is the
+search population `<sub_root>/<arm>/<candidate>/record.json`; the other 25 are 23 `frozen/*-winner/`
+promotion copies plus a `.pull_tmp.28884/` transfer staging tree. **No regression** — the published
+"1467 records" headline is simply a wider denominator than the search population.
+
+But the staging tree led to a real hole. `scripts/sentinel.py:1348` documents a convention in a comment
+that says this has already tripped **three separate instruments**: *"anything walking the archive must
+exclude BOTH the in-flight staging (`.pull_tmp*`) and the deliberately-set-aside past
+(`_quarantined*`)"* — quarantined records belong to an EARLIER run and a move preserves their mtimes,
+which once produced a **false CRITICAL** ("placebo: 16 records, silent 66.4 h") on a campaign 7.7 h old.
+Six places in the repo carry the guard. **`docs/ops/science_watch.py` and `docs/ops/results_audit.py` —
+both written by the RUN 7 session, i.e. by me — did not.** They were instruments four and five.
+
+**And my first diagnosis of it was wrong, which is the more useful half of this entry.** I stated that
+the results layer was double-counting the `.pull_tmp` duplicate. It was not: `glob.glob(**)` does not
+match dot-prefixed directories, so `.pull_tmp*` was *already* excluded — implicitly, by a language
+detail nobody chose. Measured directly on a synthetic tree of 5 records (3 canonical + 1 staged
+duplicate + 1 quarantined): `glob.glob` sees **4**, `pathlib.rglob` sees **5**. So the live exposure was
+**`_quarantined*` only**, and a dot-prefix filter — my first fix — would have missed it entirely.
+
+Both scripts now use the sentinel's exact predicate. Falsification: the pre-fix code, restored from
+`git show HEAD:`, reports **4** on that tree; the fixed code reports **3**. Today's live effect is
+**zero** (no `_quarantined*` tree exists under RUN 4), so this is a latent trap closed, not a number
+corrected — and the `.pull_tmp` half is now EXPLICIT rather than an accident of glob semantics that a
+switch to `rglob` or `os.walk` would silently undo.
+
+**Lessons, both of which are the standing shape.** (i) *When two of your own numbers disagree, neither
+is wrong until you have said both denominators out loud* — the 1442/1467 gap was fully explained by
+path depth. (ii) *A surprising negative is a claim about your own instrument first* — I reported a
+double-count that the language had already prevented, and only measuring the two globbing APIs
+side by side revealed that the real hole was the other half of the predicate.
+
+**And the meta-lesson for the successor:** Tamer's instruction for this handover was explicit —
+*"please also dont tell the new session not to touch anything you did, keep in mind you might have made
+a mistake as well."* This entry is what that looks like in practice. **Two of the eight brief
+corrections above are corrections to MY OWN brief** (D9 mislabelled fixed; P-numbers mis-resolving),
+and the monitor defect was mine. Audit the RUN 7 session's work — it is §11 of the brief for a reason.

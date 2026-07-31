@@ -48,6 +48,13 @@ hard_failures: list[str] = []
 
 records = []
 for path in glob.glob(os.path.join(ROOT, "**", "record.json"), recursive=True):
+    # Exclude the in-flight staging tree AND the set-aside past, per the convention
+    # `scripts/sentinel.py:1348` established after three instruments tripped on it: a pull
+    # stages into `.pull_tmp.<pid>/` (byte-identical duplicates of canonical records -- D18,
+    # observed 2026-07-31), and `_quarantined*` holds an earlier run's records.
+    if any(seg.startswith((".pull_tmp", "_quarantined")) for seg in
+           os.path.relpath(path, ROOT).replace("\\", "/").split("/")[:-1]):
+        continue
     try:
         rec = json.load(open(path, encoding="utf-8"))
     except Exception as exc:                                   # noqa: BLE001

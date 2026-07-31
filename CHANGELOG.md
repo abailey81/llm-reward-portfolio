@@ -3,6 +3,54 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31e] RUN-8 BRIEF AUDITED AGAINST ALL FOUR PRIOR BRIEFS — AND A DEFECT FOUND IN MY OWN MONITORS
+
+**State before:** RUN 4 live, T+67 h, 12/12 lines, 1,442 search records, $37.47 spent, freeze
+`3ca6f01a…` matching, drift 0. The RUN 8 brief had been written and completeness-checked against the
+RUN 7 brief only.
+
+**What was done.** Tamer: *"make sure you don't miss absolutely anything relevant from the previous
+sessions' session prompts as well."* Audited `docs/RUN8_SESSION_PROMPT.md` against **all four** prior
+briefs (RUN4 30.0 KB · RUN5 45.2 KB · RUN6 60.6 KB · RUN7 46.9 KB) by section heading and by a
+token-level sweep over every `D*/P*/R*/H*/SQ*/§*` identifier. Each brief had carried the newest layer
+and dropped the oldest, so the chain had lost its own origin. Restored (details: record **§62**):
+
+* **§0d** — the two founding instructions verbatim, incl. *"use the absolute maximum myriad can offer
+  us"* (the origin of the campaign-speed priority) and the results-monitoring clause.
+* **§0e** — the 16 numbered RUN 1–4 instructions, incl. the explicit, still-live permission to
+  **relaunch and unfreeze**, and the items-12/13 rebuke about letting open defects go quiet.
+* **§10** — ten further hard-won lessons (driver logs are **BST**; the **FINDING-vs-DEFECT**
+  distinction; never edit source mid-certification; exclude `$PID` from process greps; …).
+* **§10b** — a corrected capacity-lever ledger: of the five levers RUN 4 declared "measured and
+  refuted", **two were wrong** (`tmpfs` §60, `-p` §54), plus the settled 2,400-during-search ceiling
+  and the twice-rejected 16 threads.
+* **§2** — **H1, H3, H4 spelled out** (the brief named the `h3ss` line without saying what H3 tests).
+* **§2.6** — **D9 corrected: it is NOT fixed.** The 300 s transport stall is UNIDENTIFIED (seven
+  hypotheses refuted), only BOUNDED to 120 s, with `ssh_timeout_diagnostic` armed to settle it on the
+  next occurrence. The brief had it inside a "fixed pre-launch" row.
+* **§2.7** — renumbered to canonical **P11–P30** so cross-references to record §20.2 resolve.
+* **§9(6)** — the write-up spine: SQ1→SQ2→SQ3, the three-link chain, accounts A1–A5, Okhrati's
+  duties D1–D6, registry rows 38–41.
+
+**Defect found and fixed in my own work (record §62.2).** Reconciling `records=1442` against a raw
+walk's 1467 showed the two denominators are different and both correct (search population vs +23
+`frozen/*-winner/` copies +1 `.pull_tmp` staged record) — no regression. But it exposed that
+`docs/ops/science_watch.py` and `docs/ops/results_audit.py`, both written by this session, lacked the
+archive-walk guard that `scripts/sentinel.py:1348` documents after it tripped **three** other
+instruments: exclude `.pull_tmp*` **and** `_quarantined*`. Six other places carry it; these two were
+instruments four and five. **My first diagnosis was wrong and is recorded as such**: I claimed the
+`.pull_tmp` duplicate was being double-counted, but `glob.glob(**)` does not match dot-directories, so
+the real exposure was `_quarantined*` alone — which a dot-prefix filter would have missed. Measured on
+a synthetic 5-record tree: `glob.glob` 4 vs `pathlib.rglob` 5; pre-fix code (via `git show HEAD:`)
+reports 4, fixed code reports 3. Live effect today is **zero** (no `_quarantined*` tree exists) — a
+latent trap closed, not a number corrected.
+
+**State after:** brief at 866 lines; record at 7,174 lines (§62 added); campaign healthy —
+records 1,443, spend $37.4661, `sci=OK`, drift 0, arm spread improving 2.262× → 2.246×, core-line
+2.33×. **Next:** the successor session audits this session's work (brief §11); verify the §60 tmpfs
+prediction as the 15 G incumbents drain; track the arm ratio toward 1.0; audit `snx` and `h_rt`; the
+write-up.
+
 ## [2026-07-31d] RUN 7 SESSION CLOSE — FOUR SELF-INFLICTED THROTTLES FOUND AND FIXED, AND THE HANDOVER
 
 **Full narrative: `docs/CAMPAIGN_EXECUTION_RECORD.md` §53–§61. Successor brief:

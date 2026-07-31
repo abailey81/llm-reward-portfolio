@@ -41,6 +41,14 @@ def _records(root: Path) -> list[tuple[str, str, dict]]:
     out = []
     for p in glob.glob(str(root / "**" / "record.json"), recursive=True):
         parts = p.replace("\\", "/").split("/")
+        # Anything walking the archive must exclude BOTH the in-flight staging and the
+        # deliberately-set-aside past -- the convention `scripts/sentinel.py:1348` established
+        # after three separate instruments tripped on it. A pull STAGES into `.pull_tmp.<pid>/`,
+        # so that tree holds byte-identical copies of records that already exist canonically
+        # (observed here 2026-07-31 on `.pull_tmp.28884`, D18); `_quarantined*` holds records
+        # set aside from an EARLIER run, whose mtimes survive the move.
+        if any(seg.startswith((".pull_tmp", "_quarantined")) for seg in parts[:-1]):
+            continue
         try:
             r = json.load(open(p, encoding="utf-8"))
         except (json.JSONDecodeError, OSError):

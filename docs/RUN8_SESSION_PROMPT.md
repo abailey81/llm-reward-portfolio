@@ -115,6 +115,97 @@ analysis. **Treat his push-back as evidence, not as a question to be answered de
 * **Grade inflation 2026.** Last year's distinction ≈ this year's merit. Every rubric dimension needs
   unambiguous distinction evidence.
 
+### §0d. ★ THE OLDEST LAYER — the two instructions that CREATED this campaign, verbatim
+
+**These predate every other prompt in this file and NONE of them has ever been withdrawn.** They are
+reproduced here because the RUN 5/6/7 briefs each carried only the *newest* layer and let this one
+fall out of the chain. Read them as written to you.
+
+**(i) The instruction that STARTED the campaign** (Tamer, to the RUN 4 session):
+
+> I need you to very deeply and very extensivelly analyse all documents, absolutely all that are
+> here, very deeeply the changelog, handoff, and absolutely all other md docs… After you have
+> attained a most comprehensive knowledge of this dissertation possible, I want you to ultarthink
+> very deeply… start the full campaign run. Work very pricsely, accurately, surgically, and always
+> verify very deeply… Make sure you are not lazy… **Use the absolute maximum myriad can offer us to
+> speed up the training to an absolute maximum.** Please study all teh docs we have very carefully.
+> Make sure you very closely monitor absolutely everything, the process, teh results, if they make
+> sense and meaningful, everythinhing has to be extremely strcitly flawless. Dont forget to document
+> everyuthing in parallel. Take as much time as you need for absolutely everything, including teh
+> very advacned preparations.
+
+**(ii) The instruction that opened the first transition** (Tamer, to the RUN 5 session):
+
+> I am now in the midde of the run which I have started with anotehr claude code session, and I want
+> to transition to this one. This is an extremely important work, so I want you to very deeply and
+> extensivelly study absolutely all files very extensivelly, understadn what was previous claude code
+> session was doing, and proceed and ultrathink I want to ensure the smooth transition… I wantt to
+> make sure absolutely everything is strictly absolutely flawless, logical and etc. I need you to work
+> very accuratelly and surgically, and monitor everything very closely, **including results and othe
+> rprocesses**, make sure everything is strictly smooth, and everything is logical and meaningful…
+> make sure you in details read all docs, all md docs, all handoff, all changelogs. Absolutely
+> everything, make sure you dont miss, anything.
+
+**Three clauses in there are load-bearing and are the reason this section exists:**
+
+1. ***"Use the absolute maximum myriad can offer us"*** — this is the ORIGIN of the campaign-speed
+   priority, and it is the instruction that four separate throttle discoveries (§38 memory, §54
+   priority, §58 pack, §60 tmpfs) were all discharging. **The job is not done: `snx` and `h_rt` have
+   never been audited, and the §60 effect is still unverified.** Treat "we are at the maximum" as a
+   claim requiring measurement — it has been asserted falsely twice (§43, and again in RUN 7 §60).
+2. ***"monitor… including results and other processes… if they make sense and meaningful"*** — the
+   RESULTS half of monitoring is an ORIGINAL requirement, not something added on 2026-07-31. It is
+   why `cycle.py` carries a results layer and eight hard-zero invariants.
+3. ***"document everything in parallel"*** — as it happens, not at the end.
+
+### §0e. The 16 numbered instructions Tamer gave during RUN 1–4, verbatim — none withdrawn
+
+1. *"its even fine if we relaunch the campaign from the start again after changes if needed. **I want
+   to priorities the quality very heavily**"*
+2. *"I give you full permisisons, and **its fine if we need to relaunch or unfreeze**. The main
+   priority of this dissertation, is to be strictly flawless, thats the highest possible priority.
+   **I am planning to publish it**"*
+3. *"Ultarthink and proceed, make sure you work veyr accuratelly and surgically, **maximise speed, and
+   never cut the science**."*
+4. *"also dont forget to **always document what was happening befor, whats going on now, and the
+   future**."*
+5. *"I need you to ensure absolutely everything is strictly absolutely flawless before the relaunch."*
+6. *"I give you full permissions. Ultarthink, act with accordance to targets and priorities, and
+   proceed"*
+7. *"I give you **full permission to do anything, including unfreezing, and changing anything**."*
+8. *"I give you absolutely full permissions to do absolutely anything without any exceptions."*
+9. *"ultarthink, if you think you need to free them, free them. I give you freedom."*
+10. *"monitor teh run veyr veyr veyr very evyr evry closely"*
+11. *"Why do these errors appear? everythiing must be extremely flawless"*
+12. *"DId you forget what we have discussed previously? The errors, transportation errors, and other
+    errors, and also all other issues."*
+13. *"Please, i am fucking tired of repeating myself... the highest priority possible is to make it
+    FLAWLESS by ALL MEANS!!! please solve all issues, absolutely everything must be strictly
+    flawless… do a clean and fresh run, and very closely monitor it"*
+14. *"Very deeply and strictly ultrathink, and bring all issues, inconsestiencies, gaps and etc to an
+    absolute strict **0%, not 0.1%, 0%**!!!!!!"*
+15. *"make sure you document everything from all previous runs, so we know mistakes and etc"*
+16. *"I give you full permissions, ultrathink and proceed. Also please very deeply and extensively
+    analyse my prompt in full, **don't forget about other parts as well**, everything is super
+    important."*
+
+**★ Note (12) and (13) especially — they are a rebuke, and the behaviour that earned it is the one
+you are most likely to repeat.** Tamer had to say *"I am fucking tired of repeating myself"* because a
+session drifted into new, interesting verification while KNOWN OPEN DEFECTS stayed open. **Do not let
+an open item go quiet.** The registers are `docs/CAMPAIGN_EXECUTION_RECORD.md` §18/§20 and
+`docs/DEFERRED_FIXES_RUN4.md` — work them to a verdict, ALL of them, not the interesting ones. On
+2026-07-31 he said the same thing a third way: *"if I am adding something, it doesnt mean that you can
+forget about the previous stuff."*
+
+**★ Note (1), (2) and (7): the permission to RELAUNCH AND UNFREEZE is EXPLICIT, REPEATED, and
+STILL LIVE.** Combined with his 2026-07-31 *"freeze is not a priority 1, IT NEVER WILL, the quality of
+the work is #1 priority"*, the standing position is unambiguous: **if quality genuinely requires
+unfreezing a hash-bound file, re-freezing under a new tag, discarding RUN 4, or relaunching from
+scratch — you are authorised.** Two duties attach and neither is optional: (a) ultrathink whether the
+change genuinely buys quality, because a relaunch costs ~3 days of compute that the 2026-08-27
+exogenous stop cannot give back; (b) if you do it, it is a **pre-registration amendment** —
+`DEVIATIONS.md` + an R-row + the unfreeze→amend→re-freeze protocol, never a silent edit.
+
 ---
 
 ## §1. STANDING RIGHTS — ALL OF THEM
@@ -214,6 +305,19 @@ Six generations.
 **H2-RA** on Sharpe, **H2-Tail** on CVaR-5 %, each one-sided at α = 0.05, all three legs must reject.
 **This structure is why §56 matters — two of the three comparators are control arms.**
 
+**The other three hypotheses, because you will operate their lines without meeting them elsewhere:**
+
+| id | what it tests | where it lives |
+|---|---|---|
+| **H1** | the LLM winner vs the **best of the 11 human-written rewards** — a beat-the-best intersection–union test | the core line's winner against the human canon |
+| **H3** | **iterative vs single-shot** at matched candidate budget (H0: multi-generation ≤ single-shot) | the **`h3ss`** line — the one D20's pid-reuse lock stranded |
+| **H4** | the LLM vs **uninformed search**: the winner against the pointwise **MAXIMUM** over {`random_search`, `bayes_opt`, `cma_es`, `tpe`} — the best black-box optimiser of the reward family at matched budget, the mirror of H1 | the four non-LLM search arms |
+
+**H4 is the worked example of "no lazy hedges":** CMA-ES and TPE were once quietly made report-only to
+protect the confirmatory result; the publication-grade move was a **confirmatory beat-the-max IUT**
+with an equivalence backstop, so the answer is decisive whichever way it falls. Never soften a test to
+protect a result.
+
 **Frozen design v2.1:** hash `3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f`,
 tag `prereg-v2.1`, seal commit `b9c2be5`. `freeze.py` **forbids re-freezing**, and
 `canonical_bytes()` hashes **nine files including the whole of `PREREGISTRATION.md`** — so **no
@@ -248,7 +352,8 @@ Full detail in `docs/CAMPAIGN_EXECUTION_RECORD.md` §20, §23, §25, §28, §37,
 
 | id | defect | state |
 |---|---|---|
-| D1–D11 | pre-RUN-4 defects (transport, gates, archiving, seeding, the RUN-1 reject collision) | fixed pre-launch |
+| D1–D11 | pre-RUN-4 defects (transport, gates, archiving, seeding, the RUN-1 reject collision) | fixed pre-launch — **except D9, see below** |
+| **D9** | **the 300 s transport stall is UNIDENTIFIED** — seven hypotheses tested and REFUTED (record §18.3). 55 process samples over 3 min found 8 ssh children, **none aged past 10 s**, while 300 s timeouts were being logged ⇒ **the wait is in the PARENT**, not the child | **BOUNDED, NOT FIXED**: 300 → **120 s**, and `ssh_timeout_diagnostic` is **ARMED to settle it on the next occurrence**. It affects reconciliation LATENCY only — **no recorded number depends on it.** If you see a transport stall, **collect the diagnostic before clearing it** |
 | **D12** | a gate stop looked like success (`return 0` → supervisor logs LINE COMPLETE) | **deferred (2)** |
 | **D13** | a provider reply with no `choices` raised `TypeError` instead of retrying | **deferred (1)** |
 | **D14** | a PARTIAL arm failure is SILENT — the six repo guards cannot see a missing arm | worked around by `docs/ops/arm_coverage.py`; **deferred (4)** |
@@ -268,32 +373,38 @@ and do NOT expect their tests to fail.**
 
 ### §2.7 Process errors — previous sessions' own mistakes (record §20.2, P1–P30)
 
-**Read §20.2 in full.** The highest-value items, because the pattern matters more than any one:
+**Read §20.2 in full.** Below are **P11–P30**, numbered as the record numbers them so every cross-reference resolves.
+**P1–P10 are NOT reproduced here and are not less important** — they are the wrong-ssh-client probe,
+the refuted `ConnectionAttempts` fix, the `UInt32`/`Int32` false-GONE, the `PYTEST_RC` misread, the
+false RED from editing source mid-certification, the bare `raise` that would have hot-looped a
+supervisor, the factor-ladder file read instead of the loader, an OVERSTATED open risk, backticks in
+a heredoc (twice), and a process filter that matched and killed its own shell. Several are restated as
+traps in §10. The pattern matters more than any single item:
 
-1. Recommended `qalter -l` in five documents — forbidden site-wide. **Verified the SUBSTITUTION and
+1. **P11** — Recommended `qalter -l` in five documents — forbidden site-wide. **Verified the SUBSTITUTION and
    inferred the PERMISSION.**
-2. Projected the LLM budget per **LINE** instead of per **(line, ARM)** → "26 % margin" when the truth
+2. **P12** — Projected the LLM budget per **LINE** instead of per **(line, ARM)** → "26 % margin" when the truth
    was a **−$7.60 shortfall**.
-3. Reported a placement rate of **100 % from n = 1**.
-4. Put **backticks** inside a `bash -c` string; they executed and corrupted a file. **Four violations
+3. **P13** — Reported a placement rate of **100 % from n = 1**.
+4. **P14** — Put **backticks** inside a `bash -c` string; they executed and corrupted a file. **Four violations
    across sessions.**
-5. Used `pd.bdate_range` (1,632) instead of the records' own **1,571-session axis**.
-6. Claimed "GIFT must be cited in CH2" **without grepping `paper/`**. It already was.
-7. Concluded "pack 8 buys nothing" by evaluating **only at the 1,000-job cap**. Reversed on Tamer's
+5. **P15** — Used `pd.bdate_range` (1,632) instead of the records' own **1,571-session axis**.
+6. **P16** — Claimed "GIFT must be cited in CH2" **without grepping `paper/`**. It already was.
+7. **P17** — Concluded "pack 8 buys nothing" by evaluating **only at the 1,000-job cap**. Reversed on Tamer's
    challenge.
-8. Nearly applied a 4× memory headroom that would have made placement **worse**.
-9. A liveness checker went blind on `driver_core.log` — the **confirmatory** line — on a regex.
-10. "PopArt: 0 records carry it" — `popart_scale` is a **dict**.
-11. "PopArt: 45 invariant breaks" — an **absolute** tolerance against a streaming estimator. Truth: zero.
-12. Framed 84.4 % turnover-pricing as discovery — **the prompt lists it explicitly** (`initial_generation.txt:7`).
-13. Used σ_seed where the paired test needs **σ_D** (~4× too optimistic).
-14. Renamed **live job 45433** and the restore **silently failed**.
-15. Let a **5.2-hour** monitoring gap open (RUN 6) — and a **2 h 18 m** one (RUN 7).
-16. Reported `GUARDS_RC=0` that was actually **`tail`'s** exit code.
-17. **(P27)** backticks in a heredoc again — no corruption, but the fourth violation.
-18. **(P28)** reported "384 cores" with a trend and an ETA and **no mechanism**.
-19. **(P29)** misread `submit/**START** at` — for a running job that column is the START time.
-20. **(P30)** reported "431,226 free slots" on a ~21,600-core cluster — a bad `qhost` parse, caught on
+8. **P18** — Nearly applied a 4× memory headroom that would have made placement **worse**.
+9. **P19** — A liveness checker went blind on `driver_core.log` — the **confirmatory** line — on a regex.
+10. **P20** — "PopArt: 0 records carry it" — `popart_scale` is a **dict**.
+11. **P21** — "PopArt: 45 invariant breaks" — an **absolute** tolerance against a streaming estimator. Truth: zero.
+12. **P22** — Framed 84.4 % turnover-pricing as discovery — **the prompt lists it explicitly** (`initial_generation.txt:7`).
+13. **P23** — Used σ_seed where the paired test needs **σ_D** (~4× too optimistic).
+14. **P24** — Renamed **live job 45433** and the restore **silently failed**.
+15. **P25** — Let a **5.2-hour** monitoring gap open (RUN 6) — and a **2 h 18 m** one (RUN 7).
+16. **P26** — Reported `GUARDS_RC=0` that was actually **`tail`'s** exit code.
+17. **P27** — backticks in a heredoc again — no corruption, but the fourth violation.
+18. **P28** — reported "384 cores" with a trend and an ETA and **no mechanism**.
+19. **P29** — misread `submit/**START** at` — for a running job that column is the START time.
+20. **P30** — reported "431,226 free slots" on a ~21,600-core cluster — a bad `qhost` parse, caught on
     an order-of-magnitude check and **discarded rather than reported**.
 
 **★ THE PATTERN, and it is the single most useful thing in this document: every one of these was an
@@ -614,6 +725,19 @@ accepted candidates in generation order, never the best *k*.
 
 **(6) THE WRITE-UP IS WHERE THE GRADE IS.** ~5,900 words of CH1/CH2/CH3/Methods need **no results**.
 31 days to submission. See `docs/WRITEUP_95PLUS_PLAYBOOK.md`.
+**The spine is the MECHANISM, not the performance verdict:** one question — *does showing the LLM the
+downside change the reward CODE it writes?* — decomposed into **SQ1 responsiveness → SQ2 transmission
+(mediation) → SQ3 specificity**, over a three-link causal chain (fed signal → authored code → policy →
+realized tail) in which **a null LOCATES where the chain breaks** rather than ending the story. The
+performance equivalence is the rigorous backdrop. Okhrati's 2026-07-31 duty **D1** requires CH6 to be
+organised **observation → mechanism → account → counterfactual**, with every headline number naming
+which instrument (SQ1/SQ2/SQ3) speaks to it and which of the five rival accounts **A1–A5** it supports
+— so the mechanism kernel stops being report-only exhibits and becomes the connective tissue.
+Duties **D2–D6** (the seed-trajectory curve with its three anti-optional-stopping conditions · every
+surprise investigated · the costed "what would get a more expected result" subsection · rigour made
+visible as scannable artifacts · narrative over enumeration) are registered as **rows 38–41** in
+`docs/V2_WRITE_TIME_REGISTRY.md` and are checked at every write-time step. They are in `CLAUDE.md` in
+full — read that block before writing a single chapter paragraph.
 
 **(7) The C4 boundary.** Deferred fixes **1–7, 9, 10, 12, 13** remain (8 and 11 are APPLIED).
 The C3 gate **auto-proceeds on green health** (no `--hold-at-gate`), so no manual approval is needed.
@@ -639,6 +763,60 @@ The C3 gate **auto-proceeds on green health** (no `--hold-at-gate`), so no manua
 * **Before claiming something is missing from the paper, grep `paper/`.**
 * **Before concluding from an aggregate, say its denominator out loud.**
 * **Python writes CRLF on Windows** — a rewritten `.sh` broke bash on the cluster. Force `\n`.
+
+* **Driver logs are LOCAL time (BST = UTC + 1); everything else here is UTC.** A previous session
+  retracted an entire analysis over this one hour. Convert before you compare.
+* **Liveness comes from PROCESSES and the driver LOG — never from `driver_status` mtimes.** The
+  heartbeats are event-driven, so a healthy line can look frozen for an hour.
+* **Any process query that greps command lines must exclude `$PID`** — otherwise it finds and kills
+  your own shell, and then misreports what is left.
+* **Never edit source during a certification run.** Line numbers shift under `inspect.getsource` and
+  produce a false RED. Hash the source tree before and after and require them identical.
+* **Verify before destroying.** 20 of 138 queued jobs turned out not to be campaign jobs. Delete by
+  explicit job id, never by pattern. (The 20 `l16xx` jobs in `~/Scratch/p6cpu` are the B\*-ladder
+  recovery cells feeding figure F11 — **preserve them.**)
+* **The tempting fix is usually wrong.** `ConnectionAttempts` and ssh multiplexing were both plausible
+  and both refuted by testing *before* adoption. A mechanism you can explain is not evidence.
+* **★ Distinguish the FINDING from a DEFECT.** An LLM writing buggy reward code **is the phenomenon
+  under study** — a registered deliverable, not something to fix. A truncation caused by *our* token
+  cap contaminates it and IS a defect. The one genuinely AMBIGUOUS class is
+  `defines no callable named 'reward'`: resolve it by reading `tokens_out` / `stop_reason`, never by
+  assuming. Getting this backwards would either delete a result or bank an artifact.
+* **Overstating an open risk is its own inaccuracy.** Verify in BOTH directions before writing it down.
+* **When you find one instance of a defect class, enumerate the whole class.** D1 led to D5 only
+  because someone kept sweeping after the painful one was fixed — and §38 fixed ONE term of a
+  four-term resource request while `tmpfs` (§60) sat wrong for three more days.
+* **★ Every defect that mattered was found by MEASURING THE RUNNING SYSTEM, not by reading code.**
+
+---
+
+## §10b. THE CAPACITY-LEVER LEDGER — and the two verdicts that were WRONG
+
+The RUN 4 brief published a table of "five capacity levers, MEASURED AND REFUTED — do not re-chase
+them." **Two of the five were later overturned by measurement, one of them because Tamer refused to
+accept it.** The corrected ledger:
+
+| lever | RUN-4 verdict | TRUTH as of 2026-07-31 |
+|---|---|---|
+| `tmpfs` sizing | "dead — nodes advertise 1.1–1.3 TB; we stage 71 MB" | **WRONG — §60.** `tmpfs` is a **consumable**, so the per-node total, not the disk, is what binds. A **15 G** ask to stage 71 MB is a **216× over-request** that qualified only **11 of 348 hosts** and held us to **1.18 jobs on 36-slot nodes**. Now `1G` on CPU. **Effect still UNVERIFIED.** |
+| `-p -100` | "dead — everything sits at identical normalised priority ~1.809" | **WRONG — §54.** `weight_priority = 4.0`, so POSIX `-p` is a first-class term. **1,888 of 2,395** pending jobs outranked us and **120 of 124** stuck jobs were CONTROL arms — i.e. the throttle had reached H2's IUT legs. Now `0` everywhere, enforced by a test. |
+| `-ac allow=d` | dead — we use 14 % of a class that is 81 % of the cluster | still true |
+| raising `max_u_jobs` | dead — we used 277–365 of 1,000 | still true (but it BINDS at C4) |
+| ssh multiplexing | dead — server `MaxSessions` 10 < the ~40 concurrent ops twelve lines need | still true |
+
+**★ The lesson is not "check tmpfs". It is that "we are at the structural maximum" is a CLAIM, and it
+has now been asserted falsely three times** (§43 on cores, §38 on the resource request, §60 on
+placement). The founding instruction is *"use the absolute maximum Myriad can offer"* — so treat every
+such verdict as a hypothesis with a denominator, and **`snx` and `h_rt` have still never been
+audited.** Both are consumables; both are in the same four-term request `jobscript.py` renders; nobody
+has ever measured what we actually use against what we ask for.
+
+**What IS settled about the ceiling.** 4,000 cores is the *saturation* point, and it is
+**arithmetically impossible during SEARCH** — 12 lines × 5 arms × 5 candidates = 300 jobs × 8 slots =
+a **2,400 ceiling** — and search is **LATENCY-bound anyway** (its length is 6 × (training + authoring),
+so extra cores idle). 4,000 is reachable only at **C4**, where `max_u_jobs = 1000` binds. **16 threads
+is rejected twice over:** throughput *regresses* to 44.0 steps/s vs 55.1 at 8 (**7.6× worse per core**)
+and thread count is **inside the determinism envelope** with 680+ records already at `OMP=8`.
 
 ---
 
