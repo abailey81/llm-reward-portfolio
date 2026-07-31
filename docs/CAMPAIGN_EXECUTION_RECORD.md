@@ -6855,3 +6855,138 @@ whole scheme is keyed on.
 And operationally: **the signal was a number moving in the right direction for the wrong reason.**
 `stalest` climbing from 6 to 9 minutes is not an alarm, it is a trend, and the alarm threshold was 30.
 Watching trends rather than thresholds is what caught it.
+
+---
+
+## 60. ★★★ `tmpfs` WAS A 216× OVER-REQUEST, AND IT WAS CAPPING US TO ONE JOB PER NODE
+
+Found 2026-07-31 ~14:00 UTC, chasing Tamer's question *"why can't we use many CPU cores to finish
+search much quicker?"*. The honest answer turned out not to be "we can't" but **"we could, and one of
+our own resource requests was preventing it"** — the §38 memory defect, one consumable over.
+
+### 60.1 The find
+
+Our jobs request four consumables. §38 audited **one** of them (memory) and nobody then checked the
+other three. From `qconf -sc`:
+
+```
+tmpfs   scratch   MEMORY   <=   YES(requestable)   JOB(consumable)   10G(default)
+```
+
+**`tmpfs` is a CONSUMABLE**, so the request is RESERVED per job and a node can host only
+`total_tmpfs / request` of our jobs **no matter how many slots are free**.
+
+| | |
+|---|---|
+| what a job actually stages | the ACFS gold dir = **71 MB** (plus a small `TORCH_HOME`) |
+| what we requested | **15 G** |
+| ratio | **216×** |
+
+And the estate, measured the same minute:
+
+| free tmpfs | pool-d hosts |
+|---|---|
+| ≥ 15 G (our request) | **11 of 348** |
+| ≥ 2 G | 11 |
+| **≥ 1 G** | **348** |
+
+The cliff sits between 1 G and 2 G, and the median host has **1.3 G** free.
+
+### 60.2 The consequence, measured directly rather than inferred
+
+```
+60 running jobs on 51 DISTINCT hosts = 1.18 jobs per node
+43 hosts x 1 job    7 hosts x 2    1 host x 3
+```
+
+**Pool-d nodes have 36 slots — four 8-slot jobs fit.** Slots were never the constraint. Our own
+scratch reservation was, and it had been since launch night.
+
+This is why the earlier answer to "are we using the max cores" was wrong. I had reported that search
+is capped by the serial reflection chain (true: 153 jobs asked against a 300 ceiling) and by
+placement (true: 43 %), and concluded we were at the structural maximum. **We were not: the chain
+could absorb ~165 concurrent jobs ≈ 1,320 cores, and we were holding ~528.** The gap was self-inflicted.
+
+### 60.3 The fix
+
+`src/cluster/jobscript.py`: `tmpfs` default `15G` → **`1G`**, **scoped to the CPU lane** exactly as
+§38 scoped the memory fix, because the measurement is pool-d CPU. The GPU lane keeps `15G` and stays
+byte-identical (a regression test already asserts that). An explicit value always wins.
+
+```
+CPU search    tmpfs=1G   mem=1G
+CPU C4 pack8  tmpfs=1G   mem=2G
+GPU lane      tmpfs=15G  mem=4G     <- untouched
+```
+
+**Safe by construction, not by margin.** The jobscript stages gold with
+`if cp ...; then export LLM_RP_GOLD_STAGED_DIR="$TMPDIR/gold"`, and its own comment records the
+fallback: *"If the tmpfs copy fails, the ACFS input dir itself is exported instead — gold reads keep
+working either way."* An undersized tmpfs therefore degrades I/O; **it cannot fail a training**. And
+tmpfs is outside the determinism envelope — it changes where bytes are read from, never the arithmetic.
+
+**Falsified before trusted:** against the pre-fix renderer the new test fails on `assert 15 <= 1`,
+carrying the host-count reasoning in its message; post-fix it passes. The bound is deliberately
+two-sided — it also asserts ≥10× headroom over the 71 MB staged — so a later edit cannot silently
+shrink it to nothing.
+
+**Gates:** suite **2,883 passed / 3 skipped / 0 failed**, `PYTEST_RC=0` read from the log; `ruff`
+clean repo-wide; `freeze --check` hash **`3ca6f01a…` UNMOVED**.
+
+### 60.4 Shipping it, and the second use of the requeue tool
+
+Shipped by a **driver-only relaunch** (jobscripts render laptop-side, `driver.py:153`), 24 drivers
+back after 560 s with all twelve supervisors and the watchdog untouched. `RUNNING_SHA` re-based to
+`50b6e07`; drift and working tree both empty.
+
+Like the priority fix, it reaches only NEW submissions — so `docs/ops/requeue_legacy_priority.sh` was
+generalised from "legacy `-p`" to "legacy CONFIG" with a `--stale-tmpfs` selector and a `--limit N`
+so any new selector can be canaried first. **Canary of 5 → the drivers logged `(1/3) … requeueing 5
+spec(s) WITHOUT a retry bump`** (the `(1/3)` confirming the evidence-less-drain counter had RESET
+since the §57 requeue, i.e. it is consecutive per batch and not a cumulative budget), and the first
+post-relaunch jobscript carried all three fixes at once:
+
+```
+#$ -pe smp 8
+#$ -l mem=1G      <- §38
+#$ -l tmpfs=1G    <- §60
+#$ -p 0           <- §54
+```
+
+Then the remaining **109** stale-tmpfs queued jobs were requeued, `0` of them having started.
+
+### 60.5 ⚠ WHAT IS *NOT* YET SHOWN — the prediction is not yet testable
+
+Recorded before acting, so it can be falsified after: *eligible hosts 11 → 348; jobs per node
+1.18 → toward 2–4; placement 43 % → well above; cores 528 → toward ~1,320.*
+
+Measured 25 minutes after the requeue:
+
+| | before | now |
+|---|---|---|
+| jobs at `tmpfs=1G` | 0 | **105** |
+| jobs at `tmpfs=15G` | 186 | 73 |
+| placement | 43 % | **42 %** |
+| jobs per node | 1.18 | **1.23** |
+
+**The migration is working; the placement effect is not yet visible, and it is too early for it to
+be.** The 73 jobs still at 15 G are the RUNNING ones, and a running job holds its original
+reservation until it exits — these are 4-hour trainings. The freed tmpfs only returns to the pool as
+those incumbents drain, and the newly-submitted 1 G jobs additionally carry `prior 0` until the next
+10-minute scheduling pass.
+
+**So this prediction is neither confirmed nor refuted yet, and it must not be reported as either.**
+The honest test is jobs-per-node several hours from now, once the 15 G cohort has cycled out. If it
+has not moved above ~1.2 by then, the tmpfs hypothesis is wrong and the record must say so.
+
+### 60.6 The lesson
+
+**§38 fixed one term of a four-term resource request and nobody audited the rest.** The memory
+over-request was found by a controlled canary experiment and celebrated; `tmpfs`, `snx` and `h_rt`
+sat in the same `-l` line, unexamined, for another three days. A fix that names a *class* of defect —
+"a round number nobody measured against the thing it reserves" — should end with a sweep of every
+sibling, not just the instance that hurt.
+
+The second lesson is about the earlier answer: **"we are at the structural maximum" is a claim, and
+it needs the same evidence as any other.** I supported it with two real limits (the serial chain and
+placement) and did not ask whether the placement figure was itself something we were causing.

@@ -34,9 +34,26 @@
 #
 # Run it ON the cluster:  ssh myriad 'bash -s' -- --apply < docs/ops/requeue_legacy_priority.sh
 
+#
+# 2026-07-31, SECOND USE (record §60): generalised from "legacy -p" to "legacy CONFIG". The tmpfs
+# fix (15G -> 1G) has the same shape as the priority fix -- it reaches only NEWLY SUBMITTED jobs,
+# while the jobs already sitting in `qw` keep the request they were submitted with. `--stale-tmpfs`
+# selects those instead of the negative-priority ones. `--limit N` stops after N so the first use of
+# any new selector can be canaried before a mass requeue.
+#
+#   bash requeue_legacy_priority.sh --apply --stale-tmpfs --limit 5   # canary
+#   bash requeue_legacy_priority.sh --apply --stale-tmpfs             # the rest
+
 set -u
-APPLY=0
-[ "${1:-}" = "--apply" ] && APPLY=1
+APPLY=0; LIMIT=0; MODE=priority
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --apply)        APPLY=1 ;;
+        --stale-tmpfs)  MODE=tmpfs ;;
+        --limit)        shift; LIMIT="${1:-0}" ;;
+    esac
+    shift
+done
 
 USER_ID=$(whoami)
 echo "=== requeue_legacy_priority  (user=$USER_ID  mode=$([ $APPLY -eq 1 ] && echo APPLY || echo DRY-RUN)) ==="
@@ -44,16 +61,27 @@ echo "=== requeue_legacy_priority  (user=$USER_ID  mode=$([ $APPLY -eq 1 ] && ec
 mapfile -t QW < <(qstat -u "$USER_ID" 2>/dev/null | tail -n +3 | awk '$5 ~ /qw/ {print $1}')
 echo "queued (qw) jobs found: ${#QW[@]}"
 
-targets=(); skipped_zero=0; skipped_state=0
+targets=(); skipped_ok=0; skipped_state=0
 for J in "${QW[@]}"; do
-    P=$(qstat -j "$J" 2>/dev/null | awk '/^priority:/{print $2}')
-    P=${P:-0}
-    if [ "$P" = "0" ]; then skipped_zero=$((skipped_zero+1)); continue; fi
+    if [ "$MODE" = "tmpfs" ]; then
+        # A job's own hard resource_list is the truth; the jobscript on disk may already be the NEW
+        # one while this job carries the OLD request (that is exactly the situation being fixed).
+        TF=$(qstat -j "$J" 2>/dev/null | grep -m1 'hard resource_list' | grep -o 'tmpfs=[0-9]*[GM]' | head -1)
+        case "$TF" in
+            tmpfs=1G|"") skipped_ok=$((skipped_ok+1)); continue ;;
+        esac
+    else
+        P=$(qstat -j "$J" 2>/dev/null | awk '/^priority:/{print $2}')
+        P=${P:-0}
+        if [ "$P" = "0" ]; then skipped_ok=$((skipped_ok+1)); continue; fi
+    fi
     targets+=("$J")
+    if [ "$LIMIT" -gt 0 ] && [ "${#targets[@]}" -ge "$LIMIT" ]; then break; fi
 done
 
-echo "  already at -p 0 (left alone)      : $skipped_zero"
-echo "  legacy negative -p (to requeue)   : ${#targets[@]}"
+echo "  selector                          : $MODE"
+echo "  already correct (left alone)      : $skipped_ok"
+echo "  stale-config (to requeue)         : ${#targets[@]}${LIMIT:+  (limit $LIMIT)}"
 if [ ${#targets[@]} -eq 0 ]; then echo "nothing to do."; exit 0; fi
 
 deleted=0
