@@ -436,9 +436,10 @@ def test_run_campaign_tiered_c_ladder_canary_priorities_pair_and_sweep(tmp_path)
     # C0 (MODE-D 2026-07-21c): the canary runs CONCURRENTLY with the no-spend arms (its batch is
     # present at -p 0 but no longer necessarily FIRST); only LLM authoring waits on its verdict.
     assert by_name["canary"][4] == 0
-    # priorities: H2 search arrays at 0; the non-H2 family arm at -100
+    # priorities: EVERY arm at 0 since 2026-07-31 (record §54). This line asserted -100 for the
+    # non-H2 family arm, i.e. it encoded the very split that was found starving the controls live.
     assert by_name["distributional_g0"][4] == 0 and by_name["scalar_g0"][4] == 0
-    assert by_name["random_search_search"][4] == -100
+    assert by_name["random_search_search"][4] == 0
     # dedup contract: baselines covered by the canary are NOT re-submitted as a second batch
     # (concurrent double-submission of the same run_ids = the P4 write-race class).
     assert "baselines" not in by_name
@@ -446,14 +447,15 @@ def test_run_campaign_tiered_c_ladder_canary_priorities_pair_and_sweep(tmp_path)
     pair = by_name["h2_pair_test"]
     assert pair[4] == 0
     assert pair[3] == ["distributional-s0", "scalar-s0", "distributional-s1", "scalar-s1"]
-    # the non-H2 arm's core test flooded per-arm (zero barrier) at -100
-    assert by_name["random_search_test"][4] == -100
+    # the non-H2 arm's core test flooded per-arm (zero barrier), now at full standing
+    assert by_name["random_search_test"][4] == 0
     # C4: ONE round-robin sweep block over ALL units (3 arms + 1 baseline) x seeds 2-3, seed-major
     sweep = by_name["sweep_t1"]
-    # row 30n/C6: sweep block 1 = the tier-100 rung at PRIORITY_STAGE1 (-100), NEVER 0 — the
-    # sequential path now mirrors the pipelined ladder (rungs sit in the registered queue,
-    # below core-0 and above nothing they may starve; the old 0 inverted the queue vs the legs).
-    assert sweep[4] == -100 and len(sweep[3]) == 8
+    # 2026-07-31 (record §54): every sweep block rides at 0. This assertion previously demanded
+    # -100 and said "NEVER 0" — that was the registered R88 ladder, which R101 superseded and
+    # which, measured live, sank us below EVERY other cluster user because `-p` is global and
+    # weighted at 4.0. Rung ORDER is preserved by submission order + weight_waiting_time = 1.0.
+    assert sweep[4] == 0 and len(sweep[3]) == 8
     assert sweep[3][:4] == ["distributional-s2", "scalar-s2", "random_search-s2",
                             "baseline_differential_sharpe-s2"]
     # partition: H2 test seeds 0-3 all present, no overlap/gap
@@ -492,9 +494,15 @@ def test_run_campaign_tiered_runs_a_LEG_shape_with_no_h1_canon(tmp_path):
     assert "canary" not in names, "a leg must not run the C0 canary (it guards Opus spend)"
     assert not any(n.startswith("baseline") for n in names), (
         "a leg must not train the H1 hand-reward canon")
-    # every priority is full fair-share standing or the registered -100 rung; never a leg ladder
-    assert all(c[4] >= -100 for c in fake.calls), (
-        "R101 retired the -200..-290 leg priority ladder; no leg batch may sit below the rung value")
+    # ★ THE INVARIANT (2026-07-31, record §54): NO batch may carry a negative -p, ever.
+    #
+    # This assertion used to read `>= -100`, which permitted exactly the deprioritisation that was
+    # found starving the three CONTROL arms live. `-p` is a GLOBAL POSIX priority weighted at 4.0
+    # on Myriad, so any negative value sinks us beneath every other user on the cluster — it cannot
+    # express an intra-user ordering, which is what R88 assumed it did. Tamer's standing rule is
+    # absolute: never lower the SGE priority of any of our jobs, ever.
+    offenders = [(c[0], c[4]) for c in fake.calls if c[4] < 0]
+    assert not offenders, f"batches submitted below full fair-share standing: {offenders}"
 
 
 def test_run_campaign_tiered_gate_holds_then_approval_resumes(tmp_path):

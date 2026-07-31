@@ -1480,6 +1480,9 @@ Recorded because the next session inherits the habits, not just the code.
 | P25 | Let a **5.2-hour monitoring gap** open on a live campaign | Tamer: *"Why did you stop monitoring deeply?"* | **The cadence is the job.** This produced the 2-minute standing order and `docs/ops/cycle.py` |
 | P26 | Reported **`GUARDS_RC=0`** from `… \| tail -20; echo $?` | that is **`tail`'s** exit code. The guards were rc=2 (on acknowledged verdicts, so the campaign was fine — the *report* was not). Surfaced by `cycle.py`, which reads the real code via `subprocess.run` | **A pipe's exit code is the last command's.** Same family as P4, two months later — which is why it is written down again |
 | P27 | Tried to append record **§53 through a bash heredoc containing backticks**; the shell refused it (`unexpected EOF`) | the append never executed and the record was verified intact at 5,697 lines immediately after — **no corruption**, unlike the previous session's cursor | **Prose containing code spans NEVER goes through a shell** — Write tool, then concatenate. This is **trap 1**, written down in three places, and the *fourth* violation across sessions. The lesson is not "escape more carefully"; it is that reaching for the fastest tool instead of the correct one is itself the defect |
+| P28 | Reported **"384 cores, and here is the ETA"** with a trend and a projection but **no mechanism** | Tamer challenged it directly (*"384 cores??? what happened"*); one field — our own `-p -100` — explained all of it (§54) | **A monitoring number without a cause is a rumour, not a finding.** Campaign speed is a STANDING priority, so a halving core count is an obligation to investigate, never a line in a status report |
+| P29 | Claimed the memory fix was not reaching new jobs, from a job "submitted 06:38" still asking `memory=4G` | that column is *"submit/**start** at"* — for a RUNNING job it is the START time; the job was an old-sizing one that had queued for hours | **Read the column header before reading the column.** Retracted within one command, but it was stated first and it was wrong |
+| P30 | Reported **"pool d has 431,226 free slots"** — impossible on a ~21,600-core cluster | caught by an order-of-magnitude sanity check on my own output before it reached Tamer | the parser matched indented **queue-instance** lines as host lines and ignored the queue **state** letters (`d`/`a`/`u`/`E`); the memory column silently read 0 for every host. **Discarded rather than reported — a number I cannot defend is not evidence.** The standing shape again (P1–P16): a surprising number is a claim about my own instrument before it is a claim about the world |
 
 **Added 2026-07-31 — the sixteen self-corrections of the 2026-07-30/31 session.** They share one shape, and naming it is worth more than any individual row: **an aggregate (or an exit code) that answered a slightly different question from the one being asked, reported as if it answered the right one.** A striking number is a hypothesis about your own instrument until the confound is ruled out.
 
@@ -6030,3 +6033,236 @@ finding: a D17 record is biased *against* its model (§37.6), while this one is 
 each new one genuinely needs the three-line triage above. What it must never become is a count that
 is watched and not read — the moment a breach lands on `c1`, or tops an arm whose winner is not yet
 frozen, it stops being bookkeeping and becomes a validity decision.
+
+---
+
+## 54. ★★★ WE WERE DEPRIORITISING OURSELVES — AND THE ARMS IT STARVED WERE THE CONTROLS
+
+Found 2026-07-31, T+60 h, after Tamer pushed back on a status report: *"384 cores??? what happened,
+we were supposed to climb very high, not get stuck at 384 cores."* He was right to push. The number
+had a cause, I had reported it without one, and the cause was **us**.
+
+This is the most consequential defect found in RUN 4 to date. It was not a crash, it produced no
+alarm, and every guard was green throughout.
+
+### 54.1 The symptom, and the wrong first diagnosis
+
+Cores fell monotonically across the session while the queued backlog stayed deep:
+
+| UTC | 00:54 | 03:38 | 05:07 | 06:34 | 08:47 |
+|---|---|---|---|---|---|
+| cores | 728 | 624 | 488 | 416 | **384** |
+
+At 08:44 the queue read **49 running / 124 queued**. That is the exact re-triage trigger registered
+against `capacity_accumulation` in `acknowledged_alarms.txt` — *"concurrency declines while the
+QUEUED backlog is deep — that would be a genuine placement failure rather than a drained pipeline"* —
+and it had fired.
+
+My first two readings were both wrong, and both are worth recording because each was a measurement
+error of a *different* kind:
+
+1. **"A job submitted today at 06:38 still asks `memory=4G`, so the memory fix is not reaching new
+   jobs."** FALSE. In `qstat` the column is *"submit/start at"*, and for a RUNNING job it is the
+   **start** time. Job 43546 was an old-sizing job that had been queued for hours and finally
+   started. Corrected within one command of stating it.
+2. **"Pool d has 431,226 free slots."** Impossible on a ~21,600-core cluster. My parser matched the
+   indented queue-instance lines as though they were host lines and double-counted massively, and it
+   ignored the queue **state** letters (`d` disabled, `a` alarm, `u` unreachable, `E` error). The
+   memory columns in the same pass read `0` for every host because the `hc:memory=` field never
+   matched. **Discarded rather than reported** — a number I cannot defend is not evidence.
+
+### 54.2 The measurement that found it
+
+Re-parsed correctly, the picture inverted. **The capacity was there and we were not being given it:**
+
+```
+pool d : 275 usable hosts, 2,480 free slots, 246 placeable 8-slot jobs
+our demand : 384 running + 124 queued
+cluster    : 3,102 running / 2,646 pending, all users
+```
+
+So the question was not "is there room" but "why are we not getting it". The answer is one field:
+
+| | our jobs | ucemlwh | ucaprs2 | ucapssp | ucbtokb |
+|---|---|---|---|---|---|
+| `prior` | **1.811 – 1.828** | 2.000 | 2.007 | 2.012 | 2.082 |
+| POSIX `-p` | **−100** | 0 | 0 | 0 | 0 |
+
+**2,144 of the 2,646 pending jobs cluster-wide outranked us.** And from `qconf -ssconf`:
+
+```
+weight_priority   4.000000     <- the -p field: the LARGEST weight in the config
+weight_ticket     1.500000
+weight_waiting_time 1.000000
+weight_urgency    0.000000
+weight_deadline   0.000000
+```
+
+The gap **is** the flag, and the arithmetic closes:
+`4.0 × [(0+1023)/2047 − (−100+1023)/2047] = 0.1954` predicted against **0.189 observed**.
+
+### 54.3 ⚠ WHICH of our jobs carried it — the part that matters scientifically
+
+`_core_priority()` returned `PRIORITY_CORE` (0) for the two H2 arms and `bayes_opt`, and
+`PRIORITY_STAGE1` (−100) for **everything else**. Measured live, job by job:
+
+| | at `-p 0` | at `-p −100` |
+|---|---|---|
+| **PENDING (stuck)** | 0 | `placebo_shuffled` 42 · `placebo` 41 · `scalar_cvar5` 37 · other 4 |
+| **RUNNING** | `scalar` 22 · `distributional` 7 | `scalar_cvar5` 8 · `placebo` 6 · `placebo_shuffled` 4 |
+
+**We were systematically starving the three CONTROL arms.** Every treatment-arm job that was running
+sat at full standing; 120 of our 124 stuck jobs were controls.
+
+I had reported the consequence earlier in the same session and attributed it to the wrong cause,
+saying the controls were "slower". **They are not slower. They are deprioritised.** The measured
+search depth at the moment of discovery:
+
+```
+line              distributional  scalar   scalar_cvar5  placebo  placebo_shuffled
+c1 CORE                g5           g5          g1          g2           g1
+leg3 qwen27b           g5           g4          g1          g1           g1
+leg10 kimi             g5           g4          g1          g1           g1
+```
+
+Two consequences, and the second is the serious one:
+
+* **Operational.** A line completes only when its SLOWEST arm completes, so the arms we were starving
+  were gating the entire campaign — we were spending our scarce placement on arms already finished at
+  g5 while the gating arms waited.
+* **Scientific — an identification threat.** The controls are what isolate the effect of the feedback
+  CONTENT (Stefan's criterion: *"the CONTROL arms are critical because they ISOLATE the actual
+  effect"*). Searching a treatment arm to six generations and the control it is compared against to
+  two is **not** a slowdown; it is a systematic depth asymmetry between the compared populations, and
+  a much larger version of the §26.3 differential-attrition threat that was registered PRE-DATA. Had
+  the calendar truncated us there, H2 would have compared arms searched to different depths.
+
+### 54.4 C4 would have been far worse
+
+The rung ladder for the seed sweep:
+
+```
+block 1 (rung 100) -> -p -100
+block 2 (rung 189) -> -p -300
+block 3 (rung 279) -> -p -310
+...
+block 6 (rung 568) -> -p -340
+```
+
+**The highest rungs — the ones the power analysis was built on, and the ones the exogenous 2026-08-27
+stop actually threatens — were to be submitted at the LOWEST standing we can hold.** At −340 the
+penalty is `4.0 × [(0+1023)/2047 − (−340+1023)/2047] = 0.665`, putting us near `prior` 1.34 against
+competitors at 2.00+. Under the observed contention that is close to unschedulable. C4 begins in
+**one to two days**.
+
+### 54.5 Why it existed — a half-applied amendment, not an accident
+
+**R88** (2026-07-21) registered the queue order as an SGE priority ladder, explicitly reasoning that
+*"under scarce capacity the scheduler starves back-of-queue work first, reproducing the serial
+semantics"*. That is coherent **only while we are effectively the pool's sole consumer**.
+
+The error is conceptual and worth naming precisely: **`-p` is not an intra-user ordering knob.** It
+is a global POSIX priority weighted against every other user on the machine. R88 used a global field
+to express an intra-user intent. It behaved as designed while the cluster was quiet and inverted the
+moment it was busy.
+
+**R101 (Okhrati seed-parity — all lines in LOCKSTEP at equal seeds) already SUPERSEDED R88's ladder**,
+and `mode_d_launch.ps1` was updated at the time: *"the priority ladder this header describes is
+RETIRED BY R101… No line passes `--priority` any more; the default 0 is full fair-share standing."*
+**The arm-level and rung-level ladders inside `campaign.py` were never updated.** The line-level flag
+was removed; the internals survived — the same failure mode as R106, a ratified decision that reached
+some artifacts and not others.
+
+It also stood in direct violation of the standing absolute rule: *never lower the SGE priority of any
+of our jobs, ever.*
+
+### 54.6 The fix
+
+`src/cluster/campaign.py`, five changes, all scheduling-only:
+
+| | before | after |
+|---|---|---|
+| `PRIORITY_STAGE1` | −100 | **0** |
+| `PRIORITY_RUNG_BASE` | −300 | **0** |
+| `PRIORITY_H3_SINGLESHOT` | −100 | **0** |
+| per-block descent | `PRIORITY_RUNG_BASE − 10·(i−2)` | **removed** |
+| `_core_priority(arm, h2_arms)` | `PRIORITY_CORE` for H2 + `bayes_opt`, else −100 | **`PRIORITY_CORE` for every arm** |
+
+**Nothing registered changes.** Seeds, arms, candidate budget, fitness, α, BH q, SESOI, the TOST
+margin, splits, embargo, benchmark suite, stopping rules and the single-look discipline are untouched.
+`-p` changes **when** a job runs, never **what** it computes, so it sits outside the determinism
+envelope exactly as `pack` does (§50.1) — no CRN, seeding or arithmetic exposure.
+
+**Rung ORDER survives without the ladder.** Blocks are submitted in rung order and
+`weight_waiting_time = 1.0`, so an earlier-submitted block accrues standing over a later one; and the
+cumulative-tier BANKING rule (a rung banks only when it and every rung below is complete) is enforced
+in ANALYSIS, never by the scheduler.
+
+The renderer keeps its ability to emit a negative `-p` — `run_campaign_cluster.py` retains the
+documented `--priority` + `--allow-deprioritise` escape hatch (finding #96). The guard belongs at the
+campaign layer, and that is where it now sits.
+
+### 54.7 Falsified in both directions before being trusted
+
+The three amended tests were run **against the pre-fix file restored from git**, and all three failed
+with the defect named exactly:
+
+```
+E  AssertionError: batches submitted below full fair-share standing:
+   [('scalar_cvar5_g0', -100), ('placebo_g0', -100), ('placebo_shuffled_g0', -100),
+    ('placebo_shuffled_test', -100), ('placebo_test', -100), ('scalar_cvar5_test', -100),
+    ('sweep_t1', -100)]
+```
+
+That list is the defect reproduced in a unit test: the three control arms, their test legs, and the
+first C4 rung block. With the fix restored the same three pass.
+
+The strongest of them is deliberately **not** an assertion about ladder values but about the rule
+itself — *no batch may carry a negative `-p`, ever* — which is the invariant that would have caught
+this in 2026-07-21 and did not exist. Its predecessor asserted `>= -100`, i.e. it **permitted** the
+exact deprioritisation that was starving the controls.
+
+⚠ **A scope miss of my own, recorded.** My first sweep for affected assertions used the pattern
+`priority.*-100` and missed `assert by_name["random_search_search"][4] == -100`, which reads the
+value positionally. The suite caught it. The lesson is the standing one — enumerate by *meaning*
+(every site that can carry a priority), not by the shape of one grep.
+
+### 54.8 Why this is a DEVIATION and not an amendment row
+
+`canonical_bytes()` hashes **the whole of `PREREGISTRATION.md`**, and `freeze.py` forbids
+re-freezing — so no amendment row can be appended post-freeze without moving the frozen hash. The
+change is therefore logged in **`DEVIATIONS.md`**, which is exactly what that file exists for, and
+this is its **first entry**.
+
+The honest framing, both readings stated: it is a deviation from **R88's text**, and simultaneously
+the **completion of R101's intent**. It *increases* fidelity to the registered design, because it
+removes a differential-depth threat between treatment and control arms and restores the lockstep
+R101 registered.
+
+Verified after the change: `freeze --check` RC=0, canonical hash **`3ca6f01a…` UNMOVED** — both after
+the code change and again after the `DEVIATIONS.md` entry.
+
+### 54.9 What could NOT be fixed from here
+
+The 124 already-queued jobs keep the `-p` they were submitted with; only new submissions get 0.
+`qalter -p` would fix them in place and **`p` IS permitted by `jsv_allowed_mod`** (unlike `l`, §45) —
+but **the harness classifier blocks agent-side `qalter`**, exactly as it blocks `qdel`, and the
+standing rule is to surface that rather than route around it. Two honest caveats: it is **unverified**
+whether an ordinary user may RAISE a POSIX priority rather than only lower it (SGE commonly permits
+only lowering), and after §45 I will not infer a permission from a dry run again. The test is one
+command on one job, and it is Tamer's.
+
+Absent that, the fix propagates naturally: as queued work drains, every replacement batch goes out at
+full standing.
+
+### 54.10 The lesson
+
+**A monitoring number without a cause is not a finding, it is a rumour.** I reported "384 cores" with
+a trend and a projection and no mechanism, and it took a direct challenge to make me measure the one
+field that explained all of it. The campaign-speed priority is standing and explicit; a falling core
+count is exactly the observation that obliges an investigation, not a footnote.
+
+And the deeper one, which generalises past this defect: **when an amendment supersedes a mechanism,
+grep for every implementation of that mechanism, not for the flag that names it.** R101 retired the
+ladder; the search that followed found `--priority` in the launcher and stopped there. The constants
+that actually emitted it lived one layer down and survived for ten days.

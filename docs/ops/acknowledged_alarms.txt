@@ -117,6 +117,19 @@ guard:truncation
 # so extra cores would sit IDLE and would not shorten it. Cores become decisive at C4 (39,760 trainings
 # at rung 568). RE-TRIAGE IF concurrency declines while the QUEUED backlog is deep — that would be a
 # genuine placement failure rather than a drained pipeline.
+#
+# ── ★ THE RE-TRIAGE TRIGGER ABOVE FIRED, AND IT WAS RIGHT. 2026-07-31, record §54. ──
+# Cores fell 728 -> 384 across one session while the backlog stayed DEEP (49 running / 124 queued),
+# which is exactly the condition this entry said would mean a real placement failure. It did, and the
+# cause was OURS: `_core_priority()` submitted the three CONTROL arms at `-p -100` while the two H2
+# treatment arms rode at 0, and Myriad weights the POSIX `-p` field at **4.0**, the largest weight in
+# `qconf -ssconf`. Measured: our pending jobs `prior` 1.811-1.828 against four other users at
+# 2.000-2.082, all of whom submit at `-p 0`; **2,144 of 2,646 cluster-wide pending jobs outranked us**;
+# 120 of our 124 queued jobs were controls. Pool d had 2,480 free slots — the capacity was there.
+# FIXED: the whole §14.3 ladder is retired to 0 (R101 had already superseded it; only the launcher had
+# been updated). Logged as the FIRST entry in DEVIATIONS.md. This WARN stays acknowledged because the
+# generation-drain reading below is still the correct explanation of the *shallow* dips — but the
+# trigger's wording is now proven, and the next time it fires the FIRST thing to check is our own `-p`.
 capacity_accumulation:WARN
 
 # record_sanity CRITICAL — "1/300 recent record(s) are GARBAGE (distributional-g2-c2): the authored

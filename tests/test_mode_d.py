@@ -90,7 +90,14 @@ def test_search_pack_lane_applies_and_legacy_stays_byte_identical(tmp_path):
 
 
 def test_pipeline_rungs_concurrent_ladder(monkeypatch, tmp_path):
-    """All C4 blocks submit together; priorities = [-100 (tier-100), -300, -310]; results keyed."""
+    """All C4 blocks submit TOGETHER, and every one of them at ``-p 0``.
+
+    The concurrency property (the barrier) is unchanged and is what this test was written for.
+    What changed on 2026-07-31 is the priority assertion: the descending ladder
+    ``[-100, -300, -310]`` is retired, because ``-p`` is a GLOBAL priority weighted at 4.0 and the
+    descent put the HIGHEST rungs at the LOWEST standing against every other user on the cluster.
+    See ``PRIORITY_CORE``'s docstring for the measurement that settled it.
+    """
     from src.cluster import campaign as C
 
     seen: list[tuple[str, int, float]] = []
@@ -110,9 +117,10 @@ def test_pipeline_rungs_concurrent_ladder(monkeypatch, tmp_path):
         pipeline_rungs=True,
     )
     prios = {name: p for name, p, _ in seen}
-    assert prios == {"sweep_t1": PRIORITY_STAGE1,
-                     "sweep_t2": PRIORITY_RUNG_BASE,
-                     "sweep_t3": PRIORITY_RUNG_BASE - 10}
+    assert prios == {"sweep_t1": 0, "sweep_t2": 0, "sweep_t3": 0}, (
+        "every C4 rung block must ride at full fair-share standing; a descending ladder sinks the "
+        "top rungs below every other cluster user (record §54)")
+    assert PRIORITY_STAGE1 == 0 and PRIORITY_RUNG_BASE == 0
     assert out["results"]["sweep_t1"]["ok"] and out["results"]["sweep_t3"]["n"] == 2
     assert out["ok"] is True
 
@@ -139,12 +147,15 @@ def test_search_poll_lane_and_bo_priority_rule(tmp_path):
     gen_polls = [pc for name, pc in fake.polls if "_g" in name]
     assert gen_polls and all(pc == 45.0 for pc in gen_polls)   # the chain lane polls fast
 
-    # The BO hoist: sequential 30-chain rides at PRIORITY_CORE; other non-H2 arms stay -100.
+    # 2026-07-31: EVERY arm rides at PRIORITY_CORE. The old rule hoisted only the H2 pair and
+    # bayes_opt and left the three CONTROL arms at -100 — which starved exactly the arms that
+    # isolate the effect, and opened a four-generation depth gap against the treatments.
     h2 = ("distributional", "scalar")
-    assert _core_priority("bayes_opt", h2) == PRIORITY_CORE
-    assert _core_priority("distributional", h2) == PRIORITY_CORE
-    assert _core_priority("random_search", h2) == PRIORITY_STAGE1
-    assert _core_priority("placebo", h2) == PRIORITY_STAGE1
+    for arm in ("bayes_opt", "distributional", "scalar", "random_search",
+                "placebo", "placebo_shuffled", "scalar_cvar5",
+                "baseline_differential_sharpe"):
+        assert _core_priority(arm, h2) == PRIORITY_CORE == 0, (
+            f"{arm} must ride at full fair-share standing (record §54)")
 
 
 def test_canary_concurrent_with_family_gates_only_authoring(monkeypatch, tmp_path):

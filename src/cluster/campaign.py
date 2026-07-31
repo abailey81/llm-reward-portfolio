@@ -1436,9 +1436,12 @@ def run_arm_pipeline(
     }
 
 
-#: §14.3 priority ladder value for the C5 H3-single-shot invocation (below the confirmatory core,
-#: same report-only class as stage-1; the plan's "-p -100" for C5).
-PRIORITY_H3_SINGLESHOT = -100
+#: The C5 H3-single-shot invocation. **Retired to 0 with the rest of the §14.3 ladder (2026-07-31).**
+#: It was -100 "below the confirmatory core, same report-only class as stage-1"; that ordering is an
+#: intra-user intent expressed through a GLOBAL field, which is the error documented on
+#: PRIORITY_CORE below. h3ss is a registered line of the campaign and rides at full fair-share
+#: standing like every other.
+PRIORITY_H3_SINGLESHOT = 0
 
 
 def run_h3_singleshot_on_cluster(
@@ -1581,28 +1584,67 @@ def run_campaign_on_cluster(
     return results
 
 
-#: The §14.3 intra-user -p ladder: canary + H2 arrays at 0, remaining Stage-1 at -100 (D1 levels
-#: run at -200 and the Stage-2 fleet at -500 via their own entry invocations).
+#: ★★★ THE INTRA-USER ``-p`` LADDER IS RETIRED. EVERY VALUE IS 0. (2026-07-31, record §54.)
+#:
+#: **The conceptual error, stated plainly: ``-p`` is not an intra-user knob.** R88 registered the
+#: queue order as an SGE priority ladder on the reasoning that *"under scarce capacity the scheduler
+#: starves back-of-queue work first, reproducing the serial semantics"*. That is only true while WE
+#: are effectively the sole consumer of the pool. ``-p`` is a GLOBAL POSIX priority, and Myriad
+#: weights it at ``weight_priority = 4.0`` — the LARGEST weight in ``qconf -ssconf`` (ticket 1.5,
+#: waiting_time 1.0, urgency 0.0). Against a contended queue it does not order our work among
+#: itself; it sinks us beneath EVERY other user on the cluster.
+#:
+#: **R101 (Okhrati seed-parity — all lines in LOCKSTEP at equal seeds) SUPERSEDED R88's ladder.**
+#: ``mode_d_launch.ps1`` was updated at the time ("No line passes --priority any more; the default 0
+#: is full fair-share standing"). The ARM-level and RUNG-level ladders in *this* module were not —
+#: a half-applied amendment, the same failure mode as R106.
+#:
+#: **MEASURED LIVE 2026-07-31, at 384 cores and falling from 728:**
+#:   * our pending jobs  ``prior`` 1.811–1.828, every one at ``-p -100``
+#:   * other users       ``prior`` 2.000–2.082, every one at ``-p 0`` (four users sampled)
+#:   * 2,144 of 2,646 pending jobs cluster-wide outranked us
+#:   * 120 of our 124 queued jobs were the three CONTROL arms; every RUNNING treatment-arm job
+#:     was at ``-p 0``
+#:   * the gap IS the flag: predicted ``4.0 x [(0+1023)/2047 - (-100+1023)/2047] = 0.195``,
+#:     observed 0.189
+#:   * pool d had 2,480 free slots and 246 placeable 8-slot jobs — the capacity was there
+#:
+#: So the ladder was starving the three CONTROL arms (``scalar_cvar5``, ``placebo``,
+#: ``placebo_shuffled``) while the two H2 treatment arms ran at full standing. A line finishes when
+#: its SLOWEST arm finishes, so it gated the whole campaign — and it threatened IDENTIFICATION, by
+#: searching treatment arms to greater depth than their own controls. At C4 it was worse still:
+#: blocks 2+ descended to -300…-340, i.e. the decisive top rungs the power analysis rests on would
+#: have been submitted at the LOWEST standing we can hold.
+#:
+#: **Block ORDER is preserved without the ladder.** Blocks are submitted in rung order and
+#: ``weight_waiting_time = 1.0``, so an earlier-submitted block accrues priority over a later one;
+#: the cumulative-tier BANKING rule is enforced in analysis, never by the scheduler.
+#:
+#: 0 = full fair-share standing. This is R101's requirement and Tamer's absolute standing rule:
+#: *never lower the SGE priority of any of our jobs, ever.*
 PRIORITY_CORE = 0
-PRIORITY_STAGE1 = -100
-#: MODE-D rung ladder base (2026-07-21): pipelined C4 blocks 2+ (tier-189 and above) sit BELOW the
-#: replication legs (-200..-280) so the scheduler enforces the REGISTERED unified queue (core
-#: search/floor/tier-100 -> legs -> tier-189+) natively; block 1 (tier-100) keeps PRIORITY_STAGE1
-#: (-100, above the legs, per the registered queue's early-sigma-recalibration hoist).
-PRIORITY_RUNG_BASE = -300
+PRIORITY_STAGE1 = 0
+PRIORITY_RUNG_BASE = 0
 
 
 def _core_priority(arm: str, h2_arms: tuple[str, ...] | list[str]) -> int:
-    """The C1-C3 per-arm -p value (MODE-D critical-path fix, 2026-07-21b).
+    """The C1-C3 per-arm ``-p`` value. **Now PRIORITY_CORE (0) for EVERY arm.**
 
-    H2 arms ride at PRIORITY_CORE as before. ``bayes_opt`` is HOISTED to PRIORITY_CORE too: its
-    30 GP proposals are inherently sequential (one training per proposal), making it the FLOOR
-    BANK's longest chain (~30 x 1.1h + every queue wait, x30) — at -100 each chain step could
-    queue behind H2 search waves and tier-100 work, multiplying the wait by 30. An array-of-1
-    every ~70 min at -p 0 costs the machine nothing and the chain never waits. Everything else
-    stays PRIORITY_STAGE1.
+    It used to return ``PRIORITY_CORE`` for the two H2 arms and ``bayes_opt``, and
+    ``PRIORITY_STAGE1`` (-100) for everything else. That split is retired for the reasons recorded
+    on the constants above, and one of them is scientific rather than operational:
+
+    **the arms it deprioritised were the three CONTROLS** — ``scalar_cvar5``, ``placebo``,
+    ``placebo_shuffled``. Those are precisely the arms that isolate the effect of the feedback
+    CONTENT, and searching them to a shallower depth than the treatment arms they are compared
+    against is an identification threat, not merely a slowdown. Measured on 2026-07-31 it had
+    already opened a four-generation gap (treatments at g5, controls at g1–g3).
+
+    The signature is kept (rather than deleting the call sites) so that the retirement is visible
+    at the point of use and any future reintroduction has to argue with this docstring.
     """
-    return PRIORITY_CORE if (arm in h2_arms or arm == "bayes_opt") else PRIORITY_STAGE1
+    del h2_arms          # every arm rides at full fair-share standing under R101
+    return PRIORITY_CORE
 
 
 def run_campaign_tiered(
@@ -1627,8 +1669,8 @@ def run_campaign_tiered(
 
     * **C0 canary** — ``canary_baselines`` (the first 3 H1 units) through the FULL production path
       at the core seeds, BEFORE any Opus spend. A canary failure raises loud (abort, fix, re-run).
-    * **C1–C3** — all arms' search→select→freeze pipelines CONCURRENT (H2 arrays at ``-p 0``, the
-      remaining arms + H1 baselines at ``-p -100`` → SGE serves the value order natively). Non-H2
+    * **C1–C3** — all arms' search→select→freeze pipelines CONCURRENT (**every arm at ``-p 0``
+      since 2026-07-31; the H2-at-0 / rest-at--100 split is retired — see PRIORITY_CORE**). Non-H2
       arms' core tests flood per-arm the instant their search ends (zero barrier); the H2 pair's
       core test is ONE **pair-adjacent interleaved** array (B-A3: the taskfile alternates
       dist-s_k, scalar-s_k, so any truncation leaves the pair CRN-balanced).
@@ -1645,8 +1687,9 @@ def run_campaign_tiered(
       schema declares (e.g. 30→340 @90% → 403 @95% → 568 @99%): every block boundary is a clean,
       complete design at that assurance level.
 
-    H3 single-shot and the D1 curve levels run as separate entry invocations at ``-p -100``/``-200``
-    (C5/C6). Fully resume-safe at every step: rerun and every archived unit is skipped.
+    H3 single-shot and the D1 curve levels run as separate entry invocations, **at ``-p 0`` since
+    2026-07-31** (they were C5/C6 at -100/-200). Fully resume-safe at every step: rerun and every
+    archived unit is skipped.
     """
     from src.utils.seeds import seed_tiers
 
@@ -1885,7 +1928,13 @@ def run_campaign_tiered(
         from concurrent.futures import ThreadPoolExecutor as _TPE
 
         def _block(i: int, tier: list[int]) -> tuple[int, dict[str, Any]]:
-            prio = PRIORITY_STAGE1 if i == 1 else PRIORITY_RUNG_BASE - 10 * (i - 2)
+            # 2026-07-31: the descending ladder (-100, then -300, -310, -320 ...) is RETIRED. It put
+            # the HIGHEST rungs — the ones the power analysis is built on and the ones the Aug-27
+            # calendar threatens — at the LOWEST standing we can hold. At -340 the penalty is
+            # 4.0 x 0.166 = 0.66 of normalised priority, against competing users sitting at 2.00+.
+            # Ordering survives without it: blocks are submitted in rung order and
+            # weight_waiting_time = 1.0, so the earlier block outranks the later one on age alone.
+            prio = PRIORITY_RUNG_BASE
             _LOG.info("[C4|pipelined] block %d: %d units x %d seeds at -p %d",
                       i, len(sweep_units), len(tier), prio)
             return i, run_test_leg(
@@ -1902,10 +1951,10 @@ def run_campaign_tiered(
                                "work already run above this level is reported, never banked", i)
     else:
         for i, tier in enumerate(tiers[1:], start=1):
-            # row 30n/C6 (audit 2026-07-22): the sequential path submitted every sweep block at
-            # PRIORITY_CORE (0) — ABOVE the legs, inverting the registered queue whenever mode D
-            # runs without --pipeline-rungs. Mirror the pipelined ladder exactly.
-            prio = PRIORITY_STAGE1 if i == 1 else PRIORITY_RUNG_BASE - 10 * (i - 2)
+            # row 30n/C6 (audit 2026-07-22) had made the sequential path MIRROR the pipelined
+            # ladder. Both are retired together (2026-07-31) — mirroring is still the right
+            # property, it is now mirroring 0.
+            prio = PRIORITY_RUNG_BASE
             _LOG.info("[C4] sweep block %d: %d units x %d seeds (round-robin, -p %d)", i,
                       len(sweep_units), len(tier), prio)
             r = run_test_leg(

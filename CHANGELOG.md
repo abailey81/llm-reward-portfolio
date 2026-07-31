@@ -3,6 +3,88 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31c] ★★★ WE WERE DEPRIORITISING OURSELVES — AND THE ARMS IT STARVED WERE THE CONTROLS
+
+**Narrative, evidence and falsification record: `docs/CAMPAIGN_EXECUTION_RECORD.md` §54.
+Logged as the FIRST entry in `DEVIATIONS.md`.**
+
+**Context (the PAST).** Cores fell 728 → 384 across the session while the queued backlog stayed deep
+(49 running / 124 queued) — the exact re-triage trigger registered against `capacity_accumulation`.
+I reported the number, the trend and an ETA, **with no mechanism**. Tamer challenged it directly
+(*"384 cores??? what happened, we were supposed to climb very high"*). He was right to.
+
+**THE FIND (the NOW).** Our jobs were submitted at **`-p -100`**. Myriad weights the POSIX priority
+field at **`weight_priority = 4.0` — the largest weight in `qconf -ssconf`** (ticket 1.5,
+waiting_time 1.0, urgency 0.0). Measured live:
+
+* our pending jobs `prior` **1.811–1.828**; four other users sampled at **2.000–2.082**, all at `-p 0`
+* **2,144 of 2,646 cluster-wide pending jobs outranked us**
+* pool d held **2,480 free slots / 246 placeable 8-slot jobs** — the capacity was there
+* the gap **is** the flag: predicted `4.0 × [(0+1023)/2047 − (−100+1023)/2047] = 0.195`, observed 0.189
+
+**⚠ WHICH JOBS CARRIED IT — the part that matters scientifically.** `_core_priority()` gave `-p 0` to
+the two H2 treatment arms and `bayes_opt`, and **−100 to everything else**:
+
+```
+PENDING (stuck): placebo_shuffled 42 · placebo 41 · scalar_cvar5 37   ALL at -100
+RUNNING:         scalar 22 · distributional 7                          ALL at 0
+```
+
+**We were starving the three CONTROL arms** — precisely the arms that isolate the effect of the
+feedback CONTENT — and had opened a **four-generation depth gap** (treatments g5, controls g1–g3).
+I had reported that gap earlier in the same session and attributed it to the controls being "slower".
+They are not slower; they were deprioritised. Because a line completes only when its SLOWEST arm
+completes, this also gated the whole campaign. **At C4 it was worse:** blocks 2+ descend to −300…−340,
+putting the top seed rungs the power analysis rests on at the lowest standing we can hold (penalty
+0.665) against the exogenous 2026-08-27 stop — and C4 starts in one to two days.
+
+**WHY IT EXISTED — a half-applied amendment.** **R88** registered the queue order as an SGE priority
+ladder, reasoning that *"under scarce capacity the scheduler starves back-of-queue work first"*. The
+conceptual error: **`-p` is not an intra-user knob** — it is global, so it does not order our work
+among itself, it sinks us beneath every other user. **R101 already SUPERSEDED that ladder** and
+`mode_d_launch.ps1` was updated at the time ("No line passes `--priority` any more"); the arm-level
+and rung-level ladders inside `campaign.py` never were. Same failure mode as R106.
+
+**THE FIX** (`src/cluster/campaign.py`, scheduling-only): `PRIORITY_STAGE1` −100 → **0**,
+`PRIORITY_RUNG_BASE` −300 → **0**, `PRIORITY_H3_SINGLESHOT` −100 → **0**, the per-block descent
+`−10·(i−2)` **removed**, and `_core_priority()` now returns `PRIORITY_CORE` for **every** arm.
+No registered quantity changes. `-p` changes WHEN a job runs, never WHAT it computes, so it sits
+outside the determinism envelope exactly as `pack` does. Rung ORDER survives: blocks are submitted in
+rung order and `weight_waiting_time = 1.0`, and the cumulative-tier BANKING rule is enforced in
+analysis, never by the scheduler.
+
+**FALSIFIED BOTH WAYS.** Run against the pre-fix file restored from git, the three amended tests fail
+naming the defect exactly — `[('scalar_cvar5_g0', -100), ('placebo_g0', -100),
+('placebo_shuffled_g0', -100), … ('sweep_t1', -100)]` — and pass with the fix. The strongest is
+deliberately an assertion about the RULE (*no batch may carry a negative `-p`, ever*) rather than
+about ladder values; its predecessor asserted `>= -100`, i.e. it **permitted** the very
+deprioritisation that was starving the controls.
+
+**WHY A DEVIATION, NOT AN AMENDMENT ROW.** `canonical_bytes()` hashes the WHOLE of
+`PREREGISTRATION.md` and `freeze.py` forbids re-freezing, so no post-freeze amendment row is possible
+without moving the frozen hash. Recorded in `DEVIATIONS.md` (its first entry), stating both readings
+honestly: a deviation from **R88's text** and the **completion of R101's intent**. It *increases*
+fidelity to the registered design. `freeze --check` RC=0, hash **`3ca6f01a…` UNMOVED**, verified after
+the code change and again after the deviation entry.
+
+**DEPLOY SCOPE, measured not assumed.** The jobscript is rendered **laptop-side**
+(`driver.py:153`) and pushed, and an import-closure walk shows `campaign.py` is reachable from the
+driver (57 modules) but **NOT from the on-node entry point** `run_one.py` (41 modules). The fix is
+therefore laptop-only: a driver relaunch ships it, no cluster deploy is required for correctness.
+
+**MY OWN ERRORS THIS PASS (P28–P30), all recorded in §20.2.** Reporting 384 cores with no mechanism
+(P28); claiming the memory fix was not reaching new jobs because a job "submitted 06:38" asked
+`memory=4G` — that column is *submit/**start** at*, and for a running job it is the START time (P29);
+and reporting "pool d has 431,226 free slots", impossible on a ~21,600-core cluster, from a parser
+that matched queue-instance lines as hosts and ignored the `d`/`a`/`u`/`E` state letters — caught by
+an order-of-magnitude sanity check and **discarded rather than reported** (P30).
+
+**Also updated:** the `capacity_accumulation` acknowledged-alarm entry now records that its own
+re-triage trigger fired and what it turned out to be — the next time it fires, the first thing to
+check is our own `-p`.
+
+---
+
 ## [2026-07-31b] RUN 7 SESSION — THE MONITOR LEARNED TO READ THE RESULTS, AND THE BUDGET STOPPED BEING AN ALARM
 
 **Narrative + full evidence: `docs/CAMPAIGN_EXECUTION_RECORD.md` §53.** No commit touches `src/`,

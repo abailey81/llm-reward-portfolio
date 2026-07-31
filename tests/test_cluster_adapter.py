@@ -51,6 +51,11 @@ def test_spec_sha_mismatch_fails_loud(tmp_path):
 
 
 def test_jobscript_encodes_every_researched_rule():
+    # NOTE (2026-07-31): the explicit ``priority=-100`` below is DELIBERATE and stays. The campaign
+    # no longer ASKS for a negative priority anywhere (record §54 retired the §14.3 ladder), but the
+    # RENDERER must still faithfully emit whatever it is handed — `run_campaign_cluster.py` keeps a
+    # documented `--priority` + `--allow-deprioritise` escape hatch. The guard belongs at the
+    # campaign layer, which is where `test_cluster_campaign.py` asserts no batch is ever negative.
     js = render_jobscript("s1_search", 630, "/home/u/Scratch/llmrp",
                           "/acfs/users/u/llmrp-inputs", pool="EF", tc=38,
                           priority=-100, hold_jid="marker_1", pack=3)
