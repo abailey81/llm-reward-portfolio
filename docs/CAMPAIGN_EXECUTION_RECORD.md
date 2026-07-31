@@ -9288,3 +9288,93 @@ Found by checking the ordering in the source instead of assuming it, and moved a
 The interval was never the lever. What changed is that the monitor now **reports its own cost**, so
 when the cadence degrades at C4 it will say so on every line rather than everyone continuing to call
 it thirty seconds.
+
+---
+
+## 79. THE REMAINING INSTRUMENTS FALSIFICATION-TESTED — AND FIVE FALSE ALARMS I GENERATED DOING IT (2026-07-31)
+
+**Why this was the right next target, on evidence rather than instinct.** Of the instruments examined
+this session, **four could not report** (P35, 74.2, 76.2, 76.3) and **one was half-implemented**
+(77.2) — a 5-in-6 defect rate in the WATCHING layer while the DATA passed every check. So the
+untested instruments were the highest-yield place left to look.
+
+### 79.1 arm_coverage.py — VERIFIED, and it is the one that matters most
+
+`arm_coverage` is the **D14 workaround**: the six repo guards structurally cannot see a missing arm,
+so if this were blind, **nothing would cover that failure at all**. It feeds `arms_full=10/10` on every
+cycle line and on Tamer's status page.
+
+```
+  BASELINE : rc=0   "ALL LINES FULL",  11 lines reporting "arms submitted"
+  PLANTED  : deleted all 22 batch-registry entries for leg9 / scalar_cvar5
+  RESULT   : rc=2   "leg9  MISSING ['scalar_cvar5']"   "VERDICT: *** AN ARM IS MISSING ***"
+```
+
+**It fires correctly. D14 is genuinely covered.**
+
+### 79.2 campaign_guards.py — the `reflection` guard VERIFIED
+
+```
+  BASELINE : reflection_shown=176/176 (100.0%)  floor=80%   -> ok
+  PLANTED  : stripped the reflection preamble from the `prompt` field of all 176 gen>=1 records
+  RESULT   : reflection_shown=0/176 (0.0%)      floor=80%   -> rc=2, CRITICAL
+```
+
+**It fires correctly.** And the baseline is itself a finding worth keeping: **the reflection loop is
+running at 100 % (176/176)** against a 0.80 floor — the mechanism under study is fully engaged, which
+is precisely the failure RUN 1 suffered (241 prompts, only 10 carrying the preamble, and nothing
+alarmed).
+
+### 79.3 ★ P38 — I GENERATED FIVE CONSECUTIVE FALSE ALARMS TESTING THESE, AND NONE WAS A REAL DEFECT
+
+This is the most useful thing in the section, and it is a failure of mine. Five separate times a test
+reported an instrument "blind" when the instrument was fine and **my plant was off-target**:
+
+| # | claimed | actual cause |
+|---|---|---|
+| 1 | "arm_coverage is blind to a missing arm" | it reads the **batch registry**; I fed it `record.json` files, so `coverage()` was empty and the CLEAN baseline already read 0 |
+| 2 | "collision guard is blind" | it reads `_rejects/*.json` markers cross-referenced to the **ledger**; I duplicated a `run_id` in records — **wrong input entirely** |
+| 3 | "reflection guard is blind" | it has a **0.80 floor**; I emptied ONE prompt of ~15 (~93 % still shown) — correctly silent |
+| 4 | "transport guard is blind" | it alarms on **depth > 8 consecutive**, and its docstring says outright that a handful is normal; I injected **one** line |
+| 5 | "reflection guard is blind" (again) | it reads the **`prompt` FIELD inside record.json**, not `prompt.txt` on disk; I emptied the files |
+
+**Every one was caught before being reported**, by the same two tells:
+
+* **A CLEAN BASELINE THAT ALREADY READS THE FAILING VALUE proves nothing.** (#1: baseline 0, planted 0.)
+* **THREE "FAILURES" IN A ROW IS THE SIGNATURE OF A BROKEN HARNESS, NOT THREE BROKEN GUARDS.** Independent
+  components do not fail simultaneously; a shared cause is almost always the tester.
+
+**THE LESSON, and it is the exact mirror of this session's other theme.** Everywhere else the defect
+was *an instrument that could not fire*. Here it was *a test that could not make a working instrument
+fire* — and it produced **five false alarms**, each of which would have sent a successor chasing a
+non-existent defect and, worse, might have prompted "fixing" a guard that was already correct.
+
+> **READ THE PREDICATE BEFORE PLANTING THE VIOLATION.** A falsification test is only evidence if the
+> plant crosses the check's ACTUAL threshold, in the ACTUAL field, from the ACTUAL input. Otherwise a
+> silent check is indistinguishable from a blind one — and the failure mode is a FALSE POSITIVE, which
+> costs a successor more than the silence would have.
+
+### 79.4 What remains UNTESTED — stated plainly, because untested is not passing
+
+**`collision`, `rejects`, `status` and `truncation` were NOT exercised.** Their inputs (ledger-linked
+reject markers, per-model reject baselines, driver status files) are not synthesisable by this harness
+without materially more work. **They are UNTESTED, not verified**, and that distinction is the whole
+point of this session. `transport` is likewise unproven: attempt #4 was invalid and no valid plant was
+built for it.
+
+**Current standing of the monitoring stack:**
+
+| instrument | status |
+|---|---|
+| science layer (8 invariants + cycle extraction) | **VERIFIED** (77) — one gap found and fixed |
+| `arm_coverage` (D14 cover) | **VERIFIED** (79.1) |
+| `campaign_guards: reflection` | **VERIFIED** (79.2) |
+| status-page metrics | **VERIFIED / one fixed** (76) |
+| C4 alert delivery | **VERIFIED / fixed** (74.2) |
+| ssh reaper age guard | **VERIFIED** (73.3) |
+| `campaign_guards`: collision, rejects, status, truncation, transport | **UNTESTED** |
+| sentinel (17 checks) | **UNTESTED** |
+| `budget_watch` | **UNTESTED** |
+
+**That is the honest map.** Seven verified, three areas untested, and the untested ones are named rather
+than quietly assumed sound.
