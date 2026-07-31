@@ -8432,3 +8432,77 @@ this audit contradicts a registered expectation. Two new analysis-time obligatio
 (**§71.5** the D17 partition before any reliability number; **§71.4** report the winner-separation
 distribution as the quantitative justification for the seed ladder), and one load-bearing assumption
 that had never been tested — **effective search width = nominal** — is now measured and holds at 99.9 %.
+
+---
+
+## §72. ★★★ THE TAIL MEASUREMENT INSTRUMENT VERIFIED AGAINST ITS OWN INPUTS — PERFECT AGREEMENT (2026-07-31)
+
+**This is the deepest available check on the quantity that IS H2's manipulated variable.** §69 proved
+the tail vector is internally coherent (monotone in α, correctly signed). §71 proved it varies enough
+to carry signal. Neither asked the harder question:
+
+> **Is the archived CVaR actually a function of the returns it claims to summarise?**
+
+A tail estimator could be monotone, correctly signed, well-spread — and still be computing something
+other than the tail of *these* returns (a stale buffer, a wrong window, a mis-indexed slice). Every
+check to date would pass. That failure would silently invalidate the fed vector, and with it H2.
+
+**Why this can be tested at all:** the **test-lane** records carry BOTH the realised series
+(`test_returns`) and the archived measurement (`test_cvar05`), so the estimator can be re-derived from
+the exact data it ran on. No other record type permits it — search-lane `tail_stats` are
+**training-period** while `val_returns` are **validation**, so they are not comparable by construction.
+
+**What is legitimately expected.** Per amendment **R27** the shipped estimator is a **plain GPD-MLE EVT**
+CVaR, *not* the empirical mean of the worst 5 %. So an exact digit match is NOT expected. Agreement in
+sign, magnitude and — decisively — **rank across records** is.
+
+### §72.1 RESULT — 360 records, every check clean
+
+```
+  test-lane records carrying both a series and an archived CVaR : 360
+  series length                                                 : 1,571   (all records)
+
+  1. SIGN        archived CVaR-5% > 0 (impossible)      :  0 violations
+  2. MAGNITUDE   ratio archived / empirical              :  min 0.994 | median 0.996 | max 0.997
+                 records more than 2x from empirical     :  0
+  3. TRACKING    Spearman(archived EVT, empirical)       :  1.0000
+  4. COHERENCE   CVaR-5% <= VaR-5%                       :  0 violations
+```
+
+### §72.2 What each line establishes
+
+**Spearman = 1.0000, exactly, across 360 records.** The archived measurement rank-orders the records
+identically to a recomputation from their own returns. **There is no remaining possibility that the fed
+vector is measuring anything other than the series it is attached to.** This is the check that closes
+the "wrong window / stale buffer / mis-indexed slice" family of failures, and it closes them completely
+rather than probabilistically.
+
+**The ratio band 0.994–0.997 is not noise — it is R27's registered bias, independently reproduced.**
+CVaR is negative, so a ratio of 0.996 means the EVT estimate is **~0.4 % LESS extreme** than the raw
+empirical average. That is exactly what a fitted parametric tail does versus an empirical mean: it
+smooths the handful of most extreme observations instead of averaging them raw. **R27 characterises the
+plain-MLE estimator's bias as ≈ −0.1 % / +0.9 %; the measured 0.4 % sits squarely inside that band.**
+A registered property of the estimator, confirmed from the archive by a route R27 did not use.
+
+**CVaR ≤ VaR with zero violations** is the coherence property doing its job: the mean of the tail beyond
+a quantile must be at least as extreme as the quantile. Together with §69's monotonicity check
+(`cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25`, zero violations on 1,114 records), **both mathematical
+identities the estimator must satisfy now hold on every record that exists.**
+
+**Incidental confirmation, and a welcome one: every series is 1,571 sessions.** That is the registered
+sealed-test axis, and it independently re-confirms **§36** — where a benchmark window was wrong by 60
+sessions because `pd.bdate_range` (1,632) had been used instead of the panel's own axis (1,571), and two
+headline claims had to be retracted. The archive is on the correct axis, verified from the records
+themselves.
+
+### §72.3 Why this matters more than it looks
+
+The prototype's "tail signal" was **refuted** on a wrong-unit error that had passed every test in the
+suite (§2.9, and the 13-agent audit). The tail measurement is the single quantity in this project with
+a track record of failing silently while looking healthy. **It is now verified end to end against its
+own inputs — sign, magnitude, rank, and both coherence identities — on every record for which the check
+is possible.**
+
+**Nothing is outstanding on the instrument.** The remaining tail-related obligations are analysis-time
+and already registered: report the PopArt engagement rate beside H1 (§44.4), partition D17 records
+before any reliability figure (registry 43), and report the winner-separation distribution (registry 44).

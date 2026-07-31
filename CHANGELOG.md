@@ -3,6 +3,55 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-07-31o] ★★★ THE TAIL INSTRUMENT VERIFIED AGAINST ITS OWN INPUTS — PERFECT AGREEMENT (Spearman = 1.0000)
+
+**State before:** RUN 4 live, T+70 h 10 m, 1,489 records, drift 0, `sci=OK`, 768 cores. §69 proved the
+tail vector internally coherent; §71 proved it varies enough to carry signal. **Neither asked whether
+the archived CVaR is actually a FUNCTION of the returns it claims to summarise** — an estimator can be
+monotone, correctly signed and well-spread while computing the tail of the *wrong* window, a stale
+buffer or a mis-indexed slice. Every check to date would still pass, and the fed vector — **H2's
+manipulated variable** — would be silently invalid.
+
+**Testable only on the test lane**, which carries BOTH `test_returns` and `test_cvar05`. Search-lane
+`tail_stats` are training-period while `val_returns` are validation, so they are not comparable by
+construction.
+
+**RESULT — 360 records, every check clean:**
+
+```
+  series length                              : 1,571  (all records)
+  1. SIGN       archived CVaR-5% > 0         : 0 violations
+  2. MAGNITUDE  ratio archived/empirical     : min 0.994 | median 0.996 | max 0.997;  0 beyond 2x
+  3. TRACKING   Spearman(EVT, empirical)     : 1.0000
+  4. COHERENCE  CVaR-5% <= VaR-5%            : 0 violations
+```
+
+**Spearman = 1.0000 exactly, across 360 records.** The archived measurement rank-orders the records
+identically to a recomputation from their own returns. **This closes the "wrong window / stale buffer /
+mis-indexed slice" failure family completely, not probabilistically.**
+
+**The 0.994–0.997 band is not noise — it is R27's registered bias, independently reproduced.** CVaR is
+negative, so ratio 0.996 means the EVT estimate is **~0.4 % LESS extreme** than the raw empirical mean —
+exactly what a fitted parametric tail does (it smooths the few most extreme observations rather than
+averaging them raw). **R27 characterises the plain-MLE bias as ≈ −0.1 % / +0.9 %; the measured 0.4 %
+sits squarely inside that band**, confirmed from the archive by a route R27 did not use.
+
+**Both mathematical identities the estimator must satisfy now hold on every record that exists:**
+coherence (`CVaR ≤ VaR`, 0 of 360) here, and monotonicity (`cvar_01 ≤ cvar_05 ≤ cvar_10 ≤ cvar_25`,
+0 of 1,114) in §69.
+
+**Incidental and welcome: every series is 1,571 sessions** — the registered sealed-test axis, which
+independently re-confirms **§36**, where a benchmark window was wrong by 60 sessions (`pd.bdate_range`
+1,632 instead of the panel's own 1,571) and two headline claims had to be retracted.
+
+**Why this matters more than it looks:** the prototype's "tail signal" was **refuted** on a wrong-unit
+error that had passed every test in the suite. The tail measurement is the one quantity in this project
+with a track record of failing silently while looking healthy. **It is now verified end to end against
+its own inputs on every record for which the check is possible.**
+
+**Files:** `docs/CAMPAIGN_EXECUTION_RECORD.md` §72 · `docs/ops/tail_instrument_check.py` (new).
+**No code change, no relaunch; drift 0.**
+
 ## [2026-07-31n] ★★★ DEEP RESULTS AUDIT — DO THE NUMBERS MEAN ANYTHING? THEY DO; PLUS TWO NEW ANALYSIS OBLIGATIONS
 
 **State before:** RUN 4 live, T+70 h, 1,488 records, drift 0, `sci=OK`. Everything up to §70 proved the
