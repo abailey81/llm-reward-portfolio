@@ -9706,3 +9706,103 @@ with rejects never replaced (26.3) it will finish with ~27 accepted, not 30. **D
 **It counts ATTEMPTS, not acceptances** — rejects count toward the budget. `scalar_cvar5` has 15
 attempts so far (12 accepted + 3 rejected) and generations 3-5 supply exactly 15 more, reaching
 **30 attempts**. The gate passes. **C4 is not blocked.**
+
+---
+
+## 83. ★★★ "MAKE 30 CANDIDATES" — INVESTIGATED, AND IT MUST NOT BE DONE (2026-07-31)
+
+Tamer, on seeing `scalar_cvar5` at 12 against `distributional` at 28: *"solve this issue … make 30
+candidates or smthn."* **Investigated before acting, and the conclusion is that the problem is largely
+not real and the proposed fix would do serious harm.** The evidence, in the order it settles the case.
+
+### 83.1 The imbalance is ~85 % an artifact of ONE ARM BEING MID-SEARCH
+
+`scalar_cvar5` has completed **3 of its 6 generations**; `distributional` and `scalar` have completed
+all six. Comparing a half-finished arm with a finished one is not measuring attrition, it is measuring
+elapsed time. Projecting each arm to its full 30-attempt budget at its own observed failure rate:
+
+```
+  arm                now  ledgered-fail  attempts left  fail rate   PROJECTED FINAL
+  distributional      28        2                0        6.7 %          28
+  scalar              27        3                0       10.0 %          27
+  placebo             18        4                8       18.2 %          25
+  scalar_cvar5        12        3               15       20.0 %          24
+  placebo_shuffled    16        4               10       20.0 %          24
+
+  CURRENT spread (mid-search) : 12 .. 28  ->  2.33x
+  PROJECTED at completion     : 24 .. 28  ->  1.17x
+```
+
+**The 2.33x becomes 1.17x on its own.** No intervention required.
+
+### 83.2 THE BUDGET IS ALREADY MATCHED EXACTLY — verified, not assumed
+
+The registered budget is **30 ATTEMPTS per arm**, and the C3 gate's `accounted` counts attempts, not
+acceptances (`src/cluster/integrity.py:86`: `len(resolved) + len(failed_cids - resolved)`, reading each
+arm's `failures.jsonl`). Measured:
+
+```
+  distributional : 28 resolved + 2 failed = 30   PASS
+  scalar         : 27 resolved + 3 failed = 30   PASS
+  placebo / scalar_cvar5 / placebo_shuffled : mid-search, converging to 30
+```
+
+**Both completed arms landed on EXACTLY 30.** The matched-budget guarantee is working precisely as
+designed. There is no leakage and no lost candidate.
+
+⚠ **An eighth false alarm of mine, caught here.** I first counted rejects in `search/_rejects/` and
+found only ONE for the whole core line, which implied ~12 candidates had vanished untracked — a
+campaign-blocking defect if true. **The gate reads `failures.jsonl` per arm, not `_rejects/`.** Once
+read from the right file every candidate is accounted for. Same tell as always: the alarming reading
+came from looking at the wrong artifact.
+
+### 83.3 ★ EVERY FAILURE IS A MODEL FAILURE — there is nothing to repair
+
+The one legitimate reason to re-run a candidate would be if **our** infrastructure had killed it (a D13
+`TypeError`, a transport loss, a walltime SIGKILL). That would be a REPAIR, not a design change. So
+every core-line failure was read:
+
+```
+  19 of 20 : author_reject: ast_gate (unsafe construct)
+   1 of 20 : node reject: sandbox: reward crashed during validation:
+             ValueError('operands could not be broadcast')
+```
+
+**All twenty are the MODEL writing code that fails our gates. Not one is an infrastructure loss.**
+Nothing was taken from any arm by a defect of ours, so there is nothing to give back.
+
+### 83.4 WHY REPLACING REJECTS WOULD ACTIVELY DAMAGE THE EXPERIMENT
+
+1. **It breaks matched-budget comparison.** The arms are matched on **attempts**. Replace rejects and
+   they become matched on **acceptances** — so an arm that fails more consumes MORE compute and takes
+   MORE draws from the reward-design space. Since each arm's winner is `max(val_fitness)` over its pool
+   and **E[max] rises with the number of draws**, the arm that failed most would be *rewarded* with a
+   better expected winner. That is precisely backwards, and it is the bias 56 exists to guard against.
+2. **It is a POST-DATA change to a PRE-REGISTERED rule.** 26.3 registered "a rejected candidate is
+   NEVER replaced" **before any data existed**, and the pre-registration is frozen
+   (`3ca6f01a…`, and `freeze.py` forbids re-freezing). Changing a budget rule *after observing that one
+   arm is short* is the textbook definition of a forking path — and it would be trivially visible to a
+   referee, because the change would be dated after the observation.
+3. **It would erase real data.** The failure rate is itself a measurement: the three CONTROL arms fail
+   at **18-20 %** against the treatments' **7-10 %**. Whether that is a genuine effect of uninformative
+   feedback or small-sample noise is an open question — but replacing rejects would **delete the signal
+   before it could be examined**.
+4. **The pre-registered remedy already exists and is BUILT.** 26.3 committed to an equal-*k*
+   sensitivity for exactly this residual, and it was implemented and run today (75.3,
+   `docs/ops/equal_k_sensitivity.py`). The 1.17x residual is what that analysis is for.
+5. **It is the project's single biggest grade asset.** The bankable null rests on the design being
+   pre-registered and honoured. Trading that for four extra candidates on one arm is a catastrophic
+   exchange rate.
+
+### 83.5 RECOMMENDATION
+
+**Do not replace rejected candidates.** The imbalance resolves from 2.33x to ~1.17x unaided; the budget
+is already exactly matched at 30 attempts; every failure is a genuine model failure with nothing to
+repair; and the residual is covered by a remedy that was pre-registered before any data existed and is
+now implemented.
+
+**If Tamer nevertheless decides to change it**, it is his call and it is authorised — but it is a
+**pre-registration amendment**, not an ops tweak, and must go through the full protocol: unfreeze -> a
+dated amendment row -> a `DEVIATIONS.md` entry stating that the change was made AFTER observing the
+imbalance -> re-freeze under a new tag -> and a plain statement of it in CH4 and CH7. **Anything less
+would convert a bankable pre-registered null into an unbankable one.**
