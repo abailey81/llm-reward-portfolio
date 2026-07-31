@@ -696,3 +696,49 @@ editing it — committed or not — makes the drift check permanently non-zero a
 cycle into a standing alarm for code the drivers never import. The change is safe in itself (it alters
 a REPORTED number, not a computed one, so it does not touch the deterministic-replay argument of 75.1)
 and should go in with the **core-line C4 relaunch** alongside items 1-7, 9, 10, 12, 13.
+
+---
+
+## 15. WRITE-UP TOOLING THAT LANDS INSIDE THE DRIFT FENCE — queued on behalf of the write-up lane (2026-07-31, RUN 9)
+
+**Not defects.** These are four planned additions from `docs/GRADE_95_MASTER_PLAN.md` whose target
+files sit inside the `src scripts config prompts` pathspec, so they cannot be written while RUN 4 is
+live. They are recorded here because **`docs/DEFERRED_FIXES_RUN4.md` is ops-owned** and
+`docs/LANE_COORDINATION_2026-07-31.md` §2 assigns the queuing to the ops lane explicitly:
+
+> *"`presentation_lint.py`, the `WHY_REGISTER` generator, the `ASSEMBLY` edit and the seed-trajectory
+> figure function should be added to `docs/DEFERRED_FIXES_RUN4.md` **by the ops lane** so they ship with
+> the next restart. The write-up lane must not add them unilaterally — that file is ops-owned."*
+
+**Verified first-hand before queuing** (the P42 rule — do not assert something about an artefact
+without opening it): all four action IDs exist in the master plan at the lines cited below.
+
+| id | action | target file (FENCED) | plan line |
+|---|---|---|---|
+| **15a** | **C4-1** Phase 1 restructure — the **`ASSEMBLY` tuple edit** to the 16-section order (Theory → Appendix C, Prototype → Appendix D, new §10 Data, CH7 split into §13 Discussion + §14 Conclusions, and the four orphan `paper/sections/` files wired in) | `scripts/build_paper.py` | `GRADE_95_MASTER_PLAN.md:195` |
+| **15b** | **C4-3** `presentation_lint.py` — machine-gate the presentation checklist; exit non-zero on any failure | `scripts/presentation_lint.py` (new) | `:197`, `:314` |
+| **15c** | **X-6** the `docs/WHY_REGISTER.md` **generator** — one row per quantity (observation · mechanism · uncertainty · counterfactual), generated from the 35 `out[...]` keys of `scripts/analyze_campaign.py` rather than hand-listed | `scripts/` (new) | `:220` |
+| **15d** | **X-7** the seed-trajectory panel function (Okhrati D2) — small multiples over every seeded unit plus the per-seed-block heterogeneity variant | `src/viz/figures.py` | `:221`, `:1001` |
+
+**★ ONLY THE FILE LOCATION IS FENCED, NOT THE WORK.** `LANE_COORDINATION §2` splits C4-1 correctly:
+the *content* half — creating the appendix files, the Data section, the Discussion/Conclusions split,
+and the four orphan sections — is **entirely inside `paper/` and is UNFENCED**. Only the one-line
+`ASSEMBLY` tuple edit waits. The same applies to 15b/15c/15d: **author and validate them in the
+scratchpad, land them at the re-base.** That is the rule R96's harness already lives under (§40.3).
+
+**GATING CONDITION — different from items 1-14.** Items 1-14 wait for the **core-line C4 boundary**
+because they protect a confirmatory quantity. These four wait only because of the **drift invariant**:
+none of them is imported by a driver, none changes what a training computes, and none touches the
+determinism envelope. They are the **cheapest** things in this file to land and carry **zero** science
+risk — they simply cannot be committed while `git status --porcelain -- src scripts config prompts`
+must stay empty.
+
+**Consequence for sequencing:** when the core line reaches C4 and the relaunch happens, **land 15a-15d
+in the same change as items 1-7, 9, 10, 12, 13, 14.** A second restart purely for write-up tooling
+would be a needless disturbance of a live ladder.
+
+⚠ **15d TOUCHES `src/`.** `src/viz/figures.py` is not imported by the training path, but it IS inside
+the pathspec and inside the repository the drivers were launched from. Treat it exactly like the
+others: no edit before the re-base.
+
+---
