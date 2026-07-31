@@ -81,13 +81,17 @@ ROOT = REPO / "outputs" / "campaign_cluster_run4"
 REMOTE = REPO / "docs" / "REMOTE_CONTROL.md"
 ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 
-# The commit the LIVE drivers were launched from -- re-based 2026-07-31 by the PACK-8 rolling
-# SUPERVISOR restart (record section 58). Lineage of re-bases: c99716e (section 46, memory) ->
-# 2a072df (section 54, priority) -> f5014ce (section 58, pack 8). This one moved the SUPERVISORS,
-# not just the drivers, because PowerShell binds their argument array at supervisor start.
+# The commit the LIVE drivers were launched from -- re-based 2026-07-31 by the TMPFS relaunch
+# (record section 60). Lineage: c99716e (s.46, memory) -> 2a072df (s.54, priority) -> f5014ce
+# (s.58, pack 8) -> 50b6e07 (s.60, tmpfs).
+#   * s.58 was the only one that had to move the SUPERVISORS, because PowerShell binds their
+#     argument array at supervisor start and --pack lives in that array.
+#   * s.46, s.54 and s.60 are DRIVER-only relaunches: they change code the driver imports
+#     (jobscript.py / campaign.py), which is rendered laptop-side, so the supervisors relaunch the
+#     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "f5014ce"
+RUNNING_SHA = "50b6e07"
 DRIFT_PATHS = ("src", "scripts", "config", "prompts")
 
 # A driver log older than this means its line has stopped writing -- the D14 failure mode, where the
