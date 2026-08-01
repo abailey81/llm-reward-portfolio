@@ -601,32 +601,42 @@ A reboot or any clean relaunch picks it up automatically.
 Execution record **§100.51 / §100.52**. Tamer pressed the core count four times; the measured answer
 is that **we are not capacity-bound**. Free capacity is 4,497 slots (35.4 %) — but under **R101 the
 reported result is the COMMON rung, a MINIMUM over 11 lines**, and **8 of 10 leg lines hold ZERO test
-records**. The critical path is  and  at **2 of 5 arms frozen**; capacity given
+records**. The critical path is `kimi-k3` and `qwen3.6-27b` at **2 of 5 arms frozen**; capacity given
 to any line above the minimum is worth exactly zero. Verified alongside it: **nothing is stalled**
-(every line produced a record within 23 minutes) and **arms are already concurrent** (gpt-luna runs
-three at once), so the search phase's ~840 slots is the shape of the work, not a throttle.
+(every line produced a record within 23 minutes) and **arms are already concurrent** (`gpt-5.6-luna`
+runs three at once), so the search phase's ~840 slots is the shape of the work, not a throttle.
 
-**Coord's three OPS items, all closed and all verified by execution.** **F-18** — 
+**Coord's three OPS items, all closed and all verified by execution.** **F-18** — `--md-only --final`
 returned **rc=0 having compiled nothing**, i.e. the submission gate could certify a PDF that was never
 built; now rc=2 with a named refusal. **F-19** — the Tectonic bundle digest that §100.40.5's typeface
 change made the deliverable depend on was recorded nowhere; the build now resolves, prints and
-**checks** it (, 4/4 Heros faces). **A16-W13** — the withdrawal is itself
-withdrawn, because writeup greps that register before anything enters  and a retraction that
+**checks** it (`6ffe055852f8faf6…`, 4/4 Heros faces present). **A16-W13** — the withdrawal is itself
+withdrawn, because writeup greps that register before anything enters `paper/`, and a retraction that
 is not itself retractable is just a second way to be wrong.
 
 **D24 queued, not applied, and the reason is the interesting part.** Coord found (M223) that
- is an **OR** while its docstring says **BOTH**, so at the live 
-the driver dies after **3.6 h** of continuous submission rejection, not the documented 12 h. The
-patch is written. It is NOT applied because  **IS in the driver import
-closure** — committing it without a relaunch would make  assert that executing code
-matches committed code when it does not, which is the one thing the drift invariant exists to
-prevent. **And a mitigation coord did not account for downgrades it:** the supervisor already wraps
-the driver in a 1000-attempt / 600 s-backoff retry loop and the watchdog revives any dead line in
-≤300 s, so the realised cost is ~10 minutes, not a lost line.
+`_outage_is_fatal` is an **OR** while `run_batch`'s docstring says **BOTH**, so at the live
+`--poll-secs 180` the driver dies after **3.6 h** of continuous submission rejection, not the
+documented 12 h — and any poll shortening done for throughput shortens it proportionally. The patch
+is written. It is NOT applied because `src/cluster/driver.py` **IS in the driver import closure**
+(`REACHED via src.cluster.campaign`): committing it without a relaunch would make `RUNNING_SHA`
+assert that executing code matches committed code when it does not, which is the one thing the drift
+invariant exists to prevent. **And a mitigation coord did not account for downgrades it:** the
+supervisor already wraps the driver in a 1000-attempt / 600 s-backoff retry loop and the fenced
+watchdog revives any dead line within 300 s, so the realised cost is about ten minutes and a log
+line, not a lost line.
 
-**HANDOVER: ** — the complete brief, including the five lessons this
-session paid for and the one measurement that will prove the pipelining fix worked (when a line
-reaches C4,  must go from 0–2 to hundreds).
+**⚠ AND ONE MORE PROCESS ERROR OF MINE, IN THE SAME MESSAGE AS THE PROHIBITION AGAINST IT.** Writing
+this very block I put backticks inside a `python -c` string and the shell executed them, eating a
+dozen inline-code spans (`kimi-k3`, `--md-only`, the bundle digest, `_outage_is_fatal`) and dumping
+`driver.py`'s docstring into the terminal. **That is the second time today and the second time in
+this session's own written rules.** The repair went through the Write tool and a file path, never a
+shell string — which is the rule I had already written into `docs/RUN12_SESSION_PROMPT.md` §2 an hour
+earlier. *Knowing a rule and having a habit are different things; the habit is the file-based path.*
+
+**HANDOVER: `docs/RUN12_SESSION_PROMPT.md`** — the complete brief for the next OPS session, including
+the five lessons this session paid for and the single measurement that will prove the pipelining fix
+worked: **when a line reaches C4, the pending queue must go from 0–2 to hundreds.**
 
 **FUTURE — what the next OPS session picks up.**
 0. **THE OPEN DECISION: restart the eleven leg supervisors** so the pipelining fix becomes live,
