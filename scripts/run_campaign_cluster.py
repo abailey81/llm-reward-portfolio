@@ -1400,7 +1400,22 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[campaign] C3 FLOOR COMPLETE, gate STOPPED: {why}. Review the EFFECT-BLIND report "
                   f"({out['integrity_report']}), then re-run with --approve-tier1 --resume. "
                   f"(On green health without --hold-at-gate the gate auto-proceeds — no manual wait.)")
-            return 0
+            # ── D12 (applied 2026-08-01, record §97) ────────────────────────────────────────────
+            # A GATE STOP IS NOT A SUCCESS. This returned 0, so the supervisor's `if ($rc -eq 0)`
+            # logged "LINE COMPLETE" and EXITED the line — six legs reported complete on 2026-07-29
+            # having produced nothing, and only the watchdog's 300 s revive loop kept them alive.
+            #
+            # ⚠ APPLIED NOW BECAUSE D16 MADE IT URGENT, not merely overdue. D16 (same commit) folds
+            # the substrate census into `health_ok`, which makes gate stops MORE likely — and a stop
+            # that reports success would have turned the confirmatory line into a silent 300-second
+            # relaunch loop logging "LINE COMPLETE" on every pass. The two fixes are hard-coupled and
+            # neither is safe to ship without the other.
+            #
+            # VERIFIED before changing it: the watchdog decides "dead line" by process ABSENCE, not
+            # by exit code (docs/ops/watchdog_fenced.ps1 / scripts/mode_d_watchdog.ps1 both poll the
+            # process table), so it is unaffected by a new code — the deferred-fix note asked for
+            # that to be checked rather than assumed.
+            return 3   # EXIT_AWAITING_REVIEW
         ok = bool(out.get("ok"))
         # row 30n/C7 (audit 2026-07-22): a --tiered --root-suffix combo previously clobbered the
         # HEADLINE campaign_summary.json (only the non-tiered path namespaced). Mirror it.

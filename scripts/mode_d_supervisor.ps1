@@ -222,7 +222,25 @@ while ($attempt -lt $maxAttempts) {
         Log ("driver INVOCATION failed before start: {0}" -f $_.Exception.Message)
         $rc = -1
     }
-    if ($rc -eq 0) { Log "driver exited 0 - LINE COMPLETE (or gate stop handled)."; break }
+    if ($rc -eq 0) { Log "driver exited 0 - LINE COMPLETE."; break }
+    # D12 (applied 2026-08-01, record s.97). A GATE STOP IS NOT A SUCCESS AND IS NOT A CRASH.
+    # Before this branch existed the driver returned 0 on a gate stop, so the line above logged
+    # "LINE COMPLETE" and exited - six legs reported complete on 2026-07-29 having produced nothing.
+    # The driver now returns 3 (EXIT_AWAITING_REVIEW), and WITHOUT this branch that would fall
+    # through to the relaunch line below and spin the line in a backoff loop forever.
+    #
+    # URGENT BECAUSE OF D16 (same commit): folding the substrate census into the gate's health_ok
+    # makes stops MORE likely, so an unhandled stop code would have turned the CONFIRMATORY line
+    # into a silent relaunch loop. The two fixes are hard-coupled.
+    #
+    # Release: review the effect-blind report, then create TIER1_APPROVED_<line_tag> under the read
+    # root and re-run with --approve-tier1 --resume. The watchdog decides "dead line" by process
+    # ABSENCE, not by exit code (verified in mode_d_watchdog.ps1 / docs/ops/watchdog_fenced.ps1),
+    # so breaking here does NOT trigger an automatic revival of this supervisor.
+    if ($rc -eq 3) {
+        Log "driver exited 3 - STOPPED AT THE REVIEW GATE, awaiting approval. NOT relaunching."
+        break
+    }
     Log ("driver exited {0} - relaunching in {1}s; Myriad arrays unaffected" -f $rc, $backoffSecs)
     Start-Sleep -Seconds $backoffSecs
 }

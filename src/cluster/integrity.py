@@ -113,6 +113,40 @@ def _record_device(arm_root: Path, run_id: str) -> str:
     return "<absent>"
 
 
+def _record_substrate(arm_root: Path, run_id: str) -> str:
+    """The CPU-level SUBSTRATE that trained this record, from its replayable ``env.json`` (D16).
+
+    The sibling of :func:`_record_device`, and the reason D16 existed: ``_record_device`` reads the
+    GPU model and ``per_seed_device`` reads the cpu/cuda LABEL, so on a CPU-only lane every record
+    looks identical to both — while the properties that actually fix floating-point reduction order
+    (**CPU model**, OMP threads, torch threads) differ silently. RUN 4 proved it: four
+    ``baseline_volatility_scaled_return`` records landed on an ``Intel Xeon Gold 6140`` while the
+    other 26 ran on a ``6240``, and every device-keyed check passed.
+
+    The signature is deliberately IDENTICAL in shape to :func:`substrate_field_census`'s, so the
+    blocking gate and the advisory sentinel can never disagree about what counts as one substrate.
+
+    ``'<absent>'`` when no ``env.json`` can be read — treated as a WILDCARD by the pair check, on the
+    same reasoning as ``_record_device``: a capture gap must not fail the gate, and the *absence* of
+    env.json is separately visible as ``"<no env.json>"`` in the leg-wide census.
+    """
+    try:
+        env = json.loads((arm_root / run_id / "env.json").read_text(encoding="utf-8"))
+        if not isinstance(env, dict):
+            return "<absent>"
+        cpu = env.get("cpu") if isinstance(env.get("cpu"), dict) else {}
+        det = (env.get("determinism_env")
+               if isinstance(env.get("determinism_env"), dict) else {})
+        tc = env.get("torch_cuda") if isinstance(env.get("torch_cuda"), dict) else {}
+        return (f"cpu={cpu.get('model_name')}"
+                f" | omp={det.get('OMP_NUM_THREADS')}"
+                f" | torch_threads={tc.get('num_threads')}"
+                f" | cuda={tc.get('cuda_available')}")
+    except (OSError, ValueError):
+        pass
+    return "<absent>"
+
+
 def record_env_label(record: dict[str, Any]) -> str:
     """The record's environment-fingerprint LABEL, normalised — the substrate-homogeneity key.
 
@@ -252,6 +286,10 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
     devices: dict[str, int] = {}
     env_labels: dict[str, int] = {}
     per_seed_device: dict[str, str] = {}
+    # D16 (2026-08-01): the SUBSTRATE per seed, not just the device LABEL. `per_seed_device` carries
+    # only cpu/cuda; the properties that actually fix float reduction order — CPU MODEL, thread
+    # counts, BLAS settings — live in env.json and are invisible to it. See substrate_field_census.
+    per_seed_substrate: dict[str, str] = {}
     reward_hashes: dict[str, int] = {}
     popart_present = 0
     safe_default_total = 0
@@ -268,6 +306,7 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         env_labels[label] = env_labels.get(label, 0) + 1
         if r.get("seed") is not None:
             per_seed_device[str(r["seed"])] = _record_device(arm_root, str(r.get("run_id")))
+            per_seed_substrate[str(r["seed"])] = _record_substrate(arm_root, str(r.get("run_id")))
         if m.get("popart_scale") is not None:
             popart_present += 1
         if m.get("train_safe_default_count") is not None:
@@ -279,6 +318,7 @@ def _test_census(arm_root: Path, arm: str, seeds: list[int]) -> dict[str, Any]:
         "device_census": devices,
         "device_homogeneous": len([d for d in devices if d != "<absent>"]) <= 1,
         "per_seed_device": per_seed_device,
+        "per_seed_substrate": per_seed_substrate,
         "env_label_census": env_labels,
         "reward_hash_census": reward_hashes,
         "winner_hash_consistent": len(reward_hashes) <= 1,
@@ -344,6 +384,29 @@ def write_integrity_report(
                 seed_devices.setdefault(s, set()).add(dev)
     crn_violations = {s: sorted(devs) for s, devs in seed_devices.items() if len(devs) > 1}
     crn_consistent = not crn_violations
+    # ── D16 (2026-08-01) ──────────────────────────────────────────────────────────────────────────
+    # THE GATE PROMISED A CHECK IT DID NOT PERFORM. Its stop message claims it fires on "device
+    # inhomogeneity", but `crn_consistent` keys on the cpu/cuda LABEL only — so the ONE inhomogeneity
+    # that actually occurred in RUN 4 (four `baseline_volatility_scaled_return` records on an Intel
+    # Xeon Gold 6140 against 26 on a 6240) passed silently. `check_substrate_fields` already rates
+    # exactly this CRITICAL, but it is wired into the ADVISORY sentinel, not the BLOCKING gate.
+    #
+    # ⚠ IMPLEMENTED AS A PER-SEED PAIR INVARIANT, **NOT** the leg-wide census the deferred-fix note
+    # sketched — and the difference is scientific, not cosmetic. Per-UNIT (or per-leg) homogeneity is
+    # the WRONG invariant for the same reason it is wrong for the device check twelve lines above:
+    # under seed-pool blocks a unit may legitimately span substrates, while what the PAIRED inference
+    # actually needs is that at each seed s every unit shares one substrate, so the substrate cancels
+    # in the difference D_s. A leg-wide census would red-flag a legitimate stratified run and would
+    # still miss a mix that happened to balance across units. This form is strictly more correct and
+    # exactly mirrors the device check, so the two can never disagree about what "inhomogeneous"
+    # means. '<absent>' is a wildcard, as it is there.
+    seed_substrates: dict[str, set[str]] = {}
+    for t in report["test"].values():
+        for s, sub in t.get("per_seed_substrate", {}).items():
+            if sub != "<absent>":
+                seed_substrates.setdefault(s, set()).add(sub)
+    substrate_violations = {s: sorted(v) for s, v in seed_substrates.items() if len(v) > 1}
+    substrate_consistent = not substrate_violations
     # P5 (2026-07-13): every test unit must carry exactly ONE reward hash (a mixed-winner unit is
     # scientifically meaningless — some seeds trained a different reward). Effect-blind: a HASH
     # census, never a performance value.
@@ -354,10 +417,15 @@ def write_integrity_report(
         "device_homogeneous_everywhere": all_homogeneous,  # informational under seed-pool blocks
         "crn_pair_device_consistent": crn_consistent,
         "crn_device_violations": dict(list(crn_violations.items())[:10]),
+        # D16: the SUBSTRATE analogue of the two lines above — CPU model / thread regime, the things
+        # that actually fix float reduction order and that the device label cannot see.
+        "crn_pair_substrate_consistent": substrate_consistent,
+        "crn_substrate_violations": dict(list(substrate_violations.items())[:10]),
         "winner_hash_consistent_everywhere": not mixed_winner_units,
         "mixed_winner_units": mixed_winner_units[:10],
         # the GATE reads ONLY this — execution health, never a performance statistic
-        "health_ok": bool(all_complete and crn_consistent and not mixed_winner_units),
+        "health_ok": bool(all_complete and crn_consistent and substrate_consistent
+                          and not mixed_winner_units),
         "h2_arms": h2_arms,
     }
 

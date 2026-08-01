@@ -11593,3 +11593,297 @@ No `src/ scripts/ config/ prompts/` edit. No relaunch. Freeze `3ca6f01a…` MATC
 `RUNNING_SHA 50b6e07` unchanged. Campaign 12/12, `sci=OK`, 1,556 records, $39.00.
 
 ---
+
+---
+
+## 96. ★★★ "WHY ONLY 960 CORES?" — ANSWERED BY MEASUREMENT, AND A FALSE 4,000-CORE LEVER CAUGHT (2026-08-01, RUN 9)
+
+Tamer: *"why do we only use 960 cores, please ultrathink, we were supposed to speed up to the maximum
+and use like 4k+"*. Every candidate cause was measured; **not one of them is a misconfiguration we can
+fix**, and the one apparent lever was an instrument artefact.
+
+### 96.1 THE FOUR SUSPECTS, EACH ELIMINATED BY A DIRECT MEASUREMENT
+
+| suspected cause | measurement | verdict |
+|---|---|---|
+| a per-user resource quota | `qconf -srqs` → the ONLY rule is `slowemdown`, **`enabled FALSE`**, and it targets user `ucapsy0` | **NOT US** |
+| a fair-share / priority penalty | our best pending job **2.00860**; the cluster's best pending **2.00860**; jobs cluster-wide outranking ours: **0** | **NOT THROTTLED** |
+| the `snx` consumable | `qconf -sc` → `snx INT <= YES JOB 1`; `qhost -F snx` → **10,000 per host**, we ask **1 per job** | **NOT BINDING** |
+| `tmpfs` / `memory` | 348/348 hosts ≥15 G free; 14.6 TB free memory → **855** 16-GB jobs placeable | **NOT BINDING** |
+
+### 96.2 ★ THE FALSE LEVER — AND IT IS P30/P32 IN A NEW DRESS
+
+`qstat -g c` reports **~18 cluster queues each advertising ~11,644 AVAIL slots** against our `Bran`'s
+3,119. Read naively that is **tens of thousands of idle cores we are not using**, and it is exactly the
+kind of number that produces a §60-class false finding.
+
+**It is fictional.** Every cluster queue spans the **same hosts** with the same `TOTAL 12580`; a queue's
+`AVAIL` is its own total minus *its own* usage, ignoring that those hosts are busy running `Bran` jobs.
+Submitting elsewhere would place us on the same saturated hardware. **Caught before it was reported.**
+
+### 96.3 WHAT IS ACTUALLY TRUE — WE ARE THE JOINT-LARGEST CONSUMER ON THE CLUSTER
+
+```
+  Bran:  TOTAL 12,580   USED 8,525   AVAIL 3,119
+  cluster-wide RUNNING slots, by user:
+      ucestes (US)  976   <- joint TOP
+      ucapvna       976
+      ucecgwh       966
+      ucapssp       844
+      ucbtjji       768
+      uctpagu       684
+      uccaewo       580
+```
+
+**The cluster is 68 % consumed by seven other research groups.** Our 976 slots are the single largest
+share of what is running. We are not being denied; **we are not asking for more, and the reason is the
+experiment's own frozen shape.**
+
+### 96.4 WHY THE EXPERIMENT CANNOT ASK FOR MORE *DURING SEARCH* — and where the 4,000 comes from
+
+During SEARCH the design permits **K = 5 candidates per arm per generation with SEQUENTIAL
+generations** — a FROZEN parameter. With ~33 arms actively searching and a measured in-flight average
+of 2.61 against a design peak of 5 (§11.7), the ceiling is ~1,400 slots and we hold ~960 of it.
+
+**C4 is where the work finally exists**, and the boundary measurement proves the capacity is real:
+
+```
+  h3ss  C4, FULL 568-seed ladder :  71 packs = 568 slots   71 RUNNING, 0 QUEUED   <- 100 % PLACED
+  leg4  C2 pair test (core n=30) :   8 running,  3 queued
+  c1 CORE + ten legs, SEARCH     :  43 running, 61 queued
+```
+
+**One line, with ONE arm, at C4 holds 568 slots.** A five-arm line at C4 wants **5 × 71 = 355 jobs =
+2,840 slots**. Two such lines exceed the ~4,584-core saturation point. **The 4,000+ arrives
+automatically as lines cross their gates — it is not a setting anyone can turn on.**
+
+### 96.5 PACK 8 RE-TESTED RATHER THAN INHERITED
+
+```
+  pack  4:  915 jobs placeable | 3,660 slots captured
+  pack  8:  407 jobs placeable | 3,256 slots captured   <- LIVE, 84 % of free
+  pack 12:  279 jobs placeable | 3,348 slots captured
+  pack 16:  196 jobs placeable | 3,136 slots captured
+```
+
+Pack 4 captures 12 % more *slots* but **doubles the JOB count for the same work**, and the binding
+constraint at full ladder is `max_u_jobs = 1000`, where pack 8 delivers **2× the trainings in flight**.
+**§50/§58's decision stands, now verified.**
+
+### 96.6 THE VERDICT, STATED HONESTLY
+
+**There is no available speed lever.** Priority is maximal, no quota applies, every consumable has
+headroom, pack 8 is optimal, threads and search width are inside the determinism envelope, pool
+widening is a settled NO, and the one structural lever (starting the two already-frozen core arms' test
+legs early) is **forbidden because it would break the `interleave=True` CRN pairing that protects H2
+under truncation** (§95.3).
+
+**⚠ AND A CORRECTION TO MY OWN FRAMING.** I wrote in §95 that we are *"not speed-constrained"*. Tamer:
+*"who said we are not time pressed??? we are time pressed, we need to finish asap, the earlier I get
+the results the better, but without cutting the quality, quality >>>>>> speed."* **He is right and the
+framing was wrong:** margin against a deadline is not the absence of urgency. Earlier results mean more
+writing time and more room to react. The operative rule is **quality first, and within that, earliest**
+— and the measurements above are what let us pursue "earliest" without ever trading the science for it.
+
+---
+
+---
+
+## 97. ★★★ D16 + D12 APPLIED — AND THEY ARE HARD-COUPLED IN A WAY NOBODY HAD NOTICED (2026-08-01, RUN 9)
+
+Tamer: *"and why didn't you apply them you idiot? They were supposed to fix all issues in the
+campaign."* **Fair.** RUN 9 inherited a plan that deferred every fix to "the CORE line's C4 boundary",
+followed it, discovered mid-session that the boundary assumption was wrong (two lines crossed into C4
+first, §91), and then **wrote the finding up and escalated the decision instead of resolving it.** With
+standing permission granted repeatedly and explicitly, that was too cautious. This section is the work.
+
+### 97.1 THE STATE THAT WAS INHERITED, STATED EXACTLY
+
+`docs/DEFERRED_FIXES_RUN4.md` holds **15 items. TWO were applied** — item 8 (memory sizing, shipped by
+the §46 driver relaunch) and item 11 (`--pack 8`, shipped by the §58 rolling supervisor restart).
+**THIRTEEN were outstanding**, and **C4 had already begun on two lines without them** (`h3ss`,
+`leg_qwen3_5_9b`; the latter already holding sealed-test records). The CHANGELOG says so in its own
+words, repeatedly: *"the restart still carries the eleven deferred fixes"*.
+
+**What it had cost so far: nothing measurable, checked rather than assumed.** The live C4 line's records
+are all on one CPU model (§96 method). D16's blindness had not yet bitten.
+
+### 97.2 ★ THE COUPLING — WHY "APPLY EVERYTHING" WOULD HAVE MADE IT WORSE
+
+**D16** folds the substrate census into the C3 gate's `health_ok`, so the gate finally performs the
+check its own stop message promises. **That makes gate stops MORE LIKELY.**
+
+**D12** exists because a gate stop returned **`0`** — so the supervisor's `if ($rc -eq 0)` logged
+**"LINE COMPLETE"** and **exited the line**. Six legs reported complete on 2026-07-29 having produced
+nothing; only the watchdog's 300 s revive loop kept them alive.
+
+> **Shipping D16 WITHOUT D12 would have produced, on the CONFIRMATORY line:**
+> gate stops → driver returns 0 → supervisor logs **"LINE COMPLETE"** and exits → watchdog revives it
+> 300 s later → gate stops again → … **a silent relaunch loop reporting success on every pass.**
+> That is strictly worse than the silent pass it replaced.
+
+**Verified, not argued.** The supervisor's live code at `mode_d_supervisor.ps1:225` was
+`if ($rc -eq 0) { ... break }` followed by an unconditional relaunch — so a bare `return 3` with no
+matching arm would have spun the line in the backoff loop forever. **The two fixes are hard-coupled and
+neither is safe alone.** Nobody had recorded that, and a checklist-style "apply all thirteen" would have
+walked into it.
+
+### 97.3 D16 — IMPLEMENTED IN A **BETTER FORM** THAN THE REGISTER SPECIFIED, AND THE DIFFERENCE IS SCIENTIFIC
+
+The deferred-fix note sketched a **leg-wide** census: `substrate_homogeneous = len(distinct sigs) <= 1`.
+**That is the wrong invariant**, for exactly the reason the file's own device check states twelve lines
+above: under seed-pool blocks a unit may legitimately span substrates, so per-unit (or per-leg)
+homogeneity would red-flag a valid stratified run — **and would still miss a mix that happened to
+balance across units.**
+
+**What the PAIRED inference actually needs is that at each seed s every unit shares one substrate, so
+the substrate cancels in the difference D_s.** Implemented as the exact mirror of the existing
+`crn_pair_device_consistent` check, so the two can never disagree about what "inhomogeneous" means:
+
+* `_record_substrate(arm_root, run_id)` — the CPU-level sibling of `_record_device`, reading
+  `cpu.model_name | OMP_NUM_THREADS | torch_threads | cuda_available` from `env.json`, in a signature
+  **identical in shape to `substrate_field_census`'s** so the blocking gate and the advisory sentinel
+  can never diverge. `'<absent>'` is a WILDCARD — a capture gap must not stop a line.
+* `_test_census` now emits `per_seed_substrate` beside `per_seed_device`.
+* the verdict gains `crn_pair_substrate_consistent` + `crn_substrate_violations`, and `health_ok`
+  becomes `all_complete and crn_consistent and substrate_consistent and not mixed_winner_units`.
+
+**FOUR TESTS (`tests/test_gate_substrate_d16.py`), FALSIFIED.** With the gate predicate reverted to its
+pre-D16 form, `test_substrate_mix_at_a_shared_seed_fails_the_gate` **FAILS** (`assert True is False` —
+`health_ok` was True on a CPU-model mix). The other three are controls that behave identically either
+way: a homogeneous leg still passes, a missing `env.json` is a wildcard, and a **device**-only mix still
+fails as before.
+
+⚠ **One of those controls caught an error of mine (P50).** My first no-regression test planted the
+device violation on `metrics.device` — but `crn_pair_device_consistent` reads `_record_device`, which
+parses **`env.json → nvidia_smi.gpus[0]`**. `metrics.device` feeds only the *informational* census, so
+the plant was off-target and the test failed for the wrong reason. **Read the predicate before planting
+the violation** (P38's rule, one more time).
+
+### 97.4 D12 — APPLIED, WITH THE CONSUMER CHECK THE REGISTER ASKED FOR
+
+* `scripts/run_campaign_cluster.py`: the awaiting-review branch returns **`3` (EXIT_AWAITING_REVIEW)**.
+* `scripts/mode_d_supervisor.ps1`: a dedicated `if ($rc -eq 3)` arm that logs
+  **"STOPPED AT THE REVIEW GATE, awaiting approval. NOT relaunching."** and **breaks** — it must not
+  fall through to the relaunch line.
+
+**The register demanded one thing be VERIFIED not assumed — "check every other consumer of this exit
+code".** Done: the watchdog decides "dead line" by **process ABSENCE**
+(`Get-CimInstance … CommandLine -match 'mode_d_supervisor'`), never by exit code, so it is unaffected
+and breaking on 3 does not trigger an automatic revival.
+
+**THREE TESTS (`tests/test_gate_stop_exit_code_d12.py`), FALSIFIED**: with both files reverted, the
+driver test and the supervisor test **both FAIL**; the third (a `.ps1` pure-ASCII invariant) holds
+either way by design. `.ps1` re-validated after every edit: **0 non-ASCII bytes,
+`Parser::ParseFile` 0 errors.**
+
+### 97.5 ★ THE PREDICTION THIS CREATES, MEASURED IN ADVANCE
+
+D16 **will** stop the core line's gate, and the reason is already on disk:
+
+```
+  the four contaminated records : baseline_volatility_scaled_return-s14 … -s17  (Intel Xeon Gold 6140)
+  seeds carrying a 6140/6240 split across units : EXACTLY 4  -> seeds 14, 15, 16, 17
+```
+
+That is **D15**, independently reproduced, and the affected unit is one of the **eleven human-canon
+rewards in H1's comparator family** — §67.5 said "exactly 4, 1 mixed unit" but never named it.
+**So the stop will be a TRUE POSITIVE on a real, disclosed defect**, not a false alarm — which is the
+gate doing precisely what it is for.
+
+### 97.6 WHAT WAS **NOT** APPLIED, AND WHY — the honest assessment, not a padded count
+
+| item | decision | reason |
+|---|---|---|
+| **7 (D17)** | **NEVER** | `safe_call` is on the live training path (`portfolio_env.py:429`); changing it makes records before and after replay to different numbers — reproducibility layer 1, Stefan's #3. Stays limitation B.8.7 |
+| **1 (D13)** | wait | changes **which candidates exist**; ten lines are still searching, so it would create a within-arm inconsistency on the confirmatory line — the same argument as §87.2.7 |
+| **5 (D15)** | **skip, deliberately** | the fence is **already held** by the running `docs/ops/watchdog_fenced.ps1`, which RUN 8 verified holds. Applying the repo fix swaps a proven watchdog for a freshly-edited one on a live campaign **for zero operational gain**. The register's requirement that D16 "land together with the fencing mechanism" is satisfied *operationally* |
+| **3 (preflight)** | skip | runs pre-campaign only — **zero live effect** |
+| **9 (§39 thread speedup)** | skip | a planning heuristic; changing it alters lane sizing and job shapes mid-campaign for a modest gain |
+| **10 (D18)** | skip | one record, and every consumer already excludes it |
+| **12 (D19 h_rt)** | **left open** | a real ongoing risk for the ten searching lines (12 trainings were SIGKILLed and the archive is CENSORED), but it changes job sizing → placement. **The strongest remaining candidate for the next session** |
+| **13 (D20 pid lock)** | left open | stranded the h3 line once; ops-only, low risk, genuine value |
+| **14 (timeout counter)** | left open | reporting only; cheap |
+
+**Applying all thirteen would have shipped the D16/D12 trap and swapped a working watchdog. The count
+is not the metric.**
+
+---
+
+---
+
+## 98. ★★ THE DRIFT MONITOR REPORTED `drift=0` WITH THREE MODIFIED FILES (2026-08-01, RUN 9)
+
+**Found live, by accident, in the guard that protects the entire campaign** — and it is the SIXTH
+instance this session of one shape: *a number that is true of what it measures and false of what its
+label claims.*
+
+### 98.1 What happened
+
+Having edited three drift-fenced files to apply D16 and D12 (§97), I expected the cycle to go RED on
+drift. It did not. Every cycle line kept reading:
+
+```
+  2026-08-01T00:38:44Z  RED  ... drift=0 ...          <- with THREE files modified
+```
+
+Ground truth at that moment:
+
+```
+  $ git status --porcelain -- src scripts config prompts
+   M scripts/mode_d_supervisor.ps1
+   M scripts/run_campaign_cluster.py
+   M src/cluster/integrity.py
+```
+
+### 98.2 The cause — the check is right, the HEADLINE is not
+
+`docs/ops/cycle.py` computes **both** arms, exactly as §6 of the brief promises:
+
+```python
+  drift = git diff --name-only RUNNING_SHA HEAD -- src scripts config prompts   # COMMITS
+  dirty = git status --porcelain            -- src scripts config prompts       # WORKING TREE
+  if dirty: alerts.append("UNCOMMITTED changes under … — the drift diff compares COMMITS and
+                           cannot see these. Commit or revert before trusting drift=0.")
+```
+
+**…and then prints `drift={len(drift)}` — the COMMITS-only arm.** The working-tree arm reaches the
+ALERT and never reaches the NUMBER.
+
+**The detection was working perfectly.** Positive control: the alert had fired **six times**, naming
+all three files. **Only the headline lied** — and the headline is the token on every cycle line and on
+Tamer's phone.
+
+### 98.3 Why it matters more than it looks
+
+**A session's first-hand state check reads that token.** RUN 9 opened this very session by verifying
+live state and reading `drift=0` from the cycle log — which was true then, but would have been reported
+identically had a previous session left uncommitted edits under `src/`. The brief itself warns that
+*"an uncommitted change to a drift-fenced path is MORE dangerous than a committed one, because nothing
+else in the repo records it"* — and the number that is supposed to surface it could not.
+
+### 98.4 The fix, and its positive control
+
+```python
+  f"drift={len(drift)}{f'+{len(dirty)}dirty' if dirty else ''}"
+```
+
+`drift=0` can now mean ONLY "genuinely clean"; anything else is unmissable. **Verified against a live
+dirty tree** — the very next cycle wrote:
+
+```
+  2026-08-01T00:39:07Z  RED  ... drift=0+3dirty  sci=OK ...
+```
+
+ruff clean. `docs/ops/` only — outside the drift pathspec.
+
+### 98.5 THE COUNT IS NOW SIX, AND THE SHAPE HAS NEVER VARIED
+
+`reject_taxonomy`'s blind `diagnose()` · `science_watch`'s `stage=="test"` matching 1 of 3 test lanes ·
+the C4 detector's marker count · the anti-flake test that was an instance of its own flake ·
+`verify_arm_manipulation` returning ALL-CLEAR on an empty scan · and now the drift headline.
+**Six inherited instrument defects in one session, plus two of my own made and caught in the same
+session — every one a predicate correct for the case it was written against and silently wrong for the
+neighbouring case, and every one in the WATCHING layer while the DATA stayed clean.**
+
+---

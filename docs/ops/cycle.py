@@ -676,7 +676,15 @@ def main() -> int:
     summary = (f"{stamp}  {verdict}  records={records}"
                f"{'' if d_rec is None else f' ({d_rec:+d})'}  spend=${spend}  guards={guards_rc}  "
                f"arms_full={full_lines}/10  budget={bud_rc}  stalest={stalest:.1f}m  "
-               f"drift={len(drift)}  sci={sci}  r115={science.get('sw_r115_breaches')}"
+               # ⚠ THE TOKEN MUST CARRY BOTH ARMS (RUN 9, record §98). This printed `len(drift)` —
+               # the COMMITS-only arm — so the cycle log and Tamer's status page both read `drift=0`
+               # while three drift-fenced files sat MODIFIED in the working tree. The uncommitted
+               # ALERT fired correctly (6 times, naming all three), but the headline number did not,
+               # and the headline is what a session reads during its first-hand state check. Caught
+               # live on 2026-08-01 by watching my own D16/D12 edits fail to move it.
+               # `drift=0` must be able to mean ONLY "genuinely clean"; anything else is unmissable.
+               f"drift={len(drift)}{f'+{len(dirty)}dirty' if dirty else ''}  "
+               f"sci={sci}  r115={science.get('sw_r115_breaches')}"
                f"{'B' if science.get('sw_r115_binding') else ''}"
                + (f"  cores={cores}" if cores else "")
                + sweep_tok
