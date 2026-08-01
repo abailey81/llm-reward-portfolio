@@ -1,0 +1,6 @@
+2026-08-01T01:14:18Z  REAPED ZZZ_pc_reap.driver.lock  owner_pid=12648 owner_name=explorer.exe
+    owner_cmdline=C:\WINDOWS\Explorer.EXE
+    lock_age_h=2.00
+2026-08-01T01:15:43Z  REAPED ZZZ_pc_young.driver.lock  owner_pid=12648 owner_name=explorer.exe
+    owner_cmdline=C:\WINDOWS\Explorer.EXE
+    lock_age_h=0.03

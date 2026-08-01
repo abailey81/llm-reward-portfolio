@@ -503,31 +503,84 @@ def main() -> int:
     #
     # The right test is not "does the pid exist" but "is the pid A DRIVER". That is cheap to check
     # here, and it is the difference between a self-healing lock and a silently stranded line.
+    # ★★ 2026-08-01 (RUN 10, record §100): DETECTION WAS NOT ENOUGH — IT NOW SELF-HEALS.
+    # The detector above fired correctly on `leg4_leg_qwen3_5_9b_h2_pair_test.driver.lock` (owner pid
+    # 34216 recycled onto `backgroundTaskHost.exe`) and the line — one of the two ALREADY AT C4 — sat
+    # in a permanent 600 s crash-loop, dying 12 s into every relaunch, for as long as no human was
+    # awake to run the one-line `rm`. **An alarm whose remedy is a manual command is an alarm that
+    # fails while you sleep.** So the cycle now performs the remedy the driver's own error text
+    # prescribes, under a predicate STRICTLY NARROWER than the one that would make it unsafe:
+    #
+    #   reap  iff  the owner pid EXISTS  and  its cmdline was read SUCCESSFULLY  and  is NON-EMPTY
+    #              and  does NOT contain `run_campaign_cluster`  and  the lock is >= 60 s old
+    #
+    # Every clause earns its place:
+    #   * pid EXISTS          — a dead owner is already handled by `_acquire_driver_lock` itself.
+    #   * cmdline read OK     — an AccessDenied must NEVER be read as "not a driver" (that would
+    #                           delete a LIVE driver's lock and permit the double-drive the lock
+    #                           exists to prevent). Any read failure means SKIP.
+    #   * cmdline NON-EMPTY   — same reason: an empty string trivially "does not contain" the marker.
+    #                           This is the hole the pure DETECTOR above had; a false RED is cheap,
+    #                           a false REAP is not.
+    #   * no marker           — POSITIVE identification of a different program, not an inference.
+    #   * >= 60 s old         — belt-and-braces against any write-then-observe race.
+    # A torn/unreadable lock is deliberately NOT reaped: the driver already treats it as stale, and
+    # the only way to observe one is to catch a lock mid-write, where deleting would be exactly wrong.
     stale_locks: list[str] = []
+    reaped_locks: list[str] = []
+    dead_pid_locks = 0
     try:
         import psutil
-        for lk in (ROOT / "batches").glob("*.driver.lock"):
+        for lk in sorted((ROOT / "batches").glob("*.driver.lock")):
             try:
-                owner = int(json.loads(lk.read_text(encoding="utf-8")).get("pid", -1))
+                _lk = json.loads(lk.read_text(encoding="utf-8"))
+                owner = int(_lk.get("pid", -1))
+                lk_ts = float(_lk.get("ts", 0.0))
             except Exception:                                    # noqa: BLE001 — torn lock = stale
                 stale_locks.append(f"{lk.name} (unreadable)")
                 continue
             if owner <= 0 or not psutil.pid_exists(owner):
+                dead_pid_locks += 1
                 continue                                          # the driver's own check handles this
             try:
                 proc = psutil.Process(owner)
+                pname = proc.name()
                 cmd = " ".join(proc.cmdline())
-                if "python" not in proc.name().lower() or "run_campaign_cluster" not in cmd:
-                    stale_locks.append(f"{lk.name} (pid {owner} is {proc.name()}, NOT a driver)")
-            except Exception:                                     # noqa: BLE001 — vanished mid-check
+            except Exception:                                     # noqa: BLE001 — vanished/denied
+                continue                                          # fail SAFE: never reap on unknowns
+            if not cmd or "run_campaign_cluster" in cmd:
+                continue                                           # a live driver, or unidentifiable
+            why = f"{lk.name} (pid {owner} is {pname}, NOT a driver)"
+            if (time.time() - lk_ts) < 60.0:
+                stale_locks.append(why + " [too young to reap this cycle]")
                 continue
+            try:
+                lk.unlink()
+                reaped_locks.append(why)
+                with (WATCH / "REAPED_LOCKS.log").open("a", encoding="utf-8") as fh:
+                    fh.write(f"{_utc()}  REAPED {lk.name}  owner_pid={owner} owner_name={pname}\n"
+                             f"    owner_cmdline={cmd[:400]}\n"
+                             f"    lock_age_h={(time.time() - lk_ts) / 3600.0:.2f}\n")
+            except Exception as exc:                              # noqa: BLE001 — report, never crash
+                stale_locks.append(why + f" [REAP FAILED: {exc}]")
     except ImportError:
         attention.append("psutil unavailable — the stale-lock check is BLIND this cycle")
+    if reaped_locks:
+        attention.append(
+            f"D20 SELF-HEAL: auto-reaped {len(reaped_locks)} stale driver lock(s) whose pid had been "
+            f"REUSED by a non-driver process — {', '.join(reaped_locks[:3])}"
+            f"{' …' if len(reaped_locks) > 3 else ''}. Each would otherwise have blocked its batch "
+            f"forever. Evidence appended to docs/ops/watch/REAPED_LOCKS.log; the line's supervisor "
+            f"relaunches on its own backoff. The MECHANISM fix (record identity, not just the pid) "
+            f"is DEFERRED-13 and ships at the C4 relaunch.")
     if stale_locks:
-        alerts.append(f"STALE DRIVER LOCK(S) held by a REUSED pid: {', '.join(stale_locks[:3])}"
+        alerts.append(f"STALE DRIVER LOCK(S) NOT auto-reaped: {', '.join(stale_locks[:3])}"
                       f"{' …' if len(stale_locks) > 3 else ''}. The driver's staleness check tests "
                       f"pid EXISTENCE, not pid IDENTITY, so it will refuse to start that batch "
                       f"forever. Verify no live driver owns it, then delete the lock file (D20).")
+    if dead_pid_locks:
+        info.append(f"locks {dead_pid_locks} lock(s) held by a DEAD pid (auto-broken by the driver on "
+                    f"contact; each is a latent D20 landmine until a driver touches that batch)")
     science_locks = len(stale_locks)
 
     # 6. driver-log freshness
