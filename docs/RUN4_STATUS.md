@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 01:02 UTC -- T+75h53m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 01:07 UTC -- T+75h59m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+75h53m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+75h59m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1585** |
-| LLM calls / spend | 2600 / **$40.5968** |
+| records archived | **1586** |
+| LLM calls / spend | 2601 / **$40.7138** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -75,7 +75,7 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 | distributional | g5 of 5 | 319 |
 | scalar | g5 of 5 | 296 |
 | placebo | g5 of 5 | 224 |
-| scalar_cvar5 | g5 of 5 | 176 |
+| scalar_cvar5 | g5 of 5 | 177 |
 | placebo_shuffled | g5 of 5 | 174 |
 
 ## Results so far
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T00:58:45Z  RED  records=1584 (+0)  spend=$40.0749  guards=2  arms_full=10/10  budget=2  stalest=8.4m  drift=0  sci=OK  r115=13B  sweep=15.2s  auto-cycle
-2026-08-01T00:59:31Z  RED  records=1584 (+0)  spend=$40.1779  guards=2  arms_full=10/10  budget=2  stalest=9.1m  drift=0  sci=OK  r115=13B  sweep=13.9s  auto-cycle
-2026-08-01T01:00:15Z  RED  records=1585 (+1)  spend=$40.2574  guards=2  arms_full=10/10  budget=2  stalest=9.8m  drift=0  sci=OK  r115=13B  sweep=14.0s  auto-cycle
-2026-08-01T01:00:59Z  RED  records=1585 (+0)  spend=$40.3692  guards=2  arms_full=10/10  budget=2  stalest=5.4m  drift=0  sci=OK  r115=13B  sweep=14.6s  auto-cycle
-2026-08-01T01:01:44Z  RED  records=1585 (+0)  spend=$40.4937  guards=2  arms_full=10/10  budget=2  stalest=6.1m  drift=0  sci=OK  r115=13B  sweep=13.1s  auto-cycle
-2026-08-01T01:02:27Z  RED  records=1585 (+0)  spend=$40.5967  guards=2  arms_full=10/10  budget=2  stalest=6.8m  drift=0  sci=OK  r115=13B  cores=960  sweep=16.3s  auto-cycle
+2026-08-01T01:03:55Z  RED  records=1585 (+0)  spend=$40.7138  guards=2  arms_full=10/10  budget=2  stalest=8.3m  drift=0  sci=OK  r115=13B  sweep=13.8s  auto-cycle
+2026-08-01T01:04:39Z  RED  records=1585 (+0)  spend=$40.7138  guards=2  arms_full=10/10  budget=2  stalest=9.0m  drift=0  sci=OK  r115=13B  sweep=14.3s  auto-cycle
+2026-08-01T01:05:23Z  RED  records=1585 (+0)  spend=$40.7138  guards=2  arms_full=10/10  budget=2  stalest=9.8m  drift=0  sci=OK  r115=13B  sweep=14.4s  auto-cycle
+2026-08-01T01:06:08Z  RED  records=1585 (+0)  spend=$40.7138  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=13B  sweep=13.6s  auto-cycle
+2026-08-01T01:06:52Z  RED  records=1586 (+1)  spend=$40.7138  guards=2  arms_full=10/10  budget=2  stalest=3.1m  drift=0  sci=OK  r115=13B  sweep=14.6s  auto-cycle
+2026-08-01T01:07:37Z  RED  records=1586 (+0)  spend=$40.7138  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=13B  sweep=14.1s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -132,7 +132,7 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 32.9720  + still to author $  6.4098  = $ 39.3818   credited $ 28.1500   margin $ -11.2318 (-40%)  over the credit ESTIMATE (owner-watched)
+  anthropic   spent $ 33.0890  + still to author $  6.4390  = $ 39.5281   credited $ 28.1500   margin $ -11.3781 (-40%)  over the credit ESTIMATE (owner-watched)
   openrouter  spent $  7.6248  + still to author $  2.1953  = $  9.8201   credited $ 19.3100   margin $  +9.4899 (+49%)  comfortable
 ```
 
