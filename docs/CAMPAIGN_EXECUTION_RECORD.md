@@ -13864,3 +13864,57 @@ its consequence*.
 **78 tests green across the six affected files; `PYTEST_RC` read from the LOG. Drift 0. The campaign
 was never touched — every file changed in §100.33–§100.35 is provably outside the driver import
 closure.**
+
+### 100.36 ★★★★★ THE LEAKAGE VERIFICATION — EXECUTED, NOT ASSERTED, AND IT IS CLEAN
+
+**The one defect that would invalidate the entire dissertation is train/test leakage, and it had not
+been re-verified this session.** Earlier audits called it exemplary; *"an earlier audit said so"* is
+exactly the standard this session has spent eleven hours refusing to accept. **Re-derived from the
+frozen configs and the real 5,406-session panel, by execution.**
+
+#### THE EXECUTED WINDOWS
+
+```
+  the two HASH-BOUND configs AGREE (inference.yaml splits == data.yaml splits) : True
+
+  TRAIN [   60, 3021)   2005-03-31 -> 2016-12-30
+  VAL   [ 3081, 3775)   2017-03-30 -> 2019-12-31
+  TEST  [ 3835, 5406)   2020-03-30 -> 2026-06-30
+
+  train -> val purge : 60 sessions        val -> test purge : 60 sessions
+  NO OVERLAP ANYWHERE : True              TEST length : 1571 sessions
+```
+
+**★ AND AN UNPLANNED CROSS-CHECK LANDED EXACTLY:** the executed test window is **1,571 sessions** —
+the same **T = 1571** the frozen config's own `N6_h1` note cites when it records the DSR-endpoint
+correction (*"MEASURED at the executed test length T=1571"*). **Two independent derivations of the
+same quantity agreeing is evidence; one repeated is not.**
+
+#### WHY THE PURGE IS 60 AND NOT 21 — THE CODE GETS THIS RIGHT AND SAYS WHY
+
+`scripts/run_campaign.py::resolve_windows` computes `purge = max(embargo, lookback)` and carves it out
+at **each** boundary. Its own comment states the reasoning at the point of decision:
+
+> *"a gap of only embargo(21) < lookback(60) leaves the downstream window's first (lookback − embargo)
+> = 39 observations reading prior-split returns — a López de Prado purge-insufficiency (leakage audit
+> 2026-06-20, PREREGISTRATION R18)."*
+
+**So the effective purge is ~3x the registered embargo, at both boundaries**, and no downstream
+feature window can reach back across a split. That is textbook-correct purging, not a lucky default.
+
+#### THE STALE SPLIT TABLE — A HANDLED CONDITION, NOT A DEFECT
+
+`data/gold/splits_univ5.parquet` still records the **PRE-Split-C** development boundary
+(`validation_post_embargo = 2015-02-03`, being the old 2014-12-31 train end + 21 sessions). **That
+looked alarming and was chased to ground.** Under Split C's train end (2016-12-31) the stale floor
+*predates the train end*, so `embargoed_val_start` **ignores it** and the fallback purge governs —
+**verified by execution**: lookback 0/21 gives 2017-02-02, and the production lookback 60 gives
+**2017-03-30, i.e. 89 calendar days AFTER the train end.** The stale value is detected, ignored, and
+documented at `loaders.py:144-150`.
+
+> **The leakage-critical property — the purge begins STRICTLY AFTER the train end — holds, and holds
+> with three times the registered margin.**
+
+**Every number above was produced by running the registered code against the frozen panel, not by
+reading a docstring.** Given that six reassuring comments have been found wrong tonight, that
+distinction is the whole point of the section.
