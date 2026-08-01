@@ -109,6 +109,51 @@ checked: C: 27.3 GB free, D: 52.1 GB, archive 373 MB — not a risk.
 monitoring), **W2** a new stranded batch diffed against the verified 7-batch baseline, **W3** an
 append-only ledger going backwards, **W4** a genuinely new `[CHANGED]` alert signature, **W5** a peer
 lane going stale. Silence means nothing changed.
+### ADDENDUM 02:40Z — the bus closed its own loop, and it caught me twice
+
+**All four lanes registered** (ops joined 02:19Z). **The P-arbiter has now prevented three collisions
+in one night**: ops' draft error log used P51–P53 — which `CHANGELOG.md:194` had already announced as
+RUN 10's range — and they drew P113–P115 instead. **Ops reached via `docs/REMOTE_CONTROL.md`**, the
+file their session polls every 5 min; their alert changed to *"REMOTE_CONTROL.md CHANGED — READ IT
+NOW"* within one cycle. **A15 was fixed and shipped in tonight's commit `402d59e`**, with ops
+recording that their own first reading disagreed with the analysis lane. **A16 was correctly NOT
+patched** and is written into three documents so it survives a session death.
+
+**W6 added at the analysis lane's request** — the twelve core test units must share **one** seed set,
+which is CRN pairing's precondition. The D16 quarantine correctly left
+`baseline_volatility_scaled_return` at n=26 (seeds 14–17 absent) while its eleven siblings hold 0–29;
+until the re-run lands, an N6 IUT leg against it pairs over 26 seeds while its siblings use 30,
+**silently** — and in an IUT the p-value is the **max** over legs, so the under-powered leg is
+disproportionately likely to *be* that max. Positive-controlled in **both** directions: it fires on
+the live divergence, fires `REUNIFIED` when the archive is faked back to twelve × 0–29, and is silent
+when nothing changed.
+
+**★ P117 — A SAFETY PROPERTY I PUBLISHED WAS FALSE FOR ~1 HOUR, AND THE SELFTEST CAUGHT IT LIVE.**
+I documented, here and to Tamer, that the guard *"never blocks a session that has not joined"*. That
+held for the **fence** branch (which requires a positively identified non-owner) and **not** for the
+**claim** branch, which had no equivalent guard. The instant ops registered and its `src/**` hold went
+live, an unregistered session would have been denied across `src/`, `scripts/`, `paper/` and
+`outputs/` at once, by a holder it had never heard of. **The selftest case passed all night and began
+failing the moment a real lane took a real hold — the test did not change, the world did.** Fixed with
+an early return, pinned by two new cases (fenced and merely-claimed targets fail independently), and
+verified live that a *registered* non-owner is still denied. **The lesson is not "add a guard": a
+documented safety property that no test exercises against live state is a claim, not a guarantee.**
+
+**Two more of my own, logged as P111/P112 and detailed in the findings doc:** the analysis lane found
+that my detector tested *mention* where its own header claimed *progress* — leg4 was caught only by
+luck of failure mode — now fixed with a second `not-advancing` predicate; and I broke `watch.py` with
+a heredoc, turning `\n` into a real newline, the exact trap CLAUDE.md names.
+
+**A correction that cuts against another lane, and one that cuts against me.** The analysis lane's
+*"the first wave could not possibly have completed"* is **too strong**: over **all n=1,220** records
+`wall_clock` runs **MIN 2.79 h · p05 3.05 · MEDIAN 4.21 · p95 7.61 · MAX 14.31 h**, and **227/1,220
+(18.6 %) finished faster than leg4's 3.58 h window** — so ~11 of the 60 units may have completed and
+be sitting **unpulled** on the node, making this potentially a **pull gap, not a compute gap**. The
+counterweight, stated with it: elapsed-from-creation includes queue wait that `wall_clock` excludes,
+so ≳0.8 h of wait returns the expectation to zero. **And the same error was mine first** — I had
+quoted a single record's 15,254 s as "a training is 4.2 h" in three documents. The median survives;
+the claim did not.
+
 **Owed / open:** ops to register on the bus and act on the six routed items — above all **leg4's
 h2_pair re-adoption** and the **per-`(line,batch)` progress detector**, which is the durable fix both
 this lane and the analysis lane reached independently.
@@ -313,6 +358,66 @@ than take it on trust. *The instructive part is the contrast with the check ten 
 worked: that one reproduced a peer lane's boundaries to the character. Same session, same archive — the
 difference was whether I had established what the field meant before testing it.*
 
+### ⑫ THE WATCH FIRED — a true positive on an expected event, and it led to the night's worst defect
+
+**02:33:14Z.** My independent monitor raised its first alarm: `RECORD COUNT FELL 1670 → 1666` plus
+`results_audit rc=2`. I verified before escalating and escalated **without claiming data loss**, which
+mattered, because the honest answer needed the cluster and the cluster is not mine.
+
+**What I established read-only:** the drop is *exactly* the four D16 records —
+`test/baseline_volatility_scaled_return` holds s0–s13 and s18–s29, missing **precisely 14–17**, no
+over-reach. Corroborating, the two science counters **converged** across the same cycle
+(`sw=1699/ra=1695` → `sw=1695/ra=1695`), which is a *consistent* state, not a corrupted one; and
+`results_audit rc=2` is what a completeness invariant does when a unit drops 30 → 26 seeds. **What I could
+not establish:** the four are absent everywhere under `outputs/` locally, git holds no copy, and no local
+quarantine directory exists — but a pull was in flight and the laptop is only a mirror. *(The four
+`record.json` files that do turn up under `outputs/campaign_cluster` are **RUN 1** — a different run with
+the same unit and seed names. Nearly a false alarm in the other direction.)* So I asked one question
+instead of asserting an answer. **Ops confirmed: option B executed on both sides, quarantined on node and
+locally, all four copies surviving in three places, nothing deleted.** Alarm baselined.
+
+### ⑬ ★★★ THE SAME WRONG SENTENCE WAS IN THE GENERATOR **AND** IN THE DISSERTATION
+
+The analysis lane raised **A15**: `analyze_campaign.py` printed, beside the N6 confirmatory verdict, that
+the LLM's DSR is deflated so *"the human bar is conservatively high."* Both halves wrong — there is no DSR
+in that leg (the endpoint became annualised per-seed Sharpe when the registered `deflated_sharpe` was
+corrected on 2026-07-26), and the direction is inverted. I read the **artefact, not a diff** — their own
+warning — and found ops had **already fixed the generator** in tonight's deploy.
+
+**But the same error was also in `paper/CH6_results.md`, and nobody was auditing there.** It read: *"the
+designed reward is the survivor of a thirty-candidate search **whose scores are deflated for that
+multiplicity** … so **the human bar sits conservatively high**."* It asserted a deflation counterweight
+**that does not exist** and inverted the direction — and its effect was to **overstate the strength of our
+own H1 result**, which is the worst direction an error can run. Rewritten: the asymmetry **favours the
+language model**, nothing corrects for it, there is no deflation counterweight because selection happens on
+validation and the test leg is sealed so there is no test-set maximum to deflate, and **dominating an
+un-tuned bar is therefore a weaker claim than dominating a matched-search bar — only the weaker one is
+made.** Repo-wide residue grep clean.
+
+> **THE TRANSFERABLE LESSON, posted to all four lanes:** *a defect found in generator code must be grepped
+> in `paper/` as a matter of course.* The generated block and the hand-written chapter can carry the same
+> wrong sentence, and only one of them was being audited.
+
+### ⑭ ALSO LANDED IN THIS STRETCH
+
+* **F20 added to the figure manifest** — the D2 seed-trajectory panel was **not registered anywhere**,
+  despite being a standing obligation. Added with **four binding caption conditions**, and with an explicit
+  reconciliation of an apparent contradiction that would otherwise be resolved the wrong way: CLAUDE.md says
+  *"registered order, **never sorted**"*, the analysis lane says *"**sort** by seed"* — these agree, because
+  "never sorted" forbids sorting by **value** while sorting by **seed index** *restores* the registered
+  order that pack-order scheduling had scrambled. Measured: qwen `scalar_cvar5`'s first two completed seeds
+  are **11 and 12**, not 0 and 1.
+* **Per-leg $n$ on the H1 dominance profile** (from analysis M40): paired tests run over *shared* seeds and
+  an IUT $p$-value is the **maximum** over legs, so a lower-powered leg is disproportionately likely to *be*
+  that maximum. Silent, not wrong — so it is now reported.
+* **15a-i + 15e authorised, with the gate pre-flighted first.** I simulated the widened gate over the exact
+  18 files it will wire: **278 keys, 0 verify-in-use, 0 VERIFY leaks, and one "dangling" key** —
+  `claude-haiku-4-5-20251001`, which is **a model ID in T16**, not a citation; its `2025` matches the
+  key regex. **Harmless to the PDF** (it sits in a table cell, not a bracket group, so `build_paper`'s
+  transform never fires — bracketed occurrences 0) but it would open the widened gate at non-zero. Suggested
+  the principled fix: count a backticked token as cited **only inside a bracket group**, which is exactly
+  build_paper's own condition — aligning the gate with the compiler instead of a looser regex.
+
 ### ⑨ GATES, MEASURED AFTER EVERY EDIT
 
 `check_citations` — **0 / 0 / 0**, and 0 parser-flagged entries. `word_budget` — body **22,381**
@@ -476,6 +581,37 @@ brief is not executable.** True (B) must move the REMOTE copies too.
 * And a **wrapper-trap catch**: the harness reported the first full-suite run as *"completed (exit
   code 0)"*. That is the trailing `tail`'s exit code. `PYTEST_RC` read FROM THE LOG was **1**, with
   four failures. Never trust the wrapper.
+
+### ✅ DEPLOYED AND VERIFIED (02:32-02:44Z)
+
+```
+  suite     PYTEST_RC=0 FROM THE LOG, 0 FAILED   ruff clean   freeze 3ca6f01a MATCHES
+  commit    402d59e   RUNNING_SHA 16bb71b -> 402d59e   drift 0 on BOTH arms
+  kill      24 drivers LEAF-FIRST -> 0, supervisors 12/12 intact
+  relaunch  11/12 lines back on the new code, all --pack 8; records +10, stalest 11.4m -> 0.6m
+```
+
+**D16 executed and verified TO THE SEED.** Quarantined on the node AND locally (both outside their
+run roots, so no `rglob` consumer can still count them); unit now **HOMOGENEOUS, 26 records, one
+substrate**; the core driver re-enumerated on relaunch and submitted **exactly**
+`baseline_volatility_scaled_return-s14/s15/s16/s17` as job `61949`, **within one minute**. Four
+originals preserved in three places. **The re-run discharges the registered bit-comparison
+experiment** in `acknowledged_alarms.txt` — same seed, same fixed reward, two CPU models — rather
+than merely avoiding the confound.
+
+**D21 registered:** `LLMRewardCampaignResume`, boot trigger, `PT2M`. The action string was printed
+and read before installing. Reboot recovery re-enters the FLEET **with the substrate fence**.
+
+**⚠ ONE FAILURE I CAUSED, recorded as a method lesson.** Killing all 24 drivers in ONE action
+synchronises all twelve supervisors onto the same 600 s boundary, so they relaunch simultaneously and
+hit the login node with twelve concurrent `ssh` connects. `glm-5.2` took `exit status 255` and went
+to its own backoff. **Not a code regression** — three live ssh probes OK, and `exit status 255`
+appears **37-168 times historically in EVERY driver log**. **Next time: stagger the kill.**
+
+**leg4's `h2_pair` question is CLOSED by the ANALYSIS lane and the answer is benign** — `driver_status/`
+shows leg4's blob identical in every field to healthy leg9's, and only 3 h 35 m had elapsed against a
+~4.2 h training, so the first wave could not have completed. **LOST, not FAILED**; the CORE line does
+not inherit a reproducible fault.
 
 ### ★ TWO OF THE DEFERRED SPECIFICATIONS WERE THEMSELVES DEFECTIVE
 

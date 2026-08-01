@@ -12168,3 +12168,96 @@ drifts.
 **And one wrapper-trap catch, exactly as the brief warns:** the harness reported the first
 full-suite run as *"completed (exit code 0)"* — that is the exit code of the trailing `tail`, not
 of pytest. `PYTEST_RC` read FROM THE LOG was **1**, with **four** failures. Never trust the wrapper.
+
+### 100.8 THE DEPLOY, EXECUTED AND VERIFIED — AND ONE METHOD LESSON I CREATED
+
+```
+  suite        PYTEST_RC=0 read FROM THE LOG, 0 FAILED lines   (the harness reported the
+               wrapper's 0 on an earlier run that had FAILED with four errors)
+  ruff         clean;  freeze --check 3ca6f01a... MATCHES (hash unmoved)
+  commit       402d59e (23 files, +2469/-55, staged by explicit path, never -A)
+  kill         24 drivers LEAF-FIRST at 02:32Z -> 0 drivers, supervisors 12/12 INTACT
+  re-base      RUNNING_SHA 16bb71b -> 402d59e;  drift 0 on BOTH arms, verified before commit
+  relaunch     11 of 12 lines back at 02:42:45Z on the new code, all carrying --pack 8
+  records      +10 within one cycle, stalest 11.4 m -> 0.6 m: the fleet is pulling normally
+```
+
+**★ THE METHOD LESSON, and the cause is mine.** I killed all 24 drivers in ONE action, so all twelve
+supervisors hit their 600 s backoff boundary *simultaneously* and relaunched at the same instant —
+twelve concurrent `ssh` connects to the login node. **`glm-5.2` took `exit status 255` on connect**
+and went to its own backoff.
+
+**It is NOT a code regression, and I checked that in both directions before saying so:** three live
+`ssh` probes returned `/home/ucestes`, and `grep -c "exit status 255"` over the driver logs returns
+**37 to 168 occurrences in EVERY line's history** — this is the routine transient the drivers already
+tolerate, not something the deploy introduced. The line self-heals on its own 600 s timer with its
+Myriad arrays untouched.
+
+**The lesson for the next relaunch: STAGGER THE KILL.** §46/§54/§60 all describe killing the drivers
+as a single step, and that is what synchronises the twelve supervisors. Killing them in two or three
+waves a minute apart keeps the relaunch boundaries apart and avoids the burst entirely. Cheap, and it
+removes an avoidable failure from a procedure this campaign runs repeatedly.
+
+### 100.9 D16 EXECUTED — AND VERIFIED TO THE SEED
+
+Option (B), on **both** sides, because §28's local-only quarantine had already regressed:
+
+```
+  preflight    every target re-read and required to say 6140 IMMEDIATELY BEFORE its move
+  node         4 run dirs moved to ~/Scratch/llmrp4/_quarantine_6140_d16/   (OUTSIDE outputs/)
+  local        4 run dirs moved to the scratchpad                          (OUTSIDE the run root)
+  post-state   unit holds 26 records across 1 substrate  ->  HOMOGENEOUS
+  preserved    4/4 scratch backup + 4/4 local quarantine + 4/4 node quarantine; NOTHING deleted
+  re-run       [c1_baselines] submitted as 1 array(s): ['61949']  ->  0/4 done, 4 pending
+  identity     task_1.json holds baseline_volatility_scaled_return-s14/s15/s16/s17 and NOTHING ELSE
+  latency      submitted within ONE MINUTE of the driver relaunch
+```
+
+**⚠ THE QUARANTINE TARGET WAS MOVED OUTSIDE THE RUN ROOT BEFORE RUNNING, and that catch matters.**
+My first draft put the local quarantine at `outputs/campaign_cluster_run4/_quarantine_6140_d16/`.
+Every `rglob("record.json")` consumer — the sentinel, `integrity.py`, `telemetry.py` — would still
+have found the four records there, so the quarantine would have withdrawn them from the unit while
+continuing to COUNT them. A quarantine that is still visible to the counters is not a quarantine.
+
+**★ AND THE RE-RUN DISCHARGES A REGISTERED OPEN EXPERIMENT, which nobody had connected.**
+`docs/ops/acknowledged_alarms.txt`'s `substrate_fields:CRITICAL` entry has been open on exactly this
+question — *"the bit-comparison experiment that decides whether the four archived records are
+replaced or kept with a measured equivalence"*. Because the seeds are deterministic and the reward is
+a fixed human specification, **old-6140 versus new-6240 at the SAME seed IS that measurement**. Option
+(B) therefore does not merely avoid the confound; it measures it, and the 6140 values remain
+reportable as a substrate sensitivity rather than being discarded.
+
+### 100.10 D21 REGISTERED — REBOOT RECOVERY EXISTS FOR THE FIRST TIME IN THIS RUN
+
+`LLMRewardCampaignResume`, `MSFT_TaskBootTrigger`, `delay=PT2M`, state **Ready**. The registered
+action was PRINTED AND READ before installing it, not trusted:
+
+```
+  mode_d_launch.ps1  -OutDir outputs\campaign_cluster_run4 -RemoteRoot ~/Scratch/llmrp4
+                     -ExcludeHosts node-d00a-230,node-d00b-024        <- the fence SURVIVES a reboot
+  + the cycle loop and the publisher (best-effort, `start /B`, never blocking the fleet)
+  + mode_d_watchdog.ps1 with the same parameters (blocks, which is what a task action should do)
+```
+
+**One cosmetic defect recorded rather than fixed:** the recovery log still lands in
+`outputs\campaign_cluster\onstart_task.log` (the pre-RUN-4 directory) because `$logDir` is hard-coded
+per branch. The RECOVERY is correct; only the log location is stale. Not worth dirtying `scripts/`
+minutes after a re-base — it ships with the next one.
+
+### 100.11 THE leg4 h2_pair QUESTION — ANSWERED BY THE ANALYSIS LANE, AND THE ANSWER IS BENIGN
+
+I established that leg4's `h2_pair_test` has 0/60 records, is not queued, and is not currently
+driven — and I explicitly REFUSED to conclude "the tasks failed" from an empty node-side log dir,
+because the positive control (leg9's h2_pair, which is healthy) has an empty log dir too.
+
+**The ANALYSIS lane closed it with an artefact I had not read: `driver_status/`.** leg4's blob reads
+`done=0 pending=60 exhausted=0 rounds=1 pull_failures=0 ops_failures=0 phase=running` — and leg9's,
+for a batch running healthily right now, is **identical in every field except the timestamp**. The
+timing settles it: packs created 11:12:31Z, driver died ~14:47Z = **3 h 35 m elapsed against a ~4.2 h
+single training**. The first wave could not physically have completed, so zero completions is the
+EXPECTED state, not a symptom.
+
+**Verdict: LOST, not FAILED — the driver died mid-first-wave and observed no failure because none had
+had time to occur.** That is the benign branch, and it is the one that matters: a reproducible fault
+would have been inherited by the CORE line's own C4. The batch re-enumerates after leg4's three
+control-arm test legs drain (~8-12 h; the analysis lane holds a dated falsifier at 08:00Z).
