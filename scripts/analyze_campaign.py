@@ -3162,7 +3162,13 @@ def cross_hypothesis_multiplicity(
 
     For each hypothesis a single representative HEADLINE p is extracted (the leg/test most relevant to its
     decision) and compared against the Bonferroni level ``alpha / n_hypotheses``:
-      * H1 — descriptive panel (no inferential p); reported as "descriptive (no p)".
+      * H1 — the beat-the-human-canon INTERSECTION-UNION TEST: headline p = ``h1_beat_human.iut.
+        iut_pvalue`` (already the MAX one-sided leg p over the 11-name canon), gated on
+        ``all_baselines_present`` exactly as ``validity_tier``'s N6_h1 gates it.
+        ⚠ THIS LINE PREVIOUSLY READ "descriptive panel (no inferential p)". That was true until the
+        2026-07-26 upgrade made H1 confirmatory, and false — but reassuring — for every reader after
+        it, which is why the stale EXTRACTION beneath it survived unexamined until 2026-08-01
+        (§100.34). Corrected with the code, not after it.
       * H2 — the WORST (max) one-sided p over the two co-primary IUTs' legs (the conjunction's binding leg);
         an IUT rejects only if its MAX leg p clears alpha, so the conjunction p IS that max.
       * H3 — the one-sided difference p (if computed).
