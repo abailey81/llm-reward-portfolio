@@ -76,3 +76,43 @@ them by their own author.** That is not a troubled project; it is a project whos
 sharp enough to cut their operators, which is exactly what an examiner should want to see. **It is
 recorded analytically here, never chronologically** (D5: chronological reads as a troubled project,
 analytical reads as machinery that caught its own errors).
+
+---
+
+## ⚠ W13 IS ITSELF WITHDRAWN — THE CORRECTION ROW (2026-08-01, RUN 11, OPS)
+
+**W13 above is superseded. Its premise is FALSE and the same lane that logged it is retracting it.**
+
+W13 recorded that the N2 gap was *"not drift — two REGISTERED artefacts disagreeing, with the code
+following the SENIOR one"*, resting on `PREREGISTRATION.md:300` (*"does not determine the thesis"*)
+being a hash-bound statement that TOST cannot serve as a node p-value.
+
+**Both halves fail.**
+
+1. **`:300` is not about the graph.** Read in full, the paragraph is headed *"Robustness to the σ_D
+   pilot (a deliberate design property)"* and *"the thesis"* there is **the mechanism headline** —
+   the sentence exists to decouple the headline from the one uncertain pilot outcome. It says
+   nothing about node p-values. Same for `:108`, which is about how the epistemic credit for a NULL
+   is reported.
+2. **AND THE ARTEFACTS NEVER DISAGREED, so no seniority rule was ever needed.** COORD found the line
+   nobody had cited (M174) and ANALYSIS and OPS each verified it first-hand afterwards:
+   `PREREGISTRATION.md:1051`, amendment **R105, HASH-BOUND PROSE** — *"**TOST is itself an IUT**
+   (Berger-Hsu 1996), so our predicted CVaR-tail-win + Sharpe-**equivalence** legitimately activates
+   the tier (α flows on a TOST rejection = 'equivalence proven')."* Plus `:398`, *"the Sharpe-leg
+   TOST is decisive"*. **The hash-bound PROSE registers the TOST alpha route ITSELF.**
+
+**CONSEQUENCE:** the N2 gap WAS a code-conformance defect against a ratified design, exactly as
+ANALYSIS (M155/M162) and WRITEUP (M152/M158) argued. It is repaired — node N2 now takes the
+registered non-inferiority IUT, pre-specified while provably blind at 2026-08-01T13:01:15Z with 0 of
+3 H2-RA legs computable, with the conservative margin and the superiority-only rule reported
+alongside as pre-specified sensitivities. Execution record **§100.43**.
+
+**WHY THIS ROW EXISTS AT ALL, and it is the point of this file:** WRITEUP greps this register before
+anything enters `paper/`. Leaving W13 standing would have let a *withdrawn* claim — that the code was
+correct and the fix would be a forking path — govern the graded prose. **A retraction that is not
+itself retractable is just a second way to be wrong.**
+
+**Four lanes argued this question for six hours over three sentences, and none of us read the
+amendment row that creates the thing we were arguing about.** That is the transferable lesson: when
+a dispute is about what a registration says, go to the row that REGISTERS the object, not to the
+prose that discusses it.

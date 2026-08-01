@@ -319,6 +319,41 @@ def verify_pdf_glyphs(pdf_path: Path) -> tuple[int, str]:
         return 0, f"NOT CHECKED (extraction failed: {type(exc).__name__}: {exc})"
 
 
+#: The four TeX Gyre Heros faces the deliverable's typeface is loaded from, BY FILE.
+_HEROS_FACES = ("texgyreheros-regular.otf", "texgyreheros-bold.otf",
+                "texgyreheros-italic.otf", "texgyreheros-bolditalic.otf")
+
+
+def tectonic_bundle_provenance(cache_dir: Path) -> dict[str, Any]:
+    """The content-addressed Tectonic bundle the fonts actually resolve from, and whether the four
+    Heros faces are IN it.
+
+    F-19 (coord, 2026-08-01). Since RUN 11 the deliverable's typeface is TeX Gyre Heros loaded BY
+    FILE from Tectonic's bundle, so the bundle is now a REPRODUCIBILITY DEPENDENCY of the compiled
+    artefact — and its digest was recorded nowhere. Priority 5 is explicit that "a pin nobody can
+    verify is FICTIONAL" (the R85 lesson), so this does not assert the bundle: it resolves the
+    content-addressed directory, records its digest, and CHECKS that all four faces are present.
+    A missing face is why `mainfont` would silently fall back and re-flatten the document.
+
+    Returns ``{"digest", "path", "faces_present", "faces_missing"}``; ``digest`` is None when the
+    cache has not been populated yet (a first-ever compile downloads it), which is reported as
+    unknown rather than as clean.
+    """
+    data = cache_dir / "bundles" / "data"
+    if not data.is_dir():
+        return {"digest": None, "path": str(data), "faces_present": [], "faces_missing": [],
+                "reason": "bundle cache not populated (a first compile will fetch it)"}
+    # The content-addressed bundle dir IS the digest; pick the one that actually holds the faces.
+    for cand in sorted(p for p in data.iterdir() if p.is_dir()):
+        present = [f for f in _HEROS_FACES if (cand / f).is_file()]
+        if present:
+            return {"digest": cand.name, "path": str(cand), "faces_present": present,
+                    "faces_missing": [f for f in _HEROS_FACES if f not in present]}
+    return {"digest": None, "path": str(data), "faces_present": [],
+            "faces_missing": list(_HEROS_FACES),
+            "reason": "no cached bundle carries the Heros faces"}
+
+
 def scan_control_bytes(text: str) -> list[tuple[int, int, str]]:
     """Every control byte in the assembled deliverable, excluding tab/LF/CR.
 
@@ -436,6 +471,18 @@ def build(md_only: bool, out: Path | None) -> int:
     # drive. TECTONIC_CACHE_DIR is tectonic's supported cache override; the cache is regenerable.
     env = dict(os.environ)
     env.setdefault("TECTONIC_CACHE_DIR", r"D:\tectonic-cache")
+    # F-19: record + CHECK the bundle the typeface resolves from (see tectonic_bundle_provenance).
+    _bundle = tectonic_bundle_provenance(Path(env["TECTONIC_CACHE_DIR"]))
+    if _bundle["digest"]:
+        print(f"[build_paper] tectonic bundle {_bundle['digest'][:16]}… "
+              f"({len(_bundle['faces_present'])}/4 TeX Gyre Heros faces present)")
+    else:
+        print(f"[build_paper] tectonic bundle: UNKNOWN — {_bundle.get('reason', 'not resolved')}",
+              file=sys.stderr)
+    if _bundle["faces_missing"] and _bundle["digest"]:
+        print(f"[build_paper] WARNING: Heros face(s) absent from the bundle: "
+              f"{', '.join(_bundle['faces_missing'])}. `mainfont` will silently fall back and the "
+              f"document will lose those shapes — the exact 2026-08-01 defect.", file=sys.stderr)
     # encoding/errors are LOAD-BEARING, not tidiness: without them Python decodes this channel with
     # the box's locale codec and a single non-decodable byte silently empties it. See _MISSING_CHAR_RE.
     proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
@@ -543,6 +590,18 @@ def main(argv: list[str] | None = None) -> int:
                          "editorial placeholder (FROM CAMPAIGN / compile notes / fill slots) — the P8 "
                          "gate before the upload.")
     args = ap.parse_args(argv)
+    # F-18 (coord, 2026-08-01): `--md-only --final` returned rc=0 HAVING COMPILED NOTHING. --final is
+    # the SUBMISSION gate; satisfying it without ever producing a PDF is a false green of exactly the
+    # class this file spent today fixing, and it is the most dangerous one here because the thing it
+    # would wave through is the deliverable itself. The two flags are contradictory by construction:
+    # --md-only stops before pandoc, --final certifies the compiled artefact. Refuse the combination
+    # rather than silently honouring the weaker half.
+    if args.final and args.md_only:
+        print("[build_paper] REFUSING --final with --md-only: --final is the submission gate and "
+              "certifies the COMPILED deliverable, while --md-only exits before pandoc. Passing "
+              "both would return rc=0 having produced no PDF. Run --final on its own.",
+              file=sys.stderr)
+        return 2
     try:  # the lint echoes deliverable lines (unicode arrows etc.) — never crash on a legacy codepage
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
     except Exception:  # noqa: BLE001
