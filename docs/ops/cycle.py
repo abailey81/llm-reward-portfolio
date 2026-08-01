@@ -117,7 +117,7 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "b73a109"   # re-based 2026-08-01: b44a566 -> a51d2ea (§100.33) -> b5fdde5 (§100.34).
+RUNNING_SHA = "b73a109"   # re-based 2026-08-01: b44a566 -> a51d2ea (§100.33) -> b5fdde5 -> b73a109 (§100.34/35).
 # THREE fenced files moved across §100.33-§100.35, and ALL are PROVEN OUTSIDE the driver closure:
 #   * src/inference/multiple_testing.py  -- the structurally-untestable reporting fix (§100.33)
 #   * scripts/analyze_campaign.py        -- H1's beat-the-canon IUT reaching the R31 sensitivity (§100.34)
