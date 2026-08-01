@@ -12844,3 +12844,76 @@ Figure 4.1 in CH4, Figures 6.1–6.13 in CH6) against **zero embedded figures**.
 outstanding write-up task, stated in `build_paper.py:39` (*"figures are not yet embedded … they land
 at write-time from FIGURE_TABLE_MANIFEST.md"*), so it is **not** a discovery. Only the **count** was
 contributed, because 14 is the exact size of that worklist and it lands on the same grading criterion.
+
+### 100.24 THE THIRD MECHANIC — SEVEN TABLE BLOCKS ARE PEERS OF THE CHAPTERS — AND THE WORD BUDGET, MEASURED
+
+**Completing the enumeration.** Okhrati docks for exactly **three** mechanics: missing wall-clock
+compute (§100.21, closed), untidy figure/table cross-referencing (§100.23), and **unconventional
+section order**. Having found the first two, checking the third is obligatory rather than optional —
+*enumerate the full scope and work the whole list.* It is a live exposure, and like §100.23 it is
+downstream of §100.17's wiring.
+
+**The ASSEMBLY order itself is correct and conventional** — front matter → nomenclature → CH1 → CH2 →
+CH3 theory → CH4 → CH5 → CH6 → CH7 → references → appendices. **The defect is the HEADING LEVEL.**
+Read from the built ship form, the top-level (`#`) sequence is:
+
+```
+  Chapter 2 — Literature Review
+  Table (CH2): Literature positioning matrix                    <- PEER OF A CHAPTER
+  Chapter 3 — ... (Theory)
+  Chapter 4 — Methods
+  Tables (CH4 Methods): the nine arms · the environment ...     <- PEER
+  Tables (CH4 Methods): the eleven authoring models ...         <- PEER
+  Table: Design decisions — alternatives, rationale, and cost   <- PEER
+  Tables (CH4 Methods / CH7): the reproducibility statement ... <- PEER
+  Chapter 5 / Chapter 6 — Results
+  Table (CH4 Methods / CH6 Results): the classical-allocator …  <- PEER, and its own title
+                                                                   contradicts its POSITION
+  Chapter 7 — Discussion ...
+```
+
+**Seven table blocks are top-level sections ranked equally with the seven chapters**, so the compiled
+table of contents shows *"Chapter 4 — Methods"* followed by four siblings titled *"Tables (CH4
+Methods): …"*. That is the definition of an unconventional section order, in a document graded partly
+on a **second marker from any discipline** being able to navigate it.
+
+**THE FIX IS SMALLER THAN IT LOOKS, AND I VERIFIED THE CONSTRAINT BEFORE RECOMMENDING IT.** Demoting
+those files' headings `#` → `##` makes each a subsection of the chapter it belongs to. The obvious
+worry is that this disturbs the word budget — **it does not.** `scripts/word_budget.py::BODY_CHAPTERS`
+is a tuple of **seven FILENAMES**, so counting is per-FILE and entirely independent of heading level.
+The tables stay separate files, stay outside `BODY_CHAPTERS`, and stay word-excluded. **The fix is
+word-budget-neutral**, which is the fact that makes it safe — and checking it was the difference
+between a recommendation and a guess.
+
+#### 100.24a THE WORD BUDGET — THE CURRENT NUMBER, AND THE FACTOR NOBODY HAS SIZED
+
+**Not raised as a discovery.** `docs/WRITEUP_95PLUS_PLAYBOOK.md` MOVE 3 already schedules the 10k
+distillation for Days 14–18 and correctly frames it as *"distillation, not amputation"*. **What was
+missing is the current number** — the last figure recorded anywhere is **15.5k**, and the plan may be
+sized against it.
+
+**MEASURED, and the tool DOES apply the IFTE0008 exclusions mechanically** (fenced code, inline code
+spans, display *and* inline math, markdown tables, footnote definitions, HTML comments, image lines,
+`FRONT_MATTER` wholesale) — so this is **stripped prose**, not a raw count:
+
+```
+  CH1 2,844 | CH2 3,134 | CH3 theory 5,204 | CH4 methods 5,409
+  CH5 1,402 | CH6 results 2,926 | CH7 2,706        TOTAL 23,625   vs a HARD 10,000
+```
+
+**2.36x over; the cut required is 14,125 words, ~60 % of the body.** For scale, **CH3 + CH4 alone are
+10,613 — already above the entire limit** before CH1, CH2, CH6 and CH7 are counted.
+
+**★ AND THE FACTOR THAT IS NOT YET SIZED: CH6 IS THE CHAPTER THAT HAS NOT BEEN WRITTEN.** It is
+currently **2,926 words — the smallest substantive chapter** — because the results are not in; its
+tables are placeholder captions pointing at manifest T1–T7 (`CH6_results.md:77, 104, 188, 230, 264`).
+When the ladder completes, **CH6 and CH7 GROW**, and Okhrati's D1/D2/D6 all push the same way (every
+number with mechanism + uncertainty + counterfactual, seed-trajectory panels, narrative over
+enumeration). **So MOVE 3's target is not 23,625 → 9,500; it is (23,625 + CH6/CH7 growth) → 9,500**,
+and the growth lands in precisely the two chapters that are hardest to cut because they carry the
+contribution. Worth knowing before Day 14 rather than on Day 18.
+
+Reported to the write-up lane (M105) with two levers visible from the numbers and left to their
+judgement: CH3 at 5,204 is the largest chapter and the most amenable to pushing formal apparatus into
+**excluded display maths**; CH4 at 5,409 now has four wired table files that can absorb specification
+prose as **excluded table content**. **Nothing under `paper/` was touched — the write-up hold is live.**
