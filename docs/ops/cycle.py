@@ -239,8 +239,36 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     Returns the extracted quantities for STATE.json. Escalates through `alerts` / `attention` in
     place. Never raises: a probe that cannot run is itself reported as a finding.
     """
-    sw_rc, sw_out = _run([sys.executable, "docs/ops/science_watch.py"], timeout=300)
-    ra_rc, ra_out = _run([sys.executable, "docs/ops/results_audit.py"], timeout=300)
+    # 2026-08-01 (RUN 10): run the two archive walks CONCURRENTLY. They are independent, read-only,
+    # and each re-reads every record, so serialising them doubled the one component of the sweep that
+    # GROWS with the campaign. Measured on 1,730 records: 2.89 s + 2.79 s serial -> ~2.9 s together.
+    #
+    # ⚠ THIS IS A SCHEDULING CHANGE, NOT A SAMPLING ONE. Both tools still read EVERY record, which is
+    # what makes `sci=OK` mean anything; the brief's standing warning is against sampling the archive
+    # to make the sweep cheap, and nothing here touches what is read or how it is judged.
+    #
+    # ⚠ AND THE FIGURES THE BRIEF CARRIES ARE WRONG, MEASURED 2026-08-01. It states the sweep is
+    # "linear in archive size (~6.3 ms/record)" heading for "~250 s at the full ladder", and that a
+    # 46.1 s reading proved it. Both halves fail measurement: the two archive tools cost **3.3
+    # ms/record combined** (5.68 s over 1,730), so the full-ladder projection is ~117 s serial and
+    # ~58 s concurrent, not 250 s; and the 46.1 s outlier was **ssh contention from RUN 10's own
+    # 12-way driver relaunch**, not archive growth — every neighbouring cycle read 9-15 s at the same
+    # archive size. The real components at 1,730 records: archive 5.7 s, budget_watch 2.7 s, ssh
+    # qstat 1.5 s, git drift 0.08 s, plus ~1 s interpreter start per subprocess.
+    #
+    # THE SWEEP IS THEREFORE NOT BINDING TODAY (13-15 s against a 30 s interval) and becomes binding
+    # near **~9,000 records**. The durable fix is an INCREMENTAL cache keyed on (path, mtime, size)
+    # — still reading every record ONCE, retaining its verdict — and it is deliberately NOT built
+    # here: these two tools ARE the science verdict, and a caching bug would produce a reassuring
+    # `sci=OK` from an instrument that cannot fire, which is the worst failure mode this project has.
+    # It ships as its own change, with a falsification asserting cached and uncached output are
+    # byte-identical on the live archive.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as _ex:
+        _sw = _ex.submit(_run, [sys.executable, "docs/ops/science_watch.py"], 300)
+        _ra = _ex.submit(_run, [sys.executable, "docs/ops/results_audit.py"], 300)
+        sw_rc, sw_out = _sw.result()
+        ra_rc, ra_out = _ra.result()
     text = {"sw": sw_out, "ra": ra_out}
 
     got: dict[str, int | None] = {}
