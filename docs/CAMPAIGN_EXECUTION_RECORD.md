@@ -11502,3 +11502,94 @@ estimate converge rather than a terminal number.
 1,553 records, $38.94.
 
 ---
+
+---
+
+## 95. ★★ WILL WE MAKE THE STOP? — THE ETA MEASURED AND STRESS-TESTED, AND WHY NO SCIENCE NEEDS CUTTING (2026-08-01, RUN 9)
+
+Tamer, mid-turn: *"Please make sure you never cut the science, make sure everything is logical and
+meaningful."* The honest way to honour that is to establish whether any trade is even being asked for.
+**It is not.**
+
+### 95.1 THE ANSWER, STRESS-TESTED ACROSS CORE COUNTS
+
+`docs/ops/stage_eta.py` run at six core counts rather than one, so the verdict does not depend on
+today's luck:
+
+```
+  cores      rung 403 (REGISTERED PRIMARY TARGET)     rung 568 (full ladder)
+    500                 08-19                              08-27   <- at the stop
+    700                 08-13                              08-19
+  * 960  (held today)   08-09                              08-13
+   1500                 08-05                              08-07
+   2500                 08-02                              08-03
+   4584 (saturation)    08-01                              08-01
+```
+
+**At the cores we hold: rung 568 lands 08-13 against the 2026-08-27 exogenous stop — 14 days of
+margin. The registered primary target (403) lands 08-09 — 18 days clear.**
+
+**The verdict is robust, not lucky.** Halving our cores to 500 still delivers **rung 403 by 08-19**,
+a week inside the stop. The only marginal case is wanting all 568 seeds *and* falling to ~500 cores.
+
+**This is materially better than the position the brief carried** (§63: *"rung 568 → 08-23 at the cores
+we hold, against the 08-27 stop"* — four days). The core count rising **560 → 960** bought ten days.
+
+### 95.2 ⚠ A SCARE I ALMOST REPORTED — AND WHY IT WAS WRONG
+
+Crude extrapolation from observed throughput: **1,556 records in 3.13 d = 498 records/day**; the full
+ladder needs 12 lines × 5 arms × 568 seeds = **34,080** test records; 34,080 / 498 = **68 DAYS**, which
+would miss 08-27 by six weeks.
+
+**That number is wrong, and the reason is a units-of-work error, not an arithmetic one:**
+
+* **SEARCH** spends **8 cores on ONE training** (8 threads; §39 measured the real speedup at **1.92×**,
+  not 2.72×) → **0.24 trainings per core-unit**.
+* **C4** spends **8 cores on EIGHT trainings** (`--pack 8`, one core each, `OMP=1`) →
+  **1.00 trainings per core-unit** — **4.2× the throughput per core.**
+
+Corrected: **~16 days** of C4 at today's cores, comfortably inside the stop, and consistent with the
+registered model's 08-13.
+
+**Recorded because of what it would have caused.** A 68-day figure reported as fact is exactly the kind
+of number that panics a session into cutting something to "save" the campaign — the failure Tamer's
+instruction exists to prevent. **The observed rate and the projected rate were measuring different
+regimes; comparing them without the packing correction is the P-series shape in its purest form.**
+
+### 95.3 THE ONE SPEED LEVER — FOUND, COSTED, AND REFUSED ON SCIENCE
+
+The core line has **two arms already frozen** (`distributional`, `scalar`) whose winners are immutable,
+while ~2,900 pool-d slots sit free and the other three arms search for another ~16-26 h. Starting those
+two arms' test legs now is technically straightforward and would front-load ~20 hours of work into idle
+capacity.
+
+**REFUSED.** `run_test_leg` is called for the H2 arms as **ONE `interleave=True` array**
+(`src/cluster/campaign.py:1836`), and the docstring states the property exactly:
+
+> *"reorders the taskfile SEED-MAJOR (pair-adjacent / round-robin across the winners …) — the §14.3/B-A3
+> schedule, so at ANY truncation point every unit holds a (near-)equal, CRN-paired seed count instead of
+> one unit hogging the early tasks."*
+
+**Running two arms ~20 h ahead of the other three destroys that guarantee**, and delivers to H2 exactly
+the unequal-*n* asymmetry §56 exists to prevent — **at the truncation an exogenous stop makes likely**.
+The E[max] of a max-over-seeds statistic rises with n; an arm with more completed seeds at truncation is
+systematically advantaged. **That is cutting the science to buy hours, and §95.1 shows the hours are not
+even needed.**
+
+### 95.4 THE MARGIN IS A SCIENCE OPPORTUNITY, NOT JUST A SAFETY BUFFER
+
+Fourteen days of slack means:
+
+1. **No trade is being asked for.** Nothing needs to be cut, narrowed, sampled or hedged for time.
+2. **There is room to ADD.** The §89.5.1 report-only sensitivity — scoring the 13 candidates our own
+   allowlist wrongly rejected (§87.2) — costs **~17 core-hours** against a 14-day surplus. It is
+   affordable many times over. **Still Tamer's decision; the default remains do-nothing-and-disclose.**
+3. **It absorbs the residual risk** that C4 realises less capacity than the 71-of-71 placement measured
+   at the boundary (§94.1) suggests.
+
+### 95.5 STATE
+
+No `src/ scripts/ config/ prompts/` edit. No relaunch. Freeze `3ca6f01a…` MATCHES. Drift 0.
+`RUNNING_SHA 50b6e07` unchanged. Campaign 12/12, `sci=OK`, 1,556 records, $39.00.
+
+---
