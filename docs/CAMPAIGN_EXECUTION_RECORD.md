@@ -13614,6 +13614,19 @@ lasting product is not the ten fixes — it is that the invariants those fixes p
 every ten minutes by machinery that has been proven able to fail.** The audit found what was wrong
 today; the gate is what keeps it right until 08-27.
 
+> ### ⚠⚠ CORRECTION (§100.37): "EXECUTED-VS-REGISTERED DRIFT" IS THE WRONG CHARACTERISATION
+>
+> **§100.33 and §100.34 describe the N2 gap as the CODE drifting from the registration. That is
+> WRONG, and the COORD lane found it.** The hash-bound **`PREREGISTRATION.md:300`** states that the
+> TOST equivalence *"sets only HOW TIGHT the equivalence statement can be … **it does not determine
+> the thesis**"*, and line 108 frames TOST as how the null is **reported**. `scripts/freeze.py` fixes
+> the hash order as *"prose, THEN the freeze-state-stripped prereg yaml"* and calls the yaml **"the
+> YAML mirror"** of the prose record. **So the prose is SENIOR, the code implements the PROSE, and the
+> code is CORRECT.** What exists is **two REGISTERED artefacts disagreeing** — `config/
+> preregistration.yaml`'s N2 note contradicting the prose — not code departing from a registration.
+> **This makes the decision not to change N2 stronger, not weaker: implementing the yaml note would
+> mean the code DEPARTING from the senior hash-bound artefact in order to enable a rejection.**
+
 ### 100.33 ★★★★★ THE REGISTERED VALIDITY TIER IS INERT UNDER ITS OWN PREDICTED BRANCH — VERIFIED BY EXECUTION
 
 **The most consequential finding of the session, raised by the COORD lane (M137) and INDEPENDENTLY
@@ -13710,6 +13723,19 @@ baselines plus `random_search`** — **no H2 outcome exists**, and the core line
 `placebo_shuffled` and `scalar_cvar5` at g4. **A pre-data revision is legitimate and documented; the
 moment the core C4 ladder produces an H2 outcome, every option here becomes a forking path and the
 pre-registration integrity claim — our single strongest asset — collapses.**
+
+> ### ⚠⚠ CORRECTION (§100.37): "EXECUTED-VS-REGISTERED DRIFT" IS THE WRONG CHARACTERISATION
+>
+> **§100.33 and §100.34 describe the N2 gap as the CODE drifting from the registration. That is
+> WRONG, and the COORD lane found it.** The hash-bound **`PREREGISTRATION.md:300`** states that the
+> TOST equivalence *"sets only HOW TIGHT the equivalence statement can be … **it does not determine
+> the thesis**"*, and line 108 frames TOST as how the null is **reported**. `scripts/freeze.py` fixes
+> the hash order as *"prose, THEN the freeze-state-stripped prereg yaml"* and calls the yaml **"the
+> YAML mirror"** of the prose record. **So the prose is SENIOR, the code implements the PROSE, and the
+> code is CORRECT.** What exists is **two REGISTERED artefacts disagreeing** — `config/
+> preregistration.yaml`'s N2 note contradicting the prose — not code departing from a registration.
+> **This makes the decision not to change N2 stronger, not weaker: implementing the yaml note would
+> mean the code DEPARTING from the senior hash-bound artefact in order to enable a rejection.**
 
 ### 100.34 ★★★★★ H1 WAS DECIDABLE NOWHERE — THE STALE CONSUMER THAT COST A HEADLINE HYPOTHESIS
 
@@ -13918,3 +13944,67 @@ documented at `loaders.py:144-150`.
 **Every number above was produced by running the registered code against the frozen panel, not by
 reading a docstring.** Given that six reassuring comments have been found wrong tonight, that
 distinction is the whole point of the section.
+
+### 100.37 ★★★★★ MY OWN CHARACTERISATION WAS WRONG — IT IS NOT CODE-VS-REGISTRATION, IT IS REGISTRATION-VS-REGISTRATION
+
+**§100.33 and §100.34 both describe the N2 gap as *"executed-vs-registered drift on the confirmatory
+decision rule."* THAT IS WRONG.** The COORD lane found it (M150) while withdrawing their own
+recommendation, and **it was verified here first-hand before being accepted** — a claim that reframes
+my own finding is exactly the kind that must not be taken on trust.
+
+#### THE EVIDENCE
+
+**`PREREGISTRATION.md` — hash-bound — settles it, twice:**
+
+* **line 300:** *"The performance result (§1/§10) sets only HOW TIGHT the equivalence statement can be
+  (the TOST CI against the ±0.05 SESOI); **it does not determine the thesis.**"*
+* **line 108:** the null's epistemic credit *"is **reported** via TOST equivalence against the
+  pre-registered SESOI … NOT a bare p>0.05."*
+
+**And `scripts/freeze.py` establishes the precedence explicitly:** the canonical hash order is
+*"prose, THEN the freeze-state-stripped prereg yaml, THEN the three bound configs …"* (line 30), and
+`assert_prose_matches_yaml` (line 341) describes the yaml as **"the YAML mirror"** of the prose
+record. There is even a dedicated `FreezeConsistencyError` for *"PREREGISTRATION.md prose and
+preregistration.yaml disagree on a frozen field"* (line 224).
+
+> **THEREFORE: the prose is the RECORD, the yaml MIRRORS it, and the code implements the PROSE. The
+> CODE IS CORRECT.** What exists is **two REGISTERED artefacts disagreeing** — the yaml's N2 note
+> (*"activation rests entirely on N2 rejecting via TOST"*) contradicting the prose that TOST does not
+> determine the thesis. **Not drift. A mirror that stopped mirroring.**
+
+#### ★ AND IT MAKES THE N2 DECISION STRONGER, NOT WEAKER
+
+I declined to implement non-inferiority because an analyst-authored amendment enabling a rejection is
+a forking path. **On the corrected understanding it is worse than that:** implementing the yaml note's
+reading would mean **the code DEPARTING from the SENIOR hash-bound artefact in order to enable a
+rejection.** *Choosing the junior reading, after discovering the senior one cannot certify, is
+indefensible however clean the algebra.* **The decision stands on much firmer ground than the
+reasoning that produced it.**
+
+#### ★★ THE FOURTH FINDING — WHY THE FREEZE GATE DID NOT CATCH IT
+
+`assert_prose_matches_yaml`'s docstring promises agreement **"on every frozen field."** It checks an
+**ENUMERATED LIST OF TEN SCALARS**: seeds (count + range), arms, `inference.difference_tests`,
+`inference.sesoi`, `inference.equivalence_margin`, `cost_sweep.grid_bps`, `fitness.lambda_cvar`,
+`agent_numerics.tf32`, `search.reflect_protocol_default`, `data_panel.headline`.
+
+> **`inference.validity_tier` IS NOT AMONG THEM.** So when R105/R108 added the entire graphical
+> confirmatory tier to the yaml on 2026-07-26 — six nodes, initial weights, edges, and the N2 note —
+> **it entered the frozen record with NO prose-agreement check at all.** The gate's scope did not grow
+> when the registration did.
+
+**This is the same shape as every other defect this session: a guard whose ENUMERATED scope is
+narrower than its DOCUMENTED promise.** *"Every frozen field"* is what it says; ten named scalars is
+what it does. **Queued for the post-campaign register** (it cannot be fixed now — `freeze.py` changes
+would require re-freezing a live campaign's hash-bound record, which is exactly the operation this
+finding counsels against).
+
+#### DISPOSITION
+
+* **§100.33 and §100.34 are ANNOTATED IN PLACE**, not rewritten — the wrong characterisation stays
+  visible above the corrected one, per the standing rule that a withdrawn claim which vanishes is
+  indistinguishable from one never made.
+* **Added to `docs/ops/WITHDRAWN_CLAIMS.md` as W13** — my own claim, killed by evidence, on the same
+  register as the other twelve.
+* **Credit to COORD**, who found this while withdrawing their own recommendation — the second time
+  tonight a lane has strengthened a finding by arguing against their own position.

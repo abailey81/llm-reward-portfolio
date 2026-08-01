@@ -50,6 +50,8 @@
 | W11 | wall_clock distribution *"min 2.79 h, median 4.21, max 14.31, n=1,220"* | `test_leg.py:193` **zeroes the field by construction** for the whole TEST stage; a `v > 0` filter **deleted** that stage rather than sampling it | **SEARCH-only.** Every *"a training is 4.2 h"* must read *"a SEARCH training is 4.2 h; test-training duration is unmeasured."* |
 | W12 | *"OPS's new hourly heartbeat block broke my W4"* | The block is written by `docs/ops/cycle_loop.sh`, introduced in commit **`db05f336`** by a PREVIOUS session, and had been in `ALERTS.txt` for **fourteen hours** | Nothing changed. The real failure was **validating a parser against a partial corpus**. |
 
+| W13 | *"The N2 gap is EXECUTED-VS-REGISTERED DRIFT — the code fails to implement the registered `iut_or_tost`."* (§100.33, §100.34) | **`PREREGISTRATION.md:300`** — hash-bound and SENIOR — says the TOST *"does not determine the thesis"*, and `freeze.py` fixes the order *"prose, THEN the … prereg yaml"*, calling the yaml **"the YAML mirror"**. Found by COORD (M150); verified here first-hand. | **Not drift — two REGISTERED artefacts disagreeing, with the code following the SENIOR one.** The code is CORRECT. It also makes the decision not to change N2 stronger: implementing the yaml note would mean the code departing from the senior artefact **to enable a rejection**. |
+
 ---
 
 ## THE PATTERN ACROSS ALL TWELVE — one distinction, destroyed three ways
