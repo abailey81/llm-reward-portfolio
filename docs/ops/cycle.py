@@ -117,7 +117,13 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "b44a566"
+RUNNING_SHA = "a51d2ea"   # re-based 2026-08-01 (b44a566 -> a51d2ea), §100.33. The ONLY fenced file
+# that moved is `src/inference/multiple_testing.py` (the structurally-untestable reporting fix), and it
+# is PROVEN OUTSIDE the driver import closure: a static walk from scripts/run_campaign_cluster.py +
+# src/cluster/run_one.py reaches 193 first-party modules and this is not one of them. The INFERENCE
+# layer runs at ANALYSIS time, never inside a driver, so the executed experiment is untouched and no
+# relaunch was needed. Same sanctioned exit as the 402d59e -> b44a566 re-base (§100.19): "prove
+# unreachable with docs/ops/import_closure.py, or re-base at restart."
 DRIFT_PATHS = ("src", "scripts", "config", "prompts")
 
 # A driver log older than this means its line has stopped writing -- the D14 failure mode, where the
