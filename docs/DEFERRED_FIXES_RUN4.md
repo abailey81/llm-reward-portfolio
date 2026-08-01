@@ -952,3 +952,26 @@ lines at exactly the moment C4 opens — the worst possible timing.**
 streak is fatal, either classify `max_u_jobs` rejections as a benign back-pressure signal (retry
 without incrementing the streak) or add an explicit outstanding-job budget at the submit layer. This
 needs no relaunch — the driver re-reads nothing, but the change lands on the next natural restart.
+
+### D23 — RESOLVED THE SAME DAY, BY READING THE FAILURE ACCOUNTING. NOT A HAZARD.
+
+Checked immediately rather than left queued, because it would have bitten at the worst moment.
+**The rejection path is graceful, for three independent reasons:**
+
+1. **A `qsub` rejection is CAUGHT, not fatal.** `_TRANSPORT_ERRORS = (ConnectionError, TimeoutError,
+   OSError, subprocess.SubprocessError, RuntimeError)` — broad enough to cover every way an ssh
+   `qsub` failure surfaces. The submit sits inside that `except`, which increments `ops_failures`
+   and retries. **`pending_submit` is cleared ONLY on success** (`# consumed ONLY on success -> a
+   failed submit re-tries`), so nothing is dropped.
+2. **The streak resets on ANY successful cycle** (`ops_failures = 0` on the success path). Fatality
+   needs 72 CONSECUTIVE failures (3.6 h at `--poll-secs 180`) or a 12 h continuous outage. As our
+   own jobs complete, the job count falls and submits succeed again, resetting the counter.
+3. **AND THE CAP ALMOST CERTAINLY NEVER BINDS.** Free capacity in pool D is ~3,366 slots = **~420
+   jobs at pack 8** — well under `max_u_jobs = 1000`. We saturate on FREE SLOTS long before job
+   count, so the 1,345/5,052 arithmetic above describes DEMAND, not what SGE will ever let us hold.
+
+**Downgraded from hazard to analysed-and-benign. Overstating a risk is as inaccurate as
+understating one, and leaving a phantom in this file costs the next reader real attention.**
+The residual, and it is small: nobody has OBSERVED a `max_u_jobs` rejection in this campaign, so
+point 1 is a reading of the code paths rather than a measurement. If C4 ever does hit the cap, the
+log line to look for is a `queue op failed (N consecutive, …)` warning naming the batch.
