@@ -512,6 +512,52 @@ def main() -> int:
         alerts.append(f"sentinel: UNACKNOWLEDGED verdict(s) {', '.join(new_sentinel)} -- a CRITICAL "
                       f"is a VALIDITY issue, not a slowdown. Run it to ground before anything else.")
 
+    # 4b. THE SANDBOX ALLOWLIST GAP (record §100.31). `SAFE_BUILTINS` exposes np + 31 builtins and NO
+    # exception type, while the AST gate has no opinion on Try/ExceptHandler -- so a reward writing
+    # `try: ... except Exception:` PASSES the gate and dies on `NameError: name 'Exception' is not
+    # defined`, on the very line meant to make it robust. NOT fixed in code: SAFE_BUILTINS is
+    # reward-evaluation semantics on the training path (D17, never while live), and changing it would
+    # split the archive into two evaluation instruments for a measured exposure of ~0.03 candidates.
+    # So the hazard is made VISIBLE instead: 13 programs carry it LATENT (10 on confirmatory paths),
+    # harmless until a try-block actually raises, because Python resolves an exception name only when
+    # an exception occurs. This alerts if one ever FIRES on a confirmatory path -- the single case
+    # that would mean a candidate was lost to OUR defect rather than to its own logic.
+    #
+    # TIME-GUARDED (not every cycle): the scan AST-parses every distinct reward source, ~6 s at 2,300
+    # records and growing with the archive. The hazard fires at most once, so a 10-minute detection
+    # latency costs nothing while an unbounded per-cycle scan would eat the sweep budget.
+    # HARD-WRAPPED: this check must never be able to break the monitoring loop.
+    try:
+        _gap_stamp = Path("docs/ops/watch/.sandbox_gap_last")
+        _due = (not _gap_stamp.exists()
+                or (time.time() - _gap_stamp.stat().st_mtime) > 600)
+        if _due:
+            _gap_rc, _gap_out = _run([sys.executable, "docs/ops/sandbox_gap_watch.py", "--quiet"],
+                                     timeout=180)
+            _gap_stamp.parent.mkdir(parents=True, exist_ok=True)
+            _gap_stamp.write_text(f"{_gap_rc}\n{_gap_out}", encoding="utf-8")
+        else:
+            _gap_rc = int((_gap_stamp.read_text(encoding="utf-8").splitlines() or ["0"])[0])
+        if _gap_rc == 1:
+            alerts.append(
+                "sandbox_gap: a reward on a CONFIRMATORY path has MANIFESTED the SAFE_BUILTINS "
+                "allowlist gap -- a candidate was lost to OUR defect, not to its own logic. It reads "
+                "~50% fallback (the state-reset limit cycle), so R115 will have excluded it. Record "
+                "§100.31; decide with Tamer whether that candidate is re-authored.")
+        elif _gap_rc not in (0, 1):
+            # A WATCHER THAT CANNOT RUN IS ITSELF A FINDING (_run's own comment says so, and it
+            # returns rc=99 rather than raising). Without this branch a broken sandbox_gap_watch would
+            # simply stop watching and NOTHING would say so -- the silent-blind-spot failure this
+            # whole file exists to prevent.
+            attention.append(f"sandbox_gap: the watcher could not run (rc={_gap_rc}) -- the latent "
+                             f"allowlist-gap hazard is currently UNWATCHED. Record §100.31.")
+    except Exception as _gap_exc:                        # noqa: BLE001 - must never break the sweep
+        # ⚠ print, NOT a logger. cycle.py defines no module logger, and the first draft of this
+        # handler called `_LOG.warning(...)` -- which would have raised NameError *inside the except
+        # block*, propagating out and breaking the very sweep the guard exists to protect. A
+        # fail-safe whose failure path can itself fail is not a fail-safe.
+        print(f"[cycle] sandbox_gap check failed (non-fatal): {_gap_exc!r}", file=sys.stderr)
+
     # 5. the budget. TAMER, 2026-07-31: "The budget is fine, cross it out, I will just top up whenever
     # needed, I watch the balance. Just make sure you precisely monitor it as well."
     #

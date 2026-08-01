@@ -13478,3 +13478,70 @@ are latent at 0 % fallback. **But it is a real instrument defect with a live lat
 the confirmatory line, it silently penalises defensive coding, and it may bias the per-model
 authoring-reliability table** — a named R80/industry deliverable — **because models that write more
 defensive code are penalised for doing so.** All of that is disclosable and none of it is fixable now.
+
+### 100.31a THE DECISION NOT TO PATCH THE SANDBOX LIVE — RE-DERIVED ON SCIENCE ALONE, AFTER THE FREEZE WAS RULED OUT
+
+**Tamer's instruction was explicit: *"I don't give ten fucks about freeze or unfreeze if that shit even
+dares to threaten the quality of the campaign."* So the freeze was removed from the argument entirely
+— and then CHECKED, rather than assumed.**
+
+**FACT 1 — THE FREEZE DOES NOT BIND THE SANDBOX.** `scripts/freeze.py`'s hash-bound set is
+`PREREGISTRATION.md` · `config/preregistration.yaml` · `config/{inference,environment,data}.yaml` ·
+`config/arms.yaml` · `prompts/system.txt` · `prompts/initial_generation.txt` · `src/feedback/schema.py`.
+**`src/sandbox/executor.py` is NOT in it.** Changing `SAFE_BUILTINS` would be no freeze violation at
+all. **The decision therefore rests entirely on the science, exactly as instructed.**
+
+**FACT 2 — MY OWN SECURITY CLAIM IN §100.31 WAS ASSERTED, NOT VERIFIED, SO I CHECKED IT.** I wrote
+that `Exception` "is not a security risk". That deserved scrutiny, because exposing a class object to
+sandboxed code is a classic escape (`Exception.__subclasses__()` → file openers). **Verified: the AST
+gate is a strict ATTRIBUTE ALLOWLIST** (`node.attr not in _ALLOWED_ATTRS → reject`), plus a dunder-NAME
+ban, plus a format-string field ban whose own comment cites
+`'{0.__class__.__mro__[1].__subclasses__}'`. **And decisively — `float`, `int`, `bool`, `str`, `list`,
+`dict`, `tuple`, `set` are ALL CLASS OBJECTS and are ALREADY EXPOSED.** Exception types would add no
+new class exposure beyond what exists. **The claim survives, but it should not have been made before
+it was checked.**
+
+**THE DECISION: DO NOT PATCH LIVE.** Not the freeze, not timidity — arithmetic:
+
+| | |
+|---|---|
+| harm already done to the confirmatory line | **zero** (the one manifestation is report-only, R115-excluded) |
+| sealed test leg / frozen winners | **CLEAN** — not one references an unavailable name |
+| remaining exposure | 2 core arms still authoring (~10 candidates) × 1.05 % write `except Exception` × ~7–30 % fire ⇒ **≈0.008–0.03 candidates** |
+| cost of patching | archive spans **two evaluation instruments**; 24-driver relaunch; a search→test namespace mismatch that does **not** currently exist |
+
+**AND THE DECISIVE ARGUMENT IS NOT THE ARITHMETIC — IT IS HOW IT WRITES UP.** A mid-run change to the
+reward-evaluation runtime of a PRE-REGISTERED confirmatory experiment invites precisely the
+forking-paths suspicion the pre-registration exists to foreclose. **A probabilist reading "we changed
+the evaluation namespace partway through" immediately asks "what else changed?"** The disclosed,
+uniform limitation is both more honest and more defensible than the patched, heterogeneous one — the
+same logic that governs R106 in §100.27. **Uniformly-limited-and-disclosed beats half-and-half.**
+
+**WHAT WAS DONE INSTEAD — THE HAZARD IS NOW WATCHED, NOT INVISIBLE.** New
+`docs/ops/sandbox_gap_watch.py` (scope-aware AST scan; parameters, locals, comprehension targets,
+`except … as` bindings and imports all excluded) wired into `cycle.py` as check **4b**:
+
+```
+  16 programs name an unresolvable load | MANIFESTED 3 (all report-only) | LATENT 13 (10 confirmatory)
+  verdict: OK -- no confirmatory-path manifestation                                     rc=0, 6.0 s
+```
+
+**Time-guarded at 600 s** (the scan grows with the archive; the hazard fires at most once, so a
+10-minute latency costs nothing while an unbounded per-cycle scan would eat the sweep budget) and
+**hard-wrapped** so it can never break the loop. If a confirmatory candidate ever manifests it, the
+alert fires the same cycle and Tamer decides with a concrete case instead of a hypothesis.
+
+**★★ TWO DEFECTS IN MY OWN GUARD, CAUGHT BEFORE THEY SHIPPED — the second is the instructive one.**
+
+1. **The fail-safe could itself fail.** My `except` handler called `_LOG.warning(...)`. **`cycle.py`
+   defines no module logger** — so the handler would have raised `NameError` *inside the except
+   block*, propagated out, and **broken the very sweep the guard exists to protect.** Replaced with
+   `print(..., file=sys.stderr)`. AST-verified afterwards: **0 `_LOG` name nodes remain** (the only
+   surviving occurrence is the comment recording this). *A fail-safe whose failure path can itself
+   fail is not a fail-safe.*
+2. **A broken watcher would have been SILENTLY UNWATCHED.** `_run` returns `(99, …)` rather than
+   raising, and my first version tested only `rc == 1`, so any other code — a missing file, a crash,
+   a timeout — would have been ignored and the hazard would have quietly stopped being monitored.
+   Added an `elif _gap_rc not in (0, 1)` ATTN branch. **Proven by execution:** missing script → rc=2,
+   `sys.exit(42)` → rc=42 (both now fire), real watcher → rc=0. *A check that cannot run is itself a
+   finding — `_run`'s own comment says so, and I had not honoured it.*
