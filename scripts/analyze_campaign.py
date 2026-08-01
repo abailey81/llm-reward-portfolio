@@ -1135,7 +1135,19 @@ def load_campaign_records(root: str | Path) -> list[dict[str, Any]]:
     from src.io.results import _RECORD_NAME, load_all
 
     root = Path(root)
-    seen: dict[str, dict[str, Any]] = {}
+    # ⚠ KEYED BY (DIRECTORY, run_id), NOT run_id ALONE (A79, 2026-08-01, found by the analysis lane).
+    # `run_id` is unique WITHIN a line and COLLIDES ACROSS them: every line writes
+    # `distributional-s0`, `placebo-s0`, ... because the id encodes arm+seed and carries NO line.
+    # A global run_id key therefore de-duplicated ACROSS lines and silently dropped every line but
+    # the first one walked. MEASURED on the live RUN 4 archive before this fix:
+    #   load_campaign_records -> 732 records, against 2,260 record.json on disk (ex-h3)
+    #   => 1,528 records, 68% of the archive, discarded SILENTLY.
+    # Every statistic downstream of this loader was therefore computed on a third of the data with
+    # no error, no warning and no count mismatch to notice. The directory is the only line-bearing
+    # discriminator available (the record itself has none), and `_walk` visits each directory exactly
+    # once, so (directory, run_id) preserves the ORIGINAL intra-directory de-dup intent while making
+    # a cross-line merge structurally impossible.
+    seen: dict[tuple[str, str], dict[str, Any]] = {}
 
     def _walk(directory: Path, depth: int) -> None:
         if not directory.is_dir():
@@ -1144,7 +1156,7 @@ def load_campaign_records(root: str | Path) -> list[dict[str, Any]]:
         # Load this directory's own run subdirs (those with a record.json) once, in run_id order.
         if any((c / _RECORD_NAME).is_file() for c in children):
             for rec in load_all(directory):
-                seen.setdefault(str(rec.get("run_id")), rec)
+                seen.setdefault((str(directory), str(rec.get("run_id"))), rec)
         # Recurse into the remaining (intermediate) subdirs up to the bounded archive depth, so the
         # campaign's <leg>/<arm>/<cand> leaves are reached without an unbounded filesystem walk.
         # M15 (2026-07-05): the H3 single-shot control writes its own SEARCH/FROZEN/TEST subtrees
