@@ -418,6 +418,48 @@ made.** Repo-wide residue grep clean.
   the principled fix: count a backticked token as cited **only inside a bracket group**, which is exactly
   build_paper's own condition — aligning the gate with the compiler instead of a looser regex.
 
+### ⑮ TWO MORE, AND THE FIRST IS THE SECOND "SAME ERROR IN TWO PLACES" OF THE NIGHT
+
+**(a) ★ A CONTAINMENT CLAIM IN THE LIMITATIONS REGISTER WAS FALSE, AND IT UNDERSTATED A BIAS THAT FAVOURS
+US.** I had set out to write a new argument about the arm-depth imbalance and, grepping first, found the
+register already covers it **better than I would have** (B.8.9 + B.8.10: the E[max] mechanism, the
+direction, and the point that *three independent causes of pool asymmetry all favour the treatment*).
+Eleventh instance of the repo being ahead. **But the two entries contradicted each other.** B.8.9 claimed
+the asymmetry is structurally contained — *"the C4 seed ladder cannot begin until every arm reaches its
+full registered 30-candidate budget … the asymmetry can therefore reach the analysis only if the campaign
+is truncated during search"* — while B.8.10, two paragraphs later, projects accepted pools of
+**28 / 27 / 25 / 24 / 24** at completion.
+
+Verified in the source rather than adjudicated by preference: `src/cluster/integrity.py` computes
+`accounted = len(resolved) + len(failed_cids - resolved)` and
+`matched_budget_ok = (accounted == expected_candidates)` — **`accounted` counts ATTEMPTS, not
+acceptances.** The gate is satisfied by thirty *attempts* while the accepted pool stands at 24–28. So the
+imbalance **shrinks at completion (~1.17×) but does not vanish**, it reaches the analysis **on a completed
+campaign rather than only a truncated one**, and the pre-registered equal-*k* sensitivity is **not
+truncation insurance but a live companion to the primary result.** Corrected in place with the correction
+shown. *This is the same finding the execution record had already made at §87.3 against §75.3 — so, as
+with A15, the defect existed in two places and only one was being audited. Both errors ran toward
+flattering our own hypothesis.* Broadcast to all lanes.
+
+**(b) T-7's RESIDUAL DISCHARGED — Gallego's "feedback aliasing", engaged with a verified definition.**
+The 2026-07-13 sweep prescribed engaging the concept in CH7; the paper is **not** in the corpus and the
+term appears nowhere in the dossier, so I fetched the source rather than paraphrase from a sweep note:
+*"when the scalar reward maps distinct failure modes into the same value … [richer] metrics disambiguate
+and allow the LLM to diagnose which direction of improvement to take."* **The convergence with our own
+mechanism is sharper than the sweep suggested, and it is a genuine contribution rather than a citation.**
+Gallego's aliasing is a property of the **statistic** — the scalar does not contain the distinguishing
+information. Ours was a property of the **rendering** — the fed vector *did* carry it and the number
+formatter threw it away: measured pre-freeze, **229 of 240 fitness values rendered literally `0.00`** and
+240 candidates produced **four distinct strings**; at the original tail precision **90.1 % of pairs
+separated by $10^{-4}$ rendered as the *same string*, against 0.0 % at four decimals.** The generalisation
+now in §7.1: **enriching a channel does not defeat aliasing if the presentation layer re-aliases it
+downstream** — and because the enrichment is visible in the design while the quantisation is not, the
+failure is invisible in exactly the systems that tried hardest to avoid it. A study whose channel is
+silently re-aliased would observe no effect of channel content and conclude richer feedback does not help,
+when what it measured was its own formatter. That is why the fed block's precision was promoted to a
+registered design parameter, set from measurement, pre-data — and why a null here reads as a statement
+about the **designer** rather than the **renderer**.
+
 ### ⑨ GATES, MEASURED AFTER EVERY EDIT
 
 `check_citations` — **0 / 0 / 0**, and 0 parser-flagged entries. `word_budget` — body **22,381**
@@ -612,6 +654,48 @@ appears **37-168 times historically in EVERY driver log**. **Next time: stagger 
 shows leg4's blob identical in every field to healthy leg9's, and only 3 h 35 m had elapsed against a
 ~4.2 h training, so the first wave could not have completed. **LOST, not FAILED**; the CORE line does
 not inherit a reproducible fault.
+
+### POST-DEPLOY (02:45-06:00Z) — FOUR MORE INSTRUMENT DEFECTS, ALL IN THE WATCHING LAYER
+
+1. **The arm-depth alarm was pooling the DISJOINT H3 single-shot control** into the headline
+   distributional arm — reading **2.39x** for a quantity whose value is **1.35x**, about to climb
+   toward 5x *while the real risk shrank* (h3ss produces ~116 records/h, all tagged
+   distributional). **And it had the SIGN wrong:** with the control stripped, `scalar` is the
+   deepest pool, not `distributional`. Fixed at the source (`results_audit` §3b), not by raising
+   the threshold. **The core-line alarm — the one that actually bears on H2 — still fires.**
+2. **The sweep figures the brief carries are ~2x off.** Measured 3.3 ms/record, not 6.3; the 46.1 s
+   reading was ssh contention from this session's own relaunch, not archive growth. The two archive
+   walks now run concurrently (10.94 s -> 8.13 s), falsified against a serial run.
+3. **NINE finished artefacts were absent from the PDF** (15a-i). `ASSEMBLY` is the whole
+   deliverable; the manifest marked them BUILT, true of the files and false of the PDF. Now
+   15 chapters + 3 appendices.
+4. **The citation gate had a SECOND definition of "citation"** (15e). It scanned every code span
+   with no bracket requirement and no fence awareness, while the builder rewrites only bracketed
+   keys outside fences. It now runs the builder's own transform and reads citations from ITS
+   output, and derives its file scope from `ASSEMBLY` — so neither can drift again. **It
+   immediately found a real PDF-visible defect:** a NESTED citation group in the THEORY chapter
+   never renders (`02_CHAPTER_theory.md:269`), verified in the built markdown, and it is
+   simultaneously the paper's only UNUSED bib entry. Reported to the write-up lane, not edited.
+
+**Landed WITHOUT a relaunch via the sanctioned import-closure proof** — 58 modules reachable from
+the driver entry points, zero references to either changed file — the first use of the exit
+`cycle.py`'s own drift note offers.
+
+**★ THE PREDICTION THAT CAME TRUE.** The "21.1 records/h" figure was a SEARCH-phase rate being
+projected across a C4-dominated period. Predicted **91/h** for the packed regime from two
+independent routes; measured **91.0** live an hour later. The transition is visible: 24 h 24.3/h ->
+8 h 41.6 -> 4 h 67.3 -> 2 h **91.0** -> 1 h 117.8. **Rung 403 lands 08-09, rung 568 lands 08-13**,
+against the 08-27 stop — the full ladder is NOT marginal.
+
+**AND THE D20 REAPER FIRED IN PRODUCTION** at 04:40:21Z on `leg9_leg_gemini_2_5_flash_h2_pair_test`
+(pid recycled onto `sleep.exe`, the supervisors' own backoff binary). **The identical defect that
+cost leg4 fourteen hours, self-healed in one 42-second cycle.**
+
+**Three more of my own errors, all caught before they were reported as findings:** a trailing period
+swallowed into a citation key; a nested-group grep that reported 25 where the truth is 1; and the
+`git stash` incident (P114). **And one misattribution corrected in the other direction** — the
+"hourly heartbeat" block another lane attributed to me is written by `cycle_loop.sh`, was introduced
+by a previous session, and had been in `ALERTS.txt` for fourteen hours.
 
 ### ★ TWO OF THE DEFERRED SPECIFICATIONS WERE THEMSELVES DEFECTIVE
 
@@ -981,6 +1065,100 @@ different or stale panel; the frozen headline panel is the only one that appears
 11-name canon, the endpoints, the margins, the CRN preconditions and the construct validity are ALL
 independently verified consistent with the frozen design. A16 is the single open scientific question and
 it is a design-level disagreement between three artefacts, resolvable only pre-data.**
+
+### PART VI — THE FOUR-LANE PHASE (02:00–03:45Z). Findings A22–A26, four corrections accepted, three of my own errors.
+
+**★★ A22 — leg4's "FAILED or LOST?" answered from the ARCHIVE, no cluster query.** Ops called it the
+highest-value open question (FAILED would mean the core line inherits a reproducible fault) and their
+`qacct` routes were blocked. The artefact nobody had opened is
+`driver_status/leg4_..._h2_pair_test.json`: `done=0 pending=60 exhausted=0 rounds=1 pull_failures=0
+ops_failures=0 phase=running`. **The control is what settles it:** the *healthy, currently-running*
+`leg9_gemini_h2_pair` status is **identical in every field but the timestamp**. Plus the timing — packs
+created 11:12:31Z, driver died ~14:47Z = **3 h 35 m**, against a training median of 4.2 h. **⇒ The
+driver died mid-first-wave and observed no failure because none had had time to occur. LOST, not
+FAILED — ops adopted it.** The decisive next query is a **remote directory listing**
+(`poll.py:remote_completed_dirs()`), not accounting. ⚠ **An epilogue-ledger test I nearly published does
+NOT discriminate** — leg4's h2_pair packs have zero epilogues, but so does leg9's *while running*.
+**Ops' disclosure of their own non-discriminating test stopped me shipping the same one.**
+
+**★★★ A25 — THE CONFOUND CHECK I PROMISED, DISCHARGED — it kills half my own lead.** Attempt counts are
+near-uniform (107–133), so **the pool-size confound does not exist**. Reject rates with Wilson CIs:
+`qwen3_5_9b` **84.2 % [77.1, 89.4]** · nemotron 20.5 % · glm 12.8 % · `qwen3_6_27b` **7.8 % [4.1, 14.1]**
+· deepseek 5.3 % · haiku 4.1 % · gpt 3.0 % · gemini 2.6 % · **CORE (Opus) 0.9 % [0.2, 5.1]** · kimi 0.9 %
+· sonnet 0.0 %. **★ The best exhibit is the QWEN PAIR** — 84.2 % vs 7.8 %, ~11× apart, intervals wildly
+disjoint, and **R103 set an identical reasoning config across that pair expressly to preserve a
+confound-free capability contrast**: same family, provider, serving stack and reasoning pin, one
+generation apart. The cross-family gradient confounds provider/tokenizer/RLHF/serving; **the pair
+controls all four.** ⚠ **My "8 of 13 R115 breaches are the two Qwen legs" does NOT survive as a rate** —
+19.0 % [7.7, 40.0] vs 3.7 % [1.5, 9.2], **overlapping**; it was a counting artefact (the 27B has 5× more
+accepted candidates). **The gradient is decisive in REJECT RATE and weak in R115 — and I led with the
+weaker instrument.**
+
+**★★★ A26 — TWO FROZEN WINNERS ARE CONTAMINATED; the core line is clean.** Coord reported *"no frozen
+winner is contaminated"*; the **core-line half is right and I confirm it, the generalisation is not.**
+The frozen **marker carries no R115 fields at all** (`None` on 27/27), so anything read off it is not a
+measurement. Resolving each marker's `candidate_id` back to **its own line's** search tree on the
+**composite `(line, candidate_id)`** key (coord's own P120 lesson), 27/27 resolved:
+**`qwen3_5_9b/distributional-winner` = 0.078535** (31,414/400,000) and
+**`qwen3_5_9b/placebo_shuffled-winner` = 0.090847** (36,339/400,000); **all 25 others exactly
+0.000000, including all three core winners.** Not a gate failure — both are below the 0.10 floor — but
+**R115 permits a winner to carry up to 9.99 % inert training, and on that leg two arms' winners do.**
+**Threshold sensitivity, first measurement:** 1,667 of 1,737 records are exactly zero, 2 in [0.09, 0.10),
+14 breaches — insensitive everywhere **except one candidate at 39,986/400,000 = 0.099965, i.e. FOURTEEN
+calls from exclusion — which is the same candidate A9 flagged as un-fed.** *(Coord retracted P120 in
+full and re-derived my result independently.)*
+
+**★ A27 — the ARM-DEPTH imbalance DECOMPOSED (ops' requested falsifier).** Core line: **one reject in
+108 attempts** — distributional 28/29, scalar 27/27, placebo 19/19, scalar_cvar5 17/17,
+placebo_shuffled 16/16, all ~100 % accept. **⇒ The current 1.75× pool ratio is driven ENTIRELY by
+ATTEMPT COUNT, not accept rate** — a *scheduling* artefact (§54's `-p -100` controls), not an authoring
+one. **A scheduling gap closes when the queue drains; a quality gap never does, and nobody had separated
+them.** Projecting each arm to 30 attempts at its own rate gives **~1.04×**, not B.8.10's 1.17× — **but
+my band is [0.88, 1.21]× and 1.17× is inside it**, and the projection assumes every arm reaches 30
+attempts. **Write-up's B.8.9 correction stands; its mechanism bites on the LEGS (qwen3.5-9b at 84 %
+reject ⇒ ~5 accepted from 30 attempts), not on the core.** Falsifier held: **completion above 1.21×
+refutes this.**
+
+**A28 — SPEND, measured and bounded.** $42.07 realised; the $5.45/h spike is ops' relaunch, baseline is
+$0.55–0.62/h. **A naive calendar projection ($386–892) is WRONG and I did not send it** — spend tracks
+remaining *authoring*, which the frozen 30-candidate shape bounds. Leg-weighted: **+$39 ⇒ ~$81 total,
+2.71× the registered $30 advisory ceiling** — and **66 % of all remaining spend is ONE report-only leg**
+(qwen3.5-9b, 6.33 authoring events per accepted candidate vs 1.00–1.26 elsewhere), which **will** finish
+(13–18 d vs 25.9 d). **Recommendation: do NOT truncate** — R83 made the ceiling advisory so money never
+gates science, and the 17 % yield **is** the capability finding.
+
+**A29 — the SEED RUNG, given a band for the first time.** Throughput **21.1 records/h** over both the
+whole log and the last 48 h. Budget to the gate ~12,559 after search. Registered tiers
+[30, 100, 189, 279, 340, 403, 568]. **★ The binding constraint is NOT compute — it is whether the ten
+report-only legs climb the ladder with the confirmatory core.** Core-only, **every tier up to 568 fits**
+(~11,568); core + all legs, **only rung 100 fits**. Headroom at 568 is ~8 % (whole-log rate) or ~0.4 %
+(24 h rate) — **marginal**, and coord's contention measurement is exactly the variance that makes it
+fragile. Four caveats stated in full; offered to ops for refinement, not as a recommendation.
+
+**CORRECTIONS I ACCEPTED AND PROPAGATED.** Ops: the D16 window's trigger is a **NODE RE-SYNC**, not a
+local deploy — **then confirmed empirically when their deploy landed** (all 1,666 records, including six
+written after the deploy commit, still carry one `deployed-archive`). Ops: my quarantine spec was
+**local-only and not executable** (the four records live on the node; a laptop-side move is undone by
+the next pull — which had already silently regressed §28). Coord: my *"the first wave could not possibly
+have completed"* was **too strong** (n=1220: 18.6 % finish under 3.58 h).
+
+**MY OWN ERRORS — P116, P119, P121.** **P116:** I used a **median as a bound**; "could not possibly" is
+a claim about the left tail I had not looked at. **P119:** my **own M27 falsifier was mis-calibrated**
+and would have fired a false "genuinely stranded" at 08:00Z — coord's time-to-first-completion
+distribution (p90 25.06 h, MAX 30.56 h) shows a healthy batch sits at `done=0` for ~30 h, so at ~21 h
+old leg4 was **inside p90**. **Fixed by changing the PREDICATE, not the clock**: once `placebo_test` and
+`placebo_shuffled_test` complete, does the driver **enumerate** h2_pair? **P121:** globbed frozen winners
+at the wrong depth (**the identical D18 trap I root-caused six hours earlier**) and — worse — **defaulted
+a missing field to 0.0**, printing "0/27 contaminated" — **a fabricated clean from an ABSENT field**,
+caught only because "zero frozen winners" is impossible. **Never default a field you are auditing: a
+default turns "not measured" into "measured clean."**
+
+> **★★ THE PATTERN WORTH THE QC APPENDIX.** Three defects tonight existed in **two places with only one
+> being audited** — A15 (generator *and* CH6), B.8.9-vs-B.8.10 (two limitation entries contradicting each
+> other), and the frozen-winner claim (marker *vs* source candidate). **All three ran toward flattering
+> our own hypothesis.** That directional consistency is not coincidence and is worth stating: **the
+> errors this project makes are not random with respect to its conclusions**, which is precisely why
+> adversarial cross-lane verification earned its cost tonight.
 
 **Continuous monitoring is RUNNING** — a read-only 120 s watcher emitting only actionable transitions
 (drift ≠ 0, `sci` ≠ OK, verdict/guards changes, `stalest` > 30 m, a 45-min record stall, each $1 band,
