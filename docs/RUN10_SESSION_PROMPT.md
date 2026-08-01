@@ -137,6 +137,37 @@ while the suite had not run at all (`RC=4`, an unrecognised flag).
 | **certified so far** | all 7 new tests PASS and are FALSIFIED against the pre-fix code · `freeze --check` **MATCHES** · `ruff` clean · the `.ps1` is pure-ASCII and `Parser::ParseFile`-clean |
 | **NOT yet done** | **the full pytest suite with BOTH fixes** · **the deploy** · **the `RUNNING_SHA` re-base** |
 
+### ⚠⚠ THE DEPLOY IS **HALF DONE** — THIS IS YOUR VERY FIRST JOB
+
+**RUN 9 committed, certified and STARTED the deploy, and handed it over mid-roll on purpose.**
+
+```
+  DONE  full suite PYTEST_RC=0 (read FROM THE LOG), zero failures
+  DONE  committed; RUNNING_SHA re-based 50b6e07 -> 16bb71b in docs/ops/cycle.py
+  DONE  drift verified back to 0 (BOTH arms empty)
+  DONE  pushed to both branches
+  DONE  CANARY: the `h3` supervisor was KILLED so watchdog_fenced.ps1 revives it from disk
+        with the new mode_d_supervisor.ps1  (h3 chosen because its ENTIRE 568-seed ladder is
+        already submitted to Myriad — a restart there cannot lose queued work)
+  TODO  ** VERIFY h3 CAME BACK ** (the watchdog polls every 300 s, so allow up to 5 minutes)
+  TODO  ** THEN ROLL THE OTHER ELEVEN ** — one at a time, verifying each
+  TODO  ** UPDATE `RUNNING_SHA` IN docs/HANDOFF.md ** (cycle.py is done; HANDOFF is not)
+```
+
+**Verify the canary like this** — 12 of 12 supervisors, and h3's start time AFTER the kill:
+
+```powershell
+$me=$PID; @(Get-CimInstance Win32_Process | Where-Object {
+  $_.ProcessId -ne $me -and $_.CommandLine -like '*mode_d_supervisor*' }) |
+  ForEach-Object { if ($_.CommandLine -match '-Line\s+(\S+)') {
+    "{0,-22} pid={1} started={2}" -f $Matches[1], $_.ProcessId, $_.CreationDate } } | Sort-Object
+```
+
+**If h3 does NOT come back within ~10 minutes, that is the signal to stop and diagnose** — check
+`docs/ops/watchdog_fenced.ps1` is still running, and read h3's supervisor log. **Do not roll the other
+eleven until the canary is proven.** The campaign is fine either way: the eleven live supervisors are
+still on the OLD code, which is the code that has been running for three days.
+
 ### YOUR FIRST ACTIONS, IN THIS ORDER
 
 1. **Read the cycle log** (§0.1). Then verify live state first-hand (§8) — **never carry a number

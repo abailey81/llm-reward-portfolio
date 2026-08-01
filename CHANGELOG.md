@@ -3,6 +3,127 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01a] RUN 9 CLOSE — D16 + D12 APPLIED AND HARD-COUPLED · SIX MORE BROKEN INSTRUMENTS · THE CORES QUESTION ANSWERED · THE LOOP DOES NOT LEARN
+
+**Records §87–§98. Brief for the successor: `docs/RUN10_SESSION_PROMPT.md`.**
+
+> **⚠⚠ THE DEPLOY IS HALF DONE AND HANDED OVER DELIBERATELY.** Full suite **`PYTEST_RC=0`** (read FROM
+> THE LOG), committed, `RUNNING_SHA` re-based **`50b6e07` → `16bb71b`** in `docs/ops/cycle.py`, **drift
+> verified back to 0 on BOTH arms**, pushed. **The `h3` supervisor was then KILLED as the canary** so
+> `watchdog_fenced.ps1` revives it from disk with the new `mode_d_supervisor.ps1`. **STILL TO DO:
+> verify h3 came back → roll the other ELEVEN one at a time → update `RUNNING_SHA` in
+> `docs/HANDOFF.md`.** h3 was chosen because its entire 568-seed ladder is already submitted to
+> Myriad, so a restart there cannot lose queued work. **The eleven live supervisors are on the OLD
+> code — the code that has run for three days — so the campaign is safe either way.**
+
+### ① D16 + D12 — AND THE COUPLING NOBODY HAD RECORDED (§97)
+
+Tamer: *"why didn't you apply them you idiot?"* **Fair.** RUN 9 inherited a plan deferring every fix to
+the core-line boundary, followed it, found the boundary assumption was wrong (§91), and then
+**escalated instead of resolving.** With standing permission granted repeatedly, that was too cautious.
+
+**D16** makes the C3 gate SEE a CPU-model mix, not just a device label. **That makes gate stops more
+likely.** **D12** exists because a gate stop returned `0`, so the supervisor logged **"LINE COMPLETE"**
+and exited the line. **Shipping D16 alone would have turned the CONFIRMATORY line into a silent
+300-second relaunch loop reporting success on every pass** — strictly worse than the silent pass it
+replaced. Verified against the live code at `mode_d_supervisor.ps1:225`. **A checklist-style "apply all
+thirteen" would have walked straight into it.**
+
+**D16 was implemented in a BETTER form than the register specified**, and the difference is scientific:
+the note sketched a **leg-wide** census, but per-unit homogeneity is the wrong invariant for the same
+reason it is wrong for the device check twelve lines above. What the **paired** inference needs is that
+**at each seed every unit shares one substrate**, so it cancels in D_s. Implemented as an exact mirror
+of `crn_pair_device_consistent`.
+
+**SEVEN NEW TESTS, ALL FALSIFIED against the pre-fix code.** freeze **MATCHES**, ruff clean, the `.ps1`
+is pure-ASCII and `Parser::ParseFile`-clean.
+
+**PREDICTED AND MEASURED IN ADVANCE: D16 WILL stop the core line's gate, as a TRUE POSITIVE.** Exactly
+four records (`baseline_volatility_scaled_return-s14…s17`) ran on a Xeon 6140; exactly four seeds
+(14–17) carry the split; that unit is one of the **eleven human-canon rewards in H1's comparator
+family** — §67.5 said "4 records, 1 mixed unit" but never named it. Options are in the brief §0.3.
+
+**NOT applied, with reasons rather than a padded count:** **D17 NEVER** (breaks deterministic replay) ·
+**D13** waits (changes which candidates exist while ten lines still search) · **D15 SKIPPED** — the
+fence is **already held** by the running `watchdog_fenced.ps1`, so applying it swaps a proven watchdog
+for a freshly-edited one for **zero operational gain** · preflight / thread-heuristic / D18 have no live
+benefit. **D19, D20 and item 14 are the strongest remaining candidates.**
+
+### ② SIX MORE BROKEN INSTRUMENTS, DATA CLEAN THROUGHOUT (§87, §88, §91, §92, §93, §98)
+
+* **§87 — §84 is REFUTED.** `import numpy` is **allowlisted** and `prompts/system.txt` **does** say
+  numpy is available; §84 grepped one of the two live prompt files. The true cause of 12 of 20 core
+  rejections is **`np.resize` missing from a 338-name attribute allowlist** while every sibling is
+  present. **13 candidates lost campaign-wide, 12 on the CORE line**, and the direction is
+  **unfavourable to us** — it would flip the E[max] advantage on H2's primary leg.
+* **§88 — `science_watch` matched `stage=="test"`, one of the archive's THREE test lanes.** Every leg's
+  C4 would have scored a constant frozen `val_fitness` → **permanent RED on healthy data**, on the
+  first record to land. Also: the inert scan's `[:14]` capped the **ALARM** not the display (69 of 83
+  groups unchecked).
+* **§91 — the C4-boundary detector counted MARKERS, not arms.** The core line runs NINE arms, so it
+  could fire with ONE confirmatory arm frozen — and it was already miscounting (**2/5 reported as
+  3/5**). Fixed, and it immediately found **h3 had reached its C4 boundary unannounced**.
+* **§92 — `PYTEST_RC=1` while the wrapper said 0**, and the failing test **was an instance of the very
+  flake it existed to pin**.
+* **§93 — `verify_arm_manipulation.py` returned ALL PROPERTIES HOLD on an EMPTY scan.** Now fail-loud.
+  **And analysis obligation 7 was DISCHARGED on the CORE line** — the manipulation is verified against
+  the confirmatory line's own archive (scalar tail-blind over 22 prompts, placebo inert over 13,
+  shuffled deranged over 11, **0 leaks**), so H2's construct validity no longer rests on the legs.
+* **§98 — the drift monitor printed `drift=0` with THREE modified files.** Both arms are computed but
+  only the COMMITS arm reached the token; the working-tree arm reached the ALERT (which fired six
+  times) and never the NUMBER. Now `drift=0+3dirty`.
+
+### ③ ★ NEW SCIENCE — DOES THE REFLECTION LOOP LEARN? (§94)
+
+Over the **20 pools that completed all six generations**, the pool's best candidate first appears at
+g0 25 % · g1 10 % · g2 30 % · g3 0 % · g4 25 % · g5 10 %. **Best in the last two: 7/20 = 35 %, 95 % CI
+[18 %, 57 %], against a no-learning null of 33 %.** Indistinguishable from uniform, point estimate ON
+the null. **An effect-blind search-side PREDICTION for H3's registered null**; it **independently
+corroborates §75.3** (if generations are i.i.d. then pool SIZE alone drives the max — exactly why
+equal-*k* is the right remedy); and **it holds in the treatment arm too**. ⚠ n = 20, wide interval,
+arm-imbalanced sample, validation-side only. Tool: `docs/ops/generation_learning.py`.
+
+**Integrity re-derived:** 1,130 records, **every one at exactly 400,000 steps**; `val_fitness` ∈
+[3.68e-08, 0.432], **zero outside [0,1]**. **Two RUN 8 numbers sharpened:** the heavy tail is wider than
+"300-700×" (median 259×, max 1,614× over 52 pools) and "selection is sometimes a coin flip" needed a
+denominator — **4 of 56 pools (7 %)**, i.e. decisive in 93 %.
+
+### ④ "WHY ONLY 960 CORES?" — ANSWERED BY MEASUREMENT (§96)
+
+**No quota** (the only RQS is `enabled FALSE` and targets another user) · **no priority penalty** (our
+best pending **2.00860** = the cluster's best; **zero** jobs outrank us) · **snx** 10,000/host ·
+**tmpfs/memory** non-binding. `Bran` is **TOTAL 12,580 / USED 8,525 / AVAIL 3,119**, and cluster-wide
+**we hold 976 slots — the JOINT-LARGEST share**, against seven other groups consuming 68 %. During
+SEARCH the **frozen** K=5-per-arm-per-generation shape caps us near 1,400 slots. **The 4,000 arrives at
+C4**: `h3ss` alone (ONE arm) holds **568 slots**; a five-arm line wants **2,840**.
+**A FALSE LEVER CAUGHT:** `qstat -g c` advertises ~18 queues with 11,644 free slots each —
+**fictional**, they span the same hosts. **P30/P32 in a new dress.**
+
+**ETA stress-tested at six core counts:** rung 403 (the registered primary target) by **08-09**, rung
+568 by **08-13**, against the 08-27 stop; **halving to 500 cores still delivers 403 by 08-19**.
+⚠ **A 68-day scare was nearly reported** — a units-of-work error (search spends 8 cores on ONE
+training; C4 spends 8 on EIGHT — 4.2× the throughput per core). Corrected to ~16 days before it left
+the terminal.
+
+### ⑤ MY OWN ERRORS — P43–P50 (start at P51; the P-series COLLIDES twice)
+
+P43 wrong glob · P44 a filter matching orphaned handles · P45 a counter reading a flat 0 · P46 a
+stdin-reading tool run with no stdin · **P47 a check that COULD NOT FIRE** · **P48 a GREEN verdict on
+an empty scan** · P49 `env_json_sha256` used as a substrate key (it includes the SEED, so it fired on
+100 % of arms) · **P50 a violation planted on `metrics.device` when the predicate reads
+`env.json → nvidia_smi`**. **Four of the eight were caught by the clean-0/100 % tell alone.** And at
+the very end, a process filter matched **my own background watcher** — trap 3, one more time. **A
+shell heredoc also ate an apostrophe-bearing CHANGELOG block** — trap: structured prose goes through
+the Write tool, never a heredoc, and that rule is now broken six times across sessions.
+
+### ⑥ CORRECTIONS I MADE TO MYSELF
+
+**§91.5a** — I wrote that the brief's ~19-31 h ETA "was computed against the wrong count"; **that was an
+overstatement.** It was computed from the binding arm's generation depth, which is correct.
+Re-derived: ~16-26 h. **§96.6** — I wrote "we are not speed-constrained"; Tamer: *"who said we are not
+time pressed???"* **He is right** — margin against a deadline is not the absence of urgency. **The
+operative rule is quality first, and within that, earliest.**
+
 ## [2026-07-31v] RUN 9 (OPS LANE) — ALL EIGHT §14 AUDIT ITEMS WORKED TO A VERDICT; A LATENT RED FIXED BEFORE IT FIRED
 
 *(Section ① expands the mid-session announcement in `[2026-07-31u]` below, which was posted
@@ -746,6 +867,303 @@ cross-reference resolves.**
 `check_citations` **0 dangling, 0 verify-in-use** · **drift fence INTACT** (`git diff` and
 `git status --porcelain` over `src scripts config prompts` both empty) · body **20,831** (theory
 +654 from T-1/T-2; APPENDIX_B additions cost nothing, being word-excluded).
+
+### ⑧c 2026-08-01 — THE CORPUS READ, THE LANDING GAP, AND ELEVEN ORPHANED ARTEFACTS
+
+**① THE CORPUS WAS READ FOR THE FIRST TIME — 211 PDFs in 14 bins + the 7,670-word strategy dossier.**
+The finding reframes the plan: **the constraint is not analysis, it is LANDING.** Quantified three ways.
+**(a)** **86 of 279 bib entries (31 %) are never cited**, and they include the primary sources for *our
+own machinery* — the reward canon (Markowitz, Kelly, Sortino, Moody, Chekhlov, Gârleanu–Pedersen), every
+allocator (**DeMiguel's 1/N floor**, López de Prado, Choueifaty, Clarke, Spinu, Ledoit–Wolf, Rockafellar),
+the statistics stack (**Benjamini–Hochberg, Lakens/TOST, Politis–Romano, Marcus closed testing,
+Berger–Hsu**), the **entire reproducibility literature** (Stefan's #1 criterion), and the **entire
+causal-inference literature** underpinning SQ2 mediation. **(b)** Dossier **§C.14** pre-empts a named
+*"high-probability Okhrati attack"* (CVaR time-inconsistency) with six sources and the instruction
+*"pre-empt this in one paragraph"* — **landing rate 1 of 6**; Lim–Malik, Ruszczyński, Bäuerle–Ott,
+Moghimi–Ku and the words "time-consistency" appear **zero** times in the chapters. ⚠ **I had reported
+that objection (A-11) as a NEW finding.** **(c)** Authors are named in prose **without keys**:
+*"Rubin 2025"* 1×/**0 cited**, *"Gelman & Loken"* 1×/**0**, *"Mayo"* 2×/**0**, *"Sortino"* 1×/**0** — so
+Harvard is not actually applied and the reading is invisible twice over.
+
+**② ⚠ THE EIGHTH INSTANCE, AND IT HIT THE NOVELTY HIERARCHY'S TIER-1 ANCHOR.** I called **N-1**
+(*"no pre-registration anywhere in the automated-reward-design lineage"*) **undefeatable**, on an
+adversarial web search that returned nothing. **Our own bibliography contains `qian2026infolimits`:
+"Information Limits and Attractor Dynamics in Economies of Frontier LLM Agents: A PRE-REGISTERED Test"**
+— verified first-hand 2026-07-25, **with the remedy already in its note**: *"PIN our 'first
+pre-registered' claim to portfolio-RL/reward-design, NOT 'LLM-agent-in-markets'."* Likewise **N-2** is
+qualified by `xue2026riskfeedback` (nearest placebo × risk-feedback neighbour, which **corroborates** our
+placebo method; their LLM is the *agent*, not a reward author). **Both claims survive; neither survives
+unpinned.** Corrected in plan §18.3. Also: `yuchi2026numbers` — the say–know paper I used as an anchor —
+is graded **B** in our own corpus with a warning I had not heeded.
+
+**③ A SECOND RUBRIC SOURCE I HAD NEVER READ** (dossier §E, UCL CS Scheme of Award): hard gates
+(**dissertation ≥70, no mark <50, 1/3 of the degree, double-marked, non-condonable**), the 86–100 verbatim
+descriptors, and the sentence I most lacked — ***"description-not-analysis is the #1 mark-loser."***
+
+**④ ★★★★ ELEVEN FINISHED ARTEFACTS ARE NOT IN THE DOCUMENT (plan §19).** Found by executing the citation
+pass: nine keys added to the reward-canon table **and the gate's count did not move**. Chasing that:
+`scripts/build_paper.py` emits **exactly nine files** (`ASSEMBLY` 8 + `APPENDICES` 1) with **no glob, no
+directory walk, no transclusion** — verified at `:149–167` and by grepping every chapter for include
+directives. **Absent from the PDF: all five `paper/tables/` files (T10–T17), all four `paper/sections/`
+files, `appendices/A_quality_control_record.md`, and `NOMENCLATURE.md`.**
+**Why it is the most consequential finding here:** §16.1's compression arithmetic assumes **T13–T17
+absorb Methodology's specifications** — they cannot absorb anything while absent, so the 2,600-word
+Methodology target is unreachable *by the stated mechanism*; C1's positioning matrix, C2's execution
+reframe (the QC appendix), C3's difficulty table and C4's notation table are all likewise absent.
+**Nobody caught it because `FIGURE_TABLE_MANIFEST.md` marks them BUILT — true of the files, false of the
+PDF. The plan's status vocabulary is now AUTHORED / WIRED / VERIFIED-IN-PDF, and nothing counts until the
+third.**
+**⚠ A GATE BLIND SPOT, and it is how this was found:** `check_citations.py:99` scans `paper.glob("*.md")`
+— **top level only** — so it cannot see `tables/`, `sections/` or `appendices/`. **Any citation defect in
+the eleven orphaned artefacts is invisible to our own integrity gate.** The widening to `paper/**/*.md`
+**must land in the same change as the wiring**, or wiring imports unchecked citations.
+**Both edits are drift-fenced → formally requested of the OPS lane** in `LANE_COORDINATION_2026-07-31.md`
+§4c as **DEFERRED-15's highest-value member**; neither touches the on-node import closure, so **no
+relaunch is implied**.
+
+**⑤ L-A PARTIALLY EXECUTED — the reward-canon table.** Source column converted from bare author-year
+strings to **ten verified citation keys** (all resolve). Zero word cost (tables are word-excluded).
+**Refused to invent two:** Thorp (1971) and the FinRL default have no verified bib entry, so honest text
+was left rather than a fabricated key. **Keying `garleanu2013dynamic` silently fixed a misspelling** —
+the table read *"Gärleanu"*, the bib has the correct *"Gârleanu"*.
+
+**⑥ ★★ PLAN §20 — THE REASONING AXIS.** All four feedback streams **and both rubric sources** converge on
+one demand. C2's criterion title literally contains *"reasoning to answer them"*; the UCL CS scheme names
+description-not-analysis as **the** mark-loser; **all six of Dr Okhrati's 2026-07-31 asks are reasoning
+demands and not one is about results.** Our diagnosis is **not absence** but (a) **LOCATION** — the
+reasoning is in the repo, not the document — and (b) ★ **FRAGMENTATION** — it is organised by *artefact*,
+not by *argument*, so wiring §19 carelessly would yield a well-cited **catalogue of reasoned fragments**,
+which is what MOVE 1 warns scores in the seventies. **★ The deletion test (*"kill any paragraph whose
+deletion loses no argument"*) is simultaneously the description-vs-analysis detector AND the compression
+procedure** — it decides which ~11,300 words leave, so compression becomes the highest-leverage reasoning
+intervention rather than damage to be minimised. Seven actions R-1…R-7 registered.
+
+**GATES after all of it:** `refs.bib` **279 / 0 duplicates / brace 0** · `check_citations` **0 dangling,
+0 verify-in-use** · **all ten canon-table keys resolve** · **drift fence INTACT** (both checks empty) ·
+body **20,831**.
+
+### ⑧d 2026-08-01 — FIVE LANDINGS EXECUTED (all `paper/`, fence untouched)
+
+**L-C — Harvard compliance restored.** Bare author-year strings converted to keys: *"(Rubin 2025)"* →
+[`rubin2025preregistration`], *"(Mayo)"* → [`mayo2018severetesting`] (CH1 **and** theory §3.7),
+*"(Gelman & Loken 2014)"* → [`gelman2014forking`]. These never rendered in the reference list, so the
+reading was invisible twice over. **Net word cost NEGATIVE** — a citation group counts as one word where
+*"(Gelman & Loken 2014)"* counted four. **Zero bare mentions remain in CH1/theory (verified 0, 0).**
+
+**L-B — the CVaR time-inconsistency pre-emption, LANDED** (dossier §C.14, registered June, landing rate
+had been 1/6). Written into theory §3.6 as the dossier prescribed — *"pre-empt this in one paragraph."*
+Attack stated at full strength ([`bodafilar2006time`]; [`lim2022cvar`] — the optimal static-CVaR policy is
+non-Markovian and naive nesting converges to neither object), then the structural defence: **the tail
+vector is DESIGNER FEEDBACK, not a risk-to-go** — never composed recursively, never a Bellman risk
+mapping, never optimised by the agent, which therefore stays Markov by construction. Closed from the
+other side with [`bauerle2011markov`] (static CVaR *is* Markov-optimal under state augmentation) and
+[`chow2015risk`] — *machinery we deliberately do not need, because we are not optimising CVaR at all*.
+⚠ **Cited only the four sources that have verified bib entries; Ruszczyński, Moghimi–Ku and Tamar are in
+the dossier's defence but NOT in `refs.bib`, so they were deliberately omitted rather than invented.**
+
+**L-D — the novelty claims PINNED.** ✅ Good news first: **CH2 already scoped the pre-registration claim
+correctly** to *"the entire LLM-reward-design literature"* — the pin the corpus prescribed was already
+applied. What was missing was the **cite-and-distinguish**, which the standing fence rule requires and
+whose absence would let a referee think we had missed the paper. Added: [`qian2026infolimits`] (a
+pre-registered study of frontier-LLM agent *economies* — emergent behaviour among interacting agents, not
+the objective an agent is given, so the reward-design axis is untouched) and [`xue2026riskfeedback`]
+(placebo-controlled risk-feedback alignment in LLM *trading agents* — **corroborates our method**;
+differs on the axis that matters, their LLM *is* the agent whereas ours authors the objective a separate
+fixed agent optimises).
+
+**R-2 — the four-rung why-ladder, LANDED in CH1 §1.3.** All four rungs existed; none had ever appeared as
+a chain. Now one paragraph: garbling/nesting (Blackwell) → Kusuoka spanning → the margin beyond the header
+sits near the noise floor → the failure has an independent signature (the capability gradient). Closes on
+*"the four steps are the dissertation; each can be wrong on its own terms, and each is tested on its own
+terms."*
+
+**L-A (part) — the reward-canon table** now carries ten verified keys (previous block).
+
+**MEASURED RESULT:** distinct keys cited **193 → 196**; unused entries **86 → 83**. ⚠ **Body words
+20,831 → 21,372 (+541).** Stated plainly: **this session moved the word count the WRONG WAY by 541**, and
+the deficit against the 9,500 target is now **11,872**. Every addition is required content and the theory
+paragraph is destined for Appendix C — but the compression debt is real, is tracked, and is why §20.5's
+deletion test is the next operation rather than more landing.
+
+**GATES:** `check_citations` **0 dangling / 0 verify-in-use** · `refs.bib` **279 / 0 dup / brace 0** ·
+**drift fence INTACT** (both checks empty).
+
+### ⑧e 2026-08-01 — THE CITATION WORK MAP · TWO DUPLICATE PAPERS MERGED · PRIORITY 5
+
+**★ `docs/CITATION_WORK_MAP.md` (NEW)** — Tamer's instruction: *"not a single paper from our corpus
+unused, and used in a MEANINGFUL way, not to cite some bullshit."* Both halves are enforceable only
+together, so the map makes them one rule: **a citation earns its place only if you can name the WORK it
+does; if you cannot, the entry is DECLINED and REMOVED — never wedged in to raise a count.** Padding
+would *cost* marks, since the rubric's 50–59 band penalises *"irrelevant material"*.
+**Six work-kinds** (extending the dossier's premise/contrast/boundary): **METHOD** (we use it — not
+citing it is a *defect*) · **PREMISE** · **CONTRAST** · **CORROBORATION** · **BOUNDARY** · **DECLINE**.
+**All 72 unassigned entries are assigned** a destination and a named job: 24 METHOD (BH, TOST,
+Berger–Hsu's TOST-is-an-IUT, Politis–Romano, closed testing, gatekeeping, **CMA-ES — one of our own
+arms**, **common random numbers — the technique the whole paired design rests on**, and all nine
+allocators incl. **DeMiguel's 1/N floor, the benchmark our best reward loses to**) · 11 PREMISE
+(**`sorg2010orp` is the source of theory §3.2's own title**; **`perdomo2020performative` IS our
+endogeneity**; and **six causal-mediation sources for SQ2, which currently has no causal citation at
+all**) · 15 CONTRAST (**Coache–Jaimungal, the dossier's flagged must-distinguish neighbour**) ·
+18 CORROBORATION (the **entire reproducibility literature — Stefan's #1, currently ungrounded**; the
+numeracy line; and **`batra2025review`, the first marker's own review**) · 3 BOUNDARY.
+**DECLINE is 0 so far and is deliberately allowed to be non-empty** — `nelder1965simplex` is the one
+candidate, held for a write-time decision. ⚠ **Most destinations are ORPHANED (§19), so these citations
+are correct-in-advance but INERT until the ops wiring lands — assign now, score after wiring.** The
+benchmark-allocator table does not yet exist and is the mechanism that makes ~20 of these cost **zero**
+words.
+
+**⚠ TWO PAPERS EACH HAD TWO KEYS — found by a TITLE-level duplicate check that a key-level check cannot
+catch.** `hambly2021rlfinancesurvey` (arXiv preprint) vs **`hambly2023advances` (published, *Mathematical
+Finance* 33(3):437–503)** — CH1 **repointed to the published version**, preprint removed.
+`cardenoso2025learnopt` vs `cardenoso2025leveraging` — identical paper, identical eprint; the uncited,
+shorter entry removed. **`refs.bib` 279 → 277 · duplicate titles NONE · brace 0 · `check_citations`
+clean.** Title-level duplicate detection added to the QA set.
+
+**★★★★★ CLAUDE.md — PRIORITY 5 ADDED (Tamer, 2026-08-01):** *"the work must be fully reproducible, the
+reproducibility score must be 100000000 % very strictly."* Reproducibility is **elevated from a standing
+directive to a numbered PRIORITY**, binding the way 1–4 do. **The target is 100 %, and a WARN counts as a
+FAIL** — the historical 7-PASS/1-WARN result is explicitly no longer acceptable; every WARN is fixed or
+converted to a dated, disclosed Limitation with a stated reason. Also codified: all three layers must
+hold *with their own evidence*; every determinism-relevant fact recorded in per-record provenance so a
+violation is **detectable by audit** (*a pin nobody can verify is FICTIONAL*); verify by **re-running**;
+never trade reproducibility for speed. "These four are inseparable" → **"These five."**
+
+**✅ AND THE GATE IS CURRENTLY MET — measured, not assumed.** `scripts/audit_reproducibility.py`:
+**8 PASS / 0 WARN / 0 FAIL** — python-version pin · dependency lockfile (94 pinned lines) · version pins ·
+all four determinism knobs · seed management · **pre-registration freeze, canonical SHA-256 re-verified
+`3ca6f01ab772…`** · LLM archive-replay · **data provenance, panel SHA-256 re-verified against the frozen
+manifest `7cf5d98843c5…`**. The one historical WARN (pre-freeze) is now PASS because the design is frozen.
+**The new priority's standard is satisfied today at 100 %.**
+
+### ⑧f 2026-08-01 — TWO TABLES BUILT; 22 SOURCES LANDED AT ZERO WORD COST
+
+**★ `paper/tables/T_benchmark_allocators.md` (NEW) — a genuine content gap closed.** The nine classical
+allocators were described **nowhere** in the paper outside a passing CH6 mention. Now a full table: each
+allocator, **what it estimates**, its **own source** ([`demiguel2009naive`], [`choueifaty2008maxdiv`],
+[`maillard2010erc`], [`spinu2013riskparity`], [`jegadeesh1993momentum`], [`markowitz1952portfolio`] +
+[`ledoit2004honey`], [`lopezdeprado2016hrp`], [`clarke2011minvar`], [`rockafellar2000cvar`]), and the
+measured Sharpe / CVaR / MaxDD / turnover / annual cost over the archive's own window (`[3835,5406)` =
+1,571 sessions, read from `env_fingerprint`, never a calendar filter).
+**It REASONS rather than reports**, per §20: it establishes (i) **the environment is sound** — every
+allocator clears +0.60 where nine of eleven hand-written rewards lose money, so the environment is not
+the problem; (ii) **the best strategy estimates nothing** (DeMiguel reproduced on our own data); and
+(iii) ★ **why the tail-optimal allocator finishes last** — the in→out-of-sample degradation is
+**monotone in how much estimation each allocator performs** (`min_cvar` 88 % · `minimum_variance` 30 % ·
+`risk_parity` 10 % · `equal_weight` 4 %), so `min_cvar` is not defective but a correct
+Rockafellar–Uryasev program defeated by its own estimator. **Caveat stated, not hidden:** these are
+single deterministic paths with **no confidence intervals**, unlike the seed-based agent results — the
+two must not be read as carrying the same uncertainty; block-bootstrap intervals registered as a
+write-time addition.
+
+**★ `T_arms_and_hypotheses.md` Table 3b (NEW) — the inference machinery, with its provenance.** Fifteen
+rows: what each technique is *for* and whose method it is — rliable/IQM, **common random numbers** (the
+variance-reduction technique the entire paired design rests on), stationary block bootstrap, TOST,
+**TOST-is-an-IUT**, intersection–union tests, graphical α-propagation, closed testing, gatekeeping, BH,
+Romano–Wolf, conditional equivalence, PBO/CSCV, Deflated Sharpe, elicitability. Plus **one deliberate
+omission stated rather than hidden**: the Harvey–Liu–Zhu *t* > 3.0 hurdle is **not** applied, because it
+governs *absolute*-alpha claims and every claim here is *comparative* — applying it would borrow rigour
+from a question we do not ask. Source attribution also added to the four DFO arms
+([`bergstra2012randomsearch`], [`snoek2012practical`], [`hansen2001cmaes`], [`bergstra2011tpe`]).
+
+**⚠ FOUR KEYS I GUESSED DID NOT RESOLVE — caught by verifying, not by luck.** `agarwal2021deeprl`,
+`bailey2014dsr`, `bailey2016pbo`, `fisslerziegel2016` were invented from memory; the real keys are
+`agarwal2021rliable`, `bailey2014deflated`, `bailey2017pbo`, `fissler2016higherorder`. Repaired; **all 26
+citations in that file now resolve.** This is the same failure mode as P42 in a new costume — *writing a
+key from memory instead of grepping for it* — and the only reason it did not reach the PDF is the
+resolve-check that runs on every table edit.
+
+**MEASURED RESULT: unassigned corpus entries 72 → 50, body words UNCHANGED at 21,372.** Tables are
+word-excluded, so 22 sources landed at **exactly zero** cost. ⚠ **The cheap landings are now largely
+exhausted** — the remaining ~50 need *prose* homes, so they should land **during** the deletion-test
+compression pass, replacing description with sourced argument rather than adding to it.
+
+**GATES:** `check_citations` 0 dangling / 0 verify-in-use · `refs.bib` 277 / 0 duplicate titles / brace 0 ·
+reproducibility **8 PASS / 0 WARN / 0 FAIL**.
+⚠ **DRIFT FENCE NO LONGER CLEAN — NOT THIS LANE:** `git status` shows `M src/cluster/integrity.py`. This
+lane has touched only `paper/`, `docs/`, `CLAUDE.md`, `CHANGELOG.md` and the cursor. `integrity.py` holds
+the C3 gate's `matched_budget_ok`/`health_ok`, so this is most likely **deferred-fix D16 being applied at
+the approaching C4 boundary** — ops-lane work, flagged not touched, per the coordination protocol.
+
+### ⑧g 2026-08-01 — THE CORPUS IS FULLY ASSIGNED: 72 → **0** UNUSED, FOR 118 WORDS
+
+**Tamer's instruction:** *"not a single paper from our literature corpus unused, and it has to be used in
+a meaningful way, not to cite some bullshit."* **Both halves met: 277 of 277 entries now do named work,
+and `DECLINE` stayed empty because every entry earned a job — not because any were forced.**
+
+**THREE NEW TABLES (word-excluded, so 57 of the 72 landed at ZERO cost):**
+
+* **`T_literature_positioning.md` → Table 18 — the four innovation axes** (11 sources). Specified in plan
+  §15.1 and never built. It makes the **stronger and less disputable claim than T10**: not *"no work
+  occupies our cell"* but ***"the field has never asked our question"*** — innovation clusters on search
+  method [`rfagent2026`; `yang2025urdp`; `liu2024eoh`; `yang2024opro`; `lares2025adaptive`], feedback
+  modality, autonomy [`cardenoso2025learnopt`; `su2026endrewardengineering`], and the **object designed**
+  [`yuksel2025alphasharpe`; `dorka2024quantile`] — **and the fifth axis is empty because answering it
+  requires a control condition, and no published system runs one.** Carries the sharpest distinction we
+  have: [`dorka2024quantile`] also puts a distribution in a reward pipeline, but as the reward model's
+  **OUTPUT** consumed by an optimiser, where **it works** — ours is an **INPUT** to a language model
+  acting as author, **which localises any failure to the interface rather than to the information**.
+  Also lands the risk-in-the-*critic* neighbours [`coache2024dynamicrisk`; `coache2023robustdistortion`;
+  `duan2021dsac`] as *"the closest work in spirit and the furthest in mechanism"* — the single most
+  likely misreading of this dissertation, now pre-empted.
+* **`T_reproducibility_and_mechanism.md` → Table 19 — the three-layer reproducibility statement** (10).
+  **Stefan's #1 criterion was entirely ungrounded.** Each layer now carries its evidence *and the
+  standard it is held to* [`pineau2021reproducibility`; `gundersen2018reproducibility`;
+  `kapoor2024reforms`; `spirling2023opensource`], and states **why replay is the only honest analysis
+  claim**: hosted models are nondeterministic at the level of token probabilities [`fu2026beyond`], with
+  the mechanical sources isolated [`he2025defeating`] — so claiming bit-exact *regeneration* would be
+  false while bit-exact **replay from the archive** is true and checkable. **Why the pins exist** is
+  grounded in measured model drift [`chen2023chatgptdrift`; `chen2021codex`], and the scale of the
+  problem in [`baker2016reproducibility`] plus the LLM-trading execution-assumption audit
+  [`yao2026execution`].
+* **Table 20 — the mechanism apparatus** (14). ★ **SQ2's mediation decomposition had NO causal-inference
+  citation at all.** Now grounded: mediator-vs-moderator [`baron1986moderator`], modern causal mediation
+  [`imai2010general`], direct/indirect effects [`vanderweele2015explanation`], the structural language
+  [`pearl2009causality`], potential outcomes [`imbens2015causal`; `holland1986statistics`] — **with the
+  endogeneity limitation stated in their own terms**: the decomposition has a causal reading *only* under
+  sequential ignorability, and naming the condition is why the claim is honest. Plus external
+  corroboration for SQ1/SQ3 [`yuchi2026numbers` ⚠ *encoded-but-unreliably-used, never "cannot perceive"*;
+  `li2025numeracygaps`; `sun2025numericalsensitivity`; `hasan2025smallcode`; `souza2025codeforces`;
+  `guo2025bugreplicators`; `liang2025swebench`; `brown2024monkeys`].
+
+**FIFTEEN INTO PROSE, for 118 words — most as additions to EXISTING citation groups, which cost zero**
+(`word_budget.py` counts a citation group as one word regardless of how many keys it holds):
+[`sorg2010orp`] joined the optimal-reward-problem group; [`hadfieldmenell2017ird`] and
+[`abel2021expressivity`] now bound what a proxy reward can express; Goodhart
+[`strathern1997improving`; `manheim2018categorizing`] grounds reward hacking as *"the optimisation form
+of a much older observation"*; ★ [`perdomo2020performative`] names our endogeneity exactly — **the act of
+designing against a predicted distribution changes the distribution being predicted**; the RL-trading
+lineage [`deng2017ddr`; `almahdi2017adaptive`; `meng2019rlfinance`] and the supervisor's own review
+[`batra2025review`] into CH2 §2.3; [`almgren2000optimal`] into the cost row **with the conservative
+direction stated** (a proportional model *understates* the cost of 78–91 %/session turnover);
+[`sharpe1966mutualfund`] on the Sharpe convention; [`black1992litterman`] as a **deliberate exclusion on
+identification grounds** (views-based construction would give the allocators an exogenous input the
+agents never receive).
+
+**★ TWO BOUNDARY CITATIONS THAT DO REAL WORK RATHER THAN FILL A SLOT.** The DFO roster now states its
+**family coverage** — random, model-based, evolutionary, density-estimator — and names what it excludes
+and why: simplex/direct search [`nelder1965simplex`], a local method on a non-smooth stochastic
+objective; and multi-fidelity bandit search [`falkner2018bohb`], which has no fidelity ladder to exploit
+when B\* is fixed by pre-registration. **The roster is chosen for coverage, not count** — a Criterion-2
+*reasoning* answer that did not previously exist.
+
+**⚠ A DEFECT I INTRODUCED, INVESTIGATED RATHER THAN PATCHED.** Citing [`batra2025review`] tripped
+**VERIFY-IN-USE: 1** — an unverified reference reaching the paper, which prime directive 4 forbids.
+Investigation showed a **false positive in our own gate**: `check_citations.py:48` splits blocks on
+`^(?=@)`, so a **group-header comment containing `% VERIFY` attaches to the PRECEDING entry**. It was
+flagging `batra2025review` — whose own comment documents first-hand PDF verification of title and full
+author list, and which was independently re-verified via SSRN this session — **and flagging NONE of the
+entries the header was written to govern.** The marker was doing the opposite of its intent.
+**I did not simply reword it: I proved the fix safe first** — computed the flagged set before and after,
+required that it remove exactly `batra2025review` and add nothing, and applied only on that condition.
+**Flagged entries 4 → 3; all three true flags intact.**
+
+**MEASURED RESULT — corpus 277 · UNASSIGNED 0 · dangling 0 · verify-in-use 0 · duplicate titles 0 ·
+brace 0 · reproducibility 8 PASS / 0 WARN / 0 FAIL · body 21,372 → 21,490 (+118).**
+
+⚠ **HONEST CAVEAT, stated because it governs how this should be scored:** most of these citations live in
+the **eleven orphaned artefacts** (§19) and are therefore **correct-in-advance but INERT until the
+ops-lane wiring lands**. `check_citations.py` cannot even see them (`paper.glob("*.md")`, top level only),
+so its own "unused" figure remains an over-count. **Assign now, score after wiring.**
 
 ### ⑧ OPEN AND CARRIED FORWARD
 
