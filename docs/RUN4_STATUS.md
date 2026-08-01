@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 03:20 UTC -- T+78h11m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 03:25 UTC -- T+78h16m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+78h11m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+78h16m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1712** |
+| records archived | **1721** |
 | LLM calls / spend | 2743 / **$42.6847** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **201** (124 running, 77 queued) |
+| cluster jobs | **199** (124 running, 75 queued) |
 | **cores computing** | **992** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -72,9 +72,9 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 399 |
+| distributional | g5 of 5 | 409 |
 | scalar | g5 of 5 | 296 |
-| placebo | g5 of 5 | 230 |
+| placebo | g5 of 5 | 231 |
 | scalar_cvar5 | g5 of 5 | 217 |
 | placebo_shuffled | g5 of 5 | 178 |
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T03:16:52Z  RED  records=1710 (+0)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=14B  sweep=13.0s  auto-cycle
-2026-08-01T03:17:35Z  RED  records=1712 (+2)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=14B  sweep=14.6s  auto-cycle
-2026-08-01T03:18:20Z  RED  records=1712 (+0)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=1.2m  drift=0  sci=OK  r115=14B  sweep=10.5s  auto-cycle
-2026-08-01T03:19:01Z  RED  records=1712 (+0)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=1.9m  drift=0  sci=OK  r115=14B  sweep=13.5s  auto-cycle
-2026-08-01T03:19:44Z  RED  records=1712 (+0)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=14B  sweep=13.6s  auto-cycle
-2026-08-01T03:20:28Z  RED  records=1712 (+0)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=14B  sweep=11.8s  auto-cycle
+2026-08-01T03:21:51Z  RED  records=1713 (+1)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0  sci=OK  r115=14B  sweep=12.4s  auto-cycle
+2026-08-01T03:22:34Z  RED  records=1715 (+2)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0  sci=OK  r115=14B  sweep=10.3s  auto-cycle
+2026-08-01T03:23:14Z  RED  records=1717 (+2)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=14B  sweep=10.6s  auto-cycle
+2026-08-01T03:23:55Z  RED  records=1719 (+2)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0  sci=OK  r115=14B  sweep=11.9s  auto-cycle
+2026-08-01T03:24:37Z  RED  records=1720 (+1)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=1.4m  drift=0  sci=OK  r115=14B  sweep=14.1s  auto-cycle
+2026-08-01T03:25:21Z  RED  records=1721 (+1)  spend=$42.6846  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=14B  sweep=12.9s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -132,7 +132,7 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 34.6650  + still to author $  6.7561  = $ 41.4211   credited $ 28.1500   margin $ -13.2711 (-47%)  over the credit ESTIMATE (owner-watched)
+  anthropic   spent $ 34.6650  + still to author $  5.6432  = $ 40.3082   credited $ 28.1500   margin $ -12.1582 (-43%)  over the credit ESTIMATE (owner-watched)
   openrouter  spent $  8.0197  + still to author $  2.1813  = $ 10.2010   credited $ 19.3100   margin $  +9.1090 (+47%)  comfortable
 ```
 
