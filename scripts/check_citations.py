@@ -56,13 +56,62 @@ def bib_entries(bib_text: str) -> dict[str, bool]:
     return out
 
 
+#: A citation in the COMPILED PDF, i.e. what `build_paper.rewrite_citations` actually emits.
+_EMITTED_CITE = re.compile(r"@([A-Za-z][A-Za-z0-9_.+-]*\d{4}[A-Za-z0-9_:.+-]*)")
+
+
 def cited_keys(chapter_texts: dict[str, str]) -> dict[str, list[str]]:
-    """Map each cited bibkey -> the chapter files it appears in."""
+    """Map each cited bibkey -> the shipped files it appears in.
+
+    ★ 2026-08-01 (RUN 10). This used to scan EVERY code span and test it against `_BIBKEY`, with no
+    requirement that it sit inside a `[...]` group and no awareness of fenced code blocks. The
+    BUILDER only rewrites backticked keys INSIDE brackets and outside fences, so the two disagreed
+    about what a citation is — the checker could flag a token that never becomes a citation.
+
+    That mattered the moment item 15a-i wired the `tables/` files in: a bare model pin in a table
+    cell, `` `claude-haiku-4-5-20251001` ``, was reported as a DANGLING citation. It is not a
+    citation at all — no brackets, so `rewrite_citations` leaves it alone and it never reaches
+    citeproc. Widening the scan without fixing this would have poured false dangling keys into the
+    one gate that guards citation integrity, which is the cry-wolf failure in its purest form.
+
+    **The fix is to stop having a second definition.** We run the BUILDER'S OWN transform and read
+    the citations out of its output, so the checker measures exactly what ships and the two cannot
+    diverge again. `rewrite_citations` already handles fenced code blocks, so fences come for free.
+    """
+    from build_paper import rewrite_citations                  # noqa: PLC0415 - deliberate late import
+
     out: dict[str, list[str]] = {}
     for fname, text in chapter_texts.items():
+        for raw in _EMITTED_CITE.findall(rewrite_citations(text)):
+            # ⚠ TRAILING punctuation is NOT part of the key. Pandoc treats only INTERNAL punctuation
+            # as part of a citation key, so `[@blackwell1953equivalent.]` cites `...equivalent` and
+            # leaves the period as text. Without this strip the checker reported a DANGLING key that
+            # renders perfectly well -- my own false positive, caught by reading the source line
+            # rather than trusting the alarm (the period is inside the bracket group in
+            # 02_CHAPTER_theory.md:150, which is legal and harmless).
+            key = raw.rstrip(".,;:")
+            out.setdefault(key, [])
+            if fname not in out[key]:
+                out[key].append(fname)
+    return out
+
+
+def unrendered_bibkey_lookalikes(chapter_texts: dict[str, str]) -> dict[str, list[str]]:
+    """Backticked tokens that LOOK like bibkeys but will NOT render as citations.
+
+    Kept as an ADVISORY rather than dropped, because the narrowing above could otherwise hide a
+    real defect: a citation the author wrote WITHOUT brackets is silently not a citation in the
+    PDF, and the old scan was the only thing that would have noticed. Reported, never fatal —
+    almost every hit is a legitimate model pin, filename or hash in a table.
+    """
+    from build_paper import rewrite_citations                  # noqa: PLC0415
+
+    out: dict[str, list[str]] = {}
+    for fname, text in chapter_texts.items():
+        emitted = set(_EMITTED_CITE.findall(rewrite_citations(text)))
         for span in _CODE_SPAN.findall(text):
             tok = span.strip()
-            if _BIBKEY.match(tok):
+            if _BIBKEY.match(tok) and tok.rstrip(".,;:") not in {e.rstrip(".,;:") for e in emitted}:
                 out.setdefault(tok, [])
                 if fname not in out[tok]:
                     out[tok].append(fname)
@@ -93,11 +142,33 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     entries = bib_entries(bib_path.read_text(encoding="utf-8", errors="ignore"))
-    # Chapter prose = paper/*.md, excluding the bibliography dossier and manifests.
+    # Shipped prose = every file `build_paper.py` actually assembles.
+    #
+    # ★ 2026-08-01 (RUN 10, DEFERRED item 15e). This globbed `paper/*.md` TOP LEVEL ONLY, which was
+    # correct while the build assembled only top-level chapters. Item 15a-i wired nine further
+    # artefacts into the PDF — seven `tables/` files and `appendices/A_quality_control_record.md` —
+    # and those carry **79 cite-references** between them. Left unwidened, this gate would have
+    # scanned none of them: dangling keys and un-verified references would have gone into the
+    # compiled PDF while the integrity check reported CLEAN. That is why the write-up lane made
+    # landing the two changes in the SAME commit a condition, and they were right.
+    #
+    # The scope is now DERIVED from the build, not maintained in parallel, so a future ASSEMBLY
+    # entry cannot escape the gate by being forgotten here.
+    _shipped: list[Path] = []
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from build_paper import APPENDICES, ASSEMBLY          # noqa: PLC0415 - deliberate late import
+        _shipped = [paper / rel for rel in (*ASSEMBLY, *APPENDICES)]
+    except Exception:                                          # noqa: BLE001
+        # FAIL LOUD-ish: fall back to a WIDER scan than before, never a narrower one. A gate that
+        # silently reverts to top-level-only is the exact hole this change closes.
+        print("[citations] WARNING: could not import build_paper's ASSEMBLY; falling back to a "
+              "recursive paper/**.md scan (wider, never narrower)", file=sys.stderr)
+        _shipped = sorted(paper.rglob("*.md"))
     chapters = {
-        p.name: p.read_text(encoding="utf-8", errors="ignore")
-        for p in sorted(paper.glob("*.md"))
-        if "DOSSIER" not in p.name and "MANIFEST" not in p.name and "NOMENCLATURE" not in p.name
+        str(p.relative_to(paper)).replace("\\", "/"): p.read_text(encoding="utf-8", errors="ignore")
+        for p in _shipped
+        if p.is_file() and "DOSSIER" not in p.name and "MANIFEST" not in p.name
     }
     cited = cited_keys(chapters)
 
@@ -123,8 +194,25 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"\n4. UNUSED bib entries (informational): {len(unused)}")
 
+    # 2026-08-01 (RUN 10): ADVISORY, never fatal. Backticked tokens that look like bibkeys but sit
+    # outside a `[...]` group, so `rewrite_citations` leaves them alone and they never become
+    # citations. Almost all are legitimate model pins / filenames / hashes in the wired tables.
+    # Reported so the narrowing of `cited_keys` cannot hide a citation someone wrote WITHOUT
+    # brackets — which would silently not be a citation in the PDF.
+    lookalikes = unrendered_bibkey_lookalikes(chapters)
+    print(f"5. BIBKEY-SHAPED but NOT rendered as citations (advisory): {len(lookalikes)}")
+    for k in sorted(lookalikes)[:6]:
+        print(f"   - {k}  (in {', '.join(lookalikes[k])})")
+    if len(lookalikes) > 6:
+        print(f"   ... and {len(lookalikes) - 6} more")
+
     problems = bool(dangling or verify_in_use)
     print(f"\n[citations] {'PROBLEMS FOUND' if problems else 'clean on dangling + verify-in-use'}.")
+    if problems and not args.strict:
+        print("[citations] NOTE: exiting 0 because --strict was not passed. A gate that reports a "
+              "problem and returns success cannot fail a pipeline — pass --strict in any automated "
+              "caller. (Recorded 2026-08-01; the default is left unchanged so no existing caller's "
+              "behaviour moves silently.)")
     if args.strict and problems:
         return 1
     return 0
