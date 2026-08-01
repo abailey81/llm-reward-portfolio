@@ -117,7 +117,7 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "402d59e"
+RUNNING_SHA = "b44a566"
 DRIFT_PATHS = ("src", "scripts", "config", "prompts")
 
 # A driver log older than this means its line has stopped writing -- the D14 failure mode, where the
