@@ -27,10 +27,27 @@ known in ONE place — ``scripts/first_seed_sanity.py:175-203`` documents it, af
 raised CRITICAL on a perfectly healthy record on 2026-07-28 purely because its clock read 0.0 — and
 that knowledge never propagated to the analysis layer.)
 
-**THE AUTHORITATIVE SOURCE IS THE SCHEDULER.** ``qacct`` is Grid Engine's own accounting: it counts
-real resource consumption per task, covers BOTH lanes, includes setup and teardown, and captures
-even tasks that died before writing any record of ours. ``src/cluster/ledger.py::parse_qacct``
-already parses its per-job block format — but only for FAILURE FORENSICS, never for a total.
+**AND THE HARDCODE WAS ALREADY FOUND ONCE, WHICH IS THE REAL SHAPE OF THIS DEFECT.** Four lines
+below the test-leg hardcode's sibling, ``parallel.py`` carries::
+
+    "wall_clock": float(result.get("elapsed_secs", 0.0)),
+    # 2026-07-13 pre-spend audit fix: was HARDCODED 0.0 — the worker's measured elapsed
+    # seconds now flow through (0.0 only for legacy results lacking the field).
+
+A pre-spend audit repaired the SEARCH path on 2026-07-13 and left ``test_leg.py`` untouched. **The
+100%/0% lane split is the fingerprint of a HALF-MIGRATION**, not of an original design. And the two
+sites need DIFFERENT repairs: on the search path the value was MEASURED AND DISCARDED (a one-line
+wiring bug, now fixed), whereas ``src/orchestration/test_leg.py`` contains **no timer at all** — no
+``import time``, no ``perf_counter``, nothing — so there the value was NEVER MEASURED and the repair
+is INSTRUMENTATION, not wiring.
+
+**THE AUTHORITATIVE SOURCE IS THE SCHEDULER — AND NOT MERELY FOR CONVENIENCE.** ``qacct`` is Grid
+Engine's own accounting: it counts real resource consumption per task, covers BOTH lanes, includes
+setup and teardown, and captures even tasks that died before writing any record of ours.
+``src/cluster/ledger.py::parse_qacct`` already parses its per-job block format — but only for FAILURE
+FORENSICS, never for a total. **The decisive argument is the one above:** the record-field route
+cannot be completed at all without adding instrumentation inside the drift fence and relaunching the
+campaign, whereas this route needs neither. It is the only source available to a live campaign.
 
 WHY A LEDGER RATHER THAN A QUERY AT WRITE-UP TIME.
 

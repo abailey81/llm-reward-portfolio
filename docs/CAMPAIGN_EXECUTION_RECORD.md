@@ -12704,3 +12704,56 @@ registers the hazard as **P17/A2**, defaulting to keep rows lacking a jobname (d
 safe legacy bump-all). **No action needed** — recorded only so a future session does not spend the
 same hour re-finding it. *A clean baseline that already reads the failing value proves nothing; this
 time the baseline was clean because someone had already fixed it.*
+
+### 100.21c ★★ THE HARDCODE WAS ALREADY FOUND AND FIXED — ON ONE OF TWO PATHS
+
+**A sharper account of §100.21, obtained by going back into the file to verify SOMEONE ELSE'S
+finding.** The ANALYSIS lane reported (A11) that `src/orchestration/parallel.py:871` writes
+`"feedback_block": ""` as an unconditional literal — discarding the **manipulated variable** at the
+archive boundary, three lines below a `"prompt"` line whose comment reads *"persist the rendered
+prompt so the replay archive doesn't DROP it"*. **Verified first-hand; their reading is exact.**
+
+**Four lines further down sits the correction to my own §100.21:**
+
+```python
+  "wall_clock": float(result.get("elapsed_secs", 0.0)),
+  # 2026-07-13 pre-spend audit fix: was HARDCODED 0.0 — the worker's measured elapsed
+  # seconds now flow through (0.0 only for legacy results lacking the field).
+```
+
+**So the hardcode was ALREADY IDENTIFIED AND ALREADY REPAIRED — on the SEARCH path only.** A
+pre-spend audit on 2026-07-13 found exactly this defect, fixed one of its two sites, and left
+`test_leg.py:193` untouched. **The 100% / 0% lane split reported in §100.21 is therefore not "how it
+always was": it is the FINGERPRINT OF A HALF-MIGRATION** — the failure CLAUDE.md names in as many
+words (*"update every call site or state what is left — never half-migrate"*). That is the honest
+account, and it only surfaced because another lane's finding sent me back into a file I had already
+read.
+
+**AND IT CORRECTS THE FIX ESTIMATE, WHICH CHANGES THE POST-CAMPAIGN QUEUE.** I had assumed the
+test-leg repair mirrored the search-leg repair — plumb an existing measurement into the record.
+**It does not.** `src/orchestration/test_leg.py` contains **no timer whatsoever**: no `import time`,
+no `perf_counter`, no `elapsed`, nothing (whole-file grep). So:
+
+| path | what happened | repair |
+|---|---|---|
+| SEARCH (`parallel.py`) | value MEASURED, then DISCARDED | wiring — one line, done 2026-07-13 |
+| TEST (`test_leg.py`) | value NEVER MEASURED | **instrumentation** — a timer must be added |
+
+**Same symptom, two different causes, two different repairs** — the identical discipline the ANALYSIS
+lane applied when they refused to merge `wall_clock`, `train_curve.return` and `feedback_block` into
+one class, and which I nearly failed in the opposite direction by assuming the two hardcodes were one
+bug.
+
+**CONSEQUENCE — the scheduler route is stronger than the argument I originally gave it.** `qacct` is
+not merely more *convenient* than the record field; **it is the only source that requires no new
+instrumentation and no mid-campaign deploy.** The record-field route cannot be completed at all
+without touching the drift fence. That is now the stated justification in
+`docs/ops/compute_ledger.py`.
+
+**A11 itself is NOT being fixed mid-campaign**, and the ANALYSIS lane's reasoning for that is
+adopted: `parallel.py` is inside the fence AND in the driver import closure, so a repair needs a
+relaunch, would split a currently-uniform 2,200-record archive, and cannot back-fill existing records
+either way. Queued post-campaign. **Mitigating fact, which is why this is a degradation rather than a
+loss:** the rendered PROMPT *is* persisted, so the fed block remains recoverable by structural
+slicing — which is exactly how the lane found the three un-fed `generation>=1` candidates that every
+keyword-heuristic check had been blind to.
