@@ -14819,3 +14819,71 @@ because generations are serial, and pipelining is a C4 flag. **The point is the 
 lines would have entered it draining each assurance block before submitting the next. Doing this
 during the narrow phase cost **one watchdog interval per line**; doing it after C4 opened would have
 cost the thing it buys.
+
+---
+
+### 100.51 THE CORES QUESTION, ANSWERED: THE CONSTRAINT IS NOT CAPACITY, IT IS R101's COMMON RUNG
+
+**Tamer pressed the core count four times. The complete answer, measured, is that ~870 slots is the
+intrinsic width of the phase we are in — and that more cores cannot move the reported result.**
+
+| line | frozen /5 | test records |
+|---|---|---|
+| core | 5 (of 10 search arms) | 360 |
+| qwen3.5-9b · gemini-2.5-flash | 5 · 4 | 82 · 60 |
+| gpt-5.6-luna · nemotron · sonnet · haiku | 5 · 4 · 4 · 4 | **0** |
+| deepseek · glm-5.2 | 3 · 3 | **0** |
+| **kimi-k3 · qwen3.6-27b** | **2 · 2** | **0** |
+
+**EIGHT OF TEN LEG LINES HOLD ZERO TEST RECORDS.** Under R101 the reported result is the **COMMON
+rung — a MINIMUM over 11 lines** — so capacity given to a line already above the minimum is worth
+**exactly zero**. **The critical path is `kimi-k3` and `qwen3.6-27b` at 2 of 5 arms frozen.**
+Raised by the ANALYSIS lane (M215 §3(iii)); verified here first-hand rather than taken.
+
+**AND THE TWO OBVIOUS FOLLOW-UPS BOTH CAME BACK CLEAN.** Every one of the twelve lines produced a
+record within the last **23 minutes** (newest ages 0.02–0.38 h) — **nothing is stalled**; and the
+live queue shows `gpt-5.6-luna` running `scalar_cvar5` + `placebo_shuffled` + `placebo`
+**simultaneously**, with 2–3 concurrent arms on every other line. **Arms are already concurrent.**
+
+So the search phase's width is `12 lines × 2–3 arms × 5 candidates ≈ 105 tasks × 8 slots ≈ 840
+slots`. **That is the work, not a throttle.** Generations are serial by design and
+candidates-per-generation is a registered quantity, so this phase cannot be widened without changing
+the registration.
+
+**⚠ AND THE SAMPLING ERROR, FOR THE FOURTH TIME TODAY, ON THE SAFETY QUESTION ITSELF.** Asked to
+census `d97a`/`d97b` (686 free slots we have never used), I found
+`node-d97a-001` and `node-d97b-001` both flagged `ELSEWHERE:RHEL9 migration` and **was one keystroke
+from broadcasting "a different OS is a determinism-envelope change — fence them"**. Counting the
+whole family first: **d97a is 22 OK of 24, d97b 7 of 8.** I had read node 001 as the family. Worse
+for my earlier framing: **d00a is not uniform either** (227 OK, 10 `not-in`, 2 `repurposed`), so
+*"the pool we already use is one CPU family"* was never a safe statement. **The analysis lane's
+187-node empirically-verified allowlist is a strictly better instrument than any family-level
+reasoning of mine, and it is adopted as the reference.**
+
+**DECISION: do not chase the 686 slots.** They cannot move the common rung, so spending them could
+only put RUN 4's 2,488/2,488 single-model homogeneity — the strongest determinism evidence in the
+campaign — at risk for zero gain. If C4 ever makes us capacity-bound, the answer is a one-core probe
+job reading `/proc/cpuinfo`, **as a measurement, not an inference**.
+
+---
+
+### 100.52 THREE OPEN OPS ITEMS CLOSED, TWO OF THEM DEFECTS I CREATED TODAY
+
+Raised by COORD's `openitems.py` board (M221), all verified by execution.
+
+* **F-18 — `--md-only --final` returned rc=0 HAVING COMPILED NOTHING.** `--final` is the SUBMISSION
+  gate and certifies the compiled deliverable; `--md-only` exits before pandoc. The combination
+  waved the gate through on a PDF that was never built. **Now rc=2 with a named refusal**;
+  `--md-only` alone still rc=0. *The same false-green class this file spent the morning fixing —
+  aimed, this time, at the deliverable itself.*
+* **F-19 — the Tectonic bundle digest was recorded nowhere, and §100.40.5's typeface change made the
+  deliverable depend on it.** The build now resolves, prints and **CHECKS** it:
+  **`6ffe055852f8faf6…`, 4/4 TeX Gyre Heros faces present.** Not asserted — checked, because a pin
+  nobody can verify is fictional (R85). A missing face is exactly how `mainfont` falls back and
+  re-flattens the document.
+* **A16-W13 — the withdrawal is itself withdrawn.** W13 held that the two frozen artefacts disagreed
+  and the code followed the senior one; R105 at `PREREGISTRATION.md:1051` registers the TOST alpha
+  route in the **hash-bound prose**, so they never disagreed. **WRITEUP greps
+  `WITHDRAWN_CLAIMS.md` before anything enters `paper/`, so leaving W13 standing would have let a
+  withdrawn claim govern graded prose.** *A retraction that is not itself retractable is just a
+  second way to be wrong.*
