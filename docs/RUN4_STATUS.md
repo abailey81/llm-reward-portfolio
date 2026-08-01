@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 08:50 UTC -- T+83h41m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 08:56 UTC -- T+83h47m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+83h41m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+83h47m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **2262** |
-| LLM calls / spend | 2795 / **$43.9426** |
+| records archived | **2265** |
+| LLM calls / spend | 2798 / **$43.9515** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **124** (123 running, 0 queued) |
+| cluster jobs | **127** (123 running, 3 queued) |
 | **cores computing** | **984** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -72,11 +72,11 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 872 |
+| distributional | g5 of 5 | 873 |
 | scalar | g5 of 5 | 296 |
 | placebo | g5 of 5 | 259 |
-| scalar_cvar5 | g5 of 5 | 240 |
-| placebo_shuffled | g5 of 5 | 203 |
+| scalar_cvar5 | g5 of 5 | 241 |
+| placebo_shuffled | g5 of 5 | 204 |
 
 ## Results so far
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T08:46:55Z  RED  records=2259 (+0)  spend=$43.9381  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=14B  sweep=15.0s  auto-cycle
-2026-08-01T08:47:41Z  RED  records=2259 (+0)  spend=$43.9381  guards=2  arms_full=10/10  budget=2  stalest=0.6m  drift=0  sci=OK  r115=14B  sweep=13.2s  auto-cycle
-2026-08-01T08:48:24Z  RED  records=2259 (+0)  spend=$43.9381  guards=2  arms_full=10/10  budget=2  stalest=1.3m  drift=0  sci=OK  r115=14B  sweep=13.5s  auto-cycle
-2026-08-01T08:49:08Z  RED  records=2260 (+1)  spend=$43.9381  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=14B  sweep=15.2s  auto-cycle
-2026-08-01T08:49:53Z  RED  records=2260 (+0)  spend=$43.9381  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=14B  sweep=14.2s  auto-cycle
-2026-08-01T08:50:38Z  RED  records=2262 (+2)  spend=$43.9403  guards=2  arms_full=10/10  budget=2  stalest=0.5m  drift=0  sci=OK  r115=14B  sweep=15.3s  auto-cycle
+2026-08-01T08:52:08Z  RED  records=2262 (+0)  spend=$43.9515  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=14B  sweep=14.3s  auto-cycle
+2026-08-01T08:52:52Z  RED  records=2262 (+0)  spend=$43.9515  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=14B  sweep=15.6s  auto-cycle
+2026-08-01T08:53:38Z  RED  records=2262 (+0)  spend=$43.9515  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=14B  sweep=13.0s  auto-cycle
+2026-08-01T08:54:21Z  RED  records=2262 (+0)  spend=$43.9515  guards=2  arms_full=10/10  budget=2  stalest=1.1m  drift=0  sci=OK  r115=14B  sweep=12.0s  auto-cycle
+2026-08-01T08:55:04Z  RED  records=2264 (+2)  spend=$43.9515  guards=2  arms_full=10/10  budget=2  stalest=1.8m  drift=0  sci=OK  r115=14B  sweep=15.2s  auto-cycle
+2026-08-01T08:55:49Z  RED  records=2264 (+0)  spend=$43.9515  guards=2  arms_full=10/10  budget=2  stalest=2.6m  drift=0  sci=OK  r115=14B  sweep=15.2s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -133,7 +133,7 @@ remaining exposure):
 
 ```
   anthropic   spent $ 35.8803  + still to author $  3.4746  = $ 39.3549   credited $ 28.1500   margin $ -11.2049 (-40%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  8.0671  + still to author $  1.4477  = $  9.5148   credited $ 19.3100   margin $  +9.7952 (+51%)  comfortable
+  openrouter  spent $  8.0712  + still to author $  1.4263  = $  9.4975   credited $ 19.3100   margin $  +9.8125 (+51%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
