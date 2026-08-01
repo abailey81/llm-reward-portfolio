@@ -117,15 +117,21 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "f75904f"   # re-based 2026-08-01: b44a566 -> a51d2ea (§100.33) -> b5fdde5 -> b73a109 -> f75904f (§100.34/35/39).
-# THREE fenced files moved across §100.33-§100.35, and ALL are PROVEN OUTSIDE the driver closure:
+RUNNING_SHA = "b38ad14"   # re-based 2026-08-01: b44a566 -> a51d2ea (§100.33) -> b5fdde5 -> b73a109 -> f75904f (§100.34/35/39) -> b38ad14 (§100.40).
+# FENCED FILES HAVE MOVED ACROSS §100.33-§100.40, AND EVERY ONE IS PROVEN OUTSIDE THE DRIVER CLOSURE:
 #   * src/inference/multiple_testing.py  -- the structurally-untestable reporting fix (§100.33)
 #   * scripts/analyze_campaign.py        -- H1's beat-the-canon IUT reaching the R31 sensitivity (§100.34)
+#                                        -- and the stale H4 {H4a,H4b} comment (§100.40, comment only)
+#   * scripts/build_paper.py             -- the unread diagnostic channel + the flattened bold (§100.40)
 # A static walk from scripts/run_campaign_cluster.py + src/cluster/run_one.py reaches 193 first-party
-# modules and NEITHER is among them. The INFERENCE and ANALYSIS layers run at analysis time, never
-# inside a driver, so the executed experiment is untouched and no relaunch was needed. Same sanctioned
-# exit as the 402d59e -> b44a566 re-base (§100.19): "prove unreachable with
+# modules and NONE is among them. The INFERENCE, ANALYSIS and BUILD layers run at analysis/write time,
+# never inside a driver, so the executed experiment is untouched and no relaunch was needed. Same
+# sanctioned exit as the 402d59e -> b44a566 re-base (§100.19): "prove unreachable with
 # docs/ops/import_closure.py, or re-base at restart."
+# ⚠ RUN 11: docs/ops/import_closure.py no longer hard-codes its targets — it now derives them from
+# the live diff and reads THIS constant to do it, so the proof and the reference can no longer drift
+# apart. Run it with no arguments before every re-base; an empty target set reports NOTHING TO CHECK
+# rather than passing.
 DRIFT_PATHS = ("src", "scripts", "config", "prompts")
 
 # A driver log older than this means its line has stopped writing -- the D14 failure mode, where the
