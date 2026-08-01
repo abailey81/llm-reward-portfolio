@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-01"
-  head: "7a245e70"
+  head: "5710fa88"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "full suite in flight at handover; 6 targeted files green (78 tests), PYTEST_RC=0 from the log"
+  suite_status: "PYTEST_RC=0 (RUN 11 certification, read from the log)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
