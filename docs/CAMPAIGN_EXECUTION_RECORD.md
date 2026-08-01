@@ -12316,6 +12316,31 @@ over the modelled 15.6 d is **91 records/h**, against the 21.1 records/h measure
 ratio of **4.3x**, reproducing §95.2's packing arithmetic derived a completely different way. Two
 independent derivations agreeing is evidence; one derivation repeated is not.
 
+**★★★ AND THE PREDICTION WAS CONFIRMED LIVE, BY A THIRD ROUTE, WITHIN THE HOUR.** The 91 records/h
+figure above was derived BEFORE the packed regime was observable. The campaign then crossed into it,
+and the transition is measurable in the cycle log itself:
+
+```
+  last 24 h   24.3 records/h        <- the SEARCH regime (the 21.1/h that was being projected)
+  last  8 h   41.6
+  last  4 h   67.3
+  last  2 h   91.0                  <- the PREDICTED aggregate, hit on the nose
+  last  1 h  117.8
+```
+
+**Three independent derivations agree and none was tuned to the others:** the §95.2 core-unit
+arithmetic (0.24 -> 1.00 trainings per core-unit), 34,080 records over the modelled 15.6 d, and the
+live cycle log. The ANALYSIS lane measured 91.5/h from the log; this record's own re-derivation gives
+**91.0/h**. Composition confirms the MECHANISM and not merely the rate: 116 of the last hour's 122
+records are test-lane, and all 116 are `test_h3_singleshot` — one line in packed C4.
+
+> **⚠ AND THE NUMBER THAT MUST NOT BE MULTIPLIED.** That single line is producing ~116 records/h by
+> itself. **It cannot be extrapolated to twelve.** At full C4 every line competes for the same ~960
+> cores, so the aggregate is CORE-bound, not line-bound — which is exactly why the 3,235-core
+> saturation ceiling matters. The **91/h aggregate** is the quotable figure; 116/h is an
+> instantaneous single-line rate under favourable contention, and it is precisely the number a
+> reader would misuse.
+
 **So the full ladder is not marginal, and the legs climbing alongside is not the binding constraint
 it appeared to be** — the packed C4 lane absorbs them. **What is NOT claimed:** the model assumes
 ~960 cores hold and that C4 packing realises its measured rate at full scale, and the COORD lane's
