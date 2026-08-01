@@ -975,3 +975,50 @@ understating one, and leaving a phantom in this file costs the next reader real 
 The residual, and it is small: nobody has OBSERVED a `max_u_jobs` rejection in this campaign, so
 point 1 is a reading of the code paths rather than a measurement. If C4 ever does hit the cap, the
 log line to look for is a `queue op failed (N consecutive, …)` warning naming the batch.
+
+## 19. D24 — `_outage_is_fatal` IS AN **OR** WHILE ITS DOCSTRING SAYS **BOTH**, SO THE DRIVER DIES AT 3.6 h, NOT 12 h (found by COORD 2026-08-01, M223)
+
+**Found by the coord lane, statically, and it is the reassuring-comment tell in its purest form: the
+same function documents itself both ways and the safe-sounding version is the wrong one.**
+
+`run_batch`'s docstring (`driver.py:369-371`) says a failure streak *"is fatal only once it persists
+past **BOTH** bounds' first trip"*. **The code is an OR** — `_outage_is_fatal` (`:434-440`) returns
+True as soon as `n_failures >= max_consecutive_errors`, regardless of elapsed time. Its own INNER
+docstring correctly says *"EITHER bound"*.
+
+**WHY IT HAS NEVER MATTERED, AND WHY THAT IS ABOUT TO CHANGE.** The two bounds coincide exactly at
+the DEFAULT poll interval — `72 × 600 s = 43,200 s = 12.0 h = max_transport_outage_secs` — which is
+plainly deliberate, and while `poll_secs = 600` the OR-vs-AND distinction is invisible. **But the
+live supervisors pass `--poll-secs 180`** (`mode_d_supervisor.ps1:146`, `campaign_supervisor.ps1:44`):
+
+```
+poll 600 s (default) -> 12.0 h      poll 180 s (LIVE) -> 3.6 h
+poll 120 s           ->  2.4 h      poll  45 s        -> 0.9 h
+```
+
+**So today the count bound trips 3.3× sooner than the docstring promises, and any poll shortening
+done to chase throughput shortens it proportionally.**
+
+**THE PATCH (coord's, and it restores the design's own intent):**
+```python
+effective_max_errors = max(max_consecutive_errors, max_transport_outage_secs / poll_secs)
+```
+so the count bound can never be tighter than the time bound — making the 600 s coincidence
+poll-rate-INVARIANT instead of an accident of the default. **And fix the `:370` docstring to say
+EITHER**, because a reader who trusts it today believes they have 12 h and has 3.6.
+
+**⚠ WHY IT IS NOT APPLIED IN RUN 11.** `src/cluster/driver.py` **IS in the driver import closure** —
+`docs/ops/import_closure.py` reports `REACHED: src.cluster.driver (via src.cluster.campaign)` — so
+landing it requires relaunching all twelve lines. Committing it WITHOUT a relaunch would make
+`RUNNING_SHA` assert that the executing code matches the committed code when it does not, which is
+the one thing the drift invariant exists to prevent. **Apply it at the next natural relaunch**; the
+procedure is proven in record §100.50 and takes ~5 min per line via the watchdog.
+
+**AND A MITIGATION COORD DID NOT ACCOUNT FOR, WHICH DOWNGRADES THE SEVERITY — verified in the
+supervisor source.** A fatal raise does **not** end the line: `mode_d_supervisor.ps1` wraps the
+driver in `while ($attempt -lt $maxAttempts)` with **`$maxAttempts = 1000`** and
+**`$backoffSecs = 600`**, and the fenced watchdog independently revives any line whose supervisor
+dies (≤300 s). **So the realised cost of hitting this bound is roughly ten minutes and a log line,
+not a lost line.** Combined with D23 — the slot ceiling (3,366 free in pool D) binds long before the
+1,000-job ceiling, so submissions should thin rather than fail outright — this is a real defect worth
+fixing on its own merits, and not an emergency.
