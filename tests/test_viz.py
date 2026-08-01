@@ -308,3 +308,67 @@ def test_render_animations_writes_gifs(tmp_path: Path) -> None:
     assert len(gifs) == 2
     for p in gifs:
         assert p.exists() and p.suffix == ".gif" and p.stat().st_size > 0
+
+
+# --------------------------------------------------------------------------- #
+# D2 / registry row 38 — the seed-trajectory exhibit                           #
+# --------------------------------------------------------------------------- #
+def test_seed_trajectory_renders_and_endpoint_matches_headline_estimator() -> None:
+    """The curve must END at exactly the headline IQM — same estimator, not a lookalike."""
+    from src.viz.style import iqm_bootstrap_ci
+
+    rng = np.random.default_rng(0)
+    vals = rng.normal(0.2, 0.5, size=40)
+    fig = F.seed_trajectory({"distributional": vals}, rungs=(30,), terminal_rung=30)
+    assert fig.axes, "no axes drawn"
+    line = fig.axes[0].lines[0]
+    terminal_y = float(line.get_ydata()[-1])
+    expected, _, _ = iqm_bootstrap_ci(vals, reps=2000, alpha=0.05, seed=0)
+    assert terminal_y == pytest.approx(expected), (
+        "trajectory endpoint must equal the headline IQM by construction"
+    )
+    plt.close(fig)
+
+
+def test_seed_trajectory_refuses_permuted_seed_order() -> None:
+    """D2 property (1): a series re-ordered by outcome must FAIL LOUD, not render."""
+    vals = [0.1, 0.2, 0.3, 0.4]
+    with pytest.raises(ValueError, match="REGISTERED order"):
+        F.seed_trajectory({"scalar": vals}, seeds=[0, 3, 1, 2])
+    fig = F.seed_trajectory({"scalar": vals}, seeds=[0, 1, 2, 3])  # registered order is accepted
+    plt.close(fig)
+
+
+def test_seed_trajectory_refuses_empty_input() -> None:
+    """An empty exhibit would satisfy the registry row while showing the reader nothing."""
+    with pytest.raises(ValueError):
+        F.seed_trajectory({})
+    with pytest.raises(ValueError):
+        F.seed_trajectory({"a": []})
+
+
+def test_seed_trajectory_always_states_no_inference_at_any_prefix() -> None:
+    """D2 property (3): the disclaimer is not a parameter and cannot be switched off."""
+    fig = F.seed_trajectory({"placebo": [0.1, 0.2, 0.3]})
+    blob = " ".join(t.get_text() for t in fig.texts)
+    assert "NO INFERENCE WAS DRAWN AT ANY PREFIX" in blob
+    assert "Stopping rule" in blob
+    plt.close(fig)
+
+
+def test_seed_trajectory_grid_keeps_small_n_dense_rungs_and_terminal() -> None:
+    """Okhrati asked for 1,2,3,…; the grid must not stride away the small-n region or a rung."""
+    g = F._trajectory_grid(568, rungs=(30, 100, 189, 279, 340, 403, 568))
+    assert g[:9] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for r in (30, 100, 189, 279, 340, 403, 568):
+        assert r in g, f"rung {r} missing from the evaluation grid"
+    assert g[-1] == 568 and len(g) <= 200
+    assert F._trajectory_grid(0) == []
+
+
+def test_seed_trajectory_survives_n_equals_one_and_nans() -> None:
+    """n=1 has no dispersion (degenerate triple) and NaN seeds must not blank the band."""
+    fig = F.seed_trajectory({"haiku": [0.5, float("nan"), 0.7, 0.9]})
+    ax = fig.axes[0]
+    assert np.isfinite(np.asarray(ax.lines[0].get_ydata(), dtype=float)).all()
+    plt.close(fig)

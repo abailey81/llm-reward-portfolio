@@ -55,6 +55,7 @@ __all__ = [
     "controls_overlay",
     "responsiveness_scatter",
     "learning_curves",
+    "seed_trajectory",
     "delisting_robustness",
     "performance_profile",
     "probability_of_improvement",
@@ -452,6 +453,157 @@ def learning_curves(
     ax_loss.legend(loc="best", ncol=2, fontsize=7)
     ax_ret.set_ylabel("eval return")
     ax_ret.set_xlabel("environment steps")
+    return fig
+
+
+def _trajectory_grid(n_total: int, rungs: Sequence[int] = (), *, dense_to: int = 30,
+                     max_points: int = 200) -> list[int]:
+    """Prefix sizes at which to evaluate a running estimate: DENSE at small n, strided after.
+
+    Okhrati's ask is literally *"1,2,3,4,5,6,7,8,9 and etc up to the final seed"*, and the small-n
+    region is where the instability lives (the canon's rank order is not stable below ~n=30), so
+    every prefix up to ``dense_to`` is kept. Beyond that a full sweep would cost N bootstraps per
+    unit for no visual gain, so the grid strides — but it ALWAYS keeps every registered rung and the
+    terminal n, because those are the points a reader will actually read values off.
+    """
+    if n_total <= 0:
+        return []
+    keep = set(range(1, min(dense_to, n_total) + 1))
+    keep.update(r for r in rungs if 1 <= int(r) <= n_total)
+    keep.add(n_total)
+    remaining = max_points - len(keep)
+    if remaining > 0 and n_total > dense_to:
+        # CEILING division: floor under-counts the stride, so `range` then emits MORE points than
+        # `remaining` budgeted and the grid overruns `max_points` (measured: 213 for N=568). Caught
+        # by tests/test_viz.py::test_seed_trajectory_grid_keeps_small_n_dense_rungs_and_terminal.
+        stride = max(1, -(-(n_total - dense_to) // remaining))
+        keep.update(range(dense_to, n_total + 1, stride))
+    return sorted(keep)
+
+
+def seed_trajectory(
+    series_by_unit: Mapping[str, Sequence[float]],
+    *,
+    seeds: Sequence[int] | None = None,
+    rungs: Sequence[int] = (),
+    terminal_rung: int | None = None,
+    stopping_rule: str = ("EXOGENOUS: the pre-registered assurance ladder, stopped by the Aug-27 "
+                          "calendar gate and measured throughput — never by an observed effect."),
+    title: str = "Running estimate vs seed count n (registered order)",
+    ylabel: str = "IQM over the first n seeds",
+    alpha: float = 0.05,
+    bootstrap_reps: int = 2000,
+) -> Any:
+    """Running IQM (+ bootstrap CI) against seed count n = 1…N — Okhrati's D2 duty, registry row 38.
+
+    ``series_by_unit``: ``{unit: per-seed values IN REGISTERED SEED ORDER}``. Because the assurance
+    ladder is CUMULATIVE and CRN-paired, every prefix ``[0..n)`` is itself a valid complete study —
+    a property most papers cannot show — so this curve answers, with a picture, the question a
+    probabilist actually asks: *has your estimate converged, do you understand your own noise, and
+    is your conclusion an artefact of where you stopped?* The estimator is
+    :func:`~src.viz.style.iqm_bootstrap_ci`, i.e. THE SAME one the headline ``rliable_intervals``
+    panel uses, so the trajectory's endpoint equals the headline point estimate by construction
+    rather than by coincidence.
+
+    ⚠ **THE FIGURE IS INVALID WITHOUT ALL THREE OF D2's PROPERTIES, so they are enforced here rather
+    than left to the caller:**
+
+    1. **REGISTERED ORDER, NEVER SORTED.** A running curve invites a reader to eyeball "where it
+       settled", which is precisely the optional-stopping logic the pre-registration forbids; sorting
+       the seeds by OUTCOME would turn the curve into a selection artifact. This function never
+       sorts, and when ``seeds`` is supplied it VERIFIES the order is the registered one (contiguous
+       ascending, as ``resolve_seeds`` emits) and raises otherwise — so a permuted series fails loud
+       instead of rendering a beautiful lie.
+    2. **THE STOPPING RULE IS STATED ON THE FIGURE**, with the terminal rung marked.
+    3. **"NO INFERENCE WAS DRAWN AT ANY PREFIX" IS ALWAYS RENDERED.** It is not a parameter and
+       cannot be switched off, because a caption that can be omitted eventually is.
+
+    Done right this is the strongest rigour exhibit in the document; done wrong it hands a referee a
+    weapon. Units may have different depths (they sit at different rungs) — each is drawn to its own
+    N, which is also why the COMMON rung is a minimum over units and not an average.
+    """
+    import matplotlib.pyplot as plt
+
+    if not series_by_unit:
+        raise ValueError(
+            "seed_trajectory: series_by_unit is empty. Refusing to draw an axis with no data — an "
+            "empty D2 exhibit would satisfy the registry row while showing the reader nothing."
+        )
+    if seeds is not None:
+        s = [int(v) for v in seeds]
+        if not s or s != list(range(s[0], s[0] + len(s))):
+            raise ValueError(
+                f"seed_trajectory: `seeds` is not in REGISTERED order (expected contiguous ascending "
+                f"from {s[0] if s else 'n/a'}); got {s[:8]}… . Sorting or re-ordering seeds turns the "
+                "running curve into a selection artifact — see D2."
+            )
+
+    # COLOUR COLLISION GUARD (found by rendering real records, 2026-08-01). `arm_style` returns the
+    # SAME neutral default for every unrecognised label, so a panel of units that are not arms — the
+    # H1 baselines, for instance — drew every series in identical black and the reader could not tell
+    # them apart. Where a colour would repeat, fall back to the Okabe-Ito qualitative palette by
+    # index. Recognised arms keep their canonical colour, so cross-figure consistency is preserved.
+    # NOTE OKABE_ITO is a NAME->HEX MAPPING, not a list; indexing it with an int raises KeyError.
+    # Found by rendering four real baseline units (the guard only fires once a colour repeats).
+    _fallback = [h for n, h in OKABE_ITO.items() if n != "black"]
+    _units = list(series_by_unit)
+    _colors: dict[str, str] = {}
+    _seen: set[str] = set()
+    for _i, _u in enumerate(_units):
+        _c = arm_style(_u)["color"]
+        if _c in _seen:
+            _c = _fallback[_i % len(_fallback)]
+        _seen.add(_c)
+        _colors[_u] = _c
+
+    fig, ax = plt.subplots(figsize=(6.8, 4.4))
+    drawn = 0
+    for unit, vals in series_by_unit.items():
+        v = np.asarray(list(vals), dtype=float).ravel()
+        if v.size == 0:
+            _LOG.warning("[seed_trajectory] unit %r has no values — skipped", unit)
+            continue
+        grid = _trajectory_grid(v.size, rungs)
+        pt = np.empty(len(grid), dtype=float)
+        lo = np.empty(len(grid), dtype=float)
+        hi = np.empty(len(grid), dtype=float)
+        for i, n in enumerate(grid):
+            # n<2 returns the DEGENERATE triple (point, point, point) by contract — a zero-width
+            # band at n=1 is honest (one seed carries no dispersion), not a missing one.
+            pt[i], lo[i], hi[i] = iqm_bootstrap_ci(
+                v[:n], reps=bootstrap_reps, alpha=alpha, seed=0
+            )
+        st = arm_style(unit)
+        col = _colors[unit]
+        ax.plot(grid, pt, color=col, lw=1.6, marker=st["marker"], ms=3,
+                markevery=max(1, len(grid) // 12), label=unit, zorder=3)
+        ax.fill_between(grid, lo, hi, color=col, alpha=0.15, lw=0, zorder=2)
+        drawn += 1
+    if drawn == 0:
+        raise ValueError("seed_trajectory: every unit was empty — nothing was drawn.")
+
+    for r in rungs:
+        if terminal_rung is not None and int(r) == int(terminal_rung):
+            continue
+        ax.axvline(float(r), color="0.55", lw=0.8, ls=":", zorder=1)
+    if terminal_rung is not None:
+        ax.axvline(float(terminal_rung), color="0.15", lw=1.4, ls="-", zorder=1)
+        ax.annotate(f"terminal rung n={int(terminal_rung)}",
+                    xy=(float(terminal_rung), 1.0), xycoords=("data", "axes fraction"),
+                    xytext=(-4, -10), textcoords="offset points",
+                    ha="right", va="top", fontsize=7, color="0.15", rotation=90)
+
+    ax.set_xlabel("seed count n (registered order, cumulative)")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title, fontsize=10, loc="left")
+    ax.legend(loc="best", ncol=2, fontsize=7)
+    fig.text(
+        0.01, -0.02,
+        f"Stopping rule — {stopping_rule}  "
+        "NO INFERENCE WAS DRAWN AT ANY PREFIX: the confirmatory look is taken once, at the terminal "
+        f"rung. Bands are {int(round((1 - alpha) * 100))}% percentile-bootstrap CIs on the IQM.",
+        fontsize=6.5, va="top", wrap=True,
+    )
     return fig
 
 
