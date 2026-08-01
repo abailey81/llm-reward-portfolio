@@ -12797,3 +12797,50 @@ intervention against a healthy campaign. Caught by my own rule, one step before 
 The re-triage, its date, its `n`, and the near-miss are stamped into
 `docs/ops/acknowledged_alarms.txt` above the entry itself, so the next session inherits a **dated
 measurement** rather than a stale extent — and does not repeat either the check or the mistake.
+
+### 100.23 ★ MY OWN WIRING PUT AN OKHRATI-PENALISED DEFECT INTO THE PDF — TABLE NUMBERING
+
+**Found by asking the generalising question rather than waiting to be asked again.** §100.21 closed
+one of the three *mechanics* Okhrati docks for (missing wall-clock compute). The obvious next move is
+to check the other two on the same footing. The second is **"untidy figure/table
+cross-referencing"** — and it is now a live exposure **because of §100.17's wiring change.**
+
+**MEASURED across the 18 shipped files (scope derived from `build_paper.ASSEMBLY/APPENDICES`, the
+same discipline as the citation gate):**
+
+| # | finding | detail |
+|---|---|---|
+| 1 | **two numbering schemes coexist** | `tables/` declares **bare** — Table 1, 2, 3, 3b, 4, 5, 18, 19, 20. Chapters declare **chapter.section** — Table 3.1 (`02_CHAPTER_theory.md:378`), Table 4.1 (`CH4_methods.md:359`), Tables 6.1–6.7 (CH6). |
+| 2 | **a 12-number hole** | the bare sequence runs 1–5 then jumps to 18. **Tables 6–17 do not exist.** A reader who meets Table 5 followed by Table 18 concludes thirteen tables are missing. |
+| 3 | **two tables unnumbered** | `T_design_decisions.md` (`# Table:`) and `T_benchmark_allocators.md` (`## Table —`). **Prose cannot cross-reference them at all.** |
+| 4 | duplicates | **none** — checked, that part is clean. |
+
+**THE HONEST DIAGNOSIS, AND IT CHANGES THE FIX.** The tables are **not badly made**. They were
+numbered against `FIGURE_TABLE_MANIFEST`'s **T1–T20** scheme and were internally coherent *as
+standalone artefacts*. The incoherence is purely an artefact of wiring **manifest-numbered** files
+into a **chapter-numbered** document. **My change surfaced it; it did not create it** — but it is
+PDF-visible now and it was not before, which makes it mine to report.
+
+**★ THE PROCESS LESSON, which is the transferable part.** Before wiring I verified **SHIP-FORM**
+first-hand — that none of the nine artefacts carried criterion / top-band / word-count / marker
+language that would leak grading strategy into the graded document. That check was correct and it
+passed. **What I did not check was whether the artefacts were COHERENT WITH THEIR NEW CONTEXT.**
+Wiring a file into a document imports not only its *prose* but its *numbering, its cross-reference
+scheme, and its implicit ordering* — and a file that is internally consistent can still be externally
+inconsistent the moment it acquires neighbours. **Rule: when admitting an artefact to a compiled
+document, check it against the DOCUMENT's conventions, not only against its own.** Same family as the
+citation-gate finding in §100.18, where wiring imported 79 unchecked citations: *the wiring step is a
+boundary, and every boundary needs its own check.*
+
+**RECOMMENDED FIX (reported to the WRITE-UP lane as M104; NOT applied — `paper/**` is their live
+hold and I have not touched it):** renumber `tables/` to **chapter.section**, matching where each is
+actually referenced — the chapters already use it, a UCL reader expects it, IFTE0008 is
+chapter-structured, and it makes the 12-number hole *disappear* rather than papering over it. The
+cheaper alternative — keep bare numbering, make it contiguous, add a List of Tables — leaves two
+schemes side by side, which is the thing being penalised.
+
+**ALSO REPORTED, NOT A DEFECT:** **14 distinct figure cross-references** exist in prose (18 mentions —
+Figure 4.1 in CH4, Figures 6.1–6.13 in CH6) against **zero embedded figures**. This is a *known*
+outstanding write-up task, stated in `build_paper.py:39` (*"figures are not yet embedded … they land
+at write-time from FIGURE_TABLE_MANIFEST.md"*), so it is **not** a discovery. Only the **count** was
+contributed, because 14 is the exact size of that worklist and it lands on the same grading criterion.
