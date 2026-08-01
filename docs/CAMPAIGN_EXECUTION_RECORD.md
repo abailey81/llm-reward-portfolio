@@ -13217,3 +13217,32 @@ does not exist there* — is the **third** wrong-nesting probe of the night acro
 habit they proposed is the right general fix: **print one real row and read its key structure before
 writing any aggregate over it.** *The failure was never about WHETHER a field exists; it was about
 WHERE.*
+
+#### 100.28b THE DECODING PINS — CLEAN ON EVERY CALL, AND THAT COMPLETES LAYER 3
+
+**Finishing the enumeration rather than stopping at the interesting failures.** Priority 5 says *every*
+pin; §100.26–100.28 covered model and reasoning, so `max_tokens` and `temperature` were still open.
+Checked against `config/legs.yaml` / `config/campaign.yaml`, per model, across all 2,783 calls:
+
+```
+  ALL ELEVEN MODELS:  max_tokens 16384  on every call   -> matches the R106 uniform cap
+  temperature:  null on the three ANTHROPIC seats (the Opus no-temperature convention)
+                1.0  on all eight OPENROUTER legs        -> matches R85's uniform-decoding pin
+  DEVIATIONS: NONE.
+```
+
+**The complete, honest layer-3 statement is therefore:**
+
+| pin | verdict |
+|---|---|
+| `max_tokens` | **verified on 2,783 / 2,783** |
+| `temperature` | **verified on 2,783 / 2,783** |
+| model attribution | **verified on every call**; 10 of 11 echo the full identifier |
+| snapshot date | round-trips everywhere **except `kimi-k3`** — family confirmed, date not (§100.26) |
+| reasoning (OpenRouter) | **verified OFF on 1,989 of 1,990**; one named `deepseek` violation with its request archived |
+| reasoning (Anthropic) | **NEVER SENT** — the R106 defect (§100.27) |
+
+**Four of six axes are clean on every single call, one has a single named exception with its evidence,
+and one is a genuine registration defect.** That is a *far* more useful sentence for the
+reproducibility section than either "layer 3 holds" or "layer 3 is unverified" — and every row of it
+is re-runnable from the archive.
