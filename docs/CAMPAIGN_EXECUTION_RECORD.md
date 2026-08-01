@@ -14008,3 +14008,45 @@ finding counsels against).
   register as the other twelve.
 * **Credit to COORD**, who found this while withdrawing their own recommendation — the second time
   tonight a lane has strengthened a finding by arguing against their own position.
+
+### 100.38 THE COMPLETE REGISTERED-DESIGN VERIFICATION — 24 GUARDS, ALL GREEN, RUN NOT ASSUMED
+
+**`scripts/freeze.py --check` ("verify prose<->yaml + Phase-0 + recompute the hash; NO writes")
+executed in full. `FREEZE_RC=0`, twenty-four independent guards OK.** The canonical hash was already
+confirmed by `audit_reproducibility` (§100.25) — **what had NOT been exercised this session are the
+CROSS-FILE GUARDS**, and several of them verify properties this session had been reasoning about from
+other directions.
+
+```
+  seeds                  yaml [0..567] (n=568) == prose 5->568          OK
+  arms                   yaml n=9 == prose "The nine arms"              OK
+  executed arms          campaign.yaml + arms.yaml rosters == frozen    OK
+  h1_baselines           campaign.yaml == frozen family (n=11)          OK
+  confirmatory_author    llm.yaml (+campaign mirror) == claude-opus-5   OK
+  train_steps            campaign.yaml + algos.yaml == B* 400,000       OK
+  matched_budget         candidates_per_arm == 30                       OK
+  testing_family.m       union 6 + IUT sub-families [3] == prose        OK
+  sesoi / equiv margin   0.05 / ±0.05 DSR == prose                      OK
+  search splits          prototype.yaml + subexperiment.yaml == data.yaml   OK
+  prompt tail-neutrality 2 base prompts carry NONE of 11 tail tokens (R38)  OK
+  leg roster (v2)        legs.yaml == frozen model_suite (order+ids+pins)   OK
+  bound-file existence   all 9 hash-bound files present                 OK
+  canonical SHA-256      3ca6f01ab772…  ==  recorded freeze_hash        MATCHES
+```
+
+**THREE OF THESE MATTER PARTICULARLY, because they close loops this session opened from elsewhere:**
+
+1. **`search splits: prototype.yaml + subexperiment.yaml == frozen data.yaml splits`** — a **THIRD**
+   independent split-consistency check, beyond the `inference.yaml`↔`data.yaml` agreement verified in
+   §100.36. **Four config files now demonstrably carry the same Split C.**
+2. **`prompt tail-neutrality: 2 base prompt(s) carry none of 11 tail tokens (R38)`** — the
+   **construct-validity** property. The frozen base prompts are tail-NEUTRAL, so the manipulated
+   variable really is the feedback block alone and nothing leaks the tail through the prompt. Verified
+   by the gate rather than taken from an earlier session's memory.
+3. **`h1_baselines … (n=11)`** — the eleven-member canon is exactly the family the H1
+   intersection-union test runs over, which is the quantity §100.34 restored to the R31 sensitivity.
+   **The registered family and the executed family are the same eleven.**
+
+**Nothing here is new machinery — the guards existed. What was missing was RUNNING them and reading
+the output**, which is the difference between a design that is registered and a design that is
+demonstrably *executed as registered*.
