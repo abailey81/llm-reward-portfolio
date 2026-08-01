@@ -3177,17 +3177,54 @@ def cross_hypothesis_multiplicity(
     bonf = float(alpha) / float(n_hypotheses) if n_hypotheses else float(alpha)
     rows: list[dict[str, Any]] = []
 
-    # H1 — descriptive (no inferential p); report as such (DEEP_H1 R-REF: H1 is a report-only panel).
+    # H1 — the beat-the-human-canon IUT (2026-07-26 upgrade), NOT the retired descriptive panel.
+    #
+    # ★★ 2026-08-01 FIX (record §100.34) — STALE CONSUMER. This row read
+    # ``h1["beats_best_baseline_dsr"]`` and hardcoded ``headline_p: None`` /
+    # ``"descriptive panel, no inferential p — Bonferroni n/a"``. That was correct when H1 WAS a
+    # descriptive panel. On 2026-07-26 H1 became a confirmatory INTERSECTION-UNION TEST over the full
+    # 11-name hand-reward canon (``h1_beat_human``), with a real one-sided ``iut_pvalue`` — and the
+    # CALLER was updated to pass ``h1=out.get("h1_beat_human")`` while THIS extraction was not.
+    #
+    # THE CONSEQUENCE WAS NOT COSMETIC. ``src/inference/validity_tier.py`` gives N6_h1 an INITIAL GRAPH
+    # WEIGHT OF 0.0, so under the design's own PRE-REGISTERED PREDICTION (H2 null on both co-primaries)
+    # nothing propagates and H1 is tested at local alpha EXACTLY 0.0 (§100.33). With this row also
+    # reporting "no inferential p", **H1 WAS DECIDABLE NOWHERE** — its IUT p-value was computed on every
+    # run and consumed by no rule that could act on it. A headline claim of the dissertation had no
+    # decision path at all under the outcome the design predicts.
+    #
+    # ⚠ THIS IS NOT A DESIGN CHANGE, AND THE DISTINCTION IS THE WHOLE POINT. The R31 rule is untouched:
+    # each hypothesis's headline p against alpha/n_hypotheses. What changes is WHICH QUANTITY IS H1's
+    # headline p — and that was already decided and registered by the 2026-07-26 upgrade (whose endpoint
+    # correction, DSR -> annualised Sharpe, is itself recorded in the frozen config's N6_h1 note). The
+    # two consumers of ``h1_beat_human`` now AGREE; before, one read the IUT and the other read a
+    # retired field, which is executed-vs-registered drift by any definition.
+    #
+    # ``all_baselines_present`` is honoured EXACTLY as validity_tier's N6_h1 does — dominance is
+    # certifiable only when every canon member is testable, so an under-seeded member yields "not
+    # certifiable" rather than a cheaper claim. Reading it the same way in both places is deliberate:
+    # two consumers of one quantity disagreeing about its gate is how this defect arose.
     h1_status = (h1 or {}).get("status")
+    _h1_iut = (h1 or {}).get("iut") or {}
+    _h1_p = _h1_iut.get("iut_pvalue")
+    _h1_all_present = bool(_h1_iut.get("all_baselines_present"))
+    _h1_usable = isinstance(_h1_p, (int, float)) and np.isfinite(_h1_p) and _h1_all_present
     rows.append({
         "hypothesis": "H1",
-        "headline_p": None,
+        "headline_p": float(_h1_p) if _h1_usable else None,
         "decision_primary": (
-            f"beats_best_baseline_dsr={(h1 or {}).get('beats_best_baseline_dsr')}"
+            f"dominates_canon={_h1_iut.get('dominates_canon')} "
+            f"(beaten {_h1_iut.get('n_significantly_beaten')}/{_h1_iut.get('n_baselines')})"
             if h1_status == "ok" else f"({h1_status or 'not run'})"
         ),
-        "survives_bonferroni": None,
-        "note": "descriptive panel, no inferential p (DEEP_H1 R-REF) — Bonferroni n/a",
+        "survives_bonferroni": (float(_h1_p) <= bonf) if _h1_usable else None,
+        "note": (
+            "beat-the-human-canon IUT (berger1982iut): headline p = MAX one-sided leg p over the "
+            "11-name canon; rejecting means the LLM reward beats EVERY hand-crafted member"
+            if _h1_usable else
+            f"IUT p not usable for Bonferroni (all_baselines_present={_h1_all_present}, p={_h1_p!r}) "
+            f"— dominance is certifiable only when every canon member has >= 2 shared test seeds"
+        ),
     })
 
     # H2 — the conjunction's binding leg = the MAX one-sided p over BOTH IUTs' legs.
