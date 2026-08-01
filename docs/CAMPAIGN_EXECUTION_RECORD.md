@@ -12453,3 +12453,44 @@ which is not a remedy at 04:40 on a Saturday.
 supervisor/backoff machinery itself uses. **The campaign's own retry loop is a pid-reuse source**,
 which is why this recurred within hours rather than as a rare accident, and why the mechanism fix
 (D20, identity by process create-time, shipped in `402d59e`) matters beyond the reaper.
+
+### 100.16 THE TWO h2_pair CASES ARE NOT ONE CATEGORY — AND THE DISCRIMINATOR IS THE QUEUE
+
+Three lanes spent hours treating `leg4` and `leg9`'s `h2_pair_test` as a single phenomenon:
+*unmentioned by the driver, `done=0 pending=60`, driver alive and logging, status blobs identical
+in every substantive field*. On that evidence they ARE indistinguishable — which is exactly why the
+ANALYSIS lane retracted a Wilson interval it had computed over the pair (their own verdict:
+**"putting a confidence interval on an unestablished causal claim does not make it more rigorous, it
+launders the assumption into a number"**).
+
+**They are distinguishable, and the discriminator is the one place nobody had looked for `leg9`:
+DOES THE ARRAY STILL EXIST ON MYRIAD?**
+
+```
+  leg9_leg_gemini_2_5_flash_h2_pair_test_p01 .. p08   ALL EIGHT ALIVE in qstat
+  leg4_leg_qwen3_5_9b_h2_pair_test                    NONE
+```
+
+* **`leg9` IS NOT STRANDED AND NO WORK IS LOST — it is IN FLIGHT.** Its driver is not polling that
+  batch because it is legitimately back inside its arm drain (currently driving `placebo_g4`, a
+  SEARCH batch at generation 4). When the drain completes, the queue-adoption guard re-adopts by job
+  NAME and the records land. **"Unmentioned" is the CORRECT state for it, not a symptom.**
+* **`leg4` is the genuine case:** arrays gone, 0 records, work needs re-submission — which happens
+  when its own drain completes (currently driving `placebo_test`).
+
+**THE INSTRUMENT LESSON, offered to the COORD lane's `W2` detector:** *unmentioned* alone is
+**ambiguous** between "abandoned" and "running fine while the driver works elsewhere". The
+discriminating predicate is **UNMENTIONED *AND* NO LIVE ARRAY**, and the queue settles it in one
+call. A fast detector on the ambiguous half will cry wolf on every line that legitimately moves on.
+
+**And it retro-explains the retraction.** ANALYSIS withdrew their 2-of-2 statistic because `leg9`
+stopped being driven **10.5 minutes BEFORE** the 03:42 restart, so it could not belong to the
+"orphaned by a restart" class. That was right, and the queue evidence supplies the mechanism:
+**nothing orphaned it — its pass moved on legitimately.** The two events were never members of one
+class, so there was never a rate to compute. The instinct to retract was better than the arithmetic
+that prompted it.
+
+**Also verified in the same pass: ZERO `ARM_CRASH` markers since the deploy.** That matters
+specifically here — if `placebo` had crashed on either line, the new D14 path would now **stop the
+pass BEFORE building the CRN-paired H2 array** rather than building it with a hole. The guarantee is
+live on all 24 drivers as of `402d59e`, and nothing has needed it yet.
