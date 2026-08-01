@@ -558,6 +558,50 @@ def main() -> int:
         # fail-safe whose failure path can itself fail is not a fail-safe.
         print(f"[cycle] sandbox_gap check failed (non-fatal): {_gap_exc!r}", file=sys.stderr)
 
+    # 4c. THE CONFIRMATORY-PATH INTEGRITY GATE (record §100.32). Six invariants that must hold for the
+    # results to mean anything: I1 every record's hash matches its own source · I2 each frozen winner
+    # equals the search candidate it won as · I3 each TEST record equals its arm's frozen winner (the
+    # one whose breach would invalidate the headline) · I4 each frozen winner is the max-fitness
+    # R115-ELIGIBLE candidate of its arm · I5 requested model == served model · I6 max_tokens and
+    # temperature match the registration.
+    #
+    # WHY IT IS AUTOMATED RATHER THAN AUDITED. All six were verified BY HAND on 2026-08-01 and were
+    # clean (32/32 winners correct, 0 hash mismatches over 1,024 frozen+test records). That was a
+    # SNAPSHOT. The campaign runs to 08-27 and nobody re-runs a hand audit daily, so any of these could
+    # break tomorrow with nothing to say so. The gate encodes VERIFIED-TRUE invariants, which is what
+    # makes a future red meaningful: a check that has never been green against known-good data cannot
+    # tell you anything when it fails. 15 falsification tests prove each invariant can FIRE
+    # (tests/test_integrity_gate.py), including the two that must NOT fire -- an R115-ineligible best
+    # candidate, and the DISCLOSED kimi alias of §100.26.
+    #
+    # rc 2 = CONFIRMATORY breach (RED) · rc 1 = report-only leg breach (ATTN, R80 never gates H1-H4)
+    # · rc 0 = clean. Same 600 s time-guard and hard wrap as 4b, for the same reasons.
+    try:
+        _int_stamp = Path("docs/ops/watch/.integrity_gate_last")
+        _int_due = (not _int_stamp.exists()
+                    or (time.time() - _int_stamp.stat().st_mtime) > 600)
+        if _int_due:
+            _int_rc, _int_out = _run([sys.executable, "docs/ops/integrity_gate.py", "--quiet"],
+                                     timeout=300)
+            _int_stamp.parent.mkdir(parents=True, exist_ok=True)
+            _int_stamp.write_text(f"{_int_rc}\n{_int_out}", encoding="utf-8")
+        else:
+            _int_rc = int((_int_stamp.read_text(encoding="utf-8").splitlines() or ["0"])[0])
+        if _int_rc == 2:
+            alerts.append(
+                "integrity_gate: a CONFIRMATORY-PATH INVARIANT IS BREACHED -- the search->frozen->test "
+                "code chain, the winner selection, or a model/decoding pin no longer holds. THE "
+                "HEADLINE RESULT CANNOT BE TRUSTED until this is run to ground. "
+                "Run `python docs/ops/integrity_gate.py` for the detail. Record §100.32.")
+        elif _int_rc == 1:
+            attention.append("integrity_gate: an invariant is breached on a REPORT-ONLY leg (R80, "
+                             "never gates H1-H4). Not a run-stopper -- but find the cause. §100.32.")
+        elif _int_rc != 0:
+            attention.append(f"integrity_gate: the gate could not run (rc={_int_rc}) -- the "
+                             f"confirmatory-path invariants are currently UNCHECKED. §100.32.")
+    except Exception as _int_exc:                        # noqa: BLE001 - must never break the sweep
+        print(f"[cycle] integrity_gate check failed (non-fatal): {_int_exc!r}", file=sys.stderr)
+
     # 5. the budget. TAMER, 2026-07-31: "The budget is fine, cross it out, I will just top up whenever
     # needed, I watch the balance. Just make sure you precisely monitor it as well."
     #
