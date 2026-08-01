@@ -117,7 +117,7 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "796bf54c"  # re-based 2026-08-01: … -> b38ad14 (§100.40) -> 26807b8 (§100.43/47) -> 775c942d (§100.49, the leg --pipeline-rungs fix) -> 58b388f2 -> a8ff5e64 (RUN 12: src/viz/figures.py::seed_trajectory, D2/registry row 38).
+RUNNING_SHA = "477bc87e"  # re-based 2026-08-01: … -> b38ad14 (§100.40) -> 26807b8 (§100.43/47) -> 775c942d (§100.49, the leg --pipeline-rungs fix) -> 58b388f2 -> a8ff5e64 (RUN 12: src/viz/figures.py::seed_trajectory, D2/registry row 38).
 # a8ff5e64 is a re-base of the FIRST kind — `docs/ops/import_closure.py`, run over the LIVE diff,
 # reports `src.viz.figures` NOT reachable from either entry point, so the running code is untouched
 # IN FACT and no relaunch is owed. The figure layer is report-only and is imported by the paper/
