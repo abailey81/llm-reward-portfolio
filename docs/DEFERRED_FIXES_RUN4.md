@@ -916,3 +916,39 @@ so the deployed-archive fallback is reachable from every failure mode rather tha
 **Already fixed, same class, both proven OUTSIDE the closure and landed live:**
 `scripts/build_paper.py` (severe — the false-green) and `scripts/resume_brief.py` (cosmetic — the
 session brief would silently lose a section).
+
+## 18. D23 — THE C4 SUBMISSION WILL EXCEED `max_u_jobs`, AND THE REJECTION PATH IS UNPROVEN (found 2026-08-01, RUN 11)
+
+**The arithmetic, from the executed tier sizes `[30,70,89,90,61,63,165]`** (C4 blocks = the last six
+= 538 seeds) **and `--pack 8`:**
+
+```
+core line   20 units x 538 seeds = 10,760 trainings -> 1,345 tasks
+each leg     5 units x 538 seeds =  2,690 trainings ->   337 tasks
+fleet total                                          -> 5,052 tasks
+```
+
+**At `--chunk-tasks 1` every task is its own array job, so that is 5,052 array jobs against
+`max_u_jobs = 1000`. The CORE LINE ALONE (1,345) exceeds the cap.**
+
+**⚠ THE FIX IS NOT CHUNKING.** `mode_d_supervisor.ps1:119` records the site policy: *"arrays are
+SERIALISED by policy (tasks 2..n sit in hqw) and pending tails have twice been PURGED outright."*
+Chunking to 25 would park 24 of every 25 tasks in hold. `--chunk-tasks 1` stays.
+
+**WHY THIS IS PROBABLY FINE, AND WHY THAT IS NOT GOOD ENOUGH.** The cap is very likely not the
+binding constraint: 1,000 jobs x 8 packed trainings = **8,000 slots**, far above the **3,366 free in
+pool D**. So we should saturate on free capacity long before we saturate on job count, and the
+expected behaviour is that `qsub` rejects the excess per-call, the driver re-derives pending on its
+next cycle and retries — self-pacing by construction.
+
+**WHAT IS NOT PROVEN, AND IT IS CHECKABLE STATICALLY:** whether a run of `qsub` rejections can trip
+the driver's CONSECUTIVE-FAILURE bound and take a line down. `driver.py` has a documented
+"consecutive-failure streak is fatal only once it persists past BOTH bounds' first trip" for
+TRANSPORT failures; a submission rejection at the job cap is a different class and may or may not be
+accounted the same way. **If it is counted as a transport-class failure, the fleet could start losing
+lines at exactly the moment C4 opens — the worst possible timing.**
+
+**ACTION:** read the submission-failure accounting in `src/cluster/driver.py` and, if a rejection
+streak is fatal, either classify `max_u_jobs` rejections as a benign back-pressure signal (retry
+without incrementing the streak) or add an explicit outstanding-job budget at the submit layer. This
+needs no relaunch — the driver re-reads nothing, but the change lands on the next natural restart.

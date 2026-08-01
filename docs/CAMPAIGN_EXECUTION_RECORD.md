@@ -14738,3 +14738,84 @@ Applying it means **restarting the eleven leg supervisors**. The SGE arrays are 
 running; the drivers resume from archive truth, which this campaign has done cleanly four times
 (§46, §54, §58, §60). It is nonetheless a live operation on the campaign's spine, so it is Tamer's
 call and not a side effect of a commit. **A reboot or any clean relaunch picks it up automatically.**
+
+---
+
+### 100.50 THE PIPELINING FIX WENT LIVE — ALL TEN LEG LINES RESTARTED, ONE AT A TIME, ON TAMER'S EXPLICIT INSTRUCTION
+
+**Tamer, three times and in terms: *"maximise the speed to an absolute maximum possible… make sure
+you use the maximum the Myriad can offer to us… I give you full freedom, and full permissions."***
+§100.49 left the fix committed but STAGED. This is the execution.
+
+#### 100.50.1 The result, verified process by process
+
+| | pipe | fence | pack | priority |
+|---|---|---|---|---|
+| core + all **10 legs** | **PIPELINED** | fence-OK | pack8 | default 0 |
+| h3 | sequential | fence-OK | pack8 | default 0 |
+
+**h3 is CORRECT as sequential:** `--h3-singleshot` refuses `--tiered` by design (C5 is not C1–C4), so
+pipelining does not apply to it. **fence missing: 0. priority set: 0. drivers: 24. drift: 0. No new
+error or traceback in any driver log since the restart.**
+
+#### 100.50.2 The hazard in the revival path, and how it was designed around
+
+The fenced watchdog revives a dead line by re-running `mode_d_supervisor.ps1` with the correct full
+fence — so it is the single source of truth and picks up the fixed script automatically. **But it
+detects a dead line by the ABSENCE OF THE SUPERVISOR ONLY and never looks for an orphaned driver.**
+Killing the supervisor alone would have left its python driver running and the watchdog would have
+added a second — **two drivers on one batch name, the exact P12 race the driver lock exists to
+prevent.** So each line was killed as **supervisor + both its python processes**, as a unit.
+
+**No `Start-Process` was hand-rolled.** D21 is explicit that revival must re-enter through the
+launcher/watchdog rather than duplicate the argument vector, and duplicating it is how all three
+ONSTART drifts happened.
+
+#### 100.50.3 Sequence and timing, measured
+
+| step | lines | killed | drivers | revived |
+|---|---|---|---|---|
+| **CANARY** | qwen3.5-9b (**fewest tasks: 1** — smallest blast radius) | 3 | 24→22 | 15:47:36 |
+| **BATCH 1** | deepseek, glm-5.2, qwen3.6-27b, haiku-4.5 | 12 | 24→16 | 15:52:39–48 |
+| **BATCH 2** | gpt-5.6-luna, nemotron, sonnet-5, gemini, kimi | 15 | 24→14 | 15:57:51–58:03 |
+
+**The canary was verified end to end — revived, PIPELINED, fence intact — before a second line was
+touched.** Each line was down for at most one watchdog interval (300 s) **of SUBMISSION, and zero
+seconds of COMPUTE**: the SGE arrays are cluster-side and never stopped.
+
+#### 100.50.4 Nothing lost, nothing duplicated — the design's guarantee, then the measurement
+
+`driver.py`: *"Resume-safe + crash-safe by construction … including **adopting a still-queued job
+from a previous driver invocation** (the double-submit guard matches this batch's jobnames in the
+queue)"*, and *"name reuse across driver restarts is harmless because specs are **content-addressed**
+and completed run_ids are never re-emitted."* The `O_EXCL` lock carries pid **and** create-time and
+self-heals on a dead owner.
+
+**CONFIRMED EMPIRICALLY: SGE state before and after is 105 running / 840 slots — the arrays were
+ADOPTED, not resubmitted.**
+
+#### 100.50.5 ⚠ A THIRD HYPOTHESIS OF MINE, KILLED BY THE REPO BEFORE I SHIPPED IT
+
+Having established that `max_u_jobs = 1000` caps us at **1,000 array jobs**, and that at
+`--chunk-tasks 1` **every task is its own job** — so the core line alone would want **1,345 jobs** at
+C4 and the fleet ~5,052 — I was about to move the fleet to `--chunk-tasks 25`, which is what
+`allocation_advisor` recommends under CONTENDED.
+
+**Then I read `mode_d_supervisor.ps1:119`:** *"`--chunk-tasks 1` — arrays are **SERIALISED by policy
+(tasks 2..n sit in hqw)** and pending tails have twice been **PURGED outright**. One job per task, no
+tail."*
+
+**Myriad serialises array tasks. Chunking to 25 would have parked 24 of every 25 tasks in hold and
+been catastrophic.** `--chunk-tasks 1` is correct and hard-won and was not touched. **That is the
+fourth time this session the repo was ahead of me**, and the third hypothesis of mine killed by
+measurement or by reading — `h_rt`, `snx`, and now chunking, on top of the retracted
+"the cluster is full".
+
+#### 100.50.6 What this buys, and when — stated honestly
+
+**Nothing today.** The campaign is 79 % through the SEARCH phase, which is intrinsically narrow
+because generations are serial, and pipelining is a C4 flag. **The point is the timing:** C4 is
+40,328 of 42,128 trainings, 2.6 % done, embarrassingly parallel, and imminent — and eleven of twelve
+lines would have entered it draining each assurance block before submitting the next. Doing this
+during the narrow phase cost **one watchdog interval per line**; doing it after C4 opened would have
+cost the thing it buys.
