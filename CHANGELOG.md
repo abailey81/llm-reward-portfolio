@@ -3,6 +3,487 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01i] ★★★★ ANALYSIS LANE, 4th session — **A WINNING REWARD WHOSE ENTIRE DESIGN IDEA NEVER ONCE OPERATED** · R115's real content is a PERIOD threshold · **the standing results cycle's determinism panel had never checked anything**
+
+**PAST — what this session inherited.** Session 3 closed with A1–A33 banked (entry `[2026-08-01h]`),
+two instruments handed over in `docs/analysis/` (`results_cycle.py`, `health_watch.sh`), and a written
+handoff whose stated correction was that the lane had been monitoring PROCESS HEALTH rather than
+RESULTS. Open at handover-in: **A16** (N2/TOST) for Tamer with Dr Okhrati, **D16** for ops (4 seeds
+quarantined, 0/4 landed), M135/M136 awaiting reply, and one concrete lead — three `test_components`
+fields constant where present. **Campaign at open: RUN 4, 12 lines, 2,336 records, $44.2626, drift 0.**
+Session 3 (`0ed8c09f`) was still LIVE and still held `docs/ANALYSIS_LANE_2026-08-01.md`, so this
+session claimed `docs/analysis/**` on the bus and wrote to
+**`docs/analysis/ANALYSIS_LANE_SESSION4_2026-08-01.md`** instead of forking that document.
+
+**★★★★★ A42 — A16 IS SETTLED AND RATIFIED, AND THE PRIOR FRAMING OF IT WAS WRONG.** Tamer, mid-session:
+*"I wont send anything to Okhrati, I give you full permissions, and ratify your actions."* Read
+first-hand, the three artefacts do **not** disagree. `config/preregistration.yaml:287` (hash-bound,
+ratified R108 by Tamer **and** Okhrati) registers `N2_h2_ra: {test: h2_ra_iut_or_tost, equivalence:
+tost_0.05_dsr}` with the rationale *"TOST IS an IUT → a valid node p-value, so equivalence and
+superiority mix in one graph"*, and `:293` says *"alpha recycled on ANY rejection (superiority OR
+equivalence)"*. The hash-bound `PREREGISTRATION.md` lines cited against it (:108, :300) are about the
+**epistemic credit for a null** and the **mechanism headline** respectively, and `:43-46` **defers the
+tier's specification to the yaml and nowhere specifies N2's test.** **⇒ The two frozen artefacts agree;
+the CODE simply never implemented the registered disjunction. An implementation gap against a ratified
+spec — a bug — not a design disagreement. Nothing frozen has to change**, and neither
+`src/inference/validity_tier.py` nor `scripts/analyze_campaign.py` is hash-bound or in `run_one.py`'s
+closure, so the repair needs **no unfreeze, no relaunch, no `deployed-archive` move.**
+
+**BLINDNESS VERIFIED AND TIMESTAMPED 2026-08-01T11:38:39Z, HEAD `3bb9b999`:** core-line per-arm test
+units holding records = eleven baselines + `random_search` only; `distributional`, `scalar`,
+`scalar_cvar5`, `placebo` all ABSENT ⇒ **0 of the 3 H2-RA legs computable, no H2 outcome exists**, and
+no H2 contrast was computed anywhere. `frozen/placebo-winner` froze at 11:24Z (core line 3/5 LLM arms);
+this had hours of margin, not days.
+
+**DECISION: N2's node p-value is the per-leg NON-INFERIORITY IUT at the frozen margin δ = 0.05** —
+`p(N2) = max_j p_j` for `H0_j: θ_j ≤ −δ`, on the same per-seed paired IQM bootstrap the superiority legs
+use. **(a)** It implements rather than amends: `{θ>0} ∪ {−δ<θ<δ} = {θ>−δ}`, so "superiority OR
+equivalence" is ONE hypothesis and is exactly non-inferiority at δ — the registered name finally gets
+its registered value (R84 lesson), pre-data. **(b) Zero new validity risk, by identity not simulation:**
+IQM is translation-equivariant, so the NI test at boundary −δ is *algebraically the same test* as the
+superiority test at boundary 0 — measured sizes **bit-identical** at every n (0.0703/0.0703 at n=30,
+0.0607/0.0607 at n=100, 0.0570/0.0570 at n=400; 3,000 MC trials/cell). **(c) No power cost and it
+dominates:** `p_NI ≤ min(p_sup, p_TOST)` pointwise (0 violations in 400 synthetic legs), so it rejects
+whenever either registered route would and beats an α-split by 2× — decisive, since the yaml itself
+calls the tier *"BORDERLINE to activate"*. **(d) The α-inflation objection that blocked this is measured
+and minor:** the naive min-rule's worst observed size over least-favourable configurations is **0.0760**
+against the **existing** machinery's own **0.0703** — a smaller gap than nominal-vs-actual.
+**HONEST COST, stated up front:** over three legs `⋂_j{θ_j>−δ}` is strictly weaker than the union of the
+two IUTs, so **N2's claim must be written as one-sided non-inferiority at the SESOI, never as "superior
+or equivalent"**; the two-sided TOST is untouched and stays report-only tier 2; and the strictly-faithful
+α-split `min(1, 2·min(p_sup,p_TOST))` is **pre-specified now** as a registered sensitivity.
+Implementation specified exactly and routed to ops (**M156**, action) with falsifying tests required and
+the `test_graphical_alpha.py:112` bypass — **the reason no test ever caught this** — to be re-pointed.
+
+**★ A BY-PRODUCT WORTH MORE THAN THE FIX.** The repo already discloses the paired percentile bootstrap
+as anti-conservative (`tests/test_inference.py:774`; recorded 0.0573 two-sided / 0.0613 one-sided at
+production settings) — **not claimed as new.** What is new is that **it is a function of n**, measured:
+**0.0703 (n=30) → 0.0607 (n=100) → 0.0570 (n=400)**. So the **tier-0 floor n=30 is the worst point of
+the entire ladder** (~7 % real one-sided size, not 5 %) — an independent quantitative argument for the
+seed ladder that has nothing to do with power — and a **size-versus-n curve beside Okhrati's D2
+estimate-versus-n curve** turns a known limitation into a rigour exhibit. Caveat: normal DGP, so it
+bounds the shape not the exact number; and an IUT is conservative overall (all three legs at the
+boundary gave a measured rejection rate of **0.0000**).
+
+**NOW — eight further findings, A34–A41, every one re-derived first-hand and every CLEAN shown able to fire.**
+
+**A34 — the assigned lead settled, and the handoff's framing of it was wrong.** `test_components` is
+non-empty on **992/992** test records with **45** author-chosen component names, so the right
+denominator is the unit, not the tier. Two mechanisms, both established by EXECUTING the archived
+programs through the repo's own AST gate: (a) `effective_risk` and `vol_penalty` are **policy-
+independent** — run twice on identical returns with different weights they are byte-identical while
+every sibling moves — i.e. an LLM wrote a risk term the agent cannot influence, an additive constant
+with no gradient; (b) `vol_cluster_factor = 1.0` is inert **because the branch that would move it is
+the branch that raises**. Predicted and confirmed: failures at steps 11, 22, 33 … (distinct gaps
+**{11}**), fraction **20/220 = 0.090909** against the archive's **36,339/400,000 = 0.0908475**, factor
+1.0 on all 200 successes, and a **negative control** (no state round-trip) giving **0/220**.
+
+**A35 — the D17 limit cycle has a sub-floor half its own instrument cannot see, and there its stated
+consequence INVERTS.** `probe_safe_default_cycle.py::breaching_units()` filters `frac >= 0.10`; since a
+period-*k* cycle gives 1/*k*, it enumerates only *k* ≤ 10 (verified by running it: 17 units, lowest
+11.11 %). **Five periodic candidates sit below the floor and pass R115** (1/10, 1/11, 1/20, 1/232,
+1/248). Running D17's own two replays on them: `placebo_shuffled-g0-c3` shipped **8.25 %** vs
+state-preserved **90.00 %**; `haiku distributional-g4-c2` **5.00 %** vs **81.00 %**. So for a reward
+broken from step *k* onward the harness's reset converts a **permanent** failure into a 1/(k+1)
+trickle — biasing measured authoring reliability **UPWARD**, past the gate. **One of them won its
+arm**: `frozen_leg_qwen3_5_9b/placebo_shuffled-winner`, whose 22 test seeds each report the identical
+36,339/400,000 and whose `vol_cluster_factor` is 1.0 on 100 % of 22 × 1,571 logged steps. **The
+mechanism is ops' D17 (2026-07-30), credited; only the sub-floor half is new.** Report-only leg (R80).
+
+**A36 — R115's floor sits exactly ON an atom of the statistic it thresholds.** 0.10 = 1/10 exactly.
+1/9 is +1.1110 pp (excluded); **1/10 = 0.099965 is −0.0035 pp — admitted by FOURTEEN calls in
+400,000**; 1/11 is −0.9153 pp (admitted, and won). Nothing else in the non-zero distribution lies
+within 1 pp. Nothing turns on it in fact — that candidate did not win — but it is a fragile linchpin
+and is volunteered rather than left to a referee.
+
+**A37 — the periodic class is NOT arm-differential.** 18/1,281 pooled; per-arm 5/307, 4/285, 2/248,
+2/224, 5/217; **χ² = 2.443, Monte-Carlo permutation p = 0.668 over 200,000 draws**, all five Wilson
+intervals overlapping. **Core confirmatory line (Opus): 0/188 = 0.00 % [0.00, 2.00]; h3_singleshot 0/30.**
+
+**A38 — two CONFIRMATORY canon units do substitute SAFE_DEFAULT in their TEST trainings, and nobody
+had looked.** R115 gates the search record; every test seed retrains 400k steps with its own counters.
+`baseline_differential_downside_ratio` 4/30 seeds and `baseline_differential_sharpe` 5/30 seeds, **5
+substituted calls each out of 12,000,000**; every other unit including all 560 h3ss and `random_search`
+is exactly 0. Those two are precisely the canon's two running-scale-denominator rewards (median
+`raw_rms_max` **3,101.4** and **2,382.9**; the next, `return_minus_drawdown` at **2.03**, engages
+PopArt yet never breaches) — **R41's `unbounded_magnitude` class confirmed by a third instrument and on
+the hand-written canon**. Immaterial (affected seeds rank 11/17/21/25 and 1/8/20/21/30 within their
+units) but not zero: *"no confirmatory training used SAFE_DEFAULT"* is **false**; *"zero R115 breaches
+on the confirmatory line"* is **true**.
+
+**A39 — two panels of this lane's own primary instrument were DEAD.** `panel_homogeneity` read
+`r.get("env_fingerprint")` on the FLATTENED record, where `flatten()` has already expanded that dict to
+`env_fingerprint.label` / `.env_json_sha256`. Measured before the fix: **`units seen: 0`,
+`split_fingerprint: {}`, `device_mix: {}`** — and because the panel prints only on a finding, silence
+read as clean. **The determinism envelope, one of five mandated per-pass computations, had never
+checked anything.** Third instance of this tool committing the error it exists to detect.
+`panel_sanity` also computed a `missing`-outcome list that `main()` discarded (currently 0), and the
+arm-differential alarm compared **point estimates** (`max > 2×min`) — it fired on the periodic class
+where p = 0.668. Repaired: correct key · fail-loud on `units == 0` · `missing` printed · alarm rewritten
+to **disjoint Wilson intervals** · two new panels (the periodic census on BOTH sides of the floor;
+substitution inside the test trainings) · **`--selftest`, 13 falsifying cases**. **The selftest was
+itself a false green** — its fixture was keyed on the constant under test, so it passed with the
+pre-fix key still in place; rebuilt from the real nested schema through `flatten()` it now FAILS on the
+pre-fix key and FAILS on the sha256 key. **The instrument was broken; the envelope is genuinely clean**
+— 16 test-tier units, 0 spanning >1 label, 0 spanning >1 CPU model, **992/992 on Xeon Gold 6240**.
+
+**A40 — D16 still not restored at ~9 h:** `baseline_volatility_scaled_return` n = 26, missing exactly
+[14, 15, 16, 17], no collateral; two distinct seed sets across the 12 core units.
+
+**A41 — what R115 actually DID, cross-checked against the repo's own instruments.**
+`integrity_gate.py` returns **I1–I6 all clean** (including I4, selection) and `science_watch.py` returns
+**17 breaches**, matching my census exactly (13 periodic + 4 aperiodic) — two independent routes. It is
+**BINDING on two arms, both limit cycles**: it excluded `distributional-g3-c3` (period 1/2) which scored
+**+0.233582, ~400× the next-best candidate on its arm**, on a reward returning 0.0 on half its calls —
+**a textbook degenerate-fitness catch and a strong positive result**. On the other arm it substituted a
+**period-11 cycle for a period-5 one**, passing over a 0.53 %-contaminated candidate for a 14 % fitness
+gap. **⇒ In RUN 4, R115's operative content is a PERIOD threshold (excludes k ≤ 10, admits k ≥ 11), not
+a contamination threshold.** All three core-line winners remain exactly 0.000000.
+
+**Counts reconciled three ways:** 2,337 at depth 4 (the cycle's authority, which read 2,336) + 32
+depth-3 frozen markers + 2 depth-5 D18 nested duplicates = 2,371 at the moment of the walk. All 992
+test-tier `test_sharpe`/`test_cvar05`: **0 absent, 0 null, 0 non-finite**. `train_safe_call_count` is
+**exactly 400,000 on all 2,341** records carrying it.
+
+**MY ERRORS — P136–P139, drawn from the bus arbiter.** **P136:** sliced the `search_leg_` prefix off a
+name that lacked it → a line labelled *"ingleshot"* and an UNRESOLVED frozen marker; caught because the
+label is impossible. **P137:** grouped comparison units by the WHOLE `env_fingerprint`, whose
+`env_json_sha256` hashes env.json *including the seed* → **"30 distinct fingerprints" on all twelve
+confirmatory units**, a near-miss catastrophic false alarm; caught because 30-of-30 is impossible, and
+now encoded as a selftest case that fails on exactly that key. **P138:** read a counterfactual off a
+replay that never reproduced the archived fraction (10× and 12× off), mislabelling three candidates
+"genuinely broken"; D17's own guard, generalised, fixes it. **P139:** my arm-differential alarm fired
+from a point-estimate ratio at 18 events; the permutation p is 0.67. **And one near-miss that only
+failed to become an error because I checked: the `--selftest` above passed against the pre-fix code.**
+**Generalisation: a check that constructs its fixture from the thing under test cannot detect that
+thing being wrong** — the unit-test-level twin of coord's P117.
+
+**NO ops path touched. No code change requested during RUN 4.** All of A34–A41 is disclose-and-document;
+`safe_call`, `SAFE_DEFAULT`, the 1e6 bound and R115 must not move mid-run or RUN 4 splits into two
+arithmetic regimes and CRN pairing breaks.
+
+**FUTURE — open at close.** **A16 (N2/TOST) is unchanged and remains the one item only Tamer and Dr
+Okhrati can settle, and only while everyone is blind.** D16's four seeds are still pending (ops).
+Routed: **M146** to ops, **M147** to writeup, **M149** broadcast. Bus claim on `docs/analysis/**` runs
+24 h. Next pass: re-run `results_cycle.py` on cadence, re-verify D16 on restore against both
+conditions (seeds 0–29 complete AND all thirty on the 6240), and chase whether any component reaching
+`total` is policy-independent campaign-wide rather than on the two units found here.
+
+## [2026-08-01h] ★★★ ANALYSIS LANE CLOSES (3rd session) — **THE M130 REWARD CLUSTER IS PRE-REGISTERED SCIENCE, NOT A SANDBOX DEFECT** · a standing RESULTS cycle built to fix a real criticism · **the tool built to catch false cleans produced two of them on its first run**
+
+**PAST — the state this segment inherited.** The analysis lane opened 2026-08-01 (entry `[2026-08-01c]`)
+and had banked A1–A32: the leg4 strand, D16 decided effect-blind, D18 root-caused to a `shutil.move`
+TOCTOU race, the confirmatory machinery checked against the frozen pre-registration (clean but for
+A16), all three reproducibility layers verified including a re-run of the keyless golden path, and the
+mechanism findings A31/A32 (the fed tail demonstrably reached the authored code; the tail constructs
+are load-bearing at 87–96%). Errors P108–P130 were logged. Open at handover-in: **A16** for Tamer,
+**D16** for ops, and coord's request that every lane re-issue its prose retractions through the new
+`lanebus.py withdraw` verb. A read-only watcher was armed. **Campaign: RUN 4, 12 lines, ~992 cores,
+2,332 records, $44.24, exogenous stop 2026-08-27.**
+
+### NOW, part I — Tamer's question chain, and the answer that required two measurements
+
+He asked, in sequence: *"What do you mean fails?"* → *"why didn't it receive the reward from the LLM?"*
+→ *"so the issue is the sandbox?"* The third is the one that mattered: it asks whether we have
+**mis-attributed a harness defect as a science finding**, which would be fatal at review.
+
+**The definition, established from source rather than used loosely.** `src/sandbox/executor.py:780-830`:
+a "failure" is a `SAFE_DEFAULT = 0.0` substitution (`src/reward/contract.py:42`) firing on any of five
+triggers — exception, unpack failure, `float()` failure, non-finite, or `|total| > 1.0e6` — with
+training continuing and the event counted into `train_safe_default_count`.
+
+**The mechanism, read from an actual clustered program**
+(`search_leg_haiku_4_5/distributional/distributional-g1-c3/record.json`, `reward_source`):
+
+```python
+sortino_base = mean_ret / (downside_vol + 1e-8)
+```
+
+The author guarded **division by zero** and not **magnitude**: as `downside_vol → 0`,
+`mean_ret / 1e-8` = `mean_ret × 1e8`, breaching the bound. A second path — `np.std(downside_rets,
+ddof=1)` over a single below-mean return — yields NaN that `+ 1e-8` does not rescue. **`downside_vol`
+shrinks as the agent succeeds, so the reward degenerates *because* the policy is working.**
+
+**VERIFICATION 1 — is it registered?** Grepped `PREREGISTRATION.md` and `config/preregistration.yaml`.
+**`PREREGISTRATION.md:889` (amendment R41, 2026-06-25)** registers a first-class forensics class
+**`unbounded_magnitude`**: *"rewards of the form `return / (variance + ε)`, unbounded above as realized
+variance → 0 (the critic-explosion mechanism; Skalse 2022; Pan et al. 2022) — flagged on CODE SHAPE
+independent of fitness."* **R42 (`:890`)** records the prototype instance (`scalar-g5-c3` = 1.15e4 →
+SAC Q-target ≈ 1e6 → critic loss 1.1e7). **The phenomenon was named, cited and predicted two months
+before the campaign ran**, and the contract bound is the second of two independent defences against it
+(PopArt protects the critic; the bound protects the reward).
+
+**VERIFICATION 2 — is the guard arm-differential?** This is the check that had to pass for "finding"
+rather than "artifact": an unequal bite could manufacture a between-arm effect. Measured over the
+LLM-authored search records carrying both counters — **fraction with ANY substitution, Wilson 95%**:
+
+| arm | any substitution | 95% CI | mean fraction of calls |
+|---|---|---|---|
+| distributional | 15/307 = 4.9% | [3.0, 7.9] | 0.00884 |
+| scalar | 18/285 = 6.3% | [4.0, 9.8] | 0.00936 |
+| placebo | 11/247 = 4.5% | [2.5, 7.8] | 0.00360 |
+| scalar_cvar5 | 12/224 = 5.4% | [3.1, 9.1] | 0.00514 |
+| placebo_shuffled | 12/215 = 5.6% | [3.2, 9.5] | 0.00612 |
+
+**Every interval overlaps every other. The guard cannot produce a between-arm effect; identification
+is safe.** (Counts here are the 11:5x re-measure over the full archive; an earlier 10:5x pass on a
+partial walk read 15/277, 18/284, 11/241, 12/222, 12/213 — same conclusion, and the discrepancy is
+itself the P134 story below.)
+
+**Two items ARE genuinely about the sandbox, and neither is a fix.** Recorded as **A33** and dispatched:
+- **(a) The `1e6` value is not hash-bound.** R41/R42 register the *phenomenon*; the threshold was added
+  by the 2026-07-22 audit (row 30e per the executor comment) and appears in neither the pre-registration
+  nor its config. **Correct phrasing: "an audit-added implementation guard, set pre-data." Never
+  "pre-registered."** Same category as the equal-k sensitivity.
+- **(b) Substituting `0.0` discards direction.** The alternative was to **clip to ±1e6**, preserving
+  sign and magnitude ordering. Zero tells the agent *"nothing you did mattered"*; clipping tells it
+  *"this was extreme."* No record found that the alternative was considered. It interacts with **R115**:
+  the 10% execution floor admits winners with up to 9.9% of training on that null signal.
+- **⚠ NEITHER IS TO BE REMEDIATED MID-RUN.** Altering `SAFE_DEFAULT` or the bound would split RUN 4 into
+  two arithmetic regimes and break CRN pairing. Both are disclose-and-document.
+- **NOT claimed:** that the substitution measurably harmed any winner's policy. That needs a
+  steps-on-null vs outcome comparison, not run, and the ~5% base rate may leave it underpowered.
+
+**Dispatched:** **M135 → ops** (finding + provenance questions + the explicit DO-NOT-FIX stop),
+**M136 → writeup** (the CH6 mechanism paragraph, the two Appendix-B disclosures, the wording trap),
+**M138 → all** (P-number allocation).
+
+### NOW, part II — Tamer's criticism, accepted, and fixed structurally
+
+His words: *"I didnt like the fact that you didnt constantly chec the ourpurs, teh results and etc."*
+**The criticism is correct and was accepted without qualification.** The standing brief was to
+*"constantly analyse and monitor the campaign's results and the output"*; what had actually been built
+was a **process-health** watcher (ops' cycle log, drift, spend, stalls), and the science work
+(A1–A33) was **episodic** — triggered by a question or another lane's message, never by a standing
+cycle. **Monitoring the log is not analysing the results.** Two artifacts were built so the fix is
+mechanical rather than a promise:
+
+- **`docs/analysis/results_cycle.py`** — walks every record and reports counts by tier · per-arm
+  SAFE_DEFAULT rates with Wilson intervals · the constant/always-null field sweep · `env_fingerprint`
+  homogeneity and seed-set integrity per comparison unit · outcome finiteness and degeneracy. Diffs
+  against `.results_cycle_state.json` so silence means quiet, not unwatched. **It computes no
+  confirmatory contrast and no p-value by design.**
+- **`docs/analysis/health_watch.sh`** — the watcher, moved out of the session scratchpad where it
+  would have died with the session.
+
+**The blinding question this raises was settled explicitly, not dodged.** The stop is a calendar date
+(2026-08-27), fully exogenous, and the analysis plan is frozen and mechanical — so *observing* interim
+numbers cannot bias the stop. The cycle nonetheless excludes the confirmatory verdicts, and any
+incidental look must be logged and nothing drawn from it.
+
+### NOW, part III — FIVE SELF-INFLICTED MEASUREMENT ERRORS, ALL FROM THE NEW TOOLING
+
+**This is the part worth reading.** The instrument built to detect false cleans produced two of them on
+its first run. **None reached Tamer as a campaign finding.** Four were caught before leaving this lane
+by the standing rule that *a surprising result is a claim about my own script first*; **the fifth (P135)
+had already been transmitted to two lanes and was caught only by the mandated end-of-session re-sweep.**
+
+- **P131 — tier-inappropriate outcome field.** Read `metrics.val_fitness` on every tier and reported
+  **326 false "non-finite"** and **4 false "degenerate unit"** findings. `val_fitness` is a
+  **search-stage** quantity: NaN by design on test records (verified 326/356 core) and, where present,
+  the winner's carried-over search number — **identical across all thirty seed replicates by
+  construction**. The test-tier outcome is `test_sharpe` / `test_cvar05`. *Root cause:* reading a value
+  whose MEANING was not what its NAME implied — **the exact failure class A10/A11 had already named**.
+  *Fix:* `OUTCOME_BY_TIER`. *Found by:* checking a test record's real metrics keys before believing 326
+  alarms.
+- **P132 — seed-duplication check applied where records are not seed replicates.** Reported duplicate
+  seeds across **58 search units**. The search tier runs every candidate at a single seed (verified:
+  `distributional-g0-c0…g1-c0` all `seed=0`); records there are **candidates, not replicates**. *Fix:*
+  `SEED_REPLICATE_TIERS`.
+- **P133 — array shape-tags read as constant VALUES.** Bulky leaves stored as `<list:N>` made
+  length-constancy indistinguishable from value-constancy, inflating the constant-field report from
+  **9 real to 31**. *Fix:* segregate `shape_constant`.
+- **P134 — fixed-depth globs missed 594 of 2,369 records, then reported clean over the 75% visible.**
+  Triggered by reconciling against ops' independent counter (theirs 2,334, mine 1,774). An
+  any-depth enumeration showed records at **depths 3, 4 and 5**: every **frozen winner sits at depth 3**,
+  plus the whole **`test_h3_singleshot` tier (560 records)** and two depth-5 search records. **This is
+  error P121 exactly — the same depth-3 trap this lane root-caused hours earlier — committed by the
+  tool built to prevent it.** *Fix:* removed the assumption rather than patching the pattern — walk the
+  tree, classify by directory name, surface unknown prefixes as `other:<dir>` rather than dropping them,
+  and FATAL on a zero-record walk. **Verified after fix: `TOTAL=2370 frozen=32 search=1346 test_core=356
+  test_h3_singleshot=560 test_leg=76`.**
+
+- **P135 — P134's under-coverage had ALREADY PROPAGATED to two lanes, and the end-of-session re-sweep
+  is what caught it.** The A33 arm-differential measurement used the same fixed-depth glob, so the
+  numbers sent to ops (M135) and writeup (M136) came from a partial walk: **n=1,237 instead of the true
+  n=1,278**. Re-measured at full coverage — distributional 15/307 = 4.9% [3.0, 7.9], scalar 18/285 =
+  6.3% [4.0, 9.8], placebo 11/247 = 4.5% [2.5, 7.8], scalar_cvar5 12/224 = 5.4% [3.1, 9.1],
+  placebo_shuffled 12/215 = 5.6% [3.2, 9.5]. **The conclusion is unchanged — every interval still
+  overlaps every other — but writeup had figures that would not reconcile against a stated n.**
+  Corrected in A33 in place and re-issued as **M141 → ops, M142 → writeup**. *Found by:* the mandated
+  re-sweep against the enumerated scope, **not** by either recipient. **This is the case for the
+  re-sweep rule: the error was 90 minutes old, already transmitted, and self-consistent.**
+
+**The lesson, and it is the one the successor session most needs:** five errors, all in tooling written
+inside two hours by an operator who had just documented the identical failure mode. **Run the
+instrument, then interrogate what it tells you before believing it.** The explanatory comments in
+`results_cycle.py` are marked load-bearing precisely so a future tidy-up does not delete the reasoning
+and reintroduce the bug.
+
+### NOW, part IV — other work in this segment
+
+- **Schema verified first-hand** before any tool was written: three tiers; record top level =
+  `arm, candidate_id, env_fingerprint, feedback_block, fold, generation, metrics, prompt, reward_source,
+  reward_source_hash, run_id, seed, wall_clock`; `metrics` = `popart_scale, tail_stats,
+  train_safe_call_count, train_safe_default_count, val_fitness, val_returns`. **No top-level `device`
+  field** — device is stamped into `env_fingerprint` as `|dev=…`, so homogeneity auditing must parse it.
+- **Watcher alert triaged, not amplified.** It fired `ALERTS-CHANGED 379 RED/ATTN lines`; reading the
+  tail showed a **known alarm already acknowledged** in `docs/ops/acknowledged_alarms.txt`
+  (`record_sanity:CRITICAL, silent_hang:UNKNOWN`), with the science layer clean
+  (`leaks=0 cross-arm=0 hash=0 non-finite=0`). **Not a new incident** — the cumulative count would have
+  read as one.
+- **A live lead surfaced and deliberately NOT half-chased.**
+  `metrics.test_components.{effective_risk, vol_cluster_factor, vol_penalty}` are populated on only
+  **22–24 of 992** test records, constant where present (`vol_cluster_factor` = **1.0 on all 22**).
+  Component names are author-chosen so sparse population is expected, but a component pinned at exactly
+  1.0 has the same shape as the PopArt identity case (`sigma_max == 1` ⇒ the wrapper never engaged).
+  **Handed to the successor as its first concrete task** rather than investigated at handover time.
+- **`docs/ANALYSIS_LANE_HANDOFF_PROMPT.md` written** — a paste-ready transition prompt carrying the
+  lane map and the read-only boundary, the resume sequence, the tooling with its verified baseline, the
+  standing results cycle with the blinding rule, every open item by owner, and the two generalisations
+  worth inheriting.
+
+### FUTURE — what the successor picks up
+
+A **second `analysis` session (`e210234f`) is already LIVE on the bus**; the handover is in progress.
+- **For Tamer, blocking and settleable only pre-data: A16** (`src/inference/validity_tier.py:49-57` —
+  `N2_h2_ra` maps to superiority legs only). It now blocks CH6's T2 table as well as the decision.
+- **For ops: D16** (four quarantined seeds, 8+ h pending, 0/4 landed — until they land an N6 IUT leg
+  computes on 26 pairs while siblings use 30) and **M135** (row-30e provenance; whether clip-vs-zero
+  was ever evaluated).
+- **For writeup: M136.**
+- **First task for the successor:** the `vol_cluster_factor` = 1.0 lead.
+- **✅ CLOSED at 11:11–11:12Z, after this entry was first drafted as "outstanding".** Coord asked every
+  lane to re-issue its prose retractions through the new `lanebus.py withdraw` verb, because **prose
+  retractions do not propagate** — which is the whole reason the verb exists. **All six of this lane's
+  claims are now machine-withdrawn and stamped in every renderer:** **M73** (a Wilson CI computed on
+  coord's unestablished causal claim — the denominator was mis-defined, P123), **M87** ("computed by NO
+  instrument anywhere" — refuted by `PREREGISTRATION.md:896`/R48 and `scripts/popart_ablation.py`,
+  P125), **M109** ("essentially unmeasured" — `x or fallback` short-circuited on 1,989 measured zeros,
+  P128), **M125** ("arm fed least engages most" — the stateful detector matched the contract signature
+  every program inherits, P130), **M27** (a clock-driven falsifier that would have fired a false
+  "stranded", P119), **M10** (a precedent reported as a live observation, P110). The board now shows
+  **7 withdrawn claims** (these six plus coord's M116).
+  > ⚠ **A defect inside the fix, logged because it nearly corrupted the record.** The first pass sent
+  > the reasons through a double-quoted bash string containing backticks; bash **command-substituted
+  > them**, silently stripping the code snippets from M109's and M125's reasons before they were
+  > stored. Caught by reading the stored text back rather than trusting the six "withdrew …"
+  > confirmations. Re-issued under single quotes. **Same family as the standing repo lesson that
+  > heredocs must never carry escape content — and another instance of "a success message is not
+  > evidence the right thing was stored."**
+
+---
+
+## [2026-08-01i] ★★★★★ OPS LANE / RUN 10 (final block) — **THE CONFIRMATORY DECISION RULE AUDITED BY EXECUTION**: a hypothesis that was decidable nowhere · leakage verified clean · an appendix rendering mid-body · and the audit turned into a standing gate
+
+**Tamer's instruction escalated through this block to "make everything flawless NOW and IN THE FUTURE",
+with full delegation and Okhrati explicitly removed from the loop. That second clause is what shaped
+the work: every verification below was ALSO turned into something that keeps running.**
+
+### ★ THE HEADLINE — H1 WAS DECIDABLE NOWHERE (§100.33–§100.35)
+
+The COORD lane reported (M137) that the ratified validity tier is INERT under the design's own
+predicted branch. **Verified here by EXECUTING the registered code path** on synthetic p-values
+(effect-blind; no sealed outcome read). Their result reproduces exactly:
+
+```
+  SCENARIO A -- THE DESIGN'S OWN PREDICTION (H2 null on both co-primaries, H1 p=0.0001)
+     rejected [] · local_alpha N1 .025 N2 .025 N3 0.0 N4 0.0 N5 0.0 N6 0.0 · untestable []
+  SCENARIO C -- the SUPERSEDED R31 rule (alpha/4 = 0.0125):  H1 at p=0.0001  ->  REJECTS
+```
+
+**So the R105/R108 "upgrade" left H1 strictly worse off than the rule it replaced.** Two defects, both
+fixed, neither a design change:
+
+1. **`structurally_untestable` (§100.33, commit `a51d2ea`).** Zero-alpha nodes were returned under
+   `not_rejected` — indistinguishable from tested-and-failed. **The pipeline would have written "H1 was
+   not rejected" for a p-value of 0.0001** into a chapter graded on faultless presentation.
+   `graphical_alpha_propagation` now returns a separate bucket with an explanatory note carried IN the
+   artifact. **Inference unchanged**, pinned by tests on both branches. 13 tests.
+2. **★★ H1 REACHED NO DECISION RULE AT ALL (§100.34, commit `b5fdde5`).** `cross_hypothesis_multiplicity`
+   hardcoded *"descriptive panel, no inferential p — Bonferroni n/a"* and read the **retired**
+   `beats_best_baseline_dsr`; the caller had been updated on 2026-07-26 to pass the beat-the-canon IUT,
+   the extraction had not. **Its `iut_pvalue` was computed on every run and consumed by nothing able to
+   act on it.** Fixed → **all FOUR hypotheses now decidable under the pre-registered R31 sensitivity
+   (4 of 4, was 3 of 4)**. 13 tests. *My first draft used `bonf_alpha`, a different function's local —
+   it PARSED clean and would have raised `NameError` inside the confirmatory analysis. Caught by
+   running it.*
+
+**THE N2 DESIGN GAP IS DELIBERATELY NOT FIXED**, under Tamer's ratification and recorded as my call.
+The algebra is clean and independently derived (*"better OR equivalent"* has composite null
+`mu <= -delta`, i.e. non-inferiority) — **but changing the code ENABLES a rejection path, decided AFTER
+observing the current rule cannot certify. That is a forking path regardless of the algebra.** With H1
+restored, the cost of inaction is **the conjunctive-validity claim alone**, not the hypotheses.
+
+### ⚠ AND MY OWN FRAMING WAS WRONG — W13
+
+I called the N2 gap *"executed-vs-registered drift."* **COORD (M150) found it isn't.** The hash-bound
+**`PREREGISTRATION.md:300`** says the TOST *"does not determine the thesis"*, and `freeze.py` ranks the
+prose FIRST in the canonical hash and calls the yaml **"the YAML mirror."** **So the prose is senior,
+the code implements the prose, and the CODE IS CORRECT** — two *registered* artefacts disagreeing, not
+drift. §100.33/§100.34 annotated in place; logged as **W13**. **It makes the decision stronger:
+implementing the yaml's reading would mean the code departing from the SENIOR artefact to enable a
+rejection.**
+
+**A fourth finding fell out:** `assert_prose_matches_yaml` promises agreement on *"every frozen field"*
+and checks **ten enumerated scalars**. **`inference.validity_tier` is not among them** — the entire
+six-node confirmatory tier entered the frozen record with no prose-agreement check.
+
+### ★★ LEAKAGE — VERIFIED BY EXECUTION, CLEAN (§100.36)
+
+The one defect that would invalidate everything, re-derived from the frozen configs against the real
+panel rather than trusted to an earlier audit:
+
+```
+  TRAIN [   60, 3021)  2005-03-31 -> 2016-12-30      train->val purge : 60 sessions
+  VAL   [ 3081, 3775)  2017-03-30 -> 2019-12-31      val->test  purge : 60 sessions
+  TEST  [ 3835, 5406)  2020-03-30 -> 2026-06-30      NO OVERLAP ANYWHERE : True
+  TEST length 1571 sessions  ==  the T=1571 the frozen config's own N6_h1 note cites
+```
+
+`resolve_windows` computes `purge = max(embargo, lookback)` = **60, three times the registered 21**, at
+**both** boundaries, and says why. The alarming **pre-Split-C stale boundary** in
+`splits_univ5.parquet` (2015-02-03) is a **detected, ignored and documented** condition — verified by
+execution that production puts validation at **2017-03-30, 89 days AFTER the train end**.
+
+### THE COMPLETE REGISTERED-DESIGN CHECK (§100.38) — `FREEZE_RC=0`, 24 guards
+
+Including three that close loops opened elsewhere: a **third** independent split-consistency check
+(`prototype.yaml` + `subexperiment.yaml` == `data.yaml`, so **four** configs carry the same Split C);
+**prompt tail-neutrality (R38)** — 2 base prompts carry **none** of 11 tail tokens, verifying construct
+validity by gate rather than memory; and **`h1_baselines n=11`**, the exact canon H1's IUT runs over.
+
+### ★ AN APPENDIX WAS RENDERING MID-BODY (§100.39)
+
+COORD (M159) found the compiled PDF read **Chapter 1, 2, 3, 4, → Appendix D → Chapter 6, 7**.
+`CH5_prototype.md`'s own heading had been converted to *"# Appendix D … (word-excluded)"* while
+`build_paper.ASSEMBLY` still listed it between the CH4 tables and Results — **a half-migration
+invisible until the PDF compiled.** Moved to `APPENDICES` in **letter order (A · B · D · table)**.
+Build RC=0, now **14 chapters + 4 appendices**, mid-body appendix gone. **Verified word-budget-neutral**
+(`BODY_CHAPTERS` is a separate tuple and still counts the file, at 0). **Still open and NOT ops'**: the
+body numbers 1,2,3,4,**6**,7 and two appendices are unlettered — prose headings, write-up's.
+
+### FROM AUDIT TO ASSURANCE (§100.32) — the part that outlives the session
+
+Everything above was a hand check. **`docs/ops/integrity_gate.py` encodes six of them** — self-hash ·
+search→frozen · **frozen→test** (the breach that would invalidate the headline) · selection ·
+model pin · decoding pin — **wired as cycle check 4c, 600 s-guarded, hard-wrapped, live at rc=0.**
+Verified-true baselines: **0 hash mismatches over 1,024 records · 32/32 winners correct · 0 chain
+mismatches.** **15 falsification tests**, including the two that must NOT fire (an R115-ineligible best
+candidate; the disclosed kimi alias, allow-listed by exact pair with a test proving a *different* alias
+still fires). Plus `sandbox_gap_watch.py` as check 4b.
+
+**⚠ TWO DEFECTS IN MY OWN GUARD, caught before shipping:** the `except` handler called an undefined
+`_LOG` (it would have raised inside its own except and broken the sweep), and a broken watcher would
+have gone **silently unwatched** (`_run` returns rc=99, and I tested only `rc==1`). Both fixed, both
+failure paths **proven by execution**.
+
+**Campaign untouched throughout: 24/24 drivers, 12/12 supervisors, all 12 lines holding live cluster
+work (119 jobs), drift 0 at every commit, 0 unpushed.** Every fenced file changed this block
+(`multiple_testing.py`, `analyze_campaign.py`, `build_paper.py`) is **provably outside the driver
+import closure** — 193 modules reachable from `run_campaign_cluster.py` + `run_one.py`, none of them
+among them — so no relaunch was needed and `RUNNING_SHA` was re-based on that proof each time.
+
 ## [2026-08-01g] ★★★★ OPS LANE / RUN 10 — **LAYER 3 AUDITED FOR THE FIRST TIME: R106 UNIFORM REASONING-OFF WAS NEVER IN FORCE**, and kimi's dated pin does not exist
 
 **How this was reached, because the route matters.** §100.25 verified Priority 5's two checkable
@@ -316,6 +797,66 @@ the claim did not.
 h2_pair re-adoption** and the **per-`(line,batch)` progress detector**, which is the durable fix both
 this lane and the analysis lane reached independently.
 
+### ADDENDUM 2 — 12:10Z, SESSION CLOSE · **THE PDF HAD NOT BUILT SINCE 13 JULY** · A16 measured · handover written
+
+**★★★★ THE DELIVERABLE WAS BROKEN AND EVERY LANE REPORTED IT GREEN.** All lanes, including this one,
+ran `build_paper.py --md-only`, which assembles the markdown and **stops before pandoc**. The full
+build exited **RC=43**; `paper/_build/dissertation.pdf` was dated **13 July — 19 days stale**.
+**Four fatal defects**, found only by running the real build: three **eaten C-escapes** (literal
+`0x07` BEL bytes where `\alpha`/`\approx` belong — `NOMENCLATURE.md:16`, `CH6_results.md:162`,
+`APPENDIX_B_limitations.md:394`) and one invalid math token (`$B^\*$`, `CH6_results.md:212`).
+**`NOMENCLATURE.md` was wired into `ASSEMBLY` tonight by DEFERRED-15a-i — the change this lane
+routed — so a latent corruption became reachable and fatal.** After the fixes: **`RC=0`, valid
+`%PDF-1.5`, 230 pages.** ⚠ **The repair tool hit the same trap twice**: two heredoc-based fix scripts
+had the backslash eaten (`b"\\a"` → `b"\a"` = BEL), making the replacement a silent no-op — proven by
+sanity test, caught by assertions, fixed by writing the fixer to a **file**. CLAUDE.md's heredoc rule
+earned its place three times in one session.
+
+**73 CHARACTERS ARE SILENTLY ABSENT FROM THE COMPILED PDF — verified by rendering page 9 and looking
+at it.** ⚠ Nearly reported wrong **twice**: counting `U+03B1` gave 0 (false — math-mode α renders as
+`U+1D6FC`, 36 of them), then `U+FFFD` gave 0 (also wrong — the culprit is `U+FFFF`). Lost content
+includes the **VaR/CVaR glossary definitions**, the **entire A16 passage**, `σ_seed = 0.244`,
+`χ²`-upper bound, `≥`, and **"7.8 × 10␣␣"** — a missing exponent. Cause: *literal* Unicode in prose;
+math-mode equivalents render perfectly.
+
+**FOUR STRUCTURAL DEFECTS, visible only once the PDF compiled:** the document runs **Ch 1, 2, 3, 4,
+6, 7 — there is no Chapter 5**; **"Appendix D" renders mid-body, before Results**; appendix lettering
+runs D … A … B; and the seven wired tables render as top-level H1 peers of chapters. **Root cause: a
+half-migration** — `CH5_prototype.md`'s content was converted to Appendix D while
+`build_paper.py:84` still lists it between the CH4 tables and CH6. **Interim fix: move it from
+`ASSEMBLY` to `APPENDICES`** — one tuple move, fixes three defects, needs no new `paper/` content.
+
+**A16, MEASURED BY EXECUTING THE REGISTERED CODE PATH** (synthetic p-values, effect-blind): frozen
+weights `N1 .5 · N2 .5 · H3/H4/N5/H1 0`, so under the design's predicted branch propagation halts and
+**H1/H3/H4/N5 are tested at local alpha exactly 0.0**. ⚠ **RETRACTED my "this cannot have been the
+intent"** — the frozen config's dated 2026-07-26 note already says the tier is *"BORDERLINE to
+activate on the design's own prediction"*. **The sharpened finding: the registration priced a POWER
+risk (n\* ≈ 173); the code delivers a STRUCTURAL IMPOSSIBILITY (no TOST route at any n), disclosed
+nowhere.** Found a precedent neither other lane had: **`N6_h1`'s endpoint was corrected on 2026-07-26
+for exactly this reason** (under DSR "the IUT could essentially never reject") — pre-data, disclosed,
+and it also enabled rejection. **Derived** that `iut_or_tost` ≡ one non-inferiority test at margin δ
+(no `min()`, no alpha inflation) — **and that δ is underspecified: 0.0756 vs 0.0502, a 50 % swing.**
+**Withdrew my own recommendation to implement it**, accepting ops' argument that an analyst-authored
+amendment enabling rejection is the one an examiner interrogates. **Refuted** the write-up lane's
+claim that four nodes are absent from the verdict — verified by execution that ops' `a51d2ead` fix
+accounts for all six.
+
+**ALSO VERIFIED CLEAN, independently:** `check_citations` **clean across 18 chapters** under the
+widened recursive scan · `audit_reproducibility` **8 PASS / 0 WARN / 0 FAIL** with the freeze hash
+`3ca6f01ab772…` and gold panel `7cf5d98843c5…` **re-derived against the real files** (Priority 5,
+confirmed by a lane that built none of it) · `word_budget`'s exclusion regexes all genuinely applied,
+so **22,900 is a real number**.
+
+**BUS:** added **`withdraw`** so a retraction attaches to the claim it kills — built after this lane
+re-transmitted a claim **74 minutes after its author withdrew it**, having read the first 30 lines of
+a 24-message inbox. Audited own rows in `WITHDRAWN_CLAIMS.md`: **3 of 10 present**, seven drafted for
+ops. Adopted §4d (*establish the answering instrument before you analyse*) and §4e (*enumerate the
+record types before you parse*) into `docs/LANE_PROTOCOL.md`.
+
+**HANDOVER:** `docs/COORD_SESSION_PROMPT_2026-08-01.md`. ⚠ **The W1–W7 watch is a session-scoped
+`Monitor` task and STOPPED when this session ended — re-arming it is the incoming session's first
+action after joining.**
+
 ## [2026-08-01d] WRITE-UP LANE (overnight) — **NINE DEFECTS FOUND INSIDE THE GRADED ARTEFACT** · SHIP-FORM COMPLETE · A CITATION GATE THAT CAN CERTIFY AN UNVERIFIED CITATION
 
 **Lane:** GRADE / WRITE-UP. **Tamer asleep from ~01:20Z, full freedom granted, standing instruction:
@@ -617,6 +1158,165 @@ silently re-aliased would observe no effect of channel content and conclude rich
 when what it measured was its own formatter. That is why the fed block's precision was promoted to a
 registered design parameter, set from measurement, pre-data — and why a null here reads as a statement
 about the **designer** rather than the **renderer**.
+
+### ⑯ THE WIRING LANDED — AND THE WIDENED GATE CAUGHT A REAL DEFECT WITHIN MINUTES
+
+**Ops landed 15a-i + 15e.** The build went from *8 chapters + 1 appendix* to **15 + 3**, wired exactly to
+the supplied tuple, with the `paper/sections/` exclusion written into the source comment verbatim. They
+also added an `unrendered_bibkey_lookalikes` check — the principled fix for the model-ID false positive.
+
+**It immediately found something I had not.** The advisory flagged **two** lookalikes: the predicted
+`claude-haiku-4-5-20251001` (a model ID in T16, harmless — it sits in a table cell, not a bracket group)
+and **`groeneveldmeeden1984measuring` in the theory chapter, which is a real bibliography entry.** Root
+cause: a **nested** citation group —
+`[`groeneveldmeeden1984measuring`; Bowley's [`bowley1920elements`] is its quartile special case]`.
+`build_paper._GROUP_RE` forbids nesting, so the **inner** citation rendered and the **outer key was left as
+literal inline code**, silently absent from the bibliography — on the examiner's home ground, in the
+definition of `robust_skew`, one of the six fed statistics. Un-nested and verified to render in the
+assembled markdown. **Swept `paper/**` for the whole construct class: exactly one instance, now zero.**
+
+> **RESULT — the citation pass is now SCORED rather than inert: 277 bib entries · 277 distinct keys cited ·
+> 0 dangling · 0 verify-in-use · 0 literal VERIFY · 0 unused.** Before the wiring the unused count was 71.
+> Tamer's rule — *not a single paper from the corpus unused* — is now satisfied **in the compiled PDF**,
+> measurably, rather than assigned on paper.
+
+### ⑰ PHASE 1 BEGUN — the prototype chapter relocated, −1,402 counted words, nothing lost
+
+The body stood at **24,012 words against a hard 10,000-word limit** — by a wide margin the largest single
+risk to the submission, and a *fail condition* rather than a defect. The registered fix (§16.1 / C4-1) is
+**relocation, not deletion**: UCL excludes appendices from the count, so moving material preserves every
+word for the reader at zero word cost. It also fixes a **second, independent** problem — Theory and
+Prototype are **not permitted sections** under the IFTE0008 structure, so their presence in the body is a
+conformance defect as well as a budget one.
+
+`CH5_prototype.md` is converted **in place** to Appendix D form: the heading now declares itself an
+appendix marked *word-excluded*, which `word_budget.py`'s `_APPENDIX_CUT_RE` already supports, so it counts
+**zero**; section numbering is retained as §5.x so **every existing cross-reference still resolves**; and
+the filename is unchanged so the build keeps working with no fenced edit. A short note states plainly why
+it is an appendix — it is a pilot report whose numbers are, by design, evidence for no hypothesis.
+**Body: 24,012 → 22,610.** The remaining half is one string move from `ASSEMBLY` to `APPENDICES`, requested
+of ops so the appendix prints after the References rather than between the tables and CH6.
+
+**The theory chapter is measured and the split is NOT being executed unilaterally** — §16.3(e) flags it as
+the plan's most delicate step, because relocating it wholesale would remove original work from where C1 and
+C2 are actually marked. Measured: §3.1 615 · §3.2 400 · §3.3 544 · §3.4 992 · §3.5 782 · §3.6 546 ·
+§3.7 1,004 · §3.8 250. The apparatus/interpretation boundary is a strategic choice about how much theory a
+probabilist examiner meets in the body, so it goes to Tamer with the measurements rather than to my
+judgement alone.
+
+### ⑱ ★★★★ A16 — THE CONFIRMATORY TIER IS INERT UNDER THE DESIGN'S OWN PREDICTED BRANCH
+
+Raised by the coord lane; **reproduced independently here before any of it was acted on**, by executing
+`registered_alpha_graph` + `graphical_alpha_propagation` on **synthetic** p-values (effect-blind — no sealed
+outcome read).
+
+**What I verified by running it.** Frozen weights: `N1 0.5 · N2 0.5 · N3 = N4 = N5 = N6 = 0.0`. Under the
+**predicted branch** — both co-primaries non-rejecting, which is what this study registers as its
+expectation — propagation halts at step one: `REJECTED = []`, and **H1 at p = 0.0001 receives a local α of
+exactly 0.000000.** With N2 rejecting, the *same* H1 p-value is tested at α = 0.00825 and **rejects.**
+*The difference is structural, not evidential.*
+
+**Two corrections to the version I was handed — both material, both found by checking rather than
+inheriting.**
+
+1. **The reporting behaviour is different, and worse.** It was reported that the verdict returns
+   `not_rejected = [all six nodes]`. It does not: my run returns `not_rejected = ['N1_h2_tail','N2_h2_ra']`
+   and `untestable = []`. **The four zero-weight nodes appear in NEITHER list — they vanish from the
+   verdict entirely**, leaving a downstream renderer to decide their fate silently. The remedy is therefore
+   "emit them as structurally-untestable", not "move them between two existing lists".
+2. **It was framed as something that "cannot have been the intent". The frozen config says otherwise.**
+   `config/preregistration.yaml:287` carries a dated correction, **2026-07-26, inside the registered
+   text**: *"Under the PREDICTED branch N1 does not reject, so activation rests entirely on N2 rejecting
+   via TOST (proving equivalence) — a real pre-registered alpha source, but power-limited: n\* ~ 173 while
+   R101's expected common rung is ~100–189, so the tier is BORDERLINE to activate on the design's own
+   prediction. Stated up front rather than discovered at analysis time."* **This was known, costed and
+   disclosed pre-freeze. The design is not broken and the pre-registration is not dishonest.**
+
+> **★ WHAT IS ACTUALLY DEFECTIVE, STATED PRECISELY.** `validity_tier.NODE_SOURCES` maps N2 to
+> `{path:('h2',), legs:'legs', key:'pvalue_one_sided'}` — **the superiority IUT only.** Nothing anywhere
+> reads a TOST p-value for N2. So **the registered design makes activation BORDERLINE; the implemented code
+> makes it IMPOSSIBLE.** That is a **code-conformance defect against a frozen design**, not a design flaw —
+> which means **fixing it HONOURS the freeze rather than breaking it.** That distinction is the whole
+> decision, and it is why no amendment is required.
+
+**ALL SIX NODES AUDITED — exactly one is non-conformant, and it is the one the tier depends on.**
+N1 (max over `h2.tail_legs`) ✓ · **N2 ✗** · N3 (`h3.difference`, per-seed Sharpe → IQM → paired bootstrap,
+matching the registered `per_seed_iqm`) ✓ · N4 (max over `h4.tests`, built from all four `H4_CONTRASTS`) ✓
+**— but `analyze_campaign.py:3265` still comments *"the MAX one-sided p over {H4a, H4b}"*, two legs, stale
+since the 2→4 optimiser upgrade: the code is right, the comment is wrong** · N5 (`h2_structure.cvar`) ✓ ·
+N6 (`h1_beat_human.iut` behind an `all_baselines_present` guard) ✓.
+
+**The fix is specified and the machinery already exists in the right idiom.** `h2_tost` already runs
+`_iqm_tost` on the **per-seed IQM difference** with a paired bootstrap and the frozen SESOI — exactly H2's
+own inferential basis. What it does not emit is a **p-value**: it returns `ci_low`/`ci_high`/`equivalent`,
+a CI-inclusion verdict at a **fixed 90 % CI**, which is the wrong object twice over — a node needs a
+p-value, and N2's local α is 0.025 initially and *varies* under propagation. Specification filed with ops:
+extend `_iqm_tost` to also return `p_tost = max(p_lower, p_upper)` **from the bootstrap draws it already
+computes** (no new assumptions, no new resampling), then point N2 at it; borrow the field convention of
+`contamination.paired_tost` but **not** its t-based computation, since mixing a t-test into a
+bootstrap-based confirmatory node is exactly the fragile link a reviewer snaps.
+
+**PAPER SIDE — LANDED, and it exposed a second stale claim.** CH4 still described the tier as an
+**unratified candidate** with separate-estimands/Bonferroni-4 as "the operative default" — **stale since
+R108 (2026-07-26) ratified the tier pre-data and superseded that stance, so the Methods chapter was naming
+the wrong confirmatory rule.** Rewritten to state the operative rule, the zero-weight condition, the
+TOST-only activation route under the registered prediction, and the reporting consequence. The wired T-table
+row claiming the graph *"lets H3/H4/N5/N6 be confirmatory"* now says **conditionally** and states the
+condition. CH6 now reports **each node's local α beside its verdict** and says plainly that a zero means H1
+was *not tested* and is **report-only, never "not rejected"**. New limitation **B.8.14** discloses the whole
+chain with its direction stated — **conservative: it can only withhold certification, never manufacture
+it.** *(R108 also independently confirms the arm roster went 7 → 9, corroborating the CH6 fix made earlier
+tonight.)*
+
+**TIMING IS THE BINDING CONSTRAINT.** Both fixes are legitimate **only while no H2 outcome exists**. The
+core H2 ladder has not started. The moment it produces one, they become forking paths.
+
+### ⑲ ★★★★ THE DELIVERABLE ITSELF — I HAD BEEN VERIFYING A PROXY (P140), AND UNDER IT SAT A FALSE-GREEN GENERATOR
+
+**P140 — my own error, recorded first.** Four times tonight I reported *"the paper assembles cleanly"* on
+the strength of `build_paper.py --md-only`. **That flag exits before pandoc and tectonic.** The statement
+was true of the *markdown* and said nothing about the *deliverable* — and this dissertation is graded on
+the PDF alone. It is a green check on a **proxy**: precisely the class I had spent the night finding in
+other people's work, committed by me, on the highest-stakes artefact in the project. *Standard changed: no
+"assembles" claim from `--md-only` again, and the PDF is verified by extracting it, never by reading the
+builder's summary.*
+
+**What the full build actually shows.** It **succeeds**: PDF written fresh, 614 KB, **230 pages**. The
+alert that prompted this reported the PDF as nineteen days stale and blamed a literal `0x07` BEL byte in
+`NOMENCLATURE.md`. **Neither matches what I measure:** the PDF is dated today, and a byte-by-byte scan of
+that file finds **no BEL** — the only control bytes are `0x0D`, ordinary CRLF. Either it was fixed and
+rebuilt in the interval, or the root cause was misidentified; the current deliverable is sound either way,
+and **I confirmed that independently rather than trusting the builder** — extracted all 230 pages and
+searched for unresolved-citation markers (`???`, `[?]`, `(???)`, `**???**`): **all zero**, with every wired
+artefact physically present.
+
+> **★ AND UNDERNEATH IT, THE DEFECT THAT MATTERS — A FALSE-GREEN GENERATOR ON THE BUILD'S MOST
+> CONSEQUENTIAL CHECK.** `build_paper.py:259` runs
+> `subprocess.run(cmd, capture_output=True, text=True, …)` with **no `encoding=`**. The locale codec here
+> is **cp1251**; pandoc and tectonic emit **UTF-8**. Any non-decodable byte — an em-dash, a Greek letter,
+> a curly quote, all of which *our own source* puts into pandoc's diagnostics — kills the stderr reader
+> thread. **I watched it fire:** `UnicodeDecodeError: 'charmap' codec can't decode byte 0x98`. Two
+> consequences: line 261 computes `warnings` from an **empty** `proc.stderr`, so it prints
+> **"0 pandoc warning(s)" — fabricated**, on the one check whose stated purpose is *"a citeproc
+> reference-not-found in the PDF is a grading defect"*; and line 265's failure path prints "the last 25
+> lines of stderr", which would **also be empty**, so *a genuine build failure reports with no
+> diagnostic*. That is very likely why the earlier `RC=43` was hard to pin down.
+>
+> **One-line fix:** `encoding="utf-8", errors="replace"`. **Class swept repo-wide — three instances:**
+> `build_paper.py:259` (severe), `resume_brief.py:40` (git output; crashes the session brief),
+> `src/utils/provenance.py:77` (hex SHA, ASCII-safe — no practical risk, though its `except` catches only
+> `CalledProcessError`/`FileNotFoundError`). All ops-owned; filed as M161.
+
+**A false negative of my own, caught by suspecting my own instrument.** My first PDF probe reported
+`T_scale_and_difficulty` **ABSENT**. Every failing probe contained the word *"difficulty"* and every
+passing one did not — the signature of an **`ffi` ligature** (U+FB03) in the PDF font, compounded by
+hyphenation across line breaks. Normalising ligatures and de-hyphenating, **T12 is present at page 226**
+and all thirteen wired artefacts are in the document. *The absence was in my extraction, not in the PDF.*
+
+> **The generalisation, and it is the night's recurring lesson in its sharpest form:** *"the build reported
+> no warnings" is not evidence unless the channel that carries warnings is proven readable* — and
+> *"my search did not find it" is not evidence unless the search is proven able to find it.* Both failure
+> modes appeared within ten minutes of each other, in opposite directions, and both were mine.
 
 ### ⑨ GATES, MEASURED AFTER EVERY EDIT
 
@@ -2326,6 +3026,17 @@ entry at all.** B.8.3 covers unreplaced *rejects*; nothing covered *scheduling*.
 measured facts (120 of 124 stuck jobs were control arms; 3.11× worst confirmatory ratio; the
 half-applied R88→R101 amendment as root cause) **and its structural containment** (C4 cannot begin until
 every arm reaches 30; the C3 gate fails closed on `matched_budget_ok`).
+> **⛔ THE "STRUCTURAL CONTAINMENT" HALF OF THIS SENTENCE IS SUPERSEDED — corrected 2026-08-01, see
+> `[2026-08-01d]` ⑮(a).** The entry is left standing as **dated history** (this repo's convention for
+> superseded belief), but annotated so it cannot be reused: `matched_budget_ok` compares **attempts**, not
+> acceptances — `accounted = len(resolved) + len(failed_cids - resolved)` — and the same predicate is
+> implemented three times (`integrity.py`, `orchestration/parallel.py`, `orchestration/test_leg.py`), all
+> three attempts-based. **No code path enforces thirty acceptances.** The gate is satisfied by thirty
+> attempts while accepted pools stand at 24–28, so the asymmetry reaches the analysis on a **completed**
+> campaign, not only a truncated one, and the equal-*k* sensitivity is a live companion to the primary
+> result rather than truncation insurance. `paper/APPENDIX_B_limitations.md` B.8.9 carries the corrected
+> version. *(Flagged by the coord lane, which correctly declined to edit dated history and left the
+> annotation to the lane that owns the claim.)*
 **★ The compounding statement, which is the point:** **three independent causes of pool asymmetry —
 unreplaced rejects, scheduling starvation, and the allowlist gap — ALL currently favour the treatment
 arm.** Unrelated mechanisms, shared direction; the equal-*k* sensitivity is now reported against their
