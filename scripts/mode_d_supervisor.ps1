@@ -171,9 +171,31 @@ if ($Line -eq "h3") {
     # archived under leg_<label>/ (forced by --leg). It carries NO H1 canon (those eleven rewards
     # are hand-designed and model-INDEPENDENT, so they belong to the core line exactly once) and no
     # DFO arm. Under R101 it climbs the SAME ladder as the core, at the SAME priority.
+    #
+    # 2026-08-01 (RUN 11) - --pipeline-rungs ADDED. It was on the core line only, so the comment
+    # above ("the SAME ladder as the core") was true of WHAT the legs run and false of HOW they
+    # submit it: eleven of twelve lines drained each C4 assurance block before submitting the next.
+    # src/cluster/campaign.py says what that costs, in its own words: pipelining "keeps the eligible
+    # backlog deep at every instant (idle-window harvesting - the sequential path FORFEITS CAPACITY
+    # during every block's drain)".
+    #
+    # WHY IT MATTERS NOW AND NOT BEFORE, measured 2026-08-01: the campaign is 79% through the SEARCH
+    # phase (1,417 of 1,800 trainings), which is intrinsically narrow because generations are
+    # sequential - so the current ~870-slot holding is largely structural, not a defect. But the C4
+    # sweep is 40,328 of the 42,128 trainings, it is embarrassingly parallel, it is 2.6% done, and
+    # it is IMMINENT. Entering the wide phase on the sequential path is exactly when the drain
+    # bubbles cost most. Measured the same day: 4,497 slots free cluster-wide, 3,366 of them in
+    # pool D which we already use, against our 870 held and 0-2 queued.
+    #
+    # IT CHANGES NO REGISTERED QUANTITY. Submission order and timing only - same arms, same seeds,
+    # same specs, same arithmetic, same priority (0). P17 banking is preserved where it binds: a
+    # rung banks only when it AND every rung below it are complete, so a broken lower level can
+    # never carry results. It also REMOVES an asymmetry rather than adding one - the core line has
+    # pipelined all along, so the legs were the odd ones out on a ladder R101 requires them to climb
+    # in lockstep with it.
     $driverArgs = @(
       "scripts/run_campaign_cluster.py", "--leg", $Line, "--tiered",
-      "--pass-mode", "B",
+      "--pass-mode", "B", "--pipeline-rungs",
       "--batch-tag", $legTag[$Line]
     ) + $cpuLane
 } else {
