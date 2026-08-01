@@ -13246,3 +13246,39 @@ Checked against `config/legs.yaml` / `config/campaign.yaml`, per model, across a
 and one is a genuine registration defect.** That is a *far* more useful sentence for the
 reproducibility section than either "layer 3 holds" or "layer 3 is unverified" — and every row of it
 is re-runnable from the archive.
+
+### 100.29 THE RECORD RATE FELL 90 -> 27 /h WITH CORES CONSTANT — A PHASE CHANGE, NOT A STALL (and my ETA was optimistic)
+
+**Caught by watching the rate rather than the health flags**, all of which were green. Measured from
+the cycle log at 08:57Z:
+
+```
+  window   4h   8h   12h   24h   |   2h    1h   0.5h
+  rate/h  90.2 85.3 61.9  38.8   |  47.2  27.2  32.3
+```
+
+**The profile has INVERTED.** Earlier today shorter windows read *higher* (24h 24.3 -> 1h 117.8) as C4
+packing came online; now shorter windows read *lower*. **A falling record rate is exactly the shape of
+a stall, so it was treated as one until proven otherwise.**
+
+**IT IS NOT A STALL.** Cores are **stable at 968-1008** across the whole decline (992 -> 968 -> 984 ->
+968), the queue holds **1 job against 1000 running slots** — so we are not resource-starved — and
+`stalest` reads **1.0-1.8 min**, so no driver is hung. **Constant cores + falling record rate means each
+record simply costs more**, and the job names say why: of 127 live jobs, **27 are `_test` and ZERO are
+`_search`-named**, while 100 carry the search-candidate form `..._<arm>_g5_p<NN>`. **The fleet has moved
+off packed C4 test work (8 records per job) onto GENERATION-5 SEARCH work (one record per candidate,
+LLM-bound).** Search buys records far more slowly per core. The rate will rise again as those lines hit
+their next C4 boundary.
+
+**★ THE STANDING LESSON: the record rate OSCILLATES BY PHASE, so any single-window rate is a phase
+measurement, not a campaign rate.** Reading one is how a healthy campaign gets mistaken for a stalling
+one — and, in the other direction, how a peak gets mistaken for a plan.
+
+**⚠ AND IT CORRECTS A NUMBER I PUBLISHED.** I earlier reported *"rung 403 lands 08-09, rung 568 lands
+08-13"*, derived from the transient **91/h C4 peak**. The registered model (`docs/ops/stage_eta.py`,
+run at 08:58Z) says at 830 cores: **rung 403 -> 08-10, rung 568 -> 08-15** (throughput-bound; saturation
+~3,235 cores; critical-chain floor 4.64 d). We hold ~980 cores, so the true figure sits slightly inside
+those. **My peak-derived estimate was optimistic by roughly two days.** Both remain comfortably inside
+the **08-27** exogenous stop, so nothing changes operationally — but *a forecast built on the fastest
+window I had seen is a forecast built on the phase I happened to measure in*, which is the same error
+in planning clothes.
