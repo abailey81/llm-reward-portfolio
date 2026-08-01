@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-01"
-  head: "85d23f8a"
+  head: "31361727"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "PYTEST_RC=0 (RUN 11 handover certification, read from the log)"
+  suite_status: "exit 0 (RUN 12 close; PYTEST_RC read from the log)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
@@ -93,7 +93,7 @@ handoff_state:
 | Load-bearing decisions → rationale · evidence grade · fragility | `docs/EVIDENCE_AND_FRAGILITY_LEDGER.md` (maintained continuously; 2026-07-27 added the capacity-lane rows incl. the **R107 retraction** row) |
 | Myriad scheduler + hardware truth | `docs/MYRIAD_EXPERT_DOSSIER_2026-07-24.md` (live-probed formula, pools, two-regime chunking doctrine, dead ends, the ★ priority rule) |
 | The live allocation system | `src/cluster/telemetry.py` + `src/cluster/allocation.py` (sensors + brain) · `scripts/allocation_advisor.py` (CLI/--watch; runbook §2.0 step 5) — ADVISORY-only; at GO its values supersede the supervisor's embedded defaults (step 4 precedence note) |
-| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–**36**, verified complete with no gaps 2026-07-27; none may silently drop) |
+| Write-time obligations | `docs/V2_WRITE_TIME_REGISTRY.md` (rows 1–**45**, verified contiguous with no gaps 2026-08-01; none may silently drop). ⚠ This line read "rows 1–36" until 2026-08-01 and was silently dropping rows 37–45 — which include **rows 38–41, the four things Dr Okhrati personally asked for on 2026-07-31** (seed trajectory · the why-it-happened spine · the what-would-get-a-more-expected-result subsection · the turnover worked example), plus row 37 (the pre-registered equal-*k* sensitivity) and rows 42–45. |
 | The optional M2 module | `docs/M2_EXTENSION_OPTIONAL_SPEC_2026-07-22.md` (R96) |
 | Prose drafts awaiting wiring | `paper/DRAFTS_communication_build_2026-07-12.md` (D1–D10) |
 | The writing plan | `docs/WRITEUP_95PLUS_PLAYBOOK.md` (under the raised bar; registry rows 19–24) |

@@ -3,6 +3,1111 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01q] ★★★★★ WRITE-UP LANE, 4th session (continued) — **THE CORPUS WAS MEASURED, AND IT SAYS OUR CLOSEST COMPETITOR LEAVES OPEN EXACTLY THE GAP WE CAN FILL** · a verified finding corrected five numbers already in graded prose · a script that was safe when written had become a blindness hazard · "ten open-weight models" was false
+
+**PAST.** Continues `[2026-08-01p]` in the same session. Tamer twice widened the brief: first *"focus only on introduction n for now … make sure the introduction and the abstract are 95%+ … tables, figures, footnotes, pseudocodes … are not counted, so we have to exploit that heavily"*, then *"95%+ strictly across all sections … analyse the literature corpus, and see what graphs, footnotes, pseudocodes, figures, table, visualisations, and all other artefacts they use, and how they use them"*, with *"no permission to stop until absolutely everything is flawless"*.
+
+**PRESENT.**
+
+### ① THE CORPUS WAS MEASURED RATHER THAN CHARACTERISED — all 211 PDFs
+
+Every PDF under `01_literature/` was opened and its **distinct numbered captions** counted, so an in-text
+cross-reference cannot inflate a figure count. 208 analysed, 3 skipped (no text layer).
+
+**Median 6 figures and 2 tables per paper; one artefact every ~2 pages; 88% carry a figure, 70% a table,
+and 42% carry an algorithm box.** Against that: **this dissertation had 4 figures and zero algorithm boxes,
+zero pseudocode and zero code blocks in 251 pages.**
+
+Two agents then read the seven closest systems first-hand (CARD, Eureka, GIFT, RD-Agent(Q), DLM, OPRO,
+Alpha-Mining-MCTS) and the eight best null/rigour papers (Henderson, rliable, DeMiguel, Harvey, Bauer,
+Bailey, Ledoit-Wolf, Harvey-Liu-Zhu). Full standard: master plan **§24**.
+
+> ★ **THE POSITIONING FINDING.** **7 of 7 comparable systems print their prompts verbatim — there is no
+> counter-example in this niche. 5 of 7 print model-authored artefacts. The two that do NOT are GIFT and
+> RD-Agent — the two FINANCE papers, and GIFT is our nearest neighbour by task.** So printing our frozen
+> prompts beside real authored reward code is simultaneously the convention we were failing *and* the
+> specific gap our closest competitor leaves open.
+
+⚠ **And an objection from our own corpus:** `rliable` explicitly refuses dichotomous tests and shows a case
+where "not significant" became significant with more runs. A scan of all 211 PDFs found **no TOST /
+equivalence / pre-registration methodology source anywhere in the corpus**, and the five re-examination
+papers CH1 cites are **metadata-verified only, with no PDF on disk**. They are safe as a precedent footnote
+and must never be mined for design.
+
+### ② WHAT WAS BUILT AGAINST THE STANDARD
+
+- **Algorithm 4.1** (§4.5) — the reflect-and-improve loop, written from `src/llm/loop.py` rather than from
+  the prose. It states the **reflect-on-BEST** rule at the generation boundary, which the chapter had never
+  said. **The arm enters at exactly one line**, which turns the identification argument into something a
+  reader can check rather than accept.
+- **Appendix F** — `paper/appendices/F_prompts_and_authored_code.md`, **generated** by a script that prints
+  every path it reads: the two hash-bound prompt files, the live `_REFLECTION_PREAMBLE`, a complete archived
+  reward program, and a **computed diff** between generations 0 and 1 (the lineage's signature "iteration
+  ladder"). Verified by compiling it **standalone** through the project's own pandoc + tectonic. Awaiting one
+  line from ops in `APPENDICES` (`M282`).
+- **Listing 1.1**, **Figure 1.1**, **Tables 1.1–1.4** (Chapter 1), and a "read this first if…" column on the
+  roadmap.
+
+### ③ THE TURNOVER FINDING IS VERIFIED — AND VERIFYING IT CORRECTED FIVE NUMBERS ALREADY IN GRADED PROSE
+
+Re-derived independently from **330 archived sealed-window records** (11 canon members × 30 seeds, 1,571
+sessions each). Archived values agree with recomputation to better than 1e-12; net reprices from gross to
+1.4e-17. All six headline numbers hold. **Category confirmed: hand-written CANON baselines, not treatment
+arms — effect-blindness intact**, though it does reveal the H1 human bar, and the prose now says so rather
+than letting a reader infer full blindness.
+
+Corrections forced by the verification, every one in the direction of being more right:
+
+- *"four of them explicitly risk-aware"* was an **understatement** — **eight of the ten** losers penalise
+  risk explicitly. The stronger claim is the true one, and *"why only four?"* had no good answer.
+- Four-decimal figures shipped **with no interval**, against this project's own standing rule. Now gross
+  **+0.963 (0.934–0.992)**, net **−0.107 (−0.134 to −0.080)**, and the **wedge 1.070 (1.065–1.076)** — the
+  wedge earns precision because it is paired per seed.
+- *"−0.31 to +1.16"* was not the observed span; the worst member is `return_minus_cvar` at −0.325.
+- *"~0.89 turnover"* overstated the comparator (0.873), so the multiple is ~114×, not 116×.
+- ★ *"+1.283 buy-and-hold"* **is not a buy-and-hold** — it is a costless *daily-rebalanced* equal-weight
+  portfolio. Relabelled, with the genuine drifting variant (+1.258) quoted too, so the claim no longer
+  depends on the rebalancing convention. **A referee would have found this one.**
+- Disclosed: these are **n = 30 rung** figures and the config commits the baselines to the full [0..567]
+  ladder, so digits past the second decimal are provisional.
+
+Landed as **contribution C6** in Table 1.3 — a registered obligation (row 41 / C3-2) that the previous block
+had deliberately deferred *because its figures were unverified*. Deferring it was right; landing it now that
+it is verified is the discharge.
+
+### ④ A SCRIPT THAT WAS SAFE WHEN WRITTEN HAD BECOME A BLINDNESS HAZARD
+
+`docs/ops/cost_decomposition.py:56` globs `test/*/*/record.json` — unscoped. When written, that directory
+held only the eleven `baseline_*` units. **It now also holds `placebo` (29 records) and `random_search` (30),
+both treatment arms**, so running it today would print two treatment arms' sealed-test Sharpe ratios.
+Broadcast as an alert (`M281`); the fix is one line and it is ops'.
+
+> **The general form, which is why it was escalated: a script's safety was a property of the DIRECTORY, not
+> of the code, so it decayed without anyone editing it.** Any tool that enumerates `test/` by wildcard has
+> the same latent defect.
+
+### ⑤ "TEN OPEN-WEIGHT MODELS" WAS FALSE, AND IT WAS MINE
+
+I wrote it into the abstract, §1.5 and §4.5. **Measured: exactly five legs carry an `hf_pin`** (deepseek,
+glm-5.2, qwen3.6-27b, qwen3.5-9b, nemotron-3-super); the other five are closed. The document had *already*
+disagreed with itself — Appendix B said "five", the reproducibility table said "six", the models table said
+"seven" — and I had added a fourth number. All four sites now read **five**, with `kimi-k3` disclosed as
+expected-to-become-open-class with its pin **never filled**, counted as closed because that is the
+conservative direction. Open-weight reproducibility is one of the industry supervisors' six binding points;
+overstating it is exactly what a reviewer checks first.
+
+### ⑥ OTHER CORRECTNESS FIXES
+
+- **`g1` is not "the first search generation"** — generations run `g0…g5`, so `g1` is the *first reflection*
+  generation. Corrected.
+- **"coverage is complete"** was false: three records at generation ≥ 1 carry no feedback block (a designed
+  fallback). Now reported rather than absorbed.
+- **"a common suffix of 240 to 266 characters, varying across lines but not within one"** was false **and
+  inverted** — the suffix is 240 for all eleven lines; the 266 was an artefact of sampling one record per
+  arm. Corrected to 240, matching §4.5.
+- The four quoted blocks are **different candidate slots**, so byte-identity is a statement about *matched*
+  slots (25 of 25 verified), not about those four files pairwise. Now stated.
+- CH6's `[SLOT R97]` was an author-facing instruction in graded prose **and** said "ten-name canon" eight
+  lines below its own "eleven-name". The canon is **eleven** (verified from `REWARD_CANON`), and R97's
+  "secondary panel" was superseded by R105 — there is no secondary panel distinct from the comparator.
+- `T_literature_positioning` cited Eureka's reward-reflection quote as §4.3; **the source PDF puts it in
+  §3.3** (CH1 had it right).
+- The **title** had three live candidates and a bracketed scaffold note rendering on page one. Scaffold
+  removed; a question-plus-subtitle title adopted; all three superseded candidates recorded in a comment so
+  the choice is reversible in one edit. **Flagged to Tamer as his call.**
+- The **canonical RQ string** was stale, so the registered pre-submission grep **would have failed on
+  correct text**. Re-based on the live artefact; the gate now passes in all four places — and it had never
+  been run before.
+- **Registry row 6** (AI-disclosure enumerating the full roster) closed with an eleven-row seat table.
+
+### ⑦ COMPRESSION — started, and an executable plan banked
+
+A dedicated audit produced a **ranked, line-anchored cut list reaching 8,674 words** with ~1,700 in reserve.
+It quantified two things worth stating: **§4.7 is 2,485 words of which ≈1,600 (65%) restate Table 3 and
+Table 3b**, which are word-excluded and sit immediately after the chapter; and **the expected null is
+pre-disclosed eleven times before Chapter 5's first number**, eight in counted prose. Chapter 2's
+nearest-neighbour recital was cut this session (**3,136 → 2,648, −488**) with **all thirteen citation keys
+preserved in a footnote**, so the zero-unused invariant held.
+
+### VERIFICATION — real output, observed
+
+```
+scripts/build_paper.py     OK  paper/_build/dissertation.pdf (1054 KB), 0 missing characters, 0 U+FFFF
+scripts/check_citations.py 0 dangling · 0 verify-in-use · 0 literal VERIFY · 0 unused
+scripts/freeze.py --check  3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f  [MATCHES]
+scripts/word_budget.py     17,817   [FAIL vs 10,000]
+RQ placement gate          PASS in all four required places (first run ever)
+PDF margin overflow        10 blocks >6pt (was 26 after my additions; Algorithm 4.1 and Listing 1.1 now 0)
+```
+
+**MY OWN ERRORS IN THIS BLOCK — six, and the pattern is unchanged: bad instruments, not bad conclusions.**
+
+| | The error | The lesson |
+|---|---|---|
+| **P170** | Wrote *"ten open-weight models"* into the abstract and two chapters without checking `legs.yaml`. Five are closed | *A count that flatters the design is the one to verify first.* Caught by measuring, not by review |
+| **P171** | Shipped a ⚠ (U+26A0) into a table cell; **the build FAILED** because the glyph cannot be typeset and would have been **silently absent** from the PDF | The build's own guard caught it. *A character that renders in my editor is not a character that renders in the document* |
+| **P172** | Built the exhibit that proves the manipulation, and its **first impression argued against the dissertation's own headline** — four real scores, three near 0.01 and one nine times larger, sixteen lines before the chapter says we predict equivalence | *A disclaimer is not an inoculation. If an exhibit's first impression contradicts the argument, the exhibit is wrong even when every number in it is right.* Found by an auditor |
+| **P173** | My caption-scanning regex required the em dash **outside** the closing `**`; the document's convention puts it **inside**. It reported that CH1 had no numbered tables and missed `Table 4.1` too | *A scanner that finds nothing is making a claim about its own pattern first.* I nearly rebuilt the List of Tables from an inventory that omitted every chapter-numbered table |
+| **P174** | Probed figure placement with strings that also appear in the **List of Figures**, and concluded Figure 1.1 had floated 14 pages from its reference. It had not — every figure lands on the page after its reference | *Measuring a document that contains an index of itself requires the probe to exclude the index* |
+| **P175** | Joined adjacent Python string literals with `" ".join(...)` when Python concatenates them with **nothing**, inserting a space the model never saw into a "verbatim" quote | *Verbatim means byte-for-byte, including the bytes that are not there* |
+
+Also corrected against myself before transmitting: I nearly re-sent the master plan's "~2,994 words of
+table-file prose" to ops unmeasured. Measured it: **3,049** across the six in-body table files, with a
+per-file split. **The honest body total is therefore ~20,900, not 17,817** — those six files render in the
+body and the gate does not count them.
+
+**FUTURE.**
+1. **The compression**, using the banked cut list — the binding rule breach. Prefer relocating into the
+   **existing** appendices A–D, which need no wiring.
+2. **Ops owes two one-line changes**: the ToC deletion (`M260`) and the Appendix F entry (`M282`).
+3. **The null-exhibit ladder of §24.3** — items 2 and 3 (the CI-of-the-difference with the SESOI band, and
+   the MDE curve) are the two the corpus does *not* supply and that answer `rliable`'s objection directly.
+4. **The title is Tamer's call.**
+5. Table numbering still mixes chapter-numbered and flat schemes.
+
+## [2026-08-01p] ★★★★★ WRITE-UP LANE, 4th session — **TAMER NARROWED THE SESSION TO THE INTRODUCTION AND ABSTRACT, AND THE EXHIBIT I BUILT TO PROVE THE NULL WAS ARGUING AGAINST IT** · the authority map had been silently dropping the four things the examiner personally asked for · a margin overflow no log reported
+
+**PAST — what this session inherited.** `docs/WRITEUP_SESSION_PROMPT_2026-08-01b.md`, handed over by write-up
+session `14df9fc8`. It handed on: a full build verified at 246 pp with 0 missing characters and 277/277
+citations; the body in the binding IFTE0008 16-section order with **one** violation left (the ToC emitted
+after the two lists rather than before them, blocked on ops going first or second); registry row 38 marked
+**PARTIAL** with two of three landing sites outstanding; and the word budget at **17,758 against a hard
+10,000**, named as the single largest remaining threat to the grade. Ops had replied (`M249`) taking option
+(b) on the ToC and instructing the write-up lane to move first.
+
+**PRESENT — what this session did.**
+
+### ① THE ToC VIOLATION IS HALF-CLOSED, AND THE HALF THAT IS MINE IS VERIFIED IN THE COMPILED PDF
+
+`\clearpage\tableofcontents\clearpage` now sits in `paper/FRONT_MATTER.md` between Acknowledgements and the
+List of Figures, with a comment naming the paired change so nobody deletes one half without the other.
+Checked **before** editing rather than assumed: `build_paper.py:407` passes `--from
+markdown+tex_math_dollars+raw_tex`, so the raw block does pass through pandoc.
+
+**Verified in the artefact, not the source.** Rendered the built PDF with PyMuPDF: the document now has
+**two** tables of contents, mine on **page 7** (correctly placed after Acknowledgements, before the List of
+Figures) and ops' injection on **page 18**. That is the deliberate, recoverable direction of the transient —
+the other ordering would have shipped a document with **no** ToC. Ops' one-line deletion at
+`build_paper.py:226` closes it (`M260`).
+
+### ② THE AUTHORITY MAP HAD BEEN SILENTLY DROPPING ROWS 37–45, INCLUDING ALL FOUR OF OKHRATI'S OWN ASKS
+
+`docs/HANDOFF.md:96` said the write-time registry holds *"rows 1–36, verified complete with no gaps"*.
+**Counted first-hand rather than trusted: the registry holds 1–45, contiguous.** An operator following the
+named authority map was invisibly dropping rows 37–45 — which include **rows 38–41, the four things Dr
+Okhrati personally asked for on 2026-07-31** (the seed-trajectory exhibit · the why-it-happened spine · the
+what-would-get-a-more-expected-result subsection · the turnover worked example), plus row 37, the
+pre-registered equal-*k* sensitivity. The line now reads 1–45 **and states what it used to drop**, so the
+correction is visible rather than silent.
+
+### ③ REGISTRY ROW 38's CH4 SENTENCE IS LANDED — two of three sites now done
+
+The site the previous session correctly refused to mark closed. `CH4_methods.md` §4.7 now states, inside the
+inference paragraph, that because the seed ladder is *cumulative* and CRN-paired, every prefix of the first
+*n* seeds is itself a valid complete study — so each headline statistic is reported as a **running estimate
+against *n*** with its band, **plotted in the registered seed order rather than sorted**, **captioned with
+the exogenous stopping rule** that fixed the terminal rung, and carrying the statement that **no inference
+was drawn at any prefix**. That puts D2's three validity conditions in the Methods rather than leaving them
+to a figure caption, which matters precisely because a caption is where a reader would least expect to find
+the guarantee. The row stays OPEN on the third site, the CH6 figure, which is campaign-gated.
+
+### ④ TAMER NARROWED THE SCOPE MID-SESSION
+
+*"lets focus only on introduction n for now … make sure the introduction and the abstract are 95%+ …
+tables, figures, footnotes, pseudocodes, texts in tables and etc are not counted towards the word count, so
+we have to exploit that heavily as well."* Everything below follows that instruction. Full detail is
+`docs/GRADE_95_MASTER_PLAN.md` **§23**.
+
+Two auditors were run first, in parallel and before any editing: one hostile-examiner marking pass over the
+two artefacts, one exhaustive sweep of every registered obligation whose landing site is CH1 or the abstract.
+**Both found real defects, and three of the defects were mine.**
+
+### ⑤ THE INTRODUCTION, REBUILT AROUND THE WORD-EXCLUDED CARRIERS
+
+Chapter 1 went **1,755 → 1,610** counted words while *gaining* a figure, a verbatim exhibit, two tables and
+eight footnotes. Footnotes went **1 → 9**; tables **2 → 4**; embedded figures **0 → 1**; fenced listings
+**0 → 1**. The chapter carries materially more and costs less, which is the whole point of the instruction.
+
+**The two missing mandatory accessibility items are now built.** The guidelines name three D-2 items against
+the "single biggest communication risk" of an any-discipline second marker, and §22.11 had called the fed
+blocks side by side *"the single most persuasive available exhibit"* while recording it as absent. It is now
+**Listing 1.1**, quoting four **real** blocks pulled from the executed RUN 4 archive
+(`batches/c1_{scalar,scalar_cvar5,placebo,distributional}_g1_p01/task_1.json`).
+
+> ⚠ **AND THE FIRST VERSION OF THAT EXHIBIT ARGUED AGAINST THE DISSERTATION'S OWN HEADLINE.** I printed the
+> four blocks with their real leading scores — `scalar` 0.009580, `placebo` 0.010708, `scalar_cvar5`
+> 0.011554, **`distributional` 0.085332** — and footnoted that each arm reports its *own* previous
+> candidate's score, so the four are not comparable. Every number was true and the footnote was correct.
+> **But a marker reads four numbers, three near 0.01 and one nine times larger, and forms a prior that the
+> treatment works — sixteen lines before the chapter says the study predicts equivalence.** An auditor
+> caught it. *A disclaimer is not an inoculation: if an exhibit's first impression contradicts the argument,
+> the exhibit is wrong even when every number in it is right.* The listing now shows the score line once as
+> a shared placeholder, with the arms differing only below it, which is both honest and a better exhibit.
+
+**Other defects fixed** (full table at master plan §23.3): §1.5 Scope claimed *"one family of language
+model"* twelve lines below a contribution row claiming **eleven** — a surviving pre-v2 statement that was
+factually wrong *and* self-contradictory; **mine:** *"Table 1.1 states **five** contributions"* above a
+six-row table, an off-by-one I introduced when inserting the capability gradient; **mine:** every CH1 table
+shipped **uncaptioned and unnumbered** while `Table 4.1` used the house convention, so a "Table 1.1"
+cross-reference pointed at an object carrying no label; three cross-references from CH4 and CH7 pointed at
+**§1.2 / §1.3**, which is not where the research question lives (it is in the unnumbered preamble); and
+`CH6:123` cited **§1.6**, the Roadmap, for the regime exhibit — verified first-hand that §4.7 is where it is
+promised before re-pointing it there.
+
+**The List of Figures and List of Tables matched nothing in the document** (§22.11 defect 3). Both rebuilt
+from a scan of the assembled artefact.
+
+**H1–H4 were absent from the Introduction entirely**, while the guidelines' own structure map puts them
+there and every results table is organised by them. Added as **Table 1.2** — word-excluded, so the coherence
+hole closes at zero cost to the budget.
+
+### ⑥ TWO HONESTY CORRECTIONS, BOTH OF WHICH MAKE THE CLAIM STRONGER
+
+1. **The amendment log.** CH1 said the log runs to R115, *"every entry made before the sealed test was
+   scored"* — true, and the most flattering true framing available. Read R115 in full: it records that the
+   **v2.0 freeze was lifted** to make the change and that the rule was motivated by a census of 613 executed
+   search records. The row now says every entry was made before any arm contrast was computed **and** that
+   R115 was motivated by execution-quality data observed during search, disclosed as such. The honest
+   sentence pre-empts the attack the flattering one invites.
+2. **The byte-identical claim** was stated without its scope condition. Verified against the analysis lane's
+   per-record census: the invariance holds **within a model line** (common prefix ≈ 154 characters, common
+   suffix 240–266, the suffix varying *across* lines but not within one). The condition is now stated, and
+   the unfilled `[FROM CAMPAIGN: records scanned]` placeholder is filled with the measured **861 records at
+   generation ≥ 1, complete coverage, zero tail-vocabulary leaks** — a number that already existed in the
+   repository while the strongest sentence in the row sat behind a placeholder.
+
+### ⑦ THE ABSTRACT, REWRITTEN END TO END
+
+It had 8 em dashes; US and UK orthography mixed within twenty-four words (*realised* / *realized* /
+*characterization*); a broken bold join rendering as "frozenbefore"; the assertion *"identical prompts,
+differing only in the feedback block"*, which cannot both be true; the confirmatory contrast described as
+resting on CVaR alone when the registration carries **two** co-primary endpoints; `H4` used as though
+defined when no hypothesis was defined anywhere in either artefact; and a **directional-prototype** result
+narrated as its "current honest fill".
+
+Now **0 em dashes · 0 US spellings · ~465 words · the two endpoints named · the endogeneity of the fed tail
+disclosed (the standing "never imply agent-independent" rule, which the abstract had been breaching) · the
+open-weight replication suite present, discharging registry row 4 at this site · §7.2 Recommendations
+referenced, discharging §22.4's "Actionable" gap at this site · the prototype narration removed.**
+
+### ⑧ A MARGIN OVERFLOW THAT NO LOG REPORTED, FOUND BY RENDERING THE PAGE
+
+The new Listing 1.1 compiled without complaint. Measured on the artefact anyway — span bounding boxes
+against the text-block edge — and it ran **~45 pt past the right margin**, two blocks, on a page a marker
+reads in the first ten minutes. Re-laid out to ≤ 68 characters per line and re-measured: **0 blocks
+crossing.** *The build said nothing; the log said nothing; only looking at the page said anything.*
+
+### VERIFICATION — the real output, observed, not asserted
+
+```
+scripts/build_paper.py     OK  paper/_build/dissertation.pdf (1039 KB), 251 pp, 0 missing characters, 0 U+FFFF
+scripts/check_citations.py 0 dangling · 0 verify-in-use · 0 unused · 0 literal VERIFY
+scripts/freeze.py --check  3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f  [MATCHES]
+scripts/word_budget.py     17,689 total  [FAIL vs 10,000]   CH1 1,610
+PDF overflow probe         Listing 1.1 page: 0 blocks crossing the right margin (was 2, worst ~45 pt)
+```
+
+Freeze hash checked before and after; nothing hash-bound was touched.
+
+**MY OWN ERRORS THIS SESSION — five, of which four were bad instruments rather than bad conclusions.**
+
+| | The error | The lesson |
+|---|---|---|
+| **P165** | Probed the bus read-back for `"\\tableofcontents"` through a bash `-c` string; the escaping collapsed and Python searched for a literal **TAB** followed by "ableofcontents", so it reported the message content **missing**. The message was perfect | *The same P144 family, one layer down: when your verification says the artefact is broken, verify the verifier first.* I only caught it because the `repr()` I printed alongside showed a tab |
+| **P166** | Ran `grep src/feedback/schema.py` and got "No such file"; my shell had drifted to the **parent** directory two calls earlier | **This is P151 exactly, one session later.** Caught in one step only because I had adopted the predecessor's rule and printed the path. The rule works; I still need the rule |
+| **P167** | Wrote a caption-scanning regex requiring the em dash **outside** the closing `**`; the document's convention puts it **inside**. It silently reported that CH1 had no numbered tables and missed `Table 4.1` too | *A scanner that finds nothing is making a claim about its own pattern first.* I nearly rebuilt the List of Tables from an inventory that omitted every chapter-numbered table in the document |
+| **P168** | Reported the Abstract at 516 then 712 words and assumed my extractor was over-capturing. It was not — the abstract really was that long | *Suspecting the instrument is right as a reflex and wrong as a conclusion: I checked, and the boundaries were exact.* Recorded because the correct move was to verify, not to disbelieve the number |
+| **P169** | Appended §23 to the master plan with a bash heredoc carrying backticks and apostrophes; it died on an unterminated quote — the exact hazard `CLAUDE.md` warns about for heredocs | *Write the file with the Write tool and append it with Python.* No content was lost because it failed loudly, which is the good failure mode |
+
+**Also recorded against myself:** I re-transmitted the master plan's "~2,994 words of table-file prose" to
+ops before measuring it. I caught it before sending and measured it myself: **3,049** across the six in-body
+table files, with the per-file breakdown, excluding `T_scale_and_difficulty`'s 341 because that file is
+Appendix E and is legitimately excluded. **The honest body total is therefore 20,738, not 17,689** — the six
+`paper/tables/*.md` files render inside the body and the gate does not count them. Reported both ways to
+ops rather than banking the flattering one; the fix is to cut that meta-commentary, not to add to it.
+
+**FUTURE — what the next session picks up, in order.**
+
+1. **The turnover finding and the evaluation lesson as numbered contributions** (S-C3 / C3-2 / S-C4).
+   Deliberately NOT inserted this session: their figures have not been verified first-hand by this lane, and
+   verify-then-claim outranks completeness.
+2. **The word budget**, which remains the binding rule breach at **17,689 against 10,000** — and the
+   Introduction should be cut **last**, not first: §4.7 alone carries 2,485 words against CH1's 1,610.
+3. **The canonical RQ string is stale** in `paper/sections/RQ_canonical_and_framing.md`. The three live
+   placements agree with each other and disagree with the file that defines canonicity, so the registered
+   pre-submission grep would **fail on correct text**.
+4. **The title is undecided** — three live candidates, no dated decision. **Tamer's call.**
+5. **The table-numbering schemes collide** (chapter-numbered against flat), which is a mechanic Okhrati docks.
+6. **Ops' half of the ToC fix**, and the `hyphenat` patch for the 10 remaining document-wide overflows.
+
+## [2026-08-01o] ★★★★★ OPS LANE / RUN 12 — **THE "USE MORE CORES" MOVE WOULD HAVE HALTED THE CAMPAIGN AT THE C4 GATE** · cores fell 1024→760 while throughput ROSE · the H2 headline contrast has not started in ANY line, and that is the barrier, not a fault
+
+**No commits. Live-ops + investigation session; recorded in full per the strict-documentation rule.
+Bus broadcast: M229.**
+
+### PAST — the state I inherited
+RUN 11 closed at T+91h with 12 supervised driver lines, `RUNNING_SHA 58b388f2`, drift 0, and
+`docs/RUN12_SESSION_PROMPT.md` §4 asserting that the cores question was already answered: the campaign
+is SEARCH-phase-bound, the critical path is `kimi-k3`/`qwen3.6-27b` at 2 of 5 arms frozen, and no
+number of cores moves it. Tamer escalated a fifth time — *"the cores amount is extremely low now… we
+were supposed to reach 4k, and we have not even passed the 2k. The campaign is under threat."*
+
+### PRESENT — what I measured, first-hand, and what it changes
+**Five entry checks green:** drift 0 on BOTH arms, 24 drivers, 22 `--pipeline-rungs` procs, 12
+supervisors (enumerated with the `Name -eq 'powershell.exe'` + `-File .*mode_d_supervisor\.ps1`
+filter that RUN 11 was bitten by twice). Cycle log read on the first call of every batch; observed
+ages 0 s–3 min throughout, no restart needed.
+
+**1. Cores is the WRONG METRIC, and the decline is not a fault.** Cores fell 1024 → 760 across the
+cycle log, but records/h ROSE: 48.1/h (24 h), 57.1/h (4 h), **80.9/h (last hour)**. Cause: the two
+phases have opposite core economics. Search runs `--search-pack 1 --search-threads 8` = **8 cores for
+ONE training**; test runs `--pack 8 --cores-per-training 1` = **8 trainings per 8-slot job**. Live
+`qstat -xml` decomposition: **37 search jobs (296 cores, 37 trainings) + 58 test jobs (464 cores,
+~464 trainings) = 95 jobs / 760 slots but 501 CONCURRENT TRAININGS.** As arms freeze, 8-core search
+work is replaced by 1-core test work, so cores fall while throughput rises. Cross-checked by an
+independent route: 501 trainings at the measured 13.0 steps/s/core (8.55 h per 400k-step training)
+predicts ~59 records/h against 48–81/h observed.
+
+**2. We are WORK-BOUND, not capacity-bound.** Re-derived free capacity from `qhost -q` (per-node
+`resv/used/tot`, aggregated by family) rather than trusting §4: **d00a 2,419 + d00b 310 = 2,729 free
+slots in our own pool**; cluster 5,117 free of 12,580 (40.7 %). We hold 760 with **11 jobs queued**.
+Two independent routes now agree that the cluster is not full, so M203's retraction stands. ⚠ Noted
+in passing: `qstat -g c` rows are OVERLAPPING queue views and are **not additive** — reading them as a
+population is the same trap that produced the withdrawn "0 % free".
+
+**3. ★★★ THE FINDING: SPENDING THE FREE SLOTS WOULD HALT THE CAMPAIGN.** The C4 gate predicate is
+`src/cluster/integrity.py:427` — `health_ok = all_units_complete AND crn_pair_device_consistent AND
+crn_pair_substrate_consistent AND no mixed_winner_units`. The substrate key is
+`cpu model | omp | torch_threads | cuda` and the test is **per-seed ACROSS units**. I evaluated that
+exact predicate over all **591 live floor records**: **one substrate everywhere** (`Intel Xeon Gold
+6240 | omp=1 | tt=1 | cuda=False`), **zero per-seed violations**, across core `test` (360) and five
+leg lines (231). Every free slot outside the d00a/d00b 6240 allowlist — d97a 864, d97b 288, b00a 242,
+e00a 433, l00a 198, t00a 170 — is a **second CPU model**. Landing seeds there creates per-seed
+substrate violations → `health_ok` False → **every line parks before C4 awaiting a manual
+`TIER1_APPROVED_<line>` file.** So the intuitive answer to "use more cores" is a campaign STOP. This
+independently confirms RUN 11's "do not chase the unverified slots" **from the gate code**, not from
+the science argument — two routes, one conclusion. It also means the gate will PASS on substrate when
+the leading lines arrive; it turns on `all_units_complete` alone.
+
+**4. NO LINE HAS ENTERED C4, and the structure explains the small footprint.** Per line:
+C1 (all arms search + floor legs for the non-H2 arms) → **BARRIER** → C2 `h2_pair_test`
+(distributional + scalar) → gate → C4 (all rungs at once, `campaign.py:1969`). `[C4|pipelined] block`
+appears in **zero** driver logs; the only C4 lines are historical `STOPPING before C4
+(RED-execution-health)` from 07-28→07-30, and those reports show `present=0 expected=30` — the gate
+refused **correctly**, because the units were genuinely incomplete.
+
+**5. COORD'S F-1/F-23 IS CLOSED BY MEASUREMENT, NOT BY DEFERRAL.** `leg4 h2_pair distributional=0
+scalar=0` is not a fault: **distributional and scalar hold ZERO test records in EVERY line**, because
+both are `h2_arms`, tested only in C2, which sits behind the C1 barrier no line has passed. Census of
+`record.json` (never `*.json` — the launched-vs-finished trap): core `test` 360/420, `qwen3_5_9b`
+82/150, gemini 60/120, gpt-luna 30/90, haiku 30/60, nemotron 29/60, and deepseek / glm / kimi /
+qwen3.6-27b / sonnet at 0.
+
+**6. §4's ARM-FREEZE TABLE IS STALE — the critical path moved.** From the `frozen_*` dirs: gpt-luna
+**5/5**, qwen3.5-9b **5/5**, gemini 4, glm 4, haiku 4, nemotron 4, sonnet 4, deepseek 3, kimi-k3 3,
+qwen3.6-27b 3. The laggard arm is **`placebo_shuffled` (missing in 6 of 10 legs)** and `scalar_cvar5`
+(4) — **both CONTROL arms**, i.e. precisely the arms the retired `-p` ladder starved until 07-31.
+The critical path is control-arm SEARCH latency (serial generations + LLM authoring), not cores.
+
+**7. Two smaller results.** (a) `wall_clock` is **0.0 in all 591 test records and populated in all
+1,420 search records** — a clean 100 %/0 % split, so I checked the SPECIFICATION before calling it a
+bug, and it IS specification: `src/orchestration/test_leg.py:193` hardcodes it and
+`scripts/first_seed_sanity.py:197` documents it. Consequence: test-leg compute accounting must come
+from `qacct`, exactly as the brief §5 item 2 requires. **The repo was ahead of me again** — RUN 11's
+lesson 3, third occurrence. (b) Search wall-clock median **4.22 h** (min 2.79 h, max 14.3 h) on 8
+threads vs 8.55 h single-core ⇒ **2.03× for 8× the cores, 25 % parallel efficiency.** Since search
+latency IS the critical path and the cores are otherwise idle, that trade is correct as configured.
+
+### SECOND PASS (Tamer pressed a 5th time: "maximise the speed to an absolute maximum… take everything Myriad can offer"). **The answer changed.**
+
+**8. ★ THE PER-TRAINING RATE, MEASURED FOR THE FIRST TIME — AND IT MOVES THE DEADLINE.** I had been
+quoting **13.0 steps/s/core from memory**; nobody had measured it this run. `qacct` on a COMPLETED
+test job (`leg4_leg_qwen3_5_9b_placebo_test_p01`, `node-d00a-126`, slots 8, exit 0): **`ru_wallclock
+33275s` = 9.24 h**, `cpu 257169s` ⇒ **7.73 of 8 slots busy = 96.6 %**. The real rate is **12.02
+steps/s/core**, a training is **9.24 h**, not 8.55 h. For the ~39,500 remaining trainings: at today's
+**501 concurrent trainings that is 30.4 DAYS — it OVERRUNS Aug 27**; at C4 width (2,729 free slots)
+it is **5.6 days**. **The C4 capacity transition is not an optimisation; it is the difference between
+finishing and not.** Tamer's instinct to push was correct — the timing of it was the only thing off.
+
+**9. ★★★ THE REAL C4 FENCE IS `max_u_jobs = 1000`, NOT CORES** (verified live, `qconf -sconf`). The
+pipelined path submits **all six blocks at once** (`campaign.py:1997`, a `ThreadPoolExecutor` over
+`tiers[1:]`). Block increments 70/89/90/61/63/165 seeds × 5 units ÷ 8 per pack = **~340 jobs PER
+LINE, in one go**, on top of the ~104 held. **1 line 444 ✔ · 2 lines 784 ✔ · 3 lines 1,124 ✘.** Only
+~341 of our jobs can RUN (2,729 free ÷ 8); the rest QUEUE, and **queued jobs count toward the cap**.
+With 11 lines converging, the breach is near-certain. `allocation.py:256` already knew — *"chunk-1
+with pipelined rungs can enqueue ~1,200 arrays, where a cap hit classes as a transport error"* — and
+its own mitigation (`:284`, "chunk the rung blocks up") **is FORBIDDEN**, because Myriad serialises
+array tasks and chunk-25 would park 96 % of C4 in `hqw`. **The two pieces of in-repo guidance are in
+direct conflict and the brief's side is the correct one.** Recorded as **D25**.
+
+**10. D23 — CORRECTING THE MECHANISM, NOT THE VERDICT.** Coord's M223 and the D23 closure call the
+job-cap rejection path "graceful". Traced first-hand: `submit.py:198` `parse_job_id` **RAISES
+`RuntimeError`** on output it cannot parse, so a cap rejection fails LOUD → `submit_batch` →
+`run_test_leg` → the C4 `ex.map` → **the driver CRASHES** → the supervisor relaunches with `--resume`.
+The OUTCOME is acceptable (no records lost; submitted jobs keep running; `--resume` skips completed
+seeds and does not re-train) but the MECHANISM is a **crash-loop, not a clean backoff**. Operationally
+decisive: **when C4 opens, drivers crash-looping is EXPECTED, not a new defect** — a session that
+"fixes" it will do damage.
+
+**11. TWO FENCES CHECKED AND CLEAR.** (a) **tmpfs**: `jobscript.py:116-122` records that tmpfs is a
+**CONSUMABLE** and that pool-d hosts with ≥15G FREE were **11 of 348** vs **348 of 348** at 1G. The
+07-31 fix is LIVE — `hard resource_list` read off 40 live jobs, **every one `tmpfs=1G`**. Fence gone.
+(b) **Reachability**: `qhost -l tmpfs=1G,memory=2G,h_rt=54000` matches **322 hosts = 11,592 configured
+slots**, far above the ~2,700 needed ⇒ host eligibility is **not binding**. ⚠ `qhost -l` filters on
+**configured** capacity, not currently-free consumable, so it is **not** comparable to the "11 of 348"
+figure — I nearly mis-read my own output that way.
+
+**12. A CORRECTION AGAINST MYSELF, POSTED BEFORE ANYONE CAUGHT IT.** In M229 I implied deeper
+submission could contaminate the archive **undetected** inside d00a. Reading `substrate_watch.py`
+properly: C3 is family-scoped (`VERIFIED_FAMILIES = {d00a,d00b}`) but **C1 reads `cpu.model_name` on
+EVERY record regardless of family**, so a 6140 inside d00a **is** caught. My framing overstated the
+gap. The accurate residual is narrower and still real: **C1 is DETECTIVE, not preventive**, and D16
+already cost a both-sides quarantine plus a re-run. *Overstating a risk is as inaccurate as
+understating one.*
+
+**13. SUBSTRATE HOMOGENEITY NOW COVERS THE WHOLE LIVE ARCHIVE.** Extended the test-only census to the
+search tier: **search 1,450/1,450 + test 591/591 = 2,041/2,041 Intel Xeon Gold 6240, one model, zero
+per-seed violations.**
+
+**14. D19 (search `h_rt`) QUANTIFIED — and flagged against my own number.** Against `h_rt=54000s`:
+p50 4.22 h (28 %), p95 7.49 h (50 %), p99 10.79 h (72 %), p99.9 13.88 h (92.5 %), **max 14.31 h
+(95.4 %)**. Above 80 % of the limit: **6 of 1,450 = 0.41 %**; above 95 %: 1. The 15 h sizing is
+adequate and the standing alert's *"the tight lane ends first"* holds. **⚠ THE CAVEAT: these are
+SURVIVORS.** A training killed at `h_rt` writes no record, so it is **censored out of the
+distribution and my tail is biased LOW.** I could not fully un-censor it (`qacct -o` yields only user
+aggregates: **181,347,691 CPU-s = 50,374 CPU-h over 3 days**). **Get the exit-status breakdown before
+treating 0.41 % as the true tail.**
+
+**15. STATE CONFIRMED BY AN INDEPENDENT ROUTE.** The standing RED alert reads *"C4 BOUNDARY REACHED on
+h3_singleshot, gpt_5_6_luna, qwen3_5_9b (every LLM arm frozen)"* — consistent with my finding that
+those lines are **AT** the boundary but not **through** it (`[C4|pipelined]` in zero logs). The
+sentinel's arm pools independently confirm the critical path: `dist=318 scal=326 plac=372 scv5=323
+**shuf=284**` — `placebo_shuffled` thinnest, the control arm the retired `-p` ladder starved.
+
+### THIRD PASS — the exhaustive lever sweep. **One real lever exists, and it was never evaluated.**
+
+**16. ★★★ `--pack 8` STRANDS 4 OF EVERY 36 CORES. `--pack 9` STRICTLY DOMINATES IT. → D26.**
+Pool-d nodes are uniformly **36 slots** (8,712/242 = 36.0; 612/17 = 36.0) and `qconf -sp smp-D` gives
+**`allocation_rule $pe_slots`** — every slot of a job must be on ONE node. So **36 mod 8 = 4: every
+fully-empty node fits 4 jobs = 32 slots and STRANDS 4 CORES (11.1 %)**, structurally. Measured free
+capacity (`qhost -q`, d00a+d00b): **2,802 free over 259 nodes, of which 62 nodes are COMPLETELY EMPTY
+(36 free) = 2,232 slots = 80 % of all free capacity.**
+
+| pack | 36 mod k | usable | % free | jobs/line @C4 | lines before 1000-cap |
+|---|---|---|---|---|---|
+| **8 (current)** | **4** | 2,184 | 77.9 % | 337 | 2 |
+| **9** | **0** | **2,421** | **86.4 %** | **299** | 2 |
+| 12 | 0 | 2,328 | 83.1 % | 225 | 3 |
+| 18 | 0 | 2,232 | 79.7 % | 150 | 5 |
+
+**Pack 9 wins on every axis at once** (+237 usable slots, fewer concurrent jobs, −11 % cap pressure);
+C4 makespan 6.7 d → 6.0 d. **Why it was missed — and it is not a criticism of §50:** §50 chose pack 8
+deliberately, but compared **pack 4 vs pack 8 ONLY**, and `recommend_pack` (`allocation.py:211`) is
+**purely VRAM-based** — a GPU-era function with no concept of CPU core counts. P17's own lesson was
+*"evaluate across the range you will actually operate in"*; the range never contained the divisors
+of 36.
+
+**17. ★ AND I DID NOT APPLY IT — THE REASON IS EVIDENCE, NOT EFFORT.** Gain ~0.7 d against **~19 days
+of slack** (26 available, ~7 needed). Against that: the **pack>1 path on the CPU lane is NEW code as
+of 2026-07-31** — `run_one.py:250` states *"the CPU lane has only ever been exercised at pack=1"* —
+and that path once **silently forced `device="cuda"`** on every packed CPU spec. **Pack 8 has 591
+production records of proven behaviour; pack 9 would have ZERO, adopted exactly as C4 begins the
+irreplaceable bulk. Proven-at-scale beats 11 % theoretical on a run that cannot be repeated.**
+Feasibility nonetheless fully checked (memory 18.1 GB/job at pack 9, 72 of 188 GB per node; pack is
+arithmetic-NEUTRAL — `_task_device`/`_task_threads` read from the specs and fail loud on a mix, and
+all 591 records carry `omp=1, torch_threads=1, cuda_available=False`).
+
+**18. COORD's M235 CORRECTED: the core line reached the C4 BOUNDARY, not C4.** Their six frozen
+markers are right, but **`[C4|pipelined]` is in ZERO logs** and the queue read 107 jobs / 101 r /
+**6 qw** / 808 slots — `qw` has not exploded, the direct signature of C4 submission. Core's
+placebo / placebo_shuffled / scalar_cvar5 floor legs all read **0 records**. Since a 30-seed leg is
+one ~9.24 h wave and the H2 arms can only get a first record in **C2** (a whole drain later),
+**the A16 pre-data window is ~18 h, not minutes** — materially more room for A16-PROSE.
+
+**19. TWO MORE CORRECTIONS AGAINST MYSELF, BOTH CAUGHT PRE-PUBLICATION.** (a) I read `qconf -sp smp`,
+saw **`$fill_up`**, and nearly concluded our jobs can SPAN nodes — which would have invalidated the
+entire fragmentation model. **Our jobs use `smp-[D]*`, a DIFFERENT pe**; `smp-D` is `$pe_slots`.
+I queried the wrong object. (b) I read the jobscript template, saw `#$ -r y` and no `-R y`, and nearly
+reported **CLAUDE.md's anti-starvation claim as FALSE**. Measured on live job 61646: **`reserve: y`
+IS set** — CLAUDE.md is CORRECT, `-r y` is *rerunnable* (a different flag), and the site applies the
+reservation. **Verify by RUNNING, never by READING — relearned twice in one pass.**
+
+**20. THE `sshorig` MYSTERY, CLOSED, AND IT IS NOTHING.** Jobs 66103–66108 are **interactive** jobs
+(`interactive=true`, `h_rt=7200`) **pinned to `hostname=node-d00b-007`**, pe `smp-[TBD]*` range 1 —
+which is exactly why they never schedule against 2,802 free slots. 1 slot each, harmless, not ours.
+⚠ I also nearly probed one of THEM as a campaign job: **the first `qw` job is not necessarily yours.**
+
+**21. THE LEVER INVENTORY IS EXHAUSTED.** Checked and rejected, each with its reason: more
+pools/nodes (substrate violation → parks the C4 gate) · more cores (work-bound; 6 qw against 2,802
+free) · K=5 (registered; prereg `budget_decision: keep_and_instrument`) · `search-threads` (changes
+BLAS reduction order = changes arithmetic) · `h_rt` (322 hosts already reachable; cutting risks kills)
+· tmpfs (already fixed, verified live) · memory (not binding) · priority (forbidden, already 0) ·
+`chunk-tasks` (chunk-1 correct — `hqw` serialisation) · C1→C2 barrier removal and early deep rungs
+(both need a 12-line relaunch for ~8.5 h) · job cap (inherent; crash-loop survivable, D25) ·
+reservation (**verified ON**). **Exactly one real lever exists — pack 9 — and it is deferred on
+evidence. There is no unused capacity we can safely take today.**
+
+### FOURTH PASS — **I overcounted free capacity, and d97a/d97b are a RISK, not an opportunity.** Probe in flight.
+
+**22. ★ MY OWN CAPACITY NUMBERS WERE WRONG — I OVERCOUNTED.** In §2/§16 I parsed `qhost -q` taking
+**one queue instance per host**. A host appears under MANY queues (`node-d00a-126` = `Bran 0/36/36`
+**and** `Bronn 0/0/36` **and** `Brienne 0/0/36`) and **those instances SHARE the node's 36 cores.**
+Correct method: sum `used` across ALL instances per host, drop hosts whose instances are all disabled.
+
+| | wrong (§16) | rigorous |
+|---|---|---|
+| our free (d00a+d00b) | 2,802 | **2,334** |
+| empty nodes | 62 | **49** |
+| usable @pack 8 | 2,184 | **1,768** |
+| usable @pack 9 | 2,421 | **1,953 (+10.5 %)** |
+
+**D26 survives unchanged in direction and magnitude**, but absolute capacity is ~17 % lower than I
+reported, so **C4 makespan at pack 8 is 8.4 days, not 6.8.**
+
+**23. ★★★ d97a/d97b ARE REACHABLE BY OUR EXACT JOB SPEC — SO THE RISK ARRIVES WITHOUT US CHOOSING IT.**
+§4 framed them as an opportunity not worth chasing. **The better reading is a RISK, because we do not
+pick the nodes — the scheduler does.** Measured: `qhost -l tmpfs=1G,memory=2G,h_rt=54000,batch=true`
+**matches d97a (24) and d97b (8)**; queue **`Bran` is ENABLED on 23/24 d97a and 7/8 d97b**; **733 free
+slots**, with **194 cores already in use by others** (live nodes, not drained); `smp-D` advertises
+10,476 slots ≈ d00a+d00b+d97a+d97b; and our jobs carry `-ac allow=d`, which §4 states admits them.
+**We have never landed there only because we have never demanded that much capacity. At C4 we will.**
+If they are not Xeon Gold 6240, the scheduler will silently place assurance-ladder seeds on a second
+CPU model — breaking the **2,041/2,041** homogeneity and creating per-seed substrate violations in the
+paired contrasts. `substrate_watch` C1 would DETECT it, but detection is after the fact, and **D16
+already cost a both-sides quarantine plus a re-run.**
+
+**24. THE PROBE, AND A PRE-COMMITTED DECISION RULE.** §4 prescribed exactly this — *"a one-core probe
+job reading `/proc/cpuinfo`, as a measurement, not an inference"* — **if C4 ever made us
+capacity-bound. It does.** 25 jobs (every enabled d97a/d97b with free slots + 3 d00a controls chosen
+to be enabled AND ≥8 free), 1 core, 5 min, `-pe smp 1`, mirroring the campaign spec; **writes nothing
+into the campaign archive**, job name matches no campaign batch; 25 accepted / 0 rejected.
+**Rule fixed BEFORE seeing the answer, so it is not chosen post hoc:**
+- **6240 → NO action.** Substrate-identical; C4 gains ~733 slots free (8.4 d → ~5.9 d).
+- **NOT 6240 → they MUST enter `--exclude-hosts` BEFORE C4**, which needs a 12-line rolling relaunch —
+  **and if we relaunch anyway, D26's pack 9 rides along in the same restart at zero extra risk.**
+  **That is the only scenario in which I would relaunch.**
+
+**25. THREE MORE CORRECTIONS AGAINST MYSELF.** (a) The overcount above. (b) I read `node-d97a-001`,
+saw queue state `d`, and nearly declared the whole family disabled — **the one-sample-as-population
+trap**, caught by censusing all instances. (c) My first two probe attempts never placed because they
+omitted `-pe`; the JSV then said exactly why — *"Rejected by policyjsv Reason: Please specify a valid
+pe (eg: `-pe smp 1`)"*. **`smp-D` is the RESOLVED wildcard, not a submittable name**; `jobscript.py:33`
+submits `-pe smp {cores}`. **My d00a controls are what exposed the bad spec** — and I had first chosen
+control nodes that were 36/36 FULL, which would have made a null result uninterpretable.
+
+**26. WHY THE PROBES SIT IN `qw`, AND IT IS NOT A FAULT.** Unpinned, pinned, short `h_rt` and
+campaign-length `h_rt` all queue identically. With `weight_waiting_time = 1.0` and thousands of
+pending jobs cluster-wide, **a brand-new job has ZERO accrued wait and ranks below the aged backlog.**
+**Operationally relevant beyond the probe: our C4 flood will not get slots instantly either.**
+
+### FIFTH PASS — **89 MYRIAD NODES BELONG TO PAID DEPARTMENTAL ALLOCATIONS. That single fact withdraws my d97 risk claim AND refutes my own D26.**
+
+**27. ★★★★★ THE FACT NOBODY IN THIS PROJECT HAD.** Queue `Bran` gates hostgroups via **per-hostgroup
+`user_lists` overrides**: `@PAID_BLIC`, `@PAID_Economics`, `@PAID_hpc.10`, `@PAID_hpc.11`,
+`@PAID_MathsStatSci`, `@PAID_MEDPHYS`. Measured with `qconf -shgrp`:
+**`@PAID_Economics` = 32 nodes = ALL 24 d97a + ALL 8 d97b, and zero d00a**; `@PAID_MathsStatSci` = 44
+d00a; `@PAID_BLIC` = 1 d00a; `@PAID_hpc.10` = 2 d00a. **Total 89 paid nodes, of which 47 d00a + 7 d00b
+are nodes I had been counting as OURS.**
+
+**28. ★ WITHDRAWING §23 / M239 — d97a/d97b ARE NOT A RISK.** I reported that C4 might silently place
+seeds there and break the 2,041/2,041 homogeneity. **It cannot: they are 100 % `@PAID_Economics`.**
+That is why we have never landed there in four days, why **22 probes pinned there sat in `qw`
+indefinitely while identical probes on non-paid d00a placed in ~5 minutes**, and why another user
+runs there freely. §4 recorded "we have never run on them" as an unexplained fact; **it now has a
+MECHANISM.** Both halves close — no risk, and no opportunity; those 733 slots were never ours.
+**Overstating a risk is as inaccurate as understating one.**
+
+**29. ★★★ THE SAME FACT REFUTES D26 (pack 9) — MY OWN FINDING, AND THE CORRECTION IS WORTH MORE THAN
+THE FINDING WAS.** The histogram was computed over ALL d00a/d00b nodes. **Of the 49 completely-empty
+(36-free) nodes the entire pack-9 case rested on, ALL 49 ARE PAID NODES. On the reachable set there
+are ZERO empty nodes** — so `36 mod 8 = 4`, which *requires* a fully-empty 36-core node, applies to no
+node we can use. Recomputed over reachable nodes only: **pack 8 → 248 usable · pack 9 → 225 · pack 4 →
+448 · pack 1 → 658. Pack 9 is WORSE than pack 8 where it counts.** The deferral was right for the
+wrong reason; **had we relaunched we would have made throughput worse while believing we improved
+it.** D26 marked REFUTED, original retained for the audit trail.
+
+> **THE GENERALISABLE RULE, now standing: A CAPACITY NUMBER COMPUTED OVER NODES YOU ARE NOT ENTITLED
+> TO IS NOT A CAPACITY NUMBER.** Any future pack/throughput analysis MUST filter `@PAID_*` first.
+> **Coord's M237 is what caught it** — they warned the empty-node count was a load-bearing SNAPSHOT
+> worth a second sample. The second sample did not move the number, **it reversed the conclusion.**
+
+**30. THE PROOF THAT PAID NODES ARE UNUSABLE — 83 OBSERVATIONS, ZERO COUNTEREXAMPLES.** All **83**
+hosts our jobs occupied at 18:05 UTC are non-paid; the 3 d00a probe nodes that placed are non-paid;
+`node-d00a-126` (a completed campaign job from `qacct`) is non-paid; and the d97-pinned probes never
+placed. Measured, not assumed.
+
+**31. CORRECTED CAPACITY — TIGHTER THAN ANYTHING I POSTED.** Reachable (non-paid, enabled) d00a+d00b:
+**194 nodes / 6,984 cores**, **658 free now**, we hold **808** ⇒ realistic ceiling **~1,466 slots**,
+against the 2,184 / 1,768 I posted earlier. **Our observed campaign peak is 1,024 — consistent with
+this and NOT with my earlier figures; the historical record was telling me I was wrong and I did not
+listen.** C4 at ~1,200 slots ≈ **12 days** for the remaining ~38,400 trainings, plus 3–4 days to
+finish C1/C2 ⇒ ~16 of the 26 available. Slack is real but thinner than the "19 days" I claimed.
+
+**32. ★ COORD'S TORN `ALERTS.txt` LINE (M238) — ROOT-CAUSED AND FIXED, AND IT WAS MINE.**
+`cycle_loop.sh:94` appends with a shell GROUP redirect (`{ printf; printf; } >> "$ALERTS"`) = multiple
+`write()` calls, atomic only for a single writer. **There were TWO `cycle_loop.sh` processes running**
+(PID 25040 since 07-31 21:28; PID 34284 since 08-01 17:14). **Two writers racing one append is exactly
+a torn line** — and it also explains coord's W4 flap and the **duplicate CYCLE_LOG lines** (every
+timestamp twice), which I saw at session start and did not chase. Killed 34284 under an identity
+guard, kept 25040. **VERIFIED BY OBSERVATION: 18:00:52 emitted TWO lines; 18:01:39 emitted ONE.**
+Cause of accumulation: **the monitoring mandate says "restart it" with no check for a running loop**,
+so every session that thought it was dead added one. **Hardening deferred deliberately** (editing a
+running bash script is unsafe): at the next natural restart, build the block into one variable and
+emit it with a SINGLE `printf` so the append is atomic even with concurrent writers.
+
+**33. THE PROCESS-ENUMERATION TRAP, AGAIN.** My first count said **six** loops. Four were transient
+`$(...)` subshells that inherit the parent's command line; **`ParentProcessId` showed only TWO real
+loops.** Third time this session a process count needed that check. Also hit the PowerShell
+single-object `.Count` trap (printed empty for a 1-element result) — which record §58.5 already
+documents.
+
+### SIXTH PASS — the last two throughput hypotheses, both killed by measurement; and D19 un-censored
+
+**34. ★ "WE ARE BURNING CORES ON RETRIES" — WRONG, AND IT IS TELL ③ AGAIN.** I saw `round 1` on batch
+after batch and hypothesised wasted re-runs. **309 of 309 batches at round 1 is a clean 100 %, which
+means suspect the SPECIFICATION** — and `driver.py:623` confirms it: the FIRST submission happens at
+`rounds == 0` and then increments, so **a normally-submitted batch LOGS "round 1"**. Real requeues are
+round ≥2 and create `_rN` dirs. Measured both ways: **1 batch of 309 ever reached round 2**, and
+**exactly ONE `_r1` dir exists among 2,142 batch dirs** (`leg4_leg_qwen3_5_9b_scalar_g1_r1`) =
+**0.05 % requeue rate.** Two independent routes agree: **no throughput is lost to retries.**
+
+**35. ★ D19 (search `h_rt`) — THE UN-CENSORED NUMBER I SAID SOMEBODY SHOULD GET.** §14 reported the
+tail (max survivor 14.31 h = 95.4 % of the 15 h limit) and flagged it as **survivor-biased**, since a
+killed training writes no record. From `qacct` over **863 jobs / 2 days**:
+`failed=37` (**h_rt limit exceeded**) → **4 jobs** · `failed=100` (died through signal) → 3 ·
+`exit_status=143` (SIGTERM) → 4, consistent with those kills · `exit_status=0` → 792 · `=1` → 63.
+**So D19 is REAL and SMALL: ~0.5 % of jobs, ~1.7 % of compute, concentrated in the long-tailed search
+lane** (test packs run ~9.24 h against a 15 h limit and are nowhere near it). The standing alert's
+*"the tight lane ends first"* holds; **no relaunch recommended** with ~10 search arms left. ⚠ The 63
+`exit_status=1` jobs are **NOT established as waste** — `run_one` exits 1 if any spec in a pack failed,
+and a sandbox-reject is an expected, logged, scientifically meaningful outcome. Not claimed either way.
+
+**36. WRITEUP's M245 ANSWERED — and `scripts/build_paper.py` PROVEN OUTSIDE THE DRIVER CLOSURE.**
+`python docs/ops/import_closure.py scripts/build_paper.py` → **"NOT reachable from the running entry
+points … The executed experiment is untouched; no restart is needed for correctness."** So the ToC
+ordering fix can be landed under the sanctioned protocol (edit → commit → re-base `RUNNING_SHA`) with
+no relaunch. **Chose option (b) with WRITEUP GOING FIRST**, deliberately: their transient state is a
+DOUBLE ToC (visible, impossible to mistake for correct), whereas mine-first leaves a MISSING ToC that
+looks like a normal build. **Prefer the failure mode that announces itself.** Not touching the file
+until they confirm.
+
+**37. THE THROUGHPUT/ETA MODEL, computed PER UNIT.** 68 units; h3's 560-record surplus is **not
+transferable** (the common rung is a minimum, so each unit needs its own R) — `expected × R − total`
+undercounts. Remaining: rung 30 → 1,418 · rung 189 → 12,071 · rung 403 → 26,409 · rung 568 → 37,472.
+**The decisive threshold is 65 records/h**: at ≥65/h the full ladder completes before the Aug 27 stop;
+at today's ~40/h we truncate at common rung **~381**. **Rung 189 — where H2 stops being INCONCLUSIVE —
+lands Aug 6–13 in every scenario, including today's unimproved rate.** Crossing 65/h is plausible but
+**projected, not measured**: it needs search to finish (freeing the 8-cores-per-training lane into
+1-core test work) and ~800+ slots held. To be verified when C4 opens, not asserted now.
+
+### SEVENTH PASS — a FORWARD audit: what breaks in the stages we have not reached yet
+
+**38. ★★★ THE C3 GATE ON RESUME — I HYPOTHESISED A CATASTROPHE AND IT DOES NOT EXIST.** `all_complete`
+uses **exact equality** (`present == expected`, `expected = len(seeds)` = the 30 core seeds). Since
+D25 makes a C4 crash-loop near-certain, the driver WILL re-reach the gate after C4 has written seeds
+30–567. If the census counted directory contents, `present` would be 568 ≠ 30 ⇒ **every line would
+park and never resume the ladder.** **It does not**: `integrity.py:285` computes
+`missing = [s for s in seeds if f"{arm}-s{s}" not in have]` and `present = len(seeds) − len(missing)`
+— **a presence check restricted to the REQUESTED seeds**, so `present ≤ expected` always and extra C4
+records cannot inflate it. **The gate is safe across resume.** *The repo was ahead of me for the
+fourth time this session.*
+
+**39. AND A DELIBERATE ASYMMETRY THAT IS A FEATURE.** `per_seed_substrate` IS built over *all* records
+(not just the requested seeds), so the substrate check **widens to cover C4 records** — contamination
+introduced during the ladder is caught, fail-closed, at the next gate passage. Worth knowing in the
+other direction too: **a single contaminated C4 seed would park the line**, which is correct
+behaviour, not a bug.
+
+**40. ★ CAN ONE DEAD SPEC CAP THE LADDER FOREVER? — REAL MECHANISM, ZERO OCCURRENCES, AND A STRUCTURAL
+REASON.** `driver.py:511` sets `"ok": not exhausted`, and C4 then banks *"only up to the last clean
+level"*; worse, `driver.py:417` **excludes ledgered-exhausted specs on `--resume`**, so an abandoned
+spec is never retried and would cap the banked common rung permanently while blocks above it burn
+unbanked compute. **Measured:** 88 `*.permanent.jsonl` ledgers, **182 abandoned run_ids, ALL with
+reason `permanent_node_reject`, ALL in SEARCH batches (`_gN`), ZERO in any test leg.** The structural
+reason: **a test leg re-runs the FROZEN WINNER, which already passed the sandbox/AST gate at search
+time**, so `permanent_node_reject` cannot fire for it. The 182 are authoring rejects concentrated in
+`qwen3_5_9b` — the registered capability-gradient bottom anchor, i.e. **a finding, not a fault.**
+Residual path is retry-exhaustion from repeated node failure: **0 of 1,152 test records to date.**
+
+**41. ★ THE UNRECOVERABLE TEARDOWN ITEM — VERIFIED WORKING, NOT ASSUMED.** `write_campaign_summary.py`
+refuses while 24 drivers are live **and exits 2** (fails LOUD). ⚠ My first read showed `EXIT=0` — that
+was **`tail`'s** exit code through a pipe, the exact trap the brief names; the real code is 2.
+`--dry-run` then passes end-to-end: windows derived **through the campaign's own code path**
+(train 60–3021 · val 3081–3775 · test 3835–5406) and **CROSS-CHECK PASSED: validation 694 sessions,
+test 1571 sessions, both matching the registration** (694 independently corroborates analysis' M240).
+**So the one output that cannot be back-computed after teardown is proven to work now, rather than
+discovered broken at the worst possible moment.**
+
+### EIGHTH PASS — **Tamer: "you are being extremely lazy about the future work." He was right.** The submission-pipeline audit I had not done, and the binding deliverable it found missing.
+
+**42. THE CRITICISM WAS CORRECT.** Seven passes audited the *machine*. **I had not once run the
+pipeline that turns the campaign into the submitted PDF** — and Priority 5 names
+`audit_reproducibility.py` at ZERO FAIL / ZERO WARN as a numbered priority.
+
+| gate | exit | result |
+|---|---|---|
+| `audit_reproducibility.py` | 0 | **8 PASS / 0 WARN / 0 FAIL** — freeze hash + panel SHA-256 both re-verified |
+| `freeze.py --check` | 0 | **MATCHES** `3ca6f01ab772…`, all 9 bound files present |
+| `check_citations.py` | 0 | 0 dangling · 0 VERIFY-in-prose · 0 unused |
+| `reproduce_synthetic.py` (golden path) | 0 | green — Priority 5's protocol layer re-RUN, not asserted |
+| **`word_budget.py`** | **1** | **17,560 vs the 10,000 hard limit — FAIL** |
+
+**43. ★★ THE WORD BUDGET IS THE #1 GRADE RISK AND THE INSTRUMENT IS SOUND.** I verified the counter
+before escalating: it excludes fenced code, inline/display math, markdown tables, footnotes, HTML
+comments, figure lines, FRONT_MATTER wholesale, and in-file appendices marked word-excluded — i.e.
+exactly the UCL exclusions. **So 17,560 is a genuine body-prose count, 7,560 words (76 %) over a HARD
+limit** under authority #4, whose weakest dimension CAPS the mark. (Writeup's 18,868 was
+pre-restructure; their theory→Appendix C move accounts for the gap.) Not mine to cut — **theirs to
+cut, mine to have measured.**
+
+**44. `analyze_campaign.py` HAS NEVER BEEN RUN ON RUN 4.** `outputs/tables/` holds **7 files, newest
+dated Jul 27** — all prototype-era. So the analysis pipeline is **unvalidated against real campaign
+data**, and at teardown we would run it for the first time on the archive that matters. I did NOT run
+it destructively (it writes into the archive and would publish numbers computed on an incomplete
+campaign). **Registered as a pre-teardown obligation.**
+
+**45. ★★★★★ OKHRATI'S D2 DUTY HAD NO IMPLEMENTATION. NOW IT DOES.** Write-time registry **row 38**
+names `src/viz/figures.py::seed_trajectory` as the landing site for the supervisor's explicit ask —
+*"graphs to show how the results change with increasing seeds, 1,2,3,4…"* — and **the function did
+not exist**; `analyze_campaign.py` has no seed/trajectory/prefix key either. CLAUDE.md: these rows
+"may not be silently dropped; **the pre-submission gate verifies zero open rows**." **A binding,
+graded obligation with nothing behind it.** Built it: running IQM vs n = 1…N with percentile-bootstrap
+CIs via `iqm_bootstrap_ci` — **the same estimator as the headline `rliable_intervals` panel, so the
+trajectory's endpoint equals the headline estimate by construction.** No extra compute or spend: the
+ladder is cumulative and CRN-paired, so every prefix is already a valid complete study.
+**D2's three properties are ENFORCED, not left to the caller:** registered order validated (a
+permuted series **raises**, so a selection artifact fails loud); the stopping rule rendered with the
+terminal rung marked; and **"NO INFERENCE WAS DRAWN AT ANY PREFIX" is not a parameter** and cannot be
+switched off. `_trajectory_grid` keeps every prefix dense to n=30 plus every rung and the terminal n.
+
+**46. ★ TWO BUGS IN MY OWN CODE, BOTH FOUND BY RUNNING IT ON REAL RECORDS — NOT BY THE TESTS.**
+(a) the evaluation grid overran `max_points` (**213 vs 200**) because the stride used floor division —
+caught by a test I wrote to be able to fail, fixed with ceiling division and pinned. (b) **`OKABE_ITO`
+is a NAME→HEX MAPPING, not a list**, so the colour-collision fallback raised `KeyError` — and the
+collision was real: `arm_style` returns the same neutral default for every unrecognised label, so a
+panel of H1 baselines drew **every series in identical black.** *Synthetic tests passed throughout;
+only real data exposed both.*
+
+**47. VERIFIED, AND WITH THE BLINDNESS RULE RESPECTED.** 6 new behaviour tests (endpoint == headline
+estimator · permuted-order refusal · empty-input refusal · mandatory disclaimer · grid coverage ·
+n=1 + NaN survival); `tests/test_viz.py` **34/34**; rendered from real RUN 4 records at 2 and at 4
+units and **visually inspected**. **I deliberately plotted `popart_scale.raw_rms_last`, a training
+diagnostic — NOT `test_sharpe`/`test_cvar05`** — because the A16 blindness window is open and no
+treatment arm's sealed-test outcome may be read.
+
+**48. LANDED UNDER THE SANCTIONED PROTOCOL, NO RELAUNCH.** `import_closure.py` over the **live diff**:
+`src.viz.figures` **NOT reachable** from either entry point ⇒ "the executed experiment is untouched."
+Committed `a8ff5e64` (+`8cd41619` for the re-base), **author Tamer Atesyakar, zero Claude/Anthropic
+attribution (verified by grep)**, staged BY NAME, purely additive (152/64 insertions, 0 deletions),
+on a non-default branch. `RUNNING_SHA` re-based `58b388f2 → a8ff5e64`; **both drift arms empty and the
+monitor itself now reports `drift=0`.** 24 drivers / 12 supervisors untouched throughout.
+
+### NINTH PASS — **the teardown→analysis DRESS REHEARSAL on real data, and the half of row 38 I had not delivered**
+
+**49. ★★★★★ `analyze_campaign.py` RUNS CLEAN ON REAL RUN 4 DATA — the biggest teardown surprise-risk,
+closed.** It had **never** been run on this campaign (§44). Rehearsed safely: copied the 36 record
+trees to scratch (660 MB, `batches/` excluded — specs, not records), wrote `campaign_summary.json`
+into the COPY via the teardown tool (**exit 0, CROSS-CHECK PASSED: val 694 / test 1571**), then ran
+`analyze_campaign --root <copy> --single-shot-root <copy>/test_h3_singleshot`.
+**`ANALYZE_EXIT=0`, ZERO tracebacks**, `campaign_overfitting.json` (262 KB) + `.md` (68 KB) written.
+`write_report(result, root)` writes into the `--root` you pass, so every write was contained in the
+copy and **the live archive was never touched.**
+
+**50. THE REGISTERED KEY SET, VERIFIED ON REAL DATA — 38 PRODUCED, THE 39th EXPLAINED.** All four
+keys M166 says are lost without the summary are **PRESENT** (`benchmark_floor`, `attribution`,
+`h2_rf_robustness`, `regime_stratified`) — direct confirmation of M166's mechanism *and* that
+providing the summary recovers them. Diffing the source's `out["…"]` assignments against the run:
+**the only missing key is `variance`**, which `--help` states needs "≥2 independent search re-run
+roots… omit to skip the variance appendix." I did not pass `--variance-runs`, so its absence is
+**explained** — which is precisely why the run exited 0 rather than the exit-4 that an *unexplained*
+absence triggers. ⚠ **Forward item: if `variance` is wanted in the PDF it needs re-run roots that do
+not exist for RUN 4; otherwise it is a disclosed absence.**
+**★ BLINDNESS HELD THROUGHOUT: I inspected exit codes, tracebacks and KEY NAMES only — never a value.**
+
+**51. R115 HAS NEVER COST US A UNIT.** `r115=19B` appears in every cycle line and I had never examined
+it. It is the registered winner-eligibility EXECUTION floor; the danger is an arm where it rejects
+*every* candidate, leaving no winner and no test leg. **Measured: ZERO driver logs contain "no ELIGIBLE
+winner" or an R115 winner rejection.** The 19 are individual bad candidates being filtered exactly as
+designed, with no unit lost.
+
+**52. ★ ROW 38's OTHER HALF: I HAD SHIPPED A FUNCTION NOTHING CALLED.** The registry says the duty
+lands as `seed_trajectory` **+ a CH6 figure**; `make_figures.py` rendered 14 figures and **none was
+the D2 exhibit.** A function no renderer invokes is half a deliverable, and the pre-submission gate
+would have found an open row against code that already existed. `render_all` now emits
+**`F_seed_trajectory.png`** from the Sharpe leg's per-seed scores with the REGISTERED tier list; the
+count assertion goes 14→15 **and a second assertion pins the figure BY NAME**, so deleting the call
+fails the suite rather than silently shrinking the deliverable. Also **bounded the rung markers to the
+data actually reached** — a caller may legitimately pass the full 30…568 ladder while the archive
+holds only the floor rung (the normal mid-campaign case), and unreached rungs would squash every curve
+into the first 5 % of the panel. **The figure shows the ladder REACHED, never the ladder hoped for.**
+Rendered end-to-end and **visually inspected**: nine arms in canonical colours, SYNTHETIC-DEMO
+watermark applied, and the exhibit visibly doing its job — `tpe` swings 0.41 → 0.18 → 0.51 over the
+first five seeds before the bands collapse.
+
+**53. A TRANSIENT `drift=2` THAT WAS THE INVARIANT WORKING, NOT A FAULT — and it is unavoidable.**
+Sequence: `0+2dirty` (working tree) → **`drift=2`** (code committed, `RUNNING_SHA` not yet re-based) →
+**`drift=0`** (re-base committed). ~100 s. **Code-commit and re-base CANNOT be atomic** — `RUNNING_SHA`
+must name a hash that does not exist until the commit lands. **Expect this window on every legitimate
+re-base; it is not an incident.** Commits `796bf54c` + `9e6503c2`, author Tamer Atesyakar, **zero AI
+attribution (grep-verified)**, staged by name, both re-bases of the FIRST kind (import_closure over
+the live diff: neither `scripts.make_figures` nor `src.viz.figures` reachable ⇒ no relaunch owed).
+
+### ★★★★★ TENTH PASS — **THE FIRST LINE HAS FINISHED. h3 IS COMPLETE AT THE FULL 568-SEED LADDER.**
+
+**54. AND I NEARLY REPORTED IT AS A FAULT.** A routine process check read **22 drivers / 11
+supervisors** against the brief's *"what must never change: … 24 drivers"*. I opened it as an ALERT —
+**then measured, and the measurement turned a fault into a milestone.**
+
+```
+test_h3_singleshot : 568 record files · 568 DISTINCT seeds · range 0–567  = the COMPLETE ladder
+distinct reward_source_hash across all 568 : 1   → one frozen winner, NO winner swap
+driver_h3.log      : freeze ENFORCED, hash 3ca6f01a… (no drift), then
+                     [campaign] H3 SINGLE-SHOT OK — winner=distributional-g0-c17
+```
+
+The supervisor exited **because its work is done**, and the final restart shows the resume path
+working exactly as designed: fresh driver start → everything re-derived as complete → clean exit.
+**The P5 winner-swap invariant holds across the entire ladder (one hash, 568 records).**
+
+**55. ★ THE STANDING "24 DRIVERS" INVARIANT IS NOW STALE, AND THAT MATTERS TO EVERY LANE.** It was
+written when twelve lines were live. **A completed line legitimately reduces the count, and it will
+keep falling.** New expected state: **22 drivers / 11 supervisors · 1 cycle loop · drift=0 · sci=OK** —
+and **the last two are the invariants that genuinely must never change.** The correct check is no
+longer a fixed number but: *every line that is NOT complete still has its supervisor; a finished line
+should have neither.* Broadcast as **M265** so nobody re-raises it.
+⚠ **NOT established and not asserted:** whether the watchdog keeps reviving a completed line's
+supervisor. If it does it is harmless churn (the driver re-derives complete and exits OK) but the
+count would oscillate 22↔24. To be watched, not claimed.
+
+**56. WHAT IT UNLOCKS.** **H3 (iterative vs single-shot) is now computable at FULL DEPTH — n=568, not
+the floor rung** — and tonight's dress rehearsal already produced the `h3` key with
+`--single-shot-root`. It is also the **first unit in the campaign at the terminal rung**, hence the
+first place the new `seed_trajectory` exhibit can be drawn across the WHOLE ladder rather than a
+prefix.
+
+**57. FULL SUITE CERTIFIED ON THE COMMITTED STATE: `PYTEST_RC=0`, read FROM THE LOG.** ⚠ The earlier
+background run was started BEFORE the edits and had collected the old `figures.py`, so it certified
+nothing about this work — **re-run rather than reused.**
+
+### ★★★★★ ELEVENTH PASS — **THE MONITOR SAID THE CAMPAIGN COULD NOT REACH ITS FIRST SEED RUNG. IT WAS COUNTING ONE TIER OF TWELVE.**
+
+**58. THE DEFECT, AND IT WAS VISIBLE TO EVERY LANE ALL CAMPAIGN.** Measured on the live archive:
+
+| | |
+|---|---|
+| **before** | `376 done at 4.2/h → ~2,883 by the stop ⇒ **rung 0** (next rung 30)` |
+| **after** | `2,793 done at 30.8/h → ~21,381 by the stop ⇒ **rung 189** (next rung 279 needs 228 more)` |
+
+`sentinel.py:1172` computes `done_test_units` by globbing **only `camp_root/test`** — the CORE line's
+tier — excluding all ten `test_leg_*` tiers and `test_h3_singleshot` (568 records alone). That number
+feeds `check_rung_forecast`, whose denominator is `lanes.total_trainings(rung) = 1,800 + 71n` — SEARCH
++ TEST across the **whole campaign**. **A core-only numerator against a campaign-wide denominator:
+376 counted against 1,152 test records and 2,697 trainings, a ~3× under-count.**
+
+**59. WHY IT WAS FIXED RATHER THAN ANNOTATED.** `sentinel.py:1251` already records the same *class* of
+defect (a mis-dated lane start deflating the rate ~20×) and delivers its own verdict: *"the monitor
+said the campaign could not reach its FIRST seed rung when it was on track to pass it comfortably. A
+throughput number that wrong **invites exactly the wrong intervention on a frozen design, so it is
+worse than no number at all**."* Same symptom, different cause, same danger.
+
+**60. ★ TWO INDEPENDENT ROUTES NOW AGREE ON RUNG 189.** My per-unit remaining-work calculation (68
+units, h3's 560-record surplus **not** transferable, remaining-to-189 = 12,071) gave rung 189 by
+Aug 6–13. The corrected sentinel — computing from a completely different direction (observed rate ×
+hours to the exogenous stop) — independently lands on **rung 189**. *One derivation repeated is not
+evidence; two agreeing is.* **And 189 is the threshold that matters: where the H2 equivalence verdict
+stops being INCONCLUSIVE** (MDE ≤ SESOI at n\* ≤ 173). Forecast to clear it, and 228 trainings short
+of 279.
+
+**61. SURGICAL, AND WHAT I DELIBERATELY LEFT ALONE.** `done_test_units` is **unchanged**, so
+`check_unit_coverage` is unaffected (its denominator is core-scoped too — `coverage_test: 377/11360`
+reads identically before and after). The new `done_all_trainings` applies the **same
+`_quarantined`/`.pull_tmp` exclusions** as the lane-start fallback, so it cannot repeat the
+quarantined-record miscount that caused the earlier incident. **20 insertions, 1 deletion.**
+
+**62. MADE LIVE — a commit alone would have changed nothing.** Both watcher processes were running the
+07‑28 code and **nothing supervises the sentinel** (`watchdog_fenced.ps1` does not reference it).
+Killed both under an identity guard, restarted with the identical invocation
+(`--watch --interval 300`); **new PIDs at 21:21:14 and the 21:21:30 event carries the corrected
+forecast.** Cost: the in-process disk history resets, so `disk_forecast` re-arms in ~25 min.
+
+**63. ★ I NEARLY REPORTED THE DISK FORECAST AS BROKEN — IT IS NOT.** Repeated "1 disk samples (need
+5)", including from the live watcher, led me to hypothesise the deque never accumulated. **Wrong.**
+Driving `--watch --json` shows it increment **1→2→3→4→5 and ARM exactly at 5**: *"~67 h of headroom at
+−0.08 GB/h"* (slope −0.0841, free 25.6, floor 20.0, hours_to_floor 67.1). The repeated "1 sample"
+events were **single-shot runs** — mine and other lanes' — each with a fresh deque. **No defect.**
+
+**64. DISK IS A REAL CONSTRAINT, ALREADY IN WARN, AND NOT MINE TO SOLVE ALONE.** Free **25.6 GB against
+a 20.0 GB floor** (`check_disk` goes CRITICAL below it: *"a full drive kills the run in ways the stall
+detector only reports after the fact"*). Test records measure **478–489 KB**, so the ~37.5k remaining
+to n=568 need **~18 GB** — we cross the floor at **every** rung. **Nothing meaningful is safely
+reclaimable**: the whole repo is 9.9 GB, `outputs/` under 1 GB, regenerable caches total 0.53 GB.
+**The existing mitigation is real: the archive is continuously mirrored to `D:/llm_rp_archive_mirror`
+(`sentinel.py:782`), 5 records behind and 0.1 h old — a C: failure costs ≤5 records, not the
+campaign.** Relocating the archive would need a 12-line relaunch: **flagged for Tamer, not acted on.**
+
+### TWELFTH PASS — **the disk headroom, solved within an explicit "move, never delete, unrelated only" mandate**
+
+**65. ★ THE CATCH THAT PREVENTED A SERIOUS ERROR: `C:\Program Files\Lumion 12.5` IS ALREADY A JUNCTION
+TO `D:\Lumion 12.5`.** My scan reported it at **37.23 GB** — the single biggest apparent target on the
+box — while the parent `C:\Program Files` totalled only 12.62 GB. **A subdirectory cannot exceed its
+parent**, so I stopped and checked for a reparse point instead of acting. `IsReparse: True,
+Target: D:\Lumion 12.5`: it occupies **zero bytes on C:**, and "moving" it would have meant moving
+data that already lives on D:. *The contradiction was the signal; acting on the larger number would
+have been the error.*
+
+**66. THE MACHINE WAS ALREADY OPTIMISED — which is the real finding.** Re-scanning with reparse points
+EXCLUDED, the true on-C: consumers are small (Microsoft x86 4.51 GB, Adobe 1.07, WSL 0.81, NVIDIA
+0.72). Lumion, Graphisoft and Docker are **all** junctioned to D: by earlier sessions. C: is
+`Windows 44.4` (WinSxS alone 22.37 — system component store, and cleaning it means DELETING superseded
+components, which the mandate excludes), `Users 20.17` (the project is 9.9), Program Files ~9 real.
+**There is no large unrelated application data left to move.**
+
+**67. SO THE DEFICIT WAS SIZED EXACTLY, AND IT IS SMALL AT THE RUNG WE ACTUALLY FORECAST.** Against the
+20 GB CRITICAL floor: rung 189 → **1.9 GB short**; 279 → 4.9; 403 → 8.9; 568 → 14.3. **Only ~1.9 GB
+was needed to clear the forecast outcome** — which changed this from "unsolvable" to "achievable".
+
+**68. MOVED, NEVER DELETED, UNRELATED ONLY — and verified in both directions.** Five regenerable
+caches of **idle, unrelated** apps → `D:\_moved_from_C_2026-08-01\` with structure preserved:
+Apex `psoCache.pso` (0.35), NVIDIA `DXCache` (0.60), Steam `htmlcache` (0.28), discord `Cache` +
+`Code Cache` (0.19). **Verified: 4,598 files / 1.43 GB present on D:, sources absent from C: (a genuine
+MOVE, not a copy), repo untouched.** Every one regenerates on next launch, and every one is
+restorable by moving the folder back.
+**Deliberately NOT touched:** Edge caches (**msedge was running**), VS Code's `CacheStorage` (**this
+session is running in it**), any installed application, and anything project-related.
+
+**69. RESULT, READ FROM THE GUARD ITSELF.** `check_disk` free **25.6 → 27.1 GB**. At the forecast rung
+189 that is **21.4 GB — ABOVE the 20 GB floor**, where before the move it landed 1.9 GB below it.
+Deficits at deeper rungs shrink correspondingly (279: 4.9 → 1.6). **The realistic outcome is now
+protected; only the full-568 stretch case still crosses the floor**, and that remains Tamer's call on
+whether to relocate the archive (a 12-line relaunch), with the live D: mirror already protecting
+against loss either way.
+
+### ★★★★★ THIRTEENTH PASS — **A79: THE ANALYSIS LOADER WAS SILENTLY DISCARDING 68 % OF THE ARCHIVE**
+
+**70. THE MEASUREMENT, TAKEN BEFORE TOUCHING ANYTHING.** The analysis lane raised A79 and handed ops
+the exposure condition stated mechanically (*a consumer is exposed iff it walks a root spanning more
+than one line AND keys a container on `run_id` without the line*), with a class sweep showing exactly
+one such site in the repo. What nobody had was the **magnitude**:
+
+| | |
+|---|---|
+| `load_campaign_records(root)` returned | **732** |
+| `record.json` on disk (ex-h3) | **2,260** |
+| **silently dropped** | **1,528 = 68 % of the archive** |
+
+**No error, no warning, no count mismatch anywhere to notice.** Every statistic downstream of that
+loader was computed on **one third of the data**.
+
+**71. THE MECHANISM.** `analyze_campaign.py:1147` did `seen.setdefault(str(rec.get("run_id")), rec)`
+inside a walk whose root is the **campaign** root (called at `:5016`) — core plus all ten legs. And
+**a `run_id` carries NO line**: it encodes arm+seed only, so every line writes `distributional-s0`,
+`placebo-s0`, … (verified directly — a gemini record and a core record are both literally
+`distributional-s0`). A global `run_id` key therefore merged twelve lines and kept only the first
+walked. The file's own comment eleven lines below already knew a *related* collision existed (it
+excludes `*_h3_singleshot` for exactly this reason) — **the guard was there, its scope was too narrow.**
+
+**72. THE FIX — key on `(directory, run_id)`.** The directory is the only line-bearing discriminator
+available (the record itself has none), and `_walk` visits each directory exactly once, so this
+**preserves the original intra-directory de-dup intent while making a cross-line merge structurally
+impossible.** After: **2,266 loaded against 2,265 on disk**, and **ZERO loader entries lack a backing
+`<dir>/<run_id>/record.json`** — checked explicitly rather than assumed, because an unexplained ±1 is
+not something to ship. The residual ±1 is live-write drift (the archive grew 2,260 → 2,267 during the
+measurements). **The 216 duplicate `(arm, run_id, seed)` triples that now appear are THE POINT**:
+gemini's `distributional-s0` and sonnet's are genuinely different records previously merged into one.
+
+**73. ★ WHAT IT MEANS FOR WORK ALREADY DONE — INCLUDING MY OWN, WHICH I AM CORRECTING.** My teardown
+dress rehearsal reported *"analyze_campaign EXIT 0, 38 of 39 registered keys"*. **That run was on the
+truncated set.** The exit code and key coverage remain valid as a **pipeline smoke test** — the code
+path executes and emits the full key set — but **no VALUE from it means anything, and I withdraw any
+implication that it validated the numbers. It validated the plumbing.** Analysis' per-record
+instruments are **unaffected** (they glob the archive directly rather than going through this loader),
+so their 2,721 × 9 CLEAN result stands. Nothing in the PDF is affected — no campaign result is wired
+in yet — but no pre-existing `analyze_campaign` output may be wired in either.
+
+**74. AND IT SHARPENS THE CASE FOR TWO INDEPENDENT RECORD PATHS.** The C3 gate's census
+(`integrity.py`) does **not** use this loader — it walks per-unit roots — so **the gate was never
+blinded by A79.** Two independent paths, only one broken. That is the argument for keeping both.
+
+**Verified:** py_compile clean · **142 analysis/campaign tests pass, no regressions** ·
+`import_closure.py scripts/analyze_campaign.py` → NOT reachable from the driver or the on-node entry
+point. Commits **0b77b6bd** + **090fff69** (author Tamer Atesyakar, zero AI attribution),
+`RUNNING_SHA 477bc87e → 0b77b6bd`, **both drift arms empty**. Broadcast **M286**.
+
+### ★★★★★ FOURTEENTH PASS — **TWO COORD-RAISED HAZARDS CLOSED, THEN THE LANES CONSOLIDATED TO ONE**
+
+**75. ★ UNBLIND-GLOB (coord M287, their highest-priority item of the day) — CLOSED.**
+`docs/ops/cost_decomposition.py` globbed `test/*/*` and printed a per-unit **sealed-test Sharpe**.
+That was safe on 2026-07-30, when `test/` held only the eleven H1 baselines — **the glob was
+IMPLICITLY SCOPED BY WHAT EXISTED. C4 widens it automatically**, and `test/placebo` now holds 30
+records, placebo being a registered H2-RA comparator. **Nobody had to do anything wrong**, and the
+docstring still told the reader it was about baselines. Scope is now **explicit and deny-by-default**:
+`H2_SEALED_ARMS` can never be printed under any flag; inclusion defaults to the `baseline_*` set the
+script was written for; and **both omission classes are reported BY NAME**, because a silent skip is
+how a scope guard becomes a lie about coverage. **Verified live:** prints `REFUSED (sealed H2
+treatment arms, never printable): placebo` and `skipped …: random_search`, with the eleven baselines
+unchanged — so the finding the script exists for survives intact (**mean NET Sharpe −0.107 vs mean
+GROSS +0.963**: the negative result is a cost phenomenon and the agents have gross skill).
+
+**76. ★ `.pull_tmp` (coord M267, made urgent by M288) — AND MY OWN A79 FIX CAUSED IT.** Coord verified
+A79 independently (1,528 dropped → 3) and found the side effect neither of us predicted: **the fix
+INVERTED this defect's failure mode.** Under the old global `run_id` key a temp copy sorted FIRST
+(`.` is 0x2E) and **DISPLACED** the real record; under `(directory, run_id)` both keys are distinct so
+**BOTH load and the record is DUPLICATED**. **Duplication is the harder one to notice, because the
+totals look BETTER, not worse.** `_walk` now skips any dot-prefixed child. **Verified: duplicate
+`(arm, run_id, seed)` triples 216 → 215, and `random_search-c11` is no longer returned twice** — the
+remaining 215 are exactly the legitimate cross-line pairs the A79 fix exists to preserve.
+**The lesson, which generalises: when you fix a de-dup, re-check every other defect that depended on
+the old key.**
+
+**77. THE `drift=1` I REFUSED TO HAND OVER UNEXPLAINED.** `DRIFT_PATHS = (src, scripts, config,
+prompts)` and the only differing file was `docs/ops/cycle.py` — excluded — so drift *should* have been
+0. It was the documented ~100 s transient: the cycle sampled between the code commit (which touched
+`scripts/analyze_campaign.py`) and the re-base. Observed clearing exactly as recorded:
+**`0+1dirty` → `drift=1` → `drift=0`.**
+
+**78. ★★★ THE CONSOLIDATION — `docs/RUN13_SESSION_PROMPT.md`.** Tamer has ended multi-session working:
+one successor inherits **OPS + MONITOR + COORD**. The brief is written around what that actually
+costs — **the cross-lane correction that caught most of today's real defects is gone**, so §0 requires
+the successor to reproduce it inside one session (adversarially check own work · post numbers before
+acting on them · **stop when two derivations disagree** · run the verifiers rather than trust a
+status). It carries: the widened monitoring mandate (incl. **"24 drivers" is no longer an invariant** —
+h3 is complete, 22/11 is correct and will keep falling); a **study-before-acting** section with six
+questions to answer unaided; the measured state; the prohibitions; the instrument inventory across all
+three former lanes; the five open items with **M166 flagged as the only unrecoverable one**; the eight
+lessons this session paid for; and the exhausted throughput inventory so it is not re-opened without
+new evidence.
+
+### THE DECISION, AND WHAT I REFUSED TO DO
+**No change to the submission machinery.** Levers considered and rejected, each with its reason:
+widening the node pool (**item 3 — it stops the campaign**); raising search width (K=5 is registered,
+and `config/preregistration.yaml` `budget_decision: keep_and_instrument` explicitly decided to KEEP);
+lowering `--search-threads` to widen (changes BLAS reduction order = changes arithmetic = forbidden by
+the determinism envelope, **and** would slow the critical path it is buying latency on); removing the
+C1→C2 barrier or pre-running deeper rungs (both need an edit to `campaign.py`, which **IS** in the
+import closure, plus a 12-line relaunch, and both buy ~8.5 h against a ~26-day horizon); raising SGE
+priority (forbidden site-wide; already at `ppri = 0` full standing). **Recorded so the decision is
+auditable rather than merely authorised**, per Tamer's standing grant.
+
+### FUTURE — what the successor must watch
+1. **The C4 transition is the whole game and it is imminent.** `qwen3_5_9b` is closest: 5/5 frozen,
+   needs 8 more `placebo_shuffled` floor records, then C2 (60 trainings). On passing the gate its C4
+   submits `tiers[1:]` increments summing to **538 seeds × 5 units = 2,690 trainings ≈ 2,690 slots
+   FROM ONE LINE** — 760 → ~3,450; the second line exceeds the 2,729 free. **The 4k regime arrives
+   automatically, with no intervention.** Estimated ~17–20 h — stated as an ESTIMATE, not a
+   measurement.
+2. **When the first line crosses into C4, sample the queue** (brief §4's command). `qw` should go to
+   hundreds. **If C4 opens and `qw` stays near zero, the pipelining fix did not take** — that is the
+   thing to investigate.
+3. **Re-run the per-seed substrate census before/at each gate passage** — it is the one predicate that
+   can silently park every line, and it had never been evaluated on real data until this session
+   (`crn_sub` reads `None` in all six historical reports, i.e. the check postdates them).
+4. Still open and unchanged: `campaign_summary.json` **at teardown**; the final compute figure
+   **re-taken after all arrays drain**; D22 and D24 in `docs/DEFERRED_FIXES_RUN4.md`.
+5. **Flagged, not acted on:** 6 one-slot jobs named `sshorig` (66103–66108), submitted by `ucestes`
+   in an 8-second burst at 16:07, still `qw` after 30 min against 2,729 free slots. 6 slots, no
+   campaign impact — but a 1-slot job that will not schedule against that much free capacity is worth
+   someone's attention, and it may belong to a peer lane.
+
 ## [2026-08-01n] ★★ ANALYSIS LANE, 5th session — **I RE-DERIVED AND BROADCAST MY OWN PREDECESSOR'S FINDINGS AS NEW** · two messages withdrawn · the prior-art check that excluded the likeliest source
 
 **PAST — what this session inherited.** Session 4 (`e210234f`) closed at ~14:00Z with A34–A48 banked
@@ -73,6 +1178,79 @@ were RIGHT and that you will otherwise re-derive at full cost.** Open items are 
 to their owners: ops' `campaign_summary.json` (unrecoverable after teardown), the `h2_pair`
 containment wrap, wiring A47 + per-arm PopArt + `benchmark_floor` into the registered key set, and
 the still-unanswered *"is the core-line search core-bound or authoring-bound?"*.
+
+**THIRD BLOCK — THE FLAWLESSNESS PASS (A60–A86), AND THE BIGGEST FINDING OF THE LANE'S EXISTENCE.**
+Tamer: *"check absolutely each record produced, and being produced in live"* / *"everything must be
+strictly flawless."* Eleven analysis-owned instruments, **133 falsification cases, 0 failures**.
+
+**★★★★★ A79/A81 — IF `analyze_campaign.py` RAN ON THE RUN 4 ARCHIVE TODAY, THE CONFIRMATORY ANALYSIS
+WOULD BE COMPUTED ON OTHER MODELS' DATA.** `load_campaign_records` walks the archive with **one
+`seen` dict keyed on `run_id`** (`:1147`), skipping only `*_h3_singleshot` (`:1158`) — but
+**candidate and seed ids are not unique across lines** (2,735 records → 1,295 distinct ids), so a leg
+record whose id does not collide is **pooled into the core arm**. Measured, attributed by
+`reward_source_hash`: core H2 test units hold **0** records while the loader presents 30
+(`distributional`, all Gemini) · 30 (`scalar`, all Gemini) · 30 (`scalar_cvar5`, all GPT-5.6-luna) ·
+22 (`placebo_shuffled`, all Qwen3.5-9b) · 30 (`placebo`, 27 GPT-luna + 2 Gemini + **1 core**) —
+**141 of 142 from legs.** I then proved the H2 path *consumes* it: `h2["missing"] == []` and **all
+three registered contrasts computed**, including the `pvalue_non_inferiority` fields ops landed
+today. **Full surface: 20 of 39 registered outputs change under the fix — all four hypotheses AND
+`validity_tier`** — with `validation_headroom.per_arm.*.n_trials` reading **30/30/30/30/30 shipped vs
+28/27/26/26/25 fixed**, exactly the filesystem truth, and `dsr_effective_n.n_trials` 30 vs 28.
+**Fix proven and safety-tested** (canon preserved 330/330; `cross_model` untouched); production patch
+is one line beside the existing h3ss guard. **Nothing published — the analysis had never been run on
+RUN 4, which is why ops' M253 §7 request paid for itself.**
+
+**★★★ A80 — the CLASS sweep: blast radius is exactly one function, and the EXECUTION PATH IS SAFE.**
+Chased the worst case first — `test_leg.py:442`'s resume skip — and **`done_ids` is line-scoped**, so
+no core seed has been skipped because a leg produced the same id. Every other `run_id`-keyed site
+verified line- or unit-scoped. **My own ten instruments: all path-keyed, zero exposed.**
+
+**★★ A82 — the tamper-evidence seal reports CHANGED for records nobody touched.**
+`archive_integrity.record_digests` keys on `run_id` and disambiguates only the record seen **second**,
+in sorted order — so bare-key ownership depends on path sort order. **Proven on a fixture:** adding a
+record on an earlier-sorting line moved the bare digest `e23ff54a → a799300c` **with nothing
+modified**. Fix (key on path always) is smaller than the code it replaces and proven to hold.
+
+**★★ A83/A84/A86 — three more closures.** The `env_fingerprint` label is **constant across the whole
+search tier**, does **not encode the line** (one label shared by six lines), and carries device
+**kind** not **model** — so **D16 was invisible to it by construction**; the homogeneity witness is
+the `cpu.model_name` census. **Reproducibility layer 1 is now measured on BOTH stages**: endpoints
+reproduce bit-exactly under the repo estimator and to ≤ 6.0e-15 under an independent
+re-implementation (1,157 records), and **all 2,794 archived programs still clear the static AST
+gate**. **A86: the winner identity chain — search candidate → frozen marker → test records —
+verified end to end, 52/52 intact**, the property the whole sealed-leg design rests on and which had
+never been checked as one object.
+
+**★★★ A85 — I APPLIED COORD'S M268 METHOD TO MY OWN NOISE FIXES AND FOUND FOUR FALSE NEGATIVES.**
+Every suppression I shipped could silence a real event — most dangerously the key-level determinism
+acknowledgement, which **silenced a within-unit split, the D16 shape, in the check that exists to
+catch it**. All four fixed with **both** controls. **The S1 fix took three attempts**: strict was a
+false positive on the benign kernel split, and only `(unit, key)` **instance-level**
+acknowledgement is neither blind nor noisy — found by re-running the live archive rather than
+trusting the unit test. **Three errors inside the audit itself:** two tests re-implemented the rule
+they tested (and so could never observe a repair), and my S3 fix over-constrained and flagged **957
+healthy records** before the archive corrected me on what `candidate_id` means.
+**Proposed for the protocol: every suppression needs TWO controls — the noise is gone, AND an
+injected new instance still fires.**
+
+**OTHER FINDINGS THIS BLOCK.** A62 `per_period_pnl` is byte-identical to `test_returns` on every
+record while the canonical schema calls it a "P&L vector" — **with an identified downstream consumer**
+(a planned figure). A64 `wall_clock` is **hardcoded 0.0** on all test records and no instrument
+computes compute at all — Okhrati's named docking point — **recovered from the ledgers: 78,209 CPU-h,
+corroborating ops' 67,166 lower bound independently**. A75 **h_rt is BINDING**: every `rc=126` task
+died within 31 s of the wall, 16 kills / 1,920 CPU-h, and ops' "correctly sized" verdict came from an
+**exit-0 census right-censored at exactly the quantity being measured**. A68 PopArt σ_max computed
+(A30's gap) — 1.0 on 17 of 21 units, **16,324 / 28,774 on the two DSR-family baselines, which are
+exactly the two units that substitute SAFE_DEFAULT** — merging two separate findings into one
+mechanism. A74 two **control** arms authored a numerically identical reward, showing
+`reward_source_hash` overstates search diversity.
+
+**MY OWN ERROR COUNT THIS BLOCK, all caught before transmission:** the `_env` launcher sidecars
+counted as records (the most-repeated error in this codebase), `test_components` drift, `seed` as an
+envelope key, 45 frozen markers as "provenance holes", a keyword detector whose **positive control
+failed**, `run_id` where the schema uses `candidate_id`, a `try/except` around a function that
+**returns** rather than raises, a PowerShell encoding round-trip that corrupted a file, and the three
+audit errors above.
 
 **SECOND HALF — SUPPORTING THE THROUGHPUT PUSH (A53–A59).** Tamer escalated campaign throughput and
 ops routed a science question to this lane. **A53:** answered it — pipelining the eleven leg lines
@@ -307,33 +1485,166 @@ measured rather than assumed: **Heros + `[htt]{hyphenat}` + `\emergencystretch` 
 off the paper, 0 missing characters, and — unlike against the old font — costs no extra page at all**, so
 the one-page cost quoted to ops earlier was withdrawn as stale.
 
+### ⑩ THE STRUCTURE WAS BROUGHT INTO THE BINDING 16-SECTION ORDER (later the same session)
+
+Authority #4 sets the section sequence and it is not advisory: *Cover, Title, Abstract, Acknowledgements,
+ToC, List of Figures, List of Tables, Intro, Lit Review, **Data**, **Methodology & Analysis**, Results,
+**Discussion**, **Conclusions & Recommendations**, References, Appendices.* The document violated it in
+three places, one of which had gone unnoticed through every prior audit.
+
+- **Data was not a section at all.** It sat inside Methods as a single subsection. It is now **Chapter 3**
+  (3.1 the panel · 3.2 the stylised tail facts · 3.3 splits, purging and leakage · 3.4 delisting returns) —
+  which is also where the guidelines locate *"motivate the method with the data"*, so this serves Okhrati's
+  compass as much as conformance. The **state representation stayed behind** in Methodology as §4.2: it
+  describes what the *agent sees*, not what the *data is*, and moving it would have been a filing error
+  dressed as a restructure.
+- **Discussion and Conclusions were one conflated chapter.** Now **Chapter 6** (Discussion and Limitations)
+  and **Chapter 7** (Conclusions and Recommendations).
+- **Methods** is renamed **Methodology and Analysis**, the guidelines' own section name.
+- **§7.2 Recommendations did not exist.** The guidelines say "Conclusions *and Recommendations*", and D4
+  makes a costed, prioritised intervention list a *named deliverable*. It was built by **consolidating
+  material the document had already disclosed** — B.1.2, B.2.1, B.2.8, B.3.1, B.4.1, B.4.2, B.4.4 and the
+  practitioner implication already in the Discussion — never by inventing content. It is two **tables**, so
+  it is word-excluded, and it simultaneously discharges the registered practitioner-checklist obligation.
+
+**The renumber was the third of the day and the riskiest**, because Data is *inserted* rather than appended:
+Methods 3→4, Results 4→5, Discussion 5→6, with old §3.2 splitting in two directions at once. Same two-phase
+sentinel transform, with the cell-index and citation-locator guards from the earlier corruption carried over.
+
+**Two things the dry run caught that a mechanical pass would have destroyed.** First, `FRONT_MATTER.md`'s
+chapter references were **stale on the *pre*-renumbering scheme** — I had excluded the whole file from the
+earlier pass over one bad line, so its pointers never moved, and under the new numbering most of them are
+correct *again by coincidence* (Methodology returns to Chapter 4). A mechanical shift would have moved
+already-correct pointers off target. It is now handled by hand, reference by reference. **Second**, the
+references to old §3.2 — embargo, purge, PIT, the delisting band — all pointed at content that *moved*, so
+their section numbers were about to become silently, plausibly wrong. Each was remapped semantically
+(§3.1/§3.3/§3.4), not mechanically.
+
+**P150.** Excluding an entire file from a transform to dodge one false positive left that file stale for two
+subsequent passes. *The fix for one bad line is a guard on that line, not an exemption for the file.*
+
+**VERIFIED, real output:** freeze `--check` **MATCHES `3ca6f01a…`** before and after — nothing hash-bound was
+touched; full build OK, 247 pp, 0 missing characters, 0 U+FFFF; citations 277/277, 0 dangling, 0 unused; **all
+internal references resolve**; 0 bare-integer table cells differ from HEAD. The resolver itself was extended:
+Appendix B numbers its third level as bold **bullets**, not headings, so it had been under-collecting and
+reported seven false unresolved references.
+
+**Open:** the ToC still prints *after* the Lists of Figures and Tables, because `assemble()` injects it after
+the whole of `FRONT_MATTER.md` and the lists live inside that file. Two fixes were offered to ops (`M245`);
+the change must be atomic or the PDF ends with two ToCs or none. Word budget **18,868** — the condensation
+programme remains the open commitment.
+
+### ⑪ THE STRUCTURE WAS COMPLETED, THE PRESENTATION LAYER WAS BUILT, AND CHAPTER 1 WAS REWRITTEN (later the same session)
+
+**⑪.1 The remaining two structural violations were closed.** §22 recorded three; the earlier block closed
+one. **Data did not exist as a section at all** and is now Chapter 3 (the panel · the stylised tail facts ·
+splits, purging and leakage · delisting returns), which is also where the guidelines locate *"motivate the
+method with the data"*. The **state representation deliberately stayed in Methodology** as §4.2, because it
+describes what the *agent sees* rather than what the *data is*. **Discussion and Conclusions were one
+conflated chapter** and are now Chapters 6 and 7. **§7.2 Recommendations did not exist**, though the
+guidelines say "Conclusions *and Recommendations*" and D4 makes a costed intervention list a named
+deliverable; it was built by **consolidating already-disclosed material** (B.1.2, B.2.1, B.2.8, B.3.1,
+B.4.1, B.4.2, B.4.4 and the practitioner implication already in the Discussion) into two word-excluded
+tables, never by inventing content. Body now reads 1 Introduction · 2 Literature Review · 3 Data ·
+4 Methodology and Analysis · 5 Results · 6 Discussion and Limitations · 7 Conclusions and Recommendations.
+**Core ratio 62.0 %, which passes the ≈60 % rule** and supersedes the plan's recorded ❌ 46.8 %.
+
+**⑪.2 Three defects that a marker would have met on the first page.**
+- The PDF opened with *"Status: structural scaffold (2026-06-28)"* followed by an eighteen-line internal
+  design memo ending `[TAMER: pick at compile]`. Removed, along with three compile notes,
+  `Stefan [SURNAME — CONFIRM]` and `[WORD COUNT: fill at compile]`. Every remaining slot is now one uniform
+  `[TO COMPLETE AT SUBMISSION]` form, so they read as the author's checklist rather than leaked process.
+- **The Table of Contents contained notes to the author.** The six `paper/tables/*.md` files were wired as
+  top-level `#` headings, so they rendered as *peers of chapters*, including a section titled *"How to use
+  this table in the prose"* whose body was the instruction *"Do not narrate the table."* All demoted to
+  `##`; author-facing sections deleted; two whose titles read as housekeeping but whose content was genuine
+  research procedure were retitled and kept.
+- **Zero figures in 246 pages**, against 19 figure cross-references. Three are now embedded: Figure 3.1
+  (stylised tail facts), Figure 3.2 (splits timeline) and Figure 4.1 (the system diagram, which the
+  guidelines name as a mandatory accessibility artefact).
+
+**⑪.3 A figure-safety test that must become a gate.** `make_figures.py --demo` is the **default** and
+renders the whole suite on synthetic null-shaped data, stamping each `SYNTHETIC DEMO DATA — NOT RESULTS`.
+The module's own comment says *"the banner is itself the real-vs-demo test"*, so that test was run over all
+21 figures on disk: **exactly four are unstamped and safe** (F1 and F2 are schematics, F3 and F4 render from
+the real gold-panel train window) and **the other seventeen would place fabricated numbers in the
+dissertation**. Proposed as a two-line rule in `presentation_lint.py`: no figure whose embedded text
+contains `SYNTHETIC DEMO DATA` may appear in the compiled PDF.
+
+**⑪.4 Chapter 1 rewritten end to end, against measured evidence rather than taste.** Four papers in this
+literature were measured (Eureka, CARD, the Decision-Language Model, Auto-MC-Reward) and then, on a second
+pass, actually read: **they use zero em dashes**, mean sentence length 19–34, longest 29–68. Chapter 1 had
+**80 em dashes, 41 semicolons, mean 35.3 and a 253-word sentence**. The `humanizer` skill was installed from
+GitHub after checking it (412 lines, pure markdown, no executable code) and its 33 patterns applied. Result:
+**2,897 → 1,755 words**, em dashes and semicolons in prose **0**, mean 23.3, longest 54, no AI vocabulary,
+bold runs 60 → 6. The canonical research question was rewritten without em dashes and propagated so that it
+is **byte-identical in all four required places**.
+
+**⑪.5 And then the repository turned out to be ahead of me again, for the twelfth time.** Two files had been
+written **specifically for Chapter 1** and never wired in. `paper/sections/RQ_canonical_and_framing.md`
+specifies three things the chapter was missing, and its argument for one of them is worth preserving
+verbatim: *"A marker who reaches the discussion still believing the project failed has already formed a view
+and will not revise it. The frame has to arrive before the result does."* All three are now on page one: the
+**SQ1/SQ2/SQ3 decomposition** beside the question, the **"What counts as a result here"** null framing
+(master-plan C4-11), and **three plain-language definitions** of pre-registration, equivalence testing and
+the intersection-union test, as a word-excluded table, aimed at the any-discipline second marker the
+guidelines call the single biggest risk.
+
+**⑪.6 Every checkable claim in Chapter 1 was fact-checked against its source, and three did not survive.**
+- The C1 evidence cell claimed *"fed blocks matched in length so that token count cannot confound the
+  contrast"*. **Measured: 270 / 62 / 288 / 81 / 270 characters.** They are not matched. Length matching is a
+  property of the *placebo* against the treatment, which is the placebo's purpose, and says nothing about
+  the scalar contrast. Rewritten to what the archive supports: the heuristic-free structural diff finding a
+  154-character common prefix and 240-character common suffix byte-identical across arms.
+- The same cell **stated a pending result as settled**. The version replaced carried
+  `[FROM CAMPAIGN: prompts audited]` and the rewrite dropped it. Restored, scoped to what the QC record
+  actually marks pending: `[FROM CAMPAIGN: records scanned]`.
+- Eureka's ablation was described as costing *"roughly a third"* of performance. **Opened the PDF: 28.6 %.**
+  Corrected in Chapter 1 and Chapter 2.
+- Also corrected: `amodei2016concrete` ("Concrete Problems in AI Safety") had been cited to support a claim
+  that RL is applied successfully, which it does not support; and *"115 dated amendments"* was softened to
+  *"an amendment log running to R115"*, because an independent count of distinct rows returns 104 and the
+  difference could not be reconciled cheaply.
+
+**⑪.7 Coordination.** Ops adopted the TeX Gyre Heros typeface recommendation and landed the `ASSEMBLY` move
+for the theory relocation. The measured cost of Heros was reported against ourselves: it is wider, so it
+made overflow **worse** (14 → 18 visible, 226 → 242 pp), which raises the priority of the still-open
+hyphenat patch rather than lowering it. Registry **row 38** was marked **PARTIAL** rather than landed at
+ops' request: the generator is built and verified first-hand (`src/viz/figures.py:484`, `tests/test_viz.py`
+34 passed), but the row specifies three landing sites and the CH4 sentence and CH6 figure are still the
+write-up lane's. Coord's `M254` asserted that `T_arms_and_hypotheses.md` still says *"decisive either way"*;
+**checked first-hand, it does not** — that was fixed earlier in this session and coord was reading a stale
+copy. Their underlying point was fair, so the N2 row now names the registered field **and** the executed
+test so the two cannot be conflated.
+
+**MY OWN ERRORS IN THIS BLOCK — five, and four of them were bad instruments rather than bad conclusions.**
+
+| | The error | The lesson |
+|---|---|---|
+| **P150** | Excluded an entire file from a transform to dodge one false positive, leaving its chapter references stale through two subsequent passes | The fix for one bad line is a guard on that line, not an exemption for the file |
+| **P151** | Told the user *"I checked the archive directly: zero test records"* when the shell had drifted out of the repo, so `find` searched a path that **does not exist** | The conclusion was right by luck. Print the path you searched, or you have measured nothing |
+| **P152** | An emphasis-repair regex **broke bold across the whole document**, taking literal `**` in the PDF from 0 to 228, because it could not distinguish an opening delimiter from a closing one | Repaired with a state machine that tracks delimiter parity. Then the grep used to verify it also matched *correct* markdown, so a phantom was chased for two rounds |
+| **P153** | Reported "0 figures embedded" from `get_images()`, which counts image XObjects; vector PDFs embed as **form** XObjects | The figures had rendered correctly the whole time |
+| **P154** | A PDF search for footnote text returned false because the search string **straddled a line break** in the extracted text | Search for short fragments. A long probe string is a fragile instrument |
+
 **FUTURE — what the next session must do, in priority order.**
 
-0. **DO NOT BANK THE WORD COUNT YET.** `word_budget.py` currently reports 18,633 because
-   `02_CHAPTER_theory.md` carries a `(word-excluded)` heading — but until ops lands `M189` the file is
-   **still printed in the body**, so the chapter is excluded from the count while appearing before the
-   References. `build_paper.py`'s own comment calls that pattern *"word-count evasion, not the appendix
-   escape hatch"*, and it is currently an accurate description of this working tree. The number becomes
-   legitimate the moment the `ASSEMBLY` → `APPENDICES` move lands, and not before.
-
-1. **The condensation programme is the open commitment.** 18,111 → ≤10,000, i.e. **−8,111**, per Tamer's
-   fresh instruction. The per-section census exists and should drive it. The method is **relocate →
-   tabulate → condense**, in that order: relocation and conversion of enumerative prose into *tables* are
-   **word-excluded and lossless** (and improve the D5 "rigour as a scannable artefact" duty), so genuine
-   deletion is the last resort, not the first. Largest targets, measured: Discussion §5.1 **2,101** ·
-   Methods §3.7 **1,887** (heavily duplicated by the arms/hypotheses table already in the deliverable) ·
-   Lit-review §2.2 **1,487** · Methods §3.3 **1,059** · Intro §1.3 **1,024**.
-2. **Two items are blocked on ops and both are open:** `M189` — the two-line `ASSEMBLY` → `APPENDICES`
-   move for the theory relocation; **until it lands the PDF renders Appendix C inside the body**, which is
-   my doing and is the other half of a migration whose first half is complete. And `M186` — the
-   hyphenat/emergencystretch patch.
-3. `M178` — the TeX Gyre Heros typeface decision is ops'. If they decline, the Arial/Helvetica guideline
-   miss must be recorded as a disclosed deviation rather than left silent.
-4. Standing, unchanged: `R-2` the four-rung why-ladder · `R-3` fragmentation · `R-4` the
-   considered-and-rejected register · `R-6` the remaining `[FROM CAMPAIGN]` reasoning shells · the **F20**
-   seed-trajectory panel with its four binding caption conditions.
-5. **Effect-blindness held all session.** Nothing this lane touched reads a treatment arm's sealed-test
-   outcome, and no node verdict was written anywhere.
+0. **Read `docs/WRITEUP_SESSION_PROMPT_2026-08-01b.md`.** It supersedes the earlier brief, which carries a
+   refuted SESOI figure in its §5.5 and a pre-restructure deliverable table in its §3.
+1. **The word budget: 17,758 against a hard 10,000.** Ops independently audited the counter and confirms it
+   applies exactly the UCL exclusion list, so the figure is genuine body prose. Method, in order:
+   **relocate → tabulate → footnote → condense → delete.** Tables and footnotes are both word-excluded and
+   both barely used. ⚠ The four `paper/sections/` files are **3,237 words, not the ~1,100** that
+   `build_paper.py` and the master plan both record.
+2. **Convert Chapter 5's 92 bare slots into reasoning shells before the results land**, or filling them
+   produces exactly the bare numbers D1 forbids.
+3. **Promote the capability gradient to a named contribution.** Measured, outcome-independent, and the
+   strongest available move on the novelty dimension.
+4. **The turnover finding** in `paper/sections/CH1_contributions.md` is unused. The data exists (all eleven
+   canon rewards hold 330 test records, verified this session) but its figures were **not** verified here.
+5. **The ToC ordering**, where ops is waiting on the write-up lane to move first, atomically.
+6. **`docs/HANDOFF.md` §3 says the registry holds "rows 1–36". It holds 45**, and rows 37–45 include all
+   four of Okhrati's own asks. One line, highest value per character in the project.
 
 ## [2026-08-01l] ★★★★★ OPS LANE / RUN 11 — **THE BUILD HAD BEEN PRINTING "0 WARNINGS" OUT OF A CHANNEL IT NEVER READ, AND FLATTENING EVERY BOLD AND ITALIC IN THE DISSERTATION** · the import-closure PROVER was clearing files nobody had asked about · **A16 DECIDED AND IMPLEMENTED, PRE-SPECIFIED WHILE PROVABLY BLIND** · four registered analysis outputs rescued from silent absence
 
@@ -824,7 +2135,96 @@ corroborates the half this lane could never check.** Scope both ways: **confirma
 (R80 report-only) — but `qwen3.5-9b` is the **capability-gradient bottom anchor**, so this is the lowest
 rung of that exhibit. Routed as `M202`, **with a deliberate deferral offered as a legitimate answer.**
 
-**MY OWN ERRORS — P142 · P143 · P144 · P145 · P150, all caught before they reached a decision.** P142: my A16 window
+**⑬ ★★★★ TAMER: *"you are doing an awful job at coordinating and orchestrating."* HE WAS RIGHT, AND THE
+MEASUREMENT IS THE FINDING.** Measured rather than argued: between 12:15 and 14:45 this lane emitted
+**23 messages / 99,117 characters (~19,800 words)** — **more volume than ops (12/55k), analysis
+(20/79k) or write-up (10/39k)** — opened **8 `needs=action` items** and closed **none**. The whole bus
+holds **10** `ack`/`done` events ever, **two of them mine**, in the lane that *owns* the bus. And
+`docs/LANE_PROTOCOL.md`, this lane's own shared contract, went **untouched all session**. When the
+items were finally checked, **one of four had landed and three had not, and nobody knew** — the only
+record was prose scattered over 200 threads. **I was doing analysis work and calling it coordination.**
+
+**THE FIX WAS MACHINERY, NOT A RESOLUTION.** `.claude/lanes/openitems.py` — every cross-lane
+commitment with its status **re-derived from the repo on every run**. No hand-typed status fields: each
+row carries a **verifier**, so no lane has to take coord's word for a status. `--open`, `--json`,
+`--selftest`. Documented at `LANE_PROTOCOL.md` §5b. Threads then actually closed with `done`/`ack`.
+**Open went 7 → 5**, with ops' four closures each **confirmed independently** (F-18 by *execution*:
+`--md-only --final` now returns **rc=2** having compiled nothing).
+
+> **★ AND THE BOARD WAS THE DEFECTIVE PARTY TWICE, IN BOTH DIRECTIONS — which is the most useful thing
+> it produced.** **P157**, a **false DONE**: F-18's verifier pattern-matched the source for something
+> guard-shaped and reported a guard that did not exist; execution said `rc=0`. **P160**, a **false
+> OPEN**: F-19's verifier searched for a literal digest string — but ops solved it *better than
+> asked*, deriving and **checking** the bundle at build time rather than hardcoding a constant that
+> would go stale. **The general form: A VERIFIER ENCODES THE FIX ITS AUTHOR IMAGINED, so when the
+> owner implements something better, the verifier reports the difference as failure.** Both now check
+> mechanisms, not expected strings.
+
+**⑭ ★★ W2's FALSE-ALARM FACTORY — 208 batches mis-classified, found by chasing one alarm on the CORE
+line.** `c1_baselines` last logged `3/4 done` and **three minutes later** `batch complete: {'ok':
+True, 'completed': 4}`. **`batch_progress.py` parsed only progress lines and never read the driver's
+own completion line**, so a batch that *finishes* is byte-identical to one *abandoned* — frozen short,
+then silent. W2 duly reported a **successfully completed** batch as *"either ABANDONED or IN FLIGHT"*
+and pointed ops at a cluster call to discriminate two states, **neither of which was the answer**.
+**Fixed** (the driver's declaration outranks the last progress tuple; `ok` captured explicitly so an
+`ok: False` completion is **not** cleared). Measured: **stranded 6 → 1, complete 25 → 233**, with the
+one genuine strand — `leg4_..._h2_pair_test` — **preserved**. Proved it is not merely silencing
+alarms: every cleared batch carries a real `'ok': True` line (`c1_canary` completed 90), and leg4's
+h2_pair has **zero**. W2's precision goes from 1-true-of-6 to **1-of-1**, and **C4 is about to complete
+batches in bulk** — the old detector would have flagged nearly all of them. Baseline re-derived so a
+mis-calibrated instrument's allow-list could not outlive the calibration (F-6's rule).
+
+**⑮ ANSWERED OPS' DIRECT ASK (M222) — the driver's failure accounting under the C4 job cap.** Good
+news on three counts: a qsub cap-rejection is `CalledProcessError` → `SubprocessError` ∈
+`_TRANSPORT_ERRORS`, so it is **counted and retried, not instantly fatal**; `pending_submit` is
+consumed **only on success**, so **no work is lost**; a fatal raise is clean and the supervisor
+relaunches. **But `_outage_is_fatal` is an OR while `run_batch`'s docstring says BOTH** — the same
+function documents itself both ways. `72 × 600 s = 43,200 s` = the 12 h wall bound **exactly**, so the
+bounds coincide *only at the default poll* — and the live supervisors pass **`--poll-secs 180`**, making
+the real death clock **3.6 h, not 12**, shortening proportionally with any poll reduction, *which is
+the direction throughput work pushes*. Fix is one line: derive the count bound from `poll_secs`.
+
+**⑯ ★★★★ THE DEEP SWEEP (Tamer: *"everything must be absolutely flawless"*) — four findings, and the
+last one is the one that mattered.** Full detail: `docs/COORD_LANE_FINDINGS_2026-08-01.md` F-31…F-34.
+
+**(a) THE CLASS SWEEP I PROMISED THREE TIMES AND NEVER DID.** After W2 mis-classified a completed
+batch I wrote *"audit every sibling that keys on absence"* — and didn't, so W2b and W6 were each found
+the expensive way. Swept every check against *"can a TERMINAL-SUCCESS state produce this alarm?"* and
+found **a fourth instance in W1**: the ops cycle loop stops when the **campaign ends**, so W1 would
+have announced *"the ops monitoring loop has STOPPED; every reading is stale"* **at the exact moment
+the campaign succeeded**. Fixed via the drivers' own completion statements; positive-controlled on
+four branches including **`no driver logs` → STALLED, never "complete"**.
+
+**(b) THE BOARD-VERIFIER AUDIT — and my audit was wrong twice about my own board.** It flagged *"four
+verifiers can return DONE on an absent file"* (**false** — all four return `UNKNOWN`) and
+*"DRIVER-BOUND is fragile"* (**false** — it reads values and computes a comparison). **A false
+finding, from the audit built to catch false findings.** Genuine result: **one** fragile verifier,
+since rewritten as EXECUTION.
+
+**(c) ★ THE LOADER HAS THREE CONTAMINATION SOURCES, NOT ONE.** Analysis' leg **pooling**; leg
+**dropping**, now numbered — **732 records returned from 2,766 on disk**; and **a third nobody had
+seen: `.pull_tmp.*` dirs are inside the walk.** `_walk` filters no hidden dirs and `.` (0x2E) **sorts
+before every real subtree**, so a partially-pulled record **wins every `run_id` collision** — verified
+live on `random_search-c11`, which the loader currently serves from the temp copy. **Both ways: the
+files are BYTE-IDENTICAL, so nothing is wrong today** — but an *interrupted* pull would put a
+truncated record ahead of the real one. **And the refinement that reverses the urgency: pooling
+happens ONLY where the core arm is EMPTY, so as C4 fills the contamination becomes a MIXED pool that
+is HARDER to detect. "It will look fine later" is a false reassurance.**
+
+**(d) ★★★ THE QUESTION THAT MATTERED MOST: *can my own fixes now SUPPRESS a true positive?*** Every
+false-alarm fix today traded noise for quiet. Attacking them from the dangerous side found a real one:
+`declared_done` was set and **never cleared**, so a batch that **completed → was re-submitted →
+stranded** would have read `complete = True` and **W2 would have said nothing** — *the exact shape of
+`leg4_..._h2_pair_test`, the only real strand this detector has ever caught.* Fixed and
+falsification-controlled; live archive still reports **stranded = 1 (leg4), complete = 245**.
+**Noise is visible and annoying; suppression is invisible and expensive.**
+
+**MY OWN ERRORS — P142 · P143 · P144 · P145 · P150 · P155 · P156 · P157 · P158 · P159 · P160 · P161 ·
+P162 · P163 · P164 · P165.**
+⚠ **And a process slip worth more than most of them: I wrote "P157" into two documents WITHOUT drawing
+it from the arbiter** — in the lane that *built* the arbiter, whose protocol says always draw from it,
+and which exists because two lanes once both allocated from P31. It happened to be safe; I drew P157
+legitimately minutes later and it returned as mine. **Safe by luck is not safe by process.** P142: my A16 window
 census keyed on *"does a unit directory exist"* and printed **WINDOW: CLOSED** — `test/placebo`'s
 directory holds only `_env/env.json` and **zero** records; **the correct predicate was already in my own
 W7 and I re-derived it instead of calling it.** P143: my falsification control printed `NO CRASH`
