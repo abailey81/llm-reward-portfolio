@@ -12494,3 +12494,117 @@ that prompted it.
 specifically here — if `placebo` had crashed on either line, the new D14 path would now **stop the
 pass BEFORE building the CRN-paired H2 array** rather than building it with a hole. The guarantee is
 live on all 24 drivers as of `402d59e`, and nothing has needed it yet.
+
+### 100.17 ★★★ NINE FINISHED ARTEFACTS WERE ABSENT FROM THE DISSERTATION — 15a-i AND 15e LANDED
+
+**`build_paper.py`'s `ASSEMBLY` tuple IS the whole deliverable** — no glob, no directory walk, no
+transclusion — so a file that is authored but not listed simply never reaches a marker. **Nine
+finished artefacts were in exactly that state:** the seven `paper/tables/` files (T10-T20), the
+quality-control appendix carrying the entire Criterion-2 execution reframe, and `NOMENCLATURE.md`.
+`FIGURE_TABLE_MANIFEST.md` marked them **BUILT**, which was true of the FILES and false of the PDF —
+**nobody had distinguished *authored* from *wired*.**
+
+```
+  build_paper --md-only :  15 chapters + 3 appendices   (was 8 + 1)    RC=0
+```
+
+**SHIP-FORM verified first-hand before wiring**, per the write-up lane's own precondition: the only
+hits for criterion / top-band / word-count / marker are two uses of "marker" in its *technical*
+sense in the QC appendix. **The four `paper/sections/` files are deliberately NOT wired** — they are
+inserts carrying ~1,100 words of BODY prose, and listing them standalone would move that prose
+outside `word_budget.py`'s `BODY_CHAPTERS`. That is word-count evasion, not the appendix escape
+hatch. Confirmed after the change: the word budget is **UNCHANGED at 23,625**.
+
+### 100.18 THE CITATION GATE HAD A SECOND DEFINITION OF "CITATION", AND IT COST A REAL DEFECT
+
+**Why 15e had to land in the same commit, quantified:** the seven tables carry **79
+cite-references**, and the gate globbed `paper/*.md` **top level only**. Wiring alone would have
+imported 79 unchecked citations into the graded PDF **while `check_citations` reported CLEAN.**
+
+Two changes, and the second matters more:
+
+1. **Scope is DERIVED from `build_paper`'s `ASSEMBLY`/`APPENDICES`**, not maintained in parallel, so
+   a future entry cannot escape the gate by being forgotten here. The fallback on import failure is
+   a WIDER recursive scan, never a narrower one.
+2. **`cited_keys` no longer has its own idea of what a citation is.** It scanned every code span
+   against a bibkey shape, with **no bracket requirement and no fence awareness** — while the
+   BUILDER only rewrites backticked keys *inside* `[...]` and *outside* fenced blocks. The moment
+   the tables were wired that disagreement produced a false DANGLING on a bare model pin in a table
+   cell. **The checker now runs `build_paper.rewrite_citations` and reads the citations out of ITS
+   output**, so checker and builder cannot diverge again, and fences come for free.
+
+**★ AND IT IMMEDIATELY FOUND A REAL PDF-VISIBLE DEFECT, in the chapter a probabilist examiner reads
+most closely.** `paper/02_CHAPTER_theory.md:269` opens a citation group that CONTAINS another
+bracket group:
+
+```
+  [`groeneveldmeeden1984measuring`; Bowley's
+  [`bowley1920elements`] is its quartile special case]
+```
+
+`_GROUP_RE` cannot match nested brackets, so the OUTER group is never transformed. **Verified in the
+built markdown at line 1191: that line carries the RAW source while both neighbours transform
+correctly.** Consequences, which are the same fact wearing two hats: `groeneveldmeeden1984measuring`
+renders as literal backticked text instead of a citation, **and** it is the campaign's only UNUSED
+bib entry. Reported to the write-up lane with the line and cause; **not edited — `paper/` is theirs.**
+
+Current reading across **18 shipped files**: 0 dangling, 0 verify-in-use, 0 literal VERIFY.
+
+**TWO FALSE POSITIVES OF MY OWN, caught before either was reported as a finding:**
+
+* the aligned checker flagged `blackwell1953equivalent.` as dangling — **the trailing period was
+  MINE**: pandoc treats only INTERNAL punctuation as part of a key, so `[@key.]` cites `key`. Fixed
+  by stripping trailing punctuation;
+* a grep I wrote to count nested groups reported **25** across the paper. It spans paragraph
+  boundaries and matches non-citations like `[3835, 5406)`. **The authoritative count is ONE**,
+  because the gate uses the builder's own transform. *A detector that fires on nearly everything is
+  making a claim about its own specification first* — my own rule, applied to my own grep.
+
+**Also recorded: the gate exits 0 on PROBLEMS unless `--strict`.** A gate that reports a problem and
+returns success cannot fail a pipeline. The default is left unchanged so no existing caller moves
+silently, but the run now PRINTS that fact rather than leaving it implicit.
+
+### 100.19 LANDED WITHOUT DISTURBING THE CAMPAIGN — THE SANCTIONED IMPORT-CLOSURE ROUTE
+
+`cycle.py`'s own drift note offers two exits: *"prove unreachable with `docs/ops/import_closure.py`,
+or re-base at restart."* This is the first use of the first exit.
+
+```
+  static walk from scripts/run_campaign_cluster.py + src/cluster/run_one.py
+  modules reachable                                   : 58
+  references to build_paper / check_citations         :  0   -> PROVEN UNREACHABLE
+```
+
+So the change is **inert for the running experiment** and needed **no relaunch**; `RUNNING_SHA` was
+re-based `402d59e -> b44a566` on that proof, and drift returned to 0 on both arms. **A relaunch here
+would have cost ~10 minutes of twelve lines' progress and an ssh burst, to deploy code the drivers
+do not import.**
+
+### 100.20 A MISATTRIBUTION CORRECTED — AND THE REAL LESSON IS SHARPER
+
+The COORD lane reported that *"ops' new hourly heartbeat block broke my W4"*. **Checked before
+replying, because a wrong attribution means the real author never learns.** Three facts:
+
+* the block is written by **`docs/ops/cycle_loop.sh`**, not `cycle.py` — the string does not appear
+  in `cycle.py` at all;
+* it was introduced in commit **`db05f336`** (a PREVIOUS session, 07-31), and RUN 10 never touched
+  `cycle_loop.sh` — `git log --since 2026-08-01` over that path is EMPTY;
+* **the first heartbeat block in `ALERTS.txt` is timestamped 2026-07-31T15:50:29Z** — it had been in
+  that file for **fourteen hours**, and there are five of them.
+
+**So nothing changed; that was simply the next hourly firing after their watcher was armed.** Their
+stated lesson — *"a format change by another lane is a dependency you did not know you had"* — is
+true in general but is not what happened. **The actual failure is one nobody would have caught by
+watching other lanes: a parser built and positive-controlled against a sample of an artefact that
+did not contain a record type present in the same file for fourteen hours.** It is validation
+against a PARTIAL CORPUS, and it would have bitten with no other lane in existence — the same shape
+as their own `_env` sidecar defect and ANALYSIS's frozen-markers-one-level-shallower defect.
+
+**The rule proposed in return:** *when you build a parser for an EXISTING artefact, enumerate the
+distinct record types already in it and assert your parser handles each — do not infer the grammar
+from the tail.*
+
+**And the habit their note was really asking for, volunteered unprompted:** `results_audit.py` gained
+a new `§3b` block printing `  <arm>  pool=<n>`, and `cycle.py` now reads the arm counts from THERE
+rather than from §3's `records=` lines. **That IS a format change and it IS mine** — flagged to
+every lane before anything could break on it.
