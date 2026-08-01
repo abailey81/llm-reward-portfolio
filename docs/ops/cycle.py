@@ -117,7 +117,14 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "26807b8"   # re-based 2026-08-01: … -> f75904f (§100.34/35/39) -> b38ad14 (§100.40) -> 26807b8 (§100.43/47, A16 + Heros + theory->Appendix C).
+RUNNING_SHA = "775c942d"  # re-based 2026-08-01: … -> b38ad14 (§100.40) -> 26807b8 (§100.43/47) -> 775c942d (§100.49, the leg --pipeline-rungs fix).
+# ⚠ 775c942d IS A DIFFERENT KIND OF RE-BASE AND THE DISTINCTION MATTERS. The three before it moved
+# files PROVEN unreachable from the driver, so the running code was untouched in fact. This one
+# moves `scripts/mode_d_supervisor.ps1`, which IS the launch path — but PowerShell binds a script
+# at PROCESS START, so the eleven live supervisors keep the argument vector they were started with
+# and the running campaign is equally untouched. The change is STAGED, not applied: it takes effect
+# only when a supervisor is next started. Re-basing here keeps the drift arm honest about what is
+# committed; it does NOT assert that the fix is live. It is not, until the leg lines are restarted.
 # FENCED FILES HAVE MOVED ACROSS §100.33-§100.40, AND EVERY ONE IS PROVEN OUTSIDE THE DRIVER CLOSURE:
 #   * src/inference/multiple_testing.py  -- the structurally-untestable reporting fix (§100.33)
 #   * scripts/analyze_campaign.py        -- H1's beat-the-canon IUT reaching the R31 sensitivity (§100.34)
