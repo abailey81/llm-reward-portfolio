@@ -3,6 +3,77 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01f] ★★ OPS LANE / RUN 10 — **WALL-CLOCK COMPUTE WAS REPORTED BY NOTHING**, the obvious fix was wrong, and two of my own claims were withdrawn
+
+**Trigger.** The ANALYSIS lane flagged — carefully, and explicitly declining to assert it without
+evidence — that `compute_accounting` is one of the 35 registered analysis keys yet never references
+`wall_clock`, and asked OPS to confirm what it actually sums. *"Wall-clock compute reported"* is one
+of Dr Okhrati's named grading criteria (CLAUDE.md Grade & examiner strategy item 6; matching
+integrity-register row *"report wall-clock compute in prose"*). Their caution was right and the
+answer is worse than the question assumed.
+
+### Established, first-hand
+
+* **`compute_accounting` is mis-named** (`scripts/analyze_campaign.py:955`): it tabulates per-arm
+  **candidates and TOKENS** (attempted / accepted / failed, prompt / completion), not compute. **No
+  registered key reports wall-clock.**
+* **The record field CANNOT supply the number.** `src/orchestration/test_leg.py:193` **hardcodes**
+  `wall_clock` to `0.0` on every test-leg record. Measured over 2,203 records: **SEARCH 1,259 timed /
+  0 zero · TEST 0 / 914 · FROZEN 0 / 30.** Summing the field yields ~5,857 core-hours that **silently
+  exclude the entire confirmatory scored leg** — 57% of records presented as 100%.
+* **The knowledge already existed in exactly one place and never propagated.**
+  `scripts/first_seed_sanity.py:175-203` documents the hardcode, written after the sentinel raised
+  CRITICAL on a healthy record (`baseline_return_minus_cvar-s24`, 400,000 reward calls, full
+  `train_curve`) on 2026-07-28 purely because its clock read 0.0. Same shape as COORD's `_env`
+  sidecar defect and ANALYSIS's frozen-markers defect: **a consumer validated against the subset of
+  an artefact that happened to be well-formed.**
+
+### Added — `docs/ops/compute_ledger.py` (+ 23 tests)
+
+Outside the drift fence and **proven outside the driver import closure**; inert for the running
+experiment. Harvests Grid Engine's own accounting, which covers **both** lanes.
+
+```
+  2026-08-01T07:18:21Z   67,166 CPU-hours   10,308 task-wallclock-h   6.52 cores/task
+                       = 2,799 CPU-days = 7.67 CPU-YEARS   (jobs STARTED on/after 2026-07-28)
+```
+
+**9 of the 23 tests were proven to FAIL against a mutant** returning zeros instead of raising — the
+load-bearing property is not *"it parses"* but ***"it never invents a number."*** Flag semantics read
+from `qacct -help` (SGE 8.1.9), not assumed: `-b` = *jobs started after*; `-d` is a **sliding** window
+that would silently drop early campaign work as the campaign lengthens. Cadence guard **6 h** — the
+query costs **~72 s on a SHARED login node** and must never sit in a monitoring loop.
+
+### ⚠ Two claims I broadcast before checking — both WITHDRAWN
+
+* **"~53% CPU efficiency"** — I divided qacct CPU-hours by cores currently held. **qacct accounts
+  only COMPLETED jobs** (verified: our job `55979` was RUNNING, `qstat` state `r`, and had **zero**
+  accounting blocks). Different populations; the ratio is meaningless. **Binding consequence: any
+  mid-campaign reading is a LOWER BOUND and the final figure must be taken AFTER the arrays drain.**
+* **"The evidence is perishable / SGE rotates its accounting"** — **false.** `qacct -j 55979`
+  returns **19 blocks from 16 users, 2018–2022**; retention is ~8 years against a 4-week campaign.
+  *Overstating a risk is as inaccurate as understating one*, so the claim is **struck** from the
+  module docstring, which now rests on the two grounds that survive: **provenance** (a dated
+  measurement carrying its own command and scope caveat) and **cost**.
+
+**Scope caveat, carried IN the artefact rather than in a docstring:** the figure is the **owner total
+for jobs started in the campaign window** — a **SUPERSET**, exact only because nothing but the
+campaign has run on this account since 2026-07-28. Never describe it as driver-name-filtered.
+
+### Nearly re-discovered, already closed
+
+**Myriad RECYCLES job numbers**, so `qacct -j <id>` is ambiguous by construction and our failure
+forensics calls exactly that — the live risk being a stranger's 2018 failure driving one of **our**
+requeues. **Already handled:** `src/cluster/driver.py:199` filters by `jobname` and registers it as
+**P17/A2**. Recorded so nobody spends the same hour re-finding it.
+
+**Not actioned, deliberately:** adding a wall-clock key to `analyze_campaign.py` is a change to the
+**registered** reporting set — ANALYSIS's call, possibly a prereg touch, not mine to make
+unilaterally. Flagged (M94/M95/M97), not edited.
+
+**Campaign unaffected throughout:** drift 0 on both arms, 12/12 lines, records 2,171 → 2,201.
+Full detail: `docs/CAMPAIGN_EXECUTION_RECORD.md` §100.21, §100.21a, §100.21b.
+
 ## [2026-08-01e] COORD LANE (overnight) — **THE LANE BUS**: cross-session coordination made machine-enforced · **A LIVE 11-HOUR STRAND ON THE H2 PRIMARY CONTRAST** · all 12 lines swept · a 5-minute watch armed
 
 **Lane:** COORDINATION + INDEPENDENT VERIFICATION (session `68e4aa59`), opened at Tamer's instruction:

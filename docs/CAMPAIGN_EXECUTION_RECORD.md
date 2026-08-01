@@ -12608,3 +12608,99 @@ from the tail.*
 a new `§3b` block printing `  <arm>  pool=<n>`, and `cycle.py` now reads the arm counts from THERE
 rather than from §3's `records=` lines. **That IS a format change and it IS mine** — flagged to
 every lane before anything could break on it.
+
+### 100.21 ★★★ THE CAMPAIGN'S WALL-CLOCK COMPUTE WAS REPORTED BY NOTHING — AND THE OBVIOUS FIX WAS WRONG
+
+**Okhrati docks marks for "missing wall-clock COMPUTE reporting"** (CLAUDE.md, Grade & examiner
+strategy item 6; the integrity/procedural register carries the matching row *"report wall-clock
+compute in prose"*). The ANALYSIS lane flagged, carefully and without asserting it, that
+`compute_accounting` is one of the 35 registered keys but never references `wall_clock` — and asked
+OPS to confirm what it actually sums rather than claim a defect they had not established. **That
+caution was correct, and the answer is worse than the question assumed.**
+
+**FIRST, THE NAMED KEY IS MIS-NAMED.** `scripts/analyze_campaign.py:955` tabulates per-arm
+**candidates and TOKENS** — attempted / accepted / failed, prompt / completion tokens, sourced from
+archived `failures.jsonl` + `llm_calls.jsonl`. It is an **AUTHORING-cost ledger wearing a
+COMPUTE-cost name**, and no other registered key reports wall-clock either.
+
+**SECOND, AND THIS IS WHY THIS IS NOT A ONE-LINE SUM: THE RECORD FIELD CANNOT SUPPLY THE NUMBER.**
+
+```
+  wall_clock across 2,203 archived records
+    SEARCH  1,259 populated /   0 zero      <- the ONLY timed lane
+    TEST        0 populated / 914 zero      <- the CONFIRMATORY lane
+    FROZEN      0 populated /  30 zero
+```
+
+**A clean 100% / 0% split means suspect the SPECIFICATION, not the subject** — and it was the
+specification: `src/orchestration/test_leg.py:193` **HARDCODES** `"wall_clock": 0.0` on every
+test-leg record (same hardcode at `src/llm/loop.py:712` and `scripts/run_campaign.py:857`); only
+`src/orchestration/parallel.py:904` ever writes a real value, from `elapsed_secs`. **So
+`sum(wall_clock)` returns ~5,857 core-hours that SILENTLY EXCLUDE THE ENTIRE CONFIRMATORY SCORED
+LEG — 57% of records presented as 100%.** Publishing that as campaign compute would be a
+misstatement in precisely the lane the examiner reads hardest.
+
+**THIRD, THE KNOWLEDGE ALREADY EXISTED — IN ONE PLACE, AND IT NEVER PROPAGATED.**
+`scripts/first_seed_sanity.py:175-203` documents the hardcode explicitly, because on **2026-07-28
+06:53Z** the sentinel raised CRITICAL on `baseline_return_minus_cvar-s24` — a perfectly healthy
+record carrying `train_safe_call_count: 400000`, a full `train_curve` and real test returns — purely
+because its clock read 0.0. The sanity layer learned to judge on evidence of training and treat the
+clock as provenance, not proof. **The analysis layer never learned it.** That is the same shape as
+the COORD lane's `_env` sidecar defect and ANALYSIS's frozen-markers-one-level-shallower defect: *a
+consumer validated against the subset of an artefact that happened to be well-formed.* **Rule
+proposed to all lanes: when a field is known-degenerate on any lane, that fact belongs in the
+SCHEMA/owner doc, not only in the one consumer that got bitten.**
+
+**THE FIX — THE SCHEDULER IS THE RIGHT SOURCE, AND WE ALREADY PARSE IT.**
+`src/cluster/ledger.py::parse_qacct` has always turned `qacct` blocks into rows, and its own
+docstring says qacct carries *"wallclock per task"* — the scheduler's own truth, covering BOTH
+lanes, including setup, and capturing even tasks that died before writing any record of ours. It was
+wired **only** to failure forensics, never to a total. New `docs/ops/compute_ledger.py` (outside the
+drift fence, **proven outside the driver import closure**, inert for the running experiment):
+
+```
+  2026-08-01T07:18:21Z   67,166 CPU-hours   10,308 task-wallclock-h   6.52 cores/task
+                       = 2,799 CPU-days = 7.67 CPU-YEARS   (jobs STARTED on/after 2026-07-28)
+```
+
+**23 tests, of which 9 were PROVEN to fail against a mutant** that returns zeros instead of raising —
+because the load-bearing property is not "it parses" but **"it never invents a number."** Flag
+semantics were read from `qacct -help` on SGE 8.1.9 rather than assumed (`-b` = *jobs started
+after*; `-d` = a SLIDING window that would silently drop early campaign work as the campaign
+lengthens — hence `-b`). Cadence guard 6 h: the query costs **~72 s on a SHARED login node** and must
+never sit in a monitoring loop.
+
+### 100.21a TWO CLAIMS I PUBLISHED BEFORE CHECKING THEM — BOTH WITHDRAWN
+
+**Recorded because the honest failure record is the point, and both were broadcast to two lanes
+before I verified them.**
+
+* **"~53% CPU efficiency."** I divided qacct CPU-hours by the cores we currently hold. **qacct
+  accounts ONLY COMPLETED JOBS** — verified, not reasoned: our job `55979` was RUNNING at query time
+  (`qstat` state `r`, started 07/31 20:26) and had **zero** accounting blocks of its own. Numerator =
+  finished work, denominator = live allocation. The ratio is meaningless. **Load-bearing consequence
+  for the write-up: any mid-campaign reading is a LOWER BOUND, and the FINAL figure must be taken
+  AFTER the twelve driver arrays drain.**
+* **"The evidence is perishable — SGE rotates its accounting."** **False on Myriad.**
+  `qacct -j 55979` returns **19 blocks from 16 distinct users with start times from 2018 to 2022**.
+  Retention is ~8 years; the campaign is 4 weeks. *Overstating a risk is as inaccurate as
+  understating one* — the claim is struck from the module docstring rather than softened, and the
+  module now justifies itself on the two grounds that survive: **provenance** (a dated measurement
+  carrying its own command and scope caveat, per priority 5 — a fact nobody can verify is fictional)
+  and **cost** (72 s on a shared node).
+
+**THE SCOPE CAVEAT TRAVELS WITH THE NUMBER, in the artefact rather than in a docstring:** it is the
+**owner total for jobs started in the campaign window** — a **SUPERSET** of the campaign, exact only
+because nothing but the campaign has run on this account since 2026-07-28. It is **not**
+driver-name-filtered and must never be described as though it were.
+
+### 100.21b A DEFECT NEARLY RE-DISCOVERED — ALREADY CLOSED AS P17/A2
+
+Chasing the 2018 blocks surfaced that **Myriad RECYCLES job numbers**, so `qacct -j <id>` is
+ambiguous by construction — and our failure forensics calls exactly that. The live risk would be
+severe: a stranger's 2018 failure driving one of **our** requeues through `requeue_specs`. **It is
+already handled.** `src/cluster/driver.py:199` filters rows by `jobname` against the round and
+registers the hazard as **P17/A2**, defaulting to keep rows lacking a jobname (degrading toward the
+safe legacy bump-all). **No action needed** — recorded only so a future session does not spend the
+same hour re-finding it. *A clean baseline that already reads the failing value proves nothing; this
+time the baseline was clean because someone had already fixed it.*

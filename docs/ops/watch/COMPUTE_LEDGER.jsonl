@@ -1,0 +1,1 @@
+{"ts": "2026-08-01T07:18:21Z", "begin": "202607280000", "command": "qacct -o $USER -b 202607280000", "owner": "ucestes", "wallclock_s": 37107483.0, "cpu_s": 241798474.711, "utime_s": 238712567.635, "stime_s": 844400.559, "scope_note": "owner total for jobs STARTED on/after begin; a SUPERSET of the campaign, exact only because nothing but the campaign has run since 2026-07-28"}
