@@ -221,37 +221,94 @@ def _attempted_run_ids(
     return ids
 
 
+def _lock_owner_is_live_driver(pid: int, recorded_create_time: float | None) -> bool:
+    """Is `pid` still the SAME process that wrote this lock? (D20)
+
+    `psutil.pid_exists` answers a WEAKER question — *does anything hold that pid* — and the OS
+    recycles pids. That is not hypothetical: on 2026-07-31 Windows recycled a dead driver's pid
+    onto `OpenConsole.exe` and stranded the `h3` line, and on 2026-08-01 it recycled pid 34216
+    onto `backgroundTaskHost.exe` and stranded `leg4` — a line ALREADY AT C4 — for ~14 h, dying
+    12 s into every relaunch while every guard stayed green.
+
+    The identity test is the process CREATE-TIME, recorded beside the pid at write. A recycled
+    pid necessarily has a LATER create-time than the one recorded, so the mismatch is decisive.
+
+    **Asymmetric on purpose.** Two errors are possible and they are not equally bad:
+      * calling a live owner STALE breaks its lock -> two drivers on one batch -> double requeue
+        rounds and corrupted retry accounting. Unrecoverable damage to the run.
+      * calling a dead owner LIVE stalls the line until someone intervenes. Recoverable, and the
+        monitoring cycle now auto-reaps exactly this case.
+    So every ambiguity resolves to "owned". Only a definite verdict breaks a lock.
+    """
+    import psutil  # never os.kill(pid, 0): on Windows that TERMINATES the process
+
+    if pid <= 0 or not psutil.pid_exists(pid):
+        return False
+    try:
+        proc = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return False
+    except psutil.Error:
+        return True                      # cannot inspect -> assume owned
+    if recorded_create_time is not None:
+        try:
+            return abs(proc.create_time() - float(recorded_create_time)) < 1.0
+        except psutil.NoSuchProcess:
+            return False
+        except Exception:                # noqa: BLE001 — cannot decide -> assume owned
+            return True
+    # LEGACY lock written before this fix (no create_time). Fall back to identity-by-command-line,
+    # which is still strictly stronger than pid existence. An unreadable or EMPTY cmdline must be
+    # read as "owned", never as "not a driver" — that is the direction that destroys a run.
+    try:
+        cmd = " ".join(proc.cmdline())
+    except Exception:                    # noqa: BLE001
+        return True
+    return True if not cmd else ("run_campaign_cluster" in cmd)
+
+
 def _acquire_driver_lock(lock_path: Path) -> None:
     """P12 (2026-07-13 pre-spend audit): ONE driver per batch name. The queue-adoption guard
     dedupes by job NAME, so a second concurrent driver of the same batch would silently ADOPT
     the first's arrays and then race it on every drain (double requeue rounds, duplicated
     permanent-ledger rows, interleaved pulls on the shared mirror). O_EXCL lockfile carrying
-    the owner pid; a DEAD owner's lock is broken automatically (crash-resume stays
-    one-command — no manual lock cleanup after a kill/BSOD)."""
+    the owner's pid AND process create-time (D20 — pid alone is not an identity); a lock whose
+    owner is dead OR whose pid has been RECYCLED is broken automatically, so crash-resume stays
+    one-command — no manual lock cleanup after a kill/BSOD."""
     import os
 
+    import psutil
+
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _my_create_time: float | None = psutil.Process(os.getpid()).create_time()
+    except Exception:  # noqa: BLE001 — degrade to the legacy lock shape rather than fail to lock
+        _my_create_time = None
     for _ in range(2):
         try:
             fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump({"pid": os.getpid(), "ts": time.time()}, fh)
+                json.dump({"pid": os.getpid(), "create_time": _my_create_time,
+                           "ts": time.time()}, fh)
             return
         except FileExistsError:
+            create_time: float | None = None
             try:
-                pid = int(json.loads(lock_path.read_text(encoding="utf-8")).get("pid", -1))
+                _payload = json.loads(lock_path.read_text(encoding="utf-8"))
+                pid = int(_payload.get("pid", -1))
+                _ct = _payload.get("create_time")
+                create_time = float(_ct) if _ct is not None else None
             except Exception:  # noqa: BLE001 — torn lock = stale lock
                 pid = -1
-            import psutil  # never os.kill(pid, 0): on Windows that TERMINATES the process
 
-            if pid > 0 and pid != os.getpid() and psutil.pid_exists(pid):
+            if pid > 0 and pid != os.getpid() and _lock_owner_is_live_driver(pid, create_time):
                 raise RuntimeError(
                     f"another driver (pid {pid}) is already running batch "
                     f"{lock_path.name!r} — refusing to double-drive (double requeues would "
                     f"corrupt the retry accounting). If that pid is NOT a driver, delete "
                     f"{lock_path} and relaunch."
                 )
-            lock_path.unlink(missing_ok=True)  # stale lock from a crashed driver — break it
+            lock_path.unlink(missing_ok=True)  # stale: dead owner, OR the pid was RECYCLED
     raise RuntimeError(f"could not acquire the driver lock {lock_path} after breaking a stale one")
 
 

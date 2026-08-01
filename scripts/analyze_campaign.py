@@ -5830,8 +5830,19 @@ def beat_human_baseline(
     # White-2000 data-snoop that keeps the max-selection above report-only, WITHOUT the fragile baseline
     # val-roll the val-select framing needed (the campaign archives val_fitness=NaN). Reuses the SAME paired
     # per-seed bootstrap as the H2 legs (paired_seed_difference_test over shared seeds, iqm statistic) so H1
-    # and the headline share one inference tool. Conservative by design (the searched LLM's DSR is deflated by
-    # N=winner_n_trials, each hand reward by N=1 — the human bar is conservatively HIGH). CONFIRMATORY since
+    # and the headline share one inference tool.
+    # ⚠ 2026-08-01 (A15, raised by the ANALYSIS lane, verified first-hand here): this comment used to read
+    # "Conservative by design (the searched LLM's DSR is deflated by N=winner_n_trials, each hand reward by
+    # N=1 — the human bar is conservatively HIGH)". BOTH HALVES WERE WRONG. (a) There is no DSR anywhere in
+    # this leg computation — `grep -niE "dsr|deflat"` over the block below returns nothing; the endpoint is
+    # ANNUALISED PER-SEED SHARPE (endpoint CORRECTED 2026-07-26 precisely because the registered
+    # `deflated_sharpe` was never computed). It was DSR-era prose that outlived its own retraction.
+    # (b) It stated the bias BACKWARDS. The frozen config's own corrected note says the genuine residual
+    # asymmetry — the LLM winner being the best of N VALIDATION candidates against one fixed specification
+    # per hand reward — **FAVOURS THE LLM**, and is disclosed as the un-tuned-baseline bias. Deflation would
+    # correct for taking a max over N on the SAME data; selection here happens on VALIDATION and the test leg
+    # is SEALED, so there is no test-set max to deflate. The error ran in the direction that flatters our own
+    # hypothesis, inside CONFIRMATORY output. CONFIRMATORY since
     # R108 (2026-07-26) ratified the validity tier; the per-baseline dominance PROFILE is the honest
     # structure beneath the binary.
     from src.inference.bootstrap import iqm as _iqm, paired_seed_difference_test as _paired_test
@@ -6028,8 +6039,16 @@ def h1_beat_human_markdown(h1: dict[str, Any]) -> str:
             f"**IUT p = max leg p = {_f(iut.get('iut_pvalue'), 4)}.**{cert}",
             f"- **Dominance profile:** {iut.get('n_significantly_beaten')}/{iut.get('n_testable')} "
             f"significantly beaten · {iut.get('n_ahead_not_significant')} ahead (n.s.) · "
-            f"{iut.get('n_behind_on_point_estimate')} behind (the LLM DSR is deflated by N={h1.get('winner_n_trials')}; "
-            "each hand reward by N=1 — the human bar is conservatively high).",
+            f"{iut.get('n_behind_on_point_estimate')} behind (on the point estimate).",
+            "",
+            f"**Direction of the residual selection asymmetry — stated against us, because that is the way "
+            f"it runs.** The LLM winner is the best of {h1.get('winner_n_trials')} *validation* candidates, "
+            f"while each hand reward is a single fixed specification carried into the sealed test unchanged. "
+            f"That asymmetry **FAVOURS THE LLM**, and it is disclosed here as the un-tuned-baseline bias "
+            f"rather than argued away. There is no deflation correcting for it: the legs are annualised "
+            f"per-seed Sharpe (the registered `deflated_sharpe` endpoint was corrected on 2026-07-26 because "
+            f"the code never computed it), and deflation would in any case address a max taken over N on the "
+            f"*same* data — whereas selection here happens on validation and the test leg is sealed.",
             "",
             "| hand reward | Δ Sharpe (LLM − human) | one-sided p | verdict |",
             "|---|---|---|---|",

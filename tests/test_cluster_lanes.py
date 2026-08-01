@@ -144,7 +144,15 @@ def test_threading_the_chain_REMOVES_the_need_for_a_gpu():
 
     assert one_thread.binding == "critical_chain"       # 8.9 d chain dominates
     assert threaded.binding == "throughput"             # ...until the chain is threaded
-    assert threaded.critical_chain_days == pytest.approx(3.27, abs=0.1)
+    # ⚠ 2026-08-01 (RUN 10): this asserted 3.27 d, which was computed from the ISOLATED BENCH
+    # speedup of 2.72x. Deferred item 9 replaced that constant with the FIELD value measured
+    # across 740 timed trainings on shared nodes (1.92x median / 1.75x mean, record §39), and the
+    # chain floor moves 3.27 -> 4.64 d. The expected value is updated because the MEASUREMENT it
+    # encoded was superseded, not to make a failure go away — the QUALITATIVE claim this test
+    # exists for (threading moves `binding` from critical_chain to throughput, so no GPU is
+    # required) is asserted above and still HOLDS at the pessimistic constant, which is the
+    # stronger result.
+    assert threaded.critical_chain_days == pytest.approx(4.64, abs=0.1)
     assert threaded.makespan_days == pytest.approx(7.50, abs=0.2)
     assert threaded.makespan_days < one_thread.makespan_days
 
@@ -154,9 +162,16 @@ def test_threading_the_chain_REMOVES_the_need_for_a_gpu():
 
 
 def test_threading_pushes_the_cpu_saturation_point_out():
-    """More cores keep paying for longer once the chain is threaded."""
+    """More cores keep paying for longer once the chain is threaded.
+
+    ⚠ 2026-08-01 (RUN 10): 4,584 was the BENCH-derived saturation point and it is superseded.
+    On the field-measured 1.92x it is **3,235 cores at rung 568** (and 2,336 at the registered
+    primary target of 403). This matters well beyond the test: the campaign's standing "we need
+    4,000+ cores" target was itself an artefact of the optimistic constant. Past ~3,235 the
+    critical chain binds and additional cores buy NOTHING.
+    """
     assert cpu_saturation_cores(568, chain_threads=8) > cpu_saturation_cores(568, chain_threads=1)
-    assert cpu_saturation_cores(568, chain_threads=8) == pytest.approx(4584, rel=0.05)
+    assert cpu_saturation_cores(568, chain_threads=8) == pytest.approx(3235, rel=0.05)
 
 
 def test_batching_TPE_keeps_it_OFF_the_critical_path():
@@ -248,7 +263,9 @@ def test_the_two_thread_regimes_are_BOTH_reachable_and_clearly_labelled():
     one_thread = cpu_saturation_cores(568, chain_threads=1)
     ratified = cpu_saturation_cores(568, chain_threads=CPU_CHAIN_THREADS)
     assert one_thread == pytest.approx(1685, rel=0.03)
-    assert ratified == pytest.approx(4584, rel=0.03)
+    # 2026-08-01 (RUN 10): 4,584 -> 3,235 with the field-measured thread speedup (see above).
+    # The 1-thread figure is unchanged because CPU_THREAD_SPEEDUP[1] is 1.00 by definition.
+    assert ratified == pytest.approx(3235, rel=0.03)
     assert cpu_saturation_cores(568) == pytest.approx(one_thread)   # the default IS the old regime
     assert "the default is NOT the campaign" in cpu_saturation_cores.__doc__
 

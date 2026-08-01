@@ -364,7 +364,20 @@ def test_driver_lock_refuses_a_live_second_driver_and_breaks_stale(tmp_path):
     lock = fc.batches / "b1.driver.lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
     # a live FOREIGN pid owns the lock (a sleeper subprocess stands in for a concurrent driver)
-    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    #
+    # ⚠ 2026-08-01 (RUN 10, D20): the stand-in must now actually LOOK like a driver. The lock no
+    # longer asks "does that pid exist" — that check cannot survive pid reuse and stranded two live
+    # lines (`h3` on 07-31, `leg4` for ~14 h on 08-01) — it asks "is that pid the owner that wrote
+    # the lock". For a LEGACY lock carrying no `create_time`, as written here, the fallback is
+    # identity-by-command-line, and a bare `time.sleep` process is provably NOT a driver, so the
+    # lock is correctly BROKEN and no RuntimeError is raised.
+    #
+    # The assertion below is NOT weakened: it still demands that a live owner be refused. Only the
+    # impersonation is made faithful, by putting the marker the predicate reads into the stand-in's
+    # own argv. The complementary case — a legacy lock whose pid now belongs to a NON-driver must
+    # be broken — is asserted in tests/test_driver_lock_identity_d20.py.
+    sleeper = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)  # run_campaign_cluster"])
     try:
         lock.write_text(json.dumps({"pid": sleeper.pid, "ts": 0.0}))
         fc.pull_script = [{"complete": ["c0"]}]

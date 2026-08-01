@@ -234,7 +234,17 @@ def transport_guard(root: Path, max_consecutive_alarm: int = 8) -> tuple[int, li
                     if m.group(1) == "ERROR" and len(err_samples) < 5:
                         err_samples.append(f"{log.name}: {line.strip()[:150]}")
                     break
-            if "timed out after" in line:
+            # 2026-07-31 (record §79.5) / applied 2026-08-01 (RUN 10), deferred item 14:
+            # this branch searched for the literal `"timed out after"`, and NOTHING IN THE CODEBASE
+            # EMITS THAT STRING -- `grep -rn "timed out" src/` returns exactly one hit and it is a
+            # retry-classification KEYWORD LIST, not a log message. So `timeout_events` was
+            # STRUCTURALLY ZERO however many timeouts occurred: a reassuring number that could not
+            # move. (The guard's VERDICT was never affected -- it is driven by `worst_consecutive`,
+            # which parses a string the driver genuinely does emit -- so only the reported figure
+            # was false.) This is the SECOND instance of the identical bug from the identical wrong
+            # assumption about the log vocabulary; the first was on Tamer's status page (§76.2).
+            # Count what a transport timeout actually produces.
+            if "ssh_timeout_diagnostic" in line or "TimeoutExpired" in line:
                 timeouts += 1
             c = re.search(r"\((\d+) consecutive", line)
             if c:

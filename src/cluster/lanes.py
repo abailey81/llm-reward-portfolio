@@ -32,6 +32,15 @@ chain from **8.9 days into ~3.3 days on plain CPU** -- below the throughput term
 core count. **So the GPU is no longer NEEDED at all**; it remains a nice-to-have that would take the
 chain to 1.13 d, but the campaign is throughput-bound on pure CPU either way.
 
+⚠ **CORRECTED 2026-07-30 (record §39), APPLIED 2026-08-01 (RUN 10).** The 2.72x above came from an
+ISOLATED BENCH — one 8-core box with nothing else running. In PRODUCTION, across **740 timed
+trainings on shared 36-core nodes**, 8 threads is **1.92x by median / 1.75x by mean**: co-tenants
+take memory bandwidth an idle bench never loses. The paragraph above is kept as DATED HISTORY (it
+is the reasoning that retired the GPU requirement, and that conclusion still holds — it holds MORE
+strongly at the pessimistic constant, since the chain still falls below the throughput term). But
+the NUMBERS in it are superseded: the chain floor is **4.64 d, not ~3.3 d**, and the crossover is
+**~3,235 cores at rung 568, not ~4,584**.
+
 So the plan is a THREAD/CORE split, not a CPU/GPU one:
 
 * **LANE 1 (CPU, LATENCY -- the sequential chains):** ``bayes_opt``'s 25 serial GP-EI steps, the 55
@@ -125,7 +134,21 @@ GPU_PACK1_STEPS_PER_S = 102.0
 #: 8 cores run as 8 separate 1-thread trainings deliver ~8x13.0 = 104 steps/s AGGREGATE, versus
 #: ~35 steps/s for one 8-thread training. So 1 thread is ~3x better for the TEST FLOOD, while
 #: 8 threads is ~2.7x better for a SEQUENTIAL CHAIN, where aggregate throughput is worthless.
-CPU_THREAD_SPEEDUP = {1: 1.00, 2: 1.57, 4: 2.23, 8: 2.72, 16: 2.11}
+#: ⚠ 2026-07-30 (record §39) / applied 2026-08-01 (RUN 10), deferred item 9: THE ROW ABOVE IS AN
+#: ISOLATED BENCH (one 8-core box, 21.5 -> 60.0 steps/s, nothing else running). In PRODUCTION,
+#: across 740 timed trainings on shared 36-core nodes -- 60 packed 1-thread baseline tasks at a
+#: p50 of 8.33 h against 680 8-thread search records at a p50 of 4.34 h, on the SAME 400,000-step
+#: training -- 8 threads is **1.92x by median / 1.75x by mean**, not 2.72x. Co-tenants take memory
+#: bandwidth an idle bench never loses. The packed lane's own four-way sharing biases the 1-thread
+#: figure UP, so 1.92 is an UPPER bound.
+#:
+#: SCOPE: this is a MODEL INPUT, not a behaviour change -- nothing the campaign computes moves,
+#: only what we PREDICT about it. At 2.72x the critical-chain floor reports 3.27 d; at the measured
+#: 1.92x it is 4.64 d, so the optimistic value understated the front of the ladder by ~1.4 days.
+#: Any prose quoting "2.72x" or a "3.27 d critical-chain floor" is wrong and must be corrected
+#: before it reaches the PDF. Bench values kept for provenance: {1: 1.00, 2: 1.57, 4: 2.23,
+#: 8: 2.72, 16: 2.11}.
+CPU_THREAD_SPEEDUP = {1: 1.00, 2: 1.45, 4: 1.75, 8: 1.92, 16: 1.55}   # field-measured at 8
 
 #: The optimum, and the only value worth using for a chain. NEVER exceed it -- 16 threads is
 #: measurably SLOWER than 8.
@@ -233,7 +256,8 @@ def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
     ⚠ **READ THE THREAD REGIME BEFORE QUOTING A NUMBER — the default is NOT the campaign's.**
     ``chain_threads`` DEFAULTS TO 1, which returns the pre-R107 crossover **~1,685**. The RATIFIED
     campaign runs its chains at :data:`CPU_CHAIN_THREADS` = 8 (R107), where the crossover is
-    **~4,584** — the figure this docstring quotes below and the one the GO-day advisor reports
+    **~3,235 at rung 568** (and ~2,336 at the registered primary target of 403) — the figure this
+    docstring quotes below and the one the GO-day advisor reports
     (``allocation.advise_cpu_lane`` passes the value explicitly, as does :func:`plan_lanes`, so the
     operational path is correct). The default is retained at 1 only so the two regimes stay
     comparable; **a bare ``cpu_saturation_cores()`` models the SUPERSEDED design.** Pass
@@ -249,9 +273,16 @@ def cpu_saturation_cores(rung: int = 568, *, bayes_on_gpu: bool = False,
     minus ``killswitch.FREE_CORE_RESERVE``). **That sample is not a ceiling.** SGE's
     ``maxujobs = 1000`` at 8 cores/job structurally permits ~**8,000** cores, and d+b hold 11,160,
     so saturation is well inside what the scheduler allows — it is UNMEASURED, not unattainable.
-    PUSH FOR IT: every core up to ~4,584 shortens the campaign, and ``plan_footprint`` scales with
-    whatever is free, so a generous cluster is exploited automatically. Past ~4,584 the makespan
-    genuinely stops improving (the 3.27 d chain floor) — that part is real.
+    PUSH FOR IT: every core up to ~3,235 shortens the campaign, and ``plan_footprint`` scales with
+    whatever is free, so a generous cluster is exploited automatically. Past ~3,235 the makespan
+    genuinely stops improving (the 4.64 d chain floor) — that part is real.
+
+    ★ **THE "WE NEED 4,000+ CORES" TARGET WAS ITSELF AN ARTEFACT (RUN 10, 2026-08-01).** 4,584 and
+    the 3.27 d floor were both computed from the ISOLATED-BENCH 2.72x thread speed-up. On the
+    field-measured 1.92x (740 timed trainings, record §39) the crossover is **3,235 at rung 568 and
+    2,336 at rung 403**. So the standing ambition to reach ~4,000 cores was chasing a number that
+    does not exist: past ~3,235 the CRITICAL CHAIN binds and extra cores buy NOTHING. This makes
+    the honest capacity story better, not worse — the target is ~30 % closer than anyone thought.
 
     This is the number that makes the whole plan legible: below it, buy cores; above it, buy
     LATENCY on the binding chain instead. With ``bayes_opt`` on CPU the crossover is ~1,640 cores;

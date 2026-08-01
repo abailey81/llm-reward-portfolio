@@ -288,7 +288,27 @@ def pull_archive(
             if dest.exists():
                 continue  # landed by an earlier overlapping pull — keep the committed copy
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src), str(dest))
+            # ── D18 ROOT CAUSE, found 2026-08-01 (RUN 10, record §100) ──────────────────────────
+            # `shutil.move(src, dst)` where `dst` is an EXISTING DIRECTORY does not fail — it moves
+            # `src` INSIDE it, producing `<candidate>/<candidate>/record.json`. The `dest.exists()`
+            # guard above cannot close that, because `local` (`read_root`) is SHARED BY ALL TWELVE
+            # SUPERVISED LINES: another line's driver can commit the same record in the window
+            # between our check and our move. That is precisely the observed signature — both
+            # duplicates sit on LEG lines (the many-concurrent-drivers case), the remote side is
+            # FLAT (verified on the node: no nesting exists there), and the count grew 1 -> 2 as
+            # concurrency rose. §44.6/§65.4 had the defect right and the mechanism unstated.
+            #
+            # `os.rename` is the fix because it CANNOT nest: renaming onto an existing directory
+            # raises rather than descending into it. Same filesystem by construction (staging is a
+            # child of `local`), so it is also atomic.
+            try:
+                _os.rename(str(src), str(dest))
+            except OSError:
+                # Lost the race: another driver committed this record between the check and here.
+                # Both copies are byte-identical (verified for both live instances), so KEEP THE
+                # COMMITTED ONE and drop ours. Never overwrite — the committed copy may already
+                # have been read.
+                shutil.rmtree(src, ignore_errors=True)
         shutil.rmtree(staging, ignore_errors=True)
         _tick()
 
@@ -306,7 +326,14 @@ def pull_archive(
             if dest.exists():
                 continue  # markers are effectively immutable — keep the committed copy
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src), str(dest))
+            # Same D18 race, same fix. A marker is a FILE, so losing the race would either raise
+            # (Windows) or SILENTLY OVERWRITE a committed marker (POSIX) — and if a directory ever
+            # occupied that name it would nest exactly as above. `os.rename` makes all three cases
+            # one deterministic outcome: keep what is already committed.
+            try:
+                _os.rename(str(src), str(dest))
+            except OSError:
+                src.unlink(missing_ok=True)
         shutil.rmtree(staging, ignore_errors=True)
         _tick()
     return len(missing) + len(rej_missing)

@@ -322,12 +322,46 @@ def test_no_launcher_ever_lowers_our_queue_priority():
             f"{name} would opt in to deprioritisation — never for the confirmatory campaign")
 
 
+#: D21 (2026-08-01): a launcher that DELEGATES rather than building its own campaign argument
+#: vector. `install_onstart_task.ps1` used to hard-type the whole cluster vector, and that copy had
+#: already drifted three ways from the live fleet (`--batch-tag c1`, `--pack 4`, and a fence missing
+#: `node-d00b-024`). It now re-enters through `mode_d_launch.ps1` -> `mode_d_supervisor.ps1`, which
+#: IS in this set and carries every flag asserted below.
+#:
+#: ⚠ THIS IS A STRENGTHENING, NOT AN EXEMPTION. Before D21 these invariants passed only because the
+#: Myriad block happened to contain the flag strings; the file's LAPTOP branch never carried them
+#: and was silently riding on that. A delegating launcher must now PROVE it delegates
+#: (`test_a_delegating_launcher_names_the_vector_launcher_it_delegates_to`), so the flags are
+#: inherited from a file that is itself checked, rather than merely absent.
+_DELEGATING_LAUNCHERS = {"install_onstart_task.ps1"}
+
+
+def _vector_launchers() -> dict[str, str]:
+    """Launchers that BUILD a campaign argument vector, i.e. the ones the flag invariants bind."""
+    return {k: v for k, v in _launcher_sources().items() if k not in _DELEGATING_LAUNCHERS}
+
+
+def test_a_delegating_launcher_names_the_vector_launcher_it_delegates_to():
+    """A delegating launcher must hand off to a file that IS flag-checked — never to nothing.
+
+    Without this, dropping a launcher into `_DELEGATING_LAUNCHERS` would be a way to silence the
+    flag invariants rather than satisfy them.
+    """
+    for name in _DELEGATING_LAUNCHERS:
+        src = _launcher_sources()[name]
+        assert "mode_d_launch.ps1" in src, (
+            f"{name} is exempted from the flag invariants but delegates to nothing")
+    # and the thing it delegates to must itself be covered
+    assert "mode_d_supervisor.ps1" in _vector_launchers(), (
+        "the delegation target is not in the flag-checked set — the exemption would be a hole")
+
+
 def test_no_launcher_mixes_the_cpu_lane_with_gpu_pool_striping():
     """``--device cpu`` + ``--seed-pool-blocks`` is refused by the launcher BY DESIGN: a CPU job
     pins no pool, so the stripe would assert a device stratification the run does not have, and CPU
     and CUDA are not bit-identical. Every line carried the GPU stripe, so the launcher could not
     start on the lane it was meant to launch."""
-    for name, src in _launcher_sources().items():
+    for name, src in _vector_launchers().items():
         assert "--seed-pool-blocks" not in src, f"{name} still carries the GPU seed stripe"
         assert "--pool EF" not in src and '"--pool", "EF"' not in src, (
             f"{name} still pins the GPU pool EF")
@@ -344,8 +378,12 @@ def test_no_launcher_hand_types_a_frozen_roster():
 
 
 def test_every_launcher_passes_the_acfs_gold_directory():
-    """``--gold-dir`` defaults to ~/Scratch/llmrp/inputs, which exists on Myriad and is EMPTY."""
-    for name, src in _launcher_sources().items():
+    """``--gold-dir`` defaults to ~/Scratch/llmrp/inputs, which exists on Myriad and is EMPTY.
+
+    Scoped to VECTOR launchers since D21 — a delegating launcher inherits the flag from the file it
+    delegates to, and that file is checked by this same loop.
+    """
+    for name, src in _vector_launchers().items():
         assert "--gold-dir" in src, (
             f"{name} relies on the --gold-dir default, which points at an empty directory")
 

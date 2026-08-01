@@ -583,6 +583,30 @@ def main() -> int:
                     f"contact; each is a latent D20 landmine until a driver touches that batch)")
     science_locks = len(stale_locks)
 
+    # 5c. ★ D14 ARM-CRASH MARKERS (2026-08-01, RUN 10 — the watching half of the D14 fix).
+    #
+    # `run_campaign_tiered` now STOPS a pass when a core arm raised, rather than building the
+    # CRN-paired H2 array with that arm silently absent, and drops a line-qualified marker beside
+    # the archive. Without this block that marker is a file nobody reads — the exact "instrument
+    # that cannot fire" shape that has produced fourteen defects across three sessions. The line
+    # exits non-zero and its supervisor relaunches it on the 600 s backoff, so a TRANSIENT crash
+    # self-heals and the marker disappears on the next clean pass; a marker that PERSISTS across
+    # several cycles means the crash is deterministic and needs a human.
+    for _m in sorted(ROOT.glob("ARM_CRASH_*.json")):
+        try:
+            _p = json.loads(_m.read_text(encoding="utf-8"))
+            _arms = ", ".join(f"{k} ({v})" for k, v in sorted((_p.get("arms") or {}).items()))
+            _age = (time.time() - float(_p.get("ts", 0))) / 60.0
+        except Exception:                                        # noqa: BLE001 — torn = still real
+            _arms, _age = "(unreadable marker)", -1.0
+        alerts.append(
+            f"D14 CORE ARM CRASH on {_m.stem.replace('ARM_CRASH_', '')}: {_arms}. The pass STOPPED "
+            f"before the H2 pair array rather than submitting it with a missing arm (which would "
+            f"have CRN-paired every seed against the wrong comparator set). The supervisor "
+            f"relaunches on its backoff and --resume re-runs only the crashed arm. Marker age "
+            f"{_age:.1f} min — if it survives several relaunches the crash is DETERMINISTIC and "
+            f"needs a human.")
+
     # 6. driver-log freshness
     now = time.time()
     ages = {p.name: round((now - p.stat().st_mtime) / 60.0, 1) for p in sorted(ROOT.glob("driver*.log"))}

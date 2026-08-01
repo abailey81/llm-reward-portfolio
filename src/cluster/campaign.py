@@ -1830,6 +1830,58 @@ def run_campaign_tiered(
         # no-spend arrays finish. Fix the path, then re-run — resume skips completed work.
         raise RuntimeError(str(canary_failure[0])) from canary_failure[0]
 
+    # ---- D14: A PARTIAL ARM FAILURE MUST NOT BE SILENT, AND MUST NOT BE BUILT ON ------------- #
+    # (record §25, `docs/DEFERRED_FIXES_RUN4.md` item 4; applied 2026-08-01, RUN 10.)
+    #
+    # `_arm_core`'s `except` above is deliberate — one unit must not sink the ladder — and it is
+    # right for throughput. What was missing is any reconciliation AFTERWARDS. The asymmetry that
+    # made this dangerous: when EVERY arm crashes the line exits and the watchdog revives it, but
+    # when only SOME crash the survivors carry the process onward, so nothing exits, nothing
+    # revives, and the dead arms are stranded for the life of the run. `nemotron-3-super` ran
+    # 8 h 29 m with 3 of its 5 arms exactly this way.
+    #
+    # ★ AND THE REAL DAMAGE IS SCIENTIFIC, NOT MERELY WASTED COMPUTE. The very next statement
+    # builds the H2 pair test from `winners`, as ONE `interleave=True` CRN-paired array. A crashed
+    # arm has no winner, so it is silently ABSENT from that array — the pair test would run with
+    # four of five arms, and every seed in it would be paired against a comparator set that is not
+    # the registered one. Stopping here is what prevents that.
+    #
+    # DELIBERATELY NARROW: only an arm that raised (an `error` key) stops the line. A designed
+    # outcome — `no_winner`, an R115 ineligibility, a canary-gated arm — carries a `reason` and is
+    # a legitimate result of the experiment, not a fault, and must NOT stop anything.
+    _crashed = {k: v.get("error") for k, v in core_results.items() if v.get("error")}
+    if _crashed:
+        _LOG.critical(
+            "[C1] %d core arm(s) CRASHED: %s — STOPPING this pass BEFORE the H2 pair test rather "
+            "than building a CRN-paired array with a missing arm. The line exits non-zero, the "
+            "supervisor relaunches it, and --resume re-runs only the crashed arm(s).",
+            len(_crashed), ", ".join(f"{k} ({v})" for k, v in sorted(_crashed.items())))
+        try:
+            # A marker the monitoring cycle can see within one sweep. A CRITICAL log line in a
+            # multi-hundred-megabyte driver log is not an alarm; a file is.
+            # ⚠ `read_root` is SHARED BY ALL TWELVE SUPERVISED LINES (see the warning at the top of
+            # this module and the `TIER1_APPROVED_{line_tag}` precedent below) — an unqualified
+            # filename here would have twelve writers racing one path and would report the wrong
+            # line. Qualify it exactly the way the approval file is qualified.
+            _marker = Path(run.read_root) / f"ARM_CRASH_{run.line_tag()}.json"
+            _marker.write_text(json.dumps(
+                {"ts": time.time(), "line": run.line_tag(), "arms": _crashed,
+                 "note": "core arm(s) raised; the pass stopped before C2 to protect the CRN "
+                         "pairing of the H2 pair test. Cleared automatically on a clean pass."},
+                indent=2), encoding="utf-8")
+        except Exception:  # noqa: BLE001 — observability must never be the thing that fails
+            _LOG.exception("[C1] could not write the ARM_CRASH marker")
+        out["results"]["core"] = core_results
+        out["arm_crash"] = _crashed
+        out["ok"] = False
+        return out
+    try:
+        _m = Path(run.read_root) / f"ARM_CRASH_{run.line_tag()}.json"
+        if _m.exists():
+            _m.unlink()          # a clean pass clears the marker — the alarm must not be sticky
+    except Exception:  # noqa: BLE001
+        pass
+
     # C2: the H2 pair-test at the core n — ONE pair-adjacent interleaved array at -p 0.
     h2_present = [a for a in h2_arms if a in winners]
     if h2_present:

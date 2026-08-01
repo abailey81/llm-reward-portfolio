@@ -333,7 +333,25 @@ class _OpenAITransport:
             kwargs["extra_body"] = self._extra_body
 
         def _call() -> Any:
-            return self._client.chat.completions.create(**kwargs)
+            resp = self._client.chat.completions.create(**kwargs)
+            # ★ D13 — AND THE VALIDATION MUST LIVE **INSIDE** THE RETRIED CALLABLE.
+            # `docs/DEFERRED_FIXES_RUN4.md` item 1 specified this check at the extraction site
+            # BELOW, i.e. after `self._retrying(_call)` has already returned. Raising there is
+            # outside tenacity's scope, so the named error would have propagated on the FIRST
+            # malformed body and retried exactly zero times -- a fix that fixes nothing. Caught
+            # 2026-08-01 (RUN 10) by a test that asserted recovery rather than classification.
+            _ch = getattr(resp, "choices", None)
+            if not _ch:
+                raise EmptyCompletionError(
+                    f"{self._model}: provider returned a response with no choices "
+                    f"(id={getattr(resp, 'id', None)!r}); treating as a transient transport fault"
+                )
+            if getattr(_ch[0], "message", None) is None:
+                raise EmptyCompletionError(
+                    f"{self._model}: provider returned a choice with no message "
+                    f"(id={getattr(resp, 'id', None)!r}); treating as a transient transport fault"
+                )
+            return resp
 
         response = self._retrying(_call) if self._retrying is not None else _call()
         self.last_usage = _openai_usage_dict(response)
@@ -343,6 +361,8 @@ class _OpenAITransport:
         _usage_obj = getattr(response, "usage", None)
         _cost = getattr(_usage_obj, "cost", None) if _usage_obj is not None else None
         self.last_cost_usd = float(_cost) if _cost is not None else None
+        # Safe by construction: `_call` above refuses to return a response without a choice
+        # carrying a message (D13), so this indexing cannot be the crash site any more.
         choice = response.choices[0]
         self.last_stop_reason = getattr(choice, "finish_reason", None)
         self.last_request_id = getattr(response, "id", None)
@@ -354,6 +374,10 @@ class _OpenAITransport:
         # (e.g. siliconflow-only) can be VERIFIED against what was served, not merely requested.
         self.last_served_provider = getattr(response, "provider", None)
         _warn_if_incomplete(self.last_stop_reason, self._model)
+        # ``or ""`` is deliberate and is NOT a D13 case: a present message whose content is empty
+        # is a LEGITIMATE empty completion (truncation / refusal) and must land in the archive as
+        # an authoring failure -- that is the capability signal the per-model reliability result
+        # is measured from. Retrying it would change which candidates exist.
         return choice.message.content or ""
 
 
@@ -416,6 +440,26 @@ def make_openai_transport(
     )
 
 
+class EmptyCompletionError(RuntimeError):
+    """A provider returned a well-formed HTTP 200 whose body carries NO completion container.
+
+    D13 (2026-07-29, seen twice on ``nemotron-3-super``): OpenRouter answered 200 with
+    ``choices = None``. ``response.choices[0]`` then raised ``TypeError: 'NoneType' object is
+    not subscriptable``, and because the retry predicate is duck-typed on API-error CLASS NAMES
+    a ``TypeError`` is terminal to it — so the exception escaped the transport, propagated
+    through ``_complete_with_outage_tolerance`` and killed FIVE whole arm pipelines. A malformed
+    body is a TRANSPORT fault and must be retried like one, under a named error rather than an
+    AttributeError-shaped accident.
+
+    ⚠ **Deliberately NOT raised for a response that is well-formed but says nothing.** A
+    truncation, a refusal, or a completion containing only ``thinking`` blocks all carry a real
+    container and a real ``finish_reason``/``stop_reason``; those are LEGITIMATE authoring
+    outcomes that must reach the archive as authoring failures — they are the capability signal
+    the per-model reliability result is measured from. Retrying them would silently change which
+    candidates exist. The line is drawn at *the container is missing*, not *the text is empty*.
+    """
+
+
 def _is_transient_api_error(exc: BaseException) -> bool:
     """True for retryable LLM-API failures (connection/timeout/rate-limit/5xx/overloaded).
 
@@ -430,6 +474,9 @@ def _is_transient_api_error(exc: BaseException) -> bool:
         "RateLimitError",
         "InternalServerError",
         "APIError",
+        # D13: our own malformed-body fault, matched by name like every other entry so the
+        # predicate stays importable without this module's types.
+        "EmptyCompletionError",
     ):
         return True
     status = getattr(exc, "status_code", None)
@@ -597,7 +644,25 @@ class _AnthropicTransport:
             kwargs["thinking"] = self._thinking
 
         def _call() -> Any:
-            return self._client.messages.create(**kwargs)
+            msg = self._client.messages.create(**kwargs)
+            # ★ D13 ON THE CONFIRMATORY TRANSPORT. The deferred spec covered only the OpenAI path;
+            # `list(message.content)` fails identically when the container is absent -- `TypeError:
+            # 'NoneType' object is not iterable` -- and this is the transport the CORE line runs
+            # on. Found 2026-08-01 (RUN 10) by grepping every response-extraction site instead of
+            # fixing only the one that had already bitten us. Inside `_call` for the same reason as
+            # the OpenAI path: outside it, tenacity never sees the fault.
+            _c = getattr(msg, "content", None)
+            if _c is None:
+                raise EmptyCompletionError(
+                    f"{self._model}: provider returned a message with no content container "
+                    f"(id={getattr(msg, '_request_id', None)!r}); transient transport fault")
+            try:
+                list(_c)
+            except TypeError as exc:
+                raise EmptyCompletionError(
+                    f"{self._model}: message.content is not iterable ({type(_c).__name__}); "
+                    f"transient transport fault") from exc
+            return msg
 
         try:
             message = self._retrying(_call) if self._retrying is not None else _call()
@@ -612,6 +677,9 @@ class _AnthropicTransport:
         self.last_request_id = getattr(message, "_request_id", None)
         self.last_served_model = getattr(message, "model", None)
         _warn_if_incomplete(self.last_stop_reason, self._model)
+        # Safe by construction: `_call` above refuses to return a message whose content container
+        # is absent or non-iterable (D13). An EMPTY container is deliberately allowed through --
+        # it is a legitimate empty completion, not a transport fault.
         blocks = list(message.content)
         # R106 round-trip evidence for ANTHROPIC. Anthropic's usage object carries NO
         # ``reasoning_tokens`` field, so the OpenRouter-style token round-trip is UNMEASURABLE here and

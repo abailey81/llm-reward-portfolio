@@ -33,7 +33,23 @@ param(
     # and Scratch root - mixing two runs' archives, which is the same class of silent cross-run
     # contamination that invalidated RUN 1 (docs/CAMPAIGN_EXECUTION_RECORD.md s.11.2).
     [string]$OutDir = "outputs\campaign_cluster",
-    [string]$RemoteRoot = "~/Scratch/llmrp"
+    [string]$RemoteRoot = "~/Scratch/llmrp",
+    # D15 (found 2026-07-30, worked around live, APPLIED 2026-08-01 by RUN 10). This parameter did
+    # not exist, so a revived line fell back to the supervisor's DEFAULT fence and SILENTLY UNDID
+    # the substrate fence applied to all twelve supervisors (record s.28) - re-opening the very
+    # CPU-model inhomogeneity the fence was added to close, which had already cost four archived
+    # records on an Intel Xeon Gold 6140.
+    #
+    # This is EXACTLY the D4 shape, one parameter later, and the comment above already warns about
+    # it for the other two: AN AUTOMATIC RESTARTER IS A SECOND LAUNCHER AND MUST TAKE EVERY
+    # PARAMETER THE THING THAT STARTED THE LINE TOOK. Anything the supervisor accepts and this file
+    # omits will be silently reset on the next revival.
+    #
+    # The default deliberately MATCHES mode_d_supervisor.ps1's own default rather than the current
+    # live fence: a default that drifts from the supervisor's is a second silent divergence. The
+    # operative fence is passed explicitly at launch, and the startup log below PRINTS it so a
+    # mismatch is visible rather than latent.
+    [string]$ExcludeHosts = "node-d00a-230"
 )
 
 $ErrorActionPreference = "Continue"
@@ -58,8 +74,8 @@ function WLog([string]$m) {
     Add-Content -Path $log -Value $l
 }
 
-WLog ("started; watching {0} lines every {1}s (out={2}, remote={3})" -f `
-    $lines.Count, $IntervalSecs, $OutDir, $RemoteRoot)
+WLog ("started; watching {0} lines every {1}s (out={2}, remote={3}, fence={4})" -f `
+    $lines.Count, $IntervalSecs, $OutDir, $RemoteRoot, $ExcludeHosts)
 
 while ($true) {
     if (Test-Path $stopFile) { WLog "STOP_CAMPAIGN present - watchdog exiting."; break }
@@ -77,9 +93,10 @@ while ($true) {
                 "-ExecutionPolicy", "Bypass",
                 "-File", (Join-Path $repo "scripts\mode_d_supervisor.ps1"),
                 "-Line", $d, "-StaggerSecs", "0",
+                "-ExcludeHosts", $ExcludeHosts,
                 "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
             )
-            WLog ("  restarted {0}" -f $d)
+            WLog ("  restarted {0} (fence={1})" -f $d, $ExcludeHosts)
             Start-Sleep -Seconds 3
         }
     }

@@ -742,3 +742,149 @@ the pathspec and inside the repository the drivers were launched from. Treat it 
 others: no edit before the re-base.
 
 ---
+
+# ★★★ RUN 10 DISPOSITION — 2026-08-01. EVERY ITEM WORKED TO A VERDICT.
+
+Tamer, 2026-08-01: *"apply everything that was supposed to be applied **if you think that would
+benefit the campaign**… Don't be fucking lazy"* and *"0 issue tolerance, 0 defects tolerance."*
+Both halves are load-bearing: he asked for JUDGEMENT, not a checklist. Applying all of them
+uncritically would have shipped D17 — which breaks deterministic replay mid-campaign — so every
+item below carries its verdict AND its reason. **Nothing is left unstated; a silent skip is the
+defect this block exists to prevent.**
+
+| item | verdict | why |
+|---|---|---|
+| **1 · D13** empty completion | ✅ **APPLIED** | a live crash path that had already killed 5 arm pipelines. **Two defects in the SPEC itself** — see below. |
+| **2 · D12** gate-stop exit code | ✅ applied by RUN 9 (§97) | — |
+| **3 · preflight headroom** | ⏸ **DEFERRED, stated** | `preflight.py` runs only BEFORE a campaign. It cannot affect anything live, and it is the single item with zero semantic risk — but it also buys the live run nothing, and every line I touch in a fenced file is risk. It ships at the next natural restart. |
+| **4 · D14** silent partial arm failure | ✅ **APPLIED (the protective half)** | the *early stop* is in. See the scope note below — the detection half was already live. |
+| **5 · D15** watchdog host fence | ✅ **APPLIED — and it was WORSE than described** | see below. |
+| **6 · D16** substrate in the gate | ✅ applied by RUN 9 (§97) | — |
+| **7 · D17** safe-default clears state | ⛔ **NEVER APPLY WHILE LIVE** | it changes reward-evaluation SEMANTICS on the training path. Every record written before the change would replay differently — a direct hit on reproducibility layer 1. RUN 9's refusal is upheld. Limitation B.8.7. |
+| **8 · memory sizing** | ✅ applied 2026-07-30 | do not re-apply; its test cannot fail. |
+| **9 · `CPU_THREAD_SPEEDUP[8]`** | ✅ **APPLIED** | 2.72x was an idle bench; production says **1.92x** across 740 timed trainings. Model input only. |
+| **10 · D18** one record at two paths | ⏸ **DEFERRED, and this is a DELIBERATE assessment, not an oversight** | 1 duplicate in 1,591 records (0.06 %), byte-identical, on a report-only leg, **zero on the confirmatory path**, and NOT growing (re-verified at a 41 % larger archive, §65.4). The fix touches ~20 discovery sites across 8 files. **A 20-site diff on a live confirmatory run is a larger risk than the defect it removes.** Re-open if a second duplicate ever appears — that would make it systematic, which is the condition the original entry named. |
+| **11 · `--pack 8`** | ✅ applied 2026-07-31 (§58), re-verified optimal (§96.5) | — |
+| **12 · D19** search-lane `h_rt` | ⏸ **DEFERRED, on the original reasoning, re-checked** | 12 kills, 0 candidates lost, and the tight lane is SEARCH — which ends in 1-2 days — while C4 is the TEST lane at 1.52x headroom. A longer walltime is HARDER to backfill, so it trades a self-limiting problem for a permanent placement penalty. **Re-open if the search p99 climbs toward 14 h.** |
+| **13 · D20** lock identity | ✅ **APPLIED — and it FIRED FOR REAL first** | see below. |
+| **14 · `timeout_events`** | ✅ **APPLIED** | the counter searched for a string nothing emits. Structurally zero. |
+| **15a-d · write-up tooling** | 🔄 **RE-SCOPED at the write-up lane's request** | see below. |
+
+### 1 · D13 — ★ THE SPECIFICATION ABOVE CONTAINED TWO DEFECTS OF ITS OWN
+
+1. **The fix as specified would have retried NOTHING.** Item 1 places the `EmptyCompletionError`
+   check at the extraction site — i.e. AFTER `self._retrying(_call)` has already returned, outside
+   tenacity's scope. The named error would have propagated on the first malformed body and retried
+   **zero** times. Caught by writing a test that asserted *recovery* rather than *classification*;
+   `test_the_named_fault_is_classified_transient` passes against the broken placement. **The
+   validation now lives INSIDE the retried callable, on both transports.**
+2. **The spec covered only the OpenAI path — and the identical defect is on the ANTHROPIC
+   transport, which is what the CONFIRMATORY core line runs on.** `blocks = list(message.content)`
+   fails as `TypeError: 'NoneType' object is not iterable`. Found by grepping every
+   response-extraction site rather than fixing only the one that had already bitten us.
+
+**The line the fix must not cross, now pinned by three tests:** a response that is well-formed but
+says nothing — a truncation, a refusal, a completion carrying only `thinking` blocks — is a
+LEGITIMATE authoring outcome and must reach the archive as an authoring failure. That is the
+capability signal the per-model reliability result is measured from. Retrying it would silently
+change which candidates exist. **The predicate is "the container is missing", never "the text is
+empty".**
+
+11 tests; falsified against HEAD in all four failure modes (`TypeError`/`IndexError`,
+`transient=False` for each).
+
+### 4 · D14 — SCOPE, STATED EXACTLY
+
+**Applied: 4b, the protective half.** A core arm that RAISED now stops the pass **before** the H2
+pair test, writes a line-qualified `ARM_CRASH_<line>.json` marker, and exits non-zero so the
+supervisor relaunches and `--resume` re-runs only that arm.
+
+**The reason this is the important half, and it is not the one the register emphasised.** The
+register framed D14 as wasted compute. It is worse: the statement immediately after the arm drain
+builds the H2 pair test from `winners`, as ONE `interleave=True` CRN-paired array. **A crashed arm
+has no winner, so it would be SILENTLY ABSENT from that array** — every seed paired against a
+comparator set that is not the registered one. Stopping is what prevents that.
+
+**Deliberately NARROW, with a control test.** Only an arm carrying an `error` key stops anything.
+A `no_winner`, an R115 ineligibility, or a canary-gated arm is a RESULT of the experiment, not a
+fault; stopping on those would relaunch the line forever on an ordinary scientific outcome.
+
+**NOT applied: 4a, porting `arm_coverage` into `campaign_guards.py`.** The detector is ALREADY
+ARMED and running every ~42 s from `docs/ops/arm_coverage.py`, and has been since 2026-07-29.
+Porting it would duplicate live logic into a second location during a live run and change nothing
+operationally. **Signal over noise: it is tidiness, not safety.** The marker above is wired into
+`docs/ops/cycle.py` and positive-controlled.
+
+### 5 · D15 — ★ THE REGISTER SUSPECTED `mode_d_launch.ps1`. IT WAS RIGHT, AND IT IS THE WORSE HALF.
+
+The entry closes with *"Audit the OTHER launchers for the same omission when applying:
+`mode_d_launch.ps1` and `campaign_backup.ps1` were fixed for roots in D4, but were not checked for
+the fence."* **Checked 2026-08-01: `mode_d_launch.ps1` passed NO `-ExcludeHosts` at all.** So the
+substrate fence protecting this run existed ONLY because the twelve live supervisors happened to be
+started with it BY HAND. A clean relaunch from the ratified launch script would have dropped it —
+for **all twelve lines at once**, not one revived line.
+
+Both launchers now take the parameter, thread it, and the watchdog LOGS the fence it will revive
+with (a fence nobody prints can be wrong for days). 8 tests, 7 falsified against HEAD; the 8th is a
+**discovery-based completeness test** — it enumerates every `.ps1` that actually EXECUTES
+`mode_d_supervisor.ps1` (comment-stripped, so prose cannot masquerade as a call site) and fails if
+one is not fence-tested. A hard-coded launcher list inside the test would be the same failure
+waiting to happen.
+
+### 13 · D20 — IT STRANDED A C4 LINE FOR ~14 HOURS BEFORE IT WAS APPLIED
+
+See `CAMPAIGN_EXECUTION_RECORD.md` §100. `leg4` (`qwen3.5-9b`) was hard-down from a pid recycled
+onto `backgroundTaskHost.exe`. Fixed live at 01:05:46Z, then twice over: the monitoring cycle now
+**reaps** such a lock (commit `2368b5e`), and the lock itself now records the owner's process
+**create-time**, so a recycled pid is decisively distinguishable.
+
+**The design point worth carrying forward:** the two possible errors are NOT symmetric. Breaking a
+LIVE owner's lock permits two drivers on one batch — double requeues, corrupted retry accounting,
+unrecoverable. Failing to break a dead owner's lock stalls a line — recoverable, and now
+auto-reaped. **So every ambiguity resolves to "owned"**, and that direction is pinned by its own
+tests (`test_ambiguity_resolves_to_owned`, `test_empty_cmdline_resolves_to_owned`). The legacy
+fallback matters during the deploy itself: locks already on disk carry no create-time.
+
+### 15 · WRITE-UP TOOLING — RE-SCOPED EXACTLY AS THE WRITE-UP LANE ASKED
+
+`docs/LANE_COORDINATION_2026-07-31.md` §4c-REVISED raised four corrections. **All four are
+accepted, and this register is the ops-owned place they land:**
+
+| id | scope | state |
+|---|---|---|
+| **15a-i** | wire the **13** existing `paper/` artefacts into `ASSEMBLY`/`APPENDICES` (the lane's tuple, which is authoritative — `ls paper/tables/` is the source of truth for the count, not any prose figure) | **READY, mechanical — blocked ONLY on the lane confirming its SHIP-FORM pass** |
+| **15a-ii** | the 16-section restructure (Appendix C/D, §10 Data, the CH7 split) | ⛔ blocked on `paper/` content that does not exist yet. **Not attempted.** |
+| **15b** | `scripts/presentation_lint.py` | queued |
+| **15c** | the `docs/WHY_REGISTER.md` generator | queued |
+| **15d** | the seed-trajectory panel in `src/viz/figures.py` | queued |
+| **15e** | ★ **widen `check_citations.py` beyond `paper/*.md` top-level** | **ADDED, as requested, with the lane's constraint: it MUST land in the same commit as 15a-i.** The lane is right that this is the dangerous half — wiring the artefacts while the gate still globs only the top level would import unchecked citations, including dangling keys, straight into the compiled PDF, and the integrity check would report clean. |
+
+**And the four `paper/sections/` files are NOT to be wired** — they are inserts into body chapters,
+and wiring them as standalone `ASSEMBLY` entries would move ~1,100 words of counted prose outside
+`word_budget.py`'s `BODY_CHAPTERS`. That is word-count evasion, not the appendix escape hatch.
+
+---
+
+## 16. ★ D21 — THERE IS NO REBOOT RECOVERY AT ALL (found 2026-08-01, RUN 10)
+
+**Verified, not assumed:** `Get-ScheduledTask | Where-Object { … -like '*llm-reward-portfolio*' }`
+returns **nothing**. The ONSTART task `scripts/install_onstart_task.ps1` exists but **was never
+registered for this run**.
+
+**Exposure.** A Windows Update reboot — over a 26-day run, not a remote possibility — kills all 12
+supervisors, all 24 drivers, the watchdog, the cycle loop, the publisher and the backup, and
+**none of them come back.** The Myriad arrays keep running and finishing with nobody polling,
+pulling or submitting the next generation.
+
+**And the installer as written would not fix it.** Its `-Myriad` branch does not start the mode-D
+fleet at all: it launches `scripts/supervisor.py` driving ONE `run_campaign_cluster.py` with
+hard-coded args carrying `--batch-tag c1` (the CORE LINE ONLY — the other eleven would stay down),
+`--pack 4` (the live fleet runs `--pack 8`, §58) and `--exclude-hosts node-d00a-230` (**missing
+`node-d00b-024` — the substrate fence, i.e. the D15 defect on the reboot path**).
+
+**The fix is not to correct those three literals — it is to delete them.** A reboot must re-enter
+the fleet through `mode_d_launch.ps1` + the watchdog, which are the single source of truth for how
+this campaign starts; duplicating the argument vector is what produced all three drifts. Queued as
+the next change after the D13/D14/D15/D20 deploy.
+
+---

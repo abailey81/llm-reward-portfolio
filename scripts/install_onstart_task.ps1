@@ -50,6 +50,17 @@ param(
     # the SUPERSEDED R24 parallel protocol; a reboot would have resumed the campaign on the WRONG
     # protocol. Found + fixed in the 2026-07-02 engineering review.)
     [string]$CampaignArgs = "--gpu 3 --h3-singleshot --no-shutdown",
+    # ---- D21 (found 2026-08-01, RUN 10) --------------------------------------------------------
+    # MODE-D recovery parameters. Under -Myriad this task no longer re-enters ONE campaign process
+    # with a hand-typed argument vector; it re-enters THE FLEET through mode_d_launch.ps1 and
+    # mode_d_watchdog.ps1, which are the single source of truth for how this campaign starts.
+    # See the -Myriad branch below for the three drifts that duplication had already produced.
+    [string]$OutDir = "outputs\campaign_cluster_run4",
+    [string]$RemoteRoot = "~/Scratch/llmrp4",
+    [string]$ExcludeHosts = "node-d00a-230,node-d00b-024",
+    # Best-effort restart of the two detached monitoring loops (bash). Never blocks the campaign
+    # recovery: if bash is absent the loops are skipped and the fleet still comes back.
+    [string]$BashExe = "C:\Program Files\Git\bin\bash.exe",
     [int]$SupervisorGpu = 3,
     [switch]$Myriad
 )
@@ -75,27 +86,61 @@ if ($Myriad) {
     # laptop GPU is idle), and the supervisor's laptop preflight is bypassed. The default cluster args
     # are the tiered C-ladder over the frozen 7-arm roster; override with -CampaignArgs. The supervisor
     # (and, redundantly, the entry) append --resume so re-entry replays the archive — never re-bills.
-    if (-not $PSBoundParameters.ContainsKey('CampaignArgs')) {
-        # The FROZEN roster: 9 arms (config/arms.yaml, R108's 7 -> 9 with the H4 DFO portfolio) + the
-        # 11-member H1 canon (config/preregistration.yaml h1_baselines, expanded 4 -> 11). Counts are
-        # stated here for the operator ONLY — resolve them from config, never hand-type a roster: a
-        # stale hand-typed list is what caused the 4-vs-11 launch defect. A reboot-recovery MUST resume
-        # the complete, correct campaign — a wrong default would resume an incomplete/broken roster.
-        # --tiered means the config seed schema (the E1 ladder [0..567]) drives the tiers; --seeds is
-        # ignored here. Kept at the full ladder as a belt-and-suspenders default in case --tiered is dropped.
-        # 2026-07-27: the --arms list is GONE, not corrected. It said SEVEN under a comment saying
-        # NINE - the drift this very comment warns about, in the file that warns about it. Both the
-        # roster and the H1 canon are now RESOLVED from the frozen config by the launcher
-        # (resolve_cluster_arms / resolve_cluster_baselines), which also REFUSES a partial list
-        # before ssh. A reboot-recovery therefore cannot resume a subset of the design.
-        # CPU-lane substrate flags mirror mode_d_supervisor.ps1's $cpuLane.
-        $CampaignArgs = "--tiered --pass-mode B --llm-from campaign " +
-            "--device cpu --pool d --pack 4 --cores-per-training 1 " +
-            "--search-pack 1 --search-threads 8 --chunk-tasks 1 " +
-            "--exclude-hosts node-d00a-230 --gold-dir /acfs/users/ucestes/gold " +
-            "--batch-tag c1 --poll-secs 180 --search-poll-secs 45"
+    # == D21 (2026-08-01, RUN 10): RE-ENTER THE FLEET, NOT ONE CAMPAIGN PROCESS ==================
+    #
+    # THE GAP. `Get-ScheduledTask` filtered on this repo returned NOTHING on 2026-08-01: this task
+    # was never registered for RUN 4. A Windows Update reboot -- over a 26-day run, not a remote
+    # possibility -- would have killed all 12 supervisors, 24 drivers, the watchdog, the cycle loop,
+    # the publisher and the backup, and NONE of them would have come back, while the Myriad arrays
+    # kept running and finishing with nobody polling, pulling or submitting the next generation.
+    #
+    # AND THE BRANCH BELOW WOULD NOT HAVE FIXED IT. It re-entered ONE `run_campaign_cluster.py`
+    # with a hand-typed argument vector, which had already drifted from the live fleet in THREE
+    # independent ways:
+    #   * `--batch-tag c1`            -> the CORE LINE ONLY; the other ELEVEN lines stay down;
+    #   * `--pack 4`                  -> the live fleet runs `--pack 8` (record s.58);
+    #   * `--exclude-hosts node-d00a-230` -> MISSING `node-d00b-024`, i.e. the substrate fence.
+    #     That is the D15 defect on the reboot path, and it is the worst of the three: it silently
+    #     re-opens the CPU-model inhomogeneity that already cost four archived records.
+    #
+    # THE FIX IS NOT TO CORRECT THOSE THREE LITERALS -- IT IS TO DELETE THEM. Duplicating the
+    # launch vector is what produced all three drifts, and a fourth would appear the next time the
+    # fleet's shape changed. `mode_d_launch.ps1` starts the twelve supervised lines and returns;
+    # `mode_d_watchdog.ps1` then keeps them alive and blocks, which is exactly what a Task
+    # Scheduler action should hold open. Both now carry `-ExcludeHosts` (D15, same commit), so the
+    # fence survives a reboot for the first time.
+    $mdLaunch   = Join-Path $repoRoot "scripts\mode_d_launch.ps1"
+    $mdWatchdog = Join-Path $repoRoot "scripts\mode_d_watchdog.ps1"
+    foreach ($f in @($mdLaunch, $mdWatchdog)) {
+        if (-not (Test-Path $f)) { throw "mode-D recovery script not found at $f" }
     }
-    $inner = "`"$pythonExe`" `"$supervisor`" --no-preflight --campaign `"$clusterEntry`" -- $CampaignArgs --resume"
+    $psExe = "powershell.exe"
+    $fleet = ("`"$psExe`" -NoProfile -ExecutionPolicy Bypass -File `"$mdLaunch`" " +
+              "-OutDir `"$OutDir`" -RemoteRoot `"$RemoteRoot`" -ExcludeHosts `"$ExcludeHosts`"")
+    $watch = ("`"$psExe`" -NoProfile -ExecutionPolicy Bypass -File `"$mdWatchdog`" " +
+              "-OutDir `"$OutDir`" -RemoteRoot `"$RemoteRoot`" -ExcludeHosts `"$ExcludeHosts`"")
+    # The two detached monitoring loops, best-effort. `start /B` so a missing bash can never stop
+    # the campaign from coming back -- the fleet is what is irreplaceable, the loops are not.
+    $loops = ""
+    if (Test-Path $BashExe) {
+        $loops = ("start `"`" /B `"$BashExe`" -lc `"cd '$repoRoot' && nohup bash docs/ops/cycle_loop.sh >/dev/null 2>&1 &`" & " +
+                  "start `"`" /B `"$BashExe`" -lc `"cd '$repoRoot' && nohup bash docs/ops/publish_loop.sh >/dev/null 2>&1 &`" & ")
+    }
+    $mydInner = "$fleet & $loops$watch"
+
+    # !! `-CampaignArgs` NO LONGER APPLIES UNDER `-Myriad`. The hand-typed vector it used to carry is
+    # DELETED rather than corrected (see the block above): every line's arguments now come from
+    # `mode_d_supervisor.ps1`, reached through `mode_d_launch.ps1`, so there is exactly one place
+    # that knows how a line starts. The frozen roster and the 11-member H1 canon are still resolved
+    # from config by the launcher (`resolve_cluster_arms` / `resolve_cluster_baselines`), which
+    # REFUSES a partial list before ssh - so a reboot-recovery still cannot resume a subset of the
+    # design, and now it also cannot resume a subset of the FLEET.
+    if ($PSBoundParameters.ContainsKey('CampaignArgs')) {
+        Write-Warning ("-CampaignArgs is ignored under -Myriad since 2026-08-01 (D21): reboot " +
+                       "recovery re-enters the fleet via mode_d_launch.ps1, not a single campaign " +
+                       "process. Pass -OutDir / -RemoteRoot / -ExcludeHosts instead.")
+    }
+    $inner = $mydInner
 } else {
     # LAPTOP campaign. The GPU clock lock (nvidia-smi -lgc) RESETS on every reboot — re-apply it BEFORE
     # re-entering so a crash-reboot resumes under the SAME uniform conditions the pilots calibrated

@@ -24,7 +24,14 @@ param(
     #   powershell -ExecutionPolicy Bypass -File scripts\mode_d_launch.ps1 `
     #     -OutDir outputs\campaign_cluster_run2 -RemoteRoot ~/Scratch/llmrp2
     [string]$OutDir = "outputs\campaign_cluster",
-    [string]$RemoteRoot = "~/Scratch/llmrp"
+    [string]$RemoteRoot = "~/Scratch/llmrp",
+    # 2026-08-01 (RUN 10), found while applying D15: the register asked whether this launcher had
+    # the same omission as the watchdog. IT DID - this file launched every supervised line with NO
+    # -ExcludeHosts at all, so the substrate fence that protects the run existed ONLY because the
+    # live processes happened to be started with it BY HAND. A clean relaunch from this script
+    # would have silently dropped it, which is the same failure D15 describes for revival, at the
+    # more dangerous end: it would apply to ALL TWELVE lines at once rather than one revived line.
+    [string]$ExcludeHosts = "node-d00a-230"
 )
 
 $ErrorActionPreference = "Continue"
@@ -55,6 +62,7 @@ foreach ($line in $lines) {
         "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $repo "scripts\mode_d_supervisor.ps1"),
         "-Line", $line, "-StaggerSecs", [string]$stagger,
+        "-ExcludeHosts", $ExcludeHosts,
         "-OutDir", $OutDir, "-RemoteRoot", $RemoteRoot
     )
     $i += 1

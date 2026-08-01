@@ -11955,3 +11955,216 @@ live supervisor.** If a line is still short after ~15 minutes, read that line's 
 the driver lock may be held by a stale entry (**D20**, deferred item 13, whose detector is armed).
 
 ---
+
+---
+
+## 100. ★★★ RUN 10 — A C4 LINE WAS DEAD ON ARRIVAL; SEVEN DEFERRED FIXES APPLIED; AND THE 4,000-CORE TARGET TURNS OUT NOT TO EXIST (2026-08-01)
+
+Tamer, going to sleep, granting full autonomy: *"do whatever it takes to make absolutely everything
+strictly flawless… 0 issue tolerance, 0 defects tolerance… I dont give ten fucks about freeze."*
+And separately: *"there are two more claude code sessions working in parallel, make sure you
+communicate and coordinate with them in a very smart way."*
+
+### 100.1 ⚠ THE FIRST CHECK OF THE SESSION FOUND A C4 LINE HARD-DOWN — D20 FIRED FOR REAL
+
+The RUN 10 brief's opening instruction was to verify `drivers = 24`. It read **22**, and the missing
+line was `leg4` (`qwen3.5-9b`) — **one of the only two lines already at C4.**
+
+**Cause, read from the driver's own traceback rather than inferred:**
+
+```
+RuntimeError: another driver (pid 34216) is already running batch
+'leg4_leg_qwen3_5_9b_h2_pair_test.driver.lock' - refusing to double-drive
+```
+
+That lock was written **2026-07-31 12:12 BST** by driver pid 34216. The driver died; Windows
+recycled pid 34216 onto **`backgroundTaskHost.exe`**. `_acquire_driver_lock` breaks a lock only when
+`psutil.pid_exists(pid)` is False — **existence, not identity** — so every relaunch died 12 s in,
+on a 600 s supervisor backoff, **with every guard green**. The batch had been blocked ~13.9 h; the
+whole line was down from the 00:55Z roll.
+
+**Fixed in three layers, each verified:**
+
+1. **LIVE (01:05:46Z).** All 39 locks triaged against the driver's exact predicate. **23
+   live-driver locks correctly KEPT — the positive control**; 1 reused-pid lock and 15 dead-pid
+   landmines deleted. The driver relaunched and immediately began its C4 test batches
+   (`scalar_cvar5_test 0/30`, `placebo_test 0/6`). Fleet re-verified **12/12 supervisors, 24
+   drivers, 0 true orphans**.
+2. **OPERATIONAL (commit `2368b5e`).** The monitoring cycle now **REAPS** such a lock instead of
+   merely reporting it. RUN 9's detector fired correctly and that was not enough: **its remedy was
+   a manual `rm`, and there was nobody awake to run it. An alarm whose remedy is a human command is
+   an alarm that fails while you sleep.** All three branches falsified live — reaped at 01:14:18Z,
+   a live driver's lock KEPT, and the 60 s age floor held then released at 01:15:43Z.
+3. **MECHANISM (D20).** The lock now records the owner's process **create-time**, so a recycled pid
+   is decisively distinguishable. 10 tests, falsified against HEAD.
+
+**The design point worth carrying forward: the two possible errors are NOT symmetric.** Breaking a
+LIVE owner's lock permits two drivers on one batch — double requeues, corrupted retry accounting,
+unrecoverable. Failing to break a dead owner's lock stalls a line — recoverable, and now
+auto-reaped. So every ambiguity resolves to "owned", and that direction is pinned by its own tests.
+
+### 100.2 ★ THE BRIEF'S OWN FLEET CHECK IS WRONG — P113
+
+`docs/RUN10_SESSION_PROMPT.md` §0.3 supplies a PowerShell snippet expecting `drivers = 24,
+orphans = 0`. Its orphan predicate counts every driver whose parent is not a supervisor — but each
+line runs a venv **launcher** *and* its **child**, so the child's parent is the launcher. On a
+perfectly healthy 24-driver fleet it reports **12 phantom orphans** (it read 11 of 22 at session
+start). The correct predicate accepts a parent that is a supervisor **or another driver**. Same
+shape as every P-series entry: a filter right for one case and silently wrong for its neighbour.
+
+### 100.3 SEVEN DEFERRED FIXES APPLIED — AND TWO OF THE SPECS WERE THEMSELVES DEFECTIVE
+
+Full disposition, every item to a verdict, in `docs/DEFERRED_FIXES_RUN4.md`'s RUN 10 block.
+**39 new tests across 6 files, every one falsified against HEAD.**
+
+**D13 — the specification would have retried NOTHING.** Item 1 places the `EmptyCompletionError`
+check at the extraction site, i.e. AFTER `self._retrying(_call)` has already returned — outside
+tenacity's scope. The named error would have propagated on the first malformed body and retried
+**zero** times. Caught by writing a test that asserted *recovery* rather than *classification*; the
+classification test passes happily against the broken placement. **A fix that fixes nothing is
+worse than no fix, because it closes the ticket.**
+
+**D13 — and the spec covered only the OpenAI path.** The identical defect sits on
+`_AnthropicTransport` (`blocks = list(message.content)` produces `TypeError: 'NoneType' object is
+not iterable`) — **the transport the CONFIRMATORY core line runs on.** Found by grepping every
+response-extraction site instead of fixing only the one that had already bitten us.
+
+**The line D13 must not cross, now pinned by three tests.** A response that is well-formed but says
+nothing — truncation, refusal, thinking-only — is a LEGITIMATE authoring outcome and must reach the
+archive as an authoring failure, because that is the capability signal the per-model reliability
+result is measured from. Retrying it would silently change which candidates exist. The predicate is
+**"the container is missing", never "the text is empty."**
+
+**D14 — the register framed it as wasted compute; the real damage is scientific.** The statement
+immediately after the arm drain builds the H2 pair test from `winners`, as ONE `interleave=True`
+CRN-paired array. **A crashed arm has no winner, so it would be SILENTLY ABSENT from that array** —
+every seed paired against a comparator set that is not the registered one. The pass now stops
+before C2, writes a line-qualified `ARM_CRASH_<line>.json` marker (wired into the cycle and
+positive-controlled), and exits non-zero so `--resume` re-runs only the crashed arm. Deliberately
+narrow: only an arm carrying an `error` key stops anything, with
+`test_a_designed_no_winner_does_not_stop_the_line` as the control — a `no_winner` or an R115
+ineligibility is a RESULT of the experiment, not a fault.
+
+**D15 — the register SUSPECTED `mode_d_launch.ps1`; it was right, and it is the worse half.** The
+primary launcher passed **no `-ExcludeHosts` at all**, so the substrate fence protecting this run
+existed only because the twelve live supervisors were started with it BY HAND. A clean relaunch
+from the ratified launch script would have dropped it **for all twelve lines at once**, not one
+revived line. The completeness test is discovery-based — it enumerates every `.ps1` that actually
+EXECUTES the supervisor (comment-stripped, so prose cannot masquerade as a call site) and fails if
+one is not fence-tested. A hard-coded launcher list inside that test would be the same failure
+waiting to happen.
+
+**D18 — ROOT-CAUSED, after two sessions of carrying the symptom.** §44.6 and §65.4 correctly
+identified one record at two paths and left the mechanism as *"a destination computed as
+`<dest>/<run_id>`"*. The actual mechanism: **`shutil.move(src, dst)` where `dst` is an EXISTING
+DIRECTORY moves `src` INSIDE it.** The `if dest.exists(): continue` guard cannot close that,
+because `read_root` is **shared by all twelve supervised lines** — another line's driver can commit
+the same record in the window between our check and our move. Three independent facts confirm it:
+the remote side is **FLAT** (verified on the node — the doubling is created locally); both
+instances sit on LEG lines, i.e. the many-concurrent-drivers case; and the count grew **1 -> 2** as
+concurrency rose. `os.rename` is the fix because it CANNOT nest.
+
+> **⚠ AND THE FIRST VERSION OF THE D18 TEST FAILED TO FALSIFY — my own error, caught by the rule.**
+> The test committed the rival copy BEFORE the `dest.exists()` guard ran, so the guard caught it,
+> `shutil.move` was never reached, and all four tests passed against the PRE-FIX code. **A test
+> that cannot fail verifies nothing.** The defect is not "the destination exists" — the guard
+> handles that — it is "the destination did not exist WHEN WE LOOKED, and does by the time we
+> move." The corrected test opens that TOCTOU window explicitly and reproduces the exact live
+> signature, `search/c1/c1/record.json`.
+
+**D18's other half stays deferred — now on evidence, not convenience.** Verified first-hand that
+neither blocking control can be misled: the C3 gate's substrate check counts **distinct** signatures
+(a duplicate adds to an existing one, so it cannot manufacture a spurious second), and
+`_test_census` builds a **set** of `run_id`s. The ~20 remaining recursive consumers inflate a
+reported total by 2 in 1,636 (0.12 %).
+
+### 100.4 ★★★ THE 4,000-CORE TARGET IS AN ARTEFACT OF A SUPERSEDED MEASUREMENT
+
+Applying deferred item 9 — `CPU_THREAD_SPEEDUP[8]` from the isolated-bench **2.72x** to the
+field-measured **1.92x** (740 timed trainings on shared nodes, §39) — broke three existing tests,
+and *what those tests encoded* is the finding:
+
+| quantity | bench 2.72x (superseded) | field 1.92x (measured) |
+|---|---|---|
+| saturation cores @ rung 568 | 4,584 | **3,235** |
+| saturation cores @ rung 403 (registered primary target) | 3,309 | **2,336** |
+| critical-chain floor | 3.27 d | **4.64 d** |
+
+**The standing "we need 4,000+ cores" ambition was chasing a number that does not exist.** Past
+~3,235 cores at the full ladder the CRITICAL CHAIN binds and additional cores buy **nothing**. This
+makes the capacity story better, not worse: at 960 cores we sit at ~30 % of a real ceiling, not
+21 % of an imaginary one. Corrected in `lanes.py`'s module docstring and in `cpu_saturation_cores`'s
+contract (the figure the GO-day advisor reports); `docs/ops/stage_eta.py` computes it dynamically
+and self-corrected.
+
+**The three test updates are expected-value changes to a superseded MEASUREMENT, not silenced
+checks** — each carries its justification inline, and the qualitative claim each test exists for
+(threading moves `binding` from critical_chain to throughput, so no GPU is required) still HOLDS at
+the pessimistic constant, which is the stronger result.
+
+### 100.5 CAPACITY RE-DERIVED INDEPENDENTLY — §96 CONFIRMED, WITH ONE CORRECTED DENOMINATOR
+
+* 120 running tasks (960 slots) + 69 queued; our best pending priority **2.00891** EQUALS the
+  cluster's best pending, and **no** non-`ucestes` job outranks us.
+* **A denominator error caught in my own measurement.** `free_slots / 8 = 405` sums free slots
+  ACROSS hosts, but `-pe smp 8` with `binding: set linear:slots` needs 8 free slots **on one node**.
+  Per host: **317 usable hosts, 3,174 free slots, 97 hosts with >=8 free, 328 eight-slot jobs
+  placeable.** Still far above the 69 queued — so placement is a transient backlog, not a denial.
+* **All 12 lines have live work; none is idle.** `h3ss` holds 71 of 120 running jobs (568 of 960
+  slots) because it is a separate `--h3-singleshot --seeds 0-567` invocation — C5, by design, not
+  `--tiered`.
+* **Verified rather than assumed:** h3ss running to 568 while the tiered ladder may stop at 403 is
+  scientifically harmless. `h3_iterative_vs_singleshot` pairs on
+  `common = sorted(set(iter_scores) & set(ss_scores))` — the seed INTERSECTION.
+
+**Conclusion, independently re-derived: there is no available speed lever, and we are not being
+denied capacity — we do not have work to submit.** 3,174 slots sit free because K = 5 with
+SEQUENTIAL generations caps in-flight search work. The capacity arrives at C4, automatically.
+
+### 100.6 D21 — THERE IS NO REBOOT RECOVERY AT ALL
+
+Verified, not assumed: `Get-ScheduledTask` filtered on the repo path returns **nothing**. The
+ONSTART task exists as a script but **was never registered for this run**. A Windows Update reboot —
+over a 26-day run, not a remote possibility — would kill all 12 supervisors, 24 drivers, the
+watchdog, the cycle loop, the publisher and the backup, and **none of them would come back**, while
+the Myriad arrays kept running and finishing with nobody polling or pulling.
+
+And the installer as written would not fix it: its `-Myriad` branch does not start the mode-D fleet
+at all. It launches ONE `run_campaign_cluster.py` with hard-coded args carrying `--batch-tag c1`
+(the CORE LINE ONLY — the other eleven stay down), `--pack 4` (the live fleet runs `--pack 8`, §58)
+and `--exclude-hosts node-d00a-230` (**missing `node-d00b-024` — the substrate fence, i.e. the D15
+defect on the reboot path**). **The fix is not to correct those three literals but to delete them**:
+a reboot must re-enter through `mode_d_launch.ps1` + the watchdog, which are the single source of
+truth for how this campaign starts. Duplicating the argument vector is what produced all three
+drifts.
+
+### 100.7 MY OWN PROCESS ERRORS — P113, P114, P115
+
+> **⚠ P-SERIES NUMBERING CORRECTED BEFORE PUBLICATION.** This section was drafted as P51-P52 from
+> the RUN 10 brief's stated floor. On joining the cross-session lane bus (`.claude/lanes/lanebus.py`,
+> built overnight by the COORD lane) its allocator — which re-derives the floor from the documents on
+> every call — returned **P113-P115**: two further sessions had allocated up to P112 while this one
+> worked. **The brief's "start at P51" was stale within hours.** Allocating through the bus is now
+> the ops lane's rule; the namespace has collided twice already.
+
+| id | error | how it was caught |
+|---|---|---|
+| **P113** | the RUN 10 brief's fleet check reports 12 phantom orphans on a healthy fleet | printed pid/ppid/start-time for every process instead of trusting the count — the P44 lesson, one session later |
+| **P114** | ⚠ **ran `git stash --include-untracked` on the live repo**, briefly removing **23,214 untracked entries — including the live campaign archive — while twelve drivers were writing to it** | noticed the truncated output and audited immediately: every modified file and every untracked entry verified back on disk, 1,603 records intact, cycle still counting. **It survived on luck, not design.** The stash is LEFT in place as a backup rather than dropped. **RULE: no `git stash` in this repo — use copy-to-scratch + `git checkout HEAD -- <named file>` + restore, which touches only named files.** |
+
+| **P115** | reported `git_commit` as **None on all 1,675 records** and began writing it up as a campaign-wide reproducibility failure | **the field is in `env.json`, NOT `record.json`** — I queried the wrong level, and `record.get("git_commit")` therefore returned None for every record by construction. It is populated with the true deployed sha `b9e6df5535a8...`, read from `~/llmrp/GIT_COMMIT` on the node. **Caught by tell ③ — a clean 1,675/1,675 means suspect the SPECIFICATION, not the subject** — and by the ANALYSIS lane having independently reported the correct value, which is exactly what the cross-session bus is for. Provenance is INTACT; nothing was wrong except my query. |
+
+**Two more of my own, recorded because they are the recurring shapes:**
+
+* **A monitoring instrument that could not fire.** The first D14 marker write used
+  `run.local_archive_root` — an attribute `ClusterRun` does not have — inside a `try/except`, so it
+  would have silently written nothing. Caught by reading the dataclass instead of assuming the
+  attribute. The correct field is `read_root`, and because it is SHARED BY ALL TWELVE LINES the
+  marker must be line-qualified exactly as `TIER1_APPROVED_{line_tag}` already is.
+* **A backtick inside a bash heredoc**, which is a standing prohibition in this repo and which I
+  violated while writing this very section. It failed at parse time and wrote nothing; the record
+  was verified untouched before retrying through the Write tool.
+
+**And one wrapper-trap catch, exactly as the brief warns:** the harness reported the first
+full-suite run as *"completed (exit code 0)"* — that is the exit code of the trailing `tail`, not
+of pytest. `PYTEST_RC` read FROM THE LOG was **1**, with **four** failures. Never trust the wrapper.
