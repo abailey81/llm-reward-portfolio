@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 12:58 UTC -- T+87h49m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 13:03 UTC -- T+87h54m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+87h49m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+87h54m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **2385** |
-| LLM calls / spend | 2858 / **$44.8336** |
+| records archived | **2390** |
+| LLM calls / spend | 2863 / **$44.8462** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -21,21 +21,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **118** (116 running, 1 queued) |
-| **cores computing** | **928** |
+| cluster jobs | **119** (118 running, 0 queued) |
+| **cores computing** | **944** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung              @928 cores              @830 cores   binding
+ rung              @944 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
-  189            5.8 d  08-03            6.5 d  08-04   throughput
-  279            8.3 d  08-06            9.3 d  08-07   throughput
-  340           10.0 d  08-07           11.1 d  08-09   throughput
-  403           11.7 d  08-09           13.0 d  08-10   throughput
-  568           16.2 d  08-14           18.1 d  08-15   throughput
+  189            5.7 d  08-03            6.5 d  08-04   throughput
+  279            8.2 d  08-06            9.3 d  08-07   throughput
+  340            9.8 d  08-07           11.1 d  08-09   throughput
+  403           11.5 d  08-09           13.0 d  08-10   throughput
+  568           15.9 d  08-13           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
@@ -73,10 +73,10 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 | arm | furthest generation | candidates so far |
 |---|---|---|
 | distributional | g5 of 5 | 882 |
-| scalar | g5 of 5 | 297 |
-| placebo | g5 of 5 | 288 |
+| scalar | g5 of 5 | 298 |
+| placebo | g5 of 5 | 290 |
 | scalar_cvar5 | g5 of 5 | 273 |
-| placebo_shuffled | g5 of 5 | 255 |
+| placebo_shuffled | g5 of 5 | 257 |
 
 ## Results so far
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T12:53:46Z  RED  records=2382 (+1)  spend=$44.8336  guards=2  arms_full=10/10  budget=2  stalest=1.2m  drift=0  sci=OK  r115=17B  sweep=17.0s  auto-cycle
-2026-08-01T12:54:33Z  RED  records=2382 (+0)  spend=$44.8336  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=17B  sweep=22.2s  auto-cycle
-2026-08-01T12:55:25Z  RED  records=2383 (+1)  spend=$44.8336  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=17B  sweep=16.7s  auto-cycle
-2026-08-01T12:56:12Z  RED  records=2383 (+0)  spend=$44.8336  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=17B  sweep=14.9s  auto-cycle
-2026-08-01T12:56:57Z  RED  records=2384 (+1)  spend=$44.8336  guards=2  arms_full=10/10  budget=2  stalest=1.3m  drift=0  sci=OK  r115=17B  sweep=21.5s  auto-cycle
-2026-08-01T12:57:49Z  RED  records=2384 (+0)  spend=$44.8336  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0+1dirty  sci=OK  r115=17B  sweep=15.3s  auto-cycle
+2026-08-01T12:59:18Z  RED  records=2386 (+0)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0+1dirty  sci=OK  r115=17B  sweep=16.0s  auto-cycle
+2026-08-01T13:00:04Z  RED  records=2386 (+0)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=1.3m  drift=0+1dirty  sci=OK  r115=17B  sweep=16.8s  auto-cycle
+2026-08-01T13:00:51Z  RED  records=2388 (+2)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0+1dirty  sci=OK  r115=17B  sweep=15.9s  auto-cycle
+2026-08-01T13:01:38Z  RED  records=2389 (+1)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0+1dirty  sci=OK  r115=17B  sweep=15.3s  auto-cycle
+2026-08-01T13:02:23Z  RED  records=2390 (+1)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0+1dirty  sci=OK  r115=17B  sweep=16.1s  auto-cycle
+2026-08-01T13:03:09Z  RED  records=2390 (+0)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=1.2m  drift=0+1dirty  sci=OK  r115=17B  sweep=15.8s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -132,8 +132,8 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 36.4536  + still to author $  1.2153  = $ 37.6689   credited $ 28.1500   margin $  -9.5189 (-34%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  8.3801  + still to author $  0.9767  = $  9.3568   credited $ 19.3100   margin $  +9.9532 (+52%)  comfortable
+  anthropic   spent $ 36.4536  + still to author $  1.0346  = $ 37.4882   credited $ 28.1500   margin $  -9.3382 (-33%)  over the credit ESTIMATE (owner-watched)
+  openrouter  spent $  8.3926  + still to author $  0.7812  = $  9.1738   credited $ 19.3100   margin $ +10.1362 (+52%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
