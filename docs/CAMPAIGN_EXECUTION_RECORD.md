@@ -14623,3 +14623,118 @@ that defends against the exact defect this session spent its first hours proving
 
 **Worth recording as a positive, because most of this record is defects:** a standing repo guard
 caught its own author's new code within minutes of it being written. That is machinery working.
+
+---
+
+### 100.49 THE THROUGHPUT INVESTIGATION — WHY WE HOLD 870 CORES, WHAT I GOT WRONG, AND THE ONE FIX THAT IS STAGED
+
+**Opened on Tamer's escalation (2026-08-01): *"why do we have such a low amount of cores… ensure we
+use an absolute maximum Myriad can offer."* Everything below is first-hand and read-only; nothing on
+the cluster was altered.**
+
+#### 100.49.1 The prize
+
+| quantity | value |
+|---|---|
+| record rate, 37.5 h window | **34.9/h** (1,162 → 2,472) |
+| ETA at that rate | 47.3 days → 2026-09-17 |
+| Aug-27 exogenous stop | 25.4 days away |
+| reachable by the stop | **23,758 of 42,128 = 56.4 %** |
+| speed-up required | **1.86×** |
+
+**Calibration, so this is not read as a cliff:** the ladder is cumulative and CRN-paired, every
+prefix is a valid complete study, and the Aug-27 stop is exogenous and pre-registered — stopping
+there is not optional stopping. A lower rung is *less power*, not *no result*.
+
+#### 100.49.2 ⚠ THE ERROR I MADE, AND BROADCAST, BEFORE CHECKING IT
+
+I measured free capacity as `NCPU − LOAD` from `qhost` and reported to three lanes:
+*"EVERY FAMILY. ~12,000 CORES. ZERO FREE."* (M203.)
+
+**Load average is not what SGE schedules on. SGE schedules on SLOTS.** Load counts IO-wait and every
+non-SGE process; it says nothing about slot availability. The correct query is `qhost -F slots`:
+
+```
+d00a 2275 free of 8712 (26.1%)   d97a  531/864 (61.5%)   e00a 433/576 (75.2%)
+d00b  405/720  (56.2%)           b00a  248/576 (43.1%)   l00a 198/252 (78.6%)
+TOTAL 4,497 FREE SLOTS of 12,688 = 35.4%   —   3,366 of them in POOL D, which we already use
+```
+
+**Corroborated by an independent route before the correction went out:** `allocation_advisor.py` —
+our own instrument, which I had not run — reports *"hold ~2438 cores of 3484 free"*. Two routes,
+same order of magnitude. **The load-based reading was the outlier and it was mine.**
+
+Withdrawn on the bus as **M203**; correction **M210**. The lesson, recorded because it is the useful
+part: **a striking round number — "0.0 %, every family" — is the signal to re-derive, not to
+publish.** I had written into this very record, hours earlier, that *"agreement between two
+independent derivations is evidence; one derivation repeated is not"*, and then did not apply it.
+
+#### 100.49.3 Two further hypotheses of mine, both killed by measurement
+
+* **`h_rt` as a backfill killer.** Our jobs request 15 h. MEASURED from `qacct`, 411 exit-0 tasks in
+  24 h: **p50 4.50 h, p90 9.09 h, p99 9.92 h, max 12.70 h** (test lane alone: p50 9.03 h). 15 h is a
+  1.5× margin over p99 and **1.18× over the observed max** — correctly sized, and cutting it would
+  start killing jobs. *Dead.*
+* **`snx=1` as a one-job-per-node fence.** `qconf -sc` shows `snx` INT, consumable **JOB**, default 1
+  — which reads exactly like a per-node job cap. Every node advertises **`snx=10000`**. *Dead.*
+
+#### 100.49.4 Everything else prior sessions tuned is correctly tuned — checked, not assumed
+
+| check | finding |
+|---|---|
+| resource quota | none applies; the only RQS is `slowemdown`, **disabled**, targeting another user |
+| job cap | `max_u_jobs 1000`; **we hold 109** |
+| POSIX priority | `ppri = 0` on every job, `PRIORITY_RUNG_BASE = 0` — neutral standing, as the never-deprioritise rule requires |
+| memory | 2 G/slot against a measured 6.2 GB pack-4 peak |
+| tmpfs | 1 G (the 15 G value that left only 11 of 348 hosts eligible is already fixed) |
+| pack CPU efficiency | CPU/wallclock **7.03 of 8 slots = 88 %** |
+| pack depth | `smp 36` is an exclusive whole-node request and starves (2+ days, live-probed); 8 places best |
+
+**The gap is not tuning. It is unsubmitted work.**
+
+#### 100.49.5 The mechanism, sampled
+
+`qstat` every 60 s: **queued = 2, 2, 2, 2, 0**; running 108–109; slots 864–872. **We never have work
+waiting.** With 4,497 slots free and a rising cluster backlog (1,547 → 1,936 pending across 111
+users), free capacity is sitting there and we are not bidding for it.
+
+#### 100.49.6 But most of the current narrowness is STRUCTURAL, and saying so matters
+
+| phase | done | nature |
+|---|---|---|
+| **SEARCH** | 1,417 of 1,800 (**79 %**) | intrinsically **NARROW** — generations are sequential; ~5 candidates/generation/arm. You cannot parallelise a serial chain. |
+| **C4 TEST** | 1,062 of 40,328 (**2.6 %**) | embarrassingly **PARALLEL** — 96 % of all campaign work, and imminent. |
+
+So today's ~870 slots is *largely what the search phase can absorb*, not a defect. **The question is
+whether we are configured to use the cluster when the wide phase arrives.**
+
+#### 100.49.7 We are not — and that is the fix
+
+`scripts/mode_d_supervisor.ps1:166` gives `--pipeline-rungs` to the **core line only**. The leg
+branch's own comment says a leg *"climbs the SAME ladder as the core, at the SAME priority"* — true
+of WHAT they run, false of HOW they submit it. `src/cluster/campaign.py` states the cost in its own
+words: pipelining *"keeps the eligible backlog deep at every instant (idle-window harvesting — the
+sequential path FORFEITS CAPACITY during every block's drain)"*.
+
+**Eleven of twelve lines are on the sequential path, and they are about to enter the phase where
+that costs most.**
+
+**It changes no registered quantity** — submission order and timing only; same arms, seeds, specs,
+arithmetic and priority. P17 banking is preserved where it binds. It **removes** an asymmetry rather
+than adding one: the core has pipelined all along, so the legs were the odd ones out on a ladder
+R101 requires them to climb in lockstep with it.
+
+**VERIFIED BY EXECUTION:** `ParseFile` 0 errors, 0 non-ASCII bytes, no BOM; and a full keyless
+dry-run of the exact live leg command line plus the flag — **RC=0, `pipelined rungs ON`**, 5 arms
+resolved, 568 seeds, tiers `[30,70,89,90,61,63,165]`, windows `((60,3021),(3081,3775),(3835,5406))`.
+
+#### 100.49.8 ⚠ STAGED, NOT LIVE — and the distinction is the whole point
+
+Committed as `775c942d`; `RUNNING_SHA` re-based to it. **PowerShell binds a script at process start,
+so the eleven live supervisors keep the argument vector they were launched with. The running
+campaign is untouched and the fix is inert until a supervisor is next started.**
+
+Applying it means **restarting the eleven leg supervisors**. The SGE arrays are cluster-side and keep
+running; the drivers resume from archive truth, which this campaign has done cleanly four times
+(§46, §54, §58, §60). It is nonetheless a live operation on the campaign's spine, so it is Tamer's
+call and not a side effect of a commit. **A reboot or any clean relaunch picks it up automatically.**
