@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 02:48 UTC -- T+77h39m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 02:53 UTC -- T+77h44m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+77h39m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+77h44m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
 | records archived | **1677** |
-| LLM calls / spend | 2699 / **$41.7784** |
+| LLM calls / spend | 2723 / **$42.4805** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **177** (122 running, 55 queued) |
+| cluster jobs | **187** (122 running, 65 queued) |
 | **cores computing** | **976** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T02:44:42Z  RED  records=1676 (+0)  spend=$41.236  guards=2  arms_full=10/10  budget=2  stalest=2.0m  drift=0  sci=OK  r115=14B  sweep=13.4s  auto-cycle
-2026-08-01T02:45:25Z  RED  records=1676 (+0)  spend=$41.3572  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=14B  sweep=13.9s  auto-cycle
-2026-08-01T02:46:09Z  RED  records=1677 (+1)  spend=$41.4874  guards=2  arms_full=10/10  budget=2  stalest=3.5m  drift=0  sci=OK  r115=14B  sweep=11.1s  auto-cycle
-2026-08-01T02:46:51Z  RED  records=1677 (+0)  spend=$41.5235  guards=2  arms_full=10/10  budget=2  stalest=4.1m  drift=0  sci=OK  r115=14B  sweep=10.0s  auto-cycle
-2026-08-01T02:47:31Z  RED  records=1677 (+0)  spend=$41.6761  guards=2  arms_full=10/10  budget=2  stalest=4.8m  drift=0  sci=OK  r115=14B  sweep=11.6s  auto-cycle
-2026-08-01T02:48:13Z  RED  records=1677 (+0)  spend=$41.7739  guards=2  arms_full=10/10  budget=2  stalest=5.5m  drift=0  sci=OK  r115=14B  cores=976  sweep=10.9s  auto-cycle
+2026-08-01T02:50:21Z  RED  records=1677 (+0)  spend=$42.0745  guards=2  arms_full=10/10  budget=2  stalest=7.7m  drift=0  sci=OK  r115=14B  sweep=11.4s  auto-cycle
+2026-08-01T02:51:03Z  RED  records=1677 (+0)  spend=$42.1868  guards=2  arms_full=10/10  budget=2  stalest=8.4m  drift=0  sci=OK  r115=14B  sweep=12.5s  auto-cycle
+2026-08-01T02:51:45Z  RED  records=1677 (+0)  spend=$42.2833  guards=2  arms_full=10/10  budget=2  stalest=9.1m  drift=0  sci=OK  r115=14B  sweep=13.0s  auto-cycle
+2026-08-01T02:52:29Z  RED  records=1677 (+0)  spend=$42.2843  guards=2  arms_full=10/10  budget=2  stalest=9.8m  drift=0  sci=OK  r115=14B  sweep=13.5s  auto-cycle
+2026-08-01T02:53:12Z  RED  records=1677 (+0)  spend=$42.4622  guards=2  arms_full=10/10  budget=2  stalest=1.0m  drift=0  sci=OK  r115=14B  sweep=13.4s  auto-cycle
+2026-08-01T02:53:56Z  RED  records=1677 (+0)  spend=$42.4804  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0  sci=OK  r115=14B  sweep=12.3s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -132,8 +132,8 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 33.9923  + still to author $  6.5879  = $ 40.5803   credited $ 28.1500   margin $ -12.4303 (-44%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  7.8923  + still to author $  2.1486  = $ 10.0409   credited $ 19.3100   margin $  +9.2691 (+48%)  comfortable
+  anthropic   spent $ 34.5593  + still to author $  6.7297  = $ 41.2889   credited $ 28.1500   margin $ -13.1389 (-47%)  over the credit ESTIMATE (owner-watched)
+  openrouter  spent $  7.9233  + still to author $  2.1554  = $ 10.0788   credited $ 19.3100   margin $  +9.2312 (+48%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
