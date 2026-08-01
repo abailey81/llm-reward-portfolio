@@ -13785,3 +13785,82 @@ rejection EASIER, authored by the analyst, is the one an examiner will interroga
 **§100.34 is on the other side of that line entirely**: it restores a decision path the H1 upgrade
 silently orphaned, using the p-value the registration already specifies, under a rule nobody altered.
 **That is the distinction between fixing drift and creating it.**
+
+### 100.35 ★★★★★ THE A16 DECISION, MADE — AND THE MEASUREMENT THAT RESIZED IT
+
+**Tamer removed the supervisor from the loop explicitly** (*"I won't send anything to Okhrati, I give
+you full permissions, and ratify your actions"*) and instructed that the decision be reasoned from the
+priorities. **It was, and the reasoning turned on a fact that did not exist until §100.34 created it.**
+
+#### THE MEASUREMENT THAT CHANGED THE STAKES
+
+Before deciding whether to redefine N2, the honest question is *what is actually lost if we do not*.
+That required knowing whether the R31 Bonferroni-4 sensitivity — the only other **pre-registered**
+decision rule — could decide the hypotheses the inert tier could not. **Executed:**
+
+```
+  R31 pre-registered sensitivity, Bonferroni level alpha/4 = 0.0125
+    hyp   headline_p   survives     decision
+    H1        0.0001       True     dominates_canon=True (beaten 11/11)
+    H2        0.60        False     null_bounded
+    H3        0.20        False     unsupported
+    H4        0.009        True     all_supported=False
+
+  HYPOTHESES WITH A DECISION UNDER A PRE-REGISTERED RULE:  4 of 4
+  (before §100.34 this was 3 of 4 — H1 read "descriptive, no p, Bonferroni n/a")
+```
+
+> **★ SO THE COST OF LEAVING N2 ALONE IS THE CONJUNCTIVE-VALIDITY CLAIM, NOT THE HYPOTHESES.** Every
+> one of H1–H4 remains decidable under a rule registered before data. That is a far smaller and far
+> more precisely stateable loss than *"nothing is certifiable"*, and it is only true **because
+> §100.34 restored H1's decision path an hour earlier.**
+
+**COMPLETENESS CHECK, because finding one stale consumer obliges checking the rest.** H2, H3 and H4
+were each cross-read against `validity_tier._NODE`: H3 uses the same `("h3","difference")` path as N3,
+H4 the same max-over-`tests` as N4, and H2 takes the max over BOTH leg sets, correctly binding both
+co-primaries. **Only H1 was stale.**
+
+#### THE DECISION: N2 IS NOT REDEFINED
+
+**Made by me under Tamer's explicit ratification, and recorded here so it is auditable rather than
+merely authorised.** The algebra supporting the change is correct and was independently derived
+(§100.33): *"better OR equivalent"* has the composite null `mu <= -delta`, so a one-sided
+non-inferiority test at the registered margin is its exact, valid, single-null form. **The reason for
+declining is not doubt about the mathematics.**
+
+**IT IS THE DIRECTION OF THE AMENDMENT.**
+
+| | |
+|---|---|
+| **Changing the CODE** (implement non-inferiority) | **ENABLES a rejection path**, decided **after** observing that the current rule cannot certify. That is the shape of a forking path *regardless of the algebra's correctness*. |
+| **Changing the REGISTRATION** (state that the tier activates on superiority only) | **NARROWS the claim.** It can only cost us. Unattackable — but it requires an unfreeze of a hash-bound file for **no scientific gain**, since disclosure achieves the same thing at zero risk. |
+| **Disclosing** (chosen) | Costs the conjunctive claim, keeps all four hypotheses decidable, touches no hash-bound file, and creates nothing an examiner can interrogate. |
+
+> **An amendment that makes rejection EASIER, authored by the analyst, is the one an examiner will
+> interrogate — and the pre-registration integrity claim is this project's single strongest asset.**
+> Nothing recoverable from N2 is worth putting a crack in it, particularly when the recoverable amount
+> is now known to be *the conjunctive claim alone*.
+
+**THE POSITION TO WRITE UP, which is honest and complete:** *the pre-registered conjunctive tier
+requires H2 to reject; under our own predicted null it does not, so the conjunctive validity claim is
+not certified. Each hypothesis remains decidable under the pre-registered programme-wide Bonferroni
+sensitivity at alpha/4. The N2 node registers an equivalence path (`h2_ra_iut_or_tost`,
+`equivalence: tost_0.05_dsr`) that the executed code does not implement; this is disclosed, was
+identified pre-data, and was deliberately NOT amended because the only amendment that would have
+helped runs in the direction that flatters the result.*
+
+**That is arguably a STRONGER honesty exhibit than a certified conjunctive claim obtained by amending
+the rule** — it is exactly the mature non-overselling Okhrati's revealed grading function rewards at
+5/5, and it is the same instinct as the pre-registered null being the prize rather than the problem.
+
+#### AND THE DOCSTRING WAS CORRECTED WITH THE CODE, NOT AFTER IT
+
+`cross_hypothesis_multiplicity`'s header still read *"H1 — descriptive panel (no inferential p)"* —
+true until 2026-07-26, false but **reassuring** for every reader after it, which is precisely why the
+stale extraction beneath it survived unexamined. **Leaving it would have recreated the defect just
+fixed.** Sixth reassuring-comment instance of the session, and the first caught *in the same commit as
+its consequence*.
+
+**78 tests green across the six affected files; `PYTEST_RC` read from the LOG. Drift 0. The campaign
+was never touched — every file changed in §100.33–§100.35 is provably outside the driver import
+closure.**
