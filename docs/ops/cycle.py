@@ -117,12 +117,16 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "b38ad14"   # re-based 2026-08-01: b44a566 -> a51d2ea (§100.33) -> b5fdde5 -> b73a109 -> f75904f (§100.34/35/39) -> b38ad14 (§100.40).
+RUNNING_SHA = "26807b8"   # re-based 2026-08-01: … -> f75904f (§100.34/35/39) -> b38ad14 (§100.40) -> 26807b8 (§100.43/47, A16 + Heros + theory->Appendix C).
 # FENCED FILES HAVE MOVED ACROSS §100.33-§100.40, AND EVERY ONE IS PROVEN OUTSIDE THE DRIVER CLOSURE:
 #   * src/inference/multiple_testing.py  -- the structurally-untestable reporting fix (§100.33)
 #   * scripts/analyze_campaign.py        -- H1's beat-the-canon IUT reaching the R31 sensitivity (§100.34)
 #                                        -- and the stale H4 {H4a,H4b} comment (§100.40, comment only)
 #   * scripts/build_paper.py             -- the unread diagnostic channel + the flattened bold (§100.40)
+#                                        -- and TeX Gyre Heros + the theory->Appendix C move (§100.47)
+#   * scripts/power_analysis.py          -- TEST_TRACK_LENGTH, for the A16 conservative margin (§100.43)
+#   * scripts/resume_brief.py            -- the same unpinned-encoding class, outside the closure
+#   * src/inference/validity_tier.py     -- node N2's registered non-inferiority rule (§100.43)
 # A static walk from scripts/run_campaign_cluster.py + src/cluster/run_one.py reaches 193 first-party
 # modules and NONE is among them. The INFERENCE, ANALYSIS and BUILD layers run at analysis/write time,
 # never inside a driver, so the executed experiment is untouched and no relaunch was needed. Same
