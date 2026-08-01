@@ -208,11 +208,27 @@ directions — landed on the same rung. **One derivation repeated is not evidenc
 · **deepseek 4 · glm 4 · kimi-k3 4 · nemotron 4** ← the remaining search critical path.
 **Records by tier:** core_test 390 · leg_test 415 · **h3 568 (COMPLETE)** · search 1,480.
 
-**YOUR FIRST CHECKS:**
+**YOUR FIRST COMMAND — it proves the state instead of asking you to remember it:**
 ```bash
-tail -3 docs/ops/watch/CYCLE_LOG.md                                    # the mandate
-git diff --name-only dd51ba59 HEAD -- src scripts config prompts       # drift arm 1 — MUST be empty
-git status --porcelain -- src scripts config prompts                   # drift arm 2 — MUST be empty
+python docs/ops/session_preflight.py            # fast (~5 s)
+python docs/ops/session_preflight.py --full     # + freeze, reproducibility, the board (~60 s)
+```
+**Run `--full` at the START of every session and `--fast` whenever you have been away.**
+Exit **0** all clear · **1** ATTENTION (needs a human decision) · **2** FAIL (a run-killer is live —
+act before anything else). It checks, in one pass: cycle-log freshness · **both** drift arms ·
+the `drift`/`sci` invariants · the process census **with the subshell/self-match trap already
+encoded** · **reboot recovery (D21)** · disk vs the 20 GB floor · mirror freshness · per-tier records
+and the arm census · whether any line has entered C4 · unpushed commits · and with `--full` the
+freeze hash, the reproducibility audit (**Priority 5 requires ZERO warn**) and the open board.
+
+> ⚠ **It is a composer, not a re-implementation** — it shells out to `freeze.py`,
+> `audit_reproducibility.py` and `openitems.py` rather than re-deriving their truths, because
+> duplicating a check is how two instruments come to disagree about the same fact.
+> **And it is not a substitute for §1's per-batch cycle-log read.**
+
+Then, when you want the detail behind a row:
+```bash
+tail -3 docs/ops/watch/CYCLE_LOG.md                                    # the mandate, every batch
 python .claude/lanes/openitems.py --open                               # the verified board
 python scripts/sentinel.py outputs/campaign_cluster_run4 2>&1 | tail -20
 ```
