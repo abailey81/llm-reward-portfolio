@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 13:48 UTC -- T+88h39m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 13:53 UTC -- T+88h44m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+88h39m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+88h44m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **2455** |
+| records archived | **2460** |
 | LLM calls / spend | 2868 / **$44.9676** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
@@ -21,7 +21,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **111** (105 running, 5 queued) |
+| cluster jobs | **109** (105 running, 3 queued) |
 | **cores computing** | **840** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
@@ -72,11 +72,11 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 905 |
-| scalar | g5 of 5 | 322 |
+| distributional | g5 of 5 | 907 |
+| scalar | g5 of 5 | 324 |
 | placebo | g5 of 5 | 293 |
 | scalar_cvar5 | g5 of 5 | 277 |
-| placebo_shuffled | g5 of 5 | 266 |
+| placebo_shuffled | g5 of 5 | 267 |
 
 ## Results so far
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T13:44:12Z  RED  records=2449 (+3)  spend=$44.8461  guards=2  arms_full=10/10  budget=2  stalest=1.3m  drift=0+5dirty  sci=OK  r115=17B  sweep=16.6s  auto-cycle
-2026-08-01T13:44:59Z  RED  records=2450 (+1)  spend=$44.8646  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0+5dirty  sci=OK  r115=17B  sweep=17.9s  auto-cycle
-2026-08-01T13:45:47Z  RED  records=2453 (+3)  spend=$44.9118  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0+5dirty  sci=OK  r115=17B  sweep=17.6s  auto-cycle
-2026-08-01T13:46:35Z  RED  records=2454 (+1)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=0.7m  drift=0+5dirty  sci=OK  r115=17B  sweep=23.2s  auto-cycle
-2026-08-01T13:47:28Z  RED  records=2455 (+1)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0+5dirty  sci=OK  r115=17B  sweep=17.3s  auto-cycle
-2026-08-01T13:48:16Z  RED  records=2455 (+0)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0+5dirty  sci=OK  r115=17B  sweep=18.3s  auto-cycle
+2026-08-01T13:49:51Z  RED  records=2455 (+0)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=0.8m  drift=0+5dirty  sci=OK  r115=17B  sweep=18.1s  auto-cycle
+2026-08-01T13:50:40Z  RED  records=2455 (+0)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=1.6m  drift=0+5dirty  sci=OK  r115=17B  sweep=16.8s  auto-cycle
+2026-08-01T13:51:27Z  RED  records=2456 (+1)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0+5dirty  sci=OK  r115=17B  sweep=17.3s  auto-cycle
+2026-08-01T13:52:15Z  RED  records=2456 (+0)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0+5dirty  sci=OK  r115=17B  sweep=17.3s  auto-cycle
+2026-08-01T13:53:02Z  RED  records=2460 (+4)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=0.9m  drift=0+5dirty  sci=OK  r115=17B  sweep=16.6s  auto-cycle
+2026-08-01T13:53:49Z  RED  records=2460 (+0)  spend=$44.9675  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0+5dirty  sci=OK  r115=17B  sweep=16.4s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
