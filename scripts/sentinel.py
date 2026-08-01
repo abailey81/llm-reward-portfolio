@@ -690,7 +690,7 @@ def _campaign_lane_checks(inputs: dict[str, Any]) -> list[HealthCheck]:
             g("host_failures", {}) or {}, g("host_attempts") or {}))
     if g("rung_targets") is not None:
         out.append(ch.check_rung_forecast(
-            completed_trainings=int(g("done_test_units", 0) or 0),
+            completed_trainings=int(g("done_all_trainings", g("done_test_units", 0)) or 0),
             elapsed_hours=float(g("lane_hours_in", 0.0) or 0.0),
             hours_remaining=float(g("lane_hours_remaining", 0.0) or 0.0),
             rung_targets=g("rung_targets")))
@@ -1169,6 +1169,25 @@ def gather_inputs(run_dir: Path) -> dict[str, Any]:
         out.setdefault("expected_arms", len(arms))
     except Exception:  # noqa: BLE001 — config unavailable -> the coverage checks degrade to INFO
         pass
+    # CAMPAIGN-WIDE training count for the RUNG FORECAST (2026-08-01, RUN 12).
+    # `done_test_units` below counts ONLY `camp_root/test` -- the CORE line's tier -- which is the
+    # right scope for `check_unit_coverage` (its denominator is core-scoped too). It is the WRONG
+    # numerator for `check_rung_forecast`, whose denominator is `lanes.total_trainings(rung)` =
+    # 1,800 + 71n, i.e. SEARCH + TEST across the WHOLE campaign. Pairing a core-only numerator with
+    # a campaign-wide denominator under-counted by ~3x (376 seen vs 1,152 test records, and 2,697
+    # trainings in total) and made the monitor announce "rung 0 -- cannot reach rung 30" while the
+    # archive was on track for rung ~189. That is the SAME class of defect the comment below already
+    # records, and its own verdict applies: a throughput number that wrong "invites exactly the wrong
+    # intervention on a frozen design, so it is worse than no number at all".
+    # Same quarantine/staging exclusions as the lane-start fallback, for the same reason.
+    if camp_root.is_dir():
+        try:
+            out["done_all_trainings"] = sum(
+                1 for q in camp_root.rglob("record.json")
+                if not any(part.startswith(("_quarantined", ".pull_tmp")) for part in q.parts)
+            )
+        except OSError:
+            pass
     for key, sub in (("done_search_units", "search"), ("done_test_units", "test")):
         d = camp_root / sub
         if d.is_dir():
