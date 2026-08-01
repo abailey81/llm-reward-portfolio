@@ -1167,7 +1167,16 @@ def load_campaign_records(root: str | Path) -> list[dict[str, Any]]:
         # loaded explicitly by the H3 analysis from its own roots — never by the default walk.
         if depth < _MAX_ARCHIVE_DEPTH:
             for child in children:
-                if child.name.endswith("_h3_singleshot"):
+                # Skip DOT-PREFIXED dirs (`.pull_tmp.<pid>`, staging). Raised by coord as M267 and
+                # made URGENT by the A79 fix, which INVERTED this defect's failure mode: under the
+                # old global run_id key a temp copy sorted FIRST ('.' is 0x2E) and DISPLACED the real
+                # record; under (directory, run_id) both keys are distinct so BOTH load and the record
+                # is DUPLICATED. Duplication is the harder one to notice because the totals look
+                # BETTER, not worse (measured: `random_search-c11` returned twice, byte-identical,
+                # 1 spurious duplicate in 2,290 -- and random_search is an H4 comparator, so it would
+                # enter that arm's PBO population and DSR multiplicity pool twice).
+                # No legitimate archive subtree is dot-prefixed, so this removes the class permanently.
+                if child.name.startswith(".") or child.name.endswith("_h3_singleshot"):
                     continue
                 _walk(child, depth + 1)
 

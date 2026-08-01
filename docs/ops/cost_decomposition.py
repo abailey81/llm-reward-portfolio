@@ -37,6 +37,23 @@ import os
 import statistics
 import sys
 
+#: ★★★ SEALED TREATMENT ARMS — NEVER PRINTED BY THIS SCRIPT, UNDER ANY FLAG (UNBLIND-GLOB, coord
+#: M287, 2026-08-01). This file globs ``test/*/*`` and prints a per-unit SEALED-TEST SHARPE. That was
+#: SAFE ON THE DAY IT WAS WRITTEN (2026-07-30), when ``test/`` held only the eleven H1 baselines and
+#: random_search — the glob was IMPLICITLY SCOPED BY WHAT EXISTED. **C4 widens it automatically**:
+#: ``test/placebo`` now holds 30 records, and placebo is one of the three registered H2-RA
+#: comparators, so running this unchanged would print a treatment arm's sealed outcome. Nobody has to
+#: do anything wrong for that to happen, and the docstring above still tells the reader it is about
+#: baselines — the mental model was correct on the day and silently expired.
+#: The standing rule is absolute: NEVER read a treatment arm's SEALED-TEST outcome until the ladder
+#: completes. So the scope is now EXPLICIT and DENY-BY-DEFAULT rather than incidental.
+H2_SEALED_ARMS = frozenset({
+    "distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled",
+})
+#: Default inclusion: the H1 hand-designed baselines this script was WRITTEN for. Anything new that
+#: C4 creates is excluded until someone opts in by name, which is the direction that fails safe.
+DEFAULT_PREFIX = "baseline_"
+
 ANN = 252.0
 BPS = 10.0          # config/environment.yaml headline_bps (== prereg cost_bps_oneway)
 COST = BPS * 1e-4   # cost per unit turnover
@@ -50,8 +67,12 @@ def sharpe(r: list[float]) -> float:
 
 
 def main(argv: list[str]) -> int:
-    root = argv[1] if len(argv) > 1 else "outputs/campaign_cluster_run4"
+    args = [a for a in argv[1:] if not a.startswith("--")]
+    include_all = "--include-non-baseline" in argv
+    root = args[0] if args else "outputs/campaign_cluster_run4"
     rows = []
+    refused: set[str] = set()
+    skipped: set[str] = set()
     for p in glob.glob(os.path.join(root, "test", "*", "*", "record.json")):
         try:
             rec = json.load(open(p, encoding="utf-8"))
@@ -63,11 +84,23 @@ def main(argv: list[str]) -> int:
         if not isinstance(net, list) or not isinstance(tov, list) or len(net) != len(tov):
             continue
         unit = p.replace("\\", "/").split("/")[-3]
+        if unit in H2_SEALED_ARMS:
+            refused.add(unit)          # unconditional: no flag can print a sealed treatment arm
+            continue
+        if not (include_all or unit.startswith(DEFAULT_PREFIX)):
+            skipped.add(unit)
+            continue
         gross = [n + COST * t for n, t in zip(net, tov)]
         rows.append((unit, statistics.fmean(tov), sharpe(net), sharpe(gross),
                      math.prod(1.0 + x for x in net) - 1.0,
                      math.prod(1.0 + x for x in gross) - 1.0))
 
+    # Report the omissions BY NAME. A silent skip is how a scope guard becomes a lie about coverage.
+    if refused:
+        print(f"REFUSED (sealed H2 treatment arms, never printable): {', '.join(sorted(refused))}")
+    if skipped:
+        print(f"skipped (not {DEFAULT_PREFIX}*; pass --include-non-baseline to include): "
+              f"{', '.join(sorted(skipped))}")
     if not rows:
         print("no records carrying BOTH test_returns and test_turnover yet")
         return 0
