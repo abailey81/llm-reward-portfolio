@@ -12219,6 +12219,24 @@ Every `rglob("record.json")` consumer — the sentinel, `integrity.py`, `telemet
 have found the four records there, so the quarantine would have withdrawn them from the unit while
 continuing to COUNT them. A quarantine that is still visible to the counters is not a quarantine.
 
+**★★ INDEPENDENTLY VERIFIED FROM THE ARCHIVE BY A LANE THAT DID NOT PERFORM THE OPERATION.** I ran
+the quarantine, so my own "the unit is now homogeneous" is the operator grading his own work — the
+exact thing `CLAUDE.md`'s fourth duty (f) forbids. The COORD lane read `cpu.model_name` out of the
+sibling `env.json` of **every completed record in the core test lane — 368 files** — and reports
+**twelve units, ZERO with a mixed substrate, ONE distinct CPU model campaign-wide on that lane
+(`Intel(R) Xeon(R) Gold 6240 @ 2.60GHz`)**, with `baseline_volatility_scaled_return` at **26 records,
+all 6240, zero 6140**. That is the form of the claim that belongs in this record, and it is cited
+here in preference to my own.
+
+> **And they fixed a defect in their own watcher while doing it, which is the more important half.**
+> Their `W6` would have announced *"SEED SETS REUNIFIED"* the moment seeds 14-17 reappeared —
+> **regardless of what silicon the re-run landed on.** D16 was never about seed COUNT; it is about a
+> unit spanning two CPU models. A recovery message that fires on the count alone is structurally
+> capable of being FALSELY REASSURING at precisely the moment someone acts on it. It now has two
+> branches, the second reading *"REUNIFIED BUT ON A MIXED SUBSTRATE … THE D16 DEFECT HAS RECURRED —
+> do NOT read this as recovery."* Both positive-controlled. **Same family as every instrument defect
+> this campaign has found, caught before it could fire once.**
+
 **★ AND THE RE-RUN DISCHARGES A REGISTERED OPEN EXPERIMENT, which nobody had connected.**
 `docs/ops/acknowledged_alarms.txt`'s `substrate_fields:CRITICAL` entry has been open on exactly this
 question — *"the bit-comparison experiment that decides whether the four archived records are
