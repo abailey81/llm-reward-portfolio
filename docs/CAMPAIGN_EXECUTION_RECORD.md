@@ -14050,3 +14050,576 @@ other directions.
 **Nothing here is new machinery — the guards existed. What was missing was RUNNING them and reading
 the output**, which is the difference between a design that is registered and a design that is
 demonstrably *executed as registered*.
+
+---
+
+### 100.39 THE APPENDIX RENDERING MID-BODY (recorded late, 2026-08-01 RUN 11)
+
+**Recorded by the RUN 11 session, not the one that fixed it.** RUN 10 fixed this in commit `f75904f7`
+and wrote it up in `CHANGELOG.md`, but §100.39 was never written into this record — so the record
+jumped 100.38 → 100.40. A defect found and fixed but not entered here is a defect the next reader
+cannot see, and this document is the primary source CH4/CH6/CH7 are written from.
+
+**What it was.** `CH5_prototype.md` had been CONVERTED to an appendix (its own first line reads
+`# Appendix D — The Prototype … (word-excluded)`), but `build_paper.py`'s `ASSEMBLY` tuple still
+listed it between the CH4 tables and CH6. The compiled body therefore read Chapter 1, 2, 3, 4,
+**Appendix D**, Chapter 6, 7 — an appendix before Results, no Chapter 5 in the sequence, and the
+reader meeting appendix D before appendix A. Reported by COORD (M159), fixed by OPS (M163),
+verified by rebuild.
+
+**Root cause, and it is the textbook one:** a half-migration. The CONTENT moved; the ASSEMBLY
+POSITION did not. `CLAUDE.md` names this exact failure — *"Finish end-to-end (update every call
+site) or state what is left — never half-migrate."*
+
+---
+
+### 100.40 THE BUILD HAD BEEN REPORTING "0 WARNINGS" OUT OF A CHANNEL IT NEVER READ — AND FLATTENING EVERY BOLD AND ITALIC IN THE DOCUMENT
+
+**Two defects, one line apart, both invisible for nineteen days, both reproduced by EXECUTION before
+anything was touched. Between them they are the largest presentation defect this project has found.**
+
+#### 100.40.1 The unread diagnostic channel
+
+`scripts/build_paper.py:272` called
+`subprocess.run(cmd, capture_output=True, text=True, cwd=..., env=...)`.
+With no `encoding=`, Python decodes the child's output with the **box's locale codec** — `cp1251`
+here (measured: `locale.getpreferredencoding(False)` → `cp1251`).
+
+**MEASURED SIDE BY SIDE IN ONE SCRIPT, the verbatim old call against the same call with
+`encoding="utf-8", errors="replace"`:**
+
+| call | rc | len(stderr) | warnings counted by the then-current rule |
+|---|---|---|---|
+| as shipped (`text=True`, no encoding) | **0** | **0** | **0** |
+| with `encoding="utf-8", errors="replace"` | 0 | **40,871** | 0 (see 100.40.2) |
+
+The reader thread dies with `UnicodeDecodeError: 'charmap' codec can't decode byte 0x98 in position
+19032`, **and `subprocess.run` still returns rc=0.** So line 282 printed `0 pandoc warning(s)` from
+no evidence whatsoever, on the one check whose stated purpose is *"a citeproc reference-not-found in
+the PDF is a grading defect"*. The failure path was equally blind: line 278 printed "the last 25
+lines of stderr", which would also have been empty — very likely why an earlier `RC=43` was hard to
+pin down.
+
+**⚠ A CORRECTION TO MY OWN FIRST DESCRIPTION OF THIS, made the same hour and worth more than the
+finding.** I first reported the channel as `stdout='' and stderr=''`. It is not: **it comes back as
+`None`.** I recorded it as empty because my own probe printed `len(proc.stderr or "")` — the `or ""`
+idiom turned *never measured* into *measured and empty* **inside the very script I was writing to
+diagnose an idiom that conflates zero with absent**. The caller had the same `or ""` at the point of
+use, which is what let a green summary be computed. `verify_pdf_glyphs` now returns
+`(count, status)` precisely so an unrunnable check can never present a clean-looking zero.
+
+#### 100.40.2 And fixing the encoding ALONE would not have helped
+
+The filter was `[ln for ln in stderr if "WARNING" in ln or "Error" in ln]`. **Tectonic prints
+lowercase `warning:`.** With the channel fully readable, that filter matched **0 of 51**
+Missing-character lines. Two independent defects, either sufficient on its own — which is why the
+fix is not one argument but a rewritten diagnostic path.
+
+#### 100.40.3 What the channel had been saying, on every single build
+
+51 lines, 9 distinct codepoints, **17 unique occurrences** after de-duplicating the three
+typesetting passes: `U+03B1` α, `U+03B5` ε, `U+03BB` λ, `U+03C1` ρ, `U+03C3` σ, `U+2081` subscript-one,
+`U+2248` ≈ (×8), `U+2264` ≤, `U+2265` ≥ (×2) — each naming its exact font, e.g. *"There is no ≈
+(U+2248) in font [lmroman12-regular]"*. Among the casualties: the exponent of a reported number, the
+ε of a registered formula, and the λ of the Markowitz utility.
+
+**AND A DISTINCTION THAT CHANGED THE FIX STRATEGY, which I raised against two other lanes' framing.**
+Coord and analysis both measured **73** U+FFFF markers by extracting the PDF's text. The engine
+reported **17**. Those are not two estimates of one quantity — a text extractor returns U+FFFF for
+any glyph with **no ToUnicode mapping**, which is routine for TeX math fonts whose glyphs *render
+perfectly*. Only the engine channel distinguishes **ABSENT** from **UNMAPPED**. Roughly 56 of the 73
+were a *searchability* defect, not a missing-glyph defect. Overstating a risk is as inaccurate as
+understating one, and the distinction decides whether a passage needs rewriting.
+
+#### 100.40.4 The flattened bold — the same line, the other symptom
+
+WRITEUP reported (M168) that bold did not render: `LMRoman12-Bold` appeared **12 times in 88,323
+spans** while literal `**` in the PDF was zero, so pandoc *was* consuming the markup.
+
+**Cause established by BISECTION on a minimal document through `build_paper.py`'s exact command
+line, span-font census of each built PDF:**
+
+| header-include | body font | bold spans | italic spans |
+|---|---|---|---|
+| `\usepackage{helvet}` + `\familydefault{\sfdefault}` (as shipped) | LMRoman12-Regular ×26 | **0** | **0** |
+| none | LMRoman12-Regular | 9 | 2 |
+| `\familydefault{\sfdefault}` alone | LMSans12-Regular | 9 | 2 |
+
+`helvet` declares Helvetica the classic 8-bit NFSS way, but pandoc's template loads `unicode-math`
+(hence `fontspec`) for the XeTeX engine, so the `phv` family has **no loadable shapes here**: every
+shape request — bold AND italic — fell back to the upright default, silently, **with no font-shape
+warning anywhere in the recovered 40,871-character channel** (checked specifically). WRITEUP
+reproduced the same bisection independently before seeing the fix; two routes, one conclusion.
+
+**So the shipped document had been the WORST OF BOTH WORLDS since 2026-07-05:** the header-include
+existed to satisfy `DISSERTATION_ALIGNMENT_AND_GUIDELINES.md:26` (*"Arial/Helvetica ≥ 10pt"*), and
+the body was rendering in **LMRoman — a serif**. Guideline missed AND every emphasis in a 230-page
+argument flattened. **The line's own comment asserted the guarantee it was breaking** — the
+reassuring-comment tell again, in the same file as the false green.
+
+#### 100.40.5 What ships, and why it is not my first fix
+
+My first fix — drop `helvet`, keep `\sfdefault` — restored the shapes but selected **Latin Modern
+Sans**, which is the Computer Modern sans, **not a Helvetica**. It traded a rendering defect for a
+conformance regression on the very guideline the line existed to satisfy. **WRITEUP caught that
+(M178) and was right.** What ships is **TeX Gyre Heros**, the URW Nimbus Sans / Helvetica clone,
+loaded BY FILE:
+
+```
+-V mainfont=texgyreheros
+-V mainfontoptions=Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic
+```
+
+Two details are load-bearing and both were measured, not assumed. **By FILE, not by name:**
+`mainfont=TeX Gyre Heros` FAILS under Tectonic (no fontconfig, so fontspec cannot resolve a family
+name). **Reproducible:** all four faces ship inside the PINNED Tectonic bundle — verified on disk at
+`D:/tectonic-cache/bundles/data/6ffe0558…/texgyreheros-{regular,bold,italic,bolditalic}.otf` — so no
+system font file is needed and Priority 5 holds. `mainfont=Arial` also works and was **REFUSED** for
+exactly that reason: Arial is a Windows system font and the build would stop being reproducible off
+this box.
+
+**CERTIFIED ON THE REAL DELIVERABLE, not on the minimal case** — full build rc=0, span-font census
+of `paper/_build/dissertation.pdf`:
+
+```
+BEFORE  body LMRoman12-Regular (a SERIF) | bold 12 spans in 88,323 | italic ~0
+AFTER   TeXGyreHeros-Regular 49,578 | Bold 5,692 | Italic 4,137 | BoldItalic 59
+        + LMMono12-Regular 1,419 (code) + LatinModernMath-Regular 753 (maths)
+        241 pages | 0 missing characters | 0 U+FFFF | rc=0
+```
+
+**Roughly 5,700 bold and 4,100 italic emphases had been flattened**, and the residual LMRoman spans
+of the interim fix are gone entirely. Heros is wider, so the document runs longer than under LM Sans;
+page count is not a graded limit — the 10,000 **words** are.
+
+#### 100.40.6 What is now gated
+
+The build **VERIFIES THE DELIVERABLE IT JUST WROTE** and exits non-zero on three defect classes that
+are invisible in the source and all cost marks in the PDF:
+
+| rc | gate |
+|---|---|
+| 3 | a control byte anywhere in the assembled markdown (invisible to every editor and to `grep`) |
+| 4 | a character the ENGINE could not typeset — silently absent from the PDF |
+| 5 | a glyph with no ToUnicode mapping — it renders, but is unsearchable and uncopyable |
+
+The two glyph gates are **deliberately independent routes** and both are kept: the engine channel
+distinguishes absent from unmapped and text extraction cannot, so agreement between them is
+evidence where either alone is not. Both engine spellings are read (`Missing character: There is
+no …` and `could not represent character …`), because matching one would make the gate depend on a
+coincidence between two message paths. A build that emits **no diagnostics at all** over a
+multi-hundred-page compile now WARNS that this is an unread channel rather than a clean build.
+
+`tests/test_build_paper_diagnostics.py` — 11 tests, every one failing against the pre-fix code, the
+last a **positive control that reproduces the cp1251 channel loss live** rather than asserting it
+from a traceback.
+
+**THE LESSON, and it generalises far past this script: "the build reported no warnings" is not
+evidence unless the channel that carries warnings is proven readable.**
+
+---
+
+### 100.41 THE IMPORT-CLOSURE PROVER WAS GIVING EVERY FUTURE CALLER A CLEARANCE ABOUT SOMEBODY ELSE'S FILES
+
+`docs/ops/import_closure.py` is the tool the entire live-edit protocol rests on: *"prove the file is
+outside the driver import closure and re-base RUNNING_SHA."* It **hard-coded** the two files one
+earlier session happened to be changing (`TARGETS = {"src.data.market_reference",
+"src.baselines.strategies"}`) and printed
+
+> `VERDICT: neither changed file is reachable from the driver or the on-node entry point.`
+
+**whatever you ran it on.** A later operator with a different change would have received a confident,
+specific-sounding clearance and re-based on it. That is the reassuring-comment tell in **executable**
+form, sitting inside the one instrument that guards a live campaign.
+
+**Fixed.** Targets are now DERIVED from the live diff — the working tree PLUS everything committed
+since `RUNNING_SHA`, which it reads **out of `docs/ops/cycle.py`** rather than restating, so the
+proof and the drift reference cannot fall out of step. Explicit paths may still be passed on argv.
+An empty target set reports **`NOTHING TO CHECK — this is not evidence that a change is safe; it is
+evidence that no change was seen`** instead of passing.
+
+**Verified in BOTH directions before it was trusted, because a prover that cannot say no is
+worthless:** `scripts/build_paper.py`, `scripts/analyze_campaign.py`, `scripts/power_analysis.py`,
+`src/inference/validity_tier.py`, `src/inference/multiple_testing.py` → NOT reachable;
+`src/sandbox/executor.py` → **REACHED via `src.agents.trainer`**, verdict *"a driver restart IS
+required"*; `src/utils/provenance.py` → **REACHED via `src.io.results`**.
+
+---
+
+### 100.42 FOUR REGISTERED ANALYSIS OUTPUTS WOULD HAVE BEEN SILENTLY ABSENT, BECAUSE ONE FILE DOES NOT EXIST
+
+**Found by the ANALYSIS lane (M166) by running the confirmatory analysis end-to-end on the live
+archive, blind. Confirmed here first-hand and closed by OPS.**
+
+`scripts/analyze_campaign.py:main()` populates `panel` / `cfg` / `test_window` / `winner_n_trials`
+ONLY by reading `campaign_summary.json` at the archive root, and **four registered outputs sit inside
+the resulting `panel is not None` block**: `benchmark_floor` (the DeMiguel 1/N floor — the *"nine
+published allocators, one costed environment"* table **already wired into the PDF**), `attribution`,
+`h2_rf_robustness`, `regime_stratified`. **There is no `campaign_summary.json` for RUN 4** — a
+recursive search finds six, every one a pre-launch rehearsal.
+
+**Mechanism confirmed first-hand rather than relayed.** The core line runs
+`--tiered … --output-dir outputs/campaign_cluster_run4` with **no** `--root-suffix`, so it writes
+`campaign_summary.json` **only when `run_campaign_tiered` RETURNS** — and it returns `3` at a C3 gate
+stop **without writing one**. The exposure is therefore precise: **an exogenous stop before normal
+completion, after which the quantity is unrecoverable** (the floor cannot be back-computed once the
+archive is torn down and the panel/test-window provenance is gone).
+
+**THE RECOVERY PATH: `docs/ops/write_campaign_summary.py`.** It does not compose a summary — it calls
+`assemble_cluster_inputs` and `_write_campaign_summary`, the same two functions the driver calls,
+with the same flags parsed by the same parser, so the windows and the gold-panel provenance are
+derived by the identical code path. **It is never hand-authored, for the reason analysis gave and it
+is the right reason: a wrong `test_window` makes the analysis score the benchmark floor on the WRONG
+SLICE, silently — strictly worse than having no floor at all.**
+
+Four safeguards, each earned:
+
+1. **It REFUSES to run while drivers are live** (measured 24) unless explicitly overridden — the file
+   is the watcher's terminal-state sentinel and the write also SEALS the archive.
+2. **It refuses if a summary already exists.** Recovery, never overwrite.
+3. **It CROSS-CHECKS the derived windows against the registration before writing anything** and
+   refuses on a mismatch.
+4. **It records its own provenance honestly:** `written_by` marks it post-hoc and `all_arms_tested`
+   is **`null`, not `false`** — this tool cannot determine completion, and asserting `false` would be
+   a claim it has no standing to make.
+
+**REHEARSED END TO END into a scratch archive root, output verbatim:**
+
+```
+design values resolved from config: candidates=30 generations=6 n_trials=30 embargo=21
+train (60, 3021)   val (3081, 3775)   test (3835, 5406)
+CROSS-CHECK PASSED: validation 694 sessions, test 1571 sessions — both match the registration.
+freeze ENFORCED — design FROZEN, hash 3ca6f01ab772… (no drift)
+gold_panel returns_panel sha256 7cf5d98843c5…
+```
+
+**AND THAT REHEARSAL SETTLED A DISPUTE IT WAS NOT RUN TO SETTLE.** Re-deriving the executed windows
+through the campaign's own code path gives **validation = 694 sessions** and **test = 1571** — the
+independent third route to the A16 margin (§100.43), obtained from the campaign machinery rather
+than from anyone's algebra.
+
+---
+
+### 100.43 A16 — NODE N2 IMPLEMENTED THE REGISTERED RULE FOR THE FIRST TIME, PRE-SPECIFIED WHILE PROVABLY BLIND
+
+**Decided by OPS, on the record, because ANALYSIS M162 Part 7 was right that Tamer had told at least
+three lanes they held this decision and *three lanes each believing they hold the same decision is
+how an inconsistent artefact gets built*.**
+
+#### 100.43.1 The defect
+
+`config/preregistration.yaml` registers `N2_h2_ra: {test: h2_ra_iut_or_tost, equivalence:
+tost_0.05_dsr}`; the same frozen block records *"alpha recycled on ANY rejection (superiority OR
+equivalence)"* and, in its own dated note, *"activation rests entirely on N2 rejecting via TOST — a
+real pre-registered alpha source"*. `src/inference/validity_tier.NODE_SOURCES` read
+`pvalue_one_sided` — the **superiority leg only**. The registered disjunction had **no
+implementation anywhere.**
+
+**The cost was not "a narrower claim".** Under the design's OWN predicted branch (Sharpe tie AND tail
+tie) N1 cannot reject; with N2 unable to reject either, **all six confirmatory nodes were unreachable
+and four hypotheses had no confirmatory decision path at all.** The fallback cited against this —
+"H1–H4 remain decidable under the R31 sensitivity" — rests on a default `PREREGISTRATION.md:43-50`
+declares **"no longer operative"**.
+
+#### 100.43.2 The premise four lanes argued over for six hours was refuted by one line nobody had read
+
+Every lane, in both directions, argued from `:108`, `:300` and `:43-46`. I read `:300` in full myself
+and analysis was right about it — the paragraph is headed *"Robustness to the σ_D pilot"* and *"the
+thesis"* there is **the mechanism headline**, not the graph.
+
+But **COORD (M174) found the sentence that actually decides it**, and ANALYSIS (M176) and I each
+verified it first-hand afterwards. `PREREGISTRATION.md:1051`, amendment **R105, hash-bound prose**:
+
+> *"H2's IUT internals are UNTOUCHED (Berger 1982 — the conjunction IS the correction); **TOST is
+> itself an IUT** (Berger-Hsu 1996), so our *predicted* CVaR-tail-win + Sharpe-**equivalence**
+> legitimately activates the tier (α flows on a TOST *rejection* = 'equivalence proven')."*
+
+and `:398`: *"the Sharpe-leg TOST is decisive if σ_D is as measured"*.
+
+**THE HASH-BOUND PROSE REGISTERS THE TOST ALPHA ROUTE ITSELF. There is no disagreement between the
+frozen artefacts, so no seniority rule ever has to be invoked.** The previous OPS session declined
+this fix (M163) on a seniority argument whose antecedent is false; that reading is superseded here by
+the same lane. **Four lanes argued a question for six hours over three sentences, and none of us read
+the registration row that creates the thing we were arguing about.**
+
+#### 100.43.3 The direction test, applied to the analyst, out loud
+
+The standing rule says an amendment that ENABLES a rejection, authored by the analyst, after
+discovering the current rule cannot certify, is a forking path **regardless of how correct the
+algebra is**. This change has that shape and the shape is recorded here in my own words rather than
+left for a referee. Five reasons it proceeds anyway:
+
+- **(a) A forking path is a choice conditioned on the OUTCOME.** There is none — verified below.
+- **(b) The counterfactual test.** Would we have chosen this had the code been right all along?
+  **Yes** — Tamer and Okhrati chose it, pre-data, at ratification (R108).
+- **(c) The opposing argument proves too much.** By it, ANY code-conformance defect found pre-data
+  whose repair lets a registered analysis run would be unfixable — a typo making an IUT always
+  return `p=1` would have to ship.
+- **(d) The frozen document already sets this precedent twice, dated, and both were verified in the
+  text.** The **N6 endpoint correction**: it registered `deflated_sharpe`, the code never computed
+  it, and it was corrected pre-data precisely because *"the IUT could essentially never reject"* — a
+  correction that **enabled** rejection. And `PREREGISTRATION.md:47-51` records that when the
+  hash-bound PROSE contradicted the ratified CONFIG, this project corrected **the prose to match the
+  config**. Choosing the other direction now would reverse a precedent the frozen record itself sets.
+- **(e) Both options are deviations.** One makes the executed analysis match the ratified
+  registration; the other reports a claim the registration does not make, and reports *"H1/H3/H4/N5
+  not rejected"* for nodes that were never testable. Only the first is what pre-registration means.
+
+#### 100.43.4 The blindness precondition, measured by OPS, timestamped
+
+**Re-measured with a corrected probe (see §100.46) at `2026-08-01T13:26:03Z`, HEAD `b10525ad`, AFTER
+the implementation landed:** core-line TEST arms holding records — **eleven baselines at 30 each and
+`random_search` at 30**. `placebo` **0**; `distributional`, `scalar`, `scalar_cvar5` have **no unit
+directory at all**. **H2-RA legs computable: 0 of 3. Zero records on ALL FIVE H2 arms. No H2 outcome
+exists.** The same verdict held at the pre-specification itself (`13:01:15Z`, HEAD `57c5ecc4`), so
+both the DECISION and the CODE sit inside the window. The probe prints arm names and record counts
+only — it never opens a metric, so running it cannot itself unblind the operator.
+
+**And the window is closing, measurably.** The `placebo` TEST unit is **LAUNCHED BUT EMPTY** — a unit
+directory plus an `_env/env.json` launcher sidecar, created `11:24:48Z`, and **no record** — and it is
+the only core test unit anywhere in that state; every other is at 30. `frozen/` already carries
+`distributional-winner`, `placebo-winner`, `scalar-winner`, `random_search-winner`. **The LLM test
+stage has started; what has not happened is an outcome.** That is why the pre-specification was posted
+to the lane bus **before any code was written** — the DECISION has to be dated and blind; the CODE
+does not.
+
+#### 100.43.5 The rule, and the two sensitivities fixed with it
+
+N2's node p-value is the per-leg one-sided **NON-INFERIORITY** intersection-union test:
+
+> `p(N2) = max over the three registered H2-RA legs of the one-sided p for H0_j: theta_j <= -delta`
+
+computed with the SAME rng, `n_boot` and statistic (IQM) as the existing superiority test, as
+`paired_seed_difference_test(a + delta, b, statistic=iqm, …)`. IQM is translation-equivariant, so
+this is **algebraically** the superiority test with the null shifted to `-delta` — an identity, not
+an approximation (pinned by a test against the real bootstrap: the estimate must shift by exactly
+`delta`, and the NI p must be ≤ the superiority p).
+
+| | rule | margin |
+|---|---|---|
+| **PRIMARY** | non-inferiority at the registered margin | **0.075578** ann-Sharpe |
+| **SENSITIVITY 1** | non-inferiority at the conservative margin | **0.050212** ann-Sharpe |
+| **SENSITIVITY 2** | the as-implemented-until-now rule: superiority only | — |
+
+All three were **fixed in advance, on the bus, while blind**, and all three are reported
+unconditionally (`tier_verdict(...)["sensitivities"]` is computed whether or not anyone asks — *a
+sensitivity you have to ask for is one you can decline to ask for once you have seen the primary*).
+**Which one rejects cannot select the claim.**
+
+#### 100.43.6 The margin, and the fact that the registered one is the permissive one
+
+The node registers `equivalence: tost_0.05_dsr`, which **names the function** `h2_tost_dsr`; what
+that function DOES is the registered conversion, and it defaults to
+`power_analysis.VALIDATION_TRACK_LENGTH = 694`. **ANALYSIS M170's method — read what the named
+function does — is the right method** and its conclusion is adopted. **Four independent routes agree
+and every one was checked here first-hand:**
+
+1. **CONFIG** — `inference.sesoi_derivation`: `dsr_per_ann_sharpe: 0.6616`,
+   `sesoi_ann_sharpe_equiv: 0.0756`.
+2. **CODE** — `h2_tost_dsr` resolves `track_length` to 694; `k(694) = 0.661571 → 0.05/k = 0.075578`.
+3. **DATA / EXECUTED WINDOWS** — re-derived through the campaign's own code path (§100.42):
+   val (3081, 3775) = **694**, test (3835, 5406) = **1571**. Analysis adds a fourth from the archive:
+   every `metrics['val_returns']` is `list[694]` on 1,373/1,373 search records.
+4. **THE ECONOMIC BAND** — amendment **R104**, hash-bound: *"cost-breakeven floor 0.0055 ann-Sharpe …
+   < SESOI **0.0756 ann-Sharpe** (= 0.05 DSR / k, k=0.6616, T=694) < practitioner-material 0.10"*,
+   verdict `sesoi_inside_band`, **in annualised Sharpe**. Were the operative margin 0.0502 the frozen
+   block would no longer describe the executed number, and a referee finds that with one grep.
+
+**⚠ STATED BECAUSE IT CUTS AGAINST THE ANALYST: 0.0756 is the WIDER margin, hence the EASIER to
+reject.** Here *"use the registered value"* and *"use the conservative value"* point in **opposite**
+directions. That is exactly why the conservative margin is computed beside it and reported as a
+pre-specified sensitivity, and why both `k` values and both track lengths are carried in the result
+rather than just the numbers.
+
+#### 100.43.7 The unit error that was caught before it was typed
+
+The patch line originally circulated for this fix (M156) was
+`paired_seed_difference_test(a + delta, …)` with `delta = _frozen_equiv_margin()` — which returns
+**0.05 in validation-DSR units**, per its own docstring, while `a`/`b` at that site are per-seed
+**annualised Sharpe**. COORD caught it (M174) and ANALYSIS owned it immediately (M176). Coord
+measured the consequence on synthetic legs in the disputed band: **p(N2) = 0.0065 (REJECTS) versus
+0.5515 (does not)** — a unit error in a confirmatory node.
+
+**The accompanying PROSE said the right thing and the CODE LINE contradicted it. A specification
+whose prose and code disagree is a defect even when the prose is right, because the implementer types
+the code.** The shipped implementation never had the error (`_ni_margins()` divides by `k(694)`), and
+**coord's requested guard is adopted unconditionally**: a test asserting the executed margin equals
+the hash-bound `sesoi_ann_sharpe_equiv` to 4 dp. It fails against that patch line as written, and it
+fires loudly if anyone ever "corrects" the track length to 1571 — which matters beyond N2, because
+`h2_tost_dsr` SHIPS as report-only and the bankable-null statement rests on it.
+
+#### 100.43.8 Three conditions, non-negotiable
+
+1. **N2's claim is WRITTEN as one-sided NON-INFERIORITY at the SESOI, never as "superior or
+   equivalent".** Over three legs, `AND_j {theta_j > -d}` is **strictly weaker** than
+   `(AND_j {theta_j > 0}) OR (AND_j {|theta_j| < d})` — it also fires at *superior on two legs, mildly
+   inferior on the third*. Recorded in the module docstring so a later reader cannot overstate it.
+2. **The two-sided TOST (`h2_tost`, `h2_tost_dsr`) is UNCHANGED and stays report-only.** The
+   bankable-null statement is untouched.
+3. **N1 stays a pure superiority IUT** — the repair is scoped to the RA legs alone, and a test pins it.
+
+#### 100.43.9 The A24 bypass — why no test ever caught this
+
+`tests/test_graphical_alpha.py::test_registered_graph_reproduces_the_predicted_activation_path` built
+the node p-value dict **by hand** (`p = {n: 1.0 …}; p["N2_h2_ra"] = 0.001`) and called the propagation
+directly, **bypassing `tier_node_pvalues` entirely**. Its own docstring asserted *"N2's TOST DOES
+[reject]"* — **the test documented the registered behaviour and was structurally unable to check
+it.** Re-pointed to go through `tier_verdict`, so extraction and propagation are exercised together.
+
+#### 100.43.10 Proven against the pre-fix code, by execution
+
+A detached `git worktree` at the pre-fix commit `b38ad14`, same venv:
+
+- **the behavioural positive control PASSES against pre-fix** — N2 reads 0.80, `rejected == []`, i.e.
+  on the design's own predicted branch the pre-fix tier rejects **nothing**;
+- **the re-pointed graphical test FAILS against pre-fix** with a substantive assertion
+  (`N2 pvalue 0.9 != 0.001`), not merely an ImportError — an ImportError proves a symbol is absent,
+  which is a much weaker claim than *the old code reaches the wrong verdict*;
+- all A16 tests pass post-fix. Worktree removed and pruned.
+
+---
+
+### 100.44 THE REGISTERED ANALYSIS KEY SET IS NOW MACHINE-DEFINED, AND ITS ABSENCES ARE NAMED
+
+Two gaps survived the earlier P7 fix and both are closed.
+
+**(i) The skip message named ONE of four losses.** It said *"benchmark floor SKIPPED"*; three further
+registered outputs vanish in the same block and were named nowhere, so even a reader who SAW the
+warning did not learn what else had gone. It now names all four, and points at
+`docs/ops/write_campaign_summary.py` with the do-not-hand-author reason attached.
+
+**(ii) It was a print, not a gate.** The analysis exited 0 regardless. `missing_output_keys()` now
+splits every absent registered key into **explained** (a stated precondition —
+`variance` needs `--variance-runs`; the four panel-dependants need the summary) and **UNEXPLAINED**,
+prints both, and **exits 4** on any unexplained absence — after `write_report`, deliberately, because
+a run that fails this gate is exactly the run whose output someone needs to read.
+
+**AND THE ENUMERATION ITSELF WAS A REMEMBERED NUMBER.** `CLAUDE.md`'s scope clause pins the registry
+to *"the 35 `out[...]` keys of `scripts/analyze_campaign.py`"`. **Measured by AST: 32 subscript
+assignments PLUS 7 keys in the annotated `out: dict[str, Any] = {…}` initialiser = 39.** 35 matches
+none of the three numbers. Counting only the subscript route is the wrong-denominator error in its
+purest form — it would silently shrink the registry by seven, and `ast.Assign` does not cover an
+annotated assignment, so the obvious walker gets it wrong. `tests/test_analyze_key_registry.py`
+re-derives the set from the AST by BOTH routes and fails if the literal drifts, asserts no computed
+key or `out.update()` can escape it, and pins the count at 39. **A quantity that reaches the PDF and
+is not in that enumeration is now a build failure, not an exemption.**
+
+---
+
+### 100.45 THE refs.bib CJK RISK IS SMALLER THAN REPORTED, AND IS ALREADY GATED
+
+ANALYSIS flagged (M160) that `paper/refs.bib` carries eleven CJK ideographs and inferred, from the
+entry producing zero markers, that **the entry is currently uncited** — with the risk being that
+*"the moment it is cited its title renders as a row of gaps"*.
+
+**Measured here: the inference is wrong, in the safe direction.** The ideographs sit in the `note`
+field of `@article{kusuoka2001law, …}`, and that entry **IS cited** — twice in the prose
+(`02_CHAPTER_theory.md:242`, `CH2_related_work.md:162`), and "Kusuoka" appears on six pages of the
+compiled PDF including the reference list. It produces zero markers because the **Harvard Cite Them
+Right CSL does not render the `note` field**, not because the entry is uncited.
+
+The residual exposure is therefore narrower: it materialises only under a CSL that prints `note`.
+**And it needs no new mechanism, because §100.40.6's rc=4 gate already closes it** — CJK in
+`lmroman`/Heros would emit `Missing character` exactly as `≈` did, and the build would now FAIL and
+name the codepoints. Recorded rather than actioned, per signal-over-noise: a second mechanism for a
+risk the first one already catches is noise.
+
+---
+
+### 100.46 MY OWN BLINDNESS PROBE COUNTED A LAUNCHER SIDECAR AS A RESULT — AND EVERY COUNT IN THE ATTESTATION WAS DOUBLED
+
+**Caught by the COORD lane (M188) within five minutes of the pre-specification going out, and they
+were right to send it that fast: a blindness attestation is the one paragraph a referee checks.**
+
+**What I wrote:** *"placebo was ABSENT then and holds 1 test record now."*
+**What is true, measured three ways:**
+
+```
+find test/placebo -type f              ->  test/placebo/_env/env.json   AND NOTHING ELSE
+find test/placebo -name record.json    ->  0
+find test/placebo -name "*.json"       ->  1
+```
+
+**The probe counted `rglob("*.json")`**, so it swept the `_env/` **launcher sidecar**. And it was not
+one number: every record directory holds a `record.json` **and a sibling `env.json`**, so the eleven
+baselines and `random_search` read **61** where the true count is **30**. The verdict line survived
+only because it keys off presence rather than count.
+
+**A CORRECTION TO COORD'S DIAGNOSIS, which matters because they are counting instances of a class.**
+They attributed the phantom to a glob sweeping `frozen/placebo-winner/record.json` and called it the
+third instance of the **frozen-marker** class in twenty-four hours. It is not that class: the walk
+starts at `outputs/campaign_cluster_run4/test` and **cannot reach `frozen/` at any depth**. Same
+conclusion, different mechanism, different lesson:
+
+* coord's class — *frozen markers sit at a different depth and a different stage, and keep getting
+  swept*;
+* **this one — a LAUNCHER SIDECAR is evidence that a unit STARTED, and counting it as a record turns
+  LAUNCHED into FINISHED.** Absent, launched and finished are **three** values, and the glob collapsed
+  the middle into the third. It is the zero-versus-absent family with an extra state.
+
+**And the rule it breaks is one this project already owns: a surprising observation is a claim about
+your own script before it is a claim about the world.** I saw `placebo` go 0 → 1 and read it as the
+window closing. **The window IS closing** — the launched-but-empty unit proves it, and it is the only
+core test unit in that state — **but a true conclusion reached through a false observation is luck,
+not method.** The probe now counts `record.json` and carries a comment saying why.
+
+**Nothing substantive moves.** 0 of 3 H2-RA legs computable at the pre-specification and still 0 of 3
+after the implementation. The corrected framing is **stronger** than the one it replaces: **zero
+records on all five H2 arms**, not four.
+
+---
+
+### 100.47 THE THEORY CHAPTER LEAVES THE BODY — THE OTHER HALF OF A MIGRATION, LANDED BEFORE IT COULD BECOME A DEFECT
+
+**Requested by WRITEUP (M189) with the provenance stated, because it overrides two standing
+decisions.** The main body measured **23,309 words against IFTE0008's hard 10,000** — 2.33×, on a rule
+whose own wording is *"Penalties for exceeding"*. Presented with the measured alternatives (relocating
+theory alone reaches 18,102, still 1.8×; a full compliance pass; leave it), **Tamer chose the full
+compliance pass**, which turns ON the previously-deferred deletion pass and lifts the previously-binding
+"leave theory alone".
+
+**It is also a conformance fix independent of the budget** — the IFTE0008 16-section structure has no
+Theory section, so it was never a permitted body chapter — **and it is lossless**: appendices are
+excluded from the word COUNT, not from the reading.
+
+**Why OPS landed it immediately rather than queueing it.** The write-up lane had ALREADY converted the
+file's heading to `# Appendix C — … (word-excluded)` and renumbered every heading and cross-reference
+in the document. Leaving the `ASSEMBLY` entry in place would have reproduced **§100.39 exactly** — an
+appendix rendering mid-body — and this time knowingly. The half-migration is the defect; either half
+alone is worse than neither.
+
+**Position is load-bearing, not cosmetic.** Appendix letters are assigned by DOCUMENT ORDER, and
+**Appendix B is PINNED**: the hash-bound files cite Appendix B *section* numbers
+(`PREREGISTRATION.md` B.6.5 / B.3.1, `config/preregistration.yaml` B.3.3 / B.2.6,
+`src/feedback/schema.py` B.2.7 / B.2.8) and cannot be edited. With B fixed, document order gives
+**A** quality-control · **B** limitations · **C** theory · **D** prototype · **E** scale.
+
+**VERIFIED BY BUILDING IT, not by reading the tuple.** Full build (not `--md-only`) rc=0, 13 chapters
++ 5 appendices, **0 missing characters, 0 U+FFFF**. Top-level heading order in the compiled markdown:
+
+```
+Front Matter · Nomenclature · Chapter 1 · Chapter 2 · [T10/T18]
+Chapter 3 Methods · [4 table blocks] · Chapter 4 Results · [floor table]
+Chapter 5 Discussion · References · Appendix A · B · C · D · E
+```
+
+**No gap in the chapter sequence, no appendix mid-body, and the appendix letters run A–E in document
+order.** All four defects coord raised in M159 are now closed **in the compiled artefact**, not merely
+in the source.
+
+---
+
+### 100.48 THE REPO'S OWN ENCODING GUARD CAUGHT MY NEW CODE, AND THE FIX WAS NOT TO EXEMPT IT
+
+The full suite failed `tests/test_audit_regressions.py::test_every_text_read_and_write_in_the_repo_pins_encoding_utf8`
+on **`scripts/build_paper.py:311 (open)`** — code *I* had just written to fix the unpinned-encoding
+class. The offender was `fitz.open(pdf_path)`: a **binary** PDF reader, but the AST check matches any
+call named `open` without an `encoding=` and cannot tell the two apart. **It was right by its own
+rule.**
+
+**Fixed by using the real class name, `fitz.Document`, not by adding an exemption.** A guard you
+weaken to make it pass is a guard you have deleted — and the exemption would have sat in the one check
+that defends against the exact defect this session spent its first hours proving is real.
+
+**Worth recording as a positive, because most of this record is defects:** a standing repo guard
+caught its own author's new code within minutes of it being written. That is machinery working.

@@ -20,13 +20,27 @@ NODES = {"N1_h2_tail", "N2_h2_ra", "N3_h3", "N4_h4", "N5_structure", "N6_h1"}
 
 
 def _legs(*ps: float) -> list[dict]:
+    """Legs carrying ONLY the superiority p — the shape of a tail leg, and of any non-H2-RA family."""
     return [{"pvalue_one_sided": p} for p in ps]
+
+
+def _ra_legs(*ps: float, superiority: float = 0.9) -> list[dict]:
+    """H2-RA legs in the shape ``collect_family_pvalues`` ACTUALLY emits since A16 (2026-08-01).
+
+    Each Sharpe leg now carries the registered NON-INFERIORITY p — the value node N2 reads — beside
+    the superiority p and the conservative-margin sensitivity. ``ps`` are the NON-INFERIORITY
+    p-values, because that is what N2 is a function of; ``superiority`` defaults to a non-rejecting
+    0.9 so a fixture cannot accidentally certify N2 through the leg it is no longer wired to.
+    """
+    return [{"pvalue_one_sided": superiority,
+             "pvalue_non_inferiority": p,
+             "pvalue_non_inferiority_conservative": p} for p in ps]
 
 
 def _out(**kw) -> dict:
     """A well-formed result dict in the REAL shapes, null everywhere (p = 0.9)."""
     base = {
-        "h2": {"tail_legs": _legs(0.9, 0.9, 0.9), "legs": _legs(0.9, 0.9, 0.9)},
+        "h2": {"tail_legs": _legs(0.9, 0.9, 0.9), "legs": _ra_legs(0.9, 0.9, 0.9)},
         "h3": {"difference": {"pvalue_one_sided": 0.9}},
         "h4": {"tests": _legs(0.9, 0.9, 0.9, 0.9)},
         "h2_structure": {"cvar": {"pvalue_one_sided": 0.9}},
@@ -88,17 +102,35 @@ def test_verdict_rejects_nothing_under_the_global_null() -> None:
 
 def test_headline_rejection_propagates_alpha_downstream() -> None:
     """A confirmed tail headline RAISES a downstream node's local level — the cascade the tier buys."""
-    v = tier_verdict(_out(h2={"tail_legs": _legs(0.001, 0.001, 0.001), "legs": _legs(0.9, 0.9, 0.9)}))
+    v = tier_verdict(_out(h2={"tail_legs": _legs(0.001, 0.001, 0.001), "legs": _ra_legs(0.9, 0.9, 0.9)}))
     assert "N1_h2_tail" in v["rejected"]
     assert any(v["local_alpha"][n] > 0.0 for n in ("N4_h4", "N5_structure")), v["local_alpha"]
 
 
-def test_predicted_null_branch_activates_the_tier_via_the_TOST() -> None:
+def test_predicted_null_branch_activates_the_tier_via_the_equivalence_route() -> None:
     """The REGISTERED prediction is the NULL branch: N1 ties, and N2 rejects by proving equivalence.
-    That path alone must open the tier — which is why bergerhsu1996equivalence is load-bearing."""
-    v = tier_verdict(_out(h2={"tail_legs": _legs(0.9, 0.9, 0.9), "legs": _legs(0.001, 0.001, 0.001)}))
+    That path alone must open the tier — which is why bergerhsu1996equivalence is load-bearing.
+
+    ⚠ RE-POINTED 2026-08-01 (A16). This test asserted the equivalence route while feeding N2 a
+    SUPERIORITY p-value of 0.001 — i.e. it described the registered behaviour and demonstrated a
+    different one, and it passed for eight days against code that had no equivalence route at all.
+    It is the second instance of the same bypass as `test_graphical_alpha.py`'s activation test.
+    The fixture now does what the docstring says: every RA leg is NOT SUPERIOR (0.9) and clears
+    NON-INFERIORITY (0.001), which is exactly the predicted branch.
+    """
+    v = tier_verdict(_out(h2={"tail_legs": _legs(0.9, 0.9, 0.9),
+                              "legs": _ra_legs(0.001, 0.001, 0.001, superiority=0.9)}))
     assert "N2_h2_ra" in v["rejected"]
+    assert "N1_h2_tail" not in v["rejected"], "the predicted branch keeps the tail node shut"
     assert any(v["local_alpha"][n] > 0.0 for n in ("N3_h3", "N6_h1")), v["local_alpha"]
+
+
+def test_the_superiority_route_alone_can_no_longer_open_n2() -> None:
+    """Positive control for the re-point above: a leg set that is SUPERIOR but carries no
+    non-inferiority p must leave N2 UNTESTABLE, not silently certify it from the old key."""
+    v = tier_verdict(_out(h2={"tail_legs": _legs(0.9, 0.9, 0.9), "legs": _legs(0.001, 0.001, 0.001)}))
+    assert v["nodes"]["N2_h2_ra"]["pvalue"] is None
+    assert "N2_h2_ra" in v["untestable"] and "N2_h2_ra" not in v["rejected"]
 
 
 def test_analyze_campaign_WIRES_the_ratified_rule() -> None:

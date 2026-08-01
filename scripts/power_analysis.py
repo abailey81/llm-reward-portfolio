@@ -144,6 +144,7 @@ __all__ = [
     "PLACEHOLDER_EQUIV_MARGIN",
     "DIRECTIONAL_SIGMA_SEED",
     "VALIDATION_TRACK_LENGTH",
+    "TEST_TRACK_LENGTH",
     "PERIODS_PER_YEAR",
     "PowerConfig",
     "regime_count_on_panel",
@@ -193,6 +194,24 @@ PERIODS_PER_YEAR: int = 252
 #: equivalent). A DESIGN constant of the Sharpe->DSR mapping (NOT a frozen prereg field); overridable via
 #: ``--val-track-length`` so the reconciliation can be re-stated against the realized session count.
 VALIDATION_TRACK_LENGTH: int = 694
+
+#: EXECUTED TEST track length T, the sibling of the constant above and derived the same way: Split C's
+#: purged test window is ``expected_windows.univ5.test = [3835, 5406)`` in config/inference.yaml —
+#: **1571** sessions (5406−3835). Named here (2026-08-01, RUN 11) because the A16 non-inferiority
+#: margin must be reported at BOTH track lengths and the alternative was a literal 1571 at the call
+#: site, which is exactly the drift this constant's neighbour exists to prevent.
+#:
+#: ⚠ IT IS NOT INTERCHANGEABLE WITH THE ONE ABOVE, and confusing them moves a confirmatory margin by
+#: 50 %. The SESOI is registered "in validation-DSR units", and ``src/selection/fitness.py`` refuses
+#: to compute the DSR off the validation split — so ``sharpe_mde_to_dsr``'s DEFAULT (694) is the
+#: registered conversion, and 1571 answers a different question. k(694)=0.661571 → 0.05 DSR =
+#: 0.0756 ann-Sharpe; k(1571)=0.995771 → 0.0502. This constant exists to make the CONSERVATIVE
+#: sensitivity computable beside the registered value, never to replace it.
+#:
+#: VERIFIED 2026-08-01 by re-deriving the executed windows through the campaign's own code path
+#: (``run_campaign_cluster.assemble_cluster_inputs`` → ``resolve_windows``): val (3081, 3775) = 694,
+#: test (3835, 5406) = 1571. Config, code and the executed windows all agree.
+TEST_TRACK_LENGTH: int = 1571
 
 
 def sharpe_mde_to_dsr(

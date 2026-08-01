@@ -3,6 +3,648 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01m] ★★★★★ WRITE-UP LANE, 3rd session — **TAMER LIFTED THE TWO STANDING DECISIONS THAT WERE BLOCKING WORD-BUDGET COMPLIANCE** · the graded prose was claiming three things the executed code does not do · a renumbering that would have blinded the submission gate
+
+**PAST — what this session inherited.** `docs/WRITEUP_SESSION_PROMPT_2026-08-01.md`, written by the
+outgoing write-up session (`dfeb6d80`). It handed over: a PDF verified by a *full* build (230 pp, U+FFFF 0,
+277/277 citations); three defects routed to ops (bold not rendering, `build_paper.py` fabricating "0 pandoc
+warnings", `campaign_summary.json` missing for RUN 4); two prose items handed back (the body numbered
+1,2,3,4,6,7 with no Chapter 5, and two unlettered appendices); A16 recorded as **closed** — ops had declined
+the conformance fix and the outgoing session had accepted it; and the word budget at **23,195 against a hard
+10,000**, with Tamer's two standing decisions recorded as *binding*: the deletion pass is deferred, and the
+theory chapter is to be left alone without a fresh instruction.
+
+**PRESENT — what this session did.**
+
+**① THE HANDOVER BRIEF CARRIED A REFUTED NUMBER AS A STANDING INSTRUCTION TO WRITE IT INTO GRADED PROSE.**
+§5.5 told the incoming session to state the SESOI reconciliation as *"at the executed T = 1571, k = 0.9958,
+so 0.05 DSR = 0.0502 Sharpe"*. That is the figure coord withdrew and analysis `M170` refuted. Settled
+first-hand from three independent routes before anything else was touched: the hash-bound
+`config/preregistration.yaml` records `sesoi_ann_sharpe_equiv: 0.0756` and `dsr_per_ann_sharpe: 0.6616`;
+the live function gives `k(694) = 0.661571 → 0.075578` against `k(1571) = 0.995771 → 0.050212`; and
+`scripts/power_analysis.py:195` sets `VALIDATION_TRACK_LENGTH = 694`. **Measured: neither number appears
+anywhere in `paper/`** — grep for `0.0502|0.050212|0.9958` and for `0.0756|0.6616` both return nothing — so
+the wrong value never reached the deliverable and the existing ±0.05-DSR statements were correct as they
+stood. The brief was corrected in place with the evidence attached, so no successor inherits it.
+
+**② THE A16 DISPUTE WAS ABOUT WHETHER THE *CODE* CONFORMS. NOBODY HAD CHECKED WHAT THE *PROSE* CLAIMS.**
+Three lanes spent a day arguing over node N2. An auditor sweep plus first-hand re-verification of every
+load-bearing line found the graded prose asserting three things the executed code does not do — all three
+in the flattering direction:
+
+- `tables/T_arms_and_hypotheses.md` — *"N2 carries an equivalence backstop, so the result is **decisive
+  either way** … There is no outcome in which the study merely fails to find something."* This
+  **contradicts the dissertation's own reporting rule**: `CH6_results.md:9` registers three outcomes and
+  reserves "inconclusive" for a bound wider than the SESOI; the campaign slots carry
+  `EQUIVALENT / INCONCLUSIVE / NON-EQUIVALENT`; `CH1` and the abstract both name a calibrated
+  *inconclusive* verdict; and `h2_tost_dsr` emits an `inconclusive` field. Corrected to the honest
+  three-way, with the pre-registration's own `n* ≈ 173` against an expected rung of ~100–189 named as the
+  reason the third branch is live.
+- `CH4_methods.md` — the H4/N4 claim that *"the same comparison reads non-inferiority to the best optimiser
+  at the pre-registered SESOI, giving a three-way conclusion"*. **N4 registers no `equivalence` key at
+  all** (`config/preregistration.yaml:289`), and `NODE_SOURCES["N4_h4"]` reads only `pvalue_one_sided`; the
+  H4 TOST is computed but report-only. **This is a second, independent instance of the same defect class,
+  one node over from the one three lanes were arguing about, which is exactly why nobody found it.**
+- `APPENDIX_B_limitations.md:2` — *"this Limitations Register is the dissertation's **sole appendix** … the
+  numbering is intentional, not a missing Appendix A."* There are four appendices and Appendix A exists.
+  The note also claimed to mirror "the pre-registration's own appendix lettering" — `PREREGISTRATION.md`
+  has **no appendix lettering at all**; it cites *the paper's* Appendix B. Circular. Removed.
+
+**A scope correction affecting all three lanes:** there is no `NODE_SOURCES` in
+`scripts/analyze_campaign.py`. It is at `src/inference/validity_tier.py:49`. Ops, coord and the outgoing
+write-up session all cited the wrong file.
+
+**And the fact that decided the argument, which no lane had put on the bus: NO TOST *p*-VALUE EXISTS
+ANYWHERE IN THE CODEBASE.** `power_analysis.py:604-612` `TostResult` carries `{equivalent, estimate,
+ci_low, ci_high, margin}`; `analyze_campaign.py:2613-2621` `h2_tost_dsr` returns CI bounds and booleans.
+The graphical rule needs a numeric `p_j`. So `equivalence: tost_0.05_dsr` was not merely unwired — the
+quantity it names was not produced by any function in the repo.
+
+**③ OPS DECIDED A16 (`M187`) AND THE MATCHING PROSE LANDED THE SAME HOUR.** N2's node *p*-value becomes a
+one-sided **non-inferiority** IUT at δ = 0.0756 annualised Sharpe, with δ = 0.0502 and superiority-only as
+pre-specified sensitivities. All three of ops' non-negotiable conditions are honoured in the prose: the
+Methods paragraph was rewritten end-to-end (registration, the defect, the repair, both margin readings and
+the factor between them, and the statement **against ourselves** that the registered margin is the *more
+permissive* one); **`B.8.15`** is a new appendix entry recording the defect, the repair, its direction, and
+**how it was found** — `tests/test_graphical_alpha.py` exercised the propagation rule directly and
+**bypassed the extractor**, so the defect sat in the one seam no test crossed; and a new paragraph in the
+arms table separates the *node* test from the *reporting* test. **Verified by grep: the only two
+occurrences of "superior or equivalent" left in the deliverable are the two sentences that forbid writing
+it.** The old `B.8.14` called the situation *conservative*; that was true of the non-conformant state and
+is **not** true of the repair, so the word was removed rather than allowed to carry over.
+
+**④ THE RENUMBERING — AND THE TRAP INSIDE IT.** The body was renumbered (Results 6→5, Discussion 7→6) and
+the appendices lettered contiguously. The enumeration was delegated to an auditor first, and it found what
+a naïve execution would have destroyed: **`scripts/build_paper.py:474`'s `_PLACEHOLDER_RE` contains the
+literal `\[from §6\]`, and that literal is the only thing catching the eight unfilled verdict cells in the
+Discussion chapter.** Renumbering them to `[from §5]` would have left `--final` **passing with eight
+placeholders in the submitted PDF**. Proven rather than assumed: `[from §5]` is *not* matched by the gate;
+`*[Result — §5, campaign slot]*` *is*, via the generic family pattern. The cells were re-spelled to the
+generic form, which also removes the dependency on a literal in an ops-fenced file. Re-measured after the
+change: 103 placeholder hits, 8 of them the verdict cells — unchanged.
+
+The transform itself was a **two-phase sentinel substitution** (phase 1 rewrites every token to a unique
+sentinel no phase-1 pattern can match; phase 2 expands), because source and target ranges overlap and a
+sequence of independent replacements would re-fire on its own output. Dry-run first, full diff reviewed.
+
+**⑤ TAMER LIFTED BOTH STANDING DECISIONS.** The word budget was re-measured per *section*, not per chapter,
+using `word_budget.py`'s own exclusion rules — and the instrument was audited before its number was
+escalated (it excludes math, code, tables, footnotes and word-excluded appendices, counts headings and
+blockquotes, and undercounts citations against a 9,500 ceiling; it errs **high**, so 23,309 is real). The
+options were put to Tamer with the measurement that had not been in front of him before: **relocating theory
+alone reaches 18,102 — still 1.8× the limit.** He chose the **full compliance pass**, which overrides both
+the deferred deletion pass and the leave-theory-alone decision.
+
+**Theory is now Appendix C**, which is *also* a conformance fix — IFTE0008's 16-section structure has no
+Theory section — and is **lossless**, since appendices are excluded from the count, not from the reading.
+**Measured: 23,309 → 18,111 words.** The scheme is pinned by a constraint checked before it was chosen:
+**Appendix B must keep its letter**, because the hash-bound `PREREGISTRATION.md` (`:51` B.6.5, `:972` B.3.1)
+and `config/preregistration.yaml` (`:402` B.3.3, `:578` B.2.6) cite Appendix B *section* numbers and cannot
+be edited. With B pinned, document order gives **A** quality-control · **B** limitations · **C** theory ·
+**D** prototype · **E** scale — which also restores `GRADE_95_MASTER_PLAN` C4-1's original "Theory →
+Appendix C". Body: Methods 4→3, Results 5→4, Discussion 6→5.
+
+**⑥ TWO TYPESETTING DEFECTS ROOT-CAUSED AND HANDED TO OPS WITH PROVEN PATCHES.** The bold-not-rendering
+defect was independently reproduced *before* reading ops' fix, by a six-way controlled experiment over the
+real toolchain: `helvet` + `\sfdefault` gave **0 bold spans**; emptying the line restored 17. Same root
+cause ops found, from an independent route. **But their fix trades the defect for a conformance
+regression** — the guidelines require *Arial/Helvetica* and Latin Modern Sans is neither. Compiled the full
+document with `mainfont=texgyreheros`: clean, 0 missing characters, and a genuine Helvetica-metric face with
+working bold and italic. **Arial was tested and REJECTED** — it works, but it is a Windows *system* font and
+the build would stop being reproducible off this box, a direct hit on Priority 5; Heros ships in the
+content-addressed Tectonic bundle. Separately, the ~230 "Overfull \hbox" warnings were **measured on the
+artefact rather than trusted from the log**: 621 spans cross the right margin, but most are 2.3 pt
+justification slop; **14 are visible and 1 runs off the physical paper edge**, truncating
+`baseline_volatility_scaled_return` mid-token in `B.8.1` — confirmed by rendering the page and looking at
+it. Four candidate preambles were compiled against the full document; `[htt]{hyphenat}` +
+`\emergencystretch` takes **14 → 1** visible overflows and eliminates the off-page truncation for one extra
+page. The residual was mine and is fixed (`67/86/275/293/275` → `67, 86, 275, 293 and 275`).
+
+**⑦ A REFERENCE RESOLVER WAS BUILT, BECAUSE "NO RESIDUAL 7" IS A WEAK CHECK.** It parses the *assembled*
+deliverable, builds the set of headings that exist, and resolves every `§N.M` / `Chapter N` / `Appendix X`
+reference against it. It immediately earned its keep: among 8 candidates it isolated the one genuine
+dangling reference (`§D.1`, pre-existing, which the re-lettering shifted) from 7 legitimate references to
+*other* documents' numbering. It also found a bare `(§36)` in the QC appendix with no document named — a
+marker would read it as dangling — now `(execution record §36)`. **Final state: all internal references
+resolve.**
+
+**⑧ A FRESH AUDITOR WAS RUN OVER MY OWN CHANGES, AND IT FOUND REAL CORRUPTION I HAD INTRODUCED.** This is
+the rule working exactly as written — *the author must not grade their own work* — and it is the reason
+this session did not ship a quietly broken document. Four confirmed defects, all mine, all now repaired
+and each re-verified first-hand against `git show HEAD:`:
+
+- **Two compiled tables had their numeric index column rewritten as if it were a chapter number.**
+  `T_models_and_reward_canon.md` — the replication-leg index read `1, 2, C, 3, 4, 5, 7, …`, so a *letter*
+  sat in a numeric column and legs 3–6 were attached to the wrong models, in a table whose own header
+  promises a reader can "diff the table against `config/` and find no daylight". `T_design_decisions.md`
+  — same damage to the decision index. **Root cause, precisely:** the first transform guarded these
+  bare-integer cell rules behind `if manifest_file:`, because only `FIGURE_TABLE_MANIFEST.md` has a
+  numeric *chapter* column. **The second transform carried the rules over and dropped the guard.**
+- **Three citation locators pointing into other authors' papers were renumbered.**
+  `[`haarnoja2018sac`, §5]` became `§D`, and `[`ma2024eureka`, §3.3]` became `§C.3` in two chapters plus a
+  quoted locator in the positioning table — turning references to *the SAC paper's* and *Eureka's* own
+  sections into references to this dissertation's appendices.
+- **A quality-control count was silently decremented** — the "number failing to reconcile against a second
+  source" row went `4 → 3` while its Examples cell still listed four. A corrupted statistic inside the
+  appendix whose entire purpose is the integrity of counts.
+- **A clause in prose I wrote *this session* overclaimed.** The N4/H4 paragraph said the *exceeds* and
+  *beaten by* branches "are certified by the confirmatory family". They are not: N4 is a one-sided
+  superiority IUT, no inferiority test is registered anywhere in the node graph, and a non-rejection
+  certifies nothing about the reverse direction. That is absence-of-evidence-as-evidence-of-absence — the
+  exact error the same chapter forbids two paragraphs later. Rewritten so the confirmatory verdict space
+  stays binary (rejects / does not reject) with both other readings labelled descriptive.
+
+**The repair was verified exhaustively rather than spot-checked.** Inspection found three corrupted cells;
+inspection does not prove there are only three. A sweep now compares *every* markdown table row in *every*
+compiled paper file against `HEAD`, matching rows on their non-first cells: **0 bare-integer cells differ.**
+A second sweep confirms all three citation locators match `HEAD` byte-for-byte. Both guards were then
+installed in the transform itself — the cell rules re-fenced behind `manifest_file`, and a `_LOCATOR`
+pattern that refuses to touch a `§` sitting inside a citation bracket — so a re-run cannot repeat either.
+
+**MY OWN ERRORS THIS SESSION — seven, of which the last two were found by another lane rather than by me,
+and two others were errors about my own instruments.**
+
+| | The error | The lesson |
+|---|---|---|
+| **P143** | Posted `M182` through bash; **three backtick-quoted spans were eaten as command substitution** and one of them carried the load-bearing point. The send reported success. Found only by reading the message back out of the event log. | *"Sent successfully" is a claim about the transport, not about the content.* CLAUDE.md warns heredocs must not carry escape content; this is the same family one step over, and it will have bitten other lanes silently. |
+| **P144** | The read-back that found it **first reported the body as EMPTY** — I probed the key `body` and the log stores `text`. I was one keystroke from raising a false alarm about my own alarm. | *When your instrument reports a catastrophe, suspect the instrument before the world.* |
+| **P145** | Filtered the overflow report through `sed -n '1,8p;10,26p'`, which **skipped exactly line 9 — the single worst entry**, the one running off the paper. I briefly read the output as showing the defect fixed. | *A display filter is part of the measurement.* The clean-looking result was an artefact of my own pipe. |
+| **P146** | The renumbering script would have rewritten `FRONT_MATTER.md:161`'s *"per the rule in §3 and §6 of that file"* — where "that file" is `00_FRAMING`, so §6 is **its** section. Caught in the dry run, exactly where the auditor had predicted it. | *Dry-run every mechanical transform over prose, and read the whole diff.* The auditor's false-positive register is what made it recognisable. |
+| **P147** | The same script left `"Chapter 3 or 4"` as `"Appendix C or 4"` — the **elided continuation** matched no rule. Found by grepping for the shape before applying, not after. | *A renumbering regex sees tokens, not references; enumerate the elided forms separately.* |
+| **P148** | **Dropped a guard when porting a rule between two versions of my own transform**, corrupting four numeric table cells and a QC count. The first script had the guard; the second did not. **Found by the fresh auditor, not by me** — and my own reference resolver could not have found it, because a corrupted *leg index* is not a broken *reference*. | *When you port a rule, port its guard.* And: a checker that passes proves only what it checks — mine verified references and was structurally blind to this whole class. |
+| **P149** | Renumbered **citation locators into other authors' papers**. My `_EXTERNAL` guard knew about "record §36" and "Academic Manual §9.2.6a" but not about `` [`key`, §5] ``. **Found by the fresh auditor.** | *I had already built the "this § belongs to another document" concept and then failed to apply it to the most common instance of it.* |
+
+**⑨ OPS ADOPTED THE TYPEFACE RECOMMENDATION MID-SESSION**, so the build now uses TeX Gyre Heros. Measured
+consequence, reported because it cuts against the change: **Heros is wider, so it made the overflow problem
+worse** — visible overflows 14 → 18, document 226 → 242 pp, and the off-the-paper truncation in `B.8.1`
+grew to 70.9 pt. The typeface decision remains right (it is the Arial/Helvetica the guidelines require, and
+it is reproducible from the content-addressed bundle rather than a system font), but it *raises* the
+priority of the still-open hyphenat patch rather than lowering it. The combination was then compiled and
+measured rather than assumed: **Heros + `[htt]{hyphenat}` + `\emergencystretch` gives 1 visible overflow, 0
+off the paper, 0 missing characters, and — unlike against the old font — costs no extra page at all**, so
+the one-page cost quoted to ops earlier was withdrawn as stale.
+
+**FUTURE — what the next session must do, in priority order.**
+
+0. **DO NOT BANK THE WORD COUNT YET.** `word_budget.py` currently reports 18,633 because
+   `02_CHAPTER_theory.md` carries a `(word-excluded)` heading — but until ops lands `M189` the file is
+   **still printed in the body**, so the chapter is excluded from the count while appearing before the
+   References. `build_paper.py`'s own comment calls that pattern *"word-count evasion, not the appendix
+   escape hatch"*, and it is currently an accurate description of this working tree. The number becomes
+   legitimate the moment the `ASSEMBLY` → `APPENDICES` move lands, and not before.
+
+1. **The condensation programme is the open commitment.** 18,111 → ≤10,000, i.e. **−8,111**, per Tamer's
+   fresh instruction. The per-section census exists and should drive it. The method is **relocate →
+   tabulate → condense**, in that order: relocation and conversion of enumerative prose into *tables* are
+   **word-excluded and lossless** (and improve the D5 "rigour as a scannable artefact" duty), so genuine
+   deletion is the last resort, not the first. Largest targets, measured: Discussion §5.1 **2,101** ·
+   Methods §3.7 **1,887** (heavily duplicated by the arms/hypotheses table already in the deliverable) ·
+   Lit-review §2.2 **1,487** · Methods §3.3 **1,059** · Intro §1.3 **1,024**.
+2. **Two items are blocked on ops and both are open:** `M189` — the two-line `ASSEMBLY` → `APPENDICES`
+   move for the theory relocation; **until it lands the PDF renders Appendix C inside the body**, which is
+   my doing and is the other half of a migration whose first half is complete. And `M186` — the
+   hyphenat/emergencystretch patch.
+3. `M178` — the TeX Gyre Heros typeface decision is ops'. If they decline, the Arial/Helvetica guideline
+   miss must be recorded as a disclosed deviation rather than left silent.
+4. Standing, unchanged: `R-2` the four-rung why-ladder · `R-3` fragmentation · `R-4` the
+   considered-and-rejected register · `R-6` the remaining `[FROM CAMPAIGN]` reasoning shells · the **F20**
+   seed-trajectory panel with its four binding caption conditions.
+5. **Effect-blindness held all session.** Nothing this lane touched reads a treatment arm's sealed-test
+   outcome, and no node verdict was written anywhere.
+
+## [2026-08-01l] ★★★★★ OPS LANE / RUN 11 — **THE BUILD HAD BEEN PRINTING "0 WARNINGS" OUT OF A CHANNEL IT NEVER READ, AND FLATTENING EVERY BOLD AND ITALIC IN THE DISSERTATION** · the import-closure PROVER was clearing files nobody had asked about · **A16 DECIDED AND IMPLEMENTED, PRE-SPECIFIED WHILE PROVABLY BLIND** · four registered analysis outputs rescued from silent absence
+
+**PAST — what this session inherited.** RUN 10 handed over `docs/RUN11_SESSION_PROMPT.md` at T+87h with
+twelve supervised driver lines live, 2,360 records, ~$44.29 spent, `RUNNING_SHA = f75904f`, drift 0 on
+both arms. Three open threads dominated the bus: **A16** (validity-tier node N2 — the previous ops
+session had DECLINED writeup's conformance fix in `M163` and logged the opposing framing as withdrawn,
+`W13`); **73 dropped glyphs in the compiled PDF** found by coord + analysis once the PDF finally built
+after nineteen days; and **`campaign_summary.json` missing for RUN 4**, raised by analysis in `M166`.
+A full `pytest` was described as "~74 % done, 0 failures".
+
+**FIRST CORRECTION, before anything else: that pytest was not 74 % done, it was DEAD.** Its process was
+absent from the table and its log stopped at 91 % with **no `PYTEST_RC` line** — it had been killed with
+the session, not finished. It was re-run to completion under this session: **`PYTEST_RC=0`, read from
+the log.** An unfinished run is not a green one, and inheriting it as such would have been a false
+baseline for everything below.
+
+**FIRST FOUR CHECKS, all clean, all first-hand:** cycle log live (cadence ~45–50 s); `git diff
+--name-only f75904f HEAD -- src scripts config prompts` EMPTY; `git status --porcelain` on the same
+paths EMPTY; **24** drivers.
+
+---
+
+### ① THE BUILD LAYER: TWO DEFECTS, ONE LINE APART, EITHER SUFFICIENT ON ITS OWN
+
+Full detail: **execution record §100.40**. Reproduced by EXECUTION before anything was touched.
+
+**(a) The diagnostic channel was never read.** `subprocess.run(cmd, capture_output=True, text=True)`
+decodes with the box's LOCALE codec — `cp1251` here. Measured side by side in one script: the verbatim
+old call returns **rc=0 with the channel GONE**; the same call with `encoding="utf-8",
+errors="replace"` returns **40,871 characters**. So `0 pandoc warning(s)` was printed from no evidence
+at all, on the one check whose stated purpose is *"a citeproc reference-not-found in the PDF is a
+grading defect"*.
+
+**(b) And the encoding fix ALONE would not have helped.** The filter matched `WARNING`/`Error`;
+tectonic prints lowercase `warning:`. With the channel fully readable it still matched **0 of 51**
+Missing-character lines.
+
+**What the channel had been saying on every build:** 17 unique characters the engine could not
+typeset — α, ε, λ, ρ, σ, subscript-one, ≈ ×8, ≤, ≥ ×2 — each naming its font. Among them the exponent
+of a reported number and the ε of a registered formula.
+
+**⚠ A CORRECTION TO MY OWN FIRST ACCOUNT, worth more than the finding.** I reported the lost channel as
+`stderr=''`. It comes back as **`None`**. I recorded it as empty because my own probe printed
+`len(proc.stderr or "")` — **the `or ""` idiom turned *never measured* into *measured and empty* inside
+the script I was writing to diagnose exactly that idiom.** `verify_pdf_glyphs` now returns
+`(count, status)` so an unrunnable check can never present a clean-looking zero.
+
+**AND A DISTINCTION THAT CHANGED TWO OTHER LANES' FIX STRATEGY.** Coord and analysis measured **73**
+U+FFFF markers by extracting the PDF text; the engine reported **17**. These are different quantities:
+a text extractor returns U+FFFF for any glyph with **no ToUnicode mapping**, routine for TeX math fonts
+whose glyphs render perfectly. Only the engine channel distinguishes **ABSENT** from **UNMAPPED**.
+~56 of the 73 were a searchability defect, not a missing-glyph defect. Overstating a risk is as
+inaccurate as understating one.
+
+**(c) BOLD AND ITALIC WERE FLATTENED DOCUMENT-WIDE, AND THE TYPEFACE WAS NOT THE ONE CLAIMED.**
+Reported by WRITEUP (`M168`). Cause established by **bisection** through the exact command line, span-
+font census of each built PDF: `\usepackage{helvet}` + `\familydefault{\sfdefault}` → LMRoman12-Regular
+with **bold 0, italic 0**; no header-include → bold 9, italic 2; `\sfdefault` alone → LM Sans with both.
+`helvet` declares Helvetica the classic 8-bit NFSS way, but pandoc's template loads `unicode-math`
+(hence `fontspec`), so `phv` has no loadable shapes and every shape request fell back to the upright
+default — **silently, with no font-shape warning anywhere in the recovered channel.** Meanwhile the body
+stayed the SERIF Latin Modern Roman, so **the guideline the line existed to satisfy was also not met.**
+The line's own comment asserted the guarantee it was breaking.
+
+**WHAT SHIPS IS NOT MY FIRST FIX.** Dropping `helvet` gave Latin Modern Sans — shapes restored, but LM
+Sans is not a Helvetica, so it traded a rendering defect for a conformance regression. **WRITEUP caught
+that (`M178`) and was right.** Ships: **TeX Gyre Heros** (the URW Nimbus Sans / Helvetica clone), loaded
+**by file** (`mainfont=texgyreheros` + explicit face options — by NAME it fails under Tectonic, no
+fontconfig) from the **pinned Tectonic bundle**, verified present on disk. `mainfont=Arial` also works
+and was **REFUSED**: a Windows system font would end the build's reproducibility (Priority 5).
+
+**CERTIFIED ON THE REAL DELIVERABLE:**
+
+```
+BEFORE  body LMRoman12-Regular (a SERIF) | bold 12 spans in 88,323 | italic ~0
+AFTER   TeXGyreHeros Regular 49,578 | Bold 5,692 | Italic 4,137 | BoldItalic 59
+        241 pages | rc=0 | 0 missing characters | 0 U+FFFF
+```
+
+**~5,700 bold and ~4,100 italic emphases in a 230-page argument had been flattened**, on the criterion
+whose top band is *faultless presentation*.
+
+**NOW GATED — the build VERIFIES THE DELIVERABLE IT JUST WROTE:** `rc=3` a control byte in the assembled
+markdown · `rc=4` a character the engine could not typeset · `rc=5` a glyph with no ToUnicode mapping.
+The two glyph gates are deliberately **independent routes** and both are kept. A build emitting **no**
+diagnostics now WARNS that this is an unread channel, not a clean build.
+`tests/test_build_paper_diagnostics.py`, 11 tests, every one failing against the pre-fix code, the last
+a **positive control that reproduces the cp1251 loss live**.
+
+### ② THE IMPORT-CLOSURE PROVER WAS ISSUING CLEARANCES ABOUT SOMEBODY ELSE'S FILES
+
+Execution record **§100.41**. `docs/ops/import_closure.py` — the instrument the entire live-edit
+protocol rests on — **hard-coded** the two files one earlier session was changing and printed
+*"neither changed file is reachable from the driver"* **whatever you ran it on**. The reassuring-comment
+tell in executable form, inside the one tool that guards a live campaign. Targets are now DERIVED from
+the live diff (working tree + everything committed since `RUNNING_SHA`, which it reads **out of
+`cycle.py`** rather than restating), argv still accepted, and an empty target set reports **NOTHING TO
+CHECK** instead of passing. **Verified in BOTH directions** — `src/sandbox/executor.py` REACHED via
+`src.agents.trainer`, verdict *"a driver restart IS required"*. A prover that cannot say no is worthless.
+
+### ③ A16 — N2 IMPLEMENTS THE REGISTERED RULE FOR THE FIRST TIME
+
+Execution record **§100.43**. Taken and decided by OPS because analysis `M162` Part 7 was right that
+**three lanes each believed they held this decision.**
+
+`NODE_SOURCES` read `pvalue_one_sided` — superiority only — while the config registers
+`h2_ra_iut_or_tost` with `equivalence: tost_0.05_dsr`. Under the design's own predicted branch that left
+**all six confirmatory nodes unreachable and four hypotheses with no decision path.**
+
+**The premise four lanes argued over for six hours was refuted by one line nobody had read.** COORD
+found it (`M174`); analysis and I each verified it first-hand. `PREREGISTRATION.md:1051`, amendment
+R105, **hash-bound prose**: *"**TOST is itself an IUT** (Berger-Hsu 1996), so our predicted
+CVaR-tail-win + Sharpe-**equivalence** legitimately activates the tier (α flows on a TOST rejection)."*
+**The prose registers the TOST alpha route itself — there is no artefact disagreement and no seniority
+rule need ever be invoked.** The previous ops session's `M163` declination rests on a false antecedent
+and is superseded here by the same lane.
+
+**BLINDNESS, measured by OPS and timestamped: `2026-08-01T13:01:15Z`, HEAD `57c5ecc4`, 0 of 3 H2-RA legs
+computable.** And closing — `placebo` held 0 test records at 11:38Z and holds one now; three LLM winners
+are frozen. **So the pre-specification was posted to the bus BEFORE any code was written**: the decision
+has to be dated and blind, the code does not.
+
+**THE RULE:** N2 = the per-leg one-sided non-inferiority IUT,
+`p(N2) = max_j p(H0_j: θ_j ≤ −δ)`, computed with the same rng/`n_boot`/statistic as the superiority test
+— IQM is translation-equivariant, so it is that test with the null shifted, an identity not an
+approximation. **THREE verdicts, fixed in advance, all reported unconditionally:** PRIMARY δ = 0.075578
+(registered), SENSITIVITY δ = 0.050212 (conservative), SENSITIVITY superiority-only. Which one rejects
+cannot select the claim.
+
+**THE MARGIN, four independent routes, all checked here:** config `sesoi_ann_sharpe_equiv 0.0756` ·
+`h2_tost_dsr` defaulting to `VALIDATION_TRACK_LENGTH = 694` · the executed windows re-derived through
+the campaign's own code path (val **694**, test **1571**) · **R104's hash-bound economic band
+`0.0055 < 0.0756 < 0.10` in annualised Sharpe.** **STATED BECAUSE IT CUTS AGAINST ME: 0.0756 is the
+WIDER margin and therefore the EASIER to reject** — which is precisely why the conservative one is
+reported beside it.
+
+**THE UNIT ERROR CAUGHT BEFORE IT WAS TYPED.** The originally circulated patch line passed
+`_frozen_equiv_margin()` — 0.05 in **DSR** units — into per-seed **Sharpe** data. Coord caught it,
+analysis owned it; coord measured p(N2) = 0.0065 (REJECTS) vs 0.5515. *A specification whose prose and
+code disagree is a defect even when the prose is right, because the implementer types the code.*
+**Coord's requested guard is adopted unconditionally**: a test asserting the executed margin equals the
+hash-bound `sesoi_ann_sharpe_equiv` to 4 dp.
+
+**THE A24 BYPASS, closed.** `test_registered_graph_reproduces_the_predicted_activation_path` built the
+node p-values BY HAND and bypassed `tier_node_pvalues` — its docstring asserted *"N2's TOST DOES
+reject"* while being structurally unable to check it. Re-pointed through `tier_verdict`.
+
+**PROVEN AGAINST THE PRE-FIX CODE BY EXECUTION** in a detached worktree at `b38ad14`: the behavioural
+control PASSES against pre-fix (`rejected == []` on the predicted branch) and the re-pointed test FAILS
+with a substantive assertion, not an ImportError.
+
+### ④ FOUR REGISTERED ANALYSIS OUTPUTS, AND AN ENUMERATION THAT WAS A REMEMBERED NUMBER
+
+Execution record **§100.42 / §100.44**. Analysis `M166` found that `benchmark_floor`, `attribution`,
+`h2_rf_robustness` and `regime_stratified` all die with one missing file. **Mechanism confirmed
+first-hand:** the core line writes `campaign_summary.json` only when `run_campaign_tiered` RETURNS, and
+returns `3` at a gate stop **without writing one** — so the exposure is an exogenous stop, after which
+the quantity is unrecoverable.
+
+**`docs/ops/write_campaign_summary.py`** writes it **through the campaign machinery** (never
+hand-authored — a wrong `test_window` scores the floor on the wrong slice, silently). It refuses while
+drivers are live, refuses to overwrite, **cross-checks the derived windows against the registration
+before writing**, and records `all_arms_tested: null` — **not `false`**, a claim it has no standing to
+make. Rehearsed end to end into a scratch root; freeze hash `3ca6f01ab772` and gold panel `7cf5d98843c5`
+both re-derived.
+
+**The skip message named ONE of the four losses; it now names all four, and it is a GATE:**
+`missing_output_keys()` splits absences into explained/UNEXPLAINED and exits 4 on the latter — after
+`write_report`, so the run that fails is the run whose output can be read. **And the registry is now
+machine-defined: 32 subscript assignments + 7 annotated-initialiser keys = 39**, not the remembered 35
+in `CLAUDE.md`'s scope clause. `tests/test_analyze_key_registry.py` re-derives it from the AST by both
+routes and fails on drift.
+
+### ⑤ SMALLER, ALL VERIFIED
+
+* `scripts/analyze_campaign.py:3265` — the stale *"MAX over {H4a, H4b}"* comment (two legs, stale since
+  the 2→4 optimiser upgrade). The previous ops session said NOTED AND FIXING in `M163`; it was still at
+  HEAD. Fixed. WRITEUP's catch.
+* `scripts/resume_brief.py` — same encoding class, outside the closure, fixed and re-run.
+* `src/utils/provenance.py` — same class but **REACHED via `src.io.results`**, so it is queued as
+  **D22** in `docs/DEFERRED_FIXES_RUN4.md` rather than edited live. Its practical risk is nil (git
+  returns a hex SHA); the real residue is an `except` clause too narrow to reach the fallback.
+* **The refs.bib CJK risk is smaller than reported and already gated** (§100.45): the ideographs sit in
+  a `note` field of `kusuoka2001law`, which **IS cited** — analysis inferred "uncited" from zero
+  markers, but the Harvard CSL simply does not render `note`. And the new rc=4 gate would catch it
+  anyway, so no second mechanism was added.
+* **A process error of mine, recorded rather than quietly fixed:** `M175` went out with three LaTeX
+  macro names **eaten by command substitution** — I put backticks in a bash `-c` string, which
+  `CLAUDE.md` warns about explicitly and which WRITEUP hit the same night. Corrected on the bus
+  (`M177`) and the class removed: bus bodies now go through a file and never touch a shell.
+
+### ⑥ THREE MORE, TWO OF THEM AGAINST MYSELF
+
+* **THE THEORY CHAPTER LEFT THE BODY** (§100.47, writeup `M189`). Tamer's fresh instruction: the body
+  measured **23,309 words against the hard 10,000** and he chose the full compliance pass. The write-up
+  lane had already converted the heading and renumbered the whole document, so leaving the `ASSEMBLY`
+  entry would have reproduced **§100.39 exactly** — an appendix mid-body — this time knowingly. Landed
+  immediately and **verified by BUILDING it**: rc=0, 13 chapters + 5 appendices, 0 missing characters,
+  0 U+FFFF, and the compiled order now reads **Chapters 1–5 · References · Appendices A B C D E** with
+  no gap and no appendix in the body. Appendix **B is pinned** (hash-bound files cite its section
+  numbers) and did not move.
+* **⚠ MY BLINDNESS PROBE COUNTED A LAUNCHER SIDECAR AS A RESULT** (§100.46). Caught by COORD (`M188`)
+  within five minutes. I wrote *"placebo … holds 1 test record"*; it holds **zero** — the probe globbed
+  `*.json` and swept `_env/env.json`. **Every count in the attestation was doubled** (baselines read 61
+  for 30 records). I also corrected coord's diagnosis: this is **not** their frozen-marker class — the
+  walk cannot reach `frozen/` — it is **launched-vs-finished**, a third value the glob collapsed into
+  the second. *A true conclusion reached through a false observation is luck, not method.* Nothing
+  substantive moves; the corrected framing is **stronger** (zero records on all five H2 arms, not four).
+* **THE REPO'S OWN ENCODING GUARD CAUGHT MY NEW CODE** (§100.48) — `test_every_text_read_and_write_in_the_repo_pins_encoding_utf8`
+  flagged `fitz.open(pdf_path)`, a *binary* reader the AST check cannot distinguish from a text open.
+  **Fixed by using the real class name `fitz.Document`, not by exempting it:** a guard you weaken to
+  make it pass is a guard you have deleted — and it would have been the one defending the exact class
+  this session spent its first hours proving is real. Recorded as a positive: machinery that caught its
+  own author.
+
+**DEPLOYED SAFELY.** `RUNNING_SHA f75904f → b38ad14`, both drift arms verified EMPTY against the new
+reference, `drift=0` confirmed in the live cycle line afterwards. **No relaunch:** every touched file is
+proven outside the 193-module driver closure.
+
+**FUTURE — what the next OPS session picks up.**
+1. **`campaign_summary.json` must be written AT TEARDOWN**, before the archive is disturbed, with
+   `docs/ops/write_campaign_summary.py`. It is the one item on this list that becomes unrecoverable.
+2. **The final compute figure must be re-taken after all arrays drain** — `qacct` excludes RUNNING
+   jobs, so 67,166 CPU-h is a LOWER BOUND.
+3. **D22** (`provenance.py`) and the standing post-campaign queue, all needing a relaunch window.
+4. **A16 is open to challenge on the bus and should be closed there, not silently** — if any lane
+   overturns it, the recorded fallback is an explicit dissent in the QC appendix rather than a quiet
+   choice.
+
+## [2026-08-01k] ★★★★★ COORD LANE, 2nd session — **A16 WAS BEING CLOSED ON A PREMISE NOBODY HAD CHECKED, AND THE AGREED FIX CARRIED A UNIT ERROR THAT FLIPS THE CONFIRMATORY NODE**
+
+**PAST — what this session inherited.** The outgoing coord session (`68e4aa59`, 01:20→12:15 UTC) handed
+over `docs/COORD_SESSION_PROMPT_2026-08-01.md` + `docs/COORD_LANE_FINDINGS_2026-08-01.md` (F-1…F-15)
+with one stated emergency: **the `W1…W7` watch had died with the session**, and `W7` — the alarm on the
+A16 pre-data decision window — was the only instrument watching for the moment that decision becomes
+impossible. A16 itself was handed over as *decided* (N2 = non-inferiority IUT at δ = 0.05, routed to ops
+as `M156`), with ops having **declined** it (`M163`) and logged the opposing claim as withdrawn in
+`docs/ops/WITHDRAWN_CLAIMS.md` **W13**.
+
+**PRESENT — what this session did.**
+
+**① The watch was re-armed at 12:15:40Z** as a persistent `Monitor` (all seven checks, 300 s), the first
+action after `lanebus join coord`. It has not fired.
+
+**② ★★★★ A16's deciding sentence had never been read (F-16).** Four lanes had converged on *"the two
+frozen artefacts disagree, `freeze.py` makes the prose senior, so the code is correct"* — and it was
+being written into **two fresh handover briefs**. Checked first-hand, the premise fails on every leg:
+`PREREGISTRATION.md:297-301` is headed *"Robustness to the σ_D pilot"*, its subject is *"The performance
+result"*, and **the next sentence defines "the thesis" as "the dissertation's headline"**; `:108` is
+about how a **null** is *reported* (*"NOT a bare p>0.05"*); and **`freeze.py` states no precedence rule
+at all** — `:5-10` requires the two artefacts to **AGREE**, the order quoted against this is `:30`,
+explicitly the *byte-concatenation order of the canonical hash*, and the prose↔yaml gate `:43-51`
+enumerates six checked fields **not including N2's `test`**. **And the positive evidence nobody had
+cited:** `PREREGISTRATION.md:1051` — amendment row **R105**, *the row that creates the validity tier*,
+ratified by R108 at `:1053` — states verbatim *"**TOST is itself an IUT** … so our predicted
+CVaR-tail-win + Sharpe-**equivalence** legitimately activates the tier (**α flows on a TOST
+rejection**)"*; and `:398` calls the Sharpe-leg TOST *"decisive"*. Every later row (R106/R109/R111–R115)
+checked: none touches it. **⟹ the artefacts AGREE; there is no disagreement for a seniority rule to
+adjudicate; the code never implemented a ratified spec.** Consequence: **W13 marks a TRUE claim as
+retracted** in the durable register the write-up lane greps before anything enters `paper/` — *an
+incorrect withdrawal is worse than a missing one.* Routed to ops (their file); **not touched**. Within
+~25 minutes the analysis lane read `:1051` themselves and **withdrew their concession** (`M176`).
+
+**③ ★★★★ The fix everyone agreed on carried a unit error (F-17).** `M156 §5(i)`'s patch line
+`ni = paired_seed_difference_test(a + delta, …)` with `delta = _frozen_equiv_margin()` adds **0.05 in
+validation-DSR units** (that function's own docstring names the units, `analyze_campaign.py:207`) to
+**per-seed annualised Sharpe** data (`:1513`, `_sharpe_seed`). The registered margin, measured by
+calling the real function and **cross-checked by hand-deriving `k = φ(0)·√(T−1)/√252`** (exact
+agreement, `|diff| = 0.0e+00`), is **0.075578** = `0.05 / k(694)` — reproducing the hash-bound
+`sesoi_derivation.sesoi_ann_sharpe_equiv = 0.0756` to 4 dp, because `h2_tost_dsr` (`:2582-2592`) takes
+its track length from `VALIDATION_TRACK_LENGTH = 694`, **not** the 1571-session test window.
+**Outcome-relevant, not academic:** on synthetic legs in the disputed band, δ = 0.0756 → **p(N2) =
+0.0065 (REJECTS)** versus 0.5445 / 0.5515 (**do not**). **This lane withdrew its own `M164`** (which had
+instructed the amendment to state the 1571-based reconciliation) via `lanebus withdraw`, and corrected
+`docs/COORD_SESSION_PROMPT_2026-08-01.md` so no successor inherits it. **Now converged across three
+lanes and three independent routes** — CONFIG, CODE, and analysis's **DATA** route (`val_returns` is
+`list[694]` on **1,373/1,373** search records), with every alternative formally withdrawn. Write-up
+`M178` then found the wrong figure sitting in **their own** brief as a standing instruction to write
+into graded prose, and confirmed by grep that **neither number ever reached `paper/`**.
+
+**④ The pre-submission gate can pass without compiling anything (F-18).** Ops' three new build gates
+are real and verified present — but `build_paper.py:329-330` (`if md_only: return 0`) sits **above** all
+but the control-byte gate, and **`--final`, the documented P8 pre-upload gate, accepts `--md-only`**.
+Verified by execution with `build()`/`final_lint()` stubbed (zero side effects — ops was mid-build):
+`--md-only --final` returns **0** having reached no compile path. ⚠ **Self-corrected in `M181`:** the
+first transmission said *"nobody has made a build happen"*, which is **false** — `Makefile:72-73` runs a
+full build and no caller anywhere passes `--md-only`.
+
+**⑤ The font pin is real but is not recorded (F-19).** The bold/italic repair moves the typeface onto
+tectonic's **content-addressed** bundle (`6ffe0558…c7c`, verified: the faces are not in
+`C:/Windows/Fonts`) — but `build_paper.py` passes no `--bundle` flag and `TECTONIC_CACHE_DIR` is
+documented as *"regenerable"*, so the digest exists only as an artefact of this box's cache. Priority 5:
+*a pin nobody can verify is FICTIONAL.* Routed with a fix that turns the gap into an exhibit.
+
+**⑥ Fixed in this lane's own machinery.** `lanebus.py log` crashed on the bus's own content
+(`UnicodeEncodeError … '⚠' in position 3002`) — **the F-10 class recurring inside the coordination
+substrate**. The exposure was wider than that verb: **`board` is printed by the `SessionStart` hook on
+every session boot**. Fixed with one module-level `stdout/stderr.reconfigure(encoding="utf-8",
+errors="replace")`, mirroring `watch.py`'s existing remedy. Verified: `py_compile` ×4 · both selftests
+green · the crashing path now exits 0 with empty stderr · **and a falsification control proves the
+pre-fix stream still raises**.
+
+**⑦ Verified clean, independently, by a lane that built none of it.** Deliverable `%PDF-1.5`, 230 pages,
+**U+FFFF = 0** over 373,240 extracted characters *with positive controls* — and **re-verified after ops'
+font rebuild** (`M180`): **226 pages, U+FFFF = 0, U+FFFD = 0** over 373,099 characters, positive
+controls holding. **230 → 226 is the sans metrics reflowing, not content lost**: the extracted character
+count moves by 141 (0.04 %), consistent with reflow and not with deletion. · **0 control bytes** across
+28 `paper/**` markdown files · citations **277/277, 0 dangling / 0 verify-in-use** across 18 chapters ·
+**Priority 5: `audit_reproducibility` 8 PASS / 0 WARN / 0 FAIL** with freeze `3ca6f01ab772…` and gold
+`7cf5d98843c5…` **re-derived against the real files** · campaign 12/12, `arms_full` 10/10, `sci=OK`,
+fence otherwise empty.
+
+**⑧ ★ W6 FIRED FOR REAL AND BOTH ITS BRANCHES WERE WRONG FOR THE CASE (F-20).** At 13:06:25Z it fired
+on `baseline_volatility_scaled_return` — an **N6/H1 canon member, i.e. confirmatory**. **The news is
+good and was verified on the axis that decides it:** the unit went **26 → 27 → 28 → 29** records in nine
+minutes and by F-5's method there is **one distinct CPU model across all 29 (`Xeon Gold 6240`)**, all
+three re-run seeds included — **D16 has not recurred**; all ten sibling canon units read n = 30, one CPU
+each. **But W6 said *"SEED SETS DIVERGED"* while the missing set had just SHRUNK** — a recovering unit
+firing text identical to a degrading one — **and, far worse, its substrate census ran ONLY on the
+full-reunification branch.** The D16 defect arises the moment the *first* re-run lands on the wrong
+node, so seeds landing on a 6140 with one outstanding would have emitted a bare *"DIVERGED"* saying
+**nothing about the substrate** — unreported until reunification, which at one seed remaining is exactly
+when the unit gets read as healthy. **F-5's lesson was that a restored seed COUNT is not recovery; the
+corollary it missed is that the SUBSTRATE must be checked on EVERY tick, not only at the finish line.**
+Both fixed; **positive-controlled across all five branches plus the negative control**; watch
+**restarted 13:12:54Z** so the fix is live (the running `Monitor` held the pre-fix code in memory), with
+state persisted so no baseline reset and W7 kept its place.
+
+**★★★ AND AT 13:18:07Z, D16 WAS DISCHARGED (F-20b).** W6 emitted `REUNIFIED` — the most
+consequence-bearing message this watch produces — so it was **re-derived from the archive rather than
+relayed**. Measured across **all twelve** core test units: **12 units, modal seed set 30, ZERO units off
+it, ZERO mixed substrates, ONE distinct CPU model lane-wide (`Xeon Gold 6240`)**; and the four
+quarantined seeds `s14/s15/s16/s17` all **present and all on the 6240** (13:04:33Z → 13:16:37Z).
+**Ops' D16 option B is complete on both sides — whole AND substrate-homogeneous, which is the pair of
+conditions the quarantine existed to restore. Analysis's A12-bis is fully discharged. And the ratified
+`cpu_randomised_device_block` premise now HOLDS, measured rather than asserted.** *(Seed set and
+substrate only — no metric opened, no contrast computed.)* **Honest footnote:** the pre-fix W6 would
+have reported *this moment* correctly too; what it would have missed is the twelve minutes of repair
+before it, during which a re-run landing on a 6140 would have gone unreported — **a real gap, open
+during the actual event, closed before the event finished by luck of timing rather than foresight.**
+
+**⑨ OPS' A16 BLINDNESS ATTESTATION CONTAINS ONE FALSE OBSERVATION (F-21).** Ops decided A16 (`M187`),
+reached the same reading of `:300`/`:108` this lane reached independently, adopted **δ = 0.0756** as
+primary with two pre-specified sensitivities, and applied the direction test to themselves out loud —
+**the decision is sound and is not contested.** But `§1` states *"placebo … holds 1 test record now"*,
+and `test/placebo` holds **zero** by three independent measurements. Raised inside five minutes because
+`§1` is the dated evidence of blindness and is the paragraph a referee checks — **and the correction
+makes their position stronger: zero records on all five H2 arms, not four.** Ops confirmed, and found it
+was **every** count in that paragraph (each 30-seed unit read 61), then **corrected my attributed cause,
+correctly — see P150 below.** A16 was subsequently **implemented** (`M195`): ops verified `:1051`
+first-hand, adopted this lane's guard **unconditionally**, added a second (the R104 economic band), and
+found a **fifth** independent route to T = 694 by re-deriving the executed windows through the
+campaign's own code path. **And the test bypass was TWO tests, not one** — the second,
+`test_predicted_null_branch_activates_the_tier_via_the_TOST`, *has the word TOST in its name and had
+been passing for eight days against code with no TOST route at all.*
+
+**⑩ ★ AND I GOT THE DIAGNOSIS WRONG WHILE GETTING THE CATCH RIGHT (P150).** I attributed ops' phantom
+`1` to a glob sweeping `frozen/placebo-winner/record.json` and called it *"the third frozen-marker
+miscount in 24 hours"*. **Structurally impossible:** `frozen/` is a **sibling** of `test/`, and ops' walk
+is rooted at `test/`. Measured, the real cause reproduces exactly — their probe counted `rglob("*.json")`
+and swept the `_env/` **launcher sidecar**: `test/placebo` has `*.json` = **1**, `record.json` = **0**;
+each 30-seed unit has `*.json` = **61** against a true **30**. **Ops' lesson is distinct from mine and
+better:** *a launcher sidecar is evidence a unit **STARTED**; counting it as a record turns **launched**
+into **finished** — absent, launched and finished are three values.* **I hedged the mechanism and then
+counted it anyway, and a count is not hedged: I built a class around something I had not measured, in
+the same message where I was correcting someone else for an unverified observation.**
+
+**⑪ ★ W4 FIRED TWICE IN FIVE MINUTES ON A FLAPPING CONDITION — the saturation failure recurring inside
+the check built to detect it (F-22).** Ops' archive sweep crossed its own 30 s sleep and back (measured:
+`31.5 · 35.4 · 31.7 · 40.7 · 18.8 · 17.4 · 18.7 …`), so an ATTN line appeared and cleared and W4
+announced **each crossing** as *"a genuinely new or cleared alert"*. **Two defects:** no memory of
+already-reported states — **the second alarm-saturation instance inside W4 itself**, in the check whose
+purpose is to surface signal through a permanently-RED verdict; and it **named only a hash**, sending
+the reader to hand-diff two blocks inside a **282 KB** file, *which is the work the alarm exists to do*.
+Fixed: W4 now names the **ADDED** and **CLEARED** lines inline, and a bounded signature memory reports
+`REVERTED (FLAPPING) … oscillated Nx — ONE standing condition, not N separate events`. **⚠ The control
+then caught an off-by-one in my own fix:** `alert_sigs_seen` accumulated **only on emission**, so the
+silently-observed baseline was never recorded and **the first return to it read as a fresh CHANGE** —
+the detector missed *exactly the first flap, the one that tells you a condition is oscillating at all*.
+Corrected to accumulate on every observation. **All branches positive-controlled plus the negative; W6's
+control re-run as a regression check; all four lane files compile; both selftests green; watch restarted
+so the change is live.** **Same tick, W1:** its `CYCLE_STALL_MIN` comment claimed a **~42 s** cadence
+against a real **~62 s**. Behaviour checked before touching it — W1 **is** genuinely self-calibrating
+(`max(floor, 5 × median gap)`) and **never drops below 5 missed cycles** at 42/62/90/150 s. **The code
+was right; only the justification beside it had gone stale** — the reassuring-comment class, seventh
+instance in a day. Comment-only diff, so no restart.
+
+**⑫ ★★ F-1 IS STILL OPEN 23 h 14 m ON, AND leg9's RECOVERY MADE IT UNAMBIGUOUS (F-23).** W2 fired
+`RECOVERED` on leg9's `h2_pair` at 13:58:19Z; **verified rather than relayed** (its measured precision
+on this batch type was 1 true / 1 false) — `test_leg_gemini_2_5_flash/distributional` = **30**,
+`scalar` = **30**. **leg9's H2-RA pair is complete, vindicating ops' `qstat` call that it was in flight
+and needed no intervention.** But classified with **ops' own M196 trichotomy**, leg4's two treatment
+arms are **LAUNCHED-BUT-EMPTY** — `_env` sidecars present, **zero** records — against leg9's FINISHED
+30/30. leg4's driver last mentioned `h2_pair` at **2026-07-31 15:44:30**, the next line in that file is
+the stale-lock `RuntimeError`, and the driver is **alive at 14:58:29 driving other batches**, while
+`scalar_cvar5`/`placebo`/`placebo_shuffled` reached 30/24/22. **The F-1 shape exactly — the controls
+raced ahead while the treatment contrast produced nothing, silent because the line is alive on its
+survivors.** Swept all twelve lines: **leg4 is the only one in this state.** Mechanism deliberately not
+asserted (F-8's lesson); ops established it by `qstat` last night, and **leg9 completing as predicted
+corroborates the half this lane could never check.** Scope both ways: **confirmatory H2 unaffected**
+(R80 report-only) — but `qwen3.5-9b` is the **capability-gradient bottom anchor**, so this is the lowest
+rung of that exhibit. Routed as `M202`, **with a deliberate deferral offered as a legitimate answer.**
+
+**MY OWN ERRORS — P142 · P143 · P144 · P145 · P150, all caught before they reached a decision.** P142: my A16 window
+census keyed on *"does a unit directory exist"* and printed **WINDOW: CLOSED** — `test/placebo`'s
+directory holds only `_env/env.json` and **zero** records; **the correct predicate was already in my own
+W7 and I re-derived it instead of calling it.** P143: my falsification control printed `NO CRASH`
+because I installed the strict `cp1251` stream *before* importing `lanebus` — **my fix defeated the test
+written to falsify it**; re-ordered, and ARM A now reproduces the live failure exactly. P144: my probe
+for ops' U+FFFF gate reported `ABSENT` on a junk regex — **I nearly told the bus ops had shipped two of
+three gates**, which is an accusation, not a caution. P145: my W6 positive control **errored on all five
+branches** (`TypeError: unhashable type: 'set'` — my fixture used plain `set` where `core_seed_sets`
+returns frozensets), and **a control that errors on every branch proves exactly nothing.** **One class,
+now paid for seven times: a detector that fires — or fails to — is making a claim about its own
+specification first.** New
+corollary, adopted by the analysis lane the same hour: *when a check already exists in the watch, CALL
+it; the ad-hoc re-derivation has not been positive-controlled.*
+
+**FUTURE — what is open and who owns it.** **OPS:** the A16 decision itself (evidence delivered `M172`,
+`M173`, `M174`; their stated blocker — *"a margin anybody is still moving"* — is now resolved, `M181`) ·
+the requested **guard test** (executed margin == `sesoi_ann_sharpe_equiv` to 4 dp), **worth landing even
+if A16 is declined** because `h2_tost`/`h2_tost_dsr` ship · **W13** correction (append-only) · `--final`
+implying a full build · the tectonic bundle-digest pin · analysis's `campaign_summary.json` gap
+(`M166`), which is **pre-emptable now and unrecoverable later**. **WRITE-UP:** N2 must be written as
+one-sided **non-inferiority** if A16 lands, and the hypothesis table is wrong **either way** — it states
+`h2_ra_iut_or_tost` to the examiner and **no code path consults that field**. **THIS LANE:** the watch
+stays armed; **W7 is still the only thing watching the A16 clock**, and the clock is now real — the
+first core H2-RA test unit (`placebo`) was launched at 11:24:48Z with zero records so far.
+
+**Detail:** `docs/COORD_LANE_FINDINGS_2026-08-01.md` **F-16 … F-19** (F-15's *"73 characters absent"*
+headline corrected there to ~17 genuine drops + unmapped-but-rendering markers, on ops' `M169`
+evidence). Bus: `M172` `M173` `M174` `M179` `M181`; withdrawn: `M164`.
+
 ## [2026-08-01i] ★★★★ ANALYSIS LANE, 4th session — **A WINNING REWARD WHOSE ENTIRE DESIGN IDEA NEVER ONCE OPERATED** · R115's real content is a PERIOD threshold · **the standing results cycle's determinism panel had never checked anything**
 
 **PAST — what this session inherited.** Session 3 closed with A1–A33 banked (entry `[2026-08-01h]`),
@@ -64,6 +706,146 @@ seed ladder that has nothing to do with power — and a **size-versus-n curve be
 estimate-versus-n curve** turns a known limitation into a rigour exhibit. Caveat: normal DGP, so it
 bounds the shape not the exact number; and an IUT is conservative overall (all three legs at the
 boundary gave a measured rejection rate of **0.0000**).
+
+**★★★★★ A47 — THE REGISTERED SEARCH-ADEQUACY PACKAGE WAS THREE-FIFTHS UNBUILT. NOW IMPLEMENTED,
+FALSIFICATION-TESTED AND RUN.** Tamer asked why the search uses **30 candidates** against Eureka's
+80–400. The frozen config answers with a named defence — `budget_decision: keep_and_instrument`,
+*"the coverage_vs_k instrument is a STRONGER defence than a bigger raw K, at ZERO seed cost"*. **I
+audited that five-instrument package against the code: `oracle_headroom` ✅ (as
+`src/inference/headroom.py`), the plateau rule ✅, but `within_generation_diversity` and
+`executable_valid_rate` had no named instrument and `coverage_vs_k_extrapolation` HAD NO CODE
+ANYWHERE.** The A16 pattern a third time — registered, marked `reported`, never coded — and the
+missing one is exactly what answers a referee's first question about K=5. **Built
+`docs/analysis/search_adequacy.py`** (analysis-owned): effect-blind (search-stage `val_fitness` +
+`reward_source`, no sealed outcome, no contrast), **EXACT closed-form order statistics** — no Monte
+Carlo, bit-identical replay — and **25 falsification cases, all passing** (`b = 1.0000` recovered on
+an i.i.d. curve, `b = 0.500` on a diminishing one, and the fit REFUSES rather than inventing when it
+cannot support one). **RESULTS: (1) THE SEARCH DID NOT SATURATE** — `sat99` sits at essentially the
+full pool on every arm (distributional **25/28**, scalar 24/27, placebo 26/26, scalar_cvar5 22/22,
+random_search 30/30); the expected-best curve was still rising when the budget ran out, and **more
+candidates would still have found better rewards**. **(2) BUT IT WAS ADEQUATE, NOT EXHAUSTED** —
+against τ = the 90th percentile of all 1,408 candidates (0.160409), distributional's qualify rate is
+0.143 [0.057, 0.315] ⇒ coverage **0.568 at K=5, 0.915 at K=16 (Eureka), 0.990 at K=30**; the per-arm
+rates overlap, so **no arm difference is established or claimed**. **(3) EFFECTIVE WIDTH 88.4 %**
+[86.8, 89.9] (1,408/1,592). **(4) ★ NO K-COLLAPSE** — mean pairwise structural similarity **0.270–0.279**
+across the five LLM arms, so **the nominal width IS the real width**. **(5) NOT REPORTED, DELIBERATELY:**
+Brown et al.'s correlated-sampling correction needs independent restarts (Eureka runs 5/env, this runs
+1/arm) so it is **NOT ESTIMABLE** — coded as `correlation_estimable: False` rather than fitted anyway.
+**⚠ TWO INTERPRETATION ERRORS IN MY OWN FIRST VERSION — P151/P152.** P151: I fitted a power law to the
+**without-replacement** curve and got **b > 1 on every arm**, which reads as *accelerating* returns —
+an artefact, because that curve hits exactly 1.0 once the misses are exhausted, so `b` measured
+finite-pool truncation, not sample correlation; **caught by the tell that a result uniform across
+every arm is a claim about the instrument.** P152: I flagged `random_search`/`bayes_opt`/`cma_es`/`tpe`
+as K-COLLAPSE — **they sample parameters inside one template and cannot collapse**; a false positive on
+four of nine arms. **→ ops: wire all three into `analyze_campaign`'s registered key set** so they enter
+`WHY_REGISTER` and the pre-submission gate rather than living as a side script.
+
+**★★★★ A48 — THE LINEAGE'S SELECTION BUDGET, READ FIRST-HAND FROM THE CORPUS PDFs.** Eureka's own
+algorithm box: `s₁ = F(R₁), …, sₖ = F(Rₖ)` then `arg maxₖ` — **one fitness evaluation per candidate**,
+and *"5 independent runs per environment … 5 iterations with K = 16 samples per iteration"*. REvolve:
+*"we report results using **two** random seeds"*; DrEureka **3**; Text2Reward **5**. **⇒ Single-seed
+selection is the lineage standard, established by the paper that founded it — this study follows the
+field's protocol, it does not cut a corner. And on the number actually REPORTED this study is 6–15×
+deeper than anything in the lineage (30 → 568 vs 2–5).** Stated in both directions: Eureka runs **5
+restarts** of the whole search (400 evaluations) and this runs one per arm — real robustness we lack —
+but our ~2,970 total evaluations (**~7× Eureka's**) go to nine arms across eleven models because the
+**identification principle** requires the controls. Eureka buys restarts; this buys the controls that
+license a causal claim.
+
+**★★★★★ A42-bis — THE A16 ARC IN FULL, INCLUDING MY CONCESSION AND ITS WITHDRAWAL.** M156 decision +
+patch → ops and coord both decline → **M170 I CONCEDE** (ops' seniority argument checked out:
+`freeze.py:6-7` calls the prose *"the human-readable prose record"* and the yaml *"its machine-readable
+**mirror**"*) → **coord finds `PREREGISTRATION.md:1051`**, amendment R105, hash-bound: *"**TOST is
+itself an IUT** (Berger-Hsu 1996) … α flows on a TOST rejection = 'equivalence proven'"* → **M176 I
+WITHDRAW THE CONCESSION** after reading it first-hand and grepping independently. **The hash-bound
+PROSE registers the route itself, so the two artefacts agree and no seniority rule is ever invoked.**
+**★ THE LESSON: four lanes argued for six hours over three sentences (:43-46, :108, :300) and not one
+of us read the amendment row that CREATES the object under dispute.** ⚠ **AND THE ERROR THAT WAS MINE:**
+M156 §5(i)'s patch line passed `_frozen_equiv_margin()` (**0.05 in validation-DSR units**, per its own
+docstring) into a site where `a`/`b` are **per-seed annualised Sharpe** — **my prose said the right
+thing and my code line contradicted it**, and on synthetic legs that is p(N2) = 0.0065 (rejects) vs
+0.5515 (does not). **⇒ a specification whose prose and code disagree is a defect even when the prose is
+right, because the implementer types the code** — now in the execution record at ops' request. **THE
+MARGIN settled at 0.075578 by FIVE independent routes** (config `sesoi_ann_sharpe_equiv` · code
+`h2_tost_dsr` defaulting to `VALIDATION_TRACK_LENGTH = 694` · **my archive measurement: every
+`val_returns` is `list[694]` on 1,373/1,373** · the R104 economic band 0.0055 < 0.0756 < 0.10 in
+annualised Sharpe · ops' `resolve_windows` returning val (3081, 3775) = 694). T=1571 is the **test**
+length and is a scope error, not an alternative. **Direction stated against ourselves: 0.0756 is the
+MORE PERMISSIVE margin** — adopted because it is the value the frozen config records *and prices*, with
+the conservative 0.050212 and superiority-only rules pre-specified as reported sensitivities. **The
+bypass was TWO tests, not one:** re-pointing `test_graphical_alpha.py:112` exposed
+`test_validity_tier_assembly.py::test_predicted_null_branch_activates_the_tier_via_the_TOST`, which fed
+N2 a **superiority** p — *it has TOST in its name and had passed for eight days against code with no
+TOST route*.
+
+**★ A40 — D16 DISCHARGED.** All four quarantined seeds landed 13:04–13:16Z **on the correct Xeon
+6240**; re-verified by me from the archive at 13:47Z: **30/30 seeds, missing none, ONE distinct CPU
+model**. **A12-bis fully closed** — no N6 IUT leg computes on fewer pairs than its siblings, and the
+ratified `cpu_randomised_device_block` premise now holds as measured fact.
+
+**★★★★★ A45 — I RAN THE CONFIRMATORY ANALYSIS END-TO-END ON THE LIVE ARCHIVE, BLIND. It completes —
+and four registered outputs will silently be absent unless one file is written.** Nothing had ever
+verified that `scripts/analyze_campaign.py` can RUN on real data; ops caught a `NameError` *inside*
+the confirmatory analysis this morning only by executing it. I called `analyze()` **directly**,
+never `write_report` (which writes into ops' live archive root), and printed **only key names, types
+and error text — never a value**; no copy and no junction (CLAUDE.md's 2026-07-27 junction incident).
+**Result: `COMPLETED WITHOUT RAISING`, 34 keys, and all six nodes report `located=False` with a NAMED
+reason** — the fail-safe `validity_tier` promises, verified against real data for the first time, and
+an independent re-confirmation of the A42 blindness precondition. **But five registered keys are not
+produced**, four of them for one reason: `benchmark_floor` (**the DeMiguel 1/N floor — already wired
+into the PDF, ToC p15 and p150**), `attribution`, `h2_rf_robustness`, `regime_stratified` all sit in
+the `panel is not None` block, and `main()` populates `panel`/`test_window` **only from
+`campaign_summary.json` at the archive root** — **and no such file exists for RUN 4 under any name;
+all six on disk are pre-launch rehearsals dated 2026-07-27/28.** P7 (2026-07-13) already fixed the
+*silent* half (there is a loud print), but the warning **names only the floor**, it is **a print not a
+gate**, and the analysis exits 0. **Pre-emptable now, unrecoverable later.** Routed to ops (**M166**)
+with the warning that the file must be written **by the campaign machinery, never by hand — it
+carries `test_window`, and a wrong window scores the floor on the wrong slice.** Also: CLAUDE.md's
+scope clause pins the enumeration to *"the 35 `out[…]` keys"*; measured, **32 assignments + 7
+dict-literal + 34 produced — 35 matches none of the three**, so `WHY_REGISTER` should derive the set
+programmatically.
+
+**★★★★★ A43 — THE COMPILED PDF, RE-MEASURED INDEPENDENTLY. Coord is right on every number, and a
+per-character fix list will NOT close it.** 629,385 B, `%PDF-1.5`, `%%EOF`, **230 pages**, **73
+dropped glyphs on 44 pages**, literal `α` surviving **0**, math-italic `α` **36**. I then matched
+each marker to its source character: the census predicts **57**, the PDF shows **73**, and the
+resolved set includes characters the census scored as *surviving* (`≈` ×4, `≥` ×2). **⇒ The same
+character renders in math/monospace and drops in body prose, so a source-side substitution list is
+provably incomplete. THE ONLY VALID ACCEPTANCE TEST IS: rebuild and assert the U+FFFF count is ZERO.**
+Worst damage: **p158 an exponent is gone (`7.8 × 10￿￿`)**, **p197 the `≥` in R115's eligibility rule**,
+**p109 the λ in the Markowitz utility**, **p141 the ε in R41's registered formula**, **p100 the `₁` of
+the L1 norm**, **p9/p10 the α in the VaR and CVaR glossary definitions** — the first thing a
+non-specialist second marker reads. **Two negatives that save work: the BIBLIOGRAPHY IS CLEAN** (zero
+markers on pp.162–194; `Šidák`, `Théate`, `López`, `Bäuerle` all render) — **Harvard referencing is
+NOT damaged** — but `refs.bib` holds **11 CJK ideographs** in a currently-**uncited** entry that will
+render as gaps the moment it is cited. Routed (**M160**).
+
+**★★★★ A46 — A SECOND DEAD SPOT IN MY OWN INSTRUMENT, FOUND BY COMMITTING P141.** Probing
+`record["val_returns"]` gave a perfect `None` on 1,373 records; the field is at
+`metrics['val_returns']` and is **`list[694]` on 1,373/1,373**. **★ And 694 is exactly
+`VALIDATION_TRACK_LENGTH`, so the archive itself independently settles the A16 margin at 0.0756 — a
+third route (config, code, data), and the strongest because it is measured.** The error exposed a real
+gap: `flatten()` collapsed BULKY fields to a shape tag, so `None` became the *string* `"<bulk>"` and
+`""` became `"<str:0>"` — **neither counted as null, and `feedback_block` is itself BULKY, so the
+sweep was structurally incapable of finding A11**, one of the three findings the standing note rests
+on. Fixed; 3 new falsifying cases; verified in both directions. **★ THE POSITIVE CONTROL IS FROM THE
+LIVE ARCHIVE: the sweep printed `always-null (0): []` before and `always-null (1): ['feedback_block']`
+after — the repaired tool re-discovered A11 unaided.** That is the **third and fourth** dead panel in
+this one instrument; the rule is now clear: **every summarisation step in a defect detector is a place
+where the defect can hide.**
+
+**★★ A44 — a THIRD kind of inert authored reward term, completing a taxonomy.** h3_singleshot's
+`conc_pen` is exactly 0.0 on **551/560** seeds: `max(0, hhi − 0.14)` against a measured `hhi ≈ 0.063`
+— **a guard whose threshold sits above the realised range.** With A34's two mechanisms that gives
+three measured ways an authored reward term can do nothing: **policy-independent (no gradient) ·
+update path is the crash path · threshold never reached** — and **none is visible to any fitness-based
+check.**
+
+**Re-verified, clean, at the current scope:** `audit_reproducibility` **re-run 8 PASS / 0 WARN / 0
+FAIL** (freeze `3ca6f01ab772…` and the gold panel SHA-256 both re-derived) · `test_returns` length
+**1571 on all 992** test records, one distinct value (A12 verified this at 388) · `per_period_pnl`
+populated `list[1571]` on all 992 · `integrity_gate` **I1–I6 clean** · `science_watch` **17 R115
+breaches, matching my census exactly**.
 
 **NOW — eight further findings, A34–A41, every one re-derived first-hand and every CLEAN shown able to fire.**
 
@@ -1317,6 +2099,43 @@ and all thirteen wired artefacts are in the document. *The absence was in my ext
 > no warnings" is not evidence unless the channel that carries warnings is proven readable* — and
 > *"my search did not find it" is not evidence unless the search is proven able to find it.* Both failure
 > modes appeared within ten minutes of each other, in opposite directions, and both were mine.
+
+### ⑩ 73 DROPPED GLYPHS → ZERO — IN THREE PASSES, TWO OF WHICH WERE WRONG IN INSTRUCTIVE WAYS
+
+The compiled PDF was silently dropping **73 characters across 44 pages** — literal Unicode in prose that the
+body font cannot render. Damage included **a lost exponent** in a reported number, the **≥ in R115's
+eligibility rule**, the **λ in Markowitz's utility**, the **ε in R41's registered formula**, and the **α in
+the VaR/CVaR glossary definitions**. My own PDF check had missed it entirely: I searched for unresolved
+*citations* (zero) and never for dropped *glyphs*.
+
+* **Pass 1** — 66 prose sites wrapped in math mode. **Then my own tidy regex collapsed spaces around bold
+  delimiters across 18 files** (`paragraph.** It` → `paragraph.**It`). Self-inflicted; caught by reading my
+  own diff; repaired deterministically by tracking bold-open state (259 spaces restored).
+* **Pass 2** — 73 → 17. The residue was entirely inside `$math$` and `` `code` `` spans, **the two contexts I
+  had deliberately excluded**: a literal Unicode α is not a LaTeX command inside math, and the monospace
+  face has no glyph at all. Fixed context-specifically.
+* **Pass 3** — 17 → **0**. The final cause is worth recording for anyone writing maths in this document:
+  **pandoc will not close an inline-math span when the closing `$` is followed by a digit**, so my own
+  `$pprox$0.181` was emitted as literal text. Fix: pull the number inside — `$pprox 0.181$`.
+* I also hit the **heredoc backslash trap** `CLAUDE.md` warns about and had to move the fixer into a real
+  file. That warning is correct; confirmed the hard way.
+
+**ACCEPTANCE TEST, as the analysis lane correctly specified it — not "the greps are clean" but the artefact:
+rebuild, extract, assert. `U+FFFF = 0` (was 73) · 230 pages · unresolved citations 0 · 277/277 cited.**
+
+> **★ AND A NEW DEFECT FOUND WHILE VERIFYING, PRE-EXISTING AND HANDED TO OPS: BOLD DOES NOT RENDER.**
+> `**HANDICAPS OUR OWN HYPOTHESIS**` and `**single manipulated variable**` both emit in
+> `LMRoman12-Regular`; `LMRoman12-Bold` appears **12 times in 88,323 spans**; literal `**` in the PDF is
+> **0**, so pandoc *is* consuming the markup. Source verified well-formed in **both** the chapter file and
+> `paper/_build/dissertation.md`, so it is not my delimiters — it is the pandoc/template/font path in
+> `build_paper.py`. **In a 230-page document whose argument leans on emphasis, on a criterion whose top band
+> is "faultless presentation of data", every bold is currently flattened.** Reported as M168.
+
+### ⑪ HAND-OVER
+
+`docs/WRITEUP_SESSION_PROMPT_2026-08-01.md` written — the write-up lane's brief for the next session:
+boundaries, the verification block that must be run (**full build, never `--md-only`**), what landed, the
+five open items in priority order, and the P101–P140 error table with its lessons.
 
 ### ⑨ GATES, MEASURED AFTER EVERY EDIT
 

@@ -888,3 +888,31 @@ this campaign starts; duplicating the argument vector is what produced all three
 the next change after the D13/D14/D15/D20 deploy.
 
 ---
+
+## 17. D22 — `src/utils/provenance.py:77` reads a subprocess with the box's locale codec (found 2026-08-01, RUN 11)
+
+**The class.** `subprocess.run(args, capture_output=True, text=True)` with no `encoding=` decodes the
+child's output with the LOCALE codec — cp1251 on this box. Reproduced by execution this session
+(`tests/test_build_paper_diagnostics.py`, the positive control): the reader thread dies on the first
+non-decodable byte and **`subprocess.run` still returns rc=0 with the channel gone**. In
+`scripts/build_paper.py` this exact idiom hid seventeen dropped characters in the deliverable for
+nineteen days, so the class is not theoretical.
+
+**Why this instance is DEFERRED and not fixed with the other two.** `src/utils/provenance.py` **IS
+inside the driver import closure** — proven, not assumed:
+`python docs/ops/import_closure.py src/utils/provenance.py` reports REACHED. Editing it live would
+require a full 12-line relaunch, and the fix does not earn one.
+
+**Why it is nearly harmless today, stated so the priority is honest.** The call is
+`git rev-parse --short HEAD`, whose output is a hex SHA — ASCII by construction, so there is no byte
+that can fail to decode. The residual exposure is the `except` clause: it catches only
+`CalledProcessError` and `FileNotFoundError`, so a decode error would PROPAGATE out of a provenance
+helper rather than fall through to the `GIT_COMMIT` marker path.
+
+**The fix, for the next relaunch or post-campaign window:** add `encoding="utf-8",
+errors="replace"`, and widen the `except` to include `UnicodeDecodeError` (or `OSError`/`ValueError`)
+so the deployed-archive fallback is reachable from every failure mode rather than two of them.
+
+**Already fixed, same class, both proven OUTSIDE the closure and landed live:**
+`scripts/build_paper.py` (severe — the false-green) and `scripts/resume_brief.py` (cosmetic — the
+session brief would silently lose a section).

@@ -216,6 +216,51 @@ def _frozen_equiv_margin(fallback: float = 0.05) -> float:
         return float(fallback)
 
 
+def _ni_margins() -> dict[str, Any]:
+    """The NON-INFERIORITY margins for validity-tier node N2, in the H2-RA legs' OWN units.
+
+    A16, pre-specified 2026-08-01T13:01:15Z while VERIFIABLY BLIND (0 of 3 H2-RA legs computable at
+    HEAD 57c5ecc4) and recorded on the lane bus before any code was written.
+
+    WHAT IS REGISTERED, AND WHY THE PRIMARY IS THE PERMISSIVE ONE. Node ``N2_h2_ra`` registers
+    ``equivalence: tost_0.05_dsr``, which NAMES the function :func:`h2_tost_dsr`. What that function
+    DOES is therefore the registered conversion, and it defaults to
+    ``power_analysis.VALIDATION_TRACK_LENGTH`` (694). So the registered margin is the SESOI divided
+    by ``k(694) = 0.661571`` — about 0.0756 annualised Sharpe. Three independent routes agree:
+    the frozen config records ``sesoi_derivation.sesoi_ann_sharpe_equiv = 0.0756`` and
+    ``dsr_per_ann_sharpe = 0.6616``; ``src/selection/fitness.py`` refuses to compute the DSR on
+    anything but the validation split, so 694 is the only track length a validation-DSR is defined
+    at; and re-deriving the executed windows through the campaign's own code path gives
+    val (3081, 3775) = 694 sessions and test (3835, 5406) = 1571.
+
+    ⚠ STATED PLAINLY BECAUSE IT CUTS AGAINST THE ANALYST: 0.0756 is the WIDER margin, and for
+    ``H0: theta <= -delta`` a wider margin makes the node EASIER to reject. Here "use the registered
+    value" and "use the conservative value" point in OPPOSITE directions. That is exactly why the
+    CONSERVATIVE margin — the same SESOI mapped at the executed TEST track length,
+    ``k(1571) = 0.995771`` giving about 0.0502 — is computed alongside it and reported as a
+    pre-specified sensitivity, and why both k values and both track lengths are returned rather
+    than just the numbers. A margin chosen for its conservativeness rather than its registration
+    would be a researcher degree of freedom in the other direction; reporting both removes the
+    choice instead of making it.
+    """
+    pa = _power_analysis()
+    sesoi = _frozen_equiv_margin()
+    k_val = float(pa.sharpe_mde_to_dsr(1.0, track_length=int(pa.VALIDATION_TRACK_LENGTH)))
+    k_test = float(pa.sharpe_mde_to_dsr(1.0, track_length=int(pa.TEST_TRACK_LENGTH)))
+    return {
+        "sesoi_dsr": float(sesoi),
+        "primary": sesoi / k_val,
+        "primary_track_length": int(pa.VALIDATION_TRACK_LENGTH),
+        "primary_sharpe_to_dsr_factor": k_val,
+        "primary_basis": "registered: tost_0.05_dsr at its own default validation track length",
+        "conservative": sesoi / k_test,
+        "conservative_track_length": int(pa.TEST_TRACK_LENGTH),
+        "conservative_sharpe_to_dsr_factor": k_test,
+        "conservative_basis": "sensitivity: the same SESOI at the EXECUTED test track length",
+        "units": "annualised Sharpe (the H2-RA legs' own statistic)",
+    }
+
+
 def _is_search_candidate(record: dict[str, Any]) -> bool:
     """True iff ``record`` is a SEARCH-leg candidate (the per-candidate population PBO/DSR range over).
 
@@ -1522,6 +1567,22 @@ def collect_family_pvalues(
         # Sharpe leg of the family (higher IQM-over-per-seed-Sharpe = better).
         sr = paired_seed_difference_test(a, b, statistic=iqm, n_boot=n_boot, rng=rng)
         sr_dir, sr_p1, sr_rej1 = _one_sided(sr)
+        # ── A16 (2026-08-01): the registered NON-INFERIORITY p, for validity-tier node N2 ────────
+        # The node registers `test: h2_ra_iut_or_tost` — superiority OR equivalence — and
+        # {theta > 0} UNION {-d < theta < d} IS {theta > -d}, a one-sided non-inferiority
+        # hypothesis. So the registered disjunction is ONE test, not two, and this is it.
+        # It is an IDENTITY, not an approximation: IQM is translation-equivariant, so shifting arm
+        # A by +d shifts the estimate AND every bootstrap replicate by exactly d, making the NI
+        # test at boundary -d algebraically the superiority test with the null moved. Same rng,
+        # same n_boot, same statistic — deliberately, so no second inferential basis enters a
+        # confirmatory node.
+        # ⚠ THE PRIMARY MARGIN IS THE PERMISSIVE ONE (see _ni_margins). The conservative margin is
+        # computed here beside it so the sensitivity cannot be selected after the fact.
+        _m = _ni_margins()
+        _ni = paired_seed_difference_test(a + _m["primary"], b, statistic=iqm,
+                                          n_boot=n_boot, rng=rng)
+        _ni_cons = paired_seed_difference_test(a + _m["conservative"], b, statistic=iqm,
+                                               n_boot=n_boot, rng=rng)
         tests.append(
             {
                 "arm_a": arm_a,
@@ -1530,6 +1591,9 @@ def collect_family_pvalues(
                 "level": None,
                 "pvalue": float(sr["pvalue"]),
                 "pvalue_one_sided": sr_p1,
+                "pvalue_non_inferiority": float(_ni["pvalue_one_sided_greater"]),
+                "pvalue_non_inferiority_conservative": float(_ni_cons["pvalue_one_sided_greater"]),
+                "ni_margins": _m,
                 "stat": float(sr["stat"]),
                 "effect": float(sr["effect"]),
                 "direction_ok": sr_dir,
@@ -1848,6 +1912,13 @@ def h2_conjunction(
                         "pvalue": float(t["pvalue"]),
                         "pvalue_one_sided": float(t["pvalue_one_sided"]),
                         "effect": float(t["effect"]),
+                        # A16: present on the SHARPE (H2-RA) legs only — the tail family N1 is
+                        # unchanged and must stay a pure superiority IUT.
+                        **({"pvalue_non_inferiority": float(t["pvalue_non_inferiority"]),
+                            "pvalue_non_inferiority_conservative":
+                                float(t["pvalue_non_inferiority_conservative"]),
+                            "ni_margins": t["ni_margins"]}
+                           if "pvalue_non_inferiority" in t else {}),
                     }
                 )
             return out_legs
@@ -4812,6 +4883,55 @@ def validation_headroom_markdown(d: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
+#: EVERY key ``analyze()`` can place in its result. Two routes reach ``out``, and counting only one
+#: of them is the wrong-denominator error in its purest form: 32 ``out["..."] = `` subscript
+#: assignments PLUS 7 keys in the annotated ``out: dict[str, Any] = {...}`` initialiser = 39.
+#: (CLAUDE.md's scope clause says "the 35 out[...] keys"; 35 is a remembered number and matches
+#: neither route nor their union. Flagged 2026-08-01, RUN 11.)
+#: This literal is pinned to the source by ``tests/test_analyze_key_registry.py``, which re-derives
+#: the set from the AST and fails if the two disagree — so adding a result WITHOUT registering it
+#: breaks the build rather than escaping the enumeration.
+REGISTERED_OUTPUT_KEYS = frozenset({
+    "archive_integrity", "attribution", "bayesian_null_report", "benchmark_floor",
+    "comparative_es_backtest", "compute_accounting", "cross_hypothesis_multiplicity",
+    "cross_model", "delisting_band", "distance_moderator", "divergence", "dsr_effective_n",
+    "evt_consistency", "h1_beat_human", "h2", "h2_rf_robustness", "h2_structure", "h2_tost",
+    "h2_tost_dsr", "h3", "h4", "information_gap", "legible_format_responsiveness",
+    "mechanism_multiplicity", "mediation", "model_confidence_set", "n_blocks", "n_records",
+    "named_vs_blinded_structural", "pbo", "pbo_dsr", "regime_stratified", "responsiveness",
+    "responsiveness_by_arm", "reward_taxonomy", "validation_headroom", "validity_tier",
+    "variance", "winner_dsr",
+})
+
+#: Registered keys that are LEGITIMATELY absent when a stated precondition is not supplied, mapped
+#: to that precondition. Everything else missing is a DEFECT, not a configuration.
+#: ⚠ The four ``campaign_summary.json`` dependants are the reason this registry exists. They share
+#: one cause — ``main()`` populates panel/cfg/test_window/winner_n_trials only from that file — and
+#: until 2026-08-01 the skip message named only the benchmark floor, so a reader who SAW the warning
+#: still did not learn that three further registered outputs had vanished with it.
+CONDITIONAL_OUTPUT_KEYS = {
+    "variance": "--variance-runs",
+    "benchmark_floor": "campaign_summary.json at the archive root (supplies test_window + panel)",
+    "attribution": "campaign_summary.json at the archive root (supplies test_window + panel)",
+    "h2_rf_robustness": "campaign_summary.json at the archive root (supplies test_window + panel)",
+    "regime_stratified": "campaign_summary.json at the archive root (supplies test_window + panel)",
+}
+
+
+def missing_output_keys(result: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
+    """Split the registered keys absent from ``result`` into (explained, UNEXPLAINED).
+
+    Returns ``({key: precondition}, [key, ...])``. The second list is the one that matters: a
+    registered output missing with no stated precondition is a defect in the analysis, and the
+    caller exits non-zero on it. Reporting the first list is not optional either — an explained
+    absence is still an absence, and four of them shipped unnoticed once already.
+    """
+    absent = sorted(REGISTERED_OUTPUT_KEYS - set(result))
+    explained = {k: CONDITIONAL_OUTPUT_KEYS[k] for k in absent if k in CONDITIONAL_OUTPUT_KEYS}
+    unexplained = [k for k in absent if k not in CONDITIONAL_OUTPUT_KEYS]
+    return explained, unexplained
+
+
 def analyze(
     root: str | Path,
     *,
@@ -6871,9 +6991,18 @@ def main() -> None:
     except Exception as _floor_exc:  # noqa: BLE001 - floor is best-effort; records-only analysis always runs
         # P7 (2026-07-13 audit): was a SILENT blanket except — the benchmark-floor exhibit vanished
         # without a word when campaign_summary.json was absent (the cluster mirror never had one).
-        print(f"[analyze] benchmark floor SKIPPED ({type(_floor_exc).__name__}: {_floor_exc}) — "
-              "records-only analysis proceeds; write campaign_summary.json at the archive root to "
-              "enable the floor", flush=True)
+        # ⚠ 2026-08-01 (RUN 11, analysis M166): this message named ONLY the benchmark floor, but
+        # FOUR registered outputs live inside the `panel is not None` block and all four vanish
+        # together. A reader who saw the warning still did not learn what else had gone.
+        print(f"[analyze] PANEL-DEPENDENT OUTPUTS SKIPPED ({type(_floor_exc).__name__}: "
+              f"{_floor_exc}) — records-only analysis proceeds, but FOUR registered outputs will "
+              f"be ABSENT from the report: benchmark_floor (the DeMiguel 1/N floor — the "
+              f"'nine published allocators' table wired into the PDF), attribution, "
+              f"h2_rf_robustness, regime_stratified. To enable them, write campaign_summary.json "
+              f"at the archive root — at teardown, via docs/ops/write_campaign_summary.py, which "
+              f"derives the windows through the campaign's own code path. NEVER hand-author it: a "
+              f"wrong test_window scores the floor on the WRONG SLICE, silently, which is worse "
+              f"than having no floor at all.", flush=True)
         panel = cfg = test_window = winner_n_trials = None
 
     result = analyze(
@@ -6882,6 +7011,21 @@ def main() -> None:
         variance_run_roots=args.variance_runs,
         single_shot_root=args.single_shot_root,
     )
+    # ---- REGISTERED-KEY COMPLETENESS (2026-08-01, RUN 11) -----------------------------------
+    # Until today the only signal that a registered output had vanished was a print, and the
+    # analysis exited 0 regardless. Four of them went missing at once and nothing downstream
+    # noticed. Name every absence, and make an UNEXPLAINED one fail.
+    explained, unexplained = missing_output_keys(result)
+    print(f"[analyze] registered outputs: {len(REGISTERED_OUTPUT_KEYS) - len(explained) - len(unexplained)}"
+          f"/{len(REGISTERED_OUTPUT_KEYS)} present")
+    for key, precondition in sorted(explained.items()):
+        print(f"[analyze]   ABSENT (explained): {key} — requires {precondition}")
+    if unexplained:
+        print(f"[analyze] REGISTERED-OUTPUT DEFECT: {len(unexplained)} output(s) absent with NO "
+              f"stated precondition — a defect in the analysis, not a configuration: "
+              f"{', '.join(unexplained)}. The report is still written below so it can be "
+              f"inspected; this run exits NON-ZERO.", file=sys.stderr, flush=True)
+
     report = write_report(result, args.root)
     print(f"[analyze_campaign] PBO/CSCV (S={result['n_blocks']}) over {result['n_records']} records -> {report}")
     for arm, e in result["pbo"].items():
@@ -6914,6 +7058,11 @@ def main() -> None:
                 print(f"      [{tier:>4}] {leg['contrast']:>34}: leg_supported={leg.get('leg_supported')}{pv_s}")
         if h2.get("missing"):
             print(f"      missing (unsupported): {', '.join(h2['missing'])}")
+
+    # Deferred to the very end so the report and every diagnostic above are produced first: a run
+    # that fails this gate is exactly the run whose output someone needs to read.
+    if unexplained:
+        raise SystemExit(4)
 
 
 if __name__ == "__main__":

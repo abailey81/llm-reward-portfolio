@@ -37,7 +37,14 @@ def out(s: str = "") -> None:
 def sh(args: list[str], head: int | None = None) -> str:
     """Run a command in the repo; return stdout (head lines), '' on any failure."""
     try:
-        r = subprocess.run(args, cwd=str(REPO), capture_output=True, text=True, timeout=8)
+        # encoding/errors, not tidiness: without them Python decodes with the box's LOCALE codec
+        # (cp1251 here) and a single non-decodable byte in git's output — an accented author name, a
+        # smart quote in a commit subject — kills the reader thread. subprocess.run then returns
+        # rc=0 with the channel GONE, so this helper would silently report "" and the session brief
+        # would quietly lose a section. Same defect class as scripts/build_paper.py (RUN 11), where
+        # it hid seventeen dropped characters in the deliverable for nineteen days.
+        r = subprocess.run(args, cwd=str(REPO), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=8)
         txt = (r.stdout or "").strip()
         return "\n".join(txt.splitlines()[:head]) if head else txt
     except Exception:

@@ -105,12 +105,33 @@ def test_executed_graph_IS_the_registered_graph() -> None:
 
 def test_registered_graph_reproduces_the_predicted_activation_path() -> None:
     """The design's predicted path: N1 does NOT reject (the registered §1a prediction is the NULL
-    branch), but N2's TOST DOES — and that alone must open the tier, which is exactly why
-    `bergerhsu1996equivalence` is load-bearing in the tier design."""
+    branch), but N2's equivalence route DOES — and that alone must open the tier, which is exactly
+    why `bergerhsu1996equivalence` is load-bearing in the tier design.
+
+    ⚠ RE-POINTED 2026-08-01 (A16 / analysis A24). This test used to build the node p-value dict BY
+    HAND — ``p = {n: 1.0 ...}; p["N2_h2_ra"] = 0.001`` — and call the propagation directly. Its own
+    docstring asserted "N2's TOST DOES [reject]" while the code path that would have SHOWN there was
+    no TOST route was bypassed entirely. THAT BYPASS IS WHY NO TEST EVER CAUGHT THE MISSING ROUTE:
+    the test documented the registered behaviour and was structurally unable to check it. It now
+    goes through ``tier_node_pvalues``, so the extraction and the propagation are exercised together.
+    """
+    from src.inference.validity_tier import tier_verdict  # noqa: PLC0415 — local: exercises the real path
+
     w, e, alpha = registered_alpha_graph()
-    p = {n: 1.0 for n in w}
-    p["N2_h2_ra"] = 0.001            # equivalence proven via TOST
-    out = graphical_alpha_propagation(p, w, e, alpha)
-    assert "N2_h2_ra" in out["rejected"]
+    # A result dict of the shape analyze_campaign actually produces, under the PREDICTED branch:
+    # every tail leg fails to reject (N1 stays shut) while every RA leg clears non-inferiority.
+    out = {
+        "h2": {
+            "tail_legs": [{"contrast": f"t{i}", "pvalue_one_sided": 0.9} for i in range(3)],
+            "legs": [{"contrast": f"r{i}", "pvalue_one_sided": 0.9,
+                      "pvalue_non_inferiority": 0.001,
+                      "pvalue_non_inferiority_conservative": 0.002} for i in range(3)],
+        },
+    }
+    res = tier_verdict(out)
+    assert res["nodes"]["N2_h2_ra"]["pvalue"] == pytest.approx(0.001), \
+        "N2 must read the registered non-inferiority p, not the superiority leg"
+    assert "N2_h2_ra" in res["rejected"]
+    assert "N1_h2_tail" not in res["rejected"], "the predicted branch keeps the tail node shut"
     # N2's weight must flow onward, raising at least one downstream node's local level above its start.
-    assert any(out["local_alpha"][n] > w[n] * alpha + 1e-12 for n in w if n != "N2_h2_ra")
+    assert any(res["local_alpha"][n] > w[n] * alpha + 1e-12 for n in w if n != "N2_h2_ra")
