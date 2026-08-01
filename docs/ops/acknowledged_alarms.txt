@@ -11,14 +11,33 @@
 #
 # Remove an entry the moment its underlying condition is resolved.
 
+# ===== RESOLVED AND RETIRED 2026-08-01 (RUN 10, record s.100.9) - DO NOT RE-ADD =====
+#
 # D15 (record s.28). Four `baseline_volatility_scaled_return` records (seeds 14-17) trained on the
 # one Xeon Gold 6140 host in the estate, node-d00b-024, while the unit's other 26 ran on 6240s.
-# TRIAGED: the fence (-l h=!node-d00a-230&!node-d00b-024) is live on all 12 lines and verified in
-# newly-written jobscripts, so no FUTURE record can land there. H2 is untouched (every LLM-arm record
-# is homogeneous) and the affected baseline is not the binding H1 max. OPEN: the bit-comparison
-# experiment that decides whether the four archived records are replaced or kept with a measured
-# equivalence. Remove this line when that experiment resolves.
-substrate_fields:CRITICAL
+# The acknowledgement above it read: "OPEN: the bit-comparison experiment that decides whether the
+# four archived records are replaced or kept with a measured equivalence. Remove this line when that
+# experiment resolves."
+#
+# THE CONDITION IS RESOLVED. The four records were quarantined on BOTH SIDES (node AND laptop - a
+# local-only quarantine had already silently regressed once, because the archive is a MIRROR and
+# pull_archive restored it), the unit is now substrate-HOMOGENEOUS, and the sentinel that rated this
+# CRITICAL now reads, first-hand:
+#
+#   [OK  ] substrate_fields  test leg on ONE substrate across 356 records
+#          (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+#
+# The bit-comparison experiment is IN FLIGHT rather than abandoned: job 61949 re-runs exactly seeds
+# 14-17 on the fenced 6240 substrate, and because the seeds are deterministic and the reward is a
+# fixed human specification, old-6140 versus new-6240 at the SAME seed IS the measured equivalence
+# the entry asked for. The four originals are preserved in three places; nothing was deleted.
+#
+# ⚠ THE ACKNOWLEDGEMENT IS REMOVED RATHER THAN UPDATED, AND THAT IS THE POINT. An acknowledgement
+# for an alarm that no longer fires is a PERMANENT ALLOW-LIST: if `substrate_fields` ever goes
+# CRITICAL again for a NEW reason, a stale entry here would suppress it and nobody would be told.
+# There is no alarm for "this alarm can no longer alarm". (Same failure the COORD lane found in its
+# own watch baseline the same night, and the reason this file's header says to remove an entry the
+# moment its condition resolves.)
 
 # record_sanity WARN (record s.26.4). `baseline_differential_sharpe-s1` and -s5 each show exactly ONE
 # safe-default call in 400,000 (0.00025%), caused by DSR's documented zero-denominator warm-up

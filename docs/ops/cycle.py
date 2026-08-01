@@ -384,9 +384,17 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
             f"supervisor restart; VERIFIED 2026-07-31 19:35 UTC on all 24 driver command lines, and "
             f"visible in the C4 job names as 4 packs for 30 seeds, e.g. `..._test_p01..p04`). "
             f"*** DO NOT RESTART THE SUPERVISORS FOR PACK 8 -- IT IS DONE. *** "
-            f"What REMAINS at this boundary is the outstanding DEFERRED_FIXES (1-7, 9, 10, 12, 13; "
-            f"8 and 11 are APPLIED) -- each needs a driver relaunch, so weigh them against disturbing "
-            f"a live ladder rather than applying them as a batch. Record §74.")
+            f"✔ AND THE DEFERRED FIXES ARE DEPLOYED TOO (2026-08-01, RUN 10, commit 402d59e): "
+            f"D13 D14 D15 D18 D20 D21 + the §39 constant + the timeout counter + A15, on all 24 "
+            f"drivers, drift 0, freeze MATCHES. *** DO NOT RELAUNCH FOR THEM EITHER. *** "
+            f"This line previously read \"What REMAINS ... is the outstanding DEFERRED_FIXES\" and "
+            f"listed items that are now APPLIED -- a STANDING alert carrying a STALE instruction is "
+            f"how a session is told to redo finished work, which is exactly what the pack-8 half of "
+            f"this same alert had to be corrected for on 2026-07-31. "
+            f"STILL OPEN and NOT worth disturbing a live ladder for: item 3 (preflight headroom, "
+            f"cannot affect anything live), item 12/D19 (search h_rt -- the tight lane ends first), "
+            f"D17 (NEVER while live: it changes reward-evaluation semantics on the training path). "
+            f"Records §74, §100.")
 
     # ★ CORE-LINE ARM DEPTH -- the ratio that actually gates the CONFIRMATORY claim.
     #
