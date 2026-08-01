@@ -13066,3 +13066,91 @@ came back undated.
 
 **Reported to every lane as M108.** This is the fourth instance tonight of the same shape the ANALYSIS
 lane named: **registered, implemented, documented — and still not TRUE at the boundary.**
+
+### 100.27 ★★★★ R106 UNIFORM REASONING-OFF IS NOT IN FORCE — THE PIN HAS NEVER BEEN SENT, INCLUDING ON THE CONFIRMATORY AUTHOR
+
+**The most consequential defect found this session, and it was found by pulling the thread §100.25
+left hanging.** That entry recorded that neither reproducibility instrument exercises layer 3;
+§100.26 closed the *model*-pin half and found the kimi mismatch. Priority 5 names **"provider /
+quantisation / **reasoning** pins"**, so the reasoning half was the remaining item on an enumerated
+list — *complete the whole list* — and it is where the real defect was.
+
+#### THE MEASUREMENT — all 2,773 archived LLM calls
+
+```
+  request_pins.thinking  =  null   on 788 of 788 Anthropic calls   (core line AND legs, no exception)
+
+  thinking_blocks  (client.py:692 = COUNT of response blocks with type == "thinking")
+    claude-opus-5              1 block on 315 of 315 calls   (237 core c1 + 78 h3ss)   <-- CONFIRMATORY
+    claude-sonnet-5            1 block on 235 of 235 calls
+    claude-haiku-4-5-20251001  0 blocks on   0 of 238 calls
+```
+
+**The confirmatory author ran WITH extended thinking for the entire campaign.** Haiku did not — under
+an *identical, absent* pin. The vendor default simply differs by model, which is precisely the
+scenario R106 existed to eliminate.
+
+#### THE ROOT CAUSE — the chain is complete at both ends and severed in the middle
+
+Every component at HEAD is individually **correct**, which is why this survived: `config/campaign.yaml`'s
+`llm` block **has** `thinking: {type: disabled}`; `src/llm/legs.py` maps `reasoning:{enabled:false}` →
+`thinking:{type:disabled}` (**executed in isolation — it works**); `run_campaign_cluster.py:504`
+forwards it; `parallel.py:1016` passes it; `client.py` archives it.
+
+**`scripts/run_prototype.py::build_parallel_opts` is the dict that carries values between them, and
+it has no `thinking` key.** It copies `model_snapshot`, `api_key_env`, `temperature`, `max_tokens`,
+`max_retries`, `extra_body`, `spend_ledger`, `diversity_prompt_variation` — and stops. **Proven by
+execution against the real config, not by inspection:**
+
+```
+  llm_block HAS thinking       : {"type": "disabled"}
+  opts CONTAINS 'thinking'     : False
+  opts CONTAINS 'extra_body'   : True        <- the OpenRouter equivalent DOES survive
+  => parallel.py's  opts.get("thinking") or None  is ALWAYS None
+```
+
+**★ AND THE IRONY IS EXACT — the fifth instance of the ANALYSIS lane's reassuring-comment pattern.**
+The `extra_body` key sitting *immediately above the hole* carries this comment: *"without this key a
+leg's provider pin / quantization / reasoning pins would be **SILENTLY DROPPED** at authoring (a
+registered-design violation)"*. **Someone understood this exact failure mode, wrote it down, and fixed
+it for OpenRouter.** When R106 added the Anthropic equivalent across **four files** on 2026-07-27,
+this one dict was missed. *The comment describing the hazard sits two lines above the gap.*
+
+#### WHAT IS **NOT** BROKEN — stated as loudly as the rest
+
+**IDENTIFICATION IS INTACT AND NO RESULT IS INVALIDATED.** The manipulated variable is the **feedback
+block**. Thinking is **constant across all five arms within every line** — same model, same settings,
+same absent pin — so every H1–H4 contrast remains internally valid. The LLM step is non-deterministic
+by nature and the analysis layer is **archive replay**, not re-calling. **This is a REGISTRATION and
+REPRODUCIBILITY defect, not a science defect**, and overstating it would be as inaccurate as missing it.
+
+#### WHAT IS BROKEN
+
+1. **R106 "uniform reasoning-off", ratified 2026-07-26, is not in force and never has been.** The
+   suite is *not* uniform: eight OpenRouter legs genuinely off (verified, `reasoning_tokens` 0),
+   haiku off by **vendor default**, opus and sonnet **ON**.
+2. **`config/llm.yaml:30` states as measured fact that *"Opus 5 emits NO thinking block when the field
+   is omitted"*. 315 campaign calls contradict it.** That sentence must not reach the PDF.
+3. **Stefan's criterion 3** requires every reasoning pin **verified by round-trip**; here the
+   round-trip **disconfirms** it.
+
+#### DISPOSITION — DO NOT FIX MID-CAMPAIGN
+
+`run_prototype.py` is inside the drift fence **and** in the driver import closure, so a fix needs a
+full 24-driver relaunch — **but that is the small reason.** **The real reason: turning thinking OFF
+for Opus partway through would split the archive into TWO AUTHORING REGIMES.** A campaign that is
+*uniformly not-as-registered* is scientifically far better than one that is half-and-half.
+**Uniformity of execution is worth more than conformity to a pin that was never in force.**
+
+**The correct repair is to the REGISTRATION, not the run:** amend R106 to state what was actually
+executed, disclose it, and queue the `build_parallel_opts` one-liner for post-campaign alongside A11
+and the `test_leg.py` timer.
+
+**★ AND IT IS A GOOD HONESTY EXHIBIT, not something to bury.** We pinned a reasoning mode, believed
+it, and **caught it ourselves from our own archived round-trip evidence before submission** — which
+is only possible because R85/R106 built the round-trip capture in the first place. **The discipline
+that failed here is the same discipline that made the failure findable**, exactly as with the
+2026-07-13 half-migration in §100.21c. That is the machinery-catching-its-own-errors story the QC
+appendix exists to tell.
+
+Reported to every lane as **M110**.
