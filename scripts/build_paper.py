@@ -19,8 +19,16 @@ What it does
 3. Runs pandoc --citeproc with the Harvard "Cite Them Right" CSL (paper/harvard-cite-them-right.csl,
    the UCL-house Harvard variant) over paper/refs.bib, PDF via the Tectonic XeTeX engine
    (full unicode; downloads TeX packages on first run, then cached).
-4. Surfaces every ``[WARNING]`` pandoc emits (esp. citeproc "reference not found" — a dangling
-   key in the PDF is a grading defect) and exits non-zero on any ERROR.
+4. Surfaces every warning pandoc OR the TeX engine emits (esp. citeproc "reference not found" — a
+   dangling key in the PDF is a grading defect) and exits non-zero on any ERROR.
+5. VERIFIES THE DELIVERABLE IT JUST WROTE, and fails on each of four defect classes that are all
+   invisible in the source and all cost marks in the PDF:
+     rc=3  a control byte in the assembled markdown (invisible to every editor and to grep);
+     rc=4  a character the engine could not typeset — SILENTLY ABSENT from the PDF;
+     rc=5  a glyph with no ToUnicode mapping — renders, but is unsearchable and uncopyable.
+   Read ``_MISSING_CHAR_RE`` before touching the diagnostic plumbing: for nineteen days these
+   checks were impossible because the channel that carries them was being decoded with the box's
+   locale codec and silently emptied.
 
 Usage
 -----
@@ -211,6 +219,98 @@ def assemble(chapter_dir: Path, names: tuple[str, ...] = ASSEMBLY,
     return "\n\\newpage\n\n".join(parts) + "\n"
 
 
+#: The engine's OWN report that it could not typeset a character. Tectonic/XeTeX prints, once per
+#: occurrence per typesetting pass:
+#:     warning: texput.tex:3279: Missing character: There is no ≈ (U+2248) in font [lmroman12-regular]…
+#: The character is then silently ABSENT from the PDF. This is the authoritative absence signal —
+#: strictly better than extracting the built PDF's text, because a text extractor also returns
+#: U+FFFF for a glyph that RENDERS but carries no ToUnicode mapping (routine for TeX math fonts).
+#: Absent and unmapped are different values; only this channel distinguishes them.
+#:
+#: ⚠ 2026-08-01 (RUN 11). Seventeen such drops were being emitted on EVERY build for nineteen days
+#: and not one reached the operator. TWO independent defects hid them, EITHER of which alone was
+#: sufficient — both reproduced by execution before this fix was written:
+#:   (1) ``subprocess.run(..., text=True)`` with no ``encoding=`` decoded the channel with the box's
+#:       LOCALE codec (cp1251 here). The reader thread died on the first non-decodable byte
+#:       (UnicodeDecodeError, byte 0x98) and subprocess.run STILL RETURNED rc=0 with stdout='' and
+#:       stderr='' — 40,871 characters of diagnostics replaced by a fabricated empty channel, so
+#:       line "0 pandoc warning(s)" was printed from no evidence at all;
+#:   (2) the filter matched only 'WARNING'/'Error', while tectonic prints lowercase 'warning:' —
+#:       0 of 51 emitted lines matched even once the channel was made readable.
+#: The lesson generalises past this script: "the build reported no warnings" is not evidence unless
+#: the channel that carries warnings is proven readable.
+#:
+#: The engine emits the SAME drop in two spellings — TeX's own and Tectonic's driver message:
+#:     warning: texput.tex:3279: Missing character: There is no ≈ (U+2248) in font [lmroman12-regular]…
+#:     warning: could not represent character "≈" (0x2248) in font "[lmroman12-regular]:…"
+#: MEASURED on one real build they paired 1:1 (30 and 30), but matching only one spelling would
+#: make the gate depend on a coincidence between two independent message paths, so both are read.
+_MISSING_CHAR_RE = re.compile(
+    r"Missing character: There is no .{0,4}\(U\+([0-9A-Fa-f]{4,6})\) in font \[([^\]]+)\]"
+    r'|could not represent character ".{1,4}" \(0x([0-9A-Fa-f]{2,6})\) in font "\[?([^\]"]+)'
+)
+#: Substrings that mark a line as reporting an un-typesettable character, in either spelling.
+_MISSING_CHAR_MARKERS = ("Missing character", "could not represent character")
+
+#: Both spellings the toolchain uses. Case-sensitive alternatives rather than a case-insensitive
+#: match, so the ordinary prose words "warning"/"error" inside a pandoc echo of our own text cannot
+#: fire the gate.
+_DIAGNOSTIC_RE = re.compile(r"\[WARNING\]|WARNING|warning:|\[ERROR\]|Error|error:")
+
+
+def scan_diagnostics(channel: str) -> tuple[list[str], list[str]]:
+    """Split a build diagnostic channel into (warning/error lines, missing-character lines).
+
+    Missing-character lines are DEDUPLICATED on their full text: the engine re-reports every drop
+    on each typesetting pass, and a repeat carries a byte-identical ``texput.tex:<line>:`` prefix.
+    Two distinct drops on the same source line therefore collapse into one — the count is a
+    LOWER BOUND on occurrences, which is the safe direction for a gate that fires on any at all.
+    """
+    lines = channel.splitlines()
+    warnings = [ln for ln in lines if _DIAGNOSTIC_RE.search(ln)]
+    missing = sorted({ln.strip() for ln in lines
+                      if any(mark in ln for mark in _MISSING_CHAR_MARKERS)})
+    return warnings, missing
+
+
+def verify_pdf_glyphs(pdf_path: Path) -> tuple[int, str]:
+    """Second, INDEPENDENT route: extract the built PDF's text and count U+FFFF markers.
+
+    Returns ``(count, status)``. ``status`` is "ok" when the extraction ran, or an explanatory
+    string when it could not. A count of 0 from a check that never ran is NOT clean — the caller
+    must treat a non-"ok" status as unverified rather than as a pass, so the return type keeps the
+    two apart instead of collapsing them into a single integer.
+
+    This route is deliberately kept ALONGSIDE the engine-diagnostic gate rather than replacing it:
+    agreement between two independent derivations is evidence, one derivation repeated is not.
+    It is also the weaker of the two — see ``_MISSING_CHAR_RE`` on why U+FFFF over-reports.
+    """
+    try:
+        import fitz  # noqa: PLC0415 — optional; PyMuPDF is not a declared runtime dependency
+    except ImportError as exc:
+        return 0, f"NOT CHECKED (PyMuPDF unavailable: {exc})"
+    try:
+        with fitz.open(pdf_path) as doc:
+            return sum(page.get_text().count("￿") for page in doc), "ok"
+    except Exception as exc:  # noqa: BLE001 — a broken PDF must report, never mask, the failure
+        return 0, f"NOT CHECKED (extraction failed: {type(exc).__name__}: {exc})"
+
+
+def scan_control_bytes(text: str) -> list[tuple[int, int, str]]:
+    """Every control byte in the assembled deliverable, excluding tab/LF/CR.
+
+    Returns ``(line_number, codepoint, line_excerpt)`` per hit. A stray BEL or NUL is invisible in
+    every editor and every ``grep``, survives the whole pipeline, and can break the compile in a way
+    whose diagnostic points somewhere else entirely.
+    """
+    hits: list[tuple[int, int, str]] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        for ch in line:
+            if ord(ch) < 0x20 and ch != "\t":
+                hits.append((lineno, ord(ch), line.strip()[:90]))
+    return hits
+
+
 def build(md_only: bool, out: Path | None) -> int:
     build_dir = REPO / "paper" / "_build"
     build_dir.mkdir(parents=True, exist_ok=True)
@@ -218,6 +318,14 @@ def build(md_only: bool, out: Path | None) -> int:
     md_path = build_dir / "dissertation.md"
     md_path.write_text(assembled, encoding="utf-8")
     print(f"[build_paper] assembled {len(ASSEMBLY)} chapters + {len(APPENDICES)} appendix(es) -> {md_path}")
+
+    control = scan_control_bytes(assembled)
+    if control:
+        print(f"[build_paper] FAILED: {len(control)} control byte(s) in the assembled deliverable "
+              f"— invisible in every editor and in grep, and they reach the compiler:", file=sys.stderr)
+        for lineno, cp, excerpt in control[:20]:
+            print(f"  line {lineno}: U+{cp:04X} in: {excerpt}", file=sys.stderr)
+        return 3
 
     if md_only:
         return 0
@@ -253,11 +361,29 @@ def build(md_only: bool, out: Path | None) -> int:
         "-V", "fontsize=12pt",
         "-V", "geometry:margin=2.5cm",
         # UCL IFTE0008 presentation rules: main text at 1.5 line spacing (setspace via pandoc's
-        # linestretch) and a Helvetica-family typeface (the guidelines recommend Arial/Helvetica >=10pt;
-        # `helvet` is the portable Helvetica clone shipped by every TeX distro, so no system font file is
-        # needed and the build stays reproducible under Tectonic). 2026-07-05.
+        # linestretch) and a sans-serif typeface (DISSERTATION_ALIGNMENT_AND_GUIDELINES.md:26 —
+        # "Arial/Helvetica >= 10pt"), with no system font file so the build stays reproducible
+        # under Tectonic.
+        #
+        # ⚠ 2026-08-01 (RUN 11). This line read `\usepackage{helvet}\renewcommand{\familydefault}
+        # {\sfdefault}` from 2026-07-05 to today and was the WORST OF BOTH WORLDS — it delivered
+        # neither the typeface nor the shapes. Reported by WRITEUP (M168: "bold does not render");
+        # cause established by BISECTION on a minimal document through this exact command line,
+        # span-font census of each built PDF:
+        #     helvet + sfdefault : LMRoman12-Regular x26, bold 0, italic 0   <- as shipped
+        #     no header-include  : LMRoman12-Regular/Bold/Italic, bold 9, italic 2
+        #     sfdefault ALONE    : LMSans12-Regular, LMSans10-Bold 9, LMSans12-Oblique 2
+        # `helvet` declares Helvetica the classic 8-bit NFSS way, but pandoc's template loads
+        # unicode-math (hence fontspec) for the XeTeX engine, so the phv family has no loadable
+        # shapes here: every shape request — bold AND italic — fell back to the upright default,
+        # SILENTLY and with no font-shape warning, while the body stayed the SERIF Latin Modern
+        # Roman. So the shipped document was serif (guideline missed) with every emphasis in a
+        # 230-page argument flattened (UCL dimension 4, "faultless presentation").
+        # Dropping `helvet` and keeping `\sfdefault` selects Latin Modern Sans, which IS in
+        # Tectonic's own bundle: sans-serif as the guideline asks, bold and italic both restored,
+        # still no system font file. Certified on the real deliverable, not on the minimal case.
         "-V", "linestretch=1.5",
-        "-V", "header-includes=\\usepackage{helvet}\\renewcommand{\\familydefault}{\\sfdefault}",
+        "-V", "header-includes=\\renewcommand{\\familydefault}{\\sfdefault}",
         "-V", "linkcolor=blue",
         "-V", "urlcolor=blue",
         "--metadata", "link-citations=true",
@@ -269,17 +395,60 @@ def build(md_only: bool, out: Path | None) -> int:
     # drive. TECTONIC_CACHE_DIR is tectonic's supported cache override; the cache is regenerable.
     env = dict(os.environ)
     env.setdefault("TECTONIC_CACHE_DIR", r"D:\tectonic-cache")
-    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(REPO), env=env)
+    # encoding/errors are LOAD-BEARING, not tidiness: without them Python decodes this channel with
+    # the box's locale codec and a single non-decodable byte silently empties it. See _MISSING_CHAR_RE.
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          cwd=str(REPO), env=env)
+    # ⚠ `or ""` here is a CONVENIENCE, and it is the idiom that hid the original defect: when the
+    # decode fails the attribute comes back as None, and `or ""` turns "never measured" into
+    # "measured and empty". Keep the two apart explicitly before collapsing them.
+    if proc.stderr is None or proc.stdout is None:
+        print("[build_paper] WARNING: a diagnostic channel came back as None — the pipe was not "
+              "decoded. Any 'no warnings' summary below is UNMEASURED, not clean.", file=sys.stderr)
+    channel = (proc.stderr or "") + "\n" + (proc.stdout or "")
+    if len(channel.strip()) == 0:
+        print("[build_paper] WARNING: pandoc+tectonic emitted NO diagnostics at all over a "
+              "multi-hundred-page compile. That is not a clean build, it is an unread channel — "
+              "check the encoding= argument on the subprocess call before trusting this run.",
+              file=sys.stderr)
     # Surface every warning: a citeproc "reference not found" in the PDF is a grading defect.
-    warnings = [ln for ln in (proc.stderr or "").splitlines() if "WARNING" in ln or "Error" in ln]
+    warnings, missing = scan_diagnostics(channel)
     for ln in warnings:
         print(f"[pandoc] {ln}", file=sys.stderr)
     if proc.returncode != 0:
-        tail = "\n".join((proc.stderr or "").splitlines()[-25:])
+        tail = "\n".join(channel.splitlines()[-25:])
         print(f"[build_paper] FAILED (exit {proc.returncode}):\n{tail}", file=sys.stderr)
         return proc.returncode
     size_kb = pdf_path.stat().st_size // 1024
-    print(f"[build_paper] OK: {pdf_path} ({size_kb} KB); {len(warnings)} pandoc warning(s)")
+    print(f"[build_paper] pandoc/tectonic: {len(channel)} chars of diagnostics, "
+          f"{len(warnings)} warning/error line(s)")
+
+    # ---- the two glyph gates, run on the DELIVERABLE that was just written ------------------
+    if missing:
+        chars = sorted({(m.group(1) or m.group(3)).upper()
+                        for ln in missing if (m := _MISSING_CHAR_RE.search(ln))})
+        print(f"[build_paper] FAILED: the engine could not typeset {len(missing)} character "
+              f"occurrence(s) — they are SILENTLY ABSENT from {pdf_path.name}. "
+              f"Codepoints: {', '.join('U+' + c for c in chars) or '(unparsed)'}", file=sys.stderr)
+        for ln in missing[:30]:
+            print(f"  {ln}", file=sys.stderr)
+        print("  fix: use the LaTeX form ($\\alpha$, $\\approx$, $\\geq$ …) rather than the literal "
+              "character, or declare it in the preamble; the fonts here carry no Greek/relational "
+              "glyphs in TEXT mode.", file=sys.stderr)
+        return 4
+    ffff, status = verify_pdf_glyphs(pdf_path)
+    cross_check = "0 U+FFFF markers (2nd route)"
+    if status != "ok":
+        cross_check = f"2nd route {status}"
+        print(f"[build_paper] glyph cross-check {status} — the engine gate above passed, but this "
+              f"run has ONE route of evidence, not two.", file=sys.stderr)
+    elif ffff:
+        print(f"[build_paper] FAILED: {ffff} unmappable glyph marker(s) (U+FFFF) in the extracted "
+              f"text of {pdf_path.name}. The engine reported no missing character, so these RENDER "
+              f"but carry no ToUnicode mapping — the PDF is not text-searchable at those points and "
+              f"a copy-paste of the passage loses them.", file=sys.stderr)
+        return 5
+    print(f"[build_paper] OK: {pdf_path} ({size_kb} KB); 0 missing characters; {cross_check}")
     return 0
 
 

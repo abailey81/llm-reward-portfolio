@@ -3262,7 +3262,13 @@ def cross_hypothesis_multiplicity(
         "note": "one-sided iterative>single-shot difference p (if the single-shot archive was present)",
     })
 
-    # H4 — the MAX one-sided p over {H4a, H4b} (both must hold for "LLM beats search").
+    # H4 — the MAX one-sided p over EVERY leg in H4_CONTRASTS (all must hold for "LLM beats
+    # search"): the intersection-union test against the four-optimiser portfolio
+    # {random_search, bayes_opt, cma_es, tpe}, i.e. beat-the-BEST-black-box-optimiser.
+    # ⚠ 2026-08-01: this comment said "over {H4a, H4b}" — two legs — and had been stale since the
+    # 2->4 optimiser upgrade. The CODE below was already correct (it maxes over whatever
+    # `tests` holds); only the comment was wrong, which is the more dangerous artefact of the two
+    # because it stops the next reader from checking. Reported by WRITEUP (M158).
     h4_ps = [
         float(t["pvalue_one_sided"]) for t in (h4 or {}).get("tests", []) or []
         if isinstance(t.get("pvalue_one_sided"), (int, float))
