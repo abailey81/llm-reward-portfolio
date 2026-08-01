@@ -13545,3 +13545,71 @@ alert fires the same cycle and Tamer decides with a concrete case instead of a h
    Added an `elif _gap_rc not in (0, 1)` ATTN branch. **Proven by execution:** missing script → rc=2,
    `sys.exit(42)` → rc=42 (both now fire), real watcher → rc=0. *A check that cannot run is itself a
    finding — `_run`'s own comment says so, and I had not honoured it.*
+
+### 100.32 ★★★★ FROM AUDIT TO ASSURANCE — THE CONFIRMATORY-PATH INVARIANTS ARE NOW GATED, NOT INSPECTED
+
+**Tamer's instruction sharpened the whole problem: *"ensure very deeply and strictly that absolutely
+everything is strictly flawless NOW, and WILL BE strictly flawless IN THE FUTURE."* That second clause
+exposed the real gap, and it was mine.** Everything verified during this session's audit was a
+**one-off hand check**. All clean — and all snapshots. **The campaign runs to 2026-08-27 and nobody
+re-runs a hand audit daily, so any of those invariants could break tomorrow with nothing to say so.**
+*A verification that ran once is a snapshot; only an automated gate is an assurance.*
+
+#### WHAT WAS VERIFIED BY HAND FIRST (and is the reason the gate is meaningful)
+
+```
+  I1  self-hash        1,024 frozen+test records with source AND hash   ->  0 mismatches
+  I2  search -> frozen 32 of 32 winners resolved to their search record ->  0 mismatches
+  I3  frozen -> test   666 test records matched to a frozen winner      ->  0 mismatches
+  I4  selection        32 frozen winners vs their arm's ELIGIBLE pool   ->  32 correct, 0 wrong
+  I5  model pin        2,783 archived calls                             ->  1 known alias only
+  I6  decoding pin     max_tokens + temperature, all 11 models          ->  0 deviations
+```
+
+**I3 is the one that matters most:** a breach there would mean the sealed leg scored code that never
+won, which invalidates the headline. It is clean, and it is now watched.
+
+#### THE GATE — `docs/ops/integrity_gate.py`, cycle check 4c
+
+**Encodes VERIFIED-TRUE invariants rather than hopeful ones**, which is precisely what makes a future
+red meaningful: *a check that has never been green against known-good data cannot tell you anything
+when it fails.* Baseline against the live archive: **rc=0 in 5.2 s**, all six clean.
+
+**Severity is deliberately split.** rc **2** = a CONFIRMATORY breach (core / h3_singleshot) → RED,
+naming the headline risk explicitly. rc **1** = a breach confined to a **report-only** leg (R80 never
+gates H1–H4) → ATTN. rc **anything else** → ATTN, because *a gate that cannot run leaves the
+invariants unchecked* — the silent-blind-spot failure this record keeps rediscovering. **Treating a
+report-only breach as a run-stopper is the cry-wolf failure that makes real alarms ignorable**, so it
+is not treated as one.
+
+#### 15 FALSIFICATION TESTS — INCLUDING THE TWO THAT MUST **NOT** FIRE
+
+`tests/test_integrity_gate.py` corrupts a synthetic archive in exactly one way per test and asserts
+the matching invariant fires. **Equally important, it proves the two legitimate cases stay silent:**
+
+* **an R115-INELIGIBLE higher-fitness candidate being skipped is CORRECT, not a selection defect** —
+  without this the gate would fire on every arm where the floor did its job;
+* **the DISCLOSED kimi-k3 alias (§100.26)** is allow-listed **by exact `(requested, served)` pair**,
+  with a companion test proving a **different** alias still fires, so the allow-list can never soften
+  into a family match. *Disclosed is not the same as silenced.*
+
+Also covered: the severity split end-to-end, `_quarantine`/`.pull_tmp` exclusion (§100.9 / D16),
+hand-written baseline markers not tripping I3, and a missing archive not raising.
+**38 tests green across the two new tools; `PYTEST_RC` read from the LOG, never a pipe.**
+
+#### LIVE, CONFIRMED IN PRODUCTION
+
+```
+  .sandbox_gap_last     rc=0   [sandbox_gap] OK: no confirmatory-path manifestation
+  .integrity_gate_last  rc=0   [integrity]   OK: I1 | I2 | I3 | I4 | I5 | I6 -- all clean
+```
+
+Both written by the running loop (sweep 17.0 s → 21.2 s on the cycle that ran the gate), both
+**600 s time-guarded** so they cannot grow into the sweep budget as the archive grows, and both
+**hard-wrapped** so neither can break the monitoring loop.
+
+**★ THE SHAPE OF THIS SESSION, stated for the QC appendix.** Ten defects were found by hand, and
+every one of them was found because a specific quantity was MEASURED rather than assumed. **The
+lasting product is not the ten fixes — it is that the invariants those fixes protect are now checked
+every ten minutes by machinery that has been proven able to fail.** The audit found what was wrong
+today; the gate is what keeps it right until 08-27.
