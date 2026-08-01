@@ -70,6 +70,23 @@
 # ⚠ RE-TRIAGE IF any of these crosses ~1 % (three orders of magnitude of headroom would be gone), if
 # one appears on the CORE line, or if a THIRD ratio-form baseline joins -- the last would mean the
 # warm-up is systematic across the ratio family rather than incidental.
+#
+# ── RE-TRIAGED 2026-08-01 (RUN 10, record s.100.22) — ALL THREE TRIGGERS NEGATIVE, ack STANDS. ──
+# The extent above was measured at n=1,461; the archive has since grown 53% to n=2,238, so the
+# factual basis was re-measured rather than assumed:
+#   worst fraction   0.00375 %  — IDENTICAL to the figure above; 267x of headroom to the ~1 % trigger
+#   CORE-line hits   0          — unchanged
+#   ratio-form bases 2          — no third; still differential_sharpe + differential_downside_ratio
+#   class size       17         — grew by exactly ONE record while the archive grew by 777
+# ⚠ AND A NEAR-MISS OF MY OWN, recorded because it is the failure mode this file is most exposed to:
+# my first re-measurement swept EVERY record with a non-zero fallback and reported a worst case of
+# 99.978 %, which reads as a catastrophic breach of the ~1 % trigger. It is not. THE ACKNOWLEDGEMENT
+# IS SCOPED TO `0 < frac < 1e-4` — the warm-up signature — and records above that bound are a
+# DIFFERENT population that R115 exists to reject. Reading the alarm before reading the PREDICATE
+# nearly produced a false CRITICAL against a healthy campaign.
+# Separately confirmed while here, by an independent route: 14 records sit at/above R115's 10 % floor,
+# which MATCHES the sentinel's own `r115=14 BINDING` exactly, and ZERO high-fallback candidates have
+# reached a frozen/test record — the eligibility floor is holding at selection, before the sealed leg.
 record_sanity:WARN
 
 # silent_hang UNKNOWN — emitted once at 2026-07-28 22:09:17, at launch, with detail "no progress

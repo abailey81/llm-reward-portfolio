@@ -12757,3 +12757,43 @@ either way. Queued post-campaign. **Mitigating fact, which is why this is a degr
 loss:** the rendered PROMPT *is* persisted, so the fed block remains recoverable by structural
 slicing — which is exactly how the lane found the three un-fed `generation>=1` candidates that every
 keyword-heuristic check had been blind to.
+
+### 100.22 THE ACKNOWLEDGED ALARMS RE-TRIAGED — AND I NEARLY RAISED A FALSE CRITICAL AGAINST A HEALTHY CAMPAIGN
+
+**Why this was done at all:** `guards=2` sits in every cycle line, and both entries are
+*acknowledged* rather than resolved. An acknowledgement is a **permanent allow-list** — the same
+reasoning that retired the `substrate_fields` entry in §100.9 — so each carries its own RE-TRIAGE
+trigger, and `record_sanity:WARN`'s extent was measured at **n = 1,461**. The archive has since grown
+**53 % to n = 2,238**, which is exactly when a stated extent stops being evidence and becomes memory.
+
+**Re-measured from the raw archive. All three triggers NEGATIVE; the acknowledgement STANDS:**
+
+| trigger | as acknowledged | re-measured 2026-08-01 |
+|---|---|---|
+| worst fraction crosses ~1 % | 0.00375 % | **0.00375 %** — identical, **267x** headroom |
+| any on the CONFIRMATORY core line | zero | **zero** |
+| a THIRD ratio-form baseline appears | 2 | **2** (`differential_sharpe`, `differential_downside_ratio`) |
+
+The acknowledged class grew by **exactly one record while the archive grew by 777** — the warm-up
+signature is incidental, as triaged, not systematic.
+
+**★ AND THE NEAR-MISS IS THE MORE USEFUL HALF OF THIS ENTRY.** My first re-measurement swept **every**
+record with a non-zero fallback and reported a worst case of **99.978 %** — which reads as a
+catastrophic breach of a ~1 % trigger, on a live confirmatory campaign, at 07:26 in the morning.
+**It is not a breach at all.** The acknowledgement is scoped to `0 < frac < 1e-4` — the DSR
+zero-denominator warm-up — and everything above that bound is a **different population that R115
+exists to reject**. *Reading the alarm before reading the PREDICATE* is precisely the failure the
+operating doctrine names, and it would have produced a false CRITICAL and, worse, an unnecessary
+intervention against a healthy campaign. Caught by my own rule, one step before reporting it.
+
+**TWO CONFIRMATIONS COLLECTED ON THE WAY, both by routes independent of the sentinel:**
+
+* **14 records sit at or above R115's 10 % floor — EXACTLY matching the sentinel's own `r115=14
+  BINDING`.** Two independent derivations agreeing is evidence; one derivation repeated is not.
+* **ZERO high-fallback candidates have reached a frozen or test record.** The eligibility floor is
+  doing its job *at selection*, so the contamination never reaches the sealed leg. This is the check
+  that actually matters, and it is clean.
+
+The re-triage, its date, its `n`, and the near-miss are stamped into
+`docs/ops/acknowledged_alarms.txt` above the entry itself, so the next session inherits a **dated
+measurement** rather than a stale extent — and does not repeat either the check or the mistake.
