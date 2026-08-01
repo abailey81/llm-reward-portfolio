@@ -13613,3 +13613,100 @@ every one of them was found because a specific quantity was MEASURED rather than
 lasting product is not the ten fixes — it is that the invariants those fixes protect are now checked
 every ten minutes by machinery that has been proven able to fail.** The audit found what was wrong
 today; the gate is what keeps it right until 08-27.
+
+### 100.33 ★★★★★ THE REGISTERED VALIDITY TIER IS INERT UNDER ITS OWN PREDICTED BRANCH — VERIFIED BY EXECUTION
+
+**The most consequential finding of the session, raised by the COORD lane (M137) and INDEPENDENTLY
+VERIFIED HERE BY RUNNING THE REGISTERED CODE PATH** on synthetic p-values (effect-blind — no sealed
+outcome was read).
+
+#### THE MEASUREMENT — `registered_alpha_graph()` + `graphical_alpha_propagation()`, executed
+
+```
+  REGISTERED initial_weights: N1_h2_tail 0.5 · N2_h2_ra 0.5 · N3_h3 0.0 · N4_h4 0.0
+                              N5_structure 0.0 · N6_h1 0.0            alpha = 0.05
+
+  SCENARIO A -- THE DESIGN'S OWN PREDICTED BRANCH (H2 null on BOTH co-primaries, H1 p=0.0001)
+     rejected    : []
+     local_alpha : N1 0.025 · N2 0.025 · N3 0.0 · N4 0.0 · N5 0.0 · N6 0.0
+     untestable  : []            <-- EMPTY, while FOUR nodes sat at alpha exactly 0.0
+
+  SCENARIO B -- the same data, N2 rejecting via the equivalence route
+     rejected    : [N2_h2_ra, N6_h1]      H1 tested at 0.008250 · H4 0.004125 · H3 0.012375
+
+  SCENARIO C -- the SUPERSEDED R31 rule (Bonferroni-4, alpha/4 = 0.0125)
+     H1 at p=0.0001  ->  REJECTS
+```
+
+> **★ THEREFORE, ON THE DESIGN'S OWN PRE-REGISTERED PREDICTION, THE R105/R108 "UPGRADE" LEFT H1
+> STRICTLY WORSE OFF THAN THE RULE IT REPLACED.** That cannot have been the intent of an upgrade, and
+> it is the strongest evidence that the missing equivalence path is a **CODE GAP**, not the yaml being
+> wrong.
+
+#### THE CODE GAP, CONFIRMED AT THE LINE
+
+`src/inference/validity_tier.py` `_NODE["N2_h2_ra"]` sources its p-value from
+`out["h2"]["legs"][*]["pvalue_one_sided"]` — **the superiority IUT and nothing else.** There is no
+equivalence path anywhere in the node map. Meanwhile the registration declares
+`test: h2_ra_iut_or_tost` with `equivalence: tost_0.05_dsr`, and the frozen config's **own note** says
+activation *"rests entirely on N2 rejecting via TOST"*. **That is executed-vs-registered drift on the
+confirmatory decision rule.**
+
+#### ★ WHAT THIS SECTION ADDS: "IUT **or** TOST" IS *IDENTICALLY* NON-INFERIORITY
+
+COORD correctly warned that `min(p_sup, p_TOST)` is **not** a valid node p-value — it tests two
+different nulls through one node and inflates type-I error. But the disjunction has an exact
+single-null form:
+
+```
+  NOT-better              :  mu <= 0
+  NOT-equivalent          :  |mu| >= delta
+  their INTERSECTION      :  (mu <= 0) AND (mu >= delta OR mu <= -delta)
+                             the first branch is EMPTY since delta > 0
+                          =>  mu <= -delta
+```
+
+> **So "better OR equivalent" IS non-inferiority at margin delta, identically.** One well-defined
+> one-sided null, one valid p-value, no disjunction, no type-I inflation. **It is therefore not a
+> design ALTERNATIVE but the precise formalisation of the phrase already registered** — which
+> materially strengthens it over the re-weighting option, since re-weighting costs H2 power while this
+> implements what was written.
+
+#### WHAT WAS FIXED HERE — THE REPORTING DEFECT ONLY (commit `a51d2ea`)
+
+**`untestable` was computed solely from p-value finiteness**, so a node with **zero local alpha** —
+the case that actually arises — fell through to `not_rejected`, indistinguishable from a hypothesis
+that was tested and failed. **On the predicted branch the pipeline would have written "H1 was not
+rejected" for a p-value of 0.0001**, into a chapter graded on faultless presentation of data,
+misstating the result *in the direction of the null we predicted*.
+
+`graphical_alpha_propagation` now returns a **separate `structurally_untestable`** key, excludes those
+nodes from `not_rejected`, and carries an explanatory note **in the artifact** so it cannot be lost
+between the function and the chapter. The two reasons stay apart deliberately: **`untestable` = we had
+no data; `structurally_untestable` = we had data but the graph allotted no alpha.** The docstring had
+already promised exactly this behaviour (*"can never reject and is reported under untestable — it is
+NOT silently treated as a passing test"*); the code simply never honoured it for the second reason.
+
+**INFERENCE IS UNCHANGED — `rejected` is computed exactly as before**, pinned by tests on BOTH the
+predicted and the activated branch. **13 new tests**, 28 green including the pre-existing
+`test_graphical_alpha` and `test_validity_tier_assembly`; one test asserts the four categories
+**partition** the node set so nothing can be double-counted or dropped.
+
+**SAFE LIVE, PROVEN NOT ASSERTED:** `src.inference.*` is **not** in the driver import closure (a static
+walk from `run_campaign_cluster.py` + `run_one.py` reaches 193 first-party modules; neither
+`multiple_testing` nor `validity_tier` nor `analyze_campaign` is among them). The inference layer runs
+at ANALYSIS time, never inside a driver. `RUNNING_SHA` re-based `b44a566 -> a51d2ea` on that proof —
+the same sanctioned exit as §100.19.
+
+#### ⚠ WHAT IS **NOT** FIXED, AND WHY I DID NOT FIX IT
+
+**The N2 design gap is Tamer's and Dr Okhrati's call, and deliberately not mine.** Redefining a
+co-primary node's null hypothesis is a statistical design decision in the examiner's own domain, and
+an ops agent making it mid-campaign is **the single most attackable act available to this project**,
+however correct the algebra. The derivation above is offered so the decision takes minutes.
+
+**★ THE WINDOW IS OPEN AND I VERIFIED ITS BOUNDARY FIRST-HAND.** The core `test/` lane holds **only
+baselines plus `random_search`** — **no H2 outcome exists**, and the core line is still searching with
+`placebo_shuffled` and `scalar_cvar5` at g4. **A pre-data revision is legitimate and documented; the
+moment the core C4 ladder produces an H2 outcome, every option here becomes a forking path and the
+pre-registration integrity claim — our single strongest asset — collapses.**
