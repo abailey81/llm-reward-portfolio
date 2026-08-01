@@ -11335,3 +11335,170 @@ the clean zero was the thing that saved the claim.**
 `docs/ops/` only — outside the drift pathspec. Drift 0, freeze MATCHES, `RUNNING_SHA 50b6e07` unchanged.
 
 ---
+
+---
+
+## 94. ★★★ THE RESULTS, ANALYSED DEEPLY — AND SPEED RE-MEASURED AT THE C4 BOUNDARY (2026-08-01, RUN 9)
+
+Tamer, correcting this session: *"why did you ignore my initial prompt? I told you to very deeply and
+strictly monitor the run as well, the outputs, the RESULTS… make sure we maximise the campaign run
+speed, and use everything Myriad offers."* **He is right.** The §14 instrument audit was the brief's
+explicit instruction and it found six real defects — but the two STANDING priorities, **results** and
+**speed**, were under-served: capacity was measured once and never acted on, and the numbers themselves
+were never interrogated. This section discharges both.
+
+**EFFECT-BLIND BY CONSTRUCTION.** Everything below reads search-lane `val_fitness` (the SELECTION
+statistic, reported openly in §75.3) and execution counters. **No sealed-test outcome for any treatment
+arm is opened** — the lane-coordination rule 7 forbids it until the ladder completes, and nothing here
+needs it.
+
+---
+
+### 94.1 SPEED — §12.2's OPEN QUESTION, ANSWERED AT THE BOUNDARY
+
+The brief left this explicitly open: *"whether C4 actually REALISES that capacity — fair-share falls as
+consumption rises. **Measure it at the boundary; do not bank the projection.**"* Measured:
+
+```
+  line                     phase                      running  queued
+  h3ss                     C4, FULL 568-seed ladder        71       0     <- 100 % PLACED
+  leg4 (qwen3_5_9b)        C2 pair test, core n=30          7       4
+  c1 CORE                  search                           7       6
+  the other ten legs       search                          37      52
+```
+
+**C4 realises the capacity completely — 71 of 71 full-ladder packs running, none queued — while SEARCH
+jobs queue (52 of 89 waiting).** The phase that needs the capacity is the phase that gets it. §12.2 is
+closed with a measurement rather than a projection.
+
+**The architecture, read from the code rather than inferred** (`src/cluster/campaign.py`): a model line
+stages **C2 pair test at core n=30 → the effect-blind C3 gate → the C4 ladder**; the five H2 arms are
+`deferred_to_pair_array` (`:1789`) and released as **ONE `interleave=True` array** (`:1836`). The h3
+line has no such staging — it calls `run_test_leg(..., seeds, ...)` with the **full ladder** (`:1507`),
+which is why it alone holds 71 packs (568 / 8 = exactly 71).
+
+#### 94.1.1 PACK 8 RE-TESTED, NOT INHERITED
+
+Hosts by free-slot depth, live:
+
+```
+  pack  4:  915 jobs placeable | 3,660 slots captured
+  pack  8:  407 jobs placeable | 3,256 slots captured   <- LIVE
+  pack 12:  279 jobs placeable | 3,348 slots captured
+  pack 16:  196 jobs placeable | 3,136 slots captured
+```
+
+Pack 8 captures **84 %** of free slots. Pack 4 captures 12 % more *slots* — but **doubles the JOB count
+for the same work**, and the binding constraint at full ladder is `max_u_jobs = 1000`, where pack 8
+delivers **2× the trainings in flight**. **§50/§58's decision stands, now verified by measurement.**
+
+#### 94.1.2 EVERY REMAINING LEVER, CHECKED AND CLOSED
+
+| lever | verdict |
+|---|---|
+| more jobs | **demand-limited, not supply-limited**: search width is K = 5 per arm per generation, a FROZEN design parameter. 2,919 free slots exist; the work to fill them does not, until lines cross their gates |
+| priority | already maximal at `-p 0`; ours **2.0059** vs the cluster's best pending **2.0087**. Raising is forbidden (site policy) and lowering is Tamer's absolute rule |
+| pack | 8 is optimal (94.1.1) |
+| threads / search width | **inside the determinism envelope** — changing them changes FP arithmetic. Refused |
+| memory · tmpfs | both fixed and re-verified non-binding (§89.1) |
+| pool widening `d`→`d,b` | settled NO (+4 %, reopens D15) |
+| **★ start the two already-frozen CORE arms' test legs early** | **FORBIDDEN, and the reason is science not caution.** The pair array is `interleave=True`, seed-major, so *at any truncation point every arm holds an equal CRN-paired seed count*. Running `distributional` and `scalar` ~20 h ahead of the other three would hand H2 exactly the unequal-n asymmetry §56 exists to prevent — at the truncation the exogenous stop makes likely |
+
+**VERDICT: there is no available speed lever, and that is now a measurement rather than an inheritance.**
+
+---
+
+### 94.2 THE RESULTS — INTEGRITY FIRST (1,130 LLM-arm search records, re-derived independently)
+
+| question | answer |
+|---|---|
+| does every scored record carry the registered **B\* = 400,000** steps? | **1,130 of 1,130. Zero deviations.** |
+| is `val_fitness` inside [0,1] (a Deflated Sharpe is a probability)? | **min 3.679e-08 · median 0.00067 · max 0.43191. Zero outside.** |
+| R115 execution-floor breaches | **13, zero on the core line** — matching the cycle's `r115=13B` by an independent route |
+
+**A meaning-level reading of that median:** at **0.00067**, the TYPICAL LLM-authored reward produces a
+policy whose validation Sharpe is **indistinguishable from chance once deflated for the number of
+trials**. The winners at 0.22-0.43 are the exceptions, not the population. That is the honest shape of
+this search and it belongs in CH6.
+
+#### 94.2.1 TWO OF RUN 8's NUMBERS SHARPENED
+
+* **§71.3's heavy tail is WIDER than stated.** It claimed the winner is *"300-700× the median"*. Over
+  **52 pools** with n ≥ 5: **min 1.2× · median 259× · max 1,614×** (`sonnet_5/scalar_cvar5`, winner
+  0.38935 against a median of 2.41e-04). The claim is roughly right at the centre and understates the
+  spread by more than a factor of two.
+* **§71.4's "selection is sometimes a coin flip" needed a DENOMINATOR.** It gave the range
+  (max/2nd = 1.00-396×) without the frequency, which reads far more alarming than the data support.
+  Measured over **56 pools**: median max/2nd = **1.37×**, and only **4 of 56 (7 %)** are within 5 % of
+  their runner-up. **Selection is decisive in 93 % of pools.** *Say the denominator out loud.*
+
+---
+
+### 94.3 ★★★ THE NEW SCIENCE — DOES THE REFLECTION LOOP LEARN? THE BEST CANDIDATE SAYS NO
+
+Nobody had asked **where in the loop the winner comes from**. §71 characterised the fitness
+distribution and the winner's separation; this asks whether the *iteration* is doing anything.
+
+**⚠ THE POOLED VERSION IS CONFOUNDED, AND I NEARLY REPORTED IT.** Pooled across lines, the
+per-generation best-so-far is 0.351 → 0.351 → 0.432 → 0.432 → 0.432 → 0.432, i.e. **flat after
+generation 2**, and the per-generation median FALLS (0.00088 → 0.00053). That looks damning. **It is an
+artefact of composition**: the per-generation samples are 279/218/222/189/127/95 because lines sit at
+different depths — g0 contains all twelve lines, g5 only those that reached it. **A generation fewer
+pools reached will always look under-represented.**
+
+**THE CLEAN TEST.** Restrict to the **20 (line, arm) pools that completed ALL SIX generations**, where
+every generation was equally available. Under the null *"each generation is an i.i.d. draw from the same
+quality distribution and the loop learns nothing"*, the pool's best is equally likely to fall in any of
+the six — **1/6 = 16.7 % each**.
+
+```
+   gen   pools whose BEST first appears there
+    g0     5   25 %
+    g1     2   10 %
+    g2     6   30 %
+    g3     0    0 %
+    g4     5   25 %
+    g5     2   10 %
+
+   BEST IN THE LAST TWO (g4|g5) : 7 of 20 = 35 %   95 % Wilson [18 %, 57 %]   null 33 %
+   BEST IN THE FIRST TWO (g0|g1): 7 of 20 = 35 %   95 % Wilson [18 %, 57 %]   null 33 %
+```
+
+**The distribution is indistinguishable from uniform, and the point estimate sits ON the no-learning
+null.** A learning loop must concentrate its best LATE; this one does not — and it is exactly as likely
+to have peaked in its first two generations as in its last two.
+
+**WHY IT MATTERS — three reasons, in increasing order of importance:**
+
+1. **It is an effect-blind PREDICTION for H3.** H3's registered null is *"multi-generation ≤ single-shot
+   at matched budget"* (`PREREGISTRATION.md` §1). This is that null's search-side signature, visible
+   before the sealed test. **A prediction, never a substitute for the test.**
+2. **It independently corroborates §75.3 by a different route.** If generations are i.i.d. draws, then
+   POOL SIZE is the only thing driving the maximum — which is precisely why the equal-*k* correction is
+   the right remedy and why the arm-depth asymmetry bites. Two analyses, one mechanism: *agreement
+   between two derivations is evidence.*
+3. **It holds in the TREATMENT arm.** Ten of the twenty complete pools are `distributional`, the arm fed
+   six tail statistics; its best appears at g5, g2, g4, g2, g2, g4, g0, g1, g0 — **no late
+   concentration.** If the tail feedback were driving the loop, this is where it should show.
+
+**THE CAVEATS, STATED NOT BURIED.** **n = 20**, so the interval is wide and this settles nothing on its
+own. The complete-pool sample is **arm-imbalanced** — ten `distributional`, nine `scalar`, one
+`scalar_cvar5`, **zero** `placebo`/`placebo_shuffled` — because those are the arms that finish first, so
+an arm-specific learning effect in the controls would be invisible here. And it is **validation-side
+selection data**; the sealed test is the arbiter of H3.
+
+**WRITE-UP OBLIGATION (new).** This is a CH6 mechanism exhibit and a CH7 D4 item: *"where in the loop
+does the winner come from?"* answers Okhrati's D1 (the account is the deliverable) with a picture, and
+it is a **new, cheap, registered-order statistic that requires no sealed data**. It also deserves the D2
+treatment — the same histogram as a function of how many pools have completed, so the reader sees the
+estimate converge rather than a terminal number.
+
+---
+
+### 94.4 STATE
+
+`docs/ops/` and `docs/` only. **No `src/ scripts/ config/ prompts/` edit. No relaunch. Freeze
+`3ca6f01a…` MATCHES. Drift 0. `RUNNING_SHA 50b6e07` unchanged.** Campaign 12/12, `sci=OK`,
+1,553 records, $38.94.
+
+---
