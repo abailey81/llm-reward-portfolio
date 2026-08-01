@@ -558,6 +558,7 @@ def seed_trajectory(
 
     fig, ax = plt.subplots(figsize=(6.8, 4.4))
     drawn = 0
+    _n_max = 0
     for unit, vals in series_by_unit.items():
         v = np.asarray(list(vals), dtype=float).ravel()
         if v.size == 0:
@@ -579,14 +580,21 @@ def seed_trajectory(
                 markevery=max(1, len(grid) // 12), label=unit, zorder=3)
         ax.fill_between(grid, lo, hi, color=col, alpha=0.15, lw=0, zorder=2)
         drawn += 1
+        _n_max = max(_n_max, int(v.size))
     if drawn == 0:
         raise ValueError("seed_trajectory: every unit was empty — nothing was drawn.")
 
+    # A caller may legitimately hand the FULL registered tier list (30…568) while the archive only
+    # holds the floor rung — mid-campaign that is the normal case. Rungs past the data would stretch
+    # the x-axis to 568 and squash every curve into the first 5% of the panel, so they are dropped
+    # rather than drawn: the figure shows the ladder REACHED, never the ladder hoped for.
     for r in rungs:
+        if int(r) > _n_max:
+            continue
         if terminal_rung is not None and int(r) == int(terminal_rung):
             continue
         ax.axvline(float(r), color="0.55", lw=0.8, ls=":", zorder=1)
-    if terminal_rung is not None:
+    if terminal_rung is not None and int(terminal_rung) <= _n_max:
         ax.axvline(float(terminal_rung), color="0.15", lw=1.4, ls="-", zorder=1)
         ax.annotate(f"terminal rung n={int(terminal_rung)}",
                     xy=(float(terminal_rung), 1.0), xycoords=("data", "axes fraction"),

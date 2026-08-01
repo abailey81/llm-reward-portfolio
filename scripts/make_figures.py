@@ -267,6 +267,13 @@ def render_all(data: dict[str, Any], out: Path, *, demo: bool = True) -> list[Pa
     _save(F.responsiveness_scatter(data["fed_delta"], data["reward_delta"], rho=data["rho"]),
           "F_responsiveness_scatter.png")
     _save(F.learning_curves(data["curves"]), "F_learning_curves.png")
+    # D2 / write-time registry row 38 — Okhrati asked for the estimate AS A FUNCTION OF SEED
+    # COUNT, not only its terminal value. Rendered from the Sharpe leg's per-seed scores; the
+    # tier list is the REGISTERED ladder and seed_trajectory drops any rung the data has not
+    # reached, so the same call is correct mid-campaign and at the full 568.
+    _save(F.seed_trajectory(data["scores_by_leg"]["Sharpe"],
+                            rungs=(30, 100, 189, 279, 340, 403, 568)),
+          "F_seed_trajectory.png")
     _save(F.delisting_robustness(data["delisting"]), "F_delisting_robustness.png")
     # G1-G5 (2026-07-26): the rliable-quartet completion + the risk-lens/finance staples.
     _save(F.performance_profile(data["scores_by_leg"]["Sharpe"]), "F_performance_profile.png")

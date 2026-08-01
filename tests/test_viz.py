@@ -226,7 +226,11 @@ def test_learning_curves_two_panels_all_arms(demo: dict) -> None:
 def test_make_figures_demo_writes_png_and_pdf(tmp_path: Path) -> None:
     data = MF.synthesize_null(seed=2, n_seeds=15)
     saved = MF.render_all(data, tmp_path)
-    assert len(saved) == 14  # 9 original headline figures + G1-G5 (2026-07-26)
+    assert len(saved) == 15  # 9 original headline + G1-G5 (2026-07-26) + F_seed_trajectory (D2, row 38)
+    assert any(p.name == "F_seed_trajectory.png" for p in saved), (
+        "the D2 seed-trajectory exhibit (registry row 38) must be RENDERED by the suite, not merely "
+        "implemented — a function no renderer calls is half a deliverable"
+    )
     for p in saved:
         assert p.exists() and p.stat().st_size > 0
         assert p.with_suffix(".pdf").exists()  # vector sibling
