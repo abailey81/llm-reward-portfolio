@@ -81,7 +81,12 @@ ASSEMBLY: tuple[str, ...] = (
     "tables/T_models_and_reward_canon.md",      # T16-T17 model pins + the 11-reward canon
     "tables/T_design_decisions.md",             # T11 choice / alternatives / rationale / cost
     "tables/T_reproducibility_and_mechanism.md",  # T19 three-layer repro + T20 mechanism apparatus
-    "CH5_prototype.md",                         # Prototype (machinery validation)
+    # ⚠ `CH5_prototype.md` USED TO SIT HERE and has been MOVED to APPENDICES (2026-08-01, §100.39).
+    # Its own first line now reads "# Appendix D — The Prototype … (word-excluded)": the CONTENT was
+    # converted to an appendix by the restructure, and this ASSEMBLY position was not — a textbook
+    # half-migration, invisible until the PDF actually compiled. The compiled body read
+    #   Chapter 1 · 2 · 3 · 4 · **Appendix D** · Chapter 6 · Chapter 7
+    # i.e. an APPENDIX RENDERED MID-BODY, immediately before Results. Found by the COORD lane (M159).
     "CH6_results.md",                           # Results
     "tables/T_benchmark_allocators.md",         # the classical-allocator floor (CH6 comparator)
     "CH7_discussion_limitations_conclusion.md",  # Discussion, Limitations, Conclusions
@@ -105,6 +110,14 @@ ASSEMBLY: tuple[str, ...] = (
 APPENDICES: tuple[str, ...] = (
     "appendices/A_quality_control_record.md",    # Appendix A -- the execution/QC record (2026-08-01)
     "APPENDIX_B_limitations.md",                 # Appendix B -- Limitations Register (was embedded in CH7)
+    # Appendix D -- The Prototype. MOVED HERE from mid-ASSEMBLY on 2026-08-01 (§100.39): the file's own
+    # heading was converted to "# Appendix D — The Prototype … (word-excluded)" by the restructure while
+    # its ASSEMBLY position stayed between the CH4 tables and Results, so the compiled PDF rendered an
+    # APPENDIX INSIDE THE BODY, before the Results chapter. Placed in LETTER ORDER (A · B · D) so the
+    # reader never meets D before A. ⚠ It is deliberately NOT in `word_budget.BODY_CHAPTERS` and must
+    # not be added: the file is word-EXCLUDED by its own "(word-excluded)" heading, which is exactly
+    # why `word_budget` already scores it 0.
+    "CH5_prototype.md",                          # Appendix D -- the prototype / machinery validation
     "tables/T_scale_and_difficulty.md",          # T12 scale + difficulty (appendix by design)
 )
 
