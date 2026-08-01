@@ -12279,3 +12279,88 @@ EXPECTED state, not a symptom.
 had time to occur.** That is the benign branch, and it is the one that matters: a reproducible fault
 would have been inherited by the CORE line's own C4. The batch re-enumerates after leg4's three
 control-arm test legs drain (~8-12 h; the analysis lane holds a dated falsifier at 08:00Z).
+
+### 100.12 THE SEED-RUNG BAND RECONCILED — A SEARCH-PHASE RATE WAS BEING PROJECTED ACROSS A C4-DOMINATED PERIOD
+
+The ANALYSIS lane produced the first explicit band on the achievable seed rung (their M57) — a
+quantity that has been implicit all campaign despite Tamer's standing priority that *"throughput =
+the seed rung = the grade"*. Their measurement is sound and their caveats were stated honestly; one
+of them is load-bearing and ops can close it.
+
+**Their input:** 21.1 records/h, measured over both the whole 26 h log and the last 48 h — agreeing
+to three significant figures, which makes it the best-estimated throughput number anyone has. From
+it: ~12,559 records of budget to the 2026-08-27 gate, rung 568 core-only costing ~11,568, i.e.
+**0.4-8 % headroom — marginal, not comfortable**, with the binding constraint being whether the ten
+report-only legs climb alongside the core.
+
+**Why it inverts.** 21.1 records/h is a **SEARCH-PHASE** rate, and it is being projected across a
+period that C4 dominates. Per record §95.2:
+
+```
+  SEARCH : 8 cores -> ONE training  (8 threads; field speedup 1.92x)  = 0.24 trainings / core-unit
+  C4     : 8 cores -> EIGHT trainings (--pack 8, 1 core each, OMP=1)  = 1.00 trainings / core-unit
+```
+
+**Per-core throughput quadruples the moment a line crosses its gate.** The registered model, run at
+the cores we hold and now carrying the corrected §39 constant:
+
+```
+  rung 403 (registered primary target)   08-09   18 days before the stop   throughput-bound
+  rung 568 (full ladder)                 08-13   14 days before the stop   throughput-bound
+  rungs 30 and 100                       08-02   CRITICAL-CHAIN bound at 4.64 d - more cores do NOTHING
+  saturation                             3,235 cores at rung 568; 2,336 at rung 403
+```
+
+**CROSS-CHECKED BY AN INDEPENDENT ROUTE, which is the reason to believe it:** 34,080 test records
+over the modelled 15.6 d is **91 records/h**, against the 21.1 records/h measured during search — a
+ratio of **4.3x**, reproducing §95.2's packing arithmetic derived a completely different way. Two
+independent derivations agreeing is evidence; one derivation repeated is not.
+
+**So the full ladder is not marginal, and the legs climbing alongside is not the binding constraint
+it appeared to be** — the packed C4 lane absorbs them. **What is NOT claimed:** the model assumes
+~960 cores hold and that C4 packing realises its measured rate at full scale, and the COORD lane's
+measured time-to-first-completion (p90 **25 h**, max **30.6 h**) is real variance the model does not
+carry. **08-13 is a central estimate with a band, not a promise.**
+
+### 100.13 THE CONFIRMATORY LINE'S SELECTED OBJECTS ARE CLEAN — TWO LANES, INDEPENDENTLY
+
+Recorded here because it is the ops-relevant half of a cross-lane exchange that corrected itself
+twice, and because it is the sentence a referee would test.
+
+**R115 moved 13 -> 14.** Independently re-derived by COORD from every `record.json` (a route sharing
+no code with `science_watch`): **exactly 14, all on report-only replication legs, ZERO on the core
+line.** The severity spread had never been stated: breaches run 0.1111 to **0.9998** — one reward
+took the safe default on 99.98 % of its steps, i.e. was inert for its entire run.
+
+**And the frozen winners.** COORD first reported "no frozen winner is contaminated" and then
+**retracted it as their own most serious error of the night**: all 27 frozen markers carry
+**neither** R115 field, and an `x or 0` fallback rendered *unmeasured* as *perfect*, printing
+`0.0000` twenty-seven times. Twenty-seven identical zeros is a clean-100 %, the exact tell they had
+themselves quoted at two other lanes an hour earlier. ANALYSIS resolved each marker back to its own
+line's search tree on the **composite `(line, candidate_id)` key** — candidate ids repeat across
+lines — and measured the real values.
+
+**What survives, measured by both lanes independently:**
+
+* **all three CORE-LINE frozen winners read EXACTLY 0.000000** (`distributional-g5-c1`,
+  `scalar-g2-c0`, `random_search-c25`) — the confirmatory line's selected objects are entirely
+  uncontaminated;
+* **two frozen winners on leg `qwen3.5-9b` ARE contaminated** (0.0785 and 0.0908), both **below**
+  the 0.10 floor, so R115 admitted them correctly — this is not a gate failure, and it compounds
+  that leg's capability story rather than undermining the design;
+* the threshold is insensitive almost everywhere (1,667 of 1,737 records are exactly zero) **except
+  one candidate sitting 14 safe-default calls out of 400,000 below the exclusion line**.
+
+**The generalisable rule, which belongs beside "a value read as if its meaning matched its name":**
+in an audit script, the idioms "x or 0" and "value if denominator else 0" applied to a
+possibly-absent metric **convert UNMEASURED into PERFECT**. An audit must distinguish ABSENT from
+ZERO and say ABSENT out loud, because zero is the answer that ends the investigation.
+
+**And a channel rule that bit a peer lane and that I checked myself against:** backticks inside a
+double-quoted shell string are executed as command substitutions and **silently replace the phrase
+with empty output** — a deleted clause reads as a sentence someone chose to write, where a syntax
+error would announce itself. `CLAUDE.md` warns about this for heredocs; the generalisation is that
+**any content routed through a shell string can be rewritten by it**, and prose containing code
+fragments is the most exposed case. I audited all **18 ops messages (12,639 characters)** on the bus:
+**zero backticks, zero expansion forms — nothing of mine was rewritten in transit.** Checked, not
+assumed.
