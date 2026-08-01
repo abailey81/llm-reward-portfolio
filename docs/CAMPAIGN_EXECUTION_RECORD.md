@@ -13710,3 +13710,78 @@ baselines plus `random_search`** — **no H2 outcome exists**, and the core line
 `placebo_shuffled` and `scalar_cvar5` at g4. **A pre-data revision is legitimate and documented; the
 moment the core C4 ladder produces an H2 outcome, every option here becomes a forking path and the
 pre-registration integrity claim — our single strongest asset — collapses.**
+
+### 100.34 ★★★★★ H1 WAS DECIDABLE NOWHERE — THE STALE CONSUMER THAT COST A HEADLINE HYPOTHESIS
+
+**Found by chasing §100.33 to its root, and it is the defect that actually cost us a hypothesis.**
+Tamer returned the A16 decision with the instruction to reason from the priorities and act. Doing so
+required knowing what the FALLBACK actually was — and the fallback did not exist.
+
+#### THE CHAIN, EACH LINK VERIFIED
+
+1. **The validity tier gives `N6_h1` an initial weight of 0.0.** Under the design's own pre-registered
+   prediction (H2 null on both co-primaries) nothing propagates, so H1 is tested at local alpha
+   **exactly 0.0** and cannot reject at any p-value (§100.33).
+2. **So the R31 Bonferroni-4 sensitivity is the only other pre-registered decision rule** — and it is
+   computed unconditionally, which is what made it look like a safe fallback.
+3. **★ IT WAS NOT.** `cross_hypothesis_multiplicity`'s H1 row read the RETIRED
+   `beats_best_baseline_dsr` and hardcoded `headline_p: None` with the note *"descriptive panel, no
+   inferential p — Bonferroni n/a"*. **The caller had been updated to pass
+   `h1=out["h1_beat_human"]`; the extraction had not.**
+
+> **★★ THEREFORE, UNDER THE PREDICTED BRANCH, H1 WAS DECIDABLE NOWHERE.** Untestable in the tier,
+> "no p" in the sensitivity — while `h1_beat_human.iut.iut_pvalue` was computed on **every single run**
+> and consumed by no rule capable of acting on it. **A headline claim of the dissertation had no
+> decision path at all under the outcome the design predicts.**
+
+**AND THE DOCSTRING SAID SO, WHICH IS WHY NOBODY LOOKED.** Line 3165 still read *"H1 — descriptive
+panel (no inferential p)"* — accurate before 2026-07-26, false after it, and reassuring enough to stop
+the next reader. **The fifth reassuring-comment instance of the session.**
+
+#### THE FIX — AND WHY IT IS *NOT* A DESIGN CHANGE
+
+**The R31 rule is untouched:** each hypothesis's headline p against `alpha / n_hypotheses`. What
+changes is **WHICH QUANTITY IS H1's HEADLINE P** — and that was already settled and *registered* by the
+2026-07-26 upgrade to the beat-the-canon IUT, whose endpoint correction (DSR → annualised Sharpe) is
+itself recorded in the frozen config's `N6_h1` note. **The two consumers of `h1_beat_human` now AGREE;
+before, one read the IUT and the other read a retired field — executed-vs-registered drift by any
+definition.**
+
+`all_baselines_present` is honoured **exactly** as `validity_tier`'s N6_h1 honours it, so an
+under-seeded canon member yields *"not certifiable"* rather than a cheaper claim. **Reading it
+identically in both places is deliberate: two consumers of one quantity disagreeing about its gate is
+precisely how this defect arose.**
+
+#### ★ VERIFIED BY EXECUTION — AND PARSING WOULD NOT HAVE CAUGHT IT
+
+**My first draft referenced `bonf_alpha`, which is a DIFFERENT function's local.** The file parsed
+clean and would have raised `NameError` **inside the confirmatory analysis** at run time. Corrected to
+`bonf` and then RUN across four cases:
+
+```
+  p=0.0001, all canon present            ->  headline_p 0.0001   survives alpha/4=0.0125  TRUE
+  p=0.02                                 ->  headline_p 0.02     survives                 FALSE   (the hurdle bites)
+  p=0.0001, a canon member under-seeded  ->  headline_p None     survives None            (reason stated)
+  H1 not run                             ->  headline_p None     survives None
+```
+
+**13 new tests** pin every property, including the ones that must NOT change: the boundary is inclusive
+at exactly `alpha/4`, the other three hypotheses are untouched, the Bonferroni level is still
+`alpha/n`, and a malformed `h1` block degrades to "no claim" rather than crashing the sensitivity.
+**40 tests green** across the four related files; `PYTEST_RC` read from the LOG.
+
+**Inert for the running campaign, proven:** `scripts.analyze_campaign` is **not** in the driver import
+closure (193 modules reachable; not among them). `RUNNING_SHA` re-based `a51d2ea → b5fdde5`.
+
+#### ⚠ WHAT REMAINS UNTOUCHED, AND WHY THAT IS THE RIGHT LINE
+
+**The N2 `iut_or_tost` gap is NOT fixed here, deliberately.** §100.33 shows the algebra is clean
+("better OR equivalent" ≡ non-inferiority at margin δ) — but **closing that gap by changing the CODE
+enables a rejection path, and would be done after observing that the current rule cannot certify. That
+is the shape of a forking path regardless of the algebra's correctness.** Closing it by correcting the
+REGISTRATION narrows the claim and can only cost us, which is unattackable. **An amendment that makes
+rejection EASIER, authored by the analyst, is the one an examiner will interrogate.**
+
+**§100.34 is on the other side of that line entirely**: it restores a decision path the H1 upgrade
+silently orphaned, using the p-value the registration already specifies, under a rule nobody altered.
+**That is the distinction between fixing drift and creating it.**
