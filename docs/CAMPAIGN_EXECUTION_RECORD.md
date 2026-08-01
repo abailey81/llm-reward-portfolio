@@ -13154,3 +13154,66 @@ that failed here is the same discipline that made the failure findable**, exactl
 appendix exists to tell.
 
 Reported to every lane as **M110**.
+
+### 100.28 LAYER 3 COMPLETED — THE REASONING PIN IS VERIFIED OFF ON 1,989 CALLS, AND ONE PROVIDER IGNORED IT
+
+**Two corrections in opposite directions, which is the point of the "verify in BOTH directions" duty.**
+§100.27 found the Anthropic reasoning pin was never sent. The ANALYSIS lane, auditing the same archive
+independently, concluded that *"the reasoning-token round trip is essentially unmeasured — exactly ONE
+row of 2,777 carries `reasoning_tokens` at either nesting."* **That understates it, and understating a
+result is as inaccurate as overstating one.**
+
+**Re-measured across 2,783 rows:**
+
+```
+  usage.reasoning_tokens FIELD PRESENT   : 1,990   (100 % of ALL EIGHT OpenRouter legs, every call)
+     ... value == 0  -> pin VERIFIED off : 1,989
+     ... value >  0  -> pin NOT honoured :     1
+```
+
+**They counted NONZERO rows rather than PRESENT rows** — the single row they found is the one
+*violation*, not the one *measurement*. **A field present and reading zero IS the round-trip
+evidence**: it is the archive recording that we asked for reasoning-off and the provider reports
+spending zero reasoning tokens. R103's direction-aware verdict therefore has **1,989 data points, not
+none.**
+
+**★ AND THE ONE NONZERO IS A GENUINE, NAMED FINDING.** `deepseek/deepseek-v4-pro`, **1 call of 251
+(0.4 %)**: `reasoning_tokens 912`, `output_tokens 1519`, `stop_reason stop` — **and its own archived
+`request_pins` show `extra_body {'reasoning': {'enabled': False}}` WAS SENT.** That is a
+**provider-side pin violation captured with the request sitting beside it**. It is precisely what
+R85's round-trip machinery exists to catch, and it caught it.
+
+**THE DEFENSIBLE LAYER-3 STATEMENT, now complete on all three axes:**
+
+| axis | verdict | evidence |
+|---|---|---|
+| **model attribution** | **verified** on every authoring call, pins recorded as sent | 2,783 rows, requested == served on 10 of 11 models |
+| **snapshot-date pin** | round-trips on every leg **except `kimi-k3`**, where only the FAMILY is confirmed | §100.26; the dated slug is absent from OpenRouter's catalogue |
+| **reasoning pin** | **verified OFF on 1,989 of the 1,990 calls where it is measurable**, single exception NAMED with its request evidence | this section |
+| *(Anthropic reasoning)* | **not sent at all** — measurable by `thinking_blocks`, not `reasoning_tokens` | §100.27 |
+
+**Model attribution being verified across the whole campaign — rather than at a pre-launch smoke test —
+is materially stronger than the claim currently made**, and it is the **R91 attribution gate** (the
+Sakana-Fugu single-author exclusion) evidenced continuously.
+
+#### 100.28a THE CROSS-LINE CONFOUND — CREDIT TO THE ANALYSIS LANE
+
+§100.27 established only that thinking is constant **WITHIN** each line, which is what rescues
+identification. **The ANALYSIS lane drew the consequence I did not:** *across* lines the regime
+**varies** — opus and sonnet ON, haiku OFF, the eight OpenRouter legs explicitly off — so **every
+CROSS-MODEL comparison carries a thinking-regime confound that varies with the model and is not the
+variable under study.** They independently re-derived the within-line uniformity first (zero lines
+whose regime differs between arms), then applied it against **their own** capability-gradient exhibit.
+
+**What survives is the Qwen pair** — `qwen3.5-9b` 84.2 % [77.1, 89.4] vs `qwen3.6-27b` 7.8 %
+[4.1, 14.1], **both OpenRouter, both reasoning explicitly disabled, both carrying the identical absent
+`thinking_blocks` signature** — matched on exactly the dimension that confounds the cross-family
+gradient. **Their recommendation to annotate the thinking regime per leg rather than drop the table is
+the publication-grade move: it shows we know what else varies.**
+
+**Method note worth keeping.** Their own logged error — reading `thinking_blocks` at the row's top
+level, getting `None` on all 2,777, and briefly reporting a clean uniform verdict from *a field that
+does not exist there* — is the **third** wrong-nesting probe of the night across two lanes, and the
+habit they proposed is the right general fix: **print one real row and read its key structure before
+writing any aggregate over it.** *The failure was never about WHETHER a field exists; it was about
+WHERE.*
