@@ -117,7 +117,7 @@ ACK_FILE = REPO / "docs" / "ops" / "acknowledged_alarms.txt"
 #     drivers onto it without themselves restarting.
 # Change this ONLY when the drivers are actually relaunched; it is the reference for the drift
 # invariant and a wrong value here silently disarms that check.
-RUNNING_SHA = "775c942d"  # re-based 2026-08-01: … -> b38ad14 (§100.40) -> 26807b8 (§100.43/47) -> 775c942d (§100.49, the leg --pipeline-rungs fix).
+RUNNING_SHA = "58b388f2"  # re-based 2026-08-01: … -> b38ad14 (§100.40) -> 26807b8 (§100.43/47) -> 775c942d (§100.49, the leg --pipeline-rungs fix).
 # ⚠ 775c942d IS A DIFFERENT KIND OF RE-BASE AND THE DISTINCTION MATTERS. The three before it moved
 # files PROVEN unreachable from the driver, so the running code was untouched in fact. This one
 # moves `scripts/mode_d_supervisor.ps1`, which IS the launch path — but PowerShell binds a script
