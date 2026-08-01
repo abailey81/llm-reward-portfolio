@@ -12790,9 +12790,27 @@ intervention against a healthy campaign. Caught by my own rule, one step before 
 
 * **14 records sit at or above R115's 10 % floor — EXACTLY matching the sentinel's own `r115=14
   BINDING`.** Two independent derivations agreeing is evidence; one derivation repeated is not.
-* **ZERO high-fallback candidates have reached a frozen or test record.** The eligibility floor is
-  doing its job *at selection*, so the contamination never reaches the sealed leg. This is the check
-  that actually matters, and it is clean.
+* **No candidate at or above R115's 10 % eligibility floor has reached a frozen or test record** —
+  the floor rejects them *at selection*, so no ineligible candidate ever reaches the sealed leg.
+  **Two frozen winners, both on the one report-only leg `leg_qwen3_5_9b`, carry SUB-FLOOR
+  search-time fallback fractions of 9.0847 % (`placebo_shuffled-g0-c3`) and 7.8535 %
+  (`distributional-g5-c0`) — admitted correctly, by the floor working as registered.**
+
+  > ⚠ **THIS BULLET WAS AMENDED, AND THE ORIGINAL WORDING IS THE LESSON.** It first read *"ZERO
+  > high-fallback candidates have reached a frozen or test record."* Scoped to *high* = at-or-above
+  > the floor that sentence is **exactly true** — but the ANALYSIS lane flagged, before it could
+  > land in the QC appendix, that a reader compresses it to *"no frozen winner carries any
+  > contamination"*, **which is false and is the precise sentence the COORD lane published at
+  > 03:31Z and fully retracted at 03:40Z (their P122).** The same false claim would have re-entered
+  > the record by a **technically correct** route, which is nastier than the first one because
+  > nothing in it is wrong — only the compression is. **Verified first-hand before amending**
+  > (30 distinct frozen winners, 27 resolved to their originating search record on the composite
+  > `(line, candidate_id)` key): both lanes' numbers reproduce exactly, and the two claims are about
+  > **different thresholds**, so there was never a contradiction. Stating the threshold *inside* the
+  > sentence makes the exhibit **stronger**: it survives the obvious adversarial question — *"so no
+  > winner has ANY contamination?"* — which the compressed version does not. **A reader who finds
+  > the 9.1 % themselves after reading "zero contamination" concludes we did not look; a reader who
+  > finds it because we said so concludes we did.**
 
 The re-triage, its date, its `n`, and the near-miss are stamped into
 `docs/ops/acknowledged_alarms.txt` above the entry itself, so the next session inherits a **dated
@@ -12917,3 +12935,66 @@ Reported to the write-up lane (M105) with two levers visible from the numbers an
 judgement: CH3 at 5,204 is the largest chapter and the most amenable to pushing formal apparatus into
 **excluded display maths**; CH4 at 5,409 now has four wired table files that can absorb specification
 prose as **excluded table content**. **Nothing under `paper/` was touched — the write-up hold is live.**
+
+### 100.25 PRIORITY 5 VERIFIED BY RE-RUNNING — BOTH CHECKABLE CRITERIA GREEN
+
+**Priority 5 is the only priority with numeric acceptance criteria** (*"a WARN counts as a FAIL"*),
+and nothing this session had exercised them. Verified by RUNNING, not by reading a prior claim:
+
+```
+  scripts/audit_reproducibility.py        8 pass / 0 warn / 0 fail => OK      AUDIT_RC=0
+    [PASS] python-version pin        pinned 3.11.9
+    [PASS] dependency lockfile       requirements.lock (94 pinned lines)
+    [PASS] version pins              torch, numpy, stable-baselines3, scipy
+    [PASS] determinism settings      all 4 knobs set in seeding.py
+    [PASS] seed management           seeds declared in config/campaign.yaml
+    [PASS] pre-registration freeze   FROZEN — canonical SHA-256 RE-VERIFIED (3ca6f01ab772…)
+    [PASS] LLM archive-replay        config/llm.yaml archive: true
+    [PASS] data provenance           returns_panel_univ5.parquet SHA-256 RE-VERIFIED (7cf5d98843c5…)
+
+  scripts/reproduce_synthetic.py --check  OK: 4 records reproduce the golden
+                                          (panel 4b14eab6284f6bd5, winner distributional-g0-c0)
+                                                                                 GOLDEN_RC=0
+```
+
+**The historical 7-PASS/1-WARN that CLAUDE.md declares "no longer acceptable" is RESOLVED** — the
+audit now carries eight checks and every one passes. Two of them re-verify a **hash** rather than a
+setting (the freeze canonical SHA-256 and the frozen panel's SHA-256), which is the difference
+between a pin that is *declared* and a pin that is *confirmed*.
+
+**★ BUT A GREEN AUDIT IS NOT THE WHOLE PRIORITY, AND SAYING SO IS PART OF THE VERIFICATION.** The
+eight checks cover pins, determinism knobs, freeze and provenance. They do **NOT** by themselves
+establish the three-layer statement: layer 2 (*protocol = re-runnable by anyone from the keyless
+golden path*) is what `reproduce_synthetic.py` demonstrates and the audit does not invoke, which is
+exactly why it was run separately here rather than treated as implied. **Layer 3 (open-weight,
+hash-pinned, self-hosted legs) is not exercised by either instrument** and rests on the leg
+configuration and its round-trip evidence — recorded here as a *stated limit of these two green
+results*, not as a gap being asserted. **A green check whose scope is unstated invites exactly the
+over-reading this session has corrected twice.**
+
+### 100.25a §100.22 AMENDED — A TRUE SENTENCE THAT COMPRESSES INTO A FALSE ONE
+
+The R115 bullet in §100.22 first read *"ZERO high-fallback candidates have reached a frozen or test
+record."* **Scoped to *high* = at-or-above the floor, that is exactly true.** The ANALYSIS lane
+flagged — **before it could reach the QC appendix** — that a reader compresses it into *"no frozen
+winner carries any contamination"*, **which is false, and which is the precise sentence the COORD
+lane published at 03:31Z and fully retracted at 03:40Z (their P122).** The same false claim would
+have re-entered the record by a **technically correct** route. That is the nastier failure: nothing
+in it is wrong, only the compression is.
+
+**Verified first-hand before amending** — 30 distinct frozen winners, 27 resolved to their
+originating search record on the composite `(line, candidate_id)` key. **Both lanes' numbers
+reproduce exactly:** at/above the 0.10 floor, **zero**; below it and non-zero, **two**, both on the
+one report-only leg `leg_qwen3_5_9b` — `placebo_shuffled-g0-c3` at **9.0847 %** and
+`distributional-g5-c0` at **7.8535 %**. The two claims are about **different thresholds**; there was
+never a contradiction.
+
+**The amended wording states the threshold inside the sentence and discloses both sub-floor winners**,
+which makes the exhibit *stronger*: it survives the obvious adversarial question — *"so no winner has
+ANY contamination?"* — that the compressed version does not. **A reader who finds the 9.1 % himself
+after reading "zero contamination" concludes we did not look; a reader who finds it because we said so
+concludes we did.**
+
+**Standing rule taken from this:** *a claim is not safe merely because it is true under its own
+scope — it must also be safe under the compression a reader will apply to it.* Where a threshold does
+the work, the threshold goes **in the sentence**, not in the surrounding paragraph.
