@@ -3,6 +3,93 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01g] ★★★★ OPS LANE / RUN 10 — **LAYER 3 AUDITED FOR THE FIRST TIME: R106 UNIFORM REASONING-OFF WAS NEVER IN FORCE**, and kimi's dated pin does not exist
+
+**How this was reached, because the route matters.** §100.25 verified Priority 5's two checkable
+criteria by **re-running** them (`audit_reproducibility.py` **8 pass / 0 warn / 0 fail**, resolving the
+7-PASS/1-WARN CLAUDE.md calls unacceptable; keyless golden `reproduce_synthetic.py --check` **OK**,
+both hashes re-verified live) — **and then stated the limit rather than letting it be implied: neither
+instrument exercises LAYER 3.** Priority 5 names *"provider / quantisation / **reasoning** pins"*, so
+that became an enumerated list to finish. **Both remaining items turned out to be broken.**
+
+The archive already held the evidence: **every `llm_calls.jsonl` row carries BOTH the requested
+`model` and the `served_model`**, so R85's own test — *is a pin silently ignored?* — is checkable
+campaign-wide. **Audited all 2,773 calls.**
+
+### FINDING 1 — the model pin (§100.26)
+
+**Ten of eleven models round-trip EXACTLY. One does not:**
+`moonshotai/kimi-k3-20260715` → served `moonshotai/kimi-k3`, **254 of 254 calls**.
+
+Two checks stop it being cosmetic: `claude-haiku-4-5-20251001` round-trips its **full dated
+identifier** across 238 calls, so the field *can* carry a date; and **OpenRouter's public catalogue
+does not contain the dated slug at all** (336 models, free read-only GET) while it *does* list
+`moonshotai/kimi-k2-0905`, so the absence is meaningful. **The claim at risk is already with the
+supervisor** — `config/legs.yaml:88`, R95, and `DISSERTATION_COMPLETE_BRIEF_FOR_RAMIN…:399` all call
+it *"the strongest pin among the closed-class legs"*. Under **either** reading (honoured-but-normalised,
+or resolved-to-alias) **the pin cannot be demonstrated**, and R85's registered lesson is that a pin
+nobody can verify is fictional. R95's 2026-07-22 live verification is **not** called wrong — the
+finding is that it does not hold today.
+
+### ★★★ FINDING 2 — the reasoning pin (§100.27): the confirmatory author
+
+```
+  request_pins.thinking = null  on 788 of 788 Anthropic calls  (core AND legs)
+  thinking_blocks  (= response blocks of type "thinking")
+    claude-opus-5   1 block on 315 of 315   (237 core c1 + 78 h3ss)   <-- CONFIRMATORY
+    claude-sonnet-5 1 block on 235 of 235
+    claude-haiku-4-5-20251001   0 of 238
+```
+
+**ROOT CAUSE, PROVEN BY EXECUTION.** Every component at HEAD is individually correct —
+`campaign.yaml`'s `llm` block **has** `thinking:{type:disabled}`; `legs.py` maps
+`reasoning:{enabled:false}` → `thinking:{type:disabled}` (**ran it; it works**);
+`run_campaign_cluster.py:504`, `parallel.py:1016` and `client.py` all forward and archive it. **The
+chain is complete at both ends and severed in the middle:**
+`scripts/run_prototype.py::build_parallel_opts` — the dict that carries values between them — **has no
+`thinking` key.** Executed against the real config: `llm_block` has the pin, `opts CONTAINS 'thinking'
+→ False`, `opts CONTAINS 'extra_body' → True`.
+
+**★ The `extra_body` key immediately above the hole carries the comment *"without this key a leg's
+provider pin / quantization / reasoning pins would be SILENTLY DROPPED at authoring (a
+registered-design violation)"*.** Someone understood this exact failure mode, wrote it down, fixed it
+for OpenRouter — and when R106 added the Anthropic equivalent across **four files** on 07-27, this one
+dict was missed. **Fifth instance of the reassuring-comment pattern the ANALYSIS lane named.**
+
+**NOT BROKEN, stated as loudly as the rest — IDENTIFICATION IS INTACT AND NO RESULT IS INVALIDATED.**
+The manipulated variable is the feedback block; thinking is **constant across all five arms within
+every line**, so every H1–H4 contrast remains internally valid, and the analysis layer is archive
+replay. **Registration/reproducibility defect, not a science defect.**
+
+**DISPOSITION — DO NOT FIX MID-CAMPAIGN, and nothing here touched the running code (drift 0
+re-verified after every commit).** `run_prototype.py` is inside the fence and in the driver import
+closure, but that is the *small* reason. **The real reason: turning thinking off for Opus partway
+through would split the archive into TWO AUTHORING REGIMES.** Uniformly-not-as-registered beats
+half-and-half. **The repair is to the REGISTRATION** — amend R106 to state what was executed, disclose
+it, queue the one-liner post-campaign. ⚠ `config/llm.yaml:30` asserts as measured fact that *"Opus 5
+emits NO thinking block when the field is omitted"*; **315 campaign calls contradict it and that
+sentence must not reach the PDF.**
+
+### Also this block
+
+* **§100.21–100.24 — all THREE Okhrati mechanics enumerated and closed.** Wall-clock compute was
+  reported by **nothing** (`compute_accounting` is an authoring-cost ledger; the record field is a
+  half-migration of a 2026-07-13 fix and `test_leg.py` has **no timer at all**) → new
+  `docs/ops/compute_ledger.py`, **67,166 CPU-hours** recorded, 23 tests with **9 proven to fail against
+  a zero-returning mutant**. Table numbering incoherent (two schemes, a **12-number hole**, two
+  unnumbered) and seven table blocks ranking as **peers of chapters** — **both downstream of my own
+  15a-i wiring, reported against myself**, fix verified word-budget-neutral before recommending.
+* **§100.22 amended** after ANALYSIS flagged that a *true* sentence compressed into coord's retracted
+  P122 claim. Both sub-floor frozen winners reproduced independently (**9.0847 %**, **7.8535 %**, both
+  on `leg_qwen3_5_9b`) and now disclosed by name. **Rule taken: a claim must be safe under the
+  compression a reader will apply, not merely true under its own scope.**
+* **Acknowledged alarms re-triaged at n=2,238** (extent was measured at 1,461): all three triggers
+  negative. **A false CRITICAL of 99.978 % caught one step before reporting** — I read the alarm before
+  the *predicate*, which is scoped to `0 < frac < 1e-4`.
+
+**Campaign untouched throughout: 24/24 drivers, 12/12 supervisors, drift 0 both arms, 0 unpushed,
+records 2,171 → 2,236.**
+
 ## [2026-08-01f] ★★ OPS LANE / RUN 10 — **WALL-CLOCK COMPUTE WAS REPORTED BY NOTHING**, the obvious fix was wrong, and two of my own claims were withdrawn
 
 **Trigger.** The ANALYSIS lane flagged — carefully, and explicitly declining to assert it without

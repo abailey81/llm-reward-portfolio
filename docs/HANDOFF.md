@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-01"
-  head: "7a3de88e"
+  head: "1b2af8e6"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 10 deploy certification: D13 D14 D15 D18 D20 D21 + s39 + item14 + A15)"
+  suite_status: "exit 0 (compute_ledger 23 tests; 9 mutant-falsified)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
