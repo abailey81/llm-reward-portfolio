@@ -12389,3 +12389,67 @@ error would announce itself. `CLAUDE.md` warns about this for heredocs; the gene
 fragments is the most exposed case. I audited all **18 ops messages (12,639 characters)** on the bus:
 **zero backticks, zero expansion forms — nothing of mine was rewritten in transit.** Checked, not
 assumed.
+
+### 100.14 ★★★ AN ALARM THAT WAS ABOUT TO GET LOUDER AS ITS OWN RISK SHRANK — AND HAD THE SIGN WRONG
+
+Raised by the ANALYSIS lane, verified first-hand here before anything was changed, fixed at the
+source. **This is the fifteenth-plus instrument defect of this campaign and it is again in the
+WATCHING layer, with the data clean throughout.**
+
+**THE DEFECT.** The E[max] arm-depth ratio — the cycle's guard on H2's IUT, escalated every sweep —
+was computed from `results_audit`'s DIVERSITY counts, which walk every subtree. `*_h3_singleshot/`
+writes its own search/frozen/test trees under the same output dir with `arm='distributional'`, and
+it is a **DISJOINT hypothesis condition** (DEEP_H3 §1). `analyze_campaign.py`'s walker skips it
+explicitly, its comment warning that walking in would *"silently pool single-shot candidates into
+the HEADLINE distributional arm's records"*. **The ops metric did exactly what the analysis code
+documents as the thing not to do.**
+
+```
+  reported : distributional 521  (244 of them h3_singleshot)  ->  H2 spread 2.39x
+  actual   : distributional 288  scalar 296  placebo 237  scv5 219  ->  H2 spread 1.352x
+```
+
+**WHY IT WAS URGENT AND NOT COSMETIC.** `h3ss` had just entered packed C4 producing **~116
+records/h, every one tagged `distributional`**. The alarm was therefore about to climb through 3x,
+4x, 5x over the following hours **while the real H2 imbalance was IMPROVING** — the core line moved
+1.87x -> 1.65x across the same night. **An alarm that rises as its own risk falls is worse than no
+alarm: it trains the operator to ignore the one number guarding the headline hypothesis.**
+
+**★ AND IT HAD THE DIRECTION WRONG, which is worse than the magnitude.** With the disjoint condition
+stripped, **`scalar` (296) is the DEEPEST pool, not `distributional` (288)**. The alarm's own wording
+— *"a starved comparator makes its IUT leg easier to reject — biased TOWARD a false positive"* — was
+being attached to a pool ordering that **does not hold**. An inflated number is noise; **a number
+carrying the wrong sign on the headline hypothesis is the kind of thing that reaches a results
+chapter.**
+
+**THE FIX IS AT THE SOURCE, NOT THE THRESHOLD.** `results_audit` gains a dedicated **§3b E[max] ARM
+POOLS** block with `h3_singleshot` excluded, and `cycle.py` reads `pool=` from it instead of
+`records=` from the diversity pass. **Section 3 is untouched** — every authored program legitimately
+counts for DIVERSITY, which is a different question with a different correct denominator. Raising
+`_ARM_SPREAD_ATTN` above 2.39 would have hidden the symptom and kept the wrong quantity; it was not
+touched.
+
+**VERIFIED IN BOTH DIRECTIONS, which is the half that had to be checked.** The cycle now reports
+`spread=1.352x` and the false pooled alarm no longer fires against the 1.5 threshold — **and the
+CORE-LINE arm-depth ATTN is STILL PRESENT.** §56.6 states that the CORE-LINE ratio, not the pooled
+one, is what biases H2's IUT legs, so a fix that silenced both would have been a regression dressed
+as a repair. **A real alarm was kept and a false one removed.**
+
+### 100.15 THE D20 REAPER FIRED IN PRODUCTION, ON THE OTHER H2 PAIR BATCH, THREE HOURS LATER
+
+```
+  2026-08-01T04:40:21Z  REAPED leg9_leg_gemini_2_5_flash_h2_pair_test.driver.lock
+      owner_pid=40668  owner_name=sleep.exe
+      owner_cmdline=C:\Program Files\Git\usr\bin\sleep.exe 120
+      lock_age_h=3.72
+```
+
+**The identical defect that cost `leg4` fourteen hours, on the OTHER H2 pair batch, and this time it
+self-healed inside one 42-second cycle instead of waiting for a human to notice.** That is the whole
+argument for §100.1's second layer: RUN 9's detector was correct and its remedy was a manual `rm`,
+which is not a remedy at 04:40 on a Saturday.
+
+**Note what the pid was recycled onto:** `sleep.exe 120` — a Git-for-Windows binary that the
+supervisor/backoff machinery itself uses. **The campaign's own retry loop is a pid-reuse source**,
+which is why this recurred within hours rather than as a rare accident, and why the mechanism fix
+(D20, identity by process create-time, shipped in `402d59e`) matters beyond the reaper.
