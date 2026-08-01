@@ -12998,3 +12998,71 @@ concludes we did.**
 **Standing rule taken from this:** *a claim is not safe merely because it is true under its own
 scope — it must also be safe under the compression a reader will apply to it.* Where a threshold does
 the work, the threshold goes **in the sentence**, not in the surrounding paragraph.
+
+### 100.26 ★★★ A REPRODUCIBILITY PIN THAT DOES NOT ROUND-TRIP — ON A CLAIM ALREADY MADE TO THE SUPERVISOR
+
+**Found by closing the gap §100.25 declared rather than leaving it stated.** That entry recorded that
+**neither** reproducibility instrument exercises **layer 3** (open-weight, hash-pinned, self-hosted
+legs). The archive turns out to carry the round-trip evidence itself: **every `llm_calls.jsonl` row
+holds BOTH the requested `model` and the `served_model`** — so R85's own test, *is a pin silently
+ignored?*, is checkable campaign-wide.
+
+**AUDITED ALL 2,773 LLM CALLS IN THE ARCHIVE. Zero rows lack `served_model`.**
+
+```
+  claude-opus-5                     -> claude-opus-5                     x315
+  z-ai/glm-5.2                      -> z-ai/glm-5.2                      x289
+  nvidia/nemotron-3-super-120b-a12b -> nvidia/nemotron-3-super-120b-a12b x263
+  moonshotai/kimi-k3-20260715       -> moonshotai/kimi-k3                x254   <-- MISMATCH
+  deepseek/deepseek-v4-pro          -> deepseek/deepseek-v4-pro          x251
+  openai/gpt-5.6-luna               -> openai/gpt-5.6-luna               x249
+  claude-haiku-4-5-20251001         -> claude-haiku-4-5-20251001         x238
+  claude-sonnet-5                   -> claude-sonnet-5                   x235
+  qwen/qwen3.6-27b                  -> qwen/qwen3.6-27b                  x232
+  google/gemini-2.5-flash           -> google/gemini-2.5-flash           x226
+  qwen/qwen3.5-9b                   -> qwen/qwen3.5-9b                   x221
+```
+
+**Ten of eleven round-trip EXACTLY. One does not — on 254 of 254 calls, the entire leg.**
+
+**TWO CHECKS THAT STOP THIS BEING A COSMETIC DIFFERENCE:**
+
+1. **`claude-haiku-4-5-20251001` round-trips its FULL DATED identifier across 238 calls** — so the
+   field demonstrably *can* carry a dated pin.
+2. **OpenRouter's public catalogue does NOT contain `moonshotai/kimi-k3-20260715`** (336 models, free
+   read-only GET, no spend). It contains the undated `moonshotai/kimi-k3`. And OpenRouter **does** use
+   dated slugs where they exist — it lists `moonshotai/kimi-k2-0905` — so the absence is *meaningful*,
+   not a naming convention.
+
+**★ THE CLAIM AT RISK, VERBATIM, AND IT HAS ALREADY BEEN SENT TO DR OKHRATI.**
+`config/legs.yaml:88` registers the model as *"the CANONICAL DATED slug (verified on OpenRouter
+2026-07-22 — **stronger pinning than the undated closed legs**)"*; amendment **R95** says the same;
+and `docs/DISSERTATION_COMPLETE_BRIEF_FOR_RAMIN_2026-07-21.md:399` tells the supervisor it is a
+*"**dated snapshot** — the **strongest pin among the closed-class legs**"*. **On the evidence we hold
+that is backwards: it is the ONLY leg whose requested identifier is not returned intact.**
+
+**TWO READINGS, AND I CANNOT SEPARATE THEM FROM THE ARCHIVE — so the stronger one is not asserted:**
+(A) OpenRouter honoured the dated snapshot and merely normalises the response id; (B) it resolved the
+dated slug to the floating alias. **THE DISTINCTION DOES NOT RESCUE THE CLAIM, which is the whole
+point:** under *either* reading we **cannot demonstrate** the pin, and **R85's own registered lesson
+is that a pin nobody can verify is FICTIONAL.** *"Stronger pinning"* is unsupportable either way.
+
+**FAIRNESS TO THE EARLIER WORK, stated because it matters.** R95 verified the slug live on
+**2026-07-22** and recorded that verification. It is entirely possible the dated entry existed then
+and was later retired or merged. **The 07-22 check is not being called wrong** — the finding is that
+the pin does not hold **today**, and that all 254 campaign calls (every one after the 07-28 launch)
+came back undated.
+
+**DISPOSITION — nothing touches the campaign:**
+
+* **NOT an action item.** The kimi leg is **report-only (R80)** and never gates H1–H4. Swapping a
+  model mid-campaign would be far worse than the disclosure, and the determinism envelope forbids it.
+* **IS a disclosure item.** The defensible sentence is that **the kimi leg's effective pin is the
+  floating `moonshotai/kimi-k3` alias**, disclosed, with the dated request and the served identifier
+  recorded beside each other. **That is a stronger reproducibility exhibit than a claim a referee can
+  break in one API call.**
+* **The ten legs that DO round-trip exactly, across 2,773 calls, is a genuinely good layer-3 result**
+  and should be reported *with its denominator* — it is the first first-hand evidence layer 3 has.
+
+**Reported to every lane as M108.** This is the fourth instance tonight of the same shape the ANALYSIS
+lane named: **registered, implemented, documented — and still not TRUE at the boundary.**
