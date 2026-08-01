@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 21:05 UTC -- T+95h56m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 21:11 UTC -- T+96h02m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+95h56m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+96h02m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **2768** |
+| records archived | **2769** |
 | LLM calls / spend | 2928 / **$45.4430** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
@@ -21,21 +21,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **88** (82 running, 6 queued) |
-| **cores computing** | **656** |
+| cluster jobs | **87** (81 running, 6 queued) |
+| **cores computing** | **648** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung              @656 cores              @830 cores   binding
+ rung              @648 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
-  100            4.8 d  08-02            4.6 d  08-02   critical_chain
-  189            8.3 d  08-06            6.5 d  08-04   throughput
-  279           11.7 d  08-09            9.3 d  08-07   throughput
-  340           14.1 d  08-11           11.1 d  08-09   throughput
-  403           16.5 d  08-14           13.0 d  08-10   throughput
-  568           22.9 d  08-20           18.1 d  08-15   throughput
+  100            4.9 d  08-02            4.6 d  08-02   critical_chain
+  189            8.4 d  08-06            6.5 d  08-04   throughput
+  279           11.9 d  08-09            9.3 d  08-07   throughput
+  340           14.3 d  08-12           11.1 d  08-09   throughput
+  403           16.7 d  08-14           13.0 d  08-10   throughput
+  568           23.2 d  08-21           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
@@ -74,7 +74,7 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 |---|---|---|
 | distributional | g5 of 5 | 917 |
 | scalar | g5 of 5 | 326 |
-| placebo | g5 of 5 | 475 |
+| placebo | g5 of 5 | 476 |
 | scalar_cvar5 | g5 of 5 | 368 |
 | placebo_shuffled | g5 of 5 | 301 |
 
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T21:01:01Z  RED  records=2765 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=19B  sweep=17.3s  auto-cycle
-2026-08-01T21:01:48Z  RED  records=2765 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=19B  sweep=18.3s  auto-cycle
-2026-08-01T21:02:37Z  RED  records=2766 (+1)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=3.2m  drift=0  sci=OK  r115=19B  sweep=17.6s  auto-cycle
-2026-08-01T21:03:25Z  RED  records=2767 (+1)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=4.0m  drift=0  sci=OK  r115=19B  sweep=18.1s  auto-cycle
-2026-08-01T21:04:13Z  RED  records=2768 (+1)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=19B  sweep=17.5s  auto-cycle
-2026-08-01T21:05:01Z  RED  records=2768 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0  sci=OK  r115=19B  sweep=25.1s  auto-cycle
+2026-08-01T21:06:40Z  RED  records=2768 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=19B  sweep=24.2s  auto-cycle
+2026-08-01T21:07:35Z  RED  records=2768 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=3.1m  drift=0  sci=OK  r115=19B  sweep=16.8s  auto-cycle
+2026-08-01T21:08:22Z  RED  records=2768 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=3.9m  drift=0  sci=OK  r115=19B  sweep=17.8s  auto-cycle
+2026-08-01T21:09:10Z  RED  records=2768 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=4.7m  drift=0  sci=OK  r115=19B  sweep=17.8s  auto-cycle
+2026-08-01T21:09:58Z  RED  records=2769 (+1)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=17.7s  auto-cycle
+2026-08-01T21:10:46Z  RED  records=2769 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=18.0s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
