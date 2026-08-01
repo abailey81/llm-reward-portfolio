@@ -119,6 +119,44 @@ tail -3 docs/ops/watch/CYCLE_LOG.md
 a hash that does not exist until the commit lands, so code-commit and re-base cannot be atomic. The
 signature is `0+Ndirty` → `drift=N` → `drift=0` over ~100 s. **Do not treat it as an incident.**
 
+### §1.1 ★★★★★ THE MONITOR LINE IS NOW YOUR JOB — Tamer named it explicitly
+
+> **Tamer's instruction: the next session must "dive very deep and very deeply monitor this whole run,
+> the processes, the outputs, the results."** That was a DEDICATED LANE. It is now yours, on top of
+> ops and coord. **Monitoring is not a status glance — it is re-deriving the number.**
+
+**Every defect this project has found on "rung four" was the INSTRUMENT being wrong, not the
+measurement.** Today alone: the rung forecast said the campaign could not reach rung 30 (it counted
+one tier of twelve); the analysis loader silently dropped 68 % of the archive; a cost script's glob
+silently widened into treatment arms. **A green board is not evidence. Re-derive.**
+
+| cadence | what | how | what it means |
+|---|---|---|---|
+| **EVERY BATCH** | the cycle log | `tail -3 docs/ops/watch/CYCLE_LOG.md` | **>2 min old ⇒ the loop is DEAD.** `drift` and `sci` are the only two that must never change |
+| **each session, + after ANY fix you make** | the sentinel, 19 checks | `python scripts/sentinel.py outputs/campaign_cluster_run4` | ⚠ **NOTHING SUPERVISES IT.** If you fix it you must restart the `--watch --interval 300` process yourself or your fix is invisible |
+| **each session** | the verified board | `python .claude/lanes/openitems.py --open` | every row re-derives its own status from the repo |
+| **each session** | **the RECORDS themselves** | `docs/analysis/record_validator.py` · `output_integrity.py` · `search_integrity.py` · `substrate_watch.py` | per-record contract checks. **They glob the archive DIRECTLY, which is why they were unaffected by the loader defect** — that independence is the point |
+| **each session** | processes | the parentage filter in §3 | drivers · supervisors · **1** cycle loop · **2** sentinel. Counts oscillate (see above) |
+| **each session** | progress | records by tier; `frozen*/` arm census | is every incomplete line still producing? |
+| **as C4 opens** | the queue | `qstat -u ucestes` | `qw` should go from ~10 to **hundreds**. **If C4 opens and `qw` stays near zero, the pipelining did not take — investigate** |
+| **weekly / on change** | disk + mirror | `check_disk`, `check_mirror_freshness` | floor 20 GB (CRITICAL below); the D: mirror is what makes a C: failure cost ≤5 records |
+
+**THE FOUR TELLS — they are how you read an instrument rather than trust it:**
+① A clean baseline that already reads the failing value proves nothing.
+② Three failures in a row is a broken harness.
+③ **A clean 0 % or 100 % means suspect the SPECIFICATION** — "309/309 batches requeued" was the
+normal state; `wall_clock: 0.0` on every test record is specification, not a bug.
+④ **When a comment and the code disagree, the COMMENT is the more dangerous artefact.**
+
+**And three values, not two: ZERO · ABSENT · LAUNCHED.** A unit directory with an `_env/` sidecar and
+no `record.json` means *started*, not finished; a `.o` file that exists but is empty means the job
+began. **A glob that counts `*.json` turns launched into finished.**
+
+**WHAT "DEEP" MEANS IN PRACTICE:** when a number matters, get it a **second, independent way** and
+require the two to agree. The rung-189 forecast is trusted precisely because a per-unit
+remaining-work calculation and the sentinel's rate-based forecast — computed from opposite
+directions — landed on the same rung. **One derivation repeated is not evidence.**
+
 ---
 
 ## §2 ★★★★ STUDY THIS BEFORE YOU ACT — Tamer's explicit instruction
