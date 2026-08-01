@@ -3,6 +3,80 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-01n] ★★ ANALYSIS LANE, 5th session — **I RE-DERIVED AND BROADCAST MY OWN PREDECESSOR'S FINDINGS AS NEW** · two messages withdrawn · the prior-art check that excluded the likeliest source
+
+**PAST — what this session inherited.** Session 4 (`e210234f`) closed at ~14:00Z with A34–A48 banked
+in `docs/analysis/ANALYSIS_LANE_SESSION4_2026-08-01.md`, entry `[2026-08-01i]`, and a written S5
+handoff (`docs/analysis/ANALYSIS_LANE_HANDOFF_2026-08-01_S5.md`) whose **Tier-0 reading plan lists
+that owner doc as item 1**. Campaign at open: RUN 4, 12/12 lines, 2,505 records, $44.9675, drift 0,
+`sci=OK`, `arms_full=10/10`, `r115=17B`.
+
+**PRESENT — what I did, and it is mostly a process failure.** Joined the bus as analysis (`f7c40d30`),
+ran both selftests (`results_cycle.py` 16 cases · `search_adequacy.py` 25 cases — **ALL PASS**) and
+`results_cycle --full`. Then I **skipped the owner doc and went to the archive**, and over the next
+hour re-derived, verified end-to-end, and broadcast as new findings a set of results session 4 had
+banked 40 minutes earlier: **A36** (R115's floor on a point mass; the identical *"admitted by
+fourteen calls out of 400,000"* figure; the band census; *"ADMITTED (and won its arm)"* for the 1/11
+candidate), **A37** (the clean core line, with a Wilson interval `0/188 = 0.00 % [0.00, 2.00]` I did
+not give), **A38** (the confirmatory-test-training precision correction), **A41** (*"its operative
+content in RUN 4 is a PERIOD threshold, not a contamination threshold"* — which is in the
+`[2026-08-01i]` **block title**), and their doc's lines 129/173/265 (*"22 seeds, 799,458 substituted
+calls"*, 36,339/400,000 *"bit-identical to the search-stage value"*). The underlying limit-cycle
+mechanism is **ops'**, in `docs/ops/probe_safe_default_cycle.py`, dated **2026-07-30**.
+**M204 and M206 WITHDRAWN on the bus; correction broadcast as M208.**
+
+**★ THE COMPOUNDING PART, and the transferable lesson (P154).** Midway I *did* run a prior-art check,
+and it worked — it caught ops' probe, so I withdrew the mechanism claim and posted M206 crediting
+them. But **I searched `docs/ops/` and `src/` and not my own lane's owner doc.** So the correction I
+issued for over-claiming was itself an over-claim, one layer up. **THE RULE: a prior-art check that
+excludes your own predecessor is not a prior-art check — grep YOUR OWN LANE'S most recent owner doc
+FIRST, because it is the LIKELIEST source of a collision, not the least.** This is distinct from the
+register's existing entries: not *"a surprising negative is a claim about my own script"* (that is
+P153), and not *"the repo was ahead of me"* (six instances in 24 h) — **the lane's own immediately
+prior session was ahead of me, and I had been handed a document saying so.**
+
+**P153 — a phantom discrepancy from eyeballing my own output.** Reconciling against the cycle's
+`r115=17B` I counted a printed run of repeated `0.49983` values **by eye** as eight and concluded 16.
+There are **nine**; the true count is 17 and my script was right throughout. Caught by re-deriving
+with an independent recursive walk **before** transmitting. Lesson: compare **machine count to
+machine count**; never eyeball a run of repeated values.
+
+**WHAT ACTUALLY STANDS (M205, unaffected).** **A50** — leg4's `h2_pair` is still at **zero records
+~23.5 h on** (`test_leg_qwen3_5_9b/{distributional,scalar}` both EXISTS-with-`_env`-only = LAUNCHED,
+in M196's three-value vocabulary), and the **new element is the sibling contrast**: `placebo` 26 seeds,
+`placebo_shuffled` 22, `scalar_cvar5` 30, all written this morning — which **rules out "the line is
+down"** and localises the failure to the `h2_pair` stage exactly as M19 predicted (the pair-test call
+sits after the `as_completed` drain, outside the handler at `campaign.py:1821`). The core line builds
+the identical array. **A51** — the **A16 blind window is still OPEN**, re-measured 14:10Z:
+`test/placebo` launched-but-empty, the other four core H2 units **ABSENT** ⇒ 0 of 3 H2-RA legs
+computable; `test/` H1 canon 11 canon + `random_search` at **30/30** (360 records), D16 holding.
+**One refuted prediction of my own**, kept because a negative result needs no credit: I predicted
+*period 232 ⇒ a ~232-length window* in `leg_kimi_k3/distributional/distributional-g3-c2` and its
+source says `"window": 15` — so *"period = the warm-up depth of the authored statistic"* holds at
+small `W` (verified: nemotron `distributional-g4-c3` `ZeroDivisionError` on `(n1-1)*(n1-2)` at
+`n1 == 2` ⇒ period 2; predicted-then-confirmed `if n < 3:` in deepseek `scalar_cvar5-g0-c4` ⇒
+period 3) and **fails at 232**, unexplained, claimed by nobody.
+
+**Also verified, and offered as framing rather than finding:** `src/llm/prompts.py:105` **instructs**
+the author *"Build a STATEFUL reward (via `reward_state`)"*, while `src/sandbox/executor.py:828`
+returns `(SAFE_DEFAULT, {}, None)` and `src/env/portfolio_env.py:432` assigns that `None` back
+unconditionally — **the frozen prompt directs authors into exactly the exposure the frozen fail-safe
+punishes.** And R115 **is** enforced on the cluster path: `scripts/run_campaign_cluster.py` never
+assigns `select_winner`/`freeze_winner`, so `src/cluster/campaign.py:1375 _resolve_select_freeze`
+imports `run_campaign.select_winner`; no RUN 4 log contains `no_eligible_winner`. No conformance
+defect. (Session 4's A41 already establishes enforcement empirically, which is stronger.)
+
+**FUTURE — for the successor.** **Read `ANALYSIS_LANE_SESSION4_2026-08-01.md` and
+`ANALYSIS_LANE_SESSION5_2026-08-01.md` BEFORE touching the archive.** Session 4's §3 is titled
+*"INHERITED CLAIMS THAT WERE WRONG — verify before you act"*; add the mirror — **inherited claims that
+were RIGHT and that you will otherwise re-derive at full cost.** Open items are unchanged and belong
+to their owners: ops' `campaign_summary.json` (unrecoverable after teardown), the `h2_pair`
+containment wrap, wiring A47 + per-arm PopArt + `benchmark_floor` into the registered key set, and
+the still-unanswered *"is the core-line search core-bound or authoring-bound?"*.
+
+**No src/scripts/config/prompts change; drift contribution from this lane = 0. Effect-blind
+throughout — no outcome field read, no node verdict written.**
+
 ## [2026-08-01m] ★★★★★ WRITE-UP LANE, 3rd session — **TAMER LIFTED THE TWO STANDING DECISIONS THAT WERE BLOCKING WORD-BUDGET COMPLIANCE** · the graded prose was claiming three things the executed code does not do · a renumbering that would have blinded the submission gate
 
 **PAST — what this session inherited.** `docs/WRITEUP_SESSION_PROMPT_2026-08-01.md`, written by the
@@ -431,7 +505,51 @@ routes and fails on drift.
 reference, `drift=0` confirmed in the live cycle line afterwards. **No relaunch:** every touched file is
 proven outside the 193-module driver closure.
 
+### ⑦ SECOND BLOCK — TAMER ESCALATED THROUGHPUT: **WE HOLD 870 SLOTS WITH 4,497 FREE, AND ELEVEN OF TWELVE LINES ARE MISCONFIGURED FOR THE PHASE THEY ARE ABOUT TO ENTER**
+
+Full detail: execution record **§100.49**. All read-only; nothing on the cluster was altered.
+
+**⚠ FIRST, MY OWN ERROR, BROADCAST BEFORE I CHECKED IT.** I measured free capacity as `NCPU − LOAD`
+from `qhost` and told three lanes *"~12,000 cores, ZERO free, every family."* **Load is not what SGE
+schedules on — SLOTS are.** `qhost -F slots` says **4,497 free (35.4 %), 3,366 of them in pool D
+which we already use.** Corroborated independently by `allocation_advisor.py` ("~3484 free"), which
+I had not run. **Withdrawn as M203; corrected in M210.** I had written *"agreement between two
+independent derivations is evidence; one derivation repeated is not"* into the record hours earlier
+and then failed to apply it. **A striking round number is the signal to re-derive, not to publish.**
+
+**TWO MORE OF MY HYPOTHESES, KILLED BY MEASUREMENT.** `h_rt=15h` looked like a backfill killer —
+measured p50 4.50 h, p99 9.92 h, **max 12.70 h**, so it is a 1.18× margin over the observed max and
+cutting it would kill jobs. `snx=1` looked like a one-job-per-node fence — every node advertises
+**`snx=10000`**. Also checked clean: no quota applies, `ppri=0` (neutral standing), memory 2 G/slot
+vs a 6.2 GB measured peak, tmpfs already 1 G, pack CPU efficiency **7.03 of 8 = 88 %**, 109 jobs of
+1,000. **Everything prior sessions tuned is correctly tuned.**
+
+**WHAT IS ACTUALLY TRUE.** Sampled every 60 s, our queue is **2, 2, 2, 2, 0** — we never have work
+waiting. But most of that is **STRUCTURAL, not a defect**: the SEARCH phase is **79 % done
+(1,417/1,800)** and is intrinsically narrow because generations are sequential. **The C4 sweep is
+40,328 of the 42,128 trainings, is embarrassingly parallel, is 2.6 % done, and is IMMINENT.**
+
+**THE FIND: `mode_d_supervisor.ps1:166` gives `--pipeline-rungs` to the CORE LINE ONLY.** The leg
+branch's own comment claims a leg *"climbs the SAME ladder as the core"* — true of WHAT they run,
+false of HOW they submit it. `campaign.py`'s own words: the sequential path *"FORFEITS CAPACITY
+during every block's drain."* Eleven of twelve lines are on it, entering the phase where it costs
+most. It changes **no registered quantity** (submission order and timing only) and **removes** an
+asymmetry rather than adding one.
+
+**VERIFIED BY EXECUTION:** ParseFile 0 errors, 0 non-ASCII, no BOM; keyless dry-run of the exact
+live leg command line plus the flag → **RC=0, `pipelined rungs ON`**, 5 arms, 568 seeds, tiers
+`[30,70,89,90,61,63,165]`.
+
+**⚠ COMMITTED `775c942d` BUT STAGED, NOT LIVE.** PowerShell binds a script at process start, so the
+eleven live supervisors keep their current argument vector and the running campaign is untouched.
+**Making it live means restarting the eleven leg supervisors** — SGE arrays are cluster-side and keep
+running, drivers resume from archive truth (done cleanly four times: §46/§54/§58/§60) — but that is a
+live operation on the campaign's spine and it is **Tamer's call**, not a side effect of a commit.
+A reboot or any clean relaunch picks it up automatically.
+
 **FUTURE — what the next OPS session picks up.**
+0. **THE OPEN DECISION: restart the eleven leg supervisors** so the pipelining fix becomes live,
+   before the lines reach C4. Until then it is committed and inert.
 1. **`campaign_summary.json` must be written AT TEARDOWN**, before the archive is disturbed, with
    `docs/ops/write_campaign_summary.py`. It is the one item on this list that becomes unrecoverable.
 2. **The final compute figure must be re-taken after all arrays drain** — `qacct` excludes RUNNING
