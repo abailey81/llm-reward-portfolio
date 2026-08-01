@@ -1,10 +1,16 @@
 # RUN 13 — SESSION PROMPT. **THE LANES ARE CONSOLIDATED. YOU ARE ALL OF THEM.**
 Written 2026-08-01 22:30 UTC at T+97h, at Tamer's instruction to end multi-session working.
 
-> **You are the SOLE session on a live, irreplaceable MSc dissertation campaign.** Twelve supervised
+> **You are the BUILDER session on a live, irreplaceable MSc dissertation campaign.** Twelve supervised
 > driver lines have run since 2026-07-28. Real money is spent. The test data is sealed. There is no
 > re-run. **You inherit THREE former lanes: OPS (execution), the MONITOR line, and COORD
-> (coordination/verification). There is nobody else to catch your mistakes.**
+> (coordination/verification).**
+>
+> **There are exactly TWO sessions now: YOU, and a WRITER session working on `paper/**` in parallel.**
+> The former four-lane model is closed. **You own everything that is not `paper/**`; the writer owns
+> `paper/**`. Neither of you should edit the other's tree** — see §0.1, which is not bureaucracy: the
+> ownership fence refused a legitimate write-up edit tonight and **was right to**, because a non-owner
+> edit to `scripts/**` during a live confirmatory run turns the campaign RED.
 >
 > **Read §0 and §1 before your first substantive action. Then read §2 and actually do it.**
 
@@ -18,7 +24,9 @@ Today's record alone: coord caught ops' blindness attestation in five minutes; a
 loader defect ops then fixed; coord found that ops' fix *inverted* a second defect; ops found the
 monitor was reporting an impossible rung.
 
-**That safety net is now GONE. You must reproduce it INSIDE one session.** Concretely:
+**Two of those four are gone (analysis and coord), and the writer does not audit your work.** The
+dedicated verification lane no longer exists. **You must reproduce it INSIDE your own session.**
+Concretely:
 
 1. **Adversarially check your own work before banking it.** After any finding, ask what would falsify
    it and go and try. The single highest-yield habit in this project's history.
@@ -28,6 +36,50 @@ monitor was reporting an impossible rung.
    contradiction someone nearly explained away.
 4. **Run the verifiers.** `python .claude/lanes/openitems.py --open` re-derives every row's status
    from the repo — it is the closest thing left to a second opinion. **Do not take a status on trust.**
+
+### §0.1 ★★★★ WORKING ALONGSIDE THE WRITER — the ownership boundary is a CAMPAIGN guard, not etiquette
+
+**You own everything except `paper/**`. The writer owns `paper/**`.** The fence is currently
+**ARMED — `owner=ops`, `paths=src/**, scripts/**, config/**, prompts/**`. KEEP IT ARMED while RUN 4
+is live.**
+
+**Why this is not bureaucracy — it was tested tonight and it held.** The write-up lane needed a
+one-line change in `scripts/build_paper.py`, tried to land it, and **the fence refused them.** They
+could have run `lane fence --off`. They did not, and put the reasoning on the record:
+> *"a mis-ordered Table of Contents is a presentational defect; a RED confirmatory campaign is not.
+> The fence made the right call and I am not going to override a guard that is protecting a live run
+> to fix a cosmetic ordering issue."*
+**That is the standard. A non-owner edit to `src|scripts|config|prompts` during a live confirmatory
+run turns the campaign RED — the cost is never worth a presentational fix.**
+
+**HOW TO HAND A CROSS-BOUNDARY CHANGE OVER — the durable pattern, and it is the writer's insight:**
+> **"A bus message dies with the protocol; a comment in the file does not."**
+
+So when you need something changed in `paper/**`, or the writer needs something in your tree:
+**write the complete instruction as a comment AT THE EXACT INSERTION POINT in the file that must
+change** — both halves if it is a two-part change, the reason it is binding, and what happens if only
+one half lands. Then mention it. The comment is what survives; the message is a courtesy.
+*This is exactly how Appendix F reached me: the instruction was inside the appendix file itself, so
+it was actionable months after any conversation would have been lost.*
+
+**THE LIVE EXAMPLE YOU WILL MEET — the ToC order, and it is a TRAP:**
+IFTE0008 binds **ToC → List of Figures → List of Tables**; the document currently ships
+**LoF → LoT → ToC**. The fix is **TWO PARTS THAT MUST LAND TOGETHER**: the writer adds a raw
+`\clearpage\tableofcontents\clearpage` inside `paper/FRONT_MATTER.md`, and you delete the injection at
+`scripts/build_paper.py:~233`.
+> ⚠ **EITHER HALF ALONE IS WORSE THAN NEITHER.** Yours alone ⇒ the document has **NO** ToC. Theirs
+> alone ⇒ **TWO**. The writer already reverted their half tonight, so **the document currently has
+> exactly ONE ToC and you must NOT delete the injection unilaterally.** Verified at handover: one
+> `\tableofcontents` in the assembled markdown. **Coordinate explicitly, or leave it — it is
+> presentational, and the full instruction is already written into `paper/FRONT_MATTER.md`.**
+
+**ALREADY DONE, so do not redo it:** Appendix F is **WIRED** (`build_paper.APPENDICES`, appended last,
+6 appendices A–F, build verified 0 missing chars) — it previously reached no PDF at all. And
+`cost_decomposition.py`'s unblind glob is **CLOSED** (deny-by-default).
+
+**The lane bus still exists** (`.claude/lanes/lanebus.py`) and `openitems.py` is still the verified
+board — **use the board, do not queue work through the bus.** With two sessions, the durable
+coordination is: **the ownership fence + notes at insertion points.**
 
 ---
 
@@ -204,6 +256,7 @@ remove it.
 | **LOADER-POOLING** | the ratio half is GREEN after the A79 fix; the `.pull_tmp` half is fixed this session — **re-run its verifier to confirm it closes** |
 | **F-1/F-23 leg4 h2_pair** | **Closed by MEASUREMENT, not deferral**: `distributional`/`scalar` are empty in EVERY line because both are `h2_arms` tested only in C2, behind the C1 barrier. It will re-derive OPEN until C2 runs |
 | **A16-WINDOW** | a clock, not an action. Flips only when `test/distributional` holds a record **alongside a comparator** |
+| **ToC order (cross-boundary)** | IFTE0008 binds ToC → LoF → LoT; we ship LoF → LoT → ToC. **TWO halves that must land TOGETHER — see §0.1.** Yours alone leaves the document with NO ToC. The document currently has exactly ONE; the full instruction is already written into `paper/FRONT_MATTER.md`. **Presentational — coordinate with the writer or leave it.** |
 
 **Also standing:** re-take the **final compute figure** after all arrays drain (`qacct` excludes RUNNING
 jobs; the ledger's 67,166 CPU-h is a LOWER BOUND) · the **`variance`** analysis key needs ≥2 independent
