@@ -13283,6 +13283,18 @@ the **08-27** exogenous stop, so nothing changes operationally — but *a foreca
 window I had seen is a forecast built on the phase I happened to measure in*, which is the same error
 in planning clothes.
 
+> ### ⚠⚠ §100.30 IS SUPERSEDED BY §100.31 — READ THAT FIRST
+>
+> **Two of this section's central claims are WRONG and were corrected by direct experiment within the
+> hour.** (1) *"statefulness is NECESSARY but not sufficient"* — **false**: the comparison group was
+> 326 HAND-WRITTEN BASELINE comparators whose `reward_source` is only a marker comment, not LLM
+> programs at all. Among genuinely LLM-authored programs, **2,002 of 2,003 are stateful**, so
+> statefulness is **CONSTANT and explains nothing**. (2) *"failure begins at call 200,069 and STAYS
+> failed… onset is data-synchronised"* — **false**: the failure is a **1-0-1-0 LIMIT CYCLE** caused by
+> the harness wiping `reward_state` to `None` on failure. **The archive could not have told us either
+> way; running the programs did.** The one claim that survives is that nine independent programs share
+> an exact count — but the reason is structural, not data-determined.
+
 ### 100.30 ★★ NINE INDEPENDENT REWARD PROGRAMS FAIL AT THE SAME INSTANT — A TAXONOMY FINDING, NOT AN INSTRUMENT DEFECT
 
 **Found by chasing a number the monitor flagged**, not by looking for it: `r115` BINDING climbed
@@ -13342,3 +13354,127 @@ reward-program taxonomy are the **originality kernel** and their lane. Two cavea
 **(a)** all nine are report-only legs, so no confirmatory estimand is touched; **(b)** 0.45 % of
 stateful programs is a **RARE** mode — it must not compress into *"stateful rewards fail"*, which is
 exactly the failure §100.22/W5 was amended to prevent.
+
+### 100.31 ★★★★ WHY THE NINE FAILED — A LIMIT CYCLE, AN ALLOWLIST GAP IN OUR OWN SANDBOX, AND A METRIC THAT SATURATES
+
+**Tamer asked the right question — *"why didn't it receive the reward from the LLM? There might be
+something wrong"* — and there was.** §100.30 answered it with an inference from totals. **The archive
+cannot answer it; RUNNING THE PROGRAMS can.** All nine were driven through the real sandbox
+(`validate_once` on the campaign's own `_FIXTURE`, then `safe_call` in the exact
+`portfolio_env.py:429` loop) for 400 synthetic steps.
+
+#### A. THE MECHANISM — A 1-0-1-0 LIMIT CYCLE, NOT A DATA-SYNCHRONISED ONSET
+
+**All nine produced the identical pattern, `010101010101…`, exactly 50.000 %, first failure at call 1:**
+
+```
+  call 0 : reward_state is None -> the program takes its INITIALISATION branch -> SUCCEEDS
+  call 1 : state now exists     -> the program takes its STEADY-STATE branch  -> CRASHES
+           safe_call returns (SAFE_DEFAULT, {}, None)      [executor.py:828]
+           portfolio_env then assigns info["reward_state"] = None   [portfolio_env.py:432-433]
+           ** THE FAILURE WIPES THE ACCUMULATED STATE **
+  call 2 : state is None again  -> initialisation branch   -> SUCCEEDS
+  call 3 : steady-state branch  -> CRASHES ... forever
+```
+
+**So the steady-state reward logic in these nine programs NEVER RAN SUCCESSFULLY — not once in
+400,000 calls.** The agent trained on `init-value, 0, init-value, 0, …`
+
+**★ AND THIS IS WHY NINE INDEPENDENT PROGRAMS SHARE AN EXACT COUNT.** The 50 % is **structural** —
+imposed by the harness's state reset — **not** a property of the data and **not** a property of the
+program. §100.30's *"onset is data-synchronised"* is **wrong**, and it was wrong in the most seductive
+way: it was a vivid, plausible story that the totals could not distinguish from its alternative.
+
+**The captured causes are ordinary authoring bugs** (`safe_call` swallows them, so this probe called
+each reward directly to catch the real error): `UnboundLocalError` on `eps` / `turnover_count` /
+`alpha_ret` (a variable bound in the init branch, read in the steady-state branch), `TypeError: 'int'
+object is not subscriptable` (state-schema mismatch), `ValueError: not enough values to unpack`,
+`ValueError: truth value of an array with more than one element is ambiguous` (`if array:` instead of
+`.any()`), and one `NaN` total — **see B, because one of them is OURS.**
+
+#### B. ★★★ AN ALLOWLIST GAP IN OUR OWN SANDBOX — `Exception` IS NOT DEFINED
+
+One of the nine failed on **`NameError: name 'Exception' is not defined`**. Verified: **`SAFE_BUILTINS`
+holds 31 entries and NOT ONE exception type** — no `Exception`, no `ValueError`, nothing. Meanwhile
+**the AST gate has no opinion on `Try`/`ExceptHandler`** (it bans only `_FORBIDDEN_CALLS` and
+`_BANNED_ATTRS`).
+
+> **So an LLM that wraps risky maths in `try: … except Exception:` — the standard defensive pattern —
+> passes the gate and then CRASHES ON THE VERY LINE MEANT TO MAKE IT ROBUST.** The allowlist is a
+> *security* measure and correctly excludes `open`/`exec`/`eval`/IO; `Exception` is not a security
+> risk and was simply never added. **This is the classic allowlist gap: the gate admits code the
+> runtime cannot execute**, and it makes defensive code **strictly worse** than no defensive code.
+
+**EXHAUSTIVE SCAN — every unresolvable NAME LOAD across all 1,336 distinct LLM-authored programs**
+(scope-aware: parameters, locals, comprehension targets, `except … as`, and imports all excluded):
+
+```
+  programs referencing a name that cannot resolve at runtime : 16 of 1,336  (1.20 %)
+      Exception       x14      <- OURS (the allowlist gap)
+      upper_tail_avg  x1       \
+      sort_ret        x1        > the LLM's own undefined variables
+      i               x1       /
+
+  MANIFESTED (fallback > 0) : 3        LATENT (never fired) : 13
+       4.998 %  search_leg_haiku_4_5    distributional   upper_tail_avg
+       9.996 %  search_leg_qwen3_5_9b   placebo          sort_ret
+      49.983 %  search_leg_qwen3_5_9b   scalar           Exception, i
+
+  BY LINE:  search (CORE CONFIRMATORY) 8 · h3_singleshot 2 · legs 6
+```
+
+**Only 3 of 16 have fired**, because Python resolves an exception name **only when an exception
+actually occurs** — the other 13 try-blocks never raised. **But 8 of the latent ones sit on the CORE
+CONFIRMATORY LINE**, currently at 0 % fallback with **silently non-functional error handling**. If any
+of those try-blocks raises during the remaining campaign, that candidate drops into the 50 % limit
+cycle **on the confirmatory line**.
+
+#### C. ★★ THE FALLBACK FRACTION IS NOT A SEVERITY SCALE — IT SATURATES AT 50 %
+
+**A measurement-validity point that matters for the write-up.** Because a failure resets the state, a
+program whose steady-state branch is *entirely* broken reads **exactly 50 %**, not 100 %. **The metric
+UNDERSTATES total breakage by a factor of two, and it reads the same 50 % no matter how broken the
+program is.** `train_safe_default_count` is therefore **not** a linear quality measure: **50 %
+specifically means "the steady-state branch never ran", not "half the rewards were fine."**
+
+*(The counterfactual is worth stating: had `safe_call` PRESERVED state on failure, these programs
+would read ~100 % — a more honest signal, and still caught by R115. The current design makes a
+totally-broken program look half-working.)*
+
+#### D. WHAT §100.30 GOT WRONG — BOTH CENTRAL CLAIMS
+
+1. **"Statefulness is NECESSARY but not sufficient."** **False.** My "stateless" comparison group was
+   **326 hand-written baseline comparators** whose `reward_source` is only a marker comment
+   (`# baseline:differential_downside_ratio`) — **not LLM programs at all**. An AST test over genuinely
+   LLM-authored programs gives **2,002 of 2,003 stateful** (2,002 both READ and RETURN state; 1 only
+   returns). **Statefulness is CONSTANT and explains nothing.** It is also *imposed*: the contract
+   requires a 3-tuple return, so it was never a modelling choice.
+2. **"Failure begins at call 200,069 and STAYS failed; onset is data-synchronised."** **False** — it
+   is a 1-0-1-0 limit cycle. **The ANALYSIS lane flagged that the archive stores only TOTALS and
+   cannot distinguish a cliff from intermittency; they were right, and the resolution was to STOP
+   INFERRING AND RUN IT.**
+
+**Both errors share one shape: I explained a pattern from aggregates when the generating process was
+executable.** *When the artefact is a program, run the program.*
+
+#### E. DISPOSITION — NOTHING FIXED LIVE, AND THE REASON IS NOT MERELY THE FENCE
+
+`src/sandbox/executor.py` is inside the drift fence **and** in the driver import closure — but the
+decisive reason is that **`SAFE_BUILTINS` is reward-evaluation semantics on the training path**
+(the D17 category, *never while live*). Adding `Exception` mid-campaign would evaluate some candidates
+under one namespace and some under another, **splitting the archive into two evaluation regimes**.
+That is strictly worse than a uniform, disclosed limitation.
+
+**QUEUED POST-CAMPAIGN (new item, alongside `build_parallel_opts`, A11 and the `test_leg` timer):**
+add the exception hierarchy to `SAFE_BUILTINS` — or, better and narrower, **make the AST gate REJECT
+an `ExceptHandler` naming a type absent from `SAFE_BUILTINS`**, so the contradiction surfaces at
+authoring time as a clean sandbox rejection instead of a silent runtime crash. **A gate and a runtime
+that disagree is the defect; making them agree is the fix, in either direction.**
+
+**IMPACT ON THE SCIENCE, stated in both directions:** **no confirmatory estimand is currently
+affected** — the only manifested `Exception` case is on a report-only leg and is already R115-excluded,
+the 16 affected programs are 1.20 % of the corpus and spread across arms, and the 8 core-line cases
+are latent at 0 % fallback. **But it is a real instrument defect with a live latent failure mode on
+the confirmatory line, it silently penalises defensive coding, and it may bias the per-model
+authoring-reliability table** — a named R80/industry deliverable — **because models that write more
+defensive code are penalised for doing so.** All of that is disclosable and none of it is fixable now.
