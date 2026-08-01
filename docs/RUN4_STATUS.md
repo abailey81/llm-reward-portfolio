@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 02:06 UTC -- T+76h57m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 02:11 UTC -- T+77h02m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,11 +9,11 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+76h57m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+77h02m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **1625** |
-| LLM calls / spend | 2607 / **$40.7175** |
+| records archived | **1633** |
+| LLM calls / spend | 2611 / **$40.7195** |
 | transport timeouts | **0** |
 | guards | **RC=2**, not green: truncation  |
 
@@ -21,21 +21,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **186** (118 running, 68 queued) |
-| **cores computing** | **944** |
+| cluster jobs | **182** (117 running, 65 queued) |
+| **cores computing** | **936** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung              @944 cores              @830 cores   binding
+ rung              @936 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
-  189            5.7 d  08-03            6.5 d  08-04   throughput
+  189            5.8 d  08-03            6.5 d  08-04   throughput
   279            8.2 d  08-06            9.3 d  08-07   throughput
-  340            9.8 d  08-07           11.1 d  08-09   throughput
-  403           11.5 d  08-09           13.0 d  08-10   throughput
-  568           15.9 d  08-13           18.1 d  08-15   throughput
+  340            9.9 d  08-07           11.1 d  08-09   throughput
+  403           11.6 d  08-09           13.0 d  08-10   throughput
+  568           16.0 d  08-13           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Measured 2026-07-31 (record section 70)
@@ -72,10 +72,10 @@ The seed ladder (30 up to 568 seeds, scored on the SEALED data) is the NEXT phas
 
 | arm | furthest generation | candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 335 |
+| distributional | g5 of 5 | 340 |
 | scalar | g5 of 5 | 296 |
-| placebo | g5 of 5 | 225 |
-| scalar_cvar5 | g5 of 5 | 195 |
+| placebo | g5 of 5 | 227 |
+| scalar_cvar5 | g5 of 5 | 196 |
 | placebo_shuffled | g5 of 5 | 178 |
 
 ## Results so far
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T02:02:51Z  RED  records=1616 (+0)  spend=$40.7169  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0+8dirty  sci=OK  r115=13B  sweep=14.3s  auto-cycle
-2026-08-01T02:03:36Z  RED  records=1617 (+1)  spend=$40.7169  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0+8dirty  sci=OK  r115=13B  sweep=12.5s  auto-cycle
-2026-08-01T02:04:18Z  RED  records=1619 (+2)  spend=$40.7169  guards=2  arms_full=10/10  budget=2  stalest=1.4m  drift=0+9dirty  sci=OK  r115=13B  sweep=13.9s  auto-cycle
-2026-08-01T02:05:03Z  RED  records=1623 (+4)  spend=$40.7169  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0+9dirty  sci=OK  r115=13B  sweep=12.5s  auto-cycle
-2026-08-01T02:05:45Z  RED  records=1624 (+1)  spend=$40.7169  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0+9dirty  sci=OK  r115=13B  sweep=12.3s  auto-cycle
-2026-08-01T02:06:28Z  RED  records=1625 (+1)  spend=$40.7174  guards=2  arms_full=10/10  budget=2  stalest=2.6m  drift=0+9dirty  sci=OK  r115=13B  cores=944  sweep=13.9s  auto-cycle
+2026-08-01T02:07:55Z  RED  records=1627 (+1)  spend=$40.7174  guards=2  arms_full=10/10  budget=2  stalest=1.7m  drift=0+9dirty  sci=OK  r115=13B  sweep=11.9s  auto-cycle
+2026-08-01T02:08:37Z  RED  records=1627 (+0)  spend=$40.7181  guards=2  arms_full=10/10  budget=2  stalest=2.4m  drift=0+9dirty  sci=OK  r115=13B  sweep=13.2s  auto-cycle
+2026-08-01T02:09:21Z  RED  records=1628 (+1)  spend=$40.7181  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0+9dirty  sci=OK  r115=13B  sweep=13.6s  auto-cycle
+2026-08-01T02:10:05Z  RED  records=1630 (+2)  spend=$40.7186  guards=2  arms_full=10/10  budget=2  stalest=2.9m  drift=0+9dirty  sci=OK  r115=13B  sweep=11.9s  auto-cycle
+2026-08-01T02:10:47Z  RED  records=1630 (+0)  spend=$40.7191  guards=2  arms_full=10/10  budget=2  stalest=1.5m  drift=0+9dirty  sci=OK  r115=13B  sweep=14.2s  auto-cycle
+2026-08-01T02:11:31Z  RED  records=1633 (+3)  spend=$40.7191  guards=2  arms_full=10/10  budget=2  stalest=2.2m  drift=0+9dirty  sci=OK  r115=13B  sweep=12.9s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -132,8 +132,8 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 33.0890  + still to author $  6.4390  = $ 39.5281   credited $ 28.1500   margin $ -11.3781 (-40%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  7.6285  + still to author $  2.1740  = $  9.8025   credited $ 19.3100   margin $  +9.5075 (+49%)  comfortable
+  anthropic   spent $ 33.0890  + still to author $  6.3728  = $ 39.4619   credited $ 28.1500   margin $ -11.3119 (-40%)  over the credit ESTIMATE (owner-watched)
+  openrouter  spent $  7.6304  + still to author $  2.1746  = $  9.8050   credited $ 19.3100   margin $  +9.5050 (+49%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
