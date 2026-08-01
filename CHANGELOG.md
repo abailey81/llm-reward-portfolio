@@ -74,6 +74,55 @@ to their owners: ops' `campaign_summary.json` (unrecoverable after teardown), th
 containment wrap, wiring A47 + per-arm PopArt + `benchmark_floor` into the registered key set, and
 the still-unanswered *"is the core-line search core-bound or authoring-bound?"*.
 
+**SECOND HALF — SUPPORTING THE THROUGHPUT PUSH (A53–A59).** Tamer escalated campaign throughput and
+ops routed a science question to this lane. **A53:** answered it — pipelining the eleven leg lines
+touches **no registered quantity** (verified in code: `campaign.py:1969` vs `:2004` pass identical
+arguments at identical `PRIORITY_RUNG_BASE`) — **but ops' premise was wrong.** R101
+(`PREREGISTRATION.md:1047`, hash-bound) does not make the legs report-only; it registers *"the FINAL
+result is whatever COMMON rung all 11 have COMPLETED by the stop"* — **a MINIMUM over lines, not a
+sum** — so aggregate records/hour is the wrong objective, and the core-pipelined/legs-sequential split
+is the very idle-tail asymmetry R101 retired. **Measured the real critical path:** 8 of 11 leg lines
+hold **zero** test records because **17 arms across 9 lines have not frozen a winner**; per-training
+wall-clock is **4.22 h median** (n=1,416) at 1 core/1 thread with **serial** generations, so the 17
+arms need **~85 cores against the ~850 we hold** ⇒ **the search is latency- and authoring-bound, NOT
+core-bound** — closing session 4's *"raised three times, never answered"* open question.
+
+**★ A55/A56 — THE CATCH THAT MATTERED.** Ops retracted their own "Myriad is full" claim (M210: ~4,497
+free slots) and asserted "pool D = same CPU family = zero CRN risk". **Not safe as stated.** Discovered
+that the job scripts' EXIT trap writes `{"task","host",…}` per task to
+`ledger/<batch>.epilogue.jsonl` **and those ledgers are pulled back** — so the node census is
+recoverable from the laptop mirror with **no cluster access**. Joining 2,264 host-stamped task-runs to
+the batch specs and `env.json`: **`node-d00b-024` IS the 6140 node** (it served RUN 1's only 6140 *and*
+RUN 4's four D16 seeds; the clean re-run went to `node-d00a-105`) — and it was **already fenced**,
+which is *why* the D16 re-run landed clean. **RUN 4 has landed on exactly 187 distinct nodes (d00a
+×178, d00b ×9) and its archive is 2,488/2,488 Xeon Gold 6240 ⇒ those 187 are a VERIFIED allowlist.**
+The real exposure is **d97a + d97b: 686 free slots inside pool D, never used, never verified, admitted
+by `-ac allow=d`** — and reachable now that ops' `tmpfs` 15G→1G fix landed. Measured that we are **not
+drifting yet** (newest 200 task-runs 100 % verified) and told ops explicitly **not to stall the
+rollout** for it.
+
+**★ A57 — BUILT THE DETECTOR RATHER THAN ASKING FOR A CHECK.** `docs/analysis/substrate_watch.py`
+(analysis-owned, read-only): C1 non-reference CPU · **C2 any COMPARISON UNIT spanning >1 model — the
+ratified `cpu_randomised_device_block` premise itself** · C3 task-runs on unverified host families (the
+*early* warning, firing from the ledger before that node's records exist) · C4 node-count drift.
+**9 falsification cases, ALL PASS** (C1 fires on an injected 6140, C2 on a mixed unit, C3 on an
+injected `node-d97a` host and *not* on a `d00a` host, search-tier records not miscounted, clean fixture
+has a non-zero denominator). **Live: CLEAN**, re-run after ops' restarts — still clean.
+
+**A58/A59 — confirmed ops' R101 reading (pipelining RESTORES lockstep) and verified their rollout
+independently:** `leg1`–`leg5` flipped sequential → PIPELINED, `h3ss` correctly untouched, **no P12
+double-driver**. **★ And a calibration number for the still-open A1-c stall detector:** my own liveness
+check flagged three lines as stalled at 30-/90-min thresholds — **wrong thresholds, not a finding.** At
+4.22 h median / 6.38 h p90 per training, **any per-line stall threshold below ~7 h false-positives**;
+the correct predicate is `done/total` failing to increment, which is what A1-c specified. All three
+quiet lines predate ops' operation.
+
+**⚠ THREE FALSE ALARMS OF MINE, ALL CAUGHT BEFORE TRANSMISSION** — the phantom 16-vs-17 count (P153),
+a `node-d00a-105` "gap" that was the *clean re-run* host, and a `qwen3 — MORE THAN ONE SUPERVISOR`
+that was my regex collapsing `qwen3.5-9b` and `qwen3.6-27b` at the dot. **Every one came from reading
+my own output, not from the archive being strange.** Recorded so no lane parsing the process table
+repeats the last one: line names contain dots and hyphens.
+
 **No src/scripts/config/prompts change; drift contribution from this lane = 0. Effect-blind
 throughout — no outcome field read, no node verdict written.**
 
@@ -546,6 +595,38 @@ eleven live supervisors keep their current argument vector and the running campa
 running, drivers resume from archive truth (done cleanly four times: §46/§54/§58/§60) — but that is a
 live operation on the campaign's spine and it is **Tamer's call**, not a side effect of a commit.
 A reboot or any clean relaunch picks it up automatically.
+
+### ⑧ FINAL BLOCK — THE CORES QUESTION ANSWERED, COORD'S THREE ITEMS CLOSED, AND THE RUN 12 HANDOVER
+
+Execution record **§100.51 / §100.52**. Tamer pressed the core count four times; the measured answer
+is that **we are not capacity-bound**. Free capacity is 4,497 slots (35.4 %) — but under **R101 the
+reported result is the COMMON rung, a MINIMUM over 11 lines**, and **8 of 10 leg lines hold ZERO test
+records**. The critical path is  and  at **2 of 5 arms frozen**; capacity given
+to any line above the minimum is worth exactly zero. Verified alongside it: **nothing is stalled**
+(every line produced a record within 23 minutes) and **arms are already concurrent** (gpt-luna runs
+three at once), so the search phase's ~840 slots is the shape of the work, not a throttle.
+
+**Coord's three OPS items, all closed and all verified by execution.** **F-18** — 
+returned **rc=0 having compiled nothing**, i.e. the submission gate could certify a PDF that was never
+built; now rc=2 with a named refusal. **F-19** — the Tectonic bundle digest that §100.40.5's typeface
+change made the deliverable depend on was recorded nowhere; the build now resolves, prints and
+**checks** it (, 4/4 Heros faces). **A16-W13** — the withdrawal is itself
+withdrawn, because writeup greps that register before anything enters  and a retraction that
+is not itself retractable is just a second way to be wrong.
+
+**D24 queued, not applied, and the reason is the interesting part.** Coord found (M223) that
+ is an **OR** while its docstring says **BOTH**, so at the live 
+the driver dies after **3.6 h** of continuous submission rejection, not the documented 12 h. The
+patch is written. It is NOT applied because  **IS in the driver import
+closure** — committing it without a relaunch would make  assert that executing code
+matches committed code when it does not, which is the one thing the drift invariant exists to
+prevent. **And a mitigation coord did not account for downgrades it:** the supervisor already wraps
+the driver in a 1000-attempt / 600 s-backoff retry loop and the watchdog revives any dead line in
+≤300 s, so the realised cost is ~10 minutes, not a lost line.
+
+**HANDOVER: ** — the complete brief, including the five lessons this
+session paid for and the one measurement that will prove the pipelining fix worked (when a line
+reaches C4,  must go from 0–2 to hundreds).
 
 **FUTURE — what the next OPS session picks up.**
 0. **THE OPEN DECISION: restart the eleven leg supervisors** so the pipelining fix becomes live,
