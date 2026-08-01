@@ -176,13 +176,23 @@ _SCIENCE_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("ra_popart_engaged",   r"engaged\s+(\d+)\s+\(",                                       "ra"),
     ("ra_popart_pinned",    r"pinned at the floor\s+(\d+)\s+\(",                           "ra"),
     ("ra_popart_breaks",    r"invariant sigma_max ==[^:]*:\s*(\d+)",                       "ra"),
-    # Per-arm candidate counts, for the ARM-DEPTH check below. Free: results_audit already prints
-    # them in its diversity pass, so this costs no extra archive walk.
-    ("n_distributional",    r"^\s*distributional\s+records=(\d+)",                         "ra"),
-    ("n_scalar",            r"^\s*scalar\s+records=(\d+)",                                 "ra"),
-    ("n_placebo",           r"^\s*placebo\s+records=(\d+)",                                "ra"),
-    ("n_scalar_cvar5",      r"^\s*scalar_cvar5\s+records=(\d+)",                           "ra"),
-    ("n_placebo_shuffled",  r"^\s*placebo_shuffled\s+records=(\d+)",                       "ra"),
+    # Per-arm candidate counts, for the ARM-DEPTH check below.
+    #
+    # ★ 2026-08-01 (RUN 10): these read `pool=` from results_audit's new §3b, NOT `records=` from
+    # its diversity pass. The diversity counts include the H3 SINGLE-SHOT control, which writes
+    # `arm='distributional'` into its own `*_h3_singleshot/` subtrees and is a DISJOINT hypothesis
+    # condition — `analyze_campaign.py`'s walker skips it for exactly this reason. Pooling it made
+    # this alarm read **2.39x** for a quantity whose value is **1.30x**, and — because h3ss entered
+    # packed C4 at ~116 records/h, all tagged distributional — it was about to climb through 3x, 4x,
+    # 5x WHILE THE REAL H2 IMBALANCE IMPROVED (the core line went 1.87x -> 1.65x the same night).
+    # An alarm that rises as its own risk falls trains the operator to ignore the one number
+    # guarding the headline hypothesis. Raised by the ANALYSIS lane, verified first-hand, fixed at
+    # the source rather than by adjusting the threshold.
+    ("n_distributional",    r"^\s*distributional\s+pool=(\d+)",                            "ra"),
+    ("n_scalar",            r"^\s*scalar\s+pool=(\d+)",                                    "ra"),
+    ("n_placebo",           r"^\s*placebo\s+pool=(\d+)",                                   "ra"),
+    ("n_scalar_cvar5",      r"^\s*scalar_cvar5\s+pool=(\d+)",                              "ra"),
+    ("n_placebo_shuffled",  r"^\s*placebo_shuffled\s+pool=(\d+)",                          "ra"),
 )
 
 #: ARM DEPTH. The four arms of H2's 3-leg IUT: `distributional` must beat `scalar`, `placebo` AND

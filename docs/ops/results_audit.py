@@ -153,6 +153,46 @@ for arm in LLM_ARMS:
               % (arm, len(hs), len(set(hs)), 100.0 * len(set(hs)) / len(hs)))
 shared = [h for h, a in hash_arms.items() if len(a) > 1]
 print("  programs identical ACROSS arms : %d" % len(shared))
+
+# ---------------------------------------------------------------- 3b E[max] ARM POOLS
+# ★ 2026-08-01 (RUN 10, record §100.14): THE ARM-DEPTH ALARM WAS POOLING A DISJOINT CONDITION,
+# AND IT WAS MOVING IN THE OPPOSITE DIRECTION TO THE RISK IT NAMES.
+#
+# The counts in section 3 above are the right ones for DIVERSITY -- every authored program counts,
+# wherever it was authored. They are the WRONG ones for the E[max] arm-depth ratio, which the cycle
+# escalates on, because they include the H3 SINGLE-SHOT control. `*_h3_singleshot/` writes its own
+# search/frozen/test subtrees under the SAME output dir with `arm='distributional'`, and it is a
+# DISJOINT hypothesis condition (DEEP_H3 §1) -- `analyze_campaign.py`'s walker skips it explicitly,
+# with a comment saying that walking in would "silently pool single-shot candidates into the
+# HEADLINE distributional arm's records". The ops metric did exactly that.
+#
+# MEASURED at the moment of the fix: distributional read 521, of which **244 were h3_singleshot**;
+# every other arm 0. The alarm reported a spread of **2.39x** for a quantity whose value is 1.30x.
+#
+# ⚠ AND IT WAS ABOUT TO GET MUCH LOUDER WHILE THE RISK SHRANK. h3ss entered packed C4 and is
+# producing ~116 records/h, ALL tagged distributional, so this alarm would have climbed through
+# 3x, 4x, 5x over the following hours -- while the actual H2 imbalance IMPROVED (the core line
+# measured 1.87x -> 1.65x over the same night). An alarm that rises as its own risk falls is worse
+# than no alarm: it trains the operator to ignore the one number that guards the headline
+# hypothesis. Raised by the ANALYSIS lane; verified first-hand here before changing anything.
+#
+# Section 3 is left untouched -- both facts are true and neither may be conflated.
+print("\n== 3b. E[max] ARM POOLS (h3_singleshot EXCLUDED -- disjoint H3 condition) ==")
+_pool = Counter()
+for r in records:
+    if r.get("arm") in LLM_ARMS and r.get("reward_source_hash") \
+            and not str(r.get("_root", "")).endswith("_h3_singleshot"):
+        _pool[r["arm"]] += 1
+for arm in LLM_ARMS:
+    if _pool[arm]:
+        print("  %-18s pool=%3d" % (arm, _pool[arm]))
+_iut = [_pool[a] for a in ("distributional", "scalar", "placebo", "scalar_cvar5") if _pool[a]]
+if len(_iut) >= 2:
+    print("  H2 IUT pool spread : %.3fx  (max=%d min=%d)"
+          % (max(_iut) / min(_iut), max(_iut), min(_iut)))
+    print("     The winner is max(val_fitness) over the SEARCH pool, so E[max] rises with pool size;")
+    print("     a starved comparator makes its IUT leg easier to reject. This is the ratio that")
+    print("     bears on H2 -- section 3's counts include the disjoint H3 single-shot condition.")
 if shared:
     print("     NOTE: identical code under different feedback is INTERESTING (it is what a null looks")
     print("     like at the code level), but it must be checked against a prompt mix-up before it is")
