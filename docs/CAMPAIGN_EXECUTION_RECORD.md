@@ -13282,3 +13282,63 @@ those. **My peak-derived estimate was optimistic by roughly two days.** Both rem
 the **08-27** exogenous stop, so nothing changes operationally — but *a forecast built on the fastest
 window I had seen is a forecast built on the phase I happened to measure in*, which is the same error
 in planning clothes.
+
+### 100.30 ★★ NINE INDEPENDENT REWARD PROGRAMS FAIL AT THE SAME INSTANT — A TAXONOMY FINDING, NOT AN INSTRUMENT DEFECT
+
+**Found by chasing a number the monitor flagged**, not by looking for it: `r115` BINDING climbed
+**14 -> 16 -> 17** in an hour.
+
+**FIRST, THE REASSURANCE, all re-derived first-hand.** All **17** binding candidates sit on
+**report-only legs** — **ZERO on the core confirmatory line**. My independent count of 17 **matches
+the sentinel's own `r115=17B` exactly** (the third such cross-check tonight). The arm spread is
+balanced — scalar 5 · distributional 4 · scalar_cvar5 3 · placebo_shuffled 3 · placebo 2 — so there
+is **no differential-arm attrition risk**, which is the thing that would actually bias H2.
+
+**THEN THE FINDING.** Enumerating the EXACT fallback counts shared by more than one candidate:
+
+```
+  199,932 / 400,000  =  0.499830   shared by NINE candidates
+      nine DISTINCT reward_source_hash values
+      four model families : haiku-4.5 · nemotron-3-super · qwen3.5-9b · qwen3.6-27b
+      three arms          : distributional · placebo_shuffled · scalar
+```
+
+**Nine genuinely different programs, independently authored by four different LLMs under three
+different feedback conditions, failing on the same number of calls TO THE INDIVIDUAL CALL.** That is
+not stochastic.
+
+#### THE INSTRUMENT HYPOTHESIS WAS TESTED FIRST, AND REFUTED
+
+*A clean 50 % means suspect the SPECIFICATION, not the subject* — and the stakes justified it: a
+harness that failed to thread `reward_state` would **systematically penalise an entire CLASS of
+authored programs**, which is a genuine threat to the science. **It does not hold:**
+
+```
+  STATEFUL  (source contains reward_state)   n=1,989   any fallback  88 (4.42 %)   at 199,932  9 (0.45 %)
+  stateless                                  n=  327   any fallback   9 (2.75 %)   at 199,932  0 (0.00 %)
+```
+
+**Statefulness is NECESSARY — zero stateless programs exhibit it — but nowhere near SUFFICIENT: only
+9 of 1,989 stateful programs do.** A harness defect would hit stateful programs *broadly*; this hits
+**0.45 %** of them.
+
+#### THE HYPOTHESIS THAT SURVIVES — AND IT IS MECHANISM MATERIAL
+
+**The identical integer across independent programs means the failure ONSET IS DATA-SYNCHRONISED,
+NOT PROGRAM-IDIOSYNCRATIC.** 200,068 calls succeed, then 199,932 fail — so failure begins at **call
+200,069 and stays failed**, and it begins at the *same* call for every susceptible program **because
+the panel is identical across runs**. **The environment's clock sets the ONSET; the program only
+determines whether it is SUSCEPTIBLE.**
+
+> **★ The reportable statement: LLM-authored reward failures are not randomly distributed in time — a
+> susceptible program fails at a DATA-DETERMINED INSTANT.**
+
+**WHAT IS NOT ESTABLISHED, and is not asserted:** *which* data condition at call 200,069 triggers it.
+That is **not resolvable from the archive** — it needs a replay of one of the nine against the panel
+with the SAFE_DEFAULT path instrumented. **Not done mid-campaign.**
+
+**HANDED TO THE ANALYSIS LANE (M130) rather than written up here**, because mechanism and the
+reward-program taxonomy are the **originality kernel** and their lane. Two caveats travel with it:
+**(a)** all nine are report-only legs, so no confirmatory estimand is touched; **(b)** 0.45 % of
+stateful programs is a **RARE** mode — it must not compress into *"stateful rewards fail"*, which is
+exactly the failure §100.22/W5 was amended to prevent.
