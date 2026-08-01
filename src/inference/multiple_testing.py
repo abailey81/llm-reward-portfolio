@@ -252,15 +252,54 @@ def graphical_alpha_propagation(
         for n in live:
             local_alpha[n] = w[n] * alpha
 
-    return {
+    # ★★ 2026-08-01 (record §100.33) — A NODE CAN BE UNTESTABLE FOR TWO REASONS, AND ONLY ONE WAS
+    # REPORTED. ``untestable`` above catches a node with NO P-VALUE (too few shared seeds). It does NOT
+    # catch a node whose FINAL LOCAL ALPHA IS ZERO — which, under the registered graph, is the case
+    # that actually arises: ``initial_weights`` starts N3/N4/N5/N6 at 0.0, so if no upstream node
+    # rejects, those four are tested at w*alpha = EXACTLY 0.0 and cannot reject at ANY attainable
+    # p-value. They were then reported under ``not_rejected`` — indistinguishable from a hypothesis
+    # that WAS tested and failed.
+    #
+    # WHY THAT WAS THE MOST DANGEROUS SENTENCE THIS FUNCTION COULD EMIT. Executed on the design's OWN
+    # PRE-REGISTERED PREDICTION (H2 null on both co-primaries), the verdict read
+    # ``not_rejected: [... N6_h1 ...]`` for an H1 p-value of 0.0001 — a result that rejects
+    # comfortably under the very rule R105/R108 replaced. Writing "H1 was not rejected" into a chapter
+    # graded on faultless presentation of data, when H1 was never TESTABLE, misstates the result in
+    # the direction of a null we predicted. The docstring above already promised the right behaviour
+    # for the other case: such a node "can never reject and is reported under untestable — it is NOT
+    # silently treated as a passing test." This makes the code honour that promise for BOTH reasons.
+    #
+    # ⚠ THIS CHANGES NO INFERENCE. ``rejected`` is computed exactly as before and is untouched; only
+    # the CATEGORISATION of the non-rejections changes. The two reasons are kept in SEPARATE keys
+    # because they are different facts about the experiment: ``untestable`` = we had no data;
+    # ``structurally_untestable`` = we had data but the graph allotted the node no alpha.
+    #
+    # A node that finished at zero alpha and STILL rejected (possible only for p <= 1e-15, the
+    # numerical tolerance in the rejection test) is deliberately excluded — it rejected, so it was
+    # testable in the only sense that matters.
+    structurally_untestable = [n for n in nodes
+                               if n not in rejected and n not in untestable
+                               and local_alpha[n] <= 0.0]
+    out: dict[str, Any] = {
         "alpha": float(alpha),
         "rejected": rejected,
-        "not_rejected": [n for n in nodes if n not in rejected and n not in untestable],
+        "not_rejected": [n for n in nodes if n not in rejected and n not in untestable
+                         and n not in structurally_untestable],
         "untestable": untestable,
+        "structurally_untestable": structurally_untestable,
         "local_alpha": local_alpha,
         "steps": steps,
         "any_rejected": bool(rejected),
     }
+    if structurally_untestable:
+        # Carried IN the artifact so it cannot be lost between here and the chapter.
+        out["structurally_untestable_note"] = (
+            f"{len(structurally_untestable)} node(s) were allotted local alpha EXACTLY 0.0 by the "
+            f"graph and could not have rejected at any attainable p-value: "
+            f"{', '.join(structurally_untestable)}. They are NOT 'not rejected' — they were never "
+            f"tested. Report them as untestable-by-construction, never as failed tests."
+        )
+    return out
 
 
 def registered_alpha_graph(root: Any = None) -> tuple[dict[str, float], dict[str, dict[str, float]], float]:
