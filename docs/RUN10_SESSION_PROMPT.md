@@ -137,36 +137,60 @@ while the suite had not run at all (`RC=4`, an unrecognised flag).
 | **certified so far** | all 7 new tests PASS and are FALSIFIED against the pre-fix code · `freeze --check` **MATCHES** · `ruff` clean · the `.ps1` is pure-ASCII and `Parser::ParseFile`-clean |
 | **NOT yet done** | **the full pytest suite with BOTH fixes** · **the deploy** · **the `RUNNING_SHA` re-base** |
 
-### ⚠⚠ THE DEPLOY IS **HALF DONE** — THIS IS YOUR VERY FIRST JOB
+### ✅ THE DEPLOY IS **COMPLETE** — AND ONE THING IS LEFT UNVERIFIED
 
-**RUN 9 committed, certified and STARTED the deploy, and handed it over mid-roll on purpose.**
+**RUN 9 applied, certified and FULLY DEPLOYED D16 + D12 (record §97, §99).**
 
 ```
-  DONE  full suite PYTEST_RC=0 (read FROM THE LOG), zero failures
-  DONE  committed; RUNNING_SHA re-based 50b6e07 -> 16bb71b in docs/ops/cycle.py
-  DONE  drift verified back to 0 (BOTH arms empty)
-  DONE  pushed to both branches
-  DONE  CANARY: the `h3` supervisor was KILLED so watchdog_fenced.ps1 revives it from disk
-        with the new mode_d_supervisor.ps1  (h3 chosen because its ENTIRE 568-seed ladder is
-        already submitted to Myriad — a restart there cannot lose queued work)
-  TODO  ** VERIFY h3 CAME BACK ** (the watchdog polls every 300 s, so allow up to 5 minutes)
-  TODO  ** THEN ROLL THE OTHER ELEVEN ** — one at a time, verifying each
-  TODO  ** UPDATE `RUNNING_SHA` IN docs/HANDOFF.md ** (cycle.py is done; HANDOFF is not)
+  full suite   PYTEST_RC=0 (read FROM THE LOG), zero failures
+  committed    RUNNING_SHA re-based 50b6e07 -> 16bb71b in docs/ops/cycle.py AND docs/HANDOFF.md
+  drift        verified back to 0 on BOTH arms
+  pushed       both branches
+  CANARY       h3 supervisor killed 00:46Z -> REVIVED 00:50:19Z from disk
+  ROLL         the other ELEVEN killed 00:53Z -> ALL revived 00:55:22-00:55:53Z
+  FINAL        12/12 supervisors, every one started AFTER the roll; watchdog alive
 ```
 
-**Verify the canary like this** — 12 of 12 supervisors, and h3's start time AFTER the kill:
+> ### ⚠ YOUR FIRST CHECK: `drivers = 24`, EVERY ONE PARENTED TO A LIVE SUPERVISOR
+> RUN 9 ended with **20** drivers, not 24 (12 lines × 2 = a venv launcher and its child). Two lines
+> had not yet re-spawned when the session closed. **This is expected to self-heal within one backoff
+> cycle but was NOT OBSERVED reaching 24.** If a line is still short after ~15 minutes, read its
+> supervisor log — the driver lock may be held by a stale entry (**D20**, deferred item 13, detector
+> armed).
+>
+> ```powershell
+> $sup=@(Get-CimInstance Win32_Process|Where-Object{$_.CommandLine -like '*mode_d_supervisor.ps1*' -and $_.CommandLine -notlike '*Get-CimInstance*'}|ForEach-Object{$_.ProcessId})
+> $drv=@(Get-CimInstance Win32_Process|Where-Object{$_.CommandLine -like '*run_campaign_cluster*' -and $_.CommandLine -notlike '*Get-CimInstance*'})
+> "supervisors={0}/12 drivers={1} orphans={2}" -f $sup.Count,$drv.Count,@($drv|Where-Object{$sup -notcontains $_.ParentProcessId}).Count
+> ```
 
-```powershell
-$me=$PID; @(Get-CimInstance Win32_Process | Where-Object {
-  $_.ProcessId -ne $me -and $_.CommandLine -like '*mode_d_supervisor*' }) |
-  ForEach-Object { if ($_.CommandLine -match '-Line\s+(\S+)') {
-    "{0,-22} pid={1} started={2}" -f $Matches[1], $_.ProcessId, $_.CreationDate } } | Sort-Object
-```
+> ### ★★ A RULE RUN 9 LEARNED THE HARD WAY — ADD IT TO §6's RELAUNCH PROCEDURE
+> **`Stop-Process` on a supervisor does NOT kill its drivers.** After the roll the machine ran **24
+> ORPHANED drivers on the OLD code alongside 20 new supervised ones** — a double-submission and
+> lock-contention exposure that RUN 9 created and then cleaned (all 24 killed; verified 0 orphans).
+> **A rolling SUPERVISOR restart must kill the driver children too, or verify afterwards that no
+> orphan survives.** §58 never recorded this because `--pack 8` happened to deploy while the fleet was
+> between driver spawns.
 
-**If h3 does NOT come back within ~10 minutes, that is the signal to stop and diagnose** — check
-`docs/ops/watchdog_fenced.ps1` is still running, and read h3's supervisor log. **Do not roll the other
-eleven until the canary is proven.** The campaign is fine either way: the eleven live supervisors are
-still on the OLD code, which is the code that has been running for three days.
+### ⚠ WHAT THE DEPLOY WILL CAUSE, PREDICTED AND MEASURED IN ADVANCE
+
+**D16 will STOP the core line at its C3 gate, and that is a TRUE POSITIVE.** Measured: exactly four
+records — `baseline_volatility_scaled_return-s14 … -s17` — ran on an **Intel Xeon Gold 6140** while
+everything else ran on a **6240**, so **exactly four seeds (14-17) carry a substrate split across
+units**. That unit is one of the **eleven human-canon rewards in H1's comparator family**. Options,
+none of them free:
+
+* **(A) accept the stop**, review the effect-blind report, release with `TIER1_APPROVED_<line_tag>`
+  under the read root + `--approve-tier1 --resume`. **This is the designed protocol.**
+* **(B) remove the confound**: quarantine those four run dirs (move them OUT of the arm dir to a
+  sibling under the run root — do NOT leave them inside, `load_all` iterates every subdir) and let
+  `--resume` re-run them on a fenced host. They are **deterministic TEST seeds of a BASELINE**, which
+  the loader's own error message explicitly sanctions re-running. **Better science** — but **VERIFY
+  the re-submission happens within the hour and restore them if it does not**, or the unit becomes
+  incomplete and stalls the gate anyway, worse.
+* **(C) scope D16 to the H2 arms only.** Cheapest, weakest.
+
+**RUN 9's recommendation is (B), falling back to (A). It is Tamer's call and he has not made it.**
 
 ### YOUR FIRST ACTIONS, IN THIS ORDER
 

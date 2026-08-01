@@ -11887,3 +11887,71 @@ session — every one a predicate correct for the case it was written against an
 neighbouring case, and every one in the WATCHING layer while the DATA stayed clean.**
 
 ---
+
+---
+
+## 99. THE D16+D12 DEPLOY — COMPLETED, AND A 24-ORPHAN INCIDENT I CAUSED AND CLEANED (2026-08-01, RUN 9)
+
+### 99.1 The deploy, step by step, as executed
+
+```
+  full suite                      PYTEST_RC=0  (read FROM THE LOG), zero failures
+  committed                       5314dd9, then RUNNING_SHA re-based 50b6e07 -> 16bb71b (cycle.py)
+  drift                           verified back to 0 on BOTH arms
+  pushed                          backup-2026-07-28 + myriad-cluster-and-tier-system
+  CANARY  h3 supervisor killed    00:46Z   -> REVIVED 00:50:19Z, new pid, from disk
+  ROLL    the other ELEVEN killed 00:53Z   -> all REVIVED 00:55:22-00:55:53Z
+  final   12/12 supervisors, all started AFTER the roll, watchdog alive
+```
+
+**h3 was the correct canary**: its entire 568-seed ladder is already submitted to Myriad, so a restart
+there cannot lose queued work, and the cluster jobs are untouched by a laptop-side restart.
+
+**⚠ ROLLING BECAME URGENT ONCE THE CANARY PASSED, not optional.** The new DRIVER code (`return 3`) was
+already committed to disk, so any driver relaunching under a supervisor still on the OLD `.ps1` would
+return 3, hit no matching arm, and **fall through to the backoff relaunch loop** — the exact failure
+D12 exists to prevent. **`leg4` is at C2 with its gate next.** A half-rolled fleet was therefore more
+dangerous than either end state.
+
+### 99.2 ★ THE INCIDENT — `Stop-Process` ON A SUPERVISOR DOES NOT KILL ITS DRIVERS
+
+Immediately after the roll:
+
+```
+  supervisors = 12/12   ✓          drivers = 44   ✗ (expected 24)
+  grouped by start time:  07-31 15:57 -> 24 processes
+                          08-01 01:55 -> 20 processes
+  of the 24 old ones, parented to a live supervisor: 0     <- ALL ORPHANED
+```
+
+**Killing the twelve supervisors orphaned their twenty-four drivers rather than terminating them.** For
+several minutes the machine ran **24 unsupervised drivers on the OLD code alongside 20 new supervised
+ones**, competing for the same lines and the same driver locks. **That is a double-submission and
+lock-contention exposure, and I created it.**
+
+**Cleaned:** all 24 identified by `CreationDate < now-2h` AND `ParentProcessId ∉ {live supervisors}`,
+then killed — 17 by `Stop-Process`, the remaining 7 already gone (children of already-killed parents).
+**Verified after: 12/12 supervisors, 20 drivers, ZERO orphans, watchdog alive.**
+
+**Why the exposure was bounded rather than catastrophic:** the driver lock (`_acquire_driver_lock`)
+serialises drivers per line, the cluster jobs are unaffected by laptop-side restarts, and every driver
+is idempotent under `--resume`. **But it should never have happened, and the register's relaunch
+procedures do not mention it.**
+
+> ### ★ THE RULE THIS EARNS — ADD IT TO THE RELAUNCH PROCEDURE
+> **A rolling SUPERVISOR restart must kill the supervisor's DRIVER CHILDREN too, or verify afterwards
+> that no orphaned driver survives.** The driver-only relaunch procedure (§46/§54/§60) kills drivers
+> leaf-first and is unaffected; it is the SUPERVISOR restart (§58) that leaves orphans, and §58 did not
+> record it because `--pack 8` was deployed when the fleet happened to be between driver spawns.
+> **Check `ParentProcessId ∈ {live supervisors}` after every supervisor roll.**
+
+### 99.3 ⚠ ONE THING LEFT UNVERIFIED, STATED PLAINLY
+
+**Drivers settled at 20, not the expected 24** (12 lines × 2 processes: the venv launcher and its
+child). Two lines had not yet re-spawned their driver when the session ended — the supervisors spawn on
+their own loop, so this is **expected to self-heal within one backoff cycle**, but **it was NOT
+observed reaching 24.** **The successor must verify `drivers = 24` and that every one is parented to a
+live supervisor.** If a line is still short after ~15 minutes, read that line's supervisor log:
+the driver lock may be held by a stale entry (**D20**, deferred item 13, whose detector is armed).
+
+---
