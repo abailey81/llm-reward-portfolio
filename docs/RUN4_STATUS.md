@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-01 17:24 UTC -- T+92h15m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-01 17:29 UTC -- T+92h20m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,7 +9,7 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+92h15m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+92h20m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
 | records archived | **2606** |
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-01T17:22:04Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=15.4s  auto-cycle
-2026-08-01T17:22:04Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=15.4s  auto-cycle
-2026-08-01T17:22:50Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=1.9m  drift=0  sci=OK  r115=19B  sweep=17.7s  auto-cycle
-2026-08-01T17:22:50Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=1.9m  drift=0  sci=OK  r115=19B  sweep=17.7s  auto-cycle
-2026-08-01T17:23:38Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=17.2s  auto-cycle
-2026-08-01T17:23:38Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=17.2s  auto-cycle
+2026-08-01T17:27:48Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=17.9s  auto-cycle
+2026-08-01T17:27:48Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=19B  sweep=18.0s  auto-cycle
+2026-08-01T17:28:36Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=19B  sweep=17.7s  auto-cycle
+2026-08-01T17:28:36Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=19B  sweep=17.7s  auto-cycle
+2026-08-01T17:29:24Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=19B  sweep=17.6s  auto-cycle
+2026-08-01T17:29:24Z  RED  records=2606 (+0)  spend=$45.4429  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=19B  sweep=17.7s  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
