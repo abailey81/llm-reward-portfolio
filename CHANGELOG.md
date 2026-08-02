@@ -3,6 +3,99 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-02e] ★★★★★ BUILDER / RUN 14 (second pass) — **DETERMINISM IS NOW MEASURED, NOT ASSERTED** · a third per-record instrument asks the SCIENTIFIC question the other two cannot · **R115's "96x EMPTY GAP" has filled and its registered justification is now false** · two more of my own errors
+
+**PAST.** `[2026-08-02d]` re-derived the cores ceiling and left D30 measured-but-unapplied. Tamer then
+pressed both standing asks again: the cores, and *"dive very deep, and look at the every record, and
+ensure absolutely everything there is flawless, and the records are logical, meaningful, no science
+issue."*
+
+**PRESENT.**
+
+### ① THE SCIENTIFIC GAP NOTHING WAS CHECKING
+
+`record_validator` (R1-R9) checks a record against its CONTRACT. `record_provenance_seal` (P1-P4)
+checks it against the FILES BESIDE IT. **Neither asks whether a record makes SCIENTIFIC sense.** A
+record can pass both while holding the wrong test-window length, a tenth of the registered training
+budget, a non-simplex allocation, or — decisively — while DISAGREEING with another record that shares
+its `(arm, seed, reward hash)`. R7 is the sharp case: it checks a record's series share ONE length
+*as each other*, so 200 sessions instead of 1,571 passes it while describing a different experiment.
+
+**NEW: `docs/analysis/record_science_audit.py` (S1-S9), selftest 14/14, wired into `cycle.py`.**
+
+### ② THE RESULT — CLEAN ON 4,044 RECORDS, AND TWO RESULTS CARRY REAL WEIGHT
+
+```
+records 4,044 (sealed-test 2,485)
+S2  observed test lengths: {1571: 2485}          -- every series is the REGISTERED length
+S4  2,485 distinct (arm, seed, reward hash) keys -- ZERO disagree
+S1/S6/S7/S8  no non-finite value, no degenerate series, every allocation a valid simplex
+```
+
+**S4 is the one to notice.** The reproducibility claim (Priority 5; Stefan's criterion #3) says the
+same reward, arm and seed reproduce the same result. It has been ASSERTED throughout and is now
+**MEASURED**: every pair of records sharing an `(arm, seed, reward_source_hash)` holds **byte-identical**
+`test_returns`. Determinism is a property of the archive, not a promise about the design.
+
+### ③ ★★★ R115's REGISTERED JUSTIFICATION IS NOW EMPIRICALLY FALSE — and it is headed for the PDF
+
+R115 sets `winner_max_fallback_frac = 0.10` and defends the VALUE as immaterial: *"THRESHOLD-
+INSENSITIVE, not tuned … worst trace 0.41 %, mildest severe 39.40 %, a 96x EMPTY GAP — so any value in
+~1-35 % partitions the data identically."* Measured on the 3,988 counter-carrying records the campaign
+has now produced:
+
+```
+records inside the claimed EMPTY GAP (0.41 % .. 39.40 %) : 88     <- the gap has FILLED
+ineligible by threshold:  1%->95  2%->91  5%->87  8%->53  10%->21  15%->20  20%->16  35%->14
+```
+
+**Every threshold in 1-35 % now partitions the data DIFFERENTLY.** The live monitor agrees by a second
+route — the cycle log's `r115=21B` is 21 breaches AND **BINDING**, meaning a contaminated candidate
+currently tops its arm, so the floor bites. **A floor that binds is a floor whose value has
+consequences, which is the opposite of what the registered sentence claims.**
+
+**NOTHING IS COMPROMISED AND THE NUMBER MUST NOT CHANGE.** 0.10 was pre-committed before any campaign
+data existed; all 21 breaches are SEARCH candidates and the sealed-test maximum is **9.0847 %**, below
+the floor. The PRIMARY pre-data defence in the amendment row is untouched and is the strong one. What
+is stale is the SECONDARY insensitivity sentence. **Both `config/preregistration.yaml` and
+`PREREGISTRATION.md` are HASH-BOUND inside the frozen hash `3ca6f01ab772`, so the correction is a
+dated amendment or a stated Limitation — Tamer's decision — and changing the threshold would convert
+a presentational fix into a post-data forking path.**
+
+### ④ A REAL DISCLOSURE THE TRIAGE SURFACED
+
+Sealed-test fallback is confined to `test_leg_qwen3_5_9b`, the capability-BOTTOM anchor:
+`distributional` (TREATMENT) 30 records at 7.84-7.85 %, `placebo_shuffled` 30 records at exactly
+9.0847 %, while that leg's `scalar` arm carries **zero**. So within that leg the H2 pair is asymmetric
+in execution quality — the confound R115 exists to bound, inside its tolerance. It is the numeracy
+bottleneck visible in the sealed leg of the weakest model, and it belongs in the write-up.
+
+### ⑤ CORES, RE-MEASURED (Tamer's repeated ask)
+
+**1,832 running; placeable headroom 80 cores** (b00a 40 · d00a 32 · d00b 8), down from 112 an hour
+earlier as other users took it. Pack 4 would now buy only +28 (it was +108 an hour ago — these must be
+re-measured, never remembered). With **711 of our jobs already queued**, any placeable slot is claimed
+within a scheduler tick. **We are saturated at an entitlement ceiling of ~1,912 cores; 2,000 is not
+reachable in our entitled pools today.**
+
+### ⑥ ⚠ MY OWN ERRORS — P193, P194
+
+* **P193 — I calibrated a check to my intuition instead of the registered design, and reported the
+  alarm before triaging it.** The first S5 hardcoded a 1 % fallback threshold and produced **95
+  "science issues"** that were inside the registered 10 % tolerance. In the same message I wrote *"all
+  95 are search-tier"* from a TRUNCATED list when **69 are sealed-test**. The audit now READS the floor
+  from the frozen registration and refuses to substitute a value for it.
+* **P194 — I degraded the monitoring cadence, then measured it.** Wiring the audit onto the raw ssh
+  cadence took the sweep from ~26 s to **33-51 s** with `SWEEP-BOUND` in the log; at the
+  ~42,000-record end state it would push a cycle past the **2-minute** threshold the mandate reads as
+  a DEAD loop. Now rate-limited to 30 min (~9 % duty). **A new monitor is a load on the monitor it
+  joins, and that load must be measured before it is trusted.** Cadence verified recovered to 28.5 s.
+
+**FUTURE.** ① The R115 disclosure decision (amendment vs Limitation) — **Tamer's**. ② `qdel` the eight
+junk jobs. ③ The §105.7 submission-order decision, still the biggest lever on the reported result.
+④ Apply the D30 one-token edit + canary, after closing the `node-b00a-008` CPU-flags residual.
+⑤ D29 pagefile. ⑥ `campaign_summary.json` AT TEARDOWN.
+
 ## [2026-08-02d] ★★★★★ BUILDER / RUN 14 — **THE HEADROOM IS 112 CORES, NOT 592** · the blocker that stopped RUN 13 does not exist · pool widening EXECUTED onto b00a on a first-hand CPU probe · e00a was a pool the codebase already excluded · four of my own instruments lied to me, including the test harness
 
 **PAST.** RUN 13 closed by mapping the D30 pool-widening rollout but declining to execute it, on the
