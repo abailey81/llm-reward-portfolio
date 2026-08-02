@@ -16745,3 +16745,66 @@ generation — here g4 never displaced g3-c4. **My rule "must match g-1" was a s
 the design implements**, and after correcting it to "any earlier generation of the same arm" the
 match is **444/444**. Worth recording as a mechanism fact in its own right: under a model with heavy
 authoring failure, the reflection loop can spend several generations reflecting on the same ancestor.
+
+## 114. ★★★★★ RUN 14 (tenth pass) — CORES: 1,976, AND THE PACK LEVER HAS RE-OPENED BECAUSE THE JOB CAP EASED (2026-08-02)
+
+**Records first, per Tamer's ordering — all six layers CLEAN (§109-§113). Then cores.**
+
+### 114.1 WHERE THE CORES ACTUALLY WENT
+
+```
+session start 1,832  ->  1,960  ->  1,976 cores   (247 running jobs x 8)
+job count      1000/1000 (SATURATED)  ->  847/1000  (153 slots FREE)
+queue          782 qw  ->  600 qw
+```
+
+**The 2k target is effectively met.** The rise came from absorbing free capacity, not from any action:
+the fleet takes every placeable slot within a scheduler tick because 600 of our jobs sit queued.
+
+### 114.2 ★★★ THE ONE THING THAT GENUINELY CHANGED: THE PACK LEVER IS AVAILABLE AGAIN
+
+Earlier in the session, halving the pack was **refused on a hard constraint** — it doubles the job
+count and we were sitting exactly on `max_u_jobs = 1000`. **That constraint has eased: 847/1000, with
+153 free slots.** Re-measured on the day:
+
+| config | placeable cores |
+|---|---|
+| **pack 8, pool d — WHAT WE CAN REACH TODAY** | **8** |
+| pack 8, pool d+b | 32 |
+| pack 4, pool d | 32 |
+| **pack 4, pool d+b** | **84** |
+
+**259 slots are STRANDED at pack 8** — free, but sitting on hosts holding fewer than eight. That is
+what a narrower pack converts into work. **Together the two levers take reachable headroom from 8 to
+84 cores, a tenfold increase, and BOTH are the same single action: two changed tokens in
+`mode_d_supervisor.ps1`'s `$cpuLane` plus one supervisor restart.**
+
+### 114.3 PACK WIDTH IS SCIENCE-SAFE, AND I VERIFIED IT RATHER THAN INHERITING IT
+
+The supervisor comment asserts pack is "OUTSIDE the determinism envelope". That is a load-bearing
+claim for a live confirmatory campaign, so it was re-derived from the archive:
+
+```
+search tier : OMP_NUM_THREADS = 8   on 1,507 training records   (uniform)
+test tier   : OMP_NUM_THREADS = 1   on 2,467 training records   (uniform)
+```
+
+**Pack width governs how many trainings share a JOB; OMP governs how many threads a TRAINING uses.
+With test-tier OMP uniformly 1, a pack change cannot alter float reduction order** — the mechanism by
+which a substrate change would break CRN bit-exactness. Verified, not assumed.
+
+⚠ **AND I NEARLY REPEATED P179 DOING IT.** The scan first reported 59 test-tier `env.json` files with
+`OMP_NUM_THREADS = None`, which would be a determinism-envelope provenance gap. **Every one of them is
+a per-arm `_env/` STORE, not a training unit** — exactly the object P179 warns about (*"counted each
+unit's `_env/` STORE as a training"*). Checked explicitly: **59 stores, 0 training units.** No training
+record is missing its thread count.
+
+### 114.4 THE STANDING CONSTRAINT IS UNCHANGED, AND IT IS NOT COMPUTE
+
+Disk is still the binding constraint on the REPORTED RESULT (§108): C: 25.62 GB, floor crossed at
+rung 279, throughput already above what max seeds needs. **D29 + DISM has not been run** (C: free is
+unchanged but for archive growth). Cores at 1,976 with 84 reachable is a throughput improvement;
+**it does not move the rung ceiling, which is set by disk.**
+
+**⇒ PRIORITY ORDER FOR TAMER IS UNCHANGED:** D29 + DISM first (it is what unlocks max seeds), then the
+single supervisor restart carrying BOTH `--pool db` and a narrower `--pack`, then `qdel`.
