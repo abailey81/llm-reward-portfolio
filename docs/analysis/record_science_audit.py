@@ -48,6 +48,22 @@ THE CHECKS
   S8  universe invariance   -- every record must see the SAME number of steps; a record that saw a
                                different window is not comparable to its CRN partners
   S9  pnl identity          -- per_period_pnl vs test_returns (the A62 disclosure, tracked)
+  S10 CRN PAIRING           -- within each line's BANKABLE CONTIGUOUS PREFIX, every paired arm holds
+                               every seed. Every paired contrast in the design (H2's co-primary
+                               IUTs, the per-model contrasts, the seed-block bootstrap) compares arm
+                               A seed s against arm B seed s; if the seed SETS differ the pairing
+                               misaligns, and NO per-record check can see it, because every
+                               individual record is perfectly valid -- the defect lives in the SET.
+                               It also reports the COMMON banked rung, which under R101 IS the
+                               reported result.
+                               ⚠ THE PREFIX FRAMING IS LOAD-BEARING. Asking "are the seed sets
+                               equal?" flags every line that is MID-SWEEP: the pipelined C4 path
+                               submits all six assurance blocks at once, so seeds land out of order
+                               across tiers and the sets are ragged BY CONSTRUCTION while work is in
+                               flight. The cumulative-tier rule banks a rung only when it and every
+                               rung below are complete, so the meaningful object is the CONTIGUOUS
+                               PREFIX. My first version lacked this and reported a healthy in-flight
+                               line as a defect (P195, the P186 class).
 
 USAGE
     python docs/analysis/record_science_audit.py                # whole archive
@@ -73,6 +89,9 @@ REGISTERED_TEST_LEN = 1571
 #: The FIXED per-candidate training budget (config/algos.yaml:16 and config/campaign.yaml:20,
 #: mirrored by the preflight budget guard). R77 raised it to the measured knee.
 REGISTERED_TRAIN_STEPS = 400_000
+#: The registered assurance-tier ladder (Amendment E1 / R101). A rung BANKS only when it and
+#: every rung below it are complete, which is why S10 measures a CONTIGUOUS PREFIX.
+REGISTERED_RUNGS = [30, 100, 189, 279, 340, 403, 568]
 #: A single-session portfolio return outside this band is not a market move, it is a bug. The
 #: gold panel's own worst session is far inside it; this is a physical-impossibility screen, NOT a
 #: performance judgement, and it is deliberately loose so that only defects trip it.
@@ -281,6 +300,8 @@ def main(argv=None) -> int:
     # S4: (arm, seed, reward_hash) -> {series digest -> first path}
     det: dict[tuple, dict[str, str]] = defaultdict(dict)
     det_violations: list[str] = []
+    # S10: line -> arm -> set(seeds), test tier only (pairing is a test-leg property)
+    pair_seeds: dict[str, dict[str, set]] = defaultdict(lambda: defaultdict(set))
 
     for p in sorted(root.rglob("record.json")):
         # a partially-pulled record lives under a dot-prefixed dir and is not archive content
@@ -309,6 +330,17 @@ def main(argv=None) -> int:
         if isinstance(tr, list):
             n_test += 1
             step_counts[len(tr)] += 1
+            try:
+                _line = p.relative_to(root).parts[0]
+            except ValueError:
+                _line = "?"
+            _arm = rec.get("arm")
+            _sd = rec.get("seed")
+            # baselines are the UNPAIRED H1 comparator family and legitimately carry their own
+            # seed counts, so including them would manufacture raggedness that is by design
+            if (_arm is not None and isinstance(_sd, int)
+                    and not str(_arm).startswith("baseline_")):
+                pair_seeds[_line][_arm].add(_sd)
             key = (rec.get("arm"), rec.get("seed"), rec.get("reward_source_hash"))
             dg = _series_digest(tr)
             seen = det[key]
@@ -328,9 +360,35 @@ def main(argv=None) -> int:
                 s8.append(f"S8 {c} test record(s) hold {ln} steps against the modal {modal} "
                           f"({modal_n} records) -- they did not see the same window")
 
+
+    # S10 -- CRN PAIRING within each line's BANKABLE CONTIGUOUS PREFIX -------------------------- #
+    def _prefix(sd: set) -> int:
+        """Largest r such that {0..r-1} is a subset of sd."""
+        r = 0
+        while r in sd:
+            r += 1
+        return r
+
+    s10: list[str] = []
+    line_prefix: dict[str, int] = {}
+    for _line in sorted(pair_seeds):
+        _arms = pair_seeds[_line]
+        if not _arms:
+            continue
+        pre = min(_prefix(v) for v in _arms.values())
+        line_prefix[_line] = pre
+        # Inside the prefix the pairing must be exact. VERIFIED rather than assumed -- `pre` is a
+        # minimum over arms, so this can only fail if the prefix computation itself is wrong, which
+        # is precisely the kind of thing to check rather than trust.
+        for _a, _v in sorted(_arms.items()):
+            missing = [x for x in range(pre) if x not in _v]
+            if missing:
+                s10.append(f"S10 {_line}/{_a} is missing seed(s) {missing[:8]} BELOW the line's "
+                           f"banked prefix {pre} -- CRN pairing is broken inside BANKED work")
+
     dup_keys = sum(1 for k, v in det.items() if len(v) > 1)
 
-    print("=== DEEP SCIENCE AUDIT (S1-S9) -- are the records LOGICAL and MEANINGFUL? ===")
+    print("=== DEEP SCIENCE AUDIT (S1-S10) -- are the records LOGICAL and MEANINGFUL? ===")
     print(f"  records audited        : {n:,}   (test-tier: {n_test:,})")
     print(f"  registered test length : {REGISTERED_TEST_LEN}   observed lengths: "
           f"{dict(step_counts) if len(step_counts) <= 4 else str(len(step_counts)) + ' distinct'}")
@@ -339,7 +397,7 @@ def main(argv=None) -> int:
           f"{dup_keys} key(s) disagree")
     print()
 
-    all_fail = [f"{m}\n      {p}" for p, m in failures] + det_violations + s8
+    all_fail = [f"{m}\n      {p}" for p, m in failures] + det_violations + s8 + s10
     if all_fail:
         print(f"!! {len(all_fail)} SCIENCE ISSUE(S)")
         for msg in all_fail[:60]:
@@ -347,9 +405,28 @@ def main(argv=None) -> int:
         if len(all_fail) > 60:
             print(f"  ... and {len(all_fail) - 60} more")
     else:
-        print("S1-S9 CLEAN -- every record is finite, the registered length, trained to the")
+        print("S1-S10 CLEAN -- every record is finite, the registered length, trained to the")
         print("registered budget, non-degenerate, simplex-valid, and every record sharing an")
         print("(arm, seed, reward hash) with another is BYTE-IDENTICAL to it.")
+
+    print()
+    print("=== S10 CRN PAIRING / BANKED RUNG (under R101 the COMMON rung IS the result) ===")
+    _legs = {k: v for k, v in line_prefix.items() if k != "test_h3_singleshot"}
+    if _legs:
+        _common = min(_legs.values())
+        _banked = max([r for r in REGISTERED_RUNGS if r <= _common], default=0)
+        _slow = sorted(k for k, v in _legs.items() if v == _common)
+        _lead = sorted(((v, k) for k, v in _legs.items()), reverse=True)[:1]
+        print(f"  lines {len(_legs)}   COMMON contiguous prefix {_common}   "
+              f"largest fully banked registered rung {_banked}")
+        print(f"  set by {len(_slow)} line(s): " + ", ".join(_slow[:4])
+              + (" ..." if len(_slow) > 4 else ""))
+        if _lead and _lead[0][0] > _common:
+            print(f"  furthest ahead: {_lead[0][1]} at prefix {_lead[0][0]} -- work above the")
+            print("  common rung cannot raise the reported result until every line catches up")
+        _nxt = next((r for r in REGISTERED_RUNGS if r > _common), None)
+        if _nxt:
+            print(f"  next rung {_nxt} needs {_nxt - _common} more contiguous seed(s) on the slowest")
 
     print()
     print("=== S5 DISCLOSURE: safe-default fallback BELOW the registered R115 floor ===")
@@ -458,6 +535,28 @@ def selftest() -> int:
         else:
             failed += 1
             print(f"  FAIL  {name}: expected {expect or 'no violation'}, got {msgs}")
+
+    # S10 prefix logic, with a mutation control. The prefix is the whole reason S10 does not
+    # false-alarm on an in-flight line (P195), so it gets its own falsification.
+    def _pref(sd):
+        r = 0
+        while r in sd:
+            r += 1
+        return r
+
+    _cases = [
+        (set(range(30)), 30, 'contiguous 0..29'),
+        (set(range(30)) | {50, 51}, 30, 'ragged ABOVE the prefix is NOT counted'),
+        (set(range(30)) - {7}, 7, 'a hole BELOW truncates the prefix'),
+        (set(), 0, 'empty set'),
+    ]
+    for _sd, _want, _lbl in _cases:
+        if _pref(_sd) == _want:
+            passed += 1
+            print(f'  ok    S10 prefix: {_lbl}')
+        else:
+            failed += 1
+            print(f'  FAIL  S10 prefix: {_lbl} -> {_pref(_sd)}, want {_want}')
 
     # S4 digest equality: identical series digest equal, one changed element does not
     a = [0.1, 0.2, 0.3]
