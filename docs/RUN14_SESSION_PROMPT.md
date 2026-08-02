@@ -269,6 +269,16 @@ the ten legs put together.
 ## §9 STANDING RULES THAT MUST SURVIVE THIS HANDOVER
 
 - **NEVER** add Claude/Anthropic attribution. `Co-Authored-By` is REVOKED. Tamer is sole author.
+  > ⚠ **ONE KNOWN FALSE POSITIVE, defused here so it does not alarm you.** The habitual guard
+  > `git log -1 --format=%B | grep -ci claude` returns **1** on commit `3824b03b` ("RUN 13 CLOSES: the
+  > RUN 14 handover brief…"). The match is **Tamer's own quoted instruction** — *"transition you fully
+  > into the new claude code session"* — reproduced verbatim because he asked for his prompts to be
+  > included. **Author and committer are both `Tamer Atesyakar`, and there is NO `Co-Authored-By`, no
+  > "Generated with" marker, and no contributorship claim anywhere.** The rule forbids Claude appearing
+  > as an author or contributor; quoting the user is neither. Verified rather than assumed:
+  > `git log -1 --format='%an|%cn'` and a trailer grep both clean. **Not amended, because amending a
+  > pushed commit would mean force-pushing the backup branch, and that rule outranks a cosmetic grep
+  > hit.**
 - **NEVER** `git clean -x`, `git add -A`/`-u`, or `git stash`. Stage **by name**.
 - **NEVER** lower SGE priority; never `qdel -u`. Explicit ids only.
 - **NEVER** put backticks/backslashes/`$(…)` in a bash `-c` string or heredoc — **write to a FILE**.
