@@ -15002,7 +15002,49 @@ notes for `qalter`. The job died at `h_rt` on its own about 1.9 h later, so the 
 and small, **but the gap is now standing: dead compute is detectable by the agent and not reclaimable
 by it.**
 
-### 101.7 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
+### 101.7 THE A16 SENTENCE IS TRUE OF THE CORE LINE AND FALSE OF THE ARCHIVE — and the difference is a blinding hazard
+
+**How it surfaced.** `test_leg_gpt_5_6_luna` began `h2_pair_test 0/60` during this session — the first
+line I saw enter C2. Checking what that implied for the A16 window, an archive-direct count found that
+**`test_leg_gemini_2_5_flash` already holds `distributional = 30` AND `scalar = 30`**, written on
+2026-08-01 around 03:00. That is BEFORE the 13:01:15Z moment at which A16/N2 was pre-specified "while
+provably blind, 0 of 3 legs computable", so for about ten minutes this looked like a blinding breach on
+the project's single strongest asset.
+
+**It is not, and the instrument is right.** `.claude/lanes/watch.py::core_h2_outcomes` reads
+`ROOT / "test"` and says so in the code — *"the CORE line's test lane (no leg suffix)"* — with the
+reason stated in its own docstring: A16 concerns the **confirmatory** rule, the confirmatory line is
+core, and the ten replication legs are REPORT-ONLY under R80. The core line's `test/distributional` and
+`test/scalar` are still ABSENT, so **the A16 decision window is genuinely still open and the
+pre-specification was genuinely made blind.** Verified in both directions before writing it down.
+
+**But the SENTENCE that travels in the handover briefs is now wrong.** RUN 13's brief §5 reads
+*"`distributional` is ABSENT, so 0 of 3 H2-RA legs are computable"*. True of the core line; **false as a
+statement about the archive**, where one leg now carries 60 sealed H2 test records. A session that reads
+it as an archive-wide fact would conclude no H2 sealed outcome exists anywhere and could relax the
+blinding discipline on the legs — and §5's blinding rule covers **every** treatment arm, not only the
+core one.
+
+**CORRECT FORM, to be carried forward verbatim:**
+
+> The A16 **decision window** is OPEN because it is defined on the CORE line, whose `distributional`
+> and `scalar` test arms are ABSENT. The **blinding rule** is a separate thing and it now BINDS on
+> `test_leg_gemini_2_5_flash`, which holds `distributional = 30` and `scalar = 30`, and will bind on
+> every further leg as its `h2_pair_test` drains. Read exit codes, tracebacks and key NAMES there —
+> never values.
+
+**Lesson.** *A scope that is correct in the code becomes a falsehood the moment it is restated without
+its scope.* The instrument carried its scope in a docstring; the handover sentence dropped it. This is
+the same shape as the `cost_decomposition.py` glob that was safe when written and expired silently, and
+as the loader that pooled twelve lines into one — every one of them a statement whose scope drifted out
+from under it. **State the root, always: "the CORE line's `test/`", not "the archive".**
+
+**Blinding held throughout this session:** no metric, no `test_returns` and no `per_period_pnl` was
+loaded or printed by any instrument built here. `thread_envelope_census.py` reads `env.json` only;
+`critical_path.py`, `vanished_array_watch.py`, `family_arm_cadence.py` and `rate_census.sh` read
+directory structure, log lines, record COUNTS and `wall_clock` — a duration, not an outcome.
+
+### 101.8 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
 
 | id | mistake | root cause | how found | fix | lesson |
 |---|---|---|---|---|---|

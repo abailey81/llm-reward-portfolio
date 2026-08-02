@@ -1310,3 +1310,39 @@ CMA-ES would call it **once per generation**, so three generations would all sub
 `.permanent.jsonl`. A stale lock from that collision is not hypothetical — it cost this campaign
 4.5 h on `cma_es-c5` on 2026-08-01. **The fix must pass a per-call batch name** (e.g.
 `f"{arm}_gen{idx0}"`), and the identity test must cover two consecutive generations, not one.
+
+### D27 — THE SAFETY ARGUMENT IS NOW PROVEN, NOT ARGUED (added 2026-08-02, same session)
+
+`docs/ops/d27_identity_proof.py` runs the **real** `cma_es_over_template` twice at the campaign's own
+shape (budget 30, dim 6, so popsize 9) with a deterministic evaluator — once in production's
+one-at-a-time order, once with each generation scored as a single batch — and compares the full
+sequence of proposed points **in order**, every score, the winner, the winner's score, and the
+evaluation count.
+
+```
+budget 30, dim 6
+serial : 30 evaluations, best -1.612888329269
+batched: 30 evaluations, best -1.612888329269
+
+IDENTICAL: same points in the same order, same scores, same winner, same eval count.
+matched budget honoured exactly: 30 evaluations
+mutation control: perturbing ONE score in the batched path IS detected.
+```
+
+The **order** check is not decoration: candidate ids are assigned in proposal order, and `--resume`
+replays archived candidates BY ID, so a reordering would silently corrupt the replay on a confirmatory
+arm. It is identical.
+
+The **mutation control** is why the pass means anything. Perturbing a single score by `1e-6` inside the
+batched path makes the comparison FAIL, so a comparison that returns "identical" is doing work rather
+than comparing two empty histories. *A test that cannot fail verifies nothing* — and this whole defect
+exists because a comment asserting a property was believed instead of checked.
+
+**⚠ WHAT THIS DOES AND DOES NOT ESTABLISH — stated precisely so it is not over-read.** It establishes
+the load-bearing claim: **the points CMA-ES proposes, their order, and their scores do not depend on
+WHEN within a generation each member is evaluated.** That is the entire basis of the "pure dispatch"
+safety case, and it is now measured against the real optimiser rather than reasoned about. It does
+**not** verify the eventual patch — the `batch_eval_fn` wiring, the per-generation batch NAME that
+avoids the `{arm}_startup` collision, and the resume path still need their own test in
+`tests/test_dfo_tpe_batch.py`'s shape before anything lands. **The relaunch decision is unchanged and
+still Tamer's.** What has changed is that the argument for it is no longer an argument.
