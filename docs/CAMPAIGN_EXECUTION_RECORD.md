@@ -15044,7 +15044,57 @@ loaded or printed by any instrument built here. `thread_envelope_census.py` read
 `critical_path.py`, `vanished_array_watch.py`, `family_arm_cadence.py` and `rate_census.sh` read
 directory structure, log lines, record COUNTS and `wall_clock` — a duration, not an outcome.
 
-### 101.8 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
+### 101.8 THE DISK FLOOR IS A RUNG, NOT A DATE — and it is crossed at 279
+
+**The disk guard was reporting the two least informative things about disk.** A LEVEL ("26.5 GB free,
+floor 20") says nothing about whether the ladder fits, and a RATE measured during C1 ("-0.02 GB/h")
+forecasts nothing about C4 — C1 writes a handful of records at a time, C4 multiplies every unit by the
+tier. The honest question is *how many records fit, and which RUNG is that*.
+
+`docs/ops/disk_runway.py` computes it from measured quantities only: the **mean on-disk size of a test
+unit sampled from the live archive** (0.496 MB over 400 real units — the "~480 KB" that circulates in
+the docs is right, and now it is measured rather than quoted), the registered ladder from
+`config/campaign.yaml`, and `lanes.total_trainings(rung)` — the same function the sentinel's rung
+forecast uses, so the two cannot come to disagree about the same fact.
+
+```
+records on disk now : 3,040          C: free : 26.5 GB (decimal), CRITICAL floor 20
+
+  rung  total records  still to write   GB needed   GB left after  verdict
+    30          3,930             890         0.4            26.1  ok
+   100          8,900           5,860         2.9            23.6  ok
+   189         15,219          12,179         6.0            20.5  ok      <-- 0.5 GB of margin
+   279         21,609          18,569         9.2            17.3  *** BELOW THE FLOOR ***
+   340         25,940          22,900        11.4            15.2  *** BELOW THE FLOOR ***
+   403         30,413          27,373        13.6            12.9  *** BELOW THE FLOOR ***
+   568         42,128          39,088        19.4             7.1  *** BELOW THE FLOOR ***
+```
+
+**Three things follow, and none of them was visible from the level or the rate.**
+
+1. **The machine caps the ladder at rung 189**, with 0.5 GB of margin — not at 279, 403 or 568.
+2. **The sentinel currently forecasts rung 279**, which is the first rung that does NOT fit. The
+   throughput forecast and the disk forecast are pointing at different rungs and neither knows it.
+3. **Rung 189 is exactly where H2 stops being INCONCLUSIVE** (`docs/SESOI_DERIVATION_2026-07-25.md`:
+   MDE <= SESOI at n* <= 173). So the campaign lands *on* the boundary of its own decisive result,
+   with half a gigabyte to spare. That is not a comfortable place to discover a disk limit.
+
+**⚠ AND IT IS COUPLED TO D27.** Every speed decision is also a disk decision: a campaign that runs
+3-6 days faster reaches the capped rung SOONER, not later. D27 and archive relocation must be decided
+together, or the first will simply deliver us to the second's wall earlier.
+
+**Cross-checked by a second route before being written down.** The whole `outputs/` tree is 1.14 GB
+across ~3,040 records, a blended 0.375 MB/record — lower than the 0.496 MB used above, and correctly
+so: search units carry no `test_returns` or `per_period_pnl`, while C4 writes almost exclusively TEST
+units. Using the test-unit figure for future records is the right choice and the two numbers agree
+once the mix is accounted for.
+
+**NOT ACTED ON.** Relocating the archive is a 12-line relaunch and therefore Tamer's call, and the
+live `D:` mirror (40.3 GB free) already means a C: failure costs records rather than the campaign.
+What has changed is that the limit is now a NUMBER attached to a RUNG instead of a level nobody could
+act on.
+
+### 101.9 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
 
 | id | mistake | root cause | how found | fix | lesson |
 |---|---|---|---|---|---|

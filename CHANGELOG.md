@@ -215,9 +215,14 @@ one: I can detect dead compute and cannot reclaim it.** Flagged for Tamer.
 1. **D27 is the decision.** 3.3-6.6 days of critical path, specified, costed and now IDENTITY-PROVEN (`docs/ops/d27_identity_proof.py`), waiting on one go/no-go.
 2. **Watch the C4 transition.** `qw` must go from ~6 to hundreds; if it stays near zero the pipelining
    did not take. Expect `max_u_jobs` crash-loops (D25) and do NOT "fix" them mid-ladder.
-3. **`campaign_summary.json` AT TEARDOWN** — still the only unrecoverable item.
-4. **Disclose the packed-path provenance gap** in the reproducibility statement.
-5. Consider giving the agent a `qdel`-by-explicit-id allowance, or accept that dead compute runs to
+3. **THE DISK FLOOR IS A RUNG, NOT A DATE (record 101.8).** `docs/ops/disk_runway.py`, at a measured
+   0.496 MB per test unit: C: supports **rung 189 with 0.5 GB of margin** and **rung 279 is BELOW the
+   20 GB floor**. The sentinel FORECASTS 279. Rung 189 is exactly where H2 stops being INCONCLUSIVE, so
+   the campaign lands on the boundary of its own decisive result. **Decide it together with D27** — a
+   faster campaign reaches the capped rung sooner, not later.
+4. **`campaign_summary.json` AT TEARDOWN** — still the only unrecoverable item.
+5. **Disclose the packed-path provenance gap** in the reproducibility statement.
+6. Consider giving the agent a `qdel`-by-explicit-id allowance, or accept that dead compute runs to
    `h_rt`.
 
 **MY OWN ERRORS THIS SESSION — recorded because the ledger is the point, not the score.**
