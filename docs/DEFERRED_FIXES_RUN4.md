@@ -1022,3 +1022,291 @@ dies (≤300 s). **So the realised cost of hitting this bound is roughly ten min
 not a lost line.** Combined with D23 — the slot ceiling (3,366 free in pool D) binds long before the
 1,000-job ceiling, so submissions should thin rather than fail outright — this is a real defect worth
 fixing on its own merits, and not an emergency.
+
+> **⚠ CORRECTED 2026-08-01 (RUN 12, ops). THE FINAL CLAUSE ABOVE IS WRONG, AND IT IS THE LOAD-BEARING
+> ONE.** *"The slot ceiling binds long before the 1,000-job ceiling, so submissions should thin rather
+> than fail outright"* assumes the submitter throttles to AVAILABLE SLOTS. **It does not.**
+> `submit_batch` (`src/cluster/driver.py:150-161`) `qsub`s **every** part unconditionally, and SGE
+> counts **QUEUED** jobs toward `max_u_jobs`. So we can hold ~341 running (2,729 free ÷ 8) while
+> submitting thousands more into `qw` — **the JOB ceiling binds FIRST, not the slot ceiling.** See
+> **D25**. The rest of D24 stands.
+
+---
+
+### D25 — **`max_u_jobs = 1000` IS THE REAL C4 FENCE, AND IT WILL BE BREACHED.** Not a hazard to fix while live; a behaviour to EXPECT.
+
+**MEASURED 2026-08-01 (RUN 12).** `qconf -sconf` ⇒ `max_u_jobs 1000` (live). The pipelined C4 path
+(`src/cluster/campaign.py:1997`) submits **all six assurance blocks at once** via a
+`ThreadPoolExecutor` over `tiers[1:]`. Block increments are 70/89/90/61/63/165 seeds × 5 units ÷ 8
+per pack ⇒ **~340 jobs PER LINE in one go**, on top of the ~104 steady-state.
+
+| lines in C4 | jobs in system | verdict |
+|---|---|---|
+| 1 | 444 | ✔ |
+| 2 | 784 | ✔ |
+| **3** | **1,124** | ✘ **cap breached** |
+
+Only ~341 of our jobs can RUN against the 2,729 free slots in d00a+d00b; **the remainder queue, and
+queued jobs count toward the cap.** With 11 lines converging on C4 the breach is near-certain.
+
+**THE FAILURE MODE, TRACED FIRST-HAND (this is the part that matters operationally).**
+`src/cluster/submit.py:198` `parse_job_id` **raises `RuntimeError`** on any output it cannot parse, so
+a cap rejection fails **LOUD**: `qsub` → `submit_batch` → `run_test_leg` → the C4 `ex.map` → **the
+driver crashes** → `mode_d_supervisor.ps1` relaunches it with `--resume`. **No records are lost**,
+already-submitted jobs keep running, and `--resume` skips completed seeds rather than re-training
+them. **So the outcome is survivable and self-healing — but the mechanism is a CRASH-LOOP, not a
+clean backoff.** D23/M223 called this path "graceful"; the verdict is right and the mechanism
+description is not.
+
+> **★ THE STANDING INSTRUCTION THAT MATTERS: when C4 opens, drivers crash-looping around `qsub` is
+> EXPECTED BEHAVIOUR, not a new defect.** A session that sees it, diagnoses a bug and "fixes" it
+> mid-ladder will do real damage. Confirm the cause by checking `qstat -u ucestes | wc -l` against
+> 1000 BEFORE acting.
+
+**THE OBVIOUS MITIGATION IS FORBIDDEN.** `src/cluster/allocation.py:284` advises *"chunk the rung
+blocks up if the pending count approaches the cap"*, and `:256` already anticipated the breach
+(*"chunk-1 with pipelined rungs can enqueue ~1,200 arrays, where a cap hit classes as a transport
+error"*). **But RUN 11 established that Myriad SERIALISES array tasks — tasks 2..n sit in `hqw`** —
+so `--chunk-tasks 25` would park ~96 % of C4 in hold. **These two pieces of in-repo guidance are in
+direct conflict; the brief's side (`chunk-1`) is correct and must win.**
+
+### D26 — ~~`--pack 9` strictly dominates pack 8~~ **★ REFUTED BY MY OWN MEASUREMENT, 2026-08-01 (RUN 12). DO NOT ACT ON IT.**
+
+> **★★★ THE FINDING BELOW IS WRONG, AND THE REASON IS THE MOST USEFUL PART OF IT.**
+> **I computed the free-slot histogram over ALL d00a/d00b nodes. 89 nodes on Myriad belong to PAID
+> DEPARTMENTAL ALLOCATIONS (`@PAID_BLIC`, `@PAID_Economics`, `@PAID_hpc.10/11`, `@PAID_MathsStatSci`,
+> `@PAID_MEDPHYS`), and queue `Bran` gates each via a per-hostgroup `user_lists` override. Of those,
+> 47 are d00a and 7 are d00b — nodes I counted as ours.**
+>
+> **THE DECISIVE NUMBER: of the 49 completely-empty (36-free) nodes the pack-9 case rested on,
+> ALL 49 ARE PAID NODES. On the set we can actually reach there are ZERO empty nodes** — so the
+> `36 mod 8 = 4` stranded-core argument, which requires a fully-empty 36-core node, **does not apply
+> to any node we can use.** Recomputed over reachable nodes only, the table INVERTS:
+>
+> | pack | usable (reachable only) | % of free |
+> |---|---|---|
+> | **8 (current)** | **248** | 37.7 % |
+> | **9** | **225** | 34.2 % |
+> | 4 | 448 | 68.1 % |
+> | 1 | 658 | 100 % |
+>
+> **Pack 9 is WORSE than pack 8 on the nodes we can actually use.** The deferral in the original
+> entry happened to be the right call, but for the wrong reason — and had we relaunched for it we
+> would have made throughput worse while believing we improved it.
+>
+> **THAT PAID NODES ARE UNUSABLE BY US IS MEASURED, NOT ASSUMED — 83 observations, zero
+> counterexamples:** all 83 hosts our jobs occupied at 18:05 UTC are non-paid; the 3 d00a probe
+> nodes that placed are non-paid; `node-d00a-126` (a real completed campaign job, from `qacct`) is
+> non-paid; and 22 probes pinned to d97 (100 % `@PAID_Economics`) sat in `qw` indefinitely while
+> identical probes on non-paid d00a placed in ~5 minutes.
+>
+> **THE STANDING LESSON, and it generalises past this row:** *a capacity number computed over nodes
+> you are not entitled to is not a capacity number.* Coord's M237 warned that the empty-node count
+> was a load-bearing SNAPSHOT worth a second sample before acting. The second sample did not just
+> move the number — **it reversed the conclusion.** Any future pack/throughput analysis MUST filter
+> `@PAID_*` hostgroups first.
+
+**(Original entry retained below for the audit trail — its numbers are superseded.)**
+
+### D26 (SUPERSEDED) — `--pack 8` strands 4 of every 36 cores; `--pack 9` appeared to dominate.
+
+**THE STRUCTURAL FACT, MEASURED 2026-08-01 (RUN 12).** Pool-d nodes are uniformly **36 slots**
+(d00a 8,712/242 = 36.0; d00b 612/17 = 36.0), and `smp-D` has **`allocation_rule $pe_slots`**
+(verified `qconf -sp smp-D`) — so **every slot of a job must be on ONE node**. Therefore
+**36 mod 8 = 4: on every fully-empty node, pack 8 fits 4 jobs = 32 slots and STRANDS 4 CORES
+(11.1 %).** This is structural, not a property of any snapshot. Pack sizes dividing 36 (6, 9, 12, 18)
+strand nothing.
+
+**MEASURED FREE-CAPACITY DISTRIBUTION (`qhost -q`, d00a+d00b, 2,802 free over 259 nodes):**
+**62 nodes completely empty (36 free) = 2,232 slots = 80 % of all free capacity**; 69 nodes with 0
+free; 128 nodes fragmented at 1–17 free (570 slots).
+
+| pack | 36 mod k | usable slots | % of free | jobs/line @C4 | lines before the 1000-cap |
+|---|---|---|---|---|---|
+| **8 (current)** | **4** | 2,184 | 77.9 % | 337 | 2 |
+| **9** | **0** | **2,421 (+237)** | **86.4 %** | **299 (−11 %)** | 2 |
+| 12 | 0 | 2,328 | 83.1 % | 225 | 3 |
+| 18 | 0 | 2,232 | 79.7 % | 150 | 5 |
+
+**Pack 9 beats pack 8 on EVERY axis simultaneously** — more usable capacity, fewer concurrent jobs
+(269 vs 273), and less `max_u_jobs` pressure. C4 makespan 6.7 d → **6.0 d**.
+
+**WHY THIS WAS MISSED, AND IT IS NOT A CRITICISM OF §50.** Record **§50** ("C4 RUNS AT `--pack 8`, AND
+THE REASON IS RISK, NOT SPEED", 2026-07-31) chose 8 deliberately, after Tamer challenged the earlier
+"pack 8 buys nothing" — but the comparison was **pack 4 vs pack 8 ONLY**. The divisibility loss
+appears nowhere in the record, because **`recommend_pack` (`allocation.py:211`) is purely VRAM-based**
+(`floor(VRAM*0.9/per-training)`, "pack-5 everywhere") — **a GPU-era function with no concept of CPU
+core counts.** P17's own lesson was *"evaluate across the range you will actually operate in, not at
+the boundary"*; the range simply never included the divisors of 36.
+
+**FEASIBILITY, ALL CHECKED.** Memory: `jobscript.py:291` computes `1.55 GB × pack × 1.3` = **18.1 GB
+at pack 9**, four jobs/node = 72 GB of 188 GB — fine. Arithmetic: **pack is NEUTRAL** — `_task_device`
+/ `_task_threads` (`run_one.py:240`) read device and threads from the SPECS and **fail loud on a
+mix**, and all **591 live pack-8 test records** carry `omp=1, torch_threads=1, cuda_available=False`,
+one CPU model. Pack changes only how many single-core trainings share one placement.
+
+> **★ THE DECISION: NOT APPLIED IN RUN 12, AND THE REASON IS EVIDENCE, NOT EFFORT.**
+> The gain is **~0.7 days** on a budget with **~19 days of slack** (26 available, ~7 needed). Against
+> that: **the pack>1 path on the CPU lane is NEW code as of 2026-07-31** — `run_one.py:250` states
+> plainly *"the CPU lane has only ever been exercised at pack=1"*, and that path once silently forced
+> `device="cuda"` on every packed CPU spec. **Pack 8 now has 591 production records of proven
+> behaviour; pack 9 would have ZERO — and we would be adopting it at the exact moment C4 begins the
+> irreplaceable bulk of the campaign.** On an irreplaceable run, *proven-at-scale beats 11 %
+> theoretical.* Deferring is the higher-quality choice, not the lazier one.
+>
+> **APPLY AT THE NEXT NATURAL RELAUNCH**, alongside D22/D24/D25 — the rolling watchdog restart is
+> proven (§100.50, ~5 min/line) and pack 9 rides along for free. **If the cluster becomes contended
+> and free capacity concentrates into fragments, this finding gets MORE valuable, not less** (empty
+> nodes are taken first, so the stranded-core penalty grows). Re-measure the histogram before
+> deciding.
+
+**ALSO CHECKED AND CLEAR (so nobody re-runs these):** `reserve: y` **IS** live on our jobs (verified
+on job 61646 — CLAUDE.md's anti-starvation claim is CORRECT; the jobscript's `#$ -r y` is
+*rerunnable*, a different flag, and I nearly mis-reported the doc as wrong by reading the template
+instead of measuring the job). PE `smp-D` slot ceiling 10,476 — not binding. The six `sshorig` jobs
+stuck in `qw` are **interactive** jobs (`interactive=true`) pinned to `hostname=node-d00b-007`, which
+is why they never schedule — 1 slot each, harmless, not ours to fix.
+
+---
+
+**THE REAL FIX, WHEN A RELAUNCH IS NATURAL:** bound in-flight submissions — have `submit_batch`
+detect the cap-rejection string and back off/retry rather than raise, or have the C4 path submit
+blocks against a live `qstat` count instead of all six at once. **NOT applied in RUN 12:** both
+`submit.py` and `campaign.py` are in the driver import closure, so landing either requires relaunching
+all twelve lines, and the self-healing path above makes the realised cost churn rather than lost work.
+**Apply at the next natural relaunch.**
+
+---
+
+## 20. ★★★★★ D27 — CMA-ES's POPULATION IS EVALUATED **SERIALLY**, SO THE CAMPAIGN'S LONGEST CHAIN IS 30 STEPS, NOT 4 (found 2026-08-02, RUN 13)
+
+**This is the largest single throughput defect found in RUN 4, and it is the answer to "we are at a
+very low amount of cores".** It is not a capacity problem. Measured the same night: 70 jobs running /
+560 slots, **6 jobs queued** (all six the known unschedulable `sshorig` interactive jobs), and **864
+entitled slots free** with 387 of our jobs placeable immediately. The scheduler was giving us
+everything we asked for. We were not asking.
+
+**Files:** `src/search/dfo_toolkit.py` ~line 121 · `src/cluster/campaign.py` ~line 1174 ·
+`src/cluster/lanes.py` ~line 204-208. All three are inside the driver import closure.
+
+### What the code does
+
+`cma_es_over_template` proposes a whole generation and then evaluates it one member at a time:
+
+```python
+xs = [np.clip(np.asarray(x, dtype=float), lo, hi) for x in es.ask()]
+remaining = budget - evaluated
+if len(xs) <= remaining:
+    scores = [_evaluate(x, "cma") for x in xs]      # <-- SERIAL list comprehension
+    es.tell(xs, [-s for s in scores])
+```
+
+On the cluster path `_evaluate` is `campaign.template_eval`, and every call is a **blocking
+`run.run_batch(...)`** — one array-of-1 job, queued and trained to completion before the next member
+is proposed to the queue. A population of 9 is therefore 9 sequential cluster round-trips.
+
+### What the code SAYS it does — and this is why nobody caught it
+
+`src/cluster/campaign.py`, in the block that decides which arms get `batch_eval_fn`:
+
+> `# random_search is already one array; CMA-ES already dispatches a whole population per`
+> `# generation; neither accepts the kwarg.`
+
+**That comment is false.** CMA-ES *proposes* a whole population per generation; it *dispatches* them
+one at a time. The false comment is exactly why `batch_eval_fn` — already written, already wired for
+`tpe` and `bayes_opt`, already identity-proven in `tests/test_dfo_tpe_batch.py` — was never extended
+to `cma_es`. This is CLAUDE.md's own tell ④ in its purest form: *when a comment and the code
+disagree, the COMMENT is the more dangerous artefact.*
+
+`src/cluster/lanes.py` then encodes the same false belief as a planning constant:
+
+> `#: * **CMA-ES ~ 4 serial generations.** ``es.ask()`` proposes a whole population per generation`
+> `#:   (parallel within a generation), so at budget 30 with the default popsize ~9 it is ~4 steps —`
+> `#:   never the binding chain.`
+> `_CMA_SERIAL_GENERATIONS = 4`
+
+### The three consequences, all measured
+
+1. **PLANNING.** `lanes._critical_chain_days` prices the CMA chain at `4 x cpu_h`. The truth is
+   `30 x cpu_h`. The makespan model understates this chain by **7.5x**, and `lanes.py:201`'s
+   "this restores `bayes_opt` (25) as the longest DFO chain" is wrong — cma_es at 30 is longer.
+2. **MONITORING — the chain has NO stall detector.** `sentinel.py:1295` builds `chain_progress` from
+   `lanes.SERIAL_CHAIN_STEPS`, and `campaign_health.check_chain_progress` classifies an arm as done
+   when `completed >= total`. Live output on 2026-08-02: **`chain_progress ... (bayes_opt 19/25,
+   tpe 18/20, cma_es 9/4)` — reported OK with cma_es counted COMPLETE at 9 of a real 30.** The
+   campaign's longest serial chain is the one arm the stall detector cannot see. That check exists,
+   in its own docstring, because "a stalled chain is the campaign's worst silent failure".
+3. **REALITY.** Measured from the archive (`docs/ops/family_arm_cadence.py`):
+   `cma_es` **9/30 done**, median cadence **8.57 h/candidate**, mean 9.33 h.
+   **21 candidates remain => ~180 h ~ 7.5 DAYS of pure serial chain** before the core line's C1
+   barrier (`campaign.py`'s `as_completed` over EVERY arm, not just the five LLM arms) can release
+   into C2, the C3 gate and C4. Nothing about core count changes that number.
+
+### The numbers that decide it
+
+Template dimension `d = 6` (`baselines.reward_family.family_bounds`), so pycma's default
+`popsize = 4 + floor(3*ln 6) = 9`, and budget 30 = **generations of 9 + 9 + 9 and a partial 3**.
+Nine candidates archived (`cma_es-c0 .. c8`) is **exactly generation 1 complete**, leaving **three
+dispatch steps**.
+
+| | remaining chain | wall-clock |
+|---|---|---|
+| **serial (today)** | 21 blocking round-trips | 21 x 8.57 h = **180 h ~ 7.5 d** |
+| **batched (this fix)** | 3 array dispatches | 3 x ~5 h = **~15 h ~ 0.6 d** |
+
+**Saving on the campaign's critical path: ~165 h, about SEVEN DAYS.**
+
+### Why the fix cannot change any result
+
+Identical in form to the TPE change already shipped and proven. `es.ask()` returns the whole
+population **before any member is evaluated**, and `es.tell(xs, scores)` consumes all of them at
+once, so no member's proposal depends on any other member's fitness. Dispatching the population as
+ONE array therefore changes only *when* each training starts:
+
+* same points (`es.ask()` untouched, same seed, same popsize),
+* same candidate ids — `template_eval_batch` assigns from the shared `state["i"]` in `xs` order,
+  which is the order the serial comprehension used,
+* same fitnesses (each training is independent and seeded from its candidate id),
+* same `es.tell(xs, scores)` => same subsequent generations.
+
+**Resume is preserved for the same reason:** on `--resume` both eval paths replay an archived
+candidate by id without retraining, so generation 1's nine fitnesses replay identically and
+generation 2's `ask()` is unchanged.
+
+### The change
+
+1. `dfo_toolkit.cma_es_over_template`: accept `batch_eval_fn` and use it for a FULL generation —
+   `scores = list(batch_eval_fn(xs)) if batch_eval_fn is not None else [_evaluate(x, "cma") for x in xs]`
+   — keeping the partial-tail branch exactly as it is (it deliberately does not `tell`).
+2. `campaign.run_family_search_arm`: change `if arm in ("tpe", "bayes_opt")` to include `"cma_es"`,
+   and **delete the false comment** rather than leaving it to mislead a third time.
+3. `lanes.py`: `_CMA_SERIAL_GENERATIONS` becomes the honest number for whichever variant is running —
+   4 once batched, 30 while serial — and the note above it is corrected. This is what re-arms the
+   sentinel's stall detector on this arm.
+4. A test in the shape of `tests/test_dfo_tpe_batch.py` asserting the batched and serial paths
+   produce the **same points, same order, same scores and same winner**. Without it this is an
+   argument, not a proof, and the argument is exactly the one the false comment already made once.
+
+### ⚠ NOT APPLIED TONIGHT, AND THE REASON IS ON THE RECORD
+
+All three files are in the driver import closure, so landing this requires **relaunching the CORE
+line — the confirmatory line — mid-search**. The prize is ~7 days; the risk is a CMA state-replay
+divergence on a confirmatory H4 arm of an irreplaceable campaign, executed while nobody is awake to
+read the result. The correct sequencing is: land the change with its identity test green, then do a
+controlled single-line relaunch and verify the first batched generation dispatches **9 concurrent
+`c1_cma_es_c*` jobs** instead of one. **This is TAMER'S CALL and it is the highest-value decision
+open on the campaign.** Every hour it waits is an hour of a 180 h chain.
+
+**Cheap partial mitigation available immediately, no relaunch:** nothing. The chain is the chain.
+The only thing that shortens it is dispatching the population.
+
+**⚠ ONE IMPLEMENTATION HAZARD, verified by reading `template_eval_batch` rather than assuming it.**
+Id assignment is confirmed safe — `cids = [f"{arm}-c{idx0 + j}" for j in range(len(coeffs_list))]`
+allocates contiguously from the shared `state["i"]` in `xs` order, exactly as the serial
+comprehension would. But the batch is submitted under the **fixed** name `f"{arm}_startup"`, which is
+correct for TPE and GP-EI because each of them batches exactly ONCE (their startup/init phase).
+CMA-ES would call it **once per generation**, so three generations would all submit as
+`cma_es_startup` and collide on the same batch directory, the same `.driver.lock` and the same
+`.permanent.jsonl`. A stale lock from that collision is not hypothetical — it cost this campaign
+4.5 h on `cma_es-c5` on 2026-08-01. **The fix must pass a per-call batch name** (e.g.
+`f"{arm}_gen{idx0}"`), and the identity test must cover two consecutive generations, not one.

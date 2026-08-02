@@ -14887,3 +14887,127 @@ Raised by COORD's `openitems.py` board (M221), all verified by execution.
   `WITHDRAWN_CLAIMS.md` before anything enters `paper/`, so leaving W13 standing would have let a
   withdrawn claim govern graded prose.** *A retraction that is not itself retractable is just a
   second way to be wrong.*
+
+---
+
+## 101. ★★★★★ RUN 13 — THE LONGEST SERIAL CHAIN IS 30 STEPS AND EVERY INSTRUMENT PRICED IT AT 4 (2026-08-02)
+
+**Context.** First consolidated BUILDER session (OPS + MONITOR + COORD). Tamer's live brief: *"the
+campaign must be absolutely strictly flawless, and maximised to the maximum possible in terms of
+speed. 520 cores is unacceptable, we might be cooked if you don't lock in."* He then slept; every
+decision below was taken alone, so each is recorded with its reasoning rather than only its outcome.
+
+### 101.1 The cores question — answered twice, by routes sharing no code
+
+| route | measurement | verdict |
+|---|---|---|
+| the queue | 70 jobs running / 560 slots, **6 queued** — all six the known-unschedulable `sshorig` interactive jobs | zero campaign jobs waiting |
+| the hosts | `joint_capacity.py`: **387** of our jobs placeable now; PAID-filtered `reachable_capacity.py`: **65 hosts, 108 jobs, 864 slots** | 864 free + 560 held is about **1,424 reachable**, corroborating the inherited ~1,466 |
+
+**DEMAND-bound, not capacity-bound.** Two candidate causes were then refuted by measurement:
+
+* **Pack depth.** `pack_rate_curve.sh` counts `step 5000/` markers, so it measures the trainings
+  actually packed rather than trusting the flag. Over 60 live test jobs: **pack 8 gives 12.8 steps/s,
+  pack 6 gives 13.3**. A 25 % packing cut buys 4 %. Un-packing would also move `threads` from 1 to 8
+  and change the BLAS reduction order, which the determinism envelope forbids outright.
+* **Node contention.** `rate_vs_nodeload.sh` runs the two lanes as each other's control. The 1-thread
+  test lane is flat in host load; the 8-thread search lane spans **3.4 to 32.4 steps/s with the two
+  extremes at load 32.06 and 32.18**. Same load, 9.5x the rate. Contention explains none of the spread.
+
+### 101.2 THE DEFECT — `cma_es`, and a comment that said the opposite of its code
+
+`dfo_toolkit.cma_es_over_template` proposes a whole population with `es.ask()` and then evaluates it
+with a **serial list comprehension**, each element a blocking cluster `run_batch`. `campaign.py`
+excludes `cma_es` from the already-written, already-identity-proven `batch_eval_fn` on the stated
+ground that *"CMA-ES already dispatches a whole population per generation"* — **false** — and
+`lanes.py` encodes the same belief as `_CMA_SERIAL_GENERATIONS = 4`.
+
+* **Root cause:** a comment asserting a property the code does not have, propagated into a planning
+  constant and from there into a health check. CLAUDE.md's tell 4, verbatim.
+* **How it was found:** the sentinel printed `chain_progress ... cma_es 9/4` as OK. A denominator
+  below the numerator on an arm whose registered budget is 30 is not a rounding difference. Chasing
+  it produced `family_arm_cadence.py`, which measured the realised cadence from the archive:
+  **9/30 done, 8.57 h per candidate median, 21 remaining, so about 180 h or 7.5 days of chain.**
+* **The fix (specified, NOT applied):** extend `batch_eval_fn` to `cma_es`, correct the constant and
+  both comments, add an identity test in the shape of `tests/test_dfo_tpe_batch.py`. Template
+  dimension `d = 6` gives pycma's default `popsize = 9`, so budget 30 is `9+9+9+3`; the nine archived
+  candidates are exactly generation 1, so **three dispatches of about 15 h replace 21 round-trips of
+  about 180 h. Saving is roughly 7 days.**
+* **Why it is safe:** `es.ask()` returns the population before any member runs and `es.tell()` consumes
+  all of it, so members are independent by construction — same points, same ids, same fitnesses, same
+  tell, and resume replays archived candidates by id without retraining.
+* **Hazard found by reading rather than assuming:** ids are safe (allocated contiguously from the
+  shared `state["i"]` in `xs` order), but the batch submits under the fixed name `f"{arm}_startup"`,
+  which is correct for TPE and GP-EI because they batch exactly once and would make three CMA
+  generations collide on one batch directory, one `.driver.lock` and one `.permanent.jsonl`. A stale
+  lock of exactly that kind cost 4.5 h on `cma_es-c5` the day before.
+* **Lesson:** *a planning constant derived from a comment is a rumour with a type annotation.* Derive
+  chain lengths from the code path that actually dispatches, or measure them from the archive.
+* **Why it was NOT applied:** all three files sit in the driver import closure, so landing it means
+  relaunching the CORE line mid-search. The prize is about 7 days; the risk is a CMA state-replay
+  divergence on a confirmatory arm of an irreplaceable campaign, with nobody awake to read the result.
+  Full permission raises the bar on the thinking; it does not remove it. **Tamer's call.** Full
+  write-up as **D27** in `docs/DEFERRED_FIXES_RUN4.md`.
+
+### 101.3 A purged array was invisible for 15 hours
+
+`driver.py` line 6: *"SGE's own walltime is the stall detector"* — right for a SLOW job, blind to a
+VANISHED one. An array purged in `Eqw` leaves no `qacct` row, so the driver waits out the full 54,000 s
+`h_rt`. Traced on `cma_es-c4`: submitted 07-30 14:56, requeued 07-31 11:10, so **20.2 h of nothing**.
+76 such events across twelve driver logs; for `cma_es`, 24.5 h of a 74.6 h observed chain, while
+healthy candidates show 0.1 h of overhead. Underneath it: **1,385 `pull failed` plus 666 `queue op
+failed`, every one `ssh exit status 255`**, arriving in bursts. 14 concurrent handshakes on a healthy
+link succeeded 14/14, so this is transient link loss rather than sshd `MaxStartups` throttling.
+
+**Fixed the visibility, not the driver:** `docs/ops/vanished_array_watch.py`, selftested 3/3 and
+mutation-proven in both directions, wired into `cycle.py` on the ssh cadence — **a 15-hour blind spot
+becomes a 20-minute one** — with `vanished_array_rc` recorded in `STATE.json` so a later session can
+see the layer ran. `~/.ssh/config` gained `ConnectionAttempts 4` and `ConnectTimeout 25`, verified
+against the driver's exact binary (`C:\WINDOWS\System32\OpenSSH\ssh.exe`, OpenSSH_for_Windows 9.5p2,
+which does not implement `ControlMaster` — deliberately not used).
+
+### 101.4 The cycle was announcing a stage the campaign had not reached
+
+`cycle.py` alerted *"C4 BOUNDARY REACHED ... the seed ladder has begun"* for eight roots including the
+CORE line, while `session_preflight.py`'s `c4_entered` (which greps for `[C4|pipelined]`) read **0**.
+The instrument that OBSERVES beats the one that INFERS. A 2026-07-31 fix had closed half of this and
+left the other half open: the C1 barrier waits for the FOUR H4 arms too, and `cma_es` stood at 9/30.
+**Corrected** — readiness now requires every arm the line actually runs, LLM and family, read from that
+line's own `search*` directory so a roster change cannot re-open it, and the claim now names
+`c4_entered` as the observation. Verified: `frozen` correctly dropped out of the list.
+
+### 101.5 A determinism field that is not true, on 1,446 sealed-test records
+
+`thread_envelope_census.py` over 2,929 training records, outcome-blind: search is uniformly
+`OMP=8, PYTHONHASHSEED="0", CUBLAS_WORKSPACE_CONFIG=":4096:8"`; test is uniformly `OMP=1,
+PYTHONHASHSEED=null, CUBLAS_WORKSPACE_CONFIG=null`; **0 units with mixed thread counts, 0 with mixed
+CPU model.** The science is intact — no paired contrast crosses the search/test boundary — and the
+inherited *"2,041/2,041 single-substrate"* was about the CPU model, which is why it never contradicted
+this.
+
+**But the two nulls are FALSE.** `parallel.py`'s worker calls `set_global_seed`, which sets both keys
+in `os.environ`; at `pack >= 2` the WORKERS train and the PARENT archives, and the parent never
+trained. `run_one.py:337-345` documents this exact class and syncs only
+`OMP/MKL/OPENBLAS/NUMEXPR`. Its own words: *"a knowingly-false value must not ship."* No number is
+affected; the EVIDENCE is wrong, and under Priority 5 the evidence is the claim. **Provenance-only and
+unfixable retroactively, therefore a DISCLOSURE in the reproducibility statement, not a repair.**
+
+### 101.6 Dead compute I could detect and could not reclaim
+
+`rate_census.sh` found exactly one doomed training: **62810 at 3.4 steps/s, 160k of 400k steps after
+47,191 s — 240k steps needing 19.6 h against 1.89 h of wall left** — while its own sibling finished the
+same generation at **28.7 steps/s in 3.87 h**. `qdel 62810`, an explicit single job id which the
+standing rule permits, **was refused by the harness classifier**, the same block the record already
+notes for `qalter`. The job died at `h_rt` on its own about 1.9 h later, so the realised cost is bounded
+and small, **but the gap is now standing: dead compute is detectable by the agent and not reclaimable
+by it.**
+
+### 101.7 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
+
+| id | mistake | root cause | how found | fix | lesson |
+|---|---|---|---|---|---|
+| **P178** | `thread_envelope_census` v1 returned `None` for all 2,980 records | it read `record.json`; the provenance lives in the sibling `env.json` | the result was too clean to be true | read `env.json` | a surprising negative is a claim about my own script first |
+| **P179** | reported **"32 units with MIXED thread counts"**, which would have been fatal to CRN pairing had it been true | counted each unit's `_env/` STORE, a container with an all-null vector, as a training | the mixed value was always the pair `1` and `None`, never two real values | require a sibling `record.json` | ZERO, ABSENT and LAUNCHED are three values — in the very check built to respect that |
+| **P180** | the vanished-array watch tracked only the newest log line as "the current block" | lines run several arms concurrently | 16 pending blocks collapsed to one per line | track every pending block | a monitor that sees one thing cannot see the thing it was built for |
+| **P181** | two successive regex failures, both silent, both producing a clean "nothing found" (14 of 16 blocks dropped) | **the driver log is HARD-WRAPPED by the PowerShell host**, and each wrapped line already ends in a space, so rejoining yields double spaces at unpredictable places | blocks read "UNKNOWN (no id parsed)" while I could see their jobs in `qstat` | un-wrap, then collapse whitespace once | **any log-derived instrument must un-wrap first** |
+| **P182** | came within about 90 seconds of reporting a **-2.3 GB/h** disk emergency | compared a session-start reading in **GB (10^9)** against my own check in **GiB (2^30)** | took two samples 90 s apart: the real rate is **-0.02 GB/h** | use the repo's convention, `/1e9`, which both existing instruments already share | overstating a risk is as inaccurate as understating one |

@@ -397,19 +397,47 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
             frozen_by_line[line] = frozen_by_line.get(line, 0) + 1
     got["frozen_winners_by_line"] = frozen_by_line
     got["frozen_markers_by_line"] = all_markers_by_line
+    # ⚠⚠ CORRECTED AGAIN 2026-08-02 (RUN 13). The 2026-07-31 fix above closed the half where the CORE
+    # line fired EARLY on a count contaminated by H4 markers -- and left the other half open. The C1
+    # barrier in `campaign.run_tiered_campaign` is `as_completed` over EVERY arm in `arms`, not over
+    # the five LLM arms, so on the core line it also waits for `bayes_opt`, `cma_es` and `tpe`.
+    # Measured this session: all five core LLM arms are frozen, yet `cma_es` stood at 9 of its 30
+    # candidates and is STRICTLY SEQUENTIAL (each CMA-ES proposal is a function of the fitnesses
+    # already observed), i.e. ~7.5 days of chain still to run. The alert nonetheless announced
+    # "the seed ladder has begun on that line" for `frozen/`.
+    #
+    # It also announced it for six LEG lines that were still running C1 TEST blocks -- freezing a
+    # winner is upstream of the test leg, the C1 barrier, C2's h2_pair and the C3 gate.
+    #
+    # `session_preflight.py`'s `c4_entered` check greps the driver logs for `[C4|pipelined]` and read
+    # ZERO at the same moment. Two instruments disagreed, and the one that OBSERVES beats the one that
+    # INFERS. So: require every arm the line actually runs (LLM *and* family, read from its own
+    # `search*` directory so a roster change cannot re-open this), and state the claim as the
+    # PRECONDITION it is rather than as an observation of C4.
+    _FAMILY_ARMS = ("random_search", "bayes_opt", "cma_es", "tpe")
     ready = []
     for line, n_frozen in frozen_by_line.items():
-        # How many LLM arms does this line actually run? `frozen_leg_x` <-> `search_leg_x`.
+        # How many arms does this line actually run? `frozen_leg_x` <-> `search_leg_x`.
         search_dir = ROOT / ("search" + line[len("frozen"):])
-        expected = sum(1 for a in _LLM_ARMS if (search_dir / a).is_dir()) if search_dir.is_dir() else 5
-        if expected and n_frozen >= expected:
+        if not search_dir.is_dir():
+            expected_llm, expected_fam, got_fam = 5, 0, 0
+        else:
+            expected_llm = sum(1 for a in _LLM_ARMS if (search_dir / a).is_dir())
+            expected_fam = sum(1 for a in _FAMILY_ARMS if (search_dir / a).is_dir())
+            got_fam = sum(1 for a in _FAMILY_ARMS
+                          if (ROOT / line / f"{a}-winner" / "record.json").exists())
+        if expected_llm and n_frozen >= expected_llm and got_fam >= expected_fam:
             ready.append(line)
     ready = sorted(ready)
     got["lines_at_c4_boundary"] = ready
     if ready:
         alerts.append(
-            f"★ C4 BOUNDARY REACHED on {', '.join(ready)} (every LLM arm frozen) -- the seed ladder has "
-            f"begun on that line. ✔ `--pack 8` IS ALREADY LIVE (§58, applied 2026-07-31 by a rolling "
+            f"★ C4 PRECONDITION MET on {', '.join(ready)} (every arm that line runs has a frozen "
+            f"winner). This is the FREEZE boundary, NOT evidence that the ladder has begun: the test "
+            f"leg, the C1 barrier, C2's h2_pair and the C3 gate all sit between here and C4. The "
+            f"OBSERVATION of C4 is `[C4|pipelined]` in a driver log -- "
+            f"`python docs/ops/session_preflight.py` reports it as `c4_entered`. "
+            f"✔ `--pack 8` IS ALREADY LIVE (§58, applied 2026-07-31 by a rolling "
             f"supervisor restart; VERIFIED 2026-07-31 19:35 UTC on all 24 driver command lines, and "
             f"visible in the C4 job names as 4 packs for 30 seeds, e.g. `..._test_p01..p04`). "
             f"*** DO NOT RESTART THE SUPERVISORS FOR PACK 8 -- IT IS DONE. *** "
@@ -838,6 +866,7 @@ def main() -> int:
     science = _results_layer(prev, alerts, attention)
 
     cores = jobs = ""
+    _vanished_rc = -1        # -1 => the ssh-cadence layer did not run this cycle (see below)
     if args.ssh:
         rc, out = _run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "myriad",
                         'Q=$(qstat -u ucestes | tail -n +3); '
@@ -851,6 +880,33 @@ def main() -> int:
             jobs = f"{got.get('run', '?')}r/{got.get('qw', '?')}q"
         else:
             attention.append("ssh to myriad failed this cycle (the campaign is unaffected; retry next cycle)")
+
+        # ── VANISHED-ARRAY LAYER (RUN 13, 2026-08-02) ───────────────────────────────────────────
+        # The one failure mode this cycle could not see. `driver.py` line 6 makes SGE's walltime the
+        # stall detector, which is right for a SLOW job and blind to a VANISHED one: an array purged
+        # in Eqw leaves no qacct row, so the driver waits out the full 54,000 s h_rt before it
+        # requeues. Measured on `cma_es-c4`: submitted 07-30 14:56, requeued 07-31 11:10 -- 20.2 h of
+        # nothing, on the arm that is the campaign's critical path (9/30 candidates, strictly
+        # sequential, and the C1 barrier waits for it). 76 such events across the 12 driver logs.
+        #
+        # Deliberately on the SSH cadence (~20 min), not every cycle: it needs a `qstat`, the login
+        # node is shared, and 20 minutes against a 15-hour blind spot is already a ~45x improvement.
+        # It is a COMPOSER -- it shells out to the instrument rather than re-deriving its logic, so
+        # the two can never come to disagree about the same fact.
+        _va_rc, _va_out = _run([sys.executable, "docs/ops/vanished_array_watch.py"], timeout=300)
+        # Recorded in STATE.json so a later session can see the layer RAN. A check that is silent
+        # when clean and leaves no trace is indistinguishable from a check that was never wired in --
+        # which is the "a green board is not evidence" rule applied to my own addition.
+        _vanished_rc = _va_rc
+        if _va_rc == 1 and "VANISHED" in _va_out:
+            alerts.append(
+                "VANISHED ARRAY(S) -- a submitted array has left the queue while its block is still "
+                "pending. The driver will not notice until h_rt expires (up to 15 h). Run "
+                "`python docs/ops/vanished_array_watch.py` for the line and block.\n"
+                + "\n".join(ln for ln in _va_out.splitlines() if "VANISHED" in ln or "!!!" in ln))
+        elif _va_rc not in (0, 1):
+            attention.append(f"vanished_array_watch rc={_va_rc} -- the blind-spot detector could not "
+                             "run; the 15 h purge blind spot is UNWATCHED this cycle")
 
     state = {
         "written_utc": stamp,
@@ -878,6 +934,8 @@ def main() -> int:
         "stop_file_present": stop_file.exists(),
         "cores": cores,
         "jobs": jobs,
+        # -1 = the ssh cadence did not run this cycle; 0 = ran, clean; 1 = ran, vanished array found.
+        "vanished_array_rc": _vanished_rc,
         "alerts": alerts,
         "attention": attention,
     }

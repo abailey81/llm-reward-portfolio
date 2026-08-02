@@ -18,12 +18,12 @@
      staleness warning on any mismatch. Never edit by hand; rerun the script instead. -->
 ```yaml
 handoff_state:
-  regenerated_utc: "2026-08-01"
-  head: "31361727"
+  regenerated_utc: "2026-08-02"
+  head: "4f63c911"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 12 close; PYTEST_RC read from the log)"
+  suite_status: "exit 0 (RUN 12 close; RUN 13 made no src/scripts/config/prompts change)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
