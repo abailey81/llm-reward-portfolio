@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-02"
-  head: "7aacabd3"
+  head: "d1fbc787"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 13: D27 landed, 763 passed; core relaunched onto d866afd3)"
+  suite_status: "exit 0 (RUN 13 pass 3: 763 tests; R1-R9 + P1-P4 clean on 3,565 records)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
