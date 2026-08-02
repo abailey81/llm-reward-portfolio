@@ -48,16 +48,25 @@ THE CHECKS
   S8  universe invariance   -- every record must see the SAME number of steps; a record that saw a
                                different window is not comparable to its CRN partners
   S9  pnl identity          -- per_period_pnl vs test_returns (the A62 disclosure, tracked)
-  S10 CRN PAIRING           -- within each line's BANKABLE CONTIGUOUS PREFIX, every paired arm holds
-                               every seed. Every paired contrast in the design (H2's co-primary
-                               IUTs, the per-model contrasts, the seed-block bootstrap) compares arm
-                               A seed s against arm B seed s; if the seed SETS differ the pairing
-                               misaligns, and NO per-record check can see it, because every
-                               individual record is perfectly valid -- the defect lives in the SET.
-                               It also reports the COMMON banked rung, which under R101 IS the
-                               reported result.
-                               ⚠ THE PREFIX FRAMING IS LOAD-BEARING. Asking "are the seed sets
-                               equal?" flags every line that is MID-SWEEP: the pipelined C4 path
+  S10 BANKED RUNG / CRN     -- reports each line's BANKABLE CONTIGUOUS PREFIX: the largest r such
+                               that every paired (non-baseline) arm holds every seed in {0..r-1}.
+                               Under R101 the COMMON prefix across lines IS the reported result, so
+                               this MEASURES the headline from the archive rather than forecasting it.
+
+                               ⚠ HONEST SCOPE, CORRECTED AFTER AN END-TO-END TEST OF MY OWN CLAIM.
+                               I first described S10 as DETECTING pairing breaches. It does not, and
+                               it structurally cannot: the prefix is defined as the MINIMUM over
+                               arms, so every arm necessarily holds every seed below it and the
+                               "missing seed" branch is UNREACHABLE by construction. A synthetic
+                               end-to-end run against this module confirmed it -- an arm with a hole
+                               at seed 2 collapses the prefix to 2 rather than reporting a breach.
+                               The branch is retained as defence-in-depth against a BUG in the
+                               prefix computation itself, and is documented as that rather than
+                               advertised as a pairing detector. The MEASUREMENT is the deliverable.
+
+                               ⚠ THE PREFIX FRAMING IS STILL LOAD-BEARING, for the OPPOSITE reason:
+                               not to catch breaches but to avoid MANUFACTURING them. Asking "are
+                               the seed sets equal?" flags every line that is MID-SWEEP: the C4 path
                                submits all six assurance blocks at once, so seeds land out of order
                                across tiers and the sets are ragged BY CONSTRUCTION while work is in
                                flight. The cumulative-tier rule banks a rung only when it and every

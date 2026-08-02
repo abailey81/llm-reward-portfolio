@@ -16303,3 +16303,71 @@ the memory finding in §107.2 still rests on the three targeted completed jobs (
 11.564 GB against a 16 GB request), exactly as stated there. **This does not change the refusal** — that
 rested on the benefit being +16 cores, not on the measurement being uncertain — but the instrument's
 failure is recorded so nobody re-runs it expecting a distribution.
+
+## 109. RUN 14 (fifth pass) — SELF-VERIFICATION: RE-DERIVING MY OWN NUMBERS, AND ONE CLAIM OF MINE THAT WAS WRONG (2026-08-02)
+
+**Tamer ratified the decisions and asked for everything to be verified flawless. The useful response
+to that is not to assert it — it is to re-derive the load-bearing numbers by INDEPENDENT routes and to
+attack my own instruments.** An independent read-only auditor was run in parallel on the record-level
+claims; this section records what I checked myself.
+
+### 109.1 THE ARITHMETIC BEHIND TAMER'S ACTION, RE-DERIVED FROM SOURCE
+
+The disk recommendation was originally read off `disk_runway.py`'s printed table. Re-derived WITHOUT
+that table — rung ladder from `lanes.total_trainings` directly, mean unit size re-measured over 500
+real unit directories, C: free from the OS:
+
+```
+rung ladder from source : 30->3,930  100->8,900  189->15,219  279->21,609
+                          340->25,940  403->30,413  568->42,128     <- matches the table exactly
+mean unit size          : 479.5 KB   (over 500 sampled unit dirs)
+C: free                 : 26.06 GB decimal (24.27 GiB)
+```
+
+| quantity | as stated | re-derived | |
+|---|---|---|---|
+| C: free required for rung 568 | 38.8 GB | **38.55 GB** | ✔ |
+| shortfall today | 13.1 GB | **12.49 GB** | ✔ |
+| D29 alone | short 0.84 GB | **short 0.23 GB** | ✔ same conclusion |
+| **D29 + DISM** | ~7 GB margin | **8.27 GB margin** | ✔ |
+| floor first crossed at | rung 279 | **rung 279** | ✔ |
+| throughput needed for 568 | 64.8 rec/h | **64.7 rec/h** | ✔ |
+
+**A COUNTER-CONVENTION TRAP WAS CHECKED AND CLEARED.** The required RATE is derived against
+`lanes.total_trainings` (which counts search + test), while the measured rate comes from the CYCLE LOG
+counter. If those counted different things the recommendation would be wrong. Measured the same
+minute: `rglob("record.json")` = **4,352** vs cycle log **4,289** — a 1.5 % difference, so the
+comparison holds. Recorded because it is exactly the kind of mismatch that silently invalidates a
+recommendation.
+
+### 109.2 ⚠ P196 — I DESCRIBED S10 AS A BREACH DETECTOR AND IT STRUCTURALLY IS NOT
+
+An END-TO-END mutation test was built against the real audit binary on a synthetic archive (the
+selftest only exercises the prefix helper in isolation, which is NOT the same as proving the S10 path
+inside `main()` behaves):
+
+```
+A  two arms, identical seeds 0..9                  -> prefix 10, CLEAN            ok
+B  one arm missing seed 4 (hole BELOW)             -> prefix collapses to 4, CLEAN ok
+D  ragged ABOVE the prefix only (in-flight shape)  -> prefix 10, CLEAN            ok   <- the P195 regression test
+C  one arm missing seed 2                          -> prefix collapses to 2
+```
+
+**Case C is the finding.** S10's "missing seed" violation branch is **UNREACHABLE BY CONSTRUCTION**:
+the prefix is defined as the MINIMUM over arms, so every arm necessarily holds every seed below it and
+`missing` can never be non-empty. **A hole does not raise a breach — it truncates the prefix.**
+
+**So S10 does NOT detect pairing breaches, and my CHANGELOG and §107.3 said it did.** What S10
+actually delivers — and it is genuinely valuable — is the **BANKED-RUNG MEASUREMENT**, which under
+R101 IS the reported result, computed from the archive rather than forecast. The violation branch is
+retained as defence-in-depth against a bug in the prefix computation itself and is now DOCUMENTED as
+that rather than advertised as a detector.
+
+**The lesson, and it is the same one as P193:** a selftest that exercises a helper in isolation can
+pass while the integrated path does something different. The end-to-end test is what caught it, and it
+only got written because the claim was being re-checked rather than restated.
+
+**⚠ NOTE FOR THE WRITE-UP:** wherever this session's CHANGELOG describes S10 as detecting CRN pairing
+breaches, the accurate description is *"measures the banked contiguous prefix per line, i.e. the
+reported common rung"*. The S1-S10 CLEAN result is unaffected — S10 reported no breach because there
+is none to report, and the prefix measurement (common rung 30) stands.
