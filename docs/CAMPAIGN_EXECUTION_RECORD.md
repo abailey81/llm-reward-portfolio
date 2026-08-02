@@ -16573,3 +16573,90 @@ structurally correct (placebo information-free at identical shape; placebo_shuff
 with permuted values), and that the only recorded departures are three cold-draw fallbacks whose cause
 is verified. **That is the construct-validity claim moved from design-document assertion to measured
 fact.**
+
+## 112. ★★★★★ RUN 14 (eighth pass) — S12: THE AUTHORED REWARD CODE, AND EVERY ONE OF IT STILL PASSES THE LIVE SANDBOX GATE (2026-08-02)
+
+**The last unaudited layer.** R1-R9 read a record's contract, P1-P4 its files, S1-S10 its numbers,
+S11 the text fed to the model. **None of them read the reward SOURCE** — the actual object of study.
+`docs/analysis/reward_code_audit.py` (S12) closes it. Selftest 8/8 including two security mutants and
+a two-direction exemption control; effect-blind; **and it never EXECUTES an archived reward** —
+auditing untrusted model-authored code must not run it.
+
+### 112.1 THE HEADLINE — A REPRODUCIBILITY AND SAFETY CLAIM, MEASURED
+
+```
+records scanned            : 4,683
+carrying a reward_source   : 4,683
+PASS the live sandbox gate : 4,683 / 4,683     (100%)
+C1-C4 CLEAN: every reward parses, defines `def reward(...)` with the registered
+             5-parameter signature, and is STILL ADMITTED today
+```
+
+**It re-runs the project's OWN gate** — `src.sandbox.executor.ast_gate`, the real allowlist
+(`ALLOWED_IMPORTS` = numpy only, attribute hops restricted to `_ALLOWED_ATTRS`) — not a
+reimplementation. That distinction is the whole point: a private copy of the rules would only prove
+my copy agrees with itself. Re-running the real gate answers the question that matters for Priority 5:
+**would every reward we have already trained on still be admitted today?** It would.
+
+**⇒ Every archived result can be reproduced by re-running its own source, and nothing outside the
+allowlist was ever admitted.** That is a claim the dissertation can make with an archive-wide check
+behind it.
+
+### 112.2 ⚠ P200 — I MIS-CALIBRATED A CHECK BY FORGETTING AN EXEMPT CATEGORY, FOR THE THIRD TIME
+
+The first run reported **330 defects**. Every one was a BASELINE arm, and not one was an LLM-authored
+reward. The 11 hand-written canon rewards are ANALYTIC allocators implemented in
+`src/baselines/rewards.py`; their records archive a MARKER COMMENT (`# baseline:<name>`) because there
+is no authored code to archive.
+
+**This is the same failure as P193** (the hardcoded S5 threshold): a check calibrated to my
+expectation rather than to the design. It is worse than P193 in one respect — **the sibling module's
+S3 exempts baselines CORRECTLY, so the knowledge existed in code I had written hours earlier and was
+simply not applied.** Fixed, with a selftest that asserts the exemption in BOTH directions: a marker
+comment passes for a baseline arm and STILL FAILS for an LLM arm. *An exemption that never refuses is
+a hole, not a rule.*
+
+### 112.3 ★ AND C5 FOUND A LIVE RECURRENCE OF D18 — TWO NESTED DUPLICATE DIRECTORIES
+
+C5 (search distinctness) flagged two "duplicate" candidates, but the ids were identical to
+themselves — `['placebo_shuffled-g3-c4', 'placebo_shuffled-g3-c4']`. That is not two candidates with
+the same code; it is **one candidate with two `record.json` files**:
+
+```
+.../placebo_shuffled-g3-c4/record.json
+.../placebo_shuffled-g3-c4/placebo_shuffled-g3-c4/record.json     <- nested duplicate
+.../scalar-g1-c3/record.json
+.../scalar-g1-c3/scalar-g1-c3/record.json                          <- nested duplicate
+```
+
+**That is the D18 fingerprint exactly** — *"`shutil.move` into an EXISTING directory NESTS; the guard
+cannot close a TOCTOU race on a `read_root` shared by twelve drivers."* A root-caused, documented
+defect, recurring in RUN 4.
+
+**BOUNDED PRECISELY, AND THE BOUNDS ARE REASSURING:**
+
+* **exactly TWO** nested directories archive-wide;
+* both in the **SEARCH** tier (`glm_5_2`, `haiku_4_5`), **ZERO in the sealed-test tier**, so no seed
+  count and no result is affected;
+* both inner records are **BYTE-IDENTICAL** to the outer copy (same sha, size and mtime), so nothing
+  diverges.
+
+**THE REAL CONSEQUENCE IS COUNTING.** Every `rglob("record.json")` instrument — mine, the provenance
+seal, `record_validator`, `disk_runway`'s `have` — counts these TWICE. At 2 of 4,683 that is 0.04 %
+and changes no conclusion, but it is a systematic over-count and it was invisible until now.
+**FIXED** by adding a D18-nesting predicate to all three instruments I wrote this session, alongside
+the existing dot-prefix (`.pull_tmp`) exclusion. After the fix, duplicate candidates read **0**.
+**Skipped, never deleted** — the archive is append-only evidence, and Tamer's standing instruction is
+move-never-delete.
+
+⚠ **FOR THE ANALYSIS LANE:** `analyze_campaign.py`'s loader keys on `(directory, run_id)` after the
+A79 fix. A nested directory IS a different directory, so the loader will admit BOTH copies and report
+two extra search candidates. Harmless to any value (they are byte-identical) but it should be
+excluded there too, and the 216-duplicate figure recorded elsewhere should be read with that in mind.
+
+### 112.4 THE SEARCH IS GENUINELY EXPLORING
+
+With the nesting excluded, **no two candidates in any (line, arm, generation) share a byte-identical
+reward source** — 1,509 search candidates across 319 generation groups, zero duplicates. The
+exploration directive fed to the model asks each candidate to differ from its generation-mates, and
+the archive shows it complied: **the K-wide search really is K-wide.**

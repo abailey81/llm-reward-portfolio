@@ -120,6 +120,19 @@ WEIGHT_SUM_TOL = 1e-4
 REGISTERED_FALLBACK_KEY = ("fitness", "winner_max_fallback_frac")
 
 
+def _is_d18_nested(p, root) -> bool:
+    """True for a D18 `shutil.move` NESTED duplicate: a unit dir whose name equals its parent's.
+
+    D18 is root-caused in DEFERRED_FIXES_RUN4: `shutil.move` into an EXISTING directory nests, and
+    the guard cannot close a TOCTOU race on a `read_root` shared by twelve drivers. Measured on
+    2026-08-02: exactly TWO such directories exist archive-wide, both in the SEARCH tier, and both
+    hold a record BYTE-IDENTICAL to the outer copy -- so no value diverges. But every `rglob`
+    instrument counts them TWICE, so they are skipped here exactly as dot-prefixed `.pull_tmp`
+    directories are. Skipped, never deleted: the archive is append-only evidence.
+    """
+    parts = p.parts
+    return any(parts[i] == parts[i - 1] for i in range(1, len(parts) - 1))
+
 def registered_fallback_floor(root: Path = Path(".")) -> float:
     """The registered winner-eligibility fallback floor. FAILS LOUD if absent.
 
@@ -329,6 +342,8 @@ def main(argv=None) -> int:
     for p in sorted(root.rglob("record.json")):
         # a partially-pulled record lives under a dot-prefixed dir and is not archive content
         if any(part.startswith(".") for part in p.parts):
+            continue
+        if _is_d18_nested(p, root):
             continue
         try:
             rec = json.loads(p.read_text(encoding="utf-8"))

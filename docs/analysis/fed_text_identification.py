@@ -56,6 +56,19 @@ NUM = re.compile(r"-?\d+\.?\d*(?:[eE][-+]?\d+)?")
 BASE_PROMPT_MIN_CHARS = 1500
 
 
+def _is_d18_nested(p, root) -> bool:
+    """True for a D18 `shutil.move` NESTED duplicate: a unit dir whose name equals its parent's.
+
+    D18 is root-caused in DEFERRED_FIXES_RUN4: `shutil.move` into an EXISTING directory nests, and
+    the guard cannot close a TOCTOU race on a `read_root` shared by twelve drivers. Measured on
+    2026-08-02: exactly TWO such directories exist archive-wide, both in the SEARCH tier, and both
+    hold a record BYTE-IDENTICAL to the outer copy -- so no value diverges. But every `rglob`
+    instrument counts them TWICE, so they are skipped here exactly as dot-prefixed `.pull_tmp`
+    directories are. Skipped, never deleted: the archive is append-only evidence.
+    """
+    parts = p.parts
+    return any(parts[i] == parts[i - 1] for i in range(1, len(parts) - 1))
+
 def _gen_of(path: Path) -> int | None:
     try:
         return json.loads(path.read_text(encoding="utf-8")).get("generation")
@@ -94,6 +107,8 @@ def audit(root: Path) -> tuple[int, list[str], dict]:
     problems: list[str] = []
     for p in sorted(root.rglob("record.json")):
         if any(x.startswith(".") for x in p.parts):
+            continue
+        if _is_d18_nested(p, root):
             continue
         if not p.relative_to(root).parts[0].startswith("search"):
             continue
