@@ -1809,3 +1809,68 @@ cores immediately** — the single fastest core gain available today.
 ```
 qdel 66103 66104 66105 66106 66107 66108 73026 73027
 ```
+
+---
+
+## RUN 15 (2026-08-03) — one PROHIBITION and two deferred fixes
+
+### ⛔ PROHIBITION — NEVER JUNCTION THE ARCHIVE (OR ANY LEG SUB-ROOT) ONTO ANOTHER VOLUME
+
+This is not a fix to schedule; it is an action that must never be taken, and it is easy to reach for
+because C: and D: are one physical disk and D: has ~107 GB free. **Proved by experiment, not argued:**
+
+`src/cluster/poll.py:305` commits every pulled record with `os.rename`, and the comment at :301-303
+states the correctness argument in as many words — *"`os.rename` is the fix because it CANNOT nest...
+**Same filesystem by construction** (staging is a child of `local`), so it is also atomic."*
+Junctioning a leg sub-root leaves `.pull_tmp.<pid>` on C: and puts the destination on D:. Measured
+against a real, verified reparse point:
+
+```
+os.rename(C:\...\.pull_tmp\rec  ->  C:\...\<junction to D:>\rec)
+  OSError  winerror=17  errno=18   "The system cannot move the file to a different disk drive"
+```
+
+`poll.py:306`'s `except OSError` branch exists to handle the D18 race and therefore runs
+`shutil.rmtree(src, ignore_errors=True)`. **So every pulled record would be deleted, while
+`pull_new()` returned `len(missing)` and the driver logged a successful pull.** Silent and total.
+
+**The only safe form** is relocating the ENTIRE archive root, so staging and destinations stay on one
+volume — which requires every `driver_*.log` handle closed, i.e. a reboot window and a twelve-line
+relaunch. **It is also unnecessary:** the pagefile move alone clears rung 568 with ~8 GB of margin.
+
+### D-RUN15-1 — the driver's STARTUP path has no transport-outage tolerance
+
+`src/cluster/driver.py` rides out a **12 h** transport outage inside its polling loop
+(`max_transport_outage_secs = 43200`). But the driver's **startup** resolves `$HOME` over ssh via
+`src/cluster/submit.py:148`, which has no tolerance whatever: one `ssh` exit 255 and the process dies
+with `CalledProcessError` **before it ever reaches the tolerant loop**. Any line relaunched during an
+outage therefore enters a 600 s crash/relaunch cycle.
+
+**Observed live 2026-08-02/03:** `h3` at supervisor attempt **36**, `nemotron-3-super` at **18**.
+It self-heals when ssh returns, and no data is at risk, but it consumes the supervisor's
+`$maxAttempts = 1000` budget (~7 days at 600 s) and it buries real failures in noise.
+
+**NOT fixed live:** `src/cluster/**` is inside the driver import closure, so the change needs a
+twelve-line relaunch. **Fix when the lines are next relaunched:** wrap the startup `$HOME` probe in
+the same bounded retry the polling loop uses, or cache the resolved home in the output dir.
+
+### D-RUN15-2 — `load_campaign_records` admits the D18 nested duplicates (ANALYSIS-TIME)
+
+`scripts/analyze_campaign.py::load_campaign_records` correctly skips dot-prefixed staging dirs
+(`:1179`, the M267 fix) and `*_h3_singleshot`. It does **not** skip a record-bearing directory nested
+inside another record-bearing directory, because `_walk` recurses to `_MAX_ARCHIVE_DEPTH = 3` and the
+`(directory, run_id)` key (A79) makes the nested copy a distinct entry.
+
+**Confirmed by exact arithmetic, not by reading alone:** the loader returns **4,192**, and
+4,794 on-disk − 599 `*_h3_singleshot` − 3 dot-prefixed = **4,192**. So both nested duplicates are in.
+
+**Impact is bounded and measured:** 2 records of 4,192 (0.05 %), **both SEARCH tier, ZERO in the
+sealed test**, each byte-identical to its parent —
+`search_leg_glm_5_2/placebo_shuffled/placebo_shuffled-g3-c4/placebo_shuffled-g3-c4` and
+`search_leg_haiku_4_5/scalar/scalar-g1-c3/scalar-g1-c3`. They would enter those two arms' search
+populations twice (PBO enumeration / DSR multiplicity pool).
+
+**Fix in the LOADER before the headline analysis is run — not in the live tree.** Removing or moving
+the directories would make the archive shrink relative to `D:\llm_rp_archive_mirror` and trip
+`mirror_archive.ps1`'s shrink guard, halting the backup. One line in `_walk` suffices: skip a child
+whose parent already carries a `record.json`.

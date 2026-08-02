@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-02"
-  head: "26daeb02"
+  head: "743fe1aa"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 14 CLOSES: 3,047 tests; SIX record layers CLEAN; DISM moved the ceiling 189->340; D29 alone reaches 568)"
+  suite_status: "not re-run this session (no src/ change); six record layers ALL CLEAN 4,791; +3.96 GB freed, ceiling 340->403"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```

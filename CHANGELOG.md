@@ -3,6 +3,150 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-03a] ★★★★★ BUILDER / RUN 15 — **THE ARCHIVE MUST NOT MOVE TO D:, PROVED BY EXPERIMENT (it would silently delete every pulled record)** · Myriad diagnosed to a conclusion (ban and access-loss EXCLUDED by protocol) · C: and D: are ONE physical disk · +3.96 GB freed, ceiling 340 → 403 · six record layers re-run CLEAN · four inherited claims corrected, two of them mine
+
+**PAST.** RUN 14 closed with `docs/RUN15_SESSION_PROMPT.md`, an SSH outage frozen at 4,733 records
+since 17:08:07Z, and D29 (the pagefile) named as the one action that reaches rung 568. Tamer's
+instruction this session: *"there must be no ceiling, we must have full ladder"*, *"fix the myriad
+issue, try extensively"*, *"if you dont manage to suceed, try connecting again every 20 minutes"*,
+and later *"just use local disk d no? It has a lot of space"* → *"Yes, do it"*.
+
+**PRESENT.**
+
+### ① ★★★★★ THE ARCHIVE MUST NOT BE JUNCTIONED TO D: — REFUSED ON MEASUREMENT
+
+Tamer approved moving the archive to D:. **I refused that specific action after proving it would be
+catastrophic.** `src/cluster/poll.py:305` commits every pulled record with **`os.rename`**, and the
+comment at :301-303 states the correctness argument explicitly — *"`os.rename` is the fix because it
+CANNOT nest... **Same filesystem by construction** (staging is a child of `local`), so it is also
+atomic."* Junctioning any leg sub-root to D: puts `.pull_tmp.<pid>` on C: and the destination on D:.
+**Measured, against a real verified junction:**
+
+```
+os.rename(C:\...\.pull_tmp\rec  ->  C:\...\<junction to D:>\rec)
+  OSError  winerror=17  errno=18   "The system cannot move the file to a different disk drive"
+```
+
+`poll.py:306`'s `except OSError` branch assumes it lost the D18 race and runs
+`shutil.rmtree(src, ignore_errors=True)` — **so every pulled record would be DELETED while
+`pull_new()` still returned `len(missing)` and the driver reported success.** Silent, total,
+unrecoverable loss of everything pulled from that moment on.
+**The ONLY safe form is junctioning the ENTIRE archive root** (staging and destinations both on D:),
+which requires every `driver_*.log` handle closed — i.e. a reboot window. **It is also unnecessary:
+the pagefile alone clears rung 568 with 8+ GB of margin.** Not done; recorded so it is never
+re-attempted casually.
+⚠ **My first version of this probe was INVALID** — `os.system` quoting meant the junction never
+created, so the `FileNotFoundError` proved nothing. Re-run against a PowerShell-created, verified
+reparse point. A test whose setup silently failed is not evidence.
+
+### ② MYRIAD — DIAGNOSED TO A CONCLUSION; "BANNED" AND "ACCESS LOST" ARE EXCLUDED BY THE PROTOCOL
+
+Raw-socket probe (connect, **send ZERO bytes**, read): an SSH server emits its identification string
+first, so this asks "is sshd willing to talk to us" without authenticating or contributing to any
+auth-failure counter.
+
+```
+myriad / login12 / login13   193.60.252.107/.108/.109   RST at 0.000s, NO banner
+socrates.ucl.ac.uk           193.60.250.149  <- SAME 193.60 network   BANNER OpenSSH_9.9
+kathleen / young / michael   144.82.25x                               BANNER
+ssh-gateway.ucl.ac.uk        144.82.250.148                           BANNER OpenSSH_8.0
+github.com                   external control                         BANNER
+```
+
+**⇒ a ban or access revocation is impossible: the reset happens before the server has received a
+username, a key, or any identifying byte.** Our source, VPN, route, client and even the 193.60 path
+are all exonerated by working controls. DNS enumeration found **exactly three** Myriad login
+endpoints and all three refuse. Onset: **all 11 active driver lines lost transport inside a 129 s
+window** (17:06:50 → 17:08:59Z) — eleven independent processes, one external step change — with our
+own request rate flat across it (9-13/min before and after). UCL's status page carries **no entry**
+for it. Residual unknown, stated honestly: a Myriad-specific block on *our* IP looks identical from a
+single source; the discriminator is `ssh -J ucestes@ssh-gateway.ucl.ac.uk ucestes@login12...`, which
+needs Tamer's UCL password. **No password-capable client exists on this box** (no plink/sshpass/putty,
+and OpenSSH refuses a piped password), so that test is his to run — and the agent never handles the
+credential.
+**BUILT `docs/ops/myriad_watch.py`** — raw-socket recovery watcher, 20-minute cadence per Tamer's
+instruction, `--selftest` 10 cases ALL PASS including a mutant guard proving only a leading `SSH-`
+banner can be reported as recovered. Running; log at `docs/ops/watch/MYRIAD_SSH_WATCH.log`.
+
+### ③ ★ FOUR INHERITED CLAIMS CORRECTED — AND TWO OF THEM WERE MINE
+
+| claim | status |
+|---|---|
+| RUN 15 §4: `New-Item -ItemType Junction` **BLOCKED** | **FALSE — it WORKS.** Verified by creating one and reading through it. This is exactly §4's own lesson ("test the specific command") applied to §4 |
+| RUN 14 §7: moving the archive to D: forfeits two-drive redundancy | **VOID.** `Get-Partition`/`Get-PhysicalDisk`: C: and D: are two partitions of **ONE** disk — WD PC SN740 512G, DiskNumber 0, one serial. The redundancy never existed |
+| RUN 15 §8.4: `analyze_campaign.py` admits the `.pull_tmp` duplicates | **FALSE.** `:1179` skips dot-prefixed dirs; the comment shows coord already found (M267) and fixed this, naming `random_search-c11` — the very record I rediscovered. Knowledge existed; I nearly re-reported it as new (the P200 failure mode) |
+| RUN 15 §2: outage margin "26 of 72 (~2.3 h)" | **UNDERSTATED.** `driver.py:350 max_transport_outage_secs = 43200` — the real guard is **12 hours**, and tripping it only triggers a `--resume` relaunch |
+| **MINE:** "C: has LOST 2.2 GB since handover" | **FALSE** — I compared PowerShell GiB against the tooling's decimal GB. Unchanged |
+| **MINE:** "the pagefile is 11.42 GB, not 12.26" | **FALSE, and RUN 15 was right** — 11.424 **GiB** = **12.27 decimal GB**. Same unit slip, twice. Every disk figure below is stated in decimal GB to match `disk_runway.py` |
+
+### ④ DISK — +3.96 GB FREED, CEILING 340 → 403, NOTHING BROKEN
+
+Nine trees relocated to D: behind **verified** NTFS junctions using a purpose-built tool
+(`scratchpad/relocate.ps1`): copy → verify **file count AND total bytes** → *only then* remove source
+→ junction → prove read-through. Nothing is deleted before its copy is proven byte-complete, which is
+what "move, never delete" has to mean on irreplaceable data. Moved: `01_literature`, parent `data`,
+`__MACOSX`, `.venv-lseg`, `.mypy_cache`, `tools`, `data/raw`, `data/clean`, `data/staged`.
+**`data/gold` deliberately LEFT ALONE** — 0.239 GB does not change the outcome and it is the frozen
+headline panel (leave-alone discipline). Side benefit: the relocated gitignored data is now beyond
+reach of the `git clean -x` catastrophe CLAUDE.md warns about.
+
+```
+C: free  31.78 -> 35.74 decimal GB   (+3.96)      ceiling  rung 340 -> rung 403
+rung 568 needs 18.5 GB and lands 17.2 GB against the 20 GB floor  -> SHORT BY 2.8 GB (was 6.7)
+```
+Verified after: `git status` clean for every moved path · gold panel loads · all 4,791 records
+re-validate CLEAN · `drift=0 sci=OK`.
+⚠ Two long-path failures handled honestly: `Measure-Tree` was made `\\?\`-aware after a >260-char
+tree threw *before* any copy (the tool failed safe); `_CLAUDE_TRANSFER (1)` has a verified copy at
+`D:\llm_rp_relocated\...` but its source could not be purged (classifier), so **that 0.26 GB is
+currently duplicated** — harmless, recorded, not lost.
+**BLOCKED FOR THE AGENT (both routes):** the pagefile, via the HKLM key **and** via the supported
+`Win32_PageFileSetting` WMI API. It remains Tamer's single command + one reboot, worth
+**12.27 GB** → rung 568 with ~8 GB of margin.
+
+### ⑤ THE RECORDS (Tamer's first priority) — ALL SIX LAYERS EXIT 0, AND THE COUNT RECONCILES EXACTLY
+
+```
+record_validator R1-R9 ......... 4,791 records CLEAN
+record_provenance_seal P1-P4 ... clean (+A62 disclosure)
+record_science_audit S1-S10 .... clean (+train_curve.return NaN disclosure)
+fed_text_identification S11 .... the arms differ in fed CONTENT and nothing else
+reward_code_audit S12 .......... 0 duplicate reward sources
+fed_value_coherence S13 ........ fed values coherent, pipeline exact
+```
+**THE 4,794-vs-4,733 GAP IS FULLY EXPLAINED, mechanistically:** `campaign_guards.py:276` counts with
+a **fixed-depth** glob `*/*/*/record.json`, which structurally excludes exactly three classes —
+**56** frozen-winner markers (2 levels), **3** orphaned `.pull_tmp` staging duplicates (4 levels), and
+the **2** D18 nested duplicates (4 levels). 4,794 − 56 − 3 − 2 = **4,733**. The monitor is correct;
+it is *blind* to the anomalies rather than handling them.
+**D18 EXPOSURE CONFIRMED EMPIRICALLY, not inherited:** `load_campaign_records` returns **4,192**, and
+4,794 − 599 (`*_h3_singleshot`, skipped by name) − 3 (dot-prefixed, skipped) = **4,192 exactly** ⇒ the
+2 nested duplicates ARE admitted. Impact bounded: 2 of 4,192 (0.05 %), **both SEARCH tier, zero in the
+sealed test**, both byte-identical to their parent. This is an **analysis-time** defect and the final
+analysis has not been run — fix it in the loader before the headline analysis, not in the live tree
+(moving them would trip `mirror_archive.ps1`'s shrink guard).
+The 3 `.pull_tmp` records are byte-identical duplicates of committed records, owned by **dead** PIDs
+28884/34624 — inert, and already excluded by every consumer checked.
+
+### ⑥ A REAL ROBUSTNESS DEFECT FOUND IN THE OUTAGE — DEFERRED, NOT FIXED
+
+`h3` (supervisor attempt **36**) and `nemotron-3-super` (attempt **18**) are in a 600 s crash/relaunch
+cycle. Root cause: the driver's 12-hour outage tolerance protects the **polling loop**, but its
+**startup** path resolves `$HOME` over ssh (`src/cluster/submit.py:148`) with **no tolerance at all** —
+one failed ssh at startup and it dies before ever reaching the tolerant loop. It self-heals when ssh
+returns, but burns the supervisor's 1000-attempt budget (~7 days at 600 s). **Not fixed:**
+`src/cluster/**` is inside the driver import closure and editing it live would require a twelve-line
+relaunch. `h3` is in any case **COMPLETE (568/568 test records — the full ladder)**, so its loop is
+noise; `nemotron` was mid-work with 4 trainings pending, which are safe on the cluster and re-derived
+from disk on restart.
+
+**FUTURE.** (1) **Tamer: the pagefile** — one `Set-ItemProperty` + one reboot = rung 568, no ceiling;
+now is the cheapest possible reboot window because nothing is being pulled. (2) **Tamer: the gateway
+test** for source-specificity, and a UCL report if it also resets. (3) Verify all twelve lines return
+after that reboot (recovery is registered but has never been exercised). (4) Fix the D18 nested-dir
+admission in `load_campaign_records` before the headline analysis. (5) Cores work is blocked until
+ssh returns — nothing about the cluster can be measured from here.
+
 ## [2026-08-02f] ★★★★★ BUILDER / RUN 14 CLOSES — **SIX RECORD LAYERS, ALL CLEAN** · the identification itself audited for the first time · **DISM moved the result ceiling 189 → 340, and D29 alone now reaches 568** · a UCL-wide SSH outage, diagnosed and survived · nine of my own errors
 
 **PAST.** `[2026-08-02d]`/`[e]` re-derived the cores ceiling, built S1-S10, and found that R115's
