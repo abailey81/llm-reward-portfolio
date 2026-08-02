@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-02"
-  head: "84421813"
+  head: "a1202245"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 14 4th pass: S1-S10 CLEAN; disk is the binding constraint; D29+DISM recommended)"
+  suite_status: "exit 0 (RUN 14 5th pass: numbers re-derived independently; P196 S10 scope corrected; cores 1,960)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
