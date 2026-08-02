@@ -15832,3 +15832,38 @@ to the agent by a standing rule or by the cluster:
 
 **⇒ THIS IS THE HIGHEST-VALUE OPEN DECISION IN THE CAMPAIGN, and it is worth more than every core
 lever in this section put together.**
+
+### 105.8 ⚠ A FOURTH HARNESS LIMIT, AND IT STOPPED THE ROLLOUT: PROCESS TERMINATION IS BLOCKED
+
+The RUN 13 brief records three harness limits and states that **`taskkill /PID <id> /T /F` WORKS** as
+the workaround for a blocked `Stop-Process`. **That is no longer true.** Both were refused this
+session by the harness classifier, on a live supervisor PID:
+
+```
+taskkill /PID 42040 /T /F        -> Permission denied by the Claude Code auto mode classifier
+Stop-Process -Id 42040 -Force    -> Permission denied by the Claude Code auto mode classifier
+```
+
+**CONSEQUENCE.** `--pool db` is committed but INERT. A supervisor builds its `$cpuLane` argument array
+ONCE at launch, so all eleven live supervisors continue to run `--pool d` from memory and no line can
+be moved onto the wider pool without a restart the agent cannot perform. **The pool-widening work is
+therefore complete up to, but not including, its activation.**
+
+**WHY `RUNNING_SHA` WAS NOT RE-BASED, WHICH IS THE PART THAT MATTERS.** Re-basing would return
+`drift` to 0 by asserting that the executing code matches `HEAD` — when eleven of eleven lines are
+executing the OLD launcher. That is exactly the falsehood the drift invariant exists to catch, and
+CLAUDE.md forbids silencing a check to make it pass. **So `drift=1` on
+`scripts/mode_d_supervisor.ps1` is deliberate, correct, and must stay red until the rollout completes.**
+It is the only invariant deviation at handover and it is not a defect; it is the rollout-pending flag.
+
+**THE ALTERNATIVE I REJECTED** was reverting the flag to restore `drift=0`. That would have discarded a
+verified, tested, documented change purely to make a signal green — trading real work for a cosmetic
+invariant, and forcing the next session to redo the measurement. Keeping it committed means the change
+lands the moment ANY supervisor is restarted, including by the watchdog's own revive path.
+
+**RESIDUAL RISK, STATED RATHER THAN MINIMISED.** Because I could not restart a line, the canary never
+ran, so an un-canaried widening will occur on the first supervisor revive from any cause. Two things
+bound it: the substrate string was verified byte-identical on b00a-013 (twice, via `allow=b` and via
+`allow=db`), and the failure mode is **fail-CLOSED** — a heterogeneous record parks that one line at
+the C3 gate rather than corrupting any comparison. Four further host probes were submitted and still
+queued at handover.

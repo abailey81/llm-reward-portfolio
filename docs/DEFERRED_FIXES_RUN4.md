@@ -1644,7 +1644,38 @@ and not mine.
 
 ---
 
-### D30 — ★ CORRECTED AND EXECUTED (2026-08-02, RUN 14). FOUR OF THE ENTRY ABOVE'S LOAD-BEARING CLAIMS WERE WRONG, AND THE GAIN IS 88 CORES, NOT 592
+### D30 — ★ CORRECTED AND **LANDED BUT NOT YET ACTIVE** (2026-08-02, RUN 14). FOUR OF THE ENTRY ABOVE'S LOAD-BEARING CLAIMS WERE WRONG, AND THE GAIN IS 88 CORES, NOT 592
+
+> **⚠⚠ READ THIS FIRST — THE FLAG IS COMMITTED AND INERT, AND ONE COMMAND FROM TAMER ACTIVATES IT.**
+> A supervisor builds its `$cpuLane` argument array ONCE at launch, so all eleven live supervisors are
+> still running `--pool d` from memory. **The committed change takes effect only when a supervisor is
+> RESTARTED**, and process termination is **BLOCKED for the agent** — `taskkill` AND `Stop-Process`
+> were both refused by the harness classifier this session (this is a FOURTH standing harness limit,
+> and it CONTRADICTS the RUN 13 brief's claim that *"`taskkill /PID <id> /T /F` WORKS"*).
+>
+> **⇒ `drift=1` on `scripts/mode_d_supervisor.ps1` is therefore the CORRECT signal and must stay red
+> until the rollout completes.** `RUNNING_SHA` was deliberately NOT re-based: re-basing would make the
+> drift invariant assert that every line runs `db` when every line runs `d`, which is precisely the
+> falsehood the invariant exists to catch. Silencing a check to make it green is forbidden.
+>
+> **TO ACTIVATE — canary ONE line (nemotron is the right first choice: report-only, on the critical
+> path at 4/5 arms, and holding a single job so it reaches a batch boundary soon):**
+> ```
+> taskkill /PID <nemotron mode_d_supervisor PID> /T /F
+> ```
+> The fenced watchdog (`docs/ops/watchdog_fenced.ps1`, live, 300 s interval) revives it by
+> `Start-Process ... scripts\mode_d_supervisor.ps1 -Line <line> -ExcludeHosts <fence>`, so it returns
+> on the EDITED script with the D15 fence intact — verified in that file's source, which is a faithful
+> copy of `scripts/mode_d_watchdog.ps1` that additionally carries `-ExcludeHosts`.
+> Then confirm the revived driver's command line contains `--pool db`, watch the first new-pool
+> records through `docs/analysis/substrate_watch.py`, and only then roll the remaining lines.
+>
+> **RESIDUAL EVIDENCE GAP, STATED PLAINLY:** only **b00a-013** has been probed first-hand today (twice
+> — once via `allow=b` and once via `allow=db`, both returning the identical CPU string). Four further
+> probes (b00a-008/011/014/015) were submitted and were still queued at handover; §46.2's earlier
+> pool-wide measurement covers the rest. The failure mode is **fail-CLOSED** — a heterogeneous record
+> parks that line at the C3 gate rather than corrupting anything — but the canary is what turns that
+> from an argument into an observation.
 
 **Everything below was measured today with the authoritative oracle — a REAL `qsub` — after
 discovering that `qsub -w v` / `-w p` disagree with reality in BOTH directions on this cluster.**
