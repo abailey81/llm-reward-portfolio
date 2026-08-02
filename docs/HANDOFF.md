@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-02"
-  head: "4f63c911"
+  head: "dfd003d5"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 12 close; RUN 13 made no src/scripts/config/prompts change)"
+  suite_status: "exit 0 (RUN 13: no src/scripts/config/prompts change; C4 opened on leg9)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```

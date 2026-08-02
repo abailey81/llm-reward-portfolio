@@ -15094,6 +15094,25 @@ live `D:` mirror (40.3 GB free) already means a C: failure costs records rather 
 What has changed is that the limit is now a NUMBER attached to a RUNG instead of a level nobody could
 act on.
 
+**AND THERE IS NOTHING LEFT TO RECLAIM — measured, so the option can be CLOSED rather than left open.**
+Swept `outputs/`, `runs/`, `archive/`, `reports/` and `data/` for anything over 20 MB that is not RUN 4:
+
+```
+   1.19 GB  outputs/campaign_cluster_run4        *** LIVE — DO NOT TOUCH ***
+   1.19 GB  data/{raw,clean,staged,gold}         licensed Refinitiv gold — NEVER
+   0.20 GB  outputs/campaign_cluster             superseded, and the ONLY candidate
+```
+
+**0.20 GB of candidate space against a 5.9 GB requirement to reach rung 189.** The 2026-08-01 sweep
+that freed 1.43 GB moved unrelated app caches, a materially lower-risk class of action, and it had
+already concluded no large unrelated data remained on C:. That conclusion holds, and this measurement
+extends it: there is no PROJECT data worth moving either.
+
+**So the disk lever is exactly one thing — relocating the archive, which is a 12-line relaunch and
+therefore Tamer's call.** Everything else has been measured and ruled out. ⚠ Re-measured at 03:21 UTC
+with C4 live: the margin at rung 189 has already tightened from 0.5 GB to **0.3 GB** as 336 further
+records landed, so this tightens on its own from here.
+
 ### 101.9 TWO CHECKS THAT BOUND THE DAMAGE — and one instrument I nearly "fixed" while it was right
 
 **(a) `bayes_opt` and `tpe` ARE correctly batched, so D27 is a single defect and not a symptom.**
