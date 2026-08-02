@@ -14932,7 +14932,7 @@ ground that *"CMA-ES already dispatches a whole population per generation"* — 
   both comments, add an identity test in the shape of `tests/test_dfo_tpe_batch.py`. Template
   dimension `d = 6` gives pycma's default `popsize = 9`, so budget 30 is `9+9+9+3`; the nine archived
   candidates are exactly generation 1, so **three dispatches of about 15 h replace 21 round-trips of
-  about 180 h. Saving is roughly 7 days.**
+  101 h if no further array is purged and about 180 h at the observed cadence, against ~21 h batched (a generation costs its SLOWEST member, p90 = 6.42 h). **Honest saving 80-160 h, i.e. 3.3-6.6 days.**
 * **Why it is safe:** `es.ask()` returns the population before any member runs and `es.tell()` consumes
   all of it, so members are independent by construction — same points, same ids, same fitnesses, same
   tell, and resume replays archived candidates by id without retraining.
@@ -14944,7 +14944,7 @@ ground that *"CMA-ES already dispatches a whole population per generation"* — 
 * **Lesson:** *a planning constant derived from a comment is a rumour with a type annotation.* Derive
   chain lengths from the code path that actually dispatches, or measure them from the archive.
 * **Why it was NOT applied:** all three files sit in the driver import closure, so landing it means
-  relaunching the CORE line mid-search. The prize is about 7 days; the risk is a CMA state-replay
+  relaunching the CORE line mid-search. The prize is 3.3-6.6 days; the risk is a CMA state-replay
   divergence on a confirmatory arm of an irreplaceable campaign, with nobody awake to read the result.
   Full permission raises the bar on the thinking; it does not remove it. **Tamer's call.** Full
   write-up as **D27** in `docs/DEFERRED_FIXES_RUN4.md`.

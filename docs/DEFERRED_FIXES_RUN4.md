@@ -1254,7 +1254,7 @@ dispatch steps**.
 | **serial (today)** | 21 blocking round-trips | 21 x 8.57 h = **180 h ~ 7.5 d** |
 | **batched (this fix)** | 3 array dispatches | 3 x ~5 h = **~15 h ~ 0.6 d** |
 
-**Saving on the campaign's critical path: ~165 h, about SEVEN DAYS.**
+**Saving on the campaign's critical path: 80-160 h, i.e. 3.3-6.6 DAYS.** ⚠ The table above prices a batched generation at a TYPICAL training and the serial chain at its worst observed cadence; both are corrected in the "TWO CORRECTIONS" section at the end of this item, which is the figure of record.
 
 ### Why the fix cannot change any result
 
@@ -1290,7 +1290,7 @@ generation 2's `ask()` is unchanged.
 ### ⚠ NOT APPLIED TONIGHT, AND THE REASON IS ON THE RECORD
 
 All three files are in the driver import closure, so landing this requires **relaunching the CORE
-line — the confirmatory line — mid-search**. The prize is ~7 days; the risk is a CMA state-replay
+line — the confirmatory line — mid-search**. The prize is 3.3-6.6 days; the risk is a CMA state-replay
 divergence on a confirmatory H4 arm of an irreplaceable campaign, executed while nobody is awake to
 read the result. The correct sequencing is: land the change with its identity test green, then do a
 controlled single-line relaunch and verify the first batched generation dispatches **9 concurrent
@@ -1346,3 +1346,34 @@ safety case, and it is now measured against the real optimiser rather than reaso
 avoids the `{arm}_startup` collision, and the resume path still need their own test in
 `tests/test_dfo_tpe_batch.py`'s shape before anything lands. **The relaunch decision is unchanged and
 still Tamer's.** What has changed is that the argument for it is no longer an argument.
+
+### D27 — TWO CORRECTIONS TO MY OWN ARITHMETIC, made before anyone acted on it
+
+**(a) A generation's wall is the MAX over its members, not the median.** The "3 dispatches x ~5 h =
+~15 h" above priced a batched generation at a typical training. A batch of 9 concurrent trainings
+finishes when its SLOWEST member does, so the right figure is the upper tail of the measured search
+distribution — **p90 = 6.42 h** over 1,484 archived search records — plus the driver's own turnaround.
+**Batched is therefore ~3 x 7 h = ~21 h (0.9 d), not 15 h.**
+
+**(b) The serial figure is a RANGE, and the top of it is not inevitable.** The measured 8.57 h/candidate
+median *includes* the vanished-array losses (c4 alone contributed 29.34 h). Healthy candidates run at
+their training wall plus ~0.1 h, and cma_es's own archived walls are 2.94–10.33 h (median ~4.1, mean
+~4.8). So:
+
+| | remaining chain | wall-clock |
+|---|---|---|
+| serial, at the observed cadence (purges keep recurring) | 21 round-trips x 8.57 h | **180 h ~ 7.5 d** |
+| serial, if no further array is purged | 21 round-trips x ~4.8 h | **101 h ~ 4.2 d** |
+| **batched (D27)** | 3 dispatches x ~7 h | **~21 h ~ 0.9 d** |
+
+**Honest saving: 80–160 h, i.e. 3.3–6.6 days** — not the flat "~7 days" stated above, which took the
+worst serial case against the most optimistic batched one and compared them. **Both errors ran in the
+same direction, which is exactly how a number gets talked up**, and the rule is that overstating a
+benefit is as inaccurate as understating a risk. The decision does not change: even the *most*
+conservative reading — no further purges, batched at the slow end — is a saving of about three and a
+half days on the campaign's critical path.
+
+**Note the interaction with §101.3:** the gap between the two serial rows is precisely the
+vanished-array damage, which `vanished_array_watch.py` now makes visible within ~20 minutes instead of
+15 hours. That detector does not shorten the chain; it stops the chain from being *lengthened* while
+nobody is looking.

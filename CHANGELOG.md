@@ -3,7 +3,7 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
-## [2026-08-02a] ★★★★★ BUILDER SESSION / RUN 13 — **THE CAMPAIGN'S LONGEST CHAIN IS 30 STEPS AND EVERY INSTRUMENT BELIEVED IT WAS 4** · "520 cores" was never a capacity problem: 6 jobs queued against 864 entitled slots free · a purged array is invisible for 15 hours and now is not · a comment that said the opposite of its code cost ~7 days
+## [2026-08-02a] ★★★★★ BUILDER SESSION / RUN 13 — **THE CAMPAIGN'S LONGEST CHAIN IS 30 STEPS AND EVERY INSTRUMENT BELIEVED IT WAS 4** · "520 cores" was never a capacity problem: 6 jobs queued against 864 entitled slots free · a purged array is invisible for 15 hours and now is not · a comment that said the opposite of its code is costing days
 
 **PAST.** RUN 12 closed the four-lane model; this is the first consolidated BUILDER session (OPS +
 MONITOR + COORD) alongside a WRITER on `paper/**`. Entry state proven by
@@ -108,7 +108,7 @@ the more dangerous artefact — and it cost about seven days.**
 3. **Reality.** 21 candidates remain. Template dimension `d = 6`
    (`baselines.reward_family.family_bounds`) ⇒ pycma default `popsize = 4 + floor(3 ln 6) = 9` ⇒ budget
    30 is **9 + 9 + 9 + a partial 3**, and the 9 archived candidates are **exactly generation 1**.
-   **Serial: 21 x 8.57 h = 180 h. Batched: 3 dispatches x ~5 h = 15 h. Saving ≈ 165 h ≈ 7 DAYS.**
+   **Serial: 21 round-trips, 101 h if no further array is purged and 180 h at the observed cadence. Batched: 3 dispatches x ~7 h (a generation costs its SLOWEST member, p90 = 6.42 h) = ~21 h. HONEST SAVING 80-160 h = 3.3-6.6 DAYS** — corrected from an initial "~7 days" that compared the worst serial case against the most optimistic batched one; both errors ran the same way, which is how a number gets talked up.
 
 **Written up in full as D27 in `docs/DEFERRED_FIXES_RUN4.md` — the change, the identity argument, the
 resume-replay argument, and one implementation hazard found by READING `template_eval_batch` rather
@@ -119,7 +119,7 @@ one `.driver.lock` and one `.permanent.jsonl`; a stale lock of exactly that kind
 4.5 h on `cma_es-c5` the day before).
 
 **⚠ NOT APPLIED, AND THE REASONING IS THE POINT.** All three files are in the driver import closure, so
-landing it means relaunching the CORE line mid-search. The prize is ~7 days; the risk is a CMA
+landing it means relaunching the CORE line mid-search. The prize is 3.3-6.6 days; the risk is a CMA
 state-replay divergence on a confirmatory H4 arm of an irreplaceable campaign, executed while nobody is
 awake to read the outcome. Full permission raises the bar on the thinking, it does not remove it —
 so the change is specified, costed and ready, and the go/no-go is **Tamer's, at a cost of five minutes.**
@@ -212,7 +212,7 @@ one: I can detect dead compute and cannot reclaim it.** Flagged for Tamer.
 
 **FUTURE.**
 
-1. **D27 is the decision.** ~7 days of critical path, specified and costed, waiting on one go/no-go.
+1. **D27 is the decision.** 3.3-6.6 days of critical path, specified, costed and now IDENTITY-PROVEN (`docs/ops/d27_identity_proof.py`), waiting on one go/no-go.
 2. **Watch the C4 transition.** `qw` must go from ~6 to hundreds; if it stays near zero the pipelining
    did not take. Expect `max_u_jobs` crash-loops (D25) and do NOT "fix" them mid-ladder.
 3. **`campaign_summary.json` AT TEARDOWN** — still the only unrecoverable item.
