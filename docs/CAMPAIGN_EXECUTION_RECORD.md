@@ -15905,3 +15905,38 @@ relaunching anything**, and its inline comment now names the two distinct kinds 
 
 **THE GENERAL LESSON.** *Do not buy an inert change with a live invariant.* If a change cannot take
 effect until an action you cannot perform, land its EVIDENCE and its INSTRUCTION, not its switch.
+
+### 105.10 ★★★ THE PROBES FOUND A HETEROGENEOUS HOST THE C3 GATE CANNOT SEE — b00a-008
+
+The four b00a probes returned after the rollout decision was already made, and they justify it.
+All four report the same model string, sockets, cores, AVX512F and microcode. **One does not report
+the same CPU FLAGS SET:**
+
+```
+node-b00a-008   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=639b672208417b8c
+node-b00a-011   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=9ede37ab7eb264ea
+node-b00a-013   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=9ede37ab7eb264ea
+node-b00a-015   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=9ede37ab7eb264ea
+```
+
+**THE POINT IS NOT THAT THE GATE FAILS — IT IS THAT THE GATE STAYS GREEN.** `_record_substrate` keys on
+`cpu model | omp | threads | cuda`, i.e. the model NAME. b00a-008 yields a byte-identical key, so the
+C3 homogeneity check would pass a comparison unit that spans b00a-008 and b00a-013 without comment.
+The determinism envelope is the broader standard — CLAUDE.md defines it as *anything that changes
+floating-point arithmetic* — and a differing CPU flag set sits in that class whether or not the gate
+inspects it.
+
+**HONEST CALIBRATION.** The overwhelmingly likely explanation is mitigation / perf-counter flags
+(`md_clear`, `flush_l1d`, `arch_capabilities` and friends) that carry no arithmetic consequence, and
+the ISA-relevant fact — `avx512f=1` on every host — is identical. So this is probably benign. **But
+"probably benign" is not the reproducibility standard this project holds (Priority 5: a violation must
+be DETECTABLE BY AUDIT, not merely improbable), and the flags were not diffed.** It is therefore
+recorded as OPEN, with two closures either of which suffices: diff the actual flag lists and confirm no
+ISA/arithmetic flag differs, or add `node-b00a-008` to the `-ExcludeHosts` fence beside
+`node-d00a-230` and `node-d00b-024` — one token, costing 8 of the 88 cores. **b00a-014 remains
+unprobed.**
+
+**WHY THIS VINDICATES THE DECISION IN §105.9.** Had the widened flag been left armed, the first
+supervisor revive from any cause would have started placing work on b00a with this unresolved, and the
+heterogeneity would have been discovered by an archived record rather than by a two-minute probe. The
+canary is not ceremony; it is the difference between finding this for free and finding it in the data.

@@ -1676,12 +1676,31 @@ and not mine.
 > Then confirm the revived driver's command line contains `--pool db`, watch the first new-pool
 > records through `docs/analysis/substrate_watch.py`, and only then roll the remaining lines.
 >
-> **RESIDUAL EVIDENCE GAP, STATED PLAINLY:** only **b00a-013** has been probed first-hand today (twice
-> — once via `allow=b` and once via `allow=db`, both returning the identical CPU string). Four further
-> probes (b00a-008/011/014/015) were submitted and were still queued at handover; §46.2's earlier
-> pool-wide measurement covers the rest. The failure mode is **fail-CLOSED** — a heterogeneous record
-> parks that line at the C3 gate rather than corrupting anything — but the canary is what turns that
-> from an argument into an observation.
+> **★★★ RESIDUAL THAT MUST BE CLOSED BEFORE APPLYING — AND THE PROBES FOUND IT.** Four of b00a's five
+> usable hosts were probed first-hand. All four return an identical model string, sockets, cores,
+> AVX512F and microcode — **but `node-b00a-008` returns a DIFFERENT CPU FLAGS SET:**
+>
+> ```
+> node-b00a-008   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=639b672208417b8c
+> node-b00a-011   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=9ede37ab7eb264ea
+> node-b00a-013   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=9ede37ab7eb264ea
+> node-b00a-015   Xeon Gold 6240  2 sock  36 core  avx512f=1  ucode 0x5003901  flags_sha=9ede37ab7eb264ea
+> ```
+>
+> **THE C3 GATE WOULD NOT SEE THIS.** Its substrate key is `cpu model | omp | threads | cuda` — the
+> model NAME — so b00a-008 yields an identical key and the gate stays green. **That is exactly why it
+> matters:** the determinism envelope (CLAUDE.md) is about anything that can change floating-point
+> reduction order, and a differing CPU flag set is in that class even when the gate is blind to it.
+> Most likely the difference is mitigation/perf-counter flags with no arithmetic effect — but "most
+> likely" is not the standard, and this is unresolved.
+>
+> **⇒ BEFORE APPLYING `db`, EITHER** diff the actual flag lists between b00a-008 and b00a-013 and
+> confirm no ISA/arithmetic-relevant flag differs, **OR** add `node-b00a-008` to the `-ExcludeHosts`
+> fence exactly as `node-d00a-230` and `node-d00b-024` already are. The second is one token and costs
+> 8 of the 88 cores. **b00a-014 was still queued at handover and must be probed too.**
+>
+> This is what the canary discipline is for, and it is the single concrete reason NOT to have left the
+> flag armed: a heterogeneous host would otherwise have been discovered by a record, not by a probe.
 
 **Everything below was measured today with the authoritative oracle — a REAL `qsub` — after
 discovering that `qsub -w v` / `-w p` disagree with reality in BOTH directions on this cluster.**
