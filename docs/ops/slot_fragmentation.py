@@ -36,7 +36,11 @@ import re
 
 MULT = {"K": 1 / 1024.0, "M": 1.0, "G": 1024.0, "T": 1024.0 ** 2, "P": 1024.0 ** 3}
 FENCED = {"node-d00a-230", "node-d00b-024"}      # D15
-MEM_PER_SLOT_MB = 1024.0                          # memory=1G per slot, from the live `qstat -j`
+# ⚠ CORRECTED 2026-08-02 (P187): the live C4 job asks **memory=2G PER SLOT**, not 1G. Read off
+# `qstat -j` on eight running jobs, all agreeing. The 1G figure came from a SEARCH job (pack 1,
+# threads 8) and does not describe the test/C4 lane that now dominates. Using 1G made every
+# "placeable" count OPTIMISTIC wherever memory, not slots, is the binding resource.
+MEM_PER_SLOT_MB = 2048.0
 TMPFS_MB = 1024.0                                 # tmpfs=1G per job
 
 

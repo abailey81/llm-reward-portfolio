@@ -1571,3 +1571,73 @@ campaign stop — which is exactly what RUN 12 established about widening onto t
 
 **⇒ RECOMMENDATION: widen to `d,b` on the settled evidence, and add `e`/`f` only on a clean probe.**
 `d,b` alone is +224 cores on today's numbers, nearly half of what pool d itself can still give us.
+
+### D30 — THE ROLLOUT IS NOW FULLY MAPPED, AND MAPPING IT FOUND THE REAL BLOCKER (2026-08-02)
+
+I set out to execute this and mapped the launcher topology first, because I had direct evidence I did
+not understand it: when the CORE driver was stopped, **a second launcher started a replacement at
+11:12:49 — five minutes BEFORE the supervisor's own 600 s backoff expired — and that process died
+without logging a line.** For a few minutes that looked like my own D27 change breaking the driver.
+
+**The topology, read rather than assumed:**
+
+```
+mode_d_launch.ps1        spawns 12 x mode_d_supervisor.ps1 (one per line), then EXITS
+mode_d_supervisor.ps1    holds the driver argument array -- line 139-140:
+                             "--device","cpu","--pool","d","--pack","8","--cores-per-training","1"
+                         and relaunches its OWN driver on any nonzero exit, 600 s backoff
+mode_d_watchdog.ps1      the SECOND launcher: revives a dead LINE by Start-Process on the supervisor
+```
+
+So the 11:12:49 process was the WATCHDOG reviving an absent line. **Mystery closed, and it is the
+mechanism that makes a clean rollout possible.**
+
+**★ BOTH FLAGS LIVE IN ONE PLACE** — `scripts/mode_d_supervisor.ps1:139-140` — so `--pool` and
+`--pack` are a one-line edit, not a code change to the driver.
+
+**★ AND THE WATCHDOG DOES THE RESTART FOR US, CORRECTLY.** Verified in the current source: its revive
+passes `-ExcludeHosts $ExcludeHosts`, `-OutDir` and `-RemoteRoot` explicitly. That parameter did not
+exist until D15 was applied on 2026-08-01, and its own comment records why it had to be —
+*"AN AUTOMATIC RESTARTER IS A SECOND LAUNCHER AND MUST TAKE EVERY PARAMETER THE THING THAT STARTED THE
+LINE TOOK"* — after a revived line silently dropped the substrate fence that had already cost four
+archived records. **It is correct today**, so a supervisor stopped now comes back with the fence intact
+and reads the EDITED script.
+
+**THE PROCEDURE, ready to run:**
+
+1. Edit `scripts/mode_d_supervisor.ps1:139` — `"--pool","d"` -> `"--pool","d,b"`. Commit, re-base
+   `RUNNING_SHA` (this file is inside the drift fence, exactly like D27's).
+2. **CANARY ON ONE LINE FIRST.** Stop ONE report-only leg's supervisor; the watchdog revives it on the
+   new flag. **The blast radius really is one line**, because the C3 substrate check operates WITHIN a
+   comparison unit and units never span lines — so a heterogeneous pool b would park that leg alone.
+3. **Re-run `docs/analysis/substrate_watch.py` as the FIRST new-pool records land**, not afterwards.
+   The entire risk is heterogeneity and the detector must run while the evidence is arriving.
+4. Clean ⇒ roll the remaining lines. Any `cpu.model_name` that is not `Intel Xeon Gold 6240` ⇒ revert
+   the flag and fence that pool.
+
+### ⚠⚠ WHY IT IS NOT RUNNING YET — the job cap blocks the restart, not the risk
+
+**`max_u_jobs = 1000` and we are AT 1000.** A restarted line re-derives its state and immediately tries
+to resubmit — and every one of those submissions would be **REFUSED**, with the string measured today:
+
+```
+Unable to run job: job rejected: only 1000 jobs are allowed per user (current job count: 1000)
+```
+
+D23 is unfixed, so a refusal RAISES rather than backing off. **Restarting any line while the cap is
+saturated risks dropping it into a crash-loop instead of onto the wider pool** — turning a +13 % gain
+into a line that cannot submit at all.
+
+**⇒ THE ORDER IS FORCED, AND THE FIRST STEP IS ONE COMMAND TAMER CAN RUN:**
+
+```
+qdel 66103 66104 66105 66106 66107 66108 73026 73027
+```
+
+Six are the `sshorig` interactive jobs, unschedulable since 2026-08-01 16:07 (`qalter -w p`:
+*"verification: no suitable queues"*). **Two are mine** — probe jobs I submitted with a spec missing
+the PE and the `-ac allow=` context, which drew the identical verdict (P188). Eight junk jobs against a
+cap we are sitting exactly on. **`qdel` is blocked for the agent**, which is why this is his command
+and not mine.
+
+**With headroom restored: canary one leg onto `d,b`, verify the substrate census, then roll.**

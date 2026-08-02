@@ -15540,3 +15540,110 @@ reaching an action was the standing rule that a surprising finding is a claim ab
 instrument first — the same rule that had already caught P178, P179, P183, P184 and P185 in this one
 session. **Five of the six errors I made tonight were my instruments lying to me, and every one was
 caught by checking before reporting.**
+
+---
+
+## 104. ★★★★★ RUN 13 (fourth pass) — THE CEILING IS THE ENTITLED HOST COUNT, AND POOL WIDENING RE-OPENS ON ITS OWN CONDITION (2026-08-02)
+
+Tamer, with C4 live: *"we are not even at 2k cores"*. §101.1 said demand-bound and §103 said two
+constraints crossing. **Both were incomplete.** This is the arithmetic neither did.
+
+### 104.1 Who actually holds the pool — the number that ends the argument
+
+```
+ENTITLED pool-d hosts 206 x 36 slots =  7,416
+    we hold      ~1,720    23 %
+    OTHER USERS  ~4,700    63 %
+    free            993    13 %   <- ceiling if we took EVERY free slot: ~2,713 cores
+```
+
+**We cannot out-compete other users for the 63 %, and the free 13 % caps us at ~2,713.** Every lever
+argued so far — pack width, queue depth, priority — redistributes our share of a FIXED pool. **Only
+adding entitled HOSTS raises the ceiling itself.** That reframes "2k cores" from a target we are
+missing into a number that sits just under a hard ceiling we had never computed.
+
+### 104.2 Pool widening, and why re-opening it is not re-litigation
+
+`CONSIDERED AND DECLINED — pool widening d -> d,b` (2026-07-31, §57) measured this, declined it, and
+recorded the decision expressly so it would not be "re-litigated from first principles a third time".
+**Its CPU finding is REUSED here, not re-derived** — §46.2 had already measured pool b as
+microarchitecture-identical, both `Intel Xeon Gold 6240 @ 2.60GHz`, which is precisely the fact a
+fresh probe would have spent an hour rediscovering. What re-opens it is the entry's OWN condition:
+
+> **Re-open only if pool d's own capacity becomes the binding constraint** — it is not; our constraint
+> was priority (§54) and is now queue position.
+
+**Measured today, and the numbers have inverted:**
+
+| | 2026-07-31 (the decline) | 2026-08-02 (C4 live) |
+|---|---|---|
+| pool d free slots | 2,472 | **993** |
+| what pool d can still give us | — | **488 cores** |
+| pool b would add | 80 cores (**+4 %**) | **216 cores** |
+| e00a | not assessed | **344 cores** |
+| f00a | not assessed | **32 cores** |
+| **candidates total** | **+4 %** | **+592 cores = +121 %** |
+
+The decline was right on its day. **Today the candidate pools would MORE THAN DOUBLE the free
+capacity we can reach**, while pool d's own free capacity fell 60 % as C4 opened.
+
+**Refused on measurement, not assumption:** `t00a` (64-core, ONE socket), `u00a`/`v00a` (48-core),
+`s00a` — a different microarchitecture makes comparison units span two CPU models and **parks every
+line at the C3 gate**. `l00a` is a GPU pool (`gpu=4`). `d97a`/`d97b`/`e96a` are PAID.
+**`e00a` is the biggest single prize (344 cores) and its topology is IDENTICAL to d00a** — 36 NCPU /
+2 sockets / 36 cores / 188.4 G — **but topology is necessary, not sufficient**: several 18-core Xeon
+SKUs share it, so it needs a probe. Written up as **D30**.
+
+### 104.3 THE JOB CAP HAS NOW BITTEN, AND THE REJECTION STRING IS MEASURED
+
+D23 could previously only say "the rejection path is UNPROVEN". It is proven now — my own probe
+submission met the cap and returned, verbatim:
+
+```
+Unable to run job: job rejected: only 1000 jobs are allowed per user (current job count: 1000)
+```
+
+`max_u_jobs = 1000` is confirmed from **both** `qconf -sconf` and `qconf -ssconf`. **The fix must match
+that exact string**, and must handle both paths it can arrive by — a `CalledProcessError` from the
+runner, or `parse_job_id`'s "could not parse a job id" `RuntimeError`. Realised cost so far is ZERO:
+no driver has crashed on it, because they submit per block as blocks drain. Fleet demand is 5,052
+jobs against 1,000, so this is arriving on the campaign's own schedule.
+
+### 104.4 ⚠ WHERE I STOPPED, AND WHY — this is a decision, not an omission
+
+Tamer ratified the actions, and I landed D27 the same way earlier tonight: prototype outside the tree,
+test, commit, re-base, relaunch ONE line. **I did NOT execute the pool widening, and the reason is
+specific rather than cautious in general.**
+
+The flag lives in `mode_d_supervisor.ps1`'s argument array, so widening means editing a file inside
+the drift fence and restarting **twelve supervisors**, not one driver. And I have direct evidence that
+I do not yet understand the launcher topology: when I stopped the CORE driver earlier, **a second
+launcher started a replacement at 11:12:49, five minutes BEFORE the supervisor's own 600 s backoff
+expired, and that process died without logging.** The supervisor's real attempt landed at 11:17:18
+exactly on schedule — but the episode proves there is a second actor in the launch path I have not
+mapped.
+
+**Restarting twelve supervisors through machinery that has already surprised me once, unattended,
+against a +13 % gain on the settled half, is not a trade I will make.** The correct sequence is:
+map the launcher topology, probe e00a, then execute ONCE for the full verified set rather than twice.
+D30 carries the exact change and the mandatory post-step: **re-run `substrate_watch.py` the moment the
+first new-pool records land** — the whole risk is heterogeneity, and the detector must run while the
+evidence is arriving, not afterwards.
+
+**The failure mode is fail-CLOSED, which is what makes this recoverable at all:** a heterogeneous
+record makes a comparison unit span two CPU models and the C3 gate PARKS the line rather than
+corrupting the science. A stall we detect and revert, not silent contamination.
+
+### 104.5 ⚠ MY ERRORS THIS PASS
+
+| id | mistake | root cause | how caught | lesson |
+|---|---|---|---|---|
+| **P187** | every capacity instrument I wrote used **memory = 1G per slot**; the live C4 job asks **2G** | the 1G figure came from a SEARCH job (pack 1, threads 8) and does not describe the test/C4 lane that now dominates | read `qstat -j` on eight running jobs while building the probe spec — all eight said 2G | a resource figure read from ONE job describes that job's LANE, not the campaign |
+| **P188** | submitted two probe jobs that can never run (`verification: no suitable queues`) and, at the cap, cannot be withdrawn | omitted the PE and the `-ac allow=` context the working spec carries; a serial job has no suitable queue here | `qalter -w p` gave the same verdict as the long-stuck `sshorig` jobs | **I reproduced the exact defect I had just flagged** — junk jobs occupying a capped queue |
+
+**P187 changed no conclusion** — re-running with 2G gave 488 vs 592 cores instead of 480 vs 616, and
+memory was not the binding resource — but it had to be corrected before Tamer acted on the number.
+**P188 is worse: two of the thousand job slots are now MINE and wasted.** They are 1-core jobs and
+harmless to compute, but the honest reckoning is that I added to the very problem I had documented one
+hour earlier. They need `qdel 73026 73027` alongside the six `sshorig` jobs — and `qdel` is blocked for
+the agent.
