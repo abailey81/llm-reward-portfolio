@@ -15343,3 +15343,147 @@ are `cmd=['mkdir','-p']`** — the per-block directory creation that lists ~104 
 Every one retried successfully and **not one block failed to lodge**, so the realised cost is roughly
 2 minutes of submission latency per large block against blocks that run for hours. Real, measured,
 and NOT worth a twelve-line relaunch.
+
+---
+
+## 103. ★★★★★ RUN 13 (third pass) — WHY 1,728 CORES AND NOT MORE: TWO HARD CONSTRAINTS THAT CROSS EXACTLY WHERE WE SIT (2026-08-02)
+
+Tamer, with C4 live: *"we are not even at 2k cores … speed up to an absolute maximum"* and *"very
+deeply and extensively constantly check each record, make sure every record individually is very
+strictly flawless, logical, meaningful."* Both were done. The capacity answer has CHANGED since
+§101.1 — that answer has expired and this replaces it.
+
+### 103.1 The answer has changed: we are no longer demand-bound
+
+| | 2026-08-02 ~00:20 (C1 tail) | 2026-08-02 ~11:00 (C4 live) |
+|---|---|---|
+| jobs | 70 | **994** |
+| queued | 6 (all `sshorig`) | **~778** |
+| cores | 560 | **1,728** |
+
+We now have far more demand than the scheduler will place, so "demand-bound" is retired. The new
+question is why the scheduler places 1,728 and not more, and there are **two** answers that bind
+simultaneously.
+
+### 103.2 CONSTRAINT ONE — FRAGMENTATION. Our 8-slot shape cannot reach a third of the free capacity
+
+`docs/ops/slot_fragmentation.py` measures the free-slot HISTOGRAM on the entitled set (PAID nodes and
+the D15 fence removed) and then counts, for each candidate pack width, how many trainings could
+actually place. Two samples, ~30 minutes apart:
+
+```
+entitled pool-d hosts: 206        TOTAL free slots: 982  /  988
+
+   hosts with      0 free slots : 70
+   hosts with    1-3 free slots : 71     <-- free, and unreachable to an 8-slot job
+   hosts with    4-7 free slots : 37     <-- free, and unreachable to an 8-slot job
+   hosts with   8-15 free slots : 11
+   hosts with  16-35 free slots : 3
+   hosts with     36 free slots : 14
+
+ pack   trainings placeable   vs pack 8
+    8            496 /  504     1.00x
+    6            588 /  588     1.17x
+    4            664 /  676     1.34x
+    1            807 /  807     1.63x
+```
+
+**108 of 206 entitled hosts have free slots and fewer than eight of them**, so an 8-slot job cannot
+touch any of it. The two samples agree within 2 %, which is what makes this STRUCTURAL rather than an
+unlucky snapshot — the discipline that a single reading is not evidence.
+
+**And the pack width is NOT a science parameter.** In the test lane every training runs at
+`threads = 1` regardless of packing — measured (pack 8 -> 12.8 steps/s, pack 6 -> 13.3, i.e. flat) and
+archived (`OMP_NUM_THREADS=1` on all 1,446 sealed-test records). **The archive ALREADY MIXES pack
+widths**: every block's `_p04` remainder part runs at pack 6 while its siblings run at pack 8, and the
+determinism census found ONE vector across all of them. So narrowing the pack is a DISPATCH change of
+exactly the D27 class, not a change to the arithmetic. It is also only a FLAG
+(`--pack 8` in the supervisor's argument array), applied by a rolling supervisor restart — the
+procedure §58 already proved on 2026-07-31.
+
+### 103.3 CONSTRAINT TWO — THE JOB CAP, AND IT POINTS THE OTHER WAY
+
+Verified first-hand rather than taken from the docs — `qconf -sconf` **and** `qconf -ssconf` agree:
+
+```
+max_u_jobs   1000        maxujobs 1000
+weight_waiting_time 1.0  weight_urgency 0.0  max_reservation 20
+our live job count: 994
+```
+
+**We are six jobs from the cap.** Halving the pack doubles the job count for the same work, so the
+lever that would win back the fragmented third is precisely the lever the cap forbids. **The two
+constraints cross at pack 8, which is where we already are.**
+
+**⇒ There is no pack width that improves matters today.** Narrower strands us on the cap; wider
+strands us on placement (only 17 of 206 hosts have 16+ free slots).
+
+### 103.4 WHAT ACTUALLY UNBLOCKS IT — and it is now imminent for its own reasons
+
+The cap has **not yet bitten**: zero qsub rejections, zero driver crashes in the last two hours, and
+the single supervisor relaunch today was mine. But **two of eleven lines are in C4 and already account
+for 994 jobs.** At pack 8 one line's C4 is ~337 jobs, so **eleven lines is ~3,700 jobs — 3.7x the
+cap.** The breach is not a risk introduced by changing the pack; it is arriving anyway, on the
+campaign's own schedule, within hours.
+
+**⇒ D23 (bounded submission — have the submitter detect the cap-rejection string and back off rather
+than raise) is no longer a deferred nicety. It is the next real blocker**, and it is ALSO the
+precondition that would let pack 4 recover the fragmented third. One fix, two payoffs.
+
+**★ AND SIX JOBS OF FREE HEADROOM ARE SITTING RIGHT THERE.** Of the 994, **six are the
+`sshorig` interactive jobs** pinned to an unavailable host, permanently unschedulable since
+2026-08-01 16:07 (`qalter -w p`: *"verification: no suitable queues"*). 988 campaign jobs + 6 junk =
+exactly the cap. **`qdel 66103 66104 66105 66106 66107 66108` buys back the entire margin we are
+missing — and `qdel` is blocked for the agent**, so it is one command for Tamer.
+
+### 103.5 EVERY RECORD, INDIVIDUALLY — 13 PROPERTIES, ALL CLEAN
+
+Tamer asked for each record to be checked individually. `record_validator.py` already does nine
+things well, so the correct addition was the gap it cannot see, not a second copy of what it does.
+
+**`record_validator.py` — R1-R9 over 3,565 records: CLEAN** (`RV_RC=0`, read from the log). Required
+fields · `reward_source_hash == sha256(reward_source)` · identity against the directory · seed vs the
+`-sN` suffix · generation vs the `-gN-cM` token · safe-default counters · one series length per record
+· **endpoint replay of `test_sharpe`/`test_cvar05` from `test_returns`** · the cross-tier hash chain.
+
+**NEW `docs/analysis/record_provenance_seal.py` — P1-P4 over 3,565 records: CLEAN** (`SEAL_RC=0`). It
+checks the seal between a record and the FILES BESIDE IT, which nothing checked before:
+
+```
+records sealed-checked : 3,565
+  units with no env.json  : 0
+  frozen winners VERIFIED THROUGH THE CHAIN to their source candidate: 56
+  units with no reward.py : 0
+  distinct git_commit values: 1  [b9e6df5535a8]
+P1-P4 CLEAN
+```
+
+**Why it is additive and not a duplicate:** `src/io/results.py:277-284` DOES verify the env digest —
+but only on the canonical read path, and `record_validator` reads records with a raw
+`json.loads(p.read_text(...))`. **So that verification had never been exercised across the archive.**
+It has now: every record's `env.json` hashes to exactly what the record claims, every `reward.py`
+hashes to its `reward_source_hash`, and all 3,509 carry ONE code provenance —
+`deployed-archive:b9e6df5535a8…`, confirmed to be a real commit in this repository (2026-07-28, the
+launch commit). **The whole archive has a single, verifiable code lineage.**
+
+The 56 frozen-winner markers legitimately hold no `env.json` of their own, so rather than leave them
+as an unexplained residue they are **resolved through the chain** — each marker's env hash is verified
+against the search candidate it was frozen from. All 56 pass. That is the env analogue of R9's
+reward-hash chain, and it is what proves a frozen winner is the candidate it says it is.
+
+**A62 re-measured at scale: `per_period_pnl` is byte-identical to `test_returns` on 2,008 of 2,008
+records carrying both (100 %)** — up from the 1,131 the analysis lane measured. No consumer reads the
+field, so no result is affected; it is a DISCLOSURE, and it is now tracked by an instrument rather
+than by memory.
+
+### 103.6 ⚠ MY OWN ERRORS — the seal condemned the entire archive TWICE before it was right
+
+| id | mistake | root cause | how caught | lesson |
+|---|---|---|---|---|
+| **P183** | reported **3,509 of 3,509** records as env-hash mismatched | hashed the env.json BYTES; the real digest is `sha256_obj` over the PARSED object (`src/io/results.py:282`), so indentation and key order were invisible to it and visible to me | **a clean 100 % is the register's own tell to suspect the SPECIFICATION** — and the specification was mine | reuse the writer's own function; two instruments that share it cannot disagree |
+| **P184** | reported **3,509 of 3,509** git commits as unknown | `git_commit` is `deployed-archive:<sha>`; comparing the whole string truncated it to "deployed-arc" | the value was IDENTICAL on every record, which is not what a corrupted field looks like | read the field before validating it |
+| **P185** | 56 frozen winners reported as "missing env.json" | scoped the check to sibling files only; a winner marker's env belongs to its source candidate | the 56 were all the same KIND of record | an unexplained residue is where a real defect hides — resolve it or scope it out deliberately |
+
+**All three were caught before anything was reported, by the same rule each time: a surprising
+negative is a claim about my own script first.** Had any shipped, it would have alleged archive-wide
+corruption on an irreplaceable campaign.
