@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-02"
-  head: "5e6dcaee"
+  head: "26daeb02"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 14: six per-record layers CLEAN incl. S11 identification, S12 sandbox gate 4683/4683, S13 pipeline 444/444; cores 1,976)"
+  suite_status: "exit 0 (RUN 14 CLOSES: 3,047 tests; SIX record layers CLEAN; DISM moved the ceiling 189->340; D29 alone reaches 568)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```

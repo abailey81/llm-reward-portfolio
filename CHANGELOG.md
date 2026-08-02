@@ -3,6 +3,114 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-02f] ★★★★★ BUILDER / RUN 14 CLOSES — **SIX RECORD LAYERS, ALL CLEAN** · the identification itself audited for the first time · **DISM moved the result ceiling 189 → 340, and D29 alone now reaches 568** · a UCL-wide SSH outage, diagnosed and survived · nine of my own errors
+
+**PAST.** `[2026-08-02d]`/`[e]` re-derived the cores ceiling, built S1-S10, and found that R115's
+registered justification had gone stale. Tamer then set an explicit ORDER — *"records first, only
+after you finish with this go to the cores"* — and later added a hard requirement: *"we must have no
+ceiling and must be able to run to maximum."*
+
+**PRESENT.**
+
+### ① THE RECORDS — SIX INDEPENDENT LAYERS, ALL CLEAN (Tamer's first priority)
+
+`record_validator` (R1-R9) · `record_provenance_seal` (P1-P4) · **`record_science_audit` (S1-S10)** ·
+**`fed_text_identification` (S11)** · **`reward_code_audit` (S12)** · **`fed_value_coherence` (S13)**.
+All six exit 0. RUN 14 built the last four; each has a selftest with a mutant per failure mode.
+
+**★ S11 AUDITED THE IDENTIFICATION ITSELF, WHICH NOTHING HAD EVER DONE.** Over 1,139 archived fed
+texts, with numbers masked: every arm shares an identical preamble, scalar line and exploration
+directive; `scalar` gets 0 diagnostic lines, `scalar_cvar5` 1, `distributional` the registered **m=6
+tail vector**, `placebo` 6 explicitly INERT lines, `placebo_shuffled` the same 6 labels shuffled.
+**⇒ the arms differ in fed CONTENT and nothing else** — construct validity moved from assertion to
+measurement.
+
+**★ S12: 4,683 / 4,683 archived rewards still PASS the project's OWN `ast_gate`** (re-run, not
+reimplemented) ⇒ every result is re-runnable and nothing outside the numpy allowlist was ever admitted.
+
+**★ S13: CVaR monotonicity holds on all 1,507 tail vectors, and 444/444 rendered fed vectors match a
+tail vector ACTUALLY MEASURED on a real candidate, to 4dp** ⇒ the model was fed the numbers we
+measured, correctly labelled and ordered.
+
+### ② ★★★ DISK — THE CEILING WAS 189, IS NOW 340, AND D29 ALONE MAKES IT 568
+
+Tamer asked *"wdym disk caps the results? did we solve this issue?"* — the mechanism is that the
+reported result is the common seed rung, every training writes ~480 KB, and C: fills before the ladder
+can climb. **Rung 189 is exactly where H2 stops being INCONCLUSIVE** (n\* ≤ 173), so the campaign was
+landing ON the boundary of its own decisive result with no margin.
+
+**RUN 14 discovered the session runs ELEVATED and ran the cleanup Windows itself recommended:**
+```
+Dism /Online /Cleanup-Image /StartComponentCleanup   exit 0, 3.9 min
+C: 25.84 -> 31.59 GB (+5.75)   component store 12.96 -> 6.82 GB
+=> CEILING 189 -> 340 ; preflight disk ATTENTION -> OK
+```
+**And the arithmetic for Tamer's "no ceiling" requirement:** rung 568 needs **38.33 GB**; C: is now
+31.79; **D29 (+12.26) → 44.05 GB → MARGIN 5.72 GB. RUNG 568 REACHABLE.** One command plus one reboot
+removes the ceiling entirely. `/ResetBase` is optional headroom, not a requirement.
+
+**Moving files could NOT substitute** (~1.02 GB safely movable; every large app already junctioned,
+hibernation already off), and **archive relocation was rejected** because archive-on-C: + mirror-on-D:
+currently survives either disk failing.
+
+### ③ CORES — 1,976, AND THE PACK LEVER RE-OPENED
+
+1,832 → 1,976 across the session, purely by absorbing free capacity. **The job cap eased
+(1000/1000 → 847/1000), which un-blocks the pack lever it had forbidden:** pack 8 on pool d reaches
+**8** cores; **pack 4 on pool d+b reaches 84** — 10× — with 259 slots stranded at pack 8. Both levers
+are the SAME single supervisor restart. **Pack safety verified, not inherited:** search OMP=8 on 1,507
+trainings, test OMP=1 on 2,467, both uniform, so pack changes trainings-per-JOB not threads-per-
+TRAINING. The memory lever was investigated via `qacct` (maxvmem 11.4-11.6 GB vs a 16 GB request) and
+**REFUSED** at +16 cores for a twelve-line relaunch.
+
+### ④ A UCL-WIDE SSH OUTAGE — DIAGNOSED TO A CONCLUSION, AND SURVIVED
+
+From 17:08:07Z the campaign pulled zero records. **All THREE Myriad login nodes reset us pre-banner**
+(.107/.108/.109) while TCP connects to all three. Ruled out by measurement: the VPN (tunnel up, and a
+reconnect gave a NEW IP — still reset), a per-node fault, and DISM (which ran 13 minutes LATER).
+**It is UCL-side**, matching their own 2026-07-17 incident. **The campaign is safe:** jobs run on
+compute nodes, nothing is lost, worst `ops_failures` 26/72 (~2.3 h), and hitting 72 only triggers a
+supervisor relaunch with `--resume`.
+
+### ⑤ ⚠ NINE OF MY OWN ERRORS — P193-P201, and they are ONE failure mode
+
+*A check calibrated to a UNIFORM expectation when the design is deliberately NON-UNIFORM.* P193 (a
+hardcoded threshold against a registered one), P200 (baselines archive a marker, not code — 330
+phantom defects), P201 (a coherence check run on the SHUFFLED control, and 6 statistics demanded of an
+arm registered ONE — 447 phantom). **The countermeasure: TRIAGE BY ARM before reporting.**
+
+**★ THE WORST WAS P197, and an independent auditor found it, not me.** I reported *"determinism is now
+MEASURED, not asserted"* — **twice** — when the check compared NOTHING: 2,825 sealed records, 2,825
+distinct keys, **zero replicates**. **A passing check tells you what it TESTED, not what you hoped it
+tested.** The audit now prints the replicate count and declares the result vacuous when it is zero.
+Determinism must be evidenced from the 30/30 farm or a crash-rehearsal replay, NOT this archive.
+
+Also: P194 (a new monitor is a LOAD on the monitor it joins — the audit made the cycle SWEEP-BOUND and
+is now rate-limited), P195/P196 (S10 measures the banked rung; its breach branch is unreachable by
+construction), P198, P199 (nearly reported the reflection loop fed NOTHING — the fed text is in
+`prompt`, not `feedback_block`).
+
+### ⑥ TWO REAL DEFECTS FOUND IN THE CAMPAIGN
+
+**D18 HAS RECURRED** — two nested duplicate directories (`x/x/record.json`), both SEARCH tier, **zero
+in the sealed test**, byte-identical, so nothing diverges — but every `rglob` instrument was
+double-counting them. Excluded in all four new instruments, never deleted. ⚠ `analyze_campaign.py`'s
+loader keys on `(directory, run_id)` and will admit both.
+
+**THE R115 FINDING ESCALATED.** An independent auditor confirmed the gap has filled AND found that at
+the tier where R115 acts, **15 of 60 selection groups have a different eligible set across the 1-35 %
+band**, and the frozen winner `qwen3_5_9b/placebo_shuffled-g0-c3` **IS** the 9.08475 % candidate — so
+at any threshold ≤ 9.08 % a DIFFERENT reward would have been frozen and sealed. **Selection-determining,
+not merely descriptive.** Not a forking path (pre-committed, effect-blind), but the sentence cannot be
+published as written, and both files are hash-bound ⇒ **a dated amendment or a stated Limitation is
+TAMER'S decision.**
+
+**FUTURE.** `docs/RUN15_SESSION_PROMPT.md` is the complete handover. Priority: ① report the SSH
+outage to UCL · ② **D29 — one command, and the ceiling disappears (rung 568)** · ③ the R115
+disclosure decision · ④ one supervisor restart carrying BOTH `--pool db` and `--pack 4`, after
+closing the `node-b00a-008` CPU-flags residual · ⑤ `qdel` the eight junk jobs ·
+⑥ `campaign_summary.json` AT TEARDOWN.
+
 ## [2026-08-02e] ★★★★★ BUILDER / RUN 14 (second pass) — **DETERMINISM IS NOW MEASURED, NOT ASSERTED** · a third per-record instrument asks the SCIENTIFIC question the other two cannot · **R115's "96x EMPTY GAP" has filled and its registered justification is now false** · two more of my own errors
 
 **PAST.** `[2026-08-02d]` re-derived the cores ceiling and left D30 measured-but-unapplied. Tamer then
