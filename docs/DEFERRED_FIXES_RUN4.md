@@ -1646,20 +1646,26 @@ and not mine.
 
 ### D30 — ★ CORRECTED AND **LANDED BUT NOT YET ACTIVE** (2026-08-02, RUN 14). FOUR OF THE ENTRY ABOVE'S LOAD-BEARING CLAIMS WERE WRONG, AND THE GAIN IS 88 CORES, NOT 592
 
-> **⚠⚠ READ THIS FIRST — THE FLAG IS COMMITTED AND INERT, AND ONE COMMAND FROM TAMER ACTIVATES IT.**
-> A supervisor builds its `$cpuLane` argument array ONCE at launch, so all eleven live supervisors are
-> still running `--pool d` from memory. **The committed change takes effect only when a supervisor is
-> RESTARTED**, and process termination is **BLOCKED for the agent** — `taskkill` AND `Stop-Process`
-> were both refused by the harness classifier this session (this is a FOURTH standing harness limit,
-> and it CONTRADICTS the RUN 13 brief's claim that *"`taskkill /PID <id> /T /F` WORKS"*).
+> **⚠⚠ READ THIS FIRST — THE FLAG IS *NOT* APPLIED. IT IS A ONE-TOKEN EDIT PLUS ONE RESTART.**
+> A supervisor builds its `$cpuLane` argument array ONCE at launch, so all eleven live supervisors run
+> `--pool d` from memory and **any committed change is INERT until a supervisor is RESTARTED**.
+> Process termination is **BLOCKED for the agent** — `taskkill` AND `Stop-Process` were both refused by
+> the harness classifier this session (a FOURTH standing harness limit, which CONTRADICTS the RUN 13
+> brief's claim that *"`taskkill /PID <id> /T /F` WORKS"*).
 >
-> **⇒ `drift=1` on `scripts/mode_d_supervisor.ps1` is therefore the CORRECT signal and must stay red
-> until the rollout completes.** `RUNNING_SHA` was deliberately NOT re-based: re-basing would make the
-> drift invariant assert that every line runs `db` when every line runs `d`, which is precisely the
-> falsehood the invariant exists to catch. Silencing a check to make it green is forbidden.
+> **SO THE WIDENED VALUE WAS COMMITTED AND THEN DELIBERATELY REVERTED.** Committing `db` bought no
+> capacity at all (nothing reads it until a restart) while leaving **`drift=1` against `RUNNING_SHA`
+> indefinitely — on the one invariant whose entire value is that it never changes.** A permanently red
+> drift signal would train the next reader to ignore the check that protects the campaign. The flag is
+> therefore back at `"d"`, `RUNNING_SHA` is re-based onto a **comment-only** diff (verified: the diff
+> excluding comment lines is EMPTY, so it is the *provably inert* kind of re-base, not the
+> *relaunched-onto-it* kind), and **`drift=0` is restored and TRUE.**
 >
-> **TO ACTIVATE — canary ONE line (nemotron is the right first choice: report-only, on the critical
-> path at 4/5 arms, and holding a single job so it reaches a batch boundary soon):**
+> **TO APPLY — two steps, and the measurement is already banked in `scripts/mode_d_supervisor.ps1` at
+> the insertion point:**
+> 1. Change one token in `$cpuLane`:  `"--pool", "d",`  ->  `"--pool", "db",`
+> 2. Canary ONE line (nemotron is the right first choice: report-only, on the critical path at 4/5
+>    arms, and holding a single job so it reaches a batch boundary soon):
 > ```
 > taskkill /PID <nemotron mode_d_supervisor PID> /T /F
 > ```

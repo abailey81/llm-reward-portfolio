@@ -51,17 +51,22 @@ while its own jobs are alive** — and `_TRANSPORT_ERRORS` (`:47`) contains `Run
 confirmation: an un-wrapped scan of all twelve driver logs finds **0 cap rejections / 0 unparsable
 qsubs / 0 fatal streaks** across 720 transport blips, with a 509-hit matcher control.
 
-### ④ D30 LANDED BUT **NOT YET ACTIVE** — `--pool db`, on a probe rather than an inherited fact
+### ④ D30 MEASURED AND PROVEN SAFE, BUT **DELIBERATELY NOT APPLIED** — a one-token edit is left ready
 
-> ⚠ **THE FLAG IS COMMITTED AND INERT.** A supervisor builds `$cpuLane` once at launch, so all eleven
-> live supervisors still run `--pool d` from memory; the change takes effect only on a supervisor
-> RESTART, and **process termination is BLOCKED for the agent — `taskkill` AND `Stop-Process` were
-> both refused this session, a FOURTH harness limit that contradicts the RUN 13 brief's "taskkill
-> WORKS".** `RUNNING_SHA` was deliberately NOT re-based, so **`drift=1` on
-> `scripts/mode_d_supervisor.ps1` is the CORRECT "rollout pending" signal** — re-basing would make the
-> invariant assert every line runs `db` when every line runs `d`, and silencing a check to make it
-> green is forbidden. Activation is one `taskkill` on a supervisor PID; the fenced watchdog revives
-> the line on the edited script within 300 s with the D15 fence intact (verified in its source).
+> ⚠ **A FOURTH HARNESS LIMIT STOPPED THE ROLLOUT: process termination is BLOCKED for the agent.**
+> `taskkill` AND `Stop-Process` were both refused this session on a live supervisor PID, contradicting
+> the RUN 13 brief's *"taskkill WORKS"*. A supervisor builds `$cpuLane` ONCE at launch, so `--pool db`
+> is inert until a supervisor RESTARTS — which I cannot do.
+>
+> **I committed `db`, then reverted it, and the reasoning is the point.** Committing it bought no
+> capacity (nothing reads it until a restart) while leaving **`drift=1` against `RUNNING_SHA`
+> indefinitely**, on the one invariant whose entire value is that it never changes — a permanently red
+> drift signal teaches the next reader to ignore the check that protects the campaign. So the flag is
+> back at `"d"`; the measurement, the safety proof and the exact one-token edit stay in
+> `mode_d_supervisor.ps1` at the insertion point (a comment outlives any handover note); and
+> `RUNNING_SHA` is re-based `d866afd3 -> 309565f9` onto a **comment-only** diff — verified by excluding
+> comment lines and finding the diff EMPTY, so it is the *provably inert* kind of re-base, not the
+> *relaunched-onto-it* kind. **`drift=0` is restored and TRUE**, confirmed in the live cycle log.
 
 `scripts/mode_d_supervisor.ps1` `$cpuLane` now reads `"--pool","db"`. The value is **`db`, not `d,b`**:
 a real `qsub -ac allow=db` is granted PE `smp-[BD]*` spanning both pools, while `-pe smp-B` is rejected

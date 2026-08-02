@@ -15867,3 +15867,41 @@ bound it: the substrate string was verified byte-identical on b00a-013 (twice, v
 `allow=db`), and the failure mode is **fail-CLOSED** — a heterogeneous record parks that one line at
 the C3 gate rather than corrupting any comparison. Four further host probes were submitted and still
 queued at handover.
+
+### 105.9 THE ROLLOUT DECISION, RESOLVED: COMMITTED, THEN REVERTED, AND WHY THAT IS THE RIGHT ANSWER
+
+§105.8 recorded the intent to leave `--pool db` committed with `drift=1` standing as a
+"rollout pending" flag. **That was reconsidered and reversed before handover, and the reversal is the
+more defensible call.** Recorded in full because the reasoning generalises.
+
+**THE ARGUMENT THAT WON.** A committed-but-inert flag buys **zero** capacity — nothing reads
+`$cpuLane` until a supervisor restarts, and process termination is blocked for the agent. So the
+choice was between two states that are operationally IDENTICAL today, differing only in what the
+monitoring says:
+
+* keep `db` committed -> `drift=1` **indefinitely**, on an invariant documented as one of exactly two
+  that *"must never change"*, with a `FAIL` verdict from `session_preflight` that instructs the next
+  reader to *"act before doing anything else"* — about a thing they also cannot act on.
+* revert to `d` -> `drift=0`, TRUE, and the work preserved as a one-token edit plus a comment.
+
+**A monitoring signal that is permanently red is not a signal.** Leaving it red would have cost the
+campaign the drift check's entire diagnostic value for the sake of a change that does nothing until
+someone restarts a line — and whoever restarts a line can equally well flip one token first.
+
+**WHAT WAS PRESERVED, SO NOTHING IS LOST.** The pool-widening measurement, the byte-identical CPU
+proof, the `allow=db` PE finding and the exact edit all live in `scripts/mode_d_supervisor.ps1` at the
+`$cpuLane` insertion point — following the standing lesson that *a bus message dies with the protocol,
+a comment does not*. `docs/ops/cpuprobe14.sh` reproduces the probe, and `docs/ops/placeable_capacity.py`
+reproduces the capacity number.
+
+**AND THE RE-BASE IS THE HONEST KIND, WHICH IS WHY IT IS SAFE.** With the flag reverted, the only
+remaining difference between `RUNNING_SHA` and `HEAD` in a drift-fenced path is COMMENT TEXT. Verified
+rather than asserted: `git diff d866afd3 -- scripts/mode_d_supervisor.ps1` with comment lines excluded
+is **EMPTY**, PowerShell comments do not execute, and the argument array is byte-identical with the
+pool token still reading `d`. `RUNNING_SHA` was therefore moved `d866afd3 -> 309565f9` **without
+relaunching anything**, and its inline comment now names the two distinct kinds of re-base — the
+*relaunched-onto-it* kind and the *provably-inert* kind — so a future reader cannot conflate them.
+**`drift=0` observed in the live cycle log at 12:48:45Z, one cycle after the re-base.**
+
+**THE GENERAL LESSON.** *Do not buy an inert change with a live invariant.* If a change cannot take
+effect until an action you cannot perform, land its EVIDENCE and its INSTRUCTION, not its switch.
