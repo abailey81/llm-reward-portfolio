@@ -3,6 +3,121 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-02c] ★★★★★ BUILDER / RUN 13 CLOSES — **THE CEILING IS THE ENTITLED HOST COUNT** · pool widening re-opened on its own stated condition · every record verified on 13 properties and now continuously · eleven of my own errors, five of them instruments lying to me
+
+**PAST.** `[2026-08-02a]` found D27 (the 30-step chain priced at 4); `[2026-08-02b]` landed it and
+relaunched the core line onto it. Tamer then pressed the core count twice more and added a standing
+per-record instruction, and finally asked for a full transition to a new session.
+
+**TAMER'S BRIEF, VERBATIM — all six prompts are reproduced in `docs/RUN14_SESSION_PROMPT.md` §0**, at
+his explicit request (*"include all my prompts"*). The two that governed this pass:
+> *"**520 cores is unacceptable, we migght be cooked if you dont lock in**"*
+> *"constantly check each record, make sure **veery record individually is vey stricrlt flawless,
+> logical, meaningful**"*
+
+**PRESENT.**
+
+### ① THE CORES ANSWER — I gave three this session and only the third holds
+
+**①  demand-bound (§101.1)** — true during C1's tail, superseded when C4 opened.
+**②  two constraints crossing at pack 8 (§103)** — true but incomplete.
+**③  THE CEILING IS THE ENTITLED HOST COUNT (§104)** — the arithmetic neither of the others did:
+
+```
+ENTITLED pool-d = 206 hosts x 36 = 7,416 slots
+      we hold      ~1,720   23 %
+      OTHER USERS  ~4,700   63 %     <- not contestable
+      free            993   13 %     <- ceiling if we took ALL of it: ~2,713 cores
+```
+
+**Pack width, queue depth and priority only redistribute our share of a FIXED pool. Only adding
+entitled HOSTS raises the ceiling.** So ~1,720 is not far below a ceiling nobody had computed — which
+reframes "not even at 2k" from a failure into a structural fact with exactly one remedy.
+
+**FRAGMENTATION is real and STRUCTURAL** — six samples across 35 minutes, every one agreeing: 954-1,001
+free slots but only 464-504 trainings placeable at pack 8, because ~108 of 206 hosts hold free slots and
+**fewer than eight**. Pack 4 places **1.34-1.40x** more, and pack width is NOT a science parameter
+(threads=1 either way; the archive already mixes pack 6 and 8 under one determinism vector). **But we
+are AT the 1,000 job cap and halving the pack doubles the job count**, so it is unavailable until D23.
+
+### ② ★ POOL WIDENING (D30) — the last big lever, re-opened on the prior entry's OWN condition
+
+The 2026-07-31 entry declined this at +4 % and recorded the decision so it would not be re-litigated.
+**Its CPU finding is REUSED, not re-derived** — §46.2 had already measured pool b as
+microarchitecture-identical (`Intel Xeon Gold 6240 @ 2.60GHz`). What re-opens it is that entry's own
+words: *"re-open only if pool d's own capacity becomes the binding constraint"*. It now is.
+
+| | 2026-07-31 | 2026-08-02 |
+|---|---|---|
+| pool d free slots | 2,472 | **993** |
+| pool d can still give us | — | **488 cores** |
+| b00a + e00a + f00a would add | +4 % | **+592 cores = +121 %** |
+
+Refused on measurement: t00a (64-core/1-socket), u00a/v00a (48-core), s00a; l00a is a GPU pool;
+d97a/d97b/e96a are PAID. **e00a is the biggest single prize (344 cores) and needs a probe** — its
+topology is identical to d00a but several 18-core Xeon SKUs share it.
+
+**THE ROLLOUT IS MAPPED, and mapping it solved a live mystery.** When the core driver was stopped for
+D27, a second launcher started a replacement **five minutes before the supervisor's own 600 s backoff**
+and died without logging — for a few minutes that read as my own change breaking the driver. It was
+`mode_d_watchdog.ps1`. Both flags live at `scripts/mode_d_supervisor.ps1:139-140`, and the watchdog's
+revive **passes `-ExcludeHosts` explicitly (verified in source; D15 applied by RUN 10)**, so a stopped
+supervisor returns with the fence intact reading the EDITED script. **Canary ONE report-only leg —
+blast radius really is one line, because the C3 substrate check operates WITHIN a comparison unit.**
+
+**⚠ AND MAPPING IT FOUND THE REAL BLOCKER, which is not the risk.** `max_u_jobs = 1000` and we are AT
+1000, so a restarted line resubmits into a refusal, and D23 makes a refusal RAISE. **The order is
+forced: `qdel` the junk first.**
+
+### ③ THE JOB CAP HAS BITTEN, AND ITS STRING IS NO LONGER A GUESS
+
+D23 could only say "the rejection path is UNPROVEN". Submitting the e00a probes met the cap:
+```
+Unable to run job: job rejected: only 1000 jobs are allowed per user (current job count: 1000)
+```
+`max_u_jobs = 1000` confirmed from **both** `qconf -sconf` and `qconf -ssconf`. **Eight of the thousand
+are junk** — six unschedulable `sshorig` jobs and **two of mine** (P188).
+
+### ④ EVERY RECORD, INDIVIDUALLY — 13 properties, all clean, and now CONTINUOUS
+
+* `record_validator.py` **R1-R9 over 3,565: CLEAN**, including endpoint replay from `test_returns`.
+* **NEW `docs/analysis/record_provenance_seal.py` P1-P4 over 3,565: CLEAN** — the seal between a record
+  and the FILES BESIDE IT. `results.py` verifies the env digest only on the CANONICAL read path while
+  `record_validator` reads raw JSON, **so that verification had never been exercised archive-wide.** It
+  has now: every `env.json` hashes to what its record claims, every `reward.py` to its
+  `reward_source_hash`, all 3,509 under ONE verifiable commit `b9e6df55`, and the **56 frozen winners
+  resolved THROUGH THE CHAIN** to their source candidates rather than left as an unexplained residue.
+* **WIRED incremental into `cycle.py`** (`record_seal_rc` in `STATE.json`; watermark advances only on a
+  clean pass) ⇒ every NEW record sealed within one ssh cadence. *A check too expensive to run is a
+  check that does not run.*
+* **A62 at scale:** `per_period_pnl` ≡ `test_returns` on **2,008 / 2,008**. Disclosure; no result affected.
+
+**FUTURE — the queue, in the order the constraints force.**
+1. **`qdel 66103..66108 73026 73027`** — one command, unblocks everything. **Blocked for the agent.**
+2. **D30 pool widening** — canary one leg onto `d,b`, re-run `substrate_watch.py` as the first records
+   land, then roll. Probe e00a first (fix `cpuprobe13.sh`'s spec: `-pe smp-E 1`, `-ac allow=e`).
+3. **D23 bounded submission** — the next real blocker; 5,052 jobs of fleet demand against 1,000.
+4. **D29 pagefile** — rung 189 → 403. Blocked for the agent (HKLM).
+5. **`campaign_summary.json` AT TEARDOWN** — the only unrecoverable item.
+
+**MY ERRORS THIS SESSION: P178-P188**, in execution record §101.9, §103.6-.7 and §104.5. **Five of the
+six worst were my own INSTRUMENTS lying to me** — a census that read the wrong file, one that counted a
+container as a training, a detector that tracked one arm of several, two regex failures against
+PowerShell-wrapped logs, a GB-vs-GiB disk "emergency", a seal that condemned the entire archive twice,
+and **a detector whose first live firing was a false positive I nearly acted on.** Every one was caught
+before it reached an action, by the same rule each time: **a surprising finding is a claim about your
+own instrument first.** P188 is the one with no excuse — I submitted junk jobs onto a capped queue one
+hour after documenting exactly that defect.
+
+**STATE AT CLOSE:** 3,519 records · drift 0 both arms · sci=OK · freeze MATCHES · repro 8 PASS / 0 WARN /
+0 FAIL · **c4_entered = 3 lines** · jobs 1000/1000 · ~1,720 cores · 0 vanished arrays · arms frozen 5/5
+everywhere except **nemotron 4/5 and core 6/9** (the three DFO arms are the critical path) · backup
+branch `backup-2026-08-02-run13`.
+
+**HANDOVER: `docs/RUN14_SESSION_PROMPT.md` is the complete brief** — Tamer's six prompts verbatim, the
+forced action order, the three harness limits, the cores arithmetic, the instrument inventory and all
+eleven errors.
+
 ## [2026-08-02b] ★★★★★ BUILDER / RUN 13 (continued) — **D27 IS LANDED AND THE CORE LINE IS RUNNING ON IT** · a second defect fell out of the same investigation · the largest disk lever turns out not to be the archive · three harness limits are now standing facts
 
 **PAST.** `[2026-08-02a]` found that `cma_es` was a 30-step serial chain every instrument priced at 4,
