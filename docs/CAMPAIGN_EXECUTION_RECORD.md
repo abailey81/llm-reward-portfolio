@@ -16060,3 +16060,33 @@ DEAD".** A check that makes the watchdog look dead is worse than a check that ru
 is now rate-limited to once per 30 min (~9 % duty even at the end state). Cadence verified recovered
 to 28.5 s with `drift=0 sci=OK`. **The lesson: a new monitor is a load on the monitor it joins, and
 that load must be measured before it is trusted.**
+
+### 106.7 THE MACHINERY IS WORKING, AND THE LIVE MONITOR ALREADY SEES IT — WHICH SHARPENS THE FINDING
+
+The cycle log's `r115=21B` field decodes exactly onto this section's numbers, and the agreement is
+worth stating because it means nothing here is a surprise to the campaign, only to the write-up:
+
+* **`21`** = `sw_r115_breaches`, records at or above the 10 % floor (`docs/ops/science_watch.py:228`).
+  My independent threshold table gives **21 at 10 %** — the same number by a different route.
+* **`B`** = **R115 IS BINDING** — `cycle.py`'s own comment: *"a fallback-contaminated candidate
+  currently TOPS its arm"*, i.e. the floor is not inert, it is actively keeping a contaminated
+  candidate from being frozen.
+
+**All 21 breaches are SEARCH candidates.** The sealed-test maximum is 9.0847 %, below the floor, so
+no breaching candidate has reached the test leg — which is precisely the outcome R115 was written to
+produce, observed rather than assumed.
+
+**AND THAT IS WHY THE STALE JUSTIFICATION MATTERS MORE, NOT LESS.** A floor that is BINDING is a floor
+whose VALUE has consequences: it is the reason 21 candidates are excluded and others are not. The
+registered defence — *"any value in ~1-35 % partitions the data identically"* — is the claim that the
+value has NO consequences. Those two cannot both be true today, and the live monitor is the one
+reporting that the floor bites.
+
+**THE PRIMARY DEFENCE IS UNTOUCHED, AND IT IS THE STRONG ONE.** R115's amendment row rests first on a
+PRE-DATA argument: the freeze was lifted when RUN 1's search had been discarded wholesale, RUN 2 held
+ZERO records, the sealed 2020-2026 leg was untouched, and no arm contrast of any kind had ever been
+computed. **That argument does not depend on insensitivity and is not weakened by anything here.**
+What is weakened is the SECONDARY sentence the row adds — *"the insensitivity is what makes that
+distinction verifiable"* (PREREGISTRATION.md row R115, and the same wording in
+`config/preregistration.yaml`). Both files are hash-bound, so the fix is disclosure, not an edit, and
+the disclosure should say plainly which defence carries the weight.
