@@ -40,11 +40,32 @@ import hashlib
 import json
 import subprocess
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
-ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else "outputs/campaign_cluster_run4")
+ARGS = sys.argv[1:]
+POS = [a for a in ARGS if not a.startswith("--")]
+ROOT = Path(POS[0] if POS else "outputs/campaign_cluster_run4")
 WALL_LO_H, WALL_HI_H = 0.05, 20.0     # h_rt is 15 h; below 3 min is not a 400k-step training
+
+# ── INCREMENTAL MODE ────────────────────────────────────────────────────────────────────────────
+# Tamer, 2026-08-02: "constantly check each record, make sure every record individually is very
+# strictly flawless". A full pass over 3,565 records takes about a minute and the archive is heading
+# for ~42,000, so a full pass cannot run on a monitoring cadence -- and a check that is too expensive
+# to run is a check that does not run. `--since-state` seals only records whose `record.json` is
+# NEWER than the last successful pass, which is exactly the set that could have changed, and keeps
+# the guarantee "every record has been sealed at least once, and every NEW record within one cycle".
+# ⚠ The state is advanced ONLY on a clean pass, so a failure is re-reported until it is dealt with
+# rather than being aged out of the window by the next run.
+INCREMENTAL = any(a.startswith("--since-state") for a in ARGS)
+STATE = Path("docs/ops/watch/.record_seal_state")
+_since = 0.0
+if INCREMENTAL and STATE.is_file():
+    try:
+        _since = float(STATE.read_text(encoding="utf-8").strip())
+    except Exception:
+        _since = 0.0
 
 
 def canonical_hash(src: str) -> str:
@@ -94,7 +115,7 @@ examples: dict[str, list[str]] = {}
 n = 0
 pnl_identical = 0
 pnl_present = 0
-no_env = no_reward = chain_ok = 0
+no_env = no_reward = chain_ok = skipped = 0
 git_seen: Counter = Counter()
 
 
@@ -109,6 +130,13 @@ for rec_path in ROOT.rglob("record.json"):
     s = str(rec_path)
     if ".pull_tmp" in s or "_quarantined" in s:
         continue
+    if INCREMENTAL:
+        try:
+            if rec_path.stat().st_mtime <= _since:
+                skipped += 1
+                continue
+        except OSError:
+            pass
     d = rec_path.parent
     try:
         rec = json.loads(rec_path.read_text(encoding="utf-8"))
@@ -213,7 +241,7 @@ for rec_path in ROOT.rglob("record.json"):
         if ppnl == tret:                 # a BOOLEAN. No element is read out, compared or printed.
             pnl_identical += 1
 
-print(f"records sealed-checked : {n:,}")
+print(f"records sealed-checked : {n:,}" + (f"   (incremental: {skipped:,} already sealed in an earlier pass)" if INCREMENTAL else ""))
 print(f"  units with no env.json   : {no_env:,}")
 print(f"  frozen winners VERIFIED THROUGH THE CHAIN to their source candidate: {chain_ok:,}")
 print(f"  units with no reward.py  : {no_reward:,}")
@@ -236,5 +264,14 @@ print(f"A62 DISCLOSURE METRIC: per_period_pnl is byte-identical to test_returns 
 print("  (a COUNT, not a value: the canonical schema calls per_period_pnl a 'per-period P&L vector'")
 print("   while the writer assigns it from the same object as test_returns. No consumer reads it, so")
 print("   no result is affected -- it is a DISCLOSURE, tracked here so it cannot be forgotten.)")
+
+# Advance the watermark ONLY on a clean pass, so a failure is re-reported next cycle instead of
+# being aged out of the window by its own successor.
+if INCREMENTAL and not fail:
+    try:
+        STATE.parent.mkdir(parents=True, exist_ok=True)
+        STATE.write_text(str(time.time()), encoding="utf-8")
+    except Exception:
+        pass
 
 sys.exit(1 if fail else 0)

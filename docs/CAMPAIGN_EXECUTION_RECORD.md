@@ -15487,3 +15487,56 @@ than by memory.
 **All three were caught before anything was reported, by the same rule each time: a surprising
 negative is a claim about my own script first.** Had any shipped, it would have alleged archive-wide
 corruption on an irreplaceable campaign.
+
+### 103.7 ★★★ P186 — MY OWN DETECTOR'S FIRST LIVE FIRING WAS A FALSE POSITIVE, AND I ALMOST ACTED ON IT
+
+Within minutes of wiring `vanished_array_watch.py` into the cycle it fired:
+
+```
+kimi-k3: block leg10_leg_kimi_k3_placebo_shuffled_test,
+         arrays ['69552','69553','69554','69555'], gone for 617 min
+```
+
+617 minutes with 3 units still pending is exactly the shape of the 15-hour blind spot the instrument
+exists to catch, and the remedy — restart that line's driver so `--resume` resubmits at once — was one
+command away. **I verified first, and it was wrong.**
+
+```
+qstat : 69552-69555  NONE - confirmed gone
+qacct : 69552..69555  failed 0   (all four)
+driver: 11:56:32 [leg10_leg_kimi_k3_placebo_shuffled_test] batch complete
+archive: 31 records present for a 30-unit block
+```
+
+**The arrays had COMPLETED.** The driver simply had not pulled the last records yet, and the block
+reported `batch complete` four minutes later. Restarting kimi-k3 would have cost a healthy line ten
+minutes of downtime, during C4, to fix nothing.
+
+**ROOT CAUSE — a two-value predicate for a three-value world, in the instrument written to enforce
+that very rule.** "Arrays absent from `qstat` AND the block still pending" is the signature of a
+purged array *and* of a completed-but-not-yet-pulled one. The `BENIGN_GRACE_MIN` guard does not
+separate them, because it measures age from SUBMISSION: a block submitted 617 minutes ago whose
+arrays finished five minutes ago looks identical to one whose arrays vanished 617 minutes ago.
+
+**THE FIX, and the driver had already named the discriminator.** Its own message is *"drain with NO
+qacct trace — the array was purged before dispatch"*. **A purged array leaves no accounting row; a
+completed one does.** So the predicate is now `absent from qstat` **AND** `absent from qacct`, and an
+unreachable `qacct` reports UNKNOWN rather than manufacturing an incident out of a monitoring outage.
+
+**THE FIX IS ITSELF TESTED — three new selftest cases, because a fix that cannot be exercised is a fix
+nobody has verified.** A `--qacct=yes|no|unknown` override drives the branch directly:
+
+* **D** — arrays gone, qacct row PRESENT ⇒ must stay silent. *This is the case that reproduces P186.*
+* **E** — qacct unreachable ⇒ must report UNKNOWN, never "vanished".
+* **F** — gone from BOTH ⇒ must fire.
+
+**Selftest now 6/6**, and re-run live: *"no vanished arrays detected"*.
+
+**THE LESSON, and it is uncomfortable in the right way.** I wrote this detector, documented ZERO /
+ABSENT / LAUNCHED in its own docstring as the rule it exists to honour, added a mutation control, and
+still shipped a predicate that conflated "finished" with "never ran". **Building the instrument does
+not immunise you against the failure the instrument is about.** The only thing that stopped it
+reaching an action was the standing rule that a surprising finding is a claim about your own
+instrument first — the same rule that had already caught P178, P179, P183, P184 and P185 in this one
+session. **Five of the six errors I made tonight were my instruments lying to me, and every one was
+caught by checking before reporting.**

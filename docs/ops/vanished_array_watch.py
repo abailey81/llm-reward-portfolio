@@ -53,6 +53,16 @@ _LIVE_OVERRIDE: set[str] | None = None
 for _a in ARGS:
     if _a.startswith("--live-ids="):
         _LIVE_OVERRIDE = {x.strip() for x in _a.split("=", 1)[1].split(",") if x.strip()}
+# "--qacct=yes|no|unknown" substitutes the accounting probe. It exists so the P186 discrimination --
+# COMPLETED (a qacct row) versus PURGED (none) -- is itself testable; a fix that cannot be exercised
+# is a fix nobody has verified.
+_QACCT_OVERRIDE: bool | None = None
+_QACCT_SET = False
+for _a in ARGS:
+    if _a.startswith("--qacct="):
+        _v = _a.split("=", 1)[1].strip().lower()
+        _QACCT_SET = True
+        _QACCT_OVERRIDE = {"yes": True, "no": False, "unknown": None}.get(_v)
 POSITIONAL = [a for a in ARGS if not a.startswith("--")]
 ROOT = Path(POSITIONAL[0] if POSITIONAL else "outputs/campaign_cluster_run4")
 BENIGN_GRACE_MIN = 12.0    # driver polls every 180 s, then has to pull; below this, say nothing
@@ -85,6 +95,34 @@ def live_job_ids() -> set[str]:
     return ids
 
 
+def has_qacct_trace(job_ids: list[str]) -> bool | None:
+    """Did ANY of these arrays leave an accounting row? None = could not tell.
+
+    ⚠ THIS EXISTS BECAUSE THE SCRIPT RAISED A FALSE POSITIVE ON ITS FIRST LIVE FIRING (P186).
+    "arrays gone from qstat AND the block still reports pending" is ALSO the signature of "the arrays
+    FINISHED and the driver has not pulled the last records yet". On 2026-08-02 it flagged
+    `leg10_leg_kimi_k3_placebo_shuffled_test` as vanished for 617 minutes; `qacct` showed
+    `failed 0` on all four arrays and the block reported `batch complete` four minutes later. Acting
+    on that would have restarted a HEALTHY line for nothing.
+
+    The discriminator is the one the driver itself uses, and its own message names it: a purged array
+    leaves **NO qacct trace**, while a completed one leaves a row. So a block is only VANISHED if its
+    arrays are absent from the queue AND absent from accounting. Absence of evidence is reported as
+    UNKNOWN, never as vanished -- the register's own rule, applied to the instrument that enforces it.
+    """
+    if not job_ids:
+        return None
+    q = "; ".join(f"qacct -j {j} 2>/dev/null | head -1" for j in job_ids[:6])
+    try:
+        out = subprocess.run(["ssh", "-o", "BatchMode=yes", "myriad", q],
+                             capture_output=True, text=True, timeout=300)
+    except Exception:
+        return None
+    if out.returncode not in (0, 1):
+        return None
+    return bool(out.stdout.strip())
+
+
 def _selftest() -> int:
     """Prove the detector can FIRE and can STAY SILENT, on the real log grammar.
 
@@ -115,6 +153,23 @@ def _selftest() -> int:
         b = subprocess.run(here + ["--live-ids=45017"], capture_output=True, text=True)
         if b.returncode != 0 or "VANISHED" in b.stdout:
             fails.append(f"B: expected exit 0 + no alert, got {b.returncode}\n{b.stdout}")
+        # CASE D -- P186, THE FALSE POSITIVE THIS SCRIPT ACTUALLY PRODUCED. Arrays gone from the
+        # queue, block still pending, well past the grace window -- but a qacct row EXISTS, so they
+        # COMPLETED and the driver simply has not pulled yet. MUST stay silent. Without this case the
+        # P186 fix is unverified, and acting on that false positive would have restarted a healthy
+        # line for nothing.
+        dd = subprocess.run(here + ["--live-ids=99999", "--qacct=yes"], capture_output=True, text=True)
+        if dd.returncode != 0 or "VANISHED" in dd.stdout:
+            fails.append(f"D: qacct row present must NOT alert, got {dd.returncode}\n{dd.stdout}")
+        # CASE E -- qacct unreachable: MUST report UNKNOWN, never "vanished". Absence of evidence is
+        # not evidence, and a monitoring outage must not manufacture an incident.
+        ee = subprocess.run(here + ["--live-ids=99999", "--qacct=unknown"], capture_output=True, text=True)
+        if ee.returncode != 0 or "VANISHED" in ee.stdout or "UNKNOWN (qacct" not in ee.stdout:
+            fails.append(f"E: unreachable qacct must report UNKNOWN, got {ee.returncode}\n{ee.stdout}")
+        # CASE F -- gone from BOTH: the real defect. MUST fire.
+        ff = subprocess.run(here + ["--live-ids=99999", "--qacct=no"], capture_output=True, text=True)
+        if ff.returncode != 1 or "VANISHED" not in ff.stdout:
+            fails.append(f"F: no qstat AND no qacct must alert, got {ff.returncode}\n{ff.stdout}")
         # CASE C -- gone but INSIDE the grace window: MUST stay silent, so a normal completion
         # between two polls is never reported as a stall.
         fresh = (d / "driver_fresh.log")
@@ -125,7 +180,7 @@ def _selftest() -> int:
             fails.append(f"C: expected exit 0 (grace), got {c.returncode}\n{c.stdout}")
     for f in fails:
         print("SELFTEST FAIL " + f)
-    print(f"selftest: {3 - len(fails)}/3 cases pass")
+    print(f"selftest: {6 - len(fails)}/6 cases pass")
     return 1 if fails else 0
 
 
@@ -200,8 +255,18 @@ for log in sorted(ROOT.glob("driver_*.log")):
         elif mins < BENIGN_GRACE_MIN:
             verdict = "benign (just finished?)"
         else:
-            verdict = "*** VANISHED ARRAY -- driver waits up to 15 h ***"
-            alerts.append((line, blk, ids, mins))
+            # THE SECOND, DECISIVE TEST (P186). Gone from the queue is not enough -- a COMPLETED array
+            # is also gone. Only an array with no accounting row was purged, which is precisely the
+            # condition the driver's own "drain with NO qacct trace" message names.
+            traced = _QACCT_OVERRIDE if _QACCT_SET else (
+                None if _LIVE_OVERRIDE is not None else has_qacct_trace(ids))
+            if traced is True:
+                verdict = "ok (arrays COMPLETED -- qacct row present; driver has yet to pull)"
+            elif traced is None and (_QACCT_SET or _LIVE_OVERRIDE is None):
+                verdict = "UNKNOWN (qacct unreachable -- cannot distinguish purged from completed)"
+            else:
+                verdict = "*** VANISHED ARRAY -- no qstat, no qacct; driver waits up to 15 h ***"
+                alerts.append((line, blk, ids, mins))
         print("%-18s %-46s %5d %-24s %8.0f  %s" % (line, blk, pend, ",".join(ids)[:24], mins, verdict))
 
 print()

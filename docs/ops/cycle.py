@@ -867,6 +867,7 @@ def main() -> int:
 
     cores = jobs = ""
     _vanished_rc = -1        # -1 => the ssh-cadence layer did not run this cycle (see below)
+    _record_seal_rc = -1     # -1 => same; 0 = sealed clean, 1 = a record disagrees with its files
     if args.ssh:
         rc, out = _run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "myriad",
                         'Q=$(qstat -u ucestes | tail -n +3); '
@@ -908,6 +909,30 @@ def main() -> int:
             attention.append(f"vanished_array_watch rc={_va_rc} -- the blind-spot detector could not "
                              "run; the 15 h purge blind spot is UNWATCHED this cycle")
 
+        # ── PER-RECORD PROVENANCE SEAL (RUN 13, 2026-08-02) ────────────────────────────────────
+        # Tamer: "constantly check each record, make sure every record individually is very strictly
+        # flawless". `record_validator.py` (R1-R9) is the deep per-record contract check and is run
+        # per session; this is the SEAL between a record and the files beside it -- its `env.json`
+        # digest and its `reward.py` hash -- which nothing checked before, because `results.py`
+        # verifies the env digest only on the CANONICAL read path and `record_validator` reads raw
+        # JSON. INCREMENTAL: it seals only records newer than the last CLEAN pass, so the cost stays
+        # flat as the archive grows toward ~42,000 records while every NEW record is sealed within
+        # one ssh cadence (~20 min). A check too expensive to run is a check that does not run.
+        _seal_rc, _seal_out = _run(
+            [sys.executable, "docs/analysis/record_provenance_seal.py", "--since-state"], timeout=900)
+        _record_seal_rc = _seal_rc
+        if _seal_rc == 1:
+            alerts.append(
+                "RECORD PROVENANCE SEAL FAILED -- a record disagrees with the env.json or reward.py "
+                "beside it, or names a commit this repository does not contain. That is an archive "
+                "integrity failure, not a monitoring nit. Run "
+                "`python docs/analysis/record_provenance_seal.py` for the full report.\n"
+                + "\n".join(ln for ln in _seal_out.splitlines() if "P1-" in ln or "P2-" in ln
+                            or "P3-" in ln or "P4-" in ln or "FAILURES" in ln))
+        elif _seal_rc != 0:
+            attention.append(f"record_provenance_seal rc={_seal_rc} -- the per-record seal could not "
+                             "run this cycle; new records are UNSEALED until it does")
+
     state = {
         "written_utc": stamp,
         "note": args.note,
@@ -936,6 +961,7 @@ def main() -> int:
         "jobs": jobs,
         # -1 = the ssh cadence did not run this cycle; 0 = ran, clean; 1 = ran, vanished array found.
         "vanished_array_rc": _vanished_rc,
+        "record_seal_rc": _record_seal_rc,
         "alerts": alerts,
         "attention": attention,
     }
