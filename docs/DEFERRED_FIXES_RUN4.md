@@ -931,6 +931,35 @@ fleet total                                          -> 5,052 tasks
 **At `--chunk-tasks 1` every task is its own array job, so that is 5,052 array jobs against
 `max_u_jobs = 1000`. The CORE LINE ALONE (1,345) exceeds the cap.**
 
+> ### ⚠⚠ UPDATE 2026-08-02 — IT HAS NOW HAPPENED, AND THE REJECTION STRING IS NO LONGER A GUESS
+>
+> With two of eleven lines in C4 the job count reached **exactly 1000**, and a submission was refused.
+> The literal message, captured live, is:
+>
+> ```
+> Unable to run job: job rejected: only 1000 jobs are allowed per user (current job count: 1000)
+> ```
+>
+> `max_u_jobs = 1000` is also confirmed first-hand from **both** `qconf -sconf` and `qconf -ssconf`,
+> rather than from documentation. **The fix must match that exact string**, which was previously
+> unmeasured — this entry could only say "the rejection path is UNPROVEN".
+>
+> **Where it surfaces:** `submit.qsub` is three lines —
+> `return parse_job_id(runner(["qsub", jobscript_remote_path]))` — so the refusal arrives either as a
+> `CalledProcessError` from the runner or as `parse_job_id`'s "could not parse a job id" `RuntimeError`.
+> **A correct fix must handle BOTH**, back off, and retry rather than raise.
+>
+> **Realised cost so far: ZERO.** At the moment of writing no driver has crashed on it (0 rejections in
+> the driver logs, 0 pipeline crashes in two hours) because the drivers submit per block as blocks
+> drain, and it was MY probe submission that met the cap first. But nine more lines are still to enter
+> C4, and the fleet demand is 5,052 jobs against 1,000.
+>
+> **AND SIX OF THE THOUSAND ARE JUNK.** The six `sshorig` interactive jobs pinned to an unavailable
+> host have been unschedulable since 2026-08-01 16:07 (`qalter -w p`: *"verification: no suitable
+> queues"*). 994 campaign jobs + 6 junk = the cap exactly. **`qdel 66103 66104 66105 66106 66107
+> 66108` buys back the whole margin** — and `qdel` is blocked for the agent, so it is one command for
+> Tamer.
+
 **⚠ THE FIX IS NOT CHUNKING.** `mode_d_supervisor.ps1:119` records the site policy: *"arrays are
 SERIALISED by policy (tasks 2..n sit in hqw) and pending tails have twice been PURGED outright."*
 Chunking to 25 would park 24 of every 25 tasks in hold. `--chunk-tasks 1` stays.
@@ -1469,3 +1498,76 @@ dump. Irrelevant to this campaign.
 absorb it alone — D: has 40 GB free while the archive plus its mirror grow to about 40 GB together.
 112 GB of D: is games (Steam, rocketleague); that is Tamer's personal call and no agent should touch
 it unasked.
+
+
+---
+
+## 23. ★★★★★ D30 — POOL WIDENING, RE-OPENED ON THE 2026-07-31 ENTRY'S OWN STATED CONDITION (2026-08-02, record §104)
+
+**THIS IS NOT RE-LITIGATION.** `CONSIDERED AND DECLINED — pool widening d -> d,b` (2026-07-31, §57)
+measured this, declined it, and recorded the decision expressly so it "is not re-litigated from first
+principles a third time". Its CPU finding is REUSED here rather than re-derived. It also wrote its own
+re-open condition, verbatim:
+
+> **Re-open only if pool d's own capacity becomes the binding constraint** — it is not; our constraint
+> was priority (§54) and is now queue position.
+
+**That condition is now MET, and the numbers have inverted.**
+
+| | 2026-07-31 (the decline) | 2026-08-02 (C4 live) |
+|---|---|---|
+| pool d free slots | **2,472** | **993** |
+| what pool d can still give us | — | **480 cores** |
+| pool b would add | 80 cores (**+4 %**) | **224 cores** |
+| e00a would add | not assessed | **360 cores** |
+| f00a would add | not assessed | **32 cores** |
+| **candidate total** | **+4 %** | **+616 cores = +128 %** |
+
+The decline was correct on its day: +4 % is not worth a substrate risk. **Today the candidate pools
+would MORE THAN DOUBLE the free capacity we can reach**, and pool d's own free capacity has fallen by
+60 % while C4 opened.
+
+### The full entitled picture, which is what makes this the last big lever
+
+```
+entitled pool-d hosts 206 x 36 =  7,416 slots
+   we hold   ~1,720   23 %
+   OTHER USERS ~4,700  63 %
+   free          993   13 %      <- absolute ceiling if we took ALL of it: ~2,713 cores
+```
+
+**We cannot out-compete other users for the 63 %, and the 13 % is capped at ~2,713.** Adding entitled
+HOSTS is the only lever that raises the ceiling itself rather than our share of a fixed one.
+
+### What is settled and what is not
+
+* **pool b00a — SETTLED.** Record §46.2 measured it microarchitecture-IDENTICAL: both
+  `Intel Xeon Gold 6240 @ 2.60GHz`. 16 hosts, none PAID, in queue `Bran`, `gpu=0`, `exb=true`.
+* **pool e00a — OPEN, and it is the bigger prize (360 cores).** `qhost` topology is IDENTICAL to
+  d00a — 36 NCPU / 2 sockets / 36 cores / 36 threads / 188.4 G — and it is not PAID. **But topology is
+  necessary, not sufficient**: several 18-core Xeon SKUs share it. Probed 2026-08-02 (`cpuprobe13`,
+  jobs 73026/73027, one core, two minutes, writing only to `~/cpuprobe13/`).
+* **f00a — OPEN**, same reasoning, 32 cores.
+* **REFUSED on measurement:** `t00a` (64-core, ONE socket), `u00a`/`v00a` (48-core), `s00a` — a
+  different microarchitecture would make comparison units span two CPU models and **PARK every line at
+  the C3 gate**. `l00a` is a GPU pool (`gpu=4`), not our lane. `d97a`/`d97b`/`e96a` are PAID.
+
+### ⚠ WHY THE PROBE IS THE WHOLE DECISION
+
+The C3 gate enforces per-seed substrate homogeneity where the substrate string is
+`cpu model | omp | threads | cuda`. Identical model ⇒ identical string ⇒ **no CRN hazard at all**.
+A different SKU ⇒ mixed comparison units ⇒ **every line parks**, and the intuitive speed move becomes a
+campaign stop — which is exactly what RUN 12 established about widening onto the wrong pools.
+**D15 is the standing reminder that ONE heterogeneous host already cost four archived records.**
+
+### The change, if the probe confirms
+
+1. `--pool d` -> `--pool d,b` (and `,e,f` only if probed identical) in the supervisor argument array.
+   **It is a FLAG, not code** — a rolling supervisor restart, the procedure §58 already proved.
+2. **Immediately afterwards re-run `docs/analysis/substrate_watch.py` and the per-seed census.** Not
+   later. The whole risk is heterogeneity, and the detector for it must run while the first records
+   from the new pool are landing.
+3. If ANY new-pool record shows a different `cpu.model_name`, revert the flag and fence that pool.
+
+**⇒ RECOMMENDATION: widen to `d,b` on the settled evidence, and add `e`/`f` only on a clean probe.**
+`d,b` alone is +224 cores on today's numbers, nearly half of what pool d itself can still give us.
