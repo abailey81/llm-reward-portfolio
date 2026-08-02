@@ -136,9 +136,22 @@ $legTag = [ordered]@{
 # touching arithmetic. Measured justification: at the cores held on 2026-07-31 rung 568 lands
 # 08-30, MISSING the 08-27 exogenous stop; pack 8 roughly halves the C4 makespan.
 # ---------------------------------------------------------------------------------------------
-# --pool db (2026-08-02, RUN 14, D30). POOL WIDENING d -> d+b, on the 2026-07-31 decline's OWN
-# stated re-open condition ("re-open only if pool d's own capacity becomes the binding constraint").
-# It now is, and the numbers below are measured on the day, not inherited:
+# *** PREPARED AND DELIBERATELY NOT APPLIED - POOL WIDENING d -> db (2026-08-02, RUN 14, D30).
+#
+# TO APPLY, CHANGE ONE TOKEN BELOW:   "--pool", "d",   ->   "--pool", "db",
+# then restart one supervisor (nemotron first) and let the fenced watchdog revive it on this script.
+#
+# WHY IT IS NOT ALREADY APPLIED. A supervisor builds this array ONCE at launch, so the change is
+# INERT until a supervisor is RESTARTED - and process termination is BLOCKED for the agent (both
+# taskkill and Stop-Process were refused by the harness classifier on 2026-08-02). Committing the
+# widened value would therefore have left drift=1 against RUNNING_SHA indefinitely, on an invariant
+# whose whole value is that it never changes, while buying no capacity at all until someone restarts
+# a line. So the measurement and the safety proof are banked HERE, at the decision point, and the
+# one-token edit is left for whoever can restart a supervisor. See DEFERRED_FIXES_RUN4 D30.
+#
+# POOL WIDENING d -> d+b is re-opened on the 2026-07-31 decline's OWN stated condition ("re-open only
+# if pool d's own capacity becomes the binding constraint"). It now is, and the numbers below are
+# measured on the day, not inherited:
 #
 #   PLACEABLE at pack 8, after excluding PAID and disabled hosts and gating on memory (2G/slot):
 #     pool d (d00a+d00b) ..... 3 jobs =  24 cores   <- 82% of its usable >=8-slot hosts have <16G free
@@ -168,7 +181,7 @@ $legTag = [ordered]@{
 # not resubmit its in-flight work; already-queued jobs keep `allow=d` and drain normally, and only
 # the NEXT batch boundary picks up the wider pool.
 $cpuLane = @(
-  "--device", "cpu", "--pool", "db",
+  "--device", "cpu", "--pool", "d",
   "--pack", "8", "--cores-per-training", "1",
   "--search-pack", "1", "--search-threads", "8",
   "--chunk-tasks", "1",
