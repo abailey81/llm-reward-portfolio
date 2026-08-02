@@ -135,8 +135,40 @@ $legTag = [ordered]@{
 # OMP=1 (330 packed CPU baselines in this run prove the path) -- so this buys wall-clock without
 # touching arithmetic. Measured justification: at the cores held on 2026-07-31 rung 568 lands
 # 08-30, MISSING the 08-27 exogenous stop; pack 8 roughly halves the C4 makespan.
+# ---------------------------------------------------------------------------------------------
+# --pool db (2026-08-02, RUN 14, D30). POOL WIDENING d -> d+b, on the 2026-07-31 decline's OWN
+# stated re-open condition ("re-open only if pool d's own capacity becomes the binding constraint").
+# It now is, and the numbers below are measured on the day, not inherited:
+#
+#   PLACEABLE at pack 8, after excluding PAID and disabled hosts and gating on memory (2G/slot):
+#     pool d (d00a+d00b) ..... 3 jobs =  24 cores   <- 82% of its usable >=8-slot hosts have <16G free
+#     pool b (b00a) .......... 11 jobs = 88 cores   <- 0% memory-blocked; b00a hosts carry 1.5T RAM
+#
+# So pool b can give us ~3.7x what pool d itself can still give us. (The earlier +592-core figure
+# came from `pool_capacity_compare.py`, which reads free slots from `qhost` host counters and so
+# counts DISABLED hosts and ignores both fragmentation and memory; `docs/ops/placeable_capacity.py`
+# is the correction and reports 88, not 216, for pool b.)
+#
+# SAFETY - THE ONE FACT THIS RESTS ON, VERIFIED FIRST-HAND RATHER THAN INHERITED. The C3 gate
+# enforces per-seed substrate homogeneity, where the substrate string is `cpu model | omp | threads
+# | cuda`. A probe job run on node-b00a-013 on 2026-08-02 reported:
+#     Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz, 2 sockets, 36 cores, avx512f=1
+# which is the SAME model string pool d reports, so widening cannot make a comparison unit
+# heterogeneous. This is the determinism envelope's requirement (CLAUDE.md: a substrate change is a
+# DESIGN decision) satisfied by identity, not by tolerance: same silicon, same reduction order.
+#
+# WHY "db" AND NOT "d,b": the site JSV maps the `allow=` context onto a wildcard PE. Verified live -
+# `qsub -ac allow=db` is granted PE `smp-[BD]*` (spanning both pools), whereas `-pe smp-B` is
+# rejected outright by policyjsv. Pool e is REFUSED on measurement, not on theory: four real
+# submissions with `allow=e` were rejected with "Unable to find a place to run this job", so e00a's
+# apparent 328 cores are not reachable by us and must not be counted.
+#
+# ROLLOUT IS GRADUAL BY CONSTRUCTION, WHICH IS WHY IT IS SAFE. `run_batch` submits only when the
+# batch has NO live job in the queue (driver.py, the alive-names guard), so a restarted line does
+# not resubmit its in-flight work; already-queued jobs keep `allow=d` and drain normally, and only
+# the NEXT batch boundary picks up the wider pool.
 $cpuLane = @(
-  "--device", "cpu", "--pool", "d",
+  "--device", "cpu", "--pool", "db",
   "--pack", "8", "--cores-per-training", "1",
   "--search-pack", "1", "--search-threads", "8",
   "--chunk-tasks", "1",

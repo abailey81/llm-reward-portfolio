@@ -1,5 +1,14 @@
 """FREE CAPACITY BY POOL — re-opening the pool-widening question on its OWN stated condition.
 
+⚠⚠ SUPERSEDED 2026-08-02 (RUN 14) — ITS NUMBERS ARE OPTIMISTIC. USE `docs/ops/placeable_capacity.py`.
+This module reads free slots from `qhost` HOST counters, which say nothing about whether the queue
+INSTANCE on that host will accept a job, and it counts a host as usable on slots alone. Measured the
+same minute on pool b: this module reported 279 free slots / 216 cores; the truth was 135 free slots
+(four hosts are `d`/`adu`, and their 144 slots can never be ours) and, after gating on the memory a
+pack-8 job actually asks for, **88 cores**. It overstated pool d by 4.2x the same way. The successor
+takes queue-instance STATE from `qstat -f`, free slots from `hc:slots`, and gates on memory + tmpfs.
+Kept because the D30 narrative below cites it; do not act on its figures.
+
 WHY, AND WHY THIS IS NOT RE-LITIGATION (RUN 13, 2026-08-02). `docs/DEFERRED_FIXES_RUN4.md`
 "CONSIDERED AND DECLINED — pool widening d -> d,b" measured this on 2026-07-31 and declined it,
 recording the decision so it "is not re-litigated from first principles a third time". That entry is

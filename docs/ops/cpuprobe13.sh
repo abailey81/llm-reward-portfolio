@@ -1,4 +1,16 @@
 #!/bin/bash
+# ============================================================================================
+# ⚠⚠ SUPERSEDED AND UNSCHEDULABLE — DO NOT SUBMIT THIS FILE. USE `docs/ops/cpuprobe14.sh`.
+#
+# This spec asks for a shape no queue offers: it carries `-l mem=1G` with NO `-pe`, NO `-l tmpfs`
+# and NO `-ac allow=`. Two jobs submitted from it on 2026-08-02 (73026, 73027) sat unschedulable
+# on a queue that was AT `max_u_jobs`, and because `qdel` is blocked for the agent they
+# permanently consumed two of one thousand job slots (P188).
+#
+# The corrected probe derives its spec from a LIVE RUNNING campaign job (`qstat -j`) instead of
+# from documentation, and is verified to run: `cpuprobe14.sh` placed on node-b00a-013 and
+# returned the CPU model that settled the D30 pool-widening decision.
+# ============================================================================================
 #$ -N cpuprobe13
 #$ -cwd
 #$ -j y

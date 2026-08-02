@@ -15647,3 +15647,188 @@ memory was not the binding resource — but it had to be corrected before Tamer 
 harmless to compute, but the honest reckoning is that I added to the very problem I had documented one
 hour earlier. They need `qdel 73026 73027` alongside the six `sshorig` jobs — and `qdel` is blocked for
 the agent.
+
+---
+
+## 105. ★★★★★ RUN 14 — THE CORES ANSWER, RE-DERIVED FROM SCRATCH: THE HEADROOM IS 112 CORES, NOT 592, AND THE BLOCKER THAT STOPPED RUN 13 DOES NOT EXIST (2026-08-02)
+
+**Tamer's standing instruction this session: *"we are not even at 2k cores ... speed up to an absolute
+maximum"*, with full permission and ratification. This section is the honest answer, and most of it is
+a correction of the previous pass rather than an extension of it.**
+
+### 105.1 The state, measured
+
+```
+running   214 jobs / 1,712 slots      queued 782 jobs      job cap 1000/1000 (SATURATED)
+of the 1,712 running cores:  leg9 = 1,624 (94.9%)   CORE = 80 (4.7%)   leg7 = 8
+```
+
+The CORE line holds ten jobs and **all ten are running with none queued** — it is getting everything it
+asks for and is rate-limited by its serial DFO chain, not by capacity. So "give the critical path more
+cores" is not available: there is nothing for it to spend them on. The queue backlog is legs.
+
+### 105.2 THE HEADROOM IS 112 CORES, AND THE OLD FIGURE WAS AN INSTRUMENT DEFECT
+
+`pool_capacity_compare.py` reads free slots from `qhost` HOST counters, which say nothing about whether
+the queue instance will accept work, and gates on slots alone. `docs/ops/placeable_capacity.py` (new)
+takes instance STATE from `qstat -f`, free slots from `hc:slots`, and gates on memory and tmpfs:
+
+```
+pack 8, PAID + disabled excluded, memory-gated (2G/slot, P187)
+  d00a    13 jobs by slots -> memory forbids 10 ->  3 jobs =  24 cores
+  d00b     1 job                                ->  0 jobs =   0 cores
+  b00a    11 jobs by slots -> memory forbids  0 -> 11 jobs =  88 cores
+                                                     TOTAL = 112 cores
+```
+
+**Independent cross-check:** of pool d's usable hosts with >= 8 free slots, **9 of 11 (82 %) hold under
+16 G free memory** and cannot take a pack-8 job; of pool b's, **0 of 5**. b00a hosts carry 1.5 T of RAM
+against d00a's 188 G. Two routes agree, so this is a measurement and not a reading.
+
+**⇒ 2,000 cores is not reachable today.** We hold 1,712; every entitled, enabled, memory-satisfying,
+non-PAID slot we could additionally place at pack 8 comes to 112 more. The cluster is genuinely full:
+we hold ~23 % of the entitled pool and other users hold the rest. The honest ceiling is ~1,824, and
+only a smaller pack (which the job cap forbids) or fewer competing users moves it.
+
+### 105.3 FRAGMENTATION AND MEMORY, PRICED — and why pack width is the biggest unavailable lever
+
+```
+placeable cores across d00a+d00b+b00a, memory-gated:
+   pack 8 -> 112      pack 4 -> 220      pack 2 -> 322
+```
+
+Pool d has **496 free slots of which 392 are stranded** in sub-pack scraps. Halving the pack would
+roughly double placeable cores — and it doubles the JOB count, against a cap we are sitting exactly on.
+**That is the crossing point, and it is why pack 8 stays.** The lever is real, measured, and locked.
+
+### 105.4 THE BLOCKER THAT STOPPED RUN 13 IS NOT REAL
+
+RUN 13 declined to execute D30 because *"a restarted line resubmits immediately and every submission
+would be REFUSED ... a refusal RAISES"*. Both halves are false, read in the source:
+
+1. **`run_batch` submits only when the batch has NO live job in the queue.** The submit block is inside
+   the `else:` of `if alive_names:` (`driver.py:550-552` vs `:616-624`), and `batch_jobs_in_queue`
+   matches by anchored full jobname from untruncated `qstat -r`. It is the documented double-submit
+   guard. **A line restarted now submits nothing at all until its own jobs drain.**
+2. **A refusal is caught, not raised.** `_TRANSPORT_ERRORS` (`driver.py:47`) contains `RuntimeError`
+   and `subprocess.SubprocessError`, covering both arrival paths. D25 traced the exception up through
+   `run_test_leg` to the C4 `ex.map` and missed that `run_test_leg` **returns `run.run_batch(...)`**
+   (`campaign.py:1289`) — it never escapes `run_batch`'s own handler.
+
+**Measured, not argued:** an un-wrapped scan of all twelve run-4 driver logs (hard-wrapped by the
+PowerShell host, P181) finds **0 cap rejections / 0 unparsable qsubs / 0 fatal streaks** across 720
+transport blips, with a 509-hit matcher control proving the scan works.
+
+### 105.5 WHAT WAS DONE — D30 EXECUTED, CORRECTED
+
+`--pool d` -> `--pool db` in `scripts/mode_d_supervisor.ps1`. The value is **`db`, not `d,b`**: a real
+`qsub -ac allow=db` is granted PE `smp-[BD]*` spanning both pools, while `-pe smp-B` is rejected by
+policyjsv outright. Safety rests on ONE fact and it was verified first-hand rather than inherited from
+§46.2 — a probe on `node-b00a-013` reported `Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz`, 2 sockets, 36
+cores, avx512f=1: the same model string pool d reports, so the C3 substrate key cannot go heterogeneous.
+
+**e00a is REFUSED, and the repository already said so.** Four real submissions with `allow=e` drew
+*"Unable to find a place to run this job"*, and `lanes.EXCLUDED_CPU_POOLS` has listed `e`/`f`/`l`/`u`/`v`
+as GPU-node pools all along. RUN 13's "biggest prize (344 cores)" was a pool the codebase excludes.
+⚠ **That list is referenced only in docstrings and enforced by no code path** — recorded, not fixed
+(it sits in the driver import closure and would cost a twelve-line relaunch).
+
+### 105.6 ⚠ MY ERRORS THIS PASS — P189-P192, and every one was my own instrument
+
+**P189 — I used `qsub -w v` / `-w p` as a schedulability oracle and it is wrong in BOTH directions.**
+It reported *"found suitable queue(s)"* for `-pe smp-E`, which the JSV then rejected outright; and
+*"no suitable queues"* for `allow=d`, **the configuration with 203 jobs running at that instant.**
+A verification mode that passes the impossible and fails the actual is not evidence. **Only a real
+`qsub` is authoritative on this cluster** — every pool claim in this section rests on one.
+
+**P190 — my own new capacity instrument reported pool d as 7,264 free cores, more than the pool
+physically holds.** `qstat -f` prints one row per host PER QUEUE (Bran, Bronn, Brienne...) over the
+SAME physical slots; taking the most-idle instance per host reads an idle queue as an idle host.
+Caught because the number was impossible, then fixed by taking free slots from `qhost`'s `hc:slots`
+consumable and using `qstat -f` only for state. **This is the P183 pattern exactly: an impossible
+result is a claim about my specification, not about the world.**
+
+**P191 — my non-ASCII guard matched line 1 of a plainly-ASCII file.** `grep -n '[^\x00-\x7F]'` does not
+interpret `\x` escapes in this shell, so the class matched almost everything and I was one step from
+recording "NON-ASCII FOUND" on a clean file. Re-checked in Python: **0 non-ASCII bytes, no BOM.**
+
+**P192 — the harness reported the full test suite as "exit code 0" while the LOG read `PYTEST_RC=4`.**
+`pytest-timeout` is not installed, `--timeout=900` was rejected as an unrecognised argument, and **the
+suite never ran at all.** The standing rule — *never trust a pipe's or wrapper's exit code, read
+PYTEST_RC from the LOG* — caught it exactly as written, on the first occasion it mattered this session.
+
+**And a near-miss worth the same weight:** my first memory cross-check disagreed with the capacity
+instrument (68 hosts vs 13 jobs). Rather than pick a winner I applied the instrument's own PAID and
+blocked exclusions to the cross-check; it then reconciled to 11 hosts and CONFIRMED the instrument.
+A disagreement between two of my own instruments is a claim about the instruments first.
+
+### 105.7 ★★★★★ THE BIGGEST LEVER ON THE REPORTED RESULT IS NOT CORES — IT IS SUBMISSION ORDER, AND IT IS NOT AGENT-ACTIONABLE
+
+**This outranks everything above it in this section, and I found it only because the per-line share
+looked wrong.** Measured 2026-08-02 13:2x:
+
+```
+STAGE       LINES                                             CORES   BLOCKED FOR
+C4 sweep    leg9 gemini / leg6 gpt-luna / leg4 qwen3_5-9b      1,624   -- ~950 jobs queued+running
+C1-test     sonnet, qwen3_6-27b, haiku, glm, deepseek, kimi        0   1.5 - 6.9 h, ALL at 0/60 done
+C1-search   nemotron (4/5 arms frozen -> CRITICAL PATH)             8
+C1          core   (6/10 arms frozen -> CRITICAL PATH)             80   10 jobs, 0 queued
+```
+
+**Seven lines have had ZERO cores for hours, and each needs only EIGHT jobs to clear its C1 barrier —
+about 56 jobs, roughly 1.4 h of fleet capacity. They are queued behind ~950 C4 jobs.**
+
+**THE MECHANISM.** The pipelined C4 path (`campaign.py:1997`, `_TPE` over `tiers[1:]`) submits ALL SIX
+assurance blocks AT ONCE. Measured submission times prove how tight the burst is:
+
+```
+leg9  sweep_t1..t6 : 04:15:56 -> 04:18:15   (2m19s apart)
+leg6  sweep_t1..t6 : 10:55:29 -> 10:55:32   (3s apart)
+leg4  sweep_t1..t6 : 11:53:37 -> 11:53:40   (3s apart)
+leg8  h2_pair_test : 06:29:50               <- 2h11m BEHIND leg9's TOP rung block
+```
+
+`weight_waiting_time = 1.0` at equal priority, so the queue is ordered by AGE. Within a line the
+blocks differ by seconds; across lines they differ by HOURS. **So the queue is ordered LINE-major, and
+one line's rung-568 block outranks another line's rung-100 block by two hours.** The code comment
+claiming *"blocks are submitted in rung order and weight_waiting_time = 1.0, so the earlier block
+outranks the later one on age alone"* is true WITHIN a line and says nothing about across.
+
+**WHY IT MATTERS TO THE SCIENCE, from the registration rather than from opinion.** R101:
+*"the FINAL result is whatever COMMON rung all 11 have COMPLETED by the stop"*, *"all 11 full-loop
+models climb ONE common assurance ladder in LOCKSTEP at EQUAL winner-re-run priority"*, and explicitly
+*"no idle-tail asymmetry -- all 11 climb together from the start."* The reported rung is a MINIMUM over
+eleven lines, and the pooled cross-model bound is a PRIMARY statistic at that rung. **Line-major
+execution therefore spends capacity on the HIGH rungs of three lines before the LOWEST rung of seven
+others — which is precisely the privileging R101 retired.**
+
+⚠ **STATED PRECISELY, BECAUSE OVERSTATING IS AS INACCURATE AS UNDERSTATING.** This is NOT a
+pre-registration violation and it does not invalidate any analysis: the cumulative-tier rule still
+banks the largest COMPLETED common rung, and every record is valid. It is an EFFICIENCY defect against
+the registered metric — an interleaved (rung-major) order reaches any given common rung strictly
+sooner, because line-major does work ABOVE rung r on early lines before doing work AT rung r on late
+ones. Total makespan for all work is unchanged; the common rung AT THE AUG-27 STOP is not.
+
+**ORDER-OF-MAGNITUDE COST (an estimate, flagged as one).** p99 training wall is 10.8 h and a pack-8 job
+carries 8 trainings, so the fleet retires roughly 21 jobs/h at 214 concurrent. ~950 jobs ahead of the
+starved lines implies **~45 h before seven of eleven lines resume** — and the pattern repeats at every
+block boundary as each new line enters C4.
+
+**WHY I DID NOT ACT, AND IT IS A DECISION RATHER THAN AN OMISSION.** Every reordering route is closed
+to the agent by a standing rule or by the cluster:
+
+* **Raise the starved lines' priority** — fair-share forbids self-elevation; only an RC/admin request
+  can, and that is Tamer's call (he has said no RC request).
+* **Lower the C4 lines' priority** — forbidden outright by Tamer's absolute never-deprioritise rule.
+* **`qdel` and resubmit later** — blocked for the agent, destroys queue position and the reservation.
+* **`qalter` the starved jobs onto the wider pool** — **IMPOSSIBLE, and now measured**: the site JSV
+  refuses it — `rejected due to jsv_allowed_mod configuration which does not allow: pe_name,pe_min`.
+  The PE (`smp-[D]*`) is what binds a job to pool D and it cannot be altered after submission, so an
+  already-queued job can NEVER be moved to pool b. Only NEW submissions can. **Tested on my own probe
+  job, never on campaign work.**
+* **Change the C4 submission to rung-major** — the real fix, and a code change to `campaign.py` inside
+  the driver import closure, requiring a twelve-line relaunch mid-ladder and touching how the
+  registered ladder is dispatched. **That is a design decision for Tamer, not an ops edit for me.**
+
+**⇒ THIS IS THE HIGHEST-VALUE OPEN DECISION IN THE CAMPAIGN, and it is worth more than every core
+lever in this section put together.**

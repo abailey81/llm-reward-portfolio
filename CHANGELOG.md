@@ -3,6 +3,94 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-02d] ★★★★★ BUILDER / RUN 14 — **THE HEADROOM IS 112 CORES, NOT 592** · the blocker that stopped RUN 13 does not exist · pool widening EXECUTED onto b00a on a first-hand CPU probe · e00a was a pool the codebase already excluded · four of my own instruments lied to me, including the test harness
+
+**PAST.** RUN 13 closed by mapping the D30 pool-widening rollout but declining to execute it, on the
+grounds that the 1000-job cap would drop any restarted line into a crash-loop. It handed over an action
+queue whose first item was a `qdel` only Tamer can run. `[2026-08-02c]` is that handover.
+
+**TAMER'S BRIEF THIS SESSION, VERBATIM:**
+> *"we are not even at 2k cores ... speed up to an absolute maximum"* · *"I give you full permission,
+> and ratify the actions"* · *"constantly check each record, make sure veery record individually is
+> vey stricrlt flawless, logical, meaningful"* · *"study all documents in this project very
+> extneisvelly before you act ... 0 gas"*
+
+**PRESENT.**
+
+### ① THE CORES ANSWER, RE-DERIVED — and 2,000 is not reachable today
+
+```
+running 214 jobs / 1,712 cores    queued 782    job cap 1000/1000 SATURATED
+of the 1,712:  leg9 = 1,624 (94.9%)   CORE = 80 (4.7%)   leg7 = 8
+```
+
+The CORE line holds ten jobs with **none queued** — it gets everything it asks for and is limited by its
+serial DFO chain, not capacity. Placeable headroom, measured after excluding PAID and disabled hosts and
+gating on the memory a pack-8 job actually asks for: **pool d = 24 cores, pool b = 88, total 112.** The
+honest ceiling today is ~1,824. Cross-checked by an independent route: **82 % of pool d's usable
+>=8-slot hosts hold under 16 G free memory** and cannot take a pack-8 job; **0 % of pool b's** (b00a
+carries 1.5 T of RAM per host against d00a's 188 G).
+
+### ② THE +592-CORE FIGURE WAS AN INSTRUMENT DEFECT — `docs/ops/placeable_capacity.py` is the correction
+
+`pool_capacity_compare.py` reads free slots from `qhost` HOST counters, which say nothing about whether
+the queue instance accepts work, and gates on slots alone. On pool b it reported 279 free slots / 216
+cores; the truth was **135 free slots / 88 cores** (four hosts are `d`/`adu`). The new instrument takes
+instance STATE from `qstat -f`, free slots from `hc:slots`, and gates on memory + tmpfs. It also prices
+the lever we cannot pull: **placeable cores are 112 at pack 8, 220 at pack 4, 322 at pack 2** — pool d
+holds **392 stranded slots** — and halving the pack doubles the job count against a cap we sit exactly on.
+
+### ③ THE BLOCKER THAT STOPPED RUN 13 IS NOT REAL
+
+Both halves of *"a restarted line resubmits and every submission is REFUSED, and a refusal RAISES"* are
+false, read in the source: `run_batch`'s submit block is inside the `else:` of `if alive_names:`
+(`driver.py:550-552` vs `:616-624`) with anchored jobname matching — **a restarted line submits nothing
+while its own jobs are alive** — and `_TRANSPORT_ERRORS` (`:47`) contains `RuntimeError` and
+`SubprocessError`, so a refusal is caught at `:639` and retried. **D25 traced the exception to the C4
+`ex.map` but missed that `run_test_leg` returns `run.run_batch(...)` (`campaign.py:1289`).** Measured
+confirmation: an un-wrapped scan of all twelve driver logs finds **0 cap rejections / 0 unparsable
+qsubs / 0 fatal streaks** across 720 transport blips, with a 509-hit matcher control.
+
+### ④ D30 EXECUTED — `--pool db`, on a probe rather than an inherited fact
+
+`scripts/mode_d_supervisor.ps1` `$cpuLane` now reads `"--pool","db"`. The value is **`db`, not `d,b`**:
+a real `qsub -ac allow=db` is granted PE `smp-[BD]*` spanning both pools, while `-pe smp-B` is rejected
+by policyjsv. Safety rests on one fact, verified first-hand instead of inherited from §46.2 — a probe on
+`node-b00a-013` returned `Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz`, 2 sockets, 36 cores, avx512f=1:
+the same model string pool d reports, so the C3 substrate key cannot go heterogeneous. Rollout is
+gradual by construction — queued jobs keep `allow=d` and drain; only the next batch boundary widens.
+
+**e00a is REFUSED on measurement (4 real submissions: *"Unable to find a place to run this job"*), and
+`lanes.EXCLUDED_CPU_POOLS` has listed `e`/`f`/`l`/`u`/`v` as GPU-node pools all along** — RUN 13's
+"biggest prize (344 cores)" was a pool the repository already excluded. ⚠ That list is referenced only
+in docstrings and **enforced by no code path**; recorded, not fixed (driver import closure).
+
+### ⑤ EVERY RECORD, AGAIN, ON THE LIVE ARCHIVE
+
+`record_validator` **R1-R9 CLEAN on 3,604** · `record_provenance_seal` **P1-P4 CLEAN on 3,605**, one
+`git_commit` (`b9e6df5535a8`) archive-wide, 56 frozen winners resolved through the chain, A62 at
+2,047/2,047. Both remain wired incremental into `cycle.py`.
+
+### ⑥ ⚠ MY OWN ERRORS — P189-P192, all four were instruments
+
+* **P189** — `qsub -w v`/`-w p` is wrong in BOTH directions here: it passed `-pe smp-E` which the JSV
+  then rejected, and failed `allow=d`, **the configuration with 203 jobs running at that moment**. Only
+  a real `qsub` is authoritative; every pool claim above rests on one.
+* **P190** — my own new capacity instrument reported pool d as **7,264 free cores**, more than the pool
+  physically holds. `qstat -f` prints one row per host PER QUEUE over the SAME slots. Caught because the
+  number was impossible — the P183 pattern: an impossible result indicts my specification first.
+* **P191** — my non-ASCII guard matched line 1 of a plainly-ASCII file (`grep '[^\x00-\x7F]'` does not
+  expand `\x` in this shell). Re-checked in Python: 0 non-ASCII bytes, no BOM.
+* **P192** — **the harness reported the full suite as "exit code 0" while the LOG read `PYTEST_RC=4`**:
+  `pytest-timeout` is not installed, `--timeout=900` was rejected, and the suite never ran. The standing
+  never-trust-the-wrapper rule caught it exactly as written.
+
+**FUTURE.** ① `qdel 66103 66104 66105 66106 66107 66108 73026 73027` — still Tamer's command, and now
+priced: with ~112 cores placeable and the cap saturated, each freed slot is one pack-8 job, so the eight
+junk jobs are worth **up to 64 cores immediately**. ② Roll `--pool db` to the remaining lines after the
+canary's first new-pool records pass the substrate census. ③ D29 pagefile (rung 189 -> 403, HKLM write
+is Tamer's). ④ `campaign_summary.json` AT TEARDOWN — still the only unrecoverable item.
+
 ## [2026-08-02c] ★★★★★ BUILDER / RUN 13 CLOSES — **THE CEILING IS THE ENTITLED HOST COUNT** · pool widening re-opened on its own stated condition · every record verified on 13 properties and now continuously · eleven of my own errors, five of them instruments lying to me
 
 **PAST.** `[2026-08-02a]` found D27 (the 30-step chain priced at 4); `[2026-08-02b]` landed it and

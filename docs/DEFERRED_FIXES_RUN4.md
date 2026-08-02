@@ -1641,3 +1641,115 @@ cap we are sitting exactly on. **`qdel` is blocked for the agent**, which is why
 and not mine.
 
 **With headroom restored: canary one leg onto `d,b`, verify the substrate census, then roll.**
+
+---
+
+### D30 — ★ CORRECTED AND EXECUTED (2026-08-02, RUN 14). FOUR OF THE ENTRY ABOVE'S LOAD-BEARING CLAIMS WERE WRONG, AND THE GAIN IS 88 CORES, NOT 592
+
+**Everything below was measured today with the authoritative oracle — a REAL `qsub` — after
+discovering that `qsub -w v` / `-w p` disagree with reality in BOTH directions on this cluster.**
+
+#### ① THE FLAG VALUE IS `db`, NOT `d,b`
+
+The site JSV maps the `allow=` context onto a wildcard PE. Verified by real submission:
+
+```
+qsub -pe smp 1 -ac allow=db   ->  accepted; "parallel environment: smp-[BD]*"   <- spans BOTH pools
+qsub -pe smp-B 1 -ac allow=b  ->  "Rejected by policyjsv: Please specify a valid pe (eg: -pe smp 1)"
+```
+
+So the jobscript's existing `#$ -pe smp {cores}` is already correct and must NOT be changed; only the
+`allow=` context widens. `render_jobscript(pool="db")` was run and emits `#$ -ac allow=db` with the
+D15 host fence intact — checked by rendering, not by reading.
+
+#### ② e00a IS UNREACHABLE — AND THE REPOSITORY ALREADY SAID SO
+
+The entry above calls e00a *"the biggest prize (344 cores)"*. **Four real submissions with
+`-ac allow=e` were all rejected**: `Rejected by policyjsv Reason: Unable to find a place to run this
+job`. This is not transient and not a spec error — the identical spec with `allow=b` ran.
+
+**And `src/cluster/lanes.py:165` `EXCLUDED_CPU_POOLS` ALREADY lists `e`, `f`, `l`, `u`, `v` as GPU-node
+pools.** D30 proposed widening onto a pool the codebase had already excluded, for a documented reason.
+⚠ **Separately worth knowing: `EXCLUDED_CPU_POOLS` is referenced only in DOCSTRINGS
+(`allocation.py:136`, `capture_env.py:93`) and is enforced by NO code path** — the list that protects
+CRN bit-exactness is advisory. Not fixed here (it is inside the driver import closure and would cost a
+twelve-line relaunch to land); recorded so it is not rediscovered the expensive way.
+
+`f00a` is also out: `-pe smp-F` reports *"only offers 0 slots"*.
+
+#### ③ THE +592-CORE FIGURE CAME FROM AN INSTRUMENT DEFECT. THE REAL NUMBER IS 88
+
+`pool_capacity_compare.py` reads free slots from `qhost` HOST counters, which say nothing about
+whether the queue instance will accept work, and it gates on slots alone. Measured the same minute:
+
+| | `pool_capacity_compare` | measured truth |
+|---|---|---|
+| b00a free slots | 279 | **135** (4 hosts are `d`/`adu`; their 144 slots can never be ours) |
+| b00a cores | 216 | **88** |
+| pool d cores | 472 | **24** |
+
+**`docs/ops/placeable_capacity.py` is the correction** — it takes queue-instance STATE from `qstat -f`,
+free slots from `qhost`'s `hc:slots` consumable, and gates on memory (2 G/slot, P187) and tmpfs. The
+memory gate is what changes the conclusion:
+
+```
+pack 8, PAID + disabled excluded, memory-gated:
+  d00a   13 jobs by slots -> memory forbids 10 ->  3 jobs =  24 cores
+  b00a   11 jobs by slots -> memory forbids  0 -> 11 jobs =  88 cores
+```
+
+**Cross-checked by an independent route** (`memcheck`): of pool d's usable hosts holding >= 8 free
+slots, **9 of 11 (82 %) have under 16 G free memory** and so cannot take a pack-8 job; of pool b's,
+**0 of 5**. b00a hosts carry **1.5 T of RAM** against d00a's 188 G, which is the whole reason pool b is
+worth having. **So pool b offers ~3.7x what pool d itself can still give us — a real and worthwhile
+gain, and an order of magnitude smaller than the entry above claims.**
+
+#### ④ THE "RESTART RISKS A CRASH-LOOP" BLOCKER DOES NOT EXIST
+
+This is the claim that stopped RUN 13 executing, and it is wrong on two independent counts, both read
+in the source and both checkable:
+
+1. **A restarted line does not resubmit while its jobs are alive.** `run_batch`'s submit block sits
+   inside the `else:` of `if alive_names:` (`driver.py:550-552` vs the submit at `:616-624`), and
+   `batch_jobs_in_queue` matches this batch's jobs by ANCHORED full jobname from `qstat -r`. It is the
+   documented double-submit guard. A line restarted now finds its own queued jobs and submits NOTHING.
+2. **A cap refusal is CAUGHT, not raised out.** `_TRANSPORT_ERRORS` (`driver.py:47`) includes
+   `RuntimeError` AND `subprocess.SubprocessError`, which covers both arrival paths — `parse_job_id`'s
+   "could not parse a job id" and the runner's `CalledProcessError`. The submit is inside that `try`,
+   so a refusal increments `ops_failures` and retries next cycle; it is fatal only after 72 consecutive
+   failures. **D25's "the driver crashes -> crash-loop" traced the exception up through `run_test_leg`
+   to the C4 `ex.map` but missed that `run_test_leg` returns `run.run_batch(...)`
+   (`campaign.py:1289`) — the exception never escapes `run_batch`'s own handler.**
+
+**MEASURED CONFIRMATION:** an un-wrapped scan of all twelve run-4 driver logs (the logs are
+hard-wrapped by the PowerShell host, P181, so this is not a grep) finds **0 cap rejections, 0
+unparsable qsubs, 0 fatal streaks** across 720 transport blips — with a matcher control of 509 hits
+proving the scan works. The cap has never bitten a driver. The only thing that ever met it was a probe.
+
+#### ⑤ WHAT WAS ACTUALLY DONE
+
+`scripts/mode_d_supervisor.ps1` `$cpuLane` now reads `"--pool","db"`, with the measurement and the
+safety argument recorded at the decision point. **The safety fact was verified first-hand rather than
+inherited from record §46.2:** a probe job on `node-b00a-013` reported
+
+```
+PROBE_MODEL=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz   PROBE_SOCKETS=2  PROBE_CORES=36  AVX512F=1
+```
+
+— the same model string pool d reports, so the C3 substrate key (`cpu model | omp | threads | cuda`)
+cannot become heterogeneous. `docs/ops/cpuprobe14.sh` is the corrected probe (P188's spec was missing
+the PE, tmpfs and the `allow=` context; this one is derived from a LIVE running job's `qstat -j`).
+
+**Rollout is gradual by construction and that is why it is safe:** already-queued jobs keep `allow=d`
+and drain normally; only the next batch boundary picks up the wider pool.
+
+#### ⑥ WHAT `qdel` IS ACTUALLY WORTH — AND IT IS NOT ZERO
+
+Still Tamer's command (`qdel` remains classifier-blocked for the agent). Priced properly: there are
+**~112 cores of placeable capacity sitting free right now** and we cannot claim them because we hold
+1000/1000 jobs. Each freed job slot is one pack-8 job, so the eight junk jobs are worth **up to 64
+cores immediately** — the single fastest core gain available today.
+
+```
+qdel 66103 66104 66105 66106 66107 66108 73026 73027
+```
