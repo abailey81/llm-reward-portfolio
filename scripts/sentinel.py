@@ -1292,7 +1292,13 @@ def _gather_campaign_lane(camp_root: Path, out: dict[str, Any]) -> dict[str, Any
     # Critical path: completed steps + idle time per serial-chain arm, straight from the archive.
     search_root = camp_root / "search"
     chains: dict[str, dict[str, Any]] = {}
-    for arm, total in lanes.SERIAL_CHAIN_STEPS.items():
+    # ⚠ CORRECTED 2026-08-02 (D27, record §101.2). This iterated `SERIAL_CHAIN_STEPS`, which counts
+    # DISPATCH steps, and compared it against a count of RECORDS. The units did not match, so this
+    # check reported **"cma_es 9/4"** and `check_chain_progress` classified the campaign's LONGEST
+    # serial chain as COMPLETE — leaving the one arm whose stall would silently slip the finish date
+    # with no stall detector at all. `SERIAL_CHAIN_BUDGET` is the matched candidate budget, which is
+    # the quantity a record count should be compared with.
+    for arm, total in lanes.SERIAL_CHAIN_BUDGET.items():
         arm_root = search_root / arm
         if not arm_root.is_dir():
             continue

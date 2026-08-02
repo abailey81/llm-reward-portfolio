@@ -83,6 +83,7 @@ __all__ = [
     "CPU_PLANNING_STEPS_PER_SEC",
     "GPU_PACK1_STEPS_PER_S",
     "SERIAL_CHAIN_STEPS",
+    "SERIAL_CHAIN_BUDGET",
     "CONFIRMATORY_CPU_POOLS",
     "EXCLUDED_CPU_POOLS",
     "training_core_hours",
@@ -217,6 +218,21 @@ SERIAL_CHAIN_STEPS: dict[str, int] = {
     "tpe": _TPE_SERIAL_STEPS,
     "cma_es": _CMA_SERIAL_GENERATIONS,
 }
+
+#: What the SENTINEL must compare its record count against — and it is NOT the constant above.
+#:
+#: ⚠ FOUND 2026-08-02 (D27, record §101.2). ``SERIAL_CHAIN_STEPS`` counts DISPATCH steps, which is the
+#: right quantity for the makespan model in ``_critical_chain_days``. ``scripts/sentinel.py`` counts
+#: RECORDS and compared them against it, so ``campaign_health.check_chain_progress`` — whose whole
+#: purpose is that "a stalled chain is the campaign's worst silent failure" — read **"cma_es 9/4"** and
+#: classified the campaign's longest chain as COMPLETE. The same unit mismatch under-counts the other
+#: two (tpe would be "done" at 20 of 30 records, bayes_opt at 25 of 30), it just never bit as hard.
+#:
+#: Both numbers are correct for their own purpose; using one for the other is the defect. Every DFO arm
+#: spends the SAME matched candidate budget — that is the point of the H4 comparison — so the record
+#: count to expect is ``config/campaign.yaml: candidates_per_arm``, which the freeze binds at 30.
+_MATCHED_CANDIDATE_BUDGET = 30
+SERIAL_CHAIN_BUDGET: dict[str, int] = {a: _MATCHED_CANDIDATE_BUDGET for a in SERIAL_CHAIN_STEPS}
 # ⚠ UPDATED 2026-07-26 (late): the registered roster grew 7 -> 9 arms the same day
 # (`config/preregistration.yaml: arms` gained `cma_es` + `tpe` as the H4 optimiser portfolio,
 # N4 CONFIRMATORY — not report-only). The DFO arms are CORE-only: the 10 replication legs still

@@ -1149,7 +1149,13 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
             # these are the DFO startup design points, a BARRIER before the strictly-sequential
             # ask/tell loop, so the wave costs one training's latency and must not be sized against
             # the test flood's pack (8 threads x pack 4 = an unplaceable 32-core request).
-            run.run_batch(specs, f"{arm}_startup", pool=run.pool_confirmatory,
+            # D27 (2026-08-02): CMA-ES calls this ONCE PER GENERATION, so a FIXED batch name would put
+            # three generations into one batch directory, one `.driver.lock` and one
+            # `.permanent.jsonl` — and a stale lock of exactly that kind cost this campaign 4.5 h on
+            # `cma_es-c5` on 2026-08-01. Keying the name on `idx0` makes each call unique, and
+            # `idx0 == 0` keeps it BYTE-IDENTICAL for tpe/bayes_opt, which batch exactly once.
+            _bname = f"{arm}_startup" if idx0 == 0 else f"{arm}_gen{idx0}"
+            run.run_batch(specs, _bname, pool=run.pool_confirmatory,
                           pack=(run.search_pack or run.pack), priority=priority, **_bkw_b)
 
         out: list[float] = []
@@ -1169,10 +1175,23 @@ def run_family_search_arm(arm: str, opts: dict, run: ClusterRun, *, resume: bool
     # It matters because the driver turns every `template_eval` into its own array-of-1 job: left
     # sequential, bayes_opt's "5 parallel" init is really 5 more SERIAL queue-and-train steps,
     # making the GP chain 30 rather than 25 on the campaign's critical path.
-    # random_search is already one array; CMA-ES already dispatches a whole population per
-    # generation; neither accepts the kwarg.
+    # random_search is already ONE array and does not accept the kwarg.
+    #
+    # ⚠⚠ CORRECTED 2026-08-02 (D27). This block used to read "CMA-ES already dispatches a whole
+    # population per generation; neither accepts the kwarg" — and that was FALSE. CMA-ES *proposes* a
+    # whole population per generation; `dfo_toolkit.cma_es_over_template` then evaluated it with a
+    # SERIAL list comprehension, and on the cluster path every one of those calls is a blocking
+    # `run_batch`. The false comment is why `batch_eval_fn` was wired here for tpe and bayes_opt and
+    # never for cma_es, and why `lanes._CMA_SERIAL_GENERATIONS` was set to 4 for a chain that is
+    # really 30. Measured cost on RUN 4: `cma_es` at 9/30 with a 21-step remaining chain of ~8.6 h per
+    # step, gating the CORE line's C1 barrier and therefore the campaign's COMMON rung — while the
+    # sentinel, reading the same wrong constant, reported the arm COMPLETE at "9/4".
+    #
+    # CLAUDE.md's tell ④ exactly: when a comment and the code disagree, the COMMENT is the more
+    # dangerous artefact. The kwarg is the same one, the safety argument is the same one, and
+    # `tests/test_dfo_cma_batch.py` measures the identity rather than asserting it.
     _opt_kwargs: dict[str, Any] = {"rng": np.random.default_rng(opts["seed"])}
-    if arm in ("tpe", "bayes_opt"):
+    if arm in ("tpe", "bayes_opt", "cma_es"):
         _opt_kwargs["batch_eval_fn"] = template_eval_batch
 
     over_template_optimizer(arm)(

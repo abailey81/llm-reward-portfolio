@@ -77,6 +77,7 @@ def cma_es_over_template(
     *,
     init_step_frac: float = 0.25,
     popsize: Optional[int] = None,
+    batch_eval_fn: Optional[Callable[[Sequence[np.ndarray]], Sequence[float]]] = None,
 ) -> dict[str, Any]:
     """CMA-ES over the template coefficients (Hansen & Ostermeier 2001) — the low-dimensional continuous DFO
     gold standard — at the matched budget and fully deterministic from ``rng``.
@@ -86,6 +87,24 @@ def cma_es_over_template(
     are told to CMA (the covariance update only advances on complete generations); the final partial batch that
     would overshoot the budget is evaluated for the archive but NOT told, so the total is EXACTLY the matched
     budget with the CMA state left clean.
+
+    ``batch_eval_fn`` (optional) evaluates a WHOLE GENERATION at once and, when supplied, replaces the
+    per-member loop. **D27, 2026-08-02 — and it is a throughput fix, not a science change.** The module
+    docstring above has always said a population "can be dispatched concurrently", and
+    ``src/cluster/campaign.py`` asserted in a comment that CMA-ES "already dispatches a whole population
+    per generation" — but the code below evaluated the population with a SERIAL list comprehension, and on
+    the cluster path every one of those calls is a blocking ``run_batch``. Measured on RUN 4: ``cma_es``
+    stood at 9 of 30 candidates on a 21-step remaining chain of ~8.6 h each, gating the CORE line's C1
+    barrier and therefore the campaign's COMMON rung, while ``lanes._CMA_SERIAL_GENERATIONS`` priced that
+    chain at 4 and the sentinel consequently reported the arm COMPLETE at 9/4.
+
+    Dispatching the generation together is a PURE DISPATCH change: ``es.ask()`` produces the whole
+    population before any member is evaluated and ``es.tell()`` consumes all of it, so no member's proposal
+    depends on another member's fitness. Identity is not argued but MEASURED —
+    ``tests/test_dfo_cma_batch.py`` asserts the same points in the same order, the same scores, the same
+    winner, the same history and the same ``on_evaluated``/cache behaviour as the serial path, and carries
+    a mutation control so the comparison can fail. Opt-in and backward-compatible: without
+    ``batch_eval_fn`` the behaviour is byte-identical to before, which the same test also asserts.
     """
     import cma  # pycma (BSD)
 
@@ -98,6 +117,37 @@ def cma_es_over_template(
     lo, hi = box[:, 0].astype(float), box[:, 1].astype(float)
     rng_span = np.maximum(hi - lo, 1e-12)
     _evaluate, history, x_obs, y_obs = _make_recorder(template_eval_fn, cache_lookup, on_evaluated)
+
+    def _evaluate_generation(xs: list, source: str) -> list[float]:
+        """Score a WHOLE generation while preserving ``_evaluate``'s semantics exactly.
+
+        Mirrors ``tpe_over_template``'s already-shipped startup-batch block rather than inventing a
+        second pattern: same index convention (``idx0 = len(history)``), same per-member cache lookup,
+        same 1:1 length check, same rule that ``on_evaluated`` fires ONLY for fresh work, same append
+        order. Without ``batch_eval_fn`` this IS the previous list comprehension.
+        """
+        if batch_eval_fn is None:
+            return [_evaluate(x, source) for x in xs]
+        idx0 = len(history)
+        cached = [cache_lookup(idx0 + i, x) if cache_lookup is not None else None
+                  for i, x in enumerate(xs)]
+        need = [i for i, c in enumerate(cached) if c is None]
+        got = list(batch_eval_fn([xs[i] for i in need])) if need else []
+        if len(got) != len(need):
+            raise ValueError(
+                f"batch_eval_fn returned {len(got)} scores for {len(need)} points — a CMA generation "
+                "must be evaluated 1:1 or the covariance update and the history would desynchronise")
+        fresh = dict(zip(need, got))
+        out: list[float] = []
+        for i, x in enumerate(xs):
+            score = float(cached[i]) if cached[i] is not None else float(fresh[i])
+            if cached[i] is None and on_evaluated is not None:
+                on_evaluated(idx0 + i, x, score)
+            x_obs.append(x.copy())
+            y_obs.append(score)
+            history.append({"coeffs": x.copy(), "score": score, "source": source})
+            out.append(score)
+        return out
 
     x0 = (lo + hi) / 2.0
     opts: dict[str, Any] = {
@@ -118,12 +168,11 @@ def cma_es_over_template(
         xs = [np.clip(np.asarray(x, dtype=float), lo, hi) for x in es.ask()]
         remaining = budget - evaluated
         if len(xs) <= remaining:
-            scores = [_evaluate(x, "cma") for x in xs]
+            scores = _evaluate_generation(xs, "cma")
             es.tell(xs, [-s for s in scores])  # CMA minimises; we maximise fitness
             evaluated += len(xs)
         else:  # last partial batch: evaluate for the archive, do NOT tell (keep the CMA state clean)
-            for x in xs[:remaining]:
-                _evaluate(x, "cma_tail")
+            _evaluate_generation(xs[:remaining], "cma_tail")
             evaluated += remaining
             break
     return _result(history, x_obs, y_obs, budget)

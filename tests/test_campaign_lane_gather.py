@@ -177,14 +177,27 @@ def test_an_EMPTY_run_dir_yields_no_ARCHIVE_derived_inputs_so_those_checks_stay_
 
 
 def test_chain_progress_is_measured_from_the_archive_not_declared(tmp_path):
+    """⚠ UPDATED 2026-08-02 (D27, record §101.2). This used to assert
+    ``total == SERIAL_CHAIN_STEPS[arm]``, and that assertion PINNED A UNIT MISMATCH: ``completed``
+    counts RECORDS while ``SERIAL_CHAIN_STEPS`` counts DISPATCH steps. Live consequence — the sentinel
+    printed **"cma_es 9/4"** and ``check_chain_progress`` classified the campaign's LONGEST serial
+    chain as COMPLETE at 9 of a real 30, so the one arm whose stall would silently slip the finish
+    date had no stall detector at all. The correct comparator is the matched candidate budget.
+    """
     now = time.time()
     for i in range(3):
         _write_record(tmp_path / "search" / "bayes_opt" / f"c{i}")
     lane = _gather_campaign_lane(tmp_path, {"now": now})
     assert lane["chain_progress"]["bayes_opt"]["completed"] == 3
-    from src.cluster.lanes import SERIAL_CHAIN_STEPS
-    assert lane["chain_progress"]["bayes_opt"]["total"] == SERIAL_CHAIN_STEPS["bayes_opt"]
+    from src.cluster.lanes import SERIAL_CHAIN_BUDGET, SERIAL_CHAIN_STEPS
+    assert lane["chain_progress"]["bayes_opt"]["total"] == SERIAL_CHAIN_BUDGET["bayes_opt"]
     assert lane["chain_progress"]["bayes_opt"]["hours_since_last"] < 1.0
+
+    # REGRESSION GUARD, and it is the point of the change rather than a nicety: the two constants
+    # must NOT be interchangeable, or reverting to the old comparator would pass this test silently.
+    # cma_es is where they diverge hardest -- 4 dispatch steps against a 30-candidate budget.
+    assert SERIAL_CHAIN_BUDGET["cma_es"] != SERIAL_CHAIN_STEPS["cma_es"]
+    assert SERIAL_CHAIN_BUDGET["cma_es"] == 30
 
 
 def test_a_STALLED_chain_is_visible_end_to_end_from_files_on_disk(tmp_path):
