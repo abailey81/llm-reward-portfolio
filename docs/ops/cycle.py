@@ -157,6 +157,15 @@ STALE_DRIVER_MINUTES = 30.0
 # is ~30 minutes, and it re-states every ZERO_DELTA_CYCLES thereafter rather than every cycle.
 ZERO_DELTA_CYCLES = 15
 
+#: Minimum seconds between DEEP SCIENCE AUDIT runs (S1-S9, docs/analysis/record_science_audit.py).
+#: It is a FULL-ARCHIVE scan by necessity -- S4 tests determinism by comparing duplicate records
+#: against each other, so an incremental window would stop testing the very thing it exists for.
+#: Measured 16 s over 4,044 records; at the ~42,000-record end state that is ~160 s, which on the
+#: raw ssh cadence would push a single cycle past the 2-minute staleness threshold the monitoring
+#: mandate reads as "the loop is DEAD". Rate-limiting keeps the cycle log honest AND the audit
+#: continuous: 30 min is ~9 % duty even at the end state.
+SCIENCE_AUDIT_MIN_SECS = 1800.0
+
 
 def _utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -868,6 +877,7 @@ def main() -> int:
     cores = jobs = ""
     _vanished_rc = -1        # -1 => the ssh-cadence layer did not run this cycle (see below)
     _record_seal_rc = -1     # -1 => same; 0 = sealed clean, 1 = a record disagrees with its files
+    _record_science_rc = -1  # -1 => not run this cycle; 0 = S1-S9 clean, 1 = a science issue
     if args.ssh:
         rc, out = _run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20", "myriad",
                         'Q=$(qstat -u ucestes | tail -n +3); '
@@ -933,6 +943,55 @@ def main() -> int:
             attention.append(f"record_provenance_seal rc={_seal_rc} -- the per-record seal could not "
                              "run this cycle; new records are UNSEALED until it does")
 
+        # ── DEEP SCIENCE AUDIT S1-S9 (RUN 14, 2026-08-02) ──────────────────────────────────────
+        # Tamer: "ensure the records are logical, meaningful, no science issue."
+        # R1-R9 check a record against its CONTRACT and the seal checks it against the FILES BESIDE
+        # IT. Neither asks whether the record makes SCIENTIFIC sense, and a record can satisfy both
+        # while holding the wrong test-window length, a tenth of the registered training budget, a
+        # non-simplex allocation, or -- decisively -- while DISAGREEING with another record that
+        # shares its (arm, seed, reward hash), which would mean determinism does not hold.
+        # Full-archive rather than incremental BY DESIGN: S4 compares duplicates against each other,
+        # so it needs BOTH members of every pair and an incremental window would silently stop
+        # testing determinism.
+        #
+        # ⚠ AND IT IS THEREFORE RATE-LIMITED, because measuring the cost changed the design.
+        # Wiring it straight onto the ssh cadence took the cycle sweep from ~26 s to 33-51 s and the
+        # log began printing SWEEP-BOUND. At 16 s over 4,044 records it scales to ~160 s at the
+        # ~42,000-record end state -- which would push a single cycle past the 2-MINUTE staleness
+        # threshold that the monitoring mandate reads as "the loop is DEAD". A check that makes the
+        # watchdog look dead is worse than a check that runs less often, so it runs at most once per
+        # SCIENCE_AUDIT_MIN_INTERVAL and the cycle log keeps its cadence.
+        # Cadence gate, in the same stamp-mtime idiom this file already uses at the gap/integrity
+        # probes above. A MISSING or unreadable stamp means DUE, so the audit fails toward running.
+        _sci_rc, _sci_out = -1, ""
+        _sci_stamp = WATCH / ".science_audit_stamp"
+        try:
+            _sci_due = (not _sci_stamp.is_file()
+                        or (time.time() - _sci_stamp.stat().st_mtime) >= SCIENCE_AUDIT_MIN_SECS)
+        except OSError:
+            _sci_due = True
+        if _sci_due:
+            _sci_rc, _sci_out = _run(
+                [sys.executable, "docs/analysis/record_science_audit.py"], timeout=900)
+            try:
+                _sci_stamp.parent.mkdir(parents=True, exist_ok=True)
+                _sci_stamp.write_text(str(time.time()), encoding="utf-8")
+            except OSError:      # observability must never break the run
+                pass
+        _record_science_rc = _sci_rc
+        if _sci_rc == 1:
+            alerts.append(
+                "DEEP SCIENCE AUDIT FAILED -- a record is not scientifically sound: a wrong test "
+                "length, an off-budget training, a non-finite or degenerate series, an invalid "
+                "allocation, a sealed-test reward at or above the registered R115 eligibility "
+                "floor, or a DETERMINISM BREACH between two records sharing an (arm, seed, reward "
+                "hash). Run `python docs/analysis/record_science_audit.py` for the detail.\n"
+                + "\n".join(ln for ln in _sci_out.splitlines()
+                            if ln.strip().startswith("- S") or "SCIENCE ISSUE" in ln))
+        elif _sci_rc != 0:
+            attention.append(f"record_science_audit rc={_sci_rc} -- the science audit could not run "
+                             "this cycle; new records are UNAUDITED for science until it does")
+
     state = {
         "written_utc": stamp,
         "note": args.note,
@@ -962,6 +1021,7 @@ def main() -> int:
         # -1 = the ssh cadence did not run this cycle; 0 = ran, clean; 1 = ran, vanished array found.
         "vanished_array_rc": _vanished_rc,
         "record_seal_rc": _record_seal_rc,
+        "record_science_rc": _record_science_rc,
         "alerts": alerts,
         "attention": attention,
     }
