@@ -16660,3 +16660,88 @@ With the nesting excluded, **no two candidates in any (line, arm, generation) sh
 reward source** — 1,509 search candidates across 319 generation groups, zero duplicates. The
 exploration directive fed to the model asks each candidate to differ from its generation-mates, and
 the archive shows it complied: **the K-wide search really is K-wide.**
+
+## 113. ★★★★★ RUN 14 (ninth pass) — S13: THE FED VALUES ARE MATHEMATICALLY COHERENT AND THE FEEDBACK PIPELINE IS EXACT (2026-08-02)
+
+**S11 proved each arm receives the right SHAPE of feedback. It did not check that the numbers in it
+are correct.** A renderer that mislabelled CVaR 1% as CVaR 25%, or fed a stale generation's
+statistics, would pass every check built so far while the manipulated variable silently carried wrong
+values. `docs/analysis/fed_value_coherence.py` (S13) closes that. Selftest 9/9; effect-blind (the
+prompt's validation-fitness line is never parsed).
+
+### 113.1 THE MEASUREMENT IS MATHEMATICALLY FLAWLESS
+
+```
+tail vectors checked : 1,507   across all NINE arms
+V1 CVaR monotonicity : 0 violations
+V2 mass in [0,1]     : 0 violations
+V3 all six finite    : 0 violations
+```
+
+**V1 is the decisive one and it is a NECESSITY, not a convention.** CVaR at level a averages the
+worst a-fraction, so a more extreme level must average a smaller and worse set:
+`cvar_01 <= cvar_05 <= cvar_10 <= cvar_25`. A violation would mean the tail estimator — which IS the
+manipulated variable — is wrong. **It holds on every one of 1,507 archived vectors**, including the
+stored statistics of both control arms.
+
+### 113.2 ★★★ THE FEEDBACK PIPELINE IS EXACT — 444 / 444
+
+V4 walks the loop numerically: measurement -> render -> prompt. **Every rendered fed vector matches, to
+the 4 decimal places the renderer emits, a tail vector ACTUALLY MEASURED on a real candidate of that
+arm.** For the arm that carries the contribution:
+
+```
+distributional : 226 rendered vectors, 0 incoherent, 223/223 pipeline-matched (100%)
+scalar_cvar5   : 218 rendered vectors, 0 incoherent, 218/218 pipeline-matched (100%)
+```
+
+**⇒ The model was fed the numbers we measured, correctly labelled and correctly ordered.** Combined
+with S11 (right shape) and S12 (the authored code still passes the live sandbox gate), the
+manipulated variable is now verified end to end rather than assumed.
+
+⚠ **THE RENDER ORDER IS NOT THE LEVEL ORDER** and parsing positionally would silently pair `cvar_25`
+with `cvar_01`: the prompt emits 5%, 10%, 25%, THEN 1% (flagged *high-variance estimate*), then mass
+and skew. S13 parses BY LABEL, and the selftest asserts exactly that on the real rendered sample.
+
+### 113.3 ⚠ P201 — MY CHECK MANUFACTURED 1,858 "INCOHERENCES", AND EVERY ONE WAS A DESIGN FACT I HAD NOT ENCODED
+
+The first run reported 1,858 problems. **Not one was real.** Two causes, both mine:
+
+**(a) I ran a coherence check on the SHUFFLED CONTROL.** `placebo_shuffled` is fed the same six labels
+with the values PERMUTED — that is the entire point of the arm. Permutation necessarily destroys CVaR
+monotonicity and can drop a negative CVaR into the `left_tail_mass` slot, which is exactly what the
+229 flags said. **The arm working as designed, reported as 229 errors.** Its STORED statistics are
+checked like every other arm's and are clean; only the RENDERED vector is deliberately scrambled.
+
+**(b) I demanded six statistics of an arm registered to receive ONE.** `scalar_cvar5` is fed a single
+CVaR line — S11 had already MEASURED that and I had written it down — so requiring the other five
+produced 218 phantom "absent" violations. The check now takes the arm's registered key set.
+
+**This is the FOURTH and FIFTH instance of one failure mode**, and it is now the dominant defect
+class in my own instruments: *a check calibrated to a uniform expectation when the design is
+deliberately non-uniform.* P193 (a hardcoded threshold against a registered one), P200 (baselines
+archive a marker not code), and now the shuffled control and the one-CVaR arm. **In every case the
+correct behaviour was already written down somewhere I had read.** The countermeasure that works is
+the one used here: triage BY ARM before reporting, because a violation that is 100 % concentrated in
+one arm is a statement about that arm's design, not about the data.
+
+### 113.4 ⚠ AND A GENUINE DESIGN FACT I HAD WRONG: THE REFLECTION SOURCE IS STICKY
+
+Two `scalar_cvar5` records appeared to be fed a value no g-1 candidate held (-0.0349 rendered against
+-0.0351 measured). Rather than accept a 0.0002 discrepancy, I traced it: the value belongs to
+**`scalar_cvar5-g3-c4` (-0.034882 -> -0.0349)**, two generations earlier.
+
+`src/llm/loop.py:728-729` is explicit:
+
+```python
+# Generation boundary: the generation's BEST candidate seeds the next prompt (M5 reflect-on-best)
+if gen_best_block is not None:
+    prev_feedback_block = gen_best_block
+```
+
+**The source is replaced ONLY when a generation produces a best candidate.** A generation that yields
+none leaves the previous block in place, so the fed vector can legitimately come from any earlier
+generation — here g4 never displaced g3-c4. **My rule "must match g-1" was a stricter invariant than
+the design implements**, and after correcting it to "any earlier generation of the same arm" the
+match is **444/444**. Worth recording as a mechanism fact in its own right: under a model with heavy
+authoring failure, the reflection loop can spend several generations reflecting on the same ancestor.
