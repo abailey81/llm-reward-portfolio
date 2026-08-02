@@ -136,7 +136,7 @@ silently widened into treatment arms. **A green board is not evidence. Re-derive
 | **each session, + after ANY fix you make** | the sentinel, 19 checks | `python scripts/sentinel.py outputs/campaign_cluster_run4` | ⚠ **NOTHING SUPERVISES IT.** If you fix it you must restart the `--watch --interval 300` process yourself or your fix is invisible |
 | **each session** | the verified board | `python .claude/lanes/openitems.py --open` | every row re-derives its own status from the repo |
 | **each session** | **the RECORDS themselves** | `docs/analysis/record_validator.py` · `output_integrity.py` · `search_integrity.py` · `substrate_watch.py` | per-record contract checks. **They glob the archive DIRECTLY, which is why they were unaffected by the loader defect** — that independence is the point |
-| **each session** | processes | the parentage filter in §3 | drivers · supervisors · **1** cycle loop · **2** sentinel. Counts oscillate (see above) |
+| **each session** | processes | the parentage filter in §3 | drivers · supervisors · **1** cycle loop · **1** sentinel. ⚠ CORRECTED 2026-08-02: `sentinel.py` shows TWO OS processes but one is the venv launcher and the other is the interpreter it execs — the child's ppid IS the parent's pid, so it is ONE watcher. `session_preflight.py` applies the parentage filter and reports `sentinel=1`, which is right; a raw count of 2 is the trap this row exists to warn about. Counts oscillate (see above) |
 | **each session** | progress | records by tier; `frozen*/` arm census | is every incomplete line still producing? |
 | **as C4 opens** | the queue | `qstat -u ucestes` | `qw` should go from ~10 to **hundreds**. **If C4 opens and `qw` stays near zero, the pipelining did not take — investigate** |
 | **weekly / on change** | disk + mirror | `check_disk`, `check_mirror_freshness` | floor 20 GB (CRITICAL below); the D: mirror is what makes a C: failure cost ≤5 records |
@@ -200,7 +200,9 @@ directions — landed on the same rung. **One derivation repeated is not evidenc
   RUNNING_SHA   dd51ba59          HEAD 31361727      freeze 3ca6f01ab772… MATCHES
   drift         0 BOTH arms       sci=OK             PYTEST_RC=0 (read FROM THE LOG)
   records       2,854             spend $45.4541     C: 25.2 GB free (floor 20.0)
-  processes     22-24 drivers · 11-12 supervisors (OSCILLATES, see §1) · 1 cycle loop · 2 sentinel
+  processes     22-24 drivers · 11-12 supervisors (OSCILLATES, see §1) · 1 cycle loop · 1 sentinel
+                ("2 sentinel" was the RAW count; the second process is the venv launcher's own
+                 child — measured 2026-08-02, ppid 42508 -> pid 3456)
   reproducibility  audit_reproducibility.py = 8 PASS / 0 WARN / 0 FAIL   ← Priority 5
 ```
 

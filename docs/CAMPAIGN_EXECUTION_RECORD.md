@@ -15094,7 +15094,44 @@ live `D:` mirror (40.3 GB free) already means a C: failure costs records rather 
 What has changed is that the limit is now a NUMBER attached to a RUNG instead of a level nobody could
 act on.
 
-### 101.9 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
+### 101.9 TWO CHECKS THAT BOUND THE DAMAGE — and one instrument I nearly "fixed" while it was right
+
+**(a) `bayes_opt` and `tpe` ARE correctly batched, so D27 is a single defect and not a symptom.**
+Having found that `cma_es`'s chain constant was 7.5x wrong, the obvious next question is whether the
+other two are wrong the same way. They are not, and the archive says so without reading any code:
+
+* `bayes_opt`: c0, c2, c3, c4 and c1 all complete between 07-29 02:39 and 09:06 with walls of 3.90 to
+  8.64 h — five candidates started together and finishing in wall-clock order. Init IS batched, so the
+  serial chain is `30 - 5 = 25`. The constant is right.
+* `tpe`: c0, c8, c3, c4, c1, c6, c2, c5, c7 and c9 all complete between 07-29 22:12 and 07-30 02:27 —
+  **ten** candidates inside 4.25 h. The startup phase IS batched, so the chain is `30 - 10 = 20`. Right.
+
+★ **And that comparison hands over a free diagnostic.** A BATCHED phase completes candidates OUT OF
+INDEX ORDER, because they finish in wall-clock order rather than proposal order — `tpe` reads
+c0, c8, c3, c4, c1, … `cma_es` completes strictly c0, c1, c2, … c8, in index order, every time. **Index
+order IS the signature of serial dispatch**, and it is visible from mtimes alone, with no code read.
+
+**(b) THE PREFLIGHT SAID `sentinel=1` AND THE BRIEF SAYS "2 sentinel". THE PREFLIGHT IS RIGHT.**
+Two OS processes carry `sentinel.py`: pid 42508 (`.venv/Scripts/python.exe`) and pid 3456
+(`AppData/…/Python311/python.exe`). **Pid 3456's parent IS 42508** — the venv launcher and the
+interpreter it execs, started together at 21:21:14, which is precisely the restart §100 records. One
+logical watcher. `session_preflight.py::check_processes` drops any candidate whose parent is also a
+candidate and therefore reports 1, correctly.
+
+**I was one edit away from changing the preflight to agree with the document.** The parentage filter
+its own docstring describes — *"a loose match also matches THIS PROCESS'S OWN QUERY … both have
+invented processes for three separate sessions"* — is the thing that stopped me, because checking the
+ppid took ten seconds and the alternative was to trust a sentence. **Corrected the BRIEF instead**
+(`docs/RUN13_SESSION_PROMPT.md`, both the watch table and the §3 state block), so the next session
+inherits the measured number rather than the raw one.
+
+**Lesson, and it is the same one three times tonight:** when a document and an instrument disagree,
+the instrument is not automatically wrong — establish which one MEASURES before changing either.
+Tonight the code beat the comment (D27), the observation beat the inference (the C4 predicate), and
+here the filtered census beat the handover note. *Only one of those three went the direction I
+expected.*
+
+### 101.10 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
 
 | id | mistake | root cause | how found | fix | lesson |
 |---|---|---|---|---|---|
