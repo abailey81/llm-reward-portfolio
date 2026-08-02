@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-02"
-  head: "a1202245"
+  head: "5e6dcaee"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "exit 0 (RUN 14 5th pass: numbers re-derived independently; P196 S10 scope corrected; cores 1,960)"
+  suite_status: "exit 0 (RUN 14: six per-record layers CLEAN incl. S11 identification, S12 sandbox gate 4683/4683, S13 pipeline 444/444; cores 1,976)"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
