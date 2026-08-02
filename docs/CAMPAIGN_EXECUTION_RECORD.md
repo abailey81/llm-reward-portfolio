@@ -15940,3 +15940,123 @@ unprobed.**
 supervisor revive from any cause would have started placing work on b00a with this unresolved, and the
 heterogeneity would have been discovered by an archived record rather than by a two-minute probe. The
 canary is not ceremony; it is the difference between finding this for free and finding it in the data.
+
+## 106. ★★★★★ RUN 14 (second pass) — THE DEEP SCIENCE AUDIT, AND R115's "EMPTY GAP" IS NO LONGER EMPTY (2026-08-02)
+
+**Tamer: *"dive very deep, and look at the every record, and ensure absolutely everything there is
+flawless, and the records are logical, meaningful, no science issue."*** Two per-record instruments
+already ran archive-wide and both were CLEAN — but neither asks a SCIENTIFIC question, so a third was
+built: `docs/analysis/record_science_audit.py` (S1-S9), selftest 14/14, wired into `cycle.py`.
+
+### 106.1 THE RESULT — S1-S9 CLEAN ON 4,044 RECORDS, AND TWO OF THEM MATTER A GREAT DEAL
+
+```
+records audited 4,044   (sealed-test 2,485)
+S2  observed test lengths: {1571: 2485}   -- EVERY series is the registered T=1571
+S4  2,485 distinct (arm, seed, reward hash) keys -- ZERO disagree
+S1/S6/S7/S8  no non-finite value, no degenerate series, every allocation a valid simplex
+```
+
+**S4 IS THE ONE TO NOTICE.** The reproducibility claim (Priority 5, Stefan's criterion #3) says the
+same reward, arm and seed reproduce the same result. That has been ASSERTED throughout and is now
+MEASURED: every pair of records sharing an `(arm, seed, reward_source_hash)` holds **byte-identical**
+`test_returns`. Determinism is no longer a promise about the design; it is a property of the archive.
+
+**S2 IS THE ONE NOTHING ELSE COULD HAVE CAUGHT.** R7 checks that a record's series share ONE length
+*as each other* — a record holding 200 sessions instead of 1,571 passes R7 while describing a
+different experiment. S2 checks against the REGISTERED length, and all 2,485 agree.
+
+### 106.2 ⚠ MY OWN ERROR FIRST — S5 WAS CALIBRATED TO MY INTUITION, NOT THE REGISTERED DESIGN (P193)
+
+The first version hardcoded a 1 % safe-default threshold and reported **95 "science issues"**. They
+were nothing of the sort. The floor is REGISTERED as **R115**
+(`config/preregistration.yaml: fitness.winner_max_fallback_frac = 0.10`, enforced at
+`scripts/run_campaign.py:754`), and everything flagged sat comfortably inside it — i.e. it was the
+AUTHORING-RELIABILITY phenomenon this campaign exists to measure. **A check calibrated to the
+auditor's intuition instead of the registered design manufactures alarm**, and I reported the alarm
+before triaging it. In the same message I also wrote "all 95 are search-tier" from a TRUNCATED list
+when 69 of them are sealed-test — a second avoidable error in the same breath, and the reason the
+next paragraph exists. The audit now READS the floor from the frozen registration and refuses to
+substitute a value for it.
+
+### 106.3 ★★★ WHAT THE TRIAGE THEN FOUND, AND IT IS A REAL FINDING
+
+Sealed-test fallback is confined to ONE leg, `test_leg_qwen3_5_9b` — the known capability-BOTTOM
+anchor of the model ladder:
+
+| arm | class | n | fallback |
+|---|---|---|---|
+| `distributional` | **TREATMENT** | 30 | 7.84-7.85 % (28 distinct rates: trajectory-dependent) |
+| `placebo_shuffled` | control | 30 | **exactly 9.0847 %**, one rate across all 30 seeds |
+| 2 baselines | — | 9 | ~0.0003 % |
+
+That leg's `scalar` arm carries **zero** fallback, so within it the H2 pair is ASYMMETRIC in execution
+quality. **The pre-registration anticipated exactly this** — R115's own rationale says a contaminated
+winner *"confounds the arm contrast with EXECUTION QUALITY, when identification requires the arms to
+differ ONLY in the authored reward"* — and the eligibility floor did its job: every sealed-test record
+is below 10 %. **No result is compromised.** It is a DISCLOSURE for the write-up, and a good one: it
+is the numeracy bottleneck visible in the sealed leg of the weakest model.
+
+### 106.4 ★★★★★ BUT R115's JUSTIFICATION IS NOW EMPIRICALLY FALSE, AND IT IS HEADED FOR THE PDF
+
+R115 defends the VALUE 0.10 as immaterial, verbatim:
+
+> *"THRESHOLD-INSENSITIVE, not tuned: over 613 counter-carrying records the distribution is strongly
+> bimodal — worst trace 0.41 %, mildest severe 39.40 %, a 96x EMPTY GAP — so any value in ~1-35 %
+> partitions the data identically."*
+
+**Re-measured on the 3,988 counter-carrying records the campaign has now produced:**
+
+```
+records inside the claimed EMPTY GAP (0.41 % .. 39.40 %) : 88      <- the gap has FILLED
+ineligible records by threshold:
+   1% -> 95     2% -> 91     5% -> 87     8% -> 53
+  10% -> 21    15% -> 20    20% -> 16    35% -> 14
+```
+
+**Every threshold in 1-35 % now partitions the data DIFFERENTLY.** The registered sentence *"any value
+in ~1-35 % partitions the data identically"* was true of 613 pre-campaign records and is FALSE of the
+completed archive.
+
+**WHY THIS IS NOT A CRISIS, AND EXACTLY WHAT IT IS.** `winner_max_fallback_frac = 0.10` was
+PRE-REGISTERED before any campaign data existed, so the VALUE is protected by pre-commitment and
+choosing it cannot be a forking path — that is the whole point of registering it. **What is now wrong
+is the JUSTIFICATION, not the number.** An adversarial reader (and Okhrati is exactly that reader) who
+re-derives the distribution finds the gap filled and the insensitivity claim broken, and a broken
+supporting claim damages a chain that is otherwise sound. This is the "weakest link governs" rule
+applied to a sentence rather than to a method.
+
+**⚠ IT CANNOT BE FIXED BY EDITING.** `config/preregistration.yaml` is `PREREG_YAML`, a HASH-BOUND file
+inside the frozen canonical hash `3ca6f01ab772`, as is `PREREGISTRATION.md`. Editing either would
+break the freeze on a live confirmatory campaign. **The correction is a DISCLOSURE and it is Tamer's
+decision**, between the two registered mechanisms:
+
+1. **A dated amendment row** restating the justification historically — *"when set on 613 pre-campaign
+   records the distribution was bimodal with a 96x empty gap; on the completed archive that gap has
+   filled, so the value is no longer insensitive. It was pre-committed before any campaign data
+   existed, which is what protects it."*
+2. **A stated Limitation** carrying the same sentence.
+
+Either is STRICTLY STRONGER than the current text, because it pre-empts the referee instead of waiting
+to be caught by them. **The threshold must NOT be changed** — that would be a post-data forking path,
+converting a presentational fix into a real methodological breach.
+
+### 106.5 THE OPERATIONAL RESIDUAL
+
+The worst sealed-test record sits at **9.0847 % against a 10 % floor — a margin of 0.92 percentage
+points** — and it is deterministic (all 30 seeds identical), so it will not drift. The
+`distributional` arm at 7.84-7.85 % DOES vary by seed. If any future sealed-test record reaches 10 %
+the winner-eligibility gate FAILS LOUD and stops the run, which is the designed behaviour — but it is
+better to know the margin is under one point than to discover it from a halted line.
+
+### 106.6 ⚠ AND ONE MORE OF MY OWN — I DEGRADED THE MONITORING CADENCE, THEN MEASURED IT (P194)
+
+Wiring the audit straight onto the ssh cadence took the cycle sweep from ~26 s to **33-51 s** and the
+log began printing `SWEEP-BOUND`. The audit is a FULL-ARCHIVE scan by necessity — S4 compares
+duplicates against each other, so an incremental window would silently stop testing determinism — and
+at 16 s over 4,044 records it scales to ~160 s at the ~42,000-record end state. **That would push a
+single cycle past the 2-MINUTE staleness threshold the monitoring mandate reads as "the loop is
+DEAD".** A check that makes the watchdog look dead is worse than a check that runs less often, so it
+is now rate-limited to once per 30 min (~9 % duty even at the end state). Cadence verified recovered
+to 28.5 s with `drift=0 sci=OK`. **The lesson: a new monitor is a load on the monitor it joins, and
+that load must be measured before it is trusted.**
