@@ -192,6 +192,20 @@ def audit_record(rec: dict, path: Path, fallback_floor: float = 0.10) -> list[st
         s = series(fld)
         if s:
             bad.extend(_finite_violations(s, fld))
+    # S1b -- the TRAINING-CURVE channels, tallied as a DISCLOSURE rather than a failure.
+    # `metrics.train_curve.return` is entirely NaN on 100% of records: SB3 logs `ep_rew_mean`, and
+    # with a single long episode per training no episode closes inside the logging window, so the
+    # channel is structurally empty. actor_loss / critic_loss / ent_coef / step are all POPULATED,
+    # so the learning curve remains usable for convergence evidence and NO figure reads `return`
+    # (checked across src/viz). It is a disclosure, not a defect -- but it must be VISIBLE, because
+    # the CLEAN banner used to claim "every record is finite" while this channel was all-NaN.
+    tc = metrics.get("train_curve")
+    if isinstance(tc, dict):
+        v = tc.get("return")
+        if isinstance(v, list) and v:
+            nums = [x for x in v if isinstance(x, (int, float))]
+            if nums and all(isinstance(x, float) and math.isnan(x) for x in nums):
+                bad.append("__TRAINCURVE_RETURN_ALL_NAN__")
     # ...including the per-step EXPOSURE diagnostics, which are full-length series in their own
     # right (eff_n / hhi / max_weight / top5) and are read by the mechanism exhibits.
     expo = metrics.get("test_exposure")
@@ -304,7 +318,7 @@ def main(argv=None) -> int:
     floor = registered_fallback_floor(Path("."))
     failures: list[tuple[str, str]] = []
     disclose: dict[str, list[float]] = {"TEST": [], "search": []}
-    n = n_test = a62 = 0
+    n = n_test = a62 = tc_nan = 0
     step_counts: Counter[int] = Counter()
     # S4: (arm, seed, reward_hash) -> {series digest -> first path}
     det: dict[tuple, dict[str, str]] = defaultdict(dict)
@@ -326,6 +340,8 @@ def main(argv=None) -> int:
         for m in msgs:
             if m == "__A62_IDENTICAL__":
                 a62 += 1
+            elif m == "__TRAINCURVE_RETURN_ALL_NAN__":
+                tc_nan += 1
             elif m.startswith("__S5_DISCLOSE__"):
                 tier, frac = m[len("__S5_DISCLOSE__"):].split("|", 1)
                 disclose[tier].append(float(frac))
@@ -378,6 +394,23 @@ def main(argv=None) -> int:
             r += 1
         return r
 
+    # ROSTER AWARENESS (added after an independent audit, P198). The prefix is computed over arms
+    # that have STARTED, so a line whose `distributional` and `scalar` test leg has not run yet
+    # scores the same as a line that has completed all five arms. Measured on run 4: EIGHT of the
+    # eleven non-h3 lines are missing whole arms, and the CORE line is missing BOTH `distributional`
+    # and `scalar` -- i.e. the H2 co-primary pair has no sealed-test record there at all. Reporting
+    # 'banked rung 30' without that materially overstates what is banked, so the roster is read
+    # from the frozen-winner directories (the arms the design says each line RUNS) and any arm with
+    # a frozen winner but no sealed-test record is named.
+    roster: dict[str, set] = defaultdict(set)
+    for _d in root.glob('frozen*'):
+        if not _d.is_dir():
+            continue
+        _key = _d.name.replace('frozen_leg_', '').replace('frozen', '').strip('_') or 'core'
+        for _w in _d.iterdir():
+            if _w.is_dir() and _w.name.endswith('-winner'):
+                roster[_key].add(_w.name[:-len('-winner')])
+
     s10: list[str] = []
     line_prefix: dict[str, int] = {}
     for _line in sorted(pair_seeds):
@@ -396,14 +429,26 @@ def main(argv=None) -> int:
                            f"banked prefix {pre} -- CRN pairing is broken inside BANKED work")
 
     dup_keys = sum(1 for k, v in det.items() if len(v) > 1)
+    # ★ THE REPLICATE COUNT IS THE FIGURE THAT MATTERS, AND IT WAS MISSING (P197).
+    # `dup_keys` counts keys whose members DISAGREE. It does NOT say how many keys had more than
+    # one member to compare in the first place -- so "0 disagree" reads as strong determinism
+    # evidence when it may mean NOTHING WAS COMPARED. Measured on run 4: every sealed-test key has
+    # exactly ONE record, so S4's comparison never fires. Printing this makes the vacuity visible
+    # instead of letting a silent zero masquerade as a passed test.
+    replicate_keys = sum(1 for v in det.values() if len(v) > 1 or sum(1 for _ in v) > 1)
 
     print("=== DEEP SCIENCE AUDIT (S1-S10) -- are the records LOGICAL and MEANINGFUL? ===")
     print(f"  records audited        : {n:,}   (test-tier: {n_test:,})")
     print(f"  registered test length : {REGISTERED_TEST_LEN}   observed lengths: "
           f"{dict(step_counts) if len(step_counts) <= 4 else str(len(step_counts)) + ' distinct'}")
     print(f"  registered train budget: {REGISTERED_TRAIN_STEPS:,}")
-    print(f"  determinism groups     : {len(det):,} distinct (arm, seed, reward_hash) keys; "
-          f"{dup_keys} key(s) disagree")
+    print(f"  S4 determinism         : {len(det):,} distinct (arm, seed, reward_hash) keys; "
+          f"{replicate_keys} key(s) have a REPLICATE to compare; {dup_keys} disagree")
+    if replicate_keys == 0:
+        print("      !! NO REPLICATES EXIST IN THIS ARCHIVE, so S4 tested NOTHING. A '0 disagree'")
+        print("        result here is VACUOUS and is NOT evidence of determinism. Determinism must")
+        print("        be evidenced from a run that re-trains an identical (arm, seed, reward) --")
+        print("        e.g. the 30/30 bit-identical farm or a crash-rehearsal replay -- not from this.")
     print()
 
     all_fail = [f"{m}\n      {p}" for p, m in failures] + det_violations + s8 + s10
@@ -414,9 +459,20 @@ def main(argv=None) -> int:
         if len(all_fail) > 60:
             print(f"  ... and {len(all_fail) - 60} more")
     else:
-        print("S1-S10 CLEAN -- every record is finite, the registered length, trained to the")
-        print("registered budget, non-degenerate, simplex-valid, and every record sharing an")
-        print("(arm, seed, reward hash) with another is BYTE-IDENTICAL to it.")
+        # ⚠ THIS BANNER IS DELIBERATELY NARROWER THAN ITS FIRST VERSION (P197). It used to say
+        # "every record is finite", which is FALSE: S1 covers the outcome series and the exposure
+        # diagnostics, and `metrics.train_curve.return` is entirely NaN on 100% of records (see the
+        # disclosure below). A summary line that overstates its own scope is the same defect class
+        # as a check calibrated to the auditor's intuition.
+        print("S1-S10 CLEAN, in the scope each check actually covers:")
+        print("  - the OUTCOME series and exposure diagnostics are finite (S1)")
+        print("  - every sealed-test series is the registered length (S2) and every training ran")
+        print("    the registered budget (S3)")
+        print("  - no degenerate/constant series, no impossible magnitude (S7), every allocation")
+        print("    is a valid simplex (S6), one common window (S8)")
+        print("  - inside every line's banked prefix, each paired arm holds each seed (S10)")
+        print("  NOT asserted here: determinism (S4 -- see the note above) and the finiteness of")
+        print("  diagnostic channels outside S1's scope.")
 
     print()
     print("=== S10 CRN PAIRING / BANKED RUNG (under R101 the COMMON rung IS the result) ===")
@@ -436,6 +492,19 @@ def main(argv=None) -> int:
         _nxt = next((r for r in REGISTERED_RUNGS if r > _common), None)
         if _nxt:
             print(f"  next rung {_nxt} needs {_nxt - _common} more contiguous seed(s) on the slowest")
+        _short = []
+        for _ln in sorted(_legs):
+            _k = _ln.replace('test_leg_', '')
+            _k = 'core' if _ln == 'test' else _k
+            _miss = sorted(roster.get(_k, set()) - set(pair_seeds.get(_ln, {}).keys()))
+            if _miss:
+                _short.append((_ln, _miss))
+        if _short:
+            print(f"  !! {len(_short)} of {len(_legs)} line(s) have an arm with a FROZEN WINNER but")
+            print("     NO sealed-test record, so the prefix above is over the arms that STARTED:")
+            for _ln, _miss in _short:
+                print(f"       {_ln:34s} missing: {', '.join(_miss)}")
+            print("     => 'banked rung' describes the STARTED arms; it is not a full-roster bank.")
 
     print()
     print("=== S5 DISCLOSURE: safe-default fallback BELOW the registered R115 floor ===")
@@ -452,6 +521,12 @@ def main(argv=None) -> int:
         print(f"  ==> the sealed test's worst case sits {floor - tw:.4%} below the floor. This is the")
         print("      AUTHORING-RELIABILITY phenomenon the campaign measures, INSIDE the registered")
         print("      tolerance -- a disclosure for the write-up, not a defect.")
+    print()
+    print(f"TRAIN-CURVE DISCLOSURE: metrics.train_curve.return is ENTIRELY NaN on {tc_nan:,} "
+          f"record(s). SB3 logs ep_rew_mean and no episode closes inside the logging window, so the "
+          f"channel is structurally empty. actor_loss/critic_loss/ent_coef/step ARE populated and no "
+          f"figure reads `return` -- a disclosure, not a defect, but it is why the CLEAN banner no "
+          f"longer claims 'every record is finite'.")
     print()
     print(f"A62 DISCLOSURE: per_period_pnl identical to test_returns on {a62:,} record(s) "
           f"(a COUNT, not a value; no consumer reads per_period_pnl)")

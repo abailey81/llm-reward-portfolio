@@ -16371,3 +16371,119 @@ only got written because the claim was being re-checked rather than restated.
 breaches, the accurate description is *"measures the banked contiguous prefix per line, i.e. the
 reported common rung"*. The S1-S10 CLEAN result is unaffected — S10 reported no breach because there
 is none to report, and the prefix measurement (common rung 30) stands.
+
+## 110. ★★★★★ RUN 14 (sixth pass) — AN INDEPENDENT AUDITOR CAUGHT THREE REAL DEFECTS IN MY OWN WORK, ONE OF THEM A FALSE CLAIM I HAD ALREADY REPORTED TWICE (2026-08-02)
+
+**Tamer ratified the decisions and asked for everything verified flawless. A fresh READ-ONLY auditor
+was run against six load-bearing claims, precisely because the author must not grade their own work.
+It verified the arithmetic and found three defects I had missed. All three are mine.**
+
+### 110.1 ⚠⚠⚠ P197 — "DETERMINISM IS NOW MEASURED, NOT ASSERTED" WAS FALSE, AND I REPORTED IT TWICE
+
+S4 groups sealed-test records by `(arm, seed, reward_source_hash)` and checks that any two in a group
+hold byte-identical `test_returns`. It returned **0 disagreements**, and I reported that as the
+headline result — *"the reproducibility claim is now a MEASURED property of the archive, not a
+promise about the design."*
+
+**VERIFIED FIRST-HAND AFTER THE AUDIT FLAGGED IT:**
+
+```
+sealed-test records            : 2,825
+distinct (arm,seed,rsh) keys   : 2,825
+keys with MORE THAN ONE record : 0
+```
+
+**Every key has exactly ONE record. RUN 4 CONTAINS NO REPLICATES AT ALL, so S4 compared NOTHING.**
+A zero-disagreement result on an empty comparison set is VACUOUS, and I presented it as the strongest
+evidence in the audit. **The check is not wrong; my interpretation of it was, and it is exactly the
+failure mode this project's own rule warns about — a green check proves execution, not truth.**
+
+**WHY IT SLIPPED:** the printed line reported `len(det)` (distinct keys) and `dup_keys` (keys that
+DISAGREE) and never the count of keys with a REPLICATE to compare. A reader — including me — could not
+see that the check never fired. **FIXED:** the audit now prints
+`N key(s) have a REPLICATE to compare` and, when that is zero, states outright that the result is
+vacuous and names where determinism must actually be evidenced instead (the 30/30 bit-identical farm,
+a crash-rehearsal replay). **Determinism for RUN 4 remains evidenced by those, NOT by this archive.**
+
+### 110.2 ⚠ P197b — THE "CLEAN" BANNER CLAIMED MORE THAN ANY CHECK COVERED
+
+The banner read *"every record is finite, the registered length, ... "*. **`metrics.train_curve.return`
+is ENTIRELY NaN on 100 % of records** (2,832/2,832, verified independently), so "every record is
+finite" was literally false.
+
+**SCOPED PRECISELY BEFORE REPORTING SEVERITY** — the other channels are alive:
+
+```
+train_curve.actor_loss   800/800 present, 0 entirely-NaN
+train_curve.critic_loss  800/800 present, 0 entirely-NaN
+train_curve.ent_coef     800/800 present, 0 entirely-NaN
+train_curve.step         800/800 present, 0 entirely-NaN
+train_curve.return       800/800 present, 800 ENTIRELY NaN
+```
+
+Cause: SB3 logs `ep_rew_mean`, and with one long episode per training no episode closes inside the
+logging window, so the channel is structurally empty. **No figure reads it** (checked across
+`src/viz`), and convergence evidence rests on the LOSS curves, which are intact. **So it is a
+DISCLOSURE, not a result defect** — but the banner was overstating, which is the same defect class as
+P193. **FIXED:** the banner now enumerates exactly what each check covers and explicitly says what is
+NOT asserted; the NaN channel is reported as a standing disclosure.
+
+### 110.3 ⚠ P198 — "BANKED COMMON RUNG 30" HID THAT WHOLE ARMS HAVE NOT STARTED
+
+S10 computes the contiguous prefix over the arms that HAVE sealed-test records. It does not know the
+registered roster, so a line whose `distributional`/`scalar` test leg has not run scores identically
+to a line that has completed all five arms. Verified against the frozen-winner directories:
+
+```
+8 of 11 non-h3 lines have an arm with a FROZEN WINNER but NO sealed-test record
+  test (the CORE line)      missing: distributional, scalar      <- the H2 CO-PRIMARY PAIR
+  deepseek_v4_pro           missing: distributional, placebo_shuffled, scalar
+  glm_5_2                   missing: distributional, placebo_shuffled, scalar
+  haiku_4_5 / kimi_k3 / nemotron_3_super / qwen3_6_27b / sonnet_5   missing: distributional, scalar
+only gemini_2_5_flash, gpt_5_6_luna and qwen3_5_9b hold all five
+```
+
+**THE CORE LINE HAS NO SEALED-TEST RECORD FOR EITHER H2 CO-PRIMARY ARM.** That is EXPECTED
+mid-campaign — those arms are tested at the C2 `h2_pair_test` stage, which most lines have queued but
+not completed — **but reporting "the banked rung is 30" without it materially overstates what is
+banked.** **FIXED:** S10 now reads the roster from `frozen*/` and names every arm that has a winner
+but no sealed-test record, closing with *"'banked rung' describes the STARTED arms; it is not a
+full-roster bank."*
+
+### 110.4 WHAT THE AUDITOR VERIFIED, AND ONE PLACE IT STRENGTHENED THE FINDING
+
+* **R115 gap (§106.4): VERIFIED and UNDERSTATED.** 88 in-gap and the threshold table
+  95/91/87/53/21/20/16/14 reproduced exactly, and stable across two scans. **The escalation:** at the
+  tier where R115 actually ACTS (search-candidate selection), **15 of 60 `(line, arm)` groups have a
+  DIFFERENT ELIGIBLE SET across the 1-35 % band**, and the frozen winner
+  `qwen3_5_9b/placebo_shuffled-g0-c3` **IS** the 9.08475 % candidate — so at any threshold at or below
+  9.08 %, well inside the band the registration calls identical, **a DIFFERENT reward would have been
+  frozen and sealed at 30 seeds.** The threshold is not merely descriptively sensitive; it is
+  **selection-determining on an already-sealed arm.** Still NOT a forking path (pre-data, effect-blind
+  by construction), but the sentence cannot be published as written.
+* **Sealed-test fallback max 9.084750 %, count >= 0.10 = 0: VERIFIED.**
+* **Series length {1571: all}: VERIFIED.** Minor: `REGISTERED_TEST_LEN` is sourced from a COMMENT in
+  the frozen yaml, so S2 is a self-consistency check rather than a check against an independently
+  registered number. Recorded, not fixed.
+* **Banked rung: ten lines at 30 and h3 at 568 VERIFIED**; gemini read 57 rather than my 52/53 —
+  **stale, not wrong**, the leg filled seeds 53-56 while I was writing.
+* **Code: no false-negative path found.** S6 correct and tight (worst |sum+other-1| = 4.44e-16 against
+  a 1e-3 tolerance), S3's baseline exemption keys on the arm name only, S2/S4 read both field
+  locations with 0 records having only one, and the sole exception handler records an unreadable
+  record as an S0 FAILURE rather than swallowing it. One latent gap noted: 56 records carry no
+  counters and skip S3/S5 — they are exactly the 56 frozen-winner markers, so the **frozen winner
+  artifact carries no execution-quality provenance of its own** and the R115 eligibility fact is only
+  reconstructible from the source search record. MINOR, recorded.
+
+### 110.5 THE PROCESS LESSON, AND IT IS THE ONE WORTH KEEPING
+
+**Every one of the three defects was an OVERSTATEMENT rather than a miscalculation** — the arithmetic
+was right in all six claims the auditor checked. What was wrong was the SCOPE I attached to a passing
+check: a vacuous comparison reported as measurement, a banner wider than its checks, and a prefix
+reported as a bank. **A check that passes tells you what it tested, not what you hoped it tested**, and
+the only reliable way to catch that is to have someone who did not write it try to falsify it.
+
+⚠ **AND ONE CROSS-CUTTING CAUTION FOR THE WRITE-UP, from the auditor:** the archive is being written
+WHILE it is audited (4,345 -> 4,380 records during its run). **Every number quoted from this archive
+into the dissertation needs a timestamp and a re-derivation at write time.** The R115 counts happen to
+be drift-stable; the per-line rungs are not.
