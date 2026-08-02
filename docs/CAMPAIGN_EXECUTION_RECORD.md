@@ -16186,3 +16186,120 @@ would advance together and the common rung would be strictly higher at any given
 **This remains the single biggest lever on the reported result, it is worth more than every core
 lever in 107.1 combined, and it is NOT agent-actionable** — every reordering route is closed by a
 standing rule or by the cluster (§105.7). **It is Tamer's decision.**
+
+## 108. ★★★★★ RUN 14 (fourth pass) — DISK IS THE BINDING CONSTRAINT ON THE RESULT, AND MOVING FILES CANNOT FIX IT (2026-08-02)
+
+**Tamer: *"what should I do to reach max seeds?"*, then *"I give you permission to move stuff to
+another disk to free up space, but move, never delete"*, then *"maybe use other disk instead then?"***
+
+### 108.1 THE TWO CONSTRAINTS ON MAX SEEDS, AND ONLY ONE OF THEM BINDS
+
+584 h remain to the 2026-08-27 exogenous stop. For rung 568 (max seeds):
+
+```
+                      needed          actual                         verdict
+throughput            64.8 rec/h      70.7 (24h) 134 (6h) 219 (3h)   ALREADY SUFFICIENT
+disk (C:)             38.8 GB free    25.7 GB                        SHORT 13.1 GB
+```
+
+**THROUGHPUT IS NOT THE PROBLEM — the campaign is already running faster than max seeds requires**,
+and the rate is rising as lines enter C4. ⚠ The sentinel's own `rung_forecast` says **rung 340** at
+38.9 rec/h, but that rate is a WHOLE-CAMPAIGN average dragged down by the slow C1 search phase; it
+structurally UNDER-forecasts now that C4 dominates. Do not read it as a ceiling.
+
+**DISK IS THE WHOLE STORY**, and it caps the reported result two rungs below what compute would
+deliver: the floor is crossed at rung 279, so the last achievable rung is **189**.
+
+### 108.2 MOVING FILES CANNOT FIX IT — the drive was already well optimised
+
+Tamer authorised moving data off C:. Measured, with reparse points EXCLUDED (the 2026-08-01 near-miss
+lesson: Lumion read 37 GB while its parent read 12.6 GB, and that impossibility is what revealed it was
+already a junction):
+
+```
+C:  Windows 44.35 | Users 19.88 | Program Files 12.62 | Program Files (x86) 7.82 | ProgramData 3.11
+```
+
+Every large application is **ALREADY junctioned to D:** by earlier sessions — Lumion, Graphisoft,
+Docker, Microsoft Office, Epic Games, SketchUp, Total Commander, Interior3D. Caches were already
+moved. **Hibernation is already off** (`HibernateEnabled = 0`, no `hiberfil.sys`). What remains is
+untouchable or trivial:
+
+| item | GB | why it cannot move |
+|---|---|---|
+| `Desktop` | 10.93 | THE PROJECT — live repo, archive, licensed Refinitiv gold |
+| `WindowsApps` | 9.06 | Store/TrustedInstaller-managed; a junction BREAKS it (supported route is Settings > Apps > Move) |
+| `AppData\Local\Programs\Python` | 0.97 | **the live campaign runs on this interpreter** |
+| `Microsoft VS Code` | 0.56 | running — 14 processes |
+| Adobe / Edge | ~6.3 | both running |
+| Discord + Zoom + Telegram | **1.02** | the ONLY safely movable set |
+
+**⇒ MOVING YIELDS ~1 GB AGAINST A 13.1 GB SHORTFALL.** Reported as such rather than performing a
+gigabyte of risky junctions to look responsive.
+
+### 108.3 THE ARCHIVE-RELOCATION OPTION, AND THE TRADE-OFF THAT DECIDES AGAINST IT
+
+The live archive is only **1.748 GB / 26,626 files / 4,274 records** today and grows to ~20 GB, so
+relocating it NOW while it is small is cheap. D: has **109.68 GB free** (verified by THREE independent
+routes after an apparent 70 GB jump — explained by Tamer deleting Overwatch between the two readings,
+not by an instrument fault). A junction at `outputs/campaign_cluster_run4` would be transparent to the
+drivers, and git is unaffected: **0 tracked files** under that path.
+
+**BUT IT COSTS THE MIRROR, WHICH IS THE POINT OF THE MIRROR.** Today the archive is on C: and the live
+mirror (`D:/llm_rp_archive_mirror`, 2.13 GB) is on D:, so the campaign survives EITHER disk failing.
+Putting the archive on D: puts BOTH copies on ONE drive. On an irreplaceable campaign that is a real
+downgrade in the exact scenario the mirror exists for.
+
+**THE ROUTES, PRICED (C: needs +13.1 GB):**
+
+| route | gain | C: ends | reboot | cross-disk redundancy |
+|---|---|---|---|---|
+| DISM WinSxS alone | +8.5 | 34.2 | no | kept — **4.6 GB SHORT** |
+| D29 pagefile alone | +12.26 | 38.0 | yes | kept — 0.84 GB short |
+| **D29 + DISM** | **+20.8** | **46.5** | yes | **KEPT, ~7 GB margin** |
+| archive junction to D: | n/a | 25.7 unused | no | **LOST** |
+
+**⇒ RECOMMENDED: D29 + DISM.** It is the only route that reaches max seeds AND keeps the archive and
+mirror on separate disks. `Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore` reports **8.50 GB
+of "Backups and Disabled Features", 6 reclaimable packages, "Component Store Cleanup Recommended:
+Yes"** — Windows itself asking for it. D29's safety margin is measured: combined **peak-ever** usage
+across both pagefiles is **4.14 GB** (C: 1.06, D: 3.08) against the 18.67 GB D: retains, on a 15.64 GB
+-RAM box. The junction remains a valid fallback if the reboot is unacceptable.
+
+### 108.4 ⚠ A FIFTH HARNESS LIMIT — DIRECTORY RENAME AND JUNCTION CREATION ARE BLOCKED
+
+The swap was refused by the harness classifier. **Verified immediately afterwards that NOTHING was
+disturbed**: no `.premove` directory exists, the archive is intact and still growing (4,277 records),
+`drift=0 sci=OK`, cycle log healthy. The block landed before any change.
+
+**THE STANDING HARNESS LIMITS ARE NOW FIVE**, and they should be read as one fact rather than five:
+**every action that changes the machine's state outside the repo is blocked for the agent.**
+
+```
+qdel <id>                        BLOCKED
+taskkill / Stop-Process          BLOCKED  (RUN 13's brief says taskkill WORKS -- it no longer does)
+HKLM registry write              BLOCKED
+Rename-Item on a live dir        BLOCKED
+New-Item -ItemType Junction      BLOCKED
+```
+
+Consequence for planning: **the agent can measure, build, test, document and commit; it cannot
+operate the machine.** Every remaining lever in this record therefore terminates in a command for
+Tamer, and briefs should state that up front rather than discovering it per-action.
+
+### 108.5 WHAT WAS LEFT BEHIND, DELIBERATELY
+
+`robocopy` to `D:\llm_rp_run4_archive` completed BEFORE the blocked swap: **1.748 GB, 26,626 files,
+4,274 records in 4.7 s**. It is a complete point-in-time snapshot of the archive at 16:03Z. It is
+**NOT auto-updated** and nothing reads it. Kept rather than removed — it is a free third copy of
+irreplaceable data, it cost nothing, and "move, never delete" governs. Its existence is recorded here
+so a future session does not mistake it for a live path or for archive drift.
+
+### 108.6 A NEGATIVE RESULT WORTH RECORDING
+
+The background memory profile (`memprofile.sh`, 40 job names) returned **only probe rows**. Cause:
+it iterated the names of CURRENTLY QUEUED jobs, and `qacct` holds records only for COMPLETED ones. So
+the memory finding in §107.2 still rests on the three targeted completed jobs (11.435 / 11.449 /
+11.564 GB against a 16 GB request), exactly as stated there. **This does not change the refusal** — that
+rested on the benefit being +16 cores, not on the measurement being uncertain — but the instrument's
+failure is recorded so nobody re-runs it expecting a distribution.
