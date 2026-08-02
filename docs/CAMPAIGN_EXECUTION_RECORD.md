@@ -16090,3 +16090,99 @@ What is weakened is the SECONDARY sentence the row adds — *"the insensitivity 
 distinction verifiable"* (PREREGISTRATION.md row R115, and the same wording in
 `config/preregistration.yaml`). Both files are hash-bound, so the fix is disclosure, not an edit, and
 the disclosure should say plainly which defence carries the weight.
+
+## 107. ★★★★★ RUN 14 (third pass) — THE CORES LEVER TABLE IS NOW EXHAUSTIVE AND PRICED, AND S10 COMPUTES THE REPORTED RESULT (2026-08-02)
+
+### 107.1 EVERY CORES LEVER, ENUMERATED AND PRICED — the answer to "we are not even at 2k cores"
+
+Held: **1,832 cores**. Every remaining lever, measured on the day rather than argued:
+
+| lever | worth | status |
+|---|---|---|
+| `qdel` the 8 junk jobs | **up to +64** | **TAMER'S COMMAND** — `qdel` classifier-blocked for the agent |
+| pool widening onto b00a | **+40** (was +88; other users took it) | measured safe, one-token edit, blocked on process-kill |
+| pack 8 -> 4 | **+28** (was +108 an hour earlier) | needs job-cap headroom; marginal now |
+| **memory request 2G -> 1.6G/slot** | **+16** | ★ **REFUSED ON MEASUREMENT — see 107.2** |
+| memory request 2G -> 1.5G/slot | +24 | REFUSED, same reason |
+| e00a (RUN 13's "biggest prize", 328 cores) | **0** | UNREACHABLE — 4/4 real submissions refused; already in `lanes.EXCLUDED_CPU_POOLS` |
+| f00a | **0** | `-pe smp-F` reports "only offers 0 slots" |
+| SGE priority | **0** | self-elevation forbidden by fair-share; lowering ours forbidden by Tamer's absolute rule |
+| more entitled hosts | unbounded | an RC/admin request — Tamer's call, and he has declined RC requests |
+
+**⇒ THE COMPLETE ADDRESSABLE HEADROOM IS ~100-130 CORES AGAINST 1,832, i.e. a ceiling of roughly
+1,900-1,960. 2,000 CORES IS NOT REACHABLE IN OUR ENTITLED POOLS TODAY**, and no flag, pack width,
+pool or memory change conjures it. The constraint is external: we hold ~23 % of the entitled pool and
+other users hold the rest.
+
+**AND THE FREE REMAINDER IS ALREADY OURS THE MOMENT IT APPEARS.** With ~700 of our own jobs queued,
+any placeable slot is claimed within a scheduler tick — which is why the measured headroom fell from
+112 to 80 to 64 cores over the session as other users took it and we took it back. **We are saturated
+at the ceiling, not idling below it.**
+
+### 107.2 ★ THE MEMORY LEVER — INVESTIGATED PROPERLY AND REFUSED, WHICH IS THE POINT
+
+The placeable-capacity instrument showed MEMORY, not slots, is what forbids most pool-d placements
+(9 of 11 usable >=8-slot hosts hold under the 16 GB a pack-8 job reserves at 2 G/slot). So the
+obvious question is whether 2 G/slot is over-provisioned. **Measured from `qacct`, the only
+authoritative record of what a job really used** — three completed 8-slot campaign jobs, all
+`exit_status 0 / failed 0`:
+
+```
+leg9_..._sweep_t4_p01   maxvmem 11.564 GB
+leg9_..._sweep_t1_p01   maxvmem 11.449 GB
+leg9_..._sweep_t2_p01   maxvmem 11.435 GB      against a 16 GB request
+```
+
+A ~28 % over-provision, with a very tight spread. **But the gain is small and the downside is
+catastrophic and asymmetric:**
+
+```
+mem/slot   per pack-8 job   placeable cores
+2048 (now)      16 GB             64
+1800            14 GB             64      (no change at all)
+1600            12.8 GB           80      (+16)
+1500            12 GB             88      (+24)
+```
+
+**+16 to +24 cores — about 1 % — in exchange for a twelve-line relaunch (`jobscript.py` is inside the
+driver import closure) and a margin of ~1.2 GB over an observed peak, on 15-hour trainings in a
+campaign with NO RE-RUN.** Three samples is not a distribution, and a job killed at hour 14 for
+exceeding a tightened limit costs far more than 16 cores buys. **REFUSED, and recorded here so it is
+not re-litigated from first principles a fourth time.**
+
+### 107.3 S10 — AND IT TURNS OUT TO COMPUTE THE REPORTED RESULT
+
+S1-S9 ask whether each record is sound. **S10 asks whether the SET is**, which no per-record check
+can: every paired contrast compares arm A seed s against arm B seed s, so if the seed SETS differ the
+pairing misaligns while every individual record stays perfectly valid.
+
+**S1-S10 CLEAN on 4,226 records** — inside every line's banked prefix, every paired arm holds every
+seed. And because R101 makes the reported result the COMMON rung over all eleven lines, S10 prints it
+FROM THE ARCHIVE rather than from a forecast:
+
+```
+COMMON contiguous prefix 30   largest fully banked registered rung 30
+set by 10 of 11 lines; furthest ahead test_leg_gemini_2_5_flash at prefix 53
+next rung 100 needs 70 more contiguous seed(s) on the slowest lines
+```
+
+### 107.4 ★★★ AND THAT NUMBER PROVES §105.7 IN THE CURRENCY THAT MATTERS
+
+§105.7 argued that line-major submission order caps the reported result. S10 measures it exactly:
+
+```
+sealed-test paired records (excl. h3, excl. baselines) : 1,735
+  at or below the common rung 30 -- these SET the result : 1,110
+  ABOVE it                                               :   625  = 36.0%
+  and ALL 625 are on ONE line (test_leg_gemini_2_5_flash)
+```
+
+**36 % of all sealed-test paired work sits on a single line above the common rung.** Gemini holds
+~150 seeds per arm while ten lines sit at exactly 30. Stated fairly: that work is not WASTED — it
+counts the moment the other lines reach rung 100 — but under the **2026-08-27 exogenous stop** it
+raises the reported rung by NOTHING unless they get there. Under a rung-major order all eleven lines
+would advance together and the common rung would be strictly higher at any given instant.
+
+**This remains the single biggest lever on the reported result, it is worth more than every core
+lever in 107.1 combined, and it is NOT agent-actionable** — every reordering route is closed by a
+standing rule or by the cluster (§105.7). **It is Tamer's decision.**
