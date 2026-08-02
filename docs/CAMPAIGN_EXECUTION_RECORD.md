@@ -16487,3 +16487,89 @@ the only reliable way to catch that is to have someone who did not write it try 
 WHILE it is audited (4,345 -> 4,380 records during its run). **Every number quoted from this archive
 into the dissertation needs a timestamp and a re-derivation at write time.** The R115 counts happen to
 be drift-stable; the per-line rungs are not.
+
+## 111. ★★★★★ RUN 14 (seventh pass) — S11: THE IDENTIFICATION ITSELF, AUDITED FOR THE FIRST TIME, AND IT HOLDS EXACTLY (2026-08-02)
+
+**Tamer: *"check the insides very deeply."*** Every per-record instrument so far reads the record's
+CONTRACT (R1-R9), its FILES (P1-P4) or its NUMBERS (S1-S10). **None of them had ever read the one
+thing the entire contribution rests on: the TEXT FED TO THE LLM.**
+
+**A campaign in which the distributional arm was silently fed the scalar block, or the placebo arm fed
+real diagnostics, would pass every existing check and would not be measuring what the dissertation
+claims.** `docs/analysis/fed_text_identification.py` (S11) closes that. Selftest 8/8 with a mutant per
+failure mode; effect-blind by masking every numeric literal before anything is compared or printed.
+
+### 111.1 THE RESULT — THE MANIPULATION IS EXACTLY WHAT THE DESIGN REGISTERS
+
+```
+arm                 n(g>=1)  registered   observed diagnostic lines   distinct shapes
+distributional          226      6 tail                     6 x 226                 2
+scalar                  234           0                     0 x 234                 1
+scalar_cvar5            220      1 CVaR                     1 x 218                 1
+placebo                 229     6 INERT                     6 x 228                 1
+placebo_shuffled        230      6 tail                     6 x 230                11
+```
+
+**Read from the archive, with numbers masked, the five fed texts are:**
+
+* **every arm** — the same reflection preamble, the same scalar line (*"Your previous reward scored:
+  # (validation Deflated Sharpe)"*), and the same exploration directive.
+* **scalar** — nothing further. One number.
+* **scalar_cvar5** — the scalar line plus ONE CVaR line.
+* **distributional** — the scalar line plus the **m=6 tail vector**: CVaR at four levels (one marked
+  *high-variance estimate*), left-tail mass, left-tail skew. Exactly the registered fed vector.
+* **placebo** — the scalar line plus six lines under *"Reference constants (inert; no diagnostic
+  content)"*. Same SHAPE, zero information.
+* **placebo_shuffled** — the scalar line plus the SAME six tail labels as distributional, values
+  shuffled (hence 11 distinct masked shapes against distributional's 2 — shuffling permutes the sign
+  pattern, which is what the masking preserves).
+
+**⇒ THE ARMS DIFFER IN THE FED CONTENT AND IN NOTHING ELSE.** That is the identification principle,
+verified against 1,139 archived fed texts rather than asserted from the design document.
+
+### 111.2 ⚠ P199 — I ALMOST REPORTED THAT THE REFLECTION LOOP FED NOTHING AT ALL
+
+My first probe read `record["feedback_block"]` and found it **EMPTY on 100 % of g>=1 records — 1,139
+of them.** Taken at face value that says the reflection loop never fed anything back, i.e. the
+experiment is void. **It is a false alarm, and the P178 pattern exactly: the field I wanted was not
+the field I reached for.**
+
+`src/inference/information_gap.py:154` — a record's `feedback_block` is the block built **FROM** that
+candidate and fed to the **NEXT** generation. The text a candidate RECEIVED is assembled at
+`src/llm/loop.py:409` as `preamble + prev_feedback_block` and archived in that record's **`prompt`**.
+So an empty `feedback_block` at g>=1 is CORRECT BY DESIGN.
+
+**A second probe of mine was also wrong**: I searched the fed text for the literal registered keys
+(`cvar_05`, `left_tail_mass`, …) and got 0/6 on every arm — because the block renders them as human
+labels (*"CVaR 5%:"*, *"left-tail mass:"*). **Two instrument errors in a row on the same question, and
+the fix in both cases was to stop pattern-matching and READ THE TEXT.**
+
+### 111.3 THE THREE APPARENT BREACHES WERE THE DESIGNED FALLBACK, AND THE PROOF IS IN THE ARCHIVE
+
+S11's first run flagged 3 records (1 `placebo`, 2 `scalar_cvar5`, **all in
+`search_leg_qwen3_5_9b`**) carrying the 2,602-char BASE prompt at g>=1 with neither a scalar line nor
+diagnostics. Before reporting a breach I checked the mechanism and then the evidence:
+
+* `src/llm/loop.py:406-409` — `prev_feedback_block` is seeded from a generation's BEST candidate; if
+  a generation yields NO usable candidate it stays `None` and the loop uses the INITIAL prompt.
+* **The archive confirms the precondition exactly:** for `placebo` g2 the preceding generation has
+  **ZERO archived candidates**; for `scalar_cvar5` g3, likewise **ZERO**.
+
+**So the fallback fired because there was genuinely nothing to reflect on — and it fired in
+`qwen3_5_9b`, the ~17 % authoring-reliability BOTTOM ANCHOR of the capability ladder.** That is not a
+defect; **it is the numeracy bottleneck made visible in the fed text itself**, and it is a mechanism
+observation worth the write-up (SQ1 territory: a model too weak to author a usable reward collapses
+the reflection loop back to a cold draw).
+
+S11 now classifies it as a DISCLOSURE and, defensively, still RAISES if the fallback ever fires while
+the preceding generation DOES hold candidates — i.e. it checks the fallback's own precondition rather
+than trusting it.
+
+### 111.4 WHAT THIS ADDS TO THE EVIDENCE BASE
+
+The dissertation can now state, with an archive-wide check behind it, that **the manipulated variable
+was delivered as registered on every one of 1,139 reflective draws**, that the two controls are
+structurally correct (placebo information-free at identical shape; placebo_shuffled label-identical
+with permuted values), and that the only recorded departures are three cold-draw fallbacks whose cause
+is verified. **That is the construct-validity claim moved from design-document assertion to measured
+fact.**
