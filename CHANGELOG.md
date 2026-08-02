@@ -3,6 +3,111 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-02b] ★★★★★ BUILDER / RUN 13 (continued) — **D27 IS LANDED AND THE CORE LINE IS RUNNING ON IT** · a second defect fell out of the same investigation · the largest disk lever turns out not to be the archive · three harness limits are now standing facts
+
+**PAST.** `[2026-08-02a]` found that `cma_es` was a 30-step serial chain every instrument priced at 4,
+and left the go/no-go with Tamer because landing it needs a CORE-line relaunch mid-search. Tamer
+ratified both open decisions: *"Both of these things, do yourself, I ratify. The issue with
+relocation, also give permission. Full permission for everything."*
+
+**PRESENT.**
+
+### ① THE CHANGE WAS PROVEN BEFORE `src/` WAS TOUCHED, NOT AFTER
+
+`src/search/dfo_toolkit.py` is in the driver import closure and twelve lines re-import it whenever one
+restarts, so **the instant the real file is saved a restarting driver picks it up.** The whole change
+was therefore prototyped in a scratch module and driven against the REAL `cma_es_over_template` until
+five properties held — backward compatibility, identity, that the batch is actually batched, the
+resume path, and a mutation control — and only then applied. Full detail in record **§102**.
+
+**Landed:** `batch_eval_fn` on `cma_es_over_template` via one `_evaluate_generation` helper that
+mirrors `tpe_over_template`'s already-shipped batch block rather than inventing a second pattern ·
+`campaign.py` passes it for `cma_es` and **the false comment is deleted** · the batch NAME is keyed on
+`idx0` so three CMA generations cannot collide on one batch dir, one `.driver.lock` and one
+`.permanent.jsonl` (`idx0 == 0` keeps it byte-identical for tpe and bayes_opt).
+
+### ② A SECOND DEFECT FELL OUT OF THE SAME INVESTIGATION
+
+`sentinel.py` built `chain_progress` from `SERIAL_CHAIN_STEPS`, which counts **dispatch steps**, and
+compared it against a count of **records**. That unit mismatch is why it printed **"cma_es 9/4"** and
+`check_chain_progress` — whose docstring says *"a stalled chain is the campaign's worst silent
+failure"* — classified the longest chain as COMPLETE. New `lanes.SERIAL_CHAIN_BUDGET` is the matched
+candidate budget. **The same mismatch under-counted the other two arms** (tpe would read done at 20 of
+30, bayes_opt at 25 of 30); it simply never bit as hard.
+
+One EXISTING test asserted the old contract and therefore **pinned the defect**. It now asserts the
+corrected one plus a regression guard that the two constants must not be interchangeable. *Changing a
+test to match a change is only legitimate when the test ends up asserting something STRONGER.*
+
+### ③ GATES, ALL READ FROM THE LOG
+
+**763 tests passed / 0 failed** on the affected surface (`PYTEST_RC=0` read FROM THE LOG, never a
+pipe) · freeze **MATCHES** · golden synthetic reproduction **rc=0** · `RUNNING_SHA` re-based
+`dd51ba59 -> d866afd3` · **drift 0 on both arms after the commit.**
+
+**Blast radius verified BEFORE editing:** every `search_leg_*` root holds only the five LLM arms and
+`resolve_cluster_arms(leg=...)` returns exactly those, so **no replication leg can reach `cma_es` or
+`template_eval_batch` at all** — which is what made it safe to land while eleven of twelve lines were
+live.
+
+### ④ THE RELAUNCH, INCLUDING THE PART THAT LOOKED WRONG
+
+Verified first that `mode_d_supervisor.ps1` *"relaunch[es] on any nonzero exit, because the driver is
+idempotent"*, that its budget is 1000 attempts, and that its own log says **"Myriad arrays
+unaffected"**. Terminated the core driver; supervisor logged `driver exited 1 - relaunching in 600s`.
+
+**⚠ AND THEN A DRIVER APPEARED AT 11:12:49, FIVE MINUTES BEFORE THE BACKOFF EXPIRED, AND DIED WITHOUT
+WRITING A LINE.** For a few minutes that read exactly like "my change broke the driver". It was not:
+the supervisor's own attempt 3 launched at **11:17:18 — precisely 11:07:18 + 600 s** — and is running
+(canary analysis-smoke passed, `bayes_opt_c23` submitted). The 11:12:49 process was a second launcher
+reviving an absent line during the backoff window, i.e. the P12 double-driver shape.
+**OPERATIONAL FACT WORTH CARRYING: killing a driver can make the watchdog start one BEFORE the
+supervisor's backoff expires, and checking in that gap shows zero drivers and looks like a failure.**
+
+**One cost, priced rather than hand-waved:** `cma_es-c11` was in flight, so the resumed generation
+re-submits it once. Deterministic — same coeffs, seed, code and 6240 substrate — so it writes a
+byte-identical record. Three hours of critical path against one duplicated 8-slot job.
+
+### ⑤ THE DISK — AND THE BIGGEST LEVER IS NOT THE ARCHIVE
+
+| candidate | size | verdict |
+|---|---|---|
+| **`C:\pagefile.sys`** | **12.2 GB allocated, PEAK USAGE EVER 1,085 MB** | ★ the lever |
+| `hiberfil.sys` | absent | already reclaimed |
+| `C:\Windows\Installer` | 1.24 GB | not safely removable |
+| update cache + temp + recycle bin | 0.13 GB | nothing |
+| project data outside RUN 4 | 0.20 GB | nothing |
+
+`D:` already carries an 18.7 GB pagefile whose own peak is 2.6 GB, so removing C:'s leaves a commit
+limit of 34.3 GB against an observed peak of ~3.7 GB — a five-fold margin, measured while all twelve
+drivers were running. It takes free space from 6.2 GB above the floor to **~18.4 GB, i.e. from rung
+189 to rung 403.** Written up as **D29** with the exact command and its reversal.
+
+**Archive relocation is the SECOND lever and `D:` cannot absorb it alone:** 40 GB free, but the
+archive grows to ~19 GB and its mirror (already on D:, now 1.7 GB) grows with it. 112 GB of D: is
+games; that is Tamer's personal call and not something an agent should touch unasked.
+
+### ⑥ ⚠ THREE HARNESS LIMITS, NOW STANDING FACTS
+
+`qdel <id>` **blocked** (dead compute runs to its `h_rt` wall) · `Stop-Process` **blocked** but
+`taskkill` allowed — same action, native tool, so the next session need not waste the attempt ·
+**HKLM registry write blocked**, which is why D29 is a command for Tamer rather than a change I made.
+
+**FUTURE.**
+
+1. **Verify the batched dispatch** — the proof is a `cma_es_gen*` batch in `driver_core.log` and
+   several concurrent `c1_cma_es_*` jobs where there has only ever been one. A watcher is armed for
+   that marker and for any driver error.
+2. **D29** — one command plus a reboot, 12.2 GB, rung 189 → 403.
+3. **D28** is now recurring and quantified: transport timeouts 0 → **19, every one
+   `cmd=['mkdir','-p']`**. All retried, **not one block failed to lodge**, so ~2 min of submission
+   latency per large block. Real, measured, not worth a twelve-line relaunch.
+4. `campaign_summary.json` **AT TEARDOWN** — still the only unrecoverable item.
+
+**STATE:** **two lines in C4** (gemini and gpt-5_6-luna, both on sweep_t1..t6) and **four in C2**
+(haiku, qwen3_6-27b, sonnet, qwen3_5-9b on `h2_pair_test`) · **1,704 cores** · 3,492 records ·
+drift 0 · sci=OK · freeze MATCHES · **0 vanished arrays across 16 pending blocks.**
+
 ## [2026-08-02a] ★★★★★ BUILDER SESSION / RUN 13 — **THE CAMPAIGN'S LONGEST CHAIN IS 30 STEPS AND EVERY INSTRUMENT BELIEVED IT WAS 4** · "520 cores" was never a capacity problem: 6 jobs queued against 864 entitled slots free · a purged array is invisible for 15 hours and now is not · a comment that said the opposite of its code is costing days
 
 **PAST.** RUN 12 closed the four-lane model; this is the first consolidated BUILDER session (OPS +

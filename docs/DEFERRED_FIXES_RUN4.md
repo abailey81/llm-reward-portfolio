@@ -1409,3 +1409,63 @@ O(parts) command from the critical submission path.
 
 **Do NOT raise the 120 s ceiling instead.** It is what surfaced this at all; a longer timeout would
 have hidden a two-minute stall behind every large block.
+
+
+---
+
+## 22. ★★★★ D29 — THE C: PAGEFILE IS 12.2 GB THAT HAS NEVER BEEN USED, AND IT IS THE LARGEST DISK LEVER (found 2026-08-02, record §102.6)
+
+**ONE COMMAND, AND ONLY TAMER CAN RUN IT.** The harness classifier blocks agent-side HKLM registry
+writes (as it blocks `qdel` and `Stop-Process`), and this is a registry change plus a reboot.
+
+**THE MEASUREMENT, which is what makes it safe:**
+
+```
+C:\pagefile.sys   allocated 12,233 MB   currentUsage 624 MB   PEAK EVER 1,085 MB
+D:\pagefile.sys   allocated 18,737 MB   currentUsage 1,815 MB PEAK EVER 2,606 MB
+RAM 15.6 GB · AutomaticManagedPagefile = False
+registry PagingFiles = "C:\pagefile.sys 4096 8192" , "D:\pagefile.sys 16384 28672"
+```
+
+The C: pagefile has **never in this machine's uptime exceeded 1.1 GB**, and D: already carries an
+18.7 GB pagefile whose own peak is 2.6 GB. Removing C:'s leaves a commit limit of 15.6 GB RAM +
+18.7 GB pagefile = 34.3 GB against an observed combined peak of about 3.7 GB — **a margin of roughly
+five times**, on a machine whose heaviest load (twelve driver processes plus the monitoring stack) is
+already running while those peaks were recorded.
+
+**WHAT IT BUYS.** `docs/ops/disk_runway.py`, at a measured 0.496 MB per test unit:
+
+| | free above the 20 GB floor | highest rung that fits |
+|---|---|---|
+| today | 6.2 GB | **rung 189** (needs 5.9 GB — 0.3 GB of margin) |
+| after this change | ~18.4 GB | **rung 403** (needs 13.4 GB) |
+
+Rung 189 is exactly where H2 stops being INCONCLUSIVE, so today the campaign lands ON the boundary of
+its own decisive result. This moves it two rungs clear.
+
+**THE COMMAND** (elevated PowerShell; the original value is recorded here so it is reversible):
+
+```powershell
+$k = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
+(Get-ItemProperty $k -Name PagingFiles).PagingFiles          # RECORD this first
+Set-ItemProperty -Path $k -Name PagingFiles -Value @('D:\pagefile.sys 16384 28672')
+# then reboot -- the file is only released at boot
+```
+
+**TO REVERSE:** set `PagingFiles` back to
+`@('C:\pagefile.sys 4096 8192','D:\pagefile.sys 16384 28672')` and reboot.
+
+**⚠ THE REBOOT IS THE RISKY HALF, NOT THE REGISTRY EDIT.** It restarts all twelve driver lines at
+once. `session_preflight.py` reports reboot recovery as PRESENT (`boot task present, re-enters via
+mode_d_launch.ps1 with BOTH host exclusions`) — but that check verifies PRESENCE, not FUNCTION, and
+the path has never been exercised. **Cluster jobs are unaffected by a laptop reboot** (the archive is
+the message queue and the drivers re-attach on resume), so the exposure is "the lines do not come
+back until someone notices", not lost work. Do it awake, and verify all twelve lines return.
+
+**SIDE EFFECT, accepted:** with no pagefile on the system drive Windows cannot write a kernel crash
+dump. Irrelevant to this campaign.
+
+**THIS IS THE FIRST DISK LEVER, NOT THE ARCHIVE.** Relocating the archive is the second, and D: cannot
+absorb it alone — D: has 40 GB free while the archive plus its mirror grow to about 40 GB together.
+112 GB of D: is games (Steam, rocketleague); that is Tamer's personal call and no agent should touch
+it unasked.
