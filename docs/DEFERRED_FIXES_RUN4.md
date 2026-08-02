@@ -1377,3 +1377,35 @@ half days on the campaign's critical path.
 vanished-array damage, which `vanished_array_watch.py` now makes visible within ~20 minutes instead of
 15 hours. That detector does not shorten the chain; it stops the chain from being *lengthened* while
 nobody is looking.
+
+
+---
+
+## 21. D28 — C4's SUBMISSION BUILDS ONE `mkdir -p` PER BLOCK AND IT HIT THE 120 s ssh CEILING (found live 2026-08-02, record 101.10)
+
+**File:** `src/cluster/submit.py` (the pre-submit directory creation) — inside the driver import closure.
+
+**Seen, live, at the very first C4 gate passage:**
+
+```
+04:14:36 WARNING src.cluster.submit  ssh_timeout_diagnostic cmd=['mkdir', '-p'] elapsed=120.0s
+                                     child_already_exited=False child_returncode=None
+04:14:36 WARNING src.cluster.driver  [leg9_leg_gemini_2_5_flash_sweep_t6] queue op failed (1 consecutive, 0 min)
+```
+
+`sweep_t6` is 5 units x 165 seeds = 825 trainings, which at pack 8 is ~104 parts, and the submission
+issues **one `mkdir -p` listing all ~104 log directories in a single ssh command**. On the shared
+filesystem that exceeded the driver's 120 s ssh ceiling. `child_already_exited=False` says the child
+was alive and working, so this is a slow REMOTE command, not a connect failure.
+
+**Blast radius today: bounded.** The driver logged the failure, kept the block (`0/825 done, 825
+pending`) and retried; the other five blocks lodged normally, and within four minutes the line held 236
+jobs. **So this costs a retry cycle per large block, not work** — but it scales with block size, and
+`sweep_t6` is the LARGEST block of every line's ladder, so all eleven lines will meet it.
+
+**Fix (deferred — the file is in the import closure):** chunk the `mkdir -p` into batches of ~25 paths,
+or create the parent once and let the jobscript `mkdir -p` its own directory. Either removes an
+O(parts) command from the critical submission path.
+
+**Do NOT raise the 120 s ceiling instead.** It is what surfaced this at all; a longer timeout would
+have hidden a two-minute stall behind every large block.

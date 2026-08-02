@@ -15131,7 +15131,65 @@ Tonight the code beat the comment (D27), the observation beat the inference (the
 here the filtered census beat the handover note. *Only one of those three went the direction I
 expected.*
 
-### 101.10 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
+### 101.10 ★★★★★ C4 OPENED AT 04:12:28 — AND IT TURNS D27 FROM VALUABLE INTO URGENT
+
+**The transition, observed rather than inferred.** `driver_gemini-2_5-flash.log`, 2026-08-02:
+
+```
+04:12:28 [gate] green execution health (auto) -- PROCEEDING to C4 sweep
+04:12:28 [C4|pipelined] block 1..6: 5 units x 70 / 89 / 90 / 61 / 63 / 165 seeds at -p 0
+```
+
+`session_preflight.py` now reports `c4_entered = 1`. **The brief's own acceptance test passed:** *"qw
+should go from ~10 to hundreds; if it stays near zero the pipelining did not take."*
+
+| | before the gate | ~4 min after |
+|---|---|---|
+| jobs | 56 | **281** |
+| queued (`qw`) | 16 (10 real + 6 `sshorig`) | **194** |
+| cores running | 320 | **696** |
+| cores queued | 86 | **1,510** |
+| gemini's own jobs | 4 | **236** |
+
+**A near-miss I did not report as a fault, and the reason matters.** At two minutes past the gate I
+measured `qw = 16` and cores FALLING (528 -> 320), which is exactly the signature the brief says to
+investigate. It was the submission ramp: each part is its own `qsub` over ssh at roughly one per
+second, so ~337 jobs take about six minutes to lodge. *Two minutes into a six-minute ramp looks
+identical to a failure.* The discriminator was reading the driver log rather than the queue count.
+
+**One real defect surfaced in the ramp and self-healed.** `sweep_t6` (5 units x 165 seeds = 825
+trainings, ~104 parts) builds a SINGLE `mkdir -p` listing every part's log directory, and it hit the
+driver's 120 s ssh ceiling: `ssh_timeout_diagnostic cmd=['mkdir','-p'] elapsed=120.0s
+child_already_exited=False`. The child was alive and working — a slow remote command on a shared
+filesystem, not a connect failure. The driver logged `queue op failed (1 consecutive)` and carried on;
+the other five blocks lodged normally. **Worth a deferred fix (chunk the `mkdir`), not an intervention.**
+
+**★★★ AND HERE IS WHAT ACTUALLY MATTERS.** Under R101 the reported result is the **COMMON rung — a
+MINIMUM over the eleven lines** — which is why the brief asks a session to be able to explain, unaided,
+*"why capacity given to a leading line is worth exactly zero"*. That property is now biting, hard:
+
+* **Ten report-only legs are entering C4 and will consume every reachable slot.** Demand is already
+  2,206 slots against roughly 1,424 reachable, so from this moment the campaign is CAPACITY-bound —
+  the opposite of the state it was in six hours ago, and correctly so.
+* **The CORE line — the confirmatory one, the one that sets the common rung — cannot enter C4 for
+  another 4 to 7 days**, because `cma_es` is 9 of 30 on a strictly serial chain (D27).
+* **So for the next 4-7 days, essentially all of the cluster's capacity goes to records that cannot
+  raise the reported rung, while the line that gates it runs THREE eight-slot jobs.**
+* **And it compounds.** When core finally reaches C4 it will queue behind ten legs already deep in
+  their ladders with accrued waiting time, at equal `-p 0` priority and `weight_waiting_time = 1.0`.
+  Core's C4 will therefore be slower than it would have been today.
+
+**D27 was costed as a 3.3-6.6 day saving on the critical path. That costing is now an UNDERSTATEMENT**,
+because it priced only the length of the chain and not the queue position core inherits at the end of
+it. **It is the highest-value decision open on this campaign and it is Tamer's.**
+
+**Watch list, now live:** `max_u_jobs = 1000` (281 jobs and climbing as more legs gate — D25 predicts
+crash-loops, which self-heal and must NOT be "fixed" mid-ladder) · any block reporting **INCOMPLETE**
+(none so far; it is URGENT if it appears, because the ladder banks only to the last clean level) · the
+disk runway of §101.8, which is now a live constraint rather than a forecast · and the blinding rule,
+which binds harder every hour as C4 writes sealed test records at higher rungs.
+
+### 101.11 SECTION 20 MISTAKE LEDGER — P178 to P182, all mine
 
 | id | mistake | root cause | how found | fix | lesson |
 |---|---|---|---|---|---|
