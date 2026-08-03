@@ -19595,3 +19595,95 @@ assumption it rests on converts a live measurement into a claim — which is pre
 project's own uncertainty discipline (CLAUDE.md, D1/D2: *every number arrives with its mechanism, its
 uncertainty and its counterfactual*) exists to prevent. **I applied that standard to the dissertation
 and not to my own operational reporting.**
+
+### 131.16 THE CORE COUNT IS NOT THE CONSTRAINT — RE-MEASURED FROM SCRATCH, AND THE CRITICAL PATH IS A SERIAL CHAIN
+
+**Tamer: *"we are at 1600 cores ... ensure that we use maximum that myriad can offer us ... we are not
+even at 2 k cores"*** and *"ensure nothing is stale and everything is moving"*. §7 had closed the ETA
+twice, but the situation has materially changed since (gpt finished, the line-major handover began),
+so every figure below was **re-measured today rather than inherited.**
+
+### 131.16a NOTHING IS STUCK — BUT ONLY ONE LINE IS PRODUCING
+
+`line_balance --once` reads **CLEAN**: every line below the deepest rung has work running or queued.
+But per-line last-record age tells the real story:
+
+```
+test_leg_qwen3_5_9b      931 rec     1m ago     <-- the ONLY line archiving
+test_leg_deepseek_v4_pro  82 rec   359m
+test_leg_gpt_5_6_luna  2,832 rec   365m         <-- finished its ladder (8 records short of 568)
+test_leg_qwen3_6_27b     150 rec  1026m
+test_leg_glm_5_2          90 rec  1042m
+test_leg_haiku_4_5       150 rec  1094m
+test_leg_sonnet_5        150 rec  1150m         <-- 340 jobs QUEUED behind fair share
+test_leg_kimi_k3          90 rec  2027m
+test (core)              450 rec  2552m
+test_leg_nemotron_3_super 60 rec  2624m
+```
+
+**Nine lines are idle on the test tier for 6–44 h, and none of them is faulted** — their work is
+queued and waiting for slots. Idle-because-queued and idle-because-broken look identical from the
+archive, which is exactly why `line_balance`'s running/queued discriminator exists.
+
+### 131.16b THE CORE COUNT IS CAPPED, AND THREE INDEPENDENT MEASUREMENTS SAY SO
+
+| probe | result | what it excludes |
+|---|---|---|
+| `qstat -g c` + `qconf -sq` | **every cluster queue (Bran, Brienne, Bronn …) maps to the SAME host group `@serial`** | there is no second pool; switching queues gains **zero**. The "11,643 AVAIL" in the other queues is the same physical capacity seen through another queue instance, **not additive** |
+| `qquota -u ucestes` | **EMPTY** | no quota caps us |
+| `qalter -w p <queued job>` | *"found possible assignment with 8 slots"* | the job **is** schedulable and the capacity **does** exist — and we still do not get it |
+
+Cluster: **357 hosts, 13,048 CPUs**; queue Bran shows **8,388 used / 3,256 available**. We hold
+~1,600 of the 8,388 in use. **Jobs assignable + capacity free + no quota + count pinned ⇒ functional
+fair-share by user**, exactly §7's conclusion, now re-derived from live probes rather than carried
+forward. **No action available to us raises it.**
+
+### 131.16c ⚠ AND MORE CORES WOULD NOT SHORTEN THE CRITICAL PATH ANYWAY — THIS IS THE POINT
+
+The core line is still in **C1**, and its search chains are **SERIAL BY DESIGN** (candidate *n+1* is
+chosen from candidate *n*'s result). Measured per-candidate cadence from the archive:
+
+```
+bayes_opt   26/30   4 left x 3.63 h = 0.6 d
+tpe         24/30   6 left x 7.24 h = 1.8 d   <-- THE CRITICAL PATH
+cma_es      27/30   3 left x 0.92 h = 0.1 d
+random_search 30/30 COMPLETE
+```
+
+**AND THOSE JOBS ARE NOT QUEUE-STARVED.** `c1_tpe_c24` was submitted ~17:00 and shows
+`cpu=29:51:28` on 8 slots = **3.7 h wall against ~3.5 h elapsed** — it started essentially
+immediately. So the chain is bound by **sequential dependency plus orchestration**, not by slots:
+**more cores cannot compress it, and neither can queue reordering.**
+
+**⇒ 34 % of the rung-568 backlog — 10,910 records, including ALL 5,918 belonging to the 11 H1 canon
+arms — sits BEHIND that barrier and cannot start on any number of cores.** The canon reads 30 seeds
+today for exactly this reason: R111 registered that it CLIMBS with everything else, but it climbs in
+**C4**, and the core line has never entered C4 (`grep -c "C4" driver_core.log` = **0**).
+
+### 131.16d THE ONE GENUINE QUEUE-ORDER FINDING, AND WHY I DID NOT ACT ON IT
+
+**Job `85065` — deepseek `placebo_shuffled` seeds 16–23, EIGHT records — is what caps the COMMON RUNG
+at 0**, and the common rung *is* the reported result under R101. It sits at priority **2.00201 with
+385 of our own pending jobs ahead of it.** The highest-leverage job in the queue is being delayed by
+our own bulk work.
+
+**NOT ACTED ON, deliberately.** The only lever is `qalter -p` **demotion** of the bulk — measured to
+work (§126.2) but **irreversible and one-way**, and RUN18 §10 makes it a standing prohibition.
+Against that: the job is queued and *will* run, the exogenous stop is 2026-08-27, and the common
+rung only has to be right at the END. **Spending an irreversible operation to accelerate a number
+that is not on the deadline's critical path is a bad trade.** Surfaced for Tamer rather than taken.
+
+### 131.16e WHAT ACTUALLY BOUNDS THE ETA
+
+1. **core C1 serial chain ~1.8 d** (tpe), irreducible without changing the science.
+2. then core **C2 → C3 review gate → C4**, at which point the 11 canon arms begin climbing.
+3. meanwhile the leg lines' queued test work drains at **our fair share**, which we cannot raise.
+
+**Nothing in that chain is fixed by cores.** The honest statement is that the campaign is running at
+the maximum Myriad will give this account, the residual time is structural rather than
+resource-limited, and the registered PRIMARY target (rung 403) still projects inside the stop.
+
+**⇒ THE LESSON: "are we using enough cores" and "is the campaign going as fast as it can" are
+DIFFERENT QUESTIONS, and here they have different answers.** We are not using the cluster's spare
+capacity — and we could not use it if we had it, because the work that would consume it is behind a
+stage barrier. Answering only the first question would have produced a confident, wrong plan.
