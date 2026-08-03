@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 17:32 UTC -- T+140h23m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 17:35 UTC -- T+140h26m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,21 +10,21 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+140h23m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
-| lines up | **** ? / ? **  <- a roster line is MISSING or a stray is present**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9548** |
+| elapsed | **T+140h26m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| lines up | **** 12 / 12 (log files -- live census unavailable) **  <- a roster line is MISSING or a stray is present**, all five arms submitted on **0 of the 10 leg lines** (h3ss is single-arm by design) |
+| stalest driver log | **** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9552** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=64; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 122 -- a level with no rate; read the row above |
-| guards | **RC=2**, not green: truncation transport  |
+| guards | **RC=**, not green: (GUARD-NAME EXTRACTION FAILED -- read campaign_guards.py output directly) |
 
 ## Compute
 
 | | |
 |---|---|
-| cluster jobs | **632** (190 running, 442 queued) |
-| **cores computing** | **1520** |
+| cluster jobs | **632** (194 running, 438 queued) |
+| **cores computing** | **1552** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
@@ -80,11 +80,7 @@ and two lines have already finished the whole thing.**
 
 | arm | furthest generation | search candidates so far |
 |---|---|---|
-| distributional | g5 of 5 | 307 |
-| scalar | g5 of 5 | 284 |
-| placebo | g5 of 5 | 277 |
-| scalar_cvar5 | g5 of 5 | 272 |
-| placebo_shuffled | g5 of 5 | 280 |
+| (stage scan unavailable) | | |
 
 ### The seed ladder, live -- and the top row IS the reported result
 
@@ -101,18 +97,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 
 | line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
-| test | **0** | 30 | 6 | 2 arm(s) still at zero |
-| deepseek_v4_pro | **0** | 30 | 5 | 2 arm(s) still at zero |
-| glm_5_2 | **0** | 30 | 5 | 2 arm(s) still at zero |
-| kimi_k3 | **0** | 30 | 5 | 2 arm(s) still at zero |
-| nemotron_3_super | **0** | 30 | 4 | 2 arm(s) still at zero |
-| haiku_4_5 | **30** | 30 | 5 |  |
-| qwen3_6_27b | **30** | 30 | 5 |  |
-| sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **98** | 121 | 5 |  |
-| gpt_5_6_luna | **566** | 567 | 5 |  |
-| test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
-| gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
+| (ladder unavailable this cycle) | | | | |
 
 A line reading **0** is MID-FILL, not stuck: its `distributional` and `scalar` arms are tested last,
 behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
@@ -120,7 +105,7 @@ line with zero jobs RUNNING **and** zero QUEUED, continuously for 45 minutes --
 `docs/ops/line_balance.py` watches exactly that, and its live verdict is:
 
 ```
-CLEAN -- every line below the deepest rung has work in flight or queued.
+(line_balance could not run this cycle -- treat as UNKNOWN, not clean)
 ```
 
 ⚠ That line is now **read from the instrument on every publish**. It used to be the fixed sentence
@@ -150,7 +135,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the cycle (last monitoring cycle  min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -167,12 +152,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T17:13:19Z  RED  records=9515 (+6)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=884.4m  drift=0  sci=OK  r115=21B  sweep=123.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:15:53Z  RED  records=9524 (+9)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=888.5m  drift=0  sci=OK  r115=21B  sweep=216.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:20:00Z  RED  records=9525 (+1)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=890.9m  drift=0  sci=OK  r115=21B  sweep=103.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:22:13Z  RED  records=9532 (+7)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=893.9m  drift=0  sci=OK  r115=21B  sweep=151.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:25:16Z  RED  records=9533 (+1)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=896.1m  drift=0  sci=OK  r115=21B  sweep=110.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T17:27:37Z  RED  records=9546 (+13)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=304.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T17:33:12Z  RED  records=9552 (+6)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=21B  sweep=158.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
@@ -187,8 +172,7 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  anthropic   spent $ 36.7418  + still to author $  0.0000  = $ 36.7418   credited $ 28.1500   margin $  -8.5918 (-31%)  over the credit ESTIMATE (owner-watched)
-  openrouter  spent $  8.7603  + still to author $  0.0107  = $  8.7710   credited $ 19.3100   margin $ +10.5390 (+55%)  comfortable
+  (budget projection unavailable this cycle)
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
