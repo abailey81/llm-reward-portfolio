@@ -245,6 +245,72 @@ automated traffic does not belong on a shared interactive jump host.
 **`Host myriad` was never modified — `ssh -G myriad` shows zero proxy directives**, so the twelve
 live driver lines ran untouched throughout.
 
+### ⑨ ★★★★★ A UCL LOGIN-NODE PENALTY, AND THE ADMISSION GATE BUILT SO IT CANNOT RECUR
+
+**2026-08-03 00:33:47Z: UCL automatically penalised `ucestes`** (penalty1 — CPU and memory capped
+at 80% of 6 cores / 30 GB for 30 minutes on login12). Diagnosed to a cause rather than guessed at:
+
+```
+steady state (measured over 4 consecutive minutes) : 236-314% CPU, 0.05 GB, EXACTLY 4 qacct
+the limit                                          : 6 cores  => steady state is LEGAL
+/opt/sge/default/common/accounting                 : 33 GB    <= why ONE qacct costs ~73% CPU
+detector fired                                     : 108 SECONDS after SSH access returned
+```
+
+**⇒ the violation was a STAMPEDE, not steady state.** All twelve lines resumed at once,
+`tar`-extracting a ~1,400-record backlog while running qacct forensics on every array that had
+drained during the blackout. The email's own averages total ~3.5 cores — under the limit — and it
+says why: *"recent averages ... instantaneous usage may differ."* The detector fired on the PEAK.
+
+**TWO HYPOTHESES TESTED AND KILLED BEFORE ACTING.** (a) *"orphaned qacct from timed-out ssh"* —
+FALSE: `ELAPSED=00:01` with live sshd parents, so they are fast calls in a continuous stream.
+(b) *"then kill them"* — REFUSED: `driver.py` P13 treats a MISSING qacct trace as evidence an array
+was purged and can RESUBMIT the work. A flock-serialising remote wrapper was refused for the same
+reason: the count sits at exactly 4 because arrival rate already meets service rate, so serialising
+builds an unbounded queue, crosses the driver's 120 s timeout, and lands in that identical
+resubmit path. Changing poll flags or driver code is correct but needs a twelve-line relaunch.
+
+**⇒ the only control point that is ours is the ssh client, which every driver already passes
+through. BUILT `docs/ops/ssh_gate.py`** — an OpenSSH `ProxyCommand` admission gate imposing a hard
+concurrency cap (default 4, calibrated to the measured steady state so it is near-transparent
+day-to-day while refusing a 12-way burst). **Fails open** on any internal error, **bounded wait**
+then proceeds rather than blocking, **self-healing slots** (each carries its owner PID), **verbatim
+binary relay** with explicit binary stdio.
+
+**PROVEN ON A SEPARATE `myriadgate` ALIAS BEFORE ACTIVATION**, so no live line ever depended on
+unproven code: 12 simultaneous sessions → **12/12 succeeded, 0 cap breaches**, 8 waits all admitted
+after 5.3 s; and **3 MB of random binary round-tripped MD5-identical** (`aaf917e0…`) — the
+make-or-break test, since a `0x1A` byte in text mode would silently truncate a tar stream mid-pull.
+
+**★ TWO OF MY OWN BUGS THAT ONLY THE END-TO-END TEST COULD FIND — both now regression-pinned:**
+1. **`ConnectTimeout` < the gate's wait.** ssh starts its patience clock when the ProxyCommand is
+   SPAWNED, not when the socket opens, so a queued session died at *"Connection timed out during
+   banner exchange"* — **8 of 12 failed**. Fixed by requiring `ConnectTimeout > --max-wait`.
+2. **ONE-SHOT DEAD-SLOT RECLAIM.** ssh KILLS the ProxyCommand rather than letting it exit, so
+   `release()` usually never runs. Reclaiming only once per acquire meant waiters burned the whole
+   `--max-wait` and then **fell through UNGATED — 8 of 12 breached the cap**, precisely the event
+   the gate exists to prevent. Now reclaims every ~1 s; the pin acquires in 1.1 s where the old
+   code returned failure after 6 s.
+
+**ACTIVATED on the live `Host myriad` on Tamer's explicit ratification** (`--max-wait 25`,
+`ConnectTimeout 35`, `ConnectionAttempts 2` kept so RUN 13's transient-drop retry survives; worst
+case 70 s inside the driver's 120 s ceiling). **Verified live:** `proxycommand` present, real ssh
+OK, binary fidelity MD5-identical on the driver path, **0 connection failures on all twelve lines
+after activation**, records climbing **6,348 → 6,369**, `drift=0 sci=OK`, login-node load 2.15-2.67
+of 6 cores.
+⚠ **HONEST LIMIT: the cap is SOFT.** Under sustained load a session waits 25 s and then proceeds —
+51 of 138 waits did so. That is the deliberate safety valve (a gate that blocks the campaign is
+worse than no gate), so the gate flattens a burst over 25 s rather than forbidding it outright.
+The complete fix remains longer `--poll-secs`/`--search-poll-secs` at the next relaunch, which
+lowers the FLOOR as well as the peak.
+
+**ALSO BUILT `docs/ops/loginnode_guard.py`** — warns before UCL's detector does. Its selftest
+caught a float-comparison bug in my own code (`6.0*0.8 = 4.800000000000001`, so an exact-ceiling
+breach reported WARN instead of OVER) and a warn threshold so lax it rated the measured 2.9-core
+floor "comfortable" — the very state that produced the penalty. It probes via `myriad13`
+(UNGATED) deliberately: measuring through the gate put the observer inside the mechanism it
+observes and produced empty readings (`PROBE-UNPARSED`).
+
 **FUTURE.** (1) **The disk ceiling is CLOSED** and (2) **the outage is CLOSED** — neither needs the
 pagefile move, which is now optional headroom. (3) Fix the D18 nested-dir admission in
 `load_campaign_records` before the headline analysis. (4) Cores work is now UNBLOCKED — re-measure

@@ -72,7 +72,12 @@ WARN_FRACTION = 0.45
 #: WARN instead of OVER in the selftest. Compare with a tolerance.
 _EPS = 1e-9
 
-HOST = "myriad"
+#: ⚠ DELIBERATELY `myriad13`, NOT `myriad`. Since 2026-08-03 the `myriad` alias routes through
+#: docs/ops/ssh_gate.py, so measuring through it would put the OBSERVER inside the mechanism it is
+#: observing: the guard's own probe queues behind driver traffic, and a probe that loses its slot
+#: returns nothing (observed live as `PROBE-UNPARSED ''`). `myriad13` reaches the same physical
+#: login node ungated, so the reading is of the node rather than of the gate. Its cost is one `ps`.
+HOST = "myriad13"
 DEFAULT_INTERVAL = 120.0
 _HERE = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(_HERE, "watch", "LOGINNODE_GUARD.log")

@@ -17,3 +17,331 @@
 2026-08-03T01:16:59Z  reclaimed slot-0 from dead pid 43768
 2026-08-03T01:16:59Z  reclaimed slot-1 from dead pid 36256
 2026-08-03T01:16:59Z  reclaimed slot-3 from dead pid 28316
+2026-08-03T01:19:15Z  reclaimed slot-0 from dead pid 34624
+2026-08-03T01:19:15Z  reclaimed slot-1 from dead pid 15508
+2026-08-03T01:19:15Z  reclaimed slot-2 from dead pid 46124
+2026-08-03T01:19:15Z  reclaimed slot-3 from dead pid 31024
+2026-08-03T01:19:25Z  reclaimed slot-0 from dead pid 27904
+2026-08-03T01:19:25Z  reclaimed slot-1 from dead pid 45488
+2026-08-03T01:19:25Z  reclaimed slot-2 from dead pid 43744
+2026-08-03T01:19:25Z  reclaimed slot-3 from dead pid 13720
+2026-08-03T01:19:29Z  reclaimed slot-0 from dead pid 36960
+2026-08-03T01:19:29Z  reclaimed slot-1 from dead pid 34612
+2026-08-03T01:19:29Z  reclaimed slot-2 from dead pid 37984
+2026-08-03T01:19:29Z  reclaimed slot-3 from dead pid 44708
+2026-08-03T01:19:34Z  reclaimed slot-0 from dead pid 2148
+2026-08-03T01:19:34Z  reclaimed slot-1 from dead pid 25696
+2026-08-03T01:19:34Z  reclaimed slot-2 from dead pid 34028
+2026-08-03T01:19:34Z  reclaimed slot-3 from dead pid 27896
+2026-08-03T01:19:46Z  reclaimed slot-0 from dead pid 1612
+2026-08-03T01:19:46Z  reclaimed slot-1 from dead pid 20368
+2026-08-03T01:19:46Z  reclaimed slot-2 from dead pid 33452
+2026-08-03T01:19:55Z  reclaimed slot-0 from dead pid 45528
+2026-08-03T01:19:55Z  reclaimed slot-1 from dead pid 38216
+2026-08-03T01:19:55Z  reclaimed slot-2 from dead pid 36964
+2026-08-03T01:19:55Z  reclaimed slot-3 from dead pid 46556
+2026-08-03T01:20:19Z  reclaimed slot-0 from dead pid 33448
+2026-08-03T01:20:19Z  reclaimed slot-1 from dead pid 46220
+2026-08-03T01:20:19Z  reclaimed slot-2 from dead pid 35136
+2026-08-03T01:20:50Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:20:56Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:20:57Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:20:58Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:02Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:03Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:08Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:11Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:25Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:27Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:40Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:48Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:48Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:48Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:21:52Z  reclaimed slot-0 from dead pid 42988
+2026-08-03T01:21:52Z  reclaimed slot-1 from dead pid 46948
+2026-08-03T01:21:52Z  reclaimed slot-2 from dead pid 34756
+2026-08-03T01:21:52Z  WAIT 22.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:52Z  reclaimed slot-3 from dead pid 19644
+2026-08-03T01:21:52Z  WAIT 14.8s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:52Z  WAIT 23.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:52Z  WAIT 5.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:54Z  reclaimed slot-1 from dead pid 33028
+2026-08-03T01:21:54Z  reclaimed slot-3 from dead pid 4764
+2026-08-03T01:21:54Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:54Z  WAIT 11.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:54Z  reclaimed slot-0 from dead pid 40500
+2026-08-03T01:21:54Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:55Z  reclaimed slot-2 from dead pid 39628
+2026-08-03T01:21:55Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:56Z  reclaimed slot-3 from dead pid 46568
+2026-08-03T01:21:56Z  reclaimed slot-1 from dead pid 46132
+2026-08-03T01:21:56Z  reclaimed slot-0 from dead pid 38144
+2026-08-03T01:21:56Z  WAIT 4.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:57Z  reclaimed slot-3 from dead pid 25296
+2026-08-03T01:21:57Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:21:57Z  reclaimed slot-1 from dead pid 19372
+2026-08-03T01:21:57Z  WAIT 2.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:00Z  reclaimed slot-1 from dead pid 39920
+2026-08-03T01:22:00Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:02Z  reclaimed slot-1 from dead pid 40156
+2026-08-03T01:22:02Z  WAIT 6.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:04Z  reclaimed slot-1 from dead pid 46900
+2026-08-03T01:22:04Z  WAIT 9.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:06Z  reclaimed slot-1 from dead pid 41960
+2026-08-03T01:22:06Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:09Z  reclaimed slot-1 from dead pid 45688
+2026-08-03T01:22:09Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:11Z  reclaimed slot-1 from dead pid 45728
+2026-08-03T01:22:11Z  WAIT 6.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:13Z  reclaimed slot-1 from dead pid 14012
+2026-08-03T01:22:13Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:15Z  reclaimed slot-1 from dead pid 40364
+2026-08-03T01:22:15Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:17Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:17Z  reclaimed slot-1 from dead pid 38468
+2026-08-03T01:22:17Z  WAIT 4.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:18Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:19Z  reclaimed slot-1 from dead pid 10908
+2026-08-03T01:22:19Z  WAIT 23.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:19Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:20Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:21Z  reclaimed slot-1 from dead pid 29532
+2026-08-03T01:22:22Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:23Z  reclaimed slot-1 from dead pid 44728
+2026-08-03T01:22:23Z  WAIT 11.7s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:24Z  reclaimed slot-1 from dead pid 21736
+2026-08-03T01:22:24Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:27Z  reclaimed slot-1 from dead pid 39776
+2026-08-03T01:22:27Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:30Z  reclaimed slot-1 from dead pid 39064
+2026-08-03T01:22:30Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:33Z  reclaimed slot-1 from dead pid 22340
+2026-08-03T01:22:33Z  WAIT 22.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:33Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:35Z  reclaimed slot-1 from dead pid 17836
+2026-08-03T01:22:35Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:36Z  reclaimed slot-1 from dead pid 46192
+2026-08-03T01:22:36Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:39Z  reclaimed slot-1 from dead pid 43644
+2026-08-03T01:22:39Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:41Z  reclaimed slot-1 from dead pid 44384
+2026-08-03T01:22:41Z  WAIT 20.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:43Z  reclaimed slot-1 from dead pid 46632
+2026-08-03T01:22:44Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:22:45Z  reclaimed slot-1 from dead pid 44248
+2026-08-03T01:22:45Z  WAIT 8.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:48Z  reclaimed slot-1 from dead pid 29300
+2026-08-03T01:22:48Z  WAIT 2.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:50Z  reclaimed slot-1 from dead pid 46700
+2026-08-03T01:22:50Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:53Z  reclaimed slot-1 from dead pid 39900
+2026-08-03T01:22:53Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:55Z  reclaimed slot-1 from dead pid 22416
+2026-08-03T01:22:55Z  WAIT 23.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:57Z  reclaimed slot-1 from dead pid 19528
+2026-08-03T01:22:57Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:22:59Z  reclaimed slot-1 from dead pid 45488
+2026-08-03T01:22:59Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:00Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:23:01Z  reclaimed slot-1 from dead pid 37984
+2026-08-03T01:23:01Z  WAIT 2.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:04Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:23:04Z  reclaimed slot-1 from dead pid 41456
+2026-08-03T01:23:06Z  reclaimed slot-1 from dead pid 41992
+2026-08-03T01:23:06Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:23:08Z  reclaimed slot-1 from dead pid 46232
+2026-08-03T01:23:11Z  reclaimed slot-1 from dead pid 4852
+2026-08-03T01:23:11Z  WAIT 7.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:14Z  reclaimed slot-1 from dead pid 1288
+2026-08-03T01:23:17Z  reclaimed slot-1 from dead pid 29104
+2026-08-03T01:23:19Z  reclaimed slot-1 from dead pid 38876
+2026-08-03T01:23:19Z  WAIT 7.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:22Z  reclaimed slot-1 from dead pid 36268
+2026-08-03T01:23:24Z  reclaimed slot-1 from dead pid 46024
+2026-08-03T01:23:26Z  reclaimed slot-1 from dead pid 35068
+2026-08-03T01:23:29Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:23:30Z  reclaimed slot-1 from dead pid 40628
+2026-08-03T01:23:30Z  WAIT 8.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:32Z  reclaimed slot-1 from dead pid 37104
+2026-08-03T01:23:32Z  WAIT 8.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:35Z  reclaimed slot-1 from dead pid 32992
+2026-08-03T01:23:35Z  WAIT 23.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:38Z  reclaimed slot-1 from dead pid 33048
+2026-08-03T01:23:38Z  WAIT 7.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:23:40Z  reclaimed slot-1 from dead pid 8748
+2026-08-03T01:23:45Z  reclaimed slot-0 from dead pid 44308
+2026-08-03T01:23:45Z  reclaimed slot-1 from dead pid 40732
+2026-08-03T01:23:45Z  reclaimed slot-1 from dead pid 40732
+2026-08-03T01:23:45Z  reclaimed slot-1 from dead pid 40732
+2026-08-03T01:23:45Z  reclaimed slot-2 from dead pid 30464
+2026-08-03T01:23:45Z  reclaimed slot-3 from dead pid 44692
+2026-08-03T01:23:45Z  reclaimed slot-3 from dead pid 44692
+2026-08-03T01:23:53Z  reclaimed slot-3 from dead pid 38568
+2026-08-03T01:23:55Z  reclaimed slot-3 from dead pid 15520
+2026-08-03T01:23:58Z  reclaimed slot-3 from dead pid 2120
+2026-08-03T01:24:01Z  reclaimed slot-3 from dead pid 38128
+2026-08-03T01:24:03Z  reclaimed slot-3 from dead pid 33272
+2026-08-03T01:24:03Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:06Z  reclaimed slot-3 from dead pid 31836
+2026-08-03T01:24:06Z  WAIT 6.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:08Z  reclaimed slot-3 from dead pid 2148
+2026-08-03T01:24:08Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:10Z  reclaimed slot-3 from dead pid 40716
+2026-08-03T01:24:10Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:13Z  reclaimed slot-3 from dead pid 20336
+2026-08-03T01:24:13Z  WAIT 3.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:15Z  reclaimed slot-3 from dead pid 34468
+2026-08-03T01:24:15Z  WAIT 9.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:17Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:24:17Z  reclaimed slot-3 from dead pid 42992
+2026-08-03T01:24:19Z  reclaimed slot-3 from dead pid 33272
+2026-08-03T01:24:19Z  WAIT 10.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:22Z  reclaimed slot-3 from dead pid 35888
+2026-08-03T01:24:24Z  reclaimed slot-3 from dead pid 43220
+2026-08-03T01:24:27Z  reclaimed slot-3 from dead pid 44572
+2026-08-03T01:24:29Z  reclaimed slot-3 from dead pid 38780
+2026-08-03T01:24:29Z  WAIT 7.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:31Z  reclaimed slot-3 from dead pid 45232
+2026-08-03T01:24:36Z  reclaimed slot-3 from dead pid 40908
+2026-08-03T01:24:36Z  WAIT 15.9s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:38Z  reclaimed slot-3 from dead pid 44468
+2026-08-03T01:24:38Z  WAIT 8.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:42Z  reclaimed slot-3 from dead pid 23528
+2026-08-03T01:24:42Z  WAIT 6.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:24:52Z  reclaimed slot-3 from dead pid 41480
+2026-08-03T01:25:00Z  reclaimed slot-3 from dead pid 44944
+2026-08-03T01:25:03Z  reclaimed slot-3 from dead pid 41260
+2026-08-03T01:25:05Z  reclaimed slot-3 from dead pid 32796
+2026-08-03T01:25:05Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:07Z  reclaimed slot-3 from dead pid 45120
+2026-08-03T01:25:10Z  reclaimed slot-3 from dead pid 45844
+2026-08-03T01:25:12Z  reclaimed slot-3 from dead pid 23824
+2026-08-03T01:25:12Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:15Z  reclaimed slot-3 from dead pid 45988
+2026-08-03T01:25:15Z  WAIT 2.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:18Z  reclaimed slot-3 from dead pid 37544
+2026-08-03T01:25:18Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:21Z  reclaimed slot-3 from dead pid 38568
+2026-08-03T01:25:23Z  reclaimed slot-3 from dead pid 44328
+2026-08-03T01:25:26Z  reclaimed slot-3 from dead pid 27292
+2026-08-03T01:25:30Z  reclaimed slot-3 from dead pid 46384
+2026-08-03T01:25:32Z  reclaimed slot-3 from dead pid 45028
+2026-08-03T01:25:32Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:35Z  reclaimed slot-3 from dead pid 42324
+2026-08-03T01:25:36Z  reclaimed slot-0 from dead pid 4428
+2026-08-03T01:25:36Z  reclaimed slot-1 from dead pid 44576
+2026-08-03T01:25:36Z  reclaimed slot-2 from dead pid 46700
+2026-08-03T01:25:37Z  reclaimed slot-3 from dead pid 36316
+2026-08-03T01:25:39Z  reclaimed slot-3 from dead pid 46356
+2026-08-03T01:25:39Z  WAIT 6.4s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:42Z  reclaimed slot-3 from dead pid 28264
+2026-08-03T01:25:42Z  WAIT 2.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:44Z  reclaimed slot-3 from dead pid 43116
+2026-08-03T01:25:44Z  WAIT 2.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:48Z  reclaimed slot-3 from dead pid 34508
+2026-08-03T01:25:48Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:50Z  reclaimed slot-3 from dead pid 46084
+2026-08-03T01:25:50Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:25:53Z  reclaimed slot-3 from dead pid 46900
+2026-08-03T01:25:53Z  WAIT 1.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:26:15Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:18Z  WAIT 25.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:20Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:24Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:34Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:39Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:43Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:44Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:47Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:47Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:54Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:55Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:57Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:26:58Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:03Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:03Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:09Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:10Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:13Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:14Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:14Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:19Z  reclaimed slot-1 from dead pid 41852
+2026-08-03T01:27:19Z  WAIT 7.7s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:19Z  reclaimed slot-2 from dead pid 18212
+2026-08-03T01:27:19Z  reclaimed slot-3 from dead pid 34624
+2026-08-03T01:27:19Z  WAIT 22.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:19Z  WAIT 10.7s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:19Z  reclaimed slot-0 from dead pid 45912
+2026-08-03T01:27:21Z  reclaimed slot-1 from dead pid 45552
+2026-08-03T01:27:21Z  reclaimed slot-2 from dead pid 38260
+2026-08-03T01:27:21Z  WAIT 8.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:21Z  reclaimed slot-3 from dead pid 43944
+2026-08-03T01:27:21Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:22Z  reclaimed slot-1 from dead pid 37920
+2026-08-03T01:27:22Z  WAIT 21.1s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:23Z  reclaimed slot-2 from dead pid 41796
+2026-08-03T01:27:23Z  reclaimed slot-3 from dead pid 45432
+3.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:23Z  WAIT 8.5s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:24Z  reclaimed slot-1 from dead pid 38384
+2026-08-03T01:27:24Z  WAIT 18.7s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:26Z  reclaimed slot-1 from dead pid 41752
+2026-08-03T01:27:26Z  WAIT 5.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:27Z  reclaimed slot-3 from dead pid 41556
+2026-08-03T01:27:27Z  WAIT 4.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:29Z  reclaimed slot-1 from dead pid 45016
+2026-08-03T01:27:29Z  WAIT 13.7s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:30Z  reclaimed slot-3 from dead pid 20340
+2026-08-03T01:27:30Z  WAIT 10.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:31Z  reclaimed slot-1 from dead pid 12428
+2026-08-03T01:27:31Z  WAIT 11.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:27:33Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:36Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:40Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:40Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:48Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:49Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:52Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:27:56Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:01Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:04Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:07Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:08Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:09Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:09Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:10Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:16Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:16Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:19Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:24Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:27Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:29Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:31Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:36Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:40Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:40Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:43Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:44Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:44Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:46Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:48Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:55Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:28:57Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:29:04Z  reclaimed slot-0 from dead pid 44628
+2026-08-03T01:29:04Z  reclaimed slot-1 from dead pid 30192
+2026-08-03T01:29:04Z  reclaimed slot-2 from dead pid 37544
+2026-08-03T01:29:04Z  reclaimed slot-3 from dead pid 46932
+2026-08-03T01:29:04Z  WAIT 22.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:29:04Z  WAIT 6.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:29:04Z  WAIT 17.6s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:29:04Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:29:06Z  reclaimed slot-0 from dead pid 45860
+2026-08-03T01:29:07Z  reclaimed slot-1 from dead pid 45756
+2026-08-03T01:29:07Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:29:07Z  reclaimed slot-3 from dead pid 38908
+2026-08-03T01:29:07Z  WAIT 3.2s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:29:08Z  reclaimed slot-0 from dead pid 27372
+2026-08-03T01:29:08Z  WAIT 4.3s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 admitted
+2026-08-03T01:29:32Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:29:33Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)
+2026-08-03T01:29:43Z  WAIT 25.0s for a slot (cap=4) -> login13.myriad.rc.ucl.ac.uk:22 PROCEEDING UNGATED (timeout)

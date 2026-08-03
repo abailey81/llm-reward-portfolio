@@ -19,11 +19,11 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "37911c11"
+  head: "b08ca3ca"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "outage RESOLVED (VPN pool ACL); backlog drained 4733->6176; archive compressed 1.76:1; full ladder to rung 568"
+  suite_status: "outage resolved (VPN pool); disk ceiling gone (1.76:1); SSH admission gate ACTIVE on the live path, 0 connection failures"
   gate_checks: 23
   backup_branch: backup-2026-07-28
 ```
