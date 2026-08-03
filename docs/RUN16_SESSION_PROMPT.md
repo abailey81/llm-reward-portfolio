@@ -441,6 +441,96 @@ it), `relocate.ps1` (the verified move-and-junction tool), `silent_failure_sweep
 copy whose SOURCE could not be purged (long paths + classifier), so **0.26 GB is duplicated** —
 harmless, recorded, nothing lost.
 
+## §10c ★★★★★ STILL-LIVE FINDINGS INHERITED FROM RUN 15 — **NOT SUPERSEDED. DO NOT LOSE THESE.**
+
+RUN 16 supersedes RUN 15 on transport, disk and cores. **Everything below remains TRUE and
+UNRESOLVED** and was verified as still open at this handover.
+
+### ⚠⚠⚠ (A) R115 — THE ONLY OPEN ITEM THAT TOUCHES THE GRADE
+`config/preregistration.yaml: fitness.winner_max_fallback_frac: 0.10` defends its VALUE as
+immaterial: *"THRESHOLD-INSENSITIVE, not tuned: over 613 counter-carrying records the distribution
+is strongly bimodal — worst trace 0.41 %, mildest severe 39.40 %, a 96x EMPTY GAP — so any value in
+~1-35 % partitions the data identically."*
+
+**That justification is now EMPIRICALLY FALSE** (re-measured on the campaign's own records and
+independently confirmed by a read-only auditor): the claimed empty gap has FILLED, and every
+threshold in 1-35 % now partitions the data differently. At the tier where R115 actually ACTS
+(search-candidate selection, `scripts/run_campaign.py:777-780`), **15 of 60 `(line, arm)` groups have
+a DIFFERENT ELIGIBLE SET across the band**, and the frozen winner
+`qwen3_5_9b/placebo_shuffled-g0-c3` **IS the 9.08475 % candidate** — so at any threshold at or below
+9.08 %, well inside the band the registration calls identical, **a DIFFERENT reward would have been
+frozen and sealed at 30 seeds.** The live monitor agrees by a second route: `r115=21B` in the cycle
+log is 21 breaches AND BINDING.
+
+**WHAT IS AND IS NOT WRONG.** The VALUE is protected — pre-committed BEFORE any campaign data
+existed, and the rule is effect-blind by construction (`_winner_eligible` never touches
+`val_fitness`). **It is NOT a forking path.** What is wrong is the **JUSTIFICATION**, and an
+adversarial reader (Okhrati is exactly that reader) would re-derive the distribution and break it.
+**⚠ IT CANNOT BE FIXED BY EDITING** — both `config/preregistration.yaml` and `PREREGISTRATION.md`
+are hash-bound inside the frozen canonical hash `3ca6f01ab772`. **The correction is a DISCLOSURE and
+it is TAMER'S DECISION**: a dated amendment row or a stated Limitation, restating the justification
+historically. **The threshold must NOT be changed** — that would convert a presentational fix into a
+post-data forking path.
+
+### (B) THE NUMERACY BOTTLENECK IS VISIBLE IN THE SEALED LEG — a real write-up disclosure
+Sealed-test safe-default fallback is confined to `test_leg_qwen3_5_9b` (the ~17 % authoring-
+reliability BOTTOM anchor): `distributional` (TREATMENT) 30 records at 7.84-7.85 %,
+`placebo_shuffled` 30 at exactly 9.0847 %, that leg's `scalar` at ZERO. Within that leg the H2 pair
+is **asymmetric in EXECUTION QUALITY** — the confound R115 exists to bound, INSIDE its tolerance
+(worst 9.0847 % against the 10 % floor, margin 0.92 pp). **No result is compromised**; it is the
+bottleneck made visible, and it belongs in the write-up. (This session re-measured the same
+phenomenon from the other side: the per-model reject table, §2.)
+
+### (C) DETERMINISM IS **NOT** EVIDENCED BY THIS ARCHIVE
+S4 groups sealed-test records by `(arm, seed, reward_source_hash)` and finds 0 disagreements — but
+**RUN 4 contains NO REPLICATES**, so the check compares NOTHING and the result is VACUOUS. The audit
+now prints the replicate count and says so outright. **Determinism must be evidenced from the 30/30
+bit-identical farm or a crash-rehearsal replay — NEVER from this archive.** (RUN 14 twice reported
+"determinism is now MEASURED" from this check and had to retract it.)
+
+### (D) OTHER STANDING DISCLOSURES — all still true
+* **`metrics.train_curve.return` is 100 % NaN** on every record (SB3 `ep_rew_mean`; no episode closes
+  in the logging window). `actor_loss`/`critic_loss`/`ent_coef`/`step` ARE populated and no figure
+  reads `return`. A disclosure, not a defect — **but never build a convergence exhibit from it.**
+* **The reflection source is STICKY** (`src/llm/loop.py:728-729`): `prev_feedback_block` is replaced
+  ONLY when a generation produces a best candidate, so a fed vector can come from ANY earlier
+  generation (traced: `scalar_cvar5` at g5 still being fed g3-c4's vector).
+* **The no-feedback fallback is BY DESIGN** (`loop.py:406-409`): a generation yielding no usable
+  candidate leaves `prev_feedback_block = None`, so the next generation uses the INITIAL prompt.
+  Three records do this, all in `qwen3_5_9b`. Verified, not assumed.
+* **`lanes.EXCLUDED_CPU_POOLS` is referenced only in DOCSTRINGS and enforced by NO code path** — the
+  list that protects CRN bit-exactness is advisory.
+* **`REGISTERED_TEST_LEN = 1571` is sourced from a COMMENT** in the frozen yaml, not an independent
+  config value, so S2 is a self-consistency check. MINOR, recorded.
+* **The 56 frozen-winner markers carry NO execution-quality counters**, so the R115 eligibility fact
+  is only reconstructible from the source search record. MINOR provenance gap.
+* **⚠ THE RENDER ORDER IS NOT THE LEVEL ORDER.** The prompt emits CVaR 5 %, 10 %, 25 %, **then** 1 %
+  (flagged *high-variance estimate*), then mass and skew. **PARSE BY LABEL** — positional parsing
+  silently pairs `cvar_25` with `cvar_01`.
+* **e00a is UNREACHABLE** (4/4 real submissions refused; it is a GPU pool). **f00a offers 0 slots.**
+  Do not re-litigate either as a core lever.
+* **The MEMORY lever (2G → 1.6G/slot) was investigated and REFUSED on measurement** — `qacct` on
+  three completed 8-slot jobs showed maxvmem 11.435/11.449/11.564 GB against a 16 GB request, but it
+  buys only +16 cores for a twelve-line relaunch on 15-hour trainings with no re-run. Recorded so it
+  is not re-litigated a fourth time.
+
+### (E) LANE PROTOCOL — YOU ARE NOT THE ONLY SESSION
+`docs/LANE_PROTOCOL.md` governs multi-session working. **`paper/**` belongs to the WRITEUP lane;
+`src|scripts|config|prompts|docs/ops|outputs` belong to OPS (you).** Register at session start:
+```bash
+.venv/Scripts/python.exe ../.claude/lanes/lanebus.py join ops
+```
+A SessionStart hook prints the bus; `[M###]` threads are inter-lane messages. ⚠ 15 claims on that bus
+are **WITHDRAWN** — do not act on or re-transmit them.
+
+### (F) THE FOUR AUTHORITIES — checked EXPLICITLY on every substantive decision
+`CLAUDE.md` is auto-loaded and is law: (1) the ★ PRIORITIES (95%+ floor, world-class, deep,
+corpus-grounded + novel, **100 % reproducibility**), (2) **Dr Okhrati's revealed grading function**
++ his six duties (every number arrives with its MECHANISM, UNCERTAINTY and COUNTERFACTUAL; the
+seed-trajectory duty; every surprise is an obligation), (3) **Raad + Stefan's industry feedback**,
+(4) the **IFTE0008 guidelines** (10,000-word body, 16 sections in order, four equally-weighted
+dimensions where the WEAKEST CAPS the mark). Read it before writing anything for the PDF.
+
 ## §11 THE ACTION QUEUE
 
 1. **⚠ RESTART THE CORE LINE** to resume `bayes_opt` (§3). Tamer's — process kill is blocked.
