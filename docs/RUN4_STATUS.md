@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 18:13 UTC -- T+141h04m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 18:15 UTC -- T+141h06m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+141h04m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+141h06m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9594** |
+| stalest driver log | **2 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9596** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 124 -- a level with no rate; read the row above |
@@ -23,7 +23,7 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **623** (195 running, 428 queued) |
+| cluster jobs | **622** (195 running, 427 queued) |
 | **cores computing** | **1560** |
 
 Per-rung ETAs. **The EMPIRICAL block is the one to read**: it is remaining work divided by the rate
@@ -33,23 +33,23 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 18:14 UTC | elapsed 5.88 d | 23.2 d to the Aug-27 stop | 8068 test records on disk
+generated 2026-08-03 18:16 UTC | elapsed 5.88 d | 23.2 d to the Aug-27 stop | 8070 test records on disk
 
 MEASURED test-tier throughput (from record mtimes -- an observation, not a model):
-    last  1 h     210 records     210.0 rec/h
+    last  1 h     208 records     208.0 rec/h
     last  3 h     395 records     131.7 rec/h
-    last 12 h    2552 records     212.7 rec/h
-    last 24 h    4804 records     200.2 rec/h
+    last 12 h    2553 records     212.8 rec/h
+    last 24 h    4803 records     200.1 rec/h
 
 EMPIRICAL ETA -- remaining work / the measured 12 h rate, anchored at NOW:
      rung   remaining    days  ETA (UTC)         fits Aug-27?
-       30         308    0.06  2026-08-03 19:41  yes
-      100       3,108    0.61  2026-08-04 08:51  yes
-      189       7,007    1.37  2026-08-05 03:11  yes
-      279      11,057    2.17  2026-08-05 22:13  yes
-      340      13,802    2.70  2026-08-06 11:08  yes
-      403      16,637    3.26  2026-08-07 00:28  yes
-      568      24,070    4.72  2026-08-08 11:25  yes
+       30         308    0.06  2026-08-03 19:43  yes
+      100       3,108    0.61  2026-08-04 08:52  yes
+      189       7,005    1.37  2026-08-05 03:11  yes
+      279      11,055    2.17  2026-08-05 22:13  yes
+      340      13,800    2.70  2026-08-06 11:08  yes
+      403      16,635    3.26  2026-08-07 00:27  yes
+      568      24,068    4.71  2026-08-08 11:23  yes
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
      rung     @1560 cores      @830 cores   binding
@@ -145,7 +145,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **114** | 125 | 5 |  |
+| qwen3_5_9b | **115** | 125 | 5 |  |
 | gpt_5_6_luna | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -186,7 +186,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
