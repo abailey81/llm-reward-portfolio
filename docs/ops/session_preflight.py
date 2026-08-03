@@ -21,7 +21,6 @@ EXIT: 0 all clear · 1 ATTENTION (something needs a human) · 2 FAIL (a run-kill
 from __future__ import annotations
 
 import calendar
-import json
 import os
 import re
 import shutil
@@ -470,10 +469,24 @@ def check_full() -> None:
             f"{p} pass / {w} warn / {f} fail — Priority 5 requires ZERO warn AND zero fail")
     else:
         add("reproducibility", ATTN, f"could not parse the audit (rc={rc})")
+    # ⚠⚠ THIS ROW WAS HARDCODED `OK` AND PRINTED `?` WHEN IT COULD NOT PARSE (P236, 2026-08-03).
+    # MEASURED: `openitems.py --open` takes **197 s** and the timeout here was **180 s**, so it was
+    # being KILLED every run; `out` came back empty, the regex matched nothing, and the row rendered
+    # `? open row(s) on the verified board` -- as **OK**. The board genuinely holds 4 open rows, one
+    # of which (M166, the absent `campaign_summary.json`) is recorded as UNRECOVERABLE LATER.
+    # So the single row that reports outstanding work was reporting nothing, in the reassuring
+    # direction, on a timeout the tool had simply outgrown. Third instance of that family in one
+    # session (cf. P230's `sci=OK`, and the sandbox_gap crash code).
+    # 600 s because the board re-derives every status from git on each run and will keep growing.
     rc, out = sh([sys.executable, str(REPO.parent / ".claude" / "lanes" / "openitems.py"), "--open"],
-                 timeout=180)
+                 timeout=600)
     m = re.search(r"NOT DONE:\s*(\d+)", out)
-    add("open_items", OK, f"{m.group(1) if m else '?'} open row(s) on the verified board")
+    if m:
+        add("open_items", OK, f"{m.group(1)} open row(s) on the verified board")
+    else:
+        add("open_items", ATTN,
+            f"could NOT read the open-items board (rc={rc}, {len(out)} bytes) -- the count of "
+            f"outstanding work is UNKNOWN this run, which is not the same as zero")
 
 
 def main(argv: list[str]) -> int:
