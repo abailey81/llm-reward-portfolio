@@ -17555,3 +17555,117 @@ cannot be met while the work is still running (119.2). **Neither instrument was 
 answering a question nobody had asked them.** The countermeasure in each case was the same one this
 session has applied five times now: *make the check distinguish WAITING from STUCK, and state which
 it found.*
+
+---
+
+## 120. RUN 16 — THE ETA IS AT ITS GLOBAL MINIMUM, PROVEN FROM SGE ITSELF; EIGHT DEAD JOBS HOLD THE HEAD OF OUR QUEUE; AND A CAPACITY INSTRUMENT IS REFUTED
+
+**Tamer:** *"bring the eta to global minimum."* Previous passes priced the KNOWN levers and concluded
+"we are saturated at fair-share" by inference from placeability. This section proves it directly from
+the scheduler, and in doing so refutes the instrument that inference rested on.
+
+⚠ **WRITTEN CONCURRENTLY WITH §119 BY A SECOND OPS SESSION.** Two `ops` sessions were live at once
+(lane bus: `c97d7f45` and `f2265335`). §119 covers Tamer's two alerts; this covers the ETA. The
+overlap is real and is itself recorded in 120.5.
+
+### 120.1 EVERY CANDIDATE BLOCKER, EXCLUDED BY MEASUREMENT
+
+```
+qalter -w p <real pending leg job 72753>  ->  "verification: found possible assignment with 8 slots"
+qquota -u ucestes                         ->  EMPTY -- no resource quota applies to us
+per-host consumables (d00a)               ->  hc:memory=160.000G  hc:snx=10000  hc:tmpfs=1.465T
+                                              (a job requests 16G, snx=1, tmpfs=1G)
+queue Bran -- the ONLY queue we occupy    ->  12,580 slots, 8,108 used, 4,472 FREE
+physical free RAM, all 227 d00a hosts     ->  105-167 GB, median 145.7 GB, ALL >= 12.8 GB
+```
+
+**SGE states our pending jobs ARE assignable.** Not slots, not memory, not `snx`, not `tmpfs`, not a
+quota, not pack width. They wait on policy:
+
+```
+policy_hierarchy            OSF
+share_functional_shares     TRUE
+weight_tickets_functional   500000000        (against weight_tickets_share 10000)
+weight_user                 1.000000
+max_reservation             20
+```
+
+**Functional fair-share BY USER dominates by four orders of magnitude**, against six-plus
+concurrently active users (running-job counts: `ucessod` 999, `ucecgwh` 965, `uctpec1` 306,
+`ucestes` 291, plus others).
+
+**⇒ THE ETA IS AT ITS GLOBAL MINIMUM FOR OUR ENTITLEMENT.** No pack width, memory request, queue
+flag or submission-order change can raise it. The only two routes are more entitled HOSTS (an RC
+request, Tamer's) and fewer competing users (nobody's). The ~6-7 day figure of §117 stands, against
+~24 days remaining.
+
+### 120.2 D33 — `placeable_capacity.py` REPORTED THAT MEMORY FORBIDS EVERYTHING, AND IT DOES NOT
+
+The tool reported, for d00a: `free 1660, byslot 173, memcap 173, jobs 0` — i.e. **memory forbids all
+173 slot-feasible pack-8 jobs**, and its own legend says *"a large memcap means pack width is NOT the
+binding lever here."* That verdict has been used across several sessions to price core levers.
+
+**It is an artefact of the invocation its own `--help` prescribes.** The help says
+`--qhost   file holding the output of 'qhost -F slots'` — and `-F slots` exports ONLY the slots
+complex, so the tool never sees memory and forbids every job. Measured against reality: SGE reports
+**160 G free memory complex per host** and the OS reports **105-167 GB physically free on every one
+of the 227 hosts**. A 16 GB job fits everywhere, with room for eight more.
+
+**THE CONCLUSION IT SUPPORTED (we are saturated) IS CORRECT, BUT IT WAS REACHED FOR THE WRONG
+REASON — and a right answer from a broken instrument is not evidence.** It also means the
+memory-reduction lever was refused three times on a mis-attributed cost: the true reason to refuse
+it is that memory is not scarce at all, so lowering the request buys nothing. Registered **D33**:
+either pass `qhost -F slots,memory,tmpfs,snx` or make the tool REFUSE to render a memcap column when
+its input carries no memory complex. **A tool that cannot see a resource must say so, not forbid.**
+
+### 120.3 ★ THE ONE REAL, FREE LEVER — AND IT IS ONE COMMAND, TAMER'S
+
+The eight junk jobs are not clutter. Measured, with priority:
+
+```
+  66103 2.00440  sshorig     qw  reserve: y  hostname=node-d00b-007
+  66104 2.00439  sshorig     qw  reserve: y  hostname=node-d97a-001   (PAID pool)
+  66105 2.00437  sshorig     qw  reserve: y  hostname=node-d97b-001   (PAID pool)
+  66106 2.00436  sshorig     qw  reserve: y  hostname=node-e00a-003   (refused 4/4)
+  66107 2.00434  sshorig     qw  reserve: y  hostname=node-b00a-001
+  66108 2.00433  sshorig     qw  reserve: y  hostname=node-l00a-001   (GPU pool)
+  73026          cpuprobe13  qw  reserve: y  hostname=node-e00a-003
+  73027          cpuprobe13  qw  reserve: y  hostname=node-e00a-004
+  ---- every REAL leg job sits BELOW these, at 2.00430 and under ----
+```
+
+**All eight sit at the TOP of our pending queue, all carry `reserve: y`, all demand a specific host
+that is unavailable or in a pool we are refused from, and none can EVER run.** With
+`max_reservation 20` cluster-wide, SGE makes reservations for top pending jobs, so eight
+permanently-unschedulable jobs of ours hold the head of our own queue and up to eight reservation
+slots. They also consume 8 of the 1,000 `maxujobs` cap **while we sit at 990/1000** — the tighter
+problem, because D23 records that a submission refusal is what risks a driver crash-loop.
+
+```
+qdel 66103 66104 66105 66106 66107 66108 73026 73027
+```
+
+Zero risk: all eight are ours, all are dead probes from earlier sessions, none is campaign work.
+**`qdel` is BLOCKED for the agent, so this is Tamer's single command.** It has been on the action
+queue since RUN 13 as hygiene; this is the first time it has been PRICED, with the reservation and
+job-cap evidence.
+
+### 120.4 ⚠ THE RECORD-LAYER INSTRUMENTS ARE NOT IN GIT
+
+`git status` shows **`docs/analysis/record_validator.py` — the R1-R9 layer — as UNTRACKED**, along
+with `results_cycle.py`, `suppression_audit.py`, `winner_chain.py`, `replayability.py`,
+`substrate_watch.py`, `output_integrity.py`, `env_census.py`, `mutation_test.py`, `search_integrity.py`
+and a dozen more. These are the instruments that verify an irreplaceable archive, and they exist
+**only in this laptop's working tree**. They are not on the backup branch and would not survive a
+disk failure or an accidental clean. Not fixed here because a second ops session was live in the same
+tree; flagged as the next session's first housekeeping act.
+
+### 120.5 ⚠ P216 — TWO `ops` SESSIONS RAN CONCURRENTLY AND DUPLICATED WORK
+
+The lane bus showed `ops LIVE c97d7f45` and `ops LIVE f2265335` simultaneously. Both investigated
+Tamer's two alerts; both wrote a section 119. I discovered it only because my scratchpad write
+collided with a file the other session had already created, and then found §119 already appended to
+the execution record. **`docs/LANE_PROTOCOL.md` assigns ONE owner per path, but nothing prevents two
+sessions of the SAME lane from running at once**, and the shared paths here are the execution record
+and CHANGELOG — the write-up's primary sources. Renumbered to 120 rather than overwrite. **The
+protocol needs a single-writer check per lane, not just per path.**
