@@ -375,10 +375,31 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     # P230 it would have surfaced as a reassuring `sci=OK`; it now says BLIND, which is correct but
     # would become PERMANENT noise on the one row that must keep meaning something.
     #
-    # ⚠ WHY 600 AND NOT MORE, because there is a real coupled constraint: the two tools run
-    # CONCURRENTLY, so the layer costs max(sw, ra) rather than their sum, and
-    # `session_preflight.CYCLE_BUDGET_CAP_S = 900` FAILS the cycle_log row if a sweep exceeds 15 min.
-    # 600 s keeps the worst-case whole sweep inside that cap while roughly tripling today's headroom.
+    # ⚠ WHY 600 AND NOT MORE. The two tools DO run concurrently (verified: both futures are submitted
+    # to a 2-worker pool before either .result()), so the layer costs max(sw, ra) rather than the sum.
+    #
+    # ⚠⚠ AND TWO CLAIMS I FIRST WROTE HERE WERE WRONG (auditor, 2026-08-04). Corrected in place
+    # rather than deleted, because the corrected mechanism is the reason the number matters:
+    #   (a) I wrote that `session_preflight.CYCLE_BUDGET_CAP_S = 900` "FAILS the cycle_log row if a
+    #       SWEEP exceeds 15 min". It does not. It caps an ADAPTIVE STALENESS budget
+    #       (`budget = min(CAP, max(STALE, 3*(ref + SLEEP)))`) and fails on the AGE OF THE LAST CYCLE
+    #       LINE. The real consequence is worse than a budget breach: a sweep long enough that lines
+    #       appear more than ~900 s apart makes preflight declare a **LIVE loop DEAD** -- a false
+    #       run-killer alarm.
+    #   (b) I wrote that 600 s "keeps the worst-case whole sweep inside that cap". Refuted by this
+    #       repo's own log: `CYCLE_LOG.md` records `sweep=855.4s` at 16:25:51Z with `sci=OK`, i.e.
+    #       the science layer had NOT hit its old 300 s ceiling, so rest-of-sweep was ~644 s on that
+    #       cycle. 644 + 600 is comfortably past 900.
+    #
+    # WHAT IS TRUE: normal sweeps today are 100-280 s and the 855 s outlier was contention (the
+    # post-reboot storm plus a session's own archive scans). At 21.5 ms/record the science layer
+    # alone reaches ~900 s near ~42,000 records, so BOTH failure modes -- `sci=BLIND` at 300 s and a
+    # false-DEAD cycle_log at 600 s -- are symptoms of the sweep outgrowing the architecture rather
+    # than of the timeout value. 600 s buys headroom for `sci` to keep meaning something NOW and
+    # makes the false-DEAD risk explicit rather than trading one silent failure for another.
+    # ⇒ THE REAL FIX IS THE INCREMENTAL CACHE, and `session_preflight` already says so: "if sweeps
+    # ever legitimately approach it, the cadence itself needs revisiting rather than the alarm being
+    # widened again." TRIGGER: a `cycle_log` FAIL on a loop that is demonstrably alive.
     #
     # ⚠ AND IT DOES NOT SCALE TO THE FULL LADDER. At 21.5 ms/record the pair reaches ~900 s near
     # ~42,000 records, which is the registered rung-568 archive. The durable fix is the INCREMENTAL

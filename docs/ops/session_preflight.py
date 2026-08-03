@@ -427,6 +427,33 @@ def check_mirror() -> None:
     add("mirror", OK if age_h < 2 else ATTN, f"archive mirror {age_h:.1f} h old")
 
 
+def check_status_page() -> None:
+    """Is the page Tamer reads from his phone still being REGENERATED?
+
+    ⚠⚠ WHY THIS EXISTS (auditor, 2026-08-04). `publish_status.sh` gained an ASCII gate that REFUSES
+    to publish a page containing a non-ASCII character, restores the previous good page, and exits 1.
+    `publish_loop.sh` swallows that non-zero exit (`|| echo "publish attempt failed" >>"$LOG"`) and
+    keeps looping every ~67 s. So one bad character injected by ANY interpolated variable freezes the
+    page at its last good version **indefinitely**, and the only evidence is a line in /tmp.
+
+    That is precisely the P210/P218 failure the publisher itself condemns twice: an artefact that
+    goes on reading plausible after the instrument behind it stopped. A page that is WRONG is caught
+    by the gate; a page that is STALE was caught by nothing. The gate made the second failure mode
+    more likely while removing the first, so the freshness check is the other half of that fix.
+
+    The publisher runs at ~67 s, so 15 min is ~13 missed cycles -- unambiguous, not a flicker.
+    """
+    page = REPO / "docs" / "RUN4_STATUS.md"
+    if not page.exists():
+        add("status_page", FAIL, "docs/RUN4_STATUS.md MISSING -- the phone page is gone")
+        return
+    age_m = (time.time() - page.stat().st_mtime) / 60.0
+    add("status_page", OK if age_m < 15 else ATTN,
+        f"phone page {age_m:.1f} min old"
+        + ("" if age_m < 15 else " -- the publisher may be REFUSING to publish (ASCII gate) or dead;"
+                                " check /tmp/publish_loop.log and docs/ops/watch/PUBLISH_LOOP_STDERR.log"))
+
+
 def check_records() -> None:
     """Per-tier counts + the arm-freeze census — the campaign's actual progress."""
     if not RUN.is_dir():
@@ -505,6 +532,7 @@ def main(argv: list[str]) -> int:
     check_reboot_recovery()
     check_disk()
     check_mirror()
+    check_status_page()
     check_records()
     check_git_backup()
     if full:

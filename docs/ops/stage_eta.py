@@ -336,10 +336,23 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         goforward_rate = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
                              for mts in cells.values() if (568 - len(mts)) > PACK) / eh2
 
-        L.append("EMPIRICAL ETA -- earliest = total remaining / the whole fleet's rate (assumes the")
-        L.append(f"    cluster REDIRECTS freed slots, {fleet_rate:.0f} rec/h); latest excludes cells")
-        L.append(f"    already within {PACK} of the ceiling ({goforward_rate:.0f} rec/h), i.e. assumes")
-        L.append(f"    the finishing line's slots are NOT reused. Window {eh2} h:")
+        # ⚠⚠ THE CAPTION NOW DESCRIBES WHAT THE COLUMNS ACTUALLY COMPUTE (auditor, 2026-08-04).
+        # It previously said `latest` "assumes the finishing line's slots are NOT reused", i.e. it
+        # advertised a NO-REDIRECTION bound. It is not one: at the low rungs ~99% of that divisor
+        # comes from cells hundreds of records ABOVE the rung, which can only contribute under
+        # redirection. A genuine no-redirection bound is the per-cell max, and that is degenerate
+        # here (45 of 51 owing cells produce nothing, so it is infinite for every rung). Rather than
+        # publish a fourth model, BOTH columns are now labelled as what they are -- two fleet-rate
+        # projections that differ only in whether near-complete cells are counted -- and the
+        # Aug-27 column is explicitly NOT an assurance verdict.
+        L.append("EMPIRICAL ETA -- BOTH columns divide total remaining by a FLEET-WIDE rate, so both")
+        L.append("    assume freed slots are REDIRECTED to whatever still owes work. earliest uses")
+        L.append(f"    the whole fleet ({fleet_rate:.0f} rec/h); latest excludes cells already within")
+        L.append(f"    {PACK} of the ceiling ({goforward_rate:.0f} rec/h). Window {eh2} h.")
+        L.append("    !! NEITHER IS AN UPPER BOUND. Without redirection the true bound is the")
+        L.append("    slowest owing cell, which is INFINITE for every rung while most owing cells")
+        L.append("    produce nothing -- see the stage-barrier line below. Read 'Aug-27?' as")
+        L.append("    'is this plausible on current throughput', NOT as an assurance verdict.")
         # ⚠ THE -1h COLUMN EXISTS BECAUSE TAMER READ THE PAGE AND SAID THE REMAINING FIGURE "KEEPS
         # BEING CONSTANT" (P240). It was not constant -- measured across published versions, rung
         # 568 fell 32,037 -> 32,000 in 16 minutes -- but a 37-record move on a 32,000 figure is
@@ -353,10 +366,36 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         for rung in RUNGS:
             rem, _missing = backlog(rung, cells)
             # how much this rung's backlog actually fell in the last hour
-            d1 = sum(sum(1 for m in mts if lo1 <= m <= now_epoch)
-                     for mts in cells.values() if len(mts) <= rung)
+            # ⚠ CORRECTED (auditor, 2026-08-04). This was `if len(mts) <= rung`, which counts ALL of
+            # a cell's window records when the cell ends at or below the rung and ZERO when the cell
+            # CROSSED the rung inside the window. A record only reduces rung R's backlog if the cell
+            # was below R when that record landed. Measured error at rung 279: printed 187 against a
+            # true 229 (18% low), and a rung whose entire hour of progress came from crossing cells
+            # printed 0 -- reintroducing the "reads frozen" appearance this column exists to remove.
+            # For a cell now at length L with k records in the window, the count that reduced R is
+            # min(k, R - (L - k)) floored at 0: the overlap of (L-k, L] with (-inf, R].
+            d1 = 0
+            for mts in cells.values():
+                k = sum(1 for m in mts if lo1 <= m <= now_epoch)
+                if k:
+                    d1 += max(0, min(k, rung - (len(mts) - k)))
             if rem == 0:
                 L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'REACHED':<16}  {'REACHED':<16}  yes")
+                continue
+            # ⚠⚠ A ROW MAY ONLY BE DATED IF THE CELLS THAT OWE IT ARE ACTUALLY PRODUCING
+            # (auditor, 2026-08-04). Both divisors are fleet-wide, which is what makes the table
+            # monotonic -- but applying a fleet rate to a rung whose OWING cells are idle produces a
+            # confident date for work that has not started. Measured: rung 30 was printed as landing
+            # within ~3 hours while 14 of the 15 units owing it sat at ZERO behind the C1/C3 barrier,
+            # mis-priced by 56-86x. That is the shape `WITHDRAWN_CLAIMS.md` W3 was withdrawn for.
+            # So a rung whose owing cells produced NOTHING in the window is reported GATED rather
+            # than dated: the honest statement is "waiting on a stage barrier", not a timestamp.
+            owing_rate = sum(
+                sum(1 for m in mts if lo2 <= m <= now_epoch)
+                for mts in cells.values() if len(mts) < rung) / eh2
+            if owing_rate <= 0:
+                L.append(f"    {rung:>5}  {rem:>10,}  {d1:>6}  {'GATED':<16}  {'GATED':<16}  "
+                         f"barrier")
                 continue
             e_fast, _ = eta_from_rate(rem, fleet_rate, now, floor_left)
             e_slow, _ = eta_from_rate(rem, goforward_rate, now, floor_left)
