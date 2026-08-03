@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 14:42 UTC -- T+137h33m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 14:43 UTC -- T+137h34m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,9 +9,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+137h33m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+137h34m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **1 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **2 min (gpt-5_6-luna)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **9255** |
 | LLM calls / spend | 2951 / **$45.4853** |
 | transport health | **timeouts 6h=81; worst streak 3/240 (1.2% to fatal), ops on core** |
@@ -22,21 +22,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **669** (196 running, 473 queued) |
-| **cores computing** | **1568** |
+| cluster jobs | **669** (198 running, 471 queued) |
+| **cores computing** | **1584** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @1568 cores              @830 cores   binding
+ rung             @1584 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
   189            4.6 d  08-02            6.5 d  08-04   throughput
   279            4.9 d  08-02            9.3 d  08-07   throughput
-  340            5.9 d  08-03           11.1 d  08-09   throughput
-  403            6.9 d  08-04           13.0 d  08-10   throughput
-  568            9.6 d  08-07           18.1 d  08-15   throughput
+  340            5.8 d  08-03           11.1 d  08-09   throughput
+  403            6.8 d  08-04           13.0 d  08-10   throughput
+  568            9.5 d  08-07           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Re-derived from SGE itself, 2026-08-03 (record sections 120, 121, 122, 123)
@@ -141,7 +141,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 0 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
