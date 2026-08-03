@@ -357,6 +357,54 @@ be met while the work is still running. **Neither instrument lied; both answered
 asked them.** Same countermeasure as five times before this session: **make the check distinguish
 WAITING from STUCK, and say which it found.**
 
+### ⑯ QUALITY PASS — TESTS FOR MY OWN UNTESTED CHANGES, AND THE ETA CLOSED ON BOTH SIDES
+
+**★ THE ETA IS AT ITS GLOBAL MINIMUM, AND BOTH SIDES OF THE EQUATION ARE NOW CLOSED (s.123).**
+`ETA = remaining_work / throughput`. s.117/120/121 closed the DENOMINATOR (fair-share bound; every
+reordering route individually excluded by measurement). This pass closed the NUMERATOR, never before
+audited: **is any compute producing nothing?**
+· **The 8.8% gate-failure rate is NOT wasted compute** — `sentinel.py:150` counts CANDIDATES rejected
+at the sandbox gate, which happens BEFORE any training is submitted. A reject costs one LLM call, not
+a 15-hour training. *Checked at source rather than inferred from the name.*
+· **No training is lost.** The decisive test is a COMPLETED ladder: `gemini-2.5-flash` **568 seeds,
+max 567, ZERO holes on all five arms**; `h3` the same; every 30-seed line zero. **The pipeline has
+delivered a record for every seed it submitted** — nothing killed at `h_rt` and silently dropped.
+· gpt's 455 apparent holes are in-flight, **verified not assumed**: 945 records remain and **1,064
+trainings are running** ⇒ every hole is covered. It is about to be the THIRD line at rung 568.
+
+**★ TESTS FOR THE CHANGES THAT HAD NONE (28/28).** Four RUN-16 additions to `session_preflight.py`
+had no test — the census (P203), the adaptive budget (P205), the dupes persistence rule, and the
+terminal-state predicate. They were verified only by reading output on a HEALTHY fleet, which is
+exactly how this session's own defects got in (**P205** max-outlier, **P211** unchecked join x3,
+**P213** vacuous pass, **D33** forbidding an unseen resource — every one *a check that passes for the
+wrong reason*). The new suite asserts each check **FAILS when it should**, and pins the auditor's D12
+refutation on the Python side too.
+**§4 is the part that did not previously exist in any form: CROSS-INSTRUMENT AGREEMENT.**
+`session_preflight` and `watchdog_fenced.ps1` implement the SAME predicate deliberately (the watchdog
+acts, the preflight observes independently), so they can DRIFT APART while each one's own tests still
+pass. It now runs the PowerShell selftest and asserts both agree **on the REAL campaign logs**.
+*One failure during development was the FIXTURE, not the code — corrected and recorded.*
+
+**★ SWEEP-TIME PROJECTED AGAINST THE 900 s CAP** (the cap exists so a silent loop is always reported
+within 15 min, and a cap that BINDS would re-create the permanent-red pathology this session removed):
+measured **13.1 s per 1,000 records** — median sweep 12.0 s at 1k, 95.6 s at 8k, **projected 542 s at
+the 42k end state, under the cap**. The p90 runs ~1.65x median and would be marginal above ~40k;
+flagged rather than changed, pending the auditor's answer on that exact threshold.
+
+**★ CORES FELL 2,320 → 1,776 AND IT IS NOT A FAULT (s.122).** Two effects superimposed: a COMPLETION
+WAVE (leg6's line-major block finishing ~15 h after submission; **cores down while records
+ACCELERATED 309→437→469/h** and gpt climbed 101-125 → 330-362 seeds/arm — *cores down with records up
+is the signature of throughput ARRIVING*), plus COMPETITION (queue Bran 8,108→8,396 used; `ucbtjji`
+now holds 680 slots, absent from the earlier top-six). We remain the #1 user by slots and our pending
+jobs still verify assignable. **Lesson: a single number read without its partner tells the opposite
+story — a RATE belongs next to every LEVEL.**
+
+**★ PRIORITY 5 BREACH CLOSED.** `record_validator.py` (the R1-R9 layer) and **16 sibling instruments
+were UNTRACKED IN GIT** — the apparatus verifying an irreplaceable archive existed only in this
+working tree. 7,297 lines committed, secret-scanned. Plus the lane process docs incl.
+`LANE_PROTOCOL.md`, itself untracked. `.gitignore` now covers the incremental-scan state files so
+standing `??` noise cannot mask a genuinely new untracked file.
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;
