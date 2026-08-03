@@ -323,6 +323,40 @@ it BANKS a property that was never tested.** An empty scan now exits 2; pinned a
 verified both ways. **STANDING RULE EARNED: every check must fail loudly when its input set is empty
 — "found nothing wrong" and "looked at nothing" are indistinguishable in a green board.**
 
+### ⑯ TAMER'S TWO ALERTS RUN TO GROUND (record s.119)
+
+**`driver_h3.log 32 min stale` — A REAL SYMPTOM, ALREADY FIXED.** Traced to `ALERTS.txt` block
+**03:01:58Z**. h3 had not stopped progressing — **it had FINISHED 568/568**, and a completed line
+never writes its driver log again. That is P209, fixed ~1h after that block; the live cycle now
+reads **`stalest=2.4m`**. ⚠ **LESSON: `ALERTS.txt` is APPEND-ONLY history, not current state** — read
+the block header timestamp against the live cycle line before acting.
+
+**D14 nemotron `scalar_cvar5` — LIVE, AND ASSERTING TWO FALSE THINGS.** It claimed the line *"has
+stopped progressing"* and the crash is *"DETERMINISTIC ... needs a human"*. **Measured on the
+cluster, both false:** SGE **76452 is RUNNING with `cpu=06:36:48` on 8 slots**; 76453/76454 queued
+~4h behind ~600 jobs. The crash was the **already-resolved VPN outage**; the driver resumed at
+01:38Z. The arm is **STARVED, NOT STUCK.** The marker persists BY DESIGN (*"cleared automatically on
+a clean pass"*, and a pass on a starved line takes 12h+), so it ages indefinitely **while the work is
+in flight**. **FIXED (P214):** `cycle.py` now asks a free local question first — **has the line's
+DRIVER LOG been written since the marker was stamped?** Yes ⇒ ATTENTION, informational. No ⇒ the
+original RED, now correctly reading *"AND THE DRIVER LOG HAS NOT BEEN TOUCHED SINCE"*. Verified live:
+**RED → ATTN with accurate text.**
+
+**⚠ P215 — THE BLIND SPOT HIS QUESTION EXPOSED IN MY OWN MONITOR.** `line_balance.py` measured depth
+against each line's **FROZEN** roster, so **an arm SEARCHED but not yet FROZEN was invisible** — a
+line could show every frozen arm at 568 and still be incomplete. **And the invisible arm was the
+critical path:** a line cannot reach ANY rung on an unfrozen arm, so `nemotron/scalar_cvar5` — the
+very arm the marker pointed at — gates nemotron, which gates the common rung, which IS the reported
+result. Added the funnel **searched → frozen → tested**: nemotron **5/4/2 (scalar_cvar5 unfrozen)**,
+deepseek 5/5/3, core 9/6/15 (its three are H4 search-method comparators, normal). **Reports rather
+than alarms**; STUCK remains the only alarm.
+
+**THE PATTERN:** both alerts were **true statements about the PAST presented as claims about the
+PRESENT** — an append-only history read as live state, and a marker whose clearing condition cannot
+be met while the work is still running. **Neither instrument lied; both answered a question nobody
+asked them.** Same countermeasure as five times before this session: **make the check distinguish
+WAITING from STUCK, and say which it found.**
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

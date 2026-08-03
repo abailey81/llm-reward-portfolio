@@ -801,13 +801,42 @@ def main() -> int:
             _age = (time.time() - float(_p.get("ts", 0))) / 60.0
         except Exception:                                        # noqa: BLE001 — torn = still real
             _arms, _age = "(unreadable marker)", -1.0
-        alerts.append(
-            f"D14 CORE ARM CRASH on {_m.stem.replace('ARM_CRASH_', '')}: {_arms}. The pass STOPPED "
-            f"before the H2 pair array rather than submitting it with a missing arm (which would "
-            f"have CRN-paired every seed against the wrong comparator set). The supervisor "
-            f"relaunches on its backoff and --resume re-runs only the crashed arm. Marker age "
-            f"{_age:.1f} min — if it survives several relaunches the crash is DETERMINISTIC and "
-            f"needs a human.")
+        # ⚠ HAS THE ARM RESUMED? A MARKER THAT PERSISTS IS NOT A CRASH THAT PERSISTS (P214).
+        #
+        # The marker clears only on a COMPLETE clean pass, and a pass can legitimately take 12h+
+        # when the line is starved of cores — so on a slow line the marker ages indefinitely while
+        # the work is in flight, and this alert kept asserting two things that were FALSE: "that
+        # line has stopped progressing" and "the crash is DETERMINISTIC". Measured 2026-08-03 on
+        # `leg_nemotron_3_super/scalar_cvar5`: marker age 512 min, yet SGE job 76452 was RUNNING
+        # with `cpu=06:36:48` on 8 slots. The crash was the resolved VPN outage; the driver had
+        # resumed hours earlier. Telling an operator a healthy arm "needs a human" is how a board
+        # earns the right to be ignored, which is the failure this whole session exists to remove.
+        #
+        # The discriminator is local and free: if the line's DRIVER LOG has been written since the
+        # marker was stamped, the driver came back and is working the arm. No ssh, no qstat.
+        _line = _m.stem.replace("ARM_CRASH_", "")
+        _safe = re.sub(r"[^a-zA-Z0-9_-]", "_", _line.replace("leg_", "", 1))
+        _resumed = False
+        for _cand in ROOT.glob("driver_*.log"):
+            if _cand.stat().st_mtime > float(_p.get("ts", 0)) + 60:
+                if _safe.replace("_", "") in _cand.stem.replace("_", "").replace("-", ""):
+                    _resumed = True
+                    break
+        if _resumed:
+            attention.append(
+                f"D14 marker still on disk for {_line}: {_arms}. Age {_age:.1f} min — but the "
+                f"line's driver log has been written SINCE the marker was stamped, so the driver "
+                f"resumed and is working the arm. The marker clears only on a COMPLETE clean pass, "
+                f"which on a core-starved line can take 12h+. INFORMATIONAL: confirm the arm has "
+                f"jobs (`python docs/ops/line_balance.py --once`) before treating this as a crash.")
+        else:
+            alerts.append(
+                f"D14 CORE ARM CRASH on {_line}: {_arms}. The pass STOPPED "
+                f"before the H2 pair array rather than submitting it with a missing arm (which would "
+                f"have CRN-paired every seed against the wrong comparator set). The supervisor "
+                f"relaunches on its backoff and --resume re-runs only the crashed arm. Marker age "
+                f"{_age:.1f} min AND THE DRIVER LOG HAS NOT BEEN TOUCHED SINCE — the line has not "
+                f"come back on its own and needs a human.")
 
     # 6. driver-log freshness
     now = time.time()

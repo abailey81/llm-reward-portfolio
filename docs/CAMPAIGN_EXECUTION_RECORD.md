@@ -17460,3 +17460,98 @@ run from an unrelated working directory → RC=0 over 5,449 records.
 **THE STANDING RULE THIS EARNS:** *every check must fail loudly when its input set is empty. "Found
 nothing wrong" and "looked at nothing" are indistinguishable in a green board, and only one of them
 is true.*
+
+---
+
+## 119. RUN 16 — TAMER'S TWO ALERTS RUN TO GROUND: ONE ALREADY FIXED, ONE A FALSE ALARM, AND A BLIND SPOT IN MY OWN MONITOR
+
+**Tamer, 2026-08-03:** *"very deeply and strictly check if this is correct and ensure fixed ... dive
+very deep if you find anything else:*
+*D14 CORE ARM CRASH leg_nemotron_3_super : scalar_cvar5 marker age 442 min*
+*driver_h3.log 32 min stale"*
+
+Both were REAL symptoms. Neither meant what it said, and chasing the second one exposed a blind spot
+in an instrument built earlier the same session.
+
+### 119.1 `driver_h3.log 32 min stale` — A REAL SYMPTOM, ALREADY FIXED BY P209
+
+Traced to its source: `docs/ops/watch/ALERTS.txt` block **2026-08-03T03:01:58Z**, emitted by
+`cycle.py`'s driver-freshness check — *"driver_h3.log is 32 min stale (>30) — that line has stopped
+progressing (defect D14)"*.
+
+**h3 had not stopped progressing. It had FINISHED**, 568/568, and a completed line never writes its
+driver log again. This is P209 exactly, and it was fixed a little over an hour after that block was
+written; the live cycle now reports **`stalest=2.4m`** because completed lines are excluded.
+
+⚠ **THE LESSON FOR READING THE BOARD:** `ALERTS.txt` is an APPEND-ONLY history, deduped by content
+and heartbeated hourly. **An entry in it is not evidence of a CURRENT condition** — it is evidence
+that the condition held when the block was stamped. Always read the block header timestamp and
+compare against the live cycle line before acting. (The `publish_status.sh` panel's "freshest driver
+log" row was checked at the same time and is a MAX over mtimes — the FRESHEST, not the stalest — so
+it reads 0 min and was never implicated.)
+
+### 119.2 D14 nemotron `scalar_cvar5` — LIVE, RECURRING, AND ASSERTING TWO THINGS THAT WERE FALSE
+
+Block **2026-08-03T04:11:54Z**, and still firing. The alert said the line *"has stopped
+progressing"* and that *"if it survives several relaunches the crash is DETERMINISTIC and needs a
+human."* **Measured on the cluster, both claims were false:**
+
+```
+marker ts     2026-08-02 20:06:45Z   (age 512 min)   RuntimeError: 240 consecutive pull
+                                                     failures -- VPN/ssh down too long
+SGE 76452  leg7_..._scalar_cvar5_g4_p01   r    usage cpu=06:36:48 on 8 slots  <- COMPUTING
+SGE 76453  ..._g4_p02                     qw   queued ~4 h
+SGE 76454  ..._g4_p03                     qw   queued ~4 h
+last candidate archived: scalar_cvar5-g4-c1 at 2026-08-02 17:41Z
+```
+
+The crash was the **already-resolved VPN-pool outage**. The driver resumed and resubmitted at
+01:38Z; `p01` is genuinely computing. The arm is **STARVED, NOT STUCK** — 2 of its 3 jobs sit behind
+~600 queued jobs from lines whose extra rungs add nothing to the common rung.
+
+**WHY THE MARKER PERSISTS IS BY DESIGN, AND THAT IS THE DEFECT IN THE ALERT.** The marker's own note
+says *"Cleared automatically on a clean pass"* — and a pass on a core-starved line takes 12h+. So on
+a slow line the marker ages indefinitely **while the work is in flight**, and the alert kept
+escalating. Telling an operator that a healthy, computing arm "needs a human" is how a board earns
+the right to be ignored, which is the failure this whole session exists to remove.
+
+**FIXED (P214).** `cycle.py` now asks a free, local question before escalating: **has the line's
+DRIVER LOG been written since the marker was stamped?** If yes the driver came back and is working
+the arm → **ATTENTION**, worded as informational, pointing at `line_balance.py` to confirm the arm
+has jobs. If no → the original **RED**, now correctly reading *"AND THE DRIVER LOG HAS NOT BEEN
+TOUCHED SINCE — the line has not come back on its own and needs a human."* No ssh, no qstat.
+Verified live: the alert moved from **RED to ATTN** with accurate text.
+
+### 119.3 ⚠ P215 — THE BLIND SPOT TAMER'S QUESTION EXPOSED IN MY OWN MONITOR
+
+`line_balance.py` measured sealed-test depth against each line's **FROZEN** arm roster. **An arm a
+line has SEARCHED but not yet FROZEN was therefore invisible to it** — the monitor judged each line
+against a roster that was itself short, so a line could show every frozen arm at rung 568 and still
+be incomplete.
+
+**And the arm it could not see was the critical path.** A line cannot reach ANY rung on an arm it has
+not frozen, so `nemotron/scalar_cvar5` — the very arm the D14 marker was pointing at — gated
+nemotron, and nemotron gates the common rung, which under R101 IS the reported result.
+
+Added the full funnel, each stage read from the archive that writes it:
+
+```
+line                            searched  frozen  tested   not yet frozen
+search (core)                          9       6      15   bayes_opt, cma_es, tpe
+search_leg_nemotron_3_super            5       4       2   scalar_cvar5      <-- CRITICAL PATH
+search_leg_deepseek_v4_pro             5       5       3   -
+every other leg line                   5       5       5   -
+```
+
+**Low-noise and correct:** it flags exactly the two lines that genuinely still owe upstream work.
+Core's three are the H4 SEARCH-METHOD comparators still in C1 — normal — so the funnel **REPORTS
+rather than alarms**; the alarm remains STUCK, which is the only non-saturating one.
+
+### 119.4 THE PATTERN ACROSS BOTH ITEMS
+
+Both alerts were **true statements about the past presented as claims about the present**: an
+append-only alert history read as current state (119.1), and a crash marker whose clearing condition
+cannot be met while the work is still running (119.2). **Neither instrument was lying; both were
+answering a question nobody had asked them.** The countermeasure in each case was the same one this
+session has applied five times now: *make the check distinguish WAITING from STUCK, and state which
+it found.*

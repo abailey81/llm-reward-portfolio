@@ -153,6 +153,41 @@ def batch_tag_map() -> dict:
     return out
 
 
+def pipeline_state() -> list:
+    """[(line, searched, frozen, tested)] arm-name sets, per line.
+
+    ⚠ WHY THIS EXISTS (P215, 2026-08-03). This monitor measured sealed-test depth against the
+    FROZEN arm roster — so an arm a line has SEARCHED but not yet FROZEN was invisible to it. A
+    line could show every frozen arm at rung 568 and still be incomplete, because the roster it was
+    judged against was itself short. Measured the day this was added:
+    `leg_nemotron_3_super` had searched 5 arms and frozen only 4 (`scalar_cvar5` still in its g4
+    search generation) — and nemotron is the CRITICAL PATH for the common rung, since a line cannot
+    reach any rung on an arm it has not frozen. Tamer's question about a D14 marker is what exposed
+    it; the marker was pointing at exactly the arm this monitor could not see.
+
+    The funnel is searched -> frozen -> tested, and each stage is read from the archive it writes.
+    Un-frozen arms are NORMAL mid-campaign (core's `bayes_opt`/`cma_es`/`tpe` are H4 search-method
+    comparators still in C1), so this REPORTS rather than alarms; the alarm remains STUCK.
+    """
+    rows = []
+    for d in sorted(os.listdir(ROOT)):
+        if not d.startswith("search") or not os.path.isdir(os.path.join(ROOT, d)):
+            continue
+        suffix = d[len("search"):]
+
+        def arms(prefix: str) -> set:
+            p = os.path.join(ROOT, prefix + suffix)
+            if not os.path.isdir(p):
+                return set()
+            return {a for a in os.listdir(p)
+                    if os.path.isdir(os.path.join(p, a)) and not a.startswith("_")}
+
+        searched = arms("search")
+        frozen = {a[:-len("-winner")] if a.endswith("-winner") else a for a in arms("frozen")}
+        rows.append(("search" + suffix, searched, frozen, arms("test")))
+    return rows
+
+
 def report(jobs: dict) -> int:
     depths = archive_depths()
     if not depths:
@@ -188,6 +223,19 @@ def report(jobs: dict) -> int:
         qj = "?" if queued < 0 else str(queued)
         print("%-30s %5d %5d %5d %6s %7s  %s"
               % (test_dir, mn, mx, narms, rj, qj, ", ".join(empty) if empty else "-"))
+
+    # P215: the funnel BEFORE the sealed test. An arm not yet frozen cannot reach ANY rung, so a
+    # line short of frozen arms is behind in a way the depth table above cannot show.
+    print()
+    print("=== PIPELINE FUNNEL (searched -> frozen -> tested) ===")
+    print("%-30s %9s %7s %7s  %s" % ("line", "searched", "frozen", "tested", "not yet frozen"))
+    for line, searched, frozen, tested in pipeline_state():
+        pending = sorted(searched - frozen)
+        print("%-30s %9d %7d %7d  %s"
+              % (line, len(searched), len(frozen), len(tested),
+                 ", ".join(pending) if pending else "-"))
+    print("  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4")
+    print("   search-method comparators still in C1. Reported, not alarmed.)")
 
     print()
     print("COMMON RUNG = %d      DEEPEST = %d" % (common, deepest))
