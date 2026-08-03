@@ -1,0 +1,1946 @@
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=exit_code severity=OK detail=no failing exit recorded
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=coverage severity=OK detail=20/20 arms progressing
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=disk severity=OK detail=free disk 46.6 GB
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 48% used
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=gpu_temp severity=OK detail=GPU 43C
+2026-08-03 17:50:45 | WARNING | sentinel | sentinel_check check=silent_hang severity=UNKNOWN detail=no progress artifact to age-check
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=gate_failures severity=OK detail=8.6% gate-failure rate
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=nan_rate severity=OK detail=all records finite
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=divergence severity=OK detail=0.0% divergence rate
+2026-08-03 17:50:45 | WARNING | sentinel | sentinel_check check=reward_scale severity=WARN detail=AUTHORED-arm reward-scale ratio 146x; baselines span 437099x (registered rati...
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=api_errors severity=INFO detail=no API calls logged yet
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=mirror severity=OK detail=archive mirror 0.6 h old
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=driver_lease severity=OK detail=driver heartbeat 0.2 min ago
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=queue severity=OK detail=665 queued, 10707 pending across 37 active batch(es)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=completion_stall severity=INFO detail=0 unit completions journaled (need 3 for a cadence yardstick)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=coverage_search severity=INFO detail=search: 257/270 (95%)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=coverage_test severity=INFO detail=test: 450/11360 (4%)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=error_taxonomy severity=OK detail=no failures/warnings journaled
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=gate_failure_drift severity=INFO detail=1 samples (need 5 for a drift check)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=nan_rate_drift severity=INFO detail=1 samples (need 5 for a drift check)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=disk_forecast severity=INFO detail=1 disk samples (need 5 for a fill-rate forecast)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=capacity_accumulation severity=OK detail=plateaued at ~1565 cores (89% of forecast) — steady state
+2026-08-03 17:50:45 | WARNING | sentinel | sentinel_check check=chain_progress severity=WARN detail=CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.2h — the makespan floor ...
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=host_failure_concentration severity=OK detail=no bad node (0/2798 failures spread across 193 hosts)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=rung_forecast severity=OK detail=9,512 done at 70.4/h -> ~48,864 by the stop => rung 568
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=determinism_homogeneity severity=OK detail=test leg homogeneous across 450 records (dev=cpu)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=substrate_fields severity=OK detail=test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 ...
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=winner_execution_quality severity=OK detail=all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=design_drift severity=OK detail=the running design still matches the freeze (3ca6f01ab772)
+2026-08-03 17:50:45 | ERROR   | sentinel | sentinel_check check=seed_alignment severity=CRITICAL detail=paired contrasts will run on 22 common seeds although the deepest arm has 568...
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=seed_replication severity=OK detail=every seed produced a distinct run across 56 arm(s)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=arm_differentiation severity=OK detail=every LLM arm carries a distinct reward source across 568 seed(s)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=duplicate_units severity=OK detail=all 7370 (arm, seed) units are unique
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=test_window_consistency severity=OK detail=every scored record covers the same 1571-step window
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=unreadable_records severity=OK detail=all 9519 records parsed cleanly
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=arm_progress_symmetry severity=OK detail=all 17 arms progressing together (median idle 124.3h)
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=authoring_health severity=OK detail=authoring healthy across 5 arm(s) against each author's measured yield
+2026-08-03 17:50:45 | WARNING | sentinel | sentinel_check check=record_sanity severity=WARN detail=106/300 recent record(s) look SUSPECT (distributional-s352, distributional-s2...
+2026-08-03 17:50:45 | INFO    | sentinel | sentinel_check check=admin_kill severity=OK detail=no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 146x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.2h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  106/300 recent record(s) look SUSPECT (distributional-s352, distributional-s201, distributional-s42, placebo_shuffled-s41) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 257/270 (95%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] gate_failure_drift 1 samples (need 5 for a drift check)
+  [info] nan_rate_drift 1 samples (need 5 for a drift check)
+  [info] disk_forecast  1 disk samples (need 5 for a fill-rate forecast)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.6 GB
+  [OK  ] ram            RAM 48% used
+  [OK  ] gpu_temp       GPU 43C
+  [OK  ] gate_failures  8.6% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.6 h old
+  [OK  ] driver_lease   driver heartbeat 0.2 min ago
+  [OK  ] queue          665 queued, 10707 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] capacity_accumulation plateaued at ~1565 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2798 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,512 done at 70.4/h -> ~48,864 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7370 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9519 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 124.3h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 17:58:44 | WARNING | sentinel | sentinel_check check=ram severity=WARN detail=RAM 94% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 94% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 146x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.4h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  110/300 recent record(s) look SUSPECT (distributional-s292, placebo_shuffled-s200, distributional-s113, distributional-s114) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 257/270 (95%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] gate_failure_drift 2 samples (need 5 for a drift check)
+  [info] nan_rate_drift 2 samples (need 5 for a drift check)
+  [info] disk_forecast  2 disk samples (need 5 for a fill-rate forecast)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.5 GB
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.6% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.8 min ago
+  [OK  ] queue          665 queued, 10707 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] capacity_accumulation plateaued at ~1565 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2802 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,533 done at 70.5/h -> ~48,930 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7384 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9533 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 124.5h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 18:05:06 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 63% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.5h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  117/300 recent record(s) look SUSPECT (placebo_shuffled-s113, distributional-s293, placebo_shuffled-s351, placebo_shuffled-s201) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 259/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] gate_failure_drift 3 samples (need 5 for a drift check)
+  [info] nan_rate_drift 3 samples (need 5 for a drift check)
+  [info] disk_forecast  3 disk samples (need 5 for a fill-rate forecast)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.5 GB
+  [OK  ] ram            RAM 63% used
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          663 queued, 10705 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] capacity_accumulation plateaued at ~1565 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2805 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,552 done at 70.5/h -> ~48,980 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7405 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9556 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 124.6h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 18:12:00 | WARNING | sentinel | sentinel_check check=ram severity=WARN detail=RAM 89% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 89% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.6h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  121/300 recent record(s) look SUSPECT (placebo_shuffled-s114, placebo_shuffled-s292, distributional-s115, placebo_shuffled-s109) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 259/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] gate_failure_drift 4 samples (need 5 for a drift check)
+  [info] nan_rate_drift 4 samples (need 5 for a drift check)
+  [info] disk_forecast  4 disk samples (need 5 for a fill-rate forecast)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.5 GB
+  [OK  ] gpu_temp       GPU 47C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          663 queued, 10705 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] capacity_accumulation plateaued at ~1565 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2805 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,563 done at 70.6/h -> ~48,998 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7416 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9567 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 124.7h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 18:18:26 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 45% used
+2026-08-03 18:18:26 | WARNING | sentinel | sentinel_check check=gate_failure_drift severity=WARN detail=gate_failure is DRIFTING upward (CUSUM 0.28 > 0.15, since sample 2)
+2026-08-03 18:18:26 | INFO    | sentinel | sentinel_check check=nan_rate_drift severity=OK detail=nan_rate stable (CUSUM 0.00 <= 0.05)
+2026-08-03 18:18:26 | INFO    | sentinel | sentinel_check check=disk_forecast severity=OK detail=~219 h of headroom at -0.12 GB/h
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.28 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.7h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  119/300 recent record(s) look SUSPECT (distributional-s415, distributional-s111, placebo_shuffled-s114, placebo_shuffled-s292) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.5 GB
+  [OK  ] ram            RAM 45% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.6 min ago
+  [OK  ] queue          663 queued, 10705 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] disk_forecast  ~219 h of headroom at -0.12 GB/h
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2811 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,582 done at 70.6/h -> ~49,054 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7430 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9582 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 124.8h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.33 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.8h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  122/300 recent record(s) look SUSPECT (distributional-s204, placebo_shuffled-s414, placebo_shuffled-s115, placebo_shuffled-s291) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.5 GB
+  [OK  ] ram            RAM 47% used
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          665 queued, 10707 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] disk_forecast  ~276 h of headroom at -0.10 GB/h
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2812 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,586 done at 70.6/h -> ~49,035 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7438 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9590 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 124.9h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 18:32:49 | WARNING | sentinel | sentinel_check check=ram severity=WARN detail=RAM 94% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 94% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.38 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 21.9h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  122/300 recent record(s) look SUSPECT (placebo_shuffled-s43, distributional-s44, distributional-s294, placebo_shuffled-s203) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.5 GB
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          648 queued, 10570 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] disk_forecast  ~249 h of headroom at -0.11 GB/h
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2815 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,602 done at 70.7/h -> ~49,077 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7454 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9604 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.0h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 18:39:37 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 46% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.44 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.1h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  120/300 recent record(s) look SUSPECT (placebo_shuffled-s354, placebo_shuffled-s42, placebo_shuffled-s43, distributional-s44) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.1 GB
+  [OK  ] ram            RAM 46% used
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          645 queued, 10548 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] disk_forecast  ~74 h of headroom at -0.35 GB/h
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2817 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,616 done at 70.7/h -> ~49,102 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7464 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9616 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.2h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.49 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.2h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  120/300 recent record(s) look SUSPECT (placebo_shuffled-s293, placebo_shuffled-s294, distributional-s355, placebo_shuffled-s354) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.1 GB
+  [OK  ] ram            RAM 34% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          644 queued, 10542 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] disk_forecast  ~59 h of headroom at -0.44 GB/h
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2818 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,622 done at 70.7/h -> ~49,092 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7473 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9622 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.3h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.55 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.3h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  120/300 recent record(s) look SUSPECT (distributional-s45, placebo_shuffled-s355, placebo_shuffled-s293, placebo_shuffled-s294) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 46.1 GB
+  [OK  ] ram            RAM 66% used
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          644 queued, 10534 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] disk_forecast  ~56 h of headroom at -0.47 GB/h
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2818 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,632 done at 70.7/h -> ~49,100 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7483 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9633 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.4h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 19:02:13 | ERROR   | sentinel | sentinel_check check=ram severity=CRITICAL detail=RAM 100% used (OOM risk)
+2026-08-03 19:02:13 | ERROR   | sentinel | sentinel_check check=disk_forecast severity=CRITICAL detail=disk hits the 20 GB floor in ~11 h at -2.05 GB/h
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] ram            RAM 100% used (OOM risk)
+  [CRIT] disk_forecast  disk hits the 20 GB floor in ~11 h at -2.05 GB/h
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.60 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.4h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  119/300 recent record(s) look SUSPECT (distributional-s45, placebo_shuffled-s355, placebo_shuffled-s293, placebo_shuffled-s294) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.1 GB
+  [OK  ] gpu_temp       GPU 52C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.7 min ago
+  [OK  ] queue          630 queued, 10459 pending across 34 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] capacity_accumulation plateaued at ~1560 cores (89% of forecast) — steady state
+  [OK  ] host_failure_concentration no bad node (0/2820 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,637 done at 70.7/h -> ~49,079 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7487 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9639 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.5h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 19:08:51 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 40% used
+2026-08-03 19:08:51 | INFO    | sentinel | sentinel_check check=capacity_accumulation severity=INFO detail=not yet measurable (insufficient) — keep the telemetry watcher running
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] disk_forecast  disk hits the 20 GB floor in ~12 h at -2.06 GB/h
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.66 > 0.15, since sample 2)
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.5h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  118/300 recent record(s) look SUSPECT (distributional-s205, distributional-s206, placebo_shuffled-s45, placebo_shuffled-s44) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 40% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          639 queued, 10518 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2823 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,646 done at 70.7/h -> ~49,078 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7495 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9646 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.7h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 19:15:49 | WARNING | sentinel | sentinel_check check=disk_forecast severity=WARN detail=disk hits the 20 GB floor in ~12 h at -2.00 GB/h
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.71 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~12 h at -2.00 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.7h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  114/300 recent record(s) look SUSPECT (distributional-s205, distributional-s206, placebo_shuffled-s45, placebo_shuffled-s44) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 63% used
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.2 min ago
+  [OK  ] queue          636 queued, 10513 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2826 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,652 done at 70.7/h -> ~49,069 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7502 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9652 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.8h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.77 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~13 h at -1.92 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.8h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  114/300 recent record(s) look SUSPECT (scalar_cvar5-g5-c1, distributional-s417, placebo_shuffled-s416, placebo_shuffled-s415) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 40% used
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          632 queued, 10501 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2830 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,665 done at 70.7/h -> ~49,093 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7514 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9667 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 125.9h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.82 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~13 h at -1.82 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 22.9h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  115/300 recent record(s) look SUSPECT (distributional-s296, distributional-s416, scalar_cvar5-g5-c1, distributional-s417) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 40% used
+  [OK  ] gpu_temp       GPU 50C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.2 min ago
+  [OK  ] queue          632 queued, 10497 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2830 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,669 done at 70.7/h -> ~49,074 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7516 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9669 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.0h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.88 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~14 h at -1.71 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.0h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  116/300 recent record(s) look SUSPECT (distributional-s297, distributional-s295, distributional-s296, distributional-s416) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 77% used
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          632 queued, 10495 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2830 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,672 done at 70.6/h -> ~49,050 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7521 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9674 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.1h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 19:45:55 | ERROR   | sentinel | sentinel_check check=ram severity=CRITICAL detail=RAM 100% used (OOM risk)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] ram            RAM 100% used (OOM risk)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.93 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~15 h at -1.59 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.1h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  116/300 recent record(s) look SUSPECT (distributional-s47, placebo_shuffled-s295, placebo_shuffled-s296, distributional-s298) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] gpu_temp       GPU 51C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.5 min ago
+  [OK  ] queue          629 queued, 10486 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2833 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,679 done at 70.6/h -> ~49,037 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7529 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9680 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.2h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 19:54:56 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 72% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 0.99 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~17 h at -1.47 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.3h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  116/300 recent record(s) look SUSPECT (placebo_shuffled-s418, distributional-s46, distributional-s418, placebo_shuffled-s297) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 72% used
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          628 queued, 10476 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2834 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,690 done at 70.6/h -> ~49,040 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7537 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9690 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.4h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.04 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~18 h at -1.36 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.4h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  114/300 recent record(s) look SUSPECT (placebo_shuffled-s46, placebo_shuffled-s417, placebo_shuffled-s423, placebo_shuffled-s418) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 40% used
+  [OK  ] gpu_temp       GPU 47C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          628 queued, 10473 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2834 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,695 done at 70.6/h -> ~49,012 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7543 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9695 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.5h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.09 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~19 h at -1.27 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.5h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  114/300 recent record(s) look SUSPECT (distributional-s49, distributional-s420, distributional-s207, distributional-s118) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 44% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          627 queued, 10493 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2835 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,704 done at 70.6/h -> ~49,014 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7548 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9704 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.7h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.15 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~21 h at -1.18 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.7h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  115/300 recent record(s) look SUSPECT (placebo_shuffled-s421, distributional-s119, distributional-s362, placebo_shuffled-s419) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.5 GB
+  [OK  ] ram            RAM 34% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.4 min ago
+  [OK  ] queue          631 queued, 10483 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2835 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,715 done at 70.6/h -> ~49,030 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7564 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9718 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.8h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.20 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~22 h at -1.11 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.8h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  118/300 recent record(s) look SUSPECT (placebo_shuffled-s426, distributional-s425, placebo_shuffled-s118, distributional-s424) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.4 GB
+  [OK  ] ram            RAM 31% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          631 queued, 10469 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2835 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,728 done at 70.7/h -> ~49,056 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7576 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9729 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 126.9h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 20:30:22 | ERROR   | sentinel | sentinel_check check=ram severity=CRITICAL detail=RAM 100% used (OOM risk)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] ram            RAM 100% used (OOM risk)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.26 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~17 h at -1.26 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 23.9h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  117/300 recent record(s) look SUSPECT (distributional-s120, placebo_shuffled-s119, distributional-s363, distributional-s429) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.0 GB
+  [OK  ] gpu_temp       GPU 50C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          629 queued, 10457 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2837 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,740 done at 70.7/h -> ~49,075 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7596 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9748 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.0h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 20:37:57 | WARNING | sentinel | sentinel_check check=ram severity=WARN detail=RAM 94% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 94% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.31 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~21 h at -1.17 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 24.0h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  122/300 recent record(s) look SUSPECT (placebo_shuffled-s363, distributional-s302, distributional-s51, distributional-s121) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 44.4 GB
+  [OK  ] gpu_temp       GPU 50C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          627 queued, 10430 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2839 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,766 done at 70.8/h -> ~49,160 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7617 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9766 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.1h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 94% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.37 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~17 h at -1.27 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 24.1h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  123/300 recent record(s) look SUSPECT (placebo_shuffled-s125, placebo_shuffled-s360, placebo_shuffled-s303, placebo_shuffled-s122) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.7 min ago
+  [OK  ] queue          626 queued, 10412 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2841 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,787 done at 70.9/h -> ~49,220 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7641 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9797 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.2h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 20:56:31 | ERROR   | sentinel | sentinel_check check=ram severity=CRITICAL detail=RAM 100% used (OOM risk)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] ram            RAM 100% used (OOM risk)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.42 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.35 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 24.3h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  123/300 recent record(s) look SUSPECT (placebo_shuffled-s420, placebo_shuffled-s207, distributional-s124, distributional-s54) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] gpu_temp       GPU 54C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 2.1 min ago
+  [OK  ] queue          626 queued, 10391 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2841 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,810 done at 71.0/h -> ~49,289 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7654 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9810 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.4h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 21:06:30 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 76% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.48 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.37 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 24.4h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  129/300 recent record(s) look SUSPECT (distributional-s427, distributional-s60, distributional-s360, placebo_shuffled-s124) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.2 GB
+  [OK  ] ram            RAM 76% used
+  [OK  ] gpu_temp       GPU 50C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          624 queued, 10343 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2843 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,854 done at 71.2/h -> ~49,446 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7698 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9854 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.6h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.53 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.39 GB/h
+  [WARN] chain_progress CRITICAL-PATH CHAIN STALLED: bayes_opt 25/30 idle 24.6h — the makespan floor slips a day for every day this sits still; check the chain job, not the test flood
+  [WARN] record_sanity  133/300 recent record(s) look SUSPECT (placebo_shuffled-s357, placebo_shuffled-s427, placebo_shuffled-s364, distributional-s216) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 260/270 (96%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] ram            RAM 43% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.5% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.2 min ago
+  [OK  ] queue          623 queued, 10313 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] host_failure_concentration no bad node (0/2844 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,884 done at 71.3/h -> ~49,537 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7729 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9884 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.7h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 21:20:52 | WARNING | sentinel | sentinel_check check=ram severity=WARN detail=RAM 95% used
+2026-08-03 21:20:52 | INFO    | sentinel | sentinel_check check=chain_progress severity=OK detail=critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 95% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.59 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.40 GB/h
+  [WARN] record_sanity  134/300 recent record(s) look SUSPECT (distributional-s212, distributional-s127, distributional-s59, distributional-s299) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.3 min ago
+  [OK  ] queue          622 queued, 10303 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2847 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,901 done at 71.4/h -> ~49,585 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7754 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9903 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 127.8h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 21:28:26 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 56% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.64 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.38 GB/h
+  [WARN] record_sanity  134/300 recent record(s) look SUSPECT (placebo_shuffled-s47, placebo_shuffled-s208, distributional-s57, placebo_shuffled-s58) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.1 GB
+  [OK  ] ram            RAM 56% used
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          621 queued, 10280 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2848 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,923 done at 71.5/h -> ~49,647 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7776 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9927 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.0h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.69 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.37 GB/h
+  [WARN] record_sanity  134/300 recent record(s) look SUSPECT (distributional-s306, placebo_shuffled-s55, distributional-s58, distributional-s217) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.1 GB
+  [OK  ] ram            RAM 43% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          618 queued, 10253 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2851 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,946 done at 71.6/h -> ~49,717 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7791 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9948 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.1h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.75 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~16 h at -1.34 GB/h
+  [WARN] record_sanity  133/300 recent record(s) look SUSPECT (distributional-s308, placebo_shuffled-s306, distributional-s132, distributional-s133) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.0 GB
+  [OK  ] ram            RAM 35% used
+  [OK  ] gpu_temp       GPU 47C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.3 min ago
+  [OK  ] queue          612 queued, 10227 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2856 failures spread across 193 hosts)
+  [OK  ] rung_forecast  9,970 done at 71.7/h -> ~49,793 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7815 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 9972 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.2h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.80 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~17 h at -1.32 GB/h
+  [WARN] record_sanity  130/300 recent record(s) look SUSPECT (distributional-s213, placebo_shuffled-s436, placebo_shuffled-s365, distributional-s431) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.0 GB
+  [OK  ] ram            RAM 46% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.3 min ago
+  [OK  ] queue          603 queued, 10200 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2867 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,000 done at 71.9/h -> ~49,902 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7846 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10001 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.3h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.86 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~17 h at -1.30 GB/h
+  [WARN] record_sanity  128/300 recent record(s) look SUSPECT (placebo_shuffled-s211, distributional-s367, distributional-s434, placebo_shuffled-s48) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.0 GB
+  [OK  ] ram            RAM 40% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.5 min ago
+  [OK  ] queue          600 queued, 10184 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2869 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,018 done at 71.9/h -> ~49,952 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7866 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10018 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.4h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.91 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~17 h at -1.27 GB/h
+  [WARN] record_sanity  121/300 recent record(s) look SUSPECT (placebo_shuffled-s434, distributional-s368, placebo_shuffled-s308, placebo_shuffled-s307) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.0 GB
+  [OK  ] ram            RAM 83% used
+  [OK  ] gpu_temp       GPU 47C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          599 queued, 10167 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2871 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,039 done at 72.0/h -> ~50,013 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7882 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10039 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.6h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 1.97 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~18 h at -1.24 GB/h
+  [WARN] record_sanity  120/300 recent record(s) look SUSPECT (placebo_shuffled-s310, distributional-s436, distributional-s310, distributional-s438) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 261/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 42.0 GB
+  [OK  ] ram            RAM 79% used
+  [OK  ] gpu_temp       GPU 49C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          598 queued, 10148 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 27/30)
+  [OK  ] host_failure_concentration no bad node (0/2871 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,051 done at 72.1/h -> ~50,030 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7900 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10052 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.7h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.02 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~18 h at -1.22 GB/h
+  [WARN] record_sanity  115/300 recent record(s) look SUSPECT (distributional-s131, distributional-s369, placebo_shuffled-s309, distributional-s61) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] ram            RAM 46% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          597 queued, 10128 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2872 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,070 done at 72.1/h -> ~50,079 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7912 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10070 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.8h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 22:25:27 | ERROR   | sentinel | sentinel_check check=ram severity=CRITICAL detail=RAM 96% used (OOM risk)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] ram            RAM 96% used (OOM risk)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.07 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~18 h at -1.19 GB/h
+  [WARN] record_sanity  112/300 recent record(s) look SUSPECT (placebo_shuffled-s437, placebo_shuffled-s367, placebo_shuffled-s61, distributional-s371) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          592 queued, 10110 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2877 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,095 done at 72.2/h -> ~50,164 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7939 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10095 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 128.9h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 22:32:52 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 76% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.13 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~19 h at -1.16 GB/h
+  [WARN] record_sanity  114/300 recent record(s) look SUSPECT (distributional-s439, distributional-s373, distributional-s321, distributional-s313) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] ram            RAM 76% used
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          591 queued, 10088 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2881 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,119 done at 72.4/h -> ~50,238 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7967 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10120 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.0h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.18 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~19 h at -1.14 GB/h
+  [WARN] record_sanity  115/300 recent record(s) look SUSPECT (placebo_shuffled-s372, placebo_shuffled-s217, placebo_shuffled-s312, placebo_shuffled-s315) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] ram            RAM 41% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.0 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          583 queued, 10063 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2885 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,135 done at 72.4/h -> ~50,273 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 7983 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10138 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.2h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.24 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~20 h at -1.11 GB/h
+  [WARN] record_sanity  115/300 recent record(s) look SUSPECT (placebo_shuffled-s431, placebo_shuffled-s135, distributional-s441, placebo_shuffled-s137) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.9 GB
+  [OK  ] ram            RAM 43% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          583 queued, 10037 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2886 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,163 done at 72.5/h -> ~50,374 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8010 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10166 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.3h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.29 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~20 h at -1.09 GB/h
+  [WARN] record_sanity  115/300 recent record(s) look SUSPECT (placebo_shuffled-s439, placebo_shuffled-s130, placebo_shuffled-s370, distributional-s221) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.8 GB
+  [OK  ] ram            RAM 42% used
+  [OK  ] gpu_temp       GPU 45C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.0 min ago
+  [OK  ] queue          582 queued, 10016 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2887 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,185 done at 72.6/h -> ~50,441 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8033 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10190 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.4h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.34 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~20 h at -1.06 GB/h
+  [WARN] record_sanity  119/300 recent record(s) look SUSPECT (distributional-s66, distributional-s129, placebo_shuffled-s231, distributional-s144) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.8 GB
+  [OK  ] ram            RAM 35% used
+  [OK  ] gpu_temp       GPU 44C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.4 min ago
+  [OK  ] queue          578 queued, 9994 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2893 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,209 done at 72.8/h -> ~50,518 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8059 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10216 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.5h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.40 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~21 h at -1.04 GB/h
+  [WARN] record_sanity  118/300 recent record(s) look SUSPECT (placebo_shuffled-s143, distributional-s142, placebo_shuffled-s68, placebo_shuffled-s318) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 262/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.8 GB
+  [OK  ] ram            RAM 50% used
+  [OK  ] gpu_temp       GPU 46C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          575 queued, 9970 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 24/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2894 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,238 done at 72.9/h -> ~50,619 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8091 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10238 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.6h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.45 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~21 h at -1.02 GB/h
+  [WARN] record_sanity  121/300 recent record(s) look SUSPECT (distributional-s230, placebo_shuffled-s131, distributional-s229, distributional-s444) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 263/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.7 GB
+  [OK  ] ram            RAM 45% used
+  [OK  ] gpu_temp       GPU 47C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          572 queued, 9929 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 25/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2898 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,270 done at 73.1/h -> ~50,733 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8118 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10276 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.7h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 23:21:29 | WARNING | sentinel | sentinel_check check=ram severity=WARN detail=RAM 94% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [WARN] ram            RAM 94% used
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.51 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~22 h at -1.00 GB/h
+  [WARN] record_sanity  124/300 recent record(s) look SUSPECT (distributional-s322, distributional-s320, distributional-s224, placebo_shuffled-s71) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 263/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.7 GB
+  [OK  ] gpu_temp       GPU 51C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.2 h old
+  [OK  ] driver_lease   driver heartbeat 0.2 min ago
+  [OK  ] queue          571 queued, 9909 pending across 37 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 25/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2899 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,291 done at 73.2/h -> ~50,796 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8140 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10299 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 129.9h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)
+2026-08-03 23:27:58 | INFO    | sentinel | sentinel_check check=ram severity=OK detail=RAM 49% used
+CAMPAIGN SENTINEL — CRITICAL (ATTENTION)
+  [CRIT] seed_alignment paired contrasts will run on 22 common seeds although the deepest arm has 568 — 96% of the sample is silently lost to misalignment, and the analysis intersects without warning
+  [??  ] silent_hang    no progress artifact to age-check
+  [WARN] reward_scale   AUTHORED-arm reward-scale ratio 129x; baselines span 437099x (registered ratio-form rewards — fixed by formula, reported as context)
+  [WARN] gate_failure_drift gate_failure is DRIFTING upward (CUSUM 2.56 > 0.15, since sample 2)
+  [WARN] disk_forecast  disk hits the 20 GB floor in ~22 h at -0.98 GB/h
+  [WARN] record_sanity  127/300 recent record(s) look SUSPECT (placebo_shuffled-s72, distributional-s228, distributional-s143, placebo_shuffled-s374) — partial fallback contamination or missing execution counters
+  [info] api_errors     no API calls logged yet
+  [info] completion_stall 0 unit completions journaled (need 3 for a cadence yardstick)
+  [info] coverage_search search: 263/270 (97%)
+  [info] coverage_test  test: 450/11360 (4%)
+  [info] capacity_accumulation not yet measurable (insufficient) — keep the telemetry watcher running
+  [OK  ] exit_code      no failing exit recorded
+  [OK  ] coverage       20/20 arms progressing
+  [OK  ] disk           free disk 41.3 GB
+  [OK  ] ram            RAM 49% used
+  [OK  ] gpu_temp       GPU 48C
+  [OK  ] gate_failures  8.4% gate-failure rate
+  [OK  ] nan_rate       all records finite
+  [OK  ] divergence     0.0% divergence rate
+  [OK  ] mirror         archive mirror 0.1 h old
+  [OK  ] driver_lease   driver heartbeat 0.1 min ago
+  [OK  ] queue          440 queued, 8450 pending across 30 active batch(es)
+  [OK  ] error_taxonomy no failures/warnings journaled
+  [OK  ] nan_rate_drift nan_rate stable (CUSUM 0.00 <= 0.05)
+  [OK  ] chain_progress critical path advancing (bayes_opt 26/30, tpe 25/30, cma_es 28/30)
+  [OK  ] host_failure_concentration no bad node (0/2904 failures spread across 193 hosts)
+  [OK  ] rung_forecast  10,327 done at 73.4/h -> ~50,931 by the stop => rung 568
+  [OK  ] determinism_homogeneity test leg homogeneous across 450 records (dev=cpu)
+  [OK  ] substrate_fields test leg on ONE substrate across 450 records (cpu=Intel(R) Xeon(R) Gold 6240 CPU @ 2.60GHz | omp=1 | torch_threads=1 | cuda=False)
+  [OK  ] winner_execution_quality all 11 frozen winner(s) executed cleanly (worst fallback 0.0000%)
+  [OK  ] design_drift   the running design still matches the freeze (3ca6f01ab772)
+  [OK  ] seed_replication every seed produced a distinct run across 56 arm(s)
+  [OK  ] arm_differentiation every LLM arm carries a distinct reward source across 568 seed(s)
+  [OK  ] duplicate_units all 8168 (arm, seed) units are unique
+  [OK  ] test_window_consistency every scored record covers the same 1571-step window
+  [OK  ] unreadable_records all 10327 records parsed cleanly
+  [OK  ] arm_progress_symmetry all 17 arms progressing together (median idle 130.0h)
+  [OK  ] authoring_health authoring healthy across 5 arm(s) against each author's measured yield
+  [OK  ] admin_kill     no administrative-kill signature (0 deaths, 0 hosts)

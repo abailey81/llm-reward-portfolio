@@ -1,0 +1,516 @@
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      5       1  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      1       0  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      0       3  distributional, scalar
+test_leg_nemotron_3_super          0    30     4      3       0  distributional, scalar
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b               73   108     5    179      55  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       4       2  scalar_cvar5
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      2       3  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      1       0  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      0       3  distributional, scalar
+test_leg_nemotron_3_super          0    30     4      3       0  distributional, scalar
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b               91   117     5    180      45  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       4       2  scalar_cvar5
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      3       2  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      1       0  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      0       3  distributional, scalar
+test_leg_nemotron_3_super          0    30     4      3       0  distributional, scalar
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b              104   122     5    190      28  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       4       2  scalar_cvar5
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      3       2  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      1       0  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      0       3  distributional, scalar
+test_leg_nemotron_3_super          0    30     4      3       0  distributional, scalar
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b              118   125     5    187      21  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       4       2  scalar_cvar5
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      3       2  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      1       0  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      1       2  distributional, scalar
+test_leg_nemotron_3_super          0    30     4      1       0  distributional, scalar
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b              123   134     5    194      10  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       4       2  scalar_cvar5
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      3       2  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      1       0  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      1       2  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b              125   145     5    197       7  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      3       2  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      0       1  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      2       1  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b              131   166     5    197       2  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      4       2  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      0       1  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      3       0  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5      0     340  -
+test_leg_qwen3_5_9b              143   188     5    192       2  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      4       1  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      0       1  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      3       0  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5     19     321  -
+test_leg_qwen3_5_9b              171   203     5    174       0  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      4       0  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      0       1  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      3       0  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5     25     315  -
+test_leg_qwen3_5_9b              185   219     5    169       0  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      4       0  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      0       1  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      3       0  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5     27     313  -
+test_leg_qwen3_5_9b              201   243     5    156       0  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.
+=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===
+line                           recMin recMax  arms    run  queued  arms at ZERO
+test                               0    30     6      3       1  distributional, scalar
+test_leg_deepseek_v4_pro           0    30     5      0       1  distributional, scalar
+test_leg_glm_5_2                   0    30     5      0       8  distributional, scalar
+test_leg_kimi_k3                   0    30     5      3       0  distributional, scalar
+test_leg_nemotron_3_super          0    30     5      0       4  distributional, scalar, scalar_cvar5
+test_leg_haiku_4_5                30    30     5      0      33  -
+test_leg_qwen3_6_27b              30    30     5      0      19  -
+test_leg_sonnet_5                 30    30     5     39     301  -
+test_leg_qwen3_5_9b              223   268     5    145       0  -
+test_leg_gpt_5_6_luna            566   567     5      0       1  -
+test_h3_singleshot               568   568     1      0       0  -
+test_leg_gemini_2_5_flash        568   568     5      0       0  -
+
+=== PIPELINE FUNNEL (searched -> frozen -> tested) ===
+line                            searched  frozen  tested  not yet frozen
+search                                 9       6      15  bayes_opt, cma_es, tpe
+search_h3_singleshot                   1       1       1  -
+search_leg_deepseek_v4_pro             5       5       3  -
+search_leg_gemini_2_5_flash            5       5       5  -
+search_leg_glm_5_2                     5       5       5  -
+search_leg_gpt_5_6_luna                5       5       5  -
+search_leg_haiku_4_5                   5       5       5  -
+search_leg_kimi_k3                     5       5       5  -
+search_leg_nemotron_3_super            5       5       3  -
+search_leg_qwen3_5_9b                  5       5       5  -
+search_leg_qwen3_6_27b                 5       5       5  -
+search_leg_sonnet_5                    5       5       5  -
+  (un-frozen arms are NORMAL mid-campaign -- core's bayes_opt/cma_es/tpe are the H4
+   search-method comparators still in C1. Reported, not alarmed.)
+
+COMMON (min record count) = 0      DEEPEST = 568
+  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm
+     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna
+     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked
+     rung run `docs/analysis/record_seed_completeness.py` (S15).
+  568 rung(s) of the deepest line sit ABOVE the common rung and raise the reported
+  result by NOTHING until the laggards climb. That is the design, not a fault.
+
+WAITING (work running or queued; benign): test, test_leg_deepseek_v4_pro, test_leg_glm_5_2, test_leg_kimi_k3, test_leg_nemotron_3_super, test_leg_haiku_4_5, test_leg_qwen3_6_27b, test_leg_sonnet_5, test_leg_qwen3_5_9b, test_leg_gpt_5_6_luna
+
+CLEAN -- every line below the deepest rung has work in flight or queued.

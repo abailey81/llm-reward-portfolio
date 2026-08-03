@@ -174,7 +174,7 @@ def report(res: dict) -> int:
 
     varying = {k: v for k, v in g.items() if len(v) > 1}
     det_varying = {k: v for k, v in varying.items() if is_determinism_relevant(k)}
-    print(f"\n--- PASS A: GLOBAL ---")
+    print("\n--- PASS A: GLOBAL ---")
     print(f"  constant across the WHOLE archive : {len(g) - len(varying)} key(s)")
     print(f"  varying                            : {len(varying)} key(s)")
     print(f"  of which DETERMINISM-RELEVANT      : {len(det_varying)}")
@@ -198,7 +198,7 @@ def report(res: dict) -> int:
         for k in sorted(varying)[:20]:
             print(f"    {k:<46} {len(g[k])} distinct")
 
-    print(f"\n--- PASS B: PER COMPARISON UNIT (the CRN pairing scope) ---")
+    print("\n--- PASS B: PER COMPARISON UNIT (the CRN pairing scope) ---")
     # ⚠⚠ THE KEY-LEVEL `ACKNOWLEDGED` SET IS **NOT** CONSULTED HERE, AND THAT IS DELIBERATE.
     # The 12 acknowledged keys were acknowledged for ONE observed partition: the SEARCH tier
     # differs from the TEST tier (A70/A72). That says nothing about the same key varying
@@ -238,7 +238,7 @@ def report(res: dict) -> int:
     else:
         print("  CLEAN — every comparison unit is homogeneous on every determinism-relevant key")
 
-    print(f"\n--- PASS C: COVERAGE ---")
+    print("\n--- PASS C: COVERAGE ---")
     miss = res["missing_env"]
     if miss:
         rc = max(rc, 1)

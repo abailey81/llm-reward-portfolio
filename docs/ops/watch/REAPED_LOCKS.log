@@ -4,3 +4,12 @@
 2026-08-01T01:15:43Z  REAPED ZZZ_pc_young.driver.lock  owner_pid=12648 owner_name=explorer.exe
     owner_cmdline=C:\WINDOWS\Explorer.EXE
     lock_age_h=0.03
+2026-08-01T04:40:21Z  REAPED leg9_leg_gemini_2_5_flash_h2_pair_test.driver.lock  owner_pid=40668 owner_name=sleep.exe
+    owner_cmdline=C:\Program Files\Git\usr\bin\sleep.exe 120
+    lock_age_h=3.72
+2026-08-02T16:25:20Z  REAPED c1_bayes_opt_c22.driver.lock  owner_pid=37456 owner_name=bash.exe
+    owner_cmdline=C:\Program Files\Git\usr\bin\bash.exe docs/ops/cycle_loop.sh
+    lock_age_h=9.36
+2026-08-02T16:25:20Z  REAPED c1_cma_es_c11.driver.lock  owner_pid=37456 owner_name=bash.exe
+    owner_cmdline=C:\Program Files\Git\usr\bin\bash.exe docs/ops/cycle_loop.sh
+    lock_age_h=6.67

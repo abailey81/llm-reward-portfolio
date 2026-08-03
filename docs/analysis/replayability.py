@@ -22,7 +22,7 @@ from __future__ import annotations
 import ast
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]

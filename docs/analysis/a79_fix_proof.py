@@ -126,8 +126,8 @@ def main() -> int:
         top = k.split(".")[0].split("[")[0]
         by_out.setdefault(top, []).append((k, av, bv))
 
-    print(f"=== REGISTERED OUTPUTS WHOSE STRUCTURE/COUNTS CHANGE UNDER THE FIX ===")
-    print(f"    (a change means the shipped run CONSUMED contaminated records)\n")
+    print("=== REGISTERED OUTPUTS WHOSE STRUCTURE/COUNTS CHANGE UNDER THE FIX ===")
+    print("    (a change means the shipped run CONSUMED contaminated records)\n")
     if not by_out:
         print("    NONE -- the contamination does not reach any registered output.")
     for top in sorted(by_out):

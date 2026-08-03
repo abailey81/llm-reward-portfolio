@@ -1,0 +1,25 @@
+=== SEVEN RECORD LAYERS  (2026-08-03T17:00:20Z) ===
+archive: 9540 records
+
+L1_record_validator            RC=0   ( 31s)  /tmp/layer_L1_record_validator.out
+L2_provenance_seal             RC=0   ( 79s)  /tmp/layer_L2_provenance_seal.out
+L3_science_audit               RC=0   (107s)  /tmp/layer_L3_science_audit.out
+L4_fed_text_identification     RC=0   (  1s)  /tmp/layer_L4_fed_text_identification.out
+L5_reward_code_audit           RC=0   ( 42s)  /tmp/layer_L5_reward_code_audit.out
+L6_fed_value_coherence         RC=0   ( 40s)  /tmp/layer_L6_fed_value_coherence.out
+L7_window_identity             RC=0   ( 41s)  /tmp/layer_L7_window_identity.out
+
+ALL SEVEN LAYERS RC=0.
+
+=== CAMPAIGN MEASUREMENTS (reported, NOT gated -- see the note in this script) ===
+M1_authoring_reliability   RC=0   (  0s)  /tmp/measure_M1_authoring_reliability.out
+M2_r115_threshold          RC=1   (  1s)  /tmp/measure_M2_r115_threshold.out  <- EXPECTED: the registered claim IS falsified; a DISCLOSURE, not a regression
+M3_seed_completeness       RC=1   (  0s)  /tmp/measure_M3_seed_completeness.out  <- holes exist. NORMAL during pipelined C4. Actionable ONLY if the line has ZERO jobs -- check line_balance.
+  (M1 is the corrected per-model authoring-reliability table -- D34; the guard's own panel
+   understates it and omits the confirmatory line entirely. M2 re-derives R115's insensitivity
+   claim; its positive control must read 56/56 or nothing it prints may be believed.
+   M3 is the gap NO record layer covered: every layer verifies a record is individually sound,
+   none asked whether the SET is COMPLETE. A single hole below an arm's frontier DEMOTES the
+   rung it banks, and the common rung is a MINIMUM -- gpt-5.6-luna held 2,832 perfect records
+   and banked 189 instead of 568 because seeds 192/193 were absent.)
+LAYERS_RC=0
