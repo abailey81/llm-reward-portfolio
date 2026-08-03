@@ -513,6 +513,15 @@ TAMER'S DECISION**: a dated amendment row or a stated Limitation. **The threshol
 changed** — that would convert a presentational fix into a post-data forking path.
 
 ### (B) THE NUMERACY BOTTLENECK IS VISIBLE IN THE SEALED LEG — a real write-up disclosure
+⚠ **PRECISION FIX 2026-08-03 (RUN 17, record §130): "confined to" was FALSE AS WRITTEN.** Measured
+over all 7,788 counter-carrying sealed-test records, TWO lines carry a non-zero fallback: the leg
+below, and the CORE line's `baseline_differential_sharpe` (seeds 1, 5, 9, 21, 24) and
+`baseline_differential_downside_ratio` (seeds 7, 16, 24, 27) at **0.00025-0.00050 %** — 1 or 2 safe
+calls in 400,000, i.e. **20,000× below the R115 floor**. Those 9 are the DOCUMENTED DSR
+zero-denominator warm-up (`docs/ops/acknowledged_alarms.txt: record_sanity:WARN`, which names the
+same nine records and the same seeds), they are HAND-WRITTEN H1 comparators rather than LLM-authored
+candidates, and R115 does not govern them. **The correct claim is "the only MATERIAL sealed-test
+fallback is confined to `test_leg_qwen3_5_9b`."** Read on with that substitution:
 Sealed-test safe-default fallback is confined to `test_leg_qwen3_5_9b` (the ~17 % authoring-reliability
 BOTTOM anchor): `distributional` (TREATMENT) 30 records at 7.84-7.85 %, `placebo_shuffled` 30 at
 exactly 9.0847 %, that leg's `scalar` at ZERO. Within that leg the H2 pair is **asymmetric in

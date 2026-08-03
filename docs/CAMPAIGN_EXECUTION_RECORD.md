@@ -18498,6 +18498,58 @@ whole files.
 * **The 8 junk jobs, disk (43.1 GB), mirror (0.1 h), `ram:CRITICAL`** (transient, from archive
   scans; 7.2 GB free at check), **freeze, drift, all seven record layers** — all checked, all clean.
 
+### 127.6 !! CORRECTION TO 127.3 -- THE TABLE ABOVE IS WRONG. NINE LINES REACHED 140-149, NOT THREE.
+
+An auditor found that `docs/ops/transport_health.py` **mis-parsed the driver logs**, and the table in
+127.3 is its output. Two independent defects, both mine:
+
+* **The re-join inserted a double space the regexes rejected.** `unwrap` did `cur += " " + ln.strip()`
+  while the wrapped physical line ALREADY ended in a space, producing
+  `pull failed (1 consecutive, 0 min  down)` and `queue op failed (1  consecutive, ...)`. Measured:
+  **5,913 `pull failed (` occurrences matched only 2,354 times.** A naive `grep -c` -- the method the
+  file's own docstring criticises -- found MORE than my replacement did.
+* **`_TS` recognised only one of the two timestamp formats in the logs.** The legacy
+  `2026-07-30 01:26:27,164 WARNING src.cluster.driver:` form has no ` |`, so every legacy line was
+  GLUED onto the preceding record; `driver_h3.log` collapsed into a single **625 KB** "record", and
+  `.search()` returns at most one match per record.
+
+**RE-MEASURED after fixing both (`\s+` everywhere, `_TS` accepting `[ ,|]`, rstrip on the join):**
+
+```
+core              240 / 240  (100.0%)  3.0 h down   *** DIED (bayes_opt)
+nemotron-3-super  240 / 240  (100.0%)  3.0 h down   *** DIED (scalar_cvar5)
+glm-5_2           149 / 240  ( 62.1%)  7.4 h        haiku-4_5     149 / 240  (62.1%)  7.4 h
+deepseek-v4-pro   148 / 240  ( 61.7%)  7.3 h        gemini-2_5-flash 148 / 240 (61.7%) 7.3 h
+gpt-5_6-luna      148 / 240  ( 61.7%)  7.3 h        kimi-k3       148 / 240  (61.7%)  7.3 h
+qwen3_6-27b       148 / 240  ( 61.7%)  7.3 h        sonnet-5      148 / 240  (61.7%)  7.3 h
+qwen3_5-9b        140 / 240  ( 58.3%)  7.0 h        h3              2 / 240  ( 0.8%)  0.0 h
+```
+
+**THE MECHANISM CLAIM IS NOT WEAKENED -- IT IS STRENGTHENED, AND NOW COMPLETE.** 127.3 said "the
+THREE that survived"; the truth is **TEN lines survived at 140-149 of 240** and **the only two that
+died are the only two that were in the SEARCH lane.** The split is no longer 2-of-5, it is
+**2-of-12 with zero exceptions**: every test-lane line rode out 7.0-7.4 h of a 12.0 h budget, and
+both search-lane lines hit 240 at exactly 3.0 h. One VPN outage, one lane, a clean partition.
+
+**WHAT THIS COST AND WHY IT MATTERS BEYOND the arithmetic:** six lines were reported as peaking at
+**0-2**, and lines reading 0 were `continue`d out of the printed history altogether -- **a line that
+came 62 % of the way to death was reported as not existing.** The instrument built to answer "how
+close are we to a crash" was silent about three quarters of the fleet, and its wrong table reached
+this record, the file's own docstring and Tamer's status page before an auditor caught it.
+
+**AND THE 'MUTATION-PROVEN' CLAIM AT 127.4 WAS OVERSTATED.** Seven selftest cases passed, but the
+mutation that mattered -- a wrap INSIDE the streak phrase -- was not among them; case B wrapped at
+the one harmless point. Three cases now pin exactly the failures above (H: a wrap inside the streak
+phrase; I: the legacy timestamp starting a new record; J: logs present but nothing parsed must exit
+2, never HEALTHY), and `verdict()` now returns 2 when the scan matched nothing anywhere, because
+**a total parse failure was previously indistinguishable from perfect health** -- the P197/P213 shape
+the docstring claimed immunity to.
+
+**LESSON, and it is the session's own lesson turned on me:** I wrote that a naive `grep -c` was the
+wrong method, built a replacement, and shipped one that found LESS than the method it replaced. *A
+parser is a claim about a format; verify it against the real file before believing any number it
+produces.*
+
 ---
 
 ## 128. RUN 17 — R115 RE-DERIVED FROM SCRATCH, AND THE SENSITIVITY REACHES AN H2 TREATMENT ARM
@@ -18761,3 +18813,229 @@ All seven record layers **RC=0 at 9,332 records**. `line_balance` **CLEAN**. `tr
 **HEALTHY** (worst streak 3 of 240). Preflight **OK**. Freeze `3ca6f01ab772` **MATCHES**, drift 0 on
 both arms, 10 drivers / 10 supervisors / 1 cycle loop / 1 sentinel, gpt's 8-record repair queued as
 job 83464, nemotron on its final search generation.
+
+---
+
+## 130. RUN 17 — THE FLAWLESSNESS PASS: AN EIGHTH RECORD LAYER, BECAUSE EVERY EXISTING ONE VERIFIES A RECORD AND NONE VERIFIES THE SET
+
+**Tamer:** *"if eta is perfect, focus on veryfying tahts absolutely everuthing is strictly flawles snow."*
+
+The seven layers were re-run and are CLEAN. This section is about what re-running them **cannot**
+tell you, and about three defects found by asking that question.
+
+### 130.1 ★★ S15 — THE GAP: NO LAYER ASKED WHETHER THE SEED SET IS COMPLETE
+
+Every layer verifies that a record is INDIVIDUALLY sound: its contract (R1-R9), its provenance seal
+(P1-P4), its science (S1-S10), its fed text (S11), its authored code (S12), its fed values (S13),
+its window and device (S14). **Not one asks whether the SET an arm holds is COMPLETE.**
+
+The cost is exact. Under R101 an arm banks the largest registered rung whose **whole seed prefix**
+it possesses, and the reported result is the MINIMUM over every arm of every line. **One missing
+seed below the frontier silently demotes an arm's bankable rung, and therefore can cap the entire
+campaign.**
+
+**IT ALREADY HAPPENED, AND EVERY LAYER WAS CLEAN THROUGHOUT.** `test_leg_gpt_5_6_luna` held 2,832
+records with a frontier at seed 567 and was missing exactly seeds **192 and 193**. Its bankable rung
+was **189, not 568**. It was found only because the line was momentarily job-less and `line_balance`
+raised STUCK — **by luck**. With jobs still running, nothing in this repository would have reported
+it.
+
+**BUILT `docs/analysis/record_seed_completeness.py` (S15).** It asks the five questions no layer
+asked: C1 is the seed set a contiguous prefix; C2 what rung is ACTUALLY banked; C3 do a line's arms
+agree; C4 are there seeds above the registered ceiling; C5 duplicate seed dirs. The rungs are READ
+from the frozen registration, never hardcoded (the R84 lesson).
+
+**Selftest 9/9**, and case **H is the one that matters**: it builds a contiguous 30-seed arm, asserts
+CLEAN(0), then **punches one hole and asserts the verdict flips to 1** — a check that cannot fail
+verifies nothing. Case **D** pins why no other layer could have caught it: on the live gpt shape,
+`len(seeds) == 566` and `max(seeds) == 567` are **both** perfectly consistent with a complete ladder.
+
+**FIRST LIVE RUN, and it found a third case I had not seen:**
+
+```
+test_leg_gpt_5_6_luna      banks 189 (not 568)  holes 192/193 on 5 arms   <- known, self-repairing
+test_leg_qwen3_5_9b        banks  30 (not 403)  337-351 holes per arm     <- pipelined C4 mid-fill
+test_leg_deepseek_v4_pro   banks   0 (not 30)   placebo_shuffled 16..23   <- NEW
+```
+
+**`deepseek/placebo_shuffled` is missing EIGHT CONSECUTIVE seeds (16-23) — exactly one pack-8 job.**
+Verified in flight, not lost: the driver reads `22/30 done, 8 pending, round 1` and SGE shows job
+**72732, 8 slots, RUNNING since 04:27:38Z**. ⚠ **It has been running 11.2 h against the 15.0 h
+`h_rt` wall** — inside D19's danger band. If it hits the wall the 8 records are lost and the driver
+must repair-round them, so this is worth watching, not acting on: killing it would destroy 11.2 h of
+irreplaceable work.
+
+### 130.2 AND S15 MUST NOT BE AN ALARM — THE DISCRIMINATOR IS WHETHER WORK IS IN FLIGHT
+
+A climbing line lands seeds OUT OF ORDER as pack-8 jobs return, so **during pipelined C4 a healthy
+line ALWAYS shows holes.** S15 will therefore be non-zero for most of the campaign. Folding that into
+the seven-layer pass/fail gate would make the gate permanently red — the always-on-alarm pathology
+that let `guards=2` hide P202 for 31 hours.
+
+So S15 **REPORTS**; the seven layers **GATE**. Its verdict block says outright:
+
+```
+hole + jobs running/queued            -> MID-FILL. Benign. Expected. Do nothing.
+hole + ZERO running AND ZERO queued   -> the actionable case
+```
+
+and points at `line_balance.py` for the job counts, because S15 is effect-blind and local-only and
+cannot see the cluster. **An instrument that cannot decide must say which other instrument can.**
+
+### 130.3 THE TWO INSTRUMENTS I BUILT THIS SESSION WERE WIRED INTO NOTHING
+
+`grep -rl` across `docs/ops/*.sh`, `docs/ops/cycle.py` and `scripts/*.py`:
+
+```
+authoring_reliability        referenced by: (nothing)
+r115_threshold_sensitivity   referenced by: (nothing)
+status_stage                 referenced by: docs/ops/publish_status.sh
+transport_health             referenced by: docs/ops/publish_status.sh
+```
+
+**That is verbatim the failure s.124.5 named — "S14 and `line_balance` were wired into NOTHING" —
+which s.125 recorded as a lesson, and which I then re-created TWICE in the same session.** Being able
+to quote a lesson is not the same as applying it.
+
+**FIXED:** `docs/ops/run_record_layers.sh` — the one command a session is told to run every session —
+now has a **CAMPAIGN MEASUREMENTS** section running M1 (`authoring_reliability`), M2
+(`r115_threshold_sensitivity`) and M3 (S15), deliberately OUTSIDE the exit code, each with its
+expected RC annotated so a non-zero cannot be misread as a regression.
+
+### 130.4 TWO PIECES OF PROSE THAT WERE PROVABLY IMPRECISE
+
+**(a) `RUN17 §10c(B)`: "Sealed-test safe-default fallback is confined to `test_leg_qwen3_5_9b`" is
+FALSE as written.** Measured over all 7,788 counter-carrying sealed-test records, **two** lines carry
+a non-zero fallback: that leg (137 records, worst 9.08475 %), and the CORE line's
+`baseline_differential_sharpe` (seeds 1, 5, 9, 21, 24) and `baseline_differential_downside_ratio`
+(seeds 7, 16, 24, 27) at **0.00025-0.00050 %** — 1 or 2 safe calls in 400,000, **20,000x below the
+R115 floor**. Those nine are the DOCUMENTED DSR zero-denominator warm-up and reproduce the
+acknowledgement's own list **exactly**, including "seed 27 shows 2". Nothing new appeared; the word
+"confined" was simply wrong. Corrected to "the only MATERIAL fallback".
+
+**(b) `acknowledged_alarms.txt`'s re-triage trigger "if one appears on the CORE line" is AMBIGUOUS,
+and it nearly cost me a false alarm.** Those nine records LIVE on the core line
+(`test/baseline_differential_*`), so read literally the trigger has been fired since it was written —
+while the RUN 10 re-triage line says "CORE-line hits 0". Both mean the core line's **LLM-AUTHORED
+arms**, the only population R115 governs. Restated unambiguously, with the re-measurement recorded:
+**ZERO on any LLM-authored core arm.**
+
+### 130.5 A RECORDED-NOT-FIXED ITEM CLOSED, NOW THAT S15 MAKES IT PRECISE
+
+s.124.6 recorded: *"`line_balance`'s columns are labelled rung but hold record counts."* Relabelled
+to `recMin`/`recMax`, and the summary line now says outright that **a count can OVERSTATE the rung an
+arm banks** — gpt held 567 records with a frontier of 567 and banked 189 — and points at S15 for the
+true figure. The STUCK/WAITING logic is untouched: a count is a valid monotone proxy for it.
+
+### 130.6 EVERY COUNT RECONCILED FROM A SINGLE WALK
+
+A count that reads differently in two instruments is a defect until explained, so all of them were
+taken at one instant:
+
+```
+find-equivalent, all depths ex .pull_tmp : 9,379   <- run_record_layers.sh 'archive:'
+depth histogram                          : {3: 56, 4: 9,321, 5: 2}
+depth-4 only                             : 9,321   <- session_preflight TOTAL / campaign_guards
+difference                               :    58   = 56 frozen-winner markers + 2 D18 nested dirs
+```
+
+**Exact.** Both instruments are right; they answer different questions, and the difference is now
+enumerated rather than assumed.
+
+### 130.7 WHAT WAS VERIFIED, AND THE TWO STRAYS THAT WERE NOT DELETED
+
+Seven record layers RC=0 with non-vacuous counts read from their OUTPUT rather than their exit code
+(9,332 / 9,333 / 9,331 / S11 exact shapes / 9,333-of-9,333 sandbox-gate / 1,520 tail vectors /
+7,760 sealed-test one-window-all-cpu). Freeze MATCHES; drift 0 on both arms; reproducibility
+8 pass / 0 warn / 0 fail; processes 10 drivers / 10 supervisors / 1 cycle loop / 1 sentinel; all
+five reboot-fragile monitors alive; the publisher publishing every ~60 s; `transport_health` HEALTHY
+(worst streak 3 of 240); `crash_watchdog` CLEAN; `line_balance` CLEAN on the fixed predicate.
+
+**Two 0-byte strays at the repo root, RECORDED NOT DELETED:** `driver` and a file whose name is
+`You` (two Private-Use-Area glyphs — `**You` pasted from a symbol font). Both are
+**0 bytes, created in the same second (2026-08-01 17:14:04), and referenced by no code path** — one
+paste accident that created two shell redirections. They are untracked, so they cannot reach any
+public deposit, and deleting them buys nothing measurable against the standing restraint on
+irreversible actions. Recorded so the next session does not have to re-diagnose them.
+
+**⚠ THE WRITE-UP SESSION IS LIVE AND ITS WORK IS PARTLY UNTRACKED** — `paper/appendices/
+F_prompts_and_authored_code.md`, `gen_F_prompts_and_authored_code.py`, two new `paper/tables/*.md`
+and `docs/WRITEUP_SESSION_PROMPT_2026-08-03.md` are untracked while 30+ `paper/**` files are
+modified. That is the Priority-5 shape (one permitted `git clean -fd` from gone). **NOT touched —
+`paper/**` is theirs and they are actively editing.** Flagged here so it is not lost.
+
+
+### 130.8 !!!! THE AUDITOR TOOK MY OWN SESSION APART: 7 MAJOR/CRITICAL, AND THE WORST ONE INVERTED MY OWN FIX
+
+A fresh read-only auditor was sent at everything I changed today. **It found more real defects in my
+work than in the campaign's.** Every one below is fixed and re-verified.
+
+**(1) CRITICAL -- my dwell fix could SUPPRESS a real STUCK alarm, and the suppression was CORRELATED
+WITH THE FAULT.** The clearing rule deleted a line's streak whenever the line was ABSENT from
+`idle` -- but a line leaves `idle` for two reasons: it has jobs (fine), or its counts are UNKNOWN
+(`run < 0`), which happens whenever the `qstat` fails. So **one failed qstat wiped every line's
+accumulated dwell**. At `--watch 1800` the 45-minute bound needs three consecutive successful passes
+spanning an hour, so **one ssh failure per hour suppressed the alarm indefinitely** -- and s.127
+records 57 `qstat -r` timeouts in a single hour, while this file's own `SSH_TIMEOUT_SECS` is 90 s
+against their 120 s. **The transport conditions that kill a line are exactly the conditions that
+reset its dwell counter.** I had traded a cheap false alarm for an expensive missed one.
+**FIXED:** only a POSITIVE observation clears a streak (seen WITH jobs, or at/above the deepest
+rung); UNKNOWN preserves. Proven by mutation: the pre-fix rule prints `ALARM SUPPRESSED` on the
+one-UNKNOWN-pass scenario, production prints `STUCK raised`.
+
+**(2) MAJOR -- a future/NaN timestamp suppressed it permanently.** `_load_dwell` accepted any
+`float`, `setdefault` never refreshed it, and `json.load` accepts bare `NaN` -- and `nan >= 2700` is
+False forever. The docstring's guarantee defended only the false-positive direction. **FIXED:** every
+stamp is clamped into `(0, now]`.
+
+**(3) MAJOR -- my selftest tested a tautology.** It asserted `(now - (now - x)) >= BOUND`, which is
+algebraically `x >= BOUND`: a re-implementation executing **no production code**, covering none of
+(1) or (2). The record's claim that five cases "FAIL against the pre-fix predicate" was **not
+demonstrable**. **FIXED:** the clear/accumulate rule is extracted as `_dwell_step`, `report()` calls
+it, and ten cases now drive it -- including the UNKNOWN-preserves case, the clamp, and a real disk
+round-trip.
+
+**(4) MAJOR -- `--selftest` and `--no-ssh` DESTROYED the live dwell state.** Both wrote to the
+production path, so the documented selftest command wiped every streak the running daemon had
+accumulated. A selftest that sabotages the monitor it tests. **FIXED:** the state path is bound to a
+temp directory for the duration.
+
+**(5) CRITICAL -- `transport_health` mis-parsed the logs and was wrong for half the fleet.** Full
+correction at **s.127.6**.
+
+**(6) MAJOR x2 -- `x=$(cmd) || x=""` DISCARDED THE OUTPUT AT EXACTLY THE MOMENT IT MATTERED**, at two
+sites in `publish_status.sh`. `transport_health --oneline` returns 1 when a streak is advanced, so
+the transport row printed "unavailable" precisely when it had something to say; and
+`session_preflight --line-summary` returns 1 when a roster line is MISSING, so the page fell back to
+the **log-file counter P210 exists to replace** -- and `$upcount` greps `12` out of that into the
+commit message, writing "12/12 lines up" into the git history *with a line dead*. **FIXED at both
+sites:** capture first, judge after, and annotate the non-zero rather than discard it.
+
+**(7) MAJOR -- the status page still told Tamer to `qdel` jobs I had already deleted**, republished
+every ~80 s since 15:48, saying *"`qdel` is blocked for the agent, so only you can clear them"* --
+which s.126.1 records as false. I corrected that row in the session prompt and left it standing on
+the one artifact he actually reads. **FIXED**, struck through with the outcome.
+
+**(8) MAJOR -- the ladder table's headline column said "rung" and held RECORD COUNTS**, under prose
+asserting *"the top row of this table is the number the dissertation reports"*. I fixed this label in
+`line_balance`'s terminal output and not on the page -- **the same defect, second site, fixed once.**
+**FIXED**, with the gpt 567-records-banks-189 example printed beside it.
+
+**(9) MAJOR -- the page hardcoded "and currently reads CLEAN"** as static prose, so it would have
+asserted CLEAN with a line genuinely stuck. **FIXED:** the verdict is now read from the instrument on
+every publish.
+
+**(10) MAJOR -- `status_stage.ladder_rows` accepted `root` and IGNORED it**, always reading the
+production archive, which is also why the entire ladder half -- the part that renders onto Tamer's
+page -- had **zero selftest coverage**; and `main()` returned 0 unconditionally, so a vacuous scan
+was published as if measured. **FIXED**, with four new cases covering the ladder.
+
+**THE PATTERN ACROSS ALL TEN, AND IT IS WORTH MORE THAN THE FIXES:** every one is *an instrument that
+fails silently in the direction of reassurance*. A cleared streak, a NaN, a discarded stdout, a
+hardcoded CLEAN, an ignored `--root`, a tautological test. **Not one would have shown up as an
+error; all of them would have shown up as good news.** That is the same shape as RUN 16's
+"absent becoming a definite verdict", and I reproduced it ten times in a single session while
+writing the sections that name it.
+
+**FOURTH CONSECUTIVE SESSION IN WHICH THE AUDITOR'S FINDINGS OUTRANK THE AUTHOR'S.** The rule is not
+a formality: on today's evidence my own work is the least reliable thing I produced.

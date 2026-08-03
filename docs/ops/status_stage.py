@@ -103,11 +103,21 @@ def ladder_rows(root: str = DEFAULT_ROOT) -> list:
     """
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try:
-        from line_balance import archive_depths
+        import line_balance as _lb
     except Exception:  # noqa: BLE001 - a status page must degrade loudly, never silently
         return []
+    # ⚠ `root` USED TO BE ACCEPTED AND IGNORED. `archive_depths()` reads `line_balance.ROOT`, a
+    # module constant, so `--root <anything>` silently measured the PRODUCTION archive -- which also
+    # meant no selftest could ever exercise this half of the file on a fixture. An auditor caught it.
+    # Bind the constant for the call and restore it, so the parameter now means what it says.
+    prev = _lb.ROOT
+    try:
+        _lb.ROOT = root
+        depths = _lb.archive_depths()
+    finally:
+        _lb.ROOT = prev
     out = []
-    for test_dir, per_arm in archive_depths().items():
+    for test_dir, per_arm in depths.items():
         if not per_arm:
             continue
         vals = list(per_arm.values())
@@ -178,6 +188,30 @@ def selftest() -> int:
         check("F an EMPTY root yields zeros, and render says so rather than printing a table",
               all(n == 0 for _, _, n in rows) and "not a healthy zero" in render_stage(td))
 
+    # G-I: THE LADDER HALF, which previously had ZERO coverage because `root` was ignored. This is
+    # the half that renders onto Tamer's page and that the file was written for.
+    with tempfile.TemporaryDirectory() as td:
+        for arm, n in (("distributional", 30), ("scalar", 12)):
+            for s in range(n):
+                p = os.path.join(td, "test_leg_x", arm, "%s-s%d" % (arm, s))
+                os.makedirs(p, exist_ok=True)
+                with open(os.path.join(p, "record.json"), "w", encoding="utf-8") as fh:
+                    fh.write("{}")
+            fp = os.path.join(td, "frozen_leg_x", "%s-winner" % arm)
+            os.makedirs(fp, exist_ok=True)
+            with open(os.path.join(fp, "record.json"), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+        rows = ladder_rows(td)
+        check("G ladder_rows HONOURS --root (it silently read production before)",
+              len(rows) == 1 and rows[0][0] == "test_leg_x", str(rows))
+        check("H the ladder reports the line's MINIMUM over arms, not its maximum",
+              bool(rows) and rows[0][1] == 12 and rows[0][2] == 30, str(rows))
+        check("I common_rung is that minimum", common_rung(td) == 12, str(common_rung(td)))
+
+    with tempfile.TemporaryDirectory() as td:
+        check("J an empty root makes the ladder say 'unavailable' and main() exit 2",
+              "unavailable" in render_ladder(td) and main(["--root", td, "--ladder"]) == 2)
+
     print("\nselftest: %d passed, %d failed" % (ok, fail))
     return 0 if fail == 0 else 1
 
@@ -191,16 +225,23 @@ def main(argv) -> int:
     a = ap.parse_args(argv)
     if a.selftest:
         return selftest()
+    # ⚠ THIS USED TO `return 0` UNCONDITIONALLY -- including when the render emitted
+    # "(stage scan found NO search candidates)" or "(ladder unavailable)". `publish_status.sh`
+    # relies on the rc, so a VACUOUS scan was published as if it had been measured: the standing
+    # "fail loudly on an empty input" rule, broken in the file that feeds Tamer's page.
+    stage = render_stage(a.root)
+    ladder = render_ladder(a.root)
+    bad = ("not a healthy zero" in stage) or ("unavailable" in ladder)
     if a.stage:
-        print(render_stage(a.root))
-        return 0
+        print(stage)
+        return 2 if "not a healthy zero" in stage else 0
     if a.ladder:
-        print(render_ladder(a.root))
-        return 0
-    print(render_stage(a.root))
+        print(ladder)
+        return 2 if "unavailable" in ladder else 0
+    print(stage)
     print()
-    print(render_ladder(a.root))
-    return 0
+    print(ladder)
+    return 2 if bad else 0
 
 
 if __name__ == "__main__":

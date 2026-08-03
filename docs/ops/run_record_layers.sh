@@ -51,4 +51,45 @@ if [ "$fail" -eq 0 ]; then
 else
   echo "*** AT LEAST ONE LAYER FAILED -- read its output file above. ***"
 fi
+
+# ---------------------------------------------------------------------------------------------
+# CAMPAIGN MEASUREMENTS -- NOT record layers, and DELIBERATELY OUTSIDE the exit code above.
+#
+# WHY THEY ARE HERE (2026-08-03, RUN 17, record s.130): both were written this session and were
+# referenced by NOTHING. That is verbatim the failure s.124.5 named -- "S14 and line_balance were
+# wired into NOTHING" -- which s.125 recorded as a lesson and which I then re-created twice in the
+# same session. An instrument nobody runs is not an instrument. This is the one command a session
+# is told to run every session, so they belong here.
+#
+# ⚠ THEY DO NOT AFFECT `$fail`, AND THAT IS DELIBERATE. `r115_threshold_sensitivity.py` exits 1 BY
+# DESIGN -- the registered insensitivity claim IS falsified, that is the KNOWN and DISCLOSED state
+# (docs/R115_DISCLOSURE_2026-08-03.md), and it cannot return to 0 without changing a frozen value,
+# which is forbidden. Folding a permanently-1 check into a pass/fail gate would make the gate
+# permanently red, which is the always-on-alarm pathology that let `guards=2` hide P202 for 31 h.
+# So they REPORT; the seven layers GATE.
+echo
+echo "=== CAMPAIGN MEASUREMENTS (reported, NOT gated -- see the note in this script) ==="
+for spec in "M1_authoring_reliability docs/ops/authoring_reliability.py" \
+            "M2_r115_threshold        docs/analysis/r115_threshold_sensitivity.py" \
+            "M3_seed_completeness     docs/analysis/record_seed_completeness.py"; do
+  set -- $spec
+  name="$1"; script="$2"
+  start=$(date -u +%s)
+  "$PY" "$script" > "/tmp/measure_${name}.out" 2>&1
+  rc=$?
+  end=$(date -u +%s)
+  note=""
+  [ "$name" = "M2_r115_threshold" ] && [ "$rc" -eq 1 ] && note="  <- EXPECTED: the registered claim IS falsified; a DISCLOSURE, not a regression"
+  [ "$name" = "M3_seed_completeness" ] && [ "$rc" -eq 1 ] && note="  <- holes exist. NORMAL during pipelined C4. Actionable ONLY if the line has ZERO jobs -- check line_balance."
+  [ "$rc" -eq 2 ] && note="  <- RC=2 means the check could not run or inspected NOTHING. Investigate."
+  printf '%-26s RC=%-3s (%3ss)  %s%s\n' "$name" "$rc" "$((end-start))" "/tmp/measure_${name}.out" "$note"
+done
+echo "  (M1 is the corrected per-model authoring-reliability table -- D34; the guard's own panel"
+echo "   understates it and omits the confirmatory line entirely. M2 re-derives R115's insensitivity"
+echo "   claim; its positive control must read 56/56 or nothing it prints may be believed."
+echo "   M3 is the gap NO record layer covered: every layer verifies a record is individually sound,"
+echo "   none asked whether the SET is COMPLETE. A single hole below an arm's frontier DEMOTES the"
+echo "   rung it banks, and the common rung is a MINIMUM -- gpt-5.6-luna held 2,832 perfect records"
+echo "   and banked 189 instead of 568 because seeds 192/193 were absent.)"
+
 exit "$fail"

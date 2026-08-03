@@ -3,6 +3,111 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-03d] ★★★★★ WRITE-UP, 5th session — **I RELOCATED A REFUTED CLAIM INTO THE APPENDIX THAT REFUTES IT**, and six of my own instruments were wrong before the document was
+
+**PAST.** Inherited from `[2026-08-03a]`: title registered, abstract 485 w, body **18,049** against a hard
+10,000, build 271 pp, citations 0/0/0/0, freeze `3ca6f01a` MATCHES. The standing brief was the word budget.
+
+**PRESENT — two phases, because Tamer redirected twice mid-session.**
+
+*Phase 1 (word budget; narrowed by Tamer to abstract+intro, then stopped entirely).* Cut the body
+**18,049 → 13,333** by relocating, tabulating and condensing: CH4 6,686→4,782 (§4.7 2,485→1,256 with the
+forensics moved into a new Appendix A §A.7; §4.5 1,189→923; §4.3 1,059→650 with the replay-buffer argument
+moved to B.2.2b), CH2 2,648→2,053, CH6 3,741→2,385 (bullet slot-lists converted to D1 reasoning-shell
+TABLES — word-excluded AND satisfying Okhrati's D1 at zero budget cost), CH7 2,971→2,301 (limitations
+tabulated as Table 6.1), CH1 2,003→1,812. Abstract **485 → 379 w**, longest sentence 46, 0 em dashes,
+0 semicolons. **Tamer then stopped all cutting**; the remaining gap to 9,500 is untouched, plan intact.
+
+*Phase 2 (accuracy, on Tamer's instruction: "make sure that absolutely everything is very accurate and
+precise").* Built four instruments — cross-reference/numbering audit, abstract metrics, rendered-margin
+audit, glued-emphasis detector — and fixed what they found.
+
+**★ MEASURED EVIDENCE THAT REORDERED THE PLAN — THE FOUR DISTINCTION EXEMPLARS.** An auditor measured
+`02_guidelines_and_examples/examples/` first-hand: total pages **41–64**, estimated body words
+**8,922–9,776** (all four essentially FILL the 10,000 allowance; none exceeds it), appendix pages **0–9**
+(two of four have NONE), footnotes **6 across 203 pages, every one a gloss**. Across 16 appendix pages a
+strict prose filter recovers **ONE word** of running body-font prose. **The cohort used the exclusions for
+raw material a reader may optionally consult, never for argument the reader must read.** Our 277 pages is
+4.2× the longest exemplar. Consequence: target ~9,300 rather than "just under 10,000", and the honest
+lever is CONDENSE/DELETE over RELOCATE. Exemplar abstract lengths: 162 / 186 / 217 / 229.
+
+**★★★ THE WORST THING I DID, AND IT GENERALISES.** Relocating CH4 §4.7 into Appendix A §A.7 was done
+VERBATIM. That resurrected two claims the project had already corrected and deleted:
+(a) "H1 is **pending supervisor ratification**" — `PREREGISTRATION.md:43` says **RATIFIED 2026-07-26 by
+Tamer and Okhrati (R108)**, config `status: ratified`, `ratification_pending: []`, and the frozen prose
+NAMES that exact sentence as a defect it already caught once; (b) "the deflation asymmetry keeps the human
+bar conservative" — Appendix A's OWN §A.3 table lists *a deflation that does not exist* as one of four
+claims that **overstated our own result**. The shipped PDF therefore carried a paragraph its own
+quality-control table refutes, eight sections apart. The same false deflation claim also survived at
+`APPENDIX_B` B.6.5. **Both fixed, and both now state the correction explicitly rather than silently.**
+
+> **RULE EARNED: RELOCATION IS NOT A NEUTRAL OPERATION. Moved text carries its errors with it, and the
+> receiving document may already refute them. Re-verify every claim at its destination.**
+
+**★ OTHER CONFIRMED DEFECTS FIXED** (independent auditor + my own instruments):
+`Table 5.5` captioned TWICE in CH6 → chapter renumbered 5.1–5.9 in strict document order ·
+**`Table 10` cited in CH2 with no table anywhere carrying that number** (pre-existing) → positioning
+matrix numbered · the allocator table was unnumbered AND my own edit removed its only reference,
+orphaning it → numbered **Table 6**, CH1 pointer restored (88%/4% verified against its source rows) ·
+`§A.8` referenced but never created → removed · **the Word-Count Statement listed five appendices while
+the document ships six** → Appendix F added · List of Tables missing 13 tables → reconciled ·
+**Algorithm 4.1's caption said the arm enters at line 16; the listing and the prose both say line 15** →
+caption fixed (that pointer carries the whole identification argument) · TD3 had been merged into a
+SAC-attribution group → restored to its clipped-double-Q claim · **`witzany2021bayesian`, which documents
+CSCV's bias, had been merged into a group citing it IN SUPPORT of PBO** → split, disclosure restored ·
+the elicitability-is-not-learnability disclaimer (Okhrati's home ground) had been dropped → restored ·
+**§A.7.2 presented tier-0 FLOOR power as the study's power position**, contradicting B.5.1 → scope
+condition added and the ladder's 80/90/95/99% assurance stated · the execution floor was described as
+"did not execute for most of its training" when the rule is ≥10% fallback and the excluded candidate ran
+49.98% → stated precisely · the abstract had flattened `placebo_shuffled` onto the tested legs → its
+disjoint status restored · two citations silently dropped by condensation → restored at zero word cost.
+
+**★ PRESENTATION, MEASURED ON THE RENDERED PAGE RATHER THAN THE SOURCE.** 61 glued-emphasis sites, 7
+ambiguous triple-asterisk runs, 4 intraword-emphasis sites rendering LITERAL asterisks (`reward-*code*`,
+`equivalence-*underpowered*`, `equal-*k*`), A.6's lost list markers (the section stating what the appendix
+does NOT claim rendered as one run-on italic), and an unclosed italic in the Acknowledgements. **Final
+render: 0 asterisk leaks in the body and appendices A–E; 0 run-together words across 277 pages.** Margin
+overflow measured directly on the PDF: **29 spans >6pt**, essentially all unbreakable code paths.
+
+**⚠⚠ MY OWN ERRORS — SIX INSTRUMENT FAILURES AND ONE PORTED-WITHOUT-ITS-GUARD FIX.**
+
+1. xref checker v1 reported **21 false danglers**: its caption regex knew one of the five caption forms
+   this repo uses (bold-inside, bold-outside, image, heading, italic-pointer).
+2. **The "fix" then HID the real `Table 5.5` collision** by deduplicating on filename — both captions sit
+   in one file. *A correction that suppresses the finding it was meant to surface is worse than the bug.*
+3. The overfull-box check passed `--keep-logs`, which argparse rejects, so **the build never ran and I
+   read `0` as "no overfull boxes"** — the P213 vacuous-pass shape, again.
+4. I mapped **TeX log line numbers onto the markdown** and nearly reported the wrong source lines; the log
+   indexes the generated `.tex`, which is not kept. Switched to measuring the rendered PDF.
+5. The research-question check reported the phrase **absent from CH7** because a newline fell inside my
+   search string. (Re-checked normalised: it is word-identical in CH1, §4.1 and §7.1 — the document's
+   claim about itself is TRUE.)
+6. "Table 6/7 are taken" was a **false match inside "Table 6.1" / "Table 7.1"**.
+7. **THE WORST: I corrected the DETECTOR with CommonMark flanking rules and did not port them to the
+   FIXER**, which kept the naive test and inserted spaces into OPENING runs, damaging four image captions
+   (`![** Figure 3.1**`). My revert regex then damaged **Appendix F**, a file the fixer never touched, by
+   gluing 66 indented bullet markers inside verbatim prompt text. Repaired by REGENERATING F from
+   `gen_F_prompts_and_authored_code.py` (which also re-proved the generator). **P148 exactly: when you
+   port a rule, port its guard — and scope a revert to the sites the fix actually changed.**
+
+**⇒ THE SESSION'S ONE LESSON:** every surprising negative today was a bad measurement before it was a bad
+document, and several of my repairs needed their own repair. **Correct the instrument, re-run, then report.**
+
+**VERIFIED AT CLOSE (real output, re-run after the last edit):** build **OK, 277 pp, 1,080 KB, 0 missing
+characters, 0 U+FFFF** · citations **0 dangling / 0 verify-in-use / 0 literal VERIFY / 0 unused** · freeze
+**`3ca6f01ab7724d47bd5d01bc9e73b4d3150c049e1048dd86a864b400a230432f` MATCHES** · cross-references **0
+dangling exhibits / 0 duplicate numbers / 0 orphans; 40 exhibits, 40 captions** · body **13,498** against a
+hard 10,000 — **the breach STANDS, cutting stopped on Tamer's instruction**.
+
+**FUTURE, in order.** (1) The word budget: 13,498 → ~9,300, and the exemplar evidence says condense and
+delete rather than relocate. (2) A fresh adversarial re-mark — the standing 74 predates ~25 fixes and is
+stale in our favour. (3) The two null-exhibits the corpus does not supply (master plan §24.3 items 2–3).
+(4) Appendix A's three internal count contradictions (20 vs 16 defects; P1–P106 vs "fifteen"; "no known
+defect reached the confirmatory data" vs D16, which did). (5) **Two conflicting feedback-block length sets
+ship in the same PDF** — CH4 §4.5 says 270/62/288/81/270 chars, `T_design_decisions` says 67/86/275/293/275,
+a systematic +5 offset, both asserted as archive-verified. (6) `paper/sections/*.md` holds **3,426 words
+that reach NO PDF**. (7) The ToC/LoF/LoT order fix, still fenced behind `scripts/**`.
+
 ## [2026-08-03a] ★★★★★ WRITE-UP LANE, 4th session (final block) — **THE TITLE WAS ITERATED FIFTEEN TIMES BEFORE ANYONE OPENED THE GUIDE THAT INVALIDATED HALF THE CANDIDATES** · a hostile re-mark returned 74 capped by communication · the exhibit built to prove the null was arguing against it · the multi-session model closed mid-session
 
 **PAST.** Continues `[2026-08-01p]` and `[2026-08-01q]` in the same session. Inherited: title unresolved
@@ -325,6 +430,65 @@ supervisors, cycle alive, drift 0, records climbing. Fifth occurrence in this pr
 
 **VERIFIED AT THE CLOSE:** seven record layers **RC=0 at 9,332 records** * `line_balance` CLEAN *
 `transport_health` HEALTHY (worst streak 3/240) * preflight OK * freeze MATCHES * drift 0 both arms.
+
+
+### RUN 17, FOURTH PASS -- the flawlessness sweep, and the auditor took my own work apart
+
+**Tamer:** *"if eta is perfect, focus on veryfying tahts absolutely everuthing is strictly flawles snow."*
+Detail: execution record **s.130** (+ the correction at **s.127.6**).
+
+**THE DEFINITIVE CHECKS, all green.** Full suite **`PYTEST_RC=0`** read FROM THE LOG (unpiped;
+reached `[100%]` with zero F/E markers). Seven record layers **RC=0**, counts read from their OUTPUT
+not their exit code. Freeze `3ca6f01ab772` MATCHES; drift 0 both arms; reproducibility 8/0/0. Every
+record count reconciled from a SINGLE walk: 9,379 all-depths = 9,321 depth-4 + 56 frozen-winner
+markers + 2 D18 nested. Exact.
+
+**★★ S15 -- AN EIGHTH RECORD LAYER, BECAUSE NO LAYER ASKED WHETHER THE SET IS COMPLETE.** Every
+existing layer verifies a record is INDIVIDUALLY sound; an arm banks the largest rung whose WHOLE
+seed prefix it holds, so **one missing seed below the frontier silently demotes it** -- and the
+common rung is a MINIMUM, so one demoted arm caps the campaign. `gpt-5.6-luna` held 2,832 perfect
+records and banked **189, not 568**; every layer was CLEAN throughout and it was found only because
+the line happened to be job-less. New `docs/analysis/record_seed_completeness.py`, selftest 9/9 --
+case H punches a hole in a clean fixture and asserts the verdict FLIPS. **First run found a third
+case I had not seen:** `deepseek/placebo_shuffled` missing seeds 16-23, exactly one pack-8 job,
+verified IN FLIGHT (job 72732, 11.2 h into a 15.0 h wall -- inside D19's band, watch it).
+
+**AND THE TWO INSTRUMENTS I BUILT EARLIER TODAY WERE WIRED INTO NOTHING** -- verbatim the failure
+s.124.5 named and s.125 recorded as a lesson, re-created twice in one session. All three measurements
+now run from `run_record_layers.sh`, deliberately OUTSIDE its exit code with each expected RC
+annotated, so a permanently-non-zero disclosure cannot make the gate permanently red.
+
+**⚠⚠ THE AUDITOR FOUND 7 MAJOR/CRITICAL IN MY OWN WORK, AND THE WORST INVERTED MY OWN FIX.** My
+45-minute dwell requirement cleared a line's streak whenever its job counts were UNKNOWN -- i.e.
+**whenever the qstat failed** -- so one ssh failure per hour suppressed the STUCK alarm indefinitely,
+and the transport failures that kill a line are exactly what fails a qstat. **I had traded a cheap
+false alarm for an expensive missed one.** Also: a NaN/future timestamp suppressed it permanently;
+my selftest asserted `(now - (now - x)) >= BOUND`, a tautology executing no production code; and
+`--selftest` and `--no-ssh` both WIPED the live dwell state. All fixed, mutation-proven (the pre-fix
+rule prints ALARM SUPPRESSED where production prints STUCK raised), 16/16.
+
+**AND `transport_health` WAS WRONG FOR HALF THE FLEET** (s.127.6). A double space from the re-join
+and an unrecognised legacy timestamp meant **5,913 `pull failed` lines matched only 2,354 times** --
+a naive `grep -c`, the method its docstring criticises, found MORE. Six lines were reported peaking
+at 0-2 when the true peak was 140-149, and lines reading 0 were dropped from the history entirely.
+**The mechanism claim is STRENGTHENED by the correction:** not "three survived" but **ten survived at
+140-149 of 240, and the only two that died are the only two in the SEARCH lane** -- a clean 2-of-12
+partition with zero exceptions.
+
+**FOUR MORE, all Tamer-facing:** `x=$(cmd) || x=""` DISCARDED the output at two sites exactly when
+the instrument had something to say (the transport row went silent on a rising streak; the census
+fell back to the log-file counter P210 exists to replace, and wrote "12/12 lines up" into the git
+history with a line dead) · the page still asked him to `qdel` jobs already deleted, saying qdel was
+"blocked for the agent" · the ladder's headline column said "rung" and held record counts, under
+prose calling it "the number the dissertation reports" · the page hardcoded "currently reads CLEAN"
+so it would have said CLEAN with a line stuck. All fixed and verified on the republished page.
+
+**THE PATTERN, worth more than the fixes:** every one of the ten is *an instrument failing silently
+in the direction of reassurance* -- a cleared streak, a NaN, a discarded stdout, a hardcoded CLEAN,
+an ignored `--root`, a tautological test. **None would have looked like an error; all would have
+looked like good news.** Same shape as RUN 16's "absent becomes a definite verdict", reproduced ten
+times by me while writing the sections that name it. **Fourth consecutive session in which the
+auditor outranks the author.**
 
 ## [2026-08-03c] ★★★★★ RUN 17 — **THE PER-MODEL AUTHORING-RELIABILITY TABLE IS COMPUTED FROM A MARKER SET THAT *STRUCTURALLY CANNOT* HOLD AN AUTHOR-SIDE REJECTION** · the confirmatory line has never appeared in that panel at all · **the status page was telling Tamer the seed ladder "has not started" while two lines had already finished the whole 568-rung thing** · and it cost 67.8 s of full-archive JSON parsing per minute to say so · a registered re-triage trigger had fired and nobody evaluated it · **nemotron reaches its FINAL search generation, live** · seven record layers RC=0 · seven of my own errors recorded
 

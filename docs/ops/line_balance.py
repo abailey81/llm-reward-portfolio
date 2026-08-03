@@ -63,12 +63,30 @@ STUCK_DWELL_SECS = 2700.0
 DWELL_STATE = os.path.join(REPO, "docs", "ops", "watch", "line_balance_dwell.json")
 
 
-def _load_dwell() -> dict:
-    """{line: first_seen_jobless_epoch}. A torn or missing file means 'no history', never 'stuck'."""
+def _load_dwell(now: float | None = None) -> dict:
+    """{line: first_seen_jobless_epoch}. A torn or missing file means 'no history', never 'stuck'.
+
+    ⚠ EVERY TIMESTAMP IS CLAMPED INTO (0, now]. The original guarded only the false-POSITIVE
+    direction; an auditor pointed out the SUPPRESSING direction was wide open. A value in the
+    future (clock change, DST, a hand-edit, a bad merge) makes `now - ts` negative forever, and
+    `json.load` accepts bare `NaN`/`Infinity` by default -- `nan >= 2700` is False forever. Either
+    would silence the alarm permanently and invisibly. An out-of-range stamp is reset to `now`,
+    which costs at most one dwell period and can never suppress.
+    """
+    now = time.time() if now is None else now
     try:
         with open(DWELL_STATE, encoding="utf-8") as fh:
             d = json.load(fh)
-        return {k: float(v) for k, v in d.items()} if isinstance(d, dict) else {}
+        if not isinstance(d, dict):
+            return {}
+        out = {}
+        for k, v in d.items():
+            try:
+                ts = float(v)
+            except (TypeError, ValueError):
+                continue
+            out[k] = ts if 0.0 < ts <= now else now      # NaN fails BOTH comparisons -> reset
+        return out
     except Exception:  # noqa: BLE001 - unreadable state must degrade to "no history", not to an alarm
         return {}
 
@@ -252,8 +270,13 @@ def report(jobs: dict) -> int:
     common = min(r[0] for r in rows)
 
     print("=== LINE BALANCE -- under R101 the COMMON RUNG *is* the reported result ===")
+    # s.124.6 recorded this as OPEN: these columns were labelled `rung` but hold RECORD COUNTS
+    # (392 is not a registered rung). They are a MONOTONE PROXY, which is all STUCK/WAITING needs,
+    # but the label claimed the registered quantity. Relabelled 2026-08-03 (RUN 17, s.130), and the
+    # TRUE banked rung -- which a record COUNT cannot give, because a single hole below the frontier
+    # demotes it -- now comes from `docs/analysis/record_seed_completeness.py` (S15).
     print("%-30s %5s %5s %5s %6s %7s  %s"
-          % ("line", "min", "max", "arms", "run", "queued", "arms at ZERO"))
+          % ("line", "recMin", "recMax", "arms", "run", "queued", "arms at ZERO"))
     for mn, mx, test_dir, tag, run, queued, empty, narms in rows:
         rj = "?" if run < 0 else str(run)
         qj = "?" if queued < 0 else str(queued)
@@ -274,7 +297,11 @@ def report(jobs: dict) -> int:
     print("   search-method comparators still in C1. Reported, not alarmed.)")
 
     print()
-    print("COMMON RUNG = %d      DEEPEST = %d" % (common, deepest))
+    print("COMMON (min record count) = %d      DEEPEST = %d" % (common, deepest))
+    print("  !! THESE ARE RECORD COUNTS, NOT REGISTERED RUNGS. A count can OVERSTATE the rung an arm")
+    print("     actually banks, because one missing seed below the frontier demotes it: gpt-5.6-luna")
+    print("     held 567 records with a frontier of 567 and banked 189, not 568. For the TRUE banked")
+    print("     rung run `docs/analysis/record_seed_completeness.py` (S15).")
     if deepest > common:
         print("  %d rung(s) of the deepest line sit ABOVE the common rung and raise the reported"
               % (deepest - common))
@@ -299,17 +326,33 @@ def report(jobs: dict) -> int:
     # The countermeasure is the one s.124.5 already applied to `cycle_loop_dupes`: REQUIRE THE
     # CONDITION TO PERSIST. A line must be continuously job-less for STUCK_DWELL_SECS before it
     # alarms; below that it is reported as IDLE with its age, which is informative and not an alarm.
+    # ⚠⚠ THE CLEARING RULE IS THE WHOLE SAFETY PROPERTY, AND MY FIRST VERSION HAD IT BACKWARDS.
+    #
+    # It cleared a line's streak whenever the line was ABSENT from `idle` -- but a line leaves
+    # `idle` for TWO reasons: it has jobs (fine), or its counts are UNKNOWN (`run < 0 or
+    # queued < 0`, i.e. the ssh failed or the batch tag did not resolve). So a SINGLE failed
+    # `qstat` wiped the accumulated dwell of EVERY line at once.
+    #
+    # An auditor showed why that is far worse than the false positive it replaced: at
+    # `--watch 1800` the bound needs THREE consecutive successful passes spanning 60 min, so
+    # **one qstat failure per hour suppresses the STUCK alarm indefinitely** -- and the transport
+    # conditions that kill a line are EXACTLY the conditions that fail a qstat (record s.127:
+    # 57 `qstat -r` timeouts in one hour, all at 120.0 s, while SSH_TIMEOUT_SECS here is 90).
+    # **The suppression was CORRELATED WITH THE FAULT.** A missed alarm beats a false one every
+    # time, and I had traded the cheap error for the expensive one.
+    #
+    # ⇒ ONLY A POSITIVE OBSERVATION MAY CLEAR A STREAK: the line was seen WITH jobs, or it is at
+    #   or above the deepest rung (so it is not a STUCK candidate at all). UNKNOWN PRESERVES.
     now = time.time()
-    state = _load_dwell()
-    seen = {r[2] for r in idle}
-    for name in list(state):
-        if name not in seen:
-            del state[name]                    # any job at all clears the streak immediately
-    for r in idle:
-        state.setdefault(r[2], now)
+    state, stuck_names = _dwell_step(
+        _load_dwell(now),
+        [r[2] for r in idle],
+        {r[2] for r in waiting} | {r[2] for r in rows if r[0] >= deepest},
+        now,
+    )
     _save_dwell(state)
-    stuck = [r for r in idle if (now - state.get(r[2], now)) >= STUCK_DWELL_SECS]
-    young = [r for r in idle if r not in stuck]
+    stuck = [r for r in idle if r[2] in stuck_names]
+    young = [r for r in idle if r[2] not in stuck_names]
 
     print()
     print("WAITING (work running or queued; benign): %s"
@@ -344,43 +387,82 @@ def report(jobs: dict) -> int:
     return 0
 
 
-def _dwell_cases() -> list:
-    """The DWELL cases (2026-08-03, s.129). Every one of these FAILS against the pre-fix predicate.
+def _dwell_step(state: dict, idle_names: list, fine_names: list, now: float) -> tuple:
+    """THE PRODUCTION CLEAR/ACCUMULATE RULE, extracted verbatim so a test can drive it.
 
-    That is the point: the old code declared STUCK on a single instantaneous sample, so cases A and
-    B below - a line job-less for 0 s and for 20 min - both alarmed. They are exactly the live
-    `gpt-5.6-luna` situation, which was self-healing throughout.
+    ⚠ THIS EXISTS BECAUSE MY FIRST SELFTEST TESTED A TAUTOLOGY. It asserted
+    `(now - (now - x)) >= BOUND`, which is algebraically `x >= BOUND` -- a re-implementation that
+    executed NO production code, so it covered none of the real defects (the UNKNOWN-clears-state
+    bug, the timestamp clamp, the disk round-trip). An auditor called it exactly right, and the
+    record's claim that those cases "FAIL against the pre-fix predicate" was not demonstrable.
+    `report()` now calls this function, so a test that drives it drives production.
     """
-    now = 1_000_000.0
+    for name in list(state):
+        if name in fine_names:
+            del state[name]
+    for name in idle_names:
+        state.setdefault(name, now)
+    stuck = {n for n in idle_names if (now - state.get(n, now)) >= STUCK_DWELL_SECS}
+    return state, stuck
 
-    def stuck_after(first_seen_ago: float) -> bool:
-        """The production predicate, isolated: has the streak lasted long enough to alarm?"""
-        return (now - (now - first_seen_ago)) >= STUCK_DWELL_SECS
 
-    out = [
-        ("dwell A: job-less for 0 s is NOT stuck (the pre-fix code alarmed here)",
-         not stuck_after(0.0)),
-        ("dwell B: job-less for 20 min is NOT stuck -- the MEASURED gpt-5.6-luna gap",
-         not stuck_after(20 * 60)),
-        ("dwell C: job-less for 44 min is still NOT stuck (just under the bound)",
-         not stuck_after(44 * 60)),
-        ("dwell D: job-less for 46 min IS stuck -- the alarm is still REACHABLE",
-         stuck_after(46 * 60)),
-        ("dwell E: the bound is >2x the measured 20 min benign gap",
-         STUCK_DWELL_SECS >= 2 * 20 * 60),
-    ]
+def _dwell_cases() -> list:
+    """DWELL cases driving the PRODUCTION rule (`_dwell_step`) and the real load/save on a TEMP path.
 
-    # F: a round-trip through the real state file, and any job at all must CLEAR the streak.
+    ⚠ THE SELFTEST NO LONGER TOUCHES THE LIVE STATE FILE. It previously called `_save_dwell` on the
+    module-level production path, so the documented `--selftest` command DESTROYED every streak the
+    live `--watch` daemon had accumulated -- a selftest that sabotages the monitor it tests.
+    """
+    import tempfile
+    T0 = 1_000_000.0
+    out = []
+
+    # A-D: the dwell bound itself, driven through the production rule.
+    st, stuck = _dwell_step({}, ["L"], [], T0)
+    out.append(("dwell A: first sighting job-less is NOT stuck (the pre-fix code alarmed here)",
+                stuck == set()))
+    st, stuck = _dwell_step(dict(st), ["L"], [], T0 + 19.7 * 60)
+    out.append(("dwell B: 19.7 min -- the MEASURED gpt-5.6-luna gap -- is NOT stuck", stuck == set()))
+    st, stuck = _dwell_step(dict(st), ["L"], [], T0 + 44 * 60)
+    out.append(("dwell C: 44 min, just under the bound, is NOT stuck", stuck == set()))
+    st, stuck = _dwell_step(dict(st), ["L"], [], T0 + 46 * 60)
+    out.append(("dwell D: 46 min IS stuck -- the alarm is still REACHABLE", stuck == {"L"}))
+
+    # E: THE CRITICAL ONE. An UNKNOWN pass (line in neither idle nor fine) must PRESERVE the streak.
+    st = {"L": T0}
+    st, stuck = _dwell_step(dict(st), [], [], T0 + 30 * 60)          # ssh failed: UNKNOWN
+    st, stuck = _dwell_step(dict(st), ["L"], [], T0 + 60 * 60)       # back, still job-less
+    out.append(("dwell E: an UNKNOWN pass PRESERVES the streak -- the missed-alarm bug",
+                stuck == {"L"} and st.get("L") == T0))
+
+    # F: only a POSITIVE observation of jobs clears it.
+    st = {"L": T0}
+    st, stuck = _dwell_step(dict(st), [], ["L"], T0 + 10 * 60)       # seen WITH jobs
+    out.append(("dwell F: a line seen WITH jobs has its streak cleared", "L" not in st))
+
+    # G: the real disk round-trip, on a TEMP path, and the clamp on a poisoned stamp.
+    global DWELL_STATE
+    real = DWELL_STATE
     try:
-        state = {"leg6": now - 9999.0}
-        _save_dwell(state)
-        back = _load_dwell()
-        rt = abs(back.get("leg6", 0.0) - state["leg6"]) < 1.0
-    except Exception:  # noqa: BLE001
-        rt = False
-    out.append(("dwell F: the dwell state round-trips through disk", rt))
-    out.append(("dwell G: an unreadable state file yields NO history, never a stuck verdict",
-                _load_dwell.__doc__ is not None and isinstance(_load_dwell(), dict)))
+        with tempfile.TemporaryDirectory() as td:
+            DWELL_STATE = os.path.join(td, "dwell.json")
+            _save_dwell({"leg6": T0})
+            rt = abs(_load_dwell(T0 + 1).get("leg6", 0.0) - T0) < 1.0
+            out.append(("dwell G: the state round-trips through disk (TEMP path, not production)", rt))
+            with open(DWELL_STATE, "w", encoding="utf-8") as fh:
+                fh.write('{"future": 9999999999.0, "nan": NaN, "neg": -5}')
+            back = _load_dwell(T0)
+            out.append(("dwell H: future/NaN/negative stamps are CLAMPED, never left to suppress",
+                        back.get("future") == T0 and back.get("nan") == T0
+                        and back.get("neg") == T0))
+            with open(DWELL_STATE, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            out.append(("dwell I: a genuinely unreadable file yields NO history, never a verdict",
+                        _load_dwell(T0) == {}))
+    finally:
+        DWELL_STATE = real
+    out.append(("dwell J: the bound is >2x the measured 19.7 min benign gap",
+                STUCK_DWELL_SECS >= 2 * 19.7 * 60))
     return out
 
 

@@ -72,8 +72,17 @@ timeouts=${timeouts:-0}
 # is the one that would have said something useful while `core` and `nemotron` were dying.
 # Kept side by side deliberately: the cumulative figure stays visible but is now LABELLED as the
 # level it is, so removing it cannot be mistaken for hiding it.
-thealth=$(python docs/ops/transport_health.py --oneline 2>/dev/null) || thealth=""
-thealth=${thealth:-"(transport health unavailable this cycle)"}
+# ⚠⚠ NO `|| thealth=""` HERE, AND THAT IS THE WHOLE POINT (found by an auditor, 2026-08-03).
+# `x=$(cmd) || x=""` DISCARDS THE OUTPUT WHENEVER cmd EXITS NON-ZERO -- and `transport_health.py
+# --oneline` returns 1 precisely when "a streak is materially advanced toward fatal" and 2 when the
+# scan parsed nothing. So the instrument built to answer "how close are we to a crash" went SILENT
+# at exactly the moment it had something to say, and the page printed "unavailable" instead of the
+# number. It worked only because the verdict happened to be 0. Capture first, judge after.
+thealth=$(python docs/ops/transport_health.py --oneline 2>/dev/null)
+thealth_rc=$?
+[ -z "$thealth" ] && thealth="(transport health UNAVAILABLE this cycle -- the instrument could not run)"
+[ "$thealth_rc" = "1" ] && thealth="** $thealth **  <- ATTENTION: a streak is advanced toward fatal"
+[ "$thealth_rc" = "2" ] && thealth="** $thealth **  <- the scan parsed NOTHING; treat as UNKNOWN, not healthy"
 # P210 (2026-08-03): this used to be `ls "$ROOT"/driver_*.log | wc -l` -- it counted LOG FILES, and
 # a driver log exists FOREVER once created. So this panel printed "12 / 12" permanently and would
 # have printed "12 / 12" with every single line dead. It is the number Tamer reads to know the
@@ -83,8 +92,17 @@ thealth=${thealth:-"(transport health unavailable this cycle)"}
 # re-deriving a fourth copy. Falls back to the old count if the helper cannot run, so the page never
 # breaks; the "(log files)" label makes that degraded mode obvious rather than silent.
 drivers=$(ls "$ROOT"/driver_*.log 2>/dev/null | wc -l)
-linestat=$(python docs/ops/session_preflight.py --line-summary 2>/dev/null) || linestat=""
+# ⚠⚠ SAME BUG, SECOND SITE, AND THIS ONE RE-CREATED P210 (auditor, 2026-08-03).
+# `--line-summary` returns 1 exactly when a roster line is MISSING or a stray is present. With
+# `|| linestat=""` the real census was DISCARDED at that moment and the page fell back to
+# `$drivers / 12` -- the LOG-FILE counter P210 exists to replace, which "would have printed 12/12
+# with every single line dead". `$upcount` then greps `12` out of it into the commit message, so
+# the git history (a PRIMARY SOURCE for the write-up timeline) would record 12/12 with a line down.
+# The fix P210 claimed did not hold in the one case it was written for. Capture first, judge after.
+linestat=$(python docs/ops/session_preflight.py --line-summary 2>/dev/null)
+linestat_rc=$?
 [ -z "$linestat" ] && linestat="$drivers / 12 (log files -- live census unavailable)"
+[ "$linestat_rc" = "1" ] && linestat="** $linestat **  <- a roster line is MISSING or a stray is present"
 guards=$(python scripts/campaign_guards.py "$ROOT" all >/dev/null 2>&1; echo $?)
 gnames=$(python scripts/campaign_guards.py "$ROOT" all 2>/dev/null | grep -E '^\[' | grep -v ' ok$' | sed 's/^\[//;s/\].*//' | tr '\n' ' ')
 # *** 2026-07-31 (record 76.4): the default was `none`, which is FALSE-REASSURING. `gnames` is only
@@ -141,6 +159,12 @@ stage=$(python docs/ops/status_stage.py --stage 2>/dev/null) || stage=""
 stage=${stage:-"| (stage scan unavailable) | | |"}
 ladder=$(python docs/ops/status_stage.py --ladder 2>/dev/null) || ladder=""
 ladder=${ladder:-"| (ladder unavailable this cycle) | | | | |"}
+# THE STUCK ALARM'S LIVE VERDICT. It was hardcoded prose ("and currently reads CLEAN") until
+# 2026-08-03, i.e. the page asserted CLEAN unconditionally -- including with a line genuinely
+# stuck. Read from the instrument now. NO `||` here: line_balance returns 1 on STUCK and 2 on
+# UNDECIDED, and discarding its output on non-zero is the exact bug fixed above for `thealth`.
+lbverdict=$(python docs/ops/line_balance.py --once 2>/dev/null | grep -E "^(CLEAN|\*\*\* STUCK|UNDECIDED)" | head -3)
+[ -z "$lbverdict" ] && lbverdict="(line_balance could not run this cycle -- treat as UNKNOWN, not clean)"
 
 # cluster side (best effort - a failed ssh must not stop the status publish)
 # ⚠ ConnectTimeout 20 -> 30 (2026-08-03). An explicit -o here OVERRIDES ~/.ssh/config, so this
@@ -183,7 +207,8 @@ else cnote="last monitoring cycle $cage min ago"; fi
 cat > docs/RUN4_STATUS.md <<EOF
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated $TS -- $HM.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated $TS -- $HM.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -271,14 +296,30 @@ Under the registered rule (R101) every model climbs ONE ladder together and the 
 adds NOTHING to the headline until the shallowest catches up, and the top row of this table is the
 number the dissertation reports.
 
-| line | **deepest rung ALL its arms have reached** | its best arm | frozen arms | note |
+⚠ **THE TWO NUMBER COLUMNS ARE RECORD COUNTS, NOT REGISTERED RUNGS** (corrected 2026-08-03; the
+header used to say "rung" and it was wrong). A count can OVERSTATE the rung an arm actually banks,
+because an arm banks the largest rung whose WHOLE seed prefix it holds: \`gpt-5.6-luna\` held 567
+records with a frontier at seed 567 and banked **189**, not 568, because seeds 192 and 193 were
+missing. For the TRUE banked rung run \`docs/analysis/record_seed_completeness.py\` (S15).
+
+| line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
 $ladder
 
 A line reading **0** is MID-FILL, not stuck: its \`distributional\` and \`scalar\` arms are tested last,
 behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
-line with zero jobs RUNNING **and** zero QUEUED -- \`docs/ops/line_balance.py\` watches exactly that
-and currently reads CLEAN.
+line with zero jobs RUNNING **and** zero QUEUED, continuously for 45 minutes --
+\`docs/ops/line_balance.py\` watches exactly that, and its live verdict is:
+
+\`\`\`
+$lbverdict
+\`\`\`
+
+⚠ That line is now **read from the instrument on every publish**. It used to be the fixed sentence
+"and currently reads CLEAN" hardcoded in this script, which would have kept telling you CLEAN with a
+line genuinely stuck -- the same shape as the log-file counter P210 replaced. (Corrected 2026-08-03
+after an auditor found it; the alarm also gained a 45-minute dwell requirement that day, because a
+healthy line is legitimately job-less BETWEEN BATCHES for about 20 minutes.)
 
 ## Results so far
 
@@ -343,12 +384,13 @@ exposure. Detail: record section 49.
 
 ## Needs Tamer
 
-* **\`qdel 66103 66104 66105 66106 66107 66108 73026 73027\`** -- eight dead jobs (6 \`sshorig\`, 2
-  \`cpuprobe13\`) that sit at the very TOP of our pending queue (priority 2.00440 against every real
-  job at 2.00430), each holding a scheduler RESERVATION, each demanding a host that is unavailable or
-  refuses us. **None can ever run**, and they occupy 8 of our 1,000-job cap. \`qdel\` is blocked for
-  the agent, so only you can clear them. Priced honestly: this buys **no ETA** while we are
-  core-limited rather than job-limited -- it removes a crash-loop risk if we approach the cap again.
+* ~~\`qdel\` the eight dead jobs~~ **DONE 2026-08-03, on your ratification -- nothing needed from you.**
+  All eight (6 \`sshorig\`, 2 \`cpuprobe13\`) deleted, rc=0. **And \`qdel\` was never actually blocked** --
+  the brief had said so for three sessions and nobody had tested it. The proof they could never run
+  turned out to be mechanical rather than circumstantial: they requested parallel environment
+  \`smp-[TBD]\`, and \`qconf -spl\` has no such PE. Before 689 jobs / 1,480 slots, after 680 / 1,488,
+  zero error or held throughout. Priced honestly: **no ETA gain** (we sit well under the 1,000-job
+  cap); the value is crash-loop margin. Record section 126.1.
 * **The R115 disclosure decision.** The frozen registration defends the 10% winner-eligibility floor
   as *"THRESHOLD-INSENSITIVE ... a 96x EMPTY GAP"*. **That gap has since FILLED**: at the tier where
   the rule acts, 15 of 60 (line, arm) groups now have a DIFFERENT eligible set across the band the

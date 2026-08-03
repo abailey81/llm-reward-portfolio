@@ -71,6 +71,23 @@
 # one appears on the CORE line, or if a THIRD ratio-form baseline joins -- the last would mean the
 # warm-up is systematic across the ratio family rather than incidental.
 #
+# ── ★ PRECISION FIX 2026-08-03 (RUN 17, record s.130). "ON THE CORE LINE" WAS AMBIGUOUS AND IT
+# NEARLY COST ME A FALSE ALARM. The nine records above LIVE on the core line -- they are
+# `outputs/campaign_cluster_run4/test/baseline_differential_{sharpe,downside_ratio}-s*` -- so read
+# literally, this trigger has been fired since the day it was written, and the RUN 10 re-triage line
+# "CORE-line hits 0" reads as a contradiction. It is not: both mean the core line's **LLM-AUTHORED
+# ARMS** (distributional / scalar / placebo / scalar_cvar5 / placebo_shuffled), which is the only
+# population R115 governs and the only one whose contamination could confound an arm contrast.
+# ⇒ THE TRIGGER, RESTATED UNAMBIGUOUSLY: re-triage if a non-zero fallback appears on any
+#   **LLM-AUTHORED** arm of the core line. Hand-written H1 comparators are the population this
+#   acknowledgement is ABOUT, so their presence can never be its own trigger.
+# RE-MEASURED 2026-08-03 over all 7,788 counter-carrying sealed-test records: exactly TWO lines carry
+# any non-zero fallback -- `test_leg_qwen3_5_9b` (137 records, worst 9.08475 %, arms `distributional`
+# and `placebo_shuffled`) and the core line's nine hand-written baselines above (worst 0.00050 % =
+# 2 calls in 400,000, i.e. 20,000x below the floor). **ZERO on any LLM-authored core arm.** The
+# seeds reproduce this entry EXACTLY -- sharpe at 1, 5, 9, 21, 24 and downside_ratio at 7, 16, 24,
+# 27, with seed 27 showing 2 -- so nothing new has appeared; only the wording needed tightening.
+#
 # ── RE-TRIAGED 2026-08-01 (RUN 10, record s.100.22) — ALL THREE TRIGGERS NEGATIVE, ack STANDS. ──
 # The extent above was measured at n=1,461; the archive has since grown 53% to n=2,238, so the
 # factual basis was re-measured rather than assumed:

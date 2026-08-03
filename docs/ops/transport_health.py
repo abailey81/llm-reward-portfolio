@@ -70,10 +70,29 @@ TEST_POLL_SECS = 180
 #: A streak at or above this fraction of the bound is worth a human's attention.
 WARN_FRACTION = 0.25
 
-_TS = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d \|")
-_PULL = re.compile(r"pull failed \((\d+)\s+consecutive, ([\d.]+) min down")
-_OPS = re.compile(r"queue op failed \((\d+) consecutive, ([\d.]+) min")
-_TMO = re.compile(r"ssh_timeout_diagnostic cmd=(\[[^\]]*\]).*?elapsed=([\d.]+)s")
+# ⚠⚠ EVERY LITERAL SPACE HERE IS `\s+`, AND THE TIMESTAMP ACCEPTS BOTH LOG FORMATS.
+#
+# THE FIRST VERSION OF THIS FILE WAS WRONG FOR HALF THE FLEET, and an auditor measured it:
+#
+#   (a) `unwrap` re-joined a wrapped line with `" " + ln.strip()` while the wrapped physical line
+#       ALREADY ended in a space, producing DOUBLE spaces that single-space literals reject:
+#           '... pull failed (1 consecutive, 0 min  down): shared pull failed recently...'
+#           '... queue op failed (1  consecutive, 0 min): Command ...'
+#       Measured: 5,913 `pull failed (` occurrences -> only 2,354 regex matches. A naive
+#       `grep -c` -- the method this file's docstring criticises -- found MORE than it did.
+#
+#   (b) `_TS` matched only the `YYYY-MM-DD HH:MM:SS |` form. The logs also carry a legacy
+#       `2026-07-30 01:26:27,164 WARNING src.cluster.driver:` form with no ` |`, so every legacy
+#       line was GLUED onto the preceding record -- `driver_h3.log` collapsed into a single 625 KB
+#       "record", and `.search()` returns at most one match per record.
+#
+# THE CONSEQUENCE, and it is the number this file exists to report: SIX of twelve lines had their
+# peak streak understated as 0-2 when the true peak was 140-149 -- i.e. a line that came 62 % of
+# the way to death was reported as not existing. Fixed and re-measured; s.127.3 is corrected.
+_TS = re.compile(r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d[ ,|]")
+_PULL = re.compile(r"pull\s+failed\s+\((\d+)\s+consecutive,\s+([\d.]+)\s+min\s+down")
+_OPS = re.compile(r"queue\s+op\s+failed\s+\((\d+)\s+consecutive,\s+([\d.]+)\s+min")
+_TMO = re.compile(r"ssh_timeout_diagnostic\s+cmd=(\[[^\]]*\]).*?elapsed=([\d.]+)s")
 
 
 def peak_history(root: str) -> list:
@@ -147,7 +166,9 @@ def unwrap(path: str, tail_bytes: int | None = None) -> list:
                 recs.append(cur)
             cur = ln
         elif cur is not None:
-            cur += " " + ln.strip()
+            # rstrip the accumulator too: the wrapped physical line already ends in a space, so a
+            # bare `+ " "` produced the double spaces that broke every streak regex above.
+            cur = cur.rstrip() + " " + ln.strip()
     if cur is not None:
         recs.append(cur)
     return recs
@@ -194,7 +215,24 @@ def scan(root: str, hours: float) -> dict:
     return {"lines": lines, "total_events": total_events, "by_cmd": by_cmd, "hours": hours}
 
 
+def parsed_anything(s: dict) -> bool:
+    """Did the parser match ANY streak line at all, anywhere?
+
+    ⚠ THE ORIGINAL "FAILS LOUD ON EMPTY" GUARD ONLY COVERED *NO DRIVER LOGS*. When logs existed but
+    NOTHING matched -- which is exactly what the regex defect above produced for six of twelve
+    lines -- every counter read 0, `verdict()` returned 0, and the page published HEALTHY.
+    **A total parse failure was indistinguishable from perfect health**, which is the precise
+    P197/P213 shape this file's docstring claims immunity to. It is now a separate, explicit check:
+    the campaign has a known, permanent history of streaks (core and nemotron both reached 240), so
+    a scan of the full logs that matches NOTHING is a broken parser, never a clean fleet.
+    """
+    return any(v["pull_last"] or v["ops_last"] or v["pull_worst"] or v["ops_worst"] or v["events"]
+               for v in s["lines"].values())
+
+
 def verdict(s: dict) -> int:
+    if not parsed_anything(s):
+        return 2
     worst = max((max(v["pull_worst"], v["ops_worst"]) for v in s["lines"].values()), default=0)
     return 1 if worst >= FATAL_CONSECUTIVE * WARN_FRACTION else 0
 
@@ -346,9 +384,39 @@ def selftest() -> int:
         with open(src, encoding="utf-8") as fh:
             m = re.search(r"max_consecutive_errors:\s*int\s*=\s*(\d+)", fh.read())
             live = int(m.group(1)) if m else None
-    check("G FATAL_CONSECUTIVE matches what campaign.py actually passes",
-          live is None or live == FATAL_CONSECUTIVE,
+    # ⚠ was `live is None or live == FATAL_CONSECUTIVE` -- if the regex ever stopped matching,
+    # `live` became None and the DRIFT GUARD PASSED SILENTLY. A guard that cannot fail is not a
+    # guard; a non-match is now itself a failure.
+    check("G FATAL_CONSECUTIVE matches what campaign.py actually passes (non-match = FAIL)",
+          live == FATAL_CONSECUTIVE,
           "campaign.py says %s, this file says %d" % (live, FATAL_CONSECUTIVE))
+
+    # H: THE WRAP THAT ACTUALLY OCCURS -- inside the streak phrase, where the join broke the regex
+    #    and understated six of twelve lines. Case B wrapped at a harmless point; this is the real one.
+    with tempfile.TemporaryDirectory() as td:
+        body = ("%s | WARNING | src.cluster.driver | [b] pull failed (149  consecutive, \n"
+                "445.0 min  down): listing /home/ucestes/Scratch\n") % ts
+        write(td, "x", body)
+        s2 = scan(td, 6)
+        check("H a wrap INSIDE the streak phrase still parses (the six-line understatement bug)",
+              s2["lines"]["x"]["pull_worst"] == 149, str(s2["lines"]["x"]))
+
+    # I: the LEGACY timestamp format must start a new record, not glue onto the previous one.
+    with tempfile.TemporaryDirectory() as td:
+        body = ("%s | WARNING | src.cluster.driver | [b] pull failed (5 consecutive, 1 min down): x\n"
+                "%s,164 WARNING src.cluster.driver: [b] pull failed (200 consecutive, "
+                "90 min down): y\n") % (ts, ts)
+        write(td, "x", body)
+        s3 = scan(td, 6)
+        check("I the LEGACY `,mmm` timestamp starts a new record (h3 collapsed to one 625 KB blob)",
+              s3["lines"]["x"]["pull_worst"] == 200, str(s3["lines"]["x"]))
+
+    # J: logs present but NOTHING parseable must exit 2, never HEALTHY.
+    with tempfile.TemporaryDirectory() as td:
+        write(td, "x", "this file contains no timestamps and no streak lines at all\n")
+        rcj = report(td, 6)
+        check("J logs present but ZERO parsed -> exit 2, never a HEALTHY verdict", rcj == 2,
+              "rc=%d" % rcj)
 
     print("\nselftest: %d passed, %d failed" % (ok, fail))
     return 0 if fail == 0 else 1
