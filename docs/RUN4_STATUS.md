@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 02:59 UTC -- T+125h50m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 03:01 UTC -- T+125h52m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+125h50m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+125h52m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **12 / 12**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
 | freshest driver log | **0 min** old (above ~30 would mean a line has stopped progressing) |
-| records archived | **6646** |
+| records archived | **6648** |
 | LLM calls / spend | 2946 / **$45.4831** |
 | transport timeouts | **31** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -21,13 +21,13 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **979** (288 running, 691 queued) |
-| **cores computing** | **2304** |
+| cluster jobs | **979** (289 running, 690 queued) |
+| **cores computing** | **2312** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @2304 cores              @830 cores   binding
+ rung             @2312 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
@@ -112,12 +112,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T02:50:53Z  RED  records=6627 (+2)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=21.4m  drift=0  sci=OK  r115=21B  sweep=57.6s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:52:21Z  RED  records=6633 (+6)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=22.9m  drift=0  sci=OK  r115=21B  sweep=55.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:53:46Z  RED  records=6638 (+5)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=25.1m  drift=0  sci=OK  r115=21B  sweep=103.2s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:56:00Z  RED  records=6641 (+3)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=26.5m  drift=0  sci=OK  r115=21B  sweep=55.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:57:26Z  RED  records=6642 (+1)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=28.0m  drift=0  sci=OK  r115=21B  sweep=72.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T02:59:08Z  RED  records=6646 (+4)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=29.8m  drift=0  sci=OK  r115=21B  sweep=74.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T03:00:54Z  RED  records=6648 (+2)  spend=$45.483  guards=2  arms_full=10/10  budget=2  stalest=31.5m  drift=0  sci=OK  r115=21B  sweep=64.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
