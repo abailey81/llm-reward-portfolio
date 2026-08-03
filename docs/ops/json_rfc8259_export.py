@@ -36,7 +36,6 @@ import glob
 import json
 import math
 import os
-import shutil
 import sys
 
 ROOT = "outputs/campaign_cluster_run4"

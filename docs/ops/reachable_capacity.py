@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import sys
 
 MULT = {"K": 1 / 1024.0, "M": 1.0, "G": 1024.0, "T": 1024.0 ** 2, "P": 1024.0 ** 3}
 FENCED = {"node-d00a-230", "node-d00b-024"}          # D15: the 6140 node + its sibling

@@ -50,9 +50,27 @@ that produced ZERO in the same window. That is the pipelined line-major C4 path 
 
 This is not a hypothetical: ``docs/ops/WITHDRAWN_CLAIMS.md`` W3 withdrew *"rung 403 lands 08-09,
 rung 568 lands 08-13"* for **exactly this** — a projection off a transient peak, produced by this
-file. So this prints a **RANGE** (fast = the best window, slow = the most pessimistic), reports the
-**concentration** so the reader can see when one line dominates, and **clamps every ETA to the
-registered critical-chain floor**, which no throughput number can beat.
+file. So this prints a **RANGE**, reports the **concentration** so the reader can see when one line
+dominates, and **clamps every ETA to the registered critical-chain floor**, which no throughput
+number can beat.
+
+**WHAT THE TWO COLUMNS ACTUALLY ARE** (corrected on an auditor's F6 — an earlier version of this
+line said *"fast = the best window, slow = the most pessimistic"*, which the code has never done):
+both are fleet-wide and share one window, so both are **monotonic in the rung by construction**.
+``earliest`` divides the total remaining by the whole fleet's rate (perfect redirection of freed
+slots); ``latest`` divides it by the **go-forward** rate, which excludes cells already within one
+pack of the ceiling (the finishing line's slots are not reused). A per-cell ``max`` was tried and
+rejected: it is the truer statement of when a rung completes, but as a published bound it is
+DEGENERATE — any idle cell makes it infinite, so the column read GATED at every rung. That fact is
+now carried by the stage-barrier disclosure line instead.
+
+⚠ **AND THE ``MIN_ETA_WINDOW_H = 12`` JUSTIFICATION IS WEAKER THAN IT FIRST READ.** The stated reason
+was the 15 h ``h_rt`` pack-8 quantum — but ``h_rt`` is a *requested wall limit*, not an observed
+turnover, and with ~200 staggered jobs in flight the per-job quantum does **not** propagate to the
+aggregate: measured median inter-burst gap on the two live cells is **0.22 h**, not 15 h. The 1 h
+trough that prompted the rule is better explained by the luna line handover. So 12 h is a
+**smoothing choice that happens to be sound**, not a quantum derived from first principles, and the
+floor is deliberately not raised to 15 h to match a number that does not mean what it appeared to.
 
 ⚠ REMAINING IS A RECORD COUNT, NOT A BANKED RUNG. An arm holding n records can still bank a LOWER
 rung if a seed below its frontier is missing (S15: gpt-5.6-luna held 2,832 records and banked 189).
@@ -267,34 +285,101 @@ def render(measured: int | None, modelled: int = 830, root: str = DEFAULT_ROOT,
         #   SLOW  = the go-forward rate, counting ONLY cells that still owe more than one pack
         #           -> assumes NO redirection at all
         # Both are measurements; the truth is between them, and the gap IS the open question.
-        fast_h, fast_r = max(rates, key=lambda kv: kv[1])
+        # ⚠⚠ BOTH RATES ARE COMPUTED **PER RUNG** (P239, on an auditor's F1/F2). The previous version
+        # took one fleet-wide `fast_r` and one `slow_r` hardcoded to rung 568 and applied them to
+        # EVERY row -- so a row's backlog counted only cells below that rung while its rate counted
+        # the whole fleet. Measured at the time: of 2,410 records in the 12 h window only **22**
+        # landed in a cell below rung 30, yet rung 30's ETA was priced at the full 202 rec/h.
+        # The docstring claimed "numerator subset of denominator by construction"; that was true of
+        # the file and FALSE of every row it printed. Same defect as gen 2, one level down.
+        #
+        # For a target rung R:
+        #   FAST(R) = records in the window that landed in cells still BELOW R
+        #             -> work that actually reduces R's backlog; assumes perfect redirection
+        #   SLOW(R) = records in the window from cells that still owe MORE THAN ONE PACK toward R
+        #             -> cells that will keep reducing R after their current job; assumes none
+        # A rate of zero is NOT a fast answer: it means nothing on the critical set is producing, so
+        # the row says GATED rather than inventing a date.
         eh2 = min(h for h, _ in rates)
         lo2 = now_epoch - eh2 * 3600.0
-        cont = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
-                   for mts in cells.values() if (568 - len(mts)) > PACK)
-        slow_r = cont / eh2
-        slow_lbl = f"go-forward {eh2} h @ {slow_r:.0f} rec/h (cells that keep producing)"
-        if slow_r <= 0:
-            slow_r, slow_lbl = fast_r, "no continuing cell produced in the window"
-        L.append("EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE")
-        L.append(f"    earliest assumes the cluster REDIRECTS finishing slots "
-                 f"({fast_h} h @ {fast_r:.0f} rec/h);")
-        L.append(f"    latest assumes it does NOT -- {slow_lbl}:")
+
+        # ⚠⚠⚠ AND THE PER-RUNG *RATE* WAS STILL THE WRONG MODEL (P239b, caught on its own output).
+        # Pricing each rung as `its own backlog / its own cells' rate` produced a table that was
+        # NON-MONOTONIC: rung 100 read 2026-11-09 "NO" while rung 403 read 2026-08-19 "yes". A larger
+        # rung cannot be reached EARLIER than a smaller one, so the model was refuted by arithmetic
+        # rather than by an auditor. The cause is structural: rung 100's small backlog sits in slow
+        # or idle cells while rung 568's large backlog is spread over fast ones, so total/rate
+        # compares incomparable populations at every row.
+        #
+        # THE CORRECT MODEL, and it is monotonic in the rung BY CONSTRUCTION:
+        #   a rung is reached when the LAST cell reaches it -- a MAX over cells, not a total/rate.
+        #   latest  (no redirection)      = max over cells of remaining_i / rate_i, with a cell that
+        #                                   owes work and produces nothing being GATED (never)
+        #   earliest(perfect redirection) = total remaining / the whole fleet's rate, i.e. any
+        #                                   producer may serve any cell
+        # earliest <= latest always, and both rise with the rung.
+        # ⚠ A PER-CELL MAX WAS TRIED AND REJECTED, and the reason is worth keeping. "A rung completes
+        # when the LAST cell reaches it" is the true statement, but as a published BOUND it is
+        # DEGENERATE: any cell that owes work and produced nothing in the window has an infinite
+        # time, so the column read GATED at every rung and carried no information. The structural
+        # fact it was trying to express is real, so it is reported as the explicit disclosure line
+        # below instead of as a column of blanks.
+        #
+        # BOTH COLUMNS ARE THEREFORE FLEET-WIDE AND MONOTONIC IN THE RUNG BY CONSTRUCTION
+        # (total remaining rises with the rung; the divisor is constant across rows):
+        #   earliest = total remaining / the whole fleet's rate       -> perfect redirection
+        #   latest   = total remaining / the GO-FORWARD rate, which excludes cells already within
+        #              one pack of the ceiling                        -> the finishing line's slots
+        #                                                                are NOT reused
+        fleet_rate = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
+                         for mts in cells.values()) / eh2
+        goforward_rate = sum(sum(1 for m in mts if lo2 <= m <= now_epoch)
+                             for mts in cells.values() if (568 - len(mts)) > PACK) / eh2
+
+        L.append("EMPIRICAL ETA -- earliest = total remaining / the whole fleet's rate (assumes the")
+        L.append(f"    cluster REDIRECTS freed slots, {fleet_rate:.0f} rec/h); latest excludes cells")
+        L.append(f"    already within {PACK} of the ceiling ({goforward_rate:.0f} rec/h), i.e. assumes")
+        L.append(f"    the finishing line's slots are NOT reused. Window {eh2} h:")
         L.append(f"    {'rung':>5}  {'remaining':>10}  {'earliest (UTC)':<16}  {'latest (UTC)':<16}  Aug-27?")
         for rung in RUNGS:
-            rem, missing = backlog(rung, cells)
-            e_fast, d_fast = eta_from_rate(rem, fast_r, now, floor_left)
-            e_slow, d_slow = eta_from_rate(rem, slow_r, now, floor_left)
+            rem, _missing = backlog(rung, cells)
             if rem == 0:
                 L.append(f"    {rung:>5}  {rem:>10,}  {'REACHED':<16}  {'REACHED':<16}  yes")
                 continue
-            fits = "yes" if e_slow <= STOP else ("risk" if e_fast <= STOP else "NO")
-            L.append(f"    {rung:>5}  {rem:>10,}  {e_fast:%Y-%m-%d %H:%M}  {e_slow:%Y-%m-%d %H:%M}"
-                     f"  {fits}")
+            e_fast, _ = eta_from_rate(rem, fleet_rate, now, floor_left)
+            e_slow, _ = eta_from_rate(rem, goforward_rate, now, floor_left)
+            cf = f"{e_fast:%Y-%m-%d %H:%M}" if e_fast else "GATED"
+            cs = f"{e_slow:%Y-%m-%d %H:%M}" if e_slow else "GATED"
+            if e_slow and e_slow <= STOP:
+                fits = "yes"
+            elif e_fast and e_fast <= STOP:
+                fits = "risk"
+            else:
+                fits = "NO"
+            L.append(f"    {rung:>5}  {rem:>10,}  {cf:<16}  {cs:<16}  {fits}")
+        L.append("    GATED = the relevant rate is zero, so no throughput number can date that row -- it is")
+        L.append("    waiting on a stage barrier (C1 chain / C3 gate), not on cores.")
         _, missing = backlog(568, cells)
         if missing:
             L.append(f"    (+{missing} registered unit(s) have no directory yet; each owes a FULL "
                      f"rung and is counted above)")
+
+        # ⚠ THE STAGE-BARRIER DISCLOSURE (auditor F3). A large share of the backlog can sit on a line
+        # that has not entered C4 at all -- the core line's 9 arms plus the 11 H1 canon arms are
+        # gated by the serial C1 DFO chain AND the C3 review gate (src/cluster/campaign.py), so NO
+        # amount of redirected throughput starts them. Measured when this was written: 10,910 of
+        # 32,106 records (34%) were behind that barrier while both ETA columns implicitly assumed it
+        # could begin immediately. Reported as a share of the rung-568 backlog that produced NOTHING
+        # in the window, which is the observable proxy for "not started".
+        idle_rem = sum(max(0, 568 - len(mts)) for mts in cells.values()
+                       if not any(lo2 <= m <= now_epoch for m in mts))
+        rem568, miss568 = backlog(568, cells)
+        idle_rem += miss568 * 568
+        if rem568 and idle_rem:
+            L.append(f"    !! {100.0 * idle_rem / rem568:.0f}% of the rung-568 backlog "
+                     f"({idle_rem:,} records) sits on cells that produced NOTHING in the "
+                     f"{eh2} h window -- work behind a stage barrier (C1 chain / C3 gate) is not "
+                     f"accelerated by redirected cores. Neither column models when it starts.")
 
     L.append("")
     L.append("REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:")
@@ -469,6 +554,33 @@ def selftest() -> int:
         ck("I4 an ETA is still produced from the 12 h window",
            "EMPIRICAL ETA" in out_i and "UNAVAILABLE" not in out_i, True)
         ck("I5 the sub-quantum caveat is stated", "STALL INDICATOR ONLY" in out_i, True)
+        # ⚠⚠ I6 IS THE REAL MUTATION CONTROL, and I1-I5 were NOT (auditor F4, verified by executing
+        # a mutant in memory: deleting `and h >= MIN_ETA_WINDOW_H` still scored 33/33). I1 compared
+        # a constant with itself; I5's caveat string is emitted from `short`, which is derived from
+        # the constant INDEPENDENTLY of `rates`, so it survives removal of the filter. This asserts
+        # the WINDOW THE ETA WAS ACTUALLY PRICED FROM, which is what the fix changes.
+        ck("I6 the ETA names a window >= the floor",
+           any(f"Window {h} h" in out_i for h in WINDOWS_H if h >= MIN_ETA_WINDOW_H), True)
+        ck("I6b and never a sub-quantum window",
+           any(f"Window {h} h" in out_i for h in WINDOWS_H if h < MIN_ETA_WINDOW_H), False)
+
+    # J. MONOTONICITY -- a larger rung can NEVER be reached earlier than a smaller one.
+    #    This is the property that refuted the per-rung-rate model on its own output (rung 100 read
+    #    2026-11-09 "NO" while rung 403 read 2026-08-19 "yes"). Arithmetic caught it, not a reviewer;
+    #    pinning it here means arithmetic catches the next one too.
+        import re as _re2
+        rows = _re2.findall(r"^\s+(\d+)\s+[\d,]+\s+(\S+ \S+|\S+)\s\s+(\S+ \S+|\S+)\s\s+\w+$",
+                            out_i, _re2.M)
+        seen_e: list[str] = []
+        seen_l: list[str] = []
+        for _rung, e, l_ in rows:
+            if e not in ("REACHED", "GATED"):
+                seen_e.append(e)
+            if l_ not in ("REACHED", "GATED"):
+                seen_l.append(l_)
+        ck("J1 earliest column is non-decreasing in the rung", seen_e, sorted(seen_e))
+        ck("J2 latest column is non-decreasing in the rung", seen_l, sorted(seen_l))
+        ck("J3 the table actually had rows to check", len(rows) >= 3, True)
     finally:
         _sh2.rmtree(tmp2, ignore_errors=True)
 

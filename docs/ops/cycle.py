@@ -364,10 +364,32 @@ def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     # `sci=OK` from an instrument that cannot fire, which is the worst failure mode this project has.
     # It ships as its own change, with a falsification asserting cached and uncached output are
     # byte-identical on the live archive.
+    # ⚠⚠ TIMEOUT RAISED 300 -> 600 s (P238, 2026-08-03). MEASURED UNCONTENDED at 9,810 records:
+    # `results_audit.py` takes **211 s**, i.e. 21.5 ms/record, against a 300 s budget -- 42 %
+    # headroom on a quantity that grows LINEARLY with an archive heading for ~40,000 test records.
+    # It was already timing out under ordinary contention: a live cycle at 19:45Z read
+    # `sci=BLIND(8/8+norec)` because both tools were killed mid-scan.
+    #
+    # THAT IS THE SAME DEFECT CLASS AS THE sandbox_gap 180 s (F-3) -- an instrument quietly
+    # outgrowing its own budget -- and here it lands on the MOST important token in the log. Before
+    # P230 it would have surfaced as a reassuring `sci=OK`; it now says BLIND, which is correct but
+    # would become PERMANENT noise on the one row that must keep meaning something.
+    #
+    # ⚠ WHY 600 AND NOT MORE, because there is a real coupled constraint: the two tools run
+    # CONCURRENTLY, so the layer costs max(sw, ra) rather than their sum, and
+    # `session_preflight.CYCLE_BUDGET_CAP_S = 900` FAILS the cycle_log row if a sweep exceeds 15 min.
+    # 600 s keeps the worst-case whole sweep inside that cap while roughly tripling today's headroom.
+    #
+    # ⚠ AND IT DOES NOT SCALE TO THE FULL LADDER. At 21.5 ms/record the pair reaches ~900 s near
+    # ~42,000 records, which is the registered rung-568 archive. The durable fix is the INCREMENTAL
+    # cache keyed on (path, mtime, size) described below -- deliberately still not built here,
+    # because a caching bug would manufacture a reassuring verdict from an instrument that cannot
+    # fire. RE-TRIAGE TRIGGER: if `sci=BLIND` appears on two consecutive cycles while the machine is
+    # otherwise idle, the cache is no longer optional.
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=2) as _ex:
-        _sw = _ex.submit(_run, [sys.executable, "docs/ops/science_watch.py"], 300)
-        _ra = _ex.submit(_run, [sys.executable, "docs/ops/results_audit.py"], 300)
+        _sw = _ex.submit(_run, [sys.executable, "docs/ops/science_watch.py"], 600)
+        _ra = _ex.submit(_run, [sys.executable, "docs/ops/results_audit.py"], 600)
         sw_rc, sw_out = _sw.result()
         ra_rc, ra_out = _ra.result()
     text = {"sw": sw_out, "ra": ra_out}

@@ -26,7 +26,7 @@ from __future__ import annotations
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else "outputs/campaign_cluster_run4")

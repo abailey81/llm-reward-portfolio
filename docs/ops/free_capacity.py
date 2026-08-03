@@ -82,4 +82,4 @@ if mem:
     per_job_gb = 16.0
     by_mem = sum(int(v / 1024 // per_job_gb) for v in mem.values())
     print(f"  C4 jobs (16 GB each) placeable on MEMORY alone: {by_mem:,}")
-    print(f"  C4 target is min(1000 job cap, slots, memory)")
+    print("  C4 target is min(1000 job cap, slots, memory)")

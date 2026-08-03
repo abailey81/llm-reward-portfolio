@@ -47,7 +47,6 @@ import hashlib
 import json
 import math
 import os
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]

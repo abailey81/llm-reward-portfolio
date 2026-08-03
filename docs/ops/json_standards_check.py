@@ -15,7 +15,7 @@ import glob
 import json
 import math
 import os
-from collections import Counter, defaultdict
+from collections import Counter
 
 ROOT = "outputs/campaign_cluster_run4"
 

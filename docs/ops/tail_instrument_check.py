@@ -103,7 +103,7 @@ print("     near  0 => the fed vector would not be measuring these returns at al
 # ---- coherence: CVaR must be at least as extreme as VaR ---------------------
 viol = [r for r in rows if r["evt"] > r["var"] + 1e-12]
 print()
-print(f"4. COHERENCE  CVaR-5% must be <= VaR-5% (tail mean beyond a quantile is more extreme)")
+print("4. COHERENCE  CVaR-5% must be <= VaR-5% (tail mean beyond a quantile is more extreme)")
 print(f"     violations: {len(viol)}  <- must be 0")
 for r in viol[:5]:
     print(f"        {r['arm']}/{r['cid']}-s{r['seed']}  cvar={r['evt']:.5f} var={r['var']:.5f}")

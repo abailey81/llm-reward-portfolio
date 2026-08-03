@@ -23,7 +23,6 @@ import json
 import math
 import os
 import statistics as st
-from collections import defaultdict
 
 ROOT = "outputs/campaign_cluster_run4"
 LLM_ARMS = ("distributional", "scalar", "scalar_cvar5", "placebo", "placebo_shuffled")

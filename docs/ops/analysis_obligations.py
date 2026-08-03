@@ -23,7 +23,6 @@ import glob
 import json
 import math
 import os
-import statistics as st
 import sys
 from collections import defaultdict
 
