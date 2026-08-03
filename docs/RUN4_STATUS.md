@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 19:12 UTC -- T+142h03m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 19:14 UTC -- T+142h05m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,10 +10,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+142h03m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+142h05m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (haiku-4_5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9654** |
+| stalest driver log | **2 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9659** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 124 -- a level with no rate; read the row above |
@@ -33,26 +33,26 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 19:13 UTC | elapsed 5.92 d | 23.2 d to the Aug-27 stop
-test tier: 8,125 records over 62 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
+generated 2026-08-03 19:15 UTC | elapsed 5.92 d | 23.2 d to the Aug-27 stop
+test tier: 8,130 records over 62 of the 71 registered units (lanes.py _TEST_UNITS_PER_RUNG)
 
 MEASURED test-tier throughput (record mtimes; an observation, not a model):
-    last  1 h      57 records      57.0 rec/h
-    last  3 h     267 records      89.0 rec/h
-    last 12 h    2439 records     203.2 rec/h
-    last 24 h    4514 records     188.1 rec/h
+    last  1 h      60 records      60.0 rec/h
+    last  3 h     270 records      90.0 rec/h
+    last 12 h    2441 records     203.4 rec/h
+    last 24 h    4515 records     188.1 rec/h
     12 h rate is 78% from ONE line (test_leg_gpt_5_6_luna); 3 line(s) contributed at all
 
 EMPIRICAL ETA -- remaining work / measured rate, anchored at NOW, as a RANGE
-    because the rate is line-concentrated (fast = 12 h @ 203 rec/h, slow = 1 h @ 57 rec/h):
+    because the rate is line-concentrated (fast = 12 h @ 203 rec/h, slow = 1 h @ 60 rec/h):
      rung   remaining  earliest (UTC)    latest (UTC)      Aug-27?
-       30         428  2026-08-03 21:19  2026-08-04 02:43  yes
-      100       4,278  2026-08-04 16:15  2026-08-06 22:16  yes
-      189       9,455  2026-08-05 17:44  2026-08-10 17:05  yes
-      279      14,855  2026-08-06 20:18  2026-08-14 15:49  yes
-      340      18,515  2026-08-07 14:18  2026-08-17 08:02  yes
-      403      22,295  2026-08-08 08:54  2026-08-20 02:21  yes
-      568      32,203  2026-08-10 09:39  2026-08-27 08:10  risk
+       30         428  2026-08-03 21:21  2026-08-04 02:23  yes
+      100       4,278  2026-08-04 16:17  2026-08-06 18:33  yes
+      189       9,450  2026-08-05 17:42  2026-08-10 08:45  yes
+      279      14,850  2026-08-06 20:15  2026-08-14 02:45  yes
+      340      18,510  2026-08-07 14:14  2026-08-16 15:45  yes
+      403      22,290  2026-08-08 08:49  2026-08-19 06:45  yes
+      568      32,198  2026-08-10 09:32  2026-08-26 03:53  yes
     (+9 registered unit(s) have no directory yet; each owes a FULL rung and is counted above)
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
@@ -151,7 +151,7 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **123** | 139 | 5 |  |
+| qwen3_5_9b | **125** | 139 | 5 |  |
 | gpt_5_6_luna | **566** | 567 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
@@ -209,12 +209,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T18:59:30Z  RED  records=9637 (+2)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=22B  sweep=94.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T19:01:35Z  RED  records=9639 (+2)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.1m  drift=0  sci=OK  r115=22B  sweep=109.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T19:03:54Z  RED  records=9642 (+3)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=3.1m  drift=0  sci=OK  r115=22B  sweep=111.0s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T19:06:16Z  RED  records=9645 (+3)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=22B  sweep=136.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T19:09:03Z  RED  records=9647 (+2)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=22B  sweep=119.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T19:11:33Z  RED  records=9653 (+6)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=3.2m  drift=0  sci=OK  r115=22B  sweep=110.7s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T19:13:54Z  RED  records=9659 (+6)  spend=$45.5019  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=22B  sweep=96.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
