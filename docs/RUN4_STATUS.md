@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 18:28 UTC -- T+141h19m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 18:29 UTC -- T+141h20m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,9 +10,9 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+141h19m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+141h20m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **0 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| stalest driver log | **1 min (sonnet-5)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
 | records archived | **9611** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=66; worst streak 3/240 (1.2% to fatal), ops on core** |
@@ -33,23 +33,23 @@ anchored the model's makespan to LAUNCH rather than to now, so it printed dates 
 showed 08-02 on a page generated 08-03. Fixed; an ETA is now never a past date.)*
 
 ```
-generated 2026-08-03 18:28 UTC | elapsed 5.89 d | 23.2 d to the Aug-27 stop | 8084 test records on disk
+generated 2026-08-03 18:29 UTC | elapsed 5.89 d | 23.2 d to the Aug-27 stop | 8085 test records on disk
 
 MEASURED test-tier throughput (from record mtimes -- an observation, not a model):
-    last  1 h     190 records     190.0 rec/h
+    last  1 h     189 records     189.0 rec/h
     last  3 h     370 records     123.3 rec/h
     last 12 h    2563 records     213.6 rec/h
     last 24 h    4773 records     198.9 rec/h
 
 EMPIRICAL ETA -- remaining work / the measured 12 h rate, anchored at NOW:
      rung   remaining    days  ETA (UTC)         fits Aug-27?
-       30         308    0.06  2026-08-03 19:55  yes
-      100       3,108    0.61  2026-08-04 09:01  yes
-      189       6,991    1.36  2026-08-05 03:12  yes
-      279      11,041    2.15  2026-08-05 22:10  yes
-      340      13,786    2.69  2026-08-06 11:01  yes
-      403      16,621    3.24  2026-08-07 00:17  yes
-      568      24,054    4.69  2026-08-08 11:05  yes
+       30         308    0.06  2026-08-03 19:56  yes
+      100       3,108    0.61  2026-08-04 09:02  yes
+      189       6,990    1.36  2026-08-05 03:13  yes
+      279      11,040    2.15  2026-08-05 22:10  yes
+      340      13,785    2.69  2026-08-06 11:02  yes
+      403      16,620    3.24  2026-08-07 00:18  yes
+      568      24,053    4.69  2026-08-08 11:06  yes
 
 REGISTERED MODEL (src/cluster/lanes.py) -- a DURATION from a standing start, not a date:
      rung     @1584 cores      @830 cores   binding
@@ -186,7 +186,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 1 min ago)
+## Monitoring -- the cycle (last monitoring cycle 2 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
