@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 17:35 UTC -- T+140h26m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
+**Auto-generated 2026-08-03 17:36 UTC -- T+140h27m.** Refreshed about every 1-1.5 minutes (measured; the publish itself takes
 ~60 s, dominated by one ssh for the live core count) and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
@@ -10,14 +10,14 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+140h26m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
-| lines up | **** 12 / 12 (log files -- live census unavailable) **  <- a roster line is MISSING or a stray is present**, all five arms submitted on **0 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9552** |
+| elapsed | **T+140h27m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
+| stalest driver log | **3 min (kimi-k3)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9555** |
 | LLM calls / spend | 2956 / **$45.5021** |
 | transport health | **timeouts 6h=64; worst streak 3/240 (1.2% to fatal), ops on core** |
 | transport timeouts (cumulative, ever) | 122 -- a level with no rate; read the row above |
-| guards | **RC=**, not green: (GUARD-NAME EXTRACTION FAILED -- read campaign_guards.py output directly) |
+| guards | **RC=2**, not green: truncation transport  |
 
 ## Compute
 
@@ -29,7 +29,15 @@ back what it did.
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
-  (eta model unavailable this cycle)
+ rung             @1552 cores              @830 cores   binding
+               makespan / ETA          makespan / ETA
+   30            4.6 d  08-02            4.6 d  08-02   critical_chain
+  100            4.6 d  08-02            4.6 d  08-02   critical_chain
+  189            4.6 d  08-02            6.5 d  08-04   throughput
+  279            5.0 d  08-02            9.3 d  08-07   throughput
+  340            6.0 d  08-03           11.1 d  08-09   throughput
+  403            7.0 d  08-04           13.0 d  08-10   throughput
+  568            9.7 d  08-07           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Re-derived from SGE itself, 2026-08-03 (record sections 120, 121, 122, 123)
@@ -80,7 +88,11 @@ and two lines have already finished the whole thing.**
 
 | arm | furthest generation | search candidates so far |
 |---|---|---|
-| (stage scan unavailable) | | |
+| distributional | g5 of 5 | 307 |
+| scalar | g5 of 5 | 284 |
+| placebo | g5 of 5 | 277 |
+| scalar_cvar5 | g5 of 5 | 272 |
+| placebo_shuffled | g5 of 5 | 280 |
 
 ### The seed ladder, live -- and the top row IS the reported result
 
@@ -97,7 +109,18 @@ missing. For the TRUE banked rung run `docs/analysis/record_seed_completeness.py
 
 | line | **fewest records on any arm** | most on any arm | frozen arms | note |
 |---|---|---|---|---|
-| (ladder unavailable this cycle) | | | | |
+| test | **0** | 30 | 6 | 2 arm(s) still at zero |
+| deepseek_v4_pro | **0** | 30 | 5 | 2 arm(s) still at zero |
+| glm_5_2 | **0** | 30 | 5 | 2 arm(s) still at zero |
+| kimi_k3 | **0** | 30 | 5 | 2 arm(s) still at zero |
+| nemotron_3_super | **0** | 30 | 4 | 2 arm(s) still at zero |
+| haiku_4_5 | **30** | 30 | 5 |  |
+| qwen3_6_27b | **30** | 30 | 5 |  |
+| sonnet_5 | **30** | 30 | 5 |  |
+| qwen3_5_9b | **100** | 121 | 5 |  |
+| gpt_5_6_luna | **566** | 567 | 5 |  |
+| test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
+| gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
 
 A line reading **0** is MID-FILL, not stuck: its `distributional` and `scalar` arms are tested last,
 behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
@@ -105,7 +128,7 @@ line with zero jobs RUNNING **and** zero QUEUED, continuously for 45 minutes --
 `docs/ops/line_balance.py` watches exactly that, and its live verdict is:
 
 ```
-(line_balance could not run this cycle -- treat as UNKNOWN, not clean)
+CLEAN -- every line below the deepest rung has work in flight or queued.
 ```
 
 ⚠ That line is now **read from the instrument on every publish**. It used to be the fixed sentence
@@ -135,7 +158,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle  min ago)
+## Monitoring -- the cycle (last monitoring cycle 3 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -172,7 +195,8 @@ line's own observed cost per arm-generation; C4 needs no LLM calls, so authoring
 remaining exposure):
 
 ```
-  (budget projection unavailable this cycle)
+  anthropic   spent $ 36.7418  + still to author $  0.0000  = $ 36.7418   credited $ 28.1500   margin $  -8.5918 (-31%)  over the credit ESTIMATE (owner-watched)
+  openrouter  spent $  8.7603  + still to author $  0.0107  = $  8.7710   credited $ 19.3100   margin $ +10.5390 (+55%)  comfortable
 ```
 
 The **credited** column is a ledger ESTIMATE carried from the 2026-07-28 console quote, not a balance
