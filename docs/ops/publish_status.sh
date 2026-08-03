@@ -284,7 +284,12 @@ Full narrative: [CAMPAIGN_EXECUTION_RECORD.md](CAMPAIGN_EXECUTION_RECORD.md), ne
 EOF
 
 git add docs/RUN4_STATUS.md
-git commit -q -m "status: $HM - $drivers/12 lines, $cores cores, $records records, \$$spend, $timeouts timeouts" 2>/dev/null \
+# P210, second site: this carried `$drivers/12` too, so every status commit in the git history
+# reads "12/12 lines" regardless of how many are actually up. The commit log is a PRIMARY SOURCE for
+# the write-up's timeline, so a counter that cannot go down would have written a false record of the
+# campaign into history. `$upcount` is the live supervisor count from the same census the panel uses.
+upcount=$(printf '%s' "$linestat" | grep -oE '^[0-9]+' || echo "$drivers")
+git commit -q -m "status: $HM - $upcount/12 lines up, $cores cores, $records records, \$$spend, $timeouts timeouts" 2>/dev/null \
   && git push -q origin HEAD:backup-2026-07-28 2>/dev/null \
   && git push -q origin HEAD:myriad-cluster-and-tier-system 2>/dev/null \
   && echo "published $TS  ($HM, $cores cores, $records records)" \
