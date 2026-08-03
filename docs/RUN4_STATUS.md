@@ -1,6 +1,6 @@
 # RUN 4 -- LIVE STATUS
 
-**Auto-generated 2026-08-03 13:19 UTC -- T+136h10m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
+**Auto-generated 2026-08-03 13:21 UTC -- T+136h12m.** Refreshed every 5 minutes by the live session and pushed to GitHub, so
 it is readable from a phone. To send an instruction back, edit
 [docs/REMOTE_CONTROL.md](REMOTE_CONTROL.md) -- the session polls it on the same interval and writes
 back what it did.
@@ -9,10 +9,10 @@ back what it did.
 
 | | |
 |---|---|
-| elapsed | **T+136h10m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
+| elapsed | **T+136h12m** (launched 2026-07-28 21:08 UTC; exogenous stop 2026-08-27) |
 | lines up | **10 / 12 running; 2 COMPLETE (gemini-2.5-flash, h3)**, all five arms submitted on **10 of the 10 leg lines** (h3ss is single-arm by design) |
-| stalest driver log | **2 min (gpt-5_6-luna)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
-| records archived | **9050** |
+| stalest driver log | **3 min (glm-5_2)** old (P218: the STALEST of the still-running lines, completed ladders excluded; above ~30 means that line has stopped progressing) |
+| records archived | **9053** |
 | LLM calls / spend | 2951 / **$45.4853** |
 | transport timeouts | **58** |
 | guards | **RC=2**, not green: truncation transport  |
@@ -21,21 +21,21 @@ back what it did.
 
 | | |
 |---|---|
-| cluster jobs | **709** (173 running, 536 queued) |
-| **cores computing** | **1384** |
+| cluster jobs | **708** (172 running, 536 queued) |
+| **cores computing** | **1376** |
 
 Per-rung ETAs from the registered model at the cores we actually hold:
 
 ```
- rung             @1384 cores              @830 cores   binding
+ rung             @1376 cores              @830 cores   binding
                makespan / ETA          makespan / ETA
    30            4.6 d  08-02            4.6 d  08-02   critical_chain
   100            4.6 d  08-02            4.6 d  08-02   critical_chain
   189            4.6 d  08-02            6.5 d  08-04   throughput
   279            5.6 d  08-03            9.3 d  08-07   throughput
   340            6.7 d  08-04           11.1 d  08-09   throughput
-  403            7.8 d  08-05           13.0 d  08-10   throughput
-  568           10.8 d  08-08           18.1 d  08-15   throughput
+  403            7.9 d  08-05           13.0 d  08-10   throughput
+  568           10.9 d  08-08           18.1 d  08-15   throughput
 ```
 
 ### Are we using the maximum Myriad can give us? Re-derived from SGE itself, 2026-08-03 (record sections 120, 121, 122, 123)
@@ -45,17 +45,17 @@ nothing more to submit. **That is no longer true and has been replaced with what
 now hold a deep backlog we cannot place, and the binding constraint is UCL's fair-share policy, which
 is not ours to change.
 
-* **The jobs ARE assignable and we still do not get the slots.**  on a real pending job
-  returns *"found possible assignment with 8 slots"*;  is EMPTY, so no quota caps
+* **The jobs ARE assignable and we still do not get the slots.** `qalter -w p` on a real pending job
+  returns *"found possible assignment with 8 slots"*; `qquota -u ucestes` is EMPTY, so no quota caps
   us; every host has 105-167 GB free; **2,576 cores are placeable** -- and our core count stays
   pinned. That combination has exactly one explanation: **functional fair-share by user**
-  (,  against , 6+ active
+  (`policy_hierarchy OSF`, `weight_tickets_functional 500000000` against `share 10000`, 6+ active
   users). More users on the cluster means a smaller share each, and that is the whole story.
-* **Every other lever has been individually EXCLUDED BY MEASUREMENT, not by argument.**  on our
-  own running jobs would destroy up to 15 h of irreplaceable work each;  on the parallel
+* **Every other lever has been individually EXCLUDED BY MEASUREMENT, not by argument.** `qdel` on our
+  own running jobs would destroy up to 15 h of irreplaceable work each; `qalter` on the parallel
   environment is refused site-wide by the JSV; raising priority is operator-only; and **lowering our
-  own priority is permitted but INERT** ( is 0.500 for every job on the cluster, so the
-  weight cancels out) **and ONE-WAY** --  is denied, so it cannot be undone. Widening the
+  own priority is permitted but INERT** (`npprior` is 0.500 for every job on the cluster, so the
+  weight cancels out) **and ONE-WAY** -- `qalter -p 0` is denied, so it cannot be undone. Widening the
   pool buys 2-4% and memory 0.7%, and both need a twelve-line relaunch of a live campaign.
 * **And there is no waste to reclaim on the other side of the equation.** The 8.8% gate-failure rate
   counts candidates rejected BEFORE any training is submitted (one LLM call, not a 15 h training),
@@ -109,14 +109,14 @@ number the dissertation reports.
 | haiku_4_5 | **30** | 30 | 5 |  |
 | qwen3_6_27b | **30** | 30 | 5 |  |
 | sonnet_5 | **30** | 30 | 5 |  |
-| qwen3_5_9b | **30** | 40 | 5 |  |
-| gpt_5_6_luna | **542** | 555 | 5 |  |
+| qwen3_5_9b | **30** | 41 | 5 |  |
+| gpt_5_6_luna | **544** | 555 | 5 |  |
 | test_h3_singleshot | **568** | 568 | 1 | COMPLETE |
 | gemini_2_5_flash | **568** | 568 | 5 | COMPLETE |
 
-A line reading **0** is MID-FILL, not stuck: its  and  arms are tested last,
+A line reading **0** is MID-FILL, not stuck: its `distributional` and `scalar` arms are tested last,
 behind the C1 barrier, so they sit at zero until their block runs. The check that would matter is a
-line with zero jobs RUNNING **and** zero QUEUED --  watches exactly that
+line with zero jobs RUNNING **and** zero QUEUED -- `docs/ops/line_balance.py` watches exactly that
 and currently reads CLEAN.
 
 ## Results so far
@@ -140,7 +140,7 @@ sealed-test records also exist and are counted in the ladder above; their SCORES
 Across-seed sd is 0.25 against the 0.244 the seed ladder was powered on, so the plan's core
 statistical assumption is confirmed by live data.
 
-## Monitoring -- the cycle (last monitoring cycle 2 min ago)
+## Monitoring -- the cycle (last monitoring cycle 1 min ago)
 
 Every cycle runs the six repo guards, the arm-coverage check the guards cannot do, the budget
 projection, driver-log freshness, the drift check against the sha the live drivers were launched
@@ -157,12 +157,12 @@ their movement since the previous cycle. The `sci=` token on each line below is 
 which is the floor doing its job). One line is written per cycle; the last six:
 
 ```
-2026-08-03T13:01:33Z  RED  records=9001 (+14)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=1.8m  drift=0  sci=OK  r115=21B  sweep=133.4s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:04:17Z  RED  records=9006 (+5)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=3.0m  drift=0  sci=OK  r115=21B  sweep=154.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:07:21Z  RED  records=9016 (+10)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.7m  drift=0  sci=OK  r115=21B  sweep=128.1s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:10:00Z  RED  records=9027 (+11)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.8m  drift=0  sci=OK  r115=21B  sweep=245.8s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:14:36Z  RED  records=9032 (+5)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=106.5s(SWEEP-BOUND: >30s sleep)  auto-cycle
 2026-08-03T13:16:53Z  RED  records=9043 (+11)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.5m  drift=0  sci=OK  r115=21B  sweep=97.9s(SWEEP-BOUND: >30s sleep)  auto-cycle
+2026-08-03T13:19:01Z  RED  records=9048 (+5)  spend=$45.4852  guards=2  arms_full=10/10  budget=2  stalest=2.3m  drift=0  sci=OK  r115=21B  sweep=188.3s(SWEEP-BOUND: >30s sleep)  auto-cycle
 ```
 
 Verdicts: OK nothing needs a human. ATTN something changed. RED a real problem, named on the line.
