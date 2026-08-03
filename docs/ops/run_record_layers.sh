@@ -18,8 +18,20 @@
 # EXIT: 0 only if EVERY layer returned 0. Read the per-layer RC lines, never just the last one.
 set -u
 cd "$(dirname "$0")/../.." || exit 1
+# ⚠ NO SILENT FALLBACK (auditor finding F-10, 2026-08-03). This read `[ -x "$PY" ] || PY=python`,
+# which is precisely the fallback `cycle_loop.sh` condemns two files away -- and P231 proved the
+# consequence is not theoretical: under the base interpreter the record layers cannot `import src`
+# or numpy, so they would not fall back gracefully, they would FAIL while looking like a layer
+# result. These EIGHT layers are the evidence that every record in an irreplaceable archive is
+# sound; running them under an interpreter that cannot load the project is not a degraded check,
+# it is no check at all.
 PY=.venv/Scripts/python.exe
-[ -x "$PY" ] || PY=python
+if [ ! -x "$PY" ]; then
+    echo "run_record_layers: FATAL - no venv interpreter at $PY (cwd=$(pwd))." >&2
+    echo "run_record_layers: refusing to certify an irreplaceable archive with an unknown" >&2
+    echo "run_record_layers: interpreter. Activate the venv and re-run." >&2
+    exit 2
+fi
 
 fail=0
 run_layer () {

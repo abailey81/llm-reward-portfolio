@@ -281,6 +281,59 @@ _WATCH_RISING: dict[str, str] = {
 }
 
 
+#: The two "did the instrument actually look at anything" counts. A verdict with no witness is not a
+#: verdict: both archive walkers exit 0 on an empty root with every invariant counter at 0, so
+#: without these a green `sci=OK` can mean "0 records examined". See `_sci_token`.
+_WITNESS_COUNTS: tuple[str, ...] = ("sw_records", "ra_records")
+
+
+def _sci_token(science: dict) -> str:
+    """The one-token results verdict for the cycle line. THREE outcomes, never two.
+
+    ``OK`` must be able to mean exactly one thing: **every hard invariant was READ and read zero.**
+    A field that was never read is BLIND -- absent and zero are different facts, and conflating them
+    is what this function exists to prevent.
+
+    ⚠⚠ WHY THIS IS A NAMED FUNCTION AND NOT AN INLINE EXPRESSION (P230, 2026-08-03). It used to be
+    ``sci = "OK" if not broken else ...`` with ``broken = [k for k in _HARD_ZERO if science.get(k)]``.
+    ``science.get(k)`` returns ``None`` when a science tool TIMED OUT or when its output could not be
+    parsed, and ``None`` is FALSY -- so a cycle whose science layer produced **nothing at all**
+    printed ``sci=OK``, the token this repo's cadence contract names an invariant that "must never
+    change". MEASURED on the live log: it had already happened **3 times in 4,774 cycles**
+    (2026-08-03 10:26:51Z, 10:28:50Z, 16:25:51Z), every one under load -- i.e. exactly when the check
+    is most worth having, and every one presenting as GOOD NEWS. The per-field ``ATTN`` line did say
+    "BLIND until fixed", but ATTN lines land in ``ALERTS.txt`` while ``sci=`` is what
+    ``CYCLE_LOG.md`` carries, and ``CYCLE_LOG.md`` is the file a session is instructed to read first.
+
+    It is a FUNCTION so the falsification calls the production rule instead of re-implementing it --
+    a test that re-implements its predicate tests nothing.
+
+    ``session_preflight.check_cycle_log`` compares ``sci == "OK"`` by equality, so ``BLIND`` degrades
+    that row to FAIL rather than silently passing.
+    """
+    broken = [k for k in _HARD_ZERO if science.get(k)]
+    if broken:
+        return "!" + ",".join(broken)
+
+    # ⚠⚠ THE WITNESS COUNTS — added on an auditor's finding (F-1) the same session P230 was written,
+    # because the FIRST fix did not achieve its own stated invariant. Every `_HARD_ZERO` counter can
+    # legitimately read 0 while the tools examined **zero records**: point either walker at an empty
+    # or renamed archive root and it exits 0 with "0 records" and every invariant counter at 0, so
+    # the token read `OK`. That is "found nothing wrong" and "looked at nothing" being
+    # indistinguishable in a green board -- the exact defect P230 closed one level up, hiding one
+    # level down. `sw_records` / `ra_records` were already EXTRACTED and PRINTED and never once
+    # CHECKED, which is how a decoration becomes a blind spot.
+    #
+    # A record count that is None (unparsed) or 0 (nothing walked) means the verdict has no witness,
+    # so it is BLIND regardless of what the invariant counters say.
+    witness_blind = [k for k in _WITNESS_COUNTS if not science.get(k)]
+
+    blind = [k for k in _HARD_ZERO if science.get(k) is None]
+    if blind or witness_blind:
+        return f"BLIND({len(blind)}/{len(_HARD_ZERO)}{'+norec' if witness_blind else ''})"
+    return "OK"
+
+
 def _results_layer(prev: dict, alerts: list[str], attention: list[str]) -> dict:
     """Run the two science tools, extract their numbers, and judge them against the invariants.
 
@@ -598,19 +651,44 @@ def main() -> int:
         _due = (not _gap_stamp.exists()
                 or (time.time() - _gap_stamp.stat().st_mtime) > 600)
         if _due:
+            # ⚠ TIMEOUT SCALED WITH THE ARCHIVE (auditor finding F-3, 2026-08-03). This was a flat
+            # 180 s, and the scan walks EVERY record: measured 49 s at 9,528 records = 5.1 ms/record,
+            # which crosses 180 s at ~35,000 records -- inside the registered ~39,760-training
+            # ladder. The check would then have gone permanently unwatched with only an ATTN line
+            # saying so, i.e. it would have expired quietly BEFORE the campaign ended. 900 s tracks
+            # the sweep cap used elsewhere in this file and buys the full ladder with margin.
             _gap_rc, _gap_out = _run([sys.executable, "docs/ops/sandbox_gap_watch.py", "--quiet"],
-                                     timeout=180)
+                                     timeout=900)
             _gap_stamp.parent.mkdir(parents=True, exist_ok=True)
             _gap_stamp.write_text(f"{_gap_rc}\n{_gap_out}", encoding="utf-8")
         else:
-            _gap_rc = int((_gap_stamp.read_text(encoding="utf-8").splitlines() or ["0"])[0])
-        if _gap_rc == 1:
+            # ⚠ A TORN OR EMPTY CACHE MUST NOT READ AS CLEAN (auditor finding F-5, 2026-08-03).
+            # This was `int((...splitlines() or ["0"])[0])`, so an EMPTY stamp file -- the state left
+            # by a write interrupted between mkdir and write_text -- yielded "0" = CLEAN for up to
+            # 600 s, and a non-integer first line raised, was swallowed by the outer handler, and
+            # skipped the check with nothing appended to alerts or attention. Both are "absent reads
+            # as zero", the same defect P230 fixed one function away. Unreadable now means UNKNOWN,
+            # and UNKNOWN routes to the not-clean branch below.
+            _first = (_gap_stamp.read_text(encoding="utf-8").splitlines() or [""])[0].strip()
+            _gap_rc = int(_first) if _first.lstrip("-").isdigit() else 98
+        # ⚠⚠ P232 (2026-08-03): THIS TESTED `_gap_rc == 1`, AND 1 IS PYTHON'S UNHANDLED-EXCEPTION
+        # CODE. So a watcher that CRASHED raised a RED claiming a confirmatory candidate had been
+        # lost to our own sandbox defect -- and the `elif` below, written expressly to catch "the
+        # watcher could not run", could not fire, because 1 sat inside the tuple it excluded. It
+        # fired for real at 16:40:07Z and 16:48:36Z (the watcher died on `import numpy` under the
+        # post-reboot base interpreter, P231) and the alert it raised was FALSE: re-measured under
+        # the venv the same minute, exit 0, every manifestation on a LEG line. The prescribed
+        # response is "decide with Tamer whether that candidate is re-authored" -- an intervention
+        # on the confirmatory line of a frozen campaign, triggered by an instrument crash.
+        # The watcher now returns 3 for CRITICAL and 4 for BLIND, both disjoint from 1.
+        if _gap_rc == 3:
             alerts.append(
                 "sandbox_gap: a reward on a CONFIRMATORY path has MANIFESTED the SAFE_BUILTINS "
                 "allowlist gap -- a candidate was lost to OUR defect, not to its own logic. It reads "
                 "~50% fallback (the state-reset limit cycle), so R115 will have excluded it. Record "
-                "§100.31; decide with Tamer whether that candidate is re-authored.")
-        elif _gap_rc not in (0, 1):
+                "§100.31; decide with Tamer whether that candidate is re-authored. ⚠ BEFORE ACTING, "
+                "RE-RUN IT BY HAND under .venv/Scripts/python.exe and confirm exit 3 -- P232.")
+        elif _gap_rc != 0:
             # A WATCHER THAT CANNOT RUN IS ITSELF A FINDING (_run's own comment says so, and it
             # returns rc=99 rather than raising). Without this branch a broken sandbox_gap_watch would
             # simply stop watching and NOTHING would say so -- the silent-blind-spot failure this
@@ -1145,8 +1223,20 @@ def main() -> int:
     # broken ones by name. r115 is carried separately because it is expected to move and its VALUE is
     # the signal. A cadence log that records only process health cannot evidence "the results were
     # monitored", which is precisely the claim Tamer asked to be able to check.
-    broken = [k for k in _HARD_ZERO if science.get(k)]
-    sci = "OK" if not broken else "!" + ",".join(broken)
+    # ⚠⚠ P230 (2026-08-03). `science.get(k)` returns None when the tool TIMED OUT or when its output
+    # could not be parsed, and None is FALSY -- so a cycle whose science layer produced NOTHING AT
+    # ALL printed `sci=OK`, the one token this repo's cadence contract names an invariant that "must
+    # never change". MEASURED: it had already happened 3 times in 4,774 cycles (10:26:51Z, 10:28:50Z,
+    # 16:25:51Z), every one of them under load -- i.e. precisely when the check is most worth having,
+    # and the failure presented as GOOD NEWS. The per-field ATTN line said "BLIND until fixed", but
+    # ATTN lines live in ALERTS.txt while `sci=` is what CYCLE_LOG.md carries, and CYCLE_LOG.md is
+    # the file a session is instructed to read first.
+    #
+    # `OK` must be able to mean ONE thing: every hard invariant was READ and read zero. A field that
+    # was never read is BLIND, and blind is not clean -- absent and zero are different facts.
+    # `session_preflight.check_cycle_log` tests `sci == "OK"` by equality, so BLIND correctly
+    # degrades that row to FAIL rather than silently passing.
+    sci = _sci_token(science)
     summary = (f"{stamp}  {verdict}  records={records}"
                f"{'' if d_rec is None else f' ({d_rec:+d})'}  spend=${spend}  guards={guards_rc}  "
                f"arms_full={full_lines}/10  budget={bud_rc}  stalest={stalest:.1f}m  "

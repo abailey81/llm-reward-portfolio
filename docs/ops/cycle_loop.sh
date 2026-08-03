@@ -54,6 +54,39 @@ cd "$(dirname "$0")/../.." || exit 1
 INTERVAL="${INTERVAL:-30}"      # seconds between cycles -- Tamer, 2026-07-31 (was 120)
 SSH_EVERY="${SSH_EVERY:-30}"    # cluster read every Nth cycle (30 x ~42 s = ~20 min, unchanged)
 
+# ── INTERPRETER, PINNED EXPLICITLY (P231, 2026-08-03) ───────────────────────────────────────────
+# ⚠⚠ THIS LOOP USED TO CALL A BARE `python`, AND THAT IS AN AMBIENT-PATH DEPENDENCY IN A PROCESS
+# NOBODY LAUNCHES BY HAND. Measured after the 16:23:35Z reboot: the boot task starts this loop from
+# `scripts/install_onstart_task.ps1`, which runs `bash -lc "cd <repo> && nohup bash
+# docs/ops/cycle_loop.sh ..."`, and THAT Git-bash login shell's PATH resolves `python` to the BASE
+# interpreter (C:\Users\User\AppData\Local\Programs\Python\Python311) rather than to `.venv`.
+# ⚠ CORRECTED on an auditor's finding (F-7): the first version of this comment blamed
+# `mode_d_launch.ps1`, which contains no reference to bash, python or this loop at all -- it only
+# starts the twelve supervisors. Naming the wrong launcher is not pedantry: the CORRECT chain is
+# what reveals that the very next line of the same boot task starts `publish_loop.sh`, which had the
+# IDENTICAL defect and was still corrupting the operator-facing status page. The venv carries
+# psutil 7.2.2; the base interpreter has no psutil at all -- so from the first post-reboot cycle
+# onward `cycle.py` reported "psutil unavailable -- the stale-lock check is BLIND this cycle".
+# That string appears in ALERTS.txt exactly twice, both AFTER the reboot and never once in the
+# preceding days: the interpreter silently CHANGED underneath a monitor that had been healthy for
+# 139 hours, and the only symptom was one check quietly degrading to blind.
+#
+# It is pinned HERE rather than in `scripts/mode_d_launch.ps1` because `scripts/**` is drift-fenced
+# while the campaign is live, and because the loop should not depend on its caller's environment in
+# the first place -- the dependency is what made the failure invisible.
+#
+# AND IT FAILS LOUD RATHER THAN FALLING BACK. A silent `|| PY=python` fallback would restore exactly
+# the defect being fixed: the run would continue with a degraded interpreter and say nothing. If the
+# venv is gone, that is a fact an operator must be told, not one to route around.
+PY=".venv/Scripts/python.exe"
+if [ ! -x "$PY" ]; then
+    echo "cycle_loop: FATAL - no venv interpreter at $PY (cwd=$(pwd))." >&2
+    echo "cycle_loop: refusing to run under an unknown interpreter; psutil and the science tools'" >&2
+    echo "cycle_loop: dependencies live in the venv, and running without them degrades checks to" >&2
+    echo "cycle_loop: BLIND while still printing a green cycle line." >&2
+    exit 1
+fi
+
 WATCH="docs/ops/watch"
 ALERTS="$WATCH/ALERTS.txt"
 mkdir -p "$WATCH"
@@ -64,9 +97,9 @@ last_alert_ts=0    # epoch seconds of the last append, for the hourly heartbeat
 while true; do
     i=$((i + 1))
     if [ $((i % SSH_EVERY)) -eq 0 ]; then
-        out=$(python docs/ops/cycle.py --ssh --interval "$INTERVAL" --note "auto-cycle" 2>&1)
+        out=$("$PY" docs/ops/cycle.py --ssh --interval "$INTERVAL" --note "auto-cycle" 2>&1)
     else
-        out=$(python docs/ops/cycle.py --interval "$INTERVAL" --note "auto-cycle" 2>&1)
+        out=$("$PY" docs/ops/cycle.py --interval "$INTERVAL" --note "auto-cycle" 2>&1)
     fi
     rc=$?
 

@@ -3,6 +3,231 @@
 All notable changes to this repository. Format follows Keep a Changelog; this project is pre-versioned
 research code, so entries are grouped by session date. Every entry cites its ADR where one exists.
 
+## [2026-08-03f] ★★★★★ RUN 18 (reboot recovery) — **THE STAMPEDE NEVER HAPPENED, AND THE THREE THINGS THAT WERE ACTUALLY BROKEN WERE ALL MONITORS** · `sci=OK` was printed by a cycle whose science layer produced NOTHING · the loop came back under an interpreter with no psutil · **and a CRASHED watcher was indistinguishable from "a confirmatory candidate was lost", so it raised a FALSE alert telling us to re-author one**
+
+**PAST.** The laptop crashed and rebooted at **2026-08-03 16:23:35Z**, ~12 min into a monitoring
+blind window. RUN 17 stopped deliberately at Tamer's instruction (*"please stop, let the next session
+handle everything"*) and handed over `docs/RUN18_SESSION_PROMPT.md`, whose §0 names the single
+sharpest risk: the boot task relaunched all twelve lines inside one second, and that is by
+construction the condition diagnosed behind the 00:33:47Z UCL penalty. Tamer: *"If you do relaunches
+and etc, be very careful not to get the penalty as before."* Detail: execution record **§131**.
+
+**PRESENT.**
+
+**★ THE PENALTY QUESTION, ANSWERED FIRST AND REPEATEDLY: NO.** `loginnode_guard --once` at 16:37:33Z
+read `OK cores=0.00/6.0 mem=0.00GB qacct=0 comfortable`, and again at 16:42, 16:44, 16:47, 17:12,
+17:17 — including across every daemon restart.
+
+**★★ AND THE STAMPEDE WAS STRUCTURALLY IMPOSSIBLE, WHICH THE HANDOVER COULD NOT KNOW.** All twelve
+supervisors logged `staggering start by NNNNs` at 16:25:49Z — **3620–3820 s, spread**. Twelve
+supervisors start together and then **sleep ~60–64 minutes on a staggered schedule** before launching
+a driver; only `core` launched immediately. "Twelve lines in one second" describes the SUPERVISORS,
+not the load. **The anti-stampede design absorbed exactly the event it was built for** — which is why
+no line was relaunched by hand.
+
+**★ THE CAMPAIGN WAS NEVER AT RISK, AND THE CRITICAL PATH IS RUNNING.** 648 jobs (188 r / 460 qw).
+**Nemotron g5 — the last generation of the registered K=5×6, the arm that pins the COMMON RUNG for
+all twelve lines — is ALIVE: 83088/83089/83091 all RUNNING** at 2.94/2.78/2.38 h of a 15.0 h wall
+(the 3 survivors of 5; c2 and c4 gate-rejected). Both open repairs still in flight: **gpt job 83464
+STILL QUEUED** (never started ⇒ gpt still banks rung **189**), **deepseek job 72732 RUNNING at 12.3 h
+of a 15.0 h wall** (~2.7 h headroom, D19 band, not killed).
+
+**⚠⚠ P230 — `sci=OK` WHILE THE SCIENCE LAYER PRODUCED NOTHING AT ALL.** The token the cadence
+contract calls an invariant (*"`drift=0` and `sci=OK` are the only two that must never change"*) was
+`"OK" if not [k for k in _HARD_ZERO if science.get(k)]`. **`science.get(k)` is `None` when a tool
+times out or fails to parse, and `None` is falsy** — so a cycle where BOTH archive tools died read
+**OK**. **MEASURED: 3 green-but-blind cycles in 4,774** (10:26:51Z, 10:28:50Z, 16:25:51Z), each with
+`sci=OK` beside `sw=None/ra=None ... leaks=None hash=None non-finite=None`. **Two of the three
+PREDATE the reboot** ⇒ a standing defect, and all three under load, i.e. exactly when the check
+matters. The per-field ATTN did say "BLIND", but ATTN lands in `ALERTS.txt` while `sci=` is what
+`CYCLE_LOG.md` carries — and `CYCLE_LOG.md` is the file a session reads first. **FIXED:** extracted
+`cycle.py::_sci_token`, three outcomes not two (`!keys` / `BLIND(n/8)` / `OK` only when all eight were
+READ and read zero). New `docs/ops/test_cycle.py` **13/13**, whose **case D pins the PRE-FIX rule
+returning OK on a blind layer and asserts production now DISAGREES** — a mutation control.
+`session_preflight` compares `sci == "OK"` by equality, so BLIND correctly degrades it to FAIL.
+
+**⚠ P231 — THE LOOP CAME BACK UNDER THE WRONG INTERPRETER.** `cycle_loop.sh` called a bare `python`;
+via the boot task that resolves to the **BASE** interpreter (no psutil, no numpy) instead of `.venv`
+(psutil 7.2.2). **A command line cannot prove this — `.venv/Scripts/python.exe` re-execs and REPORTS
+the base path** — so the evidence is the process's own words: `psutil unavailable — the stale-lock
+check is BLIND this cycle` appears **exactly twice, both post-reboot, never once in the preceding
+139 h**. **FIXED:** `PY=".venv/Scripts/python.exe"` with a **fail-loud** guard and deliberately **no
+silent fallback** (a fallback would restore the very defect). Pinned in `docs/ops/` because
+`scripts/**` is drift-fenced while live. **VERIFIED LIVE:** relaunched ~17:03Z, `psutil unavailable`
+has not recurred, sweep 855.4 s → 92.8–159.0 s, `budget` 99 → 2.
+
+**⚠⚠⚠ P232 — THE MOST CONSEQUENTIAL FINDING: A CRASH AND A CRITICAL VERDICT SHARED AN EXIT CODE.**
+`sandbox_gap_watch.py` returned **1 for CRITICAL**, and **Python exits 1 on any unhandled exception**.
+So a CRASHED watcher raised a RED whose prescribed response is *"decide with Tamer whether that
+candidate is re-authored"* — **a scientific intervention on the confirmatory line of a frozen,
+pre-registered, irreplaceable campaign.** `cycle.py` even carried a guard written expressly for this
+(*"A WATCHER THAT CANNOT RUN IS ITSELF A FINDING"*), but it read `elif _gap_rc not in (0, 1)` — **the
+crash code sat inside the tuple it excluded, so it could never fire.** **IT FIRED FOR REAL at
+16:40:07Z and 16:48:36Z**, caused by P231: under the base interpreter `_safe_names()` imports
+`src.sandbox.executor` → `import numpy` → `ModuleNotFoundError` → exit 1. **THE ALERT WAS FALSE** —
+re-measured by hand: **base rc=1 (crash) vs venv rc=0 (clean, 3 manifestations ALL on LEG lines, 13
+latent)**, exactly the state §100.31 documents. **FIXED — states disjoint BY CONSTRUCTION: `0` clean ·
+`3` CRITICAL · `4` BLIND (allowlist unobtainable) · `1` reserved for crashes only.** `scan()` wrapped
+so a missing allowlist returns 4 **with a stated cause** rather than a traceback. **Falsified on all
+three paths: base → 4, venv → 0, CRITICAL forced → 3.**
+
+**⚠ A HYPOTHESIS I REFUTED BEFORE BANKING IT.** I first proposed the sandbox_gap verdict was
+`os.walk`-order dependent (it dedupes by `reward_source_hash` and classifies from whichever record it
+reaches first). **Measured rather than argued: of 16 gap-carrying programs, 0 span >1 lane, 0
+disagree, 0 are order-sensitive.** Wrong cause, real symptom — recorded because I was one step from
+banking it.
+
+**★ THE h3/gemini "STOPPED PROGRESSING" RED IS A SELF-HEALING REBOOT ARTEFACT.** The COMPLETE-line
+exclusion requires the supervisor log to END with `line supervisor exiting.`; the boot task appended
+`staggering start by ...`, so the predicate returns MISSING and a line that **finished 568/568** reads
+`845 min stale ... has stopped progressing (D14)`. `stalest` 1.1 m → 884 m for the same reason.
+**Deliberately NOT intervened in:** each stagger elapses, one driver runs, finds the ladder complete,
+exits `LINE COMPLETE`, and the predicate returns COMPLETE. One gold re-verification pass per line,
+not a loop (`watchdog_fenced` still suppresses further revivals), with `loginnode_guard` watching.
+
+**★ THE "DUPLICATE LOOPS" WERE MOSTLY A CENSUS ARTEFACT.** §0.4 reported 5 cycle_loop / 6 publish / 2
+watchdog. **Resolved by ANCESTRY: one of each.** The extras are process CHAINS (`bash -lc` → `nohup`
+→ `cycle_loop.sh` → `$(...)` subshells → `cycle.py`) — the P225 shape again. `session_preflight`
+itself reported `2 cycle loops pids=[23668, 23936]`, and **23668 was the waiting PARENT of 23936's
+tree** (already exited when I went to kill it). The free corroboration: **one `cycle.py` process and
+one line per cycle in `CYCLE_LOG.md`** — five racing loops would have written five.
+
+**★ A FILESYSTEM ANOMALY.** `driver_nemotron-3-super.log` has an mtime **50 min BEHIND its last
+content line**; measured across all twelve, it is the only one that disagrees (NTFS deferred
+directory-entry update lost in the unclean shutdown). The `stalest` alarm reads mtime, so for the
+critical-path line it **understates freshness — biased toward crying stale early, never toward
+missing a stall**. True fact: nemotron's driver last wrote 16:21:20Z, ~2 min pre-reboot.
+
+**★ VERIFIED.** **SEVEN RECORD LAYERS RC=0 at 9,540 records** (L1 31 s · L2 79 s · L3 107 s · L4 1 s ·
+L5 42 s · L6 40 s · L7 41 s) · M1 RC=0 · M2 RC=1 (disclosed by design) · M3 RC=1 (mid-fill) ·
+**line_balance CLEAN** · crash_watchdog CLEAN · **drift=0 both arms** · **freeze hash MATCHES** ·
+repro **8 pass / 0 warn / 0 fail** · records 9,380 → 9,515 · $45.4852 · C: 46.6 GB free.
+**All eleven S15 holes are mid-fill** — every affected line has work running or queued, so the
+actionable case (hole + ZERO jobs) occurs nowhere.
+
+**★ MONITORS RESTORED, STAGGERED, login node re-checked between each:** `loginnode_guard` FIRST (it
+is the penalty warning itself), then `crash_watchdog`, `myriad_watch`, `line_balance`, `sentinel`,
+`campaign_backup` on the RUN 4 roots.
+
+**⚠ MY OWN ERRORS. P233: I put backticks and `$(…)` inside a heredoc in a `bash -c` string** while
+writing execution-record §131, and the shell died on an unmatched quote. **Fifth occurrence across
+three sessions** of the defect RUN18 §10 names in bold with the countermeasure stated mechanically —
+**write to a FILE**. Blast radius NIL this time (the command never executed); it was not nil the
+previous four times. Plus the refuted walk-order hypothesis above.
+
+**⚠ A CORRECTION TO THE HANDOVER.** RUN18 §8 records gpt as "missing seeds 192/193". **Per ARM the
+holes are asymmetric** — `distributional` [193], `placebo_shuffled` [192], the other three [192, 193]
+— 8 records total, but **no arm is missing exactly "192 and 193"**. Changes no conclusion; a summary
+that loses the arm dimension is how a repair gets mis-targeted.
+
+**THE UNIFYING RULE ALL THREE EARN:** **A VERDICT CHANNEL MUST NOT SHARE A VALUE WITH A FAILURE
+CHANNEL.** `None` must not share a truth-value with `0`; a crash exit code must not share an integer
+with a CRITICAL verdict; a command line must not be trusted to report an interpreter. Each instrument
+had the right *idea* — the ENCODING threw away the distinction it depended on. **Reserve a value for
+"I could not tell", and make it impossible to confuse with an answer.**
+
+**FUTURE.** (1) **gpt job 83464 is still QUEUED — until it runs, gpt banks 189 and the common rung is
+capped there.** (2) **deepseek job 72732 at 12.3 h of 15.0 h — if it hits the wall, 8 records are lost
+and the driver must repair-round them; check, do not kill.** (3) Nemotron g5 is the critical path;
+when it returns, `scalar_cvar5` freezes and the line clears C2. (4) The h3/gemini RED should clear
+itself once the staggers elapse (h3 17:26:09Z, nemotron 17:28:29Z, gemini 17:29:09Z) — **if it does
+not, the COMPLETE predicate needs a fix that does not depend on the supervisor log's last line.**
+(5) D34/D35 remain open before the headline analysis; R115 remains a stated Limitation with 3 of 10
+core groups PROVISIONAL — **re-run before submission.**
+
+## [2026-08-03e] ★★★★★ WRITE-UP — **I BUILT A BINDING 95%-STRATEGY DOCTRINE ON AN UNSOURCED PREMISE, AND THIS REPO HAD ALREADY RECORDED THAT IT WAS UNSOURCED**
+
+**PAST.** Continues `[2026-08-03d]`. Tamer relayed Stefan's exposé feedback, then asked for a deeply
+researched guide to reaching 95%+ on every marking component, to be added to `CLAUDE.md`.
+
+**PRESENT.**
+
+**★ STEFAN'S EXPOSÉ FEEDBACK — analysed and bound.** New `CLAUDE.md` section (S1–S8) + registry rows 46–52
++ master plan §26. He challenged **none** of the science; every point is Criterion 4 or framing. Measured
+both documents on one ruler (opening-sentence classification): the **exposé 41.7% premise-first**, the
+**dissertation 63.8%** — CH1 78.6 · CH2 78.6 · **CH4 54.8 · CH5 47.4** · CH6+7 75.0. **The defect is
+concentrated in the CORE.** His S3 (formalise the RL frame) is FREE: maths and diagrams are word-excluded,
+and the only MDP tuple in the document sits in Appendix C, so Chapter 4 has no formal specification at all.
+Proposed the **two-nested-problems** formalisation his bandit/MDP aside implies (inner MDP, outer bandit
+over reward programs), which makes H4 like-for-like by construction.
+
+**★ THE 95+ DOCTRINE — installed, then substantially corrected.** ~420 lines. Four external sources read
+**first-hand**: Mensh & Kording (PLOS Comput Biol 2017), TMLR's published acceptance criteria, Gopen & Swan,
+and the negative-results literature. Genuinely new content: the **difficulty denominator** (Criterion 3
+normalises by difficulty, so failing to supply it means the marker uses a default one — the same failure
+Stefan names as *"just simple RL"*); the **content economy** with its placement test; the **reader's path**;
+and the resolution of a real conflict between Mensh & Kording (conclusion last) and Stefan (claim first).
+
+**⚠⚠⚠ THE WORST ERROR OF THE SESSION, AND IT IS EXACTLY WHAT THE DOCTRINE PREACHES AGAINST.** §0 opened with
+*"Four equally-weighted dimensions, and THE WEAKEST CAPS THE MARK … three consequences follow, **and they
+are not intuitions**."* **Both halves are unsourced.** Verified first-hand: the criteria PDF is a 4×9 grid
+containing **zero weighting-related words**; the guide says only that the marking scheme *"is available on
+Moodle"*. And `CHANGELOG.md:7460` had **already recorded** exactly this — *"Neither document states a
+weighting or aggregation rule … Both unsourced."* I took a flagged-as-unsourced claim, dropped the flag, and
+promoted it to the premise of a binding section. Compounding it, *equally weighted* (a mean) and *weakest
+caps* (a minimum) are **different functions** and I asserted both. **Replaced by the honest operative
+posture — assume all four must independently reach the target — which is behaviourally identical.**
+
+**★ AN INDEPENDENT AUDIT OF MY OWN GUIDE FOUND 13 MORE, ALL FIXED.** The author must not grade their own
+work, and this is why:
+- **The reader's-path claim was false and actively harmful.** I wrote that everything on the path except the
+  introduction is word-excluded. **Conclusions are counted** (CH7 = 2,301) and **in-body headings are
+  counted** (only the ToC is excluded). On a body 3,561 over, that licenses spending.
+- **My own ceiling table refuted my own conclusion.** Recorded ceilings 94/90/93/92: the lowest is **D2 at
+  90**, not D3 — and **no dimension is recorded as able to reach 95**, so ★ PRIORITY 1's floor is not
+  achievable against them. Stated as an open contradiction rather than smoothed.
+- **The centrepiece conflict resolution rested on an inference its source does not license.** I attributed
+  *"second marker … any discipline"* to the marking criteria (it is the **guide**) and read it as evidence
+  of a *skimming* reader; its next clause is *"Ensure that your research is clearly communicated"*, which
+  describes the paradigm **careful** reader. Premise-first is now adopted on a stated **asymmetry
+  judgement**, not a false appeal to authority.
+- **I called an override a preservation.** Mensh & Kording's rule is that the remembered thing goes last; we
+  move it first. Now says so plainly.
+- **The TMLR argument undercut itself.** Criterion 3 is *"Novelty and significance"*; TMLR is the venue that
+  **explicitly declines to assess novelty**. "Meets TMLR's criteria" reads as "publishable at the journal
+  that does not require novelty". The venue now evidences the claims-to-evidence half **only**.
+- **Novelty over-claim**: the two null exhibits are *unusual in this literature*, not a methodological
+  contribution — TOST is decades old, and absence from a 208-of-211 convenience corpus is not novelty.
+- **Nine near-verbatim duplications** of rules already binding elsewhere in the same file; the "not a
+  restatement" claim was false and is withdrawn, with precedence assigned to the other location.
+- **"Four authorities" already means something else** and is binding — renamed to "four sources".
+- Two "machine gates" had **no command** (both scripts lived in a session scratchpad and are gone — the
+  method is now written out); the word-budget gate said ≤10,000 when the tool PASSes at ≤9,500; a pointer
+  cited the wrong master-plan section; a stale "3,498" survived in a document that forbids stale counts.
+- **Four binding constraints were simply missing** and are now §7e: the **~60% core rule** (we are at 46.8%,
+  and §2 pushes *against* it), **"Penalties will apply"** *with its sanctioned supervisor → Programme
+  Director approval route*, D4's **typesetting mandates** (16-section order, Arial/Helvetica ≥10pt, 1.5
+  spacing, Harvard, Arabic pagination), and **the ethics / data-protection forms, recorded UNVERIFIED** —
+  the one item that can stop the mark existing at all.
+
+**★ A FRESH ADVERSARIAL MARK OF THE 275-PAGE PDF: D1 88 · D2 84 · D3 84 · D4 72 → capped at 72 by
+Communication** (previous passes: 58, then 74; both stale). Every severe finding VERIFIED first-hand before
+acting, and fixed: **Table 1.3 — the contributions table — was truncating mid-sentence in five cells**
+(six columns of 150-word prose overflowing the LaTeX column; restructured to five short scannable columns,
+0 truncations remain) · **a FALSE self-validation claim** in Appendix B (*"within ±1 on every arm"* when the
+element-wise deltas are 0, 0, +1, **+2**, +1, and the counterfactual added losses to the projection instead
+of the measurement — corrected; the conclusion survives) · `bodafilar2006time` printing as a raw key (a
+backticked key in parentheses is inline **code**, not a citation) · `[meta-prompting-industrial — verify at
+wiring]`, a live TODO, removed · 15 further glued run-ins.
+
+**⚠ THE GLUED RUN-INS WERE MY OWN INCOMPLETE WORK FROM `[d]`.** My fixer had **two** gaps: it skipped table
+rows as "not prose" (their cells render as text) and it required an alphanumeric after the closing run, so
+`**prices**(a licensed` and ``**result.**`return_minus_turnover` `` were never seen. **Corrected rule: a
+closing emphasis run may be followed by whitespace or sentence punctuation — never a letter, backtick or
+bracket.**
+
+**VERIFIED AT CLOSE (real output):** build **OK, 275 pp, 1,077 KB, 0 missing characters** · citations
+**0/0/0/0** · freeze `3ca6f01a…` **MATCHES** · cross-references **0 dangling / 0 duplicates / 0 orphans** ·
+reproducibility **8 pass / 0 warn / 0 fail** (★ PRIORITY 5 satisfied) · body **13,561** vs 10,000.
+
+**FUTURE — three are TAMER'S DECISIONS.** (1) **The aggregation rule is unsourced** — confirm it with
+Okhrati or the programme, or keep the all-four-independently posture. (2) **The word-limit over-run has a
+sanctioned approval route** (supervisor → Programme Director) — take it or cut to 10,000. (3) **The ethics /
+data-protection forms are recorded UNVERIFIED.** Then: the 80-word difficulty paragraph (the marker's
+"cheapest mark in the dissertation" — Appendix E's 42,128 trainings and ~326,254 core-hours appear nowhere
+in the body); the figure double-numbering (may need the drift-fenced `build_paper.py`); the ~60% core rule;
+and six number contradictions that need an archive check rather than an edit.
+
 ## [2026-08-03d] ★★★★★ WRITE-UP, 5th session — **I RELOCATED A REFUTED CLAIM INTO THE APPENDIX THAT REFUTES IT**, and six of my own instruments were wrong before the document was
 
 **PAST.** Inherited from `[2026-08-03a]`: title registered, abstract 485 w, body **18,049** against a hard

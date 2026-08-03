@@ -14,6 +14,23 @@ REPO=/c/Users/User/Desktop/dissertation_papers/llm-reward-portfolio
 ROOT=outputs/campaign_cluster_run4
 cd "$REPO" || exit 1
 
+# INTERPRETER, PINNED (auditor finding F-2, 2026-08-03) -- the same defect as P231, which was
+# fixed in cycle_loop.sh and left LIVE here. This loop is started by the SAME boot-task line
+# (scripts/install_onstart_task.ps1) from a Git-bash login shell whose PATH resolves a bare
+# `python` to the BASE interpreter. That interpreter has no psutil and cannot `import src`, so
+# two panels on the page Tamer reads from his phone were WRONG rather than missing:
+#   * session_preflight --line-summary exited 1 (psutil unavailable) and this script rendered
+#     '? / ?  <- a roster line is MISSING or a stray is present' -- a FALSE fleet alarm;
+#   * stage_eta.py died on `import src`, giving '(eta model unavailable this cycle)'.
+# An operator-facing page that invents an alarm is worse than one that omits a number.
+# Fails LOUD rather than falling back: a silent fallback is exactly what caused this.
+PY=".venv/Scripts/python.exe"
+if [ ! -x "$PY" ]; then
+    echo "publish_status: FATAL - no venv interpreter at $PY (cwd=$(pwd))" >&2
+    echo "publish_status: refusing to publish a page built by an unknown interpreter" >&2
+    exit 1
+fi
+
 git pull --rebase --quiet origin backup-2026-07-28 2>/dev/null || git pull --rebase --quiet 2>/dev/null || true
 
 TS=$(date -u +'%Y-%m-%d %H:%M UTC')
@@ -31,7 +48,7 @@ HM="T+$((EL/60))h$(printf '%02d' $((EL%60)))m"
 # `-mindepth 4 -maxdepth 4` reproduces the glob exactly (verified: both = 1527 on 2026-07-31).
 records=$(find "$ROOT" -mindepth 4 -maxdepth 4 -name record.json 2>/dev/null | wc -l)
 calls=$(cat "$ROOT"/spend_ledger_*.jsonl 2>/dev/null | wc -l)
-spend=$(cat "$ROOT"/spend_ledger_*.jsonl 2>/dev/null | python -c "
+spend=$(cat "$ROOT"/spend_ledger_*.jsonl 2>/dev/null | "$PY" -c "
 import sys,json
 t=0.0
 for l in sys.stdin:
@@ -78,7 +95,7 @@ timeouts=${timeouts:-0}
 # scan parsed nothing. So the instrument built to answer "how close are we to a crash" went SILENT
 # at exactly the moment it had something to say, and the page printed "unavailable" instead of the
 # number. It worked only because the verdict happened to be 0. Capture first, judge after.
-thealth=$(python docs/ops/transport_health.py --oneline 2>/dev/null)
+thealth=$("$PY" docs/ops/transport_health.py --oneline 2>/dev/null)
 thealth_rc=$?
 [ -z "$thealth" ] && thealth="(transport health UNAVAILABLE this cycle -- the instrument could not run)"
 [ "$thealth_rc" = "1" ] && thealth="** $thealth **  <- ATTENTION: a streak is advanced toward fatal"
@@ -99,19 +116,19 @@ drivers=$(ls "$ROOT"/driver_*.log 2>/dev/null | wc -l)
 # with every single line dead". `$upcount` then greps `12` out of it into the commit message, so
 # the git history (a PRIMARY SOURCE for the write-up timeline) would record 12/12 with a line down.
 # The fix P210 claimed did not hold in the one case it was written for. Capture first, judge after.
-linestat=$(python docs/ops/session_preflight.py --line-summary 2>/dev/null)
+linestat=$("$PY" docs/ops/session_preflight.py --line-summary 2>/dev/null)
 linestat_rc=$?
 [ -z "$linestat" ] && linestat="$drivers / 12 (log files -- live census unavailable)"
 [ "$linestat_rc" = "1" ] && linestat="** $linestat **  <- a roster line is MISSING or a stray is present"
-guards=$(python scripts/campaign_guards.py "$ROOT" all >/dev/null 2>&1; echo $?)
-gnames=$(python scripts/campaign_guards.py "$ROOT" all 2>/dev/null | grep -E '^\[' | grep -v ' ok$' | sed 's/^\[//;s/\].*//' | tr '\n' ' ')
+guards=$("$PY" scripts/campaign_guards.py "$ROOT" all >/dev/null 2>&1; echo $?)
+gnames=$("$PY" scripts/campaign_guards.py "$ROOT" all 2>/dev/null | grep -E '^\[' | grep -v ' ok$' | sed 's/^\[//;s/\].*//' | tr '\n' ' ')
 # *** 2026-07-31 (record 76.4): the default was `none`, which is FALSE-REASSURING. `gnames` is only
 # printed when the guards are NOT green, so if this extraction ever broke (a wording change in
 # campaign_guards.py) the page would read "RC=2, not green: none" -- a contradiction that scans as
 # benign. An extraction that fails must SAY SO. Audited 2026-07-31: every other extraction on this
 # page either yields a plausible value or fails loudly; this was the only reassuring-on-failure one.
 gnames=${gnames:-"(GUARD-NAME EXTRACTION FAILED -- read campaign_guards.py output directly)"}
-armsfull=$(python docs/ops/arm_coverage.py 2>/dev/null | grep -c '5/5 arms submitted')
+armsfull=$("$PY" docs/ops/arm_coverage.py 2>/dev/null | grep -c '5/5 arms submitted')
 armsfull=${armsfull:-?}
 
 # ⚠ THIS ROW REPORTED THE **FRESHEST** LOG AND CALLED IT THE STALENESS ALARM (P218).
@@ -126,7 +143,7 @@ armsfull=${armsfull:-?}
 # independent auditor. Now: the STALEST, and -- exactly as cycle.py does since P209 -- with lines
 # whose terminal state is COMPLETE excluded, because a finished ladder never writes again and would
 # otherwise pin this row red forever.
-stalest=$(python -c "
+stalest=$("$PY" -c "
 import glob, os, sys, time
 sys.path.insert(0, 'docs/ops')
 try:
@@ -155,15 +172,15 @@ print(('%d min (%s)' % (int(worst[1]), worst[0])) if worst[1]>=0 else '?')" 2>/d
 #     column ADDED EVERY SEALED-TEST SEED of the same arm -- `distributional` published 2,136 when
 #     only 1,516 search candidates exist in the whole campaign. A search-stage column silently
 #     including test records made the search look ~40% further along than it is.
-stage=$(python docs/ops/status_stage.py --stage 2>/dev/null) || stage=""
+stage=$("$PY" docs/ops/status_stage.py --stage 2>/dev/null) || stage=""
 stage=${stage:-"| (stage scan unavailable) | | |"}
-ladder=$(python docs/ops/status_stage.py --ladder 2>/dev/null) || ladder=""
+ladder=$("$PY" docs/ops/status_stage.py --ladder 2>/dev/null) || ladder=""
 ladder=${ladder:-"| (ladder unavailable this cycle) | | | | |"}
 # THE STUCK ALARM'S LIVE VERDICT. It was hardcoded prose ("and currently reads CLEAN") until
 # 2026-08-03, i.e. the page asserted CLEAN unconditionally -- including with a line genuinely
 # stuck. Read from the instrument now. NO `||` here: line_balance returns 1 on STUCK and 2 on
 # UNDECIDED, and discarding its output on non-zero is the exact bug fixed above for `thealth`.
-lbverdict=$(python docs/ops/line_balance.py --once 2>/dev/null | grep -E "^(CLEAN|\*\*\* STUCK|UNDECIDED)" | head -3)
+lbverdict=$("$PY" docs/ops/line_balance.py --once 2>/dev/null | grep -E "^(CLEAN|\*\*\* STUCK|UNDECIDED)" | head -3)
 [ -z "$lbverdict" ] && lbverdict="(line_balance could not run this cycle -- treat as UNKNOWN, not clean)"
 
 # cluster side (best effort - a failed ssh must not stop the status publish)
@@ -179,7 +196,7 @@ qw=$(echo "$CL"    | grep '^qw='    | cut -d= -f2); qw=${qw:-?}
 cores=$(echo "$CL" | grep '^cores=' | cut -d= -f2); cores=${cores:-?}
 
 # per-rung ETAs at the cores we actually hold (Tamer's standing reporting requirement)
-etas=$(python docs/ops/stage_eta.py "${cores:-0}" 2>/dev/null | sed -n '3,12p')
+etas=$("$PY" docs/ops/stage_eta.py "${cores:-0}" 2>/dev/null | sed -n '3,12p')
 etas=${etas:-"  (eta model unavailable this cycle)"}
 
 # BUDGET, read LIVE every publish. Tamer holds the balance and the top-up decision (his instruction,
@@ -187,7 +204,7 @@ etas=${etas:-"  (eta model unavailable this cycle)"}
 # make sure you precisely monitor it"). So this reports the current figures instead of asking him for
 # anything, and it is generated rather than typed: the previous hand-written bullet still quoted
 # $15.11 of remaining authoring after the real figure had moved to $13.47.
-bud=$(python docs/ops/budget_watch.py 2>/dev/null | grep -E '^(anthropic|openrouter) ' | sed 's/^/  /')
+bud=$("$PY" docs/ops/budget_watch.py 2>/dev/null | grep -E '^(anthropic|openrouter) ' | sed 's/^/  /')
 bud=${bud:-"  (budget projection unavailable this cycle)"}
 
 # THE 2-MINUTE MONITORING CYCLE (2026-07-31, Tamer's standing order). docs/ops/cycle.py runs the
@@ -196,7 +213,7 @@ bud=${bud:-"  (budget projection unavailable this cycle)"}
 # and becomes an audit trail, which is the standard everything else in this project is held to.
 cyc=$(tail -n 6 docs/ops/watch/CYCLE_LOG.md 2>/dev/null)
 cyc=${cyc:-"  (no cycle recorded yet)"}
-cage=$(python -c "
+cage=$("$PY" -c "
 import os, time
 p='docs/ops/watch/CYCLE_LOG.md'
 print(int((time.time()-os.path.getmtime(p))/60) if os.path.exists(p) else -1)" 2>/dev/null || echo "-1")

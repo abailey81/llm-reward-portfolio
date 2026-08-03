@@ -37,7 +37,31 @@ therefore ALTERNATES init/steady and reads **exactly ~50 %**, not 100 %. **The f
 not a severity scale — 50 % means "the steady-state branch never ran", not "half the rewards were
 fine."** See §100.31 and ``docs/ops/probe_reward_failure_pattern.py``.
 
-Read-only. Exit 0 clean / 1 if anything has MANIFESTED on a confirmatory path.
+EXIT CODES -- DISJOINT FROM A CRASH BY CONSTRUCTION (P232, 2026-08-03)
+  0  clean: nothing has manifested on a confirmatory path
+  3  CRITICAL: a manifestation on a confirmatory path
+  4  the allowlist could not be determined, so NOTHING was checked (blind, not clean)
+  1  RESERVED FOR AN UNHANDLED EXCEPTION and never returned deliberately.
+
+⚠⚠ WHY 3 AND NOT 1, WHICH IS WHAT THIS RETURNED UNTIL 2026-08-03. CRITICAL used to be ``return 1``,
+and **Python exits 1 on any unhandled exception** -- so a CRASHED watcher was indistinguishable from
+"a confirmatory candidate was lost to our own sandbox defect". `cycle.py` even carried an
+``elif _gap_rc not in (0, 1)`` branch written expressly to catch "the watcher could not run", and
+that branch **could not fire for the most likely failure mode**, because the crash code sat inside
+the tuple it excluded.
+
+IT WAS NOT HYPOTHETICAL AND IT FIRED THE SAME DAY. After the 16:23:35Z reboot the monitoring loop
+came back under the BASE interpreter instead of the venv (P231). ``_safe_names()`` imports
+``src.sandbox.executor``, which imports numpy, which the base interpreter does not have -- so the
+watcher died with ``ModuleNotFoundError`` and exited 1, and `cycle.py` raised a RED at 16:40:07Z and
+16:48:36Z announcing a confirmatory-path manifestation that **did not exist** (measured immediately
+afterwards under the venv: exit 0, 3 manifestations, all on LEG lines, 13 latent). The prescribed
+response to that RED is *"decide with Tamer whether that candidate is re-authored"* -- i.e. an
+intervention on the confirmatory line of a frozen, pre-registered, irreplaceable campaign, triggered
+by an instrument crash. **A verdict code that collides with the language's crash code is not a
+verdict code.**
+
+Read-only.
 """
 from __future__ import annotations
 
@@ -127,8 +151,20 @@ def unresolvable_names(src: str, safe: set[str]) -> set[str]:
     return {n for n in scope.loads if n not in local and n not in scope.bound}
 
 
-def scan(root: Path) -> list[dict]:
-    safe = _safe_names()
+def scan(root: Path, safe: set[str] | None = None, bad_records: list[str] | None = None) -> list[dict]:
+    """Every distinct reward program under ``root`` that names a load the sandbox cannot resolve.
+
+    ``safe`` is injected by :func:`main` so that a failure to BUILD the allowlist is reported as its
+    own condition, distinct from a failure to READ a record (auditor finding F-4, 2026-08-03: the
+    caller's ``try`` wrapped this whole function while its message blamed the allowlist, so one
+    malformed record would have aborted the scan and been reported as "could not determine the
+    SAFE_BUILTINS allowlist" -- a cause that was never checked).
+
+    ``bad_records`` collects the paths of records that could not be processed, so a per-record
+    failure is COUNTED and NAMED rather than silently skipped.
+    """
+    if safe is None:
+        safe = _safe_names()
     seen: set[str] = set()
     out: list[dict] = []
     for dirpath, _dirnames, filenames in os.walk(root):
@@ -138,29 +174,38 @@ def scan(root: Path) -> list[dict]:
         parts = rel.split("/")
         if any(s.startswith((".pull_tmp", "_quarantine")) for s in parts):
             continue
+        # ⚠ THE WHOLE PER-RECORD BODY IS GUARDED, NOT ONLY THE READ. `ast.parse` raises ValueError
+        # (not SyntaxError) on embedded null bytes, and a record.json that decodes to something
+        # other than a dict makes `rec.get` raise AttributeError. Both are per-record faults, and
+        # neither should be able to abort a scan over 9,500 records -- still less be reported as an
+        # allowlist failure.
         try:
             rec = json.loads(Path(dirpath, "record.json").read_text(encoding="utf-8"))
-        except Exception:                                # noqa: BLE001
+            if not isinstance(rec, dict):
+                raise TypeError(f"record.json is {type(rec).__name__}, not an object")
+            src = rec.get("reward_source") or ""
+            if "def reward" not in src:
+                continue                                 # hand-written baselines carry a marker only
+            key = rec.get("reward_source_hash") or src[:64]
+            if key in seen:
+                continue
+            seen.add(key)
+            bad = unresolvable_names(src, safe)
+            if not bad:
+                continue
+            metrics = rec.get("metrics") or {}
+            d, c = metrics.get("train_safe_default_count"), metrics.get("train_safe_call_count")
+            rate = (d / c) if isinstance(d, (int, float)) and isinstance(c, (int, float)) and c else None
+            out.append({
+                "lane": parts[0], "arm": rec.get("arm"), "run_id": rec.get("run_id"),
+                "names": sorted(bad), "fallback_rate": rate,
+                "manifested": bool(rate),
+                "confirmatory": parts[0] in CONFIRMATORY_LANES,
+            })
+        except Exception as exc:                         # noqa: BLE001 - one bad record is not a scan failure
+            if bad_records is not None:
+                bad_records.append(f"{rel}: {type(exc).__name__}: {exc}")
             continue
-        src = rec.get("reward_source") or ""
-        if "def reward" not in src:
-            continue                                     # hand-written baselines carry a marker only
-        key = rec.get("reward_source_hash") or src[:64]
-        if key in seen:
-            continue
-        seen.add(key)
-        bad = unresolvable_names(src, safe)
-        if not bad:
-            continue
-        metrics = rec.get("metrics") or {}
-        d, c = metrics.get("train_safe_default_count"), metrics.get("train_safe_call_count")
-        rate = (d / c) if isinstance(d, (int, float)) and isinstance(c, (int, float)) and c else None
-        out.append({
-            "lane": parts[0], "arm": rec.get("arm"), "run_id": rec.get("run_id"),
-            "names": sorted(bad), "fallback_rate": rate,
-            "manifested": bool(rate),
-            "confirmatory": parts[0] in CONFIRMATORY_LANES,
-        })
     return out
 
 
@@ -170,7 +215,31 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--quiet", action="store_true", help="print only the verdict line")
     args = ap.parse_args(argv)
 
-    rows = scan(Path(args.root))
+    # THE ALLOWLIST IS THE MEASURING STICK, so failing to obtain it means nothing was measured --
+    # which must never be reported as "clean". Caught explicitly rather than left to propagate,
+    # because a bare traceback exits 1 and 1 is the language's crash code (see the header).
+    # ONLY the allowlist is guarded here, and the message names exactly what failed (F-4). Widening
+    # this to the whole scan let one malformed record be reported as an allowlist failure.
+    try:
+        safe = _safe_names()
+    except Exception as exc:                             # noqa: BLE001 - blind is a verdict, not a crash
+        print(f"[sandbox_gap] BLIND: could not determine the SAFE_BUILTINS allowlist "
+              f"({type(exc).__name__}: {exc}) -- NOTHING was checked. This is not a clean result. "
+              f"Most likely cause: running under an interpreter without the project's dependencies "
+              f"(src.sandbox.executor imports numpy); use .venv/Scripts/python.exe.", file=sys.stderr)
+        return 4
+
+    bad_records: list[str] = []
+    rows = scan(Path(args.root), safe, bad_records)
+
+    # A record the scan could not read is a record it did not check. Say so, with a count and
+    # examples -- silently skipping them is how "no manifestation found" comes to mean "not looked".
+    if bad_records:
+        print(f"[sandbox_gap] WARNING: {len(bad_records)} record(s) could not be inspected and are "
+              f"NOT covered by this verdict:", file=sys.stderr)
+        for line in bad_records[:5]:
+            print(f"    {line}", file=sys.stderr)
+
     manifested = [r for r in rows if r["manifested"]]
     critical = [r for r in manifested if r["confirmatory"]]
 
@@ -186,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
     if critical:
         print(f"[sandbox_gap] CRITICAL: {len(critical)} manifestation(s) on a CONFIRMATORY path "
               f"-- a candidate was lost to the allowlist gap, not to its own logic. Record §100.31.")
-        return 1
+        return 3                                         # NOT 1 -- see the header (P232)
     print(f"[sandbox_gap] OK: no confirmatory-path manifestation "
           f"({len(rows) - len(manifested)} latent, harmless until a try-block raises).")
     return 0

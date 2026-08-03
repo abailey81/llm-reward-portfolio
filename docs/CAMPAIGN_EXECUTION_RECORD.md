@@ -19039,3 +19039,264 @@ writing the sections that name it.
 
 **FOURTH CONSECUTIVE SESSION IN WHICH THE AUDITOR'S FINDINGS OUTRANK THE AUTHOR'S.** The rule is not
 a formality: on today's evidence my own work is the least reliable thing I produced.
+
+---
+
+## 131 — RUN 18: THE REBOOT RECOVERY, AND THREE MONITORS THAT LIED IN OPPOSITE DIRECTIONS
+
+**Session opened 2026-08-03 ~16:35Z, ~12 min after the laptop crashed and rebooted at 16:23:35Z.**
+Tamer's brief: *"My laptop crushed and restarted, so ultarthink very deply, please verify absoluteoly
+everything ... If you do relaunches and etc, be very careful not to get the penalty as before."*
+
+### 131.1 THE FIRST QUESTION WAS THE PENALTY, AND THE ANSWER WAS NO
+
+RUN 17 handed over with the stampede risk explicitly named: the boot task relaunched all twelve
+lines inside one second (16:25:49Z), and that is by construction the condition diagnosed behind the
+00:33:47Z UCL penalty. **Measured first, before anything else: `loginnode_guard --once` at 16:37:33Z
+read `OK  cores=0.00/6.0  mem=0.00GB  qacct=0  comfortable`.** Re-checked at 16:42, 16:44, 16:47 and
+17:12 — comfortable throughout, including across every daemon restart.
+
+**AND THE STAMPEDE NEVER HAPPENED, FOR A REASON THE HANDOVER DID NOT HAVE.** Every one of the twelve
+supervisors logged `staggering start by NNNNs` at 16:25:49Z — h3 3620 s, deepseek 3640 s, glm 3660 s,
+qwen3.6 3680 s, qwen3.5 3700 s, haiku 3720 s, gpt 3740 s, nemotron 3760 s, sonnet 3780 s, gemini
+3800 s, kimi 3820 s. **The twelve supervisors start together and then sleep ~60-64 minutes on a
+spread schedule before launching a driver.** Only `core` launched immediately. So "twelve lines
+relaunched in one second" describes the SUPERVISORS, not the load — the anti-stampede design
+absorbed exactly the event it was built for. **This is the reassuring half of RUN18 §0.5 confirmed by
+measurement rather than by hope, and it is why no hand relaunch was performed.**
+
+### 131.2 THE CAMPAIGN ITSELF: UNTOUCHED, AND THE CRITICAL PATH IS RUNNING
+
+Verified on the cluster (one gated ssh): **648 jobs, 188 running / 460 queued.** Nemotron's g5 — the
+LAST generation of the registered K=5x6, the arm that pins the COMMON RUNG for all twelve lines —
+**is alive: 83088 (p01), 83089 (p02), 83091 (p04) all RUNNING**, at 2.94 h / 2.78 h / 2.38 h of a
+15.0 h wall. Those are the 3 survivors of the 5 submitted (c2 and c4 were gate-rejected). The reboot
+killed the local driver and touched nothing on the cluster, exactly as predicted.
+
+**THE TWO OPEN REPAIRS, both still in flight:**
+
+* **gpt-5.6-luna seeds 192/193 — job 83464 (`leg6_leg_gpt_5_6_luna_sweep_t3_r1`) is STILL QUEUED**
+  (submitted 15:01:13Z; no `usage` line, so it has never started). **gpt therefore still banks rung
+  189.**
+* **deepseek `placebo_shuffled` seeds 16-23 — job 72732 RUNNING at `cpu=98:31:04` on 8 slots =
+  12.3 h of a 15.0 h `h_rt`.** ~2.7 h of headroom. Inside D19's band and tightening. Not killed.
+
+⚠ **A CORRECTION TO THE HANDOVER'S PHRASING.** RUN18 §8 records gpt as "missing seeds 192/193". Per
+ARM the holes are asymmetric: `distributional` [193], `placebo_shuffled` [192], and `placebo` /
+`scalar` / `scalar_cvar5` [192, 193] — **8 records, the same total, but no arm is missing exactly
+"192 and 193".** The line-level summary flattened a per-arm fact. It changes no conclusion; it is
+recorded because a summary that loses the arm dimension is how a repair gets mis-targeted.
+
+### 131.3 P230 — `sci=OK` WAS PRINTED BY A CYCLE WHOSE SCIENCE LAYER PRODUCED NOTHING AT ALL
+
+**This is the token the cadence contract names an invariant: *"`drift=0` and `sci=OK` are the only
+two that must never change."*** It was computed as
+
+```python
+broken = [k for k in _HARD_ZERO if science.get(k)]
+sci    = "OK" if not broken else "!" + ",".join(broken)
+```
+
+`science.get(k)` returns **None** when a science tool timed out or its output failed to parse, and
+**None is falsy** — so a cycle in which both archive tools died contributed nothing to `broken` and
+the headline token read **OK**.
+
+**MEASURED, NOT INFERRED: 3 green-but-blind cycles in 4,774** — `10:26:51Z`, `10:28:50Z` and
+`16:25:51Z`, each carrying `sci=OK` beside `r115=None` and, in the alert block, `sci records
+sw=None/ra=None ... leaks=None cross-arm=None hash=None non-finite=None`. **TWO OF THE THREE PREDATE
+THE REBOOT**, so this is a standing defect, not a crash artefact. All three occurred under load —
+i.e. precisely when the check is most worth having — and the sweep grows with the archive, so the
+rate can only rise.
+
+**THE ATTN LINE DID SAY "BLIND UNTIL FIXED". THAT IS NOT A DEFENCE:** ATTN lines land in
+`ALERTS.txt`, while `sci=` is what `CYCLE_LOG.md` carries, and `CYCLE_LOG.md` is the file a session
+is instructed to read on the first tool call of every batch.
+
+**FIXED** by extracting `docs/ops/cycle.py::_sci_token` — three outcomes, never two: `!keys` if any
+invariant is BROKEN, `BLIND(n/8)` if any was NEVER READ, and `OK` only when all eight were read and
+read zero. It is a named function specifically so the falsification calls the production rule rather
+than re-implementing it. New `docs/ops/test_cycle.py`, **13/13**, whose case **D1 pins the PRE-FIX
+rule returning `OK` on a fully blind layer and D2 asserts production now DISAGREES with it** — a
+mutation control, not a smoke test. `session_preflight` compares `sci == "OK"` by equality, so BLIND
+correctly degrades that row to FAIL instead of passing.
+
+### 131.4 P231 — THE MONITORING LOOP CAME BACK UNDER THE WRONG INTERPRETER, AND ONE CHECK WENT BLIND
+
+`cycle_loop.sh` invoked a bare `python`. Started by hand from the repo, the profile resolves that to
+`.venv`; **started by the boot task via `mode_d_launch.ps1` it resolves to the BASE interpreter**,
+`C:\Users\User\AppData\Local\Programs\Python\Python311`, which has **no psutil and no numpy**, while
+the venv has psutil 7.2.2.
+
+**THE EVIDENCE IS RUNTIME, NOT INFERENCE — and a command line cannot settle it, because
+`.venv/Scripts/python.exe` re-execs and REPORTS the base path.** The decisive fact is that the
+process itself said so: `psutil unavailable — the stale-lock check is BLIND this cycle` appears in
+`ALERTS.txt` **exactly twice, at 16:40:07Z and 16:48:36Z, and never once in the preceding 139 hours.**
+The interpreter changed silently underneath a monitor that had been healthy for days, and the only
+symptom was one check quietly degrading to blind.
+
+**FIXED** in `docs/ops/cycle_loop.sh`: `PY=".venv/Scripts/python.exe"`, used for both `cycle.py`
+invocations, with a guard that **exits 1 with a stated reason** if it is absent. It deliberately does
+**not** fall back to `python` — a silent fallback would restore the exact defect being fixed. Pinned
+in `docs/ops/` rather than in `scripts/mode_d_launch.ps1` because `scripts/**` is drift-fenced while
+live, and because a monitor should not depend on its caller's environment at all.
+
+**VERIFIED LIVE:** the loop was reduced to one and relaunched at ~17:03Z on the venv; `psutil
+unavailable` has not recurred in any block since, the sweep fell 855.4 s to 92.8-159.0 s, and
+`budget` went 99 back to 2.
+
+### 131.5 P232 — A CRASHED WATCHER WAS INDISTINGUISHABLE FROM "A CONFIRMATORY CANDIDATE WAS LOST"
+
+**The most consequential finding of the session, and it fired twice for real.**
+
+`cycle.py` check 4b raises a RED when `sandbox_gap_watch.py` returns 1:
+
+> *"sandbox_gap: a reward on a CONFIRMATORY path has MANIFESTED the SAFE_BUILTINS allowlist gap ...
+> decide with Tamer whether that candidate is re-authored."*
+
+The watcher returned **1 for CRITICAL** — and **Python exits 1 on any unhandled exception.** So a
+watcher that CRASHED raised an alert whose prescribed response is a scientific intervention on the
+confirmatory line of a frozen, pre-registered, irreplaceable campaign.
+
+**AND `cycle.py` CARRIED A GUARD FOR EXACTLY THIS THAT COULD NOT FIRE.** Its own comment reads *"A
+WATCHER THAT CANNOT RUN IS ITSELF A FINDING ... Without this branch a broken sandbox_gap_watch would
+simply stop watching and NOTHING would say so"* — but the branch was `elif _gap_rc not in (0, 1)`,
+and the crash code sat **inside the tuple it excluded.**
+
+**IT MANIFESTED THE SAME DAY, VIA P231.** Under the post-reboot base interpreter, `_safe_names()`
+imports `src.sandbox.executor`, which imports numpy, which is absent — so the watcher died and exited
+1, and the RED fired at **16:40:07Z and 16:48:36Z**. **THE ALERT WAS FALSE.** Re-measured by hand:
+
+```
+BASE interpreter : rc=1   ModuleNotFoundError: No module named 'numpy'   (a crash)
+VENV interpreter : rc=0   OK: no confirmatory-path manifestation (13 latent)
+```
+
+The true state is the one §100.31 already documents: **3 manifestations, ALL on LEG lines**
+(`search_leg_qwen3_5_9b` scalar 49.983 % and placebo 9.996 %, `search_leg_haiku_4_5` distributional
+4.998 %), and **13 LATENT of which 10 sit on confirmatory paths — latent, and harmless until a
+try-block actually raises.** No confirmatory candidate was lost.
+
+⚠ **A HYPOTHESIS I HELD AND THEN REFUTED, recorded because the refutation is the point.** I first
+suspected the verdict was `os.walk`-order dependent, since the watcher dedupes by
+`reward_source_hash` and classifies from whichever record it reaches first. **Measured instead of
+argued: of 16 gap-carrying programs, 0 span more than one lane, 0 have records that disagree about
+manifestation, and 0 are order-sensitive.** The hypothesis was wrong; the real mechanism was the
+exit code.
+
+**FIXED — the states are now disjoint BY CONSTRUCTION, not by string matching:**
+
+```
+0  clean          3  CRITICAL          4  BLIND (allowlist unobtainable)          1  crashes ONLY
+```
+
+`scan()` is wrapped so that a failure to build the allowlist returns **4 with a stated cause**
+instead of a bare traceback — the measuring stick failing means nothing was measured, which must
+never read as clean. `cycle.py` now tests `if _gap_rc == 3`, with `elif _gap_rc != 0` catching
+everything else, and the alert text carries an instruction to re-run the watcher by hand under the
+venv before acting on it.
+
+**FALSIFIED ON ALL THREE PATHS:** base to **4** (was 1), venv to **0**, and CRITICAL forced by
+temporarily admitting a real leg manifestation into `CONFIRMATORY_LANES` to **3**. ruff clean; both
+files compile under both interpreters.
+
+### 131.6 THE h3 / gemini "STOPPED PROGRESSING" RED IS A REBOOT ARTEFACT THAT SELF-HEALS
+
+`cycle.py` excludes COMPLETED lines from the stalest-driver alarm via
+`session_preflight.line_terminal_state_by_tag`, which requires the supervisor log's last meaningful
+line to end `line supervisor exiting.`. **The boot task relaunched the supervisors for the two
+COMPLETE lines, appending `staggering start by ...`** — so the predicate returns MISSING, the
+exclusion lapses, and `driver_h3.log is 845 min stale ... that line has stopped progressing (D14)`
+goes RED against a line that **finished 568/568**. `stalest` jumped from 1.1 m to 845-882 m for the
+same reason.
+
+**NOT A DEFECT TO FIX, AND DELIBERATELY NOT INTERVENED IN:** when each stagger elapses the supervisor
+launches one driver, which finds the ladder complete, exits 0 `LINE COMPLETE`, the supervisor exits,
+and the predicate returns COMPLETE again. Due at **h3 17:26:09Z, nemotron 17:28:29Z, gemini
+17:29:09Z**. The P202 gold re-verification cost is one pass per line, not a loop — `watchdog_fenced`
+still suppresses further revivals — and `loginnode_guard` is watching it.
+
+### 131.7 A FILESYSTEM ANOMALY WORTH KNOWING: ONE DRIVER LOG'S mtime IS 50 MINUTES BEHIND ITS CONTENT
+
+`driver_nemotron-3-super.log` reads `mtime 16:31:53 local` while its last content line is `17:21:20`.
+Measured across all twelve drivers, **every other log's mtime equals its last content timestamp
+exactly; nemotron is the only one that disagrees** — consistent with NTFS deferring the
+directory-entry timestamp for a file held open and losing that update in the unclean shutdown.
+
+**CONSEQUENCE, and it is in the safe direction:** the `stalest` alarm and the P209 freshness check
+read **mtime**, so for the CRITICAL-PATH line they understate freshness by ~50 min — biased toward
+crying stale early, never toward missing a real stall. **The true fact: nemotron's driver last wrote
+at 16:21:20Z, ~2 min before the reboot, at `g5: 0/5 done, 3 pending, round 1`.** It died in the
+reboot as expected, and its supervisor relaunches it at 17:28:29Z.
+
+### 131.8 WHAT WAS VERIFIED
+
+```
+SEVEN RECORD LAYERS  RC=0  at 9,540 records
+   L1 31s · L2 79s · L3 107s · L4 1s · L5 42s · L6 40s · L7 41s
+M1 authoring reliability RC=0 · M2 r115 RC=1 (DISCLOSED, by design) · M3 seed completeness RC=1 (mid-fill)
+line_balance CLEAN -- every line below the deepest rung has work in flight or queued
+crash_watchdog CLEAN · transport OK · loginnode_guard comfortable throughout
+drift=0 both arms · freeze canonical hash MATCHES · repro 8 pass / 0 warn / 0 fail
+records 9,380 -> 9,509 during the session · spend $45.4852 · C: 46.6 GB free
+```
+
+**S15's eleven holes are ALL mid-fill:** deepseek `placebo_shuffled` (job 72732 running), gpt's five
+arms (job 83464 queued), and `qwen3_5_9b`'s five arms at frontier 413-414 with n=84-114 — that line
+has dozens of `leg4_..._sweep_*` jobs RUNNING. **`line_balance` reads CLEAN, so the actionable case
+(hole + ZERO running AND ZERO queued) occurs nowhere.**
+
+**MONITORS RESTORED, STAGGERED, WITH THE LOGIN NODE RE-CHECKED BETWEEN EACH:** `loginnode_guard`
+first (it is the penalty warning itself), then `crash_watchdog`, `myriad_watch`, `line_balance`,
+`sentinel`, and `campaign_backup` on the RUN 4 roots.
+
+### 131.9 THE DUPLICATE LOOPS THE HANDOVER WARNED ABOUT WERE MOSTLY A CENSUS ARTEFACT
+
+RUN18 §0.4 reported 5 `cycle_loop`, 6 `publish_*`, 2 `watchdog_fenced`. **Measured by ancestry rather
+than by pattern count: there was ONE cycle loop, ONE watchdog, ONE publish loop.** The apparent
+duplicates are process CHAINS — `bash -lc` to `nohup` to `cycle_loop.sh` to the command-substitution
+subshells to `cycle.py` — the same P225 shape (`nohup -> venv stub -> base interpreter`) that
+produced a false duplicate-monitor alarm in RUN 17. `session_preflight` itself reported `2 cycle
+loops ... pids=[23668, 23936]`, and **23668 was the waiting `bash -lc` PARENT of 23936's tree, not a
+second loop** — it had already exited by the time I went to kill it. The corroborating evidence is
+decisive and free: **one `cycle.py` process, and one line per cycle in `CYCLE_LOG.md`.** Five racing
+loops would have produced five.
+
+**⇒ THE STANDING LESSON, THIRD SESSION RUNNING: a process census by COMMAND-LINE PATTERN counts
+chains, not instances. Resolve PPIDs before believing a duplicate count — and prefer a functional
+witness (how many log lines actually appeared?) over a process count.**
+
+### 131.10 MY OWN ERRORS THIS SESSION
+
+**P233 — I PUT BACKTICKS AND COMMAND SUBSTITUTION INSIDE A HEREDOC IN A `bash -c` STRING** while
+writing this very section, and the shell died with `unexpected EOF while looking for matching quote`.
+That is the FIFTH occurrence across three sessions of the defect RUN18 §10 names in bold, with the
+countermeasure stated mechanically: **write the content to a FILE with the Write tool, then append
+it with a short script.** Blast radius NIL (the command did not execute), but the rule exists because
+the previous four occurrences were NOT nil — one published a page with four mangled sentences and
+one silently deleted a word from the handoff. **I should have used the file route from the start.**
+
+**A HYPOTHESIS ASSERTED BEFORE IT WAS TESTED (no P-number; caught by my own next command).** In
+§131.5 I proposed that the sandbox_gap verdict was `os.walk`-order dependent and began writing it up
+as the mechanism. Measuring it refuted it outright (0 of 16 programs order-sensitive). The habit that
+saved it was measuring the premise rather than the conclusion — but the honest record is that I was
+one step from banking a wrong cause for a real symptom.
+
+### 131.11 THE SHAPE OF ALL THREE DEFECTS
+
+RUN 16's lesson was *absent data becoming a definite verdict*. RUN 17's was *an instrument failing
+silently toward reassurance*. **RUN 18's three are the same family — and one of them points the other
+way, which is what makes it worth naming:**
+
+| | direction of failure | what it would have cost |
+|---|---|---|
+| **P230** `sci=OK` while blind | toward REASSURANCE | a monitored campaign that was not being monitored |
+| **P231** wrong interpreter | toward REASSURANCE | one check blind, and it CAUSED P232 |
+| **P232** crash code == alarm code | toward **FALSE ALARM** | re-authoring a candidate on the confirmatory line of a frozen campaign |
+
+**THE UNIFYING RULE THIS EARNS:**
+
+> **A VERDICT CHANNEL MUST NOT SHARE A VALUE WITH A FAILURE CHANNEL.** `None` must not share a
+> truth-value with `0`; a crash exit code must not share an integer with a CRITICAL verdict; a
+> command line must not be trusted to report which interpreter is running. In every one of the three,
+> the instrument had a correct *idea* — and the ENCODING threw away the distinction it depended on.
+> **Reserve a value for "I could not tell", and make it impossible to confuse with an answer.**
