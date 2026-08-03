@@ -85,8 +85,11 @@ def parse_ts(s: str) -> float:
 def live_job_ids() -> set[str]:
     if _LIVE_OVERRIDE is not None:
         return set(_LIVE_OVERRIDE)
+    # P204, same nesting invariant as _qacct_has_trace below: this must stay strictly under the
+    # caller's timeout (cycle.py:907 = 300 s) or the outer kill orphans this ssh. 90 s matches the
+    # timeout cycle.py already uses for its own direct `qstat` and is ~60x the measured 1.5 s cost.
     out = subprocess.run(["ssh", "-o", "BatchMode=yes", "myriad", "qstat -u ucestes"],
-                         capture_output=True, text=True, timeout=300)
+                         capture_output=True, text=True, timeout=90)
     ids = set()
     for ln in out.stdout.splitlines()[2:]:
         f = ln.split()
@@ -113,9 +116,26 @@ def has_qacct_trace(job_ids: list[str]) -> bool | None:
     if not job_ids:
         return None
     q = "; ".join(f"qacct -j {j} 2>/dev/null | head -1" for j in job_ids[:6])
+    # ⚠ THIS TIMEOUT MUST STAY STRICTLY BELOW THE CALLER'S (P204, 2026-08-03).
+    #
+    # It was 300 s and `cycle.py:907` runs this script with timeout=300, so the OUTER timeout could
+    # never lose the race. When it fired, cycle.py killed THIS PYTHON PROCESS and Windows did not
+    # cascade the kill to its ssh grandchild: the ssh survived, ORPHANED, still running six
+    # `qacct -j` scans of the 33 GB /opt/sge/default/common/accounting file with nobody left to read
+    # a byte of its output. Measured 2026-08-03: one such orphan alive 8.8 minutes, holding an
+    # ssh-gate slot and burning login-node CPU -- the exact resource whose overuse auto-penalised
+    # this account at 00:33:47Z. It also starved the monitoring cycle itself, which went 7 minutes
+    # without writing a line while the DEAD-loop threshold is 150 s.
+    #
+    # At 120 s the INNER timeout always wins, and `subprocess.run` then kills ssh.exe -- which is
+    # this process's DIRECT child, so that kill does land. Shortening it is safe in the only
+    # direction that matters: a timeout returns None, which this function's contract renders as
+    # UNKNOWN, and UNKNOWN is never reported as vanished (see the docstring above). A slow qacct can
+    # therefore only make the detector quieter, never make it fire falsely.
+    _SSH_TIMEOUT_SECS = 120
     try:
         out = subprocess.run(["ssh", "-o", "BatchMode=yes", "myriad", q],
-                             capture_output=True, text=True, timeout=300)
+                             capture_output=True, text=True, timeout=_SSH_TIMEOUT_SECS)
     except Exception:
         return None
     if out.returncode not in (0, 1):

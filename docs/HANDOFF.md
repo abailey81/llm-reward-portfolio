@@ -19,13 +19,13 @@
 ```yaml
 handoff_state:
   regenerated_utc: "2026-08-03"
-  head: "1b8f9da2"
+  head: "5198633f"
   frozen: true
   legs_n: 10
   amendments_through: R115
-  suite_status: "RUN 15 closes -> docs/RUN16_SESSION_PROMPT.md (662 lines, mandatory-reading gate). Core line restarted, bayes_opt resumed at c25."
+  suite_status: "RUN 16: P202 h3 completed-line churn (278 revivals) FIXED + selftest 21/21; P203 line census (11-of-12 read OK) FIXED; P204 orphaned qacct ssh / nested timeouts FIXED; P205 adaptive DEAD threshold. gemini-2.5-flash FINISHED THE FULL 568 LADDER (2,840 records, 5 arms balanced). Six record layers ALL RC=0 at 6,665+. Myriad 0 error jobs, 2,304 slots. D31 open: repo watchdog unfixed and it is what a REBOOT starts."
   gate_checks: 23
-  backup_branch: backup-2026-07-28
+  backup_branch: backup-2026-08-03-run16
 ```
 
 | Fact | Value |

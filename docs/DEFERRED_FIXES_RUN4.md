@@ -1874,3 +1874,73 @@ populations twice (PBO enumeration / DSR multiplicity pool).
 the directories would make the archive shrink relative to `D:\llm_rp_archive_mirror` and trip
 `mirror_archive.ps1`'s shrink guard, halting the backup. One line in `_walk` suffices: skip a child
 whose parent already carries a `record.json`.
+
+---
+
+## RUN 16 (2026-08-03) — one deferred fix and two deliberate non-actions
+
+### D31 — `scripts/mode_d_watchdog.ps1` STILL REVIVES COMPLETED LINES, AND IT IS WHAT A REBOOT STARTS
+
+**THE DEFECT (P202, execution record §115.1).** `scripts/mode_d_watchdog.ps1:88` computes
+`$dead = $lines | Where-Object { $alive -notcontains $_ }` — revival decided by supervisor-process
+ABSENCE alone. A line that FINISHES exits 0, its supervisor logs `LINE COMPLETE` and exits, and the
+watchdog therefore cannot distinguish a finished line from a crashed one. Measured on `h3`: **278
+revivals in ~31 hours**, each re-running a driver that sha256-verifies ~36.8 MB of remote gold on a
+shared UCL login node before exiting 0 again.
+
+**WHY IT IS NOW URGENT RATHER THAN COSMETIC.** Every line ends this way, and lines have started
+ending: `h3` finished 2026-08-01, `gemini-2.5-flash` finished 2026-08-03 at 03:48:39Z. As the
+remaining ten finish, an unfixed watchdog produces twelve concurrent churn loops against the login
+node whose overuse already auto-penalised this account once (00:33:47Z, 2026-08-03).
+
+**WHY IT IS DEFERRED.** `scripts/**` is inside the live-run drift pathspec
+(`git diff <running-sha> HEAD -- src scripts config prompts` must stay empty), so it cannot be edited
+while RUN 4 is live. `docs/ops/watchdog_fenced.ps1` carries the fix today and is the watchdog
+currently running.
+
+**⚠ THE FIX DOES NOT SURVIVE A REBOOT.** The boot task `LLMRewardCampaignResume` launches
+`scripts\mode_d_watchdog.ps1`, NOT `docs/ops/watchdog_fenced.ps1`. **After any reboot the churn
+returns.** Until D31 lands, the reboot procedure must also, by hand:
+```
+powershell -ExecutionPolicy Bypass -File docs\ops\watchdog_fenced.ps1 -IntervalSecs 300 ^
+  -OutDir outputs\campaign_cluster_run4 -RemoteRoot ~/Scratch/llmrp4 ^
+  -ExcludeHosts node-d00a-230,node-d00b-024
+```
+and STOP the repo watchdog the boot task started — **never run both**, or two watchdogs race to revive
+the same line and start duplicate supervisors.
+
+**THE FIX, when a relaunch window opens.** Port `Get-LineTerminalState` from
+`docs/ops/watchdog_fenced.ps1` verbatim (it is already parser-validated, ASCII-only and covered by a
+21-case selftest that extracts the predicate from the real source file). Three states, and the
+reasoning that keeps D12 intact is in the fenced file's header — do not re-derive it:
+`COMPLETE` (>=2 CONSECUTIVE trailing `driver exited 0 - LINE COMPLETE`) and `GATE`
+(last outcome `driver exited 3`) are not revived; everything else is, exactly as today.
+
+**ALSO RETIRE THE STALE PREMISE.** `docs/ops/watchdog_fenced.ps1`'s original reason for existing —
+that the repo watchdog lacked `-ExcludeHosts` — **is no longer true**: RUN 10 applied that on
+2026-08-01 and `scripts/mode_d_watchdog.ps1:52` now carries the parameter. Once D31 lands, the fenced
+copy has no remaining purpose and should be retired to a single watchdog.
+
+### NOT DONE ON PURPOSE (1) — `ssh_reaper.ps1` LEFT IN DRY RUN
+
+It runs without `-Apply`, so it kills nothing, and its `$MinAgeSecs = 3600` means the P204 orphan
+(8.8 min) would never have been eligible anyway. **Deliberately not switched to APPLY.** Its own
+header records that the retired reaper killed 13 processes during RUN 4, at least some of them LIVE
+transport children whose parent lookup merely failed. On an irreplaceable campaign, the cost of one
+wrong kill exceeds the benefit of automatic orphan cleanup — and with P204 fixed the orphan SOURCE is
+gone, so this is now a monitoring gap rather than a safety gap.
+
+**⚠ AND DO NOT READ ITS QUIET LOG AS EVIDENCE.** It only logs a candidate once age > 3600 s, so
+orphans living 5-60 minutes are invisible to it. Its one logged orphan is the documented age=6 s false
+positive from 2026-07-31. The historical frequency of sub-hour ssh orphans is **UNMEASURED**, not low.
+
+### NOT DONE ON PURPOSE (2) — the transient `cycle_loop_dupes` FALSE POSITIVE
+
+`session_preflight.py`'s dupes check fired once with `cycle_loops=2` when only one loop existed. The
+cause is a race: `cycle_loop.sh` runs `out=$(python docs/ops/cycle.py ...)`, and a command-substitution
+subshell inherits the parent's command line, so it is a second candidate for a moment; the check drops
+children whose PARENT is also a candidate, which fails if the parent link is momentarily unresolvable.
+Three consecutive re-runs showed `cycle_loops=1`. **A flickering FAIL trains people to ignore FAILs**,
+which is the exact failure this session exists to fix, so it should be hardened — the intended rule is
+that a duplicate loop is a PERSISTENT condition, so require the extra loop to be older than ~60 s.
+Left for the next session because an auditor was mid-review of that file.

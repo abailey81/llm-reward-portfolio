@@ -16808,3 +16808,173 @@ unchanged but for archive growth). Cores at 1,976 with 84 reachable is a through
 
 **⇒ PRIORITY ORDER FOR TAMER IS UNCHANGED:** D29 + DISM first (it is what unlocks max seeds), then the
 single supervisor restart carrying BOTH `--pool db` and a narrower `--pack`, then `qdel`.
+
+---
+
+## 115. RUN 16 (2026-08-03) — A COMPLETED LINE LOOKED EXACTLY LIKE A CRASHED ONE, AND THE FLEET COUNTER COULD NOT COUNT
+
+**PAST.** RUN 15 closed at 6,403 records with `docs/RUN16_SESSION_PROMPT.md`, twelve lines reported
+up, and `core/bayes_opt` just restarted. Tamer opened this session with *"Some stuff crashed. Thats
+exactly why I have told claude code sessions to very deeply and strictly monitor everything
+constantly ... please abbsolutely always monitor absolutely everything in this campaign very depely
+and strictly"*, and later *"Please make sure you study every file in thsi project very deeply, all
+processes, the whole thing going on on myriad, absolutely everything."*
+
+**PRESENT.** He was right that something had crashed, and the truth was worse than a crash: a line
+had FINISHED, the fleet had no way to tell that from dying, and the monitor that should have said so
+was structurally unable to count. Five defects, two of them mine.
+
+### 115.1 P202 — THE `h3` LINE COMPLETED ON 2026-08-01 AND WAS THEN REVIVED 278 TIMES
+
+`docs/ops/watchdog_fenced.ps1` decided "dead line" by supervisor-process ABSENCE alone. A supervisor
+that finishes breaks out of its retry loop and exits (`scripts/mode_d_supervisor.ps1:292`,
+`driver exited 0 - LINE COMPLETE`), **so a completed line and a crashed line present identically.**
+
+```
+h3 completed its full 568-seed ladder      2026-08-01 20:27:46
+revivals since                             278   (~every 4.7 min for ~31 h)
+each revival re-ran a driver that          sha256-verified the remote gold on a SHARED LOGIN NODE
+gold volume per revival                    ~36.8 MB of parquet
+```
+
+**WHY IT WAS INVISIBLE.** Nothing counted the lines (P203), the campaign kept producing records from
+the other eleven, and `crash_watchdog.py` was correct to stay silent because h3 had not crashed. The
+only visible trace was `supervisor_h3.log` growing to 206 KB, which nothing reads.
+
+**IT WAS A TIME BOMB, NOT AN h3 QUIRK.** Every line ends this way. **Proved the same session:**
+`gemini-2.5-flash` completed its full 568-seed ladder at 03:48:39Z, hours after the fix went in, and
+was correctly suppressed after one confirmation revival instead of beginning a second churn.
+
+**THE FIX IS ABOUT DEMONSTRATED FUTILITY, NOT ABOUT TRUSTING EXIT 0** — that distinction is what
+keeps D12 intact. D12 (`mode_d_supervisor.ps1:293-301`) exists because six legs once reported
+"LINE COMPLETE" HAVING PRODUCED NOTHING, so a completion claim is not self-certifying. Therefore a
+first completion still earns exactly ONE confirmation revival; only if that revival ALSO returns an
+immediate completion is the line suppressed — because repeating an action that changed nothing cannot
+change anything — and it then RAISES AN ALARM. A false complete is escalated to a human instead of
+being hidden inside a 5-minute loop, which is strictly better than the old behaviour.
+
+**AND IT COMPLETES D12 RATHER THAN CONTRADICTING IT.** `scripts/mode_d_watchdog.ps1:1-21` explains
+that absence-based revival was chosen because a review-gate stop *used to return 0* and was therefore
+indistinguishable from completion. **D12 removed that ambiguity on 2026-08-01** by returning 3 for a
+gate stop — but neither watchdog was updated, and `mode_d_supervisor.ps1:303-306` even asserts that
+breaking at the gate "does NOT trigger an automatic revival ... verified in mode_d_watchdog.ps1 /
+docs/ops/watchdog_fenced.ps1". **That assertion was false in both watchdogs.** It is now true in the
+fenced one; the repo one is drift-fenced and is registered as **D31**.
+
+Selftest: 21/21, extracting the predicate FROM THE REAL SOURCE FILE rather than a copy (the P193/P196
+lesson), with mutation controls proving the CONSECUTIVE rule is load-bearing, and a case K asserting
+that **no currently-working line is suppressed.** Case K is what caught gemini's completion live.
+
+### 115.2 P203 — THE PROCESS CENSUS PASSED WITH ELEVEN LINES OF TWELVE, AND WOULD HAVE PASSED WITH ONE
+
+`docs/ops/session_preflight.py:130` read `OK if (loops and sent and sups) else FAIL` — **`sups` merely
+non-empty.** So `supervisors=11` against a twelve-line roster printed `[ OK ]`, and so would
+`supervisors=1`. That is why P202 survived 31 hours: the board was green because the board could not
+count. A census that cannot count is not a census.
+
+New `_check_line_census` reads the roster FROM `scripts/mode_d_launch.ps1` (never hardcoded, so a line
+added to the fleet cannot be missing from the thing that counts the fleet) and separates the three
+meanings of an absent supervisor: MISSING (dead, no recorded reason) = FAIL, GATE (rc=3, needs a
+human) = ATTENTION, COMPLETE = expected. It now prints
+`roster=12 up=10 COMPLETE=h3,gemini-2.5-flash`.
+
+### 115.3 P204 — NESTED TIMEOUTS OF EQUAL LENGTH LEFT AN ORPHANED `qacct` BURNING LOGIN-NODE CPU
+
+`docs/ops/cycle.py:907` runs `vanished_array_watch.py` with `timeout=300`; that script's own ssh calls
+also used `timeout=300`. **The outer timeout can never lose the race**, and when it fired, cycle.py
+killed the Python child while Windows did NOT cascade the kill to its ssh grandchild.
+
+```
+measured 2026-08-03  ssh orphan alive 8.8 min, parent gone, running
+                     6 x qacct -j over /opt/sge/default/common/accounting = 33 GB
+consequence 1        sustained CPU on a shared login node -- the exact resource whose
+                     overuse auto-penalised this account at 00:33:47Z
+consequence 2        the monitoring cycle went 7 minutes without a line (sweep=440.9s)
+                     against a 150 s DEAD threshold
+```
+
+Inner timeouts are now 120 s (qacct) and 90 s (qstat), strictly below the caller's 300 s, so the inner
+timeout wins and `subprocess.run` kills ssh.exe — which IS its direct child, so that kill lands.
+Shortening is safe in the only direction that matters: a timeout returns None, the function's contract
+renders that as UNKNOWN, and UNKNOWN is never reported as vanished. A slow qacct can only make the
+detector quieter, never make it fire falsely. The orphan was killed (read-only query, consumer dead).
+**Every other cycle sub-instrument was checked for the same shape; only `record_provenance_seal.py`
+nests a timeout at all (300 inner under 900 outer), which is correct.**
+
+### 115.4 P205 — THE DEAD-LOOP ALARM WAS ON A CONSTANT THAT THE DESIGN GUARANTEES WILL BE CROSSED
+
+`CYCLE_STALE_S = 150.0` is fixed, but `cycle_loop.sh`'s own header states the sweep opens every record
+every cycle and *"WILL LENGTHEN AS THE ARCHIVE GROWS ... the sweep will take minutes ... That is NOT a
+fault."* At 6,600 of a projected ~42,000 records, sweeps already run 50-68 s with SSH/science cycles at
+98-101 s. **This alarm was going to go permanently red — which is precisely how P202 hid inside
+`guards=2`.** Adding a second always-on alarm to the board would repeat the mistake this session
+exists to fix.
+
+The loop is now judged against ITS OWN recent behaviour, floored at the mandate's 150 s and capped at
+900 s so a silent loop is always reported within 15 minutes.
+
+**MY FIRST VERSION OF THIS FIX WAS ITSELF WRONG, IN THE PERMISSIVE DIRECTION.** I used the MAX of the
+last 12 sweeps, so the single pathological 440.9 s sweep from P204 pushed the budget to **1,413 s** — a
+dead loop would have gone unreported for 23 minutes. An adaptive threshold that any single outlier can
+blind is worse than the constant it replaces. It now uses the SECOND-worst, which tolerates the
+recurring SSH/science spike while a lone anomaly still trips the alarm once — the correct outcome,
+because that sweep WAS wrong. Caught by reading my own output instead of accepting the `[ OK ]`.
+
+### 115.5 P206 — I TOOK A SEARCH TOOL'S SILENCE AS EVIDENCE OF ABSENCE
+
+`find . -name '*watchdog*'` and the Glob tool BOTH returned only `watchdog.log`, omitting
+`docs/ops/watchdog_fenced.ps1` and `docs/ops/crash_watchdog.py` — a file I had run successfully
+minutes earlier. I briefly recorded that the running watchdog's script "no longer exists on disk",
+which would have made the reviver unfindable and the defect unfixable. `ls docs/ops/` and
+`git ls-files` both showed it immediately.
+
+**LESSON: a negative result from a search tool is a claim about the TOOL first.** This is the same
+shape as P197 (a determinism check that compared nothing) — absence of output is not evidence of
+absence, and it must be confirmed by a second, independent route before being written down.
+
+### 115.6 P207 — I REPORTED A PROCESS PILEUP THAT DID NOT EXIST, FROM A FILTER THAT MATCHED ITSELF
+
+I reported "7 concurrent `publish_status.sh` instances ... a live pileup hitting the login node."
+**There was no pileup.** Two independent errors compounded:
+
+**(a) THE QUERY MATCHED ITS OWN COMMAND LINE.** A `Win32_Process` filter matching `publish_status`
+also matches the PowerShell process running that very query, because the pattern is IN its command
+line. I did this **three times** in one session — on the watchdog, on publish_status, and on the
+gemini supervisor, where it invented a live supervisor for a line that had actually completed.
+
+**(b) A bash SCRIPT IS A PROCESS CHAIN, NOT A PROCESS.** `publish_status.sh` runs as a
+parent -> child -> grandchild chain of `bash.exe` all carrying the same command line, so one logical
+invocation counts as three. Measured properly: **one loop, one invocation, 2 ssh.**
+
+`session_preflight.py:99-105` already documents this exact trap — *"a loose match also matches THIS
+PROCESS'S OWN QUERY. Both have invented processes for three separate sessions"* — and drops children
+of the same class. **I had read that docstring and still hand-rolled a query without its two
+defences.** LESSON: use the instrument that already encodes the trap; when a hand-rolled process count
+disagrees with `session_preflight`, the hand-rolled one is wrong.
+
+### 115.7 WHAT WAS VERIFIED CLEAN, AND THE MILESTONE
+
+**THE RECORDS — all six layers re-run at 6,665+ records, ALL RC=0** (Tamer's standing item 1):
+R1-R9 CLEAN 6,665 · seal P1-P4 CLEAN 6,666 (one `git_commit` archive-wide) · S1-S10 CLEAN 6,664 ·
+S11 fed-text CLEAN on 1,138 fed texts · S12 6,671/6,671 pass the live sandbox gate · S13 V1-V5 CLEAN.
+The differing totals are archive growth during a sequential run plus the known D18 exclusion —
+**verified, not assumed: exactly 2 nested duplicates exist, both search-tier, zero in the sealed
+test.** `record_science_audit` excludes them; `record_provenance_seal` does not; 6,666 - 6,664 = 2.
+
+**THREE STRANDED RECORDS IN TWO STALE `.pull_tmp` DIRS — NO DATA LOSS.** All three are byte-identical
+(md5) to their committed counterparts; the pull is idempotent and re-pulled them. Left in place: they
+are dot-prefixed and excluded from the instruments, and this archive is irreplaceable.
+
+**MYRIAD, swept in ONE ssh session with NO qacct:** 0 error/held/suspended jobs, 288 running / 2,304
+slots, 697 queued, Scratch 19 G of 1.0 T (2%), 6,622 remote records, and essentially nothing of ours
+resident on the login node. `c1_bayes` confirmed running — the RUN 15 `bayes_opt` restart held.
+
+**THE MILESTONE: `gemini-2.5-flash` IS THE FIRST LINE TO FINISH THE FULL LADDER.**
+`[campaign] TIERED OK — 7 tiers, sizes [30, 70, 89, 90, 61, 63, 165]` sums to **568**, and the archive
+agrees exactly: **568 records on each of all five arms, 2,840 total, perfectly balanced.** Rung 568 is
+the registered maximum. No treatment outcome was read and none should be.
+
+**FUTURE.** D31 (the repo watchdog carries the P202 defect and is what the BOOT TASK starts, so a
+reboot reinstates the churn) · the transient `cycle_loop_dupes` false positive · `ssh_reaper` is in
+DRY RUN with a 3600 s minimum age, deliberately left off · line balance remains the binding lever on
+the reported rung, unchanged.

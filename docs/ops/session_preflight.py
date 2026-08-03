@@ -35,7 +35,9 @@ RUN = REPO / "outputs" / "campaign_cluster_run4"
 CYCLE_LOG = REPO / "docs" / "ops" / "watch" / "CYCLE_LOG.md"
 MIRROR = Path("D:/llm_rp_archive_mirror/campaign_cluster_run4")
 DISK_FLOOR_GB = 20.0          # same floor scripts/sentinel.py::check_disk enforces
-CYCLE_STALE_S = 150.0         # the mandate's "~2 minutes"
+CYCLE_STALE_S = 150.0         # the mandate's "~2 minutes" — a FLOOR, never the whole test (P205)
+CYCLE_SLEEP_S = 30.0          # cycle_loop.sh INTERVAL default; the sleep between sweeps
+CYCLE_BUDGET_CAP_S = 900.0    # however slow sweeps get, a silent loop is reported within 15 min
 
 OK, ATTN, FAIL = "OK", "ATTENTION", "FAIL"
 _rows: list[tuple[str, str, str]] = []
@@ -75,9 +77,46 @@ def check_cycle_log() -> None:
     age = time.time() - calendar.timegm(time.strptime(m.group(1), "%Y-%m-%dT%H:%M:%SZ"))
     fields = dict(re.findall(r"(\w+)=([^\s]+)", last))
     drift, sci = fields.get("drift", "?"), fields.get("sci", "?")
-    st = OK if age <= CYCLE_STALE_S else FAIL
-    add("cycle_log", st, f"{age:.0f}s old (dead >{CYCLE_STALE_S:.0f}s) · records={fields.get('records','?')} "
-                         f"drift={drift} sci={sci}")
+    # ⚠ THE THRESHOLD MUST TRACK THE SWEEP, NOT BE A CONSTANT (P205, 2026-08-03).
+    #
+    # A fixed 150 s was already wrong and was guaranteed to get worse. `cycle_loop.sh`'s own header
+    # states the design intent: the sweep opens every record every cycle, so it "WILL LENGTHEN AS THE
+    # ARCHIVE GROWS ... at C4's full seed ladder the sweep will take minutes and the effective cadence
+    # will be sweep-bound, not sleep-bound. That is NOT a fault." Measured 2026-08-03 at 6,600 of a
+    # projected ~42,000 records: ordinary sweeps 50-68 s, and the SSH/science cycles 98-101 s. Against
+    # a 150 s constant this check therefore fires on healthy cycles TODAY and would sit permanently
+    # red long before the campaign ends.
+    #
+    # That matters more than a cosmetic false alarm. A permanently red signal is how the h3 crash
+    # (P202) stayed invisible for 31 hours: `guards=2` had been red for days, so a NEW fault inside it
+    # changed nothing observable. Adding a second always-on alarm to this board would repeat exactly
+    # the mistake this session exists to fix.
+    #
+    # So the loop is judged against ITS OWN recent behaviour: three times the recent worst period
+    # (sweep + sleep), floored at the mandate's 150 s so it can never become more permissive than the
+    # standing rule. A loop that has genuinely stopped still trips it, because the age then grows
+    # without bound while the threshold stays fixed to the sweeps already on record.
+    # ⚠ DROP THE SINGLE WORST SWEEP, and cap the result. Taking a plain max was this check's own
+    # first bug: the one pathological 441 s sweep of 2026-08-03 (an orphaned qacct, P204) pushed the
+    # budget to 1,413 s, so a loop that died would have gone unreported for 23 minutes. An adaptive
+    # threshold that any single outlier can blind is worse than the constant it replaced. Using the
+    # SECOND-worst tolerates the recurring SSH/science spike (~1 cycle in 12-30, 98-101 s) while a
+    # lone anomaly still trips the alarm once, which is the correct outcome -- that sweep WAS wrong.
+    # The cap is a backstop: if sweeps ever legitimately approach it, the cadence itself needs
+    # revisiting rather than the alarm being widened again.
+    sweeps = sorted(float(x) for x in re.findall(r"sweep=([0-9.]+)s", CYCLE_LOG.read_text(
+        encoding="utf-8", errors="replace"))[-12:])
+    if sweeps:
+        ref = sweeps[-2] if len(sweeps) >= 2 else sweeps[-1]
+        budget = min(CYCLE_BUDGET_CAP_S, max(CYCLE_STALE_S, 3.0 * (ref + CYCLE_SLEEP_S)))
+        basis = (f"3x(2nd-worst of last {len(sweeps)} sweeps={ref:.0f}s "
+                 f"+ sleep {CYCLE_SLEEP_S:.0f}s), cap {CYCLE_BUDGET_CAP_S:.0f}s")
+    else:
+        budget = CYCLE_STALE_S
+        basis = "no sweep timings on record"
+    st = OK if age <= budget else FAIL
+    add("cycle_log", st, f"{age:.0f}s old (dead >{budget:.0f}s = {basis}) · "
+                         f"records={fields.get('records','?')} drift={drift} sci={sci}")
     # drift and sci are the two that must NEVER change
     add("drift_sci", OK if (drift == "0" and sci == "OK") else FAIL,
         f"drift={drift} sci={sci} (both are invariants; a transient drift=N around your own "
@@ -133,6 +172,104 @@ def check_processes() -> None:
         add("cycle_loop_dupes", FAIL,
             f"{len(loops)} cycle loops — two writers race the same '>>' append and TEAR lines "
             f"in ALERTS.txt. Kill all but one.")
+
+    _check_line_census(procs)
+
+
+def _check_line_census(procs) -> None:
+    """Per-line accounting: WHICH lines are up, and is an absent one dead or finished?
+
+    ⚠ WHY THIS EXISTS (2026-08-03, defect P203). `processes` above passes whenever `sups` is
+    merely NON-EMPTY, so ELEVEN supervisors out of twelve rated OK — and one out of twelve
+    would too. That is what let the h3 line sit outside the fleet for 31 hours while the
+    watchdog revived it 278 times (P202). A census that cannot count is not a census.
+
+    An absent supervisor has three very different meanings and they must not be merged:
+      MISSING  — nothing says it stopped on purpose. A genuinely dead line. FAIL.
+      COMPLETE — it ran out of work and exited 0. Expected; every line ends this way.
+      GATE     — it stopped at the review gate (rc=3) and is waiting for a human. ATTENTION.
+
+    The roster is READ FROM `scripts/mode_d_launch.ps1`, never hardcoded here, so a line added
+    to the fleet cannot be silently missing from the thing that counts the fleet.
+
+    ⚠ COUPLED TO `docs/ops/watchdog_fenced.ps1`: it uses the same three-way predicate to decide
+    revival. The duplication is DELIBERATE — the watchdog is the actor and this is an
+    INDEPENDENT observer, so reading the watchdog's own verdict would go blind the moment the
+    watchdog itself died. If you change one predicate, re-check the other.
+    """
+    launcher = os.path.join(REPO, "scripts", "mode_d_launch.ps1")
+    try:
+        with open(launcher, "r", encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+    except OSError as exc:
+        add("line_census", ATTN, f"cannot read the roster from mode_d_launch.ps1: {exc}")
+        return
+    m = re.search(r"\$lines\s*=\s*@\((.*?)\)", src, re.S)
+    if not m:
+        add("line_census", ATTN, "could not parse $lines from mode_d_launch.ps1 — roster unknown")
+        return
+    roster = re.findall(r'"([^"]+)"', m.group(1))
+    if not roster:
+        add("line_census", ATTN, "roster parsed as EMPTY from mode_d_launch.ps1")
+        return
+
+    alive = set()
+    for _pid, _ppid, nm, cl in procs:
+        if "powershell" in nm and re.search(r"-File .*mode_d_supervisor\.ps1", cl):
+            hit = re.search(r"-Line\s+(\S+)", cl)
+            if hit:
+                alive.add(hit.group(1))
+
+    out_dir = os.path.join(REPO, "outputs", "campaign_cluster_run4")
+    missing, complete, gate = [], [], []
+    for line in roster:
+        if line in alive:
+            continue
+        state = _line_terminal_state(out_dir, line)
+        {"COMPLETE": complete, "GATE": gate}.get(state, missing).append(line)
+
+    bits = [f"roster={len(roster)} up={len(alive)}"]
+    if complete:
+        bits.append("COMPLETE=" + ",".join(complete))
+    if gate:
+        bits.append("REVIEW-GATE=" + ",".join(gate))
+    if missing:
+        bits.append("MISSING=" + ",".join(missing))
+    status = FAIL if missing else (ATTN if gate else OK)
+    if missing:
+        bits.append("-- a MISSING line is dead with no recorded reason; relaunch it")
+    if gate:
+        bits.append("-- a REVIEW-GATE line needs a human decision, not a relaunch")
+    add("line_census", status, "  ".join(bits))
+
+
+def _line_terminal_state(out_dir: str, line: str) -> str:
+    """Why is this line's supervisor absent? See _check_line_census for the three answers.
+
+    Fail-safe: anything unreadable or unrecognised returns MISSING, so a parsing gap raises an
+    alarm instead of quietly excusing a dead line.
+    """
+    safe = re.sub(r"[^a-zA-Z0-9_-]", "_", line)   # EXACTLY mode_d_supervisor.ps1:81
+    path = os.path.join(out_dir, f"supervisor_{safe}.log")
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            tail = fh.readlines()[-400:]
+    except OSError:
+        return "MISSING"
+    outcomes = [ln for ln in tail if "driver exited" in ln]
+    if not outcomes:
+        return "MISSING"
+    if "driver exited 3" in outcomes[-1]:
+        return "GATE"
+    # CONSECUTIVE trailing completions only: a line that completed in an earlier episode and was
+    # later restarted by hand must not be excused on the strength of that old history.
+    consec = 0
+    for ln in reversed(outcomes):
+        if "driver exited 0 - LINE COMPLETE" in ln:
+            consec += 1
+        else:
+            break
+    return "COMPLETE" if consec >= 2 else "MISSING"
 
 
 def check_reboot_recovery() -> None:
