@@ -17782,3 +17782,63 @@ operation on a live, un-rerunnable campaign, whose effect was at that point unve
 the action that must never be taken unilaterally. The standing rule *"NEVER lower SGE priority"* now
 has a measured justification it did not previously carry: **it is inert when it works and permanent
 when it lands.**
+
+---
+
+## 122. RUN 16 — "WHY ARE WE DECREASING IN CORES": TWO EFFECTS SUPERIMPOSED, NEITHER A FAULT
+
+**Tamer:** *"why are we decreasing in cores"*. Measured rather than guessed.
+
+### 122.1 THE DECLINE IS REAL
+
+```
+T+128h32m  2320 cores          T+132h02m  1944
+T+130h50m  2272                T+132h15m  1872
+T+131h13m  2184                T+132h25m  1776
+```
+About **-560 cores in under four hours**, and steepening.
+
+### 122.2 EFFECT ONE — A COMPLETION WAVE, WHICH IS THROUGHPUT ARRIVING, NOT LEAVING
+
+Cores fell while **records ACCELERATED**:
+```
+records/h   last 3h 309.3   ->   last 1h 436.8   ->   last 30m 469.1
+gpt-5.6-luna per-arm depth   this morning 101..125   ->   now 330..362
+```
+`leg6` submitted its whole remaining ladder in one line-major block (the s.105.7 pattern), so its
+jobs all started inside one window (08-02 17:50 to 08-03 04:51) and are now **completing in a wave
+~15 h later**. Every pack-8 job that exits releases 8 slots AND delivers 8 records at once. **Cores
+down and records up is the SIGNATURE of a completion wave** — the opposite of a stall, and the
+reason the naive reading of the cores figure is backwards.
+
+⚠ They are COMPLETING, not being killed at `h_rt`. Proof is the record count: gpt climbed ~230 seeds
+per arm across five arms during the decline. A walltime kill produces no record.
+
+### 122.3 EFFECT TWO — COMPETITION ROSE, AND FAIR-SHARE REALLOCATED
+
+```
+queue Bran used   8,108  ->  8,396        free 4,472 -> 4,184
+slots by user     ucestes 1752 (STILL #1) | ucessod 952 | ucecgwh 944
+                  ucbtjji  680  <- absent from the earlier top-six | uccaewo 672 | uctpec1 640
+```
+Cluster usage rose by 288 slots while ours fell by ~560, and `ucbtjji` now holds 680 slots having not
+appeared in the earlier top-six by job count. **Under the functional fair-share proved in s.120
+(`weight_tickets_functional` 500000000 against `share` 10000, `weight_user` 1.0), more active users
+means a smaller share each.** This is that mechanism observed operating, not a new problem.
+
+**Nothing is broken on our side:** `qalter -w p` on a pending `leg8` job still returns *"found
+possible assignment with 8 slots"*, and 621 jobs remain queued and ready to absorb capacity the
+moment share allows.
+
+### 122.4 WHAT IT MEANS FOR THE ETA, AND WHAT TO DO
+
+**Nothing to do — no lever exists.** s.121 closed every reordering route by measurement, and s.120
+established that our allocation is set by policy we cannot influence. If `ucbtjji` sustains ~680
+slots, our steady-state share drops on the order of 15-25%, which stretches the s.117 estimate from
+~6-7 days toward ~7-9. **Against ~24 days remaining that is still 3x margin**, and the completion
+wave is currently delivering ABOVE the long-run average, not below it.
+
+**THE OPERATIONAL LESSON, and it is the session's recurring one in a new costume:** a single number
+read without its partner tells the opposite story. Cores alone said "we are losing"; cores WITH
+records said "we are collecting". `RUN4_STATUS.md` shows cores prominently and the record rate only
+as a total — which is why this question arose at all. **A rate belongs next to every level.**
