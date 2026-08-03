@@ -283,7 +283,15 @@ def _line_terminal_state(out_dir: str, line: str) -> str:
     Fail-safe: anything unreadable or unrecognised returns MISSING, so a parsing gap raises an
     alarm instead of quietly excusing a dead line.
     """
-    safe = re.sub(r"[^a-zA-Z0-9_-]", "_", line)   # EXACTLY mode_d_supervisor.ps1:81
+    return line_terminal_state_by_tag(out_dir, re.sub(r"[^a-zA-Z0-9_-]", "_", line))
+
+
+def line_terminal_state_by_tag(out_dir: str, safe: str) -> str:
+    """`_line_terminal_state` keyed by the already-normalised log tag (mode_d_supervisor.ps1:81).
+
+    PUBLIC because `cycle.py` needs the same answer for a `driver_<tag>.log` it found by glob, and
+    a third copy of this predicate is exactly how the two would come to disagree about one fact.
+    """
     try:
         with open(os.path.join(out_dir, f"supervisor_{safe}.log"),
                   "r", encoding="utf-8", errors="replace") as fh:

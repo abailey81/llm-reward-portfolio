@@ -182,7 +182,10 @@ function Announce([string]$lineName, [string]$state, [string]$msg) {
     $watchDir = Join-Path $repo "docs\ops\watch"
     if (Test-Path $watchDir) {
         Add-Content -Path (Join-Path $watchDir "WATCHDOG_LINES.log") -Value (
-            "{0} {1}" -f (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"), $msg)
+            # Get-Date returns LOCAL time and the trailing Z in a format string is a LITERAL, so
+            # "-Format ...ssZ" stamps local time and calls it UTC. It logged 04:13:14Z when UTC was
+            # 03:13:14Z. A forensic log for an irreplaceable campaign must not lie about its clock.
+            "{0} {1}" -f (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"), $msg)
     }
 }
 

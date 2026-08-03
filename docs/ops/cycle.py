@@ -811,7 +811,31 @@ def main() -> int:
 
     # 6. driver-log freshness
     now = time.time()
-    ages = {p.name: round((now - p.stat().st_mtime) / 60.0, 1) for p in sorted(ROOT.glob("driver*.log"))}
+    # ⚠ A FINISHED LINE IS NOT A STALLED ONE (P209, 2026-08-03). This is a max over every
+    # driver*.log mtime, and a line that has COMPLETED its ladder never writes again — so its age
+    # grows without bound and this alert fires forever, with a message that blames D14 ("that line
+    # has stopped progressing") for a line that in fact SUCCEEDED.
+    #
+    # It was masked until today by a defect: the h3 line finished on 2026-08-01 but was being
+    # revived every ~5 minutes (P202), and each pointless revival TOUCHED ITS DRIVER LOG, keeping
+    # this counter fresh. Stopping the churn is what exposed this. Measured minutes afterwards:
+    # h3 56.5 min and gemini-2.5-flash 32.0 min against a 30 min threshold, while all ten working
+    # lines sat at 0.0-2.5 min. Left alone, this becomes the next permanently red signal — the same
+    # `guards=2` saturation that let P202 hide for 31 hours.
+    #
+    # Completed lines are therefore excluded, using the SAME predicate the watchdog and the
+    # preflight use, imported rather than re-derived so the three cannot come to disagree. The
+    # import is guarded: this runs inside the live monitoring loop, and a monitor that dies on an
+    # ImportError is worse than one that over-reports.
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from session_preflight import line_terminal_state_by_tag
+        _complete = {p.name for p in ROOT.glob("driver*.log")
+                     if line_terminal_state_by_tag(str(ROOT), p.stem[len("driver_"):]) == "COMPLETE"}
+    except Exception:                                    # noqa: BLE001 — never let this kill a cycle
+        _complete = set()
+    ages = {p.name: round((now - p.stat().st_mtime) / 60.0, 1)
+            for p in sorted(ROOT.glob("driver*.log")) if p.name not in _complete}
     stalest_name, stalest = ("", 0.0)
     if ages:
         stalest_name, stalest = max(ages.items(), key=lambda kv: kv[1])

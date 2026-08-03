@@ -157,6 +157,29 @@ escape-hatch message named the wrong filename for 9 of 12 lines · the `cycle_lo
 delta exactly that one path; `mode_d_launch.ps1`, `cycle_loop.sh`, `publish_loop.sh` and both host
 exclusions all intact; `reboot_recovery` still passes). **Preflight VERDICT: OK across the board.**
 
+### ⑩ P209 — STOPPING THE CHURN UNMASKED THE NEXT PERMANENTLY-RED ALARM
+
+`cycle.py`'s driver-freshness check is a **max over every `driver*.log` mtime** alerting above 30 min.
+**A COMPLETED line never writes again**, so its age grows without bound and the alert fires forever —
+blaming D14, *"that line has stopped progressing"*, for a line that **succeeded**. It was masked by
+the very defect fixed here: P202's revivals **touched `driver_h3.log` every ~5 minutes**, keeping the
+counter fresh. Measured minutes after the churn stopped: **h3 56.5 min, gemini 32.0 min, both already
+over the 30 min threshold, while all ten working lines sat at 0.0-2.5 min.** Left alone this becomes
+the next `guards=2`. *A fix that removes noise can also remove noise that was accidentally suppressing
+a second alarm — check what goes QUIET, not only what goes green.* Completed lines are now excluded
+using the **same predicate imported from `session_preflight`, not re-derived**, so the watchdog, the
+preflight and the cycle cannot disagree; the import is guarded so a monitor never dies on it.
+Verified: **`stalest` fell 53.8 min -> 3.2 min** on the next cycle.
+
+### ⑪ TWO SMALLER DEFECTS OF MINE, FROM READING MY OWN OUTPUT
+
+**A forensic log that lied about its clock:** `Get-Date -Format "...ssZ"` stamps **local** time with a
+**literal** Z, so `WATCHDOG_LINES.log` recorded `04:13:14Z` when UTC was `03:13:14Z`. On a campaign
+whose logs are the write-up's primary sources, a one-hour lie in a timestamp is not cosmetic. Fixed and
+verified against real UTC. **The escape hatch named a file that does not work:** the message said
+`REVIVE_<line>` while the code tests `REVIVE_<safe>` (dots → underscores), so for **9 of 12 lines**
+following it literally would have done nothing, silently. It now prints the real filename.
+
 **FUTURE.** **D31** — the repo watchdog carries the P202 defect **and is what the BOOT TASK starts, so
 a reboot reinstates the churn**; until it lands, any reboot must relaunch `watchdog_fenced.ps1` by hand
 and stop the repo one (never both). Also open: the transient `cycle_loop_dupes` false positive;

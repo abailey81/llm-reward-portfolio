@@ -17061,3 +17061,48 @@ requires three-way corroboration, but it means a false COMPLETE would still show
 cycle budget is capped at 900 s; if sweeps legitimately reach ~300 s at full C4 the cap will bind and
 `cycle_log` becomes a standing FAIL, which is the very pathology it was written to avoid — revisit
 the cadence then rather than widening the alarm again.
+
+### 115.9 P209 — STOPPING THE CHURN UNMASKED THE NEXT PERMANENTLY-RED ALARM, AND IT WOULD HAVE BLAMED THE WRONG DEFECT
+
+`cycle.py`'s driver-log freshness check takes a **max over every `driver*.log` mtime** and alerts
+above `STALE_DRIVER_MINUTES = 30`. **A line that has COMPLETED its ladder never writes again**, so
+its age grows without bound, the alert fires forever, and its message blames D14 — *"that line has
+stopped progressing"* — for a line that in fact **succeeded**.
+
+**IT WAS MASKED BY THE VERY DEFECT THIS SESSION FIXED.** h3 finished on 2026-08-01, but P202 revived
+it every ~5 minutes and **each pointless revival touched `driver_h3.log`**, keeping the counter
+fresh. Stopping the churn is what exposed it. Measured minutes later:
+
+```
+driver_h3.log                 56.5 min      <- COMPLETE, will never write again
+driver_gemini-2_5-flash.log   32.0 min      <- COMPLETE, will never write again
+every one of the ten working lines   0.0 - 2.5 min
+threshold                            30 min
+```
+
+Both completed lines were **already over the threshold**. Left alone this becomes the next
+`guards=2`: a standing red signal that trains the reader to ignore the board — the exact saturation
+that let P202 hide for 31 hours. *A fix that removes noise can also remove the noise that was
+accidentally suppressing a second alarm; check what goes quiet, not only what goes green.*
+
+Completed lines are now excluded, using the **same predicate imported from `session_preflight`
+rather than re-derived**, so the watchdog, the preflight and the cycle cannot come to disagree about
+one fact. The import is guarded by `try/except`: this runs inside the live monitoring loop, and a
+monitor that dies on an `ImportError` is worse than one that over-reports. Verified end to end —
+`stalest` fell from **53.8 min to 3.2 min** on the next cycle, and the three modules agree line by
+line.
+
+### 115.10 TWO SMALLER DEFECTS OF MINE, FOUND BY READING MY OWN OUTPUT
+
+**A FORENSIC LOG THAT LIED ABOUT ITS CLOCK.** My `Announce` used
+`Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"`. `Get-Date` returns **local** time and a trailing `Z` in a
+format string is a **literal character**, so `WATCHDOG_LINES.log` stamped local time and labelled it
+UTC — it recorded `04:13:14Z` when UTC was `03:13:14Z`. On an irreplaceable campaign whose logs are
+the write-up's primary sources, a one-hour lie in a timestamp is not cosmetic. Now
+`(Get-Date).ToUniversalTime().ToString(...)`, verified against real UTC after the restart.
+
+**THE ESCAPE HATCH NAMED A FILE THAT DOES NOT WORK.** The operator message said to create
+`REVIVE_<line>`, but the code tests `REVIVE_<safe>` with dots normalised to underscores — so for
+nine of the twelve lines, following the instruction literally would have done **nothing, silently**.
+The message now prints the real filename and directory: `REVIVE_gemini-2_5-flash`, not
+`REVIVE_gemini-2.5-flash`.
